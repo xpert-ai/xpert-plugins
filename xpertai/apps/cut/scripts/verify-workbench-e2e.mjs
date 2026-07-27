@@ -123,25 +123,50 @@ try {
       id: 'embedded-audio-video', type: 'video', name: 'Embedded audio video', start: 0, duration: 3,
       trimIn: 0, trimOut: 3, previewUrl: '/test.wav', volume: .5, playbackRate: 1,
       transform: { x: 0, y: 0, width: 1920, height: 1080, rotation: 0, opacity: 1 }
+    }, {
+      id: 'future-embedded-audio-video', type: 'video', name: 'Future embedded audio video', start: 1, duration: 2,
+      trimIn: 0, trimOut: 2, previewUrl: '/test.wav', volume: .5, playbackRate: 1,
+      transform: { x: 0, y: 0, width: 1920, height: 1080, rotation: 0, opacity: 1 }
     })
     window.__cutHost.item.revision++
   })
   await frame.getByRole('button', { name: 'Reload', exact: true }).click()
-  await frame.locator('.stage-shell video').waitFor({ timeout: 10_000 })
-  const embeddedVideoAudioPreview = await frame.locator('.stage-shell video').evaluate((video) => video.muted === false && video.volume === .5)
+  const activeEmbeddedVideo = frame.locator('.stage-shell video[data-preview-clip-id="embedded-audio-video"]')
+  const futureEmbeddedVideo = frame.locator('.stage-shell video[data-preview-clip-id="future-embedded-audio-video"]')
+  await activeEmbeddedVideo.waitFor({ timeout: 10_000 })
+  await futureEmbeddedVideo.waitFor({ state: 'attached', timeout: 10_000 })
+  const embeddedVideoAudioPreview = await activeEmbeddedVideo.evaluate((video) => video.muted === false && video.volume === .5)
   await frame.getByRole('button', { name: 'Play', exact: true }).click()
   await page.waitForTimeout(100)
-  const embeddedVideoAudioPlaying = await frame.locator('.stage-shell video').evaluate((video) => {
+  const embeddedVideoAudioPlaying = await activeEmbeddedVideo.evaluate((video) => {
     return video.paused === false && (video.muted === false || video.dataset.previewAudioRoute === 'web-audio')
   })
+  const futureVideoParked = await futureEmbeddedVideo.evaluate((video) => {
+    return video.paused === true && video.currentTime < .1 && video.dataset.previewActive === 'false'
+  })
+  await frame.locator('.stage-shell video[data-preview-clip-id="future-embedded-audio-video"][data-preview-active="true"]').waitFor({ timeout: 5_000 })
+  await page.waitForTimeout(100)
+  const futureVideoStartedAtCut = await futureEmbeddedVideo.evaluate((video) => {
+    return video.paused === false
+      && video.currentTime < .5
+      && (video.muted === false || video.dataset.previewAudioRoute === 'web-audio')
+  })
+  if (!embeddedVideoAudioPreview || !embeddedVideoAudioPlaying || !futureVideoParked || !futureVideoStartedAtCut) {
+    throw new Error(`Cut embedded-audio cut playback is invalid: ${JSON.stringify({
+      embeddedVideoAudioPreview,
+      embeddedVideoAudioPlaying,
+      futureVideoParked,
+      futureVideoStartedAtCut
+    })}`)
+  }
   await frame.getByRole('button', { name: 'Pause', exact: true }).click()
   await page.evaluate(() => {
-    window.__cutHost.document.tracks[0].clips = window.__cutHost.document.tracks[0].clips.filter((clip) => clip.id !== 'embedded-audio-video')
+    window.__cutHost.document.tracks[0].clips = window.__cutHost.document.tracks[0].clips.filter((clip) => !['embedded-audio-video', 'future-embedded-audio-video'].includes(clip.id))
     window.__cutHost.item.revision++
   })
   await frame.getByRole('button', { name: 'Reload', exact: true }).click()
   await frame.locator('.stage-shell video').waitFor({ state: 'detached', timeout: 10_000 })
-  console.log('cut-e2e: embedded video audio preview verified')
+  console.log('cut-e2e: embedded video audio and pre-rolled cut playback verified')
 
   await frame.getByText('cut-e2e.wav', { exact: true }).click()
   await frame.getByRole('button', { name: 'AI media analysis: cut-e2e.wav', exact: true }).click()
@@ -406,6 +431,8 @@ try {
     unicodeUploadFileName: uploadOriginalName === '记录—Xpert访谈.wav',
     embeddedVideoAudioPreview,
     embeddedVideoAudioPlaying,
+    futureVideoParked,
+    futureVideoStartedAtCut,
     localMediaIntelligence,
     libraryHeaderAndContentScroll: mediaPanelTitle === 'Library' && headerSearchVisible && paneOwnsScroll,
     classicToolRail: classicToolTabCount === 10,

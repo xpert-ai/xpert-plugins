@@ -96,13 +96,7 @@ export default {
     productionByProject: {
       'project-1': productionFixture()
     },
-    renderByProject: {},
     handoffByProject: {},
-    renderCapability: {
-      available: true,
-      backend: 'sandbox-job',
-      runtimeProfile: 'browser/video-playwright-1.61/v1'
-    },
     requestDataCount: 0,
     actions: [],
     notifications: [],
@@ -111,6 +105,37 @@ export default {
     failNextAction: false
   },
   async handleRequest(message, { state }) {
+    if (message.type === 'requestFileAccess') {
+      const candidate = Object.values(state.productionByProject)
+        .flatMap((production) => [
+          ...production.assets.flatMap((asset) => asset.candidates),
+          ...production.scenes.flatMap((scene) =>
+            scene.shots.flatMap((shot) => shot.candidates)
+          )
+        ])
+        .find((item) => item.id === message.fileKey)
+      if (!candidate) {
+        throw new Error('Preview media candidate was not found.')
+      }
+      return {
+        data: {
+          url:
+            candidate.fileUrl ??
+            (candidate.kind === 'image'
+              ? 'data:image/png;base64,iVBORw0KGgo='
+              : 'data:video/mp4;base64,AAAA'),
+          expiresAt: '2026-07-25T13:00:00.000Z',
+          fileName:
+            candidate.originalName ??
+            `${candidate.id}.${candidate.kind === 'image' ? 'png' : 'mp4'}`,
+          mimeType:
+            candidate.mimeType ??
+            (candidate.kind === 'image' ? 'image/png' : 'video/mp4'),
+          size: candidate.size ?? 4
+        }
+      }
+    }
+
     if (message.type === 'requestData') {
       state.requestDataCount += 1
       const query = message.query ?? {}
@@ -337,40 +362,6 @@ export default {
           }
         }
       }
-      if (message.actionKey === 'start_render') {
-        const input = message.input ?? {}
-        const render = {
-          id: '00000000-0000-4000-8000-000000000099',
-          projectId: input.projectId,
-          sourceRevision: input.expectedRevision,
-          status: 'queued',
-          progress: 0,
-          stage: 'queued',
-          quality: input.quality,
-          fps: input.fps,
-          fileName: input.fileName,
-          filePath: null,
-          fileUrl: null,
-          mimeType: 'video/mp4',
-          size: null,
-          checksum: null,
-          errorMessage: null,
-          createdAt: '2026-07-25T12:10:00.000Z',
-          completedAt: null
-        }
-        state.renderByProject[input.projectId] = render
-        state.actions.push({
-          actionKey: message.actionKey,
-          projectId: input.projectId,
-          renderId: render.id
-        })
-        return {
-          result: {
-            success: true,
-            data: { render }
-          }
-        }
-      }
       if (message.actionKey === 'prepare_cut_handoff') {
         const input = message.input ?? {}
         const current = state.projects.find(
@@ -528,8 +519,6 @@ function workbenchData(items, detail, total, page, pageSize, state) {
     },
     detail,
     production: detail ? state.productionByProject[detail.id] ?? null : null,
-    render: detail ? state.renderByProject[detail.id] ?? null : null,
-    renderCapability: state.renderCapability,
     handoff: detail ? state.handoffByProject[detail.id] ?? null : null
   }
 }
@@ -631,7 +620,7 @@ function productionFixture() {
                 kind: 'video',
                 label: '记忆包裹 Seedance 成片',
                 selected: true,
-                fileUrl: null,
+                fileUrl: 'data:video/mp4;base64,AAAA',
                 workspacePath: '/workspace/story-studio/project-1/package.mp4',
                 originalName: 'package.mp4',
                 mimeType: 'video/mp4',
@@ -670,7 +659,7 @@ function productionFixture() {
                 kind: 'video',
                 label: '越过潮线 Seedance 成片',
                 selected: true,
-                fileUrl: null,
+                fileUrl: 'data:video/mp4;base64,AAAA',
                 workspacePath:
                   '/workspace/story-studio/project-1/departure.mp4',
                 originalName: 'departure.mp4',

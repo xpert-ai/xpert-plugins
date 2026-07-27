@@ -1,9 +1,11 @@
 import {
   activePreviewVisualClipIds,
   audibleTimelineClips,
+  previewMediaTargetTime,
   previewNativeAudioState,
   restoreClipSourceDuration,
   shouldMountPreviewMedia,
+  shouldPlayPreviewMedia,
   shouldSeekPreviewMedia
 } from './cut-media-playback.js'
 import type { CutProjectDocument } from './types.js'
@@ -69,6 +71,29 @@ describe('Cut media playback', () => {
     expect(shouldMountPreviewMedia(clip, 0)).toBe(true)
     expect(shouldMountPreviewMedia({ ...clip, start: 10 }, 0)).toBe(false)
     expect(shouldMountPreviewMedia({ ...clip, type: 'image' }, 0)).toBe(false)
+  })
+
+  it('parks a future clip at trimIn instead of consuming it before the cut', () => {
+    expect(previewMediaTargetTime({
+      active: false,
+      playhead: 8.5,
+      clipStart: 10,
+      trimIn: 2,
+      playbackRate: 1.5
+    })).toBe(2)
+    expect(shouldPlayPreviewMedia(true, false)).toBe(false)
+  })
+
+  it('advances media from trimIn only while its timeline clip is active', () => {
+    expect(previewMediaTargetTime({
+      active: true,
+      playhead: 12,
+      clipStart: 10,
+      trimIn: 2,
+      playbackRate: 1.5
+    })).toBe(5)
+    expect(shouldPlayPreviewMedia(true, true)).toBe(true)
+    expect(shouldPlayPreviewMedia(false, true)).toBe(false)
   })
 
   it('keeps a pre-rolled future clip natively muted until its cut begins', () => {

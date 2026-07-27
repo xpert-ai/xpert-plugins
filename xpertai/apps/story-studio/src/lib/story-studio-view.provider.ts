@@ -43,10 +43,7 @@ import {
   updateStoryProjectSchema,
   updateStoryProjectStatusSchema
 } from './story-agent-tool.schemas.js'
-import {
-  saveStoryProductionSchema,
-  startStoryRenderSchema
-} from './story-production.schemas.js'
+import { saveStoryProductionSchema } from './story-production.schemas.js'
 import { prepareStoryCutHandoffSchema } from './story-cut-handoff.schemas.js'
 import { StoryCutHandoffService } from './story-cut-handoff.service.js'
 import { StoryProductionService } from './story-production.service.js'
@@ -58,10 +55,7 @@ import type {
   UpdateStoryProjectInput,
   UpdateStoryProjectStatusInput
 } from './types.js'
-import type {
-  SaveStoryProductionInput,
-  StartStoryRenderInput
-} from './production-types.js'
+import type { SaveStoryProductionInput } from './production-types.js'
 import type { PrepareStoryCutHandoffInput } from './story-cut-handoff.types.js'
 
 const moduleFilename = fileURLToPath(import.meta.url)
@@ -92,15 +86,19 @@ type StoryStudioWorkbenchData = XpertViewDataResult & {
   production: Awaited<
     ReturnType<StoryProductionService['getProduction']>
   > | null
-  render: Awaited<
-    ReturnType<StoryProductionService['getRender']>
-  > | null
-  renderCapability: Awaited<
-    ReturnType<StoryProductionService['getRenderCapability']>
-  >
   handoff: Awaited<
     ReturnType<StoryCutHandoffService['getLatestSummary']>
   >
+}
+
+type StoryStudioViewFileAccessRequest = {
+  fileKey: string
+  targetId?: string
+  purpose: 'preview' | 'download'
+}
+
+type StoryStudioViewManifest = XpertExtensionViewManifest & {
+  fileAccess: { purposes: Array<'preview'> }
 }
 
 @Injectable()
@@ -131,159 +129,174 @@ export class StoryStudioViewProvider
     }
     const fixed = slot === AGENT_WORKBENCH_FIXED_SLOT
 
-    return [
-      {
-        key: STORY_STUDIO_WORKBENCH_VIEW_KEY,
-        title: text('Story Studio', 'Story Studio 故事工作室'),
-        description: text(
-          'Review scoped story projects and their production stages.',
-          '审核有作用域的故事项目及其制作阶段。'
-        ),
-        icon: {
-          type: 'svg',
-          value: STORY_STUDIO_ICON,
-          color: '#7c3aed',
-          alt: 'Story Studio'
-        },
-        hostType: 'agent',
-        slot,
-        order: 36,
-        refreshable: true,
-        activation: {
-          requiredFeatures: [STORY_STUDIO_FEATURE]
-        },
-        ...(fixed
-          ? {
-              workbench: {
-                fixed: true,
-                menu: {
-                  enabled: true,
-                  label: text('Story Studio', '故事工作室'),
-                  order: 36,
-                  icon: {
-                    type: 'svg',
-                    value: STORY_STUDIO_ICON,
-                    alt: 'Story Studio'
-                  }
+    const manifest: StoryStudioViewManifest = {
+      key: STORY_STUDIO_WORKBENCH_VIEW_KEY,
+      title: text('Story Studio', 'Story Studio 故事工作室'),
+      description: text(
+        'Review scoped story projects and their production stages.',
+        '审核有作用域的故事项目及其制作阶段。'
+      ),
+      icon: {
+        type: 'svg',
+        value: STORY_STUDIO_ICON,
+        color: '#7c3aed',
+        alt: 'Story Studio'
+      },
+      hostType: 'agent',
+      slot,
+      order: 36,
+      refreshable: true,
+      activation: {
+        requiredFeatures: [STORY_STUDIO_FEATURE]
+      },
+      ...(fixed
+        ? {
+            workbench: {
+              fixed: true,
+              menu: {
+                enabled: true,
+                label: text('Story Studio', '故事工作室'),
+                order: 36,
+                icon: {
+                  type: 'svg',
+                  value: STORY_STUDIO_ICON,
+                  alt: 'Story Studio'
                 }
               }
             }
-          : {}),
-        source: {
-          provider: STORY_STUDIO_PROVIDER_KEY,
-          plugin: STORY_STUDIO_PLUGIN_NAME
-        },
-        view: {
-          type: 'remote_component',
-          runtime: 'react',
-          protocolVersion: 1,
-          component: {
-            isolation: 'iframe',
-            entry: STORY_STUDIO_REMOTE_ENTRY_KEY
-          },
-          dataSource: {
-            mode: 'platform'
           }
+        : {}),
+      source: {
+        provider: STORY_STUDIO_PROVIDER_KEY,
+        plugin: STORY_STUDIO_PLUGIN_NAME
+      },
+      fileAccess: {
+        purposes: ['preview']
+      },
+      view: {
+        type: 'remote_component',
+        runtime: 'react',
+        protocolVersion: 1,
+        component: {
+          isolation: 'iframe',
+          entry: STORY_STUDIO_REMOTE_ENTRY_KEY
         },
         dataSource: {
-          mode: 'platform',
-          querySchema: {
-            supportsPagination: true,
-            supportsSearch: true,
-            supportsParameters: true,
-            defaultPageSize: 20
-          },
-          cache: {
-            enabled: false
-          }
+          mode: 'platform'
+        }
+      },
+      dataSource: {
+        mode: 'platform',
+        querySchema: {
+          supportsPagination: true,
+          supportsSearch: true,
+          supportsParameters: true,
+          defaultPageSize: 20
         },
-        hostEvents: {
-          subscriptions: [
-            {
-              key: 'story-studio-tool-completed',
-              event: 'assistant.tool.completed',
-              filter: {
-                sources: ['chatkit'],
-                toolNames: [...STORY_STUDIO_MUTATION_TOOL_NAMES]
-              },
-              action: {
-                type: 'forward',
-                debounceMs: 600
-              }
+        cache: {
+          enabled: false
+        },
+      },
+      hostEvents: {
+        subscriptions: [
+          {
+            key: 'story-studio-tool-completed',
+            event: 'assistant.tool.completed',
+            filter: {
+              sources: ['chatkit'],
+              toolNames: [...STORY_STUDIO_MUTATION_TOOL_NAMES]
+            },
+            action: {
+              type: 'forward',
+              debounceMs: 600
             }
-          ]
-        },
-        clientCommands: [
-          {
-            key: ASSISTANT_CONTEXT_SET_COMMAND,
-            label: text(
-              'Set Assistant Context',
-              '设置 Assistant 上下文'
-            )
-          },
-          {
-            key: ASSISTANT_CHAT_SEND_MESSAGE_COMMAND,
-            label: text(
-              'Send Assistant Message',
-              '发送 Assistant 消息'
-            )
-          }
-        ],
-        actions: [
-          {
-            key: 'refresh',
-            label: text('Refresh', '刷新'),
-            icon: 'ri-refresh-line',
-            placement: 'toolbar',
-            actionType: 'refresh'
-          },
-          {
-            key: 'create_project',
-            label: text('New project', '新建项目'),
-            icon: 'ri-add-line',
-            placement: 'toolbar',
-            actionType: 'invoke'
-          },
-          {
-            key: 'create_demo_project',
-            label: text('Load visual demo', '载入视觉示例'),
-            icon: 'ri-movie-line',
-            placement: 'toolbar',
-            actionType: 'invoke'
-          },
-          {
-            key: 'update_project',
-            label: text('Save project details', '保存项目详情'),
-            icon: 'ri-save-line',
-            actionType: 'invoke'
-          },
-          {
-            key: 'save_production',
-            label: text('Save production', '保存制作内容'),
-            icon: 'ri-save-line',
-            actionType: 'invoke'
-          },
-          {
-            key: 'update_project_status',
-            label: text('Advance stage', '推进阶段'),
-            icon: 'ri-arrow-right-line',
-            actionType: 'invoke'
-          },
-          {
-            key: 'start_render',
-            label: text('Render storyboard', '渲染分镜视频'),
-            icon: 'ri-movie-2-line',
-            actionType: 'invoke'
-          },
-          {
-            key: 'prepare_cut_handoff',
-            label: text('Prepare Cut handoff', '准备 Cut 交接'),
-            icon: 'ri-send-plane-line',
-            actionType: 'invoke'
           }
         ]
-      }
-    ]
+      },
+      clientCommands: [
+        {
+          key: ASSISTANT_CONTEXT_SET_COMMAND,
+          label: text(
+            'Set Assistant Context',
+            '设置 Assistant 上下文'
+          )
+        },
+        {
+          key: ASSISTANT_CHAT_SEND_MESSAGE_COMMAND,
+          label: text(
+            'Send Assistant Message',
+            '发送 Assistant 消息'
+          )
+        }
+      ],
+      actions: [
+        {
+          key: 'refresh',
+          label: text('Refresh', '刷新'),
+          icon: 'ri-refresh-line',
+          placement: 'toolbar',
+          actionType: 'refresh'
+        },
+        {
+          key: 'create_project',
+          label: text('New project', '新建项目'),
+          icon: 'ri-add-line',
+          placement: 'toolbar',
+          actionType: 'invoke'
+        },
+        {
+          key: 'create_demo_project',
+          label: text('Load visual demo', '载入视觉示例'),
+          icon: 'ri-movie-line',
+          placement: 'toolbar',
+          actionType: 'invoke'
+        },
+        {
+          key: 'update_project',
+          label: text('Save project details', '保存项目详情'),
+          icon: 'ri-save-line',
+          actionType: 'invoke'
+        },
+        {
+          key: 'save_production',
+          label: text('Save production', '保存制作内容'),
+          icon: 'ri-save-line',
+          actionType: 'invoke'
+        },
+        {
+          key: 'update_project_status',
+          label: text('Advance stage', '推进阶段'),
+          icon: 'ri-arrow-right-line',
+          actionType: 'invoke'
+        },
+        {
+          key: 'prepare_cut_handoff',
+          label: text('Prepare Cut handoff', '准备 Cut 交接'),
+          icon: 'ri-send-plane-line',
+          actionType: 'invoke'
+        }
+      ]
+    }
+    return [manifest]
+  }
+
+  async resolveViewFile(
+    context: XpertResolvedViewHostContext,
+    viewKey: string,
+    request: StoryStudioViewFileAccessRequest
+  ) {
+    if (
+      viewKey !== STORY_STUDIO_WORKBENCH_VIEW_KEY ||
+      request.purpose !== 'preview' ||
+      !request.targetId
+    ) {
+      throw new Error('Story Studio file access request is invalid.')
+    }
+    return this.productionService.resolveMediaCandidateFile(
+      scopeFromContext(context),
+      request.targetId,
+      request.fileKey
+    )
   }
 
   async getRemoteComponentEntry(
@@ -363,11 +376,6 @@ export class StoryStudioViewProvider
     const production = requestedId
       ? await readProductionDetail(this.productionService, scope, requestedId)
       : null
-    const render = requestedId
-      ? await readRenderDetail(this.productionService, scope, requestedId)
-      : null
-    const renderCapability =
-      await this.productionService.getRenderCapability()
     const handoff = requestedId
       ? await this.cutHandoffs.getLatestSummary(scope, requestedId)
       : null
@@ -384,8 +392,6 @@ export class StoryStudioViewProvider
       projects,
       detail,
       production,
-      render,
-      renderCapability,
       handoff
     }
     return result
@@ -498,14 +504,6 @@ export class StoryStudioViewProvider
           refresh: true
         }
       }
-      if (actionKey === 'start_render') {
-        const input = parseStartRenderAction(request)
-        const result = await this.productionService.startRender(scope, input)
-        return {
-          ...success('Storyboard render queued', '分镜视频已加入渲染队列'),
-          data: result
-        }
-      }
       if (actionKey === 'prepare_cut_handoff') {
         const input = parsePrepareCutHandoffAction(request)
         const result = await this.cutHandoffs.prepare(scope, input)
@@ -550,19 +548,6 @@ async function readProductionDetail(
 ) {
   try {
     return await service.getProduction(scope, { projectId })
-  } catch (error) {
-    if (error instanceof NotFoundException) return null
-    throw error
-  }
-}
-
-async function readRenderDetail(
-  service: StoryProductionService,
-  scope: StoryScope,
-  projectId: string
-) {
-  try {
-    return await service.getRender(scope, { projectId })
   } catch (error) {
     if (error instanceof NotFoundException) return null
     throw error
@@ -638,26 +623,6 @@ function parseStatusAction(
       readInputString(request, 'changeSummary') ??
       'Advanced Story Studio project stage'
   }) as UpdateStoryProjectStatusInput
-}
-
-function parseStartRenderAction(
-  request: XpertViewActionRequest
-): StartStoryRenderInput {
-  return startStoryRenderSchema.parse({
-    projectId: requireInputString(request, 'projectId', 'projectId is required.'),
-    operationId: requireInputString(request, 'operationId', 'operationId is required.'),
-    expectedRevision: requireInputNumber(
-      request,
-      'expectedRevision',
-      'expectedRevision is required.'
-    ),
-    quality: readInputString(request, 'quality'),
-    fps: readInputNumber(request, 'fps'),
-    fileName: readInputString(request, 'fileName'),
-    changeSummary:
-      readInputString(request, 'changeSummary') ??
-      'Queued Story Studio storyboard render'
-  }) as StartStoryRenderInput
 }
 
 function parsePrepareCutHandoffAction(

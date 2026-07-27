@@ -21,7 +21,7 @@ source documents
   -> shots and storyboards
   -> media generation requests and candidates
   -> human selection
-  -> optional storyboard/animatic MP4
+  -> browser-side ordered clip preview
   -> versioned StoryCutHandoff v1
   -> Cut project or review proposal
   -> human-reviewed final non-linear editing
@@ -37,13 +37,12 @@ episodes, assets, storyboards, selected media, and the final Cut timeline.
 | --- | --- |
 | Identity and authorization | Xpert host |
 | Story projects and production records | Story Studio |
-| Long-running extraction and final rendering | Managed Queue |
+| Long-running source extraction | Managed Queue |
 | Source and generated files | Workspace Files |
 | Agent memory | Platform memory middleware |
 | Seedance video generation | Configured Volcengine `seedream_aigc` Toolset |
 | General visual planning | Canvas, through Assistant capabilities |
-| Storyboard/animatic MP4 | Story Studio Sandbox Action |
-| Persisted preview and immutable version | Platform Artifacts |
+| Ordered selected-video preview | Story Studio Workbench |
 | Final timeline editing and export | Cut, through Assistant tools and Workspace files |
 
 No Story Studio service may import a private Canvas, Cut, or model-plugin service.
@@ -61,21 +60,15 @@ tools, and portable Workspace file references.
   bible, characters, ordered scenes, shots, dialogue, camera, bounded timing,
   candidates, selected evidence
 - Agent surface: native Agent middleware
-- Long work: Managed Queue business record plus bounded 45-second Agent wait
-- Renderer: `story-studio.storyboard-render@1.1.0`
-- Runtime: `browser/video-playwright-1.61/v1`
-- Media staging: selected, tenant-bound portable Workspace file references are
-  mounted read-only below `media/`; the Action rejects network URLs, absolute
-  paths, and traversal before rendering.
-- Output: Workspace Files `video/mp4`, SHA-256, size, Sandbox evidence
-- Preview: immutable binary ArtifactVersion for versioning/download plus the
-  authenticated Workspace Files URL for inline `video/mp4` playback
+- Preview: the Workbench plays selected, scoped Workspace MP4 grants in shot
+  order without creating a derived file; original clip audio remains audible.
 - Concurrency: optimistic integer revision
 - Scope: tenant required; organization, workspace, host project, Assistant, and
   conversation captured when available
 - Seedance boundary: the Assistant calls the configured Volcengine Toolset;
   Story Studio validates completed task status, MP4 bytes, tenant scope,
-  revision, exact scene/shot ids, and persists an allowlisted receipt through
+  revision, exact scene/shot ids, copies the result into a durable Story Studio
+  Workspace folder, and persists an allowlisted receipt through
   `story_attach_generated_video`.
 - Cut boundary: Story Studio freezes exactly one scoped Workspace MP4 per
   ordered shot into `StoryCutHandoff v1`. Cut validates file size, MIME type,
@@ -103,8 +96,7 @@ The following contracts must be confirmed before their milestone starts:
 4. Production: structured characters, shots, storyboards, timing, consistency
    review. Complete for the coherent production-document vertical slice.
 5. Media: candidate records, Seedance Toolset dependency, completed-video
-   attachment, provider receipts, selection, secure Workspace staging, and
-   selected-video rendering complete.
-6. Delivery: optional durable animatic MP4 and `StoryCutHandoff v1` are
-   complete. Subtitles, audio mixing, effects, and final export remain Cut
-   responsibilities.
+   attachment, provider receipts, selection, secure Workspace grants, and
+   browser sequence preview complete.
+6. Delivery: `StoryCutHandoff v1` is complete. Composition, subtitles, audio
+   mixing, effects, and final export remain Cut responsibilities.

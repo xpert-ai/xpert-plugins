@@ -15,12 +15,14 @@ import type {
 } from './editor-state'
 import { StageEditor } from './stage-editor'
 import {
+  SelectedVideoPreview,
+  type SelectedVideoClip
+} from './selected-video-preview'
+import {
   type Asset,
   type Candidate,
   type HandoffView,
   type ProductionView,
-  type RenderCapabilityView,
-  type RenderView,
   type Scene,
   type Shot
 } from './production-data'
@@ -28,16 +30,12 @@ import {
 export {
   parseHandoffView,
   parseProductionView,
-  parseRenderCapability,
-  parseRenderView,
   productionActionDocument
 } from './production-data'
 export type {
   Candidate,
   HandoffView,
   ProductionView,
-  RenderCapabilityView,
-  RenderView,
   Scene,
   Shot
 } from './production-data'
@@ -102,8 +100,6 @@ const ASSET_KIND_KEYS: Record<Asset['kind'], MessageKey> = {
 
 export function ProductionPanel(props: {
   production: ProductionView | null
-  render: RenderView | null
-  capability: RenderCapabilityView | null
   handoff: HandoffView | null
   activeStage: number
   busy: boolean
@@ -119,15 +115,12 @@ export function ProductionPanel(props: {
   onUseAgentVersion: () => void
   onGenerate: () => void
   onQueryGeneration: () => void
-  onRender: () => void
   onHandoff: () => void
   onInspectorCollapsedChange: (collapsed: boolean) => void
   t: Translator
 }) {
   const {
     production,
-    render,
-    capability,
     handoff,
     activeStage,
     busy,
@@ -143,13 +136,10 @@ export function ProductionPanel(props: {
     onUseAgentVersion,
     onGenerate,
     onQueryGeneration,
-    onRender,
     onHandoff,
     onInspectorCollapsedChange,
     t
   } = props
-  const canRender = capability?.available === true
-  const rendering = render?.status === 'queued' || render?.status === 'running'
   const ready = stageContentReady(activeStage, production, handoff)
 
   return (
@@ -249,18 +239,13 @@ export function ProductionPanel(props: {
           ) : (
             <StageContent
               production={production}
-              render={render}
-              capability={capability}
               handoff={handoff}
               activeStage={activeStage}
               busy={busy}
               generating={generating}
               handingOff={handingOff}
-              canRender={canRender}
-              rendering={rendering}
               onGenerate={onGenerate}
               onQueryGeneration={onQueryGeneration}
-              onRender={onRender}
               onHandoff={onHandoff}
               t={t}
             />
@@ -298,18 +283,13 @@ export function ProductionPanel(props: {
 
 function StageContent(props: {
   production: ProductionView
-  render: RenderView | null
-  capability: RenderCapabilityView | null
   handoff: HandoffView | null
   activeStage: number
   busy: boolean
   generating: boolean
   handingOff: boolean
-  canRender: boolean
-  rendering: boolean
   onGenerate: () => void
   onQueryGeneration: () => void
-  onRender: () => void
   onHandoff: () => void
   t: Translator
 }) {
@@ -330,15 +310,10 @@ function StageContent(props: {
       return (
         <GenerationStage
           production={props.production}
-          render={props.render}
-          capability={props.capability}
-          canRender={props.canRender}
-          rendering={props.rendering}
           busy={props.busy}
           generating={props.generating}
           onGenerate={props.onGenerate}
           onQueryGeneration={props.onQueryGeneration}
-          onRender={props.onRender}
           t={props.t}
         />
       )
@@ -594,21 +569,33 @@ function StoryboardStage(props: { production: ProductionView; t: Translator }) {
 
 function GenerationStage(props: {
   production: ProductionView
-  render: RenderView | null
-  capability: RenderCapabilityView | null
-  canRender: boolean
-  rendering: boolean
   busy: boolean
   generating: boolean
   onGenerate: () => void
   onQueryGeneration: () => void
-  onRender: () => void
   t: Translator
 }) {
   const candidates = flattenShots(props.production).flatMap(({ shot }) =>
     shot.candidates.map((candidate) => ({ candidate, shot }))
   )
   const selected = candidates.filter(({ candidate }) => candidate.selected)
+  const previewClips: SelectedVideoClip[] = flattenShots(props.production)
+    .map(({ scene, shot }) => {
+      const candidate = shot.candidates.find(
+        (item) => item.selected && item.kind === 'video' && item.fileUrl
+      )
+      return candidate?.fileUrl
+        ? {
+            id: candidate.id,
+            src: candidate.fileUrl,
+            label: candidate.label,
+            sceneTitle: scene.title,
+            shotTitle: shot.title,
+            durationSeconds: shot.durationSeconds
+          }
+        : null
+    })
+    .filter((clip): clip is SelectedVideoClip => clip !== null)
   return (
     <div className="ss-generation-stage">
       <div className="ss-generation-toolbar">
@@ -628,16 +615,9 @@ function GenerationStage(props: {
           >
             {props.t('generation.queryTasks')}
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={props.busy || props.rendering || !props.canRender}
-            onClick={props.onRender}
-          >
-            {props.rendering ? props.t('render.rendering', { progress: props.render?.progress ?? 0 }) : props.t('render.start')}
-          </Button>
         </div>
       </div>
+      <SelectedVideoPreview clips={previewClips} t={props.t} />
       <div className="ss-media-grid">
         {candidates.map(({ candidate, shot }) => (
           <article className={candidate.selected ? 'is-selected' : ''} key={candidate.id}>
@@ -658,7 +638,6 @@ function GenerationStage(props: {
           </article>
         ))}
       </div>
-      <RenderCard render={props.render} capability={props.capability} t={props.t} />
     </div>
   )
 }
@@ -805,12 +784,25 @@ function MediaPreview(props: { candidate: Candidate | null }) {
   }
   if (candidate.kind === 'video') {
     return (
-      <video className="ss-media-preview" controls preload="metadata" src={candidate.fileUrl}>
+      <video
+        className="ss-media-preview"
+        controls
+        crossOrigin="use-credentials"
+        preload="metadata"
+        src={candidate.fileUrl}
+      >
         <track kind="captions" />
       </video>
     )
   }
-  return <img className="ss-media-preview" src={candidate.fileUrl} alt={candidate.label} />
+  return (
+    <img
+      className="ss-media-preview"
+      crossOrigin="use-credentials"
+      src={candidate.fileUrl}
+      alt={candidate.label}
+    />
+  )
 }
 
 function Metric(props: { label: string; value: string | number }) {
@@ -823,42 +815,6 @@ function EmptyStage(props: { t: Translator }) {
       <span>SS</span>
       <strong>{props.t('workflow.empty')}</strong>
       <p>{props.t('production.emptyHelp')}</p>
-    </div>
-  )
-}
-
-function RenderCard(props: {
-  render: RenderView | null
-  capability: RenderCapabilityView | null
-  t: Translator
-}) {
-  const { render, capability, t } = props
-  if (!capability?.available) {
-    return <div className="ss-render-warning"><strong>{t('render.unavailable')}</strong><p>{capability?.message ?? t('render.unavailableHelp')}</p></div>
-  }
-  if (!render) {
-    return <div className="ss-render-empty"><strong>{t('render.none')}</strong><p>{t('render.noneHelp')}</p></div>
-  }
-  return (
-    <div className={`ss-render-card is-${render.status}`}>
-      <div className="ss-render-meta">
-        <div><span>{t('render.latest')}</span><strong>{render.fileName}</strong></div>
-        <Badge variant="outline">{t(`render.status.${render.status}`)}</Badge>
-      </div>
-      {render.status === 'queued' || render.status === 'running' ? (
-        <div className="ss-render-progress"><i style={{ width: `${Math.max(4, render.progress)}%` }} /><span>{render.stage} · {render.progress}%</span></div>
-      ) : null}
-      {render.status === 'succeeded' && render.fileUrl ? (
-        <video controls preload="metadata" src={render.fileUrl}><track kind="captions" /></video>
-      ) : null}
-      {render.status === 'succeeded' ? (
-        <div className="ss-render-output">
-          {render.fileUrl ? <a href={render.fileUrl} target="_blank" rel="noreferrer">{t('render.open')}</a> : null}
-          <code>{render.filePath ?? render.id}</code>
-          {render.size ? <span>{formatBytes(render.size)}</span> : null}
-        </div>
-      ) : null}
-      {render.errorMessage ? <div className="ss-render-error">{render.errorMessage}</div> : null}
     </div>
   )
 }
@@ -892,12 +848,6 @@ function stageContentReady(stage: number, production: ProductionView | null, han
   if (stage === 6) return production.counts.shots > 0
   if (stage === 7) return countSelectedShotVideos(production) === production.counts.shots && production.counts.shots > 0
   return handoff?.status === 'delivered' || handoff?.status === 'proposal_ready'
-}
-
-function formatBytes(value: number) {
-  if (value < 1024) return `${value} B`
-  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`
-  return `${(value / (1024 * 1024)).toFixed(1)} MB`
 }
 
 function formatTime(value: number) {

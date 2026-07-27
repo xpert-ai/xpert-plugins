@@ -67,15 +67,6 @@ const operations = [
     access: 'write' as const
   },
   {
-    name: 'render-storyboard-video',
-    displayName: 'Render storyboard video',
-    description: text(
-      'Queue a durable storyboard MP4 from the reviewed scene and shot plan.',
-      '根据已审核的场景与镜头计划异步渲染分镜 MP4。'
-    ),
-    access: 'write' as const
-  },
-  {
     name: 'attach-seedance-video',
     displayName: 'Attach Seedance video',
     description: text(
@@ -268,7 +259,6 @@ export * from './lib/story-studio.plugin.js'
 export * from './lib/story-studio.service.js'
 export * from './lib/story-production.service.js'
 export * from './lib/story-generated-media.service.js'
-export * from './lib/story-render.processor.js'
 export * from './lib/story-studio.middleware.js'
 export * from './lib/story-studio-view.provider.js'
 export * from './lib/story-studio.templates.js'

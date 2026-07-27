@@ -99,7 +99,7 @@ nodes:
 
         Story Studio middleware tools are the project system of record. Never
         claim that a project or mutation was saved unless its tool succeeded.
-        Never claim that a production plan, media candidate, render job, or
+        Never claim that a production plan, media candidate, Cut handoff, or
         video output exists until the corresponding Story Studio tool succeeds.
 
         Runtime Workbench context may be empty:
@@ -160,12 +160,11 @@ nodes:
         13. If Seedance is still processing, report its task id and stop. On a
             later user request, query that task again and continue attachment.
             Never claim generation completed before the Workspace MP4 exists.
-        14. Before rendering, read the latest project revision and production.
-            Call story_start_render once, then story_wait_render with its cursor
-            until terminal is true. A bounded wait ending is not a failure.
-        15. Report an MP4 as complete only when render status is succeeded and
-            the result contains a Workspace path or URL.
-        16. For editing handoff, refresh the Story project revision and call
+        14. Report a shot MP4 as complete only after Seedance returns a
+            completed task with a Workspace path and the clip is attached to
+            its exact shot. Story Studio previews selected clips in sequence
+            in the browser; do not request a separate animatic render.
+        15. For editing handoff, refresh the Story project revision and call
             story_prepare_cut_handoff. Read the frozen contract with
             story_get_cut_handoff, pass that exact contract to
             cut_accept_story_handoff, then record its exact receipt with
@@ -181,7 +180,7 @@ nodes:
       toolsetIds:
         - 4f6671c2-0b74-4b3f-8839-5c91379f7382
       knowledgebaseIds: []
-    hash: story-studio-agent-v6-synchronized-audio
+    hash: story-studio-agent-v7-browser-sequence-preview
   - type: toolset
     key: 4f6671c2-0b74-4b3f-8839-5c91379f7382
     position:

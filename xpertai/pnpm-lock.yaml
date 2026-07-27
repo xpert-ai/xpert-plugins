@@ -1285,15 +1285,6 @@ importers:
         specifier: ^2.3.0
         version: 2.8.1
     devDependencies:
-      '@esbuild/darwin-arm64':
-        specifier: 0.27.7
-        version: 0.27.7
-      '@esbuild/linux-x64':
-        specifier: 0.27.7
-        version: 0.27.7
-      '@hyperframes/producer':
-        specifier: 0.7.63
-        version: 0.7.63
       '@langchain/core':
         specifier: 0.3.72
         version: 0.3.72(@opentelemetry/api@1.9.0)(openai@5.12.2(ws@8.21.0)(zod@3.25.67))

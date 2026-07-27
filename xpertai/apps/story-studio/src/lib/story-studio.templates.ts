@@ -129,14 +129,14 @@ export const storyStudioTemplates = [
       'Create a vertical short-drama project from this premise.',
       'Build a three-scene shot plan for the selected project and save it.',
       'Generate synchronized-audio Seedance 2.0 Fast videos for every selected storyboard image and attach them to the matching shots.',
-      'Render the selected production plan as a storyboard MP4 and wait for completion.',
+      'Review the selected Seedance videos in shot order and prepare them for Cut.',
       'Prepare the selected shots as StoryCutHandoff v1 and deliver them to Cut.',
       'Search my Story Studio projects and summarize the current production stage.',
       'Review the selected project brief before moving it into planning.',
       'Record why the selected project is blocked and whether the failure is recoverable.'
     ],
     releaseNotes:
-      'Added the eight-stage Studio workflow, voice-bound synchronized Seedance audio generation, durable rendering, and version-safe StoryCutHandoff delivery to Cut.',
+      'Added the eight-stage Studio workflow, voice-bound synchronized Seedance audio generation, browser sequence preview, and version-safe StoryCutHandoff delivery to Cut.',
     xpertName: 'Story Studio Assistant',
     providerKey: STORY_STUDIO_TEMPLATE_PROVIDER_KEY
   }

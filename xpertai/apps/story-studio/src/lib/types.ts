@@ -32,9 +32,6 @@ export type StoryProjectAction =
   | 'cut_handoff_prepared'
   | 'cut_handoff_delivered'
   | 'cut_handoff_failed'
-  | 'render_queued'
-  | 'render_completed'
-  | 'render_failed'
 
 export interface StoryScope {
   tenantId: string

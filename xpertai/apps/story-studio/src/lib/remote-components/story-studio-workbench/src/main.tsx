@@ -41,6 +41,7 @@ import {
   post,
   reportResize,
   requestData,
+  requestFileAccess,
   requireSuccessfulAction,
   setRuntimeText,
   startRemoteBridge,
@@ -69,12 +70,8 @@ import {
   ProductionPanel,
   parseHandoffView,
   parseProductionView,
-  parseRenderCapability,
-  parseRenderView,
   type HandoffView,
-  type ProductionView,
-  type RenderCapabilityView,
-  type RenderView
+  type ProductionView
 } from './production-panel'
 import { useStoryEditor } from './use-story-editor'
 import { findHandoff, readHostThemeMode } from './workbench-data'
@@ -83,6 +80,7 @@ const h: typeof React.createElement = React.createElement
 const ASSISTANT_CONTEXT_COMMAND = 'assistant.context.set'
 const ASSISTANT_CHAT_SEND_MESSAGE_COMMAND = 'assistant.chat.send_message'
 const PROJECT_PAGE_SIZE = 20
+const MEDIA_ACCESS_CONCURRENCY = 4
 
 const STATUS_KEYS: Record<ProjectStatus, MessageKey> = {
   draft: 'status.draft',
@@ -144,8 +142,6 @@ function App() {
   const [generating, setGenerating] = React.useState(false)
   const [handingOff, setHandingOff] = React.useState(false)
   const [production, setProduction] = React.useState<ProductionView | null>(null)
-  const [render, setRender] = React.useState<RenderView | null>(null)
-  const [renderCapability, setRenderCapability] = React.useState<RenderCapabilityView | null>(null)
   const [handoff, setHandoff] = React.useState<HandoffView | null>(null)
   const [activeStage, setActiveStage] = React.useState(1)
   const [createOpen, setCreateOpen] = React.useState(false)
@@ -252,7 +248,6 @@ function App() {
     projects,
     selected,
     production,
-    render,
     handoff,
     page,
     total,
@@ -300,8 +295,6 @@ function App() {
     pageRef.current = pagination.page
     setTotal(pagination.total)
     setProduction(parseProductionView(payload.production))
-    setRender(parseRenderView(payload.render))
-    setRenderCapability(parseRenderCapability(payload.renderCapability))
     setHandoff(parseHandoffView(payload.handoff))
     const nextDetail = parseProject(payload.detail)
     if (nextDetail) {
@@ -330,9 +323,11 @@ function App() {
       const object = isRemoteObject(payload) ? payload : null
       const nextProjects = object ? readProjectList(object) : []
       const nextDetail = object ? parseProject(object.detail) : null
-      setProduction(object ? parseProductionView(object.production) : null)
-      setRender(object ? parseRenderView(object.render) : null)
-      setRenderCapability(object ? parseRenderCapability(object.renderCapability) : null)
+      const nextProduction = await hydrateProductionMediaAccess(
+        object ? parseProductionView(object.production) : null,
+        nextDetail?.id ?? preferredId
+      )
+      setProduction(nextProduction)
       setHandoff(object ? parseHandoffView(object.handoff) : null)
       const pagination = object
         ? readPagination(object, PROJECT_PAGE_SIZE)
@@ -500,31 +495,6 @@ function App() {
         })
       )
       notify('success', t('messages.advanced'))
-      await reloadProjects(project.id)
-    } catch (error) {
-      notify('error', getErrorMessage(error instanceof Error ? error : String(error)))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function startRender() {
-    const project = selectedRef.current
-    if (!project) return
-    setBusy(true)
-    try {
-      requireSuccessfulAction(
-        await executeAction('start_render', project.id, {
-          projectId: project.id,
-          operationId: crypto.randomUUID(),
-          expectedRevision: project.revision,
-          quality: 'standard',
-          fps: 24,
-          fileName: `${project.title.replace(/[\\/:*?"<>|]/g, '-')}-animatic.mp4`,
-          changeSummary: `Queued animatic render for ${project.title}`
-        })
-      )
-      notify('success', t('render.rendering', { progress: 0 }))
       await reloadProjects(project.id)
     } catch (error) {
       notify('error', getErrorMessage(error instanceof Error ? error : String(error)))
@@ -877,8 +847,6 @@ function App() {
 
               <ProductionPanel
                 production={production}
-                render={render}
-                capability={renderCapability}
                 handoff={handoff}
                 activeStage={activeStage}
                 busy={busy}
@@ -886,7 +854,6 @@ function App() {
                 handingOff={handingOff}
                 onGenerate={() => void generateSeedanceVideos()}
                 onQueryGeneration={() => void querySeedanceVideos()}
-                onRender={() => void startRender()}
                 onHandoff={() => void prepareCutHandoff()}
                 inspectorCollapsed={inspectorCollapsed}
                 onInspectorCollapsedChange={setInspectorCollapsed}
@@ -991,6 +958,84 @@ function readShotReadiness(production: ProductionView | null) {
     ).length,
     total: shots.length
   }
+}
+
+async function hydrateProductionMediaAccess(
+  production: ProductionView | null,
+  projectId: string | null | undefined
+) {
+  if (!production || !projectId) return production
+  const candidates = [
+    ...production.assets.flatMap((asset) => asset.candidates),
+    ...production.scenes.flatMap((scene) =>
+      scene.shots.flatMap((shot) => shot.candidates)
+    )
+  ].filter((candidate) => Boolean(candidate.workspacePath))
+  const urls = new Map<string, string>()
+  await mapWithConcurrency(
+    candidates,
+    MEDIA_ACCESS_CONCURRENCY,
+    async (candidate) => {
+      try {
+        const payload = getResponsePayload(
+          await requestFileAccess(candidate.id, projectId)
+        )
+        if (
+          isRemoteObject(payload) &&
+          typeof payload.url === 'string' &&
+          payload.url.trim()
+        ) {
+          urls.set(candidate.id, payload.url)
+        }
+      } catch (error) {
+        storyStudioDebug.warn('media.file-access-failed', {
+          candidateId: candidate.id,
+          message: getErrorMessage(
+            error instanceof Error ? error : String(error)
+          )
+        })
+      }
+    }
+  )
+  const hydrateCandidate = (
+    candidate: ProductionView['scenes'][number]['shots'][number]['candidates'][number]
+  ) =>
+    urls.has(candidate.id)
+      ? { ...candidate, fileUrl: urls.get(candidate.id) ?? null }
+      : candidate
+  return {
+    ...production,
+    assets: production.assets.map((asset) => ({
+      ...asset,
+      candidates: asset.candidates.map(hydrateCandidate)
+    })),
+    scenes: production.scenes.map((scene) => ({
+      ...scene,
+      shots: scene.shots.map((shot) => ({
+        ...shot,
+        candidates: shot.candidates.map(hydrateCandidate)
+      }))
+    }))
+  }
+}
+
+async function mapWithConcurrency<T>(
+  items: T[],
+  concurrency: number,
+  operation: (item: T) => Promise<void>
+) {
+  let index = 0
+  const workers = Array.from(
+    { length: Math.min(Math.max(1, concurrency), items.length) },
+    async () => {
+      while (index < items.length) {
+        const item = items[index]
+        index += 1
+        if (item) await operation(item)
+      }
+    }
+  )
+  await Promise.all(workers)
 }
 
 const rootElement = document.getElementById('root')
