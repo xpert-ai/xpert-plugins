@@ -5,6 +5,7 @@ import { readdir, readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { dirname, extname, join } from 'node:path'
 import type { DownloadedFontCache, ExportTarget, ToolDef } from '@open\u002dpencil/core'
+import { createPencilOnlineFontSources } from '@xpert-ai/design-fonts'
 import {
   ArtifactsRuntimeCapability,
   CollaborationRuntimeCapability,
@@ -175,6 +176,11 @@ const SERVER_BUNDLED_FONT_FILES = new Map<string, string>([
   ['Inter|Extra Bold', 'Inter-ExtraBold.ttf'],
   ['Noto Naskh Arabic|Regular', 'NotoNaskhArabic-Regular.ttf']
 ])
+const SERVER_ONLINE_FONT_SOURCES = createPencilOnlineFontSources()
+const SERVER_ONLINE_FONT_URLS = new Map(
+  SERVER_ONLINE_FONT_SOURCES.map(({ family, style, url }) => [serverFontCacheKey(family, style), url])
+)
+const MAX_ONLINE_FONT_BYTES = 5 * 1024 * 1024
 const packageRequire = createRequire(import.meta.url)
 let pencilCoreModulePromise: Promise<PencilCoreModule> | null = null
 let pencilCoreIoModulePromise: Promise<PencilCoreIoModule> | null = null
@@ -861,6 +867,7 @@ export class PencilService {
     const workspaceFiles = this.workspaceFiles()
     let stage = 'render_viewer'
     try {
+      await prepareServerPencilFonts()
       const rendered = await this.artifactViewerService().render({
         title: document.title,
         description: document.description,
@@ -2495,7 +2502,8 @@ async function prepareServerPencilFonts() {
       fontManager.loadFont('Inter', 'SemiBold'),
       fontManager.loadFont('Inter', 'Bold'),
       fontManager.loadFont('Inter', 'ExtraBold'),
-      fontManager.loadFont('Noto Naskh Arabic', 'Regular')
+      fontManager.loadFont('Noto Naskh Arabic', 'Regular'),
+      ...SERVER_ONLINE_FONT_SOURCES.map(({ family, style }) => fontManager.loadFont(family, style).catch(() => undefined))
     ])
     fontManager.setArabicFallbackFamily('Noto Naskh Arabic')
     const fontPackageRoot = dirname(packageRequire.resolve('@fontsource-variable/noto-sans-sc/package.json'))
@@ -2538,7 +2546,28 @@ async function readServerBundledFont(family: string, style: string) {
   const key = serverFontCacheKey(family, style)
   const fileName = SERVER_BUNDLED_FONT_FILES.get(key)
   if (!fileName) {
-    return serverBundledFontData.get(key)?.slice(0) ?? null
+    const cached = serverBundledFontData.get(key)
+    if (cached) {
+      return cached.slice(0)
+    }
+    const url = SERVER_ONLINE_FONT_URLS.get(key)
+    if (!url) {
+      return null
+    }
+    const response = await fetch(url, { signal: AbortSignal.timeout(15_000) })
+    if (!response.ok) {
+      throw new Error(`Managed Pencil font request failed with status ${response.status}.`)
+    }
+    const declaredLength = Number(response.headers.get('content-length') ?? 0)
+    if (declaredLength > MAX_ONLINE_FONT_BYTES) {
+      throw new Error('Managed Pencil font exceeds the maximum allowed size.')
+    }
+    const data = await response.arrayBuffer()
+    if (data.byteLength > MAX_ONLINE_FONT_BYTES) {
+      throw new Error('Managed Pencil font exceeds the maximum allowed size.')
+    }
+    serverBundledFontData.set(key, data)
+    return data.slice(0)
   }
   const cached = serverBundledFontData.get(key)
   if (cached) {

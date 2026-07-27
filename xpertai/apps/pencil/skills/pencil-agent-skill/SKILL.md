@@ -34,6 +34,7 @@ When context is present, parse it before choosing tools. Only create a new docum
 
 ## Node Editing
 
+- Before creating a new design, call `pencil_list_typography_presets`, choose one preset for the content and language, and use only its returned managed font family names. Do not invent font URLs.
 - Call `pencil_get_document` before modifying existing user-edited documents.
 - Call `pencil_get_node` before targeted edits to a selected node.
 - Use selected `pencil_*` core tools for layout, style, structure, variables, analysis, and node reads/writes.

@@ -10,6 +10,7 @@
 //   <THEME_RUNTIME_DIR>/imported-theme-runtime.<key>.js  —— 每主题自包含 IIFE(= 模块路径 [单主题]),单主题 deck 直接拷贝。
 import fs from 'node:fs';
 import path from 'node:path';
+import { createRequire } from 'node:module';
 import { buildSync } from 'esbuild';
 import {
   buildThemeModuleEntrySource,
@@ -21,6 +22,7 @@ export const THEME_RUNTIME_DIR = 'dist/theme-runtime';
 
 // 主题模块对 react 全部 external —— 由外层 client-runtime 打包统一解析,确保单一 React 实例。
 const REACT_EXTERNALS = ['react', 'react-dom', 'react-dom/client', 'react/jsx-runtime', 'react/jsx-dev-runtime'];
+const requireFromRuntimeBuild = createRequire(import.meta.url);
 
 // JAD-203 修复:把所有 react 子路径别名到 `<root>/node_modules` 下的单一绝对路径。
 //
@@ -34,13 +36,12 @@ const REACT_EXTERNALS = ['react', 'react-dom', 'react-dom/client', 'react/jsx-ru
 // nodePaths 只是「找不到时」的回退锚点,挡不住「相对 importer 已能找到另一份 react」。
 // 用绝对路径别名强制所有 react specifier 指向同一份,彻底去重(对源路径无影响:本就是同一份)。
 function reactAliasMap(root) {
-  const nm = path.join(root, 'node_modules');
   return {
-    react: path.join(nm, 'react'),
-    'react-dom': path.join(nm, 'react-dom'),
-    'react-dom/client': path.join(nm, 'react-dom/client.js'),
-    'react/jsx-runtime': path.join(nm, 'react/jsx-runtime.js'),
-    'react/jsx-dev-runtime': path.join(nm, 'react/jsx-dev-runtime.js'),
+    react: requireFromRuntimeBuild.resolve('react'),
+    'react-dom': requireFromRuntimeBuild.resolve('react-dom'),
+    'react-dom/client': requireFromRuntimeBuild.resolve('react-dom/client'),
+    'react/jsx-runtime': requireFromRuntimeBuild.resolve('react/jsx-runtime'),
+    'react/jsx-dev-runtime': requireFromRuntimeBuild.resolve('react/jsx-dev-runtime'),
   };
 }
 

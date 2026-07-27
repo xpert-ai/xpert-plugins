@@ -83,6 +83,14 @@ export class ChatDingTalkMessage extends Serializable implements ChatDingTalkMes
     return this.chatContext.senderOpenId
   }
 
+  get senderRecipient() {
+    return this.chatContext.senderRecipient
+  }
+
+  get chatType() {
+    return this.chatContext.chatType
+  }
+
   get sessionWebhook() {
     return this.chatContext.sessionWebhook
   }

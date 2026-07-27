@@ -13,7 +13,7 @@
   "interface": {
     "displayName": "Presentation Studio",
     "shortDescription": "Agent-ready presentation studio",
-    "longDescription": "Generate, edit, collaborate on, version, and export presentations with 12 DashiAI themes and 1020 layouts.",
+    "longDescription": "Generate, edit, collaborate on, version, and export presentations with 14 DashiAI themes and 1188 layouts.",
     "developerName": "XpertAI",
     "category": "Productivity",
     "capabilities": ["Interactive", "Read", "Write"],

@@ -9,11 +9,13 @@ export type OfficeDocumentType = (typeof OFFICE_EDITOR_DOCUMENT_TYPES)[number]
 export type OfficeDocumentStatus = 'draft' | 'active' | 'archived'
 export type OfficeSnapshotSource = 'system' | 'workbench' | 'agent' | 'collaboration' | 'restore' | 'import'
 export type OfficeOperationType = (typeof OFFICE_EDITOR_OPERATION_TYPES)[number]
-export type OfficeAuditOperationType = OfficeOperationType | 'import_document' | 'review_note' | 'failure_report'
-export type OfficeOperationStatus = 'queued' | 'applied' | 'failed'
+export type OfficeAuditOperationType = OfficeOperationType | 'import_document' | 'excel_automation' | 'excel_restore' | 'review_note' | 'failure_report'
+export type OfficeOperationStatus = 'queued' | 'processing' | 'applied' | 'failed' | 'conflict'
 export type OfficeOperationSource = 'agent' | 'workbench' | 'system'
 export type OfficeToolName = (typeof OFFICE_EDITOR_TOOL_NAMES)[number]
 export type OfficeImportFormat = (typeof OFFICE_EDITOR_IMPORT_FORMATS)[number]
+export type OfficeFileVersionSource = 'import' | 'agent' | 'workbench' | 'restore'
+export type OfficeWorkspaceCatalog = 'xperts' | 'projects'
 
 export interface OfficeScope {
   tenantId?: string | null
@@ -56,6 +58,52 @@ export interface ImportOfficeDocumentInput {
   fileBase64: string
   assistantId?: string | null
   conversationId?: string | null
+}
+
+export interface OfficeWorkspaceFileScope {
+  tenantId?: string | null
+  userId?: string | null
+  catalog: OfficeWorkspaceCatalog
+  scopeId: string
+  xpertId?: string | null
+  projectId?: string | null
+  isolateByUser?: boolean | null
+}
+
+export interface OfficeWorkspaceFileRecord {
+  name?: string
+  filePath: string
+  workspacePath?: string
+  fileUrl?: string
+  url?: string
+  mimeType?: string
+  size?: number
+  catalog?: OfficeWorkspaceCatalog
+  scopeId?: string
+}
+
+export interface OfficeWorkspaceFileBuffer extends OfficeWorkspaceFileRecord {
+  buffer: Buffer
+}
+
+export interface OfficeWorkspaceFilesApi {
+  uploadBuffer(input: OfficeWorkspaceFileScope & {
+    buffer: Buffer
+    originalName: string
+    mimeType?: string | null
+    size?: number | null
+    folder?: string | null
+    fileName?: string | null
+    metadata?: Record<string, unknown>
+  }): Promise<OfficeWorkspaceFileRecord>
+
+  readBuffer(input: OfficeWorkspaceFileScope & {
+    filePath: string
+  }): Promise<OfficeWorkspaceFileBuffer>
+
+  deleteFile(input: OfficeWorkspaceFileScope & {
+    filePath: string
+  }): Promise<void>
 }
 
 export interface OfficeImportConversionResult {
@@ -124,6 +172,59 @@ export interface ReportOfficeFailureInput {
   reason: string
   recoverable?: boolean | null
 }
+
+export interface ReadExcelWorkbookInput {
+  documentId: string
+  sheetName?: string | null
+  range?: string | null
+}
+
+export interface EditExcelWorkbookInput {
+  documentId: string
+  expectedVersionNumber?: number | null
+  operations: ExcelAutomationOperation[]
+  changeSummary?: string | null
+  idempotencyKey?: string | null
+}
+
+export interface RestoreExcelVersionInput {
+  documentId: string
+  versionId: string
+  expectedVersionNumber?: number | null
+  changeSummary?: string | null
+}
+
+export type ExcelAutomationOperation =
+  | {
+      type: 'set_range_values'
+      sheetName: string
+      range: string
+      values: OfficeCellValue[][]
+    }
+  | {
+      type: 'set_range_formulas'
+      sheetName: string
+      range: string
+      formulas: Array<Array<string | null>>
+    }
+  | {
+      type: 'clear_range'
+      sheetName: string
+      range: string
+    }
+  | {
+      type: 'create_sheet'
+      sheetName: string
+    }
+  | {
+      type: 'rename_sheet'
+      sheetName: string
+      newSheetName: string
+    }
+  | {
+      type: 'delete_sheet'
+      sheetName: string
+    }
 
 export type OfficeOperationInput =
   | {

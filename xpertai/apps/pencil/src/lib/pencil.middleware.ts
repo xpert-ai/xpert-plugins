@@ -3,6 +3,7 @@ import { dispatchCustomEvent } from '@langchain/core/callbacks/dispatch'
 import { ToolMessage } from '@langchain/core/messages'
 import { tool } from '@langchain/core/tools'
 import { ChatMessageEventTypeEnum, ChatMessageStepCategory, TAgentMiddlewareMeta } from '@xpert-ai/contracts'
+import { serializeTypographyPresets } from '@xpert-ai/design-fonts'
 import {
   AgentMiddleware,
   AgentMiddlewareStrategy,
@@ -239,6 +240,15 @@ export class PencilMiddleware implements IAgentMiddlewareStrategy<Record<string,
     const scope = scopeFromContext(context)
     const coreToolDefinitions = await this.service.getCoreToolDefinitions()
     const tools = [
+      tool(async () => stringifyAgentToolResult({
+        message: 'Choose one supported typography preset before creating or restyling a Pencil design.',
+        presets: serializeTypographyPresets('pencil')
+      }), {
+        name: 'pencil_list_typography_presets',
+        description: 'List version-pinned HTTPS fonts supported by the Pencil Workbench and server renderer. Do not invent font URLs or family names.',
+        schema: z.object({}),
+        verboseParsingErrors: true
+      }),
       tool(
         async (input) =>
           stringifyAgentToolResult(

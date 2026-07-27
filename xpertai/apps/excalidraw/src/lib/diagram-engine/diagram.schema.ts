@@ -60,7 +60,17 @@ export const diagramIrSchema = z.object({
   appearance: z.object({
     colorScheme: z.enum(['light', 'dark']),
     rendering: z.enum(['clean', 'sketch']),
-    palette: z.enum(['neutral', 'semantic'])
+    palette: z.enum(['neutral', 'semantic']),
+    fontFamilyId: z.union([
+      z.literal(1),
+      z.literal(2),
+      z.literal(3),
+      z.literal(5),
+      z.literal(6),
+      z.literal(7),
+      z.literal(8),
+      z.literal(9)
+    ]).optional()
   }).strict(),
   layout: z.object({
     strategy: z.enum(['layered', 'flow', 'sequence', 'radial', 'matrix', 'explicit']),

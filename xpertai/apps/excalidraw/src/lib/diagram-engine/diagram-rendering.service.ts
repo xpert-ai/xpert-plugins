@@ -162,6 +162,7 @@ export class DiagramPreviewService {
 
 function compileElements(resolved: ResolvedDiagram, palette: Palette) {
   const roughness = resolved.ir.appearance.rendering === 'sketch' ? 1 : 0
+  const fontFamily = resolved.ir.appearance.fontFamilyId ?? 5
   const elements: Record<string, unknown>[] = []
   for (const group of resolved.groups) {
     elements.push(baseElement(`diagram-group-${group.id}`, 'rectangle', group.x, group.y, group.width, group.height, {
@@ -253,7 +254,7 @@ function compileElements(resolved: ResolvedDiagram, palette: Palette) {
     })
     elements.push(textElement(`diagram-legend-label-${index}-${item.flow}`, item.label, x + 46, y, 164, 22, palette.muted, roughness, 'left', 13))
   })
-  return elements
+  return elements.map((element) => element.type === 'text' ? { ...element, fontFamily } : element)
 }
 
 function baseElement(id: string, type: string, x: number, y: number, width: number, height: number, overrides: Record<string, unknown>) {

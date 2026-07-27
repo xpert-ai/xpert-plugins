@@ -3,6 +3,7 @@ import type { IOnPluginBootstrap, IOnPluginDestroy } from '@xpert-ai/plugin-sdk'
 import { XpertServerPlugin } from '@xpert-ai/plugin-sdk'
 import {
   OfficeDocument,
+  OfficeFileVersion,
   OfficeOperation,
   OfficeSnapshot,
   OfficeYjsUpdate
@@ -14,6 +15,7 @@ import { OfficeEditorViewProvider } from './office-editor-view.provider.js'
 
 export const OFFICE_EDITOR_ENTITIES = [
   OfficeDocument,
+  OfficeFileVersion,
   OfficeSnapshot,
   OfficeYjsUpdate,
   OfficeOperation

@@ -6,6 +6,7 @@ import {
   INTEGRATION_DINGTALK_LONG,
   resolveDingTalkConnectionMode,
   resolveDingTalkHttpCallbackEnabled,
+  resolveDingTalkSenderRecipient,
   verifyDingTalkSignature
 } from './types.js'
 
@@ -42,6 +43,18 @@ describe('dingtalk callback helpers', () => {
     expect(resolveDingTalkHttpCallbackEnabled({ connectionMode: 'long_connection', httpCallbackEnabled: true })).toBe(false)
     expect(resolveDingTalkConnectionMode({}, INTEGRATION_DINGTALK_LONG)).toBe('long_connection')
     expect(resolveDingTalkHttpCallbackEnabled({}, INTEGRATION_DINGTALK_LONG)).toBe(false)
+  })
+
+  it('classifies sender recipients only from explicitly typed callback fields', () => {
+    expect(resolveDingTalkSenderRecipient({ senderStaffId: 'staff-1' })).toEqual({
+      type: 'user_id',
+      id: 'staff-1'
+    })
+    expect(resolveDingTalkSenderRecipient({ sender: { openId: 'open-1' } })).toEqual({
+      type: 'open_id',
+      id: 'open-1'
+    })
+    expect(resolveDingTalkSenderRecipient({ senderId: 'ambiguous-1' })).toBeNull()
   })
 
   it('verifies callback signature', () => {

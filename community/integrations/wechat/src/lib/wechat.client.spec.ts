@@ -613,6 +613,7 @@ describe('WechatClient', () => {
       expect.objectContaining({
         success: true,
         file: expect.objectContaining({
+          data: Buffer.from(pngBase64, 'base64'),
           fileUrl: `data:image/png;base64,${pngBase64}`,
           url: `data:image/png;base64,${pngBase64}`,
           mimeType: 'image/png',

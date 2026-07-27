@@ -9,6 +9,8 @@ export type TranslationKey =
   | 'sync'
   | 'ask'
   | 'delete'
+  | 'download'
+  | 'downloaded'
   | 'documents'
   | 'operations'
   | 'snapshots'
@@ -27,8 +29,10 @@ export type TranslationKey =
   | 'synced'
   | 'dirty'
   | 'queued'
+  | 'processing'
   | 'applied'
   | 'failed'
+  | 'conflict'
   | 'openReview'
   | 'assistantPlaceholder'
   | 'requestTimeout'
@@ -42,6 +46,8 @@ export type TranslationKey =
   | 'operationImportDocument'
   | 'operationReviewNote'
   | 'operationFailureReport'
+  | 'operationExcelAutomation'
+  | 'operationExcelRestore'
   | 'operationSheetSetRangeValues'
   | 'operationDocAppendText'
   | 'operationDocReplaceText'
@@ -62,6 +68,8 @@ const zh: Record<TranslationKey, string> = {
   sync: '同步',
   ask: '询问',
   delete: '删除',
+  download: '下载 XLSX',
+  downloaded: 'XLSX 已下载',
   documents: '文档',
   operations: '操作',
   snapshots: '快照',
@@ -80,8 +88,10 @@ const zh: Record<TranslationKey, string> = {
   synced: '已同步',
   dirty: '未保存',
   queued: '排队',
+  processing: '处理中',
   applied: '已应用',
   failed: '失败',
+  conflict: '版本冲突',
   openReview: '打开审阅',
   assistantPlaceholder: '请审阅当前 Office 文档，并排队需要我确认的修改',
   requestTimeout: '请求超时',
@@ -95,6 +105,8 @@ const zh: Record<TranslationKey, string> = {
   operationImportDocument: '导入文档',
   operationReviewNote: '审阅备注',
   operationFailureReport: '失败报告',
+  operationExcelAutomation: 'Excel 自动化编辑',
+  operationExcelRestore: '恢复 Excel 版本',
   operationSheetSetRangeValues: '更新表格区域',
   operationDocAppendText: '追加文档文本',
   operationDocReplaceText: '替换文档文本',
@@ -116,6 +128,8 @@ const en: Record<TranslationKey, string> = {
   sync: 'Sync',
   ask: 'Ask',
   delete: 'Delete',
+  download: 'Download XLSX',
+  downloaded: 'XLSX downloaded',
   documents: 'Documents',
   operations: 'Operations',
   snapshots: 'Snapshots',
@@ -134,8 +148,10 @@ const en: Record<TranslationKey, string> = {
   synced: 'Synced',
   dirty: 'Unsaved',
   queued: 'Queued',
+  processing: 'Processing',
   applied: 'Applied',
   failed: 'Failed',
+  conflict: 'Version conflict',
   openReview: 'Open review',
   assistantPlaceholder: 'Review this Office document and queue edits for my confirmation',
   requestTimeout: 'Request timed out',
@@ -149,6 +165,8 @@ const en: Record<TranslationKey, string> = {
   operationImportDocument: 'Import document',
   operationReviewNote: 'Review note',
   operationFailureReport: 'Failure report',
+  operationExcelAutomation: 'Excel automation',
+  operationExcelRestore: 'Restore Excel version',
   operationSheetSetRangeValues: 'Update sheet range',
   operationDocAppendText: 'Append document text',
   operationDocReplaceText: 'Replace document text',

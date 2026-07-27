@@ -1,6 +1,15 @@
 import { PRESENTATION_CONFIG_DEFAULTS, PresentationConfigService } from './presentation-config.service.js'
 
 describe('PresentationConfigService sharing policy', () => {
+  it('keeps bundled fonts by default and accepts the managed online mode', () => {
+    expect(PRESENTATION_CONFIG_DEFAULTS.fontSourceMode).toBe('bundled')
+    const resolver = {
+      resolve: jest.fn().mockReturnValue({ ...PRESENTATION_CONFIG_DEFAULTS, fontSourceMode: 'online' })
+    }
+
+    expect(new PresentationConfigService(resolver).get().fontSourceMode).toBe('online')
+  })
+
   it('resolves sharing configuration from the current organization scope', () => {
     const resolver = {
       resolve: jest.fn().mockReturnValue({

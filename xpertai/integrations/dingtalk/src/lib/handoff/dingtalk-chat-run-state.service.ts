@@ -22,14 +22,14 @@ export interface DingTalkChatRunState<TRenderItem extends DingTalkRenderItem = D
 	nextSequence: number
 	/** Buffered full response text built from stream MESSAGE callbacks. */
 	responseMessageContent: string
+	/** Text not yet delivered as a standalone DingTalk segment. */
+	pendingSegmentText: string
+	/** Number of standalone text segments already delivered for this run. */
+	deliveredSegmentCount: number
 	/** Snapshot to reconstruct ChatDingTalkMessage and conversation context for every callback. */
 	context: DingTalkChatCallbackContext
 	/** Out-of-order callbacks are parked here until nextSequence is available. */
 	pendingEvents: Record<string, DingTalkChatStreamCallbackPayload>
-	/** Last timestamp when stream text was flushed to DingTalk card. */
-	lastFlushAt: number
-	/** Length of responseMessageContent already flushed to DingTalk. */
-	lastFlushedLength: number
 	/** Ordered, mixed internal render items by callback arrival time. */
 	renderItems: TRenderItem[]
 }

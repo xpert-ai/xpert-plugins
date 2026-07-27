@@ -1,0 +1,18 @@
+model: Doubao-1.5-vision-pro-32k
+label:
+  en_US: Doubao-1.5-vision-pro-32k
+  zh_Hans: Doubao-1.5-vision-pro-32k
+model_type: llm
+features:
+  - agent-thought
+  - vision
+model_properties:
+  mode: chat
+  context_size: 32768
+parameter_rules:
+  - name: temperature
+    use_template: temperature
+  - name: top_p
+    use_template: top_p
+  - name: max_tokens
+    use_template: max_tokens

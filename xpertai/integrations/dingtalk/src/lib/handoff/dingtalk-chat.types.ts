@@ -3,7 +3,7 @@ import {
 	defineChannelMessageType,
 	AgentChatCallbackEnvelopePayload
 } from '@xpert-ai/plugin-sdk'
-import { DingTalkCardElement, DingTalkStructuredElement } from '../types.js'
+import { DingTalkCardElement, DingTalkRecipient, DingTalkStructuredElement } from '../types.js'
 
 export const DINGTALK_CHAT_STREAM_CALLBACK_MESSAGE_TYPE = defineChannelMessageType(
 	'dingtalk',
@@ -56,13 +56,11 @@ export interface DingTalkChatCallbackContext extends Record<string, unknown> {
 	integrationId?: string
 	chatId?: string
 	senderOpenId?: string
+	senderRecipient?: DingTalkRecipient
+	chatType?: 'private' | 'group'
 	robotCode?: string
 	sessionWebhook?: string
 	reject?: boolean
-	streaming?: {
-		updateWindowMs?: number
-		firstFlushMinChars?: number
-	}
 	message: DingTalkChatMessageSnapshot
 }
 
@@ -84,5 +82,7 @@ export interface DingTalkChatHandoffPayload extends Record<string, unknown> {
 		integrationId?: string
 		chatId?: string
 		channelUserId?: string
+		chatType?: 'private' | 'group'
+		context?: Record<string, unknown>
 	}
 }

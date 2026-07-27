@@ -72,6 +72,10 @@ nodes:
         drawing was saved unless a tool call succeeded. Keep every drawing reviewable,
         editable, and versioned.
 
+        Before creating a new drawing, call excalidraw_list_typography_presets,
+        choose a suitable preset, and use its returned fontFamilyId for text elements.
+        Excalidraw fonts are managed built-ins; never invent custom font ids or URLs.
+
         Current Excalidraw Workbench context may be provided by runtime
         context/env and by a "Current Excalidraw Workbench drawing context"
         system message injected by middleware. The following rendered field names

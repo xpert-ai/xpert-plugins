@@ -155,10 +155,122 @@ describe('WechatTriggerAggregationService', () => {
     )
     expect(callback).toHaveBeenCalledTimes(1)
     expect(redis.eval).toHaveBeenCalledWith(
+      expect.stringContaining("redis.call('pexpire'"),
+      1,
+      'plugin_wechat:trigger:tenant-1:org-1:integration-1:lock:inbound:aggregate-1',
+      expect.any(String),
+      '3000'
+    )
+    expect(redis.eval).toHaveBeenCalledWith(
       expect.stringContaining("redis.call('get'"),
       1,
       'plugin_wechat:trigger:tenant-1:org-1:integration-1:lock:inbound:aggregate-1',
       expect.any(String)
+    )
+  })
+
+  it('clears aggregate state only while the lock token is still owned', async () => {
+    const { service, redis } = createService()
+    const scope = {
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      integrationId: 'integration-1'
+    }
+
+    await expect(
+      service.withAggregateLock('aggregate-1', async (lease) => {
+        await lease.clearStateIfOwned()
+      }, 3000, scope)
+    ).resolves.toBeUndefined()
+
+    expect(redis.eval).toHaveBeenCalledWith(
+      expect.stringContaining("redis.call('del', KEYS[2])"),
+      2,
+      'plugin_wechat:trigger:tenant-1:org-1:integration-1:lock:inbound:aggregate-1',
+      'plugin_wechat:trigger:tenant-1:org-1:integration-1:aggregate:aggregate-1',
+      expect.any(String)
+    )
+  })
+
+  it('does not clear aggregate state after lock ownership is lost', async () => {
+    let lockToken = ''
+    let aggregateState = 'version-2'
+    const redis = createRedis({
+      set: jest.fn(async (_key: string, token: string) => {
+        lockToken = token
+        return 'OK'
+      }),
+      eval: jest.fn(async (script: string, _keyCount: number, ...args: string[]) => {
+        if (script.includes("redis.call('del', KEYS[2])")) {
+          if (lockToken !== args[2]) {
+            return -1
+          }
+          aggregateState = ''
+          return 1
+        }
+        if (script.includes("redis.call('pexpire'")) {
+          return lockToken === args[1] ? 1 : 0
+        }
+        return lockToken === args[1] ? 1 : 0
+      })
+    })
+    const { service } = createService(redis)
+
+    await expect(
+      service.withAggregateLock('aggregate-1', async (lease) => {
+        lockToken = 'new-owner-token'
+        aggregateState = 'version-3'
+        await lease.clearStateIfOwned()
+      })
+    ).rejects.toThrow('inbound_aggregate_lock_lost')
+
+    expect(aggregateState).toBe('version-3')
+  })
+
+  it('renews the per-aggregate lock while the callback is still running', async () => {
+    jest.useFakeTimers()
+    try {
+      const { service, redis } = createService()
+      let finishCallback!: () => void
+      const callbackGate = new Promise<void>((resolve) => {
+        finishCallback = resolve
+      })
+      let notifyCallbackStarted!: () => void
+      const callbackStarted = new Promise<void>((resolve) => {
+        notifyCallbackStarted = resolve
+      })
+
+      const result = service.withAggregateLock(
+        'aggregate-1',
+        async () => {
+          notifyCallbackStarted()
+          await callbackGate
+          return 'done'
+        },
+        3000
+      )
+      await callbackStarted
+      await jest.advanceTimersByTimeAsync(7000)
+
+      const evalCalls = redis.eval.mock.calls as unknown[][]
+      const renewCalls = evalCalls.filter(([script]) => String(script).includes("redis.call('pexpire'"))
+      expect(renewCalls.length).toBeGreaterThanOrEqual(2)
+
+      finishCallback()
+      await expect(result).resolves.toBe('done')
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  it('rejects the callback result when aggregate lock ownership is lost', async () => {
+    const redis = createRedis({
+      eval: jest.fn(async (script: string) => script.includes("redis.call('pexpire'") ? 0 : 1)
+    })
+    const { service } = createService(redis)
+
+    await expect(service.withAggregateLock('aggregate-1', async () => 'done')).rejects.toThrow(
+      'inbound_aggregate_lock_lost'
     )
   })
 

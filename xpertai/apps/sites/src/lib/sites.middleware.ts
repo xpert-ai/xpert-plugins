@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { tool } from '@langchain/core/tools'
+import { serializeTypographyPresets } from '@xpert-ai/design-fonts'
 import { TAgentMiddlewareMeta, TAgentRunnableConfigurable } from '@xpert-ai/contracts'
 import {
   AgentMiddleware,
@@ -132,6 +133,18 @@ export class SitesMiddleware implements IAgentMiddlewareStrategy<Record<string, 
 
   createMiddleware(_options: Record<string, never>, context: IAgentMiddlewareContext): PromiseOrValue<AgentMiddleware> {
     const scope = scopeFromContext(context)
+
+    const listTypographyPresetsTool = tool(
+      async () => stringify({
+        message: 'Use one supported typography preset and copy its generated CSS into the site source before saving the version.',
+        presets: serializeTypographyPresets('sites')
+      }),
+      {
+        name: 'sites_list_typography_presets',
+        description: 'List the version-pinned HTTPS web fonts that Sites may reference. Call before choosing typography; do not invent font URLs or family names.',
+        schema: z.object({})
+      }
+    )
 
     const createProjectTool = tool(
       async (input: z.infer<typeof createProjectSchema>) => {
@@ -369,6 +382,7 @@ export class SitesMiddleware implements IAgentMiddlewareStrategy<Record<string, 
     return {
       name: SITES_MIDDLEWARE_NAME,
       tools: [
+        listTypographyPresetsTool,
         createProjectTool,
         saveVersionTool,
         deployVersionTool,

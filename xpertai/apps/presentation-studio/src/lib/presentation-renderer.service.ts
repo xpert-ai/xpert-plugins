@@ -97,6 +97,9 @@ export class PresentationRendererService {
       await this.runNode('scripts/validate-goal-spec.mjs', [goalPath], root)
       const tsxCli = requireFromHere.resolve('tsx/cli')
       await this.runExecutable(process.execPath, [tsxCli, join(this.catalog.vendorProjectRoot(), 'scripts/render-goal-deck.jsx'), goalPath, indexHtmlPath], root)
+      if (this.config.get().fontSourceMode === 'online') {
+        await rewritePresentationFontPackForOnline(pptDir)
+      }
       return { directory: root, indexHtmlPath, goalPath, warnings: [] }
     } catch (error) {
       await this.cleanup(root)
@@ -114,7 +117,12 @@ export class PresentationRendererService {
       const source = await readFile(rendered.indexHtmlPath, 'utf8')
       await writeFile(rendered.indexHtmlPath, preparePresentationHtmlForExport(source))
       const html = await inlinePresentationHtml(dirname(rendered.indexHtmlPath))
-      return { buffer: Buffer.from(html), mimeType: 'text/html', extension: 'html', report: { selfContained: true } }
+      return {
+        buffer: Buffer.from(html),
+        mimeType: 'text/html',
+        extension: 'html',
+        report: { selfContained: this.config.get().fontSourceMode !== 'online' }
+      }
     }
     const outputPath = join(rendered.directory, `presentation.${kind}`)
     const reportPath = join(rendered.directory, `presentation.${kind}.report.json`)
@@ -345,6 +353,35 @@ export class PresentationRendererService {
       throw new Error(scrubRendererError(message))
     }
   }
+}
+
+export async function rewritePresentationFontPackForOnline(pptDir: string) {
+  const fontRoot = join(pptDir, 'assets', 'fonts')
+  const manifestValue: unknown = JSON.parse(await readFile(join(fontRoot, 'font-pack.json'), 'utf8'))
+  if (!isPresentationJsonObject(manifestValue) || !Array.isArray(manifestValue.packages)) {
+    throw new Error('Presentation font pack manifest is invalid.')
+  }
+  const packages = new Map<string, { name: string; version: string }>()
+  for (const item of manifestValue.packages) {
+    if (!isPresentationJsonObject(item) || typeof item.name !== 'string' || typeof item.version !== 'string') {
+      throw new Error('Presentation font pack package metadata is invalid.')
+    }
+    const match = /^@fontsource\/([a-z0-9-]+)$/.exec(item.name)
+    if (!match || !/^\d+\.\d+\.\d+$/.test(item.version)) {
+      throw new Error('Presentation font pack package is not a managed Fontsource dependency.')
+    }
+    packages.set(match[1], { name: item.name, version: item.version })
+  }
+  const cssPath = join(fontRoot, 'font-pack.css')
+  const css = await readFile(cssPath, 'utf8')
+  const rewritten = css.replace(/url\(['"]\.\/([a-z0-9-]+)\/([^)'"\s]+\.woff2)['"]\)/g, (source, id: string, fileName: string) => {
+    const fontPackage = packages.get(id)
+    if (!fontPackage) {
+      throw new Error(`Presentation font pack references an unmanaged family: ${id}.`)
+    }
+    return `url('https://cdn.jsdelivr.net/npm/${fontPackage.name}@${fontPackage.version}/files/${fileName}')`
+  })
+  await writeFile(cssPath, rewritten)
 }
 
 function sandboxUnavailableCapabilities(

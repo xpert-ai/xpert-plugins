@@ -1,13 +1,14 @@
-model: doubao-1-5-pro-32k-character-250228
+model: GLM3-130B-Fin
 label:
-  en_US: doubao-1-5-pro-32k-character-250228
-  zh_Hans: doubao-1-5-pro-32k-character-250228
+  en_US: GLM3-130B-Fin
+  zh_Hans: GLM3-130B-Fin
 model_type: llm
 features:
   - agent-thought
+  - tool-call
 model_properties:
   mode: chat
-  context_size: 32000
+  context_size: 8192
 parameter_rules:
   - name: temperature
     use_template: temperature

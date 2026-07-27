@@ -32,6 +32,7 @@ import {
   PRESENTATION_STUDIO_ARTIFACT_NAMESPACE,
   PRESENTATION_TEMPLATE_CAPABILITY,
   PRESENTATION_TEMPLATE_PROVIDER_KEY,
+  PRESENTATION_THEME_PACKS,
   PRESENTATION_VIEW_KEY,
   PRESENTATION_WORKBENCH_CAPABILITY
 } from './lib/constants.js'
@@ -49,6 +50,7 @@ const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 
 }
 const ConfigSchema = z.object({
   exportBackend: z.enum(['sandbox-job', 'local']),
+  fontSourceMode: z.enum(['bundled', 'online']),
   /** @deprecated Local development only. Production exports use Sandbox Job profiles. */
   chromiumExecutablePath: z.string().min(1).optional(),
   exportConcurrency: z.number().int().min(1).max(4),
@@ -67,6 +69,18 @@ const text = (en_US: string, zh_Hans: string) => ({ en_US, zh_Hans })
 const PresentationConfigFormSchema = {
   type: 'object',
   properties: {
+    fontSourceMode: {
+      type: 'string',
+      title: text('Font source', '字体来源'),
+      description: text('Bundled keeps exports self-contained. Online loads the managed, version-pinned Fontsource files from jsDelivr.', '内置模式保持导出文件自包含；在线模式从 jsDelivr 加载受控且固定版本的 Fontsource 字体。'),
+      enum: ['bundled', 'online'],
+      'x-ui': {
+        enumLabels: {
+          bundled: text('Bundled (recommended)', '内置（推荐）'),
+          online: text('Managed online fonts', '受控在线字体')
+        }
+      }
+    },
     defaultShareAccessMode: {
       type: 'string',
       title: text('Default share access', '默认分享访问范围'),
@@ -127,7 +141,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
               { name: 'export-presentation', displayName: 'Export presentation', description: 'Export self-contained HTML, PDF, and PPTX files.', access: 'write' }
             ] },
             { type: 'view', name: PRESENTATION_VIEW_KEY, displayName: 'Presentation Studio Workbench', description: 'Review, edit, version, collaborate, and export presentations.' },
-            { type: 'tool', name: PRESENTATION_MIDDLEWARE_NAME, displayName: 'Presentation Studio Tools', description: 'Agent middleware tools for the 1020-layout presentation workflow.' },
+            { type: 'tool', name: PRESENTATION_MIDDLEWARE_NAME, displayName: 'Presentation Studio Tools', description: 'Agent middleware tools for the 1188-layout presentation workflow.' },
             { type: 'assistant-template', name: PRESENTATION_ASSISTANT_TEMPLATE_KEY, displayName: 'Presentation Studio Assistant', description: 'Prebuilt presentation generation assistant.' }
           ]
         },
@@ -146,7 +160,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
     category: 'middleware',
     icon: { type: 'svg', value: PRESENTATION_ICON, color: '#7c3aed' },
     displayName: 'Presentation Studio',
-    description: 'Agentic presentation generation with 12 DashiAI themes, 1020 layouts, Yjs collaboration, and HTML/PDF/PPTX export.',
+    description: 'Agentic presentation generation with 14 DashiAI themes, 1188 layouts, Yjs collaboration, and HTML/PDF/PPTX export.',
     keywords: ['presentation', 'pptx', 'pdf', 'html', 'dashi', 'yjs', 'collaboration', 'agentic-app'],
     author: 'XpertAI Team'
   },
@@ -208,7 +222,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
       status: vendor.ok ? 'up' : 'down',
       details: {
         vendor: vendor.ok
-          ? { status: 'up', commit: vendor.commit, themes: 12, layouts: vendor.layouts, files: vendor.files, fontPackages: vendor.fonts }
+          ? { status: 'up', commit: vendor.commit, themes: PRESENTATION_THEME_PACKS.length, layouts: vendor.layouts, files: vendor.files, fontPackages: vendor.fonts }
           : { status: 'down', reason: vendor.reason },
         queue: queueAvailable && (exportBackend !== 'sandbox-job' || browserPoolHealth.available)
           ? { status: 'up', ...(exportBackend === 'sandbox-job' ? { executionPool: browserPoolHealth } : {}) }
@@ -293,9 +307,10 @@ function computeVendorHealth() {
     const manifest = JSON.parse(readFileSync(join(projectRoot, 'layout-manifest.json'), 'utf8')) as { layouts?: object }
     const layouts = Object.keys(manifest.layouts ?? {}).length
     if (layouts !== DASHIAI_LAYOUT_COUNT) throw new Error(`layout catalog count is ${layouts}`)
-    for (let index = 1; index <= 12; index += 1) {
-      const theme = `theme${String(index).padStart(2, '0')}`
-      if (!existsSync(join(projectRoot, 'dist', 'theme-runtime', `imported-theme-runtime.${theme}.js`))) {
+    for (const theme of PRESENTATION_THEME_PACKS) {
+      const runtimeRoot = join(projectRoot, 'dist', 'theme-runtime')
+      if (!existsSync(join(runtimeRoot, `imported-theme-runtime.${theme}.js`))
+        && !existsSync(join(runtimeRoot, `${theme}.module.mjs`))) {
         throw new Error(`missing runtime ${theme}`)
       }
     }

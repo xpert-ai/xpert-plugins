@@ -1,0 +1,19 @@
+model: DeepSeek-R1
+label:
+  en_US: DeepSeek-R1
+  zh_Hans: DeepSeek-R1
+model_type: llm
+features:
+  - agent-thought
+  - tool-call
+  - stream-tool-call
+model_properties:
+  mode: chat
+  context_size: 65536
+parameter_rules:
+  - name: temperature
+    use_template: temperature
+  - name: top_p
+    use_template: top_p
+  - name: max_tokens
+    use_template: max_tokens

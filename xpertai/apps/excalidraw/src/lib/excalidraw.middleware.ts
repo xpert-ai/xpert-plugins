@@ -3,6 +3,7 @@ import { dispatchCustomEvent } from '@langchain/core/callbacks/dispatch'
 import { SystemMessage, ToolMessage } from '@langchain/core/messages'
 import { tool } from '@langchain/core/tools'
 import { ChatMessageEventTypeEnum, ChatMessageStepCategory, TAgentMiddlewareMeta } from '@xpert-ai/contracts'
+import { serializeTypographyPresets } from '@xpert-ai/design-fonts'
 import {
   AgentMiddleware,
   AgentMiddlewareStrategy,
@@ -244,6 +245,17 @@ export class ExcalidrawMiddleware implements IAgentMiddlewareStrategy<Record<str
     return {
       name: EXCALIDRAW_MIDDLEWARE_NAME,
       tools: [
+        tool(
+          async () => stringifyAgentToolResult({
+            message: 'Excalidraw loads its managed fonts from online font assets and stores the corresponding numeric family id in text elements.',
+            presets: serializeTypographyPresets('excalidraw')
+          }),
+          {
+            name: 'excalidraw_list_typography_presets',
+            description: 'List typography presets and their supported Excalidraw font-family mapping. Use only the returned built-in family mapping; arbitrary custom family ids are not valid Excalidraw scenes.',
+            schema: z.object({})
+          }
+        ),
         tool(
           async (input) => stringifyAgentToolResult(summarizeDrawingMutationResult(await this.service.createDrawing(scope, {
             title: input.title,
