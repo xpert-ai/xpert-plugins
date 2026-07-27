@@ -9,13 +9,16 @@ DingTalk integration plugin for Xpert AI platform.
 - Optional HTTP Mode provider for HTTP callback event handling (messages, mentions, card actions)
 - HTTP callback signature verification + AES decrypt
 - Encrypted callback ACK response (`msg_signature + encrypt + timeStamp + nonce`)
-- Outbound text/markdown/interactive card message sending
+- Inbound image receiving and ordinary file receiving in human-to-bot conversations; ordinary files are stored in the Xpert workspace. Quoted file replies are also resolved from DingTalk's `repliedMsg` metadata. DingTalk does not deliver file events from group @-mentions or person-to-person chats to bots.
+- Configurable inbound summary window for merging separate file and text events that DingTalk actually delivers to the bot.
+- Outbound text/markdown/interactive card/workspace media sending. The middleware takes its integration and recipient directly from the trusted DingTalk trigger, so no integration or recipient selector is shown. Legacy stored notification targets remain runtime-compatible. Workspace media is limited to 10 MiB. Images (`jpg`, `jpeg`, `png`, `gif`, `webp`) use DingTalk image messages; documents and archives (`xlsx`, `pdf`, `zip`, `rar`, `doc`, `docx`) use DingTalk file messages.
 - Message update/recall with degrade fallback (`degraded=true`)
 - Anonymous conversation key strategy:
   - `integrationId + conversationId + senderId`
 - Trigger binding + conversation binding persistence
 - Built-in notify middleware tools:
   - `dingtalk_send_text_notification`
+  - `dingtalk_send_file`
   - `dingtalk_send_rich_notification`
   - `dingtalk_update_message`
   - `dingtalk_recall_message`

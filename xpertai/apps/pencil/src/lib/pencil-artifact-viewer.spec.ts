@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common'
+import { renderNodesToSVG } from '@open\u002dpencil/core/io'
 
 jest.mock('@open\u002dpencil/core/io', () => ({
   renderNodesToSVG: jest.fn(() => '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"></svg>')
@@ -59,10 +60,35 @@ describe('PencilArtifactViewerService', () => {
     expect(html).toContain('requestFullscreen')
     expect(html).toContain('fullscreenchange')
     expect(html).toContain('viewer-fullscreen')
+    expect(html).toContain('grid-template-rows:auto minmax(0,1fr)')
+    expect(html).toContain('max-height:52px')
+    expect(html).toContain("window.matchMedia('(max-width:700px)')")
+    expect(html).toContain('const fitWidth=')
+    expect(html).toContain('window.visualViewport?.addEventListener')
     expect(html).toContain('Second page')
     expect(html).not.toContain('Internal page')
     expect(html).not.toContain('https://example.com')
     expect(html).not.toContain('fetch(')
+
+    const viewerScript = html.match(/<script>([\s\S]*)<\/script>/)?.[1]
+    expect(viewerScript).toBeDefined()
+    expect(() => new Function(viewerScript as string)).not.toThrow()
+  })
+
+  it('loads managed online fonts used by the published SVG', async () => {
+    jest.mocked(renderNodesToSVG).mockReturnValueOnce(
+      '<svg xmlns="http://www.w3.org/2000/svg"><text font-family="Caveat">Hello</text><text font-family="Unmanaged Font">World</text></svg>'
+    )
+    const result = await new PencilArtifactViewerService().render({
+      title: 'Handwritten design',
+      revision: 1,
+      graphSnapshot: createEmptyPencilGraphSnapshot()
+    })
+
+    const html = result.buffer.toString('utf8')
+    expect(html).toContain("font-family: 'Caveat'")
+    expect(html).toContain('https://cdn.jsdelivr.net/npm/@fontsource/caveat@5.2.8/files/caveat-latin-400-normal.woff2')
+    expect(html).not.toContain("font-family: 'Unmanaged Font'")
   })
 
   it.each([

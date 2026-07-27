@@ -1,0 +1,17 @@
+model: Llama3-8B
+label:
+  en_US: Llama3-8B
+  zh_Hans: Llama3-8B
+model_type: llm
+features:
+  - agent-thought
+model_properties:
+  mode: chat
+  context_size: 8192
+parameter_rules:
+  - name: temperature
+    use_template: temperature
+  - name: top_p
+    use_template: top_p
+  - name: max_tokens
+    use_template: max_tokens

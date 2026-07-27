@@ -5,6 +5,8 @@ import { officeEditorTable } from '../constants.js'
 @Entity(officeEditorTable('operation'))
 @Index(['tenantId', 'organizationId', 'documentId', 'status'])
 @Index(['tenantId', 'organizationId', 'documentId', 'createdAt'])
+@Index(['tenantId', 'organizationId', 'documentId', 'idempotencyKey'])
+@Index(['documentId', 'idempotencyKey'], { unique: true })
 export class OfficeOperation {
   @PrimaryGeneratedColumn('uuid')
   id?: string
@@ -52,6 +54,9 @@ export class OfficeOperation {
 
   @Column({ type: 'text', nullable: true })
   errorMessage?: string
+
+  @Column({ type: 'varchar', nullable: true })
+  idempotencyKey?: string
 
   @Column({ type: 'varchar', nullable: true })
   createdById?: string

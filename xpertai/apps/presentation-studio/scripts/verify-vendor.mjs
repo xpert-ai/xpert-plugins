@@ -31,15 +31,29 @@ const manifest = JSON.parse(await readFile(join(upstreamRoot, 'dashiai-ppt', 'pr
 const layouts = Object.values(manifest.layouts ?? {})
 const controls = layouts.reduce((sum, layout) => sum + (Array.isArray(layout.controls) ? layout.controls.length : 0), 0)
 const themes = new Set(layouts.map((layout) => layout.themePack))
-if (layouts.length !== 1020 || controls !== 8576 || themes.size !== 12) {
+if (layouts.length !== 1188 || controls !== 9942 || themes.size !== 14) {
   throw new Error(`Incomplete DashiAI catalog: themes=${themes.size} layouts=${layouts.length} controls=${controls}`)
 }
-for (let index = 1; index <= 12; index += 1) {
+for (let index = 1; index <= 14; index += 1) {
   const key = `theme${String(index).padStart(2, '0')}`
-  await readFile(join(upstreamRoot, 'dashiai-ppt', 'project', 'dist', 'theme-runtime', `imported-theme-runtime.${key}.js`))
+  const runtimeRoot = join(upstreamRoot, 'dashiai-ppt', 'project', 'dist', 'theme-runtime')
+  if (index <= 12) await readFile(join(runtimeRoot, `imported-theme-runtime.${key}.js`))
+  await readFile(join(runtimeRoot, `${key}.module.mjs`))
+}
+const generatedRuntime = JSON.parse(await readFile(
+  join(upstreamRoot, 'dashiai-ppt', 'project', 'dist', 'theme-runtime', 'generated-runtime-manifest.json'),
+  'utf8'
+))
+if (generatedRuntime.themeKeys?.join(',') !== 'theme13,theme14') {
+  throw new Error('Generated runtime manifest must contain only theme13 and theme14.')
+}
+for (const key of ['theme13', 'theme14']) {
+  if (existsSync(join(upstreamRoot, 'dashiai-ppt', 'project', 'dist', 'theme-runtime', `imported-theme-runtime.${key}.js`))) {
+    throw new Error(`Generated theme ${key} must reuse the shared ESM graph instead of a standalone IIFE.`)
+  }
 }
 await verifyFontPack(vendorRoot)
-console.log(`Verified DashiAI ${metadata.commit}: 12 themes, 1020 layouts, 8576 controls, ${Object.keys(PRESENTATION_FONT_PACKAGES).length} managed font packages.`)
+console.log(`Verified DashiAI ${metadata.commit}: 14 themes, 1188 layouts, 9942 controls, ${Object.keys(PRESENTATION_FONT_PACKAGES).length} managed font packages.`)
 
 async function verifyFontPack(vendorRoot) {
   const projectRoot = join(vendorRoot, 'project')

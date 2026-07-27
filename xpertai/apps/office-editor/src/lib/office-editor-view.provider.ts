@@ -154,6 +154,7 @@ export class OfficeEditorViewProvider implements IXpertViewExtensionProvider {
           { key: 'refresh', label: text('Refresh', '刷新'), icon: 'ri-refresh-line', placement: 'toolbar', actionType: 'refresh' },
           { key: 'create_document', label: text('New Office Document', '新建 Office 文档'), icon: 'ri-add-line', placement: 'toolbar', actionType: 'invoke' },
           { key: 'import_document', label: text('Import Office File', '导入 Office 文件'), icon: 'ri-upload-cloud-2-line', placement: 'toolbar', actionType: 'invoke', transport: 'file' },
+          { key: 'get_excel_file', label: text('Download XLSX', '下载 XLSX'), icon: 'ri-download-line', actionType: 'invoke' },
           { key: 'open_document', label: text('Open Document', '打开文档'), actionType: 'invoke' },
           { key: 'save_snapshot', label: text('Save Snapshot', '保存快照'), icon: 'ri-save-line', actionType: 'invoke' },
           { key: 'sync_yjs_state', label: text('Sync Collaboration State', '同步协作状态'), actionType: 'invoke' },
@@ -247,6 +248,11 @@ export class OfficeEditorViewProvider implements IXpertViewExtensionProvider {
       if (actionKey === 'open_document') {
         const result = await this.service.openDocument(scope, requireDocumentId(request))
         return { ...success('Office document opened', 'Office 文档已打开'), data: result, refresh: false }
+      }
+
+      if (actionKey === 'get_excel_file') {
+        const result = await this.service.getExcelFile(scope, requireDocumentId(request), true)
+        return { ...success('Excel file prepared', 'Excel 文件已准备'), data: result, refresh: false }
       }
 
       if (actionKey === 'save_snapshot') {

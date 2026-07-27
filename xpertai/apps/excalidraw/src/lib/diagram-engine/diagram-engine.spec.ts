@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common'
+import { serializeTypographyPresets } from '@xpert-ai/design-fonts'
 import { normalizeExcalidrawScene } from '../excalidraw-scene.validation.js'
 import {
   ArtifactTemplateCatalogService,
@@ -75,6 +76,41 @@ describe('Excalidraw DiagramEngine reference implementation', () => {
     const missing = structuredClone(BUILTIN_DIAGRAM_TEMPLATES[0].payload.base)
     missing.edges[0].target.nodeId = 'missing-node'
     expect(() => parseDiagramIr(missing)).toThrow(/unknown target node/)
+  })
+
+  it('applies a managed Excalidraw font family to every compiled text element', () => {
+    const { adapter, compiler } = createEngine()
+    const ir = adapter.instantiate(BUILTIN_DIAGRAM_TEMPLATES[0], BUILTIN_DIAGRAM_TEMPLATES[0].defaults)
+    ir.appearance.fontFamilyId = 3
+
+    const textElements = compiler.compile(parseDiagramIr(ir)).elements.filter((element) => element.type === 'text')
+
+    expect(textElements.length).toBeGreaterThan(0)
+    expect(textElements.every((element) => element.fontFamily === 3)).toBe(true)
+  })
+
+  it('uses the Excalidraw 0.18 managed font family ids', () => {
+    const presets = serializeTypographyPresets('excalidraw')
+
+    expect(Object.fromEntries(presets.map((preset) => [preset.id, preset.fontFamilyId]))).toEqual({
+      'neutral-ui': 6,
+      'modern-tech': 9,
+      editorial: 2,
+      developer: 3,
+      expressive: 7,
+      handwritten: 5,
+      'zh-modern': 6
+    })
+  })
+
+  it('accepts registered Excalidraw font ids and rejects the unused id 4', () => {
+    const valid = structuredClone(BUILTIN_DIAGRAM_TEMPLATES[0].payload.base)
+    valid.appearance.fontFamilyId = 9
+    expect(() => parseDiagramIr(valid)).not.toThrow()
+
+    const invalid = structuredClone(BUILTIN_DIAGRAM_TEMPLATES[0].payload.base)
+    invalid.appearance.fontFamilyId = 4
+    expect(() => parseDiagramIr(invalid)).toThrow(/appearance\.fontFamilyId/)
   })
 
   it('renders SVG to PNG and writes both artifacts to workspace-scoped quality paths', async () => {

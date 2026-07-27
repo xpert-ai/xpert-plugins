@@ -5,7 +5,7 @@ describe('Presentation catalog', () => {
   const service = new PresentationCatalogService()
 
   it('loads the complete DashiAI catalog', async () => {
-    await expect(service.stats()).resolves.toEqual({ themes: 12, layouts: 1020 })
+    await expect(service.stats()).resolves.toEqual({ themes: 14, layouts: 1188 })
   })
 
   it('queries and inspects layout contracts through upstream workflow code', async () => {
@@ -85,6 +85,14 @@ describe('Presentation catalog', () => {
     expect(Object.keys(runtime.layouts)).toHaveLength(77)
     expect(runtime.script).not.toContain('"assets/3d/')
     expect(runtime.script).toContain('data:image/png;base64,')
+    expect(createHash('sha256').update(runtime.script).digest('hex')).toBe(runtime.runtimeChecksum)
+  })
+
+  it('links a generated theme runtime from the shared ESM graph', async () => {
+    const runtime = await service.loadNativeThemeRuntime('theme13')
+    expect(Object.keys(runtime.layouts)).toHaveLength(86)
+    expect(runtime.script).toContain('__renderRuntimeSlide')
+    expect(runtime.script).not.toContain('"assets/3d/')
     expect(createHash('sha256').update(runtime.script).digest('hex')).toBe(runtime.runtimeChecksum)
   })
 })

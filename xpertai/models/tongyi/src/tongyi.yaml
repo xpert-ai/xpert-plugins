@@ -35,6 +35,15 @@ provider_credential_schema:
       placeholder:
         zh_Hans: 在此输入您的 API Key
         en_US: Enter your API Key
+    - variable: api_host
+      label:
+        zh_Hans: API Host
+        en_US: API Host
+      type: text-input
+      required: false
+      placeholder:
+        zh_Hans: 例如 llm-...cn-beijing.maas.aliyuncs.com
+        en_US: e.g. llm-...cn-beijing.maas.aliyuncs.com
     - variable: use_international_endpoint
       label:
         zh_Hans: 使用国际端点
@@ -68,6 +77,15 @@ model_credential_schema:
       placeholder:
         zh_Hans: 在此输入您的 API Key
         en_US: Enter your API Key
+    - variable: api_host
+      label:
+        zh_Hans: API Host
+        en_US: API Host
+      type: text-input
+      required: false
+      placeholder:
+        zh_Hans: 例如 llm-...cn-beijing.maas.aliyuncs.com
+        en_US: e.g. llm-...cn-beijing.maas.aliyuncs.com
     - variable: use_international_endpoint
       label:
         zh_Hans: 使用国际端点

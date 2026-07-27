@@ -48,7 +48,7 @@ export const officeEditorTemplates: XpertTemplateContribution[] = [
     key: OFFICE_EDITOR_ASSISTANT_TEMPLATE_KEY,
     name: 'Office Editor Assistant',
     title: 'Office 协作编辑助手',
-    description: '面向 Univer 原生电子表格、文档、演示稿的人机协作编辑助手模板。',
+    description: '面向 XLSX 自动化编辑与 Univer 原生文档、演示稿协作的助手模板。',
     category: 'Productivity',
     type: XpertTypeEnum.Agent,
     targetApps: ['data-xpert', 'xpert'],
@@ -79,6 +79,7 @@ export const officeEditorTemplates: XpertTemplateContribution[] = [
     default: false,
     startPrompts: [
       '请打开 Office Editor 工作台，我要创建一个协作电子表格。',
+      '请读取当前 XLSX 文件，修改指定区域并返回新的 Excel 文件。',
       '请创建一份项目方案文档，并把需要我确认的修改排队到工作台。',
       '请基于这些要点生成一个演示稿大纲。',
       '请读取当前 Office 文档，总结待人工确认的 Agent 操作。'

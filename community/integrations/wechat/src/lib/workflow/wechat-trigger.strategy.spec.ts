@@ -16,6 +16,7 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
 
 import { WechatTriggerStrategy } from './wechat-trigger.strategy.js'
 import { WechatMessage } from '../message.js'
+import type { WechatAggregateLockLease } from './wechat-trigger-aggregation.service.js'
 
 describe('WechatTriggerStrategy', () => {
   it('replays published trigger bindings during server bootstrap', () => {
@@ -49,13 +50,19 @@ describe('WechatTriggerStrategy', () => {
         payload
       }))
     }
+    const aggregateLockLease = {
+      ensureOwned: jest.fn().mockResolvedValue(undefined),
+      clearStateIfOwned: jest.fn().mockResolvedValue(undefined)
+    }
     const aggregationService = {
       get: jest.fn().mockResolvedValue(null),
       save: jest.fn().mockResolvedValue(undefined),
       clear: jest.fn().mockResolvedValue(undefined),
       enqueueAggregate: jest.fn().mockResolvedValue({ id: 'aggregate-job-1' }),
       enqueueFlush: jest.fn().mockResolvedValue({ id: 'flush-job-1' }),
-      withAggregateLock: jest.fn(async (_aggregateKey: string, callback: () => Promise<unknown>) => callback())
+      withAggregateLock: jest.fn(async (_aggregateKey: string, callback: (lease: WechatAggregateLockLease) => Promise<unknown>) =>
+        callback(aggregateLockLease)
+      )
     }
     const bindingRepository = {
       upsert: jest.fn().mockResolvedValue(undefined),
@@ -83,6 +90,7 @@ describe('WechatTriggerStrategy', () => {
       downloadImage: jest.fn().mockResolvedValue({
         success: true,
         file: {
+          data: Buffer.from('iVBORw0KGgo=', 'base64'),
           fileUrl: 'data:image/png;base64,iVBORw0KGgo=',
           url: 'data:image/png;base64,iVBORw0KGgo=',
           mimeType: 'image/png',
@@ -190,6 +198,7 @@ describe('WechatTriggerStrategy', () => {
       strategy,
       dispatchService,
       aggregationService,
+      aggregateLockLease,
       bindingRepository,
       accountRepository,
       wechatClient,
@@ -727,6 +736,73 @@ describe('WechatTriggerStrategy', () => {
     )
   })
 
+  it('locks flush and rejects an outdated aggregate version', async () => {
+    const { strategy, dispatchService, aggregationService, aggregateLockLease } = createStrategy()
+    const aggregateKey = 'integration-1:uuid-1:wxid_friend:wxid_friend'
+    const state = {
+      aggregateKey,
+      integrationId: 'integration-1',
+      accountUuid: '*',
+      conversationUserKey: aggregateKey,
+      xpertId: 'xpert-1',
+      version: 2,
+      inputParts: ['分析这张图片', ''],
+      items: [
+        { input: '分析这张图片', messageKind: 'text', chatType: 'private' },
+        { input: '', messageKind: 'image', chatType: 'private' }
+      ],
+      files: [
+        {
+          fileUrl: 'data:image/png;base64,iVBORw0KGgo=',
+          mimeType: 'image/png',
+          originalName: 'wechat-image.png',
+          fileKey: 'image-key-1',
+          fileAssetId: 'image-asset-1'
+        }
+      ],
+      currentInboundLogIds: ['inbound-text-log-1', 'inbound-image-log-1'],
+      lastMessageAt: Date.now(),
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      latestMessage: {
+        integrationId: 'integration-1',
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        senderId: 'wxid_friend',
+        messageId: 'image-msg-1'
+      }
+    }
+    aggregationService.get.mockResolvedValue(state)
+    const scope = {
+      integrationId: 'integration-1',
+      tenantId: 'tenant-1',
+      organizationId: 'org-1'
+    }
+
+    await expect(
+      strategy.flushBufferedConversation({ aggregateKey, version: 1, ...scope })
+    ).resolves.toBe(false)
+    expect(dispatchService.enqueueDispatch).not.toHaveBeenCalled()
+
+    await expect(
+      strategy.flushBufferedConversation({ aggregateKey, version: 2, ...scope })
+    ).resolves.toBe(true)
+    expect(dispatchService.enqueueDispatch).toHaveBeenCalledTimes(1)
+    expect(dispatchService.enqueueDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: '分析这张图片',
+        files: [expect.objectContaining({ fileAssetId: 'image-asset-1' })]
+      })
+    )
+    expect(aggregationService.withAggregateLock).toHaveBeenCalledWith(
+      aggregateKey,
+      expect.any(Function),
+      undefined,
+      expect.objectContaining(scope)
+    )
+    expect(aggregateLockLease.clearStateIfOwned).toHaveBeenCalledTimes(1)
+  })
+
   it('coalesces duplicate pending file refs and materializes the more complete attachment metadata', async () => {
     const { strategy, aggregationService, wechatClient, workspaceFiles } = createStrategy()
     const partialFileRef = {
@@ -846,7 +922,7 @@ describe('WechatTriggerStrategy', () => {
   })
 
   it('flushes one debounced batch as one fresh-session dispatch with history context', async () => {
-    const { strategy, dispatchService, aggregationService } = createStrategy()
+    const { strategy, dispatchService, aggregationService, aggregateLockLease } = createStrategy()
     aggregationService.get.mockResolvedValueOnce({
       aggregateKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
       integrationId: 'integration-1',
@@ -904,18 +980,19 @@ describe('WechatTriggerStrategy', () => {
         conversationId: expect.anything()
       })
     )
-    expect(aggregationService.clear).toHaveBeenCalledWith(
-      'integration-1:uuid-1:wxid_friend:wxid_friend',
-      expect.objectContaining({
-        integrationId: 'integration-1',
-        tenantId: 'tenant-1',
-        organizationId: 'org-1'
-      })
-    )
+    expect(aggregateLockLease.clearStateIfOwned).toHaveBeenCalledTimes(1)
   })
 
   it('materializes pending files at flush and dispatches FileAsset handles with merged text', async () => {
-    const { strategy, dispatchService, aggregationService, wechatClient, workspaceFiles, messageFileRepository } = createStrategy()
+    const {
+      strategy,
+      dispatchService,
+      aggregationService,
+      aggregateLockLease,
+      wechatClient,
+      workspaceFiles,
+      messageFileRepository
+    } = createStrategy()
     const fileRef = {
       uuid: 'uuid-1',
       contactId: 'wxid_friend',
@@ -1035,6 +1112,111 @@ describe('WechatTriggerStrategy', () => {
       })
     )
     expect(JSON.stringify(dispatchService.enqueueDispatch.mock.calls[0][0])).not.toContain('docx-bytes')
+  })
+
+  it('uploads decoded inbound images to workspace storage while preserving the data URL for vision dispatch', async () => {
+    const { strategy, dispatchService, workspaceFiles, messageFileRepository, wechatMessage } = createStrategy()
+    workspaceFiles.uploadBuffer.mockResolvedValueOnce({
+      name: 'wechat-image.png',
+      filePath: 'files/wechat/integration-1/uuid-1/image-msg-1/wechat-image.png',
+      workspacePath: 'files/wechat/integration-1/uuid-1/image-msg-1/wechat-image.png',
+      fileUrl: 'https://files.example/files/wechat/wechat-image.png',
+      mimeType: 'image/png',
+      size: 8
+    })
+    workspaceFiles.understandFile.mockResolvedValueOnce({
+      id: 'image-asset-1',
+      fileId: 'image-asset-1',
+      fileAssetId: 'image-asset-1',
+      storageFileId: 'storage-image-1',
+      filePath: 'files/wechat/integration-1/uuid-1/image-msg-1/wechat-image.png',
+      workspacePath: 'files/wechat/integration-1/uuid-1/image-msg-1/wechat-image.png',
+      fileUrl: 'https://files.example/files/wechat/wechat-image.png',
+      mimeType: 'image/png',
+      originalName: 'wechat-image.png',
+      name: 'wechat-image.png',
+      size: 8
+    })
+    const imageRef = {
+      uuid: 'uuid-1',
+      contactId: 'wxid_friend',
+      newMsgId: 'image-msg-1',
+      msgContent: '<msg><img /></msg>',
+      msgType: 3 as const,
+      fileKey: 'image-key-1',
+      originalName: 'wechat-image.png'
+    }
+
+    await expect(
+      strategy.handleInboundMessage({
+        integrationId: 'integration-1',
+        input: '',
+        pendingFiles: [
+          {
+            kind: 'image',
+            messageLogId: 'inbound-image-log-1',
+            messageId: 'image-msg-1',
+            uuid: 'uuid-1',
+            contactId: 'wxid_friend',
+            senderId: 'wxid_friend',
+            originalName: 'wechat-image.png',
+            imageRef
+          }
+        ],
+        wechatMessage,
+        conversationUserKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+        currentInboundLogIds: ['inbound-image-log-1'],
+        tenantId: 'tenant-1',
+        organizationId: 'org-1'
+      })
+    ).resolves.toEqual({
+      accepted: true,
+      queued: false,
+      dispatched: true
+    })
+
+    expect(workspaceFiles.uploadBuffer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        catalog: 'xperts',
+        xpertId: 'xpert-1',
+        isolateByUser: false,
+        folder: 'files/wechat/integration-1/uuid-1/image-msg-1',
+        fileName: 'wechat-image.png',
+        mimeType: 'image/png',
+        buffer: Buffer.from('iVBORw0KGgo=', 'base64')
+      })
+    )
+    expect(workspaceFiles.understandFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filePath: 'files/wechat/integration-1/uuid-1/image-msg-1/wechat-image.png',
+        purpose: 'chat_attachment',
+        parseMode: 'auto'
+      })
+    )
+    expect(messageFileRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'message-file-1' }),
+      expect.objectContaining({
+        status: 'ready',
+        fileAssetId: 'image-asset-1',
+        workspacePath: 'files/wechat/integration-1/uuid-1/image-msg-1/wechat-image.png',
+        fileUrl: 'https://files.example/files/wechat/wechat-image.png'
+      })
+    )
+    expect(dispatchService.enqueueDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: '[理解附件]',
+        files: [
+          expect.objectContaining({
+            fileAssetId: 'image-asset-1',
+            storageFileId: 'storage-image-1',
+            workspacePath: 'files/wechat/integration-1/uuid-1/image-msg-1/wechat-image.png',
+            fileUrl: 'data:image/png;base64,iVBORw0KGgo=',
+            url: 'data:image/png;base64,iVBORw0KGgo='
+          })
+        ]
+      })
+    )
+    expect(JSON.stringify(dispatchService.enqueueDispatch.mock.calls[0][0])).not.toContain('"data":')
   })
 
   it('skips known oversized file messages before wx2.0 download or workspace upload', async () => {
@@ -1255,8 +1437,15 @@ describe('WechatTriggerStrategy', () => {
   })
 
   it('keeps the debounced batch and retries flush when file attachment fields are not ready', async () => {
-    const { strategy, dispatchService, aggregationService, wechatClient, messageLogRepository, messageFileRepository } =
-      createStrategy()
+    const {
+      strategy,
+      dispatchService,
+      aggregationService,
+      aggregateLockLease,
+      wechatClient,
+      messageLogRepository,
+      messageFileRepository
+    } = createStrategy()
     wechatClient.downloadFile.mockResolvedValueOnce({
       success: false,
       error: '无法从应用消息提取附件'
@@ -1334,7 +1523,7 @@ describe('WechatTriggerStrategy', () => {
         status: 'failed'
       })
     )
-    expect(aggregationService.clear).not.toHaveBeenCalled()
+    expect(aggregateLockLease.clearStateIfOwned).not.toHaveBeenCalled()
     expect(aggregationService.save).toHaveBeenCalledWith(
       expect.objectContaining({
         fileMaterializeRetryCount: 1,
@@ -1708,7 +1897,7 @@ describe('WechatTriggerStrategy', () => {
   })
 
   it('skips a debounced group batch when no item matches the trigger policy', async () => {
-    const { strategy, dispatchService, aggregationService, messageLogRepository } = createStrategy()
+    const { strategy, dispatchService, aggregationService, aggregateLockLease, messageLogRepository } = createStrategy()
     aggregationService.get.mockResolvedValueOnce({
       aggregateKey: 'integration-1:uuid-1:room@chatroom:wxid_sender',
       integrationId: 'integration-1',
@@ -1760,14 +1949,7 @@ describe('WechatTriggerStrategy', () => {
         error: 'filtered_by_trigger_policy'
       })
     )
-    expect(aggregationService.clear).toHaveBeenCalledWith(
-      'integration-1:uuid-1:room@chatroom:wxid_sender',
-      expect.objectContaining({
-        integrationId: 'integration-1',
-        tenantId: 'tenant-1',
-        organizationId: 'org-1'
-      })
-    )
+    expect(aggregateLockLease.clearStateIfOwned).toHaveBeenCalledTimes(1)
   })
 
   it('dispatches debounced group join welcomes without normal group mention or keyword policy', async () => {

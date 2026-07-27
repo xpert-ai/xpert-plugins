@@ -1,0 +1,1034 @@
+{
+  "schemaVersion": 3,
+  "qualityVersion": 3,
+  "themeKey": "theme14",
+  "externalPlan": "external-plan.json",
+  "styleGrammar": {
+    "schemaVersion": 1,
+    "rules": [
+      {
+        "id": "color-01",
+        "category": "color",
+        "description": "深紫与亮紫作为主要夜色画布",
+        "sourceField": "visualEvidence.palette",
+        "evidenceRefs": [
+          "Trick or Treat · SlidesMania.pptx#slide-01",
+          "Trick or Treat · SlidesMania.pptx#slide-02",
+          "Trick or Treat · SlidesMania.pptx#slide-05",
+          "Trick or Treat · SlidesMania.pptx#slide-08",
+          "Trick or Treat · SlidesMania.pptx#slide-11",
+          "Trick or Treat · SlidesMania.pptx#slide-13",
+          "Trick or Treat · SlidesMania.pptx#slide-15",
+          "Trick or Treat · SlidesMania.pptx#slide-17"
+        ]
+      },
+      {
+        "id": "color-02",
+        "category": "color",
+        "description": "南瓜橙用于交替页面和高显著度强调",
+        "sourceField": "visualEvidence.palette",
+        "evidenceRefs": [
+          "Trick or Treat · SlidesMania.pptx#slide-01",
+          "Trick or Treat · SlidesMania.pptx#slide-02",
+          "Trick or Treat · SlidesMania.pptx#slide-05",
+          "Trick or Treat · SlidesMania.pptx#slide-08",
+          "Trick or Treat · SlidesMania.pptx#slide-11",
+          "Trick or Treat · SlidesMania.pptx#slide-13",
+          "Trick or Treat · SlidesMania.pptx#slide-15",
+          "Trick or Treat · SlidesMania.pptx#slide-17"
+        ]
+      },
+      {
+        "id": "color-03",
+        "category": "color",
+        "description": "白色承担正文与大标题",
+        "sourceField": "visualEvidence.palette",
+        "evidenceRefs": [
+          "Trick or Treat · SlidesMania.pptx#slide-01",
+          "Trick or Treat · SlidesMania.pptx#slide-02",
+          "Trick or Treat · SlidesMania.pptx#slide-05",
+          "Trick or Treat · SlidesMania.pptx#slide-08",
+          "Trick or Treat · SlidesMania.pptx#slide-11",
+          "Trick or Treat · SlidesMania.pptx#slide-13",
+          "Trick or Treat · SlidesMania.pptx#slide-15",
+          "Trick or Treat · SlidesMania.pptx#slide-17"
+        ]
+      },
+      {
+        "id": "color-04",
+        "category": "color",
+        "description": "明黄用于标题标签和小型图标",
+        "sourceField": "visualEvidence.palette",
+        "evidenceRefs": [
+          "Trick or Treat · SlidesMania.pptx#slide-01",
+          "Trick or Treat · SlidesMania.pptx#slide-02",
+          "Trick or Treat · SlidesMania.pptx#slide-05",
+          "Trick or Treat · SlidesMania.pptx#slide-08",
+          "Trick or Treat · SlidesMania.pptx#slide-11",
+          "Trick or Treat · SlidesMania.pptx#slide-13",
+          "Trick or Treat · SlidesMania.pptx#slide-15",
+          "Trick or Treat · SlidesMania.pptx#slide-17"
+        ]
+      },
+      {
+        "id": "typography-01",
+        "category": "typography",
+        "description": "标题使用粗体无衬线并带轻微怪趣节奏",
+        "sourceField": "visualEvidence.typography",
+        "evidenceRefs": [
+          "Trick or Treat · SlidesMania.pptx#slide-01",
+          "Trick or Treat · SlidesMania.pptx#slide-02",
+          "Trick or Treat · SlidesMania.pptx#slide-05",
+          "Trick or Treat · SlidesMania.pptx#slide-08",
+          "Trick or Treat · SlidesMania.pptx#slide-11",
+          "Trick or Treat · SlidesMania.pptx#slide-13",
+          "Trick or Treat · SlidesMania.pptx#slide-15",
+          "Trick or Treat · SlidesMania.pptx#slide-17"
+        ]
+      },
+      {
+        "id": "typography-02",
+        "category": "typography",
+        "description": "正文保持白色小字号以适应高饱和底色",
+        "sourceField": "visualEvidence.typography",
+        "evidenceRefs": [
+          "Trick or Treat · SlidesMania.pptx#slide-01",
+          "Trick or Treat · SlidesMania.pptx#slide-02",
+          "Trick or Treat · SlidesMania.pptx#slide-05",
+          "Trick or Treat · SlidesMania.pptx#slide-08",
+          "Trick or Treat · SlidesMania.pptx#slide-11",
+          "Trick or Treat · SlidesMania.pptx#slide-13",
+          "Trick or Treat · SlidesMania.pptx#slide-15",
+          "Trick or Treat · SlidesMania.pptx#slide-17"
+        ]
+      },
+      {
+        "id": "composition-01",
+        "category": "composition",
+        "description": "紫色和橙色页面交替形成节日节奏",
+        "sourceField": "visualEvidence.composition",
+        "evidenceRefs": [
+          "Trick or Treat · SlidesMania.pptx#slide-01",
+          "Trick or Treat · SlidesMania.pptx#slide-02",
+          "Trick or Treat · SlidesMania.pptx#slide-05",
+          "Trick or Treat · SlidesMania.pptx#slide-08",
+          "Trick or Treat · SlidesMania.pptx#slide-11",
+          "Trick or Treat · SlidesMania.pptx#slide-13",
+          "Trick or Treat · SlidesMania.pptx#slide-15",
+          "Trick or Treat · SlidesMania.pptx#slide-17"
+        ]
+      },
+      {
+        "id": "composition-02",
+        "category": "composition",
+        "description": "蜘蛛网从角落展开，南瓜与坩埚压住页边",
+        "sourceField": "visualEvidence.composition",
+        "evidenceRefs": [
+          "Trick or Treat · SlidesMania.pptx#slide-01",
+          "Trick or Treat · SlidesMania.pptx#slide-02",
+          "Trick or Treat · SlidesMania.pptx#slide-05",
+          "Trick or Treat · SlidesMania.pptx#slide-08",
+          "Trick or Treat · SlidesMania.pptx#slide-11",
+          "Trick or Treat · SlidesMania.pptx#slide-13",
+          "Trick or Treat · SlidesMania.pptx#slide-15",
+          "Trick or Treat · SlidesMania.pptx#slide-17"
+        ]
+      },
+      {
+        "id": "surface-01",
+        "category": "surface",
+        "description": "内容直接铺在纯色画布上并以少量浅紫卡片分区",
+        "sourceField": "visualEvidence.surfaces",
+        "evidenceRefs": [
+          "Trick or Treat · SlidesMania.pptx#slide-01",
+          "Trick or Treat · SlidesMania.pptx#slide-02",
+          "Trick or Treat · SlidesMania.pptx#slide-05",
+          "Trick or Treat · SlidesMania.pptx#slide-08",
+          "Trick or Treat · SlidesMania.pptx#slide-11",
+          "Trick or Treat · SlidesMania.pptx#slide-13",
+          "Trick or Treat · SlidesMania.pptx#slide-15",
+          "Trick or Treat · SlidesMania.pptx#slide-17"
+        ]
+      },
+      {
+        "id": "surface-02",
+        "category": "surface",
+        "description": "媒体页使用大图和高对比文字覆盖",
+        "sourceField": "visualEvidence.surfaces",
+        "evidenceRefs": [
+          "Trick or Treat · SlidesMania.pptx#slide-01",
+          "Trick or Treat · SlidesMania.pptx#slide-02",
+          "Trick or Treat · SlidesMania.pptx#slide-05",
+          "Trick or Treat · SlidesMania.pptx#slide-08",
+          "Trick or Treat · SlidesMania.pptx#slide-11",
+          "Trick or Treat · SlidesMania.pptx#slide-13",
+          "Trick or Treat · SlidesMania.pptx#slide-15",
+          "Trick or Treat · SlidesMania.pptx#slide-17"
+        ]
+      },
+      {
+        "id": "media-01",
+        "category": "media",
+        "description": "南瓜和人物照片使用圆形或大幅裁切",
+        "sourceField": "visualEvidence.imageTreatment",
+        "evidenceRefs": [
+          "Trick or Treat · SlidesMania.pptx#slide-01",
+          "Trick or Treat · SlidesMania.pptx#slide-02",
+          "Trick or Treat · SlidesMania.pptx#slide-05",
+          "Trick or Treat · SlidesMania.pptx#slide-08",
+          "Trick or Treat · SlidesMania.pptx#slide-11",
+          "Trick or Treat · SlidesMania.pptx#slide-13",
+          "Trick or Treat · SlidesMania.pptx#slide-15",
+          "Trick or Treat · SlidesMania.pptx#slide-17"
+        ]
+      },
+      {
+        "id": "media-02",
+        "category": "media",
+        "description": "媒体叠加橙色或紫色遮罩并保留白字",
+        "sourceField": "visualEvidence.imageTreatment",
+        "evidenceRefs": [
+          "Trick or Treat · SlidesMania.pptx#slide-01",
+          "Trick or Treat · SlidesMania.pptx#slide-02",
+          "Trick or Treat · SlidesMania.pptx#slide-05",
+          "Trick or Treat · SlidesMania.pptx#slide-08",
+          "Trick or Treat · SlidesMania.pptx#slide-11",
+          "Trick or Treat · SlidesMania.pptx#slide-13",
+          "Trick or Treat · SlidesMania.pptx#slide-15",
+          "Trick or Treat · SlidesMania.pptx#slide-17"
+        ]
+      },
+      {
+        "id": "motif-01",
+        "category": "motif",
+        "description": "蜘蛛网、南瓜、坩埚、糖果和小蜘蛛重复出现",
+        "sourceField": "visualEvidence.motifs",
+        "evidenceRefs": [
+          "Trick or Treat · SlidesMania.pptx#slide-01",
+          "Trick or Treat · SlidesMania.pptx#slide-02",
+          "Trick or Treat · SlidesMania.pptx#slide-05",
+          "Trick or Treat · SlidesMania.pptx#slide-08",
+          "Trick or Treat · SlidesMania.pptx#slide-11",
+          "Trick or Treat · SlidesMania.pptx#slide-13",
+          "Trick or Treat · SlidesMania.pptx#slide-15",
+          "Trick or Treat · SlidesMania.pptx#slide-17"
+        ]
+      },
+      {
+        "id": "motif-02",
+        "category": "motif",
+        "description": "橙色圆点与紫色图标形成时间线节点",
+        "sourceField": "visualEvidence.motifs",
+        "evidenceRefs": [
+          "Trick or Treat · SlidesMania.pptx#slide-01",
+          "Trick or Treat · SlidesMania.pptx#slide-02",
+          "Trick or Treat · SlidesMania.pptx#slide-05",
+          "Trick or Treat · SlidesMania.pptx#slide-08",
+          "Trick or Treat · SlidesMania.pptx#slide-11",
+          "Trick or Treat · SlidesMania.pptx#slide-13",
+          "Trick or Treat · SlidesMania.pptx#slide-15",
+          "Trick or Treat · SlidesMania.pptx#slide-17"
+        ]
+      },
+      {
+        "id": "signature-01",
+        "category": "signature",
+        "description": "每页至少出现蜘蛛网或南瓜轮廓中的一种",
+        "sourceField": "visualEvidence.signatureRules",
+        "evidenceRefs": [
+          "Trick or Treat · SlidesMania.pptx#slide-01",
+          "Trick or Treat · SlidesMania.pptx#slide-02",
+          "Trick or Treat · SlidesMania.pptx#slide-05",
+          "Trick or Treat · SlidesMania.pptx#slide-08",
+          "Trick or Treat · SlidesMania.pptx#slide-11",
+          "Trick or Treat · SlidesMania.pptx#slide-13",
+          "Trick or Treat · SlidesMania.pptx#slide-15",
+          "Trick or Treat · SlidesMania.pptx#slide-17"
+        ]
+      },
+      {
+        "id": "signature-02",
+        "category": "signature",
+        "description": "紫橙交替时保持白色信息文字和黄色小标签",
+        "sourceField": "visualEvidence.signatureRules",
+        "evidenceRefs": [
+          "Trick or Treat · SlidesMania.pptx#slide-01",
+          "Trick or Treat · SlidesMania.pptx#slide-02",
+          "Trick or Treat · SlidesMania.pptx#slide-05",
+          "Trick or Treat · SlidesMania.pptx#slide-08",
+          "Trick or Treat · SlidesMania.pptx#slide-11",
+          "Trick or Treat · SlidesMania.pptx#slide-13",
+          "Trick or Treat · SlidesMania.pptx#slide-15",
+          "Trick or Treat · SlidesMania.pptx#slide-17"
+        ]
+      },
+      {
+        "id": "forbidden-01",
+        "category": "forbidden",
+        "description": "禁止冷灰极简商务构图",
+        "sourceField": "visualEvidence.forbidden",
+        "evidenceRefs": [
+          "Trick or Treat · SlidesMania.pptx#slide-01",
+          "Trick or Treat · SlidesMania.pptx#slide-02",
+          "Trick or Treat · SlidesMania.pptx#slide-05",
+          "Trick or Treat · SlidesMania.pptx#slide-08",
+          "Trick or Treat · SlidesMania.pptx#slide-11",
+          "Trick or Treat · SlidesMania.pptx#slide-13",
+          "Trick or Treat · SlidesMania.pptx#slide-15",
+          "Trick or Treat · SlidesMania.pptx#slide-17"
+        ]
+      },
+      {
+        "id": "forbidden-02",
+        "category": "forbidden",
+        "description": "禁止低饱和粉彩和细腻玻璃发光",
+        "sourceField": "visualEvidence.forbidden",
+        "evidenceRefs": [
+          "Trick or Treat · SlidesMania.pptx#slide-01",
+          "Trick or Treat · SlidesMania.pptx#slide-02",
+          "Trick or Treat · SlidesMania.pptx#slide-05",
+          "Trick or Treat · SlidesMania.pptx#slide-08",
+          "Trick or Treat · SlidesMania.pptx#slide-11",
+          "Trick or Treat · SlidesMania.pptx#slide-13",
+          "Trick or Treat · SlidesMania.pptx#slide-15",
+          "Trick or Treat · SlidesMania.pptx#slide-17"
+        ]
+      }
+    ],
+    "forbiddenRuleIds": [
+      "forbidden-01",
+      "forbidden-02"
+    ],
+    "primitives": [
+      {
+        "id": "corner-web",
+        "evidenceRefs": [
+          "Trick or Treat · SlidesMania.pptx#slide-01",
+          "Trick or Treat · SlidesMania.pptx#slide-02",
+          "Trick or Treat · SlidesMania.pptx#slide-05",
+          "Trick or Treat · SlidesMania.pptx#slide-08",
+          "Trick or Treat · SlidesMania.pptx#slide-11",
+          "Trick or Treat · SlidesMania.pptx#slide-13",
+          "Trick or Treat · SlidesMania.pptx#slide-15",
+          "Trick or Treat · SlidesMania.pptx#slide-17"
+        ]
+      },
+      {
+        "id": "cauldron-bubble",
+        "evidenceRefs": [
+          "Trick or Treat · SlidesMania.pptx#slide-01",
+          "Trick or Treat · SlidesMania.pptx#slide-02",
+          "Trick or Treat · SlidesMania.pptx#slide-05",
+          "Trick or Treat · SlidesMania.pptx#slide-08",
+          "Trick or Treat · SlidesMania.pptx#slide-11",
+          "Trick or Treat · SlidesMania.pptx#slide-13",
+          "Trick or Treat · SlidesMania.pptx#slide-15",
+          "Trick or Treat · SlidesMania.pptx#slide-17"
+        ]
+      },
+      {
+        "id": "candy-node",
+        "evidenceRefs": [
+          "Trick or Treat · SlidesMania.pptx#slide-01",
+          "Trick or Treat · SlidesMania.pptx#slide-02",
+          "Trick or Treat · SlidesMania.pptx#slide-05",
+          "Trick or Treat · SlidesMania.pptx#slide-08",
+          "Trick or Treat · SlidesMania.pptx#slide-11",
+          "Trick or Treat · SlidesMania.pptx#slide-13",
+          "Trick or Treat · SlidesMania.pptx#slide-15",
+          "Trick or Treat · SlidesMania.pptx#slide-17"
+        ]
+      },
+      {
+        "id": "purple-orange-rail",
+        "evidenceRefs": [
+          "Trick or Treat · SlidesMania.pptx#slide-01",
+          "Trick or Treat · SlidesMania.pptx#slide-02",
+          "Trick or Treat · SlidesMania.pptx#slide-05",
+          "Trick or Treat · SlidesMania.pptx#slide-08"
+        ]
+      }
+    ]
+  },
+  "moduleSources": {
+    "observed": 8,
+    "inferred": 8
+  },
+  "modules": [
+    {
+      "id": "theme14_signature_pumpkin_night_cover",
+      "archetypeId": "pumpkin-night-cover",
+      "componentName": "Signature01PumpkinNightCover",
+      "family": "cover",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "slide-01",
+        "slide-23"
+      ],
+      "visualRequirements": [
+        "深紫夜色画布承载白色大标题",
+        "蜘蛛网占据上方角落",
+        "南瓜表情沿底边形成故事舞台"
+      ],
+      "styleSignals": [
+        "深紫夜色画布承载白色大标题",
+        "蜘蛛网占据上方角落",
+        "南瓜表情沿底边形成故事舞台"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme14_signature_spooky_facts_overview",
+      "archetypeId": "spooky-facts-overview",
+      "componentName": "Signature02SpookyFactsOverview",
+      "family": "general",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "slide-06",
+        "slide-09",
+        "slide-14"
+      ],
+      "visualRequirements": [
+        "事实条目直接铺在紫色画布",
+        "黄色小标题与橙色图标提供扫描点",
+        "坩埚或蜘蛛压住页面边缘"
+      ],
+      "styleSignals": [
+        "事实条目直接铺在紫色画布",
+        "黄色小标题与橙色图标提供扫描点",
+        "坩埚或蜘蛛压住页面边缘"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme14_signature_cat_percent_metrics",
+      "archetypeId": "cat-percent-metrics",
+      "componentName": "Signature03CatPercentMetrics",
+      "family": "metrics",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "slide-13",
+        "slide-16"
+      ],
+      "visualRequirements": [
+        "大号白色百分比形成主要指标",
+        "南瓜眼睛或猫咪图标标记行项目",
+        "橙色说明文字强调结论"
+      ],
+      "styleSignals": [
+        "大号白色百分比形成主要指标",
+        "南瓜眼睛或猫咪图标标记行项目",
+        "橙色说明文字强调结论"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme14_signature_pumpkin_photo_story",
+      "archetypeId": "pumpkin-photo-story",
+      "componentName": "Signature04PumpkinPhotoStory",
+      "family": "media",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "slide-11",
+        "slide-12",
+        "slide-18"
+      ],
+      "visualRequirements": [
+        "大幅南瓜照片与白色标题叠置",
+        "橙色画布承载媒体卡",
+        "蜘蛛网覆盖媒体边角但不遮挡主体"
+      ],
+      "styleSignals": [
+        "大幅南瓜照片与白色标题叠置",
+        "橙色画布承载媒体卡",
+        "蜘蛛网覆盖媒体边角但不遮挡主体"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme14_signature_purple_orange_comparison",
+      "archetypeId": "purple-orange-comparison",
+      "componentName": "Signature05PurpleOrangeComparison",
+      "family": "comparison",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "slide-07",
+        "slide-14"
+      ],
+      "visualRequirements": [
+        "左右两列事实采用相同文字密度",
+        "黄色标题区分两类观点",
+        "紫色底上保留橙色小图标"
+      ],
+      "styleSignals": [
+        "左右两列事实采用相同文字密度",
+        "黄色标题区分两类观点",
+        "紫色底上保留橙色小图标"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme14_signature_candy_process_timeline",
+      "archetypeId": "candy-process-timeline",
+      "componentName": "Signature06CandyProcessTimeline",
+      "family": "timeline",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "slide-17"
+      ],
+      "visualRequirements": [
+        "橙色圆点沿水平路径排布",
+        "日期标签与正文分层清晰",
+        "坩埚置于路径起点形成叙事"
+      ],
+      "styleSignals": [
+        "橙色圆点沿水平路径排布",
+        "日期标签与正文分层清晰",
+        "坩埚置于路径起点形成叙事"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme14_signature_party_agenda_table",
+      "archetypeId": "party-agenda-table",
+      "componentName": "Signature07PartyAgendaTable",
+      "family": "table",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "slide-02",
+        "slide-04"
+      ],
+      "visualRequirements": [
+        "清单、今日任务和互动框分区明确",
+        "浅紫卡片使用深紫描边",
+        "黄色标签承担状态与标题"
+      ],
+      "styleSignals": [
+        "清单、今日任务和互动框分区明确",
+        "浅紫卡片使用深紫描边",
+        "黄色标签承担状态与标题"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme14_signature_cauldron_quote_statement",
+      "archetypeId": "cauldron-quote-statement",
+      "componentName": "Signature08CauldronQuoteStatement",
+      "family": "statement",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "slide-08",
+        "slide-10",
+        "slide-22"
+      ],
+      "visualRequirements": [
+        "超大白色观点置于橙色或紫色画布",
+        "引号或蜘蛛网形成顶部装饰",
+        "坩埚与南瓜承担底部收束"
+      ],
+      "styleSignals": [
+        "超大白色观点置于橙色或紫色画布",
+        "引号或蜘蛛网形成顶部装饰",
+        "坩埚与南瓜承担底部收束"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme14_derived_closing_call",
+      "archetypeId": "derived-closing-call",
+      "componentName": "Derived01ClosingCall",
+      "family": "closing",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-01",
+        "composition-02",
+        "surface-01",
+        "motif-02",
+        "color-01"
+      ],
+      "anchorModuleRefs": [
+        "theme14_signature_pumpkin_night_cover",
+        "theme14_signature_cauldron_quote_statement"
+      ],
+      "stylePrimitiveRefs": [
+        "corner-web",
+        "purple-orange-rail"
+      ],
+      "derivationReason": "用模板的封面语法和签名符号生成收束页；以 theme14_signature_pumpkin_night_cover、theme14_signature_cauldron_quote_statement 为视觉锚点。",
+      "visualRequirements": [
+        "用模板的封面语法和签名符号生成收束页",
+        "标题使用粗体无衬线并带轻微怪趣节奏",
+        "蜘蛛网从角落展开，南瓜与坩埚压住页边",
+        "内容直接铺在纯色画布上并以少量浅紫卡片分区",
+        "橙色圆点与紫色图标形成时间线节点",
+        "深紫与亮紫作为主要夜色画布"
+      ],
+      "styleSignals": [
+        "标题使用粗体无衬线并带轻微怪趣节奏",
+        "蜘蛛网从角落展开，南瓜与坩埚压住页边",
+        "内容直接铺在纯色画布上并以少量浅紫卡片分区",
+        "橙色圆点与紫色图标形成时间线节点",
+        "深紫与亮紫作为主要夜色画布"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "subtitle",
+          "action"
+        ]
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme14_derived_composition_breakdown",
+      "archetypeId": "derived-composition-breakdown",
+      "componentName": "Derived02CompositionBreakdown",
+      "family": "distribution",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-02",
+        "composition-01",
+        "surface-02",
+        "motif-01",
+        "color-02"
+      ],
+      "anchorModuleRefs": [
+        "theme14_signature_cat_percent_metrics",
+        "theme14_signature_purple_orange_comparison"
+      ],
+      "stylePrimitiveRefs": [
+        "cauldron-bubble",
+        "purple-orange-rail"
+      ],
+      "derivationReason": "把模板的表面和色阶扩展为构成分析；以 theme14_signature_cat_percent_metrics、theme14_signature_purple_orange_comparison 为视觉锚点。",
+      "visualRequirements": [
+        "把模板的表面和色阶扩展为构成分析",
+        "正文保持白色小字号以适应高饱和底色",
+        "紫色和橙色页面交替形成节日节奏",
+        "媒体页使用大图和高对比文字覆盖",
+        "蜘蛛网、南瓜、坩埚、糖果和小蜘蛛重复出现",
+        "南瓜橙用于交替页面和高显著度强调"
+      ],
+      "styleSignals": [
+        "正文保持白色小字号以适应高饱和底色",
+        "紫色和橙色页面交替形成节日节奏",
+        "媒体页使用大图和高对比文字覆盖",
+        "蜘蛛网、南瓜、坩埚、糖果和小蜘蛛重复出现",
+        "南瓜橙用于交替页面和高显著度强调"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "segments",
+          "summary"
+        ]
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme14_derived_ecosystem_relationship",
+      "archetypeId": "derived-ecosystem-relationship",
+      "componentName": "Derived03EcosystemRelationship",
+      "family": "relationship",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-01",
+        "composition-02",
+        "surface-01",
+        "motif-02",
+        "color-03"
+      ],
+      "anchorModuleRefs": [
+        "theme14_signature_candy_process_timeline",
+        "theme14_signature_purple_orange_comparison"
+      ],
+      "stylePrimitiveRefs": [
+        "cauldron-bubble",
+        "candy-node"
+      ],
+      "derivationReason": "把模板的网格和节点符号扩展为关系网络；以 theme14_signature_candy_process_timeline、theme14_signature_purple_orange_comparison 为视觉锚点。",
+      "visualRequirements": [
+        "把模板的网格和节点符号扩展为关系网络",
+        "标题使用粗体无衬线并带轻微怪趣节奏",
+        "蜘蛛网从角落展开，南瓜与坩埚压住页边",
+        "内容直接铺在纯色画布上并以少量浅紫卡片分区",
+        "橙色圆点与紫色图标形成时间线节点",
+        "白色承担正文与大标题"
+      ],
+      "styleSignals": [
+        "标题使用粗体无衬线并带轻微怪趣节奏",
+        "蜘蛛网从角落展开，南瓜与坩埚压住页边",
+        "内容直接铺在纯色画布上并以少量浅紫卡片分区",
+        "橙色圆点与紫色图标形成时间线节点",
+        "白色承担正文与大标题"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "nodes",
+          "links"
+        ]
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme14_derived_proportion_scorecard",
+      "archetypeId": "derived-proportion-scorecard",
+      "componentName": "Derived04ProportionScorecard",
+      "family": "proportion",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-02",
+        "composition-01",
+        "surface-02",
+        "motif-01",
+        "color-04"
+      ],
+      "anchorModuleRefs": [
+        "theme14_signature_cat_percent_metrics",
+        "theme14_signature_purple_orange_comparison"
+      ],
+      "stylePrimitiveRefs": [
+        "candy-node",
+        "corner-web"
+      ],
+      "derivationReason": "把模板的指标语法扩展为比例与进度页；以 theme14_signature_cat_percent_metrics、theme14_signature_purple_orange_comparison 为视觉锚点。",
+      "visualRequirements": [
+        "把模板的指标语法扩展为比例与进度页",
+        "正文保持白色小字号以适应高饱和底色",
+        "紫色和橙色页面交替形成节日节奏",
+        "媒体页使用大图和高对比文字覆盖",
+        "蜘蛛网、南瓜、坩埚、糖果和小蜘蛛重复出现",
+        "明黄用于标题标签和小型图标"
+      ],
+      "styleSignals": [
+        "正文保持白色小字号以适应高饱和底色",
+        "紫色和橙色页面交替形成节日节奏",
+        "媒体页使用大图和高对比文字覆盖",
+        "蜘蛛网、南瓜、坩埚、糖果和小蜘蛛重复出现",
+        "明黄用于标题标签和小型图标"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "values",
+          "labels"
+        ]
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme14_derived_ranked_signals",
+      "archetypeId": "derived-ranked-signals",
+      "componentName": "Derived05RankedSignals",
+      "family": "ranking",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-01",
+        "composition-02",
+        "surface-01",
+        "motif-02",
+        "color-01"
+      ],
+      "anchorModuleRefs": [
+        "theme14_signature_cat_percent_metrics",
+        "theme14_signature_party_agenda_table"
+      ],
+      "stylePrimitiveRefs": [
+        "corner-web",
+        "purple-orange-rail"
+      ],
+      "derivationReason": "把模板的数字层级和分隔规则扩展为排行页；以 theme14_signature_cat_percent_metrics、theme14_signature_party_agenda_table 为视觉锚点。",
+      "visualRequirements": [
+        "把模板的数字层级和分隔规则扩展为排行页",
+        "标题使用粗体无衬线并带轻微怪趣节奏",
+        "蜘蛛网从角落展开，南瓜与坩埚压住页边",
+        "内容直接铺在纯色画布上并以少量浅紫卡片分区",
+        "橙色圆点与紫色图标形成时间线节点",
+        "深紫与亮紫作为主要夜色画布"
+      ],
+      "styleSignals": [
+        "标题使用粗体无衬线并带轻微怪趣节奏",
+        "蜘蛛网从角落展开，南瓜与坩埚压住页边",
+        "内容直接铺在纯色画布上并以少量浅紫卡片分区",
+        "橙色圆点与紫色图标形成时间线节点",
+        "深紫与亮紫作为主要夜色画布"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "items",
+          "highlight"
+        ]
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme14_derived_section_transition",
+      "archetypeId": "derived-section-transition",
+      "componentName": "Derived06SectionTransition",
+      "family": "transition",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-02",
+        "composition-01",
+        "surface-02",
+        "motif-01",
+        "color-02"
+      ],
+      "anchorModuleRefs": [
+        "theme14_signature_pumpkin_night_cover",
+        "theme14_signature_spooky_facts_overview"
+      ],
+      "stylePrimitiveRefs": [
+        "cauldron-bubble",
+        "purple-orange-rail"
+      ],
+      "derivationReason": "用模板的标题层级和签名符号建立章节过渡；以 theme14_signature_pumpkin_night_cover、theme14_signature_spooky_facts_overview 为视觉锚点。",
+      "visualRequirements": [
+        "用模板的标题层级和签名符号建立章节过渡",
+        "正文保持白色小字号以适应高饱和底色",
+        "紫色和橙色页面交替形成节日节奏",
+        "媒体页使用大图和高对比文字覆盖",
+        "蜘蛛网、南瓜、坩埚、糖果和小蜘蛛重复出现",
+        "南瓜橙用于交替页面和高显著度强调"
+      ],
+      "styleSignals": [
+        "正文保持白色小字号以适应高饱和底色",
+        "紫色和橙色页面交替形成节日节奏",
+        "媒体页使用大图和高对比文字覆盖",
+        "蜘蛛网、南瓜、坩埚、糖果和小蜘蛛重复出现",
+        "南瓜橙用于交替页面和高显著度强调"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "kicker",
+          "title",
+          "sectionNumber"
+        ]
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme14_derived_agenda_overview",
+      "archetypeId": "derived-agenda-overview",
+      "componentName": "Derived07AgendaOverview",
+      "family": "general",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-01",
+        "composition-02",
+        "surface-01",
+        "motif-02",
+        "color-03"
+      ],
+      "anchorModuleRefs": [
+        "theme14_signature_spooky_facts_overview",
+        "theme14_signature_pumpkin_night_cover"
+      ],
+      "stylePrimitiveRefs": [
+        "cauldron-bubble",
+        "candy-node"
+      ],
+      "derivationReason": "把模板的编号和分隔规则扩展为议程页；以 theme14_signature_spooky_facts_overview、theme14_signature_pumpkin_night_cover 为视觉锚点。",
+      "visualRequirements": [
+        "把模板的编号和分隔规则扩展为议程页",
+        "标题使用粗体无衬线并带轻微怪趣节奏",
+        "蜘蛛网从角落展开，南瓜与坩埚压住页边",
+        "内容直接铺在纯色画布上并以少量浅紫卡片分区",
+        "橙色圆点与紫色图标形成时间线节点",
+        "白色承担正文与大标题"
+      ],
+      "styleSignals": [
+        "标题使用粗体无衬线并带轻微怪趣节奏",
+        "蜘蛛网从角落展开，南瓜与坩埚压住页边",
+        "内容直接铺在纯色画布上并以少量浅紫卡片分区",
+        "橙色圆点与紫色图标形成时间线节点",
+        "白色承担正文与大标题"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "sections",
+          "numbers"
+        ]
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme14_derived_alternate_cover",
+      "archetypeId": "derived-alternate-cover",
+      "componentName": "Derived08AlternateCover",
+      "family": "cover",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-02",
+        "composition-01",
+        "surface-02",
+        "motif-01",
+        "color-04"
+      ],
+      "anchorModuleRefs": [
+        "theme14_signature_pumpkin_night_cover",
+        "theme14_signature_spooky_facts_overview"
+      ],
+      "stylePrimitiveRefs": [
+        "candy-node",
+        "corner-web"
+      ],
+      "derivationReason": "在不改变 Style DNA 的前提下生成第二种封面构图；以 theme14_signature_pumpkin_night_cover、theme14_signature_spooky_facts_overview 为视觉锚点。",
+      "visualRequirements": [
+        "在不改变 Style DNA 的前提下生成第二种封面构图",
+        "正文保持白色小字号以适应高饱和底色",
+        "紫色和橙色页面交替形成节日节奏",
+        "媒体页使用大图和高对比文字覆盖",
+        "蜘蛛网、南瓜、坩埚、糖果和小蜘蛛重复出现",
+        "明黄用于标题标签和小型图标"
+      ],
+      "styleSignals": [
+        "正文保持白色小字号以适应高饱和底色",
+        "紫色和橙色页面交替形成节日节奏",
+        "媒体页使用大图和高对比文字覆盖",
+        "蜘蛛网、南瓜、坩埚、糖果和小蜘蛛重复出现",
+        "明黄用于标题标签和小型图标"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true,
+        "contentShape": [
+          "kicker",
+          "title",
+          "subtitle",
+          "media"
+        ]
+      },
+      "implementationStatus": "implemented"
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
-import type { OfficeDocumentStatus, OfficeDocumentType } from '../types.js'
+import type { OfficeDocumentStatus, OfficeDocumentType, OfficeWorkspaceCatalog } from '../types.js'
 import { officeEditorTable } from '../constants.js'
 
 @Entity(officeEditorTable('document'))
@@ -50,6 +50,33 @@ export class OfficeDocument {
 
   @Column({ type: 'int', default: 0 })
   currentVersionNumber?: number
+
+  @Column({ type: 'varchar', nullable: true })
+  fileName?: string
+
+  @Column({ type: 'varchar', nullable: true })
+  mimeType?: string
+
+  @Column({ type: 'int', nullable: true })
+  size?: number
+
+  @Column({ type: 'text', nullable: true })
+  workspaceFilePath?: string
+
+  @Column({ type: 'text', nullable: true })
+  workspaceFileUrl?: string
+
+  @Column({ type: 'varchar', nullable: true })
+  workspaceCatalog?: OfficeWorkspaceCatalog
+
+  @Column({ type: 'varchar', nullable: true })
+  workspaceScopeId?: string
+
+  @Column({ type: 'varchar', nullable: true })
+  currentFileVersionId?: string
+
+  @Column({ type: 'int', default: 0 })
+  currentFileVersionNumber?: number
 
   @Column({ type: 'text', nullable: true })
   yjsStateBase64?: string

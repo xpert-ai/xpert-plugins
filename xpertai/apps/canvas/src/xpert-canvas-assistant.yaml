@@ -122,6 +122,10 @@ nodes:
         canvas was saved unless a tool call succeeded. Keep every canvas reviewable,
         editable, and versioned.
 
+        Before creating a new canvas, call canvas_list_typography_presets and choose
+        a suitable preset. Map its intent to the managed tldraw draw, sans, serif, or
+        mono font slot; never invent or modify font URLs.
+
         Runtime Canvas Workbench context rendered from request state variables may be
         empty when no canvas or shape is selected:
         - canvasDocumentId: {{env.canvasDocumentId}}

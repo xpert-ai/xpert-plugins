@@ -78,6 +78,7 @@ describe('CanvasMiddleware', () => {
 
     expect(middleware.meta.features).toEqual(expect.arrayContaining(['canvas', 'agent-canvas', 'canvas-workbench']))
     expect(names).toEqual([
+      'canvas_list_typography_presets',
       CANVAS_CREATE_DOCUMENT_TOOL_NAME,
       CANVAS_PATCH_RECORDS_TOOL_NAME,
       CANVAS_INSERT_IMAGE_TOOL_NAME,

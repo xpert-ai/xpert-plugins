@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, join, normalize } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -29,6 +29,8 @@ const requiredFiles = new Set([
   'dist/lib/diagram-engine/diagram-engine.module.js',
   'dist/lib/diagram-engine/diagram.middleware.js',
   'dist/lib/remote-components/excalidraw-workbench/app.js',
+  'dist/vendor/design-fonts/index.js',
+  'dist/vendor/design-fonts/index.d.ts',
   'dist/lib/artifact-viewer/app.js',
   'dist/lib/artifact-viewer/app.css',
   'dist/xpert-excalidraw-assistant.yaml',
@@ -50,4 +52,21 @@ if (missingFiles.length) {
     console.error(`- ${normalize(file)}`)
   }
   process.exit(1)
+}
+
+if (packageJson.dependencies?.['@xpert-ai/design-fonts']) {
+  throw new Error('Excalidraw must vendor @xpert-ai/design-fonts instead of publishing it as a runtime dependency.')
+}
+const unresolvedDesignFontImports = listRuntimeFiles(join(packageRoot, 'dist'))
+  .filter((file) => readFileSync(file, 'utf8').includes('@xpert-ai/design-fonts'))
+if (unresolvedDesignFontImports.length) {
+  throw new Error(`Excalidraw package output still imports @xpert-ai/design-fonts: ${unresolvedDesignFontImports.join(', ')}`)
+}
+
+function listRuntimeFiles(directory) {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(directory, entry.name)
+    if (entry.isDirectory()) return listRuntimeFiles(path)
+    return /\.(?:js|mjs|d\.ts)$/.test(entry.name) ? [path] : []
+  })
 }

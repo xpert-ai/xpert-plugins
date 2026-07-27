@@ -8,6 +8,7 @@ import { iconImage } from './lib/types.js';
 import { IntegrationDingTalkPluginConfigSchema } from './lib/plugin-config.js';
 import { IntegrationDingTalkPlugin } from './lib/integration-dingtalk.module.js';
 import { DINGTALK_PLUGIN_CONTEXT } from './lib/tokens.js';
+import { DINGTALK_PLUGIN_RUNTIME_METADATA } from './lib/constants.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -21,6 +22,7 @@ const plugin: XpertPlugin<z.infer<typeof IntegrationDingTalkPluginConfigSchema>>
   meta: {
     name: packageJson.name,
     version: packageJson.version,
+    ...DINGTALK_PLUGIN_RUNTIME_METADATA,
     category: 'integration',
     icon: {
       type: 'svg',

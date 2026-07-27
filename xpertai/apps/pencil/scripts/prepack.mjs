@@ -65,5 +65,6 @@ runNode(
 runNode(join(packageRoot, 'scripts', 'clean-dist.mjs'))
 runNode(join(packageRoot, 'scripts', 'build-remote-components.mjs'))
 runNode(requireFromPencil.resolve('typescript/bin/tsc'), ['-p', 'tsconfig.lib.json'])
+runNode(join(packageRoot, '..', '..', 'scripts', 'vendor-design-fonts.mjs'))
 runNode(join(packageRoot, 'scripts', 'copy-assets.mjs'))
 runNode(join(packageRoot, 'scripts', 'verify-package-output.mjs'))

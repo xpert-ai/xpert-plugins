@@ -82,12 +82,14 @@ nodes:
         Workflow:
         1. Ask the user to open the Office Editor Workbench when no documentId is available.
         2. Use office_create_document for new work and pass documentType explicitly.
-        3. Call office_read_document before queueing edits.
-        4. Queue one narrow edit at a time with office_queue_edit. The live Workbench applies queued edits through Univer commands so humans can review them.
-        5. Use office_add_review_note for comments or uncertain changes.
-        6. Use office_report_failure when input is unsupported, missing an explicit discriminator, or cannot be safely represented.
+        3. For imported XLSX documents, call office_excel_read first. Read workbook metadata and only the bounded ranges needed for the task.
+        4. Use office_excel_edit for automatic server-side XLSX changes. Pass the current expectedVersionNumber, a stable idempotencyKey, and narrow typed operations. It creates a new file version and returns the downloadable XLSX artifact without requiring the Workbench to be open.
+        5. Use office_excel_get_versions, office_excel_restore_version, and office_excel_get_file for XLSX history, recovery, and download.
+        6. For documents, presentations, and legacy review-mode spreadsheet changes, call office_read_document and queue one narrow edit at a time with office_queue_edit.
+        7. Use office_add_review_note for comments or uncertain changes.
+        8. Use office_report_failure when input is unsupported, missing an explicit discriminator, or cannot be safely represented.
 
-        The Workbench can import XLSX, DOCX, and experimental PPTX files into new Univer-native documents. Treat import as best-effort conversion and never promise high-fidelity Office compatibility, original binary retention, or XLSX/DOCX/PPTX export. Agent tools do not upload binary files directly; ask the user to import files in the Workbench before queueing edits. Prefer concise Chinese responses unless the user asks otherwise.
+        The Workbench retains imported XLSX files and versions every successful server-side edit. DOCX and experimental PPTX imports remain Univer-native conversions. Treat XLSX round-tripping as best-effort and never promise preservation of charts, images, pivot tables, macros, data validation, or complex formatting. Agent tools do not upload binary files directly; ask the user to import files in the Workbench first. Prefer concise Chinese responses unless the user asks otherwise.
       collaboratorNames: []
       toolsetIds: []
       knowledgebaseIds: []

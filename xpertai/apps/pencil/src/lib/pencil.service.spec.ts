@@ -50,6 +50,13 @@ jest.mock('@open\u002dpencil/core/scene-graph', () => {
 jest.mock('@open\u002dpencil/core', () => ({
   BUILTIN_IO_FORMATS: [],
   computeAllLayouts: jest.fn(),
+  fontManager: {
+    loadFont: jest.fn(async () => undefined),
+    markLoaded: jest.fn(),
+    setArabicFallbackFamily: jest.fn(),
+    setCJKFallbackFamily: jest.fn(),
+    setDownloadedFontCache: jest.fn()
+  },
   SceneGraph: class MockCoreSceneGraph {
     nodes = new Map<string, Record<string, unknown>>()
     images = new Map<string, Uint8Array>()

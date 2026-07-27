@@ -94,6 +94,7 @@ export interface WechatDeviceAccountInput {
 }
 
 export type WechatDownloadedImageFile = WechatInboundFile &
+  { data: Buffer } &
   Required<
     Pick<
       WechatInboundFile,
@@ -768,6 +769,7 @@ export class WechatClient {
     return {
       success: true,
       file: {
+        data: bytes,
         fileUrl,
         url: fileUrl,
         mimeType,

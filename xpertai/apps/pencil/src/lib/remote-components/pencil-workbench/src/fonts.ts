@@ -1,4 +1,5 @@
 import { fontManager } from '@open\u002dpencil/core'
+import { createPencilOnlineFontSources } from '@xpert-ai/design-fonts'
 import { CJK_FONT_CHUNK_URLS } from 'pencil-cjk-font-chunks'
 
 import interBoldUrl from './Inter-Bold.ttf'
@@ -15,6 +16,11 @@ const FONT_URLS: Record<string, string> = {
   'Inter|Bold': interBoldUrl,
   'Inter|ExtraBold': interExtraBoldUrl,
   'Noto Naskh Arabic|Regular': notoNaskhArabicRegularUrl
+}
+
+const ONLINE_FONT_SOURCES = createPencilOnlineFontSources()
+for (const source of ONLINE_FONT_SOURCES) {
+  FONT_URLS[`${source.family}|${source.style}`] ??= source.url
 }
 
 const fontDataCache = new Map<string, ArrayBuffer>()
@@ -60,8 +66,15 @@ export function installPencilFontCache() {
  */
 export function preparePencilFonts() {
   installPencilFontCache()
-  preparationPromise ??= preloadCJKFontChunks()
+  preparationPromise ??= Promise.all([
+    preloadOnlineFonts(),
+    preloadCJKFontChunks()
+  ]).then(() => undefined)
   return preparationPromise
+}
+
+async function preloadOnlineFonts() {
+  await Promise.allSettled(ONLINE_FONT_SOURCES.map(({ family, style }) => fontManager.loadFont(family, style)))
 }
 
 async function preloadCJKFontChunks() {

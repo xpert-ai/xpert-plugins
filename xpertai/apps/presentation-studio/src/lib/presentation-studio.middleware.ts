@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common'
 import { dispatchCustomEvent } from '@langchain/core/callbacks/dispatch'
+import { SystemMessage } from '@langchain/core/messages'
 import { tool } from '@langchain/core/tools'
 import { ChatMessageEventTypeEnum, ChatMessageStepCategory, type TAgentMiddlewareMeta } from '@xpert-ai/contracts'
+import { serializeTypographyPresets } from '@xpert-ai/design-fonts'
 import {
   AgentMiddlewareStrategy,
   RequestContext,
@@ -39,7 +41,18 @@ import {
   type PresentationWorkbenchAgentContext
 } from './types.js'
 
-const themeSchema = z.enum(PRESENTATION_THEME_PACKS)
+const THEME_PREVIEW_TOOL_NAME = 'presentation_list_theme_previews'
+const THEME_PREVIEW_SYSTEM_PROMPT = [
+  'Presentation theme display rule:',
+  `- ${THEME_PREVIEW_TOOL_NAME} is the only authoritative source for the available PPT themes and their visual previews.`,
+  `- Before any user-facing answer that lists, counts, names, describes, compares, recommends, previews, or asks the user to choose PPT/presentation themes, styles, or templates, call ${THEME_PREVIEW_TOOL_NAME}.`,
+  '- This includes questions such as “你有哪些生成ppt的主题”, “有多少主题”, “展示主题”, and “推荐一个PPT风格”.',
+  '- Do not send a text-only preliminary theme answer. Reproduce the returned Markdown in its original order so each theme description is immediately followed by its preview image.',
+  '- Never derive or answer the theme inventory from another tool schema, another tool description, memory, or prior conversation content.'
+].join('\n')
+const themeSchema = z.enum(PRESENTATION_THEME_PACKS).describe(
+  `Presentation theme identifier. If the user has not explicitly selected an exact theme ID, call ${THEME_PREVIEW_TOOL_NAME} before choosing or discussing themes.`
+)
 const statusSchema = z.enum(PRESENTATION_STATUSES)
 const slideStatusSchema = z.enum(PRESENTATION_SLIDE_STATUSES)
 const exportKindSchema = z.enum(PRESENTATION_EXPORT_KINDS)
@@ -56,6 +69,7 @@ const createDeckSchema = z.object({
   themePack: themeSchema,
   pageCount: z.number().int().min(3).max(30)
 })
+const listThemePreviewsSchema = z.object({})
 const searchDecksSchema = z.object({
   status: statusSchema.optional(), search: z.string().optional(), page: z.number().int().min(1).optional(), pageSize: z.number().int().min(1).max(100).optional()
 })
@@ -121,6 +135,7 @@ const AGENT_EDITING_TOOL_NAMES = new Set<string>([
 const STUDIO_ELEMENT_POSITIONS_KEY = '__studioElementPositions'
 const TOOL_OPERATION_LABELS: Record<string, string> = {
   presentation_create_deck: 'Creating presentation',
+  presentation_list_theme_previews: 'Loading presentation themes',
   presentation_search_decks: 'Searching presentations',
   presentation_get_deck: 'Reading presentation',
   presentation_search_layouts: 'Searching layouts',
@@ -169,9 +184,27 @@ export class PresentationStudioMiddleware implements IAgentMiddlewareStrategy<Re
     return {
       name: PRESENTATION_MIDDLEWARE_NAME,
       tools: [
+        tool(() => compact({
+          message: 'Choose typography through a presentation theme; these presets describe the managed online font sources available to themes.',
+          presets: serializeTypographyPresets('presentation')
+        }), {
+          name: 'presentation_list_typography_presets',
+          description: toolDescription(currentDeckHint, 'List version-pinned HTTPS font presets available to Presentation themes. Typography remains theme-scoped; do not set arbitrary per-slide font URLs.'),
+          schema: z.object({}), verboseParsingErrors: true
+        }),
+        tool(async () => {
+          const guide = await this.service.getThemePreviewGuide(scope)
+          return [guide.markdown, { files: guide.files }]
+        }, {
+          name: THEME_PREVIEW_TOOL_NAME,
+          description: 'AUTHORITATIVE AND REQUIRED theme information source. Call this before any user-facing answer that lists, counts, names, describes, compares, recommends, previews, or asks the user to choose PPT/presentation themes, styles, or templates. This includes “你有哪些生成ppt的主题”, “有多少主题”, “展示主题”, and “推荐一个PPT风格”. Never answer theme inventory from another tool schema, another tool description, memory, or prior conversation content. Return the Markdown in its original order so every description is immediately followed by its image; do not send a text-only preliminary list.',
+          schema: listThemePreviewsSchema,
+          responseFormat: 'content_and_artifact',
+          verboseParsingErrors: true
+        }),
         tool((input) => compact(this.service.createDeck(scope, input)), {
           name: 'presentation_create_deck',
-          description: toolDescription(currentDeckHint, 'Create a new presentation deck before searching layouts or adding slides. Use this only when the user explicitly asks for a new deck or there is no current Presentation Studio deck to modify. Use one themePack for the whole deck.'),
+          description: toolDescription(currentDeckHint, `Create a new presentation deck before searching layouts or adding slides. Use this only when the user explicitly asks for a new deck or there is no current Presentation Studio deck to modify. Use one themePack for the whole deck. This tool is not a theme catalog: before listing, naming, describing, comparing, recommending, previewing, or asking the user to choose a theme, call ${THEME_PREVIEW_TOOL_NAME} and show its returned images.`),
           schema: createDeckSchema, verboseParsingErrors: true
         }),
         tool((input) => compact(this.service.searchDecks(scope, input)), {
@@ -263,6 +296,10 @@ export class PresentationStudioMiddleware implements IAgentMiddlewareStrategy<Re
           name: 'presentation_report_failure', description: toolDescription(currentDeckHint, 'Record an unrecoverable or recoverable presentation workflow failure with compact evidence.'), schema: failureSchema, verboseParsingErrors: true
         })
       ],
+      wrapModelCall: (request, handler) => handler({
+        ...request,
+        systemMessage: appendSystemMessage(request.systemMessage, THEME_PREVIEW_SYSTEM_PROMPT)
+      }),
       wrapToolCall: async (request, handler) => {
         const startedAt = Date.now()
         const createdAt = new Date(startedAt)
@@ -314,6 +351,19 @@ export class PresentationStudioMiddleware implements IAgentMiddlewareStrategy<Re
       }
     }
   }
+}
+
+function appendSystemMessage(systemMessage: unknown, addition: string) {
+  const content =
+    typeof systemMessage === 'string'
+      ? systemMessage
+      : systemMessage instanceof SystemMessage && typeof systemMessage.content === 'string'
+        ? systemMessage.content
+        : typeof objectFromUnknown(systemMessage).content === 'string'
+          ? objectFromUnknown(systemMessage).content as string
+          : ''
+
+  return new SystemMessage([content, addition].filter(Boolean).join('\n\n'))
 }
 
 function readChangeSummaryMessage(args: unknown) {

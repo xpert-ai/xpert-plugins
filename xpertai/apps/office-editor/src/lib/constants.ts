@@ -26,6 +26,7 @@ export const OFFICE_EDITOR_ROUTE_NAMESPACE = OFFICE_EDITOR_ARTIFACT_NAMESPACE.re
 export const OFFICE_EDITOR_COLLAB_NAMESPACE_PREFIX = `/api/${OFFICE_EDITOR_ROUTE_NAMESPACE}/collab/ws/`
 export const OFFICE_EDITOR_COLLAB_ROOM_PREFIX = `${OFFICE_EDITOR_ROUTE_NAMESPACE}:`
 export const OFFICE_EDITOR_COLLAB_SESSION_TTL_MS = 15 * 60 * 1000
+export const OFFICE_WORKSPACE_FILES_RUNTIME_CAPABILITY = 'platform.workspace.files'
 
 /**
  * Build Office Editor table names with the shared plugin artifact namespace.
@@ -54,6 +55,11 @@ export const OFFICE_EDITOR_TOOL_NAMES = [
   'office_create_document',
   'office_list_documents',
   'office_read_document',
+  'office_excel_read',
+  'office_excel_edit',
+  'office_excel_get_versions',
+  'office_excel_restore_version',
+  'office_excel_get_file',
   'office_queue_edit',
   'office_add_review_note',
   'office_report_failure'
