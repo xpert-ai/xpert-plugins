@@ -1,14 +1,13 @@
-model: Doubao-vision-pro-32k
+model: doubao-1-5-pro-32k-character-250715
 label:
-  en_US: Doubao-vision-pro-32k
-  zh_Hans: Doubao-vision-pro-32k
+  en_US: doubao-1-5-pro-32k-character-250715
+  zh_Hans: doubao-1-5-pro-32k-character-250715
 model_type: llm
 features:
   - agent-thought
-  - vision
 model_properties:
   mode: chat
-  context_size: 32768
+  context_size: 32000
 parameter_rules:
   - name: temperature
     use_template: temperature
