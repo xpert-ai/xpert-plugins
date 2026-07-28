@@ -104,7 +104,8 @@
       "@xpert-ai/plugin-view-image",
       "@xpert-ai/plugin-lark-cli",
       "@xpert-ai/plugin-github-connector",
-      "@xpert-ai/plugin-file-memory"
+      "@xpert-ai/plugin-file-memory",
+      "@xpert-ai/plugin-office-cli"
     ],
     "version": {
       "preVersionCommand": "npx nx run-many -t build && npx nx run-many -t prepack"
