@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-stepfun",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "description": "StepFun model plugin for the XpertAI platform",
   "author": {
     "name": "XpertAI",

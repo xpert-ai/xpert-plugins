@@ -9,7 +9,7 @@ import {
   mergeCredentials,
   type TChatModelOptions,
 } from '@xpert-ai/plugin-sdk';
-import type { StepfunProviderStrategy } from '../provider.strategy.js';
+import { StepfunProviderStrategy } from '../provider.strategy.js';
 import {
   type StepfunModelCredentials,
   toCredentialKwargs,
