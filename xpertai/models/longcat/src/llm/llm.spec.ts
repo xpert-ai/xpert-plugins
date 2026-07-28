@@ -1,4 +1,5 @@
 jest.mock('@xpert-ai/plugin-sdk', () => ({
+  AIModelProviderStrategy: () => () => undefined,
   ChatOAICompatReasoningModel: class {
     constructor(readonly clientConfig: Record<string, unknown>) {}
 
@@ -21,6 +22,7 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
       return {};
     }
   },
+  ModelProvider: class {},
   mergeCredentials: (
     credentials: Record<string, unknown>,
     modelProperties?: Record<string, unknown>
@@ -50,6 +52,15 @@ function createCopilotModel(
 }
 
 describe('LongCat model adapter', () => {
+  it('keeps the provider strategy as the Nest injection token', () => {
+    const [dependency]: Array<{ name?: string }> = Reflect.getMetadata(
+      'design:paramtypes',
+      LongcatLargeLanguageModel
+    );
+
+    expect(dependency?.name).toBe('LongcatProviderStrategy');
+  });
+
   it('normalizes the Dify-compatible endpoint', () => {
     expect(getLongcatBaseUrl({ api_key: 'test-key' })).toBe(LongcatBaseUrl);
     expect(

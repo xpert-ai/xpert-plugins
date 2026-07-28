@@ -9,7 +9,7 @@ import {
   mergeCredentials,
   type TChatModelOptions,
 } from '@xpert-ai/plugin-sdk';
-import type { MimoProviderStrategy } from '../provider.strategy.js';
+import { MimoProviderStrategy } from '../provider.strategy.js';
 import {
   type MimoModelCredentials,
   toCredentialKwargs,
