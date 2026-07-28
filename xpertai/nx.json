@@ -110,7 +110,8 @@
       "@xpert-ai/plugin-file-memory",
       "@xpert-ai/plugin-cut",
       "@xpert-ai/plugin-motion",
-      "@xpert-ai/plugin-story-studio"
+      "@xpert-ai/plugin-story-studio",
+      "@xpert-ai/plugin-office-cli"
     ],
     "version": {
       "preVersionCommand": "npx nx run-many -t build && npx nx run-many -t prepack"

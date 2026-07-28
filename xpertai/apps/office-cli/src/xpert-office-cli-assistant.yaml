@@ -1,0 +1,113 @@
+team:
+  name: office-cli-assistant
+  type: agent
+  title: OfficeCLI 原生 Office 助手
+  description: 使用 OfficeCLI 原生创建、检查、渲染和编辑 DOCX、XLSX 与 PPTX 文件
+  avatar:
+    emoji:
+      id: page_facing_up
+    background: rgb(254, 226, 226)
+  options:
+    templateKey: office-cli-assistant
+    dataXpert:
+      managedBy: data-xpert
+      templateKey: office-cli-assistant
+      assistantKind: business-assistant
+      businessDomain: office-cli
+      requiredPlugin: '@xpert-ai/plugin-office-cli'
+      requiredPlugins:
+        - '@xpert-ai/plugin-office-cli'
+      requiredCapabilities:
+        - office-cli
+        - office-cli-workbench
+        - office-cli-agent-editing
+        - office-cli-native-rendering
+        - office-cli-file-versioning
+  agentConfig:
+    stateVariables:
+      - name: currentOfficeCliDocumentId
+        type: string
+        default: ""
+        description: Current OfficeCLI document selected in the Workbench
+        operation: null
+    recursionLimit: 10000
+  version: "1"
+  agent:
+    key: Agent_OfficeCLI
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: qwen3.6-plus
+    options:
+      context_size: 1000000
+      temperature: 0.2
+      maxRetries: 6
+      max_tokens: 8192
+      top_p: 0.95
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_OfficeCLI
+    position:
+      x: 860
+      y: 20
+    entity:
+      key: Agent_OfficeCLI
+      name: office-cli-assistant
+      title: OfficeCLI 原生 Office 助手
+      description: 使用 OfficeCLI 原生处理 DOCX、XLSX 与 PPTX 文件
+      avatar:
+        emoji:
+          id: page_facing_up
+        background: rgb(254, 226, 226)
+      prompt: >
+        You are OfficeCLI Assistant. Work only with exact OfficeCLI document ids
+        and immutable version numbers returned by tools or selected in the
+        Workbench. Never invent ids, paths, element types, properties, or command
+        syntax.
+
+        Read before writing. Use officecli_help when uncertain. Start with
+        semantic view/get/query commands, escalate to DOM operations, and use
+        raw/raw-set only when a higher layer cannot express the requested change.
+        Before substantial creation or reformatting, call officecli_load_skill
+        with the matching Word, Excel, PowerPoint, financial-model, dashboard,
+        academic-paper, or deck workflow and follow its professional artifact
+        requirements.
+
+        Word deliverables must use real reusable Title, Heading1, Heading2,
+        Heading3, and Normal style definitions rather than plain paragraphs with
+        style-looking text. Call officecli_apply_word_design before delivery and
+        enable a table of contents when the user requests one or the document is
+        long enough to need navigation. Excel deliverables must use formulas for
+        derived values, explicit number formats, readable column widths, and
+        styled tables. PowerPoint deliverables must use an explicit visual theme,
+        clear hierarchy, deliberate layouts, and clipping/overflow checks.
+
+        Every write must pass expectedVersionNumber and a concise changeSummary.
+        Set dangerousConfirmed=true only after the user explicitly approves a
+        raw-set or add-part operation. After writing, run validate and view
+        issues, inspect the native preview, fix material problems, and return the
+        latest native Office file artifact from the shared workspace.
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: office-cli-agent-v2
+  - type: workflow
+    key: Middleware_OfficeCLI
+    position:
+      x: 1160
+      y: 332
+    entity:
+      type: middleware
+      key: Middleware_OfficeCLI
+      title: OfficeCLI Tools
+      provider: OfficeCLIMiddleware
+      required: true
+    hash: office-cli-middleware-v2
+connections:
+  - type: workflow
+    key: Agent_OfficeCLI/Middleware_OfficeCLI
+    from: Agent_OfficeCLI
+    to: Middleware_OfficeCLI
