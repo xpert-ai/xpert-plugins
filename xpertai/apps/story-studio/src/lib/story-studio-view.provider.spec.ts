@@ -91,7 +91,8 @@ function createHarness() {
       .mockRejectedValue(new NotFoundException('not found')),
     createDemoProduction: jest.fn(),
     saveProductionFromWorkbench: jest.fn(),
-    resolveMediaCandidateFile: jest.fn()
+    resolveMediaCandidateFile: jest.fn(),
+    uploadAssetImage: jest.fn()
   }
   const cutHandoffs = {
     getLatestSummary: jest.fn().mockResolvedValue(null),
@@ -136,8 +137,17 @@ describe('StoryStudioViewProvider', () => {
       purposes: ['preview']
     })
     expect(manifest.actions?.map((action) => action.key)).toEqual(
-      expect.arrayContaining(['update_project', 'save_production'])
+      expect.arrayContaining([
+        'update_project',
+        'save_production',
+        'upload_asset_image'
+      ])
     )
+    expect(
+      manifest.actions?.find(
+        (action) => action.key === 'upload_asset_image'
+      )
+    ).toEqual(expect.objectContaining({ transport: 'file' }))
   })
 
   it('resolves preview media through the scoped production service', async () => {
@@ -272,6 +282,58 @@ describe('StoryStudioViewProvider', () => {
       expect.objectContaining({
         operationId: 'create:view:provider',
         title: 'View provider story'
+      })
+    )
+  })
+
+  it('uploads a manual asset reference through the file transport', async () => {
+    const { provider, production } = createHarness()
+    production.uploadAssetImage.mockResolvedValue({
+      projectId: project.id,
+      revision: 2,
+      production: { documentRevision: 2 }
+    })
+
+    const result = await provider.executeViewFileAction(
+      hostContext(),
+      STORY_STUDIO_WORKBENCH_VIEW_KEY,
+      'upload_asset_image',
+      {
+        input: {
+          projectId: project.id,
+          operationId: 'manual:asset:upload:0001',
+          baseRevision: 1,
+          assetId: 'asset-courier',
+          candidateId: 'asset-image-courier-1',
+          label: 'courier.png',
+          select: true,
+          changeSummary: 'Uploaded courier reference'
+        }
+      },
+      {
+        buffer: Buffer.from([
+          137, 80, 78, 71, 13, 10, 26, 10
+        ]),
+        originalname: 'courier.png',
+        mimetype: 'image/png'
+      } as never
+    )
+
+    expect(result).toEqual(
+      expect.objectContaining({ success: true, refresh: true })
+    )
+    expect(production.uploadAssetImage).toHaveBeenCalledWith(
+      expect.objectContaining({ actorType: 'user' }),
+      expect.objectContaining({
+        assetId: 'asset-courier',
+        providerReceipt: expect.objectContaining({
+          provider: 'manual_upload',
+          status: 'completed'
+        })
+      }),
+      expect.objectContaining({
+        originalName: 'courier.png',
+        mimeType: 'image/png'
       })
     )
   })

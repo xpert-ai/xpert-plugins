@@ -1,4 +1,5 @@
 import {
+  attachGeneratedAssetImageSchema,
   attachGeneratedVideoSchema,
   saveStoryProductionSchema
 } from './story-production.schemas.js'
@@ -131,5 +132,29 @@ describe('Story production schemas', () => {
       changeSummary: 'Attached completed Seedance video'
     })
     expect(parsed.providerReceipt.provider).toBe('seedream_aigc')
+  })
+
+  it('accepts a completed Seedream asset-image attachment', () => {
+    const parsed = attachGeneratedAssetImageSchema.parse({
+      projectId: '00000000-0000-4000-8000-000000000001',
+      operationId: 'seedream:asset:0001',
+      baseRevision: 4,
+      assetId: 'asset-lin',
+      candidateId: 'seedream-image-task-1',
+      label: 'Lin continuity reference',
+      file: {
+        workspacePath:
+          '/workspace/files/seedream-aigc/images/task-1.png'
+      },
+      providerReceipt: {
+        provider: 'seedream_aigc',
+        taskId: 'task-image-1',
+        model: 'doubao-seedream-4-5-251128',
+        status: 'completed'
+      },
+      select: true,
+      changeSummary: 'Attached Lin asset reference'
+    })
+    expect(parsed.assetId).toBe('asset-lin')
   })
 })

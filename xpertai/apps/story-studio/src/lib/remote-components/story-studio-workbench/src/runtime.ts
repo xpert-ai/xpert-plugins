@@ -82,7 +82,11 @@ export function isRemoteObject(
   return Boolean(value && typeof value === 'object' && !Array.isArray(value))
 }
 
-export function post(type: string, body?: RemoteObject) {
+export function post(
+  type: string,
+  body?: RemoteObject,
+  transfer: Transferable[] = []
+) {
   if (!instanceId && type !== 'ready') {
     return
   }
@@ -94,22 +98,29 @@ export function post(type: string, body?: RemoteObject) {
       type,
       ...(body ?? {})
     },
-    '*'
+    '*',
+    transfer
   )
 }
 
 export function request(
   type: string,
-  body?: RemoteObject
+  body?: RemoteObject,
+  transfer: Transferable[] = [],
+  timeoutMs = 30_000
 ): Promise<RemoteResponse> {
   const requestId = String(++requestSequence)
   return new Promise((resolve, reject) => {
     pending.set(requestId, { resolve, reject })
     try {
-      post(type, {
-        requestId,
-        ...(body ?? {})
-      })
+      post(
+        type,
+        {
+          requestId,
+          ...(body ?? {})
+        },
+        transfer
+      )
     } catch (error) {
       pending.delete(requestId)
       reject(
@@ -125,7 +136,7 @@ export function request(
       }
       pending.delete(requestId)
       reject(new Error(runtimeText.requestTimeout))
-    }, 30_000)
+    }, timeoutMs)
   })
 }
 
@@ -155,6 +166,31 @@ export function executeAction(
     targetId,
     input
   })
+}
+
+export async function executeFileAction(
+  actionKey: string,
+  targetId: string | null,
+  input: RemoteObject,
+  file: File
+) {
+  const buffer = await file.arrayBuffer()
+  return request(
+    'executeFileAction',
+    {
+      actionKey,
+      targetId,
+      input,
+      file: {
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        buffer
+      } as unknown as RemoteValue
+    },
+    [buffer],
+    120_000
+  )
 }
 
 export function invokeClientCommand(

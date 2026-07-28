@@ -22,7 +22,8 @@ import type {
 import {
   IXpertViewExtensionProvider,
   renderRemoteReactIframeHtml,
-  ViewExtensionProvider
+  ViewExtensionProvider,
+  type XpertViewFileActionFile
 } from '@xpert-ai/plugin-sdk'
 import {
   AGENT_WORKBENCH_FIXED_SLOT,
@@ -43,7 +44,10 @@ import {
   updateStoryProjectSchema,
   updateStoryProjectStatusSchema
 } from './story-agent-tool.schemas.js'
-import { saveStoryProductionSchema } from './story-production.schemas.js'
+import {
+  attachAssetImageSchema,
+  saveStoryProductionSchema
+} from './story-production.schemas.js'
 import { prepareStoryCutHandoffSchema } from './story-cut-handoff.schemas.js'
 import { StoryCutHandoffService } from './story-cut-handoff.service.js'
 import { StoryProductionService } from './story-production.service.js'
@@ -55,7 +59,10 @@ import type {
   UpdateStoryProjectInput,
   UpdateStoryProjectStatusInput
 } from './types.js'
-import type { SaveStoryProductionInput } from './production-types.js'
+import type {
+  AttachAssetImageInput,
+  SaveStoryProductionInput
+} from './production-types.js'
 import type { PrepareStoryCutHandoffInput } from './story-cut-handoff.types.js'
 
 const moduleFilename = fileURLToPath(import.meta.url)
@@ -262,6 +269,13 @@ export class StoryStudioViewProvider
           label: text('Save production', '保存制作内容'),
           icon: 'ri-save-line',
           actionType: 'invoke'
+        },
+        {
+          key: 'upload_asset_image',
+          label: text('Upload asset reference', '上传资产参考图'),
+          icon: 'ri-upload-cloud-2-line',
+          actionType: 'invoke',
+          transport: 'file'
         },
         {
           key: 'update_project_status',
@@ -513,6 +527,59 @@ export class StoryStudioViewProvider
         }
       }
       return failure('Unsupported action')
+    } catch (error) {
+      return actionFailure(error)
+    }
+  }
+
+  async executeViewFileAction(
+    context: XpertResolvedViewHostContext,
+    viewKey: string,
+    actionKey: string,
+    request: XpertViewActionRequest,
+    file: XpertViewFileActionFile
+  ): Promise<XpertViewActionResult> {
+    if (
+      viewKey !== STORY_STUDIO_WORKBENCH_VIEW_KEY ||
+      actionKey !== 'upload_asset_image'
+    ) {
+      return failure('Unsupported file action')
+    }
+    try {
+      const input = attachAssetImageSchema.parse({
+        ...(request.input ?? {}),
+        providerReceipt: {
+          provider: 'manual_upload',
+          taskId:
+            readInputString(request, 'operationId') ??
+            `manual-${Date.now()}`,
+          status: 'completed'
+        },
+        changeSummary:
+          readInputString(request, 'changeSummary') ??
+          'Uploaded an asset-bible reference image'
+      }) as AttachAssetImageInput
+      const result = await this.productionService.uploadAssetImage(
+        scopeFromContext(context),
+        input,
+        {
+          buffer: file.buffer,
+          originalName: file.originalname || input.label,
+          mimeType: file.mimetype || 'application/octet-stream'
+        }
+      )
+      return {
+        ...success(
+          'Asset reference uploaded',
+          '资产参考图已上传'
+        ),
+        data: {
+          projectId: result.projectId,
+          revision: result.revision,
+          documentRevision: result.production.documentRevision
+        },
+        refresh: true
+      }
     } catch (error) {
       return actionFailure(error)
     }

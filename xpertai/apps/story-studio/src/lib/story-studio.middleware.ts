@@ -18,6 +18,7 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import {
   STORY_CREATE_PROJECT_TOOL_NAME,
+  STORY_ATTACH_GENERATED_ASSET_IMAGE_TOOL_NAME,
   STORY_ATTACH_GENERATED_VIDEO_TOOL_NAME,
   STORY_GET_PRODUCTION_TOOL_NAME,
   STORY_GET_CUT_HANDOFF_TOOL_NAME,
@@ -61,11 +62,13 @@ import type {
   RecordStoryCutHandoffDeliveryInput
 } from './story-cut-handoff.types.js'
 import {
+  attachGeneratedAssetImageSchema,
   attachGeneratedVideoSchema,
   getStoryProductionSchema,
   saveStoryProductionSchema
 } from './story-production.schemas.js'
 import type {
+  AttachGeneratedAssetImageInput,
   AttachGeneratedVideoInput,
   GetStoryProductionInput,
   SaveStoryProductionInput
@@ -239,6 +242,43 @@ export class StoryStudioMiddleware
           }
         ),
         defineStoryAgentTool(
+          async (input: AttachGeneratedAssetImageInput) => {
+            const files = context.runtime.capabilities?.require(
+              WorkspaceFilesRuntimeCapability
+            )
+            if (!files) {
+              throw new Error(
+                'Workspace Files capability is required for story_attach_generated_asset_image.'
+              )
+            }
+            const file = await files.readRuntimeBuffer(
+              input.file as Parameters<
+                typeof files.readRuntimeBuffer
+              >[0]
+            )
+            const durableFile = await persistGeneratedAssetImage(
+              files,
+              input,
+              file
+            )
+            const { file: _file, ...attachment } = input
+            return stringifyStoryAgentResult(
+              await this.production.attachAssetImage(
+                scope,
+                attachment,
+                durableFile
+              )
+            )
+          },
+          {
+            name: STORY_ATTACH_GENERATED_ASSET_IMAGE_TOOL_NAME,
+            description:
+              'Attach one completed Seedream image from the current Agent Workspace to an exact Story Studio asset-bible entry. Read the latest project revision first. Pass the workspacePath returned by seedream_text_to_image, its task id/model/status receipt, the exact assetId, and select=true. Never pass base64 or a provider URL.',
+            schema: attachGeneratedAssetImageSchema,
+            verboseParsingErrors: true
+          }
+        ),
+        defineStoryAgentTool(
           async (input: AttachGeneratedVideoInput) => {
             const files = context.runtime.capabilities?.require(
               WorkspaceFilesRuntimeCapability
@@ -354,6 +394,64 @@ export class StoryStudioMiddleware
       }
     }
   }
+}
+
+async function persistGeneratedAssetImage(
+  files: WorkspaceFilesApi,
+  input: AttachGeneratedAssetImageInput,
+  source: WorkspaceRuntimeFileBuffer
+): Promise<WorkspaceRuntimeFileBuffer> {
+  const extension = imageExtension(
+    source.mimeType ?? source.reference.mimeType ?? '',
+    source.reference.originalName ?? source.reference.name ?? source.name
+  )
+  const mimeType =
+    extension === 'jpg'
+      ? 'image/jpeg'
+      : extension === 'webp'
+        ? 'image/webp'
+        : 'image/png'
+  const fileName = `${input.candidateId}.${extension}`
+  const written = await files.writeRuntimeBuffer({
+    buffer: source.buffer,
+    folder: `files/story-studio/${input.projectId}/generated-assets`,
+    fileName,
+    originalName: fileName,
+    mimeType,
+    size: source.buffer.length,
+    metadata: {
+      source: 'story-studio',
+      provider: input.providerReceipt.provider,
+      providerTaskId: input.providerReceipt.taskId,
+      assetId: input.assetId,
+      candidateId: input.candidateId
+    }
+  })
+  return {
+    ...source,
+    ...written,
+    buffer: source.buffer,
+    name: written.name,
+    mimeType: written.mimeType ?? mimeType,
+    size: written.size ?? source.buffer.length,
+    reference: written.reference
+  }
+}
+
+function imageExtension(mimeType: string, name: string) {
+  const normalized = mimeType.toLowerCase()
+  const lowerName = name.toLowerCase()
+  if (
+    normalized.includes('jpeg') ||
+    lowerName.endsWith('.jpg') ||
+    lowerName.endsWith('.jpeg')
+  ) {
+    return 'jpg'
+  }
+  if (normalized.includes('webp') || lowerName.endsWith('.webp')) {
+    return 'webp'
+  }
+  return 'png'
 }
 
 async function persistGeneratedVideo(

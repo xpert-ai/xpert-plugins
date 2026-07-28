@@ -158,6 +158,44 @@ test(
     await assertVisible(
       frame.locator('.ss-asset-grid').getByRole('heading', { name: '月港信使' })
     )
+    const firstAsset = frame.locator('.ss-asset-grid > article').first()
+    await assertVisible(
+      firstAsset.getByRole('button', { name: '上传参考图' })
+    )
+    await assertVisible(
+      firstAsset.getByRole('button', { name: 'AI 生成' })
+    )
+    await firstAsset.locator('input[type="file"]').setInputFiles({
+      name: 'courier-reference.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z4KAAAAAASUVORK5CYII=',
+        'base64'
+      )
+    })
+    await assertVisible(firstAsset.getByText('1 张参考图'))
+    assert.equal(
+      preview.state.actions.at(-1)?.actionKey,
+      'upload_asset_image'
+    )
+    await firstAsset.getByRole('button', { name: 'AI 生成' }).click()
+    await waitFor(
+      () =>
+        preview.state.assistantMessages.at(-1)?.state?.action ===
+        'generate_story_asset_image'
+    )
+    assert.equal(
+      preview.state.assistantMessages.at(-1)?.state?.action,
+      'generate_story_asset_image'
+    )
+    assert.match(
+      preview.state.assistantMessages.at(-1)?.text ?? '',
+      /seedream_text_to_image/
+    )
+    assert.match(
+      preview.state.assistantMessages.at(-1)?.text ?? '',
+      /story_attach_generated_asset_image/
+    )
     await frame.getByRole('button', { name: /分镜/ }).click()
     await assertVisible(
       frame.locator('.ss-shot-grid').getByRole('heading', {
@@ -166,15 +204,39 @@ test(
       })
     )
     await frame.getByRole('button', { name: /媒体生成/ }).click()
-    await assertVisible(frame.getByText('Seedance 生成队列'))
-    await assertVisible(frame.getByText('已选视频顺序预览'))
-    await assertVisible(frame.getByText('已就绪 2 段'))
+    await assertVisible(frame.getByText('生成导演', { exact: true }))
+    await assertVisible(frame.getByText('已锁定 ShotSpec', { exact: true }))
+    await assertVisible(frame.getByText('候选评审', { exact: true }))
+    assert.equal(
+      await frame.getByRole('button', { name: '编辑', exact: true }).count(),
+      0,
+      'Media generation must not expose the storyboard content editor.'
+    )
     assert.equal(
       await frame.getByRole('button', { name: '渲染预演 MP4' }).count(),
       0
     )
-    assert.equal(await frame.locator('.ss-sequence-player video').count(), 1)
-    assert.equal(await frame.locator('.ss-sequence-list li').count(), 2)
+    assert.equal(await frame.locator('.ss-generation-player video').count(), 1)
+    assert.equal(await frame.locator('.ss-shot-list > button').count(), 2)
+    await frame.getByRole('button', { name: '收起镜头队列' }).click()
+    await assertVisible(frame.getByRole('button', { name: '展开镜头队列' }))
+    await frame.getByRole('button', { name: '展开镜头队列' }).click()
+    await frame.getByRole('button', { name: '收起生成设置' }).click()
+    await assertVisible(frame.getByRole('button', { name: '展开生成设置' }))
+    await frame.getByRole('button', { name: '展开生成设置' }).click()
+    await frame
+      .getByPlaceholder('描述动作、声音、重试或候选策略…')
+      .fill('只检查动作稳定性，不改动已审核分镜。')
+    await frame.getByRole('button', { name: '发送', exact: true }).click()
+    await waitFor(
+      () =>
+        preview.state.assistantMessages.at(-1)?.state?.action ===
+        'direct_seedance_generation'
+    )
+    assert.match(
+      preview.state.assistantMessages.at(-1)?.text ?? '',
+      /ShotSpec.*read-only/
+    )
     await frame.getByRole('button', { name: /Cut 交接/ }).click()
     await assertVisible(
       frame.getByRole('heading', { name: '创建 Cut 项目', exact: true })
@@ -403,12 +465,12 @@ test(
         .first()
         .fill('人工修订：缓慢推近后轻微环绕')
     })
-    await editStage(frame, /媒体生成/, async () => {
-      await frame
-        .getByLabel('标签')
-        .first()
-        .fill('人工审核 · 记忆包裹成片')
-    })
+    await frame.getByRole('button', { name: /媒体生成/ }).click()
+    await assertVisible(frame.getByText('已锁定 ShotSpec', { exact: true }))
+    assert.equal(
+      await frame.getByRole('button', { name: '编辑', exact: true }).count(),
+      0
+    )
     const production = preview.state.productionByProject['project-1']
     assert.equal(
       production.storyPlan.logline,
@@ -426,7 +488,7 @@ test(
       production.scenes[0].shots[0].candidates.find(
         (candidate) => candidate.kind === 'video'
       ).label,
-      '人工审核 · 记忆包裹成片'
+      '记忆包裹 Seedance 成片'
     )
     assert.equal(
       production.projectRevision,

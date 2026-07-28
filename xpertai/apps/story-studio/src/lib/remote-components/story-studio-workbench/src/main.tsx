@@ -41,7 +41,6 @@ import {
   post,
   reportResize,
   requestData,
-  requestFileAccess,
   requireSuccessfulAction,
   setRuntimeText,
   startRemoteBridge,
@@ -50,11 +49,6 @@ import {
 } from './runtime'
 import { buildStoryStudioAssistantContext } from './assistant-context'
 import { storyStudioDebug } from './debug-logger'
-import {
-  buildSeedanceAssistantMessage,
-  buildSeedanceGenerationTargets,
-  buildSeedanceStatusAssistantMessage
-} from './seedance-generation'
 import { normalizeStoryToolEvent } from './tool-event'
 import {
   findProjectId,
@@ -73,14 +67,16 @@ import {
   type HandoffView,
   type ProductionView
 } from './production-panel'
+import { hydrateProductionMediaAccess } from './production-media-access'
 import { useStoryEditor } from './use-story-editor'
+import { useAssetBibleActions } from './use-asset-bible-actions'
+import { useMediaGenerationActions } from './use-media-generation-actions'
 import { findHandoff, readHostThemeMode } from './workbench-data'
 
 const h: typeof React.createElement = React.createElement
 const ASSISTANT_CONTEXT_COMMAND = 'assistant.context.set'
 const ASSISTANT_CHAT_SEND_MESSAGE_COMMAND = 'assistant.chat.send_message'
 const PROJECT_PAGE_SIZE = 20
-const MEDIA_ACCESS_CONCURRENCY = 4
 
 const STATUS_KEYS: Record<ProjectStatus, MessageKey> = {
   draft: 'status.draft',
@@ -139,7 +135,6 @@ function App() {
   const [search, setSearch] = React.useState('')
   const [status, setStatus] = React.useState<ProjectStatus | 'all'>('all')
   const [busy, setBusy] = React.useState(false)
-  const [generating, setGenerating] = React.useState(false)
   const [handingOff, setHandingOff] = React.useState(false)
   const [production, setProduction] = React.useState<ProductionView | null>(null)
   const [handoff, setHandoff] = React.useState<HandoffView | null>(null)
@@ -185,6 +180,19 @@ function App() {
     getProject: () => selectedRef.current,
     getSnapshot: requestProjectSnapshot,
     reload: (projectId) => reloadProjects(projectId),
+    t
+  })
+  const assetBibleActions = useAssetBibleActions({
+    project: selected,
+    production,
+    reload: (projectId) => reloadProjects(projectId),
+    t
+  })
+  const mediaGenerationActions = useMediaGenerationActions({
+    project: selected,
+    production,
+    reload: (projectId) => reloadProjects(projectId),
+    setBusy,
     t
   })
 
@@ -252,7 +260,7 @@ function App() {
     page,
     total,
     busy,
-    generating,
+    mediaGenerationActions.generating,
     handingOff,
     createOpen,
     activeStage,
@@ -500,70 +508,6 @@ function App() {
       notify('error', getErrorMessage(error instanceof Error ? error : String(error)))
     } finally {
       setBusy(false)
-    }
-  }
-
-  async function generateSeedanceVideos() {
-    const project = selectedRef.current
-    if (!project || !production) return
-    setGenerating(true)
-    try {
-      const targets = buildSeedanceGenerationTargets(production)
-      if (!targets.length) throw new Error(t('generation.noImages'))
-      const text = buildSeedanceAssistantMessage({
-        projectId: project.id,
-        revision: project.revision,
-        aspectRatio: project.aspectRatio,
-        targets
-      })
-      const response = await invokeClientCommand(ASSISTANT_CHAT_SEND_MESSAGE_COMMAND, {
-        text,
-        clientMessageId: `story-studio:seedance:${project.id}:${Date.now()}`,
-        state: {
-          source: '@xpert-ai/plugin-story-studio',
-          action: 'generate_seedance_storyboard_videos',
-          projectId: project.id,
-          targetCount: targets.length
-        }
-      })
-      const result = getResponsePayload(response)
-      if (isRemoteObject(result) && result.success === false) {
-        throw new Error(typeof result.message === 'string' ? result.message : t('generation.sendFailed'))
-      }
-      notify('success', t('generation.sent', { count: targets.length }))
-    } catch (error) {
-      notify('error', getErrorMessage(error instanceof Error ? error : String(error)))
-    } finally {
-      setGenerating(false)
-    }
-  }
-
-  async function querySeedanceVideos() {
-    const project = selectedRef.current
-    if (!project) return
-    setGenerating(true)
-    try {
-      const response = await invokeClientCommand(ASSISTANT_CHAT_SEND_MESSAGE_COMMAND, {
-        text: buildSeedanceStatusAssistantMessage({
-          projectId: project.id,
-          revision: project.revision
-        }),
-        clientMessageId: `story-studio:seedance-status:${project.id}:${Date.now()}`,
-        state: {
-          source: '@xpert-ai/plugin-story-studio',
-          action: 'query_seedance_storyboard_videos',
-          projectId: project.id
-        }
-      })
-      const result = getResponsePayload(response)
-      if (isRemoteObject(result) && result.success === false) {
-        throw new Error(typeof result.message === 'string' ? result.message : t('generation.queryFailed'))
-      }
-      notify('success', t('generation.querySent'))
-    } catch (error) {
-      notify('error', getErrorMessage(error instanceof Error ? error : String(error)))
-    } finally {
-      setGenerating(false)
     }
   }
 
@@ -848,12 +792,38 @@ function App() {
               <ProductionPanel
                 production={production}
                 handoff={handoff}
+                projectRevision={selected.revision}
+                aspectRatio={selected.aspectRatio}
                 activeStage={activeStage}
                 busy={busy}
-                generating={generating}
+                generating={mediaGenerationActions.generating}
                 handingOff={handingOff}
-                onGenerate={() => void generateSeedanceVideos()}
-                onQueryGeneration={() => void querySeedanceVideos()}
+                onGenerate={() => void mediaGenerationActions.generate()}
+                onQueryGeneration={() => void mediaGenerationActions.query()}
+                onRunGenerationInstruction={(instruction) =>
+                  void mediaGenerationActions.runInstruction(instruction)
+                }
+                onSelectGenerationCandidate={(
+                  sceneId,
+                  shotId,
+                  candidateId
+                ) =>
+                  void mediaGenerationActions.selectCandidate(
+                    sceneId,
+                    shotId,
+                    candidateId
+                  )
+                }
+                onReturnToStoryboard={() =>
+                  requestNavigation({ kind: 'stage', stage: 6 })
+                }
+                assetAction={assetBibleActions.active}
+                onUploadAssetImage={(asset, file) =>
+                  void assetBibleActions.upload(asset, file)
+                }
+                onGenerateAssetImage={(asset) =>
+                  void assetBibleActions.generate(asset)
+                }
                 onHandoff={() => void prepareCutHandoff()}
                 inspectorCollapsed={inspectorCollapsed}
                 onInspectorCollapsedChange={setInspectorCollapsed}
@@ -958,84 +928,6 @@ function readShotReadiness(production: ProductionView | null) {
     ).length,
     total: shots.length
   }
-}
-
-async function hydrateProductionMediaAccess(
-  production: ProductionView | null,
-  projectId: string | null | undefined
-) {
-  if (!production || !projectId) return production
-  const candidates = [
-    ...production.assets.flatMap((asset) => asset.candidates),
-    ...production.scenes.flatMap((scene) =>
-      scene.shots.flatMap((shot) => shot.candidates)
-    )
-  ].filter((candidate) => Boolean(candidate.workspacePath))
-  const urls = new Map<string, string>()
-  await mapWithConcurrency(
-    candidates,
-    MEDIA_ACCESS_CONCURRENCY,
-    async (candidate) => {
-      try {
-        const payload = getResponsePayload(
-          await requestFileAccess(candidate.id, projectId)
-        )
-        if (
-          isRemoteObject(payload) &&
-          typeof payload.url === 'string' &&
-          payload.url.trim()
-        ) {
-          urls.set(candidate.id, payload.url)
-        }
-      } catch (error) {
-        storyStudioDebug.warn('media.file-access-failed', {
-          candidateId: candidate.id,
-          message: getErrorMessage(
-            error instanceof Error ? error : String(error)
-          )
-        })
-      }
-    }
-  )
-  const hydrateCandidate = (
-    candidate: ProductionView['scenes'][number]['shots'][number]['candidates'][number]
-  ) =>
-    urls.has(candidate.id)
-      ? { ...candidate, fileUrl: urls.get(candidate.id) ?? null }
-      : candidate
-  return {
-    ...production,
-    assets: production.assets.map((asset) => ({
-      ...asset,
-      candidates: asset.candidates.map(hydrateCandidate)
-    })),
-    scenes: production.scenes.map((scene) => ({
-      ...scene,
-      shots: scene.shots.map((shot) => ({
-        ...shot,
-        candidates: shot.candidates.map(hydrateCandidate)
-      }))
-    }))
-  }
-}
-
-async function mapWithConcurrency<T>(
-  items: T[],
-  concurrency: number,
-  operation: (item: T) => Promise<void>
-) {
-  let index = 0
-  const workers = Array.from(
-    { length: Math.min(Math.max(1, concurrency), items.length) },
-    async () => {
-      while (index < items.length) {
-        const item = items[index]
-        index += 1
-        if (item) await operation(item)
-      }
-    }
-  )
-  await Promise.all(workers)
 }
 
 const rootElement = document.getElementById('root')

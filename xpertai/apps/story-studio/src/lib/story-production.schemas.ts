@@ -249,6 +249,41 @@ export const attachGeneratedVideoSchema = z
   })
   .strict()
 
+const attachAssetImageFields = {
+  projectId,
+  operationId,
+  baseRevision: z.number().int().min(1),
+  assetId: identifier,
+  candidateId: identifier,
+  label: bounded(160),
+  prompt: z.string().trim().max(4_000).optional(),
+  providerReceipt: z
+    .object({
+      provider: z.enum(['seedream_aigc', 'manual_upload']),
+      taskId: bounded(200),
+      model: bounded(200).optional(),
+      status: bounded(80)
+    })
+    .strict(),
+  select: z.boolean().optional(),
+  changeSummary
+}
+
+export const attachAssetImageSchema = z
+  .object(attachAssetImageFields)
+  .strict()
+
+export const attachGeneratedAssetImageSchema = z
+  .object({
+    ...attachAssetImageFields,
+    providerReceipt: attachAssetImageFields.providerReceipt.refine(
+      (receipt) => receipt.provider === 'seedream_aigc',
+      'Generated asset images require the seedream_aigc provider.'
+    ),
+    file: z.union([bounded(2_000), z.object({}).passthrough()])
+  })
+  .strict()
+
 function uniqueIds(
   values: Array<string | number>,
   label: string,

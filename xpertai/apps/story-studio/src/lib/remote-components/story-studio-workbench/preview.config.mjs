@@ -1,8 +1,17 @@
+import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const componentRoot = dirname(fileURLToPath(import.meta.url))
 const platformRoot = resolve(componentRoot, '../../../../../../../../xpert')
+const demoImage = (name) =>
+  `data:image/png;base64,${readFileSync(
+    resolve(componentRoot, `../../../../assets/demo-hidden-ledger/${name}`)
+  ).toString('base64')}`
+const shotImages = {
+  package: demoImage('shot-01.png'),
+  departure: demoImage('shot-02.png')
+}
 
 const projects = [
   project({
@@ -132,6 +141,70 @@ export default {
             candidate.mimeType ??
             (candidate.kind === 'image' ? 'image/png' : 'video/mp4'),
           size: candidate.size ?? 4
+        }
+      }
+    }
+
+    if (
+      message.type === 'executeFileAction' &&
+      message.actionKey === 'upload_asset_image'
+    ) {
+      const input = message.input ?? {}
+      const current = state.projects.find(
+        (item) => item.id === input.projectId
+      )
+      const production = state.productionByProject[input.projectId]
+      const asset = production?.assets.find(
+        (item) => item.id === input.assetId
+      )
+      if (!current || !production || !asset) {
+        throw new Error('Preview asset was not found.')
+      }
+      if (current.revision !== input.baseRevision) {
+        return revisionConflict(current.revision)
+      }
+      asset.candidates = asset.candidates.map((candidate) => ({
+        ...candidate,
+        selected: candidate.kind === 'image' ? false : candidate.selected
+      }))
+      asset.candidates.push({
+        id: input.candidateId,
+        kind: 'image',
+        label: input.label,
+        selected: true,
+        fileUrl:
+          'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z4KAAAAAASUVORK5CYII=',
+        workspacePath: `/workspace/story-studio/${current.id}/asset-bible/${input.candidateId}.png`,
+        originalName: message.file?.name ?? `${input.candidateId}.png`,
+        mimeType: message.file?.type ?? 'image/png',
+        size: message.file?.size ?? 68,
+        prompt: input.prompt ?? null,
+        providerReceipt: {
+          provider: 'manual_upload',
+          taskId: input.operationId,
+          model: null,
+          status: 'completed'
+        }
+      })
+      current.revision += 1
+      current.counts.candidates += 1
+      production.counts.candidates += 1
+      production.counts.selectedCandidates += 1
+      state.actions.push({
+        actionKey: message.actionKey,
+        projectId: current.id,
+        assetId: asset.id,
+        candidateId: input.candidateId,
+        revision: current.revision
+      })
+      return {
+        result: {
+          success: true,
+          refresh: true,
+          data: {
+            projectId: current.id,
+            revision: current.revision
+          }
         }
       }
     }
@@ -611,7 +684,7 @@ function productionFixture() {
                 kind: 'image',
                 label: '记忆包裹主画面',
                 selected: false,
-                fileUrl: null,
+                fileUrl: shotImages.package,
                 workspacePath: '/workspace/story-studio/project-1/package.png',
                 prompt: '发光包裹投射失踪者轮廓，月光蓝与琥珀色'
               },
@@ -650,7 +723,7 @@ function productionFixture() {
                 kind: 'image',
                 label: '越过潮线主画面',
                 selected: false,
-                fileUrl: null,
+                fileUrl: shotImages.departure,
                 workspacePath: '/workspace/story-studio/project-1/departure.png',
                 prompt: '信使背影走向月光潮线，城市灯火熄灭'
               },
