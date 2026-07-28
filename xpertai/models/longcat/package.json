@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-longcat",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "LongCat model plugin for the XpertAI platform",
   "author": {
     "name": "XpertAI",
