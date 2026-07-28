@@ -4,6 +4,9 @@
   "include": [],
   "references": [
     {
+      "path": "../../packages/design-fonts"
+    },
+    {
       "path": "./tsconfig.lib.json"
     },
     {

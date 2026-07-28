@@ -36,10 +36,10 @@ The `moonshot.yaml` schema backs the form fields you see in the console:
 
 | Field      | Description                                                                                                    |
 | ---------- | -------------------------------------------------------------------------------------------------------------- |
-| `api_key`  | Required. Your Moonshot API Key from [platform.moonshot.cn/console/api-keys](https://platform.moonshot.cn/console/api-keys). |
-| `base_url` | Optional. Base URL for API requests (defaults to `https://api.moonshot.cn/v1`). Useful for proxy configurations. |
+| `api_key`      | Required. Your Moonshot API Key from [platform.moonshot.cn/console/api-keys](https://platform.moonshot.cn/console/api-keys). |
+| `endpoint_url` | Optional. Base URL for API requests (defaults to `https://api.moonshot.cn/v1`). Useful for proxy configurations. |
 
-During validation, the plugin instantiates a ChatOpenAI client with your credentials and sends a test message ("你好") to ensure connectivity and permissions.
+During validation, the plugin sends an authenticated `GET /models` request to verify the API Key and endpoint without relying on a specific model.
 
 ## Model Capabilities
 

@@ -3,16 +3,20 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const currentFilePath = fileURLToPath(import.meta.url);
+const currentDirectory = dirname(currentFilePath);
 
 export const Moonshot = 'moonshot';
 export const MoonshotBaseUrl = 'https://api.moonshot.cn/v1';
 
-export const SvgIcon = readFileSync(join(__dirname, '_assets/icon_s_en.svg'), 'utf8');
+export const SvgIcon = readFileSync(
+  join(currentDirectory, '_assets/icon_s_en.svg'),
+  'utf8'
+);
 
 export type MoonshotCredentials = {
   api_key: string;
+  endpoint_url?: string;
   base_url?: string;
 };
 
@@ -24,6 +28,14 @@ export type MoonshotModelCredentials = MoonshotCredentials & {
   presence_penalty?: number;
 };
 
+export function getMoonshotBaseUrl(credentials: MoonshotCredentials): string {
+  return (
+    credentials.endpoint_url?.trim() ||
+    credentials.base_url?.trim() ||
+    MoonshotBaseUrl
+  );
+}
+
 export function toCredentialKwargs(
   credentials: MoonshotCredentials,
   model?: string
@@ -33,7 +45,7 @@ export function toCredentialKwargs(
     model: model,
   } as OpenAIBaseInput;
   const configuration: ClientOptions = {
-    baseURL: credentials.base_url || MoonshotBaseUrl,
+    baseURL: getMoonshotBaseUrl(credentials),
   };
 
   return {
