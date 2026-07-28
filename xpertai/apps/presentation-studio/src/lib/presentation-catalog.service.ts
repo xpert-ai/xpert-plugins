@@ -5,7 +5,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { existsSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
 import { DASHIAI_LAYOUT_COUNT, PRESENTATION_THEME_PACKS } from './constants.js'
 import type { PresentationJsonObject, PresentationJsonValue, PresentationThemePack } from './types.js'
@@ -171,7 +171,7 @@ export class PresentationCatalogService {
   private async buildNativeThemeRuntime(themePack: PresentationThemePack) {
     const [manifest, source] = await Promise.all([
       this.manifest(),
-      readFile(join(this.vendorProjectRoot(), 'dist', 'theme-runtime', `imported-theme-runtime.${themePack}.js`), 'utf8')
+      this.readNativeThemeRuntime(themePack)
     ])
     const script = await inlineNativeRuntimeAssets(this.vendorProjectRoot(), source)
     const layouts = Object.fromEntries(
@@ -185,6 +185,42 @@ export class PresentationCatalogService {
       runtimeChecksum: createHash('sha256').update(script).digest('hex'),
       script,
       layouts
+    }
+  }
+
+  private async readNativeThemeRuntime(themePack: PresentationThemePack) {
+    const projectRoot = this.vendorProjectRoot()
+    const runtimeRoot = join(projectRoot, 'dist', 'theme-runtime')
+    const prebuilt = join(runtimeRoot, `imported-theme-runtime.${themePack}.js`)
+    if (existsSync(prebuilt)) return readFile(prebuilt, 'utf8')
+
+    const sharedGenerated = join(runtimeRoot, 'imported-theme-runtime.generated.js')
+    if (existsSync(sharedGenerated)) return readFile(sharedGenerated, 'utf8')
+
+    const themeModule = join(runtimeRoot, `${themePack}.module.mjs`)
+    if (!existsSync(themeModule)) throw new Error(`Native presentation runtime ${themePack} is missing.`)
+    const tempDirectory = await mkdtemp(join(tmpdir(), 'presentation-theme-runtime-'))
+    const outputFile = join(tempDirectory, 'runtime.js')
+    try {
+      const runtimeBuildUrl = pathToFileURL(join(
+        projectRoot,
+        'src',
+        'components',
+        'themes',
+        'runtime-build.mjs'
+      )).href
+      const input = JSON.stringify({ root: projectRoot, outFile: outputFile, themeKeys: [themePack] })
+      await execFileAsync(process.execPath, [
+        '--input-type=module',
+        '--eval',
+        `import { buildClientRuntimeFromModules } from ${JSON.stringify(runtimeBuildUrl)}; buildClientRuntimeFromModules(${input});`
+      ], {
+        cwd: projectRoot,
+        maxBuffer: 20 * 1024 * 1024
+      })
+      return await readFile(outputFile, 'utf8')
+    } finally {
+      await rm(tempDirectory, { recursive: true, force: true })
     }
   }
 

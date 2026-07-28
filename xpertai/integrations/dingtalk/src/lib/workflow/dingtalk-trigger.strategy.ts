@@ -24,7 +24,10 @@ import { ChatDingTalkMessage } from '../message.js'
 import { DINGTALK_PLUGIN_CONTEXT } from '../tokens.js'
 import { DINGTALK_INTEGRATION_SELECT_URL, type DingTalkInboundFile, iconImage } from '../types.js'
 import { DingTalkTriggerBindingEntity } from '../entities/dingtalk-trigger-binding.entity.js'
-import { DingTalkTriggerAggregationService } from './dingtalk-trigger-aggregation.service.js'
+import {
+	type DingTalkAggregateLockLease,
+	DingTalkTriggerAggregationService
+} from './dingtalk-trigger-aggregation.service.js'
 import {
 	DINGTALK_TRIGGER_FLUSH_MESSAGE_TYPE,
 	DingTalkTriggerAggregationState,
@@ -34,6 +37,9 @@ import { DingTalkTrigger, TDingTalkTriggerConfig } from './dingtalk-trigger.type
 
 const DEFAULT_SESSION_TIMEOUT_SECONDS = 3600
 const DEFAULT_SUMMARY_WINDOW_SECONDS = 0
+const FLUSH_ENQUEUE_MAX_ATTEMPTS = 3
+const FLUSH_ENQUEUE_RETRY_DELAY_MS = 50
+const DISPATCHED_MARKER_MAX_ATTEMPTS = 3
 
 @Injectable()
 @WorkflowTriggerStrategy(DingTalkTrigger)
@@ -287,7 +293,9 @@ export class DingTalkTriggerStrategy implements IWorkflowTriggerStrategy<TDingTa
 		if (!aggregateKey) {
 			return
 		}
-		await this.aggregationService.clear(aggregateKey)
+		await this.aggregationService.withAggregateLock(aggregateKey, async (lease) => {
+			await lease.clearStateIfOwned()
+		})
 	}
 
 	async handleInboundMessage(params: {
@@ -339,52 +347,77 @@ export class DingTalkTriggerStrategy implements IWorkflowTriggerStrategy<TDingTa
 			return false
 		}
 
-		const currentState = await this.aggregationService.get(aggregateKey)
-		const sameRoutingTarget =
-			currentState?.integrationId === params.integrationId && currentState?.xpertId === binding.xpertId
-		const nextVersion = (currentState?.version ?? 0) + 1
-		const aggregateState: DingTalkTriggerAggregationState = {
-			aggregateKey,
-			integrationId: params.integrationId,
-			conversationUserKey: aggregateKey,
-			xpertId: binding.xpertId,
-			version: nextVersion,
-			inputParts: [...(sameRoutingTarget ? currentState?.inputParts ?? [] : []), params.input || ''],
-			files: [...(sameRoutingTarget ? currentState?.files ?? [] : []), ...(params.files ?? [])],
-			lastMessageAt: Date.now(),
-			conversationId: params.conversationId ?? (sameRoutingTarget ? currentState?.conversationId : undefined),
-			tenantId: params.tenantId,
-			organizationId: params.organizationId,
-			executorUserId: params.executorUserId,
-			endUserId: params.endUserId,
-			latestMessage: {
-				integrationId: params.dingtalkMessage.integrationId,
+		return this.aggregationService.withAggregateLock(aggregateKey, async (lease) => {
+			const currentState = await this.aggregationService.get(aggregateKey)
+			const sameRoutingTarget =
+				currentState?.integrationId === params.integrationId && currentState?.xpertId === binding.xpertId
+			const canMergeCurrent =
+				sameRoutingTarget &&
+				(currentState?.deliveryStatus === undefined || currentState.deliveryStatus === 'pending')
+			const nextVersion = (currentState?.version ?? 0) + 1
+			const aggregateState: DingTalkTriggerAggregationState = {
+				aggregateKey,
+				integrationId: params.integrationId,
+				conversationUserKey: aggregateKey,
+				xpertId: binding.xpertId,
+				version: nextVersion,
+				dispatchMessageId: `dingtalk-chat-aggregate-${randomUUID()}`,
+				deliveryStatus: 'pending',
+				inputParts: [
+					...(canMergeCurrent ? currentState?.inputParts ?? [] : []),
+					...(params.input ? [params.input] : [])
+				],
+				files: [...(canMergeCurrent ? currentState?.files ?? [] : []), ...(params.files ?? [])],
+				lastMessageAt: Date.now(),
+				conversationId: params.conversationId ?? (sameRoutingTarget ? currentState?.conversationId : undefined),
+				tenantId: params.tenantId,
 				organizationId: params.organizationId,
-				chatId: params.dingtalkMessage.chatId,
-				userId: params.dingtalkMessage.dingtalkUserId,
-				senderOpenId: params.dingtalkMessage.senderOpenId,
-				senderRecipient: params.dingtalkMessage.senderRecipient,
-				chatType: params.dingtalkMessage.chatType,
-				sessionWebhook: params.dingtalkMessage.sessionWebhook,
-				robotCode: params.dingtalkMessage.robotCode,
-				language: params.dingtalkMessage.language
+				executorUserId: params.executorUserId,
+				endUserId: params.endUserId,
+				latestMessage: {
+					integrationId: params.dingtalkMessage.integrationId,
+					organizationId: params.organizationId,
+					chatId: params.dingtalkMessage.chatId,
+					userId: params.dingtalkMessage.dingtalkUserId,
+					senderOpenId: params.dingtalkMessage.senderOpenId,
+					senderRecipient: params.dingtalkMessage.senderRecipient,
+					chatType: params.dingtalkMessage.chatType,
+					sessionWebhook: params.dingtalkMessage.sessionWebhook,
+					robotCode: params.dingtalkMessage.robotCode,
+					language: params.dingtalkMessage.language
+				}
 			}
-		}
 
-		const ttlSeconds = Math.max(
-			DEFAULT_SESSION_TIMEOUT_SECONDS,
-			this.normalizePositiveSeconds(binding.sessionTimeoutSeconds, DEFAULT_SESSION_TIMEOUT_SECONDS),
-			summaryWindowSeconds * 3
-		)
-		await this.aggregationService.save(aggregateState, ttlSeconds)
-		await this.handoffPermissionService.enqueue(this.buildFlushMessage(aggregateState), {
-			delayMs: summaryWindowSeconds * 1000
+			const ttlSeconds = Math.max(
+				DEFAULT_SESSION_TIMEOUT_SECONDS,
+				this.normalizePositiveSeconds(binding.sessionTimeoutSeconds, DEFAULT_SESSION_TIMEOUT_SECONDS),
+				summaryWindowSeconds * 3
+			)
+			await lease.ensureOwned()
+			await this.aggregationService.save(aggregateState, ttlSeconds)
+			const flushScheduled = await this.enqueueFlushMessage(
+				aggregateState,
+				summaryWindowSeconds * 1000
+			)
+			if (!flushScheduled) {
+				this.logger.warn(
+					`[dingtalk-trigger] flush scheduling exhausted; dispatching synchronously aggregateKey=${aggregateKey} version=${nextVersion}`
+				)
+				await this.flushBufferedConversationUnderLock(
+					aggregateKey,
+					{
+						aggregateKey,
+						version: nextVersion
+					},
+					lease
+				)
+			}
+
+			this.logger.debug(
+				`[dingtalk-trigger] buffered inbound integrationId=${params.integrationId} xpertId=${binding.xpertId} aggregateKey=${aggregateKey} version=${nextVersion}`
+			)
+			return true
 		})
-
-		this.logger.debug(
-			`[dingtalk-trigger] buffered inbound integrationId=${params.integrationId} xpertId=${binding.xpertId} aggregateKey=${aggregateKey} version=${nextVersion}`
-		)
-		return true
 	}
 
 	async flushBufferedConversation(payload: DingTalkTriggerFlushPayload): Promise<boolean> {
@@ -393,46 +426,164 @@ export class DingTalkTriggerStrategy implements IWorkflowTriggerStrategy<TDingTa
 			return false
 		}
 
+		return this.aggregationService.withAggregateLock(aggregateKey, (lease) =>
+			this.flushBufferedConversationUnderLock(aggregateKey, payload, lease)
+		)
+	}
+
+	private async flushBufferedConversationUnderLock(
+		aggregateKey: string,
+		payload: DingTalkTriggerFlushPayload,
+		lease: DingTalkAggregateLockLease
+	): Promise<boolean> {
 		const state = await this.aggregationService.get(aggregateKey)
-		if (!state || state.version !== payload.version) {
+		if (
+			!state ||
+			state.version !== payload.version ||
+			state.deliveryStatus === 'dispatched'
+		) {
 			return false
 		}
 
-		await this.dispatchInboundMessage({
-			integrationId: state.integrationId,
-			xpertId: state.xpertId,
-			dispatchMode: `buffered version=${state.version}`,
-			dispatchPayload: {
-				xpertId: state.xpertId,
-				input: state.inputParts.join('\n'),
-				files: state.files,
-				dingtalkMessage: new ChatDingTalkMessage(
-					{
-						integrationId: state.latestMessage.integrationId,
-						organizationId: state.latestMessage.organizationId,
-						preferLanguage: state.latestMessage.language,
-						userId: state.latestMessage.userId,
-						senderOpenId: state.latestMessage.senderOpenId,
-						senderRecipient: state.latestMessage.senderRecipient,
-						chatType: state.latestMessage.chatType,
-						sessionWebhook: state.latestMessage.sessionWebhook,
-						robotCode: state.latestMessage.robotCode,
-						chatId: state.latestMessage.chatId,
-						dingtalkChannel: this.dingtalkChannel
-					},
-					{
-						text: state.inputParts.join('\n'),
-						status: 'thinking',
-						language: state.latestMessage.language
-					}
-				),
-				conversationId: state.conversationId,
-				conversationUserKey: state.conversationUserKey
+		if (state.deliveryStatus === 'dispatching') {
+			try {
+				await lease.clearStateIfOwned()
+			} catch (error) {
+				this.logger.warn(
+					`[dingtalk-trigger] dispatching aggregate cleanup failed aggregateKey=${aggregateKey} version=${state.version}: ${this.getErrorMessage(error)}`
+				)
 			}
-		})
+			return true
+		}
 
-		await this.aggregationService.clear(aggregateKey)
+		await lease.ensureOwned()
+		const dispatchMessageId =
+			state.dispatchMessageId || `dingtalk-chat-aggregate-${randomUUID()}`
+		const dispatchingState: DingTalkTriggerAggregationState = {
+			...state,
+			dispatchMessageId,
+			deliveryStatus: 'dispatching'
+		}
+		await this.aggregationService.save(dispatchingState)
+
+		try {
+			await this.dispatchInboundMessage({
+				integrationId: state.integrationId,
+				xpertId: state.xpertId,
+				dispatchMode: `buffered version=${state.version}`,
+				dispatchPayload: {
+					xpertId: state.xpertId,
+					dispatchMessageId,
+					input: state.inputParts.join('\n'),
+					files: state.files,
+					dingtalkMessage: new ChatDingTalkMessage(
+						{
+							integrationId: state.latestMessage.integrationId,
+							organizationId: state.latestMessage.organizationId,
+							preferLanguage: state.latestMessage.language,
+							userId: state.latestMessage.userId,
+							senderOpenId: state.latestMessage.senderOpenId,
+							senderRecipient: state.latestMessage.senderRecipient,
+							chatType: state.latestMessage.chatType,
+							sessionWebhook: state.latestMessage.sessionWebhook,
+							robotCode: state.latestMessage.robotCode,
+							chatId: state.latestMessage.chatId,
+							dingtalkChannel: this.dingtalkChannel
+						},
+						{
+							text: state.inputParts.join('\n'),
+							status: 'thinking',
+							language: state.latestMessage.language
+						}
+					),
+					conversationId: state.conversationId,
+					conversationUserKey: state.conversationUserKey
+				}
+			})
+		} catch (error) {
+			try {
+				await lease.ensureOwned()
+				await this.aggregationService.save({
+					...state,
+					deliveryStatus: 'pending'
+				})
+			} catch (restoreError) {
+				this.logger.error(
+					`[dingtalk-trigger] aggregate pending restore failed aggregateKey=${aggregateKey} version=${state.version}: ${this.getErrorMessage(restoreError)}`
+				)
+			}
+			throw error
+		}
+
+		await lease.ensureOwned()
+		const dispatchedState: DingTalkTriggerAggregationState = {
+			...dispatchingState,
+			deliveryStatus: 'dispatched'
+		}
+		let markerError: unknown
+		let markerSaved = false
+		for (let attempt = 1; attempt <= DISPATCHED_MARKER_MAX_ATTEMPTS; attempt += 1) {
+			try {
+				await lease.ensureOwned()
+				await this.aggregationService.save(dispatchedState)
+				markerSaved = true
+				break
+			} catch (error) {
+				markerError = error
+				if (attempt < DISPATCHED_MARKER_MAX_ATTEMPTS) {
+					await this.delay(FLUSH_ENQUEUE_RETRY_DELAY_MS * attempt)
+				}
+			}
+		}
+		if (!markerSaved) {
+			this.logger.error(
+				`[dingtalk-trigger] dispatched marker save failed aggregateKey=${aggregateKey} version=${state.version}: ${this.getErrorMessage(markerError)}`
+			)
+			try {
+				await lease.clearStateIfOwned()
+			} catch (clearError) {
+				this.logger.error(
+					`[dingtalk-trigger] aggregate cleanup also failed after dispatch aggregateKey=${aggregateKey} version=${state.version}: ${this.getErrorMessage(clearError)}`
+				)
+			}
+			return true
+		}
+		try {
+			await lease.clearStateIfOwned()
+		} catch (error) {
+			this.logger.warn(
+				`[dingtalk-trigger] dispatched aggregate cleanup failed aggregateKey=${aggregateKey} version=${state.version}: ${this.getErrorMessage(error)}`
+			)
+		}
 		return true
+	}
+
+	private async enqueueFlushMessage(
+		state: DingTalkTriggerAggregationState,
+		delayMs: number
+	): Promise<boolean> {
+		const message = this.buildFlushMessage(state)
+		let lastError: unknown
+
+		for (let attempt = 1; attempt <= FLUSH_ENQUEUE_MAX_ATTEMPTS; attempt += 1) {
+			try {
+				await this.handoffPermissionService.enqueue(message, { delayMs })
+				return true
+			} catch (error) {
+				lastError = error
+				if (attempt < FLUSH_ENQUEUE_MAX_ATTEMPTS) {
+					this.logger.warn(
+						`[dingtalk-trigger] flush enqueue failed aggregateKey=${state.aggregateKey} version=${state.version} attempt=${attempt}`
+					)
+					await this.delay(FLUSH_ENQUEUE_RETRY_DELAY_MS * attempt)
+				}
+			}
+		}
+
+		this.logger.error(
+			`[dingtalk-trigger] flush enqueue exhausted aggregateKey=${state.aggregateKey} version=${state.version}: ${this.getErrorMessage(lastError)}`
+		)
+		return false
 	}
 
 	private buildFlushMessage(
@@ -446,7 +597,7 @@ export class DingTalkTriggerStrategy implements IWorkflowTriggerStrategy<TDingTa
 			sessionKey: state.aggregateKey,
 			businessKey: state.aggregateKey,
 			attempt: 1,
-			maxAttempts: 1,
+			maxAttempts: 3,
 			enqueuedAt: Date.now(),
 			traceId: `${state.aggregateKey}:${state.version}`,
 			payload: {
@@ -484,6 +635,20 @@ export class DingTalkTriggerStrategy implements IWorkflowTriggerStrategy<TDingTa
 			return Math.floor(value)
 		}
 		return defaultValue
+	}
+
+	private async delay(milliseconds: number): Promise<void> {
+		await new Promise<void>((resolve) => setTimeout(resolve, milliseconds))
+	}
+
+	private getErrorMessage(error: unknown): string {
+		if (error instanceof Error) {
+			return error.message
+		}
+		if (typeof error === 'string') {
+			return error
+		}
+		return 'unknown_error'
 	}
 
 	private async dispatchInboundMessage(params: {

@@ -920,6 +920,11 @@ export class DingTalkConversationService implements OnModuleDestroy {
       return message.text.trim()
     }
 
+    const messageText = this.extractContentText(message.text)
+    if (messageText) {
+      return messageText
+    }
+
     const contentText = this.extractContentText(message.content)
     if (contentText) {
       return contentText
@@ -1125,8 +1130,15 @@ export class DingTalkConversationService implements OnModuleDestroy {
     const content = this.normalizeRecord(payload.content) ?? this.safeJsonRecord(payload.content)
     const nestedMessage = this.normalizeRecord(payload.message)
     const nestedContent = this.normalizeRecord(nestedMessage?.content) ?? this.safeJsonRecord(nestedMessage?.content)
+    const textContent = this.normalizeRecord(payload.text) ?? this.safeJsonRecord(payload.text)
+    const repliedMessageValue = textContent?.repliedMsg ?? content?.repliedMsg ?? nestedContent?.repliedMsg
+    const repliedMessage = this.normalizeRecord(repliedMessageValue) ?? this.safeJsonRecord(repliedMessageValue)
+    const repliedContent =
+      this.normalizeRecord(repliedMessage?.content) ?? this.safeJsonRecord(repliedMessage?.content)
     const refs: DingTalkInboundFileRef[] = []
-    const baseRecords = [payload, content, nestedContent].filter((item): item is Record<string, unknown> => Boolean(item))
+    const baseRecords = [payload, content, nestedContent, textContent, repliedMessage, repliedContent].filter(
+      (item): item is Record<string, unknown> => Boolean(item)
+    )
 
     if (msgType === 'image' || msgType === 'picture') {
       const image =
@@ -1154,21 +1166,48 @@ export class DingTalkConversationService implements OnModuleDestroy {
       }
     }
 
+    const repliedMsgType = this.resolveDingTalkMessageType(repliedMessage)
+    if (repliedMsgType === 'image' || repliedMsgType === 'picture') {
+      const ref = this.extractInboundFileRef(
+        'image',
+        [repliedContent, repliedMessage, textContent, payload],
+        baseRecords
+      )
+      if (ref) {
+        refs.push(ref)
+      }
+    }
+    if (repliedMsgType === 'file') {
+      const ref = this.extractInboundFileRef(
+        'file',
+        [repliedContent, repliedMessage, textContent, payload],
+        baseRecords
+      )
+      if (ref) {
+        refs.push(ref)
+      }
+    }
+
     const richTextItems = [
       ...(Array.isArray(payload.richText) ? payload.richText : []),
       ...(Array.isArray(content?.richText) ? content.richText : []),
-      ...(Array.isArray(nestedContent?.richText) ? nestedContent.richText : [])
+      ...(Array.isArray(nestedContent?.richText) ? nestedContent.richText : []),
+      ...(Array.isArray(repliedContent?.richText) ? repliedContent.richText : [])
     ]
     for (const rawItem of richTextItems) {
       const item = this.normalizeRecord(rawItem)
       const itemType = this.resolveDingTalkMessageType(item, true)
-      if (itemType !== 'image' && itemType !== 'picture') {
+      if (itemType !== 'image' && itemType !== 'picture' && itemType !== 'file') {
         continue
       }
 
       const image = this.normalizeRecord(item?.image)
       const file = this.normalizeRecord(item?.file)
-      const ref = this.extractInboundFileRef('image', [item, image, file, content, nestedContent, payload], baseRecords)
+      const ref = this.extractInboundFileRef(
+        itemType === 'file' ? 'file' : 'image',
+        [item, image, file, repliedContent, content, nestedContent, payload],
+        baseRecords
+      )
       if (ref) {
         refs.push(ref)
       }

@@ -310,6 +310,7 @@ export class DingTalkClient {
     buffer: Buffer
     fileName: string
     mimeType?: string | null
+    mediaType?: 'file' | 'image'
     timeoutMs?: number
   }): Promise<DingTalkUploadedMedia> {
     if (!input.buffer.length) {
@@ -342,7 +343,7 @@ export class DingTalkClient {
     }>(`${this.legacyApiBaseUrl}/media/upload`, form, {
       params: {
         access_token: token,
-        type: 'file'
+        type: input.mediaType || 'file'
       },
       timeout: input.timeoutMs || 15_000,
       maxBodyLength: Infinity

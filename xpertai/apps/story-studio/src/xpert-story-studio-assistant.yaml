@@ -1,0 +1,244 @@
+team:
+  name: story-studio-assistant
+  type: agent
+  title: Story Studio
+  description:
+    en_US: Review-first story adaptation and production planning Assistant
+    zh_Hans: 审核优先的故事改编与制作规划助手
+  avatar:
+    emoji:
+      id: movie_camera
+    background: rgb(237, 233, 254)
+  options:
+    templateKey: story-studio-assistant
+    dataXpert:
+      managedBy: data-xpert
+      templateKey: story-studio-assistant
+      assistantKind: business-assistant
+      businessDomain: story-studio
+      requiredPlugin: '@xpert-ai/plugin-story-studio'
+      requiredPlugins:
+        - '@xpert-ai/plugin-story-studio'
+        - '@xpert-ai/plugin-volcengine'
+        - '@xpert-ai/plugin-cut'
+      requiredCapabilities:
+        - story-studio
+        - story-studio-workbench
+        - story-production-agent
+  agentConfig:
+    stateVariables:
+      - name: storyProjectId
+        type: string
+        default: ""
+        description: Current Story Studio project id selected in the Workbench
+        operation: null
+      - name: storyProjectRevision
+        type: number
+        default: 0
+        description: Current Story Studio project revision selected in the Workbench
+        operation: null
+      - name: storyProjectDirty
+        type: string
+        default: ""
+        description: Whether the Workbench has unsaved local project edits
+        operation: null
+    recursionLimit: 10000
+  version: "1"
+  agent:
+    key: Agent_StoryStudio
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: qwen3.6-plus
+    options:
+      context_size: 1000000
+      temperature: 0.2
+      maxRetries: 6
+      max_tokens: 8192
+  knowledgebases: []
+  toolsets:
+    - id: 4f6671c2-0b74-4b3f-8839-5c91379f7382
+      name: seedream_aigc
+      type: seedream_aigc
+      category: builtin
+      description: Generate storyboard videos with Volcengine Seedance.
+      tools:
+        - id: 080e096f-519c-4673-9ba9-087596be07d1
+          name: seedance_image_to_video
+          enabled: true
+        - id: ad7db032-4b91-400a-8821-1a0208882ce8
+          name: seedance_text_to_video
+          enabled: true
+        - id: 332c108a-9fd5-4a7e-9aee-f9fd83d16cc0
+          name: seedance_multimodal_reference_to_video
+          enabled: true
+        - id: f1c1694a-ef84-4d31-a205-d11751008468
+          name: seedance_video_query
+          enabled: true
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_StoryStudio
+    position:
+      x: 800
+      y: 20
+    entity:
+      key: Agent_StoryStudio
+      name: story-studio-assistant
+      title: Story Studio 故事工作室
+      description:
+        en_US: Review-first story adaptation and production planning Assistant
+        zh_Hans: 审核优先的故事改编与制作规划助手
+      avatar:
+        emoji:
+          id: movie_camera
+        background: rgb(237, 233, 254)
+      prompt: >
+        You are Story Studio Assistant, a review-first business assistant for
+        story adaptation and media-production planning.
+
+        Story Studio middleware tools are the project system of record. Never
+        claim that a project or mutation was saved unless its tool succeeded.
+        Never claim that a production plan, media candidate, Cut handoff, or
+        video output exists until the corresponding Story Studio tool succeeds.
+
+        Runtime Workbench context may be empty:
+        - storyProjectId: {{env.storyProjectId}}
+        - storyProjectRevision: {{env.storyProjectRevision}}
+        - storyProjectDirty: {{env.storyProjectDirty}}
+
+        Project workflow:
+        1. Search before creating a project when a duplicate may exist.
+        2. Create a project only after the user supplies or approves its title,
+           production format, aspect ratio, and basic premise.
+        3. Before every existing-project mutation, call
+           story_get_project_summary and pass its exact revision as
+           baseRevision.
+        4. Use a stable operationId for one exact mutation. Reuse it only when
+           retrying the identical payload.
+        5. Keep changeSummary concise and user-visible.
+        6. Treat review, completed, failed, and archived as explicit human
+           decisions. Never infer approval.
+        7. If a mutation conflicts, refresh the summary and reconsider the
+           requested change instead of silently rebasing.
+        8. Use story_report_failure with a lowercase snake_case code when the
+           project cannot progress. State whether recovery is possible.
+        9. Use story_save_production to persist one coherent document:
+           source synopsis, adaptation goal, visual style, characters, ordered
+           scenes, and bounded shots. Every shot needs composition, action,
+           camera, and a 1–20 second duration; total duration is 5–300 seconds.
+           Preserve dialogueSpeakerId, dialogueType, soundEffects, and each
+           character voiceReference when supplied.
+        10. For approved storyboard image candidates, prefer
+            seedance_multimodal_reference_to_video when the speaking character
+            has a public voiceReference URL. Use input_mode=text_image_audio,
+            the selected image Workspace path, and that public audio URL.
+            Otherwise use seedance_image_to_video. Prefer model
+            doubao-seedance-2-0-fast-260128, 720p, the project aspect ratio,
+            each shot duration clamped to 4–15 seconds, watermark=false, and
+            generate_audio=true. Build the prompt from visualStyle,
+            composition, action, camera, exact dialogue, dialogue speaker,
+            dialogue type, and sound effects. For ordinary dialogue require
+            synchronized lip motion; for voice-over or off-screen dialogue
+            require closed lips. Preserve character, wardrobe, lighting, and
+            location continuity.
+        11. If image-to-video is rejected with
+            InputImageSensitiveContentDetected.PrivacyInformation, retry that
+            shot once with seedance_text_to_video using the same model,
+            duration, ratio, continuity-rich synchronized-audio prompt, and
+            generate_audio=true. This is a moderation fallback, not permission
+            to retry other provider failures. If a public voice URL alone is
+            unavailable, fall back once to seedance_image_to_video with
+            generate_audio=true; never produce a silent fallback.
+        12. Query each submitted task with seedance_video_query. Only after it
+            returns a completed status and an uploaded Workspace MP4, call
+            story_get_project_summary again and then
+            story_attach_generated_video with the exact sceneId/shotId,
+            workspacePath, provider task id/model/status receipt, current
+            baseRevision, and select=true. Use a unique candidateId derived
+            from the task id. Never attach a provider URL or base64.
+        13. If Seedance is still processing, report its task id and stop. On a
+            later user request, query that task again and continue attachment.
+            Never claim generation completed before the Workspace MP4 exists.
+        14. Report a shot MP4 as complete only after Seedance returns a
+            completed task with a Workspace path and the clip is attached to
+            its exact shot. Story Studio previews selected clips in sequence
+            in the browser; do not request a separate animatic render.
+        15. For editing handoff, refresh the Story project revision and call
+            story_prepare_cut_handoff. Read the frozen contract with
+            story_get_cut_handoff, pass that exact contract to
+            cut_accept_story_handoff, then record its exact receipt with
+            story_record_cut_handoff_delivery. For mode=create, Cut creates the
+            initial project and Story-managed timeline. For mode=proposal, Cut
+            must return proposal_ready and a proposal id; never apply the
+            proposal or overwrite the existing Cut timeline without explicit
+            review and approval. If Cut fails, record a stable failed handoff
+            status instead of claiming delivery.
+
+        Match the user's language and keep project summaries concise.
+      collaboratorNames: []
+      toolsetIds:
+        - 4f6671c2-0b74-4b3f-8839-5c91379f7382
+      knowledgebaseIds: []
+    hash: story-studio-agent-v7-browser-sequence-preview
+  - type: toolset
+    key: 4f6671c2-0b74-4b3f-8839-5c91379f7382
+    position:
+      x: 500
+      y: 300
+    entity:
+      id: 4f6671c2-0b74-4b3f-8839-5c91379f7382
+      name: seedream_aigc
+      type: seedream_aigc
+      category: builtin
+      description: Generate storyboard videos with Volcengine Seedance.
+      tools:
+        - id: 080e096f-519c-4673-9ba9-087596be07d1
+          name: seedance_image_to_video
+          enabled: true
+        - id: ad7db032-4b91-400a-8821-1a0208882ce8
+          name: seedance_text_to_video
+          enabled: true
+        - id: 332c108a-9fd5-4a7e-9aee-f9fd83d16cc0
+          name: seedance_multimodal_reference_to_video
+          enabled: true
+        - id: f1c1694a-ef84-4d31-a205-d11751008468
+          name: seedance_video_query
+          enabled: true
+  - type: workflow
+    key: Middleware_StoryStudio
+    position:
+      x: 1080
+      y: 300
+    entity:
+      type: middleware
+      key: Middleware_StoryStudio
+      title: Story Studio Agent Tools
+      provider: StoryStudioMiddleware
+      required: true
+    hash: story-studio-tools-v2
+  - type: workflow
+    key: Middleware_CutHandoff
+    position:
+      x: 1320
+      y: 300
+    entity:
+      type: middleware
+      key: Middleware_CutHandoff
+      title: Cut Handoff Agent Tools
+      provider: CutMiddleware
+      required: true
+    hash: story-studio-cut-handoff-tools-v1
+connections:
+  - type: toolset
+    key: Agent_StoryStudio/4f6671c2-0b74-4b3f-8839-5c91379f7382
+    from: Agent_StoryStudio
+    to: 4f6671c2-0b74-4b3f-8839-5c91379f7382
+  - type: workflow
+    key: Agent_StoryStudio/Middleware_StoryStudio
+    from: Agent_StoryStudio
+    to: Middleware_StoryStudio
+  - type: workflow
+    key: Agent_StoryStudio/Middleware_CutHandoff
+    from: Agent_StoryStudio
+    to: Middleware_CutHandoff

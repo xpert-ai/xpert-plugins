@@ -10,14 +10,17 @@
     "project/scripts/export-pptx.mjs can emit a machine-readable export warning report",
     "project/packages/html-deck-to-pptx/src/screenshot.mjs captures prepared slides with a page clip so Playwright does not repeat element-stability waits",
     "project/scripts/serve-preview-https.mjs accepts DASHI_PPT_CERT_DIR so export jobs keep certificates inside their temporary directory",
-    "volatile project/output/https-preview development certificates are excluded from the vendored tree"
+    "volatile project/output/https-preview development certificates are excluded from the vendored tree",
+    "theme13 and theme14 add only their owned page closures plus one shared generated-theme composition layer; reused theme02/03/04/05/09/12 source modules remain single-copy",
+    "generated themes ship as two ESM entries plus one shared content-hash chunk; no per-generated-theme standalone IIFE is vendored"
   ],
-  "fileCount": 166,
-  "treeSha256": "e85ff9d6de2aece3181094537278014539e68714a2b4707da615de4a3ec0f7d6",
+  "fileCount": 198,
+  "treeSha256": "360d23d63e789ac8e3852e0ef54f621138e6bf9794482fba9a487a38d6a718b0",
   "sha256": {
     "LICENSE": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
-    "dashiai-ppt/project/layout-manifest.json": "1cec2c24f72890da88afee59f12f6daf7c8254c6852abd5ac17efa6731bbf8e2",
     "dashiai-ppt/project/assets/template-swiss.html": "4f133ee08c02606316f4467c599a1e88721b2301f577da844438d6406d4375c4",
+    "dashiai-ppt/project/dist/theme-runtime/generated-chunks/chunk-ANKYGXEN.mjs": "2dbf739cde22eb6ba016718035bf513c01a4093893ac8b1970271de06311d070",
+    "dashiai-ppt/project/dist/theme-runtime/generated-runtime-manifest.json": "cd9c60abd6d69cd0e0f045e6a086f6379b83233b5fc9de75190bf4f14fd1b96a",
     "dashiai-ppt/project/dist/theme-runtime/imported-theme-runtime.theme01.js": "d70e823cf81af5fd2214490b8d73eb960ae3781a1612260b4a6facb09688d4a1",
     "dashiai-ppt/project/dist/theme-runtime/imported-theme-runtime.theme02.js": "bda4604d89af0d0e679a3df1d3e066d7ec47b29d3adb25479206b4f155c6867c",
     "dashiai-ppt/project/dist/theme-runtime/imported-theme-runtime.theme03.js": "d576513fd72979fd6c6082fc6ca6d3a5132da775c60715075ae841f96fb62a11",
@@ -41,6 +44,19 @@
     "dashiai-ppt/project/dist/theme-runtime/theme09.module.mjs": "99e48cddc9b5298bfaa422d198a118755e0a9bffd3ce786ed44001f6338d9dd6",
     "dashiai-ppt/project/dist/theme-runtime/theme10.module.mjs": "4363ec55ee26c270cabf7f09c25c4db5a53bbc636309ee96cac666ec52c5bc68",
     "dashiai-ppt/project/dist/theme-runtime/theme11.module.mjs": "fac1c674ec9c3e098709c33c44f16855c468c1e745b9abdf81a53bf2aa46f5e3",
-    "dashiai-ppt/project/dist/theme-runtime/theme12.module.mjs": "c5514bf71b552af1110a25b404bd877cd0db521fa9fd9303a9b2160e65e573ee"
-  }
+    "dashiai-ppt/project/dist/theme-runtime/theme12.module.mjs": "c5514bf71b552af1110a25b404bd877cd0db521fa9fd9303a9b2160e65e573ee",
+    "dashiai-ppt/project/dist/theme-runtime/theme13.module.mjs": "ac928ef5f950466856a60482f46ee988ce5ad395d8471d07507f2f9d62cf1887",
+    "dashiai-ppt/project/dist/theme-runtime/theme14.module.mjs": "5b57b908ad2c3154939dea58ae9516d898bcd30e69636f3820a63be6137362cd",
+    "dashiai-ppt/project/layout-manifest.json": "a9cdf6dbaae7ef32388e5feb41f62833e9f4c554f90e3f0a169123059731682b"
+  },
+  "generatedRuntimeFiles": [
+    "generated-runtime-manifest.json",
+    "generated-chunks/chunk-ANKYGXEN.mjs"
+  ],
+  "localFiles": [
+    "dashiai-ppt/project/dist/theme-runtime/theme13.module.mjs",
+    "dashiai-ppt/project/dist/theme-runtime/theme14.module.mjs",
+    "dashiai-ppt/project/dist/theme-runtime/generated-runtime-manifest.json",
+    "dashiai-ppt/project/dist/theme-runtime/generated-chunks/chunk-ANKYGXEN.mjs"
+  ]
 }

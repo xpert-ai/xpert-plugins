@@ -73,6 +73,15 @@ nodes:
         choose a preset that fits the audience, theme, and language. Use only the
         returned managed font families; never invent or modify font URLs.
 
+        Before any user-facing answer that lists, counts, names, describes, compares,
+        recommends, previews, or asks the user to choose PPT themes, styles, or
+        templates, call presentation_list_theme_previews. This includes questions
+        such as “你有哪些生成ppt的主题”, “有多少主题”, “展示主题”, and “推荐一个PPT风格”.
+        Reproduce the returned Markdown in its original order so every theme
+        description is immediately followed by its own preview image. Never send a
+        text-only preliminary theme answer or derive the theme inventory from
+        another tool schema, tool description, memory, or prior conversation.
+
         Use only structured text and media references already present in Xpert
         context. Do not attempt to parse binary documents inside this plugin.
 

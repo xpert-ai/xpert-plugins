@@ -37,6 +37,7 @@ describe('PresentationStudioViewProvider incremental host events', () => {
     const subscription = manifest.hostEvents?.subscriptions?.[0]
 
     expect(manifest.dataSource.cache?.enabled).toBe(false)
+    expect(manifest.actions?.some((action) => action.key === 'load_theme_previews' && !action.placement)).toBe(true)
     expect(manifest.actions?.some((action) => action.key === 'load_theme_runtime' && !action.placement)).toBe(true)
     expect(manifest.actions?.some((action) => action.key === 'load_asset_previews' && !action.placement)).toBe(true)
     expect(manifest.actions?.some((action) => action.key === 'render_preview')).toBe(false)
@@ -69,5 +70,55 @@ describe('PresentationStudioViewProvider incremental host events', () => {
       assistantId: 'assistant-1'
     }), expect.objectContaining({ deckId: 'deck-1' }))
     expect(result).toEqual({ item: { deckId: 'deck-1', title: 'Native deck' }, versions: [], exports: [], assets: [] })
+  })
+
+  it('lists presentations without materializing the theme gallery as a deck', async () => {
+    const service = {
+      getWorkbenchData: jest.fn().mockResolvedValue({ items: [] })
+    }
+    const provider = new PresentationStudioViewProvider(service as never)
+    const context = {
+      tenantId: 'tenant-1', organizationId: 'org-1', workspaceId: 'workspace-1', userId: 'user-1',
+      hostType: 'agent' as const, hostId: 'assistant-1', slots: []
+    }
+
+    await provider.getViewData(context, 'presentation_studio', { parameters: { table: 'decks' } })
+
+    expect(service.getWorkbenchData).toHaveBeenCalledTimes(1)
+  })
+
+  it('loads the independent theme gallery through a view action', async () => {
+    const service = {
+      getThemePreviewGallery: jest.fn().mockResolvedValue([{
+        themePack: 'theme01',
+        displayName: '轻拟态风',
+        scenario: '产品介绍',
+        fileUrl: 'https://xpert.test/theme01.png'
+      }])
+    }
+    const provider = new PresentationStudioViewProvider(service as never)
+    const context = {
+      tenantId: 'tenant-1', organizationId: 'org-1', workspaceId: 'workspace-1', userId: 'user-1',
+      hostType: 'agent' as const, hostId: 'assistant-1', slots: []
+    }
+
+    const result = await provider.executeViewAction(
+      context,
+      'presentation_studio',
+      'load_theme_previews',
+      { input: {} } as never
+    )
+
+    expect(service.getThemePreviewGallery).toHaveBeenCalledWith(expect.objectContaining({
+      assistantId: 'assistant-1',
+      xpertId: 'assistant-1'
+    }))
+    expect(result).toMatchObject({
+      success: true,
+      data: {
+        title: 'ppt主题预览',
+        items: [{ themePack: 'theme01', fileUrl: 'https://xpert.test/theme01.png' }]
+      }
+    })
   })
 })

@@ -72,11 +72,15 @@ export function stagePresentationFontPack(root, outDir, usedThemeKeys = []) {
 }
 
 function selectFonts(root, usedThemeKeys) {
-  const keys = usedThemeKeys.length ? usedThemeKeys : Array.from({ length: 12 }, (_, index) => `theme${String(index + 1).padStart(2, '0')}`);
-  const themeSource = keys.map(key => {
-    const file = path.join(root, 'dist/theme-runtime', `imported-theme-runtime.${key}.js`);
-    return fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
-  }).join('\n');
+  const keys = usedThemeKeys.length ? usedThemeKeys : Array.from({ length: 14 }, (_, index) => `theme${String(index + 1).padStart(2, '0')}`);
+  const runtimeRoot = path.join(root, 'dist/theme-runtime');
+  const themeSource = [
+    ...keys.flatMap(key => [
+      path.join(runtimeRoot, `imported-theme-runtime.${key}.js`),
+      path.join(runtimeRoot, `${key}.module.mjs`),
+    ]),
+    path.join(runtimeRoot, 'imported-theme-runtime.generated.js'),
+  ].filter(file => fs.existsSync(file)).map(file => fs.readFileSync(file, 'utf8')).join('\n');
   return FONT_CATALOG.flatMap(entry => {
     if (themeSource.includes(entry.family)) return [entry];
     return entry.shellFaces.length ? [{ ...entry, faces: entry.shellFaces }] : [];

@@ -1449,6 +1449,129 @@ label {
   white-space: nowrap;
 }
 
+.hyperframes-template-banner {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border-color: color-mix(in srgb, var(--motion-primary) 28%, var(--motion-border));
+  background: linear-gradient(
+    110deg,
+    color-mix(in srgb, var(--motion-primary) 11%, var(--motion-card)),
+    var(--motion-card)
+  );
+}
+
+.hyperframes-template-banner > div {
+  display: grid;
+  gap: 4px;
+}
+
+.hyperframes-template-banner span {
+  color: var(--motion-muted-fg);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.hyperframes-composer-layout {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: minmax(230px, 270px) minmax(0, 1fr);
+  gap: 12px;
+  min-height: 0;
+}
+
+.hyperframes-storyboard {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+  padding: 14px;
+}
+
+.hyperframes-panel-heading {
+  display: grid;
+  gap: 5px;
+}
+
+.hyperframes-panel-heading > strong {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+}
+
+.hyperframes-panel-heading .muted {
+  font-size: 11px;
+}
+
+.hyperframes-scene-list,
+.hyperframes-element-list {
+  display: grid;
+  gap: 7px;
+}
+
+.hyperframes-scene-list {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--motion-border);
+}
+
+.hyperframes-element-list {
+  min-height: 0;
+  overflow: auto;
+}
+
+.hyperframes-scene-list button,
+.hyperframes-element-list button {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 2px 8px;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  padding: 8px 9px;
+  color: var(--motion-muted-fg);
+  text-align: left;
+  cursor: pointer;
+}
+
+.hyperframes-scene-list button:hover,
+.hyperframes-element-list button:hover,
+.hyperframes-scene-list button.active,
+.hyperframes-element-list button.active {
+  border-color: color-mix(in srgb, var(--motion-primary) 32%, var(--motion-border));
+  background: color-mix(in srgb, var(--motion-primary) 9%, var(--motion-card));
+  color: var(--motion-fg);
+}
+
+.hyperframes-scene-list button > span,
+.hyperframes-element-list button > span {
+  grid-row: 1 / span 2;
+  color: var(--motion-primary);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hyperframes-scene-list button > strong,
+.hyperframes-element-list button > strong {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hyperframes-scene-list button > small {
+  color: var(--motion-muted-fg);
+  font-size: 10px;
+}
+
 .hyperframes-stage-layout {
   display: grid;
   flex: 1 1 auto;
@@ -1460,6 +1583,42 @@ label {
   border-radius: var(--motion-radius);
   background: var(--motion-stage);
   padding: 18px;
+}
+
+.hyperframes-side-stack {
+  display: grid;
+  align-self: start;
+  gap: 12px;
+}
+
+.hyperframes-inspector {
+  display: grid;
+  gap: 13px;
+  padding: 16px;
+}
+
+.hyperframes-inspector-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.hyperframes-inspector-fields label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: var(--motion-muted-fg);
+  font-size: 11px;
+  font-weight: 760;
+}
+
+.hyperframes-inspector-fields .full {
+  grid-column: 1 / -1;
+}
+
+.hyperframes-inspector-fields textarea {
+  min-height: 74px;
+  resize: vertical;
 }
 
 .hyperframes-preview {
@@ -1544,6 +1703,25 @@ label {
   padding: 8px 10px;
 }
 
+@media (max-width: 1180px) {
+  .hyperframes-composer-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .hyperframes-storyboard {
+    max-height: 260px;
+  }
+
+  .hyperframes-scene-list {
+    display: flex;
+    overflow: auto;
+  }
+
+  .hyperframes-scene-list button {
+    min-width: 170px;
+  }
+}
+
 @media (max-width: 640px) {
   .motion-editor-grid,
   .motion-video-grid,
@@ -1558,6 +1736,11 @@ label {
   .hyperframes-engine-row,
   .hyperframes-engine-row > div {
     align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .hyperframes-template-banner {
+    align-items: stretch;
     flex-direction: column;
   }
 

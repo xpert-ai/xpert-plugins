@@ -19,6 +19,80 @@ const sharingPolicyConfig = () => ({
 })
 
 describe('PresentationStudioService export versioning', () => {
+  it('loads one idempotent 14-image theme gallery without creating a presentation deck', async () => {
+    const deckRepository = {
+      find: jest.fn(),
+      create: jest.fn(),
+      save: jest.fn()
+    }
+    const workspaceFiles = {
+      uploadBuffer: jest.fn(async ({ originalName }) => ({
+        filePath: `/storage/${originalName}`,
+        workspacePath: `/workspace/${originalName}`,
+        fileUrl: `https://xpert.test/files/${encodeURIComponent(originalName)}`,
+        name: originalName,
+        size: 1024,
+        mimeType: 'image/png'
+      }))
+    }
+    const runtimeCapabilities = { get: jest.fn().mockReturnValue(workspaceFiles) }
+    const config = {
+      get: jest.fn().mockReturnValue({
+        maxPageCount: 30,
+        maxAssetBytes: 100 * 1024 * 1024,
+        maxDeckMediaBytes: 300 * 1024 * 1024
+      })
+    }
+    const service = new PresentationStudioService(
+      deckRepository as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      config as never,
+      undefined,
+      runtimeCapabilities as never
+    )
+    const scope = {
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      workspaceId: 'workspace-1',
+      userId: 'user-1',
+      xpertId: 'assistant-1'
+    }
+
+    const first = await service.getThemePreviewGallery(scope)
+    const second = await service.getThemePreviewGallery(scope)
+    const guide = await service.getThemePreviewGuide(scope)
+
+    expect(first).toBe(second)
+    expect(first).toHaveLength(14)
+    expect(workspaceFiles.uploadBuffer).toHaveBeenCalledTimes(14)
+    expect(workspaceFiles.uploadBuffer).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      catalog: 'xperts',
+      scopeId: 'assistant-1',
+      folder: 'files/presentation-studio/theme-previews',
+      originalName: 'theme01-轻拟态风.png'
+    }))
+    expect(first[0]).toMatchObject({
+      themePack: 'theme01',
+      displayName: '轻拟态风',
+      fileUrl: expect.stringContaining('theme01-')
+    })
+    expect(first[13]).toMatchObject({
+      themePack: 'theme14',
+      displayName: '紫橙怪趣风'
+    })
+    expect(deckRepository.find).not.toHaveBeenCalled()
+    expect(deckRepository.save).not.toHaveBeenCalled()
+    expect(guide.markdown).toContain('**theme01 轻拟态风**')
+    expect(guide.markdown).toContain('![theme14 紫橙怪趣风](https://xpert.test/files/')
+    expect(guide.files).toHaveLength(14)
+  })
+
   it('filters deck lists by the current Xpert id', async () => {
     const deckRepository = {
       findAndCount: jest.fn().mockResolvedValue([[], 0])
@@ -50,6 +124,42 @@ describe('PresentationStudioService export versioning', () => {
         assistantId: 'assistant-1'
       })
     }))
+  })
+
+  it('excludes legacy theme preview decks from presentation search results', async () => {
+    const standardDeck = {
+      id: 'deck-1',
+      title: 'Quarterly review',
+      goal: 'Review results',
+      themePack: 'theme01',
+      status: 'draft',
+      revision: 0,
+      currentVersionNumber: 0,
+      deckSpec: { kind: 'standard', pageCount: 0, slides: [] }
+    }
+    const legacyPreviewDeck = {
+      ...standardDeck,
+      id: 'preview-deck',
+      title: 'ppt主题预览',
+      deckSpec: { kind: 'theme_preview', pageCount: 14, slides: [] }
+    }
+    const service = new PresentationStudioService(
+      { findAndCount: jest.fn().mockResolvedValue([[legacyPreviewDeck, standardDeck], 2]) } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      availableExportCapabilities() as never,
+      {} as never
+    )
+
+    const result = await service.searchDecks({ xpertId: 'assistant-1' }, {})
+
+    expect(result.items).toHaveLength(1)
+    expect(result.items[0]).toMatchObject({ deckId: 'deck-1', kind: 'standard' })
+    expect(result.total).toBe(1)
   })
 
   it('rejects a deck id that belongs to another Xpert', async () => {

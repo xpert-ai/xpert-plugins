@@ -1,0 +1,23 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react",
+    "jsxFactory": "h",
+    "jsxFragmentFactory": "React.Fragment",
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "emitDeclarationOnly": false,
+    "strictNullChecks": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "lib": ["ES2022", "DOM"]
+  },
+  "include": [
+    "src/lib/remote-components/story-studio-workbench/src/**/*.ts",
+    "src/lib/remote-components/story-studio-workbench/src/**/*.tsx"
+  ],
+  "exclude": ["dist", "node_modules"]
+}

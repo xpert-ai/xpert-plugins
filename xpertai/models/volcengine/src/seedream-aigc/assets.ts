@@ -90,10 +90,16 @@ function dataUrlToBuffer(dataUrl: string) {
 }
 
 async function readWorkspaceInput(filePath: string, options: InputReadOptions, mimeType?: string) {
-  const file = await options.workspaceFiles.readBuffer({
-    ...options.workspaceScope,
-    filePath
-  })
+  const file = options.workspaceFiles.readRuntimeBuffer
+    ? await options.workspaceFiles.readRuntimeBuffer({
+        ...options.workspaceScope,
+        filePath,
+        ...(mimeType ? { mimeType } : {})
+      })
+    : await options.workspaceFiles.readBuffer({
+        ...options.workspaceScope,
+        filePath
+      })
   const resolvedMimeType =
     mimeType ?? file.mimeType ?? inferMimeType(file.name ?? file.filePath ?? filePath, options.defaultMimeType)
   return {

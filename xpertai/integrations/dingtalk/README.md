@@ -9,8 +9,9 @@ DingTalk integration plugin for Xpert AI platform.
 - Optional HTTP Mode provider for HTTP callback event handling (messages, mentions, card actions)
 - HTTP callback signature verification + AES decrypt
 - Encrypted callback ACK response (`msg_signature + encrypt + timeStamp + nonce`)
-- Inbound image receiving and ordinary file receiving in human-to-bot conversations; ordinary files are stored in the Xpert workspace. DingTalk does not deliver group @-mention or person-to-person file messages to bots.
-- Outbound text/markdown/interactive card/workspace file message sending. The middleware takes its integration and recipient directly from the trusted DingTalk trigger, so no integration or recipient selector is shown. Legacy stored notification targets remain runtime-compatible. Workspace files are limited to 10 MiB and the DingTalk-supported `xlsx`, `pdf`, `zip`, `rar`, `doc`, and `docx` formats.
+- Inbound image receiving and ordinary file receiving in human-to-bot conversations; ordinary files are stored in the Xpert workspace. Quoted file replies are also resolved from DingTalk's `repliedMsg` metadata. DingTalk does not deliver file events from group @-mentions or person-to-person chats to bots.
+- Configurable inbound summary window for merging separate file and text events that DingTalk actually delivers to the bot.
+- Outbound text/markdown/interactive card/workspace media sending. The middleware takes its integration and recipient directly from the trusted DingTalk trigger, so no integration or recipient selector is shown. Legacy stored notification targets remain runtime-compatible. Workspace media is limited to 10 MiB. Images (`jpg`, `jpeg`, `png`, `gif`, `webp`) use DingTalk image messages; documents and archives (`xlsx`, `pdf`, `zip`, `rar`, `doc`, `docx`) use DingTalk file messages.
 - Message update/recall with degrade fallback (`degraded=true`)
 - Anonymous conversation key strategy:
   - `integrationId + conversationId + senderId`

@@ -14,6 +14,7 @@ import { z } from 'zod/v3'
 import {
   MOTION_AGENT_CAPABILITY,
   MOTION_CREATE_PROJECT_TOOL_NAME,
+  MOTION_CREATE_PRODUCT_INTRO_TOOL_NAME,
   MOTION_EXPORT_ARTIFACT_TOOL_NAME,
   MOTION_FEATURE,
   MOTION_FINALIZE_VERSION_TOOL_NAME,
@@ -37,6 +38,7 @@ import {
   stringifyAgentToolResult,
   summarizeMutationResult
 } from './motion-agent-response.js'
+import { createProductIntroHyperframesComposition } from './hyperframes-product-intro.js'
 import { MotionService } from './motion.service.js'
 import type { MotionJsonValue, MotionScope } from './types.js'
 
@@ -78,6 +80,33 @@ const createProjectSchema = z.object({
   hyperframesHtml: z.string().optional(),
   changeSummary: z.string().optional()
 })
+
+const productIntroFeatureSchema = z.object({
+  title: z.string().trim().min(1).max(80),
+  description: z.string().trim().min(1).max(220)
+}).strict()
+
+const productIntroProofPointSchema = z.object({
+  value: z.string().trim().min(1).max(24),
+  label: z.string().trim().min(1).max(64)
+}).strict()
+
+const createProductIntroSchema = z.object({
+  title: z.string().trim().min(1).max(160).optional(),
+  brandName: z.string().trim().min(1).max(80),
+  tagline: z.string().trim().min(1).max(180),
+  problem: z.string().trim().min(1).max(180),
+  solution: z.string().trim().min(1).max(260),
+  features: z.array(productIntroFeatureSchema).min(2).max(4),
+  proofPoints: z.array(productIntroProofPointSchema).max(3).optional(),
+  cta: z.string().trim().min(1).max(160),
+  website: z.string().trim().max(120).optional(),
+  duration: z.number().finite().min(24).max(60).optional(),
+  accentColor: z.string().regex(/^#[0-9a-f]{6}$/i).optional(),
+  secondaryColor: z.string().regex(/^#[0-9a-f]{6}$/i).optional(),
+  backgroundColor: z.string().regex(/^#[0-9a-f]{6}$/i).optional(),
+  changeSummary: z.string().trim().min(1).max(240).optional()
+}).strict()
 
 const getProjectSchema = z.object({
   projectId: z.string().min(1),
@@ -142,6 +171,7 @@ const reportFailureSchema = z.object({
 
 const MUTATION_TOOL_NAMES = new Set([
   MOTION_CREATE_PROJECT_TOOL_NAME,
+  MOTION_CREATE_PRODUCT_INTRO_TOOL_NAME,
   MOTION_SAVE_WEB_ARTIFACT_TOOL_NAME,
   MOTION_SAVE_VIDEO_COMPOSITION_TOOL_NAME,
   MOTION_SAVE_HYPERFRAMES_COMPOSITION_TOOL_NAME,
@@ -217,6 +247,31 @@ export class MotionMiddleware implements IAgentMiddlewareStrategy<Record<string,
             description:
               'Create a reviewable Motion project. New video projects default to native HyperFrames; only pass videoComposition when explicitly creating a legacy compatibility project.',
             schema: createProjectSchema,
+            verboseParsingErrors: true
+          }
+        ),
+        tool(
+          async (input) => {
+            const { title, changeSummary, ...intro } = input
+            const result = await this.service.createProject(scope, {
+              title: title ?? `${intro.brandName} Product Intro`,
+              brief: `${intro.tagline}. ${intro.solution}`,
+              surface: 'video',
+              hyperframesHtml: createProductIntroHyperframesComposition(intro),
+              changeSummary: changeSummary ?? `Created a complete ${intro.brandName} product introduction`
+            })
+            return stringifyAgentToolResult(
+              summarizeMutationResult({
+                message: `A complete HyperFrames product introduction for "${intro.brandName}" was created.`,
+                project: result.item
+              })
+            )
+          },
+          {
+            name: MOTION_CREATE_PRODUCT_INTRO_TOOL_NAME,
+            description:
+              'Create a complete, editable six-scene native HyperFrames product-introduction project from a bounded brand brief. Use this instead of writing a large raw HTML document when the user asks for a launch or product overview video.',
+            schema: createProductIntroSchema,
             verboseParsingErrors: true
           }
         ),

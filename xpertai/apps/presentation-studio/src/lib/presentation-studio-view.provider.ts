@@ -36,6 +36,7 @@ import {
   PROJECT_DETAIL_SECTIONS_SLOT
 } from './constants.js'
 import { PresentationStudioService } from './presentation-studio.service.js'
+import { PRESENTATION_THEME_PREVIEW_TITLE } from './presentation-theme-preview.js'
 import type { PresentationExportKind, PresentationJsonObject, PresentationScope, PresentationStatus, PresentationThemePack } from './types.js'
 
 const moduleFilename = fileURLToPath(import.meta.url)
@@ -93,6 +94,7 @@ export class PresentationStudioViewProvider implements IXpertViewExtensionProvid
         { key: 'refresh', label: text('Refresh', '刷新'), icon: 'ri-refresh-line', placement: 'toolbar', actionType: 'refresh' },
         { key: 'create_deck', label: text('New deck', '新建演示稿'), icon: 'ri-add-line', placement: 'toolbar', actionType: 'invoke' },
         { key: 'open_deck', label: text('Open deck', '打开演示稿'), actionType: 'invoke' },
+        { key: 'load_theme_previews', label: text('Load theme previews', '加载 PPT 主题预览'), actionType: 'invoke' },
         { key: 'load_theme_runtime', label: text('Load theme runtime', '加载主题运行时'), actionType: 'invoke' },
         { key: 'load_asset_previews', label: text('Load asset previews', '加载素材预览'), actionType: 'invoke' },
         { key: 'set_current_context', label: text('Set current presentation context', '设置当前演示文稿上下文'), actionType: 'invoke' },
@@ -132,9 +134,12 @@ export class PresentationStudioViewProvider implements IXpertViewExtensionProvid
 
   async getViewData(context: XpertResolvedViewHostContext, viewKey: string, query: XpertViewQuery): Promise<XpertViewDataResult> {
     if (viewKey !== PRESENTATION_VIEW_KEY) return {}
-    const result = await this.service.getWorkbenchData(scopeFromContext(context), {
-      table: stringParameter(query.parameters, 'table') as 'decks' | 'deck_detail' | 'exports' | 'versions' | undefined,
-      deckId: stringParameter(query.parameters, 'deckId') ?? query.selectionId,
+    const scope = scopeFromContext(context)
+    const deckId = stringParameter(query.parameters, 'deckId') ?? query.selectionId
+    const table = stringParameter(query.parameters, 'table') as 'decks' | 'deck_detail' | 'exports' | 'versions' | undefined
+    const result = await this.service.getWorkbenchData(scope, {
+      table,
+      deckId,
       versionId: stringParameter(query.parameters, 'versionId'),
       checksum: stringParameter(query.parameters, 'checksum'),
       status: stringParameter(query.parameters, 'status') as PresentationStatus | undefined,
@@ -165,6 +170,15 @@ export class PresentationStudioViewProvider implements IXpertViewExtensionProvid
       }
       if (actionKey === 'open_deck') {
         return { ...success('Presentation opened', false), data: await this.service.openDeck(scope, deckId(request)) }
+      }
+      if (actionKey === 'load_theme_previews') {
+        return {
+          ...success('Presentation theme previews loaded', false),
+          data: {
+            title: PRESENTATION_THEME_PREVIEW_TITLE,
+            items: await this.service.getThemePreviewGallery(scope)
+          }
+        }
       }
       if (actionKey === 'load_theme_runtime') {
         return { ...success('Presentation theme runtime loaded', false), data: await this.service.loadThemeRuntime(scope, deckId(request)) }

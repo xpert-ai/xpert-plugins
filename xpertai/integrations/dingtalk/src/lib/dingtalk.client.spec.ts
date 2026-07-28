@@ -140,4 +140,55 @@ describe('DingTalkClient', () => {
     expect(media.type).toBe('application/pdf')
     expect(media.size).toBe(Buffer.byteLength('report bytes'))
   })
+
+  it('uploads images with the DingTalk image media type', async () => {
+    const http = {
+      get: jest.fn().mockResolvedValue({
+        data: {
+          errcode: 0,
+          access_token: 'legacy-access-token'
+        }
+      }),
+      post: jest.fn().mockResolvedValue({
+        data: {
+          errcode: 0,
+          media_id: 'media-image-1',
+          type: 'image',
+          created_at: 123
+        }
+      })
+    }
+    mockedAxios.create.mockReturnValue(http as any)
+
+    const client = new DingTalkClient({
+      id: 'integration-1',
+      provider: 'dingtalk',
+      options: {
+        clientId: 'app-key',
+        clientSecret: 'app-secret',
+        robotCode: 'robot-code-1'
+      }
+    } as any)
+
+    await expect(
+      client.uploadMediaFile({
+        buffer: Buffer.from('image bytes'),
+        fileName: 'chart.png',
+        mimeType: 'image/png',
+        mediaType: 'image'
+      })
+    ).resolves.toEqual({
+      mediaId: 'media-image-1',
+      type: 'image',
+      createdAt: 123
+    })
+    expect(http.post).toHaveBeenCalledWith('https://oapi.dingtalk.com/media/upload', expect.any(FormData), {
+      params: {
+        access_token: 'legacy-access-token',
+        type: 'image'
+      },
+      timeout: 15_000,
+      maxBodyLength: Infinity
+    })
+  })
 })

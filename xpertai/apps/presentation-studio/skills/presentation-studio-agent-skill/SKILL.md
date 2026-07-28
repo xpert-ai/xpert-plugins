@@ -11,6 +11,8 @@ Use this skill for structured presentation generation with the Presentation Stud
 
 Before creating a deck, call `presentation_list_typography_presets`, choose one managed preset for the audience, theme, and language, and do not invent font URLs.
 
+Before any user-facing answer that lists, counts, names, describes, compares, recommends, previews, or asks the user to choose PPT themes, styles, or templates, call `presentation_list_theme_previews`. This includes questions such as “你有哪些生成ppt的主题”, “有多少主题”, “展示主题”, and “推荐一个PPT风格”. Reproduce its Markdown in the returned order so every theme description is immediately followed by its own preview image. Never send a text-only preliminary theme answer or derive the theme inventory from another tool schema, tool description, memory, or prior conversation.
+
 1. Create a deck with `presentation_create_deck`.
 2. Search layouts for each page role with `presentation_search_layouts`.
 3. Inspect every selected layout with `presentation_inspect_layouts`. Each call has a hard limit of 8 layouts; split larger selections into sequential batches of at most 8.

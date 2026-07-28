@@ -5,8 +5,11 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
 import { createHash } from 'node:crypto'
 import { WORKSPACE_FILES_SOURCE } from '@xpert-ai/plugin-sdk'
 import {
+  buildDingTalkSendMediaContent,
   resolveDingTalkSendFileFromBuffer,
   resolveDingTalkSendFileFromWorkspace,
+  resolveDingTalkSendImageFromBuffer,
+  resolveDingTalkSendMediaFromWorkspace,
   sanitizeDingTalkFileName,
   toDingTalkSendFileMetadata
 } from './dingtalk-send-file.js'
@@ -49,6 +52,7 @@ describe('dingtalk-send-file', () => {
         buffer,
         fileName: 'report.pdf',
         fileType: 'pdf',
+        mediaType: 'file',
         mimeType: 'application/pdf',
         size: buffer.length
       })
@@ -70,11 +74,71 @@ describe('dingtalk-send-file', () => {
     expect(toDingTalkSendFileMetadata(file)).toEqual({
       fileName: 'report.pdf',
       fileType: 'pdf',
+      mediaType: 'file',
       mimeType: 'application/pdf',
       size: buffer.length,
       sha256: file.sha256
     })
     expect(toDingTalkSendFileMetadata(file)).not.toHaveProperty('buffer')
+  })
+
+  it.each([
+    ['jpg', 'image/jpeg'],
+    ['jpeg', 'image/jpeg'],
+    ['png', 'image/png'],
+    ['gif', 'image/gif'],
+    ['webp', 'image/webp']
+  ])('routes .%s through the DingTalk image message channel', (extension, mimeType) => {
+    const image = resolveDingTalkSendImageFromBuffer(Buffer.from('image bytes'), {
+      descriptor: { path: `files/image.${extension}` }
+    })
+
+    expect(image).toEqual(
+      expect.objectContaining({
+        fileName: `image.${extension}`,
+        fileType: extension,
+        mediaType: 'image',
+        mimeType
+      })
+    )
+    expect(buildDingTalkSendMediaContent(image, 'media-image-1')).toEqual({
+      msgKey: 'sampleImageMsg',
+      msgParam: {
+        photoURL: 'media-image-1'
+      }
+    })
+  })
+
+  it('routes workspace images through media resolution while keeping file resolution file-only', async () => {
+    const buffer = Buffer.from('workspace image')
+    const workspaceFiles = {
+      readRuntimeBuffer: jest.fn().mockResolvedValue({
+        name: 'chart.png',
+        filePath: 'files/chart.png',
+        workspacePath: '/workspace/files/chart.png',
+        mimeType: 'image/png',
+        size: buffer.length,
+        buffer
+      })
+    }
+
+    await expect(
+      resolveDingTalkSendMediaFromWorkspace(
+        { path: 'files/chart.png' },
+        { workspaceFiles: workspaceFiles as any }
+      )
+    ).resolves.toEqual(
+      expect.objectContaining({
+        mediaType: 'image',
+        fileType: 'png'
+      })
+    )
+    await expect(
+      resolveDingTalkSendFileFromWorkspace(
+        { path: 'files/chart.png' },
+        { workspaceFiles: workspaceFiles as any }
+      )
+    ).rejects.toThrow('DingTalk file send supports only')
   })
 
   it.each([

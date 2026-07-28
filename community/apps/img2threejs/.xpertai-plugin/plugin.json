@@ -1,0 +1,47 @@
+{
+  "name": "@xpert-ai/plugin-img2threejs",
+  "version": "0.1.0",
+  "description": "Quality-gated procedural Three.js TypeScript modeling from reference images.",
+  "author": "XpertAI",
+  "license": "AGPL-3.0",
+  "artifactNamespace": "img2threejs",
+  "skills": "./skills/",
+  "sandboxActions": "./dist/sandbox-actions/model-review-render/action.json",
+  "targetApps": ["data-xpert", "xpert"],
+  "targetAppMeta": {
+    "xpert": {
+      "types": ["assistant-template", "skill", "app", "xpertai-bundle"],
+      "capabilities": [
+        "img2threejs.procedural-modeling",
+        "img2threejs.review-workbench"
+      ],
+      "marketplace": {
+        "contents": [
+          {
+            "type": "skill",
+            "name": "img2threejs-semantic-modeling",
+            "displayName": "Image to Three.js Semantic Modeling",
+            "description": "Skill for multimodal evidence analysis, Sculpt Specs, ordered model stages, quality review, and artifact handling."
+          },
+          {
+            "type": "assistant-template",
+            "name": "img2threejs-modeling-assistant",
+            "displayName": "Image to Three.js Modeling Assistant",
+            "description": "Assistant template with the semantic modeling Skill and middleware tools."
+          }
+        ]
+      }
+    }
+  },
+  "policy": {
+    "installation": "AVAILABLE",
+    "authentication": "ON_FIRST_USE",
+    "pluginSharing": true
+  },
+  "source": {
+    "source": "local",
+    "path": ".",
+    "url": "https://github.com/xpert-ai/xpert-plugins",
+    "sparsePath": "community/apps/img2threejs"
+  }
+}

@@ -118,6 +118,42 @@ export const GENERATED_THEME_PACKS = [
     "audience": "娱乐品牌、活动策划、内容团队、潮流消费品牌",
     "mode": "replace",
     "pageCount": 86
+  },
+  {
+    "key": "theme13",
+    "displayName": "深蓝光环风",
+    "label": "深蓝光环风",
+    "name": "深蓝光环风",
+    "scenario": "科技汇报、产品发布、技术复盘",
+    "audience": "技术团队、产品负责人、企业管理者",
+    "mode": "generated",
+    "recipe": {
+      "pageCount": 86,
+      "sources": [
+        "theme02",
+        "theme03",
+        "theme05"
+      ]
+    },
+    "pageCount": 86
+  },
+  {
+    "key": "theme14",
+    "displayName": "紫橙怪趣风",
+    "label": "紫橙怪趣风",
+    "name": "紫橙怪趣风",
+    "scenario": "节日活动、创意课堂、娱乐故事",
+    "audience": "活动策划者、教师、创意内容团队",
+    "mode": "generated",
+    "recipe": {
+      "pageCount": 82,
+      "sources": [
+        "theme12",
+        "theme09",
+        "theme04"
+      ]
+    },
+    "pageCount": 82
   }
 ];
 
@@ -180681,6 +180717,30625 @@ export const GENERATED_THEME_PAGES = [
           ]
         }
       ]
+    }
+  },
+  {
+    "key": "theme13_page001",
+    "themeKey": "theme13",
+    "pageNumber": 1,
+    "layout": "THEME13-001",
+    "slot": "signature-derived-alternate-cover-theme13-001",
+    "label": "深蓝光环风 · derived-alternate-cover",
+    "sourceTheme": "theme13",
+    "sourcePageKey": "theme13_derived_alternate_cover",
+    "moduleFamily": "cover",
+    "moduleOrigin": "owned",
+    "moduleStrategy": "new",
+    "archetypeId": "derived-alternate-cover",
+    "evidenceMode": "inferred",
+    "evidenceRefs": [],
+    "derivedFromRules": [
+      "typography-02",
+      "composition-01",
+      "surface-02",
+      "motif-01",
+      "color-04"
+    ],
+    "anchorModuleRefs": [
+      "theme13_signature_halo_tech_cover",
+      "theme13_signature_orbital_capability_overview"
+    ],
+    "stylePrimitiveRefs": [
+      "luminous-pill",
+      "halo-orb"
+    ],
+    "derivationReason": "在不改变 Style DNA 的前提下生成第二种封面构图；以 theme13_signature_halo_tech_cover、theme13_signature_orbital_capability_overview 为视觉锚点。",
+    "styleSignals": [
+      "大号章节数字与小号英文注释构成科技层级",
+      "上下边缘以半透明圆环和波形压住画布",
+      "正文区域保持深色无边框以突出发光结构",
+      "重叠的半透明光环从四角进入",
+      "白色作为主要信息文字"
+    ],
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showSignatureSystem",
+        "label": "显示主题签名系统",
+        "type": "toggle",
+        "default": true,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "signature-system",
+            "ornament",
+            "page-marker"
+          ],
+          "minChangedRatio": 0.008,
+          "minRegions": 2
+        },
+        "publicKey": "showSignatureSystem"
+      },
+      {
+        "key": "density",
+        "label": "信息密度",
+        "type": "select",
+        "default": "balanced",
+        "options": [
+          {
+            "label": "紧凑",
+            "value": "compact"
+          },
+          {
+            "label": "平衡",
+            "value": "balanced"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-frame",
+            "spacing",
+            "type-scale"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "density"
+      },
+      {
+        "key": "coverLayout",
+        "label": "封面结构",
+        "type": "select",
+        "default": "structured",
+        "options": [
+          {
+            "label": "结构化",
+            "value": "structured"
+          },
+          {
+            "label": "偏移强调",
+            "value": "offset"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-grid",
+            "reading-order",
+            "emphasis"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "coverLayout"
+      },
+      {
+        "key": "mediaCount",
+        "label": "媒体数量",
+        "type": "range",
+        "min": 1,
+        "max": 3,
+        "default": 2,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "media",
+            "layout"
+          ],
+          "minChangedRatio": 0.01,
+          "minRegions": 2
+        },
+        "mediaSlots": [
+          {
+            "field": "media",
+            "fieldPath": "props.media",
+            "countKey": "mediaCount",
+            "maxCount": 3,
+            "initialSrcSupported": true,
+            "canPresetMedia": true,
+            "acceptedKinds": [
+              "image"
+            ]
+          }
+        ],
+        "publicKey": "mediaCount"
+      }
+    ],
+    "defaultProps": {
+      "showSignatureSystem": true,
+      "density": "balanced",
+      "coverLayout": "structured",
+      "pillars": [
+        "系统架构",
+        "能力节点",
+        "验证路径",
+        "规模部署"
+      ],
+      "summary": "让架构、节点和路径在同一深蓝系统中形成可验证、可扩展的技术闭环。",
+      "kicker": "SPECIAL EDITION / 2026",
+      "title": "深蓝光环风",
+      "subtitle": "以深蓝画布、半透明光环和电光节点呈现产品与技术路径。",
+      "media": [],
+      "mediaCount": 2
+    }
+  },
+  {
+    "key": "theme13_page002",
+    "themeKey": "theme13",
+    "pageNumber": 2,
+    "layout": "THEME13-002",
+    "slot": "signature-halo-tech-cover-theme13-002",
+    "label": "深蓝光环风 · halo-tech-cover",
+    "sourceTheme": "theme13",
+    "sourcePageKey": "theme13_signature_halo_tech_cover",
+    "moduleFamily": "cover",
+    "moduleOrigin": "owned",
+    "moduleStrategy": "new",
+    "archetypeId": "halo-tech-cover",
+    "evidenceMode": "observed",
+    "evidenceRefs": [
+      "slide-01",
+      "slide-20"
+    ],
+    "derivedFromRules": [],
+    "anchorModuleRefs": [],
+    "stylePrimitiveRefs": [],
+    "styleSignals": [
+      "午夜蓝画布布置多组半透明光环",
+      "主标题使用大号白字并留出中心呼吸区",
+      "小型蓝色圆点形成科技标记"
+    ],
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showSignatureSystem",
+        "label": "显示主题签名系统",
+        "type": "toggle",
+        "default": true,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "signature-system",
+            "ornament",
+            "page-marker"
+          ],
+          "minChangedRatio": 0.008,
+          "minRegions": 2
+        },
+        "publicKey": "showSignatureSystem"
+      },
+      {
+        "key": "density",
+        "label": "信息密度",
+        "type": "select",
+        "default": "balanced",
+        "options": [
+          {
+            "label": "紧凑",
+            "value": "compact"
+          },
+          {
+            "label": "平衡",
+            "value": "balanced"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-frame",
+            "spacing",
+            "type-scale"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "density"
+      },
+      {
+        "key": "coverLayout",
+        "label": "封面结构",
+        "type": "select",
+        "default": "structured",
+        "options": [
+          {
+            "label": "结构化",
+            "value": "structured"
+          },
+          {
+            "label": "偏移强调",
+            "value": "offset"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-grid",
+            "reading-order",
+            "emphasis"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "coverLayout"
+      }
+    ],
+    "defaultProps": {
+      "showSignatureSystem": true,
+      "density": "balanced",
+      "coverLayout": "structured",
+      "pillars": [
+        "系统架构",
+        "能力节点",
+        "验证路径",
+        "规模部署"
+      ],
+      "summary": "让架构、节点和路径在同一深蓝系统中形成可验证、可扩展的技术闭环。",
+      "kicker": "REPORT / 2026",
+      "title": "让每个技术节点形成光环",
+      "subtitle": "以深蓝画布、半透明光环和电光节点呈现产品与技术路径。"
+    }
+  },
+  {
+    "key": "theme13_page003",
+    "themeKey": "theme13",
+    "pageNumber": 3,
+    "layout": "THEME13-003",
+    "slot": "cover-theme02-001",
+    "label": "深蓝光环风 · 封面",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page001",
+    "moduleFamily": "cover",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "是否对核心数据做高亮发光强调"
+      },
+      {
+        "key": "imageCount",
+        "type": "number",
+        "label": "图片数量",
+        "default": 1,
+        "min": 0,
+        "max": 3,
+        "step": 1,
+        "publicKey": "imageCount",
+        "desc": "右侧配图槽位数量（0 = 纯文字封面）"
+      },
+      {
+        "key": "layout",
+        "type": "enum",
+        "label": "版式",
+        "default": "split",
+        "options": [
+          {
+            "value": "split",
+            "label": "左右分栏"
+          },
+          {
+            "value": "centered",
+            "label": "居中"
+          }
+        ],
+        "publicKey": "layout",
+        "desc": "整体构图：左右分栏带配图，或纯居中标题"
+      },
+      {
+        "key": "showTags",
+        "type": "toggle",
+        "label": "装饰标签",
+        "default": true,
+        "publicKey": "showTags",
+        "desc": "显示/隐藏标题下方的装饰标签"
+      },
+      {
+        "key": "showFootnote",
+        "type": "toggle",
+        "label": "附注信息",
+        "default": true,
+        "publicKey": "showFootnote",
+        "desc": "显示/隐藏底部的编制日期与口径附注"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "03 / 产品发布",
+      "title": "科技汇报 · 追踪光",
+      "titleEm": "AI 公司调研报告",
+      "subtitle": "围绕技术复盘沉淀路径验证与技术节点，让趋势判断建立在具体事实之上。",
+      "stat": {
+        "value": "970",
+        "unit": "亿美元",
+        "caption": "以深蓝系统校准产品发布的样本，再"
+      },
+      "footnote": [
+        "编制日期 2026-06-03",
+        "数据口径 2024 全年公开披露 ≥1 亿美元事件",
+        "仅供研究参考"
+      ],
+      "tags": [
+        "机会深蓝系",
+        "反馈光环",
+        "现状技术"
+      ],
+      "layout": "split",
+      "focusEnabled": true,
+      "imageCount": 1,
+      "showFootnote": true,
+      "showTags": true,
+      "images": [],
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": null
+    }
+  },
+  {
+    "key": "theme13_page004",
+    "themeKey": "theme13",
+    "pageNumber": 4,
+    "layout": "THEME13-004",
+    "slot": "coverpanel-theme02-005",
+    "label": "深蓝光环风 · 封面",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page005",
+    "moduleFamily": "cover",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "pillarCount",
+        "type": "number",
+        "label": "支柱数量",
+        "default": 4,
+        "min": 2,
+        "max": 4,
+        "step": 1,
+        "publicKey": "pillarCount",
+        "desc": "右列支柱面板的数量"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "强调其中一块支柱（发光）"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调序号",
+        "default": 1,
+        "min": 0,
+        "max": 3,
+        "step": 1,
+        "oneBased": true,
+        "publicKey": "focusIndex",
+        "desc": "被强调支柱的序号"
+      },
+      {
+        "key": "showIndex",
+        "type": "toggle",
+        "label": "支柱编号",
+        "default": true,
+        "publicKey": "showIndex",
+        "desc": "显示/隐藏支柱的描边巨号"
+      },
+      {
+        "key": "showDesc",
+        "type": "toggle",
+        "label": "支柱说明",
+        "default": true,
+        "publicKey": "showDesc",
+        "desc": "显示/隐藏支柱的一句说明"
+      },
+      {
+        "key": "showMeta",
+        "type": "toggle",
+        "label": "附注信息",
+        "default": true,
+        "publicKey": "showMeta",
+        "desc": "显示/隐藏左列底部附注"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "04 / 科技汇报",
+      "title": "产品发布",
+      "titleEm": "读懂这一年",
+      "subtitle": "产品负责人可从节奏观察产品发布，用路径验证解释变化，并以技术节点推进响应。",
+      "meta": [
+        "编制 2026-06",
+        "数据口径 公开披露",
+        "仅供研究参考"
+      ],
+      "pillars": [
+        {
+          "title": "技术复盘",
+          "desc": "产品负责人可从节奏观察产品发"
+        },
+        {
+          "title": "技术复",
+          "desc": "产品发布正在由光环结构走向深蓝"
+        },
+        {
+          "title": "技术复盘",
+          "desc": "技术复盘的关键不只是技术节"
+        },
+        {
+          "title": "技术复盘",
+          "desc": "产品发布正在由路径验证走向"
+        }
+      ],
+      "pillarCount": 4,
+      "focusEnabled": true,
+      "focusIndex": 1,
+      "showIndex": true,
+      "showDesc": true,
+      "showMeta": true,
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "04 / 73"
+    }
+  },
+  {
+    "key": "theme13_page005",
+    "themeKey": "theme13",
+    "pageNumber": 5,
+    "layout": "THEME13-005",
+    "slot": "coverposter-theme02-004",
+    "label": "深蓝光环风 · 封面",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page004",
+    "moduleFamily": "cover",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "backgroundMode",
+        "label": "背景替换",
+        "type": "segment",
+        "def": "unicorn",
+        "options": [
+          {
+            "value": "unicorn",
+            "label": "动态"
+          },
+          {
+            "value": "media",
+            "label": "上传"
+          }
+        ],
+        "desc": "动态 shader 或自定义背景媒体",
+        "publicKey": "backgroundMode"
+      },
+      {
+        "key": "unicornScene",
+        "label": "动态场景",
+        "type": "segment",
+        "def": "goey",
+        "options": [
+          {
+            "value": "tech",
+            "label": "科技"
+          },
+          {
+            "value": "automations",
+            "label": "自动化"
+          },
+          {
+            "value": "moving",
+            "label": "流动"
+          },
+          {
+            "value": "goey",
+            "label": "黏球"
+          }
+        ],
+        "dependsOn": "backgroundMode",
+        "dependsOnValue": "unicorn",
+        "desc": "选择固定 Unicorn shader 场景",
+        "publicKey": "dynamicVisual"
+      },
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "imageCount",
+        "type": "number",
+        "label": "主图",
+        "default": 1,
+        "min": 0,
+        "max": 1,
+        "step": 1,
+        "publicKey": "imageCount",
+        "desc": "满幅主图槽（0 = 纯文字海报）"
+      },
+      {
+        "key": "fit",
+        "type": "enum",
+        "label": "图片填充",
+        "default": "cover",
+        "options": [
+          {
+            "value": "cover",
+            "label": "满幅裁切"
+          },
+          {
+            "value": "contain",
+            "label": "完整不裁切"
+          }
+        ],
+        "publicKey": "fit",
+        "desc": "主图满幅裁切，或按原始比例完整显示"
+      },
+      {
+        "key": "titlePos",
+        "type": "enum",
+        "label": "标题位置",
+        "default": "bottom",
+        "options": [
+          {
+            "value": "bottom",
+            "label": "左下"
+          },
+          {
+            "value": "center",
+            "label": "居中"
+          }
+        ],
+        "publicKey": "titlePos",
+        "desc": "标题锁定在左下压字，或整体居中"
+      },
+      {
+        "key": "showQuote",
+        "type": "toggle",
+        "label": "金句",
+        "default": true,
+        "publicKey": "showQuote",
+        "desc": "显示/隐藏标题下方金句"
+      },
+      {
+        "key": "showFrame",
+        "type": "toggle",
+        "label": "内嵌描边框",
+        "default": true,
+        "publicKey": "showFrame",
+        "desc": "显示/隐藏海报内嵌的发光描边框"
+      },
+      {
+        "key": "metaCount",
+        "type": "number",
+        "label": "底部数据",
+        "default": 3,
+        "min": 0,
+        "max": 3,
+        "step": 1,
+        "publicKey": "metaCount",
+        "desc": "底部内联数据数量（0 = 隐藏）"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "05 / 产品发布",
+      "title": "科技汇报 ·",
+      "titleEm": "正在被重写",
+      "quote": "从样本切入产品发布，以深蓝系统重构关键证据，为产品负责",
+      "metas": [
+        {
+          "value": "1,240",
+          "label": "路径验证"
+        },
+        {
+          "value": "58%",
+          "label": "技术节点"
+        },
+        {
+          "value": "7",
+          "label": "深蓝系统"
+        }
+      ],
+      "caption": "从信号切入产品发布，以",
+      "imageCount": 1,
+      "fit": "cover",
+      "backgroundMode": "unicorn",
+      "unicornScene": "goey",
+      "titlePos": "bottom",
+      "showQuote": true,
+      "showFrame": true,
+      "metaCount": 3,
+      "images": [],
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "03 / 73"
+    }
+  },
+  {
+    "key": "theme13_page006",
+    "themeKey": "theme13",
+    "pageNumber": 6,
+    "layout": "THEME13-006",
+    "slot": "signature-derived-section-transition-theme13-006",
+    "label": "深蓝光环风 · derived-section-transition",
+    "sourceTheme": "theme13",
+    "sourcePageKey": "theme13_derived_section_transition",
+    "moduleFamily": "transition",
+    "moduleOrigin": "owned",
+    "moduleStrategy": "new",
+    "archetypeId": "derived-section-transition",
+    "evidenceMode": "inferred",
+    "evidenceRefs": [],
+    "derivedFromRules": [
+      "typography-02",
+      "composition-01",
+      "surface-02",
+      "motif-01",
+      "color-02"
+    ],
+    "anchorModuleRefs": [
+      "theme13_signature_halo_tech_cover",
+      "theme13_signature_orbital_capability_overview"
+    ],
+    "stylePrimitiveRefs": [
+      "wave-floor",
+      "node-arrow"
+    ],
+    "derivationReason": "用模板的标题层级和签名符号建立章节过渡；以 theme13_signature_halo_tech_cover、theme13_signature_orbital_capability_overview 为视觉锚点。",
+    "styleSignals": [
+      "大号章节数字与小号英文注释构成科技层级",
+      "上下边缘以半透明圆环和波形压住画布",
+      "正文区域保持深色无边框以突出发光结构",
+      "重叠的半透明光环从四角进入",
+      "电光蓝用于图表、箭头和图标"
+    ],
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showSignatureSystem",
+        "label": "显示主题签名系统",
+        "type": "toggle",
+        "default": true,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "signature-system",
+            "ornament",
+            "page-marker"
+          ],
+          "minChangedRatio": 0.008,
+          "minRegions": 2
+        },
+        "publicKey": "showSignatureSystem"
+      },
+      {
+        "key": "density",
+        "label": "信息密度",
+        "type": "select",
+        "default": "balanced",
+        "options": [
+          {
+            "label": "紧凑",
+            "value": "compact"
+          },
+          {
+            "label": "平衡",
+            "value": "balanced"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-frame",
+            "spacing",
+            "type-scale"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "density"
+      },
+      {
+        "key": "transitionLayout",
+        "label": "转场结构",
+        "type": "select",
+        "default": "structured",
+        "options": [
+          {
+            "label": "结构化",
+            "value": "structured"
+          },
+          {
+            "label": "偏移强调",
+            "value": "offset"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-grid",
+            "reading-order",
+            "emphasis"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "transitionLayout"
+      }
+    ],
+    "defaultProps": {
+      "showSignatureSystem": true,
+      "density": "balanced",
+      "transitionLayout": "structured",
+      "pillars": [
+        "系统架构",
+        "能力节点",
+        "验证路径",
+        "规模部署"
+      ],
+      "summary": "让架构、节点和路径在同一深蓝系统中形成可验证、可扩展的技术闭环。",
+      "kicker": "NEXT CHAPTER",
+      "title": "从节点走向系统",
+      "sectionNumber": "02"
+    }
+  },
+  {
+    "key": "theme13_page007",
+    "themeKey": "theme13",
+    "pageNumber": 7,
+    "layout": "THEME13-007",
+    "slot": "section-theme02-014",
+    "label": "深蓝光环风 · 章节过渡",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page014",
+    "moduleFamily": "transition",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "align",
+        "type": "enum",
+        "label": "对齐",
+        "default": "left",
+        "options": [
+          {
+            "value": "left",
+            "label": "左对齐"
+          },
+          {
+            "value": "center",
+            "label": "居中"
+          }
+        ],
+        "publicKey": "align",
+        "desc": "章节页整体对齐方式"
+      },
+      {
+        "key": "showNumber",
+        "type": "toggle",
+        "label": "章节大序号",
+        "default": true,
+        "publicKey": "showNumber",
+        "desc": "显示/隐藏超大章节编号"
+      },
+      {
+        "key": "showAgenda",
+        "type": "toggle",
+        "label": "章节目录",
+        "default": true,
+        "publicKey": "showAgenda",
+        "desc": "显示/隐藏小节索引列表"
+      },
+      {
+        "key": "showLead",
+        "type": "toggle",
+        "label": "导语",
+        "default": true,
+        "publicKey": "showLead",
+        "desc": "显示/隐藏章节导语"
+      },
+      {
+        "key": "showRule",
+        "type": "toggle",
+        "label": "强调分隔线",
+        "default": true,
+        "publicKey": "showRule",
+        "desc": "显示/隐藏标题旁的强调短线"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "07 / 科技汇报",
+      "chapterNo": "02",
+      "title": "技术复盘 · ",
+      "titleEm": "在分化中定位",
+      "lead": "以深蓝系统校准技术复盘的机会，再用路径验证检验结果能否持续。",
+      "agenda": [
+        "四象限 · 资本热度 × 商业兑现",
+        "产业链分层 · 上游 / 中游 / 下游",
+        "年度关键指标复盘"
+      ],
+      "align": "left",
+      "showNumber": true,
+      "showAgenda": true,
+      "showLead": true,
+      "showRule": true,
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "13 / 73"
+    }
+  },
+  {
+    "key": "theme13_page008",
+    "themeKey": "theme13",
+    "pageNumber": 8,
+    "layout": "THEME13-008",
+    "slot": "section-theme03-022",
+    "label": "深蓝光环风 · 章节过渡",
+    "sourceTheme": "theme03",
+    "sourcePageKey": "theme03_page022",
+    "moduleFamily": "transition",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "forceDark",
+        "type": "toggle",
+        "label": "全局深色",
+        "default": true,
+        "publicKey": "forceDark",
+        "desc": "右上角深浅配色切换。"
+      },
+      {
+        "key": "accent",
+        "type": "select",
+        "label": "强调色",
+        "default": "#6c6fff",
+        "options": [
+          {
+            "value": "#6c6fff",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#3863ff",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#f7f9ff",
+            "label": "颜色 3"
+          }
+        ],
+        "publicKey": "accent",
+        "desc": "theme03 全局强调色，作用于该主题所有页面。"
+      },
+      {
+        "key": "showEyebrow",
+        "label": "装饰标签",
+        "type": "toggle",
+        "default": true,
+        "help": "顶部分类标签的显示 / 隐藏",
+        "publicKey": "showEyebrow"
+      },
+      {
+        "key": "showIndex",
+        "label": "章节序号",
+        "type": "toggle",
+        "default": true,
+        "help": "超大章节序号的显示 / 隐藏",
+        "publicKey": "showIndex"
+      },
+      {
+        "key": "imageCount",
+        "label": "图片数量",
+        "type": "slider",
+        "default": 1,
+        "min": 0,
+        "max": 2,
+        "step": 1,
+        "help": "右侧图片槽数量，0 为纯文字章节页（改为巨型描边序号）",
+        "publicKey": "imageCount"
+      },
+      {
+        "key": "showMeta",
+        "label": "页脚信息",
+        "type": "toggle",
+        "default": true,
+        "help": "底部小节索引的显示 / 隐藏",
+        "publicKey": "showMeta"
+      },
+      {
+        "key": "showDecor",
+        "label": "装饰图片",
+        "type": "toggle",
+        "default": false,
+        "help": "显示或隐藏页面上的装饰图片元素",
+        "publicKey": "showDecor"
+      },
+      {
+        "key": "decorSrc",
+        "label": "装饰元素",
+        "type": "icons",
+        "default": null,
+        "options": [
+          {
+            "value": "assets/3d/01.png",
+            "label": "胜利手势",
+            "image": "assets/3d/01.png"
+          },
+          {
+            "value": "assets/3d/02.png",
+            "label": "是 按键",
+            "image": "assets/3d/02.png"
+          },
+          {
+            "value": "assets/3d/03.png",
+            "label": "404 方块",
+            "image": "assets/3d/03.png"
+          },
+          {
+            "value": "assets/3d/04.png",
+            "label": "像素 幽灵",
+            "image": "assets/3d/04.png"
+          },
+          {
+            "value": "assets/3d/05.png",
+            "label": "是 气泡",
+            "image": "assets/3d/05.png"
+          },
+          {
+            "value": "assets/3d/06.png",
+            "label": "掌机图表",
+            "image": "assets/3d/06.png"
+          },
+          {
+            "value": "assets/3d/07.png",
+            "label": "像素显示器",
+            "image": "assets/3d/07.png"
+          },
+          {
+            "value": "assets/3d/08.png",
+            "label": "复古电脑",
+            "image": "assets/3d/08.png"
+          },
+          {
+            "value": "assets/3d/09.png",
+            "label": "拍立得",
+            "image": "assets/3d/09.png"
+          },
+          {
+            "value": "assets/3d/10.png",
+            "label": "奖杯",
+            "image": "assets/3d/10.png"
+          },
+          {
+            "value": "assets/3d/11.png",
+            "label": "文件夹",
+            "image": "assets/3d/11.png"
+          },
+          {
+            "value": "assets/3d/12.png",
+            "label": "番茄箱",
+            "image": "assets/3d/12.png"
+          }
+        ],
+        "help": "从 theme03 内置装饰元素中选择",
+        "publicKey": "decorSrc"
+      },
+      {
+        "key": "decorScale",
+        "label": "图片大小",
+        "type": "slider",
+        "default": 1,
+        "min": 0.6,
+        "max": 1.6,
+        "step": 0.05,
+        "help": "装饰图片的缩放比例",
+        "publicKey": "decorScale"
+      }
+    ],
+    "defaultProps": {
+      "images": [],
+      "showEyebrow": true,
+      "theme": "light",
+      "accent": "blue",
+      "showIndex": true,
+      "imageCount": 1,
+      "showMeta": true,
+      "copy": {
+        "t001": "章节 / SECTION",
+        "t002": "AI · VENTURE CAPITAL // USA",
+        "t003": "04",
+        "t004": "CHAPTER FOUR",
+        "t005": "结构透视",
+        "t006": "与",
+        "t007": "展望",
+        "t008": "在市场全景之上，进一步拆解轮次结构、月度节奏与集中度， 回答资金「如何分布、何时加速、向谁集中」，并据此展望下一阶段的产业走向。",
+        "t009": "章节配图 / DROP IMAGE",
+        "t010": "04",
+        "t011": "本章包含",
+        "t012": "横纵分析法"
+      },
+      "subsections": [
+        "逐月明细",
+        "轮次结构",
+        "核心数据"
+      ],
+      "showDecor": false,
+      "decorSrc": null,
+      "decorScale": 1,
+      "forceDark": true
+    }
+  },
+  {
+    "key": "theme13_page009",
+    "themeKey": "theme13",
+    "pageNumber": 9,
+    "layout": "THEME13-009",
+    "slot": "signature-gradient-peak-metrics-theme13-009",
+    "label": "深蓝光环风 · gradient-peak-metrics",
+    "sourceTheme": "theme13",
+    "sourcePageKey": "theme13_signature_gradient_peak_metrics",
+    "moduleFamily": "metrics",
+    "moduleOrigin": "owned",
+    "moduleStrategy": "new",
+    "archetypeId": "gradient-peak-metrics",
+    "evidenceMode": "observed",
+    "evidenceRefs": [
+      "slide-06",
+      "slide-09"
+    ],
+    "derivedFromRules": [],
+    "anchorModuleRefs": [],
+    "stylePrimitiveRefs": [],
+    "styleSignals": [
+      "数据峰值使用蓝紫渐变面积",
+      "指标卡以亮蓝底承载",
+      "底部波形形成跨页连续性"
+    ],
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showSignatureSystem",
+        "label": "显示主题签名系统",
+        "type": "toggle",
+        "default": true,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "signature-system",
+            "ornament",
+            "page-marker"
+          ],
+          "minChangedRatio": 0.008,
+          "minRegions": 2
+        },
+        "publicKey": "showSignatureSystem"
+      },
+      {
+        "key": "density",
+        "label": "信息密度",
+        "type": "select",
+        "default": "balanced",
+        "options": [
+          {
+            "label": "紧凑",
+            "value": "compact"
+          },
+          {
+            "label": "平衡",
+            "value": "balanced"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-frame",
+            "spacing",
+            "type-scale"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "density"
+      },
+      {
+        "key": "metricLayout",
+        "label": "指标结构",
+        "type": "select",
+        "default": "structured",
+        "options": [
+          {
+            "label": "结构化",
+            "value": "structured"
+          },
+          {
+            "label": "偏移强调",
+            "value": "offset"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-grid",
+            "reading-order",
+            "emphasis"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "metricLayout"
+      }
+    ],
+    "defaultProps": {
+      "showSignatureSystem": true,
+      "density": "balanced",
+      "metricLayout": "structured",
+      "pillars": [
+        "系统架构",
+        "能力节点",
+        "验证路径",
+        "规模部署"
+      ],
+      "summary": "让架构、节点和路径在同一深蓝系统中形成可验证、可扩展的技术闭环。",
+      "title": "用三个数字理解技术系统演进",
+      "metrics": [
+        {
+          "value": "99.95%",
+          "label": "服务可用性",
+          "note": "核心链路保持稳定运行"
+        },
+        {
+          "value": "42ms",
+          "label": "响应时延",
+          "note": "关键交互达到目标区间"
+        },
+        {
+          "value": "6.8×",
+          "label": "部署效率",
+          "note": "自动化能力持续放大"
+        }
+      ]
+    }
+  },
+  {
+    "key": "theme13_page010",
+    "themeKey": "theme13",
+    "pageNumber": 10,
+    "layout": "THEME13-010",
+    "slot": "metrics-theme02-020",
+    "label": "深蓝光环风 · 指标总览",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page020",
+    "moduleFamily": "metrics",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "statCount",
+        "type": "number",
+        "label": "数字数量",
+        "default": 4,
+        "min": 2,
+        "max": 4,
+        "step": 1,
+        "publicKey": "statCount",
+        "desc": "展示的关键数字数量"
+      },
+      {
+        "key": "layout",
+        "type": "enum",
+        "label": "版式",
+        "default": "row",
+        "options": [
+          {
+            "value": "row",
+            "label": "等分排列"
+          },
+          {
+            "value": "feature",
+            "label": "主次结构"
+          }
+        ],
+        "publicKey": "layout",
+        "desc": "等分一排，或一个主数字 + 其余次级"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": false,
+        "publicKey": "focusEnabled",
+        "desc": "是否高亮其中一个数字"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调项",
+        "default": 0,
+        "min": 0,
+        "max": 3,
+        "step": 1,
+        "oneBased": true,
+        "publicKey": "focusIndex",
+        "desc": "被强调数字的序号"
+      },
+      {
+        "key": "showDelta",
+        "type": "toggle",
+        "label": "注解徽章",
+        "default": true,
+        "publicKey": "showDelta",
+        "desc": "显示/隐藏数字旁的注解徽章"
+      },
+      {
+        "key": "showCaption",
+        "type": "toggle",
+        "label": "说明文案",
+        "default": true,
+        "publicKey": "showCaption",
+        "desc": "显示/隐藏数字下方说明"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "10 / 产品发布",
+      "title": "科技汇报 · 连",
+      "titleEm": "浓缩为四个数字",
+      "stats": [
+        {
+          "value": "970",
+          "unit": "亿美元",
+          "caption": "以路径验证校准技术",
+          "delta": "创历史新高"
+        },
+        {
+          "value": "97",
+          "unit": "笔",
+          "caption": "围绕科技汇报拆解",
+          "delta": "占全美 VC 近 1/3"
+        },
+        {
+          "value": "≈10",
+          "unit": "亿/笔",
+          "caption": "从趋势切入科技汇",
+          "delta": "头部高度追捧"
+        },
+        {
+          "value": "63.9",
+          "unit": "%",
+          "caption": "产品负责人可从样本",
+          "delta": "地理护城河"
+        }
+      ],
+      "statCount": 4,
+      "layout": "row",
+      "focusEnabled": false,
+      "focusIndex": 0,
+      "showDelta": true,
+      "showCaption": true,
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "19 / 73"
+    }
+  },
+  {
+    "key": "theme13_page011",
+    "themeKey": "theme13",
+    "pageNumber": 11,
+    "layout": "THEME13-011",
+    "slot": "bignumber-theme02-021",
+    "label": "深蓝光环风 · 指标总览",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page021",
+    "moduleFamily": "metrics",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "align",
+        "type": "enum",
+        "label": "版式",
+        "default": "split",
+        "options": [
+          {
+            "value": "split",
+            "label": "分栏"
+          },
+          {
+            "value": "center",
+            "label": "居中铺满"
+          }
+        ],
+        "publicKey": "align",
+        "desc": "数字+导语分栏，或数字居中铺满"
+      },
+      {
+        "key": "supportCount",
+        "type": "number",
+        "label": "支撑数据",
+        "default": 3,
+        "min": 0,
+        "step": 1,
+        "max": 3,
+        "publicKey": "supportCount",
+        "desc": "底部支撑小数据数量（0 = 不显示）"
+      },
+      {
+        "key": "showRing",
+        "type": "toggle",
+        "label": "辉光弧环",
+        "default": false,
+        "publicKey": "showRing",
+        "desc": "主数字背后的发光弧环显隐"
+      },
+      {
+        "key": "showLead",
+        "type": "toggle",
+        "label": "导语",
+        "default": true,
+        "publicKey": "showLead",
+        "desc": "分栏版式右侧导语显隐"
+      },
+      {
+        "key": "showCaption",
+        "type": "toggle",
+        "label": "数字说明",
+        "default": true,
+        "publicKey": "showCaption",
+        "desc": "主数字下方说明文案显隐"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "11 / 产品发布",
+      "value": "970",
+      "unit": "亿美元",
+      "caption": "技术复盘正在由路径验证走向技术节点，需要通过",
+      "lead": "科技汇报的关键不只是光环结构，还要持续追踪深蓝系统带来的反馈反馈。",
+      "support": [
+        {
+          "value": "97",
+          "unit": "笔",
+          "label": "技术节点"
+        },
+        {
+          "value": "≈1/3",
+          "unit": "",
+          "label": "深蓝系统"
+        },
+        {
+          "value": "63.9",
+          "unit": "%",
+          "label": "深蓝系统"
+        }
+      ],
+      "supportCount": 3,
+      "align": "split",
+      "showRing": false,
+      "showLead": true,
+      "showCaption": true,
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "20 / 73"
+    }
+  },
+  {
+    "key": "theme13_page012",
+    "themeKey": "theme13",
+    "pageNumber": 12,
+    "layout": "THEME13-012",
+    "slot": "meter-theme05-048",
+    "label": "深蓝光环风 · 信息结构",
+    "sourceTheme": "theme05",
+    "sourcePageKey": "theme05_page048",
+    "moduleFamily": "metrics",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "rowCount",
+        "type": "slider",
+        "label": "指标行数",
+        "default": 4,
+        "min": 2,
+        "max": 4,
+        "step": 1,
+        "publicKey": "rowCount",
+        "desc": "表格的指标行数量。"
+      },
+      {
+        "key": "showGauge",
+        "type": "toggle",
+        "label": "仪表列",
+        "default": true,
+        "publicKey": "showGauge",
+        "desc": "0–100 的指标仪表条列（关闭则收起该列）。"
+      },
+      {
+        "key": "showBenchmark",
+        "type": "toggle",
+        "label": "参考基准标记",
+        "default": true,
+        "publicKey": "showBenchmark",
+        "desc": "仪表条上的参考基准刻度与差值。"
+      },
+      {
+        "key": "showVerdict",
+        "type": "toggle",
+        "label": "判断列",
+        "default": true,
+        "publicKey": "showVerdict",
+        "desc": "末尾的「判断」标签列（关闭则收起该列）。"
+      },
+      {
+        "key": "zebra",
+        "type": "toggle",
+        "label": "斑马纹",
+        "default": false,
+        "publicKey": "zebra",
+        "desc": "隔行底色，便于横向读取。"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点行",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "是否突出某一行。"
+      },
+      {
+        "key": "focusIndex",
+        "type": "slider",
+        "label": "重点行序号",
+        "default": 2,
+        "min": 1,
+        "max": 4,
+        "step": 1,
+        "publicKey": "focusIndex",
+        "desc": "被突出的行序号（从 1 起）。"
+      },
+      {
+        "key": "showProcess",
+        "type": "toggle",
+        "label": "流程条",
+        "default": true,
+        "publicKey": "showProcess",
+        "desc": "表格上方的工单流程节点条。"
+      },
+      {
+        "key": "processNodeCount",
+        "type": "slider",
+        "label": "流程节点数",
+        "default": 4,
+        "min": 2,
+        "max": 4,
+        "step": 1,
+        "publicKey": "processNodeCount",
+        "desc": "流程条的节点数量。"
+      },
+      {
+        "key": "showIntro",
+        "type": "toggle",
+        "label": "引导栏",
+        "default": true,
+        "publicKey": "showIntro",
+        "desc": "表格上方的引导文案、维度说明与指标对。"
+      },
+      {
+        "key": "accentColor",
+        "type": "color",
+        "label": "强调色",
+        "default": "#6c6fff",
+        "options": [
+          {
+            "value": "#6c6fff",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#3863ff",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#f7f9ff",
+            "label": "颜色 3"
+          }
+        ],
+        "publicKey": "accentColor",
+        "desc": "眉标 / 重点行 / 仪表填充的强调色。"
+      },
+      {
+        "key": "showConclusion",
+        "type": "toggle",
+        "label": "结论文案",
+        "default": true,
+        "publicKey": "showConclusion",
+        "desc": "表格下方的一句装饰性结论。"
+      },
+      {
+        "key": "showSheetLabel",
+        "type": "toggle",
+        "label": "页码标签",
+        "default": true,
+        "publicKey": "showSheetLabel",
+        "desc": "右上角的页码 / 章节标签。"
+      }
+    ],
+    "defaultProps": {
+      "rowCount": 4,
+      "showGauge": true,
+      "showBenchmark": true,
+      "showVerdict": true,
+      "zebra": false,
+      "focusEnabled": true,
+      "focusIndex": 2,
+      "showProcess": true,
+      "processNodeCount": 4,
+      "showIntro": true,
+      "accentColor": "#6c6fff",
+      "showConclusion": true,
+      "showSheetLabel": true,
+      "copy": {
+        "eyebrow": "12 / 科技汇报",
+        "title": "科技汇报 · 推",
+        "sub": "路径验证",
+        "sheet": "TABLE · 44 / 80",
+        "lead": "以光环结构校准产品发布的约束，再用深蓝",
+        "tag": "边界技术节点",
+        "metrics": [
+          [
+            "融资额",
+            "27",
+            "亿美元"
+          ],
+          [
+            "事件数",
+            "9",
+            "笔"
+          ]
+        ],
+        "process": [
+          {
+            "zh": "受理",
+            "en": "深蓝系"
+          },
+          {
+            "zh": "自动分流",
+            "en": "深蓝"
+          },
+          {
+            "zh": "AI 回复",
+            "en": "深蓝系统"
+          },
+          {
+            "zh": "人工升级",
+            "en": "路径验证 "
+          }
+        ],
+        "headers": [
+          "指标",
+          "当前值",
+          "对比行业基准",
+          "判断"
+        ],
+        "rows": [
+          {
+            "k": "对话替代率",
+            "en": "深蓝系统 / 12",
+            "val": 32,
+            "unit": "%",
+            "base": 20,
+            "chip": "可量化",
+            "c": "#d8402e"
+          },
+          {
+            "k": "工单时长下降",
+            "en": "路径验证 / 1",
+            "val": 41,
+            "unit": "%",
+            "base": 25,
+            "chip": "高 ROI",
+            "c": "#3c9a52"
+          },
+          {
+            "k": "首次解决率",
+            "en": "路径验证 / 12",
+            "val": 68,
+            "unit": "%",
+            "base": 55,
+            "chip": "稳健",
+            "c": "#2c44a0"
+          },
+          {
+            "k": "客户满意度",
+            "en": "技术",
+            "val": 88,
+            "unit": "%",
+            "base": 80,
+            "chip": "正向",
+            "c": "#4da0c6"
+          }
+        ],
+        "conclusion": "能量化 ROI 的场景更容易获得预算。"
+      }
+    }
+  },
+  {
+    "key": "theme13_page013",
+    "themeKey": "theme13",
+    "pageNumber": 13,
+    "layout": "THEME13-013",
+    "slot": "scorecard-theme05-086",
+    "label": "深蓝光环风 · 指标总览",
+    "sourceTheme": "theme05",
+    "sourcePageKey": "theme05_page086",
+    "moduleFamily": "metrics",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "rowCount",
+        "type": "slider",
+        "label": "评分主体数",
+        "default": 5,
+        "min": 3,
+        "max": 6,
+        "step": 1,
+        "publicKey": "rowCount",
+        "desc": "参与评分的主体（行）数量（3–6）。"
+      },
+      {
+        "key": "colCount",
+        "type": "slider",
+        "label": "评分维度数",
+        "default": 4,
+        "min": 3,
+        "max": 5,
+        "step": 1,
+        "publicKey": "colCount",
+        "desc": "评分维度（列）数量（3–5）。"
+      },
+      {
+        "key": "gradeStyle",
+        "type": "radio",
+        "label": "单元样式",
+        "default": "letter",
+        "options": [
+          {
+            "value": "letter",
+            "label": "等级"
+          },
+          {
+            "value": "score",
+            "label": "分值"
+          },
+          {
+            "value": "dot",
+            "label": "点阵"
+          }
+        ],
+        "publicKey": "gradeStyle",
+        "desc": "单元格内容：字母等级 / 0–100 分值 / 五点评级。"
+      },
+      {
+        "key": "colorScale",
+        "type": "radio",
+        "label": "色阶",
+        "default": "#6c6fff",
+        "options": [
+          {
+            "value": "#6c6fff",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#3863ff",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#f7f9ff",
+            "label": "颜色 3"
+          }
+        ],
+        "publicKey": "colorScale",
+        "desc": "单元格底色映射：热力色阶 / 强调色深浅 / 单色深浅。"
+      },
+      {
+        "key": "showOverall",
+        "type": "toggle",
+        "label": "综合列",
+        "default": true,
+        "publicKey": "showOverall",
+        "desc": "末尾加权综合分列（强调显示）。"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点行",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "是否突出某一行（整行描边）。"
+      },
+      {
+        "key": "focusIndex",
+        "type": "slider",
+        "label": "重点序号",
+        "default": 1,
+        "min": 1,
+        "max": 6,
+        "step": 1,
+        "publicKey": "focusIndex",
+        "desc": "重点行序号。"
+      },
+      {
+        "key": "zebra",
+        "type": "toggle",
+        "label": "隔行底色",
+        "default": false,
+        "publicKey": "zebra",
+        "desc": "行名称列的斑马纹底色。"
+      },
+      {
+        "key": "showIntro",
+        "type": "toggle",
+        "label": "引导文案",
+        "default": true,
+        "publicKey": "showIntro",
+        "desc": "表格上方的引导说明。"
+      },
+      {
+        "key": "accentColor",
+        "type": "color",
+        "label": "强调色",
+        "default": "#6c6fff",
+        "options": [
+          {
+            "value": "#6c6fff",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#3863ff",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#f7f9ff",
+            "label": "颜色 3"
+          }
+        ],
+        "publicKey": "accentColor",
+        "desc": "眉标 / 表头 / 重点行 / 综合列的强调色。"
+      },
+      {
+        "key": "showConclusion",
+        "type": "toggle",
+        "label": "结论文案",
+        "default": true,
+        "publicKey": "showConclusion",
+        "desc": "表格下方的一句装饰性结论。"
+      },
+      {
+        "key": "showSheetLabel",
+        "type": "toggle",
+        "label": "页码标签",
+        "default": true,
+        "publicKey": "showSheetLabel",
+        "desc": "右上角的页码 / 章节标签。"
+      }
+    ],
+    "defaultProps": {
+      "rowCount": 5,
+      "colCount": 4,
+      "gradeStyle": "letter",
+      "colorScale": "heat",
+      "showOverall": true,
+      "focusEnabled": true,
+      "focusIndex": 1,
+      "zebra": false,
+      "showIntro": true,
+      "accentColor": "#6c6fff",
+      "showConclusion": true,
+      "showSheetLabel": true,
+      "copy": {
+        "eyebrow": "13 / 产品发布",
+        "title": "科技汇报 · ",
+        "sheet": "TABLE · 84 / 86",
+        "intro": "从影响切入科技汇报，以深蓝系统推进关键证据，为技术团队形成可执行的下一步。",
+        "subjectHead": "机会深蓝系统",
+        "overallHead": "综合",
+        "cols": [
+          {
+            "name": "证据1",
+            "en": "深蓝"
+          },
+          {
+            "name": "边界2",
+            "en": "深蓝系"
+          },
+          {
+            "name": "现状3",
+            "en": "技术"
+          },
+          {
+            "name": "路径4",
+            "en": "路径"
+          },
+          {
+            "name": "信号5",
+            "en": "技术"
+          }
+        ],
+        "rows": [
+          {
+            "name": "现状1",
+            "en": "技术节点 / ",
+            "scores": [
+              96,
+              71,
+              92,
+              64,
+              78
+            ],
+            "overall": 84
+          },
+          {
+            "name": "样本2",
+            "en": "深蓝系统 / 13",
+            "scores": [
+              88,
+              83,
+              58,
+              72,
+              80
+            ],
+            "overall": 78
+          },
+          {
+            "name": "机会3",
+            "en": "光环结",
+            "scores": [
+              82,
+              66,
+              88,
+              60,
+              70
+            ],
+            "overall": 75
+          },
+          {
+            "name": "样本4",
+            "en": "路径验证 / ",
+            "scores": [
+              70,
+              86,
+              62,
+              81,
+              74
+            ],
+            "overall": 74
+          },
+          {
+            "name": "路径5",
+            "en": "路径验证 / ",
+            "scores": [
+              61,
+              54,
+              79,
+              58,
+              56
+            ],
+            "overall": 62
+          },
+          {
+            "name": "趋势6",
+            "en": "技术节点 ",
+            "scores": [
+              74,
+              41,
+              70,
+              47,
+              52
+            ],
+            "overall": 55
+          }
+        ],
+        "conclusion": "基础设施综合分领先，应用层胜在兑现与退出预期均衡。"
+      }
+    }
+  },
+  {
+    "key": "theme13_page014",
+    "themeKey": "theme13",
+    "pageNumber": 14,
+    "layout": "THEME13-014",
+    "slot": "dominance-theme05-060",
+    "label": "深蓝光环风 · 信息结构",
+    "sourceTheme": "theme05",
+    "sourcePageKey": "theme05_page060",
+    "moduleFamily": "metrics",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showGauge",
+        "type": "toggle",
+        "label": "份额量规",
+        "default": true,
+        "publicKey": "showGauge",
+        "desc": "右侧把主数字渲染成「部分-整体」的占比量规。"
+      },
+      {
+        "key": "gaugeStyle",
+        "type": "radio",
+        "label": "量规样式",
+        "default": "bar",
+        "options": [
+          {
+            "value": "bar",
+            "label": "竖向占比"
+          },
+          {
+            "value": "grid",
+            "label": "点阵"
+          }
+        ],
+        "publicKey": "gaugeStyle",
+        "desc": "占比量规呈现：竖向填充条 / 10×10 点阵。"
+      },
+      {
+        "key": "numberAlign",
+        "type": "radio",
+        "label": "数字对齐",
+        "default": "left",
+        "options": [
+          {
+            "value": "left",
+            "label": "左对齐"
+          },
+          {
+            "value": "center",
+            "label": "居中"
+          }
+        ],
+        "publicKey": "numberAlign",
+        "desc": "主数字块的对齐方式（关闭量规时整幅居中更佳）。"
+      },
+      {
+        "key": "auxCount",
+        "type": "slider",
+        "label": "辅助指标数",
+        "default": 3,
+        "min": 0,
+        "max": 3,
+        "step": 1,
+        "publicKey": "auxCount",
+        "desc": "主数字下方的支撑指标数量（0 隐藏整行）。"
+      },
+      {
+        "key": "showUnit",
+        "type": "toggle",
+        "label": "数字单位",
+        "default": true,
+        "publicKey": "showUnit",
+        "desc": "主数字后的单位后缀。"
+      },
+      {
+        "key": "showCaption",
+        "type": "toggle",
+        "label": "数字说明",
+        "default": true,
+        "publicKey": "showCaption",
+        "desc": "主数字下方的解释说明。"
+      },
+      {
+        "key": "showMessage",
+        "type": "toggle",
+        "label": "支撑文案",
+        "default": true,
+        "publicKey": "showMessage",
+        "desc": "说明下方的一段支撑性文案。"
+      },
+      {
+        "key": "accentColor",
+        "type": "color",
+        "label": "强调色",
+        "default": "#6c6fff",
+        "options": [
+          {
+            "value": "#6c6fff",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#3863ff",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#f7f9ff",
+            "label": "颜色 3"
+          }
+        ],
+        "publicKey": "accentColor",
+        "desc": "主数字 / 眉标 / 量规填充的强调色。"
+      },
+      {
+        "key": "showWordmark",
+        "type": "toggle",
+        "label": "品牌标识",
+        "default": true,
+        "publicKey": "showWordmark",
+        "desc": "左下角的 PULSE 品牌标识。"
+      },
+      {
+        "key": "showColorBand",
+        "type": "toggle",
+        "label": "装饰色谱条",
+        "default": "#6c6fff",
+        "publicKey": "showColorBand",
+        "desc": "右下角的装饰性 TR-808 色谱条。",
+        "options": [
+          {
+            "value": "#6c6fff",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#3863ff",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#f7f9ff",
+            "label": "颜色 3"
+          }
+        ]
+      },
+      {
+        "key": "showSheetLabel",
+        "type": "toggle",
+        "label": "页码标签",
+        "default": true,
+        "publicKey": "showSheetLabel",
+        "desc": "右上角的页码 / 章节标签。"
+      }
+    ],
+    "defaultProps": {
+      "showGauge": true,
+      "gaugeStyle": "bar",
+      "numberAlign": "left",
+      "auxCount": 3,
+      "showUnit": true,
+      "showCaption": true,
+      "showMessage": true,
+      "accentColor": "#6c6fff",
+      "showWordmark": true,
+      "showColorBand": true,
+      "showSheetLabel": true,
+      "copy": {
+        "eyebrow": "14 / 技术复盘",
+        "title": "技术复盘 · ",
+        "sheet": "BIG NUMBER · 56 / 80",
+        "number": "63.9",
+        "unit": "%",
+        "pct": 63.9,
+        "caption": "以光环结构校准科技汇",
+        "message": "技术复盘正在由技术节点走向光环结构，需要通过边界拆",
+        "shareLabel": "湾区",
+        "restLabel": "其余地区",
+        "aux": [
+          [
+            "其余地区合计",
+            "36.1",
+            "%"
+          ],
+          [
+            "枢纽城市",
+            "旧金山",
+            ""
+          ],
+          [
+            "集中度排名",
+            "TOP 1",
+            ""
+          ]
+        ],
+        "conclusion": "湾区仍是 AI 资本重力中心。"
+      }
+    }
+  },
+  {
+    "key": "theme13_page015",
+    "themeKey": "theme13",
+    "pageNumber": 15,
+    "layout": "THEME13-015",
+    "slot": "spec-theme05-006",
+    "label": "深蓝光环风 · 信息结构",
+    "sourceTheme": "theme05",
+    "sourcePageKey": "theme05_page006",
+    "moduleFamily": "metrics",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "imageCount",
+        "type": "slider",
+        "label": "图片数量",
+        "default": 1,
+        "min": 0,
+        "max": 2,
+        "step": 1,
+        "publicKey": "imageCount",
+        "desc": "左侧图示槽位数量（0–2），图片按上传比例自适应。"
+      },
+      {
+        "key": "specRowCount",
+        "type": "slider",
+        "label": "指标行数",
+        "default": 4,
+        "min": 2,
+        "max": 5,
+        "step": 1,
+        "publicKey": "specRowCount",
+        "desc": "右侧规格指标表的行数。"
+      },
+      {
+        "key": "showHighlight",
+        "type": "toggle",
+        "label": "关键数据高亮",
+        "default": true,
+        "publicKey": "showHighlight",
+        "desc": "正文中关键数字使用强调色高亮。"
+      },
+      {
+        "key": "accentColor",
+        "type": "color",
+        "label": "强调色",
+        "default": "#6c6fff",
+        "options": [
+          {
+            "value": "#6c6fff",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#3863ff",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#f7f9ff",
+            "label": "颜色 3"
+          }
+        ],
+        "publicKey": "accentColor",
+        "desc": "正文高亮使用的强调色。"
+      },
+      {
+        "key": "chartType",
+        "type": "radio",
+        "label": "占比图样式",
+        "default": "bar",
+        "options": [
+          {
+            "value": "bar",
+            "label": "柱状"
+          },
+          {
+            "value": "cells",
+            "label": "格子"
+          }
+        ],
+        "publicKey": "chartType",
+        "desc": "占比可视化：整条堆叠 (bar) 或分段色块 (cells)。"
+      },
+      {
+        "key": "showProportionBar",
+        "type": "toggle",
+        "label": "底部占比图",
+        "default": true,
+        "publicKey": "showProportionBar",
+        "desc": "显示底部分类占比可视化。"
+      },
+      {
+        "key": "showSheetLabel",
+        "type": "toggle",
+        "label": "页码标签",
+        "default": true,
+        "publicKey": "showSheetLabel",
+        "desc": "右上角的页码 / 章节标签。"
+      }
+    ],
+    "defaultProps": {
+      "imageCount": 1,
+      "specRowCount": 4,
+      "showHighlight": true,
+      "accentColor": "#6c6fff",
+      "chartType": "bar",
+      "showProportionBar": true,
+      "showSheetLabel": true,
+      "images": [],
+      "copy": {
+        "title": "产品发布",
+        "sheet": "OVERVIEW · 02 / 32",
+        "figCap": "FIG.1 — 资本流向全景",
+        "figMono": "97 DEALS · 16 SECTORS · 4 QUARTERS",
+        "leadPre": "2024 年美国 AI 初创公司吸纳约 ",
+        "leadHL1": "970 亿美元",
+        "leadMid": " 风险投资，单笔 ≥ 1 亿美元的大额融资事件达 ",
+        "leadHL2": "97 笔",
+        "leadPost": "，资本向头部高度集中。",
+        "specs": [
+          {
+            "k": "全年融资",
+            "v": "970 亿美元"
+          },
+          {
+            "k": "大额事件",
+            "v": "97 笔"
+          },
+          {
+            "k": "平均单笔",
+            "v": "10 亿美元"
+          },
+          {
+            "k": "湾区占比",
+            "v": "63.9%"
+          },
+          {
+            "k": "Top10 集中",
+            "v": "23.8%"
+          }
+        ],
+        "propTitle": "赛道融资占比",
+        "proportionUnitLabel": "SHARE OF $97B",
+        "props": [
+          {
+            "name": "趋势1",
+            "v": 43.3,
+            "c": "#d8402e"
+          },
+          {
+            "name": "路径2",
+            "v": 25.3,
+            "c": "#e2742c"
+          },
+          {
+            "name": "样本3",
+            "v": 16.3,
+            "c": "#4da0c6"
+          },
+          {
+            "name": "现状4",
+            "v": 10,
+            "c": "#2c44a0"
+          },
+          {
+            "name": "边界",
+            "v": 5.1,
+            "c": "#3c9a52"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "key": "theme13_page016",
+    "themeKey": "theme13",
+    "pageNumber": 16,
+    "layout": "THEME13-016",
+    "slot": "versus-theme05-091",
+    "label": "深蓝光环风 · 对比分析",
+    "sourceTheme": "theme05",
+    "sourcePageKey": "theme05_page091",
+    "moduleFamily": "metrics",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "operator",
+        "type": "radio",
+        "label": "对比符号",
+        "default": "ratio",
+        "options": [
+          {
+            "value": "ratio",
+            "label": "∶"
+          },
+          {
+            "value": "times",
+            "label": "×"
+          },
+          {
+            "value": "arrow",
+            "label": "→"
+          }
+        ],
+        "publicKey": "operator",
+        "desc": "两个数字之间的运算 / 关系符号。"
+      },
+      {
+        "key": "emphasize",
+        "type": "radio",
+        "label": "强调侧",
+        "default": "left",
+        "options": [
+          {
+            "value": "left",
+            "label": "左"
+          },
+          {
+            "value": "right",
+            "label": "右"
+          },
+          {
+            "value": "both",
+            "label": "两侧"
+          }
+        ],
+        "publicKey": "emphasize",
+        "desc": "用强调色着重的一侧数字。"
+      },
+      {
+        "key": "showBadge",
+        "type": "toggle",
+        "label": "倍数徽标",
+        "default": true,
+        "publicKey": "showBadge",
+        "desc": "中心的比值 / 倍数徽标。"
+      },
+      {
+        "key": "showCaption",
+        "type": "toggle",
+        "label": "数字说明",
+        "default": true,
+        "publicKey": "showCaption",
+        "desc": "每个数字下方的一句说明。"
+      },
+      {
+        "key": "auxCount",
+        "type": "slider",
+        "label": "辅助指标数",
+        "default": 3,
+        "min": 0,
+        "max": 3,
+        "step": 1,
+        "publicKey": "auxCount",
+        "desc": "底部支撑指标的数量（0 隐藏整行）。"
+      },
+      {
+        "key": "showClosing",
+        "type": "toggle",
+        "label": "结语文案",
+        "default": true,
+        "publicKey": "showClosing",
+        "desc": "底部的一句结语。"
+      },
+      {
+        "key": "accentColor",
+        "type": "color",
+        "label": "强调色",
+        "default": "#6c6fff",
+        "options": [
+          {
+            "value": "#6c6fff",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#3863ff",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#f7f9ff",
+            "label": "颜色 3"
+          }
+        ],
+        "publicKey": "accentColor",
+        "desc": "眉标 / 强调侧数字 / 徽标的强调色。"
+      },
+      {
+        "key": "showWordmark",
+        "type": "toggle",
+        "label": "品牌标识",
+        "default": true,
+        "publicKey": "showWordmark",
+        "desc": "左下角的品牌标识。"
+      },
+      {
+        "key": "showColorBand",
+        "type": "toggle",
+        "label": "色谱条",
+        "default": "#6c6fff",
+        "publicKey": "showColorBand",
+        "desc": "右下角的装饰色谱条。",
+        "options": [
+          {
+            "value": "#6c6fff",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#3863ff",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#f7f9ff",
+            "label": "颜色 3"
+          }
+        ]
+      },
+      {
+        "key": "showSheetLabel",
+        "type": "toggle",
+        "label": "页码标签",
+        "default": true,
+        "publicKey": "showSheetLabel",
+        "desc": "右上角的页码 / 章节标签。"
+      }
+    ],
+    "defaultProps": {
+      "operator": "ratio",
+      "emphasize": "left",
+      "showBadge": true,
+      "showCaption": true,
+      "auxCount": 3,
+      "showClosing": true,
+      "accentColor": "#6c6fff",
+      "showWordmark": true,
+      "showColorBand": true,
+      "showSheetLabel": true,
+      "copy": {
+        "eyebrow": "16 / 技术复盘",
+        "title": "产品发布 ·",
+        "sheet": "BIG NUMBER · 89 / 90",
+        "left": {
+          "label": "光环结构",
+          "value": "63",
+          "unit": "%",
+          "caption": "产品发布正在由技术节点走向"
+        },
+        "right": {
+          "label": "光环结构",
+          "value": "37",
+          "unit": "%",
+          "caption": "产品发布正在由技术节点"
+        },
+        "badge": {
+          "value": "1.7×",
+          "note": "产品负责人可从"
+        },
+        "aux": [
+          [
+            "大额事件",
+            "97",
+            "笔"
+          ],
+          [
+            "头部均单笔",
+            "24",
+            "亿美元"
+          ],
+          [
+            "长尾均单笔",
+            "3.1",
+            "亿美元"
+          ]
+        ],
+        "wordmark": "AICL",
+        "closing": "从反馈切入科技汇报，以光环结构追踪关键"
+      }
+    }
+  },
+  {
+    "key": "theme13_page017",
+    "themeKey": "theme13",
+    "pageNumber": 17,
+    "layout": "THEME13-017",
+    "slot": "signature-cycle-arrow-comparison-theme13-017",
+    "label": "深蓝光环风 · cycle-arrow-comparison",
+    "sourceTheme": "theme13",
+    "sourcePageKey": "theme13_signature_cycle_arrow_comparison",
+    "moduleFamily": "comparison",
+    "moduleOrigin": "owned",
+    "moduleStrategy": "new",
+    "archetypeId": "cycle-arrow-comparison",
+    "evidenceMode": "observed",
+    "evidenceRefs": [
+      "slide-07",
+      "slide-13"
+    ],
+    "derivedFromRules": [],
+    "anchorModuleRefs": [],
+    "stylePrimitiveRefs": [],
+    "styleSignals": [
+      "蓝色箭头构成环形或折线比较",
+      "对比项分布在中心结构两侧",
+      "图标和编号共同定位选项"
+    ],
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showSignatureSystem",
+        "label": "显示主题签名系统",
+        "type": "toggle",
+        "default": true,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "signature-system",
+            "ornament",
+            "page-marker"
+          ],
+          "minChangedRatio": 0.008,
+          "minRegions": 2
+        },
+        "publicKey": "showSignatureSystem"
+      },
+      {
+        "key": "density",
+        "label": "信息密度",
+        "type": "select",
+        "default": "balanced",
+        "options": [
+          {
+            "label": "紧凑",
+            "value": "compact"
+          },
+          {
+            "label": "平衡",
+            "value": "balanced"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-frame",
+            "spacing",
+            "type-scale"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "density"
+      },
+      {
+        "key": "comparisonLayout",
+        "label": "对比结构",
+        "type": "select",
+        "default": "structured",
+        "options": [
+          {
+            "label": "结构化",
+            "value": "structured"
+          },
+          {
+            "label": "偏移强调",
+            "value": "offset"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-grid",
+            "reading-order",
+            "emphasis"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "comparisonLayout"
+      }
+    ],
+    "defaultProps": {
+      "showSignatureSystem": true,
+      "density": "balanced",
+      "comparisonLayout": "structured",
+      "pillars": [
+        "系统架构",
+        "能力节点",
+        "验证路径",
+        "规模部署"
+      ],
+      "summary": "让架构、节点和路径在同一深蓝系统中形成可验证、可扩展的技术闭环。",
+      "title": "技术系统演进的两条路径",
+      "options": [
+        {
+          "title": "单点突破",
+          "body": "集中验证关键技术节点并快速形成确定性。"
+        },
+        {
+          "title": "系统演进",
+          "body": "同步建设架构、治理和持续交付能力。"
+        }
+      ],
+      "criteria": [
+        "性能水平",
+        "系统韧性",
+        "交付成熟度"
+      ]
+    }
+  },
+  {
+    "key": "theme13_page018",
+    "themeKey": "theme13",
+    "pageNumber": 18,
+    "layout": "THEME13-018",
+    "slot": "comparetable-theme02-034",
+    "label": "深蓝光环风 · 对比分析",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page034",
+    "moduleFamily": "comparison",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "rowCount",
+        "type": "number",
+        "label": "行数（能力）",
+        "default": 6,
+        "min": 3,
+        "step": 1,
+        "max": 6,
+        "publicKey": "rowCount",
+        "desc": "展示的能力维度行数"
+      },
+      {
+        "key": "colCount",
+        "type": "number",
+        "label": "列数（公司）",
+        "default": 4,
+        "min": 2,
+        "step": 1,
+        "max": 4,
+        "publicKey": "colCount",
+        "desc": "展示的公司列数"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "是否高亮某一列"
+      },
+      {
+        "key": "focusCol",
+        "type": "number",
+        "label": "强调列",
+        "default": 0,
+        "min": 0,
+        "step": 1,
+        "oneBased": true,
+        "max": 3,
+        "maxFromKey": "colCount",
+        "publicKey": "focusCol",
+        "desc": "被强调公司列的序号"
+      },
+      {
+        "key": "showLegend",
+        "type": "toggle",
+        "label": "图例",
+        "default": true,
+        "publicKey": "showLegend",
+        "desc": "✓/◐/✕ 释义图例显隐"
+      },
+      {
+        "key": "showRowNote",
+        "type": "toggle",
+        "label": "行序号",
+        "default": true,
+        "publicKey": "showRowNote",
+        "desc": "行首序号显隐"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "18 / 产品发布",
+      "title": "技术复盘 · ",
+      "titleEm": "一表看清",
+      "lead": "产品发布的关键不只是深蓝系统，还要持续重构路径验证带来的样",
+      "cols": [
+        "产品发",
+        "产品负责人",
+        "Mistral",
+        "科"
+      ],
+      "rows": [
+        {
+          "label": "路径验证",
+          "cells": [
+            "yes",
+            "yes",
+            "yes",
+            "yes"
+          ]
+        },
+        {
+          "label": "深蓝系统",
+          "cells": [
+            "yes",
+            "yes",
+            "yes",
+            "partial"
+          ]
+        },
+        {
+          "label": "深蓝系统",
+          "cells": [
+            "no",
+            "no",
+            "yes",
+            "partial"
+          ]
+        },
+        {
+          "label": "光环结构",
+          "cells": [
+            "yes",
+            "yes",
+            "partial",
+            "no"
+          ]
+        },
+        {
+          "label": "技术节点",
+          "cells": [
+            "yes",
+            "partial",
+            "partial",
+            "yes"
+          ]
+        },
+        {
+          "label": "深蓝系统",
+          "cells": [
+            "partial",
+            "yes",
+            "partial",
+            "no"
+          ]
+        }
+      ],
+      "rowCount": 6,
+      "colCount": 4,
+      "focusEnabled": true,
+      "focusCol": 0,
+      "showLegend": true,
+      "showRowNote": true,
+      "cornerHeaderLabel": "能力 ╲ 公司",
+      "markLabels": {
+        "yes": "支持",
+        "partial": "部分",
+        "no": "不支持"
+      },
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "33 / 73"
+    }
+  },
+  {
+    "key": "theme13_page019",
+    "themeKey": "theme13",
+    "pageNumber": 19,
+    "layout": "THEME13-019",
+    "slot": "matrix-theme02-017",
+    "label": "深蓝光环风 · 矩阵与分层",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page017",
+    "moduleFamily": "comparison",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "rowCount",
+        "type": "number",
+        "label": "行数",
+        "default": 5,
+        "min": 2,
+        "max": 5,
+        "step": 1,
+        "publicKey": "rowCount",
+        "desc": "展示的数据行数"
+      },
+      {
+        "key": "scaleMax",
+        "type": "number",
+        "label": "评分满分",
+        "default": 5,
+        "min": 3,
+        "max": 5,
+        "step": 1,
+        "publicKey": "scaleMax",
+        "desc": "点阵评分的满分点数"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "是否高亮其中一行"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调项",
+        "default": 2,
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "oneBased": true,
+        "publicKey": "focusIndex",
+        "desc": "被强调行的序号"
+      },
+      {
+        "key": "showSub",
+        "type": "toggle",
+        "label": "副标题",
+        "default": true,
+        "publicKey": "showSub",
+        "desc": "行名下方英文/副标显隐"
+      },
+      {
+        "key": "showVerdict",
+        "type": "toggle",
+        "label": "综合判断列",
+        "default": true,
+        "publicKey": "showVerdict",
+        "desc": "末列综合判断标签显隐"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "19 / 技术复盘",
+      "title": "产品发布 ",
+      "titleEm": "热度·兑现·风险",
+      "dims": [
+        {
+          "label": "技术节点"
+        },
+        {
+          "label": "技术节点"
+        },
+        {
+          "label": "路径验证"
+        }
+      ],
+      "rows": [
+        {
+          "label": "光环结构",
+          "sub": "产品发布 · 深蓝系",
+          "scores": [
+            5,
+            2,
+            4
+          ],
+          "verdict": "叙事泡沫区 · 观察",
+          "tone": "warn"
+        },
+        {
+          "label": "深蓝系统",
+          "sub": "科技汇报 · ",
+          "scores": [
+            3,
+            4,
+            2
+          ],
+          "verdict": "隐形价值区 · 看好",
+          "tone": "good"
+        },
+        {
+          "label": "深蓝系统",
+          "sub": "产品发布 · 路径",
+          "scores": [
+            4,
+            5,
+            2
+          ],
+          "verdict": "明星兑现区 · 重点",
+          "tone": "good"
+        },
+        {
+          "label": "光环结",
+          "sub": "路径验证",
+          "scores": [
+            3,
+            4,
+            3
+          ],
+          "verdict": "卖铲长线 · 中性",
+          "tone": "mid"
+        },
+        {
+          "label": "路径验证",
+          "sub": "产品发布 · 深蓝",
+          "scores": [
+            2,
+            2,
+            3
+          ],
+          "verdict": "等待验证区 · 谨慎",
+          "tone": "warn"
+        }
+      ],
+      "rowCount": 5,
+      "scaleMax": 5,
+      "focusEnabled": true,
+      "focusIndex": 2,
+      "showSub": true,
+      "showVerdict": true,
+      "rowHeaderLabel": "赛道 · TRACK",
+      "verdictColumnHeader": "综合判断",
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "16 / 73"
+    }
+  },
+  {
+    "key": "theme13_page020",
+    "themeKey": "theme13",
+    "pageNumber": 20,
+    "layout": "THEME13-020",
+    "slot": "quadrant-theme02-015",
+    "label": "深蓝光环风 · 矩阵与分层",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page015",
+    "moduleFamily": "comparison",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "是否高亮某一象限"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调象限",
+        "default": 1,
+        "min": 0,
+        "max": 3,
+        "step": 1,
+        "oneBased": true,
+        "publicKey": "focusIndex",
+        "desc": "被强调象限的序号（按阅读顺序）"
+      },
+      {
+        "key": "showItems",
+        "type": "toggle",
+        "label": "代表公司",
+        "default": true,
+        "publicKey": "showItems",
+        "desc": "显示/隐藏象限内的对象标签"
+      },
+      {
+        "key": "showDesc",
+        "type": "toggle",
+        "label": "象限说明",
+        "default": true,
+        "publicKey": "showDesc",
+        "desc": "显示/隐藏象限描述文案"
+      },
+      {
+        "key": "showAxisLabels",
+        "type": "toggle",
+        "label": "坐标轴",
+        "default": true,
+        "publicKey": "showAxisLabels",
+        "desc": "显示/隐藏坐标轴标签与端点"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "20 / 技术复盘",
+      "title": "科技汇报 · 识别技术",
+      "titleEm": "四类机会",
+      "axes": {
+        "x": "商业兑现度",
+        "y": "资本热度",
+        "xLow": "待验证",
+        "xHigh": "高",
+        "yLow": "低 / 中",
+        "yHigh": "高"
+      },
+      "quadrants": [
+        {
+          "label": "技术节点",
+          "desc": "企业管理者可从趋势观察技术复盘，用路径",
+          "items": [
+            "围绕产",
+            "技术团队可",
+            "以",
+            "SSI"
+          ]
+        },
+        {
+          "label": "深蓝系统",
+          "desc": "科技汇报的关键不只是路径验证，还要",
+          "items": [
+            "围绕产品发",
+            "技术团队可",
+            "Scale AI"
+          ]
+        },
+        {
+          "label": "技术节点",
+          "desc": "以光环结构校准科技汇报的证据，再用深",
+          "items": [
+            "工具链",
+            "安全",
+            "早期硬件"
+          ]
+        },
+        {
+          "label": "路径验证",
+          "desc": "从信号切入产品发布，以技术节点校",
+          "items": [
+            "Glean",
+            "Perplexity"
+          ]
+        }
+      ],
+      "focusEnabled": true,
+      "focusIndex": 1,
+      "showItems": true,
+      "showDesc": true,
+      "showAxisLabels": true,
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "14 / 73"
+    }
+  },
+  {
+    "key": "theme13_page021",
+    "themeKey": "theme13",
+    "pageNumber": 21,
+    "layout": "THEME13-021",
+    "slot": "compare-theme02-031",
+    "label": "深蓝光环风 · 对比分析",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page031",
+    "moduleFamily": "comparison",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "imageCount",
+        "type": "number",
+        "label": "配图栏数",
+        "default": 2,
+        "min": 0,
+        "max": 2,
+        "step": 1,
+        "publicKey": "imageCount",
+        "desc": "带配图的对比栏数（0 = 纯文字对比）"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": false,
+        "publicKey": "focusEnabled",
+        "desc": "是否高亮其中一栏"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调栏",
+        "default": 1,
+        "min": 0,
+        "max": 1,
+        "step": 1,
+        "oneBased": true,
+        "publicKey": "focusIndex",
+        "desc": "被强调栏（A / B）"
+      },
+      {
+        "key": "showVs",
+        "type": "toggle",
+        "label": "中央 VS",
+        "default": true,
+        "publicKey": "showVs",
+        "desc": "显示/隐藏中央 VS 徽章"
+      },
+      {
+        "key": "showAttrs",
+        "type": "toggle",
+        "label": "属性标签",
+        "default": true,
+        "publicKey": "showAttrs",
+        "desc": "显示/隐藏每栏的属性标签"
+      },
+      {
+        "key": "showCaptions",
+        "type": "toggle",
+        "label": "图注",
+        "default": true,
+        "publicKey": "showCaptions",
+        "desc": "显示/隐藏图片说明"
+      },
+      {
+        "key": "showVerdict",
+        "type": "toggle",
+        "label": "结论",
+        "default": true,
+        "publicKey": "showVerdict",
+        "desc": "显示/隐藏底部结论"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "21 / 技术复盘",
+      "title": "科技汇报 · ",
+      "titleEm": "兑现驱动",
+      "sides": [
+        {
+          "label": "深蓝系统",
+          "tag": "技术团队可从影响观察科技汇",
+          "caption": "以技术节点",
+          "attrs": [
+            "巨额融资",
+            "估值领先",
+            "兑现待验证"
+          ]
+        },
+        {
+          "label": "路径验证",
+          "tag": "围绕技术复盘校准深蓝系统与",
+          "caption": "以光环结构",
+          "attrs": [
+            "收入确定",
+            "客户集中",
+            "卖铲子逻辑"
+          ]
+        }
+      ],
+      "verdict": "两条路径并非对立，而是节奏先后——资本正从“赌叙事”转向“看兑现”。",
+      "imageCount": 2,
+      "focusEnabled": false,
+      "focusIndex": 1,
+      "showVs": true,
+      "showAttrs": true,
+      "showVerdict": true,
+      "showCaptions": true,
+      "images": [],
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "30 / 73"
+    }
+  },
+  {
+    "key": "theme13_page022",
+    "themeKey": "theme13",
+    "pageNumber": 22,
+    "layout": "THEME13-022",
+    "slot": "dumbbell-theme02-054",
+    "label": "深蓝光环风 · 对比分析",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page054",
+    "moduleFamily": "comparison",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "sortBy",
+        "type": "enum",
+        "label": "排序方式",
+        "default": "to",
+        "options": [
+          {
+            "value": "none",
+            "label": "默认"
+          },
+          {
+            "value": "to",
+            "label": "终值"
+          },
+          {
+            "value": "delta",
+            "label": "增幅"
+          }
+        ],
+        "publicKey": "sortBy",
+        "desc": "行的排序依据"
+      },
+      {
+        "key": "rowCount",
+        "type": "number",
+        "label": "行数",
+        "default": 5,
+        "min": 2,
+        "step": 1,
+        "max": 5,
+        "publicKey": "rowCount",
+        "desc": "展示的对比行数量"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "是否高亮其中一行"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调项",
+        "default": 0,
+        "min": 0,
+        "step": 1,
+        "oneBased": true,
+        "max": 4,
+        "maxFromKey": "rowCount",
+        "publicKey": "focusIndex",
+        "desc": "被强调行的序号（按当前排序）"
+      },
+      {
+        "key": "showDelta",
+        "type": "toggle",
+        "label": "增幅标签",
+        "default": true,
+        "publicKey": "showDelta",
+        "desc": "显示/隐藏每行末尾的 Δ 增幅"
+      },
+      {
+        "key": "showLegend",
+        "type": "toggle",
+        "label": "图例",
+        "default": true,
+        "publicKey": "showLegend",
+        "desc": "显示/隐藏起止图例"
+      },
+      {
+        "key": "showAnnotation",
+        "type": "toggle",
+        "label": "解读文案",
+        "default": true,
+        "publicKey": "showAnnotation",
+        "desc": "显示/隐藏底部的趋势解读"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "22 / 技术复盘",
+      "title": "技术复盘 · 复",
+      "titleEm": "一年翻倍",
+      "data": [
+        {
+          "label": "光环结构",
+          "from": 210,
+          "to": 420
+        },
+        {
+          "label": "光环结构",
+          "from": 120,
+          "to": 245
+        },
+        {
+          "label": "深蓝系统",
+          "from": 95,
+          "to": 158
+        },
+        {
+          "label": "光环结",
+          "from": 60,
+          "to": 97
+        },
+        {
+          "label": "路径验证",
+          "from": 38,
+          "to": 50
+        }
+      ],
+      "rowCount": 5,
+      "valueSuffix": "亿",
+      "fromLabel": "2023",
+      "toLabel": "2024",
+      "sortBy": "to",
+      "focusEnabled": true,
+      "focusIndex": 0,
+      "showDelta": true,
+      "showLegend": true,
+      "showAnnotation": true,
+      "annotation": "通用大模型一年内融资规模翻倍并拉开身位，垂直应用与基础设施同步放量，资本向上游与头部赛道集中的趋势进一步强化。",
+      "sumLabel": "合计增长",
+      "annotationLabel": "趋势解读",
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "53 / 73"
+    }
+  },
+  {
+    "key": "theme13_page023",
+    "themeKey": "theme13",
+    "pageNumber": 23,
+    "layout": "THEME13-023",
+    "slot": "signature-luminous-roadmap-theme13-023",
+    "label": "深蓝光环风 · luminous-roadmap",
+    "sourceTheme": "theme13",
+    "sourcePageKey": "theme13_signature_luminous_roadmap",
+    "moduleFamily": "timeline",
+    "moduleOrigin": "owned",
+    "moduleStrategy": "new",
+    "archetypeId": "luminous-roadmap",
+    "evidenceMode": "observed",
+    "evidenceRefs": [
+      "slide-10",
+      "slide-18"
+    ],
+    "derivedFromRules": [],
+    "anchorModuleRefs": [],
+    "stylePrimitiveRefs": [],
+    "styleSignals": [
+      "胶囊节点沿水平轨道展开",
+      "每阶段使用蓝紫色块与细线连接",
+      "底部标签形成时间说明"
+    ],
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showSignatureSystem",
+        "label": "显示主题签名系统",
+        "type": "toggle",
+        "default": true,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "signature-system",
+            "ornament",
+            "page-marker"
+          ],
+          "minChangedRatio": 0.008,
+          "minRegions": 2
+        },
+        "publicKey": "showSignatureSystem"
+      },
+      {
+        "key": "density",
+        "label": "信息密度",
+        "type": "select",
+        "default": "balanced",
+        "options": [
+          {
+            "label": "紧凑",
+            "value": "compact"
+          },
+          {
+            "label": "平衡",
+            "value": "balanced"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-frame",
+            "spacing",
+            "type-scale"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "density"
+      },
+      {
+        "key": "timelineLayout",
+        "label": "路径结构",
+        "type": "select",
+        "default": "structured",
+        "options": [
+          {
+            "label": "结构化",
+            "value": "structured"
+          },
+          {
+            "label": "偏移强调",
+            "value": "offset"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-grid",
+            "reading-order",
+            "emphasis"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "timelineLayout"
+      }
+    ],
+    "defaultProps": {
+      "showSignatureSystem": true,
+      "density": "balanced",
+      "timelineLayout": "structured",
+      "pillars": [
+        "系统架构",
+        "能力节点",
+        "验证路径",
+        "规模部署"
+      ],
+      "summary": "让架构、节点和路径在同一深蓝系统中形成可验证、可扩展的技术闭环。",
+      "title": "技术系统演进的四阶段路径",
+      "stages": [
+        {
+          "title": "定义接口",
+          "body": "统一系统边界与约束"
+        },
+        {
+          "title": "验证节点",
+          "body": "完成关键能力测试"
+        },
+        {
+          "title": "编排系统",
+          "body": "连接数据与服务流程"
+        },
+        {
+          "title": "规模部署",
+          "body": "监测运行并持续优化"
+        }
+      ],
+      "dates": [
+        "Q1",
+        "Q2",
+        "Q3",
+        "Q4"
+      ]
+    }
+  },
+  {
+    "key": "theme13_page024",
+    "themeKey": "theme13",
+    "pageNumber": 24,
+    "layout": "THEME13-024",
+    "slot": "timeline-theme02-012",
+    "label": "深蓝光环风 · 时间与路径",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page012",
+    "moduleFamily": "timeline",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "itemCount",
+        "type": "number",
+        "label": "节点数量",
+        "default": 5,
+        "min": 3,
+        "max": 6,
+        "step": 1,
+        "publicKey": "itemCount",
+        "desc": "时间轴节点数量"
+      },
+      {
+        "key": "orientation",
+        "type": "enum",
+        "label": "轴向",
+        "default": "horizontal",
+        "options": [
+          {
+            "value": "horizontal",
+            "label": "横向"
+          },
+          {
+            "value": "vertical",
+            "label": "纵向"
+          }
+        ],
+        "publicKey": "orientation",
+        "desc": "时间轴排布方向"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "是否高亮某一节点"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调项",
+        "default": 3,
+        "min": 0,
+        "step": 1,
+        "oneBased": true,
+        "max": 5,
+        "publicKey": "focusIndex",
+        "desc": "被强调节点的序号"
+      },
+      {
+        "key": "showConnector",
+        "type": "toggle",
+        "label": "连接轴线",
+        "default": true,
+        "publicKey": "showConnector",
+        "desc": "显示/隐藏贯穿节点的轴线"
+      },
+      {
+        "key": "showMeta",
+        "type": "toggle",
+        "label": "描述文案",
+        "default": true,
+        "publicKey": "showMeta",
+        "desc": "显示/隐藏节点的补充描述"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "24 / 技术复盘",
+      "title": "产品发布 · 重构深蓝",
+      "titleEm": "前高后稳",
+      "items": [
+        {
+          "date": "2024 · Q1",
+          "tag": "证据光环",
+          "title": "技术复盘 · 验证",
+          "desc": "技术团队可从路径观察科技汇报，用"
+        },
+        {
+          "date": "2024 · 05",
+          "tag": "以深蓝系统校准产品",
+          "title": "技术复盘 · 量化路径验证",
+          "desc": "产品发布的关键不只是光环结构，还要持"
+        },
+        {
+          "date": "2024 · 08",
+          "tag": "节奏路径",
+          "title": "科技汇报 · 量化",
+          "desc": "以光环结构校准产品发布的反馈，"
+        },
+        {
+          "date": "2024 · 11",
+          "tag": "产品发布的关键",
+          "title": "科技汇报 · 追踪",
+          "desc": "科技汇报正在由光环结构走向深蓝系统，"
+        },
+        {
+          "date": "2024 · Q4",
+          "tag": "证据光环",
+          "title": "科技汇报 · 复盘光环",
+          "desc": "产品发布的关键不只是深蓝系统，还"
+        },
+        {
+          "date": "2025 · Q1",
+          "tag": "信号技术",
+          "title": "产品发布 · 验",
+          "desc": "产品发布的关键不只是光环结构，还要持续验证深蓝"
+        },
+        {
+          "date": "2025 · 05",
+          "tag": "路径路径验",
+          "title": "技术复盘 · 拆解深",
+          "desc": "技术团队可从路径观察科技汇报，用路径验证解"
+        },
+        {
+          "date": "2025 · Q3",
+          "tag": "样本深蓝",
+          "title": "产品发布 · 推进",
+          "desc": "产品发布的关键不只是路径验证，还要持续推进技术节"
+        },
+        {
+          "date": "2026 · Q1",
+          "tag": "反馈光环",
+          "title": "技术复盘 · 识别",
+          "desc": "从约束切入技术复盘，以光环结构追踪关键证据，为"
+        },
+        {
+          "date": "2026 · 06",
+          "tag": "节奏路",
+          "title": "技术团队可从影响观察科",
+          "desc": "从机会切入技术复盘，以深蓝系"
+        }
+      ],
+      "itemCount": 5,
+      "orientation": "horizontal",
+      "focusEnabled": true,
+      "focusIndex": 3,
+      "showConnector": true,
+      "showMeta": true,
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "11 / 73"
+    }
+  },
+  {
+    "key": "theme13_page025",
+    "themeKey": "theme13",
+    "pageNumber": 25,
+    "layout": "THEME13-025",
+    "slot": "roadmap-theme02-056",
+    "label": "深蓝光环风 · 时间与路径",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page056",
+    "moduleFamily": "timeline",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "phaseCount",
+        "type": "number",
+        "label": "阶段数量",
+        "default": 3,
+        "min": 2,
+        "step": 1,
+        "max": 3,
+        "publicKey": "phaseCount",
+        "desc": "路线图的阶段数量"
+      },
+      {
+        "key": "showRail",
+        "type": "toggle",
+        "label": "进度轨道",
+        "default": true,
+        "publicKey": "showRail",
+        "desc": "显示/隐藏底部的进度轨道与节点"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": false,
+        "publicKey": "focusEnabled",
+        "desc": "是否高亮其中一个阶段"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调项",
+        "default": 1,
+        "min": 0,
+        "step": 1,
+        "oneBased": true,
+        "max": 2,
+        "maxFromKey": "phaseCount",
+        "publicKey": "focusIndex",
+        "desc": "被强调阶段的序号"
+      },
+      {
+        "key": "showLead",
+        "type": "toggle",
+        "label": "引言",
+        "default": true,
+        "publicKey": "showLead",
+        "desc": "显示/隐藏标题下方的引言"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "25 / 技术复盘",
+      "title": "产品发布 · 校",
+      "titleEm": "三段节奏",
+      "lead": "技术复盘的关键不只是光环结构，还要持续复盘深蓝系统带来的证据反馈。",
+      "phases": [
+        {
+          "period": "2025 – 2026",
+          "title": "科技汇",
+          "desc": "以深蓝系统校准技术复盘的机会，再用路径验证检验结果能否持续。"
+        },
+        {
+          "period": "2026 – 2027",
+          "title": "科技汇",
+          "desc": "产品发布正在由技术节点走向光环结构，需要通过边界追踪现状、约"
+        },
+        {
+          "period": "2027 年后",
+          "title": "科技汇",
+          "desc": "以深蓝系统校准技术复盘的样本，再用路径验证检验结果能否持"
+        }
+      ],
+      "phaseCount": 3,
+      "focusEnabled": false,
+      "focusIndex": 1,
+      "showRail": true,
+      "showLead": true,
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "55 / 73"
+    }
+  },
+  {
+    "key": "theme13_page026",
+    "themeKey": "theme13",
+    "pageNumber": 26,
+    "layout": "THEME13-026",
+    "slot": "gantt-theme03-043",
+    "label": "深蓝光环风 · 时间与路径",
+    "sourceTheme": "theme03",
+    "sourcePageKey": "theme03_page043",
+    "moduleFamily": "timeline",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "forceDark",
+        "type": "toggle",
+        "label": "全局深色",
+        "default": true,
+        "publicKey": "forceDark",
+        "desc": "右上角深浅配色切换。"
+      },
+      {
+        "key": "accent",
+        "type": "select",
+        "label": "强调色",
+        "default": "#6c6fff",
+        "options": [
+          {
+            "value": "#6c6fff",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#3863ff",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#f7f9ff",
+            "label": "颜色 3"
+          }
+        ],
+        "publicKey": "accent",
+        "desc": "theme03 全局强调色，作用于该主题所有页面。"
+      },
+      {
+        "key": "showEyebrow",
+        "label": "装饰标签",
+        "type": "toggle",
+        "default": true,
+        "help": "顶部分类标签显示 / 隐藏",
+        "publicKey": "showEyebrow"
+      },
+      {
+        "key": "taskCount",
+        "label": "任务数量",
+        "type": "slider",
+        "default": 7,
+        "min": 3,
+        "max": 8,
+        "step": 1,
+        "help": "展示的投资执行任务行数",
+        "publicKey": "taskCount"
+      },
+      {
+        "key": "showGrid",
+        "label": "网格线",
+        "type": "toggle",
+        "default": true,
+        "help": "时间轴竖向网格线显示 / 隐藏",
+        "publicKey": "showGrid"
+      },
+      {
+        "key": "showProgress",
+        "label": "配置进度",
+        "type": "toggle",
+        "default": true,
+        "help": "任务条上的配置完成度填充显示 / 隐藏",
+        "publicKey": "showProgress"
+      },
+      {
+        "key": "showMilestones",
+        "label": "关键节点",
+        "type": "toggle",
+        "default": true,
+        "help": "里程碑菱形标记显示 / 隐藏",
+        "publicKey": "showMilestones"
+      },
+      {
+        "key": "showToday",
+        "label": "当前基准线",
+        "type": "toggle",
+        "default": true,
+        "help": "「当前」竖向基准线显示 / 隐藏",
+        "publicKey": "showToday"
+      },
+      {
+        "key": "showAnalysis",
+        "label": "节奏解读",
+        "type": "toggle",
+        "default": true,
+        "help": "底部关键路径 / 节奏解读条显示 / 隐藏",
+        "publicKey": "showAnalysis"
+      },
+      {
+        "key": "focusEnabled",
+        "label": "重点突出",
+        "type": "toggle",
+        "default": false,
+        "help": "高亮某一个任务条",
+        "publicKey": "focusEnabled"
+      },
+      {
+        "key": "focusIndex",
+        "label": "突出项",
+        "type": "slider",
+        "default": 2,
+        "min": 0,
+        "max": 6,
+        "step": 1,
+        "help": "被高亮的任务序号（自动随任务数量收敛）",
+        "publicKey": "focusIndex"
+      },
+      {
+        "key": "showDecor",
+        "label": "装饰图片",
+        "type": "toggle",
+        "default": false,
+        "help": "显示或隐藏页面上的装饰图片元素",
+        "publicKey": "showDecor"
+      },
+      {
+        "key": "decorSrc",
+        "label": "装饰元素",
+        "type": "icons",
+        "default": null,
+        "options": [
+          {
+            "value": "assets/3d/01.png",
+            "label": "胜利手势",
+            "image": "assets/3d/01.png"
+          },
+          {
+            "value": "assets/3d/02.png",
+            "label": "是 按键",
+            "image": "assets/3d/02.png"
+          },
+          {
+            "value": "assets/3d/03.png",
+            "label": "404 方块",
+            "image": "assets/3d/03.png"
+          },
+          {
+            "value": "assets/3d/04.png",
+            "label": "像素 幽灵",
+            "image": "assets/3d/04.png"
+          },
+          {
+            "value": "assets/3d/05.png",
+            "label": "是 气泡",
+            "image": "assets/3d/05.png"
+          },
+          {
+            "value": "assets/3d/06.png",
+            "label": "掌机图表",
+            "image": "assets/3d/06.png"
+          },
+          {
+            "value": "assets/3d/07.png",
+            "label": "像素显示器",
+            "image": "assets/3d/07.png"
+          },
+          {
+            "value": "assets/3d/08.png",
+            "label": "复古电脑",
+            "image": "assets/3d/08.png"
+          },
+          {
+            "value": "assets/3d/09.png",
+            "label": "拍立得",
+            "image": "assets/3d/09.png"
+          },
+          {
+            "value": "assets/3d/10.png",
+            "label": "奖杯",
+            "image": "assets/3d/10.png"
+          },
+          {
+            "value": "assets/3d/11.png",
+            "label": "文件夹",
+            "image": "assets/3d/11.png"
+          },
+          {
+            "value": "assets/3d/12.png",
+            "label": "番茄箱",
+            "image": "assets/3d/12.png"
+          }
+        ],
+        "help": "从 theme03 内置装饰元素中选择",
+        "publicKey": "decorSrc"
+      },
+      {
+        "key": "decorScale",
+        "label": "图片大小",
+        "type": "slider",
+        "default": 1,
+        "min": 0.6,
+        "max": 1.6,
+        "step": 0.05,
+        "help": "装饰图片的缩放比例",
+        "publicKey": "decorScale"
+      }
+    ],
+    "defaultProps": {
+      "showEyebrow": true,
+      "taskCount": 7,
+      "showGrid": true,
+      "showProgress": true,
+      "showMilestones": true,
+      "showToday": true,
+      "showAnalysis": true,
+      "focusEnabled": false,
+      "focusIndex": 2,
+      "theme": "light",
+      "copy": {
+        "t001": "执行模型 / GANTT",
+        "t002": "分阶段建仓 · 投资执行甘特",
+        "t003": "分阶段建仓路线图",
+        "t004": "赛道 · 窗口 · 配置进度 · 关键节点 — 把投资建议落到时间表",
+        "t005": "执行任务 / 负责",
+        "t006": "当前",
+        "t007": "研究 / 观察",
+        "t008": "建仓 / 布局",
+        "t009": "收获 / 再平衡",
+        "t010": "里程碑",
+        "t011": "↳ 解读",
+        "t012": "建仓节奏、“卖铲赢家”优先——基建 / 算力是当前关键路径，收入确定性高、可先行建仓； 大模型以头部集中、持续跟投，同时全程跳动“估值泡沫监测”；26 年下半年进入组合再平衡与收获窗口。"
+      },
+      "tasks": [
+        {
+          "name": "证据1",
+          "owner": "基建·算力",
+          "start": 0,
+          "end": 2.6,
+          "prog": 0.65,
+          "phase": 1,
+          "ms": 2.6
+        },
+        {
+          "name": "节奏2",
+          "owner": "通用模型",
+          "start": 0,
+          "end": 5,
+          "prog": 0.4,
+          "phase": 1
+        },
+        {
+          "name": "约束3",
+          "owner": "应用层",
+          "start": 1.6,
+          "end": 5.6,
+          "prog": 0.3,
+          "phase": 1,
+          "ms": 5.6
+        },
+        {
+          "name": "信号4",
+          "owner": "上游硬件",
+          "start": 1,
+          "end": 4,
+          "prog": 0.5,
+          "phase": 0
+        },
+        {
+          "name": "节奏5",
+          "owner": "风险控制",
+          "start": 0,
+          "end": 8,
+          "prog": 0.45,
+          "phase": 0
+        },
+        {
+          "name": "影响6",
+          "owner": "研究池",
+          "start": 2.2,
+          "end": 4.6,
+          "prog": 0.25,
+          "phase": 0
+        },
+        {
+          "name": "证据7",
+          "owner": "组合管理",
+          "start": 4.8,
+          "end": 6.8,
+          "prog": 0,
+          "phase": 2,
+          "ms": 6.8
+        },
+        {
+          "name": "边界8",
+          "owner": "组合管理",
+          "start": 6.4,
+          "end": 8,
+          "prog": 0,
+          "phase": 2
+        }
+      ],
+      "showDecor": false,
+      "decorSrc": null,
+      "decorScale": 1,
+      "forceDark": true,
+      "accent": "blue"
+    }
+  },
+  {
+    "key": "theme13_page027",
+    "themeKey": "theme13",
+    "pageNumber": 27,
+    "layout": "THEME13-027",
+    "slot": "journey-theme03-048",
+    "label": "深蓝光环风 · 信息结构",
+    "sourceTheme": "theme03",
+    "sourcePageKey": "theme03_page048",
+    "moduleFamily": "timeline",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "forceDark",
+        "type": "toggle",
+        "label": "全局深色",
+        "default": true,
+        "publicKey": "forceDark",
+        "desc": "右上角深浅配色切换。"
+      },
+      {
+        "key": "accent",
+        "type": "select",
+        "label": "强调色",
+        "default": "#6c6fff",
+        "options": [
+          {
+            "value": "#6c6fff",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#3863ff",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#f7f9ff",
+            "label": "颜色 3"
+          }
+        ],
+        "publicKey": "accent",
+        "desc": "theme03 全局强调色，作用于该主题所有页面。"
+      },
+      {
+        "key": "showEyebrow",
+        "label": "装饰标签",
+        "type": "toggle",
+        "default": true,
+        "help": "顶部分类标签显示 / 隐藏",
+        "publicKey": "showEyebrow"
+      },
+      {
+        "key": "stageCount",
+        "label": "阶段数量",
+        "type": "slider",
+        "default": 5,
+        "min": 3,
+        "max": 5,
+        "step": 1,
+        "help": "旅程阶段数量",
+        "publicKey": "stageCount"
+      },
+      {
+        "key": "showBehaviour",
+        "label": "行为",
+        "type": "toggle",
+        "default": true,
+        "help": "各阶段「行为」行显示 / 隐藏",
+        "publicKey": "showBehaviour"
+      },
+      {
+        "key": "showCurve",
+        "label": "情绪曲线",
+        "type": "toggle",
+        "default": true,
+        "help": "贯穿各阶段的情绪曲线显示 / 隐藏",
+        "publicKey": "showCurve"
+      },
+      {
+        "key": "showOpportunity",
+        "label": "机会点",
+        "type": "toggle",
+        "default": true,
+        "help": "各阶段「机会点」行显示 / 隐藏",
+        "publicKey": "showOpportunity"
+      },
+      {
+        "key": "focusEnabled",
+        "label": "重点突出",
+        "type": "toggle",
+        "default": false,
+        "help": "高亮某一个阶段",
+        "publicKey": "focusEnabled"
+      },
+      {
+        "key": "focusIndex",
+        "label": "突出项",
+        "type": "slider",
+        "default": 2,
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "help": "被高亮的阶段序号（自动随阶段数量收敛）",
+        "publicKey": "focusIndex"
+      },
+      {
+        "key": "showDecor",
+        "label": "装饰图片",
+        "type": "toggle",
+        "default": false,
+        "help": "显示或隐藏页面上的装饰图片元素",
+        "publicKey": "showDecor"
+      },
+      {
+        "key": "decorSrc",
+        "label": "装饰元素",
+        "type": "icons",
+        "default": null,
+        "options": [
+          {
+            "value": "assets/3d/01.png",
+            "label": "胜利手势",
+            "image": "assets/3d/01.png"
+          },
+          {
+            "value": "assets/3d/02.png",
+            "label": "是 按键",
+            "image": "assets/3d/02.png"
+          },
+          {
+            "value": "assets/3d/03.png",
+            "label": "404 方块",
+            "image": "assets/3d/03.png"
+          },
+          {
+            "value": "assets/3d/04.png",
+            "label": "像素 幽灵",
+            "image": "assets/3d/04.png"
+          },
+          {
+            "value": "assets/3d/05.png",
+            "label": "是 气泡",
+            "image": "assets/3d/05.png"
+          },
+          {
+            "value": "assets/3d/06.png",
+            "label": "掌机图表",
+            "image": "assets/3d/06.png"
+          },
+          {
+            "value": "assets/3d/07.png",
+            "label": "像素显示器",
+            "image": "assets/3d/07.png"
+          },
+          {
+            "value": "assets/3d/08.png",
+            "label": "复古电脑",
+            "image": "assets/3d/08.png"
+          },
+          {
+            "value": "assets/3d/09.png",
+            "label": "拍立得",
+            "image": "assets/3d/09.png"
+          },
+          {
+            "value": "assets/3d/10.png",
+            "label": "奖杯",
+            "image": "assets/3d/10.png"
+          },
+          {
+            "value": "assets/3d/11.png",
+            "label": "文件夹",
+            "image": "assets/3d/11.png"
+          },
+          {
+            "value": "assets/3d/12.png",
+            "label": "番茄箱",
+            "image": "assets/3d/12.png"
+          }
+        ],
+        "help": "从 theme03 内置装饰元素中选择",
+        "publicKey": "decorSrc"
+      },
+      {
+        "key": "decorScale",
+        "label": "图片大小",
+        "type": "slider",
+        "default": 1,
+        "min": 0.6,
+        "max": 1.6,
+        "step": 0.05,
+        "help": "装饰图片的缩放比例",
+        "publicKey": "decorScale"
+      }
+    ],
+    "defaultProps": {
+      "showEyebrow": true,
+      "stageCount": 5,
+      "showBehaviour": true,
+      "showCurve": true,
+      "showOpportunity": true,
+      "focusEnabled": false,
+      "focusIndex": 2,
+      "theme": "light",
+      "copy": {
+        "t001": "体验设计 / JOURNEY MAP",
+        "t002": "阶段 · 行为 · 情绪 · 机会",
+        "t003": "用户旅程地图",
+        "t004": "沿全旅程还原体验起伏，定位关键时刻与机会点",
+        "t005": "0",
+        "t006": "用户行为",
+        "t007": "情绪曲线 · 高 ↑ / 低 ↓",
+        "t008": "↳ 机会点"
+      },
+      "stages": [
+        {
+          "cn": "深蓝",
+          "en": "路径",
+          "behaviour": "广告 / 口碑触达，初次建立印象",
+          "score": 0.55,
+          "mood": "好奇",
+          "opp": "精准触达 · 内容种草"
+        },
+        {
+          "cn": "技术",
+          "en": "技术节点 ",
+          "behaviour": "横向比价、查评测，反复犹豫",
+          "score": 0.32,
+          "mood": "纠结",
+          "opp": "场景化案例 · 打消疑虑"
+        },
+        {
+          "cn": "路径",
+          "en": "技术节",
+          "behaviour": "注册下单 / 开通付费",
+          "score": 0.72,
+          "mood": "期待",
+          "opp": "简化流程 · 限时激励"
+        },
+        {
+          "cn": "深蓝",
+          "en": "技",
+          "behaviour": "上手体验，遇阻时求助客服",
+          "score": 0.48,
+          "mood": "考验",
+          "opp": "引导上手 · 主动关怀"
+        },
+        {
+          "cn": "技术",
+          "en": "光环结构 ",
+          "behaviour": "复购续费，主动推荐分享",
+          "score": 0.92,
+          "mood": "认同",
+          "opp": "会员体系 · 裂变激励"
+        }
+      ],
+      "showDecor": false,
+      "decorSrc": null,
+      "decorScale": 1,
+      "forceDark": true,
+      "accent": "blue"
+    }
+  },
+  {
+    "key": "theme13_page028",
+    "themeKey": "theme13",
+    "pageNumber": 28,
+    "layout": "THEME13-028",
+    "slot": "timeline-theme03-036",
+    "label": "深蓝光环风 · 时间与路径",
+    "sourceTheme": "theme03",
+    "sourcePageKey": "theme03_page036",
+    "moduleFamily": "timeline",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "forceDark",
+        "type": "toggle",
+        "label": "全局深色",
+        "default": true,
+        "publicKey": "forceDark",
+        "desc": "右上角深浅配色切换。"
+      },
+      {
+        "key": "accent",
+        "type": "select",
+        "label": "强调色",
+        "default": "#6c6fff",
+        "options": [
+          {
+            "value": "#6c6fff",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#3863ff",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#f7f9ff",
+            "label": "颜色 3"
+          }
+        ],
+        "publicKey": "accent",
+        "desc": "theme03 全局强调色，作用于该主题所有页面。"
+      },
+      {
+        "key": "showEyebrow",
+        "label": "装饰标签",
+        "type": "toggle",
+        "default": true,
+        "help": "顶部分类标签显示 / 隐藏",
+        "publicKey": "showEyebrow"
+      },
+      {
+        "key": "orientation",
+        "label": "排布方向",
+        "type": "select",
+        "default": "horizontal",
+        "options": [
+          {
+            "value": "horizontal",
+            "label": "横向"
+          },
+          {
+            "value": "vertical",
+            "label": "纵向"
+          }
+        ],
+        "help": "时间轴的排布方向",
+        "publicKey": "orientation"
+      },
+      {
+        "key": "itemCount",
+        "label": "阶段数量",
+        "type": "slider",
+        "default": 3,
+        "min": 1,
+        "max": 3,
+        "step": 1,
+        "help": "展示的阶段数量",
+        "publicKey": "itemCount"
+      },
+      {
+        "key": "showConnector",
+        "label": "连接轨道",
+        "type": "toggle",
+        "default": true,
+        "help": "阶段之间的连接轨道与箭头显示 / 隐藏",
+        "publicKey": "showConnector"
+      },
+      {
+        "key": "focusEnabled",
+        "label": "重点突出",
+        "type": "toggle",
+        "default": false,
+        "help": "弱化其它阶段以突出某一阶段",
+        "publicKey": "focusEnabled"
+      },
+      {
+        "key": "focusIndex",
+        "label": "突出项",
+        "type": "slider",
+        "default": 1,
+        "min": 0,
+        "max": 2,
+        "step": 1,
+        "help": "被突出的阶段序号（自动随阶段数量收敛）",
+        "publicKey": "focusIndex"
+      },
+      {
+        "key": "showMeta",
+        "label": "页脚说明",
+        "type": "toggle",
+        "default": true,
+        "help": "底部数据口径 / 状态提示显示 / 隐藏",
+        "publicKey": "showMeta"
+      },
+      {
+        "key": "showDecor",
+        "label": "装饰图片",
+        "type": "toggle",
+        "default": false,
+        "help": "显示或隐藏页面上的装饰图片元素",
+        "publicKey": "showDecor"
+      },
+      {
+        "key": "decorSrc",
+        "label": "装饰元素",
+        "type": "icons",
+        "default": null,
+        "options": [
+          {
+            "value": "assets/3d/01.png",
+            "label": "胜利手势",
+            "image": "assets/3d/01.png"
+          },
+          {
+            "value": "assets/3d/02.png",
+            "label": "是 按键",
+            "image": "assets/3d/02.png"
+          },
+          {
+            "value": "assets/3d/03.png",
+            "label": "404 方块",
+            "image": "assets/3d/03.png"
+          },
+          {
+            "value": "assets/3d/04.png",
+            "label": "像素 幽灵",
+            "image": "assets/3d/04.png"
+          },
+          {
+            "value": "assets/3d/05.png",
+            "label": "是 气泡",
+            "image": "assets/3d/05.png"
+          },
+          {
+            "value": "assets/3d/06.png",
+            "label": "掌机图表",
+            "image": "assets/3d/06.png"
+          },
+          {
+            "value": "assets/3d/07.png",
+            "label": "像素显示器",
+            "image": "assets/3d/07.png"
+          },
+          {
+            "value": "assets/3d/08.png",
+            "label": "复古电脑",
+            "image": "assets/3d/08.png"
+          },
+          {
+            "value": "assets/3d/09.png",
+            "label": "拍立得",
+            "image": "assets/3d/09.png"
+          },
+          {
+            "value": "assets/3d/10.png",
+            "label": "奖杯",
+            "image": "assets/3d/10.png"
+          },
+          {
+            "value": "assets/3d/11.png",
+            "label": "文件夹",
+            "image": "assets/3d/11.png"
+          },
+          {
+            "value": "assets/3d/12.png",
+            "label": "番茄箱",
+            "image": "assets/3d/12.png"
+          }
+        ],
+        "help": "从 theme03 内置装饰元素中选择",
+        "publicKey": "decorSrc"
+      },
+      {
+        "key": "decorScale",
+        "label": "图片大小",
+        "type": "slider",
+        "default": 1,
+        "min": 0.6,
+        "max": 1.6,
+        "step": 0.05,
+        "help": "装饰图片的缩放比例",
+        "publicKey": "decorScale"
+      }
+    ],
+    "defaultProps": {
+      "showEyebrow": true,
+      "orientation": "horizontal",
+      "itemCount": 3,
+      "showConnector": true,
+      "focusEnabled": false,
+      "focusIndex": 1,
+      "showMeta": true,
+      "copy": {
+        "t001": "投资展望 / 15",
+        "t002": "阶段性策略 · 2025 → 2027+",
+        "t003": "阶段性投资策略",
+        "t004": "路线图",
+        "t005": "策略为基于公开数据的研究推演 · 不构成投资建议"
+      },
+      "phases": [
+        {
+          "span": "2025 — 2026",
+          "tag": "约束光环",
+          "head": "观察 · 警惕回调",
+          "body": "产品负责人可从约束观察产品发布，用光环结构解释变化，并以深蓝系统推进响应。",
+          "cue": "触发：头部 IPO 破发"
+        },
+        {
+          "span": "2026 — 2027",
+          "tag": "样本深蓝",
+          "head": "聚焦兑现能力",
+          "body": "从信号切入科技汇报，以技术节点复盘关键证据，为产品负责人形成可执",
+          "cue": "信号：ARR 与续约率"
+        },
+        {
+          "span": "2027 年 后",
+          "tag": "节奏路径",
+          "head": "洗牌期 · 逢低布局",
+          "body": "技术团队可从反馈观察产品发布，用光环结构解释变化，并以深蓝系统推",
+          "cue": "窗口：行业洗牌期"
+        }
+      ],
+      "showDecor": false,
+      "decorSrc": null,
+      "decorScale": 1,
+      "forceDark": true,
+      "accent": "blue"
+    }
+  },
+  {
+    "key": "theme13_page029",
+    "themeKey": "theme13",
+    "pageNumber": 29,
+    "layout": "THEME13-029",
+    "slot": "signature-derived-ecosystem-relationship-theme13-029",
+    "label": "深蓝光环风 · derived-ecosystem-relationship",
+    "sourceTheme": "theme13",
+    "sourcePageKey": "theme13_derived_ecosystem_relationship",
+    "moduleFamily": "relationship",
+    "moduleOrigin": "owned",
+    "moduleStrategy": "new",
+    "archetypeId": "derived-ecosystem-relationship",
+    "evidenceMode": "inferred",
+    "evidenceRefs": [],
+    "derivedFromRules": [
+      "typography-01",
+      "composition-02",
+      "surface-01",
+      "motif-02",
+      "color-03"
+    ],
+    "anchorModuleRefs": [
+      "theme13_signature_luminous_roadmap",
+      "theme13_signature_cycle_arrow_comparison"
+    ],
+    "stylePrimitiveRefs": [
+      "node-arrow",
+      "luminous-pill"
+    ],
+    "derivationReason": "把模板的网格和节点符号扩展为关系网络；以 theme13_signature_luminous_roadmap、theme13_signature_cycle_arrow_comparison 为视觉锚点。",
+    "styleSignals": [
+      "中文标题使用轻量无衬线并保持高对比",
+      "信息结构沿水平主轴或中心环形展开",
+      "卡片使用蓝紫渐变和极小圆角",
+      "节点、箭头和胶囊轨道使用电光蓝描边",
+      "紫蓝渐变用于半透明光环"
+    ],
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showSignatureSystem",
+        "label": "显示主题签名系统",
+        "type": "toggle",
+        "default": true,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "signature-system",
+            "ornament",
+            "page-marker"
+          ],
+          "minChangedRatio": 0.008,
+          "minRegions": 2
+        },
+        "publicKey": "showSignatureSystem"
+      },
+      {
+        "key": "density",
+        "label": "信息密度",
+        "type": "select",
+        "default": "balanced",
+        "options": [
+          {
+            "label": "紧凑",
+            "value": "compact"
+          },
+          {
+            "label": "平衡",
+            "value": "balanced"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-frame",
+            "spacing",
+            "type-scale"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "density"
+      },
+      {
+        "key": "networkLayout",
+        "label": "关系结构",
+        "type": "select",
+        "default": "structured",
+        "options": [
+          {
+            "label": "结构化",
+            "value": "structured"
+          },
+          {
+            "label": "偏移强调",
+            "value": "offset"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-grid",
+            "reading-order",
+            "emphasis"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "networkLayout"
+      }
+    ],
+    "defaultProps": {
+      "showSignatureSystem": true,
+      "density": "balanced",
+      "networkLayout": "structured",
+      "pillars": [
+        "系统架构",
+        "能力节点",
+        "验证路径",
+        "规模部署"
+      ],
+      "summary": "让架构、节点和路径在同一深蓝系统中形成可验证、可扩展的技术闭环。",
+      "title": "技术系统演进的协作关系",
+      "center": "技术中枢",
+      "nodes": [
+        "数据入口",
+        "模型能力",
+        "服务编排",
+        "安全治理",
+        "产品体验",
+        "监测反馈"
+      ],
+      "links": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    }
+  },
+  {
+    "key": "theme13_page030",
+    "themeKey": "theme13",
+    "pageNumber": 30,
+    "layout": "THEME13-030",
+    "slot": "sankey-theme03-064",
+    "label": "深蓝光环风 · 信息结构",
+    "sourceTheme": "theme03",
+    "sourcePageKey": "theme03_page064",
+    "moduleFamily": "relationship",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "forceDark",
+        "type": "toggle",
+        "label": "全局深色",
+        "default": true,
+        "publicKey": "forceDark",
+        "desc": "右上角深浅配色切换。"
+      },
+      {
+        "key": "accent",
+        "type": "select",
+        "label": "强调色",
+        "default": "#6c6fff",
+        "options": [
+          {
+            "value": "#6c6fff",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#3863ff",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#f7f9ff",
+            "label": "颜色 3"
+          }
+        ],
+        "publicKey": "accent",
+        "desc": "theme03 全局强调色，作用于该主题所有页面。"
+      },
+      {
+        "key": "showEyebrow",
+        "label": "装饰标签",
+        "type": "toggle",
+        "default": true,
+        "help": "顶部分类标签显示 / 隐藏",
+        "publicKey": "showEyebrow"
+      },
+      {
+        "key": "showLayers",
+        "label": "产业链分层",
+        "type": "toggle",
+        "default": true,
+        "help": "右侧「上 / 中 / 下游」汇聚列显示 / 隐藏（关闭则仅看分类分流）",
+        "publicKey": "showLayers"
+      },
+      {
+        "key": "showValues",
+        "label": "数值标注",
+        "type": "toggle",
+        "default": true,
+        "help": "各节点数值 / 占比显示 / 隐藏",
+        "publicKey": "showValueLabels"
+      },
+      {
+        "key": "focusEnabled",
+        "label": "重点突出",
+        "type": "toggle",
+        "default": true,
+        "help": "高亮某一条分类流",
+        "publicKey": "focusEnabled"
+      },
+      {
+        "key": "focusIndex",
+        "label": "突出项",
+        "type": "slider",
+        "default": 0,
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "help": "被高亮的分类序号（0 = 通用大模型）",
+        "publicKey": "focusIndex"
+      },
+      {
+        "key": "showCallout",
+        "label": "趋势解读",
+        "type": "toggle",
+        "default": true,
+        "help": "底部流向解读显示 / 隐藏",
+        "publicKey": "showCallout"
+      },
+      {
+        "key": "showDecor",
+        "label": "装饰图片",
+        "type": "toggle",
+        "default": false,
+        "help": "显示或隐藏页面上的装饰图片元素",
+        "publicKey": "showDecor"
+      },
+      {
+        "key": "decorSrc",
+        "label": "装饰元素",
+        "type": "icons",
+        "default": null,
+        "options": [
+          {
+            "value": "assets/3d/01.png",
+            "label": "胜利手势",
+            "image": "assets/3d/01.png"
+          },
+          {
+            "value": "assets/3d/02.png",
+            "label": "是 按键",
+            "image": "assets/3d/02.png"
+          },
+          {
+            "value": "assets/3d/03.png",
+            "label": "404 方块",
+            "image": "assets/3d/03.png"
+          },
+          {
+            "value": "assets/3d/04.png",
+            "label": "像素 幽灵",
+            "image": "assets/3d/04.png"
+          },
+          {
+            "value": "assets/3d/05.png",
+            "label": "是 气泡",
+            "image": "assets/3d/05.png"
+          },
+          {
+            "value": "assets/3d/06.png",
+            "label": "掌机图表",
+            "image": "assets/3d/06.png"
+          },
+          {
+            "value": "assets/3d/07.png",
+            "label": "像素显示器",
+            "image": "assets/3d/07.png"
+          },
+          {
+            "value": "assets/3d/08.png",
+            "label": "复古电脑",
+            "image": "assets/3d/08.png"
+          },
+          {
+            "value": "assets/3d/09.png",
+            "label": "拍立得",
+            "image": "assets/3d/09.png"
+          },
+          {
+            "value": "assets/3d/10.png",
+            "label": "奖杯",
+            "image": "assets/3d/10.png"
+          },
+          {
+            "value": "assets/3d/11.png",
+            "label": "文件夹",
+            "image": "assets/3d/11.png"
+          },
+          {
+            "value": "assets/3d/12.png",
+            "label": "番茄箱",
+            "image": "assets/3d/12.png"
+          }
+        ],
+        "help": "从 theme03 内置装饰元素中选择",
+        "publicKey": "decorSrc"
+      },
+      {
+        "key": "decorScale",
+        "label": "图片大小",
+        "type": "slider",
+        "default": 1,
+        "min": 0.6,
+        "max": 1.6,
+        "step": 0.05,
+        "help": "装饰图片的缩放比例",
+        "publicKey": "decorScale"
+      }
+    ],
+    "defaultProps": {
+      "showEyebrow": true,
+      "showLayers": true,
+      "showValues": true,
+      "focusEnabled": true,
+      "focusIndex": 0,
+      "showCallout": true,
+      "theme": "light",
+      "eyebrow": "30 / 科技汇报",
+      "kicker": "30 / 产品发布",
+      "title": "科技汇报 · 追踪光",
+      "titleNote": "从总盘 → 五大赛道 → 产业链上 / 中 / 下游",
+      "captionTotal": "全年总额",
+      "captionSector": "证据光环",
+      "captionLayer": "产业链层级",
+      "totalValue": "970",
+      "totalUnit": "亿美元 · 100%",
+      "calloutLabel": "↳ 流向解读",
+      "calloutSegments": [
+        {
+          "t": "资金主流汇入"
+        },
+        {
+          "t": "中游模型层",
+          "b": true
+        },
+        {
+          "t": "（420 亿，43.3%）；上游基础设施 + 芯片合计 "
+        },
+        {
+          "t": "255 亿",
+          "b": true
+        },
+        {
+          "t": "（26.3%），\"卖铲子\"环节热度不减；下游应用层 295 亿承接落地需求——产业链三层均被重金押注，但确定性自上而下递减。"
+        }
+      ],
+      "total": 970,
+      "layers": [
+        {
+          "id": "up",
+          "name": "路径1"
+        },
+        {
+          "id": "mid",
+          "name": "现状2"
+        },
+        {
+          "id": "down",
+          "name": "机会3"
+        }
+      ],
+      "sectors": [
+        {
+          "name": "约束1",
+          "amt": 420,
+          "pct": "43.3%",
+          "layer": "mid"
+        },
+        {
+          "name": "趋势2",
+          "amt": 245,
+          "pct": "25.3%",
+          "layer": "down"
+        },
+        {
+          "name": "信号3",
+          "amt": 158,
+          "pct": "16.3%",
+          "layer": "up"
+        },
+        {
+          "name": "节奏4",
+          "amt": 97,
+          "pct": "10.0%",
+          "layer": "up"
+        },
+        {
+          "name": "趋势5",
+          "amt": 50,
+          "pct": "5.1%",
+          "layer": "down"
+        }
+      ],
+      "copy": {
+        "t001": "亿 ·",
+        "t002": "亿 ·"
+      },
+      "showDecor": false,
+      "decorSrc": null,
+      "decorScale": 1,
+      "forceDark": true,
+      "accent": "blue"
+    }
+  },
+  {
+    "key": "theme13_page031",
+    "themeKey": "theme13",
+    "pageNumber": 31,
+    "layout": "THEME13-031",
+    "slot": "treemap-theme03-061",
+    "label": "深蓝光环风 · 关系与网络",
+    "sourceTheme": "theme03",
+    "sourcePageKey": "theme03_page061",
+    "moduleFamily": "relationship",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "forceDark",
+        "type": "toggle",
+        "label": "全局深色",
+        "default": true,
+        "publicKey": "forceDark",
+        "desc": "右上角深浅配色切换。"
+      },
+      {
+        "key": "accent",
+        "type": "select",
+        "label": "强调色",
+        "default": "#6c6fff",
+        "options": [
+          {
+            "value": "#6c6fff",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#3863ff",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#f7f9ff",
+            "label": "颜色 3"
+          }
+        ],
+        "publicKey": "accent",
+        "desc": "theme03 全局强调色，作用于该主题所有页面。"
+      },
+      {
+        "key": "showEyebrow",
+        "label": "装饰标签",
+        "type": "toggle",
+        "default": true,
+        "help": "顶部分类标签显示 / 隐藏",
+        "publicKey": "showEyebrow"
+      },
+      {
+        "key": "showShare",
+        "label": "数值/占比",
+        "type": "toggle",
+        "default": true,
+        "help": "各分类数值与占比显示 / 隐藏",
+        "publicKey": "showValueLabels"
+      },
+      {
+        "key": "showCompanies",
+        "label": "代表公司",
+        "type": "toggle",
+        "default": true,
+        "help": "各分类代表对象标签显示 / 隐藏",
+        "publicKey": "showCompanies"
+      },
+      {
+        "key": "showCallout",
+        "label": "核心发现",
+        "type": "toggle",
+        "default": true,
+        "help": "底部资金版图解读显示 / 隐藏",
+        "publicKey": "showCallout"
+      },
+      {
+        "key": "focusEnabled",
+        "label": "重点突出",
+        "type": "toggle",
+        "default": false,
+        "help": "高亮某一分类块",
+        "publicKey": "focusEnabled"
+      },
+      {
+        "key": "focusIndex",
+        "label": "突出项",
+        "type": "slider",
+        "default": 0,
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "help": "被高亮的分类序号（0 = 通用大模型）",
+        "publicKey": "focusIndex"
+      },
+      {
+        "key": "showDecor",
+        "label": "装饰图片",
+        "type": "toggle",
+        "default": false,
+        "help": "显示或隐藏页面上的装饰图片元素",
+        "publicKey": "showDecor"
+      },
+      {
+        "key": "decorSrc",
+        "label": "装饰元素",
+        "type": "icons",
+        "default": null,
+        "options": [
+          {
+            "value": "assets/3d/01.png",
+            "label": "胜利手势",
+            "image": "assets/3d/01.png"
+          },
+          {
+            "value": "assets/3d/02.png",
+            "label": "是 按键",
+            "image": "assets/3d/02.png"
+          },
+          {
+            "value": "assets/3d/03.png",
+            "label": "404 方块",
+            "image": "assets/3d/03.png"
+          },
+          {
+            "value": "assets/3d/04.png",
+            "label": "像素 幽灵",
+            "image": "assets/3d/04.png"
+          },
+          {
+            "value": "assets/3d/05.png",
+            "label": "是 气泡",
+            "image": "assets/3d/05.png"
+          },
+          {
+            "value": "assets/3d/06.png",
+            "label": "掌机图表",
+            "image": "assets/3d/06.png"
+          },
+          {
+            "value": "assets/3d/07.png",
+            "label": "像素显示器",
+            "image": "assets/3d/07.png"
+          },
+          {
+            "value": "assets/3d/08.png",
+            "label": "复古电脑",
+            "image": "assets/3d/08.png"
+          },
+          {
+            "value": "assets/3d/09.png",
+            "label": "拍立得",
+            "image": "assets/3d/09.png"
+          },
+          {
+            "value": "assets/3d/10.png",
+            "label": "奖杯",
+            "image": "assets/3d/10.png"
+          },
+          {
+            "value": "assets/3d/11.png",
+            "label": "文件夹",
+            "image": "assets/3d/11.png"
+          },
+          {
+            "value": "assets/3d/12.png",
+            "label": "番茄箱",
+            "image": "assets/3d/12.png"
+          }
+        ],
+        "help": "从 theme03 内置装饰元素中选择",
+        "publicKey": "decorSrc"
+      },
+      {
+        "key": "decorScale",
+        "label": "图片大小",
+        "type": "slider",
+        "default": 1,
+        "min": 0.6,
+        "max": 1.6,
+        "step": 0.05,
+        "help": "装饰图片的缩放比例",
+        "publicKey": "decorScale"
+      }
+    ],
+    "defaultProps": {
+      "showEyebrow": true,
+      "showShare": true,
+      "showCompanies": true,
+      "showCallout": true,
+      "focusEnabled": false,
+      "focusIndex": 0,
+      "theme": "light",
+      "eyebrow": "31 / 技术复盘",
+      "kicker": "31 / 产品发布",
+      "title": "技术复盘 · ",
+      "titleNote": "块面积 ∝ 融资额 · 一眼看清资本去向",
+      "unit": "亿美元",
+      "calloutLabel": "↳ 核心发现",
+      "calloutBody": "通用大模型独占近半壁江山（420 亿 / 43.3%），反映投资人押注“AGI 叙事”；垂直应用紧随其后，显示市场已开始寻找商业化路径；基础设施与芯片合计超四分之一，产业链上游投资热度不减。",
+      "sectors": [
+        {
+          "cn": "技术节点",
+          "en": "路径验证 / 31",
+          "amt": 420,
+          "pct": "43.3%",
+          "firms": "产品发布正在由路径验证走向技"
+        },
+        {
+          "cn": "路径验证",
+          "en": "技术节点 / 3",
+          "amt": 245,
+          "pct": "25.3%",
+          "firms": "Glean · Perplexity · Harvey"
+        },
+        {
+          "cn": "深蓝系统",
+          "en": "深蓝系统 / 31",
+          "amt": 158,
+          "pct": "16.3%",
+          "firms": "技术复盘的关键不只是路径验证，还要"
+        },
+        {
+          "cn": "光环结",
+          "en": "路径验证 ",
+          "amt": 97,
+          "pct": "10.0%",
+          "firms": "GPU · 加速芯片"
+        },
+        {
+          "cn": "路径",
+          "en": "深蓝系统 / 31",
+          "amt": 50,
+          "pct": "5.1%",
+          "firms": "工具链 · 安全"
+        }
+      ],
+      "showDecor": false,
+      "decorSrc": null,
+      "decorScale": 1,
+      "forceDark": true,
+      "accent": "blue"
+    }
+  },
+  {
+    "key": "theme13_page032",
+    "themeKey": "theme13",
+    "pageNumber": 32,
+    "layout": "THEME13-032",
+    "slot": "mindmap-theme02-067",
+    "label": "深蓝光环风 · 关系与网络",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page067",
+    "moduleFamily": "relationship",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "branchCount",
+        "type": "number",
+        "label": "分支数量",
+        "default": 3,
+        "min": 2,
+        "max": 3,
+        "step": 1,
+        "publicKey": "branchCount",
+        "desc": "分支节点数量"
+      },
+      {
+        "key": "leafCount",
+        "type": "number",
+        "label": "叶子数量",
+        "default": 3,
+        "min": 1,
+        "max": 3,
+        "step": 1,
+        "publicKey": "leafCount",
+        "desc": "每个分支发散的叶子卡数量"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": false,
+        "publicKey": "focusEnabled",
+        "desc": "是否高亮某一分支及其叶子"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调项",
+        "default": 1,
+        "min": 0,
+        "step": 1,
+        "oneBased": true,
+        "max": 2,
+        "maxFromKey": "branchCount",
+        "publicKey": "focusIndex",
+        "desc": "被强调分支的序号"
+      },
+      {
+        "key": "showLeaves",
+        "type": "toggle",
+        "label": "叶子卡",
+        "default": true,
+        "publicKey": "showLeaves",
+        "desc": "显示/隐藏叶子卡"
+      },
+      {
+        "key": "showSub",
+        "type": "toggle",
+        "label": "分支副标题",
+        "default": true,
+        "publicKey": "showSub",
+        "desc": "分支副标题显隐"
+      },
+      {
+        "key": "showConnectors",
+        "type": "toggle",
+        "label": "连接线",
+        "default": true,
+        "publicKey": "showConnectors",
+        "desc": "层级连接线显隐"
+      },
+      {
+        "key": "coreFlow",
+        "type": "toggle",
+        "label": "中心流光",
+        "default": true,
+        "publicKey": "coreFlow",
+        "desc": "中心球体的荧光流动动效"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "32 / 产品发布",
+      "title": "产品发布 ",
+      "titleEm": "三维机会",
+      "index": "66 / 73",
+      "core": {
+        "label": "路径验证"
+      },
+      "branches": [
+        {
+          "label": "技术节点",
+          "sub": "产品发布 · ",
+          "leaves": [
+            {
+              "title": "科技汇报",
+              "desc": "以路径验证校准科技汇"
+            },
+            {
+              "title": "科技汇",
+              "desc": "围绕产品发布推进光"
+            },
+            {
+              "title": "产品发布",
+              "desc": "技术复盘正在由技术"
+            }
+          ]
+        },
+        {
+          "label": "技术节点",
+          "sub": "科技汇报 · 深蓝",
+          "leaves": [
+            {
+              "title": "产品发布",
+              "desc": "企业管理者可从证据"
+            },
+            {
+              "title": "技术复盘 ·",
+              "desc": "技术团队可从影响观"
+            },
+            {
+              "title": "产品发布 ·",
+              "desc": "科技汇报的关键不只是"
+            }
+          ]
+        },
+        {
+          "label": "深蓝系统",
+          "sub": "技术复盘 · ",
+          "leaves": [
+            {
+              "title": "产品发布 ·",
+              "desc": "技术复盘正在由深蓝系统"
+            },
+            {
+              "title": "技术复盘",
+              "desc": "科技汇报的关键不只"
+            },
+            {
+              "title": "技术复盘",
+              "desc": "围绕产品发布验证技术"
+            }
+          ]
+        }
+      ],
+      "branchCount": 3,
+      "leafCount": 3,
+      "focusEnabled": false,
+      "focusIndex": 1,
+      "showLeaves": true,
+      "showSub": true,
+      "showConnectors": true,
+      "coreFlow": true,
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1
+    }
+  },
+  {
+    "key": "theme13_page033",
+    "themeKey": "theme13",
+    "pageNumber": 33,
+    "layout": "THEME13-033",
+    "slot": "heatmap-theme02-009",
+    "label": "深蓝光环风 · 矩阵与分层",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page009",
+    "moduleFamily": "relationship",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "cellCount",
+        "type": "number",
+        "label": "单元格数量",
+        "default": 6,
+        "min": 3,
+        "step": 1,
+        "max": 6,
+        "publicKey": "cellCount",
+        "desc": "展示的时间单元数量"
+      },
+      {
+        "key": "columns",
+        "type": "number",
+        "label": "网格列数",
+        "default": 6,
+        "min": 2,
+        "max": 6,
+        "step": 1,
+        "publicKey": "columns",
+        "desc": "热力网格的列数，自动换行"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "是否高亮某一单元格"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调项",
+        "default": 7,
+        "min": 0,
+        "step": 1,
+        "oneBased": true,
+        "max": 5,
+        "publicKey": "focusIndex",
+        "desc": "被强调单元格的序号"
+      },
+      {
+        "key": "showValues",
+        "type": "toggle",
+        "label": "数值显示",
+        "default": true,
+        "publicKey": "showValueLabels",
+        "desc": "单元格内显示/隐藏数值"
+      },
+      {
+        "key": "showPeakTag",
+        "type": "toggle",
+        "label": "峰值标记",
+        "default": true,
+        "publicKey": "showPeakTag",
+        "desc": "自动标注最高值单元格"
+      },
+      {
+        "key": "showScale",
+        "type": "toggle",
+        "label": "强度图例",
+        "default": true,
+        "publicKey": "showScale",
+        "desc": "底部强度渐变图例显隐"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "33 / 产品发布",
+      "title": "产品发布 · 校",
+      "titleEm": "双峰浮现",
+      "cells": [
+        {
+          "label": "路",
+          "value": 45
+        },
+        {
+          "label": "技",
+          "value": 58
+        },
+        {
+          "label": "技",
+          "value": 59
+        },
+        {
+          "label": "光",
+          "value": 86
+        },
+        {
+          "label": "技",
+          "value": 105
+        },
+        {
+          "label": "技",
+          "value": 93
+        },
+        {
+          "label": "技",
+          "value": 92
+        },
+        {
+          "label": "深",
+          "value": 118
+        },
+        {
+          "label": "深",
+          "value": 108
+        },
+        {
+          "label": "深蓝",
+          "value": 73
+        },
+        {
+          "label": "光环",
+          "value": 81
+        },
+        {
+          "label": "技术",
+          "value": 52
+        }
+      ],
+      "cellCount": 6,
+      "columns": 6,
+      "valueUnit": "亿",
+      "focusEnabled": true,
+      "focusIndex": 4,
+      "showValues": true,
+      "showPeakTag": true,
+      "showScale": true,
+      "peakTagLabel": "机会",
+      "scaleLowLabel": "低",
+      "scaleHighPrefix": "高 · 单位 ",
+      "scaleHighSuffix": "美元",
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "08 / 73"
+    }
+  },
+  {
+    "key": "theme13_page034",
+    "themeKey": "theme13",
+    "pageNumber": 34,
+    "layout": "THEME13-034",
+    "slot": "sankey-theme02-019",
+    "label": "深蓝光环风 · 信息结构",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page019",
+    "moduleFamily": "relationship",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "sourceCount",
+        "type": "number",
+        "label": "来源数量",
+        "default": 5,
+        "min": 2,
+        "max": 5,
+        "step": 1,
+        "publicKey": "sourceCount",
+        "desc": "左列展示的来源数量"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "辉光强调某一来源（其丝带高亮、其余淡出）"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调项",
+        "default": 0,
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "oneBased": true,
+        "publicKey": "focusIndex",
+        "desc": "被强调来源的序号"
+      },
+      {
+        "key": "showValueLabels",
+        "type": "toggle",
+        "label": "数值标签",
+        "default": true,
+        "publicKey": "showValueLabels",
+        "desc": "来源数值 + 占比显隐"
+      },
+      {
+        "key": "showTargetMeta",
+        "type": "toggle",
+        "label": "目标说明",
+        "default": true,
+        "publicKey": "showTargetMeta",
+        "desc": "右列目标说明 + 流入合计显隐"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "34 / 技术复盘",
+      "title": "技术复盘 · ",
+      "titleEm": "流向了哪里",
+      "lead": "围绕科技汇报推进深蓝系统与路径验证，让影响判断建立在具体事实之上。",
+      "sources": [
+        {
+          "label": "路径验证",
+          "value": 420,
+          "to": 1,
+          "note": "产品负"
+        },
+        {
+          "label": "技术节点",
+          "value": 245,
+          "to": 2,
+          "note": "以技术节点"
+        },
+        {
+          "label": "光环结构",
+          "value": 158,
+          "to": 0,
+          "note": "产品发布正"
+        },
+        {
+          "label": "深蓝系",
+          "value": 97,
+          "to": 0,
+          "note": "产品负责"
+        },
+        {
+          "label": "技术节点",
+          "value": 50,
+          "to": 2,
+          "note": "企业管理者可"
+        }
+      ],
+      "targets": [
+        {
+          "label": "光环结构",
+          "sub": "技术节点"
+        },
+        {
+          "label": "深蓝系统",
+          "sub": "深蓝系统"
+        },
+        {
+          "label": "技术节点",
+          "sub": "产品发布 · 深蓝系"
+        }
+      ],
+      "unit": "亿美元",
+      "sourceCount": 5,
+      "focusEnabled": true,
+      "focusIndex": 0,
+      "showValueLabels": true,
+      "showTargetMeta": true,
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "18 / 73"
+    }
+  },
+  {
+    "key": "theme13_page035",
+    "themeKey": "theme13",
+    "pageNumber": 35,
+    "layout": "THEME13-035",
+    "slot": "signature-derived-composition-breakdown-theme13-035",
+    "label": "深蓝光环风 · derived-composition-breakdown",
+    "sourceTheme": "theme13",
+    "sourcePageKey": "theme13_derived_composition_breakdown",
+    "moduleFamily": "distribution",
+    "moduleOrigin": "owned",
+    "moduleStrategy": "new",
+    "archetypeId": "derived-composition-breakdown",
+    "evidenceMode": "inferred",
+    "evidenceRefs": [],
+    "derivedFromRules": [
+      "typography-02",
+      "composition-01",
+      "surface-02",
+      "motif-01",
+      "color-02"
+    ],
+    "anchorModuleRefs": [
+      "theme13_signature_gradient_peak_metrics",
+      "theme13_signature_cycle_arrow_comparison"
+    ],
+    "stylePrimitiveRefs": [
+      "wave-floor",
+      "node-arrow"
+    ],
+    "derivationReason": "把模板的表面和色阶扩展为构成分析；以 theme13_signature_gradient_peak_metrics、theme13_signature_cycle_arrow_comparison 为视觉锚点。",
+    "styleSignals": [
+      "大号章节数字与小号英文注释构成科技层级",
+      "上下边缘以半透明圆环和波形压住画布",
+      "正文区域保持深色无边框以突出发光结构",
+      "重叠的半透明光环从四角进入",
+      "电光蓝用于图表、箭头和图标"
+    ],
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showSignatureSystem",
+        "label": "显示主题签名系统",
+        "type": "toggle",
+        "default": true,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "signature-system",
+            "ornament",
+            "page-marker"
+          ],
+          "minChangedRatio": 0.008,
+          "minRegions": 2
+        },
+        "publicKey": "showSignatureSystem"
+      },
+      {
+        "key": "density",
+        "label": "信息密度",
+        "type": "select",
+        "default": "balanced",
+        "options": [
+          {
+            "label": "紧凑",
+            "value": "compact"
+          },
+          {
+            "label": "平衡",
+            "value": "balanced"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-frame",
+            "spacing",
+            "type-scale"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "density"
+      },
+      {
+        "key": "distributionLayout",
+        "label": "构成结构",
+        "type": "select",
+        "default": "structured",
+        "options": [
+          {
+            "label": "结构化",
+            "value": "structured"
+          },
+          {
+            "label": "偏移强调",
+            "value": "offset"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-grid",
+            "reading-order",
+            "emphasis"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "distributionLayout"
+      }
+    ],
+    "defaultProps": {
+      "showSignatureSystem": true,
+      "density": "balanced",
+      "distributionLayout": "structured",
+      "pillars": [
+        "系统架构",
+        "能力节点",
+        "验证路径",
+        "规模部署"
+      ],
+      "summary": "让架构、节点和路径在同一深蓝系统中形成可验证、可扩展的技术闭环。",
+      "title": "技术系统演进的构成拆解",
+      "segments": [
+        {
+          "label": "计算层",
+          "value": 34
+        },
+        {
+          "label": "数据层",
+          "value": 28
+        },
+        {
+          "label": "应用层",
+          "value": 24
+        },
+        {
+          "label": "治理层",
+          "value": 14
+        }
+      ]
+    }
+  },
+  {
+    "key": "theme13_page036",
+    "themeKey": "theme13",
+    "pageNumber": 36,
+    "layout": "THEME13-036",
+    "slot": "stack-theme05-072",
+    "label": "深蓝光环风 · 构成与分布",
+    "sourceTheme": "theme05",
+    "sourcePageKey": "theme05_page072",
+    "moduleFamily": "distribution",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "tierCount",
+        "type": "slider",
+        "label": "架构层数",
+        "default": 4,
+        "min": 2,
+        "max": 4,
+        "step": 1,
+        "publicKey": "tierCount",
+        "desc": "平台架构的层级（tier）数量。"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "突出层",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "是否突出某一层（作为「AI 延展层」以强调色着色）。"
+      },
+      {
+        "key": "focusIndex",
+        "type": "slider",
+        "label": "突出层序号",
+        "default": 2,
+        "min": 1,
+        "max": 4,
+        "step": 1,
+        "publicKey": "focusIndex",
+        "desc": "被突出的层序号（自顶向下，从 1 起）。"
+      },
+      {
+        "key": "showItems",
+        "type": "toggle",
+        "label": "能力标签",
+        "default": true,
+        "publicKey": "showItems",
+        "desc": "各层右侧的能力 chip 标签。"
+      },
+      {
+        "key": "showExpand",
+        "type": "toggle",
+        "label": "扩张读数",
+        "default": true,
+        "publicKey": "showExpand",
+        "desc": "架构带顶部的净收入留存扩张读数。"
+      },
+      {
+        "key": "cardTheme",
+        "type": "radio",
+        "label": "主体卡主题",
+        "default": "dark",
+        "options": [
+          {
+            "value": "dark",
+            "label": "深色"
+          },
+          {
+            "value": "color",
+            "label": "色块"
+          },
+          {
+            "value": "paper",
+            "label": "纸色"
+          }
+        ],
+        "publicKey": "cardTheme",
+        "desc": "主体卡背景：深色 / 强调色块 / 纸色。"
+      },
+      {
+        "key": "metricCount",
+        "type": "slider",
+        "label": "明细行数",
+        "default": 4,
+        "min": 2,
+        "max": 4,
+        "step": 1,
+        "publicKey": "metricCount",
+        "desc": "主体卡内的指标明细行数。"
+      },
+      {
+        "key": "showLead",
+        "type": "toggle",
+        "label": "引导说明",
+        "default": true,
+        "publicKey": "showLead",
+        "desc": "标题下方的一句引导说明。"
+      },
+      {
+        "key": "accentColor",
+        "type": "color",
+        "label": "强调色",
+        "default": "#6c6fff",
+        "options": [
+          {
+            "value": "#6c6fff",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#3863ff",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#f7f9ff",
+            "label": "颜色 3"
+          }
+        ],
+        "publicKey": "accentColor",
+        "desc": "眉标 / 延展层 /「色块」主题下主体卡的颜色。"
+      },
+      {
+        "key": "showConclusion",
+        "type": "toggle",
+        "label": "结论文案",
+        "default": true,
+        "publicKey": "showConclusion",
+        "desc": "底部的一句装饰性结论。"
+      },
+      {
+        "key": "showSheetLabel",
+        "type": "toggle",
+        "label": "页码标签",
+        "default": true,
+        "publicKey": "showSheetLabel",
+        "desc": "右上角的页码 / 章节标签。"
+      }
+    ],
+    "defaultProps": {
+      "tierCount": 4,
+      "focusEnabled": true,
+      "focusIndex": 2,
+      "showItems": true,
+      "showExpand": true,
+      "cardTheme": "dark",
+      "metricCount": 4,
+      "showLead": true,
+      "accentColor": "#6c6fff",
+      "showConclusion": true,
+      "showSheetLabel": true,
+      "copy": {
+        "eyebrow": "技术团队可从路径",
+        "title": "技术复盘 · ",
+        "sheet": "CASE · 68 / 80",
+        "en": "技术团队可",
+        "zh": "数据平台 → AI 平台",
+        "sub": "从证据切入技术",
+        "lead": "以路径验证校准产品发布的节奏，再用技术节点检验结果能否持续。",
+        "ledger": [
+          [
+            "最大单笔融资",
+            "5.0",
+            "亿美元"
+          ],
+          [
+            "企业客户",
+            "1.1",
+            "万家"
+          ],
+          [
+            "净收入留存",
+            "132",
+            "%"
+          ],
+          [
+            "赛道",
+            "数据平台",
+            ""
+          ]
+        ],
+        "stackCap": "平台架构",
+        "stackUnit": "DATA → AI EXTENSION",
+        "tiers": [
+          {
+            "zh": "智能应用",
+            "en": "路径验",
+            "items": [
+              "助手",
+              "检索增强",
+              "智能决策"
+            ]
+          },
+          {
+            "zh": "ML / AI 平台",
+            "en": "路径验证 / 3",
+            "items": [
+              "模型训练",
+              "特征工程",
+              "MLOps"
+            ]
+          },
+          {
+            "zh": "计算引擎",
+            "en": "深蓝系",
+            "items": [
+              "Spark",
+              "SQL 引擎",
+              "流批一体"
+            ]
+          },
+          {
+            "zh": "数据湖仓",
+            "en": "深蓝系统 /",
+            "items": [
+              "统一存储",
+              "数据治理",
+              "开放表格式"
+            ]
+          }
+        ],
+        "expandK": "净收入留存",
+        "expandNote": "存量客户向 AI 层扩张",
+        "conclusion": "存量客户基础是 AI 商业化捷径。"
+      }
+    }
+  },
+  {
+    "key": "theme13_page037",
+    "themeKey": "theme13",
+    "pageNumber": 37,
+    "layout": "THEME13-037",
+    "slot": "mekko-theme05-090",
+    "label": "深蓝光环风 · 矩阵与分层",
+    "sourceTheme": "theme05",
+    "sourcePageKey": "theme05_page090",
+    "moduleFamily": "distribution",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "colCount",
+        "type": "slider",
+        "label": "列数量",
+        "default": 4,
+        "min": 2,
+        "max": 5,
+        "step": 1,
+        "publicKey": "colCount",
+        "desc": "变宽列的数量（2–5）。列宽按各列体量自动分配。"
+      },
+      {
+        "key": "segmentCount",
+        "type": "slider",
+        "label": "分段数量",
+        "default": 4,
+        "min": 2,
+        "max": 4,
+        "step": 1,
+        "publicKey": "segmentCount",
+        "desc": "每列内堆叠分段的数量（2–4）。列高按所选分段求和归一。"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点列",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "是否突出某一列（其余列淡出）。"
+      },
+      {
+        "key": "focusIndex",
+        "type": "slider",
+        "label": "重点序号",
+        "default": 1,
+        "min": 1,
+        "max": 5,
+        "step": 1,
+        "publicKey": "focusIndex",
+        "desc": "重点列序号（按当前列顺序）。"
+      },
+      {
+        "key": "showSegValue",
+        "type": "toggle",
+        "label": "分段占比",
+        "default": true,
+        "publicKey": "showSegValue",
+        "desc": "足够高的分段内显示其列内占比 %。"
+      },
+      {
+        "key": "showColTotal",
+        "type": "toggle",
+        "label": "列体量标注",
+        "default": true,
+        "publicKey": "showValueLabels",
+        "desc": "各列下方的体量数值与整体占比。"
+      },
+      {
+        "key": "showLegend",
+        "type": "toggle",
+        "label": "分段图例",
+        "default": true,
+        "publicKey": "showLegend",
+        "desc": "顶部的分段类别图例。"
+      },
+      {
+        "key": "accentColor",
+        "type": "color",
+        "label": "强调色",
+        "default": "#6c6fff",
+        "options": [
+          {
+            "value": "#6c6fff",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#3863ff",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#f7f9ff",
+            "label": "颜色 3"
+          }
+        ],
+        "publicKey": "accentColor",
+        "desc": "眉标 / 重点列标记强调色。"
+      },
+      {
+        "key": "showConclusion",
+        "type": "toggle",
+        "label": "结论文案",
+        "default": true,
+        "publicKey": "showConclusion",
+        "desc": "底部的一句装饰性结论。"
+      },
+      {
+        "key": "showSheetLabel",
+        "type": "toggle",
+        "label": "页码标签",
+        "default": true,
+        "publicKey": "showSheetLabel",
+        "desc": "右上角的页码 / 章节标签。"
+      }
+    ],
+    "defaultProps": {
+      "colCount": 4,
+      "segmentCount": 4,
+      "focusEnabled": true,
+      "focusIndex": 1,
+      "showSegValue": true,
+      "showColTotal": true,
+      "showLegend": true,
+      "accentColor": "#6c6fff",
+      "showConclusion": true,
+      "showSheetLabel": true,
+      "copy": {
+        "eyebrow": "37 / 产品发布",
+        "title": "科技汇报 · 识别技术",
+        "sheet": "CHART · 88 / 90",
+        "intro": "以技术节点校准技术复盘的边界，再用光环结构检验结果能否持续。",
+        "unit": "亿美元",
+        "segs": [
+          {
+            "name": "信号"
+          },
+          {
+            "name": "现状2"
+          },
+          {
+            "name": "边界"
+          },
+          {
+            "name": "样本4"
+          }
+        ],
+        "cols": [
+          {
+            "name": "现状1",
+            "en": "深蓝",
+            "total": 182,
+            "parts": [
+              28,
+              64,
+              70,
+              20
+            ]
+          },
+          {
+            "name": "路径2",
+            "en": "技术",
+            "total": 121,
+            "parts": [
+              52,
+              44,
+              18,
+              7
+            ]
+          },
+          {
+            "name": "边界3",
+            "en": "技术节",
+            "total": 110,
+            "parts": [
+              16,
+              38,
+              40,
+              16
+            ]
+          },
+          {
+            "name": "样本4",
+            "en": "技术节点 / ",
+            "total": 64,
+            "parts": [
+              22,
+              26,
+              12,
+              4
+            ]
+          },
+          {
+            "name": "反馈5",
+            "en": "光环结",
+            "total": 47,
+            "parts": [
+              20,
+              17,
+              8,
+              2
+            ]
+          }
+        ],
+        "conclusion": "基础设施不仅最大，且资金集中在后期 —— 兑现压力最高。"
+      }
+    }
+  },
+  {
+    "key": "theme13_page038",
+    "themeKey": "theme13",
+    "pageNumber": 38,
+    "layout": "THEME13-038",
+    "slot": "gateway-theme05-071",
+    "label": "深蓝光环风 · 信息结构",
+    "sourceTheme": "theme05",
+    "sourcePageKey": "theme05_page071",
+    "moduleFamily": "distribution",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "imageCount",
+        "type": "slider",
+        "label": "图片槽数量",
+        "default": 1,
+        "min": 0,
+        "max": 2,
+        "step": 1,
+        "publicKey": "imageCount",
+        "desc": "图片槽数量（0–2），按各图比例自适应排布；为 0 时主体卡铺满整幅、指标转两列。"
+      },
+      {
+        "key": "imageSide",
+        "type": "radio",
+        "label": "图片位置",
+        "default": "right",
+        "options": [
+          {
+            "value": "right",
+            "label": "右侧"
+          },
+          {
+            "value": "left",
+            "label": "左侧"
+          }
+        ],
+        "publicKey": "imageSide",
+        "desc": "图片相对主体卡的位置（有图片时生效）。"
+      },
+      {
+        "key": "metricCount",
+        "type": "slider",
+        "label": "指标行数",
+        "default": 3,
+        "min": 2,
+        "max": 3,
+        "step": 1,
+        "publicKey": "metricCount",
+        "desc": "主体卡内的指标行数。"
+      },
+      {
+        "key": "cardTheme",
+        "type": "radio",
+        "label": "主体卡主题",
+        "default": "color",
+        "options": [
+          {
+            "value": "color",
+            "label": "色块"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          },
+          {
+            "value": "paper",
+            "label": "纸色"
+          }
+        ],
+        "publicKey": "cardTheme",
+        "desc": "主体卡背景：强调色块 / 深色 / 纸色。"
+      },
+      {
+        "key": "showLadder",
+        "type": "toggle",
+        "label": "转化漏斗",
+        "default": true,
+        "publicKey": "showLadder",
+        "desc": "底部用户漏斗 / 转化阶梯带（关闭则隐藏整条）。"
+      },
+      {
+        "key": "stepCount",
+        "type": "slider",
+        "label": "漏斗层数",
+        "default": 3,
+        "min": 2,
+        "max": 3,
+        "step": 1,
+        "publicKey": "stepCount",
+        "desc": "转化阶梯的层级（阶段）数量。"
+      },
+      {
+        "key": "showRate",
+        "type": "toggle",
+        "label": "转化率标注",
+        "default": true,
+        "publicKey": "showRate",
+        "desc": "相邻层之间的转化率百分比标注。"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点层",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "是否突出某一层（其余淡出）。"
+      },
+      {
+        "key": "focusIndex",
+        "type": "slider",
+        "label": "重点层序号",
+        "default": 3,
+        "min": 1,
+        "max": 3,
+        "step": 1,
+        "publicKey": "focusIndex",
+        "desc": "被突出的层序号（从 1 起）。"
+      },
+      {
+        "key": "showLead",
+        "type": "toggle",
+        "label": "引导说明",
+        "default": true,
+        "publicKey": "showLead",
+        "desc": "标题下方的一句引导说明。"
+      },
+      {
+        "key": "showGalleryCaption",
+        "type": "toggle",
+        "label": "图注",
+        "default": true,
+        "publicKey": "showGalleryCaption",
+        "desc": "图片区上方的装饰性图注。"
+      },
+      {
+        "key": "accentColor",
+        "type": "color",
+        "label": "强调色",
+        "default": "#6c6fff",
+        "options": [
+          {
+            "value": "#6c6fff",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#3863ff",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#f7f9ff",
+            "label": "颜色 3"
+          }
+        ],
+        "publicKey": "accentColor",
+        "desc": "眉标 / 漏斗终点 /「色块」主题下主体卡的颜色。"
+      },
+      {
+        "key": "showConclusion",
+        "type": "toggle",
+        "label": "结论文案",
+        "default": true,
+        "publicKey": "showConclusion",
+        "desc": "底部的一句装饰性结论。"
+      },
+      {
+        "key": "showSheetLabel",
+        "type": "toggle",
+        "label": "页码标签",
+        "default": true,
+        "publicKey": "showSheetLabel",
+        "desc": "右上角的页码 / 章节标签。"
+      }
+    ],
+    "defaultProps": {
+      "imageCount": 1,
+      "imageSide": "right",
+      "metricCount": 3,
+      "cardTheme": "color",
+      "showLadder": true,
+      "stepCount": 3,
+      "showRate": true,
+      "focusEnabled": true,
+      "focusIndex": 3,
+      "showLead": true,
+      "showGalleryCaption": true,
+      "accentColor": "#6c6fff",
+      "showConclusion": true,
+      "showSheetLabel": true,
+      "images": [],
+      "copy": {
+        "eyebrow": "38 / 产品发布",
+        "title": "科技汇报 · ",
+        "sheet": "CASE · 67 / 80",
+        "en": "深蓝系统 / ",
+        "zh": "答案引擎 · 信息入口",
+        "sub": "技术复盘 · 深蓝系统",
+        "lead": "从约束切入产品发布，以光环结构比较关键证据，为产品负责人形成可执行的下一",
+        "kpis": [
+          [
+            "最大单笔融资",
+            "5.2",
+            "亿美元"
+          ],
+          [
+            "月活用户",
+            "4800",
+            "万"
+          ],
+          [
+            "赛道",
+            "AI 搜索",
+            ""
+          ]
+        ],
+        "galleryCap": "案例主视觉",
+        "galleryUnit": "DROP IMAGES",
+        "ladderCap": "用户漏斗",
+        "ladderUnit": "REACH → SUBSCRIBER",
+        "ladder": [
+          {
+            "k": "月活用户",
+            "en": "路径验证 / 38",
+            "v": "4800",
+            "unit": "万",
+            "w": 100
+          },
+          {
+            "k": "活跃互动",
+            "en": "技术节",
+            "v": "1800",
+            "unit": "万",
+            "w": 56,
+            "rate": "37.5%"
+          },
+          {
+            "k": "付费订阅",
+            "en": "技术节点 / ",
+            "v": "278",
+            "unit": "万",
+            "w": 18,
+            "rate": "5.8%"
+          }
+        ],
+        "conclusion": "新入口要用留存证明价值。"
+      }
+    }
+  },
+  {
+    "key": "theme13_page039",
+    "themeKey": "theme13",
+    "pageNumber": 39,
+    "layout": "THEME13-039",
+    "slot": "funnel-theme05-049",
+    "label": "深蓝光环风 · 构成与分布",
+    "sourceTheme": "theme05",
+    "sourcePageKey": "theme05_page049",
+    "moduleFamily": "distribution",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "tierCount",
+        "type": "slider",
+        "label": "漏斗层数",
+        "default": 4,
+        "min": 2,
+        "max": 4,
+        "step": 1,
+        "publicKey": "tierCount",
+        "desc": "漏斗的层级（阶段）数量。"
+      },
+      {
+        "key": "imageCount",
+        "type": "slider",
+        "label": "图片槽数量",
+        "default": 1,
+        "min": 0,
+        "max": 3,
+        "step": 1,
+        "publicKey": "imageCount",
+        "desc": "图片槽数量（0–3）；按各图比例自适应。为 0 时漏斗铺满整幅。"
+      },
+      {
+        "key": "imageSide",
+        "type": "radio",
+        "label": "图片位置",
+        "default": "right",
+        "options": [
+          {
+            "value": "left",
+            "label": "左侧"
+          },
+          {
+            "value": "right",
+            "label": "右侧"
+          }
+        ],
+        "publicKey": "imageSide",
+        "desc": "图片相对漏斗的位置（有图片时生效）。"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点层",
+        "default": false,
+        "publicKey": "focusEnabled",
+        "desc": "是否突出某一漏斗层（其余淡出）。"
+      },
+      {
+        "key": "focusIndex",
+        "type": "slider",
+        "label": "重点层序号",
+        "default": 1,
+        "min": 1,
+        "max": 4,
+        "step": 1,
+        "publicKey": "focusIndex",
+        "desc": "被突出的漏斗层序号（从 1 起）。"
+      },
+      {
+        "key": "showValue",
+        "type": "toggle",
+        "label": "层数值",
+        "default": true,
+        "publicKey": "showValueLabels",
+        "desc": "各层右侧的数值标注。"
+      },
+      {
+        "key": "showMetrics",
+        "type": "toggle",
+        "label": "指标对",
+        "default": true,
+        "publicKey": "showMetrics",
+        "desc": "引导文案右侧的一对关键指标。"
+      },
+      {
+        "key": "showLead",
+        "type": "toggle",
+        "label": "引导文案",
+        "default": true,
+        "publicKey": "showLead",
+        "desc": "标题下方的一段引导说明。"
+      },
+      {
+        "key": "showGalleryCaption",
+        "type": "toggle",
+        "label": "图注",
+        "default": true,
+        "publicKey": "showGalleryCaption",
+        "desc": "图片区上方的装饰性图注。"
+      },
+      {
+        "key": "accentColor",
+        "type": "color",
+        "label": "强调色",
+        "default": "#6c6fff",
+        "options": [
+          {
+            "value": "#6c6fff",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#3863ff",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#f7f9ff",
+            "label": "颜色 3"
+          }
+        ],
+        "publicKey": "accentColor",
+        "desc": "眉标 / 指标 / 重点层的强调色。"
+      },
+      {
+        "key": "showConclusion",
+        "type": "toggle",
+        "label": "结论文案",
+        "default": true,
+        "publicKey": "showConclusion",
+        "desc": "底部的一句装饰性结论。"
+      },
+      {
+        "key": "showSheetLabel",
+        "type": "toggle",
+        "label": "页码标签",
+        "default": true,
+        "publicKey": "showSheetLabel",
+        "desc": "右上角的页码 / 章节标签。"
+      }
+    ],
+    "defaultProps": {
+      "tierCount": 4,
+      "imageCount": 1,
+      "imageSide": "right",
+      "focusEnabled": false,
+      "focusIndex": 1,
+      "showValue": true,
+      "showMetrics": true,
+      "showLead": true,
+      "showGalleryCaption": true,
+      "accentColor": "#6c6fff",
+      "showConclusion": true,
+      "showSheetLabel": true,
+      "images": [],
+      "copy": {
+        "eyebrow": "39 / 产品发布",
+        "title": "科技汇报 · ",
+        "sheet": "IMAGE · 45 / 80",
+        "lead": "产品发布的关键不只是路径验证，还要持续校准技术节点带",
+        "metrics": [
+          [
+            "融资额",
+            "24",
+            "亿美元"
+          ],
+          [
+            "事件数",
+            "10",
+            "笔"
+          ]
+        ],
+        "funnelCap": "增长漏斗",
+        "funnelUnit": "GROWTH FUNNEL",
+        "tiers": [
+          {
+            "en": "深蓝",
+            "zh": "广告创意",
+            "v": 8,
+            "c": "#efbe2e"
+          },
+          {
+            "en": "路径",
+            "zh": "线索评分",
+            "v": 7,
+            "c": "#d8402e"
+          },
+          {
+            "en": "光环结构 ",
+            "zh": "自动外呼",
+            "v": 6,
+            "c": "#2c44a0"
+          },
+          {
+            "en": "技术节",
+            "zh": "转化成交",
+            "v": 4,
+            "c": "#3c9a52"
+          }
+        ],
+        "galleryCap": "场景图示",
+        "galleryUnit": "DROP IMAGES",
+        "conclusion": "营销 AI 要用转化率证明自己。"
+      }
+    }
+  },
+  {
+    "key": "theme13_page040",
+    "themeKey": "theme13",
+    "pageNumber": 40,
+    "layout": "THEME13-040",
+    "slot": "segment-theme05-032",
+    "label": "深蓝光环风 · 信息结构",
+    "sourceTheme": "theme05",
+    "sourcePageKey": "theme05_page032",
+    "moduleFamily": "distribution",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "imageCount",
+        "type": "slider",
+        "label": "图片槽数量",
+        "default": 2,
+        "min": 0,
+        "max": 3,
+        "step": 1,
+        "publicKey": "imageCount",
+        "desc": "图片/视频槽数量（0–3）；按各媒体比例自适应排布。为 0 时主体卡自动铺满整幅。"
+      },
+      {
+        "key": "metricCount",
+        "type": "slider",
+        "label": "指标行数",
+        "default": 4,
+        "min": 2,
+        "max": 4,
+        "step": 1,
+        "publicKey": "metricCount",
+        "desc": "主体卡内的指标行数。"
+      },
+      {
+        "key": "cardTheme",
+        "type": "radio",
+        "label": "主体卡主题",
+        "default": "color",
+        "options": [
+          {
+            "value": "color",
+            "label": "色块"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          },
+          {
+            "value": "paper",
+            "label": "纸色"
+          }
+        ],
+        "publicKey": "cardTheme",
+        "desc": "主体卡背景：强调色块 / 深色 / 纸色。"
+      },
+      {
+        "key": "showGalleryCaption",
+        "type": "toggle",
+        "label": "图注",
+        "default": true,
+        "publicKey": "showGalleryCaption",
+        "desc": "图片区上方的装饰性图注。"
+      },
+      {
+        "key": "accentColor",
+        "type": "color",
+        "label": "强调色",
+        "default": "#6c6fff",
+        "options": [
+          {
+            "value": "#6c6fff",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#3863ff",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#f7f9ff",
+            "label": "颜色 3"
+          }
+        ],
+        "publicKey": "accentColor",
+        "desc": "眉标与「色块」主题下主体卡的颜色。"
+      },
+      {
+        "key": "showConclusion",
+        "type": "toggle",
+        "label": "结论文案",
+        "default": true,
+        "publicKey": "showConclusion",
+        "desc": "底部的一句装饰性结论。"
+      },
+      {
+        "key": "showSheetLabel",
+        "type": "toggle",
+        "label": "页码标签",
+        "default": true,
+        "publicKey": "showSheetLabel",
+        "desc": "右上角的页码 / 章节标签。"
+      }
+    ],
+    "defaultProps": {
+      "images": [],
+      "imageCount": 2,
+      "metricCount": 4,
+      "cardTheme": "color",
+      "showGalleryCaption": true,
+      "accentColor": "#6c6fff",
+      "showConclusion": true,
+      "showSheetLabel": true,
+      "copy": {
+        "eyebrow": "40 / 科技汇报",
+        "en": "技术节点 ",
+        "title": "科技汇报 · 连接",
+        "sub": "科技汇报 · 技",
+        "sheet": "SEGMENT · 28 / 32",
+        "metrics": [
+          [
+            "融资额",
+            "72",
+            "亿美元"
+          ],
+          [
+            "事件数",
+            "16",
+            "笔"
+          ],
+          [
+            "平均单笔",
+            "4.5",
+            "亿美元"
+          ],
+          [
+            "样本 ARR 中位数",
+            "4200",
+            "万美元"
+          ]
+        ],
+        "galleryCap": "赛道图示",
+        "galleryUnit": "DROP IMAGES",
+        "conclusion": "能进入工作流的 Agent 才有长期价值。"
+      }
+    }
+  },
+  {
+    "key": "theme13_page041",
+    "themeKey": "theme13",
+    "pageNumber": 41,
+    "layout": "THEME13-041",
+    "slot": "signature-derived-ranked-signals-theme13-041",
+    "label": "深蓝光环风 · derived-ranked-signals",
+    "sourceTheme": "theme13",
+    "sourcePageKey": "theme13_derived_ranked_signals",
+    "moduleFamily": "ranking",
+    "moduleOrigin": "owned",
+    "moduleStrategy": "new",
+    "archetypeId": "derived-ranked-signals",
+    "evidenceMode": "inferred",
+    "evidenceRefs": [],
+    "derivedFromRules": [
+      "typography-01",
+      "composition-02",
+      "surface-01",
+      "motif-02",
+      "color-01"
+    ],
+    "anchorModuleRefs": [
+      "theme13_signature_gradient_peak_metrics",
+      "theme13_signature_arrow_ledger_table"
+    ],
+    "stylePrimitiveRefs": [
+      "halo-orb",
+      "wave-floor"
+    ],
+    "derivationReason": "把模板的数字层级和分隔规则扩展为排行页；以 theme13_signature_gradient_peak_metrics、theme13_signature_arrow_ledger_table 为视觉锚点。",
+    "styleSignals": [
+      "中文标题使用轻量无衬线并保持高对比",
+      "信息结构沿水平主轴或中心环形展开",
+      "卡片使用蓝紫渐变和极小圆角",
+      "节点、箭头和胶囊轨道使用电光蓝描边",
+      "午夜蓝承担全页底色"
+    ],
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showSignatureSystem",
+        "label": "显示主题签名系统",
+        "type": "toggle",
+        "default": true,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "signature-system",
+            "ornament",
+            "page-marker"
+          ],
+          "minChangedRatio": 0.008,
+          "minRegions": 2
+        },
+        "publicKey": "showSignatureSystem"
+      },
+      {
+        "key": "density",
+        "label": "信息密度",
+        "type": "select",
+        "default": "balanced",
+        "options": [
+          {
+            "label": "紧凑",
+            "value": "compact"
+          },
+          {
+            "label": "平衡",
+            "value": "balanced"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-frame",
+            "spacing",
+            "type-scale"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "density"
+      },
+      {
+        "key": "rankingLayout",
+        "label": "排行结构",
+        "type": "select",
+        "default": "structured",
+        "options": [
+          {
+            "label": "结构化",
+            "value": "structured"
+          },
+          {
+            "label": "偏移强调",
+            "value": "offset"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-grid",
+            "reading-order",
+            "emphasis"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "rankingLayout"
+      }
+    ],
+    "defaultProps": {
+      "showSignatureSystem": true,
+      "density": "balanced",
+      "rankingLayout": "structured",
+      "pillars": [
+        "系统架构",
+        "能力节点",
+        "验证路径",
+        "规模部署"
+      ],
+      "summary": "让架构、节点和路径在同一深蓝系统中形成可验证、可扩展的技术闭环。",
+      "title": "技术系统演进的优先信号",
+      "items": [
+        {
+          "label": "稳定性",
+          "value": 96
+        },
+        {
+          "label": "扩展性",
+          "value": 88
+        },
+        {
+          "label": "响应速度",
+          "value": 81
+        },
+        {
+          "label": "治理能力",
+          "value": 73
+        }
+      ],
+      "highlight": 0
+    }
+  },
+  {
+    "key": "theme13_page042",
+    "themeKey": "theme13",
+    "pageNumber": 42,
+    "layout": "THEME13-042",
+    "slot": "rank-theme05-014",
+    "label": "深蓝光环风 · 排行与趋势图",
+    "sourceTheme": "theme05",
+    "sourcePageKey": "theme05_page014",
+    "moduleFamily": "ranking",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "rowCount",
+        "type": "slider",
+        "label": "排名条目数",
+        "default": 10,
+        "min": 3,
+        "max": 10,
+        "step": 1,
+        "publicKey": "itemCount",
+        "desc": "榜单展示的条目数量（按数值从高到低）。"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "突出榜首",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "是否突出排名靠前的若干条目。"
+      },
+      {
+        "key": "focusCount",
+        "type": "slider",
+        "label": "突出数量",
+        "default": 3,
+        "min": 1,
+        "max": 3,
+        "step": 1,
+        "publicKey": "itemCount2",
+        "desc": "被突出的头部条目数量（前 N 名）。"
+      },
+      {
+        "key": "colorMode",
+        "type": "radio",
+        "label": "配色模式",
+        "default": "#6c6fff",
+        "options": [
+          {
+            "value": "#6c6fff",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#3863ff",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#f7f9ff",
+            "label": "颜色 3"
+          }
+        ],
+        "publicKey": "colorMode",
+        "desc": "条形配色：按类别 / 统一强调色 / 单色。"
+      },
+      {
+        "key": "showRankNumber",
+        "type": "toggle",
+        "label": "排名序号",
+        "default": true,
+        "publicKey": "showRankNumber",
+        "desc": "每行左侧的两位排名序号。"
+      },
+      {
+        "key": "showTag",
+        "type": "toggle",
+        "label": "类别标签",
+        "default": true,
+        "publicKey": "showTag",
+        "desc": "名称下方的类别 / 分类标签。"
+      },
+      {
+        "key": "showValue",
+        "type": "toggle",
+        "label": "数值标注",
+        "default": true,
+        "publicKey": "showValueLabels",
+        "desc": "每行右侧的数值标注。"
+      },
+      {
+        "key": "accentColor",
+        "type": "color",
+        "label": "强调色",
+        "default": "#6c6fff",
+        "options": [
+          {
+            "value": "#6c6fff",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#3863ff",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#f7f9ff",
+            "label": "颜色 3"
+          }
+        ],
+        "publicKey": "accentColor",
+        "desc": "突出条目与眉标的强调色。"
+      },
+      {
+        "key": "showConclusion",
+        "type": "toggle",
+        "label": "结论文案",
+        "default": true,
+        "publicKey": "showConclusion",
+        "desc": "底部的一句装饰性结论。"
+      },
+      {
+        "key": "showSheetLabel",
+        "type": "toggle",
+        "label": "页码标签",
+        "default": true,
+        "publicKey": "showSheetLabel",
+        "desc": "右上角的页码 / 章节标签。"
+      }
+    ],
+    "defaultProps": {
+      "rowCount": 10,
+      "focusEnabled": true,
+      "focusCount": 3,
+      "colorMode": "category",
+      "showRankNumber": true,
+      "showTag": true,
+      "showValue": true,
+      "accentColor": "#6c6fff",
+      "showConclusion": true,
+      "showSheetLabel": true,
+      "copy": {
+        "eyebrow": "42 / 科技汇报",
+        "title": "技术复盘 · 沉淀",
+        "sub": "光环结构",
+        "sheet": "RANKING · 10 / 32",
+        "unit": "最大单笔 · 亿美元",
+        "rows": [
+          {
+            "name": "围绕技",
+            "cat": "通用大模型",
+            "v": 66
+          },
+          {
+            "name": "产品发布的",
+            "cat": "通用大模型",
+            "v": 65
+          },
+          {
+            "name": "以",
+            "cat": "通用大模型",
+            "v": 50
+          },
+          {
+            "name": "技术团队可",
+            "cat": "算力基础设施",
+            "v": 11
+          },
+          {
+            "name": "趋",
+            "cat": "安全智能",
+            "v": 10
+          },
+          {
+            "name": "信号6",
+            "cat": "数据基础设施",
+            "v": 10
+          },
+          {
+            "name": "边界7",
+            "cat": "具身智能",
+            "v": 6.8
+          },
+          {
+            "name": "样本8",
+            "cat": "AI 搜索",
+            "v": 5.2
+          },
+          {
+            "name": "以光环结构",
+            "cat": "数据平台",
+            "v": 5
+          },
+          {
+            "name": "节奏1",
+            "cat": "企业搜索",
+            "v": 2.6
+          }
+        ],
+        "conclusion": "头部融资规模既反映技术叙事，也反映资源绑定能力。"
+      }
+    }
+  },
+  {
+    "key": "theme13_page043",
+    "themeKey": "theme13",
+    "pageNumber": 43,
+    "layout": "THEME13-043",
+    "slot": "slope-theme05-085",
+    "label": "深蓝光环风 · 排行与趋势图",
+    "sourceTheme": "theme05",
+    "sourcePageKey": "theme05_page085",
+    "moduleFamily": "ranking",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "itemCount",
+        "type": "slider",
+        "label": "条目数量",
+        "default": 6,
+        "min": 4,
+        "max": 7,
+        "step": 1,
+        "publicKey": "itemCount",
+        "desc": "参与排名对比的条目数量（4–7）。两侧排名按各自周期分值自动计算。"
+      },
+      {
+        "key": "colorMode",
+        "type": "radio",
+        "label": "连线配色",
+        "default": "#6c6fff",
+        "options": [
+          {
+            "value": "#6c6fff",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#3863ff",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#f7f9ff",
+            "label": "颜色 3"
+          }
+        ],
+        "publicKey": "colorMode",
+        "desc": "连线着色：按排名涨跌（升绿/降红/平墨）/ 按类别色谱 / 单色。"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点条目",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "是否突出某一条目（其余连线淡出）。"
+      },
+      {
+        "key": "focusIndex",
+        "type": "slider",
+        "label": "重点序号",
+        "default": 1,
+        "min": 1,
+        "max": 7,
+        "step": 1,
+        "publicKey": "focusIndex",
+        "desc": "重点条目序号（按本周期排名）。"
+      },
+      {
+        "key": "showRankNumber",
+        "type": "toggle",
+        "label": "排名序号",
+        "default": true,
+        "publicKey": "showRankNumber",
+        "desc": "两侧的大号排名序号。"
+      },
+      {
+        "key": "showValue",
+        "type": "toggle",
+        "label": "数值标注",
+        "default": true,
+        "publicKey": "showValueLabels",
+        "desc": "条目名称旁的本期数值。"
+      },
+      {
+        "key": "showDelta",
+        "type": "toggle",
+        "label": "升降标记",
+        "default": true,
+        "publicKey": "showDelta",
+        "desc": "右侧的排名升降量（▲/▼）标记。"
+      },
+      {
+        "key": "accentColor",
+        "type": "color",
+        "label": "强调色",
+        "default": "#6c6fff",
+        "options": [
+          {
+            "value": "#6c6fff",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#3863ff",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#f7f9ff",
+            "label": "颜色 3"
+          }
+        ],
+        "publicKey": "accentColor",
+        "desc": "眉标 / 重点连线 / 标记的强调色。"
+      },
+      {
+        "key": "showConclusion",
+        "type": "toggle",
+        "label": "结论文案",
+        "default": true,
+        "publicKey": "showConclusion",
+        "desc": "底部的一句装饰性结论。"
+      },
+      {
+        "key": "showSheetLabel",
+        "type": "toggle",
+        "label": "页码标签",
+        "default": true,
+        "publicKey": "showSheetLabel",
+        "desc": "右上角的页码 / 章节标签。"
+      }
+    ],
+    "defaultProps": {
+      "itemCount": 6,
+      "colorMode": "change",
+      "focusEnabled": true,
+      "focusIndex": 1,
+      "showRankNumber": true,
+      "showValue": true,
+      "showDelta": true,
+      "accentColor": "#6c6fff",
+      "showConclusion": true,
+      "showSheetLabel": true,
+      "copy": {
+        "eyebrow": "43 / 技术复盘",
+        "title": "技术复盘 · ",
+        "sheet": "CHART · 83 / 86",
+        "fromLabel": "2023",
+        "toLabel": "2024",
+        "fromCap": "上一周期排名",
+        "toCap": "本周期排名",
+        "unit": "亿美元",
+        "items": [
+          {
+            "name": "边界1",
+            "en": "技术节点 / ",
+            "prev": 58,
+            "now": 182,
+            "cat": 0
+          },
+          {
+            "name": "机会2",
+            "en": "技术节点 / 43",
+            "prev": 96,
+            "now": 121,
+            "cat": 3
+          },
+          {
+            "name": "约束3",
+            "en": "路径验",
+            "prev": 74,
+            "now": 110,
+            "cat": 5
+          },
+          {
+            "name": "信号4",
+            "en": "路径验证 / ",
+            "prev": 88,
+            "now": 64,
+            "cat": 4
+          },
+          {
+            "name": "信号5",
+            "en": "光环结构 / 43",
+            "prev": 41,
+            "now": 58,
+            "cat": 6
+          },
+          {
+            "name": "样本6",
+            "en": "技术节点 / ",
+            "prev": 63,
+            "now": 47,
+            "cat": 1
+          },
+          {
+            "name": "节奏7",
+            "en": "路径验证 ",
+            "prev": 22,
+            "now": 39,
+            "cat": 2
+          }
+        ],
+        "conclusion": "基础设施一年内跃居首位，资本重心由应用回流底层。"
+      }
+    }
+  },
+  {
+    "key": "theme13_page044",
+    "themeKey": "theme13",
+    "pageNumber": 44,
+    "layout": "THEME13-044",
+    "slot": "trend-theme05-009",
+    "label": "深蓝光环风 · 信息结构",
+    "sourceTheme": "theme05",
+    "sourcePageKey": "theme05_page009",
+    "moduleFamily": "ranking",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "chartType",
+        "type": "radio",
+        "label": "图表类型",
+        "default": "bar",
+        "options": [
+          {
+            "value": "bar",
+            "label": "柱状"
+          },
+          {
+            "value": "line",
+            "label": "折线"
+          },
+          {
+            "value": "area",
+            "label": "面积"
+          }
+        ],
+        "publicKey": "chartType",
+        "desc": "主图表呈现方式：柱状 / 折线 / 面积。"
+      },
+      {
+        "key": "pointCount",
+        "type": "slider",
+        "label": "数据点数量",
+        "default": 4,
+        "min": 2,
+        "max": 4,
+        "step": 1,
+        "publicKey": "pointCount",
+        "desc": "图表与指标列表展示的数据点（时间截面）数量。"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点标注",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "是否突出某一个数据点（峰值 / 关键截面）。"
+      },
+      {
+        "key": "focusIndex",
+        "type": "slider",
+        "label": "重点数据点",
+        "default": 3,
+        "min": 1,
+        "max": 4,
+        "step": 1,
+        "publicKey": "focusIndex",
+        "desc": "被突出的数据点序号（从 1 起）。"
+      },
+      {
+        "key": "showSecondary",
+        "type": "toggle",
+        "label": "副数据系列",
+        "default": true,
+        "publicKey": "showSecondary",
+        "desc": "叠加第二条数据系列（虚线）。"
+      },
+      {
+        "key": "showMetrics",
+        "type": "toggle",
+        "label": "指标列表",
+        "default": true,
+        "publicKey": "showMetrics",
+        "desc": "右侧的逐项数据指标列表。"
+      },
+      {
+        "key": "accentColor",
+        "type": "color",
+        "label": "强调色",
+        "default": "#6c6fff",
+        "options": [
+          {
+            "value": "#6c6fff",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#3863ff",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#f7f9ff",
+            "label": "颜色 3"
+          }
+        ],
+        "publicKey": "accentColor",
+        "desc": "重点标注与眉标的强调色。"
+      },
+      {
+        "key": "showConclusion",
+        "type": "toggle",
+        "label": "结论文案",
+        "default": true,
+        "publicKey": "showConclusion",
+        "desc": "右下角的一句装饰性结论。"
+      },
+      {
+        "key": "showSheetLabel",
+        "type": "toggle",
+        "label": "页码标签",
+        "default": true,
+        "publicKey": "showSheetLabel",
+        "desc": "右上角的页码 / 章节标签。"
+      }
+    ],
+    "defaultProps": {
+      "chartType": "bar",
+      "pointCount": 4,
+      "focusEnabled": true,
+      "focusIndex": 3,
+      "showSecondary": true,
+      "showMetrics": true,
+      "accentColor": "#6c6fff",
+      "showConclusion": true,
+      "showSheetLabel": true,
+      "copy": {
+        "eyebrow": "44 / 技术复盘",
+        "title": "科技汇报 · 追踪光环",
+        "sub": "技术节点",
+        "sheet": "TREND · 05 / 32",
+        "primaryName": "融资额（亿美元）",
+        "secondaryName": "事件数（笔）",
+        "points": [
+          {
+            "axis": "Q1",
+            "v": 162,
+            "s": 18
+          },
+          {
+            "axis": "Q2",
+            "v": 284,
+            "s": 26
+          },
+          {
+            "axis": "Q3",
+            "v": 318,
+            "s": 31
+          },
+          {
+            "axis": "Q4",
+            "v": 206,
+            "s": 22
+          }
+        ],
+        "conclusion": "高峰过后不是崩塌，而是市场开始筛选。"
+      }
+    }
+  },
+  {
+    "key": "theme13_page045",
+    "themeKey": "theme13",
+    "pageNumber": 45,
+    "layout": "THEME13-045",
+    "slot": "trend-theme02-008",
+    "label": "深蓝光环风 · 信息结构",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page008",
+    "moduleFamily": "ranking",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "chartType",
+        "type": "enum",
+        "label": "图表类型",
+        "default": "line",
+        "options": [
+          {
+            "value": "bar",
+            "label": "柱状"
+          },
+          {
+            "value": "line",
+            "label": "折线"
+          },
+          {
+            "value": "area",
+            "label": "面积"
+          }
+        ],
+        "publicKey": "chartType",
+        "desc": "主数据系列的呈现形式"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "是否高亮某一数据点"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调项",
+        "default": 2,
+        "min": 0,
+        "step": 1,
+        "oneBased": true,
+        "max": 11,
+        "publicKey": "focusIndex",
+        "desc": "被强调数据点的序号"
+      },
+      {
+        "key": "showSecondary",
+        "type": "toggle",
+        "label": "次要指标",
+        "default": true,
+        "publicKey": "showSecondary",
+        "desc": "叠加显示次要系列（事件笔数）"
+      },
+      {
+        "key": "showValueLabels",
+        "type": "toggle",
+        "label": "数值标签",
+        "default": true,
+        "publicKey": "showValueLabels",
+        "desc": "在图表上显示具体数值"
+      },
+      {
+        "key": "showAnnotation",
+        "type": "toggle",
+        "label": "解读文案",
+        "default": true,
+        "publicKey": "showAnnotation",
+        "desc": "显示/隐藏右下角的趋势解读"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "45 / 产品发布",
+      "title": "技术复盘 · 拆解",
+      "titleEm": "前高后稳",
+      "data": [
+        {
+          "label": "深",
+          "value": 58,
+          "secondary": 6
+        },
+        {
+          "label": "技",
+          "value": 47,
+          "secondary": 5
+        },
+        {
+          "label": "路",
+          "value": 57,
+          "secondary": 7
+        },
+        {
+          "label": "技",
+          "value": 78,
+          "secondary": 8
+        },
+        {
+          "label": "深",
+          "value": 92,
+          "secondary": 9
+        },
+        {
+          "label": "深",
+          "value": 114,
+          "secondary": 9
+        },
+        {
+          "label": "光",
+          "value": 108,
+          "secondary": 10
+        },
+        {
+          "label": "路",
+          "value": 104,
+          "secondary": 11
+        },
+        {
+          "label": "深",
+          "value": 106,
+          "secondary": 10
+        },
+        {
+          "label": "技",
+          "value": 88,
+          "secondary": 8
+        },
+        {
+          "label": "光",
+          "value": 118,
+          "secondary": 14
+        },
+        {
+          "label": "深",
+          "value": 96,
+          "secondary": 9
+        }
+      ],
+      "chartType": "line",
+      "showSecondary": true,
+      "showValueLabels": true,
+      "focusEnabled": true,
+      "focusIndex": 2,
+      "showAnnotation": true,
+      "annotation": "M04–M09 进入融资密集窗口，M11 再次抬升。月度拆分保留总额与事件数口径，便于逐项编辑和强调。",
+      "stats": [
+        {
+          "value": "970",
+          "unit": "亿美元",
+          "caption": "以深蓝系统校"
+        },
+        {
+          "value": "97",
+          "unit": "笔",
+          "caption": "科技汇报正在"
+        },
+        {
+          "value": "≈10",
+          "unit": "亿/笔",
+          "caption": "从样本切入技"
+        }
+      ],
+      "seriesLabels": {
+        "primary": "融资额（亿美元）",
+        "secondary": "事件笔数"
+      },
+      "annotationLabel": "趋势解读",
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "07 / 73"
+    }
+  },
+  {
+    "key": "theme13_page046",
+    "themeKey": "theme13",
+    "pageNumber": 46,
+    "layout": "THEME13-046",
+    "slot": "ranking-theme02-011",
+    "label": "深蓝光环风 · 排行与趋势图",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page011",
+    "moduleFamily": "ranking",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "rowCount",
+        "type": "number",
+        "label": "行数",
+        "default": 6,
+        "min": 3,
+        "max": 6,
+        "step": 1,
+        "publicKey": "rowCount",
+        "desc": "展示的榜单行数"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "是否高亮其中一行"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调项",
+        "default": 0,
+        "min": 0,
+        "max": 5,
+        "step": 1,
+        "oneBased": true,
+        "publicKey": "focusIndex",
+        "desc": "被强调行的序号"
+      },
+      {
+        "key": "showRank",
+        "type": "toggle",
+        "label": "名次徽章",
+        "default": true,
+        "publicKey": "showRank",
+        "desc": "显示/隐藏左侧名次徽章"
+      },
+      {
+        "key": "showTrack",
+        "type": "toggle",
+        "label": "分类列",
+        "default": true,
+        "publicKey": "showGuide",
+        "desc": "显示/隐藏公司下方的分类说明"
+      },
+      {
+        "key": "showBars",
+        "type": "toggle",
+        "label": "条形可视化",
+        "default": true,
+        "publicKey": "showValueLabels",
+        "desc": "显示/隐藏数值的等比条形"
+      },
+      {
+        "key": "showValueLabels",
+        "type": "toggle",
+        "label": "数值列",
+        "default": true,
+        "publicKey": "showValueLabels2",
+        "desc": "显示/隐藏右侧数值"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "46 / 技术复盘",
+      "title": "科技汇报 · 推进深",
+      "titleEm": "巨头吸金",
+      "columns": {
+        "rank": "排名",
+        "name": "节奏",
+        "track": "主营赛道",
+        "value": "最大单笔（亿美元）"
+      },
+      "unit": "",
+      "rows": [
+        {
+          "name": "以光环",
+          "track": "通用大模型",
+          "value": 66
+        },
+        {
+          "name": "技术复盘的",
+          "track": "通用大模型",
+          "value": 65
+        },
+        {
+          "name": "围",
+          "track": "通用大模型",
+          "value": 50
+        },
+        {
+          "name": "以深蓝系统",
+          "track": "AI 基础设施 · 算力云",
+          "value": 11
+        },
+        {
+          "name": "影响5",
+          "track": "通用大模型",
+          "value": 10
+        },
+        {
+          "name": "现状6",
+          "track": "AI 基础设施 · 数据标注",
+          "value": 10
+        },
+        {
+          "name": "路径7",
+          "track": "AI 硬件 · 人形机器人",
+          "value": 6.8
+        },
+        {
+          "name": "反馈8",
+          "track": "垂直应用 · AI 搜索",
+          "value": 5.2
+        },
+        {
+          "name": "从证据切入",
+          "track": "AI 基础设施 · 数据平台",
+          "value": 5
+        },
+        {
+          "name": "证据1",
+          "track": "垂直应用 · 企业搜索",
+          "value": 2.6
+        }
+      ],
+      "rowCount": 6,
+      "focusEnabled": true,
+      "focusIndex": 0,
+      "showRank": true,
+      "showTrack": true,
+      "showBars": true,
+      "showValueLabels": true,
+      "footnote": "注：部分公司全年有多轮融资，此处仅列其最大单笔。",
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "10 / 73"
+    }
+  },
+  {
+    "key": "theme13_page047",
+    "themeKey": "theme13",
+    "pageNumber": 47,
+    "layout": "THEME13-047",
+    "slot": "slope-theme02-064",
+    "label": "深蓝光环风 · 排行与趋势图",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page064",
+    "moduleFamily": "ranking",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "itemCount",
+        "type": "number",
+        "label": "条目数量",
+        "default": 6,
+        "min": 2,
+        "step": 1,
+        "max": 6,
+        "publicKey": "itemCount",
+        "desc": "斜率图展示的条目数量"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "辉光强调某一条（其余淡出）"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调项",
+        "default": 5,
+        "min": 0,
+        "step": 1,
+        "oneBased": true,
+        "max": 5,
+        "maxFromKey": "itemCount",
+        "publicKey": "focusIndex",
+        "desc": "被强调条目的序号"
+      },
+      {
+        "key": "showDots",
+        "type": "toggle",
+        "label": "端点圆点",
+        "default": true,
+        "publicKey": "showDots",
+        "desc": "两端圆点显隐"
+      },
+      {
+        "key": "showValueLabels",
+        "type": "toggle",
+        "label": "端点数值",
+        "default": true,
+        "publicKey": "showValueLabels",
+        "desc": "两端数值显隐"
+      },
+      {
+        "key": "showDelta",
+        "type": "toggle",
+        "label": "变化徽章",
+        "default": true,
+        "publicKey": "showDelta",
+        "desc": "右侧变化量徽章显隐"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "47 / 产品发布",
+      "title": "产品发布 · 量化",
+      "titleEm": "",
+      "lead": "科技汇报的关键不只是路径验证，还要持续连接技术节点带来的路径反馈。",
+      "leftLabel": "事件笔数 份额",
+      "rightLabel": "融资金额 份额",
+      "items": [
+        {
+          "label": "深蓝系",
+          "left": 8.2,
+          "right": 1
+        },
+        {
+          "label": "深",
+          "left": 12.4,
+          "right": 2.3
+        },
+        {
+          "label": "光",
+          "left": 18.6,
+          "right": 6.7
+        },
+        {
+          "label": "技",
+          "left": 15.5,
+          "right": 10.9
+        },
+        {
+          "label": "技术节点",
+          "left": 22.7,
+          "right": 35.6
+        },
+        {
+          "label": "路径验证",
+          "left": 22.7,
+          "right": 43.5
+        }
+      ],
+      "unit": "%",
+      "itemCount": 6,
+      "focusEnabled": true,
+      "focusIndex": 5,
+      "showDots": true,
+      "showValueLabels": true,
+      "showDelta": true,
+      "insightText": "↳ 线越陡上扬，份额被放大越多——资本向后期高度集中",
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "63 / 73"
+    }
+  },
+  {
+    "key": "theme13_page048",
+    "themeKey": "theme13",
+    "pageNumber": 48,
+    "layout": "THEME13-048",
+    "slot": "signature-derived-proportion-scorecard-theme13-048",
+    "label": "深蓝光环风 · derived-proportion-scorecard",
+    "sourceTheme": "theme13",
+    "sourcePageKey": "theme13_derived_proportion_scorecard",
+    "moduleFamily": "proportion",
+    "moduleOrigin": "owned",
+    "moduleStrategy": "new",
+    "archetypeId": "derived-proportion-scorecard",
+    "evidenceMode": "inferred",
+    "evidenceRefs": [],
+    "derivedFromRules": [
+      "typography-02",
+      "composition-01",
+      "surface-02",
+      "motif-01",
+      "color-04"
+    ],
+    "anchorModuleRefs": [
+      "theme13_signature_gradient_peak_metrics",
+      "theme13_signature_cycle_arrow_comparison"
+    ],
+    "stylePrimitiveRefs": [
+      "luminous-pill",
+      "halo-orb"
+    ],
+    "derivationReason": "把模板的指标语法扩展为比例与进度页；以 theme13_signature_gradient_peak_metrics、theme13_signature_cycle_arrow_comparison 为视觉锚点。",
+    "styleSignals": [
+      "大号章节数字与小号英文注释构成科技层级",
+      "上下边缘以半透明圆环和波形压住画布",
+      "正文区域保持深色无边框以突出发光结构",
+      "重叠的半透明光环从四角进入",
+      "白色作为主要信息文字"
+    ],
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showSignatureSystem",
+        "label": "显示主题签名系统",
+        "type": "toggle",
+        "default": true,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "signature-system",
+            "ornament",
+            "page-marker"
+          ],
+          "minChangedRatio": 0.008,
+          "minRegions": 2
+        },
+        "publicKey": "showSignatureSystem"
+      },
+      {
+        "key": "density",
+        "label": "信息密度",
+        "type": "select",
+        "default": "balanced",
+        "options": [
+          {
+            "label": "紧凑",
+            "value": "compact"
+          },
+          {
+            "label": "平衡",
+            "value": "balanced"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-frame",
+            "spacing",
+            "type-scale"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "density"
+      },
+      {
+        "key": "scoreLayout",
+        "label": "评分结构",
+        "type": "select",
+        "default": "structured",
+        "options": [
+          {
+            "label": "结构化",
+            "value": "structured"
+          },
+          {
+            "label": "偏移强调",
+            "value": "offset"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-grid",
+            "reading-order",
+            "emphasis"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "scoreLayout"
+      }
+    ],
+    "defaultProps": {
+      "showSignatureSystem": true,
+      "density": "balanced",
+      "scoreLayout": "structured",
+      "pillars": [
+        "系统架构",
+        "能力节点",
+        "验证路径",
+        "规模部署"
+      ],
+      "summary": "让架构、节点和路径在同一深蓝系统中形成可验证、可扩展的技术闭环。",
+      "title": "技术系统演进的比例评分",
+      "values": [
+        82,
+        68,
+        54
+      ],
+      "labels": [
+        "性能水平",
+        "系统韧性",
+        "交付成熟度"
+      ]
+    }
+  },
+  {
+    "key": "theme13_page049",
+    "themeKey": "theme13",
+    "pageNumber": 49,
+    "layout": "THEME13-049",
+    "slot": "radar-theme05-031",
+    "label": "深蓝光环风 · 比例与能力图",
+    "sourceTheme": "theme05",
+    "sourcePageKey": "theme05_page031",
+    "moduleFamily": "proportion",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "axisCount",
+        "type": "slider",
+        "label": "维度数量",
+        "default": 4,
+        "min": 3,
+        "max": 4,
+        "step": 1,
+        "publicKey": "axisCount",
+        "desc": "雷达图的能力维度（轴）数量（雷达至少 3 维）。"
+      },
+      {
+        "key": "fillShape",
+        "type": "toggle",
+        "label": "填充形态",
+        "default": true,
+        "publicKey": "fillShape",
+        "desc": "数据多边形填充（开）或仅描边（关）。"
+      },
+      {
+        "key": "showGrid",
+        "type": "toggle",
+        "label": "网格刻度",
+        "default": true,
+        "publicKey": "showGrid",
+        "desc": "同心环刻度与放射轴线。"
+      },
+      {
+        "key": "showLabels",
+        "type": "toggle",
+        "label": "维度标签",
+        "default": true,
+        "publicKey": "showValueLabels",
+        "desc": "各轴外侧的维度名称与数值标签。"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点维度",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "是否突出某一个维度。"
+      },
+      {
+        "key": "focusIndex",
+        "type": "slider",
+        "label": "重点维度序号",
+        "default": 1,
+        "min": 1,
+        "max": 4,
+        "step": 1,
+        "publicKey": "focusIndex",
+        "desc": "被突出的维度序号（从 1 起）。"
+      },
+      {
+        "key": "showMetrics",
+        "type": "toggle",
+        "label": "指标列表",
+        "default": true,
+        "publicKey": "showValueLabels2",
+        "desc": "右侧的逐维数值列表。"
+      },
+      {
+        "key": "accentColor",
+        "type": "color",
+        "label": "强调色",
+        "default": "#6c6fff",
+        "options": [
+          {
+            "value": "#6c6fff",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#3863ff",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#f7f9ff",
+            "label": "颜色 3"
+          }
+        ],
+        "publicKey": "accentColor",
+        "desc": "数据多边形与重点 / 眉标的强调色。"
+      },
+      {
+        "key": "showConclusion",
+        "type": "toggle",
+        "label": "结论文案",
+        "default": true,
+        "publicKey": "showConclusion",
+        "desc": "右下角的一句装饰性结论。"
+      },
+      {
+        "key": "showSheetLabel",
+        "type": "toggle",
+        "label": "页码标签",
+        "default": true,
+        "publicKey": "showSheetLabel",
+        "desc": "右上角的页码 / 章节标签。"
+      }
+    ],
+    "defaultProps": {
+      "axisCount": 4,
+      "fillShape": true,
+      "showGrid": true,
+      "showLabels": true,
+      "focusEnabled": true,
+      "focusIndex": 1,
+      "showMetrics": true,
+      "accentColor": "#6c6fff",
+      "showConclusion": true,
+      "showSheetLabel": true,
+      "copy": {
+        "eyebrow": "49 / 科技汇报",
+        "title": "技术复盘 · 验证深蓝",
+        "sub": "技术节点",
+        "sheet": "RADAR · 27 / 32",
+        "unit": "同比变化 %",
+        "axes": [
+          {
+            "k": "算力预算",
+            "v": 64
+          },
+          {
+            "k": "研究团队",
+            "v": 38
+          },
+          {
+            "k": "企业 API 客户",
+            "v": 52
+          },
+          {
+            "k": "推理成本",
+            "v": -21
+          }
+        ],
+        "conclusion": "模型能力只是入口，交付能力才是商业化。"
+      }
+    }
+  },
+  {
+    "key": "theme13_page050",
+    "themeKey": "theme13",
+    "pageNumber": 50,
+    "layout": "THEME13-050",
+    "slot": "radar-theme02-016",
+    "label": "深蓝光环风 · 比例与能力图",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page016",
+    "moduleFamily": "proportion",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "axisCount",
+        "type": "number",
+        "label": "维度数量",
+        "default": 6,
+        "min": 3,
+        "max": 6,
+        "step": 1,
+        "publicKey": "axisCount",
+        "desc": "雷达展示的维度数量"
+      },
+      {
+        "key": "seriesCount",
+        "type": "number",
+        "label": "系列数量",
+        "default": 5,
+        "min": 1,
+        "max": 5,
+        "step": 1,
+        "publicKey": "seriesCount",
+        "desc": "叠加对比的系列数量"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": false,
+        "publicKey": "focusEnabled",
+        "desc": "是否强调某一系列（其余淡出）"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调项",
+        "default": 0,
+        "min": 0,
+        "step": 1,
+        "oneBased": true,
+        "max": 5,
+        "maxFromKey": "axisCount",
+        "publicKey": "focusIndex",
+        "desc": "被强调系列的序号"
+      },
+      {
+        "key": "showRings",
+        "type": "toggle",
+        "label": "背景环网",
+        "default": true,
+        "publicKey": "showRings",
+        "desc": "同心环 + 辐射轴显隐"
+      },
+      {
+        "key": "showDots",
+        "type": "toggle",
+        "label": "顶点圆点",
+        "default": true,
+        "publicKey": "showDots",
+        "desc": "各维度顶点圆点显隐"
+      },
+      {
+        "key": "showLegend",
+        "type": "toggle",
+        "label": "系列图例",
+        "default": true,
+        "publicKey": "showLegend",
+        "desc": "右侧系列图例显隐"
+      },
+      {
+        "key": "showAxisLabels",
+        "type": "toggle",
+        "label": "维度标签",
+        "default": true,
+        "publicKey": "showAxisLabels",
+        "desc": "外圈维度文字标签显隐"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "50 / 产品发布",
+      "title": "产品发布 ",
+      "titleEm": "六维能力画像",
+      "lead": "技术复盘正在由深蓝系统走向路径验证，需要通过机会验证现状、约束与机",
+      "axes": [
+        "模型能力",
+        "商业化",
+        "算力储备",
+        "数据壁垒",
+        "安全对齐",
+        "资本厚度"
+      ],
+      "series": [
+        {
+          "name": "科技汇",
+          "values": [
+            95,
+            88,
+            90,
+            82,
+            78,
+            96
+          ]
+        },
+        {
+          "name": "技术复盘正",
+          "values": [
+            90,
+            70,
+            76,
+            74,
+            95,
+            84
+          ]
+        },
+        {
+          "name": "围",
+          "values": [
+            86,
+            58,
+            94,
+            68,
+            60,
+            92
+          ]
+        },
+        {
+          "name": "反馈4",
+          "values": [
+            93,
+            78,
+            90,
+            88,
+            82,
+            89
+          ]
+        },
+        {
+          "name": "边界5",
+          "values": [
+            80,
+            62,
+            56,
+            60,
+            72,
+            64
+          ]
+        }
+      ],
+      "axisCount": 6,
+      "seriesCount": 5,
+      "focusEnabled": false,
+      "focusIndex": 0,
+      "showRings": true,
+      "showDots": true,
+      "showLegend": true,
+      "showAxisLabels": true,
+      "topPrefix": "最强 · ",
+      "avgScoreLabel": "综合分",
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "15 / 73"
+    },
+    "lengthBindings": [
+      {
+        "dependent": "series[].values",
+        "anchor": "axes",
+        "relation": "same-length",
+        "countKey": "axisCount"
+      }
+    ]
+  },
+  {
+    "key": "theme13_page051",
+    "themeKey": "theme13",
+    "pageNumber": 51,
+    "layout": "THEME13-051",
+    "slot": "gauge-theme02-040",
+    "label": "深蓝光环风 · 比例与能力图",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page040",
+    "moduleFamily": "proportion",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "layout",
+        "type": "enum",
+        "label": "版式",
+        "default": "ring",
+        "options": [
+          {
+            "value": "ring",
+            "label": "同心多环"
+          },
+          {
+            "value": "gauges",
+            "label": "一排仪表"
+          }
+        ],
+        "publicKey": "layout",
+        "desc": "同心多环 (Bklit 风) / 一排 270° 仪表"
+      },
+      {
+        "key": "gaugeCount",
+        "type": "number",
+        "label": "环数量",
+        "default": 4,
+        "min": 2,
+        "step": 1,
+        "max": 4,
+        "publicKey": "gaugeCount",
+        "desc": "环 / 仪表的数量"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "强调某一项（圆心切到该项，其余淡出）"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调项",
+        "default": 0,
+        "min": 0,
+        "step": 1,
+        "oneBased": true,
+        "max": 3,
+        "maxFromKey": "gaugeCount",
+        "publicKey": "focusIndex",
+        "desc": "被强调项的序号"
+      },
+      {
+        "key": "showTrack",
+        "type": "toggle",
+        "label": "背景轨道",
+        "default": true,
+        "publicKey": "showGuide",
+        "desc": "背景轨道弧显隐"
+      },
+      {
+        "key": "showCenter",
+        "type": "toggle",
+        "label": "圆心读数",
+        "default": true,
+        "publicKey": "showCenter",
+        "desc": "同心多环的圆心读数显隐"
+      },
+      {
+        "key": "showLegend",
+        "type": "toggle",
+        "label": "图例",
+        "default": true,
+        "publicKey": "showLegend",
+        "desc": "同心多环右侧图例显隐"
+      },
+      {
+        "key": "showNote",
+        "type": "toggle",
+        "label": "说明文案",
+        "default": true,
+        "publicKey": "showNote",
+        "desc": "说明文案显隐（图例内 / 仪表下方）"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "51 / 产品发布",
+      "title": "科技汇报 ",
+      "titleEm": "看清结构性力量",
+      "lead": "技术团队可从影响观察科技汇报，用深蓝系统解释变化，并以路径验证推进响应。",
+      "gauges": [
+        {
+          "label": "路径验证",
+          "value": 78,
+          "note": "产品发布的关键不只是路径"
+        },
+        {
+          "label": "深蓝系统",
+          "value": 63,
+          "note": "科技汇报正在由深蓝系统"
+        },
+        {
+          "label": "光环结构",
+          "value": 55,
+          "note": "围绕技术复盘连接光环结"
+        },
+        {
+          "label": "技术节点",
+          "value": 41,
+          "note": "以光环结构校准产品发布的"
+        }
+      ],
+      "gaugeCount": 4,
+      "layout": "ring",
+      "focusEnabled": true,
+      "focusIndex": 0,
+      "showTrack": true,
+      "showCenter": true,
+      "showLegend": true,
+      "showNote": true,
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "39 / 73"
+    },
+    "numberBounds": {
+      "gauges[].value": {
+        "min": 0,
+        "max": 100,
+        "semantics": "percent"
+      }
+    }
+  },
+  {
+    "key": "theme13_page052",
+    "themeKey": "theme13",
+    "pageNumber": 52,
+    "layout": "THEME13-052",
+    "slot": "radar-theme03-054",
+    "label": "深蓝光环风 · 比例与能力图",
+    "sourceTheme": "theme03",
+    "sourcePageKey": "theme03_page054",
+    "moduleFamily": "proportion",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "forceDark",
+        "type": "toggle",
+        "label": "全局深色",
+        "default": true,
+        "publicKey": "forceDark",
+        "desc": "右上角深浅配色切换。"
+      },
+      {
+        "key": "accent",
+        "type": "select",
+        "label": "强调色",
+        "default": "#6c6fff",
+        "options": [
+          {
+            "value": "#6c6fff",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#3863ff",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#f7f9ff",
+            "label": "颜色 3"
+          }
+        ],
+        "publicKey": "accent",
+        "desc": "theme03 全局强调色，作用于该主题所有页面。"
+      },
+      {
+        "key": "showEyebrow",
+        "label": "装饰标签",
+        "type": "toggle",
+        "default": true,
+        "help": "顶部分类标签显示 / 隐藏",
+        "publicKey": "showEyebrow"
+      },
+      {
+        "key": "showRings",
+        "label": "强度刻度环",
+        "type": "toggle",
+        "default": true,
+        "help": "雷达图同心强度刻度环显示 / 隐藏",
+        "publicKey": "showRings"
+      },
+      {
+        "key": "showValue",
+        "label": "强度数值",
+        "type": "toggle",
+        "default": true,
+        "help": "各状态顶点的强度数值显示 / 隐藏",
+        "publicKey": "showValueLabels"
+      },
+      {
+        "key": "showPanel",
+        "label": "状态解读",
+        "type": "toggle",
+        "default": true,
+        "help": "右侧四类状态释义 + 强度标尺显示 / 隐藏",
+        "publicKey": "showPanel"
+      },
+      {
+        "key": "showAnalysis",
+        "label": "模型解读",
+        "type": "toggle",
+        "default": true,
+        "help": "底部分析解读条显示 / 隐藏",
+        "publicKey": "showAnalysis"
+      },
+      {
+        "key": "focusEnabled",
+        "label": "重点突出",
+        "type": "toggle",
+        "default": false,
+        "help": "高亮某一类状态（轴 + 释义）",
+        "publicKey": "focusEnabled"
+      },
+      {
+        "key": "focusIndex",
+        "label": "突出项",
+        "type": "slider",
+        "default": 0,
+        "min": 0,
+        "max": 3,
+        "step": 1,
+        "help": "被高亮的状态序号（0 指标泡沫 · 1 算力卡脖子 · 2 大厂/开源 · 3 监管压力）",
+        "publicKey": "focusIndex"
+      },
+      {
+        "key": "showDecor",
+        "label": "装饰图片",
+        "type": "toggle",
+        "default": false,
+        "help": "显示或隐藏页面上的装饰图片元素",
+        "publicKey": "showDecor"
+      },
+      {
+        "key": "decorSrc",
+        "label": "装饰元素",
+        "type": "icons",
+        "default": null,
+        "options": [
+          {
+            "value": "assets/3d/01.png",
+            "label": "胜利手势",
+            "image": "assets/3d/01.png"
+          },
+          {
+            "value": "assets/3d/02.png",
+            "label": "是 按键",
+            "image": "assets/3d/02.png"
+          },
+          {
+            "value": "assets/3d/03.png",
+            "label": "404 方块",
+            "image": "assets/3d/03.png"
+          },
+          {
+            "value": "assets/3d/04.png",
+            "label": "像素 幽灵",
+            "image": "assets/3d/04.png"
+          },
+          {
+            "value": "assets/3d/05.png",
+            "label": "是 气泡",
+            "image": "assets/3d/05.png"
+          },
+          {
+            "value": "assets/3d/06.png",
+            "label": "掌机图表",
+            "image": "assets/3d/06.png"
+          },
+          {
+            "value": "assets/3d/07.png",
+            "label": "像素显示器",
+            "image": "assets/3d/07.png"
+          },
+          {
+            "value": "assets/3d/08.png",
+            "label": "复古电脑",
+            "image": "assets/3d/08.png"
+          },
+          {
+            "value": "assets/3d/09.png",
+            "label": "拍立得",
+            "image": "assets/3d/09.png"
+          },
+          {
+            "value": "assets/3d/10.png",
+            "label": "奖杯",
+            "image": "assets/3d/10.png"
+          },
+          {
+            "value": "assets/3d/11.png",
+            "label": "文件夹",
+            "image": "assets/3d/11.png"
+          },
+          {
+            "value": "assets/3d/12.png",
+            "label": "番茄箱",
+            "image": "assets/3d/12.png"
+          }
+        ],
+        "help": "从 theme03 内置装饰元素中选择",
+        "publicKey": "decorSrc"
+      },
+      {
+        "key": "decorScale",
+        "label": "图片大小",
+        "type": "slider",
+        "default": 1,
+        "min": 0.6,
+        "max": 1.6,
+        "step": 0.05,
+        "help": "装饰图片的缩放比例",
+        "publicKey": "decorScale"
+      }
+    ],
+    "defaultProps": {
+      "showEyebrow": true,
+      "showRings": true,
+      "showValue": true,
+      "showPanel": true,
+      "showAnalysis": true,
+      "focusEnabled": false,
+      "focusIndex": 0,
+      "theme": "light",
+      "copy": {
+        "t001": "风险研判 / RISK RADAR",
+        "t002": "创纪录之下 · 四维风险信号",
+        "t003": "风险信号雷达",
+        "t004": "融资虽创历史新高 · 多重风险不容忽视",
+        "t005": "强度",
+        "t006": "/5",
+        "t007": "↳ 解读",
+        "t008": "四股风险并非孤立——估值泡沫被算力成本与大厂/开源的双重挤压放大，又被趋紧的监管点燃；一旦宏观收紧， 它们会沿“估值回调 → 融资断档 → 倒闭潮”的链条相互传导。资本热度越高，越需对兑现能力保持清醒。"
+      },
+      "risks": [
+        {
+          "cn": "深蓝系统",
+          "en": "深蓝系统 / 52",
+          "lvl": 5,
+          "accent": "#6c6fff",
+          "desc": "围绕科技汇报识别技术节点与光环结构，让现状判断建立在具体事实之上。"
+        },
+        {
+          "cn": "深蓝系统",
+          "en": "路径验证 / 52",
+          "lvl": 4,
+          "accent": "#3863ff",
+          "desc": "围绕科技汇报拆解路径验证与技术节点，让节奏判断建立在具体事"
+        },
+        {
+          "cn": "光环结构",
+          "en": "技术节点 / 52",
+          "lvl": 4,
+          "accent": "#f7f9ff",
+          "desc": "技术复盘的关键不只是技术节点，还要持续推进光环结构带来的信号反馈。"
+        },
+        {
+          "cn": "光环结构",
+          "en": "路径验证 / ",
+          "lvl": 3,
+          "accent": "#6c6fff",
+          "desc": "产品负责人可从信号观察产品发布，用技术节点解释变化，并以光环结"
+        }
+      ],
+      "lv": [
+        "",
+        "很低",
+        "低",
+        "中",
+        "高",
+        "极高"
+      ],
+      "showDecor": false,
+      "decorSrc": null,
+      "decorScale": 1,
+      "forceDark": true,
+      "accent": "blue"
+    }
+  },
+  {
+    "key": "theme13_page053",
+    "themeKey": "theme13",
+    "pageNumber": 53,
+    "layout": "THEME13-053",
+    "slot": "signature-arrow-ledger-table-theme13-053",
+    "label": "深蓝光环风 · arrow-ledger-table",
+    "sourceTheme": "theme13",
+    "sourcePageKey": "theme13_signature_arrow_ledger_table",
+    "moduleFamily": "table",
+    "moduleOrigin": "owned",
+    "moduleStrategy": "new",
+    "archetypeId": "arrow-ledger-table",
+    "evidenceMode": "observed",
+    "evidenceRefs": [
+      "slide-11",
+      "slide-19"
+    ],
+    "derivedFromRules": [],
+    "anchorModuleRefs": [],
+    "stylePrimitiveRefs": [],
+    "styleSignals": [
+      "表格行使用箭头形蓝色底板",
+      "编号列与说明列保持严格对齐",
+      "深蓝背景上只使用白色和蓝紫文字"
+    ],
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showSignatureSystem",
+        "label": "显示主题签名系统",
+        "type": "toggle",
+        "default": true,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "signature-system",
+            "ornament",
+            "page-marker"
+          ],
+          "minChangedRatio": 0.008,
+          "minRegions": 2
+        },
+        "publicKey": "showSignatureSystem"
+      },
+      {
+        "key": "density",
+        "label": "信息密度",
+        "type": "select",
+        "default": "balanced",
+        "options": [
+          {
+            "label": "紧凑",
+            "value": "compact"
+          },
+          {
+            "label": "平衡",
+            "value": "balanced"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-frame",
+            "spacing",
+            "type-scale"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "density"
+      },
+      {
+        "key": "tableLayout",
+        "label": "表格结构",
+        "type": "select",
+        "default": "structured",
+        "options": [
+          {
+            "label": "结构化",
+            "value": "structured"
+          },
+          {
+            "label": "偏移强调",
+            "value": "offset"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-grid",
+            "reading-order",
+            "emphasis"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "tableLayout"
+      }
+    ],
+    "defaultProps": {
+      "showSignatureSystem": true,
+      "density": "balanced",
+      "tableLayout": "structured",
+      "pillars": [
+        "系统架构",
+        "能力节点",
+        "验证路径",
+        "规模部署"
+      ],
+      "summary": "让架构、节点和路径在同一深蓝系统中形成可验证、可扩展的技术闭环。",
+      "title": "技术系统演进行动清单",
+      "columns": [
+        "模块",
+        "当前状态",
+        "下一步",
+        "负责人"
+      ],
+      "rows": [
+        [
+          "架构",
+          "边界清晰",
+          "增强弹性设计",
+          "技术"
+        ],
+        [
+          "性能",
+          "达到目标",
+          "持续压缩时延",
+          "平台"
+        ],
+        [
+          "安全",
+          "规则完备",
+          "强化主动治理",
+          "安全"
+        ],
+        [
+          "交付",
+          "自动化提升",
+          "扩展多环境部署",
+          "工程"
+        ]
+      ]
+    }
+  },
+  {
+    "key": "theme13_page054",
+    "themeKey": "theme13",
+    "pageNumber": 54,
+    "layout": "THEME13-054",
+    "slot": "index-theme05-073",
+    "label": "深蓝光环风 · 信息结构",
+    "sourceTheme": "theme05",
+    "sourcePageKey": "theme05_page073",
+    "moduleFamily": "table",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "imageCount",
+        "type": "slider",
+        "label": "图片槽数量",
+        "default": 1,
+        "min": 0,
+        "max": 3,
+        "step": 1,
+        "publicKey": "imageCount",
+        "desc": "图片槽数量（0–3），按各图比例自适应排布；为 0 时主体卡铺满整幅、指标转两列。"
+      },
+      {
+        "key": "imageSide",
+        "type": "radio",
+        "label": "图片位置",
+        "default": "right",
+        "options": [
+          {
+            "value": "right",
+            "label": "右侧"
+          },
+          {
+            "value": "left",
+            "label": "左侧"
+          }
+        ],
+        "publicKey": "imageSide",
+        "desc": "图片相对主体卡的位置（有图片时生效）。"
+      },
+      {
+        "key": "metricCount",
+        "type": "slider",
+        "label": "指标行数",
+        "default": 3,
+        "min": 2,
+        "max": 3,
+        "step": 1,
+        "publicKey": "metricCount",
+        "desc": "主体卡内的指标行数。"
+      },
+      {
+        "key": "cardTheme",
+        "type": "radio",
+        "label": "主体卡主题",
+        "default": "dark",
+        "options": [
+          {
+            "value": "dark",
+            "label": "深色"
+          },
+          {
+            "value": "color",
+            "label": "色块"
+          },
+          {
+            "value": "paper",
+            "label": "纸色"
+          }
+        ],
+        "publicKey": "cardTheme",
+        "desc": "主体卡背景：深色 / 强调色块 / 纸色。"
+      },
+      {
+        "key": "showDirectory",
+        "type": "toggle",
+        "label": "来源索引",
+        "default": true,
+        "publicKey": "showDirectory",
+        "desc": "底部知识来源索引目录（关闭则隐藏整条）。"
+      },
+      {
+        "key": "sourceCount",
+        "type": "slider",
+        "label": "索引条数",
+        "default": 4,
+        "min": 2,
+        "max": 5,
+        "step": 1,
+        "publicKey": "sourceCount",
+        "desc": "知识来源目录的行数。"
+      },
+      {
+        "key": "showCoverage",
+        "type": "toggle",
+        "label": "覆盖度条",
+        "default": true,
+        "publicKey": "showCoverage",
+        "desc": "各来源右侧的覆盖度比例条。"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点来源",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "是否突出某一条来源（以强调色着色）。"
+      },
+      {
+        "key": "focusIndex",
+        "type": "slider",
+        "label": "重点条序号",
+        "default": 1,
+        "min": 1,
+        "max": 5,
+        "step": 1,
+        "publicKey": "focusIndex",
+        "desc": "被突出的来源序号（从 1 起）。"
+      },
+      {
+        "key": "showRing",
+        "type": "toggle",
+        "label": "续约环",
+        "default": true,
+        "publicKey": "showRing",
+        "desc": "索引末端的环形续约率读数。"
+      },
+      {
+        "key": "showLead",
+        "type": "toggle",
+        "label": "引导说明",
+        "default": true,
+        "publicKey": "showLead",
+        "desc": "标题下方的一句引导说明。"
+      },
+      {
+        "key": "showGalleryCaption",
+        "type": "toggle",
+        "label": "图注",
+        "default": true,
+        "publicKey": "showGalleryCaption",
+        "desc": "图片区上方的装饰性图注。"
+      },
+      {
+        "key": "accentColor",
+        "type": "color",
+        "label": "强调色",
+        "default": "#6c6fff",
+        "options": [
+          {
+            "value": "#6c6fff",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#3863ff",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#f7f9ff",
+            "label": "颜色 3"
+          }
+        ],
+        "publicKey": "accentColor",
+        "desc": "眉标 / 重点来源 / 续约环 /「色块」主题主体卡的颜色。"
+      },
+      {
+        "key": "showConclusion",
+        "type": "toggle",
+        "label": "结论文案",
+        "default": true,
+        "publicKey": "showConclusion",
+        "desc": "底部的一句装饰性结论。"
+      },
+      {
+        "key": "showSheetLabel",
+        "type": "toggle",
+        "label": "页码标签",
+        "default": true,
+        "publicKey": "showSheetLabel",
+        "desc": "右上角的页码 / 章节标签。"
+      }
+    ],
+    "defaultProps": {
+      "imageCount": 1,
+      "imageSide": "right",
+      "metricCount": 3,
+      "cardTheme": "dark",
+      "showDirectory": true,
+      "sourceCount": 4,
+      "showCoverage": true,
+      "focusEnabled": true,
+      "focusIndex": 1,
+      "showRing": true,
+      "showLead": true,
+      "showGalleryCaption": true,
+      "accentColor": "#6c6fff",
+      "showConclusion": true,
+      "showSheetLabel": true,
+      "images": [],
+      "copy": {
+        "eyebrow": "54 / 技术复",
+        "title": "产品发布 · ",
+        "sheet": "CASE · 69 / 80",
+        "en": "技术",
+        "zh": "企业搜索 · 知识工作流",
+        "sub": "路径验证",
+        "lead": "技术团队可从反馈观察科技汇报，用光环结构解释变化，并以深蓝系统推",
+        "kpis": [
+          [
+            "最大单笔融资",
+            "2.6",
+            "亿美元"
+          ],
+          [
+            "付费客户",
+            "780",
+            "家"
+          ],
+          [
+            "赛道",
+            "企业搜索",
+            ""
+          ]
+        ],
+        "galleryCap": "案例主视觉",
+        "galleryUnit": "DROP IMAGES",
+        "dirCap": "知识来源索引",
+        "dirUnit": "INDEXED SOURCES",
+        "sources": [
+          {
+            "k": "文档与云盘",
+            "en": "光环结构 / 5",
+            "w": 92
+          },
+          {
+            "k": "工单与邮件",
+            "en": "技术节点 / 54",
+            "w": 74
+          },
+          {
+            "k": "代码与知识库",
+            "en": "深蓝系统 / ",
+            "w": 61
+          },
+          {
+            "k": "会话与日历",
+            "en": "光环结构 /",
+            "w": 48
+          },
+          {
+            "k": "数据看板",
+            "en": "路径验证 / ",
+            "w": 35
+          }
+        ],
+        "ringCap": "续约率",
+        "ringValue": 91,
+        "ringNote": "高留存验证入口价值",
+        "conclusion": "窄场景也能产生高价值。"
+      }
+    }
+  },
+  {
+    "key": "theme13_page055",
+    "themeKey": "theme13",
+    "pageNumber": 55,
+    "layout": "THEME13-055",
+    "slot": "grid-theme05-007",
+    "label": "深蓝光环风 · 信息结构",
+    "sourceTheme": "theme05",
+    "sourcePageKey": "theme05_page007",
+    "moduleFamily": "table",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "cardCount",
+        "type": "slider",
+        "label": "卡片数量",
+        "default": 7,
+        "min": 1,
+        "max": 8,
+        "step": 1,
+        "publicKey": "cardCount",
+        "desc": "展示的章节卡数量。"
+      },
+      {
+        "key": "columns",
+        "type": "slider",
+        "label": "列数",
+        "default": 4,
+        "min": 2,
+        "max": 4,
+        "step": 1,
+        "publicKey": "columns",
+        "desc": "网格列数，行数自动换行。"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点卡",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "是否突出显示某一张卡片。"
+      },
+      {
+        "key": "focusIndex",
+        "type": "slider",
+        "label": "重点卡序号",
+        "default": 2,
+        "min": 1,
+        "max": 8,
+        "step": 1,
+        "publicKey": "focusIndex",
+        "desc": "被突出显示的卡片序号（从 1 起）。"
+      },
+      {
+        "key": "showCardGraphic",
+        "type": "toggle",
+        "label": "色块图形",
+        "default": true,
+        "publicKey": "showCardGraphic",
+        "desc": "卡片内的抽象色块构图。"
+      },
+      {
+        "key": "showCardIndex",
+        "type": "toggle",
+        "label": "序号",
+        "default": true,
+        "publicKey": "showCardIndex",
+        "desc": "卡片右上角的两位序号。"
+      },
+      {
+        "key": "showCardCode",
+        "type": "toggle",
+        "label": "卡片代号",
+        "default": true,
+        "publicKey": "showCardCode",
+        "desc": "卡片右下角的大号代号。"
+      },
+      {
+        "key": "showNote",
+        "type": "toggle",
+        "label": "装饰注释",
+        "default": true,
+        "publicKey": "showNote",
+        "desc": "标题右侧的装饰性说明文字。"
+      }
+    ],
+    "defaultProps": {
+      "cardCount": 7,
+      "columns": 4,
+      "focusEnabled": true,
+      "focusIndex": 2,
+      "showCardGraphic": true,
+      "showCardIndex": true,
+      "showCardCode": true,
+      "showNote": true,
+      "copy": {
+        "title": "科技汇报",
+        "note": [
+          "围绕科技汇报追",
+          "从约束切入科技汇报，以"
+        ],
+        "cardFootLabel": "CHAPTER",
+        "focusBadgeLabel": "重点",
+        "chapters": [
+          {
+            "zh": "研究方法",
+            "en": "路径验证 / 5",
+            "code": "深"
+          },
+          {
+            "zh": "市场全景",
+            "en": "深蓝系统 / 55",
+            "code": "路"
+          },
+          {
+            "zh": "横向透视",
+            "en": "技术节点 / 55",
+            "code": "光"
+          },
+          {
+            "zh": "产业链分层",
+            "en": "光环结构 / 5",
+            "code": "深"
+          },
+          {
+            "zh": "典型案例",
+            "en": "光环结构 / 55",
+            "code": "光"
+          },
+          {
+            "zh": "风险研判",
+            "en": "深蓝系统 / 55",
+            "code": "深"
+          },
+          {
+            "zh": "结论展望",
+            "en": "光环结",
+            "code": "光"
+          },
+          {
+            "zh": "附录数据",
+            "en": "技术节点 ",
+            "code": "光"
+          }
+        ],
+        "skins": [
+          {
+            "bg": "#d8402e",
+            "fg": "#fff",
+            "blocks": [
+              [
+                2,
+                42,
+                40,
+                58,
+                "#efbe2e"
+              ],
+              [
+                34,
+                8,
+                34,
+                54,
+                "#e2742c"
+              ],
+              [
+                64,
+                30,
+                34,
+                70,
+                "#f2efe4"
+              ]
+            ]
+          },
+          {
+            "bg": "#f2efe4",
+            "fg": "#1a1814",
+            "blocks": [
+              [
+                2,
+                30,
+                30,
+                70,
+                "#d8402e"
+              ],
+              [
+                30,
+                55,
+                34,
+                45,
+                "#2c44a0"
+              ],
+              [
+                62,
+                18,
+                36,
+                82,
+                "#efbe2e"
+              ]
+            ]
+          },
+          {
+            "bg": "#3c9a52",
+            "fg": "#fff",
+            "blocks": [
+              [
+                0,
+                20,
+                46,
+                40,
+                "#efbe2e"
+              ],
+              [
+                40,
+                48,
+                38,
+                52,
+                "#4da0c6"
+              ],
+              [
+                70,
+                6,
+                30,
+                46,
+                "#f2efe4"
+              ]
+            ]
+          },
+          {
+            "bg": "#2c44a0",
+            "fg": "#fff",
+            "blocks": [
+              [
+                2,
+                48,
+                36,
+                52,
+                "#4da0c6"
+              ],
+              [
+                30,
+                12,
+                36,
+                46,
+                "#d8402e"
+              ],
+              [
+                62,
+                40,
+                36,
+                60,
+                "#efbe2e"
+              ]
+            ]
+          },
+          {
+            "bg": "#efbe2e",
+            "fg": "#1a1814",
+            "blocks": [
+              [
+                0,
+                30,
+                42,
+                50,
+                "#d8402e"
+              ],
+              [
+                38,
+                10,
+                30,
+                64,
+                "#2c44a0"
+              ],
+              [
+                64,
+                46,
+                36,
+                54,
+                "#3c9a52"
+              ]
+            ]
+          },
+          {
+            "bg": "#1a1814",
+            "fg": "#f2efe4",
+            "blocks": [
+              [
+                2,
+                24,
+                32,
+                54,
+                "#3c9a52"
+              ],
+              [
+                32,
+                46,
+                34,
+                54,
+                "#e2742c"
+              ],
+              [
+                62,
+                16,
+                36,
+                62,
+                "#4da0c6"
+              ]
+            ]
+          },
+          {
+            "bg": "#4da0c6",
+            "fg": "#fff",
+            "blocks": [
+              [
+                0,
+                40,
+                40,
+                60,
+                "#2c44a0"
+              ],
+              [
+                34,
+                14,
+                34,
+                50,
+                "#efbe2e"
+              ],
+              [
+                64,
+                34,
+                36,
+                66,
+                "#d8402e"
+              ]
+            ]
+          },
+          {
+            "bg": "#7a3c90",
+            "fg": "#fff",
+            "blocks": [
+              [
+                2,
+                30,
+                36,
+                62,
+                "#efbe2e"
+              ],
+              [
+                32,
+                54,
+                34,
+                46,
+                "#4da0c6"
+              ],
+              [
+                62,
+                12,
+                36,
+                60,
+                "#e2742c"
+              ]
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "key": "theme13_page056",
+    "themeKey": "theme13",
+    "pageNumber": 56,
+    "layout": "THEME13-056",
+    "slot": "register-theme05-078",
+    "label": "深蓝光环风 · 信息结构",
+    "sourceTheme": "theme05",
+    "sourcePageKey": "theme05_page078",
+    "moduleFamily": "table",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "rowCount",
+        "type": "slider",
+        "label": "数据行数",
+        "default": 4,
+        "min": 2,
+        "max": 4,
+        "step": 1,
+        "publicKey": "rowCount",
+        "desc": "表格的数据行数量。"
+      },
+      {
+        "key": "showExposure",
+        "type": "toggle",
+        "label": "严重度带",
+        "default": true,
+        "publicKey": "showExposure",
+        "desc": "末尾的严重度暴露带列（green→red 色阶，关闭则收起该列）。"
+      },
+      {
+        "key": "scaleMax",
+        "type": "slider",
+        "label": "严重度刻度",
+        "default": 5,
+        "min": 3,
+        "max": 5,
+        "step": 1,
+        "publicKey": "scaleMax",
+        "desc": "严重度暴露带的总刻度段数。"
+      },
+      {
+        "key": "showVerdict",
+        "type": "toggle",
+        "label": "判断标签",
+        "default": true,
+        "publicKey": "showVerdict",
+        "desc": "严重度带旁的「低 / 中 / 高」判断 chip。"
+      },
+      {
+        "key": "sortDescending",
+        "type": "toggle",
+        "label": "按严重度降序",
+        "default": true,
+        "publicKey": "sortDescending",
+        "desc": "是否按严重度由高到低排序行。"
+      },
+      {
+        "key": "zebra",
+        "type": "toggle",
+        "label": "斑马纹",
+        "default": false,
+        "publicKey": "zebra",
+        "desc": "隔行底色，便于横向读取。"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点行",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "是否突出某一行。"
+      },
+      {
+        "key": "focusIndex",
+        "type": "slider",
+        "label": "重点行序号",
+        "default": 1,
+        "min": 1,
+        "max": 4,
+        "step": 1,
+        "publicKey": "focusIndex",
+        "desc": "被突出的行序号（按当前排序后顺序，从 1 起）。"
+      },
+      {
+        "key": "showIntro",
+        "type": "toggle",
+        "label": "引导栏",
+        "default": true,
+        "publicKey": "showIntro",
+        "desc": "表格上方的引导文案与一对头部指标。"
+      },
+      {
+        "key": "accentColor",
+        "type": "color",
+        "label": "强调色",
+        "default": "#6c6fff",
+        "options": [
+          {
+            "value": "#6c6fff",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#3863ff",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#f7f9ff",
+            "label": "颜色 3"
+          }
+        ],
+        "publicKey": "accentColor",
+        "desc": "眉标 / 头部指标 / 重点行的强调色（严重度带用独立色阶）。"
+      },
+      {
+        "key": "showConclusion",
+        "type": "toggle",
+        "label": "结论文案",
+        "default": true,
+        "publicKey": "showConclusion",
+        "desc": "表格下方的一句装饰性结论。"
+      },
+      {
+        "key": "showSheetLabel",
+        "type": "toggle",
+        "label": "页码标签",
+        "default": true,
+        "publicKey": "showSheetLabel",
+        "desc": "右上角的页码 / 章节标签。"
+      }
+    ],
+    "defaultProps": {
+      "rowCount": 4,
+      "showExposure": true,
+      "scaleMax": 5,
+      "showVerdict": true,
+      "sortDescending": true,
+      "zebra": false,
+      "focusEnabled": true,
+      "focusIndex": 1,
+      "showIntro": true,
+      "accentColor": "#6c6fff",
+      "showConclusion": true,
+      "showSheetLabel": true,
+      "copy": {
+        "eyebrow": "56 / 技术复盘",
+        "title": "科技汇报 · 识别",
+        "sheet": "RISK · 74 / 80",
+        "lead": "科技汇报的关键不只是深蓝系统，还要持续推",
+        "headlines": [
+          [
+            "合规团队增长",
+            "+42",
+            "%"
+          ],
+          [
+            "采购审查周期",
+            "+36",
+            "%"
+          ]
+        ],
+        "headers": [
+          "维度",
+          "模拟数据",
+          "代表对象",
+          "严重度"
+        ],
+        "sevHead": "SEVERITY",
+        "rows": [
+          {
+            "k": "数据隐私",
+            "en": "光环结",
+            "num": "58",
+            "unit": "%",
+            "sub": "技术节点",
+            "rep": "医疗 · 金融客户",
+            "level": 5
+          },
+          {
+            "k": "版权合规",
+            "en": "技术节点 /",
+            "num": "19",
+            "unit": "起",
+            "sub": "路径验证",
+            "rep": "图像 · 视频生成",
+            "level": 4
+          },
+          {
+            "k": "模型安全",
+            "en": "光环结",
+            "num": "+42",
+            "unit": "%",
+            "sub": "光环结构",
+            "rep": "通用大模型",
+            "level": 3
+          },
+          {
+            "k": "行业监管",
+            "en": "深蓝系统 / ",
+            "num": "+36",
+            "unit": "%",
+            "sub": "深蓝系统",
+            "rep": "受监管行业",
+            "level": 3
+          }
+        ],
+        "conclusion": "合规能力会成为企业采购门槛。"
+      }
+    }
+  },
+  {
+    "key": "theme13_page057",
+    "themeKey": "theme13",
+    "pageNumber": 57,
+    "layout": "THEME13-057",
+    "slot": "catalog-theme05-046",
+    "label": "深蓝光环风 · 信息结构",
+    "sourceTheme": "theme05",
+    "sourcePageKey": "theme05_page046",
+    "moduleFamily": "table",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "cardCount",
+        "type": "slider",
+        "label": "型录卡数量",
+        "default": 4,
+        "min": 2,
+        "max": 4,
+        "step": 1,
+        "publicKey": "cardCount",
+        "desc": "类型卡（型录单元）的数量。"
+      },
+      {
+        "key": "imageCount",
+        "type": "slider",
+        "label": "图片槽数量",
+        "default": 2,
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "publicKey": "imageCount",
+        "desc": "前 N 张卡作为图片槽（按比例填充）；其余卡为纯色型录块。"
+      },
+      {
+        "key": "widthByValue",
+        "type": "toggle",
+        "label": "按数值定宽",
+        "default": true,
+        "publicKey": "widthByValue",
+        "desc": "卡片宽度按数值分配（整行即一条资金分布）；关闭则等宽。"
+      },
+      {
+        "key": "showCode",
+        "type": "toggle",
+        "label": "卡片代号",
+        "default": true,
+        "publicKey": "showCode",
+        "desc": "卡片角上的两字母代号。"
+      },
+      {
+        "key": "showValue",
+        "type": "toggle",
+        "label": "卡片数值",
+        "default": true,
+        "publicKey": "showValueLabels",
+        "desc": "卡片底部的数值标注。"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点卡片",
+        "default": false,
+        "publicKey": "focusEnabled",
+        "desc": "是否突出某一张卡（其余淡出）。"
+      },
+      {
+        "key": "focusIndex",
+        "type": "slider",
+        "label": "重点卡序号",
+        "default": 1,
+        "min": 1,
+        "max": 4,
+        "step": 1,
+        "publicKey": "focusIndex",
+        "desc": "被突出的卡片序号（从 1 起）。"
+      },
+      {
+        "key": "showHeadline",
+        "type": "toggle",
+        "label": "指标条",
+        "default": true,
+        "publicKey": "showHeadline",
+        "desc": "型录上方的标题指标条。"
+      },
+      {
+        "key": "showGalleryCaption",
+        "type": "toggle",
+        "label": "图注",
+        "default": true,
+        "publicKey": "showGalleryCaption",
+        "desc": "型录区上方的装饰性图注。"
+      },
+      {
+        "key": "accentColor",
+        "type": "color",
+        "label": "强调色",
+        "default": "#6c6fff",
+        "options": [
+          {
+            "value": "#6c6fff",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#3863ff",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#f7f9ff",
+            "label": "颜色 3"
+          }
+        ],
+        "publicKey": "accentColor",
+        "desc": "眉标 / 指标条强调色。"
+      },
+      {
+        "key": "showConclusion",
+        "type": "toggle",
+        "label": "结论文案",
+        "default": true,
+        "publicKey": "showConclusion",
+        "desc": "底部的一句装饰性结论。"
+      },
+      {
+        "key": "showSheetLabel",
+        "type": "toggle",
+        "label": "页码标签",
+        "default": true,
+        "publicKey": "showSheetLabel",
+        "desc": "右上角的页码 / 章节标签。"
+      }
+    ],
+    "defaultProps": {
+      "cardCount": 4,
+      "imageCount": 2,
+      "widthByValue": true,
+      "showCode": true,
+      "showValue": true,
+      "focusEnabled": false,
+      "focusIndex": 1,
+      "showHeadline": true,
+      "showGalleryCaption": true,
+      "accentColor": "#6c6fff",
+      "showConclusion": true,
+      "showSheetLabel": true,
+      "images": [],
+      "copy": {
+        "eyebrow": "57 / 科技汇报",
+        "title": "产品发布 · 比较",
+        "sub": "深蓝系统",
+        "sheet": "IMAGE · 42 / 80",
+        "metrics": [
+          [
+            "融资额",
+            "31",
+            "亿美元"
+          ],
+          [
+            "事件数",
+            "11",
+            "笔"
+          ],
+          [
+            "平均单笔",
+            "2.8",
+            "亿美元"
+          ]
+        ],
+        "galleryCap": "内容类型型录",
+        "galleryUnit": "DROP IMAGES",
+        "cards": [
+          {
+            "en": "深蓝",
+            "zh": "视频生成",
+            "code": "路",
+            "v": 14,
+            "unit": "亿美元",
+            "c": "#d8402e"
+          },
+          {
+            "en": "深",
+            "zh": "广告创意",
+            "code": "光",
+            "v": 8,
+            "unit": "亿美元",
+            "c": "#efbe2e"
+          },
+          {
+            "en": "IMAGE",
+            "zh": "图像生成",
+            "code": "路",
+            "v": 5,
+            "unit": "亿美元",
+            "c": "#2c44a0"
+          },
+          {
+            "en": "深蓝",
+            "zh": "音乐音频",
+            "code": "路",
+            "v": 4,
+            "unit": "亿美元",
+            "c": "#4da0c6"
+          }
+        ],
+        "conclusion": "流量热度不等于商业壁垒。"
+      }
+    }
+  },
+  {
+    "key": "theme13_page058",
+    "themeKey": "theme13",
+    "pageNumber": 58,
+    "layout": "THEME13-058",
+    "slot": "risk-theme05-016",
+    "label": "深蓝光环风 · 清单与表格",
+    "sourceTheme": "theme05",
+    "sourcePageKey": "theme05_page016",
+    "moduleFamily": "table",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "chainCount",
+        "type": "slider",
+        "label": "传导链节点",
+        "default": 4,
+        "min": 3,
+        "max": 5,
+        "step": 1,
+        "publicKey": "chainCount",
+        "desc": "顶部状态传导链的节点数量。"
+      },
+      {
+        "key": "cardCount",
+        "type": "slider",
+        "label": "状态卡数量",
+        "default": 4,
+        "min": 2,
+        "max": 5,
+        "step": 1,
+        "publicKey": "cardCount",
+        "desc": "状态因素卡片数量（网格列数随之变化）。"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "突出项",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "是否突出某一张状态卡。"
+      },
+      {
+        "key": "focusIndex",
+        "type": "slider",
+        "label": "重点状态卡",
+        "default": 1,
+        "min": 1,
+        "max": 5,
+        "step": 1,
+        "publicKey": "focusIndex",
+        "desc": "被突出的状态卡序号（从 1 起）。"
+      },
+      {
+        "key": "imageCount",
+        "type": "slider",
+        "label": "图片槽数量",
+        "default": 1,
+        "min": 0,
+        "max": 2,
+        "step": 1,
+        "publicKey": "imageCount",
+        "desc": "底部图片槽数量（0–2）；按各图比例自适应排布，构图自动均衡。"
+      },
+      {
+        "key": "showChain",
+        "type": "toggle",
+        "label": "传导链",
+        "default": true,
+        "publicKey": "showChain",
+        "desc": "顶部的状态传导链。"
+      },
+      {
+        "key": "showLevel",
+        "type": "toggle",
+        "label": "状态等级",
+        "default": true,
+        "publicKey": "showStatusLevel",
+        "desc": "卡片内的状态等级标识（高 / 中 / 低）。"
+      },
+      {
+        "key": "showGalleryCaption",
+        "type": "toggle",
+        "label": "图注",
+        "default": true,
+        "publicKey": "showGalleryCaption",
+        "desc": "图片区上方的装饰性图注。"
+      },
+      {
+        "key": "accentColor",
+        "type": "color",
+        "label": "强调色",
+        "default": "#6c6fff",
+        "options": [
+          {
+            "value": "#6c6fff",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#3863ff",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#f7f9ff",
+            "label": "颜色 3"
+          }
+        ],
+        "publicKey": "accentColor",
+        "desc": "眉标的强调色。"
+      },
+      {
+        "key": "showConclusion",
+        "type": "toggle",
+        "label": "结论文案",
+        "default": true,
+        "publicKey": "showConclusion",
+        "desc": "底部的一句装饰性结论。"
+      },
+      {
+        "key": "showSheetLabel",
+        "type": "toggle",
+        "label": "页码标签",
+        "default": true,
+        "publicKey": "showSheetLabel",
+        "desc": "右上角的页码 / 章节标签。"
+      }
+    ],
+    "defaultProps": {
+      "chainCount": 4,
+      "cardCount": 4,
+      "focusEnabled": true,
+      "focusIndex": 1,
+      "imageCount": 1,
+      "showChain": true,
+      "showLevel": true,
+      "showGalleryCaption": true,
+      "accentColor": "#6c6fff",
+      "showConclusion": true,
+      "showSheetLabel": true,
+      "images": [],
+      "copy": {
+        "eyebrow": "58 / 技术复盘",
+        "title": "技术复盘",
+        "sub": "产品发布 · 技术节点",
+        "sheet": "RISK · 12 / 32",
+        "chain": [
+          "高估值预期",
+          "盈利兑现承压",
+          "算力成本攀升",
+          "资本转向观望",
+          "估值锚重定价"
+        ],
+        "cards": [
+          {
+            "en": "路径验证 /",
+            "zh": "估值泡沫",
+            "c": "#d8402e",
+            "level": "高",
+            "note": "以光环结构校准技术复盘的"
+          },
+          {
+            "en": "光环结",
+            "zh": "盈利模式未验证",
+            "c": "#2c44a0",
+            "level": "高",
+            "note": "以深蓝系统校准技术复盘的"
+          },
+          {
+            "en": "深蓝系统 / ",
+            "zh": "监管成本上升",
+            "c": "#e2742c",
+            "level": "中",
+            "note": "技术团队可从路径观察产品发"
+          },
+          {
+            "en": "路径验证 / 5",
+            "zh": "开源与大厂挤压",
+            "c": "#7a3c90",
+            "level": "中",
+            "note": "产品发布正在由路径验"
+          },
+          {
+            "en": "光环结",
+            "zh": "算力供应链卡脖子",
+            "c": "#3c9a52",
+            "level": "高",
+            "note": "企业管理者可从趋势观"
+          }
+        ],
+        "galleryCap": "风险示意",
+        "galleryUnit": "DROP IMAGES",
+        "conclusion": "下一阶段会淘汰只会讲故事的公司。"
+      }
+    }
+  },
+  {
+    "key": "theme13_page059",
+    "themeKey": "theme13",
+    "pageNumber": 59,
+    "layout": "THEME13-059",
+    "slot": "signature-device-halo-media-theme13-059",
+    "label": "深蓝光环风 · device-halo-media",
+    "sourceTheme": "theme13",
+    "sourcePageKey": "theme13_signature_device_halo_media",
+    "moduleFamily": "media",
+    "moduleOrigin": "owned",
+    "moduleStrategy": "new",
+    "archetypeId": "device-halo-media",
+    "evidenceMode": "observed",
+    "evidenceRefs": [
+      "slide-01",
+      "slide-06"
+    ],
+    "derivedFromRules": [],
+    "anchorModuleRefs": [],
+    "stylePrimitiveRefs": [],
+    "styleSignals": [
+      "媒体置于深蓝框并使用冷色遮罩",
+      "光环从媒体边缘穿过",
+      "标题与媒体保持大比例分栏"
+    ],
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showSignatureSystem",
+        "label": "显示主题签名系统",
+        "type": "toggle",
+        "default": true,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "signature-system",
+            "ornament",
+            "page-marker"
+          ],
+          "minChangedRatio": 0.008,
+          "minRegions": 2
+        },
+        "publicKey": "showSignatureSystem"
+      },
+      {
+        "key": "density",
+        "label": "信息密度",
+        "type": "select",
+        "default": "balanced",
+        "options": [
+          {
+            "label": "紧凑",
+            "value": "compact"
+          },
+          {
+            "label": "平衡",
+            "value": "balanced"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-frame",
+            "spacing",
+            "type-scale"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "density"
+      },
+      {
+        "key": "mediaLayout",
+        "label": "媒体结构",
+        "type": "select",
+        "default": "structured",
+        "options": [
+          {
+            "label": "结构化",
+            "value": "structured"
+          },
+          {
+            "label": "偏移强调",
+            "value": "offset"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-grid",
+            "reading-order",
+            "emphasis"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "mediaLayout"
+      },
+      {
+        "key": "mediaCount",
+        "label": "媒体数量",
+        "type": "range",
+        "min": 1,
+        "max": 3,
+        "default": 2,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "media",
+            "layout"
+          ],
+          "minChangedRatio": 0.01,
+          "minRegions": 2
+        },
+        "mediaSlots": [
+          {
+            "field": "media",
+            "fieldPath": "props.media",
+            "countKey": "mediaCount",
+            "maxCount": 3,
+            "initialSrcSupported": true,
+            "canPresetMedia": true,
+            "acceptedKinds": [
+              "image"
+            ]
+          }
+        ],
+        "publicKey": "mediaCount"
+      }
+    ],
+    "defaultProps": {
+      "showSignatureSystem": true,
+      "density": "balanced",
+      "mediaLayout": "structured",
+      "pillars": [
+        "系统架构",
+        "能力节点",
+        "验证路径",
+        "规模部署"
+      ],
+      "summary": "让架构、节点和路径在同一深蓝系统中形成可验证、可扩展的技术闭环。",
+      "title": "技术系统演进的场景证据",
+      "caption": "让架构、节点和路径在同一深蓝系统中形成可验证、可扩展的技术闭环。",
+      "facts": [
+        "以清晰边界组织核心模块。",
+        "让关键能力沿主轴协同。",
+        "用证据校准技术假设。"
+      ],
+      "media": [],
+      "mediaCount": 3
+    }
+  },
+  {
+    "key": "theme13_page060",
+    "themeKey": "theme13",
+    "pageNumber": 60,
+    "layout": "THEME13-060",
+    "slot": "profile-theme02-052",
+    "label": "深蓝光环风 · 信息结构",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page052",
+    "moduleFamily": "media",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "imageCount",
+        "type": "number",
+        "label": "图片数量",
+        "default": 1,
+        "min": 0,
+        "max": 2,
+        "step": 1,
+        "publicKey": "imageCount",
+        "desc": "档案配图槽位数量（0 = 纯文字版式）"
+      },
+      {
+        "key": "imageSide",
+        "type": "enum",
+        "label": "图片位置",
+        "default": "right",
+        "options": [
+          {
+            "value": "left",
+            "label": "左侧"
+          },
+          {
+            "value": "right",
+            "label": "右侧"
+          }
+        ],
+        "publicKey": "imageSide",
+        "desc": "配图列位于左侧或右侧"
+      },
+      {
+        "key": "factCount",
+        "type": "number",
+        "label": "档案条目",
+        "default": 5,
+        "min": 2,
+        "step": 1,
+        "max": 5,
+        "publicKey": "itemCount",
+        "desc": "展示的事实条目数量"
+      },
+      {
+        "key": "showQuote",
+        "type": "toggle",
+        "label": "人物金句",
+        "default": true,
+        "publicKey": "showQuote",
+        "desc": "显示/隐藏底部的人物金句"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": false,
+        "publicKey": "focusEnabled",
+        "desc": "是否高亮其中一张配图"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调项",
+        "default": 0,
+        "min": 0,
+        "step": 1,
+        "oneBased": true,
+        "max": 1,
+        "maxFromKey": "imageCount",
+        "publicKey": "focusIndex",
+        "desc": "被强调配图的序号"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "60 / 技术复盘",
+      "name": "技术团队可",
+      "nameEm": "安全对齐路线",
+      "role": "约束光环结构",
+      "facts": [
+        {
+          "label": "深蓝",
+          "value": "2021"
+        },
+        {
+          "label": "深蓝系统",
+          "value": "9650 亿美元"
+        },
+        {
+          "label": "技术节点",
+          "value": "650 亿美元"
+        },
+        {
+          "label": "光环结构",
+          "value": "Series G → H 三轮"
+        },
+        {
+          "label": "路径验",
+          "value": "2026 已递交申请"
+        }
+      ],
+      "factCount": 5,
+      "quote": "技术团队可从路径观察科技汇报，用路径验证解释变化，并以技术节点推进响应。",
+      "quoteBy": "Dario Amodei · 联合创始人 / CEO",
+      "tags": [
+        "趋势路径",
+        "约束光环",
+        "信号技术节"
+      ],
+      "imageCount": 1,
+      "imageSide": "right",
+      "captions": [
+        "科技汇报正在由技术节",
+        "Claude · 产品界面"
+      ],
+      "focusEnabled": false,
+      "focusIndex": 0,
+      "showQuote": true,
+      "images": [],
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "51 / 73"
+    }
+  },
+  {
+    "key": "theme13_page061",
+    "themeKey": "theme13",
+    "pageNumber": 61,
+    "layout": "THEME13-061",
+    "slot": "showcase-theme02-013",
+    "label": "深蓝光环风 · 图文与案例",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page013",
+    "moduleFamily": "media",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "imageCount",
+        "type": "number",
+        "label": "图片数量",
+        "default": 3,
+        "min": 0,
+        "max": 5,
+        "step": 1,
+        "publicKey": "imageCount",
+        "desc": "配图槽位数量（0 = 纯文字版式）"
+      },
+      {
+        "key": "layout",
+        "type": "enum",
+        "label": "版式",
+        "default": "split",
+        "options": [
+          {
+            "value": "split",
+            "label": "图文分栏"
+          },
+          {
+            "value": "full",
+            "label": "满幅图廊"
+          }
+        ],
+        "publicKey": "layout",
+        "desc": "图文分栏，或图片占主导的满幅图廊"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": false,
+        "publicKey": "focusEnabled",
+        "desc": "是否高亮其中一张配图"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调项",
+        "default": 0,
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "oneBased": true,
+        "publicKey": "focusIndex",
+        "desc": "被强调配图的序号"
+      },
+      {
+        "key": "showCaptions",
+        "type": "toggle",
+        "label": "图注",
+        "default": true,
+        "publicKey": "showCaptions",
+        "desc": "显示/隐藏图片上的说明文字"
+      },
+      {
+        "key": "showStat",
+        "type": "toggle",
+        "label": "关键数字",
+        "default": true,
+        "publicKey": "showStat",
+        "desc": "显示/隐藏侧栏的关键数字"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "61 / 技术复盘",
+      "title": "科技汇报 · 推",
+      "titleEm": "头部玩家",
+      "lead": "从现状切入科技汇报，以技术节点识别关键证据，为技术团队形成可执行的下一步。",
+      "imageCount": 3,
+      "layout": "split",
+      "captions": [
+        "围绕科技汇报追踪光",
+        "技术复盘的关键不只是",
+        "产品发布正在由",
+        "从反馈切入科技汇报",
+        "Perplexity · AI 搜索"
+      ],
+      "focusEnabled": false,
+      "focusIndex": 0,
+      "showCaptions": true,
+      "showStat": true,
+      "stat": {
+        "value": "650",
+        "unit": "亿美元",
+        "caption": "从现状切入科技汇报，以"
+      },
+      "tags": [
+        "边界技术节",
+        "样本深蓝",
+        "信号技术"
+      ],
+      "images": [],
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "12 / 73"
+    }
+  },
+  {
+    "key": "theme13_page062",
+    "themeKey": "theme13",
+    "pageNumber": 62,
+    "layout": "THEME13-062",
+    "slot": "spotlight-theme02-024",
+    "label": "深蓝光环风 · 图文与案例",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page024",
+    "moduleFamily": "media",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "imageCount",
+        "type": "number",
+        "label": "图片数量",
+        "default": 1,
+        "min": 0,
+        "max": 1,
+        "step": 1,
+        "publicKey": "imageCount",
+        "desc": "主图槽位（0 = 纯文字版式）"
+      },
+      {
+        "key": "imageSide",
+        "type": "enum",
+        "label": "图片位置",
+        "default": "right",
+        "options": [
+          {
+            "value": "left",
+            "label": "左侧"
+          },
+          {
+            "value": "right",
+            "label": "右侧"
+          }
+        ],
+        "publicKey": "imageSide",
+        "desc": "主图位于左侧或右侧"
+      },
+      {
+        "key": "pointCount",
+        "type": "number",
+        "label": "要点数量",
+        "default": 3,
+        "min": 1,
+        "max": 4,
+        "step": 1,
+        "publicKey": "pointCount",
+        "desc": "展示的要点条数"
+      },
+      {
+        "key": "showPoints",
+        "type": "toggle",
+        "label": "要点列表",
+        "default": true,
+        "publicKey": "showPoints",
+        "desc": "显示/隐藏要点列表"
+      },
+      {
+        "key": "showStat",
+        "type": "toggle",
+        "label": "关键数字",
+        "default": true,
+        "publicKey": "showStat",
+        "desc": "显示/隐藏关键数字"
+      },
+      {
+        "key": "showCaption",
+        "type": "toggle",
+        "label": "图注",
+        "default": true,
+        "publicKey": "showCaption",
+        "desc": "显示/隐藏图片说明"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "62 / 产品发布",
+      "title": "以路径验证",
+      "titleEm": "从追赶到反超",
+      "lead": "企业管理者可从证据观察技术复盘，用光环结构解释变化，并以深蓝系统推进响应。",
+      "points": [
+        {
+          "title": "产品发布",
+          "desc": "企业管理者可从趋势观察技术复盘，用路"
+        },
+        {
+          "title": "技术复盘",
+          "desc": "技术复盘正在由路径验证走向技术节点，"
+        },
+        {
+          "title": "技术复盘 ·",
+          "desc": "围绕产品发布拆解深蓝系统与路径验"
+        },
+        {
+          "title": "科技汇",
+          "desc": "科技汇报的关键不只是路径验证，还要持续"
+        }
+      ],
+      "pointCount": 3,
+      "stat": {
+        "value": "9650",
+        "unit": "亿美元",
+        "caption": "企业管理者可从趋势观察技"
+      },
+      "caption": "围绕产品发布重构深蓝",
+      "imageCount": 1,
+      "imageSide": "right",
+      "showStat": true,
+      "showPoints": true,
+      "showCaption": true,
+      "images": [],
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "23 / 73"
+    }
+  },
+  {
+    "key": "theme13_page063",
+    "themeKey": "theme13",
+    "pageNumber": 63,
+    "layout": "THEME13-063",
+    "slot": "zigzag-theme02-028",
+    "label": "深蓝光环风 · 信息结构",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page028",
+    "moduleFamily": "media",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "rowCount",
+        "type": "number",
+        "label": "行数",
+        "default": 3,
+        "min": 2,
+        "step": 1,
+        "max": 3,
+        "publicKey": "rowCount",
+        "desc": "图文行数（2–n）"
+      },
+      {
+        "key": "startSide",
+        "type": "enum",
+        "label": "首行图片",
+        "default": "left",
+        "options": [
+          {
+            "value": "left",
+            "label": "居左起"
+          },
+          {
+            "value": "right",
+            "label": "居右起"
+          }
+        ],
+        "publicKey": "startSide",
+        "desc": "首行图片所在侧，逐行交错翻转"
+      },
+      {
+        "key": "fit",
+        "type": "enum",
+        "label": "贴合方式",
+        "default": "contain",
+        "options": [
+          {
+            "value": "contain",
+            "label": "完整（不裁切）"
+          },
+          {
+            "value": "cover",
+            "label": "填充（裁切）"
+          }
+        ],
+        "publicKey": "fit",
+        "desc": "图片在槽内完整显示或填充裁切"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": false,
+        "publicKey": "focusEnabled",
+        "desc": "是否辉光强调某一行"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调项",
+        "default": 0,
+        "min": 0,
+        "step": 1,
+        "oneBased": true,
+        "max": 2,
+        "maxFromKey": "rowCount",
+        "publicKey": "focusIndex",
+        "desc": "被强调行的序号"
+      },
+      {
+        "key": "showCopy",
+        "type": "toggle",
+        "label": "解读段落",
+        "default": true,
+        "publicKey": "showCopy",
+        "desc": "显示/隐藏每行解读段落"
+      },
+      {
+        "key": "showStat",
+        "type": "toggle",
+        "label": "行内数字",
+        "default": true,
+        "publicKey": "showStat",
+        "desc": "显示/隐藏行内关键数字"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "63 / 科技汇报",
+      "title": "产品发布 ",
+      "titleEm": "读懂这轮资本",
+      "lead": "产品发布的关键不只是光环结构，还要持续比较深蓝系统带来的约束反馈。",
+      "rows": [
+        {
+          "title": "技术复盘 · 复",
+          "tag": "信号技术节点",
+          "copy": "以深蓝系统校准产品发布的样本，再用路径验证检验结果能否持续。",
+          "stat": {
+            "value": "78",
+            "unit": "%"
+          }
+        },
+        {
+          "title": "科技汇报 ·",
+          "tag": "机会深蓝系统",
+          "copy": "科技汇报正在由深蓝系统走向路径验证，需要通过样本沉淀现状、约束与机会。",
+          "stat": {
+            "value": "10",
+            "unit": "亿/笔"
+          }
+        },
+        {
+          "title": "技术复盘 · ",
+          "tag": "样本深蓝系统",
+          "copy": "企业管理者可从机会观察科技汇报，用深蓝系统解释变化，并以路径验证推进响应。",
+          "stat": {
+            "value": "41",
+            "unit": "%"
+          }
+        }
+      ],
+      "rowCount": 3,
+      "startSide": "left",
+      "fit": "contain",
+      "focusEnabled": false,
+      "focusIndex": 0,
+      "showCopy": true,
+      "showStat": true,
+      "images": [],
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "27 / 73"
+    }
+  },
+  {
+    "key": "theme13_page064",
+    "themeKey": "theme13",
+    "pageNumber": 64,
+    "layout": "THEME13-064",
+    "slot": "editorial-theme02-059",
+    "label": "深蓝光环风 · 图文与案例",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page059",
+    "moduleFamily": "media",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "imageCount",
+        "type": "number",
+        "label": "图片数量",
+        "default": 1,
+        "min": 0,
+        "max": 2,
+        "step": 1,
+        "publicKey": "imageCount",
+        "desc": "配图槽位数量（0 = 纯文字版式）"
+      },
+      {
+        "key": "imageSide",
+        "type": "enum",
+        "label": "图片位置",
+        "default": "right",
+        "options": [
+          {
+            "value": "left",
+            "label": "左侧"
+          },
+          {
+            "value": "right",
+            "label": "右侧"
+          }
+        ],
+        "publicKey": "imageSide",
+        "desc": "配图位于左侧或右侧"
+      },
+      {
+        "key": "showStat",
+        "type": "toggle",
+        "label": "关键数字",
+        "default": true,
+        "publicKey": "showStat",
+        "desc": "显示/隐藏标题区的关键数字"
+      },
+      {
+        "key": "showBackdrop",
+        "type": "toggle",
+        "label": "背景大字",
+        "default": true,
+        "publicKey": "showBackdrop",
+        "desc": "显示/隐藏背景的大号装饰字"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": false,
+        "publicKey": "focusEnabled",
+        "desc": "是否高亮其中一张配图"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调项",
+        "default": 0,
+        "min": 0,
+        "step": 1,
+        "oneBased": true,
+        "max": 1,
+        "maxFromKey": "imageCount",
+        "publicKey": "focusIndex",
+        "desc": "被强调配图的序号"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "64 / 科技汇报",
+      "vertical": "CASE STUDY",
+      "title": "以路径验证",
+      "titleEm": "淘金热里卖铲子",
+      "lead": "围绕科技汇报识别技术节点与光环结构，让现状判断建立在具体事实之上。",
+      "stat": {
+        "value": "110",
+        "unit": "亿美元",
+        "caption": "技术复盘的关键不只是技术"
+      },
+      "showStat": true,
+      "tags": [
+        "反馈光",
+        "趋势路径验",
+        "证据光环结"
+      ],
+      "imageCount": 1,
+      "imageSide": "right",
+      "captions": [
+        "技术复盘的关键不只是",
+        "GPU 集群"
+      ],
+      "focusEnabled": false,
+      "focusIndex": 0,
+      "backdropText": "05",
+      "showBackdrop": true,
+      "images": [],
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "58 / 73"
+    }
+  },
+  {
+    "key": "theme13_page065",
+    "themeKey": "theme13",
+    "pageNumber": 65,
+    "layout": "THEME13-065",
+    "slot": "mosaic-theme02-049",
+    "label": "深蓝光环风 · 信息结构",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page049",
+    "moduleFamily": "media",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "imageCount",
+        "type": "number",
+        "label": "图片数量",
+        "default": 5,
+        "min": 0,
+        "max": 5,
+        "step": 1,
+        "publicKey": "imageCount",
+        "desc": "拼贴图片槽位数量（0 = 纯文字浮层）"
+      },
+      {
+        "key": "titlePlacement",
+        "type": "enum",
+        "label": "标题位置",
+        "default": "tl",
+        "options": [
+          {
+            "value": "tl",
+            "label": "左上"
+          },
+          {
+            "value": "bl",
+            "label": "左下"
+          },
+          {
+            "value": "tr",
+            "label": "右上"
+          }
+        ],
+        "publicKey": "titlePlacement",
+        "desc": "标题浮层贴靠的角落"
+      },
+      {
+        "key": "overlayStyle",
+        "type": "enum",
+        "label": "浮层样式",
+        "default": "panel",
+        "options": [
+          {
+            "value": "panel",
+            "label": "磨砂卡片"
+          },
+          {
+            "value": "plain",
+            "label": "直接压字"
+          }
+        ],
+        "publicKey": "overlayStyle",
+        "desc": "标题浮层是否带磨砂卡片底"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": false,
+        "publicKey": "focusEnabled",
+        "desc": "是否高亮其中一张图片"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调项",
+        "default": 0,
+        "min": 0,
+        "step": 1,
+        "oneBased": true,
+        "max": 4,
+        "maxFromKey": "imageCount",
+        "publicKey": "focusIndex",
+        "desc": "被强调图片的序号"
+      },
+      {
+        "key": "showCaptions",
+        "type": "toggle",
+        "label": "图注",
+        "default": true,
+        "publicKey": "showCaptions",
+        "desc": "显示/隐藏图片上的图注"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "65 / 技术复盘",
+      "title": "技术复盘 · 复",
+      "titleEm": "面孔与现场",
+      "lead": "企业管理者可从机会观察技术复盘，用深蓝系统解释变化，并以路径验证推进响应",
+      "imageCount": 5,
+      "captions": [
+        "大模型发布现场",
+        "GPU 算力集群",
+        "自动驾驶路测",
+        "具身智能样机",
+        "数据中心机房"
+      ],
+      "focusEnabled": false,
+      "focusIndex": 0,
+      "showCaptions": true,
+      "titlePlacement": "tl",
+      "overlayStyle": "panel",
+      "images": [],
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "48 / 73"
+    }
+  },
+  {
+    "key": "theme13_page066",
+    "themeKey": "theme13",
+    "pageNumber": 66,
+    "layout": "THEME13-066",
+    "slot": "gallery-theme02-029",
+    "label": "深蓝光环风 · 图文与案例",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page029",
+    "moduleFamily": "media",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "imageCount",
+        "type": "number",
+        "label": "图片数量",
+        "default": 4,
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "publicKey": "imageCount",
+        "desc": "横排图集的槽位数量（0 = 纯标题）"
+      },
+      {
+        "key": "fit",
+        "type": "enum",
+        "label": "贴合方式",
+        "default": "contain",
+        "options": [
+          {
+            "value": "contain",
+            "label": "完整（不裁切）"
+          },
+          {
+            "value": "cover",
+            "label": "填充（裁切）"
+          }
+        ],
+        "publicKey": "fit",
+        "desc": "图片在单元内完整显示或填充裁切"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": false,
+        "publicKey": "focusEnabled",
+        "desc": "是否高亮其中一张"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调项",
+        "default": 0,
+        "min": 0,
+        "step": 1,
+        "oneBased": true,
+        "max": 3,
+        "maxFromKey": "imageCount",
+        "publicKey": "focusIndex",
+        "desc": "被强调图片的序号"
+      },
+      {
+        "key": "showCaptions",
+        "type": "toggle",
+        "label": "图注",
+        "default": true,
+        "publicKey": "showCaptions",
+        "desc": "显示/隐藏图片说明"
+      },
+      {
+        "key": "showLead",
+        "type": "toggle",
+        "label": "导语",
+        "default": true,
+        "publicKey": "showLead",
+        "desc": "显示/隐藏标题下的导语"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "66 / 技术复盘",
+      "title": "科技汇报 · 连",
+      "titleEm": "资本的面孔",
+      "lead": "从证据切入技术复盘，以光环结构复盘关键证据，为企业管理者形成可执行的下",
+      "imageCount": 4,
+      "captions": [
+        "技术团队可从路径观",
+        "科技汇报正在由光环结",
+        "围绕技术复盘推",
+        "以深蓝系统校准产品"
+      ],
+      "fit": "contain",
+      "focusEnabled": false,
+      "focusIndex": 0,
+      "showCaptions": true,
+      "showLead": true,
+      "images": [],
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "28 / 73"
+    }
+  },
+  {
+    "key": "theme13_page067",
+    "themeKey": "theme13",
+    "pageNumber": 67,
+    "layout": "THEME13-067",
+    "slot": "signature-number-halo-statement-theme13-067",
+    "label": "深蓝光环风 · number-halo-statement",
+    "sourceTheme": "theme13",
+    "sourcePageKey": "theme13_signature_number_halo_statement",
+    "moduleFamily": "statement",
+    "moduleOrigin": "owned",
+    "moduleStrategy": "new",
+    "archetypeId": "number-halo-statement",
+    "evidenceMode": "observed",
+    "evidenceRefs": [
+      "slide-03",
+      "slide-08",
+      "slide-12"
+    ],
+    "derivedFromRules": [],
+    "anchorModuleRefs": [],
+    "stylePrimitiveRefs": [],
+    "styleSignals": [
+      "超大章节数字位于画布中心",
+      "标题压在数字下方并配小型光点",
+      "边缘光环提供空间纵深"
+    ],
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showSignatureSystem",
+        "label": "显示主题签名系统",
+        "type": "toggle",
+        "default": true,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "signature-system",
+            "ornament",
+            "page-marker"
+          ],
+          "minChangedRatio": 0.008,
+          "minRegions": 2
+        },
+        "publicKey": "showSignatureSystem"
+      },
+      {
+        "key": "density",
+        "label": "信息密度",
+        "type": "select",
+        "default": "balanced",
+        "options": [
+          {
+            "label": "紧凑",
+            "value": "compact"
+          },
+          {
+            "label": "平衡",
+            "value": "balanced"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-frame",
+            "spacing",
+            "type-scale"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "density"
+      },
+      {
+        "key": "statementLayout",
+        "label": "观点结构",
+        "type": "select",
+        "default": "structured",
+        "options": [
+          {
+            "label": "结构化",
+            "value": "structured"
+          },
+          {
+            "label": "偏移强调",
+            "value": "offset"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-grid",
+            "reading-order",
+            "emphasis"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "statementLayout"
+      }
+    ],
+    "defaultProps": {
+      "showSignatureSystem": true,
+      "density": "balanced",
+      "statementLayout": "structured",
+      "pillars": [
+        "系统架构",
+        "能力节点",
+        "验证路径",
+        "规模部署"
+      ],
+      "summary": "让架构、节点和路径在同一深蓝系统中形成可验证、可扩展的技术闭环。",
+      "kicker": "KEY STATEMENT",
+      "statement": "真正的技术领先，是让复杂系统保持清晰。",
+      "support": "让架构、节点和路径在同一深蓝系统中形成可验证、可扩展的技术闭环。"
+    }
+  },
+  {
+    "key": "theme13_page068",
+    "themeKey": "theme13",
+    "pageNumber": 68,
+    "layout": "THEME13-068",
+    "slot": "quote-theme02-047",
+    "label": "深蓝光环风 · 观点与引语",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page047",
+    "moduleFamily": "statement",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "align",
+        "type": "enum",
+        "label": "对齐",
+        "default": "left",
+        "options": [
+          {
+            "value": "left",
+            "label": "左对齐"
+          },
+          {
+            "value": "center",
+            "label": "居中"
+          }
+        ],
+        "publicKey": "align",
+        "desc": "金句整体的对齐方式"
+      },
+      {
+        "key": "showMark",
+        "type": "toggle",
+        "label": "引号装饰",
+        "default": true,
+        "publicKey": "showMark",
+        "desc": "显示/隐藏大号装饰引号"
+      },
+      {
+        "key": "showEmphasis",
+        "type": "toggle",
+        "label": "短语强调",
+        "default": true,
+        "publicKey": "showEmphasis",
+        "desc": "将关键短语处理为发光强调"
+      },
+      {
+        "key": "showRule",
+        "type": "toggle",
+        "label": "强调分隔线",
+        "default": true,
+        "publicKey": "showRule",
+        "desc": "显示/隐藏落款上方的强调短线"
+      },
+      {
+        "key": "showAttribution",
+        "type": "toggle",
+        "label": "落款",
+        "default": true,
+        "publicKey": "showAttribution",
+        "desc": "显示/隐藏底部署名"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "68 / 科技汇报",
+      "quote": "从约束切入产品发布，以光环结构比较关键证据，为产品负责人形",
+      "quoteEm": "赌叙事转向看兑现",
+      "quoteTail": "——能把技术转化为可持续收入的公司，才能在退潮后留在牌桌上。",
+      "attribution": "科技汇报的关键不只是深蓝系统，还要持续",
+      "align": "left",
+      "showMark": true,
+      "showEmphasis": true,
+      "showAttribution": true,
+      "showRule": true,
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "46 / 73"
+    }
+  },
+  {
+    "key": "theme13_page069",
+    "themeKey": "theme13",
+    "pageNumber": 69,
+    "layout": "THEME13-069",
+    "slot": "quote-theme03-039",
+    "label": "深蓝光环风 · 观点与引语",
+    "sourceTheme": "theme03",
+    "sourcePageKey": "theme03_page039",
+    "moduleFamily": "statement",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "forceDark",
+        "type": "toggle",
+        "label": "全局深色",
+        "default": true,
+        "publicKey": "forceDark",
+        "desc": "右上角深浅配色切换。"
+      },
+      {
+        "key": "accent",
+        "type": "select",
+        "label": "强调色",
+        "default": "#6c6fff",
+        "options": [
+          {
+            "value": "#6c6fff",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#3863ff",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#f7f9ff",
+            "label": "颜色 3"
+          }
+        ],
+        "publicKey": "accent",
+        "desc": "theme03 全局强调色，作用于该主题所有页面。"
+      },
+      {
+        "key": "showEyebrow",
+        "label": "装饰标签",
+        "type": "toggle",
+        "default": true,
+        "help": "顶部分类标签显示 / 隐藏",
+        "publicKey": "showEyebrow"
+      },
+      {
+        "key": "showMark",
+        "label": "引号装饰",
+        "type": "toggle",
+        "default": true,
+        "help": "巨型装饰引号显示 / 隐藏",
+        "publicKey": "showMark"
+      },
+      {
+        "key": "align",
+        "label": "对齐方式",
+        "type": "select",
+        "default": "left",
+        "options": [
+          {
+            "value": "left",
+            "label": "左对齐"
+          },
+          {
+            "value": "center",
+            "label": "居中"
+          }
+        ],
+        "help": "金句的对齐方式",
+        "publicKey": "align"
+      },
+      {
+        "key": "showAttribution",
+        "label": "署名出处",
+        "type": "toggle",
+        "default": true,
+        "help": "底部署名 / 出处显示 / 隐藏",
+        "publicKey": "showAttribution"
+      },
+      {
+        "key": "showDecor",
+        "label": "装饰图片",
+        "type": "toggle",
+        "default": false,
+        "help": "显示或隐藏页面上的装饰图片元素",
+        "publicKey": "showDecor"
+      },
+      {
+        "key": "decorSrc",
+        "label": "装饰元素",
+        "type": "icons",
+        "default": null,
+        "options": [
+          {
+            "value": "assets/3d/01.png",
+            "label": "胜利手势",
+            "image": "assets/3d/01.png"
+          },
+          {
+            "value": "assets/3d/02.png",
+            "label": "是 按键",
+            "image": "assets/3d/02.png"
+          },
+          {
+            "value": "assets/3d/03.png",
+            "label": "404 方块",
+            "image": "assets/3d/03.png"
+          },
+          {
+            "value": "assets/3d/04.png",
+            "label": "像素 幽灵",
+            "image": "assets/3d/04.png"
+          },
+          {
+            "value": "assets/3d/05.png",
+            "label": "是 气泡",
+            "image": "assets/3d/05.png"
+          },
+          {
+            "value": "assets/3d/06.png",
+            "label": "掌机图表",
+            "image": "assets/3d/06.png"
+          },
+          {
+            "value": "assets/3d/07.png",
+            "label": "像素显示器",
+            "image": "assets/3d/07.png"
+          },
+          {
+            "value": "assets/3d/08.png",
+            "label": "复古电脑",
+            "image": "assets/3d/08.png"
+          },
+          {
+            "value": "assets/3d/09.png",
+            "label": "拍立得",
+            "image": "assets/3d/09.png"
+          },
+          {
+            "value": "assets/3d/10.png",
+            "label": "奖杯",
+            "image": "assets/3d/10.png"
+          },
+          {
+            "value": "assets/3d/11.png",
+            "label": "文件夹",
+            "image": "assets/3d/11.png"
+          },
+          {
+            "value": "assets/3d/12.png",
+            "label": "番茄箱",
+            "image": "assets/3d/12.png"
+          }
+        ],
+        "help": "从 theme03 内置装饰元素中选择",
+        "publicKey": "decorSrc"
+      },
+      {
+        "key": "decorScale",
+        "label": "图片大小",
+        "type": "slider",
+        "default": 1,
+        "min": 0.6,
+        "max": 1.6,
+        "step": 0.05,
+        "help": "装饰图片的缩放比例",
+        "publicKey": "decorScale"
+      }
+    ],
+    "defaultProps": {
+      "showEyebrow": true,
+      "theme": "light",
+      "accent": "blue",
+      "showMark": true,
+      "align": "left",
+      "showAttribution": true,
+      "copy": {
+        "t001": "结论 / CONCLUSION",
+        "t002": "2024 · 一句话总结",
+        "t003": "AI 融资盛宴仍在继续，",
+        "t004": "但",
+        "t005": "音乐节奏",
+        "t006": "正在变化——资本的下一阶段，",
+        "t007": "将从「",
+        "t008": "赌叙事",
+        "t009": "」转向「",
+        "t010": "看兑现",
+        "t011": "能把技术转化为可持续收入的公司，才能在退潮后留在牌桌上",
+        "t012": "《2024 美国大额融资 AI 公司调研报告》",
+        "t013": "横向看集中 · 纵向看节奏 · 结构看分层"
+      },
+      "showDecor": false,
+      "decorSrc": null,
+      "decorScale": 1,
+      "forceDark": true
+    }
+  },
+  {
+    "key": "theme13_page070",
+    "themeKey": "theme13",
+    "pageNumber": 70,
+    "layout": "THEME13-070",
+    "slot": "signature-derived-agenda-overview-theme13-070",
+    "label": "深蓝光环风 · derived-agenda-overview",
+    "sourceTheme": "theme13",
+    "sourcePageKey": "theme13_derived_agenda_overview",
+    "moduleFamily": "general",
+    "moduleOrigin": "owned",
+    "moduleStrategy": "new",
+    "archetypeId": "derived-agenda-overview",
+    "evidenceMode": "inferred",
+    "evidenceRefs": [],
+    "derivedFromRules": [
+      "typography-01",
+      "composition-02",
+      "surface-01",
+      "motif-02",
+      "color-03"
+    ],
+    "anchorModuleRefs": [
+      "theme13_signature_orbital_capability_overview",
+      "theme13_signature_halo_tech_cover"
+    ],
+    "stylePrimitiveRefs": [
+      "node-arrow",
+      "luminous-pill"
+    ],
+    "derivationReason": "把模板的编号和分隔规则扩展为议程页；以 theme13_signature_orbital_capability_overview、theme13_signature_halo_tech_cover 为视觉锚点。",
+    "styleSignals": [
+      "中文标题使用轻量无衬线并保持高对比",
+      "信息结构沿水平主轴或中心环形展开",
+      "卡片使用蓝紫渐变和极小圆角",
+      "节点、箭头和胶囊轨道使用电光蓝描边",
+      "紫蓝渐变用于半透明光环"
+    ],
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showSignatureSystem",
+        "label": "显示主题签名系统",
+        "type": "toggle",
+        "default": true,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "signature-system",
+            "ornament",
+            "page-marker"
+          ],
+          "minChangedRatio": 0.008,
+          "minRegions": 2
+        },
+        "publicKey": "showSignatureSystem"
+      },
+      {
+        "key": "density",
+        "label": "信息密度",
+        "type": "select",
+        "default": "balanced",
+        "options": [
+          {
+            "label": "紧凑",
+            "value": "compact"
+          },
+          {
+            "label": "平衡",
+            "value": "balanced"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-frame",
+            "spacing",
+            "type-scale"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "density"
+      },
+      {
+        "key": "cardLayout",
+        "label": "卡片结构",
+        "type": "select",
+        "default": "structured",
+        "options": [
+          {
+            "label": "结构化",
+            "value": "structured"
+          },
+          {
+            "label": "偏移强调",
+            "value": "offset"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-grid",
+            "reading-order",
+            "emphasis"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "cardLayout"
+      }
+    ],
+    "defaultProps": {
+      "showSignatureSystem": true,
+      "density": "balanced",
+      "cardLayout": "structured",
+      "pillars": [
+        "系统架构",
+        "能力节点",
+        "验证路径",
+        "规模部署"
+      ],
+      "summary": "让架构、节点和路径在同一深蓝系统中形成可验证、可扩展的技术闭环。",
+      "title": "今天讨论四个关键问题",
+      "lead": "让架构、节点和路径在同一深蓝系统中形成可验证、可扩展的技术闭环。",
+      "sections": [
+        "系统架构",
+        "能力节点",
+        "验证路径",
+        "规模部署"
+      ],
+      "numbers": [
+        "01",
+        "02",
+        "03",
+        "04"
+      ]
+    }
+  },
+  {
+    "key": "theme13_page071",
+    "themeKey": "theme13",
+    "pageNumber": 71,
+    "layout": "THEME13-071",
+    "slot": "signature-orbital-capability-overview-theme13-071",
+    "label": "深蓝光环风 · orbital-capability-overview",
+    "sourceTheme": "theme13",
+    "sourcePageKey": "theme13_signature_orbital_capability_overview",
+    "moduleFamily": "general",
+    "moduleOrigin": "owned",
+    "moduleStrategy": "new",
+    "archetypeId": "orbital-capability-overview",
+    "evidenceMode": "observed",
+    "evidenceRefs": [
+      "slide-04",
+      "slide-05"
+    ],
+    "derivedFromRules": [],
+    "anchorModuleRefs": [],
+    "stylePrimitiveRefs": [],
+    "styleSignals": [
+      "能力节点沿水平轨道或弧线排布",
+      "图标置于蓝紫圆形容器",
+      "说明文字保持短段落和高对比"
+    ],
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showSignatureSystem",
+        "label": "显示主题签名系统",
+        "type": "toggle",
+        "default": true,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "signature-system",
+            "ornament",
+            "page-marker"
+          ],
+          "minChangedRatio": 0.008,
+          "minRegions": 2
+        },
+        "publicKey": "showSignatureSystem"
+      },
+      {
+        "key": "density",
+        "label": "信息密度",
+        "type": "select",
+        "default": "balanced",
+        "options": [
+          {
+            "label": "紧凑",
+            "value": "compact"
+          },
+          {
+            "label": "平衡",
+            "value": "balanced"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-frame",
+            "spacing",
+            "type-scale"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "density"
+      },
+      {
+        "key": "cardLayout",
+        "label": "卡片结构",
+        "type": "select",
+        "default": "structured",
+        "options": [
+          {
+            "label": "结构化",
+            "value": "structured"
+          },
+          {
+            "label": "偏移强调",
+            "value": "offset"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-grid",
+            "reading-order",
+            "emphasis"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "cardLayout"
+      }
+    ],
+    "defaultProps": {
+      "showSignatureSystem": true,
+      "density": "balanced",
+      "cardLayout": "structured",
+      "pillars": [
+        "系统架构",
+        "能力节点",
+        "验证路径",
+        "规模部署"
+      ],
+      "summary": "让架构、节点和路径在同一深蓝系统中形成可验证、可扩展的技术闭环。",
+      "title": "技术系统演进的四个关键支点",
+      "lead": "让架构、节点和路径在同一深蓝系统中形成可验证、可扩展的技术闭环。",
+      "items": [
+        {
+          "title": "系统架构",
+          "body": "以清晰边界组织核心模块。"
+        },
+        {
+          "title": "能力节点",
+          "body": "让关键能力沿主轴协同。"
+        },
+        {
+          "title": "验证路径",
+          "body": "用证据校准技术假设。"
+        },
+        {
+          "title": "规模部署",
+          "body": "把可用能力扩展到真实场景。"
+        }
+      ]
+    }
+  },
+  {
+    "key": "theme13_page072",
+    "themeKey": "theme13",
+    "pageNumber": 72,
+    "layout": "THEME13-072",
+    "slot": "bump-theme02-069",
+    "label": "深蓝光环风 · 信息结构",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page069",
+    "moduleFamily": "general",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "itemCount",
+        "type": "number",
+        "label": "条目数量",
+        "default": 5,
+        "min": 2,
+        "step": 1,
+        "max": 5,
+        "publicKey": "itemCount",
+        "desc": "名次图展示的条目数量"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "辉光强调某一条（其余淡出）"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调项",
+        "default": 1,
+        "min": 0,
+        "step": 1,
+        "oneBased": true,
+        "max": 4,
+        "maxFromKey": "itemCount",
+        "publicKey": "focusIndex",
+        "desc": "被强调条目的序号"
+      },
+      {
+        "key": "showDots",
+        "type": "toggle",
+        "label": "端点圆点",
+        "default": true,
+        "publicKey": "showDots",
+        "desc": "各期端点圆点显隐"
+      },
+      {
+        "key": "showRankAxis",
+        "type": "toggle",
+        "label": "名次刻度",
+        "default": true,
+        "publicKey": "showRankAxis",
+        "desc": "左侧名次刻度显隐"
+      },
+      {
+        "key": "showEndLabels",
+        "type": "toggle",
+        "label": "两端名称",
+        "default": true,
+        "publicKey": "showEndLabels",
+        "desc": "两端条目名称显隐"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "72 / 技术复盘",
+      "title": "技术复盘 ",
+      "titleEm": "赛道排位赛",
+      "lead": "以路径验证校准产品发布的节奏，再用技术节点检验结果能否持续。",
+      "periods": [
+        "2024 · Q1",
+        "2024 · Q2",
+        "2024 · Q3",
+        "2024 · Q4"
+      ],
+      "items": [
+        {
+          "label": "技术节点",
+          "ranks": [
+            1,
+            1,
+            2,
+            1
+          ]
+        },
+        {
+          "label": "路径验证",
+          "ranks": [
+            3,
+            2,
+            1,
+            2
+          ]
+        },
+        {
+          "label": "深蓝系统",
+          "ranks": [
+            2,
+            4,
+            4,
+            3
+          ]
+        },
+        {
+          "label": "光环结构",
+          "ranks": [
+            4,
+            3,
+            3,
+            4
+          ]
+        },
+        {
+          "label": "光环结",
+          "ranks": [
+            5,
+            5,
+            5,
+            5
+          ]
+        }
+      ],
+      "itemCount": 5,
+      "focusEnabled": true,
+      "focusIndex": 1,
+      "showDots": true,
+      "showRankAxis": true,
+      "showEndLabels": true,
+      "insightText": "↳ 线条交叉处即为「反超」时刻——排位赛仍在进行",
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "68 / 73"
+    }
+  },
+  {
+    "key": "theme13_page073",
+    "themeKey": "theme13",
+    "pageNumber": 73,
+    "layout": "THEME13-073",
+    "slot": "chain-theme02-018",
+    "label": "深蓝光环风 · 信息结构",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page018",
+    "moduleFamily": "general",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "layerCount",
+        "type": "number",
+        "label": "层级数量",
+        "default": 3,
+        "min": 2,
+        "max": 3,
+        "step": 1,
+        "publicKey": "layerCount",
+        "desc": "展示的产业链层级数量"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "是否高亮某一层级"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调层级",
+        "default": 0,
+        "min": 0,
+        "max": 2,
+        "step": 1,
+        "oneBased": true,
+        "publicKey": "focusIndex",
+        "desc": "被强调层级的序号"
+      },
+      {
+        "key": "showCompanies",
+        "type": "toggle",
+        "label": "代表公司",
+        "default": true,
+        "publicKey": "showCompanies",
+        "desc": "显示/隐藏各环节代表公司"
+      },
+      {
+        "key": "companyCount",
+        "type": "number",
+        "label": "代表公司数量",
+        "default": 3,
+        "min": 1,
+        "max": 3,
+        "step": 1,
+        "countArrays": [
+          "layers[].segments[].companies"
+        ],
+        "publicKey": "companyCount",
+        "desc": "每个环节最多展示的代表公司数量"
+      },
+      {
+        "key": "showFlow",
+        "type": "toggle",
+        "label": "层级连接",
+        "default": true,
+        "publicKey": "showFlow",
+        "desc": "显示/隐藏层级之间的传导箭头"
+      },
+      {
+        "key": "showNote",
+        "type": "toggle",
+        "label": "层级批注",
+        "default": true,
+        "publicKey": "showNote",
+        "desc": "显示/隐藏每层右上角的确定性批注"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "73 / 技术复盘",
+      "title": "产品发布 · 校准路",
+      "titleEm": "层级与确定性",
+      "layers": [
+        {
+          "tier": "上游 · 基础设施",
+          "label": "光环结构",
+          "note": "以深蓝系统校准技术复",
+          "segments": [
+            {
+              "name": "信号1",
+              "companies": [
+                "Cerebras",
+                "Groq"
+              ]
+            },
+            {
+              "name": "约束2",
+              "companies": [
+                "从现状切入",
+                "Scale AI"
+              ]
+            }
+          ]
+        },
+        {
+          "tier": "中游 · 模型层",
+          "label": "路径验证",
+          "note": "企业管理者可从证据观",
+          "segments": [
+            {
+              "name": "信号1",
+              "companies": [
+                "从影响",
+                "从节奏切入",
+                "围"
+              ]
+            },
+            {
+              "name": "反馈2",
+              "companies": [
+                "Mistral",
+                "SSI"
+              ]
+            }
+          ]
+        },
+        {
+          "tier": "下游 · 应用层",
+          "label": "深蓝系统",
+          "note": "围绕科技汇报校准",
+          "segments": [
+            {
+              "name": "样本1",
+              "companies": [
+                "Glean",
+                "围绕科技汇"
+              ]
+            },
+            {
+              "name": "约束2",
+              "companies": [
+                "Perplexity"
+              ]
+            },
+            {
+              "name": "机会3",
+              "companies": [
+                "Figure AI"
+              ]
+            }
+          ]
+        }
+      ],
+      "layerCount": 3,
+      "focusEnabled": true,
+      "focusIndex": 0,
+      "showCompanies": true,
+      "companyCount": 3,
+      "showFlow": true,
+      "showNote": true,
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "17 / 73"
+    }
+  },
+  {
+    "key": "theme13_page074",
+    "themeKey": "theme13",
+    "pageNumber": 74,
+    "layout": "THEME13-074",
+    "slot": "scatter-theme02-038",
+    "label": "深蓝光环风 · 信息结构",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page038",
+    "moduleFamily": "general",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "pointCount",
+        "type": "number",
+        "label": "公司数量",
+        "default": 6,
+        "min": 3,
+        "step": 1,
+        "max": 6,
+        "publicKey": "pointCount",
+        "desc": "散点上展示的公司数量"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "辉光强调某一气泡（其余淡出）"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调项",
+        "default": 0,
+        "min": 0,
+        "step": 1,
+        "oneBased": true,
+        "max": 5,
+        "publicKey": "focusIndex",
+        "desc": "被强调气泡的序号"
+      },
+      {
+        "key": "showGrid",
+        "type": "toggle",
+        "label": "网格刻度",
+        "default": true,
+        "publicKey": "showGrid",
+        "desc": "坐标网格与刻度显隐"
+      },
+      {
+        "key": "showLabels",
+        "type": "toggle",
+        "label": "气泡名称",
+        "default": true,
+        "publicKey": "showLabels",
+        "desc": "气泡上的公司名显隐"
+      },
+      {
+        "key": "showAxisTitles",
+        "type": "toggle",
+        "label": "坐标轴标题",
+        "default": true,
+        "publicKey": "showAxisTitles",
+        "desc": "X/Y 轴标题显隐"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "74 / 技术复盘",
+      "title": "科技汇报 · ",
+      "titleEm": "正在脱钩",
+      "lead": "企业管理者可从证据观察技术复盘，用光环结构解释变化，并以深蓝系",
+      "points": [
+        {
+          "label": "围绕产",
+          "x": 3.7,
+          "y": 157,
+          "r": 6.6,
+          "note": "企业管理者"
+        },
+        {
+          "label": "以技术节点",
+          "x": 2.4,
+          "y": 62,
+          "r": 10,
+          "note": "从边界切"
+        },
+        {
+          "label": "从",
+          "x": 0.1,
+          "y": 50,
+          "r": 6,
+          "note": "围绕产品"
+        },
+        {
+          "label": "从信号切入",
+          "x": 0.9,
+          "y": 40,
+          "r": 4,
+          "note": "企业管理"
+        },
+        {
+          "label": "从趋势切入",
+          "x": 2,
+          "y": 23,
+          "r": 1.1,
+          "note": "技术团"
+        },
+        {
+          "label": "技术节点",
+          "x": 0.7,
+          "y": 14,
+          "r": 1,
+          "note": "产品负责"
+        },
+        {
+          "label": "技术节点",
+          "x": 0.05,
+          "y": 9,
+          "r": 0.5,
+          "note": "科技汇"
+        },
+        {
+          "label": "路径验",
+          "x": 0.03,
+          "y": 6,
+          "r": 0.6,
+          "note": "从机会切"
+        }
+      ],
+      "xLabel": "年化营收 ARR（十亿美元）",
+      "yLabel": "估值（十亿美元）",
+      "sizeLabel": "气泡大小 = 最近一轮融资额",
+      "xMax": 4,
+      "yMax": 170,
+      "pointCount": 6,
+      "focusEnabled": true,
+      "focusIndex": 0,
+      "showGrid": true,
+      "showLabels": true,
+      "showAxisTitles": true,
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "37 / 73"
+    }
+  },
+  {
+    "key": "theme13_page075",
+    "themeKey": "theme13",
+    "pageNumber": 75,
+    "layout": "THEME13-075",
+    "slot": "stream-theme02-072",
+    "label": "深蓝光环风 · 构成与分布",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page072",
+    "moduleFamily": "general",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "baseline",
+        "type": "enum",
+        "label": "基线形态",
+        "default": "center",
+        "options": [
+          {
+            "value": "center",
+            "label": "中心河流"
+          },
+          {
+            "value": "bottom",
+            "label": "底部堆叠"
+          }
+        ],
+        "publicKey": "baseline",
+        "desc": "中心对称基线(ThemeRiver) / 底部堆叠面积"
+      },
+      {
+        "key": "pointCount",
+        "type": "number",
+        "label": "时点数量",
+        "default": 6,
+        "min": 4,
+        "max": 6,
+        "step": 1,
+        "publicKey": "pointCount",
+        "desc": "展示的时点（月/期）数量"
+      },
+      {
+        "key": "seriesCount",
+        "type": "number",
+        "label": "分项数量",
+        "default": 4,
+        "min": 2,
+        "step": 1,
+        "countArrays": [
+          "series"
+        ],
+        "max": 4,
+        "publicKey": "seriesCount",
+        "desc": "河流的分项数量（图例 / 颜色顺序）"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "辉光强调某一条带（其余淡出 + 峰值读数）"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调项",
+        "default": 0,
+        "min": 0,
+        "max": 3,
+        "step": 1,
+        "oneBased": true,
+        "publicKey": "focusIndex",
+        "desc": "被强调分项的序号"
+      },
+      {
+        "key": "showBaseline",
+        "type": "toggle",
+        "label": "基线",
+        "default": true,
+        "publicKey": "showBaseline",
+        "desc": "中心基线 / 底轴显隐"
+      },
+      {
+        "key": "showAxis",
+        "type": "toggle",
+        "label": "时点刻度",
+        "default": true,
+        "publicKey": "showAxis",
+        "desc": "横轴时点标签显隐"
+      },
+      {
+        "key": "showPeak",
+        "type": "toggle",
+        "label": "峰值读数",
+        "default": true,
+        "publicKey": "showValueLabels",
+        "desc": "焦点带峰值数值显隐"
+      },
+      {
+        "key": "showLegend",
+        "type": "toggle",
+        "label": "图例",
+        "default": true,
+        "publicKey": "showLegend",
+        "desc": "右侧分项图例显隐"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "75 / 产品发布",
+      "title": "技术复盘 · 拆",
+      "titleEm": "资本河流",
+      "lead": "围绕技术复盘沉淀路径验证与技术节点，让趋势判断建立在具体事实之上。",
+      "series": [
+        {
+          "key": "llm",
+          "label": "光环结构"
+        },
+        {
+          "key": "app",
+          "label": "光环结"
+        },
+        {
+          "key": "infra",
+          "label": "技术节点"
+        },
+        {
+          "key": "chip",
+          "label": "深蓝系"
+        }
+      ],
+      "groups": [
+        {
+          "label": "01",
+          "values": [
+            28,
+            14,
+            12,
+            6
+          ]
+        },
+        {
+          "label": "02",
+          "values": [
+            22,
+            12,
+            10,
+            5
+          ]
+        },
+        {
+          "label": "03",
+          "values": [
+            41,
+            18,
+            16,
+            8
+          ]
+        },
+        {
+          "label": "04",
+          "values": [
+            35,
+            20,
+            15,
+            7
+          ]
+        },
+        {
+          "label": "05",
+          "values": [
+            52,
+            24,
+            22,
+            10
+          ]
+        },
+        {
+          "label": "06",
+          "values": [
+            44,
+            26,
+            20,
+            9
+          ]
+        },
+        {
+          "label": "07",
+          "values": [
+            38,
+            22,
+            18,
+            8
+          ]
+        },
+        {
+          "label": "08",
+          "values": [
+            30,
+            19,
+            15,
+            7
+          ]
+        },
+        {
+          "label": "09",
+          "values": [
+            58,
+            30,
+            26,
+            12
+          ]
+        },
+        {
+          "label": "10",
+          "values": [
+            49,
+            28,
+            24,
+            11
+          ]
+        },
+        {
+          "label": "11",
+          "values": [
+            66,
+            34,
+            30,
+            14
+          ]
+        },
+        {
+          "label": "12",
+          "values": [
+            72,
+            40,
+            33,
+            16
+          ]
+        }
+      ],
+      "pointCount": 6,
+      "seriesCount": 4,
+      "baseline": "center",
+      "focusEnabled": true,
+      "focusIndex": 0,
+      "showBaseline": true,
+      "showAxis": true,
+      "showPeak": true,
+      "showLegend": true,
+      "valueSuffix": "亿",
+      "legendTitle": "分项 · 全期",
+      "totalLabel": "合计",
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "71 / 73"
+    },
+    "lengthBindings": [
+      {
+        "dependent": "groups[].values",
+        "anchor": "series",
+        "relation": "same-length",
+        "countKey": "seriesCount"
+      }
+    ]
+  },
+  {
+    "key": "theme13_page076",
+    "themeKey": "theme13",
+    "pageNumber": 76,
+    "layout": "THEME13-076",
+    "slot": "cyclewheel-theme02-063",
+    "label": "深蓝光环风 · 信息结构",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page063",
+    "moduleFamily": "general",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "segmentCount",
+        "type": "number",
+        "label": "环节数量",
+        "default": 3,
+        "min": 3,
+        "max": 5,
+        "step": 1,
+        "publicKey": "segmentCount",
+        "desc": "飞轮环节数量（角度自适应：3→120°、4→90°、5→72°）"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "是否高亮其中一个环节"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调项",
+        "default": 2,
+        "min": 0,
+        "step": 1,
+        "oneBased": true,
+        "max": 4,
+        "maxFromKey": "segmentCount",
+        "publicKey": "focusIndex",
+        "desc": "被强调环节的序号"
+      },
+      {
+        "key": "showArrows",
+        "type": "toggle",
+        "label": "旋转箭头",
+        "default": true,
+        "publicKey": "showArrows",
+        "desc": "段间旋转箭头显隐"
+      },
+      {
+        "key": "showCards",
+        "type": "toggle",
+        "label": "说明卡片",
+        "default": true,
+        "publicKey": "showCards",
+        "desc": "右侧环节说明卡列显隐"
+      },
+      {
+        "key": "showTags",
+        "type": "toggle",
+        "label": "卡片标签",
+        "default": true,
+        "publicKey": "showTags",
+        "desc": "卡片内标签显隐"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "76 / 产品发布",
+      "title": "技术复盘 · ",
+      "titleEm": "三段循环",
+      "index": "62 / 73",
+      "center": {
+        "label": "技术节点",
+        "sub": "深蓝系统"
+      },
+      "segments": [
+        {
+          "label": "光环结构",
+          "en": "路径验",
+          "desc": "从路径切入科技汇报，以路径验证连",
+          "tags": [
+            "约束光环",
+            "信号技术"
+          ]
+        },
+        {
+          "label": "技术节点",
+          "en": "深蓝系统 / 76",
+          "desc": "以技术节点校准技术复盘的现状，再",
+          "tags": [
+            "证据光环",
+            "影响深蓝"
+          ]
+        },
+        {
+          "label": "技术节点",
+          "en": "路径验",
+          "desc": "围绕科技汇报重构技术节点与光环结构",
+          "tags": [
+            "路径路径",
+            "证据光环"
+          ]
+        },
+        {
+          "label": "技术节点",
+          "en": "光环结构 /",
+          "desc": "从现状切入科技汇报，以技术节点连接关键证据，",
+          "tags": [
+            "节奏路径",
+            "边界技术"
+          ]
+        },
+        {
+          "label": "光环结构",
+          "en": "深蓝系",
+          "desc": "技术复盘的关键不只是深蓝系统，还要持续",
+          "tags": [
+            "路径路径",
+            "证据光环"
+          ]
+        }
+      ],
+      "segmentCount": 3,
+      "focusEnabled": true,
+      "focusIndex": 2,
+      "showArrows": true,
+      "showCards": true,
+      "showTags": true,
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1
+    }
+  },
+  {
+    "key": "theme13_page077",
+    "themeKey": "theme13",
+    "pageNumber": 77,
+    "layout": "THEME13-077",
+    "slot": "pareto-theme02-060",
+    "label": "深蓝光环风 · 信息结构",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page060",
+    "moduleFamily": "general",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "barCount",
+        "type": "number",
+        "label": "条目数量",
+        "default": 13,
+        "min": 2,
+        "step": 1,
+        "max": 13,
+        "publicKey": "itemCount",
+        "desc": "帕累托图展示的条目数量"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "辉光强调某一柱（其余淡出）"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调项",
+        "default": 0,
+        "min": 0,
+        "step": 1,
+        "oneBased": true,
+        "max": 12,
+        "publicKey": "focusIndex",
+        "desc": "被强调柱的序号"
+      },
+      {
+        "key": "showCumLine",
+        "type": "toggle",
+        "label": "累计曲线",
+        "default": true,
+        "publicKey": "showCumLine",
+        "desc": "累计占比折线显隐"
+      },
+      {
+        "key": "showEighty",
+        "type": "toggle",
+        "label": "80% 线",
+        "default": true,
+        "publicKey": "showEighty",
+        "desc": "80% 参考线显隐"
+      },
+      {
+        "key": "showValueLabels",
+        "type": "toggle",
+        "label": "数值标签",
+        "default": true,
+        "publicKey": "showValueLabels",
+        "desc": "柱上数值显隐"
+      },
+      {
+        "key": "showGrid",
+        "type": "toggle",
+        "label": "网格刻度",
+        "default": true,
+        "publicKey": "showGrid",
+        "desc": "左轴网格刻度显隐"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "77 / 技术复盘",
+      "title": "产品发布 ",
+      "titleEm": "吸走多数资本",
+      "lead": "围绕产品发布比较光环结构与深蓝系统，让约束判断建立在具体事实之上。",
+      "items": [
+        {
+          "label": "围绕产",
+          "value": 66
+        },
+        {
+          "label": "技术复盘正",
+          "value": 65
+        },
+        {
+          "label": "从",
+          "value": 50
+        },
+        {
+          "label": "从约束切入",
+          "value": 11
+        },
+        {
+          "label": "光",
+          "value": 10
+        },
+        {
+          "label": "深蓝系统",
+          "value": 10
+        },
+        {
+          "label": "技术节点",
+          "value": 6.8
+        },
+        {
+          "label": "路径验证",
+          "value": 5.2
+        },
+        {
+          "label": "科技汇报的",
+          "value": 5
+        },
+        {
+          "label": "技术",
+          "value": 2.6
+        },
+        {
+          "label": "技术节",
+          "value": 2.3
+        },
+        {
+          "label": "光环结",
+          "value": 1.9
+        },
+        {
+          "label": "深蓝系统",
+          "value": 1.4
+        }
+      ],
+      "unit": "亿美元",
+      "barCount": 13,
+      "focusEnabled": true,
+      "focusIndex": 0,
+      "showCumLine": true,
+      "showEighty": true,
+      "showValueLabels": true,
+      "showGrid": true,
+      "thresholdLabel": "80% 集中线",
+      "legendLabels": [
+        "单笔融资额",
+        "累计占比"
+      ],
+      "insightConclusion": "赢家通吃格局确立",
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "59 / 73"
+    }
+  },
+  {
+    "key": "theme13_page078",
+    "themeKey": "theme13",
+    "pageNumber": 78,
+    "layout": "THEME13-078",
+    "slot": "sunburst-theme02-068",
+    "label": "深蓝光环风 · 信息结构",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page068",
+    "moduleFamily": "general",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "groupCount",
+        "type": "number",
+        "label": "板块数量",
+        "default": 3,
+        "min": 1,
+        "step": 1,
+        "max": 3,
+        "publicKey": "groupCount",
+        "desc": "旭日图展示的顶层板块数量"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "辉光强调某一板块（其余淡出）"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调项",
+        "default": 0,
+        "min": 0,
+        "step": 1,
+        "oneBased": true,
+        "max": 2,
+        "maxFromKey": "groupCount",
+        "publicKey": "focusIndex",
+        "desc": "被强调板块的序号"
+      },
+      {
+        "key": "showInnerLabels",
+        "type": "toggle",
+        "label": "板块标签",
+        "default": true,
+        "publicKey": "showInnerLabels",
+        "desc": "内环板块标签显隐"
+      },
+      {
+        "key": "showValueLabels",
+        "type": "toggle",
+        "label": "子项数值",
+        "default": true,
+        "publicKey": "showValueLabels",
+        "desc": "外环子项数值显隐"
+      },
+      {
+        "key": "showLegend",
+        "type": "toggle",
+        "label": "右侧明细",
+        "default": true,
+        "publicKey": "showLegend",
+        "desc": "右侧明细图例显隐"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "78 / 科技汇报",
+      "title": "产品发布 · ",
+      "titleEm": "层层拆解",
+      "lead": "技术团队可从路径观察科技汇报，用路径验证解释变化，并以技术节点推进响应。",
+      "groups": [
+        {
+          "label": "光环结",
+          "children": [
+            {
+              "label": "深蓝系统",
+              "value": 380
+            },
+            {
+              "label": "光环结构",
+              "value": 90
+            }
+          ]
+        },
+        {
+          "label": "路径验证",
+          "children": [
+            {
+              "label": "深蓝系",
+              "value": 210
+            },
+            {
+              "label": "光环结",
+              "value": 95
+            },
+            {
+              "label": "路径验证",
+              "value": 45
+            }
+          ]
+        },
+        {
+          "label": "深蓝系",
+          "children": [
+            {
+              "label": "光环结构",
+              "value": 90
+            },
+            {
+              "label": "技术节点",
+              "value": 35
+            },
+            {
+              "label": "光环结构",
+              "value": 25
+            }
+          ]
+        }
+      ],
+      "unit": "亿美元",
+      "centerLabel": "全年总额",
+      "groupCount": 3,
+      "focusEnabled": true,
+      "focusIndex": 0,
+      "showInnerLabels": true,
+      "showValueLabels": true,
+      "showLegend": true,
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "67 / 73"
+    }
+  },
+  {
+    "key": "theme13_page079",
+    "themeKey": "theme13",
+    "pageNumber": 79,
+    "layout": "THEME13-079",
+    "slot": "rose-theme02-061",
+    "label": "深蓝光环风 · 信息结构",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page061",
+    "moduleFamily": "general",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "petalCount",
+        "type": "number",
+        "label": "花瓣数量",
+        "default": 6,
+        "min": 3,
+        "step": 1,
+        "max": 6,
+        "publicKey": "petalCount",
+        "desc": "玫瑰图展示的花瓣（周期）数量"
+      },
+      {
+        "key": "scaleMode",
+        "type": "enum",
+        "label": "半径映射",
+        "default": "radius",
+        "options": [
+          {
+            "value": "radius",
+            "label": "线性"
+          },
+          {
+            "value": "area",
+            "label": "面积守恒"
+          }
+        ],
+        "publicKey": "scaleMode",
+        "desc": "半径 ∝ 数值，或面积 ∝ 数值（√）"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "辉光强调某一瓣（其余淡出）"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调项",
+        "default": 7,
+        "min": 0,
+        "step": 1,
+        "oneBased": true,
+        "max": 5,
+        "publicKey": "focusIndex",
+        "desc": "被强调花瓣的序号"
+      },
+      {
+        "key": "showRings",
+        "type": "toggle",
+        "label": "背景环网",
+        "default": true,
+        "publicKey": "showRings",
+        "desc": "同心环 + 刻度显隐"
+      },
+      {
+        "key": "showLabels",
+        "type": "toggle",
+        "label": "周期标签",
+        "default": true,
+        "publicKey": "showLabels",
+        "desc": "外圈周期标签显隐"
+      },
+      {
+        "key": "showValueLabels",
+        "type": "toggle",
+        "label": "峰值数值",
+        "default": true,
+        "publicKey": "showValueLabels",
+        "desc": "峰值瓣数值显隐"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "79 / 科技汇",
+      "title": "科技汇",
+      "titleEm": "十二个月",
+      "lead": "技术复盘的关键不只是光环结构，还要持续复盘深蓝系统带来的证据反馈。",
+      "items": [
+        {
+          "label": "深",
+          "value": 45
+        },
+        {
+          "label": "技",
+          "value": 58
+        },
+        {
+          "label": "路",
+          "value": 59
+        },
+        {
+          "label": "光",
+          "value": 86
+        },
+        {
+          "label": "技",
+          "value": 105
+        },
+        {
+          "label": "技",
+          "value": 93
+        },
+        {
+          "label": "深",
+          "value": 92
+        },
+        {
+          "label": "技",
+          "value": 118
+        },
+        {
+          "label": "技",
+          "value": 108
+        },
+        {
+          "label": "技术",
+          "value": 73
+        },
+        {
+          "label": "路径",
+          "value": 81
+        },
+        {
+          "label": "深蓝",
+          "value": 52
+        }
+      ],
+      "unit": "亿美元",
+      "petalCount": 6,
+      "scaleMode": "radius",
+      "focusEnabled": true,
+      "focusIndex": 4,
+      "showRings": true,
+      "showLabels": true,
+      "showValueLabels": true,
+      "peakPrefix": "年内峰值 · ",
+      "avgLabel": "月度均值",
+      "sumLabel": "全年合计",
+      "insightText": "↳ 5 月、8 月两次峰值，与头部公司集中关账有关；全年呈「双峰高位」节律",
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "60 / 73"
+    }
+  },
+  {
+    "key": "theme13_page080",
+    "themeKey": "theme13",
+    "pageNumber": 80,
+    "layout": "THEME13-080",
+    "slot": "bubbletl-theme02-057",
+    "label": "深蓝光环风 · 信息结构",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page057",
+    "moduleFamily": "general",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": true,
+        "publicKey": "focusEnabled",
+        "desc": "是否高亮某一月份"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调项",
+        "default": 7,
+        "min": 0,
+        "step": 1,
+        "oneBased": true,
+        "max": 11,
+        "publicKey": "focusIndex",
+        "desc": "被强调月份的序号"
+      },
+      {
+        "key": "showValueLabels",
+        "type": "toggle",
+        "label": "数值标签",
+        "default": true,
+        "publicKey": "showValueLabels",
+        "desc": "在气泡上显示具体数值"
+      },
+      {
+        "key": "showAnnotation",
+        "type": "toggle",
+        "label": "解读文案",
+        "default": true,
+        "publicKey": "showAnnotation",
+        "desc": "显示/隐藏趋势解读"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "80 / 技术复盘",
+      "title": "技术复盘 · ",
+      "titleEm": "双峰脉冲",
+      "data": [
+        {
+          "label": "光",
+          "value": 45
+        },
+        {
+          "label": "深",
+          "value": 58
+        },
+        {
+          "label": "技",
+          "value": 59
+        },
+        {
+          "label": "技",
+          "value": 86
+        },
+        {
+          "label": "技",
+          "value": 105
+        },
+        {
+          "label": "深",
+          "value": 93
+        },
+        {
+          "label": "光",
+          "value": 92
+        },
+        {
+          "label": "路",
+          "value": 118
+        },
+        {
+          "label": "深",
+          "value": 108
+        },
+        {
+          "label": "路径",
+          "value": 73
+        },
+        {
+          "label": "深蓝",
+          "value": 81
+        },
+        {
+          "label": "路径",
+          "value": 52
+        }
+      ],
+      "valueSuffix": "亿",
+      "focusEnabled": true,
+      "focusIndex": 7,
+      "showValueLabels": true,
+      "showAnnotation": true,
+      "annotation": "5 月与 8 月形成两次峰值，与多家头部公司集中关账有关；年末回落但仍高于上半年，节奏呈「双峰脉冲」。",
+      "sumLabel": "全年合计",
+      "peakPrefix": "峰值 · ",
+      "annotationLabel": "趋势解读",
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "56 / 73"
+    }
+  },
+  {
+    "key": "theme13_page081",
+    "themeKey": "theme13",
+    "pageNumber": 81,
+    "layout": "THEME13-081",
+    "slot": "voices-theme02-043",
+    "label": "深蓝光环风 · 信息结构",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page043",
+    "moduleFamily": "general",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "voiceCount",
+        "type": "number",
+        "label": "人物卡数量",
+        "default": 3,
+        "min": 2,
+        "max": 4,
+        "step": 1,
+        "publicKey": "voiceCount",
+        "desc": "一排人物卡的数量（2–4）"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": false,
+        "publicKey": "focusEnabled",
+        "desc": "辉光强调某一张（其余淡出）"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调项",
+        "default": 0,
+        "min": 0,
+        "step": 1,
+        "oneBased": true,
+        "max": 3,
+        "maxFromKey": "voiceCount",
+        "publicKey": "focusIndex",
+        "desc": "被强调卡片的序号"
+      },
+      {
+        "key": "showMark",
+        "type": "toggle",
+        "label": "装饰引号",
+        "default": true,
+        "publicKey": "showMark",
+        "desc": "卡内装饰引号显隐"
+      },
+      {
+        "key": "showRole",
+        "type": "toggle",
+        "label": "头衔",
+        "default": true,
+        "publicKey": "showRole",
+        "desc": "署名头衔显隐"
+      },
+      {
+        "key": "showCaption",
+        "type": "toggle",
+        "label": "头像图注",
+        "default": true,
+        "publicKey": "showCaption",
+        "desc": "头像下方图注显隐"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "81 / 技术复盘",
+      "title": "技术复盘 · 拆",
+      "titleEm": "怎么看这一年",
+      "lead": "产品发布的关键不只是光环结构，还要持续比较深蓝系统带来的约束反馈。",
+      "voices": [
+        {
+          "quote": "产品发布的关键不只是光环结构，还要持续比较深蓝系统带来",
+          "name": "影响1",
+          "role": "趋势路径验证",
+          "caption": "围绕技术复盘复"
+        },
+        {
+          "quote": "以光环结构校准产品发布的证据，再用深蓝系统检验结果能",
+          "name": "样本2",
+          "role": "路径路径验证",
+          "caption": "以光环结构校"
+        },
+        {
+          "quote": "以技术节点校准产品发布的现状，再用光环结构检验结",
+          "name": "样本3",
+          "role": "反馈光环结构",
+          "caption": "企业管理者可从机"
+        },
+        {
+          "quote": "技术团队可从反馈观察科技汇报，用光环结构解释",
+          "name": "边界4",
+          "role": "节奏路径验证",
+          "caption": "科技汇报正在由"
+        }
+      ],
+      "voiceCount": 3,
+      "focusEnabled": false,
+      "focusIndex": 0,
+      "showMark": true,
+      "showRole": true,
+      "showCaption": true,
+      "images": [],
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "42 / 73"
+    }
+  },
+  {
+    "key": "theme13_page082",
+    "themeKey": "theme13",
+    "pageNumber": 82,
+    "layout": "THEME13-082",
+    "slot": "bento-theme02-023",
+    "label": "深蓝光环风 · 信息结构",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page023",
+    "moduleFamily": "general",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "statCount",
+        "type": "number",
+        "label": "支撑数字",
+        "default": 4,
+        "min": 2,
+        "step": 1,
+        "max": 4,
+        "publicKey": "statCount",
+        "desc": "右侧支撑小数字数量"
+      },
+      {
+        "key": "layout",
+        "type": "enum",
+        "label": "版式",
+        "default": "hero-left",
+        "options": [
+          {
+            "value": "hero-left",
+            "label": "主单元在左"
+          },
+          {
+            "value": "hero-right",
+            "label": "主单元在右"
+          }
+        ],
+        "publicKey": "layout",
+        "desc": "主单元位于左侧或右侧"
+      },
+      {
+        "key": "accentHero",
+        "type": "toggle",
+        "label": "主单元强调",
+        "default": "#6c6fff",
+        "publicKey": "accentHero",
+        "desc": "主单元辉光强调显隐",
+        "options": [
+          {
+            "value": "#6c6fff",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#3863ff",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#f7f9ff",
+            "label": "颜色 3"
+          }
+        ]
+      },
+      {
+        "key": "heroExtra",
+        "type": "enum",
+        "label": "主单元底部",
+        "default": "tags",
+        "options": [
+          {
+            "value": "tags",
+            "label": "标签"
+          },
+          {
+            "value": "spark",
+            "label": "迷你柱"
+          },
+          {
+            "value": "none",
+            "label": "无"
+          }
+        ],
+        "publicKey": "heroExtra",
+        "desc": "主单元底部内容形态"
+      },
+      {
+        "key": "showCaption",
+        "type": "toggle",
+        "label": "主单元说明",
+        "default": true,
+        "publicKey": "showCaption",
+        "desc": "主单元说明文案显隐"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "82 / 技术复盘",
+      "title": "产品发布 ",
+      "titleEm": "2024 资本全景",
+      "hero": {
+        "value": "970",
+        "unit": "亿美元",
+        "caption": "从反馈切入科技汇报，以光环结",
+        "note": "技术复盘的关键不只是技术节点，还"
+      },
+      "stats": [
+        {
+          "value": "97",
+          "unit": "笔",
+          "label": "光环结构"
+        },
+        {
+          "value": "≈10",
+          "unit": "亿美元",
+          "label": "路径验证"
+        },
+        {
+          "value": "63.9",
+          "unit": "%",
+          "label": "深蓝系统"
+        },
+        {
+          "value": "5",
+          "unit": "家",
+          "label": "深蓝系统"
+        }
+      ],
+      "tags": [
+        "趋势路径验",
+        "趋势路",
+        "机会深",
+        "证据光环结构",
+        "边界技术"
+      ],
+      "spark": [
+        38,
+        52,
+        61,
+        74,
+        88,
+        97
+      ],
+      "statCount": 4,
+      "layout": "hero-left",
+      "accentHero": true,
+      "heroExtra": "tags",
+      "showCaption": true,
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "22 / 73"
+    }
+  },
+  {
+    "key": "theme13_page083",
+    "themeKey": "theme13",
+    "pageNumber": 83,
+    "layout": "THEME13-083",
+    "slot": "process-theme02-044",
+    "label": "深蓝光环风 · 信息结构",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page044",
+    "moduleFamily": "general",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "stepCount",
+        "type": "number",
+        "label": "步骤数量",
+        "default": 4,
+        "min": 2,
+        "step": 1,
+        "max": 4,
+        "publicKey": "stepCount",
+        "desc": "展示的步骤数量"
+      },
+      {
+        "key": "orientation",
+        "type": "enum",
+        "label": "排布方向",
+        "default": "horizontal",
+        "options": [
+          {
+            "value": "horizontal",
+            "label": "横向"
+          },
+          {
+            "value": "vertical",
+            "label": "纵向"
+          }
+        ],
+        "publicKey": "orientation",
+        "desc": "步骤流的排布方向"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": false,
+        "publicKey": "focusEnabled",
+        "desc": "是否高亮某一步骤"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调项",
+        "default": 0,
+        "min": 0,
+        "step": 1,
+        "oneBased": true,
+        "max": 3,
+        "maxFromKey": "stepCount",
+        "publicKey": "focusIndex",
+        "desc": "被强调步骤的序号"
+      },
+      {
+        "key": "showConnector",
+        "type": "toggle",
+        "label": "步骤箭头",
+        "default": true,
+        "publicKey": "showConnector",
+        "desc": "显示/隐藏步骤之间的箭头"
+      },
+      {
+        "key": "showStepNo",
+        "type": "toggle",
+        "label": "步骤编号",
+        "default": true,
+        "publicKey": "showStepNo",
+        "desc": "显示/隐藏大号步骤编号"
+      },
+      {
+        "key": "showDesc",
+        "type": "toggle",
+        "label": "步骤说明",
+        "default": true,
+        "publicKey": "showDesc",
+        "desc": "显示/隐藏步骤描述"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "83 / 产品发布",
+      "title": "技术复盘 · 沉",
+      "titleEm": "四步判断",
+      "steps": [
+        {
+          "title": "技术复",
+          "desc": "围绕产品发布比较光环结构与深蓝系统，让约束判"
+        },
+        {
+          "title": "技术复",
+          "desc": "从证据切入产品发布，以光环结构推进关键证据，"
+        },
+        {
+          "title": "产品发",
+          "desc": "产品负责人可从样本观察技术复盘，用深蓝系统"
+        },
+        {
+          "title": "产品发",
+          "desc": "从约束切入产品发布，以光环结构量化关键证"
+        }
+      ],
+      "stepCount": 4,
+      "orientation": "horizontal",
+      "focusEnabled": false,
+      "focusIndex": 0,
+      "showConnector": true,
+      "showStepNo": true,
+      "showDesc": true,
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "43 / 73"
+    }
+  },
+  {
+    "key": "theme13_page084",
+    "themeKey": "theme13",
+    "pageNumber": 84,
+    "layout": "THEME13-084",
+    "slot": "versus-theme02-051",
+    "label": "深蓝光环风 · 对比分析",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page051",
+    "moduleFamily": "comparison",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "pointCount",
+        "type": "number",
+        "label": "每栏论点数",
+        "default": 3,
+        "min": 2,
+        "step": 1,
+        "max": 3,
+        "publicKey": "pointCount",
+        "desc": "每栏展示的论点条数"
+      },
+      {
+        "key": "showStat",
+        "type": "toggle",
+        "label": "关键数字",
+        "default": true,
+        "publicKey": "showStat",
+        "desc": "每栏顶部关键数字显隐"
+      },
+      {
+        "key": "showVs",
+        "type": "toggle",
+        "label": "中央 VS",
+        "default": true,
+        "publicKey": "showVs",
+        "desc": "中央 VS 徽标显隐"
+      },
+      {
+        "key": "focusSide",
+        "type": "enum",
+        "label": "重点强调",
+        "default": "none",
+        "options": [
+          {
+            "value": "none",
+            "label": "不强调"
+          },
+          {
+            "value": "left",
+            "label": "强调左栏"
+          },
+          {
+            "value": "right",
+            "label": "强调右栏"
+          }
+        ],
+        "publicKey": "focusSide",
+        "desc": "辉光强调某一栏，另一栏自动暗淡"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "84 / 产品发布",
+      "title": "科技汇报 · 识别技术",
+      "titleEm": "两种声音",
+      "leftTag": "样本深蓝系",
+      "rightTag": "路径路径验",
+      "leftPoints": [
+        "算力与模型能力仍在快速攀升，头部公司护城河持续加宽",
+        "企业级 AI 落地加速，付费意愿与续费率双双走高",
+        "一级市场资金充裕，超大额融资为头部续航"
+      ],
+      "rightPoints": [
+        "估值透支未来数年增长，回报周期被显著拉长",
+        "算力成本与能耗高企，单位经济模型尚未跑通",
+        "资本高度集中于少数玩家，长尾公司融资骤冷"
+      ],
+      "pointCount": 3,
+      "leftStat": {
+        "value": "63.9",
+        "unit": "%",
+        "caption": "从趋势切入技术复"
+      },
+      "rightStat": {
+        "value": "≈10",
+        "unit": "亿/笔",
+        "caption": "围绕技术复盘验证"
+      },
+      "showStat": true,
+      "showVs": true,
+      "focusSide": "none",
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "50 / 73"
+    }
+  },
+  {
+    "key": "theme13_page085",
+    "themeKey": "theme13",
+    "pageNumber": 85,
+    "layout": "THEME13-085",
+    "slot": "signature-derived-closing-call-theme13-085",
+    "label": "深蓝光环风 · derived-closing-call",
+    "sourceTheme": "theme13",
+    "sourcePageKey": "theme13_derived_closing_call",
+    "moduleFamily": "closing",
+    "moduleOrigin": "owned",
+    "moduleStrategy": "new",
+    "archetypeId": "derived-closing-call",
+    "evidenceMode": "inferred",
+    "evidenceRefs": [],
+    "derivedFromRules": [
+      "typography-01",
+      "composition-02",
+      "surface-01",
+      "motif-02",
+      "color-01"
+    ],
+    "anchorModuleRefs": [
+      "theme13_signature_halo_tech_cover",
+      "theme13_signature_number_halo_statement"
+    ],
+    "stylePrimitiveRefs": [
+      "halo-orb",
+      "wave-floor"
+    ],
+    "derivationReason": "用模板的封面语法和签名符号生成收束页；以 theme13_signature_halo_tech_cover、theme13_signature_number_halo_statement 为视觉锚点。",
+    "styleSignals": [
+      "中文标题使用轻量无衬线并保持高对比",
+      "信息结构沿水平主轴或中心环形展开",
+      "卡片使用蓝紫渐变和极小圆角",
+      "节点、箭头和胶囊轨道使用电光蓝描边",
+      "午夜蓝承担全页底色"
+    ],
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showSignatureSystem",
+        "label": "显示主题签名系统",
+        "type": "toggle",
+        "default": true,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "signature-system",
+            "ornament",
+            "page-marker"
+          ],
+          "minChangedRatio": 0.008,
+          "minRegions": 2
+        },
+        "publicKey": "showSignatureSystem"
+      },
+      {
+        "key": "density",
+        "label": "信息密度",
+        "type": "select",
+        "default": "balanced",
+        "options": [
+          {
+            "label": "紧凑",
+            "value": "compact"
+          },
+          {
+            "label": "平衡",
+            "value": "balanced"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-frame",
+            "spacing",
+            "type-scale"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "density"
+      },
+      {
+        "key": "closingLayout",
+        "label": "收束结构",
+        "type": "select",
+        "default": "structured",
+        "options": [
+          {
+            "label": "结构化",
+            "value": "structured"
+          },
+          {
+            "label": "偏移强调",
+            "value": "offset"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-grid",
+            "reading-order",
+            "emphasis"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "closingLayout"
+      }
+    ],
+    "defaultProps": {
+      "showSignatureSystem": true,
+      "density": "balanced",
+      "closingLayout": "structured",
+      "pillars": [
+        "系统架构",
+        "能力节点",
+        "验证路径",
+        "规模部署"
+      ],
+      "summary": "让架构、节点和路径在同一深蓝系统中形成可验证、可扩展的技术闭环。",
+      "title": "谢谢观看",
+      "subtitle": "以可验证节点连接下一阶段的技术演进。",
+      "action": "继续讨论"
+    }
+  },
+  {
+    "key": "theme13_page086",
+    "themeKey": "theme13",
+    "pageNumber": 86,
+    "layout": "THEME13-086",
+    "slot": "manifesto-theme02-055",
+    "label": "深蓝光环风 · 信息结构",
+    "sourceTheme": "theme02",
+    "sourcePageKey": "theme02_page055",
+    "moduleFamily": "closing",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "scheme",
+        "type": "enum",
+        "label": "配色方案",
+        "default": "green",
+        "options": [
+          {
+            "value": "green",
+            "label": "霓虹绿",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "violet",
+            "label": "炫光紫",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换整页炫光配色。",
+        "publicKey": "scheme"
+      },
+      {
+        "key": "emphasis",
+        "type": "enum",
+        "label": "强调卡片",
+        "default": "ticket",
+        "options": [
+          {
+            "value": "default",
+            "label": "默认发光",
+            "image": "",
+            "color": ""
+          },
+          {
+            "value": "ticket",
+            "label": "炫光票卡",
+            "image": "",
+            "color": ""
+          }
+        ],
+        "desc": "切换焦点卡片的发光质感。",
+        "publicKey": "emphasis"
+      },
+      {
+        "key": "breath",
+        "type": "slider",
+        "label": "内光呼吸感",
+        "default": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "desc": "炫光票卡模式下的内光呼吸强度。",
+        "publicKey": "breath"
+      },
+      {
+        "key": "magnet",
+        "type": "toggle",
+        "label": "磁吸悬停",
+        "default": true,
+        "desc": "焦点卡片跟随指针产生轻微位移和倾斜。",
+        "publicKey": "magnet"
+      },
+      {
+        "key": "aurora",
+        "type": "toggle",
+        "label": "渐变流光",
+        "default": true,
+        "desc": "开启标题、数字和图表重点元素的流光渐变。",
+        "publicKey": "aurora"
+      },
+      {
+        "key": "auroraSpeed",
+        "type": "slider",
+        "label": "流光速度",
+        "default": 1,
+        "min": 0.4,
+        "max": 3,
+        "step": 0.1,
+        "desc": "流光动画速度。",
+        "publicKey": "auroraSpeed"
+      },
+      {
+        "key": "claimCount",
+        "type": "number",
+        "label": "主张数量",
+        "default": 3,
+        "min": 2,
+        "step": 1,
+        "max": 3,
+        "publicKey": "claimCount",
+        "desc": "展示的主张条数"
+      },
+      {
+        "key": "showIndex",
+        "type": "toggle",
+        "label": "编号",
+        "default": true,
+        "publicKey": "showIndex",
+        "desc": "为每条主张显示序号"
+      },
+      {
+        "key": "showDivider",
+        "type": "toggle",
+        "label": "分隔线",
+        "default": true,
+        "publicKey": "showDivider",
+        "desc": "在主张之间显示分隔线"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点强调",
+        "default": false,
+        "publicKey": "focusEnabled",
+        "desc": "是否高亮其中一条主张"
+      },
+      {
+        "key": "focusIndex",
+        "type": "number",
+        "label": "强调项",
+        "default": 0,
+        "min": 0,
+        "step": 1,
+        "oneBased": true,
+        "max": 2,
+        "maxFromKey": "claimCount",
+        "publicKey": "focusIndex",
+        "desc": "被强调主张的序号"
+      },
+      {
+        "key": "showFootnote",
+        "type": "toggle",
+        "label": "收束句",
+        "default": true,
+        "publicKey": "showFootnote",
+        "desc": "显示/隐藏底部的收束句"
+      }
+    ],
+    "defaultProps": {
+      "kicker": "86 / 科技汇报",
+      "claims": [
+        {
+          "key": "横向看集中",
+          "lead": "技术复盘正在由技术节点走向光环结构，需要通过边",
+          "em": "「赢家通吃」",
+          "tail": "格局确立。"
+        },
+        {
+          "key": "纵向看节奏",
+          "lead": "科技汇报的关键不只是光环结构，还要持续验证深",
+          "em": "狂热转向分化",
+          "tail": "。"
+        },
+        {
+          "key": "结构看分层",
+          "lead": "围绕产品发布拆解深蓝系统与路径验证，让影响判",
+          "em": "仍需时间兑现",
+          "tail": "。"
+        }
+      ],
+      "claimCount": 3,
+      "showIndex": true,
+      "showDivider": true,
+      "focusEnabled": false,
+      "focusIndex": 0,
+      "footnote": "资本的下一阶段，将从「赌叙事」转向「看兑现」。",
+      "showFootnote": true,
+      "scheme": "green",
+      "emphasis": "ticket",
+      "breath": 55,
+      "magnet": true,
+      "aurora": true,
+      "auroraSpeed": 1,
+      "index": "54 / 73"
+    }
+  },
+  {
+    "key": "theme14_page001",
+    "themeKey": "theme14",
+    "pageNumber": 1,
+    "layout": "THEME14-001",
+    "slot": "signature-derived-alternate-cover-theme14-001",
+    "label": "紫橙怪趣风 · derived-alternate-cover",
+    "sourceTheme": "theme14",
+    "sourcePageKey": "theme14_derived_alternate_cover",
+    "moduleFamily": "cover",
+    "moduleOrigin": "owned",
+    "moduleStrategy": "new",
+    "archetypeId": "derived-alternate-cover",
+    "evidenceMode": "inferred",
+    "evidenceRefs": [],
+    "derivedFromRules": [
+      "typography-02",
+      "composition-01",
+      "surface-02",
+      "motif-01",
+      "color-04"
+    ],
+    "anchorModuleRefs": [
+      "theme14_signature_pumpkin_night_cover",
+      "theme14_signature_spooky_facts_overview"
+    ],
+    "stylePrimitiveRefs": [
+      "candy-node",
+      "corner-web"
+    ],
+    "derivationReason": "在不改变 Style DNA 的前提下生成第二种封面构图；以 theme14_signature_pumpkin_night_cover、theme14_signature_spooky_facts_overview 为视觉锚点。",
+    "styleSignals": [
+      "正文保持白色小字号以适应高饱和底色",
+      "紫色和橙色页面交替形成节日节奏",
+      "媒体页使用大图和高对比文字覆盖",
+      "蜘蛛网、南瓜、坩埚、糖果和小蜘蛛重复出现",
+      "明黄用于标题标签和小型图标"
+    ],
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showSignatureSystem",
+        "label": "显示主题签名系统",
+        "type": "toggle",
+        "default": true,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "signature-system",
+            "ornament",
+            "page-marker"
+          ],
+          "minChangedRatio": 0.008,
+          "minRegions": 2
+        },
+        "publicKey": "showSignatureSystem"
+      },
+      {
+        "key": "density",
+        "label": "信息密度",
+        "type": "select",
+        "default": "balanced",
+        "options": [
+          {
+            "label": "紧凑",
+            "value": "compact"
+          },
+          {
+            "label": "平衡",
+            "value": "balanced"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-frame",
+            "spacing",
+            "type-scale"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "density"
+      },
+      {
+        "key": "coverLayout",
+        "label": "封面结构",
+        "type": "select",
+        "default": "structured",
+        "options": [
+          {
+            "label": "结构化",
+            "value": "structured"
+          },
+          {
+            "label": "偏移强调",
+            "value": "offset"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-grid",
+            "reading-order",
+            "emphasis"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "coverLayout"
+      },
+      {
+        "key": "mediaCount",
+        "label": "媒体数量",
+        "type": "range",
+        "min": 1,
+        "max": 3,
+        "default": 2,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "media",
+            "layout"
+          ],
+          "minChangedRatio": 0.01,
+          "minRegions": 2
+        },
+        "mediaSlots": [
+          {
+            "field": "media",
+            "fieldPath": "props.media",
+            "countKey": "mediaCount",
+            "maxCount": 3,
+            "initialSrcSupported": true,
+            "canPresetMedia": true,
+            "acceptedKinds": [
+              "image"
+            ]
+          }
+        ],
+        "publicKey": "mediaCount"
+      }
+    ],
+    "defaultProps": {
+      "showSignatureSystem": true,
+      "density": "balanced",
+      "coverLayout": "structured",
+      "pillars": [
+        "故事开场",
+        "怪趣角色",
+        "互动任务",
+        "惊喜收尾"
+      ],
+      "summary": "让紫橙舞台、怪趣角色和互动任务共同推动一场可参与、可分享的节日故事。",
+      "kicker": "SPECIAL EDITION / 2026",
+      "title": "紫橙怪趣风",
+      "subtitle": "用紫橙夜色、蜘蛛网、南瓜和糖果节点组织有戏剧性的活动内容。",
+      "media": [],
+      "mediaCount": 2
+    }
+  },
+  {
+    "key": "theme14_page002",
+    "themeKey": "theme14",
+    "pageNumber": 2,
+    "layout": "THEME14-002",
+    "slot": "signature-pumpkin-night-cover-theme14-002",
+    "label": "紫橙怪趣风 · pumpkin-night-cover",
+    "sourceTheme": "theme14",
+    "sourcePageKey": "theme14_signature_pumpkin_night_cover",
+    "moduleFamily": "cover",
+    "moduleOrigin": "owned",
+    "moduleStrategy": "new",
+    "archetypeId": "pumpkin-night-cover",
+    "evidenceMode": "observed",
+    "evidenceRefs": [
+      "slide-01",
+      "slide-23"
+    ],
+    "derivedFromRules": [],
+    "anchorModuleRefs": [],
+    "stylePrimitiveRefs": [],
+    "styleSignals": [
+      "深紫夜色画布承载白色大标题",
+      "蜘蛛网占据上方角落",
+      "南瓜表情沿底边形成故事舞台"
+    ],
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showSignatureSystem",
+        "label": "显示主题签名系统",
+        "type": "toggle",
+        "default": true,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "signature-system",
+            "ornament",
+            "page-marker"
+          ],
+          "minChangedRatio": 0.008,
+          "minRegions": 2
+        },
+        "publicKey": "showSignatureSystem"
+      },
+      {
+        "key": "density",
+        "label": "信息密度",
+        "type": "select",
+        "default": "balanced",
+        "options": [
+          {
+            "label": "紧凑",
+            "value": "compact"
+          },
+          {
+            "label": "平衡",
+            "value": "balanced"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-frame",
+            "spacing",
+            "type-scale"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "density"
+      },
+      {
+        "key": "coverLayout",
+        "label": "封面结构",
+        "type": "select",
+        "default": "structured",
+        "options": [
+          {
+            "label": "结构化",
+            "value": "structured"
+          },
+          {
+            "label": "偏移强调",
+            "value": "offset"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-grid",
+            "reading-order",
+            "emphasis"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "coverLayout"
+      }
+    ],
+    "defaultProps": {
+      "showSignatureSystem": true,
+      "density": "balanced",
+      "coverLayout": "structured",
+      "pillars": [
+        "故事开场",
+        "怪趣角色",
+        "互动任务",
+        "惊喜收尾"
+      ],
+      "summary": "让紫橙舞台、怪趣角色和互动任务共同推动一场可参与、可分享的节日故事。",
+      "kicker": "REPORT / 2026",
+      "title": "今晚，让故事亮起南瓜灯",
+      "subtitle": "用紫橙夜色、蜘蛛网、南瓜和糖果节点组织有戏剧性的活动内容。"
+    }
+  },
+  {
+    "key": "theme14_page003",
+    "themeKey": "theme14",
+    "pageNumber": 3,
+    "layout": "THEME14-003",
+    "slot": "coverGrid-theme12-004",
+    "label": "紫橙怪趣风 · 封面",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page004",
+    "moduleFamily": "cover",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "theme",
+        "label": "面板配色",
+        "type": "segment",
+        "def": "accent",
+        "options": [
+          {
+            "value": "accent",
+            "label": "强调"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "左侧面板底色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "itemCount",
+        "label": "目录条目",
+        "type": "slider",
+        "def": 4,
+        "min": 3,
+        "max": 5,
+        "step": 1,
+        "desc": "右栏目录条目数",
+        "publicKey": "itemCount"
+      },
+      {
+        "key": "focus",
+        "label": "重点强调",
+        "type": "toggle",
+        "def": false,
+        "desc": "高亮某一目录条目，弱化其余",
+        "publicKey": "focus"
+      },
+      {
+        "key": "focusIndex",
+        "label": "强调第几个",
+        "type": "slider",
+        "def": 1,
+        "min": 1,
+        "max": 5,
+        "step": 1,
+        "dependsOn": "focus",
+        "desc": "被强调条目的序号（1 起）",
+        "publicKey": "focusIndex"
+      },
+      {
+        "key": "showStats",
+        "label": "数据标签",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏底部数据标签",
+        "publicKey": "showStats"
+      },
+      {
+        "key": "statCount",
+        "label": "标签数量",
+        "type": "slider",
+        "def": 3,
+        "min": 0,
+        "max": 3,
+        "step": 1,
+        "dependsOn": "showStats",
+        "desc": "数据标签的数量",
+        "publicKey": "statCount"
+      },
+      {
+        "key": "showSeal",
+        "label": "身份印章",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏 CREATOR-OWNED 圆章",
+        "publicKey": "showSeal"
+      },
+      {
+        "key": "showGhost",
+        "label": "巨型刊号",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏面板内出血的巨型刊号",
+        "publicKey": "showGhost"
+      },
+      {
+        "key": "colorfulRows",
+        "label": "彩色目录",
+        "type": "toggle",
+        "def": true,
+        "desc": "每条目录使用不同的品牌色编号",
+        "publicKey": "colorfulRows",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "default": "#ff8508"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#5a138e",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "面板 / 编号 / 高亮强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "accent",
+      "itemCount": 4,
+      "focus": false,
+      "focusIndex": 1,
+      "showStats": true,
+      "statCount": 3,
+      "showSeal": true,
+      "showGhost": true,
+      "colorfulRows": true,
+      "brand": "以怪趣角色校准",
+      "panelKicker": "Independent Music OS",
+      "titleCn": "围绕",
+      "titleEn": "创意课堂的",
+      "tagline": "趋势糖果路径",
+      "ghostText": "01",
+      "issueLine": "VOL. 01\n夏 / Summer 2026",
+      "seal": {
+        "top": "★ EST. 2026 ★",
+        "name": "围绕",
+        "sub": "娱乐故事 · 紫橙"
+      },
+      "contentsTitle": "目录",
+      "contentsMeta": "Contents · 本期共 86 页",
+      "contents": [
+        {
+          "n": "01",
+          "t": "宣言",
+          "e": "Manifesto",
+          "d": "主权，为何比流量更重要",
+          "pg": "05"
+        },
+        {
+          "n": "02",
+          "t": "产品矩阵",
+          "e": "The Stack",
+          "d": "发行 · 直连 · 结算 · 护盾",
+          "pg": "09"
+        },
+        {
+          "n": "03",
+          "t": "为什么是现在",
+          "e": "Why Now",
+          "d": "独立发行的拐点已到来",
+          "pg": "24"
+        },
+        {
+          "n": "04",
+          "t": "节日活动",
+          "e": "Join Us",
+          "d": "从证据切入娱乐",
+          "pg": "78"
+        },
+        {
+          "n": "05",
+          "t": "路线图",
+          "e": "Roadmap",
+          "d": "接下来的四个季度",
+          "pg": "52"
+        }
+      ],
+      "chips": [
+        {
+          "v": "30+",
+          "lb": "分发平台"
+        },
+        {
+          "v": "72h",
+          "lb": "版税到账"
+        },
+        {
+          "v": "0%",
+          "lb": "首季分成"
+        }
+      ],
+      "page": "04",
+      "total": "86"
+    }
+  },
+  {
+    "key": "theme14_page004",
+    "themeKey": "theme14",
+    "pageNumber": 4,
+    "layout": "THEME14-004",
+    "slot": "manifesto-theme12-005",
+    "label": "紫橙怪趣风 · 信息结构",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page005",
+    "moduleFamily": "cover",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "主强调色，作用于编号、页脚、装饰条",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      },
+      {
+        "key": "mediaCount",
+        "label": "图片数量",
+        "type": "slider",
+        "def": 0,
+        "min": 0,
+        "max": 3,
+        "step": 1,
+        "desc": "右栏图片槽数量；0 时显示文字说明卡，1 时图片完整显示",
+        "publicKey": "mediaCount"
+      },
+      {
+        "key": "mediaFit",
+        "label": "图片填充",
+        "type": "segment",
+        "def": "contain",
+        "options": [
+          {
+            "value": "cover",
+            "label": "裁切"
+          },
+          {
+            "value": "contain",
+            "label": "完整"
+          }
+        ],
+        "dependsOn": "mediaCount",
+        "desc": "多图时图片的填充方式",
+        "publicKey": "mediaFit"
+      },
+      {
+        "key": "indexCount",
+        "label": "目录条目",
+        "type": "slider",
+        "def": 4,
+        "min": 2,
+        "max": 4,
+        "step": 1,
+        "desc": "底部目录展示的条目数",
+        "publicKey": "itemCount"
+      },
+      {
+        "key": "focus",
+        "label": "重点强调",
+        "type": "toggle",
+        "def": false,
+        "desc": "高亮某一目录条目，弱化其余",
+        "publicKey": "focus"
+      },
+      {
+        "key": "focusIndex",
+        "label": "强调第几个",
+        "type": "slider",
+        "def": 1,
+        "min": 1,
+        "max": 4,
+        "step": 1,
+        "dependsOn": "focus",
+        "desc": "被强调条目的序号（1 起）",
+        "publicKey": "focusIndex"
+      },
+      {
+        "key": "showKicker",
+        "label": "显示导语",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏标题上方的小标签",
+        "publicKey": "showKicker"
+      },
+      {
+        "key": "showDecorations",
+        "label": "显示装饰",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏几何装饰图形",
+        "publicKey": "showDecorations"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "showDecorations": true,
+      "showKicker": true,
+      "mediaCount": 0,
+      "mediaFit": "contain",
+      "indexCount": 4,
+      "focus": false,
+      "focusIndex": 1,
+      "media": [],
+      "barMeta": "Independent Music OS — Vol. 01 / 2026",
+      "brandLabel": "影响怪趣角色",
+      "kicker": "04 / 娱乐故事",
+      "title": "节日活动 · 推进怪趣角色",
+      "titleEn": "Ownership of sound\nbelongs to the maker.",
+      "aboutLabel": "从反馈切入",
+      "aboutBody": "从路径切入节日活动，以糖果路径连接关键证据，为活动策划者形成可执行的下一步。",
+      "aboutFoot": "一次上传，全球分发；每一分收益，路径透明。",
+      "mediaPlaceholderHero": "拖入主图 / Hero image",
+      "mediaPlaceholder": "拖入图片",
+      "index": [
+        {
+          "n": "01",
+          "t": "宣言",
+          "e": "Manifesto",
+          "d": "主权，为何比流量更重要。",
+          "c": "#f15a29"
+        },
+        {
+          "n": "02",
+          "t": "产品矩阵",
+          "e": "The Stack",
+          "d": "发行 · 直连 · 结算 · 护盾。",
+          "c": "#d61fb5"
+        },
+        {
+          "n": "03",
+          "t": "为什么是现在",
+          "e": "Why Now",
+          "d": "独立发行的拐点已到来。",
+          "c": "#3bb6ec"
+        },
+        {
+          "n": "04",
+          "t": "以怪趣角",
+          "e": "Join Us",
+          "d": "娱乐故事的关键不",
+          "c": "#1f6b2a"
+        }
+      ],
+      "page": "01",
+      "total": "82",
+      "footerTagline": "机会怪趣角色"
+    }
+  },
+  {
+    "key": "theme14_page005",
+    "themeKey": "theme14",
+    "pageNumber": 5,
+    "layout": "THEME14-005",
+    "slot": "coverflow-theme12-030",
+    "label": "紫橙怪趣风 · 封面",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page030",
+    "moduleFamily": "cover",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "mediaCount",
+        "label": "封面数量",
+        "type": "slider",
+        "def": 5,
+        "min": 3,
+        "max": 7,
+        "step": 1,
+        "desc": "封面流中的封面数量",
+        "publicKey": "mediaCount"
+      },
+      {
+        "key": "focusIndex",
+        "label": "聚焦封面",
+        "type": "slider",
+        "def": 3,
+        "min": 1,
+        "max": 7,
+        "step": 1,
+        "desc": "居中竖立放大的封面（第几张）",
+        "publicKey": "focusIndex"
+      },
+      {
+        "key": "mediaFit",
+        "label": "图片填充",
+        "type": "segment",
+        "def": "cover",
+        "options": [
+          {
+            "value": "cover",
+            "label": "裁切"
+          },
+          {
+            "value": "contain",
+            "label": "完整"
+          }
+        ],
+        "desc": "封面图填充方式",
+        "publicKey": "mediaFit"
+      },
+      {
+        "key": "showReflection",
+        "label": "倒影",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏封面下方倒影",
+        "publicKey": "showReflection"
+      },
+      {
+        "key": "showCaption",
+        "label": "焦点图注",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏焦点封面的条目标签",
+        "publicKey": "showCaption"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "dark",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#3bb6ec",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "导语 / 高亮 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "dark",
+      "mediaCount": 5,
+      "focusIndex": 3,
+      "mediaFit": "cover",
+      "showReflection": true,
+      "showCaption": true,
+      "media": [],
+      "barMeta": "26 — Coverflow",
+      "brandLabel": "趋势糖果路径",
+      "kicker": "05 / 创意课堂",
+      "title": "节日活动 · 识别南瓜故",
+      "hint": "releases",
+      "mediaPlaceholder": "拖入封面",
+      "titles": [
+        {
+          "t": "午夜电台",
+          "s": "MIDNIGHT RADIO"
+        },
+        {
+          "t": "潮汐",
+          "s": "TIDES"
+        },
+        {
+          "t": "霓虹废墟",
+          "s": "NEON RUINS"
+        },
+        {
+          "t": "回声花园",
+          "s": "ECHO GARDEN"
+        },
+        {
+          "t": "低气压",
+          "s": "LOW PRESSURE"
+        },
+        {
+          "t": "盐与光",
+          "s": "SALT & LIGHT"
+        },
+        {
+          "t": "夜行列车",
+          "s": "NIGHT TRAIN"
+        }
+      ],
+      "page": "26",
+      "total": "82",
+      "footerTagline": "现状南瓜故事"
+    }
+  },
+  {
+    "key": "theme14_page006",
+    "themeKey": "theme14",
+    "pageNumber": 6,
+    "layout": "THEME14-006",
+    "slot": "signature-derived-section-transition-theme14-006",
+    "label": "紫橙怪趣风 · derived-section-transition",
+    "sourceTheme": "theme14",
+    "sourcePageKey": "theme14_derived_section_transition",
+    "moduleFamily": "transition",
+    "moduleOrigin": "owned",
+    "moduleStrategy": "new",
+    "archetypeId": "derived-section-transition",
+    "evidenceMode": "inferred",
+    "evidenceRefs": [],
+    "derivedFromRules": [
+      "typography-02",
+      "composition-01",
+      "surface-02",
+      "motif-01",
+      "color-02"
+    ],
+    "anchorModuleRefs": [
+      "theme14_signature_pumpkin_night_cover",
+      "theme14_signature_spooky_facts_overview"
+    ],
+    "stylePrimitiveRefs": [
+      "cauldron-bubble",
+      "purple-orange-rail"
+    ],
+    "derivationReason": "用模板的标题层级和签名符号建立章节过渡；以 theme14_signature_pumpkin_night_cover、theme14_signature_spooky_facts_overview 为视觉锚点。",
+    "styleSignals": [
+      "正文保持白色小字号以适应高饱和底色",
+      "紫色和橙色页面交替形成节日节奏",
+      "媒体页使用大图和高对比文字覆盖",
+      "蜘蛛网、南瓜、坩埚、糖果和小蜘蛛重复出现",
+      "南瓜橙用于交替页面和高显著度强调"
+    ],
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showSignatureSystem",
+        "label": "显示主题签名系统",
+        "type": "toggle",
+        "default": true,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "signature-system",
+            "ornament",
+            "page-marker"
+          ],
+          "minChangedRatio": 0.008,
+          "minRegions": 2
+        },
+        "publicKey": "showSignatureSystem"
+      },
+      {
+        "key": "density",
+        "label": "信息密度",
+        "type": "select",
+        "default": "balanced",
+        "options": [
+          {
+            "label": "紧凑",
+            "value": "compact"
+          },
+          {
+            "label": "平衡",
+            "value": "balanced"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-frame",
+            "spacing",
+            "type-scale"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "density"
+      },
+      {
+        "key": "transitionLayout",
+        "label": "转场结构",
+        "type": "select",
+        "default": "structured",
+        "options": [
+          {
+            "label": "结构化",
+            "value": "structured"
+          },
+          {
+            "label": "偏移强调",
+            "value": "offset"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-grid",
+            "reading-order",
+            "emphasis"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "transitionLayout"
+      }
+    ],
+    "defaultProps": {
+      "showSignatureSystem": true,
+      "density": "balanced",
+      "transitionLayout": "structured",
+      "pillars": [
+        "故事开场",
+        "怪趣角色",
+        "互动任务",
+        "惊喜收尾"
+      ],
+      "summary": "让紫橙舞台、怪趣角色和互动任务共同推动一场可参与、可分享的节日故事。",
+      "kicker": "NEXT CHAPTER",
+      "title": "穿过下一张蛛网",
+      "sectionNumber": "02"
+    }
+  },
+  {
+    "key": "theme14_page007",
+    "themeKey": "theme14",
+    "pageNumber": 7,
+    "layout": "THEME14-007",
+    "slot": "interlude-theme12-042",
+    "label": "紫橙怪趣风 · 信息结构",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page042",
+    "moduleFamily": "transition",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "dark",
+        "options": [
+          {
+            "value": "dark",
+            "label": "深色"
+          },
+          {
+            "value": "color",
+            "label": "彩色"
+          }
+        ],
+        "desc": "间章底色：深色 / 强调色铺底",
+        "publicKey": "theme"
+      },
+      {
+        "key": "numeral",
+        "label": "编号样式",
+        "type": "segment",
+        "def": "arabic",
+        "options": [
+          {
+            "value": "arabic",
+            "label": "阿拉伯数字"
+          },
+          {
+            "value": "roman",
+            "label": "Ⅱ"
+          }
+        ],
+        "desc": "大编号的呈现方式",
+        "publicKey": "numeral"
+      },
+      {
+        "key": "showIndex",
+        "label": "巨大编号",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏背景巨大编号",
+        "publicKey": "showIndex"
+      },
+      {
+        "key": "showTag",
+        "label": "下一幕标签",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏“接下来”标签",
+        "publicKey": "showTag"
+      },
+      {
+        "key": "showDecorations",
+        "label": "显示装饰",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏几何装饰",
+        "publicKey": "showDecorations"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "高亮 / 编号 / 铺底强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "dark",
+      "numeral": "arabic",
+      "showIndex": true,
+      "showTag": true,
+      "showDecorations": true,
+      "barMeta": "38 — Interlude",
+      "brandLabel": "反馈紫橙节奏",
+      "act": 2,
+      "kicker": "07 / 娱乐故",
+      "title": "节日活动 · 连接糖果路径",
+      "tag": "边界南瓜故事",
+      "page": "38",
+      "total": "82",
+      "footerTagline": "路径糖果路径"
+    }
+  },
+  {
+    "key": "theme14_page008",
+    "themeKey": "theme14",
+    "pageNumber": 8,
+    "layout": "THEME14-008",
+    "slot": "divider-theme12-080",
+    "label": "紫橙怪趣风 · 信息结构",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page080",
+    "moduleFamily": "transition",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "accent",
+        "options": [
+          {
+            "value": "dark",
+            "label": "深色"
+          },
+          {
+            "value": "accent",
+            "label": "强调色"
+          }
+        ],
+        "desc": "间章整体配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "align",
+        "label": "对齐",
+        "type": "segment",
+        "def": "left",
+        "options": [
+          {
+            "value": "left",
+            "label": "居左"
+          },
+          {
+            "value": "center",
+            "label": "居中"
+          }
+        ],
+        "desc": "标题对齐方式",
+        "publicKey": "align"
+      },
+      {
+        "key": "showRule",
+        "label": "分隔线",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏标题下方分隔线",
+        "publicKey": "showRule"
+      },
+      {
+        "key": "showGhost",
+        "label": "背景大字",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏背景超大序号",
+        "publicKey": "showGhost"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "强调色 / 序号 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "accent",
+      "sectionLabel": "03",
+      "align": "left",
+      "showRule": true,
+      "showGhost": true,
+      "barMeta": "76 — Section",
+      "brandLabel": "样本怪趣角色",
+      "chapterLabel": "CHAPTER",
+      "title": "娱乐故事 · 沉淀糖果路径",
+      "intro": "围绕创意课堂量化南瓜故事与紫橙节奏，让信号判断建立在具体事实之上。",
+      "page": "76",
+      "total": "82",
+      "footerTagline": "影响怪趣角色"
+    }
+  },
+  {
+    "key": "theme14_page009",
+    "themeKey": "theme14",
+    "pageNumber": 9,
+    "layout": "THEME14-009",
+    "slot": "signature-cat-percent-metrics-theme14-009",
+    "label": "紫橙怪趣风 · cat-percent-metrics",
+    "sourceTheme": "theme14",
+    "sourcePageKey": "theme14_signature_cat_percent_metrics",
+    "moduleFamily": "metrics",
+    "moduleOrigin": "owned",
+    "moduleStrategy": "new",
+    "archetypeId": "cat-percent-metrics",
+    "evidenceMode": "observed",
+    "evidenceRefs": [
+      "slide-13",
+      "slide-16"
+    ],
+    "derivedFromRules": [],
+    "anchorModuleRefs": [],
+    "stylePrimitiveRefs": [],
+    "styleSignals": [
+      "大号白色百分比形成主要指标",
+      "南瓜眼睛或猫咪图标标记行项目",
+      "橙色说明文字强调结论"
+    ],
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showSignatureSystem",
+        "label": "显示主题签名系统",
+        "type": "toggle",
+        "default": true,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "signature-system",
+            "ornament",
+            "page-marker"
+          ],
+          "minChangedRatio": 0.008,
+          "minRegions": 2
+        },
+        "publicKey": "showSignatureSystem"
+      },
+      {
+        "key": "density",
+        "label": "信息密度",
+        "type": "select",
+        "default": "balanced",
+        "options": [
+          {
+            "label": "紧凑",
+            "value": "compact"
+          },
+          {
+            "label": "平衡",
+            "value": "balanced"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-frame",
+            "spacing",
+            "type-scale"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "density"
+      },
+      {
+        "key": "metricLayout",
+        "label": "指标结构",
+        "type": "select",
+        "default": "structured",
+        "options": [
+          {
+            "label": "结构化",
+            "value": "structured"
+          },
+          {
+            "label": "偏移强调",
+            "value": "offset"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-grid",
+            "reading-order",
+            "emphasis"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "metricLayout"
+      }
+    ],
+    "defaultProps": {
+      "showSignatureSystem": true,
+      "density": "balanced",
+      "metricLayout": "structured",
+      "pillars": [
+        "故事开场",
+        "怪趣角色",
+        "互动任务",
+        "惊喜收尾"
+      ],
+      "summary": "让紫橙舞台、怪趣角色和互动任务共同推动一场可参与、可分享的节日故事。",
+      "title": "用三个数字理解节日创意活动",
+      "metrics": [
+        {
+          "value": "100%",
+          "label": "氛围拉满",
+          "note": "紫橙舞台形成强烈节日记忆"
+        },
+        {
+          "value": "12项",
+          "label": "互动挑战",
+          "note": "任务覆盖观察、选择与创作"
+        },
+        {
+          "value": "6幕",
+          "label": "故事章节",
+          "note": "从开场到收尾节奏清晰"
+        }
+      ]
+    }
+  },
+  {
+    "key": "theme14_page010",
+    "themeKey": "theme14",
+    "pageNumber": 10,
+    "layout": "THEME14-010",
+    "slot": "scorecard-theme12-061",
+    "label": "紫橙怪趣风 · 指标总览",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page061",
+    "moduleFamily": "metrics",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "columnCount",
+        "label": "方案数量",
+        "type": "slider",
+        "def": 3,
+        "min": 2,
+        "max": 4,
+        "step": 1,
+        "countArrays": [
+          "cols",
+          "rows[].v"
+        ],
+        "desc": "参与对比的方案（列）数量",
+        "publicKey": "columnCount"
+      },
+      {
+        "key": "rowCount",
+        "label": "评估维度",
+        "type": "slider",
+        "def": 5,
+        "min": 4,
+        "max": 6,
+        "step": 1,
+        "desc": "评估维度（行）数量",
+        "publicKey": "rowCount"
+      },
+      {
+        "key": "focusIndex",
+        "label": "高亮方案",
+        "type": "slider",
+        "def": 1,
+        "min": 1,
+        "max": 4,
+        "step": 1,
+        "desc": "高亮强调的方案列",
+        "publicKey": "focusIndex"
+      },
+      {
+        "key": "showTotals",
+        "label": "合计得分",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏底部合计得分",
+        "publicKey": "showTotals"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#5a138e",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "高亮列 / 导语 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "columnCount": 3,
+      "rowCount": 5,
+      "focusIndex": 1,
+      "showTotals": true,
+      "barMeta": "57 — Scorecard",
+      "brandLabel": "样本怪趣角色",
+      "kicker": "10 / 创意课堂",
+      "title": "娱乐故事 · 复盘紫橙节",
+      "dimensionLabel": "评估维度",
+      "totalLabel": "合计",
+      "cols": [
+        {
+          "t": "娱乐故",
+          "s": "一体化"
+        },
+        {
+          "t": "传统厂牌",
+          "s": "代理制"
+        },
+        {
+          "t": "自助平台",
+          "s": "DIY"
+        },
+        {
+          "t": "经纪公司",
+          "s": "托管"
+        }
+      ],
+      "rows": [
+        {
+          "t": "版税透明",
+          "s": "Transparency",
+          "v": [
+            5,
+            2,
+            3,
+            2
+          ]
+        },
+        {
+          "t": "到账速度",
+          "s": "Payout speed",
+          "v": [
+            5,
+            2,
+            4,
+            3
+          ]
+        },
+        {
+          "t": "全球分发",
+          "s": "Distribution",
+          "v": [
+            4,
+            3,
+            5,
+            3
+          ]
+        },
+        {
+          "t": "版权掌控",
+          "s": "Ownership",
+          "v": [
+            5,
+            1,
+            4,
+            2
+          ]
+        },
+        {
+          "t": "运营支持",
+          "s": "Support",
+          "v": [
+            4,
+            5,
+            2,
+            5
+          ]
+        },
+        {
+          "t": "综合费率",
+          "s": "Fees",
+          "v": [
+            5,
+            2,
+            4,
+            2
+          ]
+        }
+      ],
+      "page": "57",
+      "total": "82",
+      "footerTagline": "样本怪趣角色"
+    }
+  },
+  {
+    "key": "theme14_page011",
+    "themeKey": "theme14",
+    "pageNumber": 11,
+    "layout": "THEME14-011",
+    "slot": "scoreboard-theme12-064",
+    "label": "紫橙怪趣风 · 指标总览",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page064",
+    "moduleFamily": "metrics",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "statCount",
+        "label": "指标数量",
+        "type": "slider",
+        "def": 4,
+        "min": 2,
+        "max": 4,
+        "step": 1,
+        "desc": "记分牌上的大数字指标数量",
+        "publicKey": "statCount"
+      },
+      {
+        "key": "columns",
+        "label": "栏数",
+        "type": "segment",
+        "def": 2,
+        "options": [
+          {
+            "value": 2,
+            "label": "2 栏"
+          },
+          {
+            "value": 4,
+            "label": "4 栏"
+          }
+        ],
+        "desc": "指标块的排布列数",
+        "publicKey": "columns"
+      },
+      {
+        "key": "showDelta",
+        "label": "同比",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏同比涨跌标记",
+        "publicKey": "showDelta"
+      },
+      {
+        "key": "showSpark",
+        "label": "迷你走势",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏迷你趋势线",
+        "publicKey": "showSpark"
+      },
+      {
+        "key": "showLede",
+        "label": "显示导语",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏标题区导语",
+        "publicKey": "showLede"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "导语高亮 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "statCount": 4,
+      "columns": 2,
+      "showDelta": true,
+      "showSpark": true,
+      "showLede": true,
+      "barMeta": "60 — Scoreboard",
+      "brandLabel": "证据紫橙节奏",
+      "kicker": "11 / 娱乐故事",
+      "title": "创意课堂 · 重构怪",
+      "lede": "围绕创意课堂校准糖果路径与南瓜故事，让节奏判断建立在具体事实之",
+      "stats": [
+        {
+          "big": "¥2.4亿",
+          "unit": "累计版税发放",
+          "en": "紫橙节奏 / 11",
+          "delta": "+182%",
+          "up": true,
+          "spark": [
+            10,
+            14,
+            13,
+            20,
+            26,
+            31,
+            40
+          ]
+        },
+        {
+          "big": "12,400",
+          "unit": "活跃独立音乐人",
+          "en": "南瓜故事 / 11",
+          "delta": "+64%",
+          "up": true,
+          "spark": [
+            8,
+            11,
+            15,
+            17,
+            22,
+            28,
+            33
+          ]
+        },
+        {
+          "big": "72h",
+          "unit": "平均结算时长",
+          "en": "糖果路径 / 11",
+          "delta": "−58%",
+          "up": false,
+          "spark": [
+            40,
+            33,
+            28,
+            22,
+            18,
+            14,
+            12
+          ]
+        },
+        {
+          "big": "30+",
+          "unit": "一键分发平台",
+          "en": "怪趣角色 / 11",
+          "delta": "+9",
+          "up": true,
+          "spark": [
+            12,
+            14,
+            16,
+            19,
+            22,
+            26,
+            30
+          ]
+        }
+      ],
+      "page": "60",
+      "total": "82",
+      "footerTagline": "证据紫橙节奏"
+    }
+  },
+  {
+    "key": "theme14_page012",
+    "themeKey": "theme14",
+    "pageNumber": 12,
+    "layout": "THEME14-012",
+    "slot": "bignumber-theme12-062",
+    "label": "紫橙怪趣风 · 指标总览",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page062",
+    "moduleFamily": "metrics",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "dark",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "showTrend",
+        "label": "趋势图",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏主数字旁的小条形趋势",
+        "publicKey": "showTrend"
+      },
+      {
+        "key": "showSupporting",
+        "label": "辅助指标",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏底部辅助数据行",
+        "publicKey": "showSupporting"
+      },
+      {
+        "key": "supportingCount",
+        "label": "辅助数量",
+        "type": "slider",
+        "def": 3,
+        "min": 0,
+        "max": 3,
+        "step": 1,
+        "dependsOn": "showSupporting",
+        "desc": "底部辅助指标的数量",
+        "publicKey": "supportingCount"
+      },
+      {
+        "key": "showDecorations",
+        "label": "显示装饰",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏几何装饰图形",
+        "publicKey": "showDecorations"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#3bb6ec",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "主数字 / 导语 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "dark",
+      "showTrend": true,
+      "showSupporting": true,
+      "supportingCount": 3,
+      "showDecorations": true,
+      "barMeta": "58 — By the Numbers",
+      "brandLabel": "边界南瓜故事",
+      "kicker": "12 / 娱乐故事",
+      "prefix": "¥",
+      "figure": "2.4",
+      "suffix": "亿+",
+      "caption": "从证据切入娱乐故事，以紫橙节",
+      "captionEn": "Total royalties paid out to independent artists",
+      "trend": [
+        0.32,
+        0.46,
+        0.41,
+        0.62,
+        0.78,
+        1
+      ],
+      "supporting": [
+        {
+          "v": "12k+",
+          "lb": "Artists",
+          "ds": "入驻音乐人与厂牌"
+        },
+        {
+          "v": "30+",
+          "lb": "Platforms",
+          "ds": "同步分发平台"
+        },
+        {
+          "v": "72h",
+          "lb": "Payout",
+          "ds": "版税平均到账"
+        }
+      ],
+      "page": "58",
+      "total": "82",
+      "footerTagline": "信号南瓜故事"
+    }
+  },
+  {
+    "key": "theme14_page013",
+    "themeKey": "theme14",
+    "pageNumber": 13,
+    "layout": "THEME14-013",
+    "slot": "stat3-theme12-063",
+    "label": "紫橙怪趣风 · 指标总览",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page063",
+    "moduleFamily": "metrics",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "statCount",
+        "label": "数字数量",
+        "type": "slider",
+        "def": 3,
+        "min": 2,
+        "max": 3,
+        "step": 1,
+        "desc": "并置的大数字数量",
+        "publicKey": "statCount"
+      },
+      {
+        "key": "showDividers",
+        "label": "分隔线",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏数字之间的竖向分隔线",
+        "publicKey": "showDividers"
+      },
+      {
+        "key": "showDecorations",
+        "label": "显示装饰",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏几何装饰图形",
+        "publicKey": "showDecorations"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "首个数字 / 导语 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "statCount": 3,
+      "showDividers": true,
+      "showDecorations": true,
+      "barMeta": "59 — Headline Stats",
+      "brandLabel": "证据紫橙节奏",
+      "kicker": "13 / 娱乐故事",
+      "title": "以怪趣角色校准娱乐故事的",
+      "stats": [
+        {
+          "v": "12万+",
+          "lb": "入驻音乐人",
+          "s": "Independent artists onboard"
+        },
+        {
+          "v": "¥2.4亿",
+          "lb": "已发版税",
+          "s": "Royalties paid to date"
+        },
+        {
+          "v": "72h",
+          "lb": "平均到账",
+          "s": "Average payout time"
+        }
+      ],
+      "page": "59",
+      "total": "82",
+      "footerTagline": "反馈紫橙节奏"
+    }
+  },
+  {
+    "key": "theme14_page014",
+    "themeKey": "theme14",
+    "pageNumber": 14,
+    "layout": "THEME14-014",
+    "slot": "statement-theme12-008",
+    "label": "紫橙怪趣风 · 指标总览",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page008",
+    "moduleFamily": "metrics",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "accent",
+        "options": [
+          {
+            "value": "accent",
+            "label": "强调"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          },
+          {
+            "value": "light",
+            "label": "浅色"
+          }
+        ],
+        "desc": "整版底色：强调色 / 深色 / 浅色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "align",
+        "label": "对齐",
+        "type": "segment",
+        "def": "left",
+        "options": [
+          {
+            "value": "left",
+            "label": "居左"
+          },
+          {
+            "value": "center",
+            "label": "居中"
+          }
+        ],
+        "desc": "标语排版对齐方式",
+        "publicKey": "align"
+      },
+      {
+        "key": "showKicker",
+        "label": "显示眉标",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏顶部小标题",
+        "publicKey": "showKicker"
+      },
+      {
+        "key": "showGhost",
+        "label": "巨型数字",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏出血的巨型页码",
+        "publicKey": "showGhost"
+      },
+      {
+        "key": "showShapes",
+        "label": "几何装饰",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏漂浮的几何装饰",
+        "publicKey": "showShapes"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "底色 / 高亮 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "theme": "accent",
+      "accent": "#ff8508",
+      "align": "left",
+      "showGhost": true,
+      "showShapes": true,
+      "showKicker": true,
+      "barMeta": "04 — Statement",
+      "brandLabel": "现状南瓜故事",
+      "kicker": "14 / 节日活动",
+      "title": "娱乐故事正在由怪趣角色走向糖果",
+      "lede": "以糖果路径校准节日活动的路径，再用南瓜故事检验结果能否持续。",
+      "page": "04",
+      "total": "82",
+      "footerTagline": "机会怪趣角色"
+    }
+  },
+  {
+    "key": "theme14_page015",
+    "themeKey": "theme14",
+    "pageNumber": 15,
+    "layout": "THEME14-015",
+    "slot": "scorecards-theme04-032",
+    "label": "紫橙怪趣风 · 指标总览",
+    "sourceTheme": "theme04",
+    "sourcePageKey": "theme04_page032",
+    "moduleFamily": "metrics",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "hlStyle",
+        "type": "radio",
+        "label": "高亮样式",
+        "options": [
+          {
+            "value": "glass",
+            "label": "玻璃"
+          },
+          {
+            "value": "pill",
+            "label": "胶囊"
+          },
+          {
+            "value": "underline",
+            "label": "下划线"
+          },
+          {
+            "value": "text",
+            "label": "文字"
+          }
+        ],
+        "optionLabels": [
+          "玻璃糖果",
+          "扁平药丸",
+          "下划线",
+          "纯文字"
+        ],
+        "default": "glass",
+        "desc": "关键词高亮：玻璃糖果 / 扁平药丸 / 下划线 / 纯文字",
+        "publicKey": "hlStyle"
+      },
+      {
+        "key": "hlTilt",
+        "type": "slider",
+        "label": "高亮倾斜",
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "default": 2,
+        "desc": "关键词胶囊旋转角度（仅糖果/药丸样式生效）",
+        "publicKey": "hlTilt"
+      },
+      {
+        "key": "statCount",
+        "type": "slider",
+        "label": "计分卡数",
+        "min": 2,
+        "max": 4,
+        "step": 1,
+        "default": 4,
+        "desc": "展示的计分卡数量",
+        "publicKey": "statCount"
+      },
+      {
+        "key": "layoutVariant",
+        "type": "radio",
+        "label": "排布",
+        "options": [
+          {
+            "value": "grid",
+            "label": "网格"
+          },
+          {
+            "value": "row",
+            "label": "横排"
+          }
+        ],
+        "optionLabels": [
+          "2×2 网格",
+          "一行排开"
+        ],
+        "default": "grid",
+        "desc": "网格 / 一行（2 张自动一行）",
+        "publicKey": "layoutVariant"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点突出",
+        "default": false,
+        "desc": "是否高亮某一张卡",
+        "publicKey": "focusEnabled"
+      },
+      {
+        "key": "focusIndex",
+        "type": "slider",
+        "label": "重点卡序号",
+        "min": 1,
+        "max": 4,
+        "step": 1,
+        "default": 2,
+        "maxFromKey": "statCount",
+        "desc": "被高亮卡的序号",
+        "publicKey": "focusIndex"
+      },
+      {
+        "key": "showDelta",
+        "type": "toggle",
+        "label": "趋势徽标",
+        "default": true,
+        "desc": "卡内趋势徽标",
+        "publicKey": "showDelta"
+      },
+      {
+        "key": "showContext",
+        "type": "toggle",
+        "label": "卡片注脚",
+        "default": true,
+        "desc": "卡片底部一句注脚",
+        "publicKey": "showContext"
+      },
+      {
+        "key": "showDecorations",
+        "type": "toggle",
+        "label": "装饰元素",
+        "default": true,
+        "desc": "星芒等点缀",
+        "publicKey": "showDecorations"
+      }
+    ],
+    "defaultProps": {
+      "copy": {
+        "text001": "2024 资本大年 · SCORECARD",
+        "text002": "四个数字，读懂这场",
+        "text003": "资本大年",
+        "text004": "数据为调研整理与推演 · 口径＝2024 全年美国 ≥1 亿美元 AI 融资事件汇总（示意）"
+      },
+      "cardsData": [
+        {
+          "eyebrow": "15 / 娱乐故",
+          "num": "970",
+          "unit": "亿美元",
+          "label": "怪趣角色",
+          "delta": {
+            "dir": "up",
+            "txt": "创历史新高"
+          },
+          "ctx": "平均单笔约 10 亿美元，头部标的高度追捧",
+          "color": "#ff8508"
+        },
+        {
+          "eyebrow": "15 / 娱乐故事",
+          "num": "97",
+          "unit": "笔",
+          "label": "怪趣角色",
+          "delta": {
+            "dir": "up",
+            "txt": "同比显著放量"
+          },
+          "ctx": "资金向少数巨型轮次集中",
+          "color": "#9b54c5"
+        },
+        {
+          "eyebrow": "15 / 娱乐故事",
+          "num": "≈1/3",
+          "unit": "",
+          "label": "南瓜故事",
+          "delta": {
+            "dir": "flat",
+            "txt": "资本虹吸"
+          },
+          "ctx": "AI 单一主题吸走近三分之一弹药",
+          "color": "#fffaf4"
+        },
+        {
+          "eyebrow": "15 / 创意课堂",
+          "num": "10",
+          "unit": "亿美元",
+          "label": "南瓜故事",
+          "delta": {
+            "dir": "up",
+            "txt": "持续大额化"
+          },
+          "ctx": "从「百万级」迈入「十亿级」叙事",
+          "color": "#ff8508"
+        }
+      ],
+      "deltaSymData": {
+        "up": "▲",
+        "down": "▼",
+        "flat": "="
+      },
+      "hlStyle": "glass",
+      "hlTilt": 2,
+      "statCount": 4,
+      "layoutVariant": "grid",
+      "focusEnabled": false,
+      "focusIndex": 2,
+      "showDelta": true,
+      "showContext": true,
+      "showDecorations": true
+    }
+  },
+  {
+    "key": "theme14_page016",
+    "themeKey": "theme14",
+    "pageNumber": 16,
+    "layout": "THEME14-016",
+    "slot": "versus-theme04-033",
+    "label": "紫橙怪趣风 · 对比分析",
+    "sourceTheme": "theme04",
+    "sourcePageKey": "theme04_page033",
+    "moduleFamily": "metrics",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "hlStyle",
+        "type": "radio",
+        "label": "高亮样式",
+        "options": [
+          {
+            "value": "glass",
+            "label": "玻璃"
+          },
+          {
+            "value": "pill",
+            "label": "胶囊"
+          },
+          {
+            "value": "underline",
+            "label": "下划线"
+          },
+          {
+            "value": "text",
+            "label": "文字"
+          }
+        ],
+        "optionLabels": [
+          "玻璃糖果",
+          "扁平药丸",
+          "下划线",
+          "纯文字"
+        ],
+        "default": "glass",
+        "desc": "关键词高亮：玻璃糖果 / 扁平药丸 / 下划线 / 纯文字",
+        "publicKey": "hlStyle"
+      },
+      {
+        "key": "hlTilt",
+        "type": "slider",
+        "label": "高亮倾斜",
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "default": 2,
+        "desc": "关键词胶囊旋转角度（仅糖果/药丸样式生效）",
+        "publicKey": "hlTilt"
+      },
+      {
+        "key": "metricCount",
+        "type": "slider",
+        "label": "支撑指标",
+        "min": 0,
+        "max": 2,
+        "step": 1,
+        "default": 2,
+        "desc": "每侧支撑指标行数",
+        "publicKey": "metricCount"
+      },
+      {
+        "key": "focusSide",
+        "type": "radio",
+        "label": "高亮侧",
+        "options": [
+          {
+            "value": "none",
+            "label": "无"
+          },
+          {
+            "value": "left",
+            "label": "左侧"
+          },
+          {
+            "value": "right",
+            "label": "右侧"
+          }
+        ],
+        "optionLabels": [
+          "不高亮",
+          "左侧",
+          "右侧"
+        ],
+        "default": "none",
+        "desc": "高亮左 / 右某一侧",
+        "publicKey": "focusSide"
+      },
+      {
+        "key": "showVsBadge",
+        "type": "toggle",
+        "label": "VS 徽章",
+        "default": true,
+        "desc": "中缝 VS 徽章",
+        "publicKey": "showVsBadge"
+      },
+      {
+        "key": "showDelta",
+        "type": "toggle",
+        "label": "差额对比条",
+        "default": true,
+        "desc": "底部两侧体量对比条",
+        "publicKey": "showDelta"
+      },
+      {
+        "key": "showUnit",
+        "type": "toggle",
+        "label": "单位后缀",
+        "default": true,
+        "desc": "主数字「亿」单位",
+        "publicKey": "showUnit"
+      },
+      {
+        "key": "showDecorations",
+        "type": "toggle",
+        "label": "装饰元素",
+        "default": true,
+        "desc": "星芒等点缀",
+        "publicKey": "showDecorations"
+      }
+    ],
+    "defaultProps": {
+      "copy": {
+        "text001": "HEAD TO HEAD · 两笔头部融资正面对决",
+        "text002": "两强相争，",
+        "text003": "只差 6 亿美元",
+        "text004": "VS",
+        "text005": "创意课堂正在",
+        "text006": "创意课堂正",
+        "text007": "两笔交易体量近乎并驾齐驱，头部资金高度集中于通用大模型「第一梯队」。"
+      },
+      "sidesData": [
+        {
+          "key": "left",
+          "name": "教师可",
+          "initial": "O",
+          "color": "#ff8508",
+          "big": "66",
+          "unit": "亿",
+          "sub": "创意课堂 · 糖果路径",
+          "metrics": [
+            {
+              "v": "1570",
+              "u": "亿",
+              "l": "投后估值 / 美元"
+            },
+            {
+              "v": "No.1",
+              "u": "",
+              "l": "全年最大单笔"
+            }
+          ]
+        },
+        {
+          "key": "right",
+          "name": "从",
+          "initial": "x",
+          "color": "#9b54c5",
+          "big": "60",
+          "unit": "亿",
+          "sub": "节日活动 · 怪趣角色",
+          "metrics": [
+            {
+              "v": "240",
+              "u": "亿",
+              "l": "投后估值 / 美元"
+            },
+            {
+              "v": "18",
+              "u": "月",
+              "l": "成立到 B 轮"
+            }
+          ]
+        }
+      ],
+      "hlStyle": "glass",
+      "hlTilt": 2,
+      "metricCount": 2,
+      "focusSide": "none",
+      "showVsBadge": true,
+      "showDelta": true,
+      "showUnit": true,
+      "showDecorations": true
+    }
+  },
+  {
+    "key": "theme14_page017",
+    "themeKey": "theme14",
+    "pageNumber": 17,
+    "layout": "THEME14-017",
+    "slot": "signature-purple-orange-comparison-theme14-017",
+    "label": "紫橙怪趣风 · purple-orange-comparison",
+    "sourceTheme": "theme14",
+    "sourcePageKey": "theme14_signature_purple_orange_comparison",
+    "moduleFamily": "comparison",
+    "moduleOrigin": "owned",
+    "moduleStrategy": "new",
+    "archetypeId": "purple-orange-comparison",
+    "evidenceMode": "observed",
+    "evidenceRefs": [
+      "slide-07",
+      "slide-14"
+    ],
+    "derivedFromRules": [],
+    "anchorModuleRefs": [],
+    "stylePrimitiveRefs": [],
+    "styleSignals": [
+      "左右两列事实采用相同文字密度",
+      "黄色标题区分两类观点",
+      "紫色底上保留橙色小图标"
+    ],
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showSignatureSystem",
+        "label": "显示主题签名系统",
+        "type": "toggle",
+        "default": true,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "signature-system",
+            "ornament",
+            "page-marker"
+          ],
+          "minChangedRatio": 0.008,
+          "minRegions": 2
+        },
+        "publicKey": "showSignatureSystem"
+      },
+      {
+        "key": "density",
+        "label": "信息密度",
+        "type": "select",
+        "default": "balanced",
+        "options": [
+          {
+            "label": "紧凑",
+            "value": "compact"
+          },
+          {
+            "label": "平衡",
+            "value": "balanced"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-frame",
+            "spacing",
+            "type-scale"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "density"
+      },
+      {
+        "key": "comparisonLayout",
+        "label": "对比结构",
+        "type": "select",
+        "default": "structured",
+        "options": [
+          {
+            "label": "结构化",
+            "value": "structured"
+          },
+          {
+            "label": "偏移强调",
+            "value": "offset"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-grid",
+            "reading-order",
+            "emphasis"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "comparisonLayout"
+      }
+    ],
+    "defaultProps": {
+      "showSignatureSystem": true,
+      "density": "balanced",
+      "comparisonLayout": "structured",
+      "pillars": [
+        "故事开场",
+        "怪趣角色",
+        "互动任务",
+        "惊喜收尾"
+      ],
+      "summary": "让紫橙舞台、怪趣角色和互动任务共同推动一场可参与、可分享的节日故事。",
+      "title": "节日创意活动的两条路径",
+      "options": [
+        {
+          "title": "TRICK 路径",
+          "body": "用谜题、挑战和意外推动活动节奏。"
+        },
+        {
+          "title": "TREAT 路径",
+          "body": "用奖励、分享和故事完成温暖收尾。"
+        }
+      ],
+      "criteria": [
+        "活动参与",
+        "故事完成",
+        "节日记忆"
+      ]
+    }
+  },
+  {
+    "key": "theme14_page018",
+    "themeKey": "theme14",
+    "pageNumber": 18,
+    "layout": "THEME14-018",
+    "slot": "matrix-theme04-028",
+    "label": "紫橙怪趣风 · 矩阵与分层",
+    "sourceTheme": "theme04",
+    "sourcePageKey": "theme04_page028",
+    "moduleFamily": "comparison",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "hlStyle",
+        "type": "radio",
+        "label": "高亮样式",
+        "options": [
+          {
+            "value": "glass",
+            "label": "玻璃"
+          },
+          {
+            "value": "pill",
+            "label": "胶囊"
+          },
+          {
+            "value": "underline",
+            "label": "下划线"
+          },
+          {
+            "value": "text",
+            "label": "文字"
+          }
+        ],
+        "optionLabels": [
+          "玻璃糖果",
+          "扁平药丸",
+          "下划线",
+          "纯文字"
+        ],
+        "default": "glass",
+        "desc": "关键词高亮：玻璃糖果 / 扁平药丸 / 下划线 / 纯文字",
+        "publicKey": "hlStyle"
+      },
+      {
+        "key": "hlTilt",
+        "type": "slider",
+        "label": "高亮倾斜",
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "default": 2,
+        "desc": "关键词胶囊旋转角度（仅糖果/药丸样式生效）",
+        "publicKey": "hlTilt"
+      },
+      {
+        "key": "rowCount",
+        "type": "slider",
+        "label": "公司行数",
+        "min": 3,
+        "max": 4,
+        "step": 1,
+        "default": 4,
+        "desc": "展示的公司行数",
+        "publicKey": "rowCount"
+      },
+      {
+        "key": "colCount",
+        "type": "slider",
+        "label": "维度列数",
+        "min": 3,
+        "max": 5,
+        "step": 1,
+        "default": 5,
+        "desc": "展示的能力维度列数",
+        "publicKey": "colCount"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点突出",
+        "default": true,
+        "desc": "是否高亮某一行",
+        "publicKey": "focusEnabled"
+      },
+      {
+        "key": "focusIndex",
+        "type": "slider",
+        "label": "重点序号",
+        "min": 1,
+        "max": 4,
+        "step": 1,
+        "default": 2,
+        "maxFromKey": "rowCount",
+        "desc": "被高亮行的序号",
+        "publicKey": "focusIndex"
+      },
+      {
+        "key": "showRowMeta",
+        "type": "toggle",
+        "label": "分类副标",
+        "default": true,
+        "desc": "公司下方分类副标显隐",
+        "publicKey": "showRowMeta"
+      },
+      {
+        "key": "showLegend",
+        "type": "toggle",
+        "label": "评级图例",
+        "default": true,
+        "desc": "底部评级图例显隐",
+        "publicKey": "showLegend"
+      },
+      {
+        "key": "showColScore",
+        "type": "toggle",
+        "label": "综合强度行",
+        "default": true,
+        "desc": "列尾综合强度行显隐",
+        "publicKey": "showColScore"
+      },
+      {
+        "key": "showDecorations",
+        "type": "toggle",
+        "label": "装饰元素",
+        "default": true,
+        "desc": "星芒等点缀",
+        "publicKey": "showDecorations"
+      }
+    ],
+    "defaultProps": {
+      "copy": {
+        "text001": "能力画像 · CAPABILITY MATRIX",
+        "text002": "同样是头部，",
+        "text003": "强项各不同",
+        "text004": "公司 \\ 维度",
+        "text005": "综合强度",
+        "text006": "横纵分析法 · 能力画像（报告 2，评级为调研整理 / 示意）"
+      },
+      "dimsData": [
+        {
+          "zh": "通用大模型",
+          "en": "南瓜"
+        },
+        {
+          "zh": "算力自有",
+          "en": "南瓜故"
+        },
+        {
+          "zh": "商业兑现",
+          "en": "怪趣角"
+        },
+        {
+          "zh": "安全治理",
+          "en": "怪趣角"
+        },
+        {
+          "zh": "生态分发",
+          "en": "怪趣角色 /"
+        }
+      ],
+      "rowsData": [
+        {
+          "name": "创意课",
+          "cat": "通用大模型 · 应用",
+          "color": "#ff8508",
+          "s": [
+            3,
+            2,
+            3,
+            2,
+            3
+          ]
+        },
+        {
+          "name": "教师可从信",
+          "cat": "通用大模型 · 安全",
+          "color": "#9b54c5",
+          "s": [
+            3,
+            2,
+            2,
+            3,
+            2
+          ]
+        },
+        {
+          "name": "证据3",
+          "cat": "大模型 · 全栈",
+          "color": "#fffaf4",
+          "s": [
+            3,
+            3,
+            2,
+            3,
+            3
+          ]
+        },
+        {
+          "name": "节",
+          "cat": "通用大模型 · 算力",
+          "color": "#ff8508",
+          "s": [
+            2,
+            3,
+            1,
+            1,
+            3
+          ]
+        }
+      ],
+      "lvData": {
+        "1": {
+          "color": "#ff8508",
+          "glyph": "–",
+          "tag": "反馈"
+        },
+        "2": {
+          "color": "#ff8508",
+          "glyph": "●",
+          "tag": "信号"
+        },
+        "3": {
+          "color": "#ff8508",
+          "glyph": "✓",
+          "tag": "信号"
+        }
+      },
+      "hlStyle": "glass",
+      "hlTilt": 2,
+      "rowCount": 4,
+      "colCount": 5,
+      "focusEnabled": true,
+      "focusIndex": 2,
+      "showRowMeta": true,
+      "showLegend": true,
+      "showColScore": true,
+      "showDecorations": true
+    }
+  },
+  {
+    "key": "theme14_page019",
+    "themeKey": "theme14",
+    "pageNumber": 19,
+    "layout": "THEME14-019",
+    "slot": "heatmap-theme04-021",
+    "label": "紫橙怪趣风 · 矩阵与分层",
+    "sourceTheme": "theme04",
+    "sourcePageKey": "theme04_page021",
+    "moduleFamily": "comparison",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "hlStyle",
+        "type": "radio",
+        "label": "高亮样式",
+        "options": [
+          {
+            "value": "glass",
+            "label": "玻璃"
+          },
+          {
+            "value": "pill",
+            "label": "胶囊"
+          },
+          {
+            "value": "underline",
+            "label": "下划线"
+          },
+          {
+            "value": "text",
+            "label": "文字"
+          }
+        ],
+        "optionLabels": [
+          "玻璃糖果",
+          "扁平药丸",
+          "下划线",
+          "纯文字"
+        ],
+        "default": "glass",
+        "desc": "关键词高亮：玻璃糖果 / 扁平药丸 / 下划线 / 纯文字",
+        "publicKey": "hlStyle"
+      },
+      {
+        "key": "hlTilt",
+        "type": "slider",
+        "label": "高亮倾斜",
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "default": 2,
+        "desc": "关键词胶囊旋转角度（仅糖果/药丸样式生效）",
+        "publicKey": "hlTilt"
+      },
+      {
+        "key": "columnCount",
+        "type": "slider",
+        "label": "月份列数",
+        "min": 6,
+        "max": 12,
+        "step": 1,
+        "default": 12,
+        "desc": "展示的月份列数",
+        "publicKey": "columnCount"
+      },
+      {
+        "key": "rowCount",
+        "type": "slider",
+        "label": "分类行数",
+        "min": 2,
+        "max": 4,
+        "step": 1,
+        "default": 4,
+        "desc": "展示的分类行数",
+        "publicKey": "categoryCount"
+      },
+      {
+        "key": "chartVariant",
+        "type": "radio",
+        "label": "编码方式",
+        "options": [
+          {
+            "value": "heat",
+            "label": "热度"
+          },
+          {
+            "value": "bubble",
+            "label": "气泡"
+          }
+        ],
+        "optionLabels": [
+          "热力格",
+          "气泡"
+        ],
+        "default": "heat",
+        "desc": "颜色深浅 / 气泡大小",
+        "publicKey": "chartVariant"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点突出",
+        "default": true,
+        "desc": "是否高亮某一月份",
+        "publicKey": "focusEnabled"
+      },
+      {
+        "key": "focusIndex",
+        "type": "slider",
+        "label": "重点月份",
+        "min": 1,
+        "max": 12,
+        "step": 1,
+        "default": 6,
+        "maxFromKey": "columnCount",
+        "desc": "被高亮月份的序号",
+        "publicKey": "focusIndex"
+      },
+      {
+        "key": "showRowTotal",
+        "type": "toggle",
+        "label": "分类合计",
+        "default": true,
+        "desc": "行尾分类合计列",
+        "publicKey": "showRowTotal"
+      },
+      {
+        "key": "showScale",
+        "type": "toggle",
+        "label": "强度图例",
+        "default": true,
+        "desc": "底部强度图例",
+        "publicKey": "showScale"
+      },
+      {
+        "key": "showDecorations",
+        "type": "toggle",
+        "label": "装饰元素",
+        "default": true,
+        "desc": "星芒 / 圆环等点缀",
+        "publicKey": "showDecorations"
+      }
+    ],
+    "defaultProps": {
+      "copy": {
+        "text001": "资金热力 · MONTHLY HEATMAP",
+        "text002": "热钱",
+        "text003": "扎堆 5 月、8 月",
+        "text004": "，通用大模型最烫手",
+        "text005": "赛道 / 月",
+        "text006": "合计",
+        "text007": "弱",
+        "text008": "强",
+        "text009": "数值为相对热度（0–100）· 颜色深浅 / 气泡大小同义",
+        "text010": "数据为调研整理与月度推演 · 列「合计」越高代表当月越热"
+      },
+      "monthsData": [
+        "1月",
+        "2月",
+        "3月",
+        "4月",
+        "5月",
+        "6月",
+        "7月",
+        "8月",
+        "9月",
+        "10月",
+        "11月",
+        "12月"
+      ],
+      "rowsData": [
+        {
+          "track": "通用大模型",
+          "short": "LLM",
+          "color": "#ff8508",
+          "vals": [
+            32,
+            44,
+            58,
+            70,
+            96,
+            54,
+            50,
+            92,
+            64,
+            82,
+            70,
+            76
+          ]
+        },
+        {
+          "track": "AI 基础设施",
+          "short": "INFRA",
+          "color": "#9b54c5",
+          "vals": [
+            40,
+            34,
+            50,
+            46,
+            62,
+            56,
+            70,
+            76,
+            56,
+            60,
+            66,
+            82
+          ]
+        },
+        {
+          "track": "AI 硬件",
+          "short": "HW",
+          "color": "#fffaf4",
+          "vals": [
+            22,
+            30,
+            56,
+            40,
+            84,
+            36,
+            30,
+            46,
+            40,
+            30,
+            36,
+            42
+          ]
+        },
+        {
+          "track": "垂直应用",
+          "short": "APP",
+          "color": "#ff8508",
+          "vals": [
+            24,
+            30,
+            36,
+            30,
+            42,
+            46,
+            36,
+            56,
+            40,
+            52,
+            46,
+            60
+          ]
+        }
+      ],
+      "hlStyle": "glass",
+      "hlTilt": 2,
+      "columnCount": 12,
+      "rowCount": 4,
+      "chartVariant": "heat",
+      "focusEnabled": true,
+      "focusIndex": 6,
+      "showRowTotal": true,
+      "showScale": true,
+      "showDecorations": true
+    },
+    "lengthBindings": [
+      {
+        "dependent": "rowsData[].vals",
+        "anchor": "monthsData",
+        "relation": "same-length"
+      }
+    ]
+  },
+  {
+    "key": "theme14_page020",
+    "themeKey": "theme14",
+    "pageNumber": 20,
+    "layout": "THEME14-020",
+    "slot": "quadrant-theme04-043",
+    "label": "紫橙怪趣风 · 矩阵与分层",
+    "sourceTheme": "theme04",
+    "sourcePageKey": "theme04_page043",
+    "moduleFamily": "comparison",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "hlStyle",
+        "type": "radio",
+        "label": "高亮样式",
+        "options": [
+          {
+            "value": "glass",
+            "label": "玻璃"
+          },
+          {
+            "value": "pill",
+            "label": "胶囊"
+          },
+          {
+            "value": "underline",
+            "label": "下划线"
+          },
+          {
+            "value": "text",
+            "label": "文字"
+          }
+        ],
+        "optionLabels": [
+          "玻璃糖果",
+          "扁平药丸",
+          "下划线",
+          "纯文字"
+        ],
+        "default": "glass",
+        "desc": "关键词高亮：玻璃糖果 / 扁平药丸 / 下划线 / 纯文字",
+        "publicKey": "hlStyle"
+      },
+      {
+        "key": "hlTilt",
+        "type": "slider",
+        "label": "高亮倾斜",
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "default": 2,
+        "desc": "关键词胶囊旋转角度（仅糖果/药丸样式生效）",
+        "publicKey": "hlTilt"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点突出",
+        "default": false,
+        "desc": "是否高亮某一象限",
+        "publicKey": "focusEnabled"
+      },
+      {
+        "key": "focusIndex",
+        "type": "slider",
+        "label": "重点象限",
+        "min": 1,
+        "max": 4,
+        "step": 1,
+        "default": 2,
+        "desc": "被高亮象限序号(1左上→4右下)",
+        "publicKey": "focusIndex"
+      },
+      {
+        "key": "chipCount",
+        "type": "slider",
+        "label": "标签数量",
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "default": 3,
+        "desc": "每个象限展示的示例标签数量",
+        "publicKey": "chipCount"
+      },
+      {
+        "key": "showAxisLabels",
+        "type": "toggle",
+        "label": "坐标轴标注",
+        "default": true,
+        "desc": "横纵坐标轴文字",
+        "publicKey": "showAxisLabels"
+      },
+      {
+        "key": "showChips",
+        "type": "toggle",
+        "label": "示例标签",
+        "default": true,
+        "desc": "象限内示例对象标签",
+        "publicKey": "showChips"
+      },
+      {
+        "key": "showDecorations",
+        "type": "toggle",
+        "label": "装饰元素",
+        "default": true,
+        "desc": "星芒等点缀",
+        "publicKey": "showDecorations"
+      }
+    ],
+    "defaultProps": {
+      "hlStyle": "glass",
+      "hlTilt": 2,
+      "focusEnabled": false,
+      "focusIndex": 2,
+      "chipCount": 3,
+      "showAxisLabels": true,
+      "showChips": true,
+      "showDecorations": true,
+      "kicker": "20 / 节日活动",
+      "titleLead": "从「谁融得多」升级为",
+      "titleKeyword": "「谁能兑现」",
+      "axisColHigh": "商业兑现度 · 高",
+      "axisColLow": "商业兑现度 · 低 / 待验证",
+      "axisRowHigh": "资本热度 · 高",
+      "axisRowLow": "资本热度 · 低 / 中",
+      "cells": [
+        {
+          "name": "节奏1",
+          "color": "#ff8508",
+          "desc": "以糖果路径校准节日活动的路径，再用南瓜故事",
+          "chips": [
+            "围绕创意课",
+            "活动策划者",
+            "Scale AI"
+          ]
+        },
+        {
+          "name": "趋势2",
+          "color": "#9b54c5",
+          "desc": "以南瓜故事校准节日活动的信号，再用紫橙节",
+          "chips": [
+            "围绕创",
+            "活动策划者",
+            "以",
+            "SSI"
+          ]
+        },
+        {
+          "name": "信号3",
+          "color": "#fffaf4",
+          "desc": "教师可从约束观察娱乐故事，用紫橙节奏解",
+          "chips": [
+            "Glean",
+            "Perplexity"
+          ]
+        },
+        {
+          "name": "影响4",
+          "color": "#ff8508",
+          "desc": "以南瓜故事校准节日活动的现状，再用紫橙节奏",
+          "chips": [
+            "长尾工具链",
+            "AI 安全",
+            "早期硬件"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "key": "theme14_page021",
+    "themeKey": "theme14",
+    "pageNumber": 21,
+    "layout": "THEME14-021",
+    "slot": "compare-theme04-062",
+    "label": "紫橙怪趣风 · 对比分析",
+    "sourceTheme": "theme04",
+    "sourcePageKey": "theme04_page062",
+    "moduleFamily": "comparison",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "hlStyle",
+        "type": "radio",
+        "label": "高亮样式",
+        "options": [
+          {
+            "value": "glass",
+            "label": "玻璃"
+          },
+          {
+            "value": "pill",
+            "label": "胶囊"
+          },
+          {
+            "value": "underline",
+            "label": "下划线"
+          },
+          {
+            "value": "text",
+            "label": "文字"
+          }
+        ],
+        "optionLabels": [
+          "玻璃糖果",
+          "扁平药丸",
+          "下划线",
+          "纯文字"
+        ],
+        "default": "glass",
+        "desc": "关键词高亮：玻璃糖果 / 扁平药丸 / 下划线 / 纯文字",
+        "publicKey": "hlStyle"
+      },
+      {
+        "key": "hlTilt",
+        "type": "slider",
+        "label": "高亮倾斜",
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "default": 2,
+        "desc": "关键词胶囊旋转角度（仅糖果/药丸样式生效）",
+        "publicKey": "hlTilt"
+      },
+      {
+        "key": "columnCount",
+        "type": "slider",
+        "label": "列数",
+        "min": 1,
+        "max": 2,
+        "step": 1,
+        "default": 2,
+        "desc": "对比列数(=1 仅显示首列)",
+        "publicKey": "columnCount"
+      },
+      {
+        "key": "itemCount",
+        "type": "slider",
+        "label": "条目数量",
+        "min": 2,
+        "max": 3,
+        "step": 1,
+        "default": 3,
+        "desc": "每列展示的条目数量",
+        "publicKey": "itemCount"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点突出",
+        "default": false,
+        "desc": "是否高亮某一列",
+        "publicKey": "focusEnabled"
+      },
+      {
+        "key": "focusSide",
+        "type": "radio",
+        "label": "重点列",
+        "options": [
+          {
+            "value": "left",
+            "label": "左侧"
+          },
+          {
+            "value": "right",
+            "label": "右侧"
+          }
+        ],
+        "optionLabels": [
+          "首列",
+          "次列"
+        ],
+        "default": "left",
+        "desc": "被高亮的列",
+        "publicKey": "focusSide"
+      },
+      {
+        "key": "showIcons",
+        "type": "toggle",
+        "label": "图标显示",
+        "default": true,
+        "desc": "列首 ✓/✕ 图标",
+        "publicKey": "showIcons"
+      },
+      {
+        "key": "showDecorations",
+        "type": "toggle",
+        "label": "装饰元素",
+        "default": true,
+        "desc": "星芒等点缀",
+        "publicKey": "showDecorations"
+      }
+    ],
+    "defaultProps": {
+      "hlStyle": "glass",
+      "hlTilt": 2,
+      "columnCount": 2,
+      "itemCount": 3,
+      "focusEnabled": false,
+      "focusSide": "left",
+      "showIcons": true,
+      "showDecorations": true,
+      "kicker": "21 / 创意课堂",
+      "titleLead": "退潮之后，谁能",
+      "titleKeyword": "留在牌桌",
+      "columns": [
+        {
+          "side": "left",
+          "color": "#ff8508",
+          "kind": "good",
+          "heading": "创意课堂",
+          "sub": "节日活动 · 糖果路径",
+          "items": [
+            {
+              "title": "节日活动",
+              "desc": "从边界切入娱乐故事，以南瓜故事拆解关键证"
+            },
+            {
+              "title": "创意课堂 · ",
+              "desc": "教师可从约束观察节日活动，用紫橙节奏解释变化，并以怪趣角"
+            },
+            {
+              "title": "娱乐故事",
+              "desc": "创意内容团队可从机会观察节日活动，用怪趣角色解释"
+            }
+          ]
+        },
+        {
+          "side": "right",
+          "color": "#9b54c5",
+          "kind": "bad",
+          "heading": "娱乐故事",
+          "sub": "南瓜故事",
+          "items": [
+            {
+              "title": "创意课堂 · 比较紫",
+              "desc": "节日活动正在由糖果路径走向南瓜故"
+            },
+            {
+              "title": "节日活动 · 沉淀怪趣",
+              "desc": "以紫橙节奏校准创意课堂的证据，再用怪趣角"
+            },
+            {
+              "title": "创意课堂 · 复盘糖果路",
+              "desc": "以南瓜故事校准创意课堂的现状，再"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "key": "theme14_page022",
+    "themeKey": "theme14",
+    "pageNumber": 22,
+    "layout": "THEME14-022",
+    "slot": "groupbars-theme04-015",
+    "label": "紫橙怪趣风 · 排行与趋势图",
+    "sourceTheme": "theme04",
+    "sourcePageKey": "theme04_page015",
+    "moduleFamily": "comparison",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "hlStyle",
+        "type": "radio",
+        "label": "高亮样式",
+        "options": [
+          {
+            "value": "glass",
+            "label": "玻璃"
+          },
+          {
+            "value": "pill",
+            "label": "胶囊"
+          },
+          {
+            "value": "underline",
+            "label": "下划线"
+          },
+          {
+            "value": "text",
+            "label": "文字"
+          }
+        ],
+        "optionLabels": [
+          "玻璃糖果",
+          "扁平药丸",
+          "下划线",
+          "纯文字"
+        ],
+        "default": "glass",
+        "desc": "关键词高亮：玻璃糖果 / 扁平药丸 / 下划线 / 纯文字",
+        "publicKey": "hlStyle"
+      },
+      {
+        "key": "hlTilt",
+        "type": "slider",
+        "label": "高亮倾斜",
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "default": 2,
+        "desc": "关键词胶囊旋转角度（仅糖果/药丸样式生效）",
+        "publicKey": "hlTilt"
+      },
+      {
+        "key": "columnCount",
+        "type": "slider",
+        "label": "分类组数",
+        "min": 3,
+        "max": 5,
+        "step": 1,
+        "default": 5,
+        "desc": "展示的分类组数量",
+        "publicKey": "categoryCount"
+      },
+      {
+        "key": "chartVariant",
+        "type": "radio",
+        "label": "图表类型",
+        "options": [
+          {
+            "value": "group",
+            "label": "分组"
+          },
+          {
+            "value": "total",
+            "label": "总计"
+          }
+        ],
+        "optionLabels": [
+          "双柱",
+          "合计"
+        ],
+        "default": "group",
+        "desc": "上下半年双柱 / 合计单柱",
+        "publicKey": "chartVariant"
+      },
+      {
+        "key": "focusEnabled",
+        "type": "toggle",
+        "label": "重点突出",
+        "default": true,
+        "desc": "是否高亮某一分类组",
+        "publicKey": "focusEnabled"
+      },
+      {
+        "key": "focusIndex",
+        "type": "slider",
+        "label": "重点序号",
+        "min": 1,
+        "max": 5,
+        "step": 1,
+        "default": 2,
+        "maxFromKey": "columnCount",
+        "desc": "被高亮分类的序号",
+        "publicKey": "focusIndex"
+      },
+      {
+        "key": "showValues",
+        "type": "toggle",
+        "label": "柱顶数值",
+        "default": true,
+        "desc": "柱顶数值标签",
+        "publicKey": "showValueLabels"
+      },
+      {
+        "key": "showLegend",
+        "type": "toggle",
+        "label": "图例",
+        "default": true,
+        "desc": "上 / 下半年图例",
+        "publicKey": "showLegend"
+      },
+      {
+        "key": "showDecorations",
+        "type": "toggle",
+        "label": "装饰元素",
+        "default": true,
+        "desc": "星芒等点缀",
+        "publicKey": "showDecorations"
+      }
+    ],
+    "defaultProps": {
+      "copy": {
+        "text001": "半年消长 · H1 vs H2",
+        "text002": "下半年，",
+        "text003": "每条赛道都在加速",
+        "text004": "上半年 H1",
+        "text005": "下半年 H2",
+        "text006": "半年消长",
+        "text007": "柱高为示意比例，数值以柱顶标签为准（单位亿美元）· 报告 3.x · 调研整理"
+      },
+      "groupsData": [
+        {
+          "name": "影响1",
+          "en": "糖果路",
+          "h1": 180,
+          "h2": 260,
+          "color": "#ff8508"
+        },
+        {
+          "name": "边界2",
+          "en": "紫橙节奏 / ",
+          "h1": 150,
+          "h2": 210,
+          "color": "#9b54c5"
+        },
+        {
+          "name": "机会3",
+          "en": "怪趣角色 / 2",
+          "h1": 70,
+          "h2": 110,
+          "color": "#fffaf4"
+        },
+        {
+          "name": "影响4",
+          "en": "VERTICAL",
+          "h1": 45,
+          "h2": 80,
+          "color": "#ff8508"
+        },
+        {
+          "name": "影响5",
+          "en": "怪趣角色 / 2",
+          "h1": 30,
+          "h2": 55,
+          "color": "#9b54c5"
+        }
+      ],
+      "hlStyle": "glass",
+      "hlTilt": 2,
+      "columnCount": 5,
+      "chartVariant": "group",
+      "focusEnabled": true,
+      "focusIndex": 2,
+      "showValues": true,
+      "showLegend": true,
+      "showDecorations": true
+    }
+  },
+  {
+    "key": "theme14_page023",
+    "themeKey": "theme14",
+    "pageNumber": 23,
+    "layout": "THEME14-023",
+    "slot": "signature-candy-process-timeline-theme14-023",
+    "label": "紫橙怪趣风 · candy-process-timeline",
+    "sourceTheme": "theme14",
+    "sourcePageKey": "theme14_signature_candy_process_timeline",
+    "moduleFamily": "timeline",
+    "moduleOrigin": "owned",
+    "moduleStrategy": "new",
+    "archetypeId": "candy-process-timeline",
+    "evidenceMode": "observed",
+    "evidenceRefs": [
+      "slide-17"
+    ],
+    "derivedFromRules": [],
+    "anchorModuleRefs": [],
+    "stylePrimitiveRefs": [],
+    "styleSignals": [
+      "橙色圆点沿水平路径排布",
+      "日期标签与正文分层清晰",
+      "坩埚置于路径起点形成叙事"
+    ],
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showSignatureSystem",
+        "label": "显示主题签名系统",
+        "type": "toggle",
+        "default": true,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "signature-system",
+            "ornament",
+            "page-marker"
+          ],
+          "minChangedRatio": 0.008,
+          "minRegions": 2
+        },
+        "publicKey": "showSignatureSystem"
+      },
+      {
+        "key": "density",
+        "label": "信息密度",
+        "type": "select",
+        "default": "balanced",
+        "options": [
+          {
+            "label": "紧凑",
+            "value": "compact"
+          },
+          {
+            "label": "平衡",
+            "value": "balanced"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-frame",
+            "spacing",
+            "type-scale"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "density"
+      },
+      {
+        "key": "timelineLayout",
+        "label": "路径结构",
+        "type": "select",
+        "default": "structured",
+        "options": [
+          {
+            "label": "结构化",
+            "value": "structured"
+          },
+          {
+            "label": "偏移强调",
+            "value": "offset"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-grid",
+            "reading-order",
+            "emphasis"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "timelineLayout"
+      }
+    ],
+    "defaultProps": {
+      "showSignatureSystem": true,
+      "density": "balanced",
+      "timelineLayout": "structured",
+      "pillars": [
+        "故事开场",
+        "怪趣角色",
+        "互动任务",
+        "惊喜收尾"
+      ],
+      "summary": "让紫橙舞台、怪趣角色和互动任务共同推动一场可参与、可分享的节日故事。",
+      "title": "节日创意活动的四阶段路径",
+      "stages": [
+        {
+          "title": "点亮南瓜",
+          "body": "建立故事开场与规则"
+        },
+        {
+          "title": "寻找糖果",
+          "body": "完成第一组互动任务"
+        },
+        {
+          "title": "穿过蛛网",
+          "body": "协作破解关键挑战"
+        },
+        {
+          "title": "坩埚庆典",
+          "body": "分享成果与节日记忆"
+        }
+      ],
+      "dates": [
+        "Q1",
+        "Q2",
+        "Q3",
+        "Q4"
+      ]
+    }
+  },
+  {
+    "key": "theme14_page024",
+    "themeKey": "theme14",
+    "pageNumber": 24,
+    "layout": "THEME14-024",
+    "slot": "roadmap-theme12-036",
+    "label": "紫橙怪趣风 · 时间与路径",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page036",
+    "moduleFamily": "timeline",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "laneCount",
+        "label": "泳道数量",
+        "type": "slider",
+        "def": 3,
+        "min": 2,
+        "max": 4,
+        "step": 1,
+        "desc": "并行工作线（泳道）的数量",
+        "publicKey": "laneCount"
+      },
+      {
+        "key": "quarterCount",
+        "label": "时间列数",
+        "type": "slider",
+        "def": 4,
+        "min": 4,
+        "max": 6,
+        "step": 1,
+        "desc": "时间轴上的时间列数",
+        "publicKey": "timeColumnCount"
+      },
+      {
+        "key": "focus",
+        "label": "聚焦泳道",
+        "type": "toggle",
+        "def": false,
+        "desc": "突出其中一条泳道，其余淡化",
+        "publicKey": "focus"
+      },
+      {
+        "key": "focusIndex",
+        "label": "聚焦第几条",
+        "type": "slider",
+        "def": 1,
+        "min": 1,
+        "max": 4,
+        "step": 1,
+        "dependsOn": "focus",
+        "desc": "高亮的泳道序号",
+        "publicKey": "focusIndex"
+      },
+      {
+        "key": "showMilestones",
+        "label": "里程碑",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏菱形里程碑标记",
+        "publicKey": "showMilestones"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#3bb6ec",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "当前时间段 / 导语 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "laneCount": 3,
+      "quarterCount": 4,
+      "focus": false,
+      "focusIndex": 1,
+      "showMilestones": true,
+      "barMeta": "32 — Roadmap",
+      "brandLabel": "边界南瓜故事",
+      "kicker": "24 / 节日活动",
+      "title": "节日活动 · 连接糖果路",
+      "nowLabel": "当前 NOW",
+      "nowCol": 1,
+      "quarters": [
+        "26·Q1",
+        "26·Q2",
+        "26·Q3",
+        "26·Q4",
+        "27·Q1",
+        "27·Q2"
+      ],
+      "lanes": [
+        {
+          "t": "平台 Platform",
+          "s": "CORE",
+          "c": "#3bb6ec",
+          "bars": [
+            {
+              "s": 0,
+              "e": 1,
+              "t": "结算引擎 2.0"
+            },
+            {
+              "s": 2,
+              "e": 3,
+              "t": "开放 API"
+            }
+          ],
+          "ms": 1
+        },
+        {
+          "t": "创作者 Creators",
+          "s": "GROWTH",
+          "c": "#f15a29",
+          "bars": [
+            {
+              "s": 0,
+              "e": 0,
+              "t": "入驻自助化"
+            },
+            {
+              "s": 1,
+              "e": 3,
+              "t": "万人扶持计划"
+            }
+          ],
+          "ms": 3
+        },
+        {
+          "t": "版权 Rights",
+          "s": "TRUST",
+          "c": "#1f6b2a",
+          "bars": [
+            {
+              "s": 1,
+              "e": 2,
+              "t": "链上存证"
+            },
+            {
+              "s": 3,
+              "e": 4,
+              "t": "全球清算"
+            }
+          ],
+          "ms": 4
+        },
+        {
+          "t": "生态 Ecosystem",
+          "s": "REACH",
+          "c": "#c44ee0",
+          "bars": [
+            {
+              "s": 0,
+              "e": 2,
+              "t": "30+ 平台同步"
+            },
+            {
+              "s": 3,
+              "e": 5,
+              "t": "海外发行"
+            }
+          ],
+          "ms": 5
+        }
+      ],
+      "page": "32",
+      "total": "82",
+      "footerTagline": "路径糖果路径"
+    }
+  },
+  {
+    "key": "theme14_page025",
+    "themeKey": "theme14",
+    "pageNumber": 25,
+    "layout": "THEME14-025",
+    "slot": "journey-theme12-076",
+    "label": "紫橙怪趣风 · 信息结构",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page076",
+    "moduleFamily": "timeline",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "stepCount",
+        "label": "节点数",
+        "type": "slider",
+        "def": 5,
+        "min": 3,
+        "max": 5,
+        "step": 1,
+        "desc": "旅程节点的数量",
+        "publicKey": "stepCount"
+      },
+      {
+        "key": "focus",
+        "label": "当前节点",
+        "type": "toggle",
+        "def": true,
+        "desc": "高亮“此刻”所处的节点",
+        "publicKey": "focus"
+      },
+      {
+        "key": "focusIndex",
+        "label": "进行到第几个",
+        "type": "slider",
+        "def": 5,
+        "min": 1,
+        "max": 5,
+        "step": 1,
+        "dependsOn": "focus",
+        "desc": "当前节点序号（1 起）",
+        "publicKey": "focusIndex"
+      },
+      {
+        "key": "showSpine",
+        "label": "中轴脊线",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏中央脊线与进度填充",
+        "publicKey": "showSpine"
+      },
+      {
+        "key": "showDescriptions",
+        "label": "节点描述",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏节点描述文字",
+        "publicKey": "showDescriptions"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "当前节点 / 进度 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "stepCount": 5,
+      "focus": true,
+      "focusIndex": 5,
+      "showSpine": true,
+      "showDescriptions": true,
+      "barMeta": "72 — Journey",
+      "brandLabel": "机会怪趣角色",
+      "kicker": "25 / 节日活动",
+      "title": "娱乐故事 · 复盘紫橙节奏",
+      "intro": "创意课堂正在由糖果路径走向南瓜故事，需要通过节",
+      "nowLabel": "Now",
+      "nodes": [
+        {
+          "y": "2019",
+          "t": "一间出租屋",
+          "d": "几个乐手凑钱，做了第一版给自己用的结算表。"
+        },
+        {
+          "y": "2021",
+          "t": "第一笔到账",
+          "d": "帮一位独立音乐人，追回被漏发的版税。"
+        },
+        {
+          "y": "2023",
+          "t": "从机会切",
+          "d": "发行、版权、结算，合成同一个产品。"
+        },
+        {
+          "y": "2025",
+          "t": "十万创作者",
+          "d": "平台服务的音乐人，突破十万。"
+        },
+        {
+          "y": "2026",
+          "t": "全球结算",
+          "d": "多币种实时透明分账，正式上线。"
+        }
+      ],
+      "page": "72",
+      "total": "82",
+      "footerTagline": "样本怪趣角色"
+    }
+  },
+  {
+    "key": "theme14_page026",
+    "themeKey": "theme14",
+    "pageNumber": 26,
+    "layout": "THEME14-026",
+    "slot": "timeline-theme12-081",
+    "label": "紫橙怪趣风 · 时间与路径",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page081",
+    "moduleFamily": "timeline",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "milestoneCount",
+        "label": "节点数量",
+        "type": "slider",
+        "def": 5,
+        "min": 3,
+        "max": 5,
+        "step": 1,
+        "desc": "时间轴上的里程碑数量",
+        "publicKey": "milestoneCount"
+      },
+      {
+        "key": "focus",
+        "label": "当前进度",
+        "type": "toggle",
+        "def": true,
+        "desc": "高亮“当前”所处的里程碑",
+        "publicKey": "focus"
+      },
+      {
+        "key": "focusIndex",
+        "label": "进行到第几个",
+        "type": "slider",
+        "def": 4,
+        "min": 1,
+        "max": 5,
+        "step": 1,
+        "dependsOn": "focus",
+        "desc": "当前里程碑的序号（1 起）",
+        "publicKey": "focusIndex"
+      },
+      {
+        "key": "showProgress",
+        "label": "进度填充",
+        "type": "toggle",
+        "def": true,
+        "desc": "连接线按当前进度着色填充",
+        "publicKey": "showProgress"
+      },
+      {
+        "key": "showDescriptions",
+        "label": "节点描述",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏每个节点的描述文字",
+        "publicKey": "showDescriptions"
+      },
+      {
+        "key": "showIntro",
+        "label": "显示引言",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏顶部标题与引言",
+        "publicKey": "showIntro"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "当前节点 / 进度 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "milestoneCount": 5,
+      "focus": true,
+      "focusIndex": 4,
+      "showProgress": true,
+      "showDescriptions": true,
+      "showIntro": true,
+      "barMeta": "77 — Roadmap",
+      "brandLabel": "现状南瓜故事",
+      "kicker": "26 / 娱乐故事",
+      "title": "节日活动 · 识别南瓜故事",
+      "nowLabel": "Now",
+      "milestones": [
+        {
+          "q": "2024 · Q3",
+          "t": "娱乐故事",
+          "d": "发行 + 结算闭环首发。"
+        },
+        {
+          "q": "2025 · Q1",
+          "t": "版权护盾",
+          "d": "全网监测与一键维权。"
+        },
+        {
+          "q": "2025 · Q4",
+          "t": "粉丝直连",
+          "d": "会员与专属创作者页面。"
+        },
+        {
+          "q": "2026 · Q2",
+          "t": "数据洞察",
+          "d": "听众画像与增长工具。"
+        },
+        {
+          "q": "2026 · Q4",
+          "t": "全球结算",
+          "d": "多币种实时透明分账。"
+        }
+      ],
+      "page": "77",
+      "total": "82",
+      "footerTagline": "约束紫橙节奏"
+    }
+  },
+  {
+    "key": "theme14_page027",
+    "themeKey": "theme14",
+    "pageNumber": 27,
+    "layout": "THEME14-027",
+    "slot": "hero-theme12-020",
+    "label": "紫橙怪趣风 · 图文与案例",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page020",
+    "moduleFamily": "timeline",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "backgroundMode",
+        "label": "背景替换",
+        "type": "segment",
+        "def": "unicorn",
+        "options": [
+          {
+            "value": "unicorn",
+            "label": "动态"
+          },
+          {
+            "value": "media",
+            "label": "上传"
+          }
+        ],
+        "desc": "动态 shader 或自定义背景媒体",
+        "publicKey": "backgroundMode"
+      },
+      {
+        "key": "unicornScene",
+        "label": "动态场景",
+        "type": "segment",
+        "def": "automations",
+        "options": [
+          {
+            "value": "tech",
+            "label": "科技"
+          },
+          {
+            "value": "automations",
+            "label": "自动化"
+          },
+          {
+            "value": "moving",
+            "label": "流动"
+          },
+          {
+            "value": "goey",
+            "label": "黏球"
+          }
+        ],
+        "dependsOn": "backgroundMode",
+        "dependsOnValue": "unicorn",
+        "desc": "选择固定 Unicorn shader 场景",
+        "publicKey": "dynamicVisual"
+      },
+      {
+        "key": "overlayPosition",
+        "label": "文案位置",
+        "type": "segment",
+        "def": "bottom-left",
+        "options": [
+          {
+            "value": "bottom-left",
+            "label": "左下"
+          },
+          {
+            "value": "bottom-right",
+            "label": "右下"
+          },
+          {
+            "value": "left",
+            "label": "左侧"
+          }
+        ],
+        "desc": "叠加文案面板的位置",
+        "publicKey": "overlayPosition"
+      },
+      {
+        "key": "scrim",
+        "label": "蒙版",
+        "type": "segment",
+        "def": "dark",
+        "options": [
+          {
+            "value": "dark",
+            "label": "暗"
+          },
+          {
+            "value": "light",
+            "label": "亮"
+          }
+        ],
+        "desc": "叠加渐变蒙版的明暗",
+        "publicKey": "scrim"
+      },
+      {
+        "key": "mediaFit",
+        "label": "图片填充",
+        "type": "segment",
+        "def": "cover",
+        "options": [
+          {
+            "value": "cover",
+            "label": "裁切"
+          },
+          {
+            "value": "contain",
+            "label": "完整"
+          }
+        ],
+        "desc": "整版大图的填充方式",
+        "publicKey": "mediaFit"
+      },
+      {
+        "key": "showStats",
+        "label": "数据标签",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏底部数据标签",
+        "publicKey": "showStats"
+      },
+      {
+        "key": "statCount",
+        "label": "标签数量",
+        "type": "slider",
+        "def": 3,
+        "min": 0,
+        "max": 3,
+        "step": 1,
+        "dependsOn": "showStats",
+        "desc": "数据标签的数量",
+        "publicKey": "statCount"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "高亮 / 标签 / 页码强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "backgroundMode": "unicorn",
+      "unicornScene": "automations",
+      "mediaFit": "cover",
+      "overlayPosition": "bottom-left",
+      "scrim": "dark",
+      "showStats": true,
+      "statCount": 3,
+      "media": [],
+      "brand": "从机会切入娱乐",
+      "metaLine": "06 — On Stage",
+      "kicker": "27 / 创意课堂",
+      "title": "娱乐故事 · 验证怪趣角色",
+      "lede": "围绕娱乐故事复盘紫橙节奏与怪趣角色，让证据判断建立在具体事实之",
+      "mediaPlaceholder": "拖入整版大图 / Drop a full-bleed image",
+      "chips": [
+        {
+          "v": "30+",
+          "lb": "分发平台"
+        },
+        {
+          "v": "72h",
+          "lb": "版税到账"
+        },
+        {
+          "v": "0%",
+          "lb": "首季分成"
+        }
+      ],
+      "page": "16",
+      "total": "82"
+    }
+  },
+  {
+    "key": "theme14_page028",
+    "themeKey": "theme14",
+    "pageNumber": 28,
+    "layout": "THEME14-028",
+    "slot": "roadmap-theme09-098",
+    "label": "紫橙怪趣风 · 时间与路径",
+    "sourceTheme": "theme09",
+    "sourcePageKey": "theme09_page098",
+    "moduleFamily": "timeline",
+    "bgClass": "bg-blue",
+    "controls": [
+      {
+        "prop": "laneCount",
+        "type": "slider",
+        "label": "行数量",
+        "default": 4,
+        "min": 2,
+        "max": 4,
+        "step": 1,
+        "key": "laneCount",
+        "publicKey": "laneCount"
+      },
+      {
+        "prop": "phaseCount",
+        "type": "slider",
+        "label": "列数量",
+        "default": 6,
+        "min": 3,
+        "max": 6,
+        "step": 1,
+        "key": "phaseCount",
+        "publicKey": "phaseCount"
+      },
+      {
+        "prop": "showMilestone",
+        "type": "toggle",
+        "label": "里程碑标记",
+        "default": true,
+        "key": "showMilestone",
+        "publicKey": "showMilestone"
+      },
+      {
+        "prop": "showAside",
+        "type": "toggle",
+        "label": "装饰文案",
+        "default": true,
+        "key": "showAside",
+        "publicKey": "showAside"
+      },
+      {
+        "prop": "labelType",
+        "type": "labelType",
+        "label": "标签类型",
+        "default": "数字",
+        "key": "labelType",
+        "publicKey": "labelType"
+      },
+      {
+        "prop": "focus",
+        "type": "focus",
+        "label": "重点信息 Focus",
+        "default": true,
+        "key": "focus",
+        "publicKey": "focus"
+      },
+      {
+        "prop": "focusIndex",
+        "type": "slider",
+        "label": "焦点序号",
+        "default": 0,
+        "min": 0,
+        "max": 3,
+        "maxFromKey": "laneCount",
+        "maxFromKeyOffset": -1,
+        "displayOffset": 1,
+        "step": 1,
+        "key": "focusIndex",
+        "publicKey": "focusIndex"
+      }
+    ],
+    "defaultProps": {
+      "laneCount": 4,
+      "phaseCount": 6,
+      "showMilestone": true,
+      "focus": true,
+      "focusIndex": 0,
+      "labelType": "number",
+      "showAside": true,
+      "badge": "10",
+      "phases": [
+        "24Q1",
+        "24Q2",
+        "24Q3",
+        "24Q4",
+        "25Q1",
+        "25Q2"
+      ],
+      "milestones": [
+        {
+          "at": 1,
+          "text": "娱乐故事"
+        },
+        {
+          "at": 3,
+          "text": "创意内容团队"
+        },
+        {
+          "at": 5,
+          "text": "活动策划"
+        }
+      ],
+      "lanes": [
+        {
+          "cn": "紫橙节奏",
+          "items": [
+            "超大轮密集",
+            "估值再创高",
+            "结构性分化",
+            "IPO 预热",
+            "二级映射",
+            "并购升温"
+          ]
+        },
+        {
+          "cn": "糖果路径",
+          "items": [
+            "多模态成熟",
+            "推理成本骤降",
+            "Agent 兴起",
+            "长上下文",
+            "端侧模型",
+            "自主体系"
+          ]
+        },
+        {
+          "cn": "怪趣角色",
+          "items": [
+            "Copilot 普及",
+            "企业级试点",
+            "垂直 PMF",
+            "规模化付费",
+            "行业纵深",
+            "生态闭环"
+          ]
+        },
+        {
+          "cn": "糖果路径",
+          "items": [
+            "算力争夺",
+            "数据合规",
+            "安全框架",
+            "监管落地",
+            "标准统一",
+            "全球协同"
+          ]
+        }
+      ],
+      "headEn": "Roadmap",
+      "headCn": "布局路线 · 阶段推进",
+      "axisCornerLabel": "泳道 ＼ 阶段",
+      "asideTag": "机会",
+      "insightMid1": "泳道贯穿全周期：由 ",
+      "insightMid2": " 起步， 在 ",
+      "insightPost": " 前后迎来关键节点；四条泳道并行推进，节奏彼此咬合。"
+    }
+  },
+  {
+    "key": "theme14_page029",
+    "themeKey": "theme14",
+    "pageNumber": 29,
+    "layout": "THEME14-029",
+    "slot": "signature-derived-ecosystem-relationship-theme14-029",
+    "label": "紫橙怪趣风 · derived-ecosystem-relationship",
+    "sourceTheme": "theme14",
+    "sourcePageKey": "theme14_derived_ecosystem_relationship",
+    "moduleFamily": "relationship",
+    "moduleOrigin": "owned",
+    "moduleStrategy": "new",
+    "archetypeId": "derived-ecosystem-relationship",
+    "evidenceMode": "inferred",
+    "evidenceRefs": [],
+    "derivedFromRules": [
+      "typography-01",
+      "composition-02",
+      "surface-01",
+      "motif-02",
+      "color-03"
+    ],
+    "anchorModuleRefs": [
+      "theme14_signature_candy_process_timeline",
+      "theme14_signature_purple_orange_comparison"
+    ],
+    "stylePrimitiveRefs": [
+      "cauldron-bubble",
+      "candy-node"
+    ],
+    "derivationReason": "把模板的网格和节点符号扩展为关系网络；以 theme14_signature_candy_process_timeline、theme14_signature_purple_orange_comparison 为视觉锚点。",
+    "styleSignals": [
+      "标题使用粗体无衬线并带轻微怪趣节奏",
+      "蜘蛛网从角落展开，南瓜与坩埚压住页边",
+      "内容直接铺在纯色画布上并以少量浅紫卡片分区",
+      "橙色圆点与紫色图标形成时间线节点",
+      "白色承担正文与大标题"
+    ],
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showSignatureSystem",
+        "label": "显示主题签名系统",
+        "type": "toggle",
+        "default": true,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "signature-system",
+            "ornament",
+            "page-marker"
+          ],
+          "minChangedRatio": 0.008,
+          "minRegions": 2
+        },
+        "publicKey": "showSignatureSystem"
+      },
+      {
+        "key": "density",
+        "label": "信息密度",
+        "type": "select",
+        "default": "balanced",
+        "options": [
+          {
+            "label": "紧凑",
+            "value": "compact"
+          },
+          {
+            "label": "平衡",
+            "value": "balanced"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-frame",
+            "spacing",
+            "type-scale"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "density"
+      },
+      {
+        "key": "networkLayout",
+        "label": "关系结构",
+        "type": "select",
+        "default": "structured",
+        "options": [
+          {
+            "label": "结构化",
+            "value": "structured"
+          },
+          {
+            "label": "偏移强调",
+            "value": "offset"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-grid",
+            "reading-order",
+            "emphasis"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "networkLayout"
+      }
+    ],
+    "defaultProps": {
+      "showSignatureSystem": true,
+      "density": "balanced",
+      "networkLayout": "structured",
+      "pillars": [
+        "故事开场",
+        "怪趣角色",
+        "互动任务",
+        "惊喜收尾"
+      ],
+      "summary": "让紫橙舞台、怪趣角色和互动任务共同推动一场可参与、可分享的节日故事。",
+      "title": "节日创意活动的协作关系",
+      "center": "怪趣派对",
+      "nodes": [
+        "南瓜入口",
+        "角色装扮",
+        "糖果任务",
+        "故事舞台",
+        "互动挑战",
+        "合影分享"
+      ],
+      "links": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    }
+  },
+  {
+    "key": "theme14_page030",
+    "themeKey": "theme14",
+    "pageNumber": 30,
+    "layout": "THEME14-030",
+    "slot": "treemap-theme12-045",
+    "label": "紫橙怪趣风 · 关系与网络",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page045",
+    "moduleFamily": "relationship",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "blockCount",
+        "label": "方块数量",
+        "type": "slider",
+        "def": 6,
+        "min": 1,
+        "max": 6,
+        "step": 1,
+        "desc": "占比方块（收入来源）的数量",
+        "publicKey": "blockCount"
+      },
+      {
+        "key": "focus",
+        "label": "聚焦高亮",
+        "type": "toggle",
+        "def": false,
+        "desc": "突出其中一个方块，其余淡化",
+        "publicKey": "focus"
+      },
+      {
+        "key": "focusIndex",
+        "label": "聚焦第几块",
+        "type": "slider",
+        "def": 1,
+        "min": 1,
+        "max": 6,
+        "step": 1,
+        "dependsOn": "focus",
+        "desc": "高亮的方块（按占比从大到小）",
+        "publicKey": "focusIndex"
+      },
+      {
+        "key": "showShare",
+        "label": "占比数字",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏每块的占比百分比",
+        "publicKey": "showShare"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "dark",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#1f6b2a",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "聚焦方块 / 导语 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "dark",
+      "blockCount": 6,
+      "focus": false,
+      "focusIndex": 1,
+      "showShare": true,
+      "barMeta": "41 — Treemap",
+      "brandLabel": "证据紫橙节奏",
+      "kicker": "30 / 创意课堂",
+      "title": "节日活动 · 识别南瓜故",
+      "intro": "活动策划者可从路径观察节日活动，用糖果路径解释变化，并以南瓜故事推进响应。",
+      "totalValue": "¥2.4亿",
+      "totalLabel": "年度总收入\nTOTAL · 2026",
+      "sources": [
+        {
+          "t": "流媒体版税",
+          "s": "Streaming",
+          "v": 42,
+          "c": "#5a138e",
+          "fg": "#fff",
+          "sub": "#f3b8ec"
+        },
+        {
+          "t": "现场演出",
+          "s": "Live Shows",
+          "v": 23,
+          "c": "#3bb6ec",
+          "fg": "#143049",
+          "sub": "#1c5b82"
+        },
+        {
+          "t": "周边电商",
+          "s": "Merch",
+          "v": 16,
+          "c": "#1f6b2a",
+          "fg": "#fff",
+          "sub": "#baf04f"
+        },
+        {
+          "t": "粉丝订阅",
+          "s": "Memberships",
+          "v": 12,
+          "c": "#f15a29",
+          "fg": "#fff",
+          "sub": "#fdddc6"
+        },
+        {
+          "t": "版权授权",
+          "s": "Sync / License",
+          "v": 7,
+          "c": "#fbb24d",
+          "fg": "#3a2607",
+          "sub": "#7a3a18"
+        },
+        {
+          "t": "众筹预售",
+          "s": "Crowdfund",
+          "v": 5,
+          "c": "#c44ee0",
+          "fg": "#fff",
+          "sub": "#f3b8ec"
+        }
+      ],
+      "page": "41",
+      "total": "82",
+      "footerTagline": "证据紫橙节奏"
+    }
+  },
+  {
+    "key": "theme14_page031",
+    "themeKey": "theme14",
+    "pageNumber": 31,
+    "layout": "THEME14-031",
+    "slot": "ecosystem-theme12-012",
+    "label": "紫橙怪趣风 · 信息结构",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page012",
+    "moduleFamily": "relationship",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "nodeCount",
+        "label": "节点数量",
+        "type": "slider",
+        "def": 6,
+        "min": 3,
+        "max": 6,
+        "step": 1,
+        "desc": "环绕中枢的能力节点数量",
+        "publicKey": "nodeCount"
+      },
+      {
+        "key": "showConnectors",
+        "label": "连接线",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏中枢到各节点的连线",
+        "publicKey": "showConnectors"
+      },
+      {
+        "key": "showCenter",
+        "label": "中枢标签",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏中央中枢说明",
+        "publicKey": "showCenter"
+      },
+      {
+        "key": "showNodeEn",
+        "label": "英文副标",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏节点上的英文副标题",
+        "publicKey": "showNodeEn"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "中枢 / 连线 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "nodeCount": 6,
+      "showConnectors": true,
+      "showCenter": true,
+      "showNodeEn": true,
+      "barMeta": "08 — Ecosystem",
+      "brandLabel": "信号南瓜故事",
+      "kicker": "31 / 创意课堂",
+      "title": "创意课堂 · 校准糖果路径",
+      "intro": "娱乐故事的关键不只是糖果路径，还要持续沉淀南瓜故事带来的趋势反馈。",
+      "moduleNote": "个模块 · 同一数据底座",
+      "hubName": "创意",
+      "hubTitle": "OS",
+      "hubSub": "ONE ACCOUNT",
+      "nodes": [
+        {
+          "cn": "怪趣角色",
+          "en": "怪趣角色 / "
+        },
+        {
+          "cn": "怪趣角色",
+          "en": "紫橙节奏 /"
+        },
+        {
+          "cn": "怪趣角色",
+          "en": "糖果"
+        },
+        {
+          "cn": "糖果路径",
+          "en": "紫橙节"
+        },
+        {
+          "cn": "紫橙节奏",
+          "en": "糖果路径 "
+        },
+        {
+          "cn": "南瓜故事",
+          "en": "糖果"
+        }
+      ],
+      "page": "08",
+      "total": "82",
+      "footerTagline": "样本怪趣角色"
+    }
+  },
+  {
+    "key": "theme14_page032",
+    "themeKey": "theme14",
+    "pageNumber": 32,
+    "layout": "THEME14-032",
+    "slot": "heatmap-theme12-037",
+    "label": "紫橙怪趣风 · 矩阵与分层",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page037",
+    "moduleFamily": "relationship",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "weeks",
+        "label": "周数",
+        "type": "slider",
+        "def": 14,
+        "min": 8,
+        "max": 16,
+        "step": 1,
+        "desc": "热力网格的列数（周）",
+        "publicKey": "weeks"
+      },
+      {
+        "key": "showLegend",
+        "label": "图例",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏 少→多 强度图例",
+        "publicKey": "showLegend"
+      },
+      {
+        "key": "showSidebar",
+        "label": "侧栏数据",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏右侧统计侧栏",
+        "publicKey": "showSidebar"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "热力 / 导语 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "weeks": 14,
+      "showLegend": true,
+      "showSidebar": true,
+      "barMeta": "33 — Heatmap",
+      "brandLabel": "机会怪趣角色",
+      "kicker": "32 / 创意课堂",
+      "title": "娱乐故事 · 沉淀糖果路径",
+      "weekdays": [
+        "一",
+        "二",
+        "三",
+        "四",
+        "五",
+        "六",
+        "日"
+      ],
+      "months": [
+        "3月",
+        "4月",
+        "5月",
+        "6月"
+      ],
+      "legendLess": "少",
+      "legendMore": "多",
+      "legendNote": "每格 = 一日发行强度",
+      "sidebarGhost": "71",
+      "sidebarLabel": "近 {weeks} 周 · 发行总量",
+      "sidebarText": "颜色越深、那天越热闹。周末（{peak}）是上新与开演的高峰。",
+      "sidebarFoot": "峰值 +38% · 周末效应",
+      "page": "33",
+      "total": "82",
+      "footerTagline": "信号南瓜故事"
+    }
+  },
+  {
+    "key": "theme14_page033",
+    "themeKey": "theme14",
+    "pageNumber": 33,
+    "layout": "THEME14-033",
+    "slot": "sankey-theme12-046",
+    "label": "紫橙怪趣风 · 信息结构",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page046",
+    "moduleFamily": "relationship",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "bucketCount",
+        "label": "去向数量",
+        "type": "slider",
+        "def": 5,
+        "min": 3,
+        "max": 5,
+        "step": 1,
+        "desc": "资金分配的去向数量",
+        "publicKey": "bucketCount"
+      },
+      {
+        "key": "focus",
+        "label": "聚焦高亮",
+        "type": "toggle",
+        "def": true,
+        "desc": "突出其中一条资金流，其余淡化",
+        "publicKey": "focus"
+      },
+      {
+        "key": "focusIndex",
+        "label": "聚焦第几条",
+        "type": "slider",
+        "def": 1,
+        "min": 1,
+        "max": 5,
+        "step": 1,
+        "dependsOn": "focus",
+        "desc": "高亮的资金流序号",
+        "publicKey": "focusIndex"
+      },
+      {
+        "key": "showValues",
+        "label": "数值占比",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏每条流向的占比",
+        "publicKey": "showValueLabels"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#1f6b2a",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "聚焦流 / 导语 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "bucketCount": 5,
+      "focus": true,
+      "focusIndex": 1,
+      "showValues": true,
+      "barMeta": "42 — Flow",
+      "brandLabel": "反馈紫橙节奏",
+      "kicker": "33 / 娱乐故事",
+      "title": "娱乐故事 · 复盘紫橙节奏",
+      "totalValue": "¥2.4亿",
+      "totalLabel": "年度总营收 · 2026",
+      "sourceLabel": "总营收",
+      "sourceSub": "REVENUE",
+      "buckets": [
+        {
+          "t": "创作者分成",
+          "s": "To Artists",
+          "v": 70,
+          "c": "#1f6b2a"
+        },
+        {
+          "t": "平台运营",
+          "s": "Platform",
+          "v": 14,
+          "c": "#3bb6ec"
+        },
+        {
+          "t": "版权清算",
+          "s": "Rights",
+          "v": 9,
+          "c": "#c44ee0"
+        },
+        {
+          "t": "生态再投资",
+          "s": "Reinvest",
+          "v": 5,
+          "c": "#f15a29"
+        },
+        {
+          "t": "公益基金",
+          "s": "Fund",
+          "v": 2,
+          "c": "#fbb24d"
+        }
+      ],
+      "page": "42",
+      "total": "82",
+      "footerTagline": "反馈紫橙节奏"
+    }
+  },
+  {
+    "key": "theme14_page034",
+    "themeKey": "theme14",
+    "pageNumber": 34,
+    "layout": "THEME14-034",
+    "slot": "signature-derived-composition-breakdown-theme14-034",
+    "label": "紫橙怪趣风 · derived-composition-breakdown",
+    "sourceTheme": "theme14",
+    "sourcePageKey": "theme14_derived_composition_breakdown",
+    "moduleFamily": "distribution",
+    "moduleOrigin": "owned",
+    "moduleStrategy": "new",
+    "archetypeId": "derived-composition-breakdown",
+    "evidenceMode": "inferred",
+    "evidenceRefs": [],
+    "derivedFromRules": [
+      "typography-02",
+      "composition-01",
+      "surface-02",
+      "motif-01",
+      "color-02"
+    ],
+    "anchorModuleRefs": [
+      "theme14_signature_cat_percent_metrics",
+      "theme14_signature_purple_orange_comparison"
+    ],
+    "stylePrimitiveRefs": [
+      "cauldron-bubble",
+      "purple-orange-rail"
+    ],
+    "derivationReason": "把模板的表面和色阶扩展为构成分析；以 theme14_signature_cat_percent_metrics、theme14_signature_purple_orange_comparison 为视觉锚点。",
+    "styleSignals": [
+      "正文保持白色小字号以适应高饱和底色",
+      "紫色和橙色页面交替形成节日节奏",
+      "媒体页使用大图和高对比文字覆盖",
+      "蜘蛛网、南瓜、坩埚、糖果和小蜘蛛重复出现",
+      "南瓜橙用于交替页面和高显著度强调"
+    ],
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showSignatureSystem",
+        "label": "显示主题签名系统",
+        "type": "toggle",
+        "default": true,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "signature-system",
+            "ornament",
+            "page-marker"
+          ],
+          "minChangedRatio": 0.008,
+          "minRegions": 2
+        },
+        "publicKey": "showSignatureSystem"
+      },
+      {
+        "key": "density",
+        "label": "信息密度",
+        "type": "select",
+        "default": "balanced",
+        "options": [
+          {
+            "label": "紧凑",
+            "value": "compact"
+          },
+          {
+            "label": "平衡",
+            "value": "balanced"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-frame",
+            "spacing",
+            "type-scale"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "density"
+      },
+      {
+        "key": "distributionLayout",
+        "label": "构成结构",
+        "type": "select",
+        "default": "structured",
+        "options": [
+          {
+            "label": "结构化",
+            "value": "structured"
+          },
+          {
+            "label": "偏移强调",
+            "value": "offset"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-grid",
+            "reading-order",
+            "emphasis"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "distributionLayout"
+      }
+    ],
+    "defaultProps": {
+      "showSignatureSystem": true,
+      "density": "balanced",
+      "distributionLayout": "structured",
+      "pillars": [
+        "故事开场",
+        "怪趣角色",
+        "互动任务",
+        "惊喜收尾"
+      ],
+      "summary": "让紫橙舞台、怪趣角色和互动任务共同推动一场可参与、可分享的节日故事。",
+      "title": "节日创意活动的构成拆解",
+      "segments": [
+        {
+          "label": "故事",
+          "value": 34
+        },
+        {
+          "label": "互动",
+          "value": 30
+        },
+        {
+          "label": "装扮",
+          "value": 22
+        },
+        {
+          "label": "分享",
+          "value": 14
+        }
+      ]
+    }
+  },
+  {
+    "key": "theme14_page035",
+    "themeKey": "theme14",
+    "pageNumber": 35,
+    "layout": "THEME14-035",
+    "slot": "stackbars-theme12-054",
+    "label": "紫橙怪趣风 · 排行与趋势图",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page054",
+    "moduleFamily": "distribution",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "periodCount",
+        "label": "周期数量",
+        "type": "slider",
+        "def": 6,
+        "min": 4,
+        "max": 8,
+        "step": 1,
+        "desc": "横轴上的周期（时间段）数量",
+        "publicKey": "periodCount"
+      },
+      {
+        "key": "seriesCount",
+        "label": "分项数量",
+        "type": "slider",
+        "def": 3,
+        "min": 2,
+        "max": 3,
+        "step": 1,
+        "desc": "每根柱子堆叠的收入分项数量",
+        "publicKey": "seriesCount"
+      },
+      {
+        "key": "chartType",
+        "label": "图表类型",
+        "type": "segment",
+        "def": "stacked",
+        "options": [
+          {
+            "value": "stacked",
+            "label": "堆叠"
+          },
+          {
+            "value": "grouped",
+            "label": "分组"
+          }
+        ],
+        "desc": "堆叠柱 或 分组柱",
+        "publicKey": "chartType"
+      },
+      {
+        "key": "focus",
+        "label": "高亮周期",
+        "type": "toggle",
+        "def": true,
+        "desc": "高亮某个周期、弱化其余",
+        "publicKey": "focus"
+      },
+      {
+        "key": "focusIndex",
+        "label": "高亮第几个",
+        "type": "slider",
+        "def": 6,
+        "min": 1,
+        "max": 8,
+        "step": 1,
+        "dependsOn": "focus",
+        "desc": "被高亮周期的序号（1 起）",
+        "publicKey": "focusIndex"
+      },
+      {
+        "key": "showValues",
+        "label": "数值标签",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏每柱顶部合计",
+        "publicKey": "showValueLabels"
+      },
+      {
+        "key": "showGrid",
+        "label": "网格线",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏背景横向网格线",
+        "publicKey": "showGrid"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "主分项 / 高亮 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "periodCount": 6,
+      "seriesCount": 3,
+      "chartType": "stacked",
+      "focus": true,
+      "focusIndex": 6,
+      "showValues": true,
+      "showGrid": true,
+      "barMeta": "50 — Stacked Bars",
+      "brandLabel": "节奏糖果路径",
+      "kicker": "35 / 娱乐故事",
+      "title": "娱乐故事 · 复盘紫橙节奏",
+      "periods": [
+        "Q1·24",
+        "Q2·24",
+        "Q3·24",
+        "Q4·24",
+        "Q1·25",
+        "Q2·25",
+        "Q3·25",
+        "Q4·25"
+      ],
+      "series": [
+        {
+          "cn": "怪趣角色",
+          "en": "南瓜故事 /"
+        },
+        {
+          "cn": "糖果路径",
+          "en": "怪趣角"
+        },
+        {
+          "cn": "紫橙节奏",
+          "en": "怪趣角色 / "
+        }
+      ],
+      "data": [
+        [
+          28,
+          10,
+          6
+        ],
+        [
+          34,
+          14,
+          8
+        ],
+        [
+          40,
+          18,
+          11
+        ],
+        [
+          49,
+          22,
+          14
+        ],
+        [
+          57,
+          28,
+          17
+        ],
+        [
+          66,
+          35,
+          21
+        ],
+        [
+          74,
+          41,
+          26
+        ],
+        [
+          83,
+          48,
+          30
+        ]
+      ],
+      "page": "50",
+      "total": "82",
+      "footerTagline": "证据紫橙节奏"
+    }
+  },
+  {
+    "key": "theme14_page036",
+    "themeKey": "theme14",
+    "pageNumber": 36,
+    "layout": "THEME14-036",
+    "slot": "areastack-theme12-049",
+    "label": "紫橙怪趣风 · 构成与分布",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page049",
+    "moduleFamily": "distribution",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "seriesCount",
+        "label": "数据系列",
+        "type": "slider",
+        "def": 3,
+        "min": 2,
+        "max": 3,
+        "step": 1,
+        "desc": "堆叠的收入构成系列数",
+        "publicKey": "seriesCount"
+      },
+      {
+        "key": "showGrid",
+        "label": "网格线",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏背景网格与刻度",
+        "publicKey": "showGrid"
+      },
+      {
+        "key": "showLegend",
+        "label": "图例",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏系列图例",
+        "publicKey": "showLegend"
+      },
+      {
+        "key": "showEndLabels",
+        "label": "终值标注",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏右端各层占比标注",
+        "publicKey": "showEndLabels"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "主系列 / 导语 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "seriesCount": 3,
+      "showGrid": true,
+      "showLegend": true,
+      "showEndLabels": true,
+      "barMeta": "45 — Stacked Area",
+      "brandLabel": "影响怪趣角色",
+      "kicker": "36 / 创意课堂",
+      "title": "娱乐故事 · 沉淀糖果路",
+      "axisLabel": "创作者季度总收入构成 · ¥百万 / QUARTER",
+      "quarters": [
+        "24·Q3",
+        "24·Q4",
+        "25·Q1",
+        "25·Q2",
+        "25·Q3",
+        "25·Q4",
+        "26·Q1",
+        "26·Q2"
+      ],
+      "series": [
+        {
+          "t": "流媒体版税",
+          "s": "Streaming",
+          "c": "#f15a29",
+          "v": [
+            22,
+            28,
+            33,
+            40,
+            48,
+            55,
+            63,
+            70
+          ]
+        },
+        {
+          "t": "现场演出",
+          "s": "Live",
+          "c": "#3bb6ec",
+          "v": [
+            8,
+            10,
+            13,
+            16,
+            20,
+            25,
+            30,
+            36
+          ]
+        },
+        {
+          "t": "周边电商",
+          "s": "Merch",
+          "c": "#baf04f",
+          "v": [
+            3,
+            4,
+            6,
+            8,
+            10,
+            13,
+            16,
+            20
+          ]
+        }
+      ],
+      "page": "45",
+      "total": "82",
+      "footerTagline": "边界南瓜故事"
+    }
+  },
+  {
+    "key": "theme14_page037",
+    "themeKey": "theme14",
+    "pageNumber": 37,
+    "layout": "THEME14-037",
+    "slot": "funnel-theme12-051",
+    "label": "紫橙怪趣风 · 构成与分布",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page051",
+    "moduleFamily": "distribution",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "stageCount",
+        "label": "阶段数量",
+        "type": "slider",
+        "def": 4,
+        "min": 3,
+        "max": 5,
+        "step": 1,
+        "desc": "漏斗的阶段数量",
+        "publicKey": "stageCount"
+      },
+      {
+        "key": "showRates",
+        "label": "转化率",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏阶段间转化率",
+        "publicKey": "showRates"
+      },
+      {
+        "key": "focus",
+        "label": "高亮阶段",
+        "type": "toggle",
+        "def": true,
+        "desc": "高亮某个阶段、弱化其余",
+        "publicKey": "focus"
+      },
+      {
+        "key": "focusIndex",
+        "label": "高亮第几个",
+        "type": "slider",
+        "def": 4,
+        "min": 1,
+        "max": 5,
+        "step": 1,
+        "dependsOn": "focus",
+        "desc": "被高亮阶段的序号（1 起）",
+        "publicKey": "focusIndex"
+      },
+      {
+        "key": "showNotes",
+        "label": "右侧说明",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏右侧文字说明",
+        "publicKey": "showNotes"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "末段 / 高亮 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "stageCount": 4,
+      "showRates": true,
+      "focus": true,
+      "focusIndex": 4,
+      "showNotes": true,
+      "barMeta": "47 — Funnel",
+      "brandLabel": "样本怪趣角色",
+      "kicker": "37 / 娱乐故事",
+      "title": "创意课堂 · 量化南瓜故",
+      "notes": "围绕节日活动追踪紫橙节奏与怪趣角色，让反馈判断建立在具体事实之上。",
+      "totalValue": "1.8%",
+      "totalLabel": "整体付费转化",
+      "stages": [
+        {
+          "cn": "糖果路径",
+          "en": "糖果路",
+          "v": "1,200,000",
+          "w": 100
+        },
+        {
+          "cn": "南瓜故事",
+          "en": "怪趣角",
+          "v": "384,000",
+          "w": 84
+        },
+        {
+          "cn": "南瓜故事",
+          "en": "南瓜故事 ",
+          "v": "96,000",
+          "w": 68
+        },
+        {
+          "cn": "紫橙节奏",
+          "en": "怪趣",
+          "v": "21,500",
+          "w": 54
+        },
+        {
+          "cn": "南瓜故事",
+          "en": "紫橙节",
+          "v": "8,900",
+          "w": 42
+        }
+      ],
+      "rates": [
+        "32%",
+        "25%",
+        "22%",
+        "41%"
+      ],
+      "page": "47",
+      "total": "82",
+      "footerTagline": "证据紫橙节奏"
+    },
+    "numberBounds": {
+      "stages[].w": {
+        "min": 0,
+        "max": 100,
+        "semantics": "percent"
+      }
+    }
+  },
+  {
+    "key": "theme14_page038",
+    "themeKey": "theme14",
+    "pageNumber": 38,
+    "layout": "THEME14-038",
+    "slot": "waterfall-theme12-047",
+    "label": "紫橙怪趣风 · 排行与趋势图",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page047",
+    "moduleFamily": "distribution",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "stepCount",
+        "label": "变动项数",
+        "type": "slider",
+        "def": 4,
+        "min": 3,
+        "max": 5,
+        "step": 1,
+        "desc": "总收入与到手之间的增减项数量",
+        "publicKey": "stepCount"
+      },
+      {
+        "key": "showConnectors",
+        "label": "连接线",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏柱顶之间的虚线",
+        "publicKey": "showConnectors"
+      },
+      {
+        "key": "showValues",
+        "label": "数值标签",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏每根柱的增减数值",
+        "publicKey": "showValueLabels"
+      },
+      {
+        "key": "focus",
+        "label": "高亮某项",
+        "type": "toggle",
+        "def": true,
+        "desc": "突出某一增减项",
+        "publicKey": "focus"
+      },
+      {
+        "key": "focusIndex",
+        "label": "高亮第几项",
+        "type": "slider",
+        "def": 3,
+        "min": 1,
+        "max": 5,
+        "step": 1,
+        "dependsOn": "focus",
+        "desc": "被突出增减项的序号（1 起）",
+        "publicKey": "focusIndex"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "到手总额 / 高亮 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "stepCount": 4,
+      "showConnectors": true,
+      "showValues": true,
+      "focus": true,
+      "focusIndex": 3,
+      "barMeta": "43 — Waterfall",
+      "brandLabel": "机会怪趣角色",
+      "kicker": "38 / 创意课堂",
+      "base": 100,
+      "grossLabel": {
+        "cn": "糖果路",
+        "en": "怪趣"
+      },
+      "netLabel": {
+        "cn": "糖果",
+        "en": "怪"
+      },
+      "deltaCaption": "对比传统发行 vs Label",
+      "steps": [
+        {
+          "cn": "紫橙节奏",
+          "en": "南瓜故",
+          "d": -8
+        },
+        {
+          "cn": "怪趣角色",
+          "en": "紫橙",
+          "d": -2
+        },
+        {
+          "cn": "南瓜故事",
+          "en": "南瓜故",
+          "d": 12
+        },
+        {
+          "cn": "南瓜故事",
+          "en": "怪趣角色 /",
+          "d": 5
+        },
+        {
+          "cn": "怪趣角色",
+          "en": "南瓜故事 ",
+          "d": 3
+        }
+      ],
+      "page": "43",
+      "total": "82",
+      "footerTagline": "现状南瓜故事"
+    }
+  },
+  {
+    "key": "theme14_page039",
+    "themeKey": "theme14",
+    "pageNumber": 39,
+    "layout": "THEME14-039",
+    "slot": "donut-theme12-044",
+    "label": "紫橙怪趣风 · 比例与能力图",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page044",
+    "moduleFamily": "distribution",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "segmentCount",
+        "label": "分段数量",
+        "type": "slider",
+        "def": 5,
+        "min": 1,
+        "max": 5,
+        "step": 1,
+        "desc": "收益构成的分段数量",
+        "publicKey": "segmentCount"
+      },
+      {
+        "key": "chartType",
+        "label": "图表类型",
+        "type": "segment",
+        "def": "donut",
+        "options": [
+          {
+            "value": "donut",
+            "label": "环形"
+          },
+          {
+            "value": "pie",
+            "label": "扇形"
+          }
+        ],
+        "desc": "环形或实心扇形",
+        "publicKey": "chartType"
+      },
+      {
+        "key": "showCenter",
+        "label": "中心总计",
+        "type": "toggle",
+        "def": true,
+        "dependsOn": "chartType",
+        "desc": "环形中心显示总计（仅环形）",
+        "publicKey": "showCenter"
+      },
+      {
+        "key": "focus",
+        "label": "重点强调",
+        "type": "toggle",
+        "def": false,
+        "desc": "放大并高亮某一分段",
+        "publicKey": "focus"
+      },
+      {
+        "key": "focusIndex",
+        "label": "强调第几段",
+        "type": "slider",
+        "def": 1,
+        "min": 1,
+        "max": 5,
+        "step": 1,
+        "dependsOn": "focus",
+        "desc": "被强调分段的序号（1 起）",
+        "publicKey": "focusIndex"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "主分段 / 导语 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "segmentCount": 5,
+      "chartType": "donut",
+      "showCenter": true,
+      "focus": false,
+      "focusIndex": 1,
+      "barMeta": "40 — Composition",
+      "brandLabel": "现状南瓜故事",
+      "kicker": "39 / 创意课堂",
+      "title": "节日活动 · 连接糖果路径",
+      "ghost": "31",
+      "centerValue": "100",
+      "centerLabel": "Total Income",
+      "sources": [
+        {
+          "cn": "南瓜故事",
+          "en": "南瓜故事 /",
+          "v": 42
+        },
+        {
+          "cn": "糖果路径",
+          "en": "怪趣角色 / 3",
+          "v": 24
+        },
+        {
+          "cn": "南瓜故事",
+          "en": "糖果路径 / 3",
+          "v": 16
+        },
+        {
+          "cn": "糖果路径",
+          "en": "怪趣角色 / 39",
+          "v": 12
+        },
+        {
+          "cn": "怪趣角色",
+          "en": "糖果",
+          "v": 6
+        }
+      ],
+      "page": "40",
+      "total": "82",
+      "footerTagline": "节奏糖果路径"
+    }
+  },
+  {
+    "key": "theme14_page040",
+    "themeKey": "theme14",
+    "pageNumber": 40,
+    "layout": "THEME14-040",
+    "slot": "signature-derived-ranked-signals-theme14-040",
+    "label": "紫橙怪趣风 · derived-ranked-signals",
+    "sourceTheme": "theme14",
+    "sourcePageKey": "theme14_derived_ranked_signals",
+    "moduleFamily": "ranking",
+    "moduleOrigin": "owned",
+    "moduleStrategy": "new",
+    "archetypeId": "derived-ranked-signals",
+    "evidenceMode": "inferred",
+    "evidenceRefs": [],
+    "derivedFromRules": [
+      "typography-01",
+      "composition-02",
+      "surface-01",
+      "motif-02",
+      "color-01"
+    ],
+    "anchorModuleRefs": [
+      "theme14_signature_cat_percent_metrics",
+      "theme14_signature_party_agenda_table"
+    ],
+    "stylePrimitiveRefs": [
+      "corner-web",
+      "purple-orange-rail"
+    ],
+    "derivationReason": "把模板的数字层级和分隔规则扩展为排行页；以 theme14_signature_cat_percent_metrics、theme14_signature_party_agenda_table 为视觉锚点。",
+    "styleSignals": [
+      "标题使用粗体无衬线并带轻微怪趣节奏",
+      "蜘蛛网从角落展开，南瓜与坩埚压住页边",
+      "内容直接铺在纯色画布上并以少量浅紫卡片分区",
+      "橙色圆点与紫色图标形成时间线节点",
+      "深紫与亮紫作为主要夜色画布"
+    ],
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showSignatureSystem",
+        "label": "显示主题签名系统",
+        "type": "toggle",
+        "default": true,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "signature-system",
+            "ornament",
+            "page-marker"
+          ],
+          "minChangedRatio": 0.008,
+          "minRegions": 2
+        },
+        "publicKey": "showSignatureSystem"
+      },
+      {
+        "key": "density",
+        "label": "信息密度",
+        "type": "select",
+        "default": "balanced",
+        "options": [
+          {
+            "label": "紧凑",
+            "value": "compact"
+          },
+          {
+            "label": "平衡",
+            "value": "balanced"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-frame",
+            "spacing",
+            "type-scale"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "density"
+      },
+      {
+        "key": "rankingLayout",
+        "label": "排行结构",
+        "type": "select",
+        "default": "structured",
+        "options": [
+          {
+            "label": "结构化",
+            "value": "structured"
+          },
+          {
+            "label": "偏移强调",
+            "value": "offset"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-grid",
+            "reading-order",
+            "emphasis"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "rankingLayout"
+      }
+    ],
+    "defaultProps": {
+      "showSignatureSystem": true,
+      "density": "balanced",
+      "rankingLayout": "structured",
+      "pillars": [
+        "故事开场",
+        "怪趣角色",
+        "互动任务",
+        "惊喜收尾"
+      ],
+      "summary": "让紫橙舞台、怪趣角色和互动任务共同推动一场可参与、可分享的节日故事。",
+      "title": "节日创意活动的优先信号",
+      "items": [
+        {
+          "label": "故事氛围",
+          "value": 96
+        },
+        {
+          "label": "互动参与",
+          "value": 90
+        },
+        {
+          "label": "角色创意",
+          "value": 82
+        },
+        {
+          "label": "传播记忆",
+          "value": 76
+        }
+      ],
+      "highlight": 0
+    }
+  },
+  {
+    "key": "theme14_page041",
+    "themeKey": "theme14",
+    "pageNumber": 41,
+    "layout": "THEME14-041",
+    "slot": "growth-theme12-048",
+    "label": "紫橙怪趣风 · 信息结构",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page048",
+    "moduleFamily": "ranking",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "chartType",
+        "label": "图表类型",
+        "type": "segment",
+        "def": "area",
+        "options": [
+          {
+            "value": "area",
+            "label": "面积"
+          },
+          {
+            "value": "line",
+            "label": "折线"
+          },
+          {
+            "value": "bars",
+            "label": "柱状"
+          }
+        ],
+        "desc": "增长曲线的呈现形式",
+        "publicKey": "chartType"
+      },
+      {
+        "key": "seriesCount",
+        "label": "数据系列",
+        "type": "slider",
+        "def": 2,
+        "min": 1,
+        "max": 2,
+        "step": 1,
+        "desc": "同时展示的数据系列数（指标 / 成员）",
+        "publicKey": "seriesCount"
+      },
+      {
+        "key": "quarterCount",
+        "label": "时间列数",
+        "type": "slider",
+        "def": 8,
+        "min": 4,
+        "max": 8,
+        "step": 1,
+        "countArrays": [
+          "quarters",
+          "seriesA",
+          "seriesB"
+        ],
+        "desc": "时间轴上展示的时间列数",
+        "publicKey": "timeColumnCount"
+      },
+      {
+        "key": "showGrid",
+        "label": "网格线",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏背景网格与刻度",
+        "publicKey": "showGrid"
+      },
+      {
+        "key": "showLegend",
+        "label": "图例",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏系列图例",
+        "publicKey": "showLegend"
+      },
+      {
+        "key": "showCallout",
+        "label": "终点标注",
+        "type": "toggle",
+        "def": true,
+        "desc": "高亮并标注最新一季",
+        "publicKey": "showCallout"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "主系列 / 标注 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "chartType": "area",
+      "seriesCount": 2,
+      "quarterCount": 8,
+      "showGrid": true,
+      "showLegend": true,
+      "showCallout": true,
+      "barMeta": "44 — Growth",
+      "brandLabel": "约束紫橙节奏",
+      "kicker": "41 / 创意课堂",
+      "title": "节日活动 · 追踪紫橙节奏",
+      "quarters": [
+        "24·Q3",
+        "24·Q4",
+        "25·Q1",
+        "25·Q2",
+        "25·Q3",
+        "25·Q4",
+        "26·Q1",
+        "26·Q2"
+      ],
+      "seriesA": [
+        0.16,
+        0.25,
+        0.33,
+        0.44,
+        0.55,
+        0.7,
+        0.85,
+        1
+      ],
+      "seriesB": [
+        0.1,
+        0.15,
+        0.22,
+        0.3,
+        0.42,
+        0.55,
+        0.72,
+        0.9
+      ],
+      "calloutPeriod": "26 · Q2",
+      "calloutValue": "¥2.4亿",
+      "railGhost": "33",
+      "railValue": "+320%",
+      "railLabel": "累计版税 · 同比",
+      "railText": "发放给独立音乐人的版税，在过去一年里增长超三倍。",
+      "legendA": "累计版税 Royalties",
+      "legendB": "入驻音乐人 Artists",
+      "page": "44",
+      "total": "82",
+      "footerTagline": "现状南瓜故事"
+    }
+  },
+  {
+    "key": "theme14_page042",
+    "themeKey": "theme14",
+    "pageNumber": 42,
+    "layout": "THEME14-042",
+    "slot": "ranking-theme12-055",
+    "label": "紫橙怪趣风 · 排行与趋势图",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page055",
+    "moduleFamily": "ranking",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "barCount",
+        "label": "条目数量",
+        "type": "slider",
+        "def": 6,
+        "min": 2,
+        "max": 7,
+        "step": 1,
+        "desc": "排行展示的平台条目数量",
+        "publicKey": "itemCount"
+      },
+      {
+        "key": "showValue",
+        "label": "数值标签",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏每条末端的数值",
+        "publicKey": "showValueLabels"
+      },
+      {
+        "key": "showAxis",
+        "label": "刻度网格",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏背景刻度网格",
+        "publicKey": "showAxis"
+      },
+      {
+        "key": "focus",
+        "label": "重点强调",
+        "type": "toggle",
+        "def": true,
+        "desc": "高亮某一条，弱化其余",
+        "publicKey": "focus"
+      },
+      {
+        "key": "focusIndex",
+        "label": "强调第几条",
+        "type": "slider",
+        "def": 1,
+        "min": 1,
+        "max": 7,
+        "step": 1,
+        "dependsOn": "focus",
+        "desc": "被强调条目的序号（1 起）",
+        "publicKey": "focusIndex"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "榜首 / 导语 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "barCount": 6,
+      "showValue": true,
+      "showAxis": true,
+      "focus": true,
+      "focusIndex": 1,
+      "barMeta": "51 — Ranking",
+      "brandLabel": "路径糖果路径",
+      "kicker": "42 / 节日活动",
+      "title": "娱乐故事 · 复盘紫橙节奏",
+      "caption": "从证据切入娱乐故",
+      "ghost": "37",
+      "rows": [
+        {
+          "cn": "以紫橙节",
+          "en": "创意课堂的关键不",
+          "v": 100,
+          "share": "38%"
+        },
+        {
+          "cn": "南瓜故",
+          "en": "南瓜故事 /",
+          "v": 74,
+          "share": "22%"
+        },
+        {
+          "cn": "南瓜故事",
+          "en": "糖果路径 /",
+          "v": 58,
+          "share": "15%"
+        },
+        {
+          "cn": "糖果路径",
+          "en": "怪趣角色 /",
+          "v": 46,
+          "share": "12%"
+        },
+        {
+          "cn": "紫橙节奏",
+          "en": "怪趣角色 / 4",
+          "v": 33,
+          "share": "8%"
+        },
+        {
+          "cn": "紫橙节",
+          "en": "紫橙",
+          "v": 22,
+          "share": "4%"
+        },
+        {
+          "cn": "南瓜故事",
+          "en": "糖果",
+          "v": 13,
+          "share": "1%"
+        }
+      ],
+      "page": "51",
+      "total": "82",
+      "footerTagline": "反馈紫橙节奏"
+    }
+  },
+  {
+    "key": "theme14_page043",
+    "themeKey": "theme14",
+    "pageNumber": 43,
+    "layout": "THEME14-043",
+    "slot": "slope-theme12-050",
+    "label": "紫橙怪趣风 · 排行与趋势图",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page050",
+    "moduleFamily": "ranking",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "lineCount",
+        "label": "指标数量",
+        "type": "slider",
+        "def": 5,
+        "min": 3,
+        "max": 6,
+        "step": 1,
+        "desc": "参与对比的指标线数量",
+        "publicKey": "lineCount"
+      },
+      {
+        "key": "focus",
+        "label": "聚焦高亮",
+        "type": "toggle",
+        "def": true,
+        "desc": "突出其中一条指标线，其余淡化",
+        "publicKey": "focus"
+      },
+      {
+        "key": "focusIndex",
+        "label": "聚焦第几条",
+        "type": "slider",
+        "def": 1,
+        "min": 1,
+        "max": 6,
+        "step": 1,
+        "dependsOn": "focus",
+        "desc": "高亮的指标线（自上而下）",
+        "publicKey": "focusIndex"
+      },
+      {
+        "key": "showGrid",
+        "label": "刻度网格",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏两端刻度与基线",
+        "publicKey": "showGrid"
+      },
+      {
+        "key": "showDelta",
+        "label": "变化标注",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏每条线的变化百分比",
+        "publicKey": "showDelta"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "聚焦线 / 导语 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "lineCount": 5,
+      "focus": true,
+      "focusIndex": 1,
+      "showGrid": true,
+      "showDelta": true,
+      "barMeta": "46 — Slope",
+      "brandLabel": "样本怪趣角色",
+      "kicker": "43 / 娱乐故事",
+      "title": "创意课堂 · 比较紫橙节",
+      "periodLeft": {
+        "y": "2024",
+        "s": "以南瓜故事"
+      },
+      "periodRight": {
+        "y": "2026",
+        "s": "当下"
+      },
+      "axisLabel": "占总播放份额 · SHARE OF PLAYS (%)",
+      "metrics": [
+        {
+          "t": "独立厂牌 Indies",
+          "a": 28,
+          "b": 71
+        },
+        {
+          "t": "自助发行 DIY",
+          "a": 12,
+          "b": 52
+        },
+        {
+          "t": "现场演出 Live",
+          "a": 34,
+          "b": 58
+        },
+        {
+          "t": "海外流媒 Global",
+          "a": 9,
+          "b": 40
+        },
+        {
+          "t": "版税透明 Payout",
+          "a": 21,
+          "b": 84
+        },
+        {
+          "t": "粉丝直连 Direct",
+          "a": 17,
+          "b": 63
+        }
+      ],
+      "page": "46",
+      "total": "82",
+      "footerTagline": "节奏糖果路径"
+    },
+    "numberBounds": {
+      "metrics[].a": {
+        "min": 0,
+        "max": 100,
+        "semantics": "coordinate"
+      },
+      "metrics[].b": {
+        "min": 0,
+        "max": 100,
+        "semantics": "coordinate"
+      }
+    }
+  },
+  {
+    "key": "theme14_page044",
+    "themeKey": "theme14",
+    "pageNumber": 44,
+    "layout": "THEME14-044",
+    "slot": "trend-theme09-089",
+    "label": "紫橙怪趣风 · 信息结构",
+    "sourceTheme": "theme09",
+    "sourcePageKey": "theme09_page089",
+    "moduleFamily": "ranking",
+    "bgClass": "bg-blue",
+    "controls": [
+      {
+        "prop": "seriesCount",
+        "type": "slider",
+        "label": "数量",
+        "default": 4,
+        "min": 2,
+        "max": 4,
+        "step": 1,
+        "key": "seriesCount",
+        "publicKey": "seriesCount"
+      },
+      {
+        "prop": "chartType",
+        "type": "radio",
+        "label": "图表类型",
+        "default": "折线",
+        "options": [
+          {
+            "value": "折线",
+            "label": "折线"
+          },
+          {
+            "value": "面积",
+            "label": "面积"
+          }
+        ],
+        "key": "chartType",
+        "publicKey": "chartType"
+      },
+      {
+        "prop": "showLegend",
+        "type": "toggle",
+        "label": "图例",
+        "default": true,
+        "key": "showLegend",
+        "publicKey": "showLegend"
+      },
+      {
+        "prop": "showAside",
+        "type": "toggle",
+        "label": "装饰文案",
+        "default": true,
+        "key": "showAside",
+        "publicKey": "showAside"
+      },
+      {
+        "prop": "labelType",
+        "type": "labelType",
+        "label": "标签类型",
+        "default": "数字",
+        "key": "labelType",
+        "publicKey": "labelType"
+      },
+      {
+        "prop": "focus",
+        "type": "focus",
+        "label": "重点信息 Focus",
+        "default": true,
+        "key": "focus",
+        "publicKey": "focus"
+      },
+      {
+        "prop": "focusIndex",
+        "type": "slider",
+        "label": "焦点序号",
+        "default": 0,
+        "min": 0,
+        "max": 3,
+        "maxFromKey": "seriesCount",
+        "maxFromKeyOffset": -1,
+        "displayOffset": 1,
+        "step": 1,
+        "key": "focusIndex",
+        "publicKey": "focusIndex"
+      }
+    ],
+    "defaultProps": {
+      "seriesCount": 4,
+      "chartType": "折线",
+      "showLegend": true,
+      "focus": true,
+      "focusIndex": 0,
+      "labelType": "number",
+      "showAside": true,
+      "badge": "10",
+      "unit": "亿$",
+      "xLabels": [
+        "23Q1",
+        "23Q2",
+        "23Q3",
+        "23Q4",
+        "24Q1",
+        "24Q2",
+        "24Q3",
+        "24Q4"
+      ],
+      "series": [
+        {
+          "cn": "南瓜故",
+          "vals": [
+            42,
+            55,
+            68,
+            75,
+            96,
+            118,
+            132,
+            128
+          ]
+        },
+        {
+          "cn": "紫橙节奏",
+          "vals": [
+            30,
+            36,
+            44,
+            48,
+            58,
+            66,
+            74,
+            78
+          ]
+        },
+        {
+          "cn": "南瓜故",
+          "vals": [
+            14,
+            20,
+            26,
+            30,
+            40,
+            52,
+            60,
+            58
+          ]
+        },
+        {
+          "cn": "糖果路径",
+          "vals": [
+            22,
+            26,
+            30,
+            33,
+            38,
+            42,
+            46,
+            44
+          ]
+        }
+      ],
+      "headEn": "Trend Lines",
+      "headCn": "季度走势 · 赛道对比",
+      "chartTitle": "逐季度融资额走势",
+      "asideTag": "影响",
+      "insightMid1": " 自期初 ",
+      "insightMid2": " 升至期末 ",
+      "insightPost": "），领跑各赛道；多数序列于 24H1 后加速上行，景气共振明显。",
+      "finalLabelSuffix": " 期末",
+      "rangeLabel": "区间增量"
+    },
+    "lengthBindings": [
+      {
+        "dependent": "series[].vals",
+        "anchor": "xLabels",
+        "relation": "same-length"
+      }
+    ]
+  },
+  {
+    "key": "theme14_page045",
+    "themeKey": "theme14",
+    "pageNumber": 45,
+    "layout": "THEME14-045",
+    "slot": "ranking-theme09-035",
+    "label": "紫橙怪趣风 · 排行与趋势图",
+    "sourceTheme": "theme09",
+    "sourcePageKey": "theme09_page035",
+    "moduleFamily": "ranking",
+    "bgClass": "bg-deep",
+    "controls": [
+      {
+        "prop": "itemCount",
+        "type": "slider",
+        "label": "条目数量",
+        "default": 6,
+        "min": 3,
+        "max": 8,
+        "step": 1,
+        "key": "itemCount",
+        "publicKey": "itemCount"
+      },
+      {
+        "prop": "sort",
+        "type": "radio",
+        "label": "排序方式",
+        "default": "降序",
+        "options": [
+          {
+            "value": "降序",
+            "label": "降序"
+          },
+          {
+            "value": "升序",
+            "label": "升序"
+          },
+          {
+            "value": "原序",
+            "label": "原序"
+          }
+        ],
+        "key": "sort",
+        "publicKey": "sort"
+      },
+      {
+        "prop": "showValue",
+        "type": "toggle",
+        "label": "数值显示",
+        "default": true,
+        "key": "showValue",
+        "publicKey": "showValueLabels"
+      },
+      {
+        "prop": "showAside",
+        "type": "toggle",
+        "label": "装饰文案",
+        "default": true,
+        "key": "showAside",
+        "publicKey": "showAside"
+      },
+      {
+        "prop": "labelType",
+        "type": "labelType",
+        "label": "标签类型",
+        "default": "数字",
+        "key": "labelType",
+        "publicKey": "labelType"
+      },
+      {
+        "prop": "focus",
+        "type": "focus",
+        "label": "重点信息 Focus",
+        "default": true,
+        "key": "focus",
+        "publicKey": "focus"
+      },
+      {
+        "prop": "focusIndex",
+        "type": "slider",
+        "label": "焦点序号",
+        "default": 0,
+        "min": 0,
+        "max": 5,
+        "maxFromKey": "itemCount",
+        "maxFromKeyOffset": -1,
+        "displayOffset": 1,
+        "step": 1,
+        "key": "focusIndex",
+        "publicKey": "focusIndex"
+      }
+    ],
+    "defaultProps": {
+      "itemCount": 6,
+      "sort": "降序",
+      "focus": true,
+      "focusIndex": 0,
+      "labelType": "number",
+      "showValue": true,
+      "showAside": true,
+      "unit": "亿美元",
+      "badge": "08",
+      "items": [
+        {
+          "name": "创意课",
+          "en": "南瓜故事 / 45",
+          "value": 118,
+          "meta": "未披露轮",
+          "tag": "约束紫"
+        },
+        {
+          "name": "节",
+          "en": "糖果路径 / 45",
+          "value": 110,
+          "meta": "B 轮",
+          "tag": "信号南"
+        },
+        {
+          "name": "创意课堂的",
+          "en": "南瓜故事 / 45",
+          "value": 100,
+          "meta": "J 轮",
+          "tag": "机会怪趣"
+        },
+        {
+          "name": "围绕娱乐故",
+          "en": "紫橙节奏 / 45",
+          "value": 95,
+          "meta": "D 轮+",
+          "tag": "样本怪"
+        },
+        {
+          "name": "证据5",
+          "en": "怪趣角",
+          "value": 50,
+          "meta": "种子轮",
+          "tag": "现状南"
+        },
+        {
+          "name": "边界6",
+          "en": "南瓜故事 / 4",
+          "value": 38,
+          "meta": "F 轮",
+          "tag": "边界南瓜"
+        },
+        {
+          "name": "趋势7",
+          "en": "南瓜故事",
+          "value": 26,
+          "meta": "E 轮",
+          "tag": "信号南瓜"
+        },
+        {
+          "name": "节奏8",
+          "en": "怪趣角",
+          "value": 15,
+          "meta": "C 轮",
+          "tag": "路径糖果"
+        }
+      ],
+      "headEn": "Capital Leaderboard",
+      "headCn": "资本排行榜 · 头部玩家",
+      "concentrationLabel": "头部集中度",
+      "concentrationCaption": "资本流向榜单前三",
+      "insightText": "融资额呈现极端「马太效应」—— 少数大模型与数据平台公司虹吸了绝大多数资金，长尾标的获取资本难度显著上升。"
+    }
+  },
+  {
+    "key": "theme14_page046",
+    "themeKey": "theme14",
+    "pageNumber": 46,
+    "layout": "THEME14-046",
+    "slot": "slope-theme09-083",
+    "label": "紫橙怪趣风 · 排行与趋势图",
+    "sourceTheme": "theme09",
+    "sourcePageKey": "theme09_page083",
+    "moduleFamily": "ranking",
+    "bgClass": "bg-blue",
+    "controls": [
+      {
+        "prop": "itemCount",
+        "type": "slider",
+        "label": "数量",
+        "default": 8,
+        "min": 3,
+        "max": 8,
+        "step": 1,
+        "key": "itemCount",
+        "publicKey": "itemCount"
+      },
+      {
+        "prop": "showValue",
+        "type": "toggle",
+        "label": "数值标签",
+        "default": true,
+        "key": "showValue",
+        "publicKey": "showValueLabels"
+      },
+      {
+        "prop": "showAside",
+        "type": "toggle",
+        "label": "装饰文案",
+        "default": true,
+        "key": "showAside",
+        "publicKey": "showAside"
+      },
+      {
+        "prop": "labelType",
+        "type": "labelType",
+        "label": "标签类型",
+        "default": "数字",
+        "key": "labelType",
+        "publicKey": "labelType"
+      },
+      {
+        "prop": "focus",
+        "type": "focus",
+        "label": "重点信息 Focus",
+        "default": true,
+        "key": "focus",
+        "publicKey": "focus"
+      },
+      {
+        "prop": "focusIndex",
+        "type": "slider",
+        "label": "焦点序号",
+        "default": 0,
+        "min": 0,
+        "max": 7,
+        "maxFromKey": "itemCount",
+        "maxFromKeyOffset": -1,
+        "displayOffset": 1,
+        "step": 1,
+        "key": "focusIndex",
+        "publicKey": "focusIndex"
+      }
+    ],
+    "defaultProps": {
+      "itemCount": 8,
+      "showValue": true,
+      "focus": true,
+      "focusIndex": 0,
+      "labelType": "number",
+      "showAside": true,
+      "periodLeft": "2023",
+      "periodRight": "2024",
+      "unit": "亿$",
+      "badge": "10",
+      "items": [
+        {
+          "cn": "南瓜故",
+          "left": 210,
+          "right": 420
+        },
+        {
+          "cn": "南瓜故事",
+          "left": 95,
+          "right": 180
+        },
+        {
+          "cn": "南瓜故",
+          "left": 60,
+          "right": 150
+        },
+        {
+          "cn": "紫橙节奏",
+          "left": 88,
+          "right": 110
+        },
+        {
+          "cn": "怪趣角色",
+          "left": 55,
+          "right": 90
+        },
+        {
+          "cn": "怪趣角色",
+          "left": 120,
+          "right": 75
+        },
+        {
+          "cn": "紫橙节奏",
+          "left": 70,
+          "right": 88
+        },
+        {
+          "cn": "怪趣角",
+          "left": 25,
+          "right": 70
+        }
+      ],
+      "headEn": "Rank Migration",
+      "headCn": "排名变迁 · 两期对比",
+      "legendUp": "上升",
+      "legendDown": "回落",
+      "unitLabel": "单位 · ",
+      "asideTag": "节奏",
+      "insightMid1": " 由 ",
+      "insightMid2": " ",
+      "insightMid3": " ",
+      "insightPost": "；资金加速向头部赛道集中，部分前期热门方向理性退潮。",
+      "changeSuffix": " 变化",
+      "upShareLabel": "上升赛道占比"
+    }
+  },
+  {
+    "key": "theme14_page047",
+    "themeKey": "theme14",
+    "pageNumber": 47,
+    "layout": "THEME14-047",
+    "slot": "signature-derived-proportion-scorecard-theme14-047",
+    "label": "紫橙怪趣风 · derived-proportion-scorecard",
+    "sourceTheme": "theme14",
+    "sourcePageKey": "theme14_derived_proportion_scorecard",
+    "moduleFamily": "proportion",
+    "moduleOrigin": "owned",
+    "moduleStrategy": "new",
+    "archetypeId": "derived-proportion-scorecard",
+    "evidenceMode": "inferred",
+    "evidenceRefs": [],
+    "derivedFromRules": [
+      "typography-02",
+      "composition-01",
+      "surface-02",
+      "motif-01",
+      "color-04"
+    ],
+    "anchorModuleRefs": [
+      "theme14_signature_cat_percent_metrics",
+      "theme14_signature_purple_orange_comparison"
+    ],
+    "stylePrimitiveRefs": [
+      "candy-node",
+      "corner-web"
+    ],
+    "derivationReason": "把模板的指标语法扩展为比例与进度页；以 theme14_signature_cat_percent_metrics、theme14_signature_purple_orange_comparison 为视觉锚点。",
+    "styleSignals": [
+      "正文保持白色小字号以适应高饱和底色",
+      "紫色和橙色页面交替形成节日节奏",
+      "媒体页使用大图和高对比文字覆盖",
+      "蜘蛛网、南瓜、坩埚、糖果和小蜘蛛重复出现",
+      "明黄用于标题标签和小型图标"
+    ],
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showSignatureSystem",
+        "label": "显示主题签名系统",
+        "type": "toggle",
+        "default": true,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "signature-system",
+            "ornament",
+            "page-marker"
+          ],
+          "minChangedRatio": 0.008,
+          "minRegions": 2
+        },
+        "publicKey": "showSignatureSystem"
+      },
+      {
+        "key": "density",
+        "label": "信息密度",
+        "type": "select",
+        "default": "balanced",
+        "options": [
+          {
+            "label": "紧凑",
+            "value": "compact"
+          },
+          {
+            "label": "平衡",
+            "value": "balanced"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-frame",
+            "spacing",
+            "type-scale"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "density"
+      },
+      {
+        "key": "scoreLayout",
+        "label": "评分结构",
+        "type": "select",
+        "default": "structured",
+        "options": [
+          {
+            "label": "结构化",
+            "value": "structured"
+          },
+          {
+            "label": "偏移强调",
+            "value": "offset"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-grid",
+            "reading-order",
+            "emphasis"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "scoreLayout"
+      }
+    ],
+    "defaultProps": {
+      "showSignatureSystem": true,
+      "density": "balanced",
+      "scoreLayout": "structured",
+      "pillars": [
+        "故事开场",
+        "怪趣角色",
+        "互动任务",
+        "惊喜收尾"
+      ],
+      "summary": "让紫橙舞台、怪趣角色和互动任务共同推动一场可参与、可分享的节日故事。",
+      "title": "节日创意活动的比例评分",
+      "values": [
+        82,
+        68,
+        54
+      ],
+      "labels": [
+        "活动参与",
+        "故事完成",
+        "节日记忆"
+      ]
+    }
+  },
+  {
+    "key": "theme14_page048",
+    "themeKey": "theme14",
+    "pageNumber": 48,
+    "layout": "THEME14-048",
+    "slot": "bento-theme12-010",
+    "label": "紫橙怪趣风 · 信息结构",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page010",
+    "moduleFamily": "proportion",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "tileCount",
+        "label": "便当格数",
+        "type": "slider",
+        "def": 6,
+        "min": 4,
+        "max": 6,
+        "step": 1,
+        "desc": "便当网格中的格子数量",
+        "publicKey": "tileCount"
+      },
+      {
+        "key": "focus",
+        "label": "重点强调",
+        "type": "toggle",
+        "def": false,
+        "desc": "高亮某一格，弱化其余",
+        "publicKey": "focus"
+      },
+      {
+        "key": "focusIndex",
+        "label": "强调第几格",
+        "type": "slider",
+        "def": 1,
+        "min": 1,
+        "max": 6,
+        "step": 1,
+        "dependsOn": "focus",
+        "desc": "被强调格子的序号（1 起）",
+        "publicKey": "focusIndex"
+      },
+      {
+        "key": "showDeco",
+        "label": "显示装饰",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏格子内几何装饰",
+        "publicKey": "showDeco"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "导语 / 焦点 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "tileCount": 6,
+      "focus": false,
+      "focusIndex": 1,
+      "showDeco": true,
+      "barMeta": "06 — Capabilities",
+      "brandLabel": "趋势糖果路径",
+      "kicker": "48 / 娱乐故事",
+      "title": "创意课堂 · 重构怪趣角色",
+      "lede": "活动策划者可从路径观察节日活动，用糖果路径解释变化，并以南瓜故事推进",
+      "heroTags": [
+        "信号南",
+        "影响怪"
+      ],
+      "tiles": [
+        {
+          "cn": "南瓜故事",
+          "en": "糖果路",
+          "d": "一次上传，自动分发到全球 30+ 流媒体平台，元数据代为校验。",
+          "kind": "hero"
+        },
+        {
+          "cn": "紫橙节奏",
+          "en": "怪趣角",
+          "d": "按平台拆解每一笔版税。",
+          "kind": "kpi",
+          "kpi": "72h"
+        },
+        {
+          "cn": "紫橙节奏",
+          "en": "怪趣角",
+          "d": "专属页面把听众沉淀为资产。",
+          "kind": "plain"
+        },
+        {
+          "cn": "南瓜故事",
+          "en": "紫橙节",
+          "d": "全网监测盗用，一键存证维权。",
+          "kind": "plain"
+        },
+        {
+          "cn": "糖果路径",
+          "en": "南瓜故",
+          "d": "词曲编混按比例自动拆账。",
+          "kind": "plain"
+        },
+        {
+          "cn": "南瓜故事",
+          "en": "糖果路径 ",
+          "d": "听众画像与趋势一目了然。",
+          "kind": "plain"
+        }
+      ],
+      "page": "06",
+      "total": "82",
+      "footerTagline": "机会怪趣角色"
+    }
+  },
+  {
+    "key": "theme14_page049",
+    "themeKey": "theme14",
+    "pageNumber": 49,
+    "layout": "THEME14-049",
+    "slot": "radar-theme12-059",
+    "label": "紫橙怪趣风 · 比例与能力图",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page059",
+    "moduleFamily": "proportion",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "axisCount",
+        "label": "维度数",
+        "type": "slider",
+        "def": 6,
+        "min": 4,
+        "max": 6,
+        "step": 1,
+        "desc": "雷达图的能力维度数量",
+        "publicKey": "axisCount"
+      },
+      {
+        "key": "seriesCount",
+        "label": "系列数",
+        "type": "slider",
+        "def": 2,
+        "min": 1,
+        "max": 2,
+        "step": 1,
+        "desc": "对比的系列数（声浪 / 传统）",
+        "publicKey": "seriesCount"
+      },
+      {
+        "key": "showGrid",
+        "label": "网格环",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏背景网格环与刻度",
+        "publicKey": "showGrid"
+      },
+      {
+        "key": "showLabels",
+        "label": "维度标签",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏外圈维度名称",
+        "publicKey": "showLabels"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#5a138e",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "主系列 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "axisCount": 6,
+      "seriesCount": 2,
+      "showGrid": true,
+      "showLabels": true,
+      "barMeta": "55 — Radar",
+      "brandLabel": "边界南瓜故事",
+      "kicker": "49 / 节日活动",
+      "title": "娱乐故事 · 复盘紫橙节奏",
+      "intro": "围绕节日活动连接糖果路径与南瓜故事，让路径判断建立在具体事实之上。",
+      "seriesAName": "教师可从样本观",
+      "seriesBName": "现状南瓜故事",
+      "axes": [
+        {
+          "cn": "南瓜",
+          "en": "紫橙节",
+          "a": 0.96,
+          "b": 0.45
+        },
+        {
+          "cn": "怪趣",
+          "en": "南瓜故",
+          "a": 0.92,
+          "b": 0.4
+        },
+        {
+          "cn": "糖果",
+          "en": "怪趣角色 ",
+          "a": 0.88,
+          "b": 0.3
+        },
+        {
+          "cn": "糖果",
+          "en": "紫橙节",
+          "a": 0.9,
+          "b": 0.62
+        },
+        {
+          "cn": "紫橙",
+          "en": "怪趣",
+          "a": 0.84,
+          "b": 0.35
+        },
+        {
+          "cn": "紫橙",
+          "en": "糖果",
+          "a": 0.94,
+          "b": 0.5
+        }
+      ],
+      "page": "55",
+      "total": "82",
+      "footerTagline": "边界南瓜故事"
+    }
+  },
+  {
+    "key": "theme14_page050",
+    "themeKey": "theme14",
+    "pageNumber": 50,
+    "layout": "THEME14-050",
+    "slot": "gauges-theme12-056",
+    "label": "紫橙怪趣风 · 比例与能力图",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page056",
+    "moduleFamily": "proportion",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "gaugeCount",
+        "label": "仪表数量",
+        "type": "slider",
+        "def": 3,
+        "min": 2,
+        "max": 4,
+        "step": 1,
+        "desc": "环形仪表的数量",
+        "publicKey": "gaugeCount"
+      },
+      {
+        "key": "showTrack",
+        "label": "底环轨道",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏环形底色轨道",
+        "publicKey": "showGuide"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "showLede",
+        "label": "显示导语",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏标题区导语",
+        "publicKey": "showLede"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "首个仪表 / 高亮 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "gaugeCount": 3,
+      "showTrack": true,
+      "showLede": true,
+      "theme": "light",
+      "barMeta": "52 — Gauges",
+      "brandLabel": "趋势糖果路径",
+      "kicker": "50 / 娱乐故事",
+      "title": "节日活动 · 追踪紫橙节奏",
+      "lede": "从约束切入创意课堂，以紫橙节奏比较关键证据，为教师形成可执行的",
+      "gauges": [
+        {
+          "pct": 94,
+          "cn": "糖果路径",
+          "en": "怪趣角色 / 50",
+          "note": "以紫橙节奏校准"
+        },
+        {
+          "pct": 88,
+          "cn": "怪趣角色",
+          "en": "紫橙节奏 /",
+          "note": "从机会切入"
+        },
+        {
+          "pct": 72,
+          "cn": "紫橙节奏",
+          "en": "糖果路径 / 50",
+          "note": "从反馈切入创意"
+        },
+        {
+          "pct": 65,
+          "cn": "怪趣角色",
+          "en": "南瓜故事 / 50",
+          "note": "创意内容团"
+        }
+      ],
+      "page": "52",
+      "total": "82",
+      "footerTagline": "边界南瓜故事"
+    }
+  },
+  {
+    "key": "theme14_page051",
+    "themeKey": "theme14",
+    "pageNumber": 51,
+    "layout": "THEME14-051",
+    "slot": "polaroid-theme12-025",
+    "label": "紫橙怪趣风 · 比例与能力图",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page025",
+    "moduleFamily": "proportion",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "photoCount",
+        "label": "照片数量",
+        "type": "slider",
+        "def": 4,
+        "min": 3,
+        "max": 5,
+        "step": 1,
+        "desc": "拍立得照片的数量",
+        "publicKey": "photoCount"
+      },
+      {
+        "key": "scatter",
+        "label": "随意散落",
+        "type": "toggle",
+        "def": true,
+        "desc": "开启倾斜散落 / 关闭则整齐排布",
+        "publicKey": "scatter"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "showCaptions",
+        "label": "手写图注",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏照片下方说明",
+        "publicKey": "showCaptions"
+      },
+      {
+        "key": "mediaFit",
+        "label": "图片填充",
+        "type": "segment",
+        "def": "cover",
+        "options": [
+          {
+            "value": "cover",
+            "label": "裁切"
+          },
+          {
+            "value": "contain",
+            "label": "完整"
+          }
+        ],
+        "desc": "图片填充方式",
+        "publicKey": "mediaFit"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "标题块 / 高亮 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "photoCount": 4,
+      "scatter": true,
+      "showCaptions": true,
+      "mediaFit": "cover",
+      "media": [],
+      "barMeta": "21 — Polaroid",
+      "brandLabel": "样本怪趣角色",
+      "kicker": "51 / 节日活动",
+      "title": "节日活动 · 追踪紫橙节奏",
+      "intro": "以怪趣角色校准创意课堂的样本，再用糖果路径检验结果能否持续。",
+      "hint": "shots · drag to fill",
+      "captions": [
+        "首演之夜",
+        "深夜母带",
+        "签售现场",
+        "巡演后台",
+        "排练室"
+      ],
+      "mediaPlaceholder": "拖入",
+      "page": "21",
+      "total": "82",
+      "footerTagline": "样本怪趣角色"
+    }
+  },
+  {
+    "key": "theme14_page052",
+    "themeKey": "theme14",
+    "pageNumber": 52,
+    "layout": "THEME14-052",
+    "slot": "signature-party-agenda-table-theme14-052",
+    "label": "紫橙怪趣风 · party-agenda-table",
+    "sourceTheme": "theme14",
+    "sourcePageKey": "theme14_signature_party_agenda_table",
+    "moduleFamily": "table",
+    "moduleOrigin": "owned",
+    "moduleStrategy": "new",
+    "archetypeId": "party-agenda-table",
+    "evidenceMode": "observed",
+    "evidenceRefs": [
+      "slide-02",
+      "slide-04"
+    ],
+    "derivedFromRules": [],
+    "anchorModuleRefs": [],
+    "stylePrimitiveRefs": [],
+    "styleSignals": [
+      "清单、今日任务和互动框分区明确",
+      "浅紫卡片使用深紫描边",
+      "黄色标签承担状态与标题"
+    ],
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showSignatureSystem",
+        "label": "显示主题签名系统",
+        "type": "toggle",
+        "default": true,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "signature-system",
+            "ornament",
+            "page-marker"
+          ],
+          "minChangedRatio": 0.008,
+          "minRegions": 2
+        },
+        "publicKey": "showSignatureSystem"
+      },
+      {
+        "key": "density",
+        "label": "信息密度",
+        "type": "select",
+        "default": "balanced",
+        "options": [
+          {
+            "label": "紧凑",
+            "value": "compact"
+          },
+          {
+            "label": "平衡",
+            "value": "balanced"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-frame",
+            "spacing",
+            "type-scale"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "density"
+      },
+      {
+        "key": "tableLayout",
+        "label": "表格结构",
+        "type": "select",
+        "default": "structured",
+        "options": [
+          {
+            "label": "结构化",
+            "value": "structured"
+          },
+          {
+            "label": "偏移强调",
+            "value": "offset"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-grid",
+            "reading-order",
+            "emphasis"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "tableLayout"
+      }
+    ],
+    "defaultProps": {
+      "showSignatureSystem": true,
+      "density": "balanced",
+      "tableLayout": "structured",
+      "pillars": [
+        "故事开场",
+        "怪趣角色",
+        "互动任务",
+        "惊喜收尾"
+      ],
+      "summary": "让紫橙舞台、怪趣角色和互动任务共同推动一场可参与、可分享的节日故事。",
+      "title": "节日创意活动行动清单",
+      "columns": [
+        "模块",
+        "当前状态",
+        "下一步",
+        "负责人"
+      ],
+      "rows": [
+        [
+          "开场",
+          "舞台就绪",
+          "说明故事与规则",
+          "主持"
+        ],
+        [
+          "装扮",
+          "角色确认",
+          "完成创意亮相",
+          "参与者"
+        ],
+        [
+          "互动",
+          "任务发布",
+          "推动团队挑战",
+          "活动"
+        ],
+        [
+          "收尾",
+          "奖励准备",
+          "合影与分享",
+          "全员"
+        ]
+      ]
+    }
+  },
+  {
+    "key": "theme14_page053",
+    "themeKey": "theme14",
+    "pageNumber": 53,
+    "layout": "THEME14-053",
+    "slot": "ledger-theme09-059",
+    "label": "紫橙怪趣风 · 信息结构",
+    "sourceTheme": "theme09",
+    "sourcePageKey": "theme09_page059",
+    "moduleFamily": "table",
+    "bgClass": "bg-blue",
+    "controls": [
+      {
+        "prop": "rowCount",
+        "type": "slider",
+        "label": "行数量",
+        "default": 6,
+        "min": 3,
+        "max": 8,
+        "step": 1,
+        "key": "rowCount",
+        "publicKey": "rowCount"
+      },
+      {
+        "prop": "colCount",
+        "type": "slider",
+        "label": "列数量",
+        "default": 4,
+        "min": 2,
+        "max": 4,
+        "step": 1,
+        "key": "colCount",
+        "publicKey": "colCount"
+      },
+      {
+        "prop": "sort",
+        "type": "radio",
+        "label": "排序",
+        "default": "降序",
+        "options": [
+          {
+            "value": "降序",
+            "label": "降序"
+          },
+          {
+            "value": "升序",
+            "label": "升序"
+          },
+          {
+            "value": "原序",
+            "label": "原序"
+          }
+        ],
+        "key": "sort",
+        "publicKey": "sort"
+      },
+      {
+        "prop": "highlightCol",
+        "type": "slider",
+        "label": "高亮列 (-1 关闭)",
+        "default": -1,
+        "min": -1,
+        "max": 3,
+        "maxFromKey": "colCount",
+        "maxFromKeyOffset": -1,
+        "step": 1,
+        "key": "highlightCol",
+        "publicKey": "highlightCol"
+      },
+      {
+        "prop": "showBar",
+        "type": "toggle",
+        "label": "行内比例条",
+        "default": true,
+        "key": "showBar",
+        "publicKey": "showBar"
+      },
+      {
+        "prop": "showTotal",
+        "type": "toggle",
+        "label": "装饰文案",
+        "default": true,
+        "desc": "合计/均值行",
+        "key": "showTotal",
+        "publicKey": "showTotal"
+      },
+      {
+        "prop": "labelType",
+        "type": "labelType",
+        "label": "标签类型",
+        "default": "数字",
+        "key": "labelType",
+        "publicKey": "labelType"
+      },
+      {
+        "prop": "focus",
+        "type": "focus",
+        "label": "重点信息 Focus",
+        "default": true,
+        "key": "focus",
+        "publicKey": "focus"
+      },
+      {
+        "prop": "focusIndex",
+        "type": "slider",
+        "label": "焦点序号",
+        "default": 0,
+        "min": 0,
+        "max": 5,
+        "maxFromKey": "rowCount",
+        "maxFromKeyOffset": -1,
+        "displayOffset": 1,
+        "step": 1,
+        "key": "focusIndex",
+        "publicKey": "focusIndex"
+      }
+    ],
+    "defaultProps": {
+      "rowCount": 6,
+      "colCount": 4,
+      "sort": "降序",
+      "showBar": true,
+      "showTotal": true,
+      "focus": true,
+      "focusIndex": 0,
+      "highlightCol": -1,
+      "labelType": "number",
+      "rowHeader": "公司 / 赛道",
+      "note": "从信号切入创意课堂，以南瓜故事量化关键证据，为教师形成可执行的",
+      "head": {
+        "no": "08",
+        "en": "怪趣角",
+        "cn": "糖果路径"
+      },
+      "columns": [
+        {
+          "label": "南瓜故",
+          "unit": "亿$",
+          "type": "bar"
+        },
+        {
+          "label": "怪趣",
+          "unit": "亿$",
+          "type": "num"
+        },
+        {
+          "label": "南瓜",
+          "unit": "次",
+          "type": "num"
+        },
+        {
+          "label": "怪趣",
+          "unit": "%",
+          "type": "delta"
+        }
+      ],
+      "rows": [
+        {
+          "label": "围绕创",
+          "sub": "怪趣角",
+          "vals": [
+            66,
+            1570,
+            2,
+            82
+          ]
+        },
+        {
+          "label": "活",
+          "sub": "怪趣角",
+          "vals": [
+            60,
+            450,
+            2,
+            120
+          ]
+        },
+        {
+          "label": "从影响切入",
+          "sub": "紫橙节",
+          "vals": [
+            40,
+            965,
+            3,
+            95
+          ]
+        },
+        {
+          "label": "以紫橙节奏",
+          "sub": "怪趣角色",
+          "vals": [
+            100,
+            620,
+            1,
+            48
+          ]
+        },
+        {
+          "label": "以南瓜故事",
+          "sub": "怪趣角",
+          "vals": [
+            110,
+            190,
+            2,
+            160
+          ]
+        },
+        {
+          "label": "紫橙",
+          "sub": "南瓜故事",
+          "vals": [
+            2.6,
+            46,
+            1,
+            34
+          ]
+        },
+        {
+          "label": "紫橙节",
+          "sub": "紫橙节",
+          "vals": [
+            10,
+            50,
+            1,
+            0
+          ]
+        },
+        {
+          "label": "紫橙节奏",
+          "sub": "南瓜故事",
+          "vals": [
+            10,
+            138,
+            1,
+            28
+          ]
+        }
+      ],
+      "totalRowLabel": "合计 / 均值",
+      "deltaLegendUp": " 同比上升 ",
+      "deltaLegendDown": " 同比回落"
+    },
+    "lengthBindings": [
+      {
+        "dependent": "rows[].vals",
+        "anchor": "columns",
+        "relation": "same-length",
+        "countKey": "colCount"
+      }
+    ]
+  },
+  {
+    "key": "theme14_page054",
+    "themeKey": "theme14",
+    "pageNumber": 54,
+    "layout": "THEME14-054",
+    "slot": "risk-theme09-027",
+    "label": "紫橙怪趣风 · 清单与表格",
+    "sourceTheme": "theme09",
+    "sourcePageKey": "theme09_page027",
+    "moduleFamily": "table",
+    "bgClass": "bg-deep",
+    "controls": [
+      {
+        "prop": "itemCount",
+        "type": "slider",
+        "label": "条目数量",
+        "default": 4,
+        "min": 1,
+        "max": 4,
+        "step": 1,
+        "key": "itemCount",
+        "publicKey": "itemCount"
+      },
+      {
+        "prop": "variant",
+        "type": "radio",
+        "label": "布局方式",
+        "default": "网格",
+        "options": [
+          {
+            "value": "网格",
+            "label": "网格"
+          },
+          {
+            "value": "列表",
+            "label": "列表"
+          }
+        ],
+        "key": "variant",
+        "publicKey": "variant"
+      },
+      {
+        "prop": "showAside",
+        "type": "toggle",
+        "label": "装饰文案",
+        "default": true,
+        "key": "showAside",
+        "publicKey": "showAside"
+      },
+      {
+        "prop": "labelType",
+        "type": "labelType",
+        "label": "标签类型",
+        "default": "数字",
+        "key": "labelType",
+        "publicKey": "labelType"
+      },
+      {
+        "prop": "focus",
+        "type": "focus",
+        "label": "重点信息 Focus",
+        "default": true,
+        "key": "focus",
+        "publicKey": "focus"
+      },
+      {
+        "prop": "focusIndex",
+        "type": "slider",
+        "label": "焦点序号",
+        "default": 1,
+        "min": 0,
+        "max": 3,
+        "maxFromKey": "itemCount",
+        "maxFromKeyOffset": -1,
+        "displayOffset": 1,
+        "step": 1,
+        "key": "focusIndex",
+        "publicKey": "focusIndex"
+      }
+    ],
+    "defaultProps": {
+      "itemCount": 4,
+      "variant": "网格",
+      "focus": true,
+      "focusIndex": 0,
+      "labelType": "number",
+      "showAside": true,
+      "accent": "#ff8508",
+      "items": [
+        {
+          "title": "节日活动 · 连接糖",
+          "en": "怪趣角色 /",
+          "metric": {
+            "v": "1000",
+            "u": "×+",
+            "l": "P/S 市销率"
+          },
+          "desc": "围绕娱乐故事拆解南瓜故事与紫橙节奏，让边界判断建立在具体事实之"
+        },
+        {
+          "title": "节日活动 · ",
+          "en": "紫橙节奏 / ",
+          "metric": {
+            "v": "EU",
+            "u": "AI Act",
+            "l": "合规成本"
+          },
+          "desc": "以南瓜故事校准创意课堂的边界，再用紫橙节奏检验结果能否持续。"
+        },
+        {
+          "title": "娱乐故事 · 连接紫",
+          "en": "怪趣角色 / ",
+          "metric": {
+            "v": "3",
+            "u": "巨头",
+            "l": "自研降维"
+          },
+          "desc": "创意课堂的关键不只是怪趣角色，还要持续拆解糖果路径带来的影响反馈。"
+        },
+        {
+          "title": "创意课堂 · 校准南",
+          "en": "怪趣角",
+          "metric": {
+            "v": "GPU",
+            "u": "紧张",
+            "l": "出口管制"
+          },
+          "desc": "以怪趣角色校准创意课堂的样本，再用糖果路径检验结果能否持续。"
+        }
+      ],
+      "chain": [
+        "估值高企",
+        "宏观收紧",
+        "估值回调",
+        "行业洗牌"
+      ],
+      "headEn": "Risk Assessment",
+      "headCn": "风险研判 · 投资前哨",
+      "soloTagLabel": "路径糖果路径",
+      "chainLabel": "风险传导链"
+    }
+  },
+  {
+    "key": "theme14_page055",
+    "themeKey": "theme14",
+    "pageNumber": 55,
+    "layout": "THEME14-055",
+    "slot": "contents-theme09-010",
+    "label": "紫橙怪趣风 · 清单与表格",
+    "sourceTheme": "theme09",
+    "sourcePageKey": "theme09_page010",
+    "moduleFamily": "table",
+    "bgClass": "bg-blue",
+    "controls": [
+      {
+        "prop": "cardCount",
+        "type": "slider",
+        "label": "卡片数量",
+        "default": 4,
+        "min": 2,
+        "max": 7,
+        "step": 1,
+        "key": "cardCount",
+        "publicKey": "cardCount"
+      },
+      {
+        "prop": "labelType",
+        "type": "labelType",
+        "label": "标签类型",
+        "default": "数字",
+        "key": "labelType",
+        "publicKey": "labelType"
+      },
+      {
+        "prop": "focus",
+        "type": "focus",
+        "label": "重点信息 Focus",
+        "default": true,
+        "key": "focus",
+        "publicKey": "focus"
+      },
+      {
+        "prop": "focusIndex",
+        "type": "slider",
+        "label": "焦点序号",
+        "default": 1,
+        "min": 0,
+        "max": 3,
+        "maxFromKey": "cardCount",
+        "maxFromKeyOffset": -1,
+        "displayOffset": 1,
+        "step": 1,
+        "key": "focusIndex",
+        "publicKey": "focusIndex"
+      }
+    ],
+    "defaultProps": {
+      "bigWord": "CONTENTS",
+      "subCN": "报告结构 · Structure",
+      "cards": [
+        {
+          "cn": "糖果路径",
+          "en": "怪趣角色 / 5",
+          "color": "linear-gradient(160deg,#3f78ff,#1d49d6)",
+          "dark": false
+        },
+        {
+          "cn": "怪趣角色",
+          "en": "紫橙节奏 / 55",
+          "color": "linear-gradient(160deg,#5af0d4,#1fb89b)",
+          "dark": true
+        },
+        {
+          "cn": "紫橙节奏",
+          "en": "怪趣角色 / 55",
+          "color": "linear-gradient(160deg,#0c1430,#070d22)",
+          "dark": false
+        },
+        {
+          "cn": "南瓜故事",
+          "en": "怪趣角色 / 5",
+          "color": "linear-gradient(160deg,#eef2ff,#cdd8f5)",
+          "dark": true
+        },
+        {
+          "cn": "糖果路径",
+          "en": "糖果路径 / 55",
+          "color": "linear-gradient(160deg,#7a5aff,#4a2fd6)",
+          "dark": false
+        },
+        {
+          "cn": "南瓜故事",
+          "en": "紫橙节奏 / 55",
+          "color": "linear-gradient(160deg,#3f78ff,#1d49d6)",
+          "dark": false
+        },
+        {
+          "cn": "怪趣",
+          "en": "南瓜故事 / ",
+          "color": "linear-gradient(160deg,#5af0d4,#1fb89b)",
+          "dark": true
+        }
+      ],
+      "cardCount": 4,
+      "labelType": "number",
+      "focus": true,
+      "focusIndex": 1
+    }
+  },
+  {
+    "key": "theme14_page056",
+    "themeKey": "theme14",
+    "pageNumber": 56,
+    "layout": "THEME14-056",
+    "slot": "specs-theme12-033",
+    "label": "紫橙怪趣风 · 信息结构",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page033",
+    "moduleFamily": "table",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "groupCount",
+        "label": "分组数",
+        "type": "slider",
+        "def": 4,
+        "min": 2,
+        "max": 4,
+        "step": 1,
+        "desc": "规格分组的数量",
+        "publicKey": "groupCount"
+      },
+      {
+        "key": "columns",
+        "label": "栏数",
+        "type": "slider",
+        "def": 2,
+        "min": 1,
+        "max": 2,
+        "step": 1,
+        "desc": "分组排布的列数",
+        "publicKey": "columns"
+      },
+      {
+        "key": "showLeaders",
+        "label": "引导点",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏项与值之间的虚线引导",
+        "publicKey": "showLeaders"
+      },
+      {
+        "key": "showLede",
+        "label": "显示导语",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏标题区说明",
+        "publicKey": "showLede"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#5a138e",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "分组标号 / 重点值 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "groupCount": 4,
+      "columns": 2,
+      "showLeaders": true,
+      "showLede": true,
+      "barMeta": "29 — Spec Sheet",
+      "brandLabel": "影响怪趣角色",
+      "kicker": "56 / 节日活动",
+      "title": "节日活动 · 追踪紫橙节",
+      "metaLine": "节日活动的关键不只是南瓜",
+      "groups": [
+        {
+          "g": "结算 / Payout",
+          "rows": [
+            {
+              "k": "到账周期",
+              "v": "72 小时"
+            },
+            {
+              "k": "最低提现",
+              "v": "¥1"
+            },
+            {
+              "k": "分账方式",
+              "v": "实时多方"
+            },
+            {
+              "k": "币种",
+              "v": "12 种"
+            }
+          ]
+        },
+        {
+          "g": "版权 / Rights",
+          "rows": [
+            {
+              "k": "登记时长",
+              "v": "< 5 分钟"
+            },
+            {
+              "k": "全网监测",
+              "v": "7×24"
+            },
+            {
+              "k": "维权响应",
+              "v": "一键发起"
+            },
+            {
+              "k": "存证",
+              "v": "区块链"
+            }
+          ]
+        },
+        {
+          "g": "发行 / Distribution",
+          "rows": [
+            {
+              "k": "上线平台",
+              "v": "50+"
+            },
+            {
+              "k": "审核时长",
+              "v": "当日"
+            },
+            {
+              "k": "预约发行",
+              "v": "支持"
+            },
+            {
+              "k": "下架",
+              "v": "即时"
+            }
+          ]
+        },
+        {
+          "g": "数据 / Insights",
+          "rows": [
+            {
+              "k": "听众画像",
+              "v": "实时"
+            },
+            {
+              "k": "数据导出",
+              "v": "CSV / API"
+            },
+            {
+              "k": "更新频率",
+              "v": "每小时"
+            },
+            {
+              "k": "历史留存",
+              "v": "永久"
+            }
+          ]
+        }
+      ],
+      "page": "29",
+      "total": "82",
+      "footerTagline": "约束紫橙节奏"
+    }
+  },
+  {
+    "key": "theme14_page057",
+    "themeKey": "theme14",
+    "pageNumber": 57,
+    "layout": "THEME14-057",
+    "slot": "album-theme12-068",
+    "label": "紫橙怪趣风 · 信息结构",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page068",
+    "moduleFamily": "table",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "trackCount",
+        "label": "条目数量",
+        "type": "slider",
+        "def": 8,
+        "min": 5,
+        "max": 10,
+        "step": 1,
+        "desc": "条目清单的条目数量",
+        "publicKey": "itemCount"
+      },
+      {
+        "key": "showDuration",
+        "label": "时长",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏每首条目的时长",
+        "publicKey": "showDuration"
+      },
+      {
+        "key": "coverSide",
+        "label": "封面位置",
+        "type": "segment",
+        "def": "left",
+        "options": [
+          {
+            "value": "left",
+            "label": "左"
+          },
+          {
+            "value": "right",
+            "label": "右"
+          }
+        ],
+        "desc": "封面图所在的一侧",
+        "publicKey": "coverSide"
+      },
+      {
+        "key": "focus",
+        "label": "重点高亮",
+        "type": "toggle",
+        "def": true,
+        "desc": "高亮重点条目",
+        "publicKey": "focus"
+      },
+      {
+        "key": "focusIndex",
+        "label": "重点序号",
+        "type": "slider",
+        "def": 3,
+        "min": 1,
+        "max": 10,
+        "step": 1,
+        "dependsOn": "focus",
+        "desc": "重点条目的序号（1 起）",
+        "publicKey": "focusIndex"
+      },
+      {
+        "key": "mediaFit",
+        "label": "封面填充",
+        "type": "segment",
+        "def": "cover",
+        "options": [
+          {
+            "value": "cover",
+            "label": "裁切"
+          },
+          {
+            "value": "contain",
+            "label": "完整"
+          }
+        ],
+        "desc": "封面的填充方式",
+        "publicKey": "mediaFit"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "dark",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "重点 / 序号 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "dark",
+      "trackCount": 8,
+      "showDuration": true,
+      "coverSide": "left",
+      "focus": true,
+      "focusIndex": 3,
+      "mediaFit": "cover",
+      "media": [],
+      "barMeta": "64 — Tracklist",
+      "brandLabel": "机会怪趣角色",
+      "coverTag": "节奏糖果",
+      "albumTitle": "《现场》",
+      "albumSub": "围绕娱乐故事复盘紫橙节",
+      "listTitle": "曲目[[清单]]",
+      "tracksLabel": "TRACKS",
+      "focusTag": "反馈",
+      "mediaPlaceholder": "拖入专辑封面",
+      "tracks": [
+        {
+          "cn": "南瓜",
+          "en": "糖果",
+          "d": "1:12"
+        },
+        {
+          "cn": "紫橙",
+          "en": "怪趣角色 /",
+          "d": "3:48"
+        },
+        {
+          "cn": "以南",
+          "en": "围绕娱乐故",
+          "d": "4:05"
+        },
+        {
+          "cn": "糖果路",
+          "en": "糖果路径",
+          "d": "3:21"
+        },
+        {
+          "cn": "怪趣",
+          "en": "紫橙",
+          "d": "3:57"
+        },
+        {
+          "cn": "紫橙节",
+          "en": "南瓜故事 / ",
+          "d": "4:32"
+        },
+        {
+          "cn": "南瓜",
+          "en": "怪趣角色 ",
+          "d": "3:09"
+        },
+        {
+          "cn": "紫橙",
+          "en": "紫橙",
+          "d": "4:18"
+        },
+        {
+          "cn": "紫橙节",
+          "en": "怪趣角色 / 5",
+          "d": "3:44"
+        },
+        {
+          "cn": "紫橙",
+          "en": "南瓜",
+          "d": "2:05"
+        }
+      ],
+      "page": "64",
+      "total": "82",
+      "footerTagline": "影响怪趣角色"
+    }
+  },
+  {
+    "key": "theme14_page058",
+    "themeKey": "theme14",
+    "pageNumber": 58,
+    "layout": "THEME14-058",
+    "slot": "signature-pumpkin-photo-story-theme14-058",
+    "label": "紫橙怪趣风 · pumpkin-photo-story",
+    "sourceTheme": "theme14",
+    "sourcePageKey": "theme14_signature_pumpkin_photo_story",
+    "moduleFamily": "media",
+    "moduleOrigin": "owned",
+    "moduleStrategy": "new",
+    "archetypeId": "pumpkin-photo-story",
+    "evidenceMode": "observed",
+    "evidenceRefs": [
+      "slide-11",
+      "slide-12",
+      "slide-18"
+    ],
+    "derivedFromRules": [],
+    "anchorModuleRefs": [],
+    "stylePrimitiveRefs": [],
+    "styleSignals": [
+      "大幅南瓜照片与白色标题叠置",
+      "橙色画布承载媒体卡",
+      "蜘蛛网覆盖媒体边角但不遮挡主体"
+    ],
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showSignatureSystem",
+        "label": "显示主题签名系统",
+        "type": "toggle",
+        "default": true,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "signature-system",
+            "ornament",
+            "page-marker"
+          ],
+          "minChangedRatio": 0.008,
+          "minRegions": 2
+        },
+        "publicKey": "showSignatureSystem"
+      },
+      {
+        "key": "density",
+        "label": "信息密度",
+        "type": "select",
+        "default": "balanced",
+        "options": [
+          {
+            "label": "紧凑",
+            "value": "compact"
+          },
+          {
+            "label": "平衡",
+            "value": "balanced"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-frame",
+            "spacing",
+            "type-scale"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "density"
+      },
+      {
+        "key": "mediaLayout",
+        "label": "媒体结构",
+        "type": "select",
+        "default": "structured",
+        "options": [
+          {
+            "label": "结构化",
+            "value": "structured"
+          },
+          {
+            "label": "偏移强调",
+            "value": "offset"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-grid",
+            "reading-order",
+            "emphasis"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "mediaLayout"
+      },
+      {
+        "key": "mediaCount",
+        "label": "媒体数量",
+        "type": "range",
+        "min": 1,
+        "max": 3,
+        "default": 2,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "media",
+            "layout"
+          ],
+          "minChangedRatio": 0.01,
+          "minRegions": 2
+        },
+        "mediaSlots": [
+          {
+            "field": "media",
+            "fieldPath": "props.media",
+            "countKey": "mediaCount",
+            "maxCount": 3,
+            "initialSrcSupported": true,
+            "canPresetMedia": true,
+            "acceptedKinds": [
+              "image"
+            ]
+          }
+        ],
+        "publicKey": "mediaCount"
+      }
+    ],
+    "defaultProps": {
+      "showSignatureSystem": true,
+      "density": "balanced",
+      "mediaLayout": "structured",
+      "pillars": [
+        "故事开场",
+        "怪趣角色",
+        "互动任务",
+        "惊喜收尾"
+      ],
+      "summary": "让紫橙舞台、怪趣角色和互动任务共同推动一场可参与、可分享的节日故事。",
+      "title": "节日创意活动的场景证据",
+      "caption": "让紫橙舞台、怪趣角色和互动任务共同推动一场可参与、可分享的节日故事。",
+      "facts": [
+        "用一句有张力的标题点亮夜晚。",
+        "让南瓜、蜘蛛和坩埚成为角色。",
+        "通过任务与选择推动参与。"
+      ],
+      "media": [],
+      "mediaCount": 3
+    }
+  },
+  {
+    "key": "theme14_page059",
+    "themeKey": "theme14",
+    "pageNumber": 59,
+    "layout": "THEME14-059",
+    "slot": "gallerywall-theme12-071",
+    "label": "紫橙怪趣风 · 图文与案例",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page071",
+    "moduleFamily": "media",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "mediaCount",
+        "label": "画框数量",
+        "type": "slider",
+        "def": 4,
+        "min": 3,
+        "max": 6,
+        "step": 1,
+        "desc": "墙上悬挂的画框数量",
+        "publicKey": "mediaCount"
+      },
+      {
+        "key": "mediaFit",
+        "label": "图片填充",
+        "type": "segment",
+        "def": "cover",
+        "options": [
+          {
+            "value": "cover",
+            "label": "裁切"
+          },
+          {
+            "value": "contain",
+            "label": "完整"
+          }
+        ],
+        "desc": "画作填充方式",
+        "publicKey": "mediaFit"
+      },
+      {
+        "key": "showMat",
+        "label": "卡纸边",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏画框内的白色卡纸边",
+        "publicKey": "showMat"
+      },
+      {
+        "key": "showPlaque",
+        "label": "铭牌",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏画框下方的作品铭牌",
+        "publicKey": "showPlaque"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#7a3a18",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "导语 / 高亮 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "mediaCount": 4,
+      "mediaFit": "cover",
+      "showMat": true,
+      "showPlaque": true,
+      "media": [],
+      "barMeta": "67 — Gallery Wall",
+      "brandLabel": "影响怪趣角色",
+      "kicker": "59 / 娱乐故事",
+      "title": "娱乐故事 · 验证怪趣角",
+      "metaPrefix": "创意内容",
+      "mediaPlaceholder": "拖入画作",
+      "plaques": [
+        {
+          "t": "《潮汐》",
+          "s": "林夏 · 数字版税",
+          "y": "2026"
+        },
+        {
+          "t": "《霓虹废墟》",
+          "s": "阿特拉斯 · 现场",
+          "y": "2026"
+        },
+        {
+          "t": "《回声花园》",
+          "s": "Mira K. · 海外发行",
+          "y": "2025"
+        },
+        {
+          "t": "《盐与光》",
+          "s": "老周厂牌 · 黑胶",
+          "y": "2026"
+        },
+        {
+          "t": "《夜行列车》",
+          "s": "午夜电台 · 巡演",
+          "y": "2025"
+        },
+        {
+          "t": "《低气压》",
+          "s": "从路径切入创意",
+          "y": "2026"
+        }
+      ],
+      "page": "67",
+      "total": "82",
+      "footerTagline": "信号南瓜故事"
+    }
+  },
+  {
+    "key": "theme14_page060",
+    "themeKey": "theme14",
+    "pageNumber": 60,
+    "layout": "THEME14-060",
+    "slot": "spotlight-theme12-075",
+    "label": "紫橙怪趣风 · 图文与案例",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page075",
+    "moduleFamily": "media",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "imageSide",
+        "label": "图片位置",
+        "type": "segment",
+        "def": "right",
+        "options": [
+          {
+            "value": "left",
+            "label": "左"
+          },
+          {
+            "value": "right",
+            "label": "右"
+          }
+        ],
+        "desc": "大图所在的一侧",
+        "publicKey": "imageSide"
+      },
+      {
+        "key": "calloutCount",
+        "label": "标注数量",
+        "type": "slider",
+        "def": 4,
+        "min": 2,
+        "max": 4,
+        "step": 1,
+        "desc": "标注点与说明条目的数量",
+        "publicKey": "itemCount"
+      },
+      {
+        "key": "showPins",
+        "label": "图上标注点",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏图片上的编号标注点",
+        "publicKey": "showPins"
+      },
+      {
+        "key": "mediaFit",
+        "label": "图片填充",
+        "type": "segment",
+        "def": "cover",
+        "options": [
+          {
+            "value": "cover",
+            "label": "裁切"
+          },
+          {
+            "value": "contain",
+            "label": "完整"
+          }
+        ],
+        "desc": "图片的填充方式",
+        "publicKey": "mediaFit"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "标注点 / 编号 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "imageSide": "right",
+      "calloutCount": 4,
+      "showPins": true,
+      "mediaFit": "cover",
+      "media": [],
+      "barMeta": "71 — Feature",
+      "brandLabel": "节奏糖果路径",
+      "ghost": "50",
+      "kicker": "60 / 节日活动",
+      "title": "娱乐故事 · 复盘紫橙节奏",
+      "mediaPlaceholder": "拖入产品 / 功能截图",
+      "callouts": [
+        {
+          "cn": "紫橙节奏",
+          "en": "南瓜故事 / 6",
+          "d": "每一笔版税按平台、地区即时拆解。",
+          "pin": {
+            "top": "18%",
+            "left": "22%"
+          }
+        },
+        {
+          "cn": "南瓜故事",
+          "en": "怪趣角色 / ",
+          "d": "同步上架全球 30+ 流媒体平台。",
+          "pin": {
+            "top": "40%",
+            "left": "70%"
+          }
+        },
+        {
+          "cn": "紫橙节奏",
+          "en": "怪趣角",
+          "d": "专属页面把听众沉淀为资产。",
+          "pin": {
+            "top": "66%",
+            "left": "34%"
+          }
+        },
+        {
+          "cn": "紫橙节奏",
+          "en": "紫橙节",
+          "d": "全网监测盗用，一键发起维权。",
+          "pin": {
+            "top": "80%",
+            "left": "78%"
+          }
+        }
+      ],
+      "page": "71",
+      "total": "82",
+      "footerTagline": "证据紫橙节奏"
+    }
+  },
+  {
+    "key": "theme14_page061",
+    "themeKey": "theme14",
+    "pageNumber": 61,
+    "layout": "THEME14-061",
+    "slot": "editorial-theme12-018",
+    "label": "紫橙怪趣风 · 图文与案例",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page018",
+    "moduleFamily": "media",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "rowCount",
+        "label": "段落数",
+        "type": "slider",
+        "def": 3,
+        "min": 2,
+        "max": 3,
+        "step": 1,
+        "desc": "交错的图文段落数量",
+        "publicKey": "rowCount"
+      },
+      {
+        "key": "imageSide",
+        "label": "首段图片侧",
+        "type": "segment",
+        "def": "left",
+        "options": [
+          {
+            "value": "left",
+            "label": "左"
+          },
+          {
+            "value": "right",
+            "label": "右"
+          }
+        ],
+        "desc": "第一段图片在左还是右（逐段交替）",
+        "publicKey": "imageSide"
+      },
+      {
+        "key": "showNumbers",
+        "label": "段落编号",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏每段的大编号",
+        "publicKey": "showNumbers"
+      },
+      {
+        "key": "showCaption",
+        "label": "段落正文",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏每段说明文字",
+        "publicKey": "showCaption"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "导语 / 编号 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "rowCount": 3,
+      "imageSide": "left",
+      "showNumbers": true,
+      "showCaption": true,
+      "media": [],
+      "barMeta": "14 — Editorial",
+      "brandLabel": "现状南瓜故事",
+      "kicker": "61 / 节日活动",
+      "title": "节日活动 · 推进怪趣角色",
+      "bands": [
+        {
+          "k": "录音棚 / Studio",
+          "t": "一条 demo 的开始",
+          "d": "教师可从样本观察创意课堂，用怪趣角色解释变化，并以糖果路径推进响应。"
+        },
+        {
+          "k": "舞台 / Stage",
+          "t": "让现场被听见",
+          "d": "从 Livehouse 到音乐节，一个页面同步票务、点歌与打赏，演出结束即生成结算单。"
+        },
+        {
+          "k": "结算 / Payout",
+          "t": "把收入握在手里",
+          "d": "全网版税 72 小时透明到账，每一分钱都能追溯到那一首歌、那一场演出。"
+        }
+      ],
+      "page": "14",
+      "total": "82",
+      "footerTagline": "趋势糖果路径"
+    }
+  },
+  {
+    "key": "theme14_page062",
+    "themeKey": "theme14",
+    "pageNumber": 62,
+    "layout": "THEME14-062",
+    "slot": "quoteimage-theme12-077",
+    "label": "紫橙怪趣风 · 图文与案例",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page077",
+    "moduleFamily": "media",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "backgroundMode",
+        "label": "背景替换",
+        "type": "segment",
+        "def": "unicorn",
+        "options": [
+          {
+            "value": "unicorn",
+            "label": "动态"
+          },
+          {
+            "value": "media",
+            "label": "上传"
+          }
+        ],
+        "desc": "动态 shader 或自定义背景媒体",
+        "publicKey": "backgroundMode"
+      },
+      {
+        "key": "unicornScene",
+        "label": "动态场景",
+        "type": "segment",
+        "def": "tech",
+        "options": [
+          {
+            "value": "tech",
+            "label": "科技"
+          },
+          {
+            "value": "automations",
+            "label": "自动化"
+          },
+          {
+            "value": "moving",
+            "label": "流动"
+          },
+          {
+            "value": "goey",
+            "label": "黏球"
+          }
+        ],
+        "dependsOn": "backgroundMode",
+        "dependsOnValue": "unicorn",
+        "desc": "选择固定 Unicorn shader 场景",
+        "publicKey": "dynamicVisual"
+      },
+      {
+        "key": "tint",
+        "label": "蒙版色调",
+        "type": "segment",
+        "def": "dark",
+        "options": [
+          {
+            "value": "dark",
+            "label": "深色"
+          },
+          {
+            "value": "accent",
+            "label": "强调色"
+          }
+        ],
+        "desc": "图片上的蒙版色调",
+        "publicKey": "tint"
+      },
+      {
+        "key": "quotePos",
+        "label": "金句位置",
+        "type": "segment",
+        "def": "bottom",
+        "options": [
+          {
+            "value": "bottom",
+            "label": "底部"
+          },
+          {
+            "value": "center",
+            "label": "居中"
+          }
+        ],
+        "desc": "金句在画面中的位置",
+        "publicKey": "quotePos"
+      },
+      {
+        "key": "showMark",
+        "label": "引号装饰",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏大引号符号",
+        "publicKey": "showMark"
+      },
+      {
+        "key": "showAttribution",
+        "label": "署名",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏引文署名",
+        "publicKey": "showAttribution"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "蒙版 / 引号 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "backgroundMode": "unicorn",
+      "unicornScene": "tech",
+      "tint": "dark",
+      "quotePos": "bottom",
+      "showMark": true,
+      "showAttribution": true,
+      "media": [],
+      "kicker": "62 / 娱乐故事",
+      "quote": "从约束切入创意课堂，以紫橙节奏比较关键证据，",
+      "authorName": "陈屿 · 独立音乐人",
+      "authorEn": "以紫橙节奏校准节日活动的反馈，再用怪趣角色",
+      "footLabel": "从约束切入创意课堂，以紫橙节奏比较关键",
+      "mediaPlaceholder": "拖入整幅现场 / 人物大图",
+      "page": "73",
+      "total": "82"
+    }
+  },
+  {
+    "key": "theme14_page063",
+    "themeKey": "theme14",
+    "pageNumber": 63,
+    "layout": "THEME14-063",
+    "slot": "spectrum-theme12-072",
+    "label": "紫橙怪趣风 · 信息结构",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page072",
+    "moduleFamily": "media",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "mediaCount",
+        "label": "图片列数",
+        "type": "slider",
+        "def": 7,
+        "min": 5,
+        "max": 9,
+        "step": 1,
+        "desc": "组成声波的图片列数",
+        "publicKey": "mediaCount"
+      },
+      {
+        "key": "mediaFit",
+        "label": "图片填充",
+        "type": "segment",
+        "def": "cover",
+        "options": [
+          {
+            "value": "cover",
+            "label": "裁切"
+          },
+          {
+            "value": "contain",
+            "label": "完整"
+          }
+        ],
+        "desc": "图片填充方式",
+        "publicKey": "mediaFit"
+      },
+      {
+        "key": "showAxis",
+        "label": "中线",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏声波中线",
+        "publicKey": "showAxis"
+      },
+      {
+        "key": "showNumbers",
+        "label": "帧编号",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏每列帧编号",
+        "publicKey": "showNumbers"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#baf04f",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "中线 / 导语 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "mediaCount": 7,
+      "mediaFit": "cover",
+      "showAxis": true,
+      "showNumbers": true,
+      "media": [],
+      "barMeta": "68 — Spectrum",
+      "brandLabel": "路径糖果路径",
+      "kicker": "63 / 节日活动",
+      "title": "围绕娱乐故事复盘紫橙节奏与",
+      "hint": "Frames",
+      "page": "68",
+      "total": "82",
+      "footerTagline": "样本怪趣角色"
+    }
+  },
+  {
+    "key": "theme14_page064",
+    "themeKey": "theme14",
+    "pageNumber": 64,
+    "layout": "THEME14-064",
+    "slot": "showcase-theme12-019",
+    "label": "紫橙怪趣风 · 图文与案例",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page019",
+    "moduleFamily": "media",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "mediaCount",
+        "label": "图片数量",
+        "type": "slider",
+        "def": 3,
+        "min": 0,
+        "max": 5,
+        "step": 1,
+        "desc": "图片槽数量；0=纯文字版式，1=按原图比例自适应主图，2–5=自动排布的画廊",
+        "publicKey": "mediaCount"
+      },
+      {
+        "key": "mediaFit",
+        "label": "图片填充",
+        "type": "segment",
+        "def": "cover",
+        "options": [
+          {
+            "value": "cover",
+            "label": "裁切"
+          },
+          {
+            "value": "contain",
+            "label": "完整"
+          }
+        ],
+        "dependsOn": "mediaCount",
+        "desc": "多图时图片的填充方式",
+        "publicKey": "mediaFit"
+      },
+      {
+        "key": "showCaption",
+        "label": "显示图注",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏左栏图注说明",
+        "publicKey": "showCaption"
+      },
+      {
+        "key": "showDecorations",
+        "label": "显示装饰",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏编号角标装饰",
+        "publicKey": "showDecorations"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "导语 / 角标 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "mediaCount": 3,
+      "mediaFit": "cover",
+      "showCaption": true,
+      "showDecorations": true,
+      "media": [],
+      "barMeta": "15 — In Context",
+      "brandLabel": "边界南瓜故事",
+      "kicker": "64 / 节日活动",
+      "title": "从路径切入节日活动，以糖果路",
+      "caption": "娱乐故事的关键不只是怪趣角色，还要持续验证糖果路径带来的机会反馈。",
+      "hint": "/ Frames · drag to fill",
+      "mediaPlaceholderHero": "拖入主图 / Hero image",
+      "mediaPlaceholder": "拖入图片",
+      "page": "15",
+      "total": "82",
+      "footerTagline": "边界南瓜故事"
+    }
+  },
+  {
+    "key": "theme14_page065",
+    "themeKey": "theme14",
+    "pageNumber": 65,
+    "layout": "THEME14-065",
+    "slot": "signature-cauldron-quote-statement-theme14-065",
+    "label": "紫橙怪趣风 · cauldron-quote-statement",
+    "sourceTheme": "theme14",
+    "sourcePageKey": "theme14_signature_cauldron_quote_statement",
+    "moduleFamily": "statement",
+    "moduleOrigin": "owned",
+    "moduleStrategy": "new",
+    "archetypeId": "cauldron-quote-statement",
+    "evidenceMode": "observed",
+    "evidenceRefs": [
+      "slide-08",
+      "slide-10",
+      "slide-22"
+    ],
+    "derivedFromRules": [],
+    "anchorModuleRefs": [],
+    "stylePrimitiveRefs": [],
+    "styleSignals": [
+      "超大白色观点置于橙色或紫色画布",
+      "引号或蜘蛛网形成顶部装饰",
+      "坩埚与南瓜承担底部收束"
+    ],
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showSignatureSystem",
+        "label": "显示主题签名系统",
+        "type": "toggle",
+        "default": true,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "signature-system",
+            "ornament",
+            "page-marker"
+          ],
+          "minChangedRatio": 0.008,
+          "minRegions": 2
+        },
+        "publicKey": "showSignatureSystem"
+      },
+      {
+        "key": "density",
+        "label": "信息密度",
+        "type": "select",
+        "default": "balanced",
+        "options": [
+          {
+            "label": "紧凑",
+            "value": "compact"
+          },
+          {
+            "label": "平衡",
+            "value": "balanced"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-frame",
+            "spacing",
+            "type-scale"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "density"
+      },
+      {
+        "key": "statementLayout",
+        "label": "观点结构",
+        "type": "select",
+        "default": "structured",
+        "options": [
+          {
+            "label": "结构化",
+            "value": "structured"
+          },
+          {
+            "label": "偏移强调",
+            "value": "offset"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-grid",
+            "reading-order",
+            "emphasis"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "statementLayout"
+      }
+    ],
+    "defaultProps": {
+      "showSignatureSystem": true,
+      "density": "balanced",
+      "statementLayout": "structured",
+      "pillars": [
+        "故事开场",
+        "怪趣角色",
+        "互动任务",
+        "惊喜收尾"
+      ],
+      "summary": "让紫橙舞台、怪趣角色和互动任务共同推动一场可参与、可分享的节日故事。",
+      "kicker": "KEY STATEMENT",
+      "statement": "最好的节日故事，永远需要观众亲自走进去。",
+      "support": "让紫橙舞台、怪趣角色和互动任务共同推动一场可参与、可分享的节日故事。"
+    }
+  },
+  {
+    "key": "theme14_page066",
+    "themeKey": "theme14",
+    "pageNumber": 66,
+    "layout": "THEME14-066",
+    "slot": "quotewall-theme12-085",
+    "label": "紫橙怪趣风 · 观点与引语",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page085",
+    "moduleFamily": "statement",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "quoteCount",
+        "label": "引言数量",
+        "type": "slider",
+        "def": 4,
+        "min": 2,
+        "max": 4,
+        "step": 1,
+        "desc": "墙上展示的引言数量",
+        "publicKey": "quoteCount"
+      },
+      {
+        "key": "showBadge",
+        "label": "姓名徽标",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏发言人首字徽标",
+        "publicKey": "showBadge"
+      },
+      {
+        "key": "focus",
+        "label": "聚焦高亮",
+        "type": "toggle",
+        "def": false,
+        "desc": "突出其中一条引言，其余淡化",
+        "publicKey": "focus"
+      },
+      {
+        "key": "focusIndex",
+        "label": "聚焦第几条",
+        "type": "slider",
+        "def": 1,
+        "min": 1,
+        "max": 4,
+        "step": 1,
+        "dependsOn": "focus",
+        "desc": "高亮的引言序号",
+        "publicKey": "focusIndex"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "dark",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#5a138e",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "主引言 / 导语 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "dark",
+      "quoteCount": 4,
+      "showBadge": true,
+      "focus": false,
+      "focusIndex": 1,
+      "barMeta": "81 — Quote Wall",
+      "brandLabel": "机会怪趣角色",
+      "kicker": "66 / 娱乐故事",
+      "title": "娱乐故事 · 验证怪趣角色",
+      "quotes": [
+        {
+          "q": "节日活动正在由南瓜故事走向紫橙节奏，需要通过现状识别现状、",
+          "n": "林夏",
+          "r": "独立唱作人 / 上海",
+          "m": "林",
+          "c": "#5a138e",
+          "fg": "#fff",
+          "sub": "#f3b8ec",
+          "big": true
+        },
+        {
+          "q": "一个人就是一支队伍——发行、结算、粉丝运营都在一块屏幕上。",
+          "n": "阿特拉斯乐队",
+          "r": "后摇乐队 / 成都",
+          "m": "A",
+          "c": "#3bb6ec",
+          "fg": "#143049",
+          "sub": "#1c5b82"
+        },
+        {
+          "q": "海外平台同步分发，让我们第一次拿到了真正的全球收入。",
+          "n": "Mira K.",
+          "r": "电子制作人 / 柏林",
+          "m": "M",
+          "c": "#1f6b2a",
+          "fg": "#fff",
+          "sub": "#baf04f"
+        },
+        {
+          "q": "版权上链之后，合作再也不用靠口头承诺。",
+          "n": "老周",
+          "r": "厂牌主理人 / 北京",
+          "m": "周",
+          "c": "#f15a29",
+          "fg": "#fff",
+          "sub": "#fdddc6"
+        }
+      ],
+      "page": "81",
+      "total": "82",
+      "footerTagline": "节奏糖果路径"
+    }
+  },
+  {
+    "key": "theme14_page067",
+    "themeKey": "theme14",
+    "pageNumber": 67,
+    "layout": "THEME14-067",
+    "slot": "quote-theme12-006",
+    "label": "紫橙怪趣风 · 观点与引语",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page006",
+    "moduleFamily": "statement",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "align",
+        "label": "对齐",
+        "type": "segment",
+        "def": "left",
+        "options": [
+          {
+            "value": "left",
+            "label": "左对齐"
+          },
+          {
+            "value": "center",
+            "label": "居中"
+          }
+        ],
+        "desc": "引文与署名的排版对齐",
+        "publicKey": "align"
+      },
+      {
+        "key": "showMark",
+        "label": "引号装饰",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏大引号符号",
+        "publicKey": "showMark"
+      },
+      {
+        "key": "showAttribution",
+        "label": "署名",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏引文署名",
+        "publicKey": "showAttribution"
+      },
+      {
+        "key": "showDecorations",
+        "label": "显示装饰",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏几何装饰图形",
+        "publicKey": "showDecorations"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "引号 / 高亮 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "align": "left",
+      "showMark": true,
+      "showAttribution": true,
+      "showDecorations": true,
+      "barMeta": "02 — In Their Words",
+      "brandLabel": "节奏糖果路径",
+      "kicker": "67 / 创意课堂",
+      "quote": "娱乐故事的关键不只是糖果路径，还要持续沉淀南瓜故事带来的趋势反",
+      "authorName": "教师可从信号观察",
+      "authorEn": "教师可从样本观察创意课堂，用怪",
+      "page": "02",
+      "total": "82",
+      "footerTagline": "机会怪趣角色"
+    }
+  },
+  {
+    "key": "theme14_page068",
+    "themeKey": "theme14",
+    "pageNumber": 68,
+    "layout": "THEME14-068",
+    "slot": "quote-theme09-052",
+    "label": "紫橙怪趣风 · 观点与引语",
+    "sourceTheme": "theme09",
+    "sourcePageKey": "theme09_page052",
+    "moduleFamily": "statement",
+    "bgClass": "bg-deep",
+    "controls": [
+      {
+        "prop": "itemCount",
+        "type": "slider",
+        "label": "数量",
+        "default": 4,
+        "min": 1,
+        "max": 4,
+        "step": 1,
+        "key": "itemCount",
+        "publicKey": "itemCount"
+      },
+      {
+        "prop": "imgCount",
+        "type": "slider",
+        "label": "图片槽数量",
+        "default": 0,
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "key": "imgCount",
+        "publicKey": "imgCount"
+      },
+      {
+        "prop": "showSource",
+        "type": "toggle",
+        "label": "署名",
+        "default": true,
+        "key": "showSource",
+        "publicKey": "showSource"
+      },
+      {
+        "prop": "showAside",
+        "type": "toggle",
+        "label": "装饰文案",
+        "default": true,
+        "key": "showAside",
+        "publicKey": "showAside"
+      },
+      {
+        "prop": "labelType",
+        "type": "labelType",
+        "label": "标签类型",
+        "default": "数字",
+        "key": "labelType",
+        "publicKey": "labelType"
+      },
+      {
+        "prop": "focus",
+        "type": "focus",
+        "label": "重点信息 Focus",
+        "default": true,
+        "key": "focus",
+        "publicKey": "focus"
+      },
+      {
+        "prop": "focusIndex",
+        "type": "slider",
+        "label": "焦点序号",
+        "default": 0,
+        "min": 0,
+        "max": 3,
+        "maxFromKey": "itemCount",
+        "maxFromKeyOffset": -1,
+        "displayOffset": 1,
+        "step": 1,
+        "key": "focusIndex",
+        "publicKey": "focusIndex"
+      }
+    ],
+    "defaultProps": {
+      "images": [],
+      "itemCount": 4,
+      "focus": true,
+      "focusIndex": 0,
+      "labelType": "symbol",
+      "showSource": true,
+      "imgCount": 0,
+      "showAside": true,
+      "badge": "09",
+      "quotes": [
+        {
+          "text": "以紫橙节奏校准节日活动的反馈，再用怪趣角色检验结果能否持续。",
+          "name": "路径1",
+          "role": "现状南瓜故事",
+          "tone": "看好"
+        },
+        {
+          "text": "节日活动的关键不只是紫橙节奏，还要持续验证怪趣角色带来的约束反馈。",
+          "name": "样本2",
+          "role": "机会怪趣角色",
+          "tone": "谨慎"
+        },
+        {
+          "text": "以紫橙节奏校准节日活动的证据，再用怪趣角色检验结果能否持续。",
+          "name": "趋势3",
+          "role": "节奏糖果路",
+          "tone": "看好"
+        },
+        {
+          "text": "创意内容团队可从机会观察娱乐故事，用怪趣角色解释变化，并以糖",
+          "name": "样本4",
+          "role": "节奏糖果路径",
+          "tone": "中性"
+        }
+      ],
+      "headEn": "Voices · Perspectives",
+      "headCn": "观点引述 · 资本众声",
+      "distributionLabel": "立场分布"
+    }
+  },
+  {
+    "key": "theme14_page069",
+    "themeKey": "theme14",
+    "pageNumber": 69,
+    "layout": "THEME14-069",
+    "slot": "signature-spooky-facts-overview-theme14-069",
+    "label": "紫橙怪趣风 · spooky-facts-overview",
+    "sourceTheme": "theme14",
+    "sourcePageKey": "theme14_signature_spooky_facts_overview",
+    "moduleFamily": "general",
+    "moduleOrigin": "owned",
+    "moduleStrategy": "new",
+    "archetypeId": "spooky-facts-overview",
+    "evidenceMode": "observed",
+    "evidenceRefs": [
+      "slide-06",
+      "slide-09",
+      "slide-14"
+    ],
+    "derivedFromRules": [],
+    "anchorModuleRefs": [],
+    "stylePrimitiveRefs": [],
+    "styleSignals": [
+      "事实条目直接铺在紫色画布",
+      "黄色小标题与橙色图标提供扫描点",
+      "坩埚或蜘蛛压住页面边缘"
+    ],
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showSignatureSystem",
+        "label": "显示主题签名系统",
+        "type": "toggle",
+        "default": true,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "signature-system",
+            "ornament",
+            "page-marker"
+          ],
+          "minChangedRatio": 0.008,
+          "minRegions": 2
+        },
+        "publicKey": "showSignatureSystem"
+      },
+      {
+        "key": "density",
+        "label": "信息密度",
+        "type": "select",
+        "default": "balanced",
+        "options": [
+          {
+            "label": "紧凑",
+            "value": "compact"
+          },
+          {
+            "label": "平衡",
+            "value": "balanced"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-frame",
+            "spacing",
+            "type-scale"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "density"
+      },
+      {
+        "key": "cardLayout",
+        "label": "卡片结构",
+        "type": "select",
+        "default": "structured",
+        "options": [
+          {
+            "label": "结构化",
+            "value": "structured"
+          },
+          {
+            "label": "偏移强调",
+            "value": "offset"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-grid",
+            "reading-order",
+            "emphasis"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "cardLayout"
+      }
+    ],
+    "defaultProps": {
+      "showSignatureSystem": true,
+      "density": "balanced",
+      "cardLayout": "structured",
+      "pillars": [
+        "故事开场",
+        "怪趣角色",
+        "互动任务",
+        "惊喜收尾"
+      ],
+      "summary": "让紫橙舞台、怪趣角色和互动任务共同推动一场可参与、可分享的节日故事。",
+      "title": "节日创意活动的四个关键支点",
+      "lead": "让紫橙舞台、怪趣角色和互动任务共同推动一场可参与、可分享的节日故事。",
+      "items": [
+        {
+          "title": "故事开场",
+          "body": "用一句有张力的标题点亮夜晚。"
+        },
+        {
+          "title": "怪趣角色",
+          "body": "让南瓜、蜘蛛和坩埚成为角色。"
+        },
+        {
+          "title": "互动任务",
+          "body": "通过任务与选择推动参与。"
+        },
+        {
+          "title": "惊喜收尾",
+          "body": "用分享与合影完成节日记忆。"
+        }
+      ]
+    }
+  },
+  {
+    "key": "theme14_page070",
+    "themeKey": "theme14",
+    "pageNumber": 70,
+    "layout": "THEME14-070",
+    "slot": "signature-derived-agenda-overview-theme14-070",
+    "label": "紫橙怪趣风 · derived-agenda-overview",
+    "sourceTheme": "theme14",
+    "sourcePageKey": "theme14_derived_agenda_overview",
+    "moduleFamily": "general",
+    "moduleOrigin": "owned",
+    "moduleStrategy": "new",
+    "archetypeId": "derived-agenda-overview",
+    "evidenceMode": "inferred",
+    "evidenceRefs": [],
+    "derivedFromRules": [
+      "typography-01",
+      "composition-02",
+      "surface-01",
+      "motif-02",
+      "color-03"
+    ],
+    "anchorModuleRefs": [
+      "theme14_signature_spooky_facts_overview",
+      "theme14_signature_pumpkin_night_cover"
+    ],
+    "stylePrimitiveRefs": [
+      "cauldron-bubble",
+      "candy-node"
+    ],
+    "derivationReason": "把模板的编号和分隔规则扩展为议程页；以 theme14_signature_spooky_facts_overview、theme14_signature_pumpkin_night_cover 为视觉锚点。",
+    "styleSignals": [
+      "标题使用粗体无衬线并带轻微怪趣节奏",
+      "蜘蛛网从角落展开，南瓜与坩埚压住页边",
+      "内容直接铺在纯色画布上并以少量浅紫卡片分区",
+      "橙色圆点与紫色图标形成时间线节点",
+      "白色承担正文与大标题"
+    ],
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showSignatureSystem",
+        "label": "显示主题签名系统",
+        "type": "toggle",
+        "default": true,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "signature-system",
+            "ornament",
+            "page-marker"
+          ],
+          "minChangedRatio": 0.008,
+          "minRegions": 2
+        },
+        "publicKey": "showSignatureSystem"
+      },
+      {
+        "key": "density",
+        "label": "信息密度",
+        "type": "select",
+        "default": "balanced",
+        "options": [
+          {
+            "label": "紧凑",
+            "value": "compact"
+          },
+          {
+            "label": "平衡",
+            "value": "balanced"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-frame",
+            "spacing",
+            "type-scale"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "density"
+      },
+      {
+        "key": "cardLayout",
+        "label": "卡片结构",
+        "type": "select",
+        "default": "structured",
+        "options": [
+          {
+            "label": "结构化",
+            "value": "structured"
+          },
+          {
+            "label": "偏移强调",
+            "value": "offset"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-grid",
+            "reading-order",
+            "emphasis"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "cardLayout"
+      }
+    ],
+    "defaultProps": {
+      "showSignatureSystem": true,
+      "density": "balanced",
+      "cardLayout": "structured",
+      "pillars": [
+        "故事开场",
+        "怪趣角色",
+        "互动任务",
+        "惊喜收尾"
+      ],
+      "summary": "让紫橙舞台、怪趣角色和互动任务共同推动一场可参与、可分享的节日故事。",
+      "title": "今天讨论四个关键问题",
+      "lead": "让紫橙舞台、怪趣角色和互动任务共同推动一场可参与、可分享的节日故事。",
+      "sections": [
+        "故事开场",
+        "怪趣角色",
+        "互动任务",
+        "惊喜收尾"
+      ],
+      "numbers": [
+        "01",
+        "02",
+        "03",
+        "04"
+      ]
+    }
+  },
+  {
+    "key": "theme14_page071",
+    "themeKey": "theme14",
+    "pageNumber": 71,
+    "layout": "THEME14-071",
+    "slot": "orgchart-theme12-013",
+    "label": "紫橙怪趣风 · 信息结构",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page013",
+    "moduleFamily": "general",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "childCount",
+        "label": "分支数量",
+        "type": "slider",
+        "def": 3,
+        "min": 2,
+        "max": 4,
+        "step": 1,
+        "desc": "第二层分支节点数量",
+        "publicKey": "childCount"
+      },
+      {
+        "key": "showLevel3",
+        "label": "第三层",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏第三层叶子节点",
+        "publicKey": "showLevel3"
+      },
+      {
+        "key": "showLeafDesc",
+        "label": "叶子说明",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏叶子节点下方说明",
+        "publicKey": "showLeafDesc"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#5a138e",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "根节点 / 连线 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "childCount": 3,
+      "showLevel3": true,
+      "showLeafDesc": true,
+      "barMeta": "09 — Structure",
+      "brandLabel": "路径糖果路径",
+      "kicker": "71 / 创意课堂",
+      "title": "娱乐故事 · 复盘紫橙节",
+      "rootTitle": "以怪趣",
+      "rootSub": "INDEPENDENT MUSIC CORE",
+      "branches": [
+        {
+          "t": "创作者中台",
+          "s": "CREATORS",
+          "c": "#3bb6ec",
+          "leaves": [
+            [
+              "发行",
+              "一键多平台"
+            ],
+            [
+              "结算",
+              "72h 到账"
+            ]
+          ]
+        },
+        {
+          "t": "版权中枢",
+          "s": "RIGHTS",
+          "c": "#1f6b2a",
+          "leaves": [
+            [
+              "存证",
+              "链上确权"
+            ],
+            [
+              "授权",
+              "全球清算"
+            ]
+          ]
+        },
+        {
+          "t": "听众网络",
+          "s": "AUDIENCE",
+          "c": "#f15a29",
+          "leaves": [
+            [
+              "订阅",
+              "粉丝直连"
+            ],
+            [
+              "现场",
+              "票务联动"
+            ]
+          ]
+        },
+        {
+          "t": "生态伙伴",
+          "s": "PARTNERS",
+          "c": "#c44ee0",
+          "leaves": [
+            [
+              "平台",
+              "30+ 渠道"
+            ],
+            [
+              "品牌",
+              "联合企划"
+            ]
+          ]
+        }
+      ],
+      "page": "09",
+      "total": "82",
+      "footerTagline": "边界南瓜故事"
+    }
+  },
+  {
+    "key": "theme14_page072",
+    "themeKey": "theme14",
+    "pageNumber": 72,
+    "layout": "THEME14-072",
+    "slot": "pricing-theme12-041",
+    "label": "紫橙怪趣风 · 信息结构",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page041",
+    "moduleFamily": "general",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "planCount",
+        "label": "方案数量",
+        "type": "slider",
+        "def": 3,
+        "min": 2,
+        "max": 4,
+        "step": 1,
+        "desc": "展示的价格方案数量",
+        "publicKey": "planCount"
+      },
+      {
+        "key": "highlightIndex",
+        "label": "推荐方案",
+        "type": "slider",
+        "def": 2,
+        "min": 1,
+        "max": 4,
+        "step": 1,
+        "desc": "被突出为推荐的方案序号（1 起）",
+        "publicKey": "highlightIndex"
+      },
+      {
+        "key": "billing",
+        "label": "计费周期",
+        "type": "segment",
+        "def": "monthly",
+        "options": [
+          {
+            "value": "monthly",
+            "label": "按月"
+          },
+          {
+            "value": "yearly",
+            "label": "按年"
+          }
+        ],
+        "desc": "切换月付 / 年付价格",
+        "publicKey": "billing"
+      },
+      {
+        "key": "showFeatures",
+        "label": "功能清单",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏每个方案的功能清单",
+        "publicKey": "showFeatures"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "推荐卡 / 对勾 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "planCount": 3,
+      "highlightIndex": 2,
+      "billing": "monthly",
+      "showFeatures": true,
+      "barMeta": "37 — Plans",
+      "brandLabel": "趋势糖果路径",
+      "title": "创意课堂 · 量化南瓜故事",
+      "billMonthly": "按月",
+      "billYearly": "按年省 25%",
+      "popularLabel": "推荐 Popular",
+      "ctaDefault": "免费开始",
+      "ctaContact": "联系销售",
+      "customLabel": "定制",
+      "plans": [
+        {
+          "cn": "糖果",
+          "en": "糖果路",
+          "m": 0,
+          "y": 0,
+          "note": "从趋势切",
+          "desc": "以糖果路径校准创意",
+          "feats": [
+            "全球 30+ 平台分发",
+            "基础结算面板",
+            "社区支持"
+          ]
+        },
+        {
+          "cn": "紫橙",
+          "en": "紫",
+          "m": 39,
+          "y": 29,
+          "note": "从影响切",
+          "desc": "从影响切入娱乐故事",
+          "feats": [
+            "一切「入门」功能",
+            "72h 极速到账",
+            "粉丝直连与会员",
+            "版权登记存证"
+          ]
+        },
+        {
+          "cn": "南瓜",
+          "en": "糖果",
+          "m": 99,
+          "y": 79,
+          "note": "从约束切",
+          "desc": "以糖果路径校准创",
+          "feats": [
+            "一切「专业」功能",
+            "盗用全网监测",
+            "多账号与分润",
+            "专属客户经理"
+          ]
+        },
+        {
+          "cn": "怪趣",
+          "en": "南瓜故事 / ",
+          "m": null,
+          "y": null,
+          "note": "活动策划",
+          "desc": "以南瓜故事校准",
+          "feats": [
+            "一切「厂牌」功能",
+            "开放 API 接入",
+            "SLA 与私有部署",
+            "定制结算规则"
+          ]
+        }
+      ],
+      "page": "37",
+      "total": "82",
+      "footerTagline": "现状南瓜故事"
+    }
+  },
+  {
+    "key": "theme14_page073",
+    "themeKey": "theme14",
+    "pageNumber": 73,
+    "layout": "THEME14-073",
+    "slot": "join-theme12-086",
+    "label": "紫橙怪趣风 · 信息结构",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page086",
+    "moduleFamily": "general",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showDirectory",
+        "label": "显示目录",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏底部链接目录",
+        "publicKey": "showDirectory"
+      },
+      {
+        "key": "directoryColumns",
+        "label": "目录栏数",
+        "type": "slider",
+        "def": 4,
+        "min": 2,
+        "max": 4,
+        "step": 1,
+        "dependsOn": "showDirectory",
+        "desc": "链接目录的列数",
+        "publicKey": "directoryColumns"
+      },
+      {
+        "key": "showMarquee",
+        "label": "显示跑马灯",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏底部滚动条",
+        "publicKey": "showMarquee"
+      },
+      {
+        "key": "marqueeSpeed",
+        "label": "跑马灯速度",
+        "type": "slider",
+        "def": 20,
+        "min": 8,
+        "max": 40,
+        "step": 1,
+        "unit": "s",
+        "dependsOn": "showMarquee",
+        "desc": "滚动一圈的秒数（越小越快）",
+        "publicKey": "marqueeSpeed"
+      },
+      {
+        "key": "showDecorations",
+        "label": "显示装饰",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏几何装饰图形",
+        "publicKey": "showDecorations"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "高亮/按钮等强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "showDirectory": true,
+      "directoryColumns": 4,
+      "showMarquee": true,
+      "marqueeSpeed": 20,
+      "showDecorations": true,
+      "barMeta": "82 — Join Us",
+      "brandLabel": "节奏糖果路径",
+      "kicker": "围绕节日活动追踪",
+      "title": "娱乐故事的关键不只是紫橙",
+      "subtitle": "从现状切入节日活动，以",
+      "ctaText": "免费开始发行",
+      "ctaUrl": "sound.wave / start",
+      "marqueeCn": "从现",
+      "marqueeEn": "教师可从信",
+      "directory": [
+        {
+          "h": "产品 / Product",
+          "links": [
+            "一键发行 Release",
+            "收益结算 Ledger",
+            "版权护盾 Shield",
+            "数据洞察 Insights"
+          ]
+        },
+        {
+          "h": "资源 / Resources",
+          "links": [
+            "帮助中心 Docs",
+            "开发者 API",
+            "博客 Journal",
+            "价格 Pricing"
+          ]
+        },
+        {
+          "h": "社区 / Community",
+          "links": [
+            "创作者计划",
+            "论坛 Forum",
+            "Discord",
+            "活动 Live"
+          ]
+        },
+        {
+          "h": "关于 / About",
+          "links": [
+            "团队 Team",
+            "招聘 Careers",
+            "媒体 Press",
+            "联系 Contact"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "key": "theme14_page074",
+    "themeKey": "theme14",
+    "pageNumber": 74,
+    "layout": "THEME14-074",
+    "slot": "bubble-theme12-053",
+    "label": "紫橙怪趣风 · 信息结构",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page053",
+    "moduleFamily": "general",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "bubbleCount",
+        "label": "气泡数量",
+        "type": "slider",
+        "def": 6,
+        "min": 4,
+        "max": 7,
+        "step": 1,
+        "desc": "散点中的气泡（对象类型）数量",
+        "publicKey": "bubbleCount"
+      },
+      {
+        "key": "focus",
+        "label": "聚焦高亮",
+        "type": "toggle",
+        "def": false,
+        "desc": "突出其中一个气泡，其余淡化",
+        "publicKey": "focus"
+      },
+      {
+        "key": "focusIndex",
+        "label": "聚焦第几个",
+        "type": "slider",
+        "def": 4,
+        "min": 1,
+        "max": 7,
+        "step": 1,
+        "dependsOn": "focus",
+        "desc": "高亮的气泡序号",
+        "publicKey": "focusIndex"
+      },
+      {
+        "key": "showGrid",
+        "label": "坐标网格",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏坐标轴与网格",
+        "publicKey": "showGrid"
+      },
+      {
+        "key": "showLabels",
+        "label": "气泡标签",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏气泡上的名称标签",
+        "publicKey": "showLabels"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#5a138e",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "聚焦气泡 / 导语 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "bubbleCount": 6,
+      "focus": false,
+      "focusIndex": 4,
+      "showGrid": true,
+      "showLabels": true,
+      "barMeta": "49 — Bubble",
+      "brandLabel": "现状南瓜故事",
+      "kicker": "74 / 创意课堂",
+      "title": "节日活动 · 追踪紫橙",
+      "axisX": "← 月均播放量 STREAMS →",
+      "legendSize": "气泡大小 = 粉丝规模",
+      "railGhost": "63",
+      "railValue": "4.3×",
+      "railLabel": "说唱厂牌 · 单位粉丝产值",
+      "railText": "围绕创意课堂量化南瓜故事与紫橙节奏，让信号判断建立在具体事实之上。",
+      "railAxisY": "纵轴 = 人均版税 · REVENUE / ARTIST",
+      "bubbles": [
+        {
+          "t": "独立厂牌",
+          "s": "Indies",
+          "x": 72,
+          "y": 68,
+          "r": 0.92
+        },
+        {
+          "t": "卧室制作人",
+          "s": "Bedroom",
+          "x": 38,
+          "y": 44,
+          "r": 0.55
+        },
+        {
+          "t": "现场乐队",
+          "s": "Live Band",
+          "x": 55,
+          "y": 78,
+          "r": 0.7
+        },
+        {
+          "t": "说唱厂牌",
+          "s": "Hip-Hop",
+          "x": 84,
+          "y": 58,
+          "r": 1
+        },
+        {
+          "t": "电子制作",
+          "s": "Electronic",
+          "x": 64,
+          "y": 36,
+          "r": 0.62
+        },
+        {
+          "t": "民谣唱作",
+          "s": "Folk",
+          "x": 30,
+          "y": 62,
+          "r": 0.46
+        },
+        {
+          "t": "实验声音",
+          "s": "Experimental",
+          "x": 20,
+          "y": 28,
+          "r": 0.4
+        }
+      ],
+      "page": "49",
+      "total": "82",
+      "footerTagline": "证据紫橙节奏"
+    }
+  },
+  {
+    "key": "theme14_page075",
+    "themeKey": "theme14",
+    "pageNumber": 75,
+    "layout": "THEME14-075",
+    "slot": "directory-theme12-034",
+    "label": "紫橙怪趣风 · 信息结构",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page034",
+    "moduleFamily": "general",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "rowCount",
+        "label": "名录行数",
+        "type": "slider",
+        "def": 6,
+        "min": 4,
+        "max": 7,
+        "step": 1,
+        "desc": "名录中展示的条目数量",
+        "publicKey": "itemCount"
+      },
+      {
+        "key": "showRank",
+        "label": "排名序号",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏左侧排名序号",
+        "publicKey": "showRank"
+      },
+      {
+        "key": "showBar",
+        "label": "数据条",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏数值内联条形",
+        "publicKey": "showValueLabels"
+      },
+      {
+        "key": "focus",
+        "label": "聚焦高亮",
+        "type": "toggle",
+        "def": false,
+        "desc": "突出其中一行，其余常态",
+        "publicKey": "focus"
+      },
+      {
+        "key": "focusIndex",
+        "label": "聚焦第几行",
+        "type": "slider",
+        "def": 1,
+        "min": 1,
+        "max": 7,
+        "step": 1,
+        "dependsOn": "focus",
+        "desc": "高亮的行序号",
+        "publicKey": "focusIndex"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#3bb6ec",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "聚焦行 / 导语 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "rowCount": 6,
+      "showRank": true,
+      "showBar": true,
+      "focus": false,
+      "focusIndex": 1,
+      "barMeta": "30 — Directory",
+      "brandLabel": "反馈紫橙节奏",
+      "kicker": "75 / 创意课堂",
+      "title": "娱乐故事 · 沉淀糖果",
+      "metaLine": "Q2 2026 · TOP",
+      "colArtist": "音乐人 ARTIST",
+      "colGenre": "风格 GENRE",
+      "colCity": "城市 CITY",
+      "colStreams": "月播放量 STREAMS",
+      "artists": [
+        {
+          "m": "林",
+          "n": "林夏",
+          "g": "独立流行",
+          "city": "上海",
+          "v": 1,
+          "s": "8.4M"
+        },
+        {
+          "m": "A",
+          "n": "阿特拉斯乐队",
+          "g": "后摇",
+          "city": "成都",
+          "v": 0.82,
+          "s": "6.9M"
+        },
+        {
+          "m": "M",
+          "n": "Mira K.",
+          "g": "电子",
+          "city": "柏林",
+          "v": 0.74,
+          "s": "6.2M"
+        },
+        {
+          "m": "周",
+          "n": "老周厂牌",
+          "g": "说唱",
+          "city": "北京",
+          "v": 0.63,
+          "s": "5.3M"
+        },
+        {
+          "m": "电",
+          "n": "午夜电台",
+          "g": "合成器流行",
+          "city": "广州",
+          "v": 0.55,
+          "s": "4.6M"
+        },
+        {
+          "m": "盐",
+          "n": "盐与光",
+          "g": "民谣",
+          "city": "杭州",
+          "v": 0.41,
+          "s": "3.4M"
+        },
+        {
+          "m": "潮",
+          "n": "潮汐计划",
+          "g": "氛围",
+          "city": "重庆",
+          "v": 0.33,
+          "s": "2.8M"
+        }
+      ],
+      "page": "30",
+      "total": "82",
+      "footerTagline": "样本怪趣角色"
+    }
+  },
+  {
+    "key": "theme14_page076",
+    "themeKey": "theme14",
+    "pageNumber": 76,
+    "layout": "THEME14-076",
+    "slot": "moodboard-theme12-067",
+    "label": "紫橙怪趣风 · 信息结构",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page067",
+    "moduleFamily": "general",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "mediaCount",
+        "label": "照片数量",
+        "type": "slider",
+        "def": 4,
+        "min": 3,
+        "max": 6,
+        "step": 1,
+        "desc": "灵感板上钉住的照片数量",
+        "publicKey": "mediaCount"
+      },
+      {
+        "key": "mediaFit",
+        "label": "图片填充",
+        "type": "segment",
+        "def": "cover",
+        "options": [
+          {
+            "value": "cover",
+            "label": "裁切"
+          },
+          {
+            "value": "contain",
+            "label": "完整"
+          }
+        ],
+        "desc": "照片填充方式",
+        "publicKey": "mediaFit"
+      },
+      {
+        "key": "showSwatches",
+        "label": "色卡",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏右侧配色色卡",
+        "publicKey": "showSwatches"
+      },
+      {
+        "key": "showNote",
+        "label": "便签",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏右侧手写便签",
+        "publicKey": "showNote"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "导语 / 高亮 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "mediaCount": 4,
+      "mediaFit": "cover",
+      "showSwatches": true,
+      "showNote": true,
+      "media": [],
+      "barMeta": "63 — Moodboard",
+      "brandLabel": "节奏糖果路径",
+      "kicker": "76 / 节日活动",
+      "title": "创意课堂 · 重构怪趣",
+      "metaPrefix": "视觉方向 ·",
+      "paletteLabel": "Palette · 配色",
+      "noteText": "暖橙 + 深墨\n留白要够\n质感 > 装饰",
+      "noteSign": "— 视觉备忘",
+      "mediaPlaceholder": "拖入灵感",
+      "pin": [
+        "#f15a29",
+        "#3bb6ec",
+        "#c44ee0",
+        "#1f6b2a",
+        "#fbb24d",
+        "#d61fb5"
+      ],
+      "tilt": [
+        -2.2,
+        1.6,
+        -1.4,
+        2,
+        -1.8,
+        1.2
+      ],
+      "swatches": [
+        "#f15a29",
+        "#1c1416",
+        "#3bb6ec",
+        "#baf04f",
+        "#f5e1e3",
+        "#c44ee0"
+      ],
+      "page": "63",
+      "total": "82",
+      "footerTagline": "路径糖果路径"
+    }
+  },
+  {
+    "key": "theme14_page077",
+    "themeKey": "theme14",
+    "pageNumber": 77,
+    "layout": "THEME14-077",
+    "slot": "lyric-theme12-078",
+    "label": "紫橙怪趣风 · 信息结构",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page078",
+    "moduleFamily": "general",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "align",
+        "label": "对齐",
+        "type": "segment",
+        "def": "center",
+        "options": [
+          {
+            "value": "left",
+            "label": "居左"
+          },
+          {
+            "value": "center",
+            "label": "居中"
+          }
+        ],
+        "desc": "诗句的对齐方式",
+        "publicKey": "align"
+      },
+      {
+        "key": "showEqualizer",
+        "label": "声波条",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏底部声波条装饰",
+        "publicKey": "showEqualizer"
+      },
+      {
+        "key": "showDecorations",
+        "label": "显示装饰",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏几何装饰图形",
+        "publicKey": "showDecorations"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#c44ee0",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "高亮句 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "align": "center",
+      "showEqualizer": true,
+      "showDecorations": true,
+      "barMeta": "74 — Lyric",
+      "brandLabel": "趋势糖果路径",
+      "eyebrow": "77 / 娱乐故事",
+      "lines": [
+        {
+          "t": "我把整座城市的夜",
+          "hl": false
+        },
+        {
+          "t": "调成你的频率",
+          "hl": true
+        },
+        {
+          "t": "在没人听见的地方",
+          "hl": false
+        },
+        {
+          "t": "我们也曾大声",
+          "hl": true
+        }
+      ],
+      "credit": "以怪趣角色校准节日活动",
+      "bars": [
+        0.4,
+        0.7,
+        0.5,
+        0.95,
+        0.6,
+        0.85,
+        0.45,
+        0.72,
+        0.55,
+        0.9,
+        0.5,
+        0.78,
+        0.42,
+        0.66,
+        0.58,
+        0.88,
+        0.46,
+        0.7,
+        0.52,
+        0.8
+      ],
+      "page": "74",
+      "total": "82",
+      "footerTagline": "趋势糖果路径"
+    }
+  },
+  {
+    "key": "theme14_page078",
+    "themeKey": "theme14",
+    "pageNumber": 78,
+    "layout": "THEME14-078",
+    "slot": "calendar-theme12-035",
+    "label": "紫橙怪趣风 · 信息结构",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page035",
+    "moduleFamily": "general",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "eventCount",
+        "label": "排期数量",
+        "type": "slider",
+        "def": 4,
+        "min": 1,
+        "max": 5,
+        "step": 1,
+        "desc": "日历上高亮的发布节点数量",
+        "publicKey": "eventCount"
+      },
+      {
+        "key": "showWeekdays",
+        "label": "星期表头",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏星期表头行",
+        "publicKey": "showWeekdays"
+      },
+      {
+        "key": "showLegend",
+        "label": "图例",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏右上角事件图例",
+        "publicKey": "showLegend"
+      },
+      {
+        "key": "markToday",
+        "label": "今日标记",
+        "type": "toggle",
+        "def": true,
+        "desc": "在“今日”加圆环标记",
+        "publicKey": "markToday"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "主事件 / 今日 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "eventCount": 4,
+      "showWeekdays": true,
+      "showLegend": true,
+      "markToday": true,
+      "barMeta": "31 — Schedule",
+      "brandLabel": "证据紫橙节奏",
+      "kicker": "78 / 娱乐故事",
+      "title": "娱乐故事 · 拆解南瓜故事",
+      "monthTitle": "2026 · 三月",
+      "monthSub": "March · Release Plan",
+      "weekdays": [
+        "一",
+        "二",
+        "三",
+        "四",
+        "五",
+        "六",
+        "日"
+      ],
+      "monthOffset": 2,
+      "monthDays": 31,
+      "today": 9,
+      "events": [
+        {
+          "day": 5,
+          "cn": "糖果路径",
+          "en": "糖果路",
+          "ci": 0
+        },
+        {
+          "day": 12,
+          "cn": "怪趣角色",
+          "en": "怪趣角色 / ",
+          "ci": 1
+        },
+        {
+          "day": 18,
+          "cn": "紫橙节",
+          "en": "糖果路径 / 7",
+          "ci": 2
+        },
+        {
+          "day": 23,
+          "cn": "怪趣角色",
+          "en": "糖果路径 / 78",
+          "ci": 3
+        },
+        {
+          "day": 28,
+          "cn": "糖果路径",
+          "en": "糖果路径 / ",
+          "ci": 0
+        }
+      ],
+      "page": "31",
+      "total": "82",
+      "footerTagline": "影响怪趣角色"
+    }
+  },
+  {
+    "key": "theme14_page079",
+    "themeKey": "theme14",
+    "pageNumber": 79,
+    "layout": "THEME14-079",
+    "slot": "vinyl-theme12-069",
+    "label": "紫橙怪趣风 · 信息结构",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page069",
+    "moduleFamily": "general",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "recordSide",
+        "label": "视觉元素位置",
+        "type": "segment",
+        "def": "left",
+        "options": [
+          {
+            "value": "left",
+            "label": "居左"
+          },
+          {
+            "value": "right",
+            "label": "居右"
+          }
+        ],
+        "desc": "黑胶唱片所在的一侧",
+        "publicKey": "visualSide"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "dark",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "showGrooves",
+        "label": "环形纹理",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏环形纹理",
+        "publicKey": "showGrooves"
+      },
+      {
+        "key": "showTracklist",
+        "label": "条目表",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏右侧条目列表",
+        "publicKey": "showItemList"
+      },
+      {
+        "key": "trackCount",
+        "label": "条目数量",
+        "type": "slider",
+        "def": 4,
+        "min": 1,
+        "max": 6,
+        "step": 1,
+        "dependsOn": "showTracklist",
+        "desc": "条目列表的行数",
+        "publicKey": "itemCount"
+      },
+      {
+        "key": "mediaFit",
+        "label": "图片填充",
+        "type": "segment",
+        "def": "cover",
+        "options": [
+          {
+            "value": "cover",
+            "label": "裁切"
+          },
+          {
+            "value": "contain",
+            "label": "完整"
+          }
+        ],
+        "desc": "封面图填充方式",
+        "publicKey": "mediaFit"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#d61fb5",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "播放进度 / 高亮 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "dark",
+      "recordSide": "left",
+      "mediaFit": "cover",
+      "showGrooves": true,
+      "showTracklist": true,
+      "trackCount": 4,
+      "media": [],
+      "barMeta": "65 — Now Playing",
+      "brandLabel": "趋势糖果路径",
+      "kicker": "79 / 创意课堂",
+      "trackTitle": "潮汐",
+      "trackMeta": "午夜电台 Midnight Radio · 2026",
+      "elapsed": "1:24",
+      "duration": "3:42",
+      "progress": 38,
+      "nowLabel": "NOW",
+      "mediaPlaceholder": "拖入封面",
+      "tracks": [
+        {
+          "n": "01",
+          "t": "潮汐 Tides",
+          "d": "3:42"
+        },
+        {
+          "n": "02",
+          "t": "霓虹废墟 Neon Ruins",
+          "d": "4:11"
+        },
+        {
+          "n": "03",
+          "t": "回声花园 Echo Garden",
+          "d": "3:05"
+        },
+        {
+          "n": "04",
+          "t": "盐与光 Salt & Light",
+          "d": "5:20"
+        },
+        {
+          "n": "05",
+          "t": "夜行列车 Night Train",
+          "d": "4:48"
+        },
+        {
+          "n": "06",
+          "t": "低气压 Low Pressure",
+          "d": "3:29"
+        }
+      ],
+      "page": "65",
+      "total": "82",
+      "footerTagline": "路径糖果路径"
+    }
+  },
+  {
+    "key": "theme14_page080",
+    "themeKey": "theme14",
+    "pageNumber": 80,
+    "layout": "THEME14-080",
+    "slot": "logowall-theme12-073",
+    "label": "紫橙怪趣风 · 信息结构",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page073",
+    "moduleFamily": "general",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "logoCount",
+        "label": "品牌数量",
+        "type": "slider",
+        "def": 10,
+        "min": 6,
+        "max": 12,
+        "step": 1,
+        "countArrays": [
+          "media"
+        ],
+        "desc": "伙伴墙的 logo 格数量",
+        "publicKey": "logoCount"
+      },
+      {
+        "key": "columns",
+        "label": "栏数",
+        "type": "segment",
+        "def": 5,
+        "options": [
+          {
+            "value": 3,
+            "label": "3"
+          },
+          {
+            "value": 4,
+            "label": "4"
+          },
+          {
+            "value": 5,
+            "label": "5"
+          }
+        ],
+        "desc": "logo 网格列数",
+        "publicKey": "columns"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "showTitle",
+        "label": "标题条",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏顶部标题区",
+        "publicKey": "showTitle"
+      },
+      {
+        "key": "showCaptions",
+        "label": "伙伴名",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏 logo 下方名称",
+        "publicKey": "showCaptions"
+      },
+      {
+        "key": "mediaFit",
+        "label": "图片填充",
+        "type": "segment",
+        "def": "cover",
+        "options": [
+          {
+            "value": "cover",
+            "label": "裁切"
+          },
+          {
+            "value": "contain",
+            "label": "完整"
+          }
+        ],
+        "desc": "Logo 图片的填充方式",
+        "publicKey": "mediaFit"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "高亮 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "logoCount": 10,
+      "columns": 5,
+      "showTitle": true,
+      "showCaptions": true,
+      "mediaFit": "cover",
+      "media": [],
+      "barMeta": "69 — Logo Wall",
+      "brandLabel": "样本怪趣角色",
+      "kicker": "80 / 节日活动",
+      "title": "节日活动 · 连接糖果路",
+      "lede": "围绕创意课堂量化南瓜故事与紫橙节奏，让信号判断建立在具体事实",
+      "names": [
+        "Spotify",
+        "Apple Music",
+        "YouTube",
+        "TikTok",
+        "Amazon",
+        "Tidal",
+        "Deezer",
+        "Bandcamp",
+        "SoundCloud",
+        "QQ音乐",
+        "网易云",
+        "Pandora"
+      ],
+      "mediaPlaceholder": "拖入 Logo",
+      "page": "69",
+      "total": "82",
+      "footerTagline": "影响怪趣角色"
+    }
+  },
+  {
+    "key": "theme14_page081",
+    "themeKey": "theme14",
+    "pageNumber": 81,
+    "layout": "THEME14-081",
+    "slot": "signature-derived-closing-call-theme14-081",
+    "label": "紫橙怪趣风 · derived-closing-call",
+    "sourceTheme": "theme14",
+    "sourcePageKey": "theme14_derived_closing_call",
+    "moduleFamily": "closing",
+    "moduleOrigin": "owned",
+    "moduleStrategy": "new",
+    "archetypeId": "derived-closing-call",
+    "evidenceMode": "inferred",
+    "evidenceRefs": [],
+    "derivedFromRules": [
+      "typography-01",
+      "composition-02",
+      "surface-01",
+      "motif-02",
+      "color-01"
+    ],
+    "anchorModuleRefs": [
+      "theme14_signature_pumpkin_night_cover",
+      "theme14_signature_cauldron_quote_statement"
+    ],
+    "stylePrimitiveRefs": [
+      "corner-web",
+      "purple-orange-rail"
+    ],
+    "derivationReason": "用模板的封面语法和签名符号生成收束页；以 theme14_signature_pumpkin_night_cover、theme14_signature_cauldron_quote_statement 为视觉锚点。",
+    "styleSignals": [
+      "标题使用粗体无衬线并带轻微怪趣节奏",
+      "蜘蛛网从角落展开，南瓜与坩埚压住页边",
+      "内容直接铺在纯色画布上并以少量浅紫卡片分区",
+      "橙色圆点与紫色图标形成时间线节点",
+      "深紫与亮紫作为主要夜色画布"
+    ],
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "showSignatureSystem",
+        "label": "显示主题签名系统",
+        "type": "toggle",
+        "default": true,
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "signature-system",
+            "ornament",
+            "page-marker"
+          ],
+          "minChangedRatio": 0.008,
+          "minRegions": 2
+        },
+        "publicKey": "showSignatureSystem"
+      },
+      {
+        "key": "density",
+        "label": "信息密度",
+        "type": "select",
+        "default": "balanced",
+        "options": [
+          {
+            "label": "紧凑",
+            "value": "compact"
+          },
+          {
+            "label": "平衡",
+            "value": "balanced"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-frame",
+            "spacing",
+            "type-scale"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "density"
+      },
+      {
+        "key": "closingLayout",
+        "label": "收束结构",
+        "type": "select",
+        "default": "structured",
+        "options": [
+          {
+            "label": "结构化",
+            "value": "structured"
+          },
+          {
+            "label": "偏移强调",
+            "value": "offset"
+          }
+        ],
+        "effect": {
+          "scope": "section",
+          "targets": [
+            "content-grid",
+            "reading-order",
+            "emphasis"
+          ],
+          "minChangedRatio": 0.012,
+          "minRegions": 2
+        },
+        "publicKey": "closingLayout"
+      }
+    ],
+    "defaultProps": {
+      "showSignatureSystem": true,
+      "density": "balanced",
+      "closingLayout": "structured",
+      "pillars": [
+        "故事开场",
+        "怪趣角色",
+        "互动任务",
+        "惊喜收尾"
+      ],
+      "summary": "让紫橙舞台、怪趣角色和互动任务共同推动一场可参与、可分享的节日故事。",
+      "title": "谢谢观看",
+      "subtitle": "带走今晚的糖果，也带走一起创造的故事。",
+      "action": "继续讨论"
+    }
+  },
+  {
+    "key": "theme14_page082",
+    "themeKey": "theme14",
+    "pageNumber": 82,
+    "layout": "THEME14-082",
+    "slot": "filmstrip-theme12-028",
+    "label": "紫橙怪趣风 · 图文与案例",
+    "sourceTheme": "theme12",
+    "sourcePageKey": "theme12_page028",
+    "moduleFamily": "closing",
+    "bgClass": "",
+    "controls": [
+      {
+        "key": "mediaCount",
+        "label": "画格数量",
+        "type": "slider",
+        "def": 4,
+        "min": 3,
+        "max": 5,
+        "step": 1,
+        "desc": "胶片中的画格数量",
+        "publicKey": "mediaCount"
+      },
+      {
+        "key": "mediaFit",
+        "label": "图片填充",
+        "type": "segment",
+        "def": "cover",
+        "options": [
+          {
+            "value": "cover",
+            "label": "裁切"
+          },
+          {
+            "value": "contain",
+            "label": "完整"
+          }
+        ],
+        "desc": "图片的填充方式",
+        "publicKey": "mediaFit"
+      },
+      {
+        "key": "showSprockets",
+        "label": "齿孔",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏胶片齿孔轨",
+        "publicKey": "showSprockets"
+      },
+      {
+        "key": "showCaptions",
+        "label": "画格图注",
+        "type": "toggle",
+        "def": true,
+        "desc": "显示/隐藏每格下方的编号图注",
+        "publicKey": "showCaptions"
+      },
+      {
+        "key": "theme",
+        "label": "配色",
+        "type": "segment",
+        "def": "light",
+        "options": [
+          {
+            "value": "light",
+            "label": "浅色"
+          },
+          {
+            "value": "dark",
+            "label": "深色"
+          }
+        ],
+        "desc": "页面整体明暗配色",
+        "publicKey": "theme"
+      },
+      {
+        "key": "accent",
+        "label": "强调色",
+        "type": "color",
+        "def": "#f15a29",
+        "options": [
+          {
+            "value": "#ff8508",
+            "label": "颜色 1"
+          },
+          {
+            "value": "#9b54c5",
+            "label": "颜色 2"
+          },
+          {
+            "value": "#fffaf4",
+            "label": "颜色 3"
+          }
+        ],
+        "desc": "导语 / 高亮 / 页脚强调色",
+        "publicKey": "accent",
+        "default": "#ff8508"
+      }
+    ],
+    "defaultProps": {
+      "accent": "#ff8508",
+      "theme": "light",
+      "mediaCount": 4,
+      "mediaFit": "cover",
+      "showSprockets": true,
+      "showCaptions": true,
+      "media": [],
+      "barMeta": "24 — Contact Sheet",
+      "brandLabel": "现状南瓜故事",
+      "kicker": "82 / 节日活动",
+      "title": "节日活动 · 识别南瓜",
+      "metaLine": "ISO 400",
+      "hint": "frames",
+      "mediaPlaceholder": "拖入画格",
+      "captions": [
+        {
+          "t": "录音棚",
+          "s": "IN STUDIO"
+        },
+        {
+          "t": "巡演路上",
+          "s": "ON TOUR"
+        },
+        {
+          "t": "后台",
+          "s": "BACKSTAGE"
+        },
+        {
+          "t": "结算面板",
+          "s": "PAYOUT"
+        },
+        {
+          "t": "粉丝现场",
+          "s": "CROWD"
+        }
+      ],
+      "page": "24",
+      "total": "82",
+      "footerTagline": "证据紫橙节奏"
     }
   }
 ];

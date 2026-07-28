@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { Input } from '@xpert-ai/plugin-shadcn-ui'
 import '@xpert-ai/plugin-shadcn-ui/style.css'
 import { canExport, exportMp4 } from './video-export.js'
-import { createTranslator, localizeOptions } from './i18n'
+import { createTranslator, localizeOptions, motionRuntimeText } from './i18n'
 import { createRenderableComposition } from './video-renderer'
 import type { MotionVideoComposition } from './video-renderer'
 import {
@@ -190,10 +190,7 @@ function App() {
   }, [loadData])
 
   React.useEffect(() => {
-    setRuntimeText({
-      requestTimeout: context?.locale?.startsWith('zh') ? '请求超时' : 'Request timed out',
-      remoteRequestFailed: context?.locale?.startsWith('zh') ? '远程请求失败' : 'Remote request failed'
-    })
+    setRuntimeText(motionRuntimeText(context?.locale))
   }, [context?.locale])
 
   React.useEffect(() => {

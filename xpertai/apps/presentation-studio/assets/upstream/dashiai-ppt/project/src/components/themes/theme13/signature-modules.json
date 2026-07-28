@@ -1,0 +1,1037 @@
+{
+  "schemaVersion": 3,
+  "qualityVersion": 3,
+  "themeKey": "theme13",
+  "externalPlan": "external-plan.json",
+  "styleGrammar": {
+    "schemaVersion": 1,
+    "rules": [
+      {
+        "id": "color-01",
+        "category": "color",
+        "description": "午夜蓝承担全页底色",
+        "sourceField": "visualEvidence.palette",
+        "evidenceRefs": [
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-01",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-02",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-04",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-06",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-07",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-10",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-14",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-18"
+        ]
+      },
+      {
+        "id": "color-02",
+        "category": "color",
+        "description": "电光蓝用于图表、箭头和图标",
+        "sourceField": "visualEvidence.palette",
+        "evidenceRefs": [
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-01",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-02",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-04",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-06",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-07",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-10",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-14",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-18"
+        ]
+      },
+      {
+        "id": "color-03",
+        "category": "color",
+        "description": "紫蓝渐变用于半透明光环",
+        "sourceField": "visualEvidence.palette",
+        "evidenceRefs": [
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-01",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-02",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-04",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-06",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-07",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-10",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-14",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-18"
+        ]
+      },
+      {
+        "id": "color-04",
+        "category": "color",
+        "description": "白色作为主要信息文字",
+        "sourceField": "visualEvidence.palette",
+        "evidenceRefs": [
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-01",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-02",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-04",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-06",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-07",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-10",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-14",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-18"
+        ]
+      },
+      {
+        "id": "typography-01",
+        "category": "typography",
+        "description": "中文标题使用轻量无衬线并保持高对比",
+        "sourceField": "visualEvidence.typography",
+        "evidenceRefs": [
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-01",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-02",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-04",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-06",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-07",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-10",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-14",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-18"
+        ]
+      },
+      {
+        "id": "typography-02",
+        "category": "typography",
+        "description": "大号章节数字与小号英文注释构成科技层级",
+        "sourceField": "visualEvidence.typography",
+        "evidenceRefs": [
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-01",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-02",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-04",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-06",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-07",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-10",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-14",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-18"
+        ]
+      },
+      {
+        "id": "composition-01",
+        "category": "composition",
+        "description": "上下边缘以半透明圆环和波形压住画布",
+        "sourceField": "visualEvidence.composition",
+        "evidenceRefs": [
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-01",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-02",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-04",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-06",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-07",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-10",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-14",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-18"
+        ]
+      },
+      {
+        "id": "composition-02",
+        "category": "composition",
+        "description": "信息结构沿水平主轴或中心环形展开",
+        "sourceField": "visualEvidence.composition",
+        "evidenceRefs": [
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-01",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-02",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-04",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-06",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-07",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-10",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-14",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-18"
+        ]
+      },
+      {
+        "id": "surface-01",
+        "category": "surface",
+        "description": "卡片使用蓝紫渐变和极小圆角",
+        "sourceField": "visualEvidence.surfaces",
+        "evidenceRefs": [
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-01",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-02",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-04",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-06",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-07",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-10",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-14",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-18"
+        ]
+      },
+      {
+        "id": "surface-02",
+        "category": "surface",
+        "description": "正文区域保持深色无边框以突出发光结构",
+        "sourceField": "visualEvidence.surfaces",
+        "evidenceRefs": [
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-01",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-02",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-04",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-06",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-07",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-10",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-14",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-18"
+        ]
+      },
+      {
+        "id": "media-01",
+        "category": "media",
+        "description": "模板不依赖照片而以矢量结构表达内容",
+        "sourceField": "visualEvidence.imageTreatment",
+        "evidenceRefs": [
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-01",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-02",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-04",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-06",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-07",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-10",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-14",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-18"
+        ]
+      },
+      {
+        "id": "media-02",
+        "category": "media",
+        "description": "若使用媒体则采用深蓝遮罩与冷色边框",
+        "sourceField": "visualEvidence.imageTreatment",
+        "evidenceRefs": [
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-01",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-02",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-04",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-06",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-07",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-10",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-14",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-18"
+        ]
+      },
+      {
+        "id": "motif-01",
+        "category": "motif",
+        "description": "重叠的半透明光环从四角进入",
+        "sourceField": "visualEvidence.motifs",
+        "evidenceRefs": [
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-01",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-02",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-04",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-06",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-07",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-10",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-14",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-18"
+        ]
+      },
+      {
+        "id": "motif-02",
+        "category": "motif",
+        "description": "节点、箭头和胶囊轨道使用电光蓝描边",
+        "sourceField": "visualEvidence.motifs",
+        "evidenceRefs": [
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-01",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-02",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-04",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-06",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-07",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-10",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-14",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-18"
+        ]
+      },
+      {
+        "id": "signature-01",
+        "category": "signature",
+        "description": "每页至少出现一组环形或波形科技结构",
+        "sourceField": "visualEvidence.signatureRules",
+        "evidenceRefs": [
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-01",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-02",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-04",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-06",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-07",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-10",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-14",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-18"
+        ]
+      },
+      {
+        "id": "signature-02",
+        "category": "signature",
+        "description": "章节页使用超大白色数字与小型蓝色节点",
+        "sourceField": "visualEvidence.signatureRules",
+        "evidenceRefs": [
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-01",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-02",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-04",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-06",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-07",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-10",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-14",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-18"
+        ]
+      },
+      {
+        "id": "forbidden-01",
+        "category": "forbidden",
+        "description": "禁止白底商务卡片和暖色摄影",
+        "sourceField": "visualEvidence.forbidden",
+        "evidenceRefs": [
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-01",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-02",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-04",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-06",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-07",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-10",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-14",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-18"
+        ]
+      },
+      {
+        "id": "forbidden-02",
+        "category": "forbidden",
+        "description": "禁止手绘纹理、粗黑描边与复古装饰",
+        "sourceField": "visualEvidence.forbidden",
+        "evidenceRefs": [
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-01",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-02",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-04",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-06",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-07",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-10",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-14",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-18"
+        ]
+      }
+    ],
+    "forbiddenRuleIds": [
+      "forbidden-01",
+      "forbidden-02"
+    ],
+    "primitives": [
+      {
+        "id": "halo-orb",
+        "evidenceRefs": [
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-01",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-02",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-04",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-06",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-07",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-10",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-14",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-18"
+        ]
+      },
+      {
+        "id": "wave-floor",
+        "evidenceRefs": [
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-01",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-02",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-04",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-06",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-07",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-10",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-14",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-18"
+        ]
+      },
+      {
+        "id": "node-arrow",
+        "evidenceRefs": [
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-01",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-02",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-04",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-06",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-07",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-10",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-14",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-18"
+        ]
+      },
+      {
+        "id": "luminous-pill",
+        "evidenceRefs": [
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-01",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-02",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-04",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-06",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-07",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-10",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-14",
+          "蓝色科技风简约总结汇报PPT模板.pptx#slide-18"
+        ]
+      }
+    ]
+  },
+  "moduleSources": {
+    "observed": 8,
+    "inferred": 8
+  },
+  "modules": [
+    {
+      "id": "theme13_signature_halo_tech_cover",
+      "archetypeId": "halo-tech-cover",
+      "componentName": "Signature01HaloTechCover",
+      "family": "cover",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "slide-01",
+        "slide-20"
+      ],
+      "visualRequirements": [
+        "午夜蓝画布布置多组半透明光环",
+        "主标题使用大号白字并留出中心呼吸区",
+        "小型蓝色圆点形成科技标记"
+      ],
+      "styleSignals": [
+        "午夜蓝画布布置多组半透明光环",
+        "主标题使用大号白字并留出中心呼吸区",
+        "小型蓝色圆点形成科技标记"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme13_signature_orbital_capability_overview",
+      "archetypeId": "orbital-capability-overview",
+      "componentName": "Signature02OrbitalCapabilityOverview",
+      "family": "general",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "slide-04",
+        "slide-05"
+      ],
+      "visualRequirements": [
+        "能力节点沿水平轨道或弧线排布",
+        "图标置于蓝紫圆形容器",
+        "说明文字保持短段落和高对比"
+      ],
+      "styleSignals": [
+        "能力节点沿水平轨道或弧线排布",
+        "图标置于蓝紫圆形容器",
+        "说明文字保持短段落和高对比"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme13_signature_gradient_peak_metrics",
+      "archetypeId": "gradient-peak-metrics",
+      "componentName": "Signature03GradientPeakMetrics",
+      "family": "metrics",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "slide-06",
+        "slide-09"
+      ],
+      "visualRequirements": [
+        "数据峰值使用蓝紫渐变面积",
+        "指标卡以亮蓝底承载",
+        "底部波形形成跨页连续性"
+      ],
+      "styleSignals": [
+        "数据峰值使用蓝紫渐变面积",
+        "指标卡以亮蓝底承载",
+        "底部波形形成跨页连续性"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme13_signature_device_halo_media",
+      "archetypeId": "device-halo-media",
+      "componentName": "Signature04DeviceHaloMedia",
+      "family": "media",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "slide-01",
+        "slide-06"
+      ],
+      "visualRequirements": [
+        "媒体置于深蓝框并使用冷色遮罩",
+        "光环从媒体边缘穿过",
+        "标题与媒体保持大比例分栏"
+      ],
+      "styleSignals": [
+        "媒体置于深蓝框并使用冷色遮罩",
+        "光环从媒体边缘穿过",
+        "标题与媒体保持大比例分栏"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme13_signature_cycle_arrow_comparison",
+      "archetypeId": "cycle-arrow-comparison",
+      "componentName": "Signature05CycleArrowComparison",
+      "family": "comparison",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "slide-07",
+        "slide-13"
+      ],
+      "visualRequirements": [
+        "蓝色箭头构成环形或折线比较",
+        "对比项分布在中心结构两侧",
+        "图标和编号共同定位选项"
+      ],
+      "styleSignals": [
+        "蓝色箭头构成环形或折线比较",
+        "对比项分布在中心结构两侧",
+        "图标和编号共同定位选项"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme13_signature_luminous_roadmap",
+      "archetypeId": "luminous-roadmap",
+      "componentName": "Signature06LuminousRoadmap",
+      "family": "timeline",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "slide-10",
+        "slide-18"
+      ],
+      "visualRequirements": [
+        "胶囊节点沿水平轨道展开",
+        "每阶段使用蓝紫色块与细线连接",
+        "底部标签形成时间说明"
+      ],
+      "styleSignals": [
+        "胶囊节点沿水平轨道展开",
+        "每阶段使用蓝紫色块与细线连接",
+        "底部标签形成时间说明"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme13_signature_arrow_ledger_table",
+      "archetypeId": "arrow-ledger-table",
+      "componentName": "Signature07ArrowLedgerTable",
+      "family": "table",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "slide-11",
+        "slide-19"
+      ],
+      "visualRequirements": [
+        "表格行使用箭头形蓝色底板",
+        "编号列与说明列保持严格对齐",
+        "深蓝背景上只使用白色和蓝紫文字"
+      ],
+      "styleSignals": [
+        "表格行使用箭头形蓝色底板",
+        "编号列与说明列保持严格对齐",
+        "深蓝背景上只使用白色和蓝紫文字"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme13_signature_number_halo_statement",
+      "archetypeId": "number-halo-statement",
+      "componentName": "Signature08NumberHaloStatement",
+      "family": "statement",
+      "strategy": "new",
+      "evidenceMode": "observed",
+      "evidenceRefs": [
+        "slide-03",
+        "slide-08",
+        "slide-12"
+      ],
+      "visualRequirements": [
+        "超大章节数字位于画布中心",
+        "标题压在数字下方并配小型光点",
+        "边缘光环提供空间纵深"
+      ],
+      "styleSignals": [
+        "超大章节数字位于画布中心",
+        "标题压在数字下方并配小型光点",
+        "边缘光环提供空间纵深"
+      ],
+      "reuseJustification": [],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme13_derived_closing_call",
+      "archetypeId": "derived-closing-call",
+      "componentName": "Derived01ClosingCall",
+      "family": "closing",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-01",
+        "composition-02",
+        "surface-01",
+        "motif-02",
+        "color-01"
+      ],
+      "anchorModuleRefs": [
+        "theme13_signature_halo_tech_cover",
+        "theme13_signature_number_halo_statement"
+      ],
+      "stylePrimitiveRefs": [
+        "halo-orb",
+        "wave-floor"
+      ],
+      "derivationReason": "用模板的封面语法和签名符号生成收束页；以 theme13_signature_halo_tech_cover、theme13_signature_number_halo_statement 为视觉锚点。",
+      "visualRequirements": [
+        "用模板的封面语法和签名符号生成收束页",
+        "中文标题使用轻量无衬线并保持高对比",
+        "信息结构沿水平主轴或中心环形展开",
+        "卡片使用蓝紫渐变和极小圆角",
+        "节点、箭头和胶囊轨道使用电光蓝描边",
+        "午夜蓝承担全页底色"
+      ],
+      "styleSignals": [
+        "中文标题使用轻量无衬线并保持高对比",
+        "信息结构沿水平主轴或中心环形展开",
+        "卡片使用蓝紫渐变和极小圆角",
+        "节点、箭头和胶囊轨道使用电光蓝描边",
+        "午夜蓝承担全页底色"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "subtitle",
+          "action"
+        ]
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme13_derived_composition_breakdown",
+      "archetypeId": "derived-composition-breakdown",
+      "componentName": "Derived02CompositionBreakdown",
+      "family": "distribution",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-02",
+        "composition-01",
+        "surface-02",
+        "motif-01",
+        "color-02"
+      ],
+      "anchorModuleRefs": [
+        "theme13_signature_gradient_peak_metrics",
+        "theme13_signature_cycle_arrow_comparison"
+      ],
+      "stylePrimitiveRefs": [
+        "wave-floor",
+        "node-arrow"
+      ],
+      "derivationReason": "把模板的表面和色阶扩展为构成分析；以 theme13_signature_gradient_peak_metrics、theme13_signature_cycle_arrow_comparison 为视觉锚点。",
+      "visualRequirements": [
+        "把模板的表面和色阶扩展为构成分析",
+        "大号章节数字与小号英文注释构成科技层级",
+        "上下边缘以半透明圆环和波形压住画布",
+        "正文区域保持深色无边框以突出发光结构",
+        "重叠的半透明光环从四角进入",
+        "电光蓝用于图表、箭头和图标"
+      ],
+      "styleSignals": [
+        "大号章节数字与小号英文注释构成科技层级",
+        "上下边缘以半透明圆环和波形压住画布",
+        "正文区域保持深色无边框以突出发光结构",
+        "重叠的半透明光环从四角进入",
+        "电光蓝用于图表、箭头和图标"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "segments",
+          "summary"
+        ]
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme13_derived_ecosystem_relationship",
+      "archetypeId": "derived-ecosystem-relationship",
+      "componentName": "Derived03EcosystemRelationship",
+      "family": "relationship",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-01",
+        "composition-02",
+        "surface-01",
+        "motif-02",
+        "color-03"
+      ],
+      "anchorModuleRefs": [
+        "theme13_signature_luminous_roadmap",
+        "theme13_signature_cycle_arrow_comparison"
+      ],
+      "stylePrimitiveRefs": [
+        "node-arrow",
+        "luminous-pill"
+      ],
+      "derivationReason": "把模板的网格和节点符号扩展为关系网络；以 theme13_signature_luminous_roadmap、theme13_signature_cycle_arrow_comparison 为视觉锚点。",
+      "visualRequirements": [
+        "把模板的网格和节点符号扩展为关系网络",
+        "中文标题使用轻量无衬线并保持高对比",
+        "信息结构沿水平主轴或中心环形展开",
+        "卡片使用蓝紫渐变和极小圆角",
+        "节点、箭头和胶囊轨道使用电光蓝描边",
+        "紫蓝渐变用于半透明光环"
+      ],
+      "styleSignals": [
+        "中文标题使用轻量无衬线并保持高对比",
+        "信息结构沿水平主轴或中心环形展开",
+        "卡片使用蓝紫渐变和极小圆角",
+        "节点、箭头和胶囊轨道使用电光蓝描边",
+        "紫蓝渐变用于半透明光环"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "nodes",
+          "links"
+        ]
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme13_derived_proportion_scorecard",
+      "archetypeId": "derived-proportion-scorecard",
+      "componentName": "Derived04ProportionScorecard",
+      "family": "proportion",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-02",
+        "composition-01",
+        "surface-02",
+        "motif-01",
+        "color-04"
+      ],
+      "anchorModuleRefs": [
+        "theme13_signature_gradient_peak_metrics",
+        "theme13_signature_cycle_arrow_comparison"
+      ],
+      "stylePrimitiveRefs": [
+        "luminous-pill",
+        "halo-orb"
+      ],
+      "derivationReason": "把模板的指标语法扩展为比例与进度页；以 theme13_signature_gradient_peak_metrics、theme13_signature_cycle_arrow_comparison 为视觉锚点。",
+      "visualRequirements": [
+        "把模板的指标语法扩展为比例与进度页",
+        "大号章节数字与小号英文注释构成科技层级",
+        "上下边缘以半透明圆环和波形压住画布",
+        "正文区域保持深色无边框以突出发光结构",
+        "重叠的半透明光环从四角进入",
+        "白色作为主要信息文字"
+      ],
+      "styleSignals": [
+        "大号章节数字与小号英文注释构成科技层级",
+        "上下边缘以半透明圆环和波形压住画布",
+        "正文区域保持深色无边框以突出发光结构",
+        "重叠的半透明光环从四角进入",
+        "白色作为主要信息文字"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "values",
+          "labels"
+        ]
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme13_derived_ranked_signals",
+      "archetypeId": "derived-ranked-signals",
+      "componentName": "Derived05RankedSignals",
+      "family": "ranking",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-01",
+        "composition-02",
+        "surface-01",
+        "motif-02",
+        "color-01"
+      ],
+      "anchorModuleRefs": [
+        "theme13_signature_gradient_peak_metrics",
+        "theme13_signature_arrow_ledger_table"
+      ],
+      "stylePrimitiveRefs": [
+        "halo-orb",
+        "wave-floor"
+      ],
+      "derivationReason": "把模板的数字层级和分隔规则扩展为排行页；以 theme13_signature_gradient_peak_metrics、theme13_signature_arrow_ledger_table 为视觉锚点。",
+      "visualRequirements": [
+        "把模板的数字层级和分隔规则扩展为排行页",
+        "中文标题使用轻量无衬线并保持高对比",
+        "信息结构沿水平主轴或中心环形展开",
+        "卡片使用蓝紫渐变和极小圆角",
+        "节点、箭头和胶囊轨道使用电光蓝描边",
+        "午夜蓝承担全页底色"
+      ],
+      "styleSignals": [
+        "中文标题使用轻量无衬线并保持高对比",
+        "信息结构沿水平主轴或中心环形展开",
+        "卡片使用蓝紫渐变和极小圆角",
+        "节点、箭头和胶囊轨道使用电光蓝描边",
+        "午夜蓝承担全页底色"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "items",
+          "highlight"
+        ]
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme13_derived_section_transition",
+      "archetypeId": "derived-section-transition",
+      "componentName": "Derived06SectionTransition",
+      "family": "transition",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-02",
+        "composition-01",
+        "surface-02",
+        "motif-01",
+        "color-02"
+      ],
+      "anchorModuleRefs": [
+        "theme13_signature_halo_tech_cover",
+        "theme13_signature_orbital_capability_overview"
+      ],
+      "stylePrimitiveRefs": [
+        "wave-floor",
+        "node-arrow"
+      ],
+      "derivationReason": "用模板的标题层级和签名符号建立章节过渡；以 theme13_signature_halo_tech_cover、theme13_signature_orbital_capability_overview 为视觉锚点。",
+      "visualRequirements": [
+        "用模板的标题层级和签名符号建立章节过渡",
+        "大号章节数字与小号英文注释构成科技层级",
+        "上下边缘以半透明圆环和波形压住画布",
+        "正文区域保持深色无边框以突出发光结构",
+        "重叠的半透明光环从四角进入",
+        "电光蓝用于图表、箭头和图标"
+      ],
+      "styleSignals": [
+        "大号章节数字与小号英文注释构成科技层级",
+        "上下边缘以半透明圆环和波形压住画布",
+        "正文区域保持深色无边框以突出发光结构",
+        "重叠的半透明光环从四角进入",
+        "电光蓝用于图表、箭头和图标"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "kicker",
+          "title",
+          "sectionNumber"
+        ]
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme13_derived_agenda_overview",
+      "archetypeId": "derived-agenda-overview",
+      "componentName": "Derived07AgendaOverview",
+      "family": "general",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-01",
+        "composition-02",
+        "surface-01",
+        "motif-02",
+        "color-03"
+      ],
+      "anchorModuleRefs": [
+        "theme13_signature_orbital_capability_overview",
+        "theme13_signature_halo_tech_cover"
+      ],
+      "stylePrimitiveRefs": [
+        "node-arrow",
+        "luminous-pill"
+      ],
+      "derivationReason": "把模板的编号和分隔规则扩展为议程页；以 theme13_signature_orbital_capability_overview、theme13_signature_halo_tech_cover 为视觉锚点。",
+      "visualRequirements": [
+        "把模板的编号和分隔规则扩展为议程页",
+        "中文标题使用轻量无衬线并保持高对比",
+        "信息结构沿水平主轴或中心环形展开",
+        "卡片使用蓝紫渐变和极小圆角",
+        "节点、箭头和胶囊轨道使用电光蓝描边",
+        "紫蓝渐变用于半透明光环"
+      ],
+      "styleSignals": [
+        "中文标题使用轻量无衬线并保持高对比",
+        "信息结构沿水平主轴或中心环形展开",
+        "卡片使用蓝紫渐变和极小圆角",
+        "节点、箭头和胶囊轨道使用电光蓝描边",
+        "紫蓝渐变用于半透明光环"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": false,
+        "runtimeSafe": true,
+        "contentShape": [
+          "title",
+          "sections",
+          "numbers"
+        ]
+      },
+      "implementationStatus": "implemented"
+    },
+    {
+      "id": "theme13_derived_alternate_cover",
+      "archetypeId": "derived-alternate-cover",
+      "componentName": "Derived08AlternateCover",
+      "family": "cover",
+      "strategy": "new",
+      "evidenceMode": "inferred",
+      "evidenceRefs": [],
+      "derivedFromRules": [
+        "typography-02",
+        "composition-01",
+        "surface-02",
+        "motif-01",
+        "color-04"
+      ],
+      "anchorModuleRefs": [
+        "theme13_signature_halo_tech_cover",
+        "theme13_signature_orbital_capability_overview"
+      ],
+      "stylePrimitiveRefs": [
+        "luminous-pill",
+        "halo-orb"
+      ],
+      "derivationReason": "在不改变 Style DNA 的前提下生成第二种封面构图；以 theme13_signature_halo_tech_cover、theme13_signature_orbital_capability_overview 为视觉锚点。",
+      "visualRequirements": [
+        "在不改变 Style DNA 的前提下生成第二种封面构图",
+        "大号章节数字与小号英文注释构成科技层级",
+        "上下边缘以半透明圆环和波形压住画布",
+        "正文区域保持深色无边框以突出发光结构",
+        "重叠的半透明光环从四角进入",
+        "白色作为主要信息文字"
+      ],
+      "styleSignals": [
+        "大号章节数字与小号英文注释构成科技层级",
+        "上下边缘以半透明圆环和波形压住画布",
+        "正文区域保持深色无边框以突出发光结构",
+        "重叠的半透明光环从四角进入",
+        "白色作为主要信息文字"
+      ],
+      "sourceContract": null,
+      "requiredCapabilities": {
+        "editableFields": true,
+        "controls": true,
+        "writableMedia": true,
+        "runtimeSafe": true,
+        "contentShape": [
+          "kicker",
+          "title",
+          "subtitle",
+          "media"
+        ]
+      },
+      "implementationStatus": "implemented"
+    }
+  ]
+}

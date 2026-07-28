@@ -1,6 +1,7 @@
 jest.mock('@xpert-ai/plugin-sdk', () => ({
 	HANDOFF_PERMISSION_SERVICE_TOKEN: 'HANDOFF_PERMISSION_SERVICE_TOKEN',
 	INTEGRATION_PERMISSION_SERVICE_TOKEN: 'INTEGRATION_PERMISSION_SERVICE_TOKEN',
+	MANAGED_QUEUE_SERVICE_TOKEN: 'MANAGED_QUEUE_SERVICE_TOKEN',
 	WorkflowTriggerStrategy: () => () => undefined,
 	defineChannelMessageType: (...parts: Array<string | number>) => parts.join('.'),
 	RequestContext: {
@@ -40,6 +41,15 @@ describe('DingTalkTriggerStrategy', () => {
 			])
 		)
 		const aggregationStates = new Map<string, any>()
+		let lockedAggregateKey: string | undefined
+		const aggregateLockLease = {
+			ensureOwned: jest.fn().mockResolvedValue(undefined),
+			clearStateIfOwned: jest.fn().mockImplementation(async () => {
+				if (lockedAggregateKey) {
+					aggregationStates.delete(lockedAggregateKey)
+				}
+			})
+		}
 		const dispatchService = {
 			buildDispatchMessage: jest.fn().mockResolvedValue({
 				id: 'handoff-id'
@@ -55,7 +65,17 @@ describe('DingTalkTriggerStrategy', () => {
 			}),
 			clear: jest.fn().mockImplementation(async (key: string) => {
 				aggregationStates.delete(key)
-			})
+			}),
+			withAggregateLock: jest.fn(
+				async (key: string, callback: (lease: typeof aggregateLockLease) => Promise<unknown>) => {
+					lockedAggregateKey = key
+					try {
+						return await callback(aggregateLockLease)
+					} finally {
+						lockedAggregateKey = undefined
+					}
+				}
+			)
 		}
 		const handoffPermissionService = {
 			enqueue: jest.fn().mockResolvedValue({
@@ -143,9 +163,11 @@ describe('DingTalkTriggerStrategy', () => {
 			strategy,
 			dispatchService,
 			aggregationService,
+			aggregateLockLease,
 			handoffPermissionService,
 			bindingRepository,
-			persistedBindings
+			persistedBindings,
+			aggregationStates
 		}
 	}
 
@@ -366,5 +388,254 @@ describe('DingTalkTriggerStrategy', () => {
 			}
 		)
 		expect(dispatchService.enqueueDispatch).not.toHaveBeenCalled()
+	})
+
+	it('flushes and clears one aggregate while holding the same lock used by updates', async () => {
+		const { strategy, aggregationService, aggregateLockLease, dispatchService, handoffPermissionService } =
+			createStrategy({
+				dbBindings: [['integration-1', { xpertId: 'xpert-1', summaryWindowSeconds: 3 }]]
+			})
+
+		await strategy.handleInboundMessage({
+			integrationId: 'integration-1',
+			input: '看一下文件',
+			files: [{ fileAssetId: 'file-asset-1', originalName: 'report.pdf' }],
+			dingtalkMessage: {
+				integrationId: 'integration-1',
+				chatId: 'chat-1',
+				dingtalkUserId: 'user-1',
+				senderOpenId: 'sender-1',
+				chatType: 'private'
+			} as any,
+			conversationUserKey: 'integration-1:chat-1:sender-1'
+		})
+
+		const flushPayload = handoffPermissionService.enqueue.mock.calls[0][0].payload
+		await expect(strategy.flushBufferedConversation(flushPayload)).resolves.toBe(true)
+
+		expect(aggregationService.withAggregateLock).toHaveBeenCalledTimes(2)
+		expect(dispatchService.enqueueDispatch).toHaveBeenCalledWith(
+			expect.objectContaining({
+				dispatchMessageId: expect.stringMatching(/^dingtalk-chat-aggregate-/),
+				input: '看一下文件',
+				files: [{ fileAssetId: 'file-asset-1', originalName: 'report.pdf' }]
+			})
+		)
+		expect(aggregateLockLease.clearStateIfOwned).toHaveBeenCalledTimes(1)
+	})
+
+	it('merges separate file and text events and ignores the stale first flush', async () => {
+		const { strategy, aggregateLockLease, dispatchService, handoffPermissionService } = createStrategy({
+			dbBindings: [['integration-1', { xpertId: 'xpert-1', summaryWindowSeconds: 3 }]]
+		})
+		const message = {
+			integrationId: 'integration-1',
+			chatId: 'chat-1',
+			dingtalkUserId: 'user-1',
+			senderOpenId: 'sender-1',
+			chatType: 'private'
+		} as any
+		const conversationUserKey = 'integration-1:chat-1:sender-1'
+
+		await strategy.handleInboundMessage({
+			integrationId: 'integration-1',
+			files: [{ fileAssetId: 'file-asset-1', originalName: 'report.pdf' }],
+			dingtalkMessage: message,
+			conversationUserKey
+		})
+		await strategy.handleInboundMessage({
+			integrationId: 'integration-1',
+			input: '看一下文件内容',
+			dingtalkMessage: message,
+			conversationUserKey
+		})
+
+		const firstFlush = handoffPermissionService.enqueue.mock.calls[0][0].payload
+		const latestFlush = handoffPermissionService.enqueue.mock.calls[1][0].payload
+		await expect(strategy.flushBufferedConversation(firstFlush)).resolves.toBe(false)
+		await expect(strategy.flushBufferedConversation(latestFlush)).resolves.toBe(true)
+
+		expect(dispatchService.enqueueDispatch).toHaveBeenCalledTimes(1)
+		expect(dispatchService.enqueueDispatch).toHaveBeenCalledWith(
+			expect.objectContaining({
+				input: '看一下文件内容',
+				files: [{ fileAssetId: 'file-asset-1', originalName: 'report.pdf' }]
+			})
+		)
+		expect(aggregateLockLease.clearStateIfOwned).toHaveBeenCalledTimes(1)
+		for (const [message] of handoffPermissionService.enqueue.mock.calls) {
+			expect(message.maxAttempts).toBe(3)
+		}
+	})
+
+	it('retries a transient flush enqueue with the same handoff message', async () => {
+		const { strategy, handoffPermissionService } = createStrategy({
+			dbBindings: [['integration-1', { xpertId: 'xpert-1', summaryWindowSeconds: 3 }]]
+		})
+		handoffPermissionService.enqueue
+			.mockRejectedValueOnce(new Error('temporary enqueue failure'))
+			.mockResolvedValueOnce({ id: 'flush-message-id' })
+
+		await expect(
+			strategy.handleInboundMessage({
+				integrationId: 'integration-1',
+				input: '看一下文件',
+				dingtalkMessage: {
+					integrationId: 'integration-1',
+					chatId: 'chat-1',
+					dingtalkUserId: 'user-1',
+					senderOpenId: 'sender-1',
+					chatType: 'private'
+				} as any,
+				conversationUserKey: 'integration-1:chat-1:sender-1'
+			})
+		).resolves.toBe(true)
+
+		expect(handoffPermissionService.enqueue).toHaveBeenCalledTimes(2)
+		expect(handoffPermissionService.enqueue.mock.calls[1][0]).toBe(
+			handoffPermissionService.enqueue.mock.calls[0][0]
+		)
+		expect(handoffPermissionService.enqueue.mock.calls[0][0].maxAttempts).toBe(3)
+	})
+
+	it('dispatches synchronously when delayed flush scheduling is exhausted', async () => {
+		const { strategy, dispatchService, handoffPermissionService, aggregationStates } =
+			createStrategy({
+				dbBindings: [['integration-1', { xpertId: 'xpert-1', summaryWindowSeconds: 3 }]]
+			})
+		handoffPermissionService.enqueue.mockRejectedValue(new Error('queue unavailable'))
+
+		await expect(
+			strategy.handleInboundMessage({
+				integrationId: 'integration-1',
+				input: '立即降级派发',
+				dingtalkMessage: {
+					integrationId: 'integration-1',
+					chatId: 'chat-1',
+					dingtalkUserId: 'user-1',
+					senderOpenId: 'sender-1',
+					chatType: 'private'
+				} as any,
+				conversationUserKey: 'integration-1:chat-1:sender-1'
+			})
+		).resolves.toBe(true)
+
+		expect(handoffPermissionService.enqueue).toHaveBeenCalledTimes(3)
+		expect(dispatchService.enqueueDispatch).toHaveBeenCalledTimes(1)
+		expect(dispatchService.enqueueDispatch).toHaveBeenCalledWith(
+			expect.objectContaining({
+				input: '立即降级派发'
+			})
+		)
+		expect(aggregationStates.has('integration-1:chat-1:sender-1')).toBe(false)
+	})
+
+	it('does not retry dispatch when both the dispatched marker and aggregate cleanup fail', async () => {
+		const {
+			strategy,
+			aggregationService,
+			aggregateLockLease,
+			dispatchService,
+			handoffPermissionService,
+			aggregationStates
+		} = createStrategy({
+			dbBindings: [['integration-1', { xpertId: 'xpert-1', summaryWindowSeconds: 3 }]]
+		})
+		await strategy.handleInboundMessage({
+			integrationId: 'integration-1',
+			input: '只派发一次',
+			dingtalkMessage: {
+				integrationId: 'integration-1',
+				chatId: 'chat-1',
+				dingtalkUserId: 'user-1',
+				senderOpenId: 'sender-1',
+				chatType: 'private'
+			} as any,
+			conversationUserKey: 'integration-1:chat-1:sender-1'
+		})
+		const flushPayload = handoffPermissionService.enqueue.mock.calls[0][0].payload
+		aggregationService.save
+			.mockImplementationOnce(async (state: any) => {
+				aggregationStates.set(state.aggregateKey, state)
+			})
+			.mockRejectedValueOnce(new Error('marker save failed'))
+			.mockRejectedValueOnce(new Error('marker save failed'))
+			.mockRejectedValueOnce(new Error('marker save failed'))
+		aggregateLockLease.clearStateIfOwned.mockRejectedValue(new Error('aggregate clear failed'))
+
+		await expect(strategy.flushBufferedConversation(flushPayload)).resolves.toBe(true)
+		await expect(strategy.flushBufferedConversation(flushPayload)).resolves.toBe(true)
+
+		expect(dispatchService.enqueueDispatch).toHaveBeenCalledTimes(1)
+		expect(aggregationService.save).toHaveBeenCalledTimes(5)
+		expect(aggregateLockLease.clearStateIfOwned).toHaveBeenCalledTimes(2)
+		expect(aggregationStates.get('integration-1:chat-1:sender-1')).toEqual(
+			expect.objectContaining({
+				deliveryStatus: 'dispatching',
+				dispatchMessageId: expect.stringMatching(/^dingtalk-chat-aggregate-/)
+			})
+		)
+	})
+
+	it('does not merge an already dispatched aggregate after cleanup fails', async () => {
+		const {
+			strategy,
+			aggregateLockLease,
+			dispatchService,
+			handoffPermissionService,
+			aggregationStates
+		} = createStrategy({
+			dbBindings: [['integration-1', { xpertId: 'xpert-1', summaryWindowSeconds: 3 }]]
+		})
+		const dingtalkMessage = {
+			integrationId: 'integration-1',
+			chatId: 'chat-1',
+			dingtalkUserId: 'user-1',
+			senderOpenId: 'sender-1',
+			chatType: 'private'
+		} as any
+		const conversationUserKey = 'integration-1:chat-1:sender-1'
+
+		await strategy.handleInboundMessage({
+			integrationId: 'integration-1',
+			input: '第一条',
+			files: [{ fileAssetId: 'file-asset-1', originalName: 'report.pdf' }],
+			dingtalkMessage,
+			conversationUserKey
+		})
+
+		const firstFlushMessage = handoffPermissionService.enqueue.mock.calls[0][0]
+		aggregateLockLease.clearStateIfOwned.mockRejectedValueOnce(new Error('aggregate clear failed'))
+
+		await expect(strategy.flushBufferedConversation(firstFlushMessage.payload)).resolves.toBe(true)
+		expect(dispatchService.enqueueDispatch).toHaveBeenCalledTimes(1)
+		expect(aggregationStates.get(conversationUserKey)).toEqual(
+			expect.objectContaining({
+				deliveryStatus: 'dispatched',
+				inputParts: ['第一条']
+			})
+		)
+
+		await expect(
+			strategy.flushBufferedConversation(firstFlushMessage.payload)
+		).resolves.toBe(false)
+		expect(dispatchService.enqueueDispatch).toHaveBeenCalledTimes(1)
+
+		await strategy.handleInboundMessage({
+			integrationId: 'integration-1',
+			input: '第二条',
+			dingtalkMessage,
+			conversationUserKey
+		})
+		const secondFlushMessage = handoffPermissionService.enqueue.mock.calls[1][0]
+		await expect(strategy.flushBufferedConversation(secondFlushMessage.payload)).resolves.toBe(true)
+
+		expect(dispatchService.enqueueDispatch).toHaveBeenCalledTimes(2)
+		expect(dispatchService.enqueueDispatch).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				input: '第二条',
+				files: []
+			})
+		)
 	})
 })

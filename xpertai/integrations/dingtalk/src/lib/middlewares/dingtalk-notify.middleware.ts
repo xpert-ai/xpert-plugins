@@ -19,7 +19,8 @@ import { DingTalkConversationService } from '../conversation.service.js'
 import { toRecipientConversationUserKey } from '../conversation-user-key.js'
 import { DingTalkChannelStrategy } from '../dingtalk-channel.strategy.js'
 import {
-  resolveDingTalkSendFileFromWorkspace,
+  buildDingTalkSendMediaContent,
+  resolveDingTalkSendMediaFromWorkspace,
   toDingTalkSendFileMetadata,
   type DingTalkSendFileDescriptor
 } from '../dingtalk-send-file.js'
@@ -954,7 +955,7 @@ export class DingTalkNotifyMiddleware implements IAgentMiddlewareStrategy {
             )
           }
 
-          const file = await resolveDingTalkSendFileFromWorkspace(
+          const file = await resolveDingTalkSendMediaFromWorkspace(
             buildDingTalkSendFileDescriptor(renderedInput as Record<string, unknown>),
             { workspaceFiles }
           )
@@ -985,14 +986,7 @@ export class DingTalkNotifyMiddleware implements IAgentMiddlewareStrategy {
                 recipient,
                 robotCodeOverride,
                 msgType: 'interactive',
-                content: {
-                  msgKey: 'sampleFile',
-                  msgParam: {
-                    mediaId: uploaded.mediaId,
-                    fileName: file.fileName,
-                    fileType: file.fileType
-                  }
-                },
+                content: buildDingTalkSendMediaContent(file, uploaded.mediaId),
                 allowFallback: false
               })
 
@@ -1011,7 +1005,7 @@ export class DingTalkNotifyMiddleware implements IAgentMiddlewareStrategy {
         {
           name: 'dingtalk_send_file',
           description:
-            'Send a generated, edited, or previously found Xpert workspace file to the trusted current DingTalk conversation. The tool cannot choose another integration, chat, or user.',
+            'Send a generated, edited, or previously found Xpert workspace image or file to the trusted current DingTalk conversation. Images use the DingTalk image message channel; documents and archives use the file message channel. The tool cannot choose another integration, chat, or user.',
           schema: sendFileSchema,
           verboseParsingErrors: true
         }

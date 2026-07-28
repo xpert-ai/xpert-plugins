@@ -4,8 +4,12 @@ import { WORKSPACE_FILES_SOURCE, type WorkspaceFileLocator, type WorkspaceFilesA
 import { DINGTALK_MAX_FILE_BYTES } from './types.js'
 
 export const DINGTALK_SUPPORTED_FILE_TYPES = ['xlsx', 'pdf', 'zip', 'rar', 'doc', 'docx'] as const
+export const DINGTALK_SUPPORTED_IMAGE_TYPES = ['gif', 'jpeg', 'jpg', 'png', 'webp'] as const
 
 const DINGTALK_SUPPORTED_FILE_TYPE_SET = new Set<string>(DINGTALK_SUPPORTED_FILE_TYPES)
+const DINGTALK_SUPPORTED_IMAGE_TYPE_SET = new Set<string>(DINGTALK_SUPPORTED_IMAGE_TYPES)
+
+export type DingTalkSendMediaType = 'file' | 'image'
 
 export type DingTalkSendFileReference = {
   source?: string | null
@@ -34,6 +38,7 @@ export type DingTalkResolvedSendFile = {
   buffer: Buffer
   fileName: string
   fileType: string
+  mediaType: DingTalkSendMediaType
   mimeType: string
   size: number
   sha256: string
@@ -60,6 +65,7 @@ const MIME_BY_EXTENSION: Record<string, string> = {
   txt: 'text/plain',
   xls: 'application/vnd.ms-excel',
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  webp: 'image/webp',
   zip: 'application/zip'
 }
 
@@ -70,15 +76,36 @@ export async function resolveDingTalkSendFileFromWorkspace(
     maxBytes?: number
   }
 ): Promise<DingTalkResolvedSendFile> {
+  return resolveDingTalkSendMediaFromWorkspaceInternal(descriptor, options, 'file')
+}
+
+export async function resolveDingTalkSendMediaFromWorkspace(
+  descriptor: DingTalkSendFileDescriptor,
+  options: {
+    workspaceFiles: Pick<WorkspaceFilesApi, 'readRuntimeBuffer'>
+    maxBytes?: number
+  }
+): Promise<DingTalkResolvedSendFile> {
+  return resolveDingTalkSendMediaFromWorkspaceInternal(descriptor, options)
+}
+
+async function resolveDingTalkSendMediaFromWorkspaceInternal(
+  descriptor: DingTalkSendFileDescriptor,
+  options: {
+    workspaceFiles: Pick<WorkspaceFilesApi, 'readRuntimeBuffer'>
+    maxBytes?: number
+  },
+  expectedMediaType?: DingTalkSendMediaType
+): Promise<DingTalkResolvedSendFile> {
   const locator = toWorkspaceFileLocator(descriptor)
   const file = await options.workspaceFiles.readRuntimeBuffer(locator)
-  return resolveDingTalkSendFileFromBuffer(file.buffer, {
+  return resolveDingTalkSendMediaFromBufferInternal(file.buffer, {
     descriptor,
     fallbackName: file.name,
     fallbackMimeType: file.mimeType,
     fallbackPath: file.workspacePath || file.filePath,
     maxBytes: options.maxBytes
-  })
+  }, expectedMediaType)
 }
 
 export function resolveDingTalkSendFileFromBuffer(
@@ -90,6 +117,33 @@ export function resolveDingTalkSendFileFromBuffer(
     fallbackPath?: string | null
     maxBytes?: number
   }
+): DingTalkResolvedSendFile {
+  return resolveDingTalkSendMediaFromBufferInternal(buffer, options, 'file')
+}
+
+export function resolveDingTalkSendImageFromBuffer(
+  buffer: Buffer,
+  options: {
+    descriptor: DingTalkSendFileDescriptor
+    fallbackName?: string | null
+    fallbackMimeType?: string | null
+    fallbackPath?: string | null
+    maxBytes?: number
+  }
+): DingTalkResolvedSendFile {
+  return resolveDingTalkSendMediaFromBufferInternal(buffer, options, 'image')
+}
+
+function resolveDingTalkSendMediaFromBufferInternal(
+  buffer: Buffer,
+  options: {
+    descriptor: DingTalkSendFileDescriptor
+    fallbackName?: string | null
+    fallbackMimeType?: string | null
+    fallbackPath?: string | null
+    maxBytes?: number
+  },
+  expectedMediaType?: DingTalkSendMediaType
 ): DingTalkResolvedSendFile {
   const maxBytes = options.maxBytes ?? DINGTALK_MAX_FILE_BYTES
   if (!buffer.length) {
@@ -106,10 +160,18 @@ export function resolveDingTalkSendFileFromBuffer(
     options.fallbackName || basenamePortable(fallbackPath) || 'file'
   )
   const extension = resolveFileExtension(fileName, fallbackPath, descriptor.extension)
-  if (!extension || !DINGTALK_SUPPORTED_FILE_TYPE_SET.has(extension)) {
+  const mediaType = resolveDingTalkSendMediaType(extension)
+  if (!mediaType || (expectedMediaType && mediaType !== expectedMediaType)) {
     const received = extension ? `.${extension}` : 'a file without an extension'
+    const supportedTypes =
+      expectedMediaType === 'file'
+        ? DINGTALK_SUPPORTED_FILE_TYPES
+        : expectedMediaType === 'image'
+          ? DINGTALK_SUPPORTED_IMAGE_TYPES
+          : [...DINGTALK_SUPPORTED_FILE_TYPES, ...DINGTALK_SUPPORTED_IMAGE_TYPES]
+    const sendType = expectedMediaType || 'media'
     throw new Error(
-      `DingTalk file send supports only ${DINGTALK_SUPPORTED_FILE_TYPES.map((type) => `.${type}`).join(', ')} files; received ${received}.`
+      `DingTalk ${sendType} send supports only ${supportedTypes.map((type) => `.${type}`).join(', ')} files; received ${received}.`
     )
   }
   const mimeType = resolveDingTalkFileMimeType(
@@ -121,6 +183,7 @@ export function resolveDingTalkSendFileFromBuffer(
     buffer,
     fileName,
     fileType: extension,
+    mediaType,
     mimeType,
     size: buffer.length,
     sha256: createHash('sha256').update(buffer).digest('hex')
@@ -131,9 +194,30 @@ export function toDingTalkSendFileMetadata(file: DingTalkResolvedSendFile): Ding
   return {
     fileName: file.fileName,
     fileType: file.fileType,
+    mediaType: file.mediaType,
     mimeType: file.mimeType,
     size: file.size,
     sha256: file.sha256
+  }
+}
+
+export function buildDingTalkSendMediaContent(file: DingTalkResolvedSendFile, mediaId: string) {
+  if (file.mediaType === 'image') {
+    return {
+      msgKey: 'sampleImageMsg',
+      msgParam: {
+        photoURL: mediaId
+      }
+    }
+  }
+
+  return {
+    msgKey: 'sampleFile',
+    msgParam: {
+      mediaId,
+      fileName: file.fileName,
+      fileType: file.fileType
+    }
   }
 }
 
@@ -240,6 +324,16 @@ function resolveFileExtension(fileName: string, fallbackPath: string, explicit?:
 
 function normalizeExtension(value?: string | null): string {
   return normalizeString(value).replace(/^\./, '').toLowerCase()
+}
+
+function resolveDingTalkSendMediaType(extension?: string): DingTalkSendMediaType | undefined {
+  if (extension && DINGTALK_SUPPORTED_FILE_TYPE_SET.has(extension)) {
+    return 'file'
+  }
+  if (extension && DINGTALK_SUPPORTED_IMAGE_TYPE_SET.has(extension)) {
+    return 'image'
+  }
+  return undefined
 }
 
 function basenamePortable(value?: string | null): string {

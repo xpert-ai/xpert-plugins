@@ -61,8 +61,11 @@ export const CUT_SAVE_PROJECT_TOOL_NAME = 'cut_save_project'
 export const CUT_FINALIZE_VERSION_TOOL_NAME = 'cut_finalize_version'
 export const CUT_REPORT_FAILURE_TOOL_NAME = 'cut_report_failure'
 export const CUT_START_HEADLESS_EXPORT_TOOL_NAME = 'cut_start_headless_export'
+export const CUT_ACCEPT_STORY_HANDOFF_TOOL_NAME =
+  'cut_accept_story_handoff'
 
 export const CUT_MIDDLEWARE_TOOL_NAMES = [
+  CUT_ACCEPT_STORY_HANDOFF_TOOL_NAME,
   CUT_CREATE_PROJECT_TOOL_NAME,
   CUT_GET_PROJECT_TOOL_NAME,
   CUT_LIST_TRACKS_TOOL_NAME,

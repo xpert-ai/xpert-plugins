@@ -61,10 +61,6 @@ export interface DingTalkChatCallbackContext extends Record<string, unknown> {
 	robotCode?: string
 	sessionWebhook?: string
 	reject?: boolean
-	streaming?: {
-		updateWindowMs?: number
-		firstFlushMinChars?: number
-	}
 	message: DingTalkChatMessageSnapshot
 }
 

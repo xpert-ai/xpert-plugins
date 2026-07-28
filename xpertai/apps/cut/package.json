@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-cut",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Agentic non-linear video editor for Xpert, adapted from the pinned OpenCut pre-rewrite editor architecture.",
   "author": {
     "name": "XpertAI",

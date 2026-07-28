@@ -75,8 +75,11 @@
       "@xpert-ai/plugin-pdfium",
       "@xpert-ai/plugin-gemini",
       "@xpert-ai/plugin-anthropic",
+      "@xpert-ai/plugin-stepfun",
       "@xpert-ai/plugin-minimax",
+      "@xpert-ai/plugin-mimo",
       "@xpert-ai/plugin-moonshot",
+      "@xpert-ai/plugin-longcat",
       "@xpert-ai/plugin-openrouter",
       "@xpert-ai/plugin-context-editing",
       "@xpert-ai/plugin-tool-call-limit",
@@ -105,6 +108,9 @@
       "@xpert-ai/plugin-lark-cli",
       "@xpert-ai/plugin-github-connector",
       "@xpert-ai/plugin-file-memory",
+      "@xpert-ai/plugin-cut",
+      "@xpert-ai/plugin-motion",
+      "@xpert-ai/plugin-story-studio",
       "@xpert-ai/plugin-office-cli"
     ],
     "version": {

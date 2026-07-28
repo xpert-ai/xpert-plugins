@@ -1,4 +1,13 @@
-import { audibleTimelineClips, restoreClipSourceDuration, shouldMountPreviewMedia, shouldSeekPreviewMedia } from './cut-media-playback.js'
+import {
+  activePreviewVisualClipIds,
+  audibleTimelineClips,
+  previewMediaTargetTime,
+  previewNativeAudioState,
+  restoreClipSourceDuration,
+  shouldMountPreviewMedia,
+  shouldPlayPreviewMedia,
+  shouldSeekPreviewMedia
+} from './cut-media-playback.js'
 import type { CutProjectDocument } from './types.js'
 
 describe('Cut media playback', () => {
@@ -62,5 +71,73 @@ describe('Cut media playback', () => {
     expect(shouldMountPreviewMedia(clip, 0)).toBe(true)
     expect(shouldMountPreviewMedia({ ...clip, start: 10 }, 0)).toBe(false)
     expect(shouldMountPreviewMedia({ ...clip, type: 'image' }, 0)).toBe(false)
+  })
+
+  it('parks a future clip at trimIn instead of consuming it before the cut', () => {
+    expect(previewMediaTargetTime({
+      active: false,
+      playhead: 8.5,
+      clipStart: 10,
+      trimIn: 2,
+      playbackRate: 1.5
+    })).toBe(2)
+    expect(shouldPlayPreviewMedia(true, false)).toBe(false)
+  })
+
+  it('advances media from trimIn only while its timeline clip is active', () => {
+    expect(previewMediaTargetTime({
+      active: true,
+      playhead: 12,
+      clipStart: 10,
+      trimIn: 2,
+      playbackRate: 1.5
+    })).toBe(5)
+    expect(shouldPlayPreviewMedia(true, true)).toBe(true)
+    expect(shouldPlayPreviewMedia(false, true)).toBe(false)
+  })
+
+  it('keeps a pre-rolled future clip natively muted until its cut begins', () => {
+    expect(previewNativeAudioState({
+      active: false,
+      capturedAudio: false,
+      requestedVolume: 1
+    })).toEqual({ volume: 0, muted: true })
+    expect(previewNativeAudioState({
+      active: true,
+      capturedAudio: false,
+      requestedVolume: 0.8
+    })).toEqual({ volume: 0.8, muted: false })
+  })
+
+  it('keeps captured audio native-muted while WebAudio owns its gain', () => {
+    expect(previewNativeAudioState({
+      active: true,
+      capturedAudio: true,
+      requestedVolume: 0.6
+    })).toEqual({ volume: 1, muted: true })
+    expect(previewNativeAudioState({
+      active: true,
+      capturedAudio: false,
+      requestedVolume: 1,
+      mutedByTimeline: true
+    })).toEqual({ volume: 1, muted: true })
+  })
+
+  it('uses only the topmost overlapping clip on each visual track', () => {
+    const project = document()
+    project.tracks[0]!.clips.push({
+      id: 'top-video',
+      type: 'video',
+      name: 'Top shot',
+      start: 0,
+      duration: 5,
+      trimIn: 0,
+      trimOut: 5,
+      previewUrl: '/top.mp4'
+    })
+    expect(activePreviewVisualClipIds(project, 2)).toEqual(['top-video'])
+    expect(activePreviewVisualClipIds(project, 7)).toEqual(['video'])
+    project.tracks[0]!.hidden = true
+    expect(activePreviewVisualClipIds(project, 2)).toEqual([])
   })
 })

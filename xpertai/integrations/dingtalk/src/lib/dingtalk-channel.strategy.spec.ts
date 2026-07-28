@@ -42,6 +42,7 @@ describe('DingTalkChannelStrategy', () => {
         buffer: content,
         fileName: 'report.pdf',
         fileType: 'pdf',
+        mediaType: 'file',
         mimeType: 'application/pdf'
       })
     )
@@ -84,7 +85,49 @@ describe('DingTalkChannelStrategy', () => {
     )
   })
 
-  it.each(['image', 'audio', 'video'] as const)('rejects unsupported %s media without uploading', async (type) => {
+  it('uploads and sends image content through the DingTalk sampleImageMsg template', async () => {
+    const { strategy, client } = createFixture()
+    const content = Buffer.from('png bytes')
+
+    await expect(
+      strategy.sendMedia(
+        {
+          integration: { id: 'integration-1' },
+          chatId: 'chat-1'
+        } as any,
+        {
+          type: 'image',
+          content,
+          filename: 'chart.png'
+        }
+      )
+    ).resolves.toEqual({ success: true, messageId: 'message-1' })
+
+    expect(strategy.uploadFile).toHaveBeenCalledWith(
+      'integration-1',
+      expect.objectContaining({
+        buffer: content,
+        fileName: 'chart.png',
+        fileType: 'png',
+        mediaType: 'image',
+        mimeType: 'image/png'
+      })
+    )
+    expect(client.sendMessage).toHaveBeenCalledWith({
+      recipient: { type: 'chat_id', id: 'chat-1' },
+      robotCodeOverride: undefined,
+      msgType: 'interactive',
+      content: {
+        msgKey: 'sampleImageMsg',
+        msgParam: {
+          photoURL: 'media-1'
+        }
+      },
+      allowFallback: false
+    })
+  })
+
+  it.each(['audio', 'video'] as const)('rejects unsupported %s media without uploading', async (type) => {
     const { strategy, client } = createFixture()
 
     await expect(
@@ -101,7 +144,7 @@ describe('DingTalkChannelStrategy', () => {
       )
     ).resolves.toEqual({
       success: false,
-      error: 'DingTalk sendMedia currently supports file content only'
+      error: 'DingTalk sendMedia supports image or file content only'
     })
 
     expect(strategy.uploadFile).not.toHaveBeenCalled()

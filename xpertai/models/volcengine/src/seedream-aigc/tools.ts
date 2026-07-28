@@ -10,6 +10,8 @@ const VIDEO_FOLDER = 'files/seedream-aigc/videos'
 const IMAGE_LIMIT_BYTES = 10 * 1024 * 1024
 const MULTIMODAL_IMAGE_LIMIT_BYTES = 30 * 1024 * 1024
 const AUDIO_LIMIT_BYTES = 15 * 1024 * 1024
+const VIDEO_QUERY_MAX_WAIT_SECONDS = 45
+const VIDEO_QUERY_POLL_MS = 5_000
 const MULTIMODAL_MODE_RULES: Record<string, { label: string; needImage: boolean; needVideo: boolean; needAudio: boolean }> = {
   text_video: {
     label: 'text(optional)+video',
@@ -251,7 +253,16 @@ function buildMultimodalReferenceToVideoTool(deps: SeedreamToolDependencies) {
       const imageInputs = toArray(input.reference_image_files)
       const videoUrls = parseUrlList(input.reference_video_urls)
       const audioInputs = toArray(input.reference_audio_files)
-      validateMultimodalInputs(modeRule, imageInputs, videoUrls, audioInputs)
+      const audioUrls = parsePublicHttpsUrlList(
+        input.reference_audio_urls,
+        'reference audio URL'
+      )
+      validateMultimodalInputs(
+        modeRule,
+        imageInputs,
+        videoUrls,
+        audioInputs.length + audioUrls.length
+      )
       const content: Record<string, unknown>[] = []
       if (options.prompt) {
         content.push({ type: 'text', text: options.prompt })
@@ -270,6 +281,9 @@ function buildMultimodalReferenceToVideoTool(deps: SeedreamToolDependencies) {
         const dataUrl = await encodeAudioInput(audio, deps)
         content.push({ type: 'audio_url', audio_url: { url: dataUrl }, role: 'reference_audio' })
       }
+      for (const audioUrl of audioUrls) {
+        content.push({ type: 'audio_url', audio_url: { url: audioUrl }, role: 'reference_audio' })
+      }
       const task = await createClient(deps).createVideoTask(createVideoPayload(options, content))
       return videoSubmittedResult(task, 'Multimodal reference video task submitted.')
     },
@@ -287,8 +301,25 @@ function buildVideoQueryTool(deps: SeedreamToolDependencies) {
     async (input: any): Promise<SeedreamToolResult> => {
       const taskId = requireString(input.task_id, 'Task id is required')
       const downloadVideo = normalizeBoolean(input.download_video, true)
+      const waitSeconds = clampNumber(
+        input.wait_seconds,
+        VIDEO_QUERY_MAX_WAIT_SECONDS,
+        0,
+        VIDEO_QUERY_MAX_WAIT_SECONDS
+      )
       const client = createClient(deps)
-      const task = await client.getVideoTask(taskId)
+      let task = await client.getVideoTask(taskId)
+      const deadline = Date.now() + waitSeconds * 1_000
+      while (
+        !task?.content?.video_url &&
+        isPendingVideoTask(task?.status) &&
+        Date.now() < deadline
+      ) {
+        await delay(
+          Math.min(VIDEO_QUERY_POLL_MS, Math.max(0, deadline - Date.now()))
+        )
+        task = await client.getVideoTask(taskId)
+      }
       const files: SeedreamArtifactFile[] = []
       const videoUrl = task?.content?.video_url
       if (downloadVideo && typeof videoUrl === 'string' && videoUrl) {
@@ -313,7 +344,7 @@ function buildVideoQueryTool(deps: SeedreamToolDependencies) {
       const resolvedTaskId = task?.id ?? taskId
       const message = videoUrl
         ? `Video task ${resolvedTaskId} status: ${task?.status ?? 'unknown'}.`
-        : `Video task ${resolvedTaskId} status: ${task?.status ?? 'unknown'}.\nNo video_url is available yet. Do not repeat seedance_video_query with the same task_id in this turn; report the current status and Task ID to the user.`
+        : `Video task ${resolvedTaskId} status: ${task?.status ?? 'unknown'}.\nNo video_url is available after a bounded ${waitSeconds}-second wait. Report the current status and Task ID to the user; the provider task continues running and may be queried in a later turn.`
       return result(message, files, {
         task_id: resolvedTaskId,
         status: task?.status,
@@ -771,6 +802,20 @@ const multimodalReferenceAudioFilesProperty = {
   }
 } as const
 
+const multimodalReferenceAudioUrlsProperty = {
+  type: 'string',
+  maxLength: 6_100,
+  title: 'Reference audio URLs',
+  description: 'Public HTTPS reference audio URLs separated by comma or newline.',
+  'x-ui': {
+    title: i18n('Reference audio URLs', '参考音频 URL'),
+    description: i18n(
+      'Public HTTPS reference audio URLs separated by comma or newline.',
+      '公网 HTTPS 参考音频 URL，可用英文逗号或换行分隔，最多 3 个。'
+    )
+  }
+} as const
+
 function videoObjectSchema(properties: Record<string, unknown>, required = ['prompt']) {
   return {
     type: 'object',
@@ -799,7 +844,8 @@ const multimodalReferenceToVideoSchema = videoObjectSchema({
   input_mode: multimodalInputModeProperty,
   reference_image_files: multimodalReferenceImagesProperty,
   reference_video_urls: multimodalReferenceVideoUrlsProperty,
-  reference_audio_files: multimodalReferenceAudioFilesProperty
+  reference_audio_files: multimodalReferenceAudioFilesProperty,
+  reference_audio_urls: multimodalReferenceAudioUrlsProperty
 }, [])
 
 const videoTaskIdProperty = {
@@ -820,7 +866,23 @@ const videoQuerySchema = videoObjectSchema({
     'Whether to download and upload the video.',
     '是否下载并上传视频。',
     'true'
-  )
+  ),
+  wait_seconds: {
+    type: 'integer',
+    title: 'Bounded wait',
+    description:
+      'Wait up to this many seconds for a task to produce video_url.',
+    minimum: 0,
+    maximum: VIDEO_QUERY_MAX_WAIT_SECONDS,
+    default: VIDEO_QUERY_MAX_WAIT_SECONDS,
+    'x-ui': {
+      title: i18n('Bounded wait', '有界等待'),
+      description: i18n(
+        'Wait up to 45 seconds while the durable provider task continues.',
+        '最多等待 45 秒；火山方舟的持久任务会继续运行。'
+      )
+    }
+  }
 }, ['task_id'])
 
 async function encodeImageInput(input: unknown, deps: SeedreamToolDependencies, limitBytes: number, label: string) {
@@ -985,8 +1047,30 @@ function requireString(value: unknown, message: string) {
 }
 
 function clampNumber(value: unknown, fallback: number, min: number, max: number) {
-  const number = typeof value === 'number' && Number.isFinite(value) ? value : fallback
+  const parsed =
+    typeof value === 'string' && value.trim() ? Number(value) : value
+  const number =
+    typeof parsed === 'number' && Number.isFinite(parsed)
+      ? parsed
+      : fallback
   return Math.min(Math.max(number, min), max)
+}
+
+function isPendingVideoTask(status: unknown) {
+  const normalized =
+    typeof status === 'string' ? status.trim().toLowerCase() : ''
+  return (
+    !normalized ||
+    normalized === 'queued' ||
+    normalized === 'pending' ||
+    normalized === 'processing' ||
+    normalized === 'running' ||
+    normalized === 'submitted'
+  )
+}
+
+function delay(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms))
 }
 
 function toArray(value: unknown): unknown[] {
@@ -1019,11 +1103,45 @@ function parseUrlList(value: unknown) {
     .filter(Boolean)
 }
 
+function parsePublicHttpsUrlList(value: unknown, label: string) {
+  return parseUrlList(value).map((value) => {
+    let parsed: URL
+    try {
+      parsed = new URL(value)
+    } catch {
+      throw new Error(`Invalid ${label}: ${value}`)
+    }
+    if (
+      parsed.protocol !== 'https:' ||
+      isPrivateReferenceHost(parsed.hostname)
+    ) {
+      throw new Error(`${label} must be a public HTTPS URL`)
+    }
+    return parsed.toString()
+  })
+}
+
+function isPrivateReferenceHost(hostname: string) {
+  const normalized = hostname.toLowerCase().replace(/^\[|\]$/g, '')
+  return (
+    normalized === 'localhost' ||
+    normalized === '::1' ||
+    normalized === '0.0.0.0' ||
+    normalized.endsWith('.local') ||
+    normalized.endsWith('.internal') ||
+    normalized.startsWith('127.') ||
+    normalized.startsWith('10.') ||
+    normalized.startsWith('192.168.') ||
+    normalized.startsWith('169.254.') ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(normalized)
+  )
+}
+
 function validateMultimodalInputs(
   modeRule: { label: string; needImage: boolean; needVideo: boolean; needAudio: boolean },
   imageInputs: unknown[],
   videoUrls: string[],
-  audioInputs: unknown[]
+  audioInputCount: number
 ) {
   if (modeRule.needImage && !imageInputs.length) {
     throw new Error(`${modeRule.label} requires at least one reference image`)
@@ -1031,7 +1149,7 @@ function validateMultimodalInputs(
   if (modeRule.needVideo && !videoUrls.length) {
     throw new Error(`${modeRule.label} requires at least one reference video URL`)
   }
-  if (modeRule.needAudio && !audioInputs.length) {
+  if (modeRule.needAudio && audioInputCount === 0) {
     throw new Error(`${modeRule.label} requires at least one reference audio`)
   }
   if (imageInputs.length > 9) {
@@ -1040,8 +1158,8 @@ function validateMultimodalInputs(
   if (videoUrls.length > 3) {
     throw new Error('Reference video URLs support at most 3 values')
   }
-  if (audioInputs.length > 3) {
-    throw new Error('Reference audios support at most 3 files')
+  if (audioInputCount > 3) {
+    throw new Error('Reference audios support at most 3 files or URLs')
   }
   if (modeRule.needAudio && !imageInputs.length && !videoUrls.length) {
     throw new Error('Audio cannot be used alone; at least one image or video reference is required')
