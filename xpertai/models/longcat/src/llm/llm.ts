@@ -9,7 +9,7 @@ import {
   mergeCredentials,
   type TChatModelOptions,
 } from '@xpert-ai/plugin-sdk';
-import type { LongcatProviderStrategy } from '../provider.strategy.js';
+import { LongcatProviderStrategy } from '../provider.strategy.js';
 import {
   type LongcatModelCredentials,
   toCredentialKwargs,

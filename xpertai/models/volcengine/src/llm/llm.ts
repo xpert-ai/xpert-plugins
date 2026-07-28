@@ -12,6 +12,19 @@ import { isNil, omitBy } from 'lodash-es'
 import { VolcengineProviderStrategy } from '../provider.strategy.js'
 import { toCredentialKwargs, VolcengineModelCredentials } from '../types.js'
 
+function buildVolcengineModelKwargs(thinking: unknown) {
+  if (thinking !== 'enabled' && thinking !== 'disabled') {
+    return {}
+  }
+
+  return {
+    thinking: {
+      type: thinking
+    },
+    ...(thinking === 'disabled' ? { reasoning_effort: 'minimal' } : {})
+  }
+}
+
 @Injectable()
 export class VolcengineLargeLanguageModel extends LargeLanguageModel {
   readonly #logger = new Logger(VolcengineLargeLanguageModel.name)
@@ -51,6 +64,7 @@ export class VolcengineLargeLanguageModel extends LargeLanguageModel {
       {
         ...params,
         model,
+        modelKwargs: buildVolcengineModelKwargs(copilotModel.options?.['thinking']),
         // include token usage in the stream. this will include an additional chunk at the end of the stream with the token usage.
         streamUsage: true
       },
