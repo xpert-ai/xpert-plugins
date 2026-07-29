@@ -248,6 +248,45 @@
     },
     {
       "path": "./apps/cut"
+    },
+    {
+      "path": "./databases/clickhouse"
+    },
+    {
+      "path": "./apps/office-cli"
+    },
+    {
+      "path": "./databases/postgres"
+    },
+    {
+      "path": "./databases/opengauss"
+    },
+    {
+      "path": "./databases/kingbase"
+    },
+    {
+      "path": "./databases/presto"
+    },
+    {
+      "path": "./databases/trino"
+    },
+    {
+      "path": "./databases/xmla"
+    },
+    {
+      "path": "./databases/sap-bw"
+    },
+    {
+      "path": "./databases/mariadb"
+    },
+    {
+      "path": "./databases/hive"
+    },
+    {
+      "path": "./databases/mssql"
+    },
+    {
+      "path": "./databases/redshift"
     }
   ]
 }

@@ -1,10 +1,7 @@
 {
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
   "namedInputs": {
-    "default": [
-      "{projectRoot}/**/*",
-      "sharedGlobals"
-    ],
+    "default": ["{projectRoot}/**/*", "sharedGlobals"],
     "production": [
       "default",
       "!{projectRoot}/**/?(*.)+(spec|test).[jt]s?(x)?(.snap)",
@@ -111,7 +108,19 @@
       "@xpert-ai/plugin-cut",
       "@xpert-ai/plugin-motion",
       "@xpert-ai/plugin-story-studio",
-      "@xpert-ai/plugin-office-cli"
+      "@xpert-ai/plugin-office-cli",
+      "@xpert-ai/plugin-clickhouse",
+      "@xpert-ai/plugin-postgres",
+      "@xpert-ai/plugin-opengauss",
+      "@xpert-ai/plugin-kingbase",
+      "@xpert-ai/plugin-presto",
+      "@xpert-ai/plugin-trino",
+      "@xpert-ai/plugin-xmla",
+      "@xpert-ai/plugin-sap-bw",
+      "@xpert-ai/plugin-mariadb",
+      "@xpert-ai/plugin-hive",
+      "@xpert-ai/plugin-mssql",
+      "@xpert-ai/plugin-redshift"
     ],
     "version": {
       "preVersionCommand": "npx nx run-many -t build && npx nx run-many -t prepack"
@@ -120,18 +129,11 @@
   "targetDefaults": {
     "@nx/js:tsc": {
       "cache": true,
-      "dependsOn": [
-        "^build"
-      ],
-      "inputs": [
-        "production",
-        "^production"
-      ]
+      "dependsOn": ["^build"],
+      "inputs": ["production", "^production"]
     },
     "test": {
-      "dependsOn": [
-        "^build"
-      ]
+      "dependsOn": ["^build"]
     }
   }
 }

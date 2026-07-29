@@ -28,7 +28,8 @@ const describeIntegration = missingEnvVars.length ? describe.skip : describe
 
 describeIntegration('MySQLRunner integration (real database)', () => {
   if (!mysqlRunnerOptions) {
-    throw new Error('MySQL test configuration is missing')
+    it.skip('requires MYSQL_* integration credentials', () => undefined)
+    return
   }
 
   let runner: BaseSQLQueryRunner
