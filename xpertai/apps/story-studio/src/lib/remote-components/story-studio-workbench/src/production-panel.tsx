@@ -5,19 +5,18 @@ import {
   ChevronRight,
   PanelRightClose,
   PanelRightOpen,
-  Play,
-  Send
+  Send,
+  Upload
 } from '@xpert-ai/plugin-shadcn-ui'
+import { ASSET_IMAGE_ACCEPT } from './asset-bible-actions'
 import type { MessageKey } from './i18n'
+import { MediaGenerationConsole } from './media-generation-console'
+import { MediaPreview } from './media-preview'
 import type {
   ProjectEditDraft,
   StoryEditorSession
 } from './editor-state'
 import { StageEditor } from './stage-editor'
-import {
-  SelectedVideoPreview,
-  type SelectedVideoClip
-} from './selected-video-preview'
 import {
   type Asset,
   type Candidate,
@@ -42,7 +41,7 @@ export type {
 
 const h: typeof React.createElement = React.createElement
 
-type Translator = (
+export type Translator = (
   key: MessageKey,
   values?: Record<string, string | number>
 ) => string
@@ -101,6 +100,8 @@ const ASSET_KIND_KEYS: Record<Asset['kind'], MessageKey> = {
 export function ProductionPanel(props: {
   production: ProductionView | null
   handoff: HandoffView | null
+  projectRevision: number
+  aspectRatio: string
   activeStage: number
   busy: boolean
   generating: boolean
@@ -115,6 +116,19 @@ export function ProductionPanel(props: {
   onUseAgentVersion: () => void
   onGenerate: () => void
   onQueryGeneration: () => void
+  onRunGenerationInstruction: (instruction: string) => void
+  onSelectGenerationCandidate: (
+    sceneId: string,
+    shotId: string,
+    candidateId: string
+  ) => void
+  onReturnToStoryboard: () => void
+  assetAction: {
+    assetId: string
+    kind: 'upload' | 'generate'
+  } | null
+  onUploadAssetImage: (asset: Asset, file: File) => void
+  onGenerateAssetImage: (asset: Asset) => void
   onHandoff: () => void
   onInspectorCollapsedChange: (collapsed: boolean) => void
   t: Translator
@@ -122,6 +136,8 @@ export function ProductionPanel(props: {
   const {
     production,
     handoff,
+    projectRevision,
+    aspectRatio,
     activeStage,
     busy,
     generating,
@@ -136,6 +152,12 @@ export function ProductionPanel(props: {
     onUseAgentVersion,
     onGenerate,
     onQueryGeneration,
+    onRunGenerationInstruction,
+    onSelectGenerationCandidate,
+    onReturnToStoryboard,
+    assetAction,
+    onUploadAssetImage,
+    onGenerateAssetImage,
     onHandoff,
     onInspectorCollapsedChange,
     t
@@ -143,7 +165,15 @@ export function ProductionPanel(props: {
   const ready = stageContentReady(activeStage, production, handoff)
 
   return (
-    <section className={`ss-stage-workspace ${inspectorCollapsed ? 'is-inspector-collapsed' : ''}`}>
+    <section
+      className={[
+        'ss-stage-workspace',
+        inspectorCollapsed ? 'is-inspector-collapsed' : '',
+        activeStage === 7 ? 'is-generation-console' : ''
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
       <div
         className={`ss-stage-canvas ${
           editor?.pendingRemote ? 'has-editor-conflict' : ''
@@ -188,7 +218,7 @@ export function ProductionPanel(props: {
                 <Badge className={ready ? 'ss-ready-badge' : 'ss-pending-badge'}>
                   {t(ready ? 'workflow.stageReady' : 'workflow.stagePending')}
                 </Badge>
-                {activeStage <= 7 ? (
+                {activeStage <= 6 ? (
                   <Button size="sm" variant="outline" onClick={onEdit}>
                     {t('actions.edit')}
                   </Button>
@@ -240,12 +270,20 @@ export function ProductionPanel(props: {
             <StageContent
               production={production}
               handoff={handoff}
+              projectRevision={projectRevision}
+              aspectRatio={aspectRatio}
               activeStage={activeStage}
               busy={busy}
               generating={generating}
               handingOff={handingOff}
               onGenerate={onGenerate}
               onQueryGeneration={onQueryGeneration}
+              onRunGenerationInstruction={onRunGenerationInstruction}
+              onSelectGenerationCandidate={onSelectGenerationCandidate}
+              onReturnToStoryboard={onReturnToStoryboard}
+              assetAction={assetAction}
+              onUploadAssetImage={onUploadAssetImage}
+              onGenerateAssetImage={onGenerateAssetImage}
               onHandoff={onHandoff}
               t={t}
             />
@@ -253,7 +291,7 @@ export function ProductionPanel(props: {
         </div>
       </div>
 
-      {inspectorCollapsed ? (
+      {activeStage === 7 ? null : inspectorCollapsed ? (
         <aside className="ss-inspector is-collapsed">
           <div className="ss-panel-rail">
             <Button
@@ -284,12 +322,27 @@ export function ProductionPanel(props: {
 function StageContent(props: {
   production: ProductionView
   handoff: HandoffView | null
+  projectRevision: number
+  aspectRatio: string
   activeStage: number
   busy: boolean
   generating: boolean
   handingOff: boolean
   onGenerate: () => void
   onQueryGeneration: () => void
+  onRunGenerationInstruction: (instruction: string) => void
+  onSelectGenerationCandidate: (
+    sceneId: string,
+    shotId: string,
+    candidateId: string
+  ) => void
+  onReturnToStoryboard: () => void
+  assetAction: {
+    assetId: string
+    kind: 'upload' | 'generate'
+  } | null
+  onUploadAssetImage: (asset: Asset, file: File) => void
+  onGenerateAssetImage: (asset: Asset) => void
   onHandoff: () => void
   t: Translator
 }) {
@@ -303,17 +356,30 @@ function StageContent(props: {
     case 4:
       return <EpisodesStage production={props.production} t={props.t} />
     case 5:
-      return <AssetsStage production={props.production} t={props.t} />
+      return (
+        <AssetsStage
+          production={props.production}
+          activeAction={props.assetAction}
+          onUpload={props.onUploadAssetImage}
+          onGenerate={props.onGenerateAssetImage}
+          t={props.t}
+        />
+      )
     case 6:
       return <StoryboardStage production={props.production} t={props.t} />
     case 7:
       return (
-        <GenerationStage
+        <MediaGenerationConsole
           production={props.production}
+          projectRevision={props.projectRevision}
+          aspectRatio={props.aspectRatio}
           busy={props.busy}
           generating={props.generating}
           onGenerate={props.onGenerate}
           onQueryGeneration={props.onQueryGeneration}
+          onRunInstruction={props.onRunGenerationInstruction}
+          onSelectCandidate={props.onSelectGenerationCandidate}
+          onReturnToStoryboard={props.onReturnToStoryboard}
           t={props.t}
         />
       )
@@ -499,8 +565,17 @@ function EpisodesStage(props: { production: ProductionView; t: Translator }) {
   )
 }
 
-function AssetsStage(props: { production: ProductionView; t: Translator }) {
-  const { production, t } = props
+function AssetsStage(props: {
+  production: ProductionView
+  activeAction: {
+    assetId: string
+    kind: 'upload' | 'generate'
+  } | null
+  onUpload: (asset: Asset, file: File) => void
+  onGenerate: (asset: Asset) => void
+  t: Translator
+}) {
+  const { production, activeAction, onUpload, onGenerate, t } = props
   if (!production.assets.length) return <EmptyStage t={t} />
   return (
     <div className="ss-asset-grid">
@@ -508,11 +583,32 @@ function AssetsStage(props: { production: ProductionView; t: Translator }) {
         const voiceReference = production.characters.find(
           (character) => character.name === asset.name
         )?.voiceReference
+        const selectedReference = asset.candidates.find(
+          (candidate) => candidate.kind === 'image' && candidate.selected
+        )
+        const imageCount = asset.candidates.filter(
+          (candidate) => candidate.kind === 'image'
+        ).length
+        const active =
+          activeAction?.assetId === asset.id ? activeAction.kind : null
         return (
           <article key={asset.id}>
-            <MediaPreview candidate={firstVisualCandidate(asset.candidates)} />
+            <MediaPreview
+              candidate={
+                selectedReference ?? firstVisualCandidate(asset.candidates)
+              }
+            />
             <div className="ss-asset-copy">
-              <Badge variant="outline">{t(ASSET_KIND_KEYS[asset.kind])}</Badge>
+              <div className="ss-asset-heading">
+                <Badge variant="outline">
+                  {t(ASSET_KIND_KEYS[asset.kind])}
+                </Badge>
+                <span className="ss-asset-reference-status">
+                  {imageCount
+                    ? t('asset.referenceCount', { count: imageCount })
+                    : t('asset.noReference')}
+                </span>
+              </div>
               <h4>{asset.name}</h4>
               <p>{asset.description}</p>
               {voiceReference ? (
@@ -525,6 +621,49 @@ function AssetsStage(props: { production: ProductionView; t: Translator }) {
                 </a>
               ) : null}
               <small>{asset.prompt}</small>
+              <div className="ss-asset-actions">
+                <label>
+                  <input
+                    className="ss-hidden-file-input"
+                    type="file"
+                    accept={ASSET_IMAGE_ACCEPT}
+                    disabled={Boolean(activeAction)}
+                    onChange={(event) => {
+                      const file = event.currentTarget.files?.[0]
+                      event.currentTarget.value = ''
+                      if (file) onUpload(asset, file)
+                    }}
+                  />
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    disabled={Boolean(activeAction)}
+                  >
+                    <span>
+                      <Upload aria-hidden="true" />
+                      {t(
+                        active === 'upload'
+                          ? 'asset.uploading'
+                          : 'asset.uploadReference'
+                      )}
+                    </span>
+                  </Button>
+                </label>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={Boolean(activeAction) || !asset.prompt.trim()}
+                  onClick={() => onGenerate(asset)}
+                >
+                  <Send aria-hidden="true" />
+                  {t(
+                    active === 'generate'
+                      ? 'asset.generating'
+                      : 'asset.generateReference'
+                  )}
+                </Button>
+              </div>
             </div>
           </article>
         )
@@ -563,81 +702,6 @@ function StoryboardStage(props: { production: ProductionView; t: Translator }) {
         )}
       </div>
       <Timeline shots={shots} t={t} />
-    </div>
-  )
-}
-
-function GenerationStage(props: {
-  production: ProductionView
-  busy: boolean
-  generating: boolean
-  onGenerate: () => void
-  onQueryGeneration: () => void
-  t: Translator
-}) {
-  const candidates = flattenShots(props.production).flatMap(({ shot }) =>
-    shot.candidates.map((candidate) => ({ candidate, shot }))
-  )
-  const selected = candidates.filter(({ candidate }) => candidate.selected)
-  const previewClips: SelectedVideoClip[] = flattenShots(props.production)
-    .map(({ scene, shot }) => {
-      const candidate = shot.candidates.find(
-        (item) => item.selected && item.kind === 'video' && item.fileUrl
-      )
-      return candidate?.fileUrl
-        ? {
-            id: candidate.id,
-            src: candidate.fileUrl,
-            label: candidate.label,
-            sceneTitle: scene.title,
-            shotTitle: shot.title,
-            durationSeconds: shot.durationSeconds
-          }
-        : null
-    })
-    .filter((clip): clip is SelectedVideoClip => clip !== null)
-  return (
-    <div className="ss-generation-stage">
-      <div className="ss-generation-toolbar">
-        <div>
-          <strong>{props.t('generation.reviewTitle')}</strong>
-          <p>{props.t('generation.reviewHelp', { selected: selected.length, total: candidates.length })}</p>
-        </div>
-        <div className="ss-generation-actions">
-          <Button size="sm" disabled={props.busy || props.generating} onClick={props.onGenerate}>
-            {props.generating ? props.t('generation.sending') : props.t('generation.generateSeedance')}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={props.busy || props.generating}
-            onClick={props.onQueryGeneration}
-          >
-            {props.t('generation.queryTasks')}
-          </Button>
-        </div>
-      </div>
-      <SelectedVideoPreview clips={previewClips} t={props.t} />
-      <div className="ss-media-grid">
-        {candidates.map(({ candidate, shot }) => (
-          <article className={candidate.selected ? 'is-selected' : ''} key={candidate.id}>
-            <div className="ss-media-frame">
-              <MediaPreview candidate={candidate} />
-              {candidate.kind === 'video' ? <Play aria-hidden="true" /> : null}
-              <Badge>{candidate.selected ? props.t('generation.selected') : props.t('generation.candidate')}</Badge>
-            </div>
-            <div>
-              <small>{shot.title}</small>
-              <h4>{candidate.label}</h4>
-              <p>
-                {candidate.providerReceipt
-                  ? `${candidate.providerReceipt.model ?? 'Seedance'} · ${candidate.providerReceipt.status}`
-                  : props.t('generation.missing')}
-              </p>
-            </div>
-          </article>
-        ))}
-      </div>
     </div>
   )
 }
@@ -774,34 +838,6 @@ function Timeline(props: {
         ))}
       </div>
     </section>
-  )
-}
-
-function MediaPreview(props: { candidate: Candidate | null }) {
-  const candidate = props.candidate
-  if (!candidate?.fileUrl) {
-    return <div className="ss-media-placeholder" aria-hidden="true"><span>SS</span></div>
-  }
-  if (candidate.kind === 'video') {
-    return (
-      <video
-        className="ss-media-preview"
-        controls
-        crossOrigin="use-credentials"
-        preload="metadata"
-        src={candidate.fileUrl}
-      >
-        <track kind="captions" />
-      </video>
-    )
-  }
-  return (
-    <img
-      className="ss-media-preview"
-      crossOrigin="use-credentials"
-      src={candidate.fileUrl}
-      alt={candidate.label}
-    />
   )
 }
 

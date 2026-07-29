@@ -61,8 +61,11 @@ team:
       name: seedream_aigc
       type: seedream_aigc
       category: builtin
-      description: Generate storyboard videos with Volcengine Seedance.
+      description: Generate asset references with Seedream and storyboard videos with Seedance.
       tools:
+        - id: 7da09537-2ed5-4cbf-ae2c-24f121816e48
+          name: seedream_text_to_image
+          enabled: true
         - id: 080e096f-519c-4673-9ba9-087596be07d1
           name: seedance_image_to_video
           enabled: true
@@ -129,7 +132,16 @@ nodes:
            camera, and a 1–20 second duration; total duration is 5–300 seconds.
            Preserve dialogueSpeakerId, dialogueType, soundEffects, and each
            character voiceReference when supplied.
-        10. For approved storyboard image candidates, prefer
+        10. For an asset-bible reference image, call
+            seedream_text_to_image with the asset prompt plus the production
+            visualStyle. Use 1728x2304 for characters, 2560x1440 for
+            locations, and 2048x2048 for props or style references. After it
+            returns a completed Workspace image, refresh the project revision
+            and call story_attach_generated_asset_image with the exact
+            assetId, Workspace path, provider task id/model/status receipt,
+            current baseRevision, and select=true. Never attach base64 or a
+            provider URL, and never update a different asset.
+        11. For approved storyboard image candidates, prefer
             seedance_multimodal_reference_to_video when the speaking character
             has a public voiceReference URL. Use input_mode=text_image_audio,
             the selected image Workspace path, and that public audio URL.
@@ -142,7 +154,7 @@ nodes:
             synchronized lip motion; for voice-over or off-screen dialogue
             require closed lips. Preserve character, wardrobe, lighting, and
             location continuity.
-        11. If image-to-video is rejected with
+        12. If image-to-video is rejected with
             InputImageSensitiveContentDetected.PrivacyInformation, retry that
             shot once with seedance_text_to_video using the same model,
             duration, ratio, continuity-rich synchronized-audio prompt, and
@@ -150,21 +162,21 @@ nodes:
             to retry other provider failures. If a public voice URL alone is
             unavailable, fall back once to seedance_image_to_video with
             generate_audio=true; never produce a silent fallback.
-        12. Query each submitted task with seedance_video_query. Only after it
+        13. Query each submitted task with seedance_video_query. Only after it
             returns a completed status and an uploaded Workspace MP4, call
             story_get_project_summary again and then
             story_attach_generated_video with the exact sceneId/shotId,
             workspacePath, provider task id/model/status receipt, current
             baseRevision, and select=true. Use a unique candidateId derived
             from the task id. Never attach a provider URL or base64.
-        13. If Seedance is still processing, report its task id and stop. On a
+        14. If Seedance is still processing, report its task id and stop. On a
             later user request, query that task again and continue attachment.
             Never claim generation completed before the Workspace MP4 exists.
-        14. Report a shot MP4 as complete only after Seedance returns a
+        15. Report a shot MP4 as complete only after Seedance returns a
             completed task with a Workspace path and the clip is attached to
             its exact shot. Story Studio previews selected clips in sequence
             in the browser; do not request a separate animatic render.
-        15. For editing handoff, refresh the Story project revision and call
+        16. For editing handoff, refresh the Story project revision and call
             story_prepare_cut_handoff. Read the frozen contract with
             story_get_cut_handoff, pass that exact contract to
             cut_accept_story_handoff, then record its exact receipt with
@@ -180,7 +192,7 @@ nodes:
       toolsetIds:
         - 4f6671c2-0b74-4b3f-8839-5c91379f7382
       knowledgebaseIds: []
-    hash: story-studio-agent-v7-browser-sequence-preview
+    hash: story-studio-agent-v8-asset-image-workflow
   - type: toolset
     key: 4f6671c2-0b74-4b3f-8839-5c91379f7382
     position:
@@ -191,8 +203,11 @@ nodes:
       name: seedream_aigc
       type: seedream_aigc
       category: builtin
-      description: Generate storyboard videos with Volcengine Seedance.
+      description: Generate asset references with Seedream and storyboard videos with Seedance.
       tools:
+        - id: 7da09537-2ed5-4cbf-ae2c-24f121816e48
+          name: seedream_text_to_image
+          enabled: true
         - id: 080e096f-519c-4673-9ba9-087596be07d1
           name: seedance_image_to_video
           enabled: true

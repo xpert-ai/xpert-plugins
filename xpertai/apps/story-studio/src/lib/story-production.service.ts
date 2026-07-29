@@ -15,7 +15,8 @@ import {
   XPERT_RUNTIME_CAPABILITIES_TOKEN,
   type RuntimeCapabilityRegistry,
   type WorkspacePortableFileReference,
-  type WorkspaceFilesApi
+  type WorkspaceFilesApi,
+  type WorkspaceRuntimeFileBuffer
 } from '@xpert-ai/plugin-sdk'
 import {
   StoryActionLog,
@@ -23,8 +24,10 @@ import {
   StoryProject
 } from './entities/index.js'
 import type {
+  AttachAssetImageInput,
   GetStoryProductionInput,
   SaveStoryProductionInput,
+  StoryMediaCandidate,
   StoryProductionDocument,
   StoryProductionSummary
 } from './production-types.js'
@@ -38,6 +41,14 @@ import {
 } from './story-production-media.js'
 import { buildStoryScopeKey } from './story-studio.service.js'
 import type { StoryScope } from './types.js'
+
+const MAX_ASSET_IMAGE_BYTES = 20 * 1024 * 1024
+const COMPLETED_IMAGE_STATUSES = new Set([
+  'completed',
+  'done',
+  'succeeded',
+  'success'
+])
 
 @Injectable()
 export class StoryProductionService {
@@ -256,6 +267,172 @@ export class StoryProductionService {
     }
   }
 
+  async uploadAssetImage(
+    scope: StoryScope,
+    input: AttachAssetImageInput,
+    file: {
+      buffer: Buffer
+      originalName: string
+      mimeType: string
+    }
+  ) {
+    const project = await requireProject(
+      this.projects,
+      scope,
+      input.projectId
+    )
+    assertRevision(project, input.baseRevision)
+    const mimeType = normalizeAssetImageMimeType(
+      file.mimeType,
+      file.originalName,
+      file.buffer
+    )
+    validateAssetImageBuffer(file.buffer)
+    const extension = extensionForImageMimeType(mimeType)
+    const fileName = `${input.candidateId}.${extension}`
+    const written = await this.workspaceFiles().writeRuntimeBuffer({
+      ...assetImageDestination(project, scope),
+      folder: `story-studio/${project.id}/asset-bible`,
+      fileName,
+      originalName: file.originalName || fileName,
+      mimeType,
+      buffer: file.buffer,
+      size: file.buffer.length,
+      metadata: {
+        pluginName: '@xpert-ai/plugin-story-studio',
+        storyProjectId: project.id,
+        storyAssetId: input.assetId,
+        candidateId: input.candidateId,
+        source: 'manual_upload'
+      }
+    })
+    return this.attachAssetImage(scope, input, {
+      ...written,
+      buffer: file.buffer,
+      name: written.name,
+      mimeType: written.mimeType ?? mimeType,
+      size: written.size ?? file.buffer.length,
+      reference: written.reference
+    })
+  }
+
+  async attachAssetImage(
+    scope: StoryScope,
+    input: AttachAssetImageInput,
+    file: WorkspaceRuntimeFileBuffer
+  ) {
+    validateScope(scope)
+    validateAssetImageInput(scope, input, file)
+    const project = await requireProject(
+      this.projects,
+      scope,
+      input.projectId
+    )
+    const row = await this.productions.findOne({
+      where: scopedWhere<StoryProduction>(scope, {
+        projectId: input.projectId
+      })
+    })
+    if (!row) {
+      throw new BadRequestException(
+        'Save a Story Studio production plan before attaching an asset image.'
+      )
+    }
+    const targetAsset = (row.assets ?? []).find(
+      (asset) => asset.id === input.assetId
+    )
+    const existingTargetCandidate = targetAsset?.candidates?.find(
+      (candidate) => candidate.id === input.candidateId
+    )
+    if (
+      existingTargetCandidate?.kind === 'image' &&
+      existingTargetCandidate.providerReceipt?.taskId ===
+        input.providerReceipt.taskId
+    ) {
+      return {
+        success: true,
+        duplicate: true,
+        projectId: project.id,
+        revision: project.revision,
+        production: compactProduction(row)
+      }
+    }
+    assertRevision(project, input.baseRevision)
+    const allCandidateIds = [
+      ...(row.assets ?? []).flatMap((asset) => asset.candidates ?? []),
+      ...row.scenes.flatMap((scene) =>
+        scene.shots.flatMap((shot) => shot.candidates ?? [])
+      )
+    ].map((candidate) => candidate.id)
+    if (allCandidateIds.includes(input.candidateId)) {
+      throw new ConflictException({
+        errorCode: 'story_media_candidate_conflict',
+        message:
+          'candidateId already exists. Use a new candidateId or retry with the original operationId.'
+      })
+    }
+
+    const sha256 = createHash('sha256').update(file.buffer).digest('hex')
+    const mimeType = normalizeAssetImageMimeType(
+      file.mimeType ?? file.reference.mimeType ?? '',
+      file.reference.originalName ?? file.reference.name ?? file.name,
+      file.buffer
+    )
+    const candidate: StoryMediaCandidate = {
+      id: input.candidateId,
+      kind: 'image',
+      label: input.label,
+      selected: input.select ?? true,
+      ...(file.fileUrl ? { fileUrl: file.fileUrl } : {}),
+      workspacePath: file.reference.workspacePath,
+      ...(input.prompt ? { prompt: input.prompt } : {}),
+      providerReceipt: {
+        provider: input.providerReceipt.provider,
+        taskId: input.providerReceipt.taskId,
+        ...(input.providerReceipt.model
+          ? { model: input.providerReceipt.model }
+          : {}),
+        status: input.providerReceipt.status
+      },
+      originalName:
+        file.reference.originalName ??
+        file.reference.name ??
+        file.name ??
+        `${input.candidateId}.${extensionForImageMimeType(mimeType)}`,
+      mimeType,
+      size: file.buffer.length,
+      sha256,
+      fileReference:
+        file.reference as unknown as StoryMediaCandidate['fileReference']
+    }
+    let found = false
+    const assets = (row.assets ?? []).map((asset) => {
+      if (asset.id !== input.assetId) return asset
+      found = true
+      const existing = (asset.candidates ?? []).map((item) =>
+        input.select !== false && item.kind === 'image'
+          ? { ...item, selected: false }
+          : item
+      )
+      return { ...asset, candidates: [...existing, candidate] }
+    })
+    if (!found) {
+      throw new NotFoundException(
+        'Story production asset was not found.'
+      )
+    }
+    return this.saveProduction(scope, {
+      projectId: input.projectId,
+      operationId: input.operationId,
+      baseRevision: input.baseRevision,
+      production: {
+        ...productionDocumentFromRow(row),
+        assets
+      },
+      changeSummary: input.changeSummary
+    })
+  }
+
   async createDemoProduction(
     scope: StoryScope,
     input: {
@@ -296,6 +473,134 @@ export class StoryProductionService {
       )
     }
     return workspaceFiles
+  }
+}
+
+function validateAssetImageInput(
+  scope: StoryScope,
+  input: AttachAssetImageInput,
+  file: WorkspaceRuntimeFileBuffer
+) {
+  if (
+    !COMPLETED_IMAGE_STATUSES.has(
+      input.providerReceipt.status.trim().toLowerCase()
+    )
+  ) {
+    throw new BadRequestException(
+      'Only a completed image task or upload can be attached.'
+    )
+  }
+  if (
+    file.reference.source !== 'platform.workspace.files' ||
+    (file.reference.tenantId &&
+      file.reference.tenantId !== scope.tenantId)
+  ) {
+    throw new BadRequestException(
+      'Asset image is outside the current Story Studio workspace scope.'
+    )
+  }
+  validateAssetImageBuffer(file.buffer)
+  normalizeAssetImageMimeType(
+    file.mimeType ?? file.reference.mimeType ?? '',
+    file.reference.originalName ?? file.reference.name ?? file.name,
+    file.buffer
+  )
+}
+
+function validateAssetImageBuffer(buffer: Buffer) {
+  if (!buffer.length || buffer.length > MAX_ASSET_IMAGE_BYTES) {
+    throw new BadRequestException(
+      'Asset image must be between 1 byte and 20 MiB.'
+    )
+  }
+}
+
+function normalizeAssetImageMimeType(
+  declared: string,
+  fileName: string,
+  buffer: Buffer
+) {
+  const value = declared.toLowerCase().split(';')[0].trim()
+  const lowerName = fileName.toLowerCase()
+  const png =
+    buffer.length >= 8 &&
+    buffer.subarray(0, 8).equals(
+      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])
+    )
+  const jpeg =
+    buffer.length >= 3 &&
+    buffer[0] === 0xff &&
+    buffer[1] === 0xd8 &&
+    buffer[2] === 0xff
+  const webp =
+    buffer.length >= 12 &&
+    buffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
+    buffer.subarray(8, 12).toString('ascii') === 'WEBP'
+  const detected = png
+    ? 'image/png'
+    : jpeg
+      ? 'image/jpeg'
+      : webp
+        ? 'image/webp'
+        : null
+  if (!detected) {
+    throw new BadRequestException(
+      'Asset image must be a valid PNG, JPEG, or WebP file.'
+    )
+  }
+  if (
+    value &&
+    value !== 'application/octet-stream' &&
+    value !== detected
+  ) {
+    throw new BadRequestException(
+      'Asset image content does not match its MIME type.'
+    )
+  }
+  if (
+    !lowerName.endsWith('.png') &&
+    !lowerName.endsWith('.jpg') &&
+    !lowerName.endsWith('.jpeg') &&
+    !lowerName.endsWith('.webp')
+  ) {
+    throw new BadRequestException(
+      'Asset image file name must use .png, .jpg, .jpeg, or .webp.'
+    )
+  }
+  return detected
+}
+
+function extensionForImageMimeType(mimeType: string) {
+  if (mimeType === 'image/jpeg') return 'jpg'
+  if (mimeType === 'image/webp') return 'webp'
+  return 'png'
+}
+
+function assetImageDestination(
+  project: StoryProject,
+  scope: StoryScope
+) {
+  if (project.hostProjectId) {
+    return {
+      tenantId: project.tenantId,
+      userId: scope.userId ?? null,
+      catalog: 'projects' as const,
+      scopeId: project.hostProjectId,
+      projectId: project.hostProjectId
+    }
+  }
+  if (!project.assistantId) {
+    throw new ServiceUnavailableException(
+      'Asset images require a host project or Assistant workspace scope.'
+    )
+  }
+  return {
+    tenantId: project.tenantId,
+    userId: scope.userId ?? null,
+    catalog: 'xperts' as const,
+    scopeId: project.assistantId,
+    xpertId: project.assistantId,
+    isolateByUser: false
   }
 }
 

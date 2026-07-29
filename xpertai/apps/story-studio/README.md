@@ -41,7 +41,9 @@ The current implementation includes:
 4. **Episode script** expands the beats into timed, production-ready scenes and
    dialogue.
 5. **Asset bible** records stable character, location, prop, and style anchors
-   plus their reference candidates.
+   plus their reference candidates. Each asset can receive a reviewed PNG,
+   JPEG, or WebP upload, or ask the Assistant to generate a Seedream reference
+   and attach the completed Workspace image back to that exact asset.
 6. **Storyboard** converts the script into ordered shots with composition,
    action, camera, dialogue, duration, and preview frames.
 7. **Media generation** sends selected storyboard frames to Seedance, waits
@@ -59,12 +61,14 @@ Use **Load visual demo** in the Workbench to create the complete **朱门账影*
 case. Its story, prompts, and generated images are original Story Studio assets.
 
 Story Studio previews selected Workspace MP4s directly in shot order and does
-not create a second combined video. Seedance and Cut remain cross-plugin
-Assistant handoffs: Story Studio declares both plugins, accepts only completed
-scoped Workspace MP4s through `story_attach_generated_video`, and exchanges a
-portable contract through Agent tools. Professional composition, audio mixing,
-subtitles, effects, and export remain Cut responsibilities. Story Studio never
-imports private provider or Cut services and never stores model credentials.
+not create a second combined video. Seedream, Seedance, and Cut remain
+cross-plugin Assistant handoffs: Story Studio declares the model and Cut
+plugins, accepts completed scoped Workspace images through
+`story_attach_generated_asset_image`, accepts completed scoped Workspace MP4s
+through `story_attach_generated_video`, and exchanges a portable contract
+through Agent tools. Professional composition, audio mixing, subtitles,
+effects, and export remain Cut responsibilities. Story Studio never imports
+private provider or Cut services and never stores model credentials.
 
 ## Development
 

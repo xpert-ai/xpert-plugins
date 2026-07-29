@@ -23,5 +23,10 @@
     "importHelpers": true
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts", "src/lib/remote-components/**"]
+  "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts", "src/lib/remote-components/**"],
+  "references": [
+    {
+      "path": "../../packages/design-fonts/tsconfig.lib.json"
+    }
+  ]
 }

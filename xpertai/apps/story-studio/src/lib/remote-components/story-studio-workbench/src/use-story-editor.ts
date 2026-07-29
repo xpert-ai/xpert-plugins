@@ -52,7 +52,7 @@ export function useStoryEditor(options: {
 
   function beginEdit() {
     const project = options.getProject()
-    if (!project || options.activeStage > 7) return
+    if (!project || options.activeStage > 6) return
     const next = createEditorSession(
       project,
       options.production,

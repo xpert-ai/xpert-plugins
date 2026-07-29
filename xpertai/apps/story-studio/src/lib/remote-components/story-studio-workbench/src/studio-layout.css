@@ -563,6 +563,15 @@ body {
   padding: 10px;
 }
 
+.ss-asset-actions {
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.ss-asset-reference-status {
+  font-size: 9px;
+}
+
 .ss-asset-copy h4 {
   margin: 6px 0 4px;
   font-size: 13px;

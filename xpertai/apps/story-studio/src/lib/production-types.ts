@@ -163,6 +163,29 @@ export interface AttachGeneratedVideoInput {
   changeSummary: string
 }
 
+export interface AttachAssetImageInput {
+  projectId: string
+  operationId: string
+  baseRevision: number
+  assetId: string
+  candidateId: string
+  label: string
+  prompt?: string
+  providerReceipt: {
+    provider: 'seedream_aigc' | 'manual_upload'
+    taskId: string
+    model?: string
+    status: string
+  }
+  select?: boolean
+  changeSummary: string
+}
+
+export interface AttachGeneratedAssetImageInput
+  extends AttachAssetImageInput {
+  file: string | StoryJsonObject
+}
+
 export interface StoryProductionSummary {
   id: string
   projectId: string

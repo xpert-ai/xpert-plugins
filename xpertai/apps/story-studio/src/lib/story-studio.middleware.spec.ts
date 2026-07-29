@@ -30,6 +30,7 @@ import type {
   IAgentMiddlewareContext
 } from '@xpert-ai/plugin-sdk'
 import {
+  STORY_ATTACH_GENERATED_ASSET_IMAGE_TOOL_NAME,
   STORY_ATTACH_GENERATED_VIDEO_TOOL_NAME,
   STORY_CREATE_PROJECT_TOOL_NAME,
   STORY_SEARCH_PROJECTS_TOOL_NAME,
@@ -120,7 +121,12 @@ function createHarness() {
   }
   const production = {
     saveProduction: jest.fn(),
-    getProduction: jest.fn()
+    getProduction: jest.fn(),
+    attachAssetImage: jest.fn().mockResolvedValue({
+      success: true,
+      projectId: receipt.projectId,
+      revision: 2
+    })
   }
   const generatedMedia = {
     attachGeneratedVideo: jest.fn()
@@ -165,6 +171,42 @@ describe('StoryStudioMiddleware', () => {
     const { middleware } = createHarness()
     expect((middleware.tools as TestTool[]).map((tool) => tool.name)).toEqual(
       [...STORY_STUDIO_MIDDLEWARE_TOOL_NAMES]
+    )
+  })
+
+  it('persists and attaches completed Seedream asset images', async () => {
+    const { middleware, production } = createHarness()
+    await getTool(
+      middleware,
+      STORY_ATTACH_GENERATED_ASSET_IMAGE_TOOL_NAME
+    ).invoke({
+      projectId: receipt.projectId,
+      operationId: 'seedream:asset:middleware',
+      baseRevision: 1,
+      assetId: 'asset-lin',
+      candidateId: 'seedream-image-1',
+      label: 'Lin reference',
+      file: '/workspace/files/seedream-aigc/images/task.png',
+      providerReceipt: {
+        provider: 'seedream_aigc',
+        taskId: 'task-image-1',
+        status: 'completed'
+      },
+      select: true,
+      changeSummary: 'Attached Lin reference'
+    })
+
+    expect(production.attachAssetImage).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-a' }),
+      expect.objectContaining({
+        assetId: 'asset-lin',
+        candidateId: 'seedream-image-1'
+      }),
+      expect.objectContaining({
+        reference: expect.objectContaining({
+          workspacePath: expect.stringContaining('generated-assets')
+        })
+      })
     )
   })
 
