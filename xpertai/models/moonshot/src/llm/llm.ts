@@ -1,4 +1,3 @@
-import { ChatOpenAI } from '@langchain/openai';
 import { AiModelTypeEnum, ICopilotModel } from '@xpert-ai/contracts';
 import { Injectable, Logger } from '@nestjs/common';
 import {
@@ -10,6 +9,7 @@ import {
 } from '@xpert-ai/plugin-sdk';
 import { MoonshotProviderStrategy } from '../provider.strategy.js';
 import { MoonshotModelCredentials, toCredentialKwargs } from '../types.js';
+import { createMoonshotChatModel } from './moonshot-chat-model.js';
 
 @Injectable()
 export class MoonshotLargeLanguageModel extends LargeLanguageModel {
@@ -25,7 +25,7 @@ export class MoonshotLargeLanguageModel extends LargeLanguageModel {
   ): Promise<void> {
     try {
       const params = toCredentialKwargs(credentials, model);
-      const chatModel = new ChatOpenAI({
+      const chatModel = createMoonshotChatModel({
         ...params,
         temperature: 0,
         maxTokens: 10,
@@ -63,7 +63,7 @@ export class MoonshotLargeLanguageModel extends LargeLanguageModel {
       verbose: options?.verbose,
     };
 
-    return new ChatOpenAI({
+    return createMoonshotChatModel({
       ...fields,
       callbacks: [
         ...this.createHandleUsageCallbacks(
@@ -77,4 +77,3 @@ export class MoonshotLargeLanguageModel extends LargeLanguageModel {
     });
   }
 }
-
