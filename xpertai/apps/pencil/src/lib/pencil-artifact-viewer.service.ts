@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
+import type { SceneGraph, SceneNode } from '@open-pencil/core/scene-graph'
 import { buildOnlineFontFaceCss } from '@xpert-ai/design-fonts'
 import { createHash } from 'node:crypto'
 import { graphFromSnapshot } from './pencil-graph.js'
@@ -30,6 +31,7 @@ export type PencilArtifactViewerRenderResult = {
 export class PencilArtifactViewerService {
   async render(input: PencilArtifactViewerRenderInput): Promise<PencilArtifactViewerRenderResult> {
     const graph = await graphFromSnapshot(input.graphSnapshot)
+    resolvePublishedVariableColors(graph)
     const { renderNodesToSVG } = await loadPencilCoreIo()
     const pages = graph
       .getPages()
@@ -62,6 +64,24 @@ export class PencilArtifactViewerService {
       pageCount: pages.length
     }
   }
+}
+
+function resolvePublishedVariableColors(graph: SceneGraph) {
+  for (const node of graph.nodes.values()) {
+    node.fills = node.fills.map((fill, index) => {
+      const color = resolveBoundColor(graph, node, `fills/${index}/color`)
+      return color ? { ...fill, color: { ...color } } : fill
+    })
+    node.strokes = node.strokes.map((stroke, index) => {
+      const color = resolveBoundColor(graph, node, `strokes/${index}/color`)
+      return color ? { ...stroke, color: { ...color } } : stroke
+    })
+  }
+}
+
+function resolveBoundColor(graph: SceneGraph, node: SceneNode, field: string) {
+  const variableId = node.boundVariables[field]
+  return variableId ? graph.resolveColorVariable(variableId) : undefined
 }
 
 function loadPencilCoreIo() {
