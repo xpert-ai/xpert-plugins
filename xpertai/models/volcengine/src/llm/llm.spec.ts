@@ -29,7 +29,7 @@ jest.mock('lodash-es', () => ({
 
 import { AiProviderRole } from '@xpert-ai/contracts'
 import { VolcengineProviderStrategy } from '../provider.strategy.js'
-import { VolcengineLargeLanguageModel } from './llm.js'
+import { normalizeVolcengineToolSchema, VolcengineLargeLanguageModel } from './llm.js'
 
 function createCopilotModel(
   thinking?: 'enabled' | 'disabled'
@@ -76,5 +76,62 @@ describe('Volcengine model adapter', () => {
     const model = llm.getChatModel(createCopilotModel())
 
     expect(model.invocationParams()).toEqual({})
+  })
+
+  it('inlines local schema references that cross anyOf array members', () => {
+    const schema = {
+      type: 'object',
+      properties: {
+        createShapes: {
+          type: 'array',
+          items: {
+            anyOf: [
+              {
+                type: 'object',
+                properties: {
+                  id: { type: 'string', pattern: '^shape:' },
+                  width: { type: 'number' }
+                }
+              },
+              {
+                type: 'object',
+                properties: {
+                  id: { $ref: '#/properties/createShapes/items/anyOf/0/properties/id' },
+                  height: {
+                    $ref: '#/properties/createShapes/items/anyOf/0/properties/width',
+                    description: 'Shape height.'
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+
+    const normalized = normalizeVolcengineToolSchema(schema) as typeof schema
+    const secondProperties = normalized.properties.createShapes.items.anyOf[1].properties
+
+    expect(secondProperties.id).toEqual({ type: 'string', pattern: '^shape:' })
+    expect(secondProperties.height).toEqual({ type: 'number', description: 'Shape height.' })
+    expect(schema.properties.createShapes.items.anyOf[1].properties.id).toEqual({
+      $ref: '#/properties/createShapes/items/anyOf/0/properties/id'
+    })
+  })
+
+  it('preserves named references that do not traverse arrays', () => {
+    const schema = {
+      type: 'object',
+      $defs: {
+        recursiveValue: {
+          anyOf: [{ type: 'string' }, { $ref: '#/$defs/recursiveValue' }]
+        }
+      },
+      properties: {
+        value: { $ref: '#/$defs/recursiveValue' }
+      }
+    }
+
+    expect(normalizeVolcengineToolSchema(schema)).toEqual(schema)
   })
 })

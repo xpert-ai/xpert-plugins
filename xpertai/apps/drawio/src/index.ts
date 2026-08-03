@@ -6,6 +6,7 @@ import type { I18nObject } from '@xpert-ai/contracts'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import {
   DRAWIO_AGENT_DRAWING_CAPABILITY,
+  DRAWIO_ARTIFACT_SHARING_CAPABILITY,
   DRAWIO_ARTIFACT_NAMESPACE,
   DRAWIO_FEATURE,
   DRAWIO_ICON,
@@ -48,6 +49,7 @@ const plugin: DrawioXpertPlugin = {
           DRAWIO_FEATURE,
           DRAWIO_WORKBENCH_CAPABILITY,
           DRAWIO_AGENT_DRAWING_CAPABILITY,
+          DRAWIO_ARTIFACT_SHARING_CAPABILITY,
           DRAWIO_TEMPLATE_CAPABILITY
         ],
         marketplace: {
@@ -92,6 +94,15 @@ const plugin: DrawioXpertPlugin = {
                     '打开 draw.io 工作台以检查、手动编辑、恢复、导入和导出图表。'
                   ),
                   access: 'read'
+                },
+                {
+                  name: 'share-drawio-artifacts',
+                  displayName: 'Share draw.io Artifacts',
+                  description: text(
+                    'Publish and revoke read-only links for the current saved draw.io version.',
+                    '为当前已保存的 draw.io 版本发布和撤销只读访问链接。'
+                  ),
+                  access: 'write'
                 }
               ]
             },
@@ -109,8 +120,8 @@ const plugin: DrawioXpertPlugin = {
               name: DRAWIO_MIDDLEWARE_NAME,
               displayName: 'draw.io Agent Tools',
               description: text(
-                'Assistant middleware tools for creating diagrams, saving XML versions, patching metadata, saving Mermaid drafts, searching diagrams, and reporting failures.',
-                '用于创建图表、保存 XML 版本、修补元数据、保存 Mermaid 草稿、检索图表和上报失败的助手中间件工具。'
+                'Assistant middleware tools for creating diagrams, saving XML versions, sharing read-only Artifacts, searching diagrams, and reporting failures.',
+                '用于创建图表、保存 XML 版本、分享只读 Artifact、检索图表和上报失败的助手中间件工具。'
               )
             },
             {
@@ -136,6 +147,7 @@ const plugin: DrawioXpertPlugin = {
           DRAWIO_FEATURE,
           DRAWIO_WORKBENCH_CAPABILITY,
           DRAWIO_AGENT_DRAWING_CAPABILITY,
+          DRAWIO_ARTIFACT_SHARING_CAPABILITY,
           DRAWIO_TEMPLATE_CAPABILITY
         ],
         marketplace: {
@@ -205,6 +217,7 @@ export * from './lib/types.js'
 export * from './lib/entities/index.js'
 export * from './lib/drawio.plugin.js'
 export * from './lib/drawio.service.js'
+export * from './lib/drawio-artifact-viewer.service.js'
 export * from './lib/drawio.middleware.js'
 export * from './lib/drawio-view.provider.js'
 export * from './lib/drawio.templates.js'

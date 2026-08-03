@@ -30,6 +30,8 @@ export type LucidchartActionType =
   | 'document_archived'
   | 'metadata_updated'
   | 'failure_reported'
+  | 'artifact_published'
+  | 'artifact_share_revoked'
 
 export interface LucidchartScope {
   tenantId: string

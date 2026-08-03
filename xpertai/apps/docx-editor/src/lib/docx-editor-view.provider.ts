@@ -152,6 +152,8 @@ export class DocxEditorViewProvider implements IXpertViewExtensionProvider {
           { key: 'create_document', label: text('New DOCX Document', '新建 DOCX 文档'), icon: 'ri-add-line', placement: 'toolbar', actionType: 'invoke' },
           { key: 'upload_docx', label: text('Upload DOCX', '上传 DOCX'), icon: 'ri-upload-cloud-2-line', placement: 'toolbar', actionType: 'invoke', transport: 'file' },
           { key: 'save_document_version', label: text('Save Version', '保存版本'), icon: 'ri-save-line', actionType: 'invoke' },
+          { key: 'publish_artifact', label: text('Share Document', '分享文档'), icon: 'ri-share-line', placement: 'toolbar', actionType: 'invoke' },
+          { key: 'revoke_artifact_share', label: text('Revoke Share', '撤销分享'), icon: 'ri-link-unlink', actionType: 'invoke' },
           { key: 'sync_snapshot', label: text('Sync Snapshot', '同步快照'), icon: 'ri-refresh-line', actionType: 'invoke' },
           { key: 'complete_operation', label: text('Complete Operation', '完成操作'), actionType: 'invoke' },
           { key: 'delete_document', label: text('Delete Document', '删除文档'), icon: 'ri-delete-bin-line', actionType: 'invoke' },
@@ -267,6 +269,21 @@ export class DocxEditorViewProvider implements IXpertViewExtensionProvider {
           pages: getUnknownInput(request.input, 'pages')
         })
         return { ...success('DOCX snapshot synced', 'DOCX 快照已同步'), data: result, refresh: false }
+      }
+
+      if (actionKey === 'publish_artifact') {
+        const result = await this.service.publishArtifact(scope, {
+          documentId: requireDocumentId(request),
+          accessMode: getStringInput(request.input, 'accessMode') as 'public_link' | 'organization_all' | 'workspace_all' | undefined,
+          targetMode: getStringInput(request.input, 'targetMode') as 'version' | 'latest' | undefined,
+          userConfirmedPublicLink: getBooleanInput(request.input, 'userConfirmedPublicLink')
+        })
+        return { ...success('DOCX share link is ready', 'DOCX 分享链接已生成'), data: result, refresh: false }
+      }
+
+      if (actionKey === 'revoke_artifact_share') {
+        const result = await this.service.revokeArtifactShare(scope, requireDocumentId(request))
+        return { ...success('DOCX share link was revoked', 'DOCX 分享链接已撤销'), data: result }
       }
 
       if (actionKey === 'complete_operation') {
@@ -424,6 +441,10 @@ function getStringInput(input: XpertViewActionRequest['input'], key: string) {
 function getNumberInput(input: XpertViewActionRequest['input'], key: string) {
   const value = input?.[key]
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
+function getBooleanInput(input: XpertViewActionRequest['input'], key: string) {
+  return input?.[key] === true
 }
 
 function getUnknownInput(input: XpertViewActionRequest['input'], key: string) {

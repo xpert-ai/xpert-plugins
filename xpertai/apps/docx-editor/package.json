@@ -40,7 +40,7 @@
     "build:ui": "pnpm --filter @xpert-ai/plugin-shadcn-ui build",
     "build": "pnpm run build:ui && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
     "lint": "echo \"(todo) add lint\"",
-    "test": "pnpm run build:ui && node --loader ts-node/esm --test src/lib/docx-editor.templates.spec.ts && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
+    "test": "pnpm run build:ui && node --loader ts-node/esm --test src/lib/docx-editor.templates.spec.ts src/lib/docx-editor-artifact-sharing.spec.ts && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
     "typecheck": "pnpm run build:ui && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
     "prepack": "pnpm run build:ui && node scripts/build-remote-components.mjs && node scripts/copy-assets.mjs"
   },
