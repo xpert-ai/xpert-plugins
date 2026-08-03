@@ -268,14 +268,46 @@ export function injectStyles() {
       width: 100%;
       height: 100%;
       min-height: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--background);
+    }
+    .lw-preview-page-tabs {
+      display: flex;
+      flex: 0 0 auto;
+      gap: 6px;
+      padding: 8px;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--border);
+      background: var(--background);
+    }
+    .lw-preview-page-tab {
+      flex: 0 0 auto;
+      appearance: none;
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--background);
+      color: var(--muted-foreground);
+      font: 600 12px var(--font-sans);
+      cursor: pointer;
+    }
+    .lw-preview-page-tab[data-active="true"] {
+      border-color: var(--primary);
+      background: color-mix(in srgb, var(--primary) 10%, var(--background));
+      color: var(--primary);
+    }
+    .lw-preview-page {
+      flex: 1 1 auto;
+      min-height: 0;
       overflow: auto;
       background:
         linear-gradient(color-mix(in srgb, var(--border) 36%, transparent) 1px, transparent 1px),
         linear-gradient(90deg, color-mix(in srgb, var(--border) 36%, transparent) 1px, transparent 1px),
-        var(--background);
+        var(--lw-page-background, var(--background));
       background-size: 24px 24px;
     }
-    .lw-standard-preview svg {
+    .lw-preview-page svg {
       display: block;
       width: 100%;
       min-width: 680px;
@@ -286,19 +318,17 @@ export function injectStyles() {
       filter: drop-shadow(0 5px 14px color-mix(in srgb, var(--foreground) 10%, transparent));
     }
     .lw-preview-label {
-      fill: var(--foreground);
       font-family: var(--font-sans);
-      font-size: 12px;
       font-weight: 600;
       pointer-events: none;
     }
     .lw-preview-line-label {
-      fill: var(--muted-foreground);
+      fill: #667085;
       font-family: var(--font-sans);
       font-size: 11px;
       font-weight: 600;
       paint-order: stroke;
-      stroke: var(--background);
+      stroke: var(--lw-page-background, var(--background));
       stroke-width: 4px;
       stroke-linejoin: round;
       pointer-events: none;
