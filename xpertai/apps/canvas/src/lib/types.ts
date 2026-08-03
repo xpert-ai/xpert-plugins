@@ -151,7 +151,6 @@ export interface SaveCanvasSnapshotInput extends CanvasSnapshotInput {
 
 export interface AutosaveCanvasSnapshotInput extends CanvasSnapshotInput {
   documentId: string
-  snapshotImage: CanvasSnapshotImageInput
   baseRevision?: number | null
   baseSnapshotChecksum?: string | null
   changeSummary?: string | null

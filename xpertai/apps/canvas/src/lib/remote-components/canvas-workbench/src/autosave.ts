@@ -89,6 +89,19 @@ export async function captureViewportSnapshotImage(editor: Editor): Promise<Canv
   }
 }
 
+export async function captureViewportSnapshotImageSafely(
+  editor: Editor,
+  onError?: (error: Error) => void
+): Promise<CanvasSnapshotImagePayload | null> {
+  try {
+    return await captureViewportSnapshotImage(editor)
+  } catch (caught) {
+    const error = caught instanceof Error ? caught : new Error(String(caught))
+    onError?.(error)
+    return null
+  }
+}
+
 export function buildCanvasViewState(editor: Editor) {
   return {
     version: 1,

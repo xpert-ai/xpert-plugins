@@ -221,11 +221,13 @@ export class CanvasService {
     const snapshot = normalizeSnapshotInput(document.autosaveSnapshot ?? input.snapshot)
     const viewState = normalizeObject(input.viewState)
     const selectionSummary = normalizeObject(input.selectionSummary)
-    const imageFields = await this.uploadSnapshotImage(scope, document, input.snapshotImage, {
-      mode: 'current',
-      sourceType: 'workbench',
-      versionNumber: document.currentVersionNumber ?? 0
-    })
+    const imageFields = input.snapshotImage
+      ? await this.uploadSnapshotImage(scope, document, input.snapshotImage, {
+          mode: 'current',
+          sourceType: 'workbench',
+          versionNumber: document.currentVersionNumber ?? 0
+        })
+      : null
     const autosaveUpdatedAt = new Date()
     const savedDocument = await this.documentRepository.save({
       ...document,

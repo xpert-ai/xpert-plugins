@@ -793,6 +793,29 @@ describe('CanvasService', () => {
     expect(runtime.uploads[0]).toEqual(expect.objectContaining({ catalog: 'projects', scopeId: scope.projectId, fileName: 'current.png' }))
   })
 
+  it('autosaves the working copy when viewport image export is unavailable', async () => {
+    const scope = testScope()
+    const created = await service.createDocument(scope, {
+      title: 'Autosave without preview image'
+    })
+    const draft = snapshotWithText('draft without preview')
+    await service.patchRecords(scope, {
+      documentId: created.item.id,
+      putRecords: [draft.store['shape:autosave-note']]
+    })
+
+    const result = await service.autosaveSnapshot(scope, {
+      documentId: created.item.id,
+      snapshot: draft,
+      viewState: { currentPageId: 'page:page' }
+    })
+
+    expect(result.document.currentVersionNumber).toBe(0)
+    expect(result.autosave.snapshotChecksum).toMatch(/^[a-f0-9]{64}$/)
+    expect(result.autosave.snapshotImagePath).toBeUndefined()
+    expect(documentRepository.records[0].autosaveSnapshot?.store['shape:autosave-note']).toBeTruthy()
+  })
+
   it('does not let a stale full autosave overwrite authoritative collaboration state', async () => {
     const runtime = createWorkspaceRuntime()
     service = createService(runtime.registry)

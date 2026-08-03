@@ -71,7 +71,7 @@ import type { CanvasDebugObject } from './debug-logger'
 import {
   applyCanvasViewState,
   buildCanvasViewState,
-  captureViewportSnapshotImage,
+  captureViewportSnapshotImageSafely,
   createAutosaveSignature,
   hasPersistentCanvasViewStateChange
 } from './autosave'
@@ -107,13 +107,16 @@ import { normalizeCanvasToolEvent } from './tool-event-refresh'
 import {
   LOCAL_TLDRAW_ORIGIN,
   applyTldrawChangesToYDoc,
+  createCanvasPresenceSignature,
   hasCanvasYjsContent,
   readCanvasSnapshotFromYDoc,
   type CanvasCollaborationDescriptor,
+  type CanvasPresenceUpdate,
   type CanvasPresenceState
 } from './collaboration'
 
 const canvasOnlineFontAssetUrls = createTldrawOnlineFontAssetUrls()
+const canvasTldrawAssetUrls = Object.freeze({ fonts: canvasOnlineFontAssetUrls })
 
 type DocumentItem = RemotePayloadObject & {
   id: string
@@ -198,7 +201,7 @@ type SavePayload = {
   snapshot: CanvasSnapshotFromEditor
   viewState: CanvasViewState
   selectionSummary: CanvasSelectionSummary
-  snapshotImage: CanvasSnapshotImagePayload
+  snapshotImage: CanvasSnapshotImagePayload | null
   signature: string
   baseRevision: number | null
   baseSnapshotChecksum: string
@@ -293,6 +296,7 @@ function App() {
   const selectedIdRef = React.useRef('')
   const loadDataRef = React.useRef<LoadDataFunction | null>(null)
   const selectionSignatureRef = React.useRef('')
+  const collaborationPresenceSignatureRef = React.useRef('')
   const socketRef = React.useRef<Socket | null>(null)
   const collaborationClientRef = React.useRef<CollaborationClient | null>(null)
   const presenceStoreRef = React.useRef<CollaborationPresenceStore | null>(null)
@@ -312,6 +316,7 @@ function App() {
     collaborationDocRef.current = null
     collaborationDocumentIdRef.current = ''
     collaborationHydratedRef.current = false
+    collaborationPresenceSignatureRef.current = ''
     setCollaborators([])
     setCollabState('disconnected')
   }, [])
@@ -840,7 +845,7 @@ function App() {
     const viewport = safeCall(() => currentEditor.getViewportScreenBounds())
     const zoom = safeCall(() => currentEditor.getZoomLevel()) ?? 1
     const selectedRecordIds = canvasContext.currentCanvas.selection.selectedShapeIds
-    client.setPresence({
+    const presence: CanvasPresenceUpdate = {
       pageId: canvasContext.currentCanvas.selection.pageId ?? null,
       focus: selectedRecordIds[0]
         ? { kind: 'element', key: selectedRecordIds[0], elementId: selectedRecordIds[0], pageId: canvasContext.currentCanvas.selection.pageId ?? null }
@@ -850,7 +855,11 @@ function App() {
         ? { zoom, width: viewport.w, height: viewport.h }
         : null,
       mode: 'edit'
-    })
+    }
+    const signature = createCanvasPresenceSignature(presence)
+    if (signature === collaborationPresenceSignatureRef.current) return
+    collaborationPresenceSignatureRef.current = signature
+    client.setPresence(presence)
   }
 
   async function createCanvas() {
@@ -923,7 +932,12 @@ function App() {
       snapshot,
       viewState,
       selectionSummary,
-      snapshotImage: await captureViewportSnapshotImage(currentEditor),
+      snapshotImage: await captureViewportSnapshotImageSafely(currentEditor, (error) => {
+        canvasWorkbenchDebug.warn('snapshotImage.capture.failure', {
+          documentId: current.id,
+          message: getErrorMessage(error)
+        })
+      }),
       signature: createAutosaveSignature({
         documentId: current.id,
         snapshot,
@@ -998,7 +1012,7 @@ function App() {
           documentId: savePayload.document.id,
           viewState: asRemotePayloadObject(savePayload.viewState),
           selectionSummary: asRemotePayloadObject(savePayload.selectionSummary),
-          snapshotImage: asRemotePayloadObject(savePayload.snapshotImage),
+          ...(savePayload.snapshotImage ? { snapshotImage: asRemotePayloadObject(savePayload.snapshotImage) } : {}),
           baseRevision: savePayload.baseRevision,
           baseSnapshotChecksum: savePayload.baseSnapshotChecksum,
           changeSummary: 'Workbench autosave'
@@ -1099,7 +1113,7 @@ function App() {
           snapshot: asRemotePayloadObject(autosaved.snapshot),
           viewState: asRemotePayloadObject(autosaved.viewState),
           selectionSummary: asRemotePayloadObject(autosaved.selectionSummary),
-          snapshotImage: asRemotePayloadObject(autosaved.snapshotImage),
+          ...(autosaved.snapshotImage ? { snapshotImage: asRemotePayloadObject(autosaved.snapshotImage) } : {}),
           sourceType: 'workbench',
           changeSummary: 'Workbench version'
         }))
@@ -1646,7 +1660,7 @@ function App() {
             {current ? (
               <Tldraw
                 key={canvasKey}
-                assetUrls={{ fonts: canvasOnlineFontAssetUrls }}
+                assetUrls={canvasTldrawAssetUrls}
                 locale={tldrawLocale}
                 licenseKey={tldrawLicenseKey}
                 snapshot={snapshot || undefined}

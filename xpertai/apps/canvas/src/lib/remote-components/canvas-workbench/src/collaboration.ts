@@ -23,6 +23,18 @@ export type OpenCanvasPayload = {
 
 export type CanvasPresenceState = ICollaborationPresence
 
+export type CanvasPresenceUpdate = {
+  pageId: string | null
+  focus: { kind: 'element'; key: string; elementId: string; pageId: string | null } | null
+  selection: { kind: 'elements'; elementIds: string[] } | null
+  viewport: { zoom: number; width: number; height: number } | null
+  mode: 'edit'
+}
+
+export function createCanvasPresenceSignature(presence: CanvasPresenceUpdate) {
+  return JSON.stringify(presence)
+}
+
 /** Convert a tldraw user transaction into one record-level Yjs update. */
 export function applyTldrawChangesToYDoc(doc: Y.Doc, changes: CanvasStoreChanges) {
   const putRecords = [
