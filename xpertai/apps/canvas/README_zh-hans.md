@@ -10,7 +10,7 @@ Canvas 是面向 Xpert 和 data-xpert 的 Agentic 可视化工作空间。它把
 - Canvas Workbench：支持人工审阅、直接编辑、标注、版本浏览、版本恢复、导入和导出。
 - Canvas Assistant：把当前画布、选中图形、插入目标和视口快照带入 Agent 对话，让 AI 理解用户正在看的内容。
 - AI 图片占位框：用户可以先框定图片位置和比例，再让 Agent 生成图片并精准填入。
-- Agent middleware tools：支持仅创建画布元数据、用简化 DTO 分阶段创建 Shape、定向更新已有 records、插入图片、渐进式查询、更新状态和记录失败。Agent 工具只更新工作副本，不创建版本。
+- Agent middleware tools：支持仅创建画布元数据、用简化 DTO 分阶段创建 Shape、定向更新已有 records、插入图片、渐进式查询、更新状态、记录失败，以及发布和撤销受治理的 Artifact 链接。编辑类 Agent 工具只更新工作副本，不创建版本。
 - 工具契约强制渐进式披露：`canvas_get_document` 只返回计数和 revision，`canvas_list_records` 每页最多返回 40 条摘要，`canvas_get_record` 只展开一个精确记录；Agent 写入前必须统计全部创建、更新和删除操作，超过 12 条硬上限时先拆成语义阶段，每阶段优先控制在 6–8 条，并获得供下一阶段继续使用的紧凑收据。新建 `text`、`geo`、`note`、`frame` 和 `arrow` 时只需提交简化 DTO，服务端负责生成 tldraw ID、父页面、合法索引、默认属性和 richText。
 - 平台 Collaboration/Yjs 是实时内容的唯一权威：Workbench 和 Agent 的修改按 tldraw record 合并，并实时流入所有已打开的 Canvas 会话。
 - 实时显示协作者和 Agent presence；关键节点仍可保存显式版本，视口快照继续写入 Xpert 工作区供视觉检查。
@@ -34,13 +34,13 @@ Canvas 是面向 Xpert 和 data-xpert 的 Agentic 可视化工作空间。它把
 3. 用户选择图片占位框、批注、图形或页面区域，并让 Canvas Assistant 基于当前选择继续处理。
 4. Agent 先读取摘要，只分页查询下一步需要的 records，再分阶段提交有界补丁；Yjs update 被接受后会立即出现在打开的 Workbench 中。
 5. 到达评审节点时，由人工在 Workbench 版本面板点击“新建版本”，之后可以恢复历史版本或追踪修改记录。
-6. 人工可在“分享”面板中发布固定 Artifact 快照，或让一个稳定链接跟随最近一次明确发布的 Artifact 内容；公开链接必须二次确认。
+6. 人工可在“分享”面板中操作，或明确要求 Agent 发布固定 Artifact 快照，也可以让一个稳定链接跟随最近一次明确发布的 Artifact 内容；公开链接必须二次确认。
 
 ## 在 Xpert 中的组成
 
 - Workbench view：面向人的交互界面，用于创建、编辑、标注、导入导出、版本管理和审阅画布。
 - Canvas Assistant：开箱即用的可视化工作流助手模板，适合图片生成、图片放置和基于标注的修改。
-- Agent middleware tools：面向 Agent 的结构化自动化能力，用于安全地创建文档、更新记录、插入图片和记录失败。
+- Agent middleware tools：面向 Agent 的结构化自动化能力，用于安全地创建文档、更新记录、插入图片、发布或撤销受治理的 Artifact 链接，以及记录失败。
 - 可安装 skill：指导 Agent 正确使用 Canvas 上下文、选区数据、视口快照和图片插入目标。
 - 工作区快照：当前视口图片保存到 `files/canvas/documents/{documentId}/snapshots/current.png`；显式版本的图片保存在 `files/canvas/documents/{documentId}/snapshots/versions/`。
 - Artifact 分享：Managed Queue 只传 export id；版本化的 `canvas.export` Sandbox Action 通过 Workspace Files 读取权威快照，在 Playwright 中使用 tldraw 渲染，并返回经过完整性校验的 portable file reference。Artifact、ArtifactVersion 与持久链接仍由平台持有；`CanvasArtifactExport` 只保存异步任务状态和执行证据。

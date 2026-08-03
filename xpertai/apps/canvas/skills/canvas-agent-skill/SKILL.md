@@ -1,6 +1,6 @@
 ---
 name: canvas-agent-skill
-description: "Use when an Agent needs to use @xpert-ai/plugin-canvas middleware tools to create, inspect, patch, review, annotate, insert images into, or recover tldraw Canvas working copies, including Workbench selection context and AI image holders."
+description: "Use when an Agent needs to use @xpert-ai/plugin-canvas middleware tools to create, inspect, patch, review, annotate, insert images into, share, or recover tldraw Canvas working copies, including Workbench selection context and AI image holders."
 ---
 
 # Canvas Agent Skill
@@ -10,7 +10,7 @@ Use this skill when a user asks an Agent to create, update, inspect, review, ann
 The plugin has two surfaces:
 
 - Workbench: the human review and editing surface. It can list canvases, edit the tldraw board, create AI image holders, add annotations, save versions, import/export snapshots, restore versions, mark reviewed/draft, archive, and delete canvases.
-- Middleware tools: the Agent-callable system of record. These tools create Canvas metadata, apply bounded tldraw record stages, insert images, progressively query records, update lifecycle status, and report failures. Complete snapshot and version creation are not model-visible.
+- Middleware tools: the Agent-callable system of record. These tools create Canvas metadata, apply bounded tldraw record stages, insert images, progressively query records, update lifecycle status, publish or revoke governed Artifact links, and report failures. Complete snapshot and version creation are not model-visible.
 - View image: the Canvas Assistant template should include `@xpert-ai/plugin-view-image`. Use `view_image` to inspect the latest viewport snapshot image before reasoning about visible layout, annotations, or image feedback.
 - Seedream AIGC: the Canvas Assistant template should include `@xpert-ai/plugin-volcengine` and the `seedream_aigc` builtin toolset with `seedream_text_to_image` enabled for text-to-image generation before image insertion.
 
@@ -31,6 +31,7 @@ Before creating a new Canvas, call `canvas_list_typography_presets` and map the 
 9. Do not claim a canvas was saved unless the tool call succeeded. Tool results are the source of truth.
 10. Do not route logic from display text or localized labels. Use explicit fields such as `selection.type`, `selectedShapeIds`, `kind`, `status`, and `sourceType`.
 11. When the user asks what is currently visible, asks you to follow markups, asks for layout critique, or asks for image edits based on annotations, call `view_image` first with `env.canvasSnapshotImagePath` from trusted Workbench context.
+12. Call `canvas_publish_artifact_link` only after the user asks to share and, for `public_link`, explicitly confirms public access. Read `canvas_get_document` immediately before publishing and pass its current `workingCopyRevision` and `snapshotChecksum`. The tool waits for the asynchronous Canvas export and returns the usable link. Use `canvas_revoke_artifact_link` only when the user asks to revoke the active share.
 
 ## Progressive Read And Staged Write Flow
 
@@ -205,3 +206,11 @@ Update status to `draft`, `reviewed`, or `archived`. Mark reviewed only after us
 ### `canvas_report_failure`
 
 Record a failed generation, validation, import, inspection, image insertion, or patch attempt.
+
+### `canvas_publish_artifact_link`
+
+Publish or reuse a governed, read-only Canvas Artifact link without creating a Canvas version. Required inputs: `documentId` and the latest `baseRevision` from `canvas_get_document`. Pass `baseSnapshotChecksum` when available and `pageId` to select a page; otherwise the first page is published. Optional `accessMode` values are `public_link`, `organization_all`, and `workspace_all`; optional `targetMode` values are `version` and `latest`. Public access requires `userConfirmedPublicLink: true` only after explicit user confirmation. The tool waits for the sandbox export and returns the usable `shareUrl`.
+
+### `canvas_revoke_artifact_link`
+
+Revoke the active governed Artifact link for `documentId`. Call it only after the user explicitly requests revocation.

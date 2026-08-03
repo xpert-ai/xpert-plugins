@@ -37,11 +37,15 @@ import {
   CANVAS_LIST_RECORDS_TOOL_NAME,
   CANVAS_INSERT_IMAGE_TOOL_NAME,
   CANVAS_PATCH_RECORDS_TOOL_NAME,
+  CANVAS_PUBLISH_ARTIFACT_LINK_TOOL_NAME,
   CANVAS_REPORT_FAILURE_TOOL_NAME,
+  CANVAS_REVOKE_ARTIFACT_LINK_TOOL_NAME,
   CANVAS_SEARCH_DOCUMENTS_TOOL_NAME,
   CANVAS_UPDATE_DOCUMENT_STATUS_TOOL_NAME
 } from './constants.js'
 import type { CanvasService } from './canvas.service.js'
+import type { CanvasArtifactExportService } from './canvas-artifact-export.service.js'
+import type { CanvasArtifactService } from './canvas-artifact.service.js'
 
 type TestTool = {
   name: string
@@ -62,8 +66,16 @@ const context: IAgentMiddlewareContext = {
 
 const DOCUMENT_ID = '643dacec-8f1a-4bcc-b759-e371efefb4c2'
 
-function createMiddleware(service: Partial<CanvasService> = {}) {
-  return new CanvasMiddleware(service as CanvasService).createMiddleware({}, context) as AgentMiddleware
+function createMiddleware(
+  service: Partial<CanvasService> = {},
+  artifactExportService: Partial<CanvasArtifactExportService> = {},
+  artifactService: Partial<CanvasArtifactService> = {}
+) {
+  return new CanvasMiddleware(
+    service as CanvasService,
+    artifactExportService as CanvasArtifactExportService,
+    artifactService as CanvasArtifactService
+  ).createMiddleware({}, context) as AgentMiddleware
 }
 
 describe('CanvasMiddleware', () => {
@@ -72,7 +84,11 @@ describe('CanvasMiddleware', () => {
   })
 
   it('exposes all Canvas Agent middleware tools with metadata', () => {
-    const middleware = new CanvasMiddleware({} as CanvasService)
+    const middleware = new CanvasMiddleware(
+      {} as CanvasService,
+      {} as CanvasArtifactExportService,
+      {} as CanvasArtifactService
+    )
     const agentMiddleware = createMiddleware()
     const names = (agentMiddleware.tools as TestTool[]).map((item) => item.name)
 
@@ -87,10 +103,55 @@ describe('CanvasMiddleware', () => {
       CANVAS_LIST_RECORDS_TOOL_NAME,
       CANVAS_GET_RECORD_TOOL_NAME,
       CANVAS_UPDATE_DOCUMENT_STATUS_TOOL_NAME,
-      CANVAS_REPORT_FAILURE_TOOL_NAME
+      CANVAS_REPORT_FAILURE_TOOL_NAME,
+      CANVAS_PUBLISH_ARTIFACT_LINK_TOOL_NAME,
+      CANVAS_REVOKE_ARTIFACT_LINK_TOOL_NAME
     ])
     expect(names).not.toContain('canvas_create_version')
     expect((agentMiddleware.tools as TestTool[]).every((item) => item.verboseParsingErrors === true)).toBe(true)
+  })
+
+  it('publishes a ready Artifact link and revokes it through Agent tools', async () => {
+    const publishAndWait = jest.fn(async () => ({
+      documentId: DOCUMENT_ID,
+      artifactId: 'artifact-1',
+      artifactVersionId: 'version-1',
+      artifactLinkId: 'link-1',
+      shareUrl: '/artifacts/share/link-1',
+      publicUrl: '/artifacts/share/link-1',
+      accessMode: 'public_link' as const,
+      versionMode: 'version' as const,
+      revision: 5,
+      snapshotChecksum: 'a'.repeat(64),
+      pageId: 'page:page',
+      reused: false
+    }))
+    const revoke = jest.fn(async () => ({
+      documentId: DOCUMENT_ID,
+      revoked: true,
+      message: 'Canvas Artifact share was revoked.'
+    }))
+    const tools = createMiddleware({}, { publishAndWait }, { revoke }).tools as Array<TestTool & {
+      invoke: (input: unknown) => Promise<string>
+    }>
+    const publishTool = tools.find((item) => item.name === CANVAS_PUBLISH_ARTIFACT_LINK_TOOL_NAME)
+    const revokeTool = tools.find((item) => item.name === CANVAS_REVOKE_ARTIFACT_LINK_TOOL_NAME)
+    const publishInput = {
+      documentId: DOCUMENT_ID,
+      baseRevision: 5,
+      baseSnapshotChecksum: 'a'.repeat(64),
+      pageId: 'page:page',
+      accessMode: 'public_link' as const,
+      targetMode: 'version' as const,
+      userConfirmedPublicLink: true
+    }
+
+    expect(() => publishTool.schema.parse(publishInput)).not.toThrow()
+    expect(() => publishTool.schema.parse({ ...publishInput, userConfirmedPublicLink: true, unexpected: true })).toThrow()
+    await expect(publishTool.invoke(publishInput)).resolves.toContain('/artifacts/share/link-1')
+    await expect(revokeTool.invoke({ documentId: DOCUMENT_ID })).resolves.toContain('"revoked": true')
+    expect(publishAndWait).toHaveBeenCalledWith(expect.objectContaining({ tenantId: 'tenant', projectId: 'project' }), publishInput)
+    expect(revoke).toHaveBeenCalledWith(expect.objectContaining({ tenantId: 'tenant', projectId: 'project' }), DOCUMENT_ID)
   })
 
   it('keeps complete snapshots out of model-visible creation and mutation schemas', () => {

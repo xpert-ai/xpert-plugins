@@ -33,6 +33,8 @@ export const CANVAS_LIST_RECORDS_TOOL_NAME = 'canvas_list_records'
 export const CANVAS_GET_RECORD_TOOL_NAME = 'canvas_get_record'
 export const CANVAS_UPDATE_DOCUMENT_STATUS_TOOL_NAME = 'canvas_update_document_status'
 export const CANVAS_REPORT_FAILURE_TOOL_NAME = 'canvas_report_failure'
+export const CANVAS_PUBLISH_ARTIFACT_LINK_TOOL_NAME = 'canvas_publish_artifact_link'
+export const CANVAS_REVOKE_ARTIFACT_LINK_TOOL_NAME = 'canvas_revoke_artifact_link'
 
 export const CANVAS_MIDDLEWARE_TOOL_NAMES = [
   CANVAS_CREATE_DOCUMENT_TOOL_NAME,
@@ -43,7 +45,9 @@ export const CANVAS_MIDDLEWARE_TOOL_NAMES = [
   CANVAS_LIST_RECORDS_TOOL_NAME,
   CANVAS_GET_RECORD_TOOL_NAME,
   CANVAS_UPDATE_DOCUMENT_STATUS_TOOL_NAME,
-  CANVAS_REPORT_FAILURE_TOOL_NAME
+  CANVAS_REPORT_FAILURE_TOOL_NAME,
+  CANVAS_PUBLISH_ARTIFACT_LINK_TOOL_NAME,
+  CANVAS_REVOKE_ARTIFACT_LINK_TOOL_NAME
 ] as const
 
 export const CANVAS_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">

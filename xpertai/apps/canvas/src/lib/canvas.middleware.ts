@@ -22,7 +22,9 @@ import {
   CANVAS_INSERT_IMAGE_TOOL_NAME,
   CANVAS_MIDDLEWARE_NAME,
   CANVAS_PATCH_RECORDS_TOOL_NAME,
+  CANVAS_PUBLISH_ARTIFACT_LINK_TOOL_NAME,
   CANVAS_REPORT_FAILURE_TOOL_NAME,
+  CANVAS_REVOKE_ARTIFACT_LINK_TOOL_NAME,
   CANVAS_SEARCH_DOCUMENTS_TOOL_NAME,
   CANVAS_UPDATE_DOCUMENT_STATUS_TOOL_NAME,
   CANVAS_WORKBENCH_CAPABILITY
@@ -38,6 +40,9 @@ import {
   summarizeSearchResult
 } from './canvas-agent-response.js'
 import { CanvasService } from './canvas.service.js'
+import { CanvasArtifactExportService } from './canvas-artifact-export.service.js'
+import type { RequestCanvasArtifactExportInput } from './canvas-artifact-export.service.js'
+import { CanvasArtifactService } from './canvas-artifact.service.js'
 import type {
   ApplyCanvasRecordBatchInput,
   CanvasJsonObject,
@@ -60,7 +65,9 @@ import {
   getRecordSchema,
   insertImageSchema,
   listRecordsSchema,
+  publishArtifactLinkSchema,
   reportFailureSchema,
+  revokeArtifactLinkSchema,
   searchDocumentsSchema,
   updateDocumentStatusSchema
 } from './canvas-agent-tool.schemas.js'
@@ -102,7 +109,11 @@ export class CanvasMiddleware implements IAgentMiddlewareStrategy<Record<string,
     }
   }
 
-  constructor(private readonly service: CanvasService) {}
+  constructor(
+    private readonly service: CanvasService,
+    private readonly artifactExportService: CanvasArtifactExportService,
+    private readonly artifactService: CanvasArtifactService
+  ) {}
 
   createMiddleware(_options: Record<string, never>, context: IAgentMiddlewareContext): PromiseOrValue<AgentMiddleware> {
     const scope = scopeFromContext(context)
@@ -207,6 +218,29 @@ export class CanvasMiddleware implements IAgentMiddlewareStrategy<Record<string,
             description:
               'Record a failed Canvas generation, snapshot validation, image insertion, import, or patch attempt with recoverability and evidence.',
             schema: reportFailureSchema,
+            verboseParsingErrors: true
+          }
+        ),
+        defineCanvasAgentTool(
+          async (input: RequestCanvasArtifactExportInput) => stringifyAgentToolResult(
+            await this.artifactExportService.publishAndWait(scope, input)
+          ),
+          {
+            name: CANVAS_PUBLISH_ARTIFACT_LINK_TOOL_NAME,
+            description:
+              'Create or reuse a governed read-only HTML Artifact link for a synchronized Canvas page. Call canvas_get_document immediately before publishing and pass its workingCopyRevision and snapshotChecksum. Public links require explicit user confirmation; download is disabled. The tool waits for the Canvas export to finish and returns the usable share URL.',
+            schema: publishArtifactLinkSchema,
+            verboseParsingErrors: true
+          }
+        ),
+        defineCanvasAgentTool(
+          async (input: z.infer<typeof revokeArtifactLinkSchema>) => stringifyAgentToolResult(
+            await this.artifactService.revoke(scope, input.documentId)
+          ),
+          {
+            name: CANVAS_REVOKE_ARTIFACT_LINK_TOOL_NAME,
+            description: 'Revoke the active governed Artifact link for a Canvas document.',
+            schema: revokeArtifactLinkSchema,
             verboseParsingErrors: true
           }
         )

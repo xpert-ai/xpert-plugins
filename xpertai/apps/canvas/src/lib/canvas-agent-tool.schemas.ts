@@ -322,6 +322,24 @@ export const reportFailureSchema = z.object({
   }
 })
 
+export const publishArtifactLinkSchema = z.object({
+  documentId: documentIdSchema,
+  baseRevision: z.number().int().min(0)
+    .describe('workingCopyRevision returned by canvas_get_document immediately before publishing.'),
+  baseSnapshotChecksum: checksumSchema.optional()
+    .describe('Optional snapshotChecksum returned with baseRevision. Use it when available to guard against stale exports.'),
+  pageId: recordIdSchema.optional()
+    .describe('Optional page:* record id. When omitted, Canvas publishes the first page.'),
+  accessMode: z.enum(['public_link', 'organization_all', 'workspace_all']).optional(),
+  targetMode: z.enum(['version', 'latest']).optional(),
+  userConfirmedPublicLink: z.boolean().optional()
+    .describe('Must be true only after the user explicitly confirms public_link access.')
+}).strict()
+
+export const revokeArtifactLinkSchema = z.object({
+  documentId: documentIdSchema
+}).strict()
+
 function serializedSize(value: object | CanvasJsonValue) {
   return Buffer.byteLength(JSON.stringify(value), 'utf8')
 }
