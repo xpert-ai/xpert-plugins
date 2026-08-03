@@ -10,6 +10,9 @@
       "path": "./integrations/lark-sso"
     },
     {
+      "path": "./integrations/github-sso"
+    },
+    {
       "path": "./integrations/firecrawl"
     },
     {
