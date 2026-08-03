@@ -575,8 +575,8 @@ function buildAgentDrawPrompt(prompt: string, documentId?: string) {
 ${prompt}
 
 请优先判断路径：
-1. 能直接表达为 Lucid Standard Import document.json 时，调用 lucidchart_save_standard_import_version 或 lucidchart_create_document。
+1. 能直接表达为 Lucid Standard Import document.json 时，先调用 lucidchart_create_document 创建元数据，再用 lucidchart_apply_diagram_stage 分批写入；每批最多 12 个元素操作，全部完成后调用 lucidchart_finalize_document。
 2. 还需要推敲流程/结构时，先调用 lucidchart_save_mermaid_draft 保存 Mermaid 草稿。
 3. 如果用户已有真实 Lucid 文档 URL 或 Embed URL，调用 lucidchart_register_external_document 登记。
-更新已有文档前先调用 lucidchart_get_document。不要声称已创建真实 Lucid 文件，除非你登记了真实 Lucid 文档链接。`
+更新已有文档前先调用 lucidchart_get_document，并用 lucidchart_get_diagram_page 仅读取需要修改的页面片段。不要一次生成完整 Standard Import 工具参数。不要声称已创建真实 Lucid 文件，除非你登记了真实 Lucid 文档链接。`
 }

@@ -173,26 +173,43 @@ function normalizePreviewShape(input: Record<string, unknown>, index: number): P
   const bounds = readBounds(input)
   if (!bounds) return null
   const type = firstString(input['type'], input['kind'], input['shapeType']).toLowerCase()
+  const style = isRecord(input['style']) ? input['style'] : null
+  const fill = style && isRecord(style['fill']) ? style['fill'] : null
+  const stroke = style && isRecord(style['stroke']) ? style['stroke'] : null
   return {
     id: firstString(input['id'], input['shapeId']) || `shape-${index}`,
     ...bounds,
     text: firstString(input['text'], input['label'], input['name']),
     shape: type.includes('ellipse') || type.includes('circle') ? 'ellipse' : 'rect',
-    fill: safeColor(input['fill'], '#eff6ff'),
-    stroke: safeColor(input['stroke'], '#2563eb')
+    fill: safeColor(fill?.['color'] ?? style?.['fillColor'] ?? input['fill'], '#eff6ff'),
+    stroke: safeColor(stroke?.['color'] ?? style?.['strokeColor'] ?? input['stroke'], '#2563eb')
   }
 }
 
 function normalizePreviewLine(input: Record<string, unknown>, shapes: Map<string, PreviewShape>): PreviewLine | null {
   const start = readPoint(input['endpoint1'] ?? input['start'] ?? input['from'])
   const end = readPoint(input['endpoint2'] ?? input['end'] ?? input['to'])
-  const source = shapes.get(firstString(input['sourceId'], input['source'], input['fromId']))
-  const target = shapes.get(firstString(input['targetId'], input['target'], input['toId']))
+  const endpoint1 = isRecord(input['endpoint1']) ? input['endpoint1'] : null
+  const endpoint2 = isRecord(input['endpoint2']) ? input['endpoint2'] : null
+  const source = shapes.get(firstString(endpoint1?.['shapeId'], input['sourceId'], input['source'], input['fromId']))
+  const target = shapes.get(firstString(endpoint2?.['shapeId'], input['targetId'], input['target'], input['toId']))
   const a = start ?? (source ? center(source) : null),
     b = end ?? (target ? center(target) : null)
   return a && b
-    ? { x1: a.x, y1: a.y, x2: b.x, y2: b.y, text: firstString(input['text'], input['label']) || undefined }
+    ? { x1: a.x, y1: a.y, x2: b.x, y2: b.y, text: readLineText(input['text']) || firstString(input['label']) || undefined }
     : null
+}
+
+function readLineText(value: unknown) {
+  if (typeof value === 'string') return value
+  if (!Array.isArray(value)) return ''
+  for (const item of value) {
+    if (isRecord(item)) {
+      const text = firstString(item['text'])
+      if (text) return text
+    }
+  }
+  return ''
 }
 
 function readBounds(input: Record<string, unknown>) {

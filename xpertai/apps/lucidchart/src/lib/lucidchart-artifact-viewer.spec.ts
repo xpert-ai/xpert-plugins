@@ -14,8 +14,18 @@ test('renders persisted Lucid Standard Import shapes into a self-contained SVG v
         pages: [
           {
             shapes: [
-              { id: 'start', type: 'rectangle', text: 'Request', boundingBox: { x: 20, y: 20, width: 160, height: 70 } }
-            ]
+              {
+                id: 'start', type: 'rectangle', text: 'Request', boundingBox: { x: 20, y: 20, w: 160, h: 70 },
+                style: { fill: { type: 'color', color: '#DBEAFE' }, stroke: { color: '#2563EB', width: 2 } }
+              },
+              { id: 'review', type: 'decision', text: 'Review', boundingBox: { x: 280, y: 20, w: 160, h: 90 } }
+            ],
+            lines: [{
+              id: 'line-1', lineType: 'straight',
+              endpoint1: { type: 'shapeEndpoint', style: 'none', shapeId: 'start' },
+              endpoint2: { type: 'shapeEndpoint', style: 'arrow', shapeId: 'review' },
+              text: [{ text: 'submit', position: 0.5, side: 'middle' }]
+            }]
           }
         ]
       }
@@ -24,8 +34,10 @@ test('renders persisted Lucid Standard Import shapes into a self-contained SVG v
   const html = result.buffer.toString('utf8')
   assert.match(html, /Approval flow/)
   assert.match(html, /Request/)
+  assert.match(html, /submit/)
+  assert.match(html, /#DBEAFE/i)
   assert.match(html, /<svg class="diagram"/)
-  assert.equal(result.shapeCount, 1)
+  assert.equal(result.shapeCount, 2)
 })
 
 test('renders actual Mermaid source when Standard Import has no previewable shapes', () => {

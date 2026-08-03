@@ -105,8 +105,9 @@ const DEFAULT_MERMAID = `flowchart TD
 
 const LUCIDCHART_TOOL_NAMES = new Set([
   'lucidchart_create_document',
-  'lucidchart_save_standard_import_version',
-  'lucidchart_patch_standard_import',
+  'lucidchart_apply_diagram_stage',
+  'lucidchart_finalize_document',
+  'lucidchart_get_diagram_page',
   'lucidchart_save_mermaid_draft',
   'lucidchart_register_external_document',
   'lucidchart_search_documents',
@@ -117,8 +118,8 @@ const LUCIDCHART_TOOL_NAMES = new Set([
 
 const LUCIDCHART_MUTATION_TOOL_NAMES = new Set([
   'lucidchart_create_document',
-  'lucidchart_save_standard_import_version',
-  'lucidchart_patch_standard_import',
+  'lucidchart_apply_diagram_stage',
+  'lucidchart_finalize_document',
   'lucidchart_save_mermaid_draft',
   'lucidchart_register_external_document',
   'lucidchart_update_document_status',
@@ -1417,6 +1418,8 @@ function normalizePreviewShape(input: Record<string, unknown>, index: number): P
     return null
   }
   const format = firstRecord(input.format, input.style, input.styles, input.properties)
+  const fill = firstRecord(format?.fill)
+  const stroke = firstRecord(format?.stroke)
   const id = firstPreviewString(input.id, input.uuid, input.shapeId, input.name) || `shape-${index + 1}`
   const text = firstPreviewString(input.text, input.label, input.name, input.title) || id
   return {
@@ -1428,10 +1431,10 @@ function normalizePreviewShape(input: Record<string, unknown>, index: number): P
     text,
     type: firstPreviewString(input.type, input.shape, input.shapeType, input.class, input.name) || 'rect',
     fillColor:
-      firstPreviewString(input.fillColor, format?.fillColor, format?.fill, format?.backgroundColor, input.backgroundColor) || '#eff6ff',
+      firstPreviewString(input.fillColor, fill?.color, format?.fillColor, format?.backgroundColor, input.backgroundColor) || '#eff6ff',
     strokeColor:
-      firstPreviewString(input.strokeColor, format?.strokeColor, format?.stroke, format?.borderColor, input.borderColor) || '#2563eb',
-    strokeWidth: firstFiniteNumber(input.strokeWidth, format?.strokeWidth, format?.borderWidth) ?? 1.5,
+      firstPreviewString(input.strokeColor, stroke?.color, format?.strokeColor, format?.borderColor, input.borderColor) || '#2563eb',
+    strokeWidth: firstFiniteNumber(input.strokeWidth, stroke?.width, format?.strokeWidth, format?.borderWidth) ?? 1.5,
     cornerRadius: firstFiniteNumber(input.cornerRadius, format?.cornerRadius, input.radius, format?.radius) ?? 8
   }
 }
@@ -1441,8 +1444,8 @@ function normalizePreviewLine(
   index: number,
   shapeMap: Map<string, PreviewShape>
 ): PreviewLine | null {
-  const fromId = readEndpointId(input, ['fromId', 'sourceId', 'startShapeId', 'startId', 'from', 'source', 'start'])
-  const toId = readEndpointId(input, ['toId', 'targetId', 'endShapeId', 'endId', 'to', 'target', 'end'])
+  const fromId = readEndpointId(input, ['endpoint1', 'fromId', 'sourceId', 'startShapeId', 'startId', 'from', 'source', 'start'])
+  const toId = readEndpointId(input, ['endpoint2', 'toId', 'targetId', 'endShapeId', 'endId', 'to', 'target', 'end'])
   const fromShape = fromId ? shapeMap.get(fromId) : null
   const toShape = toId ? shapeMap.get(toId) : null
   const startPoint = fromShape ? centerOfShape(fromShape) : readPreviewPoint(input, ['start', 'fromPoint', 'sourcePoint', 'p1', 'endpoint1'])
@@ -1462,23 +1465,37 @@ function normalizePreviewLine(
     y1,
     x2,
     y2,
-    text: firstPreviewString(input.text, input.label, input.name, input.title) || '',
-    strokeColor: firstPreviewString(input.strokeColor, format?.strokeColor, format?.stroke, input.color) || '#64748b',
-    strokeWidth: firstFiniteNumber(input.strokeWidth, format?.strokeWidth, input.width) ?? 1.5
+    text: readPreviewLineText(input.text) || firstPreviewString(input.label, input.name, input.title) || '',
+    strokeColor: firstPreviewString(input.strokeColor, firstRecord(format?.stroke)?.color, format?.strokeColor, input.color) || '#64748b',
+    strokeWidth: firstFiniteNumber(input.strokeWidth, firstRecord(format?.stroke)?.width, format?.strokeWidth, input.width) ?? 1.5
   }
 }
 
+function readPreviewLineText(value: unknown) {
+  const direct = firstPreviewString(value)
+  if (direct) return direct
+  if (!Array.isArray(value)) return ''
+  for (const item of value) {
+    if (isObject(item)) {
+      const text = firstPreviewString(item.text)
+      if (text) return text
+    }
+  }
+  return ''
+}
+
 function hasPreviewLineGeometry(input: Record<string, unknown>) {
-  const type = (firstPreviewString(input.type, input.shape, input.shapeType, input.class) || '').toLowerCase()
+  const type = (firstPreviewString(input.type, input.shape, input.shapeType, input.class, input.lineType) || '').toLowerCase()
   const isLineType =
     ['line', 'arrow', 'connector', 'straightline', 'elbowline'].includes(type) ||
+    ['straight', 'elbow', 'curved'].includes(type) ||
     type.includes('connector') ||
     type.includes('arrow') ||
     type.includes('straight_line') ||
     type.includes('elbow_line')
   const hasEndpointIds =
-    Boolean(readEndpointId(input, ['fromId', 'sourceId', 'startShapeId', 'startId', 'from', 'source', 'start'])) &&
-    Boolean(readEndpointId(input, ['toId', 'targetId', 'endShapeId', 'endId', 'to', 'target', 'end']))
+    Boolean(readEndpointId(input, ['endpoint1', 'fromId', 'sourceId', 'startShapeId', 'startId', 'from', 'source', 'start'])) &&
+    Boolean(readEndpointId(input, ['endpoint2', 'toId', 'targetId', 'endShapeId', 'endId', 'to', 'target', 'end']))
   const hasCoordinates =
     firstFiniteNumber(input.x1, input.startX, input.fromX) != null &&
     firstFiniteNumber(input.y1, input.startY, input.fromY) != null &&
