@@ -76,6 +76,11 @@ export type CanvasArtifactExportCapabilities = {
   sandboxRuntimeVersion?: string
 }
 
+export type WaitForCanvasArtifactExportOptions = {
+  intervalMs?: number
+  timeoutMs?: number
+}
+
 @Injectable()
 export class CanvasArtifactExportService {
   private capabilityCache?: { expiresAt: number; value: CanvasArtifactExportCapabilities }
@@ -288,6 +293,34 @@ export class CanvasArtifactExportService {
       }
     }
     return compactExport(record)
+  }
+
+  /** Queue a Canvas export and wait until the governed Artifact link is ready for an Agent tool response. */
+  async publishAndWait(
+    scope: CanvasScope,
+    input: RequestCanvasArtifactExportInput,
+    options: WaitForCanvasArtifactExportOptions = {}
+  ) {
+    let result = await this.requestPublish(scope, input)
+    if (result.status === 'succeeded') {
+      if (!result.share) throw new Error('Canvas Artifact export succeeded without a share link.')
+      return result.share
+    }
+    const exportId = requireText(result.exportId, 'Canvas Artifact export id is required.')
+    const intervalMs = Math.max(100, options.intervalMs ?? 1_500)
+    const timeoutAt = Date.now() + Math.max(intervalMs, options.timeoutMs ?? 5 * 60_000)
+    while (Date.now() < timeoutAt) {
+      result = await this.getExport(scope, exportId)
+      if (result.status === 'succeeded') {
+        if (!result.share) throw new Error('Canvas Artifact export succeeded without a share link.')
+        return result.share
+      }
+      if (result.status === 'failed' || result.status === 'cancelled') {
+        throw new Error(result.errorMessage?.trim() || `Canvas Artifact export ${result.status}.`)
+      }
+      await delay(intervalMs)
+    }
+    throw new Error('Canvas Artifact export timed out while waiting for the sandbox browser job.')
   }
 
   async deleteForDocument(scope: CanvasScope, documentId: string) {
@@ -609,6 +642,10 @@ function stableStringify(value: CanvasJsonValue): string {
 
 function sha256(value: Buffer) {
   return createHash('sha256').update(value).digest('hex')
+}
+
+function delay(milliseconds: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, milliseconds))
 }
 
 function normalizeRevision(value: number) {

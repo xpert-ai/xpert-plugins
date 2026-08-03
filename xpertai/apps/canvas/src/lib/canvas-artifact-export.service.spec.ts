@@ -75,6 +75,49 @@ describe('CanvasArtifactExportService', () => {
     expect(fixture.queue.enqueue).not.toHaveBeenCalled()
   })
 
+  it('waits for a queued export and returns the usable Artifact share', async () => {
+    const fixture = createFixture(snapshot)
+    const share = {
+      documentId: 'document-1', artifactId: 'artifact-1', artifactVersionId: 'version-1',
+      artifactLinkId: 'link-1', shareUrl: '/artifacts/share/link-1', publicUrl: '/artifacts/share/link-1',
+      accessMode: 'public_link' as const, versionMode: 'version' as const, revision: 5, snapshotChecksum: 'a'.repeat(64),
+      pageId: 'page:page', reused: false
+    }
+    jest.spyOn(fixture.service, 'requestPublish').mockResolvedValue({
+      exportId: 'export-1', documentId: 'document-1', status: 'queued', stage: 'queued', revision: 5,
+      snapshotChecksum: 'a'.repeat(64), pageId: 'page:page', pageName: 'Page 1', errorCode: null,
+      errorMessage: null, share: null
+    })
+    jest.spyOn(fixture.service, 'getExport').mockResolvedValue({
+      exportId: 'export-1', documentId: 'document-1', status: 'succeeded', stage: 'complete', revision: 5,
+      snapshotChecksum: 'a'.repeat(64), pageId: 'page:page', pageName: 'Page 1', errorCode: null,
+      errorMessage: null, share
+    })
+
+    await expect(fixture.service.publishAndWait(scope, {
+      documentId: 'document-1', accessMode: 'public_link', userConfirmedPublicLink: true, baseRevision: 5
+    })).resolves.toEqual(share)
+    expect(fixture.service.getExport).toHaveBeenCalledWith(scope, 'export-1')
+  })
+
+  it('surfaces a failed queued export to the Agent tool caller', async () => {
+    const fixture = createFixture(snapshot)
+    jest.spyOn(fixture.service, 'requestPublish').mockResolvedValue({
+      exportId: 'export-1', documentId: 'document-1', status: 'queued', stage: 'queued', revision: 5,
+      snapshotChecksum: 'a'.repeat(64), pageId: 'page:page', pageName: 'Page 1', errorCode: null,
+      errorMessage: null, share: null
+    })
+    jest.spyOn(fixture.service, 'getExport').mockResolvedValue({
+      exportId: 'export-1', documentId: 'document-1', status: 'failed', stage: 'failed', revision: 5,
+      snapshotChecksum: 'a'.repeat(64), pageId: 'page:page', pageName: 'Page 1', errorCode: 'CANVAS_EXPORT_FAILED',
+      errorMessage: 'Canvas renderer failed.', share: null
+    })
+
+    await expect(fixture.service.publishAndWait(scope, {
+      documentId: 'document-1', accessMode: 'public_link', userConfirmedPublicLink: true, baseRevision: 5
+    })).rejects.toThrow('Canvas renderer failed.')
+  })
+
   it('uses explicit queue ownership and the persisted tenant for the Sandbox Job', async () => {
     const fixture = createFixture(snapshot)
     const exportRecord = {
