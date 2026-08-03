@@ -59,7 +59,7 @@ export class MoonshotLargeLanguageModel extends LargeLanguageModel {
     const fields = {
       ...params,
       streaming: copilotModel.options?.['streaming'] ?? true,
-      streamUsage: false,
+      streamUsage: true,
       verbose: options?.verbose,
     };
 
