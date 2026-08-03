@@ -6,6 +6,7 @@ import type { I18nObject } from '@xpert-ai/contracts'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import {
   LUCIDCHART_AGENT_DRAWING_CAPABILITY,
+  LUCIDCHART_ARTIFACT_SHARING_CAPABILITY,
   LUCIDCHART_ARTIFACT_NAMESPACE,
   LUCIDCHART_FEATURE,
   LUCIDCHART_ICON,
@@ -48,6 +49,7 @@ const plugin: LucidchartXpertPlugin = {
           LUCIDCHART_FEATURE,
           LUCIDCHART_WORKBENCH_CAPABILITY,
           LUCIDCHART_AGENT_DRAWING_CAPABILITY,
+          LUCIDCHART_ARTIFACT_SHARING_CAPABILITY,
           LUCIDCHART_TEMPLATE_CAPABILITY
         ],
         marketplace: {
@@ -92,6 +94,15 @@ const plugin: LucidchartXpertPlugin = {
                     '打开工作台以检查、恢复、导入导出并登记 Lucidchart 文档。'
                   ),
                   access: 'read'
+                },
+                {
+                  name: 'share-lucidchart-artifacts',
+                  displayName: 'Share Lucidchart Artifacts',
+                  description: text(
+                    'Publish and revoke read-only links for the current saved Lucidchart version.',
+                    '为当前已保存的 Lucidchart 版本发布和撤销只读访问链接。'
+                  ),
+                  access: 'write'
                 }
               ]
             },
@@ -109,8 +120,8 @@ const plugin: LucidchartXpertPlugin = {
               name: LUCIDCHART_MIDDLEWARE_NAME,
               displayName: 'Lucidchart Agent Tools',
               description: text(
-                'Assistant middleware tools for creating documents, saving Standard Import versions, saving Mermaid drafts, registering Lucid links, searching documents, and reporting failures.',
-                '用于创建文档、保存 Standard Import 版本、保存 Mermaid 草稿、登记 Lucid 链接、检索文档和上报失败的助手中间件工具。'
+                'Assistant middleware tools for creating documents, saving Standard Import versions, sharing read-only Artifacts, registering Lucid links, and reporting failures.',
+                '用于创建文档、保存 Standard Import 版本、分享只读 Artifact、登记 Lucid 链接和上报失败的助手中间件工具。'
               )
             },
             {
@@ -136,6 +147,7 @@ const plugin: LucidchartXpertPlugin = {
           LUCIDCHART_FEATURE,
           LUCIDCHART_WORKBENCH_CAPABILITY,
           LUCIDCHART_AGENT_DRAWING_CAPABILITY,
+          LUCIDCHART_ARTIFACT_SHARING_CAPABILITY,
           LUCIDCHART_TEMPLATE_CAPABILITY
         ],
         marketplace: {
@@ -205,6 +217,7 @@ export * from './lib/types.js'
 export * from './lib/entities/index.js'
 export * from './lib/lucidchart.plugin.js'
 export * from './lib/lucidchart.service.js'
+export * from './lib/lucidchart-artifact-viewer.service.js'
 export * from './lib/lucidchart.middleware.js'
 export * from './lib/lucidchart-view.provider.js'
 export * from './lib/lucidchart.templates.js'

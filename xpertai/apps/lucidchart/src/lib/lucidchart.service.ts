@@ -1,6 +1,22 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
+import {
+  ArtifactsRuntimeCapability,
+  WorkspaceFilesRuntimeCapability,
+  WORKSPACE_FILES_SOURCE,
+  XPERT_RUNTIME_CAPABILITIES_TOKEN,
+  type AgentMiddlewareRuntimeCapabilityRegistry,
+  type ArtifactAccessMode,
+  type ArtifactLinkRecord,
+  type ArtifactLinkVersionMode,
+  type ArtifactsApi,
+  type WorkspaceFile,
+  type WorkspaceFileScope,
+  type WorkspacePortableFileReference
+} from '@xpert-ai/plugin-sdk'
+import { LUCIDCHART_PLUGIN_NAME } from './constants.js'
+import { LucidchartArtifactViewerService } from './lucidchart-artifact-viewer.service.js'
 import { LucidchartActionLog, LucidchartDocument, LucidchartDocumentVersion } from './entities/index.js'
 import type {
   CreateLucidchartDocumentInput,
@@ -34,7 +50,11 @@ export class LucidchartService {
     @InjectRepository(LucidchartDocumentVersion)
     private readonly versionRepository: Repository<LucidchartDocumentVersion>,
     @InjectRepository(LucidchartActionLog)
-    private readonly logRepository: Repository<LucidchartActionLog>
+    private readonly logRepository: Repository<LucidchartActionLog>,
+    @Optional() @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN)
+    private readonly runtimeCapabilities?: AgentMiddlewareRuntimeCapabilityRegistry,
+    @Optional()
+    private readonly artifactViewer?: LucidchartArtifactViewerService
   ) {}
 
   async createDocument(scope: LucidchartScope, input: CreateLucidchartDocumentInput) {
@@ -303,7 +323,7 @@ export class LucidchartService {
 
   async getDocument(scope: LucidchartScope, documentId: string) {
     const document = await this.requireDocument(scope, documentId)
-    const [versions, logs] = await Promise.all([
+    const [versions, logs, artifactShare] = await Promise.all([
       this.versionRepository.find({
         where: scopedWhere(scope, { documentId }),
         order: {
@@ -315,7 +335,8 @@ export class LucidchartService {
         order: {
           createdAt: 'DESC'
         }
-      })
+      }),
+      this.getArtifactShareForDocument(documentId)
     ])
     const currentVersion = versions.find((version) => version.id === document.currentVersionId) ?? versions[0] ?? null
 
@@ -324,6 +345,7 @@ export class LucidchartService {
       currentVersion,
       versions,
       logs,
+      artifactShare: artifactShare ? compactArtifactShare(documentId, artifactShare) : null,
       total: versions.length,
       summary: {
         versionCount: versions.length,
@@ -468,6 +490,45 @@ export class LucidchartService {
     }
   }
 
+  async publishArtifact(scope: LucidchartScope, input: { documentId: string; accessMode?: ArtifactAccessMode | null; targetMode?: ArtifactLinkVersionMode | null; userConfirmedPublicLink?: boolean | null }) {
+    const document = await this.requireDocument(scope, input.documentId)
+    if (document.status === 'archived') throw new BadRequestException('Archived Lucidchart documents cannot be shared.')
+    const version = await this.getCurrentVersion(scope, document)
+    if (!version) throw new BadRequestException('Lucidchart document has no saved version to share.')
+    const accessMode = normalizeArtifactAccessMode(input.accessMode, 'Lucidchart')
+    if (accessMode === 'public_link' && input.userConfirmedPublicLink !== true) throw new BadRequestException('Public Artifact sharing requires explicit user confirmation.')
+    if (accessMode === 'workspace_all' && !document.workspaceId) throw new BadRequestException('Workspace sharing requires a workspace-scoped Lucidchart document.')
+    const targetMode: ArtifactLinkVersionMode = input.targetMode === 'latest' ? 'latest' : 'version'
+    const rendered = this.artifactViewerService().render({ title: document.title, description: document.description, version })
+    const artifacts = this.artifacts()
+    const documentId = document.id as string
+    const metadata = { documentId, documentVersionId: version.id ?? null, documentVersionNumber: version.versionNumber, viewerVersion: rendered.viewerVersion, shapeCount: rendered.shapeCount }
+    const artifact = (await artifacts.findArtifactBySource({ pluginName: LUCIDCHART_PLUGIN_NAME, resourceType: LUCIDCHART_ARTIFACT_RESOURCE_TYPE, resourceId: documentId })) ??
+      (await artifacts.createArtifact({ source: { pluginName: LUCIDCHART_PLUGIN_NAME, resourceType: LUCIDCHART_ARTIFACT_RESOURCE_TYPE, resourceId: documentId, checksum: rendered.checksum }, kind: 'html', title: document.title, description: document.description, scope: artifactRuntimeScope(document, scope), metadata }))
+    const existingVersion = (await artifacts.listArtifactVersions({ artifactId: artifact.id, idempotencyKey: rendered.sha256, status: 'active' }))[0]
+    let workspaceFileRef = existingVersion?.workspaceFileRef ?? null
+    if (!workspaceFileRef) {
+      const workspaceScope = artifactWorkspaceScope(document, scope)
+      const workspaceName = `${rendered.sha256}.html`
+      const file = await this.workspaceFiles().uploadBuffer({ ...workspaceScope, buffer: rendered.buffer, originalName: workspaceName, fileName: workspaceName, mimeType: rendered.mimeType, size: rendered.size, folder: `files/lucidchart/artifacts/${documentId}` })
+      workspaceFileRef = portableArtifactReference(file, workspaceScope, workspaceName, rendered)
+    }
+    const versionResult = await artifacts.ensureArtifactVersion({ artifactId: artifact.id, idempotencyKey: rendered.sha256, workspaceFileRef, mimeType: rendered.mimeType, fileName: normalizeArtifactFileName(document.title), title: document.title, description: document.description, size: rendered.size, sha256: rendered.sha256, sourceVersionId: version.id ?? `v${version.versionNumber}`, checksum: rendered.checksum, setCurrent: true, metadata })
+    const shareResult = await artifacts.ensureArtifactShare({ artifactId: artifact.id, shareKey: LUCIDCHART_ARTIFACT_SHARE_KEY, artifactVersionId: targetMode === 'version' ? versionResult.version.id : null, versionMode: targetMode, access: { mode: accessMode, userConfirmedPublicLink: accessMode === 'public_link' ? true : null }, presentation: { disposition: 'inline', allowDownload: false, safeHtmlProfile: 'strict' }, metadata })
+    await this.writeLog(scope, { documentId, versionId: version.id, action: 'artifact_published', actorType: scope.assistantId ? 'agent' : 'user', message: 'Published Lucidchart read-only Artifact.', snapshot: { accessMode, targetMode, artifactId: artifact.id } })
+    return compactArtifactShare(documentId, { ...shareResult.link, version: shareResult.link.version ?? versionResult.version }, shareResult.outcome === 'reused' && versionResult.outcome === 'reused')
+  }
+
+  async revokeArtifactShare(scope: LucidchartScope, documentId: string) {
+    await this.requireDocument(scope, documentId)
+    const artifact = await this.optionalArtifacts()?.findArtifactBySource({ pluginName: LUCIDCHART_PLUGIN_NAME, resourceType: LUCIDCHART_ARTIFACT_RESOURCE_TYPE, resourceId: documentId })
+    if (!artifact) return { message: 'Lucidchart document has no active Artifact share.', documentId, revoked: false }
+    const revoked = await this.artifacts().revokeArtifactShare({ artifactId: artifact.id, shareKey: LUCIDCHART_ARTIFACT_SHARE_KEY })
+    if (!revoked) return { message: 'Lucidchart document has no active Artifact share.', documentId, revoked: false }
+    await this.writeLog(scope, { documentId, action: 'artifact_share_revoked', actorType: scope.assistantId ? 'agent' : 'user', message: 'Revoked Lucidchart Artifact share.' })
+    return { message: 'Lucidchart Artifact share was revoked.', documentId, revoked: true }
+  }
+
   private async createVersion(
     scope: LucidchartScope,
     document: LucidchartDocument,
@@ -537,6 +598,12 @@ export class LucidchartService {
     })
   }
 
+  private artifacts() { const capability = this.optionalArtifacts(); if (!capability) throw new Error('Platform Artifacts capability is not available.'); return capability }
+  private optionalArtifacts() { return this.runtimeCapabilities?.get(ArtifactsRuntimeCapability) as ArtifactsApi | undefined }
+  private workspaceFiles() { const capability = this.runtimeCapabilities?.get(WorkspaceFilesRuntimeCapability); if (!capability) throw new Error('Platform Workspace Files capability is not available.'); return capability }
+  private artifactViewerService() { if (!this.artifactViewer) throw new Error('Lucidchart Artifact viewer is not available.'); return this.artifactViewer }
+  private async getArtifactShareForDocument(documentId: string) { const artifacts = this.optionalArtifacts(); if (!artifacts) return null; const artifact = await artifacts.findArtifactBySource({ pluginName: LUCIDCHART_PLUGIN_NAME, resourceType: LUCIDCHART_ARTIFACT_RESOURCE_TYPE, resourceId: documentId }); return artifact ? artifacts.getArtifactShare({ artifactId: artifact.id, shareKey: LUCIDCHART_ARTIFACT_SHARE_KEY }) : null }
+
   private async requireDocument(scope: LucidchartScope, documentId: string) {
     const document = await this.documentRepository.findOne({
       where: scopedWhere(scope, { id: normalizeRequired(documentId, 'Lucidchart document id is required.') })
@@ -574,6 +641,30 @@ export class LucidchartService {
     )
   }
 }
+
+const LUCIDCHART_ARTIFACT_RESOURCE_TYPE = 'lucidchart_document_viewer'
+const LUCIDCHART_ARTIFACT_SHARE_KEY = 'readonly-default'
+
+type LucidchartArtifactWorkspaceScope = WorkspaceFileScope & { catalog: 'projects' | 'xperts'; scopeId: string }
+
+function artifactWorkspaceScope(document: LucidchartDocument, scope: LucidchartScope): LucidchartArtifactWorkspaceScope {
+  const userId = normalizeRequired(scope.userId ?? document.createdById, 'Lucidchart Artifact publishing requires a user-scoped operation.')
+  const projectId = document.projectId ?? scope.projectId ?? null
+  const xpertId = document.assistantId ?? scope.assistantId ?? null
+  const catalog = projectId ? 'projects' : 'xperts'
+  const scopeId = projectId ?? xpertId
+  if (!scopeId) throw new BadRequestException('Lucidchart Artifact publishing requires a project or Xpert workspace scope.')
+  return { tenantId: document.tenantId ?? scope.tenantId, userId, catalog, scopeId, projectId: catalog === 'projects' ? scopeId : null, xpertId: catalog === 'xperts' ? scopeId : null, isolateByUser: catalog === 'xperts' ? false : null }
+}
+
+function portableArtifactReference(file: WorkspaceFile, scope: LucidchartArtifactWorkspaceScope, originalName: string, rendered: { mimeType: string; size: number }): WorkspacePortableFileReference {
+  return { source: WORKSPACE_FILES_SOURCE, ...scope, filePath: file.filePath, workspacePath: file.workspacePath, originalName, name: file.name, mimeType: file.mimeType ?? rendered.mimeType, size: file.size ?? rendered.size }
+}
+
+function artifactRuntimeScope(document: LucidchartDocument, scope: LucidchartScope) { return { tenantId: document.tenantId ?? scope.tenantId, organizationId: document.organizationId ?? scope.organizationId ?? null, userId: scope.userId ?? document.createdById ?? null, workspaceId: document.workspaceId ?? scope.workspaceId ?? null, projectId: document.projectId ?? scope.projectId ?? null, xpertId: document.assistantId ?? scope.assistantId ?? null } }
+function normalizeArtifactAccessMode(value: ArtifactAccessMode | null | undefined, label: string): ArtifactAccessMode { const normalized = value ?? 'public_link'; if (normalized === 'public_link' || normalized === 'organization_all' || normalized === 'workspace_all') return normalized; throw new BadRequestException(`Unsupported ${label} Artifact access mode: ${normalized}`) }
+function normalizeArtifactFileName(value: string | null | undefined) { const base = (normalizeOptional(value) ?? 'lucidchart-document').replace(/\.html?$/i, '').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-').replace(/\s+/g, ' ').trim().slice(0, 120) || 'lucidchart-document'; return `${base}.html` }
+function compactArtifactShare(documentId: string, link: ArtifactLinkRecord, reused = false) { const publicUrl = link.publicUrl?.trim() || undefined; return { documentId, artifactId: link.artifactId, artifactVersionId: link.version?.id ?? link.artifactVersionId, artifactLinkId: link.id, targetMode: link.versionMode, accessMode: link.accessMode, allowDownload: link.allowDownload, shareUrl: publicUrl, publicUrl, sharedAt: link.createdAt, status: link.status, reused } }
 
 function scopedCreate(scope: LucidchartScope): ScopedEntity & { createdById?: string | null } {
   return {

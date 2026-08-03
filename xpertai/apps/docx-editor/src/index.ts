@@ -6,6 +6,7 @@ import type { I18nObject } from '@xpert-ai/contracts'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import {
   DOCX_EDITOR_AGENT_REVIEW_CAPABILITY,
+  DOCX_EDITOR_ARTIFACT_SHARING_CAPABILITY,
   DOCX_EDITOR_ARTIFACT_NAMESPACE,
   DOCX_EDITOR_FEATURE,
   DOCX_EDITOR_ICON,
@@ -47,6 +48,7 @@ const plugin: DocxEditorXpertPlugin = {
           DOCX_EDITOR_FEATURE,
           DOCX_EDITOR_WORKBENCH_CAPABILITY,
           DOCX_EDITOR_AGENT_REVIEW_CAPABILITY,
+          DOCX_EDITOR_ARTIFACT_SHARING_CAPABILITY,
           DOCX_EDITOR_TEMPLATE_CAPABILITY
         ],
         marketplace: {
@@ -91,6 +93,15 @@ const plugin: DocxEditorXpertPlugin = {
                     '保存和恢复 DOCX 文档版本。'
                   ),
                   access: 'write'
+                },
+                {
+                  name: 'share-docx-artifacts',
+                  displayName: 'Share DOCX Artifacts',
+                  description: text(
+                    'Publish and revoke read-only links for the current saved DOCX version.',
+                    '为当前已保存的 DOCX 版本发布和撤销只读访问链接。'
+                  ),
+                  access: 'write'
                 }
               ]
             },
@@ -108,8 +119,8 @@ const plugin: DocxEditorXpertPlugin = {
               name: DOCX_EDITOR_MIDDLEWARE_NAME,
               displayName: 'DOCX Editor Agent Tools',
               description: text(
-                'Assistant middleware tools for DOCX reading, comments, tracked changes, formatting, and live Workbench actions.',
-                '用于 DOCX 读取、批注、修订建议、格式处理和实时工作台操作的助手中间件工具。'
+                'Assistant middleware tools for DOCX reading, comments, tracked changes, formatting, sharing, and live Workbench actions.',
+                '用于 DOCX 读取、批注、修订建议、格式处理、公开分享和实时工作台操作的助手中间件工具。'
               )
             },
             {
@@ -135,6 +146,7 @@ const plugin: DocxEditorXpertPlugin = {
           DOCX_EDITOR_FEATURE,
           DOCX_EDITOR_WORKBENCH_CAPABILITY,
           DOCX_EDITOR_AGENT_REVIEW_CAPABILITY,
+          DOCX_EDITOR_ARTIFACT_SHARING_CAPABILITY,
           DOCX_EDITOR_TEMPLATE_CAPABILITY
         ],
         marketplace: {
@@ -204,6 +216,7 @@ export * from './lib/types.js'
 export * from './lib/entities/index.js'
 export * from './lib/docx-editor.plugin.js'
 export * from './lib/docx-editor.service.js'
+export * from './lib/docx-editor-artifact-viewer.service.js'
 export * from './lib/docx-editor.middleware.js'
 export * from './lib/docx-editor-view.provider.js'
 export * from './lib/docx-editor.templates.js'

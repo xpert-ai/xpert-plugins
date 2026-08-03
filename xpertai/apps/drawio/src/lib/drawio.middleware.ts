@@ -12,12 +12,15 @@ import {
 import { z } from 'zod/v3'
 import {
   DRAWIO_CREATE_DRAWING_TOOL_NAME,
+  DRAWIO_ARTIFACT_SHARING_CAPABILITY,
   DRAWIO_FEATURE,
   DRAWIO_GET_DRAWING_TOOL_NAME,
   DRAWIO_ICON,
   DRAWIO_MIDDLEWARE_NAME,
   DRAWIO_PATCH_SCENE_TOOL_NAME,
+  DRAWIO_PUBLISH_ARTIFACT_LINK_TOOL_NAME,
   DRAWIO_REPORT_FAILURE_TOOL_NAME,
+  DRAWIO_REVOKE_ARTIFACT_LINK_TOOL_NAME,
   DRAWIO_SAVE_MERMAID_DRAFT_TOOL_NAME,
   DRAWIO_SAVE_SCENE_VERSION_TOOL_NAME,
   DRAWIO_SEARCH_DRAWINGS_TOOL_NAME,
@@ -93,6 +96,8 @@ const reportFailureSchema = z.object({
   recoverable: z.boolean().optional(),
   evidence: z.unknown().optional()
 })
+const publishArtifactLinkSchema = z.object({ drawingId: z.string().min(1), accessMode: z.enum(['public_link', 'organization_all', 'workspace_all']).optional(), targetMode: z.enum(['version', 'latest']).optional(), userConfirmedPublicLink: z.boolean().optional().describe('Must be true after the user explicitly confirms public_link access.') })
+const revokeArtifactLinkSchema = z.object({ drawingId: z.string().min(1) })
 
 @Injectable()
 @AgentMiddlewareStrategy(DRAWIO_MIDDLEWARE_NAME)
@@ -112,7 +117,7 @@ export class DrawioMiddleware implements IAgentMiddlewareStrategy<Record<string,
       value: DRAWIO_ICON,
       color: '#f59e0b'
     },
-    features: [DRAWIO_FEATURE],
+    features: [DRAWIO_FEATURE, DRAWIO_ARTIFACT_SHARING_CAPABILITY],
     configSchema: {
       type: 'object',
       properties: {},
@@ -195,6 +200,22 @@ export class DrawioMiddleware implements IAgentMiddlewareStrategy<Record<string,
             description:
               'Record a failed draw.io generation, XML import, Mermaid conversion, or export attempt with recoverability and evidence.',
             schema: reportFailureSchema
+          }
+        ),
+        tool(
+          async (input) => JSON.stringify(await this.service.publishArtifact(scope, input), null, 2),
+          {
+            name: DRAWIO_PUBLISH_ARTIFACT_LINK_TOOL_NAME,
+            description: 'Create or reuse a read-only HTML Artifact link for the current saved draw.io version. Public links require explicit user confirmation; download is disabled.',
+            schema: publishArtifactLinkSchema
+          }
+        ),
+        tool(
+          async (input) => JSON.stringify(await this.service.revokeArtifactShare(scope, input.drawingId), null, 2),
+          {
+            name: DRAWIO_REVOKE_ARTIFACT_LINK_TOOL_NAME,
+            description: 'Revoke the active Artifact link for a draw.io diagram.',
+            schema: revokeArtifactLinkSchema
           }
         )
       ]

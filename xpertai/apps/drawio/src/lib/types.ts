@@ -18,6 +18,8 @@ export type DrawioActionType =
   | 'version_restored'
   | 'drawing_archived'
   | 'failure_reported'
+  | 'artifact_published'
+  | 'artifact_share_revoked'
 
 export interface DrawioScope {
   tenantId: string

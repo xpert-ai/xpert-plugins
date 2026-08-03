@@ -7,6 +7,7 @@ export const DRAWIO_FEATURE = 'drawio'
 export const DRAWIO_AGENT_DRAWING_CAPABILITY = 'drawio-agent-drawing'
 export const DRAWIO_WORKBENCH_CAPABILITY = 'drawio-workbench'
 export const DRAWIO_TEMPLATE_CAPABILITY = 'drawio-assistant-template'
+export const DRAWIO_ARTIFACT_SHARING_CAPABILITY = 'drawio-artifact-sharing'
 export const DRAWIO_WORKBENCH_VIEW_KEY = 'drawio_workbench'
 export const DRAWIO_REMOTE_ENTRY_KEY = 'drawio-workbench'
 export const AGENT_WORKBENCH_MAIN_SLOT = 'agent.workbench.main'
@@ -21,6 +22,8 @@ export const DRAWIO_SEARCH_DRAWINGS_TOOL_NAME = 'drawio_search_diagrams'
 export const DRAWIO_GET_DRAWING_TOOL_NAME = 'drawio_get_diagram'
 export const DRAWIO_UPDATE_DRAWING_STATUS_TOOL_NAME = 'drawio_update_diagram_status'
 export const DRAWIO_REPORT_FAILURE_TOOL_NAME = 'drawio_report_failure'
+export const DRAWIO_PUBLISH_ARTIFACT_LINK_TOOL_NAME = 'drawio_publish_artifact_link'
+export const DRAWIO_REVOKE_ARTIFACT_LINK_TOOL_NAME = 'drawio_revoke_artifact_link'
 
 export const DRAWIO_MIDDLEWARE_TOOL_NAMES = [
   DRAWIO_CREATE_DRAWING_TOOL_NAME,
@@ -30,6 +33,8 @@ export const DRAWIO_MIDDLEWARE_TOOL_NAMES = [
   DRAWIO_SEARCH_DRAWINGS_TOOL_NAME,
   DRAWIO_GET_DRAWING_TOOL_NAME,
   DRAWIO_UPDATE_DRAWING_STATUS_TOOL_NAME,
+  DRAWIO_PUBLISH_ARTIFACT_LINK_TOOL_NAME,
+  DRAWIO_REVOKE_ARTIFACT_LINK_TOOL_NAME,
   DRAWIO_REPORT_FAILURE_TOOL_NAME
 ] as const
 

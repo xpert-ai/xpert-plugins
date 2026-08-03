@@ -148,6 +148,8 @@ export class LucidchartViewProvider implements IXpertViewExtensionProvider {
           { key: 'refresh', label: text('Refresh', '刷新'), icon: 'ri-refresh-line', placement: 'toolbar', actionType: 'refresh' },
           { key: 'create_document', label: text('New Document', '新建文档'), icon: 'ri-add-line', placement: 'toolbar', actionType: 'invoke' },
           { key: 'save_standard_import_version', label: text('Save Standard Import', '保存 Standard Import'), icon: 'ri-save-line', placement: 'toolbar', actionType: 'invoke' },
+          { key: 'publish_artifact', label: text('Share Document', '分享文档'), icon: 'ri-share-line', placement: 'toolbar', actionType: 'invoke' },
+          { key: 'revoke_artifact_share', label: text('Revoke Share', '撤销分享'), icon: 'ri-link-unlink', actionType: 'invoke' },
           { key: 'update_document_metadata', label: text('Save Document Info', '保存文档信息'), icon: 'ri-file-edit-line', actionType: 'invoke' },
           { key: 'save_mermaid_draft', label: text('Save Mermaid Draft', '保存 Mermaid 草稿'), icon: 'ri-git-branch-line', actionType: 'invoke' },
           { key: 'register_external_document', label: text('Register Lucid Document', '登记 Lucid 文档'), icon: 'ri-link', actionType: 'invoke' },
@@ -338,6 +340,21 @@ export class LucidchartViewProvider implements IXpertViewExtensionProvider {
           ...success('Lucidchart version restored', 'Lucidchart 版本已恢复'),
           data: result
         }
+      }
+
+      if (actionKey === 'publish_artifact') {
+        const result = await this.service.publishArtifact(scope, {
+          documentId: requireDocumentId(request),
+          accessMode: getStringInput(request.input, 'accessMode') as 'public_link' | 'organization_all' | 'workspace_all' | undefined,
+          targetMode: getStringInput(request.input, 'targetMode') as 'version' | 'latest' | undefined,
+          userConfirmedPublicLink: request.input?.['userConfirmedPublicLink'] === true
+        })
+        return { ...success('Lucidchart share link is ready', 'Lucidchart 分享链接已生成'), data: result, refresh: false }
+      }
+
+      if (actionKey === 'revoke_artifact_share') {
+        const result = await this.service.revokeArtifactShare(scope, requireDocumentId(request))
+        return { ...success('Lucidchart share link was revoked', 'Lucidchart 分享链接已撤销'), data: result }
       }
 
       if (actionKey === 'archive_document') {

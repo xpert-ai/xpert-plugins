@@ -13,9 +13,12 @@ import {
 import { z } from 'zod/v3'
 import {
   DOCX_EDITOR_AGENT_REVIEW_CAPABILITY,
+  DOCX_EDITOR_ARTIFACT_SHARING_CAPABILITY,
   DOCX_EDITOR_FEATURE,
   DOCX_EDITOR_ICON,
   DOCX_EDITOR_MIDDLEWARE_NAME,
+  DOCX_EDITOR_PUBLISH_ARTIFACT_LINK_TOOL_NAME,
+  DOCX_EDITOR_REVOKE_ARTIFACT_LINK_TOOL_NAME,
   DOCX_EDITOR_TOOL_NAMES,
   DOCX_EDITOR_WORKBENCH_LIVE_TOOL_NAMES
 } from './constants.js'
@@ -187,6 +190,16 @@ const scrollSchema = documentToolBaseSchema.extend({
   paraId: z.string().min(1).describe('Stable paragraph id to reveal in the live Workbench editor.')
 })
 
+const publishArtifactLinkSchema = z.object({
+  documentId: z.string().min(1).optional().describe('DOCX Editor plugin document id. Optional when a current DOCX Workbench document is open.'),
+  accessMode: z.enum(['public_link', 'organization_all', 'workspace_all']).optional().describe('Defaults to public_link.'),
+  targetMode: z.enum(['version', 'latest']).optional().describe('Defaults to a fixed version link.'),
+  userConfirmedPublicLink: z.boolean().optional().describe('Must be true after the user explicitly confirms public_link access.')
+})
+const revokeArtifactLinkSchema = z.object({
+  documentId: z.string().min(1).optional().describe('DOCX Editor plugin document id. Optional when a current DOCX Workbench document is open.')
+})
+
 type ToolSchema = z.ZodTypeAny
 
 type RuntimeContextRecord = Record<string, unknown>
@@ -203,6 +216,11 @@ type CurrentDocxWorkbenchDocument = {
 }
 
 const DOCX_TOOL_NAMES = new Set<string>(DOCX_EDITOR_TOOL_NAMES)
+const DOCX_CONTEXTUAL_TOOL_NAMES = new Set<string>([
+  ...DOCX_EDITOR_TOOL_NAMES,
+  DOCX_EDITOR_PUBLISH_ARTIFACT_LINK_TOOL_NAME,
+  DOCX_EDITOR_REVOKE_ARTIFACT_LINK_TOOL_NAME
+])
 const WORKBENCH_LIVE_TOOL_NAMES = new Set<string>(DOCX_EDITOR_WORKBENCH_LIVE_TOOL_NAMES)
 const DOCUMENT_ID_FALLBACK_HINT = ' If a current DOCX Workbench document is open, documentId may be omitted.'
 const MISSING_DOCUMENT_CONTEXT_MESSAGE =
@@ -224,7 +242,7 @@ export class DocxEditorMiddleware implements IAgentMiddlewareStrategy<Record<str
       en_US: 'Read DOCX documents, add comments, suggest tracked changes, apply formatting, and coordinate live Workbench actions.',
       zh_Hans: '读取 DOCX 文档，添加批注，提出修订建议，应用格式，并协调 Workbench 内的实时操作。'
     },
-    features: [DOCX_EDITOR_FEATURE, DOCX_EDITOR_AGENT_REVIEW_CAPABILITY],
+    features: [DOCX_EDITOR_FEATURE, DOCX_EDITOR_AGENT_REVIEW_CAPABILITY, DOCX_EDITOR_ARTIFACT_SHARING_CAPABILITY],
     configSchema: {
       type: 'object',
       properties: {}
@@ -274,7 +292,28 @@ export class DocxEditorMiddleware implements IAgentMiddlewareStrategy<Record<str
         this.createDocxTool(scope, 'docx_reject_change', changeTargetSchema, 'Reject one tracked change by changeId. If it is in a footnote or endnote, include noteId and noteType from docx_read_changes.'),
         this.createDocxTool(scope, 'docx_accept_all_changes', allChangesSchema, 'Accept all tracked changes in the document body. Set includeFootnotes/includeEndnotes to include note bodies.'),
         this.createDocxTool(scope, 'docx_reject_all_changes', allChangesSchema, 'Reject all tracked changes in the document body. Set includeFootnotes/includeEndnotes to include note bodies.'),
-        this.createDocxTool(scope, 'docx_scroll', scrollSchema, 'Queue a Workbench scroll to a paraId. This does not modify the document.')
+        this.createDocxTool(scope, 'docx_scroll', scrollSchema, 'Queue a Workbench scroll to a paraId. This does not modify the document.'),
+        tool(
+          async (input) => JSON.stringify(await this.service.publishArtifact(scope, {
+            documentId: input.documentId ?? '',
+            accessMode: input.accessMode,
+            targetMode: input.targetMode,
+            userConfirmedPublicLink: input.userConfirmedPublicLink
+          }), null, 2),
+          {
+            name: DOCX_EDITOR_PUBLISH_ARTIFACT_LINK_TOOL_NAME,
+            description: `Create or reuse a read-only HTML Artifact link for the current saved DOCX version. Public links require explicit user confirmation. The link never enables download.${DOCUMENT_ID_FALLBACK_HINT}`,
+            schema: publishArtifactLinkSchema
+          }
+        ),
+        tool(
+          async (input) => JSON.stringify(await this.service.revokeArtifactShare(scope, input.documentId ?? ''), null, 2),
+          {
+            name: DOCX_EDITOR_REVOKE_ARTIFACT_LINK_TOOL_NAME,
+            description: `Revoke the active Artifact link for a DOCX document.${DOCUMENT_ID_FALLBACK_HINT}`,
+            schema: revokeArtifactLinkSchema
+          }
+        )
       ],
       wrapModelCall: (request, handler) => {
         const currentDocument = resolveCurrentWorkbenchDocument(request.runtime)
@@ -288,7 +327,7 @@ export class DocxEditorMiddleware implements IAgentMiddlewareStrategy<Record<str
         })
       },
       wrapToolCall: (request, handler) => {
-        if (!DOCX_TOOL_NAMES.has(request.toolCall.name)) {
+        if (!DOCX_CONTEXTUAL_TOOL_NAMES.has(request.toolCall.name)) {
           return handler(request)
         }
 
@@ -309,7 +348,9 @@ export class DocxEditorMiddleware implements IAgentMiddlewareStrategy<Record<str
           ...request,
           toolCall: {
             ...request.toolCall,
-            args: withToolExecutionTarget(args, request.toolCall.name, documentId, currentDocument)
+            args: DOCX_TOOL_NAMES.has(request.toolCall.name)
+              ? withToolExecutionTarget(args, request.toolCall.name, documentId, currentDocument)
+              : { ...args, documentId }
           }
         })
       }

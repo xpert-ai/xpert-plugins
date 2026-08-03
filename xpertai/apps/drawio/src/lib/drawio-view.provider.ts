@@ -148,6 +148,8 @@ export class DrawioViewProvider implements IXpertViewExtensionProvider {
           { key: 'refresh', label: text('Refresh', '刷新'), icon: 'ri-refresh-line', placement: 'toolbar', actionType: 'refresh' },
           { key: 'create_drawing', label: text('New Drawing', '新建图形'), icon: 'ri-add-line', placement: 'toolbar', actionType: 'invoke' },
           { key: 'save_scene_version', label: text('Save Version', '保存版本'), icon: 'ri-save-line', placement: 'toolbar', actionType: 'invoke' },
+          { key: 'publish_artifact', label: text('Share Diagram', '分享图形'), icon: 'ri-share-line', placement: 'toolbar', actionType: 'invoke' },
+          { key: 'revoke_artifact_share', label: text('Revoke Share', '撤销分享'), icon: 'ri-link-unlink', actionType: 'invoke' },
           { key: 'restore_version', label: text('Restore Version', '恢复版本'), icon: 'ri-history-line', actionType: 'invoke' },
           { key: 'mark_reviewed', label: text('Mark Reviewed', '标记已审核'), icon: 'ri-check-line', actionType: 'invoke' },
           { key: 'mark_draft', label: text('Move Back to Draft', '退回草稿'), icon: 'ri-edit-line', actionType: 'invoke' },
@@ -287,6 +289,21 @@ export class DrawioViewProvider implements IXpertViewExtensionProvider {
           ...success('Diagram version restored', '图形版本已恢复'),
           data: result
         }
+      }
+
+      if (actionKey === 'publish_artifact') {
+        const result = await this.service.publishArtifact(scope, {
+          drawingId: requireDrawingId(request),
+          accessMode: getStringInput(request.input, 'accessMode') as 'public_link' | 'organization_all' | 'workspace_all' | undefined,
+          targetMode: getStringInput(request.input, 'targetMode') as 'version' | 'latest' | undefined,
+          userConfirmedPublicLink: request.input?.['userConfirmedPublicLink'] === true
+        })
+        return { ...success('draw.io share link is ready', 'draw.io 分享链接已生成'), data: result, refresh: false }
+      }
+
+      if (actionKey === 'revoke_artifact_share') {
+        const result = await this.service.revokeArtifactShare(scope, requireDrawingId(request))
+        return { ...success('draw.io share link was revoked', 'draw.io 分享链接已撤销'), data: result }
       }
 
       if (actionKey === 'archive_drawing') {

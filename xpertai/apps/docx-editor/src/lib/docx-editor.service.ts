@@ -2,8 +2,17 @@ import { BadRequestException, Inject, Injectable, NotFoundException, Optional } 
 import { InjectRepository } from '@nestjs/typeorm'
 import { createHash } from 'node:crypto'
 import { Repository } from 'typeorm'
-import { XPERT_RUNTIME_CAPABILITIES_TOKEN } from '@xpert-ai/plugin-sdk'
-import type { AgentMiddlewareRuntimeCapabilityRegistry } from '@xpert-ai/plugin-sdk'
+import {
+  ArtifactsRuntimeCapability,
+  WORKSPACE_FILES_SOURCE,
+  XPERT_RUNTIME_CAPABILITIES_TOKEN,
+  type AgentMiddlewareRuntimeCapabilityRegistry,
+  type ArtifactAccessMode,
+  type ArtifactLinkRecord,
+  type ArtifactLinkVersionMode,
+  type ArtifactsApi,
+  type WorkspacePortableFileReference
+} from '@xpert-ai/plugin-sdk'
 import {
   createReviewerBridge,
   DocxReviewer,
@@ -15,8 +24,10 @@ import {
   DOCX_EDITOR_LIVE_ONLY_TOOL_NAMES,
   DOCX_EDITOR_MAX_INLINE_DOCX_BYTES,
   DOCX_EDITOR_MUTATION_TOOL_NAMES,
+  DOCX_EDITOR_PLUGIN_NAME,
   DOCX_EDITOR_WORKBENCH_LIVE_TOOL_NAMES
 } from './constants.js'
+import { DocxEditorArtifactViewerService } from './docx-editor-artifact-viewer.service.js'
 import {
   DocxEditorDocument,
   DocxEditorOperation,
@@ -106,6 +117,8 @@ const LIST_RESULT_MAX_ITEMS = 25
 const FIND_TEXT_MAX_ITEMS = 20
 const TEXT_PREVIEW_MAX_CHARS = 2400
 const FIELD_PREVIEW_MAX_CHARS = 600
+const DOCX_ARTIFACT_RESOURCE_TYPE = 'docx_document_viewer'
+const DOCX_ARTIFACT_SHARE_KEY = 'readonly-default'
 
 @Injectable()
 export class DocxEditorService {
@@ -120,7 +133,9 @@ export class DocxEditorService {
     private readonly operationRepository: Repository<DocxEditorOperation>,
     @Optional()
     @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN)
-    private readonly runtimeCapabilities?: AgentMiddlewareRuntimeCapabilityRegistry
+    private readonly runtimeCapabilities?: AgentMiddlewareRuntimeCapabilityRegistry,
+    @Optional()
+    private readonly artifactViewer?: DocxEditorArtifactViewerService
   ) {}
 
   async createDocument(scope: DocxEditorScope, input: CreateDocxDocumentInput) {
@@ -329,6 +344,104 @@ export class DocxEditorService {
     }
   }
 
+  async publishArtifact(
+    scope: DocxEditorScope,
+    input: {
+      documentId: string
+      accessMode?: ArtifactAccessMode | null
+      targetMode?: ArtifactLinkVersionMode | null
+      userConfirmedPublicLink?: boolean | null
+    }
+  ) {
+    const document = await this.requireDocument(scope, input.documentId)
+    if (document.status === 'archived') throw new BadRequestException('Archived DOCX documents cannot be shared.')
+    const version = await this.requireCurrentVersion(scope, document)
+    const accessMode = normalizeArtifactAccessMode(input.accessMode, 'DOCX')
+    if (accessMode === 'public_link' && input.userConfirmedPublicLink !== true) {
+      throw new BadRequestException('Public Artifact sharing requires explicit user confirmation.')
+    }
+    if (accessMode === 'workspace_all' && !document.workspaceId) {
+      throw new BadRequestException('Workspace sharing requires a workspace-scoped DOCX document.')
+    }
+    const targetMode: ArtifactLinkVersionMode = input.targetMode === 'latest' ? 'latest' : 'version'
+    const rendered = await this.artifactViewerService().render({
+      title: document.title,
+      description: document.description,
+      versionNumber: version.versionNumber,
+      docxBuffer: await this.readVersionBuffer(scope, version)
+    })
+    const artifacts = this.artifacts()
+    const documentId = requireEntityId(document.id, 'Document id is required.')
+    const metadata = {
+      documentId,
+      documentVersionId: version.id ?? null,
+      documentVersionNumber: version.versionNumber,
+      viewerVersion: rendered.viewerVersion,
+      paragraphCount: rendered.paragraphCount
+    }
+    const artifact =
+      (await artifacts.findArtifactBySource({ pluginName: DOCX_EDITOR_PLUGIN_NAME, resourceType: DOCX_ARTIFACT_RESOURCE_TYPE, resourceId: documentId })) ??
+      (await artifacts.createArtifact({
+        source: { pluginName: DOCX_EDITOR_PLUGIN_NAME, resourceType: DOCX_ARTIFACT_RESOURCE_TYPE, resourceId: documentId, checksum: version.checksum },
+        kind: 'html',
+        title: document.title,
+        description: document.description,
+        scope: artifactRuntimeScope(document, scope),
+        metadata
+      }))
+    const existingVersion = (await artifacts.listArtifactVersions({ artifactId: artifact.id, idempotencyKey: rendered.sha256, status: 'active' }))[0]
+    let workspaceFileRef = existingVersion?.workspaceFileRef ?? null
+    if (!workspaceFileRef) {
+      const workspaceScope = resolveDocumentWorkspaceScope(scope, document)
+      const workspaceName = `${rendered.sha256}.html`
+      const file = await this.workspaceFiles().uploadBuffer({
+        ...workspaceScope,
+        buffer: rendered.buffer,
+        originalName: workspaceName,
+        fileName: workspaceName,
+        mimeType: rendered.mimeType,
+        size: rendered.size,
+        folder: `files/docx-editor/artifacts/${documentId}`
+      })
+      workspaceFileRef = portableArtifactReference(file, workspaceScope, workspaceName, rendered)
+    }
+    const versionResult = await artifacts.ensureArtifactVersion({
+      artifactId: artifact.id,
+      idempotencyKey: rendered.sha256,
+      workspaceFileRef,
+      mimeType: rendered.mimeType,
+      fileName: normalizeArtifactFileName(document.title),
+      title: document.title,
+      description: document.description,
+      size: rendered.size,
+      sha256: rendered.sha256,
+      sourceVersionId: version.id ?? `v${version.versionNumber}`,
+      checksum: rendered.checksum,
+      setCurrent: true,
+      metadata
+    })
+    const shareResult = await artifacts.ensureArtifactShare({
+      artifactId: artifact.id,
+      shareKey: DOCX_ARTIFACT_SHARE_KEY,
+      artifactVersionId: targetMode === 'version' ? versionResult.version.id : null,
+      versionMode: targetMode,
+      access: { mode: accessMode, userConfirmedPublicLink: accessMode === 'public_link' ? true : null },
+      presentation: { disposition: 'inline', allowDownload: false, safeHtmlProfile: 'strict' },
+      metadata
+    })
+    return compactArtifactShare(documentId, { ...shareResult.link, version: shareResult.link.version ?? versionResult.version }, shareResult.outcome === 'reused' && versionResult.outcome === 'reused')
+  }
+
+  async revokeArtifactShare(scope: DocxEditorScope, documentId: string) {
+    await this.requireDocument(scope, documentId)
+    const artifact = await this.optionalArtifacts()?.findArtifactBySource({ pluginName: DOCX_EDITOR_PLUGIN_NAME, resourceType: DOCX_ARTIFACT_RESOURCE_TYPE, resourceId: documentId })
+    if (!artifact) return { message: 'DOCX document has no active Artifact share.', documentId, revoked: false }
+    const revoked = await this.artifacts().revokeArtifactShare({ artifactId: artifact.id, shareKey: DOCX_ARTIFACT_SHARE_KEY })
+    return revoked
+      ? { message: 'DOCX Artifact share was revoked.', documentId, revoked: true }
+      : { message: 'DOCX document has no active Artifact share.', documentId, revoked: false }
+  }
+
   async runAgentTool(scope: DocxEditorScope, input: RunDocxAgentToolInput) {
     const toolName = input.toolName
     const document = await this.requireDocument(scope, input.documentId)
@@ -425,7 +538,7 @@ export class DocxEditorService {
   async getWorkbenchData(scope: DocxEditorScope, query: DocxWorkbenchQuery) {
     if (query.documentId) {
       const document = await this.requireDocument(scope, query.documentId)
-      const [versions, snapshot, operations] = await Promise.all([
+      const [versions, snapshot, operations, artifactShare] = await Promise.all([
         this.versionRepository.find({
           where: scopedWhere(scope, { documentId: query.documentId }),
           order: { versionNumber: 'DESC' }
@@ -435,7 +548,8 @@ export class DocxEditorService {
           where: scopedWhere(scope, { documentId: query.documentId }),
           order: { createdAt: 'DESC' },
           take: 20
-        })
+        }),
+        this.getArtifactShareForDocument(query.documentId)
       ])
       const requestedVersionId = normalizeOptional(query.versionId)
       const requestedVersionEntity = requestedVersionId
@@ -455,7 +569,8 @@ export class DocxEditorService {
           : null,
         versions,
         snapshot,
-        operations
+        operations,
+        artifactShare: artifactShare ? compactArtifactShare(query.documentId, artifactShare) : null
       }
     }
 
@@ -494,6 +609,28 @@ export class DocxEditorService {
       throw new BadRequestException('Xpert workspace file runtime capability is required for DOCX storage.')
     }
     return files
+  }
+
+  private artifacts() {
+    const capability = this.optionalArtifacts()
+    if (!capability) throw new Error('Platform Artifacts capability is not available.')
+    return capability
+  }
+
+  private optionalArtifacts() {
+    return this.runtimeCapabilities?.get(ArtifactsRuntimeCapability) as ArtifactsApi | undefined
+  }
+
+  private artifactViewerService() {
+    if (!this.artifactViewer) throw new Error('DOCX Artifact viewer is not available.')
+    return this.artifactViewer
+  }
+
+  private async getArtifactShareForDocument(documentId: string) {
+    const artifacts = this.optionalArtifacts()
+    if (!artifacts) return null
+    const artifact = await artifacts.findArtifactBySource({ pluginName: DOCX_EDITOR_PLUGIN_NAME, resourceType: DOCX_ARTIFACT_RESOURCE_TYPE, resourceId: documentId })
+    return artifact ? artifacts.getArtifactShare({ artifactId: artifact.id, shareKey: DOCX_ARTIFACT_SHARE_KEY }) : null
   }
 
   private async readVersionBuffer(scope: DocxEditorScope, version: DocxEditorVersion) {
@@ -1697,6 +1834,70 @@ function pickPresent(record: Record<string, unknown>, keys: string[]) {
 
 function truncateText(value: string, maxLength: number) {
   return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value
+}
+
+function portableArtifactReference(
+  file: { name?: string; filePath: string; workspacePath?: string; mimeType?: string; size?: number },
+  scope: DocxWorkspaceFileScope,
+  originalName: string,
+  rendered: { mimeType: string; size: number }
+): WorkspacePortableFileReference {
+  const workspacePath = normalizeRequired(file.workspacePath, 'Workspace upload did not return a workspace path.')
+  return {
+    source: WORKSPACE_FILES_SOURCE,
+    ...scope,
+    filePath: file.filePath,
+    workspacePath,
+    originalName,
+    name: file.name ?? originalName,
+    mimeType: file.mimeType ?? rendered.mimeType,
+    size: file.size ?? rendered.size
+  }
+}
+
+function artifactRuntimeScope(document: DocxEditorDocument, scope: DocxEditorScope) {
+  return {
+    tenantId: document.tenantId ?? scope.tenantId ?? null,
+    organizationId: document.organizationId ?? scope.organizationId ?? null,
+    userId: scope.userId ?? document.createdById ?? null,
+    workspaceId: document.workspaceId ?? scope.workspaceId ?? null,
+    projectId: document.projectId ?? scope.projectId ?? null,
+    xpertId: document.assistantId ?? scope.assistantId ?? null
+  }
+}
+
+function normalizeArtifactAccessMode(value: ArtifactAccessMode | null | undefined, label: string): ArtifactAccessMode {
+  const normalized = value ?? 'public_link'
+  if (normalized === 'public_link' || normalized === 'organization_all' || normalized === 'workspace_all') return normalized
+  throw new BadRequestException(`Unsupported ${label} Artifact access mode: ${normalized}`)
+}
+
+function normalizeArtifactFileName(value: string | null | undefined) {
+  const base = (normalizeOptional(value) ?? 'docx-document')
+    .replace(/\.html?$/i, '')
+    .replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 120) || 'docx-document'
+  return `${base}.html`
+}
+
+function compactArtifactShare(documentId: string, link: ArtifactLinkRecord, reused = false) {
+  const publicUrl = link.publicUrl?.trim() || undefined
+  return {
+    documentId,
+    artifactId: link.artifactId,
+    artifactVersionId: link.version?.id ?? link.artifactVersionId,
+    artifactLinkId: link.id,
+    targetMode: link.versionMode,
+    accessMode: link.accessMode,
+    allowDownload: link.allowDownload,
+    shareUrl: publicUrl,
+    publicUrl,
+    sharedAt: link.createdAt,
+    status: link.status,
+    reused
+  }
 }
 
 function scopedCreate(scope: DocxEditorScope): ScopedFields & { createdById?: string } {

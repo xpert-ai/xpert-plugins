@@ -12,13 +12,16 @@ import {
 import { z } from 'zod/v3'
 import {
   LUCIDCHART_CREATE_DOCUMENT_TOOL_NAME,
+  LUCIDCHART_ARTIFACT_SHARING_CAPABILITY,
   LUCIDCHART_FEATURE,
   LUCIDCHART_GET_DOCUMENT_TOOL_NAME,
   LUCIDCHART_ICON,
   LUCIDCHART_MIDDLEWARE_NAME,
   LUCIDCHART_PATCH_STANDARD_IMPORT_TOOL_NAME,
+  LUCIDCHART_PUBLISH_ARTIFACT_LINK_TOOL_NAME,
   LUCIDCHART_REGISTER_EXTERNAL_DOCUMENT_TOOL_NAME,
   LUCIDCHART_REPORT_FAILURE_TOOL_NAME,
+  LUCIDCHART_REVOKE_ARTIFACT_LINK_TOOL_NAME,
   LUCIDCHART_SAVE_MERMAID_DRAFT_TOOL_NAME,
   LUCIDCHART_SAVE_STANDARD_IMPORT_VERSION_TOOL_NAME,
   LUCIDCHART_SEARCH_DOCUMENTS_TOOL_NAME,
@@ -124,6 +127,8 @@ const reportFailureSchema = z.object({
   recoverable: z.boolean().optional(),
   evidence: z.unknown().optional()
 })
+const publishArtifactLinkSchema = z.object({ documentId: z.string().min(1), accessMode: z.enum(['public_link', 'organization_all', 'workspace_all']).optional(), targetMode: z.enum(['version', 'latest']).optional(), userConfirmedPublicLink: z.boolean().optional().describe('Must be true after the user explicitly confirms public_link access.') })
+const revokeArtifactLinkSchema = z.object({ documentId: z.string().min(1) })
 
 @Injectable()
 @AgentMiddlewareStrategy(LUCIDCHART_MIDDLEWARE_NAME)
@@ -143,7 +148,7 @@ export class LucidchartMiddleware implements IAgentMiddlewareStrategy<Record<str
       value: LUCIDCHART_ICON,
       color: '#2563eb'
     },
-    features: [LUCIDCHART_FEATURE],
+    features: [LUCIDCHART_FEATURE, LUCIDCHART_ARTIFACT_SHARING_CAPABILITY],
     configSchema: {
       type: 'object',
       properties: {},
@@ -235,6 +240,22 @@ export class LucidchartMiddleware implements IAgentMiddlewareStrategy<Record<str
             description:
               'Record a failed Standard Import generation, Lucid import, embed registration, Mermaid draft, or export attempt with evidence.',
             schema: reportFailureSchema
+          }
+        ),
+        tool(
+          async (input) => JSON.stringify(await this.service.publishArtifact(scope, input), null, 2),
+          {
+            name: LUCIDCHART_PUBLISH_ARTIFACT_LINK_TOOL_NAME,
+            description: 'Create or reuse a read-only HTML Artifact link for the current saved Lucidchart version. Public links require explicit user confirmation; download is disabled.',
+            schema: publishArtifactLinkSchema
+          }
+        ),
+        tool(
+          async (input) => JSON.stringify(await this.service.revokeArtifactShare(scope, input.documentId), null, 2),
+          {
+            name: LUCIDCHART_REVOKE_ARTIFACT_LINK_TOOL_NAME,
+            description: 'Revoke the active Artifact link for a Lucidchart document.',
+            schema: revokeArtifactLinkSchema
           }
         )
       ]
