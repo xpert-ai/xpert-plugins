@@ -205,8 +205,8 @@ function App() {
   const [collabState, setCollabState] = React.useState<'connecting' | 'connected' | 'disconnected'>('disconnected')
   const [presences, setPresences] = React.useState<Record<string, PresenceState>>({})
   const [collaborators, setCollaborators] = React.useState<PresenceState[]>([])
-  const [leftCollapsed, setLeftCollapsed] = React.useState(() => readPanelCollapsed('left', false))
-  const [rightCollapsed, setRightCollapsed] = React.useState(() => globalThis.innerWidth < 960 ? true : readPanelCollapsed('right', globalThis.innerWidth < 1180))
+  const [leftCollapsed, setLeftCollapsed] = React.useState(false)
+  const [rightCollapsed, setRightCollapsed] = React.useState(() => globalThis.innerWidth < 1180)
   const [inspectorTab, setInspectorTab] = React.useState<InspectorTab>('design')
   const [showCreate, setShowCreate] = React.useState(false)
   const [newTitle, setNewTitle] = React.useState('')
@@ -243,8 +243,6 @@ function App() {
   React.useEffect(() => { selectedRef.current = selectedId }, [selectedId])
   React.useEffect(() => { decksRef.current = decks }, [decks])
   React.useEffect(() => { detailRef.current = detail }, [detail])
-  React.useEffect(() => persistPanelCollapsed('left', leftCollapsed), [leftCollapsed])
-  React.useEffect(() => persistPanelCollapsed('right', rightCollapsed), [rightCollapsed])
   React.useEffect(reportResize, [ready, decks.length, detail, leftCollapsed, rightCollapsed, showCreate, assetPickerOpen, workspaceMode, themePreviews.length])
 
   const loadDecks = React.useCallback(async () => {
@@ -1697,9 +1695,6 @@ function removeControlDraft(drafts: Record<string, Record<string, JsonValue>>, s
   else delete next[slideId]
   return next
 }
-
-function readPanelCollapsed(panel: 'left' | 'right', fallback: boolean) { try { const value = localStorage.getItem(`presentation-studio.panel.${panel}`); return value === null ? fallback : value === 'collapsed' } catch { return fallback } }
-function persistPanelCollapsed(panel: 'left' | 'right', collapsed: boolean) { try { localStorage.setItem(`presentation-studio.panel.${panel}`, collapsed ? 'collapsed' : 'open') } catch { /* storage unavailable */ } }
 
 class StudioErrorBoundary extends React.Component<React.PropsWithChildren, { error: Error | null; stack: string }> {
   override state = { error: null as Error | null, stack: '' }

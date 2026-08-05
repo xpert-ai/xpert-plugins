@@ -4,10 +4,10 @@ let hostDefault = false
 export function setDebugDefault(value: boolean) { hostDefault = value }
 
 function enabled() {
-  const stored = globalThis.localStorage?.getItem('xpert.debug.presentation-studio')
-  if (stored === '0') return false
-  if (stored === '1') return true
-  return new URLSearchParams(globalThis.location?.search ?? '').get('xpertDebug') === 'presentation-studio' || hostDefault
+  const override = new URLSearchParams(globalThis.location?.search ?? '').get('xpertDebug')
+  if (override === '0' || override === 'false') return false
+  if (override === 'presentation-studio' || override === '1' || override === 'true') return true
+  return hostDefault
 }
 
 function summarize(data?: JsonObject) {

@@ -13,12 +13,11 @@ function redact(data?: DebugData): DebugData | undefined {
 }
 
 export function createRemoteLogger(hostDefault = false) {
-  const key = 'xpert.debug.img2threejs'
   const enabled = () => {
-    const override = globalThis.localStorage?.getItem(key)
-    if (override === '0') return false
-    if (override === '1') return true
-    return new URLSearchParams(globalThis.location?.search ?? '').get('xpertDebug') === 'img2threejs' || hostDefault
+    const override = new URLSearchParams(globalThis.location?.search ?? '').get('xpertDebug')
+    if (override === '0' || override === 'false') return false
+    if (override === 'img2threejs' || override === '1' || override === 'true') return true
+    return hostDefault
   }
   return {
     debug(event: string, data?: DebugData): void {

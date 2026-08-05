@@ -133,6 +133,18 @@ const browserShimPlugin = {
         .replace(/function canUseWorker\(\) \{[^}]+\}/, 'function canUseWorker() { return false; }')
         .replace(/new Worker\(new URL\("[^"]+", import\.meta\.url\),/g, 'new Worker("",')
     }
+    if (id.includes('/@open-pencil/vue/') && id.endsWith('/canvas/tool-input/use.js')) {
+      const storageHelper = `function getLocalStorage() {
+\tif (typeof localStorage === "undefined") return null;
+\tif (typeof localStorage.getItem !== "function") return null;
+\tif (typeof localStorage.setItem !== "function") return null;
+\treturn localStorage;
+}`
+      if (!source.includes(storageHelper)) {
+        throw new Error('The Open Pencil locale storage helper changed; update the sandbox transform.')
+      }
+      return source.replace(storageHelper, 'function getLocalStorage() { return null; }')
+    }
     return null
   },
 }
