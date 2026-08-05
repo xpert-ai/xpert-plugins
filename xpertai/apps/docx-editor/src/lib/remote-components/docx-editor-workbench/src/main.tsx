@@ -1,6 +1,8 @@
 import { DocxEditor, type DocxEditorRef, type EditorMode } from '@eigenpal/docx-editor-react'
 import '@eigenpal/docx-editor-react/styles.css'
+import { FontSizePicker } from '@eigenpal/docx-editor-react/ui'
 import { useDocxAgentTools } from '@eigenpal/docx-editor-agents/react'
+import { getMarkAttr, setFontSize } from '@eigenpal/docx-editor-core/prosemirror/commands'
 import enDocxEditorI18n from '@eigenpal/docx-editor-i18n/en'
 import zhCNDocxEditorI18n from '@eigenpal/docx-editor-i18n/zh-CN'
 import type { Translations } from '@eigenpal/docx-editor-i18n'
@@ -10,6 +12,7 @@ import {
   Button,
   Check,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   Dialog,
   DialogContent,
@@ -152,6 +155,8 @@ function App() {
   const [assistantInstruction, setAssistantInstruction] = React.useState('')
   const [leftPanelCollapsed, setLeftPanelCollapsed] = React.useState(false)
   const [rightPanelCollapsed, setRightPanelCollapsed] = React.useState(true)
+  const [toolbarPage, setToolbarPage] = React.useState<1 | 2>(1)
+  const [toolbarFontSize, setToolbarFontSize] = React.useState(11)
   const [versionListExpanded, setVersionListExpanded] = React.useState(false)
   const [pendingUpload, setPendingUpload] = React.useState<PendingUpload | null>(null)
   const editorRef = React.useRef<DocxEditorRef | null>(null)
@@ -236,6 +241,11 @@ function App() {
   React.useEffect(() => {
     void applyQueuedOperations()
   }, [detail?.operations, buffer])
+
+  React.useEffect(() => {
+    setToolbarPage(1)
+    scheduleToolbarFontSizeSync()
+  }, [documentKey])
 
   function hydratePayload(payload: any) {
     if (!payload) {
@@ -600,6 +610,7 @@ function App() {
   }
 
   function handleSelectionChange(selectionState: unknown) {
+    scheduleToolbarFontSizeSync()
     const contextSnapshot = safeGetAgentContext()
     selectionContextRef.current = {
       ...(contextSnapshot || {}),
@@ -607,6 +618,59 @@ function App() {
     }
     void updateAssistantContext()
     scheduleSelectionSnapshotSync()
+  }
+
+  function readToolbarFontSize() {
+    const view = editorRef.current?.getEditorRef()?.getView()
+    const fontSizeMark = view?.state.schema.marks.fontSize
+    const halfPoints = view && fontSizeMark
+      ? getMarkAttr(view.state, fontSizeMark, 'size') ?? getMarkAttr(view.state, fontSizeMark, 'sizeCs')
+      : null
+    if (typeof halfPoints === 'number' && Number.isFinite(halfPoints) && halfPoints > 0) {
+      return halfPoints / 2
+    }
+
+    const display = document.querySelector<HTMLElement>('.docx-editor-frame [data-testid="font-size-display"]')
+    const displayedPoints = Number(display?.textContent)
+    return Number.isFinite(displayedPoints) && displayedPoints > 0 ? displayedPoints : null
+  }
+
+  function scheduleToolbarFontSizeSync() {
+    window.requestAnimationFrame(() => {
+      const nextSize = readToolbarFontSize()
+      if (nextSize != null) {
+        setToolbarFontSize(nextSize)
+      }
+    })
+  }
+
+  function applyToolbarFontSize(size: number) {
+    const view = editorRef.current?.getEditorRef()?.getView()
+    if (!view || mode === 'viewing') {
+      return
+    }
+    if (setFontSize(size * 2)(view.state, view.dispatch, view)) {
+      setToolbarFontSize(size)
+      window.requestAnimationFrame(() => editorRef.current?.focus())
+    }
+  }
+
+  function handleEditorToolbarClickCapture(event: React.MouseEvent<HTMLDivElement>) {
+    const target = event.target
+    if (!(target instanceof Element)) {
+      return
+    }
+    const colorApplyButton = target.closest<HTMLButtonElement>('.docx-color-picker-apply')
+    if (!colorApplyButton) {
+      return
+    }
+    const colorPickerButton = colorApplyButton.parentElement?.querySelector<HTMLButtonElement>('.docx-color-picker-arrow')
+    if (!colorPickerButton || colorPickerButton.disabled) {
+      return
+    }
+    event.preventDefault()
+    event.stopPropagation()
+    colorPickerButton.click()
   }
 
   function scheduleSelectionSnapshotSync() {
@@ -1037,7 +1101,11 @@ function App() {
         </Dialog>
         <div className="docx-editor-host">
           {buffer ? (
-            <div className="docx-editor-frame">
+            <div
+              className="docx-editor-frame"
+              data-toolbar-page={toolbarPage}
+              onClickCapture={handleEditorToolbarClickCapture}
+            >
               <DocxEditor
                 key={documentKey}
                 ref={editorRef}
@@ -1062,6 +1130,30 @@ function App() {
                 showRuler
                 showZoomControl
                 renderLogo={() => <span className="docx-editor-logo">DOCX</span>}
+                toolbarExtra={(
+                  <>
+                    <div className="docx-toolbar-font-size" role="group" aria-label={t('fontSize')}>
+                      <FontSizePicker
+                        value={toolbarFontSize}
+                        onChange={applyToolbarFontSize}
+                        disabled={mode === 'viewing'}
+                      />
+                    </div>
+                    <Button
+                      className="docx-toolbar-page-toggle"
+                      variant="ghost"
+                      size="icon"
+                      title={toolbarPage === 1 ? t('showMoreTools') : t('showPrimaryTools')}
+                      aria-label={toolbarPage === 1 ? t('showMoreTools') : t('showPrimaryTools')}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => setToolbarPage((page) => page === 1 ? 2 : 1)}
+                    >
+                      {toolbarPage === 1
+                        ? <ChevronRight className="docx-button-icon" aria-hidden="true" />
+                        : <ChevronLeft className="docx-button-icon" aria-hidden="true" />}
+                    </Button>
+                  </>
+                )}
                 initialZoom={0.92}
                 style={{ height: '100%' }}
               />
