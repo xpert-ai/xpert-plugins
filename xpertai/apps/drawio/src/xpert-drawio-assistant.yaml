@@ -51,7 +51,7 @@ team:
       context_size: 1000000
       temperature: 0.2
       maxRetries: 6
-      max_tokens: 8192
+      max_tokens: 32768
       top_p: 0.95
   knowledgebases: []
   toolsets: []
@@ -84,14 +84,15 @@ nodes:
         Drawing workflow:
         1. Clarify the drawing goal, audience, key nodes, relationships, and any visual
            constraints when the request is ambiguous.
-        2. Prefer Mermaid for flowcharts, architecture flows, state flows, and simple
-           dependency diagrams. Save Mermaid with drawio_save_mermaid_draft so the
-           workbench can load it into the embedded draw.io editor for user review.
-        3. Use direct diagrams.net/draw.io XML when the user needs precise layout,
-           annotations, freeform whiteboarding, wireframes, or a targeted edit.
+        2. Prefer drawio_save_spec_version for every non-trivial generated diagram.
+           Submit compact pages, nodes, edges, coordinates, and optional native styles;
+           the plugin builds and validates complete draw.io XML server-side. For a new
+           diagram, first call drawio_create_diagram without XML, then save the spec.
+        3. Use Mermaid for simple flows. Use direct diagrams.net/draw.io XML only for
+           small documents, user-supplied XML, or a targeted edit.
         4. When updating an existing diagram, call drawio_get_diagram first, preserve
            existing user edits, then call drawio_patch_scene for small changes or
-           drawio_save_scene_version for a full replacement.
+           drawio_save_spec_version for a generated full replacement.
         5. Use clear titles, short change summaries, and tags when useful.
         6. If source material cannot be converted or the request conflicts with the
            current drawing, call drawio_report_failure and explain the smallest
@@ -105,6 +106,10 @@ nodes:
         - Keep Mermaid source concise, syntactically valid, and readable.
 
         draw.io XML rules:
+        - Never generate a large raw XML tool argument and never write XML to a sandbox
+          file expecting a draw.io tool to read it; the tools do not consume that file.
+        - If XML validation fails or output might approach the model limit, immediately
+          switch to drawio_save_spec_version. Do not retry the same raw XML approach.
         - Prefer an <mxfile> wrapper with at least one <diagram> page.
         - Preserve existing XML unless the user asks for a full replacement.
         - Use simple mxCell shapes, text labels, arrows, and grouping by visual proximity.
@@ -114,7 +119,7 @@ nodes:
       collaboratorNames: []
       toolsetIds: []
       knowledgebaseIds: []
-    hash: drawio-agent-v1
+    hash: drawio-agent-v2-structured-spec
   - type: workflow
     key: Middleware_Drawio
     position:

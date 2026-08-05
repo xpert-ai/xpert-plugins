@@ -11,4 +11,7 @@ await cp(join(packageRoot, 'src', 'xpert-drawio-assistant.yaml'), join(packageRo
 await cp(join(packageRoot, 'src', 'lib', 'remote-components'), join(packageRoot, 'dist', 'lib', 'remote-components'), {
   recursive: true
 })
+await cp(join(packageRoot, 'src', 'lib', 'artifact-viewer'), join(packageRoot, 'dist', 'lib', 'artifact-viewer'), {
+  recursive: true
+})
 await cp(join(packageRoot, 'docs'), join(packageRoot, 'dist', 'docs'), { recursive: true })

@@ -13,6 +13,7 @@ export const DOCX_EDITOR_REMOTE_ENTRY_KEY = 'docx-editor-workbench'
 export const DOCX_EDITOR_ASSISTANT_TEMPLATE_KEY = 'docx-editor-assistant'
 export const DOCX_EDITOR_AGENT_KEY = 'Agent_DocxEditor'
 export const DOCX_EDITOR_MAX_INLINE_DOCX_BYTES = 10 * 1024 * 1024
+export const DOCX_EDITOR_IMPORT_WORKSPACE_FILE_TOOL_NAME = 'docx_import_workspace_file'
 export const DOCX_EDITOR_PUBLISH_ARTIFACT_LINK_TOOL_NAME = 'docx_publish_artifact_link'
 export const DOCX_EDITOR_REVOKE_ARTIFACT_LINK_TOOL_NAME = 'docx_revoke_artifact_link'
 
@@ -80,7 +81,11 @@ export const DOCX_EDITOR_READ_ONLY_TOOL_NAMES = [
   'docx_read_changes'
 ] as const
 
-export const DOCX_EDITOR_HOST_EVENT_TOOL_NAMES = [...DOCX_EDITOR_MUTATION_TOOL_NAMES, 'docx_scroll'] as const
+export const DOCX_EDITOR_HOST_EVENT_TOOL_NAMES = [
+  DOCX_EDITOR_IMPORT_WORKSPACE_FILE_TOOL_NAME,
+  ...DOCX_EDITOR_MUTATION_TOOL_NAMES,
+  'docx_scroll'
+] as const
 
 export const DOCX_EDITOR_LIVE_ONLY_TOOL_NAMES = [
   'docx_read_selection',

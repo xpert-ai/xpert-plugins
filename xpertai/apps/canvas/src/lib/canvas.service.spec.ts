@@ -398,9 +398,8 @@ describe('CanvasService', () => {
       stageLabel: 'Add the first task',
       isFinalStage: false,
       baseRevision: 0,
-      createShapes: [{
+      createTextShapes: [{
         id: 'shape:stage-one',
-        type: 'text' as const,
         x: 0,
         y: 0,
         text: 'Stage one'
@@ -482,6 +481,50 @@ describe('CanvasService', () => {
     })).rejects.toThrow('[CANVAS_RECORD_CONFLICT]')
   })
 
+  it('renders semantic workflows atomically and rejects stale page replacement', async () => {
+    const scope = testScope()
+    const created = await service.createDocument(scope, { title: 'Workflow Canvas' })
+    const documentId = created.item.id as string
+    await service.applyAgentRecordBatch(scope, {
+      documentId,
+      operationId: 'workflow-seed-operation',
+      batchId: 'workflow-seed-batch',
+      stageIndex: 1,
+      stageLabel: 'Seed stale content',
+      isFinalStage: true,
+      baseRevision: 0,
+      createTextShapes: [{ id: 'shape:stale-content', x: 0, y: 0, text: 'stale' }],
+      changeSummary: 'Seed stale content'
+    })
+    const replacement = {
+      documentId,
+      operationId: 'workflow-replace-operation',
+      batchId: 'workflow-replace-batch',
+      stageIndex: 1,
+      stageLabel: 'Replace with semantic workflow',
+      isFinalStage: true,
+      baseRevision: 0,
+      workflow: {
+        mode: 'replace_page' as const,
+        title: 'Delivery workflow',
+        stages: [
+          { key: 'plan', label: 'Plan' },
+          { key: 'ship', label: 'Ship', emphasis: true }
+        ]
+      },
+      changeSummary: 'Replace with semantic workflow'
+    }
+
+    await expect(service.applyAgentRecordBatch(scope, replacement)).rejects.toThrow('replace_page requires the latest Canvas revision')
+    const applied = await service.applyAgentRecordBatch(scope, { ...replacement, baseRevision: 1 })
+
+    expect(applied).toEqual(expect.objectContaining({ duplicate: false, workingCopyRevision: 2 }))
+    expect(applied.removedRecordIds).toContain('shape:stale-content')
+    expect(documentRepository.records[0].autosaveSnapshot?.store['shape:stale-content']).toBeUndefined()
+    expect(Object.values(documentRepository.records[0].autosaveSnapshot?.store ?? {})
+      .filter((record) => record.typeName === 'shape')).toHaveLength(8)
+  })
+
   it('discloses Canvas records through revision-bound cursor pages', async () => {
     const scope = testScope()
     const created = await service.createDocument(scope, { title: 'Paged Canvas' })
@@ -501,7 +544,7 @@ describe('CanvasService', () => {
       stageLabel: 'Add paged records',
       isFinalStage: true,
       baseRevision: 0,
-      createShapes: shapes,
+      createTextShapes: shapes.map(({ type: _type, ...shape }) => shape),
       changeSummary: 'Add paged records'
     })
 

@@ -31,6 +31,8 @@ export type TranslationKey =
   | 'saved'
   | 'editorReady'
   | 'editorLoading'
+  | 'invalidXmlTitle'
+  | 'invalidXmlDescription'
   | 'mermaidNotice'
   | 'untitled'
   | 'drawingCreated'
@@ -76,6 +78,8 @@ const translations: Record<string, Record<TranslationKey, string>> = {
     saved: '已保存',
     editorReady: '编辑器已连接',
     editorLoading: '正在加载 draw.io 编辑器',
+    invalidXmlTitle: '当前版本的 draw.io XML 不完整',
+    invalidXmlDescription: '为避免空白画布覆盖原数据，工作台没有载入该版本。请导出 XML 排查，或让 Agent 重新生成完整 XML 并保存为新版本。',
     mermaidNotice: 'Mermaid 会通过 diagrams.net descriptor 导入；请在编辑器中检查后保存。',
     untitled: '未命名图形',
     drawingCreated: '图形已创建',
@@ -120,6 +124,8 @@ const translations: Record<string, Record<TranslationKey, string>> = {
     saved: 'Saved',
     editorReady: 'Editor connected',
     editorLoading: 'Loading draw.io editor',
+    invalidXmlTitle: 'The current draw.io XML is incomplete',
+    invalidXmlDescription: 'The Workbench did not load this version to prevent a blank canvas from overwriting the source. Export the XML for diagnostics or ask the Agent to regenerate and save a complete XML document.',
     mermaidNotice: 'Mermaid is imported through a diagrams.net descriptor. Review it in the editor before saving.',
     untitled: 'Untitled diagram',
     drawingCreated: 'Diagram created',

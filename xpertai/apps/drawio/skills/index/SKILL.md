@@ -19,15 +19,17 @@ The draw.io plugin gives an Agent a structured diagram loop:
 ## Workflow
 
 1. Identify the diagram type, audience, key nodes, relationships, and any layout constraints.
-2. Prefer Mermaid for flowcharts, architecture flows, state flows, and sequence-style drafts when diagrams.net can import the structure.
-3. Use diagrams.net XML when the user needs precise layout, custom shapes, annotations, wireframes, network diagrams, or a targeted edit.
+2. Prefer `drawio_save_spec_version` for non-trivial generated diagrams. Submit compact pages, nodes, edges, and optional native styles; the plugin builds complete XML server-side.
+3. Use Mermaid for simple flowcharts, state flows, and sequence-style drafts when diagrams.net can import the structure. Use raw diagrams.net XML only for small documents, user-supplied XML, or a targeted edit.
 4. Before updating an existing diagram, call `drawio_get_diagram` and preserve user-edited XML unless a full replacement is requested.
 5. Save every meaningful Agent or Workbench change as a new version with a clear `changeSummary`.
-6. If XML generation or conversion is unsafe, call `drawio_report_failure` and explain the recoverable path.
+6. Never generate a large raw XML tool argument and never stage XML in an Agent sandbox file: draw.io tools do not read that file. If raw XML validation fails or the diagram is more than a few cells, switch to `drawio_save_spec_version` rather than retrying the same XML route.
+7. If XML generation or conversion is unsafe, call `drawio_report_failure` and explain the recoverable path.
 
 ## Tool Selection
 
 - `drawio_create_diagram`: create a managed draw.io diagram, optionally with initial XML or Mermaid.
+- `drawio_save_spec_version`: preferred generated-diagram route; save compact pages/nodes/edges as a complete server-built XML version.
 - `drawio_save_scene_version`: save complete diagrams.net XML as a new version.
 - `drawio_patch_scene`: save a targeted replacement of XML, Mermaid source, descriptor, or preview fields.
 - `drawio_save_mermaid_draft`: save Mermaid source for Workbench import into diagrams.net.

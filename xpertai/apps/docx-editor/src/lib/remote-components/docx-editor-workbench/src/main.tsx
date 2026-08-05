@@ -94,6 +94,7 @@ type SyncSnapshotOptions = {
 }
 
 const ASSISTANT_CONTEXT_COMMAND = 'assistant.context.set'
+const IMPORT_WORKSPACE_FILE_TOOL_NAME = 'docx_import_workspace_file'
 const READ_ONLY_HOST_EVENT_TOOL_NAMES = new Set([
   'docx_read_document',
   'docx_read_selection',
@@ -282,6 +283,14 @@ function App() {
 
   async function handleHostEvent(event: unknown) {
     const toolName = getHostEventToolName(event)
+    if (toolName === IMPORT_WORKSPACE_FILE_TOOL_NAME) {
+      const items = await reloadList()
+      const documentId = getHostEventDocumentId(event) || items[0]?.id
+      if (documentId) {
+        await selectDocument(documentId, { force: true })
+      }
+      return
+    }
     if (toolName && READ_ONLY_HOST_EVENT_TOOL_NAMES.has(toolName)) {
       return
     }

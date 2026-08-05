@@ -22,7 +22,7 @@ Before creating a new Canvas, call `canvas_list_typography_presets` and map the 
 
 1. Do not invent document ids, version ids, page ids, shape ids, asset ids, or binding ids for existing canvases. Use Workbench context, `canvas_search_documents`, `canvas_get_document`, `canvas_list_records`, or `canvas_get_record`.
 2. Before editing an existing canvas, call `canvas_get_document` unless the prompt already supplies a trustworthy current revision. This is a compact summary; it does not return the scene.
-3. Apply edits through `canvas_patch_records` in visible stages of at most 12 shape or record operations. Before calling, count `createShapes + updateRecords + removeRecords`; if the total exceeds 12, split the plan first, preferably into stages of 6–8 operations. The first creation call is not an exception. Create new content with simplified `createShapes`; never construct a raw tldraw create record or send a complete snapshot. Agent edits update only the working copy and never create a version.
+3. Apply edits through `canvas_patch_records`. For workflows, flowcharts, process maps, and stage-based architecture diagrams, prefer the semantic `workflow` field so Canvas computes the board, spacing, embedded labels, and connectors; it is one self-contained operation. Use `workflow.mode=replace_page` only when the user explicitly requests replacement/recreation or the page is known to contain corrupt stale content, and always pass the latest revision. For free-form work, use visible stages of at most 12 shape or record operations, preferably 6–8. Create new content with the explicit create arrays; never construct a raw tldraw record or send a complete snapshot. Agent edits update only the working copy and never create a version.
 4. Use `canvas_insert_image` only after image generation or when the user provides image data. Pass `dataUrl`, `base64`, or `workspaceFilePath`; the tool stores image data inside tldraw asset records for v1. If a generation tool labels the path as `workspacePath` or `filePath`, copy that value into `workspaceFilePath`.
 5. If `env.canvasDocumentId` is present, pass it as `documentId`; do not call `canvas_create_document` for image insertion or updates to the current Workbench canvas.
 6. If `env.canvasInsertionTargetJson` is present, parse it and pass it as `target` to `canvas_insert_image`. For AI image holder frames, this compact target includes the holder `shapeId`, `pageId`, `width`, and `height`.
@@ -40,8 +40,8 @@ Before creating a new Canvas, call `canvas_list_typography_presets` and map the 
 3. Call `canvas_get_record` only for records that need exact inspection before an update or removal.
 4. Use one stable `batchId` for the user request. Each `canvas_patch_records` stage uses a new `operationId`, increasing `stageIndex`, a short `stageLabel`, and `isFinalStage=true` only on the final stage.
 5. Chain the `workingCopyRevision` from each receipt into the next stage's `baseRevision`.
-6. Perform a batch preflight before every mutation: count all three operation arrays, and do not call while the total is above 12. For a 16-shape plan, submit 8 semantically related shapes, wait for the receipt, then submit the remaining 8 with the same `batchId`, the next `stageIndex`, a new `operationId`, and the returned `workingCopyRevision` as `baseRevision`.
-7. Use `createShapes` for new `text`, `geo`, `note`, `frame`, or `arrow` shapes. Supply plain text and semantic geometry/style fields; Canvas generates omitted ids, the default/only page, valid indices, complete tldraw defaults, and richText. Never pass `createRecords`.
+6. For a semantic workflow stage, send only `workflow`; it counts as one operation. For free-form mutations, count all five explicit create arrays plus update/removal arrays and split totals above 12. For a 16-shape plan, submit 8 semantically related shapes, wait for the receipt, then submit the remaining 8 with the same `batchId`, the next `stageIndex`, a new `operationId`, and the returned `workingCopyRevision` as `baseRevision`.
+7. Use `createTextShapes`, `createGeoShapes`, `createNoteShapes`, `createFrameShapes`, and `createArrowShapes` for their matching shape kinds. Supply plain text and semantic geometry/style fields; Canvas generates omitted ids, the default/only page, valid indices, complete tldraw defaults, and richText. Put a card label in `createGeoShapes[].text`; never create a separate text shape for a card label. Use geo rectangles for filled backgrounds and cards; frames are outlines; arrows are connectors only. Never pass `createRecords`.
 8. Omit a new shape `id` unless another entry in the same stage must refer to it as `parentId`. Omit `parentId` only for an empty or single-page Canvas; discover and pass the page id when multiple pages exist.
 9. Use `updateRecords` or `removeRecords` with the checksum returned by a list/get read for existing ids. Reuse an `operationId` only to retry the exact same payload. If content changes or a checksum conflicts, reread the affected record and use a new operation id.
 
@@ -161,20 +161,49 @@ Use `seedream_text_to_image` when the user asks to create, fill, replace, or pla
 
 ### `canvas_create_document`
 
-Create a managed Canvas metadata record only. Required input: `title`. Optional inputs: `description`, `kind`, `tags`, `source`, `changeSummary`. It never accepts a snapshot. Add content in later `createShapes` stages; the first stage creates a default page when the Canvas is empty. Do not use this when `env.canvasDocumentId` identifies the current Workbench canvas.
+Create a managed Canvas metadata record only. Required input: `title`. Optional inputs: `description`, `kind`, `tags`, `source`, `changeSummary`. It never accepts a snapshot. Add content in later explicit create-field stages; the first stage creates a default page when the Canvas is empty. Do not use this when `env.canvasDocumentId` identifies the current Workbench canvas.
 
 ### `canvas_patch_records`
 
-Apply one bounded, idempotent stage without creating a version. Required inputs: `documentId`, `operationId`, `batchId`, `stageIndex`, `stageLabel`, `isFinalStage`, `baseRevision`, `changeSummary`, plus at least one `createShapes`, `updateRecords`, or `removeRecords` operation. A stage may contain at most 12 operations; count all three arrays before calling and prefer semantic stages of 6–8 operations. `createShapes` accepts strict simplified `text`, `geo`, `note`, `frame`, and `arrow` DTOs; Canvas generates complete tldraw records and converts plain text to richText. Existing-record updates/removals require their current checksum.
+Apply one bounded, idempotent stage without creating a version. Required inputs: `documentId`, `operationId`, `batchId`, `stageIndex`, `stageLabel`, `isFinalStage`, `baseRevision`, `changeSummary`, plus `workflow` or at least one explicit create, update, or remove operation. Use `workflow` by itself for deterministic process layouts. A free-form stage may contain at most 12 operations across all arrays; prefer semantic stages of 6–8 operations. Canvas generates complete tldraw records and converts plain text to richText. Existing-record updates/removals require their current checksum.
+
+Semantic workflow example:
+
+```json
+{
+  "workflow": {
+    "mode": "replace_page",
+    "title": "XpertAI 多智能体协作工作流",
+    "subtitle": "从业务需求到真实交付",
+    "theme": "xpert-dark",
+    "stages": [
+      { "key": "brief", "label": "业务需求", "detail": "明确目标与边界" },
+      { "key": "plan", "label": "Agent 规划", "detail": "拆解任务与资源" },
+      { "key": "execute", "label": "并行执行", "detail": "多智能体协同", "emphasis": true },
+      { "key": "review", "label": "人工审阅", "detail": "关键节点把关" },
+      { "key": "deliver", "label": "真实交付", "detail": "沉淀可用成果" }
+    ],
+    "branches": [
+      { "key": "research", "label": "Research Agent", "parentStageKey": "execute" },
+      { "key": "creation", "label": "Creation Agent", "parentStageKey": "execute" },
+      { "key": "quality", "label": "Review Agent", "parentStageKey": "execute" }
+    ]
+  }
+}
+```
 
 Minimal creation example:
 
 ```json
 {
-  "createShapes": [
-    { "type": "text", "x": 100, "y": 100, "text": "Hello" },
-    { "type": "geo", "x": 100, "y": 180, "width": 240, "height": 120, "text": "Task", "fill": "semi" },
-    { "type": "arrow", "start": { "x": 340, "y": 240 }, "end": { "x": 460, "y": 240 }, "text": "Next" }
+  "createTextShapes": [
+    { "x": 100, "y": 100, "text": "Hello" }
+  ],
+  "createGeoShapes": [
+    { "x": 100, "y": 180, "width": 240, "height": 120, "text": "Task", "fill": "semi" }
+  ],
+  "createArrowShapes": [
+    { "start": { "x": 340, "y": 240 }, "end": { "x": 460, "y": 240 }, "text": "Next" }
   ]
 }
 ```

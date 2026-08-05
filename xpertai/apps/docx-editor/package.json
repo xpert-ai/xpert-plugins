@@ -40,9 +40,10 @@
     "build:ui": "pnpm --filter @xpert-ai/plugin-shadcn-ui build",
     "build": "pnpm run build:ui && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
     "lint": "echo \"(todo) add lint\"",
-    "test": "pnpm run build:ui && node --loader ts-node/esm --test src/lib/docx-editor.templates.spec.ts src/lib/docx-editor-artifact-sharing.spec.ts && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
+    "test": "pnpm run build:ui && node --loader ts-node/esm --test src/lib/docx-editor.templates.spec.ts src/lib/docx-editor-artifact-sharing.spec.ts src/lib/docx-editor-artifact-viewer.service.spec.ts src/lib/docx-editor-runtime-import.spec.ts && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
     "typecheck": "pnpm run build:ui && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
-    "prepack": "pnpm run build:ui && node scripts/build-remote-components.mjs && node scripts/copy-assets.mjs"
+    "verify:package-output": "node scripts/verify-package-output.mjs",
+    "prepack": "pnpm run build && pnpm run verify:package-output"
   },
   "xpert": {
     "plugin": {
@@ -56,6 +57,7 @@
     "@eigenpal/docx-editor-core": "^1.5.0",
     "@eigenpal/docx-editor-i18n": "^1.5.0",
     "clsx": "^2.1.0",
+    "mammoth": "^1.6.0",
     "prosemirror-commands": "^1.5.2",
     "prosemirror-dropcursor": "^1.8.2",
     "prosemirror-history": "^1.5.0",

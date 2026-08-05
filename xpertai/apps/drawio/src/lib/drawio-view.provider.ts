@@ -534,5 +534,5 @@ function buildAgentDrawPrompt(prompt: string, drawingId?: string) {
 用户绘图需求：
 ${prompt}
 
-请优先判断是否适合 Mermaid 草稿；流程图、架构流、状态流可调用 drawio_save_mermaid_draft。需要精确布局或自由图形时，生成 diagrams.net/draw.io XML 并调用 drawio_create_diagram、drawio_save_scene_version 或 drawio_patch_scene。更新已有图形前先调用 drawio_get_diagram。`
+请优先使用 drawio_save_spec_version：只提交页面、节点、连线和样式，由插件在服务端生成完整 XML，避免长 XML 被模型输出上限截断。新图先调用 drawio_create_diagram（不要附带 XML），再用返回的 drawingId 调用 drawio_save_spec_version。简单流程也可使用 drawio_save_mermaid_draft。只有小型或用户明确提供的完整 XML 才使用 drawio_save_scene_version。不要尝试先写文件再传给 draw.io 工具，因为该工具不读取 Agent 沙箱文件。更新已有图形前先调用 drawio_get_diagram。`
 }

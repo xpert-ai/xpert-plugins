@@ -174,9 +174,8 @@ describe('CanvasMiddleware', () => {
       stageLabel: 'Create the first section',
       isFinalStage: false,
       baseRevision: 0,
-      createShapes: Array.from({ length: 13 }, (_, index) => ({
+      createTextShapes: Array.from({ length: 13 }, (_, index) => ({
         id: `shape:stage-${index}`,
-        type: 'text',
         x: index * 20,
         y: 0,
         text: `Stage ${index}`
@@ -187,7 +186,7 @@ describe('CanvasMiddleware', () => {
     if (!oversizedCreateResult.success) {
       expect(oversizedCreateResult.error.issues).toHaveLength(1)
       expect(oversizedCreateResult.error.issues[0]).toEqual(expect.objectContaining({
-        path: ['createShapes'],
+        path: ['createTextShapes'],
         message: expect.stringContaining('split larger plans into semantic stages')
       }))
     }
@@ -200,8 +199,7 @@ describe('CanvasMiddleware', () => {
       stageLabel: 'Reject a combined oversized stage',
       isFinalStage: false,
       baseRevision: 0,
-      createShapes: Array.from({ length: 8 }, (_, index) => ({
-        type: 'text',
+      createTextShapes: Array.from({ length: 8 }, (_, index) => ({
         x: index * 20,
         y: 0,
         text: `Stage ${index}`
@@ -242,7 +240,7 @@ describe('CanvasMiddleware', () => {
         stageLabel: 'Create simplified text',
         isFinalStage: true,
         baseRevision: 0,
-        createShapes: [{ type: 'text', x: 100, y: 100, text: '测试' }],
+        createTextShapes: [{ x: 100, y: 100, text: '测试' }],
         changeSummary: 'Create simplified text'
       })
     ).not.toThrow()
@@ -255,8 +253,7 @@ describe('CanvasMiddleware', () => {
         stageLabel: 'Reject raw text props',
         isFinalStage: true,
         baseRevision: 0,
-        createShapes: [{
-          type: 'text',
+        createTextShapes: [{
           x: 100,
           y: 100,
           text: '测试',
@@ -275,10 +272,23 @@ describe('CanvasMiddleware', () => {
         stageLabel: 'Reject zero length arrow',
         isFinalStage: true,
         baseRevision: 0,
-        createShapes: [{ type: 'arrow', start: { x: 50, y: 50 }, end: { x: 50, y: 50 } }],
+        createArrowShapes: [{ start: { x: 50, y: 50 }, end: { x: 50, y: 50 } }],
         changeSummary: 'Reject zero length arrow'
       })
     ).toThrow('start and end points must differ')
+    expect(() =>
+      patchTool.schema.parse({
+        documentId: DOCUMENT_ID,
+        operationId: 'canvas-stage-operation-6',
+        batchId: 'canvas-batch-1',
+        stageIndex: 1,
+        stageLabel: 'Reject polymorphic shapes',
+        isFinalStage: true,
+        baseRevision: 0,
+        createShapes: [{ type: 'geo', x: 0, y: 0, width: 800, height: 450 }],
+        changeSummary: 'Reject polymorphic shapes'
+      })
+    ).toThrow('Unrecognized key')
   })
 
   it('uses strict, revision-bound progressive read schemas', () => {
@@ -336,10 +346,14 @@ describe('CanvasMiddleware', () => {
     expect(createTool?.description).toContain('env.canvasDocumentId')
     expect(createTool?.description).toContain('never accepts or writes a complete snapshot')
     expect(patchTool?.description).toContain('at most 12 shape or record operations')
-    expect(patchTool?.description).toContain('count createShapes + updateRecords + removeRecords')
+    expect(patchTool?.description).toContain('prefer the workflow field')
+    expect(patchTool?.description).toContain('workflow.mode=replace_page')
+    expect(patchTool?.description).toContain('workflow must be the only mutation')
+    expect(patchTool?.description).toContain('createTextShapes + createGeoShapes')
     expect(patchTool?.description).toContain('preferably 6–8 operations each')
-    expect(patchTool?.description).toContain('split 16 shapes into 8 + 8')
-    expect(patchTool?.description).toContain('createShapes')
+    expect(patchTool?.description).toContain('createArrowShapes')
+    expect(patchTool?.description).toContain('createGeoShapes for filled rectangles/backgrounds')
+    expect(patchTool?.description).toContain('put the label in createGeoShapes[].text')
     expect(patchTool?.description).toContain('workingCopyRevision')
     expect(listTool?.description).toContain('nextCursor')
     expect(insertTool?.description).toContain('Use documentId from env.canvasDocumentId')

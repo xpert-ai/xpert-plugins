@@ -104,6 +104,7 @@ import {
 } from './selection-context'
 import type { CanvasSelectionContext } from './selection-context'
 import { normalizeCanvasToolEvent } from './tool-event-refresh'
+import { revealCanvasContentAfterToolMutation } from './canvas-visibility'
 import {
   LOCAL_TLDRAW_ORIGIN,
   applyTldrawChangesToYDoc,
@@ -595,11 +596,22 @@ function App() {
   ) {
     const hadLocalDirty = dirtyRef.current
     if (collaborationClientRef.current && collaborationDocumentIdRef.current === targetDocumentId) {
-      return loadDataRef.current?.(targetDocumentId, {
-        silent: true,
-        preserveCanvas: true,
-        applyRemoteSnapshot: false
-      }) ?? null
+      const collaborationSocket = socketRef.current
+      if (collaborationSocket?.connected) {
+        await synchronizeCanvasCollaboration(collaborationClientRef.current, collaborationSocket)
+        const result = await loadDataRef.current?.(targetDocumentId, {
+          silent: true,
+          preserveCanvas: true,
+          applyRemoteSnapshot: false
+        }) ?? null
+        revealCanvasContentAfterToolMutation(toolName, editorRef.current)
+        return result
+      }
+      canvasWorkbenchDebug.warn('toolEvent.refresh.collaboration_unavailable', {
+        toolName,
+        targetDocumentId
+      })
+      stopCollaboration()
     }
     autosaveGenerationRef.current += 1
     cancelScheduledAutosave('tool_event')
@@ -670,6 +682,7 @@ function App() {
       })
 
       if (!decision.retry || retryDelayIndex + 1 >= REMOTE_TOOL_REFRESH_RETRY_DELAYS_MS.length) {
+        revealCanvasContentAfterToolMutation(toolName, editorRef.current)
         return lastResult
       }
       retryDelayIndex += 1

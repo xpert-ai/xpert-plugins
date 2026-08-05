@@ -332,6 +332,11 @@ export class CanvasService {
         `[CANVAS_REVISION_CONFLICT] baseRevision ${input.baseRevision} is newer than current revision ${state.sequenceNumber}. Read the Canvas summary again.`
       )
     }
+    if (input.workflow?.mode === 'replace_page' && input.baseRevision !== state.sequenceNumber) {
+      throw new ConflictException(
+        `[CANVAS_REVISION_CONFLICT] replace_page requires the latest Canvas revision. Expected ${state.sequenceNumber}, received ${input.baseRevision}. Read the Canvas summary again before replacing page content.`
+      )
+    }
 
     const snapshot = normalizeSnapshotInput(materializeCanvasYDoc(ydoc))
     const prepared = prepareCanvasAgentRecordBatch(snapshot, input)

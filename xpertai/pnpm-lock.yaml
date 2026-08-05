@@ -522,6 +522,9 @@ importers:
       clsx:
         specifier: ^2.1.0
         version: 2.1.1
+      mammoth:
+        specifier: ^1.6.0
+        version: 1.12.0
       prosemirror-commands:
         specifier: ^1.5.2
         version: 1.7.1
@@ -604,6 +607,9 @@ importers:
 
   apps/drawio:
     dependencies:
+      fast-xml-parser:
+        specifier: 5.10.1
+        version: 5.10.1
       tslib:
         specifier: ^2.3.0
         version: 2.8.1

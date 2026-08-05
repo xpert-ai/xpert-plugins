@@ -16,6 +16,7 @@ export const ASSISTANT_CHAT_SEND_MESSAGE_COMMAND = 'assistant.chat.send_message'
 
 export const DRAWIO_CREATE_DRAWING_TOOL_NAME = 'drawio_create_diagram'
 export const DRAWIO_SAVE_SCENE_VERSION_TOOL_NAME = 'drawio_save_scene_version'
+export const DRAWIO_SAVE_SPEC_VERSION_TOOL_NAME = 'drawio_save_spec_version'
 export const DRAWIO_PATCH_SCENE_TOOL_NAME = 'drawio_patch_scene'
 export const DRAWIO_SAVE_MERMAID_DRAFT_TOOL_NAME = 'drawio_save_mermaid_draft'
 export const DRAWIO_SEARCH_DRAWINGS_TOOL_NAME = 'drawio_search_diagrams'
@@ -28,6 +29,7 @@ export const DRAWIO_REVOKE_ARTIFACT_LINK_TOOL_NAME = 'drawio_revoke_artifact_lin
 export const DRAWIO_MIDDLEWARE_TOOL_NAMES = [
   DRAWIO_CREATE_DRAWING_TOOL_NAME,
   DRAWIO_SAVE_SCENE_VERSION_TOOL_NAME,
+  DRAWIO_SAVE_SPEC_VERSION_TOOL_NAME,
   DRAWIO_PATCH_SCENE_TOOL_NAME,
   DRAWIO_SAVE_MERMAID_DRAFT_TOOL_NAME,
   DRAWIO_SEARCH_DRAWINGS_TOOL_NAME,

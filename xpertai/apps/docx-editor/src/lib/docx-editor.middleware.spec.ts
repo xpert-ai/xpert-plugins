@@ -1,6 +1,13 @@
 import { AIMessage, SystemMessage, ToolMessage } from '@langchain/core/messages'
 import { DocxEditorMiddleware } from './docx-editor.middleware.js'
-import { DOCX_EDITOR_FEATURE, DOCX_EDITOR_MIDDLEWARE_NAME, DOCX_EDITOR_TOOL_NAMES } from './constants.js'
+import {
+  DOCX_EDITOR_FEATURE,
+  DOCX_EDITOR_IMPORT_WORKSPACE_FILE_TOOL_NAME,
+  DOCX_EDITOR_MIDDLEWARE_NAME,
+  DOCX_EDITOR_PUBLISH_ARTIFACT_LINK_TOOL_NAME,
+  DOCX_EDITOR_REVOKE_ARTIFACT_LINK_TOOL_NAME,
+  DOCX_EDITOR_TOOL_NAMES
+} from './constants.js'
 
 describe('DocxEditorMiddleware', () => {
   it('exposes all DOCX Editor tools and feature metadata', () => {
@@ -19,7 +26,47 @@ describe('DocxEditorMiddleware', () => {
     expect(middleware.meta.name).toBe(DOCX_EDITOR_MIDDLEWARE_NAME)
     expect(middleware.meta.features).toContain(DOCX_EDITOR_FEATURE)
     expect(runtime.name).toBe(DOCX_EDITOR_MIDDLEWARE_NAME)
-    expect(runtime.tools?.map((item) => item.name)).toEqual([...DOCX_EDITOR_TOOL_NAMES])
+    expect(runtime.tools?.map((item) => item.name)).toEqual([
+      DOCX_EDITOR_IMPORT_WORKSPACE_FILE_TOOL_NAME,
+      ...DOCX_EDITOR_TOOL_NAMES,
+      DOCX_EDITOR_PUBLISH_ARTIFACT_LINK_TOOL_NAME,
+      DOCX_EDITOR_REVOKE_ARTIFACT_LINK_TOOL_NAME
+    ])
+  })
+
+  it('imports a runtime workspace DOCX without requiring Workbench document context', async () => {
+    const readRuntimeBuffer = jest.fn()
+    const importRuntimeFile = jest.fn(async () => ({
+      documentId: 'document-created',
+      versionId: 'version-created',
+      versionNumber: 1
+    }))
+    const middleware = new DocxEditorMiddleware({
+      importRuntimeFile,
+      runAgentTool: jest.fn()
+    } as never)
+    const runtime = middleware.createMiddleware({}, {
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      workspaceId: 'workspace-1',
+      userId: 'user-1',
+      xpertId: 'xpert-1',
+      runtime: {
+        capabilities: {
+          require: jest.fn(() => ({ readRuntimeBuffer }))
+        }
+      }
+    } as never)
+    const importTool = runtime.tools?.find((item) => item.name === DOCX_EDITOR_IMPORT_WORKSPACE_FILE_TOOL_NAME)
+
+    const output = await importTool?.invoke({ file: '/workspace/generated.docx', title: 'Generated' })
+
+    expect(importRuntimeFile).toHaveBeenCalledWith(
+      expect.objectContaining({ assistantId: 'xpert-1' }),
+      { file: '/workspace/generated.docx', title: 'Generated' },
+      { readRuntimeBuffer }
+    )
+    expect(output).toContain('document-created')
   })
 
   it('allows documentId to be omitted from DOCX tool schemas', () => {

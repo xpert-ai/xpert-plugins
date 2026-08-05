@@ -193,6 +193,35 @@ export interface RemoveCanvasRecordInput {
   expectedChecksum: string
 }
 
+export type CanvasWorkflowTheme = 'xpert-dark' | 'clean-light'
+export type CanvasWorkflowMode = 'replace_page' | 'append'
+
+export interface CanvasWorkflowStageInput {
+  key: string
+  label: string
+  detail?: string
+  emphasis?: boolean
+}
+
+export interface CanvasWorkflowBranchInput {
+  key: string
+  label: string
+  detail?: string
+  parentStageKey: string
+}
+
+/** Semantic workflow intent compiled into consistently laid out native tldraw shapes. */
+export interface CreateCanvasWorkflowInput {
+  mode: CanvasWorkflowMode
+  pageId?: string
+  title: string
+  subtitle?: string
+  theme?: CanvasWorkflowTheme
+  stages: CanvasWorkflowStageInput[]
+  branches?: CanvasWorkflowBranchInput[]
+  footer?: string
+}
+
 export type CanvasAgentShapeColor =
   | 'black'
   | 'grey'
@@ -333,7 +362,12 @@ export interface ApplyCanvasRecordBatchInput {
   stageLabel: string
   isFinalStage: boolean
   baseRevision: number
-  createShapes?: CreateCanvasAgentShapeInput[]
+  workflow?: CreateCanvasWorkflowInput
+  createTextShapes?: Omit<CreateCanvasTextShapeInput, 'type'>[]
+  createGeoShapes?: Omit<CreateCanvasGeoShapeInput, 'type'>[]
+  createNoteShapes?: Omit<CreateCanvasNoteShapeInput, 'type'>[]
+  createFrameShapes?: Omit<CreateCanvasFrameShapeInput, 'type'>[]
+  createArrowShapes?: Omit<CreateCanvasArrowShapeInput, 'type'>[]
   updateRecords?: UpdateCanvasRecordInput[]
   removeRecords?: RemoveCanvasRecordInput[]
   changeSummary: string

@@ -1,3 +1,4 @@
+import type { WorkspaceFileLocator } from '@xpert-ai/plugin-sdk'
 import type { DOCX_EDITOR_TOOL_NAMES } from './constants.js'
 
 export type DocxEditorDocumentStatus = 'draft' | 'active' | 'archived'
@@ -42,6 +43,15 @@ export interface SaveDocxVersionInput {
 
 export interface UploadDocxInput extends Omit<SaveDocxVersionInput, 'documentId'> {
   documentId?: string | null
+}
+
+export interface ImportDocxRuntimeFileInput {
+  file: WorkspaceFileLocator
+  documentId?: string | null
+  title?: string | null
+  description?: string | null
+  fileName?: string | null
+  changeSummary?: string | null
 }
 
 export interface SyncDocxSnapshotInput {

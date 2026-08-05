@@ -22,6 +22,7 @@ import {
   DRAWIO_REPORT_FAILURE_TOOL_NAME,
   DRAWIO_REVOKE_ARTIFACT_LINK_TOOL_NAME,
   DRAWIO_SAVE_MERMAID_DRAFT_TOOL_NAME,
+  DRAWIO_SAVE_SPEC_VERSION_TOOL_NAME,
   DRAWIO_SAVE_SCENE_VERSION_TOOL_NAME,
   DRAWIO_SEARCH_DRAWINGS_TOOL_NAME,
   DRAWIO_UPDATE_DRAWING_STATUS_TOOL_NAME
@@ -31,10 +32,10 @@ import type { DrawioScope } from './types.js'
 
 const drawingKindSchema = z.enum(['diagram', 'flowchart', 'architecture', 'network', 'wireframe', 'sequence', 'other'])
 const drawingStatusSchema = z.enum(['draft', 'reviewed', 'archived'])
-const versionSourceSchema = z.enum(['agent_xml', 'agent_patch', 'agent_mermaid', 'workbench', 'workbench_mermaid', 'import', 'restore'])
+const versionSourceSchema = z.enum(['agent_xml', 'agent_spec', 'agent_patch', 'agent_mermaid', 'workbench', 'workbench_mermaid', 'import', 'restore'])
 const recordSchema = z.record(z.unknown())
 const sceneSchema = z.object({
-  xml: z.string().optional().describe('draw.io XML, usually an <mxfile> or <mxGraphModel> document.'),
+  xml: z.string().optional().describe('Complete, well-formed draw.io XML with an <mxfile> or <mxGraphModel> root. Truncated XML is rejected and not saved.'),
   mermaidSource: z.string().optional().describe('Original Mermaid source when this diagram came from Mermaid.'),
   previewSvg: z.string().optional().describe('Optional SVG preview exported from diagrams.net.'),
   previewPng: z.string().optional().describe('Optional PNG data URI preview exported from diagrams.net.'),
@@ -53,6 +54,43 @@ const createDrawingSchema = sceneSchema.extend({
 const saveSceneVersionSchema = sceneSchema.extend({
   drawingId: z.string().min(1).describe('Existing draw.io diagram id.'),
   sourceType: versionSourceSchema.optional().describe('Where this version came from. Agent-created XML should use agent_xml.'),
+  changeSummary: z.string().optional()
+})
+
+const specPointSchema = z.object({
+  x: z.number().finite().min(-100000).max(100000),
+  y: z.number().finite().min(-100000).max(100000)
+})
+const specNodeSchema = specPointSchema.extend({
+  id: z.string().trim().min(1).max(160),
+  label: z.string().max(4000).optional(),
+  width: z.number().finite().positive().max(100000),
+  height: z.number().finite().positive().max(100000),
+  parentId: z.string().trim().min(1).max(160).optional(),
+  shape: z.enum(['rectangle', 'rounded', 'ellipse', 'diamond', 'hexagon', 'cylinder', 'cloud', 'actor', 'note', 'text', 'group']).optional(),
+  style: z.string().max(8000).optional().describe('Optional native draw.io style string for precise shapes, colors, fonts, swimlanes, or official mxgraph stencils.')
+})
+const specEdgeSchema = z.object({
+  id: z.string().trim().min(1).max(160).optional(),
+  source: z.string().trim().min(1).max(160),
+  target: z.string().trim().min(1).max(160),
+  label: z.string().max(4000).optional(),
+  style: z.string().max(8000).optional(),
+  waypoints: z.array(specPointSchema).max(100).optional()
+})
+const diagramSpecSchema = z.object({
+  pages: z.array(z.object({
+    id: z.string().trim().min(1).max(160).optional(),
+    name: z.string().trim().min(1).max(300),
+    width: z.number().int().min(100).max(100000).optional(),
+    height: z.number().int().min(100).max(100000).optional(),
+    nodes: z.array(specNodeSchema).min(1).max(500),
+    edges: z.array(specEdgeSchema).max(1000).default([])
+  })).min(1).max(20)
+})
+const saveSpecVersionSchema = z.object({
+  drawingId: z.string().min(1).describe('Existing draw.io diagram id.'),
+  spec: diagramSpecSchema.describe('Compact pages/nodes/edges representation. The plugin deterministically converts this to complete draw.io XML.'),
   changeSummary: z.string().optional()
 })
 
@@ -138,8 +176,17 @@ export class DrawioMiddleware implements IAgentMiddlewareStrategy<Record<string,
           {
             name: DRAWIO_CREATE_DRAWING_TOOL_NAME,
             description:
-              'Create a reviewable draw.io diagram. Include initial XML when you can produce valid diagrams.net XML; otherwise create a diagram and save a Mermaid draft.',
+              'Create a managed draw.io record. For non-trivial generated diagrams, omit XML here and immediately call drawio_save_spec_version with the returned drawing id.',
             schema: createDrawingSchema
+          }
+        ),
+        tool(
+          async (input) => JSON.stringify(await this.service.saveDiagramSpec(scope, input), null, 2),
+          {
+            name: DRAWIO_SAVE_SPEC_VERSION_TOOL_NAME,
+            description:
+              'Preferred way to create or fully replace non-trivial diagrams. Submit compact pages, nodes, and edges; the plugin generates and validates complete draw.io XML server-side, so output-token truncation cannot corrupt the saved version. For a new diagram, call drawio_create_diagram without XML first, then call this tool.',
+            schema: saveSpecVersionSchema
           }
         ),
         tool(
@@ -147,7 +194,7 @@ export class DrawioMiddleware implements IAgentMiddlewareStrategy<Record<string,
           {
             name: DRAWIO_SAVE_SCENE_VERSION_TOOL_NAME,
             description:
-              'Save a complete draw.io XML scene as a new version for an existing diagram. Call drawio_get_diagram first when updating a user-edited diagram.',
+              'Advanced/raw route for saving complete draw.io XML. Do not use this for large generated diagrams or try to stage XML in a file; use drawio_save_spec_version instead. Invalid or truncated XML is not saved.',
             schema: saveSceneVersionSchema
           }
         ),
