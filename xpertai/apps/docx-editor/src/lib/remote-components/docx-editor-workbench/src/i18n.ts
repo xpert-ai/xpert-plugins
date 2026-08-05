@@ -24,6 +24,9 @@ export type TranslationKey =
   | 'editing'
   | 'suggesting'
   | 'viewing'
+  | 'fontSize'
+  | 'showMoreTools'
+  | 'showPrimaryTools'
   | 'expandDocuments'
   | 'collapseDocuments'
   | 'expandVersions'
@@ -68,6 +71,9 @@ const zh: Record<TranslationKey, string> = {
   editing: '编辑',
   suggesting: '建议',
   viewing: '查看',
+  fontSize: '字号',
+  showMoreTools: '显示第二页工具',
+  showPrimaryTools: '返回第一页工具',
   expandDocuments: '展开文档列表',
   collapseDocuments: '收起文档列表',
   expandVersions: '展开版本列表',
@@ -113,6 +119,9 @@ const en: Record<TranslationKey, string> = {
   editing: 'Editing',
   suggesting: 'Suggesting',
   viewing: 'Viewing',
+  fontSize: 'Font size',
+  showMoreTools: 'Show second toolbar page',
+  showPrimaryTools: 'Return to first toolbar page',
   expandDocuments: 'Expand documents',
   collapseDocuments: 'Collapse documents',
   expandVersions: 'Expand versions',
