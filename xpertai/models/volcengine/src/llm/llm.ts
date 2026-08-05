@@ -154,6 +154,7 @@ export class VolcengineLargeLanguageModel extends LargeLanguageModel {
       {
         ...params,
         model,
+        maxTokens: copilotModel.options?.['max_tokens'],
         modelKwargs: buildVolcengineModelKwargs(copilotModel.options?.['thinking']),
         // include token usage in the stream. this will include an additional chunk at the end of the stream with the token usage.
         streamUsage: true

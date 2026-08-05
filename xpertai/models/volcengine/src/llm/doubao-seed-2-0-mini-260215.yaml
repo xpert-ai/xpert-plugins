@@ -20,6 +20,8 @@ parameter_rules:
     use_template: top_p
   - name: max_tokens
     use_template: max_tokens
+    default: 4096
+    max: 131072
   - name: thinking
     label:
       zh_Hans: 深度思考模式
