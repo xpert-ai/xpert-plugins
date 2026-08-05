@@ -191,15 +191,26 @@ nodes:
         - Read records with canvas_list_records in bounded pages. Follow nextCursor
           only while hasMore is true. Prefer typeNames, shapeTypes, pageId, parentId,
           and query filters over scanning every record.
-        - After canvas_create_document, add content with createShapes; when the new
+        - After canvas_create_document, add content with the explicit create fields; when the new
           Canvas is empty, Canvas creates its default page automatically. For an
           existing multi-page Canvas, discover the intended page with
           canvas_list_records and pass it as each shape parentId.
         - Split visual work into meaningful visible stages. Use one stable batchId
           for the user request, a new operationId for every stage, increasing
           stageIndex values, and isFinalStage=true only on the last stage.
-        - Before every canvas_patch_records call, calculate the total number of
-          createShapes + updateRecords + removeRecords. The first creation call is
+        - For a workflow, flowchart, process map, or stage-based architecture
+          diagram, prefer canvas_patch_records.workflow over manually calculating
+          shape coordinates. Supply semantic stages and branches; Canvas owns the
+          fixed-size board, spacing, card dimensions, embedded labels, and connectors.
+          workflow must be the only mutation in its stage and counts as one operation.
+        - Use workflow.mode=replace_page only when the user explicitly asks to
+          recreate/replace the page, or when the current page is known to contain
+          corrupt stale content. It atomically removes page content and requires the
+          latest workingCopyRevision as baseRevision. Use append for a new diagram
+          that should preserve existing content.
+        - Before every free-form canvas_patch_records call, calculate the total number of
+          createTextShapes + createGeoShapes + createNoteShapes + createFrameShapes +
+          createArrowShapes + updateRecords + removeRecords. The first creation call is
           not an exception. If the total exceeds 12, do not call the tool yet;
           split the plan into semantic stages first. Prefer 6-8 operations per
           stage even though the hard maximum is 12.
@@ -212,12 +223,20 @@ nodes:
         - Chain stages using workingCopyRevision from the previous mutation receipt
           as the next baseRevision. A receipt proves only that its listed record ids
           changed; it does not contain or echo the whole scene.
-        - Create new content only with simplified createShapes entries of type text,
-          geo, note, frame, or arrow. Pass plain text, positions, dimensions, and
+        - Create new content only through the explicit createTextShapes,
+          createGeoShapes, createNoteShapes, createFrameShapes, or createArrowShapes
+          field. Pass plain text, positions, dimensions, and
           styles; never construct raw tldraw records, richText, indices, or default
           root fields. Omit a new shape id unless later entries in the same stage need
           to use it as parentId. Omit parentId only when the Canvas has zero or one
           page.
+        - Use createGeoShapes for every filled rectangle, card, badge, or background.
+          Put a card's label in createGeoShapes[].text so it stays centered and moves
+          with the card. Never create a separate text shape for a card label, and
+          never manually approximate a workflow layout when workflow can express it.
+          Frames are outline containers. Use createArrowShapes only for actual
+          connectors; never approximate rectangles, frames, cards, or borders with
+          four arrows.
         - For updateRecords and removeRecords, first obtain the record checksum from
           canvas_list_records or canvas_get_record. If a checksum conflict occurs,
           reread only that record and retry with a new operationId.
@@ -253,7 +272,7 @@ nodes:
 
         tldraw rules:
         - Preserve user-created records and pages unless the user asks for removal.
-        - Always use simplified createShapes plus bounded update/remove mutations for
+        - Always use the explicit simplified create fields plus bounded update/remove mutations for
           Agent edits. Full snapshots and raw tldraw record creation are reserved for
           Workbench/import and other non-model flows.
         - Use AI image holder frames for future generated images and annotation
@@ -266,7 +285,7 @@ nodes:
       toolsetIds:
         - 9e7f0f3d-1f0d-4c59-9f14-7012dc2a0f4c
       knowledgebaseIds: []
-    hash: canvas-agent-v3-simplified-shapes
+    hash: canvas-agent-v5-semantic-workflow
   - type: workflow
     key: Middleware_Canvas
     position:

@@ -17,6 +17,8 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import { DRAWIO_PLUGIN_NAME } from './constants.js'
 import { DrawioArtifactViewerService } from './drawio-artifact-viewer.service.js'
+import { buildDrawioXmlFromSpec } from './drawio-spec.builder.js'
+import { validateDrawioXml } from './drawio-xml.validation.js'
 import { DrawioActionLog, DrawioDrawing, DrawioDrawingVersion } from './entities/index.js'
 import type {
   CreateDrawioDrawingInput,
@@ -29,6 +31,7 @@ import type {
   ReportDrawioFailureInput,
   SaveDrawioMermaidDraftInput,
   SaveDrawioSceneVersionInput,
+  SaveDrawioDiagramSpecInput,
   SearchDrawioDrawingsInput,
   UpdateDrawioDrawingStatusInput
 } from './types.js'
@@ -57,6 +60,7 @@ export class DrawioService {
 
   async createDrawing(scope: DrawioScope, input: CreateDrawioDrawingInput) {
     const title = normalizeRequired(input.title, 'Diagram title is required.')
+    const initialXml = validateDrawioXml(input.xml)
     const drawing = await this.drawingRepository.save(
       this.drawingRepository.create({
         ...scopedCreate(scope),
@@ -86,7 +90,7 @@ export class DrawioService {
     if (hasSceneContent(input)) {
       await this.createVersion(scope, drawing, {
         sourceType: input.mermaidSource ? 'agent_mermaid' : 'agent_xml',
-        xml: normalizeNullableText(input.xml),
+        xml: initialXml,
         mermaidSource: normalizeNullableText(input.mermaidSource),
         previewSvg: normalizeNullableText(input.previewSvg),
         previewPng: normalizeNullableText(input.previewPng),
@@ -113,6 +117,27 @@ export class DrawioService {
     return {
       success: true,
       message: 'draw.io diagram version was saved.',
+      drawing: await this.getDrawing(scope, drawing.id as string),
+      version
+    }
+  }
+
+  async saveDiagramSpec(scope: DrawioScope, input: SaveDrawioDiagramSpecInput) {
+    const drawing = await this.requireDrawing(scope, input.drawingId)
+    const xml = buildDrawioXmlFromSpec(input.spec)
+    const version = await this.createVersion(scope, drawing, {
+      sourceType: 'agent_spec',
+      xml,
+      mermaidSource: null,
+      previewSvg: null,
+      previewPng: null,
+      descriptor: { format: 'drawio-spec', spec: input.spec },
+      changeSummary: normalizeOptional(input.changeSummary) ?? 'Generated from structured diagram spec'
+    })
+
+    return {
+      success: true,
+      message: 'draw.io diagram spec was converted to complete XML and saved as a new version.',
       drawing: await this.getDrawing(scope, drawing.id as string),
       version
     }
@@ -372,11 +397,12 @@ export class DrawioService {
     if (drawing.status === 'archived') throw new BadRequestException('Archived draw.io diagrams cannot be shared.')
     const version = await this.getCurrentVersion(scope, drawing)
     if (!version) throw new BadRequestException('draw.io diagram has no saved version to share.')
+    validateDrawioXml(version.xml)
     const accessMode = normalizeArtifactAccessMode(input.accessMode, 'draw.io')
     if (accessMode === 'public_link' && input.userConfirmedPublicLink !== true) throw new BadRequestException('Public Artifact sharing requires explicit user confirmation.')
     if (accessMode === 'workspace_all' && !drawing.workspaceId) throw new BadRequestException('Workspace sharing requires a workspace-scoped draw.io diagram.')
     const targetMode: ArtifactLinkVersionMode = input.targetMode === 'latest' ? 'latest' : 'version'
-    const rendered = this.artifactViewerService().render({ title: drawing.title, description: drawing.description, version })
+    const rendered = await this.artifactViewerService().render({ title: drawing.title, description: drawing.description, version })
     const artifacts = this.artifacts()
     const drawingId = drawing.id as string
     const metadata = { drawingId, drawingVersionId: version.id ?? null, drawingVersionNumber: version.versionNumber, viewerVersion: rendered.viewerVersion, sourceType: rendered.sourceType }
@@ -414,6 +440,7 @@ export class DrawioService {
       changeSummary?: string
     }
   ) {
+    const xml = validateDrawioXml(input.xml)
     const currentVersionNumber = drawing.currentVersionNumber ?? 0
     const versionNumber = currentVersionNumber + 1
     const version = await this.versionRepository.save(
@@ -422,7 +449,7 @@ export class DrawioService {
         drawingId: drawing.id as string,
         versionNumber,
         sourceType: input.sourceType,
-        xml: normalizeNullableText(input.xml),
+        xml,
         mermaidSource: normalizeNullableText(input.mermaidSource),
         previewSvg: normalizeNullableText(input.previewSvg),
         previewPng: normalizeNullableText(input.previewPng),

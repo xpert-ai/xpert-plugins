@@ -18,8 +18,18 @@ import {
 import { LUCIDCHART_PLUGIN_NAME } from './constants.js'
 import { LucidchartArtifactViewerService } from './lucidchart-artifact-viewer.service.js'
 import { LucidchartActionLog, LucidchartDocument, LucidchartDocumentVersion } from './entities/index.js'
+import {
+  applyStandardImportStage,
+  normalizeStandardImportDraft,
+  readStandardImportPage,
+  summarizeStandardImportDraft,
+  validateStandardImportDraft
+} from './lucidchart-standard-import.js'
 import type {
+  ApplyLucidchartDiagramStageInput,
   CreateLucidchartDocumentInput,
+  FinalizeLucidchartDiagramInput,
+  GetLucidchartDiagramPageInput,
   LucidchartActionType,
   LucidchartActorType,
   LucidchartDocumentContentInput,
@@ -107,6 +117,11 @@ export class LucidchartService {
     return this.getDocument(scope, document.id as string)
   }
 
+  async createAgentDocument(scope: LucidchartScope, input: CreateLucidchartDocumentInput) {
+    const created = await this.createDocument(scope, input)
+    return this.getAgentDocument(scope, created.item.id as string)
+  }
+
   async saveStandardImportVersion(scope: LucidchartScope, input: SaveLucidchartStandardImportVersionInput) {
     const document = await this.requireDocument(scope, input.documentId)
     const version = await this.createVersion(scope, document, {
@@ -120,6 +135,156 @@ export class LucidchartService {
       message: 'Lucidchart Standard Import version was saved.',
       document: await this.getDocument(scope, document.id as string),
       version
+    }
+  }
+
+  async applyDiagramStage(scope: LucidchartScope, input: ApplyLucidchartDiagramStageInput) {
+    const document = await this.requireDocument(scope, input.documentId)
+    const revision = document.standardImportDraftRevision ?? 0
+    if (input.expectedRevision !== revision) {
+      throw new BadRequestException(
+        `Lucidchart draft revision changed: expected ${input.expectedRevision}, current ${revision}. Call lucidchart_get_document and retry.`
+      )
+    }
+    const currentVersion = await this.getCurrentVersion(scope, document)
+    let standardImport: Record<string, unknown>
+    try {
+      standardImport = applyStandardImportStage(
+        document.standardImportDraft ?? currentVersion?.standardImport,
+        input
+      )
+    } catch (error) {
+      throw new BadRequestException(getErrorMessage(error))
+    }
+
+    const nextRevision = revision + 1
+    const update = await this.documentRepository.update(
+      scopedWhere(scope, { id: document.id, standardImportDraftRevision: revision }),
+      {
+      standardImportDraft: standardImport,
+      standardImportDraftRevision: nextRevision,
+      lastEditedById: scope.userId ?? null,
+      lastEditedAt: new Date()
+      }
+    )
+    if (update.affected !== 1) {
+      throw new BadRequestException('Lucidchart draft changed while this stage was being applied. Call lucidchart_get_document and retry.')
+    }
+    const summary = summarizeStandardImportDraft(standardImport)
+    await this.writeLog(scope, {
+      documentId: document.id,
+      action: 'standard_import_stage_applied',
+      actorType: 'agent',
+      message: input.stageName,
+      snapshot: {
+        revision: nextRevision,
+        pageId: input.pageId,
+        shapeUpserts: input.shapes?.length ?? 0,
+        lineUpserts: input.lines?.length ?? 0,
+        shapeRemovals: input.removeShapeIds?.length ?? 0,
+        lineRemovals: input.removeLineIds?.length ?? 0,
+        ...summary
+      }
+    })
+
+    return {
+      success: true,
+      message: 'Lucidchart diagram stage was applied to the server-side Standard Import draft.',
+      documentId: document.id,
+      draftRevision: nextRevision,
+      stageName: input.stageName,
+      summary,
+      nextAction: 'Continue with another bounded stage using this draftRevision, or call lucidchart_finalize_document.'
+    }
+  }
+
+  async finalizeDiagram(scope: LucidchartScope, input: FinalizeLucidchartDiagramInput) {
+    const document = await this.requireDocument(scope, input.documentId)
+    const revision = document.standardImportDraftRevision ?? 0
+    const finalizedRevision = resolveFinalizedDraftRevision(document, Boolean(document.currentVersionId))
+    if (input.expectedRevision !== revision) {
+      throw new BadRequestException(
+        `Lucidchart draft revision changed: expected ${input.expectedRevision}, current ${revision}. Call lucidchart_get_document and retry.`
+      )
+    }
+    if (revision <= finalizedRevision) {
+      throw new BadRequestException('Lucidchart draft has no unfinalized diagram stages.')
+    }
+
+    let standardImport: Record<string, unknown>
+    try {
+      standardImport = validateStandardImportDraft(document.standardImportDraft)
+    } catch (error) {
+      throw new BadRequestException(getErrorMessage(error))
+    }
+    const version = await this.createVersion(scope, document, {
+      standardImport,
+      product: document.product ?? 'lucidchart',
+      sourceType: 'agent_standard_import',
+      changeSummary: normalizeOptional(input.changeSummary) ?? 'Agent finalized staged Lucid Standard Import draft'
+    })
+    const nextRevision = revision + 1
+    const summary = summarizeStandardImportDraft(standardImport)
+    await this.writeLog(scope, {
+      documentId: document.id,
+      versionId: version.id,
+      action: 'standard_import_finalized',
+      actorType: 'agent',
+      message: input.changeSummary,
+      snapshot: { versionNumber: version.versionNumber, revision: nextRevision, ...summary }
+    })
+
+    return {
+      success: true,
+      message: 'Lucidchart Standard Import draft was validated and saved as a new version.',
+      documentId: document.id,
+      versionId: version.id,
+      versionNumber: version.versionNumber,
+      draftRevision: nextRevision,
+      summary
+    }
+  }
+
+  async getAgentDocument(scope: LucidchartScope, documentId: string) {
+    const document = await this.requireDocument(scope, documentId)
+    const currentVersion = await this.getCurrentVersion(scope, document)
+    const standardImport = normalizeStandardImportDraft(document.standardImportDraft ?? currentVersion?.standardImport)
+    const draftRevision = document.standardImportDraftRevision ?? 0
+    const finalizedRevision = resolveFinalizedDraftRevision(document, Boolean(currentVersion))
+    return {
+      documentId: document.id,
+      title: document.title,
+      description: document.description,
+      kind: document.kind,
+      status: document.status,
+      product: document.product ?? 'lucidchart',
+      currentVersionId: document.currentVersionId,
+      currentVersionNumber: document.currentVersionNumber ?? 0,
+      draftRevision,
+      finalizedRevision,
+      hasUnfinalizedChanges: draftRevision > finalizedRevision,
+      summary: summarizeStandardImportDraft(standardImport),
+      nextAction:
+        'Use lucidchart_get_diagram_page for bounded reads, lucidchart_apply_diagram_stage for at most 12 changes, then lucidchart_finalize_document.'
+    }
+  }
+
+  async getDiagramPage(scope: LucidchartScope, input: GetLucidchartDiagramPageInput) {
+    const document = await this.requireDocument(scope, input.documentId)
+    const currentVersion = await this.getCurrentVersion(scope, document)
+    try {
+      return {
+        documentId: document.id,
+        draftRevision: document.standardImportDraftRevision ?? 0,
+        ...readStandardImportPage(
+          document.standardImportDraft ?? currentVersion?.standardImport,
+          input.pageId,
+          input.offset ?? 0,
+          input.limit ?? 20
+        )
+      }
+    } catch (error) {
+      throw new BadRequestException(getErrorMessage(error))
     }
   }
 
@@ -561,12 +726,22 @@ export class LucidchartService {
       })
     )
 
+    const standardImport = normalizeRecord(input.standardImport)
+    const hasStandardImport = Object.keys(standardImport).length > 0
+    const nextDraftRevision = hasStandardImport ? (document.standardImportDraftRevision ?? 0) + 1 : document.standardImportDraftRevision
     await this.documentRepository.save({
       ...document,
       ...contentToDocumentUpdates(input),
       product: input.product ?? document.product ?? 'lucidchart',
       currentVersionId: version.id,
       currentVersionNumber: version.versionNumber,
+      ...(hasStandardImport
+        ? {
+            standardImportDraft: normalizeStandardImportDraft(standardImport),
+            standardImportDraftRevision: nextDraftRevision,
+            standardImportDraftFinalizedRevision: nextDraftRevision
+          }
+        : {}),
       lastEditedById: scope.userId ?? null,
       lastEditedAt: new Date()
     })
@@ -774,4 +949,13 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 function isString(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error && error.message ? error.message : 'Lucidchart Standard Import validation failed.'
+}
+
+function resolveFinalizedDraftRevision(document: LucidchartDocument, hasCurrentVersion: boolean) {
+  const stored = document.standardImportDraftFinalizedRevision ?? -1
+  return document.standardImportDraft == null && hasCurrentVersion ? Math.max(0, stored) : stored
 }

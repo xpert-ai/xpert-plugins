@@ -2,7 +2,12 @@ import * as Y from 'yjs'
 import { createCanvasYDoc } from '../../../canvas-yjs.js'
 import type { CanvasSnapshotData } from '../../../types.js'
 import type { CanvasStoreChanges } from './autosave.js'
-import { applyTldrawChangesToYDoc, readCanvasSnapshotFromYDoc } from './collaboration.js'
+import {
+  applyTldrawChangesToYDoc,
+  createCanvasPresenceSignature,
+  readCanvasSnapshotFromYDoc,
+  type CanvasPresenceUpdate
+} from './collaboration.js'
 
 describe('Canvas tldraw/Yjs bridge', () => {
   it('writes only persistent tldraw document records into Yjs', () => {
@@ -34,6 +39,25 @@ describe('Canvas tldraw/Yjs bridge', () => {
 
     applyTldrawChangesToYDoc(doc, changes)
     expect(readCanvasSnapshotFromYDoc(doc).store['shape:remove']).toBeUndefined()
+  })
+
+  it('creates stable signatures for unchanged collaboration presence', () => {
+    const presence: CanvasPresenceUpdate = {
+      pageId: 'page:page',
+      focus: null,
+      selection: { kind: 'elements', elementIds: ['shape:one'] },
+      viewport: { zoom: 1, width: 1280, height: 720 },
+      mode: 'edit'
+    }
+
+    expect(createCanvasPresenceSignature(presence)).toBe(createCanvasPresenceSignature({
+      ...presence,
+      selection: { kind: 'elements', elementIds: ['shape:one'] }
+    }))
+    expect(createCanvasPresenceSignature(presence)).not.toBe(createCanvasPresenceSignature({
+      ...presence,
+      viewport: { zoom: 1.25, width: 1280, height: 720 }
+    }))
   })
 })
 

@@ -12,6 +12,7 @@ import type {
 } from './types.js'
 import type { CanvasSnapshotIssue } from './canvas-snapshot.validation.js'
 import { createCanvasAgentShapeRecords } from './canvas-agent-shapes.js'
+import { prepareCanvasWorkflow } from './canvas-agent-workflow.js'
 
 const RECORD_TYPE_ORDER: Record<CanvasPersistentRecordType, number> = {
   document: 0,
@@ -40,7 +41,13 @@ export function prepareCanvasAgentRecordBatch(snapshot: CanvasSnapshotData, inpu
   const updatedRecordIds: string[] = []
   const removedRecordIds: string[] = []
 
-  const createdShapes = createCanvasAgentShapeRecords(store, input.createShapes ?? [])
+  if (input.workflow) {
+    const workflow = prepareCanvasWorkflow(store, input.workflow)
+    createdRecordIds.push(...workflow.createdRecordIds)
+    removedRecordIds.push(...workflow.removedRecordIds)
+  }
+
+  const createdShapes = createCanvasAgentShapeRecords(store, collectCanvasAgentShapeInputs(input))
   createdRecordIds.push(...createdShapes.map((record) => record.id))
 
   for (const update of input.updateRecords ?? []) {
@@ -69,6 +76,16 @@ export function prepareCanvasAgentRecordBatch(snapshot: CanvasSnapshotData, inpu
     updatedRecordIds,
     removedRecordIds
   }
+}
+
+export function collectCanvasAgentShapeInputs(input: ApplyCanvasRecordBatchInput) {
+  return [
+    ...(input.createTextShapes ?? []).map((shape) => ({ ...shape, type: 'text' as const })),
+    ...(input.createGeoShapes ?? []).map((shape) => ({ ...shape, type: 'geo' as const })),
+    ...(input.createNoteShapes ?? []).map((shape) => ({ ...shape, type: 'note' as const })),
+    ...(input.createFrameShapes ?? []).map((shape) => ({ ...shape, type: 'frame' as const })),
+    ...(input.createArrowShapes ?? []).map((shape) => ({ ...shape, type: 'arrow' as const }))
+  ]
 }
 
 export function diffCanvasAgentRecords(previous: CanvasSnapshotData, next: CanvasSnapshotData) {

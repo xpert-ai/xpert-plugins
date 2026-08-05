@@ -1,0 +1,15 @@
+This directory vendors the diagrams.net draw.io viewer runtime and stencil
+definitions from jgraph/drawio v31.1.5 (commit
+3b4210678207f3880888969ee53c9fe4580104ab).
+
+Upstream project: https://github.com/jgraph/drawio
+Vendored files:
+- src/main/webapp/js/viewer-static.min.js
+- src/main/webapp/stencils/**
+
+The viewer runtime is distributed under the Apache License 2.0. The stencil
+definitions are distributed under the terms included at stencils/LICENSE,
+including the stated restriction for Atlassian products and marketplace
+distribution. No changes are made to the vendored runtime or stencil
+definitions. XpertAI supplies only the surrounding Artifact bootstrap and
+read-only page shell.

@@ -11,6 +11,7 @@ import {
   type ArtifactLinkRecord,
   type ArtifactLinkVersionMode,
   type ArtifactsApi,
+  type WorkspaceFilesApi,
   type WorkspacePortableFileReference
 } from '@xpert-ai/plugin-sdk'
 import {
@@ -41,6 +42,7 @@ import type {
   DocxEditorScope,
   DocxEditorToolName,
   DocxEditorToolExecutionTarget,
+  ImportDocxRuntimeFileInput,
   DocxWorkspaceFileScope,
   DocxWorkspaceFilesApi,
   DocxWorkbenchQuery,
@@ -167,6 +169,52 @@ export class DocxEditorService {
       documentId: requireEntityId(document.id, 'Document id is required.'),
       source: input.source ?? 'upload'
     })
+  }
+
+  async importRuntimeFile(
+    scope: DocxEditorScope,
+    input: ImportDocxRuntimeFileInput,
+    workspaceFiles: WorkspaceFilesApi
+  ) {
+    const file = await workspaceFiles.readRuntimeBuffer(input.file)
+    const fileName =
+      normalizeOptional(input.fileName) ??
+      normalizeOptional(file.reference.originalName) ??
+      normalizeOptional(file.reference.name) ??
+      normalizeOptional(file.name) ??
+      'document.docx'
+    if (!/\.docx$/i.test(fileName)) {
+      throw new BadRequestException('DOCX import requires a .docx workspace file.')
+    }
+    validateDocxBuffer(file.buffer)
+    if (file.buffer.byteLength > DOCX_EDITOR_MAX_INLINE_DOCX_BYTES) {
+      throw new BadRequestException(`DOCX file exceeds ${DOCX_EDITOR_MAX_INLINE_DOCX_BYTES} bytes.`)
+    }
+
+    const saved = await this.uploadDocx(scope, {
+      documentId: normalizeOptional(input.documentId),
+      title: normalizeOptional(input.title) ?? (input.documentId ? undefined : createTitleFromFileName(fileName)),
+      description: normalizeOptional(input.description),
+      fileName,
+      mimeType: normalizeOptional(file.mimeType) ?? DOCX_MIME_TYPE,
+      size: file.buffer.byteLength,
+      docxBase64: file.buffer.toString('base64'),
+      source: 'agent',
+      changeSummary: normalizeOptional(input.changeSummary) ?? `Imported ${fileName} from the Agent workspace.`
+    })
+
+    return {
+      documentId: requireEntityId(saved.document.id, 'Document id is required.'),
+      versionId: requireEntityId(saved.version.id, 'Version id is required.'),
+      versionNumber: saved.version.versionNumber,
+      document: saved.document,
+      version: saved.version,
+      importedFile: {
+        fileName,
+        workspacePath: file.reference.workspacePath,
+        size: file.buffer.byteLength
+      }
+    }
   }
 
   async saveDocumentVersion(scope: DocxEditorScope, input: SaveDocxVersionInput) {

@@ -153,6 +153,48 @@ export function injectStyles() {
       pointer-events: none;
       background: color-mix(in srgb, var(--background) 88%, transparent);
     }
+    .dw-invalid-xml {
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: color-mix(in srgb, var(--background) 92%, transparent);
+    }
+    .dw-invalid-xml-card {
+      width: min(620px, 100%);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 20px;
+      border: 1px solid var(--border);
+      border-radius: calc(var(--radius) + 4px);
+      background: var(--card);
+      box-shadow: 0 18px 48px color-mix(in srgb, var(--foreground) 16%, transparent);
+    }
+    .dw-invalid-xml-card strong {
+      color: var(--foreground);
+      font-size: 16px;
+    }
+    .dw-invalid-xml-card p {
+      margin: 0;
+      color: var(--muted-foreground);
+      line-height: 1.55;
+    }
+    .dw-invalid-xml-card code {
+      max-height: 160px;
+      overflow: auto;
+      padding: 10px 12px;
+      border-radius: var(--radius);
+      background: var(--muted);
+      color: var(--destructive);
+      font-size: 12px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .dw-invalid-xml-card [data-slot="button"] { align-self: flex-start; }
     .dw-list {
       flex: 1 1 auto;
       min-height: 0;

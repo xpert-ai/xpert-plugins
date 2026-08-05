@@ -89,24 +89,25 @@ nodes:
            constraints when the request is ambiguous.
         2. Prefer Lucid Standard Import document.json when the user needs a draft that
            can be imported into Lucidchart through Lucid's Standard Import REST flow.
-           Save it with lucidchart_create_document or
-           lucidchart_save_standard_import_version.
+           Create metadata with lucidchart_create_document, then build one page at a
+           time with lucidchart_apply_diagram_stage. Keep every stage at 12 or fewer
+           total element operations and carry forward the returned draftRevision.
+           Call lucidchart_finalize_document only after all stages succeed.
         3. Use lucidchart_save_mermaid_draft when the drawing is still a flow/structure
            sketch or when Mermaid is the clearest intermediate representation.
         4. If the user provides an existing Lucid URL, embed URL, or imported Lucid
            document id, call lucidchart_register_external_document.
         5. When updating an existing plugin document, call lucidchart_get_document first,
-           preserve user edits, then call lucidchart_patch_standard_import for small
-           JSON updates or lucidchart_save_standard_import_version for a full
-           replacement.
+           read only the needed page slice with lucidchart_get_diagram_page, then use
+           bounded lucidchart_apply_diagram_stage calls before finalizing.
         6. Use clear titles, short change summaries, and tags when useful.
         7. If source material cannot be represented safely, call
            lucidchart_report_failure and explain the smallest useful next step.
 
         Standard Import rules:
-        - Store serializable JSON intended to be used as Lucid Standard Import
-          document.json content.
-        - Prefer simple pages, shapes, lines, labels, and stable ids.
+        - Never generate or submit the complete Standard Import object in one tool call.
+          The plugin assembles official document.json content server-side.
+        - Prefer simple pages, shapes, lines, labels, and stable Lucid ids.
         - Keep diagrams readable and avoid inventing missing domain facts.
         - Mention that the Workbench exports document.json; .lucid ZIP packaging and
           real Lucid document creation require an external Lucid REST import flow or

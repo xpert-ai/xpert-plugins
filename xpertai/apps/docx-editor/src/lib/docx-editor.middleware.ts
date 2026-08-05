@@ -8,7 +8,8 @@ import {
   IAgentMiddlewareContext,
   IAgentMiddlewareStrategy,
   PromiseOrValue,
-  RequestContext
+  RequestContext,
+  WorkspaceFilesRuntimeCapability
 } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod/v3'
 import {
@@ -16,6 +17,7 @@ import {
   DOCX_EDITOR_ARTIFACT_SHARING_CAPABILITY,
   DOCX_EDITOR_FEATURE,
   DOCX_EDITOR_ICON,
+  DOCX_EDITOR_IMPORT_WORKSPACE_FILE_TOOL_NAME,
   DOCX_EDITOR_MIDDLEWARE_NAME,
   DOCX_EDITOR_PUBLISH_ARTIFACT_LINK_TOOL_NAME,
   DOCX_EDITOR_REVOKE_ARTIFACT_LINK_TOOL_NAME,
@@ -196,6 +198,32 @@ const publishArtifactLinkSchema = z.object({
   targetMode: z.enum(['version', 'latest']).optional().describe('Defaults to a fixed version link.'),
   userConfirmedPublicLink: z.boolean().optional().describe('Must be true after the user explicitly confirms public_link access.')
 })
+
+const runtimeFileLocatorSchema = z.union([
+  z.string().min(1),
+  z
+    .object({
+      path: z.string().min(1).optional(),
+      filePath: z.string().min(1).optional(),
+      workspacePath: z.string().min(1).optional(),
+      originalName: z.string().min(1).optional(),
+      name: z.string().min(1).optional(),
+      mimeType: z.string().min(1).optional(),
+      mimetype: z.string().min(1).optional(),
+      size: z.number().nonnegative().optional()
+    })
+    .passthrough()
+])
+const importWorkspaceFileSchema = z.object({
+  file: runtimeFileLocatorSchema.describe(
+    'A DOCX file in the current Agent runtime workspace: /workspace path, workspace-relative path, or portable Workspace File reference.'
+  ),
+  documentId: z.string().min(1).optional().describe('Import as a new version of this DOCX Editor document. Omit to create a new document.'),
+  title: z.string().min(1).max(300).optional(),
+  description: z.string().max(4000).optional(),
+  fileName: z.string().regex(/\.docx$/i).optional(),
+  changeSummary: z.string().max(1000).optional()
+})
 const revokeArtifactLinkSchema = z.object({
   documentId: z.string().min(1).optional().describe('DOCX Editor plugin document id. Optional when a current DOCX Workbench document is open.')
 })
@@ -257,6 +285,21 @@ export class DocxEditorMiddleware implements IAgentMiddlewareStrategy<Record<str
     return {
       name: DOCX_EDITOR_MIDDLEWARE_NAME,
       tools: [
+        tool(
+          async (input) => {
+            const workspaceFiles = context.runtime.capabilities?.require(WorkspaceFilesRuntimeCapability)
+            if (!workspaceFiles) {
+              throw new Error('Platform Workspace Files capability is required to import a generated DOCX file.')
+            }
+            return JSON.stringify(await this.service.importRuntimeFile(scope, input, workspaceFiles), null, 2)
+          },
+          {
+            name: DOCX_EDITOR_IMPORT_WORKSPACE_FILE_TOOL_NAME,
+            description:
+              'Import a generated .docx from the current Agent runtime workspace into DOCX Editor as an official saved version. This tool does not require an open Workbench document and returns documentId/versionId for immediate viewing and publishing.',
+            schema: importWorkspaceFileSchema
+          }
+        ),
         this.createDocxTool(
           scope,
           'docx_read_document',

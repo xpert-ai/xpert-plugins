@@ -22,7 +22,9 @@ import {
   CANVAS_INSERT_IMAGE_TOOL_NAME,
   CANVAS_MIDDLEWARE_NAME,
   CANVAS_PATCH_RECORDS_TOOL_NAME,
+  CANVAS_PUBLISH_ARTIFACT_LINK_TOOL_NAME,
   CANVAS_REPORT_FAILURE_TOOL_NAME,
+  CANVAS_REVOKE_ARTIFACT_LINK_TOOL_NAME,
   CANVAS_SEARCH_DOCUMENTS_TOOL_NAME,
   CANVAS_UPDATE_DOCUMENT_STATUS_TOOL_NAME,
   CANVAS_WORKBENCH_CAPABILITY
@@ -38,6 +40,9 @@ import {
   summarizeSearchResult
 } from './canvas-agent-response.js'
 import { CanvasService } from './canvas.service.js'
+import { CanvasArtifactExportService } from './canvas-artifact-export.service.js'
+import type { RequestCanvasArtifactExportInput } from './canvas-artifact-export.service.js'
+import { CanvasArtifactService } from './canvas-artifact.service.js'
 import type {
   ApplyCanvasRecordBatchInput,
   CanvasJsonObject,
@@ -60,7 +65,9 @@ import {
   getRecordSchema,
   insertImageSchema,
   listRecordsSchema,
+  publishArtifactLinkSchema,
   reportFailureSchema,
+  revokeArtifactLinkSchema,
   searchDocumentsSchema,
   updateDocumentStatusSchema
 } from './canvas-agent-tool.schemas.js'
@@ -102,7 +109,11 @@ export class CanvasMiddleware implements IAgentMiddlewareStrategy<Record<string,
     }
   }
 
-  constructor(private readonly service: CanvasService) {}
+  constructor(
+    private readonly service: CanvasService,
+    private readonly artifactExportService: CanvasArtifactExportService,
+    private readonly artifactService: CanvasArtifactService
+  ) {}
 
   createMiddleware(_options: Record<string, never>, context: IAgentMiddlewareContext): PromiseOrValue<AgentMiddleware> {
     const scope = scopeFromContext(context)
@@ -137,7 +148,7 @@ export class CanvasMiddleware implements IAgentMiddlewareStrategy<Record<string,
           {
             name: CANVAS_PATCH_RECORDS_TOOL_NAME,
             description:
-              'Apply one visible, idempotent stage of at most 12 shape or record operations to the live Canvas. Before calling, count createShapes + updateRecords + removeRecords. If the planned total exceeds 12, do not call yet: split it into semantic stages, preferably 6–8 operations each; the first creation call is not an exception. For example, split 16 shapes into 8 + 8, wait for the first receipt, then pass its workingCopyRevision as the second stage baseRevision. Create text, geo, note, frame, or arrow shapes with simplified createShapes inputs; Canvas generates shape ids when omitted, resolves the only/default page, assigns valid indices, fills tldraw defaults, and converts plain text to richText. Patch existing records with updateRecords and checksums from canvas_list_records/canvas_get_record; remove existing records with removeRecords and checksums. Chain stages by reusing batchId, incrementing stageIndex, using a new operationId, and passing the prior receipt workingCopyRevision as baseRevision. Never send a complete snapshot or raw tldraw create record.',
+              'Apply one visible, idempotent stage of at most 12 shape or record operations to the live Canvas. For a workflow, flowchart, or stage-based architecture diagram, prefer the workflow field: provide semantic stages and branches and let Canvas compute a polished fixed layout with embedded card labels and connectors. Use workflow.mode=replace_page only when the user explicitly asks to recreate/replace the page or the current page is known to contain corrupt stale content; it requires the latest baseRevision and atomically clears that page. workflow must be the only mutation in its stage and counts as one operation. For free-form edits, count createTextShapes + createGeoShapes + createNoteShapes + createFrameShapes + createArrowShapes + updateRecords + removeRecords. If the planned total exceeds 12, split it into semantic stages, preferably 6–8 operations each; the first creation call is not an exception. Never create a separate text shape for a card label: put the label in createGeoShapes[].text. Use createGeoShapes for filled rectangles/backgrounds; frames are outlines; arrows are only connectors. Canvas generates shape ids when omitted, resolves the only/default page, assigns valid indices, fills tldraw defaults, and converts plain text to richText. Patch existing records with updateRecords and checksums from canvas_list_records/canvas_get_record; remove existing records with removeRecords and checksums. Chain stages by reusing batchId, incrementing stageIndex, using a new operationId, and passing the prior receipt workingCopyRevision as baseRevision. Never send a complete snapshot or raw tldraw create record.',
             schema: applyRecordBatchSchema,
             verboseParsingErrors: true
           }
@@ -207,6 +218,29 @@ export class CanvasMiddleware implements IAgentMiddlewareStrategy<Record<string,
             description:
               'Record a failed Canvas generation, snapshot validation, image insertion, import, or patch attempt with recoverability and evidence.',
             schema: reportFailureSchema,
+            verboseParsingErrors: true
+          }
+        ),
+        defineCanvasAgentTool(
+          async (input: RequestCanvasArtifactExportInput) => stringifyAgentToolResult(
+            await this.artifactExportService.publishAndWait(scope, input)
+          ),
+          {
+            name: CANVAS_PUBLISH_ARTIFACT_LINK_TOOL_NAME,
+            description:
+              'Create or reuse a governed read-only HTML Artifact link for a synchronized Canvas page. Call canvas_get_document immediately before publishing and pass its workingCopyRevision and snapshotChecksum. Public links require explicit user confirmation; download is disabled. The tool waits for the Canvas export to finish and returns the usable share URL.',
+            schema: publishArtifactLinkSchema,
+            verboseParsingErrors: true
+          }
+        ),
+        defineCanvasAgentTool(
+          async (input: z.infer<typeof revokeArtifactLinkSchema>) => stringifyAgentToolResult(
+            await this.artifactService.revoke(scope, input.documentId)
+          ),
+          {
+            name: CANVAS_REVOKE_ARTIFACT_LINK_TOOL_NAME,
+            description: 'Revoke the active governed Artifact link for a Canvas document.',
+            schema: revokeArtifactLinkSchema,
             verboseParsingErrors: true
           }
         )

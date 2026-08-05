@@ -39,6 +39,11 @@ import { React, ReactDOM, h } from './vendor'
 import { createTranslator, TranslationKey } from './i18n'
 import { injectStyles } from './styles'
 import {
+  createLucidchartPreview,
+  renderLucidchartPreviewSvg,
+  type LucidchartPreviewModel
+} from '../../../lucidchart-preview.js'
+import {
   executeAction,
   executeFileAction,
   getErrorMessage,
@@ -63,34 +68,6 @@ type DetailPayload = {
   versions?: DocumentVersion[]
   logs?: any[]
 }
-type PreviewShape = {
-  id: string
-  x: number
-  y: number
-  w: number
-  h: number
-  text: string
-  type: string
-  fillColor: string
-  strokeColor: string
-  strokeWidth: number
-  cornerRadius: number
-}
-type PreviewLine = {
-  id: string
-  x1: number
-  y1: number
-  x2: number
-  y2: number
-  text: string
-  strokeColor: string
-  strokeWidth: number
-}
-type StandardImportPreviewModel = {
-  shapes: PreviewShape[]
-  lines: PreviewLine[]
-  viewBox: string
-}
 type JsonParseResult = {
   value: Record<string, unknown> | null
   error: string | null
@@ -105,8 +82,9 @@ const DEFAULT_MERMAID = `flowchart TD
 
 const LUCIDCHART_TOOL_NAMES = new Set([
   'lucidchart_create_document',
-  'lucidchart_save_standard_import_version',
-  'lucidchart_patch_standard_import',
+  'lucidchart_apply_diagram_stage',
+  'lucidchart_finalize_document',
+  'lucidchart_get_diagram_page',
   'lucidchart_save_mermaid_draft',
   'lucidchart_register_external_document',
   'lucidchart_search_documents',
@@ -117,8 +95,8 @@ const LUCIDCHART_TOOL_NAMES = new Set([
 
 const LUCIDCHART_MUTATION_TOOL_NAMES = new Set([
   'lucidchart_create_document',
-  'lucidchart_save_standard_import_version',
-  'lucidchart_patch_standard_import',
+  'lucidchart_apply_diagram_stage',
+  'lucidchart_finalize_document',
   'lucidchart_save_mermaid_draft',
   'lucidchart_register_external_document',
   'lucidchart_update_document_status',
@@ -1249,376 +1227,45 @@ function isCompactViewport() {
   return typeof window !== 'undefined' && window.innerWidth < 1040
 }
 
-function StandardImportPreview({ model }: { model: StandardImportPreviewModel }) {
+function StandardImportPreview({ model }: { model: LucidchartPreviewModel }) {
+  const [activePageId, setActivePageId] = React.useState(model.pages[0]?.id || '')
+  const activePage = model.pages.find((page) => page.id === activePageId) || model.pages[0]
+  if (!activePage) return null
   return (
     <div className="lw-standard-preview">
-      <svg viewBox={model.viewBox} role="img" aria-label="Lucidchart Standard Import preview">
-        <defs>
-          <marker id="lw-standard-preview-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
-            <path d="M 0 0 L 8 4 L 0 8 z" fill="var(--muted-foreground)" />
-          </marker>
-        </defs>
-        {model.lines.map((line) => (
-          <g key={line.id}>
-            <line
-              x1={line.x1}
-              y1={line.y1}
-              x2={line.x2}
-              y2={line.y2}
-              stroke={line.strokeColor}
-              strokeWidth={line.strokeWidth}
-              strokeLinecap="round"
-              markerEnd="url(#lw-standard-preview-arrow)"
-            />
-            {line.text ? (
-              <text className="lw-preview-line-label" x={(line.x1 + line.x2) / 2} y={(line.y1 + line.y2) / 2 - 8} textAnchor="middle">
-                {truncatePreviewText(line.text, 32)}
-              </text>
-            ) : null}
-          </g>
-        ))}
-        {model.shapes.map((shape) => {
-          const lines = splitPreviewLabel(shape.text || shape.id)
-          const labelStartY = shape.y + shape.h / 2 - ((lines.length - 1) * 15) / 2
-          return (
-            <g key={shape.id}>
-              {renderPreviewShape(shape)}
-              <text className="lw-preview-label" textAnchor="middle" dominantBaseline="middle">
-                {lines.map((line, index) => (
-                  <tspan key={`${shape.id}-${index}`} x={shape.x + shape.w / 2} y={labelStartY + index * 15}>
-                    {line}
-                  </tspan>
-                ))}
-              </text>
-            </g>
-          )
-        })}
-      </svg>
+      {model.pages.length > 1 ? (
+        <div className="lw-preview-page-tabs" role="tablist" aria-label="Diagram pages">
+          {model.pages.map((page) => (
+            <button
+              key={page.id}
+              type="button"
+              role="tab"
+              aria-selected={page.id === activePage.id}
+              className="lw-preview-page-tab"
+              data-active={page.id === activePage.id ? 'true' : undefined}
+              onClick={() => setActivePageId(page.id)}
+            >
+              {page.title}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <div
+        className="lw-preview-page"
+        style={{ '--lw-page-background': activePage.backgroundColor } as any}
+        dangerouslySetInnerHTML={{
+          __html: renderLucidchartPreviewSvg(activePage, {
+            className: 'diagram',
+            markerPrefix: `workbench-${activePage.id}`
+          })
+        }}
+      />
     </div>
   )
 }
 
-function renderPreviewShape(shape: PreviewShape) {
-  const type = shape.type.toLowerCase()
-  if (type.includes('diamond') || type.includes('rhombus') || type.includes('decision')) {
-    const points = [
-      `${shape.x + shape.w / 2},${shape.y}`,
-      `${shape.x + shape.w},${shape.y + shape.h / 2}`,
-      `${shape.x + shape.w / 2},${shape.y + shape.h}`,
-      `${shape.x},${shape.y + shape.h / 2}`
-    ].join(' ')
-    return (
-      <polygon
-        className="lw-preview-shape"
-        points={points}
-        fill={shape.fillColor}
-        stroke={shape.strokeColor}
-        strokeWidth={shape.strokeWidth}
-      />
-    )
-  }
-  if (type.includes('circle') || type.includes('ellipse') || type.includes('terminator')) {
-    return (
-      <ellipse
-        className="lw-preview-shape"
-        cx={shape.x + shape.w / 2}
-        cy={shape.y + shape.h / 2}
-        rx={shape.w / 2}
-        ry={shape.h / 2}
-        fill={shape.fillColor}
-        stroke={shape.strokeColor}
-        strokeWidth={shape.strokeWidth}
-      />
-    )
-  }
-  return (
-    <rect
-      className="lw-preview-shape"
-      x={shape.x}
-      y={shape.y}
-      width={shape.w}
-      height={shape.h}
-      rx={shape.cornerRadius}
-      fill={shape.fillColor}
-      stroke={shape.strokeColor}
-      strokeWidth={shape.strokeWidth}
-    />
-  )
-}
-
-function createStandardImportPreview(source: string): StandardImportPreviewModel | null {
-  const parsed = parseJsonLike(source)
-  if (!isObject(parsed)) {
-    return null
-  }
-  const root = isObject(parsed.standardImport) ? parsed.standardImport : parsed
-  const rawShapes: Record<string, unknown>[] = []
-  const rawLines: Record<string, unknown>[] = []
-  collectPreviewItems(root, rawShapes, rawLines, 0, new WeakSet<object>())
-
-  const shapes = rawShapes
-    .map((shape, index) => normalizePreviewShape(shape, index))
-    .filter((shape): shape is PreviewShape => Boolean(shape))
-  const shapeMap = new Map(shapes.map((shape) => [shape.id, shape]))
-  const lines = rawLines
-    .map((line, index) => normalizePreviewLine(line, index, shapeMap))
-    .filter((line): line is PreviewLine => Boolean(line))
-
-  if (!shapes.length && !lines.length) {
-    return null
-  }
-  const bounds = computePreviewBounds(shapes, lines)
-  return {
-    shapes,
-    lines,
-    viewBox: `${bounds.x} ${bounds.y} ${bounds.w} ${bounds.h}`
-  }
-}
-
-function collectPreviewItems(
-  value: unknown,
-  shapes: Record<string, unknown>[],
-  lines: Record<string, unknown>[],
-  depth: number,
-  seen: WeakSet<object>
-) {
-  if (depth > 7 || value == null) {
-    return
-  }
-  if (Array.isArray(value)) {
-    value.forEach((item) => collectPreviewItems(item, shapes, lines, depth + 1, seen))
-    return
-  }
-  if (!isObject(value)) {
-    return
-  }
-  if (seen.has(value)) {
-    return
-  }
-  seen.add(value)
-
-  if (hasPreviewLineGeometry(value)) {
-    lines.push(value)
-    return
-  }
-  if (readPreviewBounds(value)) {
-    shapes.push(value)
-    return
-  }
-
-  ;['pages', 'layers', 'groups', 'children', 'items', 'objects', 'blocks', 'shapes', 'lines', 'connectors'].forEach((key) =>
-    collectPreviewItems(value[key], shapes, lines, depth + 1, seen)
-  )
-}
-
-function normalizePreviewShape(input: Record<string, unknown>, index: number): PreviewShape | null {
-  const bounds = readPreviewBounds(input)
-  if (!bounds) {
-    return null
-  }
-  const format = firstRecord(input.format, input.style, input.styles, input.properties)
-  const id = firstPreviewString(input.id, input.uuid, input.shapeId, input.name) || `shape-${index + 1}`
-  const text = firstPreviewString(input.text, input.label, input.name, input.title) || id
-  return {
-    id,
-    x: bounds.x,
-    y: bounds.y,
-    w: bounds.w,
-    h: bounds.h,
-    text,
-    type: firstPreviewString(input.type, input.shape, input.shapeType, input.class, input.name) || 'rect',
-    fillColor:
-      firstPreviewString(input.fillColor, format?.fillColor, format?.fill, format?.backgroundColor, input.backgroundColor) || '#eff6ff',
-    strokeColor:
-      firstPreviewString(input.strokeColor, format?.strokeColor, format?.stroke, format?.borderColor, input.borderColor) || '#2563eb',
-    strokeWidth: firstFiniteNumber(input.strokeWidth, format?.strokeWidth, format?.borderWidth) ?? 1.5,
-    cornerRadius: firstFiniteNumber(input.cornerRadius, format?.cornerRadius, input.radius, format?.radius) ?? 8
-  }
-}
-
-function normalizePreviewLine(
-  input: Record<string, unknown>,
-  index: number,
-  shapeMap: Map<string, PreviewShape>
-): PreviewLine | null {
-  const fromId = readEndpointId(input, ['fromId', 'sourceId', 'startShapeId', 'startId', 'from', 'source', 'start'])
-  const toId = readEndpointId(input, ['toId', 'targetId', 'endShapeId', 'endId', 'to', 'target', 'end'])
-  const fromShape = fromId ? shapeMap.get(fromId) : null
-  const toShape = toId ? shapeMap.get(toId) : null
-  const startPoint = fromShape ? centerOfShape(fromShape) : readPreviewPoint(input, ['start', 'fromPoint', 'sourcePoint', 'p1', 'endpoint1'])
-  const endPoint = toShape ? centerOfShape(toShape) : readPreviewPoint(input, ['end', 'toPoint', 'targetPoint', 'p2', 'endpoint2'])
-  const bounds = readPreviewBounds(input)
-  const x1 = startPoint?.x ?? firstFiniteNumber(input.x1, input.startX, input.fromX) ?? bounds?.x
-  const y1 = startPoint?.y ?? firstFiniteNumber(input.y1, input.startY, input.fromY) ?? bounds?.y
-  const x2 = endPoint?.x ?? firstFiniteNumber(input.x2, input.endX, input.toX) ?? (bounds ? bounds.x + bounds.w : null)
-  const y2 = endPoint?.y ?? firstFiniteNumber(input.y2, input.endY, input.toY) ?? (bounds ? bounds.y + bounds.h : null)
-  if (![x1, y1, x2, y2].every((value) => typeof value === 'number' && Number.isFinite(value))) {
-    return null
-  }
-  const format = firstRecord(input.format, input.style, input.styles, input.properties)
-  return {
-    id: firstPreviewString(input.id, input.uuid, input.lineId, input.name) || `line-${index + 1}`,
-    x1,
-    y1,
-    x2,
-    y2,
-    text: firstPreviewString(input.text, input.label, input.name, input.title) || '',
-    strokeColor: firstPreviewString(input.strokeColor, format?.strokeColor, format?.stroke, input.color) || '#64748b',
-    strokeWidth: firstFiniteNumber(input.strokeWidth, format?.strokeWidth, input.width) ?? 1.5
-  }
-}
-
-function hasPreviewLineGeometry(input: Record<string, unknown>) {
-  const type = (firstPreviewString(input.type, input.shape, input.shapeType, input.class) || '').toLowerCase()
-  const isLineType =
-    ['line', 'arrow', 'connector', 'straightline', 'elbowline'].includes(type) ||
-    type.includes('connector') ||
-    type.includes('arrow') ||
-    type.includes('straight_line') ||
-    type.includes('elbow_line')
-  const hasEndpointIds =
-    Boolean(readEndpointId(input, ['fromId', 'sourceId', 'startShapeId', 'startId', 'from', 'source', 'start'])) &&
-    Boolean(readEndpointId(input, ['toId', 'targetId', 'endShapeId', 'endId', 'to', 'target', 'end']))
-  const hasCoordinates =
-    firstFiniteNumber(input.x1, input.startX, input.fromX) != null &&
-    firstFiniteNumber(input.y1, input.startY, input.fromY) != null &&
-    firstFiniteNumber(input.x2, input.endX, input.toX) != null &&
-    firstFiniteNumber(input.y2, input.endY, input.toY) != null
-  const hasPoints =
-    Boolean(readPreviewPoint(input, ['start', 'fromPoint', 'sourcePoint', 'p1', 'endpoint1'])) &&
-    Boolean(readPreviewPoint(input, ['end', 'toPoint', 'targetPoint', 'p2', 'endpoint2']))
-  return hasEndpointIds || hasCoordinates || hasPoints || isLineType
-}
-
-function readPreviewBounds(input: Record<string, unknown>) {
-  const bounds = firstRecord(input.bounds, input.boundingBox, input.box, input.geometry, input.position)
-  const x = firstFiniteNumber(input.x, input.left, bounds?.x, bounds?.left)
-  const y = firstFiniteNumber(input.y, input.top, bounds?.y, bounds?.top)
-  const w = firstFiniteNumber(input.w, input.width, bounds?.w, bounds?.width)
-  const h = firstFiniteNumber(input.h, input.height, bounds?.h, bounds?.height)
-  if ([x, y, w, h].every((value) => typeof value === 'number' && Number.isFinite(value)) && w > 0 && h > 0) {
-    return { x, y, w, h }
-  }
-  return null
-}
-
-function readPreviewPoint(input: Record<string, unknown>, keys: string[]) {
-  for (const key of keys) {
-    const point = input[key]
-    if (isObject(point)) {
-      const x = firstFiniteNumber(point.x, point.left)
-      const y = firstFiniteNumber(point.y, point.top)
-      if (typeof x === 'number' && typeof y === 'number') {
-        return { x, y }
-      }
-    }
-  }
-  return null
-}
-
-function readEndpointId(input: Record<string, unknown>, keys: string[]) {
-  for (const key of keys) {
-    const value = input[key]
-    const direct = firstPreviewString(value)
-    if (direct) {
-      return direct
-    }
-    if (isObject(value)) {
-      const nested = firstPreviewString(value.id, value.shapeId, value.nodeId, value.ref, value.reference)
-      if (nested) {
-        return nested
-      }
-    }
-  }
-  return null
-}
-
-function centerOfShape(shape: PreviewShape) {
-  return { x: shape.x + shape.w / 2, y: shape.y + shape.h / 2 }
-}
-
-function computePreviewBounds(shapes: PreviewShape[], lines: PreviewLine[]) {
-  let minX = Number.POSITIVE_INFINITY
-  let minY = Number.POSITIVE_INFINITY
-  let maxX = Number.NEGATIVE_INFINITY
-  let maxY = Number.NEGATIVE_INFINITY
-  shapes.forEach((shape) => {
-    minX = Math.min(minX, shape.x)
-    minY = Math.min(minY, shape.y)
-    maxX = Math.max(maxX, shape.x + shape.w)
-    maxY = Math.max(maxY, shape.y + shape.h)
-  })
-  lines.forEach((line) => {
-    minX = Math.min(minX, line.x1, line.x2)
-    minY = Math.min(minY, line.y1, line.y2)
-    maxX = Math.max(maxX, line.x1, line.x2)
-    maxY = Math.max(maxY, line.y1, line.y2)
-  })
-  if (![minX, minY, maxX, maxY].every(Number.isFinite)) {
-    return { x: 0, y: 0, w: 800, h: 360 }
-  }
-  const margin = 48
-  return {
-    x: minX - margin,
-    y: minY - margin,
-    w: Math.max(360, maxX - minX + margin * 2),
-    h: Math.max(220, maxY - minY + margin * 2)
-  }
-}
-
-function firstRecord(...values: unknown[]) {
-  return values.find(isObject) || null
-}
-
-function firstPreviewString(...values: unknown[]) {
-  for (const value of values) {
-    if (typeof value === 'string' && value.trim()) {
-      return value.trim()
-    }
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      return String(value)
-    }
-  }
-  return ''
-}
-
-function firstFiniteNumber(...values: unknown[]) {
-  for (const value of values) {
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      return value
-    }
-    if (typeof value === 'string' && value.trim()) {
-      const parsed = Number(value)
-      if (Number.isFinite(parsed)) {
-        return parsed
-      }
-    }
-  }
-  return null
-}
-
-function splitPreviewLabel(value: string) {
-  return value
-    .replace(/\r\n/g, '\n')
-    .split('\n')
-    .flatMap((line) => chunkPreviewText(line.trim(), 18))
-    .filter(Boolean)
-    .slice(0, 5)
-}
-
-function chunkPreviewText(value: string, size: number) {
-  if (!value) {
-    return []
-  }
-  const chunks: string[] = []
-  for (let index = 0; index < value.length; index += size) {
-    chunks.push(value.slice(index, index + size))
-  }
-  return chunks
-}
-
-function truncatePreviewText(value: string, maxLength: number) {
-  return value.length > maxLength ? `${value.slice(0, maxLength - 1)}...` : value
+function createStandardImportPreview(source: string) {
+  return createLucidchartPreview(parseJsonLike(source))
 }
 
 function extractToolNameFromHostEvent(event: unknown) {

@@ -8,7 +8,7 @@ const RECORD_BATCH_MAX_OPERATIONS = 12
 const RECORD_BATCH_RECOMMENDED_OPERATIONS = '6–8'
 const RECORD_BATCH_MAX_BYTES = 256 * 1024
 
-const recordArrayLimitMessage = (field: 'createShapes' | 'updateRecords' | 'removeRecords') =>
+const recordArrayLimitMessage = (field: string) =>
   `${field} accepts at most ${RECORD_BATCH_MAX_OPERATIONS} items. Before calling canvas_patch_records, split larger plans into semantic stages of preferably ${RECORD_BATCH_RECOMMENDED_OPERATIONS} total operations, then use the prior receipt workingCopyRevision as the next baseRevision.`
 
 const boundedString = (maximum: number) => z.string().trim().min(1).max(maximum)
@@ -149,15 +149,58 @@ const createArrowShapeSchema = z.object({
   arrowheadEnd: arrowheadSchema.optional()
 }).strict()
 
-const createShapeSchema = z.discriminatedUnion('type', [
-  createTextShapeSchema,
-  createGeoShapeSchema,
-  createNoteShapeSchema,
-  createFrameShapeSchema,
-  createArrowShapeSchema
-]).superRefine((value, context) => {
-  if (value.type === 'arrow' && value.start.x === value.end.x && value.start.y === value.end.y) {
+const createTextShapePayloadSchema = createTextShapeSchema.omit({ type: true })
+const createGeoShapePayloadSchema = createGeoShapeSchema.omit({ type: true })
+const createNoteShapePayloadSchema = createNoteShapeSchema.omit({ type: true })
+const createFrameShapePayloadSchema = createFrameShapeSchema.omit({ type: true })
+const createArrowShapePayloadSchema = createArrowShapeSchema.omit({ type: true }).superRefine((value, context) => {
+  if (value.start.x === value.end.x && value.start.y === value.end.y) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['end'], message: 'Arrow start and end points must differ.' })
+  }
+})
+
+const workflowKeySchema = z.string().trim().min(1).max(48).regex(
+  /^[A-Za-z0-9][A-Za-z0-9_-]*$/,
+  'Use a short stable key containing letters, numbers, underscore, or dash.'
+)
+const workflowStageSchema = z.object({
+  key: workflowKeySchema,
+  label: boundedString(80),
+  detail: z.string().trim().max(160).optional(),
+  emphasis: z.boolean().optional()
+}).strict()
+const workflowBranchSchema = z.object({
+  key: workflowKeySchema,
+  label: boundedString(80),
+  detail: z.string().trim().max(160).optional(),
+  parentStageKey: workflowKeySchema
+}).strict()
+const createWorkflowSchema = z.object({
+  mode: z.enum(['replace_page', 'append']).describe('replace_page clears the target page before rendering; append places a new board below existing content.'),
+  pageId: recordIdSchema.optional().describe('Target page id. Omit only when the Canvas has zero or one page.'),
+  title: boundedString(160),
+  subtitle: z.string().trim().max(240).optional(),
+  theme: z.enum(['xpert-dark', 'clean-light']).optional().describe('Defaults to xpert-dark.'),
+  stages: z.array(workflowStageSchema).min(2).max(8),
+  branches: z.array(workflowBranchSchema).max(8).optional(),
+  footer: z.string().trim().max(160).optional()
+}).strict().superRefine((value, context) => {
+  const stageKeys = new Set<string>()
+  for (const [index, stage] of value.stages.entries()) {
+    if (stageKeys.has(stage.key)) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ['stages', index, 'key'], message: `Duplicate stage key ${stage.key}.` })
+    }
+    stageKeys.add(stage.key)
+  }
+  const allKeys = new Set(stageKeys)
+  for (const [index, branch] of (value.branches ?? []).entries()) {
+    if (!stageKeys.has(branch.parentStageKey)) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ['branches', index, 'parentStageKey'], message: `Unknown parent stage ${branch.parentStageKey}.` })
+    }
+    if (allKeys.has(branch.key)) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ['branches', index, 'key'], message: `Duplicate workflow key ${branch.key}.` })
+    }
+    allKeys.add(branch.key)
   }
 })
 
@@ -208,24 +251,46 @@ export const applyRecordBatchSchema = z.object({
   stageLabel: boundedString(120).describe('Short name for this visible stage.'),
   isFinalStage: z.boolean().describe('True only for the last planned stage.'),
   baseRevision: z.number().int().min(0).describe('workingCopyRevision from the latest Canvas summary or mutation receipt.'),
-  createShapes: z.array(createShapeSchema).max(RECORD_BATCH_MAX_OPERATIONS, recordArrayLimitMessage('createShapes')).optional()
-    .describe('Simplified new text, geo, note, frame, or arrow shapes. Canvas generates ids, parent page, indices, defaults, and richText. Count all createShapes, updateRecords, and removeRecords before calling; if their total exceeds 12, split the plan first.'),
+  workflow: createWorkflowSchema.optional()
+    .describe('Deterministically render a polished native tldraw workflow from semantic stages and branches. Card labels are embedded in their shapes, spacing and connectors are computed by Canvas, and replace_page atomically removes stale page content. Use this instead of hand-authored coordinates for workflow diagrams.'),
+  createTextShapes: z.array(createTextShapePayloadSchema).max(RECORD_BATCH_MAX_OPERATIONS, recordArrayLimitMessage('createTextShapes')).optional()
+    .describe('New text shapes with plain text and page-space placement. Canvas generates ids, parent page, indices, defaults, and richText.'),
+  createGeoShapes: z.array(createGeoShapePayloadSchema).max(RECORD_BATCH_MAX_OPERATIONS, recordArrayLimitMessage('createGeoShapes')).optional()
+    .describe('New geometric shapes such as rectangles, ellipses, and cards. Use this field for backgrounds and filled regions.'),
+  createNoteShapes: z.array(createNoteShapePayloadSchema).max(RECORD_BATCH_MAX_OPERATIONS, recordArrayLimitMessage('createNoteShapes')).optional()
+    .describe('New note shapes with plain text.'),
+  createFrameShapes: z.array(createFrameShapePayloadSchema).max(RECORD_BATCH_MAX_OPERATIONS, recordArrayLimitMessage('createFrameShapes')).optional()
+    .describe('New frame/container shapes. Frames are outlines, not filled backgrounds.'),
+  createArrowShapes: z.array(createArrowShapePayloadSchema).max(RECORD_BATCH_MAX_OPERATIONS, recordArrayLimitMessage('createArrowShapes')).optional()
+    .describe('New connector arrows. Use only for actual connections, never for rectangles, frames, cards, backgrounds, or text.'),
   updateRecords: z.array(updateRecordSchema).max(RECORD_BATCH_MAX_OPERATIONS, recordArrayLimitMessage('updateRecords')).optional()
     .describe('Small field patches for existing records, guarded by record checksums. Count all stage operations before calling and split totals above 12 first.'),
   removeRecords: z.array(removeRecordSchema).max(RECORD_BATCH_MAX_OPERATIONS, recordArrayLimitMessage('removeRecords')).optional()
     .describe('Existing records to remove, guarded by record checksums. Count all stage operations before calling and split totals above 12 first.'),
   changeSummary: boundedString(240).describe('Short operational description shown while this stage is applied.')
 }).strict().superRefine((value, context) => {
-  const groups = [value.createShapes ?? [], value.updateRecords ?? [], value.removeRecords ?? []]
-  const operationCount = groups.reduce((sum, group) => sum + group.length, 0)
+  const recordGroups = [
+    value.createTextShapes ?? [],
+    value.createGeoShapes ?? [],
+    value.createNoteShapes ?? [],
+    value.createFrameShapes ?? [],
+    value.createArrowShapes ?? [],
+    value.updateRecords ?? [],
+    value.removeRecords ?? []
+  ]
+  const recordOperationCount = recordGroups.reduce((sum, group) => sum + group.length, 0)
+  const operationCount = recordOperationCount + (value.workflow ? 1 : 0)
   if (operationCount < 1) {
     context.addIssue({ code: z.ZodIssueCode.custom, message: 'At least one create, update, or remove operation is required.' })
   }
-  const hasOversizedGroup = groups.some((group) => group.length > RECORD_BATCH_MAX_OPERATIONS)
+  if (value.workflow && recordOperationCount > 0) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['workflow'], message: 'workflow must be the only mutation in its stage.' })
+  }
+  const hasOversizedGroup = recordGroups.some((group) => group.length > RECORD_BATCH_MAX_OPERATIONS)
   if (operationCount > RECORD_BATCH_MAX_OPERATIONS && !hasOversizedGroup) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
-      message: `This stage contains ${operationCount} record operations across createShapes, updateRecords, and removeRecords; the maximum is ${RECORD_BATCH_MAX_OPERATIONS}. Split the plan before calling, preferably into semantic stages of ${RECORD_BATCH_RECOMMENDED_OPERATIONS} operations, and chain them with the prior receipt workingCopyRevision.`
+      message: `This stage contains ${operationCount} record operations across the explicit create fields, updateRecords, and removeRecords; the maximum is ${RECORD_BATCH_MAX_OPERATIONS}. Split the plan before calling, preferably into semantic stages of ${RECORD_BATCH_RECOMMENDED_OPERATIONS} operations, and chain them with the prior receipt workingCopyRevision.`
     })
   }
   if (serializedSize(value) > RECORD_BATCH_MAX_BYTES) {
@@ -235,7 +300,7 @@ export const applyRecordBatchSchema = z.object({
     })
   }
   const seen = new Set<string>()
-  for (const group of groups) {
+  for (const group of recordGroups) {
     for (const item of group) {
       if (!item.id) continue
       if (seen.has(item.id)) {
@@ -321,6 +386,24 @@ export const reportFailureSchema = z.object({
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['evidence'], message: 'evidence is too large.' })
   }
 })
+
+export const publishArtifactLinkSchema = z.object({
+  documentId: documentIdSchema,
+  baseRevision: z.number().int().min(0)
+    .describe('workingCopyRevision returned by canvas_get_document immediately before publishing.'),
+  baseSnapshotChecksum: checksumSchema.optional()
+    .describe('Optional snapshotChecksum returned with baseRevision. Use it when available to guard against stale exports.'),
+  pageId: recordIdSchema.optional()
+    .describe('Optional page:* record id. When omitted, Canvas publishes the first page.'),
+  accessMode: z.enum(['public_link', 'organization_all', 'workspace_all']).optional(),
+  targetMode: z.enum(['version', 'latest']).optional(),
+  userConfirmedPublicLink: z.boolean().optional()
+    .describe('Must be true only after the user explicitly confirms public_link access.')
+}).strict()
+
+export const revokeArtifactLinkSchema = z.object({
+  documentId: documentIdSchema
+}).strict()
 
 function serializedSize(value: object | CanvasJsonValue) {
   return Buffer.byteLength(JSON.stringify(value), 'utf8')

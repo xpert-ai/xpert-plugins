@@ -68,6 +68,7 @@ const SAVE_MERMAID_DRAFT_TOOL_NAME = 'drawio_save_mermaid_draft'
 const DRAWIO_TOOL_NAMES = new Set([
   'drawio_create_diagram',
   'drawio_save_scene_version',
+  'drawio_save_spec_version',
   'drawio_patch_scene',
   SAVE_MERMAID_DRAFT_TOOL_NAME,
   'drawio_search_diagrams',
@@ -78,6 +79,7 @@ const DRAWIO_TOOL_NAMES = new Set([
 const DRAWIO_MUTATION_TOOL_NAMES = new Set([
   'drawio_create_diagram',
   'drawio_save_scene_version',
+  'drawio_save_spec_version',
   'drawio_patch_scene',
   SAVE_MERMAID_DRAFT_TOOL_NAME,
   'drawio_update_diagram_status',
@@ -95,6 +97,7 @@ function App() {
   const [busy, setBusy] = React.useState(false)
   const [dirty, setDirty] = React.useState(false)
   const [editorReady, setEditorReady] = React.useState(false)
+  const [invalidXmlError, setInvalidXmlError] = React.useState('')
   const [newTitle, setNewTitle] = React.useState('')
   const [newDescription, setNewDescription] = React.useState('')
   const [changeSummary, setChangeSummary] = React.useState('')
@@ -106,6 +109,7 @@ function App() {
   const iframeRef = React.useRef<HTMLIFrameElement | null>(null)
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
   const contextRef = React.useRef<any>(null)
+  const editorReadyRef = React.useRef(false)
   const selectedIdRef = React.useRef('')
   const searchRef = React.useRef('')
   const statusRef = React.useRef<StatusFilter>('')
@@ -171,12 +175,14 @@ function App() {
         return
       }
       if (message.event === 'init') {
+        editorReadyRef.current = true
         setEditorReady(true)
         loadCurrentSceneIntoEditor()
         return
       }
       if (message.event === 'save') {
         const nextXml = typeof message.xml === 'string' && message.xml.trim() ? message.xml : xml
+        setInvalidXmlError('')
         setXml(nextXml)
         setDirty(true)
         const sourceAction = pendingSaveActionRef.current || 'save_scene_version'
@@ -219,7 +225,8 @@ function App() {
     const nextMermaid = typeof version?.mermaidSource === 'string' ? version.mermaidSource : ''
     setXml(nextXml)
     setMermaidSource(nextMermaid)
-    if (editorReady) {
+    setInvalidXmlError(typeof version?.xml === 'string' && version.xml.trim() ? getDrawioXmlError(version.xml) : '')
+    if (editorReadyRef.current) {
       loadVersionIntoEditor(version, payload.item?.title)
     }
   }
@@ -435,6 +442,7 @@ function App() {
     if (!source) {
       return
     }
+    setInvalidXmlError('')
     postToEditor({
       action: 'load',
       descriptor: { format: 'mermaid', data: source },
@@ -519,6 +527,8 @@ function App() {
   function loadVersionIntoEditor(version: DrawingVersion | null, title?: string) {
     const versionXml = typeof version?.xml === 'string' && version.xml.trim() ? version.xml : ''
     const versionMermaid = typeof version?.mermaidSource === 'string' ? version.mermaidSource.trim() : ''
+    const xmlError = versionXml ? getDrawioXmlError(versionXml) : ''
+    setInvalidXmlError(xmlError)
     const loadMessage: Record<string, unknown> = {
       action: 'load',
       title: title || t('untitled'),
@@ -528,7 +538,7 @@ function App() {
       exportProtocol: true,
       dark: isDarkTheme(contextRef.current?.theme) ? 1 : 0
     }
-    if (versionXml) {
+    if (versionXml && !xmlError) {
       loadMessage.xml = versionXml
     } else if (versionMermaid) {
       loadMessage.descriptor = { format: 'mermaid', data: versionMermaid }
@@ -628,11 +638,11 @@ function App() {
               <Plus className="dw-button-icon" aria-hidden="true" />
               {t('newDrawing')}
             </Button>
-            <Button type="button" size="sm" disabled={busy || !selectedId} onClick={() => requestEditorSave()}>
+            <Button type="button" size="sm" disabled={busy || !selectedId || Boolean(invalidXmlError)} onClick={() => requestEditorSave()}>
               <Save className="dw-button-icon" aria-hidden="true" />
               {t('save')}
             </Button>
-            <Button type="button" variant="outline" size="sm" disabled={busy || !selectedId || !editorReady} onClick={() => postToEditor({ action: 'save' })}>
+            <Button type="button" variant="outline" size="sm" disabled={busy || !selectedId || !editorReady || Boolean(invalidXmlError)} onClick={() => postToEditor({ action: 'save' })}>
               <FileJson className="dw-button-icon" aria-hidden="true" />
               {t('syncEditor')}
             </Button>
@@ -660,6 +670,19 @@ function App() {
             <>
               <iframe ref={iframeRef} title="draw.io editor" src={DRAWIO_EDITOR_URL} />
               {!editorReady ? <div className="dw-editor-placeholder">{t('editorLoading')}</div> : null}
+              {invalidXmlError ? (
+                <div className="dw-invalid-xml" role="alert">
+                  <div className="dw-invalid-xml-card">
+                    <strong>{t('invalidXmlTitle')}</strong>
+                    <p>{t('invalidXmlDescription')}</p>
+                    <code>{invalidXmlError}</code>
+                    <Button type="button" variant="outline" size="sm" onClick={exportXml}>
+                      <FileJson className="dw-button-icon" aria-hidden="true" />
+                      {t('exportXml')}
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
             </>
           ) : (
             <div className="dw-empty">{t('noDrawing')}</div>
@@ -741,7 +764,7 @@ function App() {
                     <Button type="button" variant="outline" size="sm" disabled={busy || !editorReady || !mermaidSource.trim()} onClick={loadMermaidIntoEditor}>
                       {t('loadMermaid')}
                     </Button>
-                    <Button type="button" size="sm" disabled={busy || !selectedId} onClick={() => requestEditorSave('save_converted_mermaid_scene')}>
+                    <Button type="button" size="sm" disabled={busy || !selectedId || Boolean(invalidXmlError)} onClick={() => requestEditorSave('save_converted_mermaid_scene')}>
                       {t('saveConverted')}
                     </Button>
                   </div>
@@ -788,6 +811,33 @@ function isDarkTheme(theme: unknown) {
     return /dark|night/i.test(theme)
   }
   return Boolean(theme && typeof theme === 'object' && ((theme as any).dark === true || (theme as any).isDark === true))
+}
+
+function getDrawioXmlError(xml: string) {
+  const normalized = xml.trim()
+  if (!normalized) {
+    return ''
+  }
+  try {
+    const document = new DOMParser().parseFromString(normalized, 'application/xml')
+    const parserError = document.getElementsByTagName('parsererror')[0]
+    if (parserError) {
+      return (parserError.textContent || 'Invalid XML').replace(/\s+/g, ' ').trim()
+    }
+    const rootName = document.documentElement?.nodeName
+    if (rootName !== 'mxfile' && rootName !== 'mxGraphModel') {
+      return `Expected a draw.io <mxfile> or <mxGraphModel> root, received <${rootName || 'unknown'}>.`
+    }
+    if (rootName === 'mxfile' && !document.getElementsByTagName('diagram').length) {
+      return 'The draw.io <mxfile> document does not contain a <diagram> page.'
+    }
+    if (rootName === 'mxGraphModel' && !document.getElementsByTagName('root').length) {
+      return 'The draw.io <mxGraphModel> document does not contain a <root> element.'
+    }
+    return ''
+  } catch (error) {
+    return getErrorMessage(error)
+  }
 }
 
 function extractToolNameFromHostEvent(event: unknown) {

@@ -26,4 +26,7 @@ test('localizes the DOCX Editor installed assistant descriptions', () => {
   assert.match(template.dslContent ?? '', /description:\n        en_US:/)
   assert.ok(template.dslContent?.includes(teamDescription))
   assert.ok(template.dslContent?.includes(agentDescription))
+  assert.match(template.dslContent ?? '', /docx_import_workspace_file/)
+  assert.match(template.dslContent ?? '', /docx_publish_artifact_link/)
+  assert.match(template.dslContent ?? '', /Do not\s+ask the user to upload or open the generated file/)
 })
