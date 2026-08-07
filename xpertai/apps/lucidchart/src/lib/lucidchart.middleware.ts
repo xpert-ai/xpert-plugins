@@ -11,70 +11,40 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod/v3'
 import {
+  LUCIDCHART_APPLY_DIAGRAM_STAGE_TOOL_NAME,
   LUCIDCHART_CREATE_DOCUMENT_TOOL_NAME,
+  LUCIDCHART_ARTIFACT_SHARING_CAPABILITY,
   LUCIDCHART_FEATURE,
+  LUCIDCHART_FINALIZE_DOCUMENT_TOOL_NAME,
+  LUCIDCHART_GET_DIAGRAM_PAGE_TOOL_NAME,
   LUCIDCHART_GET_DOCUMENT_TOOL_NAME,
   LUCIDCHART_ICON,
   LUCIDCHART_MIDDLEWARE_NAME,
-  LUCIDCHART_PATCH_STANDARD_IMPORT_TOOL_NAME,
+  LUCIDCHART_PUBLISH_ARTIFACT_LINK_TOOL_NAME,
   LUCIDCHART_REGISTER_EXTERNAL_DOCUMENT_TOOL_NAME,
   LUCIDCHART_REPORT_FAILURE_TOOL_NAME,
+  LUCIDCHART_REVOKE_ARTIFACT_LINK_TOOL_NAME,
   LUCIDCHART_SAVE_MERMAID_DRAFT_TOOL_NAME,
-  LUCIDCHART_SAVE_STANDARD_IMPORT_VERSION_TOOL_NAME,
   LUCIDCHART_SEARCH_DOCUMENTS_TOOL_NAME,
   LUCIDCHART_UPDATE_DOCUMENT_STATUS_TOOL_NAME
 } from './constants.js'
+import {
+  applyDiagramStageSchema,
+  createAgentDocumentSchema,
+  finalizeDocumentSchema,
+  getDiagramPageSchema
+} from './lucidchart-agent-tool.schemas.js'
 import { LucidchartService } from './lucidchart.service.js'
-import type { LucidchartScope } from './types.js'
+import type {
+  ApplyLucidchartDiagramStageInput,
+  FinalizeLucidchartDiagramInput,
+  GetLucidchartDiagramPageInput,
+  LucidchartScope
+} from './types.js'
 
 const documentKindSchema = z.enum(['diagram', 'flowchart', 'architecture', 'process', 'wireframe', 'orgchart', 'network', 'other'])
 const documentStatusSchema = z.enum(['draft', 'reviewed', 'archived'])
 const productSchema = z.enum(['lucidchart', 'lucidspark'])
-const versionSourceSchema = z.enum([
-  'agent_standard_import',
-  'agent_patch',
-  'agent_mermaid',
-  'workbench',
-  'workbench_mermaid',
-  'import',
-  'external_lucid',
-  'restore'
-])
-const recordSchema = z.record(z.unknown())
-const documentContentSchema = z.object({
-  standardImport: recordSchema.optional().describe('Lucid Standard Import document.json content. Keep it serializable JSON.'),
-  mermaidSource: z.string().optional().describe('Mermaid draft source kept for review or later conversion.'),
-  lucidDocumentId: z.string().optional().describe('Real Lucid document id after import or manual creation in Lucid.'),
-  lucidDocumentUrl: z.string().optional().describe('Real Lucid document URL.'),
-  embedUrl: z.string().optional().describe('Lucid Embed API iframe URL, if available.'),
-  embedId: z.string().optional().describe('Lucid embed id or token identifier, if available.'),
-  previewUrl: z.string().optional().describe('Optional preview image URL.'),
-  product: productSchema.optional().describe('Lucid product for Standard Import. Defaults to lucidchart.'),
-  importFileName: z.string().optional().describe('Preferred .lucid import filename or document.json filename.')
-})
-
-const createDocumentSchema = documentContentSchema.extend({
-  title: z.string().min(1).describe('Human-readable Lucidchart document title.'),
-  description: z.string().optional(),
-  kind: documentKindSchema.optional(),
-  tags: z.array(z.string()).optional(),
-  source: z.string().optional().describe('Short source label, such as user_request, agent_plan, external_lucid, or imported_file.'),
-  changeSummary: z.string().optional().describe('Short summary for the initial version.')
-})
-
-const saveStandardImportVersionSchema = documentContentSchema.extend({
-  documentId: z.string().min(1).describe('Existing Lucidchart plugin document id.'),
-  sourceType: versionSourceSchema.optional().describe('Where this version came from. Agent Standard Import should use agent_standard_import.'),
-  changeSummary: z.string().optional()
-})
-
-const patchStandardImportSchema = documentContentSchema.extend({
-  documentId: z.string().min(1),
-  standardImportPatch: recordSchema.optional().describe('Shallow patch merged into the current Standard Import document.json.'),
-  merge: z.boolean().optional().describe('Set false to replace current Standard Import with standardImportPatch. Defaults to true.'),
-  changeSummary: z.string().optional()
-})
-
 const saveMermaidDraftSchema = z.object({
   documentId: z.string().optional().describe('Existing plugin document id. Omit to create a new Lucidchart document record.'),
   title: z.string().optional().describe('Required when documentId is omitted; otherwise used only as context.'),
@@ -122,8 +92,10 @@ const reportFailureSchema = z.object({
   operation: z.string().min(1),
   errorMessage: z.string().min(1),
   recoverable: z.boolean().optional(),
-  evidence: z.unknown().optional()
+  evidence: z.string().max(4_000).optional().describe('Short redacted diagnostic evidence as text.')
 })
+const publishArtifactLinkSchema = z.object({ documentId: z.string().min(1), accessMode: z.enum(['public_link', 'organization_all', 'workspace_all']).optional(), targetMode: z.enum(['version', 'latest']).optional(), userConfirmedPublicLink: z.boolean().optional().describe('Must be true after the user explicitly confirms public_link access.') })
+const revokeArtifactLinkSchema = z.object({ documentId: z.string().min(1) })
 
 @Injectable()
 @AgentMiddlewareStrategy(LUCIDCHART_MIDDLEWARE_NAME)
@@ -143,7 +115,7 @@ export class LucidchartMiddleware implements IAgentMiddlewareStrategy<Record<str
       value: LUCIDCHART_ICON,
       color: '#2563eb'
     },
-    features: [LUCIDCHART_FEATURE],
+    features: [LUCIDCHART_FEATURE, LUCIDCHART_ARTIFACT_SHARING_CAPABILITY],
     configSchema: {
       type: 'object',
       properties: {},
@@ -160,30 +132,42 @@ export class LucidchartMiddleware implements IAgentMiddlewareStrategy<Record<str
       name: LUCIDCHART_MIDDLEWARE_NAME,
       tools: [
         tool(
-          async (input) => JSON.stringify(await this.service.createDocument(scope, input), null, 2),
+          async (input) => JSON.stringify(await this.service.createAgentDocument(scope, input), null, 2),
           {
             name: LUCIDCHART_CREATE_DOCUMENT_TOOL_NAME,
             description:
-              'Create a reviewable Lucidchart document record. Include Lucid Standard Import document.json when you can produce it, or create a record before saving Mermaid/external Lucid links.',
-            schema: createDocumentSchema
+              'Create Lucidchart document metadata only. Then build the diagram with bounded lucidchart_apply_diagram_stage calls and finalize it with lucidchart_finalize_document.',
+            schema: createAgentDocumentSchema
           }
         ),
         tool(
-          async (input) => JSON.stringify(await this.service.saveStandardImportVersion(scope, input), null, 2),
+          async (input) =>
+            JSON.stringify(await this.service.applyDiagramStage(scope, input as ApplyLucidchartDiagramStageInput), null, 2),
           {
-            name: LUCIDCHART_SAVE_STANDARD_IMPORT_VERSION_TOOL_NAME,
+            name: LUCIDCHART_APPLY_DIAGRAM_STAGE_TOOL_NAME,
             description:
-              'Save a complete Lucid Standard Import document.json as a new version. Use this for Agent-generated Lucidchart drafts intended for Lucid REST Standard Import.',
-            schema: saveStandardImportVersionSchema
+              'Apply at most 12 typed shape, line, or removal operations to one page. The server assembles official Lucid Standard Import JSON; use the returned draftRevision for the next stage.',
+            schema: applyDiagramStageSchema
           }
         ),
         tool(
-          async (input) => JSON.stringify(await this.service.patchStandardImport(scope, input), null, 2),
+          async (input) =>
+            JSON.stringify(await this.service.finalizeDiagram(scope, input as FinalizeLucidchartDiagramInput), null, 2),
           {
-            name: LUCIDCHART_PATCH_STANDARD_IMPORT_TOOL_NAME,
+            name: LUCIDCHART_FINALIZE_DOCUMENT_TOOL_NAME,
             description:
-              'Patch or replace the current Lucid Standard Import document.json and save it as a new version. Call lucidchart_get_document first.',
-            schema: patchStandardImportSchema
+              'Validate the complete staged diagram and save one official Lucid Standard Import version. Call only after all bounded stages succeed.',
+            schema: finalizeDocumentSchema
+          }
+        ),
+        tool(
+          async (input) =>
+            JSON.stringify(await this.service.getDiagramPage(scope, input as GetLucidchartDiagramPageInput), null, 2),
+          {
+            name: LUCIDCHART_GET_DIAGRAM_PAGE_TOOL_NAME,
+            description:
+              'Read at most 20 staged shapes and lines from one Lucidchart page before making targeted updates.',
+            schema: getDiagramPageSchema
           }
         ),
         tool(
@@ -213,10 +197,10 @@ export class LucidchartMiddleware implements IAgentMiddlewareStrategy<Record<str
           }
         ),
         tool(
-          async (input) => JSON.stringify(await this.service.getDocument(scope, input.documentId), null, 2),
+          async (input) => JSON.stringify(await this.service.getAgentDocument(scope, input.documentId), null, 2),
           {
             name: LUCIDCHART_GET_DOCUMENT_TOOL_NAME,
-            description: 'Get a Lucidchart document with current Standard Import, Mermaid source, external link metadata, versions, and logs.',
+            description: 'Get compact Lucidchart metadata, draft revision, page counts, and the next safe staged action without returning the full diagram JSON.',
             schema: getDocumentSchema
           }
         ),
@@ -235,6 +219,22 @@ export class LucidchartMiddleware implements IAgentMiddlewareStrategy<Record<str
             description:
               'Record a failed Standard Import generation, Lucid import, embed registration, Mermaid draft, or export attempt with evidence.',
             schema: reportFailureSchema
+          }
+        ),
+        tool(
+          async (input) => JSON.stringify(await this.service.publishArtifact(scope, input), null, 2),
+          {
+            name: LUCIDCHART_PUBLISH_ARTIFACT_LINK_TOOL_NAME,
+            description: 'Create or reuse a read-only HTML Artifact link for the current saved Lucidchart version. Public links require explicit user confirmation; download is disabled.',
+            schema: publishArtifactLinkSchema
+          }
+        ),
+        tool(
+          async (input) => JSON.stringify(await this.service.revokeArtifactShare(scope, input.documentId), null, 2),
+          {
+            name: LUCIDCHART_REVOKE_ARTIFACT_LINK_TOOL_NAME,
+            description: 'Revoke the active Artifact link for a Lucidchart document.',
+            schema: revokeArtifactLinkSchema
           }
         )
       ]

@@ -8,6 +8,7 @@ import {
   DocxEditorVersion
 } from './entities/index.js'
 import { DocxEditorMiddleware } from './docx-editor.middleware.js'
+import { DocxEditorArtifactViewerService } from './docx-editor-artifact-viewer.service.js'
 import { DocxEditorService } from './docx-editor.service.js'
 import { DocxEditorViewProvider } from './docx-editor-view.provider.js'
 
@@ -21,7 +22,7 @@ export const DOCX_EDITOR_ENTITIES = [
 @XpertServerPlugin({
   imports: [TypeOrmModule.forFeature(DOCX_EDITOR_ENTITIES)],
   entities: DOCX_EDITOR_ENTITIES,
-  providers: [DocxEditorService, DocxEditorMiddleware, DocxEditorViewProvider],
+  providers: [DocxEditorArtifactViewerService, DocxEditorService, DocxEditorMiddleware, DocxEditorViewProvider],
   exports: [DocxEditorService]
 })
 export class DocxEditorPlugin implements IOnPluginBootstrap, IOnPluginDestroy {

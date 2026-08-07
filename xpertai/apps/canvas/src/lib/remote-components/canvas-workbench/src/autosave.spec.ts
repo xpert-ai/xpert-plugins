@@ -2,6 +2,7 @@ import {
   type CanvasStoreChanges,
   applyCanvasViewState,
   captureViewportSnapshotImage,
+  captureViewportSnapshotImageSafely,
   createAutosaveSignature,
   hasPersistentCanvasViewStateChange
 } from './autosave.js'
@@ -60,6 +61,23 @@ describe('canvas autosave helpers', () => {
     expect(payload.height).toBe(200)
     expect(payload.pageId).toBe('page:page')
     expect(editor.toImage).toHaveBeenCalledWith(['shape:1'], expect.objectContaining({ format: 'png', background: true }))
+  })
+
+  it('lets autosave continue when viewport image export fails', async () => {
+    const exportError = new Error('image export failed')
+    const onError = jest.fn()
+    const editor = {
+      getCurrentPageShapeIds: () => new Set(['shape:1']),
+      getViewportPageBounds: () => ({ x: 0, y: 0, w: 320, h: 200 }),
+      getCurrentPageId: () => 'page:page',
+      getCamera: () => ({ x: 0, y: 0, z: 1 }),
+      toImage: jest.fn(async () => {
+        throw exportError
+      })
+    }
+
+    await expect(captureViewportSnapshotImageSafely(asEditor(editor), onError)).resolves.toBeNull()
+    expect(onError).toHaveBeenCalledWith(exportError)
   })
 
   it('applies persisted page and camera view state', () => {

@@ -19,17 +19,18 @@ The Lucidchart plugin gives an Agent a reviewable draft loop without pretending 
 ## Workflow
 
 1. Identify whether the user needs a Lucid-importable draft, a conceptual flow draft, or a reference to an existing Lucid document.
-2. Prefer Lucid Standard Import JSON when the structure is ready to become a Lucidchart document.
+2. Prefer Lucid Standard Import JSON when the structure is ready to become a Lucidchart document. Create metadata first, apply at most 12 element operations per semantic stage, and finalize only after all stages succeed.
 3. Use Mermaid with `lucidchart_save_mermaid_draft` when the diagram is still being explored or when a flow is easier to communicate first.
 4. Use `lucidchart_register_external_document` only when a real Lucid document ID, document URL, or Embed URL is available.
-5. Before updating an existing plugin document, call `lucidchart_get_document` and preserve user-edited Standard Import content.
+5. Before updating an existing plugin document, call `lucidchart_get_document`, read only the required page slice with `lucidchart_get_diagram_page`, and preserve user-edited content.
 6. If a requested diagram cannot be safely represented as Standard Import JSON, Mermaid, or a real Lucid reference, call `lucidchart_report_failure`.
 
 ## Tool Selection
 
-- `lucidchart_create_document`: create a managed Lucidchart plugin document record.
-- `lucidchart_save_standard_import_version`: save complete Lucid Standard Import JSON as a version.
-- `lucidchart_patch_standard_import`: patch or replace current Standard Import JSON after reading it.
+- `lucidchart_create_document`: create metadata for a managed Lucidchart document; it does not accept diagram JSON.
+- `lucidchart_apply_diagram_stage`: upsert or remove at most 12 typed shapes and lines on one page; the server assembles Standard Import JSON.
+- `lucidchart_finalize_document`: validate all pages, IDs, bounds, endpoints, references, and size before saving one version.
+- `lucidchart_get_diagram_page`: read at most 20 staged elements for targeted updates.
 - `lucidchart_save_mermaid_draft`: save Mermaid source for Workbench review.
 - `lucidchart_register_external_document`: register an actual Lucid document or embed link.
 - `lucidchart_search_documents`: find existing managed documents.
@@ -40,6 +41,8 @@ The Lucidchart plugin gives an Agent a reviewable draft loop without pretending 
 ## Lucid Boundary
 
 Do not claim that a real Lucidchart file exists unless a real Lucid document link or embed has been registered. Standard Import JSON is a draft artifact that can be imported into Lucid through an external Lucid import flow.
+
+Never place a complete Standard Import object into a model tool call. Use stable IDs, carry forward the exact `draftRevision` returned by each staged write, and retry from `lucidchart_get_document` if the revision changes.
 
 ## Response Style
 

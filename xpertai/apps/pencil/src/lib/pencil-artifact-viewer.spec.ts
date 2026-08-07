@@ -9,7 +9,13 @@ jest.mock('@open\u002dpencil/core/scene-graph', () => ({
   SceneGraph: class MockSceneGraph {
     nodes = new Map<string, Record<string, unknown>>()
     images = new Map<string, Uint8Array>()
-    variables = new Map<string, Record<string, unknown>>()
+    variables = new Map<
+      string,
+      {
+        collectionId: string
+        valuesByMode: Record<string, { r: number; g: number; b: number; a: number }>
+      }
+    >()
     variableCollections = new Map<string, Record<string, unknown>>()
     activeMode = new Map<string, string>()
     instanceIndex = new Map<string, Set<string>>()
@@ -20,6 +26,13 @@ jest.mock('@open\u002dpencil/core/scene-graph', () => ({
 
     getPages() {
       return Array.from(this.nodes.values()).filter((node) => node.type === 'CANVAS')
+    }
+
+    resolveColorVariable(variableId: string) {
+      const variable = this.variables.get(variableId)
+      if (!variable) return undefined
+      const activeMode = this.activeMode.get(variable.collectionId)
+      return (activeMode ? variable.valuesByMode[activeMode] : undefined) ?? Object.values(variable.valuesByMode)[0]
     }
   }
 }))
@@ -89,6 +102,90 @@ describe('PencilArtifactViewerService', () => {
     expect(html).toContain("font-family: 'Caveat'")
     expect(html).toContain('https://cdn.jsdelivr.net/npm/@fontsource/caveat@5.2.8/files/caveat-latin-400-normal.woff2')
     expect(html).not.toContain("font-family: 'Unmanaged Font'")
+  })
+
+  it('resolves active theme colors before rendering the published SVG', async () => {
+    const graphSnapshot = createEmptyPencilGraphSnapshot()
+    const page = graphSnapshot.nodes.find(([, node]) => node.type === 'CANVAS')?.[1]
+    if (!page) throw new Error('Empty Pencil graph fixture has no page.')
+
+    const darkSurface = { r: 0.03, g: 0.01, b: 0.08, a: 1 }
+    const darkBorder = { r: 0.2, g: 0.12, b: 0.32, a: 1 }
+    page.childIds = ['themed-card']
+    graphSnapshot.nodes.push([
+      'themed-card',
+      {
+        id: 'themed-card',
+        type: 'FRAME',
+        name: 'Themed card',
+        parentId: page.id,
+        childIds: [],
+        x: 0,
+        y: 0,
+        width: 100,
+        height: 100,
+        visible: true,
+        fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1, a: 1 }, opacity: 1, visible: true }],
+        strokes: [
+          {
+            color: { r: 1, g: 1, b: 1, a: 1 },
+            weight: 1,
+            opacity: 1,
+            visible: true,
+            align: 'INSIDE'
+          }
+        ],
+        boundVariables: {
+          'fills/0/color': 'surface-variable',
+          'strokes/0/color': 'border-variable'
+        }
+      }
+    ])
+    graphSnapshot.variableCollections.push([
+      'theme-collection',
+      {
+        id: 'theme-collection',
+        name: 'Theme',
+        modes: [{ modeId: 'dark-mode', name: 'Dark' }],
+        defaultModeId: 'dark-mode',
+        variableIds: ['surface-variable', 'border-variable']
+      }
+    ])
+    graphSnapshot.variables.push(
+      [
+        'surface-variable',
+        {
+          id: 'surface-variable',
+          name: 'Surface',
+          type: 'COLOR',
+          collectionId: 'theme-collection',
+          valuesByMode: { 'dark-mode': darkSurface }
+        }
+      ],
+      [
+        'border-variable',
+        {
+          id: 'border-variable',
+          name: 'Border',
+          type: 'COLOR',
+          collectionId: 'theme-collection',
+          valuesByMode: { 'dark-mode': darkBorder }
+        }
+      ]
+    )
+    graphSnapshot.activeMode.push(['theme-collection', 'dark-mode'])
+    jest.mocked(renderNodesToSVG).mockImplementationOnce((graph) => {
+      const themedCard = graph.nodes.get('themed-card')
+      expect(themedCard?.fills[0]?.color).toEqual(darkSurface)
+      expect(themedCard?.strokes[0]?.color).toEqual(darkBorder)
+      return '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"></svg>'
+    })
+
+    await new PencilArtifactViewerService().render({
+      title: 'Dark theme',
+      revision: 1,
+      graphSnapshot
+    })
   })
 
   it.each([

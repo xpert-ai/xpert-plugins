@@ -2,6 +2,7 @@ export type DrawioDrawingStatus = 'draft' | 'reviewed' | 'archived'
 export type DrawioDrawingKind = 'diagram' | 'flowchart' | 'architecture' | 'network' | 'wireframe' | 'sequence' | 'other'
 export type DrawioVersionSource =
   | 'agent_xml'
+  | 'agent_spec'
   | 'agent_patch'
   | 'agent_mermaid'
   | 'workbench'
@@ -18,6 +19,8 @@ export type DrawioActionType =
   | 'version_restored'
   | 'drawing_archived'
   | 'failure_reported'
+  | 'artifact_published'
+  | 'artifact_share_revoked'
 
 export interface DrawioScope {
   tenantId: string
@@ -49,6 +52,51 @@ export interface CreateDrawioDrawingInput extends DrawioSceneInput {
 export interface SaveDrawioSceneVersionInput extends DrawioSceneInput {
   drawingId: string
   sourceType?: DrawioVersionSource
+  changeSummary?: string
+}
+
+export type DrawioSpecShape = 'rectangle' | 'rounded' | 'ellipse' | 'diamond' | 'hexagon' | 'cylinder' | 'cloud' | 'actor' | 'note' | 'text' | 'group'
+
+export interface DrawioSpecPoint {
+  x: number
+  y: number
+}
+
+export interface DrawioSpecNode extends DrawioSpecPoint {
+  id: string
+  label?: string
+  width: number
+  height: number
+  parentId?: string
+  shape?: DrawioSpecShape
+  style?: string
+}
+
+export interface DrawioSpecEdge {
+  id?: string
+  source: string
+  target: string
+  label?: string
+  style?: string
+  waypoints?: DrawioSpecPoint[]
+}
+
+export interface DrawioSpecPage {
+  id?: string
+  name: string
+  width?: number
+  height?: number
+  nodes: DrawioSpecNode[]
+  edges: DrawioSpecEdge[]
+}
+
+export interface DrawioDiagramSpec {
+  pages: DrawioSpecPage[]
+}
+
+export interface SaveDrawioDiagramSpecInput {
+  drawingId: string
+  spec: DrawioDiagramSpec
   changeSummary?: string
 }
 

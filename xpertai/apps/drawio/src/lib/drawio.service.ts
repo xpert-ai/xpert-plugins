@@ -1,6 +1,24 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
+import {
+  ArtifactsRuntimeCapability,
+  WorkspaceFilesRuntimeCapability,
+  WORKSPACE_FILES_SOURCE,
+  XPERT_RUNTIME_CAPABILITIES_TOKEN,
+  type AgentMiddlewareRuntimeCapabilityRegistry,
+  type ArtifactAccessMode,
+  type ArtifactLinkRecord,
+  type ArtifactLinkVersionMode,
+  type ArtifactsApi,
+  type WorkspaceFile,
+  type WorkspaceFileScope,
+  type WorkspacePortableFileReference
+} from '@xpert-ai/plugin-sdk'
+import { DRAWIO_PLUGIN_NAME } from './constants.js'
+import { DrawioArtifactViewerService } from './drawio-artifact-viewer.service.js'
+import { buildDrawioXmlFromSpec } from './drawio-spec.builder.js'
+import { validateDrawioXml } from './drawio-xml.validation.js'
 import { DrawioActionLog, DrawioDrawing, DrawioDrawingVersion } from './entities/index.js'
 import type {
   CreateDrawioDrawingInput,
@@ -13,6 +31,7 @@ import type {
   ReportDrawioFailureInput,
   SaveDrawioMermaidDraftInput,
   SaveDrawioSceneVersionInput,
+  SaveDrawioDiagramSpecInput,
   SearchDrawioDrawingsInput,
   UpdateDrawioDrawingStatusInput
 } from './types.js'
@@ -32,11 +51,16 @@ export class DrawioService {
     @InjectRepository(DrawioDrawingVersion)
     private readonly versionRepository: Repository<DrawioDrawingVersion>,
     @InjectRepository(DrawioActionLog)
-    private readonly logRepository: Repository<DrawioActionLog>
+    private readonly logRepository: Repository<DrawioActionLog>,
+    @Optional() @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN)
+    private readonly runtimeCapabilities?: AgentMiddlewareRuntimeCapabilityRegistry,
+    @Optional()
+    private readonly artifactViewer?: DrawioArtifactViewerService
   ) {}
 
   async createDrawing(scope: DrawioScope, input: CreateDrawioDrawingInput) {
     const title = normalizeRequired(input.title, 'Diagram title is required.')
+    const initialXml = validateDrawioXml(input.xml)
     const drawing = await this.drawingRepository.save(
       this.drawingRepository.create({
         ...scopedCreate(scope),
@@ -66,7 +90,7 @@ export class DrawioService {
     if (hasSceneContent(input)) {
       await this.createVersion(scope, drawing, {
         sourceType: input.mermaidSource ? 'agent_mermaid' : 'agent_xml',
-        xml: normalizeNullableText(input.xml),
+        xml: initialXml,
         mermaidSource: normalizeNullableText(input.mermaidSource),
         previewSvg: normalizeNullableText(input.previewSvg),
         previewPng: normalizeNullableText(input.previewPng),
@@ -93,6 +117,27 @@ export class DrawioService {
     return {
       success: true,
       message: 'draw.io diagram version was saved.',
+      drawing: await this.getDrawing(scope, drawing.id as string),
+      version
+    }
+  }
+
+  async saveDiagramSpec(scope: DrawioScope, input: SaveDrawioDiagramSpecInput) {
+    const drawing = await this.requireDrawing(scope, input.drawingId)
+    const xml = buildDrawioXmlFromSpec(input.spec)
+    const version = await this.createVersion(scope, drawing, {
+      sourceType: 'agent_spec',
+      xml,
+      mermaidSource: null,
+      previewSvg: null,
+      previewPng: null,
+      descriptor: { format: 'drawio-spec', spec: input.spec },
+      changeSummary: normalizeOptional(input.changeSummary) ?? 'Generated from structured diagram spec'
+    })
+
+    return {
+      success: true,
+      message: 'draw.io diagram spec was converted to complete XML and saved as a new version.',
       drawing: await this.getDrawing(scope, drawing.id as string),
       version
     }
@@ -217,7 +262,7 @@ export class DrawioService {
 
   async getDrawing(scope: DrawioScope, drawingId: string) {
     const drawing = await this.requireDrawing(scope, drawingId)
-    const [versions, logs] = await Promise.all([
+    const [versions, logs, artifactShare] = await Promise.all([
       this.versionRepository.find({
         where: scopedWhere(scope, { drawingId }),
         order: {
@@ -229,7 +274,8 @@ export class DrawioService {
         order: {
           createdAt: 'DESC'
         }
-      })
+      }),
+      this.getArtifactShareForDrawing(drawingId)
     ])
     const currentVersion = versions.find((version) => version.id === drawing.currentVersionId) ?? versions[0] ?? null
 
@@ -238,6 +284,7 @@ export class DrawioService {
       currentVersion,
       versions,
       logs,
+      artifactShare: artifactShare ? compactArtifactShare(drawingId, artifactShare) : null,
       total: versions.length,
       summary: {
         versionCount: versions.length,
@@ -345,6 +392,46 @@ export class DrawioService {
     }
   }
 
+  async publishArtifact(scope: DrawioScope, input: { drawingId: string; accessMode?: ArtifactAccessMode | null; targetMode?: ArtifactLinkVersionMode | null; userConfirmedPublicLink?: boolean | null }) {
+    const drawing = await this.requireDrawing(scope, input.drawingId)
+    if (drawing.status === 'archived') throw new BadRequestException('Archived draw.io diagrams cannot be shared.')
+    const version = await this.getCurrentVersion(scope, drawing)
+    if (!version) throw new BadRequestException('draw.io diagram has no saved version to share.')
+    validateDrawioXml(version.xml)
+    const accessMode = normalizeArtifactAccessMode(input.accessMode, 'draw.io')
+    if (accessMode === 'public_link' && input.userConfirmedPublicLink !== true) throw new BadRequestException('Public Artifact sharing requires explicit user confirmation.')
+    if (accessMode === 'workspace_all' && !drawing.workspaceId) throw new BadRequestException('Workspace sharing requires a workspace-scoped draw.io diagram.')
+    const targetMode: ArtifactLinkVersionMode = input.targetMode === 'latest' ? 'latest' : 'version'
+    const rendered = await this.artifactViewerService().render({ title: drawing.title, description: drawing.description, version })
+    const artifacts = this.artifacts()
+    const drawingId = drawing.id as string
+    const metadata = { drawingId, drawingVersionId: version.id ?? null, drawingVersionNumber: version.versionNumber, viewerVersion: rendered.viewerVersion, sourceType: rendered.sourceType }
+    const artifact = (await artifacts.findArtifactBySource({ pluginName: DRAWIO_PLUGIN_NAME, resourceType: DRAWIO_ARTIFACT_RESOURCE_TYPE, resourceId: drawingId })) ??
+      (await artifacts.createArtifact({ source: { pluginName: DRAWIO_PLUGIN_NAME, resourceType: DRAWIO_ARTIFACT_RESOURCE_TYPE, resourceId: drawingId, checksum: rendered.checksum }, kind: 'html', title: drawing.title, description: drawing.description, scope: artifactRuntimeScope(drawing, scope), metadata }))
+    const existingVersion = (await artifacts.listArtifactVersions({ artifactId: artifact.id, idempotencyKey: rendered.sha256, status: 'active' }))[0]
+    let workspaceFileRef = existingVersion?.workspaceFileRef ?? null
+    if (!workspaceFileRef) {
+      const workspaceScope = artifactWorkspaceScope(drawing, scope)
+      const workspaceName = `${rendered.sha256}.html`
+      const file = await this.workspaceFiles().uploadBuffer({ ...workspaceScope, buffer: rendered.buffer, originalName: workspaceName, fileName: workspaceName, mimeType: rendered.mimeType, size: rendered.size, folder: `files/drawio/artifacts/${drawingId}` })
+      workspaceFileRef = portableArtifactReference(file, workspaceScope, workspaceName, rendered)
+    }
+    const versionResult = await artifacts.ensureArtifactVersion({ artifactId: artifact.id, idempotencyKey: rendered.sha256, workspaceFileRef, mimeType: rendered.mimeType, fileName: normalizeArtifactFileName(drawing.title), title: drawing.title, description: drawing.description, size: rendered.size, sha256: rendered.sha256, sourceVersionId: version.id ?? `v${version.versionNumber}`, checksum: rendered.checksum, setCurrent: true, metadata })
+    const shareResult = await artifacts.ensureArtifactShare({ artifactId: artifact.id, shareKey: DRAWIO_ARTIFACT_SHARE_KEY, artifactVersionId: targetMode === 'version' ? versionResult.version.id : null, versionMode: targetMode, access: { mode: accessMode, userConfirmedPublicLink: accessMode === 'public_link' ? true : null }, presentation: { disposition: 'inline', allowDownload: false, safeHtmlProfile: 'interactive' }, metadata })
+    await this.writeLog(scope, { drawingId, versionId: version.id, action: 'artifact_published', actorType: scope.assistantId ? 'agent' : 'user', message: 'Published draw.io read-only Artifact.', snapshot: { accessMode, targetMode, artifactId: artifact.id } })
+    return compactArtifactShare(drawingId, { ...shareResult.link, version: shareResult.link.version ?? versionResult.version }, shareResult.outcome === 'reused' && versionResult.outcome === 'reused')
+  }
+
+  async revokeArtifactShare(scope: DrawioScope, drawingId: string) {
+    await this.requireDrawing(scope, drawingId)
+    const artifact = await this.optionalArtifacts()?.findArtifactBySource({ pluginName: DRAWIO_PLUGIN_NAME, resourceType: DRAWIO_ARTIFACT_RESOURCE_TYPE, resourceId: drawingId })
+    if (!artifact) return { message: 'draw.io diagram has no active Artifact share.', drawingId, revoked: false }
+    const revoked = await this.artifacts().revokeArtifactShare({ artifactId: artifact.id, shareKey: DRAWIO_ARTIFACT_SHARE_KEY })
+    if (!revoked) return { message: 'draw.io diagram has no active Artifact share.', drawingId, revoked: false }
+    await this.writeLog(scope, { drawingId, action: 'artifact_share_revoked', actorType: scope.assistantId ? 'agent' : 'user', message: 'Revoked draw.io Artifact share.' })
+    return { message: 'draw.io Artifact share was revoked.', drawingId, revoked: true }
+  }
+
   private async createVersion(
     scope: DrawioScope,
     drawing: DrawioDrawing,
@@ -353,6 +440,7 @@ export class DrawioService {
       changeSummary?: string
     }
   ) {
+    const xml = validateDrawioXml(input.xml)
     const currentVersionNumber = drawing.currentVersionNumber ?? 0
     const versionNumber = currentVersionNumber + 1
     const version = await this.versionRepository.save(
@@ -361,7 +449,7 @@ export class DrawioService {
         drawingId: drawing.id as string,
         versionNumber,
         sourceType: input.sourceType,
-        xml: normalizeNullableText(input.xml),
+        xml,
         mermaidSource: normalizeNullableText(input.mermaidSource),
         previewSvg: normalizeNullableText(input.previewSvg),
         previewPng: normalizeNullableText(input.previewPng),
@@ -408,6 +496,12 @@ export class DrawioService {
     })
   }
 
+  private artifacts() { const capability = this.optionalArtifacts(); if (!capability) throw new Error('Platform Artifacts capability is not available.'); return capability }
+  private optionalArtifacts() { return this.runtimeCapabilities?.get(ArtifactsRuntimeCapability) as ArtifactsApi | undefined }
+  private workspaceFiles() { const capability = this.runtimeCapabilities?.get(WorkspaceFilesRuntimeCapability); if (!capability) throw new Error('Platform Workspace Files capability is not available.'); return capability }
+  private artifactViewerService() { if (!this.artifactViewer) throw new Error('draw.io Artifact viewer is not available.'); return this.artifactViewer }
+  private async getArtifactShareForDrawing(drawingId: string) { const artifacts = this.optionalArtifacts(); if (!artifacts) return null; const artifact = await artifacts.findArtifactBySource({ pluginName: DRAWIO_PLUGIN_NAME, resourceType: DRAWIO_ARTIFACT_RESOURCE_TYPE, resourceId: drawingId }); return artifact ? artifacts.getArtifactShare({ artifactId: artifact.id, shareKey: DRAWIO_ARTIFACT_SHARE_KEY }) : null }
+
   private async requireDrawing(scope: DrawioScope, drawingId: string) {
     const id = normalizeRequired(drawingId, 'Diagram id is required.')
     const drawing = await this.drawingRepository.findOne({
@@ -446,6 +540,30 @@ export class DrawioService {
     )
   }
 }
+
+const DRAWIO_ARTIFACT_RESOURCE_TYPE = 'drawio_diagram_viewer'
+const DRAWIO_ARTIFACT_SHARE_KEY = 'readonly-default'
+
+type DrawioArtifactWorkspaceScope = WorkspaceFileScope & { catalog: 'projects' | 'xperts'; scopeId: string }
+
+function artifactWorkspaceScope(drawing: DrawioDrawing, scope: DrawioScope): DrawioArtifactWorkspaceScope {
+  const userId = normalizeRequired(scope.userId ?? drawing.createdById, 'draw.io Artifact publishing requires a user-scoped operation.')
+  const projectId = drawing.projectId ?? scope.projectId ?? null
+  const xpertId = drawing.assistantId ?? scope.assistantId ?? null
+  const catalog = projectId ? 'projects' : 'xperts'
+  const scopeId = projectId ?? xpertId
+  if (!scopeId) throw new BadRequestException('draw.io Artifact publishing requires a project or Xpert workspace scope.')
+  return { tenantId: drawing.tenantId ?? scope.tenantId, userId, catalog, scopeId, projectId: catalog === 'projects' ? scopeId : null, xpertId: catalog === 'xperts' ? scopeId : null, isolateByUser: catalog === 'xperts' ? false : null }
+}
+
+function portableArtifactReference(file: WorkspaceFile, scope: DrawioArtifactWorkspaceScope, originalName: string, rendered: { mimeType: string; size: number }): WorkspacePortableFileReference {
+  return { source: WORKSPACE_FILES_SOURCE, ...scope, filePath: file.filePath, workspacePath: file.workspacePath, originalName, name: file.name, mimeType: file.mimeType ?? rendered.mimeType, size: file.size ?? rendered.size }
+}
+
+function artifactRuntimeScope(drawing: DrawioDrawing, scope: DrawioScope) { return { tenantId: drawing.tenantId ?? scope.tenantId, organizationId: drawing.organizationId ?? scope.organizationId ?? null, userId: scope.userId ?? drawing.createdById ?? null, workspaceId: drawing.workspaceId ?? scope.workspaceId ?? null, projectId: drawing.projectId ?? scope.projectId ?? null, xpertId: drawing.assistantId ?? scope.assistantId ?? null } }
+function normalizeArtifactAccessMode(value: ArtifactAccessMode | null | undefined, label: string): ArtifactAccessMode { const normalized = value ?? 'public_link'; if (normalized === 'public_link' || normalized === 'organization_all' || normalized === 'workspace_all') return normalized; throw new BadRequestException(`Unsupported ${label} Artifact access mode: ${normalized}`) }
+function normalizeArtifactFileName(value: string | null | undefined) { const base = (normalizeOptional(value) ?? 'drawio-diagram').replace(/\.html?$/i, '').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-').replace(/\s+/g, ' ').trim().slice(0, 120) || 'drawio-diagram'; return `${base}.html` }
+function compactArtifactShare(drawingId: string, link: ArtifactLinkRecord, reused = false) { const publicUrl = link.publicUrl?.trim() || undefined; return { drawingId, artifactId: link.artifactId, artifactVersionId: link.version?.id ?? link.artifactVersionId, artifactLinkId: link.id, targetMode: link.versionMode, accessMode: link.accessMode, allowDownload: link.allowDownload, shareUrl: publicUrl, publicUrl, sharedAt: link.createdAt, status: link.status, reused } }
 
 function scopedCreate(scope: DrawioScope): ScopedEntity {
   return {

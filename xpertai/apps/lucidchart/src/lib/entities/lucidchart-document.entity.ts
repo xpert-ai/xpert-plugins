@@ -74,6 +74,15 @@ export class LucidchartDocument {
   @Column({ type: 'int', default: 0 })
   currentVersionNumber?: number
 
+  @Column({ type: 'jsonb', nullable: true })
+  standardImportDraft?: Record<string, unknown> | null
+
+  @Column({ type: 'int', default: 0 })
+  standardImportDraftRevision?: number
+
+  @Column({ type: 'int', default: -1 })
+  standardImportDraftFinalizedRevision?: number
+
   @Column({ type: 'varchar', nullable: true })
   lastEditedById?: string
 

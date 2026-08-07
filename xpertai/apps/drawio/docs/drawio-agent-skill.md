@@ -19,7 +19,8 @@ Use this skill when an Agent needs to create, update, or manage reviewable draw.
 
 ## XML Path
 
-- Save complete diagrams.net XML with `drawio_create_diagram` or `drawio_save_scene_version`.
+- Prefer `drawio_save_spec_version` for generated diagrams so the plugin builds complete XML server-side.
+- Save raw diagrams.net XML with `drawio_create_diagram` or `drawio_save_scene_version` only for small or user-supplied documents.
 - Prefer an `<mxfile>` wrapper with at least one `<diagram>` page.
 - Use stable labels and simple shape semantics so future edits remain understandable.
 - For small updates, call `drawio_get_diagram` first and then `drawio_patch_scene` with replacement XML or related metadata.

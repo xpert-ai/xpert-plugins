@@ -18,10 +18,12 @@ Use this skill when an Agent needs to create, update, or manage reviewable Lucid
 
 ## Standard Import Path
 
-- Create a document with `lucidchart_create_document` or save a version with `lucidchart_save_standard_import_version`.
-- Store serializable Standard Import `document.json` content in `standardImport`.
+- Create document metadata with `lucidchart_create_document`.
+- Build pages with `lucidchart_apply_diagram_stage`, using no more than 12 total element operations per call and carrying forward `draftRevision`.
+- Read bounded page slices with `lucidchart_get_diagram_page` before targeted updates.
+- Save a version only with `lucidchart_finalize_document` after every stage succeeds.
+- The service assembles official Standard Import `document.json`; the model never submits the complete nested document.
 - Prefer stable page ids, shape ids, readable labels, and simple lines.
-- Use `lucidchart_patch_standard_import` for small shallow updates after reading the current version.
 
 ## Mermaid Path
 

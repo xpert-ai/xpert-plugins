@@ -148,6 +148,8 @@ export class LucidchartViewProvider implements IXpertViewExtensionProvider {
           { key: 'refresh', label: text('Refresh', '刷新'), icon: 'ri-refresh-line', placement: 'toolbar', actionType: 'refresh' },
           { key: 'create_document', label: text('New Document', '新建文档'), icon: 'ri-add-line', placement: 'toolbar', actionType: 'invoke' },
           { key: 'save_standard_import_version', label: text('Save Standard Import', '保存 Standard Import'), icon: 'ri-save-line', placement: 'toolbar', actionType: 'invoke' },
+          { key: 'publish_artifact', label: text('Share Document', '分享文档'), icon: 'ri-share-line', placement: 'toolbar', actionType: 'invoke' },
+          { key: 'revoke_artifact_share', label: text('Revoke Share', '撤销分享'), icon: 'ri-link-unlink', actionType: 'invoke' },
           { key: 'update_document_metadata', label: text('Save Document Info', '保存文档信息'), icon: 'ri-file-edit-line', actionType: 'invoke' },
           { key: 'save_mermaid_draft', label: text('Save Mermaid Draft', '保存 Mermaid 草稿'), icon: 'ri-git-branch-line', actionType: 'invoke' },
           { key: 'register_external_document', label: text('Register Lucid Document', '登记 Lucid 文档'), icon: 'ri-link', actionType: 'invoke' },
@@ -338,6 +340,21 @@ export class LucidchartViewProvider implements IXpertViewExtensionProvider {
           ...success('Lucidchart version restored', 'Lucidchart 版本已恢复'),
           data: result
         }
+      }
+
+      if (actionKey === 'publish_artifact') {
+        const result = await this.service.publishArtifact(scope, {
+          documentId: requireDocumentId(request),
+          accessMode: getStringInput(request.input, 'accessMode') as 'public_link' | 'organization_all' | 'workspace_all' | undefined,
+          targetMode: getStringInput(request.input, 'targetMode') as 'version' | 'latest' | undefined,
+          userConfirmedPublicLink: request.input?.['userConfirmedPublicLink'] === true
+        })
+        return { ...success('Lucidchart share link is ready', 'Lucidchart 分享链接已生成'), data: result, refresh: false }
+      }
+
+      if (actionKey === 'revoke_artifact_share') {
+        const result = await this.service.revokeArtifactShare(scope, requireDocumentId(request))
+        return { ...success('Lucidchart share link was revoked', 'Lucidchart 分享链接已撤销'), data: result }
       }
 
       if (actionKey === 'archive_document') {
@@ -558,8 +575,8 @@ function buildAgentDrawPrompt(prompt: string, documentId?: string) {
 ${prompt}
 
 请优先判断路径：
-1. 能直接表达为 Lucid Standard Import document.json 时，调用 lucidchart_save_standard_import_version 或 lucidchart_create_document。
+1. 能直接表达为 Lucid Standard Import document.json 时，先调用 lucidchart_create_document 创建元数据，再用 lucidchart_apply_diagram_stage 分批写入；每批最多 12 个元素操作，全部完成后调用 lucidchart_finalize_document。
 2. 还需要推敲流程/结构时，先调用 lucidchart_save_mermaid_draft 保存 Mermaid 草稿。
 3. 如果用户已有真实 Lucid 文档 URL 或 Embed URL，调用 lucidchart_register_external_document 登记。
-更新已有文档前先调用 lucidchart_get_document。不要声称已创建真实 Lucid 文件，除非你登记了真实 Lucid 文档链接。`
+更新已有文档前先调用 lucidchart_get_document，并用 lucidchart_get_diagram_page 仅读取需要修改的页面片段。不要一次生成完整 Standard Import 工具参数。不要声称已创建真实 Lucid 文件，除非你登记了真实 Lucid 文档链接。`
 }

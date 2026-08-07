@@ -221,11 +221,13 @@ export class CanvasService {
     const snapshot = normalizeSnapshotInput(document.autosaveSnapshot ?? input.snapshot)
     const viewState = normalizeObject(input.viewState)
     const selectionSummary = normalizeObject(input.selectionSummary)
-    const imageFields = await this.uploadSnapshotImage(scope, document, input.snapshotImage, {
-      mode: 'current',
-      sourceType: 'workbench',
-      versionNumber: document.currentVersionNumber ?? 0
-    })
+    const imageFields = input.snapshotImage
+      ? await this.uploadSnapshotImage(scope, document, input.snapshotImage, {
+          mode: 'current',
+          sourceType: 'workbench',
+          versionNumber: document.currentVersionNumber ?? 0
+        })
+      : null
     const autosaveUpdatedAt = new Date()
     const savedDocument = await this.documentRepository.save({
       ...document,
@@ -328,6 +330,11 @@ export class CanvasService {
     if (input.baseRevision > state.sequenceNumber) {
       throw new ConflictException(
         `[CANVAS_REVISION_CONFLICT] baseRevision ${input.baseRevision} is newer than current revision ${state.sequenceNumber}. Read the Canvas summary again.`
+      )
+    }
+    if (input.workflow?.mode === 'replace_page' && input.baseRevision !== state.sequenceNumber) {
+      throw new ConflictException(
+        `[CANVAS_REVISION_CONFLICT] replace_page requires the latest Canvas revision. Expected ${state.sequenceNumber}, received ${input.baseRevision}. Read the Canvas summary again before replacing page content.`
       )
     }
 

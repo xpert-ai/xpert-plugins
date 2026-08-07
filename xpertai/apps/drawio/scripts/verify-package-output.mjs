@@ -20,6 +20,9 @@ const requiredFiles = new Set([
   'dist/lib/drawio.middleware.js',
   'dist/lib/drawio-view.provider.js',
   'dist/lib/remote-components/drawio-workbench/app.js',
+  'dist/lib/artifact-viewer/viewer-static.min.js',
+  'dist/lib/artifact-viewer/NOTICE.drawio-viewer.txt',
+  'dist/lib/artifact-viewer/stencils/aws4.xml',
   'dist/xpert-drawio-assistant.yaml',
   'skills/index/SKILL.md'
 ])

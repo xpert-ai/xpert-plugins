@@ -3,11 +3,31 @@ jest.mock('fractional-indexing', () => {
   return { generateKeyBetween: jest.fn(() => `a${sequence++}`) }
 })
 
-import { assertRequestedRecordsSurvivedNormalization } from './canvas-agent-records.js'
+import { assertRequestedRecordsSurvivedNormalization, collectCanvasAgentShapeInputs } from './canvas-agent-records.js'
 import { createCanvasAgentShapeRecords } from './canvas-agent-shapes.js'
 import type { CanvasRecord, CreateCanvasAgentShapeInput } from './types.js'
 
 describe('Canvas Agent simplified shape creation', () => {
+  it('keeps every explicit model field mapped to its intended tldraw shape type', () => {
+    const inputs = collectCanvasAgentShapeInputs({
+      documentId: 'document-1',
+      operationId: 'operation-1',
+      batchId: 'batch-1',
+      stageIndex: 1,
+      stageLabel: 'Create mixed shapes',
+      isFinalStage: true,
+      baseRevision: 0,
+      createTextShapes: [{ x: 10, y: 20, text: 'Title' }],
+      createGeoShapes: [{ x: 0, y: 0, width: 800, height: 450, fill: 'solid' }],
+      createNoteShapes: [{ x: 20, y: 80, text: 'Note' }],
+      createFrameShapes: [{ x: 0, y: 0, width: 800, height: 450, name: 'Board' }],
+      createArrowShapes: [{ start: { x: 100, y: 100 }, end: { x: 200, y: 100 } }],
+      changeSummary: 'Create mixed shapes'
+    })
+
+    expect(inputs.map((input) => input.type)).toEqual(['text', 'geo', 'note', 'frame', 'arrow'])
+  })
+
   it('generates a page, ids, indices, tldraw defaults, and richText', () => {
     const store: Record<string, CanvasRecord> = {}
     const inputs: CreateCanvasAgentShapeInput[] = [

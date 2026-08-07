@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-lucidchart",
-  "version": "0.5.0",
+  "version": "0.5.2",
   "description": "Lucidchart app plugin for agent-created Standard Import drafts, Lucid document references, reviewable versions, and a workbench.",
   "author": {
     "name": "XpertAI",
@@ -40,7 +40,7 @@
     "build:ui": "pnpm --filter @xpert-ai/plugin-shadcn-ui build",
     "build": "pnpm run build:ui && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
     "lint": "echo \"(todo) add lint\"",
-    "test": "pnpm run build:ui && node --loader ts-node/esm --test src/lib/lucidchart.templates.spec.ts && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
+    "test": "pnpm run build:ui && node --loader ts-node/esm --test src/lib/lucidchart.templates.spec.ts src/lib/lucidchart-artifact-viewer.spec.ts src/lib/lucidchart-standard-import.spec.ts src/lib/lucidchart-staged.service.spec.ts && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
     "typecheck": "pnpm run build:ui && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
     "prepack": "pnpm run build:ui && npm run build && node scripts/verify-package-output.mjs"
   },

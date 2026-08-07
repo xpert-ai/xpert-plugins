@@ -200,6 +200,69 @@ describe('DocxEditorService', () => {
     expect(savedVersion).not.toHaveProperty('docxBase64')
   })
 
+  it('imports a generated runtime DOCX as an official editor document and version', async () => {
+    const documentRepository = createRepository()
+    const versionRepository = createRepository()
+    const snapshotRepository = createRepository()
+    const operationRepository = createRepository()
+    const workspaceFiles = createWorkspaceFiles()
+    const docxBuffer = Buffer.from([0x50, 0x4b, 0x03, 0x04])
+    const runtimeWorkspaceFiles = {
+      readRuntimeBuffer: jest.fn(async () => ({
+        name: 'generated.docx',
+        filePath: 'sessions/conversation-1/generated.docx',
+        workspacePath: '/workspace/generated.docx',
+        catalog: 'xperts',
+        buffer: docxBuffer,
+        reference: {
+          source: 'platform.workspace.files',
+          filePath: 'sessions/conversation-1/generated.docx',
+          workspacePath: '/workspace/generated.docx',
+          originalName: 'generated.docx',
+          catalog: 'xperts',
+          xpertId: 'xpert-1'
+        }
+      }))
+    }
+    documentRepository.save.mockImplementation(async (value) => ({ ...value, id: 'document-created' }))
+    documentRepository.findOne.mockResolvedValue({
+      id: 'document-created',
+      title: 'Generated report',
+      assistantId: 'xpert-1',
+      currentVersionNumber: 0
+    })
+    versionRepository.save.mockImplementation(async (value) => ({ ...value, id: 'version-created' }))
+    const service = new DocxEditorService(
+      documentRepository as never,
+      versionRepository as never,
+      snapshotRepository as never,
+      operationRepository as never,
+      {
+        get: jest.fn((key) => (key === DOCX_WORKSPACE_FILES_RUNTIME_CAPABILITY ? workspaceFiles : undefined))
+      } as never
+    )
+
+    const result = await service.importRuntimeFile(
+      scope,
+      { file: '/workspace/generated.docx', title: 'Generated report' },
+      runtimeWorkspaceFiles as never
+    )
+
+    expect(runtimeWorkspaceFiles.readRuntimeBuffer).toHaveBeenCalledWith('/workspace/generated.docx')
+    expect(workspaceFiles.uploadBuffer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        buffer: docxBuffer,
+        originalName: 'generated.docx',
+        metadata: expect.objectContaining({ source: 'agent' })
+      })
+    )
+    expect(result).toEqual(expect.objectContaining({
+      documentId: 'document-created',
+      versionId: 'version-created',
+      versionNumber: 1
+    }))
+  })
+
   it('loads current version bytes from workspace files for the Workbench', async () => {
     const documentRepository = createRepository()
     const versionRepository = createRepository()

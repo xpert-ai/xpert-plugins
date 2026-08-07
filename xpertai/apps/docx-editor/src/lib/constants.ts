@@ -4,6 +4,7 @@ export const DOCX_EDITOR_FEATURE = 'docx-editor'
 export const DOCX_EDITOR_WORKBENCH_CAPABILITY = 'docx-editor-workbench'
 export const DOCX_EDITOR_AGENT_REVIEW_CAPABILITY = 'docx-editor-agent-review'
 export const DOCX_EDITOR_TEMPLATE_CAPABILITY = 'docx-editor-assistant-template'
+export const DOCX_EDITOR_ARTIFACT_SHARING_CAPABILITY = 'docx-editor-artifact-sharing'
 export const DOCX_EDITOR_MIDDLEWARE_NAME = 'DocxEditorMiddleware'
 export const DOCX_EDITOR_PROVIDER_KEY = 'docx-editor-view-provider'
 export const DOCX_EDITOR_TEMPLATE_PROVIDER_KEY = 'docx-editor-template-provider'
@@ -12,6 +13,9 @@ export const DOCX_EDITOR_REMOTE_ENTRY_KEY = 'docx-editor-workbench'
 export const DOCX_EDITOR_ASSISTANT_TEMPLATE_KEY = 'docx-editor-assistant'
 export const DOCX_EDITOR_AGENT_KEY = 'Agent_DocxEditor'
 export const DOCX_EDITOR_MAX_INLINE_DOCX_BYTES = 10 * 1024 * 1024
+export const DOCX_EDITOR_IMPORT_WORKSPACE_FILE_TOOL_NAME = 'docx_import_workspace_file'
+export const DOCX_EDITOR_PUBLISH_ARTIFACT_LINK_TOOL_NAME = 'docx_publish_artifact_link'
+export const DOCX_EDITOR_REVOKE_ARTIFACT_LINK_TOOL_NAME = 'docx_revoke_artifact_link'
 
 export const AGENT_WORKBENCH_FIXED_SLOT = 'agent.workbench.fixed'
 export const AGENT_WORKBENCH_MAIN_SLOT = 'agent.workbench.main'
@@ -77,7 +81,11 @@ export const DOCX_EDITOR_READ_ONLY_TOOL_NAMES = [
   'docx_read_changes'
 ] as const
 
-export const DOCX_EDITOR_HOST_EVENT_TOOL_NAMES = [...DOCX_EDITOR_MUTATION_TOOL_NAMES, 'docx_scroll'] as const
+export const DOCX_EDITOR_HOST_EVENT_TOOL_NAMES = [
+  DOCX_EDITOR_IMPORT_WORKSPACE_FILE_TOOL_NAME,
+  ...DOCX_EDITOR_MUTATION_TOOL_NAMES,
+  'docx_scroll'
+] as const
 
 export const DOCX_EDITOR_LIVE_ONLY_TOOL_NAMES = [
   'docx_read_selection',

@@ -527,23 +527,23 @@ export function injectStyles() {
     }
 
     .docx-editor-frame .ep-root {
-      --doc-bg: var(--background);
-      --doc-primary: var(--primary);
-      --doc-primary-hover: color-mix(in srgb, var(--primary) 86%, #000000 14%);
-      --doc-primary-light: color-mix(in srgb, var(--primary) 12%, transparent);
-      --doc-text: var(--foreground);
-      --doc-text-muted: var(--muted-foreground);
-      --doc-text-subtle: color-mix(in srgb, var(--muted-foreground) 72%, transparent);
-      --doc-border: var(--border);
-      --doc-border-light: var(--border);
-      --doc-border-dark: color-mix(in srgb, var(--border) 84%, var(--foreground) 16%);
-      --doc-border-input: var(--input);
-      --doc-bg-subtle: var(--muted);
-      --doc-bg-hover: color-mix(in srgb, var(--muted) 78%, var(--foreground) 6%);
-      --doc-bg-input: var(--card);
+      --doc-bg: hsl(var(--background));
+      --doc-primary: hsl(var(--primary));
+      --doc-primary-hover: color-mix(in srgb, hsl(var(--primary)) 86%, #000000 14%);
+      --doc-primary-light: color-mix(in srgb, hsl(var(--primary)) 12%, transparent);
+      --doc-text: hsl(var(--foreground));
+      --doc-text-muted: hsl(var(--muted-foreground));
+      --doc-text-subtle: color-mix(in srgb, hsl(var(--muted-foreground)) 72%, transparent);
+      --doc-border: hsl(var(--border));
+      --doc-border-light: hsl(var(--border));
+      --doc-border-dark: color-mix(in srgb, hsl(var(--border)) 84%, hsl(var(--foreground)) 16%);
+      --doc-border-input: hsl(var(--input));
+      --doc-bg-subtle: hsl(var(--muted));
+      --doc-bg-hover: color-mix(in srgb, hsl(var(--muted)) 78%, hsl(var(--foreground)) 6%);
+      --doc-bg-input: hsl(var(--card));
       --radius: var(--radius);
-      background: var(--background);
-      color: var(--foreground);
+      background: hsl(var(--background));
+      color: hsl(var(--foreground));
       font-family: var(--font-sans);
     }
     .docx-editor-frame .ep-root *,
@@ -571,7 +571,7 @@ export function injectStyles() {
     }
     .docx-editor-frame .ep-root [data-testid="title-bar"] {
       position: relative;
-      z-index: 80;
+      z-index: 120;
       min-height: 28px;
       align-items: center;
       background: var(--card) !important;
@@ -624,7 +624,7 @@ export function injectStyles() {
     }
     .docx-editor-frame .ep-root [role="menubar"] {
       position: relative;
-      z-index: 90;
+      z-index: 130;
       min-height: 22px;
       gap: 2px;
       background: var(--card);
@@ -644,6 +644,15 @@ export function injectStyles() {
       background: var(--muted) !important;
       color: var(--foreground) !important;
     }
+    .docx-editor-frame .ep-root [role="menubar"] > div > div[style*="position: fixed"] {
+      z-index: 140 !important;
+      border-color: var(--doc-border, #e5e7eb) !important;
+      background: var(--doc-surface, #fff) !important;
+      color: var(--doc-text, #111827) !important;
+      box-shadow:
+        0 12px 32px var(--doc-shadow, rgb(0 0 0 / 16%)),
+        0 2px 8px var(--doc-shadow, rgb(0 0 0 / 9%)) !important;
+    }
     .docx-editor-frame .ep-root [data-radix-popper-content-wrapper],
     .docx-editor-frame .ep-root [role="menu"],
     .docx-editor-frame .ep-root [role="listbox"] {
@@ -658,28 +667,67 @@ export function injectStyles() {
       z-index: 90;
       min-height: 34px !important;
       margin: 0 !important;
-      padding: 3px 6px !important;
+      padding: 3px 42px 3px 6px !important;
       border: 0 !important;
       border-radius: 0 !important;
       background: color-mix(in srgb, var(--card) 88%, var(--muted) 12%) !important;
       box-shadow: none !important;
-      scrollbar-width: thin;
-      scrollbar-color: color-mix(in srgb, var(--muted-foreground) 34%, transparent) transparent;
+      overflow-x: hidden !important;
+      scrollbar-width: none;
     }
     .docx-editor-frame .ep-root [data-testid="formatting-bar"]::-webkit-scrollbar {
-      height: 6px;
+      display: none;
     }
-    .docx-editor-frame .ep-root [data-testid="formatting-bar"]::-webkit-scrollbar-track {
-      background: transparent;
+    .docx-editor-frame .ep-root [data-testid="formatting-bar"] > * {
+      display: none !important;
+      flex: 0 0 auto;
     }
-    .docx-editor-frame .ep-root [data-testid="formatting-bar"]::-webkit-scrollbar-thumb {
-      border-radius: 999px;
-      background: color-mix(in srgb, var(--muted-foreground) 28%, transparent);
+    .docx-editor-frame[data-toolbar-page="1"] .ep-root [data-testid="formatting-bar"] > :nth-child(1),
+    .docx-editor-frame[data-toolbar-page="1"] .ep-root [data-testid="formatting-bar"] > :nth-child(3),
+    .docx-editor-frame[data-toolbar-page="1"] .ep-root [data-testid="formatting-bar"] > :nth-child(4),
+    .docx-editor-frame[data-toolbar-page="1"] .ep-root [data-testid="formatting-bar"] > :nth-child(5),
+    .docx-editor-frame[data-toolbar-page="1"] .ep-root [data-testid="formatting-bar"] > .docx-toolbar-font-size,
+    .docx-editor-frame[data-toolbar-page="2"] .ep-root [data-testid="formatting-bar"] > :nth-child(2),
+    .docx-editor-frame[data-toolbar-page="2"] .ep-root [data-testid="formatting-bar"] > :nth-child(6),
+    .docx-editor-frame[data-toolbar-page="2"] .ep-root [data-testid="formatting-bar"] > :nth-child(7),
+    .docx-editor-frame[data-toolbar-page="2"] .ep-root [data-testid="formatting-bar"] > :nth-child(8),
+    .docx-editor-frame[data-toolbar-page="2"] .ep-root [data-testid="formatting-bar"] > [role="group"]:nth-child(n + 9):not(.docx-toolbar-font-size),
+    .docx-editor-frame[data-toolbar-page="2"] .ep-root [data-testid="formatting-bar"] > button:nth-child(n + 9),
+    .docx-editor-frame[data-toolbar-page="2"] .ep-root [data-testid="formatting-bar"] > [role="separator"]:has(+ button),
+    .docx-editor-frame .ep-root [data-testid="formatting-bar"] > .docx-toolbar-page-toggle {
+      display: flex !important;
+    }
+    .docx-editor-frame[data-toolbar-page="1"] .ep-root [data-testid="formatting-bar"] > :nth-child(1) { order: 1; }
+    .docx-editor-frame[data-toolbar-page="1"] .ep-root [data-testid="formatting-bar"] > :nth-child(3) { order: 2; }
+    .docx-editor-frame[data-toolbar-page="1"] .ep-root [data-testid="formatting-bar"] > :nth-child(4) { order: 3; }
+    .docx-editor-frame[data-toolbar-page="1"] .ep-root [data-testid="formatting-bar"] > .docx-toolbar-font-size { order: 4; }
+    .docx-editor-frame[data-toolbar-page="1"] .ep-root [data-testid="formatting-bar"] > :nth-child(5) { order: 5; }
+    .docx-editor-frame .ep-root [data-testid="formatting-bar"] > [role="group"]:not(.docx-toolbar-font-size) > div:has(> [data-testid="font-size-decrease"]) {
+      display: none !important;
+    }
+    .docx-toolbar-font-size {
+      min-width: 0;
+      align-items: center;
+      padding: 0 6px;
+      border-right: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
+    }
+    .docx-editor-frame .ep-root [data-testid="formatting-bar"] > .docx-toolbar-page-toggle {
+      position: absolute;
+      z-index: 4;
+      top: 3px;
+      right: 6px;
+      width: 28px;
+      height: 28px;
+      min-height: 28px;
+      padding: 0;
+      border: 1px solid var(--border) !important;
+      background: var(--card) !important;
+      color: var(--foreground) !important;
     }
     .docx-editor-frame .ep-root [data-testid="formatting-bar"] [role="group"] {
       border-color: color-mix(in srgb, var(--border) 58%, transparent) !important;
     }
-    .docx-editor-frame .ep-root [data-testid="formatting-bar"] button {
+    .docx-editor-frame .ep-root [data-testid="formatting-bar"] button:not([style*="background-color"]) {
       min-height: 26px;
       border-color: transparent !important;
       border-radius: 6px !important;
@@ -687,8 +735,8 @@ export function injectStyles() {
       color: var(--muted-foreground) !important;
       box-shadow: none !important;
     }
-    .docx-editor-frame .ep-root [data-testid="formatting-bar"] button:hover:not(:disabled),
-    .docx-editor-frame .ep-root [data-testid="formatting-bar"] button:focus-visible:not(:disabled) {
+    .docx-editor-frame .ep-root [data-testid="formatting-bar"] button:not([style*="background-color"]):hover:not(:disabled),
+    .docx-editor-frame .ep-root [data-testid="formatting-bar"] button:not([style*="background-color"]):focus-visible:not(:disabled) {
       background: var(--muted) !important;
       color: var(--foreground) !important;
       box-shadow: 0 0 0 2px color-mix(in srgb, var(--ring) 12%, transparent) !important;

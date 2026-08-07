@@ -145,7 +145,11 @@ nodes:
         6. Use pencil_export_file for .fig, png, jpg, webp, svg, pdf, or jsx
            exports. Return the workspace reference, path, mime type, size, and
            sha256 to the user.
-        7. If a graph edit, import, or export cannot be completed, call
+        7. When the user explicitly asks to share a synchronized design, call
+           pencil_publish_artifact_link for the current or requested document.
+           Return the shareUrl to the user exactly as produced by the tool.
+           Never invent or modify the URL.
+        8. If a graph edit, import, export, or share cannot be completed, call
            pencil_report_failure with the operation, errorMessage,
            recoverable flag, and compact evidence.
 
@@ -157,4 +161,84 @@ nodes:
         - Use web_search/web_fetch when the user asks for current external facts
           or external design references.
       toolsetIds: []
-connections: []
+  - type: workflow
+    key: Middleware_Pencil
+    position:
+      x: 1160
+      y: 332
+    entity:
+      type: middleware
+      key: Middleware_Pencil
+      title: Pencil Agent Tools
+      provider: PencilMiddleware
+      required: true
+    hash: pencil-middleware-v1
+  - type: workflow
+    key: Middleware_ViewImage
+    position:
+      x: 1160
+      y: 480
+    entity:
+      type: middleware
+      key: Middleware_ViewImage
+      title: View Pencil Snapshot Images
+      provider: ViewImageMiddleware
+      required: true
+    hash: pencil-view-image-middleware-v1
+  - type: workflow
+    key: Middleware_Skills
+    position:
+      x: 500
+      y: 332
+    entity:
+      type: middleware
+      key: Middleware_Skills
+      title: Skills Middleware
+      provider: skillsMiddleware
+      required: true
+    hash: pencil-skills-middleware-v1
+  - type: workflow
+    key: Middleware_WebTools
+    position:
+      x: 500
+      y: 480
+    entity:
+      type: middleware
+      key: Middleware_WebTools
+      title: Web Tools
+      provider: WebTools
+      required: true
+    hash: pencil-web-tools-middleware-v1
+  - type: workflow
+    key: Middleware_SandboxShell
+    position:
+      x: 1460
+      y: 332
+    entity:
+      type: middleware
+      key: Middleware_SandboxShell
+      title: Sandbox Shell
+      provider: SandboxShell
+      required: true
+    hash: pencil-sandbox-shell-middleware-v1
+connections:
+  - type: workflow
+    key: Agent_Pencil/Middleware_Pencil
+    from: Agent_Pencil
+    to: Middleware_Pencil
+  - type: workflow
+    key: Agent_Pencil/Middleware_ViewImage
+    from: Agent_Pencil
+    to: Middleware_ViewImage
+  - type: workflow
+    key: Agent_Pencil/Middleware_Skills
+    from: Agent_Pencil
+    to: Middleware_Skills
+  - type: workflow
+    key: Agent_Pencil/Middleware_WebTools
+    from: Agent_Pencil
+    to: Middleware_WebTools
+  - type: workflow
+    key: Agent_Pencil/Middleware_SandboxShell
+    from: Agent_Pencil
+    to: Middleware_SandboxShell

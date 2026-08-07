@@ -22,6 +22,8 @@ export type LucidchartActorType = 'agent' | 'user' | 'system'
 export type LucidchartActionType =
   | 'document_created'
   | 'version_saved'
+  | 'standard_import_stage_applied'
+  | 'standard_import_finalized'
   | 'standard_import_patched'
   | 'mermaid_draft_saved'
   | 'external_document_registered'
@@ -30,6 +32,8 @@ export type LucidchartActionType =
   | 'document_archived'
   | 'metadata_updated'
   | 'failure_reported'
+  | 'artifact_published'
+  | 'artifact_share_revoked'
 
 export interface LucidchartScope {
   tenantId: string
@@ -66,6 +70,88 @@ export interface SaveLucidchartStandardImportVersionInput extends LucidchartDocu
   documentId: string
   sourceType?: LucidchartVersionSource
   changeSummary?: string
+}
+
+export type LucidchartAgentShapeType =
+  | 'rectangle'
+  | 'text'
+  | 'stickyNote'
+  | 'decision'
+  | 'database'
+  | 'data'
+  | 'document'
+  | 'process'
+  | 'terminator'
+  | 'note'
+
+export type LucidchartStrokeStyle = 'solid' | 'dashed' | 'dotted'
+export type LucidchartLineType = 'straight' | 'elbow' | 'curved'
+export type LucidchartEndpointStyle = 'none' | 'arrow' | 'openArrow' | 'hollowArrow'
+
+export interface LucidchartAgentShapeInput {
+  id: string
+  type: LucidchartAgentShapeType
+  x: number
+  y: number
+  width: number
+  height: number
+  text?: string
+  fillColor?: string
+  strokeColor?: string
+  strokeWidth?: number
+  strokeStyle?: LucidchartStrokeStyle
+  textColor?: string
+  rounding?: number
+  rotation?: number
+  opacity?: number
+  zIndex?: number
+}
+
+export interface LucidchartAgentLineInput {
+  id: string
+  fromShapeId: string
+  toShapeId: string
+  lineType?: LucidchartLineType
+  startStyle?: LucidchartEndpointStyle
+  endStyle?: LucidchartEndpointStyle
+  label?: string
+  strokeColor?: string
+  strokeWidth?: number
+  strokeStyle?: LucidchartStrokeStyle
+  zIndex?: number
+}
+
+export interface LucidchartAgentPageSettingsInput {
+  fillColor?: string
+  infiniteCanvas?: boolean
+  width?: number
+  height?: number
+}
+
+export interface ApplyLucidchartDiagramStageInput {
+  documentId: string
+  expectedRevision: number
+  pageId: string
+  pageTitle?: string
+  pageSettings?: LucidchartAgentPageSettingsInput
+  shapes?: LucidchartAgentShapeInput[]
+  lines?: LucidchartAgentLineInput[]
+  removeShapeIds?: string[]
+  removeLineIds?: string[]
+  stageName: string
+}
+
+export interface FinalizeLucidchartDiagramInput {
+  documentId: string
+  expectedRevision: number
+  changeSummary?: string
+}
+
+export interface GetLucidchartDiagramPageInput {
+  documentId: string
+  pageId: string
+  offset?: number
+  limit?: number
 }
 
 export interface PatchLucidchartStandardImportInput extends LucidchartDocumentContentInput {
