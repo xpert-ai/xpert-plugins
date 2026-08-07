@@ -1,7 +1,11 @@
 import {
   attachGeneratedAssetImageSchema,
   attachGeneratedVideoSchema,
-  saveStoryProductionSchema
+  attachShotReferenceImageSchema,
+  saveStoryProductionSchema,
+  startStoryProductionSchema,
+  upsertStoryProductionSceneSchema,
+  upsertStoryProductionShotSchema
 } from './story-production.schemas.js'
 
 const production = {
@@ -70,6 +74,36 @@ describe('Story production schemas', () => {
     )
   })
 
+  it('accepts complete per-shot video settings', () => {
+    const configured = structuredClone(production) as typeof production & {
+      scenes: Array<typeof production.scenes[number] & {
+        shots: Array<typeof production.scenes[number]['shots'][number] & {
+          videoSettings?: Record<string, unknown>
+        }>
+      }>
+    }
+    configured.scenes[0].shots[0].videoSettings = {
+      generatorId: 'workspace-generator',
+      model: 'seedance-2.0',
+      resolution: '1080p',
+      aspectRatio: '16:9',
+      fps: 30,
+      takeCount: 2,
+      referenceAssetIds: ['asset-lin', 'asset-alley']
+    }
+    const parsed = saveStoryProductionSchema.parse({
+      projectId: '00000000-0000-4000-8000-000000000001',
+      operationId: 'production:story:settings',
+      baseRevision: 2,
+      production: configured,
+      changeSummary: 'Saved shot generation settings'
+    })
+
+    expect(parsed.production.scenes[0].shots[0].videoSettings).toEqual(
+      configured.scenes[0].shots[0].videoSettings
+    )
+  })
+
   it('rejects dialogue speakers that are not declared characters', () => {
     const invalid = structuredClone(production)
     invalid.scenes[0].shots[0].dialogueSpeakerId = 'char-missing'
@@ -108,6 +142,91 @@ describe('Story production schemas', () => {
     ).toThrow('Shot ids must be unique')
   })
 
+  it('accepts a scene upsert with nested dialogue fields', () => {
+    const parsed = upsertStoryProductionSceneSchema.parse({
+      projectId: '00000000-0000-4000-8000-000000000001',
+      operationId: 'production:scene:0001',
+      baseRevision: 3,
+      scene: {
+        id: 'scene-river',
+        order: 2,
+        title: 'The river crossing',
+        summary: 'The foal tests the river carefully.',
+        shots: [
+          {
+            id: 'shot-ask-ox',
+            title: 'The ox answers',
+            composition: 'Medium shot of the ox beside the water.',
+            action: 'The ox lowers his head calmly.',
+            camera: 'Locked medium shot',
+            dialogue: {
+              text: 'The river is shallow enough.',
+              speakerId: 'char-lin',
+              type: 'dialogue'
+            },
+            durationSeconds: 5
+          }
+        ]
+      },
+      changeSummary: 'Added the river crossing scene'
+    })
+
+    expect(parsed.scene.shots[0].dialogue?.speakerId).toBe('char-lin')
+  })
+
+  it('accepts a start-production payload with one first scene', () => {
+    const parsed = startStoryProductionSchema.parse({
+      projectId: '00000000-0000-4000-8000-000000000001',
+      operationId: 'production:start:0001',
+      baseRevision: 2,
+      sourceSynopsis: 'A foal reaches a river.',
+      adaptationGoal: 'Create the first fable scene.',
+      visualStyle: 'Warm ink-wash animation.',
+      characters: [{ id: 'foal', name: 'Foal' }],
+      firstScene: {
+        id: 'scene-river',
+        order: 1,
+        title: 'The river',
+        summary: 'The foal asks whether it can cross.',
+        shots: [
+          {
+            id: 'shot-question',
+            title: 'Foal asks',
+            composition: 'Medium shot at the riverbank.',
+            action: 'The foal leans toward the water.',
+            camera: 'Static medium shot',
+            dialogue: {
+              text: 'Can I cross?',
+              speakerId: 'foal',
+              type: 'dialogue'
+            },
+            durationSeconds: 5
+          }
+        ]
+      },
+      changeSummary: 'Started the fable production'
+    })
+
+    expect(parsed.firstScene.shots[0].dialogue?.text).toBe('Can I cross?')
+  })
+
+  it('rejects shot upserts that use raw dialogueSpeakerId', () => {
+    expect(() =>
+      upsertStoryProductionShotSchema.parse({
+        projectId: '00000000-0000-4000-8000-000000000001',
+        operationId: 'production:shot:0001',
+        baseRevision: 3,
+        sceneId: 'scene-river',
+        shot: {
+          id: 'shot-silent-crossing',
+          action: 'The foal steps into the water.',
+          dialogueSpeakerId: 'char-lin'
+        },
+        changeSummary: 'Patched the silent crossing shot'
+      })
+    ).toThrow('Unrecognized key')
+  })
+
   it('accepts a bounded Seedance Workspace attachment receipt', () => {
     const parsed = attachGeneratedVideoSchema.parse({
       projectId: '00000000-0000-4000-8000-000000000001',
@@ -142,6 +261,10 @@ describe('Story production schemas', () => {
       assetId: 'asset-lin',
       candidateId: 'seedream-image-task-1',
       label: 'Lin continuity reference',
+      assetReference: {
+        type: 'continuity_view',
+        key: 'three_quarter'
+      },
       file: {
         workspacePath:
           '/workspace/files/seedream-aigc/images/task-1.png'
@@ -156,5 +279,30 @@ describe('Story production schemas', () => {
       changeSummary: 'Attached Lin asset reference'
     })
     expect(parsed.assetId).toBe('asset-lin')
+    expect(parsed.assetReference).toEqual({
+      type: 'continuity_view',
+      key: 'three_quarter'
+    })
+  })
+
+  it('accepts a temporary shot reference upload', () => {
+    const parsed = attachShotReferenceImageSchema.parse({
+      projectId: '00000000-0000-4000-8000-000000000001',
+      operationId: 'shot-reference:upload:0001',
+      baseRevision: 4,
+      sceneId: 'scene-alley',
+      shotId: 'shot-camera',
+      candidateId: 'shot-reference-1',
+      label: 'Camera composition reference',
+      prompt: 'Keep this composition and character placement.',
+      providerReceipt: {
+        provider: 'manual_upload',
+        taskId: 'shot-reference:upload:0001',
+        status: 'completed'
+      },
+      changeSummary: 'Uploaded a temporary shot reference'
+    })
+
+    expect(parsed.shotId).toBe('shot-camera')
   })
 })

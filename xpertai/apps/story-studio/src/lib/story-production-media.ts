@@ -7,11 +7,7 @@ import type {
 
 export function sanitizeAssets(assets: StoryAsset[]): StoryAsset[] {
   return assets.map((asset) => ({
-    id: asset.id,
-    kind: asset.kind,
-    name: asset.name,
-    description: asset.description,
-    prompt: asset.prompt,
+    ...asset,
     ...(asset.candidates
       ? { candidates: asset.candidates.map(sanitizeCandidate) }
       : {})
@@ -20,25 +16,9 @@ export function sanitizeAssets(assets: StoryAsset[]): StoryAsset[] {
 
 export function sanitizeScenes(scenes: StoryScene[]): StoryScene[] {
   return scenes.map((scene) => ({
-    id: scene.id,
-    order: scene.order,
-    title: scene.title,
-    summary: scene.summary,
-    ...(scene.location ? { location: scene.location } : {}),
-    ...(scene.timeOfDay ? { timeOfDay: scene.timeOfDay } : {}),
+    ...scene,
     shots: scene.shots.map((shot) => ({
-      id: shot.id,
-      title: shot.title,
-      composition: shot.composition,
-      action: shot.action,
-      camera: shot.camera,
-      ...(shot.dialogue ? { dialogue: shot.dialogue } : {}),
-      ...(shot.dialogueSpeakerId
-        ? { dialogueSpeakerId: shot.dialogueSpeakerId }
-        : {}),
-      ...(shot.dialogueType ? { dialogueType: shot.dialogueType } : {}),
-      ...(shot.soundEffects ? { soundEffects: shot.soundEffects } : {}),
-      durationSeconds: shot.durationSeconds,
+      ...shot,
       ...(shot.candidates
         ? { candidates: shot.candidates.map(sanitizeCandidate) }
         : {})
@@ -107,7 +87,10 @@ function sanitizeCandidate(candidate: StoryMediaCandidate): StoryMediaCandidate 
     ...(candidate.originalName ? { originalName: candidate.originalName } : {}),
     ...(candidate.mimeType ? { mimeType: candidate.mimeType } : {}),
     ...(candidate.size ? { size: candidate.size } : {}),
-    ...(candidate.sha256 ? { sha256: candidate.sha256 } : {})
+    ...(candidate.sha256 ? { sha256: candidate.sha256 } : {}),
+    ...(candidate.assetReference
+      ? { assetReference: candidate.assetReference }
+      : {})
   }
 }
 
@@ -138,7 +121,10 @@ function editableCandidate(candidate: StoryMediaCandidate) {
     ...(candidate.selected === undefined
       ? {}
       : { selected: candidate.selected }),
-    ...(candidate.prompt ? { prompt: candidate.prompt } : {})
+    ...(candidate.prompt ? { prompt: candidate.prompt } : {}),
+    ...(candidate.assetReference
+      ? { assetReference: candidate.assetReference }
+      : {})
   }
 }
 
@@ -159,6 +145,9 @@ function copyDefinedMediaFields(candidate: StoryMediaCandidate) {
     ...(candidate.sha256 ? { sha256: candidate.sha256 } : {}),
     ...(candidate.fileReference
       ? { fileReference: candidate.fileReference }
+      : {}),
+    ...(candidate.assetReference
+      ? { assetReference: candidate.assetReference }
       : {})
   }
 }

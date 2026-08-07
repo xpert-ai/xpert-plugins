@@ -251,6 +251,15 @@ export function requireSuccessfulAction(
   )
 }
 
+export function requireSuccessfulActionData(
+  response: RemoteResponse | RemoteValue | null
+) {
+  const result = requireSuccessfulAction(response)
+  return isRemoteObject(result) && result.data !== undefined
+    ? result.data
+    : result
+}
+
 export function getErrorMessage(error: Error | string | null) {
   return error instanceof Error
     ? error.message

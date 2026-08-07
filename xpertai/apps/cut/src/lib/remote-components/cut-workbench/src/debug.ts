@@ -3,7 +3,6 @@ type DebugSettings = { enabled: boolean; production: boolean }
 type DebugData = Record<string, string | number | boolean | null | undefined>
 
 let hostSettings: DebugSettings = { enabled: false, production: true }
-const DEBUG_STORAGE_KEY = 'xpert.debug.cut-workbench'
 
 export function configureCutDebug(value: object | null | undefined) {
   const enabled = value && 'enabled' in value && typeof value.enabled === 'boolean' ? value.enabled : false
@@ -12,20 +11,10 @@ export function configureCutDebug(value: object | null | undefined) {
 }
 
 function enabled() {
-  const override = readDebugOverride()
-  if (override === '0') return false
-  if (override === '1') return true
-  if (new URLSearchParams(globalThis.location?.search ?? '').get('xpertDebug') === 'cut-workbench') return true
+  const override = new URLSearchParams(globalThis.location?.search ?? '').get('xpertDebug')
+  if (override === '0' || override === 'false') return false
+  if (override === 'cut-workbench' || override === '1' || override === 'true') return true
   return hostSettings.enabled && !hostSettings.production
-}
-
-function readDebugOverride() {
-  try {
-    return globalThis.localStorage?.getItem(DEBUG_STORAGE_KEY) ?? null
-  } catch {
-    // Remote views run in an opaque-origin iframe where storage access is denied.
-    return null
-  }
 }
 
 function write(level: DebugLevel, event: string, data?: DebugData) {

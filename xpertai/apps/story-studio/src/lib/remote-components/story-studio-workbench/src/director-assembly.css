@@ -1,0 +1,325 @@
+.director-assembly-page {
+  grid-template-columns: minmax(0, 1fr) 338px;
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.director-assembly-main {
+  background: white;
+  min-height: 0;
+  overflow: auto;
+  padding: 38px 42px 60px;
+}
+
+.director-assembly-heading > span {
+  color: var(--director-blue);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.director-assembly-heading h2 {
+  font-size: 26px;
+  margin: 10px 0 8px;
+}
+
+.director-assembly-heading p {
+  color: var(--director-muted);
+  font-size: 13px;
+  margin: 0;
+}
+
+.director-handoff-flow {
+  align-items: center;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr 24px 1fr 24px 1fr;
+  margin-top: 34px;
+}
+
+.director-handoff-flow > svg {
+  color: #9da3ad;
+  height: 22px;
+  width: 22px;
+}
+
+.director-handoff-flow article {
+  border: 1px solid var(--director-line);
+  border-radius: 8px;
+  min-height: 168px;
+  padding: 20px;
+}
+
+.director-handoff-flow article > span {
+  align-items: center;
+  background: #edf2ff;
+  border-radius: 7px;
+  color: var(--director-blue);
+  display: flex;
+  font-weight: 700;
+  height: 36px;
+  justify-content: center;
+  width: 36px;
+}
+
+.director-handoff-flow h3 {
+  font-size: 15px;
+  margin: 14px 0 7px;
+}
+
+.director-handoff-flow p {
+  color: var(--director-muted);
+  font-size: 11px;
+  line-height: 1.5;
+  margin: 0 0 12px;
+}
+
+.director-handoff-flow small {
+  color: var(--director-blue);
+  font-size: 10px;
+}
+
+.director-assembly-sequence {
+  border-top: 1px solid var(--director-line);
+  margin-top: 34px;
+  padding-top: 24px;
+}
+
+.director-assembly-sequence > header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.director-assembly-sequence h3 {
+  font-size: 15px;
+  margin: 0 0 5px;
+}
+
+.director-assembly-sequence header p {
+  color: var(--director-muted);
+  font-size: 11px;
+  margin: 0;
+}
+
+.director-clip-row {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, 1fr);
+  margin-top: 16px;
+}
+
+.director-clip-row article {
+  border: 1px solid var(--director-line);
+  border-radius: 7px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  position: relative;
+}
+
+.director-clip-row article.is-ready {
+  border-color: #8db0ff;
+}
+
+.director-clip-row figure {
+  grid-column: 1 / -1;
+  height: 118px;
+  margin: 0;
+  position: relative;
+}
+
+.director-clip-row img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.director-clip-row figure button {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.88);
+  border: 0;
+  border-radius: 50%;
+  display: flex;
+  height: 30px;
+  justify-content: center;
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 30px;
+}
+
+.director-clip-row figure svg {
+  height: 14px;
+  width: 14px;
+}
+
+.director-clip-row article > span,
+.director-clip-row article > strong,
+.director-clip-row article > small {
+  font-size: 10px;
+  padding: 8px 4px 8px 8px;
+}
+
+.director-clip-row article > strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.director-clip-row article > small {
+  color: var(--director-muted);
+  padding-right: 8px;
+}
+
+.director-clip-row article > i {
+  align-items: center;
+  background: var(--director-green);
+  border-radius: 50%;
+  color: white;
+  display: flex;
+  height: 18px;
+  justify-content: center;
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  width: 18px;
+}
+
+.director-clip-row article > i svg {
+  height: 12px;
+  width: 12px;
+}
+
+.director-contract-detail {
+  align-items: center;
+  border: 1px solid var(--director-line);
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 22px;
+  padding: 16px 18px;
+}
+
+.director-contract-detail > div {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+.director-contract-detail > div > svg {
+  color: var(--director-blue);
+  height: 28px;
+  width: 28px;
+}
+
+.director-contract-detail > div span {
+  display: grid;
+  gap: 5px;
+}
+
+.director-contract-detail strong {
+  font-size: 13px;
+}
+
+.director-contract-detail small {
+  color: var(--director-muted);
+  font-size: 10px;
+}
+
+.director-contract-detail dl {
+  display: grid;
+  font-size: 10px;
+  gap: 4px 12px;
+  grid-template-columns: auto auto;
+  margin: 0;
+}
+
+.director-contract-detail dt {
+  color: var(--director-muted);
+}
+
+.director-contract-detail dd {
+  margin: 0;
+  text-align: right;
+}
+
+.director-assembly-note {
+  background: #f6f8fd;
+  border-left: 3px solid var(--director-blue);
+  color: #48505c;
+  font-size: 11px;
+  line-height: 1.6;
+  margin: 16px 0 0;
+  padding: 10px 12px;
+}
+
+.director-assembly-summary {
+  align-items: center;
+  background: #fafbfc;
+  border-left: 1px solid var(--director-line);
+  display: flex;
+  flex-direction: column;
+  grid-column: 2;
+  justify-content: center;
+  padding: 34px;
+  text-align: center;
+}
+
+.director-readiness-ring {
+  align-items: baseline;
+  border: 8px solid #e5e8ee;
+  border-radius: 50%;
+  display: flex;
+  height: 138px;
+  justify-content: center;
+  width: 138px;
+}
+
+.director-readiness-ring.is-ready {
+  border-color: #80d8b0;
+}
+
+.director-readiness-ring strong {
+  font-size: 38px;
+  margin-top: 42px;
+}
+
+.director-readiness-ring span {
+  color: var(--director-muted);
+  font-size: 16px;
+}
+
+.director-assembly-summary h3 {
+  font-size: 18px;
+  margin: 24px 0 8px;
+}
+
+.director-assembly-summary > p {
+  color: var(--director-muted);
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 0 0 22px;
+}
+
+.director-assembly-summary dl {
+  display: grid;
+  font-size: 11px;
+  gap: 0;
+  grid-template-columns: 1fr 1fr;
+  margin: 0 0 18px;
+  text-align: left;
+  width: 100%;
+}
+
+.director-assembly-summary dt,
+.director-assembly-summary dd {
+  border-bottom: 1px solid var(--director-line);
+  margin: 0;
+  padding: 9px 0;
+}
+
+.director-assembly-summary dd {
+  text-align: right;
+}

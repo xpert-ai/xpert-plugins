@@ -23,7 +23,7 @@ export async function uploadStoryDemoAssets(
   const uploaded = await Promise.all(
     STORY_DEMO_ASSETS.map(async (asset) => {
       const buffer = await readFile(
-        join(moduleDir, '..', '..', 'assets', 'demo-hidden-ledger', asset.fileName)
+        join(moduleDir, '..', '..', 'assets', 'demo-backlight-reunion', asset.fileName)
       )
       const sha256 = createHash('sha256').update(buffer).digest('hex')
       const written = await workspaceFiles.writeRuntimeBuffer({
@@ -36,7 +36,7 @@ export async function uploadStoryDemoAssets(
         metadata: {
           pluginName: STORY_STUDIO_PLUGIN_NAME,
           storyProjectId: project.id,
-          demoCase: 'hidden-ledger',
+          demoCase: 'backlight-reunion',
           demoAssetKey: asset.key,
           sha256
         }

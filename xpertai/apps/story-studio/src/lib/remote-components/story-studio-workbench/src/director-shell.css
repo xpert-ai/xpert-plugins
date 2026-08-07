@@ -1,0 +1,415 @@
+.director-root {
+  --director-bg: #fbfbfa;
+  --director-surface: #ffffff;
+  --director-ink: #17191d;
+  --director-muted: #69707b;
+  --director-line: #e4e6ea;
+  --director-soft: #f5f6f8;
+  --director-blue: #2457e6;
+  --director-blue-soft: #eef3ff;
+  --director-green: #16a066;
+  --director-amber: #f28b18;
+  background: var(--director-bg);
+  color: var(--director-ink);
+  display: grid;
+  font-family: Inter, "SF Pro Display", "SF Pro Text", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  grid-template-rows: 62px minmax(0, 1fr);
+  height: 100vh;
+  min-height: 760px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.director-root *,
+.director-root *::before,
+.director-root *::after {
+  box-sizing: border-box;
+}
+
+.director-root button,
+.director-root input,
+.director-root textarea {
+  font: inherit;
+}
+
+.director-topbar {
+  align-items: stretch;
+  background: rgba(255, 255, 255, 0.98);
+  border-bottom: 1px solid var(--director-line);
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto minmax(360px, 1fr);
+  min-width: 0;
+  position: relative;
+  z-index: 30;
+}
+
+.director-project-switcher {
+  align-items: center;
+  display: flex;
+  min-width: 0;
+  padding-left: 30px;
+  position: relative;
+}
+
+.director-project-title {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--director-ink);
+  display: inline-flex;
+  gap: 10px;
+  max-width: 100%;
+  padding: 0;
+}
+
+button.director-project-title {
+  cursor: pointer;
+}
+
+.director-project-title strong {
+  font-size: 19px;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.director-project-title b,
+.director-project-title span {
+  font-size: 16px;
+  font-weight: 520;
+  white-space: nowrap;
+}
+
+.director-project-title svg {
+  color: #8a9099;
+  height: 14px;
+  width: 14px;
+}
+
+.director-primary-nav {
+  align-items: stretch;
+  display: flex;
+  gap: 22px;
+  justify-content: center;
+}
+
+.director-primary-nav button {
+  background: transparent;
+  border: 0;
+  color: #363a42;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 540;
+  min-width: 84px;
+  padding: 2px 8px 0;
+  position: relative;
+}
+
+.director-primary-nav button:focus {
+  outline: none;
+}
+
+.director-primary-nav button::after {
+  background: transparent;
+  bottom: -1px;
+  content: "";
+  height: 2px;
+  left: 8px;
+  position: absolute;
+  right: 8px;
+}
+
+.director-primary-nav button.is-active {
+  color: var(--director-blue);
+  font-weight: 680;
+}
+
+.director-primary-nav button.is-active::after {
+  background: var(--director-blue);
+}
+
+.director-primary-nav button:disabled {
+  color: #a1a6af;
+  cursor: not-allowed;
+}
+
+.director-primary-nav button:disabled::after {
+  background: transparent;
+}
+
+.director-top-status {
+  align-items: center;
+  display: flex;
+  gap: 24px;
+  justify-content: flex-end;
+  min-width: 0;
+  padding-right: 18px;
+}
+
+.director-top-status > span {
+  align-items: center;
+  display: inline-flex;
+  white-space: nowrap;
+}
+
+.director-top-status .is-saved {
+  color: #5f6670;
+  font-size: 13px;
+  gap: 7px;
+}
+
+.director-top-status .is-saved i {
+  align-items: center;
+  border: 1.5px solid var(--director-green);
+  border-radius: 999px;
+  color: var(--director-green);
+  display: inline-flex;
+  height: 16px;
+  justify-content: center;
+  width: 16px;
+}
+
+.director-top-status .is-saved svg {
+  height: 10px;
+  width: 10px;
+}
+
+.director-budget {
+  border-left: 1px solid var(--director-line);
+  gap: 10px;
+  padding-left: 24px;
+}
+
+.director-budget b {
+  color: #4d525a;
+  font-size: 13px;
+  font-weight: 520;
+}
+
+.director-budget strong {
+  color: #f06b00;
+  font-size: 17px;
+  font-weight: 650;
+}
+
+.director-account-menu-wrap {
+  position: relative;
+}
+
+.director-account-button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  display: inline-flex;
+  gap: 6px;
+  padding: 0;
+}
+
+.director-account-button > span {
+  align-items: center;
+  background: #24262b;
+  border-radius: 999px;
+  color: white;
+  display: inline-flex;
+  font-size: 13px;
+  height: 30px;
+  justify-content: center;
+  width: 30px;
+}
+
+.director-account-button svg {
+  color: #6a7079;
+  height: 14px;
+  width: 14px;
+}
+
+.director-project-menu,
+.director-account-menu {
+  background: white;
+  border: 1px solid var(--director-line);
+  border-radius: 8px;
+  box-shadow: 0 16px 42px rgba(20, 24, 33, 0.14);
+  position: absolute;
+  z-index: 60;
+}
+
+.director-project-menu {
+  left: 22px;
+  padding: 8px;
+  top: 52px;
+  width: 310px;
+}
+
+.director-project-menu header,
+.director-project-menu footer {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  padding: 6px;
+}
+
+.director-project-menu header button {
+  background: transparent;
+  border: 0;
+  color: var(--director-muted);
+}
+
+.director-project-menu > button {
+  align-items: center;
+  background: white;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 34px minmax(0, 1fr) 18px;
+  padding: 8px;
+  text-align: left;
+  width: 100%;
+}
+
+.director-project-menu > button:hover,
+.director-project-menu > button.is-selected {
+  background: var(--director-blue-soft);
+}
+
+.director-project-menu > button > span {
+  align-items: center;
+  background: #ecefff;
+  border-radius: 6px;
+  color: var(--director-blue);
+  display: flex;
+  font-weight: 700;
+  height: 34px;
+  justify-content: center;
+}
+
+.director-project-menu > button div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.director-project-menu > button strong,
+.director-project-menu > button small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.director-project-menu > button small {
+  color: var(--director-muted);
+}
+
+.director-project-menu > button svg {
+  color: var(--director-blue);
+  height: 16px;
+  width: 16px;
+}
+
+.director-project-menu footer {
+  border-top: 1px solid var(--director-line);
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.director-account-menu {
+  display: grid;
+  padding: 6px;
+  right: 0;
+  top: 39px;
+  width: 180px;
+}
+
+.director-account-menu button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  gap: 9px;
+  padding: 9px 10px;
+  text-align: left;
+}
+
+.director-account-menu button:hover {
+  background: var(--director-soft);
+}
+
+.director-account-menu svg {
+  height: 15px;
+  width: 15px;
+}
+
+.director-workspace {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.director-empty-root .director-topbar {
+  grid-template-columns: 1fr auto auto auto;
+  gap: 8px;
+  padding: 0 22px;
+}
+
+.director-empty-state {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 48px;
+  text-align: center;
+}
+
+.director-empty-state > span {
+  align-items: center;
+  background: #edf1ff;
+  border-radius: 16px;
+  color: var(--director-blue);
+  display: flex;
+  font-size: 36px;
+  font-weight: 760;
+  height: 84px;
+  justify-content: center;
+  width: 84px;
+}
+
+.director-empty-state h1 {
+  font-size: 24px;
+  margin: 22px 0 8px;
+}
+
+.director-empty-state p {
+  color: var(--director-muted);
+  margin: 0 0 22px;
+}
+
+.director-empty-state div {
+  display: flex;
+  gap: 10px;
+}
+
+.director-toolbar-spacer {
+  flex: 1 1 auto;
+}
+
+@media (max-width: 1100px) {
+  .director-topbar {
+    grid-template-columns: minmax(220px, 1fr) auto minmax(280px, 1fr);
+  }
+  .director-primary-nav {
+    gap: 4px;
+  }
+  .director-primary-nav button {
+    min-width: 62px;
+  }
+  .director-budget b {
+    display: none;
+  }
+  .director-top-status {
+    gap: 12px;
+  }
+}

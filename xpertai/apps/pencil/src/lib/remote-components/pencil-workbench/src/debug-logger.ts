@@ -1,5 +1,3 @@
-const DEBUG_KEY = 'xpert.debug.pencil-workbench'
-
 let hostDebugEnabled = false
 
 export function setPencilDebugHostConfig(value: unknown) {
@@ -22,5 +20,5 @@ function isDebugEnabled() {
   if (queryValue === 'pencil-workbench' || queryValue === '1' || queryValue === 'true') {
     return true
   }
-  return hostDebugEnabled || window.localStorage.getItem(DEBUG_KEY) === '1'
+  return hostDebugEnabled
 }

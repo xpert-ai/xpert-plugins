@@ -6,6 +6,7 @@
   "main": "index.js",
   "scripts": {
     "prepare": "git config core.hooksPath .githooks || true",
+    "check:app-view-storage": "node scripts/check-app-view-storage.mjs",
     "check:plugin-entity-tables": "node scripts/check-plugin-entity-tables.mjs",
     "test:plugin-entity-tables": "node --test scripts/check-plugin-entity-tables.test.mjs",
     "remote-view:preview": "node tools/remote-view-preview/cli.mjs",

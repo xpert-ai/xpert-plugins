@@ -339,13 +339,21 @@ function createContract(input: {
   const shots: StoryCutHandoffShot[] = []
   for (const scene of scenes) {
     for (const shot of scene.shots) {
-      const selected = (shot.candidates ?? []).filter(
-        (candidate) => candidate.selected === true && candidate.kind === 'video'
+      const videos = (shot.candidates ?? []).filter(
+        (candidate) => candidate.kind === 'video'
       )
+      const explicitlySelected = videos.filter(
+        (candidate) => candidate.selected === true
+      )
+      const selected = explicitlySelected.length === 1
+        ? explicitlySelected
+        : explicitlySelected.length === 0 && videos.length === 1
+          ? videos
+          : []
       if (selected.length !== 1) {
         throw new BadRequestException({
           errorCode: 'story_cut_handoff_video_selection_invalid',
-          message: `Shot "${shot.title}" must have exactly one selected video before Cut handoff.`,
+          message: `Shot "${shot.title}" must have one unambiguous video before Cut handoff.`,
           sceneId: scene.id,
           shotId: shot.id
         })

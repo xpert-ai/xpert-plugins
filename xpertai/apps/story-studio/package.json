@@ -39,9 +39,9 @@
   ],
   "scripts": {
     "build:ui": "pnpm --filter @xpert-ai/plugin-shadcn-ui build",
-    "build": "node scripts/clean-build-output.mjs && pnpm run build:ui && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
+    "build": "node scripts/clean-build-output.mjs && pnpm run build:ui && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs && node scripts/build-sandbox-action.mjs && node scripts/verify-sandbox-action.mjs",
     "lint": "echo \"(todo) add lint\"",
-    "test": "pnpm run build:ui && jest --config jest.config.ts && tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check",
+    "test": "pnpm run build:ui && jest --config jest.config.ts && tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check && node scripts/build-sandbox-action.mjs && node scripts/verify-sandbox-action.mjs",
     "test:e2e": "pnpm run build:ui && node scripts/build-remote-components.mjs --check && node --test src/lib/remote-components/story-studio-workbench/workbench.e2e.mjs",
     "typecheck": "pnpm run build:ui && tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check",
     "prepack": "node scripts/prepack.mjs"
@@ -73,6 +73,7 @@
     "@nestjs/core": "^11.1.6",
     "@nestjs/typeorm": "^11.0.0",
     "@swc/jest": "~0.2.38",
+    "@tailwindcss/cli": "4.3.2",
     "@types/jest": "^30.0.0",
     "@types/node": "^20.19.9",
     "@types/react": "^18.3.31",
@@ -85,6 +86,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "reflect-metadata": "^0.2.2",
+    "tailwindcss": "4.3.2",
     "typeorm": "^0.3.24",
     "typescript": "^5.9.2",
     "zod": "3.25.67"

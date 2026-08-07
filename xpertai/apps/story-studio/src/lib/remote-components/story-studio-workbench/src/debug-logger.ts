@@ -65,24 +65,16 @@ export function redactDebugData(data: DebugPayload): DebugValue {
 }
 
 function isEnabled() {
-  try {
-    const stored = globalThis.localStorage?.getItem(
-      `xpert.debug.${NAMESPACE}`
-    )
-    if (stored === '0') {
-      return false
-    }
-    if (stored === '1') {
-      return true
-    }
-    return (
-      new URLSearchParams(globalThis.location?.search ?? '').get(
-        'xpertDebug'
-      ) === NAMESPACE || hostEnabled
-    )
-  } catch {
-    return hostEnabled
+  const override = new URLSearchParams(globalThis.location?.search ?? '').get(
+    'xpertDebug'
+  )
+  if (override === '0' || override === 'false') {
+    return false
   }
+  if (override === NAMESPACE || override === '1' || override === 'true') {
+    return true
+  }
+  return hostEnabled
 }
 
 function write(

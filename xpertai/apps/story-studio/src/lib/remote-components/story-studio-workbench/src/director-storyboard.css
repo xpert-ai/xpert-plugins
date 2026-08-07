@@ -1,0 +1,529 @@
+.director-shot-outline {
+  display: flex;
+  flex-direction: column;
+}
+
+.director-shot-scenes {
+  padding: 0 20px 12px;
+}
+
+.director-shot-scene {
+  border-bottom: 1px solid var(--director-line);
+  padding: 10px 0 14px;
+}
+
+.director-shot-scene header {
+  align-items: center;
+  display: grid;
+  gap: 7px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  padding: 0 10px 8px;
+}
+
+.director-shot-scene header strong,
+.director-shot-scene header span {
+  font-size: 12px;
+}
+
+.director-shot-scene header em {
+  color: var(--director-muted);
+  font-size: 10px;
+  font-style: normal;
+}
+
+.director-shot-scene > button {
+  align-items: center;
+  background: white;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: #606670;
+  cursor: pointer;
+  display: grid;
+  font-size: 11px;
+  gap: 8px;
+  grid-template-columns: 30px minmax(0, 1fr) 24px 8px;
+  margin: 3px 0;
+  min-height: 34px;
+  padding: 6px 8px;
+  text-align: left;
+  width: 100%;
+}
+
+.director-shot-scene > button strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.director-shot-scene > button em {
+  font-style: normal;
+}
+
+.director-shot-scene > button.is-selected {
+  background: #f2f5ff;
+  border-color: #89a7ff;
+  color: var(--director-blue);
+}
+
+.director-shot-scene > button i {
+  border: 3px solid var(--director-blue);
+  border-radius: 50%;
+  height: 9px;
+  width: 9px;
+}
+
+.director-storyboard-center {
+  background: white;
+  display: grid;
+  grid-column: 2;
+  grid-row: 1;
+  grid-template-rows: minmax(0, 1.05fr) minmax(250px, 0.7fr);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.director-shot-detail {
+  border-bottom: 1px solid var(--director-line);
+  min-height: 0;
+  overflow: auto;
+  padding: 24px 24px 18px;
+}
+
+.director-shot-title-row {
+  align-items: center;
+  display: flex;
+  gap: 9px;
+  margin-bottom: 18px;
+}
+
+.director-shot-title-row h2 {
+  font-size: 18px;
+  margin: 0 10px 0 0;
+}
+
+.director-shot-title-row h2 span {
+  margin-right: 10px;
+}
+
+.director-shot-title-row > span,
+.director-shot-title-row > small b {
+  background: var(--director-soft);
+  border-radius: 5px;
+  color: #656b74;
+  font-size: 10px;
+  font-weight: 520;
+  padding: 5px 9px;
+}
+
+.director-shot-title-row small {
+  color: var(--director-muted);
+  font-size: 10px;
+}
+
+.director-shot-title-row small b {
+  margin-left: 5px;
+}
+
+.director-shot-primary {
+  display: grid;
+  gap: 30px;
+  grid-template-columns: minmax(300px, 0.9fr) minmax(280px, 1.1fr);
+}
+
+.director-shot-preview {
+  background: #111519;
+  border-radius: 6px;
+  height: 454px;
+  margin: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.director-shot-preview > img {
+  height: calc(100% - 34px);
+  object-fit: cover;
+  object-position: center 48%;
+  width: 100%;
+}
+
+.director-shot-preview > button {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.88);
+  border: 0;
+  border-radius: 50%;
+  color: #11161c;
+  display: flex;
+  height: 38px;
+  justify-content: center;
+  left: 50%;
+  position: absolute;
+  top: calc(50% - 17px);
+  transform: translate(-50%, -50%);
+  width: 38px;
+}
+
+.director-shot-preview > button svg {
+  height: 18px;
+  width: 18px;
+}
+
+.director-shot-preview figcaption {
+  align-items: center;
+  background: white;
+  bottom: 0;
+  color: #606670;
+  display: flex;
+  height: 34px;
+  justify-content: space-between;
+  left: 0;
+  padding: 0 12px;
+  position: absolute;
+  right: 0;
+}
+
+.director-shot-preview figcaption span {
+  align-items: center;
+  display: flex;
+  font-size: 10px;
+  gap: 7px;
+}
+
+.director-shot-preview figcaption svg {
+  height: 13px;
+  width: 13px;
+}
+
+.director-shot-copy {
+  display: flex;
+  flex-direction: column;
+  min-height: 454px;
+}
+
+.director-shot-copy section {
+  margin-bottom: 16px;
+}
+
+.director-shot-copy h3 {
+  font-size: 12px;
+  margin: 0 0 7px;
+}
+
+.director-shot-copy p {
+  color: #41464e;
+  font-size: 12px;
+  line-height: 1.65;
+  margin: 0;
+}
+
+.director-shot-actions {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr 1.4fr;
+  margin-top: auto;
+}
+
+.director-take-comparison {
+  min-height: 0;
+  overflow: auto;
+  padding: 18px 24px 24px;
+}
+
+.director-take-comparison > h3 {
+  font-size: 13px;
+  margin: 0 0 12px;
+}
+
+.director-take-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(146px, 1fr));
+}
+
+.director-take-card {
+  background: white;
+  border: 1px solid var(--director-line);
+  border-radius: 7px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.director-take-card.is-selected {
+  border: 2px solid var(--director-blue);
+}
+
+.director-take-card figure {
+  height: 150px;
+  margin: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.director-take-card figure img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.director-take-card figure > span {
+  background: rgba(16, 18, 22, 0.78);
+  border-radius: 4px;
+  color: white;
+  font-size: 9px;
+  padding: 3px 5px;
+  position: absolute;
+  right: 6px;
+  top: 6px;
+}
+
+.director-take-card figure > i {
+  align-items: center;
+  background: var(--director-blue);
+  border: 2px solid white;
+  border-radius: 50%;
+  color: white;
+  display: flex;
+  height: 24px;
+  justify-content: center;
+  left: 7px;
+  position: absolute;
+  top: 7px;
+  width: 24px;
+}
+
+.director-take-card figure > i svg {
+  height: 14px;
+  width: 14px;
+}
+
+.director-take-card > div {
+  padding: 10px;
+}
+
+.director-take-card header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.director-take-card header strong {
+  font-size: 12px;
+}
+
+.director-take-card header b {
+  background: var(--director-blue);
+  border-radius: 3px;
+  color: white;
+  font-size: 9px;
+  padding: 3px 5px;
+}
+
+.director-take-card p {
+  color: #666c75;
+  font-size: 10px;
+  line-height: 1.45;
+  margin: 8px 0;
+  min-height: 30px;
+}
+
+.director-take-card button {
+  align-items: center;
+  background: white;
+  border: 1px solid #cfd3da;
+  border-radius: 5px;
+  color: #555b64;
+  display: flex;
+  font-size: 10px;
+  gap: 4px;
+  justify-content: center;
+  padding: 6px;
+  width: 100%;
+}
+
+.director-take-card.is-selected button {
+  border-color: #7598ff;
+  color: var(--director-blue);
+}
+
+.director-take-card button svg {
+  height: 12px;
+  width: 12px;
+}
+
+.director-storyboard-inspector {
+  padding-bottom: 18px;
+}
+
+.director-reference-people > div {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.director-reference-people article {
+  align-items: center;
+  border: 1px solid var(--director-line);
+  border-radius: 6px;
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+}
+
+.director-reference-people img {
+  border-radius: 4px;
+  height: 54px;
+  object-fit: cover;
+  width: 42px;
+}
+
+.director-reference-people article > span,
+.director-location-reference article > span {
+  display: grid;
+}
+
+.director-reference-people strong,
+.director-reference-people small,
+.director-reference-people a {
+  font-size: 10px;
+}
+
+.director-reference-people small {
+  color: var(--director-muted);
+}
+
+.director-reference-people a,
+.director-location-reference a {
+  color: var(--director-blue);
+}
+
+.director-location-reference > div {
+  align-items: center;
+  border: 1px solid var(--director-line);
+  border-radius: 6px;
+  display: flex;
+  gap: 10px;
+  padding: 6px;
+}
+
+.director-location-reference img {
+  border-radius: 4px;
+  height: 64px;
+  object-fit: cover;
+  width: 94px;
+}
+
+.director-location-reference > div > span {
+  display: grid;
+}
+
+.director-location-reference strong,
+.director-location-reference small,
+.director-location-reference a {
+  font-size: 10px;
+}
+
+.director-parameter-table dl {
+  display: grid;
+  font-size: 10px;
+  grid-template-columns: 1fr 1fr;
+  margin: 0;
+}
+
+.director-parameter-table dt,
+.director-parameter-table dd {
+  border-bottom: 1px solid var(--director-line);
+  margin: 0;
+  padding: 4px 0;
+}
+
+.director-parameter-table dd {
+  text-align: right;
+}
+
+.director-generation-settings {
+  display: grid;
+  gap: 4px;
+}
+
+.director-generation-settings h3 {
+  margin-bottom: 6px;
+}
+
+.director-generation-settings button {
+  align-items: center;
+  background: white;
+  border: 1px solid var(--director-line);
+  border-radius: 4px;
+  display: flex;
+  font-size: 10px;
+  justify-content: space-between;
+  padding: 5px 8px;
+}
+
+.director-generation-settings svg {
+  height: 12px;
+  width: 12px;
+}
+
+.director-prompt-field {
+  position: relative;
+}
+
+.director-prompt-field textarea {
+  border: 1px solid var(--director-line);
+  border-radius: 5px;
+  font-size: 10px;
+  line-height: 1.45;
+  min-height: 88px;
+  padding: 8px;
+  resize: vertical;
+  width: 100%;
+}
+
+.director-prompt-field > span {
+  bottom: 18px;
+  color: #9ca1a9;
+  font-size: 9px;
+  position: absolute;
+  right: 24px;
+}
+
+.director-storyboard-cost {
+  display: grid;
+  font-size: 11px;
+  gap: 6px;
+  grid-template-columns: 1fr auto;
+  padding: 12px 18px 0;
+}
+
+.director-storyboard-cost strong {
+  color: #f06b00;
+}
+
+.director-storyboard-cost b {
+  color: var(--director-amber);
+  text-align: right;
+}
+
+.director-storyboard-inspector > .director-full-button {
+  margin-left: 18px;
+  margin-right: 18px;
+  width: calc(100% - 36px);
+}
+
+.director-storyboard-footer > div > span:last-of-type {
+  color: var(--director-muted);
+}
+
+.director-storyboard-footer button {
+  background: transparent;
+  border: 0;
+  color: var(--director-blue);
+  min-width: auto;
+}
+
+@media (max-width: 1220px) {
+  .director-shot-primary { gap: 18px; grid-template-columns: minmax(260px, 0.9fr) minmax(250px, 1.1fr); }
+  .director-shot-preview { height: 414px; }
+  .director-shot-copy { min-height: 414px; }
+  .director-take-card figure { height: 128px; }
+}

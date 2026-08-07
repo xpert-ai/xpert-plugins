@@ -4,24 +4,12 @@ import type {
   StoryProductionDocument
 } from './production-types.js'
 
-export const STORY_DEMO_TITLE = '朱门账影 · Story Studio 工作流示例'
+export const STORY_DEMO_TITLE = '逆光重逢'
 
 export const STORY_DEMO_ASSETS = [
-  {
-    key: 'shot-01',
-    fileName: 'shot-01.png',
-    mimeType: 'image/png'
-  },
-  {
-    key: 'shot-02',
-    fileName: 'shot-02.png',
-    mimeType: 'image/png'
-  },
-  {
-    key: 'shot-03',
-    fileName: 'shot-03.png',
-    mimeType: 'image/png'
-  }
+  { key: 'shot-01', fileName: 'shot-01.png', mimeType: 'image/png' },
+  { key: 'shot-02', fileName: 'shot-02.png', mimeType: 'image/png' },
+  { key: 'shot-03', fileName: 'shot-03.png', mimeType: 'image/png' }
 ] as const
 
 export type StoryDemoAssetKey = (typeof STORY_DEMO_ASSETS)[number]['key']
@@ -37,53 +25,75 @@ export type StoryDemoMedia = {
   fileReference: StoryPortableFileReference
 }
 
+type StoryShot = StoryProductionDocument['scenes'][number]['shots'][number]
+
+const SHOTS = [
+  ['S11', '影棚外全景', '雨夜旧影棚外景，远处灯光穿过雨幕。', '缓慢推近', 8],
+  ['S12', '雨夜旧影棚重逢', '林晚与顾沉隔雨相望。', '中景双人，轻微推近', 7],
+  ['S13', '两人对峙', '顾沉上前一步，林晚握紧相机。', '近景双人', 6],
+  ['S14', '转身离开', '林晚压下情绪，转身走向影棚。', '侧后跟拍', 6],
+  ['S21', '空镜 · 摄影棚内部', '积灰灯架与旧布景形成纵深。', '固定全景', 6],
+  ['S22', '女主演准备', '林晚擦去旧相机上的雨水。', '中近景', 7],
+  ['S23', '男主演沉思', '顾沉望向封存的胶片柜。', '近景缓推', 6],
+  ['S24', '对话开始', '两人围绕未完成的纪录片试探。', '双人过肩', 10],
+  ['S25', '监视眼神特写', '顾沉发现窗外一闪而过的人影。', '特写快速推近', 5],
+  ['S31', '化妆间全景', '旧镜前灯泡逐个亮起。', '固定全景', 6],
+  ['S32', '女主演独白', '林晚对着镜子承认自己从未忘记。', '镜面中近景', 9],
+  ['S33', '回忆插入', '多年前两人在片场并肩工作的片段。', '手持回忆镜头', 8],
+  ['S34', '情绪低落', '林晚低下头，雨水从风衣袖口滴落。', '特写缓推', 6]
+] as const
+
 export function createStoryDemoProduction(
   media: Record<StoryDemoAssetKey, StoryDemoMedia>
 ): StoryProductionDocument {
-  const shotOne = mediaCandidate(media['shot-01'], 'frame-rain-ledger', '雨夜闺房定场帧')
-  const shotTwo = mediaCandidate(media['shot-02'], 'frame-maid-warning', '丫鬟闯入中景帧')
-  const shotThree = mediaCandidate(media['shot-03'], 'frame-hide-ledger', '藏账册决断近景帧')
+  const frames = [
+    mediaCandidate(media['shot-01'], 'frame-rainy-studio-wide', '雨夜旧影棚全景'),
+    mediaCandidate(media['shot-02'], 'frame-rainy-studio-close', '雨夜重逢近景'),
+    mediaCandidate(media['shot-03'], 'frame-lin-wan-identity', '林晚身份参考')
+  ]
+  const shots = SHOTS.map((definition, index) =>
+    createShot(definition, index, frames[index % frames.length])
+  )
 
   return {
     sourceSynopsis:
-      '雨夜，洛绾在祖母遗物中发现一本朱红账册。贴身侍女青桃闯入，告知前院来人搜查。洛绾意识到账册记录着能改变家族命运的秘密，决定先把它藏起来。',
+      '雨夜，纪录片摄影师林晚在废弃旧影棚与失联多年的搭档顾沉重逢，两人被迫面对一段未完成的影片与被刻意掩埋的事故。',
     adaptationGoal:
-      '制作一支 15 秒竖屏古风悬疑短剧样片，用三个连续镜头完成“发现—打断—决断”的微型叙事，并保持角色、场景、道具和光影一致。',
+      '用 96 秒竖屏短剧完成久别重逢、克制试探与悬念再起，并严格保持人物、雨夜旧影棚和旧相机的一致性。',
     visualStyle:
-      '电影级古风写实，雨夜冷蓝环境光与烛火暖光对冲，深木色空间、玉绿色人物服装和朱红账册形成稳定色彩锚点。',
-    audience: '偏好古风、悬疑和强情节竖屏短剧的移动端观众。',
+      '电影级都市情感悬疑，冷蓝雨夜与暖色旧灯对冲，低饱和、真实湿润质感、克制表演。',
+    audience: '偏好都市情感、悬疑和强人物关系的竖屏短剧观众。',
     sourceMaterials: [
       {
-        id: 'source-hidden-ledger',
-        title: '原创梗概：雨夜账册',
+        id: 'source-backlight-reunion',
+        title: '原创梗概：逆光重逢',
         type: 'text',
         status: 'reviewed',
         excerpt:
-          '洛绾整理祖母遗物时发现朱红账册。青桃冒雨来报，前院有人搜查旧物。洛绾合上账册，决定先隐瞒发现，再查明账目背后的真相。'
+          '林晚抱着旧相机回到第七摄影棚，顾沉从雨幕中出现。两人围绕未完成的纪录片试探彼此。'
       }
     ],
     storyPlan: {
-      logline: '一位深宅小姐在搜查者到来前，必须决定是否藏起足以颠覆家族的秘密账册。',
-      theme: '真相需要勇气，也需要时机。',
-      tone: '克制、紧张、带一点古风权谋感。',
+      logline: '一名纪录片摄影师在废弃片场重逢失联搭档，必须决定是否重新打开一段被掩埋的真相。',
+      theme: '有些真相只有重新面对彼此才能被看见。',
+      tone: '克制、试探、隐忍，雨夜悬疑感。',
       beats: [
+        { id: 'beat-reunion', title: '旧地重逢', summary: '雨夜旧影棚外，两人再次相见。', purpose: '建立关系张力。' },
+        { id: 'beat-testing', title: '试探交锋', summary: '未完成影片成为彼此试探的引线。', purpose: '推动秘密浮现。' },
+        { id: 'beat-unresolved', title: '未解心结', summary: '窗外监视者让旧事故重新逼近。', purpose: '留下下一集钩子。' }
+      ],
+      adaptationSuggestions: [
         {
-          id: 'beat-discovery',
-          title: '发现',
-          summary: '洛绾在祖母遗物中打开朱红账册。',
-          purpose: '用场景和道具建立秘密的存在。'
-        },
-        {
-          id: 'beat-interruption',
-          title: '打断',
-          summary: '青桃推门而入，前院搜查的威胁逼近。',
-          purpose: '把静态发现转化为即时选择。'
-        },
-        {
-          id: 'beat-decision',
-          title: '决断',
-          summary: '洛绾把账册收入袖中，决定拖住来人。',
-          purpose: '以人物动作完成悬念钩子。'
+          id: 'suggestion-rain-grip',
+          episodeId: 'episode-01',
+          sceneId: 'scene-rainy-exterior',
+          shotId: 'shot-s12',
+          originalText: '她看见他，停下脚步。',
+          suggestedText: '林晚在雨里停住，手指下意识攥紧相机背带。',
+          reason: '把抽象情绪改成可拍摄的身体动作，同时保留人物的克制。',
+          status: 'pending',
+          createdBy: 'assistant',
+          createdAt: '2026-08-06T01:00:00.000Z'
         }
       ]
     },
@@ -91,121 +101,128 @@ export function createStoryDemoProduction(
       {
         id: 'episode-01',
         order: 1,
-        title: '雨夜账影',
-        summary: '洛绾发现秘密账册，并在搜查者到来前将它藏起。',
-        targetDurationSeconds: 15,
+        title: '雨夜重逢',
+        summary: '林晚和顾沉在第七摄影棚重逢，未完成的纪录片重新把他们绑在一起。',
+        targetDurationSeconds: 96,
         script:
-          '内景·洛绾闺房·夜\n雨打窗棂。洛绾从祖母的旧匣中取出一本朱红账册。\n青桃推门而入：小姐，前院来人了。\n洛绾合上账册，将它收入袖中。\n洛绾：让他们等。账，得先看完。'
+          '外景·雨夜·旧影棚外\n雨幕笼住废弃摄影棚。林晚抱着旧相机停在门口，顾沉从暗处走来。\n她看见他，停下脚步。\n林晚：你还是来了。\n顾沉：我只是来拿回属于我的东西。\n两人隔着雨帘对视。远处闪电照亮褪色的“第七摄影棚”招牌。'
       }
     ],
     assets: [
-      {
-        id: 'asset-luowan',
-        kind: 'character',
-        name: '洛绾',
-        description: '二十余岁的深宅小姐，冷静敏锐，玉绿色衣裙和玉簪是连续性锚点。',
-        prompt:
-          'young Chinese noblewoman, pale jade-green historical hanfu, restrained updo, jade hairpin, calm intelligent eyes, cinematic realism',
-        candidates: [
-          cloneCandidate(shotThree, 'asset-luowan-reference', '洛绾角色参考')
-        ]
-      },
-      {
-        id: 'asset-qingtao',
-        kind: 'character',
-        name: '青桃',
-        description: '洛绾的贴身侍女，深青色衣裙，行动急切，表情直白。',
-        prompt:
-          'young Chinese maid, dark teal historical clothing, anxious expression, rain at doorway, cinematic realism',
-        candidates: [
-          cloneCandidate(shotTwo, 'asset-qingtao-reference', '青桃角色参考')
-        ]
-      },
-      {
-        id: 'asset-bedchamber',
-        kind: 'location',
-        name: '雨夜闺房',
-        description: '深木色古代闺房，雕花格窗、纱帘与烛台构成前中后景，窗外持续落雨。',
-        prompt:
-          'ancient Chinese noblewoman bedchamber at rainy night, carved wood screens, gauze curtains, candlelight, cool blue rain light',
-        candidates: [
-          cloneCandidate(shotOne, 'asset-bedchamber-reference', '雨夜闺房场景参考')
-        ]
-      },
-      {
-        id: 'asset-ledger',
-        kind: 'prop',
-        name: '朱红账册',
-        description: '小开本朱红封皮账册，无可辨识文字，是三个镜头中的剧情焦点。',
-        prompt:
-          'small vermilion ancient account ledger, aged paper edges, no visible writing, cinematic prop reference',
-        candidates: [
-          cloneCandidate(shotTwo, 'asset-ledger-reference', '朱红账册道具参考')
-        ]
-      }
+      characterAsset('asset-linwan', '林晚', '独立纪录片摄影师，外冷内韧，肩长黑发，米色风衣。', cloneCandidate(frames[2], 'asset-linwan-v3', '林晚 V3 身份包')),
+      characterAsset('asset-guchen', '顾沉', '纪录片摄影师，克制寡言，黑色皮衣。', cloneCandidate(frames[1], 'asset-guchen-v3', '顾沉 V3 身份包')),
+      characterAsset('asset-zhouqi', '周启', '调查记者，身份待确认。'),
+      characterAsset('asset-chenfang', '陈放', '旧影棚管理员。'),
+      simpleAsset('asset-studio-exterior', 'location', '旧影棚外 · 雨夜', '第七摄影棚外，夜雨，湿地反光。', cloneCandidate(frames[0], 'asset-studio-exterior-v1', '旧影棚外场景参考')),
+      simpleAsset('asset-studio-interior', 'location', '摄影棚内部', '封存布景和积灰灯架。'),
+      simpleAsset('asset-dressing-room', 'location', '旧化妆间', '镜前旧灯泡与斑驳墙面。'),
+      simpleAsset('asset-camera', 'prop', '旧相机', '林晚一直携带的旧纪录片相机。'),
+      simpleAsset('asset-film', 'prop', '未完成胶片', '顾沉要取回的关键证据。'),
+      simpleAsset('asset-style', 'style', '逆光雨夜', '冷蓝雨夜与暖色逆光。')
     ],
     characters: [
-      {
-        id: 'character-luowan',
-        name: '洛绾',
-        role: '主角',
-        visualDescription: '玉绿色古装、玉簪、克制而敏锐的神情。'
-      },
-      {
-        id: 'character-qingtao',
-        name: '青桃',
-        role: '侍女',
-        visualDescription: '深青色古装、利落发髻、紧张而直接的神情。'
-      }
+      { id: 'character-linwan', name: '林晚', role: '女主 / 纪录片摄影师', visualDescription: '肩长黑发、米色风衣、右眼下浅痣。' },
+      { id: 'character-guchen', name: '顾沉', role: '男主 / 纪录片摄影师', visualDescription: '黑色湿发、黑色皮衣、冷峻克制。' },
+      { id: 'character-zhouqi', name: '周启', role: '调查记者', visualDescription: '干净利落，谨慎。' },
+      { id: 'character-chenfang', name: '陈放', role: '影棚管理员', visualDescription: '沉默寡言。' }
     ],
     scenes: [
-      {
-        id: 'scene-rain-room',
-        order: 1,
-        title: '雨夜闺房',
-        summary: '一场雨夜中的秘密发现，被突然到来的搜查消息打断。',
-        location: '洛绾闺房',
-        timeOfDay: '雨夜',
-        shots: [
-          {
-            id: 'shot-discovery',
-            title: '纱幕后发现',
-            composition: '纱帘形成前景遮挡，洛绾和书案位于画面下部，格窗与雨夜拉开空间纵深。',
-            action: '洛绾从旧匣中取出朱红账册，低头翻开。',
-            camera: '远景，缓慢推近',
-            soundEffects: ['雨声', '旧匣开启声', '纸页轻响'],
-            durationSeconds: 5,
-            candidates: [shotOne]
-          },
-          {
-            id: 'shot-warning',
-            title: '推门来报',
-            composition: '洛绾在前景三分之二处，青桃被门框完整框入后景。',
-            action: '洛绾抬头，青桃冒雨推门闯入。',
-            camera: '中景，焦点由账册转向门口',
-            dialogue: '小姐，前院来人了。',
-            dialogueSpeakerId: 'character-qingtao',
-            dialogueType: 'dialogue',
-            soundEffects: ['木门推开声', '雨声'],
-            durationSeconds: 5,
-            candidates: [shotTwo]
-          },
-          {
-            id: 'shot-decision',
-            title: '藏账决断',
-            composition: '洛绾占据前景，账册与宽袖动作清晰，青桃在后景关门。',
-            action: '洛绾起身将账册收入袖中，目光转为坚定。',
-            camera: '近景，轻微低角度推近',
-            dialogue: '让他们等。账，得先看完。',
-            dialogueSpeakerId: 'character-luowan',
-            dialogueType: 'dialogue',
-            soundEffects: ['纸页轻响', '雨声'],
-            durationSeconds: 5,
-            candidates: [shotThree]
-          }
-        ]
-      }
+      { id: 'scene-rainy-exterior', episodeId: 'episode-01', order: 1, title: '雨夜 · 旧影棚外', summary: '林晚与顾沉在废弃摄影棚外久别重逢。', location: '旧影棚外', timeOfDay: '雨夜', shots: shots.slice(0, 4) },
+      { id: 'scene-studio-interior', episodeId: 'episode-01', order: 2, title: '影棚内 · 摄影棚', summary: '两人在未完成的纪录片现场继续试探。', location: '摄影棚内部', timeOfDay: '夜', shots: shots.slice(4, 9) },
+      { id: 'scene-dressing-room', episodeId: 'episode-01', order: 3, title: '化妆间', summary: '林晚独处时，记忆和现实交叠。', location: '旧化妆间', timeOfDay: '夜', shots: shots.slice(9) }
     ]
+  }
+}
+
+function createShot(
+  definition: (typeof SHOTS)[number],
+  index: number,
+  frame: StoryMediaCandidate
+): StoryShot {
+  return {
+    id: `shot-${definition[0].toLowerCase()}`,
+    title: definition[1],
+    composition: definition[2],
+    action: definition[2],
+    camera: definition[3],
+    generationPrompt: `${definition[2]}，${definition[3]}，电影级都市悬疑，冷蓝雨夜与暖色旧灯，角色身份一致。`,
+    emotion: index < 4 ? '克制、试探、隐忍' : '警觉、压抑、悬念升高',
+    lens: index % 3 === 0 ? '24mm' : index % 3 === 1 ? '35mm' : '50mm',
+    lighting: '冷色环境光 + 暖色侧逆光',
+    colorTone: '低饱和冷暖对比',
+    weather: index < 4 ? '雨夜' : '室内潮湿夜景',
+    ...(index === 1
+      ? { dialogue: '你还是来了。', dialogueSpeakerId: 'character-linwan', dialogueType: 'dialogue' as const }
+      : index === 2
+        ? { dialogue: '我只是来拿回属于我的东西。', dialogueSpeakerId: 'character-guchen', dialogueType: 'dialogue' as const }
+        : {}),
+    soundEffects: ['雨声', '远处雷声'],
+    durationSeconds: definition[4],
+    candidates: [cloneCandidate(frame, `candidate-${definition[0].toLowerCase()}-image`, `${definition[1]}主画面`)]
+  }
+}
+
+function characterAsset(
+  id: string,
+  name: string,
+  description: string,
+  candidate?: StoryMediaCandidate
+): NonNullable<StoryProductionDocument['assets']>[number] {
+  return {
+    id,
+    kind: 'character',
+    name,
+    description,
+    prompt: `${name}角色身份包，电影级写实，严格保持面部、发型与服装连续性。`,
+    negativePrompt: '避免脸型漂移、发型变化、服装换色、年龄变化与塑料皮肤。',
+    continuityNotes: `${name}在全剧镜头中保持同一面部、发型、体型与主服装。`,
+    categoryDetails: {
+      identity: description,
+      appearance: name === '林晚' ? '肩长黑发 / 清冷轮廓 / 右眼下浅痣' : '黑色湿发 / 冷峻轮廓 / 克制眼神',
+      wardrobe: name === '林晚' ? '米色风衣 / 深灰针织衫' : '黑色皮衣 / 深色高领衫',
+      voice: name === '林晚' ? '清透女声 / 克制' : '低沉男声 / 寡言',
+      continuity: '身份包锁定后，新镜头默认继承全部人物锚点。'
+    },
+    candidates: candidate ? [candidate] : []
+  }
+}
+
+function simpleAsset(
+  id: string,
+  kind: 'location' | 'prop' | 'style',
+  name: string,
+  description: string,
+  candidate?: StoryMediaCandidate
+): NonNullable<StoryProductionDocument['assets']>[number] {
+  return {
+    id,
+    kind,
+    name,
+    description,
+    prompt: `${description} 电影级雨夜写实，低饱和冷暖对比。`,
+    negativePrompt: '避免现代无关元素、文字水印、过度霓虹与空间结构漂移。',
+    continuityNotes: `${name}在所有关联镜头中保持材质、尺度、位置与光线关系一致。`,
+    categoryDetails:
+      kind === 'location'
+        ? {
+            environment: description,
+            lighting: '冷蓝环境光 / 暖色旧灯 / 潮湿反光',
+            continuity: '门窗、灯架、镜前灯与主通道位置固定。'
+          }
+        : kind === 'prop'
+          ? {
+              material: '磨损金属 / 旧皮革 / 使用痕迹清晰',
+              condition: '旧但可用，关键细节不能改变',
+              storyFunction: description,
+              continuity: '持有人、朝向、破损位置与镜头接续一致。'
+            }
+          : {
+              palette: '冷蓝、炭黑、旧钨丝暖金',
+              lighting: '低调光 / 侧逆光 / 湿润高光',
+              lens: '24–50mm 写实电影镜头，浅景深克制使用',
+              continuity: '全片维持低饱和冷暖对冲与真实雨夜质感。'
+            },
+    candidates: candidate ? [candidate] : []
   }
 }
 
@@ -221,7 +238,7 @@ function mediaCandidate(
     selected: true,
     ...(media.fileUrl ? { fileUrl: media.fileUrl } : {}),
     workspacePath: media.workspacePath,
-    prompt: `${label}，古风写实电影感，保持角色、场景、道具与冷暖光一致。`,
+    prompt: `${label}，电影级雨夜写实，保持人物、场景、道具与冷暖光一致。`,
     originalName: media.fileName,
     mimeType: media.mimeType,
     size: media.size,
@@ -235,9 +252,5 @@ function cloneCandidate(
   id: string,
   label: string
 ): StoryMediaCandidate {
-  return {
-    ...candidate,
-    id,
-    label
-  }
+  return { ...candidate, id, label }
 }

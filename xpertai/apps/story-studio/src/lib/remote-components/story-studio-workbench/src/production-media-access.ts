@@ -4,7 +4,8 @@ import {
   getErrorMessage,
   getResponsePayload,
   isRemoteObject,
-  requestFileAccess
+  requestFileAccess,
+  type RemoteValue
 } from './runtime'
 
 const MEDIA_ACCESS_CONCURRENCY = 4
@@ -19,23 +20,17 @@ export async function hydrateProductionMediaAccess(
     ...production.scenes.flatMap((scene) =>
       scene.shots.flatMap((shot) => shot.candidates)
     )
-  ].filter((candidate) => Boolean(candidate.workspacePath))
+  ].filter(needsMediaAccessRefresh)
   const urls = new Map<string, string>()
   await mapWithConcurrency(
     candidates,
     MEDIA_ACCESS_CONCURRENCY,
     async (candidate) => {
       try {
-        const payload = getResponsePayload(
-          await requestFileAccess(candidate.id, projectId)
+        const url = readMediaAccessUrl(
+          getResponsePayload(await requestFileAccess(candidate.id, projectId))
         )
-        if (
-          isRemoteObject(payload) &&
-          typeof payload.url === 'string' &&
-          payload.url.trim()
-        ) {
-          urls.set(candidate.id, payload.url)
-        }
+        if (url) urls.set(candidate.id, url)
       } catch (error) {
         storyStudioDebug.warn('media.file-access-failed', {
           candidateId: candidate.id,
@@ -64,6 +59,27 @@ export async function hydrateProductionMediaAccess(
       }))
     }))
   }
+}
+
+export function needsMediaAccessRefresh(
+  candidate: Pick<Candidate, 'fileUrl' | 'workspacePath'>
+) {
+  return Boolean(
+    candidate.workspacePath ||
+      candidate.fileUrl?.includes('/api/workspace-files/content/')
+  )
+}
+
+export function readMediaAccessUrl(value: RemoteValue): string | null {
+  if (!isRemoteObject(value)) return null
+  if (typeof value.url === 'string' && value.url.trim()) {
+    return value.url.trim()
+  }
+  for (const key of ['payload', 'data', 'result']) {
+    const nested = readMediaAccessUrl(value[key])
+    if (nested) return nested
+  }
+  return null
 }
 
 async function mapWithConcurrency<T>(

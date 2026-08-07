@@ -46,6 +46,7 @@ import {
 } from './story-agent-tool.schemas.js'
 import {
   attachAssetImageSchema,
+  attachShotReferenceImageSchema,
   saveStoryProductionSchema
 } from './story-production.schemas.js'
 import { prepareStoryCutHandoffSchema } from './story-cut-handoff.schemas.js'
@@ -61,9 +62,27 @@ import type {
 } from './types.js'
 import type {
   AttachAssetImageInput,
+  AttachShotReferenceImageInput,
   SaveStoryProductionInput
 } from './production-types.js'
 import type { PrepareStoryCutHandoffInput } from './story-cut-handoff.types.js'
+import { StoryVideoGenerationService } from './story-video-generation.service.js'
+import {
+  generateStoryShotTakesSchema,
+  getStoryVideoTaskSchema,
+  listStoryVideoTasksSchema,
+  manageStoryVideoTaskSchema,
+  selectStoryShotVideoSchema,
+  setStoryVideoGeneratorSchema
+} from './story-video-generation.schemas.js'
+import type {
+  GenerateStoryShotTakesInput,
+  GetStoryVideoTaskInput,
+  ListStoryVideoTasksInput,
+  ManageStoryVideoTaskInput,
+  SelectStoryShotVideoInput,
+  SetStoryVideoGeneratorInput
+} from './story-video-generation.types.js'
 
 const moduleFilename = fileURLToPath(import.meta.url)
 const moduleDir = dirname(moduleFilename)
@@ -96,6 +115,12 @@ type StoryStudioWorkbenchData = XpertViewDataResult & {
   handoff: Awaited<
     ReturnType<StoryCutHandoffService['getLatestSummary']>
   >
+  videoGenerators: Awaited<
+    ReturnType<StoryVideoGenerationService['listGenerators']>
+  > | null
+  videoTasks: Awaited<
+    ReturnType<StoryVideoGenerationService['listTasks']>
+  > | null
 }
 
 type StoryStudioViewFileAccessRequest = {
@@ -116,7 +141,8 @@ export class StoryStudioViewProvider
   constructor(
     private readonly service: StoryStudioService,
     private readonly productionService: StoryProductionService,
-    private readonly cutHandoffs: StoryCutHandoffService
+    private readonly cutHandoffs: StoryCutHandoffService,
+    private readonly videoGeneration: StoryVideoGenerationService
   ) {}
 
   supports(context: XpertResolvedViewHostContext) {
@@ -278,6 +304,13 @@ export class StoryStudioViewProvider
           transport: 'file'
         },
         {
+          key: 'upload_shot_reference_image',
+          label: text('Upload temporary shot reference', '上传镜头临时参考图'),
+          icon: 'ri-upload-cloud-2-line',
+          actionType: 'invoke',
+          transport: 'file'
+        },
+        {
           key: 'update_project_status',
           label: text('Advance stage', '推进阶段'),
           icon: 'ri-arrow-right-line',
@@ -287,6 +320,46 @@ export class StoryStudioViewProvider
           key: 'prepare_cut_handoff',
           label: text('Prepare Cut handoff', '准备 Cut 交接'),
           icon: 'ri-send-plane-line',
+          actionType: 'invoke'
+        },
+        {
+          key: 'list_video_generators',
+          label: text('Video generators', '视频生成器'),
+          actionType: 'invoke'
+        },
+        {
+          key: 'set_project_video_generator',
+          label: text('Choose video generator', '选择视频生成器'),
+          actionType: 'invoke'
+        },
+        {
+          key: 'generate_shot_takes',
+          label: text('Generate Takes', '生成候选镜头'),
+          actionType: 'invoke'
+        },
+        {
+          key: 'list_shot_video_tasks',
+          label: text('Clip progress', '镜头进度'),
+          actionType: 'invoke'
+        },
+        {
+          key: 'refresh_video_task',
+          label: text('Refresh clip progress', '刷新镜头进度'),
+          actionType: 'invoke'
+        },
+        {
+          key: 'cancel_video_task',
+          label: text('Stop tracking', '停止跟踪'),
+          actionType: 'invoke'
+        },
+        {
+          key: 'retry_video_task',
+          label: text('Generate again', '重新生成'),
+          actionType: 'invoke'
+        },
+        {
+          key: 'select_shot_video',
+          label: text('Lock Take', '锁定候选镜头'),
           actionType: 'invoke'
         }
       ]
@@ -393,6 +466,16 @@ export class StoryStudioViewProvider
     const handoff = requestedId
       ? await this.cutHandoffs.getLatestSummary(scope, requestedId)
       : null
+    const videoGenerators = requestedId
+      ? await this.videoGeneration.listGenerators(scope, requestedId).catch(() => null)
+      : null
+    const videoTasks = requestedId
+      ? await this.videoGeneration.listTasks(scope, {
+          projectId: requestedId,
+          page: 1,
+          pageSize: 50
+        }).catch(() => null)
+      : null
 
     const result: StoryStudioWorkbenchData = {
       tableKey: 'projects',
@@ -406,7 +489,9 @@ export class StoryStudioViewProvider
       projects,
       detail,
       production,
-      handoff
+      handoff,
+      videoGenerators,
+      videoTasks
     }
     return result
   }
@@ -444,13 +529,13 @@ export class StoryStudioViewProvider
           operationId: `${operationId}:project`,
           title: STORY_DEMO_TITLE,
           description:
-            '使用原创故事和视觉素材演示素材、故事计划、分集剧本、资产圣经、分镜、媒体候选与本机视频合成闭环。',
+            '使用原创都市情感悬疑故事和一致性视觉素材，演示剧本、角色资产、分镜、媒体候选与 Cut 装配闭环。',
           premise:
-            '雨夜，一位深宅小姐发现足以颠覆家族的秘密账册，并在搜查者到来前作出选择。',
+            '雨夜，纪录片摄影师林晚在废弃旧影棚与失联多年的搭档顾沉重逢，两人被迫面对一段未完成的影片与被刻意掩埋的事故。',
           productionFormat: 'vertical_short',
           aspectRatio: '9:16',
-          targetDurationSeconds: 15,
-          tags: ['story-studio-workflow', 'visual-demo', '古风悬疑'],
+          targetDurationSeconds: 96,
+          tags: ['story-studio-workflow', 'visual-demo', '都市情感悬疑'],
           changeSummary: 'Created the Story Studio visual workflow demo'
         })
         const planning = await this.service.updateProjectStatus(scope, {
@@ -473,7 +558,7 @@ export class StoryStudioViewProvider
           projectId: created.project.id,
           operationId: `${operationId}:production`,
           baseRevision: advanced.project.revision,
-          changeSummary: 'Loaded the complete hidden-ledger production demo'
+          changeSummary: 'Loaded the complete Backlight Reunion production demo'
         })
         return {
           ...success('Visual demo project created', '视觉示例项目已创建'),
@@ -526,6 +611,62 @@ export class StoryStudioViewProvider
           data: result
         }
       }
+      if (actionKey === 'list_video_generators') {
+        const projectId = requireInputString(request, 'projectId', 'projectId is required.')
+        return {
+          ...success('Video generators loaded', '视频生成器已载入'),
+          data: await this.videoGeneration.listGenerators(scope, projectId)
+        }
+      }
+      if (actionKey === 'set_project_video_generator') {
+        const input = setStoryVideoGeneratorSchema.parse(request.input ?? {}) as SetStoryVideoGeneratorInput
+        return {
+          ...success('Video generator saved', '视频生成器已保存'),
+          data: await this.videoGeneration.setProjectGenerator(scope, input)
+        }
+      }
+      if (actionKey === 'generate_shot_takes') {
+        const input = generateStoryShotTakesSchema.parse(request.input ?? {}) as GenerateStoryShotTakesInput
+        return {
+          ...success('Take generation started', '候选镜头已开始生成'),
+          data: await this.videoGeneration.generateTakes(scope, input)
+        }
+      }
+      if (actionKey === 'list_shot_video_tasks') {
+        const input = listStoryVideoTasksSchema.parse(request.input ?? {}) as ListStoryVideoTasksInput
+        return {
+          ...success('Clip progress loaded', '镜头进度已载入'),
+          data: await this.videoGeneration.listTasks(scope, input)
+        }
+      }
+      if (actionKey === 'refresh_video_task') {
+        const input = manageStoryVideoTaskSchema.parse(request.input ?? {}) as ManageStoryVideoTaskInput
+        return {
+          ...success('Clip progress refreshed', '镜头进度已刷新'),
+          data: await this.videoGeneration.refreshTask(scope, input)
+        }
+      }
+      if (actionKey === 'cancel_video_task') {
+        const input = manageStoryVideoTaskSchema.parse(request.input ?? {}) as ManageStoryVideoTaskInput
+        return {
+          ...success('Tracking stopped', '已停止跟踪'),
+          data: await this.videoGeneration.cancelTask(scope, input)
+        }
+      }
+      if (actionKey === 'retry_video_task') {
+        const input = manageStoryVideoTaskSchema.parse(request.input ?? {}) as ManageStoryVideoTaskInput
+        return {
+          ...success('Take generation restarted', '候选镜头已重新生成'),
+          data: await this.videoGeneration.retryTask(scope, input)
+        }
+      }
+      if (actionKey === 'select_shot_video') {
+        const input = selectStoryShotVideoSchema.parse(request.input ?? {}) as SelectStoryShotVideoInput
+        return {
+          ...success('Take locked', '候选镜头已锁定'),
+          data: await this.videoGeneration.selectShotVideo(scope, input)
+        }
+      }
       return failure('Unsupported action')
     } catch (error) {
       return actionFailure(error)
@@ -541,12 +682,12 @@ export class StoryStudioViewProvider
   ): Promise<XpertViewActionResult> {
     if (
       viewKey !== STORY_STUDIO_WORKBENCH_VIEW_KEY ||
-      actionKey !== 'upload_asset_image'
+      !['upload_asset_image', 'upload_shot_reference_image'].includes(actionKey)
     ) {
       return failure('Unsupported file action')
     }
     try {
-      const input = attachAssetImageSchema.parse({
+      const commonInput = {
         ...(request.input ?? {}),
         providerReceipt: {
           provider: 'manual_upload',
@@ -557,21 +698,37 @@ export class StoryStudioViewProvider
         },
         changeSummary:
           readInputString(request, 'changeSummary') ??
-          'Uploaded an asset-bible reference image'
-      }) as AttachAssetImageInput
-      const result = await this.productionService.uploadAssetImage(
-        scopeFromContext(context),
-        input,
-        {
-          buffer: file.buffer,
-          originalName: file.originalname || input.label,
-          mimeType: file.mimetype || 'application/octet-stream'
-        }
-      )
+          (actionKey === 'upload_shot_reference_image'
+            ? 'Uploaded a temporary shot reference image'
+            : 'Uploaded an asset-bible reference image')
+      }
+      const input = actionKey === 'upload_shot_reference_image'
+        ? attachShotReferenceImageSchema.parse(commonInput) as AttachShotReferenceImageInput
+        : attachAssetImageSchema.parse(commonInput) as AttachAssetImageInput
+      const uploadFile = {
+        buffer: file.buffer,
+        originalName: file.originalname || input.label,
+        mimeType: file.mimetype || 'application/octet-stream'
+      }
+      const result = actionKey === 'upload_shot_reference_image'
+        ? await this.productionService.uploadShotReferenceImage(
+            scopeFromContext(context),
+            input as AttachShotReferenceImageInput,
+            uploadFile
+          )
+        : await this.productionService.uploadAssetImage(
+            scopeFromContext(context),
+            input as AttachAssetImageInput,
+            uploadFile
+          )
       return {
         ...success(
-          'Asset reference uploaded',
-          '资产参考图已上传'
+          actionKey === 'upload_shot_reference_image'
+            ? 'Temporary shot reference uploaded'
+            : 'Asset reference uploaded',
+          actionKey === 'upload_shot_reference_image'
+            ? '镜头临时参考图已上传'
+            : '资产参考图已上传'
         ),
         data: {
           projectId: result.projectId,

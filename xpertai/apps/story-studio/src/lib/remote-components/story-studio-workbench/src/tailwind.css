@@ -1,0 +1,41 @@
+@import "tailwindcss" source("./");
+
+@theme {
+  --color-studio-canvas: #f6f3ea;
+  --color-studio-paper: #fffdf8;
+  --color-studio-ink: #201e1a;
+  --color-studio-muted: #767064;
+  --color-studio-line: #d8d0c1;
+  --color-studio-brass: #9d6f2d;
+  --color-studio-brass-dark: #76501d;
+  --color-studio-blue: #2764a5;
+  --color-studio-success: #1f7a58;
+  --color-studio-danger: #b13b31;
+  --color-studio-panel: #efeadf;
+  --font-display: Georgia, "Songti SC", "STSong", serif;
+  --font-ui: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --shadow-studio: 0 14px 40px rgb(37 32 23 / 0.12);
+}
+
+@custom-variant story-dark (&:where([data-story-theme="dark"], [data-story-theme="dark"] *));
+
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html, body, #root {
+    min-height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-studio-canvas);
+    color: var(--color-studio-ink);
+    font-family: var(--font-ui);
+  }
+
+  button, input, textarea, select {
+    font: inherit;
+  }
+}

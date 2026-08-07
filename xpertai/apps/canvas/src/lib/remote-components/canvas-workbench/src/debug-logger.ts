@@ -9,8 +9,6 @@ export type CanvasDebugPayload = CanvasDebugObject | null | undefined
 
 type ConsoleMethod = (message?: string, data?: CanvasDebugValue) => void
 type DebugScope = {
-  localStorage?: Storage
-  sessionStorage?: Storage
   location?: {
     search?: string
   }
@@ -55,10 +53,11 @@ export function redactDebugData(data: CanvasDebugPayload): CanvasDebugValue {
 }
 
 export function isCanvasDebugEnabled(namespace: string) {
-  if (readStorageFlag(namespace, '0')) {
-    return false
+  const queryOverride = readQueryFlag(namespace)
+  if (queryOverride !== null) {
+    return queryOverride
   }
-  return readWindowFlag(namespace) || readStorageFlag(namespace, '1') || readQueryFlag(namespace) || hostDebugEnabled
+  return readWindowFlag(namespace) || hostDebugEnabled
 }
 
 export function setCanvasDebugHostConfig(config: CanvasDebugValue, namespace = 'canvas-workbench') {
@@ -78,14 +77,18 @@ function readQueryFlag(namespace: string) {
   for (const target of getDebugWindows()) {
     try {
       const search = target.location?.search || ''
-      if (new URLSearchParams(search).get('xpertDebug') === namespace) {
+      const value = new URLSearchParams(search).get('xpertDebug')
+      if (value === '0' || value === 'false') {
+        return false
+      }
+      if (value === namespace || value === '1' || value === 'true') {
         return true
       }
     } catch {
       // Ignore cross-origin or sandboxed access errors.
     }
   }
-  return false
+  return null
 }
 
 function readWindowFlag(namespace: string) {
@@ -94,20 +97,6 @@ function readWindowFlag(namespace: string) {
     try {
       const value = target[globalFlagName]
       if (value === true || value === '1' || value === namespace) {
-        return true
-      }
-    } catch {
-      // Ignore cross-origin or sandboxed access errors.
-    }
-  }
-  return false
-}
-
-function readStorageFlag(namespace: string, expectedValue: string) {
-  const key = `xpert.debug.${namespace}`
-  for (const target of getDebugWindows()) {
-    try {
-      if (target.localStorage?.getItem(key) === expectedValue || target.sessionStorage?.getItem(key) === expectedValue) {
         return true
       }
     } catch {

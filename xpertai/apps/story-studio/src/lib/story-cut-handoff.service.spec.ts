@@ -78,6 +78,19 @@ describe('StoryCutHandoffService', () => {
     )
   })
 
+  it('uses the sole Workspace MP4 without requiring an explicit selection', async () => {
+    const harness = createHarness(false, false)
+    const result = await harness.service.prepare(scope, {
+      projectId: PROJECT_ID,
+      operationId: 'prepare:story:sole-video',
+      expectedRevision: 7,
+      fps: 24,
+      changeSummary: 'Prepared the sole Story media candidate for Cut.'
+    })
+
+    expect(result.handoff).toMatchObject({ shotCount: 1, status: 'ready' })
+  })
+
   it('rejects a shot with more than one selected video', async () => {
     const harness = createHarness(true)
     await expect(
@@ -87,12 +100,12 @@ describe('StoryCutHandoffService', () => {
         expectedRevision: 7,
         changeSummary: 'Attempted ambiguous Cut handoff.'
       })
-    ).rejects.toThrow('exactly one selected video')
+    ).rejects.toThrow('one unambiguous video')
     expect(harness.handoffs.save).not.toHaveBeenCalled()
   })
 })
 
-function createHarness(duplicateSelectedVideo = false) {
+function createHarness(duplicateSelectedVideo = false, selected = true) {
   const project = {
     id: PROJECT_ID,
     tenantId: scope.tenantId,
@@ -110,7 +123,7 @@ function createHarness(duplicateSelectedVideo = false) {
     id: 'video-1',
     kind: 'video',
     label: 'Arrival',
-    selected: true,
+    selected,
     originalName: 'shot-1.mp4',
     mimeType: 'video/mp4',
     size: 4096,

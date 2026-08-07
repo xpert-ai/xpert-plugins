@@ -25,15 +25,25 @@ import {
 } from './entities/index.js'
 import type {
   AttachAssetImageInput,
+  AttachShotReferenceImageInput,
   GetStoryProductionInput,
   SaveStoryProductionInput,
+  StartStoryProductionInput,
   StoryMediaCandidate,
   StoryProductionDocument,
-  StoryProductionSummary
+  StoryProductionSummary,
+  UpsertStoryProductionSceneInput,
+  UpsertStoryProductionShotInput
 } from './production-types.js'
 import { uploadStoryDemoAssets } from './story-demo-assets.js'
 import { storyActor } from './story-actor.js'
 import { createStoryDemoProduction } from './story-demo-case.js'
+import {
+  applyProductionSceneUpsert,
+  applyProductionShotUpsert,
+  buildStartedProduction,
+  productionPatchReceipt
+} from './story-production-partial.js'
 import {
   mergeWorkbenchProductionMedia,
   sanitizeAssets,
@@ -228,6 +238,92 @@ export class StoryProductionService {
     return compactProduction(row)
   }
 
+  async startProduction(
+    scope: StoryScope,
+    input: StartStoryProductionInput
+  ) {
+    validateScope(scope)
+    const existing = await this.productions.findOne({
+      where: scopedWhere<StoryProduction>(scope, {
+        projectId: input.projectId
+      })
+    })
+    if (existing) {
+      const previousLog = await this.logs.findOne({
+        where: scopedWhere<StoryActionLog>(scope, {
+          operationId: input.operationId
+        })
+      })
+      if (!previousLog) {
+        throw new ConflictException({
+          errorCode: 'story_production_already_exists',
+          message:
+            'A production plan already exists. Use story_upsert_production_scene or story_upsert_production_shot instead.'
+        })
+      }
+    }
+    const saved = await this.saveProduction(scope, {
+      projectId: input.projectId,
+      operationId: input.operationId,
+      baseRevision: input.baseRevision,
+      production: buildStartedProduction(input),
+      changeSummary: input.changeSummary
+    })
+    return productionPatchReceipt(saved, {
+      sceneId: input.firstScene.id,
+      shotIds: input.firstScene.shots.map((shot) => shot.id)
+    })
+  }
+
+  async upsertScene(
+    scope: StoryScope,
+    input: UpsertStoryProductionSceneInput
+  ) {
+    validateScope(scope)
+    const row = await requireProduction(
+      this.productions,
+      scope,
+      input.projectId,
+      'Save a Story Studio production plan before upserting scenes.'
+    )
+    const current = productionDocumentFromRow(row)
+    const { production, target } = applyProductionSceneUpsert(
+      current,
+      input
+    )
+    const saved = await this.saveProduction(scope, {
+      projectId: input.projectId,
+      operationId: input.operationId,
+      baseRevision: input.baseRevision,
+      production,
+      changeSummary: input.changeSummary
+    })
+    return productionPatchReceipt(saved, target)
+  }
+
+  async upsertShot(
+    scope: StoryScope,
+    input: UpsertStoryProductionShotInput
+  ) {
+    validateScope(scope)
+    const row = await requireProduction(
+      this.productions,
+      scope,
+      input.projectId,
+      'Save a Story Studio production plan before upserting shots.'
+    )
+    const current = productionDocumentFromRow(row)
+    const { production, target } = applyProductionShotUpsert(current, input)
+    const saved = await this.saveProduction(scope, {
+      projectId: input.projectId,
+      operationId: input.operationId,
+      baseRevision: input.baseRevision,
+      production,
+      changeSummary: input.changeSummary
+    })
+    return productionPatchReceipt(saved, target)
+  }
+
   async resolveMediaCandidateFile(
     scope: StoryScope,
     projectId: string,
@@ -316,13 +412,154 @@ export class StoryProductionService {
     })
   }
 
+  async uploadShotReferenceImage(
+    scope: StoryScope,
+    input: AttachShotReferenceImageInput,
+    file: {
+      buffer: Buffer
+      originalName: string
+      mimeType: string
+    }
+  ) {
+    const project = await requireProject(this.projects, scope, input.projectId)
+    assertRevision(project, input.baseRevision)
+    const mimeType = normalizeAssetImageMimeType(
+      file.mimeType,
+      file.originalName,
+      file.buffer
+    )
+    validateAssetImageBuffer(file.buffer)
+    const extension = extensionForImageMimeType(mimeType)
+    const fileName = `${input.candidateId}.${extension}`
+    const written = await this.workspaceFiles().writeRuntimeBuffer({
+      ...assetImageDestination(project, scope),
+      folder: `story-studio/${project.id}/shot-references`,
+      fileName,
+      originalName: file.originalName || fileName,
+      mimeType,
+      buffer: file.buffer,
+      size: file.buffer.length,
+      metadata: {
+        pluginName: '@xpert-ai/plugin-story-studio',
+        storyProjectId: project.id,
+        storySceneId: input.sceneId,
+        storyShotId: input.shotId,
+        candidateId: input.candidateId,
+        source: 'manual_upload'
+      }
+    })
+    return this.attachShotReferenceImage(scope, input, {
+      ...written,
+      buffer: file.buffer,
+      name: written.name,
+      mimeType: written.mimeType ?? mimeType,
+      size: written.size ?? file.buffer.length,
+      reference: written.reference
+    })
+  }
+
+  async attachShotReferenceImage(
+    scope: StoryScope,
+    input: AttachShotReferenceImageInput,
+    file: WorkspaceRuntimeFileBuffer
+  ) {
+    validateScope(scope)
+    validateReferenceImageInput(scope, input, file)
+    const project = await requireProject(this.projects, scope, input.projectId)
+    const row = await this.productions.findOne({
+      where: scopedWhere<StoryProduction>(scope, { projectId: input.projectId })
+    })
+    if (!row) {
+      throw new BadRequestException(
+        'Save a Story Studio production plan before attaching a shot reference image.'
+      )
+    }
+    const targetShot = row.scenes
+      .find((scene) => scene.id === input.sceneId)
+      ?.shots.find((shot) => shot.id === input.shotId)
+    const duplicate = targetShot?.candidates?.find(
+      (candidate) =>
+        candidate.id === input.candidateId &&
+        candidate.kind === 'image' &&
+        candidate.providerReceipt?.taskId === input.providerReceipt.taskId
+    )
+    if (duplicate) {
+      return {
+        success: true,
+        duplicate: true,
+        projectId: project.id,
+        revision: project.revision,
+        production: compactProduction(row)
+      }
+    }
+    assertRevision(project, input.baseRevision)
+    if (!targetShot) {
+      throw new NotFoundException('Story production shot was not found.')
+    }
+    const allCandidateIds = [
+      ...(row.assets ?? []).flatMap((asset) => asset.candidates ?? []),
+      ...row.scenes.flatMap((scene) =>
+        scene.shots.flatMap((shot) => shot.candidates ?? [])
+      )
+    ].map((candidate) => candidate.id)
+    if (allCandidateIds.includes(input.candidateId)) {
+      throw new ConflictException({
+        errorCode: 'story_media_candidate_conflict',
+        message: 'candidateId already exists. Use a new candidateId.'
+      })
+    }
+    const sha256 = createHash('sha256').update(file.buffer).digest('hex')
+    const mimeType = normalizeAssetImageMimeType(
+      file.mimeType ?? file.reference.mimeType ?? '',
+      file.reference.originalName ?? file.reference.name ?? file.name,
+      file.buffer
+    )
+    const candidate: StoryMediaCandidate = {
+      id: input.candidateId,
+      kind: 'image',
+      label: input.label,
+      selected: true,
+      ...(file.fileUrl ? { fileUrl: file.fileUrl } : {}),
+      workspacePath: file.reference.workspacePath,
+      ...(input.prompt ? { prompt: input.prompt } : {}),
+      providerReceipt: input.providerReceipt,
+      originalName:
+        file.reference.originalName ??
+        file.reference.name ??
+        file.name ??
+        `${input.candidateId}.${extensionForImageMimeType(mimeType)}`,
+      mimeType,
+      size: file.buffer.length,
+      sha256,
+      fileReference:
+        file.reference as unknown as StoryMediaCandidate['fileReference']
+    }
+    const scenes = row.scenes.map((scene) => ({
+      ...scene,
+      shots: scene.shots.map((shot) => {
+        if (scene.id !== input.sceneId || shot.id !== input.shotId) return shot
+        const candidates = (shot.candidates ?? []).map((item) =>
+          item.kind === 'image' ? { ...item, selected: false } : item
+        )
+        return { ...shot, candidates: [...candidates, candidate] }
+      })
+    }))
+    return this.saveProduction(scope, {
+      projectId: input.projectId,
+      operationId: input.operationId,
+      baseRevision: input.baseRevision,
+      production: { ...productionDocumentFromRow(row), scenes },
+      changeSummary: input.changeSummary
+    })
+  }
+
   async attachAssetImage(
     scope: StoryScope,
     input: AttachAssetImageInput,
     file: WorkspaceRuntimeFileBuffer
   ) {
     validateScope(scope)
-    validateAssetImageInput(scope, input, file)
+    validateReferenceImageInput(scope, input, file)
     const project = await requireProject(
       this.projects,
       scope,
@@ -341,6 +578,14 @@ export class StoryProductionService {
     const targetAsset = (row.assets ?? []).find(
       (asset) => asset.id === input.assetId
     )
+    if (
+      input.assetReference?.type === 'expression' &&
+      targetAsset?.kind !== 'character'
+    ) {
+      throw new BadRequestException(
+        'Expression references can only be attached to character assets.'
+      )
+    }
     const existingTargetCandidate = targetAsset?.candidates?.find(
       (candidate) => candidate.id === input.candidateId
     )
@@ -383,6 +628,9 @@ export class StoryProductionService {
       kind: 'image',
       label: input.label,
       selected: input.select ?? true,
+      ...(input.assetReference
+        ? { assetReference: input.assetReference }
+        : {}),
       ...(file.fileUrl ? { fileUrl: file.fileUrl } : {}),
       workspacePath: file.reference.workspacePath,
       ...(input.prompt ? { prompt: input.prompt } : {}),
@@ -476,9 +724,27 @@ export class StoryProductionService {
   }
 }
 
-function validateAssetImageInput(
+async function requireProduction(
+  repository: Repository<StoryProduction>,
   scope: StoryScope,
-  input: AttachAssetImageInput,
+  projectId: string,
+  message: string
+) {
+  const row = await repository.findOne({
+    where: scopedWhere<StoryProduction>(scope, { projectId })
+  })
+  if (!row) {
+    throw new BadRequestException({
+      errorCode: 'story_production_required',
+      message
+    })
+  }
+  return row
+}
+
+function validateReferenceImageInput(
+  scope: StoryScope,
+  input: Pick<AttachAssetImageInput, 'providerReceipt'> | Pick<AttachShotReferenceImageInput, 'providerReceipt'>,
   file: WorkspaceRuntimeFileBuffer
 ) {
   if (

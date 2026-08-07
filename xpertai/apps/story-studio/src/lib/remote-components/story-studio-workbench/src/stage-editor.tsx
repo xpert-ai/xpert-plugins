@@ -339,6 +339,7 @@ function StoryPlanEditor(props: ProductionEditorProps) {
                 logline: t('editor.newLogline'),
                 theme: t('editor.newTheme'),
                 tone: t('editor.newTone'),
+                adaptationSuggestions: [],
                 beats: [
                   {
                     id: newIdentifier('beat'),

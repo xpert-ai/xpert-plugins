@@ -1,25 +1,15 @@
 import { configureCutDebug, cutDebug } from './remote-components/cut-workbench/src/debug.js'
 
 describe('Cut Workbench debug logger', () => {
-  const originalLocalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage')
+  const locationDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'location')
 
   afterEach(() => {
     configureCutDebug(null)
     jest.restoreAllMocks()
-    if (originalLocalStorage) {
-      Object.defineProperty(globalThis, 'localStorage', originalLocalStorage)
-    } else {
-      delete (globalThis as typeof globalThis & { localStorage?: Storage }).localStorage
-    }
+    restoreGlobalProperty('location', locationDescriptor)
   })
 
-  it('uses host debug settings when sandboxed localStorage access throws', () => {
-    Object.defineProperty(globalThis, 'localStorage', {
-      configurable: true,
-      get() {
-        throw new DOMException('Storage is unavailable for an opaque origin.', 'SecurityError')
-      }
-    })
+  it('uses host debug settings', () => {
     configureCutDebug({ enabled: true, production: false })
     const debug = jest.spyOn(console, 'debug').mockImplementation()
 
@@ -27,26 +17,15 @@ describe('Cut Workbench debug logger', () => {
     expect(debug).toHaveBeenCalledWith('[cut-workbench] bridge.request.completed', { requestId: '1' })
   })
 
-  it('keeps debug output disabled by default when sandboxed localStorage access throws', () => {
-    Object.defineProperty(globalThis, 'localStorage', {
-      configurable: true,
-      get() {
-        throw new DOMException('Storage is unavailable for an opaque origin.', 'SecurityError')
-      }
-    })
+  it('keeps debug output disabled by default', () => {
     const debug = jest.spyOn(console, 'debug').mockImplementation()
 
     expect(() => cutDebug.debug('bridge.init')).not.toThrow()
     expect(debug).not.toHaveBeenCalled()
   })
 
-  it('preserves the explicit localStorage force-off override', () => {
-    Object.defineProperty(globalThis, 'localStorage', {
-      configurable: true,
-      value: {
-        getItem: jest.fn(() => '0')
-      }
-    })
+  it('preserves the explicit query force-off override', () => {
+    installLocationSearch('?xpertDebug=0')
     configureCutDebug({ enabled: true, production: false })
     const debug = jest.spyOn(console, 'debug').mockImplementation()
 
@@ -55,3 +34,18 @@ describe('Cut Workbench debug logger', () => {
     expect(debug).not.toHaveBeenCalled()
   })
 })
+
+function installLocationSearch(search: string) {
+  Object.defineProperty(globalThis, 'location', {
+    configurable: true,
+    value: { search }
+  })
+}
+
+function restoreGlobalProperty(key: string, descriptor: PropertyDescriptor | undefined) {
+  if (descriptor) {
+    Object.defineProperty(globalThis, key, descriptor)
+  } else {
+    Reflect.deleteProperty(globalThis, key)
+  }
+}

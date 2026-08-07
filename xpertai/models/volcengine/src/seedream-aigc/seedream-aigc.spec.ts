@@ -174,6 +174,15 @@ describe('Seedream AIGC tools', () => {
     const videoQuerySchema = tools.find((_) => _.name === 'seedance_video_query')?.schema as any
 
     expect(strategy.meta.name).toBe(SeedreamAigc)
+    expect(strategy.meta.videoGeneration).toMatchObject({
+      protocolVersion: 2,
+      modes: expect.arrayContaining(['reference_to_video']),
+      tools: { referenceToVideo: 'seedance_multimodal_reference_to_video' }
+    })
+    expect(strategy.meta.videoGeneration.models[0]).toMatchObject({
+      id: 'doubao-seedance-2-0-260128',
+      inputs: { referenceImages: { maxItems: 9 } }
+    })
     expect(toolNames).toEqual(
       expect.arrayContaining([
         'seedream_text_to_image',
@@ -224,7 +233,8 @@ describe('Seedream AIGC tools', () => {
       'doubao-seedance-2-0-fast-260128'
     ])
     expect(multimodalSchema.properties.ratio.default).toBe('adaptive')
-    expect(multimodalSchema.properties.input_mode.default).toBe('text_image_video')
+    expect(multimodalSchema.properties.input_mode.default).toBe('text_image')
+    expect(multimodalSchema.properties.input_mode['x-ui'].enumLabels.text_image.zh_Hans).toBe('文本(可选)+图片')
     expect(multimodalSchema.properties.input_mode['x-ui'].enumLabels.text_image_video.zh_Hans).toBe('文本(可选)+图片+视频')
 
     expect(videoQuerySchema.properties.task_id['x-ui'].title.zh_Hans).toBe('任务 ID')
@@ -676,6 +686,40 @@ describe('Seedream AIGC tools', () => {
         }
       })
     ).rejects.toThrow('text(optional)+image+video requires at least one reference image')
+  })
+
+  it('submits multiple image references without requiring a reference video', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({
+      id: 'task-multi-image-reference',
+      status: 'submitted',
+      model: 'doubao-seedance-2-0-260128'
+    }))
+    const tool = buildSeedreamTools({ credentials, workspaceFiles, fetch: fetchMock }).find(
+      (_) => _.name === 'seedance_multimodal_reference_to_video'
+    )
+    const references = [
+      `data:image/png;base64,${Buffer.from('pony-reference').toString('base64')}`,
+      `data:image/png;base64,${Buffer.from('river-reference').toString('base64')}`
+    ]
+
+    await tool?.invoke({
+      id: 'call-multi-image-reference',
+      name: 'seedance_multimodal_reference_to_video',
+      type: 'tool_call',
+      args: {
+        prompt: '图片1是小马，图片2是小河。',
+        model: 'doubao-seedance-2-0-260128',
+        reference_image_files: references,
+        generate_audio: 'true'
+      }
+    })
+
+    const payload = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(payload.content).toEqual([
+      { type: 'text', text: '图片1是小马，图片2是小河。' },
+      { type: 'image_url', image_url: { url: references[0] }, role: 'reference_image' },
+      { type: 'image_url', image_url: { url: references[1] }, role: 'reference_image' }
+    ])
   })
 
   it('passes public audio URLs as Seedance reference audio', async () => {

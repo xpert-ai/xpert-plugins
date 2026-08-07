@@ -27,6 +27,73 @@ export class SeedreamAigcStrategy implements IToolsetStrategy<any> {
       value: SvgIcon,
       color: '#006EFF'
     },
+    videoGeneration: {
+      protocolVersion: 2 as const,
+      family: 'seedance' as const,
+      displayName: 'Seedance',
+      modes: [
+        'text_to_video',
+        'image_to_video',
+        'first_last_frame_to_video',
+        'reference_to_video'
+      ] as const,
+      tools: {
+        textToVideo: 'seedance_text_to_video',
+        imageToVideo: 'seedance_image_to_video',
+        firstLastFrameToVideo: 'seedance_first_last_frame_to_video',
+        referenceToVideo: 'seedance_multimodal_reference_to_video',
+        query: 'seedance_video_query'
+      },
+      models: [
+        {
+          id: 'doubao-seedance-2-0-260128',
+          label: 'Seedance 2.0',
+          modes: [
+            'text_to_video',
+            'image_to_video',
+            'first_last_frame_to_video',
+            'reference_to_video'
+          ],
+          inputs: {
+            referenceImages: { maxItems: 9 },
+            referenceAudios: { maxItems: 3 },
+            initialFrame: true,
+            lastFrame: true
+          }
+        },
+        {
+          id: 'doubao-seedance-2-0-fast-260128',
+          label: 'Seedance 2.0 Fast',
+          modes: [
+            'text_to_video',
+            'image_to_video',
+            'first_last_frame_to_video',
+            'reference_to_video'
+          ],
+          inputs: {
+            referenceImages: { maxItems: 9 },
+            referenceAudios: { maxItems: 3 },
+            initialFrame: true,
+            lastFrame: true
+          }
+        },
+        {
+          id: 'doubao-seedance-1-5-pro-251215',
+          label: 'Seedance 1.5 Pro',
+          modes: ['text_to_video', 'image_to_video', 'first_last_frame_to_video'],
+          inputs: {
+            referenceImages: { maxItems: 1 },
+            initialFrame: true,
+            lastFrame: true
+          }
+        }
+      ],
+      defaultModel: 'doubao-seedance-2-0-260128',
+      resolutions: ['720p', '480p'],
+      aspectRatios: ['9:16', '16:9', '1:1', '4:3', '3:4'],
+      durationSeconds: { min: 4, max: 15, default: 5 },
+      supportsAudio: true
+    },
     configSchema: {
       type: 'object',
       properties: {

@@ -112,6 +112,8 @@ export interface StoryProjectSummary {
   targetDurationSeconds: number | null
   status: StoryProjectStatus
   revision: number
+  preferredVideoGeneratorToolsetId: string | null
+  preferredVideoGeneratorFamily: 'seedance' | 'veo' | 'kling' | null
   tags: string[]
   failureCode: string | null
   failureMessage: string | null
