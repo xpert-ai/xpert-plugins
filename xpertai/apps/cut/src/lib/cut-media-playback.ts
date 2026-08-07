@@ -1,4 +1,4 @@
-import type { CutProjectDocument } from './types.js'
+import type { CutClip, CutProjectDocument, CutTrack } from './types.js'
 
 export const MAX_CUT_PROJECT_DURATION = 3_600
 export const PREVIEW_PLAYHEAD_JUMP_SECONDS = 0.25
@@ -93,9 +93,19 @@ export function activePreviewVisualClipIds(document: CutProjectDocument, playhea
   })
 }
 
+export type AudibleTimelineSegment = {
+  clip: CutClip
+  start: number
+  duration: number
+}
+
+export function audibleTimelineSegments(document: CutProjectDocument) {
+  return document.tracks.flatMap((track) => audibleTimelineSegmentsForTrack(track))
+}
+
 export function audibleTimelineClips(document: CutProjectDocument) {
   return document.tracks.flatMap((track) => {
-    if (track.muted) return []
+    if (track.muted || (track.kind === 'visual' && track.hidden)) return []
     return track.clips.filter((clip) => {
       if (!clip.previewUrl || clip.duration <= 0 || (clip.volume ?? 1) <= 0) return false
       if (track.kind === 'audio') return clip.type === 'audio'
@@ -123,4 +133,51 @@ export function restoreClipSourceDuration(documentInput: CutProjectDocument, cli
 
 function roundTime(value: number) {
   return Math.round(value * 1_000) / 1_000
+}
+
+function audibleTimelineSegmentsForTrack(track: CutTrack): AudibleTimelineSegment[] {
+  if (track.muted || (track.kind === 'visual' && track.hidden)) return []
+  const boundaries = [...new Set(track.clips.flatMap((clip) => [roundTime(clip.start), roundTime(clip.start + clip.duration)]))]
+    .sort((left, right) => left - right)
+  const segments: AudibleTimelineSegment[] = []
+  for (let index = 0; index < boundaries.length - 1; index += 1) {
+    const start = boundaries[index]!
+    const end = boundaries[index + 1]!
+    if (end <= start + 0.000_5) continue
+    const active = track.clips.filter((clip) => isClipActive(clip, start))
+    if (!active.length) continue
+    if (track.kind === 'visual') {
+      const winner = active[active.length - 1]!
+      if (isAudibleVideoClip(winner)) appendAudibleSegment(segments, winner, start, end)
+      continue
+    }
+    for (const clip of active) {
+      if (isAudibleAudioClip(clip)) appendAudibleSegment(segments, clip, start, end)
+    }
+  }
+  return segments
+}
+
+function appendAudibleSegment(segments: AudibleTimelineSegment[], clip: CutClip, start: number, end: number) {
+  const duration = roundTime(end - start)
+  if (duration <= 0) return
+  const segmentStart = roundTime(start)
+  const last = segments[segments.length - 1]
+  if (last && last.clip.id === clip.id && Math.abs(roundTime(last.start + last.duration) - segmentStart) <= 0.001) {
+    last.duration = roundTime(last.duration + duration)
+    return
+  }
+  segments.push({ clip, start: segmentStart, duration })
+}
+
+function isClipActive(clip: CutClip, time: number) {
+  return time + 0.000_5 >= clip.start && time < clip.start + clip.duration - 0.000_5
+}
+
+function isAudibleVideoClip(clip: CutClip) {
+  return clip.type === 'video' && !!clip.previewUrl && clip.duration > 0 && (clip.volume ?? 1) > 0 && !clip.audioDetached
+}
+
+function isAudibleAudioClip(clip: CutClip) {
+  return clip.type === 'audio' && !!clip.previewUrl && clip.duration > 0 && (clip.volume ?? 1) > 0
 }

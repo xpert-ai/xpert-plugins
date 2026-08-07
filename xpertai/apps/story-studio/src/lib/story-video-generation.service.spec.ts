@@ -163,8 +163,32 @@ describe('StoryVideoGenerationService', () => {
       page: 1,
       pageSize: 20
     })
-    expect(listed.items[0].failureMessage).toBe('The video request could not be started.')
-    expect(listed.items[0].failureMessage).not.toMatch(/schema/i)
+    expect(listed.items[0].failureMessage).toBe(
+      'Received tool input did not match expected schema'
+    )
+    expect(listed.items[0].failureMessage).not.toMatch(/unknown/i)
+  })
+
+  it('surfaces provider quota rejections instead of collapsing them into submission unknown', async () => {
+    const harness = createHarness()
+    await harness.service.generateTakes(harness.scope, generationInput('operation-quota-0001', 1))
+    const task = harness.tasks[0]
+    harness.platform.submit.mockRejectedValue(
+      new Error('Ark API error 402: {"error":{"code":"insufficient_quota","message":"No remaining quota"}}')
+    )
+
+    await harness.service.processSubmit(task.id)
+
+    expect(task.status).toBe('failed')
+    expect(task.failureCode).toBe('submission_rejected')
+    expect(task.failureMessage).toContain('insufficient_quota')
+    const listed = await harness.service.listTasks(harness.scope, {
+      projectId: PROJECT_ID,
+      page: 1,
+      pageSize: 20
+    })
+    expect(listed.items[0].failureMessage).toContain('insufficient_quota')
+    expect(listed.items[0].failureMessage).toContain('No remaining quota')
   })
 
   it('stops local tracking when the generator cannot cancel upstream work', async () => {
@@ -250,9 +274,9 @@ describe('StoryVideoGenerationService', () => {
     await harness.service.processSubmit(original.id)
 
     expect(original.status).toBe('submission_unknown')
-    expect(original.request.references).toEqual(expect.arrayContaining([
+    expect(original.request.references).toEqual([
       expect.objectContaining({ purpose: 'first_frame', file: harness.continuityFrameFile })
-    ]))
+    ])
     expect(harness.platform.submit).toHaveBeenCalledWith(expect.objectContaining({
       references: [
         expect.objectContaining({ purpose: 'first_frame', file: harness.continuityFrameFile })

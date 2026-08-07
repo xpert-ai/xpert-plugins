@@ -518,6 +518,9 @@ function videoTaskStatusLabel(status: VideoTaskStatus, t: DirectorTranslator) {
 
 function businessFailureMessage(task: VideoGenerationTask, t: DirectorTranslator) {
   if (task.status === 'stale' || task.failureCode === 'source_changed') return t('director.storyboard.sourceChanged')
+  if (task.failureCode === 'submission_rejected' && task.failureMessage) {
+    return t('director.storyboard.submissionRejectedHelp', { message: task.failureMessage })
+  }
   if (task.status === 'submission_unknown') return t('director.storyboard.submissionUnknownHelp')
   return t('director.storyboard.generationFailedHelp')
 }

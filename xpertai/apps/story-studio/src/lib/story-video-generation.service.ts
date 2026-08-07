@@ -67,6 +67,10 @@ import {
 } from './story-video-generation.types.js'
 import { buildStoryVideoGenerationRequest } from './story-video-generation-request.js'
 import {
+  buildSubmissionReferences,
+  classifySubmissionError
+} from './story-video-generation-submission.js'
+import {
   STORY_VIDEO_GENERATOR_FAMILIES,
   VIDEO_GENERATION_PERMISSION_SERVICE_TOKEN,
   type StoryVideoGenerationPlatformService,
@@ -429,24 +433,7 @@ export class StoryVideoGenerationService {
     await this.tasks.save(task)
     try {
       await this.prepareContinuityReference(task)
-      const continuityFrame = task.request.continuity?.strength === 'first_frame' && task.request.continuity.sourceFrame
-        ? [{
-            kind: 'image' as const,
-            purpose: 'first_frame' as const,
-            file: task.request.continuity.sourceFrame
-          }]
-        : []
-      const references = continuityFrame.length
-        ? continuityFrame
-        : task.request.references ?? (
-            task.request.inputImage
-              ? [{
-                  kind: 'image' as const,
-                  purpose: 'reference' as const,
-                  file: task.request.inputImage
-                }]
-              : []
-          )
+      const references = buildSubmissionReferences(task.request)
       const submitRequest = {
         xpertId: requireTaskAssistantId(task),
         toolsetId: task.toolsetId,
@@ -508,13 +495,13 @@ export class StoryVideoGenerationService {
       await this.tasks.save(task)
       await this.enqueuePoll(this.requireQueue(), task, POLL_DELAYS_MS[0])
     } catch (error) {
-      const deterministic = isDeterministicSubmissionError(error)
+      const classification = classifySubmissionError(error)
       await this.failTask(
         task,
-        deterministic ? 'submission_rejected' : 'submission_result_unknown',
-        errorMessage(error),
+        classification.failureCode,
+        classification.failureMessage,
         true,
-        deterministic ? 'failed' : 'submission_unknown'
+        classification.status
       )
     }
   }
@@ -697,8 +684,7 @@ export class StoryVideoGenerationService {
       continuity.status = 'ready'
       continuity.strength = 'first_frame'
       task.request.references = [
-        { kind: 'image', purpose: 'first_frame', file: output.reference },
-        ...(task.request.references ?? []).filter((item) => item.purpose !== 'first_frame')
+        { kind: 'image', purpose: 'first_frame', file: output.reference }
       ]
       task.stage = 'submitting'
       task.progress = 5
@@ -1127,7 +1113,7 @@ function publicFailureMessage(task: StoryVideoGenerationTask) {
     return 'The video service has not confirmed whether it accepted this request.'
   }
   if (task.failureCode === 'submission_rejected') {
-    return 'The video request could not be started.'
+    return task.failureMessage ?? 'The video request could not be started.'
   }
   return 'The clip could not be generated.'
 }
@@ -1147,13 +1133,6 @@ function requireAssistantId(scope: StoryScope, project: StoryProject) {
 function requireTaskAssistantId(task: StoryVideoGenerationTask) {
   if (!task.assistantId?.trim()) throw new BadRequestException('story_video_xpert_required')
   return task.assistantId.trim()
-}
-
-function isDeterministicSubmissionError(error: unknown) {
-  const message = errorMessage(error).toLowerCase()
-  return message.includes('required') || message.includes('not_available')
-    || message.includes('not_supported') || message.includes('not_enabled')
-    || message.includes('did not match expected schema')
 }
 
 function errorMessage(error: unknown) {
