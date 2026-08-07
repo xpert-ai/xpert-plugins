@@ -12,6 +12,7 @@ import { ASSET_IMAGE_ACCEPT } from './asset-bible-actions'
 import type { MessageKey } from './i18n'
 import { MediaGenerationConsole } from './media-generation-console'
 import { MediaPreview } from './media-preview'
+import { selectedVideoCandidate } from './director-storyboard-media'
 import type {
   ProjectEditDraft,
   StoryEditorSession
@@ -870,7 +871,7 @@ function flattenShots(production: ProductionView) {
 function countSelectedShotVideos(production: ProductionView | null) {
   if (!production) return 0
   return flattenShots(production).filter(({ shot }) =>
-    shot.candidates.some((candidate) => candidate.selected && candidate.kind === 'video')
+    Boolean(selectedVideoCandidate(shot.candidates))
   ).length
 }
 

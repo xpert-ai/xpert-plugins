@@ -1,29 +1,22 @@
-import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const componentRoot = dirname(fileURLToPath(import.meta.url))
 const platformRoot = resolve(componentRoot, '../../../../../../../../xpert')
-const demoImage = (name) =>
-  `data:image/png;base64,${readFileSync(
-    resolve(componentRoot, `../../../../assets/demo-hidden-ledger/${name}`)
-  ).toString('base64')}`
-const shotImages = {
-  package: demoImage('shot-01.png'),
-  departure: demoImage('shot-02.png')
-}
+const tinyPreviewImage =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z4KAAAAAASUVORK5CYII='
 
 const projects = [
   project({
     id: 'project-1',
-    title: '月港信使',
-    premise: '一名信使在被海水淹没的城市中递送人们遗失的记忆。',
+    title: '逆光重逢',
+    premise: '纪录片摄影师在雨夜旧影棚重逢失联搭档，重新面对一段未完成的影片。',
     productionFormat: 'vertical_short',
     aspectRatio: '9:16',
-    targetDurationSeconds: 90,
-    status: 'draft',
-    revision: 1,
-    tags: ['奇幻', '短剧']
+    targetDurationSeconds: 96,
+    status: 'production',
+    revision: 3,
+    tags: ['都市情感', '悬疑', '短剧']
   }),
   project({
     id: 'project-2',
@@ -105,6 +98,10 @@ export default {
     productionByProject: {
       'project-1': productionFixture()
     },
+    videoTasksByProject: {},
+    selectedVideoGeneratorByProject: {
+      'project-1': 'preview-video-generator'
+    },
     handoffByProject: {},
     requestDataCount: 0,
     actions: [],
@@ -147,13 +144,65 @@ export default {
 
     if (
       message.type === 'executeFileAction' &&
-      message.actionKey === 'upload_asset_image'
+      (message.actionKey === 'upload_asset_image' ||
+        message.actionKey === 'upload_shot_reference_image')
     ) {
       const input = message.input ?? {}
       const current = state.projects.find(
         (item) => item.id === input.projectId
       )
       const production = state.productionByProject[input.projectId]
+      if (message.actionKey === 'upload_shot_reference_image') {
+        const shot = production?.scenes
+          .find((item) => item.id === input.sceneId)?.shots
+          .find((item) => item.id === input.shotId)
+        if (!current || !production || !shot) {
+          throw new Error('Preview shot was not found.')
+        }
+        if (current.revision !== input.baseRevision) {
+          return revisionConflict(current.revision)
+        }
+        shot.candidates = shot.candidates.map((candidate) => ({
+          ...candidate,
+          selected: candidate.kind === 'image' ? false : candidate.selected
+        }))
+        shot.candidates.push({
+          id: input.candidateId,
+          kind: 'image',
+          label: input.label,
+          selected: true,
+          fileUrl:
+            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z4KAAAAAASUVORK5CYII=',
+          workspacePath: `/workspace/story-studio/${current.id}/shot-references/${input.candidateId}.png`,
+          originalName: message.file?.name ?? `${input.candidateId}.png`,
+          mimeType: message.file?.type ?? 'image/png',
+          size: message.file?.size ?? 68,
+          prompt: input.prompt ?? null,
+          providerReceipt: {
+            provider: 'manual_upload',
+            taskId: input.operationId,
+            model: null,
+            status: 'completed'
+          }
+        })
+        current.revision += 1
+        current.counts.candidates += 1
+        production.counts.candidates += 1
+        state.actions.push({
+          actionKey: message.actionKey,
+          projectId: current.id,
+          shotId: shot.id,
+          candidateId: input.candidateId,
+          revision: current.revision
+        })
+        return {
+          result: {
+            success: true,
+            refresh: true,
+            data: { projectId: current.id, revision: current.revision }
+          }
+        }
+      }
       const asset = production?.assets.find(
         (item) => item.id === input.assetId
       )
@@ -270,6 +319,89 @@ export default {
             }
           }
         }
+      }
+      if (message.actionKey === 'list_shot_video_tasks') {
+        const input = message.input ?? {}
+        const items = state.videoTasksByProject[input.projectId] ?? []
+        state.actions.push({
+          actionKey: message.actionKey,
+          projectId: input.projectId
+        })
+        return {
+          result: {
+            success: true,
+            data: { items, total: items.length, page: 1, pageSize: 50 }
+          }
+        }
+      }
+      if (message.actionKey === 'set_project_video_generator') {
+        const input = message.input ?? {}
+        state.selectedVideoGeneratorByProject[input.projectId] = input.toolsetId
+        state.actions.push({
+          actionKey: message.actionKey,
+          projectId: input.projectId,
+          toolsetId: input.toolsetId
+        })
+        return { result: { success: true, data: { projectId: input.projectId } } }
+      }
+      if (message.actionKey === 'generate_shot_takes') {
+        const input = message.input ?? {}
+        const production = state.productionByProject[input.projectId]
+        const shot = production?.scenes
+          .find((item) => item.id === input.sceneId)?.shots
+          .find((item) => item.id === input.shotId)
+        if (!shot) throw new Error('Preview shot was not found.')
+        const videoCandidates = shot.candidates.filter((item) => item.kind === 'video')
+        const tasks = Array.from({ length: input.takeCount }, (_, index) => ({
+          id: `preview-video-task-${Date.now()}-${index + 1}`,
+          projectId: input.projectId,
+          sceneId: input.sceneId,
+          shotId: input.shotId,
+          requestGroupId: input.operationId,
+          takeIndex: index + 1,
+          generatorFamily: 'veo',
+          generatorName: 'Veo',
+          status: 'completed',
+          stage: 'completed',
+          progress: 100,
+          resultCandidateId: videoCandidates[index]?.id ?? null,
+          failureCode: null,
+          failureMessage: null,
+          recoverable: false,
+          upstreamMayContinue: false,
+          createdAt: '2026-08-06T10:00:00.000Z',
+          updatedAt: '2026-08-06T10:01:00.000Z'
+        }))
+        state.videoTasksByProject[input.projectId] = tasks
+        state.actions.push({
+          actionKey: message.actionKey,
+          projectId: input.projectId,
+          takeCount: input.takeCount,
+          referenceAssetIds: input.referenceAssetIds,
+          operationId: input.operationId
+        })
+        return { result: { success: true, data: { tasks } } }
+      }
+      if (message.actionKey === 'select_shot_video') {
+        const input = message.input ?? {}
+        const current = state.projects.find((item) => item.id === input.projectId)
+        const production = state.productionByProject[input.projectId]
+        const shot = production?.scenes
+          .find((item) => item.id === input.sceneId)?.shots
+          .find((item) => item.id === input.shotId)
+        if (!current || !shot) throw new Error('Preview shot was not found.')
+        for (const candidate of shot.candidates) {
+          if (candidate.kind === 'video') candidate.selected = candidate.id === input.candidateId
+        }
+        current.revision += 1
+        production.projectRevision = current.revision
+        state.actions.push({
+          actionKey: message.actionKey,
+          projectId: input.projectId,
+          candidateId: input.candidateId,
+          revision: current.revision
+        })
+        return { result: { success: true, data: { projectId: input.projectId } } }
       }
       if (message.actionKey === 'create_project') {
         const input = message.input ?? {}
@@ -460,8 +592,8 @@ export default {
           cutProjectId: previous?.cutProjectId ?? null,
           cutProjectRevision: previous?.cutProjectRevision ?? null,
           cutProposalId: null,
-          shotCount: 2,
-          durationSeconds: 10,
+          shotCount: 13,
+          durationSeconds: 96,
           width: 720,
           height: 1280,
           fps: input.fps ?? 24,
@@ -592,45 +724,244 @@ function workbenchData(items, detail, total, page, pageSize, state) {
     },
     detail,
     production: detail ? state.productionByProject[detail.id] ?? null : null,
-    handoff: detail ? state.handoffByProject[detail.id] ?? null : null
+    handoff: detail ? state.handoffByProject[detail.id] ?? null : null,
+    videoGenerators: detail ? videoGeneratorCatalog(detail.id, state) : null,
+    videoTasks: detail
+      ? {
+          items: state.videoTasksByProject[detail.id] ?? [],
+          total: (state.videoTasksByProject[detail.id] ?? []).length,
+          page: 1,
+          pageSize: 50
+        }
+      : null
+  }
+}
+
+function videoGeneratorCatalog(projectId, state) {
+  return {
+    selectedToolsetId:
+      state.selectedVideoGeneratorByProject[projectId] ??
+      'preview-video-generator',
+    generators: [
+      {
+        id: 'preview-video-generator',
+        family: 'veo',
+        displayName: 'Veo',
+        available: true,
+        unavailableReason: null,
+        models: [{ id: 'veo-3.1', label: 'Veo 3.1' }],
+        defaultModel: 'veo-3.1',
+        resolutions: ['720p', '1080p'],
+        aspectRatios: ['16:9', '9:16'],
+        durationSeconds: { min: 2, max: 30, default: 6 },
+        supportsAudio: true,
+        supportsCancel: false
+      },
+      ...['seedance', 'kling'].map((family) => ({
+        id: `unavailable:${family}`,
+        family,
+        displayName: family === 'seedance' ? 'Seedance' : 'Kling',
+        available: false,
+        unavailableReason: 'workspace_not_configured',
+        models: [],
+        defaultModel: '',
+        resolutions: [],
+        aspectRatios: [],
+        durationSeconds: { min: 0, max: 0, default: 0 },
+        supportsAudio: false,
+        supportsCancel: false
+      }))
+    ]
   }
 }
 
 function productionFixture() {
+  const shotDefinitions = [
+    ['S11', '影棚外全景', '雨夜旧影棚外景，远处灯光穿过雨幕。', '缓慢推近', 8],
+    ['S12', '雨夜旧影棚重逢', '林晚与顾沉隔雨相望。', '中景双人，轻微推近', 7],
+    ['S13', '两人对峙', '顾沉上前一步，林晚握紧相机。', '近景双人', 6],
+    ['S14', '转身离开', '林晚压下情绪，转身走向影棚。', '侧后跟拍', 6],
+    ['S21', '空镜 · 摄影棚内部', '积灰灯架与旧布景形成纵深。', '固定全景', 6],
+    ['S22', '女主演准备', '林晚擦去旧相机上的雨水。', '中近景', 7],
+    ['S23', '男主演沉思', '顾沉望向封存的胶片柜。', '近景缓推', 6],
+    ['S24', '对话开始', '两人围绕未完成的纪录片试探。', '双人过肩', 10],
+    ['S25', '监视眼神写', '顾沉发现窗外一闪而过的人影。', '特写快速推近', 5],
+    ['S31', '化妆间全景', '旧镜前灯泡逐个亮起。', '固定全景', 6],
+    ['S32', '女主演独白', '林晚对着镜子承认自己从未忘记。', '镜面中近景', 9],
+    ['S33', '回忆插入', '多年前两人在片场并肩工作的片段。', '手持回忆镜头', 8],
+    ['S34', '情绪低落', '林晚低下头，雨水从风衣袖口滴落。', '特写缓推', 6]
+  ]
+  const makeShot = (definition, index) => ({
+    id: `shot-${definition[0].toLowerCase()}`,
+    title: definition[1],
+    composition: definition[2],
+    action: definition[2],
+    camera: definition[3],
+    dialogue: index === 1 ? '你还是来了。' : index === 2 ? '我只是来拿回属于我的东西。' : null,
+    dialogueSpeakerId: index === 1 ? 'character-linwan' : index === 2 ? 'character-guchen' : null,
+    dialogueType: index === 1 || index === 2 ? 'dialogue' : null,
+    soundEffects: ['雨声', '远处雷声'],
+    generationPrompt: `${definition[2]}，${definition[3]}，冷蓝雨夜与暖色逆光，角色身份一致。`,
+    emotion: index < 4 ? '克制、试探、隐忍' : '紧张、悬疑',
+    lens: index % 3 === 0 ? '24mm' : index % 3 === 1 ? '35mm' : '50mm',
+    lighting: '雨夜顶光 + 暖色侧逆光',
+    colorTone: '冷暖对比 / 低饱和',
+    weather: '雨夜',
+    videoSettings: index === 1
+      ? {
+          generatorId: 'preview-video-generator',
+          model: 'veo-3.1',
+          resolution: '720p',
+          aspectRatio: '9:16',
+          fps: 24,
+          takeCount: 1,
+          referenceAssetIds: ['asset-linwan', 'asset-studio-exterior']
+        }
+      : index === 2
+        ? {
+            generatorId: 'preview-video-generator',
+            model: 'veo-3.1',
+            resolution: '1080p',
+            aspectRatio: '16:9',
+            fps: 30,
+            takeCount: 2,
+            referenceAssetIds: ['asset-linwan', 'asset-guchen']
+          }
+        : undefined,
+    durationSeconds: definition[4],
+    candidates: [
+      {
+        id: `candidate-${definition[0].toLowerCase()}-image`,
+        kind: 'image',
+        label: `${definition[1]}主画面`,
+        selected: true,
+        fileUrl: tinyPreviewImage,
+        workspacePath: `/workspace/story-studio/project-1/${definition[0].toLowerCase()}.png`,
+        prompt: `${definition[2]}，电影级雨夜写实，角色身份一致。`
+      },
+      {
+        id: `candidate-${definition[0].toLowerCase()}-video`,
+        kind: 'video',
+        label: `${definition[1]} Seedance 成片`,
+        selected: index !== 1,
+        fileUrl: `/__story-studio-preview/${definition[0].toLowerCase()}.mp4`,
+        workspacePath: `/workspace/story-studio/project-1/${definition[0].toLowerCase()}.mp4`,
+        originalName: `${definition[0].toLowerCase()}.mp4`,
+        mimeType: 'video/mp4',
+        size: 1048576 + index * 1024,
+        sha256: (index + 1).toString(16).padStart(64, '0'),
+        prompt: `${definition[2]}，角色一致性严格，雨声与对白同步。`,
+        providerReceipt: {
+          provider: 'seedream_aigc',
+          taskId: `seedance-${definition[0].toLowerCase()}`,
+          model: 'doubao-seedance-2-0-fast-260128',
+          status: 'succeeded'
+        }
+      },
+      ...(index === 2
+        ? Array.from({ length: 3 }, (_, takeIndex) => ({
+            id: `candidate-${definition[0].toLowerCase()}-video-take-${takeIndex + 2}`,
+            kind: 'video',
+            label: `${definition[1]} Take ${takeIndex + 2}`,
+            selected: false,
+            fileUrl: `/__story-studio-preview/${definition[0].toLowerCase()}-take-${takeIndex + 2}.mp4`,
+            workspacePath: `/workspace/story-studio/project-1/${definition[0].toLowerCase()}-take-${takeIndex + 2}.mp4`,
+            originalName: `${definition[0].toLowerCase()}-take-${takeIndex + 2}.mp4`,
+            mimeType: 'video/mp4',
+            size: 1048576 + (takeIndex + 2) * 1024,
+            sha256: (takeIndex + 20).toString(16).padStart(64, '0'),
+            prompt: `${definition[2]}，Take ${takeIndex + 2}，改变情感距离和轻微机位。`,
+            providerReceipt: {
+              provider: 'seedream_aigc',
+              taskId: `seedance-${definition[0].toLowerCase()}-take-${takeIndex + 2}`,
+              model: 'doubao-seedance-2-0-fast-260128',
+              status: 'succeeded'
+            }
+          }))
+        : [])
+    ]
+  })
+  const allShots = shotDefinitions.map(makeShot)
+  const scenes = [
+    {
+      id: 'scene-rainy-exterior',
+      episodeId: 'episode-1',
+      order: 1,
+      title: '雨夜 · 旧影棚外',
+      summary: '林晚与顾沉在废弃摄影棚外久别重逢。',
+      location: '旧影棚外',
+      timeOfDay: '雨夜',
+      shots: allShots.slice(0, 4)
+    },
+    {
+      id: 'scene-studio-interior',
+      episodeId: 'episode-1',
+      order: 2,
+      title: '影棚内 · 摄影棚',
+      summary: '两人在未完成的纪录片现场继续试探。',
+      location: '摄影棚内部',
+      timeOfDay: '夜',
+      shots: allShots.slice(4, 9)
+    },
+    {
+      id: 'scene-dressing-room',
+      episodeId: 'episode-1',
+      order: 3,
+      title: '化妆间',
+      summary: '林晚独处时，记忆和现实交叠。',
+      location: '旧化妆间',
+      timeOfDay: '夜',
+      shots: allShots.slice(9)
+    }
+  ]
+  const assetImage = {
+    id: 'asset-linwan-image-v3',
+    kind: 'image',
+    label: '林晚 V3 身份包',
+    selected: true,
+    fileUrl: tinyPreviewImage,
+    workspacePath: '/workspace/story-studio/project-1/lin-wan-v3.png',
+    prompt: '林晚身份参考，肩长黑发，米色风衣，清冷轮廓。'
+  }
   return {
     id: '00000000-0000-4000-8000-000000000088',
     projectId: 'project-1',
-    projectRevision: 1,
-    documentRevision: 1,
-    sourceSynopsis: '月港信使送出一段不愿被遗忘的记忆。',
-    adaptationGoal: '在十秒内完成发现、选择与离开的情绪转折。',
-    visualStyle: '月光蓝与琥珀色记忆颗粒',
-    audience: '奇幻短剧观众',
+    projectRevision: 3,
+    documentRevision: 3,
+    sourceSynopsis: '雨夜，纪录片摄影师林晚在废弃旧影棚与失联多年的搭档顾沉重逢，两人被迫面对一段未完成的影片与被刻意掩埋的事故。',
+    adaptationGoal: '用 96 秒竖屏短剧完成久别重逢、克制试探与悬念再起，并严格保持人物、雨夜旧影棚和旧相机的一致性。',
+    visualStyle: '电影级都市情感悬疑，冷蓝雨夜与暖色旧灯对冲，低饱和、真实湿润质感、克制表演。',
+    audience: '偏好都市情感、悬疑和强人物关系的竖屏短剧观众。',
     sourceMaterials: [
       {
-        id: 'source-moon-port',
-        title: '潮汐旧闻',
+        id: 'source-backlight-reunion',
+        title: '原创梗概：逆光重逢',
         type: 'text',
-        excerpt: '月港每次涨潮都会冲走一段记忆，信使负责在黎明前将它们送回。',
+        excerpt: '林晚抱着旧相机回到第七摄影棚，顾沉从雨幕中出现。两人围绕未完成的纪录片试探彼此。',
         status: 'reviewed'
       }
     ],
     storyPlan: {
-      logline: '信使必须在城市沉没前，把最后一段记忆送回已消失的主人。',
-      theme: '被遗忘的人仍值得被送回家。',
-      tone: '静谧、奇幻、带着离别后的希望',
+      logline: '一名纪录片摄影师在废弃片场重逢失联搭档，必须决定是否重新打开一段被掩埋的真相。',
+      theme: '有些真相只有重新面对彼此才能被看见。',
+      tone: '克制、试探、隐忍，雨夜悬疑感。',
       beats: [
+        { id: 'beat-reunion', title: '旧地重逢', summary: '雨夜旧影棚外，两人再次相见。', purpose: '建立关系张力。' },
+        { id: 'beat-testing', title: '试探交锋', summary: '未完成影片成为彼此试探的引线。', purpose: '推动秘密浮现。' },
+        { id: 'beat-unresolved', title: '未解心结', summary: '窗外监视者让旧事故重新逼近。', purpose: '留下下一集钩子。' }
+      ],
+      adaptationSuggestions: [
         {
-          id: 'beat-discovery',
-          title: '发现',
-          summary: '最后一件包裹投射出失踪者的轮廓。',
-          purpose: '建立悬念与情感对象。'
-        },
-        {
-          id: 'beat-choice',
-          title: '选择',
-          summary: '信使越过即将封闭的潮线。',
-          purpose: '用行动完成情绪转折。'
+          id: 'suggestion-rain-grip',
+          episodeId: 'episode-1',
+          sceneId: 'scene-rainy-exterior',
+          shotId: 'shot-s13',
+          originalText: '顾沉上前一步，林晚握紧相机。',
+          suggestedText: '顾沉上前一步又停住。林晚的手指沿着湿透的相机背带收紧，却没有后退。',
+          reason: '把“克制试探”落到可视动作，同时保留人物关系的暧昧张力。',
+          status: 'pending',
+          createdBy: 'assistant',
+          createdAt: '2026-08-06T08:00:00.000Z'
         }
       ]
     },
@@ -638,137 +969,46 @@ function productionFixture() {
       {
         id: 'episode-1',
         order: 1,
-        title: '最后一件包裹',
-        summary: '信使在涨潮前完成不可能的递送。',
-        script: '内景，月港驿站。包裹亮起。信使抬头望向潮线。\n信使：请把我送回家。',
-        targetDurationSeconds: 10
+        title: '雨夜重逢',
+        summary: '林晚和顾沉在第七摄影棚重逢，未完成的纪录片重新把他们绑在一起。',
+        script: '外景·雨夜·旧影棚外\n雨幕笼住废弃摄影棚。林晚抱着旧相机停在门口，顾沉从暗处走来。\n林晚：你还是来了。\n顾沉：我只是来拿回属于我的东西。\n两人隔着雨帘对视。远处闪电照亮褪色的“第七摄影棚”招牌。',
+        targetDurationSeconds: 96
       }
     ],
     assets: [
-      {
-        id: 'asset-courier',
-        kind: 'character',
-        name: '月港信使',
-        description: '穿深蓝防水斗篷，携带琥珀色记忆匣。',
-        prompt: '月光蓝奇幻电影感，深蓝斗篷，琥珀色记忆颗粒',
-        candidates: []
-      },
-      {
-        id: 'asset-package',
-        kind: 'prop',
-        name: '记忆包裹',
-        description: '会投射失踪者轮廓的琥珀色匣子。',
-        prompt: '发光琥珀匣，潮湿石桌，电影级近景',
-        candidates: []
-      }
+      { id: 'asset-linwan', kind: 'character', name: '林晚', description: '独立纪录片摄影师，外冷内韧，肩长黑发，米色风衣。', prompt: '林晚角色身份包，严格一致性，肩长黑发、右眼下浅痣、米色风衣。', candidates: [assetImage] },
+      { id: 'asset-guchen', kind: 'character', name: '顾沉', description: '纪录片摄影师，克制寡言，黑色皮衣。', prompt: '顾沉角色身份包，黑色湿发、黑色皮衣、冷峻克制。', candidates: [] },
+      { id: 'asset-zhouqi', kind: 'character', name: '周启', description: '调查记者，身份待确认。', prompt: '周启角色参考。', candidates: [] },
+      { id: 'asset-chenfang', kind: 'character', name: '陈放', description: '旧影棚管理员。', prompt: '陈放角色参考。', candidates: [] },
+      { id: 'asset-studio-exterior', kind: 'location', name: '旧影棚外 · 雨夜', description: '第七摄影棚外，夜雨，湿地反光。', prompt: '废弃摄影棚雨夜外景，工业结构，冷暖对比。', candidates: [] },
+      { id: 'asset-studio-interior', kind: 'location', name: '摄影棚内部', description: '封存布景和积灰灯架。', prompt: '旧摄影棚内部，写实电影灯光。', candidates: [] },
+      { id: 'asset-dressing-room', kind: 'location', name: '旧化妆间', description: '镜前旧灯泡与斑驳墙面。', prompt: '旧化妆间，低饱和，镜面构图。', candidates: [] },
+      { id: 'asset-camera', kind: 'prop', name: '旧相机', description: '林晚一直携带的旧纪录片相机。', prompt: '磨损的专业纪录片相机。', candidates: [] },
+      { id: 'asset-film', kind: 'prop', name: '未完成胶片', description: '顾沉要取回的关键证据。', prompt: '旧胶片盒，证据感。', candidates: [] },
+      { id: 'asset-style', kind: 'style', name: '逆光雨夜', description: '冷蓝雨夜与暖色逆光。', prompt: '低饱和冷暖对比，电影级雨夜。', candidates: [] }
+    ].map(withAssetDetails),
+    characters: [
+      { id: 'character-linwan', name: '林晚', role: '女主 / 纪录片摄影师', visualDescription: '肩长黑发、米色风衣、右眼下浅痣。', voiceReference: { url: 'https://example.invalid/lin-wan.wav', label: '清透女声 · 克制' } },
+      { id: 'character-guchen', name: '顾沉', role: '男主 / 纪录片摄影师', visualDescription: '黑色湿发、黑色皮衣、冷峻克制。' },
+      { id: 'character-zhouqi', name: '周启', role: '调查记者', visualDescription: '干净利落，谨慎。' },
+      { id: 'character-chenfang', name: '陈放', role: '影棚管理员', visualDescription: '沉默寡言。' }
     ],
-    characters: [{ id: 'courier', name: '信使' }],
-    scenes: [
-      {
-        id: 'moon-port',
-        order: 1,
-        title: '月港',
-        summary: '信使在涨潮前收到最后一件包裹。',
-        shots: [
-          {
-            id: 'package',
-            title: '记忆包裹',
-            composition: '发光包裹位于画面中心。',
-            action: '包裹投射出失踪者的轮廓。',
-            camera: '缓慢推进',
-            dialogue: '请把我送回家。',
-            durationSeconds: 5,
-            candidates: [
-              {
-                id: 'candidate-package',
-                kind: 'image',
-                label: '记忆包裹主画面',
-                selected: false,
-                fileUrl: shotImages.package,
-                workspacePath: '/workspace/story-studio/project-1/package.png',
-                prompt: '发光包裹投射失踪者轮廓，月光蓝与琥珀色'
-              },
-              {
-                id: 'candidate-package-video',
-                kind: 'video',
-                label: '记忆包裹 Seedance 成片',
-                selected: true,
-                fileUrl: 'data:video/mp4;base64,AAAA',
-                workspacePath: '/workspace/story-studio/project-1/package.mp4',
-                originalName: 'package.mp4',
-                mimeType: 'video/mp4',
-                size: 1048576,
-                sha256:
-                  'e49922a7221f8ffaf315eed4cb92f305f5fe6fb82744bde9a3a7f4e70a3c2013',
-                prompt: '发光包裹投射失踪者轮廓，月光蓝与琥珀色',
-                providerReceipt: {
-                  provider: 'seedream_aigc',
-                  taskId: 'seedance-package',
-                  model: 'doubao-seedance-2-0-fast-260128',
-                  status: 'succeeded'
-                }
-              }
-            ]
-          },
-          {
-            id: 'departure',
-            title: '越过潮线',
-            composition: '信使背对镜头走向月光。',
-            action: '城市灯火随潮水逐盏熄灭。',
-            camera: '固定远景',
-            durationSeconds: 5,
-            candidates: [
-              {
-                id: 'candidate-departure',
-                kind: 'image',
-                label: '越过潮线主画面',
-                selected: false,
-                fileUrl: shotImages.departure,
-                workspacePath: '/workspace/story-studio/project-1/departure.png',
-                prompt: '信使背影走向月光潮线，城市灯火熄灭'
-              },
-              {
-                id: 'candidate-departure-video',
-                kind: 'video',
-                label: '越过潮线 Seedance 成片',
-                selected: true,
-                fileUrl: 'data:video/mp4;base64,AAAA',
-                workspacePath:
-                  '/workspace/story-studio/project-1/departure.mp4',
-                originalName: 'departure.mp4',
-                mimeType: 'video/mp4',
-                size: 1180000,
-                sha256:
-                  'f49922a7221f8ffaf315eed4cb92f305f5fe6fb82744bde9a3a7f4e70a3c2014',
-                prompt: '信使背影走向月光潮线，城市灯火熄灭',
-                providerReceipt: {
-                  provider: 'seedream_aigc',
-                  taskId: 'seedance-departure',
-                  model: 'doubao-seedance-2-0-fast-260128',
-                  status: 'succeeded'
-                }
-              }
-            ]
-          }
-        ]
-      }
-    ],
+    scenes,
     counts: {
       sources: 1,
-      beats: 2,
+      beats: 3,
       episodes: 1,
-      assets: 2,
-      characters: 1,
-      scenes: 1,
-      shots: 2,
-      candidates: 4,
-      selectedCandidates: 2
+      assets: 10,
+      characters: 4,
+      scenes: 3,
+      shots: 13,
+      candidates: 27,
+      selectedCandidates: 14
     },
-    totalDurationSeconds: 10,
-    updatedAt: '2026-07-25T11:00:00.000Z'
+    totalDurationSeconds: 96,
+    updatedAt: '2026-08-05T02:24:00.000Z'
   }
 }
-
 function mutationResult(
   item,
   operationId,
@@ -862,6 +1102,88 @@ function productionDuration(production) {
       ),
     0
   )
+}
+
+function withAssetDetails(asset) {
+  const common = {
+    ...asset,
+    negativePrompt: '多人脸融合，异常肢体，文字水印，塑料质感',
+    continuityNotes: '同一集内保持形状、磨损、材质和主色不变。'
+  }
+  if (asset.kind === 'character') {
+    return {
+      ...common,
+      categoryDetails: {
+        identity: `${asset.name}的锁定角色身份包，不随镜头角度改变骨相。`,
+        appearance: asset.name === '林晚' ? '肩长黑发 / 清冷轮廓 / 右眼下浅痣' : '黑色湿发 / 冷峻轮廓 / 窄下颌',
+        wardrobe: asset.name === '林晚' ? '米色风衣 / 深灰针织衫 / 深色长裤' : '黑色皮衣 / 深色内搭',
+        voice: asset.name === '林晚' ? '清透女声，克制，偏低音区' : '低沉男声，短句，少量气声',
+        environment: null,
+        lighting: null,
+        material: null,
+        condition: null,
+        storyFunction: null,
+        palette: null,
+        lens: null,
+        continuity: '雨场造型从外景到影棚内保持湿发与衣物湿度连续。'
+      }
+    }
+  }
+  if (asset.kind === 'location') {
+    return {
+      ...common,
+      categoryDetails: {
+        identity: null,
+        appearance: null,
+        wardrobe: null,
+        voice: null,
+        environment: `${asset.description}空间纵深清晰，出入口与主布景方位固定。`,
+        lighting: '冷蓝环境光，暖色旧灯作局部侧逆光，湿地反光。',
+        material: null,
+        condition: null,
+        storyFunction: null,
+        palette: null,
+        lens: null,
+        continuity: '招牌、灯架、门窗和积水区域在连续镜头中保持位置一致。'
+      }
+    }
+  }
+  if (asset.kind === 'prop') {
+    return {
+      ...common,
+      categoryDetails: {
+        identity: null,
+        appearance: null,
+        wardrobe: null,
+        voice: null,
+        environment: null,
+        lighting: null,
+        material: asset.name.includes('相机') ? '黑色金属机身 / 旧皮背带' : '氧化铁盒 / 泛黄胶片',
+        condition: '明显使用磨损，边角有稳定划痕，雨场表面带水珠。',
+        storyFunction: asset.description,
+        palette: null,
+        lens: null,
+        continuity: '持有人、背带方向、镜头盖状态和湿度必须衔接上一镜。'
+      }
+    }
+  }
+  return {
+    ...common,
+    categoryDetails: {
+      identity: null,
+      appearance: null,
+      wardrobe: null,
+      voice: null,
+      environment: null,
+      lighting: '冷蓝环境光 + 暖色旧灯侧逆光，中低对比。',
+      material: null,
+      condition: null,
+      storyFunction: null,
+      palette: '#18232F / #40576B / #C58B55 / #E8DDC8',
+      lens: '24mm 建立空间，35mm 双人，50–85mm 情绪特写。',
+      continuity: '低饱和、真实湿润质感、暗部保留细节，避免高饱和霓虹。'
+    }
+  }
 }
 
 function nextAction(status) {

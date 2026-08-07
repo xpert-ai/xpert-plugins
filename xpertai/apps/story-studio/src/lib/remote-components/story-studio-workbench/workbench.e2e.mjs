@@ -1,622 +1,357 @@
 import assert from 'node:assert/strict'
+import { mkdir, readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 
-import {
-  startRemoteViewPreview
-} from '../../../../../../../../xpert/tools/remote-view-preview/preview-host.mjs'
+import { startRemoteViewPreview } from '../../../../../../../../xpert/tools/remote-view-preview/preview-host.mjs'
 import previewConfig, { platformRoot } from './preview.config.mjs'
 
 const componentRoot = dirname(fileURLToPath(import.meta.url))
-const requireFromPlatform = createRequire(
-  resolve(platformRoot, 'package.json')
+const screenshotRoot = resolve(componentRoot, '../../../../qa/e2e')
+const takePreviewFixture = resolve(
+  componentRoot,
+  '../../../../qa/fixtures/storyboard-take-preview.mp4'
 )
+const requireFromPlatform = createRequire(resolve(platformRoot, 'package.json'))
 const { chromium } = requireFromPlatform('playwright')
 
-test(
-  'creates, advances, synchronizes, and restores a Story Studio project',
-  async (context) => {
-    const preview = await startRemoteViewPreview(
-      {
-        ...previewConfig,
-        state: structuredClone(previewConfig.state),
-        logStartup: false,
-        logErrors: false
-      },
-      { port: 0 }
+test('persists script CRUD, Assistant suggestions, detailed assets, storyboard controls, and Cut handoff', { timeout: 90_000 }, async (context) => {
+  const { preview, browser, page, frame, pageErrors, consoleErrors } = await harness(context)
+  await mkdir(screenshotRoot, { recursive: true })
+  await assertVisible(frame.getByTestId('director-storyboard-page'))
+  await assertVisible(frame.getByText('已自动采用', { exact: true }))
+  const panelHandles = frame.getByRole('separator')
+  assert.equal(await panelHandles.count(), 2)
+  const leftPanelWidth = Number(await panelHandles.nth(0).getAttribute('aria-valuenow'))
+  await panelHandles.nth(0).press('ArrowRight')
+  assert.equal(Number(await panelHandles.nth(0).getAttribute('aria-valuenow')), leftPanelWidth + 16)
+  await waitFor(() =>
+    frame.getByTestId('director-main-video-preview').evaluate(
+      (video) => video.readyState >= 2 && video.currentTime > 0.05
     )
-    context.after(() => preview.close())
+  )
+  await page.screenshot({ path: resolve(screenshotRoot, 'storyboard.png'), fullPage: false })
 
-    const browser = await chromium.launch({ headless: true })
-    context.after(() => browser.close())
-    const page = await browser.newPage({
-      viewport: { width: 1440, height: 960 },
-      deviceScaleFactor: 1,
-      colorScheme: 'light',
-      locale: 'zh-CN'
-    })
-    const pageErrors = []
-    const consoleErrors = []
-    page.on('pageerror', (error) => pageErrors.push(error.message))
-    page.on('console', (message) => {
-      if (message.type() === 'error') {
-        consoleErrors.push(message.text())
-      }
-    })
+  await frame.getByRole('button', { name: '剧本', exact: true }).click()
+  await assertVisible(frame.getByTestId('director-script-page'))
+  await assertVisible(frame.getByTestId('adaptation-suggestion-card'))
+  await page.screenshot({ path: resolve(screenshotRoot, 'script.png'), fullPage: false })
 
-    await page.goto(preview.url)
-    const frame = page.frameLocator('#remote-view')
-    await assertVisible(frame.getByRole('heading', { name: 'Story Studio' }))
-    await assertVisible(
-      frame.getByRole('heading', { name: '月港信使', exact: true })
-    )
-    await assertVisible(
-      frame.getByRole('heading', {
-        name: '月光蓝与琥珀色记忆颗粒',
-        exact: true
-      })
-    )
-    const lightPrimaryButton = await frame
-      .getByRole('button', { name: '新建项目' })
-      .evaluate((button) => {
-        const buttonStyle = getComputedStyle(button)
-        const bodyStyle = getComputedStyle(document.body)
-        return {
-          color: buttonStyle.color,
-          backgroundColor: buttonStyle.backgroundColor,
-          bodyColor: bodyStyle.color
-        }
-      })
-    assert.notEqual(
-      lightPrimaryButton.color,
-      lightPrimaryButton.bodyColor,
-      `Light primary button inherited body text color: ${JSON.stringify(lightPrimaryButton)}`
-    )
-    assert.notEqual(
-      lightPrimaryButton.color,
-      lightPrimaryButton.backgroundColor,
-      `Light primary button has no text contrast: ${JSON.stringify(lightPrimaryButton)}`
-    )
-    const desktopLayout = await frame.locator('.ss-root').evaluate((root) => ({
-      clientHeight: root.clientHeight,
-      scrollHeight: root.scrollHeight,
-      viewportHeight: window.innerHeight,
-      bodyClientHeight: document.body.clientHeight,
-      bodyScrollHeight: document.body.scrollHeight,
-      projectsOverflowY: getComputedStyle(
-        document.querySelector('.ss-project-list')
-      ).overflowY,
-      stageOverflowY: getComputedStyle(
-        document.querySelector('.ss-stage-content')
-      ).overflowY,
-      inspectorOverflowY: getComputedStyle(
-        document.querySelector('.ss-inspector')
-      ).overflowY
-    }))
-    assert.equal(desktopLayout.clientHeight, desktopLayout.viewportHeight)
-    assert.ok(
-      desktopLayout.scrollHeight <= desktopLayout.clientHeight + 1,
-      `Studio root scrolls: ${JSON.stringify(desktopLayout)}`
-    )
-    assert.ok(
-      desktopLayout.bodyScrollHeight <= desktopLayout.bodyClientHeight + 1,
-      `Workbench body scrolls: ${JSON.stringify(desktopLayout)}`
-    )
-    assert.equal(desktopLayout.projectsOverflowY, 'auto')
-    assert.equal(desktopLayout.stageOverflowY, 'auto')
-    assert.equal(desktopLayout.inspectorOverflowY, 'auto')
+  await frame.getByRole('button', { name: '请求 Assistant 建议', exact: true }).click()
+  await waitFor(() => preview.state.assistantMessages.length === 1)
+  assert.match(preview.state.assistantMessages[0].text, /story_create_adaptation_suggestion/)
+  assert.match(preview.state.assistantMessages[0].text, /Do not rewrite or accept/)
 
-    await frame.getByRole('button', { name: '收起项目库' }).click()
-    await assertVisible(frame.getByRole('button', { name: '展开项目库' }))
-    assert.ok(
-      (await frame.locator('.ss-projects').evaluate((panel) => panel.getBoundingClientRect().width)) <= 36.5
-    )
-    await frame.getByRole('button', { name: '展开项目库' }).click()
-    await assertVisible(frame.getByRole('button', { name: '收起项目库' }))
+  const revisionBeforeAccept = preview.state.projects[0].revision
+  await frame.getByRole('button', { name: '接受建议', exact: true }).click()
+  await waitFor(() => preview.state.projects[0].revision === revisionBeforeAccept + 1)
+  assert.match(preview.state.productionByProject['project-1'].episodes[0].script, /湿透的相机背带收紧/)
+  assert.equal(preview.state.productionByProject['project-1'].storyPlan.adaptationSuggestions[0].status, 'accepted')
 
-    await frame.getByRole('button', { name: '收起检查器' }).click()
-    await assertVisible(frame.getByRole('button', { name: '展开检查器' }))
-    assert.ok(
-      (await frame.locator('.ss-inspector').evaluate((panel) => panel.getBoundingClientRect().width)) <= 36.5
-    )
-    await frame.getByRole('button', { name: '展开检查器' }).click()
-    await assertVisible(frame.getByRole('button', { name: '收起检查器' }))
+  await frame.getByRole('button', { name: '新增分集', exact: true }).click()
+  await fillDialog(frame, { '标题': '第二集：反光里的人', '摘要': '林晚发现一段被剪掉的画面。', '剧本': '内景·夜·影棚\n林晚打开旧相机。' })
+  await frame.getByRole('button', { name: '保存修改', exact: true }).click()
+  await waitFor(() => preview.state.productionByProject['project-1'].episodes.length === 2)
+  assert.equal(preview.state.productionByProject['project-1'].episodes[1].title, '第二集：反光里的人')
+  await frame.getByRole('button', { name: '删除', exact: true }).first().click()
+  await assertVisible(frame.getByRole('alertdialog'))
+  await frame.getByRole('alertdialog').getByRole('button', { name: '删除', exact: true }).click()
+  await waitFor(() => preview.state.productionByProject['project-1'].episodes.length === 1)
 
-    await frame.getByRole('button', { name: /素材/ }).click()
-    await assertVisible(frame.getByRole('heading', { name: '潮汐旧闻' }))
-    await frame.locator('.ss-stage').filter({ hasText: /故事计划/ }).click()
-    await assertVisible(frame.getByText('被遗忘的人仍值得被送回家。'))
-    await frame.getByRole('button', { name: /分集剧本/ }).click()
-    const stageReadyBadge = frame.locator(
-      '.ss-canvas-actions [data-slot="badge"]'
-    )
-    await assertVisible(stageReadyBadge)
-    const stageReadyBadgeLayout = await stageReadyBadge.evaluate((badge) => ({
-      clientWidth: badge.clientWidth,
-      scrollWidth: badge.scrollWidth,
-      renderedWidth: badge.getBoundingClientRect().width,
-      whiteSpace: getComputedStyle(badge).whiteSpace
-    }))
-    assert.ok(
-      stageReadyBadgeLayout.scrollWidth <= stageReadyBadgeLayout.clientWidth + 1,
-      `Stage status badge clips its text: ${JSON.stringify(stageReadyBadgeLayout)}`
-    )
-    assert.ok(
-      stageReadyBadgeLayout.renderedWidth > 60,
-      `Stage status badge is constrained too narrowly: ${JSON.stringify(stageReadyBadgeLayout)}`
-    )
-    assert.equal(stageReadyBadgeLayout.whiteSpace, 'nowrap')
-    await assertVisible(
-      frame.locator('.ss-episode-list').getByRole('heading', {
-        name: '最后一件包裹',
-        exact: true
-      })
-    )
-    await frame.getByRole('button', { name: /资产圣经/ }).click()
-    await assertVisible(
-      frame.locator('.ss-asset-grid').getByRole('heading', { name: '月港信使' })
-    )
-    const firstAsset = frame.locator('.ss-asset-grid > article').first()
-    await assertVisible(
-      firstAsset.getByRole('button', { name: '上传参考图' })
-    )
-    await assertVisible(
-      firstAsset.getByRole('button', { name: 'AI 生成' })
-    )
-    await firstAsset.locator('input[type="file"]').setInputFiles({
-      name: 'courier-reference.png',
-      mimeType: 'image/png',
-      buffer: Buffer.from(
-        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z4KAAAAAASUVORK5CYII=',
-        'base64'
-      )
-    })
-    await assertVisible(firstAsset.getByText('1 张参考图'))
-    assert.equal(
-      preview.state.actions.at(-1)?.actionKey,
-      'upload_asset_image'
-    )
-    await firstAsset.getByRole('button', { name: 'AI 生成' }).click()
-    await waitFor(
-      () =>
-        preview.state.assistantMessages.at(-1)?.state?.action ===
-        'generate_story_asset_image'
-    )
-    assert.equal(
-      preview.state.assistantMessages.at(-1)?.state?.action,
-      'generate_story_asset_image'
-    )
-    assert.match(
-      preview.state.assistantMessages.at(-1)?.text ?? '',
-      /seedream_text_to_image/
-    )
-    assert.match(
-      preview.state.assistantMessages.at(-1)?.text ?? '',
-      /story_attach_generated_asset_image/
-    )
-    await frame.getByRole('button', { name: /分镜/ }).click()
-    await assertVisible(
-      frame.locator('.ss-shot-grid').getByRole('heading', {
-        name: '记忆包裹',
-        exact: true
-      })
-    )
-    await frame.getByRole('button', { name: /媒体生成/ }).click()
-    await assertVisible(frame.getByText('生成导演', { exact: true }))
-    await assertVisible(frame.getByText('已锁定 ShotSpec', { exact: true }))
-    await assertVisible(frame.getByText('候选评审', { exact: true }))
-    assert.equal(
-      await frame.getByRole('button', { name: '编辑', exact: true }).count(),
-      0,
-      'Media generation must not expose the storyboard content editor.'
-    )
-    assert.equal(
-      await frame.getByRole('button', { name: '渲染预演 MP4' }).count(),
-      0
-    )
-    assert.equal(await frame.locator('.ss-generation-player video').count(), 1)
-    assert.equal(await frame.locator('.ss-shot-list > button').count(), 2)
-    await frame.getByRole('button', { name: '收起镜头队列' }).click()
-    await assertVisible(frame.getByRole('button', { name: '展开镜头队列' }))
-    await frame.getByRole('button', { name: '展开镜头队列' }).click()
-    await frame.getByRole('button', { name: '收起生成设置' }).click()
-    await assertVisible(frame.getByRole('button', { name: '展开生成设置' }))
-    await frame.getByRole('button', { name: '展开生成设置' }).click()
-    await frame
-      .getByPlaceholder('描述动作、声音、重试或候选策略…')
-      .fill('只检查动作稳定性，不改动已审核分镜。')
-    await frame.getByRole('button', { name: '发送', exact: true }).click()
-    await waitFor(
-      () =>
-        preview.state.assistantMessages.at(-1)?.state?.action ===
-        'direct_seedance_generation'
-    )
-    assert.match(
-      preview.state.assistantMessages.at(-1)?.text ?? '',
-      /ShotSpec.*read-only/
-    )
-    await frame.getByRole('button', { name: /Cut 交接/ }).click()
-    await assertVisible(
-      frame.getByRole('heading', { name: '创建 Cut 项目', exact: true })
-    )
-    await frame
-      .getByRole('button', { name: '准备并发送到 Cut' })
-      .click()
-    await assertVisible(frame.getByText('已交付 Cut', { exact: true }))
-    assert.equal(
-      preview.state.actions.at(-1)?.actionKey,
-      'prepare_cut_handoff'
-    )
-    assert.equal(
-      preview.state.assistantMessages.at(-1)?.state?.action,
-      'accept_story_cut_handoff'
-    )
-    assert.equal(
-      preview.state.handoffByProject['project-1']?.cutProjectId,
-      '00000000-0000-4000-8000-000000000055'
-    )
+  const addButtons = frame.getByRole('button', { name: '添加', exact: true })
+  await addButtons.nth(0).click()
+  await fillDialog(frame, { '标题': '走廊闪回', '摘要': '雨声中插入旧片场的走廊记忆。', '场景': '旧影棚走廊', '时间': '深夜' })
+  await frame.getByRole('button', { name: '保存修改', exact: true }).click()
+  await waitFor(() => preview.state.productionByProject['project-1'].scenes.length === 4)
+  await frame.getByRole('button', { name: '添加', exact: true }).nth(1).click()
+  await fillDialog(frame, { '标题': '相机指示灯特写', '构图': '相机红色指示灯位于画面中心。', '动作': '林晚的手指悬在回放键上。', '机位 / 运镜': '微距固定机位' })
+  await frame.getByRole('button', { name: '保存修改', exact: true }).click()
+  await waitFor(() => preview.state.productionByProject['project-1'].scenes.at(-1).shots.length === 2)
+  assert.equal(preview.state.productionByProject['project-1'].scenes.at(-1).shots.at(-1).title, '相机指示灯特写')
+  const addedShotRow = frame.getByText('相机指示灯特写', { exact: true }).locator('xpath=ancestor::div[contains(@class,"group")][1]')
+  await addedShotRow.getByRole('button', { name: '删除', exact: true }).click()
+  await frame.getByRole('alertdialog').getByRole('button', { name: '删除', exact: true }).click()
+  await waitFor(() => preview.state.productionByProject['project-1'].scenes.at(-1).shots.length === 1)
+  const addedSceneCard = frame.getByText('走廊闪回', { exact: true }).locator('xpath=ancestor::article[1]')
+  await addedSceneCard.getByRole('button', { name: '删除', exact: true }).click()
+  await frame.getByRole('alertdialog').getByRole('button', { name: '删除', exact: true }).click()
+  await waitFor(() => preview.state.productionByProject['project-1'].scenes.length === 3)
 
-    assert.equal(
-      await frame.getByRole('button', { name: /切换到.+主题/ }).count(),
-      0,
-      'Story Studio must not expose a local theme override.'
-    )
-    await emitHostTheme(page, 'dark')
-    await assertTheme(frame, 'dark')
-    await emitHostTheme(page, 'light')
-    await assertTheme(frame, 'light')
-
-    await frame.getByRole('button', { name: '下一页' }).click()
-    await assertVisible(
-      frame.getByRole('heading', { name: '示例故事 19', exact: true })
-    )
-    await frame.getByRole('button', { name: '上一页' }).click()
-    await assertVisible(
-      frame.getByRole('heading', { name: '月港信使', exact: true })
-    )
-
-    preview.state.failNextAction = true
-    await frame.getByRole('button', { name: '新建项目' }).click()
-    await frame.getByLabel('标题').fill('失败响应验证')
-    await frame.getByRole('button', { name: '创建项目' }).click()
-    await waitFor(() =>
-      preview.state.notifications.some(
-        (item) =>
-          item.level === 'error' && item.message === '预览动作已拒绝'
-      )
-    )
-    assert.equal(preview.state.projects.length, 22)
-
-    await frame.getByLabel('标题').fill('玻璃海岸')
-    await frame.getByLabel('描述').fill('一部审核优先的竖屏短剧。')
-    await frame
-      .getByLabel('故事前提')
-      .fill('退潮后，一名修复师在玻璃海岸找回失踪者的声音。')
-    await frame.getByLabel('目标时长（秒）').fill('120')
-    await frame.getByLabel('标签，以逗号分隔').fill('奇幻,冒险')
-    await frame.getByRole('button', { name: '创建项目' }).click()
-
-    await assertVisible(
-      frame.getByRole('heading', { name: '玻璃海岸', exact: true })
-    )
-    assert.equal(preview.state.projects.length, 23)
-    const created = preview.state.projects.find(
-      (item) => item.title === '玻璃海岸'
-    )
-    assert.ok(created)
-    assert.equal(created.status, 'draft')
-    assert.equal(created.revision, 1)
-
-    await frame.getByRole('button', { name: '推进到规划' }).click()
-    await assertVisible(
-      frame.locator('.ss-detail-hero').getByText('规划', {
-        exact: true
-      })
-    )
-    assert.equal(created.status, 'planning')
-    assert.equal(created.revision, 2)
-    assert.equal(
-      preview.state.actions.at(-1)?.previousRevision,
-      1
-    )
-
-    await waitFor(
-      () =>
-        preview.state.assistantContext?.env?.storyProjectId === created.id &&
-        preview.state.assistantContext?.env?.storyProjectRevision === '2'
-    )
-
-    await page.reload()
-    await assertVisible(
-      frame.getByRole('heading', { name: '玻璃海岸', exact: true })
-    )
-    await assertVisible(
-      frame.locator('.ss-detail-hero').getByText('规划', {
-        exact: true
-      })
-    )
-
-    const requestCount = preview.state.requestDataCount
-    await page.evaluate((projectId) => {
-      window.XpertRemoteViewPreview.emitHostEvent({
-        payload: {
-          data: JSON.stringify({
-            tool: 'story_update_project',
-            output: { receipt: { projectId } }
-          })
-        }
-      })
-    }, created.id)
-    await waitFor(
-      () => preview.state.requestDataCount > requestCount
-    )
-
-    const screenshotPath =
-      process.env.WORKBENCH_E2E_SCREENSHOT?.trim()
-    if (screenshotPath) {
-      await page.screenshot({
-        path: resolve(componentRoot, screenshotPath),
-        fullPage: true
-      })
-    }
-
-    await page.setViewportSize({ width: 760, height: 720 })
-    await assertVisible(frame.getByRole('button', { name: '新建项目' }))
-    await assertVisible(frame.getByRole('button', { name: '展开项目库' }))
-    await assertVisible(frame.getByRole('button', { name: '展开检查器' }))
-    const overflow = await frame.locator('.ss-root').evaluate((root) => ({
-      scrollWidth: root.scrollWidth,
-      clientWidth: root.clientWidth,
-      scrollHeight: root.scrollHeight,
-      clientHeight: root.clientHeight,
-      bodyScrollHeight: document.body.scrollHeight,
-      bodyClientHeight: document.body.clientHeight
-    }))
-    assert.ok(
-      overflow.scrollWidth <= overflow.clientWidth + 1,
-      `Workbench overflows at narrow width: ${JSON.stringify(overflow)}`
-    )
-    assert.ok(
-      overflow.scrollHeight <= overflow.clientHeight + 1 &&
-      overflow.bodyScrollHeight <= overflow.bodyClientHeight + 1,
-      `Workbench overflows at narrow height: ${JSON.stringify(overflow)}`
-    )
-
-    assert.deepEqual(pageErrors, [])
-    assert.deepEqual(consoleErrors, [])
-  }
-)
-
-test(
-  'persists human edits across stages and rebases a dirty stage after an Agent update',
-  async (context) => {
-    const preview = await startRemoteViewPreview(
-      {
-        ...previewConfig,
-        state: structuredClone(previewConfig.state),
-        logStartup: false,
-        logErrors: false
-      },
-      { port: 0 }
-    )
-    context.after(() => preview.close())
-    const browser = await chromium.launch({ headless: true })
-    context.after(() => browser.close())
-    const page = await browser.newPage({
-      viewport: { width: 1440, height: 960 },
-      locale: 'zh-CN'
-    })
-    const pageErrors = []
-    const consoleErrors = []
-    page.on('pageerror', (error) => pageErrors.push(error.message))
-    page.on('console', (message) => {
-      if (message.type() === 'error') consoleErrors.push(message.text())
-    })
-    await page.goto(preview.url)
-    const frame = page.frameLocator('#remote-view')
-    await assertVisible(
-      frame.getByRole('heading', { name: '月港信使', exact: true })
-    )
-
-    await editStage(frame, /项目/, async () => {
-      await frame.getByLabel('标题').fill('月港信使 · 人工修订')
-      await frame
-        .getByLabel('故事前提')
-        .fill('人工审核后的月港递送故事。')
-    })
-    assert.equal(
-      preview.state.projects[0].title,
-      '月港信使 · 人工修订'
-    )
-    assert.equal(preview.state.actions.at(-1)?.actionKey, 'update_project')
-
-    await editStage(frame, /素材/, async () => {
-      await frame
-        .getByLabel('素材梗概')
-        .fill('人工修订：信使要在黎明前送回最后一段记忆。')
-      await frame.getByLabel('摘录').fill('人工审核后的潮汐旧闻摘录。')
-    })
-    assert.equal(
-      preview.state.productionByProject['project-1'].sourceMaterials[0]
-        .excerpt,
-      '人工审核后的潮汐旧闻摘录。'
-    )
-
-    await editStage(frame, /故事计划/, async () => {
-      await frame
-        .getByLabel('一句话故事')
-        .fill('人工修订：信使跨过潮线送回最后一段记忆。')
-    })
-    await editStage(frame, /分集剧本/, async () => {
-      await frame
-        .getByLabel('剧本')
-        .fill('人工修订剧本：潮声逼近，信使抱紧记忆匣。')
-    })
-    await editStage(frame, /资产圣经/, async () => {
-      await frame
-        .getByLabel('视觉风格')
-        .fill('人工修订：月光蓝、琥珀金与潮湿胶片颗粒')
-    })
-    await editStage(frame, /分镜/, async () => {
-      await frame
-        .getByLabel('运镜')
-        .first()
-        .fill('人工修订：缓慢推近后轻微环绕')
-    })
-    await frame.getByRole('button', { name: /媒体生成/ }).click()
-    await assertVisible(frame.getByText('已锁定 ShotSpec', { exact: true }))
-    assert.equal(
-      await frame.getByRole('button', { name: '编辑', exact: true }).count(),
-      0
-    )
-    const production = preview.state.productionByProject['project-1']
-    assert.equal(
-      production.storyPlan.logline,
-      '人工修订：信使跨过潮线送回最后一段记忆。'
-    )
-    assert.equal(
-      production.episodes[0].script,
-      '人工修订剧本：潮声逼近，信使抱紧记忆匣。'
-    )
-    assert.equal(
-      production.scenes[0].shots[0].camera,
-      '人工修订：缓慢推近后轻微环绕'
-    )
-    assert.equal(
-      production.scenes[0].shots[0].candidates.find(
-        (candidate) => candidate.kind === 'video'
-      ).label,
-      '记忆包裹 Seedance 成片'
-    )
-    assert.equal(
-      production.projectRevision,
-      preview.state.projects[0].revision
-    )
-
-    await frame.getByRole('button', { name: /故事计划/ }).click()
-    await frame.getByRole('button', { name: '编辑', exact: true }).click()
-    const logline = frame.getByLabel('一句话故事')
-    await logline.fill('保留本地：信使把记忆送到月光尽头。')
-    await waitFor(
-      () =>
-        preview.state.assistantContext?.env?.storyProjectDirty === 'true'
-    )
-    const requestCount = preview.state.requestDataCount
-    const currentProject = preview.state.projects[0]
-    const remoteProduction =
-      preview.state.productionByProject['project-1']
-    currentProject.revision += 1
-    remoteProduction.projectRevision = currentProject.revision
-    remoteProduction.documentRevision += 1
-    remoteProduction.visualStyle = 'Agent 更新：冷月银蓝视觉风格'
-    await page.evaluate((projectId) => {
-      window.XpertRemoteViewPreview.emitHostEvent({
-        type: 'assistant.tool.completed',
-        source: 'chatkit',
-        payload: {
-          toolName: 'story_save_production',
-          data: {
-            input: { projectId },
-            output: { projectId }
-          }
-        }
-      })
-    }, 'project-1')
-    await assertVisible(frame.getByText('Agent 修改等待处理'))
-    assert.equal(
-      await logline.inputValue(),
-      '保留本地：信使把记忆送到月光尽头。'
-    )
-    assert.equal(
-      preview.state.requestDataCount,
-      requestCount,
-      'Dirty Agent event must not silently reload the project.'
-    )
-    await frame
-      .getByRole('button', { name: '保留我的阶段' })
-      .click()
-    await waitFor(
-      () =>
-        preview.state.productionByProject['project-1'].storyPlan
-          .logline ===
-        '保留本地：信使把记忆送到月光尽头。'
-    )
-    assert.equal(
-      preview.state.productionByProject['project-1'].visualStyle,
-      'Agent 更新：冷月银蓝视觉风格'
-    )
-
-    await frame.locator('.ss-stage').filter({ hasText: /素材/ }).click()
-    await frame.getByRole('button', { name: '编辑', exact: true }).click()
-    const synopsis = frame.getByLabel('素材梗概')
-    await synopsis.fill('这个陈旧版本不应覆盖 Agent。')
-    preview.state.projects[0].revision += 1
-    preview.state.productionByProject['project-1'].projectRevision =
-      preview.state.projects[0].revision
-    await frame.getByRole('button', { name: '保存修改' }).click()
-    await assertVisible(frame.getByText('Agent 修改等待处理'))
-    assert.equal(
-      await synopsis.inputValue(),
-      '这个陈旧版本不应覆盖 Agent。'
-    )
-    await frame.getByRole('button', { name: '采用 Agent 版本' }).click()
-    await assertVisible(
-      frame.getByRole('button', { name: '编辑', exact: true })
-    )
-    assert.equal(
-      preview.state.productionByProject['project-1'].sourceSynopsis,
-      '人工修订：信使要在黎明前送回最后一段记忆。'
-    )
-
-    assert.deepEqual(pageErrors, [])
-    assert.deepEqual(consoleErrors, [])
-  }
-)
-
-async function editStage(frame, stageName, edit) {
-  await frame.locator('.ss-stage').filter({ hasText: stageName }).click()
+  await frame.getByRole('button', { name: '资产', exact: true }).click()
+  await assertVisible(frame.getByTestId('director-assets-page'))
+  await assertVisible(frame.getByText('角色视图', { exact: true }))
+  await assertVisible(frame.getByText('表情参考', { exact: true }))
+  assert.equal(
+    await frame.getByTestId('director-assets-page').locator('aside').first().evaluate(
+      (element) => element.scrollWidth <= element.clientWidth
+    ),
+    true
+  )
+  await assertVisible(frame.getByText('尚未添加图片', { exact: true }).first())
+  assert.equal(await frame.getByTestId('director-assets-page').locator('img').count(), 0)
+  await page.screenshot({ path: resolve(screenshotRoot, 'assets.png'), fullPage: false })
+  await frame.getByRole('button', { name: /^场景/ }).click()
+  await assertVisible(frame.getByText('尚未添加图片', { exact: true }).first())
+  assert.equal(await frame.getByTestId('director-assets-page').locator('img').count(), 0)
+  await frame.getByRole('button', { name: /^道具/ }).click()
+  await frame.getByRole('button', { name: '新增资产', exact: true }).click()
+  await fillDialog(frame, { '名称': '带裂纹的镜头盖', '描述': '顾沉遗留在事故现场的镜头盖。', '材质': '黑色 ABS，金属卡扣', '状态': '边缘裂纹，表面带雨水', '故事功能': '证明顾沉曾回到现场', '提示词': '电影级道具设定，黑色裂纹镜头盖，湿润表面。' })
+  await frame.getByRole('button', { name: '保存修改', exact: true }).click()
+  await waitFor(() => preview.state.productionByProject['project-1'].assets.some((asset) => asset.name === '带裂纹的镜头盖'))
+  const prop = preview.state.productionByProject['project-1'].assets.find((asset) => asset.name === '带裂纹的镜头盖')
+  assert.equal(prop.categoryDetails.material, '黑色 ABS，金属卡扣')
   await frame.getByRole('button', { name: '编辑', exact: true }).click()
-  await edit()
-  await frame.getByRole('button', { name: '保存修改' }).click()
-  await assertVisible(frame.getByRole('button', { name: '编辑', exact: true }))
-}
+  await frame.getByLabel('名称').fill('带裂纹的镜头盖 V2')
+  await frame.getByRole('button', { name: '保存修改', exact: true }).click()
+  await waitFor(() => preview.state.productionByProject['project-1'].assets.some((asset) => asset.name.endsWith('V2')))
+  await frame.getByRole('button', { name: '删除', exact: true }).click()
+  await frame.getByRole('alertdialog').getByRole('button', { name: '删除', exact: true }).click()
+  await waitFor(() => !preview.state.productionByProject['project-1'].assets.some((asset) => asset.name.endsWith('V2')))
 
-async function assertVisible(locator) {
-  await locator.waitFor({ state: 'visible', timeout: 10_000 })
-}
+  await frame.getByRole('button', { name: '分镜', exact: true }).click()
+  await assertVisible(frame.getByTestId('director-storyboard-page'))
+  await frame.getByRole('button', { name: /S13.*两人对峙/ }).click()
+  const prompt = frame.getByLabel('补充创作要求')
+  await prompt.fill('雨夜中景双人，顾沉停步，林晚收紧相机背带，缓慢推近。')
+  assert.equal((await frame.getByLabel('候选镜头数量').innerText()).trim(), '2')
+  assert.equal((await frame.getByLabel('分辨率 / 画幅').innerText()).trim(), '1080p')
+  assert.equal((await frame.getByLabel('画面形状').innerText()).trim(), '16:9')
+  assert.equal((await frame.getByLabel('帧率').innerText()).trim(), '30')
+  await frame.getByRole('button', { name: /S12.*雨夜旧影棚重逢/ }).click()
+  assert.equal((await frame.getByLabel('候选镜头数量').innerText()).trim(), '1')
+  assert.equal((await frame.getByLabel('分辨率 / 画幅').innerText()).trim(), '720p')
+  assert.equal((await frame.getByLabel('画面形状').innerText()).trim(), '9:16')
+  assert.equal((await frame.getByLabel('帧率').innerText()).trim(), '24')
+  await frame.getByRole('button', { name: /S13.*两人对峙/ }).click()
+  await prompt.fill('雨夜中景双人，顾沉停步，林晚收紧相机背带，缓慢推近。')
+  await chooseSelect(frame, '生成模型', 'Veo 3.1')
+  await chooseSelect(frame, '帧率', '30')
+  await chooseSelect(frame, '候选镜头数量', '2')
+  const takeVideos = frame.locator('[data-testid^="director-take-video-"]')
+  assert.equal(await takeVideos.count(), 2)
+  assert.match(
+    (await takeVideos.nth(0).getAttribute('src')) ?? '',
+    /s13\.mp4$/
+  )
+  assert.match(
+    (await takeVideos.nth(1).getAttribute('src')) ?? '',
+    /s13-take-2\.mp4$/
+  )
+  await frame.getByRole('button', { name: '候选镜头 2', exact: true }).click()
+  assert.match(
+    (await frame.getByTestId('director-main-video-preview').getAttribute('src')) ?? '',
+    /s13-take-2\.mp4$/
+  )
+  const takeRevision = preview.state.projects[0].revision
+  await frame.getByRole('button', { name: '锁定候选镜头', exact: true }).click()
+  await waitFor(() => preview.state.projects[0].revision === takeRevision + 1)
+  assert.equal(preview.state.productionByProject['project-1'].scenes[0].shots[2].candidates[2].selected, true)
+  const storyboardRevision = preview.state.projects[0].revision
+  await frame.getByRole('button', { name: '保存修改', exact: true }).click()
+  await waitFor(() => preview.state.projects[0].revision === storyboardRevision + 1)
+  assert.match(preview.state.productionByProject['project-1'].scenes[0].shots[2].generationPrompt, /顾沉停步/)
+  const assistantBeforeGenerate = preview.state.assistantMessages.length
+  const generateActionsBeforeRedo = preview.state.actions.filter((action) => action.actionKey === 'generate_shot_takes').length
+  await frame.getByRole('button', { name: '局部重做', exact: true }).click()
+  await waitFor(() => preview.state.actions.filter((action) => action.actionKey === 'generate_shot_takes').length === generateActionsBeforeRedo + 1)
+  assert.equal(preview.state.actions.filter((action) => action.actionKey === 'generate_shot_takes').at(-1).takeCount, 2)
+  assert.equal(preview.state.assistantMessages.length, assistantBeforeGenerate)
+  const fullDataRequestsBeforeGenerate = preview.state.requestDataCount
+  const generateActionsBeforeBatch = preview.state.actions.filter((action) => action.actionKey === 'generate_shot_takes').length
+  await frame.getByRole('button', { name: '生成 2 个候选镜头', exact: true }).last().click()
+  await waitFor(() => preview.state.actions.filter((action) => action.actionKey === 'generate_shot_takes').length === generateActionsBeforeBatch + 1)
+  await waitFor(() => preview.state.actions.some((action) => action.actionKey === 'list_shot_video_tasks'))
+  assert.deepEqual(
+    preview.state.actions.filter((action) => action.actionKey === 'generate_shot_takes').at(-1).referenceAssetIds,
+    ['asset-linwan', 'asset-guchen']
+  )
+  assert.equal(preview.state.requestDataCount, fullDataRequestsBeforeGenerate)
+  assert.equal(preview.state.assistantMessages.length, assistantBeforeGenerate)
 
-async function emitHostTheme(page, mode) {
-  await page.evaluate((nextMode) => {
-    const frame = document.getElementById('remote-view')
-    frame.contentWindow.postMessage(
-      {
-        channel: 'xpertai.remote_component',
-        protocolVersion: 1,
-        instanceId: 'story-studio-preview',
-        type: 'themeChanged',
-        theme: { mode: nextMode }
-      },
-      window.location.origin
+  await frame.getByRole('button', { name: '装配', exact: true }).click()
+  await assertVisible(frame.getByTestId('director-assembly-page'))
+  await frame.getByTestId('director-assembly-shot-shot-s13').click()
+  await waitFor(() =>
+    frame.getByTestId('director-assembly-main-video').evaluate(
+      (video) => video.readyState >= 2 && video.currentTime > 0.05
     )
-  }, mode)
-}
+  )
+  assert.match(
+    (await frame.getByTestId('director-assembly-main-video').getAttribute('src')) ?? '',
+    /s13-take-2\.mp4$/
+  )
+  assert.match(
+    (await frame.getByTestId('director-assembly-clip-video-shot-s13').getAttribute('src')) ?? '',
+    /s13-take-2\.mp4$/
+  )
+  const assemblyText = await frame.getByTestId('director-assembly-page').innerText()
+  assert.doesNotMatch(assemblyText, /StoryCutHandoff|Workspace|SHA-256|MP4|\bfps\b|\bR\d+\b|\bTake\b/)
+  await page.screenshot({ path: resolve(screenshotRoot, 'assembly.png'), fullPage: false })
+  await frame.getByRole('button', { name: '送往剪辑台', exact: true }).click()
+  await waitFor(() => Boolean(preview.state.handoffByProject['project-1']))
+  await waitFor(() => preview.state.assistantMessages.some((message) => message.text?.includes('Accept StoryCutHandoff')))
+  assert.equal(preview.state.handoffByProject['project-1'].status, 'delivered')
 
-async function assertTheme(frame, mode) {
-  await frame
-    .locator(`html[data-story-theme="${mode}"]`)
-    .waitFor({ state: 'attached', timeout: 10_000 })
-}
+  assert.deepEqual(pageErrors, [])
+  assert.deepEqual(consoleErrors, [])
+})
 
-async function waitFor(predicate) {
-  const startedAt = Date.now()
-  while (!predicate()) {
-    if (Date.now() - startedAt > 10_000) {
-      throw new Error('Timed out waiting for preview host state.')
-    }
-    await new Promise((resolvePromise) =>
-      setTimeout(resolvePromise, 25)
-    )
+test('keeps the four primary tabs and project switcher keyboard-accessible', { timeout: 30_000 }, async (context) => {
+  const { frame } = await harness(context, { width: 1280, height: 820 })
+  await assertVisible(frame.getByTestId('director-storyboard-page'))
+  for (const tab of ['剧本', '资产', '分镜', '装配']) assert.equal(await frame.getByRole('button', { name: tab, exact: true }).count(), 1)
+  await frame.getByRole('button', { name: '《逆光重逢》 · 第1集', exact: true }).click()
+  await assertVisible(frame.getByText('最后一班列车', { exact: true }))
+  await frame.getByText('最后一班列车', { exact: true }).click()
+  await assertVisible(frame.getByTestId('director-storyboard-page'))
+  await assertVisible(frame.getByText('手工制作草稿', { exact: true }))
+  for (const tab of ['剧本', '资产', '分镜', '装配']) {
+    assert.equal(await frame.getByRole('button', { name: tab, exact: true }).isEnabled(), true)
   }
+})
+
+test('creates and persists a fully editable manual production without Assistant input', { timeout: 60_000 }, async (context) => {
+  const { preview, page, frame, pageErrors, consoleErrors } = await harness(context)
+  await frame.getByRole('button', { name: '《逆光重逢》 · 第1集', exact: true }).click()
+  await frame.getByRole('button', { name: '新建项目', exact: true }).last().click()
+  await fillDialog(frame, {
+    '标题': '测试2',
+    '描述': '测试2',
+    '故事前提': '阿收到发生地方'
+  })
+  await frame.getByRole('button', { name: '创建项目', exact: true }).click()
+  await assertVisible(frame.getByTestId('director-script-page'))
+  await waitFor(() => Boolean(preview.state.productionByProject[preview.state.projects[0].id]))
+  const created = preview.state.projects[0]
+  assert.equal(created.title, '测试2')
+  assert.equal(created.revision, 2)
+  assert.equal(preview.state.productionByProject[created.id].episodes.length, 1)
+  assert.equal(preview.state.productionByProject[created.id].scenes.length, 1)
+  assert.equal(preview.state.productionByProject[created.id].scenes[0].shots.length, 1)
+
+  const sceneTitle = frame.getByLabel('编辑场景标题')
+  const sceneSummary = frame.getByLabel('编辑场景概要')
+  const firstAction = frame.getByLabel('编辑第1镜动作')
+  await sceneTitle.fill('雨夜站台')
+  await sceneSummary.fill('林晚在末班车前发现顾沉留下的旧相机。')
+  await firstAction.fill('林晚收紧湿透的相机背带，望向空荡站台。')
+  await waitFor(() => preview.state.productionByProject[created.id].scenes[0].title === '雨夜站台')
+  assert.match(preview.state.productionByProject[created.id].episodes[0].script, /湿透的相机背带/)
+  await assertVisible(frame.getByText('已保存', { exact: true }).first())
+
+  await sceneTitle.fill('临时标题')
+  await frame.getByRole('button', { name: '撤销剧本修改', exact: true }).click()
+  assert.equal(await sceneTitle.inputValue(), '雨夜站台')
+  await frame.getByRole('button', { name: '重做剧本修改', exact: true }).click()
+  assert.equal(await sceneTitle.inputValue(), '临时标题')
+  await frame.getByRole('button', { name: '撤销剧本修改', exact: true }).click()
+  assert.equal(await sceneTitle.inputValue(), '雨夜站台')
+
+  await firstAction.press('Enter')
+  await assertVisible(frame.getByLabel('编辑第2镜动作'))
+  await chooseSelect(frame, '新增内容块', '对白')
+  await frame.getByLabel('编辑第2镜对白').fill('这一次，我不会再错过真相。')
+  await waitFor(() =>
+    preview.state.productionByProject[created.id].scenes[0].shots[1]?.dialogue ===
+    '这一次，我不会再错过真相。'
+  )
+  assert.equal(preview.state.productionByProject[created.id].scenes[0].shots[1].dialogue, '这一次，我不会再错过真相。')
+
+  await frame.getByLabel('编辑第2镜动作').press('Backspace')
+  await waitFor(() => preview.state.productionByProject[created.id].scenes[0].shots.length === 1)
+  assert.equal(await frame.getByLabel('编辑第2镜动作').count(), 0)
+
+  const revisionBeforeSnapshot = preview.state.projects[0].revision
+  await frame.getByRole('button', { name: '保存版本', exact: true }).click()
+  await waitFor(() => preview.state.projects[0].revision === revisionBeforeSnapshot + 1)
+
+  await frame.getByRole('button', { name: '资产', exact: true }).click()
+  await assertVisible(frame.getByTestId('director-assets-page'))
+  await frame.getByRole('button', { name: '分镜', exact: true }).click()
+  await assertVisible(frame.getByTestId('director-storyboard-page'))
+  const emptyPreview = frame.getByTestId('director-storyboard-empty-preview')
+  await assertVisible(emptyPreview)
+  await assertVisible(emptyPreview.getByText('等待生成成片', { exact: true }))
+  assert.equal(await emptyPreview.locator('img').count(), 0)
+  assert.equal(await frame.getByTestId('director-main-video-preview').count(), 0)
+  await page.screenshot({ path: resolve(screenshotRoot, 'storyboard-empty.png'), fullPage: false })
+  await frame.getByRole('button', { name: '装配', exact: true }).click()
+  await assertVisible(frame.getByTestId('director-assembly-page'))
+
+  await frame.getByLabel('项目菜单').click()
+  await frame.locator('.director-account-menu').getByRole('button', { name: '刷新', exact: true }).click()
+  await frame.getByRole('button', { name: '剧本', exact: true }).click()
+  await assertVisible(frame.getByTestId('director-script-page'))
+  assert.equal(await frame.getByLabel('编辑场景标题').inputValue(), '雨夜站台')
+  assert.equal(await frame.getByLabel('编辑第1镜动作').inputValue(), '林晚收紧湿透的相机背带，望向空荡站台。')
+  assert.match(await frame.getByLabel('所属分集').innerText(), /第1集/)
+  assert.deepEqual(pageErrors, [])
+  assert.deepEqual(consoleErrors, [])
+})
+
+async function harness(context, viewport = { width: 1487, height: 1058 }) {
+  const preview = await startRemoteViewPreview({ ...previewConfig, state: structuredClone(previewConfig.state), logStartup: false, logErrors: false }, { port: 0 })
+  const browser = await chromium.launch({ headless: true })
+  context.after(async () => { await browser.close(); preview.server.closeAllConnections?.(); await preview.close() })
+  const page = await browser.newPage({ viewport, deviceScaleFactor: 1, colorScheme: 'light', locale: 'zh-CN' })
+  const pageErrors = []
+  const consoleErrors = []
+  page.on('pageerror', (error) => pageErrors.push(error.message))
+  page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()) })
+  const takePreview = await readFile(takePreviewFixture)
+  await page.route('**/__story-studio-preview/*.mp4', (route) =>
+    fulfillVideoRange(route, takePreview)
+  )
+  await page.goto(preview.url)
+  return { preview, browser, page, frame: page.frameLocator('#remote-view'), pageErrors, consoleErrors }
+}
+
+function fulfillVideoRange(route, video) {
+  const range = route.request().headers().range
+  const match = range?.match(/^bytes=(\d+)-(\d*)$/)
+  const start = match ? Number(match[1]) : 0
+  const requestedEnd = match?.[2] ? Number(match[2]) : video.length - 1
+  const end = Math.min(requestedEnd, video.length - 1)
+  const body = video.subarray(start, end + 1)
+  return route.fulfill({
+    status: match ? 206 : 200,
+    contentType: 'video/mp4',
+    headers: {
+      'Accept-Ranges': 'bytes',
+      'Content-Length': String(body.length),
+      ...(match
+        ? { 'Content-Range': `bytes ${start}-${end}/${video.length}` }
+        : {})
+    },
+    body
+  })
+}
+
+async function chooseSelect(frame, label, option) {
+  await frame.getByLabel(label, { exact: true }).click()
+  await frame.getByRole('option', { name: option, exact: true }).click()
+}
+
+async function fillDialog(frame, fields) {
+  const dialog = frame.getByRole('dialog')
+  for (const [label, value] of Object.entries(fields)) {
+    const control = dialog.getByLabel(label, { exact: true })
+    if (await control.count()) await control.fill(value)
+  }
+}
+
+async function assertVisible(locator, timeoutMs = 8_000) {
+  await locator.waitFor({ state: 'visible', timeout: timeoutMs })
+  assert.equal(await locator.isVisible(), true)
+}
+
+async function waitFor(predicate, timeoutMs = 8_000) {
+  const started = Date.now()
+  while (Date.now() - started < timeoutMs) {
+    if (await predicate()) return
+    await new Promise((resolveWait) => setTimeout(resolveWait, 50))
+  }
+  assert.fail(`Condition was not met within ${timeoutMs} ms.`)
 }

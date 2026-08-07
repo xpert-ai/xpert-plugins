@@ -15,6 +15,7 @@ import {
   buildAssetImageAssistantMessage,
   validateAssetImageFile
 } from './asset-bible-actions'
+import type { AssetReferenceSet } from './asset-reference-data'
 
 const ASSISTANT_CHAT_SEND_MESSAGE_COMMAND =
   'assistant.chat.send_message'
@@ -61,6 +62,7 @@ export function useAssetBibleActions(input: {
             assetId: asset.id,
             candidateId: `asset-image-${crypto.randomUUID()}`,
             label: file.name,
+            assetReference: { type: 'general' },
             prompt: asset.prompt,
             select: true,
             changeSummary: t('changes.assetImageUploaded', {
@@ -82,7 +84,10 @@ export function useAssetBibleActions(input: {
     }
   }
 
-  async function generate(asset: Asset) {
+  async function generate(
+    asset: Asset,
+    referenceSet: AssetReferenceSet = 'continuity_views'
+  ) {
     if (!project || !production) return
     setActive({ assetId: asset.id, kind: 'generate' })
     try {
@@ -93,12 +98,15 @@ export function useAssetBibleActions(input: {
             projectId: project.id,
             revision: project.revision,
             asset,
-            production
+            production,
+            referenceSet
           }),
           clientMessageId: `story-studio:asset-image:${project.id}:${asset.id}:${Date.now()}`,
           state: {
             source: '@xpert-ai/plugin-story-studio',
-            action: 'generate_story_asset_image',
+            action: referenceSet === 'expressions'
+              ? 'generate_story_asset_expressions'
+              : 'generate_story_asset_views',
             projectId: project.id,
             assetId: asset.id
           }
@@ -126,9 +134,62 @@ export function useAssetBibleActions(input: {
     }
   }
 
+  async function uploadShotReference(
+    sceneId: string,
+    shotId: string,
+    prompt: string,
+    file: File
+  ) {
+    if (!project) return
+    const validation = validateAssetImageFile(file)
+    if (validation) {
+      notify(
+        'error',
+        t(
+          validation === 'type'
+            ? 'errors.assetImageType'
+            : 'errors.assetImageSize'
+        )
+      )
+      return
+    }
+    setActive({ assetId: shotId, kind: 'upload' })
+    try {
+      const operationId = crypto.randomUUID()
+      requireSuccessfulAction(
+        await executeFileAction(
+          'upload_shot_reference_image',
+          project.id,
+          {
+            projectId: project.id,
+            operationId,
+            baseRevision: project.revision,
+            sceneId,
+            shotId,
+            candidateId: `shot-reference-${crypto.randomUUID()}`,
+            label: file.name,
+            prompt,
+            changeSummary: t('changes.shotReferenceUploaded', { shot: shotId })
+          },
+          file
+        )
+      )
+      notify('success', t('director.storyboard.temporaryReferenceUploaded'))
+      await reload(project.id)
+    } catch (error) {
+      notify(
+        'error',
+        getErrorMessage(error instanceof Error ? error : String(error))
+      )
+    } finally {
+      setActive(null)
+    }
+  }
+
   return {
     active,
     upload,
-    generate
+    generate,
+    uploadShotReference
   }
 }

@@ -1,5 +1,6 @@
 import * as React from 'react'
 import type { Candidate } from './production-data'
+import { primeVideoPreview } from './director-storyboard-media'
 
 const h: typeof React.createElement = React.createElement
 
@@ -22,9 +23,12 @@ export function MediaPreview(props: {
         className="ss-media-preview"
         controls={controls}
         crossOrigin="use-credentials"
+        playsInline
         poster={props.posterUrl ?? undefined}
         preload="metadata"
         src={candidate.fileUrl}
+        onLoadedMetadata={(event) => primeVideoPreview(event.currentTarget)}
+        onLoadedData={(event) => primeVideoPreview(event.currentTarget)}
       >
         <track kind="captions" />
       </video>

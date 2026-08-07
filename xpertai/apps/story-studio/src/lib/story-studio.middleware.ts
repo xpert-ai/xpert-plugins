@@ -18,15 +18,27 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import {
   STORY_CREATE_PROJECT_TOOL_NAME,
+  STORY_CREATE_ADAPTATION_SUGGESTION_TOOL_NAME,
+  STORY_DELETE_ADAPTATION_SUGGESTION_TOOL_NAME,
   STORY_ATTACH_GENERATED_ASSET_IMAGE_TOOL_NAME,
   STORY_ATTACH_GENERATED_VIDEO_TOOL_NAME,
   STORY_GET_PRODUCTION_TOOL_NAME,
+  STORY_LIST_ADAPTATION_SUGGESTIONS_TOOL_NAME,
   STORY_GET_CUT_HANDOFF_TOOL_NAME,
   STORY_GET_PROJECT_SUMMARY_TOOL_NAME,
   STORY_REPORT_FAILURE_TOOL_NAME,
   STORY_RECORD_CUT_HANDOFF_TOOL_NAME,
+  STORY_LIST_VIDEO_TASKS_TOOL_NAME,
+  STORY_GET_VIDEO_TASK_TOOL_NAME,
+  STORY_REFRESH_VIDEO_TASK_TOOL_NAME,
+  STORY_CANCEL_VIDEO_TASK_TOOL_NAME,
+  STORY_RETRY_VIDEO_TASK_TOOL_NAME,
+  STORY_SELECT_SHOT_VIDEO_TOOL_NAME,
   STORY_SEARCH_PROJECTS_TOOL_NAME,
   STORY_SAVE_PRODUCTION_TOOL_NAME,
+  STORY_START_PRODUCTION_TOOL_NAME,
+  STORY_UPSERT_PRODUCTION_SCENE_TOOL_NAME,
+  STORY_UPSERT_PRODUCTION_SHOT_TOOL_NAME,
   STORY_PREPARE_CUT_HANDOFF_TOOL_NAME,
   STORY_STUDIO_AGENT_CAPABILITY,
   STORY_STUDIO_FEATURE,
@@ -35,7 +47,8 @@ import {
   STORY_STUDIO_MUTATION_TOOL_NAMES,
   STORY_STUDIO_WORKBENCH_CAPABILITY,
   STORY_UPDATE_PROJECT_STATUS_TOOL_NAME,
-  STORY_UPDATE_PROJECT_TOOL_NAME
+  STORY_UPDATE_PROJECT_TOOL_NAME,
+  STORY_UPDATE_ADAPTATION_SUGGESTION_TOOL_NAME
 } from './constants.js'
 import { stringifyStoryAgentResult } from './story-agent-response.js'
 import { defineStoryAgentTool } from './story-agent-tool.factory.js'
@@ -48,6 +61,7 @@ import {
   updateStoryProjectStatusSchema
 } from './story-agent-tool.schemas.js'
 import { StoryStudioService } from './story-studio.service.js'
+import { StoryAdaptationSuggestionService } from './story-adaptation-suggestion.service.js'
 import { StoryProductionService } from './story-production.service.js'
 import { StoryGeneratedMediaService } from './story-generated-media.service.js'
 import { StoryCutHandoffService } from './story-cut-handoff.service.js'
@@ -65,14 +79,32 @@ import {
   attachGeneratedAssetImageSchema,
   attachGeneratedVideoSchema,
   getStoryProductionSchema,
-  saveStoryProductionSchema
+  saveStoryProductionSchema,
+  startStoryProductionSchema,
+  upsertStoryProductionSceneSchema,
+  upsertStoryProductionShotSchema
 } from './story-production.schemas.js'
 import type {
   AttachGeneratedAssetImageInput,
   AttachGeneratedVideoInput,
   GetStoryProductionInput,
-  SaveStoryProductionInput
+  SaveStoryProductionInput,
+  StartStoryProductionInput,
+  UpsertStoryProductionSceneInput,
+  UpsertStoryProductionShotInput
 } from './production-types.js'
+import type {
+  CreateStoryAdaptationSuggestionInput,
+  DeleteStoryAdaptationSuggestionInput,
+  ListStoryAdaptationSuggestionsInput,
+  UpdateStoryAdaptationSuggestionInput
+} from './production-types.js'
+import {
+  createStoryAdaptationSuggestionSchema,
+  deleteStoryAdaptationSuggestionSchema,
+  listStoryAdaptationSuggestionsSchema,
+  updateStoryAdaptationSuggestionSchema
+} from './story-adaptation-suggestion.schemas.js'
 import type {
   CreateStoryProjectInput,
   GetStoryProjectSummaryInput,
@@ -82,6 +114,19 @@ import type {
   UpdateStoryProjectInput,
   UpdateStoryProjectStatusInput
 } from './types.js'
+import { StoryVideoGenerationService } from './story-video-generation.service.js'
+import {
+  getStoryVideoTaskSchema,
+  listStoryVideoTasksSchema,
+  manageStoryVideoTaskSchema,
+  selectStoryShotVideoSchema
+} from './story-video-generation.schemas.js'
+import type {
+  GetStoryVideoTaskInput,
+  ListStoryVideoTasksInput,
+  ManageStoryVideoTaskInput,
+  SelectStoryShotVideoInput
+} from './story-video-generation.types.js'
 
 const MUTATION_TOOL_NAMES = new Set<string>(
   STORY_STUDIO_MUTATION_TOOL_NAMES
@@ -124,8 +169,10 @@ export class StoryStudioMiddleware
   constructor(
     private readonly service: StoryStudioService,
     private readonly production: StoryProductionService,
+    private readonly suggestions: StoryAdaptationSuggestionService,
     private readonly generatedMedia: StoryGeneratedMediaService,
-    private readonly cutHandoffs: StoryCutHandoffService
+    private readonly cutHandoffs: StoryCutHandoffService,
+    private readonly videoGeneration: StoryVideoGenerationService
   ) {}
 
   createMiddleware(
@@ -242,6 +289,97 @@ export class StoryStudioMiddleware
           }
         ),
         defineStoryAgentTool(
+          async (input: StartStoryProductionInput) =>
+            stringifyStoryAgentResult(
+              await this.production.startProduction(scope, input)
+            ),
+          {
+            name: STORY_START_PRODUCTION_TOOL_NAME,
+            description:
+              'Create the first saved Story Studio production document for a project that does not yet have one. Call story_get_project_summary first and use its exact baseRevision. Provide the production basis, declared characters, and exactly one firstScene. Shots use dialogue: { text, speakerId, type } only for spoken text; omit dialogue or pass null for silent/action shots. If production already exists, use story_upsert_production_scene or story_upsert_production_shot instead.',
+            schema: startStoryProductionSchema,
+            verboseParsingErrors: true
+          }
+        ),
+        defineStoryAgentTool(
+          async (input: UpsertStoryProductionSceneInput) =>
+            stringifyStoryAgentResult(
+              await this.production.upsertScene(scope, input)
+            ),
+          {
+            name: STORY_UPSERT_PRODUCTION_SCENE_TOOL_NAME,
+            description:
+              'Create or replace one complete scene in an existing saved Story Studio production document. Call story_get_project_summary and story_get_production first, then pass the current baseRevision. Shots use dialogue: { text, speakerId, type } only when the shot has spoken text; omit dialogue or pass null for silent/action shots. This preserves existing media candidates on matching shot ids.',
+            schema: upsertStoryProductionSceneSchema,
+            verboseParsingErrors: true
+          }
+        ),
+        defineStoryAgentTool(
+          async (input: UpsertStoryProductionShotInput) =>
+            stringifyStoryAgentResult(
+              await this.production.upsertShot(scope, input)
+            ),
+          {
+            name: STORY_UPSERT_PRODUCTION_SHOT_TOOL_NAME,
+            description:
+              'Create or patch one shot inside an existing saved Story Studio scene. Call story_get_project_summary and story_get_production first, then pass the current baseRevision and exact sceneId. For dialogue, pass dialogue: { text, speakerId, type }; pass dialogue=null to clear speech. Never use dialogueSpeakerId to mean the visible character in a silent shot.',
+            schema: upsertStoryProductionShotSchema,
+            verboseParsingErrors: true
+          }
+        ),
+        defineStoryAgentTool(
+          async (input: ListStoryAdaptationSuggestionsInput) =>
+            stringifyStoryAgentResult(
+              await this.suggestions.list(scope, input)
+            ),
+          {
+            name: STORY_LIST_ADAPTATION_SUGGESTIONS_TOOL_NAME,
+            description:
+              'List bounded AI adaptation suggestions for one exact Story Studio project. Use filters and pagination; this read does not mutate the script.',
+            schema: listStoryAdaptationSuggestionsSchema,
+            verboseParsingErrors: true
+          }
+        ),
+        defineStoryAgentTool(
+          async (input: CreateStoryAdaptationSuggestionInput) =>
+            stringifyStoryAgentResult(
+              await this.suggestions.create(scope, input)
+            ),
+          {
+            name: STORY_CREATE_ADAPTATION_SUGGESTION_TOOL_NAME,
+            description:
+              'Create one reviewable AI adaptation suggestion for an exact episode and optional scene/shot. Read the latest project revision first. This writes only the suggestion card; it never rewrites or accepts the script automatically.',
+            schema: createStoryAdaptationSuggestionSchema,
+            verboseParsingErrors: true
+          }
+        ),
+        defineStoryAgentTool(
+          async (input: UpdateStoryAdaptationSuggestionInput) =>
+            stringifyStoryAgentResult(
+              await this.suggestions.update(scope, input)
+            ),
+          {
+            name: STORY_UPDATE_ADAPTATION_SUGGESTION_TOOL_NAME,
+            description:
+              'Update the text, reason, or review status of one exact adaptation suggestion using the current project revision. Do not claim the episode script changed unless a separate production save succeeds.',
+            schema: updateStoryAdaptationSuggestionSchema,
+            verboseParsingErrors: true
+          }
+        ),
+        defineStoryAgentTool(
+          async (input: DeleteStoryAdaptationSuggestionInput) =>
+            stringifyStoryAgentResult(
+              await this.suggestions.delete(scope, input)
+            ),
+          {
+            name: STORY_DELETE_ADAPTATION_SUGGESTION_TOOL_NAME,
+            description:
+              'Delete one exact adaptation suggestion after explicit user intent. Read the latest project revision first and provide a concise user-visible changeSummary.',
+            schema: deleteStoryAdaptationSuggestionSchema,
+            verboseParsingErrors: true
+          }
+        ),
+        defineStoryAgentTool(
           async (input: AttachGeneratedAssetImageInput) => {
             const files = context.runtime.capabilities?.require(
               WorkspaceFilesRuntimeCapability
@@ -273,7 +411,7 @@ export class StoryStudioMiddleware
           {
             name: STORY_ATTACH_GENERATED_ASSET_IMAGE_TOOL_NAME,
             description:
-              'Attach one completed Seedream image from the current Agent Workspace to an exact Story Studio asset-bible entry. Read the latest project revision first. Pass the workspacePath returned by seedream_text_to_image, its task id/model/status receipt, the exact assetId, and select=true. Never pass base64 or a provider URL.',
+              'Attach one completed Seedream image from the current Agent Workspace to an exact Story Studio asset-bible entry. Read the latest project revision first. Pass the workspacePath returned by seedream_text_to_image, its task id/model/status receipt, the exact assetId, and an explicit assetReference describing continuity_view, expression, or general usage. Use select=true only for the primary continuity view. Never pass base64 or a provider URL.',
             schema: attachGeneratedAssetImageSchema,
             verboseParsingErrors: true
           }
@@ -311,6 +449,84 @@ export class StoryStudioMiddleware
             description:
               'Attach one completed Seedance MP4 from the current Agent Workspace to an exact production shot. Read the latest Story Studio project revision first. Pass the workspacePath returned by seedance_video_query, its task id/model/status receipt, and select=true to make this video the shot render source. Never pass base64 or a provider URL.',
             schema: attachGeneratedVideoSchema,
+            verboseParsingErrors: true
+          }
+        ),
+        defineStoryAgentTool(
+          async (input: ListStoryVideoTasksInput) =>
+            stringifyStoryAgentResult(
+              await this.videoGeneration.listTasks(scope, input)
+            ),
+          {
+            name: STORY_LIST_VIDEO_TASKS_TOOL_NAME,
+            description:
+              'List the durable video-generation tasks for one Story Studio project, optionally filtered by scene, shot, or status. Use this instead of relying on previous chat messages. This is read-only and never submits paid work.',
+            schema: listStoryVideoTasksSchema,
+            verboseParsingErrors: true
+          }
+        ),
+        defineStoryAgentTool(
+          async (input: GetStoryVideoTaskInput) =>
+            stringifyStoryAgentResult(
+              await this.videoGeneration.getTask(scope, input)
+            ),
+          {
+            name: STORY_GET_VIDEO_TASK_TOOL_NAME,
+            description:
+              'Get one exact durable video-generation task after discovering its business task id. Completion is authoritative only when status is completed and resultCandidateId is present.',
+            schema: getStoryVideoTaskSchema,
+            verboseParsingErrors: true
+          }
+        ),
+        defineStoryAgentTool(
+          async (input: ManageStoryVideoTaskInput) =>
+            stringifyStoryAgentResult(
+              await this.videoGeneration.refreshTask(scope, input)
+            ),
+          {
+            name: STORY_REFRESH_VIDEO_TASK_TOOL_NAME,
+            description:
+              'Request an immediate status refresh for one existing video task. This does not create another paid generation task.',
+            schema: manageStoryVideoTaskSchema,
+            verboseParsingErrors: true
+          }
+        ),
+        defineStoryAgentTool(
+          async (input: ManageStoryVideoTaskInput) =>
+            stringifyStoryAgentResult(
+              await this.videoGeneration.cancelTask(scope, input)
+            ),
+          {
+            name: STORY_CANCEL_VIDEO_TASK_TOOL_NAME,
+            description:
+              'Stop tracking one existing active video task after explicit user instruction. Some generators cannot cancel upstream work; the result states whether generation may continue there.',
+            schema: manageStoryVideoTaskSchema,
+            verboseParsingErrors: true
+          }
+        ),
+        defineStoryAgentTool(
+          async (input: ManageStoryVideoTaskInput) =>
+            stringifyStoryAgentResult(
+              await this.videoGeneration.retryTask(scope, input)
+            ),
+          {
+            name: STORY_RETRY_VIDEO_TASK_TOOL_NAME,
+            description:
+              'Create one paid retry from an existing failed or stopped task. Call only after the user explicitly asks to retry; never retry autonomously from a status query.',
+            schema: manageStoryVideoTaskSchema,
+            verboseParsingErrors: true
+          }
+        ),
+        defineStoryAgentTool(
+          async (input: SelectStoryShotVideoInput) =>
+            stringifyStoryAgentResult(
+              await this.videoGeneration.selectShotVideo(scope, input)
+            ),
+          {
+            name: STORY_SELECT_SHOT_VIDEO_TOOL_NAME,
+            description:
+              'Lock one completed video candidate for an exact scene and shot after explicit user selection. This narrowly updates selection and does not replace the production document.',
+            schema: selectStoryShotVideoSchema,
             verboseParsingErrors: true
           }
         ),
@@ -569,6 +785,10 @@ async function dispatchStoryToolEvent(
 function summarizeToolInput(args: StoryToolArgs) {
   return pickCompactFields(args, [
     'projectId',
+    'suggestionId',
+    'episodeId',
+    'sceneId',
+    'shotId',
     'handoffId',
     'operationId',
     'baseRevision',
@@ -585,9 +805,14 @@ function summarizeToolOutput(value: unknown) {
       'duplicate',
       'operationId',
       'projectId',
+      'suggestionId',
+      'deletedSuggestionId',
       'handoffId',
       'cutProjectId',
       'cutProposalId',
+      'sceneId',
+      'shotId',
+      'documentRevision',
       'previousRevision',
       'revision',
       'status'

@@ -1,0 +1,40 @@
+background: '#F9FAFB'
+configurate_methods: []
+description:
+  en_US: Official Kling AI video generation.
+  zh_Hans: 可灵 AI 官方视频生成。
+help:
+  title:
+    en_US: Create an API Key in the Kling Open Platform console
+    zh_Hans: 在可灵开放平台控制台创建 API Key
+  url:
+    en_US: https://kling.ai/dev/api-key
+    zh_Hans: https://kling.ai/dev/api-key
+icon_large:
+  en_US: icon_l_en.svg
+  zh_Hans: icon_l_zh.svg
+icon_small:
+  en_US: icon_s_en.svg
+label:
+  en_US: Kling AI
+  zh_Hans: 可灵 AI
+provider: kling
+provider_credential_schema:
+  credential_form_schemas:
+  - label:
+      en_US: API Key
+      zh_Hans: API Key
+    placeholder:
+      en_US: Enter your Kling API Key
+      zh_Hans: 输入可灵 API Key
+    required: true
+    type: secret-input
+    variable: api_key
+  - default: https://api-singapore.klingai.com
+    label:
+      en_US: API Endpoint
+      zh_Hans: 接口地址
+    required: false
+    type: text-input
+    variable: api_endpoint_host
+supported_model_types: []

@@ -31,6 +31,7 @@ const production: ProductionView = {
   scenes: [
     {
       id: 'scene-one',
+      episodeId: null,
       order: 1,
       title: '地窖',
       summary: 'The reveal.',
@@ -47,6 +48,12 @@ const production: ProductionView = {
           dialogueSpeakerId: 'character-hero',
           dialogueType: 'dialogue',
           soundEffects: ['木门声', '金属碰撞声'],
+          generationPrompt: null,
+          emotion: null,
+          lens: null,
+          lighting: null,
+          colorTone: null,
+          weather: null,
           durationSeconds: 5,
           candidates: [
             {

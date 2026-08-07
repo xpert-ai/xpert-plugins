@@ -22,7 +22,29 @@ export type Candidate = {
     model: string | null
     status: string
   } | null
+  assetReference?: AssetReference | null
 }
+
+export type AssetReference =
+  | {
+      type: 'continuity_view'
+      key:
+        | 'front'
+        | 'three_quarter'
+        | 'profile'
+        | 'back'
+        | 'wide'
+        | 'reverse'
+        | 'detail'
+        | 'alternate'
+    }
+  | {
+      type: 'expression'
+      key: 'neutral' | 'happy' | 'sad' | 'angry'
+    }
+  | {
+      type: 'general'
+    }
 
 export type SourceMaterial = {
   id: string
@@ -44,6 +66,20 @@ export type StoryPlan = {
   theme: string
   tone: string
   beats: Beat[]
+  adaptationSuggestions: AdaptationSuggestion[]
+}
+
+export type AdaptationSuggestion = {
+  id: string
+  episodeId: string
+  sceneId: string | null
+  shotId: string | null
+  originalText: string
+  suggestedText: string
+  reason: string
+  status: 'pending' | 'accepted' | 'dismissed'
+  createdBy: 'assistant' | 'user'
+  createdAt: string
 }
 
 export type Episode = {
@@ -61,7 +97,25 @@ export type Asset = {
   name: string
   description: string
   prompt: string
+  negativePrompt: string | null
+  continuityNotes: string | null
+  categoryDetails: AssetCategoryDetails
   candidates: Candidate[]
+}
+
+export type AssetCategoryDetails = {
+  identity: string | null
+  appearance: string | null
+  wardrobe: string | null
+  voice: string | null
+  environment: string | null
+  lighting: string | null
+  material: string | null
+  condition: string | null
+  storyFunction: string | null
+  palette: string | null
+  lens: string | null
+  continuity: string | null
 }
 
 export type VoiceReference = {
@@ -89,12 +143,56 @@ export type Shot = {
   dialogueSpeakerId: string | null
   dialogueType: 'dialogue' | 'voice_over' | 'off_screen' | null
   soundEffects: string[]
+  generationPrompt: string | null
+  emotion: string | null
+  lens: string | null
+  lighting: string | null
+  colorTone: string | null
+  weather: string | null
+  continuity?: ShotContinuity | null
+  videoSettings?: ShotVideoSettings | null
   durationSeconds: number
   candidates: Candidate[]
 }
 
+export type ShotTransition = 'auto' | 'continuous_action' | 'match_action' | 'hard_cut' | 'time_jump' | 'location_jump' | 'none'
+export type ShotContinuitySubjectState = {
+  assetId: string
+  visible: boolean | null
+  location: string | null
+  pose: string | null
+  actionPhase: string | null
+  facing: string | null
+  screenPosition: string | null
+  heldPropAssetIds: string[]
+  wardrobe: string | null
+  emotion: string | null
+}
+export type ShotContinuityState = {
+  summary: string | null
+  environment: string | null
+  subjects: ShotContinuitySubjectState[]
+}
+export type ShotContinuity = {
+  transition: ShotTransition
+  fromShotId: string | null
+  startState: ShotContinuityState | null
+  endState: ShotContinuityState | null
+}
+
+export type ShotVideoSettings = {
+  generatorId: string | null
+  model: string | null
+  resolution: string | null
+  aspectRatio: string | null
+  fps: number | null
+  takeCount: number | null
+  referenceAssetIds: string[]
+}
+
 export type Scene = {
   id: string
+  episodeId: string | null
   order: number
   title: string
   summary: string
@@ -255,7 +353,56 @@ function parseStoryPlan(value: RemoteValue): StoryPlan | null {
     logline,
     theme,
     tone,
-    beats: value.beats.map(parseBeat).filter(isPresent)
+    beats: value.beats.map(parseBeat).filter(isPresent),
+    adaptationSuggestions: arrayField(value, 'adaptationSuggestions')
+      .map(parseAdaptationSuggestion)
+      .filter(isPresent)
+  }
+}
+
+function parseAdaptationSuggestion(
+  value: RemoteValue
+): AdaptationSuggestion | null {
+  if (!isRemoteObject(value)) return null
+  const id = stringField(value, 'id')
+  const episodeId = stringField(value, 'episodeId')
+  const originalText = stringField(value, 'originalText')
+  const suggestedText = stringField(value, 'suggestedText')
+  const reason = stringField(value, 'reason')
+  const createdAt = stringField(value, 'createdAt')
+  const status =
+    value.status === 'pending' ||
+    value.status === 'accepted' ||
+    value.status === 'dismissed'
+      ? value.status
+      : null
+  const createdBy =
+    value.createdBy === 'assistant' || value.createdBy === 'user'
+      ? value.createdBy
+      : null
+  if (
+    !id ||
+    !episodeId ||
+    !originalText ||
+    !suggestedText ||
+    !reason ||
+    !createdAt ||
+    !status ||
+    !createdBy
+  ) {
+    return null
+  }
+  return {
+    id,
+    episodeId,
+    originalText,
+    suggestedText,
+    reason,
+    status,
+    createdBy,
+    createdAt,
+    sceneId: nullableString(value, 'sceneId'),
+    shotId: nullableString(value, 'shotId')
   }
 }
 
@@ -308,9 +455,30 @@ function parseAsset(value: RemoteValue): Asset | null {
     description,
     prompt,
     kind,
+    negativePrompt: nullableString(value, 'negativePrompt'),
+    continuityNotes: nullableString(value, 'continuityNotes'),
+    categoryDetails: parseAssetCategoryDetails(value.categoryDetails),
     candidates: arrayField(value, 'candidates')
       .map(parseCandidate)
       .filter(isPresent)
+  }
+}
+
+function parseAssetCategoryDetails(value: RemoteValue): AssetCategoryDetails {
+  const object = isRemoteObject(value) ? value : {}
+  return {
+    identity: nullableString(object, 'identity'),
+    appearance: nullableString(object, 'appearance'),
+    wardrobe: nullableString(object, 'wardrobe'),
+    voice: nullableString(object, 'voice'),
+    environment: nullableString(object, 'environment'),
+    lighting: nullableString(object, 'lighting'),
+    material: nullableString(object, 'material'),
+    condition: nullableString(object, 'condition'),
+    storyFunction: nullableString(object, 'storyFunction'),
+    palette: nullableString(object, 'palette'),
+    lens: nullableString(object, 'lens'),
+    continuity: nullableString(object, 'continuity')
   }
 }
 
@@ -350,6 +518,7 @@ function parseScene(value: RemoteValue): Scene | null {
   if (!id || !title || !summary || order === null) return null
   return {
     id,
+    episodeId: nullableString(value, 'episodeId'),
     order,
     title,
     summary,
@@ -395,9 +564,71 @@ function parseShot(value: RemoteValue): Shot | null {
     soundEffects: arrayField(value, 'soundEffects').filter(
       (item): item is string => typeof item === 'string'
     ),
+    generationPrompt: nullableString(value, 'generationPrompt'),
+    emotion: nullableString(value, 'emotion'),
+    lens: nullableString(value, 'lens'),
+    lighting: nullableString(value, 'lighting'),
+    colorTone: nullableString(value, 'colorTone'),
+    weather: nullableString(value, 'weather'),
+    continuity: parseShotContinuity(value.continuity),
+    videoSettings: parseShotVideoSettings(value.videoSettings),
     candidates: arrayField(value, 'candidates')
       .map(parseCandidate)
       .filter(isPresent)
+  }
+}
+
+function parseShotContinuity(value: RemoteValue): ShotContinuity | null {
+  if (!isRemoteObject(value)) return null
+  const transition = ['auto', 'continuous_action', 'match_action', 'hard_cut', 'time_jump', 'location_jump', 'none'].includes(String(value.transition))
+    ? value.transition as ShotTransition
+    : null
+  if (!transition) return null
+  return {
+    transition,
+    fromShotId: nullableString(value, 'fromShotId'),
+    startState: parseShotContinuityState(value.startState),
+    endState: parseShotContinuityState(value.endState)
+  }
+}
+
+function parseShotContinuityState(value: RemoteValue): ShotContinuityState | null {
+  if (!isRemoteObject(value)) return null
+  return {
+    summary: nullableString(value, 'summary'),
+    environment: nullableString(value, 'environment'),
+    subjects: arrayField(value, 'subjects').flatMap((item) => {
+      if (!isRemoteObject(item)) return []
+      const assetId = stringField(item, 'assetId')
+      if (!assetId) return []
+      return [{
+        assetId,
+        visible: typeof item.visible === 'boolean' ? item.visible : null,
+        location: nullableString(item, 'location'),
+        pose: nullableString(item, 'pose'),
+        actionPhase: nullableString(item, 'actionPhase'),
+        facing: nullableString(item, 'facing'),
+        screenPosition: nullableString(item, 'screenPosition'),
+        heldPropAssetIds: arrayField(item, 'heldPropAssetIds').filter((id): id is string => typeof id === 'string'),
+        wardrobe: nullableString(item, 'wardrobe'),
+        emotion: nullableString(item, 'emotion')
+      }]
+    })
+  }
+}
+
+function parseShotVideoSettings(value: RemoteValue): ShotVideoSettings | null {
+  if (!isRemoteObject(value)) return null
+  return {
+    generatorId: nullableString(value, 'generatorId'),
+    model: nullableString(value, 'model'),
+    resolution: nullableString(value, 'resolution'),
+    aspectRatio: nullableString(value, 'aspectRatio'),
+    fps: numberField(value, 'fps'),
+    takeCount: numberField(value, 'takeCount'),
+    referenceAssetIds: arrayField(value, 'referenceAssetIds').filter(
+      (item): item is string => typeof item === 'string'
+    )
   }
 }
 
@@ -424,7 +655,8 @@ function parseCandidate(value: RemoteValue): Candidate | null {
     size: numberField(value, 'size'),
     sha256: nullableString(value, 'sha256'),
     prompt: nullableString(value, 'prompt'),
-    providerReceipt: parseProviderReceipt(value.providerReceipt)
+    providerReceipt: parseProviderReceipt(value.providerReceipt),
+    assetReference: parseAssetReference(value.assetReference)
   }
 }
 
@@ -455,6 +687,15 @@ export function productionActionDocument(
         name: asset.name,
         description: asset.description,
         prompt: asset.prompt,
+        ...(asset.negativePrompt
+          ? { negativePrompt: asset.negativePrompt }
+          : {}),
+        ...(asset.continuityNotes
+          ? { continuityNotes: asset.continuityNotes }
+          : {}),
+        ...(hasAssetCategoryDetails(asset.categoryDetails)
+          ? { categoryDetails: compactAssetCategoryDetails(asset.categoryDetails) }
+          : {}),
         candidates: asset.candidates.map(serializeCandidate)
       })),
       characters: production.characters.map((character) => ({
@@ -481,6 +722,7 @@ export function productionActionDocument(
       })),
       scenes: production.scenes.map((scene) => ({
         id: scene.id,
+        ...(scene.episodeId ? { episodeId: scene.episodeId } : {}),
         order: scene.order,
         title: scene.title,
         summary: scene.summary,
@@ -502,12 +744,86 @@ export function productionActionDocument(
           ...(shot.soundEffects.length
             ? { soundEffects: shot.soundEffects }
             : {}),
+          ...(shot.generationPrompt
+            ? { generationPrompt: shot.generationPrompt }
+            : {}),
+          ...(shot.emotion ? { emotion: shot.emotion } : {}),
+          ...(shot.lens ? { lens: shot.lens } : {}),
+          ...(shot.lighting ? { lighting: shot.lighting } : {}),
+          ...(shot.colorTone ? { colorTone: shot.colorTone } : {}),
+          ...(shot.weather ? { weather: shot.weather } : {}),
+          ...(shot.continuity ? { continuity: compactShotContinuity(shot.continuity) } : {}),
+          ...(shot.videoSettings
+            ? {
+                videoSettings: {
+                  ...(shot.videoSettings.generatorId
+                    ? { generatorId: shot.videoSettings.generatorId }
+                    : {}),
+                  ...(shot.videoSettings.model
+                    ? { model: shot.videoSettings.model }
+                    : {}),
+                  ...(shot.videoSettings.resolution
+                    ? { resolution: shot.videoSettings.resolution }
+                    : {}),
+                  ...(shot.videoSettings.aspectRatio
+                    ? { aspectRatio: shot.videoSettings.aspectRatio }
+                    : {}),
+                  ...(shot.videoSettings.fps
+                    ? { fps: shot.videoSettings.fps }
+                    : {}),
+                  ...(shot.videoSettings.takeCount
+                    ? { takeCount: shot.videoSettings.takeCount }
+                    : {}),
+                  ...(shot.videoSettings.referenceAssetIds.length
+                    ? {
+                        referenceAssetIds:
+                          shot.videoSettings.referenceAssetIds
+                      }
+                    : {})
+                }
+              }
+            : {}),
           durationSeconds: shot.durationSeconds,
           candidates: shot.candidates.map(serializeCandidate)
         }))
       }))
     })
   ) as RemoteObject
+}
+
+function compactShotContinuity(continuity: ShotContinuity) {
+  const state = (value: ShotContinuityState | null) => value ? {
+    ...(value.summary ? { summary: value.summary } : {}),
+    ...(value.environment ? { environment: value.environment } : {}),
+    ...(value.subjects.length ? { subjects: value.subjects.map((subject) => ({
+      assetId: subject.assetId,
+      ...(subject.visible != null ? { visible: subject.visible } : {}),
+      ...(subject.location ? { location: subject.location } : {}),
+      ...(subject.pose ? { pose: subject.pose } : {}),
+      ...(subject.actionPhase ? { actionPhase: subject.actionPhase } : {}),
+      ...(subject.facing ? { facing: subject.facing } : {}),
+      ...(subject.screenPosition ? { screenPosition: subject.screenPosition } : {}),
+      ...(subject.heldPropAssetIds.length ? { heldPropAssetIds: subject.heldPropAssetIds } : {}),
+      ...(subject.wardrobe ? { wardrobe: subject.wardrobe } : {}),
+      ...(subject.emotion ? { emotion: subject.emotion } : {})
+    })) } : {})
+  } : undefined
+  return {
+    transition: continuity.transition,
+    ...(continuity.fromShotId ? { fromShotId: continuity.fromShotId } : {}),
+    ...(continuity.startState ? { startState: state(continuity.startState) } : {}),
+    ...(continuity.endState ? { endState: state(continuity.endState) } : {})
+  }
+}
+
+function hasAssetCategoryDetails(details: AssetCategoryDetails) {
+  return Object.values(details).some((value) => Boolean(value))
+}
+
+function compactAssetCategoryDetails(details: AssetCategoryDetails) {
+  return Object.fromEntries(
+    Object.entries(details).filter(([, value]) => Boolean(value))
+  )
 }
 
 function serializeCandidate(candidate: Candidate) {
@@ -529,8 +845,43 @@ function serializeCandidate(candidate: Candidate) {
       : {}),
     ...(candidate.mimeType ? { mimeType: candidate.mimeType } : {}),
     ...(candidate.size ? { size: candidate.size } : {}),
-    ...(candidate.sha256 ? { sha256: candidate.sha256 } : {})
+    ...(candidate.sha256 ? { sha256: candidate.sha256 } : {}),
+    ...(candidate.assetReference
+      ? { assetReference: candidate.assetReference }
+      : {})
   }
+}
+
+function parseAssetReference(value: RemoteValue): AssetReference | null {
+  if (!isRemoteObject(value)) return null
+  if (value.type === 'general') return { type: 'general' }
+  if (
+    value.type === 'continuity_view' &&
+    (
+      value.key === 'front' ||
+      value.key === 'three_quarter' ||
+      value.key === 'profile' ||
+      value.key === 'back' ||
+      value.key === 'wide' ||
+      value.key === 'reverse' ||
+      value.key === 'detail' ||
+      value.key === 'alternate'
+    )
+  ) {
+    return { type: value.type, key: value.key }
+  }
+  if (
+    value.type === 'expression' &&
+    (
+      value.key === 'neutral' ||
+      value.key === 'happy' ||
+      value.key === 'sad' ||
+      value.key === 'angry'
+    )
+  ) {
+    return { type: value.type, key: value.key }
+  }
+  return null
 }
 
 function parseProviderReceipt(

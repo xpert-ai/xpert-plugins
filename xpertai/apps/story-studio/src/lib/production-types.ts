@@ -52,7 +52,29 @@ export interface StoryMediaCandidate extends StoryJsonObject {
   size?: number
   sha256?: string
   fileReference?: StoryPortableFileReference
+  assetReference?: StoryAssetReference
 }
+
+export type StoryAssetReference =
+  | {
+      type: 'continuity_view'
+      key:
+        | 'front'
+        | 'three_quarter'
+        | 'profile'
+        | 'back'
+        | 'wide'
+        | 'reverse'
+        | 'detail'
+        | 'alternate'
+    }
+  | {
+      type: 'expression'
+      key: 'neutral' | 'happy' | 'sad' | 'angry'
+    }
+  | {
+      type: 'general'
+    }
 
 export interface StorySourceMaterial extends StoryJsonObject {
   id: string
@@ -69,11 +91,30 @@ export interface StoryBeat extends StoryJsonObject {
   purpose: string
 }
 
+export type StoryAdaptationSuggestionStatus =
+  | 'pending'
+  | 'accepted'
+  | 'dismissed'
+
+export interface StoryAdaptationSuggestion extends StoryJsonObject {
+  id: string
+  episodeId: string
+  sceneId?: string
+  shotId?: string
+  originalText: string
+  suggestedText: string
+  reason: string
+  status: StoryAdaptationSuggestionStatus
+  createdBy: 'assistant' | 'user'
+  createdAt: string
+}
+
 export interface StoryPlan extends StoryJsonObject {
   logline: string
   theme: string
   tone: string
   beats: StoryBeat[]
+  adaptationSuggestions?: StoryAdaptationSuggestion[]
 }
 
 export interface StoryEpisode extends StoryJsonObject {
@@ -91,7 +132,25 @@ export interface StoryAsset extends StoryJsonObject {
   name: string
   description: string
   prompt: string
+  negativePrompt?: string
+  continuityNotes?: string
+  categoryDetails?: StoryAssetCategoryDetails
   candidates?: StoryMediaCandidate[]
+}
+
+export interface StoryAssetCategoryDetails extends StoryJsonObject {
+  identity?: string
+  appearance?: string
+  wardrobe?: string
+  voice?: string
+  environment?: string
+  lighting?: string
+  material?: string
+  condition?: string
+  storyFunction?: string
+  palette?: string
+  lens?: string
+  continuity?: string
 }
 
 export interface StoryShot extends StoryJsonObject {
@@ -104,12 +163,69 @@ export interface StoryShot extends StoryJsonObject {
   dialogueSpeakerId?: string
   dialogueType?: 'dialogue' | 'voice_over' | 'off_screen'
   soundEffects?: string[]
+  generationPrompt?: string
+  emotion?: string
+  lens?: string
+  lighting?: string
+  colorTone?: string
+  weather?: string
+  continuity?: StoryShotContinuity
+  videoSettings?: StoryShotVideoSettings
   durationSeconds: number
   candidates?: StoryMediaCandidate[]
 }
 
+export const STORY_SHOT_TRANSITIONS = [
+  'auto',
+  'continuous_action',
+  'match_action',
+  'hard_cut',
+  'time_jump',
+  'location_jump',
+  'none'
+] as const
+
+export type StoryShotTransition = (typeof STORY_SHOT_TRANSITIONS)[number]
+
+export interface StoryShotContinuitySubjectState extends StoryJsonObject {
+  assetId: string
+  visible?: boolean
+  location?: string
+  pose?: string
+  actionPhase?: string
+  facing?: string
+  screenPosition?: string
+  heldPropAssetIds?: string[]
+  wardrobe?: string
+  emotion?: string
+}
+
+export interface StoryShotContinuityState extends StoryJsonObject {
+  summary?: string
+  environment?: string
+  subjects?: StoryShotContinuitySubjectState[]
+}
+
+export interface StoryShotContinuity extends StoryJsonObject {
+  transition: StoryShotTransition
+  fromShotId?: string
+  startState?: StoryShotContinuityState
+  endState?: StoryShotContinuityState
+}
+
+export interface StoryShotVideoSettings extends StoryJsonObject {
+  generatorId?: string
+  model?: string
+  resolution?: string
+  aspectRatio?: string
+  fps?: number
+  takeCount?: number
+  referenceAssetIds?: string[]
+}
+
 export interface StoryScene extends StoryJsonObject {
   id: string
+  episodeId?: string
   order: number
   title: string
   summary: string
@@ -143,6 +259,122 @@ export interface GetStoryProductionInput {
   projectId: string
 }
 
+export interface StoryShotDialogueInput extends StoryJsonObject {
+  text: string
+  speakerId?: string
+  type?: 'dialogue' | 'voice_over' | 'off_screen'
+}
+
+export interface UpsertStoryProductionShotFields extends StoryJsonObject {
+  id: string
+  title?: string
+  composition?: string
+  action?: string
+  camera?: string
+  dialogue?: StoryShotDialogueInput | null
+  soundEffects?: string[]
+  generationPrompt?: string
+  emotion?: string
+  lens?: string
+  lighting?: string
+  colorTone?: string
+  weather?: string
+  durationSeconds?: number
+}
+
+export interface UpsertStoryProductionSceneInput {
+  projectId: string
+  operationId: string
+  baseRevision: number
+  scene: {
+    id: string
+    episodeId?: string
+    order: number
+    title: string
+    summary: string
+    location?: string
+    timeOfDay?: string
+    shots: Array<
+      UpsertStoryProductionShotFields & {
+        title: string
+        composition: string
+        action: string
+        camera: string
+        durationSeconds: number
+      }
+    >
+  }
+  changeSummary: string
+}
+
+export interface StartStoryProductionInput {
+  projectId: string
+  operationId: string
+  baseRevision: number
+  sourceSynopsis: string
+  adaptationGoal: string
+  visualStyle: string
+  audience?: string
+  sourceMaterials?: StorySourceMaterial[]
+  storyPlan?: StoryPlan
+  episodes?: StoryEpisode[]
+  assets?: StoryAsset[]
+  characters: StoryCharacter[]
+  firstScene: UpsertStoryProductionSceneInput['scene']
+  changeSummary: string
+}
+
+export interface UpsertStoryProductionShotInput {
+  projectId: string
+  operationId: string
+  baseRevision: number
+  sceneId: string
+  insertAfterShotId?: string
+  shot: UpsertStoryProductionShotFields
+  changeSummary: string
+}
+
+export interface ListStoryAdaptationSuggestionsInput {
+  projectId: string
+  expectedRevision?: number
+  status?: StoryAdaptationSuggestionStatus
+  page?: number
+  pageSize?: number
+}
+
+export interface CreateStoryAdaptationSuggestionInput {
+  projectId: string
+  operationId: string
+  baseRevision: number
+  suggestionId: string
+  episodeId: string
+  sceneId?: string
+  shotId?: string
+  originalText: string
+  suggestedText: string
+  reason: string
+  changeSummary: string
+}
+
+export interface UpdateStoryAdaptationSuggestionInput {
+  projectId: string
+  operationId: string
+  baseRevision: number
+  suggestionId: string
+  suggestedText?: string
+  reason?: string
+  status?: StoryAdaptationSuggestionStatus
+  changeSummary: string
+}
+
+export interface DeleteStoryAdaptationSuggestionInput {
+  projectId: string
+  operationId: string
+  baseRevision: number
+  suggestionId: string
+  changeSummary: string
+}
+
 export interface AttachGeneratedVideoInput {
   projectId: string
   operationId: string
@@ -170,6 +402,7 @@ export interface AttachAssetImageInput {
   assetId: string
   candidateId: string
   label: string
+  assetReference?: StoryAssetReference
   prompt?: string
   providerReceipt: {
     provider: 'seedream_aigc' | 'manual_upload'
@@ -184,6 +417,23 @@ export interface AttachAssetImageInput {
 export interface AttachGeneratedAssetImageInput
   extends AttachAssetImageInput {
   file: string | StoryJsonObject
+}
+
+export interface AttachShotReferenceImageInput {
+  projectId: string
+  operationId: string
+  baseRevision: number
+  sceneId: string
+  shotId: string
+  candidateId: string
+  label: string
+  prompt?: string
+  providerReceipt: {
+    provider: 'manual_upload'
+    taskId: string
+    status: string
+  }
+  changeSummary: string
 }
 
 export interface StoryProductionSummary {

@@ -42,6 +42,7 @@ import {
   reportResize,
   requestData,
   requireSuccessfulAction,
+  requireSuccessfulActionData,
   setRuntimeText,
   startRemoteBridge,
   type RemoteBridgeContext,
@@ -64,14 +65,27 @@ import {
   ProductionPanel,
   parseHandoffView,
   parseProductionView,
+  productionActionDocument,
   type HandoffView,
   type ProductionView
 } from './production-panel'
+import { DirectorWorkbench } from './director-workbench'
 import { hydrateProductionMediaAccess } from './production-media-access'
 import { useStoryEditor } from './use-story-editor'
 import { useAssetBibleActions } from './use-asset-bible-actions'
 import { useMediaGenerationActions } from './use-media-generation-actions'
 import { findHandoff, readHostThemeMode } from './workbench-data'
+import { createManualStarterProduction } from './manual-production'
+import { selectedVideoCandidate } from './director-storyboard-media'
+import {
+  hasUnhydratedCompletedVideoTask,
+  isActiveVideoTask,
+  parseVideoGeneratorCatalog,
+  parseVideoTaskList,
+  parseVideoTasks,
+  type VideoGenerationTask,
+  type VideoGeneratorCatalog
+} from './video-generation-data'
 
 const h: typeof React.createElement = React.createElement
 const ASSISTANT_CONTEXT_COMMAND = 'assistant.context.set'
@@ -115,6 +129,16 @@ const NEXT_STATUS: Partial<Record<ProjectStatus, ProjectStatus>> = {
   archived: 'draft'
 }
 
+function productionCandidateIds(production: ProductionView | null) {
+  const candidateIds = new Set<string>()
+  for (const scene of production?.scenes ?? []) {
+    for (const shot of scene.shots) {
+      for (const candidate of shot.candidates) candidateIds.add(candidate.id)
+    }
+  }
+  return candidateIds
+}
+
 const STAGES: MessageKey[] = [
   'stages.projects',
   'stages.sources',
@@ -138,7 +162,9 @@ function App() {
   const [handingOff, setHandingOff] = React.useState(false)
   const [production, setProduction] = React.useState<ProductionView | null>(null)
   const [handoff, setHandoff] = React.useState<HandoffView | null>(null)
-  const [activeStage, setActiveStage] = React.useState(1)
+  const [videoGenerators, setVideoGenerators] = React.useState<VideoGeneratorCatalog | null>(null)
+  const [videoTasks, setVideoTasks] = React.useState<VideoGenerationTask[]>([])
+  const [activeStage, setActiveStage] = React.useState(6)
   const [createOpen, setCreateOpen] = React.useState(false)
   const [draft, setDraft] = React.useState<CreateProjectDraft>(EMPTY_PROJECT_DRAFT)
   const [projectsCollapsed, setProjectsCollapsed] = React.useState(false)
@@ -162,8 +188,16 @@ function App() {
   const refreshAfterToolEventRef = React.useRef<
     (event: RemoteValue) => Promise<void>
   >(async () => undefined)
+  const productionRef = React.useRef<ProductionView | null>(null)
+  const videoTaskPollInFlightRef = React.useRef(false)
   const t = createTranslator(context?.locale)
   const themeMode = readHostThemeMode(context?.theme)
+  const workingProduction = React.useMemo(
+    () =>
+      production ??
+      (selected ? createManualStarterProduction(selected, t) : null),
+    [production, selected?.id, selected?.revision, context?.locale]
+  )
   const {
     editor,
     editorRef,
@@ -176,7 +210,7 @@ function App() {
     useAgentVersion
   } = useStoryEditor({
     activeStage,
-    production,
+    production: workingProduction,
     getProject: () => selectedRef.current,
     getSnapshot: requestProjectSnapshot,
     reload: (projectId) => reloadProjects(projectId),
@@ -184,14 +218,20 @@ function App() {
   })
   const assetBibleActions = useAssetBibleActions({
     project: selected,
-    production,
+    production: workingProduction,
     reload: (projectId) => reloadProjects(projectId),
     t
   })
   const mediaGenerationActions = useMediaGenerationActions({
     project: selected,
-    production,
+    production: workingProduction,
     reload: (projectId) => reloadProjects(projectId),
+    refreshVideoTasks,
+    selectVideoGenerator: (toolsetId) => {
+      setVideoGenerators((current) => current
+        ? { ...current, selectedToolsetId: toolsetId }
+        : current)
+    },
     setBusy,
     t
   })
@@ -244,8 +284,7 @@ function App() {
       (nextContext) => {
         setContext(nextContext)
         document.documentElement.lang = normalizeLocale(nextContext.locale)
-        applyWorkbenchPayload(nextContext.payload)
-        void reloadProjects()
+        void applyInitialWorkbenchPayload(nextContext.payload)
       },
       (event) => void refreshAfterToolEventRef.current(event)
     )
@@ -273,6 +312,16 @@ function App() {
   ])
 
   React.useEffect(() => {
+    const projectId = selected?.id
+    if (!projectId || !videoTasks.some(isActiveVideoTask)) return
+    const timer = window.setInterval(() => {
+      if (editorRef.current?.dirty) return
+      void refreshVideoTasks(projectId, true)
+    }, 5_000)
+    return () => window.clearInterval(timer)
+  }, [selected?.id, videoTasks])
+
+  React.useEffect(() => {
     if (!context) return
     const timer = window.setTimeout(() => {
       void invokeClientCommand(
@@ -293,29 +342,76 @@ function App() {
     editor?.dirty
   ])
 
-  function applyWorkbenchPayload(value: RemoteValue) {
+  async function applyInitialWorkbenchPayload(value: RemoteValue) {
+    const applied = await applyWorkbenchPayload(value)
+    if (!applied) await reloadProjects()
+  }
+
+  async function applyWorkbenchPayload(value: RemoteValue) {
     const payload = isRemoteObject(value) ? value : null
-    if (!payload) return
+    if (!payload || (!isRemoteObject(payload.projects) && !isRemoteObject(payload.table))) {
+      return false
+    }
     const nextProjects = readProjectList(payload)
     const pagination = readPagination(payload, PROJECT_PAGE_SIZE)
+    const nextDetail = parseProject(payload.detail)
+    const nextProduction = await hydrateProductionMediaAccess(
+      parseProductionView(payload.production),
+      nextDetail?.id ?? null
+    )
     setProjects(nextProjects)
     setPage(pagination.page)
     pageRef.current = pagination.page
     setTotal(pagination.total)
-    setProduction(parseProductionView(payload.production))
+    productionRef.current = nextProduction
+    setProduction(nextProduction)
     setHandoff(parseHandoffView(payload.handoff))
-    const nextDetail = parseProject(payload.detail)
+    setVideoGenerators(parseVideoGeneratorCatalog(payload))
+    setVideoTasks(parseVideoTasks(payload))
     if (nextDetail) {
       selectedRef.current = nextDetail
       setSelected(nextDetail)
+    }
+    return true
+  }
+
+  async function refreshVideoTasks(projectId: string, silent = false) {
+    if (videoTaskPollInFlightRef.current) return
+    videoTaskPollInFlightRef.current = true
+    try {
+      const response = await executeAction('list_shot_video_tasks', projectId, {
+        projectId,
+        page: 1,
+        pageSize: 50
+      })
+      const data = requireSuccessfulActionData(response)
+      const nextTasks = parseVideoTaskList(data)
+      setVideoTasks(nextTasks)
+      if (hasUnhydratedCompletedVideoTask(
+        nextTasks,
+        productionCandidateIds(productionRef.current)
+      )) {
+        storyStudioDebug.info('videoTasks.completed.refreshProduction', {
+          projectId
+        })
+        await reloadProjects(projectId, pageRef.current, true)
+      }
+    } catch (error) {
+      if (!silent) throw error
+      storyStudioDebug.warn('videoTasks.refresh.failed', {
+        message: getErrorMessage(error instanceof Error ? error : String(error))
+      })
+    } finally {
+      videoTaskPollInFlightRef.current = false
     }
   }
 
   async function reloadProjects(
     preferredId = selectedRef.current?.id ?? null,
-    requestedPage = pageRef.current
+    requestedPage = pageRef.current,
+    silent = false
   ) {
-    setBusy(true)
+    if (!silent) setBusy(true)
     try {
       const response = await requestData({
         page: requestedPage,
@@ -335,8 +431,11 @@ function App() {
         object ? parseProductionView(object.production) : null,
         nextDetail?.id ?? preferredId
       )
+      productionRef.current = nextProduction
       setProduction(nextProduction)
       setHandoff(object ? parseHandoffView(object.handoff) : null)
+      setVideoGenerators(object ? parseVideoGeneratorCatalog(object) : null)
+      setVideoTasks(object ? parseVideoTasks(object) : [])
       const pagination = object
         ? readPagination(object, PROJECT_PAGE_SIZE)
         : { page: requestedPage, pageSize: PROJECT_PAGE_SIZE, total: 0 }
@@ -362,7 +461,7 @@ function App() {
       notify('error', getErrorMessage(error instanceof Error ? error : String(error)))
       return []
     } finally {
-      setBusy(false)
+      if (!silent) setBusy(false)
     }
   }
 
@@ -455,10 +554,18 @@ function App() {
       const projectId = findProjectId(requireSuccessfulAction(response))
       setCreateOpen(false)
       setDraft(EMPTY_PROJECT_DRAFT)
-      setActiveStage(1)
+      setActiveStage(4)
       notify('success', t('messages.created'))
       pageRef.current = 1
       await reloadProjects(projectId, 1)
+      const createdProject = selectedRef.current
+      if (createdProject?.id === projectId) {
+        await commitProduction(
+          4,
+          createManualStarterProduction(createdProject, t),
+          t('changes.manualProductionStarted')
+        )
+      }
     } catch (error) {
       notify('error', getErrorMessage(error instanceof Error ? error : String(error)))
     } finally {
@@ -565,6 +672,93 @@ function App() {
     }
   }
 
+  async function commitProduction(
+    stage: 4 | 5 | 6,
+    draft: ProductionView,
+    changeSummary: string,
+    options?: { silent?: boolean }
+  ) {
+    const project = selectedRef.current
+    if (!project) return false
+    setBusy(true)
+    try {
+      requireSuccessfulAction(
+        await executeAction('save_production', project.id, {
+          projectId: project.id,
+          operationId: crypto.randomUUID(),
+          baseRevision: project.revision,
+          production: productionActionDocument(draft),
+          changeSummary: changeSummary || t('changes.productionSaved', { title: project.title, stage })
+        })
+      )
+      if (!options?.silent) notify('success', t('editor.saved'))
+      await reloadProjects(project.id)
+      return true
+    } catch (error) {
+      notify(
+        'error',
+        getErrorMessage(error instanceof Error ? error : String(error))
+      )
+      return false
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function lockAssetReference(assetId: string, candidateId: string) {
+    if (!production) return
+    const draft = structuredClone(production)
+    const asset = draft.assets.find((item) => item.id === assetId)
+    const image = asset?.candidates.find(
+      (candidate) =>
+        candidate.id === candidateId &&
+        candidate.kind === 'image' &&
+        candidate.assetReference?.type !== 'expression'
+    )
+    if (!asset || !image) return
+    asset.candidates.forEach((candidate) => {
+      if (candidate.kind === 'image') candidate.selected = candidate.id === image.id
+    })
+    await commitProduction(5, draft, t('changes.assetSaved', { name: asset.name }))
+  }
+
+  function requestScriptSuggestion(input: {
+    episodeId: string
+    sceneId?: string
+    shotId?: string
+    focusText: string
+  }) {
+    const project = selectedRef.current
+    if (!project) return
+    const text = [
+      `Review Story Studio project ${project.id} at revision ${project.revision}.`,
+      `Create one concrete AI adaptation suggestion for episode ${input.episodeId}${input.sceneId ? `, scene ${input.sceneId}` : ''}${input.shotId ? `, shot ${input.shotId}` : ''}.`,
+      `Focus on this selected material: ${input.focusText}`,
+      'First read the latest production, then use story_create_adaptation_suggestion. Return the suggestion to the Workbench through that middleware tool. Do not rewrite or accept the script automatically.'
+    ].join('\n\n')
+    void invokeClientCommand(ASSISTANT_CHAT_SEND_MESSAGE_COMMAND, {
+      text,
+      clientMessageId: `story-studio:adaptation-suggestion:${Date.now()}`,
+      state: { source: '@xpert-ai/plugin-story-studio', action: 'create_adaptation_suggestion', projectId: project.id, ...input }
+    }).catch((error) => notify('error', getErrorMessage(error instanceof Error ? error : String(error))))
+  }
+
+  function generateFourTakes(input: {
+    sceneId: string
+    shotId: string
+    prompt: string
+    toolsetId: string
+    model: string
+    resolution: string
+    aspectRatio: string
+    fps: number
+    takeCount: number
+    referenceAssetIds: string[]
+    redoScope?: string
+  }) {
+    void mediaGenerationActions.generateTakes(input)
+  }
+
   async function refreshAfterToolEvent(event: RemoteValue) {
     const normalized = normalizeStoryToolEvent(event)
     storyStudioDebug.info('toolEvent.normalized', {
@@ -594,270 +788,62 @@ function App() {
 
   refreshAfterToolEventRef.current = refreshAfterToolEvent
 
-  const nextStatus = selected ? NEXT_STATUS[selected.status] : undefined
-  const pageCount = Math.max(1, Math.ceil(total / PROJECT_PAGE_SIZE))
-  const shotReadiness = readShotReadiness(production)
-
   return (
-    <div className="ss-root">
-      <header className="ss-header">
-        <div className="ss-brand">
-          <div className="ss-brand-mark" aria-hidden="true"><span /><span /><span /></div>
-          <div><h1>{t('app.title')}</h1><p>{t('app.kicker')}</p></div>
-        </div>
-        {selected ? (
-          <div className="ss-current-project">
-            <strong>{selected.title}</strong>
-            <Badge variant="outline">{selected.aspectRatio}</Badge>
-            <Badge variant="outline">{t('project.revision', { revision: selected.revision })}</Badge>
-            <span className={shotReadiness.selected === shotReadiness.total && shotReadiness.total > 0 ? 'is-ready' : ''}>
-              <i />{t('project.shotReadiness', shotReadiness)}
-            </span>
-          </div>
-        ) : null}
-        <div className="ss-header-actions">
-          <Button
-            className="ss-header-secondary-action"
-            variant="outline"
-            size="sm"
-            disabled={busy}
-            onClick={() => requestNavigation({ kind: 'refresh' })}
-          >
-            <RotateCcw aria-hidden="true" />{t('actions.refresh')}
-          </Button>
-          <Button
-            className="ss-header-secondary-action"
-            variant="outline"
-            size="sm"
-            disabled={busy || editor?.dirty}
-            onClick={() => void createDemoProject()}
-          >
-            {t('actions.loadDemo')}
-          </Button>
-          <Button
-            size="sm"
-            disabled={editor?.dirty}
-            onClick={() => setCreateOpen(true)}
-          >
-            <Plus aria-hidden="true" />{t('actions.newProject')}
-          </Button>
-        </div>
-      </header>
-
-      <nav className="ss-stage-strip" aria-label={t('app.subtitle')}>
-        {STAGES.map((stage, index) => {
-          const number = index + 1
-          const ready = stageIsReady(number, selected, production, handoff)
-          return (
-            <button
-              type="button"
-              className={`ss-stage ${ready ? 'is-ready' : ''} ${activeStage === number ? 'is-active' : ''}`}
-              key={stage}
-              aria-current={activeStage === number ? 'step' : undefined}
-              onClick={() =>
-                requestNavigation({ kind: 'stage', stage: number })
-              }
-            >
-              <span className="ss-stage-number">{number}</span>
-              <span><strong>{t(stage)}</strong><small>{t(ready ? 'stage.ready' : 'stage.pending')}</small></span>
-            </button>
+    <>
+      <DirectorWorkbench
+        projects={projects}
+        selected={selected}
+        production={workingProduction}
+        productionPersisted={Boolean(production)}
+        handoff={handoff}
+        activeStage={activeStage}
+        busy={busy}
+        generating={mediaGenerationActions.generating}
+        videoGenerators={videoGenerators}
+        videoTasks={videoTasks}
+        handingOff={handingOff}
+        t={t}
+        onNavigate={(stage) => requestNavigation({ kind: 'stage', stage })}
+        onRefresh={() => requestNavigation({ kind: 'refresh' })}
+        onLoadDemo={() => void createDemoProject()}
+        onNewProject={() => setCreateOpen(true)}
+        onSelectProject={(projectId) => selectProject(projectId)}
+        onCommitProduction={commitProduction}
+        onRequestScriptSuggestion={requestScriptSuggestion}
+        onGenerateAsset={(asset, referenceSet) =>
+          void assetBibleActions.generate(asset, referenceSet)
+        }
+        onUploadAsset={(asset, file) => void assetBibleActions.upload(asset, file)}
+        onUploadShotReference={(sceneId, shotId, prompt, file) =>
+          void assetBibleActions.uploadShotReference(
+            sceneId,
+            shotId,
+            prompt,
+            file
           )
-        })}
-      </nav>
-
-      <main className={`ss-workbench ${projectsCollapsed ? 'is-projects-collapsed' : ''}`}>
-        <aside className={`ss-projects ${projectsCollapsed ? 'is-collapsed' : ''}`}>
-          {projectsCollapsed ? (
-            <div className="ss-panel-rail">
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                aria-label={t('actions.expandProjects')}
-                title={t('actions.expandProjects')}
-                onClick={() => setProjectsCollapsed(false)}
-              >
-                <PanelLeftOpen aria-hidden="true" />
-              </Button>
-            </div>
-          ) : (
-            <>
-              <div className="ss-panel-heading">
-                <div className="ss-panel-titlebar">
-                  <div><h2>{t('projects.title')}</h2><span>{total}</span></div>
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    aria-label={t('actions.collapseProjects')}
-                    title={t('actions.collapseProjects')}
-                    onClick={() => setProjectsCollapsed(true)}
-                  >
-                    <PanelLeftClose aria-hidden="true" />
-                  </Button>
-                </div>
-                <Input
-                  aria-label={t('filters.search')}
-                  placeholder={t('filters.search')}
-                  value={search}
-                  onChange={(event) => {
-                    setSearch(event.target.value)
-                    searchRef.current = event.target.value
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
-                      pageRef.current = 1
-                      requestNavigation({
-                        kind: 'refresh',
-                        preferredId: null,
-                        requestedPage: 1
-                      })
-                    }
-                  }}
-                />
-                <Select
-                  value={status}
-                  onValueChange={(value) => {
-                    const next = readProjectStatusFilter(value)
-                    if (!next) return
-                    setStatus(next)
-                    statusRef.current = next
-                    pageRef.current = 1
-                    requestNavigation({
-                      kind: 'refresh',
-                      preferredId: null,
-                      requestedPage: 1
-                    })
-                  }}
-                >
-                  <SelectTrigger size="sm" className="ss-filter-trigger" aria-label={t('filters.allStatuses')}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{t('filters.allStatuses')}</SelectItem>
-                    {Object.entries(STATUS_KEYS).map(([value, key]) => (
-                      <SelectItem key={value} value={value}>{t(key)}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="ss-project-list">
-                {projects.length ? projects.map((project) => (
-                  <button
-                    type="button"
-                    className={`ss-project-item ${selected?.id === project.id ? 'is-selected' : ''}`}
-                    key={project.id}
-                    onClick={() => void selectProject(project.id)}
-                  >
-                    <span className="ss-project-avatar">{project.title.slice(0, 2).toUpperCase()}</span>
-                    <span className="ss-project-copy">
-                      <strong>{project.title}</strong>
-                      <small>{t(FORMAT_KEYS[project.productionFormat])} · {project.aspectRatio}</small>
-                    </span>
-                    <Badge variant="outline">{t(STATUS_KEYS[project.status])}</Badge>
-                  </button>
-                )) : <div className="ss-empty">{t('projects.empty')}</div>}
-              </div>
-              <div className="ss-pagination">
-                <Button variant="outline" size="sm" disabled={busy || page <= 1} onClick={() => requestNavigation({ kind: 'refresh', preferredId: null, requestedPage: page - 1 })}>
-                  {t('pagination.previous')}
-                </Button>
-                <span>{t('pagination.page', { page, pages: pageCount })}</span>
-                <Button variant="outline" size="sm" disabled={busy || page >= pageCount} onClick={() => requestNavigation({ kind: 'refresh', preferredId: null, requestedPage: page + 1 })}>
-                  {t('pagination.next')}
-                </Button>
-              </div>
-            </>
-          )}
-        </aside>
-
-        <section className="ss-detail">
-          {selected ? (
-            <>
-              <div className="ss-detail-hero">
-                <div>
-                  <span className="ss-eyebrow">{t('app.workspace')}</span>
-                  <h2>{selected.title}</h2>
-                  <p>{selected.premise ?? selected.description ?? t('project.noSelection')}</p>
-                </div>
-                <div className="ss-detail-actions">
-                  <Badge className={`status-${selected.status}`}>{t(STATUS_KEYS[selected.status])}</Badge>
-                  {nextStatus ? (
-                    <Button size="sm" disabled={busy || editor?.dirty} onClick={() => void advanceProject()}>
-                      {t('actions.advance', { stage: t(STATUS_KEYS[nextStatus]) })}
-                      <ChevronRight aria-hidden="true" />
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
-
-              <ProductionPanel
-                production={production}
-                handoff={handoff}
-                projectRevision={selected.revision}
-                aspectRatio={selected.aspectRatio}
-                activeStage={activeStage}
-                busy={busy}
-                generating={mediaGenerationActions.generating}
-                handingOff={handingOff}
-                onGenerate={() => void mediaGenerationActions.generate()}
-                onQueryGeneration={() => void mediaGenerationActions.query()}
-                onRunGenerationInstruction={(instruction) =>
-                  void mediaGenerationActions.runInstruction(instruction)
-                }
-                onSelectGenerationCandidate={(
-                  sceneId,
-                  shotId,
-                  candidateId
-                ) =>
-                  void mediaGenerationActions.selectCandidate(
-                    sceneId,
-                    shotId,
-                    candidateId
-                  )
-                }
-                onReturnToStoryboard={() =>
-                  requestNavigation({ kind: 'stage', stage: 6 })
-                }
-                assetAction={assetBibleActions.active}
-                onUploadAssetImage={(asset, file) =>
-                  void assetBibleActions.upload(asset, file)
-                }
-                onGenerateAssetImage={(asset) =>
-                  void assetBibleActions.generate(asset)
-                }
-                onHandoff={() => void prepareCutHandoff()}
-                inspectorCollapsed={inspectorCollapsed}
-                onInspectorCollapsedChange={setInspectorCollapsed}
-                editor={editor}
-                onEdit={beginEdit}
-                onSaveEdit={(rebase) => void saveEditor(rebase)}
-                onDiscardEdit={requestDiscardEdit}
-                onProjectDraftChange={updateProjectDraft}
-                onProductionDraftChange={updateProductionDraft}
-                onUseAgentVersion={() => void useAgentVersion()}
-                t={t}
-              />
-
-              <div className="ss-next-action">
-                <div><span>{t('project.nextAction')}</span><p>{t(NEXT_ACTION_KEYS[selected.status])}</p></div>
-                {selected.failureCode ? (
-                  <div className="ss-failure">
-                    <strong>{t('project.failure')}</strong>
-                    <code>{selected.failureCode}</code>
-                    <p>{selected.failureMessage}</p>
-                  </div>
-                ) : null}
-              </div>
-            </>
-          ) : (
-            <div className="ss-no-selection">
-              <div className="ss-brand-mark is-large" aria-hidden="true"><span /><span /><span /></div>
-              <h2>{t('project.noSelection')}</h2>
-              <Button size="sm" onClick={() => setCreateOpen(true)}><Plus aria-hidden="true" />{t('actions.newProject')}</Button>
-            </div>
-          )}
-        </section>
-      </main>
-
+        }
+        onLockAsset={(assetId, candidateId) =>
+          void lockAssetReference(assetId, candidateId)
+        }
+        onGenerateTakes={generateFourTakes}
+        onSetVideoGenerator={(toolsetId) =>
+          void mediaGenerationActions.setGenerator(toolsetId)
+        }
+        onCancelVideoTask={(taskId) =>
+          void mediaGenerationActions.cancelTask(taskId)
+        }
+        onRetryVideoTask={(taskId) =>
+          void mediaGenerationActions.retryTask(taskId)
+        }
+        onSelectTake={(sceneId, shotId, candidateId) =>
+          void mediaGenerationActions.selectCandidate(
+            sceneId,
+            shotId,
+            candidateId
+          )
+        }
+        onHandoff={() => void prepareCutHandoff()}
+      />
       <CreateProjectDialog
         open={createOpen}
         busy={busy}
@@ -895,8 +881,9 @@ function App() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   )
+
 }
 
 function stageIsReady(
@@ -924,7 +911,7 @@ function readShotReadiness(production: ProductionView | null) {
   const shots = production.scenes.flatMap((scene) => scene.shots)
   return {
     selected: shots.filter((shot) =>
-      shot.candidates.some((candidate) => candidate.selected && candidate.kind === 'video')
+      Boolean(selectedVideoCandidate(shot.candidates))
     ).length,
     total: shots.length
   }

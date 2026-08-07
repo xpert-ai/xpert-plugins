@@ -8,20 +8,30 @@ import {
   StoryActionLog,
   StoryCutHandoff,
   StoryProduction,
-  StoryProject
+  StoryProject,
+  StoryShotContinuityBoundary,
+  StoryVideoGenerationTask
 } from './entities/index.js'
 import { StoryGeneratedMediaService } from './story-generated-media.service.js'
+import { StoryAdaptationSuggestionService } from './story-adaptation-suggestion.service.js'
 import { StoryCutHandoffService } from './story-cut-handoff.service.js'
 import { StoryProductionService } from './story-production.service.js'
 import { StoryStudioMiddleware } from './story-studio.middleware.js'
 import { StoryStudioService } from './story-studio.service.js'
 import { StoryStudioViewProvider } from './story-studio-view.provider.js'
+import { StoryVideoGenerationService } from './story-video-generation.service.js'
+import {
+  StoryVideoGenerationPollProcessor,
+  StoryVideoGenerationSubmitProcessor
+} from './story-video-generation.processor.js'
 
 export const STORY_STUDIO_ENTITIES = [
   StoryProject,
   StoryActionLog,
   StoryCutHandoff,
-  StoryProduction
+  StoryProduction,
+  StoryShotContinuityBoundary,
+  StoryVideoGenerationTask
 ]
 
 @XpertServerPlugin({
@@ -30,16 +40,22 @@ export const STORY_STUDIO_ENTITIES = [
   providers: [
     StoryStudioService,
     StoryProductionService,
+    StoryAdaptationSuggestionService,
     StoryGeneratedMediaService,
     StoryCutHandoffService,
+    StoryVideoGenerationService,
+    StoryVideoGenerationSubmitProcessor,
+    StoryVideoGenerationPollProcessor,
     StoryStudioMiddleware,
     StoryStudioViewProvider
   ],
   exports: [
     StoryStudioService,
     StoryProductionService,
+    StoryAdaptationSuggestionService,
     StoryGeneratedMediaService,
-    StoryCutHandoffService
+    StoryCutHandoffService,
+    StoryVideoGenerationService
   ]
 })
 export class StoryStudioPlugin

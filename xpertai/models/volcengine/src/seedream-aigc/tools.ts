@@ -13,6 +13,12 @@ const AUDIO_LIMIT_BYTES = 15 * 1024 * 1024
 const VIDEO_QUERY_MAX_WAIT_SECONDS = 45
 const VIDEO_QUERY_POLL_MS = 5_000
 const MULTIMODAL_MODE_RULES: Record<string, { label: string; needImage: boolean; needVideo: boolean; needAudio: boolean }> = {
+  text_image: {
+    label: 'text(optional)+image',
+    needImage: true,
+    needVideo: false,
+    needAudio: false
+  },
   text_video: {
     label: 'text(optional)+video',
     needImage: false,
@@ -245,11 +251,6 @@ function buildMultimodalReferenceToVideoTool(deps: SeedreamToolDependencies) {
       if (!isSeedance2Model(options.model)) {
         throw new Error('Multimodal reference video only supports Seedance 2.0 models')
       }
-      const mode = normalizeString(input.input_mode) ?? 'text_image_video'
-      const modeRule = MULTIMODAL_MODE_RULES[mode]
-      if (!modeRule) {
-        throw new Error('Invalid multimodal input mode')
-      }
       const imageInputs = toArray(input.reference_image_files)
       const videoUrls = parseUrlList(input.reference_video_urls)
       const audioInputs = toArray(input.reference_audio_files)
@@ -257,6 +258,15 @@ function buildMultimodalReferenceToVideoTool(deps: SeedreamToolDependencies) {
         input.reference_audio_urls,
         'reference audio URL'
       )
+      const mode = normalizeString(input.input_mode) ?? inferMultimodalInputMode(
+        imageInputs.length,
+        videoUrls.length,
+        audioInputs.length + audioUrls.length
+      )
+      const modeRule = MULTIMODAL_MODE_RULES[mode]
+      if (!modeRule) {
+        throw new Error('Invalid multimodal input mode')
+      }
       validateMultimodalInputs(
         modeRule,
         imageInputs,
@@ -408,6 +418,7 @@ const VIDEO_RATIO_OPTIONS = [
 ] as const
 
 const MULTIMODAL_INPUT_MODE_OPTIONS = [
+  ['text_image', 'text(optional)+image'],
   ['text_video', 'text(optional)+video'],
   ['text_image_audio', 'text(optional)+image+audio'],
   ['text_image_video', 'text(optional)+image+video'],
@@ -751,11 +762,12 @@ const multimodalInputModeProperty = {
   title: 'Input mode',
   description: 'Multimodal input combination.',
   enum: MULTIMODAL_INPUT_MODE_OPTIONS.map(([value]) => value),
-  default: 'text_image_video',
+  default: 'text_image',
   'x-ui': {
     title: i18n('Input mode', '输入模式'),
     description: i18n('Multimodal input combination.', '多模态参考素材组合方式。'),
     enumLabels: {
+      text_image: i18n('text(optional)+image', '文本(可选)+图片'),
       text_video: i18n('text(optional)+video', '文本(可选)+视频'),
       text_image_audio: i18n('text(optional)+image+audio', '文本(可选)+图片+音频'),
       text_image_video: i18n('text(optional)+image+video', '文本(可选)+图片+视频'),
@@ -1164,4 +1176,14 @@ function validateMultimodalInputs(
   if (modeRule.needAudio && !imageInputs.length && !videoUrls.length) {
     throw new Error('Audio cannot be used alone; at least one image or video reference is required')
   }
+}
+
+function inferMultimodalInputMode(imageCount: number, videoCount: number, audioCount: number) {
+  if (imageCount && videoCount && audioCount) return 'text_image_video_audio'
+  if (imageCount && videoCount) return 'text_image_video'
+  if (imageCount && audioCount) return 'text_image_audio'
+  if (videoCount && audioCount) return 'text_video_audio'
+  if (imageCount) return 'text_image'
+  if (videoCount) return 'text_video'
+  throw new Error('At least one image or video reference is required')
 }

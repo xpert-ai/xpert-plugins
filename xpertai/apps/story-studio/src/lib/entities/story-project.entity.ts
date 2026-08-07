@@ -1,6 +1,7 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 import type { StoryAspectRatio, StoryProductionFormat, StoryProjectStatus } from '../types.js'
 import { storyStudioTable } from '../story-studio-artifact-namespace.js'
+import type { StoryVideoGeneratorFamily } from '../story-video-generation.platform.js'
 
 @Entity(storyStudioTable('project'))
 @Index(['tenantId', 'organizationId', 'workspaceId', 'status', 'updatedAt'])
@@ -86,6 +87,12 @@ export class StoryProject {
 
   @Column({ type: 'int', default: 0 })
   candidateCount!: number
+
+  @Column({ type: 'uuid', nullable: true })
+  preferredVideoGeneratorToolsetId?: string | null
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  preferredVideoGeneratorFamily?: StoryVideoGeneratorFamily | null
 
   @Column({ type: 'varchar', length: 100, nullable: true })
   failureCode?: string | null

@@ -1,12 +1,16 @@
 import { existsSync } from 'node:fs'
-import { readdir, readFile, writeFile } from 'node:fs/promises'
+import { execFile } from 'node:child_process'
+import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { dirname, extname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { promisify } from 'node:util'
 import { build, transform } from 'esbuild'
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)))
 const remoteRoot = join(packageRoot, 'src', 'lib', 'remote-components')
 const workspaceRoot = join(packageRoot, '..', '..', '..')
+const executeFile = promisify(execFile)
 const shadcnUiEntry = join(
   workspaceRoot,
   'packages',
@@ -89,6 +93,57 @@ function localWorkspacePackagesPlugin() {
   }
 }
 
+async function compileTailwind(componentName) {
+  const componentDir = join(remoteRoot, componentName)
+  const inputPath = join(componentDir, 'src', 'tailwind.css')
+  if (!existsSync(inputPath)) return null
+
+  const outputDir = await mkdtemp(
+    join(tmpdir(), `${componentName}-tailwind-`)
+  )
+  const outputPath = join(outputDir, 'tailwind.generated.css')
+  const executable = join(
+    packageRoot,
+    'node_modules',
+    '.bin',
+    'tailwindcss'
+  )
+  if (!existsSync(executable)) {
+    throw new Error(
+      'Tailwind CLI is missing. Run pnpm install in the plugin workspace.'
+    )
+  }
+  try {
+    await executeFile(
+      executable,
+      ['-i', inputPath, '-o', outputPath, '--minify'],
+      { cwd: componentDir }
+    )
+    return await readFile(outputPath, 'utf8')
+  } finally {
+    await rm(outputDir, { recursive: true, force: true })
+  }
+}
+
+function compiledTailwindPlugin(componentName, css) {
+  const tailwindPath = join(
+    remoteRoot,
+    componentName,
+    'src',
+    'tailwind.css'
+  )
+  return {
+    name: 'xpert-compiled-tailwind',
+    setup(buildApi) {
+      buildApi.onLoad({ filter: /tailwind\.css$/ }, (args) =>
+        args.path === tailwindPath
+          ? { contents: css ?? '', loader: 'css', resolveDir: dirname(args.path) }
+          : undefined
+      )
+    }
+  }
+}
+
 async function bundleComponent(componentName) {
   const componentDir = join(remoteRoot, componentName)
   const sourceDir = join(componentDir, 'src')
@@ -106,6 +161,7 @@ async function bundleComponent(componentName) {
   }
 
   await validateSources(sourceDir)
+  const tailwindCss = await compileTailwind(componentName)
   const result = await build({
     entryPoints: [entryPoint],
     bundle: true,
@@ -123,10 +179,12 @@ async function bundleComponent(componentName) {
     jsxFactory: 'h',
     jsxFragment: 'React.Fragment',
     loader: {
+      '.png': 'dataurl',
       '.woff2': 'dataurl',
       '.svg': 'text'
     },
     plugins: [
+      compiledTailwindPlugin(componentName, tailwindCss),
       localWorkspacePackagesPlugin(),
       reactShimPlugin(componentName)
     ],

@@ -60,8 +60,10 @@ describe('Story Studio package manifest', () => {
     ).toBe(true)
   })
 
-  it('does not publish the retired storyboard render Action', () => {
-    expect(pluginManifest).not.toHaveProperty('sandboxActions')
+  it('publishes only the continuity frame preparation Action', () => {
+    expect(pluginManifest.sandboxActions).toBe(
+      './dist/sandbox-actions/video-frame/action.json'
+    )
   })
 
   it('publishes the data-xpert runtime providers and catalog entries', () => {

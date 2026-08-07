@@ -9,8 +9,17 @@ The current implementation includes:
 - system-level plugin metadata with the stable `story_studio` artifact namespace;
 - tenant- and organization-scoped story projects;
 - revision-safe project mutations and audit records;
+- a Tailwind CSS-first Director workbench for Script, Assets, Storyboard, and
+  Assembly, with shared studio tokens and accessible shadcn dialogs;
+- real production-data CRUD for episodes, scenes, shots, and all four asset
+  categories (character, location, prop, and style), including relationship
+  cleanup and revision-conflict protection;
 - strict Agent middleware tools for project lifecycle, production documents,
-  completed Seedance media attachment, and versioned Cut handoff;
+  first-scene production starts, smaller scene/shot upserts, completed Seedance
+  media attachment, and versioned Cut handoff;
+- four dedicated Assistant middleware tools for listing, creating, updating,
+  and deleting adaptation suggestions; Assistant proposals remain pending
+  until a human explicitly accepts or dismisses them in the Script page;
 - a declared `@xpert-ai/plugin-volcengine` / `seedream_aigc` Assistant
   dependency for Seedance 2.0 image-to-video generation and Workspace output;
 - structured source materials, story beats, timed episode scripts, character /
@@ -20,6 +29,9 @@ The current implementation includes:
   per-shot sound effects, and Seedance 2.0 synchronized audio generation;
 - browser-side sequential review of selected Seedance Workspace videos, with
   each clip's original audio preserved;
+- functional storyboard controls for editable generation prompts, model,
+  resolution, frame rate, Take count, preview playback, partial redo,
+  candidate comparison, and explicit Take locking;
 - a Story Studio Assistant template;
 - a React Workbench with eight clickable review stages, project creation,
   search, production review, explicit light/dark themes, Seedance media review,
@@ -27,7 +39,7 @@ The current implementation includes:
 - a strict `StoryCutHandoff v1` boundary: the first delivery creates a Cut
   project and editable timeline; later Story revisions create a review proposal
   and never overwrite the Cut timeline;
-- an original built-in case, **朱门账影**, that loads three consistent visual
+- an original built-in case, **逆光重逢**, that loads three consistent visual
   frames into scoped Workspace Files for the full generation and Cut handoff
   workflow.
 
@@ -57,14 +69,14 @@ The current implementation includes:
    `StoryCutHandoff v1`, then asks Cut to create either the initial editable
    project or a reviewable proposal.
 
-Use **Load visual demo** in the Workbench to create the complete **朱门账影**
+Use **Load visual demo** in the Workbench to create the complete **逆光重逢**
 case. Its story, prompts, and generated images are original Story Studio assets.
 
 Story Studio previews selected Workspace MP4s directly in shot order and does
 not create a second combined video. Seedream, Seedance, and Cut remain
 cross-plugin Assistant handoffs: Story Studio declares the model and Cut
-plugins, accepts completed scoped Workspace images through
-`story_attach_generated_asset_image`, accepts completed scoped Workspace MP4s
+plugins, accepts completed scoped Workspace images with an explicit view or
+expression role through `story_attach_generated_asset_image`, accepts completed scoped Workspace MP4s
 through `story_attach_generated_video`, and exchanges a portable contract
 through Agent tools. Professional composition, audio mixing, subtitles,
 effects, and export remain Cut responsibilities. Story Studio never imports
@@ -83,8 +95,12 @@ corepack pnpm --dir apps/story-studio prepack
 ```
 
 The E2E target uses the platform's shared Remote View Preview Host and the real
-built Workbench assets. Set `WORKBENCH_E2E_SCREENSHOT` to an absolute path to
-capture repeatable visual evidence.
+built Workbench assets. Repeatable visual evidence is written to the Workbench
+`qa/e2e` directory.
+
+The current regression suite covers the service-side production sanitizer so
+detailed asset fields and shot-generation metadata reach the installed Remote
+View while server-owned Workspace file references remain private.
 
 After build and tests, validate the plugin lifecycle through
 `plugin-dev-harness`. Use the platform `plugin:deploy:local` flow for an

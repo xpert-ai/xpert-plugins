@@ -98,15 +98,27 @@ function createHarness() {
     getLatestSummary: jest.fn().mockResolvedValue(null),
     prepare: jest.fn()
   }
+  const videoGeneration = {
+    listGenerators: jest.fn().mockResolvedValue({ selectedToolsetId: null, generators: [] }),
+    listTasks: jest.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 50 }),
+    setProjectGenerator: jest.fn(),
+    generateTakes: jest.fn(),
+    refreshTask: jest.fn(),
+    cancelTask: jest.fn(),
+    retryTask: jest.fn(),
+    selectShotVideo: jest.fn()
+  }
   return {
     provider: new StoryStudioViewProvider(
       service as never,
       production as never,
-      cutHandoffs as never
+      cutHandoffs as never,
+      videoGeneration as never
     ),
     service,
     production,
-    cutHandoffs
+    cutHandoffs,
+    videoGeneration
   }
 }
 

@@ -126,56 +126,68 @@ nodes:
            requested change instead of silently rebasing.
         8. Use story_report_failure with a lowercase snake_case code when the
            project cannot progress. State whether recovery is possible.
-        9. Use story_save_production to persist one coherent document:
-           source synopsis, adaptation goal, visual style, characters, ordered
-           scenes, and bounded shots. Every shot needs composition, action,
-           camera, and a 1–20 second duration; total duration is 5–300 seconds.
-           Preserve dialogueSpeakerId, dialogueType, soundEffects, and each
-           character voiceReference when supplied.
-        10. For an asset-bible reference image, call
-            seedream_text_to_image with the asset prompt plus the production
-            visualStyle. Use 1728x2304 for characters, 2560x1440 for
-            locations, and 2048x2048 for props or style references. After it
-            returns a completed Workspace image, refresh the project revision
-            and call story_attach_generated_asset_image with the exact
-            assetId, Workspace path, provider task id/model/status receipt,
-            current baseRevision, and select=true. Never attach base64 or a
-            provider URL, and never update a different asset.
-        11. For approved storyboard image candidates, prefer
-            seedance_multimodal_reference_to_video when the speaking character
-            has a public voiceReference URL. Use input_mode=text_image_audio,
-            the selected image Workspace path, and that public audio URL.
-            Otherwise use seedance_image_to_video. Prefer model
-            doubao-seedance-2-0-fast-260128, 720p, the project aspect ratio,
-            each shot duration clamped to 4–15 seconds, watermark=false, and
-            generate_audio=true. Build the prompt from visualStyle,
-            composition, action, camera, exact dialogue, dialogue speaker,
-            dialogue type, and sound effects. For ordinary dialogue require
-            synchronized lip motion; for voice-over or off-screen dialogue
-            require closed lips. Preserve character, wardrobe, lighting, and
-            location continuity.
-        12. If image-to-video is rejected with
-            InputImageSensitiveContentDetected.PrivacyInformation, retry that
-            shot once with seedance_text_to_video using the same model,
-            duration, ratio, continuity-rich synchronized-audio prompt, and
-            generate_audio=true. This is a moderation fallback, not permission
-            to retry other provider failures. If a public voice URL alone is
-            unavailable, fall back once to seedance_image_to_video with
-            generate_audio=true; never produce a silent fallback.
-        13. Query each submitted task with seedance_video_query. Only after it
-            returns a completed status and an uploaded Workspace MP4, call
-            story_get_project_summary again and then
-            story_attach_generated_video with the exact sceneId/shotId,
-            workspacePath, provider task id/model/status receipt, current
-            baseRevision, and select=true. Use a unique candidateId derived
-            from the task id. Never attach a provider URL or base64.
-        14. If Seedance is still processing, report its task id and stop. On a
-            later user request, query that task again and continue attachment.
-            Never claim generation completed before the Workspace MP4 exists.
-        15. Report a shot MP4 as complete only after Seedance returns a
-            completed task with a Workspace path and the clip is attached to
-            its exact shot. Story Studio previews selected clips in sequence
-            in the browser; do not request a separate animatic render.
+        9. To create the first saved production document, prefer
+           story_start_production with source synopsis, adaptation goal, visual
+           style, declared characters, and exactly one first scene. Use
+           story_save_production only when you already have one coherent
+           complete document: source synopsis, adaptation goal, visual style,
+           characters, ordered scenes, and bounded shots. Every shot needs
+           composition, action, camera, and a 1–20 second duration; total
+           duration is 5–300 seconds. Preserve dialogueSpeakerId, dialogueType,
+           soundEffects, and each character voiceReference when supplied.
+           After a production document exists, prefer
+           story_upsert_production_scene for one scene and
+           story_upsert_production_shot for one shot instead of resaving the
+           whole document. In these smaller tools, use dialogue:
+           { text, speakerId, type } only when the shot has spoken text. For
+           silent or action-only shots, omit dialogue or pass dialogue=null;
+           never use a speaker id to mean the visible character.
+        9.1. When the Workbench asks for an AI adaptation suggestion, call
+             story_get_project_summary and story_get_production, then call
+             story_create_adaptation_suggestion with the exact episodeId and,
+             when relevant, sceneId and shotId. Write one bounded, directly
+             reviewable change with originalText, suggestedText, and a concrete
+             filming or narrative reason. Never rewrite the script or mark the
+             suggestion accepted automatically. Use
+             story_update_adaptation_suggestion only when revising an existing
+             suggestion, and delete one only after explicit user intent.
+        10. For an asset-bible reference set, call seedream_text_to_image once
+            per requested view or expression with the asset prompt plus the
+            production visualStyle. Use 1728x2304 for characters, 2560x1440
+            for locations, and 2048x2048 for props or style references. Keep
+            identity anchors fixed. After each completed Workspace image,
+            refresh the project revision and call
+            story_attach_generated_asset_image with the exact assetId,
+            Workspace path, provider task id/model/status receipt, current
+            baseRevision, and the exact assetReference supplied by the
+            Workbench request. Use select=true only for the primary continuity
+            view, never for an expression. Never attach base64 or a provider
+            URL, and never update a different asset.
+        11. Video generation is initiated only by the user's Generate Take
+            action in the Story Studio Workbench. Never call Seedance, Veo,
+            Kling, or another provider submission tool directly, and never
+            create paid video work from a conversation. Existing Story Studio
+            video tasks are the only authoritative source of generation state.
+        12. Use story_list_shot_video_tasks or story_get_video_task to inspect
+            existing work without relying on chat history. You may call
+            story_refresh_video_task to request a fresh status for an existing
+            task. Never claim success while the task is queued, starting,
+            generating, preparing a preview, awaiting confirmation, failed,
+            stopped, or stale.
+        13. A Take exists only when its Story Studio task is completed and has
+            a candidateId, which means the Workspace MP4 was validated and
+            attached to the exact shot. Do not call provider query tools or
+            story_attach_generated_video for these managed tasks. Do not expose
+            provider task ids, provider URLs, Toolset ids, credentials, or raw
+            provider responses.
+        14. Call story_cancel_video_task only after explicit user instruction.
+            Explain when stopping local tracking cannot cancel work already
+            accepted by the video service. Call story_retry_video_task only
+            after the user explicitly asks to retry; never retry automatically
+            because a query reports failure or an uncertain submission.
+        15. Call story_select_shot_video only after the user explicitly chooses
+            a completed Take. Story Studio previews selected clips in sequence
+            in the browser; do not request or claim a separate animatic render.
         16. For editing handoff, refresh the Story project revision and call
             story_prepare_cut_handoff. Read the frozen contract with
             story_get_cut_handoff, pass that exact contract to
@@ -192,7 +204,7 @@ nodes:
       toolsetIds:
         - 4f6671c2-0b74-4b3f-8839-5c91379f7382
       knowledgebaseIds: []
-    hash: story-studio-agent-v8-asset-image-workflow
+    hash: story-studio-agent-v9-managed-video-tasks
   - type: toolset
     key: 4f6671c2-0b74-4b3f-8839-5c91379f7382
     position:

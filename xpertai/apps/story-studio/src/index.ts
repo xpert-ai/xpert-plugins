@@ -17,6 +17,7 @@ import {
 } from './lib/constants.js'
 import { StoryStudioPlugin } from './lib/story-studio.plugin.js'
 import { storyStudioTemplates } from './lib/story-studio.templates.js'
+import { STORY_STUDIO_PLUGIN_CONTEXT } from './lib/story-studio.tokens.js'
 
 const ConfigSchema = z.object({}).strict()
 const text = (en_US: string, zh_Hans: string): I18nObject => ({
@@ -26,9 +27,13 @@ const text = (en_US: string, zh_Hans: string): I18nObject => ({
 
 type StoryStudioXpertPlugin = Omit<
   XpertPlugin<z.infer<typeof ConfigSchema>>,
-  'templates'
+  'templates' | 'permissions'
 > & {
   templates: typeof storyStudioTemplates
+  permissions: Array<{
+    type: 'video_generation'
+    operations: Array<'list' | 'submit' | 'query' | 'cancel'>
+  }>
 }
 
 const capabilities = [
@@ -233,12 +238,21 @@ const plugin: StoryStudioXpertPlugin = {
   config: {
     schema: ConfigSchema
   },
+  permissions: [
+    {
+      type: 'video_generation',
+      operations: ['list', 'submit', 'query', 'cancel']
+    }
+  ],
   templates: storyStudioTemplates,
   register(ctx) {
     ctx.logger.log('register Story Studio plugin')
     return {
       module: StoryStudioPlugin,
-      global: true
+      global: true,
+      providers: [
+        { provide: STORY_STUDIO_PLUGIN_CONTEXT, useValue: ctx }
+      ]
     }
   },
   async onStart(ctx) {
@@ -262,3 +276,5 @@ export * from './lib/story-generated-media.service.js'
 export * from './lib/story-studio.middleware.js'
 export * from './lib/story-studio-view.provider.js'
 export * from './lib/story-studio.templates.js'
+export * from './lib/story-video-generation.types.js'
+export * from './lib/story-video-generation.service.js'

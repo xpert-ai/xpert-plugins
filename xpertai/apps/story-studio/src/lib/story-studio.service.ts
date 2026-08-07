@@ -634,6 +634,10 @@ export function toProjectSummary(project: StoryProject): StoryProjectSummary {
     targetDurationSeconds: project.targetDurationSeconds ?? null,
     status: project.status,
     revision: project.revision,
+    preferredVideoGeneratorToolsetId:
+      project.preferredVideoGeneratorToolsetId ?? null,
+    preferredVideoGeneratorFamily:
+      project.preferredVideoGeneratorFamily ?? null,
     tags: project.tags ?? [],
     failureCode: project.failureCode ?? null,
     failureMessage: project.failureMessage ?? null,

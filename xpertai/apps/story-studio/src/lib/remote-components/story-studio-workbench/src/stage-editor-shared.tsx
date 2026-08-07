@@ -109,6 +109,22 @@ export function newAsset(t: Translator): Asset {
     name: t('editor.newAsset'),
     description: t('editor.newAssetDescription'),
     prompt: t('editor.newAssetPrompt'),
+    negativePrompt: null,
+    continuityNotes: null,
+    categoryDetails: {
+      identity: null,
+      appearance: null,
+      wardrobe: null,
+      voice: null,
+      environment: null,
+      lighting: null,
+      material: null,
+      condition: null,
+      storyFunction: null,
+      palette: null,
+      lens: null,
+      continuity: null
+    },
     candidates: []
   }
 }
@@ -116,6 +132,7 @@ export function newAsset(t: Translator): Asset {
 export function newScene(order: number, t: Translator): Scene {
   return {
     id: newIdentifier('scene'),
+    episodeId: null,
     order,
     title: t('editor.newScene'),
     summary: t('editor.newSceneSummary'),
@@ -136,6 +153,12 @@ export function newShot(t: Translator): Shot {
     dialogueSpeakerId: null,
     dialogueType: null,
     soundEffects: [],
+    generationPrompt: null,
+    emotion: null,
+    lens: null,
+    lighting: null,
+    colorTone: null,
+    weather: null,
     durationSeconds: 5,
     candidates: []
   }

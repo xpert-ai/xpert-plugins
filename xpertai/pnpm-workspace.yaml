@@ -29,6 +29,8 @@ minimumReleaseAgeExclude:
 
 allowBuilds:
   '@nestjs/core': true
+  # Tailwind CLI uses Parcel watcher only for watch mode; Story Studio runs one-shot builds.
+  '@parcel/watcher': false
   '@sap/hana-client': true
   '@swc/core': true
   core-js: true
