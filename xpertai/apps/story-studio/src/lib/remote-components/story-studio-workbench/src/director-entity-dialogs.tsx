@@ -19,6 +19,12 @@ import {
   Textarea
 } from '@xpert-ai/plugin-shadcn-ui'
 import { DirectorSelect } from './director-form-controls'
+import {
+  compactVoiceReference,
+  hasPartialVoiceReference,
+  updateVoiceReferenceDraft,
+  type VoiceReferenceLike
+} from '../../../voice-reference.js'
 import type {
   Asset,
   Character,
@@ -207,17 +213,23 @@ export function AssetDialog(
   props: CommonDialogProps & {
     asset?: Asset | null
     initialKind: Asset['kind']
+    voiceReference?: VoiceReferenceLike | null
     onSubmit: (draft: AssetDraft) => void
   }
 ) {
   const [draft, setDraft] = React.useState<AssetDraft>(() =>
-    assetDraft(props.asset, props.initialKind, props.t)
+    assetDraft(props.asset, props.initialKind, props.t, props.voiceReference)
   )
   React.useEffect(() => {
-    if (props.open) setDraft(assetDraft(props.asset, props.initialKind, props.t))
-  }, [props.open, props.asset, props.initialKind, props.t])
+    if (props.open) {
+      setDraft(
+        assetDraft(props.asset, props.initialKind, props.t, props.voiceReference)
+      )
+    }
+  }, [props.open, props.asset, props.initialKind, props.t, props.voiceReference])
   const valid =
     draft.name.trim() && draft.description.trim() && draft.prompt.trim()
+    && !hasPartialVoiceReference(draft.voiceReference)
   const details = draft.categoryDetails
   const updateDetail = (
     key: keyof typeof details,
@@ -238,17 +250,91 @@ export function AssetDialog(
     >
       <div className="grid grid-cols-2 gap-4">
         <FormField label={props.t('editor.kind')}>
-          <DirectorSelect ariaLabel={props.t('editor.kind')} value={draft.kind} disabled={Boolean(props.asset)} onValueChange={(value) => setDraft({ ...draft, kind: value as Asset['kind'], categoryDetails: createEmptyAssetDetails() })} options={(['character', 'location', 'prop', 'style'] as const).map((value) => ({ value, label: props.t(`asset.kind.${value}`) }))} />
+          <DirectorSelect ariaLabel={props.t('editor.kind')} value={draft.kind} disabled={Boolean(props.asset)} onValueChange={(value) => setDraft({ ...draft, kind: value as Asset['kind'], categoryDetails: createEmptyAssetDetails(), voiceReference: null })} options={(['character', 'location', 'prop', 'style'] as const).map((value) => ({ value, label: props.t(`asset.kind.${value}`) }))} />
         </FormField>
         <FormField label={props.t('editor.name')}><Input className={fieldClass} value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></FormField>
       </div>
       <FormField label={props.t('fields.description')}><Textarea className={`${fieldClass} min-h-24`} value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} /></FormField>
       {draft.kind === 'character' ? (
-        <div className="grid grid-cols-2 gap-4">
-          <FormField label={props.t('editor.role')}><Input className={fieldClass} value={draft.role ?? ''} onChange={(event) => setDraft({ ...draft, role: event.target.value })} /></FormField>
-          <FormField label={props.t('director.assets.appearanceAnchors')}><Input className={fieldClass} value={details.appearance ?? ''} onChange={(event) => updateDetail('appearance', event.target.value)} /></FormField>
-          <FormField label={props.t('director.assets.wardrobeField')}><Input className={fieldClass} value={details.wardrobe ?? ''} onChange={(event) => updateDetail('wardrobe', event.target.value)} /></FormField>
-          <FormField label={props.t('director.assets.voice')}><Input className={fieldClass} value={details.voice ?? ''} onChange={(event) => updateDetail('voice', event.target.value)} /></FormField>
+        <div className="grid gap-4">
+          <div className="grid grid-cols-2 gap-4">
+            <FormField label={props.t('editor.role')}><Input className={fieldClass} value={draft.role ?? ''} onChange={(event) => setDraft({ ...draft, role: event.target.value })} /></FormField>
+            <FormField label={props.t('director.assets.appearanceAnchors')}><Input className={fieldClass} value={details.appearance ?? ''} onChange={(event) => updateDetail('appearance', event.target.value)} /></FormField>
+            <FormField label={props.t('director.assets.wardrobeField')}><Input className={fieldClass} value={details.wardrobe ?? ''} onChange={(event) => updateDetail('wardrobe', event.target.value)} /></FormField>
+            <FormField label={props.t('director.assets.voice')}><Input className={fieldClass} value={details.voice ?? ''} onChange={(event) => updateDetail('voice', event.target.value)} /></FormField>
+          </div>
+          <div className="grid gap-4 rounded-md border border-studio-line bg-studio-canvas p-4">
+            <div className="flex items-center justify-between gap-2">
+              <strong className="text-xs font-semibold uppercase tracking-[0.2em] text-studio-muted">{props.t('editor.voiceReference')}</strong>
+              <span className="text-[10px] text-studio-muted">{props.t('editor.voiceReferenceHelp')}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField label={props.t('editor.voiceReferenceUrl')}>
+                <Input
+                  className={fieldClass}
+                  value={draft.voiceReference?.url ?? ''}
+                  onChange={(event) =>
+                    setDraft({
+                      ...draft,
+                      voiceReference: updateVoiceReferenceDraft(
+                        draft.voiceReference,
+                        'url',
+                        event.target.value
+                      )
+                    })
+                  }
+                />
+              </FormField>
+              <FormField label={props.t('editor.voiceReferenceLabel')}>
+                <Input
+                  className={fieldClass}
+                  value={draft.voiceReference?.label ?? ''}
+                  onChange={(event) =>
+                    setDraft({
+                      ...draft,
+                      voiceReference: updateVoiceReferenceDraft(
+                        draft.voiceReference,
+                        'label',
+                        event.target.value
+                      )
+                    })
+                  }
+                />
+              </FormField>
+              <FormField label={props.t('editor.voiceReferenceLicense')}>
+                <Input
+                  className={fieldClass}
+                  value={draft.voiceReference?.license ?? ''}
+                  onChange={(event) =>
+                    setDraft({
+                      ...draft,
+                      voiceReference: updateVoiceReferenceDraft(
+                        draft.voiceReference,
+                        'license',
+                        event.target.value
+                      )
+                    })
+                  }
+                />
+              </FormField>
+              <FormField label={props.t('editor.voiceReferenceSourceUrl')}>
+                <Input
+                  className={fieldClass}
+                  value={draft.voiceReference?.sourceUrl ?? ''}
+                  onChange={(event) =>
+                    setDraft({
+                      ...draft,
+                      voiceReference: updateVoiceReferenceDraft(
+                        draft.voiceReference,
+                        'sourceUrl',
+                        event.target.value
+                      )
+                    })
+                  }
+                />
+              </FormField>
+            </div>
+          </div>
         </div>
       ) : null}
       {draft.kind === 'location' ? (
@@ -418,11 +504,15 @@ function updateContinuitySummary(draft: ShotDraft, key: 'startState' | 'endState
 function assetDraft(
   asset: Asset | null | undefined,
   kind: Asset['kind'],
-  t: DirectorTranslator
+  t: DirectorTranslator,
+  voiceReference?: VoiceReferenceLike | null
 ): AssetDraft {
   if (asset) {
     const { id: _id, candidates: _candidates, ...draft } = asset
-    return draft
+    return {
+      ...draft,
+      voiceReference: compactVoiceReference(voiceReference)
+    }
   }
   return {
     kind,
@@ -431,7 +521,8 @@ function assetDraft(
     prompt: t('director.crud.defaultAssetPrompt'),
     negativePrompt: null,
     continuityNotes: null,
-    categoryDetails: createEmptyAssetDetails()
+    categoryDetails: createEmptyAssetDetails(),
+    voiceReference: compactVoiceReference(voiceReference)
   }
 }
 

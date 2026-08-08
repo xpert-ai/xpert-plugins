@@ -9,6 +9,7 @@ const requiredFiles = [
   'dist/xpert-story-studio-assistant.yaml',
   'dist/lib/remote-components/story-studio-workbench/app.js',
   'dist/lib/remote-components/story-studio-workbench/app.css',
+  'dist/sandbox-actions/video-frame/action.json',
   '.xpertai-plugin/plugin.json',
   'assets/logo.svg',
   'assets/composerIcon.svg',
@@ -62,8 +63,11 @@ if (
 if (packageJson.xpert?.plugin?.level !== 'system') {
   throw new Error('Story Studio must remain a system-level plugin.')
 }
-if (Object.hasOwn(pluginManifest, 'sandboxActions')) {
-  throw new Error('Story Studio must not publish the retired storyboard renderer.')
+if (
+  pluginManifest.sandboxActions !==
+  './dist/sandbox-actions/video-frame/action.json'
+) {
+  throw new Error('Story Studio Sandbox Action manifest path is invalid.')
 }
 if (
   existsSync(

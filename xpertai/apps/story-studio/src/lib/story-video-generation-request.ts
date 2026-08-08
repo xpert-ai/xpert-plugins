@@ -1,4 +1,5 @@
 import type { WorkspacePortableFileReference } from '@xpert-ai/plugin-sdk'
+import { compactVoiceReference } from './voice-reference.js'
 import type {
   StoryAsset,
   StoryCharacter,
@@ -166,6 +167,7 @@ function buildGenerationPrompt(
     promptSection('镜头衔接', continuityInstruction(continuity), 130),
     promptSection('动作表演', shot.action, 72),
     promptSection(dialogue.label, dialogue.value, 92),
+    promptSection('声线锚点', speakerVoiceInstruction(speaker), 54),
     promptSection('参考素材', referenceMaterialInstruction(referenceImages), 82),
     promptSection('参考一致性', referenceAssets.map(assetReferenceDescription).join('；'), 48),
     promptSection('构图运镜', compactList([shot.composition, shot.camera, shot.lens]), 42),
@@ -208,6 +210,13 @@ function dialogueInstruction(shot: StoryShot, speaker?: StoryCharacter) {
   if (shot.dialogueType === 'voice_over') return { label: '旁白', value: `${speakerName}：“${shot.dialogue}”；作为画外声音，画面角色不做口型` }
   if (shot.dialogueType === 'off_screen') return { label: '画外音', value: `${speakerName}：“${shot.dialogue}”；说话者不入镜，画面角色不做口型` }
   return { label: '对白', value: `${speakerName}：“${shot.dialogue}”；自然发音并保持口型同步，其他角色不张嘴` }
+}
+
+function speakerVoiceInstruction(speaker?: StoryCharacter) {
+  const voiceReference = compactVoiceReference(speaker?.voiceReference)
+  if (!voiceReference) return ''
+  const speakerName = compactText(speaker?.name ?? '') || '角色'
+  return `${speakerName}沿用音色参考“${voiceReference.label}”，不要擅自换声`
 }
 
 function resolvePreviousShot(scenes: StoryScene[], scene: StoryScene, shot: StoryShot) {

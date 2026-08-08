@@ -27,7 +27,16 @@ describe('buildStoryVideoGenerationRequest', () => {
       generationInput('保持儿童绘本质感'),
       {
         assets: [character, location],
-        characters: [{ id: 'character-pony', name: '小马' }]
+        characters: [{
+          id: 'character-pony',
+          name: '小马',
+          voiceReference: {
+            url: 'https://media.example/pony-voice.mp3',
+            label: '清亮少年音',
+            license: 'CC-BY-4.0',
+            sourceUrl: 'https://media.example/pony-voice'
+          }
+        }]
       },
       scene,
       shot
@@ -37,6 +46,7 @@ describe('buildStoryVideoGenerationRequest', () => {
     expect(request.prompt).toContain('补充要求：保持儿童绘本质感')
     expect(request.prompt).toContain('动作表演：小马背着麦袋欢快奔跑')
     expect(request.prompt).toContain('对白：小马：“妈妈，我出发了！”')
+    expect(request.prompt).toContain('声线锚点：小马沿用音色参考“清亮少年音”')
     expect(request.prompt).toContain('自然发音并保持口型同步')
     expect(request.prompt).toContain('图片1为当前镜头画面')
     expect(request.prompt).toContain('图片2为角色“小马”')

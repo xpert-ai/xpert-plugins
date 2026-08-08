@@ -24,6 +24,7 @@ import {
   isExpressionCandidate,
   type AssetReferenceSet
 } from './asset-reference-data'
+import { compactVoiceReference } from '../../../voice-reference.js'
 
 const h: typeof React.createElement = React.createElement
 type AssetCategory = Asset['kind']
@@ -54,6 +55,19 @@ export function DirectorAssetsPage(props: DirectorAssetsPageProps) {
   const uploadRef = React.useRef<HTMLInputElement | null>(null)
   const matchingAssets = production.assets.filter((asset) => asset.kind === category)
   const selectedAsset = matchingAssets.find((asset) => asset.id === selectedAssetId) ?? matchingAssets[0]
+  const selectedCharacterVoiceReference = selectedAsset?.kind === 'character'
+    ? compactVoiceReference(
+      production.characters.find((character) => character.name === selectedAsset.name)
+        ?.voiceReference
+    )
+    : null
+  const editingCharacterVoiceReference =
+    editing && editing !== 'new'
+      ? compactVoiceReference(
+          production.characters.find((character) => character.name === editing.name)
+            ?.voiceReference
+        )
+      : null
   const imageCandidates = selectedAsset?.candidates.filter((candidate) => candidate.kind === 'image') ?? []
   const continuityCandidates = imageCandidates.filter(isContinuityCandidate)
   const expressionCandidates = imageCandidates.filter(isExpressionCandidate)
@@ -127,7 +141,18 @@ export function DirectorAssetsPage(props: DirectorAssetsPageProps) {
         {selectedAsset ? (
           <>
             <header className="sticky top-0 z-10 flex h-16 items-center gap-3 border-b border-studio-line bg-studio-canvas/95 px-5 backdrop-blur">
-              <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h2 className="truncate font-display text-2xl font-bold">{selectedAsset.name}</h2><span className="rounded-full bg-studio-ink px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">{t(CATEGORY_KEYS[selectedAsset.kind])}</span></div><p className="truncate text-xs text-studio-muted">{selectedAsset.description}</p></div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h2 className="truncate font-display text-2xl font-bold">{selectedAsset.name}</h2>
+                  <span className="rounded-full bg-studio-ink px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">{t(CATEGORY_KEYS[selectedAsset.kind])}</span>
+                </div>
+                <p className="truncate text-xs text-studio-muted">{selectedAsset.description}</p>
+                {selectedCharacterVoiceReference ? (
+                  <p className="mt-1 truncate text-[11px] text-studio-brass">
+                    {t('asset.voiceReference')} · {selectedCharacterVoiceReference.label}
+                  </p>
+                ) : null}
+              </div>
               <Button variant="outline" size="sm" onClick={() => setEditing(selectedAsset)}><MoreHorizontal aria-hidden="true" />{t('actions.edit')}</Button>
               <Button variant="outline" size="sm" onClick={() => uploadRef.current?.click()} disabled={busy}><Upload aria-hidden="true" />{t('director.assets.upload')}</Button>
               <Button variant="outline" size="sm" className="text-studio-danger" onClick={() => setDeleting(selectedAsset)}><Trash2 aria-hidden="true" />{t('actions.delete')}</Button>
@@ -172,7 +197,7 @@ export function DirectorAssetsPage(props: DirectorAssetsPageProps) {
         <span>{t('director.assets.progress', { ready: production.assets.filter((asset) => asset.candidates.some((candidate) => candidate.kind === 'image' && candidate.selected && Boolean(candidateImageUrl(candidate)))).length, total: production.assets.length })}</span>
       </footer>
 
-      <AssetDialog open={editing !== null} busy={busy} t={t} asset={editing === 'new' ? null : editing} initialKind={editing === 'new' ? category : editing?.kind ?? category} onOpenChange={(open) => !open && setEditing(null)} onSubmit={(draft) => void submitAsset(draft)} />
+      <AssetDialog open={editing !== null} busy={busy} t={t} asset={editing === 'new' ? null : editing} initialKind={editing === 'new' ? category : editing?.kind ?? category} voiceReference={editingCharacterVoiceReference} onOpenChange={(open) => !open && setEditing(null)} onSubmit={(draft) => void submitAsset(draft)} />
       <DeleteEntityDialog open={Boolean(deleting)} busy={busy} t={t} title={t('director.crud.deleteAsset')} description={t('director.crud.deleteAssetHelp')} onOpenChange={(open) => !open && setDeleting(null)} onConfirm={() => void confirmDelete()} />
     </StudioPanelLayout>
   )

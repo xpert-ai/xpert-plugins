@@ -19,7 +19,7 @@ import {
   canEncodeAudio,
   canEncodeVideo
 } from 'mediabunny'
-import { audibleTimelineClips } from '../../../cut-media-playback'
+import { audibleTimelineSegments } from '../../../cut-media-playback'
 import { cutMediaDrawRect } from '../../../cut-media-layout'
 import { cutVideoDamagedPacketRecovery, cutVideoFrameTimeoutMessage, isCutVideoFrameAcceptable } from '../../../cut-video-frame'
 import {
@@ -119,59 +119,100 @@ function exportQuality(quality: CutExportQuality) {
 }
 
 async function renderAudioMix(document: CutDocument, codec: 'aac' | 'opus') {
-  const clips = audibleTimelineClips(document)
-  if (!clips.length) return null
+  const segments = audibleTimelineSegments(document)
+  if (!segments.length) return null
   if (!(await canEncodeAudio(codec))) throw new Error(`${codec.toUpperCase()} audio encoding is unavailable in this browser.`)
   const sampleRate = 44_100
   const context = new AudioContext({ sampleRate })
-  let decoded: Array<{ clip: CutClip; buffer: AudioBuffer }>
+  type DecodedAudioGroup = { previewUrl: string; strict: boolean; buffer: AudioBuffer; segments: Array<{ clip: CutClip; start: number; duration: number }> }
+  let decoded: DecodedAudioGroup[]
   try {
-    decoded = (await Promise.all(clips.map(async (clip) => {
-      const response = await fetch(clip.previewUrl!, { credentials: 'include' })
-      if (!response.ok) throw new Error(`Audio source ${clip.name} could not be loaded.`)
+    const groups = new Map<string, DecodedAudioGroup>()
+    for (const segment of segments) {
+      const previewUrl = segment.clip.previewUrl!
+      const group = groups.get(previewUrl) ?? {
+        previewUrl,
+        strict: false,
+        buffer: undefined as unknown as AudioBuffer,
+        segments: []
+      }
+      group.strict ||= segment.clip.type === 'audio'
+      group.segments.push({
+        clip: segment.clip,
+        start: segment.start,
+        duration: segment.duration
+      })
+      groups.set(previewUrl, group)
+    }
+    decoded = (await Promise.all([...groups.values()].map(async (group) => {
+      const response = await fetch(group.previewUrl, { credentials: 'include' })
+      if (!response.ok) throw new Error(`Audio source ${group.segments[0]!.clip.name} could not be loaded.`)
       try {
-        return { clip, buffer: await context.decodeAudioData(await response.arrayBuffer()) }
+        group.buffer = await context.decodeAudioData(await response.arrayBuffer())
+        return group
       } catch (error) {
         // Video containers are allowed to be silent. Web Audio reports the same
         // decode failure for a valid video-only file as it does for damaged
         // embedded audio, so preserve the visual export and omit that clip from
         // the audio mix. Explicit audio clips remain strict.
-        if (clip.type !== 'video') throw error
+        if (group.strict) throw error
         console.warn('CUT_AUDIO_DECODE_SKIPPED', {
-          clipId: clip.id,
-          clipName: clip.name,
+          clipId: group.segments[0]!.clip.id,
+          clipName: group.segments[0]!.clip.name,
           reason: error instanceof Error ? error.message : String(error)
         })
         return null
       }
-    }))).filter((item): item is { clip: CutClip; buffer: AudioBuffer } => item !== null)
+    }))).filter((item): item is DecodedAudioGroup => item !== null)
   } finally {
     await context.close().catch(() => undefined)
   }
   if (!decoded.length) return null
   const offline = new OfflineAudioContext(2, Math.ceil(document.settings.durationSeconds * sampleRate), sampleRate)
-  for (const { clip, buffer } of decoded) {
-    const source = offline.createBufferSource()
-    const gain = offline.createGain()
-    const rate = clip.playbackRate ?? 1
-    const start = clip.start
-    const end = clip.start + clip.duration
-    const volume = Math.max(0, Math.min(2, clip.volume ?? 1))
-    source.buffer = buffer
-    source.playbackRate.value = rate
-    gain.gain.setValueAtTime(volume, start)
-    if (clip.fadeIn && clip.fadeIn > 0) {
-      gain.gain.setValueAtTime(0, start)
-      gain.gain.linearRampToValueAtTime(volume, Math.min(end, start + clip.fadeIn))
+  for (const { buffer, segments: groupSegments } of decoded) {
+    for (const { clip, start, duration } of groupSegments) {
+      const source = offline.createBufferSource()
+      const gain = offline.createGain()
+      const rate = clip.playbackRate ?? 1
+      const offset = clip.trimIn + (start - clip.start) * rate
+      const sourceDuration = Math.min(buffer.duration - offset, duration * rate)
+      if (sourceDuration <= 0) continue
+      source.buffer = buffer
+      source.playbackRate.value = rate
+      scheduleAudioGain(gain.gain, clip, start, start + duration)
+      source.connect(gain).connect(offline.destination)
+      source.start(start, offset, sourceDuration)
     }
-    if (clip.fadeOut && clip.fadeOut > 0) {
-      gain.gain.setValueAtTime(volume, Math.max(start, end - clip.fadeOut))
-      gain.gain.linearRampToValueAtTime(0, end)
-    }
-    source.connect(gain).connect(offline.destination)
-    source.start(start, clip.trimIn, Math.min(buffer.duration - clip.trimIn, clip.duration * rate))
   }
   return offline.startRendering()
+}
+
+function scheduleAudioGain(gain: GainNode['gain'], clip: CutClip, start: number, end: number) {
+  const points = [start]
+  const fadeInEnd = clip.fadeIn && clip.fadeIn > 0 ? clip.start + clip.fadeIn : null
+  const fadeOutStart = clip.fadeOut && clip.fadeOut > 0 ? clip.start + clip.duration - clip.fadeOut : null
+  if (fadeInEnd !== null && fadeInEnd > start && fadeInEnd < end) points.push(fadeInEnd)
+  if (fadeOutStart !== null && fadeOutStart > start && fadeOutStart < end) points.push(fadeOutStart)
+  points.push(end)
+  const unique = [...new Set(points)].sort((left, right) => left - right)
+  if (!unique.length) return
+  gain.setValueAtTime(audioGainAt(clip, unique[0]!), unique[0]!)
+  for (let index = 1; index < unique.length; index += 1) {
+    const time = unique[index]!
+    gain.linearRampToValueAtTime(audioGainAt(clip, time), time)
+  }
+}
+
+function audioGainAt(clip: CutClip, time: number) {
+  const volume = Math.max(0, Math.min(2, clip.volume ?? 1))
+  let gain = volume
+  if (clip.fadeIn && clip.fadeIn > 0 && time < clip.start + clip.fadeIn) {
+    gain = volume * Math.max(0, Math.min(1, (time - clip.start) / clip.fadeIn))
+  }
+  if (clip.fadeOut && clip.fadeOut > 0 && time > clip.start + clip.duration - clip.fadeOut) {
+    gain = Math.min(gain, volume * Math.max(0, Math.min(1, (clip.start + clip.duration - time) / clip.fadeOut)))
+  }
+  return gain
 }
 
 async function renderFrame(context: CanvasRenderingContext2D, document: CutDocument, time: number, cache: Map<string, Promise<MediaElement>>) {
