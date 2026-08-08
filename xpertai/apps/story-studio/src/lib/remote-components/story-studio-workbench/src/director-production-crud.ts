@@ -6,6 +6,7 @@ import type {
   Scene,
   Shot
 } from './production-data'
+import { compactVoiceReference, type VoiceReferenceLike } from '../../../voice-reference.js'
 
 export type EpisodeDraft = Omit<Episode, 'id' | 'order'>
 export type SceneDraft = Omit<Scene, 'id' | 'order' | 'shots'>
@@ -13,6 +14,7 @@ export type ShotDraft = Omit<Shot, 'id' | 'candidates'>
 export type AssetDraft = Omit<Asset, 'id' | 'candidates'> & {
   role?: string
   visualDescription?: string
+  voiceReference?: VoiceReferenceLike | null
 }
 
 export function addEpisode(
@@ -139,7 +141,7 @@ export function addAsset(
   characterId: string,
   draft: AssetDraft
 ) {
-  const { role, visualDescription, ...asset } = draft
+  const { role, visualDescription, voiceReference, ...asset } = draft
   production.assets.push({ id: assetId, ...asset, candidates: [] })
   if (asset.kind === 'character') {
     production.characters.push({
@@ -150,7 +152,7 @@ export function addAsset(
         visualDescription?.trim() ||
         asset.categoryDetails.appearance ||
         asset.description,
-      voiceReference: null
+      voiceReference: compactVoiceReference(voiceReference)
     })
   }
 }
@@ -163,7 +165,7 @@ export function updateAsset(
   const asset = production.assets.find((item) => item.id === assetId)
   if (!asset) return false
   const previousName = asset.name
-  const { role, visualDescription, ...nextAsset } = draft
+  const { role, visualDescription, voiceReference, ...nextAsset } = draft
   Object.assign(asset, nextAsset)
   if (asset.kind === 'character') {
     const character = production.characters.find(
@@ -176,6 +178,9 @@ export function updateAsset(
         visualDescription?.trim() ||
         asset.categoryDetails.appearance ||
         asset.description
+      if (voiceReference !== undefined) {
+        character.voiceReference = compactVoiceReference(voiceReference)
+      }
     }
   }
   return true

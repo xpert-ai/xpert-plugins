@@ -4,6 +4,7 @@ import type {
   Scene,
   Shot
 } from './production-data'
+import { compactVoiceReference } from '../../../voice-reference.js'
 
 export type SeedanceGenerationTarget = {
   sceneId: string
@@ -45,7 +46,8 @@ export function buildSeedanceGenerationTargets(
       const speaker = shot.dialogueSpeakerId
         ? characters.get(shot.dialogueSpeakerId)
         : undefined
-      const referenceAudioUrl = speaker?.voiceReference?.url
+      const voiceReference = compactVoiceReference(speaker?.voiceReference)
+      const referenceAudioUrl = voiceReference?.url
       return [
         {
           sceneId: scene.id,
@@ -57,7 +59,8 @@ export function buildSeedanceGenerationTargets(
             production.visualStyle,
             scene,
             shot,
-            speaker
+            speaker,
+            voiceReference
           ),
           generationTool: referenceAudioUrl
             ? 'seedance_multimodal_reference_to_video'
@@ -106,16 +109,21 @@ function buildSynchronizedPrompt(
   visualStyle: string,
   scene: Scene,
   shot: Shot,
-  speaker?: Character
+  speaker?: Character,
+  voiceReference = compactVoiceReference(speaker?.voiceReference)
 ) {
   const audioDirection = shot.dialogue
     ? dialogueDirection(shot, speaker)
     : '无对白，人物不说话，嘴唇自然闭合。'
+  const voiceAnchor = voiceReference
+    ? `声线参考：${speaker?.name ?? '角色'}沿用“${voiceReference.label}”。`
+    : ''
   const effects = shot.soundEffects.length
     ? `同期音效：${shot.soundEffects.join('、')}。`
     : '只生成与画面动作匹配的自然环境声。'
   const prompt = [
     audioDirection,
+    voiceAnchor,
     effects,
     '不要背景音乐。',
     visualStyle,

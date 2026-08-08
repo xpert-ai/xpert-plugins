@@ -97,6 +97,7 @@ describe('Seedance synchronized-audio generation request', () => {
         referenceAudioUrl: 'https://media.example/voice.mp3'
       })
     )
+    expect(target.prompt).toContain('声线参考')
     expect(target.prompt).toContain('苏锦鲤以自然普通话准确说')
     expect(target.prompt).toContain('说话时嘴唇动作与语音同步')
     expect(target.prompt).toContain('同期音效：木门声、金属碰撞声')

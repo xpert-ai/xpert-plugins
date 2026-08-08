@@ -52,6 +52,15 @@ describe('director production CRUD', () => {
     const details = createEmptyAssetDetails()
     details.continuity = `${kind} continuity`
     if (kind === 'character') details.appearance = '肩长黑发，右眼下浅痣'
+    const voiceReference =
+      kind === 'character'
+        ? {
+            url: 'https://media.example/voice.wav',
+            label: '清透女声',
+            license: 'CC-BY-4.0',
+            sourceUrl: 'https://media.example/source'
+          }
+        : null
     if (kind === 'location') details.environment = '第七摄影棚外，湿地反光'
     if (kind === 'prop') details.material = '磨损黑色金属'
     if (kind === 'style') details.palette = '#18232F / #C58B55'
@@ -63,8 +72,12 @@ describe('director production CRUD', () => {
       negativePrompt: 'watermark',
       continuityNotes: `${kind} continuity`,
       categoryDetails: details,
-      role: kind === 'character' ? '主角' : undefined
+      role: kind === 'character' ? '主角' : undefined,
+      voiceReference: kind === 'character' ? voiceReference : undefined
     })
+    if (kind === 'character') {
+      expect(production.characters[0].voiceReference).toEqual(voiceReference)
+    }
     expect(updateAsset(production, `asset-${kind}`, {
       kind,
       name: `${kind} asset v2`,
@@ -73,8 +86,17 @@ describe('director production CRUD', () => {
       negativePrompt: 'watermark, duplicate',
       continuityNotes: `${kind} continuity v2`,
       categoryDetails: { ...details, continuity: `${kind} continuity v2` },
-      role: kind === 'character' ? '主角' : undefined
+      role: kind === 'character' ? '主角' : undefined,
+      voiceReference: kind === 'character'
+        ? {
+            ...voiceReference!,
+            label: '更清透的女声'
+          }
+        : undefined
     })).toBe(true)
+    if (kind === 'character') {
+      expect(production.characters[0].voiceReference?.label).toBe('更清透的女声')
+    }
     expect(deleteAsset(production, `asset-${kind}`)).toBe(true)
   })
 

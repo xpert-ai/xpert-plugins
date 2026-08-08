@@ -31,6 +31,7 @@ import {
   numberValue,
   type ProductionEditorProps
 } from './stage-editor-shared'
+import { updateVoiceReferenceDraft } from '../../../voice-reference.js'
 
 const h: typeof React.createElement = React.createElement
 
@@ -640,6 +641,72 @@ function AssetsEditor(props: ProductionEditorProps) {
                 }
               />
             </Field>
+            <div className="ss-editor-stack">
+              <div className="ss-editor-row">
+                <Field label={t('editor.voiceReferenceUrl')}>
+                  <Input
+                    value={character.voiceReference?.url ?? ''}
+                    onChange={(event) =>
+                      update((draft) => {
+                        draft.characters[index].voiceReference =
+                          updateVoiceReferenceDraft(
+                            draft.characters[index].voiceReference,
+                            'url',
+                            event.target.value
+                          )
+                      })
+                    }
+                  />
+                </Field>
+                <Field label={t('editor.voiceReferenceLabel')}>
+                  <Input
+                    value={character.voiceReference?.label ?? ''}
+                    onChange={(event) =>
+                      update((draft) => {
+                        draft.characters[index].voiceReference =
+                          updateVoiceReferenceDraft(
+                            draft.characters[index].voiceReference,
+                            'label',
+                            event.target.value
+                          )
+                      })
+                    }
+                  />
+                </Field>
+              </div>
+              <div className="ss-editor-row">
+                <Field label={t('editor.voiceReferenceLicense')}>
+                  <Input
+                    value={character.voiceReference?.license ?? ''}
+                    onChange={(event) =>
+                      update((draft) => {
+                        draft.characters[index].voiceReference =
+                          updateVoiceReferenceDraft(
+                            draft.characters[index].voiceReference,
+                            'license',
+                            event.target.value
+                          )
+                      })
+                    }
+                  />
+                </Field>
+                <Field label={t('editor.voiceReferenceSourceUrl')}>
+                  <Input
+                    value={character.voiceReference?.sourceUrl ?? ''}
+                    onChange={(event) =>
+                      update((draft) => {
+                        draft.characters[index].voiceReference =
+                          updateVoiceReferenceDraft(
+                            draft.characters[index].voiceReference,
+                            'sourceUrl',
+                            event.target.value
+                          )
+                      })
+                    }
+                  />
+                </Field>
+              </div>
+            </div>
           </EditorCard>
         ))}
       </EditorSection>
