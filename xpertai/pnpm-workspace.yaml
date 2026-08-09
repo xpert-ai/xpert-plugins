@@ -6,6 +6,7 @@ packages:
   - examples/*
   - tools/*
   - models/*
+  - documents/*
   - databases/*
   - middlewares/*
   - skills/*

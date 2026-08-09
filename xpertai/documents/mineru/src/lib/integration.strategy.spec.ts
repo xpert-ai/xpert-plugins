@@ -1,0 +1,53 @@
+import 'dotenv/config';
+
+import { ConfigService } from '@nestjs/config';
+import { MinerUIntegrationStrategy } from './integration.strategy.js';
+import {
+  ENV_MINERU_API_BASE_URL,
+  ENV_MINERU_API_TOKEN,
+  ENV_MINERU_SERVER_TYPE,
+  MinerUIntegrationOptions,
+  MinerUServerType,
+} from './types.js';
+
+describe('MinerUIntegrationStrategy', () => {
+  let strategy: MinerUIntegrationStrategy;
+  let configService: ConfigService;
+  let minerUOptions = null as MinerUIntegrationOptions;
+
+  beforeEach(() => {
+    configService = new ConfigService();
+    strategy = new MinerUIntegrationStrategy();
+    (strategy as unknown as { configService: ConfigService }).configService = configService;
+    minerUOptions = {
+      serverType: (process.env[ENV_MINERU_SERVER_TYPE] || 'official') as MinerUServerType,
+      apiUrl: process.env[ENV_MINERU_API_BASE_URL],
+      apiKey: process.env[ENV_MINERU_API_TOKEN] || 'your-api-key',
+    };
+  });
+
+  it('should have correct meta information', () => {
+    expect(strategy.meta.name).toBeDefined();
+    expect(strategy.meta.label.en_US).toBe('MinerU');
+    expect(strategy.meta.icon.type).toBe('svg');
+    expect(strategy.meta.schema).toBeDefined();
+    expect(strategy.meta.schema.secret).toContain('apiKey');
+    expect(strategy.meta.schema.properties.serverType.enum).toEqual(['official', 'self-hosted']);
+    expect(strategy.meta.schema.properties.uploadMode.enum).toEqual(['auto', 'file', 'url']);
+    expect(strategy.meta.helpUrl).toBe('https://mineru.net/apiManage/docs');
+  });
+
+  it('should throw error for unimplemented execute', async () => {
+    await expect(strategy.execute({} as any, {} as any)).rejects.toThrow(
+      'does not expose executable actions'
+    );
+  });
+
+  const itValidatesLiveConfig = process.env[ENV_MINERU_API_TOKEN] ? it : it.skip;
+
+  itValidatesLiveConfig('should validate config successfully', async () => {
+    await expect(
+      strategy.validateConfig(minerUOptions)
+    ).resolves.toBeUndefined();
+  });
+});
