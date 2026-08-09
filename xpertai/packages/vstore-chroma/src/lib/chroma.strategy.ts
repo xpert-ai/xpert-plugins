@@ -15,6 +15,7 @@ type ChromaVectorStoreConfig = {
 export class ChromaStrategy implements IVectorStoreStrategy<ChromaVectorStoreConfig> {
   name: string
   description?: string
+  readonly capabilities = { supportsFilterV2: false } as const
 
   constructor(private readonly configService: ConfigService) {}
 

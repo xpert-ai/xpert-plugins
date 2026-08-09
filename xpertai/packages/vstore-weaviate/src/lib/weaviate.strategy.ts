@@ -16,6 +16,7 @@ type WeaviateVectorStoreConfig = {
 export class WeaviateStrategy implements IVectorStoreStrategy<WeaviateVectorStoreConfig> {
   name: string
   description?: string
+  readonly capabilities = { supportsFilterV2: false } as const
 
   constructor(private readonly configService: ConfigService) {}
 

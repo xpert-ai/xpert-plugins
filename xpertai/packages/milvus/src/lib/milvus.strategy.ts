@@ -1,10 +1,16 @@
 import { Callbacks } from '@langchain/core/callbacks/manager'
+import { Document } from '@langchain/core/documents'
 import { EmbeddingsInterface } from '@langchain/core/embeddings'
 import { VectorStore } from '@langchain/core/vectorstores'
 import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { IVectorStoreStrategy, VectorStoreStrategy } from '@xpert-ai/plugin-sdk'
-import { Milvus as MilvusVectorStore } from './milvus/index.js'
+import {
+  Milvus as MilvusVectorStore,
+  MilvusExpressionFilter,
+  MilvusFilterArrayIndex,
+  MilvusFilterAttributeUpdate
+} from './milvus/index.js'
 import { IMilvusConfig, Milvus, MilvusTextFieldMaxLength } from './types.js'
 
 @Injectable()
@@ -12,6 +18,7 @@ import { IMilvusConfig, Milvus, MilvusTextFieldMaxLength } from './types.js'
 export class MilvusStrategy implements IVectorStoreStrategy<{ collectionName?: string }> {
   name: string
   description?: string
+  readonly capabilities = { supportsFilterV2: true } as const
 
   constructor(private readonly configService: ConfigService) {}
 
@@ -32,6 +39,7 @@ export class MilvusStrategy implements IVectorStoreStrategy<{ collectionName?: s
         password: _config.MILVUS_PASSWORD
       },
       textFieldMaxLength: MilvusTextFieldMaxLength,
+      autoId: false,
       promotedMetadataFields: [
         {
           name: 'enabled',
@@ -61,9 +69,10 @@ export class MilvusStrategy implements IVectorStoreStrategy<{ collectionName?: s
           name: 'model',
           type: 'VarChar',
           max_length: 50
-        },
+        }
       ]
     })
+    await vstore.assertFilterV2Capabilities()
     await vstore.ensurePartition()
     return vstore
   }
@@ -87,6 +96,32 @@ function sanitizeUUID(uuid: string): string {
 }
 
 class MilvusStore extends MilvusVectorStore {
+  async structuredSimilaritySearchWithScore(
+    query: string,
+    k: number,
+    filter: { milvus?: MilvusExpressionFilter }
+  ): Promise<{ items: [Document, number][] }> {
+    if (!filter.milvus) {
+      throw new Error('Milvus structured search requires a filter expression.')
+    }
+    const vector = await this.embeddings.embedQuery(query)
+    return {
+      items: await super.similaritySearchVectorWithScore(vector, k, filter.milvus)
+    }
+  }
+
+  override async partialUpdateFilterAttributes(updates: MilvusFilterAttributeUpdate[]) {
+    return super.partialUpdateFilterAttributes(updates)
+  }
+
+  override async ensureFilterV2Schema(arrayIndexes: MilvusFilterArrayIndex[] = []) {
+    return super.ensureFilterV2Schema(arrayIndexes)
+  }
+
+  override async getFilterAttributesByChunkIds(chunkIds: string[]) {
+    return super.getFilterAttributesByChunkIds(chunkIds)
+  }
+
   override similaritySearch(
     query: string,
     k?: number,
@@ -108,8 +143,7 @@ class MilvusStore extends MilvusVectorStore {
   override delete(params: { filter?: string | Record<string, any>; ids?: string[] }) {
     const { filter, ids } = params ?? {}
     if (ids && ids.length > 0) {
-      params.filter = `chunk_id in [${ids.map((id) => `"${id}"`).join(',')}]`
-      delete params.ids
+      return super.delete({ ids })
     } else if (filter && typeof filter === 'object') {
       // Convert filter object to string if necessary
       params.filter = this.filterString(filter)
@@ -127,12 +161,12 @@ class MilvusStore extends MilvusVectorStore {
     return Object.entries(filter)
       .map(([key, value]) => {
         if (typeof value === 'string') {
-          return `${key} == '${value}'`
+          return `${key} == '${escapeMilvusString(value)}'`
         } else if (typeof value === 'object') {
           if (Array.isArray(value)) {
-            return `${key} IN [${value.map((v) => `'${v}'`).join(',')}]`
+            return `${key} IN [${value.map((v) => `'${escapeMilvusString(String(v))}'`).join(',')}]`
           } else if ('in' in value) {
-            return `${key} IN [${value.in.map((v) => `'${v}'`).join(',')}]`
+            return `${key} IN [${value.in.map((v) => `'${escapeMilvusString(String(v))}'`).join(',')}]`
           }
           return `${key} == ${value}`
         } else if (typeof value === 'number') {
@@ -144,4 +178,8 @@ class MilvusStore extends MilvusVectorStore {
       })
       .join(' AND ')
   }
+}
+
+function escapeMilvusString(value: string) {
+  return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
 }
