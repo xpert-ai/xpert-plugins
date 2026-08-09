@@ -1,5 +1,5 @@
 import type { IIntegration, TDocumentAsset } from '@xpert-ai/contracts'
-import type { TDocumentTransformerConfig } from '@xpert-ai/plugin-sdk'
+import type { ChunkMetadata, TDocumentTransformerConfig } from '@xpert-ai/plugin-sdk'
 
 export type BaiduParserEngine = 'paddleocr-vl' | 'unlimited-ocr'
 export type BaiduUploadMode = 'auto' | 'base64' | 'url'
@@ -158,6 +158,12 @@ export type BaiduOcrChunkMetadata = {
   rawAsset?: TDocumentAsset
 }
 
+/** Internal pre-merge chunk shape emitted for one PaddleOCR-VL layout block. */
+export type BaiduLayoutChunkMetadata = ChunkMetadata & {
+  baiduOcr: BaiduOcrChunkMetadata
+  documentLayout?: BaiduDocumentLayoutMetadata
+}
+
 export type BaiduDocumentAnalysisBlockType =
   | 'text'
   | 'title'
@@ -201,5 +207,46 @@ export type BaiduDocumentAnalysisMetadata = {
   pageCount?: number
   coordinateSystem: 'page-top-left'
   markdownAsset?: TDocumentAsset
+  analysisAsset?: TDocumentAsset
+  sourceMapAsset?: TDocumentAsset
   rawAssets?: TDocumentAsset[]
+}
+
+/** Provider-neutral block archived separately from the Markdown used by the host chunker. */
+export type BaiduDocumentAnalysisSourceBlock = {
+  id: string
+  order: number
+  type: BaiduDocumentAnalysisBlockType
+  providerType?: string
+  providerSubType?: string
+  markdown: string
+  bounds?: BaiduDocumentLayoutMetadata['bounds']
+  polygon?: BaiduDocumentLayoutMetadata['polygon']
+  asset?: TDocumentAsset
+  raw?: Record<string, unknown>
+}
+
+export type BaiduDocumentAnalysisSource = {
+  schemaVersion: 1
+  pages: Array<{
+    schemaVersion: 1
+    page: number
+    width: number
+    height: number
+    blocks: BaiduDocumentAnalysisSourceBlock[]
+  }>
+}
+
+export type BaiduMarkdownSourceMapEntry = {
+  startOffset: number
+  endOffset: number
+  pageStart: number
+  pageEnd: number
+  blockIds?: string[]
+  assets?: TDocumentAsset[]
+}
+
+export type BaiduMarkdownSourceMap = {
+  schemaVersion: 1
+  entries: BaiduMarkdownSourceMapEntry[]
 }

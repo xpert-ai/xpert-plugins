@@ -64,7 +64,7 @@ describe('BaiduOcrTransformService', () => {
     jest.useRealTimers()
   })
 
-  it('maps PaddleOCR-VL pages, layouts, tables and coordinates into pipeline chunks', async () => {
+  it('merges PaddleOCR-VL layouts into one Markdown document and archives structured analysis', async () => {
     const parsed = {
       file_name: 'input.png',
       file_id: 'file-1',
@@ -167,61 +167,43 @@ describe('BaiduOcrTransformService', () => {
         coordinateSystem: 'page-top-left'
       }
     })
-    expect(result.chunks).toHaveLength(3)
-    expect(result.chunks?.map((chunk) => chunk.pageContent)).toEqual([
-      '# Contract',
-      '| A | B |\n|---|---|\n| 1 | 2 |',
-      '{"summary":"trend chart"}'
-    ])
+    expect(result.chunks).toHaveLength(1)
+    expect(result.chunks?.[0].pageContent).toBe(
+      '# Contract\n\n| A | B |\n|---|---|\n| 1 | 2 |\n\n{"summary":"trend chart"}'
+    )
     expect(result.chunks?.[0].metadata).toMatchObject({
-      page: 1,
-      baiduOcr: {
-        provider: 'baidu-cloud',
-        engine: 'paddleocr-vl',
-        page: 1,
-        providerPageNumber: 0,
-        pageId: 'page-0',
-        pageWidth: 1000,
-        pageHeight: 1400,
-        blockIndex: 0,
-        layoutId: 'layout-title',
-        blockType: 'doc_title',
-        subType: 'level-1',
-        position: [10, 20, 300, 40],
-        polygon: [
-          [10, 20],
-          [310, 20],
-          [310, 60],
-          [10, 60]
-        ]
-      },
-      documentLayout: {
+      contentFormat: 'markdown',
+      baiduOcr: { provider: 'baidu-cloud', engine: 'paddleocr-vl', batchCount: 1 },
+      markdownSourceMap: {
         schemaVersion: 1,
-        page: 1,
-        pageWidth: 1000,
-        pageHeight: 1400,
-        blockId: 'layout-title',
-        order: 0,
-        type: 'title',
-        providerType: 'doc_title',
-        providerSubType: 'level-1',
-        bounds: { x: 10, y: 20, width: 300, height: 40 },
-        polygon: [
-          { x: 10, y: 20 },
-          { x: 310, y: 20 },
-          { x: 310, y: 60 },
-          { x: 10, y: 60 }
+        entries: [
+          expect.objectContaining({ pageStart: 1, pageEnd: 1, blockIds: ['layout-title'] }),
+          expect.objectContaining({ pageStart: 1, pageEnd: 1, blockIds: ['layout-table'] }),
+          expect.objectContaining({ pageStart: 1, pageEnd: 1, blockIds: ['layout-image'] })
         ]
       }
     })
-    expect(result.chunks?.[1].metadata.baiduOcr).toMatchObject({
-      blockType: 'table',
-      table: { layout_id: 'layout-table', matrix: [[0]], merge_table: 'begin' }
-    })
-    expect(result.chunks?.[2].metadata.mediaType).toBe('image')
+    expect(result.chunks?.[0].metadata.documentLayout).toBeUndefined()
     await expect(fileSystem.exists('baidu-ocr/document-1/paddleocr-vl/result.md')).resolves.toBe(true)
     await expect(fileSystem.exists('baidu-ocr/document-1/paddleocr-vl/parse-result.json')).resolves.toBe(true)
     await expect(fileSystem.exists('baidu-ocr/document-1/paddleocr-vl/task-response.json')).resolves.toBe(true)
+    await expect(fileSystem.exists('baidu-ocr/document-1/paddleocr-vl/document.md')).resolves.toBe(true)
+    await expect(fileSystem.exists('baidu-ocr/document-1/paddleocr-vl/analysis-source.json')).resolves.toBe(true)
+    await expect(fileSystem.exists('baidu-ocr/document-1/paddleocr-vl/markdown-source-map.json')).resolves.toBe(true)
+
+    const analysis = JSON.parse(
+      (await fileSystem.readFile('baidu-ocr/document-1/paddleocr-vl/analysis-source.json')).toString()
+    )
+    expect(analysis.pages[0].blocks).toEqual([
+      expect.objectContaining({
+        id: 'layout-title',
+        type: 'title',
+        markdown: '# Contract',
+        bounds: { x: 10, y: 20, width: 300, height: 40 }
+      }),
+      expect.objectContaining({ id: 'layout-table', type: 'table' }),
+      expect.objectContaining({ id: 'layout-image', type: 'image' })
+    ])
   })
 
   it('keeps Unlimited-OCR as a separate strategy using the shared Baidu connection', async () => {
@@ -263,10 +245,10 @@ describe('BaiduOcrTransformService', () => {
     })
     expect(result.chunks).toHaveLength(1)
     expect(result.chunks?.[0].pageContent).toBe('# Unlimited result')
-    expect(result.chunks?.[0].metadata.baiduOcr).toMatchObject({
-      engine: 'unlimited-ocr',
-      taskId: 'unlimited-task',
-      blockType: 'markdown'
+    expect(result.chunks?.[0].metadata).toMatchObject({
+      contentFormat: 'markdown',
+      baiduOcr: { engine: 'unlimited-ocr', batchCount: 1 },
+      markdownSourceMap: { schemaVersion: 1, entries: [expect.objectContaining({ pageStart: 1, pageEnd: 1 })] }
     })
     expect(result.chunks?.[0].metadata.documentLayout).toBeUndefined()
   })

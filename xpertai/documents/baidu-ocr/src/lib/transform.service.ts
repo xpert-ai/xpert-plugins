@@ -18,6 +18,12 @@ import {
 } from './constants.js'
 import { BaiduOcrError, documentConversionError, normalizeBaiduError } from './errors.js'
 import { isRetryableHttpError, retry } from './http.js'
+import {
+  archiveMergedMarkdown,
+  mergePaddleLayoutDocuments,
+  mergeUnlimitedMarkdownDocuments,
+  uniqueDocumentAssets
+} from './markdown-document.js'
 import { getPdfPageCount, prepareBaiduPdfBatches, removeBaiduPdfBatchPlan } from './pdf-batch.js'
 import type {
   BaiduBaseTransformerConfig,
@@ -27,6 +33,7 @@ import type {
   BaiduDocumentAnalysisMetadata,
   BaiduDocumentLayoutMetadata,
   BaiduImage,
+  BaiduLayoutChunkMetadata,
   BaiduLayout,
   BaiduOcrChunkMetadata,
   BaiduOcrIntegration,
@@ -251,7 +258,7 @@ async function mapPaddleCollection(
   const preserveImages = config.preserveImages !== false
   const batchCount = collection.batches.length
   const assets: TDocumentAsset[] = []
-  const chunks: Document<ChunkMetadata>[] = []
+  const layoutChunks: Document<BaiduLayoutChunkMetadata>[] = []
 
   for (const batch of collection.batches) {
     const batchAssets = await archiveBatch(
@@ -273,38 +280,57 @@ async function mapPaddleCollection(
     for (let pageIndex = 0; pageIndex < parsed.pages.length; pageIndex += 1) {
       const page = parsed.pages[pageIndex]
       const pageChunks = mapPaddlePage(page, pageIndex, batch, batchCount, batchAssets)
-      chunks.push(...pageChunks)
+      layoutChunks.push(...pageChunks)
     }
   }
 
-  if (!chunks.length) {
+  if (!layoutChunks.length) {
     throw new BaiduOcrError('Baidu Cloud PaddleOCR-VL returned no parseable layout blocks', {
       engine: 'paddleocr-vl'
     })
   }
-  chunks.forEach((chunk, chunkIndex) => {
+  layoutChunks.forEach((chunk, chunkIndex) => {
     chunk.metadata.chunkIndex = chunkIndex
   })
   const manifest = await archiveManifest(fileSystem, outputFolder, collection, 'paddleocr-vl', preserveRawOutput)
   if (manifest) assets.push(manifest)
   const rawAssets = uniqueAssets(assets.filter((asset) => asset.type === 'file'))
+  const merged = mergePaddleLayoutDocuments(layoutChunks)
+  const mergedAssets = await archiveMergedMarkdown(fileSystem, outputFolder, merged)
+  assets.push(...mergedAssets.assets)
+  const trace = documentTrace('paddleocr-vl', collection)
 
   return {
     id: file.id,
-    chunks,
+    chunks: [
+      new Document<ChunkMetadata>({
+        pageContent: merged.markdown,
+        metadata: {
+          chunkId: uuid(),
+          chunkIndex: 0,
+          mediaType: 'text',
+          contentFormat: 'markdown',
+          markdownSourceMap: merged.sourceMap,
+          sourceMapAsset: mergedAssets.sourceMapAsset,
+          baiduOcr: trace
+        }
+      })
+    ],
     metadata: {
       ...(file.metadata ?? {}),
       chunkId: uuid(),
       parser: BAIDU_PADDLE_OCR_VL,
-      assets: uniqueAssets(assets),
-      baiduOcr: documentTrace('paddleocr-vl', collection),
+      assets: uniqueDocumentAssets(assets),
+      baiduOcr: trace,
       documentAnalysis: {
         schemaVersion: 1,
         provider: 'baidu-cloud',
         engine: 'paddleocr-vl',
         pageCount: collection.pageCount ?? countStructuredPages(collection),
         coordinateSystem: 'page-top-left',
-        markdownAsset: rawAssets.find((asset) => asset.filePath.endsWith('result.md')),
+        markdownAsset: mergedAssets.markdownAsset,
+        ...(mergedAssets.analysisAsset ? { analysisAsset: mergedAssets.analysisAsset } : {}),
+        sourceMapAsset: mergedAssets.sourceMapAsset,
         rawAssets
       } satisfies BaiduDocumentAnalysisMetadata
     }
@@ -317,14 +343,14 @@ function mapPaddlePage(
   batch: CloudBatchResult,
   batchCount: number,
   assets: BatchAssets
-): Document<ChunkMetadata>[] {
+): Document<BaiduLayoutChunkMetadata>[] {
   // Baidu page_num is zero-based; adding the batch's 1-based start yields a global 1-based page.
   const providerPageNumber = finiteInteger(page.page_num) ?? pageIndex
   const sourcePage = (batch.sourcePageStart ?? 1) + providerPageNumber
   const tables = indexByLayoutId(page.tables)
   const images = indexByLayoutId(page.images)
   const layouts = Array.isArray(page.layouts) ? page.layouts : []
-  const pageChunks: Document<ChunkMetadata>[] = []
+  const pageChunks: Document<BaiduLayoutChunkMetadata>[] = []
 
   for (let blockIndex = 0; blockIndex < layouts.length; blockIndex += 1) {
     const layout = layouts[blockIndex]
@@ -335,7 +361,7 @@ function mapPaddlePage(
     const imageAsset = layoutId ? assets.images.get(layoutId) : undefined
     const pageContent = renderLayoutContent(layout, table, image, imageAsset, sourcePage)
     const chunkAssets = uniqueAssets([...assets.raw, ...(imageAsset ? [imageAsset] : [])])
-    const metadata: ChunkMetadata = {
+    const metadata: BaiduLayoutChunkMetadata = {
       chunkId: uuid(),
       chunkIndex: 0,
       page: sourcePage,
@@ -430,7 +456,7 @@ async function mapUnlimitedCollection(
   }
   const batchCount = collection.batches.length
   const assets: TDocumentAsset[] = []
-  const chunks: Document<ChunkMetadata>[] = []
+  const batchChunks: Document<BaiduLayoutChunkMetadata>[] = []
   for (const batch of collection.batches) {
     const markdown = batch.result.markdown.trim()
     if (!markdown) {
@@ -441,12 +467,12 @@ async function mapUnlimitedCollection(
     }
     const batchAssets = await archiveBatch(fileSystem, outputFolder, batch, batchCount, preserveRawOutput, false)
     assets.push(...batchAssets.raw)
-    chunks.push(
-      new Document({
+    batchChunks.push(
+      new Document<BaiduLayoutChunkMetadata>({
         pageContent: markdown,
         metadata: {
           chunkId: uuid(),
-          chunkIndex: chunks.length,
+          chunkIndex: batchChunks.length,
           mediaType: 'text',
           assets: batchAssets.raw,
           baiduOcr: {
@@ -468,22 +494,40 @@ async function mapUnlimitedCollection(
   const manifest = await archiveManifest(fileSystem, outputFolder, collection, 'unlimited-ocr', preserveRawOutput)
   if (manifest) assets.push(manifest)
   const rawAssets = uniqueAssets(assets.filter((asset) => asset.type === 'file'))
+  const merged = mergeUnlimitedMarkdownDocuments(batchChunks)
+  const mergedAssets = await archiveMergedMarkdown(fileSystem, outputFolder, merged)
+  assets.push(...mergedAssets.assets)
+  const trace = documentTrace('unlimited-ocr', collection)
   return {
     id: file.id,
-    chunks,
+    chunks: [
+      new Document<ChunkMetadata>({
+        pageContent: merged.markdown,
+        metadata: {
+          chunkId: uuid(),
+          chunkIndex: 0,
+          mediaType: 'text',
+          contentFormat: 'markdown',
+          markdownSourceMap: merged.sourceMap,
+          sourceMapAsset: mergedAssets.sourceMapAsset,
+          baiduOcr: trace
+        }
+      })
+    ],
     metadata: {
       ...(file.metadata ?? {}),
       chunkId: uuid(),
       parser: BAIDU_UNLIMITED_OCR,
-      assets: uniqueAssets(assets),
-      baiduOcr: documentTrace('unlimited-ocr', collection),
+      assets: uniqueDocumentAssets(assets),
+      baiduOcr: trace,
       documentAnalysis: {
         schemaVersion: 1,
         provider: 'baidu-cloud',
         engine: 'unlimited-ocr',
         pageCount: collection.pageCount,
         coordinateSystem: 'page-top-left',
-        markdownAsset: rawAssets.find((asset) => asset.filePath.endsWith('result.md')),
+        markdownAsset: mergedAssets.markdownAsset,
+        sourceMapAsset: mergedAssets.sourceMapAsset,
         rawAssets
       } satisfies BaiduDocumentAnalysisMetadata
     }
