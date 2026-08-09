@@ -116,7 +116,7 @@ export function DirectorWorkbench(props: DirectorWorkbenchProps) {
 
         <div className="director-top-status">
           <span className="is-saved">{productionPersisted ? <i><Check aria-hidden="true" /></i> : null}{productionPersisted ? t('director.saved', { time: '10:24' }) : t('manualProduction.draft')}</span>
-          <span className="director-budget"><b>{productionPersisted ? t('director.totalBudget') : t('project.status')}</b><strong>{productionPersisted ? '¥ 86,320.00' : t('manualProduction.unsaved')}</strong></span>
+          <span className="director-budget"><b>{productionPersisted ? t('director.costSummary') : t('project.status')}</b><strong>{productionPersisted ? t('director.costPending') : t('manualProduction.unsaved')}</strong></span>
           <div className="director-account-menu-wrap">
             <button type="button" className="director-account-button" aria-label={t('director.projectMenu')} onClick={() => setAccountMenuOpen((value) => !value)}><span>导</span><ChevronDown aria-hidden="true" /></button>
             {accountMenuOpen ? (

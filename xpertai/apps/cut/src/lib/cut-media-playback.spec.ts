@@ -1,6 +1,7 @@
 import {
   activePreviewVisualClipIds,
   audibleTimelineClips,
+  audibleTimelineSegments,
   previewMediaTargetTime,
   previewNativeAudioState,
   restoreClipSourceDuration,
@@ -33,6 +34,9 @@ describe('Cut media playback', () => {
     expect(audibleTimelineClips(project).map((clip) => clip.id)).toEqual(['video', 'music'])
     project.tracks[0]!.clips[0]!.audioDetached = true
     expect(audibleTimelineClips(project).map((clip) => clip.id)).toEqual(['music'])
+    project.tracks[0]!.clips[0]!.audioDetached = false
+    project.tracks[0]!.hidden = true
+    expect(audibleTimelineClips(project).map((clip) => clip.id)).toEqual(['music'])
   })
 
   it('excludes muted tracks and zero-volume clips', () => {
@@ -46,6 +50,78 @@ describe('Cut media playback', () => {
     const restored = restoreClipSourceDuration(document(), 'video', 87.654)
     expect(restored.settings.durationSeconds).toBe(87.654)
     expect(restored.tracks[0]!.clips[0]).toMatchObject({ duration: 87.654, trimOut: 87.654 })
+  })
+
+  it('keeps visual-track audio aligned to the visible winner', () => {
+    const project = document()
+    project.tracks[0]!.clips = [
+      {
+        id: 'base',
+        type: 'video',
+        name: 'Base',
+        start: 0,
+        duration: 10,
+        trimIn: 0,
+        trimOut: 10,
+        previewUrl: '/base.mov',
+        volume: 1
+      },
+      {
+        id: 'top',
+        type: 'video',
+        name: 'Top',
+        start: 5,
+        duration: 10,
+        trimIn: 0,
+        trimOut: 10,
+        previewUrl: '/top.mov',
+        volume: 1
+      }
+    ]
+    expect(audibleTimelineSegments(project).filter((segment) => segment.clip.type === 'video').map((segment) => ({
+      id: segment.clip.id,
+      start: segment.start,
+      duration: segment.duration
+    }))).toEqual([
+      { id: 'base', start: 0, duration: 5 },
+      { id: 'top', start: 5, duration: 10 }
+    ])
+  })
+
+  it('suppresses covered visual audio when the visible winner is silent', () => {
+    const project = document()
+    project.tracks[0]!.clips = [
+      {
+        id: 'base',
+        type: 'video',
+        name: 'Base',
+        start: 0,
+        duration: 10,
+        trimIn: 0,
+        trimOut: 10,
+        previewUrl: '/base.mov',
+        volume: 1
+      },
+      {
+        id: 'overlay',
+        type: 'video',
+        name: 'Overlay',
+        start: 5,
+        duration: 10,
+        trimIn: 0,
+        trimOut: 10,
+        previewUrl: '/overlay.mov',
+        volume: 1,
+        audioDetached: true
+      }
+    ]
+    expect(audibleTimelineSegments(project).filter((segment) => segment.clip.type === 'video').map((segment) => ({
+      id: segment.clip.id,
+      start: segment.start,
+      duration: segment.duration
+    }))).toEqual([
+      { id: 'base', start: 0, duration: 5 }
+    ])
   })
 
   it('does not repeatedly seek a media element during continuous playback', () => {

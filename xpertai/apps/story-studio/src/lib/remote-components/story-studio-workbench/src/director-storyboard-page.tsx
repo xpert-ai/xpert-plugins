@@ -53,6 +53,7 @@ import {
 } from './video-generation-data'
 import { StudioPanelLayout } from './studio-panel-layout'
 import { resolveShotGenerationSettings } from './director-shot-settings'
+import { compactVoiceReference } from '../../../voice-reference.js'
 
 const h: typeof React.createElement = React.createElement
 
@@ -388,7 +389,7 @@ export function DirectorStoryboardPage(props: DirectorStoryboardPageProps) {
 
       <ShotDialog open={editing !== null} busy={busy} t={t} shot={editing === 'new' ? null : editing} characters={production.characters} onOpenChange={(open) => !open && setEditing(null)} onSubmit={(draft) => void submitShot(draft)} />
       <ReferencePickerDialog open={referencePickerOpen} assets={production.assets.filter((asset) => asset.kind === 'character' || asset.kind === 'location')} selectedIds={referenceDraftIds} t={t} onToggle={toggleReferenceAsset} onOpenChange={setReferencePickerOpen} onConfirm={() => { setReferenceAssetIds(referenceDraftIds); settingsDirtyRef.current = true; setReferencePickerOpen(false) }} />
-      <AssetDialog open={Boolean(editingAsset)} busy={busy} t={t} asset={editingAsset} initialKind={editingAsset?.kind ?? 'character'} onOpenChange={(open) => !open && setEditingAsset(null)} onSubmit={(draft) => void submitAsset(draft)} />
+      <AssetDialog open={Boolean(editingAsset)} busy={busy} t={t} asset={editingAsset} initialKind={editingAsset?.kind ?? 'character'} voiceReference={editingAsset ? compactVoiceReference(production.characters.find((character) => character.name === editingAsset.name)?.voiceReference) : null} onOpenChange={(open) => !open && setEditingAsset(null)} onSubmit={(draft) => void submitAsset(draft)} />
       <DeleteEntityDialog open={Boolean(deleting)} busy={busy} t={t} title={t('director.crud.deleteShot')} description={t('director.crud.deleteShotHelp')} onOpenChange={(open) => !open && setDeleting(null)} onConfirm={() => void confirmDelete()} />
       <input ref={assetUploadRef} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={handleAssetUpload} />
       <input ref={shotReferenceUploadRef} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={handleShotReferenceUpload} />
@@ -518,6 +519,9 @@ function videoTaskStatusLabel(status: VideoTaskStatus, t: DirectorTranslator) {
 
 function businessFailureMessage(task: VideoGenerationTask, t: DirectorTranslator) {
   if (task.status === 'stale' || task.failureCode === 'source_changed') return t('director.storyboard.sourceChanged')
+  if (task.failureCode === 'submission_rejected' && task.failureMessage) {
+    return t('director.storyboard.submissionRejectedHelp', { message: task.failureMessage })
+  }
   if (task.status === 'submission_unknown') return t('director.storyboard.submissionUnknownHelp')
   return t('director.storyboard.generationFailedHelp')
 }

@@ -13,6 +13,7 @@ import type { MessageKey } from './i18n'
 import { MediaGenerationConsole } from './media-generation-console'
 import { MediaPreview } from './media-preview'
 import { selectedVideoCandidate } from './director-storyboard-media'
+import { compactVoiceReference } from '../../../voice-reference.js'
 import type {
   ProjectEditDraft,
   StoryEditorSession
@@ -581,9 +582,10 @@ function AssetsStage(props: {
   return (
     <div className="ss-asset-grid">
       {production.assets.map((asset) => {
-        const voiceReference = production.characters.find(
-          (character) => character.name === asset.name
-        )?.voiceReference
+        const voiceReference = compactVoiceReference(
+          production.characters.find((character) => character.name === asset.name)
+            ?.voiceReference
+        )
         const selectedReference = asset.candidates.find(
           (candidate) => candidate.kind === 'image' && candidate.selected
         )

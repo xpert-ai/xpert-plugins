@@ -73,4 +73,6 @@ runNode(requireFromPackage.resolve('typescript/bin/tsc'), [
   'tsconfig.lib.json'
 ])
 runNode(join(packageRoot, 'scripts', 'copy-assets.mjs'))
+runNode(join(packageRoot, 'scripts', 'build-sandbox-action.mjs'))
+runNode(join(packageRoot, 'scripts', 'verify-sandbox-action.mjs'))
 runNode(join(packageRoot, 'scripts', 'verify-package-output.mjs'))

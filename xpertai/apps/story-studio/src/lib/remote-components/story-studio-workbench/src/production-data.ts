@@ -698,28 +698,31 @@ export function productionActionDocument(
           : {}),
         candidates: asset.candidates.map(serializeCandidate)
       })),
-      characters: production.characters.map((character) => ({
-        id: character.id,
-        name: character.name,
-        ...(character.role ? { role: character.role } : {}),
-        ...(character.visualDescription
-          ? { visualDescription: character.visualDescription }
-          : {}),
-        ...(character.voiceReference
-          ? {
-              voiceReference: {
-                url: character.voiceReference.url,
-                label: character.voiceReference.label,
-                ...(character.voiceReference.license
-                  ? { license: character.voiceReference.license }
-                  : {}),
-                ...(character.voiceReference.sourceUrl
-                  ? { sourceUrl: character.voiceReference.sourceUrl }
-                  : {})
+      characters: production.characters.map((character) => {
+        return {
+          id: character.id,
+          name: character.name,
+          ...(character.role ? { role: character.role } : {}),
+          ...(character.visualDescription
+            ? { visualDescription: character.visualDescription }
+            : {}),
+          ...(character.voiceReference?.url?.trim() &&
+          character.voiceReference?.label?.trim()
+            ? {
+                voiceReference: {
+                  url: character.voiceReference.url.trim(),
+                  label: character.voiceReference.label.trim(),
+                  ...(character.voiceReference.license?.trim()
+                    ? { license: character.voiceReference.license.trim() }
+                    : {}),
+                  ...(character.voiceReference.sourceUrl?.trim()
+                    ? { sourceUrl: character.voiceReference.sourceUrl.trim() }
+                    : {})
+                }
               }
-            }
-          : {})
-      })),
+            : {})
+        }
+      }),
       scenes: production.scenes.map((scene) => ({
         id: scene.id,
         ...(scene.episodeId ? { episodeId: scene.episodeId } : {}),
