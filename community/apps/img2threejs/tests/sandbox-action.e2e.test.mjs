@@ -14,7 +14,7 @@ const packageRoot = path.resolve(import.meta.dirname, '..')
 const requireFromPackage = createRequire(path.join(packageRoot, 'package.json'))
 const actionEvidenceId = '223e4567-e89b-42d3-a456-426614174000'
 
-test('packaged Sandbox Action compiles and renders a Three.js TypeScript factory', async () => {
+test('packaged Sandbox Action accepts the original img2threejs direct THREE.Group factory shape', async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'img2threejs-action-'))
   const input = path.join(root, 'input')
   const output = path.join(root, 'output')
@@ -24,11 +24,41 @@ test('packaged Sandbox Action compiles and renders a Three.js TypeScript factory
     await writeFile(path.join(input, 'model', 'model.ts'), `import * as THREE from 'three';
 export function createActionTestModel() {
   const root = new THREE.Group();
-  root.add(new THREE.Mesh(
+  const material = new THREE.MeshStandardMaterial({
+    color: '#7c3aed',
+    emissive: '#7c3aed',
+    emissiveIntensity: 0.4,
+    roughness: 0.7
+  });
+  const animated = new THREE.Mesh(
     new THREE.BoxGeometry(1, 1.5, 0.8),
-    new THREE.MeshStandardMaterial({ color: '#7c3aed', roughness: 0.7 })
-  ));
-  return { root, dispose() {} };
+    material
+  );
+  root.add(animated);
+  root.userData.tick = (_dt, elapsed) => {
+    animated.rotation.y = Math.sin(elapsed) * 0.2;
+    material.emissiveIntensity = 0.4 + Math.sin(elapsed * 2) * 0.1;
+  };
+  return root;
+}
+export function createActionTestLookDevLights() {
+  const lights = new THREE.Group();
+  const key = new THREE.DirectionalLight('#ffffff', 1.8);
+  key.position.set(3, 5, 4);
+  key.castShadow = true;
+  lights.add(key);
+  return lights;
+}
+export function makeSkyTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 2;
+  canvas.height = 2;
+  const context = canvas.getContext('2d');
+  context.fillStyle = '#4ab2e7';
+  context.fillRect(0, 0, 2, 2);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
 }
 `)
     await writeFile(
@@ -64,7 +94,7 @@ export function createActionTestModel() {
     )
     const isolatedBundle = path.join(root, 'runtime', 'action')
     await cp(packagedBundle, isolatedBundle, { recursive: true, dereference: true })
-    for (const platformPackage of ['linux-x64', 'darwin-arm64']) {
+    for (const platformPackage of ['linux-x64', 'linux-arm64', 'darwin-arm64']) {
       await chmod(path.join(isolatedBundle, 'runtime-modules', '@esbuild', platformPackage, 'bin', 'esbuild'), 0o644)
     }
     const playwrightRoot = await realpath(path.dirname(requireFromPackage.resolve('playwright-core/package.json')))
@@ -73,14 +103,30 @@ export function createActionTestModel() {
     const execution = await runNode(path.join(isolatedBundle, 'runner.mjs'), requestPath, output, root)
     assert.match(execution.stdout, /XPERT_SANDBOX_PROGRESS/)
     assert.equal(execution.stderr, '')
-    for (const file of ['render-front.png', 'render-three-quarter.png', 'comparison.png', 'render-report.json']) {
+    for (const file of ['model.glb', 'render-front.png', 'render-three-quarter.png', 'comparison.png', 'render-report.json']) {
       await access(path.join(output, file))
     }
+    const directFactoryGlb = await readFile(path.join(output, 'model.glb'))
+    assertValidGlb(directFactoryGlb)
+    const directFactoryGlbJson = parseGlbJson(directFactoryGlb)
+    assert.equal(directFactoryGlbJson.animations.length, 1)
+    assert.equal(directFactoryGlbJson.animations[0].channels.length, 1)
+    assert.ok(directFactoryGlbJson.extensionsUsed.includes('KHR_lights_punctual'))
+    assert.ok(directFactoryGlbJson.materials.some(
+      (material) => material.extras?.img2threejsAnimation?.tracks?.[0]?.property === 'emissiveIntensity'
+    ))
+    const presentation = directFactoryGlbJson.nodes
+      .map((node) => node.extras?.img2threejsPresentation)
+      .find(Boolean)
+    assert.equal(presentation.background.kind, 'data-url')
+    assert.equal(presentation.embeddedLights, true)
+    assert.deepEqual(presentation.camera.position, [0, 0.5, 4])
     const report = JSON.parse(await readFile(path.join(output, 'render-report.json'), 'utf8'))
     assert.equal(report.action, 'img2threejs.review-render')
     assert.equal(report.quality.passed, false)
     assert.ok(report.quality.triangles > 0)
     assert.ok(report.quality.drawCalls > 0)
+    assert.ok(report.quality.runtimeMeshCount >= report.quality.minimumRuntimeMeshCount)
     assert.ok(report.quality.visiblePixelRatio >= report.quality.minimumVisiblePixelRatio)
     assert.ok(report.quality.silhouetteFillRatio >= report.quality.minimumSilhouetteFillRatio)
     assert.equal(report.quality.views.length, 2)
@@ -125,6 +171,7 @@ export function createActionTestModel() {
     )
     assert.equal(verifiedReport.quality.passed, true, JSON.stringify(verifiedReport.quality))
     assert.equal(verifiedReport.quality.referenceAlignment.hardGateEligible, true)
+    assert.ok(verifiedReport.quality.runtimeMeshCount >= verifiedReport.quality.minimumRuntimeMeshCount)
     assert.ok(verifiedReport.quality.referenceAlignment.silhouetteIoU > 0.95)
     assert.equal(verifiedReport.quality.failureCodes.length, 0)
   } finally {
@@ -140,7 +187,21 @@ test('packaged Sandbox Action renders typed Crown Chest geometry and materials',
     await mkdir(path.join(input, 'model'), { recursive: true })
     await mkdir(path.join(input, 'references'), { recursive: true })
     const evidenceId = '123e4567-e89b-42d3-a456-426614174000'
-    const spec = SculptSpecSchema.parse(crownChestSpec(evidenceId))
+    const sourceSpec = crownChestSpec(evidenceId)
+    const legacyPrimitiveByGeometry = {
+      'rounded-box': 'box',
+      'torus-arc': 'torus',
+      'extrude-shape': 'extrude'
+    }
+    for (const component of sourceSpec.components) {
+      if (component.geometry?.type in legacyPrimitiveByGeometry) {
+        component.primitive = legacyPrimitiveByGeometry[component.geometry.type]
+      }
+    }
+    const spec = SculptSpecSchema.parse(sourceSpec)
+    const incompatibleSpec = structuredClone(sourceSpec)
+    incompatibleSpec.components[0].primitive = 'torus'
+    assert.equal(SculptSpecSchema.safeParse(incompatibleSpec).success, false)
     await writeFile(path.join(input, 'model', 'model.ts'), generateThreeJsFactory(spec))
     await writeFile(
       path.join(input, 'references', '01-reference.png'),
@@ -175,7 +236,8 @@ test('packaged Sandbox Action renders typed Crown Chest geometry and materials',
           minimumPerceptualScore: spec.qualityContract.minimumPerceptualScore,
           minimumReferenceMaskConfidence: spec.qualityContract.minimumReferenceMaskConfidence,
           minimumMultiAngleSilhouetteRetention: spec.qualityContract.minimumMultiAngleSilhouetteRetention,
-          minimumVolumeAxisRatio: spec.qualityContract.minimumVolumeAxisRatio
+          minimumVolumeAxisRatio: spec.qualityContract.minimumVolumeAxisRatio,
+          minimumRuntimeMeshCount: spec.qualityContract.minimumComponentCount
         }
       }
     }))
@@ -188,7 +250,7 @@ test('packaged Sandbox Action renders typed Crown Chest geometry and materials',
     )
     const isolatedBundle = path.join(root, 'runtime', 'action')
     await cp(packagedBundle, isolatedBundle, { recursive: true, dereference: true })
-    for (const platformPackage of ['linux-x64', 'darwin-arm64']) {
+    for (const platformPackage of ['linux-x64', 'linux-arm64', 'darwin-arm64']) {
       await chmod(path.join(isolatedBundle, 'runtime-modules', '@esbuild', platformPackage, 'bin', 'esbuild'), 0o644)
     }
     const playwrightRoot = await realpath(path.dirname(requireFromPackage.resolve('playwright-core/package.json')))
@@ -203,9 +265,16 @@ test('packaged Sandbox Action renders typed Crown Chest geometry and materials',
     assert.ok(report.quality.visiblePixelRatio >= report.quality.minimumVisiblePixelRatio)
     assert.ok(report.quality.silhouetteFillRatio >= report.quality.minimumSilhouetteFillRatio)
     assert.ok(report.quality.failureCodes.length > 0)
-    for (const file of ['render-front.png', 'render-three-quarter.png', 'comparison.png']) {
+    for (const file of ['model.glb', 'render-front.png', 'render-three-quarter.png', 'comparison.png']) {
       await access(path.join(output, file))
     }
+    const crownGlb = await readFile(path.join(output, 'model.glb'))
+    assertValidGlb(crownGlb)
+    const crownGlbJson = parseGlbJson(crownGlb)
+    assert.ok(
+      crownGlbJson.meshes.some((mesh) => mesh.primitives.some((primitive) => Number.isInteger(primitive.attributes.COLOR_0))),
+      'expected the portable height color ramp to be baked into GLB COLOR_0 attributes'
+    )
     const { data, info } = await sharp(path.join(output, 'render-three-quarter.png'))
       .removeAlpha()
       .raw()
@@ -226,6 +295,19 @@ test('packaged Sandbox Action renders typed Crown Chest geometry and materials',
     await rm(root, { recursive: true, force: true })
   }
 })
+
+function assertValidGlb(buffer) {
+  assert.ok(buffer.length >= 20)
+  assert.equal(buffer.toString('ascii', 0, 4), 'glTF')
+  assert.equal(buffer.readUInt32LE(4), 2)
+  assert.equal(buffer.readUInt32LE(8), buffer.length)
+}
+
+function parseGlbJson(buffer) {
+  const jsonLength = buffer.readUInt32LE(12)
+  assert.equal(buffer.toString('ascii', 16, 20), 'JSON')
+  return JSON.parse(buffer.subarray(20, 20 + jsonLength).toString('utf8').trim())
+}
 
 function reviewContract(evidenceId, view) {
   return {
@@ -261,6 +343,7 @@ function reviewQuality(maximumTriangles, maximumDrawCalls) {
   return {
     maximumTriangles,
     maximumDrawCalls,
+    minimumRuntimeMeshCount: 1,
     minimumSilhouetteIoU: 0.3,
     minimumScaleScore: 0.65,
     minimumEdgeScore: 0.12,

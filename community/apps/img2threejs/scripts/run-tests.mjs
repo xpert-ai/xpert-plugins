@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { HumanMessage, ToolMessage } from '@langchain/core/messages'
 import {
   IMG2THREEJS_ARTIFACT_NAMESPACE,
   IMG2THREEJS_QUEUE_NAME,
@@ -25,13 +26,31 @@ import { createStarterSculptSpec } from '../dist/lib/domain/starter-sculpt-spec.
 import { generateThreeJsFactory } from '../dist/lib/domain/threejs-generator.js'
 import { toViewerScene } from '../dist/lib/contracts/viewer-scene.js'
 import {
+  AuthorCodeFileToolSchema,
+  AuthorCodeToolSchema,
   CancelRunToolSchema,
+  ChangeSummaryProbeSchema,
   EnqueueStageToolSchema,
+  InspectCodeFileToolSchema,
+  PatchCodeToolSchema,
+  PatchSpecToolSchema,
+  PatchRuntimeContractToolSchema,
+  RevalidateCodeToolSchema,
   SubmitImagesToolSchema
 } from '../dist/lib/tool-schemas.js'
 import { Img2ThreeJsController } from '../dist/lib/img2threejs.controller.js'
+import { diagnoseAssistantSourceImports } from '../dist/lib/img2threejs-agent-query.service.js'
+import {
+  img2ThreeJsActionAllowsSandbox,
+  img2ThreeJsToolsForNextAction,
+  isImg2ThreeJsToolAllowedForNextAction
+} from '../dist/lib/img2threejs.middleware.js'
+import { minimumComponentCountFromReview } from '../dist/lib/img2threejs.service.js'
 import { Img2ThreeJsViewProvider } from '../dist/lib/img2threejs-view.provider.js'
 import {
+  isAssistantSourceBuildFailure,
+  isTransientWorkspaceInputVisibilityFailure,
+  runNextAction,
   scopedIdWhere,
   summarizeAsset,
   validateReviewDecision
@@ -156,6 +175,168 @@ const spec = {
 }
 
 const parsed = SculptSpecSchema.parse(spec)
+assert.deepEqual(diagnoseAssistantSourceImports([
+  "import * as THREE from 'three';",
+  "import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry';"
+].join('\n')), [{
+  code: 'ESM_IMPORT_EXTENSION_MISSING',
+  line: 2,
+  moduleSpecifier: 'three/examples/jsm/geometries/RoundedBoxGeometry',
+  detail: "The browser ESM build requires an explicit .js suffix for 'three/examples/jsm/geometries/RoundedBoxGeometry'. Author a new Assistant candidate with a resolvable module specifier; do not retry the immutable code version."
+}])
+assert.equal(isAssistantSourceBuildFailure({
+  code: 'SANDBOX_START_FAILED',
+  message: 'Build failed: model/model.ts:2:35: Could not resolve "three/examples/jsm/geometries/RoundedBoxGeometry"'
+}), true)
+assert.equal(isAssistantSourceBuildFailure({
+  code: 'SANDBOX_START_FAILED',
+  message: 'Remote runtime was temporarily unavailable'
+}), false)
+assert.equal(isTransientWorkspaceInputVisibilityFailure({
+  code: 'EXPORT_INPUT_INVALID',
+  message: 'Unable to read model.ts: Workspace file not found'
+}), true)
+assert.equal(runNextAction({
+  status: 'review_required',
+  nextDecision: 'continue',
+  failureReasons: ['EXPORT_INPUT_INVALID', 'SANDBOX_START_FAILED'],
+  stageResults: [],
+  renderReport: {
+    status: 'failed',
+    failure: {
+      code: 'EXPORT_INPUT_INVALID',
+      message: 'Unable to read model/model.ts: Conversation file not found',
+      retryable: false
+    }
+  }
+}), 'read_visual_diagnostics_then_refine_code')
+assert.equal(runNextAction({
+  status: 'review_required',
+  humanReviewStatus: 'changes_requested',
+  nextDecision: 'refine-code',
+  failureReasons: [],
+  stageResults: [],
+  renderReport: { status: 'succeeded' }
+}), 'read_visual_diagnostics_then_refine_code')
+const overlongSemanticBlueprint = structuredClone(spec)
+overlongSemanticBlueprint.components = Array.from({ length: 31 }, (_, index) => ({
+  ...structuredClone(spec.components[0]),
+  id: index === 0 ? 'root' : `detail_${index}`,
+  name: index === 0 ? 'Root body' : `Runtime-authored detail ${index}`
+}))
+const overlongSemanticBlueprintResult = SculptSpecSchema.safeParse(overlongSemanticBlueprint)
+assert.equal(overlongSemanticBlueprintResult.success, false)
+assert.match(JSON.stringify(overlongSemanticBlueprintResult.error?.issues), /compact blueprints with at most 30 components/)
+const worldOffsetChildSpec = structuredClone(spec)
+worldOffsetChildSpec.components.push({
+  id: 'floating_child',
+  parentId: 'root',
+  name: 'Floating child',
+  semanticType: 'detail_cluster',
+  primitive: 'box',
+  geometry: { type: 'rounded-box', width: 0.2, height: 0.2, depth: 0.2, segments: 2, radius: 0.05 },
+  transform: { position: [0, 8, 0], rotation: [0, 0, 0], scale: [1, 1, 1] },
+  materialId: 'body_material',
+  deformable: false,
+  evidenceIds: [evidenceId],
+  confidence: 0.9
+})
+const worldOffsetChildResult = SculptSpecSchema.safeParse(worldOffsetChildSpec)
+assert.equal(worldOffsetChildResult.success, false)
+assert.match(JSON.stringify(worldOffsetChildResult.error?.issues), /parent-local transform/)
+const flatDioramaCameraSpec = structuredClone(spec)
+flatDioramaCameraSpec.route = 'object'
+flatDioramaCameraSpec.components[0] = {
+  ...flatDioramaCameraSpec.components[0],
+  primitive: 'custom',
+  geometry: { type: 'rounded-box', width: 16, height: 0.3, depth: 14, segments: 4, radius: 0.1 },
+  transform: { position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] }
+}
+flatDioramaCameraSpec.referenceCamera = {
+  ...flatDioramaCameraSpec.referenceCamera,
+  position: [0, 8, 23],
+  target: [0, 0, 0]
+}
+const flatDioramaCameraResult = SculptSpecSchema.safeParse(flatDioramaCameraSpec)
+assert.equal(
+  flatDioramaCameraResult.success,
+  true,
+  `flat diorama framing must use oriented component extents instead of expanding every axis by each component bounding sphere: ${JSON.stringify(flatDioramaCameraResult.error?.issues ?? [])}`
+)
+assert.equal(ChangeSummaryProbeSchema.safeParse({ changeSummary: 'x'.repeat(1000) }).success, true)
+assert.equal(ChangeSummaryProbeSchema.safeParse({ changeSummary: 'x'.repeat(2001) }).success, false)
+assert.equal(PatchRuntimeContractToolSchema.safeParse({
+  projectId: evidenceId,
+  sourceSpecVersionId: runId,
+  minimumRuntimeMeshCount: 55,
+  confidence: 0.95,
+  changeSummary: 'Raise the browser runtime mesh floor without expanding the semantic blueprint.'
+}).success, true)
+assert.equal(PatchSpecToolSchema.safeParse({
+  projectId: evidenceId,
+  sourceSpecVersionId: runId,
+  referenceCamera: {
+    ...spec.referenceCamera,
+    position: [0, 8, 24]
+  },
+  componentPatches: [{
+    componentId: 'root',
+    transform: { position: [0.25, 0, 0] }
+  }],
+  materialPatches: [{ materialId: 'body_material', baseColor: '#ef4444' }],
+  confidence: 0.95,
+  changeSummary: 'Apply bounded camera, component, and material corrections without resending the full Spec.'
+}).success, true)
+assert.equal(PatchSpecToolSchema.safeParse({
+  projectId: evidenceId,
+  sourceSpecVersionId: runId,
+  componentPatches: [],
+  materialPatches: [],
+  confidence: 0.95,
+  changeSummary: 'Empty patch.'
+}).success, false)
+assert.equal(RevalidateCodeToolSchema.safeParse({
+  projectId: evidenceId,
+  codeVersionId: runId,
+  changeSummary: 'Re-run policy review without replacing immutable Assistant source bytes.'
+}).success, true)
+assert.equal(PatchCodeToolSchema.safeParse({
+  projectId: evidenceId,
+  codeVersionId: runId,
+  replacements: [{ oldText: 'const before = true', newText: 'const after = true' }],
+  changeSummary: 'Apply a bounded exact Assistant-authored source refinement.'
+}).success, true)
+assert.equal(InspectCodeFileToolSchema.safeParse({
+  projectId: evidenceId,
+  sourceFilePath: '/workspace/img2threejs-work/model.ts'
+}).success, true)
+assert.equal(AuthorCodeFileToolSchema.safeParse({
+  projectId: evidenceId,
+  specVersionId: runId,
+  mode: 'create',
+  baseCodeVersionId: null,
+  sourceFilePath: '/workspace/img2threejs-work/model.ts',
+  changeSummary: 'Import an Assistant-authored TypeScript module from Workspace Files.'
+}).success, true)
+assert.equal(AuthorCodeFileToolSchema.safeParse({
+  projectId: evidenceId,
+  specVersionId: runId,
+  mode: 'refine',
+  baseCodeVersionId: null,
+  sourceFilePath: '/workspace/img2threejs-work/model.ts',
+  changeSummary: 'Invalid file refinement request.'
+}).success, false)
+const legacySourceControlParse = AuthorCodeFileToolSchema.safeParse({
+  projectId: evidenceId,
+  specVersionId: runId,
+  mode: 'create',
+  baseCodeVersionId: null,
+  sourceFilePath: '/workspace/img2threejs-work/model.ts',
+  expectedSourceSha256: 'c'.repeat(64),
+  changeSummary: 'Ignore a deprecated caller-managed source concurrency input.'
+})
+assert.equal(legacySourceControlParse.success, true)
+assert.equal('expectedSourceSha256' in legacySourceControlParse.data, false)
 const failedGateQuality = {
   triangles: 100,
   drawCalls: 1,
@@ -199,17 +380,37 @@ assert.throws(
   () => validateReviewDecision({
     status: 'review_required',
     renderReport: {
+      status: 'failed',
+      action: 'img2threejs.review-render',
+      actionVersion: '1.0.0'
+    },
+    visualReview: { renderStatus: 'failed' }
+  }, 'approved', 'continue'),
+  /VISUAL_REVIEW_APPROVAL_REQUIRES_BROWSER_RENDER/
+)
+assert.throws(
+  () => validateReviewDecision({
+    status: 'review_required',
+    renderReport: {
       status: 'succeeded',
       action: 'img2threejs.review-render',
       actionVersion: '1.0.0',
       quality: failedGateQuality
+    },
+    visualReview: {
+      renderStatus: 'succeeded',
+      comparisonAsset: { filePath: 'comparison.png' }
     }
   }, 'approved', 'continue'),
   /REFERENCE_FIDELITY_GATE_BLOCKED/
 )
 
 const viewProvider = new Img2ThreeJsViewProvider(
-  {},
+  {
+    async getStatus() {
+      return { revision: 7, runId: null, runRevision: null }
+    }
+  },
   {},
   {
     async startGeneration() {
@@ -246,15 +447,16 @@ const semanticAction = await viewProvider.executeViewAction(
   'start_generation',
   {
     input: {
-      projectId: evidenceId,
-      baseRevision: 7
+      projectId: evidenceId
     }
   }
 )
 assert.equal(semanticAction.success, true)
+assert.equal('revision' in semanticAction.data, false)
+assert.doesNotMatch(JSON.stringify(semanticAction.data), /"(?:revision|runRevision|baseRevision)"\s*:/)
 assert.equal(semanticAction.data.clientCommand.commandKey, 'assistant.chat.send_message')
 assert.equal(semanticAction.data.clientCommand.payload.state.img2threejs.projectId, evidenceId)
-assert.equal(semanticAction.data.clientCommand.payload.state.img2threejs.expectedRevision, 7)
+assert.equal('expectedRevision' in semanticAction.data.clientCommand.payload.state.img2threejs, false)
 assert.deepEqual(semanticAction.data.clientCommand.payload.state.img2threejs.evidenceIds, [runId])
 
 const semanticHeightfield = {
@@ -338,6 +540,19 @@ assert.throws(() => assertStageMayRun('optimization-pass', []), /PIPELINE_STAGE_
 const code = generateThreeJsFactory(parsed)
 const review = deterministicReview(parsed, code)
 assert.equal(review.status, 'passed')
+assert.equal(review.authorship, 'deterministic-generator')
+const singleQuotedComponentCode = code.replaceAll('"root"', "'root'")
+const singleQuotedComponentReview = deterministicReview(parsed, singleQuotedComponentCode, 'assistant-authored')
+assert.equal(singleQuotedComponentReview.status, 'passed')
+assert.equal(singleQuotedComponentReview.checks.find((item) => item.code === 'component_coverage')?.passed, true)
+const unsafeReview = deterministicReview(parsed, `${code}\nfetch('https://example.invalid')`, 'assistant-authored')
+assert.equal(unsafeReview.status, 'failed')
+assert.equal(unsafeReview.authorship, 'assistant-authored')
+assert.equal(unsafeReview.checks.find((item) => item.code === 'no_external_io')?.passed, false)
+const syntaxReview = deterministicReview(parsed, code.replace(/}\s*$/, ''), 'assistant-authored')
+assert.equal(syntaxReview.status, 'failed')
+assert.equal(syntaxReview.checks.find((item) => item.code === 'typescript_syntax')?.passed, false)
+assert.match(syntaxReview.checks.find((item) => item.code === 'typescript_syntax')?.detail ?? '', /model\.ts:\d+:\d+/)
 assert.match(code, /from 'three'/)
 assert.doesNotMatch(code, /\bpython\b/i)
 const crownSpec = SculptSpecSchema.parse(crownChestSpec(evidenceId))
@@ -409,24 +624,67 @@ assert.equal(scopedWhere.id, evidenceId)
 
 assert.equal(SubmitImagesToolSchema.safeParse({
   projectId: evidenceId,
-  baseRevision: 1,
   images: [{ filePath: '/workspace/a.png', label: 'front', view: 'front' }],
   changeSummary: 'Admit the front reference.',
   tenantId: 'must-not-be-model-visible'
 }).success, false)
+assert.equal(AuthorCodeToolSchema.safeParse({
+  projectId: evidenceId,
+  specVersionId: runId,
+  mode: 'create',
+  baseCodeVersionId: null,
+  source: 'x'.repeat(500),
+  changeSummary: 'Assistant-authored executable Three.js source.'
+}).success, true)
+const authorCodeWithoutSummary = AuthorCodeToolSchema.safeParse({
+  projectId: evidenceId,
+  specVersionId: runId,
+  mode: 'create',
+  baseCodeVersionId: null,
+  source: 'x'.repeat(500)
+})
+assert.equal(authorCodeWithoutSummary.success, true)
+assert.match(
+  authorCodeWithoutSummary.success ? authorCodeWithoutSummary.data.changeSummary : '',
+  /complete object-specific Three\.js TypeScript replacement/
+)
+assert.equal(AuthorCodeToolSchema.safeParse({
+  projectId: evidenceId,
+  specVersionId: runId,
+  mode: 'refine',
+  baseCodeVersionId: null,
+  source: 'x'.repeat(500),
+  changeSummary: 'Invalid refine request.'
+}).success, false)
 assert.equal(EnqueueStageToolSchema.safeParse({
   projectId: evidenceId,
-  baseRevision: 1,
   stage: 'material-pass',
   changeSummary: 'Queue material pass.'
 }).success, true)
 assert.equal(CancelRunToolSchema.safeParse({
   projectId: evidenceId,
   runId,
-  baseRevision: 1,
   changeSummary: 'Cancel this run.',
   extra: true
 }).success, false)
+const legacySpecRevisionParse = PatchSpecToolSchema.safeParse({
+  projectId: evidenceId,
+  sourceSpecVersionId: runId,
+  silhouetteIntent: 'Preserve the evidence-backed primary silhouette.',
+  confidence: 0.95,
+  changeSummary: 'Old caller-managed concurrency input is ignored.',
+  baseRevision: 1
+})
+assert.equal(legacySpecRevisionParse.success, true)
+assert.equal('baseRevision' in legacySpecRevisionParse.data, false)
+const legacyRunRevisionParse = CancelRunToolSchema.safeParse({
+  projectId: evidenceId,
+  runId,
+  changeSummary: 'Old caller-managed concurrency input is ignored.',
+  runRevision: 1
+})
+assert.equal(legacyRunRevisionParse.success, true)
+assert.equal('runRevision' in legacyRunRevisionParse.data, false)
 
 const safeAsset = summarizeAsset({
   name: 'model.ts',
@@ -461,11 +719,54 @@ const skillContent = readFileSync(
 )
 assert.match(skillContent, /img2threejs_read_evidence/)
 assert.match(skillContent, /img2threejs_update_spec/)
+assert.match(skillContent, /img2threejs_patch_spec/)
 assert.match(skillContent, /img2threejs_wait_run/)
+assert.match(skillContent, /img2threejs_read_visual_diagnostics/)
 assert.match(skillContent, /optimization-pass/)
+assert.doesNotMatch(skillContent, /Activate this Skill in every modeling turn/)
+assert.doesNotMatch(skillContent, /keep the successful `read_skill_file` result visible/)
+assert.doesNotMatch(skillContent, /\b(?:baseRevision|expectedRevision|runRevision|projectRevision)\b/)
+assert.match(skillContent, /at or below 8,000 characters/)
+assert.match(skillContent, /never call\s+`sandbox_write_file` for that path again/)
+assert.match(skillContent, /non-empty `error` field is a failed operation/)
+assert.match(skillContent, /does not invalidate or roll back the current\s+valid Spec/)
+assert.equal(
+  minimumComponentCountFromReview('将 qualityContract.minimumComponentCount 提升到至少 55，实际至少 55 个可见体块。'),
+  55
+)
+assert.equal(
+  minimumComponentCountFromReview('Require at least 72 auditable components without lowering thresholds.'),
+  72
+)
+assert.equal(minimumComponentCountFromReview('Refine the camera only.'), null)
 const assistantDsl = readFileSync(join(packageRoot, 'src', 'xpert-img2threejs-assistant.yaml'), 'utf8')
-assert.match(assistantDsl, /Use the installed img2threejs-semantic-modeling Skill/)
+assert.match(assistantDsl, /Build reviewable Img2ThreeJs projects/)
+assert.doesNotMatch(assistantDsl, /first call read_skill_file/)
+assert.doesNotMatch(assistantDsl, /execution record must retain a successful read_skill_file/)
+assert.doesNotMatch(assistantDsl, /\b(?:baseRevision|expectedRevision|runRevision|projectRevision)\b/)
+assert.match(assistantDsl, /normal progressive-disclosure workflow/)
+assert.match(assistantDsl, /detailed modeling procedure belongs to that Skill/)
+assert.match(assistantDsl, /Caller-managed concurrency fields do not exist/)
+assert.match(assistantDsl, /never\s+copy, translate, or adapt source/)
 assert.doesNotMatch(assistantDsl, /Follow this durable workflow/)
+assert.match(assistantDsl, /provider: SandboxFile/)
+assert.match(assistantDsl, /provider: SandboxShell/)
+assert.deepEqual(
+  [...img2ThreeJsToolsForNextAction('submit_review')].sort(),
+  ['img2threejs_get_status', 'img2threejs_read_visual_diagnostics', 'img2threejs_submit_review'].sort()
+)
+assert.ok(img2ThreeJsToolsForNextAction('read_visual_diagnostics_then_refine_code').has('img2threejs_read_code'))
+assert.ok(img2ThreeJsToolsForNextAction('read_visual_diagnostics_then_refine_code').has('img2threejs_author_code_file'))
+assert.equal(img2ThreeJsToolsForNextAction('read_visual_diagnostics_then_refine_code').has('img2threejs_patch_code'), false)
+assert.equal(img2ThreeJsToolsForNextAction('read_visual_diagnostics_then_refine_code').has('img2threejs_revalidate_code'), false)
+assert.equal(img2ThreeJsToolsForNextAction('unknown_future_action'), null)
+assert.equal(img2ThreeJsActionAllowsSandbox('submit_review'), false)
+assert.equal(img2ThreeJsActionAllowsSandbox('wait_run'), false)
+assert.equal(img2ThreeJsActionAllowsSandbox('author_code'), true)
+assert.equal(img2ThreeJsActionAllowsSandbox('read_visual_diagnostics_then_refine_code'), true)
+assert.equal(isImg2ThreeJsToolAllowedForNextAction('img2threejs_patch_spec', 'submit_review'), false)
+assert.equal(isImg2ThreeJsToolAllowedForNextAction('img2threejs_submit_review', 'submit_review'), true)
+assert.equal(isImg2ThreeJsToolAllowedForNextAction('img2threejs_patch_spec', 'unknown_future_action'), true)
 const remoteRoot = join(packageRoot, 'src', 'lib', 'remote-components', 'review-workbench')
 const remoteScript = readFileSync(join(remoteRoot, 'app.js'), 'utf8')
 const remoteStyle = readFileSync(join(remoteRoot, 'app.css'), 'utf8')
@@ -495,5 +796,26 @@ await assert.rejects(
   missingProjectController.getSummary(evidenceId),
   (error) => error?.getStatus?.() === 404 && error?.message === 'PROJECT_NOT_FOUND'
 )
+
+const publicSummaryController = new Img2ThreeJsController({
+  async getStatus() {
+    return {
+      projectId: evidenceId,
+      revision: 9,
+      runRevision: 4,
+      status: 'review_required',
+      nextActionInput: {
+        projectId: evidenceId,
+        baseRevision: 9,
+        revisionRecovery: { expectedRevision: 8, recoveredFromExpectedRevision: 8 }
+      }
+    }
+  }
+})
+const publicSummary = await publicSummaryController.getSummary(evidenceId)
+assert.deepEqual(publicSummary, {
+  projectId: evidenceId,
+  status: 'review_required'
+})
 
 console.log('img2threejs focused contract tests passed')

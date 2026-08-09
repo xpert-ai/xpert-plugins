@@ -16,7 +16,6 @@ export type ProjectRow = {
   route: 'object' | 'character'
   modelingMode: 'semantic-3d' | 'relief'
   status: string
-  revision: number
   confidence: number
   humanReviewStatus: string
   nextDecision: string
@@ -34,8 +33,6 @@ export type SelectedData = {
   project: {
     projectId: string
     runId: string | null
-    revision: number
-    runRevision: number | null
     status: string
     currentStage: string | null
     completedStages: string[]
@@ -60,6 +57,12 @@ export type SelectedData = {
     width: number | null
     height: number | null
     confidence: number
+    foregroundCoverage?: number | null
+    largestComponentFraction?: number | null
+    maskConfidence?: number | null
+    pHash?: string | null
+    viewpointConfidence?: number | null
+    requestInputReason?: string | null
     previewFileKey: string
     previewUrl: string | null
   }>
@@ -70,7 +73,9 @@ export type SelectedData = {
     codeSha256: string | null
     sourceAsset: JsonObject | null
     comparisonAsset: JsonObject | null
+    modelAsset: JsonObject | null
     comparisonPreviewUrl: string | null
+    modelPreviewUrl: string | null
     visualReview: JsonObject | null
     renderReport: JsonObject | null
     capabilities: {

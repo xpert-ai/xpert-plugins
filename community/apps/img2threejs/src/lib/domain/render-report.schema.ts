@@ -15,6 +15,8 @@ const featureResultSchema = z.object({
 export const SandboxRenderQualitySchema = z.object({
   triangles: z.number().int().nonnegative(),
   drawCalls: z.number().int().nonnegative(),
+  runtimeMeshCount: z.number().int().nonnegative().optional(),
+  minimumRuntimeMeshCount: z.number().int().positive().optional(),
   maximumTriangles: z.number().int().positive(),
   maximumDrawCalls: z.number().int().positive(),
   minimumVisiblePixelRatio: unit.optional(),

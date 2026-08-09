@@ -56,6 +56,8 @@ export type DeterministicReview = {
   score: number
   checks: Array<{ code: string; passed: boolean; detail: string }>
   codeSha256?: string
+  authorship?: 'deterministic-generator' | 'assistant-authored' | 'assistant-refined'
+  changeSummary?: string
 }
 
 export type VisualReview = {
@@ -63,6 +65,7 @@ export type VisualReview = {
   evidenceKind: 'deterministic_projection' | 'browser_render' | 'none'
   renderStatus?: 'not_requested' | 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'unavailable'
   comparisonAsset?: WorkspaceAssetReference
+  modelAsset?: WorkspaceAssetReference
   capabilityReason?: string
   notes?: string
 }
@@ -86,10 +89,21 @@ export type BrowserRenderReport = {
   attempt?: number
   comparisonArtifactId?: string
   comparisonArtifactVersionId?: string
-  outputs?: Array<{ path: string; name: string; mimeType: string; size: number; sha256: string }>
+  modelArtifactId?: string
+  modelArtifactVersionId?: string
+  outputs?: Array<{
+    path: string
+    name: string
+    mimeType: string
+    size: number
+    sha256: string
+    filePath?: string
+  }>
   quality?: {
     triangles: number
     drawCalls: number
+    runtimeMeshCount?: number
+    minimumRuntimeMeshCount?: number
     maximumTriangles: number
     maximumDrawCalls: number
     minimumVisiblePixelRatio?: number
