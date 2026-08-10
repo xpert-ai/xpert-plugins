@@ -1,6 +1,6 @@
 import { SiliconflowLargeLanguageModel } from './llm.js'
 import { SiliconflowProviderStrategy } from '../provider.strategy.js'
-import { ModelFeature } from '@metad/contracts'
+import { ModelFeature } from '@xpert-ai/contracts'
 import { TChatModelOptions } from '@xpert-ai/plugin-sdk'
 import { SiliconflowModelCredentials } from '../types.js'
 

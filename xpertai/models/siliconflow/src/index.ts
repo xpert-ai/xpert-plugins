@@ -33,7 +33,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
     },
     displayName: 'SiliconFlow',
     description: 'Provide SiliconFlow models through XpertAI model providers',
-    keywords: ['SiliconFlow', 'llm', 'embedding', 'rerank', 'speech2text', 'tts'],
+    keywords: ['SiliconFlow', 'llm', 'embedding', 'rerank', 'speech2text', 'tts', 'video'],
     author: 'XpertAI Team',
   },
   config: {

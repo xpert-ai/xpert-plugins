@@ -32,6 +32,7 @@
     "!**/*.tsbuildinfo"
   ],
   "scripts": {
+    "build": "tsc --build tsconfig.lib.json --force && node ./scripts/copy-assets.mjs",
     "prepack": "node ./scripts/copy-assets.mjs"
   },
   "dependencies": {
@@ -45,6 +46,7 @@
     "@nestjs/config": "^4.0.2",
     "@xpert-ai/plugin-sdk": "^3.6.1",
     "chalk": "4.1.2",
+    "lodash-es": "4.17.21",
     "zod": "3.25.67"
   }
 }
