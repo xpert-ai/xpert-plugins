@@ -76,6 +76,7 @@ import { useAssetBibleActions } from './use-asset-bible-actions'
 import { useMediaGenerationActions } from './use-media-generation-actions'
 import { findHandoff, readHostThemeMode } from './workbench-data'
 import { createManualStarterProduction } from './manual-production'
+import { selectPrimaryAssetImageCandidate } from './director-production-crud'
 import { selectedVideoCandidate } from './director-storyboard-media'
 import {
   hasUnhydratedCompletedVideoTask,
@@ -190,7 +191,10 @@ function App() {
   >(async () => undefined)
   const productionRef = React.useRef<ProductionView | null>(null)
   const videoTaskPollInFlightRef = React.useRef(false)
-  const t = createTranslator(context?.locale)
+  const t = React.useMemo(
+    () => createTranslator(context?.locale),
+    [context?.locale]
+  )
   const themeMode = readHostThemeMode(context?.theme)
   const workingProduction = React.useMemo(
     () =>
@@ -706,19 +710,19 @@ function App() {
   }
 
   async function lockAssetReference(assetId: string, candidateId: string) {
-    if (!production) return
-    const draft = structuredClone(production)
+    const currentProduction = productionRef.current
+    if (!currentProduction) return
+    const draft = structuredClone(currentProduction)
     const asset = draft.assets.find((item) => item.id === assetId)
-    const image = asset?.candidates.find(
-      (candidate) =>
-        candidate.id === candidateId &&
-        candidate.kind === 'image' &&
-        candidate.assetReference?.type !== 'expression'
-    )
-    if (!asset || !image) return
-    asset.candidates.forEach((candidate) => {
-      if (candidate.kind === 'image') candidate.selected = candidate.id === image.id
-    })
+    if (!asset) return
+    if (!selectPrimaryAssetImageCandidate(draft, assetId, candidateId)) {
+      storyStudioDebug.debug('assetReference.lock.skipped', {
+        assetId,
+        candidateId,
+        reason: 'already-selected-or-invalid'
+      })
+      return
+    }
     await commitProduction(5, draft, t('changes.assetSaved', { name: asset.name }))
   }
 
@@ -754,6 +758,7 @@ function App() {
     fps: number
     takeCount: number
     referenceAssetIds: string[]
+    referenceImageCandidateIds: string[]
     redoScope?: string
   }) {
     void mediaGenerationActions.generateTakes(input)
@@ -813,7 +818,9 @@ function App() {
         onGenerateAsset={(asset, referenceSet) =>
           void assetBibleActions.generate(asset, referenceSet)
         }
-        onUploadAsset={(asset, file) => void assetBibleActions.upload(asset, file)}
+        onUploadAsset={assetBibleActions.upload}
+        onUploadAssetBatch={assetBibleActions.uploadMany}
+        onUploadVoiceReference={assetBibleActions.uploadVoiceReference}
         onUploadShotReference={(sceneId, shotId, prompt, file) =>
           void assetBibleActions.uploadShotReference(
             sceneId,

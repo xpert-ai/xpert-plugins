@@ -61,6 +61,7 @@ type DirectorStoryboardPageProps = {
   production: ProductionView
   busy: boolean
   generating: boolean
+  rightPanelOpen: boolean
   videoGenerators: VideoGeneratorCatalog | null
   videoTasks: VideoGenerationTask[]
   t: DirectorTranslator
@@ -76,6 +77,7 @@ type DirectorStoryboardPageProps = {
     fps: number
     takeCount: number
     referenceAssetIds: string[]
+    referenceImageCandidateIds: string[]
     redoScope?: string
   }) => void
   onSetVideoGenerator: (toolsetId: string) => void
@@ -102,6 +104,7 @@ export function DirectorStoryboardPage(props: DirectorStoryboardPageProps) {
   const [deleting, setDeleting] = React.useState<Shot | null>(null)
   const [referencePickerOpen, setReferencePickerOpen] = React.useState(false)
   const [referenceDraftIds, setReferenceDraftIds] = React.useState<string[]>([])
+  const [referenceDraftCandidateIds, setReferenceDraftCandidateIds] = React.useState<string[]>([])
   const [isPlaying, setIsPlaying] = React.useState(false)
   const [previewCandidateId, setPreviewCandidateId] = React.useState<string | null>(null)
   const [generatorId, setGeneratorId] = React.useState(props.videoGenerators?.selectedToolsetId ?? '')
@@ -112,6 +115,7 @@ export function DirectorStoryboardPage(props: DirectorStoryboardPageProps) {
   const [takeCount, setTakeCount] = React.useState(1)
   const [redoScope, setRedoScope] = React.useState('performance')
   const [referenceAssetIds, setReferenceAssetIds] = React.useState<string[]>([])
+  const [referenceImageCandidateIds, setReferenceImageCandidateIds] = React.useState<string[]>([])
   const assetUploadRef = React.useRef<HTMLInputElement | null>(null)
   const shotReferenceUploadRef = React.useRef<HTMLInputElement | null>(null)
   const pendingUploadAssetRef = React.useRef<Asset | null>(null)
@@ -199,6 +203,7 @@ export function DirectorStoryboardPage(props: DirectorStoryboardPageProps) {
     setFps(settings.fps)
     setTakeCount(settings.takeCount)
     setReferenceAssetIds(settings.referenceAssetIds)
+    setReferenceImageCandidateIds(settings.referenceImageCandidateIds)
     setPrompt(nextShot?.generationPrompt ?? '')
     setIsPlaying(false)
     setPreviewCandidateId(null)
@@ -235,7 +240,8 @@ export function DirectorStoryboardPage(props: DirectorStoryboardPageProps) {
       aspectRatio: aspectRatio || null,
       fps,
       takeCount,
-      referenceAssetIds
+      referenceAssetIds,
+      referenceImageCandidateIds
     }
     const saved = await props.onCommitProduction(
       next,
@@ -269,7 +275,7 @@ export function DirectorStoryboardPage(props: DirectorStoryboardPageProps) {
     if (!scene || !shot || !selectedGenerator || activeTask) return
     const saved = await saveSettings()
     if (!saved) return
-    props.onGenerateTakes({ sceneId: scene.id, shotId: shot.id, prompt, toolsetId: selectedGenerator.id, model, resolution, aspectRatio, fps, takeCount, referenceAssetIds, redoScope: scope })
+    props.onGenerateTakes({ sceneId: scene.id, shotId: shot.id, prompt, toolsetId: selectedGenerator.id, model, resolution, aspectRatio, fps, takeCount, referenceAssetIds, referenceImageCandidateIds, redoScope: scope })
   }
 
   function uploadAssetReference(asset: Asset) {
@@ -279,13 +285,27 @@ export function DirectorStoryboardPage(props: DirectorStoryboardPageProps) {
 
   function openReferencePicker() {
     setReferenceDraftIds(referenceAssetIds)
+    setReferenceDraftCandidateIds(referenceImageCandidateIds)
     setReferencePickerOpen(true)
   }
 
   function toggleReferenceAsset(assetId: string) {
-    setReferenceDraftIds((current) => current.includes(assetId)
-      ? current.filter((id) => id !== assetId)
-      : [...current, assetId])
+    setReferenceDraftIds((current) => {
+      if (!current.includes(assetId)) return [...current, assetId]
+      const candidateIds = new Set(
+        production.assets.find((asset) => asset.id === assetId)
+          ?.candidates.map((candidate) => candidate.id) ?? []
+      )
+      setReferenceDraftCandidateIds((ids) => ids.filter((id) => !candidateIds.has(id)))
+      return current.filter((id) => id !== assetId)
+    })
+  }
+
+  function toggleReferenceCandidate(assetId: string, candidateId: string) {
+    setReferenceDraftIds((current) => current.includes(assetId) ? current : [...current, assetId])
+    setReferenceDraftCandidateIds((current) => current.includes(candidateId)
+      ? current.filter((id) => id !== candidateId)
+      : [...current, candidateId].slice(0, 12))
   }
 
   function handleAssetUpload(event: React.ChangeEvent<HTMLInputElement>) {
@@ -316,7 +336,7 @@ export function DirectorStoryboardPage(props: DirectorStoryboardPageProps) {
   }
 
   return (
-    <StudioPanelLayout storageKey="storyboard" leftLabel={t('director.nav.storyboard')} rightLabel={t('director.storyboard.settings')} className="bg-studio-canvas text-studio-ink" testId="director-storyboard-page">
+    <StudioPanelLayout storageKey="storyboard" leftLabel={t('director.nav.storyboard')} rightLabel={t('director.storyboard.settings')} rightPanelOpen={props.rightPanelOpen} className="bg-studio-canvas text-studio-ink" testId="director-storyboard-page">
       <aside className="row-start-1 flex min-h-0 flex-col border-r border-studio-line bg-studio-paper/80">
         <header className="border-b border-studio-line p-4"><div className="flex items-center justify-between"><div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-studio-muted">{t('director.nav.storyboard')}</p><strong className="font-display text-xl">{production.counts.shots}</strong></div><button type="button" className="grid size-9 place-items-center rounded-md bg-studio-brass text-white" aria-label={t('director.crud.newShot')} onClick={() => setEditing('new')}><Plus className="size-4" /></button></div><p className="mt-2 text-xs text-studio-muted">{production.totalDurationSeconds}s · {production.scenes.length} {t('production.scenes')}</p></header>
         <div className="min-h-0 flex-1 overflow-y-auto p-3">
@@ -357,11 +377,11 @@ export function DirectorStoryboardPage(props: DirectorStoryboardPageProps) {
         </> : null}
       </section>
 
-      <aside className="row-start-1 min-h-0 overflow-y-auto border-l border-studio-line bg-studio-paper/90 p-4">
+      <aside id="director-right-panel" data-studio-panel="right" className="row-start-1 min-h-0 overflow-y-auto border-l border-studio-line bg-studio-paper/90 p-4">
         {shot ? <div className="grid gap-4"><div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-studio-muted">{t('director.storyboard.settings')}</p><h3 className="mt-1 font-display text-xl font-bold">{shot.title}</h3></div>
           <section className="grid gap-3 rounded-lg border border-studio-line bg-studio-canvas p-3">
             <div className="flex items-center justify-between gap-2"><span className="text-xs font-semibold text-studio-muted">{t('director.storyboard.references')}</span><Button type="button" variant="outline" size="sm" className="h-7 px-2 text-[10px]" onClick={openReferencePicker}><MoreHorizontal aria-hidden="true" />{t('director.storyboard.chooseReferences')}</Button></div>
-            {referenceAssets.length ? <div className="grid grid-cols-2 gap-2">{referenceAssets.map((asset) => <ReferenceAssetCard key={asset.id} asset={asset} t={t} onEdit={() => setEditingAsset(asset)} onUpload={() => uploadAssetReference(asset)} />)}</div> : <button type="button" className="grid min-h-20 place-items-center gap-1 rounded-md border border-dashed border-studio-line px-3 py-4 text-center text-xs text-studio-muted hover:border-studio-brass hover:text-studio-ink" onClick={openReferencePicker}><ImageIcon className="size-5" aria-hidden="true" />{t('director.storyboard.noReferences')}</button>}
+            {referenceAssets.length ? <div className="grid grid-cols-2 gap-2">{referenceAssets.map((asset) => <ReferenceAssetCard key={asset.id} asset={asset} selectedCandidateIds={referenceImageCandidateIds} t={t} onEdit={() => setEditingAsset(asset)} onUpload={() => uploadAssetReference(asset)} />)}</div> : <button type="button" className="grid min-h-20 place-items-center gap-1 rounded-md border border-dashed border-studio-line px-3 py-4 text-center text-xs text-studio-muted hover:border-studio-brass hover:text-studio-ink" onClick={openReferencePicker}><ImageIcon className="size-5" aria-hidden="true" />{t('director.storyboard.noReferences')}</button>}
             <button type="button" className="flex min-h-12 items-center gap-3 rounded-md border border-dashed border-studio-line bg-studio-paper px-3 py-2 text-left hover:border-studio-brass" onClick={() => shotReferenceUploadRef.current?.click()}>
               {temporaryReference && candidateImage(temporaryReference) ? <img className="size-10 rounded object-cover" crossOrigin="use-credentials" src={candidateImage(temporaryReference) ?? ''} alt="" /> : <span className="grid size-10 place-items-center rounded bg-studio-panel text-studio-muted"><Upload className="size-4" aria-hidden="true" /></span>}
               <span className="min-w-0 flex-1"><strong className="block text-xs">{t('director.storyboard.temporaryReference')}</strong><small className="block truncate text-[10px] text-studio-muted">{temporaryReference ? t('director.storyboard.temporaryReferenceReady') : t('director.storyboard.temporaryReferenceHelp')}</small></span>
@@ -388,7 +408,7 @@ export function DirectorStoryboardPage(props: DirectorStoryboardPageProps) {
       <footer className="col-span-3 row-start-2 flex items-center justify-between border-t border-studio-line bg-studio-paper px-5 text-xs text-studio-muted"><span>{scene?.title ?? '—'} · {shot?.title ?? '—'}</span><span>{activeTask ? videoTaskStatusLabel(activeTask.status, t) : t('director.storyboard.waiting')}</span></footer>
 
       <ShotDialog open={editing !== null} busy={busy} t={t} shot={editing === 'new' ? null : editing} characters={production.characters} onOpenChange={(open) => !open && setEditing(null)} onSubmit={(draft) => void submitShot(draft)} />
-      <ReferencePickerDialog open={referencePickerOpen} assets={production.assets.filter((asset) => asset.kind === 'character' || asset.kind === 'location')} selectedIds={referenceDraftIds} t={t} onToggle={toggleReferenceAsset} onOpenChange={setReferencePickerOpen} onConfirm={() => { setReferenceAssetIds(referenceDraftIds); settingsDirtyRef.current = true; setReferencePickerOpen(false) }} />
+      <ReferencePickerDialog open={referencePickerOpen} assets={production.assets.filter((asset) => asset.kind === 'character' || asset.kind === 'location')} selectedIds={referenceDraftIds} selectedCandidateIds={referenceDraftCandidateIds} t={t} onToggleAsset={toggleReferenceAsset} onToggleCandidate={toggleReferenceCandidate} onOpenChange={setReferencePickerOpen} onConfirm={() => { setReferenceAssetIds(referenceDraftIds); setReferenceImageCandidateIds(referenceDraftCandidateIds); settingsDirtyRef.current = true; setReferencePickerOpen(false) }} />
       <AssetDialog open={Boolean(editingAsset)} busy={busy} t={t} asset={editingAsset} initialKind={editingAsset?.kind ?? 'character'} voiceReference={editingAsset ? compactVoiceReference(production.characters.find((character) => character.name === editingAsset.name)?.voiceReference) : null} onOpenChange={(open) => !open && setEditingAsset(null)} onSubmit={(draft) => void submitAsset(draft)} />
       <DeleteEntityDialog open={Boolean(deleting)} busy={busy} t={t} title={t('director.crud.deleteShot')} description={t('director.crud.deleteShotHelp')} onOpenChange={(open) => !open && setDeleting(null)} onConfirm={() => void confirmDelete()} />
       <input ref={assetUploadRef} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={handleAssetUpload} />
@@ -440,23 +460,24 @@ function TakeCard(props: { index: number; task?: VideoGenerationTask; candidate?
   </article>
 }
 
-function ReferenceAssetCard(props: { asset: Asset; t: DirectorTranslator; onEdit: () => void; onUpload: () => void }) {
-  const image = assetImage(props.asset)
+function ReferenceAssetCard(props: { asset: Asset; selectedCandidateIds: string[]; t: DirectorTranslator; onEdit: () => void; onUpload: () => void }) {
+  const selectedImages = props.asset.candidates.filter((candidate) => candidate.kind === 'image' && props.selectedCandidateIds.includes(candidate.id) && candidateImage(candidate))
+  const image = candidateImage(selectedImages[0]) ?? assetImage(props.asset)
   return <article className="group relative grid min-w-0 grid-cols-[40px_minmax(0,1fr)] items-center gap-2 rounded-md border border-studio-line bg-studio-paper p-2">
-    {image ? <img className="size-10 rounded object-cover" crossOrigin="use-credentials" src={image} alt={props.asset.name} /> : <span className="grid size-10 place-items-center rounded bg-studio-panel text-studio-muted"><ImageIcon className="size-4" aria-hidden="true" /></span>}
-    <span className="min-w-0 pr-9"><strong className="block truncate text-xs">{props.asset.name}</strong><small className="text-[9px] text-studio-muted">{props.t(props.asset.kind === 'location' ? 'director.assets.locations' : 'director.assets.characters')}</small></span>
+    {image ? <span className="relative block size-10"><img className="size-10 rounded object-cover" crossOrigin="use-credentials" src={image} alt={props.asset.name} />{selectedImages.length > 1 ? <span className="absolute -bottom-1 -right-1 grid size-4 place-items-center rounded-full bg-studio-brass text-[8px] font-bold text-white">{selectedImages.length}</span> : null}</span> : <span className="grid size-10 place-items-center rounded bg-studio-panel text-studio-muted"><ImageIcon className="size-4" aria-hidden="true" /></span>}
+    <span className="min-w-0 pr-9"><strong className="block truncate text-xs">{props.asset.name}</strong><small className="text-[9px] text-studio-muted">{selectedImages.length ? props.t('director.storyboard.exactImagesSelected', { count: selectedImages.length }) : props.t('director.storyboard.usePrimaryReference')}</small></span>
     <span className="absolute right-1 top-1 grid gap-0.5 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100"><button type="button" className="grid size-5 place-items-center rounded bg-studio-paper shadow" aria-label={props.t('actions.edit')} onClick={props.onEdit}><MoreHorizontal className="size-3" /></button><button type="button" className="grid size-5 place-items-center rounded bg-studio-paper shadow" aria-label={props.t('director.assets.upload')} onClick={props.onUpload}><Upload className="size-3" /></button></span>
   </article>
 }
 
-function ReferencePickerDialog(props: { open: boolean; assets: Asset[]; selectedIds: string[]; t: DirectorTranslator; onToggle: (assetId: string) => void; onOpenChange: (open: boolean) => void; onConfirm: () => void }) {
+function ReferencePickerDialog(props: { open: boolean; assets: Asset[]; selectedIds: string[]; selectedCandidateIds: string[]; t: DirectorTranslator; onToggleAsset: (assetId: string) => void; onToggleCandidate: (assetId: string, candidateId: string) => void; onOpenChange: (open: boolean) => void; onConfirm: () => void }) {
   const characters = props.assets.filter((asset) => asset.kind === 'character')
   const locations = props.assets.filter((asset) => asset.kind === 'location')
-  return <Dialog open={props.open} onOpenChange={props.onOpenChange}><DialogContent className="max-w-2xl border-studio-line bg-studio-paper text-studio-ink"><DialogHeader><DialogTitle>{props.t('director.storyboard.referencePickerTitle')}</DialogTitle><DialogDescription>{props.t('director.storyboard.referencePickerHelp')}</DialogDescription></DialogHeader><div className="max-h-[55vh] space-y-5 overflow-y-auto pr-1"><ReferenceAssetGroup title={props.t('director.assets.characters')} assets={characters} selectedIds={props.selectedIds} t={props.t} onToggle={props.onToggle} /><ReferenceAssetGroup title={props.t('director.assets.locations')} assets={locations} selectedIds={props.selectedIds} t={props.t} onToggle={props.onToggle} /></div><DialogFooter><Button type="button" variant="outline" onClick={() => props.onOpenChange(false)}>{props.t('actions.cancel')}</Button><Button type="button" onClick={props.onConfirm}>{props.t('actions.confirm')}</Button></DialogFooter></DialogContent></Dialog>
+  return <Dialog open={props.open} onOpenChange={props.onOpenChange}><DialogContent className="max-w-4xl border-studio-line bg-studio-paper text-studio-ink"><DialogHeader><DialogTitle>{props.t('director.storyboard.referencePickerTitle')}</DialogTitle><DialogDescription>{props.t('director.storyboard.referencePickerHelp')}</DialogDescription></DialogHeader><div className="flex items-center justify-between rounded-lg border border-studio-line bg-studio-canvas px-3 py-2 text-xs text-studio-muted"><span>{props.t('director.storyboard.referencePickerModeHelp')}</span><strong className="text-studio-brass">{props.t('director.storyboard.selectedImageCount', { count: props.selectedCandidateIds.length })}</strong></div><div className="max-h-[60vh] space-y-5 overflow-y-auto pr-1"><ReferenceAssetGroup title={props.t('director.assets.characters')} assets={characters} selectedIds={props.selectedIds} selectedCandidateIds={props.selectedCandidateIds} t={props.t} onToggleAsset={props.onToggleAsset} onToggleCandidate={props.onToggleCandidate} /><ReferenceAssetGroup title={props.t('director.assets.locations')} assets={locations} selectedIds={props.selectedIds} selectedCandidateIds={props.selectedCandidateIds} t={props.t} onToggleAsset={props.onToggleAsset} onToggleCandidate={props.onToggleCandidate} /></div><DialogFooter><Button type="button" variant="outline" onClick={() => props.onOpenChange(false)}>{props.t('actions.cancel')}</Button><Button type="button" onClick={props.onConfirm}>{props.t('actions.confirm')}</Button></DialogFooter></DialogContent></Dialog>
 }
 
-function ReferenceAssetGroup(props: { title: string; assets: Asset[]; selectedIds: string[]; t: DirectorTranslator; onToggle: (assetId: string) => void }) {
-  return <section><h3 className="mb-2 text-xs font-bold text-studio-muted">{props.title}</h3>{props.assets.length ? <div className="grid grid-cols-2 gap-2">{props.assets.map((asset) => { const selected = props.selectedIds.includes(asset.id); const image = assetImage(asset); return <button key={asset.id} type="button" className={`grid grid-cols-[48px_minmax(0,1fr)_20px] items-center gap-3 rounded-md border p-2 text-left ${selected ? 'border-studio-brass bg-amber-50' : 'border-studio-line bg-studio-canvas hover:border-studio-brass/60'}`} aria-pressed={selected} onClick={() => props.onToggle(asset.id)}>{image ? <img className="size-12 rounded object-cover" crossOrigin="use-credentials" src={image} alt="" /> : <span className="grid size-12 place-items-center rounded bg-studio-panel text-studio-muted"><ImageIcon className="size-4" /></span>}<span className="min-w-0"><strong className="block truncate text-sm">{asset.name}</strong><small className="line-clamp-2 text-[10px] leading-4 text-studio-muted">{asset.description}</small></span><span className={`grid size-5 place-items-center rounded border ${selected ? 'border-studio-brass bg-studio-brass text-white' : 'border-studio-line'}`}>{selected ? <Check className="size-3" /> : null}</span></button>})}</div> : <p className="rounded-md border border-dashed border-studio-line p-4 text-center text-xs text-studio-muted">{props.t('director.storyboard.noReferenceAssets')}</p>}</section>
+function ReferenceAssetGroup(props: { title: string; assets: Asset[]; selectedIds: string[]; selectedCandidateIds: string[]; t: DirectorTranslator; onToggleAsset: (assetId: string) => void; onToggleCandidate: (assetId: string, candidateId: string) => void }) {
+  return <section><h3 className="mb-2 text-xs font-bold text-studio-muted">{props.title}</h3>{props.assets.length ? <div className="grid gap-3">{props.assets.map((asset) => { const selected = props.selectedIds.includes(asset.id); const images = asset.candidates.filter((candidate) => candidate.kind === 'image' && candidateImage(candidate)); return <article key={asset.id} className={`overflow-hidden rounded-lg border ${selected ? 'border-studio-brass bg-amber-50/60' : 'border-studio-line bg-studio-canvas'}`}><button type="button" className="grid w-full grid-cols-[minmax(0,1fr)_20px] items-center gap-3 p-3 text-left" aria-pressed={selected} onClick={() => props.onToggleAsset(asset.id)}><span className="min-w-0"><strong className="block truncate text-sm">{asset.name}</strong><small className="line-clamp-1 text-[10px] leading-4 text-studio-muted">{asset.description}</small></span><span className={`grid size-5 place-items-center rounded border ${selected ? 'border-studio-brass bg-studio-brass text-white' : 'border-studio-line bg-studio-paper'}`}>{selected ? <Check className="size-3" /> : null}</span></button>{selected ? <div className="border-t border-studio-line p-3">{images.length ? <div className="grid grid-cols-4 gap-2">{images.slice(0, 12).map((candidate) => { const chosen = props.selectedCandidateIds.includes(candidate.id); const image = candidateImage(candidate); return <button key={candidate.id} type="button" className={`group relative overflow-hidden rounded-md border bg-studio-paper text-left ${chosen ? 'border-2 border-studio-brass ring-2 ring-studio-brass/15' : 'border-studio-line hover:border-studio-brass/60'}`} aria-pressed={chosen} onClick={() => props.onToggleCandidate(asset.id, candidate.id)}>{image ? <img className="aspect-video w-full object-cover" crossOrigin="use-credentials" src={image} alt="" /> : null}<span className="flex min-h-8 items-center justify-between gap-1 border-t border-studio-line px-2 py-1 text-[9px]"><b className="truncate">{candidateReferenceName(candidate, props.t)}</b><span className={`grid size-4 shrink-0 place-items-center rounded border ${chosen ? 'border-studio-brass bg-studio-brass text-white' : 'border-studio-line'}`}>{chosen ? <Check className="size-2.5" /> : null}</span></span></button>})}</div> : <p className="rounded-md border border-dashed border-studio-line bg-studio-paper p-3 text-center text-[10px] text-studio-muted">{props.t('director.storyboard.noAssetImages')}</p>}<p className="mt-2 text-[10px] text-studio-muted">{props.selectedCandidateIds.some((id) => images.some((candidate) => candidate.id === id)) ? props.t('director.storyboard.exactChoiceHelp') : props.t('director.storyboard.primaryFallbackHelp')}</p></div> : null}</article>})}</div> : <p className="rounded-md border border-dashed border-studio-line p-4 text-center text-xs text-studio-muted">{props.t('director.storyboard.noReferenceAssets')}</p>}</section>
 }
 
 function StoryboardField(props: { label: string; children: React.ReactNode }) { return <div className="grid gap-1.5 text-xs font-semibold text-studio-muted"><span>{props.label}</span>{props.children}</div> }
@@ -530,6 +551,26 @@ function assetImage(asset: Asset) {
   const candidate = asset.candidates.find((item) => item.kind === 'image' && item.selected)
     ?? asset.candidates.find((item) => item.kind === 'image')
   return candidateImage(candidate)
+}
+
+function candidateReferenceName(candidate: Candidate, t: DirectorTranslator) {
+  const reference = candidate.assetReference
+  if (!reference || reference.type === 'general') return candidate.label
+  const keys = {
+    front: 'director.assets.reference.front',
+    three_quarter: 'director.assets.reference.threeQuarter',
+    profile: 'director.assets.reference.profile',
+    back: 'director.assets.reference.back',
+    wide: 'director.assets.reference.wide',
+    reverse: 'director.assets.reference.reverse',
+    detail: 'director.assets.reference.detail',
+    alternate: 'director.assets.reference.alternate',
+    neutral: 'director.assets.reference.neutral',
+    happy: 'director.assets.reference.happy',
+    sad: 'director.assets.reference.sad',
+    angry: 'director.assets.reference.angry'
+  } as const
+  return t(keys[reference.key])
 }
 
 function candidateImage(candidate?: Pick<Candidate, 'fileUrl'>) {

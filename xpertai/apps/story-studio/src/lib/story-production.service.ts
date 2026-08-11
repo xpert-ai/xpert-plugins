@@ -30,8 +30,10 @@ import type {
   SaveStoryProductionInput,
   StartStoryProductionInput,
   StoryMediaCandidate,
+  StoryAssetReference,
   StoryProductionDocument,
   StoryProductionSummary,
+  UploadStoryVoiceReferenceInput,
   UpsertStoryProductionSceneInput,
   UpsertStoryProductionShotInput
 } from './production-types.js'
@@ -53,6 +55,7 @@ import { buildStoryScopeKey } from './story-studio.service.js'
 import type { StoryScope } from './types.js'
 
 const MAX_ASSET_IMAGE_BYTES = 20 * 1024 * 1024
+const MAX_VOICE_REFERENCE_BYTES = 20 * 1024 * 1024
 const COMPLETED_IMAGE_STATUSES = new Set([
   'completed',
   'done',
@@ -458,6 +461,75 @@ export class StoryProductionService {
     })
   }
 
+  async uploadVoiceReferenceAudio(
+    scope: StoryScope,
+    input: UploadStoryVoiceReferenceInput,
+    file: {
+      buffer: Buffer
+      originalName: string
+      mimeType: string
+    }
+  ) {
+    const project = await requireProject(this.projects, scope, input.projectId)
+    const production = await this.productions.findOne({
+      where: scopedWhere<StoryProduction>(scope, { projectId: input.projectId })
+    })
+    if (!production) {
+      throw new NotFoundException('Story production was not found.')
+    }
+    const asset = production.assets?.find((item) => item.id === input.assetId)
+    if (!asset || asset.kind !== 'character') {
+      throw new NotFoundException('Story character asset was not found.')
+    }
+    const character = production.characters.find((item) => item.name === asset.name)
+    if (!character) {
+      throw new NotFoundException('Story character identity was not found.')
+    }
+    const mimeType = normalizeVoiceReferenceMimeType(
+      file.mimeType,
+      file.originalName,
+      file.buffer
+    )
+    validateVoiceReferenceBuffer(file.buffer)
+    const extension = extensionForVoiceReferenceMimeType(mimeType)
+    const fileName = `${input.referenceId}.${extension}`
+    const written = await this.workspaceFiles().writeRuntimeBuffer({
+      ...assetImageDestination(project, scope),
+      folder: `story-studio/${project.id}/voice-references`,
+      fileName,
+      originalName: file.originalName || fileName,
+      mimeType,
+      buffer: file.buffer,
+      size: file.buffer.length,
+      metadata: {
+        pluginName: '@xpert-ai/plugin-story-studio',
+        storyProjectId: project.id,
+        storyAssetId: input.assetId,
+        storyCharacterId: character.id,
+        referenceId: input.referenceId,
+        source: 'manual_upload'
+      }
+    })
+    const url = written.fileUrl ?? written.url
+    if (!url) {
+      throw new ServiceUnavailableException(
+        'Uploaded voice reference did not receive a playable workspace URL.'
+      )
+    }
+    return {
+      projectId: project.id,
+      voiceReference: {
+        url,
+        label: input.label,
+        workspacePath: written.reference.workspacePath,
+        originalName:
+          written.reference.originalName ?? file.originalName ?? fileName,
+        mimeType: written.mimeType ?? mimeType,
+        size: written.size ?? file.buffer.length
+      }
+    }
+  }
+
   async attachShotReferenceImage(
     scope: StoryScope,
     input: AttachShotReferenceImageInput,
@@ -654,10 +726,20 @@ export class StoryProductionService {
         file.reference as unknown as StoryMediaCandidate['fileReference']
     }
     let found = false
+    const replacementReference = input.replaceReference
+      ? input.assetReference
+      : undefined
     const assets = (row.assets ?? []).map((asset) => {
       if (asset.id !== input.assetId) return asset
       found = true
-      const existing = (asset.candidates ?? []).map((item) =>
+      const sourceCandidates = replacementReference
+        ? (asset.candidates ?? []).filter(
+            (item) =>
+              item.kind !== 'image' ||
+              !sameAssetReference(item.assetReference, replacementReference)
+          )
+        : (asset.candidates ?? [])
+      const existing = sourceCandidates.map((item) =>
         input.select !== false && item.kind === 'image'
           ? { ...item, selected: false }
           : item
@@ -779,6 +861,91 @@ function validateAssetImageBuffer(buffer: Buffer) {
       'Asset image must be between 1 byte and 20 MiB.'
     )
   }
+}
+
+function validateVoiceReferenceBuffer(buffer: Buffer) {
+  if (!buffer.length || buffer.length > MAX_VOICE_REFERENCE_BYTES) {
+    throw new BadRequestException(
+      'Voice reference audio must be between 1 byte and 20 MiB.'
+    )
+  }
+}
+
+function normalizeVoiceReferenceMimeType(
+  declared: string,
+  fileName: string,
+  buffer: Buffer
+) {
+  const aliases: Record<string, string> = {
+    'audio/mp3': 'audio/mpeg',
+    'audio/x-wav': 'audio/wav',
+    'audio/wave': 'audio/wav',
+    'audio/x-m4a': 'audio/mp4',
+    'application/ogg': 'audio/ogg'
+  }
+  const rawValue = declared.toLowerCase().split(';')[0].trim()
+  const value = aliases[rawValue] ?? rawValue
+  const lowerName = fileName.toLowerCase()
+  const wav =
+    buffer.length >= 12 &&
+    buffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
+    buffer.subarray(8, 12).toString('ascii') === 'WAVE'
+  const flac =
+    buffer.length >= 4 && buffer.subarray(0, 4).toString('ascii') === 'fLaC'
+  const ogg =
+    buffer.length >= 4 && buffer.subarray(0, 4).toString('ascii') === 'OggS'
+  const mp4 =
+    buffer.length >= 12 && buffer.subarray(4, 8).toString('ascii') === 'ftyp'
+  const id3 =
+    buffer.length >= 3 && buffer.subarray(0, 3).toString('ascii') === 'ID3'
+  const framedAudio =
+    buffer.length >= 2 && buffer[0] === 0xff && (buffer[1] & 0xe0) === 0xe0
+  const detected = wav
+    ? 'audio/wav'
+    : flac
+      ? 'audio/flac'
+      : ogg
+        ? 'audio/ogg'
+        : mp4
+          ? 'audio/mp4'
+          : id3
+            ? 'audio/mpeg'
+            : framedAudio && lowerName.endsWith('.aac')
+              ? 'audio/aac'
+              : framedAudio
+                ? 'audio/mpeg'
+                : null
+  if (!detected) {
+    throw new BadRequestException(
+      'Voice reference must be a valid MP3, WAV, M4A, AAC, OGG, or FLAC file.'
+    )
+  }
+  if (
+    value &&
+    value !== 'application/octet-stream' &&
+    value !== detected
+  ) {
+    throw new BadRequestException(
+      'Voice reference content does not match its MIME type.'
+    )
+  }
+  const supportedExtension = ['.mp3', '.wav', '.m4a', '.mp4', '.aac', '.ogg', '.flac']
+    .some((extension) => lowerName.endsWith(extension))
+  if (!supportedExtension) {
+    throw new BadRequestException(
+      'Voice reference file name must use .mp3, .wav, .m4a, .mp4, .aac, .ogg, or .flac.'
+    )
+  }
+  return detected
+}
+
+function extensionForVoiceReferenceMimeType(mimeType: string) {
+  if (mimeType === 'audio/wav') return 'wav'
+  if (mimeType === 'audio/mp4') return 'm4a'
+  if (mimeType === 'audio/aac') return 'aac'
+  if (mimeType === 'audio/ogg') return 'ogg'
+  if (mimeType === 'audio/flac') return 'flac'
+  return 'mp3'
 }
 
 function normalizeAssetImageMimeType(
@@ -982,6 +1149,22 @@ function scopeCreate(scope: StoryScope) {
   }
 }
 
+function sameAssetReference(
+  left: StoryAssetReference | undefined,
+  right: StoryAssetReference
+) {
+  if (!left) return false
+  if (left.type === 'general' || right.type === 'general') {
+    return left.type === 'general' && right.type === 'general'
+  }
+  if (left.type === 'continuity_view' && right.type === 'continuity_view') {
+    return left.key === right.key
+  }
+  return left.type === 'expression' &&
+    right.type === 'expression' &&
+    left.key === right.key
+}
+
 function countProduction(production: StoryProductionDocument) {
   const shots = production.scenes.flatMap((scene) => scene.shots)
   const assetCandidates = (production.assets ?? []).flatMap(
@@ -1046,7 +1229,7 @@ function assertRevision(project: StoryProject, expected: number) {
 function revisionConflict(currentRevision: number) {
   return new ConflictException({
     errorCode: 'story_revision_conflict',
-    message: 'Story project changed. Refresh the project and retry.',
+    message: `Story project changed. Current revision is ${currentRevision}. Re-read only affected content when needed, then retry with that revision.`,
     currentRevision
   })
 }

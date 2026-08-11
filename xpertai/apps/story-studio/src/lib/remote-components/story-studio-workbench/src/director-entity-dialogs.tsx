@@ -15,8 +15,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  FileAudio2,
   Input,
-  Textarea
+  Textarea,
+  Trash2,
+  Upload
 } from '@xpert-ai/plugin-shadcn-ui'
 import { DirectorSelect } from './director-form-controls'
 import {
@@ -40,6 +43,7 @@ import {
   type ShotDraft
 } from './director-production-crud'
 import type { DirectorTranslator } from './director-types'
+import { VOICE_REFERENCE_ACCEPT } from './asset-bible-actions'
 
 const h: typeof React.createElement = React.createElement
 const fieldClass =
@@ -214,9 +218,12 @@ export function AssetDialog(
     asset?: Asset | null
     initialKind: Asset['kind']
     voiceReference?: VoiceReferenceLike | null
+    onUploadVoiceReference?: (file: File) => Promise<VoiceReferenceLike | null>
     onSubmit: (draft: AssetDraft) => void
   }
 ) {
+  const voiceUploadRef = React.useRef<HTMLInputElement | null>(null)
+  const [voiceUploading, setVoiceUploading] = React.useState(false)
   const [draft, setDraft] = React.useState<AssetDraft>(() =>
     assetDraft(props.asset, props.initialKind, props.t, props.voiceReference)
   )
@@ -238,6 +245,17 @@ export function AssetDialog(
     ...draft,
     categoryDetails: { ...details, [key]: value || null }
   })
+  async function uploadVoiceReference(file: File | undefined) {
+    if (!file || !props.onUploadVoiceReference) return
+    setVoiceUploading(true)
+    try {
+      const voiceReference = await props.onUploadVoiceReference(file)
+      if (voiceReference) setDraft((current) => ({ ...current, voiceReference }))
+    } finally {
+      setVoiceUploading(false)
+      if (voiceUploadRef.current) voiceUploadRef.current.value = ''
+    }
+  }
 
   return (
     <EntityDialogFrame
@@ -256,38 +274,41 @@ export function AssetDialog(
       </div>
       <FormField label={props.t('fields.description')}><Textarea className={`${fieldClass} min-h-24`} value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} /></FormField>
       {draft.kind === 'character' ? (
-        <div className="grid gap-4">
+        <section className="grid gap-4 rounded-lg border border-studio-line bg-studio-canvas p-4" aria-labelledby="asset-identity-heading">
+          <div>
+            <h3 id="asset-identity-heading" className="font-display text-lg font-bold text-studio-ink">{props.t('director.assets.identity')}</h3>
+            <p className="mt-1 text-xs text-studio-muted">{props.t('director.assets.identityEditHelp')}</p>
+          </div>
+          <FormField label={props.t('director.assets.identityDescription')}><Textarea className={`${fieldClass} min-h-20`} value={details.identity ?? ''} onChange={(event) => updateDetail('identity', event.target.value)} /></FormField>
           <div className="grid grid-cols-2 gap-4">
             <FormField label={props.t('editor.role')}><Input className={fieldClass} value={draft.role ?? ''} onChange={(event) => setDraft({ ...draft, role: event.target.value })} /></FormField>
             <FormField label={props.t('director.assets.appearanceAnchors')}><Input className={fieldClass} value={details.appearance ?? ''} onChange={(event) => updateDetail('appearance', event.target.value)} /></FormField>
             <FormField label={props.t('director.assets.wardrobeField')}><Input className={fieldClass} value={details.wardrobe ?? ''} onChange={(event) => updateDetail('wardrobe', event.target.value)} /></FormField>
             <FormField label={props.t('director.assets.voice')}><Input className={fieldClass} value={details.voice ?? ''} onChange={(event) => updateDetail('voice', event.target.value)} /></FormField>
           </div>
-          <div className="grid gap-4 rounded-md border border-studio-line bg-studio-canvas p-4">
+          <div className="grid gap-4 rounded-md border border-studio-line bg-studio-paper p-4">
             <div className="flex items-center justify-between gap-2">
               <strong className="text-xs font-semibold uppercase tracking-[0.2em] text-studio-muted">{props.t('editor.voiceReference')}</strong>
               <span className="text-[10px] text-studio-muted">{props.t('editor.voiceReferenceHelp')}</span>
             </div>
+            <input ref={voiceUploadRef} type="file" accept={VOICE_REFERENCE_ACCEPT} hidden onChange={(event) => void uploadVoiceReference(event.target.files?.[0])} />
+            <div className="grid gap-3 rounded-md border border-dashed border-studio-line bg-studio-canvas/60 p-3">
+              <div className="flex items-center gap-3">
+                <span className="grid size-10 shrink-0 place-items-center rounded-md bg-studio-paper text-studio-brass"><FileAudio2 className="size-5" aria-hidden="true" /></span>
+                <span className="min-w-0 flex-1">
+                  <strong className="block truncate text-sm text-studio-ink">{draft.voiceReference?.originalName ?? draft.voiceReference?.label ?? props.t('editor.voiceReferenceEmpty')}</strong>
+                  <small className="mt-0.5 block text-[11px] text-studio-muted">{draft.voiceReference ? props.t('editor.voiceReferenceReady') : props.onUploadVoiceReference ? props.t('editor.voiceReferenceFormats') : props.t('editor.voiceReferenceSaveFirst')}</small>
+                </span>
+                <Button type="button" variant="outline" size="sm" disabled={voiceUploading || !props.onUploadVoiceReference} onClick={() => voiceUploadRef.current?.click()}><Upload aria-hidden="true" />{voiceUploading ? props.t('editor.voiceReferenceUploading') : props.t(draft.voiceReference ? 'editor.voiceReferenceReplace' : 'editor.voiceReferenceUpload')}</Button>
+                {draft.voiceReference ? <Button type="button" variant="outline" size="sm" className="text-studio-danger" disabled={voiceUploading} onClick={() => setDraft({ ...draft, voiceReference: null })}><Trash2 aria-hidden="true" />{props.t('editor.voiceReferenceRemove')}</Button> : null}
+              </div>
+              {draft.voiceReference ? <audio className="h-9 w-full" data-testid="voice-reference-player" controls preload="none" src={draft.voiceReference.url}>{props.t('editor.voiceReferencePlaybackUnsupported')}</audio> : null}
+            </div>
             <div className="grid grid-cols-2 gap-4">
-              <FormField label={props.t('editor.voiceReferenceUrl')}>
-                <Input
-                  className={fieldClass}
-                  value={draft.voiceReference?.url ?? ''}
-                  onChange={(event) =>
-                    setDraft({
-                      ...draft,
-                      voiceReference: updateVoiceReferenceDraft(
-                        draft.voiceReference,
-                        'url',
-                        event.target.value
-                      )
-                    })
-                  }
-                />
-              </FormField>
               <FormField label={props.t('editor.voiceReferenceLabel')}>
                 <Input
                   className={fieldClass}
+                  disabled={!draft.voiceReference}
                   value={draft.voiceReference?.label ?? ''}
                   onChange={(event) =>
                     setDraft({
@@ -304,6 +325,7 @@ export function AssetDialog(
               <FormField label={props.t('editor.voiceReferenceLicense')}>
                 <Input
                   className={fieldClass}
+                  disabled={!draft.voiceReference}
                   value={draft.voiceReference?.license ?? ''}
                   onChange={(event) =>
                     setDraft({
@@ -317,25 +339,26 @@ export function AssetDialog(
                   }
                 />
               </FormField>
-              <FormField label={props.t('editor.voiceReferenceSourceUrl')}>
-                <Input
-                  className={fieldClass}
-                  value={draft.voiceReference?.sourceUrl ?? ''}
-                  onChange={(event) =>
-                    setDraft({
-                      ...draft,
-                      voiceReference: updateVoiceReferenceDraft(
-                        draft.voiceReference,
-                        'sourceUrl',
-                        event.target.value
-                      )
-                    })
-                  }
-                />
-              </FormField>
             </div>
+            <FormField label={props.t('editor.voiceReferenceSourceUrl')}>
+              <Input
+                className={fieldClass}
+                disabled={!draft.voiceReference}
+                value={draft.voiceReference?.sourceUrl ?? ''}
+                onChange={(event) =>
+                  setDraft({
+                    ...draft,
+                    voiceReference: updateVoiceReferenceDraft(
+                      draft.voiceReference,
+                      'sourceUrl',
+                      event.target.value
+                    )
+                  })
+                }
+              />
+            </FormField>
           </div>
-        </div>
+        </section>
       ) : null}
       {draft.kind === 'location' ? (
         <div className="grid grid-cols-2 gap-4">

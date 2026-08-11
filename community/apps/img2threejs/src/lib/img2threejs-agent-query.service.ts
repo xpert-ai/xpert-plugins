@@ -7,7 +7,7 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import type { Repository } from 'typeorm'
 import type { ProjectStatus, Scope } from './domain/types.js'
-import { ImageEvidenceEntity, ModelProjectEntity } from './entities/index.js'
+import { CodeVersionEntity, ImageEvidenceEntity, ModelProjectEntity, PipelineRunEntity } from './entities/index.js'
 import {
   requireRevision,
   scopedIdWhere,
@@ -35,6 +35,38 @@ export type ReferenceImageAttachment = {
   dataUrl: string
 }
 
+export type VisualDiagnosticImageAttachment = {
+  kind: 'comparison' | 'render'
+  view: string
+  name: string
+  mimeType: 'image/png' | 'image/jpeg' | 'image/webp'
+  size: number
+  sha256: string
+  dataUrl: string
+}
+
+export type VisualDiagnosticsAttachment = {
+  type: 'img2threejs.visual-diagnostics'
+  projectId: string
+  revision: number
+  runId: string
+  runRevision: number
+  images: VisualDiagnosticImageAttachment[]
+}
+
+type ReadVisualDiagnosticsInput = {
+  projectId: string
+  runId?: string
+  expectedRevision?: number
+  view?: 'front' | 'back' | 'left' | 'right' | 'top' | 'bottom' | 'three-quarter'
+  includeComparison: boolean
+  includeRender: boolean
+}
+
+type DiagnosticImageDescriptor = Omit<VisualDiagnosticImageAttachment, 'dataUrl'> & {
+  filePath: string
+}
+
 @Injectable()
 export class Img2ThreeJsAgentQueryService {
   private readonly artifacts: ArtifactsAdapter
@@ -45,6 +77,10 @@ export class Img2ThreeJsAgentQueryService {
     private readonly projects: Repository<ModelProjectEntity>,
     @InjectRepository(ImageEvidenceEntity)
     private readonly images: Repository<ImageEvidenceEntity>,
+    @InjectRepository(PipelineRunEntity)
+    private readonly runs: Repository<PipelineRunEntity>,
+    @InjectRepository(CodeVersionEntity)
+    private readonly codes: Repository<CodeVersionEntity>,
     @Optional()
     @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN)
     runtimeCapabilities?: RuntimeCapabilityRegistry
@@ -122,6 +158,12 @@ export class Img2ThreeJsAgentQueryService {
         height: image.height,
         sha256: image.sha256,
         confidence: image.confidence,
+        foregroundCoverage: image.foregroundCoverage,
+        largestComponentFraction: image.largestComponentFraction,
+        maskConfidence: image.maskConfidence,
+        pHash: image.pHash,
+        viewpointConfidence: image.viewpointConfidence,
+        requestInputReason: image.requestInputReason,
         failureReasons: image.failureReasons
       }))
     }
@@ -159,6 +201,13 @@ export class Img2ThreeJsAgentQueryService {
         height: image.height,
         sha256: image.sha256,
         observations: image.observations,
+        admissionDiagnostics: image.admissionDiagnostics,
+        foregroundCoverage: image.foregroundCoverage,
+        largestComponentFraction: image.largestComponentFraction,
+        maskConfidence: image.maskConfidence,
+        pHash: image.pHash,
+        viewpointConfidence: image.viewpointConfidence,
+        requestInputReason: image.requestInputReason,
         previewUrl,
         workspaceFile: image.admissionStatus === 'admitted'
           ? toPortableReference(image.asset)
@@ -223,11 +272,221 @@ export class Img2ThreeJsAgentQueryService {
     }
   }
 
+  async readVisualDiagnostics(scope: Scope, input: ReadVisualDiagnosticsInput) {
+    const project = await this.requireProject(scope, input.projectId)
+    if (input.expectedRevision !== undefined) {
+      requireRevision(project.revision, input.expectedRevision)
+    }
+    const run = await this.resolveDiagnosticRun(scope, project, input.runId)
+    const deterministicFailed = run.deterministicReview.status === 'failed'
+    const historicalVisualDiagnosticsDiscarded = deterministicFailed && Boolean(
+      run.renderReport ||
+      run.comparisonAsset ||
+      run.visualReview.evidenceKind !== 'none' ||
+      run.visualReview.notes
+    )
+    // A browser render belongs to the code candidate that produced it. Legacy
+    // runs may still carry that render after a newer candidate fails the
+    // deterministic review. Never attach or describe those pixels as evidence
+    // for the current failed candidate.
+    const images = deterministicFailed ? [] : this.resolveDiagnosticImages(run, input)
+    const code = run.codeVersionId
+      ? await this.codes.findOne({ where: scopedIdWhere(scope, run.codeVersionId) })
+      : null
+    const sourceBuildDiagnostics = diagnoseAssistantSourceImports(code?.sourcePreview ?? '')
+    return {
+      projectId: project.id,
+      revision: project.revision,
+      currentSpecVersionId: project.currentSpecVersionId,
+      currentCodeVersionId: project.currentCodeVersionId,
+      runId: run.id,
+      runRevision: run.revision,
+      runStatus: run.status,
+      specVersionId: run.specVersionId,
+      codeVersionId: run.codeVersionId,
+      deterministicReview: {
+        status: run.deterministicReview.status,
+        score: run.deterministicReview.score,
+        failedChecks: run.deterministicReview.checks
+          .filter((check) => !check.passed)
+          .map(({ code: failureCode, detail }) => ({ code: failureCode, detail }))
+      },
+      visualReview: deterministicFailed
+        ? {
+            status: 'unavailable',
+            evidenceKind: 'none',
+            renderStatus: 'not_requested',
+            capabilityReason: 'The current code candidate failed deterministic review. Any prior browser render is historical and is not valid evidence for this candidate.',
+            notes: null
+          }
+        : {
+            status: run.visualReview.status,
+            evidenceKind: run.visualReview.evidenceKind,
+            renderStatus: run.visualReview.renderStatus ?? null,
+            capabilityReason: run.visualReview.capabilityReason ?? null,
+            notes: run.visualReview.notes ?? null
+          },
+      historicalVisualDiagnosticsDiscarded,
+      quality: deterministicFailed ? null : run.renderReport?.quality ?? null,
+      correction: deterministicFailed ? null : run.renderReport?.correction ?? null,
+      renderFailure: deterministicFailed ? null : run.renderReport?.failure ?? null,
+      sourceBuildDiagnostics,
+      failureReasons: run.failureReasons,
+      images: images.map(({ filePath: _filePath, ...image }) => image),
+      modelVisionRequired: !deterministicFailed,
+      semanticDiagnosisOwner: 'agent-chat',
+      nextAction: deterministicFailed
+        ? 'repair_current_candidate_from_deterministic_failures_then_submit_refine_code'
+        : images.length > 0
+        ? 'inspect_attached_render_pixels_then_decide_refine_spec_or_refine_code'
+        : sourceBuildDiagnostics.length > 0
+          ? 'author_new_candidate_from_source_build_diagnostics_then_submit_refine'
+          : 'inspect_render_failure_then_refine_code'
+    }
+  }
+
+  async readVisualDiagnosticImages(
+    scope: Scope,
+    input: ReadVisualDiagnosticsInput
+  ): Promise<VisualDiagnosticsAttachment> {
+    const project = await this.requireProject(scope, input.projectId)
+    if (input.expectedRevision !== undefined) {
+      requireRevision(project.revision, input.expectedRevision)
+    }
+    const run = await this.resolveDiagnosticRun(scope, project, input.runId)
+    if (run.deterministicReview.status === 'failed') {
+      throw new Error(
+        'VISUAL_DIAGNOSTICS_UNAVAILABLE: the current code candidate failed deterministic review; prior render images are historical.'
+      )
+    }
+    const descriptors = this.resolveDiagnosticImages(run, input)
+    if (descriptors.length === 0) {
+      throw new Error('VISUAL_DIAGNOSTICS_UNAVAILABLE: the selected run has no successful render images.')
+    }
+    const images = await Promise.all(descriptors.map(async (descriptor) => {
+      const resolved = await this.workspaceFiles.read(scope, descriptor.filePath)
+      if (resolved.buffer.length > MAX_MULTIMODAL_IMAGE_BYTES) {
+        throw new Error(`VISUAL_DIAGNOSTICS_UNAVAILABLE: ${descriptor.name} exceeds the multimodal attachment limit.`)
+      }
+      if (!hasExpectedImageSignature(resolved.buffer, descriptor.mimeType)) {
+        throw new Error(`VISUAL_DIAGNOSTICS_UNAVAILABLE: ${descriptor.name} bytes do not match its MIME type.`)
+      }
+      const sha256 = createHash('sha256').update(resolved.buffer).digest('hex')
+      if (sha256 !== descriptor.sha256 || sha256 !== resolved.asset.sha256) {
+        throw new Error(`VISUAL_DIAGNOSTICS_UNAVAILABLE: ${descriptor.name} checksum does not match the run report.`)
+      }
+      if (resolved.asset.tenantId !== scope.tenantId ||
+        resolved.asset.userId !== scope.userId ||
+        resolved.asset.projectId !== (scope.projectId ?? undefined) ||
+        resolved.asset.xpertId !== (scope.xpertId ?? undefined)) {
+        throw new Error(`VISUAL_DIAGNOSTICS_UNAVAILABLE: ${descriptor.name} scope does not match the Agent session.`)
+      }
+      return {
+        kind: descriptor.kind,
+        view: descriptor.view,
+        name: descriptor.name,
+        mimeType: descriptor.mimeType,
+        size: resolved.buffer.length,
+        sha256,
+        dataUrl: `data:${descriptor.mimeType};base64,${resolved.buffer.toString('base64')}`
+      }
+    }))
+    return {
+      type: 'img2threejs.visual-diagnostics',
+      projectId: project.id,
+      revision: project.revision,
+      runId: run.id,
+      runRevision: run.revision,
+      images
+    }
+  }
+
+  private async resolveDiagnosticRun(
+    scope: Scope,
+    project: ModelProjectEntity,
+    runId?: string
+  ): Promise<PipelineRunEntity> {
+    const selectedId = runId ?? project.activeRunId
+    const run = selectedId
+      ? await this.runs.findOne({ where: scopedIdWhere(scope, selectedId) })
+      : await this.runs.findOne({
+          where: scopedProjectWhere(scope, project.id),
+          order: { createdAt: 'DESC', id: 'DESC' }
+        })
+    if (!run || run.projectId !== project.id) throw new Error('VISUAL_DIAGNOSTICS_RUN_NOT_FOUND')
+    return run
+  }
+
+  private resolveDiagnosticImages(
+    run: PipelineRunEntity,
+    input: Pick<ReadVisualDiagnosticsInput, 'view' | 'includeComparison' | 'includeRender'>
+  ): DiagnosticImageDescriptor[] {
+    if (run.renderReport?.status !== 'succeeded') return []
+    const images: DiagnosticImageDescriptor[] = []
+    if (input.includeComparison && run.comparisonAsset) {
+      const asset = run.comparisonAsset
+      if (MULTIMODAL_IMAGE_MIME_TYPES.has(asset.mimeType)) {
+        images.push({
+          kind: 'comparison',
+          view: 'reference-vs-render',
+          name: asset.name,
+          mimeType: asset.mimeType as VisualDiagnosticImageAttachment['mimeType'],
+          size: asset.size,
+          sha256: asset.sha256,
+          filePath: asset.filePath
+        })
+      }
+    }
+    if (input.includeRender) {
+      const outputs = run.renderReport.outputs ?? []
+      const preferredName = input.view ? `render-${input.view}.png` : 'render-three-quarter.png'
+      const render = outputs.find((output) => output.name === preferredName) ??
+        outputs.find((output) => output.name.startsWith('render-') && MULTIMODAL_IMAGE_MIME_TYPES.has(output.mimeType))
+      if (render && MULTIMODAL_IMAGE_MIME_TYPES.has(render.mimeType)) {
+        images.push({
+          kind: 'render',
+          view: render.name.replace(/^render-|\.[^.]+$/g, ''),
+          name: render.name,
+          mimeType: render.mimeType as VisualDiagnosticImageAttachment['mimeType'],
+          size: render.size,
+          sha256: render.sha256,
+          filePath: render.filePath ?? `img2threejs/${run.projectId}/browser-evidence/${render.name}`
+        })
+      }
+    }
+    return images
+  }
+
   private async requireProject(scope: Scope, id: string): Promise<ModelProjectEntity> {
     const project = await this.projects.findOne({ where: scopedIdWhere(scope, id) })
     if (!project) throw new Error('PROJECT_NOT_FOUND')
     return project
   }
+}
+
+export function diagnoseAssistantSourceImports(source: string): Array<{
+  code: 'ESM_IMPORT_EXTENSION_MISSING'
+  line: number
+  moduleSpecifier: string
+  detail: string
+}> {
+  const diagnostics: Array<{
+    code: 'ESM_IMPORT_EXTENSION_MISSING'
+    line: number
+    moduleSpecifier: string
+    detail: string
+  }> = []
+  for (const [index, line] of source.split(/\r?\n/).entries()) {
+    const moduleSpecifier = line.match(/(?:from\s+|import\s*)['"]([^'"]+)['"]/)?.[1]
+    if (!moduleSpecifier?.startsWith('three/examples/jsm/') || moduleSpecifier.endsWith('.js')) continue
+    diagnostics.push({
+      code: 'ESM_IMPORT_EXTENSION_MISSING',
+      line: index + 1,
+      moduleSpecifier,
+      detail: `The browser ESM build requires an explicit .js suffix for '${moduleSpecifier}'. Author a new Assistant candidate with a resolvable module specifier; do not retry the immutable code version.`
+    })
+  }
+  return diagnostics
 }
 
 function hasExpectedImageSignature(buffer: Buffer, mimeType: string): boolean {

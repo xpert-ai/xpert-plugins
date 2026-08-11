@@ -80,12 +80,12 @@ export function buildSeedanceAssistantMessage(input: {
 }) {
   return [
     `Generate real synchronized-audio Seedance videos for Story Studio project ${input.projectId}.`,
-    `Current observed revision is ${input.revision}; refresh it with story_get_project_summary before each mutation.`,
+    `Initialize currentBaseRevision=${input.revision}. Use it for the first Story mutation, then set currentBaseRevision to the revision returned by every successful mutation receipt. Do not read the project summary only for revision.`,
     `For every target use model doubao-seedance-2-0-fast-260128, 720p, ratio ${input.aspectRatio}, watermark=false, generate_audio=true, and duration clamped to 4-15 seconds.`,
     'For a target whose generationTool is seedance_multimodal_reference_to_video, call it with input_mode=text_image_audio, reference_image_files=[imageWorkspacePath], and reference_audio_urls=[referenceAudioUrl]. The reference audio controls timbre; speak the exact dialogue from the prompt.',
     'If the multimodal tool is unavailable in this Assistant or the public reference audio cannot be read, fall back once to seedance_image_to_video with input_image_file=imageWorkspacePath and generate_audio=true. Never fall back to silent video.',
     'If the input image is rejected only for privacy-sensitive content, retry that target once with seedance_text_to_video using the same synchronized-audio prompt and generate_audio=true. Do not retry other provider failures automatically.',
-    'Query every task with seedance_video_query. For each completed Workspace MP4 call story_attach_generated_video with the exact sceneId and shotId, select=true, a task-derived candidateId, and provider receipt. Refresh the Story revision before every attachment.',
+    'Query every task with seedance_video_query. For each completed Workspace MP4 call story_attach_generated_video sequentially with currentBaseRevision, the exact sceneId and shotId, select=true, a task-derived candidateId, and provider receipt. After success, chain the returned revision into the next attachment. On a revision conflict, use error.currentRevision or call story_get_project_revision once if that field is unavailable.',
     `Targets:\n${JSON.stringify(input.targets, null, 2)}`
   ].join('\n\n')
 }
@@ -98,10 +98,10 @@ export function buildSeedanceStatusAssistantMessage(input: {
     `Continue the existing synchronized-audio Seedance workflow for Story Studio project ${input.projectId}.`,
     'Read the Seedance task IDs from the immediately preceding Assistant response in this thread. Do not create or resubmit any video-generation task.',
     'Query every existing task exactly once with seedance_video_query.',
-    `Before every Story mutation, refresh the project summary. The currently observed revision is ${input.revision}.`,
-    'For each completed task that returns a Workspace MP4, call story_attach_generated_video with the original sceneId and shotId from the preceding request, select=true, a task-derived candidateId, and the provider receipt.',
+    `Initialize currentBaseRevision=${input.revision}; do not read the project summary only for revision.`,
+    'For each completed task that returns a Workspace MP4, call story_attach_generated_video sequentially with currentBaseRevision, the original sceneId and shotId from the preceding request, select=true, a task-derived candidateId, and the provider receipt. After success, use the returned revision for the next attachment.',
     'If a task is still processing, report its current status and task ID. If a task failed, report the provider failure without retrying or replacing it.',
-    'After all completed videos are attached, refresh the Story project summary and report how many shots now have selected video media.'
+    'After all completed videos are attached, report results from the attachment receipts. Read production only when selected-shot content must be verified; do not read the project summary only for revision.'
   ].join('\n\n')
 }
 

@@ -16,12 +16,14 @@ import { StoryActionLog, StoryProject } from './entities/index.js'
 import { storyActor } from './story-actor.js'
 import type {
   CreateStoryProjectInput,
+  GetStoryProjectRevisionInput,
   GetStoryProjectSummaryInput,
   ReportStoryFailureInput,
   SearchStoryProjectsInput,
   StoryMutationReceipt,
   StoryProjectAction,
   StoryProjectMutationResult,
+  StoryProjectRevision,
   StoryProjectSearchResult,
   StoryProjectStatus,
   StoryProjectSummary,
@@ -181,6 +183,17 @@ export class StoryStudioService {
       throw revisionConflict(project.revision)
     }
     return toProjectSummary(project)
+  }
+
+  async getProjectRevision(
+    scope: StoryScope,
+    input: GetStoryProjectRevisionInput
+  ): Promise<StoryProjectRevision> {
+    const project = await this.requireProject(scope, input.projectId)
+    return {
+      projectId: project.id,
+      revision: project.revision
+    }
   }
 
   async updateProject(
@@ -556,7 +569,7 @@ function assertRevision(project: StoryProject, baseRevision: number) {
 function revisionConflict(currentRevision: number) {
   return new ConflictException({
     errorCode: 'story_revision_conflict',
-    message: 'Story project changed. Refresh the project and retry.',
+    message: `Story project changed. Current revision is ${currentRevision}. Re-read only affected content when needed, then retry with that revision.`,
     currentRevision
   })
 }
@@ -654,6 +667,7 @@ export function toProjectSummary(project: StoryProject): StoryProjectSummary {
     },
     availableReads: [
       'story_get_project_summary',
+      'story_get_project_revision',
       'story_search_projects'
     ],
     nextAction: nextActionForStatus(project.status)

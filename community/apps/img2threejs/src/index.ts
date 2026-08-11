@@ -154,5 +154,25 @@ export * from './lib/domain/pipeline.js'
 export * from './lib/domain/sculpt-spec.schema.js'
 export * from './lib/domain/threejs-generator.js'
 export * from './lib/domain/types.js'
+export * from './lib/domain/admission/index.js'
+export {
+  GeometryDescriptorSchema,
+  SculptSpecSchema as GreenfieldSculptSpecSchema
+} from './lib/domain/sculpt/index.js'
+export type {
+  GeometryDescriptor,
+  GeometryType,
+  SculptSpec as GreenfieldSculptSpec
+} from './lib/domain/sculpt/index.js'
+export {
+  QUALITY_PROFILES,
+  QualityProfileNameSchema,
+  QualityProfileSchema,
+  getQualityProfile
+} from './lib/domain/quality/quality-profiles.js'
+export type {
+  QualityProfile,
+  QualityProfileName
+} from './lib/domain/quality/quality-profiles.js'
 export * from './lib/entities/index.js'
 export * from './lib/img2threejs.service.js'

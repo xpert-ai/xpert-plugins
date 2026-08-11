@@ -3,9 +3,14 @@ import {
   Button,
   Check,
   ChevronDown,
-  MoreHorizontal,
+  PanelRightClose,
+  PanelRightOpen,
   Plus,
-  RotateCcw
+  RotateCcw,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
 } from '@xpert-ai/plugin-shadcn-ui'
 import { DirectorAssemblyPage } from './director-assembly-page'
 import { DirectorAssetsPage } from './director-assets-page'
@@ -26,6 +31,7 @@ import './director-storyboard.css'
 import './studio-panel-layout.css'
 
 const h: typeof React.createElement = React.createElement
+const RIGHT_PANEL_BREAKPOINT = 1180
 
 const NAV_ITEMS = [
   { stage: DIRECTOR_STAGE.script, key: 'director.nav.script' },
@@ -51,8 +57,48 @@ export function DirectorWorkbench(props: DirectorWorkbenchProps) {
   } = props
   const [projectMenuOpen, setProjectMenuOpen] = React.useState(false)
   const [accountMenuOpen, setAccountMenuOpen] = React.useState(false)
+  const [rightPanelOpen, setRightPanelOpen] = React.useState(() =>
+    typeof window === 'undefined' || window.innerWidth >= RIGHT_PANEL_BREAKPOINT
+  )
+  const compactViewportRef = React.useRef<boolean | null>(null)
+  const projectMenuRef = React.useRef<HTMLDivElement | null>(null)
   const scriptBeforeLeaveRef = React.useRef<(() => Promise<boolean>) | null>(null)
   const normalizedStage = normalizeDirectorStage(activeStage)
+  const hasRightPanel = normalizedStage !== DIRECTOR_STAGE.assets
+
+  React.useEffect(() => {
+    const media = window.matchMedia(`(max-width: ${RIGHT_PANEL_BREAKPOINT - 1}px)`)
+    const updateForViewport = () => {
+      const compact = media.matches
+      if (compactViewportRef.current !== compact) {
+        compactViewportRef.current = compact
+        setRightPanelOpen(!compact)
+      }
+    }
+    updateForViewport()
+    media.addEventListener('change', updateForViewport)
+    return () => media.removeEventListener('change', updateForViewport)
+  }, [])
+
+  React.useEffect(() => {
+    if (!projectMenuOpen) return
+
+    const closeOnPointerDown = (event: PointerEvent) => {
+      if (!projectMenuRef.current?.contains(event.target as Node)) {
+        setProjectMenuOpen(false)
+      }
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setProjectMenuOpen(false)
+    }
+
+    document.addEventListener('pointerdown', closeOnPointerDown)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeOnPointerDown)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [projectMenuOpen])
 
   async function leaveScript(action: () => void) {
     if (
@@ -89,18 +135,20 @@ export function DirectorWorkbench(props: DirectorWorkbenchProps) {
   return (
     <div className="director-root" data-testid="director-workbench">
       <header className="director-topbar">
-        <div className="director-project-switcher">
-          <button type="button" className="director-project-title" onClick={() => setProjectMenuOpen((value) => !value)} aria-expanded={projectMenuOpen}>
+        <div className="director-project-switcher" ref={projectMenuRef}>
+          <button type="button" className="director-project-title" onClick={() => setProjectMenuOpen((value) => !value)} aria-controls="director-project-menu" aria-expanded={projectMenuOpen}>
             <strong>《{selected.title}》</strong><span>·</span><b>{t('director.episodeOne')}</b><ChevronDown aria-hidden="true" />
           </button>
           {projectMenuOpen ? (
-            <div className="director-project-menu">
-              <header><strong>{t('projects.title')}</strong><button type="button" onClick={() => setProjectMenuOpen(false)}><MoreHorizontal aria-hidden="true" /></button></header>
-              {projects.slice(0, 8).map((project) => (
-                <button key={project.id} type="button" className={project.id === selected.id ? 'is-selected' : ''} onClick={() => void leaveScript(() => { props.onSelectProject(project.id); setProjectMenuOpen(false) })}>
-                  <span>{project.title.slice(0, 1)}</span><div><strong>{project.title}</strong><small>{project.aspectRatio} · R{project.revision}</small></div>{project.id === selected.id ? <Check aria-hidden="true" /> : null}
-                </button>
-              ))}
+            <div className="director-project-menu" id="director-project-menu" data-testid="director-project-menu">
+              <header><strong>{t('projects.title')}</strong><span className="director-project-menu-count">{projects.length}</span></header>
+              <div className="director-project-menu-list">
+                {projects.slice(0, 8).map((project) => (
+                  <button key={project.id} type="button" className={project.id === selected.id ? 'is-selected' : ''} aria-current={project.id === selected.id ? 'true' : undefined} onClick={() => void leaveScript(() => { props.onSelectProject(project.id); setProjectMenuOpen(false) })}>
+                    <span>{project.title.slice(0, 1)}</span><div><strong>{project.title}</strong><small>{project.aspectRatio} · R{project.revision}</small></div>{project.id === selected.id ? <Check aria-hidden="true" /> : null}
+                  </button>
+                ))}
+              </div>
               <footer><Button variant="outline" size="sm" onClick={() => void leaveScript(() => { props.onLoadDemo(); setProjectMenuOpen(false) })}>{t('actions.loadDemo')}</Button><Button size="sm" onClick={() => void leaveScript(() => { props.onNewProject(); setProjectMenuOpen(false) })}><Plus aria-hidden="true" />{t('actions.newProject')}</Button></footer>
             </div>
           ) : null}
@@ -117,6 +165,26 @@ export function DirectorWorkbench(props: DirectorWorkbenchProps) {
         <div className="director-top-status">
           <span className="is-saved">{productionPersisted ? <i><Check aria-hidden="true" /></i> : null}{productionPersisted ? t('director.saved', { time: '10:24' }) : t('manualProduction.draft')}</span>
           <span className="director-budget"><b>{productionPersisted ? t('director.costSummary') : t('project.status')}</b><strong>{productionPersisted ? t('director.costPending') : t('manualProduction.unsaved')}</strong></span>
+          {hasRightPanel ? (
+            <TooltipProvider delayDuration={250}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className="grid size-8 shrink-0 place-items-center rounded-md border border-studio-line bg-studio-paper text-studio-muted transition hover:border-studio-brass hover:text-studio-brass focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-brass/40"
+                    aria-label={t(rightPanelOpen ? 'director.panel.hide' : 'director.panel.show')}
+                    aria-controls="director-right-panel"
+                    aria-expanded={rightPanelOpen}
+                    data-testid="director-right-panel-toggle"
+                    onClick={() => setRightPanelOpen((value) => !value)}
+                  >
+                    {rightPanelOpen ? <PanelRightClose className="size-4" aria-hidden="true" /> : <PanelRightOpen className="size-4" aria-hidden="true" />}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>{t(rightPanelOpen ? 'director.panel.hide' : 'director.panel.show')}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : null}
           <div className="director-account-menu-wrap">
             <button type="button" className="director-account-button" aria-label={t('director.projectMenu')} onClick={() => setAccountMenuOpen((value) => !value)}><span>导</span><ChevronDown aria-hidden="true" /></button>
             {accountMenuOpen ? (
@@ -132,16 +200,16 @@ export function DirectorWorkbench(props: DirectorWorkbenchProps) {
 
       <main className="director-workspace">
         {normalizedStage === DIRECTOR_STAGE.script ? (
-          <DirectorScriptPage production={activeProduction} busy={busy} t={t} onCommitProduction={(draft, summary, options) => props.onCommitProduction(4, draft, summary, options)} onRequestSuggestion={props.onRequestScriptSuggestion} onOpenStoryboard={() => props.onNavigate(DIRECTOR_STAGE.storyboard)} onRegisterBeforeLeave={(handler) => { scriptBeforeLeaveRef.current = handler }} />
+          <DirectorScriptPage production={activeProduction} busy={busy} rightPanelOpen={rightPanelOpen} t={t} onCommitProduction={(draft, summary, options) => props.onCommitProduction(4, draft, summary, options)} onRequestSuggestion={props.onRequestScriptSuggestion} onOpenStoryboard={() => props.onNavigate(DIRECTOR_STAGE.storyboard)} onRegisterBeforeLeave={(handler) => { scriptBeforeLeaveRef.current = handler }} />
         ) : null}
         {normalizedStage === DIRECTOR_STAGE.assets ? (
-          <DirectorAssetsPage production={activeProduction} busy={busy} t={t} onCommitProduction={(draft, summary) => props.onCommitProduction(5, draft, summary)} onGenerateAsset={props.onGenerateAsset} onUploadAsset={props.onUploadAsset} onLockAsset={props.onLockAsset} />
+          <DirectorAssetsPage production={activeProduction} busy={busy} t={t} onCommitProduction={(draft, summary) => props.onCommitProduction(5, draft, summary)} onGenerateAsset={props.onGenerateAsset} onUploadAsset={props.onUploadAsset} onUploadAssetBatch={props.onUploadAssetBatch} onUploadVoiceReference={props.onUploadVoiceReference} onLockAsset={props.onLockAsset} />
         ) : null}
         {normalizedStage === DIRECTOR_STAGE.storyboard ? (
-          <DirectorStoryboardPage production={activeProduction} busy={busy} generating={generating} videoGenerators={videoGenerators} videoTasks={videoTasks} t={t} onCommitProduction={(draft, summary) => props.onCommitProduction(6, draft, summary)} onGenerateTakes={props.onGenerateTakes} onSetVideoGenerator={props.onSetVideoGenerator} onCancelVideoTask={props.onCancelVideoTask} onRetryVideoTask={props.onRetryVideoTask} onSelectTake={props.onSelectTake} onUploadAsset={props.onUploadAsset} onUploadShotReference={props.onUploadShotReference} />
+          <DirectorStoryboardPage production={activeProduction} busy={busy} generating={generating} rightPanelOpen={rightPanelOpen} videoGenerators={videoGenerators} videoTasks={videoTasks} t={t} onCommitProduction={(draft, summary) => props.onCommitProduction(6, draft, summary)} onGenerateTakes={props.onGenerateTakes} onSetVideoGenerator={props.onSetVideoGenerator} onCancelVideoTask={props.onCancelVideoTask} onRetryVideoTask={props.onRetryVideoTask} onSelectTake={props.onSelectTake} onUploadAsset={props.onUploadAsset} onUploadShotReference={props.onUploadShotReference} />
         ) : null}
         {normalizedStage === DIRECTOR_STAGE.assembly ? (
-          <DirectorAssemblyPage production={activeProduction} handoff={handoff} projectRevision={selected.revision} aspectRatio={selected.aspectRatio} busy={busy} handingOff={handingOff} t={t} onHandoff={props.onHandoff} onReturnStoryboard={() => props.onNavigate(DIRECTOR_STAGE.storyboard)} />
+          <DirectorAssemblyPage production={activeProduction} handoff={handoff} projectRevision={selected.revision} aspectRatio={selected.aspectRatio} busy={busy} handingOff={handingOff} rightPanelOpen={rightPanelOpen} t={t} onHandoff={props.onHandoff} onReturnStoryboard={() => props.onNavigate(DIRECTOR_STAGE.storyboard)} />
         ) : null}
       </main>
     </div>

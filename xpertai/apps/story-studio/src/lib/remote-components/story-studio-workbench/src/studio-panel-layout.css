@@ -1,12 +1,28 @@
 .studio-panel-layout {
   display: grid;
-  grid-template-columns: var(--studio-left-panel, 270px) minmax(420px, 1fr) var(--studio-right-panel, 330px);
+  grid-template-columns: var(--studio-left-panel, 270px) minmax(0, 1fr) var(--studio-right-panel, 330px);
   grid-template-rows: minmax(0, 1fr) 52px;
   height: 100%;
   min-height: 760px;
-  min-width: 980px;
+  min-width: 0;
   overflow: hidden;
   position: relative;
+}
+
+.studio-panel-layout.is-two-column {
+  grid-template-columns: var(--studio-left-panel, 270px) minmax(0, 1fr);
+}
+
+.studio-panel-layout.is-right-collapsed {
+  grid-template-columns: var(--studio-left-panel, 270px) minmax(0, 1fr);
+}
+
+.studio-panel-layout.is-right-collapsed > [data-studio-panel="right"] {
+  display: none;
+}
+
+.studio-panel-layout.is-right-collapsed > footer {
+  grid-column: 1 / -1;
 }
 
 .studio-panel-resize-handle {
@@ -55,4 +71,29 @@
 
 .studio-panel-resize-handle:active {
   background: color-mix(in srgb, var(--studio-brass) 8%, transparent);
+}
+
+@media (max-width: 760px) {
+  .studio-panel-layout.has-right-panel {
+    grid-template-columns: var(--studio-left-panel, 270px) minmax(0, 1fr);
+  }
+
+  .studio-panel-layout.has-right-panel > footer {
+    grid-column: 1 / -1;
+  }
+
+  .studio-panel-layout.has-right-panel:not(.is-right-collapsed) > [data-studio-panel="right"] {
+    bottom: 52px;
+    box-shadow: -18px 0 42px rgb(34 28 18 / 14%);
+    max-width: calc(100% - 48px);
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: var(--studio-right-panel, 330px);
+    z-index: 32;
+  }
+
+  .studio-panel-layout.has-right-panel .studio-panel-resize-handle.is-right {
+    display: none;
+  }
 }

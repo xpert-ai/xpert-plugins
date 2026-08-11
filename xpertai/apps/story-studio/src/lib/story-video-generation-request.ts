@@ -40,13 +40,17 @@ export function buildStoryVideoGenerationRequest(
     production.assets,
     input.referenceAssetIds ?? shot.videoSettings?.referenceAssetIds ?? []
   )
+  const referenceImageCandidateIds = uniqueStrings(
+    input.referenceImageCandidateIds ??
+      shot.videoSettings?.referenceImageCandidateIds ??
+      []
+  )
   const shotReference = preferredImageCandidate(shot.candidates, '当前镜头画面')
   const assetReferences = referenceAssets.flatMap((asset) => {
-    const candidate = preferredImageCandidate(
-      asset.candidates,
-      `${assetKindLabel(asset.kind)}“${asset.name}”`
+    return selectedAssetImageCandidates(
+      asset,
+      referenceImageCandidateIds
     )
-    return candidate ? [candidate] : []
   })
   const referenceImages = uniqueReferenceImages([
     ...(shotReference ? [shotReference] : []),
@@ -266,6 +270,51 @@ function preferredImageCandidate(candidates: StoryMediaCandidate[] | undefined, 
   const images = (candidates ?? []).filter((candidate) => candidate.kind === 'image' && isPortableReference(candidate.fileReference))
   const candidate = images.find((item) => item.selected) ?? images[0]
   return candidate?.fileReference ? { candidateId: candidate.id, reference: candidate.fileReference, promptName } : null
+}
+
+function selectedAssetImageCandidates(
+  asset: StoryAsset,
+  requestedCandidateIds: string[]
+): ReferenceImage[] {
+  const requested = new Set(requestedCandidateIds)
+  const images = (asset.candidates ?? []).filter(
+    (candidate) =>
+      candidate.kind === 'image' &&
+      requested.has(candidate.id) &&
+      isPortableReference(candidate.fileReference)
+  )
+  if (!images.length) {
+    const fallback = preferredImageCandidate(
+      asset.candidates,
+      `${assetKindLabel(asset.kind)}“${asset.name}”`
+    )
+    return fallback ? [fallback] : []
+  }
+  return images.map((candidate) => ({
+    candidateId: candidate.id,
+    reference: candidate.fileReference!,
+    promptName: `${assetKindLabel(asset.kind)}“${asset.name}”${assetReferencePromptSuffix(candidate)}`
+  }))
+}
+
+function assetReferencePromptSuffix(candidate: StoryMediaCandidate) {
+  const reference = candidate.assetReference
+  if (!reference || reference.type === 'general') return ''
+  const labels = {
+    front: '的正面参考',
+    three_quarter: '的四分之三视角参考',
+    profile: '的侧面参考',
+    back: '的背面参考',
+    wide: '的全景参考',
+    reverse: '的反向参考',
+    detail: '的细节参考',
+    alternate: '的补充参考',
+    neutral: '的平静表情',
+    happy: '的开心表情',
+    sad: '的难过表情',
+    angry: '的生气表情'
+  } as const
+  return labels[reference.key]
 }
 
 function referenceMaterialInstruction(images: ReferenceImage[]) {

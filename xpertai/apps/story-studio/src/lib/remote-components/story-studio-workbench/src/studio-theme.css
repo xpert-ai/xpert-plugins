@@ -100,6 +100,12 @@ textarea {
   border-color: var(--ss-line-strong);
 }
 
+/* Dialogs render in a portal, so their footer cannot inherit scoped .ss-root borders. */
+[data-slot='dialog-footer'],
+[data-slot='alert-dialog-footer'] {
+  border-top-color: var(--xui-color-border, var(--ss-line-strong));
+}
+
 .ss-ready-badge {
   border-color: color-mix(in srgb, var(--ss-green) 45%, transparent) !important;
   background: var(--ss-green-soft) !important;

@@ -26,6 +26,7 @@ await build({
 })
 await copyPackageClosure('esbuild')
 await copyPackageClosure('@esbuild/linux-x64')
+await copyPackageClosure('@esbuild/linux-arm64')
 await copyPackageClosure('@esbuild/darwin-arm64')
 await copyThree()
 const files = await collectFiles(bundleRoot)
@@ -65,6 +66,18 @@ async function copyThree() {
   await cp(
     path.join(path.dirname(packageJsonPath), 'examples', 'jsm', 'geometries', 'RoundedBoxGeometry.js'),
     path.join(roundedBoxTarget, 'RoundedBoxGeometry.js')
+  )
+  const exporterTarget = path.join(target, 'examples', 'jsm', 'exporters')
+  await mkdir(exporterTarget, { recursive: true })
+  await cp(
+    path.join(path.dirname(packageJsonPath), 'examples', 'jsm', 'exporters', 'GLTFExporter.js'),
+    path.join(exporterTarget, 'GLTFExporter.js')
+  )
+  const environmentTarget = path.join(target, 'examples', 'jsm', 'environments')
+  await mkdir(environmentTarget, { recursive: true })
+  await cp(
+    path.join(path.dirname(packageJsonPath), 'examples', 'jsm', 'environments', 'RoomEnvironment.js'),
+    path.join(environmentTarget, 'RoomEnvironment.js')
   )
 }
 async function resolvePackageJson(packageName) {

@@ -171,7 +171,7 @@ export function StructuredScriptEditor(props: StructuredScriptEditorProps) {
             />
             {hasDialogue && speakerLine !== null && dialogueLine !== null ? (
               <>
-                <div className={`grid min-h-12 grid-cols-[48px_88px_minmax(0,1fr)_48px] items-center border-b border-studio-line/60 ${selected ? 'bg-blue-50/70' : ''}`}>
+                <div className={`grid min-h-12 min-w-0 grid-cols-[48px_88px_minmax(0,1fr)_48px] items-center overflow-hidden whitespace-nowrap border-b border-studio-line/60 ${selected ? 'bg-blue-50/70' : ''}`}>
                   <i className="self-stretch border-r border-studio-line/60 px-2 py-3 text-right text-[10px] not-italic text-studio-muted">{speakerLine}</i>
                   <DirectorSelect
                     className="mx-2 w-[72px] bg-studio-canvas px-1.5 text-[10px] font-bold text-studio-muted"
@@ -187,7 +187,7 @@ export function StructuredScriptEditor(props: StructuredScriptEditorProps) {
                     ]}
                   />
                   <DirectorSelect
-                    className="mx-3 border-0 bg-transparent px-2 text-center font-mono text-xs font-bold shadow-none"
+                    className="mx-3 min-w-0 truncate border-0 bg-transparent px-2 text-center font-mono text-xs font-bold shadow-none"
                     ariaLabel={t('director.crud.speaker')}
                     value={shot.dialogueSpeakerId ?? ''}
                     onFocus={() => props.onSelectShot(shot.id)}
@@ -223,8 +223,8 @@ export function StructuredScriptEditor(props: StructuredScriptEditorProps) {
         )
       })}
 
-      <div className="flex min-h-36 items-start gap-3 px-12 py-5">
-        <div className="inline-flex items-center gap-2 rounded-md border border-dashed border-studio-line bg-studio-canvas px-3 py-2 text-xs font-semibold text-studio-muted hover:border-studio-brass hover:text-studio-brass">
+      <div className="flex min-h-36 min-w-0 items-start gap-3 overflow-hidden whitespace-nowrap px-12 py-5">
+        <div className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md border border-dashed border-studio-line bg-studio-canvas px-3 py-2 text-xs font-semibold text-studio-muted hover:border-studio-brass hover:text-studio-brass">
           <Plus className="size-3.5" aria-hidden="true" />
           <span>{t('director.script.addBlock')}</span>
           <DirectorSelect
@@ -244,7 +244,7 @@ export function StructuredScriptEditor(props: StructuredScriptEditorProps) {
             ]}
           />
         </div>
-        <span className="pt-2 text-[11px] text-studio-muted">{t('director.script.keyboardHelp')}</span>
+        <span className="min-w-0 flex-1 truncate pt-2 text-[11px] text-studio-muted" title={t('director.script.keyboardHelp')}>{t('director.script.keyboardHelp')}</span>
       </div>
     </article>
   )
@@ -252,13 +252,14 @@ export function StructuredScriptEditor(props: StructuredScriptEditorProps) {
 
 function EditableBlock(props: EditableBlockProps) {
   return (
-    <div className={`group grid min-h-12 grid-cols-[48px_88px_minmax(0,1fr)_48px] border-b border-studio-line/60 transition ${props.emphasized ? 'bg-studio-canvas font-bold' : ''} ${props.selected ? 'bg-blue-50/70' : 'focus-within:bg-amber-50/40 hover:bg-studio-canvas/50'}`}>
+    <div className={`group grid min-h-12 min-w-0 grid-cols-[48px_88px_minmax(0,1fr)_48px] overflow-hidden whitespace-nowrap border-b border-studio-line/60 transition ${props.emphasized ? 'bg-studio-canvas font-bold' : ''} ${props.selected ? 'bg-blue-50/70' : 'focus-within:bg-amber-50/40 hover:bg-studio-canvas/50'}`}>
       <i className="border-r border-studio-line/60 px-2 py-3 text-right text-[10px] not-italic text-studio-muted">{props.line}</i>
-      <span className="mx-2 my-3 h-fit rounded bg-studio-canvas px-1.5 py-0.5 text-center text-[9px] font-bold uppercase tracking-wide text-studio-muted group-focus-within:bg-studio-brass group-focus-within:text-white">{props.kind}</span>
+      <span className="mx-2 my-3 h-fit truncate whitespace-nowrap rounded bg-studio-canvas px-1.5 py-0.5 text-center text-[9px] font-bold uppercase tracking-wide text-studio-muted group-focus-within:bg-studio-brass group-focus-within:text-white" title={props.kind}>{props.kind}</span>
       <Textarea
         data-script-block-id={props.id}
-        className={`script-inline-textarea min-h-12 w-full resize-none rounded-none border-0 bg-transparent px-3 py-3 font-mono text-[13px] leading-6 text-studio-ink shadow-none outline-none placeholder:text-studio-muted/65 focus-visible:ring-0 ${props.emphasized ? 'font-bold' : ''}`}
+        className={`script-inline-textarea min-h-12 min-w-0 w-full resize-none truncate whitespace-nowrap rounded-none border-0 bg-transparent px-3 py-3 font-mono text-[13px] leading-6 text-studio-ink shadow-none outline-none placeholder:text-studio-muted/65 focus-visible:ring-0 ${props.emphasized ? 'font-bold' : ''}`}
         rows={props.multiline ? 2 : 1}
+        wrap="off"
         value={props.value}
         placeholder={props.placeholder}
         aria-label={props.ariaLabel}

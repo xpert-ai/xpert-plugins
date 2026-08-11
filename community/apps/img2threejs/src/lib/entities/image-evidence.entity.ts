@@ -1,4 +1,5 @@
 import { Column, Entity, Index } from 'typeorm'
+import type { ImageAdmissionDiagnostics } from '../domain/admission/image-admission.js'
 import { IMG2THREEJS_TABLES } from '../constants.js'
 import type { WorkspaceAssetReference } from '../domain/types.js'
 import { ScopedRevisionEntity } from './scoped.entity.js'
@@ -42,13 +43,34 @@ export class ImageEvidenceEntity extends ScopedRevisionEntity {
   height!: number | null
 
   @Column({ type: 'varchar' })
-  admissionStatus!: 'admitted' | 'rejected'
+  admissionStatus!: 'admitted' | 'request-input' | 'rejected'
 
   @Column({ type: 'json', default: () => "'[]'" })
   observations!: ImageEvidenceObservation[]
 
   @Column({ type: 'float', default: 0 })
   confidence!: number
+
+  @Column({ type: 'json', nullable: true })
+  admissionDiagnostics!: ImageAdmissionDiagnostics | null
+
+  @Column({ type: 'float', nullable: true })
+  foregroundCoverage!: number | null
+
+  @Column({ type: 'float', nullable: true })
+  largestComponentFraction!: number | null
+
+  @Column({ type: 'float', nullable: true })
+  maskConfidence!: number | null
+
+  @Column({ type: 'varchar', nullable: true })
+  pHash!: string | null
+
+  @Column({ type: 'float', nullable: true })
+  viewpointConfidence!: number | null
+
+  @Column({ type: 'varchar', nullable: true })
+  requestInputReason!: string | null
 
   @Column({ type: 'json', default: () => "'[]'" })
   failureReasons!: string[]

@@ -9,6 +9,8 @@ The current implementation includes:
 - system-level plugin metadata with the stable `story_studio` artifact namespace;
 - tenant- and organization-scoped story projects;
 - revision-safe project mutations and audit records;
+- receipt-chained optimistic concurrency with a compact revision-only recovery
+  tool, avoiding full project-summary reads between sequential mutations;
 - a Tailwind CSS-first Director workbench for Script, Assets, Storyboard, and
   Assembly, with shared studio tokens and accessible shadcn dialogs;
 - real production-data CRUD for episodes, scenes, shots, and all four asset

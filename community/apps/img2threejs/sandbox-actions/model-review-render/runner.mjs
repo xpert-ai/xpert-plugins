@@ -68,6 +68,13 @@ async function main() {
     await page.route('**/*', (route) => route.abort('blockedbyclient'))
     await page.setContent('<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#eef2f7}canvas{display:block}</style></head><body></body></html>')
     await page.addScriptTag({ path: browserBundlePath })
+    progress(0.16, 'exporting', 'Exporting the validated procedural model as GLB.')
+    const glb = Buffer.from(
+      await page.evaluate(async () => globalThis.__xpertImg2ThreeJs.exportGlb()),
+      'base64'
+    )
+    validateGlb(glb)
+    await writeFile(path.join(outputDir, 'model.glb'), glb)
     for (let index = 0; index < request.payload.views.length; index += 1) {
       const view = request.payload.views[index]
       progress(0.2 + (index / request.payload.views.length) * 0.55, 'rendering', `Rendering ${view}.`, index + 1, request.payload.views.length)
@@ -167,15 +174,21 @@ async function main() {
   if (!multiAngle.passed) failureCodes.push('degenerate_multi_angle_geometry')
   const triangles = Math.max(0, ...viewMetrics.map((item) => item.triangles ?? 0))
   const drawCalls = Math.max(0, ...viewMetrics.map((item) => item.drawCalls ?? 0))
+  const runtimeMeshCount = Math.min(...viewMetrics.map((item) => item.runtimeMeshCount ?? 0))
   const visiblePixelRatio = Math.min(1, ...viewMetrics.map((item) => item.visibility?.visiblePixelRatio ?? 0))
   const silhouetteFillRatio = Math.min(1, ...viewMetrics.map((item) => item.visibility?.silhouetteFillRatio ?? 0))
   if (triangles > request.payload.quality.maximumTriangles) failureCodes.push('triangle_budget_failed')
   if (drawCalls > request.payload.quality.maximumDrawCalls) failureCodes.push('draw_call_budget_failed')
+  if (runtimeMeshCount < request.payload.quality.minimumRuntimeMeshCount) {
+    failureCodes.push('runtime_mesh_count_failed')
+  }
   if (visiblePixelRatio < 0.02) failureCodes.push('render_visibility_failed')
   if (silhouetteFillRatio < 0.12) failureCodes.push('silhouette_fill_failed')
   const quality = {
     triangles,
     drawCalls,
+    runtimeMeshCount,
+    minimumRuntimeMeshCount: request.payload.quality.minimumRuntimeMeshCount,
     maximumTriangles: request.payload.quality.maximumTriangles,
     maximumDrawCalls: request.payload.quality.maximumDrawCalls,
     minimumVisiblePixelRatio: 0.02,
@@ -209,6 +222,7 @@ async function main() {
   const passed =
     quality.triangles <= quality.maximumTriangles &&
     quality.drawCalls <= quality.maximumDrawCalls &&
+    quality.runtimeMeshCount >= quality.minimumRuntimeMeshCount &&
     quality.visiblePixelRatio >= quality.minimumVisiblePixelRatio &&
     quality.silhouetteFillRatio >= quality.minimumSilhouetteFillRatio &&
     failureCodes.length === 0
@@ -228,14 +242,24 @@ async function main() {
 
 async function exposeBundledDependencies() {
   await mkdir(path.join(nodeModules, '@esbuild'), { recursive: true })
-  for (const packageName of ['esbuild', '@esbuild/linux-x64', '@esbuild/darwin-arm64', 'three']) {
+  for (const packageName of [
+    'esbuild',
+    '@esbuild/linux-x64',
+    '@esbuild/linux-arm64',
+    '@esbuild/darwin-arm64',
+    'three'
+  ]) {
     const target = path.join(runtimeModules, ...packageName.split('/'))
     const link = path.join(nodeModules, ...packageName.split('/'))
     await symlink(target, link, 'dir').catch(async (error) => {
       if (error?.code !== 'EEXIST' || (await realpath(link).catch(() => '')) !== (await realpath(target))) throw error
     })
   }
-  for (const platformPackage of ['@esbuild/linux-x64', '@esbuild/darwin-arm64']) {
+  for (const platformPackage of [
+    '@esbuild/linux-x64',
+    '@esbuild/linux-arm64',
+    '@esbuild/darwin-arm64'
+  ]) {
     await chmod(path.join(runtimeModules, ...platformPackage.split('/'), 'bin', 'esbuild'), 0o755)
   }
 }
@@ -273,6 +297,8 @@ function parseRequest(value) {
   }
   if (!isObject(payload.quality) || !Number.isSafeInteger(payload.quality.maximumTriangles) ||
     !Number.isSafeInteger(payload.quality.maximumDrawCalls) ||
+    !Number.isSafeInteger(payload.quality.minimumRuntimeMeshCount) ||
+    payload.quality.minimumRuntimeMeshCount < 1 || payload.quality.minimumRuntimeMeshCount > 5000 ||
     ![
       'minimumSilhouetteIoU',
       'minimumScaleScore',
@@ -289,18 +315,57 @@ function parseRequest(value) {
 
 function browserEntry(modelPath, referenceCamera) {
   return `import * as THREE from 'three';
+import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import * as MODEL from ${JSON.stringify(modelPath)};
 const factoryEntry = Object.entries(MODEL).find(([name, value]) => /^create[A-Za-z0-9_]*Model$/.test(name) && typeof value === 'function');
 if (!factoryEntry) throw new Error('EXPORT_INPUT_INVALID: generated module does not export a model factory.');
-const model = factoryEntry[1]();
+const factoryResult = factoryEntry[1]();
+const model = factoryResult instanceof THREE.Object3D
+  ? { root: factoryResult, dispose() {} }
+  : factoryResult;
+if (!model || !(model.root instanceof THREE.Object3D)) {
+  throw new Error('EXPORT_INPUT_INVALID: model factory must return a THREE.Object3D or an object with a THREE.Object3D root.');
+}
+const lookDevFactoryEntry = Object.entries(MODEL).find(([name, value]) => /^create[A-Za-z0-9_]*LookDevLights$/.test(name) && typeof value === 'function');
+const backgroundFactoryEntry = Object.entries(MODEL).find(([name, value]) => /^make(?:Sky|Studio)[A-Za-z0-9_]*(?:Texture|Background)$/.test(name) && typeof value === 'function');
+const lookDevLights = lookDevFactoryEntry ? lookDevFactoryEntry[1]() : null;
+if (lookDevLights && !(lookDevLights instanceof THREE.Object3D)) {
+  throw new Error('EXPORT_INPUT_INVALID: look-dev lights factory must return a THREE.Object3D.');
+}
+const authoredBackground = backgroundFactoryEntry ? backgroundFactoryEntry[1]() : null;
+if (authoredBackground && !(authoredBackground instanceof THREE.Texture) && !(authoredBackground instanceof THREE.Color)) {
+  throw new Error('EXPORT_INPUT_INVALID: background factory must return a THREE.Texture or THREE.Color.');
+}
 const scene = new THREE.Scene();
-scene.background = new THREE.Color('#eef2f7');
+scene.background = authoredBackground || new THREE.Color('#eef2f7');
 scene.add(model.root);
-scene.add(new THREE.HemisphereLight(0xffffff, 0x334155, 2.2));
-const key = new THREE.DirectionalLight(0xffffff, 3.2); key.position.set(4, 6, 5); key.castShadow = true; scene.add(key);
-const fill = new THREE.DirectionalLight(0xa5b4fc, 1.4); fill.position.set(-5, 2, -3); scene.add(fill);
+if (lookDevLights) {
+  scene.add(lookDevLights);
+} else {
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x334155, 2.2));
+  const key = new THREE.DirectionalLight(0xffffff, 3.2); key.position.set(4, 6, 5); key.castShadow = true; scene.add(key);
+  const fill = new THREE.DirectionalLight(0xa5b4fc, 1.4); fill.position.set(-5, 2, -3); scene.add(fill);
+}
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
-renderer.setPixelRatio(1); renderer.setSize(960, 720); renderer.shadowMap.enabled = true; document.body.appendChild(renderer.domElement);
+renderer.setPixelRatio(1); renderer.setSize(960, 720);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 1;
+pmrem.dispose();
+const authoredGround = new THREE.Mesh(
+  new THREE.PlaneGeometry(30, 30),
+  new THREE.ShadowMaterial({ opacity: 0.16 })
+);
+authoredGround.rotation.x = -Math.PI / 2;
+authoredGround.receiveShadow = true;
+scene.add(authoredGround);
 const box = new THREE.Box3().setFromObject(model.root);
 const size = box.getSize(new THREE.Vector3()); const center = box.getCenter(new THREE.Vector3());
 const radius = Math.max(size.x, size.y, size.z, 0.1) * 1.65;
@@ -311,7 +376,21 @@ const positions = {
   front:[0,0,radius], back:[0,0,-radius], left:[-radius,0,0], right:[radius,0,0],
   top:[0,radius,0.001], bottom:[0,-radius,0.001], 'three-quarter':[radius*.72,radius*.4,radius*.72]
 };
-globalThis.__xpertImg2ThreeJs = { render(view) {
+globalThis.__xpertImg2ThreeJs = { async exportGlb() {
+  const bundle = prepareGlbBundle(model.root, lookDevLights, authoredBackground, fixedCamera);
+  const exported = await new GLTFExporter().parseAsync(bundle.root, {
+    binary: true,
+    onlyVisible: false,
+    animations: bundle.animations
+  });
+  if (!(exported instanceof ArrayBuffer)) throw new Error('EXPORT_OUTPUT_INVALID: GLB exporter returned a non-binary payload.');
+  const bytes = new Uint8Array(exported);
+  let binary = '';
+  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+  }
+  return btoa(binary);
+}, render(view) {
   let camera = perspectiveCamera;
   if (view === fixedCamera.view) {
     camera = fixedCamera.projection === 'orthographic' ? orthographicCamera : perspectiveCamera;
@@ -329,11 +408,13 @@ globalThis.__xpertImg2ThreeJs = { render(view) {
     camera.lookAt(center);
   }
   camera.updateProjectionMatrix(); renderer.render(scene, camera);
-  let triangles = 0; model.root.traverse((object) => { if (object.isMesh) {
-    const geometry = object.geometry; triangles += geometry.index ? geometry.index.count / 3 : (geometry.attributes.position?.count ?? 0) / 3;
+  let triangles = 0; let runtimeMeshCount = 0; model.root.traverseVisible((object) => { if (object.isMesh) {
+    const geometry = object.geometry; const vertexCount = geometry.attributes.position?.count ?? 0;
+    if (vertexCount > 0) runtimeMeshCount += object.isInstancedMesh ? Math.max(1, object.count ?? 1) : 1;
+    triangles += geometry.index ? geometry.index.count / 3 : vertexCount / 3;
   }});
   const visibility = measureVisibility(renderer.domElement);
-  const result = { triangles: Math.round(triangles), drawCalls: renderer.info.render.calls, visibility,
+  const result = { triangles: Math.round(triangles), drawCalls: renderer.info.render.calls, runtimeMeshCount, visibility,
     bounds: { min: box.min.toArray(), max: box.max.toArray(), size: size.toArray() } };
   globalThis.__xpertImg2ThreeJs.lastRender = result;
   return result;
@@ -345,6 +426,181 @@ globalThis.__xpertImg2ThreeJs = { render(view) {
   metrics.comparison = comparison;
   return comparison;
 }};
+function prepareGlbBundle(sourceRoot, sourceLights, background, camera) {
+  sourceRoot.updateWorldMatrix(true, true);
+  const sourceNodes = [];
+  sourceRoot.traverse((object) => sourceNodes.push(object));
+  const exportedRoot = cloneWithoutRuntimeUserData(sourceRoot, sourceNodes);
+  exportedRoot.updateWorldMatrix(true, true);
+  const exportedNodes = [];
+  exportedRoot.traverse((object) => exportedNodes.push(object));
+  if (sourceNodes.length !== exportedNodes.length) {
+    throw new Error('EXPORT_OUTPUT_INVALID: cloned model hierarchy does not match the source hierarchy.');
+  }
+  const sampled = sampleProceduralRuntime(sourceRoot, sourceNodes, exportedNodes);
+  for (let index = 0; index < exportedNodes.length; index += 1) {
+    const object = exportedNodes[index];
+    const sourceObject = sourceNodes[index];
+    if (!object.isMesh || !object.geometry) continue;
+    const sourceMaterials = Array.isArray(sourceObject.material) ? sourceObject.material : [sourceObject.material];
+    const rampMaterial = sourceMaterials.find((material) => material?.userData?.img2threejsColorRamp);
+    const ramp = rampMaterial?.userData?.img2threejsColorRamp;
+    object.geometry = object.geometry.clone();
+    object.material = Array.isArray(object.material)
+      ? sourceMaterials.map((material) => clonePortableMaterial(material, sampled.materialAnimations))
+      : clonePortableMaterial(sourceMaterials[0], sampled.materialAnimations);
+    if (!ramp) continue;
+    bakeWorldAxisColorRamp(object, ramp);
+    const exportedMaterials = Array.isArray(object.material) ? object.material : [object.material];
+    for (const material of exportedMaterials) {
+      if (material.userData?.img2threejsColorRamp) material.vertexColors = true;
+    }
+  }
+  const artifactRoot = new THREE.Group();
+  artifactRoot.name = 'img2threejs-artifact';
+  artifactRoot.add(exportedRoot);
+  if (sourceLights) artifactRoot.add(sourceLights.clone(true));
+  artifactRoot.userData.img2threejsPresentation = {
+    schemaVersion: '1',
+    camera,
+    background: portableBackground(background),
+    embeddedLights: Boolean(sourceLights),
+    environmentIntensity: 1,
+    toneMapping: 'aces',
+    exposure: 1,
+    groundShadow: { enabled: true, opacity: 0.16, size: 30 },
+    autoRotate: false
+  };
+  return { root: artifactRoot, animations: sampled.animations };
+}
+function cloneWithoutRuntimeUserData(sourceRoot, sourceNodes) {
+  const saved = sourceNodes.map((object) => object.userData);
+  for (const object of sourceNodes) object.userData = {};
+  try {
+    return sourceRoot.clone(true);
+  } finally {
+    for (let index = 0; index < sourceNodes.length; index += 1) sourceNodes[index].userData = saved[index];
+  }
+}
+function sampleProceduralRuntime(sourceRoot, sourceNodes, exportedNodes) {
+  const tickers = sourceNodes
+    .map((object) => object.userData?.tick)
+    .filter((tick) => typeof tick === 'function');
+  if (!tickers.length) return { animations: [], materialAnimations: new Map() };
+  const durationSeconds = Math.PI * 20;
+  const framesPerSecond = 8;
+  const frameCount = Math.ceil(durationSeconds * framesPerSecond) + 1;
+  const times = [];
+  const transforms = sourceNodes.map(() => ({ position: [], quaternion: [], scale: [] }));
+  const sourceMaterials = [];
+  const seenMaterials = new Set();
+  for (const object of sourceNodes) {
+    if (!object.isMesh || !object.material) continue;
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    for (const material of materials) {
+      if (!material || seenMaterials.has(material.uuid)) continue;
+      seenMaterials.add(material.uuid);
+      sourceMaterials.push(material);
+    }
+  }
+  const materialSamples = new Map(sourceMaterials.map((material) => [material.uuid, {
+    material,
+    emissiveIntensity: []
+  }]));
+  for (let frame = 0; frame < frameCount; frame += 1) {
+    const elapsed = Math.min(durationSeconds, frame / framesPerSecond);
+    times.push(elapsed);
+    for (const tick of tickers) tick(frame ? 1 / framesPerSecond : 0, elapsed);
+    for (let index = 0; index < sourceNodes.length; index += 1) {
+      const object = sourceNodes[index];
+      object.position.toArray(transforms[index].position, frame * 3);
+      object.quaternion.toArray(transforms[index].quaternion, frame * 4);
+      object.scale.toArray(transforms[index].scale, frame * 3);
+    }
+    for (const sampled of materialSamples.values()) {
+      sampled.emissiveIntensity.push(Number(sampled.material.emissiveIntensity ?? 0));
+    }
+  }
+  for (const tick of tickers) tick(0, 0);
+  const tracks = [];
+  for (let index = 0; index < sourceNodes.length; index += 1) {
+    const transform = transforms[index];
+    const changedPosition = sampleValuesDiffer(transform.position, 3, 1e-5);
+    const changedQuaternion = sampleValuesDiffer(transform.quaternion, 4, 1e-6);
+    const changedScale = sampleValuesDiffer(transform.scale, 3, 1e-5);
+    if (!changedPosition && !changedQuaternion && !changedScale) continue;
+    const exportedNode = exportedNodes[index];
+    exportedNode.name = 'img2threejs-animated-node-' + index;
+    if (changedPosition) tracks.push(new THREE.VectorKeyframeTrack(exportedNode.name + '.position', times, transform.position));
+    if (changedQuaternion) tracks.push(new THREE.QuaternionKeyframeTrack(exportedNode.name + '.quaternion', times, transform.quaternion));
+    if (changedScale) tracks.push(new THREE.VectorKeyframeTrack(exportedNode.name + '.scale', times, transform.scale));
+  }
+  const materialAnimations = new Map();
+  for (const sampled of materialSamples.values()) {
+    if (!sampleValuesDiffer(sampled.emissiveIntensity, 1, 1e-5)) continue;
+    materialAnimations.set(sampled.material.uuid, {
+      schemaVersion: '1',
+      durationSeconds,
+      tracks: [{ property: 'emissiveIntensity', times, values: sampled.emissiveIntensity }]
+    });
+  }
+  return {
+    animations: tracks.length ? [new THREE.AnimationClip('img2threejs-procedural-runtime', durationSeconds, tracks)] : [],
+    materialAnimations
+  };
+}
+function sampleValuesDiffer(values, stride, epsilon) {
+  for (let offset = stride; offset < values.length; offset += stride) {
+    for (let component = 0; component < stride; component += 1) {
+      if (Math.abs(values[offset + component] - values[component]) > epsilon) return true;
+    }
+  }
+  return false;
+}
+function clonePortableMaterial(material, materialAnimations) {
+  const cloned = material.clone();
+  const animation = materialAnimations.get(material.uuid);
+  if (animation) cloned.userData.img2threejsAnimation = animation;
+  return cloned;
+}
+function portableBackground(background) {
+  if (background instanceof THREE.Color) return { kind: 'color', value: '#' + background.getHexString() };
+  const canvas = background?.image;
+  if (canvas && typeof canvas.toDataURL === 'function') {
+    return { kind: 'data-url', dataUrl: canvas.toDataURL('image/png') };
+  }
+  return { kind: 'color', value: '#eef2f7' };
+}
+function bakeWorldAxisColorRamp(mesh, ramp) {
+  const position = mesh.geometry.getAttribute('position');
+  const axis = ramp.axis === 'x' || ramp.axis === 'z' ? ramp.axis : 'y';
+  const minimum = Number(ramp.min);
+  const maximum = Number(ramp.max);
+  const stops = Array.isArray(ramp.stops)
+    ? ramp.stops.map((stop) => ({
+        position: Number(stop.position),
+        color: new THREE.Color(stop.color).convertSRGBToLinear()
+      })).filter((stop) => Number.isFinite(stop.position))
+    : [];
+  if (!position || !Number.isFinite(minimum) || !Number.isFinite(maximum) || maximum <= minimum || stops.length < 2) {
+    throw new Error('EXPORT_OUTPUT_INVALID: portable color-ramp metadata is invalid.');
+  }
+  stops.sort((a, b) => a.position - b.position);
+  const world = new THREE.Vector3();
+  const colors = new Float32Array(position.count * 3);
+  for (let index = 0; index < position.count; index += 1) {
+    world.fromBufferAttribute(position, index).applyMatrix4(mesh.matrixWorld);
+    const sample = THREE.MathUtils.clamp((world[axis] - minimum) / (maximum - minimum), 0, 1);
+    const color = stops[0].color.clone();
+    for (let stopIndex = 1; stopIndex < stops.length; stopIndex += 1) {
+      const previous = stops[stopIndex - 1];
+      const current = stops[stopIndex];
+      color.lerp(current.color, THREE.MathUtils.smoothstep(sample, previous.position, current.position));
+    }
+    color.toArray(colors, index * 3);
+  }
+  mesh.geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+}
 function measureVisibility(source) {
   const snapshot = document.createElement('canvas');
   snapshot.width = source.width; snapshot.height = source.height;
@@ -492,6 +748,11 @@ async function readBounded(filePath, maximum) {
 function validatePng(buffer) {
   if (buffer.length < 8 || buffer.length > 36 * 1024 * 1024 || !buffer.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) {
     throw new Error('EXPORT_OUTPUT_INVALID: rendered PNG is invalid or exceeds 36 MiB.')
+  }
+}
+function validateGlb(buffer) {
+  if (buffer.length < 20 || buffer.length > 64 * 1024 * 1024 || buffer.toString('ascii', 0, 4) !== 'glTF' || buffer.readUInt32LE(4) !== 2 || buffer.readUInt32LE(8) !== buffer.length) {
+    throw new Error('EXPORT_OUTPUT_INVALID: exported GLB is invalid or exceeds 64 MiB.')
   }
 }
 function allowedInputPath(value) {

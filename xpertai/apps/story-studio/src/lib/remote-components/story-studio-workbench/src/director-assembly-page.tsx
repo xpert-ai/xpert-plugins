@@ -30,6 +30,7 @@ type DirectorAssemblyPageProps = {
   aspectRatio: string
   busy: boolean
   handingOff: boolean
+  rightPanelOpen: boolean
   t: DirectorTranslator
   onHandoff: () => void
   onReturnStoryboard: () => void
@@ -79,7 +80,7 @@ export function DirectorAssemblyPage(props: DirectorAssemblyPageProps) {
   }, [activeShotId, shots])
 
   return (
-    <StudioPanelLayout storageKey="assembly" leftLabel={t('director.assembly.overview')} rightLabel={t('director.assembly.progress')} className="bg-studio-canvas text-studio-ink" testId="director-assembly-page">
+    <StudioPanelLayout storageKey="assembly" leftLabel={t('director.assembly.overview')} rightLabel={t('director.assembly.progress')} rightPanelOpen={props.rightPanelOpen} className="bg-studio-canvas text-studio-ink" testId="director-assembly-page">
       <aside className="row-start-1 flex min-h-0 flex-col border-r border-studio-line bg-studio-paper/80">
         <header className="border-b border-studio-line p-4">
           <p className="text-[10px] font-bold text-studio-muted">
@@ -247,7 +248,7 @@ export function DirectorAssemblyPage(props: DirectorAssemblyPageProps) {
         )}
       </section>
 
-      <aside className="row-start-1 min-h-0 overflow-y-auto border-l border-studio-line bg-studio-paper/90">
+      <aside id="director-right-panel" data-studio-panel="right" className="row-start-1 min-h-0 overflow-y-auto border-l border-studio-line bg-studio-paper/90">
         <header className="border-b border-studio-line p-5">
           <p className="text-[10px] font-bold text-studio-muted">
             {t('director.assembly.progress')}

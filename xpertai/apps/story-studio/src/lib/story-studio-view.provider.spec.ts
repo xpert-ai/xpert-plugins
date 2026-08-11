@@ -42,7 +42,10 @@ const project = {
     shots: 0,
     candidates: 0
   },
-  availableReads: ['story_get_project_summary'],
+  availableReads: [
+    'story_get_project_summary',
+    'story_get_project_revision'
+  ],
   nextAction: 'Review the project brief.'
 } as const
 
@@ -92,7 +95,8 @@ function createHarness() {
     createDemoProduction: jest.fn(),
     saveProductionFromWorkbench: jest.fn(),
     resolveMediaCandidateFile: jest.fn(),
-    uploadAssetImage: jest.fn()
+    uploadAssetImage: jest.fn(),
+    uploadVoiceReferenceAudio: jest.fn()
   }
   const cutHandoffs = {
     getLatestSummary: jest.fn().mockResolvedValue(null),
@@ -152,7 +156,8 @@ describe('StoryStudioViewProvider', () => {
       expect.arrayContaining([
         'update_project',
         'save_production',
-        'upload_asset_image'
+        'upload_asset_image',
+        'upload_voice_reference_audio'
       ])
     )
     expect(
@@ -346,6 +351,55 @@ describe('StoryStudioViewProvider', () => {
       expect.objectContaining({
         originalName: 'courier.png',
         mimeType: 'image/png'
+      })
+    )
+  })
+
+  it('uploads a character voice reference through the file transport', async () => {
+    const { provider, production } = createHarness()
+    production.uploadVoiceReferenceAudio.mockResolvedValue({
+      projectId: project.id,
+      voiceReference: {
+        url: 'https://workspace.example/voice.wav',
+        label: 'lin-wan-voice',
+        workspacePath: '/workspace/story-studio/project/voice.wav',
+        originalName: 'lin-wan.wav',
+        mimeType: 'audio/wav',
+        size: 44
+      }
+    })
+
+    const result = await provider.executeViewFileAction(
+      hostContext(),
+      STORY_STUDIO_WORKBENCH_VIEW_KEY,
+      'upload_voice_reference_audio',
+      {
+        input: {
+          projectId: project.id,
+          assetId: 'asset-linwan',
+          referenceId: 'voice-reference-linwan-1',
+          label: 'lin-wan-voice'
+        }
+      },
+      {
+        buffer: Buffer.from('RIFF0000WAVE', 'ascii'),
+        originalname: 'lin-wan.wav',
+        mimetype: 'audio/wav'
+      } as never
+    )
+
+    expect(result).toEqual(
+      expect.objectContaining({ success: true, refresh: false })
+    )
+    expect(production.uploadVoiceReferenceAudio).toHaveBeenCalledWith(
+      expect.objectContaining({ actorType: 'user' }),
+      expect.objectContaining({
+        assetId: 'asset-linwan',
+        referenceId: 'voice-reference-linwan-1'
+      }),
+      expect.objectContaining({
+        originalName: 'lin-wan.wav',
+        mimeType: 'audio/wav'
       })
     )
   })

@@ -38,7 +38,8 @@ describe('director shot settings', () => {
       aspectRatio: '16:9',
       fps: 30,
       takeCount: 2,
-      referenceAssetIds: ['character-asset', 'location-asset']
+      referenceAssetIds: ['character-asset', 'location-asset'],
+      referenceImageCandidateIds: ['character-asset-primary']
     })
   })
 
@@ -93,7 +94,8 @@ function productionWithSettings(): ProductionView {
           aspectRatio: '16:9',
           fps: 30,
           takeCount: 2,
-          referenceAssetIds: ['character-asset', 'location-asset']
+          referenceAssetIds: ['character-asset', 'location-asset'],
+          referenceImageCandidateIds: ['character-asset-primary']
         }),
         shot('shot-2')
       ]
@@ -136,7 +138,20 @@ function asset(id: string, kind: 'character' | 'location', name: string) {
       lens: null,
       continuity: null
     },
-    candidates: []
+    candidates: [{
+      id: `${id}-primary`,
+      kind: 'image' as const,
+      label: 'Primary',
+      selected: true,
+      fileUrl: '/primary.png',
+      workspacePath: null,
+      originalName: 'primary.png',
+      size: 1,
+      sha256: null,
+      prompt: null,
+      providerReceipt: null,
+      assetReference: { type: 'general' as const }
+    }]
   }
 }
 

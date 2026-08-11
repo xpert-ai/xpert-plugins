@@ -51,6 +51,7 @@ const h: typeof React.createElement = React.createElement
 type DirectorScriptPageProps = {
   production: ProductionView
   busy: boolean
+  rightPanelOpen: boolean
   t: DirectorTranslator
   onCommitProduction: (
     draft: ProductionView,
@@ -277,7 +278,7 @@ export function DirectorScriptPage(props: DirectorScriptPageProps) {
   }
 
   return (
-    <StudioPanelLayout storageKey="script" leftLabel={t('director.script.outline')} rightLabel={t('director.script.continuity')} leftDefault={250} rightDefault={310} className="bg-studio-canvas text-studio-ink" testId="director-script-page">
+    <StudioPanelLayout storageKey="script" leftLabel={t('director.script.outline')} rightLabel={t('director.script.continuity')} rightPanelOpen={props.rightPanelOpen} leftDefault={250} rightDefault={310} className="bg-studio-canvas text-studio-ink" testId="director-script-page">
       <aside className="row-start-1 flex min-h-0 flex-col border-r border-studio-line bg-studio-paper/70">
         <div className="border-b border-studio-line p-4">
           <div className="flex items-start justify-between gap-3">
@@ -337,25 +338,25 @@ export function DirectorScriptPage(props: DirectorScriptPageProps) {
         </div>
       </aside>
 
-      <section className="row-start-1 min-w-0 overflow-y-auto bg-studio-canvas">
-        <header className="sticky top-0 z-10 flex h-14 items-center gap-2 border-b border-studio-line bg-studio-canvas/95 px-5 backdrop-blur">
-          <span className="rounded border border-studio-line bg-studio-paper px-2 py-1 text-xs font-semibold">{scene ? t('director.storyboard.scene', { number: scene.order }) : '—'}</span>
-          <span className="text-xs text-studio-muted">/</span><span className="text-xs">{scene?.location ?? '—'}</span><span className="text-xs text-studio-muted">/</span><span className="text-xs">{scene?.timeOfDay ?? '—'}</span>
-          <button type="button" className="ml-2 inline-flex items-center gap-1 text-xs font-semibold text-studio-blue">{t('director.script.aiRevision')}<ChevronDown className="size-3.5" aria-hidden="true" /></button>
+      <section className="director-script-center-surface row-start-1 min-w-0 overflow-y-auto bg-studio-canvas">
+        <header className="sticky top-0 z-10 flex h-14 min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap border-b border-studio-line bg-studio-canvas/95 px-5 backdrop-blur">
+          <span className="shrink-0 rounded border border-studio-line bg-studio-paper px-2 py-1 text-xs font-semibold">{scene ? t('director.storyboard.scene', { number: scene.order }) : '—'}</span>
+          <span className="shrink-0 text-xs text-studio-muted">/</span><span className="min-w-0 truncate text-xs" title={scene?.location ?? undefined}>{scene?.location ?? '—'}</span><span className="shrink-0 text-xs text-studio-muted">/</span><span className="min-w-0 truncate text-xs" title={scene?.timeOfDay ?? undefined}>{scene?.timeOfDay ?? '—'}</span>
+          <button type="button" className="ml-2 inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-xs font-semibold text-studio-blue">{t('director.script.aiRevision')}<ChevronDown className="size-3.5" aria-hidden="true" /></button>
           <div className="flex-1" />
-          <button type="button" className={`rounded-full px-2 py-1 text-[11px] font-semibold ${saveStateClass(autosave.saveState)}`} aria-live="polite" onClick={() => autosave.saveState === 'error' ? void autosave.retry() : undefined}>{t(`director.script.saveState.${autosave.saveState}`)}</button>
+          <button type="button" className={`shrink-0 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold ${saveStateClass(autosave.saveState)}`} aria-live="polite" onClick={() => autosave.saveState === 'error' ? void autosave.retry() : undefined}>{t(`director.script.saveState.${autosave.saveState}`)}</button>
           <button type="button" className="grid size-8 place-items-center rounded-md border border-studio-line bg-studio-paper text-studio-muted hover:border-studio-brass hover:text-studio-brass disabled:opacity-35" aria-label={t('director.script.undo')} disabled={!autosave.canUndo} onClick={autosave.undo}><Undo2 className="size-4" aria-hidden="true" /></button>
           <button type="button" className="grid size-8 place-items-center rounded-md border border-studio-line bg-studio-paper text-studio-muted hover:border-studio-brass hover:text-studio-brass disabled:opacity-35" aria-label={t('director.script.redo')} disabled={!autosave.canRedo} onClick={autosave.redo}><Redo2 className="size-4" aria-hidden="true" /></button>
-          <Button variant="outline" size="sm" onClick={() => episode && setEditorTarget({ kind: 'episode', value: episode })}><EyeOff aria-hidden="true" />{t('director.script.viewOriginal')}</Button>
-          <Button variant="outline" size="sm" disabled={autosave.saveState === 'saving'} onClick={() => void autosave.flush(true)}><Save aria-hidden="true" />{t('director.script.saveVersion')}</Button>
+          <Button className="shrink-0 whitespace-nowrap" variant="outline" size="sm" onClick={() => episode && setEditorTarget({ kind: 'episode', value: episode })}><EyeOff aria-hidden="true" />{t('director.script.viewOriginal')}</Button>
+          <Button className="shrink-0 whitespace-nowrap" variant="outline" size="sm" disabled={autosave.saveState === 'saving'} onClick={() => void autosave.flush(true)}><Save aria-hidden="true" />{t('director.script.saveVersion')}</Button>
         </header>
         <div className="mx-auto max-w-4xl px-8 py-6" onBlur={(event) => {
           const nextTarget = event.relatedTarget
           if (!(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget)) void autosave.flush()
         }}>
-          <div className="mb-3 flex items-center justify-between text-xs text-studio-muted">
-            <span>{episode?.script.length ?? 0}{t('director.script.charactersUnit')} · {episodeScenes.length}{t('director.script.scenesUnit')} · {episodeScenes.reduce((count, item) => count + item.shots.length, 0)}{t('director.script.shotsUnit')} · {t('director.script.estimatedSeconds', { seconds: duration })}</span>
-            {shot ? <button type="button" className="font-semibold text-studio-brass hover:underline" onClick={() => setEditorTarget({ kind: 'shot', value: shot })}>{t('director.crud.editShot')}</button> : null}
+          <div className="mb-3 flex min-w-0 items-center justify-between gap-3 whitespace-nowrap text-xs text-studio-muted">
+            <span className="min-w-0 flex-1 truncate">{episode?.script.length ?? 0}{t('director.script.charactersUnit')} · {episodeScenes.length}{t('director.script.scenesUnit')} · {episodeScenes.reduce((count, item) => count + item.shots.length, 0)}{t('director.script.shotsUnit')} · {t('director.script.estimatedSeconds', { seconds: duration })}</span>
+            {shot ? <button type="button" className="shrink-0 whitespace-nowrap font-semibold text-studio-brass hover:underline" onClick={() => setEditorTarget({ kind: 'shot', value: shot })}>{t('director.crud.editShot')}</button> : null}
           </div>
           {scene ? (
             <StructuredScriptEditor
@@ -371,7 +372,7 @@ export function DirectorScriptPage(props: DirectorScriptPageProps) {
         </div>
       </section>
 
-      <aside className="row-start-1 min-h-0 overflow-y-auto border-l border-studio-line bg-studio-paper">
+      <aside id="director-right-panel" data-studio-panel="right" className="row-start-1 min-h-0 overflow-y-auto border-l border-studio-line bg-studio-paper">
         <div className="flex items-center justify-between border-b border-studio-line px-4 py-3">
           <div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-studio-muted">Assistant</p><strong className="font-display text-lg">{t('director.script.aiSuggestions')}</strong></div>
           <span className="rounded-full bg-studio-blue px-2 py-0.5 text-xs font-bold text-white">{suggestions.filter((item) => item.status === 'pending').length}</span>

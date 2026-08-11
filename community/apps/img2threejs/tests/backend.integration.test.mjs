@@ -11,10 +11,17 @@ import {
   WorkspaceFilesRuntimeCapability
 } from '@xpert-ai/plugin-sdk'
 import { DataSource } from 'typeorm'
+import sharp from 'sharp'
 import { BUILD_STAGES, TOOL_NAMES } from '../dist/lib/constants.js'
+import { deterministicReview } from '../dist/lib/domain/pipeline.js'
+import { referenceCameraFrameCorrectionHint } from '../dist/lib/domain/sculpt-spec.schema.js'
+import { generateThreeJsFactory } from '../dist/lib/domain/threejs-generator.js'
 import { IMG2THREEJS_ENTITIES } from '../dist/lib/entities/index.js'
 import { Img2ThreeJsAgentQueryService } from '../dist/lib/img2threejs-agent-query.service.js'
-import { Img2ThreeJsMiddleware } from '../dist/lib/img2threejs.middleware.js'
+import {
+  Img2ThreeJsMiddleware,
+  sandboxToolPolicyError
+} from '../dist/lib/img2threejs.middleware.js'
 import { Img2ThreeJsRenderService } from '../dist/lib/img2threejs-render.service.js'
 import { Img2ThreeJsService } from '../dist/lib/img2threejs.service.js'
 import { Img2ThreeJsStudioService } from '../dist/lib/img2threejs-studio.service.js'
@@ -29,6 +36,52 @@ const scope = {
   xpertId: null
 }
 
+test('camera framing diagnostics provide an exact correction instead of an ambiguous ratio', () => {
+  const spec = sculptSpecFixture([
+    '123e4567-e89b-42d3-a456-426614174000',
+    '123e4567-e89b-42d3-a456-426614174001'
+  ])
+  spec.referenceCamera.position = [0, 0, 0.5]
+  spec.referenceCamera.fovDegrees = 10
+  const hint = referenceCameraFrameCorrectionHint(spec)
+  assert.ok(hint)
+  assert.equal(hint.code, 'reference_camera_frustum_too_small')
+  assert.equal(hint.projection, 'perspective')
+  assert.ok(hint.minimumScale > 1)
+  assert.deepEqual(hint.recommendedReferenceCamera.target, spec.referenceCamera.target)
+  assert.equal(hint.recommendedReferenceCamera.fovDegrees, spec.referenceCamera.fovDegrees)
+  assert.match(hint.instruction, /do not narrow the FOV/)
+
+  spec.referenceCamera = {
+    ...spec.referenceCamera,
+    ...hint.recommendedReferenceCamera
+  }
+  assert.equal(referenceCameraFrameCorrectionHint(spec), null)
+})
+
+test('Sandbox tools obey durable img2threejs state without revision controls', () => {
+  assert.match(
+    sandboxToolPolicyError('sandbox_read_file', 'submit_review'),
+    /SANDBOX_TOOL_NOT_AVAILABLE_FOR_NEXT_ACTION/
+  )
+  assert.equal(
+    sandboxToolPolicyError('sandbox_edit_file', 'read_visual_diagnostics_then_refine_code'),
+    null
+  )
+  assert.equal(
+    sandboxToolPolicyError('sandbox_read_file', 'read_visual_diagnostics_then_refine_code'),
+    null
+  )
+  assert.equal(
+    sandboxToolPolicyError('sandbox_edit_file', 'refine_code'),
+    null
+  )
+  assert.equal(
+    sandboxToolPolicyError('unrelated_tool', 'submit_review'),
+    null
+  )
+})
+
 test('Agent tools and backend services complete the persisted quality-gated pipeline', async () => {
   const dataSource = new DataSource({
     type: 'sqljs',
@@ -39,8 +92,8 @@ test('Agent tools and backend services complete the persisted quality-gated pipe
   })
   await dataSource.initialize()
   const workspace = new InMemoryWorkspaceFiles()
-  workspace.seed('references/front.png', pngFixture(640, 640), 'image/png')
-  workspace.seed('references/three-quarter.png', pngFixture(800, 600), 'image/png')
+  workspace.seed('references/front.png', await pngFixture(640, 640), 'image/png')
+  workspace.seed('references/three-quarter.png', await pngFixture(800, 600), 'image/png')
   const queue = new InMemoryManagedQueue()
   const artifacts = new InMemoryArtifacts()
   const sandbox = new InMemorySandboxJobs(workspace)
@@ -85,16 +138,19 @@ test('Agent tools and backend services complete the persisted quality-gated pipe
   const agentQuery = new Img2ThreeJsAgentQueryService(
     dataSource.getRepository(IMG2THREEJS_ENTITIES[0]),
     dataSource.getRepository(IMG2THREEJS_ENTITIES[1]),
+    dataSource.getRepository(IMG2THREEJS_ENTITIES[4]),
+    dataSource.getRepository(IMG2THREEJS_ENTITIES[3]),
     runtimeCapabilities
   )
   const middleware = new Img2ThreeJsMiddleware(service, agentQuery)
   const emittedEvents = []
-  const agentMiddleware = await middleware.createMiddleware({}, {
+  const middlewareContext = {
     tenantId: scope.tenantId,
     organizationId: scope.organizationId,
     userId: scope.userId,
     workspaceId: scope.workspaceId,
     projectId: scope.projectId,
+    conversationId: 'conversation-integration',
     node: {},
     tools: new Map(),
     runtime: {
@@ -107,7 +163,8 @@ test('Agent tools and backend services complete the persisted quality-gated pipe
       },
       emitMiddlewareEvent: async (event) => emittedEvents.push(event)
     }
-  })
+  }
+  const agentMiddleware = await middleware.createMiddleware({}, middlewareContext)
 
   try {
     const invoke = createToolInvoker(agentMiddleware.tools)
@@ -117,20 +174,22 @@ test('Agent tools and backend services complete the persisted quality-gated pipe
       modelingMode: 'semantic-3d',
       changeSummary: 'Create the integration modeling project.'
     })
-    assert.equal(created.revision, 1)
+    assert.equal('revision' in created, false)
+    const createdStatus = await service.getStatus(scope, created.projectId)
+    assert.equal(createdStatus.revision, 1)
 
     const admitted = await invoke(TOOL_NAMES.submitImages, {
       projectId: created.projectId,
-      baseRevision: created.revision,
       images: [
-        { filePath: 'references/front.png', label: 'Front', view: 'front' },
-        { filePath: 'references/three-quarter.png', label: 'Three-quarter', view: 'three-quarter' }
+        { filePath: '/workspace/references/front.png', label: 'Front', view: 'front' },
+        { filePath: '/workspace/references/three-quarter.png', label: 'Three-quarter', view: 'three-quarter' }
       ],
       changeSummary: 'Admit deterministic reference evidence.'
     })
     assert.equal(admitted.admitted, 2)
     assert.equal(admitted.rejected, 0)
     assert.equal(admitted.evidenceIds.length, 2)
+    const admittedStatus = await service.getStatus(scope, created.projectId)
     const discovered = await invoke(TOOL_NAMES.listProjects, {
       status: 'awaiting_spec',
       page: 1,
@@ -139,15 +198,36 @@ test('Agent tools and backend services complete the persisted quality-gated pipe
     assert.equal(discovered.items[0].projectId, created.projectId)
     assert.equal(discovered.items[0].modelingMode, 'semantic-3d')
     const listedEvidence = await invoke(TOOL_NAMES.listEvidence, {
-      projectId: created.projectId,
-      expectedRevision: admitted.revision
+      projectId: created.projectId
     })
     assert.equal(listedEvidence.images.length, 2)
     const spec = sculptSpecFixture(admitted.evidenceIds)
+    spec.components[0].geometry = {
+      type: 'rounded-box',
+      width: 1,
+      height: 1.5,
+      depth: 1,
+      radius: 0.1,
+      segments: 4
+    }
+    spec.components[0].primitive = 'box'
+    const typedGeometrySpec = structuredClone(spec)
+    const missingTypedGeometryReview = deterministicReview(
+      typedGeometrySpec,
+      generateThreeJsFactory(typedGeometrySpec).replaceAll('RoundedBoxGeometry', 'RoundedBoxGeo'),
+      'assistant-authored',
+      'Exercise actionable typed geometry diagnostics.'
+    )
+    const typedGeometryFailure = missingTypedGeometryReview.checks.find(
+      (item) => item.code === 'typed_procedural_geometry'
+    )
+    assert.equal(typedGeometryFailure?.passed, false)
+    assert.match(typedGeometryFailure?.detail ?? '', /RoundedBoxGeometry/)
+    assert.match(typedGeometryFailure?.detail ?? '', /RoundedBoxGeo/)
+    assert.match(typedGeometryFailure?.detail ?? '', /rounded-box components/)
     await assert.rejects(
       invoke(TOOL_NAMES.updateSpec, {
         projectId: created.projectId,
-        baseRevision: admitted.revision,
         spec,
         confidence: 0.94,
         changeSummary: 'Attempt a Spec mutation before inspecting image pixels.'
@@ -156,8 +236,7 @@ test('Agent tools and backend services complete the persisted quality-gated pipe
     )
     const readableEvidence = await invoke(TOOL_NAMES.readEvidence, {
       projectId: created.projectId,
-      evidenceId: admitted.evidenceIds[0],
-      expectedRevision: admitted.revision
+      evidenceId: admitted.evidenceIds[0]
     })
     assert.equal(readableEvidence.semanticAnalysisOwner, 'agent-chat')
     assert.equal(readableEvidence.nextAction, 'inspect_image_multimodally')
@@ -171,8 +250,7 @@ test('Agent tools and backend services complete the persisted quality-gated pipe
     const wrapEvidenceRead = async (evidenceId, callId) => {
       const raw = await invoke(TOOL_NAMES.readEvidence, {
         projectId: created.projectId,
-        evidenceId,
-        expectedRevision: admitted.revision
+        evidenceId
       })
       return agentMiddleware.wrapToolCall({
         toolCall: {
@@ -180,8 +258,7 @@ test('Agent tools and backend services complete the persisted quality-gated pipe
           name: TOOL_NAMES.readEvidence,
           args: {
             projectId: created.projectId,
-            evidenceId,
-            expectedRevision: admitted.revision
+            evidenceId
           }
         },
         tool: readEvidenceTool,
@@ -200,8 +277,7 @@ test('Agent tools and backend services complete the persisted quality-gated pipe
         name: TOOL_NAMES.readEvidence,
         args: {
           projectId: created.projectId,
-          evidenceId: admitted.evidenceIds[0],
-          expectedRevision: admitted.revision
+          evidenceId: admitted.evidenceIds[0]
         }
       },
       tool: readEvidenceTool,
@@ -215,14 +291,16 @@ test('Agent tools and backend services complete the persisted quality-gated pipe
     }))
     assert.ok(enrichedEvidence instanceof ToolMessage)
     assert.equal(enrichedEvidence.artifact.type, 'img2threejs.reference-image')
-    assert.equal(enrichedEvidence.artifact.revision, admitted.revision)
+    assert.equal(enrichedEvidence.artifact.revision, admittedStatus.revision)
     assert.equal(enrichedEvidence.artifact.evidenceId, admitted.evidenceIds[0])
-    assert.match(enrichedEvidence.artifact.dataUrl, /^data:image\/png;base64,/)
+    assert.equal('dataUrl' in enrichedEvidence.artifact, false)
+    assert.equal(enrichedEvidence.artifact.imageBytesOmitted, true)
+    assert.ok(JSON.stringify(enrichedEvidence.artifact).length < 1_000)
     assert.equal(String(enrichedEvidence.content).includes('base64,'), false)
     const enrichedContent = JSON.parse(enrichedEvidence.content)
     assert.equal(enrichedContent.imageAttachmentAvailable, true)
     assert.equal('multimodalAvailable' in enrichedContent, false)
-    assert.equal(enrichedContent.projectRevision, admitted.revision)
+    assert.equal('projectRevision' in enrichedContent, false)
     assert.equal(enrichedContent.nextAction, 'verify_model_vision_then_inspect_attached_image_pixels')
 
     let unavailableVisionRequest
@@ -261,6 +339,21 @@ test('Agent tools and backend services complete the persisted quality-gated pipe
     assert.equal(attachmentMessage.content[1].type, 'image_url')
     assert.match(attachmentMessage.content[1].image_url.url, /^data:image\/png;base64,/)
     assert.equal(capturedModelRequest.messages.length, 2)
+
+    let boundModelRequest
+    await agentMiddleware.wrapModelCall({
+      messages: [enrichedEvidence],
+      model: { bound: { metadata: { profile: { imageInputs: true } } } },
+      systemPrompt: '',
+      tools: agentMiddleware.tools,
+      state: { messages: [enrichedEvidence] },
+      runtime: {}
+    }, async (request) => {
+      boundModelRequest = request
+      return new AIMessage('Bound model inspected attached pixels.')
+    })
+    assert.equal(boundModelRequest.messages.at(-1).content[1].type, 'image_url')
+    assert.doesNotMatch(String(boundModelRequest.messages.at(-1).content), /MODEL_VISION_UNAVAILABLE/)
 
     let persistedAttachmentRequest
     const interveningToolResult = new ToolMessage({
@@ -335,7 +428,6 @@ test('Agent tools and backend services complete the persisted quality-gated pipe
     await assert.rejects(
       invoke(TOOL_NAMES.updateSpec, {
         projectId: created.projectId,
-        baseRevision: admitted.revision,
         spec,
         confidence: 0.94,
         changeSummary: 'Attempt a Spec mutation after inspecting only one image.'
@@ -354,37 +446,242 @@ test('Agent tools and backend services complete the persisted quality-gated pipe
       state: { messages: [] },
       runtime: {}
     }, async () => new AIMessage('All admitted pixels inspected.'))
-    const specResult = await invoke(TOOL_NAMES.updateSpec, {
+    const resumedMiddleware = new Img2ThreeJsMiddleware(service, agentQuery)
+    const resumedAgentMiddleware = await resumedMiddleware.createMiddleware({}, middlewareContext)
+    const resumedInvoke = createToolInvoker(resumedAgentMiddleware.tools)
+    const revisionBumpProject = await dataSource.getRepository(IMG2THREEJS_ENTITIES[0])
+      .findOneByOrFail({ id: created.projectId })
+    revisionBumpProject.confidence = 0.93
+    await dataSource.getRepository(IMG2THREEJS_ENTITIES[0]).save(revisionBumpProject)
+    const checksumRenewedStatus = await service.getStatus(scope, created.projectId)
+    assert.ok(checksumRenewedStatus.revision > admittedStatus.revision)
+    const resumedUpdateArgs = {
       projectId: created.projectId,
-      baseRevision: admitted.revision,
       spec,
       confidence: 0.94,
       changeSummary: 'Save the validated integration Sculpt Spec.'
-    })
+    }
+    const resumedUpdateResult = await resumedAgentMiddleware.wrapToolCall({
+      toolCall: {
+        id: 'resumed-update-spec',
+        name: TOOL_NAMES.updateSpec,
+        args: resumedUpdateArgs
+      },
+      tool: resumedAgentMiddleware.tools.find((tool) => tool.name === TOOL_NAMES.updateSpec),
+      state: { messages: [regenerationTurn, rereadFront, rereadThreeQuarter] },
+      runtime: {}
+    }, async () => new ToolMessage({
+      content: JSON.stringify(await resumedInvoke(TOOL_NAMES.updateSpec, resumedUpdateArgs)),
+      name: TOOL_NAMES.updateSpec,
+      tool_call_id: 'resumed-update-spec',
+      status: 'success'
+    }))
+    const specResult = JSON.parse(resumedUpdateResult.content)
     assert.equal(specResult.validationStatus, 'valid')
-    const validation = await invoke(TOOL_NAMES.validateSpec, {
+    assert.deepEqual(specResult.correctionHints, [])
+    assert.equal('revision' in specResult, false)
+    await assert.rejects(
+      invoke(TOOL_NAMES.patchSpec, {
+        projectId: created.projectId,
+        sourceSpecVersionId: specResult.specVersionId,
+        materialPatches: [{ materialId: 'body_material', baseColor: '#ef4444' }],
+        confidence: 0.94,
+        changeSummary: 'Reject a bounded Spec patch before re-inspecting admitted pixels.'
+      }),
+      /EVIDENCE_INSPECTION_REQUIRED/
+    )
+    for (const evidenceId of admitted.evidenceIds) {
+      await invoke(TOOL_NAMES.readEvidence, {
+        projectId: created.projectId,
+        evidenceId
+      })
+    }
+    const patchedSpecResult = await invoke(TOOL_NAMES.patchSpec, {
       projectId: created.projectId,
-      expectedRevision: specResult.revision
+      sourceSpecVersionId: specResult.specVersionId,
+      referenceCamera: {
+        ...spec.referenceCamera,
+        fovDegrees: 36
+      },
+      componentPatches: [{
+        componentId: 'root',
+        transform: { position: [0.1, 0, 0] }
+      }],
+      materialPatches: [{ materialId: 'body_material', baseColor: '#ef4444' }],
+      confidence: 0.94,
+      changeSummary: 'Apply bounded camera, component, and material corrections without resending the full Spec.'
+    })
+    assert.equal(patchedSpecResult.validationStatus, 'valid')
+    assert.deepEqual(patchedSpecResult.correctionHints, [])
+    const patchedSpec = await service.readCurrentSpec(
+      scope,
+      created.projectId
+    )
+    assert.equal(patchedSpec.spec.referenceCamera.fovDegrees, 36)
+    assert.deepEqual(patchedSpec.spec.components[0].transform.position, [0.1, 0, 0])
+    assert.equal(patchedSpec.spec.materials[0].baseColor, '#ef4444')
+    assert.deepEqual(patchedSpec.spec.qualityContract, spec.qualityContract)
+    assert.equal(patchedSpec.spec.details.length, spec.details.length)
+    const validation = await invoke(TOOL_NAMES.validateSpec, {
+      projectId: created.projectId
     })
     assert.equal(validation.valid, true)
+    assert.equal(validation.nextAction, 'author_code')
+
+    const recoverableCandidate = generateThreeJsFactory(spec)
+    const recoverableCandidatePath = `img2threejs-assistant/${created.projectId}/model-spec-${patchedSpecResult.specVersionId}.ts`
+    workspace.seed(recoverableCandidatePath, Buffer.from(recoverableCandidate), 'text/typescript')
+    const recoverableStatus = await invoke(TOOL_NAMES.getStatus, {
+      projectId: created.projectId
+    })
+    assert.deepEqual(recoverableStatus.assistantCodeCandidate, {
+      sourceFilePath: `/workspace/${recoverableCandidatePath}`,
+      sourceSha256: createHash('sha256').update(recoverableCandidate).digest('hex'),
+      size: Buffer.byteLength(recoverableCandidate)
+    })
+
+    const legacyControlIgnored = await invoke(TOOL_NAMES.getStatus, {
+      projectId: created.projectId,
+      baseRevision: admittedStatus.revision,
+      runRevision: 99
+    })
+    assert.equal(legacyControlIgnored.projectId, created.projectId)
+    assert.equal('revision' in legacyControlIgnored, false)
+    assert.equal('runRevision' in legacyControlIgnored, false)
 
     await assert.rejects(
       invoke(TOOL_NAMES.enqueueStage, {
         projectId: created.projectId,
-        baseRevision: admitted.revision,
         stage: 'blockout',
-        changeSummary: 'Attempt a stale stage mutation.'
+        changeSummary: 'Reject semantic build without Assistant-authored code.'
       }),
-      /REVISION_CONFLICT/
+      /AGENT_AUTHORED_CODE_REQUIRED/
     )
-
-    const buildStart = await invoke(TOOL_NAMES.enqueueStage, {
+    const assistantSource = generateThreeJsFactory(spec)
+    const assistantSourcePath = 'assistant-work/model.ts'
+    workspace.seed(assistantSourcePath, Buffer.from(assistantSource), 'text/typescript')
+    const inspectedCodeFile = await invoke(TOOL_NAMES.inspectCodeFile, {
       projectId: created.projectId,
-      baseRevision: validation.revision,
-      stage: 'blockout',
-      changeSummary: 'Start the ordered Managed Queue build chain.'
+      sourceFilePath: `/workspace/${assistantSourcePath}`
+    })
+    assert.equal(inspectedCodeFile.sourceFilePath, `/workspace/${assistantSourcePath}`)
+    assert.equal(inspectedCodeFile.sourceSha256, createHash('sha256').update(assistantSource).digest('hex'))
+    assert.equal(inspectedCodeFile.size, Buffer.byteLength(assistantSource))
+    const invalidAssistantSource = assistantSource.replaceAll('RoundedBoxGeometry', 'RoundedBoxGeo')
+    const invalidAssistantSourcePath = 'assistant-work/model-invalid.ts'
+    workspace.seed(invalidAssistantSourcePath, Buffer.from(invalidAssistantSource), 'text/typescript')
+    const inspectedInvalidCodeFile = await invoke(TOOL_NAMES.inspectCodeFile, {
+      projectId: created.projectId,
+      sourceFilePath: `/workspace/${invalidAssistantSourcePath}`
+    })
+    const invalidAuthored = await invoke(TOOL_NAMES.authorCodeFile, {
+      projectId: created.projectId,
+      specVersionId: patchedSpecResult.specVersionId,
+      mode: 'create',
+      baseCodeVersionId: null,
+      sourceFilePath: inspectedInvalidCodeFile.sourceFilePath,
+      changeSummary: 'Persist a typed-geometry marker failure for diagnostic upgrade coverage.'
+    })
+    assert.equal(invalidAuthored.deterministicStatus, 'failed')
+    assert.match(invalidAuthored.failedChecks[0]?.detail ?? '', /RoundedBoxGeometry/)
+
+    const codeRepository = dataSource.getRepository(IMG2THREEJS_ENTITIES[3])
+    const invalidCodeEntity = await codeRepository.findOneByOrFail({ id: invalidAuthored.codeVersionId })
+    invalidCodeEntity.deterministicReview = {
+      ...invalidCodeEntity.deterministicReview,
+      checks: invalidCodeEntity.deterministicReview.checks.map((item) => item.code === 'typed_procedural_geometry'
+        ? { ...item, detail: 'Every typed procedural geometry is emitted by the generated TypeScript factory.' }
+        : item)
+    }
+    await codeRepository.save(invalidCodeEntity)
+    const upgradedInvalidStatus = await invoke(TOOL_NAMES.getStatus, {
+      projectId: created.projectId
+    })
+    assert.match(upgradedInvalidStatus.deterministicFailures[0]?.detail ?? '', /RoundedBoxGeometry/)
+    const upgradedInvalidRead = await invoke(TOOL_NAMES.readCode, {
+      projectId: created.projectId,
+      codeVersionId: invalidAuthored.codeVersionId,
+      includeSource: false
+    })
+    assert.match(upgradedInvalidRead.failedChecks[0]?.detail ?? '', /RoundedBoxGeometry/)
+
+    const authored = await invoke(TOOL_NAMES.authorCodeFile, {
+      projectId: created.projectId,
+      specVersionId: patchedSpecResult.specVersionId,
+      mode: 'refine',
+      baseCodeVersionId: invalidAuthored.codeVersionId,
+      sourceFilePath: inspectedCodeFile.sourceFilePath,
+      changeSummary: 'Import the Assistant-authored executable Three.js factory from Workspace Files.'
+    })
+    assert.equal(authored.authorship, 'assistant-refined')
+    assert.equal(authored.sourceSha256, inspectedCodeFile.sourceSha256)
+    assert.equal(authored.deterministicStatus, 'passed')
+    assert.deepEqual(authored.failedChecks, [])
+    assert.equal(authored.nextAction, 'enqueue_stage')
+    const authoredStatus = await invoke(TOOL_NAMES.getStatus, {
+      projectId: created.projectId
+    })
+    assert.equal(authoredStatus.currentSpecVersionId, patchedSpecResult.specVersionId)
+    assert.equal(authoredStatus.currentCodeVersionId, authored.codeVersionId)
+    assert.equal(authoredStatus.assistantCodeCandidate, null)
+    assert.deepEqual(authoredStatus.deterministicFailures, [])
+    const readableCode = await invoke(TOOL_NAMES.readCode, {
+      projectId: created.projectId,
+      codeVersionId: authored.codeVersionId,
+      includeSource: true
+    })
+    assert.equal(readableCode.authorship, 'assistant-refined')
+    assert.equal(readableCode.deterministicStatus, 'passed')
+    assert.deepEqual(readableCode.failedChecks, [])
+    assert.equal(readableCode.source, assistantSource)
+    const revalidated = await invoke(TOOL_NAMES.revalidateCode, {
+      projectId: created.projectId,
+      codeVersionId: authored.codeVersionId,
+      changeSummary: 'Re-run policy review without replacing immutable Assistant source bytes.'
+    })
+    assert.equal(revalidated.authorship, 'assistant-refined')
+    assert.equal(revalidated.sourceSha256, readableCode.sha256)
+    assert.equal(revalidated.deterministicStatus, 'passed')
+    assert.equal(revalidated.nextAction, 'enqueue_stage')
+    const identifierRenamed = await invoke(TOOL_NAMES.patchCode, {
+      projectId: created.projectId,
+      codeVersionId: revalidated.codeVersionId,
+      replacements: [{
+        oldText: 'registerPivot',
+        newText: 'registerModelPivot',
+        allOccurrences: true
+      }],
+      changeSummary: 'Rename every exact internal helper identifier without changing geometry or runtime behavior.'
+    })
+    assert.equal(identifierRenamed.deterministicStatus, 'passed')
+    const identifierRenamedSource = await invoke(TOOL_NAMES.readCode, {
+      projectId: created.projectId,
+      codeVersionId: identifierRenamed.codeVersionId,
+      includeSource: true
+    })
+    assert.match(identifierRenamedSource.source, /registerModelPivot/)
+    assert.doesNotMatch(identifierRenamedSource.source, /\bregisterPivot\b/)
+    const patchAnchor = assistantSource.slice(-80)
+    const patched = await invoke(TOOL_NAMES.patchCode, {
+      projectId: created.projectId,
+      codeVersionId: identifierRenamed.codeVersionId,
+      replacements: [{
+        oldText: patchAnchor,
+        newText: `${patchAnchor}\n// Assistant-authored exact patch transport.\n`
+      }],
+      changeSummary: 'Apply a bounded exact Assistant-authored source refinement.'
+    })
+    assert.equal(patched.authorship, 'assistant-refined')
+    assert.equal(patched.deterministicStatus, 'passed')
+    assert.equal(patched.nextAction, 'enqueue_stage')
+
+    const buildReadyStatus = await service.getStatus(scope, created.projectId)
+    const buildStart = await studio.startGeneration(scope, {
+      projectId: created.projectId,
+      baseRevision: buildReadyStatus.revision
     })
     assert.equal(buildStart.stage, 'blockout')
+    assert.equal(buildStart.nextAction, 'wait_run')
 
     for (const stage of BUILD_STAGES) {
       const queued = queue.last()
@@ -424,10 +721,77 @@ test('Agent tools and backend services complete the persisted quality-gated pipe
     assert.equal(completedBuild.completedStages.length, 8)
     assert.equal(completedBuild.status, 'review_required')
 
+    const visualDiagnosticsArgs = {
+      projectId: created.projectId,
+      runId: completedBuild.runId,
+      view: 'three-quarter',
+      includeComparison: true,
+      includeRender: true
+    }
+    const visualDiagnostics = await invoke(TOOL_NAMES.readVisualDiagnostics, visualDiagnosticsArgs)
+    assert.equal(visualDiagnostics.runId, completedBuild.runId)
+    assert.equal(visualDiagnostics.modelVisionRequired, true)
+    assert.equal(visualDiagnostics.semanticDiagnosisOwner, 'agent-chat')
+    assert.equal(visualDiagnostics.images.length, 2)
+    assert.deepEqual(visualDiagnostics.images.map((image) => image.kind), ['comparison', 'render'])
+    assert.equal(visualDiagnostics.quality.passed, true)
+    assert.equal(
+      visualDiagnostics.nextAction,
+      'inspect_attached_render_pixels_then_decide_refine_spec_or_refine_code'
+    )
+    const readVisualDiagnosticsTool = agentMiddleware.tools.find(
+      (tool) => tool.name === TOOL_NAMES.readVisualDiagnostics
+    )
+    assert.ok(readVisualDiagnosticsTool)
+    const enrichedVisualDiagnostics = await agentMiddleware.wrapToolCall({
+      toolCall: {
+        id: 'read-visual-diagnostics',
+        name: TOOL_NAMES.readVisualDiagnostics,
+        args: visualDiagnosticsArgs
+      },
+      tool: readVisualDiagnosticsTool,
+      state: { messages: [] },
+      runtime: {}
+    }, async () => new ToolMessage({
+      content: JSON.stringify(visualDiagnostics),
+      name: TOOL_NAMES.readVisualDiagnostics,
+      tool_call_id: 'read-visual-diagnostics',
+      status: 'success'
+    }))
+    assert.equal(enrichedVisualDiagnostics.artifact.type, 'img2threejs.visual-diagnostics')
+    assert.equal(enrichedVisualDiagnostics.artifact.images.length, 2)
+    assert.ok(enrichedVisualDiagnostics.artifact.images.every((image) => !('dataUrl' in image)))
+    assert.equal(enrichedVisualDiagnostics.artifact.imageBytesOmitted, true)
+    assert.ok(JSON.stringify(enrichedVisualDiagnostics.artifact).length < 5_000)
+    assert.equal(String(enrichedVisualDiagnostics.content).includes('base64,'), false)
+    let visualModelRequest
+    await agentMiddleware.wrapModelCall({
+      messages: [
+        new HumanMessage('Inspect the latest render before correcting it.'),
+        enrichedVisualDiagnostics
+      ],
+      model: { profile: { imageInputs: true } },
+      systemPrompt: '',
+      tools: agentMiddleware.tools,
+      state: { messages: [] },
+      runtime: {}
+    }, async (request) => {
+      visualModelRequest = request
+      return new AIMessage('I inspected the generated pixels and own the correction decision.')
+    })
+    const visualAttachmentMessage = visualModelRequest.messages.at(-1)
+    assert.equal(visualAttachmentMessage.getType(), 'human')
+    assert.match(visualAttachmentMessage.content[0].text, /latest checksum-verified/)
+    assert.equal(visualAttachmentMessage.content[1].type, 'image_url')
+    assert.equal(visualAttachmentMessage.content[2].type, 'image_url')
+    assert.match(visualAttachmentMessage.content[1].image_url.url, /^data:image\/png;base64,/)
+
     const artifact = await invoke(TOOL_NAMES.readArtifact, { projectId: created.projectId })
-    assert.equal(artifact.sourceAsset.name, 'model-v1.ts')
+    assert.equal(artifact.sourceAsset.name, 'model-v5.ts')
     assert.equal(artifact.comparisonAsset.name, 'comparison-browser.png')
+    assert.equal(artifact.modelAsset.name, 'model.glb')
     assert.match(artifact.comparisonPreviewUrl, /^https:\/\/artifacts\.example\//)
+    assert.match(artifact.modelPreviewUrl, /^https:\/\/artifacts\.example\//)
     assert.deepEqual(Object.keys(artifact.sourceAsset).sort(), ['mimeType', 'name', 'sha256', 'size'])
     assert.equal(artifact.capabilities.artifacts.available, true)
     assert.equal(artifact.capabilities.sandboxRender.available, true)
@@ -439,13 +803,243 @@ test('Agent tools and backend services complete the persisted quality-gated pipe
     assert.equal(sandbox.runs[0].files.length, 3)
     assert.ok(sandbox.runs[0].files.every((file) => file.reference.source === 'platform.workspace.files'))
     assert.equal(containsBinaryPayload(sandbox.runs[0].payload), false)
-    const generatedSource = workspace.text('img2threejs/', 'model-v1.ts')
+    const generatedSource = workspace.text('img2threejs/', 'model-v5.ts')
     assert.match(generatedSource, /from 'three'/)
     assert.match(generatedSource, /const component_root = new THREE\.Group\(\)/)
     assert.match(generatedSource, /const component_root_mesh = new THREE\.Mesh\(/)
     assert.match(generatedSource, /component_root_mesh\.scale\.set\(/)
     assert.match(generatedSource, /component_root\.add\(component_root_mesh\)/)
-    assert.match(workspace.text('img2threejs/', 'comparison-v1.svg'), /<svg/)
+    assert.match(workspace.text('img2threejs/', 'comparison-v5.svg'), /<svg/)
+
+    const failedSourcePath = 'refinements/model-invalid.ts'
+    workspace.seed(
+      failedSourcePath,
+      Buffer.from('export default async function createModel() { return null }\n'),
+      'text/typescript'
+    )
+    const failedRefinement = await invoke(TOOL_NAMES.refineCode, {
+      projectId: created.projectId,
+      codeVersionId: artifact.codeVersionId,
+      sourceFilePath: failedSourcePath,
+      changeSummary: 'Exercise deterministic failure without reusing stale browser evidence.'
+    })
+    assert.equal(failedRefinement.deterministicStatus, 'failed')
+    assert.equal(failedRefinement.nextAction, 'refine_code')
+
+    const completedCandidatePath = `/workspace/img2threejs-assistant/${created.projectId}/model-agent-candidate.ts`
+    let candidateContinuationRequest
+    await agentMiddleware.wrapModelCall({
+      messages: [
+        new HumanMessage(`Continue img2threejs project ${created.projectId}.`),
+        new ToolMessage({
+          content: JSON.stringify({ path: completedCandidatePath, filesUpdate: null }),
+          name: 'sandbox_write_file',
+          tool_call_id: 'workspace-candidate-write',
+          status: 'success'
+        })
+      ],
+      model: { profile: { imageInputs: true } },
+      systemPrompt: 'Base Assistant instructions.',
+      tools: [...agentMiddleware.tools, { name: 'sandbox_write_file' }],
+      state: { messages: [] },
+      runtime: {}
+    }, async (request) => {
+      candidateContinuationRequest = request
+      return new AIMessage('I will inspect and submit the completed candidate before revising it.')
+    })
+    assert.match(candidateContinuationRequest.systemPrompt, /IMG2THREEJS_COMPLETED_CANDIDATE/)
+    assert.match(candidateContinuationRequest.systemPrompt, /Base Assistant instructions/)
+    assert.match(candidateContinuationRequest.systemPrompt, new RegExp(completedCandidatePath))
+    assert.match(candidateContinuationRequest.systemPrompt, /img2threejs_inspect_code_file/)
+    assert.match(candidateContinuationRequest.systemPrompt, /img2threejs_refine_code/)
+    assert.match(candidateContinuationRequest.systemPrompt, new RegExp(failedRefinement.codeVersionId))
+    assert.ok(candidateContinuationRequest.tools.some((tool) => tool.name === 'sandbox_write_file'))
+    const candidateContinuationMessage = candidateContinuationRequest.messages.at(-1)
+    assert.equal(candidateContinuationMessage.getType(), 'human')
+    assert.match(candidateContinuationMessage.content, /IMG2THREEJS_COMPLETED_CANDIDATE/)
+    assert.match(candidateContinuationMessage.content, new RegExp(completedCandidatePath))
+    assert.match(candidateContinuationMessage.content, /img2threejs_inspect_code_file/)
+    assert.match(candidateContinuationMessage.content, /img2threejs_refine_code/)
+
+    let inspectedCandidateContinuationRequest
+    await agentMiddleware.wrapModelCall({
+      messages: [
+        new HumanMessage(`Continue img2threejs project ${created.projectId}.`),
+        new ToolMessage({
+          content: JSON.stringify({ path: completedCandidatePath, filesUpdate: null }),
+          name: 'sandbox_write_file',
+          tool_call_id: 'workspace-candidate-write-inspected',
+          status: 'success'
+        }),
+        new ToolMessage({
+          content: JSON.stringify({
+            projectId: created.projectId,
+            sourceFilePath: completedCandidatePath,
+            sourceSha256: 'f'.repeat(64),
+            size: 1_024,
+            mimeType: 'application/octet-stream'
+          }),
+          name: TOOL_NAMES.inspectCodeFile,
+          tool_call_id: 'workspace-candidate-inspection',
+          status: 'success'
+        })
+      ],
+      model: { profile: { imageInputs: true } },
+      systemPrompt: 'Base Assistant instructions.',
+      tools: [...agentMiddleware.tools, { name: 'sandbox_write_file' }],
+      state: { messages: [] },
+      runtime: {}
+    }, async (request) => {
+      inspectedCandidateContinuationRequest = request
+      return new AIMessage('I will submit the inspected candidate now.')
+    })
+    const inspectedCandidateContinuationMessage = inspectedCandidateContinuationRequest.messages.at(-1)
+    assert.equal(inspectedCandidateContinuationMessage.getType(), 'human')
+    assert.match(inspectedCandidateContinuationMessage.content, /Inspection of this exact candidate already succeeded/)
+    assert.match(inspectedCandidateContinuationMessage.content, /Do not call inspect_code_file again/)
+    assert.doesNotMatch(inspectedCandidateContinuationMessage.content, /Call img2threejs_inspect_code_file/)
+    assert.match(inspectedCandidateContinuationMessage.content, /img2threejs_refine_code/)
+
+    const failedDiagnostics = await invoke(TOOL_NAMES.readVisualDiagnostics, {
+      projectId: created.projectId,
+      runId: completedBuild.runId,
+      view: 'three-quarter',
+      includeComparison: true,
+      includeRender: true
+    })
+    assert.equal(failedDiagnostics.deterministicReview.status, 'failed')
+    assert.ok(failedDiagnostics.deterministicReview.failedChecks.length > 0)
+    assert.equal(failedDiagnostics.visualReview.evidenceKind, 'none')
+    assert.equal(failedDiagnostics.visualReview.notes, null)
+    assert.equal(failedDiagnostics.historicalVisualDiagnosticsDiscarded, true)
+    assert.equal(failedDiagnostics.images.length, 0)
+    assert.equal(failedDiagnostics.quality, null)
+    assert.equal(failedDiagnostics.modelVisionRequired, false)
+    assert.equal(
+      failedDiagnostics.nextAction,
+      'repair_current_candidate_from_deterministic_failures_then_submit_refine_code'
+    )
+    const failedRun = await dataSource.getRepository(IMG2THREEJS_ENTITIES[4])
+      .findOneByOrFail({ id: completedBuild.runId })
+    assert.equal(failedRun.visualReview.evidenceKind, 'none')
+    assert.equal(failedRun.visualReview.notes, undefined)
+    assert.equal(failedRun.comparisonAsset, null)
+    assert.equal(failedRun.renderReport.status, 'unavailable')
+
+    const refinedSourcePath = 'refinements/model-v2.ts'
+    const refinedSource = `${generatedSource}\n// Evidence-backed browser fidelity refinement.\n`
+    workspace.seed(refinedSourcePath, Buffer.from(refinedSource), 'text/typescript')
+    const refined = await invoke(TOOL_NAMES.refineCode, {
+      projectId: created.projectId,
+      codeVersionId: failedRefinement.codeVersionId,
+      sourceFilePath: refinedSourcePath,
+      changeSummary: 'Save refined code and immediately refresh browser review evidence.'
+    })
+    assert.equal(refined.deterministicStatus, 'passed')
+    assert.equal(refined.nextAction, 'wait_run')
+    assert.equal(refined.runId, completedBuild.runId)
+    assert.ok(refined.cursor)
+    const refinedRenderJob = queue.last()
+    assert.equal(refinedRenderJob.jobName, 'img2threejs.review-render')
+    assert.equal(refinedRenderJob.executionPool, 'sandbox-browser')
+    assert.notEqual(refinedRenderJob.jobId, renderJob.jobId)
+    await renderService.processRender({
+      id: refinedRenderJob.jobId,
+      name: refinedRenderJob.jobName,
+      data: refinedRenderJob.payload,
+      attemptsMade: 0,
+      opts: { attempts: 3 }
+    }, {
+      tenantId: scope.tenantId,
+      organizationId: scope.organizationId,
+      userId: scope.userId
+    })
+    const refinedBuild = await invoke(TOOL_NAMES.getStatus, { projectId: created.projectId })
+    assert.equal(refinedBuild.status, 'review_required')
+    assert.equal(refinedBuild.visualStatus, 'pending_human')
+
+    const benchmarkSpec = {
+      ...spec,
+      referenceCamera: {
+        ...spec.referenceCamera,
+        view: 'three-quarter',
+        position: [4.2, 2.5, 4.2],
+        target: [0, 0, 0],
+        fovDegrees: 35
+      },
+      qualityContract: {
+        ...spec.qualityContract,
+        maximumTriangles: 123456,
+        maximumDrawCalls: 500
+      }
+    }
+    const refinedInternalStatus = await service.getStatus(scope, created.projectId)
+    const benchmarkSpecResult = await service.updateSpec(scope, {
+      projectId: created.projectId,
+      baseRevision: refinedInternalStatus.revision,
+      spec: benchmarkSpec,
+      confidence: 0.96,
+      changeSummary: 'Correct the browser benchmark camera and gate contract.'
+    })
+    assert.equal(benchmarkSpecResult.validationStatus, 'valid')
+    const benchmarkSourcePath = 'refinements/model-v3.ts'
+    const benchmarkSource = `${refinedSource}\n// Current-Spec browser review regression.\n`
+    workspace.seed(benchmarkSourcePath, Buffer.from(benchmarkSource), 'text/typescript')
+    const benchmarkRefinement = await invoke(TOOL_NAMES.refineCode, {
+      projectId: created.projectId,
+      codeVersionId: refined.codeVersionId,
+      sourceFilePath: benchmarkSourcePath,
+      changeSummary: 'Refine against the corrected current Spec and refresh browser evidence.'
+    })
+    assert.equal(benchmarkRefinement.nextAction, 'wait_run')
+    assert.notEqual(benchmarkRefinement.runId, refinedBuild.runId)
+    const currentSpecRun = await dataSource.getRepository(IMG2THREEJS_ENTITIES[4]).findOneByOrFail({
+      id: benchmarkRefinement.runId
+    })
+    assert.equal(currentSpecRun.specVersionId, benchmarkSpecResult.specVersionId)
+    assert.equal(currentSpecRun.codeVersionId, benchmarkRefinement.codeVersionId)
+    const benchmarkRenderJob = queue.last()
+    assert.equal(benchmarkRenderJob.payload.runId, benchmarkRefinement.runId)
+    queue.fail(benchmarkRenderJob.jobId, 'job stalled more than allowable limit')
+    const reconciledRenderFailure = await invoke(TOOL_NAMES.getStatus, {
+      projectId: created.projectId
+    })
+    assert.equal(reconciledRenderFailure.status, 'failed')
+    assert.equal(reconciledRenderFailure.nextAction, 'retry_run')
+    assert.ok(reconciledRenderFailure.failureCodes.includes('browser_render_failed'))
+    const failedRenderRun = await dataSource.getRepository(IMG2THREEJS_ENTITIES[4]).findOneByOrFail({
+      id: benchmarkRefinement.runId
+    })
+    assert.equal(failedRenderRun.renderReport.status, 'failed')
+    assert.equal(failedRenderRun.renderReport.failure.code, 'MANAGED_QUEUE_JOB_FAILED')
+    assert.equal(failedRenderRun.renderReport.failure.retryable, true)
+    assert.match(failedRenderRun.renderReport.failure.message, /stalled/)
+    const reconciledRenderRetry = await invoke(TOOL_NAMES.retryRun, {
+      projectId: created.projectId,
+      runId: benchmarkRefinement.runId,
+      changeSummary: 'Retry the failed managed browser-render queue job.'
+    })
+    assert.equal(reconciledRenderRetry.stage, 'browser-render')
+    const recoveredBenchmarkRenderJob = queue.last()
+    assert.notEqual(recoveredBenchmarkRenderJob.jobId, benchmarkRenderJob.jobId)
+    assert.equal(recoveredBenchmarkRenderJob.executionPool, 'sandbox-browser')
+    await renderService.processRender({
+      id: recoveredBenchmarkRenderJob.jobId,
+      name: recoveredBenchmarkRenderJob.jobName,
+      data: recoveredBenchmarkRenderJob.payload,
+      attemptsMade: 0,
+      opts: { attempts: 3 }
+    }, {
+      tenantId: scope.tenantId,
+      organizationId: scope.organizationId,
+      userId: scope.userId
+    })
+    assert.deepEqual(sandbox.runs.at(-1).payload.referenceCamera.position, [4.2, 2.5, 4.2])
+    assert.equal(sandbox.runs.at(-1).payload.quality.maximumTriangles, 123456)
+    assert.equal(sandbox.runs.at(-1).payload.quality.maximumDrawCalls, 500)
+    const latestBuild = await invoke(TOOL_NAMES.getStatus, { projectId: created.projectId })
+    assert.equal(latestBuild.runId, benchmarkRefinement.runId)
+    assert.equal(latestBuild.visualStatus, 'pending_human')
 
     const exported = await invoke(TOOL_NAMES.exportArtifact, {
       projectId: created.projectId,
@@ -459,11 +1053,20 @@ test('Agent tools and backend services complete the persisted quality-gated pipe
       Object.keys(exported.publishedArtifacts.model).sort(),
       ['artifactId', 'outcome', 'versionId']
     )
-    assert.equal(artifacts.created.length, 6)
-    assert.equal(artifacts.versions.length, 6)
-    assert.equal(artifacts.created.filter((item) => item.kind === 'image').length, 3)
-    assert.equal(artifacts.versions.filter((item) => item.mimeType === 'text/plain').length, 2)
-    assert.equal(artifacts.versions.filter((item) => item.mimeType === 'image/png').length, 4)
+    assert.equal(artifacts.created.length, 13)
+    assert.equal(artifacts.versions.length, 13)
+    assert.equal(artifacts.created.filter((item) => item.kind === 'image').length, 5)
+    assert.equal(artifacts.versions.filter((item) => item.mimeType === 'text/plain').length, 1)
+    assert.equal(artifacts.versions.filter((item) => item.mimeType === 'image/png').length, 9)
+    assert.equal(
+      artifacts.versions.find((item) => item.artifactId === exported.publishedArtifacts.comparison.artifactId)?.mimeType,
+      'image/png'
+    )
+    assert.match(
+      artifacts.versions.find((item) => item.artifactId === exported.publishedArtifacts.comparison.artifactId)?.idempotencyKey,
+      /:image\/png$/
+    )
+    assert.equal(artifacts.versions.filter((item) => item.mimeType === 'application/octet-stream').length, 3)
     assert.ok(artifacts.versions.every((item) =>
       item.workspaceFileRef.source === 'platform.workspace.files' &&
       item.workspaceFileRef.tenantId === scope.tenantId &&
@@ -472,8 +1075,7 @@ test('Agent tools and backend services complete the persisted quality-gated pipe
 
     const reviewed = await invoke(TOOL_NAMES.submitReview, {
       projectId: created.projectId,
-      runId: completedBuild.runId,
-      baseRevision: completedBuild.runRevision,
+      runId: latestBuild.runId,
       humanReviewStatus: 'approved',
       decision: 'stop',
       notes: 'Integration review approved deterministic and comparison evidence.',
@@ -484,51 +1086,69 @@ test('Agent tools and backend services complete the persisted quality-gated pipe
     assert.equal(reviewed.alreadyPersisted, false)
     const duplicateReview = await invoke(TOOL_NAMES.submitReview, {
       projectId: created.projectId,
-      runId: completedBuild.runId,
-      baseRevision: reviewed.revision,
+      runId: latestBuild.runId,
       humanReviewStatus: 'approved',
       decision: 'stop',
       notes: 'Integration review approved deterministic and comparison evidence.',
       changeSummary: 'Confirm the already persisted review decision.'
     })
     assert.equal(duplicateReview.alreadyPersisted, true)
-    assert.equal(duplicateReview.revision, reviewed.revision)
+    assert.equal('revision' in duplicateReview, false)
 
     const runRepository = dataSource.getRepository(IMG2THREEJS_ENTITIES[4])
-    const retrySeed = await runRepository.findOneByOrFail({ id: completedBuild.runId })
+    const retrySeed = await runRepository.findOneByOrFail({ id: latestBuild.runId })
     retrySeed.status = 'review_required'
     retrySeed.renderReport = {
       status: 'failed',
       action: 'img2threejs.review-render',
       actionVersion: '1.0.0',
-      failure: { code: 'BROWSER_LAUNCH_FAILED', message: 'Transient browser failure.', retryable: true }
+      failure: {
+        code: 'EXPORT_INPUT_INVALID',
+        message: 'Unable to read model/model.ts: Conversation file not found',
+        retryable: false
+      }
     }
     retrySeed.visualReview = {
       ...retrySeed.visualReview,
       renderStatus: 'failed',
-      capabilityReason: 'Transient browser failure.'
+      capabilityReason: 'Unable to read model/model.ts: Conversation file not found'
     }
     await runRepository.save(retrySeed)
     const retryableStatus = await invoke(TOOL_NAMES.getStatus, { projectId: created.projectId })
+    assert.equal(retryableStatus.nextAction, 'retry_run')
+    await assert.rejects(
+      invoke(TOOL_NAMES.submitReview, {
+        projectId: created.projectId,
+        runId: latestBuild.runId,
+        humanReviewStatus: 'approved',
+        decision: 'continue',
+        notes: 'This must not approve missing browser pixels.',
+        changeSummary: 'Attempt an invalid approval without a successful browser render.'
+      }),
+      /VISUAL_REVIEW_APPROVAL_REQUIRES_BROWSER_RENDER/
+    )
     const retried = await invoke(TOOL_NAMES.retryRun, {
       projectId: created.projectId,
-      runId: completedBuild.runId,
-      baseRevision: retryableStatus.runRevision,
+      runId: latestBuild.runId,
       changeSummary: 'Retry a retryable browser render.'
     })
     assert.equal(retried.stage, 'browser-render')
     const retriedJob = queue.last()
     assert.equal(retriedJob.executionPool, 'sandbox-browser')
-    const cancelStatus = await invoke(TOOL_NAMES.getStatus, { projectId: created.projectId })
     const cancelled = await invoke(TOOL_NAMES.cancelRun, {
       projectId: created.projectId,
-      runId: completedBuild.runId,
-      baseRevision: cancelStatus.runRevision,
+      runId: latestBuild.runId,
       changeSummary: 'Cancel both queue and Sandbox Job layers.'
     })
     assert.equal(cancelled.status, 'cancelled')
     assert.ok(queue.cancelled.has(retriedJob.jobId))
-    assert.ok(sandbox.cancelled.has(completedBuild.runId))
+    assert.ok(sandbox.cancelled.has(latestBuild.runId))
+    const recoveredProject = await dataSource.getRepository(IMG2THREEJS_ENTITIES[0])
+      .findOneByOrFail({ id: created.projectId })
+    recoveredProject.status = 'spec_ready'
+    recoveredProject.humanReviewStatus = 'changes_requested'
+    recoveredProject.nextDecision = 'continue'
+    await dataSource.getRepository(IMG2THREEJS_ENTITIES[0]).save(recoveredProject)
     const cancelledProject = await service.getStatus(scope, created.projectId)
     const regenerated = await studio.startGeneration(scope, {
       projectId: created.projectId,
@@ -536,11 +1156,19 @@ test('Agent tools and backend services complete the persisted quality-gated pipe
     })
     assert.equal(regenerated.semanticAnalysisOwner, 'agent-chat')
     assert.equal(regenerated.nextAction, 'ask_agent_to_analyze_evidence')
-    assert.match(regenerated.suggestedPrompt, /img2threejs-semantic-modeling/)
+    assert.doesNotMatch(regenerated.suggestedPrompt, /read_skill_file/)
+    assert.doesNotMatch(regenerated.suggestedPrompt, /执行记录必须保留/)
     assert.match(regenerated.suggestedPrompt, /regenerate_from_references/)
     assert.match(regenerated.suggestedPrompt, new RegExp(created.projectId))
+    assert.match(regenerated.suggestedPrompt, /parent-local/)
+    assert.match(regenerated.suggestedPrompt, /15%/)
+    assert.match(regenerated.suggestedPrompt, /validationStatus=invalid/)
+    assert.match(regenerated.suggestedPrompt, /第一次返回 validationStatus=valid 后禁止再次调用 update_spec/)
+    assert.match(regenerated.suggestedPrompt, /禁止通过降低质量阈值过关/)
+    assert.match(regenerated.suggestedPrompt, /宿主可信硬约束/)
+    assert.match(regenerated.suggestedPrompt, /img2threejs_patch_spec/)
     assert.doesNotMatch(regenerated.suggestedPrompt, /严格顺序/)
-    assert.ok(regenerated.suggestedPrompt.length < 900)
+    assert.ok(regenerated.suggestedPrompt.length < 4_200)
     assert.ok(regenerated.evidenceIds.length >= 2)
     assert.ok(regenerated.evidenceIds.every((id) => regenerated.suggestedPrompt.includes(id)))
 
@@ -548,6 +1176,13 @@ test('Agent tools and backend services complete the persisted quality-gated pipe
       service.getStatus({ ...scope, organizationId: 'another-organization' }, created.projectId),
       /PROJECT_NOT_FOUND/
     )
+    const longSummaryProject = await invoke(TOOL_NAMES.createProject, {
+      name: 'Long change summary compatibility',
+      route: 'object',
+      modelingMode: 'semantic-3d',
+      changeSummary: 'Detailed visual correction summary. '.repeat(12)
+    })
+    assert.ok(longSummaryProject.projectId)
     await assert.rejects(
       invoke(TOOL_NAMES.createProject, {
         name: 'Unknown key should fail',
@@ -571,7 +1206,7 @@ test('Agent tools and backend services complete the persisted quality-gated pipe
       view: 'front',
       fileName: 'studio front.png',
       mimeType: 'image/png',
-      buffer: pngFixture(640, 640)
+      buffer: await pngFixture(640, 640)
     })
     assert.equal(studioAdmission.admitted, 1)
     const restoredWorkbench = await workbenchService.getData(scope, {
@@ -613,7 +1248,7 @@ test('Agent tools and backend services complete the persisted quality-gated pipe
       }
     }, async () => 'wrapped')
     assert.equal(wrappedResult, 'wrapped')
-    assert.deepEqual(emittedEvents.map((event) => event.status), ['running', 'success'])
+    assert.deepEqual(emittedEvents.slice(-2).map((event) => event.status), ['running', 'success'])
     assert.ok(emittedEvents.every((event) => event.data?.tool && !('tenantId' in event.data)))
   } finally {
     await dataSource.destroy()
@@ -630,8 +1265,8 @@ test('a refined Sculpt Spec starts a new ordered pipeline run', async () => {
   })
   await dataSource.initialize()
   const workspace = new InMemoryWorkspaceFiles()
-  workspace.seed('references/front.png', pngFixture(640, 640), 'image/png')
-  workspace.seed('references/three-quarter.png', pngFixture(800, 600), 'image/png')
+  workspace.seed('references/front.png', await pngFixture(640, 640), 'image/png')
+  workspace.seed('references/three-quarter.png', await pngFixture(800, 600), 'image/png')
   const queue = new InMemoryManagedQueue()
   const artifacts = new InMemoryArtifacts()
   const sandbox = new InMemorySandboxJobs(workspace)
@@ -659,6 +1294,40 @@ test('a refined Sculpt Spec starts a new ordered pipeline run', async () => {
     runtimeCapabilities,
     renderService
   )
+  const studio = new Img2ThreeJsStudioService(
+    dataSource.getRepository(IMG2THREEJS_ENTITIES[0]),
+    dataSource.getRepository(IMG2THREEJS_ENTITIES[1]),
+    service,
+    runtimeCapabilities
+  )
+  const agentQuery = new Img2ThreeJsAgentQueryService(
+    dataSource.getRepository(IMG2THREEJS_ENTITIES[0]),
+    dataSource.getRepository(IMG2THREEJS_ENTITIES[1]),
+    dataSource.getRepository(IMG2THREEJS_ENTITIES[4]),
+    dataSource.getRepository(IMG2THREEJS_ENTITIES[3]),
+    runtimeCapabilities
+  )
+  const middleware = new Img2ThreeJsMiddleware(service, agentQuery)
+  const agentMiddleware = await middleware.createMiddleware({}, {
+    tenantId: scope.tenantId,
+    organizationId: scope.organizationId,
+    userId: scope.userId,
+    workspaceId: scope.workspaceId,
+    projectId: scope.projectId,
+    conversationId: 'spec-refinement-continuation',
+    node: {},
+    tools: new Map(),
+    runtime: {
+      capabilities: runtimeCapabilities,
+      createModelClient: async () => {
+        throw new Error('MODEL_CLIENT_NOT_USED')
+      },
+      wrapWorkflowNodeExecution: async () => {
+        throw new Error('WORKFLOW_NODE_NOT_USED')
+      },
+      emitMiddlewareEvent: async () => {}
+    }
+  })
 
   try {
     const created = await service.createProject(scope, {
@@ -682,9 +1351,18 @@ test('a refined Sculpt Spec starts a new ordered pipeline run', async () => {
       confidence: 0.9,
       changeSummary: 'Save the first valid spec.'
     })
+    const firstCode = await service.authorCode(scope, {
+      projectId: created.projectId,
+      specVersionId: savedFirst.specVersionId,
+      baseRevision: savedFirst.revision,
+      mode: 'create',
+      baseCodeVersionId: null,
+      source: generateThreeJsFactory(firstSpec),
+      changeSummary: 'Author executable code for the first Spec.'
+    })
     const firstReceipt = await service.enqueueStage(scope, {
       projectId: created.projectId,
-      baseRevision: savedFirst.revision,
+      baseRevision: firstCode.revision,
       stage: 'blockout'
     })
     await service.processStage(scope, queue.last().payload)
@@ -695,10 +1373,132 @@ test('a refined Sculpt Spec starts a new ordered pipeline run', async () => {
 
     const firstRun = await dataSource.getRepository(IMG2THREEJS_ENTITIES[4])
       .findOneByOrFail({ id: firstReceipt.runId })
+    const reviewFloor = firstSpec.components.length + 1
+    firstRun.status = 'review_required'
+    firstRun.humanReviewStatus = 'changes_requested'
+    firstRun.nextDecision = 'refine-spec'
+    firstRun.visualReview = {
+      ...firstRun.visualReview,
+      status: 'changes_requested',
+      notes: `Rebuild the scene and raise qualityContract.minimumComponentCount to at least ${reviewFloor}; do not lower visual thresholds.`
+    }
+    const reviewRun = await dataSource.getRepository(IMG2THREEJS_ENTITIES[4]).save(firstRun)
+    const reviewStatus = await service.getStatus(scope, created.projectId)
+    assert.equal(reviewStatus.nextAction, 'patch_spec_or_update_spec')
+    const refinementTurn = new HumanMessage(`Refine img2threejs project ${created.projectId}.`)
+    const captureContinuation = async (messages) => {
+      let captured
+      await agentMiddleware.wrapModelCall({
+        messages,
+        model: { profile: { imageInputs: true } },
+        systemPrompt: 'Base Assistant instructions.',
+        tools: agentMiddleware.tools,
+        state: { messages },
+        runtime: {}
+      }, async (request) => {
+        captured = request
+        return new AIMessage('Follow the persisted refine-spec continuation.')
+      })
+      return captured.messages.at(-1).content
+    }
+    const readSpecContinuation = await captureContinuation([refinementTurn])
+    assert.match(readSpecContinuation, /IMG2THREEJS_REFINE_SPEC_CONTINUATION/)
+    assert.match(readSpecContinuation, /Call img2threejs_read_spec now/)
+    assert.doesNotMatch(readSpecContinuation, /img2threejs_read_visual_diagnostics.*now/)
+
+    const currentSpec = await service.readCurrentSpec(scope, created.projectId)
+    const readSpecResult = new ToolMessage({
+      content: JSON.stringify(currentSpec),
+      name: TOOL_NAMES.readSpec,
+      tool_call_id: 'refine-read-spec',
+      status: 'success'
+    })
+    const firstEvidenceContinuation = await captureContinuation([
+      refinementTurn,
+      readSpecResult
+    ])
+    assert.match(firstEvidenceContinuation, new RegExp(admitted.evidenceIds[0]))
+    assert.match(firstEvidenceContinuation, /Call img2threejs_read_evidence now/)
+
+    const firstEvidenceResult = new ToolMessage({
+      content: JSON.stringify({
+        projectId: created.projectId,
+        evidenceId: admitted.evidenceIds[0]
+      }),
+      name: TOOL_NAMES.readEvidence,
+      tool_call_id: 'refine-read-first-evidence',
+      status: 'success'
+    })
+    const secondEvidenceContinuation = await captureContinuation([
+      refinementTurn,
+      readSpecResult,
+      firstEvidenceResult
+    ])
+    assert.match(secondEvidenceContinuation, new RegExp(admitted.evidenceIds[1]))
+
+    const secondEvidenceResult = new ToolMessage({
+      content: JSON.stringify({
+        projectId: created.projectId,
+        evidenceId: admitted.evidenceIds[1]
+      }),
+      name: TOOL_NAMES.readEvidence,
+      tool_call_id: 'refine-read-second-evidence',
+      status: 'success'
+    })
+    const patchSpecContinuation = await captureContinuation([
+      refinementTurn,
+      readSpecResult,
+      firstEvidenceResult,
+      secondEvidenceResult
+    ])
+    assert.match(patchSpecContinuation, /Call img2threejs_patch_spec now/)
+    assert.match(patchSpecContinuation, new RegExp(reviewStatus.currentSpecVersionId))
+    assert.match(patchSpecContinuation, /do not recreate components already present/)
+
+    const blockedSpec = structuredClone(firstSpec)
+    const blockedRefinement = await service.updateSpec(scope, {
+      projectId: created.projectId,
+      baseRevision: reviewStatus.revision,
+      spec: blockedSpec,
+      confidence: 0.94,
+      changeSummary: 'Attempt an underspecified refinement that must remain blocked.'
+    })
+    assert.equal(blockedRefinement.validationStatus, 'invalid')
+    assert.match(
+      blockedRefinement.issues.map((issue) => `${issue.path}: ${issue.message}`).join('\n'),
+      new RegExp(`minimumComponentCount >= ${reviewFloor} runtime visible meshes`)
+    )
+    const blockedCurrentSpec = await service.readCurrentSpec(scope, created.projectId)
+    const blockedReadSpecResult = new ToolMessage({
+      content: JSON.stringify(blockedCurrentSpec),
+      name: TOOL_NAMES.readSpec,
+      tool_call_id: 'blocked-refine-read-spec',
+      status: 'success'
+    })
+    const invalidRepairContinuation = await captureContinuation([
+      refinementTurn,
+      blockedReadSpecResult,
+      firstEvidenceResult,
+      secondEvidenceResult
+    ])
+    assert.match(invalidRepairContinuation, /current Spec is invalid only for these persisted validation issues/)
+    assert.match(invalidRepairContinuation, new RegExp(`minimumComponentCount >= ${reviewFloor}`))
+    assert.match(invalidRepairContinuation, /Repair exactly those validation issues first/)
+    assert.match(invalidRepairContinuation, new RegExp(blockedRefinement.specVersionId))
+    assert.doesNotMatch(invalidRepairContinuation, /read_visual_diagnostics.*now/)
+    const reconciledGeneration = await studio.startGeneration(scope, {
+      projectId: created.projectId,
+      baseRevision: blockedRefinement.revision
+    })
+    assert.equal(reconciledGeneration.semanticAnalysisOwner, 'agent-chat')
+    assert.match(reconciledGeneration.suggestedPrompt, /不得调用 update_spec 或 patch_runtime_contract/)
+    const patchedSpec = await service.readCurrentSpec(scope, created.projectId, reconciledGeneration.revision)
+    assert.equal(patchedSpec.spec.components.length, firstSpec.components.length)
+    assert.equal(patchedSpec.spec.qualityContract.minimumComponentCount, reviewFloor)
     await service.cancelRun(scope, {
       projectId: created.projectId,
       runId: firstReceipt.runId,
-      baseRevision: firstRun.revision
+      baseRevision: reviewRun.revision
     })
     const cancelledStatus = await service.getStatus(scope, created.projectId)
     const refinedSpec = structuredClone(firstSpec)
@@ -713,11 +1513,22 @@ test('a refined Sculpt Spec starts a new ordered pipeline run', async () => {
     })
     const refinedReady = await service.getStatus(scope, created.projectId)
     assert.equal(refinedReady.status, 'spec_ready')
+    assert.equal(refinedReady.humanReviewStatus, 'pending')
     assert.equal(refinedReady.runId, null)
     assert.deepEqual(refinedReady.completedStages, [])
+    assert.equal(refinedReady.nextAction, 'author_code')
+    const secondCode = await service.authorCode(scope, {
+      projectId: created.projectId,
+      specVersionId: savedRefinement.specVersionId,
+      baseRevision: savedRefinement.revision,
+      mode: 'refine',
+      baseCodeVersionId: firstCode.codeVersionId,
+      source: generateThreeJsFactory(refinedSpec),
+      changeSummary: 'Author executable code for the refined Spec.'
+    })
     const secondReceipt = await service.enqueueStage(scope, {
       projectId: created.projectId,
-      baseRevision: savedRefinement.revision,
+      baseRevision: secondCode.revision,
       stage: 'blockout'
     })
     assert.notEqual(secondReceipt.runId, firstReceipt.runId)
@@ -771,6 +1582,7 @@ function createPluginContext(queue) {
 class InMemoryManagedQueue {
   jobs = []
   cancelled = new Set()
+  snapshots = new Map()
 
   async enqueue(input) {
     this.jobs.push(structuredClone(input))
@@ -784,7 +1596,19 @@ class InMemoryManagedQueue {
 
   async getJob({ jobId }) {
     const job = this.jobs.find((item) => item.jobId === jobId)
-    return job ? { id: jobId, name: job.jobName, data: job.payload, attemptsMade: 0, state: 'waiting' } : null
+    if (!job) return null
+    return {
+      id: jobId,
+      name: job.jobName,
+      data: job.payload,
+      attemptsMade: 0,
+      state: 'waiting',
+      ...this.snapshots.get(jobId)
+    }
+  }
+
+  fail(jobId, failedReason) {
+    this.snapshots.set(jobId, { state: 'failed', failedReason })
   }
 
   async getExecutionPoolHealth({ executionPool }) {
@@ -868,7 +1692,9 @@ class InMemorySandboxJobs {
               passed: true
             }
           }))
-        : Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+        : output.path === 'model.glb'
+          ? Buffer.from([0x67, 0x6c, 0x54, 0x46, 0x02, 0, 0, 0, 0x0c, 0, 0, 0])
+          : Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
       const file = await this.workspace.uploadBuffer({
         ...output.destination,
         originalName: output.originalName,
@@ -943,6 +1769,34 @@ class InMemoryWorkspaceFiles {
     const file = this.files.get(input.filePath)
     if (!file) throw new Error('WORKSPACE_FILE_NOT_FOUND')
     return { ...file, buffer: Buffer.from(file.buffer) }
+  }
+
+  async readRuntimeBuffer(input) {
+    const rawPath = typeof input === 'string'
+      ? input
+      : input.filePath ?? input.workspacePath ?? input.path
+    const filePath = rawPath.startsWith('/workspace/')
+      ? rawPath.slice('/workspace/'.length)
+      : rawPath
+    const file = await this.readBuffer({ filePath })
+    return {
+      ...file,
+      reference: {
+        source: 'platform.workspace.files',
+        tenantId: scope.tenantId,
+        userId: scope.userId,
+        catalog: file.catalog,
+        scopeId: file.scopeId,
+        projectId: scope.projectId,
+        isolateByUser: false,
+        filePath: file.filePath,
+        workspacePath: file.workspacePath,
+        originalName: file.name,
+        name: file.name,
+        mimeType: file.mimeType,
+        size: file.size
+      }
+    }
   }
 
   async uploadBuffer(input) {
@@ -1033,12 +1887,32 @@ class InMemoryArtifacts {
 }
 
 function pngFixture(width, height) {
-  void width
-  void height
-  return Buffer.from(
-    'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAHUlEQVQ4jWOosXr7nxLMMGrA/9EweDsaBlbDIgwARjiiHypKmFgAAAAASUVORK5CYII=',
-    'base64'
-  )
+  const subjectWidth = Math.round(width * 0.58)
+  const subjectHeight = Math.round(height * 0.62)
+  const left = Math.round((width - subjectWidth) / 2)
+  const top = Math.round((height - subjectHeight) / 2)
+  return sharp({
+    create: {
+      width,
+      height,
+      channels: 4,
+      background: '#00000000'
+    }
+  })
+    .composite([{
+      input: {
+        create: {
+          width: subjectWidth,
+          height: subjectHeight,
+          channels: 4,
+          background: '#2a76a4ff'
+        }
+      },
+      left,
+      top
+    }])
+    .png()
+    .toBuffer()
 }
 
 function sculptSpecFixture(evidenceIds) {

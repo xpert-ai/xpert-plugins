@@ -40,7 +40,12 @@ export class WorkspaceFilesAdapter {
   async read(scope: Scope, filePath: string): Promise<{ buffer: Buffer; asset: WorkspaceAssetReference }> {
     const api = this.requireApi()
     const workspaceScope = resolveWorkspaceScope(scope)
-    const file = await api.readBuffer({ ...workspaceScope, filePath })
+    const file = await api.readRuntimeBuffer({
+      source: 'platform.workspace.files',
+      ...workspaceScope,
+      filePath,
+      workspacePath: filePath
+    })
     return {
       buffer: file.buffer,
       asset: mapWorkspaceFile(file, scope, workspaceScope, file.buffer)
@@ -121,10 +126,16 @@ export class ArtifactsAdapter {
           title: `${input.projectName} · comparison evidence`,
           description: 'Deterministic reference-versus-model comparison evidence.',
           // The platform deliberately rejects directly shared SVG artifacts.
-          // Preserve the original Workspace File and publish a reviewable file
-          // wrapper using an explicitly allowlisted MIME type.
+          // Preserve SVG fallback evidence as a downloadable text wrapper, but
+          // retain the native MIME type for browser-rendered PNG evidence so
+          // Artifacts can preview it correctly.
           kind: 'file',
-          artifactMimeType: 'text/plain',
+          artifactMimeType: input.comparisonAsset.mimeType === 'image/png'
+            ? 'image/png'
+            : 'text/plain',
+          idempotencyKeySuffix: input.comparisonAsset.mimeType === 'image/png'
+            ? 'image/png'
+            : undefined,
           asset: input.comparisonAsset
         })
       : null
@@ -185,6 +196,7 @@ export class ArtifactsAdapter {
       description: string
       kind: ArtifactKind
       artifactMimeType: string
+      idempotencyKeySuffix?: string
       asset: WorkspaceAssetReference
     }
   ): Promise<PublishedArtifactReceipt> {
@@ -210,7 +222,13 @@ export class ArtifactsAdapter {
     })
     const result = await api.ensureArtifactVersion({
       artifactId: artifact.id,
-      idempotencyKey: `${IMG2THREEJS_PLUGIN_NAME}:${input.resourceType}:${input.resourceId}:${input.asset.sha256}`,
+      idempotencyKey: [
+        IMG2THREEJS_PLUGIN_NAME,
+        input.resourceType,
+        input.resourceId,
+        input.asset.sha256,
+        input.idempotencyKeySuffix
+      ].filter(Boolean).join(':'),
       workspaceFileRef: toPortableReference(input.asset),
       mimeType: input.artifactMimeType,
       fileName: input.asset.name,

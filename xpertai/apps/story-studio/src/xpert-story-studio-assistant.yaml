@@ -114,16 +114,23 @@ nodes:
         1. Search before creating a project when a duplicate may exist.
         2. Create a project only after the user supplies or approves its title,
            production format, aspect ratio, and basic premise.
-        3. Before every existing-project mutation, call
-           story_get_project_summary and pass its exact revision as
-           baseRevision.
-        4. Use a stable operationId for one exact mutation. Reuse it only when
-           retrying the identical payload.
+        3. For the first existing-project mutation, use the trusted revision
+           already supplied by the Workbench context, project creation/search,
+           or a content read such as story_get_production. When no trusted
+           revision exists, call the lightweight story_get_project_revision;
+           never call story_get_project_summary only for a revision number.
+        4. Every successful mutation receipt returns revision. Chain that value
+           into the next mutation as baseRevision. Use a stable operationId for
+           one exact payload and reuse it only when retrying that identical
+           payload.
         5. Keep changeSummary concise and user-visible.
         6. Treat review, completed, failed, and archived as explicit human
            decisions. Never infer approval.
-        7. If a mutation conflicts, refresh the summary and reconsider the
-           requested change instead of silently rebasing.
+        7. If a mutation conflicts, use currentRevision from the error. If it is
+           unavailable, call story_get_project_revision once. Re-read only the
+           affected business content when a retry could overwrite concurrent
+           edits; exact-slot or append-only operations may retry with a fresh
+           operationId and the current revision.
         8. Use story_report_failure with a lowercase snake_case code when the
            project cannot progress. State whether recovery is possible.
         9. To create the first saved production document, prefer
@@ -143,7 +150,7 @@ nodes:
            silent or action-only shots, omit dialogue or pass dialogue=null;
            never use a speaker id to mean the visible character.
         9.1. When the Workbench asks for an AI adaptation suggestion, call
-             story_get_project_summary and story_get_production, then call
+             story_get_production for the affected content, then call
              story_create_adaptation_suggestion with the exact episodeId and,
              when relevant, sceneId and shotId. Write one bounded, directly
              reviewable change with originalText, suggestedText, and a concrete
@@ -155,12 +162,14 @@ nodes:
             per requested view or expression with the asset prompt plus the
             production visualStyle. Use 1728x2304 for characters, 2560x1440
             for locations, and 2048x2048 for props or style references. Keep
-            identity anchors fixed. After each completed Workspace image,
-            refresh the project revision and call
-            story_attach_generated_asset_image with the exact assetId,
+            identity anchors fixed. Initialize baseRevision from the Workbench
+            request. After each completed Workspace image, call
+            story_attach_generated_asset_image sequentially with the exact assetId,
             Workspace path, provider task id/model/status receipt, current
             baseRevision, and the exact assetReference supplied by the
-            Workbench request. Use select=true only for the primary continuity
+            Workbench request, then use the successful receipt revision for the
+            next image. Do not read a project summary between attachments. Use
+            select=true only for the primary continuity
             view, never for an expression. Never attach base64 or a provider
             URL, and never update a different asset.
         11. Video generation is initiated only by the user's Generate Take
@@ -188,8 +197,8 @@ nodes:
         15. Call story_select_shot_video only after the user explicitly chooses
             a completed Take. Story Studio previews selected clips in sequence
             in the browser; do not request or claim a separate animatic render.
-        16. For editing handoff, refresh the Story project revision and call
-            story_prepare_cut_handoff. Read the frozen contract with
+        16. For editing handoff, use the current Workbench or latest mutation
+            receipt revision and call story_prepare_cut_handoff. Read the frozen contract with
             story_get_cut_handoff, pass that exact contract to
             cut_accept_story_handoff, then record its exact receipt with
             story_record_cut_handoff_delivery. For mode=create, Cut creates the
@@ -204,7 +213,7 @@ nodes:
       toolsetIds:
         - 4f6671c2-0b74-4b3f-8839-5c91379f7382
       knowledgebaseIds: []
-    hash: story-studio-agent-v9-managed-video-tasks
+    hash: story-studio-agent-v10-revision-token-chain
   - type: toolset
     key: 4f6671c2-0b74-4b3f-8839-5c91379f7382
     position:

@@ -34,6 +34,7 @@ import {
 } from './entities/index.js'
 import type { Img2ThreeJsConfig } from './img2threejs.config.js'
 import {
+  isTransientWorkspaceInputVisibilityFailure,
   scopedIdWhere,
   scopedProjectWhere,
   scopedRevisionWhere
@@ -156,9 +157,12 @@ export class Img2ThreeJsRenderService {
       },
       visualReview: {
         ...run.visualReview,
+        status: 'pending_human',
         renderStatus: 'queued',
-        capabilityReason: undefined
-      }
+        capabilityReason: undefined,
+        notes: undefined
+      },
+      humanReviewStatus: 'pending'
     })
     if (update.affected !== 1) {
       await this.queue().cancel({ jobId: queued.jobId, executionPool: 'sandbox-browser' })
@@ -242,6 +246,9 @@ export class Img2ThreeJsRenderService {
           quality: {
             maximumTriangles: spec.spec.qualityContract.maximumTriangles,
             maximumDrawCalls: spec.spec.qualityContract.maximumDrawCalls,
+            minimumRuntimeMeshCount: spec.spec.modelingMode === 'semantic-3d'
+              ? spec.spec.qualityContract.minimumComponentCount
+              : 1,
             minimumSilhouetteIoU: spec.spec.qualityContract.minimumSilhouetteIoU ?? 0.3,
             minimumScaleScore: spec.spec.qualityContract.minimumScaleScore ?? 0.7,
             minimumEdgeScore: spec.spec.qualityContract.minimumEdgeScore ?? 0.15,
@@ -273,6 +280,7 @@ export class Img2ThreeJsRenderService {
             mimeType: 'image/png',
             destination
           })),
+          { path: 'model.glb', originalName: 'model.glb', mimeType: 'model/gltf-binary', destination },
           { path: 'comparison.png', originalName: 'comparison-browser.png', mimeType: 'image/png', destination },
           {
             path: 'render-report.json',
@@ -283,9 +291,10 @@ export class Img2ThreeJsRenderService {
         ],
         timeoutMs: 5 * 60_000
       })
+      const modelOutput = result.outputs.find((output) => output.path === 'model.glb')
       const comparison = result.outputs.find((output) => output.path === 'comparison.png')
       const reportOutput = result.outputs.find((output) => output.path === 'render-report.json')
-      if (!comparison || !reportOutput) throw new Error('EXPORT_OUTPUT_INVALID: browser comparison or report is missing.')
+      if (!modelOutput || !comparison || !reportOutput) throw new Error('EXPORT_OUTPUT_INVALID: browser model, comparison, or report is missing.')
       const workspace = this.capabilities?.get(WorkspaceFilesRuntimeCapability)
       if (!workspace) throw new Error('WORKSPACE_FILES_UNAVAILABLE')
       const reportFile = await workspace.readBuffer(reportOutput.reference)
@@ -296,8 +305,12 @@ export class Img2ThreeJsRenderService {
         previousReport
       )
       const passed = gate.passed
+      const modelAsset = outputAsset(modelOutput, resourceScope)
       const browserAsset = outputAsset(comparison, resourceScope)
-      const previewArtifact = await this.publishBrowserComparison(resourceScope, run, comparison)
+      const [modelArtifact, previewArtifact] = await Promise.all([
+        this.publishBrowserModel(resourceScope, run, modelOutput),
+        this.publishBrowserComparison(resourceScope, run, comparison)
+      ])
       const current = await this.requireRun(resourceScope, run.id)
       const report: BrowserRenderReport = {
         status: 'succeeded',
@@ -312,18 +325,26 @@ export class Img2ThreeJsRenderService {
               comparisonArtifactVersionId: previewArtifact.versionId
             }
           : {}),
+        ...(modelArtifact
+          ? {
+              modelArtifactId: modelArtifact.artifactId,
+              modelArtifactVersionId: modelArtifact.versionId
+            }
+          : {}),
         outputs: result.outputs.map((output) => ({
           path: output.path,
           name: output.originalName,
           mimeType: output.mimeType,
           size: output.size,
-          sha256: output.sha256
+          sha256: output.sha256,
+          filePath: output.reference.filePath
         })),
         quality: parsedReport.quality,
         correction: gate.correction
       }
       await this.runs.update(scopedRevisionWhere(resourceScope, current.id, current.revision), {
         status: 'review_required',
+        humanReviewStatus: 'pending',
         sandboxJobId: result.id,
         renderReport: report,
         comparisonAsset: browserAsset,
@@ -332,6 +353,7 @@ export class Img2ThreeJsRenderService {
           evidenceKind: 'browser_render',
           renderStatus: 'succeeded',
           comparisonAsset: browserAsset,
+          modelAsset,
           capabilityReason: passed
             ? undefined
             : `Reference fidelity gate failed: ${gate.failureCodes.join(', ')}.`
@@ -345,7 +367,10 @@ export class Img2ThreeJsRenderService {
     } catch (error) {
       const attempts = readAttempts(job)
       const attempt = job.attemptsMade + 1
-      const retryable = isSandboxJobRuntimeError(error) && error.retryable
+      const retryable = isSandboxJobRuntimeError(error) && (
+        error.retryable ||
+        isTransientWorkspaceInputVisibilityFailure({ code: error.code, message: error.message })
+      )
       const willRetry = retryable && attempt < attempts
       const current = await this.requireRun(resourceScope, run.id)
       await this.runs.update(scopedRevisionWhere(resourceScope, current.id, current.revision), {
@@ -364,9 +389,12 @@ export class Img2ThreeJsRenderService {
         },
         visualReview: {
           ...current.visualReview,
+          status: 'pending_human',
           renderStatus: willRetry ? 'queued' : 'failed',
-          capabilityReason: errorMessage(error).slice(0, 500)
+          capabilityReason: errorMessage(error).slice(0, 500),
+          notes: undefined
         },
+        humanReviewStatus: 'pending',
         failureReasons: willRetry
           ? current.failureReasons
           : [...new Set([...current.failureReasons, isSandboxJobRuntimeError(error) ? error.code : 'browser_render_failed'])]
@@ -415,7 +443,14 @@ export class Img2ThreeJsRenderService {
         quality: run.renderReport?.quality,
         correction: run.renderReport?.correction
       },
-      visualReview: { ...run.visualReview, renderStatus: 'queued', capabilityReason: undefined },
+      visualReview: {
+        ...run.visualReview,
+        status: 'pending_human',
+        renderStatus: 'queued',
+        capabilityReason: undefined,
+        notes: undefined
+      },
+      humanReviewStatus: 'pending',
       failureReasons: run.failureReasons.filter((reason) => reason !== 'browser_render_failed')
     })
     if (update.affected !== 1) {
@@ -497,6 +532,51 @@ export class Img2ThreeJsRenderService {
       checksum: output.sha256,
       setCurrent: true,
       metadata: { artifactNamespace: 'img2threejs', pipelineRunId: run.id }
+    })
+    return { artifactId: artifact.id, versionId: ensured.version.id }
+  }
+
+  private async publishBrowserModel(
+    scope: Scope,
+    run: PipelineRunEntity,
+    output: SandboxJobOutput
+  ): Promise<{ artifactId: string; versionId: string } | null> {
+    const artifacts = this.capabilities?.get(ArtifactsRuntimeCapability)
+    if (!artifacts) return null
+    const artifact = await artifacts.createArtifact({
+      source: {
+        pluginName: IMG2THREEJS_PLUGIN_NAME,
+        resourceType: 'threejs-browser-model',
+        resourceId: run.id,
+        checksum: output.sha256
+      },
+      kind: 'file',
+      title: `Three.js browser model · ${run.projectId}`,
+      description: 'Validated binary glTF model for the interactive review workbench.',
+      scope: {
+        tenantId: scope.tenantId,
+        organizationId: scope.organizationId,
+        userId: scope.userId,
+        workspaceId: scope.workspaceId,
+        projectId: scope.projectId,
+        xpertId: scope.xpertId
+      },
+      metadata: { artifactNamespace: 'img2threejs', pipelineRunId: run.id }
+    })
+    const ensured = await artifacts.ensureArtifactVersion({
+      artifactId: artifact.id,
+      idempotencyKey: `img2threejs-browser-model:${run.id}:${output.sha256}`,
+      workspaceFileRef: output.reference,
+      // The platform file-artifact allowlist uses octet-stream for binary 3D formats.
+      mimeType: 'application/octet-stream',
+      fileName: output.originalName,
+      title: 'Interactive browser model',
+      description: 'Validated binary glTF model for the interactive review workbench.',
+      size: output.size,
+      sha256: output.sha256,
+      checksum: output.sha256,
+      setCurrent: true,
+      metadata: { artifactNamespace: 'img2threejs', pipelineRunId: run.id, sourceMimeType: output.mimeType }
     })
     return { artifactId: artifact.id, versionId: ensured.version.id }
   }

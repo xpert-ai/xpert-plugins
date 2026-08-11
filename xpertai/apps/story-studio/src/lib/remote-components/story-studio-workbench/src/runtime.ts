@@ -60,6 +60,12 @@ type RemoteWindow = Window & {
   }
 }
 
+export interface RemoteThemeRoot {
+  classList: Pick<DOMTokenList, 'toggle'>
+  dataset: DOMStringMap
+  style: Pick<CSSStyleDeclaration, 'setProperty'>
+}
+
 const pending = new Map<
   string,
   {
@@ -388,8 +394,50 @@ export function startRemoteBridge(
 }
 
 function applyTheme(theme: RemoteValue) {
+  installThemeVariables(theme)
   const remoteUi = (window as RemoteWindow).XpertRemoteUI
   remoteUi?.applyTheme?.(theme)
+}
+
+export function installThemeVariables(
+  theme: RemoteValue,
+  root: RemoteThemeRoot = document.documentElement
+) {
+  const themeRecord = isRemoteObject(theme) ? theme : null
+  const mode =
+    typeof theme === 'string'
+      ? theme.toLowerCase().includes('dark')
+        ? 'dark'
+        : 'light'
+      : typeof themeRecord?.mode === 'string' &&
+          themeRecord.mode.toLowerCase().includes('dark')
+        ? 'dark'
+        : 'light'
+  const tokens =
+    themeRecord && isRemoteObject(themeRecord.tokens)
+      ? themeRecord.tokens
+      : null
+
+  root.classList.toggle('dark', mode === 'dark')
+  root.dataset.theme = mode
+  root.dataset.storyTheme = mode
+
+  if (!tokens) return
+  for (const [key, value] of Object.entries(tokens)) {
+    if (typeof value === 'string' || typeof value === 'number') {
+      root.style.setProperty(
+        `--xui-${toKebabCase(key)}`,
+        String(value)
+      )
+    }
+  }
+}
+
+function toKebabCase(value: string) {
+  return value.replace(
+    /[A-Z]/g,
+    (character) => `-${character.toLowerCase()}`
+  )
 }
 
 function isThemeMessage(type?: string) {

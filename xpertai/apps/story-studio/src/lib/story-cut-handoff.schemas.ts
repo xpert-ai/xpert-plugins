@@ -4,7 +4,9 @@ import { STORY_CUT_HANDOFF_STATUSES } from './story-cut-handoff.types.js'
 const projectId = z
   .string()
   .uuid()
-  .describe('Story Studio project UUID from story_get_project_summary.')
+  .describe(
+    'Story Studio project UUID from Workbench context, project creation, or a project read.'
+  )
 const handoffId = z
   .string()
   .uuid()

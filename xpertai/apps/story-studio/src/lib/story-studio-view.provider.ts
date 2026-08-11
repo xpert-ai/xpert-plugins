@@ -47,7 +47,8 @@ import {
 import {
   attachAssetImageSchema,
   attachShotReferenceImageSchema,
-  saveStoryProductionSchema
+  saveStoryProductionSchema,
+  uploadStoryVoiceReferenceSchema
 } from './story-production.schemas.js'
 import { prepareStoryCutHandoffSchema } from './story-cut-handoff.schemas.js'
 import { StoryCutHandoffService } from './story-cut-handoff.service.js'
@@ -63,7 +64,8 @@ import type {
 import type {
   AttachAssetImageInput,
   AttachShotReferenceImageInput,
-  SaveStoryProductionInput
+  SaveStoryProductionInput,
+  UploadStoryVoiceReferenceInput
 } from './production-types.js'
 import type { PrepareStoryCutHandoffInput } from './story-cut-handoff.types.js'
 import { StoryVideoGenerationService } from './story-video-generation.service.js'
@@ -307,6 +309,13 @@ export class StoryStudioViewProvider
           key: 'upload_shot_reference_image',
           label: text('Upload temporary shot reference', '上传镜头临时参考图'),
           icon: 'ri-upload-cloud-2-line',
+          actionType: 'invoke',
+          transport: 'file'
+        },
+        {
+          key: 'upload_voice_reference_audio',
+          label: text('Upload voice reference audio', '上传音色参考音频'),
+          icon: 'ri-file-music-line',
           actionType: 'invoke',
           transport: 'file'
         },
@@ -682,11 +691,37 @@ export class StoryStudioViewProvider
   ): Promise<XpertViewActionResult> {
     if (
       viewKey !== STORY_STUDIO_WORKBENCH_VIEW_KEY ||
-      !['upload_asset_image', 'upload_shot_reference_image'].includes(actionKey)
+      ![
+        'upload_asset_image',
+        'upload_shot_reference_image',
+        'upload_voice_reference_audio'
+      ].includes(actionKey)
     ) {
       return failure('Unsupported file action')
     }
     try {
+      if (actionKey === 'upload_voice_reference_audio') {
+        const input = uploadStoryVoiceReferenceSchema.parse(
+          request.input ?? {}
+        ) as UploadStoryVoiceReferenceInput
+        const result = await this.productionService.uploadVoiceReferenceAudio(
+          scopeFromContext(context),
+          input,
+          {
+            buffer: file.buffer,
+            originalName: file.originalname || input.label,
+            mimeType: file.mimetype || 'application/octet-stream'
+          }
+        )
+        return {
+          ...success(
+            'Voice reference audio uploaded',
+            '音色参考音频已上传'
+          ),
+          data: result,
+          refresh: false
+        }
+      }
       const commonInput = {
         ...(request.input ?? {}),
         providerReceipt: {

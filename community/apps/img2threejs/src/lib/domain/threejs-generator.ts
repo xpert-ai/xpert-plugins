@@ -329,6 +329,7 @@ const COLOR_RAMP_HELPER = `type HeightColorRampSpec = {
 };
 
 function configureHeightColorRamp(material: THREE.Material, ramp: HeightColorRampSpec): void {
+  material.userData.img2threejsColorRamp = ramp;
   const glslFloat = (value: number): string =>
     Number.isInteger(value) ? value.toFixed(1) : String(value);
   const stops = ramp.stops.map((stop) => {

@@ -34,7 +34,9 @@ import {
   STORY_ATTACH_GENERATED_VIDEO_TOOL_NAME,
   STORY_CREATE_ADAPTATION_SUGGESTION_TOOL_NAME,
   STORY_CREATE_PROJECT_TOOL_NAME,
+  STORY_GET_PROJECT_REVISION_TOOL_NAME,
   STORY_SEARCH_PROJECTS_TOOL_NAME,
+  STORY_SAVE_PRODUCTION_TOOL_NAME,
   STORY_START_PRODUCTION_TOOL_NAME,
   STORY_STUDIO_MIDDLEWARE_TOOL_NAMES,
   STORY_UPSERT_PRODUCTION_SHOT_TOOL_NAME,
@@ -58,6 +60,30 @@ const receipt: StoryMutationReceipt = {
   status: 'draft',
   changedFields: ['title', 'status'],
   nextAction: 'Review the project brief.'
+}
+
+const productionMutationResult = {
+  success: true,
+  duplicate: false,
+  projectId: receipt.projectId,
+  revision: 2,
+  production: {
+    documentRevision: 4,
+    counts: {
+      sources: 1,
+      beats: 2,
+      episodes: 1,
+      assets: 1,
+      characters: 1,
+      scenes: 1,
+      shots: 7,
+      candidates: 4,
+      selectedCandidates: 1
+    },
+    totalDurationSeconds: 60,
+    sourceSynopsis:
+      'This complete production document must not enter a mutation receipt.'
+  }
 }
 
 function middlewareContext(): IAgentMiddlewareContext {
@@ -118,12 +144,16 @@ function createHarness() {
       search: ''
     }),
     getProjectSummary: jest.fn(),
+    getProjectRevision: jest.fn().mockResolvedValue({
+      projectId: receipt.projectId,
+      revision: 7
+    }),
     updateProject: jest.fn(),
     updateProjectStatus: jest.fn(),
     reportFailure: jest.fn()
   }
   const production = {
-    saveProduction: jest.fn(),
+    saveProduction: jest.fn().mockResolvedValue(productionMutationResult),
     getProduction: jest.fn(),
     startProduction: jest.fn().mockResolvedValue({
       success: true,
@@ -169,11 +199,7 @@ function createHarness() {
       },
       totalDurationSeconds: 6
     }),
-    attachAssetImage: jest.fn().mockResolvedValue({
-      success: true,
-      projectId: receipt.projectId,
-      revision: 2
-    })
+    attachAssetImage: jest.fn().mockResolvedValue(productionMutationResult)
   }
   const generatedMedia = {
     attachGeneratedVideo: jest.fn()
@@ -253,6 +279,28 @@ describe('StoryStudioMiddleware', () => {
     expect((middleware.tools as TestTool[]).map((tool) => tool.name)).toEqual(
       [...STORY_STUDIO_MIDDLEWARE_TOOL_NAMES]
     )
+  })
+
+  it('returns a compact project revision without loading the project summary', async () => {
+    const { middleware, service } = createHarness()
+    const input = { projectId: receipt.projectId }
+
+    const result = JSON.parse(
+      await getTool(
+        middleware,
+        STORY_GET_PROJECT_REVISION_TOOL_NAME
+      ).invoke(input)
+    )
+
+    expect(service.getProjectRevision).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-a' }),
+      input
+    )
+    expect(service.getProjectSummary).not.toHaveBeenCalled()
+    expect(result).toEqual({
+      projectId: receipt.projectId,
+      revision: 7
+    })
   })
 
   it('routes Assistant adaptation advice through the suggestion middleware tool', async () => {
@@ -376,35 +424,38 @@ describe('StoryStudioMiddleware', () => {
 
   it('persists and attaches completed Seedream asset images', async () => {
     const { middleware, production } = createHarness()
-    await getTool(
-      middleware,
-      STORY_ATTACH_GENERATED_ASSET_IMAGE_TOOL_NAME
-    ).invoke({
-      projectId: receipt.projectId,
-      operationId: 'seedream:asset:middleware',
-      baseRevision: 1,
-      assetId: 'asset-lin',
-      candidateId: 'seedream-image-1',
-      label: 'Lin reference',
-      assetReference: {
-        type: 'continuity_view',
-        key: 'front'
-      },
-      file: '/workspace/files/seedream-aigc/images/task.png',
-      providerReceipt: {
-        provider: 'seedream_aigc',
-        taskId: 'task-image-1',
-        status: 'completed'
-      },
-      select: true,
-      changeSummary: 'Attached Lin reference'
-    })
+    const result = JSON.parse(
+      await getTool(
+        middleware,
+        STORY_ATTACH_GENERATED_ASSET_IMAGE_TOOL_NAME
+      ).invoke({
+        projectId: receipt.projectId,
+        operationId: 'seedream:asset:middleware',
+        baseRevision: 1,
+        assetId: 'asset-lin',
+        candidateId: 'seedream-image-1',
+        label: 'Lin reference',
+        assetReference: {
+          type: 'continuity_view',
+          key: 'front'
+        },
+        file: '/workspace/files/seedream-aigc/images/task.png',
+        providerReceipt: {
+          provider: 'seedream_aigc',
+          taskId: 'task-image-1',
+          status: 'completed'
+        },
+        select: true,
+        changeSummary: 'Attached Lin reference'
+      })
+    )
 
     expect(production.attachAssetImage).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: 'tenant-a' }),
       expect.objectContaining({
         assetId: 'asset-lin',
         candidateId: 'seedream-image-1',
+        replaceReference: true,
         assetReference: {
           type: 'continuity_view',
           key: 'front'
@@ -415,6 +466,164 @@ describe('StoryStudioMiddleware', () => {
           workspacePath: expect.stringContaining('generated-assets')
         })
       })
+    )
+    expect(result).toEqual({
+      success: true,
+      duplicate: false,
+      operationId: 'seedream:asset:middleware',
+      projectId: receipt.projectId,
+      revision: 2,
+      documentRevision: 4,
+      assetId: 'asset-lin',
+      candidateId: 'seedream-image-1',
+      assetReference: {
+        type: 'continuity_view',
+        key: 'front'
+      },
+      selected: true
+    })
+    expect(result.production).toBeUndefined()
+  })
+
+  it('chains four expression attachment receipts without project summary reads', async () => {
+    const { middleware, production, service } = createHarness()
+    production.attachAssetImage
+      .mockResolvedValueOnce({ ...productionMutationResult, revision: 12 })
+      .mockResolvedValueOnce({ ...productionMutationResult, revision: 13 })
+      .mockResolvedValueOnce({ ...productionMutationResult, revision: 14 })
+      .mockResolvedValueOnce({ ...productionMutationResult, revision: 15 })
+
+    const expressionKeys = ['neutral', 'happy', 'sad', 'angry'] as const
+    const revisions: number[] = []
+    let currentBaseRevision = 11
+    for (const expressionKey of expressionKeys) {
+      const result = JSON.parse(
+        await getTool(
+          middleware,
+          STORY_ATTACH_GENERATED_ASSET_IMAGE_TOOL_NAME
+        ).invoke({
+          projectId: receipt.projectId,
+          operationId: `seedream:expression:${expressionKey}`,
+          baseRevision: currentBaseRevision,
+          assetId: 'asset-lin',
+          candidateId: `seedream-expression-${expressionKey}`,
+          label: `Lin ${expressionKey}`,
+          assetReference: {
+            type: 'expression',
+            key: expressionKey
+          },
+          file: `/workspace/files/seedream-aigc/images/${expressionKey}.png`,
+          providerReceipt: {
+            provider: 'seedream_aigc',
+            taskId: `task-expression-${expressionKey}`,
+            status: 'completed'
+          },
+          select: false,
+          changeSummary: `Attached Lin ${expressionKey} expression`
+        })
+      )
+      revisions.push(result.revision)
+      currentBaseRevision = result.revision
+      expect(result.production).toBeUndefined()
+      expect(result.assetReference).toEqual({
+        type: 'expression',
+        key: expressionKey
+      })
+    }
+
+    expect(production.attachAssetImage).toHaveBeenCalledTimes(4)
+    expect(production.attachAssetImage).toHaveBeenNthCalledWith(
+      1,
+      expect.anything(),
+      expect.objectContaining({ baseRevision: 11 }),
+      expect.anything()
+    )
+    expect(production.attachAssetImage).toHaveBeenNthCalledWith(
+      2,
+      expect.anything(),
+      expect.objectContaining({ baseRevision: 12 }),
+      expect.anything()
+    )
+    expect(production.attachAssetImage).toHaveBeenNthCalledWith(
+      3,
+      expect.anything(),
+      expect.objectContaining({ baseRevision: 13 }),
+      expect.anything()
+    )
+    expect(production.attachAssetImage).toHaveBeenNthCalledWith(
+      4,
+      expect.anything(),
+      expect.objectContaining({ baseRevision: 14 }),
+      expect.anything()
+    )
+    expect(revisions).toEqual([12, 13, 14, 15])
+    expect(service.getProjectSummary).not.toHaveBeenCalled()
+    expect(service.getProjectRevision).not.toHaveBeenCalled()
+  })
+
+  it('returns a compact receipt when saving a complete production document', async () => {
+    const { middleware } = createHarness()
+    const result = JSON.parse(
+      await getTool(middleware, STORY_SAVE_PRODUCTION_TOOL_NAME).invoke({
+        projectId: receipt.projectId,
+        operationId: 'production:save:middleware',
+        baseRevision: 1,
+        production: {
+          sourceSynopsis: 'A bounded source synopsis.',
+          adaptationGoal: 'Create a short film.',
+          visualStyle: 'Cinematic realism.',
+          characters: [],
+          scenes: []
+        },
+        changeSummary: 'Saved the complete production document'
+      })
+    )
+
+    expect(result).toEqual({
+      success: true,
+      duplicate: false,
+      operationId: 'production:save:middleware',
+      projectId: receipt.projectId,
+      revision: 2,
+      documentRevision: 4,
+      counts: productionMutationResult.production.counts,
+      totalDurationSeconds: 60
+    })
+    expect(result.production).toBeUndefined()
+  })
+
+  it('normalizes JSON-encoded assetReference values before the attachment service call', async () => {
+    const { middleware, production } = createHarness()
+    await getTool(
+      middleware,
+      STORY_ATTACH_GENERATED_ASSET_IMAGE_TOOL_NAME
+    ).invoke({
+      projectId: receipt.projectId,
+      operationId: 'seedream:asset:string-reference',
+      baseRevision: 1,
+      assetId: 'asset-lin',
+      candidateId: 'seedream-image-string-reference',
+      label: 'Lin front reference',
+      assetReference: '{"type":"continuity_view","key":"front"}',
+      file: '/workspace/files/seedream-aigc/images/task-string.png',
+      providerReceipt: {
+        provider: 'seedream_aigc',
+        taskId: 'task-image-string',
+        status: 'completed'
+      },
+      select: true,
+      changeSummary: 'Attached Lin front reference'
+    })
+
+    expect(production.attachAssetImage).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-a' }),
+      expect.objectContaining({
+        assetReference: {
+          type: 'continuity_view',
+          key: 'front'
+        }
+      }),
+      expect.any(Object)
     )
   })
 
@@ -445,6 +654,7 @@ describe('StoryStudioMiddleware', () => {
   it('publishes compact running and success events for mutations', async () => {
     const { middleware } = createHarness()
     const handler = jest.fn().mockResolvedValue({
+      status: 'success',
       content: JSON.stringify(receipt)
     })
     const request = {

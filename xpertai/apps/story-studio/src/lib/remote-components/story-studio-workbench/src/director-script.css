@@ -357,8 +357,15 @@
   width: 14px;
 }
 .script-inline-textarea {
-  field-sizing: content;
+  field-sizing: fixed;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: pre;
+}
+
+.script-inline-textarea:focus {
+  overflow-x: auto;
+  text-overflow: clip;
 }
 
 .script-inline-textarea::selection {

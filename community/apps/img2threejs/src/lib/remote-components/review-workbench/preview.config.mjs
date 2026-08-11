@@ -262,6 +262,8 @@ export default {
           sha256: 'b'.repeat(64)
         },
         comparisonPreviewUrl: '/__mock/comparison.svg',
+        modelAsset: null,
+        modelPreviewUrl: null,
         visualReview: {
           status: 'pending_human',
           evidenceKind: 'browser_render',
@@ -827,6 +829,8 @@ function emptyArtifact() {
     sourceAsset: null,
     comparisonAsset: null,
     comparisonPreviewUrl: null,
+    modelAsset: null,
+    modelPreviewUrl: null,
     visualReview: null,
     renderReport: null,
     capabilities: {
@@ -879,6 +883,8 @@ function passedFidelityQuality() {
   return {
     triangles: 4280,
     drawCalls: 12,
+    runtimeMeshCount: 24,
+    minimumRuntimeMeshCount: 16,
     maximumTriangles: 10000,
     maximumDrawCalls: 20,
     referenceAlignment: {

@@ -3,6 +3,10 @@ export type VoiceReferenceLike = {
   label: string
   license: string | null
   sourceUrl: string | null
+  workspacePath?: string | null
+  originalName?: string | null
+  mimeType?: string | null
+  size?: number | null
 }
 
 export type VoiceReferenceInput = {
@@ -10,6 +14,10 @@ export type VoiceReferenceInput = {
   label?: string | null
   license?: string | null
   sourceUrl?: string | null
+  workspacePath?: string | null
+  originalName?: string | null
+  mimeType?: string | null
+  size?: number | null
 }
 
 export function createVoiceReferenceDraft(
@@ -19,13 +27,17 @@ export function createVoiceReferenceDraft(
     url: value?.url?.trim() ?? '',
     label: value?.label?.trim() ?? '',
     license: value?.license?.trim() ?? null,
-    sourceUrl: value?.sourceUrl?.trim() ?? null
+    sourceUrl: value?.sourceUrl?.trim() ?? null,
+    workspacePath: value?.workspacePath?.trim() ?? null,
+    originalName: value?.originalName?.trim() ?? null,
+    mimeType: value?.mimeType?.trim() ?? null,
+    size: typeof value?.size === 'number' ? value.size : null
   }
 }
 
-export function updateVoiceReferenceDraft<K extends keyof VoiceReferenceLike>(
+export function updateVoiceReferenceDraft(
   value: VoiceReferenceInput | null | undefined,
-  key: K,
+  key: 'url' | 'label' | 'license' | 'sourceUrl',
   nextValue: string
 ): VoiceReferenceLike {
   const next = createVoiceReferenceDraft(value)
@@ -49,6 +61,13 @@ export function compactVoiceReference(
   if (license) voiceReference.license = license
   const sourceUrl = value?.sourceUrl?.trim()
   if (sourceUrl) voiceReference.sourceUrl = sourceUrl
+  const workspacePath = value?.workspacePath?.trim()
+  if (workspacePath) voiceReference.workspacePath = workspacePath
+  const originalName = value?.originalName?.trim()
+  if (originalName) voiceReference.originalName = originalName
+  const mimeType = value?.mimeType?.trim()
+  if (mimeType) voiceReference.mimeType = mimeType
+  if (typeof value?.size === 'number') voiceReference.size = value.size
   return voiceReference
 }
 

@@ -57,6 +57,22 @@ const assetReferenceSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('general') }).strict()
 ])
 
+const generatedAssetReferenceSchema = z.preprocess(
+  (value) => {
+    if (typeof value !== 'string') return value
+    const serialized = value.trim()
+    if (!serialized.startsWith('{') || !serialized.endsWith('}')) {
+      return value
+    }
+    try {
+      return JSON.parse(serialized)
+    } catch {
+      return value
+    }
+  },
+  assetReferenceSchema
+)
+
 const shotVideoSettingsSchema = z
   .object({
     generatorId: identifier.optional(),
@@ -65,7 +81,8 @@ const shotVideoSettingsSchema = z
     aspectRatio: bounded(40).optional(),
     fps: z.number().int().min(1).max(120).optional(),
     takeCount: z.number().int().min(1).max(4).optional(),
-    referenceAssetIds: z.array(identifier).max(8).optional()
+    referenceAssetIds: z.array(identifier).max(8).optional(),
+    referenceImageCandidateIds: z.array(identifier).max(12).optional()
   })
   .strict()
 
@@ -290,7 +307,11 @@ const characterSchema = z
         url: z.string().url().max(2_000),
         label: bounded(240),
         license: z.string().trim().max(240).optional(),
-        sourceUrl: z.string().url().max(2_000).optional()
+        sourceUrl: z.string().url().max(2_000).optional(),
+        workspacePath: bounded(2_000).optional(),
+        originalName: bounded(500).optional(),
+        mimeType: bounded(200).optional(),
+        size: z.number().int().positive().max(20 * 1024 * 1024).optional()
       })
       .strict()
       .optional()
@@ -534,6 +555,7 @@ const attachAssetImageFields = {
     })
     .strict(),
   select: z.boolean().optional(),
+  replaceReference: z.boolean().optional(),
   changeSummary
 }
 
@@ -544,6 +566,7 @@ export const attachAssetImageSchema = z
 export const attachGeneratedAssetImageSchema = z
   .object({
     ...attachAssetImageFields,
+    assetReference: generatedAssetReferenceSchema,
     providerReceipt: attachAssetImageFields.providerReceipt.refine(
       (receipt) => receipt.provider === 'seedream_aigc',
       'Generated asset images require the seedream_aigc provider.'
@@ -570,6 +593,15 @@ export const attachShotReferenceImageSchema = z
       })
       .strict(),
     changeSummary
+  })
+  .strict()
+
+export const uploadStoryVoiceReferenceSchema = z
+  .object({
+    projectId,
+    assetId: identifier,
+    referenceId: identifier,
+    label: bounded(240)
   })
   .strict()
 

@@ -203,6 +203,30 @@ describe('StoryStudioService mutation contracts', () => {
     ).rejects.toBeInstanceOf(ConflictException)
   })
 
+  it('reads only the compact revision token for concurrency recovery', async () => {
+    const created = await service.createProject(scope, {
+      operationId: 'create:story:revision-read',
+      title: 'Compact revision story',
+      changeSummary: 'Created compact revision test project'
+    })
+    await service.updateProject(scope, {
+      projectId: created.project.id,
+      operationId: 'update:story:revision-read',
+      baseRevision: 1,
+      title: 'Compact revision story v2',
+      changeSummary: 'Advanced compact revision test project'
+    })
+
+    await expect(
+      service.getProjectRevision(scope, {
+        projectId: created.project.id
+      })
+    ).resolves.toEqual({
+      projectId: created.project.id,
+      revision: 2
+    })
+  })
+
   it('enforces explicit lifecycle transitions', async () => {
     const created = await service.createProject(scope, {
       operationId: 'create:story:004',

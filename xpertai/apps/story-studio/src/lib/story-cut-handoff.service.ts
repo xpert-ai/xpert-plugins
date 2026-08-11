@@ -637,7 +637,7 @@ function operationConflict() {
 function revisionConflict(currentRevision: number) {
   return new ConflictException({
     errorCode: 'story_revision_conflict',
-    message: 'Story project changed. Refresh the project and retry.',
+    message: `Story project changed. Current revision is ${currentRevision}. Re-read only affected content when needed, then retry with that revision.`,
     currentRevision
   })
 }

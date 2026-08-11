@@ -10,8 +10,15 @@ Use Story Studio middleware tools as the project system of record.
 1. Search existing projects before creating a duplicate.
 2. Create a project only after the user has supplied or approved its title and
    basic production format.
-3. Read `story_get_project_summary` before changing an existing project.
-4. Pass the returned revision as `baseRevision` to every mutation.
+3. For the first mutation, use the trusted revision from Workbench context,
+   project creation/search, or a content read such as `story_get_production`.
+   If no trusted revision exists, call `story_get_project_revision`, which
+   returns only the project id and revision. Do not read the full project summary
+   only to obtain a revision number.
+4. Every successful mutation returns `revision`; chain it into the next call as
+   `baseRevision`. On conflict, use `currentRevision` from the error or call
+   `story_get_project_revision` once if that field is unavailable. Re-read only
+   affected content when retrying could overwrite concurrent edits.
 5. Keep `changeSummary` concise and describe the visible business change.
 6. Never invent tenant, organization, workspace, user, Assistant, or conversation
    identifiers; the middleware resolves them from trusted runtime context.
@@ -30,12 +37,14 @@ Use Story Studio middleware tools as the project system of record.
 9. For an asset-bible reference set, use `seedream_text_to_image` once per
    requested continuity view or expression with the asset prompt plus the
    production visual style. Use 3:4 for characters, 16:9 for locations, and
-   1:1 for props or style references. After each completed Workspace image,
-   refresh the project revision and call
-   `story_attach_generated_asset_image` with the exact asset id, Workspace
-   path, provider receipt, and the exact `assetReference` requested by the
+   1:1 for props or style references. Call
+   `story_attach_generated_asset_image` sequentially for each completed
+   Workspace image with the exact asset id, Workspace path, provider receipt,
+   current `baseRevision`, and the exact `assetReference` requested by the
    Workbench. Use `select=true` only for the primary continuity view and never
-   for an expression. Never attach base64 or a provider URL.
+   for an expression. Use each successful attachment receipt revision as the
+   next `baseRevision`; do not read a project summary between attachments.
+   Never attach base64 or a provider URL.
 10. The user starts paid video generation only through **Generate Take** in the
     Story Studio Workbench. Never call Seedance, Veo, Kling, or any provider
     video submission tool directly from the Agent.

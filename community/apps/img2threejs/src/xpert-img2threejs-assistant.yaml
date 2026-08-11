@@ -18,17 +18,22 @@ team:
         - img2threejs.review-workbench
   agentConfig:
     recursionLimit: 160
+  features:
+    sandbox:
+      enabled: true
+      provider: docker-sandbox
   version: "1"
   agent:
     key: Agent_Img2ThreeJs
   copilotModel:
     referencedId: null
     modelType: llm
-    model: gpt-5
+    model: kimi-k2.5
     options:
+      context_size: 262144
       temperature: 0.1
       maxRetries: 4
-      max_tokens: 12000
+      max_tokens: 24000
   knowledgebases: []
   toolsets: []
   tags: []
@@ -44,36 +49,58 @@ nodes:
       title: Image to Three.js Modeling Assistant
       description: Build reviewable procedural Three.js models through strict evidence and pass gates.
       prompt: >
-        Use the installed img2threejs-semantic-modeling Skill for every modeling
-        task. Follow its ordered middleware protocol and quality gates. Generate
-        procedural Three.js in TypeScript only and never introduce Python. Treat
-        host-provided project context as authoritative. Do not claim success
-        without persisted tool results. Finish all read-only context calls first,
-        then call read_evidence for every admitted image at the exact current
-        revision immediately before update_spec; the mutation rejects missing or
-        stale evidence inspection. Treat imageAttachmentAvailable as byte
-        availability only; if the active model profile does not explicitly
-        support image inputs, choose request-input. After validating the Sculpt Spec, enqueue
-        blockout once and bounded-long-poll the Managed Queue chain; do not spend
-        one Agent tool call per deterministic stage. If the Skill is unavailable
-        or admitted image pixels cannot be grounded, choose request-input.
+        Build reviewable Img2ThreeJs projects with the installed Workspace
+        capabilities. Use the platform-provided Skills catalog through its
+        normal progressive-disclosure workflow whenever a listed skill matches
+        this task; detailed modeling procedure belongs to that Skill rather than
+        this prompt. Treat host project context and persisted middleware results
+        as authoritative. Generate the complete subject-specific procedural
+        Three.js implementation yourself in TypeScript, never Python, and never
+        copy, translate, or adapt source or generator scripts from the reference
+        repository. Reference-repository content is visual evidence only.
+        Caller-managed concurrency fields do not exist: tools resolve current
+        project, run state, and source snapshots internally; do not send revision
+        or expected-checksum fields. At the start of each user turn and after a
+        failed submission, read current project status before changing Workspace
+        source. Current deterministic failures override older visual discussion.
+        Do not toggle between competing implementations without pipeline
+        feedback: form one coherent candidate, submit it, and use the returned
+        diagnostics before revising again. A successful Workspace Files write
+        means that exact TypeScript path is the current candidate: inspect and
+        submit it through the img2threejs code-file tool before drafting,
+        overwriting, or creating another candidate. An "already exists" file
+        response is not permission to create a new version; first inspect and
+        submit the existing candidate, and only repair it after a deterministic
+        plugin rejection names a concrete defect. Inspect admitted reference pixels and
+        browser visual diagnostics before semantic or visual decisions, keep the
+        semantic Spec compact, author production source through Workspace Files,
+        and continue the bounded quality loop until persisted browser gates and
+        human review accept the result. If required pixels or capabilities are
+        genuinely unavailable, report that fact instead of inventing evidence.
       promptTemplates: null
       parameters: null
       outputVariables: null
-      options: null
+      options:
+        middlewares:
+          order:
+            - Middleware_Img2ThreeJsContextCompression
+            - Middleware_Img2ThreeJsFiles
+            - Middleware_Img2ThreeJsShell
+            - Middleware_Img2ThreeJs
       copilotModel:
         referencedId: null
         modelType: llm
-        model: gpt-5
+        model: kimi-k2.5
         options:
+          context_size: 262144
           temperature: 0.1
           maxRetries: 4
-          max_tokens: 12000
+          max_tokens: 24000
       leaderKey: null
       collaboratorNames: []
       toolsetIds: []
       knowledgebaseIds: []
-    hash: img2threejs-agent-v7
+    hash: img2threejs-agent-v18-candidate-continuation
   - type: workflow
     key: Middleware_Img2ThreeJs
     position:
@@ -86,9 +113,65 @@ nodes:
       title: Image to Three.js Agent Tools
       provider: img2threejs.agent-tools
       required: true
-    hash: img2threejs-middleware-v2
+    hash: img2threejs-middleware-v5
+  - type: workflow
+    key: Middleware_Img2ThreeJsFiles
+    position:
+      x: 900
+      y: 340
+    entity:
+      id: Middleware_Img2ThreeJsFiles
+      type: middleware
+      key: Middleware_Img2ThreeJsFiles
+      title: Image to Three.js Sandbox Files
+      provider: SandboxFile
+      required: true
+    hash: img2threejs-sandbox-files-v1
+  - type: workflow
+    key: Middleware_Img2ThreeJsShell
+    position:
+      x: 1080
+      y: 340
+    entity:
+      id: Middleware_Img2ThreeJsShell
+      type: middleware
+      key: Middleware_Img2ThreeJsShell
+      title: Image to Three.js Sandbox Shell
+      provider: SandboxShell
+      required: true
+    hash: img2threejs-sandbox-shell-v1
+  - type: workflow
+    key: Middleware_Img2ThreeJsContextCompression
+    position:
+      x: 1260
+      y: 340
+    entity:
+      id: Middleware_Img2ThreeJsContextCompression
+      type: middleware
+      key: Middleware_Img2ThreeJsContextCompression
+      title: Image to Three.js Context Compression
+      provider: ContextCompressionMiddleware
+      required: true
+      options:
+        threshold: 0.5
+        preserveFraction: 0.1
+        enableTwoPhaseCompression: true
+        protectedUserTurns: 1
+    hash: img2threejs-context-compression-v6-manual-snapshot
 connections:
   - type: workflow
     key: Agent_Img2ThreeJs/Middleware_Img2ThreeJs
     from: Agent_Img2ThreeJs
     to: Middleware_Img2ThreeJs
+  - type: workflow
+    key: Agent_Img2ThreeJs/Middleware_Img2ThreeJsFiles
+    from: Agent_Img2ThreeJs
+    to: Middleware_Img2ThreeJsFiles
+  - type: workflow
+    key: Agent_Img2ThreeJs/Middleware_Img2ThreeJsShell
+    from: Agent_Img2ThreeJs
+    to: Middleware_Img2ThreeJsShell
+  - type: workflow
+    key: Agent_Img2ThreeJs/Middleware_Img2ThreeJsContextCompression
+    from: Agent_Img2ThreeJs
+    to: Middleware_Img2ThreeJsContextCompression

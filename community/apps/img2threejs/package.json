@@ -28,6 +28,7 @@
   "files": [
     ".xpertai-plugin",
     "dist",
+    "docs",
     "skills",
     "README.md",
     "!**/*.tsbuildinfo"
@@ -39,7 +40,8 @@
     "remote:check": "node scripts/build-remote-components.mjs --check",
     "test:backend:integration": "pnpm run build && node --test tests/backend.integration.test.mjs",
     "test:workbench:mock": "pnpm run build && node --test tests/workbench.mock.e2e.test.mjs",
-    "test": "pnpm run build && node scripts/run-tests.mjs && node --test tests/backend.integration.test.mjs tests/sandbox-action.e2e.test.mjs tests/workbench.mock.e2e.test.mjs && pnpm run remote:check"
+    "test:greenfield": "pnpm run build && node tests/greenfield-contract.test.mjs",
+    "test": "pnpm run build && node scripts/run-tests.mjs && node tests/greenfield-contract.test.mjs && node --test tests/backend.integration.test.mjs tests/sandbox-action.e2e.test.mjs tests/workbench.mock.e2e.test.mjs && pnpm run remote:check"
   },
   "xpert": {
     "plugin": {
@@ -49,7 +51,8 @@
   },
   "dependencies": {
     "sharp": "0.35.3",
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "typescript": "^5.9.2"
   },
   "peerDependencies": {
     "@langchain/core": ">=0.3.0",
@@ -77,6 +80,7 @@
     "@xpert-ai/contracts": "^3.15.18",
     "@xpert-ai/plugin-sdk": "^3.15.18",
     "@esbuild/darwin-arm64": "0.28.1",
+    "@esbuild/linux-arm64": "0.28.1",
     "@esbuild/linux-x64": "0.28.1",
     "esbuild": "0.28.1",
     "playwright-core": "1.61.0",
@@ -86,7 +90,6 @@
     "sql.js": "^1.13.0",
     "typeorm": "^0.3.24",
     "three": "0.185.1",
-    "typescript": "^5.9.2",
     "yaml": "^2.8.1",
     "zod": "3.25.67"
   },

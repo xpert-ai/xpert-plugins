@@ -124,6 +124,36 @@ describe('buildStoryVideoGenerationRequest', () => {
     ])
   })
 
+  it('uses the exact asset images selected for the shot instead of the asset primary image', () => {
+    const primary = fileReference('characters/pony-primary.jpg')
+    const profile = fileReference('characters/pony-profile.jpg')
+    const character = asset('asset-pony', 'character', '小马', primary)
+    character.candidates?.push({
+      id: 'asset-pony-profile',
+      kind: 'image',
+      label: '侧面',
+      selected: false,
+      assetReference: { type: 'continuity_view', key: 'profile' },
+      fileReference: profile
+    })
+    const shot = storyShot()
+    shot.videoSettings = {
+      referenceAssetIds: ['asset-pony'],
+      referenceImageCandidateIds: ['asset-pony-profile']
+    }
+
+    const request = buildStoryVideoGenerationRequest(
+      generationInput('保持侧面轮廓'),
+      { assets: [character], characters: [] },
+      storyScene(shot),
+      shot
+    )
+
+    expect(request.referenceImageCandidateIds).toEqual(['asset-pony-profile'])
+    expect(request.referenceImages).toEqual([profile])
+    expect(request.prompt).toContain('角色“小马”的侧面参考')
+  })
+
   it('keeps the provider prompt within its supported limit', () => {
     const shot = storyShot()
     shot.action = '连续动作'.repeat(200)

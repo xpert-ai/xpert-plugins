@@ -8,12 +8,15 @@ export function StudioPanelLayout(props: {
   children: React.ReactNode
   storageKey: string
   leftLabel: string
-  rightLabel: string
+  rightLabel?: string
   leftDefault?: number
   rightDefault?: number
+  rightPanelOpen?: boolean
   className?: string
   testId?: string
 }) {
+  const hasRightPanel = Boolean(props.rightLabel)
+  const rightPanelOpen = hasRightPanel && (props.rightPanelOpen ?? true)
   const leftDefault = props.leftDefault ?? 270
   const rightDefault = props.rightDefault ?? 330
   const [sizes, setSizes] = React.useState(() =>
@@ -26,6 +29,12 @@ export function StudioPanelLayout(props: {
   }, [props.storageKey, leftDefault, rightDefault])
 
   function update(side: PanelSide, value: number) {
+    if (!hasRightPanel && side === 'left') {
+      const next = { ...sizes, left: Math.max(210, Math.min(520, value)) }
+      setSizes(next)
+      writePanelSizes(props.storageKey, next)
+      return
+    }
     const width = containerRef.current?.getBoundingClientRect().width ?? 1200
     const next = clampPanelSizes(
       side === 'left' ? { ...sizes, left: value } : { ...sizes, right: value },
@@ -69,7 +78,7 @@ export function StudioPanelLayout(props: {
   return (
     <div
       ref={containerRef}
-      className={`studio-panel-layout ${props.className ?? ''}`}
+      className={`studio-panel-layout ${hasRightPanel ? 'has-right-panel' : 'is-two-column'} ${hasRightPanel && !rightPanelOpen ? 'is-right-collapsed' : ''} ${props.className ?? ''}`}
       data-testid={props.testId}
       style={{
         '--studio-left-panel': `${sizes.left}px`,
@@ -85,14 +94,16 @@ export function StudioPanelLayout(props: {
         onKeyDown={(event) => handleKey('left', event)}
         onDoubleClick={() => reset('left')}
       />
-      <PanelHandle
-        side="right"
-        label={props.rightLabel}
-        value={sizes.right}
-        onPointerDown={(event) => beginResize('right', event)}
-        onKeyDown={(event) => handleKey('right', event)}
-        onDoubleClick={() => reset('right')}
-      />
+      {props.rightLabel && rightPanelOpen ? (
+        <PanelHandle
+          side="right"
+          label={props.rightLabel}
+          value={sizes.right}
+          onPointerDown={(event) => beginResize('right', event)}
+          onKeyDown={(event) => handleKey('right', event)}
+          onDoubleClick={() => reset('right')}
+        />
+      ) : null}
     </div>
   )
 }

@@ -6,7 +6,7 @@
  * - Avoids dynamic schema from arbitrary metadata keys and VarChar max_length pitfalls.
  */
 
-import * as uuid from "uuid";
+import * as uuid from 'uuid'
 import {
   MilvusClient,
   DataType,
@@ -15,38 +15,43 @@ import {
   FieldType,
   ClientConfig,
   InsertReq,
-  keyValueObj,
-} from "@zilliz/milvus2-sdk-node";
+  UpsertReq,
+  RowData,
+  keyValueObj
+} from '@zilliz/milvus2-sdk-node'
 
-import type { EmbeddingsInterface } from "@langchain/core/embeddings";
-import { VectorStore } from "@langchain/core/vectorstores";
-import { Document } from "@langchain/core/documents";
-import { getEnvironmentVariable } from "@langchain/core/utils/env";
+import type { EmbeddingsInterface } from '@langchain/core/embeddings'
+import { VectorStore } from '@langchain/core/vectorstores'
+import { Document } from '@langchain/core/documents'
+import { getEnvironmentVariable } from '@langchain/core/utils/env'
 
 /**
  * Interface for the arguments required by the Milvus class constructor.
  */
 export interface MilvusLibArgs {
-  collectionName?: string;
-  partitionName?: string;
-  primaryField?: string;
-  vectorField?: string;
-  textField?: string;
-  url?: string; // db address
-  ssl?: boolean;
-  username?: string;
-  password?: string;
-  textFieldMaxLength?: number;
-  clientConfig?: ClientConfig;
-  autoId?: boolean;
-  indexCreateOptions?: IndexCreateOptions;
-  partitionKey?: string; // doc: https://milvus.io/docs/use-partition-key.md
-  partitionKeyMaxLength?: number;
+  collectionName?: string
+  partitionName?: string
+  primaryField?: string
+  vectorField?: string
+  textField?: string
+  url?: string // db address
+  ssl?: boolean
+  username?: string
+  password?: string
+  textFieldMaxLength?: number
+  clientConfig?: ClientConfig
+  autoId?: boolean
+  indexCreateOptions?: IndexCreateOptions
+  partitionKey?: string // doc: https://milvus.io/docs/use-partition-key.md
+  partitionKeyMaxLength?: number
 
   /**
    * NEW: The column name to store JSON-stringified metadata. Default: "metadata".
    */
-  metadataFieldName?: string;
+  metadataFieldName?: string
+
+  /** Native JSON field used exclusively by Knowledge Filter V2. */
+  filterAttributesFieldName?: string
 
   /**
    * NEW: Promote a few metadata keys as independent columns for filtering.
@@ -55,70 +60,82 @@ export interface MilvusLibArgs {
    * Default: [{ name: "document_id", type: "VarChar", max_length: 64 }]
    */
   promotedMetadataFields?: Array<
-    | { name: string; type: "VarChar"; max_length?: number }
-    | { name: string; type: "Bool" }
-    | { name: string; type: "Float" } // float32
-    | { name: string; type: "Int64" }
-  >;
+    | { name: string; type: 'VarChar'; max_length?: number }
+    | { name: string; type: 'Bool' }
+    | { name: string; type: 'Float' } // float32
+    | { name: string; type: 'Int64' }
+  >
 
   /**
    * NEW: Graceful truncate behavior for oversize text/metadata.
    * If false, insertion may fail when exceeding max_length.
    * Default: true
    */
-  enableSafeTruncate?: boolean;
+  enableSafeTruncate?: boolean
 
   /**
    * NEW: Max length upper bound used when not specified.
    * Default: 65535 (Milvus VarChar maximum)
    */
-  defaultMaxVarCharLength?: number;
+  defaultMaxVarCharLength?: number
 }
 
 export interface IndexCreateOptions {
-  index_type: IndexType;
-  metric_type: MetricType;
-  params?: keyValueObj;
-  search_params?: keyValueObj; // runtime search params
+  index_type: IndexType
+  metric_type: MetricType
+  params?: keyValueObj
+  search_params?: keyValueObj // runtime search params
 }
 
-export type MetricType = "L2" | "IP" | "COSINE";
+export type MetricType = 'L2' | 'IP' | 'COSINE'
 
 /**
  * Type representing the type of index used in the Milvus database.
  */
 type IndexType =
-  | "FLAT"
-  | "IVF_FLAT"
-  | "IVF_SQ8"
-  | "IVF_PQ"
-  | "HNSW"
-  | "RHNSW_FLAT"
-  | "RHNSW_SQ"
-  | "RHNSW_PQ"
-  | "IVF_HNSW"
-  | "ANNOY";
+  | 'FLAT'
+  | 'IVF_FLAT'
+  | 'IVF_SQ8'
+  | 'IVF_PQ'
+  | 'HNSW'
+  | 'RHNSW_FLAT'
+  | 'RHNSW_SQ'
+  | 'RHNSW_PQ'
+  | 'IVF_HNSW'
+  | 'ANNOY'
 
 /**
  * Interface for vector search parameters.
  */
 interface IndexSearchParam {
-  params: { nprobe?: number; ef?: number; search_k?: number };
+  params: { nprobe?: number; ef?: number; search_k?: number }
 }
 
-interface InsertRow {
-  [x: string]: string | number[] | number | boolean;
+export type MilvusExpressionFilter = {
+  expression: string
+  values?: Record<string, unknown>
+}
+
+export type MilvusFilterAttributeUpdate = {
+  chunkId: string
+  filterAttributes: Record<string, unknown>
+}
+
+export type MilvusFilterArrayIndex = {
+  path: string
+  type: 'string[]' | 'number[]'
 }
 
 /** ------------ CONSTANTS ------------ */
 
-const MILVUS_PRIMARY_FIELD_NAME = "langchain_primaryid";
-const MILVUS_VECTOR_FIELD_NAME = "langchain_vector";
-const MILVUS_TEXT_FIELD_NAME = "langchain_text";
-const MILVUS_METADATA_FIELD_NAME = "metadata";
-const MILVUS_COLLECTION_NAME_PREFIX = "langchain_col";
-const MILVUS_PARTITION_KEY_MAX_LENGTH = 512;
-const MILVUS_VARCHAR_MAX = 65535; // practical upper bound
+const MILVUS_PRIMARY_FIELD_NAME = 'langchain_primaryid'
+const MILVUS_VECTOR_FIELD_NAME = 'langchain_vector'
+const MILVUS_TEXT_FIELD_NAME = 'langchain_text'
+const MILVUS_METADATA_FIELD_NAME = 'metadata'
+const MILVUS_FILTER_ATTRIBUTES_FIELD_NAME = 'filterAttributes'
+const MILVUS_COLLECTION_NAME_PREFIX = 'langchain_col'
+const MILVUS_PARTITION_KEY_MAX_LENGTH = 512
+const MILVUS_VARCHAR_MAX = 65535 // practical upper bound
 
 /**
  * Default parameters for index searching.
@@ -133,8 +150,8 @@ const DEFAULT_INDEX_SEARCH_PARAMS: Record<IndexType, IndexSearchParam> = {
   RHNSW_SQ: { params: { ef: 10 } },
   RHNSW_PQ: { params: { ef: 10 } },
   IVF_HNSW: { params: { nprobe: 10, ef: 10 } },
-  ANNOY: { params: { search_k: 10 } },
-};
+  ANNOY: { params: { search_k: 10 } }
+}
 
 /**
  * Class for interacting with a Milvus database. Extends the VectorStore
@@ -143,128 +160,114 @@ const DEFAULT_INDEX_SEARCH_PARAMS: Record<IndexType, IndexSearchParam> = {
 export class Milvus extends VectorStore {
   override get lc_secrets(): { [key: string]: string } {
     return {
-      ssl: "MILVUS_SSL",
-      username: "MILVUS_USERNAME",
-      password: "MILVUS_PASSWORD",
-    };
+      ssl: 'MILVUS_SSL',
+      username: 'MILVUS_USERNAME',
+      password: 'MILVUS_PASSWORD'
+    }
   }
 
   _vectorstoreType(): string {
-    return "milvus";
+    return 'milvus'
   }
 
-  declare FilterType: string;
+  declare FilterType: string
 
-  collectionName: string;
-  partitionName?: string;
-  numDimensions?: number;
-  autoId?: boolean;
+  collectionName: string
+  partitionName?: string
+  numDimensions?: number
+  autoId?: boolean
 
-  primaryField: string;
-  vectorField: string;
-  textField: string;
-  textFieldMaxLength: number;
+  primaryField: string
+  vectorField: string
+  textField: string
+  textFieldMaxLength: number
 
-  metadataFieldName: string;
+  metadataFieldName: string
+  filterAttributesFieldName: string
 
-  partitionKey?: string;
-  partitionKeyMaxLength?: number;
+  partitionKey?: string
+  partitionKeyMaxLength?: number
 
   /** schema user columns (excluding autoID pk); includes: text, vector, metadata, promoted columns */
-  fields: string[] = [];
+  fields: string[] = []
 
   /** promoted metadata column defs */
   promotedColumns: Array<
-    | { name: string; type: "VarChar"; max_length: number }
-    | { name: string; type: "Bool" }
-    | { name: string; type: "Float" }
-    | { name: string; type: "Int64" }
-  > = [];
+    | { name: string; type: 'VarChar'; max_length: number }
+    | { name: string; type: 'Bool' }
+    | { name: string; type: 'Float' }
+    | { name: string; type: 'Int64' }
+  > = []
 
   /** insertion-time options */
-  enableSafeTruncate: boolean;
-  defaultMaxVarCharLength: number;
+  enableSafeTruncate: boolean
+  defaultMaxVarCharLength: number
 
-  client: MilvusClient;
+  client: MilvusClient
 
-  indexCreateParams: IndexCreateOptions;
-  indexSearchParams: keyValueObj;
+  indexCreateParams: IndexCreateOptions
+  indexSearchParams: keyValueObj
 
   constructor(embeddings: EmbeddingsInterface, args: MilvusLibArgs) {
-    super(embeddings, args);
-    this.collectionName = args.collectionName ?? genCollectionName();
-    this.partitionName = args.partitionName;
-    this.textField = args.textField ?? MILVUS_TEXT_FIELD_NAME;
+    super(embeddings, args)
+    this.collectionName = args.collectionName ?? genCollectionName()
+    this.partitionName = args.partitionName
+    this.textField = args.textField ?? MILVUS_TEXT_FIELD_NAME
 
-    this.autoId = args.autoId ?? true;
-    this.primaryField = args.primaryField ?? MILVUS_PRIMARY_FIELD_NAME;
-    this.vectorField = args.vectorField ?? MILVUS_VECTOR_FIELD_NAME;
+    this.autoId = args.autoId ?? true
+    this.primaryField = args.primaryField ?? MILVUS_PRIMARY_FIELD_NAME
+    this.vectorField = args.vectorField ?? MILVUS_VECTOR_FIELD_NAME
 
-    this.textFieldMaxLength =
-      args.textFieldMaxLength ?? MILVUS_VARCHAR_MAX; // generous default
+    this.textFieldMaxLength = args.textFieldMaxLength ?? MILVUS_VARCHAR_MAX // generous default
 
-    this.metadataFieldName =
-      args.metadataFieldName ?? MILVUS_METADATA_FIELD_NAME;
+    this.metadataFieldName = args.metadataFieldName ?? MILVUS_METADATA_FIELD_NAME
+    this.filterAttributesFieldName = args.filterAttributesFieldName ?? MILVUS_FILTER_ATTRIBUTES_FIELD_NAME
 
-    this.partitionKey = args.partitionKey;
-    this.partitionKeyMaxLength =
-      args.partitionKeyMaxLength ?? MILVUS_PARTITION_KEY_MAX_LENGTH;
+    this.partitionKey = args.partitionKey
+    this.partitionKeyMaxLength = args.partitionKeyMaxLength ?? MILVUS_PARTITION_KEY_MAX_LENGTH
 
     // promoted columns: only a few stable keys for filtering
-    const defaultsPromoted =
-      args.promotedMetadataFields ??
-      [{ name: "document_id", type: "VarChar", max_length: 64 }];
+    const defaultsPromoted = args.promotedMetadataFields ?? [{ name: 'document_id', type: 'VarChar', max_length: 64 }]
 
     // normalize promoted columns (apply default length for VarChar)
     this.promotedColumns = defaultsPromoted.map((col) => {
-      if (col.type === "VarChar") {
+      if (col.type === 'VarChar') {
         return {
           ...col,
-          max_length: col.max_length ?? 512,
-        };
+          max_length: col.max_length ?? 512
+        }
       }
-      return col as any;
-    });
+      return col as any
+    })
 
-    this.enableSafeTruncate = args.enableSafeTruncate ?? true;
-    this.defaultMaxVarCharLength =
-      args.defaultMaxVarCharLength ?? MILVUS_VARCHAR_MAX;
+    this.enableSafeTruncate = args.enableSafeTruncate ?? true
+    this.defaultMaxVarCharLength = args.defaultMaxVarCharLength ?? MILVUS_VARCHAR_MAX
 
-    const url = args.url ?? getEnvironmentVariable("MILVUS_URL");
-    const {
-      address = "",
-      username = "",
-      password = "",
-      ssl,
-    } = args.clientConfig || {};
+    const url = args.url ?? getEnvironmentVariable('MILVUS_URL')
+    const { address = '', username = '', password = '', ssl } = args.clientConfig || {}
 
     // Index creation parameters (same defaults as original)
-    const { indexCreateOptions } = args;
+    const { indexCreateOptions } = args
     if (indexCreateOptions) {
-      const {
-        metric_type,
-        index_type,
-        params,
-        search_params = {},
-      } = indexCreateOptions;
+      const { metric_type, index_type, params, search_params = {} } = indexCreateOptions
       this.indexCreateParams = {
         metric_type,
         index_type,
-        params,
-      };
+        params
+      }
       this.indexSearchParams = {
         ...DEFAULT_INDEX_SEARCH_PARAMS[index_type].params,
-        ...search_params,
-      };
+        ...search_params
+      }
     } else {
       this.indexCreateParams = {
-        index_type: "HNSW",
-        metric_type: "L2",
-        params: { M: 8, efConstruction: 64 },
-      };
+        index_type: 'HNSW',
+        metric_type: 'L2',
+        params: { M: 8, efConstruction: 64 }
+      }
       this.indexSearchParams = {
-        ...DEFAULT_INDEX_SEARCH_PARAMS.HNSW.params,
-      };
+        ...DEFAULT_INDEX_SEARCH_PARAMS.HNSW.params
+      }
     }
 
     // combine args clientConfig and env variables
@@ -273,13 +276,13 @@ export class Milvus extends VectorStore {
       address: url || address,
       username: args.username || username,
       password: args.password || password,
-      ssl: args.ssl || ssl,
-    };
+      ssl: args.ssl || ssl
+    }
 
     if (!clientConfig.address) {
-      throw new Error("Milvus URL address is not provided.");
+      throw new Error('Milvus URL address is not provided.')
     }
-    this.client = new MilvusClient(clientConfig);
+    this.client = new MilvusClient(clientConfig)
   }
 
   /**
@@ -288,13 +291,10 @@ export class Milvus extends VectorStore {
    * @param options Optional parameter that can include specific IDs for the documents.
    * @returns Promise resolving to void.
    */
-  async addDocuments(
-    documents: Document[],
-    options?: { ids?: string[] }
-  ): Promise<void> {
-    const texts = documents.map(({ pageContent }) => pageContent);
-    const embs = await this.embeddings.embedDocuments(texts);
-    await this.addVectors(embs, documents, options);
+  async addDocuments(documents: Document[], options?: { ids?: string[] }): Promise<void> {
+    const texts = documents.map(({ pageContent }) => pageContent)
+    const embs = await this.embeddings.embedDocuments(texts)
+    await this.addVectors(embs, documents, options)
   }
 
   /**
@@ -304,24 +304,20 @@ export class Milvus extends VectorStore {
    * @param options Optional parameter that can include specific IDs for the documents.
    * @returns Promise resolving to void.
    */
-  async addVectors(
-    vectors: number[][],
-    documents: Document[],
-    options?: { ids?: string[] }
-  ): Promise<void> {
-    if (vectors.length === 0) return;
+  async addVectors(vectors: number[][], documents: Document[], options?: { ids?: string[] }): Promise<void> {
+    if (vectors.length === 0) return
 
-    await this.ensureCollection(vectors, documents);
+    await this.ensureCollection(vectors, documents)
     if (this.partitionName !== undefined) {
-      await this.ensurePartition();
+      await this.ensurePartition()
     }
 
-    const documentIds = options?.ids ?? [];
-    const insertDatas: InsertRow[] = [];
+    const documentIds = options?.ids ?? []
+    const insertDatas: RowData[] = []
 
     for (let i = 0; i < vectors.length; i++) {
-      const vec = vectors[i];
-      const doc = documents[i];
+      const vec = vectors[i]
+      const doc = documents[i]
 
       // Prepare payload
       const text = safeVarChar(
@@ -329,90 +325,79 @@ export class Milvus extends VectorStore {
         this.textFieldMaxLength,
         this.enableSafeTruncate,
         `textField(${this.textField})`
-      );
+      )
       const metadataStr = safeVarChar(
         JSON.stringify(doc.metadata ?? {}),
         this.defaultMaxVarCharLength,
         this.enableSafeTruncate,
         `metadata(${this.metadataFieldName})`
-      );
+      )
 
-      const row: InsertRow = {
+      const row: RowData = {
         [this.textField]: text,
         [this.vectorField]: vec,
         [this.metadataFieldName]: metadataStr,
-      };
+        [this.filterAttributesFieldName]: normalizeJsonObject(doc.metadata?.[this.filterAttributesFieldName])
+      }
 
       // primary key if autoId=false
       if (!this.autoId) {
-        const explicitId =
-          documentIds[i] ?? (doc.metadata?.[this.primaryField] as string);
+        const explicitId = documentIds[i] ?? (doc.metadata?.[this.primaryField] as string)
         if (!explicitId) {
           throw new Error(
             `autoId=false, but no primary id provided in options.ids[${i}] or doc.metadata["${this.primaryField}"].`
-          );
+          )
         }
-        row[this.primaryField] = explicitId;
+        row[this.primaryField] = explicitId
       }
 
       // populate promoted/filterable columns from metadata (if present)
       for (const col of this.promotedColumns) {
-        const v = (doc.metadata as any)?.[col.name];
+        const v = (doc.metadata as any)?.[col.name]
         if (v === undefined || v === null) {
           // optional: set default empty or skip
-          if (col.type === "VarChar") {
-            row[col.name] = "";
-          } else if (col.type === "Bool") {
-            row[col.name] = false;
-          } else if (col.type === "Float") {
-            row[col.name] = 0.0;
-          } else if (col.type === "Int64") {
-            row[col.name] = 0;
+          if (col.type === 'VarChar') {
+            row[col.name] = ''
+          } else if (col.type === 'Bool') {
+            row[col.name] = false
+          } else if (col.type === 'Float') {
+            row[col.name] = 0.0
+          } else if (col.type === 'Int64') {
+            row[col.name] = 0
           }
-          continue;
+          continue
         }
         // cast & truncate for VarChar
-        if (col.type === "VarChar") {
-          row[col.name] = safeVarChar(
-            String(v),
-            col.max_length,
-            this.enableSafeTruncate,
-            `promoted.${col.name}`
-          );
-        } else if (col.type === "Bool") {
-          row[col.name] = Boolean(v);
-        } else if (col.type === "Float") {
-          const num = Number(v);
-          row[col.name] = Number.isFinite(num) ? num : 0.0;
-        } else if (col.type === "Int64") {
-          const num = Number(v);
-          row[col.name] = Number.isFinite(num) ? Math.trunc(num) : 0;
+        if (col.type === 'VarChar') {
+          row[col.name] = safeVarChar(String(v), col.max_length, this.enableSafeTruncate, `promoted.${col.name}`)
+        } else if (col.type === 'Bool') {
+          row[col.name] = Boolean(v)
+        } else if (col.type === 'Float') {
+          const num = Number(v)
+          row[col.name] = Number.isFinite(num) ? num : 0.0
+        } else if (col.type === 'Int64') {
+          const num = Number(v)
+          row[col.name] = Number.isFinite(num) ? Math.trunc(num) : 0
         }
       }
 
-      insertDatas.push(row);
+      insertDatas.push(row)
     }
 
     const params: InsertReq = {
       collection_name: this.collectionName,
-      fields_data: insertDatas,
-    };
+      fields_data: insertDatas
+    }
     if (this.partitionName !== undefined) {
-      params.partition_name = this.partitionName;
+      params.partition_name = this.partitionName
     }
 
-    const resp = this.autoId
-      ? await this.client.insert(params)
-      : await this.client.upsert(params);
+    const resp = this.autoId ? await this.client.insert(params) : await this.client.upsert(params)
 
     if (resp.status.error_code !== ErrorCode.SUCCESS) {
-      throw new Error(
-        `Error ${this.autoId ? "inserting" : "upserting"} data: ${JSON.stringify(
-          resp
-        )}`
-      );
+      throw new Error(`Error ${this.autoId ? 'inserting' : 'upserting'} data: ${JSON.stringify(resp)}`)
     }
-    await this.client.flushSync({ collection_names: [this.collectionName] });
+    await this.client.flushSync({ collection_names: [this.collectionName] })
   }
 
   /**
@@ -426,34 +411,31 @@ export class Milvus extends VectorStore {
   async similaritySearchVectorWithScore(
     query: number[],
     k: number,
-    filter?: string
+    filter?: string | MilvusExpressionFilter
   ): Promise<[Document, number][]> {
     const hasColResp = await this.client.hasCollection({
-      collection_name: this.collectionName,
-    });
+      collection_name: this.collectionName
+    })
     if (hasColResp.status.error_code !== ErrorCode.SUCCESS) {
-      throw new Error(`Error checking collection: ${hasColResp}`);
+      throw new Error(`Error checking collection: ${hasColResp}`)
     }
     if (hasColResp.value === false) {
-      throw new Error(
-        `Collection not found: ${this.collectionName}, please create collection before search.`
-      );
+      throw new Error(`Collection not found: ${this.collectionName}, please create collection before search.`)
     }
 
-    const filterStr = filter ?? "";
-    await this.grabCollectionFields();
+    const filterStr = typeof filter === 'string' ? filter : filter?.expression ?? ''
+    const exprValues = typeof filter === 'string' ? undefined : filter?.values
+    await this.grabCollectionFields()
 
     const loadResp = await this.client.loadCollectionSync({
-      collection_name: this.collectionName,
-    });
+      collection_name: this.collectionName
+    })
     if (loadResp.error_code !== ErrorCode.SUCCESS) {
-      throw new Error(`Error loading collection: ${loadResp}`);
+      throw new Error(`Error loading collection: ${loadResp}`)
     }
 
     // return all scalar fields except the vector
-    const outputFields = this.fields.filter(
-      (f) => f !== this.vectorField
-    );
+    const outputFields = this.fields.filter((f) => f !== this.vectorField)
 
     const searchResp = await this.client.search({
       collection_name: this.collectionName,
@@ -461,76 +443,71 @@ export class Milvus extends VectorStore {
         anns_field: this.vectorField,
         topk: k,
         metric_type: this.indexCreateParams.metric_type,
-        params: JSON.stringify(this.indexSearchParams),
+        params: JSON.stringify(this.indexSearchParams)
       },
       output_fields: outputFields,
       vector_type: DataType.FloatVector,
       vectors: [query],
       filter: filterStr,
-    });
+      exprValues
+    })
 
     if (searchResp.status.error_code !== ErrorCode.SUCCESS) {
-      throw new Error(`Error searching data: ${JSON.stringify(searchResp)}`);
+      throw new Error(`Error searching data: ${JSON.stringify(searchResp)}`)
     }
 
-    const results: [Document, number][] = [];
+    const results: [Document, number][] = []
     searchResp.results.forEach((r: any) => {
-      const docFields: { pageContent: string; metadata: Record<string, any> } =
-        { pageContent: "", metadata: {} };
+      const docFields: { pageContent: string; metadata: Record<string, any> } = { pageContent: '', metadata: {} }
 
       for (const key of Object.keys(r)) {
         if (key === this.textField) {
-          docFields.pageContent = r[key];
+          docFields.pageContent = r[key]
         } else if (key === this.metadataFieldName) {
-          const { isJson, obj } = checkJsonString(r[key]);
-          docFields.metadata = isJson ? obj : {};
-        } else if (
-          this.fields.includes(key) ||
-          key === this.primaryField
-        ) {
+          const { isJson, obj } = checkJsonString(r[key])
+          docFields.metadata = isJson ? obj : {}
+        } else if (key === this.filterAttributesFieldName) {
+          docFields.metadata[this.filterAttributesFieldName] = r[key]
+        } else if (this.fields.includes(key) || key === this.primaryField) {
           // promoted columns, primary, etc. merge back into metadata
-          docFields.metadata[key] = r[key];
+          docFields.metadata[key] = r[key]
         }
       }
 
-      results.push([new Document(docFields), r.score]);
-    });
+      results.push([new Document(docFields), r.score])
+    })
 
-    return results;
+    return results
   }
 
   override async delete(params: { filter?: string; ids?: string[] }): Promise<void> {
     const hasColResp = await this.client.hasCollection({
-      collection_name: this.collectionName,
-    });
+      collection_name: this.collectionName
+    })
     if (hasColResp.status.error_code !== ErrorCode.SUCCESS) {
-      throw new Error(`Error checking collection: ${hasColResp}`);
+      throw new Error(`Error checking collection: ${hasColResp}`)
     }
     if (hasColResp.value === false) {
-      throw new Error(
-        `Collection not found: ${this.collectionName}, please create collection before delete.`
-      );
+      throw new Error(`Collection not found: ${this.collectionName}, please create collection before delete.`)
     }
 
-    const { filter, ids } = params;
+    const { filter, ids } = params
 
     if (filter && !ids) {
       const deleteResp = await this.client.deleteEntities({
         collection_name: this.collectionName,
-        expr: filter,
-      });
+        expr: filter
+      })
       if (deleteResp.status.error_code !== ErrorCode.SUCCESS) {
-        throw new Error(`Error deleting data: ${JSON.stringify(deleteResp)}`);
+        throw new Error(`Error deleting data: ${JSON.stringify(deleteResp)}`)
       }
     } else if (!filter && ids && ids.length > 0) {
       const deleteResp = await this.client.delete({
         collection_name: this.collectionName,
-        ids,
-      });
+        ids
+      })
       if (deleteResp.status.error_code !== ErrorCode.SUCCESS) {
-        throw new Error(
-          `Error deleting data with ids: ${JSON.stringify(deleteResp)}`
-        );
+        throw new Error(`Error deleting data with ids: ${JSON.stringify(deleteResp)}`)
       }
     }
   }
@@ -543,23 +520,21 @@ export class Milvus extends VectorStore {
    */
   async ensureCollection(vectors?: number[][], documents?: Document[]) {
     const hasColResp = await this.client.hasCollection({
-      collection_name: this.collectionName,
-    });
+      collection_name: this.collectionName
+    })
     if (hasColResp.status.error_code !== ErrorCode.SUCCESS) {
-      throw new Error(
-        `Error checking collection: ${JSON.stringify(hasColResp, null, 2)}`
-      );
+      throw new Error(`Error checking collection: ${JSON.stringify(hasColResp, null, 2)}`)
     }
 
     if (!hasColResp.value) {
       if (!vectors || !documents) {
         throw new Error(
           `Collection not found: ${this.collectionName}, please provide vectors and documents to create collection.`
-        );
+        )
       }
-      await this.createCollection(vectors, documents);
+      await this.createCollection(vectors, documents)
     } else {
-      await this.grabCollectionFields();
+      await this.grabCollectionFields()
     }
   }
 
@@ -568,24 +543,136 @@ export class Milvus extends VectorStore {
    * @returns Promise resolving to void.
    */
   async ensurePartition() {
-    if (!this.partitionName) return;
+    if (!this.partitionName) return
 
     const hasPartResp = await this.client.hasPartition({
       collection_name: this.collectionName,
-      partition_name: this.partitionName,
-    });
+      partition_name: this.partitionName
+    })
     if (hasPartResp.status.error_code !== ErrorCode.SUCCESS) {
-      throw new Error(
-        `Error checking partition: ${JSON.stringify(hasPartResp, null, 2)}`
-      );
+      throw new Error(`Error checking partition: ${JSON.stringify(hasPartResp, null, 2)}`)
     }
 
     if (!hasPartResp.value) {
       await this.client.createPartition({
         collection_name: this.collectionName,
-        partition_name: this.partitionName,
-      });
+        partition_name: this.partitionName
+      })
     }
+  }
+
+  async assertFilterV2Capabilities(): Promise<void> {
+    const { version } = await this.client.getVersion()
+    if (compareVersions(version, '2.6.2') < 0) {
+      throw new Error(`Knowledge Filter V2 requires Milvus Server >= 2.6.2; connected server is '${version}'.`)
+    }
+  }
+
+  /**
+   * Idempotently adds the native JSON field and its flat index to an existing
+   * collection. Existing records remain fail-closed until the migration
+   * backfills filterAttributes.
+   */
+  async ensureFilterV2Schema(arrayIndexes: MilvusFilterArrayIndex[] = []): Promise<void> {
+    await this.assertFilterV2Capabilities()
+    const hasCollection = await this.client.hasCollection({ collection_name: this.collectionName })
+    if (!hasCollection.value) return
+
+    const description = await this.client.describeCollection({ collection_name: this.collectionName })
+    const hasFilterAttributes = description.schema.fields.some((field) => field.name === this.filterAttributesFieldName)
+    if (!hasFilterAttributes) {
+      const response = await this.client.addCollectionField({
+        collection_name: this.collectionName,
+        field: {
+          name: this.filterAttributesFieldName,
+          description: 'Knowledge Filter V2 attributes',
+          data_type: DataType.JSON,
+          nullable: true
+        }
+      })
+      if (response.error_code !== ErrorCode.SUCCESS) {
+        throw new Error(`Failed to add filterAttributes JSON field: ${JSON.stringify(response)}`)
+      }
+      this.fields = []
+      await this.grabCollectionFields()
+    }
+    await this.ensureFilterAttributesFlatIndex()
+    for (const index of arrayIndexes) {
+      await this.ensureFilterAttributesArrayIndex(index)
+    }
+  }
+
+  async partialUpdateFilterAttributes(updates: MilvusFilterAttributeUpdate[]): Promise<number> {
+    if (!updates.length) return 0
+    await this.ensureFilterV2Schema()
+    await this.client.loadCollectionSync({ collection_name: this.collectionName })
+
+    let updated = 0
+    for (const batch of chunk(updates, 500)) {
+      const chunkIds = batch.map((item) => item.chunkId)
+      const query = await this.client.query({
+        collection_name: this.collectionName,
+        filter: 'chunkId in {chunkIds}',
+        exprValues: { chunkIds },
+        output_fields: [this.primaryField, 'chunkId'],
+        limit: Math.max(chunkIds.length * 2, 100)
+      })
+      if (query.status.error_code !== ErrorCode.SUCCESS) {
+        throw new Error(`Failed to resolve Milvus primary keys: ${JSON.stringify(query.status)}`)
+      }
+      const updateByChunkId = new Map(batch.map((item) => [item.chunkId, item.filterAttributes]))
+      const rows = query.data.reduce<RowData[]>((result, row) => {
+        const chunkId = typeof row.chunkId === 'string' ? row.chunkId : undefined
+        const filterAttributes = chunkId ? updateByChunkId.get(chunkId) : undefined
+        const primaryKey = row[this.primaryField]
+        if (filterAttributes && (typeof primaryKey === 'string' || typeof primaryKey === 'number')) {
+          result.push({
+            [this.primaryField]: primaryKey,
+            [this.filterAttributesFieldName]: filterAttributes
+          })
+        }
+        return result
+      }, [])
+      if (!rows.length) continue
+
+      const request: UpsertReq = {
+        collection_name: this.collectionName,
+        data: rows,
+        partial_update: true
+      }
+      const response = await this.client.upsert(request)
+      if (response.status.error_code !== ErrorCode.SUCCESS) {
+        throw new Error(`Failed to partial-update filterAttributes: ${JSON.stringify(response)}`)
+      }
+      updated += rows.length
+    }
+    await this.client.flushSync({ collection_names: [this.collectionName] })
+    return updated
+  }
+
+  async getFilterAttributesByChunkIds(chunkIds: string[]): Promise<Record<string, Record<string, unknown>>> {
+    if (!chunkIds.length) return {}
+    await this.ensureFilterV2Schema()
+    await this.client.loadCollectionSync({ collection_name: this.collectionName })
+    const result: Record<string, Record<string, unknown>> = {}
+    for (const batch of chunk(chunkIds, 500)) {
+      const response = await this.client.query({
+        collection_name: this.collectionName,
+        filter: 'chunkId in {chunkIds}',
+        exprValues: { chunkIds: batch },
+        output_fields: ['chunkId', this.filterAttributesFieldName],
+        limit: Math.max(batch.length * 2, 100)
+      })
+      if (response.status.error_code !== ErrorCode.SUCCESS) {
+        throw new Error(`Failed to verify Milvus filterAttributes: ${JSON.stringify(response.status)}`)
+      }
+      response.data.forEach((row) => {
+        if (typeof row.chunkId === 'string') {
+          result[row.chunkId] = normalizeJsonObject(row[this.filterAttributesFieldName])
+        }
+      })
+    }
+    return result
   }
 
   /**
@@ -594,94 +681,97 @@ export class Milvus extends VectorStore {
    * @param documents Array of Document instances to be added to the new collection.
    * @returns Promise resolving to void.
    */
-  async createCollection(
-    vectors: number[][],
-    documents: Document[]
-  ): Promise<void> {
-    const vectorDim = getVectorFieldDim(vectors);
+  async createCollection(vectors: number[][], documents: Document[]): Promise<void> {
+    const vectorDim = getVectorFieldDim(vectors)
 
-    const fieldList: FieldType[] = [];
+    const fieldList: FieldType[] = []
 
     // Primary key
     if (this.autoId) {
       fieldList.push({
         name: this.primaryField,
-        description: "Primary key",
+        description: 'Primary key',
         data_type: DataType.Int64,
         is_primary_key: true,
-        autoID: true,
-      });
+        autoID: true
+      })
     } else {
       fieldList.push({
         name: this.primaryField,
-        description: "Primary key",
+        description: 'Primary key',
         data_type: DataType.VarChar,
         is_primary_key: true,
         autoID: false,
-        max_length: 64, // uuid-like
-      });
+        max_length: 64 // uuid-like
+      })
     }
 
     // Text
     fieldList.push({
       name: this.textField,
-      description: "Text field",
+      description: 'Text field',
       data_type: DataType.VarChar,
       type_params: {
-        max_length: String(this.textFieldMaxLength || MILVUS_VARCHAR_MAX),
-      },
-    });
+        max_length: String(this.textFieldMaxLength || MILVUS_VARCHAR_MAX)
+      }
+    })
 
     // Vector
     fieldList.push({
       name: this.vectorField,
-      description: "Vector field",
+      description: 'Vector field',
       data_type: DataType.FloatVector,
       type_params: {
-        dim: vectorDim.toString(),
-      },
-    });
+        dim: vectorDim.toString()
+      }
+    })
 
     // JSON metadata as VarChar
     fieldList.push({
       name: this.metadataFieldName,
-      description: "All metadata as JSON string",
+      description: 'All metadata as JSON string',
       data_type: DataType.VarChar,
       type_params: {
-        max_length: String(this.defaultMaxVarCharLength),
-      },
-    });
+        max_length: String(this.defaultMaxVarCharLength)
+      }
+    })
+
+    fieldList.push({
+      name: this.filterAttributesFieldName,
+      description: 'Knowledge Filter V2 attributes',
+      data_type: DataType.JSON
+    })
 
     // Promoted metadata columns
     for (const col of this.promotedColumns) {
       if (col.name === this.primaryField || col.name === this.partitionKey) {
-        continue; // skip duplicates
+        continue // skip duplicates
       }
-      if (col.type === "VarChar") {
+      if (col.type === 'VarChar') {
         fieldList.push({
           name: col.name,
           description: `Promoted VarChar metadata field`,
           data_type: DataType.VarChar,
-          type_params: { max_length: String(col.max_length) },
-        });
-      } else if (col.type === "Bool") {
+          type_params: { max_length: String(col.max_length) }
+        })
+      } else if (col.type === 'Bool') {
         fieldList.push({
           name: col.name,
           description: `Promoted Bool metadata field`,
-          data_type: DataType.Bool,
-        });
-      } else if (col.type === "Float") {
+          data_type: DataType.Bool
+        })
+      } else if (col.type === 'Float') {
         fieldList.push({
           name: col.name,
           description: `Promoted Float metadata field`,
-          data_type: DataType.Float,
-        });
-      } else if (col.type === "Int64") {
+          data_type: DataType.Float
+        })
+      } else if (col.type === 'Int64') {
         fieldList.push({
           name: col.name,
           description: `Promoted Int64 metadata field`,
-          data_type: DataType.Int64,
-        });
+          data_type: DataType.Int64
+        })
       }
     }
 
@@ -689,35 +779,99 @@ export class Milvus extends VectorStore {
     if (this.partitionKey) {
       fieldList.push({
         name: this.partitionKey,
-        description: "Partition key",
+        description: 'Partition key',
         data_type: DataType.VarChar,
         max_length: this.partitionKeyMaxLength,
-        is_partition_key: true,
-      });
+        is_partition_key: true
+      })
     }
 
     // Track non-auto fields
     for (const f of fieldList) {
-      if (!f.autoID) this.fields.push(f.name);
+      if (!f.autoID) this.fields.push(f.name)
     }
 
     const createRes = await this.client.createCollection({
       collection_name: this.collectionName,
-      fields: fieldList,
-    });
+      fields: fieldList
+    })
     if (createRes.error_code !== ErrorCode.SUCCESS) {
-      throw new Error(`Failed to create collection: ${JSON.stringify(createRes)}`);
+      throw new Error(`Failed to create collection: ${JSON.stringify(createRes)}`)
     }
 
     const extraParams = {
       ...this.indexCreateParams,
-      params: JSON.stringify(this.indexCreateParams.params),
-    };
+      params: JSON.stringify(this.indexCreateParams.params)
+    }
     await this.client.createIndex({
       collection_name: this.collectionName,
       field_name: this.vectorField,
-      extra_params: extraParams,
-    });
+      extra_params: extraParams
+    })
+    await this.ensureFilterAttributesFlatIndex()
+  }
+
+  private async ensureFilterAttributesFlatIndex() {
+    const indexName = `${this.filterAttributesFieldName}_flat`
+    const indexes = await this.client.describeIndex({
+      collection_name: this.collectionName,
+      field_name: this.filterAttributesFieldName
+    })
+    if (
+      indexes.status.error_code === ErrorCode.SUCCESS &&
+      indexes.index_descriptions?.some((index) => index.index_name === indexName)
+    ) {
+      return
+    }
+    const response = await this.client.createIndex({
+      collection_name: this.collectionName,
+      field_name: this.filterAttributesFieldName,
+      index_name: indexName,
+      extra_params: {
+        index_type: 'AUTOINDEX',
+        metric_type: '',
+        params: JSON.stringify({
+          json_path: this.filterAttributesFieldName,
+          json_cast_type: 'JSON'
+        })
+      }
+    })
+    if (response.error_code !== ErrorCode.SUCCESS) {
+      throw new Error(`Failed to create filterAttributes flat index: ${JSON.stringify(response)}`)
+    }
+  }
+
+  private async ensureFilterAttributesArrayIndex(index: MilvusFilterArrayIndex) {
+    if (!isFilterAttributeJsonPath(index.path)) {
+      throw new Error(`Invalid Knowledge Filter V2 JSON path '${index.path}'.`)
+    }
+    const indexName = `${this.filterAttributesFieldName}_array_${stableNameHash(index.path)}`
+    const indexes = await this.client.describeIndex({
+      collection_name: this.collectionName,
+      field_name: this.filterAttributesFieldName
+    })
+    if (
+      indexes.status.error_code === ErrorCode.SUCCESS &&
+      indexes.index_descriptions?.some((description) => description.index_name === indexName)
+    ) {
+      return
+    }
+    const response = await this.client.createIndex({
+      collection_name: this.collectionName,
+      field_name: this.filterAttributesFieldName,
+      index_name: indexName,
+      extra_params: {
+        index_type: 'INVERTED',
+        metric_type: '',
+        params: JSON.stringify({
+          json_path: index.path,
+          json_cast_type: index.type === 'string[]' ? 'ARRAY_VARCHAR' : 'ARRAY_DOUBLE'
+        })
+      }
+    })
+    if (response.error_code !== ErrorCode.SUCCESS) {
+      throw new Error(`Failed to create Knowledge Filter V2 array index '${index.path}': ${JSON.stringify(response)}`)
+    }
   }
 
   /**
@@ -726,42 +880,37 @@ export class Milvus extends VectorStore {
    */
   async grabCollectionFields(): Promise<void> {
     if (!this.collectionName) {
-      throw new Error("Need collection name to grab collection fields");
+      throw new Error('Need collection name to grab collection fields')
     }
-    if (
-      this.primaryField &&
-      this.vectorField &&
-      this.textField &&
-      this.fields.length > 0
-    ) {
-      return;
+    if (this.primaryField && this.vectorField && this.textField && this.fields.length > 0) {
+      return
     }
 
     const desc = await this.client.describeCollection({
-      collection_name: this.collectionName,
-    });
+      collection_name: this.collectionName
+    })
 
     desc.schema.fields.forEach((field) => {
       // keep track of all scalar fields (except autoID) for output_fields
       if (!field.autoID) {
         if (!this.fields.includes(field.name)) {
-          this.fields.push(field.name);
+          this.fields.push(field.name)
         }
       }
       if (field.is_primary_key) {
-        this.primaryField = field.name;
+        this.primaryField = field.name
       }
-      const dtype = DataTypeMap[field.data_type];
+      const dtype = DataTypeMap[field.data_type]
       if (dtype === DataType.FloatVector || dtype === DataType.BinaryVector) {
-        this.vectorField = field.name;
+        this.vectorField = field.name
       }
       if (field.name === this.textField) {
-        this.textField = field.name;
+        this.textField = field.name
       }
       if (field.name === this.metadataFieldName) {
-        this.metadataFieldName = field.name;
+        this.metadataFieldName = field.name
       }
-    });
+    })
   }
 
   /**
@@ -779,12 +928,12 @@ export class Milvus extends VectorStore {
     embeddings: EmbeddingsInterface,
     dbConfig?: MilvusLibArgs
   ): Promise<Milvus> {
-    const docs: Document[] = [];
+    const docs: Document[] = []
     for (let i = 0; i < texts.length; i++) {
-      const md = Array.isArray(metadatas) ? metadatas[i] : metadatas;
-      docs.push(new Document({ pageContent: texts[i], metadata: md }));
+      const md = Array.isArray(metadatas) ? metadatas[i] : metadatas
+      docs.push(new Document({ pageContent: texts[i], metadata: md }))
     }
-    return Milvus.fromDocuments(docs, embeddings, dbConfig);
+    return Milvus.fromDocuments(docs, embeddings, dbConfig)
   }
 
   /**
@@ -801,11 +950,11 @@ export class Milvus extends VectorStore {
   ): Promise<Milvus> {
     const args: MilvusLibArgs = {
       ...dbConfig,
-      collectionName: dbConfig?.collectionName ?? genCollectionName(),
-    };
-    const instance = new this(embeddings, args);
-    await instance.addDocuments(docs);
-    return instance;
+      collectionName: dbConfig?.collectionName ?? genCollectionName()
+    }
+    const instance = new this(embeddings, args)
+    await instance.addDocuments(docs)
+    return instance
   }
 
   /**
@@ -815,58 +964,86 @@ export class Milvus extends VectorStore {
    * @param dbConfig Configuration for the Milvus database.
    * @returns Promise resolving to a new Milvus instance.
    */
-  static async fromExistingCollection(
-    embeddings: EmbeddingsInterface,
-    dbConfig: MilvusLibArgs
-  ): Promise<Milvus> {
-    const instance = new this(embeddings, dbConfig);
-    await instance.ensureCollection();
-    return instance;
+  static async fromExistingCollection(embeddings: EmbeddingsInterface, dbConfig: MilvusLibArgs): Promise<Milvus> {
+    const instance = new this(embeddings, dbConfig)
+    await instance.ensureCollection()
+    return instance
   }
 }
 
 /** ------------ HELPERS ------------ */
 
 function genCollectionName(): string {
-  return `${MILVUS_COLLECTION_NAME_PREFIX}_${uuid.v4().replace(/-/g, "")}`;
+  return `${MILVUS_COLLECTION_NAME_PREFIX}_${uuid.v4().replace(/-/g, '')}`
 }
 
 function getVectorFieldDim(vectors: number[][]) {
   if (vectors.length === 0) {
-    throw new Error("No vectors found");
+    throw new Error('No vectors found')
   }
-  return vectors[0].length;
+  return vectors[0].length
 }
 
 function checkJsonString(value: string): { isJson: boolean; obj: any } {
   try {
-    const result = JSON.parse(value);
-    return { isJson: true, obj: result };
+    const result = JSON.parse(value)
+    return { isJson: true, obj: result }
   } catch {
-    return { isJson: false, obj: null };
+    return { isJson: false, obj: null }
   }
+}
+
+function normalizeJsonObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {}
+}
+
+function compareVersions(left: string, right: string) {
+  const parse = (value: string) =>
+    value
+      .replace(/^v/i, '')
+      .split(/[.-]/)
+      .slice(0, 3)
+      .map((part) => Number(part) || 0)
+  const a = parse(left)
+  const b = parse(right)
+  for (let index = 0; index < 3; index++) {
+    if (a[index] !== b[index]) return a[index] > b[index] ? 1 : -1
+  }
+  return 0
+}
+
+function isFilterAttributeJsonPath(value: string) {
+  return /^filterAttributes\["(?:metadata|chunkMetadata)"\]\["(?:[^"\\]|\\.){1,512}"\]$/.test(value)
+}
+
+function stableNameHash(value: string) {
+  let hash = 2166136261
+  for (let index = 0; index < value.length; index++) {
+    hash ^= value.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+  return (hash >>> 0).toString(36)
+}
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const batches: T[][] = []
+  for (let index = 0; index < items.length; index += size) {
+    batches.push(items.slice(index, index + size))
+  }
+  return batches
 }
 
 /**
  * Ensure VarChar size does not exceed max_length; truncate with ellipsis if enabled.
  */
-function safeVarChar(
-  s: string,
-  maxLen: number,
-  enableTruncate: boolean,
-  label: string
-): string {
-  if (typeof s !== "string") s = String(s ?? "");
-  if (s.length <= maxLen) return s;
+function safeVarChar(s: string, maxLen: number, enableTruncate: boolean, label: string): string {
+  if (typeof s !== 'string') s = String(s ?? '')
+  if (s.length <= maxLen) return s
   if (!enableTruncate) {
-    throw new Error(
-      `Value for ${label} exceeds max_length=${maxLen} (len=${s.length}).`
-    );
+    throw new Error(`Value for ${label} exceeds max_length=${maxLen} (len=${s.length}).`)
   }
   // Truncate with a visible marker; you can customize to byte-length if needed.
-  const truncated = s.slice(0, Math.max(0, maxLen - 1)) + "…";
-  console.warn(
-    `[Milvus Adapter] Truncated ${label}: originalLen=${s.length} -> ${maxLen}`
-  );
-  return truncated;
+  const truncated = s.slice(0, Math.max(0, maxLen - 1)) + '…'
+  console.warn(`[Milvus Adapter] Truncated ${label}: originalLen=${s.length} -> ${maxLen}`)
+  return truncated
 }

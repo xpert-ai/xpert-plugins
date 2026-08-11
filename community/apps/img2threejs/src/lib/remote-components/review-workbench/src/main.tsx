@@ -254,7 +254,6 @@ function App() {
     setBusy(true)
     setError(null)
     setNotice(null)
-    let revision = selected.project.revision
     try {
       for (const file of files.slice(0, 12)) {
         const response = await executeFileAction(
@@ -262,7 +261,6 @@ function App() {
           selected.project.projectId,
           {
             projectId: selected.project.projectId,
-            baseRevision: revision,
             label: file.name,
             view: uploadView
           },
@@ -270,9 +268,6 @@ function App() {
         )
         const result = actionResult(response)
         if (result.success === false) throw new Error('UPLOAD_FAILED')
-        const nextRevision = numberValue(object(result.data)?.revision)
-        if (!nextRevision) throw new Error('UPLOAD_REVISION_MISSING')
-        revision = nextRevision
       }
       setNotice(i18n.t('uploadComplete', { count: Math.min(files.length, 12) }))
       await load(selected.project.projectId)
@@ -288,8 +283,7 @@ function App() {
     const selected = data?.selected
     if (!selected) return
     const result = await runAction('start_generation', {
-      projectId: selected.project.projectId,
-      baseRevision: selected.project.revision
+      projectId: selected.project.projectId
     })
     if (!result) return
     const clientCommand = object(result.clientCommand)
@@ -304,7 +298,7 @@ function App() {
       try {
         const response = await invokeClientCommand(commandKey, {
           ...payload,
-          clientMessageId: `img2threejs:${selected.project.projectId}:${selected.project.revision}:${Date.now()}`
+          clientMessageId: `img2threejs:${selected.project.projectId}:${selected.project.cursor}:${Date.now()}`
         })
         const commandResult = object(response.result)
         if (commandResult?.success === false) throw new Error(actionFailureCode(commandResult))
@@ -322,11 +316,10 @@ function App() {
 
   const submitReview = (humanReviewStatus: string, decision: string) => {
     const selected = data?.selected?.project
-    if (!selected?.runId || !selected.runRevision) return
+    if (!selected?.runId) return
     void runAction('submit_review', {
       projectId: selected.projectId,
       runId: selected.runId,
-      baseRevision: selected.runRevision,
       humanReviewStatus,
       decision,
       notes
@@ -424,10 +417,9 @@ function App() {
             onReview={submitReview}
             onRetry={() => {
               const project = selected.project
-              if (project.runId && project.runRevision) void runAction('retry_run', {
+              if (project.runId) void runAction('retry_run', {
                 projectId: project.projectId,
-                runId: project.runId,
-                baseRevision: project.runRevision
+                runId: project.runId
               })
             }}
             onCancel={() => cancelDialog.current?.showModal()}
@@ -444,10 +436,9 @@ function App() {
             onClick={() => {
               cancelDialog.current?.close()
               const project = selected?.project
-              if (project?.runId && project.runRevision) void runAction('cancel_run', {
+              if (project?.runId) void runAction('cancel_run', {
                 projectId: project.projectId,
-                runId: project.runId,
-                baseRevision: project.runRevision
+                runId: project.runId
               })
             }}
           >
@@ -573,6 +564,7 @@ function StudioCanvas(props: {
         {props.selected?.viewerScene
           ? <ThreeViewer
               scene={props.selected.viewerScene}
+              modelUrl={props.selected.artifact.modelPreviewUrl}
               labels={{
                 ariaLabel: props.i18n.t('viewerAriaLabel'),
                 autoRotate: props.i18n.t('autoRotate'),
@@ -878,6 +870,11 @@ const ReviewDrawer = React.forwardRef<HTMLDetailsElement, {
                   <Metric label={props.i18n.t('maskConfidence')} value={alignment?.maskConfidence} />
                   <Metric label={props.i18n.t('silhouetteRetention')} value={multiAngle?.silhouetteRetention} />
                   <Metric label={props.i18n.t('volumeAxisRatio')} value={multiAngle?.volumeAxisRatio} />
+                  <CountMetric
+                    label={props.i18n.t('runtimeMeshes')}
+                    value={quality.runtimeMeshCount}
+                    minimum={quality.minimumRuntimeMeshCount}
+                  />
                 </dl>
                 {featureResults.length
                   ? <ul className="feature-gates">
@@ -924,6 +921,12 @@ const ReviewDrawer = React.forwardRef<HTMLDetailsElement, {
 
 function Metric(props: { label: string; value: JsonValue | undefined }) {
   return <div><dt>{props.label}</dt><dd>{formatMetric(props.value)}</dd></div>
+}
+
+function CountMetric(props: { label: string; value: JsonValue | undefined; minimum: JsonValue | undefined }) {
+  const value = typeof props.value === 'number' && Number.isFinite(props.value) ? Math.round(props.value) : null
+  const minimum = typeof props.minimum === 'number' && Number.isFinite(props.minimum) ? Math.round(props.minimum) : null
+  return <div><dt>{props.label}</dt><dd>{value === null ? '—' : minimum === null ? value : `${value} / ${minimum}`}</dd></div>
 }
 
 function formatMetric(value: JsonValue | undefined): string {

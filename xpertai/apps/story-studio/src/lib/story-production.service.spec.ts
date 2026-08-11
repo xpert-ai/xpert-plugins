@@ -7,6 +7,7 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
 
 import { StoryProductionService } from './story-production.service.js'
 import { buildStoryScopeKey } from './story-studio.service.js'
+import type { StoryProductionDocument } from './production-types.js'
 import type { StoryScope } from './types.js'
 
 const scope: StoryScope = {
@@ -48,6 +49,7 @@ function createHarness() {
     visualStyle: 'Neon rain and amber memory fragments.',
     audience: 'Young adult viewers.',
     characters: [{ id: 'lin', name: 'Lin' }],
+    assets: [] as NonNullable<StoryProductionDocument['assets']>,
     scenes: [
       {
         id: 'delivery',
@@ -106,16 +108,85 @@ function createHarness() {
     create: jest.fn((value) => value),
     save: jest.fn(async (value) => value)
   }
+  const workspaceFiles = {
+    writeRuntimeBuffer: jest.fn()
+  }
   const service = new StoryProductionService(
     projects as never,
     productions as never,
     logs as never,
-    { get: jest.fn() } as never
+    { get: jest.fn().mockReturnValue(workspaceFiles) } as never
   )
-  return { service, project, production }
+  return { service, project, production, workspaceFiles }
 }
 
 describe('StoryProductionService', () => {
+  it('uploads a scoped voice-reference audio file for a character asset', async () => {
+    const harness = createHarness()
+    harness.production.assets = [
+      {
+        id: 'asset-lin',
+        kind: 'character',
+        name: 'Lin',
+        description: 'Courier',
+        prompt: 'Courier portrait',
+        candidates: []
+      }
+    ]
+    harness.workspaceFiles.writeRuntimeBuffer.mockResolvedValue({
+      name: 'voice-reference-lin.wav',
+      filePath: 'story-studio/project/voice-references/voice-reference-lin.wav',
+      workspacePath: '/workspace/story-studio/project/voice-references/voice-reference-lin.wav',
+      fileUrl: 'https://workspace.example/voice-reference-lin.wav',
+      mimeType: 'audio/wav',
+      size: 44,
+      catalog: 'projects',
+      scopeId: scope.hostProjectId,
+      buffer: Buffer.alloc(44),
+      reference: {
+        source: 'platform.workspace.files',
+        filePath: 'story-studio/project/voice-references/voice-reference-lin.wav',
+        workspacePath: '/workspace/story-studio/project/voice-references/voice-reference-lin.wav',
+        originalName: 'lin.wav',
+        mimeType: 'audio/wav',
+        size: 44
+      }
+    })
+    const wav = Buffer.alloc(44)
+    wav.write('RIFF', 0, 'ascii')
+    wav.write('WAVE', 8, 'ascii')
+
+    const result = await harness.service.uploadVoiceReferenceAudio(
+      scope,
+      {
+        projectId: harness.project.id,
+        assetId: 'asset-lin',
+        referenceId: 'voice-reference-lin',
+        label: 'Lin voice'
+      },
+      {
+        buffer: wav,
+        originalName: 'lin.wav',
+        mimeType: 'audio/wav'
+      }
+    )
+
+    expect(result.voiceReference).toEqual(
+      expect.objectContaining({
+        url: 'https://workspace.example/voice-reference-lin.wav',
+        label: 'Lin voice',
+        workspacePath: expect.stringContaining('voice-reference-lin.wav'),
+        mimeType: 'audio/wav'
+      })
+    )
+    expect(harness.workspaceFiles.writeRuntimeBuffer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        folder: expect.stringContaining('voice-references'),
+        mimeType: 'audio/wav'
+      })
+    )
+  })
+
   it('starts the first production document with one nested-dialogue scene', async () => {
     const harness = createHarness()
     const save = jest
@@ -465,6 +536,79 @@ describe('StoryProductionService', () => {
       selected: true,
       fileUrl: '/api/files/camera-manual-reference.png',
       providerReceipt: { provider: 'manual_upload' }
+    })
+  })
+
+  it('replaces the existing image in the same asset reference slot', async () => {
+    const harness = createHarness()
+    harness.production.assets = [{
+      id: 'asset-lin',
+      kind: 'character',
+      name: 'Lin',
+      description: 'Courier',
+      prompt: 'Lin reference',
+      candidates: [{
+        id: 'lin-front-old',
+        kind: 'image',
+        label: 'Old front',
+        selected: true,
+        assetReference: { type: 'continuity_view', key: 'front' },
+        fileReference: {
+          source: 'platform.workspace.files',
+          filePath: 'story-studio/project/lin-front-old.png',
+          workspacePath: 'story-studio/project/lin-front-old.png'
+        }
+      }]
+    }]
+    const save = jest.spyOn(harness.service, 'saveProduction').mockResolvedValue({
+      success: true,
+      duplicate: false,
+      projectId: harness.project.id,
+      revision: 4,
+      production: { documentRevision: 2 }
+    } as never)
+    const png = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])
+
+    await harness.service.attachAssetImage(scope, {
+      projectId: harness.project.id,
+      operationId: 'asset-reference:replace:0001',
+      baseRevision: 3,
+      assetId: 'asset-lin',
+      candidateId: 'lin-front-new',
+      label: 'New front',
+      assetReference: { type: 'continuity_view', key: 'front' },
+      providerReceipt: {
+        provider: 'manual_upload',
+        taskId: 'asset-reference:replace:0001',
+        status: 'completed'
+      },
+      select: true,
+      replaceReference: true,
+      changeSummary: 'Replaced Lin front reference'
+    }, {
+      name: 'lin-front-new.png',
+      filePath: 'story-studio/project/lin-front-new.png',
+      workspacePath: 'story-studio/project/lin-front-new.png',
+      fileUrl: '/api/files/lin-front-new.png',
+      mimeType: 'image/png',
+      size: png.length,
+      buffer: png,
+      reference: {
+        source: 'platform.workspace.files',
+        filePath: 'story-studio/project/lin-front-new.png',
+        workspacePath: 'story-studio/project/lin-front-new.png',
+        tenantId: scope.tenantId,
+        originalName: 'lin-front-new.png',
+        mimeType: 'image/png'
+      }
+    } as never)
+
+    const candidates = save.mock.calls[0][1].production.assets?.[0].candidates
+    expect(candidates).toHaveLength(1)
+    expect(candidates?.[0]).toMatchObject({
+      id: 'lin-front-new',
+      selected: true,
+      assetReference: { type: 'continuity_view', key: 'front' }
     })
   })
 })

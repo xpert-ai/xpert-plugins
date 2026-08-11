@@ -39,6 +39,7 @@ import type { HumanReviewStatus, NextDecision, Scope } from './domain/types.js'
 import { Img2ThreeJsStudioService, type StudioImageView } from './img2threejs-studio.service.js'
 import { Img2ThreeJsService } from './img2threejs.service.js'
 import { Img2ThreeJsWorkbenchService } from './img2threejs-workbench.service.js'
+import { stripConcurrencyControlFields } from './img2threejs.service-support.js'
 import { toPortableReference } from './platform/capability-adapters.js'
 
 const requireFromHere = createRequire(import.meta.url)
@@ -54,7 +55,6 @@ const reviewInputSchema = {
   properties: {
     projectId: { type: 'string', title: text('Project', '项目') },
     runId: { type: 'string', title: text('Run', '运行') },
-    baseRevision: { type: 'number', title: text('Run revision', '运行版本') },
     humanReviewStatus: {
       type: 'string',
       title: text('Review status', '审核状态'),
@@ -67,17 +67,16 @@ const reviewInputSchema = {
     },
     notes: { type: 'string', title: text('Notes', '备注'), maxLength: 2000 }
   },
-  required: ['projectId', 'runId', 'baseRevision', 'humanReviewStatus', 'decision']
+  required: ['projectId', 'runId', 'humanReviewStatus', 'decision']
 } satisfies JsonSchemaObjectType
 
 const runInputSchema = {
   type: 'object',
   properties: {
     projectId: { type: 'string', title: text('Project', '项目') },
-    runId: { type: 'string', title: text('Run', '运行') },
-    baseRevision: { type: 'number', title: text('Run revision', '运行版本') }
+    runId: { type: 'string', title: text('Run', '运行') }
   },
-  required: ['projectId', 'runId', 'baseRevision']
+  required: ['projectId', 'runId']
 } satisfies JsonSchemaObjectType
 
 const createProjectInputSchema = {
@@ -98,20 +97,18 @@ const createProjectInputSchema = {
   required: ['name', 'route', 'modelingMode']
 } satisfies JsonSchemaObjectType
 
-const projectRevisionInputSchema = {
+const projectInputSchema = {
   type: 'object',
   properties: {
-    projectId: { type: 'string', title: text('Project', '项目') },
-    baseRevision: { type: 'number', title: text('Project revision', '项目版本') }
+    projectId: { type: 'string', title: text('Project', '项目') }
   },
-  required: ['projectId', 'baseRevision']
+  required: ['projectId']
 } satisfies JsonSchemaObjectType
 
 const uploadReferenceInputSchema = {
   type: 'object',
   properties: {
     projectId: { type: 'string', title: text('Project', '项目') },
-    baseRevision: { type: 'number', title: text('Project revision', '项目版本') },
     label: { type: 'string', title: text('Reference label', '参考图名称'), minLength: 1, maxLength: 160 },
     view: {
       type: 'string',
@@ -119,7 +116,7 @@ const uploadReferenceInputSchema = {
       enum: ['front', 'back', 'left', 'right', 'top', 'bottom', 'three-quarter', 'detail', 'unknown']
     }
   },
-  required: ['projectId', 'baseRevision', 'label', 'view']
+  required: ['projectId', 'label', 'view']
 } satisfies JsonSchemaObjectType
 
 @Injectable()
@@ -233,14 +230,14 @@ export class Img2ThreeJsViewProvider implements IXpertViewExtensionProvider {
           label: text('Start 3D generation', '开始生成 3D'),
           icon: 'ri-magic-line',
           actionType: 'invoke',
-          inputSchema: projectRevisionInputSchema
+          inputSchema: projectInputSchema
         },
         {
           key: 'advance_generation',
           label: text('Continue generation', '继续生成'),
           icon: 'ri-play-circle-line',
           actionType: 'invoke',
-          inputSchema: projectRevisionInputSchema
+          inputSchema: projectInputSchema
         },
         {
           key: 'export_artifact',
@@ -325,10 +322,11 @@ export class Img2ThreeJsViewProvider implements IXpertViewExtensionProvider {
       pageSize: query.pageSize,
       search: query.search
     })
+    const publicData = stripConcurrencyControlFields(data)
     return {
-      items: data.table.items,
-      total: data.table.total,
-      meta: data
+      items: publicData.table.items,
+      total: publicData.table.total,
+      meta: publicData
     }
   }
 
@@ -352,14 +350,13 @@ export class Img2ThreeJsViewProvider implements IXpertViewExtensionProvider {
           success: true,
           message: text('Project created. Upload reference images next.', '项目已创建。下一步上传参考原图。'),
           refresh: true,
-          data: result
+          data: stripConcurrencyControlFields(result)
         }
       }
       if (actionKey === 'start_generation' || actionKey === 'advance_generation') {
-        const input = {
-          projectId: requireString(request.input, 'projectId'),
-          baseRevision: requirePositiveInteger(request.input, 'baseRevision')
-        }
+        const projectId = requireString(request.input, 'projectId')
+        const status = await this.service.getStatus(scope, projectId)
+        const input = { projectId, baseRevision: status.revision }
         const result = actionKey === 'start_generation'
           ? await this.studio.startGeneration(scope, input)
           : await this.studio.advanceGeneration(scope, input)
@@ -371,7 +368,7 @@ export class Img2ThreeJsViewProvider implements IXpertViewExtensionProvider {
               '语义生成请求已准备发送到当前 Agent 对话。'
             ),
             refresh: true,
-            data: {
+            data: stripConcurrencyControlFields({
               ...result,
               clientCommand: {
                 commandKey: ASSISTANT_CHAT_SEND_MESSAGE_COMMAND,
@@ -381,20 +378,19 @@ export class Img2ThreeJsViewProvider implements IXpertViewExtensionProvider {
                     img2threejs: {
                       intent: 'regenerate_from_references',
                       projectId: result.projectId,
-                      expectedRevision: result.revision,
                       evidenceIds: result.evidenceIds
                     }
                   }
                 }
               }
-            }
+            })
           }
         }
         return {
           success: true,
           message: text('Generation stage queued.', '生成阶段已进入队列。'),
           refresh: true,
-          data: result
+          data: stripConcurrencyControlFields(result)
         }
       }
       if (actionKey === 'export_artifact') {
@@ -405,12 +401,14 @@ export class Img2ThreeJsViewProvider implements IXpertViewExtensionProvider {
             ? text('Generate the model before publishing.', '请先生成模型再发布。')
             : text('Model package is ready in Artifacts.', '模型包已在 Artifacts 中就绪。'),
           refresh: true,
-          data: result
+          data: stripConcurrencyControlFields(result)
         }
       }
       const projectId = requireString(request.input, 'projectId')
       const runId = requireString(request.input, 'runId')
-      const baseRevision = requirePositiveInteger(request.input, 'baseRevision')
+      const status = await this.service.getStatus(scope, projectId)
+      if (status.runId !== runId || status.runRevision == null) throw new Error('RUN_NOT_CURRENT')
+      const baseRevision = status.runRevision
       if (actionKey === 'submit_review') {
         const result = await this.service.submitReview(scope, {
           projectId,
@@ -424,7 +422,7 @@ export class Img2ThreeJsViewProvider implements IXpertViewExtensionProvider {
           success: true,
           message: text('Review decision saved.', '审核决策已保存。'),
           refresh: true,
-          data: result
+          data: stripConcurrencyControlFields(result)
         }
       }
       if (actionKey === 'retry_run') {
@@ -433,7 +431,7 @@ export class Img2ThreeJsViewProvider implements IXpertViewExtensionProvider {
           success: true,
           message: text('Pipeline stage queued for retry.', '流水线阶段已排队重试。'),
           refresh: true,
-          data: result
+          data: stripConcurrencyControlFields(result)
         }
       }
       if (actionKey === 'cancel_run') {
@@ -442,7 +440,7 @@ export class Img2ThreeJsViewProvider implements IXpertViewExtensionProvider {
           success: true,
           message: text('Pipeline run cancelled.', '流水线运行已取消。'),
           refresh: true,
-          data: result
+          data: stripConcurrencyControlFields(result)
         }
       }
       return failure('Unsupported action.', '不支持的操作。')
@@ -464,9 +462,11 @@ export class Img2ThreeJsViewProvider implements IXpertViewExtensionProvider {
     }
     try {
       const label = requireBoundedString(request.input, 'label', 160)
+      const projectId = requireString(request.input, 'projectId')
+      const status = await this.service.getStatus(scopeFromView(context), projectId)
       const result = await this.studio.uploadReference(scopeFromView(context), {
-        projectId: requireString(request.input, 'projectId'),
-        baseRevision: requirePositiveInteger(request.input, 'baseRevision'),
+        projectId,
+        baseRevision: status.revision,
         label,
         view: requireImageView(request.input),
         fileName: file.originalname?.trim() || label,
@@ -479,7 +479,7 @@ export class Img2ThreeJsViewProvider implements IXpertViewExtensionProvider {
           ? text('Reference image admitted.', '参考原图已通过准入。')
           : text('Reference image was rejected by admission checks.', '参考原图未通过准入检查。'),
         refresh: true,
-        data: result
+        data: stripConcurrencyControlFields(result)
       }
     } catch (error) {
       const code = error instanceof Error ? error.message.split(':')[0] : 'FILE_ACTION_FAILED'

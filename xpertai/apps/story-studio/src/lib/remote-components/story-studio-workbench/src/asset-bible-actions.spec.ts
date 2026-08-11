@@ -69,10 +69,24 @@ describe('asset bible actions', () => {
     expect(message).toContain('story_attach_generated_asset_image')
     expect(message).toContain('asset-lin')
     expect(message).toContain('1728x2304')
-    expect(message).toContain('revision is 7')
-    expect(message).toContain('"type":"continuity_view","key":"front"')
-    expect(message).toContain('"type":"continuity_view","key":"back"')
-    expect(message).toContain('select=true only for the first view')
+    expect(message).toContain('currentBaseRevision=7')
+    expect(message).toContain('EXACTLY 4 separate image files')
+    expect(message).toContain('Slot 1/4 — continuity_view:front')
+    expect(message).toContain('Slot 4/4 — continuity_view:back')
+    expect(message).toContain('{"assetReference":{"type":"continuity_view","key":"front"},"select":true,"replaceReference":true}')
+    expect(message).toContain('{"assetReference":{"type":"continuity_view","key":"three_quarter"},"select":false,"replaceReference":true}')
+    expect(message).toContain('{"assetReference":{"type":"continuity_view","key":"profile"},"select":false,"replaceReference":true}')
+    expect(message).toContain('{"assetReference":{"type":"continuity_view","key":"back"},"select":false,"replaceReference":true}')
+    expect(message.match(/"assetReference":/g)).toHaveLength(4)
+    expect(message).toContain('never reuse an image or workspacePath')
+    expect(message).toContain('do not parallelize attachment calls')
+    expect(message).toContain('currentBaseRevision=receipt.revision')
+    expect(message).toContain('error.currentRevision')
+    expect(message).toContain('story_get_project_revision')
+    expect(message).not.toContain(
+      'Call story_get_project_summary immediately before'
+    )
+    expect(message).toContain('never a quoted or JSON-encoded string')
   })
 
   it('builds a separate expression reference request', () => {
@@ -107,8 +121,21 @@ describe('asset bible actions', () => {
     })
 
     expect(message).toContain('character expression reference set')
-    expect(message).toContain('"type":"expression","key":"neutral"')
-    expect(message).toContain('"type":"expression","key":"angry"')
-    expect(message).toContain('select=false for every expression image')
+    expect(message).toContain('Slot 1/4 — expression:neutral')
+    expect(message).toContain('Slot 4/4 — expression:angry')
+    expect(message.match(/^Slot \d\/4 — expression:/gm)).toHaveLength(4)
+    expect(message).toContain(
+      'Call seedream_text_to_image exactly once for that slot'
+    )
+    expect(message).toContain(
+      'Call story_attach_generated_asset_image once with baseRevision=currentBaseRevision'
+    )
+    expect(message).toContain('{"assetReference":{"type":"expression","key":"neutral"},"select":false,"replaceReference":true}')
+    expect(message).toContain('{"assetReference":{"type":"expression","key":"happy"},"select":false,"replaceReference":true}')
+    expect(message).toContain('{"assetReference":{"type":"expression","key":"sad"},"select":false,"replaceReference":true}')
+    expect(message).toContain('{"assetReference":{"type":"expression","key":"angry"},"select":false,"replaceReference":true}')
+    expect(message.match(/"assetReference":/g)).toHaveLength(4)
+    expect(message).toContain('never a quoted or JSON-encoded string')
+    expect(message).toContain('Keep camera angle and crop fixed')
   })
 })

@@ -21,6 +21,7 @@ export const generateStoryShotTakesSchema = z.object({
   aspectRatio: bounded(20),
   fps: z.number().int().min(1).max(120),
   referenceAssetIds: z.array(z.string().trim().min(1).max(120)).max(9).optional(),
+  referenceImageCandidateIds: z.array(z.string().trim().min(1).max(120)).max(12).optional(),
   durationSeconds: z.number().int().min(2).max(30),
   generateAudio: z.boolean().optional(),
   redoScope: z.enum(['performance', 'camera', 'lighting']).optional()

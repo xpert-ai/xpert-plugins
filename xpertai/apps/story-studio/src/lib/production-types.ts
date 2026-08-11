@@ -36,6 +36,10 @@ export interface StoryVoiceReference extends StoryJsonObject {
   label: string
   license?: string
   sourceUrl?: string
+  workspacePath?: string
+  originalName?: string
+  mimeType?: string
+  size?: number
 }
 
 export interface StoryMediaCandidate extends StoryJsonObject {
@@ -221,6 +225,7 @@ export interface StoryShotVideoSettings extends StoryJsonObject {
   fps?: number
   takeCount?: number
   referenceAssetIds?: string[]
+  referenceImageCandidateIds?: string[]
 }
 
 export interface StoryScene extends StoryJsonObject {
@@ -411,11 +416,13 @@ export interface AttachAssetImageInput {
     status: string
   }
   select?: boolean
+  replaceReference?: boolean
   changeSummary: string
 }
 
 export interface AttachGeneratedAssetImageInput
-  extends AttachAssetImageInput {
+  extends Omit<AttachAssetImageInput, 'assetReference'> {
+  assetReference: StoryAssetReference
   file: string | StoryJsonObject
 }
 
@@ -434,6 +441,13 @@ export interface AttachShotReferenceImageInput {
     status: string
   }
   changeSummary: string
+}
+
+export interface UploadStoryVoiceReferenceInput {
+  projectId: string
+  assetId: string
+  referenceId: string
+  label: string
 }
 
 export interface StoryProductionSummary {

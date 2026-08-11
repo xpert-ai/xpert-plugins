@@ -198,6 +198,46 @@ export function deleteAsset(production: ProductionView, assetId: string) {
   return true
 }
 
+export function selectPrimaryAssetImageCandidate(
+  production: ProductionView,
+  assetId: string,
+  candidateId: string
+) {
+  const asset = production.assets.find((item) => item.id === assetId)
+  const target = asset?.candidates.find(
+    (candidate) =>
+      candidate.id === candidateId &&
+      candidate.kind === 'image' &&
+      candidate.assetReference?.type !== 'expression'
+  )
+  if (!asset || !target) return false
+  if (isPrimaryAssetImageCandidateSelected(asset, candidateId)) return false
+
+  asset.candidates.forEach((candidate) => {
+    if (candidate.kind !== 'image') return
+    candidate.selected = candidate.id === target.id
+  })
+  return true
+}
+
+export function isPrimaryAssetImageCandidateSelected(
+  asset: Asset,
+  candidateId: string
+) {
+  const target = asset.candidates.find(
+    (candidate) =>
+      candidate.id === candidateId &&
+      candidate.kind === 'image' &&
+      candidate.assetReference?.type !== 'expression'
+  )
+  if (!target) return false
+  return asset.candidates.every(
+    (candidate) =>
+      candidate.kind !== 'image' ||
+      candidate.selected === (candidate.id === target.id)
+  )
+}
+
 export function acceptAdaptationSuggestion(
   production: ProductionView,
   suggestionId: string
