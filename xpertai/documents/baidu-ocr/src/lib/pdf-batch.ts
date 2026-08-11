@@ -1,0 +1,150 @@
+import fsPromises from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
+import { PDFDocument } from 'pdf-lib'
+import { BAIDU_MAX_PDF_PAGES, BAIDU_PDF_BATCH_TARGET_BYTES } from './constants.js'
+
+export type BaiduPdfBatch = {
+  batchIndex: number
+  sourcePageStart: number
+  sourcePageEnd: number
+  pageCount: number
+  byteLength: number
+  fileName: string
+  temporaryPath: string
+}
+
+export type BaiduPdfBatchPlan = {
+  pageCount: number
+  temporaryDirectory: string
+  batches: BaiduPdfBatch[]
+}
+
+export type BaiduPdfBatchOptions = {
+  maxPages?: number
+  maxBytes?: number
+}
+
+export async function getPdfPageCount(buffer: Buffer): Promise<number> {
+  const document = await loadPdf(buffer)
+  const pageCount = document.getPageCount()
+  if (!pageCount) throw new Error('Baidu OCR cannot parse a PDF without pages')
+  return pageCount
+}
+
+export async function prepareBaiduPdfBatches(
+  buffer: Buffer,
+  originalFileName: string,
+  tempDir?: string,
+  options: BaiduPdfBatchOptions = {}
+): Promise<BaiduPdfBatchPlan> {
+  const maxPages = Math.min(normalizeLimit(options.maxPages, BAIDU_MAX_PDF_PAGES), BAIDU_MAX_PDF_PAGES)
+  const maxBytes = normalizeLimit(options.maxBytes, BAIDU_PDF_BATCH_TARGET_BYTES)
+  const temporaryRoot = tempDir?.trim() || os.tmpdir()
+  await fsPromises.mkdir(temporaryRoot, { recursive: true })
+  const temporaryDirectory = await fsPromises.mkdtemp(path.join(temporaryRoot, 'baidu-ocr-pdf-'))
+
+  try {
+    const source = await loadPdf(buffer)
+    const pageCount = source.getPageCount()
+    if (!pageCount) throw new Error('Baidu OCR cannot split a PDF without pages')
+
+    const batches: BaiduPdfBatch[] = []
+    let sourcePageStart = 1
+    while (sourcePageStart <= pageCount) {
+      const maximumPageCount = Math.min(maxPages, pageCount - sourcePageStart + 1)
+      const part = await createLargestFittingPart(source, sourcePageStart, maximumPageCount, maxBytes)
+      const batchIndex = batches.length
+      const sourcePageEnd = sourcePageStart + part.pageCount - 1
+      const fileName = batchFileName(originalFileName, batchIndex, sourcePageStart, sourcePageEnd)
+      const temporaryPath = path.join(temporaryDirectory, fileName)
+      await fsPromises.writeFile(temporaryPath, part.buffer)
+      batches.push({
+        batchIndex,
+        sourcePageStart,
+        sourcePageEnd,
+        pageCount: part.pageCount,
+        byteLength: part.buffer.length,
+        fileName,
+        temporaryPath
+      })
+      sourcePageStart = sourcePageEnd + 1
+    }
+    return { pageCount, temporaryDirectory, batches }
+  } catch (error) {
+    await fsPromises.rm(temporaryDirectory, { recursive: true, force: true }).catch(() => undefined)
+    throw error
+  }
+}
+
+export async function removeBaiduPdfBatchPlan(plan: BaiduPdfBatchPlan): Promise<void> {
+  await fsPromises.rm(plan.temporaryDirectory, { recursive: true, force: true })
+}
+
+async function createLargestFittingPart(
+  source: PDFDocument,
+  sourcePageStart: number,
+  maximumPageCount: number,
+  maxBytes: number
+): Promise<{ buffer: Buffer; pageCount: number }> {
+  const maximum = await createPdfPart(source, sourcePageStart, maximumPageCount)
+  if (maximum.length <= maxBytes) return { buffer: maximum, pageCount: maximumPageCount }
+
+  let low = 1
+  let high = maximumPageCount - 1
+  let best: { buffer: Buffer; pageCount: number } | undefined
+  while (low <= high) {
+    const candidatePageCount = Math.floor((low + high) / 2)
+    const candidate = await createPdfPart(source, sourcePageStart, candidatePageCount)
+    if (candidate.length <= maxBytes) {
+      best = { buffer: candidate, pageCount: candidatePageCount }
+      low = candidatePageCount + 1
+    } else {
+      high = candidatePageCount - 1
+    }
+  }
+  if (best) return best
+  throw new Error(
+    `Baidu OCR PDF source page ${sourcePageStart} cannot fit within the ${formatMiB(maxBytes)} MiB batch upload limit`
+  )
+}
+
+async function createPdfPart(source: PDFDocument, sourcePageStart: number, pageCount: number): Promise<Buffer> {
+  const output = await PDFDocument.create()
+  const pageIndices = Array.from({ length: pageCount }, (_, index) => sourcePageStart - 1 + index)
+  const pages = await output.copyPages(source, pageIndices)
+  pages.forEach((page) => output.addPage(page))
+  const bytes = await output.save()
+  return Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+}
+
+async function loadPdf(buffer: Buffer): Promise<PDFDocument> {
+  try {
+    return await PDFDocument.load(buffer)
+  } catch {
+    throw new Error('Baidu OCR cannot inspect or split the PDF because it is corrupt or encrypted')
+  }
+}
+
+function batchFileName(
+  originalFileName: string,
+  batchIndex: number,
+  sourcePageStart: number,
+  sourcePageEnd: number
+): string {
+  const baseName = path.basename(originalFileName, path.extname(originalFileName))
+  const safeBaseName = baseName.replace(/[^a-zA-Z0-9._-]+/g, '-').slice(0, 80) || 'document'
+  return `${safeBaseName}.part-${String(batchIndex + 1).padStart(4, '0')}.pages-${padPage(sourcePageStart)}-${padPage(sourcePageEnd)}.pdf`
+}
+
+function padPage(pageNumber: number): string {
+  return String(pageNumber).padStart(4, '0')
+}
+
+function normalizeLimit(value: number | undefined, fallback: number): number {
+  return Number.isFinite(value) && Number(value) > 0 ? Math.floor(Number(value)) : fallback
+}
+
+function formatMiB(bytes: number): string {
+  return (bytes / (1024 * 1024)).toFixed(1)
+}

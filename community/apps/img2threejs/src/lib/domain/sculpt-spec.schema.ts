@@ -1,6 +1,8 @@
 import { z } from 'zod/v3'
 import { NEXT_DECISIONS } from '../constants.js'
 
+export const MAX_SEMANTIC_BLUEPRINT_COMPONENTS = 30
+
 const boundedId = z.string().trim().regex(/^[a-z][a-z0-9_-]{0,79}$/)
 const evidenceId = z.string().uuid()
 const colorHex = z.string().regex(/^#[0-9a-fA-F]{6}$/)
@@ -10,11 +12,12 @@ const vec3Schema = z.tuple([
   z.number().finite().min(-10000).max(10000)
 ])
 
-const transformSchema = z.object({
+export const SculptTransformSchema = z.object({
   position: vec3Schema,
   rotation: vec3Schema,
   scale: vec3Schema.refine((value) => value.every((part) => part > 0), 'Scale values must be positive.')
 }).strict()
+const transformSchema = SculptTransformSchema
 
 const heightfieldGeometrySchema = z.object({
   type: z.literal('heightfield'),
@@ -82,12 +85,20 @@ const extrudeShapeGeometrySchema = z.object({
   curveSegments: z.number().int().min(1).max(64)
 }).strict()
 
-const proceduralGeometrySchema = z.union([
+export const SculptProceduralGeometrySchema = z.union([
   heightfieldGeometrySchema,
   roundedBoxGeometrySchema,
   torusArcGeometrySchema,
   extrudeShapeGeometrySchema
 ])
+const proceduralGeometrySchema = SculptProceduralGeometrySchema
+
+const compatibleGeometryPrimitives = {
+  heightfield: ['custom'],
+  'rounded-box': ['custom', 'box'],
+  'torus-arc': ['custom', 'torus'],
+  'extrude-shape': ['custom', 'extrude']
+} as const
 
 const componentSchema = z.object({
   id: boundedId,
@@ -102,6 +113,149 @@ const componentSchema = z.object({
   evidenceIds: z.array(evidenceId).min(1).max(20),
   confidence: z.number().min(0).max(1)
 }).strict()
+
+type ComponentDocument = z.infer<typeof componentSchema>
+
+function componentHalfExtents(component: ComponentDocument): [number, number, number] {
+  const geometry = component.geometry
+  let halfExtents: [number, number, number]
+  if (!geometry) {
+    halfExtents = component.primitive === 'sphere'
+      ? [1, 1, 1]
+      : [0.5, 0.5, 0.5]
+  } else if (geometry.type === 'rounded-box') {
+    halfExtents = [geometry.width / 2, geometry.height / 2, geometry.depth / 2]
+  } else if (geometry.type === 'heightfield') {
+    halfExtents = [geometry.width / 2, geometry.height / 2, geometry.depth / 2]
+  } else if (geometry.type === 'torus-arc') {
+    const radialExtent = geometry.radius + geometry.tube
+    halfExtents = [radialExtent, radialExtent, geometry.tube]
+  } else {
+    const xs = geometry.points.map((point) => point[0])
+    const ys = geometry.points.map((point) => point[1])
+    halfExtents = [
+      (Math.max(...xs) - Math.min(...xs)) / 2 + geometry.bevelSize,
+      (Math.max(...ys) - Math.min(...ys)) / 2 + geometry.bevelSize,
+      geometry.depth / 2 + geometry.bevelThickness
+    ]
+  }
+  return halfExtents.map((extent, index) => (
+    extent * component.transform.scale[index]
+  )) as [number, number, number]
+}
+
+type Vector3Tuple = [number, number, number]
+type Matrix3Tuple = [number, number, number, number, number, number, number, number, number]
+
+const identityMatrix3 = (): Matrix3Tuple => [
+  1, 0, 0,
+  0, 1, 0,
+  0, 0, 1
+]
+
+function eulerXyzMatrix(rotation: Vector3Tuple): Matrix3Tuple {
+  const [x, y, z] = rotation
+  const a = Math.cos(x)
+  const b = Math.sin(x)
+  const c = Math.cos(y)
+  const d = Math.sin(y)
+  const e = Math.cos(z)
+  const f = Math.sin(z)
+  return [
+    c * e, -c * f, d,
+    a * f + b * e * d, a * e - b * f * d, -b * c,
+    b * f - a * e * d, b * e + a * f * d, a * c
+  ]
+}
+
+function multiplyMatrix3(left: Matrix3Tuple, right: Matrix3Tuple): Matrix3Tuple {
+  const output = new Array<number>(9)
+  for (let row = 0; row < 3; row += 1) {
+    for (let column = 0; column < 3; column += 1) {
+      output[row * 3 + column] =
+        left[row * 3] * right[column] +
+        left[row * 3 + 1] * right[3 + column] +
+        left[row * 3 + 2] * right[6 + column]
+    }
+  }
+  return output as Matrix3Tuple
+}
+
+function applyMatrix3(matrix: Matrix3Tuple, value: Vector3Tuple): Vector3Tuple {
+  return [
+    matrix[0] * value[0] + matrix[1] * value[1] + matrix[2] * value[2],
+    matrix[3] * value[0] + matrix[4] * value[1] + matrix[5] * value[2],
+    matrix[6] * value[0] + matrix[7] * value[1] + matrix[8] * value[2]
+  ]
+}
+
+function rotatedHalfExtents(matrix: Matrix3Tuple, halfExtents: Vector3Tuple): Vector3Tuple {
+  return [
+    Math.abs(matrix[0]) * halfExtents[0] + Math.abs(matrix[1]) * halfExtents[1] + Math.abs(matrix[2]) * halfExtents[2],
+    Math.abs(matrix[3]) * halfExtents[0] + Math.abs(matrix[4]) * halfExtents[1] + Math.abs(matrix[5]) * halfExtents[2],
+    Math.abs(matrix[6]) * halfExtents[0] + Math.abs(matrix[7]) * halfExtents[1] + Math.abs(matrix[8]) * halfExtents[2]
+  ]
+}
+
+function approximateComposedBounds(components: ComponentDocument[]): {
+  center: [number, number, number]
+  radius: number
+} | null {
+  if (components.length === 0) return null
+  const byId = new Map(components.map((component) => [component.id, component]))
+  const transforms = new Map<string, { position: Vector3Tuple; rotation: Matrix3Tuple }>()
+  const visiting = new Set<string>()
+  const worldTransform = (component: ComponentDocument): { position: Vector3Tuple; rotation: Matrix3Tuple } => {
+    const cached = transforms.get(component.id)
+    if (cached) return cached
+    if (visiting.has(component.id)) {
+      return {
+        position: component.transform.position,
+        rotation: eulerXyzMatrix(component.transform.rotation)
+      }
+    }
+    visiting.add(component.id)
+    const parent = component.parentId ? byId.get(component.parentId) : null
+    const parentTransform = parent
+      ? worldTransform(parent)
+      : { position: [0, 0, 0] as Vector3Tuple, rotation: identityMatrix3() }
+    const localPosition = applyMatrix3(parentTransform.rotation, component.transform.position)
+    const transform = {
+      position: [
+        parentTransform.position[0] + localPosition[0],
+        parentTransform.position[1] + localPosition[1],
+        parentTransform.position[2] + localPosition[2]
+      ] as Vector3Tuple,
+      rotation: multiplyMatrix3(parentTransform.rotation, eulerXyzMatrix(component.transform.rotation))
+    }
+    visiting.delete(component.id)
+    transforms.set(component.id, transform)
+    return transform
+  }
+  const minimum: Vector3Tuple = [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY]
+  const maximum: Vector3Tuple = [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY]
+  for (const component of components) {
+    const transform = worldTransform(component)
+    const extents = rotatedHalfExtents(transform.rotation, componentHalfExtents(component))
+    for (let axis = 0; axis < 3; axis += 1) {
+      minimum[axis] = Math.min(minimum[axis], transform.position[axis] - extents[axis])
+      maximum[axis] = Math.max(maximum[axis], transform.position[axis] + extents[axis])
+    }
+  }
+  const center: Vector3Tuple = [
+    (minimum[0] + maximum[0]) / 2,
+    (minimum[1] + maximum[1]) / 2,
+    (minimum[2] + maximum[2]) / 2
+  ]
+  return {
+    center,
+    radius: Math.hypot(
+      (maximum[0] - minimum[0]) / 2,
+      (maximum[1] - minimum[1]) / 2,
+      (maximum[2] - minimum[2]) / 2
+    )
+  }
+}
 
 const materialSchema = z.object({
   id: boundedId,
@@ -220,7 +374,7 @@ const normalizedRegionSchema = z.object({
   }
 })
 
-const referenceCameraSchema = z.object({
+export const SculptReferenceCameraSchema = z.object({
   evidenceId,
   view: reviewViewSchema,
   projection: z.enum(['perspective', 'orthographic']),
@@ -250,6 +404,81 @@ const referenceCameraSchema = z.object({
     })
   }
 })
+const referenceCameraSchema = SculptReferenceCameraSchema
+
+type CameraFrameDocument = {
+  modelingMode: 'semantic-3d' | 'relief'
+  components: ComponentDocument[]
+  referenceCamera: z.infer<typeof SculptReferenceCameraSchema>
+}
+
+export type ReferenceCameraFrameCorrectionHint = {
+  code: 'reference_camera_frustum_too_small'
+  path: 'referenceCamera.position' | 'referenceCamera.orthographicHeight'
+  projection: 'perspective' | 'orthographic'
+  boundsCenter: Vector3Tuple
+  boundsRadius: number
+  availableHalfHeight: number
+  requiredHalfHeight: number
+  minimumScale: number
+  recommendedReferenceCamera: {
+    position: Vector3Tuple
+    target: Vector3Tuple
+    fovDegrees: number
+    orthographicHeight: number | null
+  }
+  instruction: string
+}
+
+const roundedMetric = (value: number) => Number(value.toFixed(6))
+
+export function referenceCameraFrameCorrectionHint(
+  spec: CameraFrameDocument
+): ReferenceCameraFrameCorrectionHint | null {
+  if (spec.modelingMode !== 'semantic-3d') return null
+  const bounds = approximateComposedBounds(spec.components)
+  if (!bounds || bounds.radius <= 0) return null
+  const camera = spec.referenceCamera
+  const maximumFill = Math.min(0.85, camera.framing.subjectFillRatio + camera.framing.tolerance)
+  const requiredHalfHeight = bounds.radius * 0.55 / maximumFill
+  const offset = camera.position.map((value, index) => value - camera.target[index]) as Vector3Tuple
+  const cameraDistance = Math.hypot(...offset)
+  const availableHalfHeight = camera.projection === 'orthographic'
+    ? (camera.orthographicHeight ?? 0) / 2
+    : cameraDistance * Math.tan(camera.fovDegrees * Math.PI / 360)
+  if (availableHalfHeight >= requiredHalfHeight || availableHalfHeight <= 0) return null
+
+  const minimumScale = (requiredHalfHeight / availableHalfHeight) * 1.1
+  const recommendedPosition = camera.projection === 'perspective'
+    ? camera.target.map((value, index) => roundedMetric(value + offset[index] * minimumScale)) as Vector3Tuple
+    : [...camera.position] as Vector3Tuple
+  const recommendedOrthographicHeight = camera.projection === 'orthographic'
+    ? roundedMetric(requiredHalfHeight * 2 * 1.1)
+    : camera.orthographicHeight
+  const recommendedReferenceCamera = {
+    position: recommendedPosition,
+    target: [...camera.target] as Vector3Tuple,
+    fovDegrees: camera.fovDegrees,
+    orthographicHeight: recommendedOrthographicHeight
+  }
+  const instruction = camera.projection === 'perspective'
+    ? `Copy recommendedReferenceCamera.position exactly while preserving target and fovDegrees; do not narrow the FOV.`
+    : `Copy recommendedReferenceCamera.orthographicHeight exactly; changing camera distance does not enlarge an orthographic frustum.`
+  return {
+    code: 'reference_camera_frustum_too_small',
+    path: camera.projection === 'perspective'
+      ? 'referenceCamera.position'
+      : 'referenceCamera.orthographicHeight',
+    projection: camera.projection,
+    boundsCenter: bounds.center.map(roundedMetric) as Vector3Tuple,
+    boundsRadius: roundedMetric(bounds.radius),
+    availableHalfHeight: roundedMetric(availableHalfHeight),
+    requiredHalfHeight: roundedMetric(requiredHalfHeight),
+    minimumScale: roundedMetric(minimumScale),
+    recommendedReferenceCamera,
+    instruction
+  }
+}
 
 const featureReviewTargetSchema = z.object({
   id: boundedId,
@@ -318,6 +547,7 @@ export const SculptSpecSchema = z.object({
   }).strict(),
   nextDecision: z.enum(NEXT_DECISIONS)
 }).strict().superRefine((spec, ctx) => {
+  const componentsById = new Map(spec.components.map((item) => [item.id, item]))
   const componentIds = new Set(spec.components.map((item) => item.id))
   const materialIds = new Set(spec.materials.map((item) => item.id))
   const pivotIds = new Set(spec.runtime.pivots.map((item) => item.id))
@@ -331,6 +561,13 @@ export const SculptSpecSchema = z.object({
       message: 'Semantic 3D specs cannot use heightfields. Select explicit relief mode for 2.5D image geometry.'
     })
   }
+  if (spec.modelingMode === 'semantic-3d' && spec.components.length > MAX_SEMANTIC_BLUEPRINT_COMPONENTS) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['components'],
+      message: `Semantic 3D Specs are compact blueprints with at most ${MAX_SEMANTIC_BLUEPRINT_COMPONENTS} components; create repeated visible detail as runtime Mesh instances in Assistant-authored TypeScript.`
+    })
+  }
   if (spec.modelingMode === 'relief' && heightfields.length !== spec.components.length) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -338,7 +575,7 @@ export const SculptSpecSchema = z.object({
       message: 'Relief specs must use typed heightfield geometry for every component.'
     })
   }
-  if (spec.components.length < spec.qualityContract.minimumComponentCount) {
+  if (spec.modelingMode === 'relief' && spec.components.length < spec.qualityContract.minimumComponentCount) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['qualityContract', 'minimumComponentCount'],
@@ -390,18 +627,52 @@ export const SculptSpecSchema = z.object({
       message: 'Reference-camera confidence below 0.5 requires request-input before code generation.'
     })
   }
-  for (const component of spec.components) {
+  if (spec.modelingMode === 'semantic-3d') {
+    const cameraCorrection = referenceCameraFrameCorrectionHint(spec)
+    if (cameraCorrection) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: cameraCorrection.path.split('.'),
+        message: `Reference camera cannot frame the composed parent-local world bounds with 15% margin: available half-height ${cameraCorrection.availableHalfHeight.toFixed(2)}, required ${cameraCorrection.requiredHalfHeight.toFixed(2)}. ${cameraCorrection.instruction} Recommended values: ${JSON.stringify(cameraCorrection.recommendedReferenceCamera)}.`
+      })
+    }
+  }
+  for (const [componentIndex, component] of spec.components.entries()) {
     if (component.parentId && !componentIds.has(component.parentId)) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['components'], message: `Missing parent '${component.parentId}'.` })
+    }
+    const parent = component.parentId ? componentsById.get(component.parentId) : null
+    if (spec.modelingMode === 'semantic-3d' && parent) {
+      const parentExtents = componentHalfExtents(parent)
+      const childExtents = componentHalfExtents(component)
+      // Root scene plates legitimately carry props just outside their surface.
+      // Nested parts, however, must stay close to their parent's local volume;
+      // repeated world-space offsets otherwise produce floating components.
+      const attachmentMargin = parent.parentId === null ? 1 : 0.25
+      for (let axis = 0; axis < 3; axis += 1) {
+        const maximumOffset = parentExtents[axis] + childExtents[axis] + attachmentMargin
+        if (Math.abs(component.transform.position[axis]) > maximumOffset) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['components', componentIndex, 'transform', 'position', axis],
+            message: `Component '${component.id}' is outside parent '${parent.id}' on local axis ${axis}: offset ${Math.abs(component.transform.position[axis]).toFixed(2)}, allowed ${maximumOffset.toFixed(2)}. Use a parent-local transform instead of repeating world coordinates.`
+          })
+        }
+      }
     }
     if (!materialIds.has(component.materialId)) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['components'], message: `Missing material '${component.materialId}'.` })
     }
-    if (component.geometry && component.primitive !== 'custom') {
+    if (component.geometry && !compatibleGeometryPrimitives[component.geometry.type].includes(
+      component.primitive as never
+    )) {
+      const accepted = compatibleGeometryPrimitives[component.geometry.type]
+        .map((primitive) => `'${primitive}'`)
+        .join(' or ')
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['components'],
-        message: `Component '${component.id}' uses typed geometry and must declare primitive 'custom'.`
+        message: `Component '${component.id}' uses '${component.geometry.type}' geometry and must declare primitive ${accepted}.`
       })
     }
   }

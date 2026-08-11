@@ -1,7 +1,9 @@
 import * as React from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import type {
   ViewerComponentDto,
   ViewerHeightfieldGeometryDto,
@@ -21,8 +23,37 @@ type ViewerLabels = {
   unavailable: string
 }
 
+type ArtifactPresentation = {
+  autoRotate?: boolean
+  background?: { kind?: string; dataUrl?: string; value?: string }
+  camera?: {
+    fovDegrees?: number
+    position?: number[]
+    target?: number[]
+    up?: number[]
+  }
+  embeddedLights?: boolean
+  environmentIntensity?: number
+  exposure?: number
+  groundShadow?: { enabled?: boolean; opacity?: number; size?: number }
+  toneMapping?: string
+}
+
+type PortableMaterialAnimation = {
+  durationSeconds: number
+  tracks: Array<{ property: string; times: number[]; values: number[] }>
+}
+
+type LoadedViewerRoot = {
+  animations: THREE.AnimationClip[]
+  presentation: ArtifactPresentation | null
+  root: THREE.Group
+  source: 'browser-artifact' | 'viewer-scene'
+}
+
 export function ThreeViewer(props: {
   scene: ViewerSceneDto
+  modelUrl?: string | null
   labels: ViewerLabels
 }) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null)
@@ -31,12 +62,17 @@ export function ThreeViewer(props: {
   const animationEnabledRef = React.useRef(true)
   const [autoRotate, setAutoRotate] = React.useState(true)
   const [animationEnabled, setAnimationEnabled] = React.useState(true)
+  const [animationAvailable, setAnimationAvailable] = React.useState(
+    (props.scene.animationClips?.length ?? 0) > 0
+  )
   const [status, setStatus] = React.useState<'loading' | 'ready' | 'unavailable'>('loading')
+  const [modelSource, setModelSource] = React.useState<'browser-artifact' | 'viewer-scene'>('viewer-scene')
 
   React.useEffect(() => {
     const canvas = canvasRef.current
     const container = canvas?.parentElement
     if (!canvas || !container) return
+    setStatus('loading')
 
     let renderer: THREE.WebGLRenderer
     try {
@@ -62,26 +98,26 @@ export function ThreeViewer(props: {
     controls.autoRotateSpeed = 1.15
     controlsRef.current = controls
 
-    world.add(new THREE.HemisphereLight('#dbeafe', '#172554', 2.2))
+    const fallbackLighting = new THREE.Group()
+    fallbackLighting.add(new THREE.HemisphereLight('#dbeafe', '#172554', 2.2))
     const keyLight = new THREE.DirectionalLight('#ffffff', 3.2)
     keyLight.position.set(6, 9, 8)
     keyLight.castShadow = true
-    world.add(keyLight)
+    fallbackLighting.add(keyLight)
     const rimLight = new THREE.DirectionalLight('#a78bfa', 2.4)
     rimLight.position.set(-8, 4, -6)
-    world.add(rimLight)
+    fallbackLighting.add(rimLight)
+    world.add(fallbackLighting)
 
-    const root = buildModel(props.scene)
-    world.add(root)
-    const initialBox = new THREE.Box3().setFromObject(root)
-    const initialSphere = initialBox.getBoundingSphere(new THREE.Sphere())
-    const initialRadius = Number.isFinite(initialSphere.radius) && initialSphere.radius > 0
-      ? initialSphere.radius
-      : 1
-    const gridSize = Math.max(24, initialRadius * 4)
-    const grid = new THREE.GridHelper(gridSize, 24, '#334155', '#1e293b')
-    grid.position.y = modelFloor(root)
-    world.add(grid)
+    let root: THREE.Group | null = null
+    let grid: THREE.GridHelper | null = null
+    let ground: THREE.Mesh<THREE.PlaneGeometry, THREE.ShadowMaterial> | null = null
+    let mixer: THREE.AnimationMixer | null = null
+    let presentation: ArtifactPresentation | null = null
+    let backgroundTexture: THREE.Texture | null = null
+    let environmentTexture: THREE.Texture | null = null
+    let materialAnimations: Array<{ animation: PortableMaterialAnimation; material: THREE.Material }> = []
+    let disposed = false
 
     const resize = () => {
       const width = Math.max(1, container.clientWidth)
@@ -94,10 +130,25 @@ export function ThreeViewer(props: {
     resize()
 
     const resetView = () => {
+      if (!root) return
       const box = new THREE.Box3().setFromObject(root)
       const center = box.getCenter(new THREE.Vector3())
       const sphere = box.getBoundingSphere(new THREE.Sphere())
       const radius = Number.isFinite(sphere.radius) && sphere.radius > 0 ? sphere.radius : 1
+      const authoredCamera = presentation?.camera
+      if (isVec3(authoredCamera?.position) && isVec3(authoredCamera?.target)) {
+        camera.position.fromArray(authoredCamera.position)
+        camera.up.fromArray(isVec3(authoredCamera.up) ? authoredCamera.up : [0, 1, 0])
+        if (Number.isFinite(authoredCamera.fovDegrees)) camera.fov = authoredCamera.fovDegrees as number
+        camera.near = Math.max(0.01, camera.position.distanceTo(new THREE.Vector3().fromArray(authoredCamera.target)) / 1_000)
+        camera.far = Math.max(100, camera.position.distanceTo(new THREE.Vector3().fromArray(authoredCamera.target)) * 20)
+        camera.updateProjectionMatrix()
+        controls.target.fromArray(authoredCamera.target)
+        controls.minDistance = Math.max(0.15, radius * 0.35)
+        controls.maxDistance = Math.max(20, radius * 12)
+        controls.update()
+        return
+      }
       const narrowViewportFit = 1 / Math.max(0.25, Math.min(1, camera.aspect))
       const distance = Math.max(1.8, radius * 2.8 * narrowViewportFit)
       const viewDirection = new THREE.Vector3(1, 0.58, 1.15).normalize()
@@ -111,11 +162,10 @@ export function ThreeViewer(props: {
       controls.update()
     }
     resetRef.current = resetView
-    resetView()
 
     const resizeObserver = new ResizeObserver(() => {
       resize()
-      resetView()
+      if (root) resetView()
     })
     resizeObserver.observe(container)
 
@@ -123,30 +173,124 @@ export function ThreeViewer(props: {
     renderer.toneMapping = THREE.ACESFilmicToneMapping
     renderer.toneMappingExposure = 1.15
     renderer.shadowMap.enabled = true
-    renderer.shadowMap.type = THREE.PCFShadowMap
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap
     const timer = new THREE.Timer()
     renderer.setAnimationLoop(() => {
       timer.update()
+      const delta = timer.getDelta()
       controls.update()
       const clip = props.scene.animationClips?.[0]
-      if (animationEnabledRef.current && clip) {
+      if (root && !props.modelUrl && animationEnabledRef.current && clip) {
         const phase = (timer.getElapsed() / clip.durationSeconds) * Math.PI
         applyViewerAnimation(root, clip.pivotIds, (1 - Math.cos(phase)) / 2)
       }
+      if (root && props.modelUrl && animationEnabledRef.current) {
+        mixer?.update(delta)
+        applyPortableMaterialAnimations(materialAnimations, timer.getElapsed())
+      }
       renderer.render(world, camera)
     })
-    setStatus('ready')
+    void loadViewerRoot(props.modelUrl, props.scene).then(async (loaded) => {
+      if (disposed) {
+        disposeModel(loaded.root)
+        return
+      }
+      root = loaded.root
+      presentation = loaded.presentation
+      root.traverse((object) => {
+        if (!(object instanceof THREE.Mesh)) return
+        object.castShadow = true
+        object.receiveShadow = true
+      })
+      if (presentation?.toneMapping === 'aces') renderer.toneMapping = THREE.ACESFilmicToneMapping
+      if (Number.isFinite(presentation?.exposure)) renderer.toneMappingExposure = presentation?.exposure as number
+      if (presentation?.background?.kind === 'data-url' && presentation.background.dataUrl) {
+        backgroundTexture = await new THREE.TextureLoader().loadAsync(presentation.background.dataUrl)
+        if (disposed) {
+          backgroundTexture.dispose()
+          disposeModel(loaded.root)
+          return
+        }
+        backgroundTexture.colorSpace = THREE.SRGBColorSpace
+        world.background = backgroundTexture
+      } else if (presentation?.background?.kind === 'color' && presentation.background.value) {
+        world.background = new THREE.Color(presentation.background.value)
+      }
+      if (presentation) {
+        const pmrem = new THREE.PMREMGenerator(renderer)
+        environmentTexture = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
+        pmrem.dispose()
+        world.environment = environmentTexture
+        world.environmentIntensity = Number.isFinite(presentation.environmentIntensity)
+          ? presentation.environmentIntensity as number
+          : 1
+      }
+      world.add(root)
+      let hasEmbeddedLights = false
+      root.traverse((object) => { if (object instanceof THREE.Light) hasEmbeddedLights = true })
+      fallbackLighting.visible = !(presentation?.embeddedLights || hasEmbeddedLights)
+      const initialBox = new THREE.Box3().setFromObject(root)
+      const initialSphere = initialBox.getBoundingSphere(new THREE.Sphere())
+      const initialRadius = Number.isFinite(initialSphere.radius) && initialSphere.radius > 0
+        ? initialSphere.radius
+        : 1
+      if (presentation?.groundShadow?.enabled) {
+        ground = new THREE.Mesh(
+          new THREE.PlaneGeometry(presentation.groundShadow.size ?? 30, presentation.groundShadow.size ?? 30),
+          new THREE.ShadowMaterial({ opacity: presentation.groundShadow.opacity ?? 0.16 })
+        )
+        ground.rotation.x = -Math.PI / 2
+        ground.receiveShadow = true
+        world.add(ground)
+      } else {
+        grid = new THREE.GridHelper(Math.max(24, initialRadius * 4), 24, '#334155', '#1e293b')
+        grid.position.y = modelFloor(root)
+        world.add(grid)
+      }
+      if (loaded.animations.length > 0) {
+        mixer = new THREE.AnimationMixer(root)
+        for (const animation of loaded.animations) mixer.clipAction(animation).play()
+      }
+      materialAnimations = collectPortableMaterialAnimations(root)
+      setAnimationAvailable(
+        loaded.animations.length > 0 ||
+        materialAnimations.length > 0 ||
+        (loaded.source === 'viewer-scene' && (props.scene.animationClips?.length ?? 0) > 0)
+      )
+      if (presentation?.autoRotate === false) {
+        controls.autoRotate = false
+        setAutoRotate(false)
+      }
+      resetView()
+      setModelSource(loaded.source)
+      setStatus('ready')
+    }).catch(() => {
+      if (!disposed) setStatus('unavailable')
+    })
 
     return () => {
+      disposed = true
       renderer.setAnimationLoop(null)
       resizeObserver.disconnect()
       controls.dispose()
       controlsRef.current = null
       resetRef.current = null
-      disposeModel(root)
+      mixer?.stopAllAction()
+      if (root) disposeModel(root)
+      if (grid) {
+        grid.geometry.dispose()
+        const materials = Array.isArray(grid.material) ? grid.material : [grid.material]
+        for (const material of materials) material.dispose()
+      }
+      if (ground) {
+        ground.geometry.dispose()
+        ground.material.dispose()
+      }
+      backgroundTexture?.dispose()
+      environmentTexture?.dispose()
       renderer.dispose()
     }
-  }, [props.scene])
+  }, [props.scene, props.modelUrl])
 
   React.useEffect(() => {
     if (controlsRef.current) controlsRef.current.autoRotate = autoRotate
@@ -174,7 +318,7 @@ export function ThreeViewer(props: {
           >
             {props.labels.autoRotate}
           </button>
-          {(props.scene.animationClips?.length ?? 0) > 0
+          {animationAvailable
             ? <button
                 type="button"
                 aria-pressed={animationEnabled}
@@ -192,6 +336,10 @@ export function ThreeViewer(props: {
         <canvas
           ref={canvasRef}
           data-testid="threejs-viewer"
+          data-model-source={modelSource}
+          data-animation-source={animationAvailable
+            ? modelSource === 'browser-artifact' ? 'browser-artifact' : 'viewer-scene'
+            : 'none'}
           role="application"
           aria-label={props.labels.ariaLabel}
         />
@@ -199,6 +347,95 @@ export function ThreeViewer(props: {
       </div>
     </div>
   )
+}
+
+async function loadViewerRoot(
+  modelUrl: string | null | undefined,
+  scene: ViewerSceneDto
+): Promise<LoadedViewerRoot> {
+  if (modelUrl) {
+    try {
+      const gltf = await new GLTFLoader().loadAsync(modelUrl)
+      if (gltf.scene.children.length > 0) {
+        return {
+          animations: gltf.animations,
+          presentation: findArtifactPresentation(gltf.scene),
+          root: gltf.scene,
+          source: 'browser-artifact'
+        }
+      }
+    } catch {
+      // Preserve the Spec viewer as a resilient fallback if a signed link expires mid-session.
+    }
+  }
+  return {
+    animations: [],
+    presentation: null,
+    root: buildModel(scene),
+    source: 'viewer-scene'
+  }
+}
+
+function findArtifactPresentation(root: THREE.Object3D): ArtifactPresentation | null {
+  let presentation: ArtifactPresentation | null = null
+  root.traverse((object) => {
+    if (presentation) return
+    const candidate = object.userData.img2threejsPresentation
+    if (candidate && typeof candidate === 'object') presentation = candidate as ArtifactPresentation
+  })
+  return presentation
+}
+
+function collectPortableMaterialAnimations(
+  root: THREE.Object3D
+): Array<{ animation: PortableMaterialAnimation; material: THREE.Material }> {
+  const result: Array<{ animation: PortableMaterialAnimation; material: THREE.Material }> = []
+  const seen = new Set<string>()
+  root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return
+    const materials = Array.isArray(object.material) ? object.material : [object.material]
+    for (const material of materials) {
+      if (seen.has(material.uuid)) continue
+      seen.add(material.uuid)
+      const animation = material.userData.img2threejsAnimation as PortableMaterialAnimation | undefined
+      if (!animation || !Number.isFinite(animation.durationSeconds) || !Array.isArray(animation.tracks)) continue
+      result.push({ animation, material })
+    }
+  })
+  return result
+}
+
+function applyPortableMaterialAnimations(
+  entries: Array<{ animation: PortableMaterialAnimation; material: THREE.Material }>,
+  elapsed: number
+): void {
+  for (const { animation, material } of entries) {
+    const duration = animation.durationSeconds
+    if (!(duration > 0)) continue
+    const localTime = elapsed % duration
+    for (const track of animation.tracks) {
+      if (track.property !== 'emissiveIntensity' || !('emissiveIntensity' in material)) continue
+      const value = sampleScalarTrack(track.times, track.values, localTime)
+      if (value !== null) (material as THREE.MeshStandardMaterial).emissiveIntensity = value
+    }
+  }
+}
+
+function sampleScalarTrack(times: number[], values: number[], time: number): number | null {
+  if (!times.length || times.length !== values.length) return null
+  if (time <= times[0]) return values[0]
+  for (let index = 1; index < times.length; index += 1) {
+    if (time > times[index]) continue
+    const start = times[index - 1]
+    const end = times[index]
+    const progress = end > start ? (time - start) / (end - start) : 0
+    return THREE.MathUtils.lerp(values[index - 1], values[index], progress)
+  }
+  return values[values.length - 1]
+}
+
+function isVec3(value: unknown): value is [number, number, number] {
+  return Array.isArray(value) && value.length === 3 && value.every((part) => Number.isFinite(part))
 }
 
 function buildModel(scene: ViewerSceneDto): THREE.Group {

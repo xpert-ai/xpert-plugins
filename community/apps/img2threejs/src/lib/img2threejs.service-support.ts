@@ -3,7 +3,10 @@ import { RequestContext } from '@xpert-ai/plugin-sdk'
 import { IsNull, type FindOptionsWhere } from 'typeorm'
 import { BUILD_STAGES } from './constants.js'
 import { assertBaseRevision, nextBuildStage, stableCursor } from './domain/pipeline.js'
-import type { SculptSpec } from './domain/sculpt-spec.schema.js'
+import type {
+  ReferenceCameraFrameCorrectionHint,
+  SculptSpec
+} from './domain/sculpt-spec.schema.js'
 import type {
   BuildStage,
   HumanReviewStatus,
@@ -13,8 +16,41 @@ import type {
 } from './domain/types.js'
 import { ModelProjectEntity, PipelineRunEntity } from './entities/index.js'
 
+const CONCURRENCY_CONTROL_FIELDS = new Set([
+  'revision',
+  'runRevision',
+  'projectRevision',
+  'baseRevision',
+  'expectedRevision',
+  'nextActionInput',
+  'recoveredFromExpectedRevision',
+  'revisionRecovery'
+])
+
+/**
+ * Keep optimistic-lock counters private to the service. Callers should operate
+ * on stable resource ids and let the service resolve the current entity state.
+ */
+export function stripConcurrencyControlFields<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((item) => stripConcurrencyControlFields(item)) as T
+  }
+  if (!value || typeof value !== 'object' || value instanceof Date || Buffer.isBuffer(value)) {
+    return value
+  }
+  const output: Record<string, unknown> = {}
+  for (const [key, item] of Object.entries(value)) {
+    if (!CONCURRENCY_CONTROL_FIELDS.has(key)) {
+      output[key] = stripConcurrencyControlFields(item)
+    }
+  }
+  return output as T
+}
+
 export type RunStatusDto = {
   projectId: string
+  currentSpecVersionId: string | null
+  currentCodeVersionId: string | null
   runId: string | null
   revision: number
   runRevision: number | null
@@ -26,11 +62,24 @@ export type RunStatusDto = {
   humanReviewStatus: string
   nextDecision: NextDecision
   failureCodes: string[]
+  deterministicFailures: Array<{ code: string; detail: string }>
+  specCorrectionHints: ReferenceCameraFrameCorrectionHint[]
+  assistantCodeCandidate: {
+    sourceFilePath: string
+    sourceSha256: string
+    size: number
+  } | null
   cursor: string
   nextAction: string
 }
 
-export function statusDto(project: ModelProjectEntity, run: PipelineRunEntity | null): RunStatusDto {
+export function statusDto(
+  project: ModelProjectEntity,
+  run: PipelineRunEntity | null,
+  currentCodeReady = Boolean(project.currentCodeVersionId),
+  currentCodeFailures: Array<{ code: string; detail: string }> = [],
+  specCorrectionHints: ReferenceCameraFrameCorrectionHint[] = []
+): RunStatusDto {
   // A newly persisted Sculpt Spec invalidates the previous run even before a
   // replacement run is enqueued. Never surface completed stages, artifacts, or
   // review state from a run that belongs to an older Spec version.
@@ -43,6 +92,8 @@ export function statusDto(project: ModelProjectEntity, run: PipelineRunEntity | 
     : stableCursor({ status: project.status, revision: project.revision, stageResults: [], failureCodes: project.failureReasons })
   return {
     projectId: project.id,
+    currentSpecVersionId: project.currentSpecVersionId,
+    currentCodeVersionId: project.currentCodeVersionId,
     runId: currentRun?.id ?? null,
     revision: project.revision,
     runRevision: currentRun?.revision ?? null,
@@ -54,8 +105,15 @@ export function statusDto(project: ModelProjectEntity, run: PipelineRunEntity | 
     humanReviewStatus: currentRun?.humanReviewStatus ?? project.humanReviewStatus,
     nextDecision: currentRun?.nextDecision ?? project.nextDecision,
     failureCodes: currentRun?.failureReasons.slice(0, 20) ?? project.failureReasons.slice(0, 20),
+    deterministicFailures: currentRun
+      ? currentRun.deterministicReview.checks
+        .filter((item) => !item.passed)
+        .map(({ code, detail }) => ({ code, detail }))
+      : currentCodeFailures,
+    specCorrectionHints,
+    assistantCodeCandidate: null,
     cursor,
-    nextAction: currentRun ? runNextAction(currentRun) : projectNextAction(project)
+    nextAction: currentRun ? runNextAction(currentRun) : projectNextAction(project, currentCodeReady)
   }
 }
 
@@ -117,12 +175,23 @@ export function revisionConflict(currentRevision?: number): Error {
   return new Error(`REVISION_CONFLICT${currentRevision === undefined ? '' : `:${currentRevision}`}`)
 }
 
-export function normalizeImageMime(mimeType: string, filePath: string): string {
+export function normalizeImageMime(mimeType: string, filePath: string, buffer?: Buffer): string {
   if (['image/png', 'image/jpeg', 'image/webp'].includes(mimeType)) return mimeType
   const lower = filePath.toLowerCase()
   if (lower.endsWith('.png')) return 'image/png'
   if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg'
   if (lower.endsWith('.webp')) return 'image/webp'
+  if (buffer && buffer.length >= 12) {
+    if (buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {
+      return 'image/png'
+    }
+    if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+      return 'image/jpeg'
+    }
+    if (buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WEBP') {
+      return 'image/webp'
+    }
+  }
   return mimeType
 }
 
@@ -174,41 +243,99 @@ export function validateReviewDecision(
 ): void {
   if (!['review_required', 'failed'].includes(run.status)) throw new Error('REVIEW_NOT_ALLOWED')
   if (review === 'approved' && !['continue', 'stop'].includes(decision)) throw new Error('REVIEW_DECISION_MISMATCH')
-  if (
-    review === 'approved' &&
-    run.renderReport?.status === 'succeeded' &&
-    run.renderReport.quality?.passed !== true
-  ) {
-    throw new Error('REFERENCE_FIDELITY_GATE_BLOCKED')
-  }
+  validateApprovedReviewEvidence(run, review)
   if (review === 'changes_requested' && !['refine-spec', 'refine-code', 'request-input'].includes(decision)) {
     throw new Error('REVIEW_DECISION_MISMATCH')
   }
   if (review === 'rejected' && decision !== 'stop') throw new Error('REVIEW_DECISION_MISMATCH')
 }
 
+export function validateApprovedReviewEvidence(
+  run: PipelineRunEntity,
+  review: HumanReviewStatus
+): void {
+  if (review === 'approved') {
+    if (
+      run.renderReport?.status !== 'succeeded' ||
+      run.visualReview?.renderStatus !== 'succeeded' ||
+      !run.visualReview?.comparisonAsset
+    ) {
+      throw new Error('VISUAL_REVIEW_APPROVAL_REQUIRES_BROWSER_RENDER')
+    }
+    if (run.renderReport.quality?.passed !== true) {
+      const failureCodes = run.renderReport.quality?.failureCodes?.length
+        ? run.renderReport.quality.failureCodes.join(',')
+        : run.failureReasons.join(',') || 'unknown_reference_fidelity_failure'
+      throw new Error(
+        `REFERENCE_FIDELITY_GATE_BLOCKED: failureCodes=${failureCodes}; ` +
+        'inspect img2threejs_read_visual_diagnostics and submit changes_requested with refine-code or refine-spec'
+      )
+    }
+  }
+}
+
+export function isTransientWorkspaceInputVisibilityFailure(
+  failure: { code?: string | null; message?: string | null } | null | undefined
+): boolean {
+  return failure?.code === 'EXPORT_INPUT_INVALID' &&
+    /Unable to read [^:]+:\s*(?:Conversation|Workspace) file not found/i.test(failure.message ?? '')
+}
+
+export function isAssistantSourceBuildFailure(
+  failure: { code?: string | null; message?: string | null } | null | undefined
+): boolean {
+  if (failure?.code !== 'SANDBOX_START_FAILED') return false
+  return /(?:Build failed|Could not resolve|model\/model\.ts|Module not found|Syntax error)/i.test(
+    failure.message ?? ''
+  )
+}
+
 export function decisionToNextAction(decision: NextDecision): string {
   const mapping: Record<NextDecision, string> = {
     continue: 'enqueue_next_stage',
-    'refine-spec': 'update_spec',
-    'refine-code': 'update_spec_or_retry',
+    'refine-spec': 'patch_spec_or_update_spec',
+    'refine-code': 'read_visual_diagnostics_then_refine_code',
     'request-input': 'submit_images',
     stop: 'reply_summary'
   }
   return mapping[decision]
 }
 
-function runNextAction(run: PipelineRunEntity): string {
+export function runNextAction(run: PipelineRunEntity): string {
   if (run.status === 'queued' || run.status === 'running') return 'wait_run'
-  if (run.status === 'failed') return decisionToNextAction(run.nextDecision)
+  if (run.status === 'failed') {
+    // A stage worker/infrastructure failure leaves passed stages intact and is
+    // recoverable by retrying that immutable run. Semantic failures set an
+    // explicit refine decision and continue to route to the Agent.
+    if (run.nextDecision === 'continue') return 'retry_run'
+    return decisionToNextAction(run.nextDecision)
+  }
   if (run.status === 'completed' || run.status === 'cancelled') return 'reply_summary'
+  if (run.renderReport?.status === 'failed') {
+    const failure = run.renderReport.failure
+    // A later retry can overwrite the detailed build report with a transient
+    // Workspace visibility error. Preserve the safer refinement route whenever
+    // this immutable run has already recorded a Sandbox/source failure.
+    if (run.failureReasons.includes('SANDBOX_START_FAILED')) {
+      return 'read_visual_diagnostics_then_refine_code'
+    }
+    if (isAssistantSourceBuildFailure(failure)) return 'read_visual_diagnostics_then_refine_code'
+    if (failure?.retryable === true || isTransientWorkspaceInputVisibilityFailure(failure)) return 'retry_run'
+    return 'read_visual_diagnostics_then_refine_code'
+  }
+  if (
+    run.status === 'review_required' &&
+    (run.humanReviewStatus === 'approved' || run.humanReviewStatus === 'changes_requested')
+  ) {
+    return decisionToNextAction(run.nextDecision)
+  }
   return nextBuildStage(run.stageResults) ? 'enqueue_next_stage' : 'submit_review'
 }
 
-function projectNextAction(project: ModelProjectEntity): string {
+function projectNextAction(project: ModelProjectEntity, currentCodeReady: boolean): string {
   if (project.status === 'awaiting_images') return 'submit_images'
   if (project.status === 'awaiting_spec') return 'update_spec'
-  if (project.status === 'spec_ready') return 'enqueue_stage'
+  if (project.status === 'spec_ready') return currentCodeReady ? 'enqueue_stage' : 'author_code'
   return decisionToNextAction(project.nextDecision)
 }
 

@@ -384,7 +384,7 @@ function starterReferenceCamera(
   view: ReviewView,
   subjectHeight: number
 ): SculptSpec['referenceCamera'] {
-  const radius = Math.max(2.4, subjectHeight * 2.2)
+  const radius = Math.max(4, subjectHeight * 3.5)
   const positions: Record<ReviewView, [number, number, number]> = {
     front: [0, subjectHeight * 0.45, radius],
     back: [0, subjectHeight * 0.45, -radius],

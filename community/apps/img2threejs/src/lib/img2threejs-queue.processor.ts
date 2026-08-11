@@ -30,7 +30,16 @@ export class Img2ThreeJsQueueProcessor {
   constructor(private readonly service: Img2ThreeJsService) {}
 
   async handle(job: ManagedQueueJob<QueueStagePayload>): Promise<void> {
-    await this.service.processStage(scopeFromRequestContext(), job.data)
+    const scope = scopeFromRequestContext()
+    try {
+      await this.service.processStage(scope, job.data)
+    } catch (error) {
+      const attempts = Number(job.opts?.attempts ?? 1)
+      if (job.attemptsMade + 1 >= attempts) {
+        await this.service.recordStageProcessingFailure(scope, job.data, error)
+      }
+      throw error
+    }
   }
 }
 

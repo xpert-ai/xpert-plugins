@@ -28,7 +28,17 @@ files.sort((a, b) => a.relativePath.localeCompare(b.relativePath))
 const hash = createHash('sha256')
 for (const file of files) hash.update(`${file.relativePath}\0${file.size}\0${file.sha256}\n`)
 if (hash.digest('hex') !== manifest.bundleSha256) throw new Error('Sandbox Action tree hash does not match.')
-for (const required of ['runner.mjs', 'runtime-modules/esbuild/package.json', 'runtime-modules/three/build/three.module.js', 'runtime-modules/three/build/three.core.js']) {
+for (const required of [
+  'runner.mjs',
+  'runtime-modules/esbuild/package.json',
+  'runtime-modules/@esbuild/linux-x64/bin/esbuild',
+  'runtime-modules/@esbuild/linux-arm64/bin/esbuild',
+  'runtime-modules/@esbuild/darwin-arm64/bin/esbuild',
+  'runtime-modules/three/build/three.module.js',
+  'runtime-modules/three/build/three.core.js',
+  'runtime-modules/three/examples/jsm/exporters/GLTFExporter.js',
+  'runtime-modules/three/examples/jsm/environments/RoomEnvironment.js'
+]) {
   if (!(await stat(path.join(bundleRoot, required)).then((value) => value.isFile()).catch(() => false))) throw new Error(`Sandbox Action is missing ${required}.`)
 }
 process.stdout.write(`${JSON.stringify({ verified: true, files: files.length, bundleSha256: manifest.bundleSha256 })}\n`)

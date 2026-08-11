@@ -92,6 +92,12 @@ export class Img2ThreeJsWorkbenchService {
         width: number | null
         height: number | null
         confidence: number
+        foregroundCoverage: number | null
+        largestComponentFraction: number | null
+        maskConfidence: number | null
+        pHash: string | null
+        viewpointConfidence: number | null
+        requestInputReason: string | null
         previewFileKey: string
         previewUrl: string | null
       }>
@@ -128,9 +134,10 @@ export class Img2ThreeJsWorkbenchService {
       const spec = project.currentSpecVersionId
         ? await this.specs.findOne({ where: scopedIdWhere(scope, project.currentSpecVersionId) })
         : null
+      const currentCodeReady = await this.service.hasCurrentAssistantCode(scope, project, spec ?? undefined)
       selected = {
         project: {
-          ...statusDto(project, run),
+          ...statusDto(project, run, currentCodeReady),
           name: project.name,
           route: project.route,
           modelingMode: project.modelingMode,
@@ -145,6 +152,12 @@ export class Img2ThreeJsWorkbenchService {
           width: image.width,
           height: image.height,
           confidence: image.confidence,
+          foregroundCoverage: image.foregroundCoverage,
+          largestComponentFraction: image.largestComponentFraction,
+          maskConfidence: image.maskConfidence,
+          pHash: image.pHash,
+          viewpointConfidence: image.viewpointConfidence,
+          requestInputReason: image.requestInputReason,
           previewFileKey: image.id,
           previewUrl: await this.artifacts.createReferenceImagePreview(scope, {
             evidenceId: image.id,

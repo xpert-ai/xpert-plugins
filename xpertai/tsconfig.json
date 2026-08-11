@@ -13,7 +13,10 @@
       "path": "./integrations/firecrawl"
     },
     {
-      "path": "./integrations/mineru"
+      "path": "./documents/mineru"
+    },
+    {
+      "path": "./documents/baidu-ocr"
     },
     {
       "path": "./integrations/dify"
@@ -28,7 +31,7 @@
       "path": "./integrations/ragflow"
     },
     {
-      "path": "./integrations/unstructured"
+      "path": "./documents/unstructured"
     },
     {
       "path": "./packages/rag-vlm"
@@ -181,7 +184,7 @@
       "path": "./packages/vstore-weaviate"
     },
     {
-      "path": "./integrations/ocr-paddle"
+      "path": "./documents/ocr-paddle"
     },
     {
       "path": "./packages/vstore-chroma"
@@ -287,6 +290,12 @@
     },
     {
       "path": "./databases/redshift"
+    },
+    {
+      "path": "./models/kling"
+    },
+    {
+      "path": "./models/veo"
     }
   ]
 }
