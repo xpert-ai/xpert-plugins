@@ -1,70 +1,40 @@
-# Xpert Plugin: OpenAI-Compatible
+# Xpert Plugin: SiliconFlow
 
-## Overview
-
-`@xpert-ai/plugin-openai-compatible` bridges the [XpertAI](https://github.com/xpert-ai/xpert) agent platform with any model provider that exposes an OpenAI-compatible REST API. It centralises authentication, base URL management, and capability declarations so you can wire popular services (OpenAI, Together, LM Studio, local proxies, etc.) into XpertAI without writing bespoke adapters.
-
-## Core Features
-
-- Ships the `OpenAICompatiblePlugin` NestJS module, which automatically registers lifecycle hooks, logging, and configuration schema validation for the provider.
-- Exposes `OAIAPICompatLargeLanguageModel`, wrapping `ChatOAICompatReasoningModel` to invoke chat/completion style models with streaming, function-calling, and usage tracking support.
-- Provides `OAIAPICompatTextEmbeddingModel`, delegating embedding generation to LangChain's `OpenAIEmbeddings` so vectors work seamlessly with Retrieval-Augmented Generation pipelines.
-- Includes `OpenAICompatibleRerankModel` and `OpenAICompatibleSpeech2TextModel` to reuse OpenAI-compatible rerank and speech-to-text endpoints inside agent workflows.
-- Uses `OpenAICompatibleProviderStrategy` to normalise credentials (API key, custom base URL, model overrides) so all model types share a single configuration surface.
+SiliconFlow model provider plugin for the XpertAI platform. It provides SiliconFlow language, embedding, rerank, speech, text-to-speech, and Wan2.2 video capabilities.
 
 ## Installation
 
-```bash
-npm install @xpert-ai/plugin-openai-compatible
-```
+This plugin is included in the XpertAI plugins monorepo and can be loaded as `@xpert-ai/plugin-siliconflow`.
 
-> **Peer dependencies**: Ensure your host project already provides `@xpert-ai/plugin-sdk`, `@nestjs/common`, `@nestjs/config`, `@xpert-ai/contracts`, `@langchain/openai`, `chalk`, and `zod`. See `package.json` for exact version ranges.
+## Video Toolset
 
-## Enabling in XpertAI
+The `siliconflow_video` builtin toolset exposes:
 
-1. Add the package to the runtime that launches the XpertAI server.
-2. Declare the plugin in your environment (if you rely on env-driven loading):
-   ```bash
-   PLUGINS=@xpert-ai/plugin-openai-compatible
-   ```
-3. Restart the XpertAI service and configure a new model provider with type `openai-compatible`.
+- `siliconflow_video_submit`: submits Wan2.2 text-to-video or image-to-video requests.
+- `siliconflow_video_query`: polls a request and downloads completed MP4 files into the Xpert Workspace.
 
-## Credentials & Model Configuration
+Configure the toolset with a SiliconFlow API key. The default endpoint is `https://api.siliconflow.cn/v1`.
 
-The provider form defined in `src/openai-compatible.yaml` captures the most common OpenAI-style options:
+Supported video models:
 
-| Field | Description |
-| --- | --- |
-| `api_key` | API key or bearer token used in the `Authorization` header. Leave blank if your proxy does not require auth. |
-| `endpoint_url` | Base URL of the OpenAI-compatible REST API (e.g. `https://api.openai.com/v1`, `https://my-proxy/v1`). |
-| `endpoint_model_name` | Override for the actual model name deployed on the endpoint if it differs from the logical name stored in XpertAI. |
-| `mode` | Choose `chat` or `completion` when configuring LLM providers to match the endpoint behaviour. |
-| `context_size`, `max_tokens_to_sample` | Let the UI communicate default limits for prompts and generations. |
-| `streaming`, `stream_mode_delimiter`, `stream_mode_auth` | Fine-tune how streaming responses are requested and parsed. |
-| `function_calling_type`, `stream_function_calling` | Advertise whether the target model supports synchronous or streaming function/tool calls. |
-| `vision_support`, `structured_output_support` | Flag multimodal or JSON-mode capabilities so agent builders know which inputs are accepted. |
-| `language`, `initial_prompt`, `voices` | Additional options surfaced when configuring speech-to-text or (future) TTS models. |
+- `Wan-AI/Wan2.2-T2V-A14B` for text-to-video.
+- `Wan-AI/Wan2.2-I2V-A14B` for image-to-video.
 
-After you save a model configuration, the plugin runs `validateCredentials` for the relevant model class. It issues a lightweight call (`Hi` for chat, `ping` for embeddings, empty rerank requests, etc.) so credential errors surface immediately in the admin console.
+Generated MP4 files are saved under `files/siliconflow/videos` in the active project or Xpert scope. SiliconFlow video URLs are temporary, so the query tool downloads them immediately after a successful status response.
 
-## Model Capabilities
+## Credentials
 
-- **Large Language Models**: `OAIAPICompatLargeLanguageModel` creates a `ChatOAICompatReasoningModel`, automatically forwarding streaming callbacks and token usage metrics to the host copilot.
-- **Text Embeddings**: Reuses LangChain's `OpenAIEmbeddings`, allowing both semantic search and knowledge base ingestion to target custom OpenAI-style providers.
-- **Reranking**: Wraps `OpenAICompatibleReranker` to improve retrieval ordering via `/rerank` compatible APIs.
-- **Speech to Text**: Instantiates `Speech2TextChatModel` for OpenAI Whisper-compatible endpoints, with language and initial prompt controls exposed through the configuration schema.
+The existing model provider uses `api_key` and the optional endpoint selection. The video toolset has its own credential form so it can be configured per Workspace toolset.
 
-## Development & Debugging
-
-From the repository root run the Nx targets:
+## Development
 
 ```bash
-npx nx build @xpert-ai/plugin-openai-compatible
-npx nx test @xpert-ai/plugin-openai-compatible
+corepack pnpm -C xpertai exec nx build @xpert-ai/plugin-siliconflow --skip-nx-cache
+corepack pnpm -C xpertai exec nx test @xpert-ai/plugin-siliconflow --skip-nx-cache
 ```
 
-Compiled assets live in `dist/`. Test configuration is governed by `jest.config.ts`; asset copying before publish is handled by `scripts/copy-assets.mjs`.
+The plugin retains the existing SiliconFlow LLM, embedding, rerank, speech-to-text, and TTS providers.
 
 ## License
 
-This package inherits the repository's [AGPL-3.0 License](../../../LICENSE).
+AGPL-3.0

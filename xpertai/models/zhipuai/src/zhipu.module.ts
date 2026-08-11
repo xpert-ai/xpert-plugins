@@ -8,6 +8,7 @@ import chalk from 'chalk';
 import { ZhipuaiProviderStrategy } from './zhipuai.js';
 import { ZhipuAILargeLanguageModel } from './llm/llm.js';
 import { ZhipuaiTextEmbeddingModel } from './text-embedding/text-embedding.js';
+import { ZhipuCogVideoStrategy } from './cogvideo/strategy.js';
 
 @XpertServerPlugin({
   /**
@@ -15,7 +16,12 @@ import { ZhipuaiTextEmbeddingModel } from './text-embedding/text-embedding.js';
    */
   imports: [ConfigModule],
 
-  providers: [ZhipuaiProviderStrategy, ZhipuAILargeLanguageModel, ZhipuaiTextEmbeddingModel],
+  providers: [
+    ZhipuaiProviderStrategy,
+    ZhipuAILargeLanguageModel,
+    ZhipuaiTextEmbeddingModel,
+    ZhipuCogVideoStrategy,
+  ],
 })
 export class ZhipuAIModule implements IOnPluginBootstrap, IOnPluginDestroy {
   // We disable by default additional logging for each event to avoid cluttering the logs

@@ -527,6 +527,9 @@ export class SiliconflowLargeLanguageModel extends LargeLanguageModel {
   ): AIModelEntity | null {
     const contextLength = Number(credentials['context_size'] ?? credentials['context_length'] ?? 2048)
     const completionType = credentials['mode'] ?? credentials['completion_type'] ?? 'chat'
+    if (completionType !== 'chat' && completionType !== 'completion') {
+      throw new Error(`completion_type ${completionType} is not supported`)
+    }
 
     const rules: any[] = [
       {
@@ -562,11 +565,38 @@ export class SiliconflowLargeLanguageModel extends LargeLanguageModel {
     ]
 
     const features: ModelFeature[] = []
-    if (credentials['function_calling_type'] && credentials['function_calling_type'] !== 'no_call') {
+    const supportsFunctionCalling = 'function_calling_type' in credentials
+      ? credentials['function_calling_type'] !== 'no_call'
+      : credentials['support_function_call'] === true
+    if (supportsFunctionCalling) {
       features.push(ModelFeature.TOOL_CALL)
     }
-    if (credentials['vision_support'] === 'support') {
+    const supportsVision = 'vision_support' in credentials
+      ? credentials['vision_support'] === 'support'
+      : credentials['support_vision'] === true
+    if (supportsVision) {
       features.push(ModelFeature.VISION)
+    }
+
+    if (credentials['agent_though_support'] === 'supported' || credentials['agent_thought_support'] === 'supported') {
+      features.push(ModelFeature.AGENT_THOUGHT)
+    }
+
+    if (credentials['structured_output_support'] === 'supported') {
+      rules.push({
+        name: 'response_format',
+        label: {
+          en_US: 'Response Format',
+          zh_Hans: '回复格式'
+        },
+        type: ParameterType.STRING,
+        options: ['text', 'json_object', 'json_schema'],
+        required: false
+      })
+      rules.push({
+        name: 'json_schema',
+        use_template: 'json_schema'
+      })
     }
 
     rules.push({
