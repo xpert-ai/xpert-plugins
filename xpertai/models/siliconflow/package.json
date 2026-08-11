@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-siliconflow",
-  "version": "0.0.4",
+  "version": "0.0.6",
   "description": "SiliconFlow AI model plugin for XpertAI platform",
   "author": {
     "name": "XpertAI",
@@ -32,6 +32,7 @@
     "!**/*.tsbuildinfo"
   ],
   "scripts": {
+    "build": "tsc --build tsconfig.lib.json --force && node ./scripts/copy-assets.mjs",
     "prepack": "node ./scripts/copy-assets.mjs"
   },
   "dependencies": {
@@ -43,8 +44,9 @@
     "@xpert-ai/contracts": "^3.6.1",
     "@nestjs/common": "^11.1.6",
     "@nestjs/config": "^4.0.2",
-    "@xpert-ai/plugin-sdk": "^3.6.1",
+    "@xpert-ai/plugin-sdk": "^3.16.1",
     "chalk": "4.1.2",
+    "lodash-es": "4.17.21",
     "zod": "3.25.67"
   }
 }

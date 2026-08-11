@@ -7,6 +7,7 @@ import { SiliconflowRerankModel } from './rerank/rerank.js';
 import { SiliconflowSpeech2TextModel } from './speech2text/index.js';
 import { SiliconflowTextEmbeddingModel } from './text-embedding/text-embedding.js';
 import { SiliconflowTTSModel } from './tts/tts.js';
+import { SiliconflowVideoStrategy } from './video/strategy.js';
 
 @XpertServerPlugin({
   imports: [ConfigModule],
@@ -17,6 +18,7 @@ import { SiliconflowTTSModel } from './tts/tts.js';
     SiliconflowRerankModel,
     SiliconflowSpeech2TextModel,
     SiliconflowTTSModel,
+    SiliconflowVideoStrategy,
   ]
 })
 export class SiliconflowModule implements IOnPluginBootstrap, IOnPluginDestroy {

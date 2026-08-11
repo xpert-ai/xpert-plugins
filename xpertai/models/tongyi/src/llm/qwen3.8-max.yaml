@@ -1,5 +1,5 @@
 # this model corresponds to qwen3.8-max, for more details
-# please refer to (https://help.aliyun.com/zh/model-studio/getting-started/models#b356ab6cbdlyh)
+# please refer to (https://help.aliyun.com/zh/model-studio/qwen3-8-max)
 model: qwen3.8-max
 label:
   zh_Hans: qwen3.8-max
@@ -7,6 +7,8 @@ label:
 model_type: llm
 features:
   - vision
+  - video
+  - structured-output
   - multi-tool-call
   - agent-thought
   - stream-tool-call
@@ -17,16 +19,16 @@ parameter_rules:
   - name: temperature
     use_template: temperature
     type: float
-    default: 0.3
-    min: 0.0
-    max: 2.0
+    default: 0.6
+    min: 0.6
+    max: 1.99
     help:
       zh_Hans: 用于控制随机性和多样性的程度。具体来说，temperature 值控制了生成文本时对每个候选词的概率分布进行平滑的程度。较高的 temperature 值会降低概率分布的峰值，使得更多的低概率词被选择，生成结果更加多样化；而较低的 temperature 值则会增强概率分布的峰值，使得高概率词更容易被选择，生成结果更加确定。
       en_US: Used to control the degree of randomness and diversity. Specifically, the temperature value controls the degree to which the probability distribution of each candidate word is smoothed when generating text. A higher temperature value will reduce the peak value of the probability distribution, allowing more low-probability words to be selected, and the generated results will be more diverse; while a lower temperature value will enhance the peak value of the probability distribution, making it easier for high-probability words to be selected, the generated results are more certain.
   - name: max_tokens
     use_template: max_tokens
     type: int
-    default: 8192
+    default: 131072
     min: 1
     max: 131072
     help:
@@ -35,16 +37,17 @@ parameter_rules:
   - name: top_p
     use_template: top_p
     type: float
-    default: 0.8
-    min: 0.1
-    max: 0.9
+    default: null
+    min: 0.01
+    max: 1.0
     help:
       zh_Hans: 生成过程中核采样方法概率阈值，例如，取值为 0.8 时，仅保留概率加起来大于等于 0.8 的最可能 token 的最小集合作为候选集。取值范围为（0,1.0)，取值越大，生成的随机性越高；取值越低，生成的确定性越高。
       en_US: The probability threshold of the kernel sampling method during the generation process. For example, when the value is 0.8, only the smallest set of the most likely tokens with a sum of probabilities greater than or equal to 0.8 is retained as the candidate set. The value range is (0,1.0). The larger the value, the higher the randomness generated; the lower the value, the higher the certainty generated.
   - name: top_k
     type: int
     min: 0
-    max: 99
+    default: 20
+    max: 100
     label:
       zh_Hans: 取样数量
       en_US: Top k
@@ -55,6 +58,8 @@ parameter_rules:
     required: false
     type: int
     default: 1234
+    min: 0
+    max: 2147483647
     label:
       zh_Hans: 随机种子
       en_US: Random seed
@@ -64,7 +69,7 @@ parameter_rules:
   - name: repetition_penalty
     required: false
     type: float
-    default: 1.1
+    default: 1.05
     label:
       zh_Hans: 重复惩罚
       en_US: Repetition penalty
@@ -83,25 +88,27 @@ parameter_rules:
   - name: enable_thinking
     required: false
     type: boolean
-    default: false
+    default: true
     label:
       zh_Hans: 思考模式
       en_US: Thinking mode
     help:
       zh_Hans: 是否开启思考模式。
       en_US: Whether to enable thinking mode.
-  - name: thinking_budget
+  - name: reasoning_effort
     required: false
-    type: int
-    default: 2048
-    min: 1
-    max: 262144
+    type: string
+    default: xhigh
+    options:
+      - low
+      - medium
+      - xhigh
     label:
-      zh_Hans: 思考长度限制
-      en_US: Thinking budget
+      zh_Hans: 推理强度
+      en_US: Reasoning effort
     help:
-      zh_Hans: 思考过程的最大长度，只在思考模式为 true 时生效。
-      en_US: The maximum length of the thinking process, only effective when thinking mode is true.
+      zh_Hans: 思考模式的推理强度，分别对应 4096、16384 与 262144 个思维链 Token。
+      en_US: Reasoning effort, corresponding to 4096, 16384, or 262144 chain-of-thought tokens.
   - name: response_format
     label:
       zh_Hans: 回复格式
@@ -114,6 +121,9 @@ parameter_rules:
     options:
       - text
       - json_object
+      - json_schema
+  - name: json_schema
+    use_template: json_schema
   - name: extra_headers
     required: false
     type: string

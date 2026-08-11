@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-zhipuai",
-  "version": "0.0.5",
+  "version": "0.0.7",
   "repository": {
     "type": "git",
     "url": "https://github.com/xpert-ai/xpert-plugins"
@@ -31,7 +31,7 @@
   },
   "peerDependencies": {
     "zod": "3.25.67",
-    "@xpert-ai/plugin-sdk": "^3.7.2",
+    "@xpert-ai/plugin-sdk": "^3.16.1",
     "@langchain/core": "0.3.72",
     "@xpert-ai/contracts": "^3.7.0",
     "@nestjs/common": "^11.1.6",
