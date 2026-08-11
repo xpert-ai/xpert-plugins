@@ -62,7 +62,10 @@ tools, and portable Workspace file references.
 - Agent surface: native Agent middleware
 - Preview: the Workbench plays selected, scoped Workspace MP4 grants in shot
   order without creating a derived file; original clip audio remains audible.
-- Concurrency: optimistic integer revision
+- Concurrency: optimistic integer revision. The Workbench supplies the initial
+  revision, mutation receipts supply the next revision, and
+  `story_get_project_revision` provides a compact recovery read. Full project
+  summaries are read only when their business content is actually needed.
 - Scope: tenant required; organization, workspace, host project, Assistant, and
   conversation captured when available
 - Seedance boundary: the Assistant calls the configured Volcengine Toolset;

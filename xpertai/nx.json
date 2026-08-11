@@ -120,7 +120,9 @@
       "@xpert-ai/plugin-mariadb",
       "@xpert-ai/plugin-hive",
       "@xpert-ai/plugin-mssql",
-      "@xpert-ai/plugin-redshift"
+      "@xpert-ai/plugin-redshift",
+      "@xpert-ai/plugin-kling",
+      "@xpert-ai/plugin-veo"
     ],
     "version": {
       "preVersionCommand": "npx nx run-many -t build && npx nx run-many -t prepack"

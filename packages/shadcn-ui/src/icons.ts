@@ -8,6 +8,7 @@ export {
   Copy,
   Download,
   EyeOff,
+  FileAudio2,
   FileJson,
   Image,
   Maximize2,
@@ -26,6 +27,7 @@ export {
   Trash2,
   Undo2,
   Upload,
+  WandSparkles,
   ZoomIn,
   ZoomOut
 } from 'lucide-react'

@@ -9,6 +9,7 @@ import {
   deleteEpisode,
   deleteScene,
   deleteShot,
+  selectPrimaryAssetImageCandidate,
   updateAsset,
   updateEpisode,
   updateScene,
@@ -100,6 +101,51 @@ describe('director production CRUD', () => {
     expect(deleteAsset(production, `asset-${kind}`)).toBe(true)
   })
 
+  it('changes the primary asset image only when the selection is different', () => {
+    const production = fixture()
+    production.assets.push({
+      id: 'asset-location',
+      kind: 'location',
+      name: '旧影棚外',
+      description: '雨夜外景',
+      prompt: '电影级雨夜旧影棚',
+      negativePrompt: null,
+      continuityNotes: null,
+      categoryDetails: createEmptyAssetDetails(),
+      candidates: [
+        imageCandidate('candidate-wide', 'wide', true),
+        imageCandidate('candidate-reverse', 'reverse', false)
+      ]
+    })
+
+    const unchanged = structuredClone(production)
+    expect(
+      selectPrimaryAssetImageCandidate(
+        production,
+        'asset-location',
+        'candidate-wide'
+      )
+    ).toBe(false)
+    expect(production).toEqual(unchanged)
+
+    expect(
+      selectPrimaryAssetImageCandidate(
+        production,
+        'asset-location',
+        'candidate-reverse'
+      )
+    ).toBe(true)
+    expect(production.assets[0].candidates.map((candidate) => candidate.selected))
+      .toEqual([false, true])
+    expect(
+      selectPrimaryAssetImageCandidate(
+        production,
+        'asset-location',
+        'candidate-reverse'
+      )
+    ).toBe(false)
+  })
+
   it('accepts an Assistant suggestion only after explicit user action', () => {
     const production = fixture()
     expect(acceptAdaptationSuggestion(production, 'suggestion-1')).toBe(true)
@@ -125,6 +171,27 @@ function shotDraft(title: string): Omit<Shot, 'id' | 'candidates'> {
     colorTone: '冷暖对比',
     weather: '雨夜',
     durationSeconds: 5
+  }
+}
+
+function imageCandidate(
+  id: string,
+  key: 'wide' | 'reverse',
+  selected: boolean
+) {
+  return {
+    id,
+    kind: 'image' as const,
+    label: key,
+    selected,
+    fileUrl: `https://media.example/${id}.png`,
+    workspacePath: `/workspace/${id}.png`,
+    originalName: `${id}.png`,
+    size: 1024,
+    sha256: null,
+    prompt: null,
+    providerReceipt: null,
+    assetReference: { type: 'continuity_view' as const, key }
   }
 }
 

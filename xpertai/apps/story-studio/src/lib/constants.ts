@@ -24,6 +24,7 @@ export const AGENT_WORKBENCH_FIXED_SLOT = 'agent.workbench.fixed'
 export const STORY_CREATE_PROJECT_TOOL_NAME = 'story_create_project'
 export const STORY_SEARCH_PROJECTS_TOOL_NAME = 'story_search_projects'
 export const STORY_GET_PROJECT_SUMMARY_TOOL_NAME = 'story_get_project_summary'
+export const STORY_GET_PROJECT_REVISION_TOOL_NAME = 'story_get_project_revision'
 export const STORY_UPDATE_PROJECT_TOOL_NAME = 'story_update_project'
 export const STORY_UPDATE_PROJECT_STATUS_TOOL_NAME = 'story_update_project_status'
 export const STORY_REPORT_FAILURE_TOOL_NAME = 'story_report_failure'
@@ -66,6 +67,7 @@ export const STORY_STUDIO_MIDDLEWARE_TOOL_NAMES = [
   STORY_CREATE_PROJECT_TOOL_NAME,
   STORY_SEARCH_PROJECTS_TOOL_NAME,
   STORY_GET_PROJECT_SUMMARY_TOOL_NAME,
+  STORY_GET_PROJECT_REVISION_TOOL_NAME,
   STORY_UPDATE_PROJECT_TOOL_NAME,
   STORY_UPDATE_PROJECT_STATUS_TOOL_NAME,
   STORY_REPORT_FAILURE_TOOL_NAME,

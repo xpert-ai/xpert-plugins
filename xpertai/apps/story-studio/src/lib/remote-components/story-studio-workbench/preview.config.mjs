@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -5,6 +6,9 @@ const componentRoot = dirname(fileURLToPath(import.meta.url))
 const platformRoot = resolve(componentRoot, '../../../../../../../../xpert')
 const tinyPreviewImage =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z4KAAAAAASUVORK5CYII='
+const uploadedPreviewImage = `data:image/png;base64,${readFileSync(
+  resolve(componentRoot, 'src/assets/lin-wan-portrait.png')
+).toString('base64')}`
 
 const projects = [
   project({
@@ -144,6 +148,40 @@ export default {
 
     if (
       message.type === 'executeFileAction' &&
+      message.actionKey === 'upload_voice_reference_audio'
+    ) {
+      const input = message.input ?? {}
+      const current = state.projects.find((item) => item.id === input.projectId)
+      const production = state.productionByProject[input.projectId]
+      const asset = production?.assets.find((item) => item.id === input.assetId)
+      if (!current || !production || asset?.kind !== 'character') {
+        throw new Error('Preview character asset was not found.')
+      }
+      const voiceReference = {
+        url: 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=',
+        label: input.label,
+        workspacePath: `/workspace/story-studio/${current.id}/voice-references/${input.referenceId}.wav`,
+        originalName: message.file?.name ?? `${input.referenceId}.wav`,
+        mimeType: message.file?.type ?? 'audio/wav',
+        size: message.file?.size ?? 44
+      }
+      state.actions.push({
+        actionKey: message.actionKey,
+        projectId: current.id,
+        assetId: asset.id,
+        referenceId: input.referenceId
+      })
+      return {
+        result: {
+          success: true,
+          refresh: false,
+          data: { projectId: current.id, voiceReference }
+        }
+      }
+    }
+
+    if (
+      message.type === 'executeFileAction' &&
       (message.actionKey === 'upload_asset_image' ||
         message.actionKey === 'upload_shot_reference_image')
     ) {
@@ -212,22 +250,35 @@ export default {
       if (current.revision !== input.baseRevision) {
         return revisionConflict(current.revision)
       }
-      asset.candidates = asset.candidates.map((candidate) => ({
+      const sameReference = (left, right) => {
+        if (!left || !right || left.type !== right.type) return false
+        return left.type === 'general' || left.key === right.key
+      }
+      const previousCandidateCount = asset.candidates.length
+      const sourceCandidates = input.replaceReference && input.assetReference
+        ? asset.candidates.filter((candidate) =>
+            !sameReference(candidate.assetReference, input.assetReference)
+          )
+        : asset.candidates
+      asset.candidates = sourceCandidates.map((candidate) => ({
         ...candidate,
-        selected: candidate.kind === 'image' ? false : candidate.selected
+        selected:
+          input.select !== false && candidate.kind === 'image'
+            ? false
+            : candidate.selected
       }))
       asset.candidates.push({
         id: input.candidateId,
         kind: 'image',
         label: input.label,
-        selected: true,
-        fileUrl:
-          'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z4KAAAAAASUVORK5CYII=',
+        selected: input.select !== false,
+        fileUrl: uploadedPreviewImage,
         workspacePath: `/workspace/story-studio/${current.id}/asset-bible/${input.candidateId}.png`,
         originalName: message.file?.name ?? `${input.candidateId}.png`,
         mimeType: message.file?.type ?? 'image/png',
         size: message.file?.size ?? 68,
         prompt: input.prompt ?? null,
+        assetReference: input.assetReference ?? { type: 'general' },
         providerReceipt: {
           provider: 'manual_upload',
           taskId: input.operationId,
@@ -236,14 +287,18 @@ export default {
         }
       })
       current.revision += 1
-      current.counts.candidates += 1
-      production.counts.candidates += 1
-      production.counts.selectedCandidates += 1
+      const candidateDelta = asset.candidates.length - previousCandidateCount
+      current.counts.candidates += candidateDelta
+      production.counts.candidates += candidateDelta
+      if (input.select !== false) production.counts.selectedCandidates += 1
       state.actions.push({
         actionKey: message.actionKey,
         projectId: current.id,
         assetId: asset.id,
         candidateId: input.candidateId,
+        assetReference: input.assetReference,
+        replaceReference: input.replaceReference === true,
+        select: input.select !== false,
         revision: current.revision
       })
       return {
@@ -378,6 +433,7 @@ export default {
           projectId: input.projectId,
           takeCount: input.takeCount,
           referenceAssetIds: input.referenceAssetIds,
+          referenceImageCandidateIds: input.referenceImageCandidateIds,
           operationId: input.operationId
         })
         return { result: { success: true, data: { tasks } } }
@@ -699,6 +755,7 @@ function project(input) {
     },
     availableReads: [
       'story_get_project_summary',
+      'story_get_project_revision',
       'story_search_projects'
     ],
     nextAction: nextAction(input.status || 'draft')

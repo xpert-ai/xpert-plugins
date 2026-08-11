@@ -2,6 +2,7 @@ import type { MessageKey } from './i18n'
 import type { ProjectSummary } from './project-data'
 import type {
   Asset,
+  AssetReference,
   HandoffView,
   ProductionView
 } from './production-data'
@@ -10,6 +11,7 @@ import type {
   VideoGeneratorCatalog
 } from './video-generation-data'
 import type { AssetReferenceSet } from './asset-reference-data'
+import type { VoiceReferenceLike } from '../../../voice-reference.js'
 
 export type DirectorTranslator = (
   key: MessageKey,
@@ -47,7 +49,19 @@ export type DirectorWorkbenchProps = {
     focusText: string
   }) => void
   onGenerateAsset: (asset: Asset, referenceSet: AssetReferenceSet) => void
-  onUploadAsset: (asset: Asset, file: File) => void
+  onUploadAsset: (
+    asset: Asset,
+    file: File,
+    options?: AssetImageUploadOptions
+  ) => Promise<void>
+  onUploadAssetBatch: (
+    asset: Asset,
+    uploads: AssetImageUpload[]
+  ) => Promise<void>
+  onUploadVoiceReference: (
+    asset: Asset,
+    file: File
+  ) => Promise<VoiceReferenceLike | null>
   onUploadShotReference: (
     sceneId: string,
     shotId: string,
@@ -66,6 +80,7 @@ export type DirectorWorkbenchProps = {
     fps: number
     takeCount: number
     referenceAssetIds: string[]
+    referenceImageCandidateIds: string[]
     redoScope?: string
   }) => void
   onSetVideoGenerator: (toolsetId: string) => void
@@ -78,6 +93,14 @@ export type DirectorWorkbenchProps = {
   ) => void
   onHandoff: () => void
 }
+
+export type AssetImageUploadOptions = {
+  assetReference?: AssetReference
+  select?: boolean
+  replaceReference?: boolean
+}
+
+export type AssetImageUpload = AssetImageUploadOptions & { file: File }
 
 export const DIRECTOR_STAGE = {
   script: 4,

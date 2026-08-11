@@ -74,6 +74,12 @@ export const getStoryProjectSummarySchema = z
   })
   .strict()
 
+export const getStoryProjectRevisionSchema = z
+  .object({
+    projectId: projectIdSchema
+  })
+  .strict()
+
 export const updateStoryProjectSchema = z
   .object({
     projectId: projectIdSchema,
@@ -82,7 +88,9 @@ export const updateStoryProjectSchema = z
       .number()
       .int()
       .min(1)
-      .describe('Current revision returned by story_get_project_summary.'),
+      .describe(
+        'Current revision from Workbench context, the latest mutation receipt, or story_get_project_revision.'
+      ),
     title: boundedString(160).optional(),
     description: z.string().trim().max(2_000).nullable().optional(),
     premise: z.string().trim().max(8_000).nullable().optional(),

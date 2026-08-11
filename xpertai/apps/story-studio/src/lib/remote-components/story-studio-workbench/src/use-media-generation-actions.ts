@@ -25,6 +25,7 @@ type GenerateTakesInput = {
   fps: number
   takeCount: number
   referenceAssetIds: string[]
+  referenceImageCandidateIds: string[]
   redoScope?: string
 }
 
@@ -69,6 +70,7 @@ export function useMediaGenerationActions(options: {
           aspectRatio: input.aspectRatio,
           fps: input.fps,
           referenceAssetIds: input.referenceAssetIds,
+          referenceImageCandidateIds: input.referenceImageCandidateIds,
           durationSeconds: Math.max(2, Math.min(30, Math.round(shot.durationSeconds))),
           generateAudio: true,
           ...(input.redoScope ? { redoScope: input.redoScope } : {})

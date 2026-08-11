@@ -229,17 +229,19 @@ button.director-project-title {
 .director-account-menu {
   background: white;
   border: 1px solid var(--director-line);
-  border-radius: 8px;
-  box-shadow: 0 16px 42px rgba(20, 24, 33, 0.14);
+  border-radius: 12px;
+  box-shadow:
+    0 22px 60px rgba(20, 24, 33, 0.16),
+    0 4px 14px rgba(20, 24, 33, 0.08);
   position: absolute;
   z-index: 60;
 }
 
 .director-project-menu {
-  left: 22px;
-  padding: 8px;
-  top: 52px;
-  width: 310px;
+  left: 20px;
+  padding: 10px;
+  top: 54px;
+  width: min(370px, calc(100vw - 32px));
 }
 
 .director-project-menu header,
@@ -247,63 +249,97 @@ button.director-project-title {
   align-items: center;
   display: flex;
   justify-content: space-between;
-  padding: 6px;
 }
 
-.director-project-menu header button {
-  background: transparent;
-  border: 0;
+.director-project-menu header {
+  border-bottom: 1px solid var(--director-line);
+  min-height: 38px;
+  padding: 2px 8px 8px;
+}
+
+.director-project-menu header strong {
   color: var(--director-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
 }
 
-.director-project-menu > button {
+.director-project-menu-count {
+  align-items: center;
+  background: var(--director-soft);
+  border-radius: 999px;
+  color: var(--director-muted);
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 700;
+  height: 22px;
+  justify-content: center;
+  min-width: 22px;
+  padding: 0 7px;
+}
+
+.director-project-menu-list {
+  max-height: min(430px, calc(100vh - 190px));
+  overflow-y: auto;
+  padding: 6px 0;
+  scrollbar-gutter: stable;
+}
+
+.director-project-menu-list > button {
   align-items: center;
   background: white;
-  border: 0;
-  border-radius: 6px;
+  border: 1px solid transparent;
+  border-radius: 10px;
   cursor: pointer;
   display: grid;
   gap: 10px;
-  grid-template-columns: 34px minmax(0, 1fr) 18px;
-  padding: 8px;
+  grid-template-columns: 38px minmax(0, 1fr) 18px;
+  min-height: 58px;
+  padding: 9px 10px;
   text-align: left;
+  transition: background-color 140ms ease, border-color 140ms ease;
   width: 100%;
 }
 
-.director-project-menu > button:hover,
-.director-project-menu > button.is-selected {
-  background: var(--director-blue-soft);
+.director-project-menu-list > button:hover {
+  background: var(--director-soft);
+  border-color: color-mix(in srgb, var(--director-line) 75%, transparent);
 }
 
-.director-project-menu > button > span {
+.director-project-menu-list > button.is-selected {
+  background: var(--director-blue-soft);
+  border-color: color-mix(in srgb, var(--director-blue) 22%, transparent);
+}
+
+.director-project-menu-list > button > span {
   align-items: center;
   background: #ecefff;
-  border-radius: 6px;
+  border-radius: 8px;
   color: var(--director-blue);
   display: flex;
   font-weight: 700;
-  height: 34px;
+  height: 38px;
   justify-content: center;
 }
 
-.director-project-menu > button div {
+.director-project-menu-list > button div {
   display: grid;
   gap: 2px;
   min-width: 0;
 }
 
-.director-project-menu > button strong,
-.director-project-menu > button small {
+.director-project-menu-list > button strong,
+.director-project-menu-list > button small {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.director-project-menu > button small {
+.director-project-menu-list > button small {
   color: var(--director-muted);
 }
 
-.director-project-menu > button svg {
+.director-project-menu-list > button svg {
   color: var(--director-blue);
   height: 16px;
   width: 16px;
@@ -311,8 +347,12 @@ button.director-project-title {
 
 .director-project-menu footer {
   border-top: 1px solid var(--director-line);
-  gap: 6px;
-  margin-top: 6px;
+  gap: 8px;
+  padding: 10px 2px 0;
+}
+
+.director-project-menu footer button {
+  flex: 1;
 }
 
 .director-account-menu {
@@ -398,7 +438,7 @@ button.director-project-title {
 
 @media (max-width: 1100px) {
   .director-topbar {
-    grid-template-columns: minmax(220px, 1fr) auto minmax(280px, 1fr);
+    grid-template-columns: minmax(170px, 1fr) auto minmax(118px, 1fr);
   }
   .director-primary-nav {
     gap: 4px;
@@ -409,7 +449,20 @@ button.director-project-title {
   .director-budget b {
     display: none;
   }
+  .director-top-status .is-saved,
+  .director-budget {
+    display: none;
+  }
   .director-top-status {
-    gap: 12px;
+    gap: 10px;
+    padding-right: 12px;
+  }
+  .director-project-switcher {
+    padding-left: 16px;
+  }
+  .director-primary-nav button {
+    font-size: 14px;
+    min-width: 52px;
+    padding-inline: 5px;
   }
 }

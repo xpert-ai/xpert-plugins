@@ -69,6 +69,15 @@ export interface GetStoryProjectSummaryInput {
   expectedRevision?: number
 }
 
+export interface GetStoryProjectRevisionInput {
+  projectId: string
+}
+
+export interface StoryProjectRevision {
+  projectId: string
+  revision: number
+}
+
 export interface UpdateStoryProjectInput {
   projectId: string
   operationId: string

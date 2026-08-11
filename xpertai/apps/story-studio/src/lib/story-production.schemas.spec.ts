@@ -285,6 +285,49 @@ describe('Story production schemas', () => {
     })
   })
 
+  it('normalizes a JSON-encoded generated asset reference at the Agent tool boundary', () => {
+    const parsed = attachGeneratedAssetImageSchema.parse({
+      projectId: '00000000-0000-4000-8000-000000000001',
+      operationId: 'seedream:asset:string-reference',
+      baseRevision: 4,
+      assetId: 'asset-lin',
+      candidateId: 'seedream-image-task-string',
+      label: 'Lin front continuity reference',
+      assetReference: '{"type":"continuity_view","key":"front"}',
+      file: '/workspace/files/seedream-aigc/images/task-string.png',
+      providerReceipt: {
+        provider: 'seedream_aigc',
+        taskId: 'task-image-string',
+        status: 'completed'
+      },
+      select: true,
+      changeSummary: 'Attached Lin front continuity reference'
+    })
+
+    expect(parsed.assetReference).toEqual({
+      type: 'continuity_view',
+      key: 'front'
+    })
+  })
+
+  it('requires generated images to target an exact asset slot', () => {
+    expect(() => attachGeneratedAssetImageSchema.parse({
+      projectId: '00000000-0000-4000-8000-000000000001',
+      operationId: 'seedream:asset:missing-reference',
+      baseRevision: 4,
+      assetId: 'asset-lin',
+      candidateId: 'seedream-image-missing-reference',
+      label: 'Lin continuity reference',
+      file: '/workspace/files/seedream-aigc/images/task-missing.png',
+      providerReceipt: {
+        provider: 'seedream_aigc',
+        taskId: 'task-image-missing',
+        status: 'completed'
+      },
+      changeSummary: 'Attached Lin continuity reference'
+    })).toThrow()
+  })
+
   it('accepts a temporary shot reference upload', () => {
     const parsed = attachShotReferenceImageSchema.parse({
       projectId: '00000000-0000-4000-8000-000000000001',

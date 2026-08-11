@@ -123,6 +123,10 @@ export type VoiceReference = {
   label: string
   license: string | null
   sourceUrl: string | null
+  workspacePath?: string | null
+  originalName?: string | null
+  mimeType?: string | null
+  size?: number | null
 }
 
 export type Character = {
@@ -188,6 +192,7 @@ export type ShotVideoSettings = {
   fps: number | null
   takeCount: number | null
   referenceAssetIds: string[]
+  referenceImageCandidateIds?: string[]
 }
 
 export type Scene = {
@@ -505,7 +510,11 @@ function parseVoiceReference(value: RemoteValue): VoiceReference | null {
     url,
     label,
     license: nullableString(value, 'license'),
-    sourceUrl: nullableString(value, 'sourceUrl')
+    sourceUrl: nullableString(value, 'sourceUrl'),
+    workspacePath: nullableString(value, 'workspacePath'),
+    originalName: nullableString(value, 'originalName'),
+    mimeType: nullableString(value, 'mimeType'),
+    size: numberField(value, 'size')
   }
 }
 
@@ -628,6 +637,12 @@ function parseShotVideoSettings(value: RemoteValue): ShotVideoSettings | null {
     takeCount: numberField(value, 'takeCount'),
     referenceAssetIds: arrayField(value, 'referenceAssetIds').filter(
       (item): item is string => typeof item === 'string'
+    ),
+    referenceImageCandidateIds: arrayField(
+      value,
+      'referenceImageCandidateIds'
+    ).filter(
+      (item): item is string => typeof item === 'string'
     )
   }
 }
@@ -717,6 +732,18 @@ export function productionActionDocument(
                     : {}),
                   ...(character.voiceReference.sourceUrl?.trim()
                     ? { sourceUrl: character.voiceReference.sourceUrl.trim() }
+                    : {}),
+                  ...(character.voiceReference.workspacePath?.trim()
+                    ? { workspacePath: character.voiceReference.workspacePath.trim() }
+                    : {}),
+                  ...(character.voiceReference.originalName?.trim()
+                    ? { originalName: character.voiceReference.originalName.trim() }
+                    : {}),
+                  ...(character.voiceReference.mimeType?.trim()
+                    ? { mimeType: character.voiceReference.mimeType.trim() }
+                    : {}),
+                  ...(character.voiceReference.size
+                    ? { size: character.voiceReference.size }
                     : {})
                 }
               }
@@ -781,6 +808,12 @@ export function productionActionDocument(
                     ? {
                         referenceAssetIds:
                           shot.videoSettings.referenceAssetIds
+                      }
+                    : {}),
+                  ...(shot.videoSettings.referenceImageCandidateIds?.length
+                    ? {
+                        referenceImageCandidateIds:
+                          shot.videoSettings.referenceImageCandidateIds
                       }
                     : {})
                 }

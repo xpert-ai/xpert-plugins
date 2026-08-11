@@ -12,6 +12,7 @@ export type ShotGenerationSettingsState = {
   fps: number
   takeCount: number
   referenceAssetIds: string[]
+  referenceImageCandidateIds: string[]
 }
 
 export function resolveShotGenerationSettings(
@@ -45,7 +46,14 @@ export function resolveShotGenerationSettings(
       : 1,
     referenceAssetIds: saved
       ? validReferenceAssetIds(saved.referenceAssetIds, production.assets)
-      : inferReferenceAssetIds(production, scene, shot)
+      : inferReferenceAssetIds(production, scene, shot),
+    referenceImageCandidateIds: saved
+      ? validReferenceImageCandidateIds(
+          saved.referenceImageCandidateIds ?? [],
+          saved.referenceAssetIds,
+          production.assets
+        )
+      : []
   }
 }
 
@@ -105,6 +113,22 @@ function validReferenceAssetIds(ids: string[], assets: Asset[]) {
     assets
       .filter((asset) => asset.kind === 'character' || asset.kind === 'location')
       .map((asset) => asset.id)
+  )
+  return ids.filter((id, index) => valid.has(id) && ids.indexOf(id) === index)
+}
+
+function validReferenceImageCandidateIds(
+  ids: string[],
+  assetIds: string[],
+  assets: Asset[]
+) {
+  const selectedAssets = new Set(assetIds)
+  const valid = new Set(
+    assets
+      .filter((asset) => selectedAssets.has(asset.id))
+      .flatMap((asset) => asset.candidates)
+      .filter((candidate) => candidate.kind === 'image')
+      .map((candidate) => candidate.id)
   )
   return ids.filter((id, index) => valid.has(id) && ids.indexOf(id) === index)
 }

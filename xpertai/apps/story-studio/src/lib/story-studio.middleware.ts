@@ -25,6 +25,7 @@ import {
   STORY_GET_PRODUCTION_TOOL_NAME,
   STORY_LIST_ADAPTATION_SUGGESTIONS_TOOL_NAME,
   STORY_GET_CUT_HANDOFF_TOOL_NAME,
+  STORY_GET_PROJECT_REVISION_TOOL_NAME,
   STORY_GET_PROJECT_SUMMARY_TOOL_NAME,
   STORY_REPORT_FAILURE_TOOL_NAME,
   STORY_RECORD_CUT_HANDOFF_TOOL_NAME,
@@ -54,6 +55,7 @@ import { stringifyStoryAgentResult } from './story-agent-response.js'
 import { defineStoryAgentTool } from './story-agent-tool.factory.js'
 import {
   createStoryProjectSchema,
+  getStoryProjectRevisionSchema,
   getStoryProjectSummarySchema,
   reportStoryFailureSchema,
   searchStoryProjectsSchema,
@@ -89,6 +91,7 @@ import type {
   AttachGeneratedVideoInput,
   GetStoryProductionInput,
   SaveStoryProductionInput,
+  StoryAssetReference,
   StartStoryProductionInput,
   UpsertStoryProductionSceneInput,
   UpsertStoryProductionShotInput
@@ -107,6 +110,7 @@ import {
 } from './story-adaptation-suggestion.schemas.js'
 import type {
   CreateStoryProjectInput,
+  GetStoryProjectRevisionInput,
   GetStoryProjectSummaryInput,
   ReportStoryFailureInput,
   SearchStoryProjectsInput,
@@ -218,8 +222,21 @@ export class StoryStudioMiddleware
           {
             name: STORY_GET_PROJECT_SUMMARY_TOOL_NAME,
             description:
-              'Get one exact Story Studio project summary and current revision. Call this immediately before planning a project mutation.',
+              'Read one exact Story Studio project summary for metadata, status, counts, and planning context. Do not call this only to obtain a revision; use Workbench context, a mutation receipt, or story_get_project_revision instead.',
             schema: getStoryProjectSummarySchema,
+            verboseParsingErrors: true
+          }
+        ),
+        defineStoryAgentTool(
+          async (input: GetStoryProjectRevisionInput) =>
+            stringifyStoryAgentResult(
+              await this.service.getProjectRevision(scope, input)
+            ),
+          {
+            name: STORY_GET_PROJECT_REVISION_TOOL_NAME,
+            description:
+              'Return only {projectId, revision} for lightweight optimistic-concurrency synchronization. Prefer the Workbench revision for the first mutation and each successful mutation receipt for the next one. Call this only when no trusted revision is available or a conflict response did not expose currentRevision.',
+            schema: getStoryProjectRevisionSchema,
             verboseParsingErrors: true
           }
         ),
@@ -231,7 +248,7 @@ export class StoryStudioMiddleware
           {
             name: STORY_UPDATE_PROJECT_TOOL_NAME,
             description:
-              'Update bounded Story Studio project metadata using the exact baseRevision from story_get_project_summary. Reuse operationId only when retrying the identical mutation.',
+              'Update bounded Story Studio project metadata using the current baseRevision from Workbench context, the latest mutation receipt, or story_get_project_revision. Reuse operationId only when retrying the identical payload.',
             schema: updateStoryProjectSchema,
             verboseParsingErrors: true
           }
@@ -263,14 +280,16 @@ export class StoryStudioMiddleware
           }
         ),
         defineStoryAgentTool(
-          async (input: SaveStoryProductionInput) =>
-            stringifyStoryAgentResult(
-              await this.production.saveProduction(scope, input)
-            ),
+          async (input: SaveStoryProductionInput) => {
+            const result = await this.production.saveProduction(scope, input)
+            return stringifyStoryAgentResult(
+              compactProductionMutationReceipt(result, input.operationId)
+            )
+          },
           {
             name: STORY_SAVE_PRODUCTION_TOOL_NAME,
             description:
-              'Save a complete, reviewable production document containing source synopsis, adaptation goal, visual style, characters, ordered scenes, shots, and optional media candidates. Use the exact current project revision. This mutation does not imply human approval.',
+              'Save a complete, reviewable production document containing source synopsis, adaptation goal, visual style, characters, ordered scenes, shots, and optional media candidates. Use the current baseRevision from Workbench context, a content read, or the latest mutation receipt; do not read the project summary only for revision. This mutation does not imply human approval.',
             schema: saveStoryProductionSchema,
             verboseParsingErrors: true
           }
@@ -296,7 +315,7 @@ export class StoryStudioMiddleware
           {
             name: STORY_START_PRODUCTION_TOOL_NAME,
             description:
-              'Create the first saved Story Studio production document for a project that does not yet have one. Call story_get_project_summary first and use its exact baseRevision. Provide the production basis, declared characters, and exactly one firstScene. Shots use dialogue: { text, speakerId, type } only for spoken text; omit dialogue or pass null for silent/action shots. If production already exists, use story_upsert_production_scene or story_upsert_production_shot instead.',
+              'Create the first saved Story Studio production document for a project that does not yet have one. Use the current baseRevision from Workbench context, project creation/search, or story_get_project_revision. Provide the production basis, declared characters, and exactly one firstScene. Shots use dialogue: { text, speakerId, type } only for spoken text; omit dialogue or pass null for silent/action shots. If production already exists, use story_upsert_production_scene or story_upsert_production_shot instead.',
             schema: startStoryProductionSchema,
             verboseParsingErrors: true
           }
@@ -309,7 +328,7 @@ export class StoryStudioMiddleware
           {
             name: STORY_UPSERT_PRODUCTION_SCENE_TOOL_NAME,
             description:
-              'Create or replace one complete scene in an existing saved Story Studio production document. Call story_get_project_summary and story_get_production first, then pass the current baseRevision. Shots use dialogue: { text, speakerId, type } only when the shot has spoken text; omit dialogue or pass null for silent/action shots. This preserves existing media candidates on matching shot ids.',
+              'Create or replace one complete scene in an existing saved Story Studio production document. Read story_get_production when scene content is needed, then use its projectRevision or the latest mutation receipt as baseRevision. Do not read the project summary only for revision. Shots use dialogue: { text, speakerId, type } only when the shot has spoken text; omit dialogue or pass null for silent/action shots. This preserves existing media candidates on matching shot ids.',
             schema: upsertStoryProductionSceneSchema,
             verboseParsingErrors: true
           }
@@ -322,7 +341,7 @@ export class StoryStudioMiddleware
           {
             name: STORY_UPSERT_PRODUCTION_SHOT_TOOL_NAME,
             description:
-              'Create or patch one shot inside an existing saved Story Studio scene. Call story_get_project_summary and story_get_production first, then pass the current baseRevision and exact sceneId. For dialogue, pass dialogue: { text, speakerId, type }; pass dialogue=null to clear speech. Never use dialogueSpeakerId to mean the visible character in a silent shot.',
+              'Create or patch one shot inside an existing saved Story Studio scene. Read story_get_production when shot content or ids are needed, then use its projectRevision or the latest mutation receipt as baseRevision. Do not read the project summary only for revision. For dialogue, pass dialogue: { text, speakerId, type }; pass dialogue=null to clear speech. Never use dialogueSpeakerId to mean the visible character in a silent shot.',
             schema: upsertStoryProductionShotSchema,
             verboseParsingErrors: true
           }
@@ -348,7 +367,7 @@ export class StoryStudioMiddleware
           {
             name: STORY_CREATE_ADAPTATION_SUGGESTION_TOOL_NAME,
             description:
-              'Create one reviewable AI adaptation suggestion for an exact episode and optional scene/shot. Read the latest project revision first. This writes only the suggestion card; it never rewrites or accepts the script automatically.',
+              'Create one reviewable AI adaptation suggestion for an exact episode and optional scene/shot. Use projectRevision from the production read or the latest mutation receipt as baseRevision. This writes only the suggestion card; it never rewrites or accepts the script automatically.',
             schema: createStoryAdaptationSuggestionSchema,
             verboseParsingErrors: true
           }
@@ -361,7 +380,7 @@ export class StoryStudioMiddleware
           {
             name: STORY_UPDATE_ADAPTATION_SUGGESTION_TOOL_NAME,
             description:
-              'Update the text, reason, or review status of one exact adaptation suggestion using the current project revision. Do not claim the episode script changed unless a separate production save succeeds.',
+              'Update the text, reason, or review status of one exact adaptation suggestion using the latest mutation receipt revision or story_get_project_revision when needed. Do not claim the episode script changed unless a separate production save succeeds.',
             schema: updateStoryAdaptationSuggestionSchema,
             verboseParsingErrors: true
           }
@@ -374,13 +393,23 @@ export class StoryStudioMiddleware
           {
             name: STORY_DELETE_ADAPTATION_SUGGESTION_TOOL_NAME,
             description:
-              'Delete one exact adaptation suggestion after explicit user intent. Read the latest project revision first and provide a concise user-visible changeSummary.',
+              'Delete one exact adaptation suggestion after explicit user intent. Use the latest mutation receipt revision or story_get_project_revision when needed, and provide a concise user-visible changeSummary.',
             schema: deleteStoryAdaptationSuggestionSchema,
             verboseParsingErrors: true
           }
         ),
         defineStoryAgentTool(
           async (input: AttachGeneratedAssetImageInput) => {
+            const parsedInput = attachGeneratedAssetImageSchema.parse(input)
+            const normalizedInput: AttachGeneratedAssetImageInput = {
+              ...input,
+              assetReference: normalizeParsedAssetReference(
+                parsedInput.assetReference
+              ),
+              replaceReference:
+                parsedInput.replaceReference ??
+                parsedInput.assetReference.type !== 'general'
+            }
             const files = context.runtime.capabilities?.require(
               WorkspaceFilesRuntimeCapability
             )
@@ -390,28 +419,29 @@ export class StoryStudioMiddleware
               )
             }
             const file = await files.readRuntimeBuffer(
-              input.file as Parameters<
+              normalizedInput.file as Parameters<
                 typeof files.readRuntimeBuffer
               >[0]
             )
             const durableFile = await persistGeneratedAssetImage(
               files,
-              input,
+              normalizedInput,
               file
             )
-            const { file: _file, ...attachment } = input
+            const { file: _file, ...attachment } = normalizedInput
+            const result = await this.production.attachAssetImage(
+              scope,
+              attachment,
+              durableFile
+            )
             return stringifyStoryAgentResult(
-              await this.production.attachAssetImage(
-                scope,
-                attachment,
-                durableFile
-              )
+              compactAssetImageMutationReceipt(result, attachment)
             )
           },
           {
             name: STORY_ATTACH_GENERATED_ASSET_IMAGE_TOOL_NAME,
             description:
-              'Attach one completed Seedream image from the current Agent Workspace to an exact Story Studio asset-bible entry. Read the latest project revision first. Pass the workspacePath returned by seedream_text_to_image, its task id/model/status receipt, the exact assetId, and an explicit assetReference describing continuity_view, expression, or general usage. Use select=true only for the primary continuity view. Never pass base64 or a provider URL.',
+              'Attach exactly one completed Seedream image from the current Agent Workspace to one exact Story Studio asset-bible slot. assetReference is required and must be a nested object, never a JSON-encoded string. For a four-view or four-expression job, call this tool four times sequentially with four distinct slot references and use each successful receipt.revision as the next call baseRevision; do not fetch the project summary between calls. Use the workspacePath generated for that same slot only. Set replaceReference=true for named continuity_view or expression slots. Example: {"assetReference":{"type":"continuity_view","key":"front"},"select":true,"replaceReference":true}. Use select=true only for the primary continuity view and select=false for all other views and expressions. On a revision conflict, use currentRevision from the error or call story_get_project_revision once, then retry only the failed slot. Never pass base64, a provider URL, or one contact-sheet image for multiple slots.',
             schema: attachGeneratedAssetImageSchema,
             verboseParsingErrors: true
           }
@@ -447,7 +477,7 @@ export class StoryStudioMiddleware
           {
             name: STORY_ATTACH_GENERATED_VIDEO_TOOL_NAME,
             description:
-              'Attach one completed Seedance MP4 from the current Agent Workspace to an exact production shot. Read the latest Story Studio project revision first. Pass the workspacePath returned by seedance_video_query, its task id/model/status receipt, and select=true to make this video the shot render source. Never pass base64 or a provider URL.',
+              'Attach one completed Seedance MP4 from the current Agent Workspace to an exact production shot. Use the Workbench revision for the first attachment and each successful receipt revision for the next; do not read the project summary only for revision. Pass the workspacePath returned by seedance_video_query, its task id/model/status receipt, and select=true to make this video the shot render source. Never pass base64 or a provider URL.',
             schema: attachGeneratedVideoSchema,
             verboseParsingErrors: true
           }
@@ -610,6 +640,23 @@ export class StoryStudioMiddleware
       }
     }
   }
+}
+
+type ParsedGeneratedAssetReference = ReturnType<
+  typeof attachGeneratedAssetImageSchema.parse
+>['assetReference']
+
+function normalizeParsedAssetReference(
+  reference: ParsedGeneratedAssetReference
+): StoryAssetReference {
+  if (reference.type === 'general') return { type: 'general' }
+  if (reference.type === 'continuity_view' && reference.key) {
+    return { type: 'continuity_view', key: reference.key }
+  }
+  if (reference.type === 'expression' && reference.key) {
+    return { type: 'expression', key: reference.key }
+  }
+  throw new Error('Generated assetReference was not normalized correctly.')
 }
 
 async function persistGeneratedAssetImage(
@@ -799,6 +846,7 @@ function summarizeToolInput(args: StoryToolArgs) {
 
 function summarizeToolOutput(value: unknown) {
   const candidates = collectToolOutputObjects(value)
+  let statusOnlySummary: Record<string, unknown> | undefined
   for (const candidate of candidates) {
     const summary = pickCompactFields(candidate, [
       'success',
@@ -817,11 +865,60 @@ function summarizeToolOutput(value: unknown) {
       'revision',
       'status'
     ])
-    if (Object.keys(summary).length) {
+    const keys = Object.keys(summary)
+    if (keys.some((key) => key !== 'status')) {
       return summary
     }
+    if (keys.length && !statusOnlySummary) {
+      statusOnlySummary = summary
+    }
   }
-  return undefined
+  return statusOnlySummary
+}
+
+type ProductionMutationResult = Awaited<
+  ReturnType<StoryProductionService['saveProduction']>
+>
+
+function compactProductionMutationReceipt(
+  result: ProductionMutationResult,
+  operationId: string
+) {
+  return {
+    success: result.success,
+    duplicate: result.duplicate,
+    operationId,
+    projectId: result.projectId,
+    revision: result.revision,
+    documentRevision: result.production.documentRevision,
+    counts: result.production.counts,
+    totalDurationSeconds: result.production.totalDurationSeconds
+  }
+}
+
+function compactAssetImageMutationReceipt(
+  result: Awaited<ReturnType<StoryProductionService['attachAssetImage']>>,
+  input: Pick<
+    AttachGeneratedAssetImageInput,
+    | 'operationId'
+    | 'assetId'
+    | 'candidateId'
+    | 'assetReference'
+    | 'select'
+  >
+) {
+  return {
+    success: result.success,
+    duplicate: result.duplicate,
+    operationId: input.operationId,
+    projectId: result.projectId,
+    revision: result.revision,
+    documentRevision: result.production.documentRevision,
+    assetId: input.assetId,
+    candidateId: input.candidateId,
+    assetReference: input.assetReference,
+    selected: input.select ?? true
+  }
 }
 
 function collectToolOutputObjects(value: unknown) {

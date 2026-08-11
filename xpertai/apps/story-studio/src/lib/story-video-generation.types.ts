@@ -87,6 +87,7 @@ export interface GenerateStoryShotTakesInput {
   fps: number
   durationSeconds: number
   referenceAssetIds?: string[]
+  referenceImageCandidateIds?: string[]
   generateAudio?: boolean
   redoScope?: 'performance' | 'camera' | 'lighting'
 }
