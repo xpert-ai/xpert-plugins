@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-vstore-chroma",
-  "version": "4.0.1",
+  "version": "4.0.2",
   "description": "Chroma vector store plugin for XpertAI.",
   "author": {
     "name": "XpertAI",
