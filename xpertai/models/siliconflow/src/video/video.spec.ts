@@ -60,6 +60,15 @@ describe('SiliconFlow video toolset', () => {
         size: 3,
         catalog: 'xperts' as const,
         buffer: Buffer.from('png')
+      })),
+      readRuntimeBuffer: jest.fn(async (input) => ({
+        name: input.originalName || input.name || 'reference.png',
+        filePath: input.filePath || input.workspacePath || input.path || 'files/reference.png',
+        workspacePath: input.workspacePath || input.filePath || input.path || 'files/reference.png',
+        mimeType: input.mimeType || input.mimetype || 'image/png',
+        size: 3,
+        catalog: 'xperts' as const,
+        buffer: Buffer.from('png')
       }))
     }
   })
@@ -114,8 +123,36 @@ describe('SiliconFlow video toolset', () => {
       image_size: '720x1280',
       image: 'data:image/png;base64,cG5n'
     }))
-    expect(workspaceFiles.readBuffer).toHaveBeenCalledWith(expect.objectContaining({
+    expect(workspaceFiles.readRuntimeBuffer).toHaveBeenCalledWith(expect.objectContaining({
       filePath: 'files/reference.png'
+    }))
+  })
+
+  it('parses a JSON-encoded image descriptor and prefers its Workspace path', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({
+      requestId: 'request-json-image',
+      status: 'InQueue'
+    }))
+
+    const submit = getTool('siliconflow_video_submit')
+    await invokeTool(submit, {
+      input_image_file: JSON.stringify({
+        file_id: 'storage-1',
+        workspacePath: '/workspace/sessions/conversation-1/files/asset-1/reference.jpg',
+        url: 'https://example.com/reference.jpg',
+        mimeType: 'image/jpeg'
+      }),
+      prompt: 'The subject moves naturally'
+    })
+
+    expect(workspaceFiles.readRuntimeBuffer).toHaveBeenCalledWith(expect.objectContaining({
+      filePath: '/workspace/sessions/conversation-1/files/asset-1/reference.jpg',
+      mimeType: 'image/jpeg'
+    }))
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const request = fetchMock.mock.calls[0]?.[1]
+    expect(JSON.parse(String(request?.body))).toEqual(expect.objectContaining({
+      image: 'data:image/jpeg;base64,cG5n'
     }))
   })
 
