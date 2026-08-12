@@ -22,6 +22,7 @@ export type CutActionType =
   | 'cut_project_created'
   | 'cut_project_saved'
   | 'cut_media_imported'
+  | 'cut_media_removed'
   | 'cut_edit_applied'
   | 'cut_edit_batch_applied'
   | 'cut_version_finalized'

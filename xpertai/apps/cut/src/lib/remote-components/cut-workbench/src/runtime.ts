@@ -140,7 +140,7 @@ function receiveMessage(event: MessageEvent) {
     }
     configureCutDebug(context.debug)
     cutDebug.debug('bridge.init', { locale: context.locale, hasManifest: Boolean(context.manifest), debugEnabled: context.debug?.enabled === true })
-    ;(window as RemoteWindow).XpertRemoteUI?.applyTheme?.(message.theme)
+    applyTheme(message.theme)
     contextListeners.forEach((listener) => listener(context))
     window.setTimeout(reportResize, 0)
     return
@@ -152,7 +152,7 @@ function receiveMessage(event: MessageEvent) {
     return
   }
   if (['theme', 'themeChanged', 'hostThemeChanged'].includes(String(message.type ?? ''))) {
-    ;(window as RemoteWindow).XpertRemoteUI?.applyTheme?.(message.theme)
+    applyTheme(message.theme ?? message.payload)
     return
   }
   if (message.requestId) {
@@ -167,4 +167,26 @@ function receiveMessage(event: MessageEvent) {
       item.resolve(message)
     }
   }
+}
+
+function applyTheme(theme: RemoteValue | undefined) {
+  ;(window as RemoteWindow).XpertRemoteUI?.applyTheme?.(theme)
+  const record = isRemoteObject(theme) ? theme : {}
+  const mode = typeof theme === 'string'
+    ? theme
+    : typeof record['mode'] === 'string'
+      ? record['mode']
+      : 'light'
+  const tokens = isRemoteObject(record['tokens']) ? record['tokens'] : {}
+  document.documentElement.classList.toggle('dark', mode === 'dark')
+  document.documentElement.dataset['theme'] = mode === 'dark' ? 'dark' : 'light'
+  for (const [key, value] of Object.entries(tokens)) {
+    if (typeof value === 'string' || typeof value === 'number') {
+      document.documentElement.style.setProperty(`--xui-${toKebabCase(key)}`, String(value))
+    }
+  }
+}
+
+function toKebabCase(value: string) {
+  return value.replace(/[A-Z]/g, (character) => `-${character.toLowerCase()}`)
 }

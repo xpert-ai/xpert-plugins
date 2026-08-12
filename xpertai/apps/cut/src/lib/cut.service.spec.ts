@@ -141,6 +141,17 @@ describe('CutService scoped persistence and Workspace Files', () => {
     })
     expect(media.rows).toHaveLength(1)
 
+    const removable = await service.uploadMedia(scope, projectId, {
+      buffer: Buffer.from('<svg id="unused"/>'), originalName: 'unused.svg', mimeType: 'image/svg+xml', size: 18
+    }, 5, imported.project.revision, 'Imported removable media.')
+    expect(media.rows).toHaveLength(2)
+    const removed = await service.deleteMediaAsset(
+      scope, projectId, removable.media.id!, removable.project.revision, 'Removed unused media from the library.'
+    )
+    expect(removed).toMatchObject({ success: true, removed: true, projectId, mediaAssetId: removable.media.id, workspaceFileDeleted: true })
+    expect(media.rows).toHaveLength(1)
+    expect(deleteFile).toHaveBeenCalledWith(expect.objectContaining({ filePath: `files/cut/${projectId}/media/unused.svg` }))
+
     const iframeDocument = appendCutMediaClip(imported.document, {
       id: 'gate-clip', name: 'gate.svg', type: 'image', mediaAssetId: imported.media.id!,
       source: imported.media.fileReference, duration: 5
@@ -154,6 +165,9 @@ describe('CutService scoped persistence and Workspace Files', () => {
     expect(saved.document.tracks[0]!.clips[0]!.source?.source).toBe('platform.workspace.files')
     expect(saved.document.tracks[0]!.clips[0]!.start).toBe(2)
     expect(saved.document.tracks[0]!.clips[0]!.previewUrl).toBeUndefined()
+    await expect(service.deleteMediaAsset(
+      scope, projectId, imported.media.id!, saved.project.revision, 'Do not remove media still used by the timeline.'
+    )).rejects.toThrow('Remove this media from the timeline')
 
     await expect(service.resolveMediaFile(scope, projectId, imported.media.id!)).resolves.toMatchObject({
       fileName: 'gate.svg',
@@ -298,7 +312,7 @@ describe('CutService scoped persistence and Workspace Files', () => {
     analysisJobs.rows.push(activeJob)
     await expect(service.deleteProject(scope, projectId, batch.project.revision)).rejects.toThrow('Cancel active Cut tasks')
     expect(projects.rows).toHaveLength(1)
-    expect(deleteFile).not.toHaveBeenCalled()
+    expect(deleteFile).toHaveBeenCalledTimes(1)
 
     activeJob.status = 'cancelled'
     mediaSegments.rows.push(Object.assign(new CutMediaSegment(), { tenantId: scope.tenantId, organizationId: scope.organizationId, cutProjectId: projectId }))
@@ -319,8 +333,8 @@ describe('CutService scoped persistence and Workspace Files', () => {
     expect(transcriptSegments.rows).toHaveLength(0)
     expect(captionDrafts.rows).toHaveLength(0)
     expect(editProposals.rows).toHaveLength(0)
-    expect(deleteFile).toHaveBeenCalledTimes(1)
-    expect(deleteFile).toHaveBeenCalledWith(expect.objectContaining({ filePath: `files/cut/${projectId}` }))
+    expect(deleteFile).toHaveBeenCalledTimes(2)
+    expect(deleteFile).toHaveBeenLastCalledWith(expect.objectContaining({ filePath: `files/cut/${projectId}` }))
     await expect(service.getProject(scope, projectId)).rejects.toThrow('current tenant and organization')
   })
 })

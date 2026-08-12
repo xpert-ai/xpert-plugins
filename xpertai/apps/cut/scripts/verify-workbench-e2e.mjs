@@ -75,6 +75,44 @@ try {
   if (mediaPanelTitle !== 'Library' || !headerSearchVisible || !paneOwnsScroll) {
     throw new Error(`Cut library header/scroll layout is invalid: ${JSON.stringify({ mediaPanelTitle, headerSearchVisible, paneOwnsScroll })}`)
   }
+  const installedTheme = await frame.locator('html').evaluate((element) => ({
+    token: element.style.getPropertyValue('--xui-color-border').trim(),
+    mode: element.dataset.theme,
+    headerBorder: getComputedStyle(document.querySelector('.cut-header')).borderBottomColor
+  }))
+  if (installedTheme.token !== 'rgb(12, 34, 56)' || installedTheme.mode !== 'light' || installedTheme.headerBorder !== 'rgb(12, 34, 56)') {
+    throw new Error(`Cut host theme tokens were not installed: ${JSON.stringify(installedTheme)}`)
+  }
+
+  const removableCard = frame.locator('.media-card').filter({ hasText: 'unused-e2e.svg' })
+  const mediaCopyLayout = await removableCard.evaluate((element) => {
+    const card = element.getBoundingClientRect()
+    const copy = element.querySelector('.media-card-copy')?.getBoundingClientRect()
+    return {
+      cardWidth: card.width,
+      copyWidth: copy?.width ?? 0,
+      paddingRight: getComputedStyle(element).paddingRight
+    }
+  })
+  if (mediaCopyLayout.copyWidth < 96 || Number.parseFloat(mediaCopyLayout.paddingRight) > 8) {
+    throw new Error(`Cut media copy does not use the available narrow-panel width: ${JSON.stringify(mediaCopyLayout)}`)
+  }
+  const removableActions = removableCard.locator('.media-card-actions')
+  const actionsBeforeHover = await removableActions.evaluate((element) => ({
+    position: getComputedStyle(element).position,
+    opacity: getComputedStyle(element).opacity,
+    right: getComputedStyle(element).right
+  }))
+  if (actionsBeforeHover.position !== 'absolute' || actionsBeforeHover.opacity !== '0' || actionsBeforeHover.right === 'auto') {
+    throw new Error(`Cut media hover actions are not positioned and hidden correctly: ${JSON.stringify(actionsBeforeHover)}`)
+  }
+  await removableCard.hover()
+  await frame.getByRole('button', { name: 'Remove from library: unused-e2e.svg', exact: true }).click()
+  await frame.getByRole('button', { name: 'Remove media', exact: true }).click()
+  await removableCard.waitFor({ state: 'detached' })
+  const mediaHoverRemoval = await page.evaluate(() => window.__cutHost.mediaRemoved === true)
+  if (!mediaHoverRemoval) throw new Error('Cut media removal did not reach the host action.')
+  console.log('cut-e2e: host theme and hover-only media removal verified')
 
   await page.waitForFunction(() => window.__cutHost.assistantContext?.context?.currentProject?.id === window.__cutHost.item.id)
   const assistantContextSynchronization = await page.evaluate(() => {
@@ -105,6 +143,17 @@ try {
     throw new Error(`Cut source preview lost its intrinsic aspect ratio: ${sourcePreviewAspect}`)
   }
   await frame.getByRole('button', { name: 'Back to timeline', exact: true }).click()
+  const aspectSelect = frame.getByRole('combobox', { name: 'Canvas aspect ratio', exact: true })
+  await aspectSelect.click()
+  await frame.getByRole('option', { name: '9:16', exact: true }).click()
+  await frame.getByText('1080 × 1920', { exact: true }).waitFor()
+  await aspectSelect.click()
+  await frame.getByRole('option', { name: '16:9', exact: true }).click()
+  await frame.getByText('1920 × 1080', { exact: true }).waitFor()
+  await frame.getByRole('button', { name: 'Save', exact: true }).click()
+  await frame.getByText('Unsaved', { exact: true }).waitFor({ state: 'detached' })
+  const canvasAspectRatioControl = await page.evaluate(() => window.__cutHost.document.settings.width === 1920 && window.__cutHost.document.settings.height === 1080)
+  if (!canvasAspectRatioControl) throw new Error('Cut canvas aspect ratio changes were not persisted through the save action.')
   console.log('cut-e2e: source media preview aspect verified')
 
   await frame.locator('input[type="file"][accept="video/*,audio/*,image/*"]').setInputFiles({
@@ -435,6 +484,10 @@ try {
     futureVideoStartedAtCut,
     localMediaIntelligence,
     libraryHeaderAndContentScroll: mediaPanelTitle === 'Library' && headerSearchVisible && paneOwnsScroll,
+    hostThemeVariables: installedTheme,
+    mediaCopyUsesAvailableWidth: mediaCopyLayout.copyWidth >= 96,
+    mediaHoverRemoval,
+    canvasAspectRatioControl,
     classicToolRail: classicToolTabCount === 10,
     mediaDragDrop,
     mediaDropCreatedTrack,
@@ -478,7 +531,7 @@ function hostHtml(useRealWhisper) {
   const baseClip={id:'clip-1',type:'image',name:'E2E Still',start:0,duration:5,trimIn:0,trimOut:5,mediaAssetId:'media-1',previewUrl:'/test.svg',transform:{x:0,y:0,width:1920,height:1080,rotation:0,opacity:1}};
   const baseAudio={id:'audio-clip-1',type:'audio',name:'E2E Tone',start:0,duration:3,trimIn:0,trimOut:3,previewUrl:'/test.wav',volume:.25,playbackRate:1};
   const state={
-    exportSize:0,exportHasAudio:false,lastError:'',proposalApplied:false,lastUploadDuration:null,lastUploadOriginalName:null,assistantContext:null,deleted:false,deleteRequests:0,createRequests:0,staleRenderReads:0,
+    exportSize:0,exportHasAudio:false,lastError:'',proposalApplied:false,lastUploadDuration:null,lastUploadOriginalName:null,assistantContext:null,deleted:false,deleteRequests:0,createRequests:0,staleRenderReads:0,mediaRemoved:false,
     document:{schemaVersion:1,settings:{width:1920,height:1080,fps:30,durationSeconds:30,background:'#080b12'},tracks:[{id:'video-1',name:'Video 1',kind:'visual',muted:false,hidden:false,clips:[baseClip]},{id:'audio-1',name:'Audio 1',kind:'audio',muted:false,hidden:false,clips:[baseAudio]}]},
     item:{id:'11111111-1111-4111-8111-111111111111',title:'Cut 30-second E2E',brief:'Gate verification',status:'draft',revision:1,currentVersionNumber:0},
     captionDrafts:[],captionPage:null,transcriptSegments:[],mediaSegments:[],editProposals:[],proposalPage:null,proposalSourceDocument:null,analysisJobs:[],exports:[],renderPolls:0,
@@ -500,7 +553,7 @@ function hostHtml(useRealWhisper) {
   window.__cutHost=state;
   const frame=document.getElementById('cut-frame');
   frame.srcdoc='<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="/app.css"></head><body><div id="root"></div><script src="/react.js"><\\/script><script src="/react-dom.js"><\\/script>${whisperWorkerFactory}<script src="/app.js"><\\/script></body></html>';
-  function detail(){return {item:{...state.item},document:structuredClone(state.document),media:[{id:'media-1',originalName:'cut-e2e.svg',mimeType:'image/svg+xml',size:512,previewUrl:'/test.svg'},{id:'media-audio',originalName:'cut-e2e.wav',mimeType:'audio/wav',size:264644,duration:3,previewUrl:'${whisperMediaUrl}'}],versions:[],exports:structuredClone(state.exports),logs:[]}}
+  function detail(){return {item:{...state.item},document:structuredClone(state.document),media:[{id:'media-1',originalName:'cut-e2e.svg',mimeType:'image/svg+xml',size:512,previewUrl:'/test.svg'},{id:'media-audio',originalName:'cut-e2e.wav',mimeType:'audio/wav',size:264644,duration:3,previewUrl:'${whisperMediaUrl}'},...(!state.mediaRemoved?[{id:'media-unused',originalName:'unused-e2e.svg',mimeType:'image/svg+xml',size:256,previewUrl:'/test.svg'}]:[])],versions:[],exports:structuredClone(state.exports),logs:[]}}
   function workbenchData(analysisJobs=state.analysisJobs){return {projects:{items:[{...state.item}],total:1,page:1,pageSize:20},detail:detail(),captionDrafts:structuredClone(state.captionDrafts),analysisJobs:structuredClone(analysisJobs),mediaSegments:structuredClone(state.mediaSegments),editProposals:structuredClone(state.editProposals),renderCapability:{available:true,backend:'sandbox-job',action:'cut.render-mp4',actionVersion:'1.1.5',runtimeProfile:'browser/playwright-1.61/v1',workerCount:1,limits:{maxVariants:5,maxDurationSeconds:600,maxFrames:18000,maxWidth:3840,maxHeight:2160,maxFps:60,maxMediaBytes:4294967296}}}}
   function viewData(){
     if(state.deleted)return {projects:{items:[],total:0,page:1,pageSize:20},detail:null,captionDrafts:[],analysisJobs:[],mediaSegments:[],editProposals:[],renderCapability:{available:true,backend:'sandbox-job',limits:{maxVariants:5,maxDurationSeconds:600,maxFrames:18000,maxWidth:3840,maxHeight:2160,maxFps:60,maxMediaBytes:4294967296}}};
@@ -511,7 +564,7 @@ function hostHtml(useRealWhisper) {
   function reply(message,payload){frame.contentWindow.postMessage({channel,protocolVersion:1,instanceId,type:'response',requestId:message.requestId,payload},'*')}
   function sendHostEvent(toolName){frame.contentWindow.postMessage({channel,protocolVersion:1,instanceId,type:'hostEvent',event:{event:'assistant.tool.completed',data:{toolName}}},'*')}
   window.addEventListener('message',(event)=>{const message=event.data;if(!message||message.channel!==channel)return;
-    if(message.type==='ready'){frame.contentWindow.postMessage({channel,protocolVersion:1,instanceId,type:'init',locale:'en_US',initialQuery:{selectionId:state.item.id}},'*');return}
+    if(message.type==='ready'){frame.contentWindow.postMessage({channel,protocolVersion:1,instanceId,type:'init',locale:'en_US',theme:{mode:'light',tokens:{colorBorder:'rgb(12, 34, 56)'}},initialQuery:{selectionId:state.item.id}},'*');return}
     if(message.type==='requestData'){reply(message,viewData());return}
     if(message.type==='requestFileAccess'){
       const file=message.purpose==='download'?{url:'/download.mp4',fileName:'headless-e2e.mp4',mimeType:'video/mp4',size:25}:message.fileKey==='media-audio'?{url:'${whisperMediaUrl}',fileName:'cut-e2e.wav',mimeType:'audio/wav',size:264644}:{url:'/test.svg',fileName:'cut-e2e.svg',mimeType:'image/svg+xml',size:512};
@@ -527,6 +580,7 @@ function hostHtml(useRealWhisper) {
     if(message.type==='executeAction'){
       if(message.actionKey==='cut_create_project'){state.createRequests++;state.item={...state.item,title:message.input.title,revision:1};reply(message,detail());return}
       if(message.actionKey==='cut_delete_project'){state.deleted=true;state.deleteRequests++;reply(message,{success:true,deleted:true,projectId:state.item.id,workspaceFilesDeleted:true});return}
+      if(message.actionKey==='cut_delete_media_asset'){state.mediaRemoved=true;reply(message,{success:true,removed:true,projectId:state.item.id,mediaAssetId:message.input.mediaAssetId,revision:state.item.revision,workspaceFileDeleted:true});return}
       if(message.actionKey==='cut_save_project'){state.document=structuredClone(message.input.document);state.item.revision++;reply(message,{success:true,project:{...state.item},document:structuredClone(state.document)});return}
       if(message.actionKey==='cut_finalize_version'){state.item.currentVersionNumber++;reply(message,{success:true,project:{...state.item}});return}
       if(message.actionKey==='cut_start_headless_export'){

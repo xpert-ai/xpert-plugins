@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Button } from '@xpert-ai/plugin-shadcn-ui'
-import { Film, Image, Music2, Plus, Sparkles } from 'lucide-react'
+import { Film, Image, Music2, Plus, Sparkles, Trash2 } from 'lucide-react'
 import { cutMediaDrawRect, fitCutStage } from '../../../cut-media-layout'
 import {
   timelineVideoThumbnailSamples,
@@ -35,6 +35,8 @@ export function MediaCard({
   dragKey,
   onSelect,
   onAdd,
+  onRemove,
+  removeDisabled = false,
   onToggleAnalysis,
   t
 }: {
@@ -46,10 +48,12 @@ export function MediaCard({
   dragKey: string
   onSelect: () => void
   onAdd: () => void
+  onRemove: () => void
+  removeDisabled?: boolean
   onToggleAnalysis?: () => void
   t: Translator
 }) {
-  return <div role="button" tabIndex={0} aria-pressed={selected} className={`media-card ${selected ? 'selected' : ''}`} draggable onDragStart={(event) => {
+  return <div role="button" tabIndex={0} aria-pressed={selected} className={`media-card group relative ${selected ? 'selected' : ''}`} draggable onDragStart={(event) => {
     event.dataTransfer.effectAllowed = 'copy'
     event.dataTransfer.setData(dragType, dragKey)
   }} onClick={onSelect} onKeyDown={(event) => {
@@ -59,7 +63,7 @@ export function MediaCard({
   }} title={`${t('previewMedia')}: ${asset.originalName}`}>
     <MediaThumbnail asset={asset} />
     <span className="media-card-copy"><strong>{asset.originalName}</strong><small>{formatBytes(asset.size)}</small></span>
-    <span className="media-card-actions">
+    <span className="media-card-actions pointer-events-none absolute right-1 top-1/2 z-10 flex -translate-y-1/2 items-center gap-0.5 rounded-md border border-border bg-background/95 p-0.5 opacity-0 shadow-sm transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
       {analysisAvailable && <Button
         variant={analysisOpen ? 'secondary' : 'ghost'}
         size="icon-xs"
@@ -76,6 +80,10 @@ export function MediaCard({
         event.stopPropagation()
         onAdd()
       }}><Plus /></Button>
+      <Button variant="ghost" size="icon-xs" className="text-destructive hover:bg-destructive/10 hover:text-destructive" title={removeDisabled ? t('mediaInUse') : t('removeMedia')} aria-label={`${t('removeMedia')}: ${asset.originalName}`} disabled={removeDisabled} onClick={(event) => {
+        event.stopPropagation()
+        onRemove()
+      }}><Trash2 /></Button>
     </span>
   </div>
 }
