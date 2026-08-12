@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-dingtalk-sso",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "DingTalk OAuth sign-in and account binding for Xpert.",
   "author": {
     "name": "XpertAI"
