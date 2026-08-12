@@ -47,6 +47,7 @@
     "projects": [
       "@xpert-ai/plugin-lark",
       "@xpert-ai/plugin-lark-sso",
+      "@xpert-ai/plugin-dingtalk-sso",
       "@xpert-ai/plugin-gitcode",
       "@xpert-ai/plugin-modelscope",
       "@xpert-ai/plugin-firecrawl",
