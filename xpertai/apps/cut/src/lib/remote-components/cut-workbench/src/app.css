@@ -1,5 +1,19 @@
+@import "tailwindcss" source(none);
+
+@source "./**/*.{ts,tsx}";
+
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--border, var(--xui-color-border, #e4e4e7));
+  }
+}
+
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
   --cut-panel: var(--card);
   --cut-panel-strong: color-mix(in oklch, var(--card), var(--foreground) 3%);
   --cut-canvas: color-mix(in oklch, var(--background), black 18%);
@@ -13,6 +27,8 @@
   --cut-speech-selection: #14b8a6;
   font-family: var(--font-sans);
 }
+
+.dark { color-scheme: dark; }
 
 * { box-sizing: border-box; }
 html, body, #root { min-height: 100%; margin: 0; background: var(--background); color: var(--foreground); }
@@ -88,7 +104,7 @@ button, input, select { font: inherit; }
 .empty-card { margin: 6px 0; padding: 14px 10px; border: 1px dashed var(--border); border-radius: var(--radius); color: var(--muted-foreground); line-height: 1.5; text-align: center; }
 .hidden-input, .export-canvas, .stage-audio { display: none; }
 .media-grid { display: grid; gap: 5px; }
-.media-card { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 7px; width: 100%; padding: 4px; border: 1px solid transparent; border-radius: calc(var(--radius) - 2px); outline: none; background: transparent; color: var(--foreground); text-align: left; cursor: pointer; }
+.media-card { display: grid; grid-template-columns: 42px minmax(0, 1fr); align-items: center; gap: 7px; width: 100%; padding: 4px; border: 1px solid transparent; border-radius: calc(var(--radius) - 2px); outline: none; background: transparent; color: var(--foreground); text-align: left; cursor: pointer; }
 .media-card:hover { border-color: var(--border); background: var(--muted); }
 .media-card.selected { border-color: var(--ring); background: color-mix(in oklch, var(--primary), transparent 92%); }
 .media-card:focus-visible { box-shadow: 0 0 0 2px color-mix(in oklch, var(--ring), transparent 45%); }
@@ -96,9 +112,6 @@ button, input, select { font: inherit; }
 .media-card strong, .media-card small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .media-card strong { font-size: 11px; font-weight: 600; }
 .media-card small { color: var(--muted-foreground); font-size: 10px; }
-.media-card-actions { display: flex; align-items: center; gap: 1px; }
-.media-card-add, .media-card-analyze { opacity: .62; }
-.media-card:hover .media-card-add, .media-card:hover .media-card-analyze, .media-card.selected .media-card-add, .media-card.selected .media-card-analyze, .media-card-actions > button:focus-visible, .media-card-actions > button[aria-pressed="true"] { opacity: 1; }
 .media-card-actions svg { width: 12px; height: 12px; }
 .media-thumb { display: grid; place-items: center; width: 42px; height: 32px; overflow: hidden; border: 1px solid var(--border); border-radius: 5px; background: var(--muted); color: var(--muted-foreground); }
 .media-thumb img { width: 100%; height: 100%; object-fit: cover; }

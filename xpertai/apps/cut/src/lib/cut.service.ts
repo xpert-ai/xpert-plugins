@@ -310,6 +310,78 @@ export class CutService {
     }
   }
 
+  async deleteMediaAsset(
+    scope: CutScope,
+    projectId: string,
+    mediaAssetId: string,
+    baseRevision: number | undefined,
+    changeSummary: string
+  ) {
+    const project = await this.requireProject(scope, projectId)
+    assertRevision(project, baseRevision)
+    const document = validateCutProjectDocument(project.document)
+    if (mediaAssetReferenced(document, mediaAssetId)) {
+      throw new ConflictException('Remove this media from the timeline and speech-cleanup history before deleting it from the library.')
+    }
+    const asset = await this.media.findOne({
+      where: scopedWhere<CutMediaAsset>(scope, { id: mediaAssetId, cutProjectId: projectId })
+    })
+    if (!asset) throw new NotFoundException('Cut media asset was not found in this project.')
+
+    const deletedRows = await this.projects.manager.transaction(async (manager) => {
+      const jobs = await manager.getRepository(CutAnalysisJob).find({
+        where: scopedWhere<CutAnalysisJob>(scope, { cutProjectId: projectId, mediaAssetId })
+      })
+      if (jobs.some((job) => job.status === 'queued' || job.status === 'running')) {
+        throw new ConflictException('Cancel active Cut tasks for this media before deleting it.')
+      }
+      const transcripts = await manager.getRepository(CutTranscript).find({
+        where: scopedWhere<CutTranscript>(scope, { cutProjectId: projectId, mediaAssetId })
+      })
+      const counts: Record<string, number> = {}
+      const remove = async <T extends ScopedEntity>(name: string, entity: new () => T, where: Partial<T>) => {
+        const result = await manager.getRepository(entity).delete(scopedWhere<T>(scope, where))
+        counts[name] = (counts[name] ?? 0) + (result.affected ?? 0)
+      }
+      for (const transcript of transcripts) {
+        const transcriptId = requireId(transcript.id)
+        await remove('captionDrafts', CutCaptionDraft, { cutProjectId: projectId, transcriptId } as Partial<CutCaptionDraft>)
+        await remove('transcriptSegments', CutTranscriptSegment, { cutProjectId: projectId, transcriptId } as Partial<CutTranscriptSegment>)
+      }
+      await remove('transcripts', CutTranscript, { cutProjectId: projectId, mediaAssetId } as Partial<CutTranscript>)
+      await remove('mediaSegments', CutMediaSegment, { cutProjectId: projectId, mediaAssetId } as Partial<CutMediaSegment>)
+      await remove('analysisJobs', CutAnalysisJob, { cutProjectId: projectId, mediaAssetId } as Partial<CutAnalysisJob>)
+      await remove('media', CutMediaAsset, { id: mediaAssetId, cutProjectId: projectId } as Partial<CutMediaAsset>)
+      if (counts['media'] !== 1) throw new ConflictException('Cut media changed before it could be deleted; reload and retry.')
+      return counts
+    })
+
+    let workspaceFileDeleted = true
+    try {
+      await this.workspaceFiles().deleteFile(asset.fileReference)
+    } catch (error) {
+      workspaceFileDeleted = false
+      console.warn(`Cut media ${mediaAssetId} was removed, but its Workspace file could not be deleted: ${errorMessage(error)}`)
+    }
+    await this.writeLog(scope, {
+      cutProjectId: projectId,
+      action: 'cut_media_removed',
+      actorType: actorType(scope),
+      message: changeSummary,
+      snapshot: { mediaAssetId, originalName: asset.originalName, workspaceFileDeleted }
+    })
+    return {
+      success: true,
+      removed: true,
+      projectId,
+      mediaAssetId,
+      revision: project.revision,
+      deletedRows,
+      workspaceFileDeleted,
+      ...(workspaceFileDeleted ? {} : { warning: 'The media record was removed, but its Workspace file could not be deleted automatically.' })
+    }
+  }
+
   async listProjectResources(scope: CutScope, input: ListCutProjectResourcesInput) {
     const project = await this.requireProject(scope, input.projectId)
     assertExpectedRevision(project, input.expectedRevision)
@@ -991,6 +1063,11 @@ function mediaUsage(document: CutProjectDocument) {
     if (clip.mediaAssetId) counts.set(clip.mediaAssetId, (counts.get(clip.mediaAssetId) ?? 0) + 1)
   }
   return counts
+}
+
+function mediaAssetReferenced(document: CutProjectDocument, mediaAssetId: string) {
+  if ((mediaUsage(document).get(mediaAssetId) ?? 0) > 0) return true
+  return (document.speechCleanup?.deletions ?? []).some((deletion) => deletion.mediaAssetId === mediaAssetId)
 }
 
 function mediaKind(mimeType: string): CutMediaAssetKind {

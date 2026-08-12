@@ -123,6 +123,7 @@ export class CutViewProvider implements IXpertViewExtensionProvider {
         { key: 'cut_refresh', label: i18n('Refresh', '刷新'), icon: 'ri-refresh-line', placement: 'toolbar', actionType: 'refresh' },
         { key: 'cut_create_project', label: i18n('New Cut Project', '新建 Cut 项目'), icon: 'ri-add-line', placement: 'toolbar', actionType: 'invoke' },
         { key: 'cut_delete_project', label: i18n('Delete Cut Project', '删除 Cut 项目'), icon: 'ri-delete-bin-line', actionType: 'invoke' },
+        { key: 'cut_delete_media_asset', label: i18n('Remove Media', '移除素材'), icon: 'ri-delete-bin-line', actionType: 'invoke' },
         { key: 'cut_save_project', label: i18n('Save Timeline', '保存时间线'), icon: 'ri-save-line', placement: 'toolbar', actionType: 'invoke' },
         { key: 'cut_apply_edit', label: i18n('Apply Timeline Edit', '应用时间线编辑'), icon: 'ri-scissors-cut-line', actionType: 'invoke' },
         { key: 'cut_finalize_version', label: i18n('Finalize Version', '保存版本'), icon: 'ri-file-add-line', placement: 'toolbar', actionType: 'invoke' },
@@ -245,6 +246,16 @@ export class CutViewProvider implements IXpertViewExtensionProvider {
           requiredNumber(request.input, 'baseRevision', 'Cut base revision is required.')
         )
         return { ...success('Cut project permanently deleted.'), refresh: true, data: result }
+      }
+      if (actionKey === 'cut_delete_media_asset') {
+        const result = await this.service.deleteMediaAsset(
+          scope,
+          requestProjectId(request),
+          requiredString(request.input, 'mediaAssetId', 'Cut media asset id is required.'),
+          requiredNumber(request.input, 'baseRevision', 'Cut base revision is required.'),
+          inputString(request.input, 'changeSummary') ?? 'Removed media from the Cut library.'
+        )
+        return { ...success('Cut media removed.'), refresh: true, data: result }
       }
       if (actionKey === 'cut_save_project') {
         const result = await this.service.saveProject(scope, {

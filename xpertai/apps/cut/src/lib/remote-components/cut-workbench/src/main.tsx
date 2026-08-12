@@ -73,6 +73,12 @@ import { cutDebug } from './debug'
 import type { AnalysisJobSummary, CaptionCue, CaptionDraftPage, CutClip, CutDocument, CutTrack, CutViewData, EditProposalReview, MediaEvidenceSummary, MediaSummary, ProjectDetail } from './cut-types'
 import { cutTextBackgroundCss, cutTextFontFamilyCss, cutTextProjectFontSize, cutTextShadowCss } from './cut-text-rendering'
 import { MediaAssetPreview, MediaCard, TimelineVideoStrip } from './cut-media-ui'
+import {
+  CUT_CANVAS_ASPECT_PRESETS,
+  currentCutCanvasAspect,
+  reframeCutCanvas,
+  type CutCanvasAspectPreset
+} from '../../../cut-canvas-aspect'
 import { resumePreviewCapturedAudio, StageAudio, StageVideo } from './cut-preview-media'
 import { TextClipInspector } from './text-clip-inspector'
 import {
@@ -173,6 +179,7 @@ function App() {
   const [createProjectDialogOpen, setCreateProjectDialogOpen] = React.useState(false)
   const [newProjectTitle, setNewProjectTitle] = React.useState('')
   const [deleteProjectDialogOpen, setDeleteProjectDialogOpen] = React.useState(false)
+  const [mediaPendingDeletion, setMediaPendingDeletion] = React.useState<MediaSummary | null>(null)
   const [jobPendingDeletion, setJobPendingDeletion] = React.useState<AnalysisJobSummary | null>(null)
   const [exportMode, setExportMode] = React.useState<ExportMode>('browser')
   const [exportSettings, setExportSettings] = React.useState<CutExportSettings>(() => ({ ...DEFAULT_CUT_EXPORT_SETTINGS }))
@@ -399,6 +406,7 @@ function App() {
   const localTranscriptionMedia = data.detail?.media.filter((asset) => asset.id && asset.previewUrl && (asset.mimeType.startsWith('audio/') || asset.mimeType.startsWith('video/'))) ?? []
   const selectedClip = documentDraft && selectedClipId ? findClip(documentDraft, selectedClipId) : null
   const selectedMediaAsset = data.detail?.media.find((asset) => mediaDragKey(asset) === selectedMediaKey) ?? null
+  const canvasAspect = documentDraft ? currentCutCanvasAspect(documentDraft.settings.width, documentDraft.settings.height) : 'custom'
   const referencedMediaIds = new Set(documentDraft?.tracks.flatMap((track) => track.clips.map((clip) => clip.mediaAssetId).filter((id): id is string => Boolean(id))) ?? [])
   const headlessInputBytes = (data.detail?.media ?? []).reduce((total, asset) => total + (asset.id && referencedMediaIds.has(asset.id) ? asset.size : 0), 0)
   const headlessInputLimit = data.renderCapability.limits.maxMediaBytes
@@ -644,6 +652,37 @@ function App() {
     } catch (error) {
       const message = errorText(error)
       notify('error', /cancel active cut tasks/i.test(message) ? t('projectDeleteActiveTasks') : message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const removeMediaAsset = async () => {
+    const project = data.detail?.item
+    const asset = mediaPendingDeletion
+    if (!project?.id || !asset?.id) return
+    if (dirtyRef.current) {
+      notify('error', t('saveFirst'))
+      return
+    }
+    setSaving(true)
+    try {
+      const payload = responsePayload(await executeAction('cut_delete_media_asset', project.id, {
+        projectId: project.id,
+        mediaAssetId: asset.id,
+        baseRevision: project.revision,
+        changeSummary: `${t('removeMedia')}: ${asset.originalName}`
+      }))
+      const result = isRemoteObject(payload) ? payload : null
+      mediaAccessGrantsRef.current.delete(`${project.id}:${asset.id}`)
+      if (selectedMediaKey === mediaDragKey(asset)) setSelectedMediaKey(null)
+      if (mediaAnalysisPanelKey === mediaDragKey(asset)) setMediaAnalysisPanelKey(null)
+      setMediaPendingDeletion(null)
+      await load(project.id, true)
+      notify('success', result?.workspaceFileDeleted === false ? t('mediaRemovedWorkspaceWarning') : t('mediaRemoved'))
+    } catch (error) {
+      const message = errorText(error)
+      notify('error', /timeline|speech-cleanup history/i.test(message) ? t('mediaInUse') : message)
     } finally {
       setSaving(false)
     }
@@ -1617,6 +1656,8 @@ function App() {
                     dragKey={key}
                     onSelect={() => previewMediaAsset(asset)}
                     onAdd={() => addMediaAsset(asset)}
+                    onRemove={() => setMediaPendingDeletion(asset)}
+                    removeDisabled={!asset.id || mediaAssetReferencedByDraft(documentDraft, asset.id)}
                     onToggleAnalysis={() => {
                       previewMediaAsset(asset)
                       setMediaAnalysisPanelKey((current) => current === key ? null : key)
@@ -1643,7 +1684,7 @@ function App() {
             <TabsContent value="sounds" className="cut-library-pane"><div className="media-grid">
               {filteredMedia.filter((asset) => asset.mimeType.startsWith('audio/')).map((asset, index) => {
                 const key = mediaDragKey(asset)
-                return <MediaCard key={asset.id ?? `${asset.originalName}-${index}`} asset={asset} selected={key === selectedMediaKey} dragType={CUT_MEDIA_DRAG_TYPE} dragKey={key} onSelect={() => previewMediaAsset(asset)} onAdd={() => addMediaAsset(asset)} t={t} />
+                return <MediaCard key={asset.id ?? `${asset.originalName}-${index}`} asset={asset} selected={key === selectedMediaKey} dragType={CUT_MEDIA_DRAG_TYPE} dragKey={key} onSelect={() => previewMediaAsset(asset)} onAdd={() => addMediaAsset(asset)} onRemove={() => setMediaPendingDeletion(asset)} removeDisabled={!asset.id || mediaAssetReferencedByDraft(documentDraft, asset.id)} t={t} />
               })}
             </div></TabsContent>
             <TabsContent value="stickers" className="cut-library-pane"><div className="sticker-grid">
@@ -1827,7 +1868,21 @@ function App() {
           <div className="playback-center"><Button variant="ghost" size="icon-sm" title={t('previousFrame')} onClick={() => seek(playhead - 1 / (documentDraft?.settings.fps ?? 30))}><SkipBack /></Button>
             <Button variant="ghost" size="icon" className="play-button" title={isPlaying ? t('pause') : t('play')} onClick={togglePlayback}>{isPlaying ? <Pause /> : <Play />}</Button>
             <Button variant="ghost" size="icon-sm" title={t('nextFrame')} onClick={() => seek(playhead + 1 / (documentDraft?.settings.fps ?? 30))}><SkipForward /></Button></div>
-          <div className="preview-actions"><select aria-label={t('previewZoom')} value={previewZoom} onChange={(event) => setPreviewZoom(event.target.value)}><option value="fit">{t('fit')}</option>{[25, 50, 75, 100, 150, 200].map((value) => <option key={value} value={value}>{value}%</option>)}</select>
+          <div className="preview-actions">
+            <Select value={canvasAspect} onValueChange={(value) => {
+              if (value === 'custom') return
+              commitDraft((document) => reframeCutCanvas(document, value as CutCanvasAspectPreset))
+            }}>
+              <SelectTrigger className="h-7 w-[102px] text-[10px]" aria-label={t('canvasAspectRatio')} title={t('canvasAspectRatio')}><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {canvasAspect === 'custom' && documentDraft && <React.Fragment><SelectItem value="custom">{t('currentCanvas')} · {documentDraft.settings.width}×{documentDraft.settings.height}</SelectItem><SelectSeparator /></React.Fragment>}
+                {CUT_CANVAS_ASPECT_PRESETS.map((preset) => <SelectItem key={preset.value} value={preset.value}>{preset.value}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={previewZoom} onValueChange={setPreviewZoom}>
+              <SelectTrigger className="h-7 w-[76px] text-[10px]" aria-label={t('previewZoom')} title={t('previewZoom')}><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="fit">{t('fit')}</SelectItem>{[25, 50, 75, 100, 150, 200].map((value) => <SelectItem key={value} value={String(value)}>{value}%</SelectItem>)}</SelectContent>
+            </Select>
             <Button variant="ghost" size="icon-sm" title={t('fullscreen')} onClick={() => void stageShellRef.current?.requestFullscreen()}><Maximize2 /></Button></div>
         </div>}
       </section>
@@ -1982,6 +2037,19 @@ function App() {
         <AlertDialogFooter>
           <AlertDialogCancel disabled={saving} onClick={() => setDeleteProjectDialogOpen(false)}>{t('deleteProjectCancel')}</AlertDialogCancel>
           <AlertDialogAction variant="destructive" disabled={saving} onClick={(event) => { event.preventDefault(); void deleteProject() }}><Trash2 />{saving ? t('deletingProject') : t('deleteProjectConfirm')}</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    <AlertDialog open={Boolean(mediaPendingDeletion)} onOpenChange={(open) => { if (!open && !saving) setMediaPendingDeletion(null) }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{t('removeMediaTitle')}</AlertDialogTitle>
+          <AlertDialogDescription>{t('removeMediaDescription')} {mediaPendingDeletion ? `“${mediaPendingDeletion.originalName}”` : ''}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={saving} onClick={() => setMediaPendingDeletion(null)}>{t('removeMediaCancel')}</AlertDialogCancel>
+          <AlertDialogAction variant="destructive" disabled={saving} onClick={(event) => { event.preventDefault(); void removeMediaAsset() }}><Trash2 />{saving ? t('removingMedia') : t('removeMediaConfirm')}</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
@@ -2776,6 +2844,12 @@ function appendClip(document: CutDocument, clip: CutClip, kind: CutTrack['kind']
 
 function mediaDragKey(asset: MediaSummary) {
   return asset.id ?? `${asset.mimeType}:${asset.originalName}`
+}
+
+function mediaAssetReferencedByDraft(document: CutDocument | null, mediaAssetId: string) {
+  if (!document) return false
+  if (document.tracks.some((track) => track.clips.some((clip) => clip.mediaAssetId === mediaAssetId))) return true
+  return (document.speechCleanup?.deletions ?? []).some((deletion) => deletion.mediaAssetId === mediaAssetId)
 }
 
 function boundedStart(start: number, duration: number, projectDuration: number) { return roundTime(clamp(start, 0, Math.max(0, projectDuration - duration))) }

@@ -17,6 +17,7 @@
     "src/lib/cut-export-settings.ts",
     "src/lib/cut-assistant-context.ts",
     "src/lib/cut-canvas-transform.ts",
+    "src/lib/cut-canvas-aspect.ts",
     "src/lib/cut-waveform.ts",
     "src/lib/cut-editor-model.ts",
     "src/lib/cut-media-playback.ts",
