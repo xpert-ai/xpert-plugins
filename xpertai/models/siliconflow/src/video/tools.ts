@@ -21,6 +21,49 @@ const VIDEO_FOLDER = 'files/siliconflow/videos'
 const QUERY_MAX_WAIT_SECONDS = 45
 const QUERY_POLL_MS = 5_000
 
+const imageFileDescriptorSchema = {
+  type: 'object',
+  additionalProperties: true,
+  properties: {
+    workspacePath: {
+      type: 'string',
+      description: 'Sandbox-visible Workspace image path, usually beginning with /workspace/. Prefer this locator.'
+    },
+    filePath: {
+      type: 'string',
+      description: 'Workspace-relative image path.'
+    },
+    path: {
+      type: 'string',
+      description: 'Workspace or sandbox-visible image path alias.'
+    },
+    url: {
+      type: 'string',
+      description: 'Public HTTPS image URL. Use workspacePath for Xpert Workspace images.'
+    },
+    fileUrl: {
+      type: 'string',
+      description: 'Public HTTPS image URL alias.'
+    },
+    mimeType: {
+      type: 'string',
+      description: 'Optional image MIME type.'
+    },
+    mimetype: {
+      type: 'string',
+      description: 'Optional image MIME type alias.'
+    },
+    name: {
+      type: 'string',
+      description: 'Optional image file name.'
+    },
+    originalName: {
+      type: 'string',
+      description: 'Optional original image file name.'
+    }
+  }
+} as const
+
 export function buildSiliconflowVideoTools(deps: SiliconflowVideoToolDependencies) {
   return [buildSubmitTool(deps), buildQueryTool(deps)]
 }
@@ -296,9 +339,16 @@ const submitSchema = {
       description: 'Content or visual defects to avoid.'
     },
     input_image_file: {
-      anyOf: [{ type: 'string' }, { type: 'object' }],
+      anyOf: [
+        {
+          type: 'string',
+          description: 'A /workspace path, Workspace-relative path, public HTTPS URL, or image data URL.'
+        },
+        imageFileDescriptorSchema
+      ],
       title: 'Reference image',
-      description: 'Workspace image file, path, URL, Buffer, or data URL.'
+      description:
+        'Workspace image path or descriptor. Prefer workspacePath from referenced content and pass descriptors as objects, not JSON strings.'
     },
     image_url: {
       type: 'string',
