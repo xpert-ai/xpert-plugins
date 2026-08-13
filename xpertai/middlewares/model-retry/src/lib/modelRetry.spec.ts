@@ -3,9 +3,10 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   AgentMiddlewareStrategy: () => () => null,
 }))
 
-import { AIMessage } from '@langchain/core/messages'
+import { AIMessage, SystemMessage } from '@langchain/core/messages'
 import { Logger } from '@nestjs/common'
 import { calculateRetryDelay } from './retry.js'
+import { MODEL_OUTPUT_VALIDATION_ERROR_CODE } from './output-repair.js'
 const { ModelRetryMiddleware } = require('./modelRetry')
 
 describe('ModelRetryMiddleware', () => {
@@ -194,6 +195,117 @@ describe('ModelRetryMiddleware', () => {
     expect(result?.content).toBe('')
   })
 
+  it('repairs malformed tool output once with compact retry-local feedback', async () => {
+    const { middleware, runtimeApi } = await createMiddleware({
+      maxRetries: 2,
+      initialDelayMs: 0,
+      jitter: false,
+      retryInvalidToolCalls: true,
+      maxOutputRepairRetries: 1,
+    })
+    const request = {
+      ...createRequest(),
+      systemMessage: new SystemMessage('base system prompt'),
+    }
+    const malformed = createModelOutputValidationError()
+    const handler = jest
+      .fn()
+      .mockRejectedValueOnce(malformed)
+      .mockResolvedValueOnce(
+        new AIMessage({
+          content: '',
+          tool_calls: [
+            {
+              id: 'call-valid-1',
+              name: 'story_upsert_production_episode',
+              args: { script: '孩子呼喊：“救命！”' },
+            },
+          ],
+        })
+      )
+
+    const result = await middleware.wrapModelCall?.(request, handler as any)
+
+    expect(handler).toHaveBeenCalledTimes(2)
+    expect(handler.mock.calls[0][0]).toBe(request)
+    const repairRequest = handler.mock.calls[1][0]
+    expect(repairRequest).not.toBe(request)
+    expect(String(request.systemMessage.content)).toBe('base system prompt')
+    expect(String(repairRequest.systemMessage.content)).toContain('<tool_call_repair>')
+    expect(String(repairRequest.systemMessage.content)).toContain(
+      'tool=story_upsert_production_episode'
+    )
+    expect(String(repairRequest.systemMessage.content)).toContain('field=script')
+    expect(String(repairRequest.systemMessage.content)).not.toContain('孩子呼喊')
+    expect(result?.tool_calls).toHaveLength(1)
+    expect(runtimeApi.emitMiddlewareEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        phase: 'retry_succeeded',
+        status: 'success',
+        data: expect.objectContaining({ retryKind: 'output_repair' }),
+      })
+    )
+  })
+
+  it('does not fall through to blind retries after output repair is exhausted', async () => {
+    const { middleware } = await createMiddleware({
+      maxRetries: 2,
+      initialDelayMs: 0,
+      jitter: false,
+      retryAllErrors: true,
+      retryInvalidToolCalls: true,
+      maxOutputRepairRetries: 1,
+      onFailure: 'continue',
+    })
+    const handler = jest.fn().mockRejectedValue(createModelOutputValidationError())
+
+    const result = await middleware.wrapModelCall?.(createRequest(), handler as any)
+
+    expect(handler).toHaveBeenCalledTimes(2)
+    expect(result?.content).toContain('failed after 2 attempts')
+    expect(result?.content).toContain('ModelOutputValidationError')
+  })
+
+  it('keeps corrective feedback when a repair call needs a normal network retry', async () => {
+    const { middleware } = await createMiddleware({
+      maxRetries: 1,
+      initialDelayMs: 0,
+      jitter: false,
+      retryInvalidToolCalls: true,
+      maxOutputRepairRetries: 1,
+    })
+    const request = createRequest()
+    const handler = jest
+      .fn()
+      .mockRejectedValueOnce(createModelOutputValidationError())
+      .mockRejectedValueOnce(new Error('temporary repair transport failure'))
+      .mockResolvedValueOnce(new AIMessage('repaired after transport retry'))
+
+    const result = await middleware.wrapModelCall?.(request, handler as any)
+
+    expect(handler).toHaveBeenCalledTimes(3)
+    const repairRequest = handler.mock.calls[1][0]
+    expect(repairRequest).not.toBe(request)
+    expect(String(repairRequest.systemMessage.content)).toContain('<tool_call_repair>')
+    expect(handler.mock.calls[2][0]).toBe(repairRequest)
+    expect(result?.content).toBe('repaired after transport retry')
+  })
+
+  it('can disable corrective retries for invalid tool output', async () => {
+    const { middleware } = await createMiddleware({
+      maxRetries: 2,
+      retryAllErrors: true,
+      retryInvalidToolCalls: false,
+      onFailure: 'continue',
+    })
+    const handler = jest.fn().mockRejectedValue(createModelOutputValidationError())
+
+    const result = await middleware.wrapModelCall?.(createRequest(), handler as any)
+
+    expect(handler).toHaveBeenCalledTimes(1)
+    expect(result?.content).toContain('ModelOutputValidationError')
+  })
+
   it('returns an AIMessage immediately for non-retryable errors in continue mode', async () => {
     const { middleware, runtimeApi } = await createMiddleware({
       retryAllErrors: false,
@@ -312,3 +424,23 @@ describe('ModelRetryMiddleware', () => {
     randomSpy.mockRestore()
   })
 })
+
+function createModelOutputValidationError() {
+  return Object.assign(new Error('Malformed tool arguments'), {
+    name: 'ModelOutputValidationError',
+    code: MODEL_OUTPUT_VALIDATION_ERROR_CODE,
+    retryable: true as const,
+    repairContext: {
+      kind: 'invalid_tool_calls' as const,
+      issues: [
+        {
+          toolName: 'story_upsert_production_episode',
+          fieldName: 'script',
+          characterOffset: 428,
+          error: 'Malformed args.',
+          hint: 'Escape the quote or use typographic quotation marks.',
+        },
+      ],
+    },
+  })
+}

@@ -11,6 +11,7 @@
 - Registers as a global middleware plugin so the strategy is available across the platform.
 - Treats `AIMessage.response_metadata.finish_reason === "network_error"` as a retryable model failure, even when the provider returns a message instead of throwing.
 - Treats empty `AIMessage` results with no `tool_calls` and no `invalid_tool_calls` as retryable model failures.
+- Corrects malformed tool-call JSON with one immediate, retry-local feedback pass by default. The feedback contains only bounded validation details; raw tool arguments and invalid AI messages are not added to conversation state.
 
 ## Installation
 
@@ -41,6 +42,8 @@ npm install @xpert-ai/plugin-model-retry
        "retryableErrorNames": ["RateLimitError"],
        "retryableStatusCodes": [429, 503],
        "retryableMessageIncludes": ["timeout", "temporarily unavailable"],
+       "retryInvalidToolCalls": true,
+       "maxOutputRepairRetries": 1,
        "onFailure": "continue"
      }
    }
@@ -59,6 +62,8 @@ npm install @xpert-ai/plugin-model-retry
 | `retryableErrorNames` | string[] | Retry only matching `error.name` values when `retryAllErrors=false`. | `[]` |
 | `retryableStatusCodes` | number[] | Retry matching HTTP-style status codes from `status`, `statusCode`, or `response.status`. | `[]` |
 | `retryableMessageIncludes` | string[] | Retry when the error message contains any configured fragment. Matching is case-insensitive. | `[]` |
+| `retryInvalidToolCalls` | boolean | Regenerate malformed tool-call JSON with compact validation feedback before any tool executes. | `true` |
+| `maxOutputRepairRetries` | number | Immediate corrective retries for invalid tool output. Bounded to `0..2`; one is recommended. | `1` |
 | `onFailure` | `"continue"` \| `"error"` | Return an `AIMessage` or rethrow after retries are exhausted. | `"continue"` |
 
 ## LangChain Differences

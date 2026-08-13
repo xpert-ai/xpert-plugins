@@ -18,6 +18,7 @@ import type {
 } from '@xpert-ai/contracts'
 import { AIMessage } from '@langchain/core/messages'
 import { ModelRetryIcon } from './types.js'
+import { appendOutputRepairFeedback, isModelOutputValidationError } from './output-repair.js'
 import {
   calculateRetryDelay,
   normalizeError,
@@ -152,6 +153,33 @@ const configSchemaProperties: JsonSchemaObjectType['properties'] = {
       type: 'string',
     },
   } as unknown as JsonSchemaObjectType['properties'][string],
+  retryInvalidToolCalls: {
+    type: 'boolean',
+    default: true,
+    title: {
+      en_US: 'Repair Invalid Tool Calls',
+      zh_Hans: '修复无效工具调用',
+    },
+    description: {
+      en_US:
+        'Feed compact validation feedback to the model and regenerate malformed tool-call JSON before any tool executes.',
+      zh_Hans: '在工具执行前，将精简的校验反馈提供给模型并重新生成格式错误的工具调用 JSON。',
+    },
+  },
+  maxOutputRepairRetries: {
+    type: 'number',
+    minimum: 0,
+    maximum: 2,
+    default: 1,
+    title: {
+      en_US: 'Output Repair Retries',
+      zh_Hans: '输出修复重试次数',
+    },
+    description: {
+      en_US: 'Immediate corrective retries for malformed model tool output. One retry is recommended.',
+      zh_Hans: '模型工具输出格式错误时的即时定向修复次数，建议设置为 1。',
+    },
+  },
   onFailure: {
     type: 'string',
     enum: ['continue', 'error'],
@@ -324,7 +352,6 @@ export class ModelRetryMiddleware implements IAgentMiddlewareStrategy {
     }
 
     const retryConfig = normalizeRetryConfig(result.data)
-    const totalAllowedAttempts = retryConfig.maxRetries + 1
 
     const handleFailure = (error: Error, attemptsMade: number): AIMessage => {
       if (retryConfig.onFailure === 'error') {
@@ -350,20 +377,42 @@ export class ModelRetryMiddleware implements IAgentMiddlewareStrategy {
           return await this.invokeModel(request, handler, context)
         } catch (error) {
           let lastError = normalizeError(error)
-          let retryable = shouldRetryError(lastError, retryConfig)
+          let retryRequest = request
+          let attemptsBeforeStandardRetry = 1
+          const repaired = await this.tryRepairInvalidToolOutput({
+            error: lastError,
+            request,
+            handler,
+            context,
+            retryConfig,
+            logScope,
+            startedAt,
+          })
+          if (repaired) {
+            if (repaired.result) return repaired.result
+            if (repaired.validationExhausted) {
+              return handleFailure(repaired.error, repaired.attemptsMade)
+            }
+            lastError = repaired.error
+            retryRequest = repaired.request
+            attemptsBeforeStandardRetry = repaired.attemptsMade
+          }
+          const totalAllowedAttempts = attemptsBeforeStandardRetry + retryConfig.maxRetries
+          let retryable =
+            !isModelOutputValidationError(lastError) && shouldRetryError(lastError, retryConfig)
           this.logger.warn(
-            `Model call failed${logScope}. phase=initial attempt=1/${totalAllowedAttempts} retryable=${retryable} elapsedMs=${Date.now() - startedAt}. ${this.formatError(lastError)}`
+            `Model call failed${logScope}. phase=initial attempt=${attemptsBeforeStandardRetry}/${totalAllowedAttempts} retryable=${retryable} elapsedMs=${Date.now() - startedAt}. ${this.formatError(lastError)}`
           )
 
           if (!retryable || retryConfig.maxRetries === 0) {
             this.logger.error(
-              `Model retry stopped${logScope}. phase=initial attemptsMade=1/${totalAllowedAttempts} retryable=${retryable} onFailure=${retryConfig.onFailure} elapsedMs=${Date.now() - startedAt}. ${this.formatError(lastError)}`
+              `Model retry stopped${logScope}. phase=initial attemptsMade=${attemptsBeforeStandardRetry}/${totalAllowedAttempts} retryable=${retryable} onFailure=${retryConfig.onFailure} elapsedMs=${Date.now() - startedAt}. ${this.formatError(lastError)}`
             )
-            return handleFailure(lastError, 1)
+            return handleFailure(lastError, attemptsBeforeStandardRetry)
           }
 
           for (let retryAttempt = 1; retryAttempt <= retryConfig.maxRetries; retryAttempt++) {
-            const attemptsMade = retryAttempt + 1
+            const attemptsMade = attemptsBeforeStandardRetry + retryAttempt
             const delay = calculateRetryDelay(retryConfig, retryAttempt - 1)
             this.logger.warn(
               `Scheduling model retry${logScope}. phase=retry-scheduled attempt=${attemptsMade}/${totalAllowedAttempts} nextDelayMs=${delay} elapsedMs=${Date.now() - startedAt}`
@@ -395,7 +444,7 @@ export class ModelRetryMiddleware implements IAgentMiddlewareStrategy {
             })
 
             try {
-              const result = await this.invokeModel(request, handler, context)
+              const result = await this.invokeModel(retryRequest, handler, context)
               this.logger.log(
                 `Model retry succeeded${logScope}. phase=retry-succeeded attempt=${attemptsMade}/${totalAllowedAttempts} elapsedMs=${Date.now() - startedAt}`
               )
@@ -412,7 +461,9 @@ export class ModelRetryMiddleware implements IAgentMiddlewareStrategy {
               return result
             } catch (retryError) {
               lastError = normalizeError(retryError)
-              retryable = shouldRetryError(lastError, retryConfig)
+              retryable =
+                !isModelOutputValidationError(lastError) &&
+                shouldRetryError(lastError, retryConfig)
               await this.emitMiddlewareEvent(context, request, {
                 phase: 'retry_failed',
                 status: 'fail',
@@ -439,7 +490,7 @@ export class ModelRetryMiddleware implements IAgentMiddlewareStrategy {
             }
           }
 
-          return handleFailure(lastError, retryConfig.maxRetries + 1)
+          return handleFailure(lastError, totalAllowedAttempts)
         }
       },
     }
@@ -489,6 +540,110 @@ export class ModelRetryMiddleware implements IAgentMiddlewareStrategy {
       throw resultError
     }
     return result
+  }
+
+  private async tryRepairInvalidToolOutput({
+    error,
+    request,
+    handler,
+    context,
+    retryConfig,
+    logScope,
+    startedAt,
+  }: {
+    error: Error
+    request: ModelRequest<AgentBuiltInState>
+    handler: WrapModelCallHandler
+    context: IAgentMiddlewareContext
+    retryConfig: ReturnType<typeof normalizeRetryConfig>
+    logScope: string
+    startedAt: number
+  }): Promise<
+    | {
+        result?: AIMessage
+        error: Error
+        request: ModelRequest<AgentBuiltInState>
+        attemptsMade: number
+        validationExhausted: boolean
+      }
+    | null
+  > {
+    if (
+      !retryConfig.retryInvalidToolCalls ||
+      retryConfig.maxOutputRepairRetries === 0 ||
+      !isModelOutputValidationError(error)
+    ) {
+      return null
+    }
+
+    let lastError: Error = error
+    let repairRequest = appendOutputRepairFeedback(request, error.repairContext, 1)
+    let repairAttemptsMade = 0
+
+    for (let repairAttempt = 1; repairAttempt <= retryConfig.maxOutputRepairRetries; repairAttempt++) {
+      repairAttemptsMade = repairAttempt
+      const message = `Repairing invalid model tool output, attempt ${repairAttempt}/${retryConfig.maxOutputRepairRetries}`
+      this.logger.warn(
+        `${message}${logScope}. phase=output-repair-started elapsedMs=${Date.now() - startedAt}`
+      )
+      await this.emitMiddlewareEvent(context, request, {
+        phase: 'retry_started',
+        status: 'running',
+        message,
+        data: {
+          retryKind: 'output_repair',
+          attempt: repairAttempt,
+          totalAttempts: retryConfig.maxOutputRepairRetries,
+          elapsedMs: Date.now() - startedAt,
+        },
+      })
+
+      try {
+        const result = await this.invokeModel(repairRequest, handler, context)
+        await this.emitMiddlewareEvent(context, request, {
+          phase: 'retry_succeeded',
+          status: 'success',
+          message: `Invalid model tool output repaired, attempt ${repairAttempt}/${retryConfig.maxOutputRepairRetries}`,
+          data: {
+            retryKind: 'output_repair',
+            attempt: repairAttempt,
+            totalAttempts: retryConfig.maxOutputRepairRetries,
+            elapsedMs: Date.now() - startedAt,
+          },
+        })
+        return {
+          result,
+          error: lastError,
+          request: repairRequest,
+          attemptsMade: 1 + repairAttempt,
+          validationExhausted: false,
+        }
+      } catch (repairError) {
+        lastError = normalizeError(repairError)
+        await this.emitMiddlewareEvent(context, request, {
+          phase: 'retry_failed',
+          status: 'fail',
+          message: `Model output repair failed, attempt ${repairAttempt}/${retryConfig.maxOutputRepairRetries}`,
+          error: this.serializeError(lastError),
+          data: {
+            retryKind: 'output_repair',
+            attempt: repairAttempt,
+            totalAttempts: retryConfig.maxOutputRepairRetries,
+            elapsedMs: Date.now() - startedAt,
+          },
+        })
+
+        if (!isModelOutputValidationError(lastError)) break
+        repairRequest = appendOutputRepairFeedback(request, lastError.repairContext, repairAttempt + 1)
+      }
+    }
+
+    return {
+      error: lastError,
+      request: repairRequest,
+      attemptsMade: 1 + repairAttemptsMade,
+      validationExhausted: isModelOutputValidationError(lastError),
+    }
   }
 
   private buildLogScope(
