@@ -39,6 +39,7 @@ import type {
   Scene,
   Shot
 } from './production-data'
+import { characterAssets } from './production-data'
 import type { DirectorTranslator } from './director-types'
 import {
   playableVideoUrl,
@@ -407,9 +408,9 @@ export function DirectorStoryboardPage(props: DirectorStoryboardPageProps) {
 
       <footer className="col-span-3 row-start-2 flex items-center justify-between border-t border-studio-line bg-studio-paper px-5 text-xs text-studio-muted"><span>{scene?.title ?? '—'} · {shot?.title ?? '—'}</span><span>{activeTask ? videoTaskStatusLabel(activeTask.status, t) : t('director.storyboard.waiting')}</span></footer>
 
-      <ShotDialog open={editing !== null} busy={busy} t={t} shot={editing === 'new' ? null : editing} characters={production.characters} onOpenChange={(open) => !open && setEditing(null)} onSubmit={(draft) => void submitShot(draft)} />
+      <ShotDialog open={editing !== null} busy={busy} t={t} shot={editing === 'new' ? null : editing} characters={characterAssets(production)} onOpenChange={(open) => !open && setEditing(null)} onSubmit={(draft) => void submitShot(draft)} />
       <ReferencePickerDialog open={referencePickerOpen} assets={production.assets.filter((asset) => asset.kind === 'character' || asset.kind === 'location')} selectedIds={referenceDraftIds} selectedCandidateIds={referenceDraftCandidateIds} t={t} onToggleAsset={toggleReferenceAsset} onToggleCandidate={toggleReferenceCandidate} onOpenChange={setReferencePickerOpen} onConfirm={() => { setReferenceAssetIds(referenceDraftIds); setReferenceImageCandidateIds(referenceDraftCandidateIds); settingsDirtyRef.current = true; setReferencePickerOpen(false) }} />
-      <AssetDialog open={Boolean(editingAsset)} busy={busy} t={t} asset={editingAsset} initialKind={editingAsset?.kind ?? 'character'} voiceReference={editingAsset ? compactVoiceReference(production.characters.find((character) => character.name === editingAsset.name)?.voiceReference) : null} onOpenChange={(open) => !open && setEditingAsset(null)} onSubmit={(draft) => void submitAsset(draft)} />
+      <AssetDialog open={Boolean(editingAsset)} busy={busy} t={t} asset={editingAsset} initialKind={editingAsset?.kind ?? 'character'} voiceReference={editingAsset?.kind === 'character' ? compactVoiceReference(editingAsset.voiceReference) : null} onOpenChange={(open) => !open && setEditingAsset(null)} onSubmit={(draft) => void submitAsset(draft)} />
       <DeleteEntityDialog open={Boolean(deleting)} busy={busy} t={t} title={t('director.crud.deleteShot')} description={t('director.crud.deleteShotHelp')} onOpenChange={(open) => !open && setDeleting(null)} onConfirm={() => void confirmDelete()} />
       <input ref={assetUploadRef} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={handleAssetUpload} />
       <input ref={shotReferenceUploadRef} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={handleShotReferenceUpload} />

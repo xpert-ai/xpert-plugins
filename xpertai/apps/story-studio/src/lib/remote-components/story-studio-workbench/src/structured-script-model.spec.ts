@@ -88,8 +88,16 @@ function fixture(): ProductionView {
     sourceMaterials: [],
     storyPlan: null,
     episodes: [{ id: 'episode-1', order: 1, title: '第一集', summary: '两人重逢', script: defaults.episodeScript, targetDurationSeconds: 60 }],
-    assets: [],
-    characters: [{ id: 'character-1', name: '林晚', role: '主角', visualDescription: null, voiceReference: null }],
+    assets: [{
+      id: 'character-1', kind: 'character', name: '林晚', description: '主角',
+      prompt: '林晚身份参考', role: '主角', visualDescription: null,
+      voiceReference: null, negativePrompt: null, continuityNotes: null,
+      categoryDetails: {
+        identity: null, appearance: null, wardrobe: null, voice: null,
+        environment: null, lighting: null, material: null, condition: null,
+        storyFunction: null, palette: null, lens: null, continuity: null
+      }, candidates: []
+    }],
     scenes: [{ id: 'scene-1', episodeId: 'episode-1', order: 1, title: defaults.sceneTitle, summary: defaults.sceneSummary, location: '站台', timeOfDay: '雨夜', shots: [{ id: 'shot-1', ...shotDraft('第一镜'), candidates: [] }] }],
     counts: { sources: 0, beats: 0, episodes: 1, assets: 0, characters: 1, scenes: 1, shots: 1, candidates: 0, selectedCandidates: 0 }
   }

@@ -92,21 +92,15 @@ export function DirectorAssetsPage(props: DirectorAssetsPageProps) {
   const selectedAsset = matchingAssets.find((asset) => asset.id === selectedAssetId) ?? matchingAssets[0]
   const selectedCharacterVoiceReference = React.useMemo(
     () => selectedAsset?.kind === 'character'
-      ? compactVoiceReference(
-        production.characters.find((character) => character.name === selectedAsset.name)
-          ?.voiceReference
-      )
+      ? compactVoiceReference(selectedAsset.voiceReference)
       : null,
-    [production.characters, selectedAsset]
+    [selectedAsset]
   )
   const editingCharacterVoiceReference = React.useMemo(
     () => editing && editing !== 'new'
-      ? compactVoiceReference(
-          production.characters.find((character) => character.name === editing.name)
-            ?.voiceReference
-        )
+      ? compactVoiceReference(editing.voiceReference)
       : null,
-    [editing, production.characters]
+    [editing]
   )
   const imageCandidates = selectedAsset?.candidates.filter((candidate) => candidate.kind === 'image') ?? []
   const continuityCandidates = imageCandidates.filter(isContinuityCandidate)
@@ -126,7 +120,7 @@ export function DirectorAssetsPage(props: DirectorAssetsPageProps) {
     const next = structuredClone(production)
     let id = editing !== 'new' && editing ? editing.id : `asset-${crypto.randomUUID()}`
     if (editing !== 'new' && editing) updateAsset(next, editing.id, draft)
-    else addAsset(next, id, `character-${crypto.randomUUID()}`, draft)
+    else addAsset(next, id, draft)
     if (await props.onCommitProduction(next, t('changes.assetSaved', { title: draft.name }))) {
       setCategory(draft.kind)
       setSelectedAssetId(id)

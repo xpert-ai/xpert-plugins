@@ -1,7 +1,10 @@
 import { createTranslator, normalizeLocale } from './i18n'
 import { buildStoryStudioAssistantContext } from './assistant-context'
 import type { RemoteObject } from './runtime'
-import { normalizeStoryToolEvent } from './tool-event'
+import {
+  destinationStageForStoryTool,
+  normalizeStoryToolEvent
+} from './tool-event'
 
 describe('Story Studio remote utility boundaries', () => {
   it('marks unsaved human drafts in Assistant context', () => {
@@ -90,5 +93,21 @@ describe('Story Studio remote utility boundaries', () => {
       toolName: 'story_record_cut_handoff_delivery',
       projectId: null
     })
+  })
+
+  it('routes completed production tools to their visible Workbench stage', () => {
+    expect(
+      destinationStageForStoryTool('story_upsert_production_character')
+    ).toBe(5)
+    expect(destinationStageForStoryTool('story_upsert_production_asset')).toBe(
+      5
+    )
+    expect(
+      destinationStageForStoryTool('story_upsert_production_episode')
+    ).toBe(4)
+    expect(destinationStageForStoryTool('story_upsert_production_shot')).toBe(
+      6
+    )
+    expect(destinationStageForStoryTool('story_get_project_summary')).toBeNull()
   })
 })

@@ -1,5 +1,8 @@
 export type StoryJsonPrimitive = string | number | boolean | null
-export type StoryJsonValue = StoryJsonPrimitive | StoryJsonObject | StoryJsonValue[]
+export type StoryJsonValue =
+  | StoryJsonPrimitive
+  | StoryJsonObject
+  | StoryJsonValue[]
 export interface StoryJsonObject {
   [key: string]: StoryJsonValue | undefined
 }
@@ -21,14 +24,6 @@ export interface StoryPortableFileReference extends StoryJsonObject {
   name?: string | null
   mimeType?: string | null
   size?: number | null
-}
-
-export interface StoryCharacter extends StoryJsonObject {
-  id: string
-  name: string
-  role?: string
-  visualDescription?: string
-  voiceReference?: StoryVoiceReference
 }
 
 export interface StoryVoiceReference extends StoryJsonObject {
@@ -130,9 +125,8 @@ export interface StoryEpisode extends StoryJsonObject {
   targetDurationSeconds?: number
 }
 
-export interface StoryAsset extends StoryJsonObject {
+export interface StoryAssetBase extends StoryJsonObject {
   id: string
-  kind: 'character' | 'location' | 'prop' | 'style'
   name: string
   description: string
   prompt: string
@@ -141,6 +135,19 @@ export interface StoryAsset extends StoryJsonObject {
   categoryDetails?: StoryAssetCategoryDetails
   candidates?: StoryMediaCandidate[]
 }
+
+export interface StoryCharacterAsset extends StoryAssetBase {
+  kind: 'character'
+  role?: string
+  visualDescription?: string
+  voiceReference?: StoryVoiceReference
+}
+
+export interface StoryProductionAsset extends StoryAssetBase {
+  kind: 'location' | 'prop' | 'style'
+}
+
+export type StoryAsset = StoryCharacterAsset | StoryProductionAsset
 
 export interface StoryAssetCategoryDetails extends StoryJsonObject {
   identity?: string
@@ -248,7 +255,6 @@ export interface StoryProductionDocument extends StoryJsonObject {
   storyPlan?: StoryPlan
   episodes?: StoryEpisode[]
   assets?: StoryAsset[]
-  characters: StoryCharacter[]
   scenes: StoryScene[]
 }
 
@@ -258,10 +264,102 @@ export interface SaveStoryProductionInput {
   baseRevision: number
   production: StoryProductionDocument
   changeSummary: string
+  operationFingerprint?: string
 }
 
 export interface GetStoryProductionInput {
   projectId: string
+}
+
+export interface GetStoryProductionContextInput {
+  projectId: string
+  expectedRevision?: number
+}
+
+export interface InitializeStoryProductionInput {
+  projectId: string
+  operationId: string
+  baseRevision: number
+  sourceSynopsis: string
+  adaptationGoal: string
+  visualStyle: string
+  audience?: string
+  changeSummary: string
+}
+
+export interface UpdateStoryProductionBriefInput {
+  projectId: string
+  operationId: string
+  baseRevision: number
+  sourceSynopsis?: string
+  adaptationGoal?: string
+  visualStyle?: string
+  audience?: string | null
+  changeSummary: string
+}
+
+export interface UpsertStoryProductionCharacterInput {
+  projectId: string
+  operationId: string
+  baseRevision?: number
+  character: {
+    id: string
+    name: string
+    description: string
+    prompt: string
+    role?: string
+    visualDescription?: string
+    negativePrompt?: string
+    continuityNotes?: string
+    categoryDetails?: StoryAssetCategoryDetails
+  }
+  changeSummary: string
+}
+
+export interface UpsertStoryProductionEpisodeInput {
+  projectId: string
+  operationId: string
+  baseRevision?: number
+  episode: StoryEpisode
+  changeSummary: string
+}
+
+export interface UpsertStoryProductionAssetInput {
+  projectId: string
+  operationId: string
+  baseRevision?: number
+  asset: {
+    id: string
+    kind: 'location' | 'prop' | 'style'
+    name: string
+    description: string
+    prompt: string
+    negativePrompt?: string
+    continuityNotes?: string
+    categoryDetails?: StoryAssetCategoryDetails
+  }
+  changeSummary: string
+}
+
+export interface UpsertStoryProductionSceneMetadataInput {
+  projectId: string
+  operationId: string
+  baseRevision?: number
+  scene: {
+    id: string
+    episodeId?: string | null
+    order: number
+    title: string
+    summary: string
+    location?: string | null
+    timeOfDay?: string | null
+  }
+  changeSummary: string
+}
+
+export interface ValidateStoryProductionInput {
+  projectId: string
+  expectedRevision?: number
 }
 
 export interface StoryShotDialogueInput extends StoryJsonObject {
@@ -324,7 +422,6 @@ export interface StartStoryProductionInput {
   storyPlan?: StoryPlan
   episodes?: StoryEpisode[]
   assets?: StoryAsset[]
-  characters: StoryCharacter[]
   firstScene: UpsertStoryProductionSceneInput['scene']
   changeSummary: string
 }
@@ -332,7 +429,7 @@ export interface StartStoryProductionInput {
 export interface UpsertStoryProductionShotInput {
   projectId: string
   operationId: string
-  baseRevision: number
+  baseRevision?: number
   sceneId: string
   insertAfterShotId?: string
   shot: UpsertStoryProductionShotFields
@@ -463,7 +560,6 @@ export interface StoryProductionSummary {
   storyPlan: StoryPlan | null
   episodes: StoryEpisode[]
   assets: StoryAsset[]
-  characters: StoryCharacter[]
   scenes: StoryScene[]
   counts: {
     sources: number

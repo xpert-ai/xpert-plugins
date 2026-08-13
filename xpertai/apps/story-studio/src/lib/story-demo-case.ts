@@ -120,12 +120,6 @@ export function createStoryDemoProduction(
       simpleAsset('asset-film', 'prop', '未完成胶片', '顾沉要取回的关键证据。'),
       simpleAsset('asset-style', 'style', '逆光雨夜', '冷蓝雨夜与暖色逆光。')
     ],
-    characters: [
-      { id: 'character-linwan', name: '林晚', role: '女主 / 纪录片摄影师', visualDescription: '肩长黑发、米色风衣、右眼下浅痣。' },
-      { id: 'character-guchen', name: '顾沉', role: '男主 / 纪录片摄影师', visualDescription: '黑色湿发、黑色皮衣、冷峻克制。' },
-      { id: 'character-zhouqi', name: '周启', role: '调查记者', visualDescription: '干净利落，谨慎。' },
-      { id: 'character-chenfang', name: '陈放', role: '影棚管理员', visualDescription: '沉默寡言。' }
-    ],
     scenes: [
       { id: 'scene-rainy-exterior', episodeId: 'episode-01', order: 1, title: '雨夜 · 旧影棚外', summary: '林晚与顾沉在废弃摄影棚外久别重逢。', location: '旧影棚外', timeOfDay: '雨夜', shots: shots.slice(0, 4) },
       { id: 'scene-studio-interior', episodeId: 'episode-01', order: 2, title: '影棚内 · 摄影棚', summary: '两人在未完成的纪录片现场继续试探。', location: '摄影棚内部', timeOfDay: '夜', shots: shots.slice(4, 9) },
@@ -152,9 +146,9 @@ function createShot(
     colorTone: '低饱和冷暖对比',
     weather: index < 4 ? '雨夜' : '室内潮湿夜景',
     ...(index === 1
-      ? { dialogue: '你还是来了。', dialogueSpeakerId: 'character-linwan', dialogueType: 'dialogue' as const }
+      ? { dialogue: '你还是来了。', dialogueSpeakerId: 'asset-linwan', dialogueType: 'dialogue' as const }
       : index === 2
-        ? { dialogue: '我只是来拿回属于我的东西。', dialogueSpeakerId: 'character-guchen', dialogueType: 'dialogue' as const }
+        ? { dialogue: '我只是来拿回属于我的东西。', dialogueSpeakerId: 'asset-guchen', dialogueType: 'dialogue' as const }
         : {}),
     soundEffects: ['雨声', '远处雷声'],
     durationSeconds: definition[4],
@@ -174,6 +168,8 @@ function characterAsset(
     name,
     description,
     prompt: `${name}角色身份包，电影级写实，严格保持面部、发型与服装连续性。`,
+    role: characterRole(name),
+    visualDescription: description,
     negativePrompt: '避免脸型漂移、发型变化、服装换色、年龄变化与塑料皮肤。',
     continuityNotes: `${name}在全剧镜头中保持同一面部、发型、体型与主服装。`,
     categoryDetails: {
@@ -185,6 +181,13 @@ function characterAsset(
     },
     candidates: candidate ? [candidate] : []
   }
+}
+
+function characterRole(name: string) {
+  if (name === '林晚') return '女主 / 纪录片摄影师'
+  if (name === '顾沉') return '男主 / 纪录片摄影师'
+  if (name === '周启') return '调查记者'
+  return '影棚管理员'
 }
 
 function simpleAsset(

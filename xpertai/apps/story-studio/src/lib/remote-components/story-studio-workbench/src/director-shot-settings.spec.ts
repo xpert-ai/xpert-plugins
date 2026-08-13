@@ -73,7 +73,6 @@ function productionWithSettings(): ProductionView {
     sourceMaterials: [],
     storyPlan: null,
     episodes: [],
-    characters: [],
     assets: [
       asset('character-asset', 'character', 'Horse'),
       asset('location-asset', 'location', 'River')

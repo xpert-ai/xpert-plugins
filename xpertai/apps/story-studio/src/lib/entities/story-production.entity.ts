@@ -1,7 +1,6 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 import type {
   StoryAsset,
-  StoryCharacter,
   StoryEpisode,
   StoryPlan,
   StoryScene,
@@ -48,8 +47,6 @@ export class StoryProduction {
   episodes!: StoryEpisode[]
   @Column({ type: 'jsonb', default: () => "'[]'" })
   assets!: StoryAsset[]
-  @Column({ type: 'jsonb', default: () => "'[]'" })
-  characters!: StoryCharacter[]
   @Column({ type: 'jsonb', default: () => "'[]'" })
   scenes!: StoryScene[]
   @Column({ type: 'varchar', length: 128 })

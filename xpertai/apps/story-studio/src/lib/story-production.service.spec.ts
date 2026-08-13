@@ -5,6 +5,7 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
     `plugin_${namespace}_${key}`
 }))
 
+import { ConflictException } from '@nestjs/common'
 import { StoryProductionService } from './story-production.service.js'
 import { buildStoryScopeKey } from './story-studio.service.js'
 import type { StoryProductionDocument } from './production-types.js'
@@ -48,8 +49,15 @@ function createHarness() {
     adaptationGoal: 'A compact science-fiction reversal.',
     visualStyle: 'Neon rain and amber memory fragments.',
     audience: 'Young adult viewers.',
-    characters: [{ id: 'lin', name: 'Lin' }],
-    assets: [] as NonNullable<StoryProductionDocument['assets']>,
+    assets: [
+      {
+        id: 'lin',
+        kind: 'character',
+        name: 'Lin',
+        description: 'Courier',
+        prompt: 'Courier identity reference'
+      }
+    ] as NonNullable<StoryProductionDocument['assets']>,
     scenes: [
       {
         id: 'delivery',
@@ -222,7 +230,15 @@ describe('StoryProductionService', () => {
       sourceSynopsis: 'A foal learns to test the river.',
       adaptationGoal: 'Create a clear one-scene fable short.',
       visualStyle: 'Warm ink-wash storybook animation.',
-      characters: [{ id: 'foal', name: 'Foal' }],
+      assets: [
+        {
+          id: 'foal',
+          kind: 'character',
+          name: 'Foal',
+          description: 'A cautious young foal.',
+          prompt: 'Warm storybook foal identity reference.'
+        }
+      ],
       firstScene: {
         id: 'river',
         order: 1,
@@ -269,34 +285,53 @@ describe('StoryProductionService', () => {
   it('does not start production over an existing document', async () => {
     const harness = createHarness()
 
-    await expect(
-      harness.service.startProduction(scope, {
-        projectId: harness.project.id,
-        operationId: 'agent:production:start:0002',
-        baseRevision: 3,
-        sourceSynopsis: 'A replacement plan.',
-        adaptationGoal: 'Replace the plan.',
-        visualStyle: 'Replacement style.',
-        characters: [{ id: 'lin', name: 'Lin' }],
-        firstScene: {
-          id: 'replacement',
-          order: 1,
-          title: 'Replacement',
-          summary: 'Replacement summary.',
-          shots: [
-            {
-              id: 'replacement-shot',
-              title: 'Replacement shot',
-              composition: 'Wide shot.',
-              action: 'The plan changes.',
-              camera: 'Locked wide.',
-              durationSeconds: 5
-            }
-          ]
-        },
-        changeSummary: 'Attempted to replace the existing production'
+    const request = harness.service.startProduction(scope, {
+      projectId: harness.project.id,
+      operationId: 'agent:production:start:0002',
+      baseRevision: 3,
+      sourceSynopsis: 'A replacement plan.',
+      adaptationGoal: 'Replace the plan.',
+      visualStyle: 'Replacement style.',
+      assets: [
+        {
+          id: 'lin',
+          kind: 'character',
+          name: 'Lin',
+          description: 'Courier',
+          prompt: 'Courier identity reference'
+        }
+      ],
+      firstScene: {
+        id: 'replacement',
+        order: 1,
+        title: 'Replacement',
+        summary: 'Replacement summary.',
+        shots: [
+          {
+            id: 'replacement-shot',
+            title: 'Replacement shot',
+            composition: 'Wide shot.',
+            action: 'The plan changes.',
+            camera: 'Locked wide.',
+            durationSeconds: 5
+          }
+        ]
+      },
+      changeSummary: 'Attempted to replace the existing production'
+    })
+
+    await expect(request).rejects.toBeInstanceOf(ConflictException)
+    await expect(request).rejects.toMatchObject({
+      response: expect.objectContaining({
+        errorCode: 'story_production_already_exists',
+        currentRevision: 3,
+        nextAction: 'story_get_production_context',
+        availableMutations: expect.arrayContaining([
+          'story_upsert_production_scene',
+          'story_upsert_production_shot'
+        ])
       })
-    ).rejects.toThrow('production plan already exists')
+    })
   })
 
   it('resolves a scoped media candidate through a host file-access grant', async () => {
@@ -341,7 +376,7 @@ describe('StoryProductionService', () => {
         adaptationGoal: harness.production.adaptationGoal,
         visualStyle: harness.production.visualStyle,
         audience: harness.production.audience,
-        characters: harness.production.characters,
+        assets: harness.production.assets,
         scenes: [
           {
             ...currentScene,

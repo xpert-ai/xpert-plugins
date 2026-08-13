@@ -583,8 +583,7 @@ function AssetsStage(props: {
     <div className="ss-asset-grid">
       {production.assets.map((asset) => {
         const voiceReference = compactVoiceReference(
-          production.characters.find((character) => character.name === asset.name)
-            ?.voiceReference
+          asset.kind === 'character' ? asset.voiceReference : null
         )
         const selectedReference = asset.candidates.find(
           (candidate) => candidate.kind === 'image' && candidate.selected

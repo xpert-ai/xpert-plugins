@@ -78,7 +78,6 @@ function summary() {
     storyPlan: { logline: '久别重逢', theme: '面对真相', tone: '克制', beats: [], adaptationSuggestions: [] },
     episodes: [{ id: 'episode-1', order: 1, title: '雨夜重逢', summary: '两人重逢', script: '她停下。', targetDurationSeconds: 60 }],
     assets: [],
-    characters: [],
     scenes: [{ id: 'scene-1', episodeId: 'episode-1', order: 1, title: '影棚外', summary: '两人相见', location: '第七摄影棚', timeOfDay: '雨夜', shots: [{ id: 'shot-1', title: '中景对峙', composition: '中景双人', action: '她停下', camera: '缓慢推近', dialogue: null, dialogueSpeakerId: null, dialogueType: null, soundEffects: ['雨声'], generationPrompt: '电影级雨夜', emotion: '克制', lens: '35mm', lighting: '侧逆光', colorTone: '冷暖对比', weather: '雨夜', durationSeconds: 5, candidates: [] }] }],
     counts: { sources: 0, beats: 0, episodes: 1, assets: 0, characters: 0, scenes: 1, shots: 1, candidates: 0, selectedCandidates: 0 },
     totalDurationSeconds: 5,

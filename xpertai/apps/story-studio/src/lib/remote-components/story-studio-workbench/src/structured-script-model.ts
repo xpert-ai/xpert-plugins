@@ -160,8 +160,9 @@ export function syncEpisodeScript(
       summary,
       ...scene.shots.flatMap((shot) => {
         const action = displayRequiredScriptText(shot.action, defaults.shotAction).trim()
-        const speaker = production.characters.find(
-          (character) => character.id === shot.dialogueSpeakerId
+        const speaker = production.assets.find(
+          (asset) =>
+            asset.kind === 'character' && asset.id === shot.dialogueSpeakerId
         )?.name
         return [
           action,
@@ -190,7 +191,7 @@ export function refreshProductionMetrics(production: ProductionView) {
     beats: production.storyPlan?.beats.length ?? 0,
     episodes: production.episodes.length,
     assets: production.assets.length,
-    characters: production.characters.length,
+    characters: production.assets.filter((asset) => asset.kind === 'character').length,
     scenes: production.scenes.length,
     shots: shots.length,
     candidates: candidates.length,

@@ -65,7 +65,7 @@ describe('director production CRUD', () => {
     if (kind === 'location') details.environment = '第七摄影棚外，湿地反光'
     if (kind === 'prop') details.material = '磨损黑色金属'
     if (kind === 'style') details.palette = '#18232F / #C58B55'
-    addAsset(production, `asset-${kind}`, `character-${kind}`, {
+    addAsset(production, `asset-${kind}`, {
       kind,
       name: `${kind} asset`,
       description: `${kind} description`,
@@ -77,7 +77,7 @@ describe('director production CRUD', () => {
       voiceReference: kind === 'character' ? voiceReference : undefined
     })
     if (kind === 'character') {
-      expect(production.characters[0].voiceReference).toEqual(voiceReference)
+      expect(production.assets[0].voiceReference).toEqual(voiceReference)
     }
     expect(updateAsset(production, `asset-${kind}`, {
       kind,
@@ -96,7 +96,7 @@ describe('director production CRUD', () => {
         : undefined
     })).toBe(true)
     if (kind === 'character') {
-      expect(production.characters[0].voiceReference?.label).toBe('更清透的女声')
+      expect(production.assets[0].voiceReference?.label).toBe('更清透的女声')
     }
     expect(deleteAsset(production, `asset-${kind}`)).toBe(true)
   })
@@ -213,7 +213,6 @@ function fixture(): ProductionView {
     },
     episodes: [{ id: 'episode-1', order: 1, title: '雨夜重逢', summary: '两人重逢', script: '她停下。', targetDurationSeconds: 60 }],
     assets: [],
-    characters: [],
     scenes: [{ id: 'scene-1', episodeId: 'episode-1', order: 1, title: '影棚外', summary: '两人相见', location: '第七摄影棚', timeOfDay: '雨夜', shots: [{ id: 'shot-1', ...shotDraft('建立镜头'), candidates: [] }] }],
     counts: { sources: 0, beats: 0, episodes: 1, assets: 0, characters: 0, scenes: 1, shots: 1, candidates: 0, selectedCandidates: 0 }
   }

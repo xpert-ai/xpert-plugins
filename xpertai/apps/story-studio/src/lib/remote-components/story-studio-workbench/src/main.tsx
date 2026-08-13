@@ -50,7 +50,10 @@ import {
 } from './runtime'
 import { buildStoryStudioAssistantContext } from './assistant-context'
 import { storyStudioDebug } from './debug-logger'
-import { normalizeStoryToolEvent } from './tool-event'
+import {
+  destinationStageForStoryTool,
+  normalizeStoryToolEvent
+} from './tool-event'
 import {
   findProjectId,
   parseProject,
@@ -788,6 +791,10 @@ function App() {
       closeEditor()
     }
     await reloadProjects(targetId)
+    const destinationStage = destinationStageForStoryTool(normalized.toolName)
+    if (destinationStage !== null) {
+      setActiveStage(destinationStage)
+    }
     notify('info', t('messages.agentRefresh'))
   }
 

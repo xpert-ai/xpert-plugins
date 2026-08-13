@@ -10,6 +10,14 @@ describe('buildStoryVideoGenerationRequest', () => {
     const locationImage = fileReference('locations/river.jpg')
     const temporaryImage = fileReference('shots/temporary.jpg')
     const character = asset('asset-pony', 'character', '小马', characterImage)
+    if (character.kind === 'character') {
+      character.voiceReference = {
+        url: 'https://media.example/pony-voice.mp3',
+        label: '清亮少年音',
+        license: 'CC-BY-4.0',
+        sourceUrl: 'https://media.example/pony-voice'
+      }
+    }
     character.categoryDetails = {
       identity: '棕色幼年小马',
       appearance: '大眼睛，棕色鬃毛',
@@ -26,17 +34,7 @@ describe('buildStoryVideoGenerationRequest', () => {
     const request = buildStoryVideoGenerationRequest(
       generationInput('保持儿童绘本质感'),
       {
-        assets: [character, location],
-        characters: [{
-          id: 'character-pony',
-          name: '小马',
-          voiceReference: {
-            url: 'https://media.example/pony-voice.mp3',
-            label: '清亮少年音',
-            license: 'CC-BY-4.0',
-            sourceUrl: 'https://media.example/pony-voice'
-          }
-        }]
+        assets: [character, location]
       },
       scene,
       shot
@@ -89,7 +87,7 @@ describe('buildStoryVideoGenerationRequest', () => {
     const shot = storyShot()
     const request = buildStoryVideoGenerationRequest(
       generationInput(''),
-      { assets: [character], characters: [] },
+      { assets: [character] },
       storyScene(shot),
       shot
     )
@@ -112,7 +110,7 @@ describe('buildStoryVideoGenerationRequest', () => {
         ...generationInput('保持角色造型一致'),
         referenceAssetIds: ['asset-pony']
       },
-      { assets: [character], characters: [] },
+      { assets: [character] },
       storyScene(shot),
       shot
     )
@@ -144,7 +142,7 @@ describe('buildStoryVideoGenerationRequest', () => {
 
     const request = buildStoryVideoGenerationRequest(
       generationInput('保持侧面轮廓'),
-      { assets: [character], characters: [] },
+      { assets: [character] },
       storyScene(shot),
       shot
     )
@@ -160,7 +158,16 @@ describe('buildStoryVideoGenerationRequest', () => {
     shot.dialogue = '很长的对白'.repeat(200)
     const request = buildStoryVideoGenerationRequest(
       generationInput('额外要求'.repeat(200)),
-      { assets: [], characters: [{ id: 'character-pony', name: '小马' }] },
+      {
+        assets: [
+          asset(
+            'asset-pony',
+            'character',
+            '小马',
+            fileReference('characters/pony.jpg')
+          )
+        ]
+      },
       storyScene(shot),
       shot
     )
@@ -198,7 +205,7 @@ describe('buildStoryVideoGenerationRequest', () => {
 
     const request = buildStoryVideoGenerationRequest(
       { ...generationInput(''), shotId: shot.id },
-      { assets: [], characters: [], scenes: [scene] },
+      { assets: [], scenes: [scene] },
       scene,
       shot
     )
@@ -277,7 +284,7 @@ function storyShot(temporaryImage?: WorkspacePortableFileReference): StoryShot {
     action: '小马背着麦袋欢快奔跑',
     camera: '低角度跟拍',
     dialogue: '妈妈，我出发了！',
-    dialogueSpeakerId: 'character-pony',
+    dialogueSpeakerId: 'asset-pony',
     dialogueType: 'dialogue',
     soundEffects: ['马蹄声', '鸟鸣'],
     emotion: '欢快',

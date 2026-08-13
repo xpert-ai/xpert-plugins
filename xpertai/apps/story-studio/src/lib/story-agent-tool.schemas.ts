@@ -5,8 +5,7 @@ import {
   STORY_PROJECT_STATUSES
 } from './types.js'
 
-const boundedString = (maximum: number) =>
-  z.string().trim().min(1).max(maximum)
+const boundedString = (maximum: number) => z.string().trim().min(1).max(maximum)
 
 const projectIdSchema = z
   .string()
@@ -51,6 +50,9 @@ export const createStoryProjectSchema = z
       .int()
       .min(5)
       .max(28_800)
+      .describe(
+        'Target duration as an integer number of seconds, for example 120. Never pass a string, a clock value, or text such as "2 minutes".'
+      )
       .optional(),
     tags: tagsSchema.optional(),
     changeSummary: changeSummarySchema
@@ -101,6 +103,9 @@ export const updateStoryProjectSchema = z
       .int()
       .min(5)
       .max(28_800)
+      .describe(
+        'Target duration as an integer number of seconds, for example 120. Never pass a string, a clock value, or text such as "2 minutes". Pass null only to clear the target.'
+      )
       .nullable()
       .optional(),
     tags: tagsSchema.optional(),

@@ -80,7 +80,7 @@ export class StoryProductionService {
   async saveProduction(scope: StoryScope, input: SaveStoryProductionInput) {
     validateScope(scope)
     const checksum = checksumOf(input.production)
-    const operationFingerprint = checksumOf(input)
+    const operationFingerprint = input.operationFingerprint ?? checksumOf(input)
     return this.projects.manager.transaction(async (manager) => {
       const projectRepository = manager.getRepository(StoryProject)
       const productionRepository = manager.getRepository(StoryProduction)
@@ -111,7 +111,8 @@ export class StoryProductionService {
           success: true,
           duplicate: true,
           projectId: input.projectId,
-          revision: previousLog.resultingRevision,
+          revision: current.projectRevision,
+          originalRevision: previousLog.resultingRevision,
           production: compactProduction(current)
         }
       }
@@ -170,7 +171,6 @@ export class StoryProductionService {
           storyPlan: input.production.storyPlan ?? null,
           episodes: input.production.episodes ?? [],
           assets: input.production.assets ?? [],
-          characters: input.production.characters,
           scenes: [...input.production.scenes].sort(
             (left, right) => left.order - right.order
           ),
@@ -241,10 +241,7 @@ export class StoryProductionService {
     return compactProduction(row)
   }
 
-  async startProduction(
-    scope: StoryScope,
-    input: StartStoryProductionInput
-  ) {
+  async startProduction(scope: StoryScope, input: StartStoryProductionInput) {
     validateScope(scope)
     const existing = await this.productions.findOne({
       where: scopedWhere<StoryProduction>(scope, {
@@ -261,7 +258,17 @@ export class StoryProductionService {
         throw new ConflictException({
           errorCode: 'story_production_already_exists',
           message:
-            'A production plan already exists. Use story_upsert_production_scene or story_upsert_production_shot instead.'
+            'A production plan already exists. Continue with one bounded production mutation.',
+          currentRevision: existing.projectRevision,
+          nextAction: 'story_get_production_context',
+          availableMutations: [
+            'story_update_production_brief',
+            'story_upsert_production_character',
+            'story_upsert_production_episode',
+            'story_upsert_production_asset',
+            'story_upsert_production_scene',
+            'story_upsert_production_shot'
+          ]
         })
       }
     }
@@ -272,16 +279,17 @@ export class StoryProductionService {
       production: buildStartedProduction(input),
       changeSummary: input.changeSummary
     })
-    return productionPatchReceipt(saved, {
-      sceneId: input.firstScene.id,
-      shotIds: input.firstScene.shots.map((shot) => shot.id)
-    })
+    return productionPatchReceipt(
+      saved,
+      {
+        sceneId: input.firstScene.id,
+        shotIds: input.firstScene.shots.map((shot) => shot.id)
+      },
+      input.operationId
+    )
   }
 
-  async upsertScene(
-    scope: StoryScope,
-    input: UpsertStoryProductionSceneInput
-  ) {
+  async upsertScene(scope: StoryScope, input: UpsertStoryProductionSceneInput) {
     validateScope(scope)
     const row = await requireProduction(
       this.productions,
@@ -290,10 +298,7 @@ export class StoryProductionService {
       'Save a Story Studio production plan before upserting scenes.'
     )
     const current = productionDocumentFromRow(row)
-    const { production, target } = applyProductionSceneUpsert(
-      current,
-      input
-    )
+    const { production, target } = applyProductionSceneUpsert(current, input)
     const saved = await this.saveProduction(scope, {
       projectId: input.projectId,
       operationId: input.operationId,
@@ -301,12 +306,12 @@ export class StoryProductionService {
       production,
       changeSummary: input.changeSummary
     })
-    return productionPatchReceipt(saved, target)
+    return productionPatchReceipt(saved, target, input.operationId)
   }
 
   async upsertShot(
     scope: StoryScope,
-    input: UpsertStoryProductionShotInput
+    input: UpsertStoryProductionShotInput & { baseRevision: number }
   ) {
     validateScope(scope)
     const row = await requireProduction(
@@ -324,7 +329,7 @@ export class StoryProductionService {
       production,
       changeSummary: input.changeSummary
     })
-    return productionPatchReceipt(saved, target)
+    return productionPatchReceipt(saved, target, input.operationId)
   }
 
   async resolveMediaCandidateFile(
@@ -338,9 +343,7 @@ export class StoryProductionService {
     })
     const candidate = row
       ? [
-          ...(row.assets ?? []).flatMap(
-            (asset) => asset.candidates ?? []
-          ),
+          ...(row.assets ?? []).flatMap((asset) => asset.candidates ?? []),
           ...row.scenes.flatMap((scene) =>
             scene.shots.flatMap((shot) => shot.candidates ?? [])
           )
@@ -375,11 +378,7 @@ export class StoryProductionService {
       mimeType: string
     }
   ) {
-    const project = await requireProject(
-      this.projects,
-      scope,
-      input.projectId
-    )
+    const project = await requireProject(this.projects, scope, input.projectId)
     assertRevision(project, input.baseRevision)
     const mimeType = normalizeAssetImageMimeType(
       file.mimeType,
@@ -481,10 +480,6 @@ export class StoryProductionService {
     if (!asset || asset.kind !== 'character') {
       throw new NotFoundException('Story character asset was not found.')
     }
-    const character = production.characters.find((item) => item.name === asset.name)
-    if (!character) {
-      throw new NotFoundException('Story character identity was not found.')
-    }
     const mimeType = normalizeVoiceReferenceMimeType(
       file.mimeType,
       file.originalName,
@@ -505,7 +500,7 @@ export class StoryProductionService {
         pluginName: '@xpert-ai/plugin-story-studio',
         storyProjectId: project.id,
         storyAssetId: input.assetId,
-        storyCharacterId: character.id,
+        storyCharacterId: asset.id,
         referenceId: input.referenceId,
         source: 'manual_upload'
       }
@@ -632,11 +627,7 @@ export class StoryProductionService {
   ) {
     validateScope(scope)
     validateReferenceImageInput(scope, input, file)
-    const project = await requireProject(
-      this.projects,
-      scope,
-      input.projectId
-    )
+    const project = await requireProject(this.projects, scope, input.projectId)
     const row = await this.productions.findOne({
       where: scopedWhere<StoryProduction>(scope, {
         projectId: input.projectId
@@ -700,9 +691,7 @@ export class StoryProductionService {
       kind: 'image',
       label: input.label,
       selected: input.select ?? true,
-      ...(input.assetReference
-        ? { assetReference: input.assetReference }
-        : {}),
+      ...(input.assetReference ? { assetReference: input.assetReference } : {}),
       ...(file.fileUrl ? { fileUrl: file.fileUrl } : {}),
       workspacePath: file.reference.workspacePath,
       ...(input.prompt ? { prompt: input.prompt } : {}),
@@ -738,7 +727,7 @@ export class StoryProductionService {
               item.kind !== 'image' ||
               !sameAssetReference(item.assetReference, replacementReference)
           )
-        : (asset.candidates ?? [])
+        : asset.candidates ?? []
       const existing = sourceCandidates.map((item) =>
         input.select !== false && item.kind === 'image'
           ? { ...item, selected: false }
@@ -747,9 +736,7 @@ export class StoryProductionService {
       return { ...asset, candidates: [...existing, candidate] }
     })
     if (!found) {
-      throw new NotFoundException(
-        'Story production asset was not found.'
-      )
+      throw new NotFoundException('Story production asset was not found.')
     }
     return this.saveProduction(scope, {
       projectId: input.projectId,
@@ -772,18 +759,10 @@ export class StoryProductionService {
       changeSummary: string
     }
   ) {
-    const project = await requireProject(
-      this.projects,
-      scope,
-      input.projectId
-    )
+    const project = await requireProject(this.projects, scope, input.projectId)
     assertRevision(project, input.baseRevision)
     const workspaceFiles = this.workspaceFiles()
-    const media = await uploadStoryDemoAssets(
-      workspaceFiles,
-      project,
-      scope
-    )
+    const media = await uploadStoryDemoAssets(workspaceFiles, project, scope)
     return this.saveProduction(scope, {
       projectId: input.projectId,
       operationId: input.operationId,
@@ -826,7 +805,9 @@ async function requireProduction(
 
 function validateReferenceImageInput(
   scope: StoryScope,
-  input: Pick<AttachAssetImageInput, 'providerReceipt'> | Pick<AttachShotReferenceImageInput, 'providerReceipt'>,
+  input:
+    | Pick<AttachAssetImageInput, 'providerReceipt'>
+    | Pick<AttachShotReferenceImageInput, 'providerReceipt'>,
   file: WorkspaceRuntimeFileBuffer
 ) {
   if (
@@ -840,8 +821,7 @@ function validateReferenceImageInput(
   }
   if (
     file.reference.source !== 'platform.workspace.files' ||
-    (file.reference.tenantId &&
-      file.reference.tenantId !== scope.tenantId)
+    (file.reference.tenantId && file.reference.tenantId !== scope.tenantId)
   ) {
     throw new BadRequestException(
       'Asset image is outside the current Story Studio workspace scope.'
@@ -903,34 +883,37 @@ function normalizeVoiceReferenceMimeType(
   const detected = wav
     ? 'audio/wav'
     : flac
-      ? 'audio/flac'
-      : ogg
-        ? 'audio/ogg'
-        : mp4
-          ? 'audio/mp4'
-          : id3
-            ? 'audio/mpeg'
-            : framedAudio && lowerName.endsWith('.aac')
-              ? 'audio/aac'
-              : framedAudio
-                ? 'audio/mpeg'
-                : null
+    ? 'audio/flac'
+    : ogg
+    ? 'audio/ogg'
+    : mp4
+    ? 'audio/mp4'
+    : id3
+    ? 'audio/mpeg'
+    : framedAudio && lowerName.endsWith('.aac')
+    ? 'audio/aac'
+    : framedAudio
+    ? 'audio/mpeg'
+    : null
   if (!detected) {
     throw new BadRequestException(
       'Voice reference must be a valid MP3, WAV, M4A, AAC, OGG, or FLAC file.'
     )
   }
-  if (
-    value &&
-    value !== 'application/octet-stream' &&
-    value !== detected
-  ) {
+  if (value && value !== 'application/octet-stream' && value !== detected) {
     throw new BadRequestException(
       'Voice reference content does not match its MIME type.'
     )
   }
-  const supportedExtension = ['.mp3', '.wav', '.m4a', '.mp4', '.aac', '.ogg', '.flac']
-    .some((extension) => lowerName.endsWith(extension))
+  const supportedExtension = [
+    '.mp3',
+    '.wav',
+    '.m4a',
+    '.mp4',
+    '.aac',
+    '.ogg',
+    '.flac'
+  ].some((extension) => lowerName.endsWith(extension))
   if (!supportedExtension) {
     throw new BadRequestException(
       'Voice reference file name must use .mp3, .wav, .m4a, .mp4, .aac, .ogg, or .flac.'
@@ -957,9 +940,7 @@ function normalizeAssetImageMimeType(
   const lowerName = fileName.toLowerCase()
   const png =
     buffer.length >= 8 &&
-    buffer.subarray(0, 8).equals(
-      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])
-    )
+    buffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
   const jpeg =
     buffer.length >= 3 &&
     buffer[0] === 0xff &&
@@ -972,20 +953,16 @@ function normalizeAssetImageMimeType(
   const detected = png
     ? 'image/png'
     : jpeg
-      ? 'image/jpeg'
-      : webp
-        ? 'image/webp'
-        : null
+    ? 'image/jpeg'
+    : webp
+    ? 'image/webp'
+    : null
   if (!detected) {
     throw new BadRequestException(
       'Asset image must be a valid PNG, JPEG, or WebP file.'
     )
   }
-  if (
-    value &&
-    value !== 'application/octet-stream' &&
-    value !== detected
-  ) {
+  if (value && value !== 'application/octet-stream' && value !== detected) {
     throw new BadRequestException(
       'Asset image content does not match its MIME type.'
     )
@@ -1009,10 +986,7 @@ function extensionForImageMimeType(mimeType: string) {
   return 'png'
 }
 
-function assetImageDestination(
-  project: StoryProject,
-  scope: StoryScope
-) {
+function assetImageDestination(project: StoryProject, scope: StoryScope) {
   if (project.hostProjectId) {
     return {
       tenantId: project.tenantId,
@@ -1037,9 +1011,7 @@ function assetImageDestination(
   }
 }
 
-function compactProduction(
-  row: StoryProduction
-): StoryProductionSummary {
+function compactProduction(row: StoryProduction): StoryProductionSummary {
   const shots = row.scenes.flatMap((scene) => scene.shots)
   const candidates = [
     ...(row.assets ?? []).flatMap((asset) => asset.candidates ?? []),
@@ -1058,20 +1030,20 @@ function compactProduction(
     storyPlan: row.storyPlan ?? null,
     episodes: row.episodes ?? [],
     assets: sanitizeAssets(row.assets ?? []),
-    characters: row.characters,
     scenes: sanitizeScenes(row.scenes),
     counts: {
       sources: row.sourceMaterials?.length ?? 0,
       beats: row.storyPlan?.beats.length ?? 0,
       episodes: row.episodes?.length ?? 0,
       assets: row.assets?.length ?? 0,
-      characters: row.characters.length,
+      characters: (row.assets ?? []).filter(
+        (asset) => asset.kind === 'character'
+      ).length,
       scenes: row.scenes.length,
       shots: shots.length,
       candidates: candidates.length,
-      selectedCandidates: candidates.filter(
-        (candidate) => candidate.selected
-      ).length
+      selectedCandidates: candidates.filter((candidate) => candidate.selected)
+        .length
     },
     totalDurationSeconds: totalProductionDuration(
       productionDocumentFromRow(row)
@@ -1092,22 +1064,17 @@ function productionDocumentFromRow(
     ...(row.storyPlan ? { storyPlan: row.storyPlan } : {}),
     episodes: row.episodes ?? [],
     assets: row.assets ?? [],
-    characters: row.characters,
     scenes: row.scenes
   }
 }
 
-function defaultCandidateMimeType(
-  kind: 'image' | 'video' | 'audio'
-) {
+function defaultCandidateMimeType(kind: 'image' | 'video' | 'audio') {
   if (kind === 'video') return 'video/mp4'
   if (kind === 'audio') return 'audio/mpeg'
   return 'image/png'
 }
 
-function defaultCandidateExtension(
-  kind: 'image' | 'video' | 'audio'
-) {
+function defaultCandidateExtension(kind: 'image' | 'video' | 'audio') {
   if (kind === 'video') return 'mp4'
   if (kind === 'audio') return 'mp3'
   return 'png'
@@ -1160,9 +1127,11 @@ function sameAssetReference(
   if (left.type === 'continuity_view' && right.type === 'continuity_view') {
     return left.key === right.key
   }
-  return left.type === 'expression' &&
+  return (
+    left.type === 'expression' &&
     right.type === 'expression' &&
     left.key === right.key
+  )
 }
 
 function countProduction(production: StoryProductionDocument) {
@@ -1175,15 +1144,14 @@ function countProduction(production: StoryProductionDocument) {
     beats: production.storyPlan?.beats.length ?? 0,
     episodes: production.episodes?.length ?? 0,
     assets: production.assets?.length ?? 0,
-    characters: production.characters.length,
+    characters: (production.assets ?? []).filter(
+      (asset) => asset.kind === 'character'
+    ).length,
     scenes: production.scenes.length,
     shots: shots.length,
     candidates:
       assetCandidates.length +
-      shots.reduce(
-        (total, shot) => total + (shot.candidates?.length ?? 0),
-        0
-      )
+      shots.reduce((total, shot) => total + (shot.candidates?.length ?? 0), 0)
   }
 }
 
@@ -1211,10 +1179,7 @@ function canonicalJson(value: unknown): string {
     return `{${Object.entries(value)
       .filter(([, field]) => field !== undefined)
       .sort(([left], [right]) => left.localeCompare(right))
-      .map(
-        ([key, field]) =>
-          `${JSON.stringify(key)}:${canonicalJson(field)}`
-      )
+      .map(([key, field]) => `${JSON.stringify(key)}:${canonicalJson(field)}`)
       .join(',')}}`
   }
   return JSON.stringify(value)

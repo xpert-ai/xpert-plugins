@@ -6,9 +6,9 @@ export const STORY_STUDIO_TEMPLATE_PROVIDER_KEY = 'storyStudioTemplates'
 export const STORY_STUDIO_FEATURE = 'story-studio'
 export const STORY_STUDIO_AGENT_CAPABILITY = 'story-production-agent'
 export const STORY_STUDIO_WORKBENCH_CAPABILITY = 'story-studio-workbench'
-export const STORY_STUDIO_TEMPLATE_CAPABILITY = 'story-studio-assistant-template'
-export const STORY_STUDIO_WORKBENCH_VIEW_KEY =
-  `${STORY_STUDIO_ARTIFACT_NAMESPACE}_workbench`
+export const STORY_STUDIO_TEMPLATE_CAPABILITY =
+  'story-studio-assistant-template'
+export const STORY_STUDIO_WORKBENCH_VIEW_KEY = `${STORY_STUDIO_ARTIFACT_NAMESPACE}_workbench`
 export const STORY_STUDIO_REMOTE_ENTRY_KEY = 'story-studio-workbench'
 export const STORY_VIDEO_GENERATION_QUEUE = 'story-studio.video-generation'
 export const STORY_VIDEO_GENERATION_SUBMIT_JOB = 'submit'
@@ -16,8 +16,7 @@ export const STORY_VIDEO_GENERATION_POLL_JOB = 'poll'
 export const STORY_VIDEO_FRAME_ACTION = 'story-studio.extract-video-frame'
 export const STORY_VIDEO_FRAME_ACTION_VERSION = '1.0.0'
 export const ASSISTANT_CONTEXT_SET_COMMAND = 'assistant.context.set'
-export const ASSISTANT_CHAT_SEND_MESSAGE_COMMAND =
-  'assistant.chat.send_message'
+export const ASSISTANT_CHAT_SEND_MESSAGE_COMMAND = 'assistant.chat.send_message'
 export const AGENT_WORKBENCH_MAIN_SLOT = 'agent.workbench.main'
 export const AGENT_WORKBENCH_FIXED_SLOT = 'agent.workbench.fixed'
 
@@ -26,15 +25,27 @@ export const STORY_SEARCH_PROJECTS_TOOL_NAME = 'story_search_projects'
 export const STORY_GET_PROJECT_SUMMARY_TOOL_NAME = 'story_get_project_summary'
 export const STORY_GET_PROJECT_REVISION_TOOL_NAME = 'story_get_project_revision'
 export const STORY_UPDATE_PROJECT_TOOL_NAME = 'story_update_project'
-export const STORY_UPDATE_PROJECT_STATUS_TOOL_NAME = 'story_update_project_status'
+export const STORY_UPDATE_PROJECT_STATUS_TOOL_NAME =
+  'story_update_project_status'
 export const STORY_REPORT_FAILURE_TOOL_NAME = 'story_report_failure'
-export const STORY_SAVE_PRODUCTION_TOOL_NAME = 'story_save_production'
 export const STORY_GET_PRODUCTION_TOOL_NAME = 'story_get_production'
-export const STORY_START_PRODUCTION_TOOL_NAME = 'story_start_production'
+export const STORY_GET_PRODUCTION_CONTEXT_TOOL_NAME =
+  'story_get_production_context'
+export const STORY_INITIALIZE_PRODUCTION_TOOL_NAME =
+  'story_initialize_production'
+export const STORY_UPDATE_PRODUCTION_BRIEF_TOOL_NAME =
+  'story_update_production_brief'
+export const STORY_UPSERT_PRODUCTION_CHARACTER_TOOL_NAME =
+  'story_upsert_production_character'
+export const STORY_UPSERT_PRODUCTION_EPISODE_TOOL_NAME =
+  'story_upsert_production_episode'
+export const STORY_UPSERT_PRODUCTION_ASSET_TOOL_NAME =
+  'story_upsert_production_asset'
 export const STORY_UPSERT_PRODUCTION_SCENE_TOOL_NAME =
   'story_upsert_production_scene'
 export const STORY_UPSERT_PRODUCTION_SHOT_TOOL_NAME =
   'story_upsert_production_shot'
+export const STORY_VALIDATE_PRODUCTION_TOOL_NAME = 'story_validate_production'
 export const STORY_LIST_ADAPTATION_SUGGESTIONS_TOOL_NAME =
   'story_list_adaptation_suggestions'
 export const STORY_CREATE_ADAPTATION_SUGGESTION_TOOL_NAME =
@@ -47,21 +58,16 @@ export const STORY_ATTACH_GENERATED_VIDEO_TOOL_NAME =
   'story_attach_generated_video'
 export const STORY_ATTACH_GENERATED_ASSET_IMAGE_TOOL_NAME =
   'story_attach_generated_asset_image'
-export const STORY_PREPARE_CUT_HANDOFF_TOOL_NAME =
-  'story_prepare_cut_handoff'
+export const STORY_PREPARE_CUT_HANDOFF_TOOL_NAME = 'story_prepare_cut_handoff'
 export const STORY_GET_CUT_HANDOFF_TOOL_NAME = 'story_get_cut_handoff'
 export const STORY_RECORD_CUT_HANDOFF_TOOL_NAME =
   'story_record_cut_handoff_delivery'
-export const STORY_LIST_VIDEO_TASKS_TOOL_NAME =
-  'story_list_shot_video_tasks'
+export const STORY_LIST_VIDEO_TASKS_TOOL_NAME = 'story_list_shot_video_tasks'
 export const STORY_GET_VIDEO_TASK_TOOL_NAME = 'story_get_video_task'
-export const STORY_REFRESH_VIDEO_TASK_TOOL_NAME =
-  'story_refresh_video_task'
-export const STORY_CANCEL_VIDEO_TASK_TOOL_NAME =
-  'story_cancel_video_task'
+export const STORY_REFRESH_VIDEO_TASK_TOOL_NAME = 'story_refresh_video_task'
+export const STORY_CANCEL_VIDEO_TASK_TOOL_NAME = 'story_cancel_video_task'
 export const STORY_RETRY_VIDEO_TASK_TOOL_NAME = 'story_retry_video_task'
-export const STORY_SELECT_SHOT_VIDEO_TOOL_NAME =
-  'story_select_shot_video'
+export const STORY_SELECT_SHOT_VIDEO_TOOL_NAME = 'story_select_shot_video'
 
 export const STORY_STUDIO_MIDDLEWARE_TOOL_NAMES = [
   STORY_CREATE_PROJECT_TOOL_NAME,
@@ -71,11 +77,16 @@ export const STORY_STUDIO_MIDDLEWARE_TOOL_NAMES = [
   STORY_UPDATE_PROJECT_TOOL_NAME,
   STORY_UPDATE_PROJECT_STATUS_TOOL_NAME,
   STORY_REPORT_FAILURE_TOOL_NAME,
-  STORY_SAVE_PRODUCTION_TOOL_NAME,
+  STORY_GET_PRODUCTION_CONTEXT_TOOL_NAME,
   STORY_GET_PRODUCTION_TOOL_NAME,
-  STORY_START_PRODUCTION_TOOL_NAME,
+  STORY_INITIALIZE_PRODUCTION_TOOL_NAME,
+  STORY_UPDATE_PRODUCTION_BRIEF_TOOL_NAME,
+  STORY_UPSERT_PRODUCTION_CHARACTER_TOOL_NAME,
+  STORY_UPSERT_PRODUCTION_EPISODE_TOOL_NAME,
+  STORY_UPSERT_PRODUCTION_ASSET_TOOL_NAME,
   STORY_UPSERT_PRODUCTION_SCENE_TOOL_NAME,
   STORY_UPSERT_PRODUCTION_SHOT_TOOL_NAME,
+  STORY_VALIDATE_PRODUCTION_TOOL_NAME,
   STORY_LIST_ADAPTATION_SUGGESTIONS_TOOL_NAME,
   STORY_CREATE_ADAPTATION_SUGGESTION_TOOL_NAME,
   STORY_UPDATE_ADAPTATION_SUGGESTION_TOOL_NAME,
@@ -98,8 +109,11 @@ export const STORY_STUDIO_MUTATION_TOOL_NAMES = [
   STORY_UPDATE_PROJECT_TOOL_NAME,
   STORY_UPDATE_PROJECT_STATUS_TOOL_NAME,
   STORY_REPORT_FAILURE_TOOL_NAME,
-  STORY_SAVE_PRODUCTION_TOOL_NAME,
-  STORY_START_PRODUCTION_TOOL_NAME,
+  STORY_INITIALIZE_PRODUCTION_TOOL_NAME,
+  STORY_UPDATE_PRODUCTION_BRIEF_TOOL_NAME,
+  STORY_UPSERT_PRODUCTION_CHARACTER_TOOL_NAME,
+  STORY_UPSERT_PRODUCTION_EPISODE_TOOL_NAME,
+  STORY_UPSERT_PRODUCTION_ASSET_TOOL_NAME,
   STORY_UPSERT_PRODUCTION_SCENE_TOOL_NAME,
   STORY_UPSERT_PRODUCTION_SHOT_TOOL_NAME,
   STORY_CREATE_ADAPTATION_SUGGESTION_TOOL_NAME,

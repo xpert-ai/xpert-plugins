@@ -11,9 +11,7 @@ import { compactVoiceReference, type VoiceReferenceLike } from '../../../voice-r
 export type EpisodeDraft = Omit<Episode, 'id' | 'order'>
 export type SceneDraft = Omit<Scene, 'id' | 'order' | 'shots'>
 export type ShotDraft = Omit<Shot, 'id' | 'candidates'>
-export type AssetDraft = Omit<Asset, 'id' | 'candidates'> & {
-  role?: string
-  visualDescription?: string
+export type AssetDraft = Omit<Asset, 'id' | 'candidates' | 'voiceReference'> & {
   voiceReference?: VoiceReferenceLike | null
 }
 
@@ -138,23 +136,25 @@ export function deleteShot(
 export function addAsset(
   production: ProductionView,
   assetId: string,
-  characterId: string,
   draft: AssetDraft
 ) {
-  const { role, visualDescription, voiceReference, ...asset } = draft
-  production.assets.push({ id: assetId, ...asset, candidates: [] })
-  if (asset.kind === 'character') {
-    production.characters.push({
-      id: characterId,
-      name: asset.name,
-      role: role?.trim() || null,
-      visualDescription:
-        visualDescription?.trim() ||
-        asset.categoryDetails.appearance ||
-        asset.description,
-      voiceReference: compactVoiceReference(voiceReference)
-    })
-  }
+  const { voiceReference, ...asset } = draft
+  production.assets.push({
+    id: assetId,
+    ...asset,
+    role: asset.kind === 'character' ? asset.role?.trim() || null : null,
+    visualDescription:
+      asset.kind === 'character'
+        ? asset.visualDescription?.trim() ||
+          asset.categoryDetails.appearance ||
+          asset.description
+        : null,
+    voiceReference:
+      asset.kind === 'character'
+        ? compactVoiceReference(voiceReference)
+        : null,
+    candidates: []
+  })
 }
 
 export function updateAsset(
@@ -164,24 +164,21 @@ export function updateAsset(
 ) {
   const asset = production.assets.find((item) => item.id === assetId)
   if (!asset) return false
-  const previousName = asset.name
-  const { role, visualDescription, voiceReference, ...nextAsset } = draft
+  const { voiceReference, ...nextAsset } = draft
   Object.assign(asset, nextAsset)
   if (asset.kind === 'character') {
-    const character = production.characters.find(
-      (item) => item.name === previousName || item.name === asset.name
-    )
-    if (character) {
-      character.name = asset.name
-      character.role = role?.trim() || character.role
-      character.visualDescription =
-        visualDescription?.trim() ||
-        asset.categoryDetails.appearance ||
-        asset.description
-      if (voiceReference !== undefined) {
-        character.voiceReference = compactVoiceReference(voiceReference)
-      }
+    asset.role = draft.role?.trim() || asset.role
+    asset.visualDescription =
+      draft.visualDescription?.trim() ||
+      asset.categoryDetails.appearance ||
+      asset.description
+    if (voiceReference !== undefined) {
+      asset.voiceReference = compactVoiceReference(voiceReference)
     }
+  } else {
+    asset.role = null
+    asset.visualDescription = null
+    asset.voiceReference = null
   }
   return true
 }
@@ -190,11 +187,6 @@ export function deleteAsset(production: ProductionView, assetId: string) {
   const asset = production.assets.find((item) => item.id === assetId)
   if (!asset) return false
   production.assets = production.assets.filter((item) => item.id !== assetId)
-  if (asset.kind === 'character') {
-    production.characters = production.characters.filter(
-      (item) => item.name !== asset.name
-    )
-  }
   return true
 }
 

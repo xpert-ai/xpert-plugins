@@ -16,6 +16,7 @@ import { StoryGeneratedMediaService } from './story-generated-media.service.js'
 import { StoryAdaptationSuggestionService } from './story-adaptation-suggestion.service.js'
 import { StoryCutHandoffService } from './story-cut-handoff.service.js'
 import { StoryProductionService } from './story-production.service.js'
+import { StoryProductionAgentService } from './story-production-agent.service.js'
 import { StoryStudioMiddleware } from './story-studio.middleware.js'
 import { StoryStudioService } from './story-studio.service.js'
 import { StoryStudioViewProvider } from './story-studio-view.provider.js'
@@ -40,6 +41,7 @@ export const STORY_STUDIO_ENTITIES = [
   providers: [
     StoryStudioService,
     StoryProductionService,
+    StoryProductionAgentService,
     StoryAdaptationSuggestionService,
     StoryGeneratedMediaService,
     StoryCutHandoffService,
@@ -52,15 +54,14 @@ export const STORY_STUDIO_ENTITIES = [
   exports: [
     StoryStudioService,
     StoryProductionService,
+    StoryProductionAgentService,
     StoryAdaptationSuggestionService,
     StoryGeneratedMediaService,
     StoryCutHandoffService,
     StoryVideoGenerationService
   ]
 })
-export class StoryStudioPlugin
-  implements IOnPluginBootstrap, IOnPluginDestroy
-{
+export class StoryStudioPlugin implements IOnPluginBootstrap, IOnPluginDestroy {
   onPluginBootstrap(): void {
     // No plugin-owned worker lifecycle is required.
   }

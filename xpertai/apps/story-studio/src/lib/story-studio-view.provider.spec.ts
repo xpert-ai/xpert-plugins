@@ -516,7 +516,6 @@ describe('StoryStudioViewProvider', () => {
       sourceSynopsis: 'A reviewed source.',
       adaptationGoal: 'Create a five second short.',
       visualStyle: 'High contrast studio light.',
-      characters: [],
       scenes: [
         {
           id: 'scene-1',

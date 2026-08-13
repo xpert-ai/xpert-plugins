@@ -8,6 +8,10 @@ import {
   Plus,
   Redo2,
   Save,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
   Trash2,
   Undo2
 } from '@xpert-ai/plugin-shadcn-ui'
@@ -40,6 +44,7 @@ import type {
   Scene,
   Shot
 } from './production-data'
+import { characterAssets } from './production-data'
 import { StructuredScriptEditor } from './structured-script-editor'
 import type { StructuredScriptDefaults } from './structured-script-model'
 import type { DirectorTranslator } from './director-types'
@@ -287,7 +292,14 @@ export function DirectorScriptPage(props: DirectorScriptPageProps) {
               <DirectorSelect ariaLabel={t('director.crud.episode')} className="mt-2 border-0 bg-transparent px-0 font-display text-lg font-bold shadow-none" value={episode?.id ?? ''} onValueChange={setEpisodeId} options={production.episodes.map((item) => ({ value: item.id, label: `${t('director.episodeLabel', { number: item.order })} · ${item.title}` }))} />
               <p className="mt-1 text-xs text-studio-muted">{t('director.sceneCount', { scenes: episodeScenes.length, shots: episodeScenes.reduce((count, item) => count + item.shots.length, 0), seconds: duration })}</p>
             </div>
-            <button type="button" className="grid size-8 place-items-center rounded-md border border-studio-line bg-studio-paper hover:border-studio-brass" aria-label={t('director.crud.newEpisode')} onClick={() => setEditorTarget({ kind: 'episode', value: null })}><Plus className="size-4" aria-hidden="true" /></button>
+            <TooltipProvider delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button type="button" className="grid size-8 place-items-center rounded-md border border-studio-line bg-studio-paper transition hover:border-studio-brass hover:text-studio-brass focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-brass/40" aria-label={t('director.crud.newEpisode')} data-testid="new-episode-button" onClick={() => setEditorTarget({ kind: 'episode', value: null })}><Plus className="size-4" aria-hidden="true" /></button>
+                </TooltipTrigger>
+                <TooltipContent side="right" sideOffset={8}>{t('director.crud.newEpisode')}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
           {episode ? (
             <div className="mt-3 flex gap-2">
@@ -410,7 +422,7 @@ export function DirectorScriptPage(props: DirectorScriptPageProps) {
 
       <EpisodeDialog open={editorTarget?.kind === 'episode'} episode={editorTarget?.kind === 'episode' ? editorTarget.value : null} busy={busy} t={t} onOpenChange={(open) => !open && setEditorTarget(null)} onSubmit={(draft) => void submitEpisode(draft)} />
       <SceneDialog open={editorTarget?.kind === 'scene'} scene={editorTarget?.kind === 'scene' ? editorTarget.value : null} episodes={production.episodes} busy={busy} t={t} onOpenChange={(open) => !open && setEditorTarget(null)} onSubmit={(draft) => void submitScene(draft)} />
-      <ShotDialog open={editorTarget?.kind === 'shot'} shot={editorTarget?.kind === 'shot' ? editorTarget.value : null} characters={production.characters} busy={busy} t={t} onOpenChange={(open) => !open && setEditorTarget(null)} onSubmit={(draft) => void submitShot(draft)} />
+      <ShotDialog open={editorTarget?.kind === 'shot'} shot={editorTarget?.kind === 'shot' ? editorTarget.value : null} characters={characterAssets(production)} busy={busy} t={t} onOpenChange={(open) => !open && setEditorTarget(null)} onSubmit={(draft) => void submitShot(draft)} />
       <DeleteEntityDialog open={Boolean(deleteTarget)} title={deleteDialogCopy(deleteTarget, t).title} description={deleteDialogCopy(deleteTarget, t).description} busy={busy} t={t} onOpenChange={(open) => !open && setDeleteTarget(null)} onConfirm={() => void confirmDelete()} />
     </StudioPanelLayout>
   )

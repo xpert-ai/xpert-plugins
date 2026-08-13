@@ -78,7 +78,6 @@ export function rebaseProductionStage(
   } else if (stage === 5) {
     next.visualStyle = local.visualStyle
     next.assets = cloneProduction(local).assets
-    next.characters = cloneProduction(local).characters
   } else if (stage === 6) {
     next.scenes = mergeStoryboardMetadata(latest, local)
   } else if (stage === 7) {

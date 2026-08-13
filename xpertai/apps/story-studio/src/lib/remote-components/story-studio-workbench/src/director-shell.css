@@ -37,7 +37,8 @@
   background: rgba(255, 255, 255, 0.98);
   border-bottom: 1px solid var(--director-line);
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) auto minmax(360px, 1fr);
+  column-gap: 16px;
+  grid-template-columns: minmax(280px, 400px) minmax(360px, 1fr) auto;
   min-width: 0;
   position: relative;
   z-index: 30;
@@ -69,6 +70,7 @@ button.director-project-title {
 .director-project-title strong {
   font-size: 19px;
   font-weight: 650;
+  max-width: 260px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -92,6 +94,7 @@ button.director-project-title {
   display: flex;
   gap: 22px;
   justify-content: center;
+  min-width: 0;
 }
 
 .director-primary-nav button {
@@ -141,7 +144,7 @@ button.director-project-title {
 .director-top-status {
   align-items: center;
   display: flex;
-  gap: 24px;
+  gap: 18px;
   justify-content: flex-end;
   min-width: 0;
   padding-right: 18px;
@@ -438,7 +441,8 @@ button.director-project-title {
 
 @media (max-width: 1100px) {
   .director-topbar {
-    grid-template-columns: minmax(170px, 1fr) auto minmax(118px, 1fr);
+    column-gap: 8px;
+    grid-template-columns: minmax(170px, 260px) minmax(240px, 1fr) auto;
   }
   .director-primary-nav {
     gap: 4px;

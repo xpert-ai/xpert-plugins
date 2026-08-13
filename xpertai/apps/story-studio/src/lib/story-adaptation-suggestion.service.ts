@@ -231,7 +231,6 @@ function productionDocument(
     ...(production.storyPlan ? { storyPlan: production.storyPlan } : {}),
     episodes: production.episodes,
     assets: production.assets,
-    characters: production.characters,
     scenes: production.scenes
   }
 }

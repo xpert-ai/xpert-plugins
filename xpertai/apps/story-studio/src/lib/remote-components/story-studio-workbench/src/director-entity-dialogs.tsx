@@ -30,7 +30,7 @@ import {
 } from '../../../voice-reference.js'
 import type {
   Asset,
-  Character,
+  CharacterAsset,
   Episode,
   Scene,
   Shot
@@ -143,7 +143,7 @@ export function SceneDialog(
 export function ShotDialog(
   props: CommonDialogProps & {
     shot?: Shot | null
-    characters: Character[]
+    characters: CharacterAsset[]
     onSubmit: (draft: ShotDraft) => void
   }
 ) {

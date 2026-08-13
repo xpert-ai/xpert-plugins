@@ -1,9 +1,10 @@
 import type {
-  Character,
+  CharacterAsset,
   ProductionView,
   Scene,
   Shot
 } from './production-data'
+import { characterAssets } from './production-data'
 import { compactVoiceReference } from '../../../voice-reference.js'
 
 export type SeedanceGenerationTarget = {
@@ -23,7 +24,7 @@ export function buildSeedanceGenerationTargets(
   production: ProductionView
 ): SeedanceGenerationTarget[] {
   const characters = new Map(
-    production.characters.map((character) => [character.id, character])
+    characterAssets(production).map((character) => [character.id, character])
   )
   return production.scenes.flatMap((scene) =>
     scene.shots.flatMap((shot) => {
@@ -109,7 +110,7 @@ function buildSynchronizedPrompt(
   visualStyle: string,
   scene: Scene,
   shot: Shot,
-  speaker?: Character,
+  speaker?: CharacterAsset,
   voiceReference = compactVoiceReference(speaker?.voiceReference)
 ) {
   const audioDirection = shot.dialogue
@@ -137,7 +138,7 @@ function buildSynchronizedPrompt(
   return prompt.slice(0, 500)
 }
 
-function dialogueDirection(shot: Shot, speaker?: Character) {
+function dialogueDirection(shot: Shot, speaker?: CharacterAsset) {
   const speakerName = speaker?.name ?? '画面中的说话角色'
   if (
     shot.dialogueType === 'voice_over' ||
