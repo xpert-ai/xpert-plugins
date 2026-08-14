@@ -31,12 +31,7 @@ export class SeedreamAigcStrategy implements IToolsetStrategy<any> {
       protocolVersion: 2 as const,
       family: 'seedance' as const,
       displayName: 'Seedance',
-      modes: [
-        'text_to_video',
-        'image_to_video',
-        'first_last_frame_to_video',
-        'reference_to_video'
-      ] as const,
+      modes: ['text_to_video', 'image_to_video', 'first_last_frame_to_video', 'reference_to_video'] as const,
       tools: {
         textToVideo: 'seedance_text_to_video',
         imageToVideo: 'seedance_image_to_video',
@@ -46,16 +41,24 @@ export class SeedreamAigcStrategy implements IToolsetStrategy<any> {
       },
       models: [
         {
+          id: 'doubao-seedance-2-5-260628',
+          label: 'Seedance 2.5',
+          modes: ['text_to_video', 'image_to_video', 'first_last_frame_to_video', 'reference_to_video'],
+          inputs: {
+            referenceImages: { maxItems: 30 },
+            referenceVideos: { maxItems: 10 },
+            referenceAudios: { maxItems: 10 },
+            initialFrame: true,
+            lastFrame: true
+          }
+        },
+        {
           id: 'doubao-seedance-2-0-260128',
           label: 'Seedance 2.0',
-          modes: [
-            'text_to_video',
-            'image_to_video',
-            'first_last_frame_to_video',
-            'reference_to_video'
-          ],
+          modes: ['text_to_video', 'image_to_video', 'first_last_frame_to_video', 'reference_to_video'],
           inputs: {
             referenceImages: { maxItems: 9 },
+            referenceVideos: { maxItems: 3 },
             referenceAudios: { maxItems: 3 },
             initialFrame: true,
             lastFrame: true
@@ -64,14 +67,22 @@ export class SeedreamAigcStrategy implements IToolsetStrategy<any> {
         {
           id: 'doubao-seedance-2-0-fast-260128',
           label: 'Seedance 2.0 Fast',
-          modes: [
-            'text_to_video',
-            'image_to_video',
-            'first_last_frame_to_video',
-            'reference_to_video'
-          ],
+          modes: ['text_to_video', 'image_to_video', 'first_last_frame_to_video', 'reference_to_video'],
           inputs: {
             referenceImages: { maxItems: 9 },
+            referenceVideos: { maxItems: 3 },
+            referenceAudios: { maxItems: 3 },
+            initialFrame: true,
+            lastFrame: true
+          }
+        },
+        {
+          id: 'doubao-seedance-2-0-mini-260615',
+          label: 'Seedance 2.0 Mini',
+          modes: ['text_to_video', 'image_to_video', 'first_last_frame_to_video', 'reference_to_video'],
+          inputs: {
+            referenceImages: { maxItems: 9 },
+            referenceVideos: { maxItems: 3 },
             referenceAudios: { maxItems: 3 },
             initialFrame: true,
             lastFrame: true
@@ -86,12 +97,32 @@ export class SeedreamAigcStrategy implements IToolsetStrategy<any> {
             initialFrame: true,
             lastFrame: true
           }
+        },
+        {
+          id: 'doubao-seedance-1-0-pro-250528',
+          label: 'Seedance 1.0 Pro',
+          modes: ['text_to_video', 'image_to_video', 'first_last_frame_to_video'],
+          inputs: {
+            referenceImages: { maxItems: 1 },
+            initialFrame: true,
+            lastFrame: true
+          }
+        },
+        {
+          id: 'doubao-seedance-1-0-pro-fast-251015',
+          label: 'Seedance 1.0 Pro Fast',
+          modes: ['text_to_video', 'image_to_video', 'first_last_frame_to_video'],
+          inputs: {
+            referenceImages: { maxItems: 1 },
+            initialFrame: true,
+            lastFrame: true
+          }
         }
-      ],
+      ] as const,
       defaultModel: 'doubao-seedance-2-0-260128',
-      resolutions: ['720p', '480p'],
+      resolutions: ['720p', '480p', '1080p'],
       aspectRatios: ['9:16', '16:9', '1:1', '4:3', '3:4'],
-      durationSeconds: { min: 4, max: 15, default: 5 },
+      durationSeconds: { min: 2, max: 30, default: 5 },
       supportsAudio: true
     },
     configSchema: {

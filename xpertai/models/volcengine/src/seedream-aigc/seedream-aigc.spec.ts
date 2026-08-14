@@ -9,11 +9,7 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   BuiltinToolset: class {
     tools: any[] = []
 
-    constructor(
-      public providerName: string,
-      protected toolset?: any,
-      protected params?: any
-    ) {}
+    constructor(public providerName: string, protected toolset?: any, protected params?: any) {}
 
     get xpertId() {
       return this.params?.xpertId
@@ -26,10 +22,12 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   ToolsetStrategy: () => (target: any) => target
 }))
 
-type SeedreamInvocationOutput = SeedreamToolResult | {
-  content?: SeedreamInvocationContent
-  artifact?: SeedreamToolResult[1]
-}
+type SeedreamInvocationOutput =
+  | SeedreamToolResult
+  | {
+      content?: SeedreamInvocationContent
+      artifact?: SeedreamToolResult[1]
+    }
 type SeedreamInvocationContent = string | Array<{ text?: string }> | undefined
 
 describe('Seedream AIGC tools', () => {
@@ -62,9 +60,11 @@ describe('Seedream AIGC tools', () => {
 
   it('uploads text-to-image URL output to the workspace', async () => {
     fetchMock
-      .mockResolvedValueOnce(jsonResponse({
-        data: [{ url: 'https://ark.test/generated/image.png', size: '2048x2048' }]
-      }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: [{ url: 'https://ark.test/generated/image.png', size: '2048x2048' }]
+        })
+      )
       .mockResolvedValueOnce(binaryResponse(Buffer.from('generated-image'), 'image/png'))
 
     const tool = buildSeedreamTools({ credentials, workspaceFiles, fetch: fetchMock }).find(
@@ -135,16 +135,10 @@ describe('Seedream AIGC tools', () => {
     expect(textToImageSchema.properties.prompt['x-ui'].title.zh_Hans).toBe('提示词')
     expect(textToImageSchema.properties.prompt['x-ui'].component).toBeUndefined()
     expect(textToImageSchema.properties.size.default).toBe('2048x2048')
-    expect(textToImageSchema.properties.size.enum).toEqual([
-      '2048x2048',
-      '2304x1728',
-      '1728x2304',
-      '2560x1440',
-      '1440x2560',
-      '2496x1664',
-      '1664x2496',
-      '3024x1296'
-    ])
+    expect(textToImageSchema.properties.size.enum).toEqual(
+      expect.arrayContaining(['2048x2048', '4096x4096', '3072x3072', '2368x1776', '1024x1024', '1280x720'])
+    )
+    expect(textToImageSchema.properties.size.enum).not.toContain('2560x1440')
     expect(textToImageSchema.properties.size['x-ui'].enumLabels['2048x2048']).toBe('1:1 (2048x2048)')
     expect(textToImageSchema.properties.watermark.default).toBe('true')
     expect(textToImageSchema.properties.watermark.enum).toEqual(['true', 'false'])
@@ -153,9 +147,11 @@ describe('Seedream AIGC tools', () => {
     expect(textToImageSchema.properties.model.enum).toEqual([
       'doubao-seedream-4-0-250828',
       'doubao-seedream-4-5-251128',
-      'doubao-seedream-5-0-lite-260128'
+      'doubao-seedream-5-0-260128',
+      'doubao-seedream-5-0-pro-260628'
     ])
-    expect(textToImageSchema.properties.sequential_image_generation).toBeUndefined()
+    expect(textToImageSchema.properties.output_format.enum).toEqual(['jpeg', 'png'])
+    expect(textToImageSchema.properties.sequential_image_generation.enum).toEqual(['disabled', 'auto'])
 
     expect(multiImagesSchema.properties.input_image_files['x-ui'].title.zh_Hans).toBe('参考图片列表')
     expect(multiImagesSchema.properties.input_image_files.anyOf[0].type).toBe('array')
@@ -179,9 +175,14 @@ describe('Seedream AIGC tools', () => {
       modes: expect.arrayContaining(['reference_to_video']),
       tools: { referenceToVideo: 'seedance_multimodal_reference_to_video' }
     })
-    expect(strategy.meta.videoGeneration.models[0]).toMatchObject({
-      id: 'doubao-seedance-2-0-260128',
-      inputs: { referenceImages: { maxItems: 9 } }
+    expect(
+      strategy.meta.videoGeneration.models.find((model) => model.id === 'doubao-seedance-2-5-260628')
+    ).toMatchObject({
+      inputs: {
+        referenceImages: { maxItems: 30 },
+        referenceVideos: { maxItems: 10 },
+        referenceAudios: { maxItems: 10 }
+      }
     })
     expect(toolNames).toEqual(
       expect.arrayContaining([
@@ -211,15 +212,24 @@ describe('Seedream AIGC tools', () => {
     expect(textToVideoSchema.properties.prompt['x-ui'].title.zh_Hans).toBe('提示词')
     expect(textToVideoSchema.properties.model.default).toBe('doubao-seedance-1-5-pro-251215')
     expect(textToVideoSchema.properties.model.enum).toEqual([
-      'doubao-seedance-1-5-pro-251215',
+      'doubao-seedance-2-5-260628',
       'doubao-seedance-2-0-260128',
-      'doubao-seedance-2-0-fast-260128'
+      'doubao-seedance-2-0-fast-260128',
+      'doubao-seedance-2-0-mini-260615',
+      'doubao-seedance-1-5-pro-251215',
+      'doubao-seedance-1-0-pro-250528',
+      'doubao-seedance-1-0-pro-fast-251015'
     ])
     expect(textToVideoSchema.properties.resolution.default).toBe('720p')
     expect(textToVideoSchema.properties.resolution.enum).toEqual(['480p', '720p', '1080p'])
     expect(textToVideoSchema.properties.ratio.default).toBe('16:9')
     expect(textToVideoSchema.properties.ratio.enum).toContain('adaptive')
     expect(textToVideoSchema.properties.duration.default).toBe(5)
+    expect(textToVideoSchema.properties.duration.maximum).toBe(30)
+    expect(textToVideoSchema.properties.bitrate_mode.enum).toEqual(['standard', 'high'])
+    expect(textToVideoSchema.properties.output_format.enum).toEqual(['mp4', 'mov'])
+    expect(textToVideoSchema.properties.priority.maximum).toBe(9)
+    expect(textToVideoSchema.properties.web_search.default).toBe('false')
     expect(textToVideoSchema.properties.watermark.default).toBe('true')
     expect(textToVideoSchema.properties.watermark['x-ui'].enumLabels.true.zh_Hans).toBe('启用')
     expect(textToVideoSchema.required).toEqual(['prompt'])
@@ -229,13 +239,20 @@ describe('Seedream AIGC tools', () => {
 
     expect(multimodalSchema.properties.model.default).toBe('doubao-seedance-2-0-260128')
     expect(multimodalSchema.properties.model.enum).toEqual([
+      'doubao-seedance-2-5-260628',
       'doubao-seedance-2-0-260128',
-      'doubao-seedance-2-0-fast-260128'
+      'doubao-seedance-2-0-fast-260128',
+      'doubao-seedance-2-0-mini-260615'
     ])
     expect(multimodalSchema.properties.ratio.default).toBe('adaptive')
     expect(multimodalSchema.properties.input_mode.default).toBe('text_image')
+    expect(multimodalSchema.properties.input_mode.enum).toContain('text_audio')
+    expect(multimodalSchema.properties.reference_image_files.maxItems).toBe(30)
+    expect(multimodalSchema.properties.reference_audio_files.maxItems).toBe(10)
     expect(multimodalSchema.properties.input_mode['x-ui'].enumLabels.text_image.zh_Hans).toBe('文本(可选)+图片')
-    expect(multimodalSchema.properties.input_mode['x-ui'].enumLabels.text_image_video.zh_Hans).toBe('文本(可选)+图片+视频')
+    expect(multimodalSchema.properties.input_mode['x-ui'].enumLabels.text_image_video.zh_Hans).toBe(
+      '文本(可选)+图片+视频'
+    )
 
     expect(videoQuerySchema.properties.task_id['x-ui'].title.zh_Hans).toBe('任务 ID')
     expect(videoQuerySchema.properties.download_video.default).toBe('true')
@@ -248,9 +265,11 @@ describe('Seedream AIGC tools', () => {
 
   it('uses the xpert runtime context as workspace upload scope', async () => {
     fetchMock
-      .mockResolvedValueOnce(jsonResponse({
-        data: [{ url: 'https://ark.test/generated/image.png', size: '2048x2048' }]
-      }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: [{ url: 'https://ark.test/generated/image.png', size: '2048x2048' }]
+        })
+      )
       .mockResolvedValueOnce(binaryResponse(Buffer.from('generated-image'), 'image/png'))
 
     const params: TBuiltinToolsetParams = {
@@ -261,11 +280,7 @@ describe('Seedream AIGC tools', () => {
       commandBus: {} as TBuiltinToolsetParams['commandBus'],
       queryBus: {} as TBuiltinToolsetParams['queryBus']
     }
-    const toolset = new SeedreamAigcToolset(
-      { credentials },
-      { get: jest.fn().mockReturnValue(workspaceFiles) },
-      params
-    )
+    const toolset = new SeedreamAigcToolset({ credentials }, { get: jest.fn().mockReturnValue(workspaceFiles) }, params)
     const tools = await toolset.initTools()
     const tool = tools.find((_) => _.name === 'seedream_text_to_image')
     const originalFetch = global.fetch
@@ -297,9 +312,11 @@ describe('Seedream AIGC tools', () => {
 
   it('uses the project runtime context before the xpert context as workspace upload scope', async () => {
     fetchMock
-      .mockResolvedValueOnce(jsonResponse({
-        data: [{ url: 'https://ark.test/generated/image.png', size: '2048x2048' }]
-      }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: [{ url: 'https://ark.test/generated/image.png', size: '2048x2048' }]
+        })
+      )
       .mockResolvedValueOnce(binaryResponse(Buffer.from('generated-image'), 'image/png'))
 
     const params: TBuiltinToolsetParams = {
@@ -311,11 +328,7 @@ describe('Seedream AIGC tools', () => {
       commandBus: {} as TBuiltinToolsetParams['commandBus'],
       queryBus: {} as TBuiltinToolsetParams['queryBus']
     }
-    const toolset = new SeedreamAigcToolset(
-      { credentials },
-      { get: jest.fn().mockReturnValue(workspaceFiles) },
-      params
-    )
+    const toolset = new SeedreamAigcToolset({ credentials }, { get: jest.fn().mockReturnValue(workspaceFiles) }, params)
     const tools = await toolset.initTools()
     const tool = tools.find((_) => _.name === 'seedream_text_to_image')
     const originalFetch = global.fetch
@@ -346,9 +359,11 @@ describe('Seedream AIGC tools', () => {
   })
 
   it('uploads b64 image output to the workspace', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({
-      data: [{ b64_json: Buffer.from('generated-image-b64').toString('base64'), size: '2048x2048' }]
-    }))
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        data: [{ b64_json: Buffer.from('generated-image-b64').toString('base64'), size: '2048x2048' }]
+      })
+    )
 
     const tool = buildSeedreamTools({ credentials, workspaceFiles, fetch: fetchMock }).find(
       (_) => _.name === 'seedream_image_to_image'
@@ -374,7 +389,7 @@ describe('Seedream AIGC tools', () => {
       expect.objectContaining({
         buffer: Buffer.from('generated-image-b64'),
         folder: 'files/seedream-aigc/images',
-        mimeType: 'image/png'
+        mimeType: 'image/jpeg'
       })
     )
     const [, artifact] = normalizeToolResult(result)
@@ -383,9 +398,11 @@ describe('Seedream AIGC tools', () => {
   })
 
   it('reads workspace image inputs through the workspace files API', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({
-      data: [{ b64_json: Buffer.from('generated-image-b64').toString('base64'), size: '2048x2048' }]
-    }))
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        data: [{ b64_json: Buffer.from('generated-image-b64').toString('base64'), size: '2048x2048' }]
+      })
+    )
     const readBufferMock = workspaceFiles.readBuffer as jest.Mock
     readBufferMock.mockResolvedValueOnce({
       name: 'input.png',
@@ -424,11 +441,13 @@ describe('Seedream AIGC tools', () => {
   })
 
   it('normalizes sandbox workspace paths through the runtime-aware workspace API', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({
-      id: 'task-runtime-workspace',
-      status: 'queued',
-      model: 'doubao-seedance-2-0-fast-260128'
-    }))
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        id: 'task-runtime-workspace',
+        status: 'queued',
+        model: 'doubao-seedance-2-0-fast-260128'
+      })
+    )
     const readRuntimeBuffer = jest.fn(async () => ({
       name: 'shot-01.png',
       filePath: 'story-studio/project-1/demo-assets/shot-01.png',
@@ -452,8 +471,7 @@ describe('Seedream AIGC tools', () => {
       type: 'tool_call',
       args: {
         prompt: 'animate this storyboard frame',
-        input_image_file:
-          '/workspace/story-studio/project-1/demo-assets/shot-01.png',
+        input_image_file: '/workspace/story-studio/project-1/demo-assets/shot-01.png',
         model: 'doubao-seedance-2-0-fast-260128',
         duration: 5
       }
@@ -461,8 +479,7 @@ describe('Seedream AIGC tools', () => {
 
     expect(readRuntimeBuffer).toHaveBeenCalledWith(
       expect.objectContaining({
-        filePath:
-          '/workspace/story-studio/project-1/demo-assets/shot-01.png'
+        filePath: '/workspace/story-studio/project-1/demo-assets/shot-01.png'
       })
     )
     expect(workspaceFiles.readBuffer).not.toHaveBeenCalled()
@@ -472,9 +489,7 @@ describe('Seedream AIGC tools', () => {
           expect.objectContaining({
             type: 'image_url',
             image_url: {
-              url: `data:image/png;base64,${Buffer.from(
-                'runtime-workspace-image'
-              ).toString('base64')}`
+              url: `data:image/png;base64,${Buffer.from('runtime-workspace-image').toString('base64')}`
             }
           })
         ])
@@ -483,9 +498,11 @@ describe('Seedream AIGC tools', () => {
   })
 
   it('accepts JSON string arrays for multi-image inputs', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({
-      data: [{ b64_json: Buffer.from('generated-image-b64').toString('base64'), size: '2048x2048' }]
-    }))
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        data: [{ b64_json: Buffer.from('generated-image-b64').toString('base64'), size: '2048x2048' }]
+      })
+    )
 
     const tool = buildSeedreamTools({ credentials, workspaceFiles, fetch: fetchMock }).find(
       (_) => _.name === 'seedream_multi_images_to_multi_images'
@@ -513,11 +530,13 @@ describe('Seedream AIGC tools', () => {
   })
 
   it('accepts numeric strings for Seedance video duration', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({
-      id: 'task-1',
-      status: 'submitted',
-      model: 'doubao-seedance-1-5-pro-251215'
-    }))
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        id: 'task-1',
+        status: 'submitted',
+        model: 'doubao-seedance-1-5-pro-251215'
+      })
+    )
 
     const tool = buildSeedreamTools({ credentials, workspaceFiles, fetch: fetchMock }).find(
       (_) => _.name === 'seedance_text_to_video'
@@ -540,11 +559,13 @@ describe('Seedream AIGC tools', () => {
   })
 
   it('returns the task id and query instruction for Seedance video submissions', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({
-      id: 'task-1',
-      status: 'submitted',
-      model: 'doubao-seedance-1-5-pro-251215'
-    }))
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        id: 'task-1',
+        status: 'submitted',
+        model: 'doubao-seedance-1-5-pro-251215'
+      })
+    )
 
     const tool = buildSeedreamTools({ credentials, workspaceFiles, fetch: fetchMock }).find(
       (_) => _.name === 'seedance_text_to_video'
@@ -573,12 +594,14 @@ describe('Seedream AIGC tools', () => {
   })
 
   it('tells the assistant to stop when a video query has no downloadable video yet', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({
-      id: 'task-1',
-      status: 'running',
-      model: 'doubao-seedance-1-5-pro-251215',
-      content: {}
-    }))
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        id: 'task-1',
+        status: 'running',
+        model: 'doubao-seedance-1-5-pro-251215',
+        content: {}
+      })
+    )
 
     const tool = buildSeedreamTools({ credentials, workspaceFiles, fetch: fetchMock }).find(
       (_) => _.name === 'seedance_video_query'
@@ -604,15 +627,17 @@ describe('Seedream AIGC tools', () => {
 
   it('uploads completed video query output to the workspace', async () => {
     fetchMock
-      .mockResolvedValueOnce(jsonResponse({
-        id: 'task-1',
-        status: 'succeeded',
-        model: 'doubao-seedance-1-5-pro-251215',
-        content: {
-          video_url: 'https://ark.test/generated/video.mp4',
-          last_frame_url: 'https://ark.test/generated/last.png'
-        }
-      }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          id: 'task-1',
+          status: 'succeeded',
+          model: 'doubao-seedance-1-5-pro-251215',
+          content: {
+            video_url: 'https://ark.test/generated/video.mp4',
+            last_frame_url: 'https://ark.test/generated/last.png'
+          }
+        })
+      )
       .mockResolvedValueOnce(binaryResponse(Buffer.from('generated-video'), 'video/mp4'))
 
     const tool = buildSeedreamTools({ credentials, workspaceFiles, fetch: fetchMock }).find(
@@ -689,11 +714,13 @@ describe('Seedream AIGC tools', () => {
   })
 
   it('submits multiple image references without requiring a reference video', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({
-      id: 'task-multi-image-reference',
-      status: 'submitted',
-      model: 'doubao-seedance-2-0-260128'
-    }))
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        id: 'task-multi-image-reference',
+        status: 'submitted',
+        model: 'doubao-seedance-2-0-260128'
+      })
+    )
     const tool = buildSeedreamTools({ credentials, workspaceFiles, fetch: fetchMock }).find(
       (_) => _.name === 'seedance_multimodal_reference_to_video'
     )
@@ -723,11 +750,13 @@ describe('Seedream AIGC tools', () => {
   })
 
   it('passes public audio URLs as Seedance reference audio', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({
-      id: 'task-audio-reference',
-      status: 'submitted',
-      model: 'doubao-seedance-2-0-fast-260128'
-    }))
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        id: 'task-audio-reference',
+        status: 'submitted',
+        model: 'doubao-seedance-2-0-fast-260128'
+      })
+    )
     const tool = buildSeedreamTools({ credentials, workspaceFiles, fetch: fetchMock }).find(
       (_) => _.name === 'seedance_multimodal_reference_to_video'
     )
@@ -740,9 +769,7 @@ describe('Seedream AIGC tools', () => {
         prompt: '角色准确说出台词，口型与语音同步。',
         model: 'doubao-seedance-2-0-fast-260128',
         input_mode: 'text_image_audio',
-        reference_image_files: [
-          `data:image/png;base64,${Buffer.from('reference-image').toString('base64')}`
-        ],
+        reference_image_files: [`data:image/png;base64,${Buffer.from('reference-image').toString('base64')}`],
         reference_audio_urls: 'https://media.example/mandarin-voice.mp3',
         generate_audio: 'true'
       }
@@ -773,9 +800,7 @@ describe('Seedream AIGC tools', () => {
         type: 'tool_call',
         args: {
           input_mode: 'text_image_audio',
-          reference_image_files: [
-            `data:image/png;base64,${Buffer.from('reference-image').toString('base64')}`
-          ],
+          reference_image_files: [`data:image/png;base64,${Buffer.from('reference-image').toString('base64')}`],
           reference_audio_urls: 'http://127.0.0.1/voice.mp3'
         }
       })
@@ -808,6 +833,152 @@ describe('Seedream AIGC tools', () => {
         isSeedance2: true
       })
     )
+  })
+
+  it('uses Seedream 5.0 Pro image parameters without unsupported sequential fields', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        data: [{ b64_json: Buffer.from('seedream-5-pro').toString('base64'), size: '2048x2048' }]
+      })
+    )
+    const tool = buildSeedreamTools({ credentials, workspaceFiles, fetch: fetchMock }).find(
+      (_) => _.name === 'seedream_image_to_image'
+    )
+
+    await tool?.invoke({
+      id: 'call-seedream-5-pro',
+      name: 'seedream_image_to_image',
+      type: 'tool_call',
+      args: {
+        model: 'doubao-seedream-5-0-pro-260628',
+        prompt: 'cinematic lighting',
+        input_image_file: `data:image/png;base64,${Buffer.from('reference').toString('base64')}`,
+        output_format: 'png',
+        sequential_image_generation: 'auto'
+      }
+    })
+
+    const payload = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(payload.output_format).toBe('png')
+    expect(payload).not.toHaveProperty('stream')
+    expect(payload).not.toHaveProperty('sequential_image_generation')
+  })
+
+  it('submits Seedance 2.5 parameters and enforces its duration range', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ id: 'task-seedance-25', status: 'submitted', model: 'doubao-seedance-2-5-260628' })
+    )
+    const tool = buildSeedreamTools({ credentials, workspaceFiles, fetch: fetchMock }).find(
+      (_) => _.name === 'seedance_text_to_video'
+    )
+
+    await tool?.invoke({
+      id: 'call-seedance-25',
+      name: 'seedance_text_to_video',
+      type: 'tool_call',
+      args: {
+        model: 'doubao-seedance-2-5-260628',
+        prompt: 'a spacecraft passing through clouds',
+        duration: 30,
+        output_format: 'mov',
+        priority: 9,
+        web_search: 'true',
+        bitrate_mode: 'high',
+        camera_fixed: 'true',
+        service_tier: 'flex'
+      }
+    })
+
+    const payload = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(payload).toEqual(
+      expect.objectContaining({
+        duration: 30,
+        output_format: 'mov',
+        priority: 9,
+        tools: [{ type: 'web_search' }]
+      })
+    )
+    expect(payload).not.toHaveProperty('bitrate_mode')
+    expect(payload).not.toHaveProperty('camera_fixed')
+    expect(payload).not.toHaveProperty('service_tier')
+    expect(
+      normalizeVideoGenerationOptions({ model: 'doubao-seedance-2-5-260628', duration: 99, priority: 12 })
+    ).toEqual(expect.objectContaining({ duration: 30, priority: 9, isSeedance25: true }))
+  })
+
+  it('uses Seedance 2.0 bitrate and search parameters without 2.5 output format', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ id: 'task-seedance-20', status: 'submitted', model: 'doubao-seedance-2-0-mini-260615' })
+    )
+    const tool = buildSeedreamTools({ credentials, workspaceFiles, fetch: fetchMock }).find(
+      (_) => _.name === 'seedance_text_to_video'
+    )
+
+    await tool?.invoke({
+      id: 'call-seedance-20',
+      name: 'seedance_text_to_video',
+      type: 'tool_call',
+      args: {
+        model: 'doubao-seedance-2-0-mini-260615',
+        prompt: 'a quiet river at sunrise',
+        bitrate_mode: 'high',
+        output_format: 'mov',
+        priority: 5,
+        web_search: 'true'
+      }
+    })
+
+    const payload = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(payload).toEqual(
+      expect.objectContaining({
+        bitrate_mode: 'high',
+        priority: 5,
+        tools: [{ type: 'web_search' }]
+      })
+    )
+    expect(payload).not.toHaveProperty('output_format')
+    expect(payload).not.toHaveProperty('camera_fixed')
+    expect(payload).not.toHaveProperty('service_tier')
+  })
+
+  it('supports audio-only multimodal references only on Seedance 2.5', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ id: 'task-audio-only', status: 'submitted', model: 'doubao-seedance-2-5-260628' })
+    )
+    const tool = buildSeedreamTools({ credentials, workspaceFiles, fetch: fetchMock }).find(
+      (_) => _.name === 'seedance_multimodal_reference_to_video'
+    )
+
+    await tool?.invoke({
+      id: 'call-audio-only',
+      name: 'seedance_multimodal_reference_to_video',
+      type: 'tool_call',
+      args: {
+        model: 'doubao-seedance-2-5-260628',
+        input_mode: 'text_audio',
+        reference_audio_urls: 'https://media.example/voice.mp3'
+      }
+    })
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).content).toEqual([
+      {
+        type: 'audio_url',
+        audio_url: { url: 'https://media.example/voice.mp3' },
+        role: 'reference_audio'
+      }
+    ])
+
+    await expect(
+      tool?.invoke({
+        id: 'call-audio-only-20',
+        name: 'seedance_multimodal_reference_to_video',
+        type: 'tool_call',
+        args: {
+          model: 'doubao-seedance-2-0-260128',
+          input_mode: 'text_audio',
+          reference_audio_urls: 'https://media.example/voice.mp3'
+        }
+      })
+    ).rejects.toThrow('Audio-only input only supports Seedance 2.5')
   })
 })
 
