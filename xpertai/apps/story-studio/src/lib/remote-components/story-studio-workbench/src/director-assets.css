@@ -59,7 +59,7 @@
 .director-character-list img {
   border-radius: 5px;
   height: 56px;
-  object-fit: cover;
+  object-fit: contain;
   width: 56px;
 }
 
@@ -172,7 +172,7 @@
 
 .director-primary-portrait img {
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   width: 100%;
 }
 
@@ -189,7 +189,7 @@
 
 .director-reference-board figure img {
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   width: 100%;
 }
 
@@ -217,7 +217,7 @@
 
 .director-expression-strip img {
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   object-position: center 30%;
   width: 100%;
 }

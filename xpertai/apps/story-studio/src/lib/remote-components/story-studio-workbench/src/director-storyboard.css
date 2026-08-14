@@ -141,7 +141,7 @@
 
 .director-shot-preview > img {
   height: calc(100% - 34px);
-  object-fit: cover;
+  object-fit: contain;
   object-position: center 48%;
   width: 100%;
 }
@@ -260,7 +260,7 @@
 
 .director-take-card figure img {
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   width: 100%;
 }
 
@@ -371,7 +371,7 @@
 .director-reference-people img {
   border-radius: 4px;
   height: 54px;
-  object-fit: cover;
+  object-fit: contain;
   width: 42px;
 }
 
@@ -407,7 +407,7 @@
 .director-location-reference img {
   border-radius: 4px;
   height: 64px;
-  object-fit: cover;
+  object-fit: contain;
   width: 94px;
 }
 

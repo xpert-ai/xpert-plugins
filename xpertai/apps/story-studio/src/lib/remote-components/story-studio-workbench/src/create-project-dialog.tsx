@@ -13,7 +13,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Textarea
+  Textarea,
+  WandSparkles
 } from '@xpert-ai/plugin-shadcn-ui'
 import type { MessageKey } from './i18n'
 import type { ProductionFormat } from './project-data'
@@ -57,12 +58,22 @@ export function CreateProjectDialog(props: {
   open: boolean
   busy: boolean
   draft: CreateProjectDraft
+  templateName?: string | null
   onOpenChange: (open: boolean) => void
   onDraftChange: (draft: CreateProjectDraft) => void
   onCreate: () => void
   t: Translator
 }) {
-  const { open, busy, draft, onOpenChange, onDraftChange, onCreate, t } = props
+  const {
+    open,
+    busy,
+    draft,
+    templateName,
+    onOpenChange,
+    onDraftChange,
+    onCreate,
+    t
+  } = props
   const update = <K extends keyof CreateProjectDraft>(
     key: K,
     value: CreateProjectDraft[K]
@@ -75,6 +86,15 @@ export function CreateProjectDialog(props: {
           <DialogTitle>{t('dialog.title')}</DialogTitle>
           <DialogDescription>{t('dialog.description')}</DialogDescription>
         </DialogHeader>
+        {templateName ? (
+          <div className="ss-create-template-notice">
+            <WandSparkles aria-hidden="true" />
+            <span>
+              <strong>{t('dialog.templateApplied', { template: templateName })}</strong>
+              <small>{t('dialog.templateAppliedHelp')}</small>
+            </span>
+          </div>
+        ) : null}
         <div className="ss-form">
           <label>
             <span>{t('fields.title')}</span>

@@ -453,7 +453,7 @@ function AssemblyClipCard(props: {
             <video
               key={item.selectedVideo?.id}
               data-testid={`director-assembly-clip-video-${item.shot.id}`}
-              className="pointer-events-none h-full w-full object-cover"
+              className="pointer-events-none h-full w-full bg-studio-ink object-contain"
               src={item.videoUrl}
               crossOrigin="use-credentials"
               muted
