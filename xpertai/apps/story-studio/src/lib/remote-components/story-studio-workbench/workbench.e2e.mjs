@@ -236,9 +236,9 @@ test('persists script CRUD, Assistant suggestions, detailed assets, storyboard c
   const revisionAfterPrimarySelection = preview.state.projects.find(
     (project) => project.id === 'project-1'
   ).revision
-  const selectedPrimaryButton = frame.getByRole('button', { name: '正面全身', exact: true })
+  const selectedPrimaryButton = frame.getByRole('button', { name: '当前主参考', exact: true })
   assert.equal(await selectedPrimaryButton.isDisabled(), true)
-  await selectedPrimaryButton.evaluate((element) => element.click())
+  await frame.getByRole('button', { name: '预览正面全身', exact: true }).click()
   assert.equal(
     preview.state.actions.filter((action) => action.actionKey === 'save_production').length,
     saveCountAfterPrimarySelection

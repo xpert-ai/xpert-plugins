@@ -73,6 +73,14 @@ import {
   type ProductionView
 } from './production-panel'
 import { DirectorWorkbench } from './director-workbench'
+import type { WorkbenchSaveState } from './director-types'
+import { TemplateCenterDialog } from './template-center-dialog'
+import {
+  STORY_TEMPLATES,
+  templateToDraft,
+  templateToProduction,
+  type StoryTemplate
+} from './story-templates'
 import { hydrateProductionMediaAccess } from './production-media-access'
 import { useStoryEditor } from './use-story-editor'
 import { useAssetBibleActions } from './use-asset-bible-actions'
@@ -163,6 +171,7 @@ function App() {
   const [search, setSearch] = React.useState('')
   const [status, setStatus] = React.useState<ProjectStatus | 'all'>('all')
   const [busy, setBusy] = React.useState(false)
+  const [saveState, setSaveState] = React.useState<WorkbenchSaveState>('saved')
   const [handingOff, setHandingOff] = React.useState(false)
   const [production, setProduction] = React.useState<ProductionView | null>(null)
   const [handoff, setHandoff] = React.useState<HandoffView | null>(null)
@@ -170,6 +179,8 @@ function App() {
   const [videoTasks, setVideoTasks] = React.useState<VideoGenerationTask[]>([])
   const [activeStage, setActiveStage] = React.useState(6)
   const [createOpen, setCreateOpen] = React.useState(false)
+  const [templateCenterOpen, setTemplateCenterOpen] = React.useState(false)
+  const [pendingTemplateId, setPendingTemplateId] = React.useState<string | null>(null)
   const [draft, setDraft] = React.useState<CreateProjectDraft>(EMPTY_PROJECT_DRAFT)
   const [projectsCollapsed, setProjectsCollapsed] = React.useState(false)
   const [inspectorCollapsed, setInspectorCollapsed] = React.useState(false)
@@ -199,6 +210,12 @@ function App() {
     [context?.locale]
   )
   const themeMode = readHostThemeMode(context?.theme)
+  const pendingTemplate = React.useMemo(
+    () => pendingTemplateId
+      ? STORY_TEMPLATES.find((template) => template.id === pendingTemplateId) ?? null
+      : null,
+    [pendingTemplateId]
+  )
   const workingProduction = React.useMemo(
     () =>
       production ??
@@ -309,6 +326,7 @@ function App() {
     mediaGenerationActions.generating,
     handingOff,
     createOpen,
+    templateCenterOpen,
     activeStage,
     themeMode,
     projectsCollapsed,
@@ -561,23 +579,46 @@ function App() {
       const projectId = findProjectId(requireSuccessfulAction(response))
       setCreateOpen(false)
       setDraft(EMPTY_PROJECT_DRAFT)
+      setPendingTemplateId(null)
       setActiveStage(4)
       notify('success', t('messages.created'))
       pageRef.current = 1
       await reloadProjects(projectId, 1)
       const createdProject = selectedRef.current
       if (createdProject?.id === projectId) {
-        await commitProduction(
+        const starterProduction = pendingTemplate
+          ? templateToProduction(pendingTemplate, createdProject, t)
+          : createManualStarterProduction(createdProject, t)
+        const saved = await commitProduction(
           4,
-          createManualStarterProduction(createdProject, t),
-          t('changes.manualProductionStarted')
+          starterProduction,
+          pendingTemplate
+            ? t('changes.templateProductionStarted', { template: t(pendingTemplate.title) })
+            : t('changes.manualProductionStarted')
         )
+        if (!saved) {
+          productionRef.current = starterProduction
+          setProduction(starterProduction)
+        }
       }
     } catch (error) {
       notify('error', getErrorMessage(error instanceof Error ? error : String(error)))
     } finally {
       setBusy(false)
     }
+  }
+
+  function useStoryTemplate(template: StoryTemplate) {
+    setPendingTemplateId(template.id)
+    setDraft(templateToDraft(template, (key) => t(key)))
+    setTemplateCenterOpen(false)
+    setCreateOpen(true)
+  }
+
+  function openCreateProject() {
+    setPendingTemplateId(null)
+    setDraft(EMPTY_PROJECT_DRAFT)
+    setCreateOpen(true)
   }
 
   async function createDemoProject() {
@@ -687,6 +728,7 @@ function App() {
   ) {
     const project = selectedRef.current
     if (!project) return false
+    setSaveState('saving')
     setBusy(true)
     try {
       requireSuccessfulAction(
@@ -700,12 +742,14 @@ function App() {
       )
       if (!options?.silent) notify('success', t('editor.saved'))
       await reloadProjects(project.id)
+      setSaveState('saved')
       return true
     } catch (error) {
       notify(
         'error',
         getErrorMessage(error instanceof Error ? error : String(error))
       )
+      setSaveState('error')
       return false
     } finally {
       setBusy(false)
@@ -806,7 +850,9 @@ function App() {
         projects={projects}
         selected={selected}
         production={workingProduction}
-        productionPersisted={Boolean(production)}
+        productionLoaded={Boolean(production)}
+        saveState={saveState}
+        onSaveStateChange={setSaveState}
         handoff={handoff}
         activeStage={activeStage}
         busy={busy}
@@ -818,7 +864,8 @@ function App() {
         onNavigate={(stage) => requestNavigation({ kind: 'stage', stage })}
         onRefresh={() => requestNavigation({ kind: 'refresh' })}
         onLoadDemo={() => void createDemoProject()}
-        onNewProject={() => setCreateOpen(true)}
+        onNewProject={openCreateProject}
+        onOpenTemplateCenter={() => setTemplateCenterOpen(true)}
         onSelectProject={(projectId) => selectProject(projectId)}
         onCommitProduction={commitProduction}
         onRequestScriptSuggestion={requestScriptSuggestion}
@@ -862,9 +909,16 @@ function App() {
         open={createOpen}
         busy={busy}
         draft={draft}
+        templateName={pendingTemplate ? t(pendingTemplate.title) : null}
         onOpenChange={setCreateOpen}
         onDraftChange={setDraft}
         onCreate={() => void createProject()}
+        t={t}
+      />
+      <TemplateCenterDialog
+        open={templateCenterOpen}
+        onOpenChange={setTemplateCenterOpen}
+        onUseTemplate={useStoryTemplate}
         t={t}
       />
       <AlertDialog

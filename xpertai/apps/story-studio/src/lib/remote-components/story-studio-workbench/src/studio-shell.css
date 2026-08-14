@@ -454,6 +454,41 @@
   color: var(--ss-text) !important;
 }
 
+.ss-create-template-notice {
+  align-items: flex-start;
+  background: var(--ss-accent-soft);
+  border: 1px solid color-mix(in srgb, var(--ss-accent) 30%, var(--ss-line));
+  border-radius: 8px;
+  color: var(--ss-text);
+  display: grid;
+  gap: 9px;
+  grid-template-columns: 18px minmax(0, 1fr);
+  padding: 10px 12px;
+}
+
+.ss-create-template-notice > svg {
+  color: var(--ss-accent-2);
+  height: 17px;
+  margin-top: 1px;
+  width: 17px;
+}
+
+.ss-create-template-notice > span {
+  display: grid;
+  gap: 2px;
+}
+
+.ss-create-template-notice strong {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ss-create-template-notice small {
+  color: var(--ss-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .ss-form {
   display: grid;
   gap: 14px;

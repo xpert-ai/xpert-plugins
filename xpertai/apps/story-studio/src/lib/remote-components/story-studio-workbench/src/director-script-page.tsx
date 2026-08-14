@@ -47,7 +47,7 @@ import type {
 import { characterAssets } from './production-data'
 import { StructuredScriptEditor } from './structured-script-editor'
 import type { StructuredScriptDefaults } from './structured-script-model'
-import type { DirectorTranslator } from './director-types'
+import type { DirectorTranslator, WorkbenchSaveState } from './director-types'
 import { useScriptAutosave } from './use-script-autosave'
 import { StudioPanelLayout } from './studio-panel-layout'
 
@@ -73,6 +73,7 @@ type DirectorScriptPageProps = {
   onRegisterBeforeLeave: (
     handler: (() => Promise<boolean>) | null
   ) => void
+  onSaveStateChange: (state: WorkbenchSaveState) => void
 }
 
 type EditorTarget =
@@ -160,6 +161,10 @@ export function DirectorScriptPage(props: DirectorScriptPageProps) {
     props.onRegisterBeforeLeave(() => autosave.flush())
     return () => props.onRegisterBeforeLeave(null)
   }, [props.onRegisterBeforeLeave, autosave.flush])
+
+  React.useEffect(() => {
+    props.onSaveStateChange(autosave.saveState)
+  }, [autosave.saveState, props.onSaveStateChange])
 
   async function submitEpisode(draft: EpisodeDraft) {
     const next = structuredClone(production)
