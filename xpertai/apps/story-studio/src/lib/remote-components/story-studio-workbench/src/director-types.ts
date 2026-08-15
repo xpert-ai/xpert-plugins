@@ -18,11 +18,15 @@ export type DirectorTranslator = (
   values?: Record<string, string | number>
 ) => string
 
+export type WorkbenchSaveState = 'saved' | 'dirty' | 'saving' | 'error'
+
 export type DirectorWorkbenchProps = {
   projects: ProjectSummary[]
   selected: ProjectSummary | null
   production: ProductionView | null
-  productionPersisted: boolean
+  productionLoaded: boolean
+  saveState: WorkbenchSaveState
+  onSaveStateChange: (state: WorkbenchSaveState) => void
   handoff: HandoffView | null
   activeStage: number
   busy: boolean
@@ -35,6 +39,7 @@ export type DirectorWorkbenchProps = {
   onRefresh: () => void
   onLoadDemo: () => void
   onNewProject: () => void
+  onOpenTemplateCenter: () => void
   onSelectProject: (projectId: string) => void
   onCommitProduction: (
     stage: 4 | 5 | 6,

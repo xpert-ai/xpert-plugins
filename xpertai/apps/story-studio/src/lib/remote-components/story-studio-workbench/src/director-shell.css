@@ -156,10 +156,63 @@ button.director-project-title {
   white-space: nowrap;
 }
 
+.director-template-button {
+  background: var(--director-blue) !important;
+  border-color: var(--director-blue) !important;
+  box-shadow: 0 4px 12px rgba(36, 87, 230, 0.2);
+  color: #ffffff !important;
+  flex: 0 0 auto;
+  font-weight: 700;
+}
+
+.director-template-button:hover {
+  background: #1c48c4 !important;
+  border-color: #1c48c4 !important;
+  box-shadow: 0 5px 14px rgba(36, 87, 230, 0.28);
+  color: #ffffff !important;
+  transform: translateY(-1px);
+}
+
+.director-template-button:focus-visible,
+.director-template-featured:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--director-blue) 45%, transparent);
+  outline-offset: 2px;
+}
+
+.director-template-featured {
+  background: var(--director-blue) !important;
+  border-color: var(--director-blue) !important;
+  box-shadow: 0 8px 22px rgba(36, 87, 230, 0.2);
+  color: #ffffff !important;
+  font-weight: 700;
+  min-height: 40px;
+  padding-inline: 16px;
+}
+
+.director-template-featured:hover {
+  background: #1c48c4 !important;
+  border-color: #1c48c4 !important;
+  box-shadow: 0 10px 26px rgba(36, 87, 230, 0.28);
+  color: #ffffff !important;
+  transform: translateY(-1px);
+}
+
 .director-top-status .is-saved {
   color: #5f6670;
   font-size: 13px;
   gap: 7px;
+}
+
+.director-top-status .is-saved.is-dirty {
+  color: var(--director-amber);
+}
+
+.director-top-status .is-saved.is-saving {
+  color: var(--director-blue);
+}
+
+.director-top-status .is-saved.is-error {
+  color: #b42318;
 }
 
 .director-top-status .is-saved i {
@@ -393,7 +446,7 @@ button.director-project-title {
 }
 
 .director-empty-root .director-topbar {
-  grid-template-columns: 1fr auto auto auto;
+  grid-template-columns: 1fr auto auto auto auto;
   gap: 8px;
   padding: 0 22px;
 }
@@ -461,6 +514,15 @@ button.director-project-title {
     gap: 10px;
     padding-right: 12px;
   }
+  .director-template-button {
+    font-size: 0;
+    gap: 0;
+    padding-inline: 8px;
+  }
+  .director-template-button svg {
+    height: 15px;
+    width: 15px;
+  }
   .director-project-switcher {
     padding-left: 16px;
   }
@@ -468,5 +530,23 @@ button.director-project-title {
     font-size: 14px;
     min-width: 52px;
     padding-inline: 5px;
+  }
+}
+
+@media (max-width: 680px) {
+  .director-empty-root .director-topbar .director-template-button {
+    font-size: 0;
+    gap: 0;
+    padding-inline: 8px;
+  }
+
+  .director-empty-root .director-topbar .director-template-button svg {
+    height: 15px;
+    width: 15px;
+  }
+
+  .director-empty-state div {
+    flex-wrap: wrap;
+    justify-content: center;
   }
 }
