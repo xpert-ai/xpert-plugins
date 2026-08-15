@@ -26,14 +26,12 @@ export class OfficeCliPlugin implements IOnPluginBootstrap, IOnPluginDestroy {
 
   constructor(private readonly runtime: OfficeCliRuntimeService) {}
 
-  async onPluginBootstrap(): Promise<void> {
-    try {
-      await this.runtime.prewarm()
-    } catch (error) {
+  onPluginBootstrap(): void {
+    void this.runtime.prewarm().catch((error) => {
       this.logger.error(
         `OfficeCLI runtime prewarm failed. Preview requests will retry automatically. ${getErrorMessage(error)}`
       )
-    }
+    })
   }
 
   onPluginDestroy(): void {
