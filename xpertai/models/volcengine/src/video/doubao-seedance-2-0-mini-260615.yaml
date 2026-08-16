@@ -1,0 +1,34 @@
+model: doubao-seedance-2-0-mini-260615
+label:
+  en_US: Seedance 2.0 Mini
+  zh_Hans: 即梦 Seedance 2.0 Mini
+model_type: video
+features: []
+model_properties:
+  mode: video
+parameter_rules: []
+pricing:
+  type: usage
+  rules:
+    - id: volcengine-seedance-2-mini-no-video-input-output-token
+      version: "2026-08-14"
+      effective_from: "2026-08-14T00:00:00Z"
+      unit: token
+      token_type: completion
+      unit_size: 1000000
+      unit_price: 23
+      currency: CNY
+      charge_type: paid
+      dimensions: { videoInput: false }
+      source_url: https://www.volcengine.com/product/doubao
+    - id: volcengine-seedance-2-mini-video-input-output-token
+      version: "2026-08-14"
+      effective_from: "2026-08-14T00:00:00Z"
+      unit: token
+      token_type: completion
+      unit_size: 1000000
+      unit_price: 14
+      currency: CNY
+      charge_type: paid
+      dimensions: { videoInput: true }
+      source_url: https://www.volcengine.com/product/doubao

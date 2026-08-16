@@ -1,0 +1,21 @@
+model: doubao-seedream-5-0-260128
+label:
+  en_US: Seedream 5.0 Lite
+  zh_Hans: 即梦 5.0 Lite
+model_type: image
+features: []
+model_properties:
+  mode: image
+parameter_rules: []
+pricing:
+  type: usage
+  rules:
+    - id: volcengine-seedream-5-lite-generation
+      version: "2026-08-14"
+      effective_from: "2026-08-14T00:00:00Z"
+      unit: generation
+      unit_size: 1
+      unit_price: 0.22
+      currency: CNY
+      charge_type: paid
+      source_url: https://www.volcengine.com/product/doubao

@@ -1,18 +1,18 @@
 import { Inject, Injectable, Optional } from '@nestjs/common'
-import { BuiltinToolset, type IToolsetStrategy, ToolsetStrategy, type TBuiltinToolsetParams } from '@xpert-ai/plugin-sdk'
+import {
+  BuiltinToolset,
+  type IToolsetStrategy,
+  ToolsetStrategy,
+  XPERT_RUNTIME_CAPABILITIES_TOKEN,
+  type RuntimeCapabilityRegistry,
+  type TBuiltinToolsetParams
+} from '@xpert-ai/plugin-sdk'
 import { buildKlingTools } from './tools.js'
-import {
-  KlingVideo,
-  type KlingCredentials,
-  type RuntimeCapabilityRegistryLike
-} from './types.js'
-import {
-  KlingVideoToolset,
-  type KlingVideoToolsetDescriptor
-} from './toolset.js'
+import { KlingVideo } from './types.js'
+import { KlingVideoToolset, type KlingVideoToolsetDescriptor } from './toolset.js'
 
-const XPERT_RUNTIME_CAPABILITIES_TOKEN = 'XPERT_RUNTIME_CAPABILITIES'
-const SvgIcon = '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect width="24" height="24" rx="4" fill="#111827"/><path d="M7 5h3v5l4-5h4l-5 6 5 8h-4l-4-7v7H7V5z" fill="white"/></svg>'
+const SvgIcon =
+  '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect width="24" height="24" rx="4" fill="#111827"/><path d="M7 5h3v5l4-5h4l-5 6 5 8h-4l-4-7v7H7V5z" fill="white"/></svg>'
 
 @Injectable()
 @ToolsetStrategy(KlingVideo)
@@ -41,21 +41,24 @@ export class KlingVideoStrategy implements IToolsetStrategy<unknown> {
       },
       models: [
         {
-          id: 'kling-v3', label: 'Kling 3.0',
+          id: 'kling-v3',
+          label: 'Kling 3.0',
           modes: ['text_to_video', 'image_to_video', 'first_last_frame_to_video'],
           inputs: { referenceImages: { maxItems: 1 }, initialFrame: true, lastFrame: true }
         },
         {
-          id: 'kling-v3-omni', label: 'Kling 3.0 Omni',
+          id: 'kling-v3-omni',
+          label: 'Kling 3.0 Omni',
           modes: ['text_to_video', 'image_to_video', 'first_last_frame_to_video', 'reference_to_video'],
           inputs: { referenceImages: { maxItems: 7 }, initialFrame: true, lastFrame: true }
         },
         {
-          id: 'kling-3.0-turbo', label: 'Kling 3.0 Turbo',
+          id: 'kling-3.0-turbo',
+          label: 'Kling 3.0 Turbo',
           modes: ['text_to_video', 'image_to_video'],
           inputs: { referenceImages: { maxItems: 1 }, initialFrame: true }
         }
-      ],
+      ] as const,
       defaultModel: 'kling-v3',
       resolutions: ['720p', '1080p'],
       aspectRatios: ['16:9', '9:16', '1:1'],
@@ -65,48 +68,36 @@ export class KlingVideoStrategy implements IToolsetStrategy<unknown> {
     configSchema: {
       type: 'object',
       additionalProperties: false,
-      properties: {
-        api_key: {
-          type: 'string', secret: true,
-          title: 'Kling API Key',
-          'x-ui': { title: { en_US: 'Kling API Key', zh_Hans: '可灵 API Key' } }
-        },
-        api_endpoint_host: {
-          type: 'string', default: 'https://api-singapore.klingai.com',
-          title: 'API endpoint',
-          'x-ui': { title: { en_US: 'API endpoint', zh_Hans: '接口地址' } }
-        }
-      },
-      required: ['api_key']
+      properties: {}
     }
   }
 
   constructor(
-    @Optional() @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN)
-    private readonly runtimeCapabilities?: RuntimeCapabilityRegistryLike
+    @Optional()
+    @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN)
+    private readonly runtimeCapabilities?: RuntimeCapabilityRegistry
   ) {}
 
   async validateConfig(config: unknown): Promise<void> {
-    if (!readCredentials(config).api_key?.trim()) {
-      throw new Error('Kling API key is missing')
-    }
+    void config
   }
 
   async create(config: unknown, params?: TBuiltinToolsetParams): Promise<BuiltinToolset> {
-    return new KlingVideoToolset(
-      asToolsetDescriptor(config),
-      this.runtimeCapabilities,
-      params
-    )
+    return new KlingVideoToolset(asToolsetDescriptor(config), this.runtimeCapabilities, params)
   }
 
   createTools(): ReturnType<IToolsetStrategy['createTools']> {
     const tools = buildKlingTools({
-      credentials: {},
       workspaceFiles: {
-        uploadBuffer: async () => { throw new Error('Xpert Workspace Files capability is required for Kling video generation.') },
-        readBuffer: async () => { throw new Error('Xpert Workspace Files capability is required for Kling video generation.') },
-        deleteFile: async () => { throw new Error('Xpert Workspace Files capability is required for Kling video generation.') }
+        uploadBuffer: async () => {
+          throw new Error('Xpert Workspace Files capability is required for Kling video generation.')
+        },
+        readBuffer: async () => {
+          throw new Error('Xpert Workspace Files capability is required for Kling video generation.')
+        },
+        deleteFile: async () => {
+          throw new Error('Xpert Workspace Files capability is required for Kling video generation.')
+        }
       }
     })
     // Current plugin-sdk releases still type built-in tool schemas as Zod-only.
@@ -114,23 +105,8 @@ export class KlingVideoStrategy implements IToolsetStrategy<unknown> {
   }
 }
 
-function readCredentials(config: unknown): KlingCredentials {
-  if (!isRecord(config)) return {}
-  const source = isRecord(config.credentials) ? config.credentials : config
-  return {
-    api_key: readOptionalString(source.api_key),
-    api_endpoint_host: readOptionalString(source.api_endpoint_host)
-  }
-}
-
 function asToolsetDescriptor(config: unknown): KlingVideoToolsetDescriptor {
-  return isRecord(config)
-    ? (config as unknown as KlingVideoToolsetDescriptor)
-    : undefined
-}
-
-function readOptionalString(value: unknown) {
-  return typeof value === 'string' ? value : undefined
+  return isRecord(config) ? (config as unknown as KlingVideoToolsetDescriptor) : undefined
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

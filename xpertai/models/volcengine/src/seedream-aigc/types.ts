@@ -1,5 +1,17 @@
+import type {
+  AgentMiddlewareModelProviderConnection,
+  AgentMiddlewareRuntimeScope,
+  AIGCModelClient,
+  AsyncAIGCManagedJobPayload,
+  ManagedQueueService,
+  WorkspaceFile as PlatformWorkspaceFile,
+  WorkspaceFileCatalog as PlatformWorkspaceFileCatalog,
+  WorkspaceFileScope,
+  WorkspaceMediaFilesApi,
+  WorkspaceUploadBufferInput as PlatformWorkspaceUploadBufferInput
+} from '@xpert-ai/plugin-sdk'
+
 export const SeedreamAigc = 'seedream_aigc'
-export const SeedreamAigcWorkspaceCapability = 'platform.workspace.files'
 export const SeedreamAigcDefaultBaseUrl = 'https://ark.cn-beijing.volces.com/api/v3'
 
 export type SeedreamAigcCredentials = {
@@ -7,73 +19,50 @@ export type SeedreamAigcCredentials = {
   api_endpoint_host?: string
 }
 
-export type WorkspaceFileCatalog = 'projects' | 'users' | 'knowledges' | 'skills' | 'xperts'
+export type WorkspaceFileCatalog = PlatformWorkspaceFileCatalog
+export type WorkspaceUploadBufferInput = PlatformWorkspaceUploadBufferInput
+export type WorkspaceFile = PlatformWorkspaceFile
+export type WorkspaceFilesApi = WorkspaceMediaFilesApi
+export type SeedreamWorkspaceScope = WorkspaceFileScope
 
-export type WorkspaceUploadBufferInput = {
-  tenantId?: string | null
-  userId?: string | null
-  catalog?: WorkspaceFileCatalog | null
-  scopeId?: string | null
-  projectId?: string | null
-  knowledgeId?: string | null
-  rootId?: string | null
-  xpertId?: string | null
-  isolateByUser?: boolean | null
-  buffer: Buffer
-  originalName: string
-  mimeType?: string | null
-  size?: number | null
-  folder?: string | null
-  fileName?: string | null
-  metadata?: Record<string, unknown>
-}
-
-export type WorkspaceFile = {
-  name: string
-  filePath: string
-  workspacePath: string
-  fileUrl?: string
-  url?: string
-  mimeType?: string
-  size?: number
-  catalog: WorkspaceFileCatalog
-  scopeId?: string
-  metadata?: Record<string, unknown>
-}
-
-export type WorkspaceFilesApi = {
-  uploadBuffer(input: WorkspaceUploadBufferInput): Promise<WorkspaceFile>
-  readBuffer(input: { filePath: string } & Record<string, unknown>): Promise<WorkspaceFile & { buffer: Buffer }>
-  readRuntimeBuffer?(
-    input:
-      | string
-      | ({
-          path?: string | null
-          filePath?: string | null
-          workspacePath?: string | null
-          mimeType?: string | null
-          mimetype?: string | null
-          name?: string | null
-          originalName?: string | null
-        } & Record<string, unknown>)
-  ): Promise<WorkspaceFile & { buffer: Buffer }>
-  deleteFile(input: { filePath: string } & Record<string, unknown>): Promise<void>
-}
-
-export type RuntimeCapabilityRegistryLike = {
-  get<T>(key: string): T | undefined
-  require?<T>(key: string): T
-}
-
-export type SeedreamWorkspaceScope = Omit<WorkspaceUploadBufferInput, 'buffer' | 'originalName'> & {
-  catalog?: WorkspaceFileCatalog | null
+export type SeedreamImageResponse = {
+  id?: unknown
+  request_id?: unknown
+  usage?: unknown
+  data?: unknown
 }
 
 export type SeedreamToolDependencies = {
   credentials: SeedreamAigcCredentials
   workspaceFiles: WorkspaceFilesApi
   workspaceScope?: SeedreamWorkspaceScope
+  managedQueue?: ManagedQueueService
+  pluginScopeKey?: string
+  runtimeScope?: AgentMiddlewareRuntimeScope
   fetch?: typeof fetch
+  sleep?: (milliseconds: number) => Promise<void>
+  createImageModelClient?: (
+    model: string
+  ) => Promise<AIGCModelClient<Record<string, unknown>, SeedreamImageResponse>>
+  modelProvider?: AgentMiddlewareModelProviderConnection
+}
+
+export type SeedanceVideoUsage = {
+  prompt_tokens?: number
+  completion_tokens?: number
+  total_tokens?: number
+}
+
+export type SeedanceVideoTask = {
+  id?: string
+  status?: string
+  model?: string
+  content?: {
+    video_url?: string
+    last_frame_url?: string
+  }
+  error?: unknown
+  usage?: SeedanceVideoUsage
 }
 
 export type SeedreamArtifactFile = {
@@ -96,3 +85,7 @@ export type SeedreamToolArtifact = {
 }
 
 export type SeedreamToolResult = [string, SeedreamToolArtifact]
+
+export type SeedanceVideoJobPayload = AsyncAIGCManagedJobPayload<Record<string, unknown>, SeedreamToolResult> & {
+  runtimeScope: AgentMiddlewareRuntimeScope
+}

@@ -211,6 +211,7 @@ export const videoQuerySchema = objectSchema(
         )
       }
     },
+    model: modelProperty,
     download_video: {
       anyOf: [{ type: 'boolean' }, { type: 'string', enum: ['true', 'false'] }],
       default: 'true',

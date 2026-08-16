@@ -1,21 +1,18 @@
 import { randomUUID } from 'node:crypto'
 import { tool } from '@langchain/core/tools'
+import { getToolCallIdFromConfig } from '@xpert-ai/contracts'
 import { encodeImageInput } from './assets.js'
-import { ZhipuCogVideoClient } from './client.js'
 import type {
   ZhipuArtifactFile,
   ZhipuCogVideoToolDependencies,
   ZhipuCogVideoToolResult,
   ZhipuVideoGenerationPayload,
-  ZhipuVideoTask
+  ZhipuVideoJobPayload
 } from './types.js'
-import { extensionFromMimeType, uploadGeneratedAsset } from './workspace-upload.js'
+import { ZHIPUAI_PLUGIN_NAME, ZHIPUAI_VIDEO_JOB, ZHIPUAI_VIDEO_QUEUE } from './constants.js'
 
-const VIDEO_FOLDER = 'files/zhipuai/cogvideo/videos'
-const COVER_FOLDER = 'files/zhipuai/cogvideo/covers'
 const QUERY_MAX_WAIT_SECONDS = 45
-const QUERY_POLL_MS = 5_000
-const MAX_COVER_BYTES = 20 * 1024 * 1024
+const QUERY_POLL_MS = 1_000
 
 const VIDEO_MODELS = ['cogvideox-3', 'cogvideox-2', 'cogvideox-flash'] as const
 const VIDEO_SIZES = [
@@ -37,7 +34,7 @@ export function buildZhipuCogVideoTools(deps: ZhipuCogVideoToolDependencies) {
 
 function buildSubmitTool(deps: ZhipuCogVideoToolDependencies) {
   return tool(
-    async (input: unknown): Promise<ZhipuCogVideoToolResult> => {
+    async (input: unknown, config): Promise<ZhipuCogVideoToolResult> => {
       const values = requireRecord(input)
       const prompt = readOptionalString(values.prompt)
       const imageInput = values.input_image_file ?? values.image_url
@@ -46,9 +43,10 @@ function buildSubmitTool(deps: ZhipuCogVideoToolDependencies) {
       }
 
       const model = normalizeModel(values.model)
+      const invocationKey = getToolCallIdFromConfig(config) ?? randomUUID()
       const payload: ZhipuVideoGenerationPayload = {
         model,
-        request_id: randomUUID(),
+        request_id: invocationKey,
         ...(prompt ? { prompt } : {}),
         ...(imageInput !== undefined
           ? {
@@ -72,22 +70,53 @@ function buildSubmitTool(deps: ZhipuCogVideoToolDependencies) {
         if (fps) payload.fps = fps
       }
 
-      const task = await createClient(deps).submitVideo(payload)
-      const taskId = task.id
-      if (!taskId) throw new Error('ZhipuAI did not return a video task ID')
+      const operation = imageInput === undefined ? 'text_to_video' : 'image_to_video'
+      const taskId = queueJobId(invocationKey)
+      const runtimeScope = deps.runtimeScope ?? {}
+      await requireManagedQueue(deps.managedQueue).enqueue({
+        pluginName: ZHIPUAI_PLUGIN_NAME,
+        queueName: ZHIPUAI_VIDEO_QUEUE,
+        jobName: ZHIPUAI_VIDEO_JOB,
+        jobId: taskId,
+        scopeKey: deps.pluginScopeKey,
+        tenantId: runtimeScope.tenantId,
+        organizationId: runtimeScope.organizationId,
+        userId: runtimeScope.userId,
+        attempts: 3,
+        backoffMs: { type: 'exponential', delay: 5_000 },
+        removeOnComplete: { age: 86_400, count: 1_000 },
+        removeOnFail: { age: 604_800, count: 1_000 },
+        payload: {
+          requestId: invocationKey,
+          model,
+          toolName: 'zhipu_cogvideo_submit',
+          modality: 'video',
+          operation,
+          pricingDimensions: {
+            durationSeconds: payload.duration,
+            audio: payload.with_audio,
+            ...(payload.size ? { resolution: payload.size } : {}),
+            ...(payload.quality ? { mode: payload.quality } : {})
+          },
+          input: payload,
+          phase: 'queued',
+          startedAt: new Date().toISOString(),
+          runtimeScope
+        }
+      })
 
       const message = [
-        'ZhipuAI video generation task submitted.',
+        'ZhipuAI video generation task queued.',
         `Task ID: ${taskId}`,
         'Call zhipu_cogvideo_query with this task_id to check completion and download the generated video.',
-        'If it is still processing, report the task ID and wait for a later turn instead of submitting the same video again.'
+        'The Managed Queue job submits and polls the provider task without occupying the conversation request.'
       ].join('\n')
 
-      return result(message, [], {
+      return zhipuCogVideoResult(message, [], {
         task_id: taskId,
-        status: task.task_status || 'PROCESSING',
-        model: task.model || model,
-        request_id: task.request_id || payload.request_id
+        status: 'queued',
+        model,
+        request_id: payload.request_id
       })
     },
     {
@@ -105,52 +134,32 @@ function buildQueryTool(deps: ZhipuCogVideoToolDependencies) {
     async (input: unknown): Promise<ZhipuCogVideoToolResult> => {
       const values = requireRecord(input)
       const taskId = requireString(values.task_id, 'Task ID is required')
-      const downloadVideo = normalizeBoolean(values.download_video, true)
       const waitSeconds = clampInteger(values.wait_seconds, 30, 0, QUERY_MAX_WAIT_SECONDS)
-      const client = createClient(deps)
       const sleep = deps.sleep ?? delay
+      const managedQueue = requireManagedQueue(deps.managedQueue)
 
-      let task = await client.getVideoTask(taskId)
+      let snapshot = await managedQueue.getJob<ZhipuVideoJobPayload>({ jobId: taskId })
       let remainingMs = waitSeconds * 1_000
-      while (isProcessing(task) && remainingMs > 0) {
+      while (snapshot && !isTerminalQueueState(snapshot.state) && remainingMs > 0) {
         const delayMs = Math.min(QUERY_POLL_MS, remainingMs)
         await sleep(delayMs)
         remainingMs -= delayMs
-        task = await client.getVideoTask(taskId)
+        snapshot = await managedQueue.getJob<ZhipuVideoJobPayload>({ jobId: taskId })
       }
 
-      const resolvedTaskId = task.id || taskId
-      const status = task.task_status || 'UNKNOWN'
-      if (status === 'FAIL') {
-        throw new Error(`ZhipuAI video generation task ${resolvedTaskId} failed${formatTaskError(task.error)}`)
+      if (!snapshot) throw new Error(`ZhipuAI video generation task ${taskId} was not found`)
+      if (snapshot.state === 'completed' && snapshot.data.result) return snapshot.data.result
+      if (snapshot.state === 'failed') {
+        throw new Error(snapshot.failedReason || snapshot.data.errorCode || `ZhipuAI video task ${taskId} failed`)
       }
-
-      if (status !== 'SUCCESS') {
-        return result(
-          `Video task ${resolvedTaskId} status: ${status}. The provider task continues running; query it again in a later turn.`,
-          [],
-          {
-            task_id: resolvedTaskId,
-            status,
-            model: task.model
-          }
-        )
-      }
-
-      if (!task.video_result.length) {
-        throw new Error(`ZhipuAI video task ${resolvedTaskId} succeeded without a video result`)
-      }
-
-      const files = downloadVideo ? await downloadTaskFiles(task, resolvedTaskId, client, deps) : []
-      return result(
-        `Video task ${resolvedTaskId} status: SUCCESS.${downloadVideo ? '' : ' Provider URLs are available in the result data.'}`,
-        files,
+      return zhipuCogVideoResult(
+        `Video task ${taskId} status: ${snapshot.data.providerState || snapshot.data.phase}. Query the same task ID later.`,
+        [],
         {
-          task_id: resolvedTaskId,
-          status,
-          model: task.model,
-          provider_video_urls: task.video_result.flatMap((item) => item.url ? [item.url] : []),
-          cover_image_urls: task.video_result.flatMap((item) => item.cover_image_url ? [item.cover_image_url] : [])
+          task_id: taskId,
+          request_id: snapshot.data.requestId,
+          provider_request_id: snapshot.data.providerRequestId,
+          status: snapshot.data.providerState || snapshot.data.phase
         }
       )
     },
@@ -164,71 +173,7 @@ function buildQueryTool(deps: ZhipuCogVideoToolDependencies) {
   )
 }
 
-async function downloadTaskFiles(
-  task: ZhipuVideoTask,
-  taskId: string,
-  client: ZhipuCogVideoClient,
-  deps: ZhipuCogVideoToolDependencies
-) {
-  const files: ZhipuArtifactFile[] = []
-  const safeTaskId = sanitizeFileStem(taskId)
-
-  for (const [index, item] of task.video_result.entries()) {
-    if (!item.url) throw new Error(`ZhipuAI video result ${index + 1} is missing its URL`)
-
-    const video = await client.downloadBuffer(item.url)
-    const videoMimeType = video.mimeType || 'video/mp4'
-    if (!videoMimeType.startsWith('video/')) {
-      throw new Error(`ZhipuAI video result ${index + 1} returned an invalid MIME type`)
-    }
-    const suffix = task.video_result.length > 1 ? `-${index + 1}` : ''
-    const videoFileName = `${safeTaskId}${suffix}.${extensionFromMimeType(videoMimeType)}`
-    files.push(await uploadGeneratedAsset({
-      workspaceFiles: deps.workspaceFiles,
-      workspaceScope: deps.workspaceScope,
-      buffer: video.buffer,
-      mimeType: videoMimeType,
-      folder: VIDEO_FOLDER,
-      fileName: videoFileName,
-      metadata: {
-        source: 'zhipu_cogvideo_generation',
-        taskId,
-        model: task.model,
-        resultIndex: index
-      }
-    }))
-
-    if (item.cover_image_url) {
-      const cover = await client.downloadBuffer(item.cover_image_url)
-      const coverMimeType = cover.mimeType || 'image/jpeg'
-      if (!coverMimeType.startsWith('image/')) {
-        throw new Error(`ZhipuAI cover image ${index + 1} returned an invalid MIME type`)
-      }
-      if (cover.buffer.length > MAX_COVER_BYTES) {
-        throw new Error(`ZhipuAI cover image ${index + 1} exceeds the 20MB limit`)
-      }
-      const coverFileName = `${safeTaskId}${suffix}-cover.${extensionFromMimeType(coverMimeType)}`
-      files.push(await uploadGeneratedAsset({
-        workspaceFiles: deps.workspaceFiles,
-        workspaceScope: deps.workspaceScope,
-        buffer: cover.buffer,
-        mimeType: coverMimeType,
-        folder: COVER_FOLDER,
-        fileName: coverFileName,
-        metadata: {
-          source: 'zhipu_cogvideo_cover',
-          taskId,
-          model: task.model,
-          resultIndex: index
-        }
-      }))
-    }
-  }
-
-  return files
-}
-
-function result(
+export function zhipuCogVideoResult(
   message: string,
   files: ZhipuArtifactFile[],
   data?: Record<string, unknown>
@@ -254,14 +199,6 @@ function formatResultContent(message: string, files: ZhipuArtifactFile[]) {
   })
 
   return `${message}\n\nGenerated files:\n${fileLines.join('\n')}`
-}
-
-function createClient(deps: ZhipuCogVideoToolDependencies) {
-  return new ZhipuCogVideoClient(deps.credentials, deps.fetch ?? fetch)
-}
-
-function isProcessing(task: ZhipuVideoTask) {
-  return task.task_status === 'PROCESSING' && !task.video_result.some((item) => item.url)
 }
 
 function normalizeModel(value: unknown): VideoModel {
@@ -292,7 +229,7 @@ function normalizeBoolean(value: unknown, fallback: boolean) {
 }
 
 function normalizeEnum<T extends string>(value: unknown, options: readonly T[]): T | undefined {
-  return typeof value === 'string' && options.includes(value as T) ? value as T : undefined
+  return typeof value === 'string' && options.includes(value as T) ? (value as T) : undefined
 }
 
 function clampInteger(value: unknown, fallback: number, minimum: number, maximum: number) {
@@ -313,7 +250,11 @@ function requireRecord(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error('Tool input must be an object')
   }
-  return value as Record<string, unknown>
+  const result: Record<string, unknown> = {}
+  for (const key of Object.keys(value)) {
+    result[key] = Reflect.get(value, key)
+  }
+  return result
 }
 
 function requireString(value: unknown, message: string) {
@@ -326,29 +267,34 @@ function readOptionalString(value: unknown) {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined
 }
 
-function sanitizeFileStem(value: string) {
-  const sanitized = value.replace(/[^a-zA-Z0-9._-]/g, '_').replace(/^\.+/, '')
-  return sanitized.slice(0, 160) || 'zhipu-video'
-}
-
-function formatTaskError(value: unknown) {
-  if (typeof value === 'string' && value.trim()) return `: ${value.trim()}`
-  if (value && typeof value === 'object' && !Array.isArray(value) && 'message' in value) {
-    const message = value.message
-    if (typeof message === 'string' && message.trim()) return `: ${message.trim()}`
-  }
-  return ''
-}
-
 function delay(milliseconds: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, milliseconds))
+}
+
+function queueJobId(requestId: string) {
+  return `zhipuai-${requestId.replace(/[^a-zA-Z0-9._-]/g, '-')}`
+}
+
+function isTerminalQueueState(state?: string) {
+  return state === 'completed' || state === 'failed'
+}
+
+function requireManagedQueue<T>(queue: T | undefined): T {
+  if (!queue) throw new Error('Managed Queue is required for ZhipuAI video generation.')
+  return queue
 }
 
 function i18n(en_US: string, zh_Hans: string) {
   return { en_US, zh_Hans }
 }
 
-function booleanProperty(title: string, titleZh: string, description: string, descriptionZh: string, defaultValue: boolean) {
+function booleanProperty(
+  title: string,
+  titleZh: string,
+  description: string,
+  descriptionZh: string,
+  defaultValue: boolean
+) {
   return {
     type: ['boolean', 'string'],
     title,
@@ -431,7 +377,13 @@ const submitSchema = {
         }
       }
     },
-    with_audio: booleanProperty('Generate audio', '生成音效', 'Generate AI sound effects.', '是否生成 AI 音效。', false),
+    with_audio: booleanProperty(
+      'Generate audio',
+      '生成音效',
+      'Generate AI sound effects.',
+      '是否生成 AI 音效。',
+      false
+    ),
     size: {
       type: 'string',
       enum: VIDEO_SIZES,
@@ -443,7 +395,7 @@ const submitSchema = {
       }
     },
     fps: {
-      type: ['integer', 'string'],
+      type: 'integer',
       enum: [30, 60],
       title: 'FPS',
       description: 'Ignored for cogvideox-flash.',
@@ -453,17 +405,14 @@ const submitSchema = {
       }
     },
     duration: {
-      type: ['integer', 'string'],
+      type: 'integer',
       enum: [5, 10],
       default: 5,
       title: 'Duration',
       description: 'CogVideoX 2 and Flash only support 5 seconds.',
       'x-ui': {
         title: i18n('Duration', '视频时长'),
-        description: i18n(
-          'CogVideoX 2 and Flash only support 5 seconds.',
-          'CogVideoX 2 和 Flash 仅支持 5 秒。'
-        )
+        description: i18n('CogVideoX 2 and Flash only support 5 seconds.', 'CogVideoX 2 和 Flash 仅支持 5 秒。')
       }
     }
   }
@@ -484,6 +433,12 @@ const querySchema = {
           'zhipu_cogvideo_submit 返回的视频生成任务 ID。'
         )
       }
+    },
+    model: {
+      type: 'string',
+      enum: VIDEO_MODELS,
+      default: 'cogvideox-flash',
+      title: 'Model'
     },
     wait_seconds: {
       type: ['integer', 'string'],

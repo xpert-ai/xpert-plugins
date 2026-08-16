@@ -1,0 +1,36 @@
+background: '#FCFDFF'
+configurate_methods:
+- predefined-model
+description:
+  en_US: Google Veo video generation through the Gemini Developer API.
+  zh_Hans: 通过 Gemini Developer API 使用 Google Veo 生成视频。
+help:
+  title:
+    en_US: Get an API key from Google AI Studio
+    zh_Hans: 从 Google AI Studio 获取 API Key
+  url:
+    en_US: https://aistudio.google.com/app/apikey
+    zh_Hans: https://aistudio.google.com/app/apikey
+icon_large:
+  en_US: icon_l_en.svg
+  zh_Hans: icon_l_en.svg
+icon_small:
+  en_US: icon_s_en.svg
+  zh_Hans: icon_s_en.svg
+label:
+  en_US: Google Veo
+  zh_Hans: Google Veo
+provider: veo
+provider_credential_schema:
+  credential_form_schemas:
+  - label:
+      en_US: Gemini API Key
+      zh_Hans: Gemini API Key
+    placeholder:
+      en_US: Enter your Gemini API Key
+      zh_Hans: 输入 Gemini API Key
+    required: true
+    type: secret-input
+    variable: gemini_api_key
+supported_model_types:
+- video

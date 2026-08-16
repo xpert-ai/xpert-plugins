@@ -1,4 +1,8 @@
 import {
+  ModelProviderHttpClient,
+  type ModelProviderHttpResponse
+} from '@xpert-ai/plugin-sdk/model-provider-http-client'
+import {
   KlingDefaultBaseUrl,
   type KlingCredentials,
   type KlingProviderTask,
@@ -16,33 +20,41 @@ const TASK_STATUSES = new Set<KlingProviderTaskStatus>(['submitted', 'processing
 const MAX_VIDEO_BYTES = 1024 * 1024 * 1024
 const MAX_DOWNLOAD_REDIRECTS = 5
 
-export class KlingClient {
-  private readonly baseUrl: string
+export class KlingClient extends ModelProviderHttpClient {
   private readonly apiKey: string
-  private readonly fetchImpl: typeof fetch
 
   constructor(credentials: KlingCredentials, fetchImpl: typeof fetch = fetch) {
     const apiKey = credentials.api_key?.trim()
     if (!apiKey) {
       throw new Error('Kling API key is missing')
     }
+    const baseUrl = normalizeBaseUrl(credentials.api_endpoint_host || KlingDefaultBaseUrl)
+    super({
+      provider: 'Kling',
+      baseUrl,
+      defaultHeaders: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      fetchImpl
+    })
     this.apiKey = apiKey
-    this.baseUrl = normalizeBaseUrl(credentials.api_endpoint_host || KlingDefaultBaseUrl)
-    this.fetchImpl = fetchImpl
   }
 
   async createTask(path: string, payload: Record<string, unknown>): Promise<KlingProviderTask> {
-    const response = await this.requestJson(`${this.baseUrl}${path}`, {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    })
+    const response = await this.requestJson(
+      path,
+      { method: 'POST', body: JSON.stringify(payload) },
+      (value) => parseApiEnvelope(value, this.apiKey)
+    )
     return parseTask(response.data)
   }
 
   async queryTask(taskId: string): Promise<KlingProviderTask> {
     const response = await this.requestJson(
-      `${this.baseUrl}/tasks?task_ids=${encodeURIComponent(taskId)}`,
-      { method: 'GET' }
+      `/tasks?task_ids=${encodeURIComponent(taskId)}`,
+      { method: 'GET' },
+      (value) => parseApiEnvelope(value, this.apiKey)
     )
     if (!Array.isArray(response.data)) {
       throw new Error('Kling API returned an invalid task list')
@@ -62,7 +74,7 @@ export class KlingClient {
       redirectCount <= MAX_DOWNLOAD_REDIRECTS;
       redirectCount += 1
     ) {
-      const response = await this.fetchImpl(currentUrl, {
+      const response = await this.fetchResponse(currentUrl, {
         method: 'GET',
         redirect: 'manual'
       })
@@ -79,46 +91,36 @@ export class KlingClient {
       if (!response.ok) {
         throw new Error(`Kling result download failed (HTTP ${response.status})`)
       }
-      const declaredSize = parsePositiveInteger(response.headers.get('content-length'))
-      if (declaredSize && declaredSize > MAX_VIDEO_BYTES) {
-        throw new Error('Kling result exceeds the 1 GiB download limit')
-      }
-      const buffer = Buffer.from(await response.arrayBuffer())
-      if (buffer.length > MAX_VIDEO_BYTES) {
-        throw new Error('Kling result exceeds the 1 GiB download limit')
-      }
-      return {
-        buffer,
-        mimeType: response.headers.get('content-type')?.split(';')[0]?.trim() || undefined
-      }
+      return this.readBufferResponse(response, {
+        maxBytes: MAX_VIDEO_BYTES,
+        maxBytesError: 'Kling result exceeds the 1 GiB download limit'
+      })
     }
     throw new Error('Kling result download exceeded the redirect limit')
   }
 
-  private async requestJson(url: string, init: RequestInit): Promise<ApiEnvelope> {
-    const response = await this.fetchImpl(url, {
-      ...init,
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-        ...(init.headers ?? {})
-      }
-    })
-    if (!response.ok) {
-      throw new Error(`Kling API request failed (HTTP ${response.status})`)
-    }
-
-    const body = (await response.json()) as unknown
-    if (!isRecord(body)) {
-      throw new Error('Kling API returned an invalid response')
-    }
-    const envelope = body as ApiEnvelope
-    if (typeof envelope.code === 'number' && envelope.code !== 0) {
-      const providerMessage = typeof envelope.message === 'string' ? sanitizeMessage(envelope.message, this.apiKey) : ''
-      throw new Error(`Kling API rejected the request (code ${envelope.code})${providerMessage ? `: ${providerMessage}` : ''}`)
-    }
-    return envelope
+  protected override async createHttpError(response: ModelProviderHttpResponse): Promise<Error> {
+    return new Error(`Kling API request failed (HTTP ${response.status})`)
   }
+}
+
+function parseApiEnvelope(value: unknown, apiKey: string): ApiEnvelope {
+  if (!isRecord(value)) {
+    throw new Error('Kling API returned an invalid response')
+  }
+  const envelope: ApiEnvelope = {
+    code: value.code,
+    message: value.message,
+    request_id: value.request_id,
+    data: value.data
+  }
+  if (typeof envelope.code === 'number' && envelope.code !== 0) {
+    const providerMessage = typeof envelope.message === 'string' ? sanitizeMessage(envelope.message, apiKey) : ''
+    throw new Error(
+      `Kling API rejected the request (code ${envelope.code})${providerMessage ? `: ${providerMessage}` : ''}`
+    )
+  }
+  return envelope
 }
 
 function normalizeBaseUrl(value: string) {
@@ -242,12 +244,6 @@ function sanitizeMessage(message: string, secret?: string) {
   let sanitized = message.replace(/https?:\/\/\S+/giu, '[redacted-url]')
   if (secret) sanitized = sanitized.split(secret).join('[redacted]')
   return sanitized.replace(/[\r\n\t]+/gu, ' ').slice(0, 500).trim()
-}
-
-function parsePositiveInteger(value: string | null) {
-  if (!value || !/^\d+$/u.test(value)) return undefined
-  const parsed = Number(value)
-  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : undefined
 }
 
 function readString(value: unknown) {

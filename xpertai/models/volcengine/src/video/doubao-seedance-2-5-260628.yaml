@@ -1,0 +1,9 @@
+model: doubao-seedance-2-5-260628
+label:
+  en_US: Seedance 2.5
+  zh_Hans: 即梦 Seedance 2.5
+model_type: video
+features: []
+model_properties:
+  mode: video
+parameter_rules: []

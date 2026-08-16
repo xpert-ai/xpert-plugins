@@ -19,6 +19,7 @@ supported_model_types:
   - rerank
   - speech2text
   - tts
+  - video
 configurate_methods:
   - predefined-model
   - customizable-model

@@ -3,9 +3,11 @@ import { normalizeVideoGenerationOptions } from './rules.js'
 import { SeedreamAigcStrategy } from './strategy.js'
 import { SeedreamAigcToolset } from './toolset.js'
 import { SeedreamAigc, type SeedreamAigcCredentials, type SeedreamToolResult, type WorkspaceFilesApi } from './types.js'
+import { normalizeSeedanceVideoObservation } from './usage.js'
 import type { TBuiltinToolsetParams } from '@xpert-ai/plugin-sdk'
 
 jest.mock('@xpert-ai/plugin-sdk', () => ({
+  ...jest.requireActual('@xpert-ai/plugin-sdk'),
   BuiltinToolset: class {
     tools: any[] = []
 
@@ -17,6 +19,18 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
 
     getCredentials() {
       return this.toolset?.credentials
+    }
+
+    get modelRuntime() {
+      return this.params?.modelRuntime
+    }
+
+    async validateCredentials(credentials: unknown) {
+      return this._validateCredentials(credentials)
+    }
+
+    async _validateCredentials(credentials: unknown) {
+      void credentials
     }
   },
   ToolsetStrategy: () => (target: any) => target
@@ -127,6 +141,84 @@ describe('Seedream AIGC tools', () => {
     expect(JSON.stringify(result)).not.toContain('Z2VuZXJhdGVkLWltYWdl')
   })
 
+  it('reports provider token usage once for a completed image request', async () => {
+    const reportUsage = jest.fn()
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          id: 'image-request-1',
+          data: [{ url: 'https://ark.test/generated/image.png', size: '2048x2048' }],
+          usage: {
+            prompt_tokens: 7632,
+            completion_tokens: 185,
+            total_tokens: 7817,
+            prompt_tokens_details: {
+              cached_tokens: 0,
+              image_tokens: 2122,
+              text_tokens: 5510
+            }
+          }
+        })
+      )
+      .mockResolvedValueOnce(binaryResponse(Buffer.from('generated-image'), 'image/png'))
+
+    const tool = buildSeedreamTools({ credentials, workspaceFiles, fetch: fetchMock, reportUsage }).find(
+      (_) => _.name === 'seedream_text_to_image'
+    )
+    await tool?.invoke({
+      id: 'call-usage',
+      name: 'seedream_text_to_image',
+      type: 'tool_call',
+      args: { prompt: 'a clean product render' }
+    })
+
+    expect(reportUsage).toHaveBeenCalledWith({
+      requestId: 'image-request-1',
+      provider: 'volcengine',
+      model: 'doubao-seedream-4-5-251128',
+      modelType: 'image',
+      promptTokens: 7632,
+      completionTokens: 185,
+      totalTokens: 7817
+    })
+  })
+
+  it('uses the tool call id when provider usage has no request id', async () => {
+    const reportUsage = jest.fn()
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: [{ url: 'https://ark.test/generated/image.png', size: '2048x2048' }],
+          usage: {
+            generated_images: 1,
+            output_tokens: 16_280,
+            total_tokens: 16_280
+          }
+        })
+      )
+      .mockResolvedValueOnce(binaryResponse(Buffer.from('generated-image'), 'image/png'))
+
+    const tool = buildSeedreamTools({ credentials, workspaceFiles, fetch: fetchMock, reportUsage }).find(
+      (_) => _.name === 'seedream_text_to_image'
+    )
+    await tool?.invoke({
+      id: 'call-without-request-id',
+      name: 'seedream_text_to_image',
+      type: 'tool_call',
+      args: { prompt: 'a clean product render' }
+    })
+
+    expect(reportUsage).toHaveBeenCalledWith({
+      requestId: 'call-without-request-id',
+      provider: 'volcengine',
+      model: 'doubao-seedream-4-5-251128',
+      modelType: 'image',
+      promptTokens: 0,
+      completionTokens: 16_280,
+      totalTokens: 16_280
+    })
+  })
+
   it('exposes localized defaults and select options for image tool schemas', () => {
     const tools = buildSeedreamTools({ credentials, workspaceFiles, fetch: fetchMock })
     const textToImageSchema = tools.find((_) => _.name === 'seedream_text_to_image')?.schema as any
@@ -170,6 +262,8 @@ describe('Seedream AIGC tools', () => {
     const videoQuerySchema = tools.find((_) => _.name === 'seedance_video_query')?.schema as any
 
     expect(strategy.meta.name).toBe(SeedreamAigc)
+    expect(strategy.meta.configSchema.properties).toEqual({})
+    expect(strategy.meta.configSchema).not.toHaveProperty('required')
     expect(strategy.meta.videoGeneration).toMatchObject({
       protocolVersion: 2,
       modes: expect.arrayContaining(['reference_to_video']),
@@ -264,12 +358,23 @@ describe('Seedream AIGC tools', () => {
   })
 
   it('uses the xpert runtime context as workspace upload scope', async () => {
+    const reportUsage = jest.fn()
+    const imageResponse = {
+      data: [{ url: 'https://ark.test/generated/image.png', size: '2048x2048' }],
+      usage: { generated_images: 1, output_tokens: 100, total_tokens: 100 }
+    }
+    const imageModelClient = {
+      invoke: jest.fn().mockResolvedValue({
+        data: imageResponse,
+        observation: {
+          state: 'succeeded',
+          usageAvailability: 'available',
+          metrics: [{ unit: 'token', totalTokens: 100, authority: 'provider' }]
+        }
+      })
+    }
+    const createModelClient = jest.fn().mockResolvedValue(imageModelClient)
     fetchMock
-      .mockResolvedValueOnce(
-        jsonResponse({
-          data: [{ url: 'https://ark.test/generated/image.png', size: '2048x2048' }]
-        })
-      )
       .mockResolvedValueOnce(binaryResponse(Buffer.from('generated-image'), 'image/png'))
 
     const params: TBuiltinToolsetParams = {
@@ -278,9 +383,21 @@ describe('Seedream AIGC tools', () => {
       xpertId: 'xpert-1',
       env: {},
       commandBus: {} as TBuiltinToolsetParams['commandBus'],
-      queryBus: {} as TBuiltinToolsetParams['queryBus']
+      queryBus: {} as TBuiltinToolsetParams['queryBus'],
+      modelRuntime: {
+        createModelClient,
+        getModelProvider: jest.fn().mockResolvedValue({
+          providerScopeId: 'volcengine-provider-1',
+          copilotId: 'volcengine-copilot-1',
+          provider: 'volcengine',
+          baseURL: credentials.api_endpoint_host,
+          authorization: `Bearer ${credentials.ark_api_key}`,
+          reportUsage
+        })
+      }
     }
     const toolset = new SeedreamAigcToolset({ credentials }, { get: jest.fn().mockReturnValue(workspaceFiles) }, params)
+    await toolset.validateCredentials({})
     const tools = await toolset.initTools()
     const tool = tools.find((_) => _.name === 'seedream_text_to_image')
     const originalFetch = global.fetch
@@ -308,16 +425,32 @@ describe('Seedream AIGC tools', () => {
         xpertId: 'xpert-1'
       })
     )
+    expect(createModelClient).toHaveBeenCalledWith(
+      expect.objectContaining({
+        copilotId: 'volcengine-copilot-1',
+        model: 'doubao-seedream-4-5-251128',
+        modelType: 'image'
+      }),
+      {}
+    )
+    expect(imageModelClient.invoke).toHaveBeenCalledWith(expect.objectContaining({ model: 'doubao-seedream-4-5-251128' }))
+    expect(reportUsage).not.toHaveBeenCalled()
   })
 
   it('uses the project runtime context before the xpert context as workspace upload scope', async () => {
-    fetchMock
-      .mockResolvedValueOnce(
-        jsonResponse({
-          data: [{ url: 'https://ark.test/generated/image.png', size: '2048x2048' }]
-        })
-      )
-      .mockResolvedValueOnce(binaryResponse(Buffer.from('generated-image'), 'image/png'))
+    const imageResponse = {
+      data: [{ url: 'https://ark.test/generated/image.png', size: '2048x2048' }]
+    }
+    const imageModelClient = {
+      invoke: jest.fn().mockResolvedValue({
+        data: imageResponse,
+        observation: {
+          state: 'succeeded',
+          usageAvailability: 'unknown'
+        }
+      })
+    }
+    fetchMock.mockResolvedValueOnce(binaryResponse(Buffer.from('generated-image'), 'image/png'))
 
     const params: TBuiltinToolsetParams = {
       tenantId: 'tenant-1',
@@ -326,7 +459,17 @@ describe('Seedream AIGC tools', () => {
       xpertId: 'xpert-1',
       env: {},
       commandBus: {} as TBuiltinToolsetParams['commandBus'],
-      queryBus: {} as TBuiltinToolsetParams['queryBus']
+      queryBus: {} as TBuiltinToolsetParams['queryBus'],
+      modelRuntime: {
+        createModelClient: jest.fn().mockResolvedValue(imageModelClient),
+        getModelProvider: jest.fn().mockResolvedValue({
+          providerScopeId: 'volcengine-provider-1',
+          copilotId: 'volcengine-copilot-1',
+          provider: 'volcengine',
+          baseURL: credentials.api_endpoint_host,
+          authorization: `Bearer ${credentials.ark_api_key}`
+        })
+      }
     }
     const toolset = new SeedreamAigcToolset({ credentials }, { get: jest.fn().mockReturnValue(workspaceFiles) }, params)
     const tools = await toolset.initTools()
@@ -559,6 +702,7 @@ describe('Seedream AIGC tools', () => {
   })
 
   it('returns the task id and query instruction for Seedance video submissions', async () => {
+    const recordInvocation = jest.fn().mockResolvedValue({ invocationId: 'invocation-submit' })
     fetchMock.mockResolvedValueOnce(
       jsonResponse({
         id: 'task-1',
@@ -567,7 +711,7 @@ describe('Seedream AIGC tools', () => {
       })
     )
 
-    const tool = buildSeedreamTools({ credentials, workspaceFiles, fetch: fetchMock }).find(
+    const tool = buildSeedreamTools({ credentials, workspaceFiles, fetch: fetchMock, recordInvocation }).find(
       (_) => _.name === 'seedance_text_to_video'
     )
 
@@ -591,6 +735,52 @@ describe('Seedream AIGC tools', () => {
         model: 'doubao-seedance-1-5-pro-251215'
       })
     )
+    expect(recordInvocation).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        phase: 'start',
+        invocationKey: 'call-video-submit',
+        provider: 'seedream_aigc',
+        operation: 'text_to_video',
+        pricingDimensions: {
+          durationSeconds: 5,
+          resolution: '720p',
+          audio: true,
+          mode: 'text_to_video',
+          videoInput: false
+        }
+      })
+    )
+    expect(recordInvocation).toHaveBeenNthCalledWith(2, {
+      phase: 'bind',
+      invocationId: 'invocation-submit',
+      providerRequestId: 'task-1'
+    })
+  })
+
+  it('closes the invocation when Provider submission fails', async () => {
+    const recordInvocation = jest.fn().mockResolvedValue({ invocationId: 'invocation-failed-submit' })
+    fetchMock.mockRejectedValueOnce(new Error('Ark request failed before returning a task'))
+    const tool = buildSeedreamTools({ credentials, workspaceFiles, fetch: fetchMock, recordInvocation }).find(
+      (_) => _.name === 'seedance_text_to_video'
+    )
+
+    await expect(
+      tool?.invoke({
+        id: 'call-video-failed-submit',
+        name: 'seedance_text_to_video',
+        type: 'tool_call',
+        args: { prompt: 'a small black cat looking for its mother' }
+      })
+    ).rejects.toThrow('Ark request failed before returning a task')
+
+    expect(recordInvocation).toHaveBeenNthCalledWith(2, {
+      phase: 'observe',
+      invocationId: 'invocation-failed-submit',
+      state: 'acceptance_unknown',
+      usageAvailability: 'unknown',
+      errorCode: 'provider_acceptance_unknown'
+    })
   })
 
   it('tells the assistant to stop when a video query has no downloadable video yet', async () => {
@@ -625,7 +815,32 @@ describe('Seedream AIGC tools', () => {
     expect(workspaceFiles.uploadBuffer).not.toHaveBeenCalled()
   })
 
+  it('reuses a task already bound to the same tool call without submitting again', async () => {
+    const recordInvocation = jest.fn().mockResolvedValue({
+      invocationId: 'invocation-existing',
+      created: false,
+      providerRequestId: 'task-existing',
+      providerState: 'submitted'
+    })
+    const tool = buildSeedreamTools({ credentials, workspaceFiles, fetch: fetchMock, recordInvocation }).find(
+      (_) => _.name === 'seedance_text_to_video'
+    )
+
+    const result = await tool?.invoke({
+      id: 'call-video-existing',
+      name: 'seedance_text_to_video',
+      type: 'tool_call',
+      args: { prompt: 'a small black cat looking for its mother' }
+    })
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(normalizeToolResult(result)[1].data).toEqual(
+      expect.objectContaining({ task_id: 'task-existing', status: 'submitted' })
+    )
+  })
+
   it('uploads completed video query output to the workspace', async () => {
+    const recordInvocation = jest.fn().mockResolvedValue({ invocationId: 'invocation-complete' })
     fetchMock
       .mockResolvedValueOnce(
         jsonResponse({
@@ -635,12 +850,13 @@ describe('Seedream AIGC tools', () => {
           content: {
             video_url: 'https://ark.test/generated/video.mp4',
             last_frame_url: 'https://ark.test/generated/last.png'
-          }
+          },
+          usage: { completion_tokens: 4321 }
         })
       )
       .mockResolvedValueOnce(binaryResponse(Buffer.from('generated-video'), 'video/mp4'))
 
-    const tool = buildSeedreamTools({ credentials, workspaceFiles, fetch: fetchMock }).find(
+    const tool = buildSeedreamTools({ credentials, workspaceFiles, fetch: fetchMock, recordInvocation }).find(
       (_) => _.name === 'seedance_video_query'
     )
 
@@ -675,6 +891,38 @@ describe('Seedream AIGC tools', () => {
         fileUrl: expect.stringContaining('https://workspace.example/files/seedream-aigc/videos/task-1.mp4')
       })
     )
+    expect(recordInvocation).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        phase: 'observe',
+        providerRequestId: 'task-1',
+        state: 'succeeded',
+        usageAvailability: 'available',
+        metrics: [{ unit: 'token', authority: 'provider', completionTokens: 4321 }]
+      })
+    )
+    expect(recordInvocation.mock.invocationCallOrder[0]).toBeLessThan(
+      (workspaceFiles.uploadBuffer as jest.Mock).mock.invocationCallOrder[0]
+    )
+  })
+
+  it('keeps terminal Seedance usage unknown unless Provider returns token fields', () => {
+    expect(normalizeSeedanceVideoObservation({ id: 'task-unknown', status: 'succeeded' })).toEqual({
+      state: 'succeeded',
+      usageAvailability: 'unknown'
+    })
+    expect(
+      normalizeSeedanceVideoObservation({
+        id: 'task-cancelled',
+        status: 'cancelled',
+        usage: { prompt_tokens: 12 }
+      })
+    ).toEqual({
+      state: 'cancelled',
+      usageAvailability: 'available',
+      metrics: [{ unit: 'token', authority: 'provider', promptTokens: 12 }],
+      errorCode: 'provider_task_cancelled'
+    })
   })
 
   it('requires at least two reference images for multi-image tools', async () => {

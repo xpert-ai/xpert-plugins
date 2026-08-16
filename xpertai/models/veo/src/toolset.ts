@@ -1,88 +1,65 @@
 import type { StructuredToolInterface } from '@langchain/core/tools'
 import {
   BuiltinToolset,
+  type RuntimeCapabilityResolver,
   type TBuiltinToolsetParams
 } from '@xpert-ai/plugin-sdk'
+import { ModelProviderBuiltinToolset } from '@xpert-ai/plugin-sdk/model-provider-toolset'
 import { buildVeoTools } from './tools.js'
 import {
   VeoToolsetName,
-  VeoWorkspaceCapability,
-  type RuntimeCapabilityRegistryLike,
-  type VeoCredentials,
-  type WorkspaceFilesApi
+  VeoModelProvider,
+  type VeoCredentials
 } from './types.js'
 
-export type VeoToolsetDescriptor = ConstructorParameters<
-  typeof BuiltinToolset
->[1]
+export type VeoToolsetDescriptor = ConstructorParameters<typeof BuiltinToolset>[1]
 
-export class VeoToolset extends BuiltinToolset<
-  StructuredToolInterface,
-  VeoCredentials
-> {
+export class VeoToolset extends ModelProviderBuiltinToolset<StructuredToolInterface, VeoCredentials> {
   constructor(
     toolset?: VeoToolsetDescriptor,
-    private readonly runtimeCapabilities?: RuntimeCapabilityRegistryLike,
+    runtimeCapabilities?: RuntimeCapabilityResolver,
     params?: TBuiltinToolsetParams
   ) {
-    super(VeoToolsetName, toolset, params)
-  }
-
-  override async _validateCredentials(
-    credentials: VeoCredentials
-  ): Promise<void> {
-    if (!credentials.gemini_api_key?.trim()) {
-      throw new Error('Gemini API key is missing')
-    }
+    super(
+      {
+        toolsetProviderName: VeoToolsetName,
+        modelProviderName: VeoModelProvider,
+        authorizationScheme: 'ApiKey',
+        invalidCredentialsMessage: 'Google Veo model provider credentials are invalid.',
+        missingProviderMessage: 'Configure the Google Veo model provider before using Veo video tools.',
+        missingWorkspaceMessage: 'Xpert workspace file runtime capability is required for Veo inputs and outputs.'
+      },
+      toolset,
+      runtimeCapabilities,
+      params
+    )
   }
 
   override async initTools(): Promise<StructuredToolInterface[]> {
+    const modelProvider = await this.getModelProviderRuntime()
     this.tools = buildVeoTools({
-      credentials: this.getCredentials() ?? {},
       workspaceFiles: this.getWorkspaceFiles(),
-      workspaceScope: this.createWorkspaceScope()
+      workspaceScope: this.createWorkspaceScope(),
+      managedQueue: requireManagedQueue(this.managedQueue),
+      pluginScopeKey: this.pluginScopeKey,
+      runtimeScope: {
+        tenantId: this.tenantId,
+        organizationId: this.organizationId,
+        userId: this.params?.userId,
+        projectId: this.params?.projectId,
+        xpertId: this.xpertId,
+        conversationId: this.params?.conversationId,
+        agentKey: this.params?.agentKey,
+        executionId: this.params?.executionId,
+        providerScopeId: modelProvider.providerScopeId
+      }
     })
     return this.tools
   }
 
-  private getWorkspaceFiles() {
-    const workspaceFiles = this.runtimeCapabilities?.get<WorkspaceFilesApi>(
-      VeoWorkspaceCapability
-    )
-    if (!workspaceFiles) {
-      throw new Error(
-        'Xpert workspace file runtime capability is required for Veo inputs and outputs.'
-      )
-    }
-    return workspaceFiles
-  }
-
-  private createWorkspaceScope() {
-    const projectId = normalizeOptionalString(this.params?.projectId)
-    if (projectId) {
-      return {
-        tenantId: normalizeOptionalString(this.params?.tenantId),
-        userId: normalizeOptionalString(this.params?.userId),
-        catalog: 'projects' as const,
-        scopeId: projectId,
-        projectId
-      }
-    }
-
-    const xpertId = normalizeOptionalString(this.xpertId)
-    if (!xpertId) return undefined
-    return {
-      tenantId: normalizeOptionalString(this.params?.tenantId),
-      userId: normalizeOptionalString(this.params?.userId),
-      catalog: 'xperts' as const,
-      scopeId: xpertId,
-      xpertId,
-      isolateByUser: false
-    }
-  }
 }
 
-function normalizeOptionalString(value: string | undefined | null) {
-  const normalized = value?.trim()
-  return normalized || undefined
+function requireManagedQueue<T>(queue: T | undefined): T {
+  if (!queue) throw new Error('Managed Queue is required for Google Veo generation.')
+  return queue
 }

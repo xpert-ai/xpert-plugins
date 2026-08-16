@@ -34,5 +34,6 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
 }
 
 export { KlingVideoStrategy } from './strategy.js'
+export { KlingProviderStrategy } from './provider.strategy.js'
 export { KlingVideoToolset } from './toolset.js'
 export default plugin

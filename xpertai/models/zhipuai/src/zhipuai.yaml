@@ -20,6 +20,7 @@ help:
 supported_model_types:
   - llm
   - text-embedding
+  - video
 configurate_methods:
   - predefined-model
   - customizable-model

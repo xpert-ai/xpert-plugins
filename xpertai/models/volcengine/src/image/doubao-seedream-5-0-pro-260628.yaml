@@ -1,0 +1,9 @@
+model: doubao-seedream-5-0-pro-260628
+label:
+  en_US: Seedream 5.0 Pro
+  zh_Hans: 即梦 5.0 Pro
+model_type: image
+features: []
+model_properties:
+  mode: image
+parameter_rules: []

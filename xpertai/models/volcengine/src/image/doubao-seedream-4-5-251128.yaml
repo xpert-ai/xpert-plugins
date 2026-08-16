@@ -1,0 +1,21 @@
+model: doubao-seedream-4-5-251128
+label:
+  en_US: Seedream 4.5
+  zh_Hans: 即梦 4.5
+model_type: image
+features: []
+model_properties:
+  mode: image
+parameter_rules: []
+pricing:
+  type: usage
+  rules:
+    - id: volcengine-seedream-4-5-generation
+      version: "2026-08-14"
+      effective_from: "2026-08-14T00:00:00Z"
+      unit: generation
+      unit_size: 1
+      unit_price: 0.25
+      currency: CNY
+      charge_type: paid
+      source_url: https://www.volcengine.com/product/doubao

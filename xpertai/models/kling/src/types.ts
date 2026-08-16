@@ -1,5 +1,16 @@
+import type {
+  AgentMiddlewareRuntimeScope,
+  AsyncAIGCManagedJobPayload,
+  ManagedQueueService,
+  WorkspaceFile as PlatformWorkspaceFile,
+  WorkspaceFileCatalog as PlatformWorkspaceFileCatalog,
+  WorkspaceFileScope,
+  WorkspaceMediaFilesApi,
+  WorkspaceUploadBufferInput as PlatformWorkspaceUploadBufferInput
+} from '@xpert-ai/plugin-sdk'
+
 export const KlingVideo = 'kling_video'
-export const KlingWorkspaceCapability = 'platform.workspace.files'
+export const KlingModelProvider = 'kling'
 export const KlingDefaultBaseUrl = 'https://api-singapore.klingai.com'
 
 export type KlingCredentials = {
@@ -7,73 +18,25 @@ export type KlingCredentials = {
   api_endpoint_host?: string
 }
 
-export type WorkspaceFileCatalog = 'projects' | 'users' | 'knowledges' | 'skills' | 'xperts'
-
-export type WorkspaceUploadBufferInput = {
-  tenantId?: string | null
-  userId?: string | null
-  catalog?: WorkspaceFileCatalog | null
-  scopeId?: string | null
-  projectId?: string | null
-  knowledgeId?: string | null
-  rootId?: string | null
-  xpertId?: string | null
-  isolateByUser?: boolean | null
-  buffer: Buffer
-  originalName: string
-  mimeType?: string | null
-  size?: number | null
-  folder?: string | null
-  fileName?: string | null
-  metadata?: Record<string, unknown>
-}
-
-export type WorkspaceFile = {
-  name: string
-  filePath: string
-  workspacePath: string
-  fileUrl?: string
-  url?: string
-  mimeType?: string
-  size?: number
-  catalog: WorkspaceFileCatalog
-  scopeId?: string
-  metadata?: Record<string, unknown>
-}
-
-export type WorkspaceFilesApi = {
-  uploadBuffer(input: WorkspaceUploadBufferInput): Promise<WorkspaceFile>
-  readBuffer(input: { filePath: string } & Record<string, unknown>): Promise<WorkspaceFile & { buffer: Buffer }>
-  readRuntimeBuffer?(
-    input:
-      | string
-      | ({
-          path?: string | null
-          filePath?: string | null
-          workspacePath?: string | null
-          mimeType?: string | null
-          mimetype?: string | null
-          name?: string | null
-          originalName?: string | null
-        } & Record<string, unknown>)
-  ): Promise<WorkspaceFile & { buffer: Buffer }>
-  deleteFile(input: { filePath: string } & Record<string, unknown>): Promise<void>
-}
-
-export type RuntimeCapabilityRegistryLike = {
-  get<T>(key: string): T | undefined
-  require?<T>(key: string): T
-}
-
-export type KlingWorkspaceScope = Omit<WorkspaceUploadBufferInput, 'buffer' | 'originalName'> & {
-  catalog?: WorkspaceFileCatalog | null
-}
+export type WorkspaceFileCatalog = PlatformWorkspaceFileCatalog
+export type WorkspaceUploadBufferInput = PlatformWorkspaceUploadBufferInput
+export type WorkspaceFile = PlatformWorkspaceFile
+export type WorkspaceFilesApi = WorkspaceMediaFilesApi
+export type KlingWorkspaceScope = WorkspaceFileScope
 
 export type KlingToolDependencies = {
-  credentials: KlingCredentials
   workspaceFiles: WorkspaceFilesApi
   workspaceScope?: KlingWorkspaceScope
+  managedQueue?: ManagedQueueService
+  pluginScopeKey?: string
+  runtimeScope?: AgentMiddlewareRuntimeScope
   fetch?: typeof fetch
+  sleep?: (milliseconds: number) => Promise<void>
+}
+
+export type KlingVideoGenerationRequest = {
+  path: string
+  payload: Record<string, unknown>
 }
 
 export type KlingArtifactFile = {
@@ -96,6 +59,10 @@ export type KlingToolArtifact = {
 }
 
 export type KlingToolResult = [string, KlingToolArtifact]
+
+export type KlingVideoJobPayload = AsyncAIGCManagedJobPayload<KlingVideoGenerationRequest, KlingToolResult> & {
+  runtimeScope: AgentMiddlewareRuntimeScope
+}
 
 export type KlingProviderTaskStatus = 'submitted' | 'processing' | 'succeeded' | 'failed'
 

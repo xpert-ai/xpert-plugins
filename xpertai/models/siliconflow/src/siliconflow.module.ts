@@ -8,6 +8,8 @@ import { SiliconflowSpeech2TextModel } from './speech2text/index.js';
 import { SiliconflowTextEmbeddingModel } from './text-embedding/text-embedding.js';
 import { SiliconflowTTSModel } from './tts/tts.js';
 import { SiliconflowVideoStrategy } from './video/strategy.js';
+import { SiliconflowVideoGenerationModel } from './video/model.js';
+import { SiliconflowVideoJobProcessor } from './video/job.js';
 
 @XpertServerPlugin({
   imports: [ConfigModule],
@@ -19,6 +21,8 @@ import { SiliconflowVideoStrategy } from './video/strategy.js';
     SiliconflowSpeech2TextModel,
     SiliconflowTTSModel,
     SiliconflowVideoStrategy,
+    SiliconflowVideoGenerationModel,
+    SiliconflowVideoJobProcessor,
   ]
 })
 export class SiliconflowModule implements IOnPluginBootstrap, IOnPluginDestroy {

@@ -1,7 +1,17 @@
 import { ZhipuAIDefaultBaseUrl } from '../types.js'
+import type {
+  AgentMiddlewareRuntimeScope,
+  AsyncAIGCManagedJobPayload,
+  ManagedQueueService,
+  WorkspaceFile as PlatformWorkspaceFile,
+  WorkspaceFileCatalog as PlatformWorkspaceFileCatalog,
+  WorkspaceFileScope,
+  WorkspaceMediaFilesApi,
+  WorkspaceRuntimeFileDescriptor,
+  WorkspaceUploadBufferInput as PlatformWorkspaceUploadBufferInput
+} from '@xpert-ai/plugin-sdk'
 
 export const ZhipuCogVideo = 'zhipu_cogvideo'
-export const ZhipuCogVideoWorkspaceCapability = 'platform.workspace.files'
 export const ZhipuCogVideoDefaultBaseUrl = ZhipuAIDefaultBaseUrl
 
 export type ZhipuCogVideoCredentials = {
@@ -9,56 +19,11 @@ export type ZhipuCogVideoCredentials = {
   endpoint_url?: string
 }
 
-export type WorkspaceFileCatalog = 'projects' | 'users' | 'knowledges' | 'skills' | 'xperts'
-
-export type ZhipuWorkspaceScope = {
-  tenantId?: string
-  userId?: string
-  catalog?: WorkspaceFileCatalog
-  scopeId?: string
-  projectId?: string
-  xpertId?: string
-  isolateByUser?: boolean
-}
-
-export type WorkspaceUploadBufferInput = ZhipuWorkspaceScope & {
-  buffer: Buffer
-  originalName: string
-  mimeType?: string
-  size?: number
-  folder?: string
-  fileName?: string
-  metadata?: Record<string, unknown>
-}
-
-export type WorkspaceFile = {
-  name: string
-  filePath: string
-  workspacePath: string
-  fileUrl?: string
-  url?: string
-  mimeType?: string
-  size?: number
-  catalog: WorkspaceFileCatalog
-  scopeId?: string
-  metadata?: Record<string, unknown>
-}
-
-export type WorkspaceFilesApi = {
-  uploadBuffer(input: WorkspaceUploadBufferInput): Promise<WorkspaceFile>
-  readBuffer(input: ZhipuWorkspaceScope & { filePath: string }): Promise<WorkspaceFile & { buffer: Buffer }>
-  readRuntimeBuffer?: (
-    input: ZhipuWorkspaceScope & {
-      path?: string
-      filePath?: string
-      workspacePath?: string
-      mimeType?: string
-      mimetype?: string
-      name?: string
-      originalName?: string
-    }
-  ) => Promise<WorkspaceFile & { buffer: Buffer }>
-}
+export type WorkspaceFileCatalog = PlatformWorkspaceFileCatalog
+export type ZhipuWorkspaceScope = WorkspaceFileScope
+export type WorkspaceUploadBufferInput = PlatformWorkspaceUploadBufferInput
+export type WorkspaceFile = PlatformWorkspaceFile
+export type WorkspaceFilesApi = WorkspaceMediaFilesApi<WorkspaceFileScope & WorkspaceRuntimeFileDescriptor>
 
 export type ZhipuVideoTaskStatus = 'PROCESSING' | 'SUCCESS' | 'FAIL' | string
 
@@ -111,11 +76,20 @@ export type ZhipuCogVideoArtifact = {
 export type ZhipuCogVideoToolResult = [string, ZhipuCogVideoArtifact]
 
 export type ZhipuCogVideoToolDependencies = {
-  credentials: ZhipuCogVideoCredentials
   workspaceFiles: WorkspaceFilesApi
   workspaceScope?: ZhipuWorkspaceScope
+  managedQueue?: ManagedQueueService
+  pluginScopeKey?: string
+  runtimeScope?: AgentMiddlewareRuntimeScope
   fetch?: typeof fetch
   sleep?: (milliseconds: number) => Promise<void>
+}
+
+export type ZhipuVideoJobPayload = AsyncAIGCManagedJobPayload<
+  ZhipuVideoGenerationPayload,
+  ZhipuCogVideoToolResult
+> & {
+  runtimeScope: AgentMiddlewareRuntimeScope
 }
 
 export { ZhipuAIDefaultBaseUrl }

@@ -1,25 +1,20 @@
 import type { StructuredToolInterface } from '@langchain/core/tools'
 import type { TBuiltinToolsetParams } from '@xpert-ai/plugin-sdk'
+import { GeminiVeoClient } from './client.js'
+import { VeoVideoModelClient } from './model.js'
 import { VeoStrategy } from './strategy.js'
 import { buildVeoTools } from './tools.js'
-import {
-  VeoToolset,
-  type VeoToolsetDescriptor
-} from './toolset.js'
-import type {
-  VeoToolArtifact,
-  VeoToolResult,
-  WorkspaceFilesApi
-} from './types.js'
+import { VeoToolset, type VeoToolsetDescriptor } from './toolset.js'
+import { VeoProviderStrategy } from './provider.strategy.js'
+import type { VeoToolArtifact, VeoToolResult, WorkspaceFilesApi } from './types.js'
+import { normalizeVeoObservation } from './usage.js'
 
 describe('Google Veo video generation plugin', () => {
   const credentials = { gemini_api_key: 'gemini-test-key' }
   let fetchMock: jest.MockedFunction<typeof fetch>
   let uploadBuffer: jest.MockedFunction<WorkspaceFilesApi['uploadBuffer']>
   let readBuffer: jest.MockedFunction<WorkspaceFilesApi['readBuffer']>
-  let readRuntimeBuffer: jest.MockedFunction<
-    NonNullable<WorkspaceFilesApi['readRuntimeBuffer']>
-  >
+  let readRuntimeBuffer: jest.MockedFunction<NonNullable<WorkspaceFilesApi['readRuntimeBuffer']>>
   let workspaceFiles: WorkspaceFilesApi
 
   beforeEach(() => {
@@ -79,6 +74,8 @@ describe('Google Veo video generation plugin', () => {
       query: 'veo_video_query'
     })
     expect(strategy.meta.videoGeneration.models).toHaveLength(2)
+    expect(strategy.meta.configSchema.properties).toEqual({})
+    expect(strategy.meta.configSchema).not.toHaveProperty('required')
     for (const model of strategy.meta.videoGeneration.models) {
       expect(model.inputs).toEqual({
         referenceImages: { maxItems: 3 },
@@ -88,14 +85,24 @@ describe('Google Veo video generation plugin', () => {
     }
   })
 
+  it('registers Google Veo as a model provider with the Gemini API key contract', async () => {
+    const provider = new VeoProviderStrategy()
+
+    expect(provider.getBaseUrl()).toBe('https://generativelanguage.googleapis.com/v1beta')
+    expect(provider.getAuthorization(credentials)).toBe('ApiKey gemini-test-key')
+    await expect(provider.validateProviderCredentials(credentials)).resolves.toBeUndefined()
+    await expect(provider.validateProviderCredentials({})).rejects.toThrow('Gemini API key is missing')
+  })
+
   it('maps authentication and text generation to predictLongRunning', async () => {
+    const recordInvocation = jest.fn().mockResolvedValue({ invocationId: 'invocation-text' })
     fetchMock.mockResolvedValueOnce(
       jsonResponse({
         name: 'models/veo-3.1-generate-preview/operations/op-text',
         done: false
       })
     )
-    const tool = getTool('veo_text_to_video')
+    const tool = getTool('veo_text_to_video', recordInvocation)
 
     const result = await invokeTool(tool, {
       prompt: 'A cinematic wide shot of a horse crossing a river.',
@@ -119,9 +126,7 @@ describe('Google Veo video generation plugin', () => {
       })
     )
     expect(readRequestBody(fetchMock, 0)).toEqual({
-      instances: [
-        { prompt: 'A cinematic wide shot of a horse crossing a river.' }
-      ],
+      instances: [{ prompt: 'A cinematic wide shot of a horse crossing a river.' }],
       parameters: {
         aspectRatio: '16:9',
         durationSeconds: '6',
@@ -135,12 +140,49 @@ describe('Google Veo video generation plugin', () => {
       status: 'submitted',
       model: 'veo-3.1-generate-preview'
     })
+    expect(recordInvocation).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        phase: 'start',
+        invocationKey: 'call-veo_text_to_video',
+        provider: 'veo_video_generation',
+        operation: 'text_to_video',
+        pricingDimensions: {
+          durationSeconds: 6,
+          resolution: '720p',
+          audio: true,
+          mode: 'text_to_video'
+        }
+      })
+    )
+    expect(recordInvocation).toHaveBeenNthCalledWith(2, {
+      phase: 'bind',
+      invocationId: 'invocation-text',
+      providerRequestId: 'models/veo-3.1-generate-preview/operations/op-text'
+    })
+  })
+
+  it('closes the invocation when Provider submission fails', async () => {
+    const recordInvocation = jest.fn().mockResolvedValue({ invocationId: 'invocation-failed-submit' })
+    fetchMock.mockRejectedValueOnce(new Error('Veo request failed before returning an operation'))
+
+    await expect(
+      invokeTool(getTool('veo_text_to_video', recordInvocation), {
+        prompt: 'A cinematic wide shot of a horse crossing a river.'
+      })
+    ).rejects.toThrow('Veo request failed before returning an operation')
+
+    expect(recordInvocation).toHaveBeenNthCalledWith(2, {
+      phase: 'observe',
+      invocationId: 'invocation-failed-submit',
+      state: 'acceptance_unknown',
+      usageAvailability: 'unknown',
+      errorCode: 'provider_acceptance_unknown'
+    })
   })
 
   it('maps a Workspace image to instances[0].image.inlineData', async () => {
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({ name: 'models/veo-3.1-generate-preview/operations/op-image' })
-    )
+    fetchMock.mockResolvedValueOnce(jsonResponse({ name: 'models/veo-3.1-generate-preview/operations/op-image' }))
     const reference = workspaceReference('shots/shot-01.png')
     const tool = getTool('veo_image_to_video')
 
@@ -172,13 +214,30 @@ describe('Google Veo video generation plugin', () => {
     })
   })
 
+  it('reuses an operation already bound to the same tool call without submitting again', async () => {
+    const taskId = 'models/veo-3.1-generate-preview/operations/op-existing'
+    const recordInvocation = jest.fn().mockResolvedValue({
+      invocationId: 'invocation-existing',
+      created: false,
+      providerRequestId: taskId,
+      providerState: 'submitted'
+    })
+
+    const result = await invokeTool(getTool('veo_text_to_video', recordInvocation), {
+      prompt: 'A cinematic wide shot of a horse crossing a river.'
+    })
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(normalizeToolResult(result)[1].data).toEqual(
+      expect.objectContaining({ task_id: taskId, status: 'submitted' })
+    )
+  })
+
   it('maps first and final frames to image and lastFrame', async () => {
     readRuntimeBuffer
       .mockResolvedValueOnce(workspaceReadResult('first.png', 'first-frame'))
       .mockResolvedValueOnce(workspaceReadResult('final.png', 'final-frame'))
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({ name: 'models/veo-3.1-fast-generate-preview/operations/op-frames' })
-    )
+    fetchMock.mockResolvedValueOnce(jsonResponse({ name: 'models/veo-3.1-fast-generate-preview/operations/op-frames' }))
     const tool = getTool('veo_first_last_frame_to_video')
 
     await invokeTool(tool, {
@@ -210,9 +269,7 @@ describe('Google Veo video generation plugin', () => {
       .mockResolvedValueOnce(workspaceReadResult('person.png', 'person-image'))
       .mockResolvedValueOnce(workspaceReadResult('dress.png', 'dress-image'))
       .mockResolvedValueOnce(workspaceReadResult('glasses.png', 'glasses-image'))
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({ name: 'models/veo-3.1-generate-preview/operations/op-references' })
-    )
+    fetchMock.mockResolvedValueOnce(jsonResponse({ name: 'models/veo-3.1-generate-preview/operations/op-references' }))
     const tool = getTool('veo_reference_to_video')
 
     await invokeTool(tool, {
@@ -241,9 +298,7 @@ describe('Google Veo video generation plugin', () => {
     await expect(
       invokeTool(tool, {
         prompt: 'Use all references.',
-        reference_image_files: [1, 2, 3, 4].map((index) =>
-          workspaceReference(`ref-${index}.png`)
-        ),
+        reference_image_files: [1, 2, 3, 4].map((index) => workspaceReference(`ref-${index}.png`)),
         duration: 8
       })
     ).rejects.toThrow()
@@ -328,15 +383,13 @@ describe('Google Veo video generation plugin', () => {
   })
 
   it('downloads a completed MP4 with the API key and uploads it to Workspace Files', async () => {
+    const recordInvocation = jest.fn().mockResolvedValue({ invocationId: 'invocation-complete' })
     const taskId = 'models/veo-3.1-generate-preview/operations/op-complete'
-    const videoUri =
-      'https://generativelanguage.googleapis.com/v1beta/files/generated-video:download?alt=media'
+    const videoUri = 'https://generativelanguage.googleapis.com/v1beta/files/generated-video:download?alt=media'
     fetchMock
       .mockResolvedValueOnce(completedOperation(taskId, videoUri))
-      .mockResolvedValueOnce(
-        binaryResponse(Buffer.from('generated-video'), 'video/mp4')
-      )
-    const tool = getTool('veo_video_query')
+      .mockResolvedValueOnce(binaryResponse(Buffer.from('generated-video'), 'video/mp4'))
+    const tool = getTool('veo_video_query', recordInvocation)
 
     const result = await invokeTool(tool, {
       task_id: taskId,
@@ -375,12 +428,21 @@ describe('Google Veo video generation plugin', () => {
     )
     expect(artifact.data).toEqual({ task_id: taskId, status: 'succeeded' })
     expect(JSON.stringify(artifact)).not.toContain(videoUri)
+    expect(recordInvocation).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        phase: 'observe',
+        providerRequestId: taskId,
+        state: 'succeeded',
+        usageAvailability: 'unknown'
+      })
+    )
+    expect(recordInvocation.mock.invocationCallOrder[0]).toBeLessThan(uploadBuffer.mock.invocationCallOrder[0])
   })
 
   it('does not forward the Gemini API key to a redirected media host', async () => {
     const taskId = 'models/veo-3.1-generate-preview/operations/op-redirect'
-    const videoUri =
-      'https://generativelanguage.googleapis.com/v1beta/files/redirect:download'
+    const videoUri = 'https://generativelanguage.googleapis.com/v1beta/files/redirect:download'
     const redirectedUri = 'https://storage.googleapis.com/veo-output/video.mp4'
     fetchMock
       .mockResolvedValueOnce(completedOperation(taskId, videoUri))
@@ -390,9 +452,7 @@ describe('Google Veo video generation plugin', () => {
           headers: { location: redirectedUri }
         })
       )
-      .mockResolvedValueOnce(
-        binaryResponse(Buffer.from('redirected-video'), 'video/mp4')
-      )
+      .mockResolvedValueOnce(binaryResponse(Buffer.from('redirected-video'), 'video/mp4'))
     const tool = getTool('veo_video_query')
 
     await invokeTool(tool, {
@@ -409,6 +469,7 @@ describe('Google Veo video generation plugin', () => {
   })
 
   it('returns normalized provider failure data without downloading', async () => {
+    const recordInvocation = jest.fn().mockResolvedValue({ invocationId: 'invocation-failed' })
     const taskId = 'models/veo-3.1-generate-preview/operations/op-failed'
     fetchMock.mockResolvedValueOnce(
       jsonResponse({
@@ -421,7 +482,7 @@ describe('Google Veo video generation plugin', () => {
         }
       })
     )
-    const tool = getTool('veo_video_query')
+    const tool = getTool('veo_video_query', recordInvocation)
 
     const result = await invokeTool(tool, { task_id: taskId })
 
@@ -436,6 +497,36 @@ describe('Google Veo video generation plugin', () => {
     })
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(uploadBuffer).not.toHaveBeenCalled()
+    expect(recordInvocation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        phase: 'observe',
+        providerRequestId: taskId,
+        state: 'failed',
+        usageAvailability: 'unknown'
+      })
+    )
+  })
+
+  it('uses persisted request duration only for successful operations with video output', () => {
+    const operation = {
+      name: 'models/veo-3.1-generate-preview/operations/op-accounting',
+      done: true,
+      response: {
+        generateVideoResponse: {
+          generatedSamples: [{ video: { uri: 'https://generativelanguage.googleapis.com/video.mp4' } }]
+        }
+      }
+    }
+    expect(normalizeVeoObservation(operation, { durationSeconds: 8 })).toEqual({
+      state: 'succeeded',
+      usageAvailability: 'available',
+      metrics: [{ unit: 'second', quantity: 8, authority: 'request' }]
+    })
+    expect(normalizeVeoObservation({ ...operation, error: { message: 'rejected' } }, { durationSeconds: 8 })).toEqual({
+      state: 'failed',
+      usageAvailability: 'unknown',
+      errorCode: 'provider_task_failed'
+    })
   })
 
   it('surfaces sanitized provider HTTP errors without exposing credentials or URLs', async () => {
@@ -452,37 +543,29 @@ describe('Google Veo video generation plugin', () => {
     )
     const tool = getTool('veo_text_to_video')
 
-    await expect(
-      invokeTool(tool, { prompt: 'A valid explicit generation request.' })
-    ).rejects.toThrow(
+    await expect(invokeTool(tool, { prompt: 'A valid explicit generation request.' })).rejects.toThrow(
       'Gemini Veo API error 400: Invalid media at [redacted-url]'
     )
-    await expect(
-      invokeProviderError(fetchMock, tool)
-    ).rejects.not.toThrow('gemini-test-key')
+    await expect(invokeProviderError(fetchMock, tool)).rejects.not.toThrow('gemini-test-key')
   })
 
   it('uses project context as the Workspace Files output scope', async () => {
     const taskId = 'models/veo-3.1-generate-preview/operations/op-project'
-    const videoUri =
-      'https://generativelanguage.googleapis.com/v1beta/files/project-video:download'
+    const videoUri = 'https://generativelanguage.googleapis.com/v1beta/files/project-video:download'
     fetchMock
       .mockResolvedValueOnce(completedOperation(taskId, videoUri))
       .mockResolvedValueOnce(binaryResponse(Buffer.from('project-video'), 'video/mp4'))
-    const params = createToolsetParams()
+    const params = createToolsetParams(fetchMock)
     const descriptor = {
       name: 'Veo workspace generator',
       credentials
     } as unknown as VeoToolsetDescriptor
-    const toolset = new VeoToolset(
-      descriptor,
-      { get: jest.fn().mockReturnValue(workspaceFiles) },
-      params
-    )
+    const toolset = new VeoToolset(descriptor, { get: jest.fn().mockReturnValue(workspaceFiles) }, params)
     const originalFetch = global.fetch
     global.fetch = fetchMock
 
     try {
+      await toolset.validateCredentials({})
       const tools = await toolset.initTools()
       const tool = requireTool(tools, 'veo_video_query')
       await invokeTool(tool, { task_id: taskId })
@@ -501,25 +584,21 @@ describe('Google Veo video generation plugin', () => {
     )
   })
 
-  function getTool(name: string) {
+  function getTool(name: string, recordInvocation?: jest.Mock) {
     return requireTool(
       buildVeoTools({
         credentials,
         workspaceFiles,
-        fetch: fetchMock
+        fetch: fetchMock,
+        recordInvocation
       }),
       name
     )
   }
 })
 
-async function invokeProviderError(
-  fetchMock: jest.MockedFunction<typeof fetch>,
-  tool: StructuredToolInterface
-) {
-  fetchMock.mockResolvedValueOnce(
-    jsonResponse({ error: { message: 'Second failure' } }, 400)
-  )
+async function invokeProviderError(fetchMock: jest.MockedFunction<typeof fetch>, tool: StructuredToolInterface) {
+  fetchMock.mockResolvedValueOnce(jsonResponse({ error: { message: 'Second failure' } }, 400))
   return invokeTool(tool, { prompt: 'A second explicit request.' })
 }
 
@@ -529,10 +608,7 @@ function requireTool(tools: StructuredToolInterface[], name: string) {
   return tool
 }
 
-async function invokeTool(
-  tool: StructuredToolInterface,
-  args: Record<string, unknown>
-) {
+async function invokeTool(tool: StructuredToolInterface, args: Record<string, unknown>) {
   return tool.invoke({
     id: `call-${tool.name}`,
     name: tool.name,
@@ -544,10 +620,7 @@ async function invokeTool(
 function normalizeToolResult(result: unknown): VeoToolResult {
   if (Array.isArray(result)) return result as VeoToolResult
   if (isRecord(result) && isRecord(result.artifact)) {
-    const content =
-      typeof result.content === 'string'
-        ? result.content
-        : JSON.stringify(result.content ?? '')
+    const content = typeof result.content === 'string' ? result.content : JSON.stringify(result.content ?? '')
     return [content, result.artifact as VeoToolArtifact]
   }
   throw new Error('Unexpected tool result')
@@ -618,10 +691,7 @@ function binaryResponse(buffer: Buffer, mimeType: string) {
   })
 }
 
-function readRequestBody(
-  fetchMock: jest.MockedFunction<typeof fetch>,
-  callIndex: number
-) {
+function readRequestBody(fetchMock: jest.MockedFunction<typeof fetch>, callIndex: number) {
   const body = fetchMock.mock.calls[callIndex][1]?.body
   if (typeof body !== 'string') throw new Error('Expected JSON request body')
   return JSON.parse(body) as {
@@ -637,7 +707,7 @@ function readLocatorPath(input: unknown) {
   return typeof value === 'string' ? value : 'reference.png'
 }
 
-function createToolsetParams(): TBuiltinToolsetParams {
+function createToolsetParams(fetchMock: jest.MockedFunction<typeof fetch>): TBuiltinToolsetParams {
   return {
     tenantId: 'tenant-1',
     userId: 'user-1',
@@ -645,7 +715,21 @@ function createToolsetParams(): TBuiltinToolsetParams {
     xpertId: 'xpert-1',
     env: {},
     commandBus: {} as TBuiltinToolsetParams['commandBus'],
-    queryBus: {} as TBuiltinToolsetParams['queryBus']
+    queryBus: {} as TBuiltinToolsetParams['queryBus'],
+    modelRuntime: {
+      createModelClient: jest
+        .fn()
+        .mockResolvedValue(
+          new VeoVideoModelClient(new GeminiVeoClient({ gemini_api_key: 'gemini-test-key' }, fetchMock))
+        ),
+      getModelProvider: jest.fn().mockResolvedValue({
+        providerScopeId: 'veo-provider-1',
+        copilotId: 'veo-copilot-1',
+        provider: 'veo',
+        baseURL: 'https://generativelanguage.googleapis.com/v1beta',
+        authorization: 'ApiKey gemini-test-key'
+      })
+    }
   }
 }
 

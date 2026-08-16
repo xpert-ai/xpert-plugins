@@ -1,0 +1,21 @@
+model: cogvideox-3
+label:
+  en_US: CogVideoX 3
+  zh_Hans: CogVideoX 3
+model_type: video
+features: []
+model_properties:
+  mode: video
+parameter_rules: []
+pricing:
+  type: usage
+  rules:
+    - id: zhipu-cogvideox-3-generation
+      version: "2026-08-14"
+      effective_from: "2026-08-14T00:00:00Z"
+      unit: generation
+      unit_size: 1
+      unit_price: 1
+      currency: CNY
+      charge_type: paid
+      source_url: https://docs.bigmodel.cn/cn/guide/models/video-generation/cogvideox-3

@@ -1,11 +1,16 @@
 import { Inject, Injectable, Optional } from '@nestjs/common'
-import { BuiltinToolset, IToolsetStrategy, ToolsetStrategy, type TBuiltinToolsetParams } from '@xpert-ai/plugin-sdk'
+import {
+  BuiltinToolset,
+  IToolsetStrategy,
+  ToolsetStrategy,
+  XPERT_RUNTIME_CAPABILITIES_TOKEN,
+  type RuntimeCapabilityRegistry,
+  type TBuiltinToolsetParams
+} from '@xpert-ai/plugin-sdk'
 import { SvgIcon } from '../types.js'
 import { buildSeedreamTools } from './tools.js'
-import { SeedreamAigc, type RuntimeCapabilityRegistryLike } from './types.js'
+import { SeedreamAigc } from './types.js'
 import { SeedreamAigcToolset } from './toolset.js'
-
-const XPERT_RUNTIME_CAPABILITIES_TOKEN = 'XPERT_RUNTIME_CAPABILITIES'
 
 @Injectable()
 @ToolsetStrategy(SeedreamAigc)
@@ -127,32 +132,19 @@ export class SeedreamAigcStrategy implements IToolsetStrategy<any> {
     },
     configSchema: {
       type: 'object',
-      properties: {
-        ark_api_key: {
-          type: 'string',
-          title: 'Volcengine API Key',
-          secret: true
-        },
-        api_endpoint_host: {
-          type: 'string',
-          title: 'API endpoint host',
-          default: 'https://ark.cn-beijing.volces.com/api/v3'
-        }
-      },
-      required: ['ark_api_key']
+      additionalProperties: false,
+      properties: {}
     }
   }
 
   constructor(
     @Optional()
     @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN)
-    private readonly runtimeCapabilities?: RuntimeCapabilityRegistryLike
+    private readonly runtimeCapabilities?: RuntimeCapabilityRegistry
   ) {}
 
-  async validateConfig(config: any): Promise<void> {
-    if (!config?.ark_api_key) {
-      throw new Error('Ark API key is missing')
-    }
+  async validateConfig(config: unknown): Promise<void> {
+    void config
   }
 
   async create(config: any, params?: TBuiltinToolsetParams): Promise<BuiltinToolset> {

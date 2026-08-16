@@ -1,0 +1,32 @@
+model: Wan-AI/Wan2.2-T2V-A14B
+label:
+  en_US: Wan2.2 Text to Video
+  zh_Hans: Wan2.2 文生视频
+model_type: video
+features: []
+model_properties:
+  mode: video
+parameter_rules: []
+pricing:
+  type: usage
+  rules:
+    - id: siliconflow-wan22-t2v-cn-generation
+      version: "2026-08-14"
+      effective_from: "2026-08-14T00:00:00Z"
+      unit: generation
+      unit_size: 1
+      unit_price: 2
+      currency: CNY
+      charge_type: paid
+      dimensions: { mode: cn }
+      source_url: https://cloud.siliconflow.cn/models
+    - id: siliconflow-wan22-t2v-global-generation
+      version: "2026-08-14"
+      effective_from: "2026-08-14T00:00:00Z"
+      unit: generation
+      unit_size: 1
+      unit_price: 0.29
+      currency: USD
+      charge_type: paid
+      dimensions: { mode: global }
+      source_url: https://www.siliconflow.com/pricing
