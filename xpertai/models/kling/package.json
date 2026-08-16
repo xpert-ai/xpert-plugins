@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-kling",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Kling AI video generation plugin for Xpert",
   "author": {
     "name": "XpertAI",
