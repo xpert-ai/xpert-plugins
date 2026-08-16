@@ -1,0 +1,21 @@
+model: cogvideox-2
+label:
+  en_US: CogVideoX 2
+  zh_Hans: CogVideoX 2
+model_type: video
+features: []
+model_properties:
+  mode: video
+parameter_rules: []
+pricing:
+  type: usage
+  rules:
+    - id: zhipu-cogvideox-2-generation
+      version: "2026-08-14"
+      effective_from: "2026-08-14T00:00:00Z"
+      unit: generation
+      unit_size: 1
+      unit_price: 0.5
+      currency: CNY
+      charge_type: paid
+      source_url: https://docs.bigmodel.cn/cn/guide/models/video-generation/cogvideox-2

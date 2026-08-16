@@ -46,6 +46,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
 
 export { GeminiVeoClient } from './client.js'
 export { VeoStrategy } from './strategy.js'
+export { VeoProviderStrategy } from './provider.strategy.js'
 export { VeoToolset } from './toolset.js'
 export { buildVeoTools } from './tools.js'
 export * from './types.js'

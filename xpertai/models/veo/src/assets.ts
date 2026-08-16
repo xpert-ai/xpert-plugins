@@ -127,7 +127,7 @@ function readMimeType(input: InlineFile) {
 
 function readFilePath(locator: WorkspaceRuntimeLocator) {
   if (typeof locator === 'string') return locator.trim() || undefined
-  const value = locator.filePath ?? locator.workspacePath ?? locator.path
+  const value = locator.filePath ?? locator.workspacePath ?? ('path' in locator ? locator.path : undefined)
   return typeof value === 'string' && value.trim() ? value.trim() : undefined
 }
 

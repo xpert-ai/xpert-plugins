@@ -4,6 +4,8 @@ import chalk from 'chalk';
 import { VolcengineProviderStrategy } from './provider.strategy.js';
 import { VolcengineLargeLanguageModel } from './llm/llm.js';
 import { SeedreamAigcStrategy } from './seedream-aigc/strategy.js';
+import { VolcengineImageGenerationModel, VolcengineVideoGenerationModel } from './seedream-aigc/model.js';
+import { SeedanceVideoJobProcessor } from './seedream-aigc/job.js';
 
 @XpertServerPlugin({
 	/**
@@ -14,7 +16,10 @@ import { SeedreamAigcStrategy } from './seedream-aigc/strategy.js';
 	providers: [
 		VolcengineProviderStrategy,
 		VolcengineLargeLanguageModel,
-		SeedreamAigcStrategy
+		VolcengineImageGenerationModel,
+		VolcengineVideoGenerationModel,
+		SeedreamAigcStrategy,
+		SeedanceVideoJobProcessor
 	]
 })
 export class VolcenginePlugin implements IOnPluginBootstrap, IOnPluginDestroy {

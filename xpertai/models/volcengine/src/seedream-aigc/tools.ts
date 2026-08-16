@@ -1,15 +1,32 @@
+import { randomUUID } from 'node:crypto'
 import { tool } from '@langchain/core/tools'
+import {
+  AiModelTypeEnum,
+  getToolCallIdFromConfig,
+  type ImageGenerationOperation,
+  type VideoGenerationOperation
+} from '@xpert-ai/contracts'
+import type { AIGCModelObservation } from '@xpert-ai/plugin-sdk'
 import { SeedreamArkClient } from './client.js'
 import { inputToBuffer, bufferToDataUrl, enforceMaxBytes, createGeneratedFileName } from './assets.js'
+import { VOLCENGINE_PLUGIN_NAME, VOLCENGINE_VIDEO_JOB, VOLCENGINE_VIDEO_QUEUE } from './constants.js'
 import {
   normalizeBoolean,
   normalizeString,
   normalizeVideoGenerationOptions,
   getVideoModelCapabilities,
-  isSeedance2Model
+  isSeedance2Model,
+  type VideoGenerationInput
 } from './rules.js'
 import { uploadGeneratedAsset } from './workspace-upload.js'
-import type { SeedreamArtifactFile, SeedreamToolDependencies, SeedreamToolResult } from './types.js'
+import { SeedreamAigc } from './types.js'
+import { normalizeSeedreamImageObservation } from './usage.js'
+import type {
+  SeedanceVideoJobPayload,
+  SeedreamArtifactFile,
+  SeedreamToolDependencies,
+  SeedreamToolResult
+} from './types.js'
 
 const IMAGE_FOLDER = 'files/seedream-aigc/images'
 const VIDEO_FOLDER = 'files/seedream-aigc/videos'
@@ -17,7 +34,7 @@ const IMAGE_LIMIT_BYTES = 30 * 1024 * 1024
 const MULTIMODAL_IMAGE_LIMIT_BYTES = 30 * 1024 * 1024
 const AUDIO_LIMIT_BYTES = 15 * 1024 * 1024
 const VIDEO_QUERY_MAX_WAIT_SECONDS = 45
-const VIDEO_QUERY_POLL_MS = 5_000
+const VIDEO_QUERY_POLL_MS = 1_000
 const MULTIMODAL_MODE_RULES: Record<
   string,
   { label: string; needImage: boolean; needVideo: boolean; needAudio: boolean; audioOnly?: boolean }
@@ -113,12 +130,14 @@ export function buildSeedreamTools(deps: SeedreamToolDependencies) {
 
 function buildTextToImageTool(deps: SeedreamToolDependencies) {
   return tool(
-    async (input: any): Promise<SeedreamToolResult> => {
+    async (input: any, config): Promise<SeedreamToolResult> => {
       const prompt = requireString(input.prompt, 'Prompt is required')
       const client = createClient(deps)
       const model = normalizeString(input.model) ?? 'doubao-seedream-4-5-251128'
       const outputFormat = getImageOutputFormat(model, input.output_format)
-      const response = await client.generateImages(
+      const generation = await generateImages(
+        deps,
+        client,
         createImagePayload(
           model,
           input,
@@ -130,9 +149,16 @@ function buildTextToImageTool(deps: SeedreamToolDependencies) {
             watermark: normalizeBoolean(input.watermark, true)
           },
           { sequential_image_generation: normalizeString(input.sequential_image_generation) ?? 'disabled' }
-        )
+        ),
+        model,
+        getToolCallIdFromConfig(config),
+        'seedream_text_to_image',
+        'text_to_image'
       )
-      const files = await uploadImageOutputs(response, client, deps, 'seedream-text-to-image', 'url', outputFormat)
+      const response = generation.response
+      const files = await finalizeImageGeneration(() =>
+        uploadImageOutputs(response, client, deps, 'seedream-text-to-image', 'url', outputFormat)
+      )
       return result(`Generated ${files.length} image(s).`, files, { usage: response?.usage })
     },
     {
@@ -146,13 +172,15 @@ function buildTextToImageTool(deps: SeedreamToolDependencies) {
 
 function buildImageToImageTool(deps: SeedreamToolDependencies) {
   return tool(
-    async (input: any): Promise<SeedreamToolResult> => {
+    async (input: any, config): Promise<SeedreamToolResult> => {
       const prompt = requireString(input.prompt, 'Prompt is required')
       const image = await encodeImageInput(input.input_image_file, deps, IMAGE_LIMIT_BYTES, 'input image')
       const client = createClient(deps)
       const model = normalizeString(input.model) ?? 'doubao-seedream-4-5-251128'
       const outputFormat = getImageOutputFormat(model, input.output_format)
-      const response = await client.generateImages(
+      const generation = await generateImages(
+        deps,
+        client,
         createImagePayload(
           model,
           input,
@@ -165,16 +193,21 @@ function buildImageToImageTool(deps: SeedreamToolDependencies) {
             watermark: normalizeBoolean(input.watermark, true)
           },
           { sequential_image_generation: normalizeString(input.sequential_image_generation) ?? 'disabled' }
-        )
+        ),
+        model,
+        getToolCallIdFromConfig(config),
+        'seedream_image_to_image',
+        'image_to_image'
       )
-      const files = await uploadImageOutputs(
+      const response = generation.response
+      const files = await finalizeImageGeneration(() => uploadImageOutputs(
         response,
         client,
         deps,
         'seedream-image-to-image',
         'b64_json',
         outputFormat
-      )
+      ))
       return result(`Generated ${files.length} image(s).`, files, { usage: response?.usage })
     },
     {
@@ -188,7 +221,7 @@ function buildImageToImageTool(deps: SeedreamToolDependencies) {
 
 function buildMultiImagesToImageTool(deps: SeedreamToolDependencies) {
   return tool(
-    async (input: any): Promise<SeedreamToolResult> => {
+    async (input: any, config): Promise<SeedreamToolResult> => {
       const prompt = requireString(input.prompt, 'Prompt is required')
       const model = normalizeString(input.model) ?? 'doubao-seedream-4-5-251128'
       const imageCapabilities = getSeedreamImageCapabilities(model)
@@ -201,7 +234,9 @@ function buildMultiImagesToImageTool(deps: SeedreamToolDependencies) {
       )
       const client = createClient(deps)
       const outputFormat = getImageOutputFormat(model, input.output_format)
-      const response = await client.generateImages(
+      const generation = await generateImages(
+        deps,
+        client,
         createImagePayload(
           model,
           input,
@@ -214,16 +249,21 @@ function buildMultiImagesToImageTool(deps: SeedreamToolDependencies) {
             watermark: normalizeBoolean(input.watermark, true)
           },
           { sequential_image_generation: normalizeString(input.sequential_image_generation) ?? 'disabled' }
-        )
+        ),
+        model,
+        getToolCallIdFromConfig(config),
+        'seedream_multi_images_to_image',
+        'multi_image_to_image'
       )
-      const files = await uploadImageOutputs(
+      const response = generation.response
+      const files = await finalizeImageGeneration(() => uploadImageOutputs(
         response,
         client,
         deps,
         'seedream-multi-images-to-image',
         'b64_json',
         outputFormat
-      )
+      ))
       return result(`Generated ${files.length} image(s).`, files, { usage: response?.usage })
     },
     {
@@ -237,7 +277,7 @@ function buildMultiImagesToImageTool(deps: SeedreamToolDependencies) {
 
 function buildMultiImagesToMultiImagesTool(deps: SeedreamToolDependencies) {
   return tool(
-    async (input: any): Promise<SeedreamToolResult> => {
+    async (input: any, config): Promise<SeedreamToolResult> => {
       const prompt = requireString(input.prompt, 'Prompt is required')
       const model = normalizeString(input.model) ?? 'doubao-seedream-4-5-251128'
       const imageCapabilities = getSeedreamImageCapabilities(model)
@@ -254,7 +294,9 @@ function buildMultiImagesToMultiImagesTool(deps: SeedreamToolDependencies) {
       const maxImages = clampNumber(input.max_images, 3, 1, 15)
       const client = createClient(deps)
       const outputFormat = getImageOutputFormat(model, input.output_format)
-      const response = await client.generateImages(
+      const generation = await generateImages(
+        deps,
+        client,
         createImagePayload(
           model,
           input,
@@ -270,16 +312,21 @@ function buildMultiImagesToMultiImagesTool(deps: SeedreamToolDependencies) {
             sequential_image_generation: 'auto',
             sequential_image_generation_options: { max_images: maxImages }
           }
-        )
+        ),
+        model,
+        getToolCallIdFromConfig(config),
+        'seedream_multi_images_to_multi_images',
+        'multi_image_to_image'
       )
-      const files = await uploadImageOutputs(
+      const response = generation.response
+      const files = await finalizeImageGeneration(() => uploadImageOutputs(
         response,
         client,
         deps,
         'seedream-multi-images-to-multi-images',
         'b64_json',
         outputFormat
-      )
+      ))
       return result(`Generated ${files.length} image(s).`, files, { usage: response?.usage })
     },
     {
@@ -294,13 +341,19 @@ function buildMultiImagesToMultiImagesTool(deps: SeedreamToolDependencies) {
 
 function buildTextToVideoTool(deps: SeedreamToolDependencies) {
   return tool(
-    async (input: any): Promise<SeedreamToolResult> => {
-      const options = normalizeVideoGenerationOptions(input)
+    async (rawInput: unknown, config): Promise<SeedreamToolResult> => {
+      const input = requireRecord(rawInput)
+      const options = normalizeVideoGenerationOptions(parseVideoGenerationInput(input))
       if (!options.prompt) throw new Error('Prompt is required')
-      const task = await createClient(deps).createVideoTask(
-        createVideoPayload(options, [{ type: 'text', text: options.prompt }])
+      return submitVideoTask(
+        deps,
+        config,
+        'seedance_text_to_video',
+        'text_to_video',
+        options,
+        createVideoPayload(options, [{ type: 'text', text: options.prompt }]),
+        'Text-to-video task submitted.'
       )
-      return videoSubmittedResult(task, 'Text-to-video task submitted.')
     },
     {
       name: 'seedance_text_to_video',
@@ -313,17 +366,23 @@ function buildTextToVideoTool(deps: SeedreamToolDependencies) {
 
 function buildImageToVideoTool(deps: SeedreamToolDependencies) {
   return tool(
-    async (input: any): Promise<SeedreamToolResult> => {
-      const options = normalizeVideoGenerationOptions(input)
+    async (rawInput: unknown, config): Promise<SeedreamToolResult> => {
+      const input = requireRecord(rawInput)
+      const options = normalizeVideoGenerationOptions(parseVideoGenerationInput(input))
       if (!options.prompt) throw new Error('Prompt is required')
       const image = await encodeImageInput(input.input_image_file, deps, IMAGE_LIMIT_BYTES, 'input image')
-      const task = await createClient(deps).createVideoTask(
+      return submitVideoTask(
+        deps,
+        config,
+        'seedance_image_to_video',
+        'image_to_video',
+        options,
         createVideoPayload(options, [
           { type: 'text', text: options.prompt },
           { type: 'image_url', image_url: { url: image } }
-        ])
+        ]),
+        'Image-to-video task submitted.'
       )
-      return videoSubmittedResult(task, 'Image-to-video task submitted.')
     },
     {
       name: 'seedance_image_to_video',
@@ -336,19 +395,25 @@ function buildImageToVideoTool(deps: SeedreamToolDependencies) {
 
 function buildFirstLastFrameToVideoTool(deps: SeedreamToolDependencies) {
   return tool(
-    async (input: any): Promise<SeedreamToolResult> => {
-      const options = normalizeVideoGenerationOptions(input)
+    async (rawInput: unknown, config): Promise<SeedreamToolResult> => {
+      const input = requireRecord(rawInput)
+      const options = normalizeVideoGenerationOptions(parseVideoGenerationInput(input))
       if (!options.prompt) throw new Error('Prompt is required')
       const firstFrame = await encodeImageInput(input.first_frame_file, deps, IMAGE_LIMIT_BYTES, 'first frame')
       const lastFrame = await encodeImageInput(input.last_frame_file, deps, IMAGE_LIMIT_BYTES, 'last frame')
-      const task = await createClient(deps).createVideoTask(
+      return submitVideoTask(
+        deps,
+        config,
+        'seedance_first_last_frame_to_video',
+        'first_last_frame_to_video',
+        options,
         createVideoPayload(options, [
           { type: 'text', text: options.prompt },
           { type: 'image_url', image_url: { url: firstFrame }, role: 'first_frame' },
           { type: 'image_url', image_url: { url: lastFrame }, role: 'last_frame' }
-        ])
+        ]),
+        'First-last-frame video task submitted.'
       )
-      return videoSubmittedResult(task, 'First-last-frame video task submitted.')
     },
     {
       name: 'seedance_first_last_frame_to_video',
@@ -361,11 +426,12 @@ function buildFirstLastFrameToVideoTool(deps: SeedreamToolDependencies) {
 
 function buildMultimodalReferenceToVideoTool(deps: SeedreamToolDependencies) {
   return tool(
-    async (input: any): Promise<SeedreamToolResult> => {
+    async (rawInput: unknown, config): Promise<SeedreamToolResult> => {
+      const input = requireRecord(rawInput)
       const options = normalizeVideoGenerationOptions({
-        ...input,
-        model: input.model ?? 'doubao-seedance-2-0-260128',
-        ratio: input.ratio ?? 'adaptive'
+        ...parseVideoGenerationInput(input),
+        model: normalizeString(input.model) ?? 'doubao-seedance-2-0-260128',
+        ratio: normalizeString(input.ratio) ?? 'adaptive'
       })
       if (!isSeedance2Model(options.model)) {
         throw new Error('Multimodal reference video only supports Seedance 2.5/2.0 models')
@@ -403,8 +469,16 @@ function buildMultimodalReferenceToVideoTool(deps: SeedreamToolDependencies) {
       for (const audioUrl of audioUrls) {
         content.push({ type: 'audio_url', audio_url: { url: audioUrl }, role: 'reference_audio' })
       }
-      const task = await createClient(deps).createVideoTask(createVideoPayload(options, content))
-      return videoSubmittedResult(task, 'Multimodal reference video task submitted.')
+      return submitVideoTask(
+        deps,
+        config,
+        'seedance_multimodal_reference_to_video',
+        'reference_to_video',
+        options,
+        createVideoPayload(options, content),
+        'Multimodal reference video task submitted.',
+        videoUrls.length > 0
+      )
     },
     {
       name: 'seedance_multimodal_reference_to_video',
@@ -417,53 +491,34 @@ function buildMultimodalReferenceToVideoTool(deps: SeedreamToolDependencies) {
 
 function buildVideoQueryTool(deps: SeedreamToolDependencies) {
   return tool(
-    async (input: any): Promise<SeedreamToolResult> => {
+    async (rawInput: unknown): Promise<SeedreamToolResult> => {
+      const input = requireRecord(rawInput)
       const taskId = requireString(input.task_id, 'Task id is required')
-      const downloadVideo = normalizeBoolean(input.download_video, true)
       const waitSeconds = clampNumber(input.wait_seconds, VIDEO_QUERY_MAX_WAIT_SECONDS, 0, VIDEO_QUERY_MAX_WAIT_SECONDS)
-      const client = createClient(deps)
-      let task = await client.getVideoTask(taskId)
+      const managedQueue = requireManagedQueue(deps.managedQueue)
+      let snapshot = await managedQueue.getJob<SeedanceVideoJobPayload>({ jobId: taskId })
       const deadline = Date.now() + waitSeconds * 1_000
-      while (!task?.content?.video_url && isPendingVideoTask(task?.status) && Date.now() < deadline) {
-        await delay(Math.min(VIDEO_QUERY_POLL_MS, Math.max(0, deadline - Date.now())))
-        task = await client.getVideoTask(taskId)
+      while (snapshot && !isTerminalQueueState(snapshot.state) && Date.now() < deadline) {
+        await (deps.sleep ?? delay)(Math.min(VIDEO_QUERY_POLL_MS, Math.max(0, deadline - Date.now())))
+        snapshot = await managedQueue.getJob<SeedanceVideoJobPayload>({ jobId: taskId })
       }
-      const files: SeedreamArtifactFile[] = []
-      const videoUrl = task?.content?.video_url
-      if (downloadVideo && typeof videoUrl === 'string' && videoUrl) {
-        const { buffer, mimeType } = await client.downloadBuffer(videoUrl)
-        const resolvedMimeType = mimeType || 'video/mp4'
-        files.push(
-          await uploadGeneratedAsset({
-            workspaceFiles: deps.workspaceFiles,
-            workspaceScope: deps.workspaceScope,
-            buffer,
-            mimeType: resolvedMimeType,
-            folder: VIDEO_FOLDER,
-            fileName: `${task?.id ?? taskId}.mp4`,
-            metadata: {
-              source: 'ark_video_generation',
-              taskId: task?.id ?? taskId,
-              arkUrl: videoUrl
-            }
-          })
-        )
+
+      if (!snapshot) throw new Error(`Seedance video generation task ${taskId} was not found`)
+      if (snapshot.state === 'completed' && snapshot.data.result) return snapshot.data.result
+      if (snapshot.state === 'failed') {
+        throw new Error(snapshot.failedReason || snapshot.data.errorCode || `Seedance video task ${taskId} failed`)
       }
-      const resolvedTaskId = task?.id ?? taskId
-      const message = videoUrl
-        ? `Video task ${resolvedTaskId} status: ${task?.status ?? 'unknown'}.`
-        : `Video task ${resolvedTaskId} status: ${
-            task?.status ?? 'unknown'
-          }.\nNo video_url is available after a bounded ${waitSeconds}-second wait. Report the current status and Task ID to the user; the provider task continues running and may be queried in a later turn.`
-      return result(message, files, {
-        task_id: resolvedTaskId,
-        status: task?.status,
-        video_url: videoUrl,
-        last_frame_url: task?.content?.last_frame_url,
-        model: task?.model,
-        error: task?.error,
-        usage: task?.usage
-      })
+      return seedreamResult(
+        `Video task ${taskId} status: ${snapshot.data.providerState || snapshot.data.phase}. Query the same task ID later.`,
+        [],
+        {
+          task_id: taskId,
+          request_id: snapshot.data.requestId,
+          provider_request_id: snapshot.data.providerRequestId,
+          status: snapshot.data.providerState || snapshot.data.phase,
+          model: snapshot.data.model
+        }
+      )
     },
     {
       name: 'seedance_video_query',
@@ -1154,6 +1209,7 @@ const videoTaskIdProperty = {
 const videoQuerySchema = videoObjectSchema(
   {
     task_id: videoTaskIdProperty,
+    model: videoCommonProperties.model,
     download_video: booleanSelectProperty(
       'Download video',
       '下载视频',
@@ -1379,21 +1435,72 @@ function createVideoPayload(
   return payload
 }
 
-function videoSubmittedResult(task: any, message: string): SeedreamToolResult {
-  const taskId = task?.id
-  const content = taskId
-    ? `${message}\nTask ID: ${taskId}\nCall seedance_video_query once with this task_id to check completion and download the generated video.\nIf the task is not completed or no video_url is returned, stop and tell the user the task is still processing. Do not repeat the same query in this turn.`
-    : message
-  return result(content, [], {
-    task_id: task?.id,
-    status: task?.status ?? 'submitted',
-    model: task?.model
+async function submitVideoTask(
+  deps: SeedreamToolDependencies,
+  config: unknown,
+  toolName: string,
+  operation: VideoGenerationOperation,
+  options: ReturnType<typeof normalizeVideoGenerationOptions>,
+  payload: Record<string, unknown>,
+  message: string,
+  videoInput = false
+): Promise<SeedreamToolResult> {
+  const invocationKey = getToolCallIdFromConfig(config) ?? randomUUID()
+  const taskId = queueJobId(invocationKey)
+  const runtimeScope = deps.runtimeScope ?? {}
+  await requireManagedQueue(deps.managedQueue).enqueue({
+    pluginName: VOLCENGINE_PLUGIN_NAME,
+    queueName: VOLCENGINE_VIDEO_QUEUE,
+    jobName: VOLCENGINE_VIDEO_JOB,
+    jobId: taskId,
+    scopeKey: deps.pluginScopeKey,
+    tenantId: runtimeScope.tenantId,
+    organizationId: runtimeScope.organizationId,
+    userId: runtimeScope.userId,
+    attempts: 3,
+    backoffMs: { type: 'exponential', delay: 5_000 },
+    removeOnComplete: { age: 86_400, count: 1_000 },
+    removeOnFail: { age: 604_800, count: 1_000 },
+    payload: {
+      requestId: invocationKey,
+      model: options.model,
+      toolName,
+      modality: 'video',
+      operation,
+      pricingDimensions: {
+      ...(options.duration > 0 ? { durationSeconds: options.duration } : {}),
+      resolution: options.resolution,
+      audio: options.generate_audio,
+      videoInput,
+      mode: operation
+      },
+      input: payload,
+      phase: 'queued',
+      startedAt: new Date().toISOString(),
+      runtimeScope
+    }
+  })
+  return videoSubmittedResult(taskId, options.model, message)
+}
+
+function videoSubmittedResult(taskId: string, model: string, message: string): SeedreamToolResult {
+  const content = `${message}\nTask ID: ${taskId}\nCall seedance_video_query with this task_id to check completion and download the generated video.\nThe Managed Queue job submits and polls the provider task without occupying the conversation request.`
+  return seedreamResult(content, [], {
+    task_id: taskId,
+    status: 'queued',
+    model
   })
 }
 
-function result(message: string, files: SeedreamArtifactFile[], data?: Record<string, unknown>): SeedreamToolResult {
+export function seedreamResult(
+  message: string,
+  files: SeedreamArtifactFile[],
+  data?: Record<string, unknown>
+): SeedreamToolResult {
   return [formatResultContent(message, files), { files, ...(data ? { data } : {}) }]
 }
+
+const result = seedreamResult
 
 function formatResultContent(message: string, files: SeedreamArtifactFile[]) {
   if (!files.length) {
@@ -1427,6 +1534,93 @@ function createClient(deps: SeedreamToolDependencies) {
   return new SeedreamArkClient(deps.credentials, deps.fetch ?? fetch)
 }
 
+async function generateImages(
+  deps: SeedreamToolDependencies,
+  directClient: SeedreamArkClient,
+  payload: Record<string, unknown>,
+  model: string,
+  toolCallId: string | undefined,
+  toolName: string,
+  operation: ImageGenerationOperation
+) {
+  if (deps.createImageModelClient) {
+    if (!toolCallId) throw new Error('Tool call ID is required to record Seedream image usage')
+    const pricingDimensions = {
+      ...(normalizeString(payload.size) ? { resolution: normalizeString(payload.size) } : {}),
+      ...(normalizeString(payload.sequential_image_generation)
+        ? { mode: normalizeString(payload.sequential_image_generation) }
+        : {})
+    }
+    const pricingSnapshot = deps.modelProvider?.resolvePricingSnapshot
+      ? await deps.modelProvider.resolvePricingSnapshot({
+          model,
+          operation,
+          modality: 'image',
+          pricingDimensions,
+          startedAt: new Date().toISOString()
+        })
+      : undefined
+    const modelClient = await deps.createImageModelClient(model)
+    const invocation = await modelClient.invoke(payload)
+    await reportImageObservation(
+      deps,
+      invocation.observation,
+      model,
+      toolCallId,
+      toolName,
+      operation,
+      pricingDimensions,
+      pricingSnapshot
+    )
+    return { response: invocation.data }
+  }
+  const response = await directClient.generateImages(payload)
+  await reportImageObservation(
+    deps,
+    normalizeSeedreamImageObservation(response),
+    model,
+    toolCallId,
+    toolName,
+    operation,
+    {
+      ...(normalizeString(payload.size) ? { resolution: normalizeString(payload.size) } : {}),
+      ...(normalizeString(payload.sequential_image_generation)
+        ? { mode: normalizeString(payload.sequential_image_generation) }
+        : {})
+    }
+  )
+  return { response }
+}
+
+async function finalizeImageGeneration(upload: () => Promise<SeedreamArtifactFile[]>) {
+  return upload()
+}
+
+async function reportImageObservation(
+  deps: SeedreamToolDependencies,
+  observation: AIGCModelObservation,
+  model: string,
+  toolCallId: string | undefined,
+  toolName: string,
+  operation: ImageGenerationOperation,
+  pricingDimensions: { resolution?: string; mode?: string },
+  pricingSnapshot?: import('@xpert-ai/contracts').ModelUsagePricingSnapshot
+) {
+  if (!deps.modelProvider || !toolCallId || !observation.metrics?.length) return
+  await deps.modelProvider.reportUsage({
+    requestId: toolCallId,
+    model,
+    modelType: AiModelTypeEnum.IMAGE,
+    toolName,
+    operation,
+    modality: 'image',
+    pricingDimensions,
+    pricingSnapshot,
+    metrics: observation.metrics,
+    recordedAt: new Date().toISOString()
+  })
+}
+
 function requireString(value: unknown, message: string) {
   const normalized = normalizeString(value)
   if (!normalized) {
@@ -1435,26 +1629,71 @@ function requireString(value: unknown, message: string) {
   return normalized
 }
 
+function requireRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('Tool input must be an object')
+  }
+  const result: Record<string, unknown> = {}
+  for (const key of Object.keys(value)) {
+    result[key] = Reflect.get(value, key)
+  }
+  return result
+}
+
+function parseVideoGenerationInput(input: Record<string, unknown>): VideoGenerationInput {
+  return {
+    model: readOptionalText(input.model),
+    prompt: readOptionalText(input.prompt),
+    resolution: readOptionalText(input.resolution),
+    ratio: readOptionalText(input.ratio),
+    duration: readStringOrNumber(input.duration),
+    seed: readStringOrNumber(input.seed),
+    camera_fixed: readStringOrBoolean(input.camera_fixed),
+    watermark: readStringOrBoolean(input.watermark),
+    generate_audio: readStringOrBoolean(input.generate_audio),
+    draft: readStringOrBoolean(input.draft),
+    return_last_frame: readStringOrBoolean(input.return_last_frame),
+    service_tier: readOptionalText(input.service_tier),
+    bitrate_mode: readOptionalText(input.bitrate_mode),
+    output_format: readOptionalText(input.output_format),
+    priority: readStringOrNumber(input.priority),
+    web_search: readStringOrBoolean(input.web_search)
+  }
+}
+
+function readOptionalText(value: unknown) {
+  return typeof value === 'string' ? value : undefined
+}
+
+function readStringOrNumber(value: unknown) {
+  return typeof value === 'string' || typeof value === 'number' ? value : undefined
+}
+
+function readStringOrBoolean(value: unknown) {
+  return typeof value === 'string' || typeof value === 'boolean' ? value : undefined
+}
+
 function clampNumber(value: unknown, fallback: number, min: number, max: number) {
   const parsed = typeof value === 'string' && value.trim() ? Number(value) : value
   const number = typeof parsed === 'number' && Number.isFinite(parsed) ? parsed : fallback
   return Math.min(Math.max(number, min), max)
 }
 
-function isPendingVideoTask(status: unknown) {
-  const normalized = typeof status === 'string' ? status.trim().toLowerCase() : ''
-  return (
-    !normalized ||
-    normalized === 'queued' ||
-    normalized === 'pending' ||
-    normalized === 'processing' ||
-    normalized === 'running' ||
-    normalized === 'submitted'
-  )
-}
-
 function delay(ms: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, ms))
+}
+
+function queueJobId(requestId: string) {
+  return `volcengine-${requestId.replace(/[^a-zA-Z0-9._-]/g, '-')}`
+}
+
+function isTerminalQueueState(state?: string) {
+  return state === 'completed' || state === 'failed'
+}
+
+function requireManagedQueue<T>(queue: T | undefined): T {
+  if (!queue) throw new Error('Managed Queue is required for Seedance video generation.')
+  return queue
 }
 
 function toArray(value: unknown): unknown[] {

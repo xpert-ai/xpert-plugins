@@ -4,13 +4,13 @@ import {
   IToolsetStrategy,
   ToolsetStrategy,
   XPERT_RUNTIME_CAPABILITIES_TOKEN,
+  type RuntimeCapabilityRegistry,
   type TBuiltinToolsetParams
 } from '@xpert-ai/plugin-sdk'
 import { buildSiliconflowVideoTools } from './tools.js'
-import { SiliconflowVideoToolset, type RuntimeCapabilityRegistryLike } from './toolset.js'
+import { SiliconflowVideoToolset } from './toolset.js'
 import {
   SiliconflowVideo,
-  SiliconflowVideoDefaultBaseUrl,
   type SiliconflowVideoCredentials
 } from './types.js'
 
@@ -48,46 +48,19 @@ export class SiliconflowVideoStrategy implements IToolsetStrategy<SiliconflowVid
     },
     configSchema: {
       type: 'object',
-      properties: {
-        api_key: {
-          type: 'string',
-          title: {
-            en_US: 'SiliconFlow API key',
-            zh_Hans: '硅基流动 API Key'
-          },
-          description: {
-            en_US: 'API key from the SiliconFlow platform.',
-            zh_Hans: '硅基流动平台提供的 API Key。'
-          },
-          'x-ui': {
-            component: 'secretInput'
-          }
-        },
-        endpoint_url: {
-          type: 'string',
-          title: {
-            en_US: 'API endpoint',
-            zh_Hans: 'API 地址'
-          },
-          description: {
-            en_US: 'SiliconFlow video API base URL.',
-            zh_Hans: '硅基流动视频 API 基础地址。'
-          },
-          default: SiliconflowVideoDefaultBaseUrl
-        }
-      },
-      required: ['api_key']
+      additionalProperties: false,
+      properties: {}
     }
   }
 
   constructor(
     @Optional()
     @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN)
-    private readonly runtimeCapabilities?: RuntimeCapabilityRegistryLike
+    private readonly runtimeCapabilities?: RuntimeCapabilityRegistry
   ) {}
 
   async validateConfig(config: SiliconflowVideoCredentials): Promise<void> {
-    if (!config.api_key?.trim()) throw new Error('SiliconFlow API key is missing')
+    void config
   }
 
   async create(
@@ -99,7 +72,6 @@ export class SiliconflowVideoStrategy implements IToolsetStrategy<SiliconflowVid
 
   createTools(): any {
     return buildSiliconflowVideoTools({
-      credentials: {},
       workspaceFiles: {
         uploadBuffer: async () => {
           throw new Error('Xpert workspace file runtime capability is required for SiliconFlow video outputs.')

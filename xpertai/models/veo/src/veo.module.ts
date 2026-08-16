@@ -5,10 +5,13 @@ import {
   XpertServerPlugin
 } from '@xpert-ai/plugin-sdk'
 import { VeoStrategy } from './strategy.js'
+import { VeoProviderStrategy } from './provider.strategy.js'
+import { VeoVideoGenerationModel } from './model.js'
+import { VeoVideoJobProcessor } from './job.js'
 
 @XpertServerPlugin({
   imports: [ConfigModule],
-  providers: [VeoStrategy]
+  providers: [VeoProviderStrategy, VeoVideoGenerationModel, VeoStrategy, VeoVideoJobProcessor]
 })
 export class VeoPluginModule
   implements IOnPluginBootstrap, IOnPluginDestroy

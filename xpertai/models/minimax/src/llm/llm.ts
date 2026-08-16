@@ -311,6 +311,7 @@ export class MiniMaxLargeLanguageModel extends LargeLanguageModel {
   }
 
   override getChatModel(copilotModel: ICopilotModel, options?: TChatModelOptions) {
+    const { handleLLMTokens } = options ?? {};
     const { copilot } = copilotModel;
     const { modelProvider } = copilot;
     const modelCredentials = mergeCredentials(modelProvider.credentials, options?.modelProperties) as MiniMaxModelCredentials;
@@ -327,7 +328,10 @@ export class MiniMaxLargeLanguageModel extends LargeLanguageModel {
       streaming: copilotModel.options?.['streaming'] ?? true,
       temperature: copilotModel.options?.['temperature'] ?? 0,
       maxTokens: copilotModel.options?.['max_tokens'],
-      verbose: options?.verbose
+      verbose: options?.verbose,
+      callbacks: [
+        ...this.createHandleUsageCallbacks(copilot, model, modelCredentials, handleLLMTokens)
+      ]
     });
   }
 

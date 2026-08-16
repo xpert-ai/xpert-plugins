@@ -1,0 +1,42 @@
+model: veo-3.1-fast-generate-preview
+label:
+  en_US: Veo 3.1 Fast
+  zh_Hans: Veo 3.1 Fast
+model_type: video
+features: []
+model_properties:
+  mode: video
+parameter_rules: []
+pricing:
+  type: usage
+  rules:
+    - id: veo-3-1-fast-720p
+      version: "2026-08-14"
+      effective_from: "2026-08-14T00:00:00Z"
+      unit: second
+      unit_size: 1
+      unit_price: 0.1
+      currency: USD
+      charge_type: paid
+      dimensions: { resolution: 720p, audio: true }
+      source_url: https://ai.google.dev/gemini-api/docs/pricing
+    - id: veo-3-1-fast-1080p
+      version: "2026-08-14"
+      effective_from: "2026-08-14T00:00:00Z"
+      unit: second
+      unit_size: 1
+      unit_price: 0.12
+      currency: USD
+      charge_type: paid
+      dimensions: { resolution: 1080p, audio: true }
+      source_url: https://ai.google.dev/gemini-api/docs/pricing
+    - id: veo-3-1-fast-4k
+      version: "2026-08-14"
+      effective_from: "2026-08-14T00:00:00Z"
+      unit: second
+      unit_size: 1
+      unit_price: 0.3
+      currency: USD
+      charge_type: paid
+      dimensions: { resolution: 4k, audio: true }
+      source_url: https://ai.google.dev/gemini-api/docs/pricing

@@ -4,14 +4,14 @@ import {
   IToolsetStrategy,
   ToolsetStrategy,
   XPERT_RUNTIME_CAPABILITIES_TOKEN,
+  type RuntimeCapabilityRegistry,
   type TBuiltinToolsetParams
 } from '@xpert-ai/plugin-sdk'
 import { SvgIcon } from '../types.js'
 import { buildZhipuCogVideoTools } from './tools.js'
-import { ZhipuCogVideoToolset, type RuntimeCapabilityRegistryLike } from './toolset.js'
+import { ZhipuCogVideoToolset } from './toolset.js'
 import {
   ZhipuCogVideo,
-  ZhipuCogVideoDefaultBaseUrl,
   type ZhipuCogVideoCredentials
 } from './types.js'
 
@@ -43,46 +43,19 @@ export class ZhipuCogVideoStrategy implements IToolsetStrategy<ZhipuCogVideoCred
     },
     configSchema: {
       type: 'object',
-      properties: {
-        api_key: {
-          type: 'string',
-          title: {
-            en_US: 'ZhipuAI API key',
-            zh_Hans: '智谱 API Key'
-          },
-          description: {
-            en_US: 'API key from the ZhipuAI Open Platform.',
-            zh_Hans: '智谱开放平台提供的 API Key。'
-          },
-          'x-ui': {
-            component: 'secretInput'
-          }
-        },
-        endpoint_url: {
-          type: 'string',
-          title: {
-            en_US: 'API endpoint',
-            zh_Hans: 'API 地址'
-          },
-          description: {
-            en_US: 'ZhipuAI API base URL.',
-            zh_Hans: '智谱 API 基础地址。'
-          },
-          default: ZhipuCogVideoDefaultBaseUrl
-        }
-      },
-      required: ['api_key']
+      additionalProperties: false,
+      properties: {}
     }
   }
 
   constructor(
     @Optional()
     @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN)
-    private readonly runtimeCapabilities?: RuntimeCapabilityRegistryLike
+    private readonly runtimeCapabilities?: RuntimeCapabilityRegistry
   ) {}
 
   async validateConfig(config: ZhipuCogVideoCredentials): Promise<void> {
-    if (!config.api_key?.trim()) throw new Error('ZhipuAI API key is missing')
+    void config
   }
 
   async create(
@@ -94,7 +67,6 @@ export class ZhipuCogVideoStrategy implements IToolsetStrategy<ZhipuCogVideoCred
 
   createTools(): any {
     return buildZhipuCogVideoTools({
-      credentials: {},
       workspaceFiles: {
         uploadBuffer: async () => {
           throw new Error('Xpert workspace file runtime capability is required for ZhipuAI video outputs.')

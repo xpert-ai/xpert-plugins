@@ -1,0 +1,20 @@
+model: cogvideox-flash
+label:
+  en_US: CogVideoX Flash
+  zh_Hans: CogVideoX Flash
+model_type: video
+features: []
+model_properties:
+  mode: video
+parameter_rules: []
+pricing:
+  type: usage
+  rules:
+    - id: zhipu-cogvideox-flash-free
+      version: "2026-08-14"
+      effective_from: "2026-08-14T00:00:00Z"
+      unit: generation
+      unit_size: 1
+      currency: CNY
+      charge_type: free
+      source_url: https://docs.bigmodel.cn/cn/guide/models/video-generation/cogvideox-flash

@@ -1,71 +1,65 @@
 import type { StructuredToolInterface } from '@langchain/core/tools'
-import { BuiltinToolset, type TBuiltinToolsetParams } from '@xpert-ai/plugin-sdk'
+import {
+  BuiltinToolset,
+  type RuntimeCapabilityResolver,
+  type TBuiltinToolsetParams
+} from '@xpert-ai/plugin-sdk'
+import { ModelProviderBuiltinToolset } from '@xpert-ai/plugin-sdk/model-provider-toolset'
 import { buildKlingTools } from './tools.js'
 import {
   KlingVideo,
-  KlingWorkspaceCapability,
-  type KlingCredentials,
-  type RuntimeCapabilityRegistryLike,
-  type WorkspaceFilesApi
+  KlingModelProvider,
+  type KlingCredentials
 } from './types.js'
 
-export class KlingVideoToolset extends BuiltinToolset<StructuredToolInterface, KlingCredentials> {
+export class KlingVideoToolset extends ModelProviderBuiltinToolset<StructuredToolInterface, KlingCredentials> {
   constructor(
     toolset?: KlingVideoToolsetDescriptor,
-    private readonly runtimeCapabilities?: RuntimeCapabilityRegistryLike,
+    runtimeCapabilities?: RuntimeCapabilityResolver,
     params?: TBuiltinToolsetParams
   ) {
-    super(KlingVideo, toolset, params)
-  }
-
-  override async _validateCredentials(credentials: KlingCredentials): Promise<void> {
-    if (!credentials?.api_key?.trim()) throw new Error('Kling API key is missing')
+    super(
+      {
+        toolsetProviderName: KlingVideo,
+        modelProviderName: KlingModelProvider,
+        authorizationScheme: 'Bearer',
+        invalidCredentialsMessage: 'Kling model provider credentials are invalid.',
+        missingProviderMessage: 'Configure the Kling model provider before using Kling video tools.',
+        missingWorkspaceMessage: 'Xpert Workspace Files capability is required for Kling video generation.'
+      },
+      toolset,
+      runtimeCapabilities,
+      params
+    )
   }
 
   override async initTools(): Promise<StructuredToolInterface[]> {
+    const modelProvider = await this.getModelProviderRuntime()
     this.tools = buildKlingTools({
-      credentials: this.getCredentials() ?? {},
       workspaceFiles: this.getWorkspaceFiles(),
-      workspaceScope: this.createWorkspaceScope()
+      workspaceScope: this.createWorkspaceScope(),
+      managedQueue: requireManagedQueue(this.managedQueue),
+      pluginScopeKey: this.pluginScopeKey,
+      runtimeScope: {
+        tenantId: this.tenantId,
+        organizationId: this.organizationId,
+        userId: this.params?.userId,
+        projectId: this.params?.projectId,
+        xpertId: this.xpertId,
+        conversationId: this.params?.conversationId,
+        agentKey: this.params?.agentKey,
+        executionId: this.params?.executionId,
+        providerScopeId: modelProvider.providerScopeId
+      }
     })
     return this.tools
   }
 
-  private getWorkspaceFiles() {
-    const workspaceFiles = this.runtimeCapabilities?.get<WorkspaceFilesApi>(KlingWorkspaceCapability)
-    if (!workspaceFiles) throw new Error('Xpert Workspace Files capability is required for Kling video generation.')
-    return workspaceFiles
-  }
-
-  private createWorkspaceScope() {
-    const projectId = normalizeOptionalString(this.params?.projectId)
-    if (projectId) {
-      return {
-        tenantId: normalizeOptionalString(this.params?.tenantId),
-        userId: normalizeOptionalString(this.params?.userId),
-        catalog: 'projects' as const,
-        scopeId: projectId,
-        projectId
-      }
-    }
-    const xpertId = normalizeOptionalString(this.xpertId)
-    if (!xpertId) return undefined
-    return {
-      tenantId: normalizeOptionalString(this.params?.tenantId),
-      userId: normalizeOptionalString(this.params?.userId),
-      catalog: 'xperts' as const,
-      scopeId: xpertId,
-      xpertId,
-      isolateByUser: false
-    }
-  }
 }
 
-export type KlingVideoToolsetDescriptor = ConstructorParameters<
-  typeof BuiltinToolset
->[1]
-
-function normalizeOptionalString(value: string | undefined | null) {
-  const normalized = value?.trim()
-  return normalized || undefined
+function requireManagedQueue<T>(queue: T | undefined): T {
+  if (!queue) throw new Error('Managed Queue is required for Kling video generation.')
+  return queue
 }
+
+export type KlingVideoToolsetDescriptor = ConstructorParameters<typeof BuiltinToolset>[1]

@@ -1,6 +1,8 @@
+import { randomUUID } from 'node:crypto'
 import { tool, type StructuredToolInterface } from '@langchain/core/tools'
+import { getToolCallIdFromConfig } from '@xpert-ai/contracts'
 import { encodeInlineImage } from './assets.js'
-import { GeminiVeoClient, validateVeoOperationName } from './client.js'
+import { VEO_PLUGIN_NAME, VEO_VIDEO_JOB, VEO_VIDEO_QUEUE } from './constants.js'
 import {
   assertInlineRequestLimit,
   normalizeBoolean,
@@ -20,18 +22,16 @@ import {
 import type {
   VeoArtifactFile,
   VeoInlineImage,
-  VeoOperation,
-  VeoOperationError,
   VeoToolDependencies,
-  VeoToolResult
+  VeoToolResult,
+  VeoVideoJobPayload
 } from './types.js'
-import { uploadGeneratedVideo } from './workspace-upload.js'
 
 const QUERY_MAX_WAIT_SECONDS = 45
-const QUERY_POLL_MS = 5_000
+const QUERY_POLL_MS = 1_000
 
 type VeoToolFactory = (
-  handler: (input: Record<string, unknown>) => Promise<VeoToolResult>,
+  handler: (input: Record<string, unknown>, config?: unknown) => Promise<VeoToolResult>,
   fields: {
     name: string
     description: string
@@ -65,8 +65,8 @@ export function buildVeoTools(deps: VeoToolDependencies) {
 
 function buildTextToVideoTool(deps: VeoToolDependencies) {
   return defineVeoTool(
-    async (input: Record<string, unknown>): Promise<VeoToolResult> => {
-      return submitGeneration(deps, input, 'text_to_video', async (options) => ({
+    async (input: Record<string, unknown>, config?: unknown): Promise<VeoToolResult> => {
+      return submitGeneration(deps, input, config, 'text_to_video', async (options) => ({
         prompt: options.prompt
       }))
     },
@@ -82,14 +82,10 @@ function buildTextToVideoTool(deps: VeoToolDependencies) {
 
 function buildImageToVideoTool(deps: VeoToolDependencies) {
   return defineVeoTool(
-    async (input: Record<string, unknown>): Promise<VeoToolResult> => {
-      return submitGeneration(deps, input, 'image_to_video', async (options) => ({
+    async (input: Record<string, unknown>, config?: unknown): Promise<VeoToolResult> => {
+      return submitGeneration(deps, input, config, 'image_to_video', async (options) => ({
         prompt: options.prompt,
-        image: await encodeInlineImage(
-          input.input_image_file,
-          deps,
-          'Initial image'
-        )
+        image: await encodeInlineImage(input.input_image_file, deps, 'Initial image')
       }))
     },
     {
@@ -104,25 +100,12 @@ function buildImageToVideoTool(deps: VeoToolDependencies) {
 
 function buildFirstLastFrameToVideoTool(deps: VeoToolDependencies) {
   return defineVeoTool(
-    async (input: Record<string, unknown>): Promise<VeoToolResult> => {
-      return submitGeneration(
-        deps,
-        input,
-        'first_last_frame_to_video',
-        async (options) => ({
-          prompt: options.prompt,
-          image: await encodeInlineImage(
-            input.first_frame_file,
-            deps,
-            'First frame'
-          ),
-          lastFrame: await encodeInlineImage(
-            input.last_frame_file,
-            deps,
-            'Final frame'
-          )
-        })
-      )
+    async (input: Record<string, unknown>, config?: unknown): Promise<VeoToolResult> => {
+      return submitGeneration(deps, input, config, 'first_last_frame_to_video', async (options) => ({
+        prompt: options.prompt,
+        image: await encodeInlineImage(input.first_frame_file, deps, 'First frame'),
+        lastFrame: await encodeInlineImage(input.last_frame_file, deps, 'Final frame')
+      }))
     },
     {
       name: 'veo_first_last_frame_to_video',
@@ -136,27 +119,20 @@ function buildFirstLastFrameToVideoTool(deps: VeoToolDependencies) {
 
 function buildReferenceToVideoTool(deps: VeoToolDependencies) {
   return defineVeoTool(
-    async (input: Record<string, unknown>): Promise<VeoToolResult> => {
-      return submitGeneration(
-        deps,
-        input,
-        'reference_to_video',
-        async (options) => {
-          const references = requireReferenceImages(input.reference_image_files)
-          const images = await Promise.all(
-            references.map((reference, index) =>
-              encodeInlineImage(reference, deps, `Asset reference image ${index + 1}`)
-            )
-          )
-          return {
-            prompt: options.prompt,
-            referenceImages: images.map((image) => ({
-              image,
-              referenceType: 'asset' as const
-            }))
-          }
+    async (input: Record<string, unknown>, config?: unknown): Promise<VeoToolResult> => {
+      return submitGeneration(deps, input, config, 'reference_to_video', async (options) => {
+        const references = requireReferenceImages(input.reference_image_files)
+        const images = await Promise.all(
+          references.map((reference, index) => encodeInlineImage(reference, deps, `Asset reference image ${index + 1}`))
+        )
+        return {
+          prompt: options.prompt,
+          referenceImages: images.map((image) => ({
+            image,
+            referenceType: 'asset' as const
+          }))
         }
-      )
+      })
     },
     {
       name: 'veo_reference_to_video',
@@ -171,84 +147,31 @@ function buildReferenceToVideoTool(deps: VeoToolDependencies) {
 function buildVideoQueryTool(deps: VeoToolDependencies) {
   return defineVeoTool(
     async (input: Record<string, unknown>): Promise<VeoToolResult> => {
-      const taskId = validateVeoOperationName(
-        requireString(input.task_id, 'Generation task is required')
-      )
-      const downloadVideo =
-        input.download_video === undefined
-          ? true
-          : normalizeBoolean(input.download_video)
+      const taskId = requireString(input.task_id, 'Generation task is required')
       const waitSeconds = normalizeWaitSeconds(input.wait_seconds)
-      const client = new GeminiVeoClient(deps.credentials, deps.fetch ?? fetch)
-      let operation = await client.getOperation(taskId)
+      const managedQueue = requireManagedQueue(deps.managedQueue)
+      let snapshot = await managedQueue.getJob<VeoVideoJobPayload>({ jobId: taskId })
       const deadline = Date.now() + waitSeconds * 1_000
-      while (!operation.done && Date.now() < deadline) {
-        await delay(
-          Math.min(QUERY_POLL_MS, Math.max(0, deadline - Date.now()))
-        )
-        operation = await client.getOperation(taskId)
+      while (snapshot && !isTerminalQueueState(snapshot.state) && Date.now() < deadline) {
+        await (deps.sleep ?? delay)(Math.min(QUERY_POLL_MS, Math.max(0, deadline - Date.now())))
+        snapshot = await managedQueue.getJob<VeoVideoJobPayload>({ jobId: taskId })
       }
 
-      const resolvedTaskId = operation.name
-        ? validateVeoOperationName(operation.name)
-        : taskId
-      if (!operation.done) {
-        return result(
-          `Veo generation ${resolvedTaskId} is still running.`,
-          [],
-          {
-            task_id: resolvedTaskId,
-            status: 'running'
-          }
-        )
+      if (!snapshot) throw new Error(`Veo generation task ${taskId} was not found`)
+      if (snapshot.state === 'completed' && snapshot.data.result) return snapshot.data.result
+      if (snapshot.state === 'failed') {
+        throw new Error(snapshot.failedReason || snapshot.data.errorCode || `Veo generation task ${taskId} failed`)
       }
-
-      if (operation.error) {
-        const error = normalizeOperationError(operation.error)
-        return result(`Veo generation ${resolvedTaskId} failed.`, [], {
-          task_id: resolvedTaskId,
-          status: 'failed',
-          error
-        })
-      }
-
-      const videoUri = readGeneratedVideoUri(operation)
-      if (!videoUri) {
-        return result(`Veo generation ${resolvedTaskId} produced no video.`, [], {
-          task_id: resolvedTaskId,
-          status: 'failed',
-          error: {
-            code: 'VEO_NO_VIDEO_OUTPUT',
-            message: readFilteredOutputMessage(operation)
-          }
-        })
-      }
-
-      const files: VeoArtifactFile[] = []
-      if (downloadVideo) {
-        const downloaded = await client.downloadVideo(videoUri)
-        files.push(
-          await uploadGeneratedVideo({
-            workspaceFiles: deps.workspaceFiles,
-            workspaceScope: deps.workspaceScope,
-            buffer: downloaded.buffer,
-            fileName: `${safeTaskFileStem(resolvedTaskId)}.mp4`,
-            mimeType: downloaded.mimeType.startsWith('video/')
-              ? downloaded.mimeType
-              : 'video/mp4',
-            taskId: resolvedTaskId
-          })
-        )
-      }
-      return result(`Veo generation ${resolvedTaskId} completed.`, files, {
-        task_id: resolvedTaskId,
-        status: 'succeeded'
+      return veoResult(`Veo generation ${taskId} is ${snapshot.data.providerState || snapshot.data.phase}.`, [], {
+        task_id: taskId,
+        request_id: snapshot.data.requestId,
+        provider_request_id: snapshot.data.providerRequestId,
+        status: snapshot.data.providerState || snapshot.data.phase
       })
     },
     {
       name: 'veo_video_query',
-      description:
-        'Query a Veo generation task and optionally save a completed MP4 to Workspace Files.',
+      description: 'Query a Veo generation task and optionally save a completed MP4 to Workspace Files.',
       schema: videoQuerySchema,
       responseFormat: 'content_and_artifact'
     }
@@ -258,6 +181,7 @@ function buildVideoQueryTool(deps: VeoToolDependencies) {
 async function submitGeneration(
   deps: VeoToolDependencies,
   input: Record<string, unknown>,
+  config: unknown,
   mode: VeoGenerationMode,
   createInstance: (options: VeoSubmissionOptions) => Promise<VeoInstance>
 ): Promise<VeoToolResult> {
@@ -273,75 +197,78 @@ async function submitGeneration(
     }
   }
   assertInlineRequestLimit(payload)
-  const client = new GeminiVeoClient(deps.credentials, deps.fetch ?? fetch)
-  const operation = await client.submit(options.model, payload)
-  const taskId = validateVeoOperationName(
-    requireString(operation.name, 'Gemini Veo response did not include an operation name')
-  )
-  return result(`Veo generation submitted. Task: ${taskId}.`, [], {
+  const invocationKey = getToolCallIdFromConfig(config) ?? randomUUID()
+  const toolName = veoSubmitToolName(mode)
+  const taskId = queueJobId(invocationKey)
+  const runtimeScope = deps.runtimeScope ?? {}
+  await requireManagedQueue(deps.managedQueue).enqueue({
+    pluginName: VEO_PLUGIN_NAME,
+    queueName: VEO_VIDEO_QUEUE,
+    jobName: VEO_VIDEO_JOB,
+    jobId: taskId,
+    scopeKey: deps.pluginScopeKey,
+    tenantId: runtimeScope.tenantId,
+    organizationId: runtimeScope.organizationId,
+    userId: runtimeScope.userId,
+    attempts: 3,
+    backoffMs: { type: 'exponential', delay: 5_000 },
+    removeOnComplete: { age: 86_400, count: 1_000 },
+    removeOnFail: { age: 604_800, count: 1_000 },
+    payload: {
+      requestId: invocationKey,
+      model: options.model,
+      toolName,
+      modality: 'video',
+      operation: mode,
+      pricingDimensions: {
+        durationSeconds: options.durationSeconds,
+        resolution: options.resolution,
+        audio: true,
+        mode
+      },
+      input: { model: options.model, payload },
+      phase: 'queued',
+      startedAt: new Date().toISOString(),
+      runtimeScope
+    }
+  })
+  return veoResult(`Veo generation queued. Task: ${taskId}.`, [], {
     task_id: taskId,
-    status: 'submitted',
+    status: 'queued',
     model: options.model
   })
+}
+
+function veoSubmitToolName(mode: VeoGenerationMode) {
+  return mode === 'first_last_frame_to_video' ? 'veo_first_last_frame_to_video' : `veo_${mode}`
 }
 
 function normalizeWaitSeconds(value: unknown) {
   if (value === undefined) return 0
   const waitSeconds = Number(value)
-  if (
-    !Number.isInteger(waitSeconds) ||
-    waitSeconds < 0 ||
-    waitSeconds > QUERY_MAX_WAIT_SECONDS
-  ) {
+  if (!Number.isInteger(waitSeconds) || waitSeconds < 0 || waitSeconds > QUERY_MAX_WAIT_SECONDS) {
     throw new Error('Bounded wait must be an integer from 0 to 45 seconds')
   }
   return waitSeconds
 }
 
-function readGeneratedVideoUri(operation: VeoOperation) {
-  const uri =
-    operation.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.uri
-  return typeof uri === 'string' && uri.trim() ? uri.trim() : undefined
-}
-
-function readFilteredOutputMessage(operation: VeoOperation) {
-  const count =
-    operation.response?.generateVideoResponse?.raiMediaFilteredCount ?? 0
-  return count > 0
-    ? 'The provider safety filters did not return a video.'
-    : 'The completed provider operation did not contain a generated video.'
-}
-
-function normalizeOperationError(error: VeoOperationError) {
-  const code =
-    typeof error.status === 'string' && error.status.trim()
-      ? error.status.trim()
-      : error.code !== undefined
-        ? String(error.code)
-        : 'VEO_GENERATION_FAILED'
-  const message =
-    typeof error.message === 'string' && error.message.trim()
-      ? error.message
-          .replace(/https?:\/\/\S+/gi, '[redacted-url]')
-          .replace(/[\r\n]+/g, ' ')
-          .slice(0, 500)
-      : 'The Veo generation operation failed.'
-  return { code, message }
-}
-
-function safeTaskFileStem(taskId: string) {
-  const lastSegment = taskId.split('/').filter(Boolean).pop() || 'veo-video'
-  return lastSegment.replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 180)
-}
-
-function result(
-  message: string,
-  files: VeoArtifactFile[],
-  data?: Record<string, unknown>
-): VeoToolResult {
+export function veoResult(message: string, files: VeoArtifactFile[], data?: Record<string, unknown>): VeoToolResult {
   return [message, { files, ...(data ? { data } : {}) }]
 }
 
 function delay(milliseconds: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, milliseconds))
+}
+
+function queueJobId(requestId: string) {
+  return `veo-${requestId.replace(/[^a-zA-Z0-9._-]/g, '-')}`
+}
+
+function isTerminalQueueState(state?: string) {
+  return state === 'completed' || state === 'failed'
+}
+
+function requireManagedQueue<T>(queue: T | undefined): T {
+  if (!queue) throw new Error('Managed Queue is required for Google Veo generation.')
+  return queue
 }

@@ -29,6 +29,14 @@ models:
     position: models/llm/_position.yaml
     predefined:
     - models/llm/*.yaml
+  image:
+    position: models/image/_position.yaml
+    predefined:
+    - models/image/*.yaml
+  video:
+    position: models/video/_position.yaml
+    predefined:
+    - models/video/*.yaml
 provider: volcengine
 provider_credential_schema:
   credential_form_schemas:
@@ -53,3 +61,5 @@ provider_credential_schema:
     variable: api_endpoint_host
 supported_model_types:
 - llm
+- image
+- video

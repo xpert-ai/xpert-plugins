@@ -1,4 +1,8 @@
 import {
+  ModelProviderHttpClient,
+  type ModelProviderHttpResponse
+} from '@xpert-ai/plugin-sdk/model-provider-http-client'
+import {
   VeoApiBaseUrl,
   type VeoCredentials,
   type VeoModel,
@@ -8,17 +12,24 @@ import {
 const MAX_DOWNLOAD_BYTES = 500 * 1024 * 1024
 const MAX_REDIRECTS = 5
 
-export class GeminiVeoClient {
+export class GeminiVeoClient extends ModelProviderHttpClient {
   private readonly apiKey: string
-  private readonly fetchImpl: typeof fetch
 
   constructor(credentials: VeoCredentials, fetchImpl: typeof fetch = fetch) {
     const apiKey = credentials.gemini_api_key?.trim()
     if (!apiKey) {
       throw new Error('Gemini API key is missing')
     }
+    super({
+      provider: 'Gemini Veo',
+      baseUrl: VeoApiBaseUrl,
+      defaultHeaders: {
+        'x-goog-api-key': apiKey,
+        'Content-Type': 'application/json'
+      },
+      fetchImpl
+    })
     this.apiKey = apiKey
-    this.fetchImpl = fetchImpl
   }
 
   async submit(
@@ -26,18 +37,20 @@ export class GeminiVeoClient {
     payload: Record<string, unknown>
   ): Promise<VeoOperation> {
     return this.requestJson(
-      `${VeoApiBaseUrl}/models/${encodeURIComponent(model)}:predictLongRunning`,
+      `/models/${encodeURIComponent(model)}:predictLongRunning`,
       {
         method: 'POST',
         body: JSON.stringify(payload)
-      }
+      },
+      parseVeoOperation
     )
   }
 
   async getOperation(operationName: string): Promise<VeoOperation> {
     return this.requestJson(
-      `${VeoApiBaseUrl}/${validateVeoOperationName(operationName)}`,
-      { method: 'GET' }
+      `/${validateVeoOperationName(operationName)}`,
+      { method: 'GET' },
+      parseVeoOperation
     )
   }
 
@@ -45,7 +58,7 @@ export class GeminiVeoClient {
     let currentUrl = validateDownloadUrl(uri, true)
     for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
       const includeApiKey = currentUrl.hostname === 'generativelanguage.googleapis.com'
-      const response = await this.fetchImpl(currentUrl, {
+      const response = await this.fetchResponse(currentUrl, {
         method: 'GET',
         redirect: 'manual',
         headers: includeApiKey ? { 'x-goog-api-key': this.apiKey } : undefined
@@ -61,43 +74,48 @@ export class GeminiVeoClient {
       if (!response.ok) {
         throw new Error(`Veo video download failed with status ${response.status}`)
       }
-      const declaredLength = Number(response.headers.get('content-length'))
-      if (Number.isFinite(declaredLength) && declaredLength > MAX_DOWNLOAD_BYTES) {
-        throw new Error('Veo video exceeds the 500MB download safety limit')
-      }
-      const buffer = Buffer.from(await response.arrayBuffer())
-      if (buffer.length > MAX_DOWNLOAD_BYTES) {
-        throw new Error('Veo video exceeds the 500MB download safety limit')
-      }
+      const result = await this.readBufferResponse(response, {
+        maxBytes: MAX_DOWNLOAD_BYTES,
+        maxBytesError: 'Veo video exceeds the 500MB download safety limit',
+        defaultMimeType: 'video/mp4'
+      })
       return {
-        buffer,
-        mimeType:
-          response.headers.get('content-type')?.split(';')[0]?.trim() ||
-          'video/mp4'
+        buffer: result.buffer,
+        mimeType: result.mimeType ?? 'video/mp4'
       }
     }
     throw new Error('Veo video download exceeded the redirect limit')
   }
 
-  private async requestJson(
-    url: string,
-    init: RequestInit
-  ): Promise<VeoOperation> {
-    const response = await this.fetchImpl(url, {
-      ...init,
-      headers: {
-        'x-goog-api-key': this.apiKey,
-        'Content-Type': 'application/json',
-        ...(init.headers ?? {})
-      }
-    })
-    if (!response.ok) {
-      throw new Error(
-        `Gemini Veo API error ${response.status}: ${await readSafeProviderError(response)}`
-      )
-    }
-    return (await response.json()) as VeoOperation
+  protected override async createHttpError(response: ModelProviderHttpResponse): Promise<Error> {
+    return new Error(`Gemini Veo API error ${response.status}: ${await readSafeProviderError(response)}`)
   }
+}
+
+function parseVeoOperation(value: unknown): VeoOperation {
+  if (!isVeoOperation(value)) {
+    throw new Error('Gemini Veo API returned an invalid operation response')
+  }
+  return value
+}
+
+function isVeoOperation(value: unknown): value is VeoOperation {
+  if (!isRecord(value)) return false
+  return (
+    isOptionalString(value.name) &&
+    (value.done === undefined || typeof value.done === 'boolean') &&
+    (value.error === undefined || isRecord(value.error)) &&
+    (value.metadata === undefined || isRecord(value.metadata)) &&
+    (value.response === undefined || isRecord(value.response))
+  )
+}
+
+function isOptionalString(value: unknown) {
+  return value === undefined || typeof value === 'string'
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
 
 export function validateVeoOperationName(value: string) {
@@ -132,7 +150,7 @@ function validateDownloadUrl(value: string, requireGeminiHost: boolean) {
   return url
 }
 
-async function readSafeProviderError(response: Response) {
+async function readSafeProviderError(response: ModelProviderHttpResponse) {
   const raw = await response.text().catch(() => '')
   let message = raw
   try {

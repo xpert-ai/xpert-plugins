@@ -3,18 +3,16 @@ import {
   BuiltinToolset,
   type IToolsetStrategy,
   ToolsetStrategy,
+  XPERT_RUNTIME_CAPABILITIES_TOKEN,
+  type RuntimeCapabilityRegistry,
   type TBuiltinToolsetParams
 } from '@xpert-ai/plugin-sdk'
 import { buildVeoTools } from './tools.js'
 import {
   VeoSvgIcon,
-  VeoToolsetName,
-  type RuntimeCapabilityRegistryLike,
-  type VeoCredentials
+  VeoToolsetName
 } from './types.js'
 import { VeoToolset, type VeoToolsetDescriptor } from './toolset.js'
-
-const XPERT_RUNTIME_CAPABILITIES_TOKEN = 'XPERT_RUNTIME_CAPABILITIES'
 
 @Injectable()
 @ToolsetStrategy(VeoToolsetName)
@@ -94,25 +92,7 @@ export class VeoStrategy implements IToolsetStrategy<unknown> {
     },
     configSchema: {
       type: 'object',
-      properties: {
-        gemini_api_key: {
-          type: 'string',
-          minLength: 1,
-          title: 'Gemini API key',
-          secret: true,
-          'x-ui': {
-            title: {
-              en_US: 'Gemini API key',
-              zh_Hans: 'Gemini API 密钥'
-            },
-            description: {
-              en_US: 'API key created for the Gemini Developer API.',
-              zh_Hans: '为 Gemini Developer API 创建的 API 密钥。'
-            }
-          }
-        }
-      },
-      required: ['gemini_api_key'],
+      properties: {},
       additionalProperties: false
     }
   }
@@ -120,14 +100,11 @@ export class VeoStrategy implements IToolsetStrategy<unknown> {
   constructor(
     @Optional()
     @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN)
-    private readonly runtimeCapabilities?: RuntimeCapabilityRegistryLike
+    private readonly runtimeCapabilities?: RuntimeCapabilityRegistry
   ) {}
 
   async validateConfig(config: unknown): Promise<void> {
-    const credentials = readCredentials(config)
-    if (!credentials.gemini_api_key?.trim()) {
-      throw new Error('Gemini API key is missing')
-    }
+    void config
   }
 
   async create(
@@ -143,7 +120,6 @@ export class VeoStrategy implements IToolsetStrategy<unknown> {
 
   createTools(): ReturnType<IToolsetStrategy['createTools']> {
     const tools = buildVeoTools({
-      credentials: {},
       workspaceFiles: {
         uploadBuffer: async () => {
           throw new Error(
@@ -163,26 +139,10 @@ export class VeoStrategy implements IToolsetStrategy<unknown> {
   }
 }
 
-function readCredentials(config: unknown): VeoCredentials {
-  if (!isRecord(config)) return {}
-  if (isRecord(config.credentials)) {
-    return {
-      gemini_api_key: readOptionalString(config.credentials.gemini_api_key)
-    }
-  }
-  return {
-    gemini_api_key: readOptionalString(config.gemini_api_key)
-  }
-}
-
 function asToolsetDescriptor(config: unknown): VeoToolsetDescriptor {
   return isRecord(config)
     ? (config as unknown as VeoToolsetDescriptor)
     : undefined
-}
-
-function readOptionalString(value: unknown) {
-  return typeof value === 'string' ? value : undefined
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

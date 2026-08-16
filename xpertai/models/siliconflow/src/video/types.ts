@@ -1,5 +1,16 @@
+import type {
+  AgentMiddlewareRuntimeScope,
+  AsyncAIGCManagedJobPayload,
+  ManagedQueueService,
+  WorkspaceFile as PlatformWorkspaceFile,
+  WorkspaceFileCatalog as PlatformWorkspaceFileCatalog,
+  WorkspaceFileScope,
+  WorkspaceMediaFilesApi,
+  WorkspaceRuntimeFileDescriptor,
+  WorkspaceUploadBufferInput as PlatformWorkspaceUploadBufferInput
+} from '@xpert-ai/plugin-sdk'
+
 export const SiliconflowVideo = 'siliconflow_video'
-export const SiliconflowVideoWorkspaceCapability = 'platform.workspace.files'
 export const SiliconflowVideoDefaultBaseUrl = 'https://api.siliconflow.cn/v1'
 
 export const SiliconflowVideoTextModel = 'Wan-AI/Wan2.2-T2V-A14B'
@@ -16,56 +27,11 @@ export type SiliconflowVideoCredentials = {
   endpoint_url?: string
 }
 
-export type WorkspaceFileCatalog = 'projects' | 'users' | 'knowledges' | 'skills' | 'xperts'
-
-export type SiliconflowWorkspaceScope = {
-  tenantId?: string
-  userId?: string
-  catalog?: WorkspaceFileCatalog
-  scopeId?: string
-  projectId?: string
-  xpertId?: string
-  isolateByUser?: boolean
-}
-
-export type WorkspaceUploadBufferInput = SiliconflowWorkspaceScope & {
-  buffer: Buffer
-  originalName: string
-  mimeType?: string
-  size?: number
-  folder?: string
-  fileName?: string
-  metadata?: Record<string, unknown>
-}
-
-export type WorkspaceFile = {
-  name: string
-  filePath: string
-  workspacePath: string
-  fileUrl?: string
-  url?: string
-  mimeType?: string
-  size?: number
-  catalog: WorkspaceFileCatalog
-  scopeId?: string
-  metadata?: Record<string, unknown>
-}
-
-export type WorkspaceFilesApi = {
-  uploadBuffer(input: WorkspaceUploadBufferInput): Promise<WorkspaceFile>
-  readBuffer(input: SiliconflowWorkspaceScope & { filePath: string }): Promise<WorkspaceFile & { buffer: Buffer }>
-  readRuntimeBuffer?: (
-    input: SiliconflowWorkspaceScope & {
-      path?: string
-      filePath?: string
-      workspacePath?: string
-      mimeType?: string
-      mimetype?: string
-      name?: string
-      originalName?: string
-    }
-  ) => Promise<WorkspaceFile & { buffer: Buffer }>
-}
+export type WorkspaceFileCatalog = PlatformWorkspaceFileCatalog
+export type SiliconflowWorkspaceScope = WorkspaceFileScope
+export type WorkspaceUploadBufferInput = PlatformWorkspaceUploadBufferInput
+export type WorkspaceFile = PlatformWorkspaceFile
+export type WorkspaceFilesApi = WorkspaceMediaFilesApi<WorkspaceFileScope & WorkspaceRuntimeFileDescriptor>
 
 export type SiliconflowVideoGenerationPayload = {
   model: SiliconflowVideoModel
@@ -115,9 +81,18 @@ export type SiliconflowVideoArtifact = {
 export type SiliconflowVideoToolResult = [string, SiliconflowVideoArtifact]
 
 export type SiliconflowVideoToolDependencies = {
-  credentials: SiliconflowVideoCredentials
   workspaceFiles: WorkspaceFilesApi
   workspaceScope?: SiliconflowWorkspaceScope
+  managedQueue?: ManagedQueueService
+  pluginScopeKey?: string
+  runtimeScope?: AgentMiddlewareRuntimeScope
   fetch?: typeof fetch
   sleep?: (milliseconds: number) => Promise<void>
+}
+
+export type SiliconflowVideoJobPayload = AsyncAIGCManagedJobPayload<
+  SiliconflowVideoGenerationPayload,
+  SiliconflowVideoToolResult
+> & {
+  runtimeScope: AgentMiddlewareRuntimeScope
 }

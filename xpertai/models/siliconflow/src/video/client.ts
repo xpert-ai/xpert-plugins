@@ -1,3 +1,4 @@
+import { ModelProviderHttpClient } from '@xpert-ai/plugin-sdk/model-provider-http-client'
 import { getBaseUrlFromCredentials, type SiliconflowCredentials } from '../types.js'
 import {
   SiliconflowVideoDefaultBaseUrl,
@@ -11,11 +12,7 @@ const REQUEST_TIMEOUT_MS = 30_000
 const DOWNLOAD_TIMEOUT_MS = 120_000
 const MAX_VIDEO_BYTES = 512 * 1024 * 1024
 
-export class SiliconflowVideoClient {
-  private readonly baseUrl: string
-  private readonly apiKey: string
-  private readonly fetchImpl: typeof fetch
-
+export class SiliconflowVideoClient extends ModelProviderHttpClient {
   constructor(credentials: SiliconflowVideoCredentials, fetchImpl: typeof fetch = fetch) {
     const apiKey = credentials.api_key?.trim()
     if (!apiKey) {
@@ -31,23 +28,32 @@ export class SiliconflowVideoClient {
       throw new Error('SiliconFlow endpoint URL must use HTTP or HTTPS')
     }
 
-    this.apiKey = apiKey
-    this.baseUrl = baseUrl
-    this.fetchImpl = fetchImpl
+    super({
+      provider: 'SiliconFlow',
+      baseUrl,
+      defaultHeaders: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      fetchImpl,
+      requestTimeoutMs: REQUEST_TIMEOUT_MS
+    })
   }
 
   async submitVideo(payload: SiliconflowVideoGenerationPayload): Promise<SiliconflowVideoTask> {
-    return this.requestJson('/video/submit', {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    })
+    return this.requestJson(
+      '/video/submit',
+      { method: 'POST', body: JSON.stringify(payload) },
+      parseVideoTask
+    )
   }
 
   async getVideoTask(requestId: string): Promise<SiliconflowVideoTask> {
-    return this.requestJson('/video/status', {
-      method: 'POST',
-      body: JSON.stringify({ requestId })
-    })
+    return this.requestJson(
+      '/video/status',
+      { method: 'POST', body: JSON.stringify({ requestId }) },
+      parseVideoTask
+    )
   }
 
   async downloadBuffer(url: string): Promise<{ buffer: Buffer; mimeType?: string }> {
@@ -56,58 +62,16 @@ export class SiliconflowVideoClient {
       throw new Error('Generated video URL must use HTTPS')
     }
 
-    const response = await this.fetchWithTimeout(url, { method: 'GET' }, DOWNLOAD_TIMEOUT_MS)
+    const response = await this.fetchResponse(url, { method: 'GET' }, DOWNLOAD_TIMEOUT_MS)
     if (!response.ok) {
       throw new Error(`Failed to download generated video: ${response.status} ${response.statusText}`)
     }
 
-    const contentLength = response.headers.get('content-length')
-    if (contentLength && Number(contentLength) > MAX_VIDEO_BYTES) {
-      throw new Error('Generated video exceeds the 512MB limit')
-    }
-
-    const buffer = Buffer.from(await response.arrayBuffer())
-    if (buffer.length > MAX_VIDEO_BYTES) {
-      throw new Error('Generated video exceeds the 512MB limit')
-    }
-
-    return {
-      buffer,
-      mimeType: response.headers.get('content-type')?.split(';')[0]?.trim() || 'video/mp4'
-    }
-  }
-
-  private async requestJson(path: string, init: RequestInit): Promise<SiliconflowVideoTask> {
-    const response = await this.fetchWithTimeout(`${this.baseUrl}${path}`, {
-      ...init,
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-        ...(init.headers ?? {})
-      }
-    }, REQUEST_TIMEOUT_MS)
-
-    if (!response.ok) {
-      const text = await response.text().catch(() => '')
-      throw new Error(`SiliconFlow API error ${response.status}: ${text || response.statusText}`)
-    }
-
-    return parseVideoTask(await response.json())
-  }
-
-  private async fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number) {
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), timeoutMs)
-    try {
-      return await this.fetchImpl(url, { ...init, signal: controller.signal })
-    } catch (error) {
-      if (controller.signal.aborted) {
-        throw new Error(`SiliconFlow request timed out after ${timeoutMs}ms`)
-      }
-      throw error
-    } finally {
-      clearTimeout(timeout)
-    }
+    return this.readBufferResponse(response, {
+      maxBytes: MAX_VIDEO_BYTES,
+      maxBytesError: 'Generated video exceeds the 512MB limit',
+      defaultMimeType: 'video/mp4'
+    })
   }
 }
 

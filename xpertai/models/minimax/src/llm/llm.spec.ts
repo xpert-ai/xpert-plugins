@@ -60,6 +60,33 @@ describe('MiniMaxLargeLanguageModel', () => {
     expect(params.reasoning_split).toBe(true);
   });
 
+  it('installs the shared usage callbacks on MiniMax chat models', () => {
+    const handleLLMTokens = jest.fn();
+    const usageCallbacks = [{ handleLLMEnd: jest.fn() }];
+    const createUsageCallbacks = jest
+      .spyOn(llm, 'createHandleUsageCallbacks')
+      .mockReturnValue(usageCallbacks);
+
+    llm.getChatModel(
+      createCopilotModel('MiniMax-M2.7-highspeed', {
+        streaming: true,
+        max_tokens: 256
+      }),
+      {
+        handleLLMTokens,
+        modelProperties: {},
+        verbose: false
+      }
+    );
+
+    expect(createUsageCallbacks).toHaveBeenCalledWith(
+      expect.any(Object),
+      'MiniMax-M2.7-highspeed',
+      expect.objectContaining({ api_key: 'test-key', group_id: 'test-group' }),
+      handleLLMTokens
+    );
+  });
+
   it('maps reasoning_details into reasoning_content for non-streaming responses', async () => {
     const model = llm.getChatModel(
       createCopilotModel('MiniMax-M2.7-highspeed', {

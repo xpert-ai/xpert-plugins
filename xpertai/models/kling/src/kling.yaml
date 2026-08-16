@@ -1,5 +1,6 @@
 background: '#F9FAFB'
-configurate_methods: []
+configurate_methods:
+- predefined-model
 description:
   en_US: Official Kling AI video generation.
   zh_Hans: 可灵 AI 官方视频生成。
@@ -37,4 +38,5 @@ provider_credential_schema:
     required: false
     type: text-input
     variable: api_endpoint_host
-supported_model_types: []
+supported_model_types:
+- video
