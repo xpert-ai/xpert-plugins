@@ -1,4 +1,52 @@
-import { applyTongyiExplicitCache, toTongyiConfigurationWithExtraHeaders } from './llm.js'
+import {
+  applyTongyiExplicitCache,
+  getTongyiPricingContext,
+  toTongyiConfigurationWithExtraHeaders
+} from './llm.js'
+
+describe('getTongyiPricingContext', () => {
+  it('uses explicit request mode and the selected DashScope endpoint', () => {
+    expect(
+      getTongyiPricingContext(
+        { dashscope_api_key: 'test', use_international_endpoint: true },
+        { enable_thinking: true }
+      )
+    ).toEqual({ mode: 'thinking', region: 'international' })
+
+    expect(
+      getTongyiPricingContext(
+        { dashscope_api_key: 'test' },
+        { enable_thinking: false }
+      )
+    ).toEqual({ mode: 'standard', region: 'cn' })
+  })
+
+  it('uses the default standard mode without inferring the region behind a custom endpoint', () => {
+    expect(
+      getTongyiPricingContext({ dashscope_api_key: 'test', api_host: 'proxy.example.com' })
+    ).toEqual({ mode: 'standard', region: undefined })
+  })
+
+  it('honors an explicit region selection behind a custom endpoint', () => {
+    expect(
+      getTongyiPricingContext({
+        dashscope_api_key: 'test',
+        api_host: 'proxy.example.com',
+        use_international_endpoint: true
+      })
+    ).toEqual({ mode: 'standard', region: 'international' })
+  })
+
+  it('ignores unobservable search add-on cost while preserving token pricing context', () => {
+    const context = getTongyiPricingContext(
+      { dashscope_api_key: 'test' },
+      { enable_search: true }
+    )
+
+    expect(context).toEqual({ mode: 'standard', region: 'cn' })
+    expect(context).not.toHaveProperty('unpricedAddOns')
+  })
+})
 
 describe('applyTongyiExplicitCache', () => {
   it.each([

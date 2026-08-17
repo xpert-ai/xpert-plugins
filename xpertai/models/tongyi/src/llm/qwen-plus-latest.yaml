@@ -124,8 +124,106 @@ parameter_rules:
 pricing:
   input: '0.0008'             # 0<Token≤128K
   output: '0.002'             # 0<Token≤128K
-# Tiered pricing per 1k tokens: 0<Token≤128K=0.0008/0.002
-# 128K<Token≤256K=0.0024/0.02
-# 256K<Token≤1M=0.0048/0.048
   unit: '0.001'
   currency: RMB
+  rules:
+    - component: input
+      unit_price: 0.8
+      unit_size: 1000000
+      max_input_tokens: 128000
+      region: cn
+    - component: input
+      unit_price: 2.4
+      unit_size: 1000000
+      min_input_tokens: 128001
+      max_input_tokens: 256000
+      region: cn
+    - component: input
+      unit_price: 4.8
+      unit_size: 1000000
+      min_input_tokens: 256001
+      max_input_tokens: 1000000
+      region: cn
+    - component: output
+      unit_price: 2
+      unit_size: 1000000
+      max_input_tokens: 128000
+      mode: standard
+      region: cn
+    - component: output
+      unit_price: 20
+      unit_size: 1000000
+      min_input_tokens: 128001
+      max_input_tokens: 256000
+      mode: standard
+      region: cn
+    - component: output
+      unit_price: 48
+      unit_size: 1000000
+      min_input_tokens: 256001
+      max_input_tokens: 1000000
+      mode: standard
+      region: cn
+    - component: output
+      unit_price: 8
+      unit_size: 1000000
+      max_input_tokens: 128000
+      mode: thinking
+      region: cn
+    - component: output
+      unit_price: 24
+      unit_size: 1000000
+      min_input_tokens: 128001
+      max_input_tokens: 256000
+      mode: thinking
+      region: cn
+    - component: output
+      unit_price: 64
+      unit_size: 1000000
+      min_input_tokens: 256001
+      max_input_tokens: 1000000
+      mode: thinking
+      region: cn
+    - component: input
+      unit_price: 0.4
+      unit_size: 1000000
+      currency: USD
+      max_input_tokens: 256000
+      region: international
+    - component: input
+      unit_price: 1.2
+      unit_size: 1000000
+      currency: USD
+      min_input_tokens: 256001
+      max_input_tokens: 1000000
+      region: international
+    - component: output
+      unit_price: 1.2
+      unit_size: 1000000
+      currency: USD
+      max_input_tokens: 256000
+      mode: standard
+      region: international
+    - component: output
+      unit_price: 3.6
+      unit_size: 1000000
+      currency: USD
+      min_input_tokens: 256001
+      max_input_tokens: 1000000
+      mode: standard
+      region: international
+    - component: output
+      unit_price: 4
+      unit_size: 1000000
+      currency: USD
+      max_input_tokens: 256000
+      mode: thinking
+      region: international
+    - component: output
+      unit_price: 12
+      unit_size: 1000000
+      currency: USD
+      min_input_tokens: 256001
+      max_input_tokens: 1000000
+      mode: thinking
+      region: international

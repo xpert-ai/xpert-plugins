@@ -4,7 +4,12 @@ import { AiModelTypeEnum, ICopilotModel } from '@xpert-ai/contracts'
 import { Injectable, Logger } from '@nestjs/common'
 import { ChatOAICompatReasoningModel, LargeLanguageModel, TChatModelOptions } from '@xpert-ai/plugin-sdk'
 import { isNil, omitBy } from 'lodash-es'
-import { toCredentialKwargs, TongyiCredentials, TongyiModelCredentials } from '../types.js'
+import {
+  isTongyiInternationalEndpointEnabled,
+  toCredentialKwargs,
+  TongyiCredentials,
+  TongyiModelCredentials
+} from '../types.js'
 import { TongyiProviderStrategy } from '../provider.strategy.js'
 
 const TONGYI_EXPLICIT_CACHE_MODELS = new Set([
@@ -99,6 +104,27 @@ export function toTongyiConfigurationWithExtraHeaders(
       ...(isPlainObject(configuration.defaultHeaders) ? configuration.defaultHeaders : {}),
       ...parsedExtraHeaders
     }
+  }
+}
+
+export function getTongyiPricingContext(
+  credentials: TongyiCredentials,
+  modelCredentials?: TongyiModelCredentials
+) {
+  const endpointSelection = credentials.use_international_endpoint
+  const region = credentials.api_host
+    ? endpointSelection === true || endpointSelection === 'true'
+      ? 'international'
+      : endpointSelection === false || endpointSelection === 'false'
+        ? 'cn'
+        : undefined
+    : isTongyiInternationalEndpointEnabled(credentials)
+      ? 'international'
+      : 'cn'
+
+  return {
+    mode: modelCredentials?.enable_thinking === true ? 'thinking' : 'standard',
+    region
   }
 }
 
@@ -277,7 +303,13 @@ export class TongyiLargeLanguageModel extends LargeLanguageModel {
       ...fields,
       verbose: options?.verbose,
       callbacks: [
-        ...this.createHandleUsageCallbacks(copilot, model, credentials, handleLLMTokens),
+        ...this.createHandleUsageCallbacks(
+          copilot,
+          model,
+          credentials,
+          handleLLMTokens,
+          getTongyiPricingContext(credentials, modelCredentials)
+        ),
         this.createHandleLLMErrorCallbacks(fields, this.#logger)
       ],
       metadata: {
