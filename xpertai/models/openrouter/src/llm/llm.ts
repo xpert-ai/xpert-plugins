@@ -1,4 +1,5 @@
-import { ChatOpenAI, ChatOpenAIFields, ClientOptions } from '@langchain/openai';
+import { ChatOpenAI } from '@langchain/openai';
+import { LLMResult } from '@langchain/core/outputs';
 import { AiModelTypeEnum, ICopilotModel } from '@xpert-ai/contracts';
 import { Injectable, Logger } from '@nestjs/common';
 import {
@@ -68,10 +69,47 @@ export class OpenRouterLargeLanguageModel extends LargeLanguageModel {
           copilot,
           params.model,
           modelCredentials,
-          handleLLMTokens
+          handleLLMTokens,
+          {
+            resolveReportedPrice: getOpenRouterReportedPrice,
+            reportedPriceRequired: true,
+          }
         ),
         this.createHandleLLMErrorCallbacks(fields, this.#logger),
       ],
     });
   }
+}
+
+export function getOpenRouterReportedPrice(output: LLMResult) {
+  const usageCandidates = [
+    output.llmOutput?.['usage'],
+    ...(output.generations ?? [])
+      .flat()
+      .map(readGenerationUsage),
+  ];
+
+  for (const usage of usageCandidates) {
+    if (!isRecord(usage)) continue;
+    const amount = Number(usage['cost']);
+    if (Number.isFinite(amount) && amount >= 0) {
+      return { amount, currency: 'USD' };
+    }
+  }
+
+  return undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function readGenerationUsage(
+  generation: LLMResult['generations'][number][number]
+) {
+  if (!isRecord(generation) || !isRecord(generation['message'])) {
+    return undefined;
+  }
+  const responseMetadata = generation['message']['response_metadata'];
+  return isRecord(responseMetadata) ? responseMetadata['usage'] : undefined;
 }
