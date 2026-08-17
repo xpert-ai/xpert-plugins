@@ -134,6 +134,12 @@ export class OAIAPICompatLargeLanguageModel extends LargeLanguageModel {
       ...(runtimeEnableThinking !== undefined ? { enable_thinking: toBoolean(runtimeEnableThinking) } : {})
     } as OpenAICompatModelCredentials
     const params = toCredentialKwargs(runtimeCredentials, copilotModel.model, { includeCustomBodyParams: true })
+    if (runtimeEnableThinking !== undefined) {
+      const enableThinking = toBoolean(runtimeEnableThinking)
+      params.modelKwargs['enable_thinking'] = enableThinking
+      params.modelKwargs['chat_template_kwargs'] ??= {}
+      params.modelKwargs['chat_template_kwargs']['enable_thinking'] = enableThinking
+    }
     const modelOptions = copilotModel.options ?? {}
 
     return this.createChatModel({
@@ -303,6 +309,11 @@ export class OAIAPICompatLargeLanguageModel extends LargeLanguageModel {
       }
     }
 
+    const defaultModelKwargs = toCredentialKwargs(credentials as OpenAICompatModelCredentials, model, {
+      includeCustomBodyParams: true
+    }).modelKwargs
+    const defaultEnableThinking = defaultModelKwargs?.['enable_thinking']
+
     rules.push({
       name: 'enable_thinking',
       label: {
@@ -315,7 +326,8 @@ export class OAIAPICompatLargeLanguageModel extends LargeLanguageModel {
         zh_Hans: '是否开启思考模式，适用于vLLM和SGLang等推理框架部署的多种思考模式模型，例如Qwen3。'
       },
       type: ParameterType.BOOLEAN,
-      required: false
+      required: false,
+      default: defaultEnableThinking === undefined ? false : toBoolean(defaultEnableThinking)
     })
 
     const contextLength = credentials['context_length'] ?? 2048

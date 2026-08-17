@@ -64,6 +64,16 @@ type DeepSeekChatModelFields = ConstructorParameters<typeof ChatOAICompatReasoni
   thinking?: boolean;
 };
 
+export function buildDeepSeekThinkingParameter(thinking: boolean | undefined) {
+  return thinking === undefined
+    ? {}
+    : {
+        thinking: {
+          type: thinking ? 'enabled' : 'disabled',
+        },
+      };
+}
+
 type MessageWithKwargs = BaseMessage & {
   name?: string;
   tool_calls?: Array<unknown>;
@@ -345,12 +355,12 @@ function convertMessagesToOpenAIParamsWithReasoning(messages: BaseMessage[], mod
  * ensure reasoning_content from assistant messages is forwarded in subsequent requests.
  */
 export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningModel {
-  private readonly thinkingEnabled: boolean;
+  private readonly thinkingEnabled: boolean | undefined;
 
   constructor(fields: DeepSeekChatModelFields) {
     const { thinking, ...rest } = fields;
     super(rest as ConstructorParameters<typeof ChatOAICompatReasoningModel>[0]);
-    this.thinkingEnabled = Boolean(thinking);
+    this.thinkingEnabled = thinking;
   }
 
   override async _generate(
@@ -434,12 +444,7 @@ export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningM
         messages: safeMessages as never,
       } as Record<string, unknown>;
 
-      // Enable thinking mode for deepseek-chat via third-party compatible providers
-      if (this.model === 'deepseek-chat' && this.thinkingEnabled) {
-        requestParams.thinking = {
-          type: 'enabled',
-        };
-      }
+      Object.assign(requestParams, buildDeepSeekThinkingParameter(this.thinkingEnabled));
       
       const data = (await this.completionWithRetry(
         requestParams as never,
@@ -570,12 +575,7 @@ export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningM
       stream: true,
     } as Record<string, unknown>;
     
-    // Enable thinking mode for deepseek-chat via third-party compatible providers
-    if (this.model === 'deepseek-chat' && this.thinkingEnabled) {
-      params.thinking = {
-        type: 'enabled',
-      };
-    }
+    Object.assign(params, buildDeepSeekThinkingParameter(this.thinkingEnabled));
     let defaultRole: 'function' | 'system' | 'tool' | 'assistant' | 'user' | undefined;
     const streamIterable = (await this.completionWithRetry(
       params as never,
@@ -764,6 +764,10 @@ export class DeepSeekLargeLanguageModel extends LargeLanguageModel {
       topP: modelCredentials?.top_p,
       frequencyPenalty: modelCredentials?.frequency_penalty,
       thinking: modelCredentials?.thinking,
+      modelKwargs:
+        modelCredentials?.reasoning_effort === undefined
+          ? undefined
+          : { reasoning_effort: modelCredentials.reasoning_effort },
       maxRetries: modelCredentials?.maxRetries,
       streamUsage: false,
       verbose: options?.verbose,
