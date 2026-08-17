@@ -186,4 +186,27 @@ describe('getCustomizableModelSchemaFromCredentials', () => {
       enable_thinking: true
     })
   })
+
+  it('should pass thinking for every predefined model that declares the parameter', () => {
+    const model = llm.getChatModel(
+      createCopilotModel('deepseek-ai/DeepSeek-V3.1', {
+        enable_thinking: true
+      }),
+      { modelProperties: createCredentials() } as unknown as TChatModelOptions,
+      null
+    )
+
+    expect(model.invocationParams()['enable_thinking']).toBe(true)
+  })
+
+  it('keeps fixed thinking models in reasoning mode without sending an unsupported toggle', () => {
+    const model = llm.getChatModel(
+      createCopilotModel('moonshotai/Kimi-K2-Thinking'),
+      { modelProperties: createCredentials() } as unknown as TChatModelOptions,
+      null
+    )
+
+    expect(model.invocationParams()['enable_thinking']).toBeUndefined()
+    expect((model as unknown as { thinkingEnabled: boolean }).thinkingEnabled).toBe(true)
+  })
 })
