@@ -1,10 +1,12 @@
 import { ChatAnthropic, AnthropicInput } from '@langchain/anthropic'
 import type { Callbacks } from '@langchain/core/callbacks/manager'
+import type { LLMResult } from '@langchain/core/outputs'
 import {
   AIModelEntity,
   AiModelTypeEnum,
   FetchFrom,
   ICopilotModel,
+  LLMPriceContext,
   ModelFeature,
   ModelPropertyKey,
   ParameterType
@@ -36,6 +38,74 @@ type AnthropicChatModelParams = AnthropicInput & {
   promptCaching?: AnthropicPromptCachingOptions
 }
 
+type AnthropicCacheCreationUsage = {
+  ephemeral5mInputTokens: number
+  ephemeral1hInputTokens: number
+}
+
+export function getAnthropicPricingContext(output: LLMResult): LLMPriceContext {
+  let ephemeral5mInputTokens = 0
+  let ephemeral1hInputTokens = 0
+  let hasCacheCreationBreakdown = false
+
+  for (const generation of output.generations ?? []) {
+    for (const item of generation) {
+      if (!('message' in item)) continue
+      const message = item.message
+      if (typeof message !== 'object' || message === null || !('response_metadata' in message)) continue
+      const cacheCreation = readAnthropicCacheCreation(message.response_metadata)
+      if (!cacheCreation) continue
+
+      hasCacheCreationBreakdown = true
+      ephemeral5mInputTokens += cacheCreation.ephemeral5mInputTokens
+      ephemeral1hInputTokens += cacheCreation.ephemeral1hInputTokens
+    }
+  }
+
+  return hasCacheCreationBreakdown
+    ? {
+        cacheWriteInputTokensByTtl: {
+          '5m': ephemeral5mInputTokens,
+          '1h': ephemeral1hInputTokens
+        }
+      }
+    : {}
+}
+
+function readAnthropicCacheCreation(responseMetadata: unknown): AnthropicCacheCreationUsage | undefined {
+  if (typeof responseMetadata !== 'object' || responseMetadata === null || !('usage' in responseMetadata)) {
+    return undefined
+  }
+  const usage = responseMetadata.usage
+  if (typeof usage !== 'object' || usage === null || !('cache_creation' in usage)) {
+    return undefined
+  }
+  const cacheCreation = usage.cache_creation
+  if (
+    typeof cacheCreation !== 'object' ||
+    cacheCreation === null ||
+    !('ephemeral_5m_input_tokens' in cacheCreation) ||
+    !('ephemeral_1h_input_tokens' in cacheCreation)
+  ) {
+    return undefined
+  }
+  const ephemeral5mInputTokens = cacheCreation.ephemeral_5m_input_tokens
+  const ephemeral1hInputTokens = cacheCreation.ephemeral_1h_input_tokens
+  if (
+    !Number.isInteger(ephemeral5mInputTokens) ||
+    Number(ephemeral5mInputTokens) < 0 ||
+    !Number.isInteger(ephemeral1hInputTokens) ||
+    Number(ephemeral1hInputTokens) < 0
+  ) {
+    return undefined
+  }
+
+  return {
+    ephemeral5mInputTokens: Number(ephemeral5mInputTokens),
+    ephemeral1hInputTokens: Number(ephemeral1hInputTokens)
+  }
+}
+
 @Injectable()
 export class AnthropicLargeLanguageModel extends LargeLanguageModel {
   readonly #logger = new Logger(AnthropicLargeLanguageModel.name)
@@ -44,10 +114,7 @@ export class AnthropicLargeLanguageModel extends LargeLanguageModel {
     super(modelProvider, AiModelTypeEnum.LLM)
   }
 
-  async validateCredentials(
-    model: string,
-    credentials: AnthropicCredentials
-  ): Promise<void> {
+  async validateCredentials(model: string, credentials: AnthropicCredentials): Promise<void> {
     const params = toCredentialKwargs(credentials, model)
 
     try {
@@ -96,14 +163,11 @@ export class AnthropicLargeLanguageModel extends LargeLanguageModel {
       cacheSystemMessage: normalizeBoolean(optionValue('prompt_caching_system_message')) ?? true,
       cacheImages: normalizeBoolean(optionValue('prompt_caching_images')) ?? true,
       cacheDocuments: normalizeBoolean(optionValue('prompt_caching_documents')) ?? true,
-      cacheToolDefinitions:
-        normalizeBoolean(optionValue('prompt_caching_tool_definitions')) ?? true,
+      cacheToolDefinitions: normalizeBoolean(optionValue('prompt_caching_tool_definitions')) ?? true,
       cacheToolResults: normalizeBoolean(optionValue('prompt_caching_tool_results')) ?? true
     } satisfies AnthropicPromptCachingOptions
     const betaHeader = buildAnthropicBetaHeader({
-      context1m:
-        copilotModel.model === 'claude-sonnet-4-6' &&
-        (normalizeBoolean(optionValue('context_1m')) ?? true),
+      context1m: copilotModel.model === 'claude-sonnet-4-6' && (normalizeBoolean(optionValue('context_1m')) ?? true),
       promptCaching
     })
     const params = toCredentialKwargs(
@@ -126,10 +190,7 @@ export class AnthropicLargeLanguageModel extends LargeLanguageModel {
         maxTokens: normalizeInteger(optionValue('max_tokens')),
         topK: thinkingEnabled ? undefined : normalizeInteger(optionValue('top_k')),
         topP: thinkingEnabled ? undefined : normalizeNumber(optionValue('top_p')),
-        thinking: buildAnthropicThinkingConfig(
-          thinkingEnabled,
-          normalizeInteger(optionValue('thinking_budget'))
-        ),
+        thinking: buildAnthropicThinkingConfig(thinkingEnabled, normalizeInteger(optionValue('thinking_budget'))),
         promptCaching,
         verbose: options?.verbose
       },
@@ -143,7 +204,11 @@ export class AnthropicLargeLanguageModel extends LargeLanguageModel {
           copilot,
           params.model || params.modelName || copilotModel.model,
           modelCredentials,
-          handleLLMTokens
+          handleLLMTokens,
+          {
+            context: { inputTokensIncludeCache: false },
+            resolveContext: getAnthropicPricingContext
+          }
         ),
         this.createHandleLLMErrorCallbacks(fields, this.#logger)
       ]
@@ -204,9 +269,7 @@ export class AnthropicLargeLanguageModel extends LargeLanguageModel {
       features.push(ModelFeature.VISION)
     }
 
-    const contextSize = credentials['context_size']
-      ? parseInt(credentials['context_size'], 10)
-      : 200000
+    const contextSize = credentials['context_size'] ? parseInt(credentials['context_size'], 10) : 200000
 
     let label = {
       zh_Hans: model,
