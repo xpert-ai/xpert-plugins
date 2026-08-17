@@ -60,7 +60,6 @@ parameter_rules:
       zh_Hans: 推理模式
       en_US: Thinking Mode
     type: string
-    default: enabled
     required: false
     options:
       - enabled
