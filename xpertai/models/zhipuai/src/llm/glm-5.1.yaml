@@ -100,3 +100,36 @@ parameter_rules:
     options:
       - text
       - json_object
+pricing:
+  input: '0.006'
+  output: '0.024'
+  unit: '0.001'
+  currency: RMB
+  rules:
+    - component: input
+      unit_price: 6
+      unit_size: 1000000
+      max_input_tokens: 31999
+    - component: output
+      unit_price: 24
+      unit_size: 1000000
+      max_input_tokens: 31999
+    - component: cache_read_input
+      unit_price: 1.3
+      unit_size: 1000000
+      max_input_tokens: 31999
+    - component: input
+      unit_price: 8
+      unit_size: 1000000
+      min_input_tokens: 32000
+      max_input_tokens: 200000
+    - component: output
+      unit_price: 28
+      unit_size: 1000000
+      min_input_tokens: 32000
+      max_input_tokens: 200000
+    - component: cache_read_input
+      unit_price: 2
+      unit_size: 1000000
+      min_input_tokens: 32000
+      max_input_tokens: 200000
