@@ -1,4 +1,22 @@
-import { applyTongyiExplicitCache, toTongyiConfigurationWithExtraHeaders } from './llm.js'
+import { TongyiProviderStrategy } from '../provider.strategy.js'
+import {
+  applyTongyiExplicitCache,
+  TongyiLargeLanguageModel,
+  toTongyiConfigurationWithExtraHeaders
+} from './llm.js'
+
+describe('Tongyi thinking defaults', () => {
+  it('enables every configurable thinking mode by default', () => {
+    const llm = new TongyiLargeLanguageModel(new TongyiProviderStrategy())
+    const thinkingRules = llm
+      .predefinedModels()
+      .flatMap((model) => model.parameter_rules ?? [])
+      .filter((rule) => rule.name === 'enable_thinking')
+
+    expect(thinkingRules.length).toBeGreaterThan(0)
+    expect(thinkingRules.every((rule) => rule.default === true)).toBe(true)
+  })
+})
 
 describe('applyTongyiExplicitCache', () => {
   it.each([

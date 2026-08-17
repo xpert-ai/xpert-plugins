@@ -259,6 +259,7 @@ export class TongyiLargeLanguageModel extends LargeLanguageModel {
           {
             enable_thinking: modelCredentials?.enable_thinking,
             thinking_budget: modelCredentials?.thinking_budget,
+            reasoning_effort: modelCredentials?.reasoning_effort,
             tool_stream: modelCredentials?.tool_stream,
             enable_search: modelCredentials?.enable_search,
             response_format: modelCredentials?.response_format

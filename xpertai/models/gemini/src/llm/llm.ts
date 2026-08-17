@@ -1,4 +1,4 @@
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { ChatGoogleGenerativeAI, GoogleGenerativeAIChatInput } from '@langchain/google-genai';
 import { AiModelTypeEnum, ICopilotModel } from '@xpert-ai/contracts';
 import { Injectable, Logger } from '@nestjs/common';
 import {
@@ -10,6 +10,27 @@ import {
 } from '@xpert-ai/plugin-sdk';
 import { GeminiProviderStrategy } from '../provider.strategy.js';
 import { GeminiModelCredentials, toCredentialKwargs } from '../types.js';
+import {
+  buildGeminiInvocationParams,
+  GeminiModelOptions,
+  toGeminiFiniteNumber,
+} from './model-parameters.js';
+
+class GeminiChatGoogleGenerativeAI extends ChatGoogleGenerativeAI {
+  readonly #modelOptions: GeminiModelOptions;
+
+  constructor(fields: GoogleGenerativeAIChatInput, modelOptions: GeminiModelOptions) {
+    super(fields);
+    this.#modelOptions = modelOptions;
+  }
+
+  override invocationParams(options?: Parameters<ChatGoogleGenerativeAI['invocationParams']>[0]) {
+    return buildGeminiInvocationParams(
+      { ...super.invocationParams(options) },
+      this.#modelOptions
+    ) as ReturnType<ChatGoogleGenerativeAI['invocationParams']>;
+  }
+}
 
 @Injectable()
 export class GeminiLargeLanguageModel extends LargeLanguageModel {
@@ -50,24 +71,32 @@ export class GeminiLargeLanguageModel extends LargeLanguageModel {
       options?.modelProperties
     ) as GeminiModelCredentials;
     const params = toCredentialKwargs(modelCredentials);
+    const modelOptions = copilotModel.options ?? {};
 
     const fields = {
       ...params,
       model: copilotModel.model,
       streaming: true,
+      temperature: toGeminiFiniteNumber(modelOptions['temperature']),
+      topP: toGeminiFiniteNumber(modelOptions['top_p']),
+      topK: toGeminiFiniteNumber(modelOptions['top_k']),
+      maxOutputTokens: toGeminiFiniteNumber(modelOptions['max_output_tokens'] ?? modelOptions['max_tokens']),
       maxRetries: modelCredentials?.maxRetries,
     };
-    return new ChatGoogleGenerativeAI({
-      ...fields,
-      callbacks: [
-        ...this.createHandleUsageCallbacks(
-          copilot,
-          copilotModel.model,
-          modelCredentials,
-          handleLLMTokens
-        ),
-        this.createHandleLLMErrorCallbacks(fields, this.#logger),
-      ],
-    }) as any;
+    return new GeminiChatGoogleGenerativeAI(
+      {
+        ...fields,
+        callbacks: [
+          ...this.createHandleUsageCallbacks(
+            copilot,
+            copilotModel.model,
+            modelCredentials,
+            handleLLMTokens
+          ),
+          this.createHandleLLMErrorCallbacks(fields, this.#logger),
+        ],
+      },
+      modelOptions
+    );
   }
 }
