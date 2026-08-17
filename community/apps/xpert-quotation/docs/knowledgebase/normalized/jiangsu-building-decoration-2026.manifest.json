@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "xpert.quotation.quota-manifest/v1",
+  "parserVersion": "1.0.0",
+  "generatedAt": "2026-08-10T02:47:24.021Z",
+  "source": {
+    "file": "docs/1．江苏省建筑与装饰工程消耗量.pdf",
+    "sha256": "da0d02eeb9f2f8fd4e8434c392ab449ac9cc2c0eff522d3cdf93282357ff61dc",
+    "totalPdfPages": 815,
+    "processedPageRange": {
+      "start": 1,
+      "end": 815
+    }
+  },
+  "counts": {
+    "tables": 1065,
+    "quotaItems": 3115,
+    "ingestionReady": 2998,
+    "reviewRequired": 117,
+    "resourceRows": 10393,
+    "warnings": 177
+  },
+  "warningCounts": {
+    "missing_quota_unit": 105,
+    "missing_item_name": 5,
+    "missing_work_content": 55,
+    "missing_resources": 12
+  },
+  "missingRequiredSources": [
+    {
+      "code": "jiangsu_repair_2009",
+      "name": "江苏省房屋修缮工程计价表（2009年）",
+      "reason": "现有 2026 消耗量明确排除拆除、铲除、拆换和零星修补。"
+    },
+    {
+      "code": "jiangsu_installation_2026",
+      "name": "江苏省通用安装工程消耗量（2026）",
+      "reason": "原报价文件包含安装工程清单，现有建筑与装饰 PDF 不覆盖安装项目。"
+    },
+    {
+      "code": "jiangsu_fee_rules",
+      "name": "目标计价口径的管理费、利润和风险费率规则",
+      "reason": "综合单价费用组成必须由版本化计价规则驱动。"
+    }
+  ],
+  "availableSupportingSources": [
+    {
+      "code": "nanjing_price_2026_06",
+      "name": "南京市二〇二六年六月建设工程材料、机械及劳务市场信息价格",
+      "file": "docs/价格信息.pdf",
+      "status": "present_not_normalized",
+      "reason": "已发现价格期来源；尚未由本定额规范化脚本生成价格项 NDJSON，也尚未确认已上传到 Xpert 知识库。"
+    }
+  ],
+  "ingestionPolicy": {
+    "defaultReviewStatus": "unreviewed",
+    "allowAutomaticPricing": false,
+    "requiredHumanChecks": [
+      "核对定额名称、计量单位和人材机列对应关系",
+      "核对调整系数、适用条件和排除项",
+      "补齐缺失计价依据和价格期数据后再标记为 approved"
+    ]
+  }
+}

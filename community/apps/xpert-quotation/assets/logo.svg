@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Xpert Quotation">
+  <rect x="7" y="8" width="50" height="48" rx="6" fill="#176b45"/>
+  <path d="M17 19h30v7H17zm0 12h17v5H17zm0 10h17v5H17z" fill="#ecfdf5"/>
+  <circle cx="44" cy="40" r="9" fill="#f5b942"/>
+  <path d="M44 34v12m-4-9h6m-6 6h7" stroke="#17352a" stroke-width="2" stroke-linecap="round"/>
+</svg>

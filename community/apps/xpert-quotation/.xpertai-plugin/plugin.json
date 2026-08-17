@@ -1,0 +1,35 @@
+{
+  "name": "@xpert-ai/plugin-xpert-quotation",
+  "version": "1.1.0",
+  "description": "Xpert quotation Workbench with structured quota resources, resource-level knowledge pricing, deterministic calculation, and format-preserving XLSX patching.",
+  "author": "XpertAI",
+  "homepage": "https://github.com/xpert-ai/xpert-plugins/tree/main/community/apps/xpert-quotation",
+  "repository": "https://github.com/xpert-ai/xpert-plugins/tree/main/community/apps/xpert-quotation",
+  "license": "AGPL-3.0",
+  "keywords": ["quotation", "xlsx", "xpert-software", "knowledge-base", "workbench"],
+  "artifactNamespace": "xpert_quotation",
+  "interface": {
+    "displayName": "Xpert报价",
+    "shortDescription": "结构化定额、人材机资源查价、确定性计价与Xpert XLSX保格式写回",
+    "longDescription": "报价助手从当前 Agent 已连接的知识库检索定额与价格证据，把已选定额拆分为人工、材料、机械资源，按资源编码、别名和单位检索结构化价格，校验工日小时口径，并在定额、价格和费用规则经人工审批后由确定性引擎计算综合单价。所有来源、换算和计算轨迹均持久化，最终只向空白目标单元格写入经确认的单价、合价和合计。",
+    "developerName": "XpertAI",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "websiteURL": "https://xpertai.cn",
+    "privacyPolicyURL": "https://xpertai.cn",
+    "termsOfServiceURL": "https://xpertai.cn",
+    "defaultPrompt": ["导入Xpert报价表并从已连接的价格知识库自动匹配", "按材料名称和项目特征规格列出带证据的推荐价格", "为知识库未可靠命中的材料联网询价", "生成保格式报价 XLSX"],
+    "composerIcon": "./assets/composerIcon.svg",
+    "logo": "./assets/logo.svg",
+    "brandColor": "#176B45",
+    "screenshots": []
+  },
+  "policy": { "installation": "AVAILABLE", "authentication": "ON_FIRST_USE", "pluginSharing": true },
+  "source": { "source": "local", "path": ".", "url": "https://github.com/xpert-ai/xpert-plugins", "sparsePath": "community/apps/xpert-quotation" },
+  "assets": { "composerIcon": "./assets/composerIcon.svg", "logo": "./assets/logo.svg", "screenshots": [] },
+  "targetApps": ["data-xpert", "xpert"],
+  "targetAppMeta": {
+    "data-xpert": { "types": ["workbench-view", "assistant-tool", "business-app"], "capabilities": ["xpert-quotation", "xpert-quotation-workbench", "faithful-xlsx-patch"], "requiredPlugins": ["@xpert-ai/plugin-web-tools"] },
+    "xpert": { "types": ["assistant-template", "app", "xpertai-bundle"], "capabilities": ["xpert-quotation", "xpert-quotation-workbench", "faithful-xlsx-patch"], "requiredPlugins": ["@xpert-ai/plugin-web-tools"] }
+  }
+}

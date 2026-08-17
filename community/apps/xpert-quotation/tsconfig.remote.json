@@ -1,0 +1,24 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "emitDeclarationOnly": false,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "rootDir": "src/lib",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "strict": true,
+    "strictNullChecks": true,
+    "noImplicitAny": true,
+    "noEmit": true,
+    "types": ["react", "react-dom"]
+  },
+  "include": [
+    "src/lib/remote-components/xpert-quotation-workbench/src/**/*.ts",
+    "src/lib/remote-components/xpert-quotation-workbench/src/**/*.tsx",
+    "src/lib/remote-components/xpert-quotation-workbench/src/**/*.d.ts"
+  ]
+}

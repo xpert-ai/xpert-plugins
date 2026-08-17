@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Xpert Quotation">
+  <rect x="4" y="4" width="24" height="24" rx="4" fill="#176b45"/>
+  <path d="M9 10h14v4H9zm0 7h8v3H9z" fill="#ecfdf5"/>
+  <circle cx="22" cy="21" r="4" fill="#f5b942"/>
+</svg>

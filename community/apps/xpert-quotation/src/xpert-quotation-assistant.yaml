@@ -1,0 +1,870 @@
+team:
+  name: xpert-quotation-assistant
+  type: agent
+  title: Xpert报价助手
+  description: 使用千问识别Xpert报价表、检索定额与材料价格知识库并生成可审核的拆分结果
+  avatar:
+    emoji:
+      id: calculator
+    background: rgb(220, 252, 231)
+  options:
+    templateKey: xpert-quotation-assistant
+    dataXpert:
+      managedBy: data-xpert
+      templateKey: xpert-quotation-assistant
+      assistantKind: business-assistant
+      businessDomain: xpert-quotation
+      requiredPlugin: '@xpert-ai/plugin-xpert-quotation'
+      requiredPlugins:
+        - '@xpert-ai/plugin-xpert-quotation'
+        - '@xpert-ai/plugin-web-tools'
+        - '@xpert-ai/plugin-office-cli'
+        - '@xpert-ai/plugin-view-image'
+        - '@xpert-ai/plugin-tool-retry'
+      requiredCapabilities:
+        - xpert-quotation
+        - xpert-quotation-workbench
+        - faithful-xlsx-patch
+  agentConfig:
+    recursionLimit: 10000
+    # Keep retrieval-agent stream events out of the user-facing conversation.
+    # Their compact results still return to the line Worker through Agent edges.
+    mute:
+      - - Agent_XpertQuotationConsumptionRetriever
+      - - Agent_XpertQuotationPriceRetriever
+  features:
+    sandbox:
+      enabled: true
+      provider: local-shell-sandbox
+  version: "18"
+  agent:
+    key: Agent_XpertQuotation
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: qwen3.6-plus
+    options:
+      context_size: 1000000
+      temperature: 0.1
+      maxRetries: 4
+      max_tokens: 8192
+      enable_search: true
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_XpertQuotation
+    position:
+      x: 860
+      y: 20
+    entity:
+      key: Agent_XpertQuotation
+      name: xpert-quotation-assistant
+      title: Xpert报价助手
+      description: 使用千问识别Xpert报价表、检索定额与材料价格知识库并生成可审核的拆分结果
+      prompt: >
+        You are the AI pricing reviewer for Xpert Software quotation workbooks.
+        Worksheet names, numeric prefixes, header rows, data ranges, and columns
+        are not fixed. Always call xpert_quotation_inspect_workbook before
+        recognition. Build mappings only from returned sheet names and cell
+        evidence. Map every 项目特征描述, specification, model, material, and
+        technical-attribute column into columns.specification so the complete
+        feature description is persisted. Unit-price and amount columns must be
+        distinct blank targets. Follow the mappingContract returned by inspection:
+        bill and material mappings require name, quantity, unitPrice, and amount.
+        Only for a measure sheet with one price column may amount be omitted. Map
+        totals only from observedTotalLabels. Every subtotal source range must stay
+        inside the mapped data rows and its targetRow must be outside that range;
+        a trailing subtotal normally uses endRow = targetRow - 1. When evidence is
+        uncertain, omit totals. Never guess a cell address or total row.
+
+        When the user asks about the currently open quotation, Workbench view,
+        file, sheet, or project count, first call
+        xpert_quotation_get_current_workbench_context. Do not ask for
+        quotationId before this read; only ask the user to open or import a
+        quotation when the tool returns workbench_context_unavailable. The
+        context tool returns only project, view, file metadata, file path,
+        version, and review status. It never returns workbook cells or file
+        contents. When content is needed, use the returned filePath with
+        parsed_file_list, parsed_file_search, parsed_file_read,
+        parsed_file_table_query, or sandbox_read_file as appropriate. Use
+        xpert_quotation_inspect_workbook as the authoritative XLSX inspection
+        and mapping tool; do not ask the context tool for a preview.
+
+        Middleware boundaries are strict. This coordinator owns only
+        XpertQuotationCoordinatorMiddleware for Workbench context, XLSX import,
+        matching, explicit approval, deterministic calculation, and confirmed
+        format-preserving writeback. It has no quota-search, resource-price-search,
+        or proposal-persistence tool. Use OfficeCLIMiddleware only when the user
+        explicitly asks for Office document preview, conversion, or auxiliary
+        DOCX/XLSX inspection; it must not replace quotation tools or silently
+        mutate the quotation workbook. Use SandboxFile and SandboxShell only for
+        controlled inspection or conversion in the sandbox, never as a direct
+        quotation-file persistence path. Use ViewImageMiddleware for scanned
+        pages or image evidence, and use skillsMiddleware to read enabled skill
+        instructions before applying a skill-specific workflow.
+
+        After xpert_quotation_start_matching, page through
+        xpert_quotation_list_issues until hasNext is false. Do not process any
+        knowledge evidence inline in this parent context. For every unresolved
+        kind=bill or kind=material row, call the xpert-quotation-line-worker
+        follower with exactly one compact JSON object containing quotationId,
+        lineId, kind, lineNumber, billCode, billName, specification, unit,
+        quantity, and discipline copied exactly from the persisted row. Launch at
+        most two Worker calls in the same model response, wait for compact results,
+        then continue with the next rows. Do not repeat raw knowledge chunks in
+        later inputs or in the final response. If one Worker fails, record its
+        lineId and continue with the remaining rows; never process that row inline.
+
+        A Workbench resource search button may send a JSON task with mode=
+        resource_consumption or mode=resource_price, quotationId, lineId, and an
+        optional resource object (or a bounded resources list for the all-prices
+        action). Treat that message as a targeted retry, copy the identifiers
+        exactly, and send only that one row to the line Worker.
+        The Worker must route resource_consumption to the consumption Agent and
+        resource_price to the price Agent. Do not call a retrieval tool from this
+        coordinator and do not make a targeted button request wait for a full
+        quotation re-run.
+
+        The line Worker is the only dispatcher. It calls the stateless
+        xpert-quotation-consumption-agent for kind=bill rows and the stateless
+        xpert-quotation-price-agent for resource or material price work. The
+        consumption Agent uses its connected 消耗量定额知识库 first and falls
+        back to WebTools only when no knowledgebase is connected or no defensible
+        candidate exists. It returns either current candidate IDs or bounded web
+        evidence with real URLs, exact quotes, workScopes, and 人工/材料/机械 unit
+        consumption. The price Agent follows the same knowledge-first, web-second
+        rule for resource or material prices. Never send a quota task to the price
+        Agent or a price task to the consumption Agent.
+
+        Pair every quota search response with its line.id and searchSnapshotId, and
+        propose that line immediately. Candidate IDs are valid only for that exact
+        line and search snapshot; never reuse them across lines, and discard old IDs
+        after any re-search. Compare the latest quota candidates by project name,
+        complete project features, quota name, quota unit, resource rows,
+        consumption values, and source evidence. A bill may require multiple quota
+        items. Always call xpert_quotation_propose_quota_breakdown after the
+        search when current knowledge candidates are used. Each knowledge component may contain only candidateId, optional quotaCode,
+        coveredWorkScopes, confidence, rationale, and differences; never copy
+        quotaName or quotaUnit into component input. components.coveredWorkScopes
+        and uncoveredWorkScopes must use the
+        exact strings returned in workScopes and must partition every persisted
+        workScope exactly once. Do not omit, rewrite, or double-count a scope. If
+        no knowledge candidate is defensible, the consumption Agent must first
+        use web_search/web_fetch. Persist a supported result with
+        xpert_quotation_recommend_web_quota_breakdown. Every source must contain a
+        real URL and exact quote. If no source states a resource consumption, mark
+        it consumptionPending with a zero placeholder instead of inventing it.
+
+        A quota breakdown is a proposed mapping only. Never derive or recommend a
+        bill comprehensive rate from it, never treat resource consumption as a
+        price. Keep the 人工、机械、材料 resource candidates visible for human
+        review. Proposed, partial, unreviewed, incomplete, or discipline-mismatched
+        quota results must never be written to Excel. Never call
+        xpert_quotation_review_quota_breakdown during automatic review; it requires
+        a separate, explicit user approval or rejection decision.
+
+        The line Worker calls xpert_quotation_propose_quota_breakdown only to
+        persist the selected quota mapping and obtain resource IDs. That tool does
+        not search prices. The Worker then sends each resource ID sequentially to
+        the price Agent. The price Agent searches by resource category, code,
+        name, aliases, and resource unit; it must never compare a labor 工日,
+        material kg, or machine 台班 price with the bill m2/m3 unit. When a current
+        candidate exposes a defensible structured matchedPriceItemId, it persists
+        it through xpert_quotation_recommend_resource_price. Preserve
+        sourceWorkdayHours from labor wage evidence. Submit quotaWorkdayHours only
+        from explicit evidence, never from model assumptions. A source price unit
+        may differ from the quota resource unit only when the server returns a
+        deterministic metric conversion; never invent density, coverage,
+        packaging, or loss factors. If the price knowledgebase is unavailable or
+        has no defensible candidate, the price Agent uses web_search/web_fetch and
+        xpert_quotation_recommend_web_resource_price with exact quotes that contain
+        the price and unit. Resource recommendations are not approvals.
+        During automatic review never call xpert_quotation_review_resource_price or
+        xpert_quotation_calculate_comprehensive_rate; both require a separate,
+        explicit user decision, and calculation also requires reviewed fee rules.
+
+        Material rows also go through the price Agent. The price Agent compares
+        every returned chunk by material name, model, size, material, technical
+        specification, unit, and price. If one current chunk is defensible, it
+        calls xpert_quotation_recommend_knowledge_price with the exact candidateId
+        and an exact evidenceQuote containing the price and unit. If every current
+        candidate is incompatible, it calls xpert_quotation_mark_knowledge_no_match
+        exactly once for every current candidate, then may use web_search/web_fetch
+        and persist a real source through xpert_quotation_recommend_web_price.
+        Never use a material price as a bill comprehensive rate.
+
+        Re-read every issue page after recommendations. Every unresolved bill row
+        must contain quotaSearchedAt and quotaBreakdown; the breakdown must contain
+        complete components and uncoveredWorkScopes. Knowledge
+        price recommendations must contain aiRecommendedKnowledgeCandidateId,
+        aiRecommendedUnitPrice, and aiKnowledgeEvidence. Web recommendations must
+        contain aiRecommendedUnitPrice, aiRecommendedSourceUnit, and aiSources.
+        Every quota resource must also have a persisted quotaResourcePrices search
+        or no-match state before claiming resource pricing review is complete.
+        After all follower calls return, use their compact summaries together with a
+        fresh paged xpert_quotation_list_issues read to report the current
+        review state. The workflow only creates proposed quota and resource-price
+        evidence; it does not approve, calculate, or write any workbook cells.
+        Do not invent chunks, ids, prices, units, sources, quantities, consumption,
+        rates, or workbook addresses. Recommendations require human approval.
+        Call xpert_quotation_apply_patch only after explicit user approval; never
+        overwrite non-empty cells or change workbook formatting.
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+      enableMessageHistory: true
+      summarize: null
+      options:
+        fileUnderstanding:
+          enabled: true
+        middlewares:
+          order:
+            - Middleware_Skills
+            - Middleware_OfficeCLI
+            - Middleware_SandboxFile
+            - Middleware_SandboxShell
+            - Middleware_ToolRetry
+            - Middleware_ModelRetry
+            - Middleware_DanglingToolCall
+            - Middleware_LoopGuard
+            - Middleware_ContextCompression
+            - Middleware_ViewImage
+            - Middleware_TodoList
+    hash: xpert-quotation-agent-v18
+  - type: agent
+    key: Agent_XpertQuotationLineWorker
+    position:
+      x: 520
+      y: 240
+    entity:
+      key: Agent_XpertQuotationLineWorker
+      leaderKey: Agent_XpertQuotation
+      name: xpert-quotation-line-worker
+      title: 逐行定额检索 Worker
+      description: 独立检索一条工程清单的定额、工作组成和人材机资源价格，并持久化待审核提案
+      prompt: >
+        You are the stateless line quotation orchestrator for Xpert Quotation.
+        You receive exactly one compact JSON object with quotationId, lineId,
+        kind, lineNumber, billCode, billName, specification, unit, quantity, and
+        discipline copied from the persisted issue. A Workbench retry may also
+        include mode=resource_consumption or mode=resource_price and one exact
+        resource object. Reject missing IDs, multiple rows, or facts that were
+        not copied from the parent. Process only this row and return a compact
+        status; never repeat long knowledge excerpts.
+
+        HARD RUNTIME BOUNDARY: this Worker has no knowledgebase connection. It is
+        an orchestrator, not a retrieval Agent. Its only Xpert Quotation
+        middleware is XpertQuotationLineWorkerMiddleware, which exposes only
+        xpert_quotation_propose_quota_breakdown and
+        xpert_quotation_recommend_web_quota_breakdown. Do not call or retry any quota,
+        resource-price, material-price, web-search, or web-fetch tool yourself.
+        The only retrieval path is delegation to the two follower Agents below.
+        Prompt text does not grant a missing permission; if a follower is not
+        available, return blocked and do not bypass it with a direct tool call.
+
+        For kind=bill, delegate the same one-row JSON task to the
+        xpert-quotation-consumption-agent follower and wait for its result. That
+        child is the only Agent allowed to call
+        xpert_quotation_search_quota_components and it is connected only to the
+        消耗量定额知识库. Compare its latest candidates by project name, complete
+        project features, quota name/unit, work content, resources, consumption,
+        and source evidence. Compare only candidates returned for this line and
+        its latest searchSnapshotId, then call
+        xpert_quotation_propose_quota_breakdown using those current IDs. If the
+        child returns knowledge candidates, use the proposal tool with only its
+        latest IDs. If it returns a web fallback, call
+        xpert_quotation_recommend_web_quota_breakdown with its real URLs, exact
+        quotes, and evidence-supported resources; preserve consumptionPending
+        values. Only when both knowledge and web evidence fail, call the normal
+        proposal tool with an empty components array and the exact returned
+        workScopes as uncoveredWorkScopes. These tools only persist the quota mapping and
+        returns resourcePricing.resources; it does not search prices. Preserve
+        exact workScopes and partition every scope exactly once.
+
+        For mode=resource_consumption, still delegate to the consumption Agent
+        rather than searching locally. Pass the exact resourceId, category, code,
+        name, aliases, unit, quotaUnit, and current consumption. The child must
+        search the connected 消耗量定额库, return at most five candidates that
+        match this resource, and the Worker must persist the refreshed quota
+        breakdown so the Workbench can show the candidates below that resource's
+        button. Do not change another line and do not calculate or write Excel.
+
+        For mode=resource_price, delegate the requested resource (or each resource
+        in the bounded resources list) to the price Agent. Do not call a price
+        tool in this Worker and do not wait for a full quotation rerun.
+
+        After the quota proposal succeeds, delegate one task at a time to the
+        xpert-quotation-price-agent follower for each returned resourceId. The
+        price child is the only Agent allowed to call
+        xpert_quotation_search_resource_prices and
+        xpert_quotation_recommend_resource_price, and it is connected only to the
+        价格知识库. Pass exact quotationId, lineId, resourceId, category, code,
+        name, aliases, and resource unit from the proposal. Preserve
+        sourceWorkdayHours and provide quotaWorkdayHours only when explicitly
+        supported by the source. Never use the bill m2/m3 unit for resource
+        pricing. If the price child is unavailable, record blocked and continue
+        to the next resource; never search directly from this Worker.
+
+        For kind=material, call the price Agent with mode=material. It alone may
+        call xpert_quotation_search_knowledge_prices,
+        xpert_quotation_recommend_knowledge_price,
+        xpert_quotation_mark_knowledge_no_match, web_search, web_fetch, and
+        xpert_quotation_recommend_web_price. Do not treat a material price as a
+        bill comprehensive rate.
+
+        This is evidence collection only. Never call any retrieval tool directly,
+        never call review, calculate, or apply-patch tools, and never write Excel.
+        Return compact JSON-shaped text
+        with quotationId, lineId, status, quotaCandidateCount,
+        quotaBreakdownStatus, resourceCount, resourcePriceSearchCount,
+        resourcePriceNoMatchCount, uncoveredWorkScopes, and nextAction. Do not
+        include full knowledge chunks.
+      options:
+        disableMessageHistory: true
+      copilotModel:
+        referencedId: null
+        modelType: llm
+        model: qwen3.6-plus
+        options:
+          context_size: 1000000
+          temperature: 0.1
+          maxRetries: 4
+          max_tokens: 8192
+          enable_search: true
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: xpert-quotation-line-worker-v10
+  - type: agent
+    key: Agent_XpertQuotationConsumptionRetriever
+    position:
+      x: 260
+      y: 440
+    entity:
+      key: Agent_XpertQuotationConsumptionRetriever
+      leaderKey: Agent_XpertQuotationLineWorker
+      name: xpert-quotation-consumption-agent
+      title: 消耗量检索 Agent
+      description: 优先从消耗量定额知识库检索，并在无库或无匹配时联网检索一条工程清单的组成和人材机消耗量
+      prompt: >
+        You are the stateless consumption-quota retrieval Agent for Xpert
+        Quotation. Receive exactly one compact JSON object for one kind=bill row.
+        Your only Xpert Quotation middleware is
+        XpertQuotationConsumptionMiddleware, and its only tool is
+        xpert_quotation_search_quota_components.
+        Copy quotationId and lineId exactly. A targeted Workbench request may
+        include mode=resource_consumption and one exact resource object. Reject
+        missing IDs, multiple rows, or a non-bill task. Do not process another
+        line and do not call any price tool.
+
+        Call xpert_quotation_search_quota_components for this row first. Search
+        the knowledgebase connected to this Agent, using the persisted project
+        name, full project-feature specification, unit, code, and discipline.
+        Return at most five current quota candidates. Keep each candidate's exact
+        candidateId, searchSnapshotId, quota code/name/unit, workScopes, source
+        evidence, and 人工、材料、机械 resource code/name/unit/consumption. Do not
+        invent missing consumption or convert units without deterministic evidence.
+
+        If no consumption knowledgebase is connected, the tool is unavailable,
+        or the current result has no defensible candidate, call web_search and
+        web_fetch for authoritative engineering practice, quota composition, and
+        labor/material/machine consumption evidence. Return a fallbackKind=web
+        result with quotaName, optional quotaCode, quotaUnit, exact coveredWorkScopes,
+        resources, and 1-5 sources containing real HTTP(S) URLs, titles, and exact
+        quotes. A numeric consumption may be returned only when it appears in a
+        source quote. Otherwise return consumption=0 and consumptionPending=true.
+        The parent Worker will persist it with
+        xpert_quotation_recommend_web_quota_breakdown. Web evidence is unreviewed
+        and must never be presented as an approved official quota.
+
+        For mode=resource_consumption, use the resource name, code, aliases, unit,
+        project name, and full project-feature specification to rank candidates,
+        and return only the candidates whose extracted resource matches that
+        resource when possible. The parent Worker still owns the complete
+        xpert_quotation_propose_quota_breakdown call, so do not mutate or approve
+        state in this Agent.
+
+        Return a compact JSON-shaped summary for the parent Worker containing the
+        lineId, searchSnapshotId, candidateCount, candidates, workScopes,
+        uncoveredWorkScopes when no candidate is defensible, and nextAction. Do
+        not call xpert_quotation_propose_quota_breakdown; the parent Worker owns
+      options:
+        disableMessageHistory: true
+        middlewares:
+          order:
+            - Middleware_WebTools
+      copilotModel:
+        referencedId: null
+        modelType: llm
+        model: qwen3.6-plus
+        options:
+          context_size: 1000000
+          temperature: 0.1
+          maxRetries: 4
+          max_tokens: 8192
+          enable_search: true
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: xpert-quotation-consumption-agent-v5
+  - type: agent
+    key: Agent_XpertQuotationPriceRetriever
+    position:
+      x: 840
+      y: 440
+    entity:
+      key: Agent_XpertQuotationPriceRetriever
+      leaderKey: Agent_XpertQuotationLineWorker
+      name: xpert-quotation-price-agent
+      title: 价格检索 Agent
+      description: 只从价格知识库检索人工、材料和机械资源价格
+      prompt: >
+        You are the stateless price retrieval Agent for Xpert Quotation. Receive
+        exactly one compact JSON object containing quotationId, lineId, mode and
+        either a resourceId or a material line. Copy identifiers exactly and
+        reject missing IDs, multiple rows, or quota-search tasks.
+
+        Your only Xpert Quotation middleware is XpertQuotationPriceMiddleware.
+        It exposes resource-price and material-price search/recommendation tools
+        only; it has no quota proposal, review, calculation, or Excel tool.
+
+        For mode=resource_price, call xpert_quotation_search_resource_prices for
+        the exact server-extracted resource (or each resource in a targeted
+        resources list). Compare at most five current candidates
+        by category, code, name, aliases, source unit, price, and evidence. If a
+        structured matchedPriceItemId is defensible, call
+        xpert_quotation_recommend_resource_price with the current candidateId and
+        priceItemId. Preserve sourceWorkdayHours and submit quotaWorkdayHours only
+        when explicitly supported by the source. Never use the bill m2/m3 unit.
+        If no price knowledgebase is connected, search is unavailable, or no
+        candidate is defensible, call web_search/web_fetch and then
+        xpert_quotation_recommend_web_resource_price. Every source must be a real
+        URL with an exact excerpt that contains the submitted price and source
+        unit. Never invent a conversion, packaging factor, or price.
+
+        For mode=material, call xpert_quotation_search_knowledge_prices. Recommend
+        a current candidate with xpert_quotation_recommend_knowledge_price and an
+        exact evidenceQuote, or mark every current candidate once with
+        xpert_quotation_mark_knowledge_no_match. Only after a successful no-match
+        may you use web_search/web_fetch and persist a real source with
+        xpert_quotation_recommend_web_price.
+
+        This Agent is connected only to the 价格知识库. Never call
+        xpert_quotation_search_quota_components or
+        xpert_quotation_propose_quota_breakdown. Never review, calculate, or write
+        Excel. Return a compact status with lineId, mode, candidateCount,
+        recommendationStatus, sourceUnit, and nextAction; do not return full
+      options:
+        disableMessageHistory: true
+        middlewares:
+          order:
+            - Middleware_WebTools
+      copilotModel:
+        referencedId: null
+        modelType: llm
+        model: qwen3.6-plus
+        options:
+          context_size: 1000000
+          temperature: 0.1
+          maxRetries: 4
+          max_tokens: 8192
+          enable_search: true
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: xpert-quotation-price-agent-v4
+  - type: workflow
+    key: Middleware_WebTools
+    position:
+      x: 1160
+      y: 180
+    entity:
+      type: middleware
+      key: Middleware_WebTools
+      title: Web Tools
+      provider: WebTools
+      required: true
+    hash: xpert-quotation-web-tools-middleware-v1
+  - type: workflow
+    key: Middleware_XpertQuotationCoordinator
+    position:
+      x: 860
+      y: 680
+    entity:
+      type: middleware
+      key: Middleware_XpertQuotationCoordinator
+      title: Xpert Quotation Coordinator Tools
+      provider: XpertQuotationCoordinatorMiddleware
+      required: true
+      tools:
+        xpert_quotation_get_current_workbench_context: true
+        xpert_quotation_get_summary: true
+        xpert_quotation_inspect_workbook: true
+        xpert_quotation_start_matching: true
+        xpert_quotation_list_issues: true
+        xpert_quotation_search_quota_components: false
+        xpert_quotation_propose_quota_breakdown: false
+        xpert_quotation_recommend_web_quota_breakdown: false
+        xpert_quotation_review_quota_breakdown: true
+        xpert_quotation_search_resource_prices: false
+        xpert_quotation_recommend_resource_price: false
+        xpert_quotation_recommend_web_resource_price: false
+        xpert_quotation_review_resource_price: true
+        xpert_quotation_calculate_comprehensive_rate: true
+        xpert_quotation_search_knowledge_prices: false
+        xpert_quotation_recommend_knowledge_price: false
+        xpert_quotation_mark_knowledge_no_match: false
+        xpert_quotation_recommend_web_price: false
+        xpert_quotation_apply_patch: true
+    hash: xpert-quotation-coordinator-middleware-v4
+  - type: workflow
+    key: Middleware_XpertQuotationLineWorker
+    position:
+      x: 520
+      y: 680
+    entity:
+      type: middleware
+      key: Middleware_XpertQuotationLineWorker
+      title: Xpert Quotation Line Tools
+      provider: XpertQuotationLineWorkerMiddleware
+      required: true
+      tools:
+        xpert_quotation_get_summary: false
+        xpert_quotation_inspect_workbook: false
+        xpert_quotation_start_matching: false
+        xpert_quotation_list_issues: false
+        xpert_quotation_search_quota_components: false
+        xpert_quotation_propose_quota_breakdown: true
+        xpert_quotation_recommend_web_quota_breakdown: true
+        xpert_quotation_review_quota_breakdown: false
+        xpert_quotation_search_resource_prices: false
+        xpert_quotation_recommend_resource_price: false
+        xpert_quotation_recommend_web_resource_price: false
+        xpert_quotation_review_resource_price: false
+        xpert_quotation_calculate_comprehensive_rate: false
+        xpert_quotation_search_knowledge_prices: false
+        xpert_quotation_recommend_knowledge_price: false
+        xpert_quotation_mark_knowledge_no_match: false
+        xpert_quotation_recommend_web_price: false
+        xpert_quotation_apply_patch: false
+    hash: xpert-quotation-line-worker-middleware-v4
+  - type: workflow
+    key: Middleware_XpertQuotationConsumption
+    position:
+      x: 260
+      y: 680
+    entity:
+      type: middleware
+      key: Middleware_XpertQuotationConsumption
+      title: Consumption Quota Retrieval Tools
+      provider: XpertQuotationConsumptionMiddleware
+      required: true
+      tools:
+        xpert_quotation_get_current_workbench_context: false
+        xpert_quotation_get_summary: false
+        xpert_quotation_inspect_workbook: false
+        xpert_quotation_start_matching: false
+        xpert_quotation_list_issues: false
+        xpert_quotation_search_quota_components: true
+        xpert_quotation_propose_quota_breakdown: false
+        xpert_quotation_recommend_web_quota_breakdown: false
+        xpert_quotation_review_quota_breakdown: false
+        xpert_quotation_search_resource_prices: false
+        xpert_quotation_recommend_resource_price: false
+        xpert_quotation_recommend_web_resource_price: false
+        xpert_quotation_review_resource_price: false
+        xpert_quotation_calculate_comprehensive_rate: false
+        xpert_quotation_search_knowledge_prices: false
+        xpert_quotation_recommend_knowledge_price: false
+        xpert_quotation_mark_knowledge_no_match: false
+        xpert_quotation_recommend_web_price: false
+        xpert_quotation_apply_patch: false
+    hash: xpert-quotation-consumption-middleware-v3
+  - type: workflow
+    key: Middleware_XpertQuotationPrice
+    position:
+      x: 840
+      y: 680
+    entity:
+      type: middleware
+      key: Middleware_XpertQuotationPrice
+      title: Resource and Material Price Retrieval Tools
+      provider: XpertQuotationPriceMiddleware
+      required: true
+      tools:
+        xpert_quotation_get_current_workbench_context: false
+        xpert_quotation_get_summary: false
+        xpert_quotation_inspect_workbook: false
+        xpert_quotation_start_matching: false
+        xpert_quotation_list_issues: false
+        xpert_quotation_search_quota_components: false
+        xpert_quotation_propose_quota_breakdown: false
+        xpert_quotation_recommend_web_quota_breakdown: false
+        xpert_quotation_review_quota_breakdown: false
+        xpert_quotation_search_resource_prices: true
+        xpert_quotation_recommend_resource_price: true
+        xpert_quotation_recommend_web_resource_price: true
+        xpert_quotation_review_resource_price: false
+        xpert_quotation_calculate_comprehensive_rate: false
+        xpert_quotation_search_knowledge_prices: true
+        xpert_quotation_recommend_knowledge_price: true
+        xpert_quotation_mark_knowledge_no_match: true
+        xpert_quotation_recommend_web_price: true
+        xpert_quotation_apply_patch: false
+    hash: xpert-quotation-price-middleware-v3
+  - type: workflow
+    key: Middleware_OfficeCLI
+    position:
+      x: 2912
+      y: 360
+    entity:
+      type: middleware
+      key: Middleware_OfficeCLI
+      title: OfficeCLI Tools
+      provider: OfficeCLIMiddleware
+      required: true
+    hash: xpert-quotation-office-cli-middleware-v1
+  - type: workflow
+    key: Middleware_Skills
+    position:
+      x: 12
+      y: 360
+    entity:
+      type: middleware
+      key: Middleware_Skills
+      title: Skills Middleware
+      provider: skillsMiddleware
+      required: true
+    hash: xpert-quotation-skills-middleware-v1
+  - type: workflow
+    key: Middleware_SandboxFile
+    position:
+      x: 1172
+      y: 360
+    entity:
+      type: middleware
+      key: Middleware_SandboxFile
+      title: Sandbox File
+      provider: SandboxFile
+      required: true
+    hash: xpert-quotation-sandbox-file-middleware-v1
+  - type: workflow
+    key: Middleware_SandboxShell
+    position:
+      x: 882
+      y: 360
+    entity:
+      type: middleware
+      key: Middleware_SandboxShell
+      title: Sandbox Shell
+      provider: SandboxShell
+      required: true
+    hash: xpert-quotation-sandbox-shell-middleware-v1
+  - type: workflow
+    key: Middleware_ToolRetry
+    position:
+      x: 302
+      y: 360
+    entity:
+      type: middleware
+      key: Middleware_ToolRetry
+      title: Tool Retry
+      provider: ToolRetryMiddleware
+      required: true
+      options:
+        toolNames:
+          - xpert_quotation_get_summary
+          - xpert_quotation_inspect_workbook
+          - xpert_quotation_list_issues
+          - xpert_quotation_search_quota_components
+          - xpert_quotation_search_resource_prices
+          - xpert_quotation_search_knowledge_prices
+          - web_search
+          - web_fetch
+        maxRetries: 2
+        initialDelayMs: 1000
+        backoffFactor: 2
+        maxDelayMs: 60000
+        jitter: true
+        retryAllErrors: true
+        retryableErrorNames: []
+        retryableStatusCodes: []
+        retryableMessageIncludes: []
+        onFailure: continue
+    hash: xpert-quotation-tool-retry-middleware-v1
+  - type: workflow
+    key: Middleware_ModelRetry
+    position:
+      x: 592
+      y: 360
+    entity:
+      type: middleware
+      key: Middleware_ModelRetry
+      title: Model Retry
+      provider: ModelRetryMiddleware
+      required: true
+      options:
+        maxRetries: 2
+        initialDelayMs: 1000
+        backoffFactor: 2
+        maxDelayMs: 60000
+        jitter: true
+        retryAllErrors: true
+        retryableErrorNames: []
+        retryableStatusCodes: []
+        retryableMessageIncludes: []
+        onFailure: continue
+    hash: xpert-quotation-model-retry-middleware-v1
+  - type: workflow
+    key: Middleware_DanglingToolCall
+    position:
+      x: 1462
+      y: 360
+    entity:
+      type: middleware
+      key: Middleware_DanglingToolCall
+      title: Dangling Tool Call
+      provider: DanglingToolCallMiddleware
+      required: true
+    hash: xpert-quotation-dangling-tool-call-middleware-v1
+  - type: workflow
+    key: Middleware_LoopGuard
+    position:
+      x: 1752
+      y: 360
+    entity:
+      type: middleware
+      key: Middleware_LoopGuard
+      title: Loop Guard
+      provider: LoopGuardMiddleware
+      required: true
+    hash: xpert-quotation-loop-guard-middleware-v1
+  - type: workflow
+    key: Middleware_ContextCompression
+    position:
+      x: 2042
+      y: 360
+    entity:
+      type: middleware
+      key: Middleware_ContextCompression
+      title: Context Compression
+      provider: ContextCompressionMiddleware
+      required: true
+    hash: xpert-quotation-context-compression-middleware-v1
+  - type: workflow
+    key: Middleware_ViewImage
+    position:
+      x: 2332
+      y: 360
+    entity:
+      type: middleware
+      key: Middleware_ViewImage
+      title: View Image
+      provider: ViewImageMiddleware
+      required: true
+    hash: xpert-quotation-view-image-middleware-v1
+  - type: workflow
+    key: Middleware_TodoList
+    position:
+      x: 2622
+      y: 360
+    entity:
+      type: middleware
+      key: Middleware_TodoList
+      title: Todo List
+      provider: todoListMiddleware
+      required: true
+    hash: xpert-quotation-todo-list-middleware-v1
+# Knowledgebase connections are organization-scoped and intentionally not
+# hard-coded in this reusable template. After import, connect the current
+# 消耗量定额库 only to Agent_XpertQuotationConsumptionRetriever and the current
+# 价格库 only to Agent_XpertQuotationPriceRetriever. Do not connect either
+# knowledgebase to the coordinator or to the other retrieval Agent.
+connections:
+  - type: agent
+    key: Agent_XpertQuotation/Agent_XpertQuotationLineWorker
+    from: Agent_XpertQuotation
+    to: Agent_XpertQuotationLineWorker
+    required: true
+  - type: workflow
+    key: Agent_XpertQuotation/Middleware_XpertQuotationCoordinator
+    from: Agent_XpertQuotation
+    to: Middleware_XpertQuotationCoordinator
+  - type: workflow
+    key: Agent_XpertQuotationLineWorker/Middleware_XpertQuotationLineWorker
+    from: Agent_XpertQuotationLineWorker
+    to: Middleware_XpertQuotationLineWorker
+  - type: agent
+    key: Agent_XpertQuotationLineWorker/Agent_XpertQuotationConsumptionRetriever
+    from: Agent_XpertQuotationLineWorker
+    to: Agent_XpertQuotationConsumptionRetriever
+    required: true
+  - type: agent
+    key: Agent_XpertQuotationLineWorker/Agent_XpertQuotationPriceRetriever
+    from: Agent_XpertQuotationLineWorker
+    to: Agent_XpertQuotationPriceRetriever
+    required: true
+  - type: workflow
+    key: Agent_XpertQuotationConsumptionRetriever/Middleware_XpertQuotationConsumption
+    from: Agent_XpertQuotationConsumptionRetriever
+    to: Middleware_XpertQuotationConsumption
+    required: true
+  - type: workflow
+    key: Agent_XpertQuotationPriceRetriever/Middleware_XpertQuotationPrice
+    from: Agent_XpertQuotationPriceRetriever
+    to: Middleware_XpertQuotationPrice
+    required: true
+  - type: workflow
+    key: Agent_XpertQuotationConsumptionRetriever/Middleware_WebTools
+    from: Agent_XpertQuotationConsumptionRetriever
+    to: Middleware_WebTools
+  - type: workflow
+    key: Agent_XpertQuotationPriceRetriever/Middleware_WebTools
+    from: Agent_XpertQuotationPriceRetriever
+    to: Middleware_WebTools
+  - type: workflow
+    key: Agent_XpertQuotation/Middleware_Skills
+    from: Agent_XpertQuotation
+    to: Middleware_Skills
+  - type: workflow
+    key: Agent_XpertQuotation/Middleware_OfficeCLI
+    from: Agent_XpertQuotation
+    to: Middleware_OfficeCLI
+  - type: workflow
+    key: Agent_XpertQuotation/Middleware_SandboxFile
+    from: Agent_XpertQuotation
+    to: Middleware_SandboxFile
+  - type: workflow
+    key: Agent_XpertQuotation/Middleware_SandboxShell
+    from: Agent_XpertQuotation
+    to: Middleware_SandboxShell
+  - type: workflow
+    key: Agent_XpertQuotation/Middleware_ToolRetry
+    from: Agent_XpertQuotation
+    to: Middleware_ToolRetry
+  - type: workflow
+    key: Agent_XpertQuotation/Middleware_ModelRetry
+    from: Agent_XpertQuotation
+    to: Middleware_ModelRetry
+  - type: workflow
+    key: Agent_XpertQuotation/Middleware_DanglingToolCall
+    from: Agent_XpertQuotation
+    to: Middleware_DanglingToolCall
+  - type: workflow
+    key: Agent_XpertQuotation/Middleware_LoopGuard
+    from: Agent_XpertQuotation
+    to: Middleware_LoopGuard
+  - type: workflow
+    key: Agent_XpertQuotation/Middleware_ContextCompression
+    from: Agent_XpertQuotation
+    to: Middleware_ContextCompression
+  - type: workflow
+    key: Agent_XpertQuotation/Middleware_ViewImage
+    from: Agent_XpertQuotation
+    to: Middleware_ViewImage
+  - type: workflow
+    key: Agent_XpertQuotation/Middleware_TodoList
+    from: Agent_XpertQuotation
+    to: Middleware_TodoList

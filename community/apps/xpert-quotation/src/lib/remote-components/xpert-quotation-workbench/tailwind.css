@@ -1,0 +1,7 @@
+/* Compile the shared shadcn source and this Workbench in one Tailwind pass.
+ * Importing the package's prebuilt CSS here would leave the @source directive
+ * without a Tailwind entrypoint, silently dropping app-owned utility classes. */
+@import '../../../../../../../packages/shadcn-ui/src/style.css';
+@import './src/styles.css';
+
+@source "./src/**/*.{ts,tsx}";
