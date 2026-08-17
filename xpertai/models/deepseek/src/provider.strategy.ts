@@ -29,7 +29,7 @@ export class DeepSeekProviderStrategy extends ModelProvider {
 		try {
 			const modelInstance = this.getModelManager(AiModelTypeEnum.LLM)
 
-			await modelInstance.validateCredentials('deepseek-chat', credentials)
+			await modelInstance.validateCredentials('deepseek-v4-flash', credentials)
 		} catch (ex: any) {
 			if (ex instanceof CredentialsValidateFailedError) {
 				throw ex

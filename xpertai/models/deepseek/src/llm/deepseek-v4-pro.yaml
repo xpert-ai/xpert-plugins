@@ -75,7 +75,59 @@ parameter_rules:
       - text
       - json_object
 pricing:
-  input: "12"
-  output: "24"
+  input: "4.5"
+  output: "13.5"
   unit: "0.000001"
   currency: RMB
+  rules:
+    - component: input
+      unit_price: 4.5
+      unit_size: 1000000
+    - component: cache_read_input
+      unit_price: 0.15
+      unit_size: 1000000
+    - component: output
+      unit_price: 13.5
+      unit_size: 1000000
+    - component: input
+      unit_price: 9
+      unit_size: 1000000
+      daily_time_window:
+        time_zone: Asia/Shanghai
+        start_time: "09:00"
+        end_time: "12:00"
+    - component: cache_read_input
+      unit_price: 0.3
+      unit_size: 1000000
+      daily_time_window:
+        time_zone: Asia/Shanghai
+        start_time: "09:00"
+        end_time: "12:00"
+    - component: output
+      unit_price: 27
+      unit_size: 1000000
+      daily_time_window:
+        time_zone: Asia/Shanghai
+        start_time: "09:00"
+        end_time: "12:00"
+    - component: input
+      unit_price: 9
+      unit_size: 1000000
+      daily_time_window:
+        time_zone: Asia/Shanghai
+        start_time: "14:00"
+        end_time: "18:00"
+    - component: cache_read_input
+      unit_price: 0.3
+      unit_size: 1000000
+      daily_time_window:
+        time_zone: Asia/Shanghai
+        start_time: "14:00"
+        end_time: "18:00"
+    - component: output
+      unit_price: 27
+      unit_size: 1000000
+      daily_time_window:
+        time_zone: Asia/Shanghai
+        start_time: "14:00"
+        end_time: "18:00"
