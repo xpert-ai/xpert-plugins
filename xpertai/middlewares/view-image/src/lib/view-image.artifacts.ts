@@ -1,5 +1,6 @@
 import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
+import type { ToolOutputImageAttachment, ToolOutputPresentation } from '@xpert-ai/chatkit-types'
 import type { ArtifactsApi, WorkspaceFilesApi } from '@xpert-ai/plugin-sdk'
 import {
   VIEW_IMAGE_ARTIFACT_FOLDER,
@@ -19,42 +20,12 @@ export type ViewImageOutputRuntime = {
   workspaceFiles: Pick<WorkspaceFilesApi, 'writeRuntimeBuffer'>
 }
 
-/**
- * @deprecated Compatibility-only local mirror of the ChatKit `xpert.tool-output`
- * image attachment contract. Use the canonical platform contract from
- * `@xpert-ai/contracts` once it is exported by the host SDK.
- */
-export type ViewImageToolOutputAttachment = {
-  type: 'image'
-  artifactId: string
-  artifactVersionId: string
-  sha256: string
-  mimeType: ViewedImageItem['mimeType']
-  width?: number
-  height?: number
-  title: string
-  alt: string
-  source: 'sandbox'
-  modelDetail: 'low'
-}
-
-/**
- * @deprecated Compatibility-only local mirror of the ChatKit `xpert.tool-output`
- * presentation contract. Use the canonical platform contract from
- * `@xpert-ai/contracts` once it is exported by the host SDK.
- */
-export type ViewImageToolOutputPresentation = {
-  type: 'xpert.tool-output'
-  version: 1
-  attachments: ViewImageToolOutputAttachment[]
-}
-
 export async function createViewImageToolOutputPresentation(
   images: PreparedViewedImage[],
   runtime: ViewImageOutputRuntime
-): Promise<ViewImageToolOutputPresentation> {
+): Promise<ToolOutputPresentation> {
   const attachments = await Promise.all(
-    images.map(async ({ item, buffer, sha256 }): Promise<ViewImageToolOutputAttachment> => {
+    images.map(async ({ item, buffer, sha256 }): Promise<ToolOutputImageAttachment> => {
       const fileName = `${sha256}.${extensionForMimeType(item.mimeType)}`
       const written = await runtime.workspaceFiles.writeRuntimeBuffer({
         buffer,
