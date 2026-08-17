@@ -409,7 +409,11 @@ export class SiliconflowLargeLanguageModel extends LargeLanguageModel {
   async validateCredentials(model: string, credentials: SiliconflowModelCredentials): Promise<void> {
     const params = toCredentialKwargs(credentials, model)
     const modelKwargs = { ...(params.modelKwargs ?? {}) } as Record<string, any>
-    if (!this.supportsEnableThinkingParam(params.model)) {
+    const supportsThinkingToggle = this.getParameterRules(
+      model,
+      credentials as unknown as Record<string, string>
+    ).some((rule) => rule.name === 'enable_thinking')
+    if (!supportsThinkingToggle) {
       delete modelKwargs['enable_thinking']
       if (modelKwargs['chat_template_kwargs']) {
         const chatTemplateKwargs = { ...(modelKwargs['chat_template_kwargs'] as Record<string, any>) }
@@ -457,13 +461,20 @@ export class SiliconflowLargeLanguageModel extends LargeLanguageModel {
       copilotModel.options?.['max_tokens'] ??
       credentials.max_tokens ??
       credentials.max_tokens_to_sample
-    const defaultThinkingEnabled = this.isThinkingModel(params.model)
+    const parameterRules = this.getParameterRules(
+      copilotModel.model,
+      credentials as unknown as Record<string, string>
+    )
+    const thinkingRule = parameterRules.find((rule) => rule.name === 'enable_thinking')
+    const supportsThinkingToggle = Boolean(thinkingRule)
+    const defaultThinkingEnabled = thinkingRule?.default
     const runtimeThinking =
       copilotModel.options?.['enable_thinking'] ?? credentials.enable_thinking ?? defaultThinkingEnabled
-    const runtimeThinkingEnabled = toBoolean(runtimeThinking)
+    const runtimeThinkingEnabled = supportsThinkingToggle
+      ? toBoolean(runtimeThinking)
+      : this.isThinkingModel(params.model)
     const runtimeThinkingBudget =
       copilotModel.options?.['thinking_budget'] ?? credentials.thinking_budget
-    const supportsThinkingToggle = this.supportsEnableThinkingParam(params.model)
     const runtimeResponseFormat = toJsonSchemaResponseFormat(
       copilotModel.options?.['response_format'] ?? credentials.response_format,
       copilotModel.options?.['json_schema'] ?? credentials.json_schema
@@ -607,6 +618,7 @@ export class SiliconflowLargeLanguageModel extends LargeLanguageModel {
       },
       type: ParameterType.BOOLEAN,
       required: false,
+      default: toBoolean(credentials['enable_thinking'] ?? this.isThinkingModel(model)),
     })
 
     return {
@@ -624,21 +636,6 @@ export class SiliconflowLargeLanguageModel extends LargeLanguageModel {
       },
       parameter_rules: rules,
     }
-  }
-
-  private supportsEnableThinkingParam(model?: string): boolean {
-    const normalized = (model ?? '').toLowerCase()
-    if (!normalized) {
-      return false
-    }
-
-    return (
-      normalized.includes('qwen/qwen3') ||
-      normalized.includes('qwen3-') ||
-      normalized === 'zai-org/glm-5.2' ||
-      normalized === 'meituan-longcat/longcat-2.0' ||
-      normalized.includes('glm-4.1v-9b-thinking')
-    )
   }
 
   private isThinkingModel(model?: string): boolean {

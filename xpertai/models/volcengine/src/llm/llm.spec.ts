@@ -37,6 +37,7 @@ import { normalizeVolcengineToolSchema, VolcengineLargeLanguageModel } from './l
 type VolcengineModelOptions = {
   max_tokens?: number
   thinking?: 'enabled' | 'disabled'
+  reasoning_effort?: string
 }
 
 function createCopilotModel(options?: VolcengineModelOptions): Parameters<VolcengineLargeLanguageModel['getChatModel']>[0] {
@@ -75,6 +76,19 @@ describe('Volcengine model adapter', () => {
       thinking: {
         type: 'enabled'
       }
+    })
+  })
+
+  it('forwards an explicit reasoning effort value', () => {
+    const model = llm.getChatModel(
+      createCopilotModel({ thinking: 'disabled', reasoning_effort: 'high' })
+    )
+
+    expect(model.invocationParams()).toEqual({
+      thinking: {
+        type: 'disabled'
+      },
+      reasoning_effort: 'high'
     })
   })
 
