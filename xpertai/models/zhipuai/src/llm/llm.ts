@@ -40,15 +40,15 @@ export class ZhipuAILargeLanguageModel extends LargeLanguageModel {
     const modelCredentials = copilotModel.options as ZhipuaiModelOptions
 
     const model = copilotModel.model
-    const parameterNames = new Set(
-      this.getParameterRules(model, credentials as unknown as Record<string, string>).map((rule) => rule.name)
-    )
+    const parameterRules = this.getParameterRules(model, credentials as unknown as Record<string, string>)
+    const parameterNames = new Set(parameterRules.map((rule) => rule.name))
     const supportsThinking = parameterNames.has('thinking')
     const supportsClearThinking = parameterNames.has('clear_thinking')
+    const defaultThinking = parameterRules.find((rule) => rule.name === 'thinking')?.default
     const thinking = supportsThinking
       ? omitBy(
           {
-            type: modelCredentials?.thinking ?? 'enabled',
+            type: modelCredentials?.thinking ?? defaultThinking,
             clear_thinking: supportsClearThinking ? modelCredentials?.clear_thinking : undefined
           },
           isNil

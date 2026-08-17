@@ -102,17 +102,19 @@ class VolcengineChatOAICompatReasoningModel extends ChatOAICompatReasoningModel 
   }
 }
 
-function buildVolcengineModelKwargs(thinking: unknown) {
-  if (thinking !== 'enabled' && thinking !== 'disabled') {
-    return {}
+function buildVolcengineModelKwargs(thinking: unknown, reasoningEffort: unknown) {
+  const modelKwargs: Record<string, unknown> = {}
+
+  if (thinking === 'enabled' || thinking === 'disabled') {
+    modelKwargs['thinking'] = { type: thinking }
+  }
+  if (typeof reasoningEffort === 'string' && reasoningEffort) {
+    modelKwargs['reasoning_effort'] = reasoningEffort
+  } else if (thinking === 'disabled') {
+    modelKwargs['reasoning_effort'] = 'minimal'
   }
 
-  return {
-    thinking: {
-      type: thinking
-    },
-    ...(thinking === 'disabled' ? { reasoning_effort: 'minimal' } : {})
-  }
+  return modelKwargs
 }
 
 @Injectable()
@@ -155,7 +157,10 @@ export class VolcengineLargeLanguageModel extends LargeLanguageModel {
         ...params,
         model,
         maxTokens: copilotModel.options?.['max_tokens'],
-        modelKwargs: buildVolcengineModelKwargs(copilotModel.options?.['thinking']),
+        modelKwargs: buildVolcengineModelKwargs(
+          copilotModel.options?.['thinking'],
+          copilotModel.options?.['reasoning_effort']
+        ),
         // include token usage in the stream. this will include an additional chunk at the end of the stream with the token usage.
         streamUsage: true
       },

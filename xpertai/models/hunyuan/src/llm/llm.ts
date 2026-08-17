@@ -55,6 +55,7 @@ export class HunyuanLargeLanguageModel extends LargeLanguageModel {
     ) as HunyuanModelCredentials
     const params = toCredentialKwargs(credentials, copilotModel.model)
     const modelName = (params.model as string) || copilotModel.model
+    const enableEnhance = copilotModel.options?.['enable_enhance']
 
     return this.createChatModel({
       ...params,
@@ -62,6 +63,10 @@ export class HunyuanLargeLanguageModel extends LargeLanguageModel {
       temperature: copilotModel.options?.['temperature'] ?? credentials.temperature ?? 0,
       topP: copilotModel.options?.['top_p'] ?? credentials.top_p,
       maxTokens: copilotModel.options?.['max_tokens'] ?? credentials.max_tokens,
+      modelKwargs: {
+        ...(params.modelKwargs ?? {}),
+        ...(enableEnhance === undefined ? {} : { enable_enhance: enableEnhance }),
+      },
       streamUsage: false,
       verbose: options?.verbose,
       callbacks: [...this.createHandleUsageCallbacks(copilot, modelName, credentials, handleLLMTokens)],

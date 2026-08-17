@@ -93,7 +93,7 @@ describe('getCustomizableModelSchemaFromCredentials', () => {
 
     const rules = schema?.parameter_rules
     expect(rules?.find((r) => r.name === 'temperature')).toBeDefined()
-    expect(rules?.find((r) => r.name === 'enable_thinking')).toBeDefined()
+    expect(rules?.find((r) => r.name === 'enable_thinking')).toMatchObject({ default: false })
   })
 
   it('should support agent thought feature', () => {
@@ -222,6 +222,36 @@ describe('getCustomizableModelSchemaFromCredentials', () => {
     expect(invocationParams['chat_template_kwargs']).toEqual({
       enable_thinking: false
     })
+  })
+
+  it('should let the runtime option override custom body thinking defaults', () => {
+    const credentials: OpenAICompatModelCredentials = {
+      api_key: 'test-key',
+      endpoint_url: 'http://test.com',
+      endpoint_model_name: 'test-model',
+      mode: 'chat',
+      context_size: '4096',
+      max_tokens_to_sample: '4096',
+      vision_support: 'no_support',
+      temperature: 0.2,
+      customBodyParams: {
+        enable_thinking: true
+      }
+    }
+    const model = llm.getChatModel(
+      {
+        model: 'test-model',
+        options: {
+          enable_thinking: false
+        }
+      },
+      { modelProperties: credentials } as unknown as TChatModelOptions,
+      null
+    )
+
+    const invocationParams = model.invocationParams()
+    expect(invocationParams['enable_thinking']).toBe(false)
+    expect(invocationParams['chat_template_kwargs']).toEqual({ enable_thinking: false })
   })
 
   it('should pass runtime sampling, penalty, and retry options', () => {
