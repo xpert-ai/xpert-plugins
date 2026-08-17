@@ -3,6 +3,7 @@ jest.mock('@xpert-ai/contracts', () => ({
 }))
 
 import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from '@langchain/core/messages'
+import type { ViewImageOutputRuntime } from './view-image.artifacts.js'
 import { buildViewImageResizeOptions, ViewImageService } from './view-image.service.js'
 import { DEFAULT_VIEW_IMAGE_COMPRESSION_PERCENT, ViewImageToolInputSchema } from './view-image.types.js'
 
@@ -15,6 +16,48 @@ const HOST_WORKSPACE_ROOT = '/Users/test/data'
 
 describe('ViewImageService', () => {
   const service = new ViewImageService()
+
+  function createOutputRuntime(): ViewImageOutputRuntime {
+    return {
+      workspaceFiles: {
+        writeRuntimeBuffer: jest.fn().mockResolvedValue({
+          name: 'prepared.png',
+          filePath: '.xpert/tool-output/view-image/prepared.png',
+          workspacePath: '/workspace/.xpert/tool-output/view-image/prepared.png',
+          catalog: 'xperts',
+          reference: {
+            source: 'platform.workspace.files',
+            filePath: '.xpert/tool-output/view-image/prepared.png',
+            workspacePath: '/workspace/.xpert/tool-output/view-image/prepared.png'
+          }
+        })
+      },
+      artifacts: {
+        createArtifact: jest.fn().mockResolvedValue({
+          id: 'artifact-1',
+          pluginName: '@xpert-ai/plugin-view-image',
+          resourceType: 'sandbox-image',
+          resourceId: 'resource-1',
+          kind: 'image',
+          status: 'active'
+        }),
+        ensureArtifactVersion: jest.fn().mockResolvedValue({
+          outcome: 'created',
+          version: {
+            id: 'artifact-version-1',
+            artifactId: 'artifact-1',
+            versionNumber: 1,
+            status: 'active',
+            mimeType: 'image/png'
+          }
+        })
+      }
+    }
+  }
+
+  function createTool() {
+    return service.createTool(createOutputRuntime())
+  }
 
   function createRunConfig(
     backend: { workingDirectory: string; downloadFiles: jest.Mock },
@@ -53,7 +96,8 @@ describe('ViewImageService', () => {
         }
       ])
     }
-    const tool = service.createTool()
+    const outputRuntime = createOutputRuntime()
+    const tool = service.createTool(outputRuntime)
 
     const result = (await tool.invoke(
       { path: 'chart.png' },
@@ -76,11 +120,57 @@ describe('ViewImageService', () => {
         ]
       })
     )
+    expect(result.artifact).toEqual({
+      type: 'xpert.tool-output',
+      version: 1,
+      attachments: [
+        expect.objectContaining({
+          type: 'image',
+          artifactId: 'artifact-1',
+          artifactVersionId: 'artifact-version-1',
+          sha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+          mimeType: 'image/png',
+          title: 'chart.png',
+          alt: 'chart.png',
+          source: 'sandbox',
+          modelDetail: 'low'
+        })
+      ]
+    })
+    expect(outputRuntime.workspaceFiles.writeRuntimeBuffer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        buffer: ONE_BY_ONE_PNG,
+        originalName: 'chart.png',
+        mimeType: 'image/png',
+        folder: '.xpert/tool-output/view-image'
+      })
+    )
+    expect(outputRuntime.artifacts.createArtifact).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: expect.objectContaining({
+          pluginName: '@xpert-ai/plugin-view-image',
+          resourceType: 'sandbox-image',
+          resourceId: expect.stringMatching(/^[a-f0-9]{64}$/),
+          checksum: (result.artifact as { attachments: Array<{ sha256: string }> }).attachments[0].sha256
+        }),
+        kind: 'image',
+        title: 'chart.png'
+      })
+    )
+    expect(outputRuntime.artifacts.ensureArtifactVersion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        artifactId: 'artifact-1',
+        idempotencyKey: (result.artifact as { attachments: Array<{ sha256: string }> }).attachments[0].sha256,
+        sha256: (result.artifact as { attachments: Array<{ sha256: string }> }).attachments[0].sha256
+      })
+    )
+    expect(JSON.stringify(result.artifact)).not.toContain('data:image')
+    expect(JSON.stringify(result.artifact)).not.toContain(HOST_WORKSPACE_ROOT)
     expect(result.content).toContain('The system will attach them automatically')
   })
 
   it('exposes the 3-image per-call limit in the tool contract', () => {
-    const tool = service.createTool()
+    const tool = createTool()
 
     expect(tool.description).toContain('at most 3 images per call')
     expect(tool.description).toContain('separate model steps')
@@ -93,6 +183,8 @@ describe('ViewImageService', () => {
     expect(ViewImageToolInputSchema.safeParse({ paths: ['one.png', 'two.png', 'three.png', 'four.png'] }).success).toBe(
       false
     )
+    expect(ViewImageToolInputSchema.safeParse({}).success).toBe(false)
+    expect(ViewImageToolInputSchema.safeParse({ path: 'one.png', unknown: true }).success).toBe(false)
   })
 
   it('resolves middleware config with the default compression percent', () => {
@@ -139,7 +231,7 @@ describe('ViewImageService', () => {
         }
       ])
     }
-    const tool = service.createTool()
+    const tool = createTool()
 
     const result = (await tool.invoke(
       { path: '/workspace/sessions/thread-1/files/page-1.png' },
@@ -171,7 +263,7 @@ describe('ViewImageService', () => {
         }
       ])
     }
-    const tool = service.createTool()
+    const tool = createTool()
 
     await tool.invoke(
       { path: '/workspace/sessions/thread-1/files/page-1.png' },
@@ -210,7 +302,7 @@ describe('ViewImageService', () => {
         }
       ])
     }
-    const tool = service.createTool()
+    const tool = createTool()
 
     const result = (await tool.invoke(
       {
@@ -242,7 +334,7 @@ describe('ViewImageService', () => {
         }
       ])
     }
-    const tool = service.createTool()
+    const tool = createTool()
 
     const result = (await tool.invoke(
       { path: ['one.png', 'two.png'] },
@@ -269,7 +361,7 @@ describe('ViewImageService', () => {
         }
       ])
     }
-    const tool = service.createTool()
+    const tool = createTool()
 
     const result = (await tool.invoke(
       { paths: ['one.png', 'two.png'] },
@@ -301,7 +393,7 @@ describe('ViewImageService', () => {
         }
       ])
     }
-    const tool = service.createTool()
+    const tool = createTool()
 
     const result = (await tool.invoke(
       {
@@ -326,7 +418,7 @@ describe('ViewImageService', () => {
         }
       ])
     }
-    const tool = service.createTool()
+    const tool = createTool()
     const toolMessage = (await tool.invoke(
       { path: 'chart.png' },
       createRunConfig(backend, 'call_view_image_3')
@@ -387,7 +479,7 @@ describe('ViewImageService', () => {
         }
       ])
     }
-    const tool = service.createTool()
+    const tool = createTool()
 
     await expect(tool.invoke({ path: 'not-image.txt' }, createRunConfig(backend, 'call_view_image_4'))).rejects.toThrow(
       'Only PNG, JPEG, and WEBP files are allowed'
@@ -399,7 +491,7 @@ describe('ViewImageService', () => {
       workingDirectory: '/tmp/local-sandbox',
       downloadFiles: jest.fn()
     }
-    const tool = service.createTool()
+    const tool = createTool()
 
     await expect(
       tool.invoke({ path: '/workspace-alt/shared/plan.png' }, createRunConfig(backend, 'call_view_image_5'))
@@ -412,7 +504,7 @@ describe('ViewImageService', () => {
       workingDirectory: '/tmp/local-sandbox',
       downloadFiles: jest.fn()
     }
-    const tool = service.createTool()
+    const tool = createTool()
 
     await expect(
       tool.invoke({ path: '../../secrets/plan.png' }, createRunConfig(backend, 'call_view_image_6'))
@@ -425,7 +517,7 @@ describe('ViewImageService', () => {
       workingDirectory: '/tmp/local-sandbox',
       downloadFiles: jest.fn()
     }
-    const tool = service.createTool()
+    const tool = createTool()
 
     await expect(
       tool.invoke({ path: 'attachment://file-1' }, createRunConfig(backend, 'call_view_image_attachment'))
@@ -459,7 +551,7 @@ describe('ViewImageService', () => {
         }
       ])
     }
-    const tool = service.createTool()
+    const tool = createTool()
     const toolMessage = (await tool.invoke(
       { path: 'chart.png' },
       {

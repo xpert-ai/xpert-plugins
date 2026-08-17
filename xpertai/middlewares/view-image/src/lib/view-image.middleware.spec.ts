@@ -4,10 +4,13 @@ jest.mock('@xpert-ai/contracts', () => {
   }
 })
 jest.mock('@xpert-ai/plugin-sdk', () => ({
-  AgentMiddlewareStrategy: () => () => undefined
+  AgentMiddlewareStrategy: () => () => undefined,
+  ArtifactsRuntimeCapability: { id: 'platform.artifacts' },
+  WorkspaceFilesRuntimeCapability: { id: 'platform.workspace.files' }
 }))
 
 import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from '@langchain/core/messages'
+import type { ViewImageOutputRuntime } from './view-image.artifacts.js'
 import { ViewImageMiddleware } from './view-image.middleware.js'
 import { ViewImageService } from './view-image.service.js'
 import { ViewImageMiddlewareConfigFormSchema } from './view-image.types.js'
@@ -19,6 +22,62 @@ const ONE_BY_ONE_PNG = Buffer.from(
 const DEFAULT_WORKSPACE_ROOT = '/workspace'
 
 describe('ViewImageMiddleware', () => {
+  function createOutputRuntime(): ViewImageOutputRuntime {
+    return {
+      workspaceFiles: {
+        writeRuntimeBuffer: jest.fn().mockResolvedValue({
+          name: 'prepared.png',
+          filePath: '.xpert/tool-output/view-image/prepared.png',
+          workspacePath: '/workspace/.xpert/tool-output/view-image/prepared.png',
+          catalog: 'xperts',
+          reference: {
+            source: 'platform.workspace.files',
+            filePath: '.xpert/tool-output/view-image/prepared.png',
+            workspacePath: '/workspace/.xpert/tool-output/view-image/prepared.png'
+          }
+        })
+      },
+      artifacts: {
+        createArtifact: jest.fn().mockResolvedValue({
+          id: 'artifact-1',
+          pluginName: '@xpert-ai/plugin-view-image',
+          resourceType: 'sandbox-image',
+          resourceId: 'resource-1',
+          kind: 'image',
+          status: 'active'
+        }),
+        ensureArtifactVersion: jest.fn().mockResolvedValue({
+          outcome: 'created',
+          version: {
+            id: 'artifact-version-1',
+            artifactId: 'artifact-1',
+            versionNumber: 1,
+            status: 'active',
+            mimeType: 'image/png'
+          }
+        })
+      }
+    }
+  }
+
+  function createMiddlewareContext(outputRuntime: ViewImageOutputRuntime = createOutputRuntime()) {
+    return {
+      runtime: {
+        capabilities: {
+          require: (capability: { id: string }) => {
+            if (capability.id === 'platform.artifacts') {
+              return outputRuntime.artifacts
+            }
+            if (capability.id === 'platform.workspace.files') {
+              return outputRuntime.workspaceFiles
+            }
+            throw new Error(`Unexpected capability: ${capability.id}`)
+          }
+        }
+      }
+    }
+  }
+
   function createBackend() {
     return {
       workingDirectory: '/tmp/local-sandbox',
@@ -64,7 +123,7 @@ describe('ViewImageMiddleware', () => {
     toolCallId: string,
     pathInput: string | string[]
   ) {
-    const tool = service.createTool()
+    const tool = service.createTool(createOutputRuntime())
     return (await tool.invoke(
       { path: pathInput },
       {
@@ -79,7 +138,7 @@ describe('ViewImageMiddleware', () => {
   function createSubject(options = {}) {
     const service = new ViewImageService()
     const strategy = new ViewImageMiddleware(service)
-    const middleware = strategy.createMiddleware(options, {} as any)
+    const middleware = strategy.createMiddleware(options, createMiddlewareContext() as never)
 
     return {
       service,
@@ -114,6 +173,14 @@ describe('ViewImageMiddleware', () => {
     expect(compressionPercent?.description?.en_US).toContain('not a target file-size percentage')
   })
 
+  it('requires scoped Workspace Files and Artifacts runtime capabilities', () => {
+    const strategy = new ViewImageMiddleware(new ViewImageService())
+
+    expect(() => strategy.createMiddleware({}, { runtime: {} } as never)).toThrow(
+      'Xpert runtime capabilities are not available for `view_image`'
+    )
+  })
+
   it('passes the resolved compression percent config into tool creation and model request preparation', async () => {
     const backend = createBackend()
     const request = createRequest([], backend)
@@ -128,13 +195,17 @@ describe('ViewImageMiddleware', () => {
       finalizePreparedBatches: jest.fn()
     } as unknown as ViewImageService
     const strategy = new ViewImageMiddleware(service)
-    const middleware = strategy.createMiddleware({ compressionPercent: 50 }, {} as any)
+    const outputRuntime = createOutputRuntime()
+    const middleware = strategy.createMiddleware(
+      { compressionPercent: 50 },
+      createMiddlewareContext(outputRuntime) as never
+    )
     const handler = jest.fn().mockResolvedValue(new AIMessage('ok'))
 
     await middleware.wrapModelCall?.(request as any, handler)
 
     expect((service as any).resolveMiddlewareConfig).toHaveBeenCalledWith({ compressionPercent: 50 })
-    expect((service as any).createTool).toHaveBeenCalledWith({ compressionPercent: 50 })
+    expect((service as any).createTool).toHaveBeenCalledWith(outputRuntime, { compressionPercent: 50 })
     expect((service as any).prepareModelRequest).toHaveBeenCalledWith(request, backend, { compressionPercent: 50 })
     expect((service as any).finalizePreparedBatches).toHaveBeenCalledWith(preparedRequest.cleanupKeys)
   })
