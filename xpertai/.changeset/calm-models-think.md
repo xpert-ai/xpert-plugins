@@ -9,4 +9,4 @@
 '@xpert-ai/plugin-zhipuai': patch
 ---
 
-Align model parameter defaults between configuration UIs and runtime requests, including thinking and search options.
+Preserve explicit thinking, reasoning effort, search, and provider-specific model options when building runtime requests.

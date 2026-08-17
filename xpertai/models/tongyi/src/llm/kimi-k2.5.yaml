@@ -46,7 +46,7 @@ parameter_rules:
       zh_Hans: 深度思考
       en_US: Thinking Mode
     type: boolean
-    default: true
+    default: false
     required: false
     help:
       zh_Hans: 启用深度思考模式，使模型具备强大的推理能力，适合解决复杂的逻辑推理、数学问题和代码编写等任务。
