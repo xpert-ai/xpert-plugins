@@ -15,7 +15,7 @@ module.exports = {
   transform: {
     '^.+\\.[tj]s$': ['@swc/jest', swcJestConfig]
   },
-  transformIgnorePatterns: ['/node_modules/.pnpm/(?!(lodash-es)@)', '/node_modules/(?!(?:\\.pnpm|lodash-es)(?:/|$))'],
+  transformIgnorePatterns: ['/node_modules/(?!(lodash-es)/)'],
   moduleNameMapper: {
     '^lodash-es$': '<rootDir>/../../test-utils/lodashEsMock.ts'
   },

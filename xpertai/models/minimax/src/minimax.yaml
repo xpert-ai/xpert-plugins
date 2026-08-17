@@ -3,8 +3,8 @@ label:
   en_US: MiniMax
   zh_Hans: MiniMax
 description:
-  en_US: MiniMax models for chat, text embedding, and text-to-speech.
-  zh_Hans: MiniMax 提供的对话、文本嵌入和语音合成模型。
+  en_US: MiniMax models for chat and text-to-speech.
+  zh_Hans: MiniMax 提供的对话和语音合成模型。
 icon_small:
   en_US: icon_s_en.png
 icon_large:
@@ -18,7 +18,6 @@ help:
     en_US: https://platform.minimaxi.com/user-center/basic-information/interface-key
 supported_model_types:
   - llm
-  - text-embedding
   - tts
 configurate_methods:
   - predefined-model

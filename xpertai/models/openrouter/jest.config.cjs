@@ -18,10 +18,7 @@ module.exports = {
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
   coverageDirectory: 'test-output/jest/coverage',
-  transformIgnorePatterns: [
-    '/node_modules/.pnpm/(?!(lodash-es)@)',
-    '/node_modules/(?!(?:\\.pnpm|lodash-es)(?:/|$))'
-  ],
+  transformIgnorePatterns: ['node_modules/(?!lodash-es/.*)'],
   moduleNameMapper: {
     '^lodash-es$': '<rootDir>/../../test-utils/lodashEsMock.ts'
   },
