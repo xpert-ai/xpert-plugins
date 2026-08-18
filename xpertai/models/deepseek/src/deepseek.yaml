@@ -2,8 +2,8 @@ background: '#c0cdff'
 configurate_methods:
 - predefined-model
 description:
-  en_US: Models provided by deepseek, such as deepseek-reasoner and deepseek-chat.
-  zh_Hans: 深度求索提供的模型，例如 deepseek-reasoner、deepseek-chat 。
+  en_US: Models provided by DeepSeek, including DeepSeek V4 Flash and DeepSeek V4 Pro.
+  zh_Hans: 深度求索提供的 DeepSeek V4 Flash、DeepSeek V4 Pro 模型。
 help:
   title:
     en_US: Get your API Key from deepseek

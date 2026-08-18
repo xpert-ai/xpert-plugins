@@ -58,7 +58,7 @@ describe('DeepSeek reasoning tool calls', () => {
     }
 
     model = new DeepSeekChatOAICompatReasoningModel({
-      model: 'deepseek-reasoner',
+      model: 'deepseek-v4-flash',
       apiKey: testConfig.apiKey,
       configuration: {
         baseURL: testConfig.baseURL,
@@ -66,6 +66,7 @@ describe('DeepSeek reasoning tool calls', () => {
       streaming: false,
       temperature: 0,
       maxTokens: 128,
+      thinking: true,
     });
   });
 

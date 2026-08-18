@@ -1,10 +1,12 @@
-import { buildSeedreamTools } from './tools.js'
+import { buildSeedreamTools, getSeedreamImagePricingDimensions } from './tools.js'
 import { normalizeVideoGenerationOptions } from './rules.js'
+import { VolcengineImageGenerationModel, VolcengineVideoGenerationModel } from './model.js'
 import { SeedreamAigcStrategy } from './strategy.js'
 import { SeedreamAigcToolset } from './toolset.js'
 import { SeedreamAigc, type SeedreamAigcCredentials, type SeedreamToolResult, type WorkspaceFilesApi } from './types.js'
 import { normalizeSeedanceVideoObservation } from './usage.js'
 import type { TBuiltinToolsetParams } from '@xpert-ai/plugin-sdk'
+import { VolcengineProviderStrategy } from '../provider.strategy.js'
 
 jest.mock('@xpert-ai/plugin-sdk', () => ({
   ...jest.requireActual('@xpert-ai/plugin-sdk'),
@@ -69,6 +71,68 @@ describe('Seedream AIGC tools', () => {
       })),
       readBuffer: jest.fn(),
       deleteFile: jest.fn()
+    }
+  })
+
+  it('buckets Seedream 5 Pro output by the documented 2.61MP boundary', () => {
+    expect(
+      getSeedreamImagePricingDimensions('doubao-seedream-5-0-pro-260628', { size: '1024x1024' })
+    ).toEqual({ resolution: 'le-2.61mp', mode: 'standard' })
+    expect(
+      getSeedreamImagePricingDimensions('doubao-seedream-5-0-pro-260628', { size: '2048x2048' })
+    ).toEqual({ resolution: 'gt-2.61mp', mode: 'standard' })
+  })
+
+  it('resolves Seedream 5 Pro list prices without promotional time windows', () => {
+    const model = 'doubao-seedream-5-0-pro-260628'
+    const manager = new VolcengineImageGenerationModel(new VolcengineProviderStrategy())
+    const resolve = (resolution: string, mode: string) =>
+      manager.getUsagePricingSnapshot(model, {}, {
+        model,
+        operation: 'text_to_image',
+        modality: 'image',
+        pricingDimensions: { resolution, mode },
+        startedAt: '2026-08-18T00:00:00Z'
+      }).rules
+
+    const cases = [
+      ['le-2.61mp', 'standard', 0.3],
+      ['gt-2.61mp', 'standard', 0.6],
+      ['le-2.61mp', 'layer', 0.15],
+      ['gt-2.61mp', 'layer', 0.3]
+    ] as const
+    for (const [resolution, mode, unitPrice] of cases) {
+      const rules = resolve(resolution, mode)
+      expect(rules).toEqual([expect.objectContaining({ unit: 'generation', unit_price: unitPrice })])
+      expect(rules[0]).not.toHaveProperty('effective_to')
+    }
+  })
+
+  it('resolves Seedance list prices without promotional time windows', () => {
+    const manager = new VolcengineVideoGenerationModel(new VolcengineProviderStrategy())
+    const resolve = (model: string, resolution: string, videoInput: boolean) =>
+      manager.getUsagePricingSnapshot(model, {}, {
+        model,
+        operation: 'text_to_video',
+        modality: 'video',
+        pricingDimensions: { resolution, videoInput },
+        startedAt: '2026-08-18T00:00:00Z'
+      }).rules
+    const cases = [
+      ['doubao-seedance-2-0-fast-260128', '720p', false, 37],
+      ['doubao-seedance-2-0-fast-260128', '720p', true, 22],
+      ['doubao-seedance-2-0-mini-260615', '720p', false, 23],
+      ['doubao-seedance-2-0-mini-260615', '720p', true, 14],
+      ['doubao-seedance-2-5-260628', '720p', false, 70],
+      ['doubao-seedance-2-5-260628', '720p', true, 42],
+      ['doubao-seedance-2-5-260628', '1080p', false, 77],
+      ['doubao-seedance-2-5-260628', '1080p', true, 46]
+    ] as const
+
+    for (const [model, resolution, videoInput, unitPrice] of cases) {
+      const rules = resolve(model, resolution, videoInput)
+      expect(rules).toEqual([expect.objectContaining({ unit: 'token', unit_price: unitPrice })])
+      expect(rules[0]).not.toHaveProperty('effective_to')
     }
   })
 

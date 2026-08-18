@@ -101,7 +101,22 @@ parameter_rules:
       en_US: Enter extra HTTP headers in JSON string format, which will be included in the API request.
 pricing:
   input: '0.0003'
-  output: '0.003'
+  output: '0.0006'
   unit: '0.001'
   currency: RMB
+  rules:
+    - component: input
+      unit_price: 0.3
+      unit_size: 1000000
+      region: cn
+    - component: output
+      unit_price: 0.6
+      unit_size: 1000000
+      mode: standard
+      region: cn
+    - component: output
+      unit_price: 3
+      unit_size: 1000000
+      mode: thinking
+      region: cn
 deprecated: true

@@ -7,3 +7,46 @@ features: []
 model_properties:
   mode: image
 parameter_rules: []
+pricing:
+  type: usage
+  rules:
+    - id: volcengine-seedream-5-pro-standard-le-2-61mp-generation
+      version: "2026-08-17"
+      effective_from: "2026-08-17T00:00:00Z"
+      unit: generation
+      unit_size: 1
+      unit_price: 0.3
+      currency: CNY
+      charge_type: paid
+      dimensions: { resolution: le-2.61mp, mode: standard }
+      source_url: https://www.volcengine.com/docs/82379/1544106
+    - id: volcengine-seedream-5-pro-standard-gt-2-61mp-generation
+      version: "2026-08-17"
+      effective_from: "2026-08-17T00:00:00Z"
+      unit: generation
+      unit_size: 1
+      unit_price: 0.6
+      currency: CNY
+      charge_type: paid
+      dimensions: { resolution: gt-2.61mp, mode: standard }
+      source_url: https://www.volcengine.com/docs/82379/1544106
+    - id: volcengine-seedream-5-pro-layer-le-2-61mp-generation
+      version: "2026-08-17"
+      effective_from: "2026-08-17T00:00:00Z"
+      unit: generation
+      unit_size: 1
+      unit_price: 0.15
+      currency: CNY
+      charge_type: paid
+      dimensions: { resolution: le-2.61mp, mode: layer }
+      source_url: https://www.volcengine.com/docs/82379/1544106
+    - id: volcengine-seedream-5-pro-layer-gt-2-61mp-generation
+      version: "2026-08-17"
+      effective_from: "2026-08-17T00:00:00Z"
+      unit: generation
+      unit_size: 1
+      unit_price: 0.3
+      currency: CNY
+      charge_type: paid
+      dimensions: { resolution: gt-2.61mp, mode: layer }
+      source_url: https://www.volcengine.com/docs/82379/1544106

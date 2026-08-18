@@ -28,12 +28,8 @@ export const SUPPORTED_LLM_MODELS = [
   'MiniMax-M2.5-highspeed',
   'MiniMax-M2.1',
   'MiniMax-M2.1-highspeed',
-  'MiniMax-M2',
-  'M2-her',
-  'minimax-m1'
+  'MiniMax-M2'
 ];
-
-export const SUPPORTED_EMBEDDING_MODELS = ['embo-01'];
 
 export const SUPPORTED_TTS_MODELS = [
   'speech-2.8-hd',

@@ -19,4 +19,7 @@ module.exports = {
   moduleFileExtensions: ['ts', 'js', 'html'],
   coverageDirectory: 'test-output/jest/coverage',
   transformIgnorePatterns: ['node_modules/(?!lodash-es/.*)'],
+  moduleNameMapper: {
+    '^lodash-es$': '<rootDir>/../../test-utils/lodashEsMock.ts'
+  },
 };

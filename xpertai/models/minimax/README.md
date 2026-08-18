@@ -2,13 +2,12 @@
 
 ## Overview
 
-`@xpert-ai/plugin-minimax` connects [MiniMax AI](https://www.minimaxi.com/) models to the [XpertAI](https://github.com/xpert-ai/xpert) platform. The plugin integrates MiniMax's OpenAI-compatible API so XpertAI agents can leverage MiniMax's large language models, text embeddings, and text-to-speech capabilities.
+`@xpert-ai/plugin-minimax` connects [MiniMax AI](https://www.minimaxi.com/) models to the [XpertAI](https://github.com/xpert-ai/xpert) platform. The plugin integrates MiniMax's OpenAI-compatible API so XpertAI agents can leverage MiniMax's large language models and text-to-speech capabilities.
 
 ## Core Features
 
 - Ships `MiniMaxModule`, which registers the NestJS provider strategy, lifecycle hooks, and configuration schema required by the plugin runtime.
 - Implements `MiniMaxLargeLanguageModel`, a LangChain-powered adapter built on `ChatOAICompatReasoningModel` that supports streaming chat completions, function calling, and token accounting callbacks for agent telemetry.
-- Provides `MiniMaxTextEmbeddingModel`, a custom implementation that handles MiniMax's specific embedding API format with support for document and query embedding types.
 - Exposes `MiniMaxTTSModel`, which supports streaming text-to-speech synthesis with multiple voice options and audio formats.
 - Ships a `minimax.yaml` provider schema for XpertAI's model-provider UI and a `manifest.yaml` plugin manifest for packaging metadata.
 
@@ -51,11 +50,6 @@ During validation, the plugin checks that both `api_key` and `group_id` are prov
 - `MiniMax-M2.1` - Historical reasoning model with 204.8K total context
 - `MiniMax-M2.1-highspeed` - Historical high-speed variant of M2.1
 - `MiniMax-M2` - Historical MiniMax M2 model with 204.8K total context
-- `M2-her` - Specialized for role-playing and multi-turn conversations (65K context)
-- `minimax-m1` - Historical MiniMax M1 model (1M context)
-
-### Text Embedding Models
-- `embo-01` - MiniMax embedding model
 
 ### Text-to-Speech Models
 - `speech-2.8-hd` - Latest HD TTS with 40 languages and 7 emotional variants
@@ -68,7 +62,6 @@ During validation, the plugin checks that both `api_key` and `group_id` are prov
 ## Model Capabilities
 
 - **Conversational Models**: `MiniMaxLargeLanguageModel` merges provider credentials with per-model overrides, enables streaming, and registers token usage callbacks so agent telemetry stays accurate.
-- **Embedding Models**: `MiniMaxTextEmbeddingModel` implements custom embedding logic to handle MiniMax's specific API format, supporting both document and query embedding types.
 - **TTS Models**: `MiniMaxTTSModel` supports streaming text-to-speech synthesis with configurable voice settings, audio formats (mp3, wav, opus, aac, flac), and playback speed.
 
 ## Development & Debugging

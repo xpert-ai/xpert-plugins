@@ -17,3 +17,54 @@ parameter_rules:
     use_template: top_p
   - name: max_tokens
     use_template: max_tokens
+pricing:
+  input: '3.2'
+  output: '16'
+  unit: '0.000001'
+  currency: RMB
+  rules:
+    - component: input
+      unit_price: 3.2
+      unit_size: 1000000
+      max_input_tokens: 32000
+    - component: input
+      unit_price: 4.8
+      unit_size: 1000000
+      min_input_tokens: 32001
+      max_input_tokens: 128000
+    - component: input
+      unit_price: 9.6
+      unit_size: 1000000
+      min_input_tokens: 128001
+      max_input_tokens: 256000
+    - component: cache_read_input
+      unit_price: 0.64
+      unit_size: 1000000
+      max_input_tokens: 32000
+    - component: cache_read_input
+      unit_price: 0.96
+      unit_size: 1000000
+      min_input_tokens: 32001
+      max_input_tokens: 128000
+    - component: cache_read_input
+      unit_price: 1.92
+      unit_size: 1000000
+      min_input_tokens: 128001
+      max_input_tokens: 256000
+    - component: output
+      unit_price: 16
+      unit_size: 1000000
+      max_input_tokens: 32000
+    - component: output
+      unit_price: 24
+      unit_size: 1000000
+      min_input_tokens: 32001
+      max_input_tokens: 128000
+    - component: output
+      unit_price: 48
+      unit_size: 1000000
+      min_input_tokens: 128001
+      max_input_tokens: 256000
+    - component: cache_storage
+      unit_price: 0.017
+      unit_size: 1000000

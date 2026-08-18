@@ -35,6 +35,8 @@ const MULTIMODAL_IMAGE_LIMIT_BYTES = 30 * 1024 * 1024
 const AUDIO_LIMIT_BYTES = 15 * 1024 * 1024
 const VIDEO_QUERY_MAX_WAIT_SECONDS = 45
 const VIDEO_QUERY_POLL_MS = 1_000
+const SEEDREAM_5_PRO_MODEL = 'doubao-seedream-5-0-pro-260628'
+const SEEDREAM_5_PRO_MAX_STANDARD_PIXELS = 2_610_000
 const MULTIMODAL_MODE_RULES: Record<
   string,
   { label: string; needImage: boolean; needVideo: boolean; needAudio: boolean; audioOnly?: boolean }
@@ -1543,14 +1545,9 @@ async function generateImages(
   toolName: string,
   operation: ImageGenerationOperation
 ) {
+  const pricingDimensions = getSeedreamImagePricingDimensions(model, payload)
   if (deps.createImageModelClient) {
     if (!toolCallId) throw new Error('Tool call ID is required to record Seedream image usage')
-    const pricingDimensions = {
-      ...(normalizeString(payload.size) ? { resolution: normalizeString(payload.size) } : {}),
-      ...(normalizeString(payload.sequential_image_generation)
-        ? { mode: normalizeString(payload.sequential_image_generation) }
-        : {})
-    }
     const pricingSnapshot = deps.modelProvider?.resolvePricingSnapshot
       ? await deps.modelProvider.resolvePricingSnapshot({
           model,
@@ -1582,14 +1579,36 @@ async function generateImages(
     toolCallId,
     toolName,
     operation,
-    {
-      ...(normalizeString(payload.size) ? { resolution: normalizeString(payload.size) } : {}),
-      ...(normalizeString(payload.sequential_image_generation)
-        ? { mode: normalizeString(payload.sequential_image_generation) }
-        : {})
-    }
+    pricingDimensions
   )
   return { response }
+}
+
+export function getSeedreamImagePricingDimensions(
+  model: string,
+  payload: Record<string, unknown>
+): { resolution?: string; mode?: string } {
+  const size = normalizeString(payload.size)
+  if (model === SEEDREAM_5_PRO_MODEL) {
+    const pixels = size?.match(/^(\d+)x(\d+)$/)
+    return {
+      ...(pixels
+        ? {
+            resolution:
+              Number(pixels[1]) * Number(pixels[2]) > SEEDREAM_5_PRO_MAX_STANDARD_PIXELS
+                ? 'gt-2.61mp'
+                : 'le-2.61mp'
+          }
+        : {}),
+      mode: 'standard'
+    }
+  }
+  return {
+    ...(size ? { resolution: size } : {}),
+    ...(normalizeString(payload.sequential_image_generation)
+      ? { mode: normalizeString(payload.sequential_image_generation) }
+      : {})
+  }
 }
 
 async function finalizeImageGeneration(upload: () => Promise<SeedreamArtifactFile[]>) {

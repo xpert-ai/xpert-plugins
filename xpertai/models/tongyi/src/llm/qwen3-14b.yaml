@@ -114,6 +114,20 @@ parameter_rules:
 pricing:
   input: '0.001'
   output: '0.004'
-#  output_thinking: '0.01'
   unit: '0.001'
   currency: RMB
+  rules:
+    - component: input
+      unit_price: 1
+      unit_size: 1000000
+      region: cn
+    - component: output
+      unit_price: 4
+      unit_size: 1000000
+      mode: standard
+      region: cn
+    - component: output
+      unit_price: 10
+      unit_size: 1000000
+      mode: thinking
+      region: cn

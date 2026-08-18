@@ -4,17 +4,26 @@ import { AiModelTypeEnum, ICopilotModel } from '@xpert-ai/contracts'
 import { Injectable, Logger } from '@nestjs/common'
 import { ChatOAICompatReasoningModel, LargeLanguageModel, TChatModelOptions } from '@xpert-ai/plugin-sdk'
 import { isNil, omitBy } from 'lodash-es'
-import { toCredentialKwargs, TongyiCredentials, TongyiModelCredentials } from '../types.js'
+import {
+  isTongyiInternationalEndpointEnabled,
+  toCredentialKwargs,
+  TongyiCredentials,
+  TongyiModelCredentials
+} from '../types.js'
 import { TongyiProviderStrategy } from '../provider.strategy.js'
 
 const TONGYI_EXPLICIT_CACHE_MODELS = new Set([
+  'qwen3.8-max',
+  'qwen3.7-max',
   'qwen3.6-max-preview',
   'qwen3-max-preview',
   'qwen3-max',
+  'qwen3.7-plus',
   'qwen3.6-plus',
   'qwen3.5-plus',
   'qwen3.5-plus-2026-04-20',
   'qwen-plus',
+  'qwen-plus-latest',
   'qwen3.6-flash',
   'qwen3.5-flash',
   'qwen-flash',
@@ -22,8 +31,36 @@ const TONGYI_EXPLICIT_CACHE_MODELS = new Set([
   'qwen3-coder-flash',
   'qwen3-vl-plus',
   'qwen3-vl-flash',
+  'qwen-vl-max',
+  'qwen-vl-plus',
   'deepseek-v3.2',
+  'deepseek-v4-flash',
+  'deepseek-v4-pro',
   'kimi-k2.6',
+  'kimi-k2.5',
+  'glm-5.1'
+])
+const TONGYI_CN_EXPLICIT_CACHE_PRICED_MODELS = new Set([
+  'qwen3.8-max',
+  'qwen3.7-max',
+  'qwen3-max',
+  'qwen3-max-preview',
+  'qwen3.7-plus',
+  'qwen3.6-plus',
+  'qwen3.5-plus',
+  'qwen-plus',
+  'qwen-plus-latest',
+  'qwen3.6-flash',
+  'qwen3.5-flash',
+  'qwen-flash',
+  'qwen3-coder-plus',
+  'qwen3-vl-plus',
+  'qwen3-vl-flash',
+  'qwen-vl-max',
+  'qwen-vl-plus',
+  'deepseek-v3.2',
+  'deepseek-v4-flash',
+  'deepseek-v4-pro',
   'kimi-k2.5',
   'glm-5.1'
 ])
@@ -102,6 +139,27 @@ export function toTongyiConfigurationWithExtraHeaders(
   }
 }
 
+export function getTongyiPricingContext(
+  credentials: TongyiCredentials,
+  modelCredentials?: TongyiModelCredentials
+) {
+  const endpointSelection = credentials.use_international_endpoint
+  const region = credentials.api_host
+    ? endpointSelection === true || endpointSelection === 'true'
+      ? 'international'
+      : endpointSelection === false || endpointSelection === 'false'
+        ? 'cn'
+        : undefined
+    : isTongyiInternationalEndpointEnabled(credentials)
+      ? 'international'
+      : 'cn'
+
+  return {
+    mode: modelCredentials?.enable_thinking === true ? 'thinking' : 'standard',
+    region
+  }
+}
+
 type TongyiContentPart = {
   type?: unknown
   text?: unknown
@@ -123,6 +181,109 @@ type TongyiChatCompletionRequest = {
 
 type TongyiCacheFields = {
   model?: string
+}
+
+type TongyiPriceComponent = 'input' | 'output' | 'cache_read_input' | 'cache_write_input'
+
+type TongyiPriceRule = {
+  component: TongyiPriceComponent
+  unit_price: number
+  unit_size: number
+  min_input_tokens?: number
+  max_input_tokens?: number
+  mode?: string
+  region?: string
+}
+
+type TongyiTieredPrice = {
+  input?: string | number
+  output?: string | number
+  max_tokens?: string | number
+}
+
+type TongyiPriceConfig = {
+  input?: string | number
+  output?: string | number
+  unit?: string | number
+  tiered_pricing?: TongyiTieredPrice[]
+  rules?: TongyiPriceRule[]
+  [key: string]: unknown
+}
+
+function normalizeTongyiUnitPrice(value: number) {
+  return Number(value.toFixed(10))
+}
+
+function legacyChinaRules(pricing: TongyiPriceConfig, component: 'input' | 'output'): TongyiPriceRule[] {
+  const unit = Number(pricing.unit)
+  if (!Number.isFinite(unit) || unit <= 0) return []
+
+  const tiers = pricing.tiered_pricing?.length
+    ? pricing.tiered_pricing
+    : [{ input: pricing.input, output: pricing.output }]
+  let previousMax: number | undefined
+
+  return tiers.flatMap((tier) => {
+    const configuredPrice = Number(tier[component] ?? pricing[component])
+    if (!Number.isFinite(configuredPrice)) return []
+    const maxInputTokens = tier.max_tokens === undefined ? undefined : Number(tier.max_tokens)
+    const rule: TongyiPriceRule = {
+      component,
+      unit_price: normalizeTongyiUnitPrice(configuredPrice * unit * 1_000_000),
+      unit_size: 1_000_000,
+      region: 'cn'
+    }
+    if (previousMax !== undefined) rule.min_input_tokens = previousMax + 1
+    if (Number.isFinite(maxInputTokens)) {
+      rule.max_input_tokens = maxInputTokens
+      previousMax = maxInputTokens
+    }
+    return [rule]
+  })
+}
+
+function withTongyiChinaExplicitCachePricing(pricing: TongyiPriceConfig): TongyiPriceConfig {
+  const configuredRules = pricing.rules ?? []
+  const inputRules = configuredRules.some((rule) => rule.component === 'input' && rule.region === 'cn')
+    ? configuredRules.filter((rule) => rule.component === 'input' && rule.region === 'cn')
+    : legacyChinaRules(pricing, 'input')
+  const outputRules = configuredRules.some((rule) => rule.component === 'output' && rule.region === 'cn')
+    ? []
+    : legacyChinaRules(pricing, 'output')
+  const missingStandardInputRules = configuredRules.some(
+    (rule) => rule.component === 'input' && rule.region === 'cn'
+  )
+    ? []
+    : inputRules
+  const cacheReadRules = configuredRules.some(
+    (rule) => rule.component === 'cache_read_input' && rule.region === 'cn'
+  )
+    ? []
+    : inputRules.map((rule) => ({
+        ...rule,
+        component: 'cache_read_input' as const,
+        unit_price: normalizeTongyiUnitPrice(rule.unit_price * 0.1)
+      }))
+  const cacheWriteRules = configuredRules.some(
+    (rule) => rule.component === 'cache_write_input' && rule.region === 'cn'
+  )
+    ? []
+    : inputRules.map((rule) => ({
+        ...rule,
+        component: 'cache_write_input' as const,
+        unit_price: normalizeTongyiUnitPrice(rule.unit_price * 1.25)
+      }))
+
+  return {
+    ...pricing,
+    rules: [
+      ...configuredRules,
+      ...missingStandardInputRules,
+      ...outputRules,
+      ...cacheReadRules,
+      ...cacheWriteRules
+    ]
+  }
 }
 
 function hasOwn(value: object, key: string) {
@@ -221,6 +382,20 @@ export class TongyiLargeLanguageModel extends LargeLanguageModel {
     super(modelProvider, AiModelTypeEnum.LLM)
   }
 
+  override predefinedModels(): ReturnType<LargeLanguageModel['predefinedModels']> {
+    const models = super.predefinedModels()
+    this.modelSchemas = models.map((model) => {
+      if (!TONGYI_CN_EXPLICIT_CACHE_PRICED_MODELS.has(model.model) || !model.pricing) return model
+      return {
+        ...model,
+        pricing: withTongyiChinaExplicitCachePricing(
+          model.pricing as unknown as TongyiPriceConfig
+        ) as unknown as typeof model.pricing
+      }
+    })
+    return this.modelSchemas
+  }
+
   async validateCredentials(model: string, credentials: TongyiCredentials): Promise<void> {
     const params = toCredentialKwargs(credentials)
     const chatModel = new ChatOAICompatReasoningModel({
@@ -277,7 +452,13 @@ export class TongyiLargeLanguageModel extends LargeLanguageModel {
       ...fields,
       verbose: options?.verbose,
       callbacks: [
-        ...this.createHandleUsageCallbacks(copilot, model, credentials, handleLLMTokens),
+        ...this.createHandleUsageCallbacks(
+          copilot,
+          model,
+          credentials,
+          handleLLMTokens,
+          getTongyiPricingContext(credentials, modelCredentials)
+        ),
         this.createHandleLLMErrorCallbacks(fields, this.#logger)
       ],
       metadata: {
