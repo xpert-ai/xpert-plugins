@@ -5,5 +5,5 @@
     "module": "nodenext",
     "types": ["jest", "node"]
   },
-  "include": ["jest.config.ts", "src/**/*.test.ts", "src/**/*.spec.ts", "test/**/*.test.ts", "test/**/*.spec.ts"]
+  "include": ["jest.config.ts", "src/**/*.ts", "test/**/*.test.ts", "test/**/*.spec.ts"]
 }

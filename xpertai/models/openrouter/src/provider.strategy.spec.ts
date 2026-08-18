@@ -36,6 +36,24 @@ describe('OpenRouterProviderStrategy', () => {
     })
   })
 
+  it('uses the generic models endpoint for a custom OpenAI-compatible base URL', async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(new Response(null, { status: 200 }))
+
+    await expect(
+      strategy.validateProviderCredentials({
+        api_key: 'test-api-key',
+        endpoint_url: 'https://api.openai.com/v1/'
+      })
+    ).resolves.toBeUndefined()
+    expect(fetchSpy).toHaveBeenCalledWith('https://api.openai.com/v1/models', {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        Authorization: 'Bearer test-api-key'
+      }
+    })
+  })
+
   it('returns the provider error when the API key is rejected', async () => {
     jest.spyOn(global, 'fetch').mockResolvedValue(new Response('Unauthorized', { status: 401 }))
 
