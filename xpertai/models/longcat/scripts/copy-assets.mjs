@@ -17,9 +17,23 @@ if (existsSync(sourceDir)) {
   // console.info('No assets to copy from src/_assets – skipping.')
 }
 
-// Copy all yaml files under src to dist
+// Remove deleted YAML assets from previous builds before copying the current catalog.
 const srcRoot = path.join(packageRoot, 'src')
 const distRoot = path.join(packageRoot, 'dist')
+
+function cleanYamlFiles(distDir) {
+  if (!existsSync(distDir)) return
+
+  for (const entry of readdirSync(distDir)) {
+    const distPath = path.join(distDir, entry)
+    const stats = statSync(distPath)
+    if (stats.isDirectory()) {
+      cleanYamlFiles(distPath)
+    } else if (entry.endsWith('.yaml') || entry.endsWith('.yml')) {
+      rmSync(distPath)
+    }
+  }
+}
 
 function copyYamlFiles(srcDir, destDir) {
   const entries = readdirSync(srcDir)
@@ -39,6 +53,7 @@ function copyYamlFiles(srcDir, destDir) {
 }
 
 if (existsSync(srcRoot)) {
+  cleanYamlFiles(distRoot)
   copyYamlFiles(srcRoot, distRoot)
   // console.info('Copied all .yaml files from src to dist.')
 } else {

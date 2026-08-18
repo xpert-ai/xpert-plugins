@@ -56,10 +56,8 @@ export class LongcatLargeLanguageModel extends LargeLanguageModel {
       ...credentials,
       enable_thinking:
         (modelOptions['enable_thinking'] as LongcatModelCredentials['enable_thinking']) ??
-        credentials.enable_thinking,
-      thinking_budget:
-        (modelOptions['thinking_budget'] as LongcatModelCredentials['thinking_budget']) ??
-        credentials.thinking_budget,
+        credentials.enable_thinking ??
+        true,
     };
     const params = toCredentialKwargs(runtimeCredentials, copilotModel.model);
     const fields: ChatOpenAIFields = {
