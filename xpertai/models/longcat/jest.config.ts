@@ -1,7 +1,10 @@
 import { readFileSync } from 'fs';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 
+const configDir = dirname(fileURLToPath(import.meta.url));
 const swcJestConfig = JSON.parse(
-  readFileSync(`${__dirname}/.spec.swcrc`, 'utf-8')
+  readFileSync(join(configDir, '.spec.swcrc'), 'utf-8')
 );
 swcJestConfig.swcrc = false;
 

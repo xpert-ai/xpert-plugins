@@ -29,7 +29,7 @@ export class LongcatProviderStrategy extends ModelProvider {
   ): Promise<void> {
     try {
       await this.getModelManager(AiModelTypeEnum.LLM).validateCredentials(
-        'longcat-flash-chat',
+        'LongCat-2.0',
         credentials
       );
     } catch (error) {

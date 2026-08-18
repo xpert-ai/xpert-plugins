@@ -2,7 +2,7 @@ import type { ClientOptions, OpenAIBaseInput } from '@langchain/openai';
 import type { CommonChatModelParameters } from '@xpert-ai/plugin-sdk';
 
 export const Longcat = 'longcat';
-export const LongcatBaseUrl = 'https://api.longcat.chat/openai';
+export const LongcatBaseUrl = 'https://api.longcat.chat/openai/v1';
 
 export interface LongcatCredentials {
   api_key: string;
@@ -15,7 +15,6 @@ export interface LongcatModelCredentials
   top_p?: number;
   max_tokens?: number;
   enable_thinking?: boolean | string;
-  thinking_budget?: number | string;
   streaming?: boolean;
 }
 

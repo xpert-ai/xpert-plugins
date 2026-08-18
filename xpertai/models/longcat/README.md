@@ -2,16 +2,14 @@
 
 `@xpert-ai/plugin-longcat` adds the LongCat model provider to XpertAI.
 
-The provider schema, model catalog, ordering, capability metadata, parameters,
-pricing metadata, and icons are synchronized from the current Dify
-`langgenius/longcat` plugin. This intentionally follows Dify's current
-`longcat-flash-*` catalog and does not add LongCat 2.0 ahead of Dify.
+The provider schema, model catalog, capability metadata, parameters, and
+pricing metadata are synchronized from Dify's current
+`langgenius/longcat` plugin. The retired `longcat-flash-*` models are not
+available from LongCat's current API.
 
 ## Models
 
-- `longcat-flash-chat`
-- `longcat-flash-thinking`
-- `longcat-flash-thinking-2601`
+- `LongCat-2.0`
 
 ## Development
 
