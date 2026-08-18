@@ -26,6 +26,13 @@ export const LarkSsoPluginConfigSchema = z.object({
 
 export type LarkSsoPluginConfig = z.infer<typeof LarkSsoPluginConfigSchema>
 
+const LARK_SSO_SECRET_INPUT_UI = {
+  component: 'secretInput',
+  revealable: true,
+  maskSymbol: '*',
+  persist: true
+} satisfies Pick<ISchemaSecretField, 'component' | 'revealable' | 'maskSymbol' | 'persist'>
+
 export const LarkSsoPluginConfigFormSchema: JsonSchemaObjectType = {
   type: 'object',
   properties: {
@@ -50,12 +57,7 @@ export const LarkSsoPluginConfigFormSchema: JsonSchemaObjectType = {
         en_US: 'Feishu app secret used for OAuth and JWT state signing.',
         zh_Hans: '用于 OAuth 和 JWT state 签名的飞书应用密钥。'
       },
-      'x-ui': <ISchemaSecretField>{
-        component: 'secretInput',
-        revealable: true,
-        maskSymbol: '*',
-        persist: true
-      }
+      'x-ui': LARK_SSO_SECRET_INPUT_UI
     },
     publicBaseUrl: {
       type: 'string',
