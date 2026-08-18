@@ -25,6 +25,7 @@ export const larkSsoIcon = `
 </svg>
 `.trim()
 
+export const LARK_SSO_ARTIFACT_NAMESPACE = 'lark_sso' as const
 export const LARK_SSO_PROVIDER = 'lark'
 export const LARK_SSO_CALLBACK_PATH = '/api/lark-identity/callback'
 export const LARK_SSO_LOGIN_START_PATH = '/api/lark-identity/login/start'

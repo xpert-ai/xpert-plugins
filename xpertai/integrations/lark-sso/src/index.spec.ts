@@ -8,9 +8,18 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
     }
 }))
 
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import plugin from './index.js'
 import { LarkSsoPluginModule } from './lib/lark-sso.module.js'
+import { LARK_SSO_ARTIFACT_NAMESPACE } from './lib/types.js'
 import { LARK_SSO_PLUGIN_CONFIG, LARK_SSO_PLUGIN_CONTEXT } from './lib/tokens.js'
+
+const specDir = dirname(fileURLToPath(import.meta.url))
+const packageJson = JSON.parse(readFileSync(join(specDir, '../package.json'), 'utf8')) as {
+  xpert?: { plugin?: { level?: string; artifactNamespace?: string } }
+}
 
 describe('Lark SSO Plugin', () => {
   it('declares the expected metadata, config, and permissions', () => {
@@ -18,6 +27,9 @@ describe('Lark SSO Plugin', () => {
     expect(plugin.meta.displayName).toBe('Lark SSO')
     expect(plugin.meta.category).toBe('integration')
     expect(plugin.meta.level).toBe('system')
+    expect(packageJson.xpert?.plugin?.level).toBe(plugin.meta.level)
+    expect(plugin.meta.artifactNamespace).toBe(LARK_SSO_ARTIFACT_NAMESPACE)
+    expect(packageJson.xpert?.plugin?.artifactNamespace).toBe(LARK_SSO_ARTIFACT_NAMESPACE)
 
     expect(plugin.config?.schema?.safeParse({
       appId: 'cli_xxx',

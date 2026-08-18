@@ -13,6 +13,7 @@ jest.mock('./lib/integration-lark.module.js', () => ({
 import plugin from './index.js'
 import {
   LARK_ADMIN_TEMPLATE_KEY,
+  LARK_ARTIFACT_NAMESPACE,
   LARK_CONVERSATION_TEMPLATE_KEY,
   LARK_FEATURE,
   LARK_RUNTIME_MIDDLEWARE_NAME,
@@ -24,6 +25,7 @@ import {
 const specDir = dirname(fileURLToPath(import.meta.url))
 const packageJson = JSON.parse(readFileSync(join(specDir, '../package.json'), 'utf8')) as {
   version: string
+  xpert?: { plugin?: { level?: string; artifactNamespace?: string } }
 }
 
 describe('Lark Plugin', () => {
@@ -31,6 +33,9 @@ describe('Lark Plugin', () => {
     expect(plugin.meta.name).toBe(LARK_PLUGIN_NAME)
     expect(plugin.meta.version).toBe(packageJson.version)
     expect(plugin.meta.level).toBe('system')
+    expect(packageJson.xpert?.plugin?.level).toBe(plugin.meta.level)
+    expect(plugin.meta.artifactNamespace).toBe(LARK_ARTIFACT_NAMESPACE)
+    expect(packageJson.xpert?.plugin?.artifactNamespace).toBe(LARK_ARTIFACT_NAMESPACE)
     expect(plugin.meta.category).toBe('integration')
     expect(plugin.meta.targetApps).toEqual(['xpert'])
     expect(plugin.meta.displayName).toBe('Lark/Feishu Plugin')

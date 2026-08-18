@@ -7,7 +7,10 @@ import {
   LarkSsoPluginConfigFormSchema,
   LarkSsoPluginConfigSchema
 } from './lib/plugin-config.js'
-import { larkSsoIcon } from './lib/types.js'
+import {
+  LARK_SSO_ARTIFACT_NAMESPACE,
+  larkSsoIcon
+} from './lib/types.js'
 import {
   LARK_SSO_PLUGIN_CONFIG,
   LARK_SSO_PLUGIN_CONTEXT
@@ -25,6 +28,7 @@ const plugin: XpertPlugin = {
     name: packageJson.name,
     version: packageJson.version,
     level: 'system',
+    artifactNamespace: LARK_SSO_ARTIFACT_NAMESPACE,
     category: 'integration',
     icon: {
       type: 'svg',
