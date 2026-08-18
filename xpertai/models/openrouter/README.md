@@ -6,9 +6,11 @@
 
 ## Core Features
 
-- Ships `OpenRouterModule`, which registers the NestJS provider strategy, lifecycle hooks, and configuration schema required by the plugin runtime.
-- Implements `OpenRouterLargeLanguageModel`, which extends `LargeLanguageModel` to support OpenRouter's OpenAI-compatible API.
-- Supports configuring API key and other parameters via the XpertAI console.
+- Ships `OpenRouterModule`, which registers the NestJS provider strategy, model managers, lifecycle hooks, and configuration schema required by the plugin runtime.
+- Implements `OpenRouterLargeLanguageModel`, including OpenRouter reasoning streams, provider routing, verbosity, structured output, runtime sampling controls, and provider-reported pricing.
+- Supports OpenRouter text embedding and text rerank endpoints in addition to chat models.
+- Synchronizes the predefined LLM, embedding, and rerank catalogs from Dify's official OpenRouter plugin.
+- Supports configuring API key, endpoint URL, model capabilities, and runtime parameters via the XpertAI console.
 
 ## Installation
 
@@ -24,7 +26,9 @@ To use this plugin, you need to configure the following credentials in the Xpert
 
 ## Model Capabilities
 
-- **Large Language Models**: Supports a wide range of models available on OpenRouter (e.g., `google/gemma-2-9b-it`, `meta-llama/llama-3.1-8b-instruct`, etc.).
+- **Large Language Models**: Ships the current OpenRouter predefined catalog and supports customizable models with explicit capability metadata.
+- **Text Embeddings**: Supports OpenRouter's OpenAI-compatible embedding endpoint.
+- **Text Rerank**: Supports OpenRouter's `/rerank` endpoint for the predefined rerank catalog.
 
 ## Development & Debugging
 

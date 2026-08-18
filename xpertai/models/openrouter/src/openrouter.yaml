@@ -1,3 +1,10 @@
+provider: openrouter
+label:
+  en_US: OpenRouter
+  zh_Hans: OpenRouter
+description:
+  en_US: Access OpenRouter language, embedding, and rerank models through a unified API.
+  zh_Hans: 通过统一 API 使用 OpenRouter 的语言、嵌入与重排模型。
 background: '#F1EFED'
 configurate_methods:
   - predefined-model
@@ -12,21 +19,31 @@ icon_large:
   en_US: openrouter.svg
 icon_small:
   en_US: openrouter_square.svg
-label:
-  en_US: OpenRouter
 model_credential_schema:
   credential_form_schemas:
-    - label:
+    - variable: api_key
+      label:
         en_US: API Key
+        zh_Hans: API Key
       placeholder:
         en_US: Enter your API Key
         zh_Hans: 在此输入您的 API Key
       required: true
       type: secret-input
-      variable: api_key
-    - default: chat
+    - variable: endpoint_url
+      label:
+        en_US: API Base URL
+        zh_Hans: API Base URL
+      placeholder:
+        en_US: Base URL, e.g. https://openrouter.ai/api/v1
+        zh_Hans: Base URL，例如 https://openrouter.ai/api/v1
+      required: false
+      type: text-input
+    - variable: mode
+      default: chat
       label:
         en_US: Completion mode
+        zh_Hans: 补全模式
       options:
         - label:
             en_US: Completion
@@ -44,30 +61,31 @@ model_credential_schema:
         - value: llm
           variable: __model_type
       type: select
-      variable: mode
-    - default: '4096'
+    - variable: context_size
+      default: '4096'
       label:
         en_US: Model context size
         zh_Hans: 模型上下文长度
       placeholder:
-        en_US: Enter your Model context size
-        zh_Hans: 在此输入您的模型上下文长度
+        en_US: Enter the model context size
+        zh_Hans: 在此输入模型上下文长度
       required: true
       type: text-input
-      variable: context_size
-    - default: '4096'
+    - variable: max_tokens_to_sample
+      default: '4096'
       label:
         en_US: Upper bound for max tokens
         zh_Hans: 最大 token 上限
+      required: false
       show_on:
         - value: llm
           variable: __model_type
       type: text-input
-      variable: max_tokens_to_sample
-    - default: no_support
+    - variable: vision_support
+      default: no_support
       label:
-        en_US: Vision Support
-        zh_Hans: 是否支持 Vision
+        en_US: Vision support
+        zh_Hans: 是否支持视觉输入
       options:
         - label:
             en_US: 'Yes'
@@ -82,17 +100,56 @@ model_credential_schema:
         - value: llm
           variable: __model_type
       type: radio
-      variable: vision_support
-    - default: no_call
+    - variable: reasoning_support
+      default: no_support
       label:
-        en_US: Function calling
+        en_US: Reasoning support
+        zh_Hans: 是否支持推理
       options:
         - label:
-            en_US: Not Support
+            en_US: 'Yes'
+            zh_Hans: 是
+          value: support
+        - label:
+            en_US: 'No'
+            zh_Hans: 否
+          value: no_support
+      required: false
+      show_on:
+        - value: llm
+          variable: __model_type
+      type: radio
+    - variable: structured_output_support
+      default: no_support
+      label:
+        en_US: Structured output support
+        zh_Hans: 是否支持结构化输出
+      options:
+        - label:
+            en_US: 'Yes'
+            zh_Hans: 是
+          value: support
+        - label:
+            en_US: 'No'
+            zh_Hans: 否
+          value: no_support
+      required: false
+      show_on:
+        - value: llm
+          variable: __model_type
+      type: radio
+    - variable: function_calling_type
+      default: no_call
+      label:
+        en_US: Function calling
+        zh_Hans: 工具调用
+      options:
+        - label:
+            en_US: Not supported
             zh_Hans: 不支持
           value: no_call
         - label:
-            en_US: Support
+            en_US: Supported
             zh_Hans: 支持
           value: tool_call
       required: false
@@ -100,24 +157,47 @@ model_credential_schema:
         - value: llm
           variable: __model_type
       type: select
-      variable: function_calling_type
   model:
     label:
       en_US: Model Name
       zh_Hans: 模型名称
     placeholder:
-      en_US: Enter full model name
-      zh_Hans: 输入模型全称
-provider: openrouter
+      en_US: Enter the full OpenRouter model name
+      zh_Hans: 输入 OpenRouter 模型全称
+models:
+  llm:
+    position: llm/_position.yaml
+    predefined:
+      - llm/*.yaml
+  rerank:
+    position: rerank/_position.yaml
+    predefined:
+      - rerank/*.yaml
+  text-embedding:
+    position: text-embedding/_position.yaml
+    predefined:
+      - text-embedding/*.yaml
 provider_credential_schema:
   credential_form_schemas:
-    - label:
+    - variable: api_key
+      label:
         en_US: API Key
+        zh_Hans: API Key
       placeholder:
         en_US: Enter your API Key
         zh_Hans: 在此输入您的 API Key
       required: true
       type: secret-input
-      variable: api_key
+    - variable: endpoint_url
+      label:
+        en_US: API Base URL
+        zh_Hans: API Base URL
+      placeholder:
+        en_US: Base URL, e.g. https://openrouter.ai/api/v1
+        zh_Hans: Base URL，例如 https://openrouter.ai/api/v1
+      required: false
+      type: text-input
 supported_model_types:
   - llm
+  - rerank
+  - text-embedding

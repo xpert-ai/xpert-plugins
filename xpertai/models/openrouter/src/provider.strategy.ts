@@ -32,7 +32,8 @@ export class OpenRouterProviderStrategy extends ModelProvider {
   ): Promise<void> {
     try {
       const baseUrl = this.getBaseUrl(credentials).replace(/\/+$/, '');
-      const response = await fetch(`${baseUrl}/key`, {
+      const validationPath = isOpenRouterEndpoint(baseUrl) ? 'key' : 'models';
+      const response = await fetch(`${baseUrl}/${validationPath}`, {
         method: 'GET',
         headers: {
           Accept: 'application/json',
@@ -68,5 +69,14 @@ export class OpenRouterProviderStrategy extends ModelProvider {
         throw ex;
       }
     }
+  }
+}
+
+function isOpenRouterEndpoint(baseUrl: string): boolean {
+  try {
+    const hostname = new URL(baseUrl).hostname.toLowerCase();
+    return hostname === 'openrouter.ai' || hostname.endsWith('.openrouter.ai');
+  } catch {
+    return false;
   }
 }

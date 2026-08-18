@@ -6,10 +6,17 @@ import {
 import { ConfigModule } from '@nestjs/config';
 import { OpenRouterProviderStrategy } from './provider.strategy.js';
 import { OpenRouterLargeLanguageModel } from './llm/llm.js';
+import { OpenRouterRerankModel } from './rerank/rerank.js';
+import { OpenRouterTextEmbeddingModel } from './text-embedding/text-embedding.js';
 
 @XpertServerPlugin({
   imports: [ConfigModule],
-  providers: [OpenRouterProviderStrategy, OpenRouterLargeLanguageModel],
+  providers: [
+    OpenRouterProviderStrategy,
+    OpenRouterLargeLanguageModel,
+    OpenRouterRerankModel,
+    OpenRouterTextEmbeddingModel
+  ],
 })
 export class OpenRouterModule implements IOnPluginBootstrap, IOnPluginDestroy {
   private logEnabled = true;
