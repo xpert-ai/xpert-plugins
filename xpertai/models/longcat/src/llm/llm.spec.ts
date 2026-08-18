@@ -66,6 +66,12 @@ describe('LongCat model adapter', () => {
     expect(
       getLongcatBaseUrl({
         api_key: 'test-key',
+        endpoint_url: 'https://api.longcat.chat/openai',
+      })
+    ).toBe(LongcatBaseUrl);
+    expect(
+      getLongcatBaseUrl({
+        api_key: 'test-key',
         endpoint_url: 'https://proxy.example.com/openai/v1/',
       })
     ).toBe('https://proxy.example.com/openai/v1');

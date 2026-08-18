@@ -3,6 +3,7 @@ import type { CommonChatModelParameters } from '@xpert-ai/plugin-sdk';
 
 export const Longcat = 'longcat';
 export const LongcatBaseUrl = 'https://api.longcat.chat/openai/v1';
+const LongcatLegacyBaseUrl = 'https://api.longcat.chat/openai';
 
 export interface LongcatCredentials {
   api_key: string;
@@ -19,7 +20,11 @@ export interface LongcatModelCredentials
 }
 
 export function getLongcatBaseUrl(credentials: LongcatCredentials): string {
-  return credentials.endpoint_url?.trim().replace(/\/+$/, '') || LongcatBaseUrl;
+  const endpoint = credentials.endpoint_url?.trim().replace(/\/+$/, '');
+  if (!endpoint || endpoint === LongcatLegacyBaseUrl) {
+    return LongcatBaseUrl;
+  }
+  return endpoint;
 }
 
 export function toCredentialKwargs(
