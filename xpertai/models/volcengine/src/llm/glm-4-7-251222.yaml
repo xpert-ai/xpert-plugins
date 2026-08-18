@@ -31,3 +31,57 @@ parameter_rules:
     help:
       zh_Hans: 启用后模型会在回答前进行系统性分析和多步骤规划，适用于复杂推理任务。
       en_US: When enabled, the model performs systematic analysis and multi-step planning before answering, suitable for complex reasoning tasks.
+pricing:
+  input: '2'
+  output: '8'
+  unit: '0.000001'
+  currency: RMB
+  rules:
+    - component: input
+      unit_price: 2
+      unit_size: 1000000
+      max_input_tokens: 32000
+      max_output_tokens: 200
+    - component: input
+      unit_price: 3
+      unit_size: 1000000
+      max_input_tokens: 32000
+      min_output_tokens: 201
+    - component: input
+      unit_price: 4
+      unit_size: 1000000
+      min_input_tokens: 32001
+      max_input_tokens: 200000
+    - component: cache_read_input
+      unit_price: 0.4
+      unit_size: 1000000
+      max_input_tokens: 32000
+      max_output_tokens: 200
+    - component: cache_read_input
+      unit_price: 0.6
+      unit_size: 1000000
+      max_input_tokens: 32000
+      min_output_tokens: 201
+    - component: cache_read_input
+      unit_price: 0.8
+      unit_size: 1000000
+      min_input_tokens: 32001
+      max_input_tokens: 200000
+    - component: output
+      unit_price: 8
+      unit_size: 1000000
+      max_input_tokens: 32000
+      max_output_tokens: 200
+    - component: output
+      unit_price: 14
+      unit_size: 1000000
+      max_input_tokens: 32000
+      min_output_tokens: 201
+    - component: output
+      unit_price: 16
+      unit_size: 1000000
+      min_input_tokens: 32001
+      max_input_tokens: 200000
+    - component: cache_storage
+      unit_price: 0.017
+      unit_size: 1000000

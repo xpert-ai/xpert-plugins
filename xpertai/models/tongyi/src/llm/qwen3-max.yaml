@@ -99,10 +99,42 @@ parameter_rules:
       zh_Hans: 以 JSON 字符串格式输入额外的 HTTP 请求头，这些请求头将包含在 API 请求中。
       en_US: Enter extra HTTP headers in JSON string format, which will be included in the API request.
 pricing:
-  input: '0.006'              # 0<Token≤32K
-  output: '0.024'             # 0<Token≤32K
-# Tiered pricing per 1k tokens: 0<Token≤32K=0.006/0.024
-# 32K<Token≤128K=0.01/0.04
-# 128K<Token≤252K=0.015/0.06
+  input: '0.0025'
+  output: '0.01'
   unit: '0.001'
   currency: RMB
+  rules:
+    - component: input
+      unit_price: 2.5
+      unit_size: 1000000
+      max_input_tokens: 32000
+      region: cn
+    - component: input
+      unit_price: 4
+      unit_size: 1000000
+      min_input_tokens: 32001
+      max_input_tokens: 128000
+      region: cn
+    - component: input
+      unit_price: 7
+      unit_size: 1000000
+      min_input_tokens: 128001
+      max_input_tokens: 256000
+      region: cn
+    - component: output
+      unit_price: 10
+      unit_size: 1000000
+      max_input_tokens: 32000
+      region: cn
+    - component: output
+      unit_price: 16
+      unit_size: 1000000
+      min_input_tokens: 32001
+      max_input_tokens: 128000
+      region: cn
+    - component: output
+      unit_price: 28
+      unit_size: 1000000
+      min_input_tokens: 128001
+      max_input_tokens: 256000
+      region: cn

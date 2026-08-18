@@ -109,7 +109,7 @@ pricing:
   tiered_pricing:
     - input: '0.004'
       output: '0.018'
-      max_tokens: 32768
+      max_tokens: 32000
     - input: '0.006'
       output: '0.022'
-      max_tokens: 202752
+      max_tokens: 198000

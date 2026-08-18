@@ -51,8 +51,7 @@ parameter_rules:
       zh_Hans: 根据新 token 是否出现在文本中来对其进行惩罚
     required: false
 pricing:
-  input: '5.06'
-  output: '5.06'
+  input: '10'
+  output: '30'
   unit: '0.000001'
-  currency: CNY
-
+  currency: RMB

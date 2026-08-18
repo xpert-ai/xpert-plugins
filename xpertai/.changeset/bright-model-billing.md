@@ -9,4 +9,4 @@
 '@xpert-ai/plugin-zhipuai': patch
 ---
 
-Price Anthropic cache usage by TTL, align the active DeepSeek catalog to V4 Flash and V4 Pro with recurring Beijing peak/off-peak RMB pricing, record OpenRouter response costs in USD, ignore unobservable Tongyi search add-on costs while pricing tokens by endpoint region, add conditional ZHIPU pay-as-you-go pricing rules, and remove retired or unlisted model assets from MiniMax, Moonshot, Tongyi, Volcengine, and ZhipuAI catalogs.
+Price Anthropic cache usage by TTL, align the active DeepSeek catalog to V4 Flash and V4 Pro with recurring Beijing peak/off-peak RMB pricing, record OpenRouter response costs in USD, ignore unobservable Tongyi search add-on costs while pricing tokens by endpoint region, add China-region Tongyi explicit-cache pricing, synchronize documented MiniMax, Moonshot, Tongyi, Volcengine, and ZhipuAI list prices without limited-time promotional rules, add conditional ZHIPU pay-as-you-go pricing rules, and remove retired or unlisted model assets from their catalogs.

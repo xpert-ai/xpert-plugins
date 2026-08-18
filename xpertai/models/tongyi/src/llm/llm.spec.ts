@@ -1,8 +1,10 @@
 import {
   applyTongyiExplicitCache,
   getTongyiPricingContext,
+  TongyiLargeLanguageModel,
   toTongyiConfigurationWithExtraHeaders
 } from './llm.js'
+import { TongyiProviderStrategy } from '../provider.strategy.js'
 
 describe('getTongyiPricingContext', () => {
   it('uses explicit request mode and the selected DashScope endpoint', () => {
@@ -50,11 +52,18 @@ describe('getTongyiPricingContext', () => {
 
 describe('applyTongyiExplicitCache', () => {
   it.each([
+    'qwen3.8-max',
+    'qwen3.7-max',
     'qwen3.6-plus',
     'qwen3-max-preview',
+    'qwen-plus-latest',
     'qwen3-coder-plus',
     'qwen3-vl-plus',
+    'qwen-vl-max',
     'deepseek-v3.2',
+    'deepseek-v4-flash',
+    'deepseek-v4-pro',
+    'kimi-k2.5',
     'glm-5.1'
   ])(
     'adds ephemeral cache control to %s system text content',
@@ -108,6 +117,82 @@ describe('applyTongyiExplicitCache', () => {
     }
 
     expect(applyTongyiExplicitCache(request, { model: 'qwen3.6-plus' })).toBe(request)
+  })
+})
+
+describe('Tongyi China-region explicit-cache pricing', () => {
+  const manager = new TongyiLargeLanguageModel(new TongyiProviderStrategy())
+  const models = manager.predefinedModels()
+  const explicitlyCachedModels = [
+    'qwen3.8-max',
+    'qwen3.7-max',
+    'qwen3-max',
+    'qwen3-max-preview',
+    'qwen3.7-plus',
+    'qwen3.6-plus',
+    'qwen3.5-plus',
+    'qwen-plus',
+    'qwen-plus-latest',
+    'qwen3.6-flash',
+    'qwen3.5-flash',
+    'qwen-flash',
+    'qwen3-coder-plus',
+    'qwen3-vl-plus',
+    'qwen3-vl-flash',
+    'qwen-vl-max',
+    'qwen-vl-plus',
+    'deepseek-v3.2',
+    'deepseek-v4-flash',
+    'deepseek-v4-pro',
+    'kimi-k2.5',
+    'glm-5.1'
+  ]
+
+  it.each(explicitlyCachedModels)('uses the supplied explicit-cache ratios for %s', (modelName) => {
+    const model = models.find((candidate) => candidate.model === modelName)
+    const rules = model?.pricing && 'rules' in model.pricing ? model.pricing.rules ?? [] : []
+    const inputs = rules.filter((rule) => rule.component === 'input' && rule.region === 'cn')
+    const reads = rules.filter((rule) => rule.component === 'cache_read_input' && rule.region === 'cn')
+    const writes = rules.filter((rule) => rule.component === 'cache_write_input' && rule.region === 'cn')
+
+    expect(inputs.length).toBeGreaterThan(0)
+    expect(reads).toHaveLength(inputs.length)
+    expect(writes).toHaveLength(inputs.length)
+
+    for (const input of inputs) {
+      const sameTier = (rule: (typeof rules)[number]) =>
+        rule.min_input_tokens === input.min_input_tokens && rule.max_input_tokens === input.max_input_tokens
+      expect(reads.find(sameTier)?.unit_price).toBeCloseTo(Number(input.unit_price) * 0.1, 8)
+      expect(writes.find(sameTier)?.unit_price).toBeCloseTo(Number(input.unit_price) * 1.25, 8)
+    }
+  })
+
+  it.each(explicitlyCachedModels)('prices standard, cache-read, cache-write, and output usage for %s', (modelName) => {
+    const usage = (manager as any).calcResponseUsage(
+      modelName,
+      {},
+      1_000,
+      100,
+      0,
+      {
+        promptTokens: 1_000,
+        completionTokens: 100,
+        totalTokens: 1_100,
+        cacheReadInputTokens: 100,
+        cacheWriteInputTokens: 100
+      },
+      { region: 'cn', mode: 'standard' }
+    )
+
+    expect(usage.pricingStatus).toBe('priced')
+    expect(usage.pricingBreakdown).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ component: 'input', pricingStatus: 'priced' }),
+        expect.objectContaining({ component: 'cache_read_input', pricingStatus: 'priced' }),
+        expect.objectContaining({ component: 'cache_write_input', pricingStatus: 'priced' }),
+        expect.objectContaining({ component: 'output', pricingStatus: 'priced' })
+      ])
+    )
   })
 })
 
