@@ -28,17 +28,17 @@
     "ws": "^8.18.0"
   },
   "devDependencies": {
-    "@xpert-ai/contracts": "3.15.7",
-    "@xpert-ai/plugin-sdk": "3.15.7",
+    "@xpert-ai/contracts": "3.17.3",
+    "@xpert-ai/plugin-sdk": "3.17.3",
     "@types/express": "^5.0.6",
     "@types/passport": "^1.0.17"
   },
   "peerDependencies": {
     "zod": "3.25.67",
     "@xpert-ai/chatkit-types": "^0.0.12",
-    "@xpert-ai/plugin-sdk": "^3.15.2",
+    "@xpert-ai/plugin-sdk": "^3.17.3",
     "i18next": "25.6.0",
-    "@xpert-ai/contracts": "^3.13.0",
+    "@xpert-ai/contracts": "^3.17.3",
     "@nestjs/common": "^11.1.6",
     "axios": "1.12.2",
     "chalk": "4.1.2",
