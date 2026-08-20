@@ -1,0 +1,978 @@
+{
+  "source": "https://ctxirang.ctyun.cn/maas/inlineService",
+  "captured_at": "2026-08-20T06:33:57.281Z",
+  "generated_at": "2026-08-20T06:33:57.281Z",
+  "policy": {
+    "deprecated_marker": "（即将下线）",
+    "excluded_deprecated": [
+      "deepseek-v3.1-0731（即将下线）",
+      "Qwen-Image（即将下线）",
+      "DeepSeek-V3.1-Terminus（即将下线）",
+      "Llama3-70B-Instruct（即将下线）",
+      "ChatGLM3-6B（即将下线）"
+    ],
+    "video_status": "catalog-only-unsupported-until-api-contract-is-verified",
+    "price_policy": "Only exact flat prices and exact standard/off-peak prices are billed. Ranges and dashes are unpriced."
+  },
+  "counts": {
+    "llm": 97,
+    "text-embedding": 4,
+    "rerank": 4,
+    "image": 10,
+    "video": 29
+  },
+  "active_models": [
+    {
+      "name": "glm-5.3",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "deepseek-v4-flash-0731-new",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "deepseek-v4-flash-0817（正式版）",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "deepseek-v4-pro-0817（正式版）",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "qwen3.8-max",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "DeepSeek-V4-Flash-0731",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "kimi-k3",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "MiniMax-M3",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "GLM-5.2",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "GLM-5.1",
+      "model_type": "llm",
+      "source_input": "¥ 6~8/百万Tokens",
+      "source_output": "¥ 24~28/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "deepseek-v4-flash",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "deepseek-v4-pro",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "DeepSeek-V4-Flash",
+      "model_type": "llm",
+      "source_input": "¥ 1/百万Tokens",
+      "source_output": "¥ 2/百万Tokens",
+      "priced": true
+    },
+    {
+      "name": "DeepSeek-V4-Pro",
+      "model_type": "llm",
+      "source_input": "¥ 12/百万Tokens",
+      "source_output": "¥ 24/百万Tokens",
+      "priced": true
+    },
+    {
+      "name": "qwen3.7-max",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "qwen3.7-plus",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "qwen3.6-plus",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "qwen3.6-flash",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "Kimi-K2-Thinking",
+      "model_type": "llm",
+      "source_input": "¥ 4/百万Tokens",
+      "source_output": "¥ 16/百万Tokens",
+      "priced": true
+    },
+    {
+      "name": "Qwen2.5-VL-72B-Instruct",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "DeepSeek-R1-Distill-Llama-70B",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "DeepSeek-R1-Distill-Qwen-32B",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "Qwen3-14B",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "Qwen-VL-Chat",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "Qwen3-30B-A3B",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "BGE-Reranker-Large",
+      "model_type": "rerank",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "Qwen3-8B",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "Qwen3-Coder-480B-A35B-Instruct",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "BGE-Reranker-V2-m3",
+      "model_type": "rerank",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "DeepSeek-V3.2（正式版）",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "Qwen2.5-72B-Instruct",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "qwen3-rerank",
+      "model_type": "rerank",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "qwen3.6-35b-a3b",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "BGE-m3",
+      "model_type": "text-embedding",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "text-embedding-v4",
+      "model_type": "text-embedding",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "wan2.7-image",
+      "model_type": "image",
+      "source_input": "-",
+      "source_output": "-",
+      "priced": false
+    },
+    {
+      "name": "qwen3.6-27b",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "qwen3-vl-embedding",
+      "model_type": "text-embedding",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "text-embedding-v3",
+      "model_type": "text-embedding",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "gte-rerank-v2",
+      "model_type": "rerank",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "Qwen3-Omni-Flash",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "Doubao-seedream-4.5",
+      "model_type": "image",
+      "source_input": "-",
+      "source_output": "-",
+      "priced": true
+    },
+    {
+      "name": "Doubao-Seed-2.0-Code",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "Doubao-Seed-2.0-Lite",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "Doubao-Seed-1.6-vision",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "Doubao-Seed-2.0-Mini",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "Doubao1.5-lite-32k",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "Qwen3.5-122B-A10B",
+      "model_type": "llm",
+      "source_input": "¥ 0.8~2/百万Tokens",
+      "source_output": "¥ 6.4~16/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "Qwen3-4B",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "qwen3.5-35b-a3b",
+      "model_type": "llm",
+      "source_input": "¥ 0.4~1.6/百万Tokens",
+      "source_output": "¥ 3.2~12.8/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "Qwen3-VL-235B-A22B-Instruct",
+      "model_type": "llm",
+      "source_input": "¥ 2/百万Tokens",
+      "source_output": "¥ 8/百万Tokens",
+      "priced": true
+    },
+    {
+      "name": "Minimax-M2.5",
+      "model_type": "llm",
+      "source_input": "¥ 2.1/百万Tokens",
+      "source_output": "¥ 8.4/百万Tokens",
+      "priced": true
+    },
+    {
+      "name": "Kimi-K2.5",
+      "model_type": "llm",
+      "source_input": "¥ 4/百万Tokens",
+      "source_output": "¥ 21/百万Tokens",
+      "priced": true
+    },
+    {
+      "name": "GLM4.6V",
+      "model_type": "llm",
+      "source_input": "¥ 1~2/百万Tokens",
+      "source_output": "¥ 3~6/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "Qwen3-Next-80B-A3B-Instruct",
+      "model_type": "llm",
+      "source_input": "¥ 1/百万Tokens",
+      "source_output": "¥ 4/百万Tokens",
+      "priced": true
+    },
+    {
+      "name": "DeepSeek-V3.2（旗舰版）",
+      "model_type": "llm",
+      "source_input": "标准时段 ¥ 2/百万Tokens优惠时段¥ 1/百万Tokens",
+      "source_output": "标准时段 ¥ 3/百万Tokens优惠时段¥ 1.5/百万Tokens",
+      "priced": true
+    },
+    {
+      "name": "GLM-5.0（正式版）",
+      "model_type": "llm",
+      "source_input": "标准时段 ¥ 4~6/百万Tokens优惠时段¥ 2~3/百万Tokens",
+      "source_output": "标准时段 ¥ 18~22/百万Tokens优惠时段¥ 9~11/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "qwen3.5-397b-a17b（正式版）",
+      "model_type": "llm",
+      "source_input": "标准时段 ¥ 1.2~3/百万Tokens优惠时段¥ 0.6~1.5/百万Tokens",
+      "source_output": "标准时段 ¥ 7.2~18/百万Tokens优惠时段¥ 3.6~9/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "Doubao-Seed-2.0-Pro",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "Qwen3-Max",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "Doubao-Seed-1.8",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "Doubao-Seed-1.6-0615",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "Doubao1.5-pro-32k",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "Qwen3-Coder-Plus",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "Qwen3-VL-Plus",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "DeepSeek-R1-0528",
+      "model_type": "llm",
+      "source_input": "标准时段 ¥ 4/百万Tokens优惠时段¥ 1/百万Tokens",
+      "source_output": "标准时段 ¥ 16/百万Tokens优惠时段¥ 4/百万Tokens",
+      "priced": true
+    },
+    {
+      "name": "Qwen3-VL-30B-A3B-Instruct",
+      "model_type": "llm",
+      "source_input": "¥ 0.75/百万Tokens",
+      "source_output": "¥ 3/百万Tokens",
+      "priced": true
+    },
+    {
+      "name": "Qwen3-235B-A22B-Instruct-2507",
+      "model_type": "llm",
+      "source_input": "¥ 2/百万Tokens",
+      "source_output": "¥ 8/百万Tokens",
+      "priced": true
+    },
+    {
+      "name": "Qwen3-30B-A3B-Instruct-2507",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "DeepSeek-V3-0324",
+      "model_type": "llm",
+      "source_input": "标准时段 ¥ 2/百万Tokens优惠时段¥ 1/百万Tokens",
+      "source_output": "标准时段 ¥ 8/百万Tokens优惠时段¥ 4/百万Tokens",
+      "priced": true
+    },
+    {
+      "name": "Baichuan-M2-32B",
+      "model_type": "llm",
+      "source_input": "-",
+      "source_output": "-",
+      "priced": false
+    },
+    {
+      "name": "Qwen3-235B-A22B",
+      "model_type": "llm",
+      "source_input": "¥ 2.5/百万Tokens",
+      "source_output": "¥ 10/百万Tokens",
+      "priced": true
+    },
+    {
+      "name": "DeepSeek-R1",
+      "model_type": "llm",
+      "source_input": "标准时段 ¥ 4/百万Tokens优惠时段¥ 1/百万Tokens",
+      "source_output": "标准时段 ¥ 16/百万Tokens优惠时段¥ 4/百万Tokens",
+      "priced": true
+    },
+    {
+      "name": "DeepSeek-V3",
+      "model_type": "llm",
+      "source_input": "标准时段 ¥ 2/百万Tokens优惠时段¥ 1/百万Tokens",
+      "source_output": "标准时段 ¥ 8/百万Tokens优惠时段¥ 4/百万Tokens",
+      "priced": true
+    },
+    {
+      "name": "Qwen3-32B",
+      "model_type": "llm",
+      "source_input": "¥ 1/百万Tokens",
+      "source_output": "¥ 4/百万Tokens",
+      "priced": true
+    },
+    {
+      "name": "Baichuan2-Turbo",
+      "model_type": "llm",
+      "source_input": "-",
+      "source_output": "-",
+      "priced": false
+    },
+    {
+      "name": "Qwen2-7B-Instruct",
+      "model_type": "llm",
+      "source_input": "-",
+      "source_output": "-",
+      "priced": false
+    },
+    {
+      "name": "Llama3-8B-Instruct",
+      "model_type": "llm",
+      "source_input": "-",
+      "source_output": "-",
+      "priced": false
+    },
+    {
+      "name": "Kimi-K2-Instruct",
+      "model_type": "llm",
+      "source_input": "¥ 4/百万Tokens",
+      "source_output": "¥ 16/百万Tokens",
+      "priced": true
+    },
+    {
+      "name": "Doubao-Seedream-5.0-lite",
+      "model_type": "image",
+      "source_input": "-",
+      "source_output": "-",
+      "priced": false
+    },
+    {
+      "name": "qwen3.6-flash-0717",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "Doubao-seedream-4.0",
+      "model_type": "image",
+      "source_input": "-",
+      "source_output": "-",
+      "priced": false
+    },
+    {
+      "name": "Doubao-Seed-1.6-flash",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "qwen-image-2.0-pro",
+      "model_type": "image",
+      "source_input": "-",
+      "source_output": "-",
+      "priced": false
+    },
+    {
+      "name": "qwen3.5-27b",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "kimi-k2.6",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "qwen-image-edit",
+      "model_type": "image",
+      "source_input": "-",
+      "source_output": "-",
+      "priced": false
+    },
+    {
+      "name": "glm-4.7-flashx",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "qwen-image-edit-plus",
+      "model_type": "image",
+      "source_input": "-",
+      "source_output": "-",
+      "priced": false
+    },
+    {
+      "name": "qwen-image-edit-max",
+      "model_type": "image",
+      "source_input": "-",
+      "source_output": "-",
+      "priced": false
+    },
+    {
+      "name": "glm-5-turbo",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "glm-4.7",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "qwen3-max-preview",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "deepseek-v3.2",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "qwen3-32b",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "qwen3-235b-a22b-thinking-2507",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "qwen-long",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "DeepSeek-V3.2",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "qwen3.5-plus",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "qwen3-235b-a22b",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "doubao-seed-2.1-pro",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "DeepSeek-V3.2-Exp",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "wan2.7-image-pro",
+      "model_type": "image",
+      "source_input": "-",
+      "source_output": "-",
+      "priced": false
+    },
+    {
+      "name": "kimi-k2.6-ant",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "wan2.6-image",
+      "model_type": "image",
+      "source_input": "-",
+      "source_output": "-",
+      "priced": false
+    },
+    {
+      "name": "DeepSeek-V3.1",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "kimi-k2.7-code",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "qwen-vl-plus",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "minimax-m2.7",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "qwen3.5-flash",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "qwen-turbo",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "qwen3-vl-flash",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "Qwen-plus",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "Qwen-flash",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    },
+    {
+      "name": "qwen3-coder-next",
+      "model_type": "llm",
+      "source_input": "-/百万Tokens",
+      "source_output": "-/百万Tokens",
+      "priced": false
+    }
+  ],
+  "unsupported_video_models": [
+    {
+      "name": "wan2.2-i2v-flash",
+      "source_input": "-",
+      "source_output": "-"
+    },
+    {
+      "name": "wan2.6-r2v",
+      "source_input": "-",
+      "source_output": "-"
+    },
+    {
+      "name": "happyhorse-1.0-r2v-20260618",
+      "source_input": "-",
+      "source_output": "-"
+    },
+    {
+      "name": "wan2.2-kf2v-flash",
+      "source_input": "-",
+      "source_output": "-"
+    },
+    {
+      "name": "wan2.2-animate-mix",
+      "source_input": "-",
+      "source_output": "-"
+    },
+    {
+      "name": "wan2.6-t2v",
+      "source_input": "-",
+      "source_output": "-"
+    },
+    {
+      "name": "wan2.6-r2v-flash",
+      "source_input": "-",
+      "source_output": "-"
+    },
+    {
+      "name": "Doubao-Seedance-1.5-pro",
+      "source_input": "-",
+      "source_output": "-"
+    },
+    {
+      "name": "happyhorse-1.0-t2v",
+      "source_input": "-",
+      "source_output": "-"
+    },
+    {
+      "name": "Doubao-Seedance-1.0-pro",
+      "source_input": "-",
+      "source_output": "-"
+    },
+    {
+      "name": "happyhorse-1.1-t2v",
+      "source_input": "-",
+      "source_output": "-"
+    },
+    {
+      "name": "happyhorse-1.0-i2v",
+      "source_input": "-",
+      "source_output": "-"
+    },
+    {
+      "name": "wan2.5-i2v-preview",
+      "source_input": "-",
+      "source_output": "-"
+    },
+    {
+      "name": "wan2.6-i2v-flash",
+      "source_input": "-",
+      "source_output": "-"
+    },
+    {
+      "name": "Doubao-Seedance-1.5-pro-noaudio",
+      "source_input": "-",
+      "source_output": "-"
+    },
+    {
+      "name": "happyhorse-1.1-r2v",
+      "source_input": "-",
+      "source_output": "-"
+    },
+    {
+      "name": "wan2.6-i2v",
+      "source_input": "-",
+      "source_output": "-"
+    },
+    {
+      "name": "happyhorse-1.0-r2v",
+      "source_input": "-",
+      "source_output": "-"
+    },
+    {
+      "name": "wan2.2-t2v-plus",
+      "source_input": "-",
+      "source_output": "-"
+    },
+    {
+      "name": "wan2.7-r2v",
+      "source_input": "-",
+      "source_output": "-"
+    },
+    {
+      "name": "happyhorse-1.0-video-edit-20260618",
+      "source_input": "-",
+      "source_output": "-"
+    },
+    {
+      "name": "happyhorse-1.0-video-edit",
+      "source_input": "-",
+      "source_output": "-"
+    },
+    {
+      "name": "happyhorse-1.1-i2v",
+      "source_input": "-",
+      "source_output": "-"
+    },
+    {
+      "name": "happyhorse-1.0-i2v-20260618",
+      "source_input": "-",
+      "source_output": "-"
+    },
+    {
+      "name": "wan2.2-i2v-plus",
+      "source_input": "-",
+      "source_output": "-"
+    },
+    {
+      "name": "wan2.7-t2v",
+      "source_input": "-",
+      "source_output": "-"
+    },
+    {
+      "name": "happyhorse-1.0-t2v-20260618",
+      "source_input": "-",
+      "source_output": "-"
+    },
+    {
+      "name": "wan2.7-i2v",
+      "source_input": "-",
+      "source_output": "-"
+    },
+    {
+      "name": "wan2.5-t2v-preview",
+      "source_input": "-",
+      "source_output": "-"
+    }
+  ]
+}

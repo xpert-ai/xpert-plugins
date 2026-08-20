@@ -1,0 +1,34 @@
+{
+  "model": "text-embedding-v3",
+  "label": {
+    "en_US": "text-embedding-v3",
+    "zh_Hans": "text-embedding-v3"
+  },
+  "model_type": "text-embedding",
+  "model_properties": {
+    "context_size": 8192
+  },
+  "parameter_rules": [],
+  "pricing": {
+    "input": "0",
+    "output": "0",
+    "unit": "0.000001",
+    "currency": "CNY",
+    "rules": [
+      {
+        "component": "input",
+        "unit_price": 0,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "mode": "__xirang_unpriced__"
+      },
+      {
+        "component": "output",
+        "unit_price": 0,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "mode": "__xirang_unpriced__"
+      }
+    ]
+  }
+}
