@@ -1,6 +1,7 @@
 import axios, { AxiosInstance } from 'axios'
 import { createHmac } from 'crypto'
 import { IIntegration } from '@xpert-ai/contracts'
+import type { IntegrationExternalIdentity } from '@xpert-ai/plugin-sdk'
 import {
   TIntegrationDingTalkOptions,
   normalizeDingTalkRobotCode,
@@ -89,6 +90,7 @@ export class DingTalkClient {
       ...options,
       clientId: trim(options?.clientId),
       clientSecret: trim(options?.clientSecret),
+      corpId: trim(options?.corpId) || undefined,
       robotCode: trim(options?.robotCode) || undefined,
       callbackToken: trim(options?.callbackToken) || undefined,
       callbackAesKey: trim(options?.callbackAesKey) || undefined,
@@ -202,6 +204,60 @@ export class DingTalkClient {
     }
 
     return data.access_token
+  }
+
+  async exchangeAuthorizationCode(code: string): Promise<IntegrationExternalIdentity> {
+    const authorizationCode = this.stringOrEmpty(code)
+    if (!authorizationCode) {
+      throw new Error('DingTalk authorization code is required')
+    }
+
+    const corpId = this.stringOrEmpty(this.options.corpId)
+    if (!corpId) {
+      throw new Error('DingTalk corpId is required for H5 passwordless access')
+    }
+
+    const response = await this.requestLegacy<{
+      errcode?: number
+      errmsg?: string
+      result?: {
+        userid?: string
+        unionid?: string
+        name?: string
+      }
+    }>({
+      path: '/topapi/v2/user/getuserinfo',
+      data: {
+        code: authorizationCode
+      }
+    })
+
+    if (response?.errcode && response.errcode !== 0) {
+      throw new Error(`Failed to exchange DingTalk authorization code: ${response.errmsg || response.errcode}`)
+    }
+
+    const userId = this.stringOrEmpty(response?.result?.userid)
+    if (!userId) {
+      throw new Error('Missing userid in DingTalk authorization response')
+    }
+
+    const displayName = this.stringOrEmpty(response?.result?.name)
+    const unionId = this.stringOrEmpty(response?.result?.unionid)
+
+    return {
+      provider: 'dingtalk',
+      externalOrganizationId: corpId,
+      subjectId: userId,
+      ...(displayName ? { displayName } : {}),
+      ...(unionId
+        ? {
+            accountBinding: {
+              provider: 'dingtalk-sso' as const,
+              subjectId: unionId
+            }
+          }
+        : {})
+    }
   }
 
   private resolveWebhookUrl(): string | null {

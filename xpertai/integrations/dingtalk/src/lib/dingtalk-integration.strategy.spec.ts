@@ -2,6 +2,7 @@ import axios from 'axios'
 import type { IIntegration } from '@xpert-ai/contracts'
 import { DingTalkIntegrationStrategy } from './dingtalk-integration.strategy.js'
 import { DingTalkLongIntegrationStrategy } from './dingtalk-long-integration.strategy.js'
+import { DingTalkClient } from './dingtalk.client.js'
 import {
   DINGTALK_APP_CREDENTIALS_HELP_LABEL,
   DINGTALK_APP_CREDENTIALS_HELP_URL,
@@ -12,6 +13,7 @@ import {
 jest.mock('axios', () => ({
   __esModule: true,
   default: {
+    create: jest.fn(() => ({})),
     post: jest.fn()
   }
 }))
@@ -149,6 +151,46 @@ describe('DingTalkIntegrationStrategy', () => {
     )
 
     expect(longConnection.disconnect).toHaveBeenCalledWith('integration-1')
+  })
+
+  it('delegates H5 authorization-code exchange to the DingTalk client in both providers', async () => {
+    const { strategy, longStrategy } = createFixture()
+    const exchange = jest.spyOn(DingTalkClient.prototype, 'exchangeAuthorizationCode').mockResolvedValue({
+      provider: 'dingtalk',
+      externalOrganizationId: 'corp-1',
+      subjectId: 'employee-1'
+    })
+    const integration = createIntegration({ corpId: 'corp-1' })
+
+    await expect(
+      strategy.exchangeIdentity(integration, { type: 'authorization_code', code: 'code-http' })
+    ).resolves.toMatchObject({ subjectId: 'employee-1' })
+    await expect(
+      longStrategy.exchangeIdentity(integration, { type: 'authorization_code', code: 'code-stream' })
+    ).resolves.toMatchObject({ subjectId: 'employee-1' })
+
+    expect(exchange).toHaveBeenNthCalledWith(1, 'code-http')
+    expect(exchange).toHaveBeenNthCalledWith(2, 'code-stream')
+  })
+
+  it('declares enterprise H5 capability and exposes the public app identifiers', async () => {
+    const { strategy, longStrategy } = createFixture()
+    const integration = createIntegration({ clientId: ' client-id ', corpId: ' corp-1 ' })
+
+    expect(strategy.meta.enterpriseH5).toEqual({
+      platform: 'dingtalk',
+      externalIdentityProvider: 'dingtalk',
+      accountBindingProvider: 'dingtalk-sso'
+    })
+    expect(longStrategy.meta.enterpriseH5).toEqual(strategy.meta.enterpriseH5)
+    await expect(strategy.getIdentityBootstrap(integration)).resolves.toEqual({
+      externalOrganizationId: 'corp-1',
+      clientConfig: { clientId: 'client-id', corpId: 'corp-1' }
+    })
+    await expect(longStrategy.getIdentityBootstrap(integration)).resolves.toEqual({
+      externalOrganizationId: 'corp-1',
+      clientConfig: { clientId: 'client-id', corpId: 'corp-1' }
+    })
   })
 })
 
