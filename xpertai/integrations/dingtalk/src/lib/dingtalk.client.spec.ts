@@ -191,4 +191,121 @@ describe('DingTalkClient', () => {
       maxBodyLength: Infinity
     })
   })
+
+  it('exchanges an H5 authorization code for a typed DingTalk employee identity', async () => {
+    const http = {
+      get: jest.fn().mockResolvedValue({
+        data: {
+          errcode: 0,
+          access_token: 'legacy-access-token'
+        }
+      }),
+      post: jest.fn().mockResolvedValue({
+        data: {
+          errcode: 0,
+          result: {
+            userid: 'employee-1',
+            unionid: 'union-1',
+            name: 'Employee One'
+          }
+        }
+      })
+    }
+    mockedAxios.create.mockReturnValue(http as any)
+
+    const client = new DingTalkClient({
+      id: 'integration-1',
+      provider: 'dingtalk',
+      options: {
+        clientId: 'app-key',
+        clientSecret: 'app-secret',
+        corpId: 'corp-1'
+      }
+    } as any)
+
+    await expect(client.exchangeAuthorizationCode('auth-code-1')).resolves.toEqual({
+      provider: 'dingtalk',
+      externalOrganizationId: 'corp-1',
+      subjectId: 'employee-1',
+      displayName: 'Employee One',
+      accountBinding: {
+        provider: 'dingtalk-sso',
+        subjectId: 'union-1'
+      }
+    })
+    expect(http.post).toHaveBeenCalledWith(
+      'https://oapi.dingtalk.com/topapi/v2/user/getuserinfo?access_token=legacy-access-token',
+      { code: 'auth-code-1' },
+      expect.objectContaining({
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+    )
+  })
+
+  it('leaves account binding unresolved when DingTalk omits unionid', async () => {
+    const http = {
+      get: jest.fn().mockResolvedValue({ data: { errcode: 0, access_token: 'legacy-access-token' } }),
+      post: jest.fn().mockResolvedValue({
+        data: {
+          errcode: 0,
+          result: {
+            userid: 'employee-1',
+            name: 'Employee One'
+          }
+        }
+      })
+    }
+    mockedAxios.create.mockReturnValue(http as any)
+
+    const client = new DingTalkClient({
+      id: 'integration-1',
+      provider: 'dingtalk',
+      options: {
+        clientId: 'app-key',
+        clientSecret: 'app-secret',
+        corpId: 'corp-1'
+      }
+    } as any)
+
+    await expect(client.exchangeAuthorizationCode('auth-code-1')).resolves.toEqual({
+      provider: 'dingtalk',
+      externalOrganizationId: 'corp-1',
+      subjectId: 'employee-1',
+      displayName: 'Employee One'
+    })
+  })
+
+  it('rejects an authorization response without an explicit userid', async () => {
+    const http = {
+      get: jest.fn().mockResolvedValue({
+        data: {
+          errcode: 0,
+          access_token: 'legacy-access-token'
+        }
+      }),
+      post: jest.fn().mockResolvedValue({
+        data: {
+          errcode: 0,
+          result: {}
+        }
+      })
+    }
+    mockedAxios.create.mockReturnValue(http as any)
+
+    const client = new DingTalkClient({
+      id: 'integration-1',
+      provider: 'dingtalk',
+      options: {
+        clientId: 'app-key',
+        clientSecret: 'app-secret',
+        corpId: 'corp-1'
+      }
+    } as any)
+
+    await expect(client.exchangeAuthorizationCode('auth-code-1')).rejects.toThrow(
+      'Missing userid in DingTalk authorization response'
+    )
+  })
 })
