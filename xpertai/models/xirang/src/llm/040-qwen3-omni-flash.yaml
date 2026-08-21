@@ -75,24 +75,24 @@
     "vision"
   ],
   "pricing": {
-    "input": "0",
-    "output": "0",
+    "input": "15.8",
+    "output": "62.6",
     "unit": "0.000001",
     "currency": "CNY",
     "rules": [
       {
         "component": "input",
-        "unit_price": 0,
+        "unit_price": 15.8,
         "unit_size": 1000000,
         "currency": "CNY",
-        "mode": "__xirang_unpriced__"
+        "min_input_tokens": 1
       },
       {
         "component": "output",
-        "unit_price": 0,
+        "unit_price": 62.6,
         "unit_size": 1000000,
         "currency": "CNY",
-        "mode": "__xirang_unpriced__"
+        "min_input_tokens": 1
       }
     ]
   }

@@ -10,7 +10,7 @@ const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 
   name: string
   version: string
 }
-const icon = readFileSync(join(__dirname, '_assets/icon.svg'), 'utf8')
+const icon = readFileSync(join(__dirname, '_assets/icon.png')).toString('base64')
 const ConfigSchema = z.object({})
 
 const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
@@ -20,7 +20,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
     category: 'model',
     level: 'organization',
     artifactNamespace: 'xirang_model',
-    icon: { type: 'svg', value: icon },
+    icon: { type: 'image', value: `data:image/png;base64,${icon}` },
     displayName: '天翼云模型',
     description: '通过天翼云星辰 MaaS 接入兼容 OpenAI API 的文本、向量、重排和图片模型',
     keywords: ['天翼云', '星辰', 'Xirang', 'Ctyun', 'model', 'LLM'],

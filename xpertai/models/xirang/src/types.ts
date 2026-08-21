@@ -10,6 +10,14 @@ export type XirangCredentials = {
 
 export type XirangModelCredentials = XirangCredentials & {
   endpoint_model_name?: string
+  /** Optional Rerank-specific API key. Falls back to the provider AppKey. */
+  rerank_api_key?: string
+  /** Rerank path relative to endpoint_url, for example /rerank or /reranks. */
+  rerank_path?: string
+  /** Authentication scheme for the Rerank endpoint. */
+  rerank_auth_scheme?: 'raw' | 'bearer' | string
+  /** Optional instruction passed to Qwen-compatible Rerank endpoints. */
+  rerank_instruct?: string
   context_size?: string | number
   max_tokens_to_sample?: string | number
   enable_thinking?: boolean | string | number

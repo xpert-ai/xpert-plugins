@@ -11,7 +11,8 @@ XirangProviderStrategy
   ├─ XirangTextEmbeddingModel
   │    └─ OpenAIEmbeddings + 原始 Authorization AppKey
   ├─ XirangRerankModel
-  │    └─ POST /rerank
+  │    ├─ Default: POST /rerank + Bearer provider AppKey + model ID
+  │    └─ Explicit custom settings: /reranks, separate key, raw auth, instruct
   └─ XirangImageGenerationModel
        └─ POST /images/generations（模型特有字段透传）
 ```

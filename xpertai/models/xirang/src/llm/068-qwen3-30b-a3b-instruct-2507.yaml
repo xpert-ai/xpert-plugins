@@ -74,24 +74,22 @@
     "structured-output"
   ],
   "pricing": {
-    "input": "0",
-    "output": "0",
+    "input": "0.75",
+    "output": "3",
     "unit": "0.000001",
     "currency": "CNY",
     "rules": [
       {
         "component": "input",
-        "unit_price": 0,
+        "unit_price": 0.75,
         "unit_size": 1000000,
-        "currency": "CNY",
-        "mode": "__xirang_unpriced__"
+        "currency": "CNY"
       },
       {
         "component": "output",
-        "unit_price": 0,
+        "unit_price": 3,
         "unit_size": 1000000,
-        "currency": "CNY",
-        "mode": "__xirang_unpriced__"
+        "currency": "CNY"
       }
     ]
   }

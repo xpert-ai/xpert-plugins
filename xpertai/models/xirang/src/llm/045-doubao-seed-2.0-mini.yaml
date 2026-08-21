@@ -74,24 +74,76 @@
     "structured-output"
   ],
   "pricing": {
-    "input": "0",
-    "output": "0",
+    "input": "0.2",
+    "output": "2",
     "unit": "0.000001",
     "currency": "CNY",
     "rules": [
       {
         "component": "input",
-        "unit_price": 0,
+        "unit_price": 0.2,
         "unit_size": 1000000,
         "currency": "CNY",
-        "mode": "__xirang_unpriced__"
+        "max_input_tokens": 32768
+      },
+      {
+        "component": "input",
+        "unit_price": 0.4,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "min_input_tokens": 32769,
+        "max_input_tokens": 131072
+      },
+      {
+        "component": "input",
+        "unit_price": 0.8,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "min_input_tokens": 131073
+      },
+      {
+        "component": "cache_read_input",
+        "unit_price": 0.04,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "max_input_tokens": 32768
+      },
+      {
+        "component": "cache_read_input",
+        "unit_price": 0.08,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "min_input_tokens": 32769,
+        "max_input_tokens": 131072
+      },
+      {
+        "component": "cache_read_input",
+        "unit_price": 0.16,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "min_input_tokens": 131073
       },
       {
         "component": "output",
-        "unit_price": 0,
+        "unit_price": 2,
         "unit_size": 1000000,
         "currency": "CNY",
-        "mode": "__xirang_unpriced__"
+        "max_input_tokens": 32768
+      },
+      {
+        "component": "output",
+        "unit_price": 4,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "min_input_tokens": 32769,
+        "max_input_tokens": 131072
+      },
+      {
+        "component": "output",
+        "unit_price": 8,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "min_input_tokens": 131073
       }
     ]
   }

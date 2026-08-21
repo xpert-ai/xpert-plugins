@@ -7,7 +7,6 @@ const srcRoot = join(packageRoot, 'src')
 const sourcePath = join(srcRoot, 'catalog', 'source.snapshot.json')
 const source = JSON.parse(readFileSync(sourcePath, 'utf8'))
 const capturedAt = source.captured_at || new Date().toISOString()
-const version = capturedAt.slice(0, 10)
 
 // JSON is a valid YAML 1.2 document and keeps this catalog generator
 // dependency-free when the plugin repository is checked out standalone.
@@ -17,6 +16,12 @@ const imagePattern = /(seedream|qwen-image|wan2\.[67]-image)/i
 const videoPattern = /(t2v|i2v|r2v|kf2v|video|seedance|animate-mix)/i
 const embeddingPattern = /(embedding|bge-m3)/i
 const rerankPattern = /(rerank|reranker|gte-rerank)/i
+const rerankContextSizes = {
+  'BGE-Reranker-Large': 512,
+  'BGE-Reranker-V2-m3': 8192,
+  'qwen3-rerank': 120000,
+  'gte-rerank-v2': 30000
+}
 
 function classify(name) {
   if (imagePattern.test(name)) return 'image'
@@ -33,93 +38,6 @@ function slug(name, index) {
     .replace(/[^a-z0-9._-]+/g, '-')
     .replace(/^-+|-+$/g, '')
   return `${String(index).padStart(3, '0')}-${value || 'model'}`
-}
-
-function exactPrice(display) {
-  if (typeof display !== 'string' || !display.includes('/百万Tokens') || display.includes('~') || display.includes('标准时段') || display.includes('优惠时段')) return null
-  const match = display.match(/¥\s*([0-9]+(?:\.[0-9]+)?)\/百万Tokens/)
-  return match ? Number(match[1]) : null
-}
-
-function timeTierPrices(display) {
-  if (typeof display !== 'string' || display.includes('~')) return null
-  const match = display.match(/标准时段\s*¥\s*([0-9]+(?:\.[0-9]+)?)\/百万Tokens\s*优惠时段\s*¥\s*([0-9]+(?:\.[0-9]+)?)\/百万Tokens/)
-  return match ? { standard: Number(match[1]), offpeak: Number(match[2]) } : null
-}
-
-function tokenPriceRules(component, display) {
-  const exact = exactPrice(display)
-  if (exact != null) {
-    return [{ component, unit_price: exact, unit_size: 1_000_000, currency: 'CNY' }]
-  }
-  const tiers = timeTierPrices(display)
-  if (tiers) {
-    return [
-      {
-        component,
-        unit_price: tiers.standard,
-        unit_size: 1_000_000,
-        currency: 'CNY',
-        daily_time_window: { time_zone: 'Asia/Shanghai', start_time: '08:00', end_time: '24:00' }
-      },
-      {
-        component,
-        unit_price: tiers.offpeak,
-        unit_size: 1_000_000,
-        currency: 'CNY',
-        daily_time_window: { time_zone: 'Asia/Shanghai', start_time: '00:00', end_time: '08:00' }
-      }
-    ]
-  }
-  // A deliberately non-matching rule makes the SDK report this component as
-  // unpriced. It must not be represented as a free model.
-  return [{ component, unit_price: 0, unit_size: 1_000_000, currency: 'CNY', mode: '__xirang_unpriced__' }]
-}
-
-function tokenPricing(row) {
-  const inputExact = exactPrice(row.input)
-  const outputExact = exactPrice(row.output)
-  const inputTier = timeTierPrices(row.input)
-  const outputTier = timeTierPrices(row.output)
-  const inputDisplayPrice = inputExact ?? inputTier?.standard ?? 0
-  const outputDisplayPrice = outputExact ?? outputTier?.standard ?? 0
-  const cacheReadRules = row.cache_hit_input
-    ? tokenPriceRules('cache_read_input', row.cache_hit_input)
-    : []
-  return {
-    input: String(inputDisplayPrice),
-    output: String(outputDisplayPrice),
-    unit: '0.000001',
-    currency: 'CNY',
-    rules: [
-      ...tokenPriceRules('input', row.input),
-      ...cacheReadRules,
-      ...tokenPriceRules('output', row.output)
-    ]
-  }
-}
-
-function imagePricing(name) {
-  // The Xirang model-detail page specifies Seedream 4.5 at CNY 0.25 per image.
-  if (name.toLowerCase() === 'doubao-seedream-4.5') {
-    return {
-      type: 'usage',
-      rules: [{
-        id: 'image-generation',
-        version,
-        effective_from: `${version}T00:00:00+08:00`,
-        unit: 'generation',
-        unit_size: 1,
-        unit_price: 0.25,
-        currency: 'CNY',
-        charge_type: 'paid',
-        component: 'output',
-        operations: ['text_to_image', 'image_to_image', 'multi_image_to_image'],
-        source_url: 'https://ctxirang.ctyun.cn/maas/modelSquare'
-      }]
-    }
-  }
-  return { type: 'usage', rules: [] }
 }
 
 function llmFeatures(name) {
@@ -151,6 +69,20 @@ function parameterRules(modelType) {
   return []
 }
 
+const preservedModels = new Map()
+for (const modelType of ['llm', 'text-embedding', 'rerank', 'image']) {
+  const folder = join(srcRoot, modelType)
+  for (const file of readdirSync(folder)) {
+    if (!file.endsWith('.yaml') || file === '_position.yaml') continue
+    const model = JSON.parse(readFileSync(join(folder, file), 'utf8'))
+    if (typeof model.model !== 'string') continue
+    preservedModels.set(model.model, {
+      model_properties: model.model_properties,
+      pricing: model.pricing
+    })
+  }
+}
+
 function modelSchema(row, modelType) {
   const name = row.name
   const base = {
@@ -159,14 +91,18 @@ function modelSchema(row, modelType) {
     model_type: modelType,
     model_properties: modelType === 'llm'
       ? { mode: 'chat', context_size: 32768 }
-      : { context_size: 8192 },
+      : { context_size: modelType === 'rerank' ? rerankContextSizes[name] || 8192 : 8192 },
     parameter_rules: parameterRules(modelType)
   }
-  if (modelType === 'llm') {
-    return { ...base, features: llmFeatures(name), pricing: tokenPricing(row) }
+  const generated = modelType === 'llm' ? { ...base, features: llmFeatures(name) } : base
+  const preserved = preservedModels.get(name)
+  return {
+    ...generated,
+    ...(preserved?.model_properties ? {
+      model_properties: { ...generated.model_properties, ...preserved.model_properties }
+    } : {}),
+    ...(preserved?.pricing !== undefined ? { pricing: preserved.pricing } : {})
   }
-  if (modelType === 'image') return { ...base, pricing: imagePricing(name) }
-  return { ...base, pricing: tokenPricing(row) }
 }
 
 const activeRows = source.models.filter((row) => !row.name.includes('（即将下线）'))
@@ -193,11 +129,7 @@ for (const [index, row] of runtimeRows.entries()) {
   generated.push({
     name: row.name,
     ...(row.model_id ? { model_id: row.model_id } : {}),
-    model_type: modelType,
-    source_input: row.input,
-    source_output: row.output,
-    ...(row.cache_hit_input ? { source_cache_hit_input: row.cache_hit_input } : {}),
-    priced: modelType === 'image' ? row.name.toLowerCase() === 'doubao-seedream-4.5' : tokenPriceRules('input', row.input).some((rule) => rule.mode !== '__xirang_unpriced__') && tokenPriceRules('output', row.output).some((rule) => rule.mode !== '__xirang_unpriced__')
+    model_type: modelType
   })
 }
 
@@ -214,12 +146,11 @@ const normalized = {
   policy: {
     deprecated_marker: '（即将下线）',
     excluded_deprecated: source.models.filter((row) => row.name.includes('（即将下线）')).map((row) => row.name),
-    video_status: 'catalog-only-unsupported-until-api-contract-is-verified',
-    price_policy: 'Only exact flat prices and exact standard/off-peak prices are billed. Ranges and dashes are unpriced.'
+    video_status: 'catalog-only-unsupported-until-api-contract-is-verified'
   },
   counts,
   active_models: generated,
-  unsupported_video_models: unsupported.map((row) => ({ name: row.name, source_input: row.input, source_output: row.output }))
+  unsupported_video_models: unsupported.map((row) => ({ name: row.name }))
 }
 mkdirSync(join(srcRoot, 'catalog'), { recursive: true })
 writeFileSync(join(srcRoot, 'catalog', 'normalized.snapshot.json'), `${JSON.stringify(normalized, null, 2)}\n`)

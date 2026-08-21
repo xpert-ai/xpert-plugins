@@ -87,6 +87,12 @@
         "currency": "CNY"
       },
       {
+        "component": "cache_read_input",
+        "unit_price": 0.8,
+        "unit_size": 1000000,
+        "currency": "CNY"
+      },
+      {
         "component": "output",
         "unit_price": 16,
         "unit_size": 1000000,

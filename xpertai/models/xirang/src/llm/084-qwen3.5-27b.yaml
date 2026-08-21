@@ -74,24 +74,38 @@
     "structured-output"
   ],
   "pricing": {
-    "input": "0",
-    "output": "0",
+    "input": "0.6",
+    "output": "4.8",
     "unit": "0.000001",
     "currency": "CNY",
     "rules": [
       {
         "component": "input",
-        "unit_price": 0,
+        "unit_price": 0.6,
         "unit_size": 1000000,
         "currency": "CNY",
-        "mode": "__xirang_unpriced__"
+        "max_input_tokens": 131072
+      },
+      {
+        "component": "input",
+        "unit_price": 1.8,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "min_input_tokens": 131073
       },
       {
         "component": "output",
-        "unit_price": 0,
+        "unit_price": 4.8,
         "unit_size": 1000000,
         "currency": "CNY",
-        "mode": "__xirang_unpriced__"
+        "max_input_tokens": 131072
+      },
+      {
+        "component": "output",
+        "unit_price": 14.4,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "min_input_tokens": 131073
       }
     ]
   }

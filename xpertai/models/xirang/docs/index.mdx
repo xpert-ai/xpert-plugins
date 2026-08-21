@@ -11,6 +11,6 @@ description: 在 Xpert 中配置和使用天翼云星辰 MaaS 模型
 
 ## 当前目录
 
-目录来源是天翼云星辰内联服务页面。完整原始记录在 `src/catalog/source.snapshot.json`，分类、下线过滤和计费判定在 `src/catalog/normalized.snapshot.json`。
+目录来源是天翼云星辰内联服务页面。模型名称、模型 ID 和分类元数据保存在 `src/catalog/source.snapshot.json`，分类和下线过滤结果保存在 `src/catalog/normalized.snapshot.json`。
 
 视频服务目前只记录在审计清单中。天翼云的视频接口需要稳定的异步任务提交、查询和回调契约，确认后再开启运行时，避免出现能选中但必然调用失败的模型。
