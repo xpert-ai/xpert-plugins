@@ -18,9 +18,8 @@ const OptionalStringSchema = z.preprocess(
 )
 
 export const dingtalkSsoIcon = `
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
-  <rect width="96" height="96" rx="24" fill="#1677FF"/>
-  <path fill="#fff" d="M72.3 24.8c-10.2-4.4-20.5-7.5-31.1-9.3-1.7-.3-2.4.7-1.5 2.1l6.4 9.4c-8.8-1.7-17.4-2.1-25.8-1.3-1.8.2-2.2 1.4-.9 2.6l10.3 9.2-7.8 1.2c-1.8.3-2.1 1.6-.7 2.7l12.1 8.8-5.9 2c-1.7.6-1.8 1.9-.2 2.7l13.4 6.8-4.4 14.8c-.5 1.8.4 2.4 1.8 1.2l20.5-18.1h-9.8c7.7-9.6 14.3-19.9 19.8-30.9l4.6-1.2c1.8-.5 1.9-1.7.2-2.7Z"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" fill="#4aa4f8">
+  <path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64zm227 385.3c-1 4.2-3.5 10.4-7 17.8h.1l-.4.7c-20.3 43.1-73.1 127.7-73.1 127.7s-.1-.2-.3-.5l-15.5 26.8h74.5L575.1 810l32.3-128h-58.6l20.4-84.7c-16.5 3.9-35.9 9.4-59 16.8 0 0-31.2 18.2-89.9-35 0 0-39.6-34.7-16.6-43.4 9.8-3.7 47.4-8.4 77-12.3 40-5.4 64.6-8.2 64.6-8.2S422 517 392.7 512.5c-29.3-4.6-66.4-53.1-74.3-95.8 0 0-12.2-23.4 26.3-12.3 38.5 11.1 197.9 43.2 197.9 43.2s-207.4-63.3-221.2-78.7c-13.8-15.4-40.6-84.2-37.1-126.5 0 0 1.5-10.5 12.4-7.7 0 0 153.3 69.7 258.1 107.9 104.8 37.9 195.9 57.3 184.2 106.7z"/>
 </svg>
 `.trim()
 
@@ -29,7 +28,7 @@ export const DINGTALK_SSO_ARTIFACT_NAMESPACE = 'dingtalk_sso'
 export const DINGTALK_SSO_PROVIDER = 'dingtalk-sso'
 export const DINGTALK_SSO_CALLBACK_PATH = '/api/dingtalk-identity/callback'
 export const DINGTALK_SSO_LOGIN_START_PATH = '/api/dingtalk-identity/login/start'
-export const DINGTALK_SSO_PROVIDER_ICON_PATH = '/assets/images/destinations/dingtalk.png'
+export const DINGTALK_SSO_PROVIDER_ICON_PATH = '/assets/images/destinations/dingtalk.svg'
 export const DINGTALK_AUTH_LOGIN_PATH = '/auth/login'
 export const DINGTALK_AUTH_SSO_CONFIRM_PATH = '/auth/sso-confirm'
 export const DINGTALK_SIGN_IN_SUCCESS_PATH = '/sign-in/success'
