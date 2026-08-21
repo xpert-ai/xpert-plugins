@@ -88,6 +88,7 @@
       "@xpert-ai/plugin-agent-behavior-monitor",
       "@xpert-ai/plugin-web-tools",
       "@xpert-ai/plugin-deepseek",
+      "@xpert-ai/plugin-xirang",
       "@xpert-ai/plugin-zhipuai",
       "@xpert-ai/plugin-slack",
       "@xpert-ai/plugin-dingtalk",
