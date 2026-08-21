@@ -26,8 +26,7 @@ const plugin: XpertPlugin = {
     category: 'integration',
     icon: {
       type: 'svg',
-      value: dingtalkSsoIcon,
-      color: '#1677FF'
+      value: dingtalkSsoIcon
     },
     displayName: 'DingTalk SSO',
     description: 'Adds DingTalk OAuth sign-in and account binding flows for Xpert.',

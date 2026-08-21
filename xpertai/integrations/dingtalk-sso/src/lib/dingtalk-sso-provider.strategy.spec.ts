@@ -15,7 +15,7 @@ describe('DingTalkSsoProviderStrategy', () => {
     await expect(strategy.describe({ tenantId: 'tenant-1' } as any)).resolves.toEqual({
       provider: 'dingtalk-sso',
       displayName: 'DingTalk',
-      icon: '/assets/images/destinations/dingtalk.png',
+      icon: '/assets/images/destinations/dingtalk.svg',
       order: 105,
       startUrl: '/api/dingtalk-identity/login/start'
     })
