@@ -1,0 +1,117 @@
+import { BaseMessage, BaseMessageChunk, isAIMessage, isAIMessageChunk } from '@langchain/core/messages'
+import type { OpenAIClient } from '@langchain/openai'
+import { AiModelTypeEnum, FetchFrom, type AIModelEntity, type ICopilotModel, ModelFeature, ModelPropertyKey, ParameterType } from '@xpert-ai/contracts'
+import { Injectable } from '@nestjs/common'
+import { ChatOAICompatReasoningModel, CredentialsValidateFailedError, getErrorMessage, LargeLanguageModel, type TChatModelOptions } from '@xpert-ai/plugin-sdk'
+import { randomUUID } from 'node:crypto'
+import { XirangProviderStrategy } from '../provider.strategy.js'
+import { toCredentialKwargs, type XirangModelCredentials } from '../types.js'
+
+class XirangChatModel extends ChatOAICompatReasoningModel {
+  private activeStreamResponseId: string | null = null
+
+  protected override _convertCompletionsDeltaToBaseMessageChunk(
+    delta: Record<string, unknown>,
+    rawResponse: OpenAIClient.ChatCompletionChunk,
+    defaultRole?: 'function' | 'user' | 'system' | 'developer' | 'assistant' | 'tool'
+  ): BaseMessageChunk {
+    if (rawResponse.id === 'chatcmpl' && delta.role) this.activeStreamResponseId = `${rawResponse.id}-${randomUUID()}`
+    const chunk = super._convertCompletionsDeltaToBaseMessageChunk(delta, rawResponse, defaultRole)
+    if (isAIMessageChunk(chunk)) {
+      chunk._updateId(this.responseId(rawResponse.id))
+      if (rawResponse.choices.some((choice) => choice.finish_reason != null)) this.activeStreamResponseId = null
+    }
+    return chunk
+  }
+
+  protected override _convertCompletionsMessageToBaseMessage(
+    message: OpenAIClient.ChatCompletionMessage,
+    rawResponse: OpenAIClient.ChatCompletion
+  ): BaseMessage {
+    const converted = super._convertCompletionsMessageToBaseMessage(message, rawResponse)
+    if (isAIMessage(converted)) converted._updateId(rawResponse.id === 'chatcmpl' ? `chatcmpl-${randomUUID()}` : rawResponse.id)
+    return converted
+  }
+
+  private responseId(id?: string | null) {
+    if (id !== 'chatcmpl') return id
+    this.activeStreamResponseId ??= `chatcmpl-${randomUUID()}`
+    return this.activeStreamResponseId
+  }
+}
+
+@Injectable()
+export class XirangLargeLanguageModel extends LargeLanguageModel {
+  constructor(modelProvider: XirangProviderStrategy) {
+    super(modelProvider, AiModelTypeEnum.LLM)
+  }
+
+  async validateCredentials(model: string, credentials: XirangModelCredentials): Promise<void> {
+    try {
+      const params = toCredentialKwargs(credentials, model)
+      await new XirangChatModel({ ...params, temperature: 0, maxTokens: 2 }).invoke([{ role: 'human', content: 'Hi' }])
+    } catch (error) {
+      throw new CredentialsValidateFailedError(getErrorMessage(error))
+    }
+  }
+
+  override getChatModel(copilotModel: ICopilotModel, options?: TChatModelOptions, credentials?: XirangModelCredentials) {
+    const copilot = copilotModel.copilot
+    credentials ??= {
+      ...(copilot?.modelProvider?.credentials ?? {}),
+      ...(options?.modelProperties ?? {})
+    } as XirangModelCredentials
+    const params = toCredentialKwargs(credentials, copilotModel.model)
+    const modelOptions = copilotModel.options ?? {}
+    const runtimeThinking = modelOptions.enable_thinking
+    if (runtimeThinking !== undefined) {
+      const enabled = runtimeThinking === true || runtimeThinking === 'true' || runtimeThinking === 1 || runtimeThinking === '1'
+      params.modelKwargs.enable_thinking = enabled
+      params.modelKwargs.chat_template_kwargs = { enable_thinking: enabled }
+    }
+
+    return new XirangChatModel({
+      ...params,
+      streaming: modelOptions.streaming ?? true,
+      temperature: modelOptions.temperature ?? 0.2,
+      maxTokens: modelOptions.max_tokens,
+      topP: modelOptions.top_p,
+      frequencyPenalty: modelOptions.frequency_penalty,
+      presencePenalty: modelOptions.presence_penalty,
+      maxRetries: modelOptions.maxRetries,
+      // Usage chunks are required for authoritative Xirang billing.
+      streamUsage: true,
+      verbose: options?.verbose,
+      callbacks: [...this.createHandleUsageCallbacks(copilot, params.model, credentials, options?.handleLLMTokens)]
+    })
+  }
+
+  override getCustomizableModelSchemaFromCredentials(model: string, credentials: Record<string, any>): AIModelEntity | null {
+    const contextSize = Number(credentials.context_size ?? 32768)
+    return {
+      model,
+      label: { zh_Hans: String(credentials.display_name || model), en_US: String(credentials.display_name || model) },
+      model_type: AiModelTypeEnum.LLM,
+      fetch_from: FetchFrom.CUSTOMIZABLE_MODEL,
+      features: [ModelFeature.TOOL_CALL, ModelFeature.MULTI_TOOL_CALL, ModelFeature.STREAM_TOOL_CALL],
+      model_properties: { [ModelPropertyKey.MODE]: 'chat', [ModelPropertyKey.CONTEXT_SIZE]: contextSize },
+      parameter_rules: [
+        { name: 'temperature', type: ParameterType.FLOAT, useTemplate: 'temperature', label: { zh_Hans: '温度', en_US: 'Temperature' }, default: 0.2, min: 0, max: 2 },
+        { name: 'top_p', type: ParameterType.FLOAT, useTemplate: 'top_p', label: { zh_Hans: 'Top P', en_US: 'Top P' }, default: 1, min: 0, max: 1 },
+        { name: 'max_tokens', type: ParameterType.INT, useTemplate: 'max_tokens', label: { zh_Hans: '最大输出 Token', en_US: 'Max output tokens' }, default: 2048, min: 1, max: contextSize },
+        { name: 'enable_thinking', type: ParameterType.BOOLEAN, label: { zh_Hans: '思考模式', en_US: 'Thinking mode' }, default: false, required: false }
+      ],
+      // A customizable model has no catalog price. Keep it explicitly unpriced.
+      pricing: {
+        input: 0,
+        output: 0,
+        unit: 0.000001,
+        currency: 'CNY',
+        rules: [
+          { component: 'input', unit_price: 0, unit_size: 1_000_000, mode: '__xirang_unpriced__' },
+          { component: 'output', unit_price: 0, unit_size: 1_000_000, mode: '__xirang_unpriced__' }
+        ]
+      }
+    }
+  }
+}

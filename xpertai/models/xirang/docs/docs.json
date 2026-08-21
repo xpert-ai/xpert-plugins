@@ -1,0 +1,18 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "name": "天翼云星辰模型提供商插件",
+  "theme": "mint",
+  "colors": {
+    "primary": "#1d4ed8",
+    "light": "#eff6ff",
+    "dark": "#172554"
+  },
+  "navigation": {
+    "groups": [
+      {
+        "group": "使用",
+        "pages": ["index", "architecture", "pricing", "privacy"]
+      }
+    ]
+  }
+}

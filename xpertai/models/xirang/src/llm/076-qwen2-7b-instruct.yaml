@@ -1,0 +1,98 @@
+{
+  "model": "Qwen2-7B-Instruct",
+  "label": {
+    "en_US": "Qwen2-7B-Instruct",
+    "zh_Hans": "Qwen2-7B-Instruct"
+  },
+  "model_type": "llm",
+  "model_properties": {
+    "mode": "chat",
+    "context_size": 32768
+  },
+  "parameter_rules": [
+    {
+      "name": "temperature",
+      "use_template": "temperature",
+      "label": {
+        "zh_Hans": "温度",
+        "en_US": "Temperature"
+      },
+      "default": 0.2,
+      "min": 0,
+      "max": 2
+    },
+    {
+      "name": "top_p",
+      "use_template": "top_p",
+      "label": {
+        "zh_Hans": "Top P",
+        "en_US": "Top P"
+      },
+      "default": 1,
+      "min": 0,
+      "max": 1
+    },
+    {
+      "name": "max_tokens",
+      "use_template": "max_tokens",
+      "label": {
+        "zh_Hans": "最大输出 Token",
+        "en_US": "Max output tokens"
+      },
+      "default": 2048,
+      "min": 1,
+      "max": 32768
+    },
+    {
+      "name": "response_format",
+      "type": "string",
+      "label": {
+        "zh_Hans": "回复格式",
+        "en_US": "Response format"
+      },
+      "required": false,
+      "options": [
+        "text",
+        "json_object"
+      ]
+    },
+    {
+      "name": "enable_thinking",
+      "type": "boolean",
+      "label": {
+        "zh_Hans": "思考模式",
+        "en_US": "Thinking mode"
+      },
+      "required": false,
+      "default": false
+    }
+  ],
+  "features": [
+    "tool-call",
+    "multi-tool-call",
+    "stream-tool-call",
+    "structured-output"
+  ],
+  "pricing": {
+    "input": "0",
+    "output": "0",
+    "unit": "0.000001",
+    "currency": "CNY",
+    "rules": [
+      {
+        "component": "input",
+        "unit_price": 0,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "mode": "__xirang_unpriced__"
+      },
+      {
+        "component": "output",
+        "unit_price": 0,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "mode": "__xirang_unpriced__"
+      }
+    ]
+  }
+}
