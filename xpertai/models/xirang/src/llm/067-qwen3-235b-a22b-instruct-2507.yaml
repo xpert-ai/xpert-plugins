@@ -83,13 +83,15 @@
         "component": "input",
         "unit_price": 2,
         "unit_size": 1000000,
-        "currency": "CNY"
+        "currency": "CNY",
+        "min_input_tokens": 1
       },
       {
         "component": "output",
         "unit_price": 8,
         "unit_size": 1000000,
-        "currency": "CNY"
+        "currency": "CNY",
+        "min_input_tokens": 1
       }
     ]
   }

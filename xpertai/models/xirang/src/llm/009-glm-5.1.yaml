@@ -75,24 +75,52 @@
     "agent-thought"
   ],
   "pricing": {
-    "input": "0",
-    "output": "0",
+    "input": "6",
+    "output": "24",
     "unit": "0.000001",
     "currency": "CNY",
     "rules": [
       {
         "component": "input",
-        "unit_price": 0,
+        "unit_price": 6,
         "unit_size": 1000000,
         "currency": "CNY",
-        "mode": "__xirang_unpriced__"
+        "max_input_tokens": 32768
+      },
+      {
+        "component": "input",
+        "unit_price": 8,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "min_input_tokens": 32769
+      },
+      {
+        "component": "cache_read_input",
+        "unit_price": 1.3,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "max_input_tokens": 32768
+      },
+      {
+        "component": "cache_read_input",
+        "unit_price": 2,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "min_input_tokens": 32769
       },
       {
         "component": "output",
-        "unit_price": 0,
+        "unit_price": 24,
         "unit_size": 1000000,
         "currency": "CNY",
-        "mode": "__xirang_unpriced__"
+        "max_input_tokens": 32768
+      },
+      {
+        "component": "output",
+        "unit_price": 28,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "min_input_tokens": 32769
       }
     ]
   }

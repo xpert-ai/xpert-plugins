@@ -84,45 +84,13 @@
         "component": "input",
         "unit_price": 4,
         "unit_size": 1000000,
-        "currency": "CNY",
-        "daily_time_window": {
-          "time_zone": "Asia/Shanghai",
-          "start_time": "08:00",
-          "end_time": "24:00"
-        }
-      },
-      {
-        "component": "input",
-        "unit_price": 1,
-        "unit_size": 1000000,
-        "currency": "CNY",
-        "daily_time_window": {
-          "time_zone": "Asia/Shanghai",
-          "start_time": "00:00",
-          "end_time": "08:00"
-        }
+        "currency": "CNY"
       },
       {
         "component": "output",
         "unit_price": 16,
         "unit_size": 1000000,
-        "currency": "CNY",
-        "daily_time_window": {
-          "time_zone": "Asia/Shanghai",
-          "start_time": "08:00",
-          "end_time": "24:00"
-        }
-      },
-      {
-        "component": "output",
-        "unit_price": 4,
-        "unit_size": 1000000,
-        "currency": "CNY",
-        "daily_time_window": {
-          "time_zone": "Asia/Shanghai",
-          "start_time": "00:00",
-          "end_time": "08:00"
-        }
+        "currency": "CNY"
       }
     ]
   }

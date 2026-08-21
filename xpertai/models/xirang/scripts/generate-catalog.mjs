@@ -37,36 +37,62 @@ function slug(name, index) {
 
 function exactPrice(display) {
   if (typeof display !== 'string' || !display.includes('/百万Tokens') || display.includes('~') || display.includes('标准时段') || display.includes('优惠时段')) return null
-  const match = display.match(/¥\s*([0-9]+(?:\.[0-9]+)?)\/百万Tokens/)
+  const match = display.match(/¥\s*([0-9]+(?:\.[0-9]+)?)\/百万Tokens/i)
   return match ? Number(match[1]) : null
 }
 
 function timeTierPrices(display) {
   if (typeof display !== 'string' || display.includes('~')) return null
-  const match = display.match(/标准时段\s*¥\s*([0-9]+(?:\.[0-9]+)?)\/百万Tokens\s*优惠时段\s*¥\s*([0-9]+(?:\.[0-9]+)?)\/百万Tokens/)
+  const match = display.match(/标准时段\s*¥\s*([0-9]+(?:\.[0-9]+)?)\/百万Tokens\s*优惠时段\s*¥\s*([0-9]+(?:\.[0-9]+)?)\/百万Tokens/i)
   return match ? { standard: Number(match[1]), offpeak: Number(match[2]) } : null
 }
 
-function tokenPriceRules(component, display) {
+function tokenUnit(unit) {
+  return typeof unit === 'string' && /\/百万tokens/i.test(unit)
+}
+
+function tokenRule(component, unitPrice, range = {}) {
+  return {
+    component,
+    unit_price: unitPrice,
+    unit_size: 1_000_000,
+    currency: 'CNY',
+    ...range
+  }
+}
+
+function segmentTokenRules(component, segments) {
+  if (!Array.isArray(segments) || segments.length === 0) return []
+  const rules = []
+  for (const segment of segments) {
+    if (!tokenUnit(segment.unit)) continue
+    const range = {}
+    if (segment.min_input_tokens != null) range.min_input_tokens = segment.min_input_tokens
+    if (segment.max_input_tokens != null) range.max_input_tokens = segment.max_input_tokens
+    if (segment.min_output_tokens != null) range.min_output_tokens = segment.min_output_tokens
+    if (segment.max_output_tokens != null) range.max_output_tokens = segment.max_output_tokens
+    if (typeof segment.unit_price === 'number') rules.push(tokenRule(component, segment.unit_price, range))
+    else rules.push({ ...tokenRule(component, 0, range), mode: '__xirang_unpriced__' })
+  }
+  return rules
+}
+
+function tokenPriceRules(component, display, segments) {
+  const segmentRules = segmentTokenRules(component, segments)
+  if (segmentRules.length > 0) return segmentRules
   const exact = exactPrice(display)
   if (exact != null) {
-    return [{ component, unit_price: exact, unit_size: 1_000_000, currency: 'CNY' }]
+    return [tokenRule(component, exact)]
   }
   const tiers = timeTierPrices(display)
   if (tiers) {
     return [
       {
-        component,
-        unit_price: tiers.standard,
-        unit_size: 1_000_000,
-        currency: 'CNY',
+        ...tokenRule(component, tiers.standard),
         daily_time_window: { time_zone: 'Asia/Shanghai', start_time: '08:00', end_time: '24:00' }
       },
       {
-        component,
-        unit_price: tiers.offpeak,
-        unit_size: 1_000_000,
-        currency: 'CNY',
+        ...tokenRule(component, tiers.offpeak),
         daily_time_window: { time_zone: 'Asia/Shanghai', start_time: '00:00', end_time: '08:00' }
       }
     ]
@@ -76,15 +102,21 @@ function tokenPriceRules(component, display) {
   return [{ component, unit_price: 0, unit_size: 1_000_000, currency: 'CNY', mode: '__xirang_unpriced__' }]
 }
 
+function firstSegmentPrice(segments) {
+  return Array.isArray(segments)
+    ? segments.find((segment) => tokenUnit(segment.unit) && typeof segment.unit_price === 'number')?.unit_price
+    : undefined
+}
+
 function tokenPricing(row) {
   const inputExact = exactPrice(row.input)
   const outputExact = exactPrice(row.output)
   const inputTier = timeTierPrices(row.input)
   const outputTier = timeTierPrices(row.output)
-  const inputDisplayPrice = inputExact ?? inputTier?.standard ?? 0
-  const outputDisplayPrice = outputExact ?? outputTier?.standard ?? 0
+  const inputDisplayPrice = firstSegmentPrice(row.input_segments) ?? inputExact ?? inputTier?.standard ?? 0
+  const outputDisplayPrice = firstSegmentPrice(row.output_segments) ?? outputExact ?? outputTier?.standard ?? 0
   const cacheReadRules = row.cache_hit_input
-    ? tokenPriceRules('cache_read_input', row.cache_hit_input)
+    ? tokenPriceRules('cache_read_input', row.cache_hit_input, row.cache_hit_input_segments)
     : []
   return {
     input: String(inputDisplayPrice),
@@ -92,16 +124,22 @@ function tokenPricing(row) {
     unit: '0.000001',
     currency: 'CNY',
     rules: [
-      ...tokenPriceRules('input', row.input),
+      ...tokenPriceRules('input', row.input, row.input_segments),
       ...cacheReadRules,
-      ...tokenPriceRules('output', row.output)
+      ...tokenPriceRules('output', row.output, row.output_segments)
     ]
   }
 }
 
-function imagePricing(name) {
-  // The Xirang model-detail page specifies Seedream 4.5 at CNY 0.25 per image.
-  if (name.toLowerCase() === 'doubao-seedream-4.5') {
+function exactGenerationPrice(display) {
+  if (typeof display !== 'string') return null
+  const match = display.match(/¥\s*([0-9]+(?:\.[0-9]+)?)\s*\/张/i)
+  return match ? Number(match[1]) : null
+}
+
+function imagePricing(row) {
+  const unitPrice = exactGenerationPrice(row.output)
+  if (unitPrice != null) {
     return {
       type: 'usage',
       rules: [{
@@ -110,12 +148,12 @@ function imagePricing(name) {
         effective_from: `${version}T00:00:00+08:00`,
         unit: 'generation',
         unit_size: 1,
-        unit_price: 0.25,
+        unit_price: unitPrice,
         currency: 'CNY',
         charge_type: 'paid',
         component: 'output',
         operations: ['text_to_image', 'image_to_image', 'multi_image_to_image'],
-        source_url: 'https://ctxirang.ctyun.cn/maas/modelSquare'
+        source_url: 'https://ctxirang.ctyun.cn/maas/inlineService'
       }]
     }
   }
@@ -165,7 +203,7 @@ function modelSchema(row, modelType) {
   if (modelType === 'llm') {
     return { ...base, features: llmFeatures(name), pricing: tokenPricing(row) }
   }
-  if (modelType === 'image') return { ...base, pricing: imagePricing(name) }
+  if (modelType === 'image') return { ...base, pricing: imagePricing(row) }
   return { ...base, pricing: tokenPricing(row) }
 }
 
@@ -197,7 +235,9 @@ for (const [index, row] of runtimeRows.entries()) {
     source_input: row.input,
     source_output: row.output,
     ...(row.cache_hit_input ? { source_cache_hit_input: row.cache_hit_input } : {}),
-    priced: modelType === 'image' ? row.name.toLowerCase() === 'doubao-seedream-4.5' : tokenPriceRules('input', row.input).some((rule) => rule.mode !== '__xirang_unpriced__') && tokenPriceRules('output', row.output).some((rule) => rule.mode !== '__xirang_unpriced__')
+    priced: modelType === 'image'
+      ? imagePricing(row).rules.length > 0
+      : tokenPriceRules('input', row.input, row.input_segments).some((rule) => rule.mode !== '__xirang_unpriced__') && tokenPriceRules('output', row.output, row.output_segments).some((rule) => rule.mode !== '__xirang_unpriced__')
   })
 }
 
@@ -215,7 +255,7 @@ const normalized = {
     deprecated_marker: '（即将下线）',
     excluded_deprecated: source.models.filter((row) => row.name.includes('（即将下线）')).map((row) => row.name),
     video_status: 'catalog-only-unsupported-until-api-contract-is-verified',
-    price_policy: 'Only exact flat prices and exact standard/off-peak prices are billed. Ranges and dashes are unpriced.'
+    price_policy: 'Exact prices, standard/off-peak prices, and tooltip token thresholds are billed. Ranges without a verifiable tooltip threshold and dashes remain unpriced.'
   },
   counts,
   active_models: generated,

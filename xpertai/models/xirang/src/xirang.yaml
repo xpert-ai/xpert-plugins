@@ -66,10 +66,65 @@ model_credential_schema:
         zh_Hans: 可选的界面显示名称
     - variable: endpoint_model_name
       label:
-        en_US: Endpoint model name
-        zh_Hans: API 使用的模型名称
+        en_US: Endpoint model name / Rerank model ID
+        zh_Hans: API 使用的模型名称 / Rerank 模型 ID
       type: text-input
       required: false
       placeholder:
-        en_US: Leave blank to use the selected model name
-        zh_Hans: 留空则使用所选模型名称
+        en_US: Rerank requires the model ID from the Tianyi model detail page
+        zh_Hans: Rerank 必填：天翼云模型详情页顶部的模型 ID
+    - variable: rerank_path
+      show_on:
+        - variable: __model_type
+          value: rerank
+      label:
+        en_US: Rerank endpoint path
+        zh_Hans: Rerank 接口路径
+      type: text-input
+      required: false
+      placeholder:
+        en_US: Leave blank to use the official /rerank endpoint
+        zh_Hans: 留空使用天翼云官方 /rerank
+    - variable: rerank_auth_scheme
+      show_on:
+        - variable: __model_type
+          value: rerank
+      label:
+        en_US: Rerank authorization scheme
+        zh_Hans: Rerank 鉴权方式
+      type: select
+      required: false
+      default: bearer
+      options:
+        - value: bearer
+          label:
+            en_US: Bearer AppKey (official)
+            zh_Hans: Bearer AppKey（官方）
+        - value: raw
+          label:
+            en_US: Raw AppKey (custom gateways only)
+            zh_Hans: 原始 AppKey（仅自定义网关）
+    - variable: rerank_api_key
+      show_on:
+        - variable: __model_type
+          value: rerank
+      label:
+        en_US: Rerank API key
+        zh_Hans: Rerank API Key
+      type: secret-input
+      required: false
+      placeholder:
+        en_US: Leave blank to reuse the provider AppKey
+        zh_Hans: 留空直接复用提供商 AppKey
+    - variable: rerank_instruct
+      show_on:
+        - variable: __model_type
+          value: rerank
+      label:
+        en_US: Rerank instruction
+        zh_Hans: Rerank 指令
+      type: text-input
+      required: false
+      placeholder:
+        en_US: Optional instruction for Qwen-compatible Rerank APIs
+        zh_Hans: Qwen 兼容 Rerank 接口的可选指令

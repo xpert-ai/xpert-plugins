@@ -36,7 +36,7 @@ describe('generated Xirang catalog', () => {
     expect(normalized.unsupported_video_models.length).toBe(29)
   })
 
-  it('does not mistake unknown token prices for free', () => {
+  it('does not mistake dash token prices for free', () => {
     const llmModels = normalized.active_models.filter((model) => model.model_type === 'llm')
     expect(llmModels.some((model) => !model.priced)).toBe(true)
     expect(llmModels.some((model) => model.name === 'DeepSeek-V4-Flash' && model.priced)).toBe(true)
@@ -57,16 +57,19 @@ describe('generated Xirang catalog', () => {
       expect.objectContaining({ component: 'output', unit_price: 2, unit_size: 1_000_000 })
     ]))
 
-    const tiered = readModel('llm', 'DeepSeek-V3.2（旗舰版）').pricing
-    expect(tiered.rules).toEqual(expect.arrayContaining([
-      expect.objectContaining({ component: 'input', unit_price: 2, daily_time_window: { time_zone: 'Asia/Shanghai', start_time: '08:00', end_time: '24:00' } }),
-      expect.objectContaining({ component: 'input', unit_price: 1, daily_time_window: { time_zone: 'Asia/Shanghai', start_time: '00:00', end_time: '08:00' } })
+    const exactCurrent = readModel('llm', 'DeepSeek-V3.2（旗舰版）').pricing
+    expect(exactCurrent.rules).toEqual(expect.arrayContaining([
+      expect.objectContaining({ component: 'input', unit_price: 2, unit_size: 1_000_000 }),
+      expect.objectContaining({ component: 'cache_read_input', unit_price: 0.2, unit_size: 1_000_000 }),
+      expect.objectContaining({ component: 'output', unit_price: 3, unit_size: 1_000_000 })
     ]))
 
-    const unknown = readModel('llm', 'GLM-5.1').pricing
-    expect(unknown.rules).toEqual(expect.arrayContaining([
-      expect.objectContaining({ component: 'input', mode: '__xirang_unpriced__' }),
-      expect.objectContaining({ component: 'output', mode: '__xirang_unpriced__' })
+    const segmented = readModel('llm', 'GLM-5.1').pricing
+    expect(segmented.rules).toEqual(expect.arrayContaining([
+      expect.objectContaining({ component: 'input', unit_price: 6, max_input_tokens: 32_768 }),
+      expect.objectContaining({ component: 'input', unit_price: 8, min_input_tokens: 32_769 }),
+      expect.objectContaining({ component: 'output', unit_price: 24, max_input_tokens: 32_768 }),
+      expect.objectContaining({ component: 'output', unit_price: 28, min_input_tokens: 32_769 })
     ]))
   })
 
@@ -90,11 +93,25 @@ describe('generated Xirang catalog', () => {
     expect(deepseek.output).toBe('9')
   })
 
-  it('uses the confirmed per-image price only for Seedream 4.5', () => {
+  it('uses the current per-image prices for every active image model', () => {
     const directory = join(root, '..', 'image')
-    const file = readdirSync(directory).find((entry) => entry.includes('seedream-4.5'))
-    expect(file).toBeDefined()
-    const model = JSON.parse(readFileSync(join(directory, file as string), 'utf8')) as { pricing: { rules: Array<Record<string, unknown>> } }
-    expect(model.pricing.rules[0]).toEqual(expect.objectContaining({ unit: 'generation', unit_price: 0.25, unit_size: 1 }))
+    const expected = new Map([
+      ['Doubao-seedream-4.5', 0.25],
+      ['Doubao-Seedream-5.0-lite', 0.22],
+      ['Doubao-seedream-4.0', 0.2],
+      ['qwen-image-2.0-pro', 0.5],
+      ['qwen-image-edit', 0.3],
+      ['qwen-image-edit-plus', 0.2],
+      ['qwen-image-edit-max', 0.5],
+      ['wan2.7-image', 0.2],
+      ['wan2.7-image-pro', 0.5],
+      ['wan2.6-image', 0.2]
+    ])
+    for (const [modelName, unitPrice] of expected) {
+      const file = readdirSync(directory).find((entry) => entry.endsWith('.yaml') && JSON.parse(readFileSync(join(directory, entry), 'utf8')).model === modelName)
+      expect(file).toBeDefined()
+      const model = JSON.parse(readFileSync(join(directory, file as string), 'utf8')) as { pricing: { rules: Array<Record<string, unknown>> } }
+      expect(model.pricing.rules[0]).toEqual(expect.objectContaining({ unit: 'generation', unit_price: unitPrice, unit_size: 1 }))
+    }
   })
 })

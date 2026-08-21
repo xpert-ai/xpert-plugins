@@ -75,24 +75,24 @@
     "agent-thought"
   ],
   "pricing": {
-    "input": "0",
-    "output": "0",
+    "input": "4",
+    "output": "16",
     "unit": "0.000001",
     "currency": "CNY",
     "rules": [
       {
         "component": "input",
-        "unit_price": 0,
+        "unit_price": 4,
         "unit_size": 1000000,
         "currency": "CNY",
-        "mode": "__xirang_unpriced__"
+        "min_input_tokens": 1
       },
       {
         "component": "output",
-        "unit_price": 0,
+        "unit_price": 16,
         "unit_size": 1000000,
         "currency": "CNY",
-        "mode": "__xirang_unpriced__"
+        "min_input_tokens": 1
       }
     ]
   }

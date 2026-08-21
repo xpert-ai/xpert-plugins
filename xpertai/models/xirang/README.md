@@ -9,25 +9,27 @@
 - 目录快照来自 `https://ctxirang.ctyun.cn/maas/inlineService`。
 - 名称包含“（即将下线）”的 5 个服务不会生成模型配置。
 - 97 个 LLM、4 个文本向量模型、4 个 Rerank 模型和 10 个图片模型会生成预置模型 YAML。
-- 10 个图片模型统一通过 `POST /v1/images/generations` 适配器接入，模型特有字段可透传；Seedream 4.5 的接口和价格已确认，图片编辑模型若要求专用 `/edits` 契约，应按天翼云详情页补充字段。视频服务保留在 `src/catalog/normalized.snapshot.json`，待天翼云提供稳定的异步任务提交/查询契约后再启用。
+- 10 个图片模型统一通过 `POST /v1/images/generations` 适配器接入，模型特有字段可透传；价格表中的 `/张` 价格已分别写入图片模型的 `generation` 计费规则。图片编辑模型若要求专用 `/edits` 契约，应按天翼云详情页补充字段。视频服务保留在 `src/catalog/normalized.snapshot.json`，待天翼云提供稳定的异步任务提交/查询契约后再启用。
 
 ## 配置方式
 
 1. 在目标组织范围安装并启用插件 `@xpert-ai/plugin-xirang`。插件现在是组织级插件，不再要求租户级安装。
 2. 在系统集成或模型供应商凭据中填写天翼云星辰 AppKey；默认 API 地址保持 `https://ai.ctaigw.cn/v1`。
-3. 选择预置模型。自定义模型可以填写模型名和可选的 endpoint model name。
+3. 选择预置模型。Rerank 模型必须在“API 使用的模型名称 / Rerank 模型 ID”中填写模型详情页顶部的模型 ID；`qwen3-rerank` 只是展示名，不能作为天翼云官方 Reranker API 的 `model` 参数。
 4. 保存后先执行凭据校验，再在 Assistant 的模型配置中选择该 Provider。
+
+Rerank 的默认协议以天翼云官方 [Reranker 重排序 API](https://www.ctyun.cn/document/11061839/11075357) 为准。
 
 本地源码部署时，使用主仓库的 `plugin:deploy:local` 并显式传入 `--scope organization --org-id <组织ID>`；组织范围不能沿用只带租户 ID 的部署命令。
 
 ## 计费策略
 
-计费规则只接受服务目录中能被精确解析的价格：
+计费规则只接受服务目录或对应虚线 tooltip 中能被精确解析的价格：
 
 - `¥ N/百万Tokens` 生成 input/output 两条 CNY 规则，单位大小为 1,000,000。
 - 同时提供“标准时段/优惠时段”的模型生成 Asia/Shanghai 的 08:00–24:00 和 00:00–08:00 两个时段规则。
-- 包含 `~` 的区间价、`-` 或 `-/百万Tokens` 不会被当作免费；插件生成一个不匹配的哨兵规则，使 Xpert 账本记录为 `unpriced`，等待补充阈值后再定价。
-- Seedream 4.5 的模型详情页明确给出 CNY 0.25/张，因此图片模型生成按 `generation` 单位计费；没有明确图片价格的模型保持未定价。
+- 有上下文阈值的区间价生成多个带 token 范围的规则；没有阈值的区间价、`-` 或 `-/百万Tokens` 不会被当作免费，插件生成一个不匹配的哨兵规则，使 Xpert 账本记录为 `unpriced`。
+- 图片模型的 `/张` 价格生成 `generation` 用量规则；视频模型仍只进入审计快照，不会注册为可调用模型。
 
 每次目录更新后运行：
 
@@ -43,4 +45,4 @@ pnpm --dir xpertai/models/xirang test
 
 ## 架构
 
-`XirangProviderStrategy` 负责凭据和 `/models` 健康校验；LLM 复用 SDK 的 `ChatOAICompatReasoningModel` 并打开 `streamUsage`，以获得最终 token 用量；Embedding 使用 `OpenAIEmbeddings`；Rerank 和图片生成使用原生 `fetch`，因此能保留天翼云要求的原始 AppKey Header。模型目录由 `scripts/generate-catalog.mjs` 从快照重复生成，避免手工维护 100 多个 YAML。
+`XirangProviderStrategy` 负责凭据和 `/models` 健康校验；LLM 复用 SDK 的 `ChatOAICompatReasoningModel` 并打开 `streamUsage`，以获得最终 token 用量；Embedding 使用 `OpenAIEmbeddings`；Rerank 和图片生成使用原生 `fetch`。Rerank 默认复用提供商 AppKey，按天翼云官方契约调用 `/rerank`，发送 `Authorization: Bearer <AppKey>` 和模型 ID；兼容客户网关的 `/reranks`、独立 API Key、raw 鉴权和 `instruct` 可在模型凭据中显式配置。模型目录由 `scripts/generate-catalog.mjs` 从快照重复生成，避免手工维护 100 多个 YAML。

@@ -1,6 +1,6 @@
 {
   "source": "https://ctxirang.ctyun.cn/maas/inlineService",
-  "captured_at": "2026-08-20T08:47:20Z",
+  "captured_at": "2026-08-21T03:26:01.453Z",
   "models": [
     {
       "group": "体验中心",
@@ -22,366 +22,1122 @@
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 3/百万Tokens",
       "name": "deepseek-v4-flash-0817（正式版）",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 9/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.1/百万Tokens"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 9/百万Tokens",
       "name": "deepseek-v4-pro-0817（正式版）",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 27/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.3/百万Tokens"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 12/百万Tokens",
       "name": "qwen3.8-max",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 36/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 1.5/百万Tokens"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 1/百万Tokens",
       "name": "DeepSeek-V4-Flash-0731",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 2/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.2/百万Tokens"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 20/百万Tokens",
       "name": "kimi-k3",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 100/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 2/百万Tokens",
+      "input_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 20,
+          "unit": "/百万tokens",
+          "min_input_tokens": 1
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 100,
+          "unit": "/百万tokens",
+          "min_input_tokens": 1
+        }
+      ],
+      "cache_hit_input_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 2,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 1
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 2.1~4.2/百万Tokens",
       "name": "MiniMax-M3",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 8.4~16.8/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.42~0.84/百万Tokens",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 512K",
+          "unit_price": 2.1,
+          "unit": "/百万tokens",
+          "max_input_tokens": 524288
+        },
+        {
+          "condition": "输入 > 512K",
+          "unit_price": 4.2,
+          "unit": "/百万tokens",
+          "min_input_tokens": 524289
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 512K",
+          "unit_price": 8.4,
+          "unit": "/百万tokens",
+          "max_input_tokens": 524288
+        },
+        {
+          "condition": "输入 > 512K",
+          "unit_price": 16.8,
+          "unit": "/百万tokens",
+          "min_input_tokens": 524289
+        }
+      ],
+      "cache_hit_input_segments": [
+        {
+          "condition": "输入 ≤ 512K",
+          "unit_price": 0.42,
+          "unit": "/百万Tokens",
+          "max_input_tokens": 524288
+        },
+        {
+          "condition": "输入 > 512K",
+          "unit_price": 0.84,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 524289
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 8/百万Tokens",
       "name": "GLM-5.2",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 28/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 2/百万Tokens"
     },
     {
       "group": "体验中心",
       "input": "¥ 6~8/百万Tokens",
       "name": "GLM-5.1",
       "output": "¥ 24~28/百万Tokens",
-      "status": "免费试用"
+      "status": "免费试用",
+      "cache_hit_input": "¥ 1.3~2/百万Tokens",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 6,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "输入 > 32K",
+          "unit_price": 8,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 24,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "输入 > 32K",
+          "unit_price": 28,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769
+        }
+      ],
+      "cache_hit_input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 1.3,
+          "unit": "/百万Tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "输入 > 32K",
+          "unit_price": 2,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 32769
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 1/百万Tokens",
       "name": "deepseek-v4-flash",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 2/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.2/百万Tokens"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 12/百万Tokens",
       "name": "deepseek-v4-pro",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 24/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 1/百万Tokens",
+      "input_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 12,
+          "unit": "/百万tokens",
+          "min_input_tokens": 1
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 24,
+          "unit": "/百万tokens",
+          "min_input_tokens": 1
+        }
+      ],
+      "cache_hit_input_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 1,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 1
+        }
+      ]
     },
     {
       "group": "体验中心",
       "input": "¥ 1/百万Tokens",
       "name": "DeepSeek-V4-Flash",
       "output": "¥ 2/百万Tokens",
-      "status": "免费试用"
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.02/百万Tokens"
     },
     {
       "group": "体验中心",
       "input": "¥ 12/百万Tokens",
       "name": "DeepSeek-V4-Pro",
       "output": "¥ 24/百万Tokens",
-      "status": "免费试用"
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.1/百万Tokens"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 12/百万Tokens",
       "name": "qwen3.7-max",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 36/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 2.4/百万Tokens"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 2~6/百万Tokens",
       "name": "qwen3.7-plus",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 8~24/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.4~1.2/百万Tokens",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 256K",
+          "unit_price": 2,
+          "unit": "/百万tokens",
+          "max_input_tokens": 262144
+        },
+        {
+          "condition": "输入 > 256K",
+          "unit_price": 6,
+          "unit": "/百万tokens",
+          "min_input_tokens": 262145
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 256K",
+          "unit_price": 8,
+          "unit": "/百万tokens",
+          "max_input_tokens": 262144
+        },
+        {
+          "condition": "输入 > 256K",
+          "unit_price": 24,
+          "unit": "/百万tokens",
+          "min_input_tokens": 262145
+        }
+      ],
+      "cache_hit_input_segments": [
+        {
+          "condition": "输入 ≤ 256K",
+          "unit_price": 0.4,
+          "unit": "/百万Tokens",
+          "max_input_tokens": 262144
+        },
+        {
+          "condition": "输入 > 256K",
+          "unit_price": 1.2,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 262145
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 2~8/百万Tokens",
       "name": "qwen3.6-plus",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 12~48/百万Tokens",
+      "status": "免费试用",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 256K",
+          "unit_price": 2,
+          "unit": "/百万tokens",
+          "max_input_tokens": 262144
+        },
+        {
+          "condition": "输入 > 256K",
+          "unit_price": 8,
+          "unit": "/百万tokens",
+          "min_input_tokens": 262145
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 256K",
+          "unit_price": 12,
+          "unit": "/百万tokens",
+          "max_input_tokens": 262144
+        },
+        {
+          "condition": "输入 > 256K",
+          "unit_price": 48,
+          "unit": "/百万tokens",
+          "min_input_tokens": 262145
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 1.2~4.8/百万Tokens",
       "name": "qwen3.6-flash",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 7.2~28.8/百万Tokens",
+      "status": "免费试用",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 256K",
+          "unit_price": 1.2,
+          "unit": "/百万tokens",
+          "max_input_tokens": 262144
+        },
+        {
+          "condition": "输入 > 256K",
+          "unit_price": 4.8,
+          "unit": "/百万tokens",
+          "min_input_tokens": 262145
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 256K",
+          "unit_price": 7.2,
+          "unit": "/百万tokens",
+          "max_input_tokens": 262144
+        },
+        {
+          "condition": "输入 > 256K",
+          "unit_price": 28.8,
+          "unit": "/百万tokens",
+          "min_input_tokens": 262145
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 4/百万Tokens",
       "name": "deepseek-v3.1-0731（即将下线）",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 16/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.5/百万Tokens"
     },
     {
       "group": "体验中心",
       "input": "¥ 4/百万Tokens",
       "name": "Kimi-K2-Thinking",
       "output": "¥ 16/百万Tokens",
-      "status": "免费试用"
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.8/百万Tokens"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 4.13/百万Tokens",
       "name": "Qwen2.5-VL-72B-Instruct",
-      "output": "-/百万Tokens",
+      "output": "¥ 4.13/百万Tokens",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 4.1/百万Tokens",
       "name": "DeepSeek-R1-Distill-Llama-70B",
-      "output": "-/百万Tokens",
+      "output": "¥ 4.1/百万Tokens",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "Qwen-Image（即将下线）",
-      "output": "-",
+      "output": "¥ 0.2/张",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 1.3/百万Tokens",
       "name": "DeepSeek-R1-Distill-Qwen-32B",
-      "output": "-/百万Tokens",
+      "output": "¥ 1.3/百万Tokens",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 0.8/百万Tokens",
       "name": "Qwen3-14B",
-      "output": "-/百万Tokens",
+      "output": "¥ 1.6/百万Tokens",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 0.8/百万Tokens",
       "name": "Qwen-VL-Chat",
-      "output": "-/百万Tokens",
+      "output": "¥ 1.6/百万Tokens",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 1/百万Tokens",
       "name": "Qwen3-30B-A3B",
-      "output": "-/百万Tokens",
+      "output": "¥ 4/百万Tokens",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 0.5/百万Tokens",
       "name": "BGE-Reranker-Large",
       "output": "-/百万Tokens",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 0.3/百万Tokens",
       "name": "Qwen3-8B",
-      "output": "-/百万Tokens",
+      "output": "¥ 0.6/百万Tokens",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 8/百万Tokens",
       "name": "Qwen3-Coder-480B-A35B-Instruct",
-      "output": "-/百万Tokens",
+      "output": "¥ 16/百万Tokens",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 0.07/百万Tokens",
       "name": "BGE-Reranker-V2-m3",
       "output": "-/百万Tokens",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 4/百万Tokens",
       "name": "DeepSeek-V3.2（正式版）",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 16/百万Tokens",
+      "status": "免费试用",
+      "input_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 4,
+          "unit": "/百万tokens",
+          "min_input_tokens": 1
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 16,
+          "unit": "/百万tokens",
+          "min_input_tokens": 1
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 4.13/百万Tokens",
       "name": "Qwen2.5-72B-Instruct",
-      "output": "-/百万Tokens",
+      "output": "¥ 4.13/百万Tokens",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 0.5/百万Tokens",
       "name": "qwen3-rerank",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 0.5/百万Tokens",
+      "status": "免费试用",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 30K",
+          "unit_price": 0.5,
+          "unit": "/百万tokens",
+          "max_input_tokens": 30720
+        },
+        {
+          "condition": "输入 > 30K",
+          "unit_price": 0.5,
+          "unit": "/百万tokens",
+          "min_input_tokens": 30721
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 30K",
+          "unit_price": 0.5,
+          "unit": "/百万tokens",
+          "max_input_tokens": 30720
+        },
+        {
+          "condition": "输入 > 30K",
+          "unit_price": 0.5,
+          "unit": "/百万tokens",
+          "min_input_tokens": 30721
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 1.8/百万Tokens",
       "name": "qwen3.6-35b-a3b",
-      "output": "-/百万Tokens",
+      "output": "¥ 10.8/百万Tokens",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 0.5/百万Tokens",
       "name": "BGE-m3",
       "output": "-/百万Tokens",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 0.5/百万Tokens",
       "name": "text-embedding-v4",
       "output": "-/百万Tokens",
-      "status": "免费试用"
+      "status": "免费试用",
+      "input_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 0.5,
+          "unit": "/百万tokens",
+          "min_input_tokens": 1
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit": "",
+          "min_input_tokens": 1
+        }
+      ]
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "wan2.7-image",
-      "output": "-",
+      "output": "¥ 0.2/张",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 3/百万Tokens",
       "name": "qwen3.6-27b",
-      "output": "-/百万Tokens",
+      "output": "¥ 18/百万Tokens",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 1.8/百万Tokens",
       "name": "qwen3-vl-embedding",
       "output": "-/百万Tokens",
-      "status": "免费试用"
+      "status": "免费试用",
+      "input_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 1.8,
+          "unit": "/百万tokens",
+          "min_input_tokens": 1
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit": "",
+          "min_input_tokens": 1
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 0.5/百万Tokens",
       "name": "text-embedding-v3",
       "output": "-/百万Tokens",
-      "status": "免费试用"
+      "status": "免费试用",
+      "input_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 0.5,
+          "unit": "/百万tokens",
+          "min_input_tokens": 1
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit": "",
+          "min_input_tokens": 1
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 0.8/百万Tokens",
       "name": "gte-rerank-v2",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 0.8/百万Tokens",
+      "status": "免费试用",
+      "input_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 0.8,
+          "unit": "/百万tokens",
+          "min_input_tokens": 1
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 0.8,
+          "unit": "/百万tokens",
+          "min_input_tokens": 1
+        }
+      ]
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "wan2.2-i2v-flash",
-      "output": "-",
-      "status": "免费试用"
+      "output": "¥ 0.1~0.48/秒",
+      "status": "免费试用",
+      "output_segments": [
+        {
+          "condition": "480P-有声",
+          "unit_price": 0.1,
+          "unit": "/秒",
+          "resolution": "480P",
+          "audio": true
+        },
+        {
+          "condition": "720P-有声",
+          "unit_price": 0.2,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": true
+        },
+        {
+          "condition": "1080P-有声",
+          "unit_price": 0.48,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": true
+        },
+        {
+          "condition": "480P-无声",
+          "unit_price": 0.1,
+          "unit": "/秒",
+          "resolution": "480P",
+          "audio": false
+        },
+        {
+          "condition": "720P-无声",
+          "unit_price": 0.2,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": false
+        },
+        {
+          "condition": "1080P-无声",
+          "unit_price": 0.48,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": false
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 15.8/百万Tokens",
       "name": "Qwen3-Omni-Flash",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 62.6/百万Tokens",
+      "status": "免费试用",
+      "input_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 15.8,
+          "unit": "/百万tokens",
+          "min_input_tokens": 1
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 62.6,
+          "unit": "/百万tokens",
+          "min_input_tokens": 1
+        }
+      ]
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "wan2.6-r2v",
-      "output": "-",
-      "status": "免费试用"
+      "output": "¥ 0.6~1/秒",
+      "status": "免费试用",
+      "output_segments": [
+        {
+          "condition": "720P-有声",
+          "unit_price": 0.6,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": true
+        },
+        {
+          "condition": "1080P-有声",
+          "unit_price": 1,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": true
+        },
+        {
+          "condition": "720P-无声",
+          "unit_price": 0.6,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": false
+        },
+        {
+          "condition": "1080P-无声",
+          "unit_price": 1,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": false
+        }
+      ]
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "happyhorse-1.0-r2v-20260618",
-      "output": "-",
-      "status": "免费试用"
+      "output": "¥ 0.9~1.6/秒",
+      "status": "免费试用",
+      "output_segments": [
+        {
+          "condition": "720P-有声",
+          "unit_price": 0.9,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": true
+        },
+        {
+          "condition": "1080P-有声",
+          "unit_price": 1.6,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": true
+        },
+        {
+          "condition": "720P-无声",
+          "unit_price": 0.9,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": false
+        },
+        {
+          "condition": "1080P-无声",
+          "unit_price": 1.6,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": false
+        }
+      ]
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "Doubao-seedream-4.5",
-      "output": "-",
+      "output": "¥ 0.25/张",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 3.2~9.6/百万Tokens",
       "name": "Doubao-Seed-2.0-Code",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 16~48/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.64~1.92/百万Tokens",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 3.2,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 4.8,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 9.6,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 16,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 24,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 48,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ],
+      "cache_hit_input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 0.64,
+          "unit": "/百万Tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 0.96,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 1.92,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 131073
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 0.6~1.8/百万Tokens",
       "name": "Doubao-Seed-2.0-Lite",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 3.6~10.8/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.12~0.36/百万Tokens",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 0.6,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 0.9,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 1.8,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 3.6,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 5.4,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 10.8,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ],
+      "cache_hit_input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 0.12,
+          "unit": "/百万Tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 0.18,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 0.36,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 131073
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 0.8~2.4/百万Tokens",
       "name": "Doubao-Seed-1.6-vision",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 8~24/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.16/百万Tokens",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 0.8,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 1.2,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 2.4,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 8,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 16,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 24,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ],
+      "cache_hit_input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 0.16,
+          "unit": "/百万Tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 0.16,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 0.16,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 131073
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 0.2~0.8/百万Tokens",
       "name": "Doubao-Seed-2.0-Mini",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 2~8/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.04~0.16/百万Tokens",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 0.2,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 0.4,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 0.8,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 2,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 4,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 8,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ],
+      "cache_hit_input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 0.04,
+          "unit": "/百万Tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 0.08,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 0.16,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 131073
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 0.3/百万Tokens",
       "name": "Doubao1.5-lite-32k",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 0.6/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.06/百万Tokens"
     },
     {
       "group": "体验中心",
       "input": "¥ 0.8~2/百万Tokens",
       "name": "Qwen3.5-122B-A10B",
       "output": "¥ 6.4~16/百万Tokens",
-      "status": "免费试用"
+      "status": "免费试用",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 128K",
+          "unit_price": 0.8,
+          "unit": "/百万tokens",
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 2,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 128K",
+          "unit_price": 6.4,
+          "unit": "/百万tokens",
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 16,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 0.3/百万Tokens",
       "name": "Qwen3-4B",
-      "output": "-/百万Tokens",
+      "output": "¥ 0.6/百万Tokens",
       "status": "免费试用"
     },
     {
@@ -389,35 +1145,124 @@
       "input": "¥ 0.4~1.6/百万Tokens",
       "name": "qwen3.5-35b-a3b",
       "output": "¥ 3.2~12.8/百万Tokens",
-      "status": "免费试用"
+      "status": "免费试用",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 128K",
+          "unit_price": 0.4,
+          "unit": "/百万tokens",
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 1.6,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 128K",
+          "unit_price": 3.2,
+          "unit": "/百万tokens",
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 12.8,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ]
     },
     {
       "group": "体验中心",
       "input": "¥ 2/百万Tokens",
       "name": "Qwen3-VL-235B-A22B-Instruct",
       "output": "¥ 8/百万Tokens",
-      "status": "免费试用"
+      "status": "免费试用",
+      "input_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 2,
+          "unit": "/百万tokens",
+          "min_input_tokens": 1
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 8,
+          "unit": "/百万tokens",
+          "min_input_tokens": 1
+        }
+      ]
     },
     {
       "group": "体验中心",
       "input": "¥ 2.1/百万Tokens",
       "name": "Minimax-M2.5",
       "output": "¥ 8.4/百万Tokens",
-      "status": "免费试用"
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.42/百万Tokens"
     },
     {
       "group": "体验中心",
       "input": "¥ 4/百万Tokens",
       "name": "Kimi-K2.5",
       "output": "¥ 21/百万Tokens",
-      "status": "免费试用"
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.7/百万Tokens"
     },
     {
       "group": "体验中心",
       "input": "¥ 1~2/百万Tokens",
       "name": "GLM4.6V",
       "output": "¥ 3~6/百万Tokens",
-      "status": "免费试用"
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.2~0.4/百万Tokens",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 1,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "输入 > 32K",
+          "unit_price": 2,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 3,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "输入 > 32K",
+          "unit_price": 6,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769
+        }
+      ],
+      "cache_hit_input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 0.2,
+          "unit": "/百万Tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "输入 > 32K",
+          "unit_price": 0.4,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 32769
+        }
+      ]
     },
     {
       "group": "体验中心",
@@ -428,79 +1273,557 @@
     },
     {
       "group": "体验中心",
-      "input": "标准时段 ¥ 2/百万Tokens优惠时段¥ 1/百万Tokens",
+      "input": "¥ 2/百万Tokens",
       "name": "DeepSeek-V3.2（旗舰版）",
-      "output": "标准时段 ¥ 3/百万Tokens优惠时段¥ 1.5/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 3/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.2/百万Tokens"
     },
     {
       "group": "体验中心",
-      "input": "标准时段 ¥ 4~6/百万Tokens优惠时段¥ 2~3/百万Tokens",
+      "input": "¥ 4~6/百万Tokens",
       "name": "GLM-5.0（正式版）",
-      "output": "标准时段 ¥ 18~22/百万Tokens优惠时段¥ 9~11/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 18~22/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 1~1.5/百万Tokens",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 4,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "输入 > 32K",
+          "unit_price": 6,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 18,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "输入 > 32K",
+          "unit_price": 22,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769
+        }
+      ],
+      "cache_hit_input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 1,
+          "unit": "/百万Tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "输入 > 32K",
+          "unit_price": 1.5,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 32769
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "标准时段 ¥ 1.2~3/百万Tokens优惠时段¥ 0.6~1.5/百万Tokens",
+      "input": "¥ 1.2~3/百万Tokens",
       "name": "qwen3.5-397b-a17b（正式版）",
-      "output": "标准时段 ¥ 7.2~18/百万Tokens优惠时段¥ 3.6~9/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 7.2~18/百万Tokens",
+      "status": "免费试用",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 128K",
+          "unit_price": 1.2,
+          "unit": "/百万tokens",
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 3,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 128K",
+          "unit_price": 7.2,
+          "unit": "/百万tokens",
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 18,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 3.2~9.6/百万Tokens",
       "name": "Doubao-Seed-2.0-Pro",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 16~48/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.64~1.92/百万Tokens",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 3.2,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 4.8,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 9.6,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 16,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 24,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 48,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ],
+      "cache_hit_input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 0.64,
+          "unit": "/百万Tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 0.96,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 1.92,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 131073
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 2.5~7/百万Tokens",
       "name": "Qwen3-Max",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 10~28/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.5~1.4/百万Tokens",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 2.5,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 4,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 7,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 10,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 16,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 28,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ],
+      "cache_hit_input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 0.5,
+          "unit": "/百万Tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 0.8,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 1.4,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 131073
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 0.8~2.4/百万Tokens",
       "name": "Doubao-Seed-1.8",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 8~24/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.16/百万Tokens",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 0.8,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 1.2,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 2.4,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 8,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 16,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 24,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ],
+      "cache_hit_input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 0.16,
+          "unit": "/百万Tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 0.16,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 0.16,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 131073
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 0.8~2.4/百万Tokens",
       "name": "Doubao-Seed-1.6-0615",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 8~24/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.16/百万Tokens",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 0.8,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 1.2,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 2.4,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 8,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 16,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 24,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ],
+      "cache_hit_input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 0.16,
+          "unit": "/百万Tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 0.16,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 0.16,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 131073
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 0.8/百万Tokens",
       "name": "Doubao1.5-pro-32k",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 2/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.16/百万Tokens"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 4~20/百万Tokens",
       "name": "Qwen3-Coder-Plus",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 16~200/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.8~4/百万Tokens",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 4,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 6,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "128K < 输入 ≤ 256K",
+          "unit_price": 10,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073,
+          "max_input_tokens": 262144
+        },
+        {
+          "condition": "输入 > 256K",
+          "unit_price": 20,
+          "unit": "/百万tokens",
+          "min_input_tokens": 262145
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 16,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 24,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "128K < 输入 ≤ 256K",
+          "unit_price": 40,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073,
+          "max_input_tokens": 262144
+        },
+        {
+          "condition": "输入 > 256K",
+          "unit_price": 200,
+          "unit": "/百万tokens",
+          "min_input_tokens": 262145
+        }
+      ],
+      "cache_hit_input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 0.8,
+          "unit": "/百万Tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 1.2,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "128K < 输入 ≤ 256K",
+          "unit_price": 2,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 131073,
+          "max_input_tokens": 262144
+        },
+        {
+          "condition": "输入 > 256K",
+          "unit_price": 4,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 262145
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 1~3/百万Tokens",
       "name": "Qwen3-VL-Plus",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 10~30/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.2~0.6/百万Tokens",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 1,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 1.5,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 3,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 10,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 15,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 30,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ],
+      "cache_hit_input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 0.2,
+          "unit": "/百万Tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 0.3,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 0.6,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 131073
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "标准时段 ¥ 4/百万Tokens优惠时段¥ 1/百万Tokens",
+      "input": "¥ 4/百万Tokens",
       "name": "DeepSeek-R1-0528",
-      "output": "标准时段 ¥ 16/百万Tokens优惠时段¥ 4/百万Tokens",
+      "output": "¥ 16/百万Tokens",
       "status": "免费试用"
     },
     {
@@ -515,28 +1838,58 @@
       "input": "¥ 2/百万Tokens",
       "name": "Qwen3-235B-A22B-Instruct-2507",
       "output": "¥ 8/百万Tokens",
+      "status": "免费试用",
+      "input_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 2,
+          "unit": "/百万tokens",
+          "min_input_tokens": 1
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 8,
+          "unit": "/百万tokens",
+          "min_input_tokens": 1
+        }
+      ]
+    },
+    {
+      "group": "体验中心",
+      "input": "¥ 0.75/百万Tokens",
+      "name": "Qwen3-30B-A3B-Instruct-2507",
+      "output": "¥ 3/百万Tokens",
+      "status": "免费试用"
+    },
+    {
+      "group": "体验中心",
+      "input": "¥ 2/百万Tokens",
+      "name": "DeepSeek-V3-0324",
+      "output": "¥ 8/百万Tokens",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
       "input": "-/百万Tokens",
-      "name": "Qwen3-30B-A3B-Instruct-2507",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
-    },
-    {
-      "group": "体验中心",
-      "input": "标准时段 ¥ 2/百万Tokens优惠时段¥ 1/百万Tokens",
-      "name": "DeepSeek-V3-0324",
-      "output": "标准时段 ¥ 8/百万Tokens优惠时段¥ 4/百万Tokens",
-      "status": "免费试用"
-    },
-    {
-      "group": "体验中心",
-      "input": "-",
       "name": "Baichuan-M2-32B",
-      "output": "-",
-      "status": "免费试用"
+      "output": "-/百万Tokens",
+      "status": "免费试用",
+      "input_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit": "",
+          "min_input_tokens": 1
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit": "",
+          "min_input_tokens": 1
+        }
+      ]
     },
     {
       "group": "体验中心",
@@ -547,16 +1900,17 @@
     },
     {
       "group": "体验中心",
-      "input": "标准时段 ¥ 4/百万Tokens优惠时段¥ 1/百万Tokens",
+      "input": "¥ 4/百万Tokens",
       "name": "DeepSeek-R1",
-      "output": "标准时段 ¥ 16/百万Tokens优惠时段¥ 4/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 16/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.8/百万Tokens"
     },
     {
       "group": "体验中心",
-      "input": "标准时段 ¥ 2/百万Tokens优惠时段¥ 1/百万Tokens",
+      "input": "¥ 2/百万Tokens",
       "name": "DeepSeek-V3",
-      "output": "标准时段 ¥ 8/百万Tokens优惠时段¥ 4/百万Tokens",
+      "output": "¥ 8/百万Tokens",
       "status": "免费试用"
     },
     {
@@ -568,45 +1922,115 @@
     },
     {
       "group": "体验中心",
-      "input": "-",
+      "input": "-/百万Tokens",
       "name": "Baichuan2-Turbo",
-      "output": "-",
-      "status": "免费试用"
+      "output": "-/百万Tokens",
+      "status": "免费试用",
+      "input_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit": "",
+          "min_input_tokens": 1
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit": "",
+          "min_input_tokens": 1
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "标准时段 ¥ 4/百万Tokens优惠时段¥ 2/百万Tokens",
+      "input": "¥ 4/百万Tokens",
       "name": "DeepSeek-V3.1-Terminus（即将下线）",
-      "output": "标准时段 ¥ 12/百万Tokens优惠时段¥ 6/百万Tokens",
+      "output": "¥ 12/百万Tokens",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
-      "input": "-",
+      "input": "-/百万Tokens",
       "name": "Qwen2-7B-Instruct",
-      "output": "-",
-      "status": "免费试用"
+      "output": "-/百万Tokens",
+      "status": "免费试用",
+      "input_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit": "",
+          "min_input_tokens": 1
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit": "",
+          "min_input_tokens": 1
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-",
+      "input": "-/百万Tokens",
       "name": "Llama3-70B-Instruct（即将下线）",
-      "output": "-",
-      "status": "免费试用"
+      "output": "-/百万Tokens",
+      "status": "免费试用",
+      "input_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit": "",
+          "min_input_tokens": 1
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit": "",
+          "min_input_tokens": 1
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-",
+      "input": "-/百万Tokens",
       "name": "Llama3-8B-Instruct",
-      "output": "-",
-      "status": "免费试用"
+      "output": "-/百万Tokens",
+      "status": "免费试用",
+      "input_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit": "",
+          "min_input_tokens": 1
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit": "",
+          "min_input_tokens": 1
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-",
+      "input": "-/百万Tokens",
       "name": "ChatGLM3-6B（即将下线）",
-      "output": "-",
-      "status": "免费试用"
+      "output": "-/百万Tokens",
+      "status": "免费试用",
+      "input_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit": "",
+          "min_input_tokens": 1
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit": "",
+          "min_input_tokens": 1
+        }
+      ]
     },
     {
       "group": "体验中心",
@@ -619,435 +2043,1878 @@
       "group": "体验中心",
       "input": "-",
       "name": "wan2.2-kf2v-flash",
-      "output": "-",
-      "status": "免费试用"
+      "output": "¥ 0.1~0.48/秒",
+      "status": "免费试用",
+      "output_segments": [
+        {
+          "condition": "480P-有声",
+          "unit_price": 0.1,
+          "unit": "/秒",
+          "resolution": "480P",
+          "audio": true
+        },
+        {
+          "condition": "720P-有声",
+          "unit_price": 0.2,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": true
+        },
+        {
+          "condition": "1080P-有声",
+          "unit_price": 0.48,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": true
+        },
+        {
+          "condition": "480P-无声",
+          "unit_price": 0.1,
+          "unit": "/秒",
+          "resolution": "480P",
+          "audio": false
+        },
+        {
+          "condition": "720P-无声",
+          "unit_price": 0.2,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": false
+        },
+        {
+          "condition": "1080P-无声",
+          "unit_price": 0.48,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": false
+        }
+      ]
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "Doubao-Seedream-5.0-lite",
-      "output": "-",
+      "output": "¥ 0.22/张",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 1.2~4.8/百万Tokens",
       "name": "qwen3.6-flash-0717",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 7.2~28.8/百万Tokens",
+      "status": "免费试用",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 256K",
+          "unit_price": 1.2,
+          "unit": "/百万tokens",
+          "max_input_tokens": 262144
+        },
+        {
+          "condition": "输入 > 256K",
+          "unit_price": 4.8,
+          "unit": "/百万tokens",
+          "min_input_tokens": 262145
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 256K",
+          "unit_price": 7.2,
+          "unit": "/百万tokens",
+          "max_input_tokens": 262144
+        },
+        {
+          "condition": "输入 > 256K",
+          "unit_price": 28.8,
+          "unit": "/百万tokens",
+          "min_input_tokens": 262145
+        }
+      ]
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "Doubao-seedream-4.0",
-      "output": "-",
+      "output": "¥ 0.2/张",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 0.15~0.6/百万Tokens",
       "name": "Doubao-Seed-1.6-flash",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 1.5~6/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.03/百万Tokens",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 0.15,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 0.3,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 0.6,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 1.5,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 3,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 6,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ],
+      "cache_hit_input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 0.03,
+          "unit": "/百万Tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 0.03,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 0.03,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 131073
+        }
+      ]
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "qwen-image-2.0-pro",
-      "output": "-",
+      "output": "¥ 0.5/张",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "wan2.2-animate-mix",
-      "output": "-",
-      "status": "免费试用"
+      "output": "¥ 0.9/秒",
+      "status": "免费试用",
+      "output_segments": [
+        {
+          "condition": "0P-有声",
+          "unit_price": 0.9,
+          "unit": "/秒",
+          "resolution": "0P",
+          "audio": true
+        },
+        {
+          "condition": "0P-无声",
+          "unit_price": 0.9,
+          "unit": "/秒",
+          "resolution": "0P",
+          "audio": false
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 0.6~1.8/百万Tokens",
       "name": "qwen3.5-27b",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 4.8~14.4/百万Tokens",
+      "status": "免费试用",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 128K",
+          "unit_price": 0.6,
+          "unit": "/百万tokens",
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 1.8,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 128K",
+          "unit_price": 4.8,
+          "unit": "/百万tokens",
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 14.4,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 6.5/百万Tokens",
       "name": "kimi-k2.6",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 27/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 1.3/百万Tokens"
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "wan2.6-t2v",
-      "output": "-",
-      "status": "免费试用"
+      "output": "¥ 0.6~1/秒",
+      "status": "免费试用",
+      "output_segments": [
+        {
+          "condition": "720P-有声",
+          "unit_price": 0.6,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": true
+        },
+        {
+          "condition": "1080P-有声",
+          "unit_price": 1,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": true
+        },
+        {
+          "condition": "720P-无声",
+          "unit_price": 0.6,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": false
+        },
+        {
+          "condition": "1080P-无声",
+          "unit_price": 1,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": false
+        }
+      ]
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "qwen-image-edit",
-      "output": "-",
+      "output": "¥ 0.3/张",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "wan2.6-r2v-flash",
-      "output": "-",
-      "status": "免费试用"
+      "output": "¥ 0.15~0.5/秒",
+      "status": "免费试用",
+      "output_segments": [
+        {
+          "condition": "720P-有声",
+          "unit_price": 0.3,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": true
+        },
+        {
+          "condition": "1080P-有声",
+          "unit_price": 0.5,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": true
+        },
+        {
+          "condition": "720P-无声",
+          "unit_price": 0.15,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": false
+        },
+        {
+          "condition": "1080P-无声",
+          "unit_price": 0.25,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": false
+        }
+      ]
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "Doubao-Seedance-1.5-pro",
-      "output": "-",
+      "output": "¥ 16/百万Tokens",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "happyhorse-1.0-t2v",
-      "output": "-",
-      "status": "免费试用"
+      "output": "¥ 0.9~1.6/秒",
+      "status": "免费试用",
+      "output_segments": [
+        {
+          "condition": "720P-有声",
+          "unit_price": 0.9,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": true
+        },
+        {
+          "condition": "1080P-有声",
+          "unit_price": 1.6,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": true
+        },
+        {
+          "condition": "720P-无声",
+          "unit_price": 0.9,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": false
+        },
+        {
+          "condition": "1080P-无声",
+          "unit_price": 1.6,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": false
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 0.5/百万Tokens",
       "name": "glm-4.7-flashx",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 3/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.1/百万Tokens",
+      "input_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 0.5,
+          "unit": "/百万tokens",
+          "min_input_tokens": 1
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 3,
+          "unit": "/百万tokens",
+          "min_input_tokens": 1
+        }
+      ],
+      "cache_hit_input_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 0.1,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 1
+        }
+      ]
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "qwen-image-edit-plus",
-      "output": "-",
+      "output": "¥ 0.2/张",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "qwen-image-edit-max",
-      "output": "-",
+      "output": "¥ 0.5/张",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "Doubao-Seedance-1.0-pro",
-      "output": "-",
+      "output": "¥ 15/百万Tokens",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 5~7/百万Tokens",
       "name": "glm-5-turbo",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 22~26/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 1.2~1.8/百万Tokens",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 5,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "输入 > 32K",
+          "unit_price": 7,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 22,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "输入 > 32K",
+          "unit_price": 26,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769
+        }
+      ],
+      "cache_hit_input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 1.2,
+          "unit": "/百万Tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "输入 > 32K",
+          "unit_price": 1.8,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 32769
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 3~4/百万Tokens",
       "name": "glm-4.7",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 14~16/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.6~0.8/百万Tokens",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 3,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "输入 > 32K",
+          "unit_price": 4,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 14,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "输入 > 32K",
+          "unit_price": 16,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769
+        }
+      ],
+      "cache_hit_input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 0.6,
+          "unit": "/百万Tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "输入 > 32K",
+          "unit_price": 0.8,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 32769
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 6~15/百万Tokens",
       "name": "qwen3-max-preview",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 24~60/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 1.2~3/百万Tokens",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 6,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 10,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 15,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 24,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 40,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 60,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ],
+      "cache_hit_input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 1.2,
+          "unit": "/百万Tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 2,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 3,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 131073
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 2/百万Tokens",
       "name": "deepseek-v3.2",
-      "output": "-/百万Tokens",
+      "output": "¥ 3/百万Tokens",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "happyhorse-1.1-t2v",
-      "output": "-",
-      "status": "免费试用"
+      "output": "¥ 0.9~1.2/秒",
+      "status": "免费试用",
+      "output_segments": [
+        {
+          "condition": "720P-有声",
+          "unit_price": 0.9,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": true
+        },
+        {
+          "condition": "1080P-有声",
+          "unit_price": 1.2,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": true
+        },
+        {
+          "condition": "720P-无声",
+          "unit_price": 0.9,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": false
+        },
+        {
+          "condition": "1080P-无声",
+          "unit_price": 1.2,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": false
+        }
+      ]
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "happyhorse-1.0-i2v",
-      "output": "-",
-      "status": "免费试用"
+      "output": "¥ 0.9~1.6/秒",
+      "status": "免费试用",
+      "output_segments": [
+        {
+          "condition": "720P-有声",
+          "unit_price": 0.9,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": true
+        },
+        {
+          "condition": "1080P-有声",
+          "unit_price": 1.6,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": true
+        },
+        {
+          "condition": "720P-无声",
+          "unit_price": 0.9,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": false
+        },
+        {
+          "condition": "1080P-无声",
+          "unit_price": 1.6,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": false
+        }
+      ]
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "wan2.5-i2v-preview",
-      "output": "-",
-      "status": "免费试用"
+      "output": "¥ 0.3~1/秒",
+      "status": "免费试用",
+      "output_segments": [
+        {
+          "condition": "480P-有声",
+          "unit_price": 0.3,
+          "unit": "/秒",
+          "resolution": "480P",
+          "audio": true
+        },
+        {
+          "condition": "720P-有声",
+          "unit_price": 0.6,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": true
+        },
+        {
+          "condition": "1080P-有声",
+          "unit_price": 1,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": true
+        },
+        {
+          "condition": "480P-无声",
+          "unit_price": 0.3,
+          "unit": "/秒",
+          "resolution": "480P",
+          "audio": false
+        },
+        {
+          "condition": "720P-无声",
+          "unit_price": 0.6,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": false
+        },
+        {
+          "condition": "1080P-无声",
+          "unit_price": 1,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": false
+        }
+      ]
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "wan2.6-i2v-flash",
-      "output": "-",
-      "status": "免费试用"
+      "output": "¥ 0.15~0.5/秒",
+      "status": "免费试用",
+      "output_segments": [
+        {
+          "condition": "720P-有声",
+          "unit_price": 0.3,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": true
+        },
+        {
+          "condition": "1080P-有声",
+          "unit_price": 0.5,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": true
+        },
+        {
+          "condition": "720P-无声",
+          "unit_price": 0.15,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": false
+        },
+        {
+          "condition": "1080P-无声",
+          "unit_price": 0.25,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": false
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 2/百万Tokens",
       "name": "qwen3-32b",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 20/百万Tokens",
+      "status": "免费试用",
+      "input_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 2,
+          "unit": "/百万tokens",
+          "min_input_tokens": 1
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 20,
+          "unit": "/百万tokens",
+          "min_input_tokens": 1
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 2/百万Tokens",
       "name": "qwen3-235b-a22b-thinking-2507",
-      "output": "-/百万Tokens",
+      "output": "¥ 20/百万Tokens",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "Doubao-Seedance-1.5-pro-noaudio",
-      "output": "-",
+      "output": "¥ 8/百万Tokens",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "happyhorse-1.1-r2v",
-      "output": "-",
-      "status": "免费试用"
+      "output": "¥ 0.9~1.2/秒",
+      "status": "免费试用",
+      "output_segments": [
+        {
+          "condition": "720P-有声",
+          "unit_price": 0.9,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": true
+        },
+        {
+          "condition": "1080P-有声",
+          "unit_price": 1.2,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": true
+        },
+        {
+          "condition": "720P-无声",
+          "unit_price": 0.9,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": false
+        },
+        {
+          "condition": "1080P-无声",
+          "unit_price": 1.2,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": false
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 0.5/百万Tokens",
       "name": "qwen-long",
-      "output": "-/百万Tokens",
+      "output": "¥ 2/百万Tokens",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 2/百万Tokens",
       "name": "DeepSeek-V3.2",
-      "output": "-/百万Tokens",
+      "output": "¥ 3/百万Tokens",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 0.8~4/百万Tokens",
       "name": "qwen3.5-plus",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 4.8~24/百万Tokens",
+      "status": "免费试用",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 128K",
+          "unit_price": 0.8,
+          "unit": "/百万tokens",
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "128K < 输入 ≤ 256K",
+          "unit_price": 2,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073,
+          "max_input_tokens": 262144
+        },
+        {
+          "condition": "输入 > 256K",
+          "unit_price": 4,
+          "unit": "/百万tokens",
+          "min_input_tokens": 262145
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 128K",
+          "unit_price": 4.8,
+          "unit": "/百万tokens",
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "128K < 输入 ≤ 256K",
+          "unit_price": 12,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073,
+          "max_input_tokens": 262144
+        },
+        {
+          "condition": "输入 > 256K",
+          "unit_price": 24,
+          "unit": "/百万tokens",
+          "min_input_tokens": 262145
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 2/百万Tokens",
       "name": "qwen3-235b-a22b",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 20/百万Tokens",
+      "status": "免费试用",
+      "input_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 2,
+          "unit": "/百万tokens",
+          "min_input_tokens": 1
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 20,
+          "unit": "/百万tokens",
+          "min_input_tokens": 1
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 6/百万Tokens",
       "name": "doubao-seed-2.1-pro",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 30/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 1.2/百万Tokens"
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "wan2.6-i2v",
-      "output": "-",
-      "status": "免费试用"
+      "output": "¥ 0.6~1/秒",
+      "status": "免费试用",
+      "output_segments": [
+        {
+          "condition": "720P-有声",
+          "unit_price": 0.6,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": true
+        },
+        {
+          "condition": "1080P-有声",
+          "unit_price": 1,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": true
+        },
+        {
+          "condition": "720P-无声",
+          "unit_price": 0.6,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": false
+        },
+        {
+          "condition": "1080P-无声",
+          "unit_price": 1,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": false
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 2/百万Tokens",
       "name": "DeepSeek-V3.2-Exp",
-      "output": "-/百万Tokens",
+      "output": "¥ 3/百万Tokens",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "wan2.7-image-pro",
-      "output": "-",
+      "output": "¥ 0.5/张",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 6.5/百万Tokens",
       "name": "kimi-k2.6-ant",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 27/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 1.3/百万Tokens"
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "wan2.6-image",
-      "output": "-",
+      "output": "¥ 0.2/张",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 4/百万Tokens",
       "name": "DeepSeek-V3.1",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 12/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.8/百万Tokens"
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "happyhorse-1.0-r2v",
-      "output": "-",
-      "status": "免费试用"
+      "output": "¥ 0.9~1.6/秒",
+      "status": "免费试用",
+      "output_segments": [
+        {
+          "condition": "720P-有声",
+          "unit_price": 0.9,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": true
+        },
+        {
+          "condition": "1080P-有声",
+          "unit_price": 1.6,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": true
+        },
+        {
+          "condition": "720P-无声",
+          "unit_price": 0.9,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": false
+        },
+        {
+          "condition": "1080P-无声",
+          "unit_price": 1.6,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": false
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 6.5/百万Tokens",
       "name": "kimi-k2.7-code",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 27/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 1.3/百万Tokens"
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "wan2.2-t2v-plus",
-      "output": "-",
-      "status": "免费试用"
+      "output": "¥ 0.14~0.7/秒",
+      "status": "免费试用",
+      "output_segments": [
+        {
+          "condition": "480P-有声",
+          "unit_price": 0.14,
+          "unit": "/秒",
+          "resolution": "480P",
+          "audio": true
+        },
+        {
+          "condition": "1080P-有声",
+          "unit_price": 0.7,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": true
+        },
+        {
+          "condition": "480P-无声",
+          "unit_price": 0.14,
+          "unit": "/秒",
+          "resolution": "480P",
+          "audio": false
+        },
+        {
+          "condition": "1080P-无声",
+          "unit_price": 0.7,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": false
+        }
+      ]
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "wan2.7-r2v",
-      "output": "-",
-      "status": "免费试用"
+      "output": "¥ 0.6~1/秒",
+      "status": "免费试用",
+      "output_segments": [
+        {
+          "condition": "720P-有声",
+          "unit_price": 0.6,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": true
+        },
+        {
+          "condition": "1080P-有声",
+          "unit_price": 1,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": true
+        },
+        {
+          "condition": "720P-无声",
+          "unit_price": 0.6,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": false
+        },
+        {
+          "condition": "1080P-无声",
+          "unit_price": 1,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": false
+        }
+      ]
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "happyhorse-1.0-video-edit-20260618",
-      "output": "-",
-      "status": "免费试用"
+      "output": "¥ 0.9~1.6/秒",
+      "status": "免费试用",
+      "output_segments": [
+        {
+          "condition": "720P-有声",
+          "unit_price": 0.9,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": true
+        },
+        {
+          "condition": "1080P-有声",
+          "unit_price": 1.6,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": true
+        },
+        {
+          "condition": "720P-无声",
+          "unit_price": 0.9,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": false
+        },
+        {
+          "condition": "1080P-无声",
+          "unit_price": 1.6,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": false
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 0.8/百万Tokens",
       "name": "qwen-vl-plus",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 2/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.16/百万Tokens",
+      "input_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 0.8,
+          "unit": "/百万tokens",
+          "min_input_tokens": 1
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 2,
+          "unit": "/百万tokens",
+          "min_input_tokens": 1
+        }
+      ],
+      "cache_hit_input_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 0.16,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 1
+        }
+      ]
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "happyhorse-1.0-video-edit",
-      "output": "-",
-      "status": "免费试用"
+      "output": "¥ 0.9~1.6/秒",
+      "status": "免费试用",
+      "output_segments": [
+        {
+          "condition": "720P-有声",
+          "unit_price": 0.9,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": true
+        },
+        {
+          "condition": "1080P-有声",
+          "unit_price": 1.6,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": true
+        },
+        {
+          "condition": "720P-无声",
+          "unit_price": 0.9,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": false
+        },
+        {
+          "condition": "1080P-无声",
+          "unit_price": 1.6,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": false
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 2.1/百万Tokens",
       "name": "minimax-m2.7",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 8.4/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.42/百万Tokens",
+      "input_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 2.1,
+          "unit": "/百万tokens",
+          "min_input_tokens": 1
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 8.4,
+          "unit": "/百万tokens",
+          "min_input_tokens": 1
+        }
+      ],
+      "cache_hit_input_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 0.42,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 1
+        }
+      ]
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "happyhorse-1.1-i2v",
-      "output": "-",
-      "status": "免费试用"
+      "output": "¥ 0.9~1.2/秒",
+      "status": "免费试用",
+      "output_segments": [
+        {
+          "condition": "720P-有声",
+          "unit_price": 0.9,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": true
+        },
+        {
+          "condition": "1080P-有声",
+          "unit_price": 1.2,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": true
+        },
+        {
+          "condition": "720P-无声",
+          "unit_price": 0.9,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": false
+        },
+        {
+          "condition": "1080P-无声",
+          "unit_price": 1.2,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": false
+        }
+      ]
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "happyhorse-1.0-i2v-20260618",
-      "output": "-",
-      "status": "免费试用"
+      "output": "¥ 0.9~1.6/秒",
+      "status": "免费试用",
+      "output_segments": [
+        {
+          "condition": "720P-有声",
+          "unit_price": 0.9,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": true
+        },
+        {
+          "condition": "1080P-有声",
+          "unit_price": 1.6,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": true
+        },
+        {
+          "condition": "720P-无声",
+          "unit_price": 0.9,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": false
+        },
+        {
+          "condition": "1080P-无声",
+          "unit_price": 1.6,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": false
+        }
+      ]
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "wan2.2-i2v-plus",
-      "output": "-",
-      "status": "免费试用"
+      "output": "¥ 0.14~0.7/秒",
+      "status": "免费试用",
+      "output_segments": [
+        {
+          "condition": "480P-有声",
+          "unit_price": 0.14,
+          "unit": "/秒",
+          "resolution": "480P",
+          "audio": true
+        },
+        {
+          "condition": "1080P-有声",
+          "unit_price": 0.7,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": true
+        },
+        {
+          "condition": "480P-无声",
+          "unit_price": 0.14,
+          "unit": "/秒",
+          "resolution": "480P",
+          "audio": false
+        },
+        {
+          "condition": "1080P-无声",
+          "unit_price": 0.7,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": false
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 0.2~1.2/百万Tokens",
       "name": "qwen3.5-flash",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 2~12/百万Tokens",
+      "status": "免费试用",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 128K",
+          "unit_price": 0.2,
+          "unit": "/百万tokens",
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "128K < 输入 ≤ 256K",
+          "unit_price": 0.8,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073,
+          "max_input_tokens": 262144
+        },
+        {
+          "condition": "输入 > 256K",
+          "unit_price": 1.2,
+          "unit": "/百万tokens",
+          "min_input_tokens": 262145
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 128K",
+          "unit_price": 2,
+          "unit": "/百万tokens",
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "128K < 输入 ≤ 256K",
+          "unit_price": 8,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073,
+          "max_input_tokens": 262144
+        },
+        {
+          "condition": "输入 > 256K",
+          "unit_price": 12,
+          "unit": "/百万tokens",
+          "min_input_tokens": 262145
+        }
+      ]
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "wan2.7-t2v",
-      "output": "-",
-      "status": "免费试用"
+      "output": "¥ 0.6~1/秒",
+      "status": "免费试用",
+      "output_segments": [
+        {
+          "condition": "720P-有声",
+          "unit_price": 0.6,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": true
+        },
+        {
+          "condition": "1080P-有声",
+          "unit_price": 1,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": true
+        },
+        {
+          "condition": "720P-无声",
+          "unit_price": 0.6,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": false
+        },
+        {
+          "condition": "1080P-无声",
+          "unit_price": 1,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": false
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 0.3/百万Tokens",
       "name": "qwen-turbo",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 3/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.06/百万Tokens",
+      "input_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 0.3,
+          "unit": "/百万tokens",
+          "min_input_tokens": 1
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 3,
+          "unit": "/百万tokens",
+          "min_input_tokens": 1
+        }
+      ],
+      "cache_hit_input_segments": [
+        {
+          "condition": "输入 > 0K",
+          "unit_price": 0.06,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 1
+        }
+      ]
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "happyhorse-1.0-t2v-20260618",
-      "output": "-",
-      "status": "免费试用"
+      "output": "¥ 0.9~1.6/秒",
+      "status": "免费试用",
+      "output_segments": [
+        {
+          "condition": "720P-有声",
+          "unit_price": 0.9,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": true
+        },
+        {
+          "condition": "1080P-有声",
+          "unit_price": 1.6,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": true
+        },
+        {
+          "condition": "720P-无声",
+          "unit_price": 0.9,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": false
+        },
+        {
+          "condition": "1080P-无声",
+          "unit_price": 1.6,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": false
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 0.15~0.6/百万Tokens",
       "name": "qwen3-vl-flash",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 1.5~6/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.03~0.12/百万Tokens",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 0.15,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 0.3,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 0.6,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 1.5,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 3,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 6,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ],
+      "cache_hit_input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 0.03,
+          "unit": "/百万Tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 0.06,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 0.12,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 131073
+        }
+      ]
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "wan2.7-i2v",
-      "output": "-",
-      "status": "免费试用"
+      "output": "¥ 0.6~1/秒",
+      "status": "免费试用",
+      "output_segments": [
+        {
+          "condition": "720P-有声",
+          "unit_price": 0.6,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": true
+        },
+        {
+          "condition": "1080P-有声",
+          "unit_price": 1,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": true
+        },
+        {
+          "condition": "720P-无声",
+          "unit_price": 0.6,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": false
+        },
+        {
+          "condition": "1080P-无声",
+          "unit_price": 1,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": false
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 0.8~4.8/百万Tokens",
       "name": "Qwen-plus",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 8~64/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.16~0.96/百万Tokens",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 128K",
+          "unit_price": 0.8,
+          "unit": "/百万tokens",
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "128K < 输入 ≤ 256K",
+          "unit_price": 2.4,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073,
+          "max_input_tokens": 262144
+        },
+        {
+          "condition": "输入 > 256K",
+          "unit_price": 4.8,
+          "unit": "/百万tokens",
+          "min_input_tokens": 262145
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 128K",
+          "unit_price": 8,
+          "unit": "/百万tokens",
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "128K < 输入 ≤ 256K",
+          "unit_price": 24,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073,
+          "max_input_tokens": 262144
+        },
+        {
+          "condition": "输入 > 256K",
+          "unit_price": 64,
+          "unit": "/百万tokens",
+          "min_input_tokens": 262145
+        }
+      ],
+      "cache_hit_input_segments": [
+        {
+          "condition": "输入 ≤ 128K",
+          "unit_price": 0.16,
+          "unit": "/百万Tokens",
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "128K < 输入 ≤ 256K",
+          "unit_price": 0.48,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 131073,
+          "max_input_tokens": 262144
+        },
+        {
+          "condition": "输入 > 256K",
+          "unit_price": 0.96,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 262145
+        }
+      ]
     },
     {
       "group": "体验中心",
       "input": "-",
       "name": "wan2.5-t2v-preview",
-      "output": "-",
-      "status": "免费试用"
+      "output": "¥ 0.3~1/秒",
+      "status": "免费试用",
+      "output_segments": [
+        {
+          "condition": "480P-有声",
+          "unit_price": 0.3,
+          "unit": "/秒",
+          "resolution": "480P",
+          "audio": true
+        },
+        {
+          "condition": "720P-有声",
+          "unit_price": 0.6,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": true
+        },
+        {
+          "condition": "1080P-有声",
+          "unit_price": 1,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": true
+        },
+        {
+          "condition": "480P-无声",
+          "unit_price": 0.3,
+          "unit": "/秒",
+          "resolution": "480P",
+          "audio": false
+        },
+        {
+          "condition": "720P-无声",
+          "unit_price": 0.6,
+          "unit": "/秒",
+          "resolution": "720P",
+          "audio": false
+        },
+        {
+          "condition": "1080P-无声",
+          "unit_price": 1,
+          "unit": "/秒",
+          "resolution": "1080P",
+          "audio": false
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 0.15~1.2/百万Tokens",
       "name": "Qwen-flash",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 1.5~12/百万Tokens",
+      "status": "免费试用",
+      "cache_hit_input": "¥ 0.03~0.24/百万Tokens",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 128K",
+          "unit_price": 0.15,
+          "unit": "/百万tokens",
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "128K < 输入 ≤ 256K",
+          "unit_price": 0.6,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073,
+          "max_input_tokens": 262144
+        },
+        {
+          "condition": "输入 > 256K",
+          "unit_price": 1.2,
+          "unit": "/百万tokens",
+          "min_input_tokens": 262145
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 128K",
+          "unit_price": 1.5,
+          "unit": "/百万tokens",
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "128K < 输入 ≤ 256K",
+          "unit_price": 6,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073,
+          "max_input_tokens": 262144
+        },
+        {
+          "condition": "输入 > 256K",
+          "unit_price": 12,
+          "unit": "/百万tokens",
+          "min_input_tokens": 262145
+        }
+      ],
+      "cache_hit_input_segments": [
+        {
+          "condition": "输入 ≤ 128K",
+          "unit_price": 0.03,
+          "unit": "/百万Tokens",
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "128K < 输入 ≤ 256K",
+          "unit_price": 0.12,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 131073,
+          "max_input_tokens": 262144
+        },
+        {
+          "condition": "输入 > 256K",
+          "unit_price": 0.24,
+          "unit": "/百万Tokens",
+          "min_input_tokens": 262145
+        }
+      ]
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "input": "¥ 1~2.5/百万Tokens",
       "name": "qwen3-coder-next",
-      "output": "-/百万Tokens",
-      "status": "免费试用"
+      "output": "¥ 4~10/百万Tokens",
+      "status": "免费试用",
+      "input_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 1,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 1.5,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 2.5,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ],
+      "output_segments": [
+        {
+          "condition": "输入 ≤ 32K",
+          "unit_price": 4,
+          "unit": "/百万tokens",
+          "max_input_tokens": 32768
+        },
+        {
+          "condition": "32K < 输入 ≤ 128K",
+          "unit_price": 6,
+          "unit": "/百万tokens",
+          "min_input_tokens": 32769,
+          "max_input_tokens": 131072
+        },
+        {
+          "condition": "输入 > 128K",
+          "unit_price": 10,
+          "unit": "/百万tokens",
+          "min_input_tokens": 131073
+        }
+      ]
     }
   ]
 }

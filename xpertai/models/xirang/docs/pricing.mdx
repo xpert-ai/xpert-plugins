@@ -5,19 +5,30 @@ description: 天翼云星辰价格解析和未定价保护
 
 ## 规则
 
-精确的 `¥ N/百万Tokens` 会生成 input/output CNY 规则，单位大小为 1,000,000。模型详情提供缓存命中输入价时，插件会额外生成 `cache_read_input` 规则；缓存命中 Token 是输入 Token 的子集，不会重复计入总 Token。标准时段按 Asia/Shanghai 08:00–24:00，优惠时段按 00:00–08:00。
+精确的 `¥ N/百万Tokens` 会生成 input/output CNY 规则，单位大小为 1,000,000。表格中的“推理（缓存命中）”价格映射为 `cache_read_input`；缓存命中 Token 是输入 Token 的子集，不会重复计入总 Token。若虚线 tooltip 给出上下文阈值，插件会生成带 `min_input_tokens`/`max_input_tokens` 的规则，`K` 按 1,024 Token 换算。标准时段按 Asia/Shanghai 08:00–24:00，优惠时段按 00:00–08:00。
 
 当前已开通模型采用以下账户价格：
 
-请求中的 `model` 参数可以使用模型名称或模型 ID。
+预置模型使用服务名称作为 `model`；目录快照中的 `model_id` 仅用于审计。若天翼云端点要求使用 ID，可在凭据的 `endpoint_model_name` 中显式填写对应 ID。
 
 | 模型 | 模型 ID | 输入 | 缓存命中输入 | 输出 |
 | --- | --- | ---: | ---: | ---: |
 | `glm-5.3` | `e8e2511658054053a7e56e950d80f0e4` | ¥8/百万 Tokens | ¥2/百万 Tokens | ¥28/百万 Tokens |
 | `deepseek-v4-flash-0731-new` | `9570194f36ab4ac3bb31e58ea839950b` | ¥3/百万 Tokens | ¥0.3/百万 Tokens | ¥9/百万 Tokens |
 
-服务页面使用 `~` 表示区间价，但没有展示对应的 token 阈值。插件不会猜测阈值，而是通过不匹配的哨兵规则让账本标记为 `unpriced`。`-` 和“免费试用”同样不代表永久免费。
+当前已开通模型采用以下账户价格：
 
-图片模型使用 `generation` 用量。当前只有 Seedream 4.5 的模型详情确认了 CNY 0.25/张；其余图片模型继续显示为未定价。
+预置模型使用服务名称作为 `model`；目录快照中的 `model_id` 仅用于审计。若天翼云端点要求使用 ID，可在凭据的 `endpoint_model_name` 中显式填写对应 ID。
+
+| 模型 | 模型 ID | 输入 | 缓存命中输入 | 输出 |
+| --- | --- | ---: | ---: | ---: |
+| `glm-5.3` | `e8e2511658054053a7e56e950d80f0e4` | ¥8/百万 Tokens | ¥2/百万 Tokens | ¥28/百万 Tokens |
+| `deepseek-v4-flash-0731-new` | `9570194f36ab4ac3bb31e58ea839950b` | ¥3/百万 Tokens | ¥0.3/百万 Tokens | ¥9/百万 Tokens |
+
+完整目录和当前页面采集时间保存在 `src/catalog/source.snapshot.json`；生成后的模型规则位于 `src/llm`、`src/text-embedding`、`src/rerank` 和 `src/image`。
+
+服务页面使用 `~` 表示区间价。只要对应虚线 tooltip 提供了上下文阈值，插件会按阈值拆分区间；没有可验证阈值的区间价和 `-` 会通过不匹配的哨兵规则标记为 `unpriced`，不会被当作免费。
+
+图片模型使用 `generation` 用量，当前页面中的 10 个可运行图片模型按各自 `/张` 价格计费（例如 Seedream 4.5 为 CNY 0.25/张，Seedream 5.0 lite 为 CNY 0.22/张）。视频价格已保留在目录审计快照，但视频调用契约仍未启用。
 
 价格页面可能随账户、活动或时间变化。更新快照后必须重新生成、测试和发布插件，并保留旧版本规则以便账单追溯。
