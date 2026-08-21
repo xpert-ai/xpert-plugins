@@ -52,27 +52,5 @@
       "required": false,
       "default": true
     }
-  ],
-  "pricing": {
-    "type": "usage",
-    "rules": [
-      {
-        "id": "image-generation",
-        "version": "2026-08-21",
-        "effective_from": "2026-08-21T00:00:00+08:00",
-        "unit": "generation",
-        "unit_size": 1,
-        "unit_price": 0.5,
-        "currency": "CNY",
-        "charge_type": "paid",
-        "component": "output",
-        "operations": [
-          "text_to_image",
-          "image_to_image",
-          "multi_image_to_image"
-        ],
-        "source_url": "https://ctxirang.ctyun.cn/maas/inlineService"
-      }
-    ]
-  }
+  ]
 }

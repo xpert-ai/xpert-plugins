@@ -7,7 +7,6 @@ const srcRoot = join(packageRoot, 'src')
 const sourcePath = join(srcRoot, 'catalog', 'source.snapshot.json')
 const source = JSON.parse(readFileSync(sourcePath, 'utf8'))
 const capturedAt = source.captured_at || new Date().toISOString()
-const version = capturedAt.slice(0, 10)
 
 // JSON is a valid YAML 1.2 document and keeps this catalog generator
 // dependency-free when the plugin repository is checked out standalone.
@@ -33,131 +32,6 @@ function slug(name, index) {
     .replace(/[^a-z0-9._-]+/g, '-')
     .replace(/^-+|-+$/g, '')
   return `${String(index).padStart(3, '0')}-${value || 'model'}`
-}
-
-function exactPrice(display) {
-  if (typeof display !== 'string' || !display.includes('/百万Tokens') || display.includes('~') || display.includes('标准时段') || display.includes('优惠时段')) return null
-  const match = display.match(/¥\s*([0-9]+(?:\.[0-9]+)?)\/百万Tokens/i)
-  return match ? Number(match[1]) : null
-}
-
-function timeTierPrices(display) {
-  if (typeof display !== 'string' || display.includes('~')) return null
-  const match = display.match(/标准时段\s*¥\s*([0-9]+(?:\.[0-9]+)?)\/百万Tokens\s*优惠时段\s*¥\s*([0-9]+(?:\.[0-9]+)?)\/百万Tokens/i)
-  return match ? { standard: Number(match[1]), offpeak: Number(match[2]) } : null
-}
-
-function tokenUnit(unit) {
-  return typeof unit === 'string' && /\/百万tokens/i.test(unit)
-}
-
-function tokenRule(component, unitPrice, range = {}) {
-  return {
-    component,
-    unit_price: unitPrice,
-    unit_size: 1_000_000,
-    currency: 'CNY',
-    ...range
-  }
-}
-
-function segmentTokenRules(component, segments) {
-  if (!Array.isArray(segments) || segments.length === 0) return []
-  const rules = []
-  for (const segment of segments) {
-    if (!tokenUnit(segment.unit)) continue
-    const range = {}
-    if (segment.min_input_tokens != null) range.min_input_tokens = segment.min_input_tokens
-    if (segment.max_input_tokens != null) range.max_input_tokens = segment.max_input_tokens
-    if (segment.min_output_tokens != null) range.min_output_tokens = segment.min_output_tokens
-    if (segment.max_output_tokens != null) range.max_output_tokens = segment.max_output_tokens
-    if (typeof segment.unit_price === 'number') rules.push(tokenRule(component, segment.unit_price, range))
-    else rules.push({ ...tokenRule(component, 0, range), mode: '__xirang_unpriced__' })
-  }
-  return rules
-}
-
-function tokenPriceRules(component, display, segments) {
-  const segmentRules = segmentTokenRules(component, segments)
-  if (segmentRules.length > 0) return segmentRules
-  const exact = exactPrice(display)
-  if (exact != null) {
-    return [tokenRule(component, exact)]
-  }
-  const tiers = timeTierPrices(display)
-  if (tiers) {
-    return [
-      {
-        ...tokenRule(component, tiers.standard),
-        daily_time_window: { time_zone: 'Asia/Shanghai', start_time: '08:00', end_time: '24:00' }
-      },
-      {
-        ...tokenRule(component, tiers.offpeak),
-        daily_time_window: { time_zone: 'Asia/Shanghai', start_time: '00:00', end_time: '08:00' }
-      }
-    ]
-  }
-  // A deliberately non-matching rule makes the SDK report this component as
-  // unpriced. It must not be represented as a free model.
-  return [{ component, unit_price: 0, unit_size: 1_000_000, currency: 'CNY', mode: '__xirang_unpriced__' }]
-}
-
-function firstSegmentPrice(segments) {
-  return Array.isArray(segments)
-    ? segments.find((segment) => tokenUnit(segment.unit) && typeof segment.unit_price === 'number')?.unit_price
-    : undefined
-}
-
-function tokenPricing(row) {
-  const inputExact = exactPrice(row.input)
-  const outputExact = exactPrice(row.output)
-  const inputTier = timeTierPrices(row.input)
-  const outputTier = timeTierPrices(row.output)
-  const inputDisplayPrice = firstSegmentPrice(row.input_segments) ?? inputExact ?? inputTier?.standard ?? 0
-  const outputDisplayPrice = firstSegmentPrice(row.output_segments) ?? outputExact ?? outputTier?.standard ?? 0
-  const cacheReadRules = row.cache_hit_input
-    ? tokenPriceRules('cache_read_input', row.cache_hit_input, row.cache_hit_input_segments)
-    : []
-  return {
-    input: String(inputDisplayPrice),
-    output: String(outputDisplayPrice),
-    unit: '0.000001',
-    currency: 'CNY',
-    rules: [
-      ...tokenPriceRules('input', row.input, row.input_segments),
-      ...cacheReadRules,
-      ...tokenPriceRules('output', row.output, row.output_segments)
-    ]
-  }
-}
-
-function exactGenerationPrice(display) {
-  if (typeof display !== 'string') return null
-  const match = display.match(/¥\s*([0-9]+(?:\.[0-9]+)?)\s*\/张/i)
-  return match ? Number(match[1]) : null
-}
-
-function imagePricing(row) {
-  const unitPrice = exactGenerationPrice(row.output)
-  if (unitPrice != null) {
-    return {
-      type: 'usage',
-      rules: [{
-        id: 'image-generation',
-        version,
-        effective_from: `${version}T00:00:00+08:00`,
-        unit: 'generation',
-        unit_size: 1,
-        unit_price: unitPrice,
-        currency: 'CNY',
-        charge_type: 'paid',
-        component: 'output',
-        operations: ['text_to_image', 'image_to_image', 'multi_image_to_image'],
-        source_url: 'https://ctxirang.ctyun.cn/maas/inlineService'
-      }]
-    }
-  }
-  return { type: 'usage', rules: [] }
 }
 
 function llmFeatures(name) {
@@ -200,11 +74,8 @@ function modelSchema(row, modelType) {
       : { context_size: 8192 },
     parameter_rules: parameterRules(modelType)
   }
-  if (modelType === 'llm') {
-    return { ...base, features: llmFeatures(name), pricing: tokenPricing(row) }
-  }
-  if (modelType === 'image') return { ...base, pricing: imagePricing(row) }
-  return { ...base, pricing: tokenPricing(row) }
+  if (modelType === 'llm') return { ...base, features: llmFeatures(name) }
+  return base
 }
 
 const activeRows = source.models.filter((row) => !row.name.includes('（即将下线）'))
@@ -231,13 +102,7 @@ for (const [index, row] of runtimeRows.entries()) {
   generated.push({
     name: row.name,
     ...(row.model_id ? { model_id: row.model_id } : {}),
-    model_type: modelType,
-    source_input: row.input,
-    source_output: row.output,
-    ...(row.cache_hit_input ? { source_cache_hit_input: row.cache_hit_input } : {}),
-    priced: modelType === 'image'
-      ? imagePricing(row).rules.length > 0
-      : tokenPriceRules('input', row.input, row.input_segments).some((rule) => rule.mode !== '__xirang_unpriced__') && tokenPriceRules('output', row.output, row.output_segments).some((rule) => rule.mode !== '__xirang_unpriced__')
+    model_type: modelType
   })
 }
 
@@ -254,12 +119,11 @@ const normalized = {
   policy: {
     deprecated_marker: '（即将下线）',
     excluded_deprecated: source.models.filter((row) => row.name.includes('（即将下线）')).map((row) => row.name),
-    video_status: 'catalog-only-unsupported-until-api-contract-is-verified',
-    price_policy: 'Exact prices, standard/off-peak prices, and tooltip token thresholds are billed. Ranges without a verifiable tooltip threshold and dashes remain unpriced.'
+    video_status: 'catalog-only-unsupported-until-api-contract-is-verified'
   },
   counts,
   active_models: generated,
-  unsupported_video_models: unsupported.map((row) => ({ name: row.name, source_input: row.input, source_output: row.output }))
+  unsupported_video_models: unsupported.map((row) => ({ name: row.name }))
 }
 mkdirSync(join(srcRoot, 'catalog'), { recursive: true })
 writeFileSync(join(srcRoot, 'catalog', 'normalized.snapshot.json'), `${JSON.stringify(normalized, null, 2)}\n`)

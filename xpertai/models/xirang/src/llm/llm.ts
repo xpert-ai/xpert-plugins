@@ -101,17 +101,6 @@ export class XirangLargeLanguageModel extends LargeLanguageModel {
         { name: 'max_tokens', type: ParameterType.INT, useTemplate: 'max_tokens', label: { zh_Hans: '最大输出 Token', en_US: 'Max output tokens' }, default: 2048, min: 1, max: contextSize },
         { name: 'enable_thinking', type: ParameterType.BOOLEAN, label: { zh_Hans: '思考模式', en_US: 'Thinking mode' }, default: false, required: false }
       ],
-      // A customizable model has no catalog price. Keep it explicitly unpriced.
-      pricing: {
-        input: 0,
-        output: 0,
-        unit: 0.000001,
-        currency: 'CNY',
-        rules: [
-          { component: 'input', unit_price: 0, unit_size: 1_000_000, mode: '__xirang_unpriced__' },
-          { component: 'output', unit_price: 0, unit_size: 1_000_000, mode: '__xirang_unpriced__' }
-        ]
-      }
     }
   }
 }

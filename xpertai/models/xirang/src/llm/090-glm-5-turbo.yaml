@@ -73,55 +73,5 @@
     "stream-tool-call",
     "structured-output",
     "agent-thought"
-  ],
-  "pricing": {
-    "input": "5",
-    "output": "22",
-    "unit": "0.000001",
-    "currency": "CNY",
-    "rules": [
-      {
-        "component": "input",
-        "unit_price": 5,
-        "unit_size": 1000000,
-        "currency": "CNY",
-        "max_input_tokens": 32768
-      },
-      {
-        "component": "input",
-        "unit_price": 7,
-        "unit_size": 1000000,
-        "currency": "CNY",
-        "min_input_tokens": 32769
-      },
-      {
-        "component": "cache_read_input",
-        "unit_price": 1.2,
-        "unit_size": 1000000,
-        "currency": "CNY",
-        "max_input_tokens": 32768
-      },
-      {
-        "component": "cache_read_input",
-        "unit_price": 1.8,
-        "unit_size": 1000000,
-        "currency": "CNY",
-        "min_input_tokens": 32769
-      },
-      {
-        "component": "output",
-        "unit_price": 22,
-        "unit_size": 1000000,
-        "currency": "CNY",
-        "max_input_tokens": 32768
-      },
-      {
-        "component": "output",
-        "unit_price": 26,
-        "unit_size": 1000000,
-        "currency": "CNY",
-        "min_input_tokens": 32769
-      }
-    ]
-  }
+  ]
 }
