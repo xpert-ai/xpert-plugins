@@ -73,5 +73,31 @@
     "stream-tool-call",
     "structured-output",
     "agent-thought"
-  ]
+  ],
+  "pricing": {
+    "input": "9",
+    "output": "27",
+    "unit": "0.000001",
+    "currency": "CNY",
+    "rules": [
+      {
+        "component": "input",
+        "unit_price": 9,
+        "unit_size": 1000000,
+        "currency": "CNY"
+      },
+      {
+        "component": "cache_read_input",
+        "unit_price": 0.3,
+        "unit_size": 1000000,
+        "currency": "CNY"
+      },
+      {
+        "component": "output",
+        "unit_price": 27,
+        "unit_size": 1000000,
+        "currency": "CNY"
+      }
+    ]
+  }
 }

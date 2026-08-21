@@ -31,6 +31,24 @@ describe('generated Xirang catalog', () => {
     }
   })
 
+  it('keeps the documented context limits for predefined rerank models', () => {
+    const expected = {
+      'BGE-Reranker-Large': 512,
+      'BGE-Reranker-V2-m3': 8192,
+      'qwen3-rerank': 120000,
+      'gte-rerank-v2': 30000
+    }
+    for (const [model, contextSize] of Object.entries(expected)) {
+      const file = readdirSync(join(root, '..', 'rerank')).find((candidate) => {
+        if (!candidate.endsWith('.yaml') || candidate.startsWith('_')) return false
+        return readJson(join(root, '..', 'rerank', candidate)).model === model
+      })
+      expect(file).toBeDefined()
+      const schema = readJson(join(root, '..', 'rerank', file as string))
+      expect((schema.model_properties as Record<string, unknown>).context_size).toBe(contextSize)
+    }
+  })
+
   it('keeps the public catalog free of commercial pricing metadata', () => {
     const sourceModels = source.models as Array<Record<string, unknown>>
     const forbiddenFields = [
@@ -46,11 +64,21 @@ describe('generated Xirang catalog', () => {
     expect(sourceModels.every((model) => forbiddenFields.every((field) => !Object.prototype.hasOwnProperty.call(model, field)))).toBe(true)
     expect(activeModels.every((model) => forbiddenFields.every((field) => !Object.prototype.hasOwnProperty.call(model, field)) && !Object.prototype.hasOwnProperty.call(model, 'priced'))).toBe(true)
 
+    let yamlPricingCount = 0
     for (const directory of ['llm', 'text-embedding', 'rerank', 'image']) {
       const files = readdirSync(join(root, '..', directory)).filter((file) => file.endsWith('.yaml') && !file.startsWith('_'))
       for (const file of files) {
-        expect(Object.prototype.hasOwnProperty.call(readJson(join(root, '..', directory, file)), 'pricing')).toBe(false)
+        if (Object.prototype.hasOwnProperty.call(readJson(join(root, '..', directory, file)), 'pricing')) yamlPricingCount += 1
       }
     }
+    expect(yamlPricingCount).toBe(115)
+
+    const glmFile = readdirSync(join(root, '..', 'llm')).find((file) => {
+      if (!file.endsWith('.yaml') || file.startsWith('_')) return false
+      return readJson(join(root, '..', 'llm', file)).model === 'glm-5.3'
+    })
+    expect(glmFile).toBeDefined()
+    const glmPricing = readJson(join(root, '..', 'llm', glmFile as string)).pricing as Record<string, unknown>
+    expect(glmPricing).toEqual(expect.objectContaining({ rules: expect.any(Array) }))
   })
 })

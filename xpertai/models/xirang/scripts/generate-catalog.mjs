@@ -16,6 +16,12 @@ const imagePattern = /(seedream|qwen-image|wan2\.[67]-image)/i
 const videoPattern = /(t2v|i2v|r2v|kf2v|video|seedance|animate-mix)/i
 const embeddingPattern = /(embedding|bge-m3)/i
 const rerankPattern = /(rerank|reranker|gte-rerank)/i
+const rerankContextSizes = {
+  'BGE-Reranker-Large': 512,
+  'BGE-Reranker-V2-m3': 8192,
+  'qwen3-rerank': 120000,
+  'gte-rerank-v2': 30000
+}
 
 function classify(name) {
   if (imagePattern.test(name)) return 'image'
@@ -63,6 +69,20 @@ function parameterRules(modelType) {
   return []
 }
 
+const preservedModels = new Map()
+for (const modelType of ['llm', 'text-embedding', 'rerank', 'image']) {
+  const folder = join(srcRoot, modelType)
+  for (const file of readdirSync(folder)) {
+    if (!file.endsWith('.yaml') || file === '_position.yaml') continue
+    const model = JSON.parse(readFileSync(join(folder, file), 'utf8'))
+    if (typeof model.model !== 'string') continue
+    preservedModels.set(model.model, {
+      model_properties: model.model_properties,
+      pricing: model.pricing
+    })
+  }
+}
+
 function modelSchema(row, modelType) {
   const name = row.name
   const base = {
@@ -71,11 +91,18 @@ function modelSchema(row, modelType) {
     model_type: modelType,
     model_properties: modelType === 'llm'
       ? { mode: 'chat', context_size: 32768 }
-      : { context_size: 8192 },
+      : { context_size: modelType === 'rerank' ? rerankContextSizes[name] || 8192 : 8192 },
     parameter_rules: parameterRules(modelType)
   }
-  if (modelType === 'llm') return { ...base, features: llmFeatures(name) }
-  return base
+  const generated = modelType === 'llm' ? { ...base, features: llmFeatures(name) } : base
+  const preserved = preservedModels.get(name)
+  return {
+    ...generated,
+    ...(preserved?.model_properties ? {
+      model_properties: { ...generated.model_properties, ...preserved.model_properties }
+    } : {}),
+    ...(preserved?.pricing !== undefined ? { pricing: preserved.pricing } : {})
+  }
 }
 
 const activeRows = source.models.filter((row) => !row.name.includes('（即将下线）'))

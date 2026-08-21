@@ -15,10 +15,10 @@
 
 1. 在目标组织范围安装并启用插件 `@xpert-ai/plugin-xirang`。插件现在是组织级插件，不再要求租户级安装。
 2. 在系统集成或模型供应商凭据中填写天翼云星辰 AppKey；默认 API 地址保持 `https://ai.ctaigw.cn/v1`。
-3. 选择预置模型。Rerank 模型必须在“API 使用的模型名称 / Rerank 模型 ID”中填写模型详情页顶部的模型 ID；`qwen3-rerank` 只是展示名，不能作为天翼云官方 Reranker API 的 `model` 参数。
+3. 选择预置模型。四个预置 Rerank 模型会按模型展示名自动选择天翼云接口、请求体和模型 ID，不需要再手填 ID。只有接入自定义模型或自定义网关时，才需要填写“API 模型名称覆盖 / Rerank ID 覆盖”和接口路径。
 4. 保存后先执行凭据校验，再在 Assistant 的模型配置中选择该 Provider。
 
-Rerank 的默认协议以天翼云官方 [Reranker 重排序 API](https://www.ctyun.cn/document/11061839/11075357) 为准。
+Rerank 的预置映射如下：`BGE-Reranker-Large` 和 `BGE-Reranker-V2-m3` 使用 `/v1/rerank`，`qwen3-rerank` 使用 `/v1/reranks`，`gte-rerank-v2` 使用 `/v1/services/rerank/text-rerank/text-rerank`。默认认证均为 `Authorization: Bearer <AppKey>`。四个模型的模型 ID 来自对应的天翼云模型详情页；自定义网关仍可通过模型凭据覆盖路径、模型名、密钥和鉴权方式。
 
 本地源码部署时，使用主仓库的 `plugin:deploy:local` 并显式传入 `--scope organization --org-id <组织ID>`；组织范围不能沿用只带租户 ID 的部署命令。
 

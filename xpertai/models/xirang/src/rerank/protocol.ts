@@ -8,6 +8,7 @@ export type XirangRerankRequest = {
   path: string
   authorization: string
   official: boolean
+  protocol: 'flat' | 'nested'
 }
 
 export type XirangRerankResponseItem = {
@@ -15,21 +16,79 @@ export type XirangRerankResponseItem = {
   relevance_score?: number
 }
 
+export type XirangRerankPayload = {
+  code?: number
+  error?: { code?: string | number; message?: string; type?: string }
+  results?: XirangRerankResponseItem[]
+  output?: { results?: XirangRerankResponseItem[] }
+}
+
+type XirangPredefinedRerankModel = {
+  aliases: readonly string[]
+  modelId: string
+  path: string
+  protocol: 'flat' | 'nested'
+}
+
+const XIRANG_PREDEFINED_RERANK_MODELS: readonly XirangPredefinedRerankModel[] = [
+  {
+    aliases: ['BGE-Reranker-Large', 'bge-reranker-large', '0cb4c1ed8f374eadbe8bffe30bd039dc'],
+    modelId: '0cb4c1ed8f374eadbe8bffe30bd039dc',
+    path: '/rerank',
+    protocol: 'flat'
+  },
+  {
+    aliases: ['BGE-Reranker-V2-m3', 'bge-reranker-v2-m3', 'fdfd185a79494673b65451956cf5b4ba'],
+    modelId: 'fdfd185a79494673b65451956cf5b4ba',
+    path: '/rerank',
+    protocol: 'flat'
+  },
+  {
+    aliases: ['qwen3-rerank', 'a18944d8204c4e969cd4635c28af56e5'],
+    modelId: 'a18944d8204c4e969cd4635c28af56e5',
+    path: '/reranks',
+    protocol: 'flat'
+  },
+  {
+    aliases: ['gte-rerank-v2', 'c5f2125a07474e31b6926e184ea8627e'],
+    modelId: 'c5f2125a07474e31b6926e184ea8627e',
+    path: '/services/rerank/text-rerank/text-rerank',
+    protocol: 'nested'
+  }
+]
+
 function normalizePath(path?: string): string {
   const value = path?.trim() || '/rerank'
   return value.startsWith('/') ? value : `/${value}`
 }
 
+function resolvePredefinedRerankModel(model?: string): XirangPredefinedRerankModel | undefined {
+  const normalized = model?.trim().toLowerCase()
+  if (!normalized) return undefined
+  return XIRANG_PREDEFINED_RERANK_MODELS.find((candidate) => candidate.aliases.some((alias) => alias.toLowerCase() === normalized))
+}
+
 export function isOfficialXirangRerank(credentials: XirangModelCredentials, path = normalizePath(credentials.rerank_path)): boolean {
-  return getXirangBaseUrl(credentials) === XirangDefaultBaseUrl && path === '/rerank'
+  return getXirangBaseUrl(credentials) === XirangDefaultBaseUrl && [
+    '/rerank',
+    '/reranks',
+    '/services/rerank/text-rerank/text-rerank'
+  ].includes(path)
 }
 
 export function getRerankModelId(model: string, credentials: XirangModelCredentials): string {
   const endpointModel = credentials.endpoint_model_name?.trim()
   if (endpointModel) return endpointModel
 
-  if (isOfficialXirangRerank(credentials)) {
-    throw new Error('请填写 API 使用的模型名称（天翼云模型详情页顶部的模型 ID，不是 qwen3-rerank 展示名）')
+  const predefined = resolvePredefinedRerankModel(model)
+  const configuredPath = credentials.rerank_path?.trim()
+  const defaultPath = normalizePath(configuredPath || predefined?.path)
+  const usesPredefinedContract = getXirangBaseUrl(credentials) === XirangDefaultBaseUrl &&
+    predefined != null && (!configuredPath || defaultPath === predefined.path)
+  if (usesPredefinedContract) return predefined.modelId
+
+  if (isOfficialXirangRerank(credentials, defaultPath)) {
+    throw new Error('请填写 API 使用的模型名称（天翼云模型详情页顶部的模型 ID，不是模型展示名）')
   }
 
   const fallbackModel = model?.trim()
@@ -37,15 +96,16 @@ export function getRerankModelId(model: string, credentials: XirangModelCredenti
   return fallbackModel
 }
 
-export function getRerankRequest(credentials: XirangModelCredentials): XirangRerankRequest {
+export function getRerankRequest(credentials: XirangModelCredentials, model?: string): XirangRerankRequest {
+  const defaultEndpoint = getXirangBaseUrl(credentials) === XirangDefaultBaseUrl
+  const predefined = defaultEndpoint ? resolvePredefinedRerankModel(model) : undefined
   const configuredPath = credentials.rerank_path?.trim()
-  const path = normalizePath(configuredPath)
+  const path = normalizePath(configuredPath || predefined?.path)
   const official = isOfficialXirangRerank(credentials, path)
   const key = credentials.rerank_api_key?.trim() || credentials.app_key?.trim()
   if (!key) throw new Error('天翼云 AppKey 不能为空')
 
-  // The official Reranker API always requires Bearer, including for models
-  // saved before the plugin corrected its former raw-AppKey default.
+  // The official Tianyi endpoints always require Bearer authentication.
   const scheme = official
     ? 'bearer'
     : credentials.rerank_auth_scheme?.trim().toLowerCase() || 'bearer'
@@ -56,7 +116,11 @@ export function getRerankRequest(credentials: XirangModelCredentials): XirangRer
     ? /^bearer\s+/i.test(key) ? key : `Bearer ${key}`
     : key
 
-  return { path, authorization, official }
+  const protocol = configuredPath
+    ? path === '/services/rerank/text-rerank/text-rerank' ? 'nested' : 'flat'
+    : predefined?.protocol || 'flat'
+
+  return { path, authorization, official, protocol }
 }
 
 export function buildRerankBody(
@@ -65,8 +129,19 @@ export function buildRerankBody(
   documents: string[],
   topN: number,
   credentials: XirangModelCredentials,
-  request: Pick<XirangRerankRequest, 'official'>
+  request: Pick<XirangRerankRequest, 'official' | 'protocol'>
 ): Record<string, unknown> {
+  if (request.protocol === 'nested') {
+    return {
+      model,
+      input: { query, documents },
+      parameters: {
+        return_documents: false,
+        top_n: topN
+      }
+    }
+  }
+
   const body: Record<string, unknown> = {
     model,
     query,
@@ -79,6 +154,12 @@ export function buildRerankBody(
     body.instruct = credentials.rerank_instruct.trim()
   }
   return body
+}
+
+export function extractRerankResults(payload: XirangRerankPayload): XirangRerankResponseItem[] | undefined {
+  if (Array.isArray(payload.results)) return payload.results
+  if (Array.isArray(payload.output?.results)) return payload.output.results
+  return undefined
 }
 
 export function mapRerankResults(

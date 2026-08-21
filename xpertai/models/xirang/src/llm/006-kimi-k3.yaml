@@ -72,5 +72,34 @@
     "multi-tool-call",
     "stream-tool-call",
     "structured-output"
-  ]
+  ],
+  "pricing": {
+    "input": "20",
+    "output": "100",
+    "unit": "0.000001",
+    "currency": "CNY",
+    "rules": [
+      {
+        "component": "input",
+        "unit_price": 20,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "min_input_tokens": 1
+      },
+      {
+        "component": "cache_read_input",
+        "unit_price": 2,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "min_input_tokens": 1
+      },
+      {
+        "component": "output",
+        "unit_price": 100,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "min_input_tokens": 1
+      }
+    ]
+  }
 }

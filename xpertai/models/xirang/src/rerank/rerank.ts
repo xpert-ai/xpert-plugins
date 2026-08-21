@@ -4,11 +4,7 @@ import { Injectable } from '@nestjs/common'
 import { getErrorMessage, type IRerank, RerankModel, type RerankResult, type TChatModelOptions } from '@xpert-ai/plugin-sdk'
 import { XirangProviderStrategy } from '../provider.strategy.js'
 import { getXirangBaseUrl, type XirangModelCredentials } from '../types.js'
-import { buildRerankBody, getRerankModelId, getRerankRequest, mapRerankResults } from './protocol.js'
-
-type XirangRerankResponse = {
-  results?: Array<{ index?: number; relevance_score?: number; document?: string | { text?: string } }>
-}
+import { buildRerankBody, extractRerankResults, getRerankModelId, getRerankRequest, mapRerankResults, type XirangRerankPayload } from './protocol.js'
 
 class XirangReranker implements IRerank {
   constructor(private readonly credentials: XirangModelCredentials, private readonly model: string) {}
@@ -16,7 +12,7 @@ class XirangReranker implements IRerank {
   async rerank(docs: Document<Record<string, unknown>>[], query: string, options: { topN?: number; scoreThreshold?: number; model?: string }): Promise<RerankResult[]> {
     if (docs.length === 0) return []
     const model = getRerankModelId(options.model || this.model, this.credentials)
-    const request = getRerankRequest(this.credentials)
+    const request = getRerankRequest(this.credentials, options.model || this.model)
     const body = buildRerankBody(
       model,
       query,
@@ -41,9 +37,14 @@ class XirangReranker implements IRerank {
       }
       throw new Error(`Xirang rerank endpoint returned HTTP ${response.status}${detail ? `: ${detail}` : ''}`)
     }
-    const payload = (await response.json()) as XirangRerankResponse
-    if (!Array.isArray(payload.results)) throw new Error('Xirang rerank response is missing results')
-    return mapRerankResults(payload.results, options.scoreThreshold, options.topN ?? docs.length)
+    const payload = (await response.json()) as XirangRerankPayload
+    if (payload.code != null && payload.code !== 0) {
+      throw new Error(`Xirang rerank request failed${payload.error?.message ? `: ${payload.error.message}` : ` (code ${payload.code})`}`)
+    }
+    if (payload.error?.message) throw new Error(`Xirang rerank request failed: ${payload.error.message}`)
+    const results = extractRerankResults(payload)
+    if (!results) throw new Error('Xirang rerank response is missing results')
+    return mapRerankResults(results, options.scoreThreshold, options.topN ?? docs.length)
   }
 }
 

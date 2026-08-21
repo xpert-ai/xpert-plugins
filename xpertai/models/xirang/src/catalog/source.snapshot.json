@@ -114,7 +114,8 @@
     },
     {
       "group": "体验中心",
-      "name": "BGE-Reranker-Large"
+      "name": "BGE-Reranker-Large",
+      "model_id": "0cb4c1ed8f374eadbe8bffe30bd039dc"
     },
     {
       "group": "体验中心",
@@ -126,7 +127,8 @@
     },
     {
       "group": "体验中心",
-      "name": "BGE-Reranker-V2-m3"
+      "name": "BGE-Reranker-V2-m3",
+      "model_id": "fdfd185a79494673b65451956cf5b4ba"
     },
     {
       "group": "体验中心",
@@ -138,7 +140,8 @@
     },
     {
       "group": "体验中心",
-      "name": "qwen3-rerank"
+      "name": "qwen3-rerank",
+      "model_id": "a18944d8204c4e969cd4635c28af56e5"
     },
     {
       "group": "体验中心",
@@ -170,7 +173,8 @@
     },
     {
       "group": "体验中心",
-      "name": "gte-rerank-v2"
+      "name": "gte-rerank-v2",
+      "model_id": "c5f2125a07474e31b6926e184ea8627e"
     },
     {
       "group": "体验中心",

@@ -66,13 +66,13 @@ model_credential_schema:
         zh_Hans: 可选的界面显示名称
     - variable: endpoint_model_name
       label:
-        en_US: Endpoint model name / Rerank model ID
-        zh_Hans: API 使用的模型名称 / Rerank 模型 ID
+        en_US: Endpoint model name override / Rerank ID override
+        zh_Hans: API 模型名称覆盖 / Rerank ID 覆盖
       type: text-input
       required: false
       placeholder:
-        en_US: Rerank requires the model ID from the Tianyi model detail page
-        zh_Hans: Rerank 必填：天翼云模型详情页顶部的模型 ID
+        en_US: Predefined rerank models use their Tianyi IDs automatically; fill only for a custom model
+        zh_Hans: 预置 Rerank 模型会自动使用天翼云 ID；自定义模型时再填写
     - variable: rerank_path
       show_on:
         - variable: __model_type
@@ -83,8 +83,8 @@ model_credential_schema:
       type: text-input
       required: false
       placeholder:
-        en_US: Leave blank to use the official /rerank endpoint
-        zh_Hans: 留空使用天翼云官方 /rerank
+        en_US: Leave blank to select the endpoint from the predefined model
+        zh_Hans: 留空会根据预置模型自动选择接口
     - variable: rerank_auth_scheme
       show_on:
         - variable: __model_type

@@ -72,5 +72,25 @@
     "multi-tool-call",
     "stream-tool-call",
     "structured-output"
-  ]
+  ],
+  "pricing": {
+    "input": "0.3",
+    "output": "0.6",
+    "unit": "0.000001",
+    "currency": "CNY",
+    "rules": [
+      {
+        "component": "input",
+        "unit_price": 0.3,
+        "unit_size": 1000000,
+        "currency": "CNY"
+      },
+      {
+        "component": "output",
+        "unit_price": 0.6,
+        "unit_size": 1000000,
+        "currency": "CNY"
+      }
+    ]
+  }
 }

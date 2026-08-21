@@ -72,5 +72,55 @@
     "multi-tool-call",
     "stream-tool-call",
     "structured-output"
-  ]
+  ],
+  "pricing": {
+    "input": "3",
+    "output": "14",
+    "unit": "0.000001",
+    "currency": "CNY",
+    "rules": [
+      {
+        "component": "input",
+        "unit_price": 3,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "max_input_tokens": 32768
+      },
+      {
+        "component": "input",
+        "unit_price": 4,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "min_input_tokens": 32769
+      },
+      {
+        "component": "cache_read_input",
+        "unit_price": 0.6,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "max_input_tokens": 32768
+      },
+      {
+        "component": "cache_read_input",
+        "unit_price": 0.8,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "min_input_tokens": 32769
+      },
+      {
+        "component": "output",
+        "unit_price": 14,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "max_input_tokens": 32768
+      },
+      {
+        "component": "output",
+        "unit_price": 16,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "min_input_tokens": 32769
+      }
+    ]
+  }
 }
