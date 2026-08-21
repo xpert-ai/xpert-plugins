@@ -1,8 +1,22 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import type { PriceConfig } from '@xpert-ai/contracts'
 
 const root = dirname(fileURLToPath(import.meta.url))
+
+function readModel(modelType: string, modelName: string) {
+  const directory = join(root, '..', modelType)
+  const file = readdirSync(directory).find((entry) => {
+    if (!entry.endsWith('.yaml') || entry.startsWith('_')) return false
+    const value = JSON.parse(readFileSync(join(directory, entry), 'utf8')) as { model?: string }
+    return value.model === modelName
+  })
+  if (!file) throw new Error(`Missing generated model ${modelType}.${modelName}`)
+  return JSON.parse(readFileSync(join(directory, file), 'utf8')) as {
+    pricing: PriceConfig & { input: string; output: string }
+  }
+}
 
 describe('generated Xirang catalog', () => {
   const normalized = JSON.parse(readFileSync(join(root, 'normalized.snapshot.json'), 'utf8')) as {
@@ -35,19 +49,6 @@ describe('generated Xirang catalog', () => {
   })
 
   it('preserves exact, tiered, and unknown token pricing distinctly', () => {
-    const readModel = (modelType: string, modelName: string) => {
-      const directory = join(root, '..', modelType)
-      const file = readdirSync(directory).find((entry) => {
-        if (!entry.endsWith('.yaml') || entry.startsWith('_')) return false
-        const value = JSON.parse(readFileSync(join(directory, entry), 'utf8')) as { model?: string }
-        return value.model === modelName
-      })
-      if (!file) throw new Error(`Missing generated model ${modelType}.${modelName}`)
-      return JSON.parse(readFileSync(join(directory, file), 'utf8')) as {
-        pricing: { input: string; output: string; rules: Array<Record<string, unknown>> }
-      }
-    }
-
     const exact = readModel('llm', 'DeepSeek-V4-Flash').pricing
     expect(exact.input).toBe('1')
     expect(exact.output).toBe('2')
@@ -67,6 +68,26 @@ describe('generated Xirang catalog', () => {
       expect.objectContaining({ component: 'input', mode: '__xirang_unpriced__' }),
       expect.objectContaining({ component: 'output', mode: '__xirang_unpriced__' })
     ]))
+  })
+
+  it('prices the two activated models including cache-hit input tokens', () => {
+    const glm = readModel('llm', 'glm-5.3').pricing
+    expect(glm.rules).toEqual(expect.arrayContaining([
+      expect.objectContaining({ component: 'input', unit_price: 8, unit_size: 1_000_000 }),
+      expect.objectContaining({ component: 'cache_read_input', unit_price: 2, unit_size: 1_000_000 }),
+      expect.objectContaining({ component: 'output', unit_price: 28, unit_size: 1_000_000 })
+    ]))
+    expect(glm.input).toBe('8')
+    expect(glm.output).toBe('28')
+
+    const deepseek = readModel('llm', 'deepseek-v4-flash-0731-new').pricing
+    expect(deepseek.rules).toEqual(expect.arrayContaining([
+      expect.objectContaining({ component: 'input', unit_price: 3, unit_size: 1_000_000 }),
+      expect.objectContaining({ component: 'cache_read_input', unit_price: 0.3, unit_size: 1_000_000 }),
+      expect.objectContaining({ component: 'output', unit_price: 9, unit_size: 1_000_000 })
+    ]))
+    expect(deepseek.input).toBe('3')
+    expect(deepseek.output).toBe('9')
   })
 
   it('uses the confirmed per-image price only for Seedream 4.5', () => {

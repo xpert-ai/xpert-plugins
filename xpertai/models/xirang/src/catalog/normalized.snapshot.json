@@ -1,7 +1,7 @@
 {
   "source": "https://ctxirang.ctyun.cn/maas/inlineService",
-  "captured_at": "2026-08-20T06:33:57.281Z",
-  "generated_at": "2026-08-20T06:33:57.281Z",
+  "captured_at": "2026-08-20T08:47:20Z",
+  "generated_at": "2026-08-20T08:47:20Z",
   "policy": {
     "deprecated_marker": "（即将下线）",
     "excluded_deprecated": [
@@ -24,17 +24,21 @@
   "active_models": [
     {
       "name": "glm-5.3",
+      "model_id": "e8e2511658054053a7e56e950d80f0e4",
       "model_type": "llm",
-      "source_input": "-/百万Tokens",
-      "source_output": "-/百万Tokens",
-      "priced": false
+      "source_input": "¥ 8/百万Tokens",
+      "source_output": "¥ 28/百万Tokens",
+      "source_cache_hit_input": "¥ 2/百万Tokens",
+      "priced": true
     },
     {
       "name": "deepseek-v4-flash-0731-new",
+      "model_id": "9570194f36ab4ac3bb31e58ea839950b",
       "model_type": "llm",
-      "source_input": "-/百万Tokens",
-      "source_output": "-/百万Tokens",
-      "priced": false
+      "source_input": "¥ 3/百万Tokens",
+      "source_output": "¥ 9/百万Tokens",
+      "source_cache_hit_input": "¥ 0.3/百万Tokens",
+      "priced": true
     },
     {
       "name": "deepseek-v4-flash-0817（正式版）",

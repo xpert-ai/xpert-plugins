@@ -18,7 +18,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
     name: packageJson.name,
     version: packageJson.version,
     category: 'model',
-    level: 'tenant',
+    level: 'organization',
     artifactNamespace: 'xirang_model',
     icon: { type: 'svg', value: icon },
     displayName: '天翼云模型',

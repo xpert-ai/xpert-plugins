@@ -11,7 +11,7 @@
     "groups": [
       {
         "group": "使用",
-        "pages": ["index", "architecture", "pricing"]
+        "pages": ["index", "architecture", "pricing", "privacy"]
       }
     ]
   }

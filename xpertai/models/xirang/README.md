@@ -13,10 +13,12 @@
 
 ## 配置方式
 
-1. 安装并启用插件 `@xpert-ai/plugin-xirang`。
+1. 在目标组织范围安装并启用插件 `@xpert-ai/plugin-xirang`。插件现在是组织级插件，不再要求租户级安装。
 2. 在系统集成或模型供应商凭据中填写天翼云星辰 AppKey；默认 API 地址保持 `https://ai.ctaigw.cn/v1`。
 3. 选择预置模型。自定义模型可以填写模型名和可选的 endpoint model name。
 4. 保存后先执行凭据校验，再在 Assistant 的模型配置中选择该 Provider。
+
+本地源码部署时，使用主仓库的 `plugin:deploy:local` 并显式传入 `--scope organization --org-id <组织ID>`；组织范围不能沿用只带租户 ID 的部署命令。
 
 ## 计费策略
 
@@ -36,6 +38,8 @@ pnpm --dir xpertai/models/xirang test
 ```
 
 不要把 AppKey、私钥或其它凭据提交到仓库。`source.snapshot.json` 是目录审计快照，不是授权或永久免费承诺；页面上的“免费试用”取决于天翼云账户权益。
+
+隐私和数据处理说明见 [`docs/privacy.mdx`](docs/privacy.mdx)。插件不建立独立遥测或数据存储，但模型请求内容会发送到配置的天翼云 API 地址。
 
 ## 架构
 

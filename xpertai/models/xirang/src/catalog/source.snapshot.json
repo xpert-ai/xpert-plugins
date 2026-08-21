@@ -1,19 +1,23 @@
 {
   "source": "https://ctxirang.ctyun.cn/maas/inlineService",
-  "captured_at": "2026-08-20T06:33:57.281Z",
+  "captured_at": "2026-08-20T08:47:20Z",
   "models": [
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "model_id": "e8e2511658054053a7e56e950d80f0e4",
+      "input": "¥ 8/百万Tokens",
       "name": "glm-5.3",
-      "output": "-/百万Tokens",
+      "output": "¥ 28/百万Tokens",
+      "cache_hit_input": "¥ 2/百万Tokens",
       "status": "免费试用"
     },
     {
       "group": "体验中心",
-      "input": "-/百万Tokens",
+      "model_id": "9570194f36ab4ac3bb31e58ea839950b",
+      "input": "¥ 3/百万Tokens",
       "name": "deepseek-v4-flash-0731-new",
-      "output": "-/百万Tokens",
+      "output": "¥ 9/百万Tokens",
+      "cache_hit_input": "¥ 0.3/百万Tokens",
       "status": "免费试用"
     },
     {

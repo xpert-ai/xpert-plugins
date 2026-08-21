@@ -2,6 +2,12 @@
   "name": "@xpert-ai/plugin-xirang",
   "version": "0.0.0",
   "description": "Tianyi Cloud Xirang model provider plugin for XpertAI",
+  "xpert": {
+    "plugin": {
+      "level": "organization",
+      "artifactNamespace": "xirang_model"
+    }
+  },
   "author": {
     "name": "XpertAI",
     "url": "https://xpertai.cn"

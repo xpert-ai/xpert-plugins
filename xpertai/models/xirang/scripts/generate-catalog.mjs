@@ -83,12 +83,19 @@ function tokenPricing(row) {
   const outputTier = timeTierPrices(row.output)
   const inputDisplayPrice = inputExact ?? inputTier?.standard ?? 0
   const outputDisplayPrice = outputExact ?? outputTier?.standard ?? 0
+  const cacheReadRules = row.cache_hit_input
+    ? tokenPriceRules('cache_read_input', row.cache_hit_input)
+    : []
   return {
     input: String(inputDisplayPrice),
     output: String(outputDisplayPrice),
     unit: '0.000001',
     currency: 'CNY',
-    rules: [...tokenPriceRules('input', row.input), ...tokenPriceRules('output', row.output)]
+    rules: [
+      ...tokenPriceRules('input', row.input),
+      ...cacheReadRules,
+      ...tokenPriceRules('output', row.output)
+    ]
   }
 }
 
@@ -185,9 +192,11 @@ for (const [index, row] of runtimeRows.entries()) {
   writeFileSync(join(folder, file), stringify(modelSchema(row, modelType), { lineWidth: 0 }))
   generated.push({
     name: row.name,
+    ...(row.model_id ? { model_id: row.model_id } : {}),
     model_type: modelType,
     source_input: row.input,
     source_output: row.output,
+    ...(row.cache_hit_input ? { source_cache_hit_input: row.cache_hit_input } : {}),
     priced: modelType === 'image' ? row.name.toLowerCase() === 'doubao-seedream-4.5' : tokenPriceRules('input', row.input).some((rule) => rule.mode !== '__xirang_unpriced__') && tokenPriceRules('output', row.output).some((rule) => rule.mode !== '__xirang_unpriced__')
   })
 }
