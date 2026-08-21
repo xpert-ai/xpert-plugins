@@ -14,6 +14,9 @@ help:
     zh_Hans: https://ctxirang.ctyun.cn/maas/modelSquare
 icon_small:
   en_US: icon.svg
+icon_large:
+  en_US: icon.svg
+  zh_Hans: icon.svg
 supported_model_types:
   - llm
   - text-embedding
