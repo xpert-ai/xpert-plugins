@@ -1,0 +1,22 @@
+---
+title: Architecture
+---
+
+```text
+Workbench iframe -> Xpert view bridge -> plugin service
+Assistant -> native middleware -> plugin service
+plugin service -> scoped Actor Token -> data-xpert Agent Tools REST
+plugin service -> plugin-owned proposal and audit tables
+approved proposal -> plugin Demo Action adapter -> simulated business receipt
+confirmed initialization -> plugin-owned ontology bundle -> data-xpert definition lifecycle -> published snapshot
+```
+
+The iframe receives compact DTOs only. Actor Tokens and tenant identity never cross the view bridge. Resource access is revalidated server-side against active, ready resources and an exact root entity type code.
+
+Initialization is deliberately separate from normal Agent Tools reads. Its resource id, semantic version, Schema, Actions, instances, and relations are compiled from server-side plugin files. The iframe can only request status and submit an overwrite-confirmation boolean. The service then creates or updates one definition, validates it, and publishes it through data-xpert's ontology-definition REST lifecycle.
+
+`ontology_action` proposals normally reference an action definition present in the selected object's current neighborhood. When customer Demo fallback is enabled, the Action Center can also expose clearly labelled plugin Demo definitions so the full approval/execution product loop remains demonstrable before every Action has been authored in the ontology.
+
+The data-xpert action definition remains the semantic contract: target type, intent, risk, approval and business meaning. The plugin owns the execution adapter. The Assistant can discover, preflight and draft only; a Workbench user approves and explicitly starts the Demo adapter. Every execution records queued, started and completed/failed events.
+
+Demo adapters never call ERP, EAM, QMS, procurement, DCS or SIS. They create deterministic references such as `WO-DEMO-*`, `INS-DEMO-*` and `NCR-DEMO-*`, and mark isolation as simulation-only.

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "maple",
+  "name": "Valve Business Workbench",
+  "colors": { "primary": "#0f766e", "light": "#14b8a6", "dark": "#115e59" },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          { "group": "Overview", "pages": ["index", "tutorial", "actions", "ontology-initialization", "architecture", "configuration"] },
+          { "group": "Operations", "pages": ["tools", "installation", "acceptance"] }
+        ]
+      }
+    ]
+  }
+}

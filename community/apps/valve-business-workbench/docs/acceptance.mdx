@@ -1,0 +1,20 @@
+---
+title: Acceptance
+---
+
+- With no existing resource, open the Workbench and verify it shows the fixed model version and bundle counts without writing automatically.
+- Click **初始化本体**, confirm, and verify data-xpert receives the draft, validates it, publishes it, and returns a ready resource containing exact entity type `valve`.
+- Verify reopening the current version does not create another definition or version.
+- Select the initialized resource and its demo Valve object.
+- Search and select a Valve object.
+- Verify resource/type selectors and dialogs use the shared shadcn primitives, host theme variables resolve in the iframe, and the compact Tailwind toolbar remains bounded to the Workbench height.
+- Collapse and expand the object navigator; confirm both the navigator and detail area keep independent internal scrolling without growing the host page.
+- Inspect properties, components, materials, standards, relations, evidence, and constraints.
+- Ask the Assistant to analyze the current object without restating its identity.
+- Open the Action center and verify source, risk, adapter mode, preconditions, inputs and expected effects are visible.
+- Create a maintenance work-order Demo proposal and verify normalized Action input is persisted.
+- Approve the proposal, execute the success path, and verify queued, started and completed events plus a `WO-DEMO-*` receipt.
+- Execute a second scenario using the failure path and verify `execution_failed` is durable and inspectable.
+- Execute the isolation scenario and verify it is labelled `simulation_only` and never claims a DCS/SIS command was sent.
+- Reload and verify proposals, outcomes and audit history persist.
+- Confirm that normal analysis and Action workflows do not mutate ontology model/data, and that all real external systems remain unchanged. Only the explicitly confirmed initializer may create or upgrade the plugin-owned ontology resource.

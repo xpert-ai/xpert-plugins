@@ -1,0 +1,18 @@
+---
+title: Valve Business Workbench
+description: Governed valve ontology object 360 and Assistant workflows for Xpert.
+---
+
+The Valve Business Workbench turns published valve ontology snapshots into an operational engineering surface. Users can browse objects, inspect relationships and evidence, review constraints, ask the Assistant for an analysis, and govern Action proposals through preflight, human approval, Demo execution, and audit.
+
+Normal Workbench and Assistant operations are read-only toward ontology data. The only ontology write path is the explicit, user-confirmed initializer for the plugin-owned `valve-engineering-ontology` bundle. Proposal and decision audit records remain isolated in the plugin namespace.
+
+<CardGroup cols={2}>
+  <Card title="Object 360" icon="circle-nodes">Properties, one-hop relationships, evidence, constraints, and action definitions.</Card>
+  <Card title="Governed proposals" icon="clipboard-check">Assistant-created pending proposals with human-only status transitions.</Card>
+  <Card title="Action center" icon="play">Discover actions, inspect preconditions and expected effects, then create a reviewable Demo proposal.</Card>
+  <Card title="Demo execution" icon="timeline">Generate deterministic simulated receipts and success/failure audit timelines without writing a real business system.</Card>
+  <Card title="Ontology initialization" icon="database">Import and publish the plugin-owned Schema, Actions, neutral demo objects, and relationships after connecting data-xpert.</Card>
+</CardGroup>
+
+Start with [ontology initialization](/ontology-initialization), continue with the [step-by-step Workbench tutorial](/tutorial), then use [Valve Action product scenarios](/actions) for the customer-facing scenario catalog and governance model.

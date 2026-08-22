@@ -1,0 +1,34 @@
+---
+title: Configuration
+---
+
+| Field | Default | Meaning |
+| --- | --- | --- |
+| `enabled` | `true` | Enable the plugin surface. |
+| `demo.enabled` | `true` | Enable plugin-owned simulated execution adapters. |
+| `demo.includeFallbackActions` | `true` | Show clearly labelled Demo Actions missing from the ontology. |
+| `dataXpert.apiBaseUrl` | `http://localhost:3001` | Server-side data-xpert endpoint. |
+| `dataXpert.rootEntityTypeCode` | `valve` | Exact root entity type required in every resource. |
+| `dataXpert.resourceIds` | unset | Optional ready-resource allowlist. |
+| `dataXpert.definitionResourceId` | unset | Optional definition resource filter. |
+| `dataXpert.timeoutMs` | `15000` | Outbound request timeout. |
+| `dataXpert.resultLimit` | `30` | Default bounded search result count; maximum 100. |
+
+Do not configure a browser token or tenant id. Identity always comes from the current host request and Actor Token capability.
+
+After saving a valid system connection, the Workbench checks the fixed `valve-engineering-ontology` resource and semantic version. It only writes the model after a user clicks **初始化本体** and confirms. If `resourceIds` or `definitionResourceId` is configured too narrowly before initialization, the newly published resource may be hidden from normal browsing; initialize first, then apply the allowlist.
+
+## Customer Demo mode
+
+```json
+{
+  "demo": {
+    "enabled": true,
+    "includeFallbackActions": true
+  }
+}
+```
+
+`enabled` activates the plugin-owned simulated execution adapters. `includeFallbackActions` shows clearly labelled Demo Actions that are not yet present in the published ontology. Disable fallback in production-oriented demonstrations when every shown Action must come from data-xpert.
+
+Environment aliases are `VALVE_WORKBENCH_DEMO_ENABLED` and `VALVE_WORKBENCH_DEMO_FALLBACK_ACTIONS`.

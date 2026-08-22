@@ -1,0 +1,14 @@
+---
+title: Tools and permissions
+---
+
+The middleware provides nine strict tools for ready-resource discovery, schema inspection, object search, object 360, Action discovery, Action preflight, proposal listing, proposal creation, and audit trace retrieval.
+
+- `valve_discover_actions` returns source, risk, approval requirement, required input, preconditions, expected effects, adapter mode and blockers.
+- `valve_preflight_action` validates the current snapshot, input, duplicate open work and Demo adapter availability without mutating state.
+
+The only mutation tool is `valve_create_action_proposal`. It creates `pending_review` records and is idempotent by `operationId`. It cannot approve or execute an action.
+
+Workbench users can approve or reject a pending proposal. Only an approved proposal can start the plugin-owned Demo adapter. The adapter records a simulated external reference and append-only execution events; it does not execute a real ERP, EAM, QMS, DCS or SIS operation.
+
+There is intentionally no middleware tool for approval or execution. This keeps consequential decisions on the authenticated Workbench surface.
