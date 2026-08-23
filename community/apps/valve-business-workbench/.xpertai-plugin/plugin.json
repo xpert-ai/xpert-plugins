@@ -1,0 +1,38 @@
+{
+  "name": "@xpert-ai/plugin-valve-business-workbench",
+  "version": "0.1.0",
+  "description": "Governed valve engineering Workbench, Assistant tools, ontology bootstrap, and context-aware business operations Skill.",
+  "author": "XpertAI",
+  "license": "AGPL-3.0",
+  "artifactNamespace": "valve_business_workbench",
+  "skills": "./skills/",
+  "targetApps": ["data-xpert"],
+  "targetAppMeta": {
+    "data-xpert": {
+      "types": ["business-app", "workbench-view", "assistant-tool", "assistant-template", "skill"],
+      "capabilities": [
+        "valve-business-workbench",
+        "valve-object-360",
+        "valve-action-preflight",
+        "valve-governed-proposals",
+        "valve-context-aware-operations"
+      ],
+      "marketplace": {
+        "contents": [
+          {
+            "type": "skill",
+            "name": "valve-business-operations",
+            "displayName": "Valve Context-aware Operations",
+            "description": "Use current Workbench context and valve middleware tools for evidence-based analysis and governed business operations."
+          },
+          {
+            "type": "assistant-template",
+            "name": "valve-business-workbench-assistant",
+            "displayName": "Valve Engineering Business Assistant",
+            "description": "Assistant template with valve middleware tools and the context-aware operations Skill."
+          }
+        ]
+      }
+    }
+  }
+}

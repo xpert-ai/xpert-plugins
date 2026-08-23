@@ -7,6 +7,8 @@ export const VALVE_REMOTE_ENTRY_KEY = 'valve-business-workbench'
 export const VALVE_MIDDLEWARE_NAME = 'ValveBusinessWorkbenchMiddleware'
 export const VALVE_TEMPLATE_PROVIDER_KEY = 'valveBusinessWorkbenchTemplates'
 export const VALVE_TEMPLATE_KEY = 'valve-business-workbench-assistant'
+export const VALVE_AGENT_KEY = 'Agent_ValveBusinessWorkbench'
+export const VALVE_SKILL_KEY = 'valve-business-operations'
 export const AGENT_WORKBENCH_MAIN_SLOT = 'agent.workbench.main'
 export const AGENT_WORKBENCH_FIXED_SLOT = 'agent.workbench.fixed'
 
@@ -20,6 +22,45 @@ export const VALVE_TOOL_NAMES = {
   listActionProposals: 'valve_list_action_proposals',
   createActionProposal: 'valve_create_action_proposal',
   getAuditTrace: 'valve_get_audit_trace'
+} as const
+
+export const VALVE_TOOL_TITLES = {
+  [VALVE_TOOL_NAMES.listResources]: {
+    en_US: 'List valve ontology resources',
+    zh_Hans: '列出阀门本体资源'
+  },
+  [VALVE_TOOL_NAMES.discoverActions]: {
+    en_US: 'Discover valve actions',
+    zh_Hans: '发现阀门可用动作'
+  },
+  [VALVE_TOOL_NAMES.preflightAction]: {
+    en_US: 'Preflight valve action',
+    zh_Hans: '预检阀门动作'
+  },
+  [VALVE_TOOL_NAMES.getSchema]: {
+    en_US: 'Get valve ontology schema',
+    zh_Hans: '获取阀门本体 Schema'
+  },
+  [VALVE_TOOL_NAMES.searchObjects]: {
+    en_US: 'Search valve objects',
+    zh_Hans: '搜索阀门对象'
+  },
+  [VALVE_TOOL_NAMES.getObject360]: {
+    en_US: 'Get valve object 360',
+    zh_Hans: '获取阀门对象 360'
+  },
+  [VALVE_TOOL_NAMES.listActionProposals]: {
+    en_US: 'List valve action proposals',
+    zh_Hans: '列出阀门动作草案'
+  },
+  [VALVE_TOOL_NAMES.createActionProposal]: {
+    en_US: 'Create valve action proposal',
+    zh_Hans: '创建阀门动作草案'
+  },
+  [VALVE_TOOL_NAMES.getAuditTrace]: {
+    en_US: 'Get valve audit trace',
+    zh_Hans: '获取阀门审计轨迹'
+  }
 } as const
 
 export const VALVE_MUTATION_TOOL_NAMES = [VALVE_TOOL_NAMES.createActionProposal]

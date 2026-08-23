@@ -2,15 +2,16 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { XpertTypeEnum } from '@xpert-ai/contracts'
 import type { XpertTemplateContribution } from '@xpert-ai/plugin-sdk'
-import {
-  VALVE_FEATURE,
-  VALVE_PLUGIN_NAME,
-  VALVE_PROVIDER_KEY,
-  VALVE_TEMPLATE_KEY,
-  VALVE_TEMPLATE_PROVIDER_KEY
-} from './constants'
+import { VALVE_FEATURE, VALVE_PLUGIN_NAME, VALVE_PROVIDER_KEY, VALVE_TEMPLATE_KEY, VALVE_TEMPLATE_PROVIDER_KEY } from './constants'
 
 const TEMPLATE_FILE = 'xpert-valve-business-workbench-assistant.yaml'
+const templateSkills = [
+  {
+    pluginName: '@xpert-ai/plugin-valve-business-workbench',
+    componentKey: 'valve-business-operations',
+    targetAgentKey: 'Agent_ValveBusinessWorkbench'
+  }
+]
 
 function readTemplateDsl() {
   const candidates = [
@@ -47,15 +48,20 @@ export const valveTemplates: XpertTemplateContribution[] = [
         }
       }
     },
+    dependencies: {
+      plugins: [VALVE_PLUGIN_NAME],
+      skills: templateSkills
+    },
     dslContent: readTemplateDsl(),
     order: 48,
     default: false,
     startPrompts: [
-      '分析当前阀门对象，并区分本体事实、风险和你的判断。',
-      '发现当前阀门可用的业务 Actions，并说明前置条件和预期影响。',
-      '为当前阀门创建一张维护工单 Demo 草案，先完成预检。'
+      '分析工作台当前选中的阀门，按本体事实、证据、风险和建议给出结论。',
+      '检查当前阀门的部件、材料和符合标准关系，指出证据或数据缺口。',
+      '发现当前阀门可用的 Actions，并对最合适的一项执行预检，但先不要创建草案。',
+      '查看当前阀门的待审核动作草案和审计记录，告诉我下一步需要人工处理什么。'
     ],
-    releaseNotes: '新增 Action 发现、预检、客户 Demo 草案、人工审批、模拟执行回执和完整审计时间线。',
+    releaseNotes: '新增上下文感知阀门业务 Skill 和面向对象分析、证据、Action 预检及人工处理的初始问题。',
     xpertName: '阀门工程业务助手',
     providerKey: VALVE_TEMPLATE_PROVIDER_KEY
   }

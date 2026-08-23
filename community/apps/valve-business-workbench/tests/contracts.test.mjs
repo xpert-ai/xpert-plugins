@@ -9,6 +9,13 @@ import { ValveViewProvider } from '../dist/lib/valve-view.provider.js'
 import { ValveBusinessService } from '../dist/lib/valve-business.service.js'
 import { buildValveActionDescriptors, normalizeActionInput } from '../dist/lib/valve-demo-actions.js'
 import { resolveValvePluginConfig } from '../dist/lib/config.js'
+import { valveTemplates } from '../dist/lib/templates.js'
+import {
+  VALVE_AGENT_KEY,
+  VALVE_SKILL_KEY,
+  VALVE_TOOL_NAMES,
+  VALVE_TOOL_TITLES
+} from '../dist/lib/constants.js'
 import {
   VALVE_ONTOLOGY_MANIFEST,
   VALVE_ONTOLOGY_RESOURCE_ID,
@@ -194,7 +201,28 @@ test('middleware publishes action discovery and preflight but no approval or exe
   assert.equal(names.some((name) => /approve|execute|complete|reject/.test(name)), false)
   for (const tool of middleware.tools) {
     assert.equal(tool.schema.safeParse({ unexpected: true }).success, false)
+    assert.deepEqual(tool.metadata?.toolName, VALVE_TOOL_TITLES[tool.name])
+    assert.equal(
+      Boolean(tool.schema.shape?.changeSummary),
+      tool.name === VALVE_TOOL_NAMES.createActionProposal
+    )
   }
+
+  const createProposal = middleware.tools.find((item) => item.name === VALVE_TOOL_NAMES.createActionProposal)
+  const proposalInput = {
+    kind: 'engineering_review',
+    title: 'Review valve leakage',
+    summary: 'Review the observed packing leak before deciding the governed action.'
+  }
+  assert.equal(createProposal.schema.safeParse(proposalInput).success, false)
+  assert.equal(
+    createProposal.schema.safeParse({ ...proposalInput, changeSummary: '为 VALVE-101 创建泄漏评审草案' }).success,
+    true
+  )
+  assert.equal(
+    createProposal.schema.safeParse({ ...proposalInput, changeSummary: 'x'.repeat(201) }).success,
+    false
+  )
 })
 
 test('middleware trusts the active Workbench target and opaque partition over model guesses', async () => {
@@ -386,16 +414,58 @@ test('approved proposals execute through the Demo adapter and append a governed 
 })
 
 test('Assistant template connects native middleware and contains governance boundaries', async () => {
-  const source = await readFile(join(packageRoot, 'src/xpert-valve-business-workbench-assistant.yaml'), 'utf8')
+  const [source, built] = await Promise.all([
+    readFile(join(packageRoot, 'src/xpert-valve-business-workbench-assistant.yaml'), 'utf8'),
+    readFile(join(packageRoot, 'dist/xpert-valve-business-workbench-assistant.yaml'), 'utf8')
+  ])
   const dsl = parse(source)
   const middlewareNode = dsl.nodes.find((node) => node.type === 'workflow')
   assert.equal(middlewareNode.entity.provider, 'ValveBusinessWorkbenchMiddleware')
+  assert.equal(dsl.team.version, '3')
+  assert.deepEqual(dsl.team.starters, valveTemplates[0].startPrompts)
+  assert.equal(dsl.team.starters.length, 4)
+  assert.deepEqual(valveTemplates[0].dependencies, {
+    plugins: ['@xpert-ai/plugin-valve-business-workbench'],
+    skills: [{ pluginName: '@xpert-ai/plugin-valve-business-workbench', componentKey: VALVE_SKILL_KEY, targetAgentKey: VALVE_AGENT_KEY }]
+  })
+  assert.equal(built, source)
   assert.match(source, /pending_review/)
   assert.match(source, /valve_preflight_action/)
   assert.match(source, /未写入真实 ERP、EAM、QMS、DCS 或 SIS/)
   assert.match(source, /不修改本体 Schema/)
   assert.match(source, /不调用 MCP/)
   assert.doesNotMatch(source, /datax-live-artifacts/)
+})
+
+test('plugin bundles a context-aware valve Skill aligned with every middleware tool and human authority boundary', async () => {
+  const [packageText, manifestText, skill, metadata, docs, navText] = await Promise.all([
+    readFile(join(packageRoot, 'package.json'), 'utf8'),
+    readFile(join(packageRoot, '.xpertai-plugin/plugin.json'), 'utf8'),
+    readFile(join(packageRoot, 'skills/valve-business-operations/SKILL.md'), 'utf8'),
+    readFile(join(packageRoot, 'skills/valve-business-operations/agents/xpertai.yaml'), 'utf8'),
+    readFile(join(packageRoot, 'docs/assistant-skill.mdx'), 'utf8'),
+    readFile(join(packageRoot, 'docs/docs.json'), 'utf8')
+  ])
+  const packageJson = JSON.parse(packageText)
+  const manifest = JSON.parse(manifestText)
+  const agentMetadata = parse(metadata)
+  const nav = JSON.parse(navText)
+  assert.equal(manifest.skills, './skills/')
+  assert.equal(manifest.artifactNamespace, 'valve_business_workbench')
+  assert.equal(manifest.targetAppMeta['data-xpert'].marketplace.contents.some((item) => item.type === 'skill' && item.name === VALVE_SKILL_KEY), true)
+  assert.equal(packageJson.files.includes('.xpertai-plugin'), true)
+  assert.equal(packageJson.files.includes('skills'), true)
+  assert.match(skill, /^---\nname: valve-business-operations\n/)
+  for (const toolName of Object.values(VALVE_TOOL_NAMES)) assert.match(skill, new RegExp(`\\b${toolName}\\b`))
+  assert.match(skill, /only when the user explicitly asks/)
+  assert.match(skill, /cannot approve, reject, execute, complete, or fail/)
+  assert.equal(agentMetadata.policy.allow_implicit_invocation, true)
+  assert.deepEqual(
+    agentMetadata.runtime.required_tools.filter((item) => item.provider === 'ValveBusinessWorkbenchMiddleware').map((item) => item.name),
+    Object.values(VALVE_TOOL_NAMES)
+  )
+  assert.match(docs, /team\.starters/)
+  assert.equal(nav.navigation.tabs[0].groups[1].pages.includes('assistant-skill'), true)
 })
 
 test('remote view uses the shared shadcn theme, Tailwind Studio layout, and collapsible bounded panels', async () => {

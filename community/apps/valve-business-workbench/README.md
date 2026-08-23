@@ -2,7 +2,7 @@
 
 `@xpert-ai/plugin-valve-business-workbench` is a system-level Xpert Agentic App for using published valve ontology models and data in day-to-day engineering work.
 
-It provides a Studio-style Workbench, native Agent middleware tools, a managed Assistant template, governed proposal persistence, plugin-owned customer Demo Action adapters, and an explicit user-confirmed initializer for its own valve ontology bundle. It does not install an MCP client, mutate unrelated ontology definitions, initialize data silently during plugin installation, or write to real ERP/EAM/QMS/DCS/SIS systems.
+It provides a Studio-style Workbench, native Agent middleware tools, a context-aware business operation Skill, a managed Assistant template with conversation starters, governed proposal persistence, plugin-owned customer Demo Action adapters, and an explicit user-confirmed initializer for its own valve ontology bundle. It does not install an MCP client, mutate unrelated ontology definitions, initialize data silently during plugin installation, or write to real ERP/EAM/QMS/DCS/SIS systems.
 
 ## Capabilities
 
@@ -16,6 +16,7 @@ It provides a Studio-style Workbench, native Agent middleware tools, a managed A
 - Built-in maintenance work order, inspection, quality deviation, spare part, replacement review, and isolation simulation scenarios.
 - Chinese and English UI with shared shadcn primitives, host theme tokens, a collapsible Studio navigator, and internal panel scrolling.
 - Code-owned valve Schema, seven governed Action definitions, and neutral demo instances/relationships that users can explicitly import and publish to data-xpert.
+- A bundled `valve-business-operations` Skill that resolves current Workbench context and guides evidence review, Action preflight, proposal creation, and audit.
 
 ## Configuration
 

@@ -9,6 +9,8 @@ The middleware provides nine strict tools for ready-resource discovery, schema i
 
 The only mutation tool is `valve_create_action_proposal`. It creates `pending_review` records and is idempotent by `operationId`. It cannot approve or execute an action.
 
+All tools publish localized fixed ChatKit titles. Read tools use that fixed title directly; `valve_create_action_proposal` additionally requires a bounded `changeSummary` for its runtime-specific progress title. The summary is display-only and is removed from expandable structured input details.
+
 Workbench users can approve or reject a pending proposal. Only an approved proposal can start the plugin-owned Demo adapter. The adapter records a simulated external reference and append-only execution events; it does not execute a real ERP, EAM, QMS, DCS or SIS operation.
 
 There is intentionally no middleware tool for approval or execution. This keeps consequential decisions on the authenticated Workbench surface.

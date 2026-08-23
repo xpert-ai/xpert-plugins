@@ -30,10 +30,12 @@
     }
   },
   "files": [
+    ".xpertai-plugin",
     "dist",
     "index.cjs",
     "README.md",
     "docs",
+    "skills",
     "!**/*.tsbuildinfo"
   ],
   "scripts": {

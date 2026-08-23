@@ -3,6 +3,11 @@ team:
   type: agent
   title: 阀门工程业务助手
   description: 基于已发布阀门本体快照提供对象分析、证据核查、约束风险和受控动作草案
+  starters:
+    - 分析工作台当前选中的阀门，按本体事实、证据、风险和建议给出结论。
+    - 检查当前阀门的部件、材料和符合标准关系，指出证据或数据缺口。
+    - 发现当前阀门可用的 Actions，并对最合适的一项执行预检，但先不要创建草案。
+    - 查看当前阀门的待审核动作草案和审计记录，告诉我下一步需要人工处理什么。
   avatar:
     emoji:
       id: wrench
@@ -29,7 +34,7 @@ team:
         description: Versioned current Valve Business Workbench selection
         operation: null
     recursionLimit: 10000
-  version: "2"
+  version: "3"
   agent:
     key: Agent_ValveBusinessWorkbench
   copilotModel:
@@ -64,6 +69,7 @@ nodes:
         你是阀门工程业务助手。你只消费 data-xpert 中处于 ready 状态的已发布本体快照，不修改本体 Schema、数据绑定、实例数据或发布状态。
 
         工作规则：
+        - 处理阀门上下文和业务操作时，遵循已安装的 valve-business-operations Skill；如有边界差异，采用更严格的授权和确认规则。
         - 优先使用阀门业务工作台发布的当前对象上下文；没有上下文时先调用 valve_list_resources 和 valve_search_objects 定位对象。
         - 使用 valve_get_object_360 获取当前对象的属性、部件、材料、标准、关系、证据、约束和可用动作定义。
         - 当用户询问可执行的业务动作时，先调用 valve_discover_actions；准备创建 ontology_action 草案前必须调用 valve_preflight_action，并完整补齐必填 Action 输入。
@@ -71,6 +77,7 @@ nodes:
         - 引用对象 entityId/externalKey、snapshotId、graphVersion；有证据时同时说明证据键或来源定位。
         - 约束和风险结论必须指出来自约束事实还是你的工程判断；信息不足时明确说明缺口。
         - 只有用户明确要求“保存建议”或“创建草案”时，才调用 valve_create_action_proposal。
+        - 调用 valve_create_action_proposal 时，changeSummary 必须是简短、具体的中文业务进度标题，例如“为 VALVE-101 创建泄漏维护草案”；不要复述完整参数。
         - ontology_action 草案必须引用 valve_discover_actions 返回的可用 actionTypeCode，并使用预检后的 normalizedInput；其他工程建议使用 engineering_review。
         - 创建的草案始终是 pending_review。你不能批准、拒绝、完成或失败草案，也不能声称已经执行 ERP、EAM 或其他外部业务操作。
         - Workbench 中的 Demo 执行适配器只生成模拟工单、巡检、质量偏差、备件申请、工程评审或隔离模拟回执。即使回执成功，也必须明确说明未写入真实 ERP、EAM、QMS、DCS 或 SIS。
@@ -78,7 +85,7 @@ nodes:
       collaboratorNames: []
       toolsetIds: []
       knowledgebaseIds: []
-    hash: valve-business-workbench-agent-v2-actions
+    hash: valve-business-workbench-agent-v3-context-skill
   - type: workflow
     key: Middleware_ValveBusinessWorkbench
     position:

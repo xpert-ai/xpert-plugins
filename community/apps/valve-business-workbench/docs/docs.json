@@ -9,7 +9,7 @@
         "tab": "Documentation",
         "groups": [
           { "group": "Overview", "pages": ["index", "tutorial", "actions", "ontology-initialization", "architecture", "configuration"] },
-          { "group": "Operations", "pages": ["tools", "installation", "acceptance"] }
+          { "group": "Operations", "pages": ["tools", "assistant-skill", "installation", "acceptance"] }
         ]
       }
     ]

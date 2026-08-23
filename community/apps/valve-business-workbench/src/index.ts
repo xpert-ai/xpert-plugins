@@ -14,6 +14,7 @@ import {
   VALVE_MIDDLEWARE_NAME,
   VALVE_PLUGIN_NAME,
   VALVE_PROVIDER_KEY,
+  VALVE_SKILL_KEY,
   VALVE_TEMPLATE_KEY,
   VALVE_TEMPLATE_PROVIDER_KEY,
   VALVE_VIEW_KEY
@@ -35,8 +36,8 @@ const plugin: XpertPlugin<ValvePluginConfig> = {
     targetApps: ['data-xpert'],
     targetAppMeta: {
       'data-xpert': {
-        types: ['business-app', 'workbench-view', 'assistant-tool'],
-        capabilities: [VALVE_FEATURE, 'valve-object-360', 'valve-action-preflight', 'valve-demo-execution', 'valve-governed-proposals', 'valve-audit'],
+        types: ['business-app', 'workbench-view', 'assistant-tool', 'skill'],
+        capabilities: [VALVE_FEATURE, 'valve-object-360', 'valve-action-preflight', 'valve-demo-execution', 'valve-governed-proposals', 'valve-audit', 'valve-context-aware-operations'],
         marketplace: {
           contents: [
             {
@@ -77,6 +78,12 @@ const plugin: XpertPlugin<ValvePluginConfig> = {
               name: VALVE_MIDDLEWARE_NAME,
               displayName: 'Valve Business Tools',
               description: 'Strict native middleware tools for published ontology reads and pending-review proposal creation.'
+            },
+            {
+              type: 'skill',
+              name: VALVE_SKILL_KEY,
+              displayName: 'Valve Context-aware Operations',
+              description: 'Guide the Agent through current-object resolution, evidence-based analysis, Action preflight, governed proposals, and audit.'
             },
             {
               type: 'assistant-template',
