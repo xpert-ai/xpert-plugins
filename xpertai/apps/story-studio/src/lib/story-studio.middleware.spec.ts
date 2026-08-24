@@ -21,8 +21,7 @@ jest.mock('@langchain/core/tools', () => ({
 
 const mockDispatchCustomEvent = jest.fn()
 jest.mock('@langchain/core/callbacks/dispatch', () => ({
-  dispatchCustomEvent: (...args: unknown[]) =>
-    mockDispatchCustomEvent(...args)
+  dispatchCustomEvent: (...args: unknown[]) => mockDispatchCustomEvent(...args)
 }))
 
 import type {
@@ -34,10 +33,10 @@ import {
   STORY_ATTACH_GENERATED_VIDEO_TOOL_NAME,
   STORY_CREATE_ADAPTATION_SUGGESTION_TOOL_NAME,
   STORY_CREATE_PROJECT_TOOL_NAME,
+  STORY_GET_PRODUCTION_CONTEXT_TOOL_NAME,
   STORY_GET_PROJECT_REVISION_TOOL_NAME,
+  STORY_INITIALIZE_PRODUCTION_TOOL_NAME,
   STORY_SEARCH_PROJECTS_TOOL_NAME,
-  STORY_SAVE_PRODUCTION_TOOL_NAME,
-  STORY_START_PRODUCTION_TOOL_NAME,
   STORY_STUDIO_MIDDLEWARE_TOOL_NAMES,
   STORY_UPSERT_PRODUCTION_SHOT_TOOL_NAME,
   STORY_UPDATE_PROJECT_STATUS_TOOL_NAME
@@ -201,6 +200,84 @@ function createHarness() {
     }),
     attachAssetImage: jest.fn().mockResolvedValue(productionMutationResult)
   }
+  const productionAgent = {
+    getContext: jest.fn().mockResolvedValue({
+      projectId: receipt.projectId,
+      revision: 1,
+      exists: false,
+      documentRevision: null,
+      counts: {
+        sources: 0,
+        beats: 0,
+        episodes: 0,
+        assets: 0,
+        characters: 0,
+        scenes: 0,
+        shots: 0,
+        candidates: 0,
+        selectedCandidates: 0
+      },
+      indexes: {
+        characterIds: [],
+        episodeIds: [],
+        assetIds: [],
+        scenes: []
+      },
+      availableReads: ['story_get_production'],
+      availableMutations: ['story_initialize_production'],
+      nextAction: 'Initialize the production brief before adding entities.'
+    }),
+    initialize: jest.fn().mockResolvedValue({
+      success: true,
+      duplicate: false,
+      operationId: 'production:initialize:middleware',
+      projectId: receipt.projectId,
+      revision: 2,
+      documentRevision: 1,
+      changedEntityType: 'production',
+      counts: {
+        sources: 0,
+        beats: 0,
+        episodes: 0,
+        assets: 0,
+        characters: 0,
+        scenes: 0,
+        shots: 0,
+        candidates: 0,
+        selectedCandidates: 0
+      },
+      totalDurationSeconds: 0,
+      nextAction: 'Add one character, episode, asset, or scene.'
+    }),
+    updateBrief: jest.fn(),
+    upsertCharacter: jest.fn(),
+    upsertEpisode: jest.fn(),
+    upsertAsset: jest.fn(),
+    upsertSceneMetadata: jest.fn(),
+    upsertShot: jest.fn().mockResolvedValue({
+      success: true,
+      duplicate: false,
+      projectId: receipt.projectId,
+      revision: 4,
+      documentRevision: 2,
+      sceneId: 'scene-river',
+      shotId: 'shot-crossing',
+      shotIds: ['shot-crossing'],
+      counts: {
+        sources: 1,
+        beats: 0,
+        episodes: 1,
+        assets: 0,
+        characters: 3,
+        scenes: 1,
+        shots: 1,
+        candidates: 0,
+        selectedCandidates: 0
+      },
+      totalDurationSeconds: 6
+    }),
+    validate: jest.fn()
+  }
   const generatedMedia = {
     attachGeneratedVideo: jest.fn()
   }
@@ -243,16 +320,17 @@ function createHarness() {
   const middleware = new StoryStudioMiddleware(
     service as never,
     production as never,
+    productionAgent as never,
     suggestions as never,
     generatedMedia as never,
     cutHandoffs as never,
     videoGeneration as never
-  )
-    .createMiddleware({}, middlewareContext()) as AgentMiddleware
+  ).createMiddleware({}, middlewareContext()) as AgentMiddleware
   return {
     middleware,
     service,
     production,
+    productionAgent,
     generatedMedia,
     suggestions,
     cutHandoffs
@@ -276,9 +354,10 @@ describe('StoryStudioMiddleware', () => {
 
   it('exposes the complete public tool catalog', () => {
     const { middleware } = createHarness()
-    expect((middleware.tools as TestTool[]).map((tool) => tool.name)).toEqual(
-      [...STORY_STUDIO_MIDDLEWARE_TOOL_NAMES]
-    )
+    const names = (middleware.tools as TestTool[]).map((tool) => tool.name)
+    expect(names).toEqual([...STORY_STUDIO_MIDDLEWARE_TOOL_NAMES])
+    expect(names).not.toContain('story_save_production')
+    expect(names).not.toContain('story_start_production')
   })
 
   it('returns a compact project revision without loading the project summary', async () => {
@@ -286,10 +365,9 @@ describe('StoryStudioMiddleware', () => {
     const input = { projectId: receipt.projectId }
 
     const result = JSON.parse(
-      await getTool(
-        middleware,
-        STORY_GET_PROJECT_REVISION_TOOL_NAME
-      ).invoke(input)
+      await getTool(middleware, STORY_GET_PROJECT_REVISION_TOOL_NAME).invoke(
+        input
+      )
     )
 
     expect(service.getProjectRevision).toHaveBeenCalledWith(
@@ -332,47 +410,46 @@ describe('StoryStudioMiddleware', () => {
     expect(result.changedSuggestionIds).toEqual(['suggestion-rain'])
   })
 
-  it('routes initial production creation through the start tool', async () => {
-    const { middleware, production } = createHarness()
+  it('reads lightweight production context before choosing a mutation', async () => {
+    const { middleware, productionAgent } = createHarness()
+    const input = { projectId: receipt.projectId, expectedRevision: 1 }
+    const result = JSON.parse(
+      await getTool(middleware, STORY_GET_PRODUCTION_CONTEXT_TOOL_NAME).invoke(
+        input
+      )
+    )
+
+    expect(productionAgent.getContext).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-a' }),
+      input
+    )
+    expect(result).toEqual(
+      expect.objectContaining({
+        projectId: receipt.projectId,
+        revision: 1,
+        exists: false
+      })
+    )
+  })
+
+  it('routes initial production creation through the brief-only initializer', async () => {
+    const { middleware, productionAgent } = createHarness()
     const input = {
       projectId: receipt.projectId,
-      operationId: 'production:start:middleware',
+      operationId: 'production:initialize:middleware',
       baseRevision: 1,
       sourceSynopsis: 'A foal reaches a river.',
       adaptationGoal: 'Create the opening scene.',
       visualStyle: 'Ink-wash fable.',
-      characters: [{ id: 'foal', name: 'Foal' }],
-      firstScene: {
-        id: 'scene-river',
-        order: 1,
-        title: 'The river',
-        summary: 'The foal pauses at the riverbank.',
-        shots: [
-          {
-            id: 'shot-ask',
-            title: 'Foal asks',
-            composition: 'Medium shot beside the river.',
-            action: 'The foal watches the current.',
-            camera: 'Static medium shot',
-            dialogue: {
-              text: 'Can I cross?',
-              speakerId: 'foal',
-              type: 'dialogue'
-            },
-            durationSeconds: 5
-          }
-        ]
-      },
-      changeSummary: 'Started the first river scene'
+      changeSummary: 'Initialized the fable production brief'
     }
     const result = JSON.parse(
-      await getTool(
-        middleware,
-        STORY_START_PRODUCTION_TOOL_NAME
-      ).invoke(input)
+      await getTool(middleware, STORY_INITIALIZE_PRODUCTION_TOOL_NAME).invoke(
+        input
+      )
     )
 
-    expect(production.startProduction).toHaveBeenCalledWith(
+    expect(productionAgent.initialize).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: 'tenant-a' }),
       input
     )
@@ -381,13 +458,13 @@ describe('StoryStudioMiddleware', () => {
         projectId: receipt.projectId,
         revision: 2,
         documentRevision: 1,
-        sceneId: 'scene-river'
+        changedEntityType: 'production'
       })
     )
   })
 
   it('routes one-shot production patches through the smaller production tool', async () => {
-    const { middleware, production } = createHarness()
+    const { middleware, productionAgent } = createHarness()
     const input = {
       projectId: receipt.projectId,
       operationId: 'production:shot:middleware',
@@ -401,13 +478,12 @@ describe('StoryStudioMiddleware', () => {
       changeSummary: 'Updated the silent river-crossing action beat'
     }
     const result = JSON.parse(
-      await getTool(
-        middleware,
-        STORY_UPSERT_PRODUCTION_SHOT_TOOL_NAME
-      ).invoke(input)
+      await getTool(middleware, STORY_UPSERT_PRODUCTION_SHOT_TOOL_NAME).invoke(
+        input
+      )
     )
 
-    expect(production.upsertShot).toHaveBeenCalledWith(
+    expect(productionAgent.upsertShot).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: 'tenant-a' }),
       input
     )
@@ -559,37 +635,6 @@ describe('StoryStudioMiddleware', () => {
     expect(revisions).toEqual([12, 13, 14, 15])
     expect(service.getProjectSummary).not.toHaveBeenCalled()
     expect(service.getProjectRevision).not.toHaveBeenCalled()
-  })
-
-  it('returns a compact receipt when saving a complete production document', async () => {
-    const { middleware } = createHarness()
-    const result = JSON.parse(
-      await getTool(middleware, STORY_SAVE_PRODUCTION_TOOL_NAME).invoke({
-        projectId: receipt.projectId,
-        operationId: 'production:save:middleware',
-        baseRevision: 1,
-        production: {
-          sourceSynopsis: 'A bounded source synopsis.',
-          adaptationGoal: 'Create a short film.',
-          visualStyle: 'Cinematic realism.',
-          characters: [],
-          scenes: []
-        },
-        changeSummary: 'Saved the complete production document'
-      })
-    )
-
-    expect(result).toEqual({
-      success: true,
-      duplicate: false,
-      operationId: 'production:save:middleware',
-      projectId: receipt.projectId,
-      revision: 2,
-      documentRevision: 4,
-      counts: productionMutationResult.production.counts,
-      totalDurationSeconds: 60
-    })
-    expect(result.production).toBeUndefined()
   })
 
   it('normalizes JSON-encoded assetReference values before the attachment service call', async () => {
@@ -744,10 +789,7 @@ describe('StoryStudioMiddleware', () => {
     })
 
     const result = JSON.parse(
-      await getTool(
-        middleware,
-        STORY_ATTACH_GENERATED_VIDEO_TOOL_NAME
-      ).invoke({
+      await getTool(middleware, STORY_ATTACH_GENERATED_VIDEO_TOOL_NAME).invoke({
         projectId: receipt.projectId,
         operationId: 'seedance:attach:middleware',
         baseRevision: 1,
@@ -777,9 +819,7 @@ describe('StoryStudioMiddleware', () => {
       expect.objectContaining({
         reference: expect.objectContaining({
           source: 'platform.workspace.files',
-          filePath: expect.stringContaining(
-            'files/story-studio/'
-          )
+          filePath: expect.stringContaining('files/story-studio/')
         })
       })
     )

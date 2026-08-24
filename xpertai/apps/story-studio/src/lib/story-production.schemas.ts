@@ -8,29 +8,35 @@ const operationId = bounded(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$/)
 const changeSummary = bounded(240)
 const dialogueTypeSchema = z.enum(['dialogue', 'voice_over', 'off_screen'])
 const shotTransitionSchema = z.enum(STORY_SHOT_TRANSITIONS)
-const shotContinuitySubjectStateSchema = z.object({
-  assetId: identifier,
-  visible: z.boolean().optional(),
-  location: z.string().trim().max(500).optional(),
-  pose: z.string().trim().max(500).optional(),
-  actionPhase: z.string().trim().max(500).optional(),
-  facing: z.string().trim().max(240).optional(),
-  screenPosition: z.string().trim().max(240).optional(),
-  heldPropAssetIds: z.array(identifier).max(12).optional(),
-  wardrobe: z.string().trim().max(500).optional(),
-  emotion: z.string().trim().max(500).optional()
-}).strict()
-const shotContinuityStateSchema = z.object({
-  summary: z.string().trim().max(1_000).optional(),
-  environment: z.string().trim().max(1_000).optional(),
-  subjects: z.array(shotContinuitySubjectStateSchema).max(16).optional()
-}).strict()
-const shotContinuitySchema = z.object({
-  transition: shotTransitionSchema,
-  fromShotId: identifier.optional(),
-  startState: shotContinuityStateSchema.optional(),
-  endState: shotContinuityStateSchema.optional()
-}).strict()
+const shotContinuitySubjectStateSchema = z
+  .object({
+    assetId: identifier,
+    visible: z.boolean().optional(),
+    location: z.string().trim().max(500).optional(),
+    pose: z.string().trim().max(500).optional(),
+    actionPhase: z.string().trim().max(500).optional(),
+    facing: z.string().trim().max(240).optional(),
+    screenPosition: z.string().trim().max(240).optional(),
+    heldPropAssetIds: z.array(identifier).max(12).optional(),
+    wardrobe: z.string().trim().max(500).optional(),
+    emotion: z.string().trim().max(500).optional()
+  })
+  .strict()
+const shotContinuityStateSchema = z
+  .object({
+    summary: z.string().trim().max(1_000).optional(),
+    environment: z.string().trim().max(1_000).optional(),
+    subjects: z.array(shotContinuitySubjectStateSchema).max(16).optional()
+  })
+  .strict()
+const shotContinuitySchema = z
+  .object({
+    transition: shotTransitionSchema,
+    fromShotId: identifier.optional(),
+    startState: shotContinuityStateSchema.optional(),
+    endState: shotContinuityStateSchema.optional()
+  })
+  .strict()
 
 const assetReferenceSchema = z.discriminatedUnion('type', [
   z
@@ -57,21 +63,18 @@ const assetReferenceSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('general') }).strict()
 ])
 
-const generatedAssetReferenceSchema = z.preprocess(
-  (value) => {
-    if (typeof value !== 'string') return value
-    const serialized = value.trim()
-    if (!serialized.startsWith('{') || !serialized.endsWith('}')) {
-      return value
-    }
-    try {
-      return JSON.parse(serialized)
-    } catch {
-      return value
-    }
-  },
-  assetReferenceSchema
-)
+const generatedAssetReferenceSchema = z.preprocess((value) => {
+  if (typeof value !== 'string') return value
+  const serialized = value.trim()
+  if (!serialized.startsWith('{') || !serialized.endsWith('}')) {
+    return value
+  }
+  try {
+    return JSON.parse(serialized)
+  } catch {
+    return value
+  }
+}, assetReferenceSchema)
 
 const shotVideoSettingsSchema = z
   .object({
@@ -98,8 +101,16 @@ const candidateSchema = z
     providerReceipt: z.record(z.unknown()).optional(),
     originalName: bounded(240).optional(),
     mimeType: bounded(160).optional(),
-    size: z.number().int().positive().max(2 * 1024 * 1024 * 1024).optional(),
-    sha256: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+    size: z
+      .number()
+      .int()
+      .positive()
+      .max(2 * 1024 * 1024 * 1024)
+      .optional(),
+    sha256: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .optional(),
     assetReference: assetReferenceSchema.optional()
   })
   .strict()
@@ -158,7 +169,7 @@ const episodeSchema = z
     title: bounded(160),
     summary: bounded(2_000),
     script: bounded(20_000),
-    targetDurationSeconds: z.number().min(5).max(1_800).optional()
+    targetDurationSeconds: z.number().int().min(5).max(1_800).optional()
   })
   .strict()
 
@@ -171,6 +182,21 @@ const assetSchema = z
     prompt: bounded(4_000),
     negativePrompt: z.string().trim().max(2_000).optional(),
     continuityNotes: z.string().trim().max(2_000).optional(),
+    role: z.string().trim().max(240).optional(),
+    visualDescription: z.string().trim().max(2_000).optional(),
+    voiceReference: z
+      .object({
+        url: z.string().url().max(2_000),
+        label: bounded(240),
+        license: z.string().trim().max(240).optional(),
+        sourceUrl: z.string().url().max(2_000).optional(),
+        workspacePath: bounded(2_000).optional(),
+        originalName: bounded(500).optional(),
+        mimeType: bounded(200).optional(),
+        size: z.number().int().positive().max(20 * 1024 * 1024).optional()
+      })
+      .strict()
+      .optional(),
     categoryDetails: z
       .object({
         identity: z.string().trim().max(1_000).optional(),
@@ -191,6 +217,20 @@ const assetSchema = z
     candidates: z.array(candidateSchema).max(12).optional()
   })
   .strict()
+  .superRefine((value, context) => {
+    if (
+      value.kind !== 'character' &&
+      (value.role !== undefined ||
+        value.visualDescription !== undefined ||
+        value.voiceReference !== undefined)
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          'role, visualDescription, and voiceReference are only valid on character assets.'
+      })
+    }
+  })
 
 const shotSchema = z
   .object({
@@ -296,28 +336,6 @@ const productionSceneUpsertSchema = z
   })
   .strict()
 
-const characterSchema = z
-  .object({
-    id: identifier,
-    name: bounded(120),
-    role: z.string().trim().max(240).optional(),
-    visualDescription: z.string().trim().max(2_000).optional(),
-    voiceReference: z
-      .object({
-        url: z.string().url().max(2_000),
-        label: bounded(240),
-        license: z.string().trim().max(240).optional(),
-        sourceUrl: z.string().url().max(2_000).optional(),
-        workspacePath: bounded(2_000).optional(),
-        originalName: bounded(500).optional(),
-        mimeType: bounded(200).optional(),
-        size: z.number().int().positive().max(20 * 1024 * 1024).optional()
-      })
-      .strict()
-      .optional()
-  })
-  .strict()
-
 export const storyProductionDocumentSchema = z
   .object({
     sourceSynopsis: bounded(12_000),
@@ -328,12 +346,23 @@ export const storyProductionDocumentSchema = z
     storyPlan: storyPlanSchema.optional(),
     episodes: z.array(episodeSchema).max(100).optional(),
     assets: z.array(assetSchema).max(160).optional(),
-    characters: z.array(characterSchema).max(40),
     scenes: z.array(sceneSchema).min(1).max(40)
   })
   .strict()
   .superRefine((value, context) => {
-    uniqueIds(value.characters.map((item) => item.id), 'Character ids', context)
+    const characterAssets = (value.assets ?? []).filter(
+      (item) => item.kind === 'character'
+    )
+    if (characterAssets.length > 40) {
+      context.addIssue({
+        code: z.ZodIssueCode.too_big,
+        maximum: 40,
+        type: 'array',
+        inclusive: true,
+        path: ['assets'],
+        message: 'Character assets cannot contain more than 40 items.'
+      })
+    }
     uniqueIds(
       (value.sourceMaterials ?? []).map((item) => item.id),
       'Source material ids',
@@ -345,9 +374,7 @@ export const storyProductionDocumentSchema = z
       context
     )
     uniqueIds(
-      (value.storyPlan?.adaptationSuggestions ?? []).map(
-        (item) => item.id
-      ),
+      (value.storyPlan?.adaptationSuggestions ?? []).map((item) => item.id),
       'Adaptation suggestion ids',
       context
     )
@@ -366,10 +393,18 @@ export const storyProductionDocumentSchema = z
       'Asset ids',
       context
     )
-    uniqueIds(value.scenes.map((item) => item.id), 'Scene ids', context)
-    uniqueIds(value.scenes.map((item) => item.order), 'Scene order values', context)
+    uniqueIds(
+      value.scenes.map((item) => item.id),
+      'Scene ids',
+      context
+    )
+    uniqueIds(
+      value.scenes.map((item) => item.order),
+      'Scene order values',
+      context
+    )
     const shots = value.scenes.flatMap((scene) => scene.shots)
-    const characterIds = new Set(value.characters.map((item) => item.id))
+    const characterIds = new Set(characterAssets.map((item) => item.id))
     const episodeIds = new Set((value.episodes ?? []).map((item) => item.id))
     const sceneIds = new Set(value.scenes.map((item) => item.id))
     const shotIds = new Set(shots.map((item) => item.id))
@@ -395,7 +430,7 @@ export const storyProductionDocumentSchema = z
               shotIndex,
               'dialogueSpeakerId'
             ],
-            message: `Dialogue speaker ${shot.dialogueSpeakerId} was not found in characters.`
+            message: `Dialogue speaker ${shot.dialogueSpeakerId} was not found in character assets.`
           })
         }
       })
@@ -440,7 +475,11 @@ export const storyProductionDocumentSchema = z
         }
       }
     )
-    uniqueIds(shots.map((item) => item.id), 'Shot ids', context)
+    uniqueIds(
+      shots.map((item) => item.id),
+      'Shot ids',
+      context
+    )
     uniqueIds(
       [
         ...(value.assets ?? []).flatMap((asset) => asset.candidates ?? []),
@@ -468,9 +507,7 @@ export const saveStoryProductionSchema = z
   })
   .strict()
 
-export const getStoryProductionSchema = z
-  .object({ projectId })
-  .strict()
+export const getStoryProductionSchema = z.object({ projectId }).strict()
 
 export const startStoryProductionSchema = z
   .object({
@@ -485,7 +522,6 @@ export const startStoryProductionSchema = z
     storyPlan: storyPlanSchema.optional(),
     episodes: z.array(episodeSchema).max(100).optional(),
     assets: z.array(assetSchema).max(160).optional(),
-    characters: z.array(characterSchema).max(40),
     firstScene: productionSceneUpsertSchema,
     changeSummary
   })
@@ -505,7 +541,14 @@ export const upsertStoryProductionShotSchema = z
   .object({
     projectId,
     operationId,
-    baseRevision: z.number().int().min(1),
+    baseRevision: z
+      .number()
+      .int()
+      .min(1)
+      .describe(
+        'Optional planning revision for an existing-shot patch. Omit it when creating a new shot; the service serializes the create on the authoritative revision. Never predict future revisions.'
+      )
+      .optional(),
     sceneId: identifier,
     insertAfterShotId: identifier.optional(),
     shot: productionShotPatchSchema,
@@ -559,9 +602,7 @@ const attachAssetImageFields = {
   changeSummary
 }
 
-export const attachAssetImageSchema = z
-  .object(attachAssetImageFields)
-  .strict()
+export const attachAssetImageSchema = z.object(attachAssetImageFields).strict()
 
 export const attachGeneratedAssetImageSchema = z
   .object({

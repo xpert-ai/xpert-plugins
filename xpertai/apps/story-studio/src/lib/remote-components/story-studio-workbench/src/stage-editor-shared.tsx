@@ -7,7 +7,6 @@ import {
 import type { MessageKey } from './i18n'
 import type {
   Asset,
-  Character,
   ProductionView,
   Scene,
   Shot
@@ -92,16 +91,6 @@ export function numberValue(value: string, fallback: number) {
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
-export function newCharacter(t: Translator): Character {
-  return {
-    id: newIdentifier('character'),
-    name: t('editor.newCharacter'),
-    role: null,
-    visualDescription: null,
-    voiceReference: null
-  }
-}
-
 export function newAsset(t: Translator): Asset {
   return {
     id: newIdentifier('asset'),
@@ -111,6 +100,9 @@ export function newAsset(t: Translator): Asset {
     prompt: t('editor.newAssetPrompt'),
     negativePrompt: null,
     continuityNotes: null,
+    role: null,
+    visualDescription: null,
+    voiceReference: null,
     categoryDetails: {
       identity: null,
       appearance: null,

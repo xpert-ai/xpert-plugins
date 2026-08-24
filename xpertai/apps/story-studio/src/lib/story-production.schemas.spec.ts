@@ -13,10 +13,13 @@ const production = {
   adaptationGoal: 'Build a tense, emotionally legible vertical short.',
   visualStyle: 'Neon rain, restrained camera movement, graphic silhouettes.',
   audience: 'Young adult science-fiction viewers.',
-  characters: [
+  assets: [
     {
       id: 'char-lin',
+      kind: 'character',
       name: 'Lin',
+      description: 'A courier in a yellow raincoat.',
+      prompt: 'Cinematic identity reference for Lin.',
       role: 'Courier',
       visualDescription: 'Yellow raincoat and a weathered camera bag.',
       voiceReference: {
@@ -69,7 +72,7 @@ describe('Story production schemas', () => {
       changeSummary: 'Saved the reviewed one-scene production plan'
     })
     expect(parsed.production.scenes[0].shots[0].durationSeconds).toBe(6)
-    expect(parsed.production.characters[0].voiceReference?.url).toContain(
+    expect(parsed.production.assets?.[0].voiceReference?.url).toContain(
       'lin-voice.mp3'
     )
   })
@@ -116,7 +119,7 @@ describe('Story production schemas', () => {
         production: invalid,
         changeSummary: 'Invalid dialogue speaker'
       })
-    ).toThrow('was not found in characters')
+    ).toThrow('was not found in character assets')
   })
 
   it('rejects duplicate shot ids', () => {
@@ -182,7 +185,11 @@ describe('Story production schemas', () => {
       sourceSynopsis: 'A foal reaches a river.',
       adaptationGoal: 'Create the first fable scene.',
       visualStyle: 'Warm ink-wash animation.',
-      characters: [{ id: 'foal', name: 'Foal' }],
+      assets: [{
+        id: 'foal', kind: 'character', name: 'Foal',
+        description: 'A cautious young foal.',
+        prompt: 'Warm storybook foal identity reference.'
+      }],
       firstScene: {
         id: 'scene-river',
         order: 1,

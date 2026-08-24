@@ -24,7 +24,6 @@ export function buildStartedProduction(
     ...(input.storyPlan ? { storyPlan: input.storyPlan } : {}),
     episodes: input.episodes ?? [],
     assets: input.assets ?? [],
-    characters: input.characters,
     scenes: [sceneFromInput(input.firstScene)]
   })
 }
@@ -33,9 +32,7 @@ export function applyProductionSceneUpsert(
   current: StoryProductionDocument,
   input: UpsertStoryProductionSceneInput
 ) {
-  const previous = current.scenes.find(
-    (scene) => scene.id === input.scene.id
-  )
+  const previous = current.scenes.find((scene) => scene.id === input.scene.id)
   const scene = sceneFromInput(input.scene, previous)
   return {
     production: validateProductionDocument({
@@ -78,7 +75,7 @@ export function applyProductionShotUpsert(
     throw new NotFoundException('Story production scene was not found.')
   }
   return {
-    production: validateProductionDocument({
+    production: validateProductionDraftDocument({
       ...current,
       scenes
     }),
@@ -102,11 +99,13 @@ export function productionPatchReceipt(
     sceneId: string
     shotId?: string
     shotIds: string[]
-  }
+  },
+  operationId: string
 ) {
   return {
     success: saved.success,
     duplicate: saved.duplicate,
+    operationId,
     projectId: saved.projectId,
     revision: saved.revision,
     documentRevision: saved.production.documentRevision,
@@ -114,7 +113,9 @@ export function productionPatchReceipt(
     ...(target.shotId ? { shotId: target.shotId } : {}),
     shotIds: target.shotIds,
     counts: saved.production.counts,
-    totalDurationSeconds: saved.production.totalDurationSeconds
+    totalDurationSeconds: saved.production.totalDurationSeconds,
+    nextAction:
+      'Continue with another bounded production mutation or call story_validate_production.'
   }
 }
 
@@ -338,11 +339,7 @@ function insertShot(
       'insertAfterShotId was not found in the requested scene.'
     )
   }
-  return [
-    ...shots.slice(0, index + 1),
-    shot,
-    ...shots.slice(index + 1)
-  ]
+  return [...shots.slice(0, index + 1), shot, ...shots.slice(index + 1)]
 }
 
 function validateProductionDocument(
@@ -353,5 +350,33 @@ function validateProductionDocument(
     assets: sanitizeAssets(production.assets ?? []),
     scenes: sanitizeScenes(production.scenes)
   })
+  return production
+}
+
+function validateProductionDraftDocument(
+  production: StoryProductionDocument
+): StoryProductionDocument {
+  if (production.scenes.length > 40) {
+    throw new BadRequestException(
+      'Production cannot contain more than 40 scenes.'
+    )
+  }
+  const shots = production.scenes.flatMap((scene) => {
+    if (scene.shots.length > 24) {
+      throw new BadRequestException(
+        `Scene ${scene.id} cannot contain more than 24 shots.`
+      )
+    }
+    return scene.shots
+  })
+  const duration = shots.reduce(
+    (total, shot) => total + shot.durationSeconds,
+    0
+  )
+  if (duration > 300) {
+    throw new BadRequestException(
+      'Total shot duration must not exceed 300 seconds while drafting.'
+    )
+  }
   return production
 }

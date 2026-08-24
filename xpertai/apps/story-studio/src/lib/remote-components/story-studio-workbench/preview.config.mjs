@@ -855,7 +855,7 @@ function productionFixture() {
     action: definition[2],
     camera: definition[3],
     dialogue: index === 1 ? '你还是来了。' : index === 2 ? '我只是来拿回属于我的东西。' : null,
-    dialogueSpeakerId: index === 1 ? 'character-linwan' : index === 2 ? 'character-guchen' : null,
+    dialogueSpeakerId: index === 1 ? 'asset-linwan' : index === 2 ? 'asset-guchen' : null,
     dialogueType: index === 1 || index === 2 ? 'dialogue' : null,
     soundEffects: ['雨声', '远处雷声'],
     generationPrompt: `${definition[2]}，${definition[3]}，冷蓝雨夜与暖色逆光，角色身份一致。`,
@@ -1033,10 +1033,10 @@ function productionFixture() {
       }
     ],
     assets: [
-      { id: 'asset-linwan', kind: 'character', name: '林晚', description: '独立纪录片摄影师，外冷内韧，肩长黑发，米色风衣。', prompt: '林晚角色身份包，严格一致性，肩长黑发、右眼下浅痣、米色风衣。', candidates: [assetImage] },
-      { id: 'asset-guchen', kind: 'character', name: '顾沉', description: '纪录片摄影师，克制寡言，黑色皮衣。', prompt: '顾沉角色身份包，黑色湿发、黑色皮衣、冷峻克制。', candidates: [] },
-      { id: 'asset-zhouqi', kind: 'character', name: '周启', description: '调查记者，身份待确认。', prompt: '周启角色参考。', candidates: [] },
-      { id: 'asset-chenfang', kind: 'character', name: '陈放', description: '旧影棚管理员。', prompt: '陈放角色参考。', candidates: [] },
+      { id: 'asset-linwan', kind: 'character', name: '林晚', description: '独立纪录片摄影师，外冷内韧，肩长黑发，米色风衣。', prompt: '林晚角色身份包，严格一致性，肩长黑发、右眼下浅痣、米色风衣。', role: '女主 / 纪录片摄影师', visualDescription: '肩长黑发、米色风衣、右眼下浅痣。', voiceReference: { url: 'https://example.invalid/lin-wan.wav', label: '清透女声 · 克制' }, candidates: [assetImage] },
+      { id: 'asset-guchen', kind: 'character', name: '顾沉', description: '纪录片摄影师，克制寡言，黑色皮衣。', prompt: '顾沉角色身份包，黑色湿发、黑色皮衣、冷峻克制。', role: '男主 / 纪录片摄影师', visualDescription: '黑色湿发、黑色皮衣、冷峻克制。', candidates: [] },
+      { id: 'asset-zhouqi', kind: 'character', name: '周启', description: '调查记者，身份待确认。', prompt: '周启角色参考。', role: '调查记者', visualDescription: '干净利落，谨慎。', candidates: [] },
+      { id: 'asset-chenfang', kind: 'character', name: '陈放', description: '旧影棚管理员。', prompt: '陈放角色参考。', role: '影棚管理员', visualDescription: '沉默寡言。', candidates: [] },
       { id: 'asset-studio-exterior', kind: 'location', name: '旧影棚外 · 雨夜', description: '第七摄影棚外，夜雨，湿地反光。', prompt: '废弃摄影棚雨夜外景，工业结构，冷暖对比。', candidates: [] },
       { id: 'asset-studio-interior', kind: 'location', name: '摄影棚内部', description: '封存布景和积灰灯架。', prompt: '旧摄影棚内部，写实电影灯光。', candidates: [] },
       { id: 'asset-dressing-room', kind: 'location', name: '旧化妆间', description: '镜前旧灯泡与斑驳墙面。', prompt: '旧化妆间，低饱和，镜面构图。', candidates: [] },
@@ -1044,12 +1044,6 @@ function productionFixture() {
       { id: 'asset-film', kind: 'prop', name: '未完成胶片', description: '顾沉要取回的关键证据。', prompt: '旧胶片盒，证据感。', candidates: [] },
       { id: 'asset-style', kind: 'style', name: '逆光雨夜', description: '冷蓝雨夜与暖色逆光。', prompt: '低饱和冷暖对比，电影级雨夜。', candidates: [] }
     ].map(withAssetDetails),
-    characters: [
-      { id: 'character-linwan', name: '林晚', role: '女主 / 纪录片摄影师', visualDescription: '肩长黑发、米色风衣、右眼下浅痣。', voiceReference: { url: 'https://example.invalid/lin-wan.wav', label: '清透女声 · 克制' } },
-      { id: 'character-guchen', name: '顾沉', role: '男主 / 纪录片摄影师', visualDescription: '黑色湿发、黑色皮衣、冷峻克制。' },
-      { id: 'character-zhouqi', name: '周启', role: '调查记者', visualDescription: '干净利落，谨慎。' },
-      { id: 'character-chenfang', name: '陈放', role: '影棚管理员', visualDescription: '沉默寡言。' }
-    ],
     scenes,
     counts: {
       sources: 1,
@@ -1136,9 +1130,7 @@ function productionCounts(production) {
       ? production.episodes.length
       : 0,
     assets: assets.length,
-    characters: Array.isArray(production?.characters)
-      ? production.characters.length
-      : 0,
+    characters: assets.filter((asset) => asset.kind === 'character').length,
     scenes: scenes.length,
     shots: shots.length,
     candidates: candidates.length,

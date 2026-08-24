@@ -71,7 +71,6 @@ describe('StoryVideoGenerationService', () => {
       scopeId: harness.scope.hostProjectId,
       mimeType: 'image/jpeg'
     }
-    harness.production.characters = [{ id: 'character-pony', name: '小马' }]
     harness.production.assets = [{
       id: 'asset-pony',
       kind: 'character',
@@ -89,7 +88,7 @@ describe('StoryVideoGenerationService', () => {
     const shot = harness.production.scenes[0].shots[0]
     shot.action = '小马背着麦袋向小河跑去'
     shot.dialogue = '妈妈，我出发了！'
-    shot.dialogueSpeakerId = 'character-pony'
+    shot.dialogueSpeakerId = 'asset-pony'
     shot.dialogueType = 'dialogue'
     shot.videoSettings = { referenceAssetIds: ['asset-pony'] }
     harness.platform.submit.mockResolvedValue({

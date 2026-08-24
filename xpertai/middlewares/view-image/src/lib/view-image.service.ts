@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer'
+import { createHash } from 'node:crypto'
 import { posix as path } from 'node:path'
 import {
   AIMessage,
@@ -14,7 +15,12 @@ import { tool, type DynamicStructuredTool } from '@langchain/core/tools'
 import { getToolCallIdFromConfig, type TAgentRunnableConfigurable } from '@xpert-ai/contracts'
 import { Injectable } from '@nestjs/common'
 import { BaseSandbox, type ModelRequest } from '@xpert-ai/plugin-sdk'
-import { z } from 'zod'
+import { z } from 'zod/v3'
+import {
+  createViewImageToolOutputPresentation,
+  type PreparedViewedImage,
+  type ViewImageOutputRuntime
+} from './view-image.artifacts.js'
 import {
   DEFAULT_SANDBOX_ROOT,
   DEFAULT_VIEW_IMAGE_CACHE_TTL_MS,
@@ -88,7 +94,10 @@ export class ViewImageService {
     ].join('\n')
   }
 
-  createTool(config: ViewImageMiddlewareConfig = this.resolveMiddlewareConfig()): DynamicStructuredTool {
+  createTool(
+    outputRuntime: ViewImageOutputRuntime,
+    config: ViewImageMiddlewareConfig = this.resolveMiddlewareConfig()
+  ): DynamicStructuredTool {
     return tool(
       async (input, runConfig) => {
         const backend = getSandboxBackendFromConfig(runConfig)
@@ -101,13 +110,15 @@ export class ViewImageService {
         const toolCallId = getToolCallIdFromConfig(runConfig) ?? VIEW_IMAGE_TOOL_NAME
         const workspaceRoot = this.resolveVisibleWorkspaceRoot(runConfig?.configurable, backend)
         const targets = normalizeTargets(input)
-        const items = await this.loadViewedImageItems(backend, targets, workspaceRoot, config)
+        const preparedImages = await this.loadPreparedViewedImageItems(backend, targets, workspaceRoot, config)
+        const items = preparedImages.map(({ item }) => item)
         const batch: ViewedImageBatch = {
           toolCallId,
           createdAt: new Date().toISOString(),
           items
         }
 
+        const artifact = await createViewImageToolOutputPresentation(preparedImages, outputRuntime)
         this.pendingViewedImageBatches.set(this.buildPendingBatchKey(runConfig?.configurable, toolCallId), {
           ...batch,
           expiresAt: Date.now() + DEFAULT_VIEW_IMAGE_CACHE_TTL_MS
@@ -118,6 +129,7 @@ export class ViewImageService {
           name: VIEW_IMAGE_TOOL_NAME,
           tool_call_id: toolCallId,
           status: 'success',
+          artifact,
           metadata: {
             [VIEW_IMAGE_METADATA_KEY]: toViewedImageBatchMetadata(batch)
           }
@@ -127,7 +139,8 @@ export class ViewImageService {
         name: VIEW_IMAGE_TOOL_NAME,
         description:
           `Load one or more image files from the sandbox workspace root so the next model step can inspect them. Use this before answering questions about workspace image files by path. Accepts at most ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL} images per call and per model step; load ${DEFAULT_VIEW_IMAGE_MAX_IMAGES_PER_CALL + 1}+ known images across separate model steps, not multiple same-step calls.`,
-        schema: ViewImageToolInputSchema
+        schema: ViewImageToolInputSchema,
+        verboseParsingErrors: true
       }
     )
   }
@@ -228,8 +241,17 @@ export class ViewImageService {
     workspaceRoot: string,
     config: ViewImageMiddlewareConfig = this.resolveMiddlewareConfig()
   ): Promise<ViewedImageItem[]> {
+    return (await this.loadPreparedViewedImageItems(backend, targets, workspaceRoot, config)).map(({ item }) => item)
+  }
+
+  private async loadPreparedViewedImageItems(
+    backend: ViewImageSandbox,
+    targets: string[],
+    workspaceRoot: string,
+    config: ViewImageMiddlewareConfig
+  ): Promise<PreparedViewedImage[]> {
     const resolvedTargets = targets.map((target) => resolveImageTarget(target, workspaceRoot))
-    return this.loadViewedImageItemsFromTargets(backend, resolvedTargets, config)
+    return this.loadPreparedViewedImageItemsFromTargets(backend, resolvedTargets, config)
   }
 
   resolveVisibleWorkspaceRoot(
@@ -305,12 +327,20 @@ export class ViewImageService {
     targets: ResolvedImageTarget[],
     config: ViewImageMiddlewareConfig
   ): Promise<ViewedImageItem[]> {
+    return (await this.loadPreparedViewedImageItemsFromTargets(backend, targets, config)).map(({ item }) => item)
+  }
+
+  private async loadPreparedViewedImageItemsFromTargets(
+    backend: ViewImageSandbox,
+    targets: ResolvedImageTarget[],
+    config: ViewImageMiddlewareConfig
+  ): Promise<PreparedViewedImage[]> {
     const downloads = await backend.downloadFiles(targets.map(({ downloadPath }) => downloadPath))
     if (!Array.isArray(downloads) || downloads.length !== targets.length) {
       throw new Error('Sandbox backend returned an unexpected response for `view_image`.')
     }
 
-    const items: ViewedImageItem[] = []
+    const items: PreparedViewedImage[] = []
 
     for (let index = 0; index < downloads.length; index += 1) {
       const download = downloads[index]
@@ -343,15 +373,19 @@ export class ViewImageService {
 
       const prepared = await prepareImageForModel(originalBuffer, config)
       items.push({
-        target: targetInfo.target,
-        resolvedPath: targetInfo.resolvedPath,
-        downloadPath: targetInfo.downloadPath,
-        fileName: targetInfo.fileName,
-        mimeType,
-        dataUrl: `data:${mimeType};base64,${prepared.buffer.toString('base64')}`,
-        size: originalBuffer.byteLength,
-        ...(prepared.width ? { width: prepared.width } : {}),
-        ...(prepared.height ? { height: prepared.height } : {})
+        item: {
+          target: targetInfo.target,
+          resolvedPath: targetInfo.resolvedPath,
+          downloadPath: targetInfo.downloadPath,
+          fileName: targetInfo.fileName,
+          mimeType,
+          dataUrl: `data:${mimeType};base64,${prepared.buffer.toString('base64')}`,
+          size: originalBuffer.byteLength,
+          ...(prepared.width ? { width: prepared.width } : {}),
+          ...(prepared.height ? { height: prepared.height } : {})
+        },
+        buffer: prepared.buffer,
+        sha256: createHash('sha256').update(prepared.buffer).digest('hex')
       })
     }
 
@@ -679,8 +713,8 @@ async function prepareImageForModel(buffer: Buffer, config: ViewImageMiddlewareC
 
     return {
       buffer: await image.resize(resizeOptions).toBuffer(),
-      width,
-      height
+      width: resizeOptions.width,
+      height: resizeOptions.height
     }
   } catch {
     return { buffer }

@@ -84,6 +84,7 @@ export function DirectorAssetsPage(props: DirectorAssetsPageProps) {
   const [editing, setEditing] = React.useState<Asset | 'new' | null>(null)
   const [deleting, setDeleting] = React.useState<Asset | null>(null)
   const [deletingCandidate, setDeletingCandidate] = React.useState<Candidate | null>(null)
+  const [previewCandidateId, setPreviewCandidateId] = React.useState<string | null>(null)
   const uploadRef = React.useRef<HTMLInputElement | null>(null)
   const batchUploadRef = React.useRef<HTMLInputElement | null>(null)
   const pendingUploadRef = React.useRef<AssetImageUploadOptions>({})
@@ -92,28 +93,28 @@ export function DirectorAssetsPage(props: DirectorAssetsPageProps) {
   const selectedAsset = matchingAssets.find((asset) => asset.id === selectedAssetId) ?? matchingAssets[0]
   const selectedCharacterVoiceReference = React.useMemo(
     () => selectedAsset?.kind === 'character'
-      ? compactVoiceReference(
-        production.characters.find((character) => character.name === selectedAsset.name)
-          ?.voiceReference
-      )
+      ? compactVoiceReference(selectedAsset.voiceReference)
       : null,
-    [production.characters, selectedAsset]
+    [selectedAsset]
   )
   const editingCharacterVoiceReference = React.useMemo(
     () => editing && editing !== 'new'
-      ? compactVoiceReference(
-          production.characters.find((character) => character.name === editing.name)
-            ?.voiceReference
-        )
+      ? compactVoiceReference(editing.voiceReference)
       : null,
-    [editing, production.characters]
+    [editing]
   )
   const imageCandidates = selectedAsset?.candidates.filter((candidate) => candidate.kind === 'image') ?? []
   const continuityCandidates = imageCandidates.filter(isContinuityCandidate)
   const expressionCandidates = imageCandidates.filter(isExpressionCandidate)
-  const selectedCandidate = continuityCandidates.find(
+  const primaryCandidate = continuityCandidates.find(
     (candidate) => candidate.selected && Boolean(candidateImageUrl(candidate))
-  ) ?? continuityCandidates.find((candidate) => Boolean(candidateImageUrl(candidate)))
+  )
+  const previewCandidate = imageCandidates.find(
+    (candidate) => candidate.id === previewCandidateId && Boolean(candidateImageUrl(candidate))
+  ) ?? primaryCandidate ?? continuityCandidates.find((candidate) => Boolean(candidateImageUrl(candidate)))
+  const previewingPrimary = Boolean(
+    previewCandidate && primaryCandidate?.id === previewCandidate.id
+  )
   const continuityReferences = selectedAsset
     ? continuityReferencesForAsset(selectedAsset.kind)
     : []
@@ -122,11 +123,15 @@ export function DirectorAssetsPage(props: DirectorAssetsPageProps) {
     if (!selectedAsset || selectedAsset.kind !== category) setSelectedAssetId(matchingAssets[0]?.id ?? '')
   }, [category, matchingAssets, selectedAsset])
 
+  React.useEffect(() => {
+    setPreviewCandidateId(null)
+  }, [selectedAsset?.id])
+
   async function submitAsset(draft: AssetDraft) {
     const next = structuredClone(production)
     let id = editing !== 'new' && editing ? editing.id : `asset-${crypto.randomUUID()}`
     if (editing !== 'new' && editing) updateAsset(next, editing.id, draft)
-    else addAsset(next, id, `character-${crypto.randomUUID()}`, draft)
+    else addAsset(next, id, draft)
     if (await props.onCommitProduction(next, t('changes.assetSaved', { title: draft.name }))) {
       setCategory(draft.kind)
       setSelectedAssetId(id)
@@ -177,7 +182,7 @@ export function DirectorAssetsPage(props: DirectorAssetsPageProps) {
               assetReference,
               select:
                 pendingBatchRef.current === 'continuity_views' &&
-                !selectedCandidate &&
+                !primaryCandidate &&
                 index === 0,
               replaceReference: true
             }]
@@ -264,26 +269,26 @@ export function DirectorAssetsPage(props: DirectorAssetsPageProps) {
               <section className="director-assets-visual-grid">
                 <section className="overflow-hidden rounded-xl border border-studio-line bg-studio-paper shadow-sm">
                   <CardHeader
-                    title={t('director.assets.primaryReference')}
-                    meta={selectedCandidate ? assetReferenceLabel(selectedCandidate, t) : t('director.assets.imageMissing')}
-                    action={<Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => requestUpload({ assetReference: { type: 'general' }, select: true, replaceReference: true })}><Upload aria-hidden="true" />{selectedCandidate ? t('director.assets.replace') : t('director.assets.uploadPrimary')}</Button>}
+                    title={previewingPrimary ? t('director.assets.primaryReference') : t('director.assets.previewing')}
+                    meta={previewCandidate ? assetReferenceLabel(previewCandidate, t) : t('director.assets.imageMissing')}
+                    action={<Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => requestUpload({ assetReference: { type: 'general' }, select: true, replaceReference: true })}><Upload aria-hidden="true" />{primaryCandidate ? t('director.assets.replace') : t('director.assets.uploadPrimary')}</Button>}
                   />
-                  <figure className="group relative overflow-hidden border-t border-studio-line"><AssetImage className="aspect-[4/3] h-full w-full" asset={selectedAsset} candidate={selectedCandidate} t={t} showLabel />{selectedCandidate && candidateImageUrl(selectedCandidate) ? <figcaption className="absolute inset-x-3 bottom-3 flex items-center justify-between rounded-lg bg-studio-ink/85 px-3 py-2 text-xs text-white backdrop-blur"><span><b>{t('director.assets.primaryReference')}</b> · {assetReferenceLabel(selectedCandidate, t)}</span><span className="flex items-center gap-1 text-amber-200"><Check className="size-3.5" aria-hidden="true" />{t('director.assets.locked')}</span></figcaption> : null}</figure>
+                  <figure className="group relative overflow-hidden border-t border-studio-line"><AssetImage className="aspect-[4/3] h-full w-full" asset={selectedAsset} candidate={previewCandidate} t={t} showLabel />{previewCandidate && candidateImageUrl(previewCandidate) ? <figcaption className="absolute inset-x-3 bottom-3 flex items-center justify-between rounded-lg bg-studio-ink/85 px-3 py-2 text-xs text-white backdrop-blur"><span><b>{previewingPrimary ? t('director.assets.primaryReference') : t('director.assets.previewing')}</b> · {assetReferenceLabel(previewCandidate, t)}</span>{previewingPrimary ? <span className="flex items-center gap-1 text-amber-200"><Check className="size-3.5" aria-hidden="true" />{t('director.assets.locked')}</span> : <span className="text-white/75">{t('director.assets.previewing')}</span>}</figcaption> : null}</figure>
                 </section>
                 <div className="rounded-xl border border-studio-line bg-studio-paper p-4 shadow-sm">
                   <div className="mb-3 flex items-center justify-between gap-3"><div><h3 className="font-display text-lg font-bold">{assetViewsTitle(selectedAsset, t)}</h3><span className="text-xs text-studio-muted">{t('director.assets.viewCount', { count: continuityReferences.filter((reference) => Boolean(candidateForReference(imageCandidates, reference))).length })}</span></div><div className="flex items-center gap-2"><Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => requestBatchUpload('continuity_views')}><Upload aria-hidden="true" />{t('director.assets.batchUpload')}</Button><AiGenerateButton label={t(selectedAsset.kind === 'character' ? 'director.assets.generateCharacterViews' : 'director.assets.generateViews')} busy={busy} testId="generate-asset-views" onClick={() => props.onGenerateAsset(selectedAsset, 'continuity_views')} /></div></div>
                   <div className="grid grid-cols-2 gap-3">
                     {continuityReferences.map((reference, index) => {
                       const candidate = candidateForReference(imageCandidates, reference)
-                      const selected = Boolean(candidate && candidate.id === selectedCandidate?.id)
+                      const selected = Boolean(candidate && candidate.id === primaryCandidate?.id)
                       const selectionApplied = Boolean(candidate && isPrimaryAssetImageCandidateSelected(selectedAsset, candidate.id))
-                      return <ReferenceSlotCard key={`${reference.type}:${reference.key}`} asset={selectedAsset} reference={reference} candidate={candidate} fallbackIndex={index} selected={selected} t={t} onUpload={() => requestUpload({ assetReference: reference, select: !selectedCandidate, replaceReference: true })} onSelect={candidate && !selectionApplied ? () => props.onLockAsset(selectedAsset.id, candidate.id) : undefined} onDelete={candidate ? () => setDeletingCandidate(candidate) : undefined} />
+                      return <ReferenceSlotCard key={`${reference.type}:${reference.key}`} asset={selectedAsset} reference={reference} candidate={candidate} fallbackIndex={index} selected={selected} previewed={Boolean(candidate && candidate.id === previewCandidate?.id)} busy={busy} t={t} onPreview={candidate ? () => setPreviewCandidateId(candidate.id) : undefined} onUpload={() => requestUpload({ assetReference: reference, select: !primaryCandidate, replaceReference: true })} onSetPrimary={candidate && !selectionApplied ? () => { setPreviewCandidateId(candidate.id); props.onLockAsset(selectedAsset.id, candidate.id) } : undefined} onDelete={candidate ? () => setDeletingCandidate(candidate) : undefined} />
                     })}
                   </div>
                 </div>
               </section>
               {selectedAsset.kind === 'character' ? <Panel title={t('director.assets.expressions')} meta={t('director.assets.expressionCount', { count: EXPRESSION_REFERENCES.filter((reference) => Boolean(candidateForReference(imageCandidates, reference))).length })} action={<div className="flex items-center gap-2"><Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => requestBatchUpload('expressions')}><Upload aria-hidden="true" />{t('director.assets.batchUpload')}</Button><AiGenerateButton label={t('director.assets.generateExpressions')} busy={busy} testId="generate-asset-expressions" onClick={() => props.onGenerateAsset(selectedAsset, 'expressions')} /></div>}>
-                <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3">{EXPRESSION_REFERENCES.map((reference) => { const candidate = candidateForReference(expressionCandidates, reference); return <ReferenceSlotCard key={`${reference.type}:${reference.key}`} asset={selectedAsset} reference={reference} candidate={candidate} selected={false} t={t} onUpload={() => requestUpload({ assetReference: reference, select: false, replaceReference: true })} onDelete={candidate ? () => setDeletingCandidate(candidate) : undefined} /> })}</div>
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3">{EXPRESSION_REFERENCES.map((reference) => { const candidate = candidateForReference(expressionCandidates, reference); return <ReferenceSlotCard key={`${reference.type}:${reference.key}`} asset={selectedAsset} reference={reference} candidate={candidate} selected={false} previewed={Boolean(candidate && candidate.id === previewCandidate?.id)} busy={busy} t={t} onPreview={candidate ? () => setPreviewCandidateId(candidate.id) : undefined} onUpload={() => requestUpload({ assetReference: reference, select: false, replaceReference: true })} onDelete={candidate ? () => setDeletingCandidate(candidate) : undefined} /> })}</div>
               </Panel> : null}
               <Panel title={t('director.crud.continuity')}><p className="text-sm leading-7 text-studio-muted">{selectedAsset.continuityNotes || selectedAsset.categoryDetails.continuity || '—'}</p></Panel>
             </div>
@@ -330,16 +335,19 @@ function ReferenceSlotCard(props: {
   candidate?: Candidate
   fallbackIndex?: number
   selected: boolean
+  previewed: boolean
+  busy: boolean
   t: DirectorTranslator
-  onSelect?: () => void
+  onPreview?: () => void
+  onSetPrimary?: () => void
   onUpload: () => void
   onDelete?: () => void
 }) {
   const label = assetReferenceLabelFromReference(props.reference, props.t, props.fallbackIndex)
   const url = candidateImageUrl(props.candidate)
-  return <article className={`group relative overflow-hidden rounded-lg border bg-studio-paper ${props.selected && url ? 'border-2 border-studio-brass' : 'border-studio-line'}`}>
-    {url ? <button type="button" className="block w-full text-left disabled:cursor-default" disabled={!props.onSelect} aria-pressed={props.selected} aria-label={props.onSelect ? props.t('director.assets.setPrimaryReference', { label }) : label} onClick={props.onSelect}><AssetImage className="aspect-video w-full" asset={props.asset} candidate={props.candidate} t={props.t} /></button> : <button type="button" className="grid aspect-video w-full place-items-center gap-2 bg-studio-canvas p-4 text-center text-studio-muted transition hover:bg-amber-50 hover:text-studio-brass" onClick={props.onUpload}><Upload className="size-5" aria-hidden="true" /><span className="text-[11px] font-semibold">{props.t('director.assets.uploadSlot')}</span></button>}
-    <div className="flex min-h-10 items-center justify-between gap-2 border-t border-studio-line bg-studio-paper px-2 py-1.5 text-left text-[11px]"><span className="min-w-0"><strong className="block truncate">{label}</strong>{props.selected ? <span className="flex items-center gap-1 text-[9px] font-bold text-studio-brass"><Check className="size-3" aria-hidden="true" />{props.t('director.assets.primaryReference')}</span> : null}</span><span className="flex shrink-0 items-center gap-1"><IconTooltip label={url ? props.t('director.assets.replace') : props.t('director.assets.uploadSlot')}><button type="button" className="rounded p-1 text-studio-muted hover:bg-studio-canvas hover:text-studio-ink" aria-label={url ? props.t('director.assets.replace') : props.t('director.assets.uploadSlot')} onClick={props.onUpload}><Upload className="size-3.5" aria-hidden="true" /></button></IconTooltip>{props.onDelete ? <IconTooltip label={props.t('director.assets.deleteReferenceAction')}><button type="button" className="rounded p-1 text-studio-muted hover:bg-red-50 hover:text-studio-danger" aria-label={props.t('director.assets.deleteReferenceAction')} onClick={props.onDelete}><Trash2 className="size-3.5" aria-hidden="true" /></button></IconTooltip> : null}</span></div>
+  return <article className={`group relative overflow-hidden rounded-lg border bg-studio-paper ${props.selected && url ? 'border-2 border-studio-brass' : props.previewed && url ? 'border-studio-ink ring-2 ring-studio-ink/15' : 'border-studio-line'}`}>
+    {url ? <button type="button" className="block w-full text-left" aria-pressed={props.previewed} aria-label={props.t('director.assets.previewReference', { label })} onClick={props.onPreview}><AssetImage className="aspect-video w-full" asset={props.asset} candidate={props.candidate} t={props.t} /></button> : <button type="button" className="grid aspect-video w-full place-items-center gap-2 bg-studio-canvas p-4 text-center text-studio-muted transition hover:bg-amber-50 hover:text-studio-brass" onClick={props.onUpload}><Upload className="size-5" aria-hidden="true" /><span className="text-[11px] font-semibold">{props.t('director.assets.uploadSlot')}</span></button>}
+    <div className="flex min-h-10 items-center justify-between gap-2 border-t border-studio-line bg-studio-paper px-2 py-1.5 text-left text-[11px]"><span className="min-w-0"><strong className="block truncate">{label}</strong>{props.selected ? <span className="flex items-center gap-1 text-[9px] font-bold text-studio-brass"><Check className="size-3" aria-hidden="true" />{props.t('director.assets.currentPrimary')}</span> : props.previewed ? <span className="block text-[9px] text-studio-muted">{props.t('director.assets.previewing')}</span> : null}</span><span className="flex shrink-0 items-center gap-1">{props.selected || props.onSetPrimary ? <IconTooltip label={props.selected ? props.t('director.assets.currentPrimary') : props.t('director.assets.setAsPrimary')}><Button type="button" variant={props.selected ? 'secondary' : 'outline'} size="sm" className="h-7 px-2 text-[10px]" disabled={props.selected || props.busy} onClick={props.onSetPrimary}><Check aria-hidden="true" />{props.selected ? props.t('director.assets.currentPrimary') : props.t('director.assets.setAsPrimary')}</Button></IconTooltip> : null}<IconTooltip label={url ? props.t('director.assets.replace') : props.t('director.assets.uploadSlot')}><button type="button" className="rounded p-1 text-studio-muted hover:bg-studio-canvas hover:text-studio-ink" aria-label={url ? props.t('director.assets.replace') : props.t('director.assets.uploadSlot')} onClick={props.onUpload}><Upload className="size-3.5" aria-hidden="true" /></button></IconTooltip>{props.onDelete ? <IconTooltip label={props.t('director.assets.deleteReferenceAction')}><button type="button" className="rounded p-1 text-studio-muted hover:bg-red-50 hover:text-studio-danger" aria-label={props.t('director.assets.deleteReferenceAction')} onClick={props.onDelete}><Trash2 className="size-3" /></button></IconTooltip> : null}</span></div>
   </article>
 }
 
@@ -423,7 +431,7 @@ function AssetImage(props: {
   if (url) {
     return (
       <img
-        className={`${props.className} object-cover`}
+        className={`${props.className} bg-studio-canvas object-contain`}
         crossOrigin="use-credentials"
         src={url}
         alt={props.asset.name}

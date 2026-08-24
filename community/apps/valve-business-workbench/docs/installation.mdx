@@ -1,0 +1,14 @@
+---
+title: Installation
+---
+
+1. Build and test the plugin from the community workspace.
+2. Run the Node 20 plugin lifecycle harness.
+3. Deploy with the repository local plugin deployment command using global installation credentials.
+4. Set `apiBaseUrl` explicitly to `http://localhost:3001`. Do not set a resource allowlist until the plugin-owned resource has been initialized.
+5. Open the Workbench, review the detected status, click **初始化本体**, and confirm import and publication of `valve-engineering-ontology`.
+6. Verify the published resource is `ready`, then optionally restrict `dataXpert.resourceIds` to `valve-engineering-ontology`.
+7. Provision the `valve-business-workbench-assistant` managed Assistant in the default workspace and first environment.
+8. Publish the Assistant and verify the fixed Workbench menu, native tools, and ChatKit context.
+
+Plugin deployment, ontology initialization, and managed Assistant provisioning are three separate lifecycle steps. Re-running managed provision with the same Assistant code must upgrade the existing instance rather than create a duplicate.

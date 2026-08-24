@@ -1,0 +1,216 @@
+---
+title: 阀门业务工作台上手教程
+description: 从选择阀门对象、查看 360 信息，到 Assistant 分析、Action 草案、人工审批、Demo 执行和审计的完整操作指南。
+---
+
+本教程使用插件内置的 Demo Action 演示一条完整且受控的阀门业务闭环。完成后，你将能够：
+
+- 浏览已发布阀门本体中的对象、属性、关系、证据和风险约束；
+- 将当前 Workbench 对象作为上下文交给阀门工程业务助手分析；
+- 创建、批准或拒绝 Action 草案；
+- 执行成功或失败的 Demo 路径，并查看完整审计记录。
+
+<Warning>
+Demo 执行只生成模拟业务回执，不会写入真实 ERP、EAM、QMS、采购、DCS 或 SIS，也不会修改 data-xpert 中的本体模型和数据。
+</Warning>
+
+## 开始前检查
+
+请确认以下条件均已满足：
+
+- 已安装并运行 `@xpert-ai/plugin-valve-business-workbench`；
+- 已初始化并发布“阀门工程业务助手”；
+- data-xpert 已连接；如果尚无 `ready` 的阀门资源，可在工作台点击 **初始化本体** 导入插件内置模型和演示数据；
+- 插件配置中的 `demo.enabled` 为 `true`；
+- 若本体尚未定义全部 Action，`demo.includeFallbackActions` 为 `true`。
+
+如果顶部“本体资源”为空，请先检查资源状态和插件配置，不要继续创建草案。详见[配置说明](/configuration)。
+
+## 认识界面
+
+打开“阀门工程业务助手”后，页面主要分为四个区域：
+
+| 区域 | 用途 |
+| --- | --- |
+| 顶部工具栏 | 选择本体资源、实体类型，搜索对象和刷新当前数据 |
+| 对象导航 | 显示匹配的阀门对象；可通过折叠按钮收起或展开 |
+| 对象详情 | 查看概览、关系、证据、风险约束、Action、草案和审计 |
+| Assistant 面板 | 基于 Workbench 当前选中对象进行分析或创建待审核草案 |
+
+## 教程一：查看阀门对象 360 并让 Assistant 分析
+
+<Steps>
+  <Step title="选择本体资源">
+    在顶部“本体资源”选择器中选择阀门本体资源。内置演示环境通常显示为 **Valve Engineering Ontology**，实际名称可能因部署而不同。
+
+    资源必须处于 `ready` 状态，并包含精确的 `valve` 实体类型。
+  </Step>
+
+  <Step title="确认实体类型">
+    在“实体类型”选择器中选择 **Valve · valve**。插件依据稳定的类型代码工作，不会根据中文名称或属性组合猜测类型。
+  </Step>
+
+  <Step title="搜索并选择阀门">
+    在搜索框输入阀门名称或编号，然后按 Enter 或点击搜索按钮。
+
+    使用内置数据时，可选择 **Split Body Ball Valve 2\" Class 150**。如果部署中没有该对象，选择任意可见的 Valve 对象即可。
+  </Step>
+
+  <Step title="检查对象概览">
+    在 **概览** 中确认对象名称、`externalKey`、属性和相关对象。内置示例通常能看到压力等级、设计压力、设计温度、阀体、阀座和适用标准等信息。
+
+    顶部的快照信息代表当前读取的是已发布本体快照，而不是可编辑草稿。
+  </Step>
+
+  <Step title="检查关系、证据和约束">
+    依次打开以下页签：
+
+    - **关系**：查看阀门与部件、材料、标准等对象的一跳关系；
+    - **证据**：查看 data-xpert 返回的来源与证据摘要；
+    - **风险约束**：查看当前对象触发的结构化约束或告警。
+
+    某个页签显示“暂无数据”只表示当前快照没有该类事实，不表示插件加载失败。
+  </Step>
+
+  <Step title="让 Assistant 分析当前对象">
+    点击对象标题右侧的 **让助手分析**。Workbench 会先发布当前对象上下文，再向 Assistant 发送标准分析请求。
+
+    预期回答应区分：
+
+    1. **本体事实**：来自属性、关系、证据和约束；
+    2. **Assistant 判断**：基于事实形成的工程分析；
+    3. **待审核动作草案**：只有你随后明确要求保存时才会创建。
+
+    这一步不会自动创建草案。
+  </Step>
+</Steps>
+
+## 教程二：从 Action 中心完成一次成功 Demo
+
+以下以 `create_maintenance_work_order` 为例。
+
+<Steps>
+  <Step title="打开 Action 中心">
+    切换到 **Action 中心**。找到“创建阀门维护工单”，并检查：
+
+    - 来源是“本体定义”还是“Demo 补充”；
+    - 风险等级、执行模式和目标适配器；
+    - 前置条件、Action 输入、预期影响和阻断原因；
+    - 右下角是否显示“适配器就绪”。
+
+    如果按钮不可用，应先处理卡片中列出的阻断原因。
+  </Step>
+
+  <Step title="创建待审核草案">
+    点击 **创建 Demo 草案**。插件会使用该 Action 的 Demo 默认输入执行预检，然后创建 `pending_review` 草案，并自动切换到 **动作草案**。
+
+    在草案中检查 Action 输入、预期影响、对象引用和当前状态。创建草案不会执行任何外部操作。
+  </Step>
+
+  <Step title="人工批准">
+    点击 **批准**，可填写审核说明，然后点击 **确认变更**。
+
+    状态应从“待审核”变为“已批准”，并追加 `proposal_approved` 审计事件。批准只能由当前登录的 Workbench 用户完成，Assistant 没有批准工具。
+  </Step>
+
+  <Step title="执行成功路径">
+    对已批准草案点击 **执行 Demo**，选择 **成功路径**，确认页面仍显示“不会写入真实外部系统”，然后提交。
+
+    插件将同步生成模拟回执，例如 `WO-DEMO-*`，并把草案状态更新为“已完成”。
+  </Step>
+
+  <Step title="核对审计时间线">
+    执行完成后页面会打开 **审计**。确认至少存在：
+
+    ```text
+    proposal_created
+      → proposal_approved
+      → execution_queued
+      → execution_started
+      → execution_completed
+    ```
+
+    审计中应能看到操作者、时间、Action 输入和模拟业务回执。
+  </Step>
+
+  <Step title="刷新并确认持久化">
+    点击顶部 **刷新**，或重新打开 App。已创建的草案、状态、执行结果和审计记录应继续存在。
+  </Step>
+</Steps>
+
+## 教程三：让 Assistant 创建草案
+
+Assistant 可以发现和预检 Action，也可以在你明确授权后创建草案，但不能批准或执行。
+
+<Steps>
+  <Step title="先选中 Workbench 对象">
+    在对象导航中选中目标阀门。这样 Assistant 可以使用当前对象上下文，无需你重复输入 `entityId`、资源和快照信息。
+  </Step>
+
+  <Step title="只分析和预检，不创建">
+    在 Assistant 中输入：
+
+    ```text
+    请列出当前阀门可用的 Action，并预检 create_maintenance_work_order。
+    先不要创建草案，请说明前置条件、规范化输入、风险和预期影响。
+    ```
+
+    Assistant 应依次读取当前对象、发现 Action 并执行预检；此时“动作草案”中不应新增记录。
+  </Step>
+
+  <Step title="明确授权创建草案">
+    检查预检结果后输入：
+
+    ```text
+    请使用刚才预检通过的 normalizedInput 创建待审核草案，并保留当前对象、snapshotId、graphVersion 和证据引用。
+    ```
+
+    Assistant 调用 `valve_create_action_proposal` 后，Workbench 会根据工具完成事件刷新草案列表。新草案状态必须是“待审核”。
+  </Step>
+
+  <Step title="回到 Workbench 完成治理">
+    在 **动作草案** 中人工批准或拒绝。只有批准后的草案才会显示 **执行 Demo**，后续操作与教程二相同。
+  </Step>
+</Steps>
+
+## 演示失败与高风险安全边界
+
+### 失败路径
+
+为另一个 Action 创建并批准草案，在 **执行 Demo** 确认框中选择 **失败路径**。预期结果：
+
+- 草案状态变为“失败”；
+- 审计记录 `execution_queued → execution_started → execution_failed`；
+- 页面保留失败说明、Action 输入和操作者；
+- 系统不会伪造成功回执。
+
+### 阀门隔离模拟
+
+选择 `isolate_valve` 可以演示 CRITICAL Action：
+
+- 必须人工批准；
+- 执行模式显示 `simulation_only`；
+- 成功只生成隔离影响模拟与操作票草案；
+- 不会向 DCS 或 SIS 发送控制命令。
+
+## 常见问题
+
+### 看不到本体资源
+
+确认 data-xpert 资源处于 `ready`，包含精确的 `valve` 类型，并且没有被 `dataXpert.resourceIds` 白名单排除。
+
+### Action 卡片显示“当前不可执行”
+
+检查阻断原因。常见原因是 Demo 未启用、没有对应执行适配器，或 Action 输入不完整。详见[Action 产品功能](/actions)。
+
+### Assistant 不知道当前选中的阀门
+
+重新点击对象导航中的阀门，或点击 **让助手分析**，以重新发布 Workbench 上下文。若没有活动上下文，Assistant 应重新搜索对象，而不是猜测目标。
+
+### 为什么 Assistant 不能批准或执行
+
+这是产品治理边界。Assistant 只能读取、预检和创建 `pending_review` 草案；批准、拒绝与 Demo 执行必须由当前登录用户在 Workbench 中完成。详见[工具与权限](/tools)。
+
+### 如何重复演示
+
+草案和审计会持久化，当前版本没有删除或重置演示记录的入口。再次演示时，请选择另一个 Action 或另一个阀门对象，以保留完整审计历史。

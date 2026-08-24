@@ -1,0 +1,19 @@
+---
+title: Assistant Skill and starters
+---
+
+The Assistant template installs the bundled `valve-business-operations` Skill on its primary Agent. The Skill uses the same native middleware as the Workbench and does not add MCP or a second tool surface.
+
+It guides the Agent to:
+
+1. prefer the current Workbench valve context;
+2. fall back to ready-resource discovery and bounded object search when no context exists;
+3. separate ontology facts, evidence gaps, and Agent judgment;
+4. discover and preflight ontology Actions before proposal creation;
+5. create only `pending_review` proposals after explicit user intent;
+6. leave approval and Demo execution to the authenticated Workbench;
+7. refresh current object state once after a stale graph-version conflict.
+
+The template's four conversation starters cover current-object analysis, component/material/standard evidence, read-only Action preflight, and pending human work. They are stored in both template contribution metadata and `team.starters`; the DSL value is what becomes the published Assistant's ChatKit starters.
+
+Refreshing the plugin updates the reusable template and Skill component. Existing Assistant instances must be explicitly synchronized or reinitialized and republished before the new Skill dependency and starters become active.

@@ -13,11 +13,13 @@ const production: ProductionView = {
   sourceMaterials: [],
   storyPlan: null,
   episodes: [],
-  assets: [],
-  characters: [
+  assets: [
     {
-      id: 'character-hero',
+      id: 'asset-hero',
+      kind: 'character',
       name: '苏锦鲤',
+      description: '古装喜剧女主角。',
+      prompt: '苏锦鲤角色身份参考。',
       role: '主角',
       visualDescription: null,
       voiceReference: {
@@ -25,7 +27,15 @@ const production: ProductionView = {
         label: 'Reference voice',
         license: 'Public domain',
         sourceUrl: null
-      }
+      },
+      negativePrompt: null,
+      continuityNotes: null,
+      categoryDetails: {
+        identity: null, appearance: null, wardrobe: null, voice: null,
+        environment: null, lighting: null, material: null, condition: null,
+        storyFunction: null, palette: null, lens: null, continuity: null
+      },
+      candidates: []
     }
   ],
   scenes: [
@@ -45,7 +55,7 @@ const production: ProductionView = {
           action: '她看见堆满地窖的金银。',
           camera: '缓慢后拉',
           dialogue: '这得败到什么时候？',
-          dialogueSpeakerId: 'character-hero',
+          dialogueSpeakerId: 'asset-hero',
           dialogueType: 'dialogue',
           soundEffects: ['木门声', '金属碰撞声'],
           generationPrompt: null,

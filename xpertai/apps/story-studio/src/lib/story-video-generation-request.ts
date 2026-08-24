@@ -2,7 +2,7 @@ import type { WorkspacePortableFileReference } from '@xpert-ai/plugin-sdk'
 import { compactVoiceReference } from './voice-reference.js'
 import type {
   StoryAsset,
-  StoryCharacter,
+  StoryCharacterAsset,
   StoryMediaCandidate,
   StoryScene,
   StoryShot,
@@ -20,7 +20,6 @@ const MAX_REFERENCE_ASSETS = 9
 
 interface StoryGenerationProductionContext {
   assets?: StoryAsset[] | null
-  characters?: StoryCharacter[] | null
   scenes?: StoryScene[] | null
 }
 
@@ -163,8 +162,9 @@ function buildGenerationPrompt(
   referenceImages: ReferenceImage[],
   continuity: StoryVideoGenerationContinuitySnapshot | null
 ) {
-  const speaker = production.characters?.find(
-    (character) => character.id === shot.dialogueSpeakerId
+  const speaker = production.assets?.find(
+    (asset): asset is StoryCharacterAsset =>
+      asset.kind === 'character' && asset.id === shot.dialogueSpeakerId
   )
   const dialogue = dialogueInstruction(shot, speaker)
   const sections = [
@@ -208,7 +208,7 @@ function continuityInstruction(continuity: StoryVideoGenerationContinuitySnapsho
   return `${transition}承接“${continuity.fromShotTitle}”；开场必须从上一镜头结束状态继续，不得让角色、位置、姿态或道具无故复位${source ? `；上一镜头结束：${source}` : ''}${target ? `；本镜头开始：${target}` : ''}`
 }
 
-function dialogueInstruction(shot: StoryShot, speaker?: StoryCharacter) {
+function dialogueInstruction(shot: StoryShot, speaker?: StoryCharacterAsset) {
   if (!shot.dialogue) return { label: '对白', value: '' }
   const speakerName = compactText(speaker?.name ?? '') || '角色'
   if (shot.dialogueType === 'voice_over') return { label: '旁白', value: `${speakerName}：“${shot.dialogue}”；作为画外声音，画面角色不做口型` }
@@ -216,7 +216,7 @@ function dialogueInstruction(shot: StoryShot, speaker?: StoryCharacter) {
   return { label: '对白', value: `${speakerName}：“${shot.dialogue}”；自然发音并保持口型同步，其他角色不张嘴` }
 }
 
-function speakerVoiceInstruction(speaker?: StoryCharacter) {
+function speakerVoiceInstruction(speaker?: StoryCharacterAsset) {
   const voiceReference = compactVoiceReference(speaker?.voiceReference)
   if (!voiceReference) return ''
   const speakerName = compactText(speaker?.name ?? '') || '角色'

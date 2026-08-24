@@ -26,6 +26,27 @@ describe('Story Studio Agent tool schemas', () => {
     })
   })
 
+  it('requires target duration to be an integer number of seconds', () => {
+    expect(() =>
+      createStoryProjectSchema.parse({
+        operationId: 'create:project:duration:string',
+        title: 'String duration',
+        targetDurationSeconds: '120',
+        changeSummary: 'Attempted to create a project with a string duration'
+      })
+    ).toThrow()
+
+    expect(
+      updateStoryProjectSchema.parse({
+        projectId,
+        operationId: 'update:project:duration:number',
+        baseRevision: 1,
+        targetDurationSeconds: 120,
+        changeSummary: 'Updated the target duration in seconds'
+      }).targetDurationSeconds
+    ).toBe(120)
+  })
+
   it('rejects unknown fields and unbounded pagination', () => {
     expect(() =>
       createStoryProjectSchema.parse({

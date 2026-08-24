@@ -4,6 +4,8 @@
 
 The tool reads image files from the sandbox workspace root, keeps the loaded image batch in short-lived plugin memory, and the middleware temporarily appends those images to the immediate next model call. The data URL is not persisted into long-term chat history.
 
+Each image prepared for the model is also written through the scoped Workspace Files runtime and registered as an immutable Artifact version. The tool message stores only an `xpert.tool-output` image descriptor, so ChatKit can request a short-lived, host-authorized preview of the exact image shown to the model without persisting data URLs, sandbox paths, or signed URLs.
+
 ## What It Supports
 
 - Relative sandbox workspace paths such as `outputs/chart.png` or `sessions/thread/files/page-1.png`
@@ -12,6 +14,7 @@ The tool reads image files from the sandbox workspace root, keeps the loaded ima
 - Single-image and multi-image inspection via one tool call
 - Multiple independent `view_image` tool calls in the same tool round
 - Automatic injection into the immediate next model call after images are loaded
+- ChatKit image previews backed by immutable platform Artifacts
 
 ## What It Does Not Support In V1
 
@@ -47,6 +50,7 @@ Configure these options on the `ViewImageMiddleware` node:
 - Maximum raw file size per image: 10 MB
 - Attached image dimensions default to 100% of the original dimensions and can be reduced with `compressionPercent`
 - Paths must stay inside the current sandbox workspace root
+- The public `xpert.tool-output` presentation payload contains Artifact identities and presentation metadata only; it does not contain image bytes, data URLs, sandbox paths, Workspace Files references, or preview tokens
 
 ## Validation
 

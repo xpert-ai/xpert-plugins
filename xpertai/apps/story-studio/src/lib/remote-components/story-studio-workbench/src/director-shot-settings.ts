@@ -72,8 +72,9 @@ export function inferReferenceAssetIds(
     scene.title,
     scene.location
   ].filter(Boolean).join('\n').toLocaleLowerCase()
-  const speakerName = production.characters.find(
-    (character) => character.id === shot.dialogueSpeakerId
+  const speakerName = production.assets.find(
+    (asset) =>
+      asset.kind === 'character' && asset.id === shot.dialogueSpeakerId
   )?.name
   const characterAssets = production.assets.filter(
     (asset) =>

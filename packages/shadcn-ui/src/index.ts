@@ -1,4 +1,5 @@
 export * from './lib/utils.js'
+export * from './theme.js'
 export * from './icons.js'
 export * from './components/ui/alert-dialog.js'
 export * from './components/ui/avatar.js'

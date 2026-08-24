@@ -10,9 +10,12 @@ export default defineConfig({
   },
   build: {
     lib: {
-      entry: fileURLToPath(new URL('./src/build.ts', import.meta.url)),
+      entry: {
+        index: fileURLToPath(new URL('./src/build.ts', import.meta.url)),
+        theme: fileURLToPath(new URL('./src/theme.ts', import.meta.url))
+      },
       formats: ['es'],
-      fileName: 'index',
+      fileName: (_format, entryName) => `${entryName}.js`,
       cssFileName: 'style'
     },
     rollupOptions: {

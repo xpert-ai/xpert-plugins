@@ -51,7 +51,6 @@ export function createManualStarterProduction(
       }
     ],
     assets: [],
-    characters: [],
     scenes: [
       {
         id: sceneId,

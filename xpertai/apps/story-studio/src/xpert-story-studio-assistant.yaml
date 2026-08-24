@@ -29,7 +29,7 @@ team:
     stateVariables:
       - name: storyProjectId
         type: string
-        default: ""
+        default: ''
         description: Current Story Studio project id selected in the Workbench
         operation: null
       - name: storyProjectRevision
@@ -39,11 +39,11 @@ team:
         operation: null
       - name: storyProjectDirty
         type: string
-        default: ""
+        default: ''
         description: Whether the Workbench has unsaved local project edits
         operation: null
     recursionLimit: 10000
-  version: "1"
+  version: '1'
   agent:
     key: Agent_StoryStudio
   copilotModel:
@@ -116,13 +116,16 @@ nodes:
            production format, aspect ratio, and basic premise.
         3. For the first existing-project mutation, use the trusted revision
            already supplied by the Workbench context, project creation/search,
-           or a content read such as story_get_production. When no trusted
+           or story_get_production_context. When no trusted
            revision exists, call the lightweight story_get_project_revision;
            never call story_get_project_summary only for a revision number.
-        4. Every successful mutation receipt returns revision. Chain that value
-           into the next mutation as baseRevision. Use a stable operationId for
-           one exact payload and reuse it only when retrying that identical
-           payload.
+        4. Every successful mutation receipt returns revision. Use that value
+           for the next update to an existing entity. For a new character,
+           episode, asset, scene, or shot id, omit baseRevision; the server
+           serializes independent creates on the authoritative revision, so
+           distinct creates may run in parallel. Never guess or pre-compute a
+           future revision. Use a stable operationId for one exact payload and
+           reuse it only when retrying that identical payload.
         5. Keep changeSummary concise and user-visible.
         6. Treat review, completed, failed, and archived as explicit human
            decisions. Never infer approval.
@@ -133,22 +136,46 @@ nodes:
            operationId and the current revision.
         8. Use story_report_failure with a lowercase snake_case code when the
            project cannot progress. State whether recovery is possible.
-        9. To create the first saved production document, prefer
-           story_start_production with source synopsis, adaptation goal, visual
-           style, declared characters, and exactly one first scene. Use
-           story_save_production only when you already have one coherent
-           complete document: source synopsis, adaptation goal, visual style,
-           characters, ordered scenes, and bounded shots. Every shot needs
-           composition, action, camera, and a 1–20 second duration; total
-           duration is 5–300 seconds. Preserve dialogueSpeakerId, dialogueType,
-           soundEffects, and each character voiceReference when supplied.
-           After a production document exists, prefer
-           story_upsert_production_scene for one scene and
-           story_upsert_production_shot for one shot instead of resaving the
-           whole document. In these smaller tools, use dialogue:
+        9. Start every production-writing workflow with
+           story_get_production_context. If exists=false, call
+           story_initialize_production with only the production brief. That
+           call automatically creates episode-1 from the project title and
+           synopsis. Update that exact episode id for the first full script;
+           do not create another order=1 episode. Then add exactly one
+           character, later episode, asset, scene header, or shot per mutation.
+           A character is the kind=character asset aggregate holding
+           identity, role, visual description, voice reference, generation
+           prompt, and media candidates; there is no separate character
+           collection. Create or update it only with
+           story_upsert_production_character, and use that asset id as a
+           dialogue speakerId. Independent new ids may be submitted together
+           without baseRevision; an existing-id update must use the exact
+           latest revision. Never call story_save_production or
+           story_start_production;
+           those legacy whole-document contracts are not Agent tools.
+           story_upsert_production_scene never accepts shots. Create the scene
+           header first, then call story_upsert_production_shot once per shot.
+           Every new shot needs title, composition, action, camera, and a 1–20
+           second duration. Use dialogue:
            { text, speakerId, type } only when the shot has spoken text. For
            silent or action-only shots, omit dialogue or pass dialogue=null;
            never use a speaker id to mean the visible character.
+           targetDurationSeconds is always an integer number of seconds, never
+           a string, clock value, or localized duration. After all entities are
+           written, call story_validate_production. A validation read is not
+           human approval.
+           The episode.script field is serialized inside JSON tool arguments.
+           Never place raw ASCII double quotation marks inside script text.
+           Write dialogue with typographic quotation marks such as “…” or
+           「…」, and keep line breaks as valid JSON string escapes. If source
+           text contains ASCII quotes, replace them with typographic quotes
+           before calling story_upsert_production_episode.
+        9.0. On a tool schema invalid_type error, correct only the named field
+             and retry the same semantic mutation at most once. On malformed
+             tool arguments, do not retry a large or reconstructed payload;
+             return to story_get_production_context and continue with one
+             bounded mutation. On story_production_already_exists, follow the
+             structured nextAction and never attempt a whole-document save.
         9.1. When the Workbench asks for an AI adaptation suggestion, call
              story_get_production for the affected content, then call
              story_create_adaptation_suggestion with the exact episodeId and,
@@ -213,7 +240,7 @@ nodes:
       toolsetIds:
         - 4f6671c2-0b74-4b3f-8839-5c91379f7382
       knowledgebaseIds: []
-    hash: story-studio-agent-v10-revision-token-chain
+    hash: story-studio-agent-v12-seeded-first-episode-json-safe-script
   - type: toolset
     key: 4f6671c2-0b74-4b3f-8839-5c91379f7382
     position:

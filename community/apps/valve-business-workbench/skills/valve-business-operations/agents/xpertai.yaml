@@ -1,0 +1,59 @@
+interface:
+  display_name: "Valve Context-aware Operations"
+  short_description: "Analyze the current valve and prepare governed business operations"
+  brand_color: "#0F766E"
+  default_prompt: "Use $valve-business-operations to analyze the current Workbench valve and recommend the next governed action."
+runtime:
+  required_tools:
+    - kind: "agent-middleware-tool"
+      provider: "SkillsMiddleware"
+      name: "read_skill_file"
+      required: true
+      purpose: "Read the installed valve business operation instructions before use."
+    - kind: "agent-middleware-tool"
+      provider: "ValveBusinessWorkbenchMiddleware"
+      name: "valve_list_resources"
+      required: true
+      purpose: "Resolve ready valve ontology resources when no Workbench context exists."
+    - kind: "agent-middleware-tool"
+      provider: "ValveBusinessWorkbenchMiddleware"
+      name: "valve_get_schema"
+      required: true
+      purpose: "Read compact Schema details when exact field or Action interpretation is needed."
+    - kind: "agent-middleware-tool"
+      provider: "ValveBusinessWorkbenchMiddleware"
+      name: "valve_search_objects"
+      required: true
+      purpose: "Find an exact valve object when no current selection is available."
+    - kind: "agent-middleware-tool"
+      provider: "ValveBusinessWorkbenchMiddleware"
+      name: "valve_get_object_360"
+      required: true
+      purpose: "Read canonical current-object facts, relations, evidence, constraints, and Action affordances."
+    - kind: "agent-middleware-tool"
+      provider: "ValveBusinessWorkbenchMiddleware"
+      name: "valve_discover_actions"
+      required: true
+      purpose: "Discover governed Actions available for the current valve."
+    - kind: "agent-middleware-tool"
+      provider: "ValveBusinessWorkbenchMiddleware"
+      name: "valve_preflight_action"
+      required: true
+      purpose: "Validate required input, freshness, duplicate work, and adapter availability without mutation."
+    - kind: "agent-middleware-tool"
+      provider: "ValveBusinessWorkbenchMiddleware"
+      name: "valve_list_action_proposals"
+      required: true
+      purpose: "Review existing proposals and prevent duplicate recommendations."
+    - kind: "agent-middleware-tool"
+      provider: "ValveBusinessWorkbenchMiddleware"
+      name: "valve_create_action_proposal"
+      required: true
+      purpose: "Create a pending-review proposal only after explicit user intent and successful preflight when applicable."
+    - kind: "agent-middleware-tool"
+      provider: "ValveBusinessWorkbenchMiddleware"
+      name: "valve_get_audit_trace"
+      required: true
+      purpose: "Read proposal decisions and data-xpert tool audit history."
+policy:
+  allow_implicit_invocation: true

@@ -56,6 +56,27 @@ test('persists script CRUD, Assistant suggestions, detailed assets, storyboard c
 
   await frame.getByRole('button', { name: '剧本', exact: true }).click()
   await assertVisible(frame.getByTestId('director-script-page'))
+  await page.evaluate(() =>
+    window.XpertRemoteViewPreview.emitHostEvent({
+      toolName: 'story_upsert_production_character',
+      output: {
+        projectId: 'project-1',
+        changedEntityType: 'character',
+        changedEntityId: 'asset-linwan'
+      }
+    })
+  )
+  await assertVisible(frame.getByTestId('director-assets-page'))
+  await frame.getByRole('button', { name: '剧本', exact: true }).click()
+  await assertVisible(frame.getByTestId('director-script-page'))
+  await assertVisible(frame.getByText('分集列表', { exact: true }))
+  const newEpisodeButton = frame.getByTestId('new-episode-button')
+  assert.equal(await newEpisodeButton.innerText(), '')
+  await newEpisodeButton.hover()
+  await assertVisible(frame.getByRole('tooltip').getByText('新增分集', { exact: true }))
+  await page.screenshot({ path: resolve(screenshotRoot, 'script-new-episode-tooltip.png'), fullPage: false })
+  await page.keyboard.press('Escape')
+  await frame.getByRole('tooltip').waitFor({ state: 'hidden' })
   await assertVisible(frame.getByTestId('adaptation-suggestion-card'))
   await page.screenshot({ path: resolve(screenshotRoot, 'script.png'), fullPage: false })
 
@@ -154,8 +175,8 @@ test('persists script CRUD, Assistant suggestions, detailed assets, storyboard c
   await page.screenshot({ path: resolve(screenshotRoot, 'dialog-footer-theme.png'), fullPage: false })
   await assetDialog.getByRole('button', { name: '保存修改', exact: true }).click()
   await waitFor(() =>
-    preview.state.productionByProject['project-1'].characters
-      .find((character) => character.name === '林晚')?.voiceReference?.originalName === 'lin-wan-voice.wav'
+    preview.state.productionByProject['project-1'].assets
+      .find((asset) => asset.id === 'asset-linwan')?.voiceReference?.originalName === 'lin-wan-voice.wav'
   )
   const assistantMessagesBeforeAssetGeneration = preview.state.assistantMessages.length
   await frame.getByTestId('generate-asset-views').click()
@@ -215,9 +236,9 @@ test('persists script CRUD, Assistant suggestions, detailed assets, storyboard c
   const revisionAfterPrimarySelection = preview.state.projects.find(
     (project) => project.id === 'project-1'
   ).revision
-  const selectedPrimaryButton = frame.getByRole('button', { name: '正面全身', exact: true })
+  const selectedPrimaryButton = frame.getByRole('button', { name: '当前主参考', exact: true })
   assert.equal(await selectedPrimaryButton.isDisabled(), true)
-  await selectedPrimaryButton.evaluate((element) => element.click())
+  await frame.getByRole('button', { name: '预览正面全身', exact: true }).click()
   assert.equal(
     preview.state.actions.filter((action) => action.actionKey === 'save_production').length,
     saveCountAfterPrimarySelection

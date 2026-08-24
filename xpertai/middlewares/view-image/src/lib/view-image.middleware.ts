@@ -3,10 +3,12 @@ import { Injectable } from '@nestjs/common'
 import {
   AgentMiddleware,
   AgentMiddlewareStrategy,
+  ArtifactsRuntimeCapability,
   BaseSandbox,
   IAgentMiddlewareContext,
   IAgentMiddlewareStrategy,
-  Runtime
+  Runtime,
+  WorkspaceFilesRuntimeCapability
 } from '@xpert-ai/plugin-sdk'
 import { ViewImageIcon } from './types.js'
 import {
@@ -42,10 +44,11 @@ export class ViewImageMiddleware implements IAgentMiddlewareStrategy<Partial<Vie
 
   createMiddleware(
     options: Partial<ViewImageMiddlewareConfig>,
-    _context: IAgentMiddlewareContext
+    context: IAgentMiddlewareContext
   ): AgentMiddleware {
     const config = this.viewImageService.resolveMiddlewareConfig(options)
-    const viewImageTool = this.viewImageService.createTool(config)
+    const outputRuntime = requireOutputRuntime(context)
+    const viewImageTool = this.viewImageService.createTool(outputRuntime, config)
 
     return {
       name: VIEW_IMAGE_MIDDLEWARE_NAME,
@@ -64,6 +67,18 @@ export class ViewImageMiddleware implements IAgentMiddlewareStrategy<Partial<Vie
         }
       }
     }
+  }
+}
+
+function requireOutputRuntime(context: IAgentMiddlewareContext) {
+  const capabilities = context.runtime.capabilities
+  if (!capabilities) {
+    throw new Error('Xpert runtime capabilities are not available for `view_image`.')
+  }
+
+  return {
+    artifacts: capabilities.require(ArtifactsRuntimeCapability),
+    workspaceFiles: capabilities.require(WorkspaceFilesRuntimeCapability)
   }
 }
 

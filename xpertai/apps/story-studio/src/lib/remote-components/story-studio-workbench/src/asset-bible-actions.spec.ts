@@ -49,7 +49,6 @@ describe('asset bible actions', () => {
         storyPlan: null,
         episodes: [],
         assets: [asset],
-        characters: [],
         scenes: [],
         counts: {
           sources: 0,
@@ -103,7 +102,6 @@ describe('asset bible actions', () => {
         storyPlan: null,
         episodes: [],
         assets: [asset],
-        characters: [],
         scenes: [],
         counts: {
           sources: 0,

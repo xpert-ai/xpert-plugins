@@ -3,6 +3,7 @@ import { Plus, Textarea, Trash2 } from '@xpert-ai/plugin-shadcn-ui'
 import { DirectorSelect } from './director-form-controls'
 import type { ShotDraft } from './director-production-crud'
 import type { ProductionView, Scene } from './production-data'
+import { characterAssets } from './production-data'
 import {
   addShotDialogue,
   displayRequiredScriptText,
@@ -194,7 +195,7 @@ export function StructuredScriptEditor(props: StructuredScriptEditorProps) {
                     onValueChange={(value) => change((draft) => updateShotDialogueMetadata(draft, scene.id, shot.id, { dialogueSpeakerId: value || null }, defaults))}
                     options={[
                       { value: '', label: t('director.crud.noSpeaker') },
-                      ...production.characters.map((character) => ({ value: character.id, label: character.name }))
+                      ...characterAssets(production).map((character) => ({ value: character.id, label: character.name }))
                     ]}
                   />
                   <button type="button" className="mx-auto grid size-7 place-items-center rounded text-studio-muted hover:bg-red-50 hover:text-studio-danger" aria-label={t('director.script.removeDialogue')} onClick={() => change((draft) => removeShotDialogue(draft, scene.id, shot.id, defaults))}><Trash2 className="size-3.5" aria-hidden="true" /></button>
@@ -223,8 +224,8 @@ export function StructuredScriptEditor(props: StructuredScriptEditorProps) {
         )
       })}
 
-      <div className="flex min-h-36 min-w-0 items-start gap-3 overflow-hidden whitespace-nowrap px-12 py-5">
-        <div className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md border border-dashed border-studio-line bg-studio-canvas px-3 py-2 text-xs font-semibold text-studio-muted hover:border-studio-brass hover:text-studio-brass">
+      <div className="flex min-h-20 min-w-0 items-center gap-3 overflow-hidden whitespace-nowrap px-8 py-3">
+        <div className="inline-flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-md border border-dashed border-studio-line bg-studio-canvas px-3 text-xs font-semibold text-studio-muted hover:border-studio-brass hover:text-studio-brass">
           <Plus className="size-3.5" aria-hidden="true" />
           <span>{t('director.script.addBlock')}</span>
           <DirectorSelect
@@ -244,7 +245,7 @@ export function StructuredScriptEditor(props: StructuredScriptEditorProps) {
             ]}
           />
         </div>
-        <span className="min-w-0 flex-1 truncate pt-2 text-[11px] text-studio-muted" title={t('director.script.keyboardHelp')}>{t('director.script.keyboardHelp')}</span>
+        <span className="min-w-0 flex-1 truncate text-[11px] text-studio-muted" title={t('director.script.keyboardHelp')}>{t('director.script.keyboardHelp')}</span>
       </div>
     </article>
   )

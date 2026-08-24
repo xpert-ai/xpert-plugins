@@ -10,7 +10,8 @@ import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
-  TooltipTrigger
+  TooltipTrigger,
+  WandSparkles
 } from '@xpert-ai/plugin-shadcn-ui'
 import { DirectorAssemblyPage } from './director-assembly-page'
 import { DirectorAssetsPage } from './director-assets-page'
@@ -45,7 +46,8 @@ export function DirectorWorkbench(props: DirectorWorkbenchProps) {
     projects,
     selected,
     production,
-    productionPersisted,
+    productionLoaded,
+    saveState,
     handoff,
     activeStage,
     busy,
@@ -119,11 +121,12 @@ export function DirectorWorkbench(props: DirectorWorkbenchProps) {
           <div className="director-toolbar-spacer" />
           <Button variant="outline" size="sm" onClick={props.onRefresh}><RotateCcw aria-hidden="true" />{t('actions.refresh')}</Button>
           <Button variant="outline" size="sm" onClick={props.onLoadDemo}>{t('actions.loadDemo')}</Button>
+          <Button size="sm" className="director-template-button" title={t('templates.open')} onClick={props.onOpenTemplateCenter}><WandSparkles aria-hidden="true" />{t('templates.open')}</Button>
           <Button size="sm" onClick={props.onNewProject}><Plus aria-hidden="true" />{t('actions.newProject')}</Button>
         </header>
         <main className="director-empty-state">
           <span>SS</span><h1>{t('project.noSelection')}</h1><p>{t('production.emptyHelp')}</p>
-          <div><Button variant="outline" onClick={props.onLoadDemo}>{t('actions.loadDemo')}</Button><Button onClick={props.onNewProject}><Plus aria-hidden="true" />{t('actions.newProject')}</Button></div>
+          <div><Button variant="outline" onClick={props.onLoadDemo}>{t('actions.loadDemo')}</Button><Button className="director-template-featured" onClick={props.onOpenTemplateCenter}><WandSparkles aria-hidden="true" />{t('templates.start')}</Button><Button onClick={props.onNewProject}><Plus aria-hidden="true" />{t('actions.newProject')}</Button></div>
         </main>
       </div>
     )
@@ -149,7 +152,7 @@ export function DirectorWorkbench(props: DirectorWorkbenchProps) {
                   </button>
                 ))}
               </div>
-              <footer><Button variant="outline" size="sm" onClick={() => void leaveScript(() => { props.onLoadDemo(); setProjectMenuOpen(false) })}>{t('actions.loadDemo')}</Button><Button size="sm" onClick={() => void leaveScript(() => { props.onNewProject(); setProjectMenuOpen(false) })}><Plus aria-hidden="true" />{t('actions.newProject')}</Button></footer>
+              <footer><Button variant="outline" size="sm" onClick={() => void leaveScript(() => { props.onLoadDemo(); setProjectMenuOpen(false) })}>{t('actions.loadDemo')}</Button><Button variant="outline" size="sm" onClick={() => void leaveScript(() => { props.onOpenTemplateCenter(); setProjectMenuOpen(false) })}><WandSparkles aria-hidden="true" />{t('templates.open')}</Button><Button size="sm" onClick={() => void leaveScript(() => { props.onNewProject(); setProjectMenuOpen(false) })}><Plus aria-hidden="true" />{t('actions.newProject')}</Button></footer>
             </div>
           ) : null}
         </div>
@@ -163,8 +166,9 @@ export function DirectorWorkbench(props: DirectorWorkbenchProps) {
         </nav>
 
         <div className="director-top-status">
-          <span className="is-saved">{productionPersisted ? <i><Check aria-hidden="true" /></i> : null}{productionPersisted ? t('director.saved', { time: '10:24' }) : t('manualProduction.draft')}</span>
-          <span className="director-budget"><b>{productionPersisted ? t('director.costSummary') : t('project.status')}</b><strong>{productionPersisted ? t('director.costPending') : t('manualProduction.unsaved')}</strong></span>
+          <span className={`is-saved is-${saveState}`} aria-live="polite">{saveState === 'saved' && productionLoaded ? <i><Check aria-hidden="true" /></i> : null}{productionLoaded || saveState !== 'saved' ? t(`director.script.saveState.${saveState}`) : t('manualProduction.draft')}</span>
+          <span className="director-budget"><b>{productionLoaded ? t('director.costSummary') : t('project.status')}</b><strong>{productionLoaded ? t('director.costPending') : t('manualProduction.unsaved')}</strong></span>
+          <Button size="sm" className="director-template-button" title={t('templates.open')} onClick={props.onOpenTemplateCenter}><WandSparkles aria-hidden="true" />{t('templates.open')}</Button>
           {hasRightPanel ? (
             <TooltipProvider delayDuration={250}>
               <Tooltip>
@@ -191,6 +195,7 @@ export function DirectorWorkbench(props: DirectorWorkbenchProps) {
               <div className="director-account-menu">
                 <button type="button" onClick={() => void leaveScript(() => { props.onRefresh(); setAccountMenuOpen(false) })}><RotateCcw aria-hidden="true" />{t('actions.refresh')}</button>
                 <button type="button" onClick={() => void leaveScript(() => { props.onLoadDemo(); setAccountMenuOpen(false) })}>{t('director.visualDemo')}</button>
+                <button type="button" onClick={() => void leaveScript(() => { props.onOpenTemplateCenter(); setAccountMenuOpen(false) })}><WandSparkles aria-hidden="true" />{t('templates.open')}</button>
                 <button type="button" onClick={() => void leaveScript(() => { props.onNewProject(); setAccountMenuOpen(false) })}><Plus aria-hidden="true" />{t('actions.newProject')}</button>
               </div>
             ) : null}
@@ -200,7 +205,7 @@ export function DirectorWorkbench(props: DirectorWorkbenchProps) {
 
       <main className="director-workspace">
         {normalizedStage === DIRECTOR_STAGE.script ? (
-          <DirectorScriptPage production={activeProduction} busy={busy} rightPanelOpen={rightPanelOpen} t={t} onCommitProduction={(draft, summary, options) => props.onCommitProduction(4, draft, summary, options)} onRequestSuggestion={props.onRequestScriptSuggestion} onOpenStoryboard={() => props.onNavigate(DIRECTOR_STAGE.storyboard)} onRegisterBeforeLeave={(handler) => { scriptBeforeLeaveRef.current = handler }} />
+          <DirectorScriptPage production={activeProduction} busy={busy} rightPanelOpen={rightPanelOpen} t={t} onCommitProduction={(draft, summary, options) => props.onCommitProduction(4, draft, summary, options)} onRequestSuggestion={props.onRequestScriptSuggestion} onOpenStoryboard={() => props.onNavigate(DIRECTOR_STAGE.storyboard)} onRegisterBeforeLeave={(handler) => { scriptBeforeLeaveRef.current = handler }} onSaveStateChange={props.onSaveStateChange} />
         ) : null}
         {normalizedStage === DIRECTOR_STAGE.assets ? (
           <DirectorAssetsPage production={activeProduction} busy={busy} t={t} onCommitProduction={(draft, summary) => props.onCommitProduction(5, draft, summary)} onGenerateAsset={props.onGenerateAsset} onUploadAsset={props.onUploadAsset} onUploadAssetBatch={props.onUploadAssetBatch} onUploadVoiceReference={props.onUploadVoiceReference} onLockAsset={props.onLockAsset} />

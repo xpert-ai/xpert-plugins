@@ -23,6 +23,7 @@ import {
   STORY_ATTACH_GENERATED_ASSET_IMAGE_TOOL_NAME,
   STORY_ATTACH_GENERATED_VIDEO_TOOL_NAME,
   STORY_GET_PRODUCTION_TOOL_NAME,
+  STORY_GET_PRODUCTION_CONTEXT_TOOL_NAME,
   STORY_LIST_ADAPTATION_SUGGESTIONS_TOOL_NAME,
   STORY_GET_CUT_HANDOFF_TOOL_NAME,
   STORY_GET_PROJECT_REVISION_TOOL_NAME,
@@ -36,10 +37,14 @@ import {
   STORY_RETRY_VIDEO_TASK_TOOL_NAME,
   STORY_SELECT_SHOT_VIDEO_TOOL_NAME,
   STORY_SEARCH_PROJECTS_TOOL_NAME,
-  STORY_SAVE_PRODUCTION_TOOL_NAME,
-  STORY_START_PRODUCTION_TOOL_NAME,
+  STORY_INITIALIZE_PRODUCTION_TOOL_NAME,
+  STORY_UPDATE_PRODUCTION_BRIEF_TOOL_NAME,
+  STORY_UPSERT_PRODUCTION_CHARACTER_TOOL_NAME,
+  STORY_UPSERT_PRODUCTION_EPISODE_TOOL_NAME,
+  STORY_UPSERT_PRODUCTION_ASSET_TOOL_NAME,
   STORY_UPSERT_PRODUCTION_SCENE_TOOL_NAME,
   STORY_UPSERT_PRODUCTION_SHOT_TOOL_NAME,
+  STORY_VALIDATE_PRODUCTION_TOOL_NAME,
   STORY_PREPARE_CUT_HANDOFF_TOOL_NAME,
   STORY_STUDIO_AGENT_CAPABILITY,
   STORY_STUDIO_FEATURE,
@@ -65,6 +70,7 @@ import {
 import { StoryStudioService } from './story-studio.service.js'
 import { StoryAdaptationSuggestionService } from './story-adaptation-suggestion.service.js'
 import { StoryProductionService } from './story-production.service.js'
+import { StoryProductionAgentService } from './story-production-agent.service.js'
 import { StoryGeneratedMediaService } from './story-generated-media.service.js'
 import { StoryCutHandoffService } from './story-cut-handoff.service.js'
 import {
@@ -81,19 +87,31 @@ import {
   attachGeneratedAssetImageSchema,
   attachGeneratedVideoSchema,
   getStoryProductionSchema,
-  saveStoryProductionSchema,
-  startStoryProductionSchema,
-  upsertStoryProductionSceneSchema,
   upsertStoryProductionShotSchema
 } from './story-production.schemas.js'
+import {
+  getStoryProductionContextSchema,
+  initializeStoryProductionSchema,
+  updateStoryProductionBriefSchema,
+  upsertStoryProductionAssetSchema,
+  upsertStoryProductionCharacterSchema,
+  upsertStoryProductionEpisodeSchema,
+  upsertStoryProductionSceneMetadataSchema,
+  validateStoryProductionSchema
+} from './story-production-agent.schemas.js'
 import type {
   AttachGeneratedAssetImageInput,
   AttachGeneratedVideoInput,
   GetStoryProductionInput,
-  SaveStoryProductionInput,
+  GetStoryProductionContextInput,
+  InitializeStoryProductionInput,
   StoryAssetReference,
-  StartStoryProductionInput,
-  UpsertStoryProductionSceneInput,
+  UpdateStoryProductionBriefInput,
+  UpsertStoryProductionAssetInput,
+  UpsertStoryProductionCharacterInput,
+  UpsertStoryProductionEpisodeInput,
+  UpsertStoryProductionSceneMetadataInput,
+  ValidateStoryProductionInput,
   UpsertStoryProductionShotInput
 } from './production-types.js'
 import type {
@@ -132,9 +150,7 @@ import type {
   SelectStoryShotVideoInput
 } from './story-video-generation.types.js'
 
-const MUTATION_TOOL_NAMES = new Set<string>(
-  STORY_STUDIO_MUTATION_TOOL_NAMES
-)
+const MUTATION_TOOL_NAMES = new Set<string>(STORY_STUDIO_MUTATION_TOOL_NAMES)
 
 @Injectable()
 @AgentMiddlewareStrategy(STORY_STUDIO_MIDDLEWARE_NAME)
@@ -150,8 +166,7 @@ export class StoryStudioMiddleware
     description: {
       en_US:
         'Create and manage scoped, revision-safe story-production projects with explicit review stages.',
-      zh_Hans:
-        '创建和管理带作用域、版本保护及明确审核阶段的故事制作项目。'
+      zh_Hans: '创建和管理带作用域、版本保护及明确审核阶段的故事制作项目。'
     },
     icon: {
       type: 'svg',
@@ -173,6 +188,7 @@ export class StoryStudioMiddleware
   constructor(
     private readonly service: StoryStudioService,
     private readonly production: StoryProductionService,
+    private readonly productionAgent: StoryProductionAgentService,
     private readonly suggestions: StoryAdaptationSuggestionService,
     private readonly generatedMedia: StoryGeneratedMediaService,
     private readonly cutHandoffs: StoryCutHandoffService,
@@ -280,17 +296,15 @@ export class StoryStudioMiddleware
           }
         ),
         defineStoryAgentTool(
-          async (input: SaveStoryProductionInput) => {
-            const result = await this.production.saveProduction(scope, input)
-            return stringifyStoryAgentResult(
-              compactProductionMutationReceipt(result, input.operationId)
-            )
-          },
+          async (input: GetStoryProductionContextInput) =>
+            stringifyStoryAgentResult(
+              await this.productionAgent.getContext(scope, input)
+            ),
           {
-            name: STORY_SAVE_PRODUCTION_TOOL_NAME,
+            name: STORY_GET_PRODUCTION_CONTEXT_TOOL_NAME,
             description:
-              'Save a complete, reviewable production document containing source synopsis, adaptation goal, visual style, characters, ordered scenes, shots, and optional media candidates. Use the current baseRevision from Workbench context, a content read, or the latest mutation receipt; do not read the project summary only for revision. This mutation does not imply human approval.',
-            schema: saveStoryProductionSchema,
+              'Read only production existence, current revision, counts, entity-id indexes, and available next tools. Use this before deciding whether to initialize or continue an existing production. This does not return the complete script or production document.',
+            schema: getStoryProductionContextSchema,
             verboseParsingErrors: true
           }
         ),
@@ -308,41 +322,106 @@ export class StoryStudioMiddleware
           }
         ),
         defineStoryAgentTool(
-          async (input: StartStoryProductionInput) =>
+          async (input: InitializeStoryProductionInput) =>
             stringifyStoryAgentResult(
-              await this.production.startProduction(scope, input)
+              await this.productionAgent.initialize(scope, input)
             ),
           {
-            name: STORY_START_PRODUCTION_TOOL_NAME,
+            name: STORY_INITIALIZE_PRODUCTION_TOOL_NAME,
             description:
-              'Create the first saved Story Studio production document for a project that does not yet have one. Use the current baseRevision from Workbench context, project creation/search, or story_get_project_revision. Provide the production basis, declared characters, and exactly one firstScene. Shots use dialogue: { text, speakerId, type } only for spoken text; omit dialogue or pass null for silent/action shots. If production already exists, use story_upsert_production_scene or story_upsert_production_shot instead.',
-            schema: startStoryProductionSchema,
+              'Initialize one Story Studio production draft from its synopsis, adaptation goal, visual style, and optional audience. Call only when story_get_production_context returns exists=false. The service automatically seeds episode-1 using the project title and synopsis so the Workbench immediately has a first episode. Do not include characters, episodes, assets, scenes, or shots in this call; update episode-1 and add other entities one item at a time with the bounded tools.',
+            schema: initializeStoryProductionSchema,
             verboseParsingErrors: true
           }
         ),
         defineStoryAgentTool(
-          async (input: UpsertStoryProductionSceneInput) =>
+          async (input: UpdateStoryProductionBriefInput) =>
             stringifyStoryAgentResult(
-              await this.production.upsertScene(scope, input)
+              await this.productionAgent.updateBrief(scope, input)
+            ),
+          {
+            name: STORY_UPDATE_PRODUCTION_BRIEF_TOOL_NAME,
+            description:
+              'Update only the production synopsis, adaptation goal, visual style, or audience. Use the latest mutation receipt revision as baseRevision. Never resubmit characters, scenes, shots, or media.',
+            schema: updateStoryProductionBriefSchema,
+            verboseParsingErrors: true
+          }
+        ),
+        defineStoryAgentTool(
+          async (input: UpsertStoryProductionCharacterInput) =>
+            stringifyStoryAgentResult(
+              await this.productionAgent.upsertCharacter(scope, input)
+            ),
+          {
+            name: STORY_UPSERT_PRODUCTION_CHARACTER_TOOL_NAME,
+            description:
+              'Create or update exactly one complete character asset (identity, description, generation prompt, continuity fields, and role). This is the only character record used by the Asset page and dialogue speaker ids. For a new id, baseRevision may be omitted and multiple independent creates may be submitted together; the service serializes them on authoritative revisions. For an existing id, pass the exact current baseRevision. Never predict future revisions. Existing voice and image media are preserved.',
+            schema: upsertStoryProductionCharacterSchema,
+            verboseParsingErrors: true
+          }
+        ),
+        defineStoryAgentTool(
+          async (input: UpsertStoryProductionEpisodeInput) =>
+            stringifyStoryAgentResult(
+              await this.productionAgent.upsertEpisode(scope, input)
+            ),
+          {
+            name: STORY_UPSERT_PRODUCTION_EPISODE_TOOL_NAME,
+            description:
+              'Create or replace exactly one episode script. Initialization already creates episode-1; update that exact id for the first episode instead of creating another order=1 episode. The script field is a JSON string: never put raw ASCII double quotes inside it. Use typographic quotes such as “…” or 「…」 for dialogue; newlines must remain valid JSON escapes. targetDurationSeconds must be an integer number of seconds, never a string. Omit baseRevision for a new id; pass the exact current revision for an existing-id update. Never predict future revisions.',
+            schema: upsertStoryProductionEpisodeSchema,
+            verboseParsingErrors: true
+          }
+        ),
+        defineStoryAgentTool(
+          async (input: UpsertStoryProductionAssetInput) =>
+            stringifyStoryAgentResult(
+              await this.productionAgent.upsertAsset(scope, input)
+            ),
+          {
+            name: STORY_UPSERT_PRODUCTION_ASSET_TOOL_NAME,
+            description:
+              'Create or update exactly one location, prop, or style asset. Characters are accepted only by story_upsert_production_character so identity and media cannot diverge. Omit baseRevision for a new id; pass the exact current revision for an update. Existing generated/uploaded media candidates are preserved.',
+            schema: upsertStoryProductionAssetSchema,
+            verboseParsingErrors: true
+          }
+        ),
+        defineStoryAgentTool(
+          async (input: UpsertStoryProductionSceneMetadataInput) =>
+            stringifyStoryAgentResult(
+              await this.productionAgent.upsertSceneMetadata(scope, input)
             ),
           {
             name: STORY_UPSERT_PRODUCTION_SCENE_TOOL_NAME,
             description:
-              'Create or replace one complete scene in an existing saved Story Studio production document. Read story_get_production when scene content is needed, then use its projectRevision or the latest mutation receipt as baseRevision. Do not read the project summary only for revision. Shots use dialogue: { text, speakerId, type } only when the shot has spoken text; omit dialogue or pass null for silent/action shots. This preserves existing media candidates on matching shot ids.',
-            schema: upsertStoryProductionSceneSchema,
+              'Create or update exactly one scene header: id, episode, order, title, summary, location, and time of day. Do not include shots. Omit baseRevision for a new id; pass the exact current revision for an update. Add or patch shots separately; existing shots are preserved.',
+            schema: upsertStoryProductionSceneMetadataSchema,
             verboseParsingErrors: true
           }
         ),
         defineStoryAgentTool(
           async (input: UpsertStoryProductionShotInput) =>
             stringifyStoryAgentResult(
-              await this.production.upsertShot(scope, input)
+              await this.productionAgent.upsertShot(scope, input)
             ),
           {
             name: STORY_UPSERT_PRODUCTION_SHOT_TOOL_NAME,
             description:
-              'Create or patch one shot inside an existing saved Story Studio scene. Read story_get_production when shot content or ids are needed, then use its projectRevision or the latest mutation receipt as baseRevision. Do not read the project summary only for revision. For dialogue, pass dialogue: { text, speakerId, type }; pass dialogue=null to clear speech. Never use dialogueSpeakerId to mean the visible character in a silent shot.',
+              'Create or patch one shot inside an existing saved Story Studio scene. Omit baseRevision for a new shot id; pass the exact current revision when patching an existing shot. The service serializes independent creates and never requires predicting revisions. For dialogue, speakerId is the id of a character asset; pass dialogue=null to clear speech.',
             schema: upsertStoryProductionShotSchema,
+            verboseParsingErrors: true
+          }
+        ),
+        defineStoryAgentTool(
+          async (input: ValidateStoryProductionInput) =>
+            stringifyStoryAgentResult(
+              await this.productionAgent.validate(scope, input)
+            ),
+          {
+            name: STORY_VALIDATE_PRODUCTION_TOOL_NAME,
+            description:
+              'Validate the current production for complete character references, ordered scenes, non-empty shot lists, required shot fields, and total duration. This read does not mutate or approve the production.',
+            schema: validateStoryProductionSchema,
             verboseParsingErrors: true
           }
         ),
@@ -457,15 +536,9 @@ export class StoryStudioMiddleware
               )
             }
             const file = await files.readRuntimeBuffer(
-              input.file as Parameters<
-                typeof files.readRuntimeBuffer
-              >[0]
+              input.file as Parameters<typeof files.readRuntimeBuffer>[0]
             )
-            const durableFile = await persistGeneratedVideo(
-              files,
-              input,
-              file
-            )
+            const durableFile = await persistGeneratedVideo(files, input, file)
             return stringifyStoryAgentResult(
               await this.generatedMedia.attachGeneratedVideo(
                 scope,
@@ -575,9 +648,7 @@ export class StoryStudioMiddleware
         ),
         defineStoryAgentTool(
           async (input: GetStoryCutHandoffInput) =>
-            stringifyStoryAgentResult(
-              await this.cutHandoffs.get(scope, input)
-            ),
+            stringifyStoryAgentResult(await this.cutHandoffs.get(scope, input)),
           {
             name: STORY_GET_CUT_HANDOFF_TOOL_NAME,
             description:
@@ -621,7 +692,9 @@ export class StoryStudioMiddleware
             changeSummary,
             'success',
             createdAt,
-            { output: summarizeToolOutput(result) }
+            {
+              output: summarizeToolOutput(result)
+            }
           )
           return result
         } catch (error) {
@@ -631,8 +704,7 @@ export class StoryStudioMiddleware
             'fail',
             createdAt,
             {
-              error:
-                error instanceof Error ? error.message : String(error)
+              error: error instanceof Error ? error.message : String(error)
             }
           )
           throw error
@@ -672,8 +744,8 @@ async function persistGeneratedAssetImage(
     extension === 'jpg'
       ? 'image/jpeg'
       : extension === 'webp'
-        ? 'image/webp'
-        : 'image/png'
+      ? 'image/webp'
+      : 'image/png'
   const fileName = `${input.candidateId}.${extension}`
   const written = await files.writeRuntimeBuffer({
     buffer: source.buffer,
@@ -820,10 +892,7 @@ async function dispatchStoryToolEvent(
     ...(details.error ? { error: details.error } : {})
   }
   try {
-    await dispatchCustomEvent(
-      ChatMessageEventTypeEnum.ON_TOOL_MESSAGE,
-      payload
-    )
+    await dispatchCustomEvent(ChatMessageEventTypeEnum.ON_TOOL_MESSAGE, payload)
   } catch {
     // Event delivery must never fail the authoritative project mutation.
   }
@@ -876,35 +945,11 @@ function summarizeToolOutput(value: unknown) {
   return statusOnlySummary
 }
 
-type ProductionMutationResult = Awaited<
-  ReturnType<StoryProductionService['saveProduction']>
->
-
-function compactProductionMutationReceipt(
-  result: ProductionMutationResult,
-  operationId: string
-) {
-  return {
-    success: result.success,
-    duplicate: result.duplicate,
-    operationId,
-    projectId: result.projectId,
-    revision: result.revision,
-    documentRevision: result.production.documentRevision,
-    counts: result.production.counts,
-    totalDurationSeconds: result.production.totalDurationSeconds
-  }
-}
-
 function compactAssetImageMutationReceipt(
   result: Awaited<ReturnType<StoryProductionService['attachAssetImage']>>,
   input: Pick<
     AttachGeneratedAssetImageInput,
-    | 'operationId'
-    | 'assetId'
-    | 'candidateId'
-    | 'assetReference'
-    | 'select'
+    'operationId' | 'assetId' | 'candidateId' | 'assetReference' | 'select'
   >
 ) {
   return {

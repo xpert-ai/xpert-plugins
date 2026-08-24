@@ -13,6 +13,8 @@ export const retryBaseSchema = z
     retryableErrorNames: z.array(z.string().trim().min(1)).optional(),
     retryableStatusCodes: z.array(z.number().int()).optional(),
     retryableMessageIncludes: z.array(z.string().trim().min(1)).optional(),
+    retryInvalidToolCalls: z.boolean().default(true),
+    maxOutputRepairRetries: z.number().int().min(0).max(2).default(1),
     onFailure: z.enum(['continue', 'error']).default('continue'),
   })
   .superRefine((data, ctx) => {
@@ -43,6 +45,8 @@ export interface NormalizedRetryConfig {
   retryableErrorNames: string[]
   retryableStatusCodes: number[]
   retryableMessageIncludes: string[]
+  retryInvalidToolCalls: boolean
+  maxOutputRepairRetries: number
   onFailure: RetryOnFailureMode
 }
 
@@ -69,6 +73,8 @@ export function normalizeRetryConfig(input: RetryBaseConfigInput): NormalizedRet
     retryableErrorNames: normalizeStringList(input.retryableErrorNames),
     retryableStatusCodes: normalizeNumberList(input.retryableStatusCodes),
     retryableMessageIncludes: normalizeStringList(input.retryableMessageIncludes, true),
+    retryInvalidToolCalls: input.retryInvalidToolCalls ?? true,
+    maxOutputRepairRetries: input.maxOutputRepairRetries ?? 1,
     onFailure: input.onFailure ?? 'continue',
   }
 }

@@ -9,6 +9,18 @@ export interface StoryToolEvent {
   projectId: string | null
 }
 
+const TOOL_DESTINATION_STAGE: Record<string, number> = {
+  story_upsert_production_episode: 4,
+  story_upsert_production_character: 5,
+  story_upsert_production_asset: 5,
+  story_upsert_production_scene: 4,
+  story_upsert_production_shot: 6
+}
+
+export function destinationStageForStoryTool(toolName: string | null) {
+  return toolName ? TOOL_DESTINATION_STAGE[toolName] ?? null : null
+}
+
 export function normalizeStoryToolEvent(
   event: RemoteValue
 ): StoryToolEvent {

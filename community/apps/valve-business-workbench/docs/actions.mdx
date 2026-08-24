@@ -1,0 +1,102 @@
+---
+title: 阀门 Action 产品功能与演示场景
+description: 面向客户演示的 Action 发现、预检、审批、模拟执行和审计闭环。
+---
+
+## 产品目标
+
+阀门业务工作台把 data-xpert 中的阀门本体对象、关系、证据、约束和 Action 定义转化为可操作的业务流程。产品演示重点不是“聊天生成一段建议”，而是让客户看到一条受控、可解释、可审核的业务闭环：
+
+```text
+选择阀门对象
+  → 发现可用 Action
+  → 检查前置条件、输入、风险和预期影响
+  → Assistant 或用户创建待审核草案
+  → Workbench 用户批准或拒绝
+  → 用户显式启动 Demo 执行适配器
+  → 生成模拟业务回执和完整审计时间线
+```
+
+Demo 模式不会写入真实 ERP、EAM、QMS、采购、DCS 或 SIS。它用于展示产品流程、治理边界、失败恢复和系统集成形态。
+
+## 内置演示场景
+
+| Action | 业务场景 | 风险 | Demo 目标系统 | 演示结果 |
+| --- | --- | --- | --- | --- |
+| `create_maintenance_work_order` | 泄漏、卡涩或约束风险触发维护 | HIGH | Demo EAM | `WO-DEMO-*` 待派工工单 |
+| `schedule_valve_inspection` | 到期、风险或标准要求触发专项巡检 | MEDIUM | Demo Inspection | `INS-DEMO-*` 巡检任务 |
+| `raise_quality_deviation` | 材料、标准或检验事实不一致 | HIGH | Demo QMS | `NCR-DEMO-*` 质量偏差 |
+| `request_spare_part` | 检修需要密封件、填料或执行机构备件 | MEDIUM | Demo Procurement | `PR-DEMO-*` 备件申请 |
+| `request_valve_replacement` | 重复失效或维修价值不足，需要更换评审 | HIGH | Engineering Review | `ENG-DEMO-*` 工程评审任务 |
+| `isolate_valve` | 演示高风险隔离操作的审批和安全边界 | CRITICAL | Isolation Simulator | `SIM-DEMO-*` 模拟回执；不发送控制命令 |
+| `request_engineering_review` | 信息不足或跨专业结论需要复核 | LOW | Engineering Review | `ENG-DEMO-*` 内部复核任务 |
+
+Action 卡片会同时显示：
+
+- `本体定义` 或 `Demo 补充`来源；
+- 风险等级、审批要求和执行模式；
+- 目标适配器、前置条件、必填输入和预期影响；
+- 当前是否可执行以及结构化阻断原因。
+
+## Action 预检
+
+Assistant 在创建 `ontology_action` 草案前必须调用 `valve_preflight_action`。预检读取当前对象 360 和图谱版本，检查：
+
+- Action 对当前实体是否可用；
+- Demo 执行适配器是否启用；
+- 必填输入与数值范围；
+- 草案使用的 `graphVersion` 是否已经过期；
+- 当前阀门是否已有待审核或已批准的同类维护工单草案；
+- 对象约束和 simulation-only 警告。
+
+预检只读，不会创建草案或调用执行器。通过后，规范化输入和预检摘要会随草案一起保存，供审批人复核。
+
+## 权限与责任边界
+
+| 能力 | Assistant middleware | Workbench 用户 |
+| --- | --- | --- |
+| 读取阀门事实、关系、证据和约束 | 允许 | 允许 |
+| 发现和预检 Action | 允许 | 允许 |
+| 创建 `pending_review` 草案 | 用户明确要求后允许 | Demo 按钮允许 |
+| 批准或拒绝 | 不允许 | 允许 |
+| 启动 Demo 执行器 | 不允许 | 仅已批准草案允许 |
+| 写入真实外部系统 | 不允许 | 当前版本不支持 |
+
+Assistant 的工具集中故意没有 approve、reject 或 execute 工具。审批和执行只能从具备当前登录身份的 Workbench 发起。
+
+## 操作教程
+
+完整的逐步操作、界面说明、Assistant 提示词和验收结果请参阅[阀门业务工作台上手教程](/tutorial)。教程覆盖：
+
+- 对象 360 与 Assistant 分析；
+- `create_maintenance_work_order` 成功主路径；
+- Assistant 预检并创建待审核草案；
+- `execution_queued → execution_started → execution_completed` 审计时间线；
+- `execution_failed` 失败保护路径；
+- `isolate_valve` 的 CRITICAL、人工审批和 `simulation_only` 安全边界。
+
+## data-xpert 与插件如何连接
+
+data-xpert 负责发布本体快照，提供阀门对象、关系、证据、约束和 Action 语义。插件使用当前用户的短期 Actor Token 调用 data-xpert Agent Tools REST，并在服务端重新校验组织和资源范围。
+
+插件根据 `actionTypeCode` 选择执行适配器：
+
+```text
+data-xpert Action code
+  → valve_preflight_action
+  → plugin action descriptor / handler mapping
+  → pending_review proposal
+  → Workbench human approval
+  → Demo adapter
+  → plugin-owned audit event + simulated receipt
+```
+
+未来接入真实 EAM/QMS 时，只需将对应 Demo handler 替换为正式连接器，并保留相同的 Action code、预检、审批、幂等和审计契约。
+
+## 当前限制
+
+- 只处理单个阀门的一跳邻域；
+- Demo Action 可作为本体尚未补齐时的 fallback，界面会清晰标注来源；
+- 不执行真实外部系统写入，不控制现场设备；
+- 不修改本体 Schema、数据绑定、实例或发布版本；
+- Demo 执行是同步且快速的，生产连接器应采用可靠队列、重试、超时和对账机制。

@@ -1,0 +1,37 @@
+---
+title: Valve ontology initialization
+description: Import the plugin-owned valve model and neutral demonstration data into data-xpert.
+---
+
+The plugin ships a versioned ontology bundle in source code. Connecting data-xpert does not write anything by itself. A Workbench user must click **初始化本体 / Initialize ontology** and confirm the operation.
+
+## Bundle contents
+
+| Content | Count | Notes |
+| --- | ---: | --- |
+| Entity types | 5 | `valve`, `valve_component`, `actuator`, `material`, `standard` |
+| Relation types | 4 | Parts, materials, actuator, and standards |
+| Action types | 7 | Maintenance, inspection, quality, spare parts, replacement, isolation simulation, and engineering review |
+| Demo instances | 7 | One valve plus related components, materials, actuator, and standard |
+| Demo relations | 6 | A connected one-hop engineering object 360 |
+
+The stable resource id is `valve-engineering-ontology`. Version `1.0.0` contains only neutral product-demo data and does not include customer production records or data bindings.
+
+## Import lifecycle
+
+```text
+check fixed resource/version
+  → create definition or require draft-overwrite confirmation
+  → PUT complete code-owned draft
+  → validate in data-xpert
+  → publish semantic version
+  → refresh ready resources and object list
+```
+
+The server obtains the current user's short-lived Actor Token and current organization from the host runtime. Resource id, semantic version, definition content, tenant, organization, and API address are not accepted from the iframe.
+
+If the exact semantic version is already published, initialization is idempotent and returns `already_current`. If an unpublished draft exists, the UI explains that the draft will be overwritten and requires a second explicit confirmation. Published version history is never deleted.
+
+## Upgrade rule
+
+Change the code-owned model and increment `VALVE_ONTOLOGY_MANIFEST.version.semanticVersion`. Rebuild and redeploy the plugin; the Workbench will show **更新本体 / Update ontology**. Never edit an already-published semantic version in place.

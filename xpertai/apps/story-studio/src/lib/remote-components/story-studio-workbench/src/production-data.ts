@@ -101,6 +101,9 @@ export type Asset = {
   continuityNotes: string | null
   categoryDetails: AssetCategoryDetails
   candidates: Candidate[]
+  role?: string | null
+  visualDescription?: string | null
+  voiceReference?: VoiceReference | null
 }
 
 export type AssetCategoryDetails = {
@@ -129,12 +132,14 @@ export type VoiceReference = {
   size?: number | null
 }
 
-export type Character = {
-  id: string
-  name: string
-  role: string | null
-  visualDescription: string | null
-  voiceReference: VoiceReference | null
+export type CharacterAsset = Asset & { kind: 'character' }
+
+export function characterAssets(
+  production: Pick<ProductionView, 'assets'>
+): CharacterAsset[] {
+  return production.assets.filter(
+    (asset): asset is CharacterAsset => asset.kind === 'character'
+  )
 }
 
 export type Shot = {
@@ -216,7 +221,6 @@ export type ProductionView = {
   storyPlan: StoryPlan | null
   episodes: Episode[]
   assets: Asset[]
-  characters: Character[]
   scenes: Scene[]
   counts: {
     sources: number
@@ -288,9 +292,6 @@ export function parseProductionView(value: RemoteValue): ProductionView | null {
     storyPlan: parseStoryPlan(value.storyPlan),
     episodes: arrayField(value, 'episodes').map(parseEpisode).filter(isPresent),
     assets: arrayField(value, 'assets').map(parseAsset).filter(isPresent),
-    characters: arrayField(value, 'characters')
-      .map(parseCharacter)
-      .filter(isPresent),
     scenes: value.scenes.map(parseScene).filter(isPresent)
   }
 }
@@ -463,6 +464,9 @@ function parseAsset(value: RemoteValue): Asset | null {
     negativePrompt: nullableString(value, 'negativePrompt'),
     continuityNotes: nullableString(value, 'continuityNotes'),
     categoryDetails: parseAssetCategoryDetails(value.categoryDetails),
+    role: nullableString(value, 'role'),
+    visualDescription: nullableString(value, 'visualDescription'),
+    voiceReference: parseVoiceReference(value.voiceReference),
     candidates: arrayField(value, 'candidates')
       .map(parseCandidate)
       .filter(isPresent)
@@ -484,20 +488,6 @@ function parseAssetCategoryDetails(value: RemoteValue): AssetCategoryDetails {
     palette: nullableString(object, 'palette'),
     lens: nullableString(object, 'lens'),
     continuity: nullableString(object, 'continuity')
-  }
-}
-
-function parseCharacter(value: RemoteValue): Character | null {
-  if (!isRemoteObject(value)) return null
-  const id = stringField(value, 'id')
-  const name = stringField(value, 'name')
-  if (!id || !name) return null
-  return {
-    id,
-    name,
-    role: nullableString(value, 'role'),
-    visualDescription: nullableString(value, 'visualDescription'),
-    voiceReference: parseVoiceReference(value.voiceReference)
   }
 }
 
@@ -711,45 +701,41 @@ export function productionActionDocument(
         ...(hasAssetCategoryDetails(asset.categoryDetails)
           ? { categoryDetails: compactAssetCategoryDetails(asset.categoryDetails) }
           : {}),
+        ...(asset.kind === 'character' && asset.role
+          ? { role: asset.role }
+          : {}),
+        ...(asset.kind === 'character' && asset.visualDescription
+          ? { visualDescription: asset.visualDescription }
+          : {}),
+        ...(asset.kind === 'character' && asset.voiceReference?.url?.trim() &&
+        asset.voiceReference?.label?.trim()
+          ? {
+              voiceReference: {
+                url: asset.voiceReference.url.trim(),
+                label: asset.voiceReference.label.trim(),
+                ...(asset.voiceReference.license?.trim()
+                  ? { license: asset.voiceReference.license.trim() }
+                  : {}),
+                ...(asset.voiceReference.sourceUrl?.trim()
+                  ? { sourceUrl: asset.voiceReference.sourceUrl.trim() }
+                  : {}),
+                ...(asset.voiceReference.workspacePath?.trim()
+                  ? { workspacePath: asset.voiceReference.workspacePath.trim() }
+                  : {}),
+                ...(asset.voiceReference.originalName?.trim()
+                  ? { originalName: asset.voiceReference.originalName.trim() }
+                  : {}),
+                ...(asset.voiceReference.mimeType?.trim()
+                  ? { mimeType: asset.voiceReference.mimeType.trim() }
+                  : {}),
+                ...(asset.voiceReference.size
+                  ? { size: asset.voiceReference.size }
+                  : {})
+              }
+            }
+          : {}),
         candidates: asset.candidates.map(serializeCandidate)
       })),
-      characters: production.characters.map((character) => {
-        return {
-          id: character.id,
-          name: character.name,
-          ...(character.role ? { role: character.role } : {}),
-          ...(character.visualDescription
-            ? { visualDescription: character.visualDescription }
-            : {}),
-          ...(character.voiceReference?.url?.trim() &&
-          character.voiceReference?.label?.trim()
-            ? {
-                voiceReference: {
-                  url: character.voiceReference.url.trim(),
-                  label: character.voiceReference.label.trim(),
-                  ...(character.voiceReference.license?.trim()
-                    ? { license: character.voiceReference.license.trim() }
-                    : {}),
-                  ...(character.voiceReference.sourceUrl?.trim()
-                    ? { sourceUrl: character.voiceReference.sourceUrl.trim() }
-                    : {}),
-                  ...(character.voiceReference.workspacePath?.trim()
-                    ? { workspacePath: character.voiceReference.workspacePath.trim() }
-                    : {}),
-                  ...(character.voiceReference.originalName?.trim()
-                    ? { originalName: character.voiceReference.originalName.trim() }
-                    : {}),
-                  ...(character.voiceReference.mimeType?.trim()
-                    ? { mimeType: character.voiceReference.mimeType.trim() }
-                    : {}),
-                  ...(character.voiceReference.size
-                    ? { size: character.voiceReference.size }
-                    : {})
-                }
-              }
-            : {})
-        }
-      }),
       scenes: production.scenes.map((scene) => ({
         id: scene.id,
         ...(scene.episodeId ? { episodeId: scene.episodeId } : {}),
