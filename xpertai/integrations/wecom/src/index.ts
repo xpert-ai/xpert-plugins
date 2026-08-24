@@ -6,6 +6,7 @@ import { dirname, join } from 'path'
 import { WeComPlugin } from './lib/wecom.plugin.js'
 import { iconImage } from './lib/types.js'
 import { WECOM_PLUGIN_CONTEXT } from './lib/tokens.js'
+import { WECOM_PLUGIN_RUNTIME_METADATA } from './lib/constants.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -21,6 +22,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   meta: {
     name: packageJson.name,
     version: packageJson.version,
+    ...WECOM_PLUGIN_RUNTIME_METADATA,
     category: 'integration',
     icon: {
       type: 'image',
