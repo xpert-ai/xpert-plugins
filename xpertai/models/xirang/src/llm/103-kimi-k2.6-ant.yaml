@@ -1,0 +1,103 @@
+{
+  "model": "kimi-k2.6-ant",
+  "label": {
+    "en_US": "kimi-k2.6-ant",
+    "zh_Hans": "kimi-k2.6-ant"
+  },
+  "model_type": "llm",
+  "model_properties": {
+    "mode": "chat",
+    "context_size": 32768
+  },
+  "parameter_rules": [
+    {
+      "name": "temperature",
+      "use_template": "temperature",
+      "label": {
+        "zh_Hans": "温度",
+        "en_US": "Temperature"
+      },
+      "default": 0.2,
+      "min": 0,
+      "max": 2
+    },
+    {
+      "name": "top_p",
+      "use_template": "top_p",
+      "label": {
+        "zh_Hans": "Top P",
+        "en_US": "Top P"
+      },
+      "default": 1,
+      "min": 0,
+      "max": 1
+    },
+    {
+      "name": "max_tokens",
+      "use_template": "max_tokens",
+      "label": {
+        "zh_Hans": "最大输出 Token",
+        "en_US": "Max output tokens"
+      },
+      "default": 2048,
+      "min": 1,
+      "max": 32768
+    },
+    {
+      "name": "response_format",
+      "type": "string",
+      "label": {
+        "zh_Hans": "回复格式",
+        "en_US": "Response format"
+      },
+      "required": false,
+      "options": [
+        "text",
+        "json_object"
+      ]
+    },
+    {
+      "name": "enable_thinking",
+      "type": "boolean",
+      "label": {
+        "zh_Hans": "思考模式",
+        "en_US": "Thinking mode"
+      },
+      "required": false,
+      "default": false
+    }
+  ],
+  "features": [
+    "tool-call",
+    "multi-tool-call",
+    "stream-tool-call",
+    "structured-output",
+    "agent-thought"
+  ],
+  "pricing": {
+    "input": "6.5",
+    "output": "27",
+    "unit": "0.000001",
+    "currency": "CNY",
+    "rules": [
+      {
+        "component": "input",
+        "unit_price": 6.5,
+        "unit_size": 1000000,
+        "currency": "CNY"
+      },
+      {
+        "component": "cache_read_input",
+        "unit_price": 1.3,
+        "unit_size": 1000000,
+        "currency": "CNY"
+      },
+      {
+        "component": "output",
+        "unit_price": 27,
+        "unit_size": 1000000,
+        "currency": "CNY"
+      }
+    ]
+  }
+}

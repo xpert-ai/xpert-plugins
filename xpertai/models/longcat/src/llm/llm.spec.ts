@@ -38,7 +38,7 @@ function createCopilotModel(
   options: Record<string, unknown>
 ): Parameters<LongcatLargeLanguageModel['getChatModel']>[0] {
   return {
-    model: 'longcat-flash-thinking',
+    model: 'LongCat-2.0',
     options,
     copilot: {
       role: AiProviderRole.Primary,
@@ -61,27 +61,39 @@ describe('LongCat model adapter', () => {
     expect(dependency?.name).toBe('LongcatProviderStrategy');
   });
 
-  it('normalizes the Dify-compatible endpoint', () => {
+  it('normalizes the current LongCat endpoint', () => {
     expect(getLongcatBaseUrl({ api_key: 'test-key' })).toBe(LongcatBaseUrl);
     expect(
       getLongcatBaseUrl({
         api_key: 'test-key',
-        endpoint_url: 'https://proxy.example.com/openai/',
+        endpoint_url: 'https://api.longcat.chat/openai',
       })
-    ).toBe('https://proxy.example.com/openai');
+    ).toBe(LongcatBaseUrl);
+    expect(
+      getLongcatBaseUrl({
+        api_key: 'test-key',
+        endpoint_url: 'https://proxy.example.com/openai/v1/',
+      })
+    ).toBe('https://proxy.example.com/openai/v1');
   });
 
-  it('passes thinking controls from the Dify model YAML', () => {
+  it('converts the thinking switch to the LongCat API body shape', () => {
     expect(
       buildLongcatModelKwargs({
         api_key: 'test-key',
         temperature: 0,
-        enable_thinking: 'true',
-        thinking_budget: '4096',
+        enable_thinking: 'false',
       })
     ).toEqual({
-      enable_thinking: true,
-      thinking_budget: 4096,
+      thinking: { type: 'disabled' },
+    });
+  });
+
+  it('enables thinking by default', () => {
+    expect(
+      buildLongcatModelKwargs({ api_key: 'test-key', temperature: 1 })
+    ).toEqual({
+      thinking: { type: 'enabled' },
     });
   });
 
@@ -96,21 +108,19 @@ describe('LongCat model adapter', () => {
     const model = llm.getChatModel(
       createCopilotModel({
         enable_thinking: true,
-        thinking_budget: 4096,
       })
     );
 
     expect(model.clientConfig.apiKey).toBe('test-key');
     expect(model.invocationParams()).toEqual(
       expect.objectContaining({
-        enable_thinking: true,
-        thinking_budget: 4096,
+        thinking: { type: 'enabled' },
       })
     );
     expect(errorCallback).toHaveBeenCalledWith(
       expect.objectContaining({
         apiKey: '[REDACTED]',
-        model: 'longcat-flash-thinking',
+        model: 'LongCat-2.0',
       }),
       expect.anything()
     );

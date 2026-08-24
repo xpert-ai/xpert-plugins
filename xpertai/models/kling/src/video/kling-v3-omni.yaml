@@ -1,0 +1,72 @@
+model: kling-v3-omni
+label:
+  en_US: Kling 3.0 Omni
+  zh_Hans: 可灵 3.0 Omni
+model_type: video
+features: []
+model_properties:
+  mode: video
+parameter_rules: []
+pricing:
+  type: usage
+  rules:
+    - id: kling-3-omni-720p-no-audio
+      version: "2026-08-14"
+      effective_from: "2026-08-14T00:00:00Z"
+      unit: second
+      unit_size: 1
+      unit_price: 0.6
+      currency: CNY
+      charge_type: paid
+      dimensions: { resolution: 720p, audio: false }
+      source_url: https://kling.ai/document-api/pricing/base/video
+    - id: kling-3-omni-1080p-no-audio
+      version: "2026-08-14"
+      effective_from: "2026-08-14T00:00:00Z"
+      unit: second
+      unit_size: 1
+      unit_price: 0.8
+      currency: CNY
+      charge_type: paid
+      dimensions: { resolution: 1080p, audio: false }
+      source_url: https://kling.ai/document-api/pricing/base/video
+    - id: kling-3-omni-4k-no-audio
+      version: "2026-08-14"
+      effective_from: "2026-08-14T00:00:00Z"
+      unit: second
+      unit_size: 1
+      unit_price: 3
+      currency: CNY
+      charge_type: paid
+      dimensions: { resolution: 4k, audio: false }
+      source_url: https://kling.ai/document-api/pricing/base/video
+    - id: kling-3-omni-720p-audio
+      version: "2026-08-14"
+      effective_from: "2026-08-14T00:00:00Z"
+      unit: second
+      unit_size: 1
+      unit_price: 0.8
+      currency: CNY
+      charge_type: paid
+      dimensions: { resolution: 720p, audio: true }
+      source_url: https://kling.ai/document-api/pricing/base/video
+    - id: kling-3-omni-1080p-audio
+      version: "2026-08-14"
+      effective_from: "2026-08-14T00:00:00Z"
+      unit: second
+      unit_size: 1
+      unit_price: 1
+      currency: CNY
+      charge_type: paid
+      dimensions: { resolution: 1080p, audio: true }
+      source_url: https://kling.ai/document-api/pricing/base/video
+    - id: kling-3-omni-4k-audio
+      version: "2026-08-14"
+      effective_from: "2026-08-14T00:00:00Z"
+      unit: second
+      unit_size: 1
+      unit_price: 3
+      currency: CNY
+      charge_type: paid
+      dimensions: { resolution: 4k, audio: true }
+      source_url: https://kling.ai/document-api/pricing/base/video

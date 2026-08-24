@@ -24,7 +24,7 @@ const toolCall = {
 
 function createModel(streaming: boolean) {
   return new DeepSeekChatOAICompatReasoningModel({
-    model: 'deepseek-reasoner',
+    model: 'deepseek-v4-flash',
     apiKey: 'test-key',
     configuration: {
       baseURL: 'https://api.deepseek.com/v1',
@@ -32,6 +32,7 @@ function createModel(streaming: boolean) {
     streaming,
     temperature: 0,
     maxTokens: 128,
+    thinking: true,
   }) as PatchedDeepSeekModel;
 }
 
@@ -118,7 +119,7 @@ describe('DeepSeek reasoning_content regressions', () => {
               finish_reason: 'stop',
             },
           ],
-          model: 'deepseek-reasoner',
+          model: 'deepseek-v4-flash',
         };
       })();
     model._getEstimatedTokenCountFromPrompt = async () => 0;
@@ -170,7 +171,7 @@ describe('DeepSeek reasoning_content regressions', () => {
               finish_reason: 'stop',
             },
           ],
-          model: 'deepseek-reasoner',
+          model: 'deepseek-v4-flash',
         };
       })();
 

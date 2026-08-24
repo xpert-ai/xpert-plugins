@@ -118,3 +118,21 @@ pricing:
   output: '5.00'
   unit: '0.000001'
   currency: USD
+  rules:
+    - component: input
+      unit_price: 1
+      unit_size: 1000000
+    - component: output
+      unit_price: 5
+      unit_size: 1000000
+    - component: cache_read_input
+      unit_price: 0.1
+      unit_size: 1000000
+    - component: cache_write_input
+      unit_price: 1.25
+      unit_size: 1000000
+      cache_ttl: 5m
+    - component: cache_write_input
+      unit_price: 2
+      unit_size: 1000000
+      cache_ttl: 1h

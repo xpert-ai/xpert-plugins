@@ -1,0 +1,22 @@
+model: doubao-seedance-1-0-pro-fast-251015
+label:
+  en_US: Seedance 1.0 Pro Fast
+  zh_Hans: 即梦 Seedance 1.0 Pro Fast
+model_type: video
+features: []
+model_properties:
+  mode: video
+parameter_rules: []
+pricing:
+  type: usage
+  rules:
+    - id: volcengine-seedance-1-pro-fast-output-token
+      version: "2026-08-14"
+      effective_from: "2026-08-14T00:00:00Z"
+      unit: token
+      token_type: completion
+      unit_size: 1000000
+      unit_price: 4.2
+      currency: CNY
+      charge_type: paid
+      source_url: https://www.volcengine.com/product/doubao

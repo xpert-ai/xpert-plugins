@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-veo",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": {
     "name": "XpertAI",
     "url": "https://xpertai.cn"
@@ -32,9 +32,10 @@
     "!**/*.tsbuildinfo"
   ],
   "scripts": {
-    "build": "tsc --build tsconfig.lib.json",
+    "build": "tsc --build tsconfig.lib.json && node ./scripts/copy-assets.mjs",
     "test": "pnpm run build && jest --config jest.config.cjs && tsc -p tsconfig.spec.json --noEmit",
-    "typecheck": "pnpm run build && tsc -p tsconfig.spec.json --noEmit"
+    "typecheck": "pnpm run build && tsc -p tsconfig.spec.json --noEmit",
+    "prepack": "node ./scripts/copy-assets.mjs"
   },
   "dependencies": {
     "tslib": "^2.3.0"
@@ -42,7 +43,7 @@
   "peerDependencies": {
     "@langchain/core": "0.3.72",
     "@nestjs/common": "^11.1.6",
-    "@xpert-ai/plugin-sdk": "^3.6.1",
+    "@xpert-ai/plugin-sdk": "^3.17.0",
     "zod": "3.25.67"
   }
 }

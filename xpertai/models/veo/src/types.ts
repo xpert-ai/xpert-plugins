@@ -1,11 +1,20 @@
+import type {
+  AgentMiddlewareRuntimeScope,
+  AsyncAIGCManagedJobPayload,
+  ManagedQueueService,
+  WorkspaceFile as PlatformWorkspaceFile,
+  WorkspaceFileCatalog as PlatformWorkspaceFileCatalog,
+  WorkspaceFileLocator,
+  WorkspaceFileScope,
+  WorkspaceMediaFilesApi,
+  WorkspaceUploadBufferInput as PlatformWorkspaceUploadBufferInput
+} from '@xpert-ai/plugin-sdk'
+
 export const VeoToolsetName = 'veo_video_generation'
-export const VeoWorkspaceCapability = 'platform.workspace.files'
+export const VeoModelProvider = 'veo'
 export const VeoApiBaseUrl = 'https://generativelanguage.googleapis.com/v1beta'
 
-export const VeoModels = [
-  'veo-3.1-generate-preview',
-  'veo-3.1-fast-generate-preview'
-] as const
+export const VeoModels = ['veo-3.1-generate-preview', 'veo-3.1-fast-generate-preview'] as const
 
 export type VeoModel = (typeof VeoModels)[number]
 
@@ -15,81 +24,26 @@ export type VeoCredentials = {
   gemini_api_key?: string
 }
 
-export type WorkspaceFileCatalog =
-  | 'projects'
-  | 'users'
-  | 'knowledges'
-  | 'skills'
-  | 'xperts'
-
-export type WorkspaceUploadBufferInput = {
-  tenantId?: string | null
-  userId?: string | null
-  catalog?: WorkspaceFileCatalog | null
-  scopeId?: string | null
-  projectId?: string | null
-  xpertId?: string | null
-  isolateByUser?: boolean | null
-  buffer: Buffer
-  originalName: string
-  mimeType?: string | null
-  size?: number | null
-  folder?: string | null
-  fileName?: string | null
-  metadata?: Record<string, unknown>
-}
-
-export type WorkspaceFile = {
-  name: string
-  filePath: string
-  workspacePath: string
-  fileUrl?: string
-  url?: string
-  mimeType?: string
-  size?: number
-  catalog: WorkspaceFileCatalog
-  scopeId?: string
-  metadata?: Record<string, unknown>
-}
-
-export type WorkspaceRuntimeLocator =
-  | string
-  | ({
-      source?: string
-      path?: string | null
-      filePath?: string | null
-      workspacePath?: string | null
-      mimeType?: string | null
-      mimetype?: string | null
-      name?: string | null
-      originalName?: string | null
-    } & Record<string, unknown>)
-
-export type WorkspaceFilesApi = {
-  uploadBuffer(input: WorkspaceUploadBufferInput): Promise<WorkspaceFile>
-  readBuffer(
-    input: { filePath: string } & Record<string, unknown>
-  ): Promise<WorkspaceFile & { buffer: Buffer }>
-  readRuntimeBuffer?(
-    input: WorkspaceRuntimeLocator
-  ): Promise<WorkspaceFile & { buffer: Buffer }>
-  deleteFile(input: { filePath: string } & Record<string, unknown>): Promise<void>
-}
-
-export type RuntimeCapabilityRegistryLike = {
-  get<T>(key: string): T | undefined
-}
-
-export type VeoWorkspaceScope = Omit<
-  WorkspaceUploadBufferInput,
-  'buffer' | 'originalName'
->
+export type WorkspaceFileCatalog = PlatformWorkspaceFileCatalog
+export type WorkspaceUploadBufferInput = PlatformWorkspaceUploadBufferInput
+export type WorkspaceFile = PlatformWorkspaceFile
+export type WorkspaceRuntimeLocator = WorkspaceFileLocator
+export type WorkspaceFilesApi = WorkspaceMediaFilesApi
+export type VeoWorkspaceScope = WorkspaceFileScope
 
 export type VeoToolDependencies = {
-  credentials: VeoCredentials
   workspaceFiles: WorkspaceFilesApi
   workspaceScope?: VeoWorkspaceScope
+  managedQueue?: ManagedQueueService
+  pluginScopeKey?: string
+  runtimeScope?: AgentMiddlewareRuntimeScope
   fetch?: typeof fetch
+  sleep?: (milliseconds: number) => Promise<void>
+}
+
+export type VeoGenerationRequest = {
+  model: VeoModel
+  payload: Record<string, unknown>
 }
 
 export type VeoInlineImage = {
@@ -144,3 +98,7 @@ export type VeoToolArtifact = {
 }
 
 export type VeoToolResult = [string, VeoToolArtifact]
+
+export type VeoVideoJobPayload = AsyncAIGCManagedJobPayload<VeoGenerationRequest, VeoToolResult> & {
+  runtimeScope: AgentMiddlewareRuntimeScope
+}

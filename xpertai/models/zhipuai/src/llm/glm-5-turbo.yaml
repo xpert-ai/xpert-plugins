@@ -41,3 +41,31 @@ pricing:
   output: "0.022"
   unit: "0.001"
   currency: RMB
+  rules:
+    - component: input
+      unit_price: 5
+      unit_size: 1000000
+      max_input_tokens: 31999
+    - component: output
+      unit_price: 22
+      unit_size: 1000000
+      max_input_tokens: 31999
+    - component: cache_read_input
+      unit_price: 1.2
+      unit_size: 1000000
+      max_input_tokens: 31999
+    - component: input
+      unit_price: 7
+      unit_size: 1000000
+      min_input_tokens: 32000
+      max_input_tokens: 200000
+    - component: output
+      unit_price: 26
+      unit_size: 1000000
+      min_input_tokens: 32000
+      max_input_tokens: 200000
+    - component: cache_read_input
+      unit_price: 1.8
+      unit_size: 1000000
+      min_input_tokens: 32000
+      max_input_tokens: 200000

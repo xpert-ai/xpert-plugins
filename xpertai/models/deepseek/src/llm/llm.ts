@@ -106,6 +106,8 @@ type ChatCompletionUsage = {
   completion_tokens?: number;
   prompt_tokens?: number;
   total_tokens?: number;
+  prompt_cache_hit_tokens?: number;
+  prompt_cache_miss_tokens?: number;
   prompt_tokens_details?: {
     audio_tokens?: number;
     cached_tokens?: number;
@@ -115,6 +117,12 @@ type ChatCompletionUsage = {
     reasoning_tokens?: number;
   };
 };
+
+export function getDeepSeekCacheReadTokens(
+  usage: Pick<ChatCompletionUsage, 'prompt_cache_hit_tokens' | 'prompt_tokens_details'>,
+) {
+  return usage.prompt_cache_hit_tokens ?? usage.prompt_tokens_details?.cached_tokens;
+}
 
 type ChatCompletionChoice = {
   index?: number;
@@ -457,6 +465,7 @@ export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningM
         completion_tokens: completionTokens,
         prompt_tokens: promptTokens,
         total_tokens: totalTokens,
+        prompt_cache_hit_tokens: promptCacheHitTokens,
         prompt_tokens_details: promptTokensDetails,
         completion_tokens_details: completionTokensDetails,
       } = data?.usage ?? {};
@@ -469,13 +478,17 @@ export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningM
       if (totalTokens) {
         usageMetadata.total_tokens = (usageMetadata.total_tokens ?? 0) + totalTokens;
       }
-      if (promptTokensDetails?.audio_tokens !== undefined || promptTokensDetails?.cached_tokens !== undefined) {
+      const cacheReadTokens = getDeepSeekCacheReadTokens({
+        prompt_cache_hit_tokens: promptCacheHitTokens,
+        prompt_tokens_details: promptTokensDetails,
+      });
+      if (promptTokensDetails?.audio_tokens !== undefined || cacheReadTokens !== undefined) {
         usageMetadata.input_token_details = {
           ...(promptTokensDetails?.audio_tokens !== undefined && {
             audio: promptTokensDetails?.audio_tokens,
           }),
-          ...(promptTokensDetails?.cached_tokens !== undefined && {
-            cache_read: promptTokensDetails?.cached_tokens,
+          ...(cacheReadTokens !== undefined && {
+            cache_read: cacheReadTokens,
           }),
         };
       }
@@ -672,12 +685,13 @@ export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningM
       }
     }
     if (usage) {
+      const cacheReadTokens = getDeepSeekCacheReadTokens(usage);
       const inputTokenDetails = {
         ...(usage.prompt_tokens_details?.audio_tokens !== undefined && {
           audio: usage.prompt_tokens_details?.audio_tokens,
         }),
-        ...(usage.prompt_tokens_details?.cached_tokens !== undefined && {
-          cache_read: usage.prompt_tokens_details?.cached_tokens,
+        ...(cacheReadTokens !== undefined && {
+          cache_read: cacheReadTokens,
         }),
       };
       const outputTokenDetails = {

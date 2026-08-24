@@ -1,7 +1,9 @@
 import { ModelFeature } from '@xpert-ai/contracts'
 import { AnthropicInput } from '@langchain/anthropic'
+import { AIMessageChunk } from '@langchain/core/messages'
+import { ChatGenerationChunk, LLMResult } from '@langchain/core/outputs'
 import { TChatModelOptions, CredentialsValidateFailedError } from '@xpert-ai/plugin-sdk'
-import { AnthropicLargeLanguageModel } from './llm.js'
+import { AnthropicLargeLanguageModel, getAnthropicPricingContext } from './llm.js'
 import { AnthropicProviderStrategy } from '../provider.strategy.js'
 import { AnthropicCredentials } from '../types.js'
 
@@ -68,6 +70,7 @@ describe('AnthropicLargeLanguageModel', () => {
 
   describe('getChatModel', () => {
     it('should create chat model with correct configuration', () => {
+      const usageCallbacksSpy = jest.spyOn(llm, 'createHandleUsageCallbacks')
       const mockCopilotModel = {
         model: 'claude-sonnet-4-6',
         options: {},
@@ -84,6 +87,16 @@ describe('AnthropicLargeLanguageModel', () => {
 
       expect(model).toBeDefined()
       expect(model.model).toBe('claude-sonnet-4-6')
+      expect(usageCallbacksSpy).toHaveBeenCalledWith(
+        mockCopilotModel.copilot,
+        'claude-sonnet-4-6',
+        expect.objectContaining({ anthropic_api_key: 'test-key' }),
+        undefined,
+        {
+          context: { inputTokensIncludeCache: false },
+          resolveContext: getAnthropicPricingContext
+        }
+      )
     })
 
     it('should wire supported runtime parameters', () => {
@@ -113,9 +126,7 @@ describe('AnthropicLargeLanguageModel', () => {
       expect(params.topK).toBe(32)
       expect(params.maxTokens).toBe(2048)
       expect(params.clientOptions?.baseURL).toBe('https://anthropic.example.com')
-      expect(params.clientOptions?.defaultHeaders?.['anthropic-beta']).toContain(
-        'prompt-caching-2024-07-31'
-      )
+      expect(params.clientOptions?.defaultHeaders?.['anthropic-beta']).toContain('prompt-caching-2024-07-31')
       expect(params.streaming).toBe(true)
     })
 
@@ -149,9 +160,7 @@ describe('AnthropicLargeLanguageModel', () => {
         type: 'enabled',
         budget_tokens: 4096
       })
-      expect(params.clientOptions?.defaultHeaders?.['anthropic-beta']).toContain(
-        'context-1m-2025-08-07'
-      )
+      expect(params.clientOptions?.defaultHeaders?.['anthropic-beta']).toContain('context-1m-2025-08-07')
     })
   })
 
@@ -180,6 +189,38 @@ describe('AnthropicLargeLanguageModel', () => {
       await expect(llm.validateCredentials('claude-sonnet-4-6', credentials)).rejects.toThrow(
         CredentialsValidateFailedError
       )
+    })
+  })
+})
+
+describe('getAnthropicPricingContext', () => {
+  it('preserves provider-reported 5m and 1h cache write token counts', () => {
+    const output: LLMResult = {
+      generations: [
+        [
+          new ChatGenerationChunk({
+            text: '',
+            message: new AIMessageChunk({
+              content: '',
+              response_metadata: {
+                usage: {
+                  cache_creation: {
+                    ephemeral_5m_input_tokens: 148,
+                    ephemeral_1h_input_tokens: 100
+                  }
+                }
+              }
+            })
+          })
+        ]
+      ]
+    }
+
+    expect(getAnthropicPricingContext(output)).toEqual({
+      cacheWriteInputTokensByTtl: {
+        '5m': 148,
+        '1h': 100
+      }
     })
   })
 })

@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-kling",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Kling AI video generation plugin for Xpert",
   "author": {
     "name": "XpertAI",
@@ -43,7 +43,7 @@
   "peerDependencies": {
     "@langchain/core": "0.3.72",
     "@nestjs/common": "^11.1.6",
-    "@xpert-ai/plugin-sdk": "^3.15.15",
+    "@xpert-ai/plugin-sdk": "^3.17.0",
     "zod": "3.25.67"
   }
 }

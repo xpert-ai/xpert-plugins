@@ -23,10 +23,6 @@
             "Error_SelectAIntegration": "请选择一个集成",
             "Error": {
                 "CredentialsFailed": "凭证验证失败"
-            },
-            "ChatBI": {
-                "AnalysisConditions": "分析条件",
-                "QueryStatement": "查询语句"
             }
         }
     }

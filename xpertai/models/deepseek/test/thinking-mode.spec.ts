@@ -24,7 +24,7 @@ function validateConfig(): boolean {
 
 function createModel(thinking?: boolean) {
   return new DeepSeekChatOAICompatReasoningModel({
-    model: 'deepseek-chat',
+    model: 'deepseek-v4-flash',
     apiKey: testConfig.apiKey,
     configuration: {
       baseURL: testConfig.baseURL,

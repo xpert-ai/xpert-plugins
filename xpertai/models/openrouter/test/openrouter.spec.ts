@@ -1,8 +1,11 @@
 import { config } from 'dotenv';
 import { OpenRouterProviderStrategy } from '../src/provider.strategy.js';
 import { OpenRouterLargeLanguageModel } from '../src/llm/llm.js';
+import { getOpenRouterReportedPrice } from '../src/llm/llm.js';
 import { OpenRouterModelCredentials } from '../src/types.js';
 import { ICopilotModel } from '@xpert-ai/contracts';
+import { AIMessageChunk } from '@langchain/core/messages';
+import { ChatGenerationChunk } from '@langchain/core/outputs';
 
 config();
 
@@ -58,4 +61,35 @@ describe('OpenRouter Integration Test', () => {
     console.log('OpenRouter Response:', response.content);
     expect(response.content).toBeTruthy();
   }, 20000);
+});
+
+describe('getOpenRouterReportedPrice', () => {
+  it('reads the provider-reported USD cost from streaming response metadata', () => {
+    expect(
+      getOpenRouterReportedPrice({
+        generations: [
+          [
+            new ChatGenerationChunk({
+              text: '',
+              message: new AIMessageChunk({
+                content: '',
+                response_metadata: {
+                  usage: {
+                    prompt_tokens: 194,
+                    completion_tokens: 2,
+                    total_tokens: 196,
+                    cost: 0.95,
+                  },
+                },
+              }),
+            }),
+          ],
+        ],
+      })
+    ).toEqual({ amount: 0.95, currency: 'USD' });
+  });
+
+  it('returns undefined when the response omits cost', () => {
+    expect(getOpenRouterReportedPrice({ generations: [] })).toBeUndefined();
+  });
 });

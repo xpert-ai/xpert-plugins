@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-tongyi",
-  "version": "0.0.12",
+  "version": "0.0.14",
   "description": "Tongyi (通义千问) AI model plugin for XpertAI platform",
   "author": {
     "name": "XpertAI",
@@ -40,7 +40,7 @@
   },
   "peerDependencies": {
     "zod": "3.25.67",
-    "@xpert-ai/plugin-sdk": "^3.7.2",
+    "@xpert-ai/plugin-sdk": "^3.17.2",
     "@langchain/core": "0.3.72",
     "@xpert-ai/contracts": "^3.7.0",
     "@nestjs/common": "^11.1.6",

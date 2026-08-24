@@ -1,0 +1,78 @@
+model: doubao-seedance-2-5-260628
+label:
+  en_US: Seedance 2.5
+  zh_Hans: 即梦 Seedance 2.5
+model_type: video
+features: []
+model_properties:
+  mode: video
+parameter_rules: []
+pricing:
+  type: usage
+  rules:
+    - id: volcengine-seedance-2-5-480p-no-video-input-output-token
+      version: "2026-08-17"
+      effective_from: "2026-08-17T00:00:00Z"
+      unit: token
+      token_type: completion
+      unit_size: 1000000
+      unit_price: 70
+      currency: CNY
+      charge_type: paid
+      dimensions: { resolution: 480p, videoInput: false }
+      source_url: https://www.volcengine.com/docs/82379/1544106
+    - id: volcengine-seedance-2-5-480p-video-input-output-token
+      version: "2026-08-17"
+      effective_from: "2026-08-17T00:00:00Z"
+      unit: token
+      token_type: completion
+      unit_size: 1000000
+      unit_price: 42
+      currency: CNY
+      charge_type: paid
+      dimensions: { resolution: 480p, videoInput: true }
+      source_url: https://www.volcengine.com/docs/82379/1544106
+    - id: volcengine-seedance-2-5-720p-no-video-input-output-token
+      version: "2026-08-17"
+      effective_from: "2026-08-17T00:00:00Z"
+      unit: token
+      token_type: completion
+      unit_size: 1000000
+      unit_price: 70
+      currency: CNY
+      charge_type: paid
+      dimensions: { resolution: 720p, videoInput: false }
+      source_url: https://www.volcengine.com/docs/82379/1544106
+    - id: volcengine-seedance-2-5-720p-video-input-output-token
+      version: "2026-08-17"
+      effective_from: "2026-08-17T00:00:00Z"
+      unit: token
+      token_type: completion
+      unit_size: 1000000
+      unit_price: 42
+      currency: CNY
+      charge_type: paid
+      dimensions: { resolution: 720p, videoInput: true }
+      source_url: https://www.volcengine.com/docs/82379/1544106
+    - id: volcengine-seedance-2-5-1080p-no-video-input-output-token
+      version: "2026-08-17"
+      effective_from: "2026-08-17T00:00:00Z"
+      unit: token
+      token_type: completion
+      unit_size: 1000000
+      unit_price: 77
+      currency: CNY
+      charge_type: paid
+      dimensions: { resolution: 1080p, videoInput: false }
+      source_url: https://www.volcengine.com/docs/82379/1544106
+    - id: volcengine-seedance-2-5-1080p-video-input-output-token
+      version: "2026-08-17"
+      effective_from: "2026-08-17T00:00:00Z"
+      unit: token
+      token_type: completion
+      unit_size: 1000000
+      unit_price: 46
+      currency: CNY
+      charge_type: paid
+      dimensions: { resolution: 1080p, videoInput: true }
+      source_url: https://www.volcengine.com/docs/82379/1544106

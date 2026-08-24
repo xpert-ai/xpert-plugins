@@ -4,7 +4,6 @@ import {
   CredentialsValidateFailedError,
   ModelProvider,
 } from '@xpert-ai/plugin-sdk';
-import { AiModelTypeEnum } from '@xpert-ai/contracts';
 import {
   OpenRouterAiBaseUrl,
   OpenRouterModelCredentials,
@@ -32,12 +31,23 @@ export class OpenRouterProviderStrategy extends ModelProvider {
     credentials: OpenRouterModelCredentials
   ): Promise<void> {
     try {
-      const modelInstance = this.getModelManager(AiModelTypeEnum.LLM);
-      // Use a cheap/free model for validation if possible, or a common one
-      await modelInstance.validateCredentials(
-        'google/gemma-2-9b-it:free',
-        credentials
-      );
+      const baseUrl = this.getBaseUrl(credentials).replace(/\/+$/, '');
+      const validationPath = isOpenRouterEndpoint(baseUrl) ? 'key' : 'models';
+      const response = await fetch(`${baseUrl}/${validationPath}`, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+          Authorization: this.getAuthorization(credentials),
+        },
+      });
+
+      if (!response.ok) {
+        const errorMessage = await response.text();
+        throw new CredentialsValidateFailedError(
+          errorMessage ||
+            `OpenRouter credentials verification failed with status ${response.status}`
+        );
+      }
     } catch (ex: unknown) {
       if (ex instanceof CredentialsValidateFailedError) {
         throw ex;
@@ -59,5 +69,14 @@ export class OpenRouterProviderStrategy extends ModelProvider {
         throw ex;
       }
     }
+  }
+}
+
+function isOpenRouterEndpoint(baseUrl: string): boolean {
+  try {
+    const hostname = new URL(baseUrl).hostname.toLowerCase();
+    return hostname === 'openrouter.ai' || hostname.endsWith('.openrouter.ai');
+  } catch {
+    return false;
   }
 }

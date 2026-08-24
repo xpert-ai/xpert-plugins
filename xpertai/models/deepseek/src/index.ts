@@ -28,8 +28,8 @@ const plugin: XpertPlugin<any> = {
       value: SvgIcon,
     },
     displayName: 'DeepSeek',
-    description: 'Provide DeepSeek AI Models with Advanced Reasoning Capabilities',
-    keywords: ['DeepSeek', 'model', 'llm', 'reasoning', 'R1'],
+    description: 'Provide DeepSeek V4 Flash and DeepSeek V4 Pro models',
+    keywords: ['DeepSeek', 'model', 'llm', 'reasoning', 'V4'],
     author: 'XpertAI Team',
   },
   config: {

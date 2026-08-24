@@ -17,3 +17,21 @@ parameter_rules:
     use_template: top_p
   - name: max_tokens
     use_template: max_tokens
+pricing:
+  input: '0.3'
+  output: '0.6'
+  unit: '0.000001'
+  currency: RMB
+  rules:
+    - component: input
+      unit_price: 0.3
+      unit_size: 1000000
+    - component: cache_read_input
+      unit_price: 0.06
+      unit_size: 1000000
+    - component: output
+      unit_price: 0.6
+      unit_size: 1000000
+    - component: cache_storage
+      unit_price: 0.017
+      unit_size: 1000000

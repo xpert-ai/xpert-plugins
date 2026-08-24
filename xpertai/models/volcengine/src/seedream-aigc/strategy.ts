@@ -1,11 +1,16 @@
 import { Inject, Injectable, Optional } from '@nestjs/common'
-import { BuiltinToolset, IToolsetStrategy, ToolsetStrategy, type TBuiltinToolsetParams } from '@xpert-ai/plugin-sdk'
+import {
+  BuiltinToolset,
+  IToolsetStrategy,
+  ToolsetStrategy,
+  XPERT_RUNTIME_CAPABILITIES_TOKEN,
+  type RuntimeCapabilityRegistry,
+  type TBuiltinToolsetParams
+} from '@xpert-ai/plugin-sdk'
 import { SvgIcon } from '../types.js'
 import { buildSeedreamTools } from './tools.js'
-import { SeedreamAigc, type RuntimeCapabilityRegistryLike } from './types.js'
+import { SeedreamAigc } from './types.js'
 import { SeedreamAigcToolset } from './toolset.js'
-
-const XPERT_RUNTIME_CAPABILITIES_TOKEN = 'XPERT_RUNTIME_CAPABILITIES'
 
 @Injectable()
 @ToolsetStrategy(SeedreamAigc)
@@ -31,12 +36,7 @@ export class SeedreamAigcStrategy implements IToolsetStrategy<any> {
       protocolVersion: 2 as const,
       family: 'seedance' as const,
       displayName: 'Seedance',
-      modes: [
-        'text_to_video',
-        'image_to_video',
-        'first_last_frame_to_video',
-        'reference_to_video'
-      ] as const,
+      modes: ['text_to_video', 'image_to_video', 'first_last_frame_to_video', 'reference_to_video'] as const,
       tools: {
         textToVideo: 'seedance_text_to_video',
         imageToVideo: 'seedance_image_to_video',
@@ -46,16 +46,24 @@ export class SeedreamAigcStrategy implements IToolsetStrategy<any> {
       },
       models: [
         {
+          id: 'doubao-seedance-2-5-260628',
+          label: 'Seedance 2.5',
+          modes: ['text_to_video', 'image_to_video', 'first_last_frame_to_video', 'reference_to_video'],
+          inputs: {
+            referenceImages: { maxItems: 30 },
+            referenceVideos: { maxItems: 10 },
+            referenceAudios: { maxItems: 10 },
+            initialFrame: true,
+            lastFrame: true
+          }
+        },
+        {
           id: 'doubao-seedance-2-0-260128',
           label: 'Seedance 2.0',
-          modes: [
-            'text_to_video',
-            'image_to_video',
-            'first_last_frame_to_video',
-            'reference_to_video'
-          ],
+          modes: ['text_to_video', 'image_to_video', 'first_last_frame_to_video', 'reference_to_video'],
           inputs: {
             referenceImages: { maxItems: 9 },
+            referenceVideos: { maxItems: 3 },
             referenceAudios: { maxItems: 3 },
             initialFrame: true,
             lastFrame: true
@@ -64,14 +72,22 @@ export class SeedreamAigcStrategy implements IToolsetStrategy<any> {
         {
           id: 'doubao-seedance-2-0-fast-260128',
           label: 'Seedance 2.0 Fast',
-          modes: [
-            'text_to_video',
-            'image_to_video',
-            'first_last_frame_to_video',
-            'reference_to_video'
-          ],
+          modes: ['text_to_video', 'image_to_video', 'first_last_frame_to_video', 'reference_to_video'],
           inputs: {
             referenceImages: { maxItems: 9 },
+            referenceVideos: { maxItems: 3 },
+            referenceAudios: { maxItems: 3 },
+            initialFrame: true,
+            lastFrame: true
+          }
+        },
+        {
+          id: 'doubao-seedance-2-0-mini-260615',
+          label: 'Seedance 2.0 Mini',
+          modes: ['text_to_video', 'image_to_video', 'first_last_frame_to_video', 'reference_to_video'],
+          inputs: {
+            referenceImages: { maxItems: 9 },
+            referenceVideos: { maxItems: 3 },
             referenceAudios: { maxItems: 3 },
             initialFrame: true,
             lastFrame: true
@@ -86,42 +102,49 @@ export class SeedreamAigcStrategy implements IToolsetStrategy<any> {
             initialFrame: true,
             lastFrame: true
           }
+        },
+        {
+          id: 'doubao-seedance-1-0-pro-250528',
+          label: 'Seedance 1.0 Pro',
+          modes: ['text_to_video', 'image_to_video', 'first_last_frame_to_video'],
+          inputs: {
+            referenceImages: { maxItems: 1 },
+            initialFrame: true,
+            lastFrame: true
+          }
+        },
+        {
+          id: 'doubao-seedance-1-0-pro-fast-251015',
+          label: 'Seedance 1.0 Pro Fast',
+          modes: ['text_to_video', 'image_to_video', 'first_last_frame_to_video'],
+          inputs: {
+            referenceImages: { maxItems: 1 },
+            initialFrame: true,
+            lastFrame: true
+          }
         }
-      ],
+      ] as const,
       defaultModel: 'doubao-seedance-2-0-260128',
-      resolutions: ['720p', '480p'],
+      resolutions: ['720p', '480p', '1080p'],
       aspectRatios: ['9:16', '16:9', '1:1', '4:3', '3:4'],
-      durationSeconds: { min: 4, max: 15, default: 5 },
+      durationSeconds: { min: 2, max: 30, default: 5 },
       supportsAudio: true
     },
     configSchema: {
       type: 'object',
-      properties: {
-        ark_api_key: {
-          type: 'string',
-          title: 'Volcengine API Key',
-          secret: true
-        },
-        api_endpoint_host: {
-          type: 'string',
-          title: 'API endpoint host',
-          default: 'https://ark.cn-beijing.volces.com/api/v3'
-        }
-      },
-      required: ['ark_api_key']
+      additionalProperties: false,
+      properties: {}
     }
   }
 
   constructor(
     @Optional()
     @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN)
-    private readonly runtimeCapabilities?: RuntimeCapabilityRegistryLike
+    private readonly runtimeCapabilities?: RuntimeCapabilityRegistry
   ) {}
 
-  async validateConfig(config: any): Promise<void> {
-    if (!config?.ark_api_key) {
-      throw new Error('Ark API key is missing')
-    }
+  async validateConfig(config: unknown): Promise<void> {
+    void config
   }
 
   async create(config: any, params?: TBuiltinToolsetParams): Promise<BuiltinToolset> {

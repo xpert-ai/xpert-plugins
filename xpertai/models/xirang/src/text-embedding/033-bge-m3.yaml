@@ -1,0 +1,33 @@
+{
+  "model": "BGE-m3",
+  "label": {
+    "en_US": "BGE-m3",
+    "zh_Hans": "BGE-m3"
+  },
+  "model_type": "text-embedding",
+  "model_properties": {
+    "context_size": 8192
+  },
+  "parameter_rules": [],
+  "pricing": {
+    "input": "0.5",
+    "output": "0",
+    "unit": "0.000001",
+    "currency": "CNY",
+    "rules": [
+      {
+        "component": "input",
+        "unit_price": 0.5,
+        "unit_size": 1000000,
+        "currency": "CNY"
+      },
+      {
+        "component": "output",
+        "unit_price": 0,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "mode": "__xirang_unpriced__"
+      }
+    ]
+  }
+}

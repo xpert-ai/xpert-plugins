@@ -1,4 +1,5 @@
 export const LARK_PLUGIN_NAME = '@xpert-ai/plugin-lark'
+export const LARK_ARTIFACT_NAMESPACE = 'lark' as const
 export const LARK_PROVIDER_KEY = 'lark'
 export const LARK_VIEW_PROVIDER_KEY = 'lark_integration'
 export const LARK_TEMPLATE_PROVIDER_KEY = 'larkTemplates'
@@ -15,7 +16,6 @@ export const LARK_NOTIFY_MIDDLEWARE_NAME = 'LarkNotifyMiddleware'
 export const LARK_CONVERSATION_CONTEXT_MIDDLEWARE_NAME = 'LarkConversationContextMiddleware'
 export const LARK_LOCAL_HISTORY_MIDDLEWARE_NAME = 'LarkLocalHistoryMiddleware'
 export const LARK_RUNTIME_MIDDLEWARE_NAME = 'LarkRuntimeMiddleware'
-export const CHATBI_LARK_MIDDLEWARE_NAME = 'ChatBILarkMiddleware'
 
 export const LARK_SEARCH_CHAT_HISTORY_TOOL_NAME = 'lark_search_chat_history'
 export const LARK_SEND_FILE_TOOL_NAME = 'lark_send_file'

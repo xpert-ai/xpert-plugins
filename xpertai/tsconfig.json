@@ -296,6 +296,9 @@
     },
     {
       "path": "./models/veo"
+    },
+    {
+      "path": "./integrations/dingtalk-sso"
     }
   ]
 }

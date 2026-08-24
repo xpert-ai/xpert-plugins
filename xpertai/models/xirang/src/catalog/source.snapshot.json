@@ -1,0 +1,608 @@
+{
+  "source": "https://ctxirang.ctyun.cn/maas/inlineService",
+  "captured_at": "2026-08-21T03:26:01.453Z",
+  "models": [
+    {
+      "group": "体验中心",
+      "model_id": "e8e2511658054053a7e56e950d80f0e4",
+      "name": "glm-5.3"
+    },
+    {
+      "group": "体验中心",
+      "model_id": "9570194f36ab4ac3bb31e58ea839950b",
+      "name": "deepseek-v4-flash-0731-new"
+    },
+    {
+      "group": "体验中心",
+      "name": "deepseek-v4-flash-0817（正式版）"
+    },
+    {
+      "group": "体验中心",
+      "name": "deepseek-v4-pro-0817（正式版）"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen3.8-max"
+    },
+    {
+      "group": "体验中心",
+      "name": "DeepSeek-V4-Flash-0731"
+    },
+    {
+      "group": "体验中心",
+      "name": "kimi-k3"
+    },
+    {
+      "group": "体验中心",
+      "name": "MiniMax-M3"
+    },
+    {
+      "group": "体验中心",
+      "name": "GLM-5.2"
+    },
+    {
+      "group": "体验中心",
+      "name": "GLM-5.1"
+    },
+    {
+      "group": "体验中心",
+      "name": "deepseek-v4-flash"
+    },
+    {
+      "group": "体验中心",
+      "name": "deepseek-v4-pro"
+    },
+    {
+      "group": "体验中心",
+      "name": "DeepSeek-V4-Flash"
+    },
+    {
+      "group": "体验中心",
+      "name": "DeepSeek-V4-Pro"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen3.7-max"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen3.7-plus"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen3.6-plus"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen3.6-flash"
+    },
+    {
+      "group": "体验中心",
+      "name": "deepseek-v3.1-0731（即将下线）"
+    },
+    {
+      "group": "体验中心",
+      "name": "Kimi-K2-Thinking"
+    },
+    {
+      "group": "体验中心",
+      "name": "Qwen2.5-VL-72B-Instruct"
+    },
+    {
+      "group": "体验中心",
+      "name": "DeepSeek-R1-Distill-Llama-70B"
+    },
+    {
+      "group": "体验中心",
+      "name": "Qwen-Image（即将下线）"
+    },
+    {
+      "group": "体验中心",
+      "name": "DeepSeek-R1-Distill-Qwen-32B"
+    },
+    {
+      "group": "体验中心",
+      "name": "Qwen3-14B"
+    },
+    {
+      "group": "体验中心",
+      "name": "Qwen-VL-Chat"
+    },
+    {
+      "group": "体验中心",
+      "name": "Qwen3-30B-A3B"
+    },
+    {
+      "group": "体验中心",
+      "name": "BGE-Reranker-Large",
+      "model_id": "0cb4c1ed8f374eadbe8bffe30bd039dc"
+    },
+    {
+      "group": "体验中心",
+      "name": "Qwen3-8B"
+    },
+    {
+      "group": "体验中心",
+      "name": "Qwen3-Coder-480B-A35B-Instruct"
+    },
+    {
+      "group": "体验中心",
+      "name": "BGE-Reranker-V2-m3",
+      "model_id": "fdfd185a79494673b65451956cf5b4ba"
+    },
+    {
+      "group": "体验中心",
+      "name": "DeepSeek-V3.2（正式版）"
+    },
+    {
+      "group": "体验中心",
+      "name": "Qwen2.5-72B-Instruct"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen3-rerank",
+      "model_id": "a18944d8204c4e969cd4635c28af56e5"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen3.6-35b-a3b"
+    },
+    {
+      "group": "体验中心",
+      "name": "BGE-m3"
+    },
+    {
+      "group": "体验中心",
+      "name": "text-embedding-v4"
+    },
+    {
+      "group": "体验中心",
+      "name": "wan2.7-image"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen3.6-27b"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen3-vl-embedding"
+    },
+    {
+      "group": "体验中心",
+      "name": "text-embedding-v3"
+    },
+    {
+      "group": "体验中心",
+      "name": "gte-rerank-v2",
+      "model_id": "c5f2125a07474e31b6926e184ea8627e"
+    },
+    {
+      "group": "体验中心",
+      "name": "wan2.2-i2v-flash"
+    },
+    {
+      "group": "体验中心",
+      "name": "Qwen3-Omni-Flash"
+    },
+    {
+      "group": "体验中心",
+      "name": "wan2.6-r2v"
+    },
+    {
+      "group": "体验中心",
+      "name": "happyhorse-1.0-r2v-20260618"
+    },
+    {
+      "group": "体验中心",
+      "name": "Doubao-seedream-4.5"
+    },
+    {
+      "group": "体验中心",
+      "name": "Doubao-Seed-2.0-Code"
+    },
+    {
+      "group": "体验中心",
+      "name": "Doubao-Seed-2.0-Lite"
+    },
+    {
+      "group": "体验中心",
+      "name": "Doubao-Seed-1.6-vision"
+    },
+    {
+      "group": "体验中心",
+      "name": "Doubao-Seed-2.0-Mini"
+    },
+    {
+      "group": "体验中心",
+      "name": "Doubao1.5-lite-32k"
+    },
+    {
+      "group": "体验中心",
+      "name": "Qwen3.5-122B-A10B"
+    },
+    {
+      "group": "体验中心",
+      "name": "Qwen3-4B"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen3.5-35b-a3b"
+    },
+    {
+      "group": "体验中心",
+      "name": "Qwen3-VL-235B-A22B-Instruct"
+    },
+    {
+      "group": "体验中心",
+      "name": "Minimax-M2.5"
+    },
+    {
+      "group": "体验中心",
+      "name": "Kimi-K2.5"
+    },
+    {
+      "group": "体验中心",
+      "name": "GLM4.6V"
+    },
+    {
+      "group": "体验中心",
+      "name": "Qwen3-Next-80B-A3B-Instruct"
+    },
+    {
+      "group": "体验中心",
+      "name": "DeepSeek-V3.2（旗舰版）"
+    },
+    {
+      "group": "体验中心",
+      "name": "GLM-5.0（正式版）"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen3.5-397b-a17b（正式版）"
+    },
+    {
+      "group": "体验中心",
+      "name": "Doubao-Seed-2.0-Pro"
+    },
+    {
+      "group": "体验中心",
+      "name": "Qwen3-Max"
+    },
+    {
+      "group": "体验中心",
+      "name": "Doubao-Seed-1.8"
+    },
+    {
+      "group": "体验中心",
+      "name": "Doubao-Seed-1.6-0615"
+    },
+    {
+      "group": "体验中心",
+      "name": "Doubao1.5-pro-32k"
+    },
+    {
+      "group": "体验中心",
+      "name": "Qwen3-Coder-Plus"
+    },
+    {
+      "group": "体验中心",
+      "name": "Qwen3-VL-Plus"
+    },
+    {
+      "group": "体验中心",
+      "name": "DeepSeek-R1-0528"
+    },
+    {
+      "group": "体验中心",
+      "name": "Qwen3-VL-30B-A3B-Instruct"
+    },
+    {
+      "group": "体验中心",
+      "name": "Qwen3-235B-A22B-Instruct-2507"
+    },
+    {
+      "group": "体验中心",
+      "name": "Qwen3-30B-A3B-Instruct-2507"
+    },
+    {
+      "group": "体验中心",
+      "name": "DeepSeek-V3-0324"
+    },
+    {
+      "group": "体验中心",
+      "name": "Baichuan-M2-32B"
+    },
+    {
+      "group": "体验中心",
+      "name": "Qwen3-235B-A22B"
+    },
+    {
+      "group": "体验中心",
+      "name": "DeepSeek-R1"
+    },
+    {
+      "group": "体验中心",
+      "name": "DeepSeek-V3"
+    },
+    {
+      "group": "体验中心",
+      "name": "Qwen3-32B"
+    },
+    {
+      "group": "体验中心",
+      "name": "Baichuan2-Turbo"
+    },
+    {
+      "group": "体验中心",
+      "name": "DeepSeek-V3.1-Terminus（即将下线）"
+    },
+    {
+      "group": "体验中心",
+      "name": "Qwen2-7B-Instruct"
+    },
+    {
+      "group": "体验中心",
+      "name": "Llama3-70B-Instruct（即将下线）"
+    },
+    {
+      "group": "体验中心",
+      "name": "Llama3-8B-Instruct"
+    },
+    {
+      "group": "体验中心",
+      "name": "ChatGLM3-6B（即将下线）"
+    },
+    {
+      "group": "体验中心",
+      "name": "Kimi-K2-Instruct"
+    },
+    {
+      "group": "体验中心",
+      "name": "wan2.2-kf2v-flash"
+    },
+    {
+      "group": "体验中心",
+      "name": "Doubao-Seedream-5.0-lite"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen3.6-flash-0717"
+    },
+    {
+      "group": "体验中心",
+      "name": "Doubao-seedream-4.0"
+    },
+    {
+      "group": "体验中心",
+      "name": "Doubao-Seed-1.6-flash"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen-image-2.0-pro"
+    },
+    {
+      "group": "体验中心",
+      "name": "wan2.2-animate-mix"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen3.5-27b"
+    },
+    {
+      "group": "体验中心",
+      "name": "kimi-k2.6"
+    },
+    {
+      "group": "体验中心",
+      "name": "wan2.6-t2v"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen-image-edit"
+    },
+    {
+      "group": "体验中心",
+      "name": "wan2.6-r2v-flash"
+    },
+    {
+      "group": "体验中心",
+      "name": "Doubao-Seedance-1.5-pro"
+    },
+    {
+      "group": "体验中心",
+      "name": "happyhorse-1.0-t2v"
+    },
+    {
+      "group": "体验中心",
+      "name": "glm-4.7-flashx"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen-image-edit-plus"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen-image-edit-max"
+    },
+    {
+      "group": "体验中心",
+      "name": "Doubao-Seedance-1.0-pro"
+    },
+    {
+      "group": "体验中心",
+      "name": "glm-5-turbo"
+    },
+    {
+      "group": "体验中心",
+      "name": "glm-4.7"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen3-max-preview"
+    },
+    {
+      "group": "体验中心",
+      "name": "deepseek-v3.2"
+    },
+    {
+      "group": "体验中心",
+      "name": "happyhorse-1.1-t2v"
+    },
+    {
+      "group": "体验中心",
+      "name": "happyhorse-1.0-i2v"
+    },
+    {
+      "group": "体验中心",
+      "name": "wan2.5-i2v-preview"
+    },
+    {
+      "group": "体验中心",
+      "name": "wan2.6-i2v-flash"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen3-32b"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen3-235b-a22b-thinking-2507"
+    },
+    {
+      "group": "体验中心",
+      "name": "Doubao-Seedance-1.5-pro-noaudio"
+    },
+    {
+      "group": "体验中心",
+      "name": "happyhorse-1.1-r2v"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen-long"
+    },
+    {
+      "group": "体验中心",
+      "name": "DeepSeek-V3.2"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen3.5-plus"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen3-235b-a22b"
+    },
+    {
+      "group": "体验中心",
+      "name": "doubao-seed-2.1-pro"
+    },
+    {
+      "group": "体验中心",
+      "name": "wan2.6-i2v"
+    },
+    {
+      "group": "体验中心",
+      "name": "DeepSeek-V3.2-Exp"
+    },
+    {
+      "group": "体验中心",
+      "name": "wan2.7-image-pro"
+    },
+    {
+      "group": "体验中心",
+      "name": "kimi-k2.6-ant"
+    },
+    {
+      "group": "体验中心",
+      "name": "wan2.6-image"
+    },
+    {
+      "group": "体验中心",
+      "name": "DeepSeek-V3.1"
+    },
+    {
+      "group": "体验中心",
+      "name": "happyhorse-1.0-r2v"
+    },
+    {
+      "group": "体验中心",
+      "name": "kimi-k2.7-code"
+    },
+    {
+      "group": "体验中心",
+      "name": "wan2.2-t2v-plus"
+    },
+    {
+      "group": "体验中心",
+      "name": "wan2.7-r2v"
+    },
+    {
+      "group": "体验中心",
+      "name": "happyhorse-1.0-video-edit-20260618"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen-vl-plus"
+    },
+    {
+      "group": "体验中心",
+      "name": "happyhorse-1.0-video-edit"
+    },
+    {
+      "group": "体验中心",
+      "name": "minimax-m2.7"
+    },
+    {
+      "group": "体验中心",
+      "name": "happyhorse-1.1-i2v"
+    },
+    {
+      "group": "体验中心",
+      "name": "happyhorse-1.0-i2v-20260618"
+    },
+    {
+      "group": "体验中心",
+      "name": "wan2.2-i2v-plus"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen3.5-flash"
+    },
+    {
+      "group": "体验中心",
+      "name": "wan2.7-t2v"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen-turbo"
+    },
+    {
+      "group": "体验中心",
+      "name": "happyhorse-1.0-t2v-20260618"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen3-vl-flash"
+    },
+    {
+      "group": "体验中心",
+      "name": "wan2.7-i2v"
+    },
+    {
+      "group": "体验中心",
+      "name": "Qwen-plus"
+    },
+    {
+      "group": "体验中心",
+      "name": "wan2.5-t2v-preview"
+    },
+    {
+      "group": "体验中心",
+      "name": "Qwen-flash"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen3-coder-next"
+    }
+  ]
+}

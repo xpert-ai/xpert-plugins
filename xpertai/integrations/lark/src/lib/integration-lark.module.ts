@@ -24,7 +24,6 @@ import { LarkConversationBindingEntity } from './entities/lark-conversation-bind
 import { LarkTriggerBindingEntity } from './entities/lark-trigger-binding.entity.js'
 import { LarkMessageFileEntity, LarkMessageLogEntity } from './entities/index.js'
 import {
-  ChatBILarkMiddleware,
   LarkConversationContextMiddleware,
   LarkLocalHistoryMiddleware,
   LarkNotifyMiddleware,
@@ -79,7 +78,6 @@ import { LarkMessageHistorySchemaService } from './lark-message-history-schema.s
     LarkMessageHistoryQueueProcessor,
     LarkIntegrationViewProvider,
     LarkTokenStrategy,
-    ChatBILarkMiddleware,
     LarkConversationContextMiddleware,
     LarkLocalHistoryMiddleware,
     LarkNotifyMiddleware,
@@ -108,7 +106,6 @@ import { LarkMessageHistorySchemaService } from './lark-message-history-schema.s
     LarkContextToolService,
     LarkMessageHistoryService,
     LarkLocalHistoryMiddleware,
-    ChatBILarkMiddleware,
     LarkConversationContextMiddleware,
     LarkNotifyMiddleware,
     LarkRuntimeMiddleware

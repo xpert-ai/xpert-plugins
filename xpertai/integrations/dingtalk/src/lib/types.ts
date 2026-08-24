@@ -16,6 +16,12 @@ export type TDingTalkIntegrationProvider = TIntegrationProvider & {
   helpLabel?: typeof DINGTALK_APP_CREDENTIALS_HELP_LABEL
 }
 
+export const DINGTALK_ENTERPRISE_H5_CAPABILITY = {
+  platform: 'dingtalk',
+  externalIdentityProvider: 'dingtalk',
+  accountBindingProvider: 'dingtalk-sso'
+} as const satisfies NonNullable<TIntegrationProvider['enterpriseH5']>
+
 export const DingTalkName = 'dingtalk'
 
 export const iconImage = `<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
@@ -30,6 +36,8 @@ export type TDingTalkConnectionMode = 'webhook' | 'long_connection'
 export type TIntegrationDingTalkOptions = {
   clientId: string
   clientSecret: string
+  /** DingTalk enterprise identifier used by internal H5 passwordless access. */
+  corpId?: string
   robotCode?: string
   preferLanguage?: 'zh-Hans' | 'en'
   connectionMode?: TDingTalkConnectionMode

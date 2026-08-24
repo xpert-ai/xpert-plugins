@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-openrouter",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "author": {
     "name": "XpertAI",
     "url": "https://xpertai.cn"
@@ -39,10 +39,11 @@
     "@langchain/openai": "0.6.9"
   },
   "peerDependencies": {
+    "@langchain/core": "^0.3.72",
     "@xpert-ai/contracts": "^3.6.2",
     "@nestjs/common": "^11.1.6",
     "@nestjs/config": "^4.0.2",
-    "@xpert-ai/plugin-sdk": "^3.6.5",
+    "@xpert-ai/plugin-sdk": "^3.17.2",
     "zod": "3.25.67"
   }
 }

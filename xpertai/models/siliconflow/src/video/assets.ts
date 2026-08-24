@@ -25,9 +25,12 @@ async function inputToBuffer(input: unknown, options: InputReadOptions): Promise
   if (input instanceof ArrayBuffer) return { buffer: Buffer.from(input), mimeType: 'image/png' }
 
   if (typeof input === 'string') {
-    if (input.startsWith('data:')) return parseDataUrl(input)
-    if (isHttpUrl(input)) return downloadInput(input, options.fetchImpl)
-    return readWorkspaceInput(input, options)
+    const value = input.trim()
+    if (value.startsWith('data:')) return parseDataUrl(value)
+    if (isHttpUrl(value)) return downloadInput(value, options.fetchImpl)
+    const descriptor = parseJsonObject(value)
+    if (descriptor) return inputToBuffer(descriptor, options)
+    return readWorkspaceInput(value, options)
   }
 
   if (isRecord(input)) {
@@ -37,7 +40,7 @@ async function inputToBuffer(input: unknown, options: InputReadOptions): Promise
       return { buffer: result.buffer, mimeType: readMimeType(input) || result.mimeType }
     }
 
-    const filePath = readString(input.filePath) || readString(input.workspacePath) || readString(input.path)
+    const filePath = readString(input.workspacePath) || readString(input.filePath) || readString(input.path)
     if (filePath) return readWorkspaceInput(filePath, options, readMimeType(input))
 
     const url = readString(input.fileUrl) || readString(input.url)
@@ -110,6 +113,17 @@ function inferMimeType(fileName: string) {
 
 function isHttpUrl(value: string) {
   return /^https?:\/\//i.test(value)
+}
+
+function parseJsonObject(value: string): Record<string, unknown> | undefined {
+  if (!value.startsWith('{') || !value.endsWith('}')) return undefined
+
+  try {
+    const parsed: unknown = JSON.parse(value)
+    return isRecord(parsed) ? parsed : undefined
+  } catch {
+    return undefined
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

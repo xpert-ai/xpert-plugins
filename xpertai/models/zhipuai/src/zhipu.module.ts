@@ -9,6 +9,8 @@ import { ZhipuaiProviderStrategy } from './zhipuai.js';
 import { ZhipuAILargeLanguageModel } from './llm/llm.js';
 import { ZhipuaiTextEmbeddingModel } from './text-embedding/text-embedding.js';
 import { ZhipuCogVideoStrategy } from './cogvideo/strategy.js';
+import { ZhipuVideoGenerationModel } from './cogvideo/model.js';
+import { ZhipuVideoJobProcessor } from './cogvideo/job.js';
 
 @XpertServerPlugin({
   /**
@@ -21,6 +23,8 @@ import { ZhipuCogVideoStrategy } from './cogvideo/strategy.js';
     ZhipuAILargeLanguageModel,
     ZhipuaiTextEmbeddingModel,
     ZhipuCogVideoStrategy,
+    ZhipuVideoGenerationModel,
+    ZhipuVideoJobProcessor,
   ],
 })
 export class ZhipuAIModule implements IOnPluginBootstrap, IOnPluginDestroy {

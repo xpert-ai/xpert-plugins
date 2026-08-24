@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-anthropic",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "author": {
     "name": "XpertAI",
     "url": "https://xpertai.cn"
@@ -39,10 +39,10 @@
   },
   "peerDependencies": {
     "@langchain/core": "^0.3.72",
-    "@xpert-ai/contracts": "^3.7.0",
+    "@xpert-ai/contracts": "^3.17.2",
     "@nestjs/common": "^11.1.6",
     "@nestjs/config": "^4.0.2",
-    "@xpert-ai/plugin-sdk": "^3.7.1",
+    "@xpert-ai/plugin-sdk": "^3.17.2",
     "chalk": "4.1.2",
     "zod": "3.25.67"
   }

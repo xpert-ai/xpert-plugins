@@ -1,0 +1,61 @@
+{
+  "name": "@xpert-ai/plugin-xirang",
+  "version": "0.0.2",
+  "description": "Tianyi Cloud Xirang model provider plugin for XpertAI",
+  "xpert": {
+    "plugin": {
+      "level": "organization",
+      "artifactNamespace": "xirang_model"
+    }
+  },
+  "author": {
+    "name": "XpertAI",
+    "url": "https://xpertai.cn"
+  },
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins.git"
+  },
+  "bugs": {
+    "url": "https://github.com/xpert-ai/xpert-plugins/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@xpert-plugins-starter/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "docs",
+    "README.md",
+    "!**/*.tsbuildinfo"
+  ],
+  "scripts": {
+    "catalog:generate": "node ./scripts/generate-catalog.mjs",
+    "build": "pnpm catalog:generate && tsc --build tsconfig.lib.json --force && node ./scripts/copy-assets.mjs",
+    "test": "jest --runInBand",
+    "prepack": "pnpm catalog:generate && node ./scripts/copy-assets.mjs"
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "peerDependencies": {
+    "@xpert-ai/plugin-sdk": "^3.17.2",
+    "@xpert-ai/contracts": "^3.17.2",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/config": "^4.0.2",
+    "@langchain/core": "^0.3.72",
+    "@langchain/openai": "0.6.9",
+    "chalk": "4.1.2",
+    "zod": "3.25.67"
+  }
+}

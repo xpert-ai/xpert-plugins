@@ -40,3 +40,13 @@ pricing:
   output: '27'
   unit: '0.000001'
   currency: RMB
+  rules:
+    - component: input
+      unit_price: 6.5
+      unit_size: 1000000
+    - component: cache_read_input
+      unit_price: 1.3
+      unit_size: 1000000
+    - component: output
+      unit_price: 27
+      unit_size: 1000000

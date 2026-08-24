@@ -1,10 +1,18 @@
 import { IIntegration } from '@xpert-ai/contracts'
 import { Injectable } from '@nestjs/common'
-import { IntegrationStrategy, IntegrationStrategyKey, TIntegrationStrategyParams } from '@xpert-ai/plugin-sdk'
+import {
+  type IntegrationExternalIdentity,
+  type IntegrationIdentityGrant,
+  IntegrationStrategy,
+  IntegrationStrategyKey,
+  TIntegrationStrategyParams
+} from '@xpert-ai/plugin-sdk'
 import { DingTalkLongConnectionService } from './dingtalk-long-connection.service.js'
+import { DingTalkClient } from './dingtalk.client.js'
 import {
   DINGTALK_APP_CREDENTIALS_HELP_LABEL,
   DINGTALK_APP_CREDENTIALS_HELP_URL,
+  DINGTALK_ENTERPRISE_H5_CAPABILITY,
   iconImage,
   INTEGRATION_DINGTALK_LONG,
   resolveDingTalkConnectionMode,
@@ -34,6 +42,7 @@ export class DingTalkLongIntegrationStrategy implements IntegrationStrategy<TInt
         '推荐使用的钉钉机器人 Stream 模式集成，用于消息接收与卡片回调，无需公网 HTTP 回调地址。'
     },
     webhook: false,
+    enterpriseH5: DINGTALK_ENTERPRISE_H5_CAPABILITY,
     helpUrl: DINGTALK_APP_CREDENTIALS_HELP_URL,
     helpLabel: DINGTALK_APP_CREDENTIALS_HELP_LABEL,
     schema: {
@@ -58,6 +67,17 @@ export class DingTalkLongIntegrationStrategy implements IntegrationStrategy<TInt
           },
           'x-ui': {
             component: 'password'
+          }
+        },
+        corpId: {
+          type: 'string',
+          title: {
+            en_US: 'Corp ID',
+            zh_Hans: '企业 CorpId'
+          },
+          description: {
+            en_US: 'Required only when this integration is used by an internal DingTalk H5 app.',
+            zh_Hans: '仅当该集成用于企业内部钉钉 H5 免登时需要填写。'
           }
         },
         robotCode: {
@@ -95,6 +115,31 @@ export class DingTalkLongIntegrationStrategy implements IntegrationStrategy<TInt
 
   async execute(_integration: IIntegration<TIntegrationDingTalkOptions>, _payload: TIntegrationStrategyParams): Promise<any> {
     return null
+  }
+
+  async exchangeIdentity(
+    integration: IIntegration<TIntegrationDingTalkOptions>,
+    grant: IntegrationIdentityGrant
+  ): Promise<IntegrationExternalIdentity> {
+    if (grant.type !== 'authorization_code') {
+      throw new Error(`Unsupported DingTalk identity grant '${grant.type}'`)
+    }
+    return new DingTalkClient(integration).exchangeAuthorizationCode(grant.code)
+  }
+
+  async getIdentityBootstrap(integration: IIntegration<TIntegrationDingTalkOptions>) {
+    const clientId = integration.options?.clientId?.trim()
+    if (!clientId) {
+      throw new Error('DingTalk clientId is required for enterprise H5 access')
+    }
+    const corpId = integration.options?.corpId?.trim()
+    if (!corpId) {
+      throw new Error('DingTalk corpId is required for enterprise H5 access')
+    }
+    return {
+      externalOrganizationId: corpId,
+      clientConfig: { clientId, corpId }
+    }
   }
 
   async onUpdate(

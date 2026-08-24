@@ -1,74 +1,79 @@
 import type { StructuredToolInterface, ToolSchemaBase } from '@langchain/core/tools'
-import { BuiltinToolset, type TBuiltinToolsetParams } from '@xpert-ai/plugin-sdk'
+import type { IXpertToolset } from '@xpert-ai/contracts'
+import {
+  type RuntimeCapabilityResolver,
+  type TBuiltinToolsetParams
+} from '@xpert-ai/plugin-sdk'
+import { ModelProviderBuiltinToolset } from '@xpert-ai/plugin-sdk/model-provider-toolset'
 import { buildSiliconflowVideoTools } from './tools.js'
 import {
   SiliconflowVideo,
-  SiliconflowVideoWorkspaceCapability,
-  type SiliconflowVideoCredentials,
-  type SiliconflowWorkspaceScope,
-  type WorkspaceFilesApi
+  type SiliconflowVideoCredentials
 } from './types.js'
+import { Siliconflow } from '../types.js'
 
-export type RuntimeCapabilityRegistryLike = {
-  get<T>(key: string): T | undefined
-}
-
-export class SiliconflowVideoToolset extends BuiltinToolset<StructuredToolInterface, SiliconflowVideoCredentials> {
+export class SiliconflowVideoToolset extends ModelProviderBuiltinToolset<
+  StructuredToolInterface,
+  SiliconflowVideoCredentials
+> {
   constructor(
-    toolset?: any,
-    private readonly runtimeCapabilities?: RuntimeCapabilityRegistryLike,
+    toolset?: SiliconflowVideoToolsetDescriptor,
+    runtimeCapabilities?: RuntimeCapabilityResolver,
     params?: TBuiltinToolsetParams
   ) {
-    super(SiliconflowVideo, toolset, params)
-  }
-
-  override async _validateCredentials(credentials: SiliconflowVideoCredentials): Promise<void> {
-    if (!credentials.api_key?.trim()) throw new Error('SiliconFlow API key is missing')
+    super(
+      {
+        toolsetProviderName: SiliconflowVideo,
+        modelProviderName: Siliconflow,
+        authorizationScheme: 'Bearer',
+        invalidCredentialsMessage: 'SiliconFlow model provider credentials are invalid.',
+        missingProviderMessage: 'Configure the SiliconFlow model provider before using video tools.',
+        missingWorkspaceMessage: 'Xpert workspace file runtime capability is required for SiliconFlow video outputs.'
+      },
+      normalizeToolset(toolset),
+      runtimeCapabilities,
+      params
+    )
   }
 
   override async initTools(): Promise<StructuredToolInterface<ToolSchemaBase>[]> {
+    const modelProvider = await this.getModelProviderRuntime()
     this.tools = buildSiliconflowVideoTools({
-      credentials: this.getCredentials() || {},
       workspaceFiles: this.getWorkspaceFiles(),
-      workspaceScope: this.createWorkspaceScope()
+      workspaceScope: this.createWorkspaceScope(),
+      managedQueue: requireManagedQueue(this.managedQueue),
+      pluginScopeKey: this.pluginScopeKey,
+      runtimeScope: {
+        tenantId: this.tenantId,
+        organizationId: this.organizationId,
+        userId: this.params?.userId,
+        projectId: this.params?.projectId,
+        xpertId: this.xpertId,
+        conversationId: this.params?.conversationId,
+        agentKey: this.params?.agentKey,
+        executionId: this.params?.executionId,
+        providerScopeId: modelProvider.providerScopeId
+      }
     })
     return this.tools
   }
 
-  private getWorkspaceFiles() {
-    const workspaceFiles = this.runtimeCapabilities?.get<WorkspaceFilesApi>(SiliconflowVideoWorkspaceCapability)
-    if (!workspaceFiles) {
-      throw new Error('Xpert workspace file runtime capability is required for SiliconFlow video outputs.')
-    }
-    return workspaceFiles
-  }
-
-  private createWorkspaceScope(): SiliconflowWorkspaceScope | undefined {
-    const projectId = normalizeOptionalString(this.params?.projectId)
-    if (projectId) {
-      return {
-        tenantId: normalizeOptionalString(this.params?.tenantId),
-        userId: normalizeOptionalString(this.params?.userId),
-        catalog: 'projects',
-        scopeId: projectId,
-        projectId
-      }
-    }
-
-    const xpertId = normalizeOptionalString(this.xpertId)
-    if (!xpertId) return undefined
-    return {
-      tenantId: normalizeOptionalString(this.params?.tenantId),
-      userId: normalizeOptionalString(this.params?.userId),
-      catalog: 'xperts',
-      scopeId: xpertId,
-      xpertId,
-      isolateByUser: false
-    }
-  }
 }
 
-function normalizeOptionalString(value: string | null | undefined) {
-  const normalized = value?.trim()
-  return normalized || undefined
+function requireManagedQueue<T>(queue: T | undefined): T {
+  if (!queue) throw new Error('Managed Queue is required for SiliconFlow video generation.')
+  return queue
+}
+
+export type SiliconflowVideoToolsetDescriptor = Omit<IXpertToolset, 'name' | 'credentials'> & {
+  name?: string
+  credentials?: SiliconflowVideoCredentials
+}
+
+function normalizeToolset(toolset?: SiliconflowVideoToolsetDescriptor): IXpertToolset | undefined {
+  if (!toolset) return undefined
+  return {
+    ...toolset,
+    name: toolset.name ?? SiliconflowVideo
+  }
 }
