@@ -5,6 +5,7 @@ import { DiscoveryModule } from '@nestjs/core'
 import { TypeOrmModule } from '@nestjs/typeorm'
 
 import { DingTalkChannelStrategy } from './dingtalk-channel.strategy.js'
+import { DingTalkConnectorStrategy } from './dingtalk-connector.strategy.js'
 import { DingTalkIntegrationStrategy } from './dingtalk-integration.strategy.js'
 import { DingTalkLongIntegrationStrategy } from './dingtalk-long-integration.strategy.js'
 import { DingTalkLongConnectionService } from './dingtalk-long-connection.service.js'
@@ -23,6 +24,7 @@ import { DingTalkTriggerAggregationService } from './workflow/dingtalk-trigger-a
 import { DingTalkTriggerFlushProcessor } from './workflow/dingtalk-trigger-flush.processor.js'
 import { DingTalkIntegrationViewProvider } from './views/dingtalk-integration-view.provider.js'
 import { DingTalkConversationBindingSchemaService } from './dingtalk-conversation-binding-schema.service.js'
+import { DingTalkConnectorRuntimeMiddleware } from './middlewares/dingtalk-connector-runtime.middleware.js'
 import { DINGTALK_TRIGGER_STRATEGY } from './tokens.js'
 
 @XpertServerPlugin({
@@ -36,6 +38,7 @@ import { DINGTALK_TRIGGER_STRATEGY } from './tokens.js'
     DingTalkLongConnectionService,
     DingTalkLongIntegrationStrategy,
     DingTalkIntegrationStrategy,
+    DingTalkConnectorStrategy,
     DingTalkTriggerStrategy,
     DingTalkTriggerAggregationService,
     DingTalkTriggerFlushProcessor,
@@ -49,6 +52,7 @@ import { DINGTALK_TRIGGER_STRATEGY } from './tokens.js'
     DingTalkIntegrationViewProvider,
     DingTalkTokenStrategy,
     DingTalkNotifyMiddleware,
+    DingTalkConnectorRuntimeMiddleware,
     ...Handlers
   ],
   exports: [
@@ -56,9 +60,11 @@ import { DINGTALK_TRIGGER_STRATEGY } from './tokens.js'
     DingTalkLongConnectionService,
     DingTalkLongIntegrationStrategy,
     DingTalkIntegrationStrategy,
+    DingTalkConnectorStrategy,
     DingTalkTriggerStrategy,
     DingTalkChatDispatchService,
-    DingTalkNotifyMiddleware
+    DingTalkNotifyMiddleware,
+    DingTalkConnectorRuntimeMiddleware
   ]
 })
 export class IntegrationDingTalkPlugin implements IOnPluginBootstrap, IOnPluginDestroy {

@@ -9,6 +9,8 @@ import { IntegrationDingTalkPluginConfigSchema } from './lib/plugin-config.js';
 import { IntegrationDingTalkPlugin } from './lib/integration-dingtalk.module.js';
 import { DINGTALK_PLUGIN_CONTEXT } from './lib/tokens.js';
 import { DINGTALK_PLUGIN_RUNTIME_METADATA } from './lib/constants.js';
+export { DingTalkConnectorStrategy } from './lib/dingtalk-connector.strategy.js';
+export { DingTalkConnectorRuntimeMiddleware } from './lib/middlewares/dingtalk-connector-runtime.middleware.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -28,9 +30,9 @@ const plugin: XpertPlugin<z.infer<typeof IntegrationDingTalkPluginConfigSchema>>
       type: 'svg',
       value: iconImage
     },
-    displayName: 'DingTalk Plugin',
-    description: 'Bidirectional messaging integration with DingTalk platform using HTTP callback or Stream Mode',
-    keywords: ['dingtalk', 'integration', 'message', 'webhook', 'stream', 'stream-mode'],
+    displayName: 'DingTalk Connector',
+    description: 'Bidirectional messaging connector for DingTalk using HTTP callback or Stream Mode',
+    keywords: ['dingtalk', 'connector', 'integration', 'message', 'webhook', 'stream', 'stream-mode'],
     author: 'XpertAI team',
   },
   config: {
@@ -42,7 +44,7 @@ const plugin: XpertPlugin<z.infer<typeof IntegrationDingTalkPluginConfigSchema>>
     { type: 'handoff', operations: ['enqueue'] }
   ],
   register(ctx) {
-    ctx.logger.log('Registering DingTalk integration plugin')
+    ctx.logger.log('Registering DingTalk connector plugin')
     initI18n(join(__dirname, '../src'))
     return {
       module: IntegrationDingTalkPlugin,
@@ -52,10 +54,10 @@ const plugin: XpertPlugin<z.infer<typeof IntegrationDingTalkPluginConfigSchema>>
     }
   },
   async onStart(ctx) {
-    ctx.logger.log('DingTalk integration plugin started')
+    ctx.logger.log('DingTalk connector plugin started')
   },
   async onStop(ctx) {
-    ctx.logger.log('DingTalk integration plugin stopped')
+    ctx.logger.log('DingTalk connector plugin stopped')
   }
 };
 

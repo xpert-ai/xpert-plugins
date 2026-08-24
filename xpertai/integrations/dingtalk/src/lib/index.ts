@@ -1,5 +1,6 @@
 export * from './integration-dingtalk.module.js'
 export * from './dingtalk-channel.strategy.js'
+export * from './dingtalk-connector.strategy.js'
 export * from './dingtalk-integration.strategy.js'
 export * from './dingtalk-long-integration.strategy.js'
 export * from './dingtalk-long-connection.service.js'

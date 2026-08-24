@@ -10,9 +10,11 @@ describe('DingTalk plugin metadata', () => {
   it('keeps package and runtime artifact namespaces aligned', () => {
     const moduleDir = dirname(fileURLToPath(import.meta.url));
     const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 'utf8')) as {
+      name: string;
       xpert: { plugin: { artifactNamespace?: string } };
     };
 
+    expect(packageJson.name).toBe('@xpert-ai/plugin-dingtalk-connector');
     expect(DINGTALK_ARTIFACT_NAMESPACE).toBe('dingtalk');
     expect(DINGTALK_PLUGIN_RUNTIME_METADATA).toEqual({
       level: 'system',
