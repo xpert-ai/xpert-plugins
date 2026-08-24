@@ -299,6 +299,9 @@
     },
     {
       "path": "./integrations/dingtalk-sso"
+    },
+    {
+      "path": "./middlewares/wecom-connector"
     }
   ]
 }
