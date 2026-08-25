@@ -302,6 +302,9 @@
     },
     {
       "path": "./middlewares/wecom-connector"
+    },
+    {
+      "path": "./middlewares/dingtalk-connector"
     }
   ]
 }
