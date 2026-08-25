@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-deepseek",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "DeepSeek AI model plugin for XpertAI platform",
   "author": {
     "name": "XpertAI",
