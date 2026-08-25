@@ -94,6 +94,7 @@
       "@xpert-ai/plugin-dingtalk",
       "@xpert-ai/plugin-wecom",
       "@xpert-ai/plugin-wecom-connector",
+      "@xpert-ai/plugin-dingtalk-connector",
       "@xpert-ai/plugin-openai",
       "@xpert-ai/plugin-model-retry",
       "@xpert-ai/plugin-tool-retry",
