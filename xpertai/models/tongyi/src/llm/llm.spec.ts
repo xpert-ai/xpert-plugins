@@ -54,6 +54,7 @@ describe('applyTongyiExplicitCache', () => {
   it.each([
     'qwen3.8-max',
     'qwen3.7-max',
+    'qwen3.7-flash',
     'qwen3.6-plus',
     'qwen3-max-preview',
     'qwen-plus-latest',
@@ -147,6 +148,23 @@ describe('Tongyi China-region explicit-cache pricing', () => {
     'kimi-k2.5',
     'glm-5.1'
   ]
+
+  it('preserves the official qwen3.7-flash explicit-cache prices', () => {
+    const model = models.find((candidate) => candidate.model === 'qwen3.7-flash')
+    const rules = model?.pricing && 'rules' in model.pricing ? model.pricing.rules ?? [] : []
+
+    expect(rules).toEqual(expect.arrayContaining([
+      expect.objectContaining({ component: 'input', unit_price: 0.2, max_input_tokens: 32000, region: 'cn' }),
+      expect.objectContaining({ component: 'input', unit_price: 0.6, min_input_tokens: 32001, max_input_tokens: 256000, region: 'cn' }),
+      expect.objectContaining({ component: 'input', unit_price: 1.2, min_input_tokens: 256001, max_input_tokens: 1000000, region: 'cn' }),
+      expect.objectContaining({ component: 'cache_read_input', unit_price: 0.02, max_input_tokens: 32000, region: 'cn' }),
+      expect.objectContaining({ component: 'cache_read_input', unit_price: 0.06, min_input_tokens: 32001, max_input_tokens: 256000, region: 'cn' }),
+      expect.objectContaining({ component: 'cache_read_input', unit_price: 0.12, min_input_tokens: 256001, max_input_tokens: 1000000, region: 'cn' }),
+      expect.objectContaining({ component: 'cache_write_input', unit_price: 0.25, max_input_tokens: 32000, region: 'cn' }),
+      expect.objectContaining({ component: 'cache_write_input', unit_price: 0.75, min_input_tokens: 32001, max_input_tokens: 256000, region: 'cn' }),
+      expect.objectContaining({ component: 'cache_write_input', unit_price: 1.5, min_input_tokens: 256001, max_input_tokens: 1000000, region: 'cn' })
+    ]))
+  })
 
   it.each(explicitlyCachedModels)('uses the supplied explicit-cache ratios for %s', (modelName) => {
     const model = models.find((candidate) => candidate.model === modelName)
