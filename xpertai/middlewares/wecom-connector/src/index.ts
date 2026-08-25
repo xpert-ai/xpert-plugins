@@ -1,0 +1,60 @@
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
+import { z } from 'zod'
+import { WeComConnectorPluginModule } from './lib/wecom-connector.module.js'
+import {
+  WECOM_AUTH_INTEGRATION_PROVIDER,
+  WECOM_CONNECTOR_ARTIFACT_NAMESPACE,
+  WECOM_CONNECTOR_ICON,
+  WECOM_CONNECTOR_INSTALL_LEVEL
+} from './lib/types.js'
+import { WECOM_CONNECTOR_PLUGIN_CONTEXT } from './lib/tokens.js'
+
+const moduleDir = dirname(fileURLToPath(import.meta.url))
+const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 'utf8')) as {
+  name: string
+  version: string
+}
+
+const plugin: XpertPlugin = {
+  meta: {
+    name: packageJson.name,
+    version: packageJson.version,
+    level: WECOM_CONNECTOR_INSTALL_LEVEL,
+    artifactNamespace: WECOM_CONNECTOR_ARTIFACT_NAMESPACE,
+    category: 'middleware',
+    icon: {
+      type: 'svg',
+      value: WECOM_CONNECTOR_ICON
+    },
+    displayName: 'WeCom Connector',
+    description:
+      'Connects a workspace to WeCom by scanning a QR code and injects the credential into sandboxed commands.',
+    keywords: ['wecom', 'enterprise wechat', 'connector', 'oauth', 'qr', 'middleware'],
+    author: 'XpertAI Team'
+  },
+  config: {
+    schema: z.object({}),
+    formSchema: {
+      type: 'object',
+      properties: {}
+    }
+  },
+  permissions: [{ type: 'integration', service: WECOM_AUTH_INTEGRATION_PROVIDER, operations: ['read'] }],
+  register(ctx) {
+    ctx.logger.log('register wecom connector plugin')
+    return {
+      module: WeComConnectorPluginModule,
+      global: true,
+      providers: [{ provide: WECOM_CONNECTOR_PLUGIN_CONTEXT, useValue: ctx }]
+    }
+  }
+}
+
+export default plugin
+export { WeComConnectorPluginModule } from './lib/wecom-connector.module.js'
+export { WeComAuthIntegrationStrategy } from './lib/wecom-auth-integration.strategy.js'
+export { WeComConnectorStrategy } from './lib/wecom-connector.strategy.js'
+export { WeComConnectorRuntimeMiddleware } from './lib/wecom-connector-runtime.middleware.js'
