@@ -1,5 +1,5 @@
 {
-  "name": "@xpert-ai/plugin-dingtalk-connector",
+  "name": "@xpert-ai/plugin-dingtalk",
   "version": "0.0.9",
   "repository": {
     "type": "git",

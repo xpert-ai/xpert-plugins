@@ -23,7 +23,7 @@ import {
   type TIntegrationDingTalkOptions
 } from '../types.js'
 
-const DINGTALK_PLUGIN_NAME = '@xpert-ai/plugin-dingtalk-connector'
+const DINGTALK_PLUGIN_NAME = '@xpert-ai/plugin-dingtalk'
 const DINGTALK_PROVIDER_KEY = 'dingtalk_integration'
 const DINGTALK_STREAM_SUBSCRIPTIONS = ['/v1.0/im/bot/messages/get', '/v1.0/card/instances/callback'] as const
 const STRATEGY_META_KEY = 'XPERT_STRATEGY_META_KEY'

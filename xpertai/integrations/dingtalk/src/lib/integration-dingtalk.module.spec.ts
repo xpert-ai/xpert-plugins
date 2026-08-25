@@ -20,9 +20,6 @@ jest.mock('@nestjs/typeorm', () => ({
 jest.mock('./dingtalk-channel.strategy.js', () => ({
   DingTalkChannelStrategy: class DingTalkChannelStrategy {}
 }))
-jest.mock('./dingtalk-connector.strategy.js', () => ({
-  DingTalkConnectorStrategy: class DingTalkConnectorStrategy {}
-}))
 jest.mock('./dingtalk-integration.strategy.js', () => ({
   DingTalkIntegrationStrategy: class DingTalkIntegrationStrategy {}
 }))
@@ -58,9 +55,6 @@ jest.mock('./entities/dingtalk-trigger-binding.entity.js', () => ({
 }))
 jest.mock('./middlewares/index.js', () => ({
   DingTalkNotifyMiddleware: class DingTalkNotifyMiddleware {}
-}))
-jest.mock('./middlewares/dingtalk-connector-runtime.middleware.js', () => ({
-  DingTalkConnectorRuntimeMiddleware: class DingTalkConnectorRuntimeMiddleware {}
 }))
 jest.mock('./handoff/commands/handlers/index.js', () => ({
   Handlers: []

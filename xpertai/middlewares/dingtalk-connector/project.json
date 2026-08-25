@@ -1,0 +1,20 @@
+{
+  "name": "@xpert-ai/plugin-dingtalk-connector",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "middlewares/dingtalk-connector/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "middlewares/dingtalk-connector/dist",
+        "main": "middlewares/dingtalk-connector/src/index.ts",
+        "rootDir": "middlewares/dingtalk-connector/src",
+        "tsConfig": "middlewares/dingtalk-connector/tsconfig.lib.json",
+        "generatePackageJson": false
+      }
+    }
+  },
+  "tags": []
+}

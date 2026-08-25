@@ -15,13 +15,7 @@ import {
   type PluginContext
 } from '@xpert-ai/plugin-sdk'
 import type { IIntegration } from '@xpert-ai/contracts'
-import { DINGTALK_PLUGIN_CONTEXT } from './tokens.js'
-import {
-  iconImage,
-  INTEGRATION_DINGTALK,
-  INTEGRATION_DINGTALK_LONG,
-  type TIntegrationDingTalkOptions
-} from './types.js'
+import { DINGTALK_CONNECTOR_PLUGIN_CONTEXT } from './tokens.js'
 
 export const DINGTALK_CONNECTOR_PROVIDER = 'dingtalk'
 export const DINGTALK_CONNECTOR_AUTHORIZE_URL = 'https://login.dingtalk.com/oauth2/auth'
@@ -30,7 +24,7 @@ export const DINGTALK_CONNECTOR_USER_INFO_URL = 'https://api.dingtalk.com/v1.0/c
 
 const DEFAULT_DINGTALK_SCOPES = ['openid', 'corpid'] as const
 const REQUEST_TIMEOUT_MS = 15_000
-const DINGTALK_SYSTEM_INTEGRATION_PROVIDERS = [INTEGRATION_DINGTALK, INTEGRATION_DINGTALK_LONG] as const
+const DINGTALK_SYSTEM_INTEGRATION_PROVIDERS = ['dingtalk', 'dingtalk_long'] as const
 
 @Injectable()
 @ConnectorStrategyKey(DINGTALK_CONNECTOR_PROVIDER)
@@ -39,7 +33,7 @@ export class DingTalkConnectorStrategy implements ConnectorMultiAuthStrategy {
   private _integrationPermissionService: IntegrationPermissionService
 
   constructor(
-    @Inject(DINGTALK_PLUGIN_CONTEXT)
+    @Inject(DINGTALK_CONNECTOR_PLUGIN_CONTEXT)
     private readonly pluginContext: PluginContext
   ) {}
 
@@ -61,8 +55,8 @@ export class DingTalkConnectorStrategy implements ConnectorMultiAuthStrategy {
       zh_Hans: '使用系统集成中配置的钉钉应用进行 OAuth 授权连接。'
     },
     icon: {
-      type: 'svg',
-      value: iconImage
+      type: 'font',
+      value: 'ri-dingding-fill'
     },
     authMethods: [
       {
@@ -183,7 +177,7 @@ export class DingTalkConnectorStrategy implements ConnectorMultiAuthStrategy {
 
   private async resolveConfiguredApp(integrationId?: unknown): Promise<ResolvedDingTalkApp> {
     const integration = await this.resolveIntegration(integrationId)
-    const options = integration.options ?? ({} as TIntegrationDingTalkOptions)
+    const options = integration.options ?? ({} as DingTalkSystemIntegrationOptions)
     return {
       integrationId: integration.id,
       clientId: requireString(
@@ -197,10 +191,10 @@ export class DingTalkConnectorStrategy implements ConnectorMultiAuthStrategy {
     }
   }
 
-  private async resolveIntegration(integrationId?: unknown): Promise<IIntegration<TIntegrationDingTalkOptions>> {
+  private async resolveIntegration(integrationId?: unknown): Promise<IIntegration<DingTalkSystemIntegrationOptions>> {
     const id = readString(integrationId)
     if (id) {
-      const integration = await this.integrationPermissionService.read<IIntegration<TIntegrationDingTalkOptions>>(id, {
+      const integration = await this.integrationPermissionService.read<IIntegration<DingTalkSystemIntegrationOptions>>(id, {
         relations: ['tenant']
       })
       if (!integration) {
@@ -214,12 +208,12 @@ export class DingTalkConnectorStrategy implements ConnectorMultiAuthStrategy {
 
     const service = this.integrationPermissionService
     const result = service.findAllWithInheritance
-      ? await service.findAllWithInheritance<IIntegration<TIntegrationDingTalkOptions>>({
+      ? await service.findAllWithInheritance<IIntegration<DingTalkSystemIntegrationOptions>>({
           where: DINGTALK_SYSTEM_INTEGRATION_PROVIDERS.map((provider) => ({ provider })),
           order: { updatedAt: 'DESC' },
           take: 10
         })
-      : await service.findAll<IIntegration<TIntegrationDingTalkOptions>>({
+      : await service.findAll<IIntegration<DingTalkSystemIntegrationOptions>>({
           where: DINGTALK_SYSTEM_INTEGRATION_PROVIDERS.map((provider) => ({ provider })),
           order: { updatedAt: 'DESC' },
           take: 10
@@ -263,6 +257,11 @@ type ResolvedDingTalkApp = {
   integrationId: string
   clientId: string
   clientSecret: string
+}
+
+type DingTalkSystemIntegrationOptions = {
+  clientId?: string
+  clientSecret?: string
 }
 
 type DingTalkOAuthToken = {

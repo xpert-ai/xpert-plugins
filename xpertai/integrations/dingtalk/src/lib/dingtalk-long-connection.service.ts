@@ -86,10 +86,8 @@ const DINGTALK_STREAM_TOPIC_CARD = '/v1.0/card/instances/callback'
 const DINGTALK_STREAM_CONNECT_TIMEOUT_MS = 15_000
 const DINGTALK_STREAM_RETRY_BASE_MS = 5_000
 const DINGTALK_STREAM_RETRY_MAX_MS = 30_000
-const DINGTALK_STREAM_UA_PREFIX = 'xpert-ai-plugin-dingtalk-connector'
-const DINGTALK_STREAM_SOCKET_REGISTRY = Symbol.for(
-  '@xpert-ai/plugin-dingtalk-connector/long-connection-sockets'
-)
+const DINGTALK_STREAM_UA_PREFIX = 'xpert-ai-plugin-dingtalk'
+const DINGTALK_STREAM_SOCKET_REGISTRY = Symbol.for('@xpert-ai/plugin-dingtalk/long-connection-sockets')
 const require = createRequire(import.meta.url)
 
 type DingTalkStreamSocketRegistry = Map<string, Set<any>>
