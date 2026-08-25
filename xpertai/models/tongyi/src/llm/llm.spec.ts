@@ -214,6 +214,44 @@ describe('Tongyi China-region explicit-cache pricing', () => {
   })
 })
 
+describe('Tongyi Kimi K3 catalog', () => {
+  const manager = new TongyiLargeLanguageModel(new TongyiProviderStrategy())
+  const model = manager.predefinedModels().find((candidate) => candidate.model === 'kimi-k3')
+
+  it('matches the Dify model schema and official Alibaba Cloud regional pricing', () => {
+    expect(model).toBeDefined()
+    expect(model?.features).toEqual([
+      'vision',
+      'video',
+      'structured-output',
+      'agent-thought',
+      'tool-call',
+      'multi-tool-call',
+      'stream-tool-call'
+    ])
+    expect(model?.model_properties?.context_size).toBe(1048576)
+
+    const maxCompletionTokens = model?.parameter_rules?.find(
+      (rule) => rule.name === 'max_completion_tokens'
+    )
+    expect(maxCompletionTokens).toEqual(expect.objectContaining({
+      default: 131072,
+      min: 1,
+      max: 1048576
+    }))
+
+    const rules = model?.pricing && 'rules' in model.pricing ? model.pricing.rules ?? [] : []
+    expect(rules).toEqual(expect.arrayContaining([
+      expect.objectContaining({ component: 'input', unit_price: 20, unit_size: 1000000, region: 'cn' }),
+      expect.objectContaining({ component: 'cache_read_input', unit_price: 2, unit_size: 1000000, region: 'cn' }),
+      expect.objectContaining({ component: 'output', unit_price: 100, unit_size: 1000000, region: 'cn' }),
+      expect.objectContaining({ component: 'input', unit_price: 21.875, unit_size: 1000000, region: 'international' }),
+      expect.objectContaining({ component: 'cache_read_input', unit_price: 2.188, unit_size: 1000000, region: 'international' }),
+      expect.objectContaining({ component: 'output', unit_price: 109.376, unit_size: 1000000, region: 'international' })
+    ]))
+  })
+})
+
 describe('toTongyiConfigurationWithExtraHeaders', () => {
   it('keeps the original configuration when extra headers are empty', () => {
     const configuration = {
