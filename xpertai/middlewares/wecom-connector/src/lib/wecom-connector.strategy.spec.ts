@@ -9,12 +9,17 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
 }))
 
 import plugin from '../index.js'
-import { WECOM_CONNECTOR_ARTIFACT_NAMESPACE, WECOM_CONNECTOR_INSTALL_LEVEL } from './types.js'
+import {
+  WECOM_CONNECTOR_ARTIFACT_NAMESPACE,
+  WECOM_CONNECTOR_ICON,
+  WECOM_CONNECTOR_INSTALL_LEVEL
+} from './types.js'
 
 describe('WeComConnectorStrategy', () => {
   it('stays tenant-installed while allowing inherited WeCom auth integrations', () => {
     expect(plugin.meta.level).toBe(WECOM_CONNECTOR_INSTALL_LEVEL)
     expect(plugin.meta.artifactNamespace).toBe(WECOM_CONNECTOR_ARTIFACT_NAMESPACE)
+    expect(createStrategy([]).definition.icon).toEqual({ type: 'svg', value: WECOM_CONNECTOR_ICON })
     expect(plugin.permissions).toEqual([{ type: 'integration', service: 'wecom_auth', operations: ['read'] }])
   })
 

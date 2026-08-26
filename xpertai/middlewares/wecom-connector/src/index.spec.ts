@@ -2,7 +2,11 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import plugin from './index.js'
-import { WECOM_CONNECTOR_ARTIFACT_NAMESPACE, WECOM_CONNECTOR_INSTALL_LEVEL } from './lib/types.js'
+import {
+  WECOM_CONNECTOR_ARTIFACT_NAMESPACE,
+  WECOM_CONNECTOR_ICON,
+  WECOM_CONNECTOR_INSTALL_LEVEL
+} from './lib/types.js'
 
 jest.mock('@xpert-ai/plugin-sdk', () => ({
   AgentMiddlewareStrategy: () => () => undefined,
@@ -33,5 +37,6 @@ describe('WeCom connector plugin metadata', () => {
       level: WECOM_CONNECTOR_INSTALL_LEVEL,
       artifactNamespace: WECOM_CONNECTOR_ARTIFACT_NAMESPACE
     })
+    expect(plugin.meta.icon).toEqual({ type: 'svg', value: WECOM_CONNECTOR_ICON })
   })
 })
