@@ -1,0 +1,20 @@
+{
+  "name": "@xpert-ai/plugin-qq-mail-connector",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "middlewares/qq-mail-connector/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "middlewares/qq-mail-connector/dist",
+        "main": "middlewares/qq-mail-connector/src/index.ts",
+        "rootDir": "middlewares/qq-mail-connector/src",
+        "tsConfig": "middlewares/qq-mail-connector/tsconfig.lib.json",
+        "generatePackageJson": false
+      }
+    }
+  },
+  "tags": []
+}
