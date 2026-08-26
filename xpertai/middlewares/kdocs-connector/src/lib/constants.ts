@@ -1,5 +1,4 @@
-export const KDOCS_PLUGIN_LEVEL = 'tenant' as const
-export const KDOCS_ARTIFACT_NAMESPACE = 'kdocs_connector' as const
+export const KDOCS_PLUGIN_LEVEL = 'organization' as const
 
 export const KDOCS_CONNECTOR_PROVIDER = 'kdocs'
 export const KDOCS_AUTH_METHOD_ID = 'skillhub-login'

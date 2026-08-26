@@ -40,8 +40,7 @@
   },
   "xpert": {
     "plugin": {
-      "level": "tenant",
-      "artifactNamespace": "kdocs_connector"
+      "level": "organization"
     }
   },
   "dependencies": {

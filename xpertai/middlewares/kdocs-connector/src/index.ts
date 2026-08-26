@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod'
-import { KDOCS_ARTIFACT_NAMESPACE, KDOCS_PLUGIN_LEVEL } from './lib/constants.js'
+import { KDOCS_PLUGIN_LEVEL } from './lib/constants.js'
 import { KdocsConnectorPluginModule } from './lib/kdocs-connector.module.js'
 
 const moduleDir = dirname(fileURLToPath(import.meta.url))
@@ -17,7 +17,6 @@ const plugin: XpertPlugin = {
     name: packageJson.name,
     version: packageJson.version,
     level: KDOCS_PLUGIN_LEVEL,
-    artifactNamespace: KDOCS_ARTIFACT_NAMESPACE,
     category: 'middleware',
     icon: { type: 'font', value: 'ri-file-cloud-fill', color: '#e6002d' },
     displayName: 'WPS Docs Connector',
@@ -43,7 +42,6 @@ export { KdocsConnectorStrategy } from './lib/kdocs-connector.strategy.js'
 export { KdocsSkillHubAuthClient } from './lib/kdocs-skillhub-auth.client.js'
 export { KdocsMcpClient } from './lib/mcp/kdocs-mcp.client.js'
 export {
-  KDOCS_ARTIFACT_NAMESPACE,
   KDOCS_AUTH_METHOD_ID,
   KDOCS_CONNECTOR_PROVIDER,
   KDOCS_PLUGIN_LEVEL,

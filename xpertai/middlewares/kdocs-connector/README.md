@@ -8,7 +8,7 @@ The connector opens the WPS account page, polls a five-minute one-time authoriza
 
 ## Setup and connection
 
-1. Install this workspace package through the standard Xpert plugin deployment flow and enable it for the target tenant.
+1. Install this workspace package through the standard Xpert plugin deployment flow and enable it for the target organization.
 2. Open **Connectors**, select **WPS Docs / 金山文档**, and choose **WPS web sign-in**.
 3. Complete the sign-in and authorization on the WPS-hosted page. Xpert polls the one-time authorization for up to five minutes and stores the returned token in its credential vault.
 4. Add the connected WPS Docs middleware to an Agent and grant only the tools needed by that Agent.
