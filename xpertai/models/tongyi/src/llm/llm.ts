@@ -67,6 +67,8 @@ const TONGYI_CN_EXPLICIT_CACHE_PRICED_MODELS = new Set([
   'glm-5.1'
 ])
 const TONGYI_EXPLICIT_CACHE_CONTROL = { type: 'ephemeral' } as const
+// Kimi K3 only accepts the provider defaults for sampling and reasoning controls.
+const TONGYI_FIXED_SAMPLING_AND_REASONING_MODELS = new Set(['kimi-k3'])
 const TONGYI_EXTRA_HEADER_RESERVED_NAMES = new Set([
   'authorization',
   'content-type',
@@ -384,6 +386,12 @@ export class TongyiLargeLanguageModel extends LargeLanguageModel {
     super(modelProvider, AiModelTypeEnum.LLM)
   }
 
+  protected override _commonParameterRules(model: string) {
+    const rules = super._commonParameterRules(model)
+    if (!TONGYI_FIXED_SAMPLING_AND_REASONING_MODELS.has(model)) return rules
+    return rules.filter((rule) => rule.name !== 'temperature')
+  }
+
   override predefinedModels(): ReturnType<LargeLanguageModel['predefinedModels']> {
     const models = super.predefinedModels()
     this.modelSchemas = models.map((model) => {
@@ -403,7 +411,7 @@ export class TongyiLargeLanguageModel extends LargeLanguageModel {
     const chatModel = new ChatOAICompatReasoningModel({
       ...params,
       model,
-      temperature: 0,
+      ...(TONGYI_FIXED_SAMPLING_AND_REASONING_MODELS.has(model) ? {} : { temperature: 0 }),
       maxTokens: 5
     })
 
@@ -421,22 +429,34 @@ export class TongyiLargeLanguageModel extends LargeLanguageModel {
     const configuration = toTongyiConfigurationWithExtraHeaders(params.configuration, modelCredentials?.extra_headers)
 
     const model = copilotModel.model
+    const supportsSamplingAndReasoningOverrides =
+      !TONGYI_FIXED_SAMPLING_AND_REASONING_MODELS.has(model)
     const fields = omitBy(
       {
         ...params,
         configuration,
         model,
         streaming: modelCredentials?.streaming ?? true,
-        temperature: modelCredentials?.temperature ?? 0,
+        temperature: supportsSamplingAndReasoningOverrides
+          ? modelCredentials?.temperature ?? 0
+          : undefined,
         maxTokens: modelCredentials?.max_tokens,
-        topP: modelCredentials?.top_p,
-        frequencyPenalty: modelCredentials?.frequency_penalty,
+        topP: supportsSamplingAndReasoningOverrides ? modelCredentials?.top_p : undefined,
+        frequencyPenalty: supportsSamplingAndReasoningOverrides
+          ? modelCredentials?.frequency_penalty
+          : undefined,
         maxRetries: modelCredentials?.maxRetries,
         modelKwargs: omitBy(
           {
-            enable_thinking: modelCredentials?.enable_thinking,
-            thinking_budget: modelCredentials?.thinking_budget,
-            reasoning_effort: modelCredentials?.reasoning_effort,
+            enable_thinking: supportsSamplingAndReasoningOverrides
+              ? modelCredentials?.enable_thinking
+              : undefined,
+            thinking_budget: supportsSamplingAndReasoningOverrides
+              ? modelCredentials?.thinking_budget
+              : undefined,
+            reasoning_effort: supportsSamplingAndReasoningOverrides
+              ? modelCredentials?.reasoning_effort
+              : undefined,
             tool_stream: modelCredentials?.tool_stream,
             enable_search: modelCredentials?.enable_search,
             response_format: modelCredentials?.response_format
