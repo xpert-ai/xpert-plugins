@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod'
+import { DINGTALK_CONNECTOR_ICON } from './lib/branding.js'
 import { DingTalkConnectorPluginModule } from './lib/dingtalk-connector.module.js'
 import { DINGTALK_CONNECTOR_PLUGIN_CONTEXT } from './lib/tokens.js'
 
@@ -19,8 +20,8 @@ const plugin: XpertPlugin = {
     level: 'organization',
     category: 'middleware',
     icon: {
-      type: 'font',
-      value: 'ri-dingding-fill'
+      type: 'svg',
+      value: DINGTALK_CONNECTOR_ICON
     },
     displayName: 'DingTalk Connector',
     description: 'Connects a workspace to DingTalk with OAuth using the configured system integration.',

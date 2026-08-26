@@ -20,6 +20,10 @@ describe('DingTalkConnectorStrategy', () => {
     const strategy = createStrategy()
 
     expect(strategy.definition.provider).toBe(DINGTALK_CONNECTOR_PROVIDER)
+    expect(strategy.definition.icon).toEqual({
+      type: 'svg',
+      value: expect.stringContaining('<svg')
+    })
     expect(strategy.definition.authMethods).toEqual([expect.objectContaining({ id: 'oauth2', type: 'oauth2' })])
     expect(strategy.definition.authMethods[0].appCredentials).toBeUndefined()
   })

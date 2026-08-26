@@ -15,6 +15,7 @@ import {
   type PluginContext
 } from '@xpert-ai/plugin-sdk'
 import type { IIntegration } from '@xpert-ai/contracts'
+import { DINGTALK_CONNECTOR_ICON } from './branding.js'
 import { DINGTALK_CONNECTOR_PLUGIN_CONTEXT } from './tokens.js'
 
 export const DINGTALK_CONNECTOR_PROVIDER = 'dingtalk'
@@ -55,8 +56,8 @@ export class DingTalkConnectorStrategy implements ConnectorMultiAuthStrategy {
       zh_Hans: '使用系统集成中配置的钉钉应用进行 OAuth 授权连接。'
     },
     icon: {
-      type: 'font',
-      value: 'ri-dingding-fill'
+      type: 'svg',
+      value: DINGTALK_CONNECTOR_ICON
     },
     authMethods: [
       {
