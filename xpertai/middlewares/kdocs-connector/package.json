@@ -1,0 +1,57 @@
+{
+  "name": "@xpert-ai/plugin-kdocs-connector",
+  "version": "0.1.0",
+  "description": "WPS Docs connector for XpertAI using SkillHub browser sign-in and bounded MCP document tools.",
+  "author": {
+    "name": "XpertAI",
+    "url": "https://xpertai.cn"
+  },
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins.git",
+    "directory": "xpertai/middlewares/kdocs-connector"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@xpert-plugins-starter/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "!**/*.tsbuildinfo"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.lib.json",
+    "test": "jest --config jest.config.ts --runInBand",
+    "typecheck": "tsc -p tsconfig.spec.json --noEmit"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "organization"
+    }
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "tslib": "^2.3.0"
+  },
+  "peerDependencies": {
+    "@langchain/core": "0.3.72",
+    "@nestjs/common": "^11.1.6",
+    "@xpert-ai/contracts": "^3.17.0",
+    "@xpert-ai/plugin-sdk": "^3.17.0",
+    "zod": "3.25.67"
+  }
+}

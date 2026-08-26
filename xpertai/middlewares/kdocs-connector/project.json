@@ -1,0 +1,36 @@
+{
+  "name": "@xpert-ai/plugin-kdocs-connector",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "middlewares/kdocs-connector/src",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "middlewares/kdocs-connector/dist",
+        "main": "middlewares/kdocs-connector/src/index.ts",
+        "rootDir": "middlewares/kdocs-connector/src",
+        "tsConfig": "middlewares/kdocs-connector/tsconfig.lib.json",
+        "generatePackageJson": false
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "cwd": "middlewares/kdocs-connector",
+        "command": "tsc -p tsconfig.spec.json --noEmit"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "cwd": "middlewares/kdocs-connector",
+        "command": "jest --config jest.config.ts --runInBand"
+      }
+    }
+  }
+}
