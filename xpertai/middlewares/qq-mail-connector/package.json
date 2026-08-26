@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-qq-mail-connector",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "QQ Mail connector for XpertAI using OAuth 2.1 PKCE or IMAP/SMTP authorization codes.",
   "author": {
     "name": "XpertAI",
