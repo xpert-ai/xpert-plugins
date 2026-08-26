@@ -16,6 +16,13 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import type { IIntegration } from '@xpert-ai/contracts'
 import { DINGTALK_CONNECTOR_ICON } from './branding.js'
+import {
+  DINGTALK_CONNECTOR_AUTH_INTEGRATION_URL,
+  DINGTALK_CONNECTOR_INTEGRATION_PROVIDER,
+  DINGTALK_SSO_SYSTEM_INTEGRATION_PROVIDER,
+  DINGTALK_SYSTEM_INTEGRATION_PROVIDERS
+} from './constants.js'
+import { DingTalkConnectorSecretService } from './dingtalk-connector-secret.service.js'
 import { DINGTALK_CONNECTOR_PLUGIN_CONTEXT } from './tokens.js'
 
 export const DINGTALK_CONNECTOR_PROVIDER = 'dingtalk'
@@ -25,7 +32,6 @@ export const DINGTALK_CONNECTOR_USER_INFO_URL = 'https://api.dingtalk.com/v1.0/c
 
 const DEFAULT_DINGTALK_SCOPES = ['openid', 'corpid'] as const
 const REQUEST_TIMEOUT_MS = 15_000
-const DINGTALK_SYSTEM_INTEGRATION_PROVIDERS = ['dingtalk', 'dingtalk_long'] as const
 
 @Injectable()
 @ConnectorStrategyKey(DINGTALK_CONNECTOR_PROVIDER)
@@ -34,6 +40,7 @@ export class DingTalkConnectorStrategy implements ConnectorMultiAuthStrategy {
   private _integrationPermissionService: IntegrationPermissionService
 
   constructor(
+    private readonly secretService: DingTalkConnectorSecretService,
     @Inject(DINGTALK_CONNECTOR_PLUGIN_CONTEXT)
     private readonly pluginContext: PluginContext
   ) {}
@@ -66,6 +73,15 @@ export class DingTalkConnectorStrategy implements ConnectorMultiAuthStrategy {
         label: {
           en_US: 'DingTalk OAuth',
           zh_Hans: '钉钉 OAuth 授权'
+        },
+        appCredentials: {
+          help: {
+            label: {
+              en_US: 'Configure DingTalk OAuth system integration',
+              zh_Hans: '配置钉钉 OAuth 系统集成'
+            },
+            url: DINGTALK_CONNECTOR_AUTH_INTEGRATION_URL
+          }
         }
       }
     ],
@@ -178,53 +194,61 @@ export class DingTalkConnectorStrategy implements ConnectorMultiAuthStrategy {
 
   private async resolveConfiguredApp(integrationId?: unknown): Promise<ResolvedDingTalkApp> {
     const integration = await this.resolveIntegration(integrationId)
-    const options = integration.options ?? ({} as DingTalkSystemIntegrationOptions)
+    const options = integration.options ?? ({} as DingTalkOAuthIntegrationOptions)
+    const encryptedClientSecret = requireString(
+      options.clientSecret,
+      'DingTalk OAuth system integration Client Secret (AppSecret) is not configured'
+    )
     return {
       integrationId: integration.id,
       clientId: requireString(
         options.clientId,
-        'DingTalk system integration Client ID (AppKey) is not configured'
+        'DingTalk OAuth system integration Client ID (AppKey) is not configured'
       ),
-      clientSecret: requireString(
-        options.clientSecret,
-        'DingTalk system integration Client Secret (AppSecret) is not configured'
-      )
+      clientSecret: this.secretService.decrypt(encryptedClientSecret)
     }
   }
 
-  private async resolveIntegration(integrationId?: unknown): Promise<IIntegration<DingTalkSystemIntegrationOptions>> {
+  private async resolveIntegration(integrationId?: unknown): Promise<IIntegration<DingTalkOAuthIntegrationOptions>> {
     const id = readString(integrationId)
     if (id) {
-      const integration = await this.integrationPermissionService.read<IIntegration<DingTalkSystemIntegrationOptions>>(id, {
-        relations: ['tenant']
-      })
+      const integration = await this.integrationPermissionService.read<IIntegration<DingTalkOAuthIntegrationOptions>>(
+        id,
+        {
+          relations: ['tenant']
+        }
+      )
       if (!integration) {
-        throw new Error(`DingTalk system integration '${id}' was not found`)
+        throw new Error(`DingTalk OAuth system integration '${id}' was not found`)
       }
       if (!isDingTalkSystemIntegrationProvider(integration.provider)) {
-        throw new Error(`Integration '${id}' is not a DingTalk system integration`)
+        throw new Error(`Integration '${id}' is not a supported DingTalk OAuth system integration`)
       }
       return integration
     }
 
     const service = this.integrationPermissionService
     const result = service.findAllWithInheritance
-      ? await service.findAllWithInheritance<IIntegration<DingTalkSystemIntegrationOptions>>({
+      ? await service.findAllWithInheritance<IIntegration<DingTalkOAuthIntegrationOptions>>({
           where: DINGTALK_SYSTEM_INTEGRATION_PROVIDERS.map((provider) => ({ provider })),
           order: { updatedAt: 'DESC' },
           take: 10
         })
-      : await service.findAll<IIntegration<DingTalkSystemIntegrationOptions>>({
+      : await service.findAll<IIntegration<DingTalkOAuthIntegrationOptions>>({
           where: DINGTALK_SYSTEM_INTEGRATION_PROVIDERS.map((provider) => ({ provider })),
           order: { updatedAt: 'DESC' },
           take: 10
         })
-    const integration = result.items.find(
-      (item) => isDingTalkSystemIntegrationProvider(item.provider) && item.options?.clientId && item.options?.clientSecret
+    const candidates = result.items.filter(
+      (item) =>
+        isDingTalkSystemIntegrationProvider(item.provider) && item.options?.clientId && item.options?.clientSecret
     )
+    const integration =
+      candidates.find((item) => item.provider === DINGTALK_SSO_SYSTEM_INTEGRATION_PROVIDER) ??
+      candidates.find((item) => item.provider === DINGTALK_CONNECTOR_INTEGRATION_PROVIDER)
     if (!integration) {
       throw new Error(
-        'DingTalk system integration is not configured. Configure Client ID (AppKey) and Client Secret (AppSecret) in a DingTalk HTTP or Stream system integration first.'
+        'DingTalk OAuth system integration is not configured. Configure Client ID (AppKey) and Client Secret (AppSecret) in either the DingTalk OAuth Sign-in or DingTalk Connector OAuth system integration.'
       )
     }
     return integration
@@ -251,7 +275,10 @@ export class DingTalkConnectorStrategy implements ConnectorMultiAuthStrategy {
 }
 
 function isDingTalkSystemIntegrationProvider(provider: string | null | undefined): boolean {
-  return !!provider && DINGTALK_SYSTEM_INTEGRATION_PROVIDERS.includes(provider as (typeof DINGTALK_SYSTEM_INTEGRATION_PROVIDERS)[number])
+  return (
+    !!provider &&
+    DINGTALK_SYSTEM_INTEGRATION_PROVIDERS.includes(provider as (typeof DINGTALK_SYSTEM_INTEGRATION_PROVIDERS)[number])
+  )
 }
 
 type ResolvedDingTalkApp = {
@@ -260,7 +287,7 @@ type ResolvedDingTalkApp = {
   clientSecret: string
 }
 
-type DingTalkSystemIntegrationOptions = {
+type DingTalkOAuthIntegrationOptions = {
   clientId?: string
   clientSecret?: string
 }

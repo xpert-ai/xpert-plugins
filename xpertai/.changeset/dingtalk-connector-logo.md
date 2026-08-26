@@ -2,4 +2,4 @@
 "@xpert-ai/plugin-dingtalk-connector": patch
 ---
 
-Replace the DingTalk connector font icon with the official SVG logo.
+Use the official SVG logo and support OAuth credentials from the DingTalk SSO or connector-owned system integration.

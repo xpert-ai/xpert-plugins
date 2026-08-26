@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod'
 import { DINGTALK_CONNECTOR_ICON } from './lib/branding.js'
+import { DINGTALK_CONNECTOR_INTEGRATION_PROVIDER, DINGTALK_SSO_SYSTEM_INTEGRATION_PROVIDER } from './lib/constants.js'
 import { DingTalkConnectorPluginModule } from './lib/dingtalk-connector.module.js'
 import { DINGTALK_CONNECTOR_PLUGIN_CONTEXT } from './lib/tokens.js'
 
@@ -36,8 +37,8 @@ const plugin: XpertPlugin = {
     }
   },
   permissions: [
-    { type: 'integration', service: 'dingtalk', operations: ['read'] },
-    { type: 'integration', service: 'dingtalk_long', operations: ['read'] }
+    { type: 'integration', service: DINGTALK_SSO_SYSTEM_INTEGRATION_PROVIDER, operations: ['read'] },
+    { type: 'integration', service: DINGTALK_CONNECTOR_INTEGRATION_PROVIDER, operations: ['read'] }
   ],
   register(ctx) {
     ctx.logger.log('register DingTalk connector plugin')
@@ -51,5 +52,6 @@ const plugin: XpertPlugin = {
 
 export default plugin
 export { DingTalkConnectorPluginModule } from './lib/dingtalk-connector.module.js'
+export { DingTalkConnectorIntegrationStrategy } from './lib/dingtalk-connector-integration.strategy.js'
 export { DingTalkConnectorStrategy } from './lib/dingtalk-connector.strategy.js'
 export { DingTalkConnectorRuntimeMiddleware } from './lib/middlewares/dingtalk-connector-runtime.middleware.js'

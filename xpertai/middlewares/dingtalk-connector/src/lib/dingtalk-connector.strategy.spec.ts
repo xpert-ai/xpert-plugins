@@ -5,6 +5,7 @@ import {
   DINGTALK_CONNECTOR_USER_INFO_URL,
   DingTalkConnectorStrategy
 } from './dingtalk-connector.strategy.js'
+import { DINGTALK_CONNECTOR_INTEGRATION_PROVIDER, DINGTALK_SSO_SYSTEM_INTEGRATION_PROVIDER } from './constants.js'
 
 jest.mock('@xpert-ai/plugin-sdk', () => ({
   ConnectorStrategyKey: () => () => undefined,
@@ -25,10 +26,14 @@ describe('DingTalkConnectorStrategy', () => {
       value: expect.stringContaining('<svg')
     })
     expect(strategy.definition.authMethods).toEqual([expect.objectContaining({ id: 'oauth2', type: 'oauth2' })])
-    expect(strategy.definition.authMethods[0].appCredentials).toBeUndefined()
+    expect(strategy.definition.authMethods[0].appCredentials).toEqual({
+      help: expect.objectContaining({
+        url: '/settings/integration/create?provider=dingtalk-connector'
+      })
+    })
   })
 
-  it('builds the OAuth URL from the DingTalk system integration', async () => {
+  it('builds the OAuth URL from the DingTalk SSO system integration', async () => {
     const strategy = createStrategy()
 
     const result = await strategy.connect({
@@ -53,20 +58,34 @@ describe('DingTalkConnectorStrategy', () => {
     expect(result.metadata).toEqual({ integrationId: 'integration-1' })
   })
 
-  it('accepts credentials from the DingTalk Stream system integration', async () => {
-    const strategy = createStrategy(true, 'dingtalk_long')
+  it('falls back to the connector-owned system integration when SSO is unavailable', async () => {
+    const strategy = createStrategy(true, DINGTALK_CONNECTOR_INTEGRATION_PROVIDER)
 
     const result = await strategy.connect({
       authMethodId: 'oauth2',
       redirectUri: 'https://xpert.example.com/api/connector/oauth/callback',
-      state: 'stream-state'
+      state: 'connector-state'
     })
 
     expect(result.status).toBe('pending')
     if (result.status !== 'pending') {
       throw new Error('Expected pending OAuth result')
     }
+
     expect(new URL(result.authorizationUrl).searchParams.get('client_id')).toBe('system-client')
+    expect(result.metadata).toEqual({ integrationId: 'integration-1' })
+  })
+
+  it('rejects credentials from the legacy DingTalk messaging integrations', async () => {
+    const strategy = createStrategy(true, 'dingtalk_long')
+
+    await expect(
+      strategy.connect({
+        authMethodId: 'oauth2',
+        redirectUri: 'https://xpert.example.com/api/connector/oauth/callback',
+        state: 'stream-state'
+      })
+    ).rejects.toThrow('DingTalk OAuth system integration is not configured')
   })
 
   it('exchanges the OAuth code with system integration credentials without storing the secret', async () => {
@@ -181,14 +200,16 @@ describe('DingTalkConnectorStrategy', () => {
     )
   })
 
-  it('fails clearly when the DingTalk system integration is missing', async () => {
+  it('fails clearly when the DingTalk SSO system integration is missing', async () => {
     const strategy = createStrategy(false)
 
-    await expect(strategy.connect({
-      authMethodId: 'oauth2',
-      redirectUri: 'https://xpert.example.com/callback',
-      state: 'state-missing'
-    })).rejects.toThrow('DingTalk system integration is not configured')
+    await expect(
+      strategy.connect({
+        authMethodId: 'oauth2',
+        redirectUri: 'https://xpert.example.com/callback',
+        state: 'state-missing'
+      })
+    ).rejects.toThrow('DingTalk OAuth system integration is not configured')
   })
 
   it('projects runtime credentials without leaking integration secrets', () => {
@@ -214,18 +235,20 @@ describe('DingTalkConnectorStrategy', () => {
   })
 })
 
-function createStrategy(withIntegration = true, integrationProvider = 'dingtalk') {
+function createStrategy(withIntegration = true, integrationProvider = DINGTALK_SSO_SYSTEM_INTEGRATION_PROVIDER) {
   const integration = {
     id: 'integration-1',
     provider: integrationProvider,
     options: {
       clientId: 'system-client',
-      clientSecret: 'system-secret'
+      clientSecret: 'enc:v1:encrypted-secret'
     }
   }
   const integrationPermissionService = {
     read: jest.fn().mockResolvedValue(withIntegration ? integration : null),
-    findAll: jest.fn().mockResolvedValue({ items: withIntegration ? [integration] : [], total: withIntegration ? 1 : 0 }),
+    findAll: jest
+      .fn()
+      .mockResolvedValue({ items: withIntegration ? [integration] : [], total: withIntegration ? 1 : 0 }),
     findAllWithInheritance: jest
       .fn()
       .mockResolvedValue({ items: withIntegration ? [integration] : [], total: withIntegration ? 1 : 0 })
@@ -233,7 +256,10 @@ function createStrategy(withIntegration = true, integrationProvider = 'dingtalk'
   const pluginContext = {
     resolve: jest.fn().mockReturnValue(integrationPermissionService)
   }
-  return new DingTalkConnectorStrategy(pluginContext as never)
+  const secretService = {
+    decrypt: jest.fn().mockReturnValue('system-secret')
+  }
+  return new DingTalkConnectorStrategy(secretService as never, pluginContext as never)
 }
 
 function jsonResponse(body: unknown, status = 200) {
