@@ -37,6 +37,6 @@ describe('WeCom connector plugin metadata', () => {
       level: WECOM_CONNECTOR_INSTALL_LEVEL,
       artifactNamespace: WECOM_CONNECTOR_ARTIFACT_NAMESPACE
     })
-    expect(plugin.meta.icon).toEqual({ type: 'svg', value: WECOM_CONNECTOR_ICON })
+    expect(plugin.meta.icon).toEqual({ type: 'image', value: WECOM_CONNECTOR_ICON })
   })
 })

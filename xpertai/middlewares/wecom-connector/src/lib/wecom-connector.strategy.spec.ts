@@ -19,7 +19,7 @@ describe('WeComConnectorStrategy', () => {
   it('stays tenant-installed while allowing inherited WeCom auth integrations', () => {
     expect(plugin.meta.level).toBe(WECOM_CONNECTOR_INSTALL_LEVEL)
     expect(plugin.meta.artifactNamespace).toBe(WECOM_CONNECTOR_ARTIFACT_NAMESPACE)
-    expect(createStrategy([]).definition.icon).toEqual({ type: 'svg', value: WECOM_CONNECTOR_ICON })
+    expect(createStrategy([]).definition.icon).toEqual({ type: 'image', value: WECOM_CONNECTOR_ICON })
     expect(plugin.permissions).toEqual([{ type: 'integration', service: 'wecom_auth', operations: ['read'] }])
   })
 

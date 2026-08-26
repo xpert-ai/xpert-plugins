@@ -13,7 +13,7 @@ export class WeComAuthIntegrationStrategy implements IntegrationStrategy<WeComCo
       'Tenant- or organization-level WeCom application credentials used by the workspace QR connector.',
       '供工作区企业微信连接器扫码授权使用的租户级或组织级企业微信应用凭证。'
     ),
-    icon: { type: 'svg', value: WECOM_CONNECTOR_ICON },
+    icon: { type: 'image', value: WECOM_CONNECTOR_ICON },
     helpUrl: 'https://developer.work.weixin.qq.com/document/path/97291',
     schema: {
       type: 'object',

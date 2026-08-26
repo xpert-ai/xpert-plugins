@@ -26,7 +26,7 @@ const plugin: XpertPlugin = {
     artifactNamespace: WECOM_CONNECTOR_ARTIFACT_NAMESPACE,
     category: 'middleware',
     icon: {
-      type: 'svg',
+      type: 'image',
       value: WECOM_CONNECTOR_ICON
     },
     displayName: 'WeCom Connector',

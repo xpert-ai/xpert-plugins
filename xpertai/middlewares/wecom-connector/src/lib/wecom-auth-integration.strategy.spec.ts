@@ -10,7 +10,7 @@ describe('WeComAuthIntegrationStrategy', () => {
 
   it('declares connector-owned credentials as a secret-backed integration', () => {
     expect(strategy.meta.name).toBe('wecom_auth')
-    expect(strategy.meta.icon).toEqual({ type: 'svg', value: WECOM_CONNECTOR_ICON })
+    expect(strategy.meta.icon).toEqual({ type: 'image', value: WECOM_CONNECTOR_ICON })
     expect(strategy.meta.schema).toEqual(
       expect.objectContaining({
         required: ['corpId', 'agentId', 'corpSecret'],

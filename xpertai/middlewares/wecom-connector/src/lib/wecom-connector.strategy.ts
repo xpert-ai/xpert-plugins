@@ -66,7 +66,7 @@ export class WeComConnectorStrategy implements ConnectorMultiAuthStrategy {
       zh_Hans: '使用当前组织或租户配置的企业微信应用扫码连接企业微信。'
     },
     icon: {
-      type: 'svg',
+      type: 'image',
       value: WECOM_CONNECTOR_ICON
     },
     authMethods: [
