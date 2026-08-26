@@ -1,0 +1,66 @@
+{
+  "name": "@xpert-ai/plugin-netease-mail-connector",
+  "version": "0.1.0",
+  "description": "On-demand NetEase Mail connector for XpertAI using IMAP and SMTP authorization codes.",
+  "author": {
+    "name": "XpertAI",
+    "url": "https://xpertai.cn"
+  },
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins.git",
+    "directory": "xpertai/middlewares/netease-mail-connector"
+  },
+  "bugs": {
+    "url": "https://github.com/xpert-ai/xpert-plugins/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@xpert-plugins-starter/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "assets",
+    "!**/*.tsbuildinfo"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.lib.json",
+    "test": "jest --config jest.config.ts --runInBand",
+    "typecheck": "tsc -p tsconfig.lib.json && tsc -p tsconfig.spec.json --noEmit"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "organization"
+    }
+  },
+  "dependencies": {
+    "html-to-text": "10.0.1",
+    "imapflow": "1.7.6",
+    "nodemailer": "9.0.5",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@types/html-to-text": "9.0.4",
+    "@types/nodemailer": "8.0.1"
+  },
+  "peerDependencies": {
+    "@langchain/core": "0.3.72",
+    "@nestjs/common": "^11.1.6",
+    "@xpert-ai/contracts": "^3.17.2",
+    "@xpert-ai/plugin-sdk": "^3.17.2",
+    "zod": "3.25.67"
+  }
+}

@@ -128,7 +128,8 @@
       "@xpert-ai/plugin-mssql",
       "@xpert-ai/plugin-redshift",
       "@xpert-ai/plugin-kling",
-      "@xpert-ai/plugin-veo"
+      "@xpert-ai/plugin-veo",
+      "@xpert-ai/plugin-netease-mail-connector"
     ],
     "version": {
       "preVersionCommand": "npx nx run-many -t build && npx nx run-many -t prepack"
