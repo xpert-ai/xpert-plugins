@@ -305,6 +305,9 @@
     },
     {
       "path": "./middlewares/dingtalk-connector"
+    },
+    {
+      "path": "./middlewares/qq-mail-connector"
     }
   ]
 }
