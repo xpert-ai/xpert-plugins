@@ -1,3 +1,4 @@
+import { AiProviderRole } from '@xpert-ai/contracts'
 import {
   applyTongyiExplicitCache,
   getTongyiPricingContext,
@@ -5,6 +6,24 @@ import {
   toTongyiConfigurationWithExtraHeaders
 } from './llm.js'
 import { TongyiProviderStrategy } from '../provider.strategy.js'
+
+function createCopilotModel(
+  model: string,
+  options: Record<string, unknown> = {}
+): Parameters<TongyiLargeLanguageModel['getChatModel']>[0] {
+  return {
+    model,
+    options,
+    copilot: {
+      role: AiProviderRole.Primary,
+      modelProvider: {
+        credentials: {
+          dashscope_api_key: 'test-key'
+        }
+      }
+    }
+  }
+}
 
 describe('getTongyiPricingContext', () => {
   it('uses explicit request mode and the selected DashScope endpoint', () => {
@@ -249,6 +268,62 @@ describe('Tongyi Kimi K3 catalog', () => {
       expect.objectContaining({ component: 'cache_read_input', unit_price: 2.188, unit_size: 1000000, region: 'international' }),
       expect.objectContaining({ component: 'output', unit_price: 109.376, unit_size: 1000000, region: 'international' })
     ]))
+  })
+
+  it('does not expose the unsupported common temperature parameter', () => {
+    const kimiRuleNames = manager.getParameterRules('kimi-k3', {}).map((rule) => rule.name)
+    const qwenRuleNames = manager.getParameterRules('qwen-plus', {}).map((rule) => rule.name)
+
+    expect(kimiRuleNames).not.toContain('temperature')
+    expect(kimiRuleNames).toContain('maxRetries')
+    expect(qwenRuleNames).toContain('temperature')
+  })
+
+  it('drops persisted sampling and thinking overrides from Kimi K3 requests', () => {
+    const chatModel = manager.getChatModel(
+      createCopilotModel('kimi-k3', {
+        temperature: 0.2,
+        top_p: 0.8,
+        frequency_penalty: 0.1,
+        enable_thinking: false,
+        thinking_budget: 1024,
+        reasoning_effort: 'low',
+        max_tokens: 2048,
+        response_format: 'json_object'
+      })
+    )
+
+    const params = chatModel.invocationParams()
+    expect(params.temperature).toBeUndefined()
+    expect(params.top_p).toBeUndefined()
+    expect(params.frequency_penalty).toBeUndefined()
+    expect(params['enable_thinking']).toBeUndefined()
+    expect(params['thinking_budget']).toBeUndefined()
+    expect(params['reasoning_effort']).toBeUndefined()
+    expect(params.max_tokens).toBe(2048)
+    expect(params['response_format']).toEqual({ type: 'json_object' })
+  })
+
+  it('preserves sampling and thinking overrides for other Tongyi models', () => {
+    const chatModel = manager.getChatModel(
+      createCopilotModel('qwen-plus', {
+        temperature: 0.2,
+        top_p: 0.8,
+        frequency_penalty: 0.1,
+        enable_thinking: false,
+        thinking_budget: 1024,
+        reasoning_effort: 'low'
+      })
+    )
+
+    expect(chatModel.invocationParams()).toEqual(expect.objectContaining({
+      temperature: 0.2,
+      top_p: 0.8,
+      frequency_penalty: 0.1,
+      enable_thinking: false,
+      thinking_budget: 1024,
+      reasoning_effort: 'low'
+    }))
   })
 })
 
