@@ -308,6 +308,9 @@
     },
     {
       "path": "./middlewares/qq-mail-connector"
+    },
+    {
+      "path": "./middlewares/netease-mail-connector"
     }
   ]
 }

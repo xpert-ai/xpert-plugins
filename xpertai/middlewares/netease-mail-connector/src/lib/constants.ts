@@ -1,0 +1,24 @@
+export const NETEASE_MAIL_CONNECTOR_PROVIDER = 'netease-mail'
+export const NETEASE_MAIL_PLUGIN_LEVEL = 'organization' as const
+export const NETEASE_MAIL_AUTH_METHOD_ID = 'authorization-code'
+export const NETEASE_MAIL_RUNTIME_MIDDLEWARE_NAME = `ConnectorRuntime:${NETEASE_MAIL_CONNECTOR_PROVIDER}`
+
+export const NETEASE_MAIL_MAX_FOLDER_COUNT = 200
+export const NETEASE_MAIL_DEFAULT_SEARCH_LIMIT = 20
+export const NETEASE_MAIL_MAX_SEARCH_LIMIT = 50
+export const NETEASE_MAIL_MAX_SEARCH_MATCHES = 5_000
+export const NETEASE_MAIL_MAX_BODY_BYTES = 512 * 1024
+export const NETEASE_MAIL_MAX_BODY_CHARS = 100_000
+export const NETEASE_MAIL_MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024
+export const NETEASE_MAIL_MAX_ATTACHMENT_COUNT = 10
+export const NETEASE_MAIL_MAX_TOTAL_ATTACHMENT_BYTES = 20 * 1024 * 1024
+export const NETEASE_MAIL_CONNECTION_TIMEOUT_MS = 10_000
+export const NETEASE_MAIL_SOCKET_TIMEOUT_MS = 30_000
+export const NETEASE_MAIL_CONFIRMATION_TTL_MS = 5 * 60 * 1_000
+export const NETEASE_MAIL_MAX_CONFIRMATIONS = 5_000
+
+export const NETEASE_MAIL_CLIENT_INFO = {
+  name: 'XpertAI NetEase Mail Connector',
+  version: '0.1.0',
+  vendor: 'XpertAI'
+} as const
