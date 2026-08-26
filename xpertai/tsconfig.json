@@ -311,6 +311,9 @@
     },
     {
       "path": "./middlewares/netease-mail-connector"
+    },
+    {
+      "path": "./middlewares/kdocs-connector"
     }
   ]
 }
