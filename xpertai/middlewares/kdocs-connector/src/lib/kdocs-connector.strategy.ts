@@ -10,6 +10,7 @@ import {
   type ConnectorMultiAuthStrategy,
   type ConnectorRuntimeCredentialResolveInput
 } from '@xpert-ai/plugin-sdk'
+import { KDOCS_ICON } from './branding.js'
 import {
   KDOCS_ACCOUNT_LOGIN_URL,
   KDOCS_AUTH_METHOD_ID,
@@ -39,7 +40,7 @@ export class KdocsConnectorStrategy implements ConnectorMultiAuthStrategy {
       en_US: 'Sign in on the WPS web page and connect WPS Cloud Docs through its SkillHub MCP service.',
       zh_Hans: '跳转金山文档网页登录，并通过 SkillHub MCP 服务连接 WPS 云文档。'
     },
-    icon: { type: 'font', value: 'ri-file-cloud-fill', color: '#e6002d' },
+    icon: KDOCS_ICON,
     legacyAuthMethodId: KDOCS_AUTH_METHOD_ID,
     auth: { type: 'oauth2' },
     authMethods: [

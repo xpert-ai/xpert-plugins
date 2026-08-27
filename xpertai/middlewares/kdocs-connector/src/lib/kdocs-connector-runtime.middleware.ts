@@ -12,6 +12,7 @@ import {
   type WorkspaceFileLocator,
   type WorkspaceFilesApi
 } from '@xpert-ai/plugin-sdk'
+import { KDOCS_ICON } from './branding.js'
 import {
   KDOCS_AUTH_METHOD_ID,
   KDOCS_CONNECTOR_PROVIDER,
@@ -92,7 +93,7 @@ export class KdocsConnectorRuntimeMiddleware implements IAgentMiddlewareStrategy
       en_US: 'Hidden runtime implementation for bounded WPS Docs Agent tools.',
       zh_Hans: '为金山文档受限 Agent 工具提供隐藏运行时实现。'
     },
-    icon: { type: 'font', value: 'ri-file-cloud-fill', color: '#e6002d' },
+    icon: KDOCS_ICON,
     builtin: true,
     configSchema: { type: 'object', properties: {} }
   }
