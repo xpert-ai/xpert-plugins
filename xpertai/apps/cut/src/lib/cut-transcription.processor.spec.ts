@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import type { ManagedQueueJob } from '@xpert-ai/plugin-sdk'
 
 jest.mock('@xpert-ai/plugin-sdk', () => ({
   PluginJobProcessor: () => (target: object) => target,
@@ -45,7 +46,7 @@ describe('CutTranscriptionProcessor', () => {
       sandboxWhisperService(),
       capabilities as never
     )
-    await processor.handle({ name: 'transcribe-media', data: payload(), attemptsMade: 0, opts: { attempts: 3 } })
+    await processor.handle(transcriptionQueueJob(payload()))
     expect(transcriptionMedia.prepare).toHaveBeenCalledWith(expect.objectContaining({ userId: 'user-a' }), payload(), expect.any(Function))
     expect(files.readBuffer).toHaveBeenCalledWith(preparedReference)
     expect(pluginContext.resolve).toHaveBeenCalledWith('XPERT_PLUGIN_SPEECH_TO_TEXT_PERMISSION_SERVICE')
@@ -86,7 +87,7 @@ describe('CutTranscriptionProcessor', () => {
       sandboxWhisperService(),
       { get: () => files } as never
     )
-    await expect(processor.handle({ name: 'transcribe-media', data: payload(), attemptsMade: 0, opts: { attempts: 3 } }))
+    await expect(processor.handle(transcriptionQueueJob(payload())))
       .rejects.toThrow('provider unavailable')
     expect(captions.failTranscriptionJob).toHaveBeenCalledWith(expect.any(Object), payload().projectId, payload().jobId, expect.any(Error), true, 1)
   })
@@ -135,7 +136,7 @@ describe('CutTranscriptionProcessor', () => {
       xpertId: null,
       modelKey: 'Xenova/whisper-tiny'
     }
-    await processor.handle({ name: 'transcribe-media', data: sandboxPayload, attemptsMade: 0, opts: { attempts: 3 } })
+    await processor.handle(transcriptionQueueJob(sandboxPayload))
     expect(pluginContext.resolve).not.toHaveBeenCalled()
     expect(captions.completeTranscriptionJob).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({
       text: 'Hello from Sandbox Whisper.',
@@ -189,6 +190,16 @@ function payload(): CutTranscriptionQueueJobData {
     language: 'en',
     inputRevision: 3,
     changeSummary: 'Transcribed the interview.'
+  }
+}
+
+function transcriptionQueueJob(data: CutTranscriptionQueueJobData): ManagedQueueJob<CutTranscriptionQueueJobData> {
+  return {
+    name: 'transcribe-media',
+    data,
+    attemptsMade: 0,
+    opts: { attempts: 3 },
+    updateData: jest.fn(async () => undefined)
   }
 }
 

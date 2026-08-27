@@ -7,7 +7,6 @@ pnpm --filter @xpert-ai/plugin-cut build
 pnpm --filter @xpert-ai/plugin-cut test
 pnpm --filter @xpert-ai/plugin-cut test:e2e
 pnpm --filter @xpert-ai/plugin-cut smoke:sandbox-action
-pnpm --filter @xpert-ai/plugin-cut smoke:mcp-server
 pnpm --filter @xpert-ai/plugin-cut prepack
 ```
 
@@ -43,4 +42,4 @@ CUT_E2E_REAL_WHISPER=1 pnpm --filter @xpert-ai/plugin-cut test:e2e
 
 This opt-in gate requires network access for first-run model download; it is not a hard dependency of normal CI.
 
-The MCP unit suite uses linked in-memory MCP transports. The package smoke launches the built `dist/mcp-server.js` as a real child stdio process, verifies that stdout remains valid MCP protocol, asserts no unexpected stderr, checks that tool discovery returns exactly the four allowlisted `cut_ir_*` tools, and confirms a protocol-level create call returns a structured Cut IR v1 document. It does not require or contact the 4300 host, a database, project files, or the network.
+Native capability tests verify that all original Cut operations are declared exactly once across Tool and Resource Template categories, task-capable operations carry MCP Task policy, prompts are discoverable, and MCP file imports reject implicit paths in favor of portable scoped references. Protocol and authentication gates run in the Xpert host because the plugin no longer owns an MCP transport process.

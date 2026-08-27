@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { ManagedQueueService, SandboxJobsApi } from '@xpert-ai/plugin-sdk'
+import type { ManagedQueueJob, ManagedQueueService, SandboxJobsApi } from '@xpert-ai/plugin-sdk'
 import type { Repository } from 'typeorm'
 
 jest.mock('./cut.service.js', () => ({ CutService: class CutService {} }))
@@ -16,7 +16,7 @@ import { applyCutEdit, createStarterCutProject } from './cut-project.js'
 import { CutRenderService } from './cut-render.service.js'
 import type { CutService } from './cut.service.js'
 import { CutActionLog, CutAnalysisJob, CutExport, CutMediaAsset } from './entities/index.js'
-import type { CutProjectDocument, CutScope } from './types.js'
+import type { CutProjectDocument, CutRenderQueueJobData, CutScope } from './types.js'
 
 const PROJECT_ID = '11111111-1111-4111-8111-111111111111'
 const ASSET_ID = '22222222-2222-4222-8222-222222222222'
@@ -111,7 +111,7 @@ describe('CutRenderService', () => {
       changeSummary: 'Rendered the approved master.'
     })
     const jobId = started.jobs[0]!.jobId!
-    await harness.service.process({ name: 'render-mp4', data: queuePayload(jobId), attemptsMade: 0, opts: { attempts: 3 } })
+    await harness.service.process(renderQueueJob(jobId))
 
     expect(harness.sandbox.run).toHaveBeenCalledWith(expect.objectContaining({
       jobId,
@@ -161,7 +161,7 @@ describe('CutRenderService', () => {
     })
 
     const jobId = started.jobs[0]!.jobId!
-    await harness.service.process({ name: 'render-mp4', data: queuePayload(jobId), attemptsMade: 0, opts: { attempts: 3 } })
+    await harness.service.process(renderQueueJob(jobId))
 
     expect(harness.sandbox.run).toHaveBeenCalledWith(expect.objectContaining({
       payload: expect.objectContaining({ exportSettings: { format: 'webm', quality: 'medium', includeAudio: false } }),
@@ -191,7 +191,7 @@ describe('CutRenderService', () => {
     jest.useFakeTimers()
     let processing: Promise<void> | undefined
     try {
-      processing = harness.service.process({ name: 'render-mp4', data: queuePayload(jobId), attemptsMade: 0, opts: { attempts: 3 } })
+      processing = harness.service.process(renderQueueJob(jobId))
       await runStarted
       jest.advanceTimersByTime(15_000)
       expect(harness.progressLogs).toEqual(expect.arrayContaining([
@@ -237,7 +237,7 @@ describe('CutRenderService', () => {
     jest.useFakeTimers()
     let processing: Promise<void> | undefined
     try {
-      processing = harness.service.process({ name: 'render-mp4', data: queuePayload(jobId), attemptsMade: 0, opts: { attempts: 3 } })
+      processing = harness.service.process(renderQueueJob(jobId))
       await runStarted
       await jest.advanceTimersByTimeAsync(1_000)
       expect(harness.jobs.rows[0]).toMatchObject({ status: 'running', progress: 48 })
@@ -264,7 +264,7 @@ describe('CutRenderService', () => {
     const jobId = started.jobs[0]!.jobId!
     const error = Object.assign(new Error('Browser capacity unavailable.'), { code: 'SANDBOX_CAPACITY_UNAVAILABLE', retryable: true, jobId })
     retryHarness.sandbox.run.mockRejectedValueOnce(error)
-    await expect(retryHarness.service.process({ name: 'render-mp4', data: queuePayload(jobId), attemptsMade: 0, opts: { attempts: 3 } }))
+    await expect(retryHarness.service.process(renderQueueJob(jobId)))
       .rejects.toThrow('capacity unavailable')
     expect(retryHarness.jobs.rows[0]).toMatchObject({ status: 'queued', progress: 0, errorMessage: 'Browser capacity unavailable.' })
     expect(retryHarness.jobs.rows[0]!.metadata).toMatchObject({ stage: 'retrying', errorCode: 'SANDBOX_CAPACITY_UNAVAILABLE', attempt: 1, willRetry: true })
@@ -285,7 +285,7 @@ describe('CutRenderService', () => {
       name: 'SandboxJobRuntimeError', code: 'EXPORT_INPUT_INVALID', retryable: false, jobId
     }))
 
-    await expect(harness.service.process({ name: 'render-mp4', data: queuePayload(jobId), attemptsMade: 0, opts: { attempts: 3 } }))
+    await expect(harness.service.process(renderQueueJob(jobId)))
       .resolves.toBeUndefined()
     expect(harness.jobs.rows[0]).toMatchObject({ status: 'failed', progress: 20, errorMessage: 'Workspace file not found' })
     expect(harness.jobs.rows[0]!.metadata).toMatchObject({ stage: 'failed', errorCode: 'EXPORT_INPUT_INVALID', attempt: 1, willRetry: false })
@@ -306,7 +306,7 @@ describe('CutRenderService', () => {
       name: 'SandboxJobRuntimeError', code: 'EXPORT_MEDIA_FAILED', retryable: false, jobId
     }))
 
-    await expect(harness.service.process({ name: 'render-mp4', data: queuePayload(jobId), attemptsMade: 0, opts: { attempts: 3 } }))
+    await expect(harness.service.process(renderQueueJob(jobId)))
       .resolves.toBeUndefined()
     expect(harness.jobs.rows[0]).toMatchObject({
       status: 'failed',
@@ -334,7 +334,7 @@ describe('CutRenderService', () => {
       name: 'SandboxJobRuntimeError', code: 'EXPORT_MEDIA_FAILED', retryable: false, jobId
     }))
 
-    await expect(harness.service.process({ name: 'render-mp4', data: queuePayload(jobId), attemptsMade: 0, opts: { attempts: 3 } }))
+    await expect(harness.service.process(renderQueueJob(jobId)))
       .resolves.toBeUndefined()
     expect(harness.jobs.rows[0]).toMatchObject({
       status: 'failed',
@@ -465,8 +465,18 @@ function renderDocument() {
   return document
 }
 
-function queuePayload(jobId: string) {
+function queuePayload(jobId: string): CutRenderQueueJobData {
   return { jobId, projectId: PROJECT_ID, tenantId: scope.tenantId, organizationId: scope.organizationId, platformProjectId: scope.projectId, userId: scope.userId, assistantId: scope.assistantId }
+}
+
+function renderQueueJob(jobId: string): ManagedQueueJob<CutRenderQueueJobData> {
+  return {
+    name: 'render-mp4',
+    data: queuePayload(jobId),
+    attemptsMade: 0,
+    opts: { attempts: 3 },
+    updateData: jest.fn(async () => undefined)
+  }
 }
 
 function output(path: string, mimeType: string, originalName: string, size: number, sha256: string) {

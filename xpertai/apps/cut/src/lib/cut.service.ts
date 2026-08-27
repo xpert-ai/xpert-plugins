@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { createHash, randomUUID } from 'node:crypto'
-import { type FindOptionsWhere, Repository } from 'typeorm'
+import { type FindOptionsWhere, IsNull, Repository } from 'typeorm'
 import {
   WORKSPACE_FILES_SOURCE,
   WorkspaceFilesRuntimeCapability,
@@ -935,7 +935,8 @@ function scopedWhere<T extends ScopedEntity>(scope: CutScope, where: Partial<T>)
   return {
     ...where,
     tenantId: scope.tenantId,
-    organizationId: (scope.organizationId ?? null) as T['organizationId']
+    organizationId: (scope.organizationId ?? IsNull()) as T['organizationId'],
+    ...(scope.workspaceId ? { workspaceId: scope.workspaceId as T['workspaceId'] } : {})
   } as FindOptionsWhere<T>
 }
 

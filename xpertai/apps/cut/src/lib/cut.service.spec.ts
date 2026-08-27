@@ -1,4 +1,4 @@
-import type { EntityManager, Repository } from 'typeorm'
+import { FindOperator, type EntityManager, type Repository } from 'typeorm'
 import type { AgentMiddlewareRuntimeCapabilityRegistry, WorkspaceFilesApi } from '@xpert-ai/plugin-sdk'
 
 jest.mock('@xpert-ai/plugin-sdk', () => ({
@@ -79,6 +79,12 @@ describe('CutService scoped persistence and Workspace Files', () => {
     }
     const created = await service.createProject(scope, { title: 'Cut service gate', changeSummary: 'Created service gate project.' })
     const projectId = created.item.id!
+    await expect(service.getProject({ ...scope, workspaceId: undefined }, projectId))
+      .resolves.toMatchObject({ item: { id: projectId } })
+    await expect(service.searchProjects({ ...scope, workspaceId: undefined }))
+      .resolves.toMatchObject({ items: [{ id: projectId }], total: 1 })
+    await expect(service.getProject({ ...scope, tenantId: 'tenant-b', workspaceId: undefined }, projectId))
+      .rejects.toThrow('current tenant and organization')
     await expect(service.saveProject(scope, {
       projectId,
       document: created.document,
@@ -191,7 +197,7 @@ describe('CutService scoped persistence and Workspace Files', () => {
     await expect(service.resolveMediaFile({ ...scope, assistantId: 'assistant-b' }, projectId, imported.media.id!))
       .resolves.toMatchObject({ fileName: 'gate.svg', mimeType: 'image/svg+xml' })
     await expect(service.resolveMediaFile({ ...scope, workspaceId: 'workspace-b' }, projectId, imported.media.id!))
-      .rejects.toThrow('current host project')
+      .rejects.toThrow('current tenant and organization')
 
     const validated = await service.applyEditBatch(scope, {
       projectId,
@@ -256,7 +262,7 @@ describe('CutService scoped persistence and Workspace Files', () => {
     await expect(service.resolveExportFile({ ...scope, assistantId: 'assistant-b' }, projectId, webm.export.id!))
       .resolves.toMatchObject({ fileName: 'gate.webm', mimeType: 'video/webm' })
     await expect(service.resolveExportFile({ ...scope, workspaceId: 'workspace-b' }, projectId, webm.export.id!))
-      .rejects.toThrow('current host project')
+      .rejects.toThrow('current tenant and organization')
 
     const summary = await service.getProjectSummary(scope, projectId)
     expect(summary).toMatchObject({
@@ -306,6 +312,7 @@ describe('CutService scoped persistence and Workspace Files', () => {
       id: '00000000-0000-4000-8000-000000000101',
       tenantId: scope.tenantId,
       organizationId: scope.organizationId,
+      workspaceId: scope.workspaceId,
       cutProjectId: projectId,
       status: 'running' as const
     })
@@ -315,11 +322,17 @@ describe('CutService scoped persistence and Workspace Files', () => {
     expect(deleteFile).toHaveBeenCalledTimes(1)
 
     activeJob.status = 'cancelled'
-    mediaSegments.rows.push(Object.assign(new CutMediaSegment(), { tenantId: scope.tenantId, organizationId: scope.organizationId, cutProjectId: projectId }))
-    transcripts.rows.push(Object.assign(new CutTranscript(), { tenantId: scope.tenantId, organizationId: scope.organizationId, cutProjectId: projectId }))
-    transcriptSegments.rows.push(Object.assign(new CutTranscriptSegment(), { tenantId: scope.tenantId, organizationId: scope.organizationId, cutProjectId: projectId }))
-    captionDrafts.rows.push(Object.assign(new CutCaptionDraft(), { tenantId: scope.tenantId, organizationId: scope.organizationId, cutProjectId: projectId }))
-    editProposals.rows.push(Object.assign(new CutEditProposal(), { tenantId: scope.tenantId, organizationId: scope.organizationId, cutProjectId: projectId }))
+    const projectScope = {
+      tenantId: scope.tenantId,
+      organizationId: scope.organizationId,
+      workspaceId: scope.workspaceId,
+      cutProjectId: projectId
+    }
+    mediaSegments.rows.push(Object.assign(new CutMediaSegment(), projectScope))
+    transcripts.rows.push(Object.assign(new CutTranscript(), projectScope))
+    transcriptSegments.rows.push(Object.assign(new CutTranscriptSegment(), projectScope))
+    captionDrafts.rows.push(Object.assign(new CutCaptionDraft(), projectScope))
+    editProposals.rows.push(Object.assign(new CutEditProposal(), projectScope))
     const deleted = await service.deleteProject(scope, projectId, batch.project.revision)
     expect(deleted).toMatchObject({ success: true, deleted: true, projectId, workspaceFilesDeleted: true })
     expect(projects.rows).toHaveLength(0)
@@ -398,5 +411,11 @@ function attachMemoryManager(projectRepository: Repository<CutProject>, reposito
 }
 
 function matches<T extends object>(row: T, where: Partial<T>) {
-  return Object.entries(where).every(([key, value]) => (row as Record<string, object | string | number | boolean | null | undefined>)[key] === value)
+  return Object.entries(where).every(([key, value]) => {
+    const current = Reflect.get(row, key)
+    if (value instanceof FindOperator && value.type === 'isNull') {
+      return current === null || current === undefined
+    }
+    return current === value
+  })
 }

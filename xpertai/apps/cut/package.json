@@ -16,9 +16,6 @@
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "bin": {
-    "xpert-cut-ir-mcp": "./dist/mcp-server.js"
-  },
   "exports": {
     "./package.json": "./package.json",
     ".": {
@@ -26,12 +23,6 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
-    },
-    "./mcp-server": {
-      "@xpert-plugins-starter/source": "./src/mcp-server.ts",
-      "types": "./dist/mcp-server.d.ts",
-      "import": "./dist/mcp-server.js",
-      "default": "./dist/mcp-server.js"
     }
   },
   "files": [
@@ -44,18 +35,18 @@
     "!**/*.tsbuildinfo"
   ],
   "scripts": {
+    "clean": "node scripts/clean-output.mjs",
     "build:ui": "pnpm --filter @xpert-ai/plugin-shadcn-ui build",
     "build:sandbox-action": "node scripts/build-sandbox-action.mjs",
     "verify:sandbox-action": "node scripts/verify-sandbox-action.mjs",
-    "smoke:mcp-server": "node scripts/smoke-mcp-server.mjs",
     "smoke:sandbox-action": "pnpm run build:sandbox-action && pnpm run verify:sandbox-action && node scripts/smoke-sandbox-action.mjs && node scripts/smoke-transcription-audio-action.mjs",
-    "build": "pnpm run build:ui && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs && pnpm run build:sandbox-action && pnpm run verify:sandbox-action",
+    "build": "pnpm run clean && pnpm run build:ui && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs && pnpm run build:sandbox-action && pnpm run verify:sandbox-action",
     "lint": "echo \"(todo) add lint\"",
     "test": "pnpm run build:ui && jest --config jest.config.ts && tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check && pnpm run build:sandbox-action && pnpm run verify:sandbox-action",
     "test:e2e": "node scripts/verify-workbench-e2e.mjs",
     "typecheck": "pnpm run build:ui && tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check",
     "prepack": "node scripts/verify-package-output.mjs",
-    "release:prepare": "npm run build && node scripts/verify-package-output.mjs && npm run smoke:mcp-server && node scripts/prepare-release.mjs",
+    "release:prepare": "npm run build && node scripts/verify-package-output.mjs && node scripts/prepare-release.mjs",
     "release:publish": "node scripts/publish-prepared-release.mjs"
   },
   "xpert": {
@@ -65,7 +56,6 @@
     }
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
     "mediabunny": "1.29.1",
     "tslib": "^2.3.0"
   },
@@ -75,7 +65,7 @@
     "@nestjs/core": "^11.1.6",
     "@nestjs/typeorm": "^11.0.0",
     "@xpert-ai/contracts": "^3.10.1",
-    "@xpert-ai/plugin-sdk": "^3.15.7",
+    "@xpert-ai/plugin-sdk": "^3.17.5",
     "react": ">=18",
     "react-dom": ">=18",
     "typeorm": "^0.3.24",
@@ -92,9 +82,9 @@
     "@types/node": "^20.19.9",
     "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.7",
-    "@xpert-ai/contracts": "3.10.1",
+    "@xpert-ai/contracts": "3.17.5",
     "@xpert-ai/plugin-shadcn-ui": "workspace:*",
-    "@xpert-ai/plugin-sdk": "^3.15.15",
+    "@xpert-ai/plugin-sdk": "^3.17.5",
     "esbuild": "^0.27.0",
     "jest": "^30.0.2",
     "lucide-react": "1.24.0",

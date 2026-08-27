@@ -7,6 +7,13 @@
   "license": "AGPL-3.0",
   "keywords": ["cut", "video", "timeline", "opencut", "agentic-app"],
   "skills": "./skills/",
+  "toolsets": {
+    "cut": {
+      "provider": "cut",
+      "name": "Cut MCP Capabilities",
+      "description": "Host-native Cut tools, resources, tasks, and prompts backed by the same implementation used by Cut agents."
+    }
+  },
   "artifactNamespace": "cut",
   "sandboxActions": [
     "./dist/sandbox-actions/cut-render/action.json",
@@ -43,7 +50,7 @@
       "capabilities": ["cut", "cut-workbench", "cut-agent", "cut-assistant-template"]
     },
     "xpert": {
-      "types": ["assistant-template", "skill", "app", "xpertai-bundle", "mcp-server", "tool"],
+      "types": ["assistant-template", "skill", "app", "xpertai-bundle", "mcp"],
       "capabilities": ["cut", "cut-workbench", "cut-agent", "cut-assistant-template", "cut-mcp"],
       "marketplace": {
         "contents": [
@@ -57,32 +64,8 @@
           ] },
           { "type": "view", "name": "cut_workbench", "displayName": "Cut Workbench", "description": "Media, timeline, version, and export Workbench.", "metadata": { "app": "cut" } },
           { "type": "middleware", "name": "CutMiddleware", "displayName": "Cut Agent Tools", "description": "Scoped Cut editing tools.", "metadata": { "app": "cut" } },
-          { "type": "tool", "name": "cut-ir-mcp", "displayName": "Cut IR MCP Tools", "description": "Portable, side-effect-free Cut project validation, comparison, and in-memory editing tools.", "metadata": { "app": "cut", "protocol": "mcp" } }
+          { "type": "mcp", "name": "cut", "displayName": "Cut MCP Capabilities", "description": "Host-native Cut tools, resources, tasks, and prompts backed by the same implementation used by Cut agents.", "metadata": { "protocol": "native", "provider": "cut" } }
         ]
-      }
-    }
-  },
-  "mcpServers": {
-    "cut-ir": {
-      "type": "stdio",
-      "command": "node",
-      "args": ["${PLUGIN_ROOT}/dist/mcp-server.js"],
-      "policy": {
-        "enabled": true,
-        "defaultToolsApprovalMode": "approve",
-        "enabledTools": [
-          "cut_ir_create_project",
-          "cut_ir_validate_project",
-          "cut_ir_apply_operations",
-          "cut_ir_compare_projects"
-        ],
-        "runtime": {
-          "provider": "local-process",
-          "startupTimeoutMs": 15000,
-          "idleTimeoutMs": 900000,
-          "maxLifetimeMs": 3600000,
-          "allowedCommands": ["node"]
-        }
       }
     }
   }

@@ -18,6 +18,7 @@ import { CutSandboxWhisperService } from './cut-sandbox-whisper.service.js'
 import { CutService } from './cut.service.js'
 import {
   CUT_ANALYSIS_QUEUE_NAME,
+  CUT_DEFAULT_TRANSCRIPTION_MODE,
   CUT_PLUGIN_NAME,
   CUT_TRANSCRIPTION_JOB_NAME,
   CUT_TRANSCRIPTION_WHISPER_MODEL
@@ -138,7 +139,7 @@ export class CutCaptionService {
     if (!asset.mimeType.startsWith('audio/') && !asset.mimeType.startsWith('video/')) {
       throw new Error('Cut server transcription requires an audio or video media asset.')
     }
-    const transcriptionMode = input.mode ?? 'platform'
+    const transcriptionMode = input.mode ?? CUT_DEFAULT_TRANSCRIPTION_MODE
     const language = transcriptionMode === 'sandbox_whisper'
       ? normalizeSandboxWhisperLanguage(input.language)
       : input.language

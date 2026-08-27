@@ -317,7 +317,7 @@ describe('CutMiddleware', () => {
     }))
   })
 
-  it('queues transcription only from the current Xpert speech-to-text configuration', async () => {
+  it('queues platform transcription only from the current Xpert speech-to-text configuration', async () => {
     const startTranscription = jest.fn(async () => ({
       success: true,
       projectId: '11111111-1111-4111-8111-111111111111',
@@ -344,6 +344,7 @@ describe('CutMiddleware', () => {
     const input = transcriptionTool.schema.parse({
       projectId: '11111111-1111-4111-8111-111111111111',
       mediaAssetId: '22222222-2222-4222-8222-222222222222',
+      mode: 'platform',
       language: 'en',
       baseRevision: 5,
       changeSummary: 'Transcribe the selected interview.'
@@ -354,7 +355,7 @@ describe('CutMiddleware', () => {
     expect(() => transcriptionTool.schema.parse({ ...input, unexpected: true })).toThrow()
   })
 
-  it('queues Sandbox Whisper without requiring an Xpert speech-to-text model', async () => {
+  it('defaults to Sandbox Whisper without requiring an Xpert speech-to-text model', async () => {
     const startTranscription = jest.fn(async () => ({
       success: true,
       projectId: '11111111-1111-4111-8111-111111111111',
@@ -372,11 +373,11 @@ describe('CutMiddleware', () => {
     const input = transcriptionTool.schema.parse({
       projectId: '11111111-1111-4111-8111-111111111111',
       mediaAssetId: '22222222-2222-4222-8222-222222222222',
-      mode: 'sandbox_whisper',
       language: 'zh',
       baseRevision: 5,
       changeSummary: 'Transcribe locally in the managed Sandbox Browser.'
     })
+    expect(input).toMatchObject({ mode: 'sandbox_whisper' })
     expect(JSON.parse(await transcriptionTool.invoke(input))).toMatchObject({ mode: 'sandbox_whisper', status: 'queued' })
     expect(startTranscription).toHaveBeenCalledWith(expect.any(Object), input)
   })

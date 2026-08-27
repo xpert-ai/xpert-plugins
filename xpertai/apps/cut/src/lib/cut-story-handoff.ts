@@ -1,4 +1,5 @@
 import { z } from 'zod/v3'
+import { workspacePortableFileReferenceSchema } from './workspace-file-reference.js'
 
 const boundedId = z.string().trim().min(1).max(160)
 const workspacePath = z
@@ -59,13 +60,17 @@ export const storyCutHandoffContractSchema = z
             dialogue: z.string().trim().max(2_000).nullable(),
             file: z
               .object({
-                workspacePath,
+                workspacePath: workspacePath.optional(),
+                reference: workspacePortableFileReferenceSchema.optional(),
                 originalName: z.string().trim().min(1).max(240),
                 mimeType: z.literal('video/mp4'),
                 size: z.number().int().positive().max(2_147_483_648),
                 sha256: z.string().regex(/^[a-f0-9]{64}$/)
               })
               .strict()
+              .refine((file) => Boolean(file.workspacePath) !== Boolean(file.reference), {
+                message: 'Provide exactly one of workspacePath or reference.'
+              })
           })
           .strict()
       )

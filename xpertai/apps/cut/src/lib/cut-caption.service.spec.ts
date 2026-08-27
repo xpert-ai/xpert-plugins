@@ -15,6 +15,7 @@ import {
   resolveCaptionTimelineOverlaps
 } from './cut-caption.service.js'
 import type { CutTranscriptionMediaService } from './cut-transcription-media.service.js'
+import type { CutSandboxWhisperService } from './cut-sandbox-whisper.service.js'
 import { createStarterCutProject, validateCutProjectDocument } from './cut-project.js'
 import type { CutService } from './cut.service.js'
 import { CutActionLog, CutAnalysisJob, CutCaptionDraft, CutMediaAsset, CutTranscript, CutTranscriptSegment } from './entities/index.js'
@@ -253,6 +254,7 @@ describe('CutCaptionService reviewable subtitle workflow', () => {
     const started = await service.startTranscription(scope, {
       projectId,
       mediaAssetId: asset.id!,
+      mode: 'platform',
       baseRevision: 3,
       language: 'en',
       changeSummary: 'Transcribe the interview.'
@@ -281,6 +283,7 @@ describe('CutCaptionService reviewable subtitle workflow', () => {
     const replay = await service.startTranscription(scope, {
       projectId,
       mediaAssetId: asset.id!,
+      mode: 'platform',
       baseRevision: 3,
       language: 'en',
       changeSummary: 'Retry the same transcription.'
@@ -304,6 +307,7 @@ describe('CutCaptionService reviewable subtitle workflow', () => {
     const second = await service.startTranscription(scope, {
       projectId,
       mediaAssetId: asset.id!,
+      mode: 'platform',
       baseRevision: 3,
       language: 'zh',
       changeSummary: 'Start a cancellable transcription.'
@@ -314,6 +318,7 @@ describe('CutCaptionService reviewable subtitle workflow', () => {
     const third = await service.startTranscription(scope, {
       projectId,
       mediaAssetId: asset.id!,
+      mode: 'platform',
       baseRevision: 3,
       language: 'fr',
       changeSummary: 'Start a job that cannot be deleted while active.'
@@ -333,6 +338,76 @@ describe('CutCaptionService reviewable subtitle workflow', () => {
     expect(logs.rows).toContainEqual(expect.objectContaining({
       action: 'cut_analysis_job_deleted',
       snapshot: expect.objectContaining({ jobId: second.jobId, status: 'cancelled' })
+    }))
+  })
+
+  it('defaults direct transcription requests to Sandbox Whisper', async () => {
+    const media = memoryRepository<CutMediaAsset>()
+    const jobs = memoryRepository<CutAnalysisJob>()
+    const transcripts = memoryRepository<CutTranscript>()
+    const segments = memoryRepository<CutTranscriptSegment>()
+    const drafts = memoryRepository<CutCaptionDraft>()
+    const logs = memoryRepository<CutActionLog>()
+    const projectId = '11111111-1111-4111-8111-111111111111'
+    const scope: CutScope = { tenantId: 'tenant-a', organizationId: 'org-a', userId: 'user-a' }
+    const cut = {
+      async getProject() {
+        return {
+          item: { id: projectId, revision: 3 },
+          document: createStarterCutProject(),
+          media: [],
+          versions: [],
+          exports: [],
+          logs: []
+        }
+      }
+    } as unknown as CutService
+    const enqueue = jest.fn(async (input: { jobId?: string }) => ({ jobId: input.jobId ?? 'queue-job' }))
+    const queue = { enqueue } as unknown as ManagedQueueService
+    const assertAvailable = jest.fn(async () => undefined)
+    const sandboxWhisper = { assertAvailable } as unknown as CutSandboxWhisperService
+    const service = new CutCaptionService(
+      cut,
+      media.repository,
+      jobs.repository,
+      transcripts.repository,
+      segments.repository,
+      drafts.repository,
+      logs.repository,
+      queue,
+      undefined,
+      sandboxWhisper
+    )
+    const asset = await media.repository.save(media.repository.create({
+      id: '22222222-2222-4222-8222-222222222222',
+      tenantId: scope.tenantId,
+      organizationId: scope.organizationId,
+      cutProjectId: projectId,
+      originalName: 'voice.wav',
+      mimeType: 'audio/wav',
+      size: 1024,
+      checksum: 'b'.repeat(64),
+      fileReference: {
+        source: 'platform.workspace.files',
+        tenantId: scope.tenantId,
+        catalog: 'projects',
+        projectId: 'platform-project',
+        filePath: 'files/voice.wav',
+        workspacePath: '/workspace/files/voice.wav'
+      }
+    }))
+
+    await expect(service.startTranscription(scope, {
+      projectId,
+      mediaAssetId: asset.id!,
+      baseRevision: 3,
+      language: 'auto',
+      changeSummary: 'Transcribe with the default managed mode.'
+    })).resolves.toMatchObject({ mode: 'sandbox_whisper', status: 'queued' })
+    expect(assertAvailable).toHaveBeenCalledTimes(1)
+    expect(enqueue).toHaveBeenCalledWith(expect.objectContaining({
+      executionPool: 'sandbox-browser',
+      payload: expect.objectContaining({ transcriptionMode: 'sandbox_whisper', language: 'und' })
     }))
   })
 
