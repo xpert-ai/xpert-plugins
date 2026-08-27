@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-kdocs-connector",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "WPS Docs connector for XpertAI using SkillHub browser sign-in and bounded MCP document tools.",
   "author": {
     "name": "XpertAI",

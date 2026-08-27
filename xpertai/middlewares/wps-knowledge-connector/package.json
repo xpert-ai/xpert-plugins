@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-wps-knowledge-connector",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "WPS Knowledge connector for XpertAI with SkillHub web sign-in and bounded read-only tools.",
   "author": {
     "name": "XpertAI",
