@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-netease-mail-connector",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "On-demand NetEase Mail connector for XpertAI using IMAP and SMTP authorization codes.",
   "author": {
     "name": "XpertAI",
