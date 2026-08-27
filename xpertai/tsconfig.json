@@ -314,6 +314,9 @@
     },
     {
       "path": "./middlewares/kdocs-connector"
+    },
+    {
+      "path": "./middlewares/wps-knowledge-connector"
     }
   ]
 }
