@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod'
+import { KDOCS_ICON } from './lib/branding.js'
 import { KDOCS_PLUGIN_LEVEL } from './lib/constants.js'
 import { KdocsConnectorPluginModule } from './lib/kdocs-connector.module.js'
 
@@ -18,7 +19,7 @@ const plugin: XpertPlugin = {
     version: packageJson.version,
     level: KDOCS_PLUGIN_LEVEL,
     category: 'middleware',
-    icon: { type: 'font', value: 'ri-file-cloud-fill', color: '#e6002d' },
+    icon: KDOCS_ICON,
     displayName: 'WPS Docs Connector',
     description: 'Connect WPS Cloud Docs through browser sign-in and bounded SkillHub MCP tools.',
     keywords: ['wps', 'kdocs', 'kingsoft', 'connector', 'oauth', 'mcp', 'documents'],
