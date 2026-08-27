@@ -1,5 +1,5 @@
 import { WeComAuthIntegrationStrategy } from './wecom-auth-integration.strategy.js'
-import { WECOM_CONNECTOR_ICON } from './types.js'
+import { WECOM_CONNECTOR_ICON_DEFINITION } from './types.js'
 
 jest.mock('@xpert-ai/plugin-sdk', () => ({
   IntegrationStrategyKey: () => () => undefined
@@ -10,7 +10,7 @@ describe('WeComAuthIntegrationStrategy', () => {
 
   it('declares connector-owned credentials as a secret-backed integration', () => {
     expect(strategy.meta.name).toBe('wecom_auth')
-    expect(strategy.meta.icon).toEqual({ type: 'image', value: WECOM_CONNECTOR_ICON })
+    expect(strategy.meta.icon).toEqual(WECOM_CONNECTOR_ICON_DEFINITION)
     expect(strategy.meta.schema).toEqual(
       expect.objectContaining({
         required: ['corpId', 'agentId', 'corpSecret'],

@@ -1,7 +1,11 @@
 import type { I18nObject, TIntegrationProvider } from '@xpert-ai/contracts'
 import { Injectable } from '@nestjs/common'
 import { IntegrationStrategy, IntegrationStrategyKey, type IntegrationTestResult } from '@xpert-ai/plugin-sdk'
-import { WECOM_AUTH_INTEGRATION_PROVIDER, WECOM_CONNECTOR_ICON, type WeComConnectorAppCredentials } from './types.js'
+import {
+  WECOM_AUTH_INTEGRATION_PROVIDER,
+  WECOM_CONNECTOR_ICON_DEFINITION,
+  type WeComConnectorAppCredentials
+} from './types.js'
 
 @Injectable()
 @IntegrationStrategyKey(WECOM_AUTH_INTEGRATION_PROVIDER)
@@ -13,7 +17,7 @@ export class WeComAuthIntegrationStrategy implements IntegrationStrategy<WeComCo
       'Tenant- or organization-level WeCom application credentials used by the workspace QR connector.',
       '供工作区企业微信连接器扫码授权使用的租户级或组织级企业微信应用凭证。'
     ),
-    icon: { type: 'image', value: WECOM_CONNECTOR_ICON },
+    icon: WECOM_CONNECTOR_ICON_DEFINITION,
     helpUrl: 'https://developer.work.weixin.qq.com/document/path/97291',
     schema: {
       type: 'object',

@@ -22,6 +22,11 @@ const WECOM_CONNECTOR_ICON_SVG = `
 
 // Use an image data URL because the workspace connector catalog renders image icons directly.
 export const WECOM_CONNECTOR_ICON = `data:image/svg+xml;base64,${Buffer.from(WECOM_CONNECTOR_ICON_SVG).toString('base64')}`
+export const WECOM_CONNECTOR_ICON_DEFINITION = {
+  type: 'image' as const,
+  value: WECOM_CONNECTOR_ICON,
+  style: { width: '100%', height: '100%' }
+}
 
 export type WeComConnectorAppCredentials = {
   corpId: string

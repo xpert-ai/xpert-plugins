@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import plugin from './index.js'
 import {
   WECOM_CONNECTOR_ARTIFACT_NAMESPACE,
-  WECOM_CONNECTOR_ICON,
+  WECOM_CONNECTOR_ICON_DEFINITION,
   WECOM_CONNECTOR_INSTALL_LEVEL
 } from './lib/types.js'
 
@@ -37,6 +37,6 @@ describe('WeCom connector plugin metadata', () => {
       level: WECOM_CONNECTOR_INSTALL_LEVEL,
       artifactNamespace: WECOM_CONNECTOR_ARTIFACT_NAMESPACE
     })
-    expect(plugin.meta.icon).toEqual({ type: 'image', value: WECOM_CONNECTOR_ICON })
+    expect(plugin.meta.icon).toEqual(WECOM_CONNECTOR_ICON_DEFINITION)
   })
 })

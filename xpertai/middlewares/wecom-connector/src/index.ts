@@ -7,7 +7,7 @@ import { WeComConnectorPluginModule } from './lib/wecom-connector.module.js'
 import {
   WECOM_AUTH_INTEGRATION_PROVIDER,
   WECOM_CONNECTOR_ARTIFACT_NAMESPACE,
-  WECOM_CONNECTOR_ICON,
+  WECOM_CONNECTOR_ICON_DEFINITION,
   WECOM_CONNECTOR_INSTALL_LEVEL
 } from './lib/types.js'
 import { WECOM_CONNECTOR_PLUGIN_CONTEXT } from './lib/tokens.js'
@@ -25,10 +25,7 @@ const plugin: XpertPlugin = {
     level: WECOM_CONNECTOR_INSTALL_LEVEL,
     artifactNamespace: WECOM_CONNECTOR_ARTIFACT_NAMESPACE,
     category: 'middleware',
-    icon: {
-      type: 'image',
-      value: WECOM_CONNECTOR_ICON
-    },
+    icon: WECOM_CONNECTOR_ICON_DEFINITION,
     displayName: 'WeCom Connector',
     description:
       'Connects a workspace to WeCom by scanning a QR code and injects the credential into sandboxed commands.',

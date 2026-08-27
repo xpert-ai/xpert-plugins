@@ -20,7 +20,7 @@ import {
   WECOM_CONNECTOR_ACCESS_TOKEN_URL,
   WECOM_CONNECTOR_AUTHORIZE_URL,
   WECOM_CONNECTOR_AUTH_INTEGRATION_URL,
-  WECOM_CONNECTOR_ICON,
+  WECOM_CONNECTOR_ICON_DEFINITION,
   WECOM_CONNECTOR_PROVIDER,
   WECOM_CONNECTOR_USER_DETAIL_URL,
   WECOM_CONNECTOR_USER_INFO_URL,
@@ -65,10 +65,7 @@ export class WeComConnectorStrategy implements ConnectorMultiAuthStrategy {
       en_US: 'Connect WeCom by scanning a QR code using the current organization or tenant application.',
       zh_Hans: '使用当前组织或租户配置的企业微信应用扫码连接企业微信。'
     },
-    icon: {
-      type: 'image',
-      value: WECOM_CONNECTOR_ICON
-    },
+    icon: WECOM_CONNECTOR_ICON_DEFINITION,
     authMethods: [
       {
         id: WECOM_AUTH_METHOD,
