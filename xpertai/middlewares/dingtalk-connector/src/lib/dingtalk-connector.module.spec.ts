@@ -1,8 +1,10 @@
 import 'reflect-metadata'
 import { MODULE_METADATA } from '@nestjs/common/constants'
 import { DingTalkConnectorIntegrationStrategy } from './dingtalk-connector-integration.strategy.js'
+import { DingTalkConnectorApiClient } from './api/dingtalk-connector-api.client.js'
 import { DingTalkConnectorPluginModule } from './dingtalk-connector.module.js'
 import { DingTalkConnectorStrategy } from './dingtalk-connector.strategy.js'
+import { DingTalkConfirmationStore } from './tools/confirmation-store.js'
 
 jest.mock('@xpert-ai/plugin-sdk', () => ({
   AgentMiddlewareStrategy: () => () => undefined,
@@ -22,5 +24,7 @@ describe('DingTalkConnectorPluginModule', () => {
 
     expect(providers).toContain(DingTalkConnectorIntegrationStrategy)
     expect(providers).toContain(DingTalkConnectorStrategy)
+    expect(providers).toContain(DingTalkConnectorApiClient)
+    expect(providers).toContain(DingTalkConfirmationStore)
   })
 })

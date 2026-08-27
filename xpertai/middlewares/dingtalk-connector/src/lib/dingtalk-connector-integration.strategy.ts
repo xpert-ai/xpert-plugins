@@ -13,6 +13,7 @@ import { DingTalkConnectorSecretService } from './dingtalk-connector-secret.serv
 export type DingTalkConnectorIntegrationOptions = {
   clientId?: string
   clientSecret?: string
+  robotCode?: string
 }
 
 @Injectable()
@@ -24,10 +25,10 @@ export class DingTalkConnectorIntegrationStrategy implements IntegrationStrategy
     name: DINGTALK_CONNECTOR_INTEGRATION_PROVIDER,
     label: i18n('DingTalk Connector OAuth', '钉钉连接器 OAuth'),
     description: i18n(
-      'Use this connector-owned DingTalk OAuth application when the DingTalk SSO plugin is not installed.',
-      '未安装钉钉 SSO 插件时，使用此钉钉连接器自带的 OAuth 应用配置。'
+      'Configure the DingTalk OAuth application and optional Robot Code used exclusively by the DingTalk connector.',
+      '配置仅供钉钉连接器使用的 OAuth 应用，以及消息工具所需的可选机器人编码。'
     ),
-    icon: { type: 'svg', value: DINGTALK_CONNECTOR_ICON },
+    icon: DINGTALK_CONNECTOR_ICON,
     helpUrl: 'https://open.dingtalk.com/document/orgapp/tutorial-obtaining-user-personal-information',
     schema: {
       type: 'object',
@@ -45,6 +46,14 @@ export class DingTalkConnectorIntegrationStrategy implements IntegrationStrategy
             '钉钉应用的 Client Secret 或 AppSecret。'
           ),
           'x-ui': { component: 'secretInput', revealable: true, maskSymbol: '*', persist: true }
+        },
+        robotCode: {
+          type: 'string',
+          title: i18n('Robot Code', '机器人编码'),
+          description: i18n(
+            'Optional. Required by dingtalk_send_message. Find it in DingTalk Open Platform under Application > Robot.',
+            '可选。使用 dingtalk_send_message 时必填，可在钉钉开放平台的“应用 > 机器人”中获取。'
+          )
         }
       },
       required: ['clientId', 'clientSecret'],
@@ -61,11 +70,13 @@ export class DingTalkConnectorIntegrationStrategy implements IntegrationStrategy
   async validateConfig(config: DingTalkConnectorIntegrationOptions): Promise<IntegrationTestResult> {
     const clientId = required(config?.clientId, 'DingTalk OAuth Client ID is required.')
     const clientSecret = required(config?.clientSecret, 'DingTalk OAuth Client Secret is required.')
+    const robotCode = optional(config?.robotCode)
     return {
       mode: 'oauth_app',
       options: {
         clientId,
-        clientSecret: this.secretService.encrypt(clientSecret)
+        clientSecret: this.secretService.encrypt(clientSecret),
+        ...(robotCode ? { robotCode } : {})
       }
     }
   }
@@ -78,4 +89,8 @@ function i18n(en_US: string, zh_Hans: string): I18nObject {
 function required(value: unknown, message: string): string {
   if (typeof value !== 'string' || !value.trim()) throw new Error(message)
   return value.trim()
+}
+
+function optional(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined
 }

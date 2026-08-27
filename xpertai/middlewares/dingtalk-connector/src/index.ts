@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod'
 import { DINGTALK_CONNECTOR_ICON } from './lib/branding.js'
-import { DINGTALK_CONNECTOR_INTEGRATION_PROVIDER, DINGTALK_SSO_SYSTEM_INTEGRATION_PROVIDER } from './lib/constants.js'
+import { DINGTALK_CONNECTOR_INTEGRATION_PROVIDER } from './lib/constants.js'
 import { DingTalkConnectorPluginModule } from './lib/dingtalk-connector.module.js'
 import { DINGTALK_CONNECTOR_PLUGIN_CONTEXT } from './lib/tokens.js'
 
@@ -20,10 +20,7 @@ const plugin: XpertPlugin = {
     version: packageJson.version,
     level: 'organization',
     category: 'middleware',
-    icon: {
-      type: 'svg',
-      value: DINGTALK_CONNECTOR_ICON
-    },
+    icon: DINGTALK_CONNECTOR_ICON,
     displayName: 'DingTalk Connector',
     description: 'Connects a workspace to DingTalk with OAuth using the configured system integration.',
     keywords: ['dingtalk', 'connector', 'oauth', 'middleware'],
@@ -37,7 +34,6 @@ const plugin: XpertPlugin = {
     }
   },
   permissions: [
-    { type: 'integration', service: DINGTALK_SSO_SYSTEM_INTEGRATION_PROVIDER, operations: ['read'] },
     { type: 'integration', service: DINGTALK_CONNECTOR_INTEGRATION_PROVIDER, operations: ['read'] }
   ],
   register(ctx) {

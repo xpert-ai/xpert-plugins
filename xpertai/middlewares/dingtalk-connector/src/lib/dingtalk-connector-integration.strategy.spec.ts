@@ -15,6 +15,11 @@ describe('DingTalkConnectorIntegrationStrategy', () => {
     expect(strategy.meta).toEqual(
       expect.objectContaining({
         name: DINGTALK_CONNECTOR_INTEGRATION_PROVIDER,
+        icon: {
+          type: 'image',
+          value: expect.stringMatching(/^data:image\/svg\+xml;charset=utf-8,/),
+          size: 24
+        },
         schema: expect.objectContaining({
           required: ['clientId', 'clientSecret'],
           secret: ['clientSecret']
@@ -29,6 +34,15 @@ describe('DingTalkConnectorIntegrationStrategy', () => {
       options: { clientId: 'client-1', clientSecret: 'enc:v1:encrypted-secret' }
     })
     expect(secretService.encrypt).toHaveBeenCalledWith('secret-1')
+  })
+
+  it('stores an optional Robot Code for proactive message tools', async () => {
+    await expect(
+      strategy.validateConfig({ clientId: 'client-1', clientSecret: 'secret-1', robotCode: ' robot-1 ' })
+    ).resolves.toEqual({
+      mode: 'oauth_app',
+      options: { clientId: 'client-1', clientSecret: 'enc:v1:encrypted-secret', robotCode: 'robot-1' }
+    })
   })
 
   it('rejects incomplete credentials', async () => {
