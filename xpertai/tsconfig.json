@@ -317,6 +317,9 @@
     },
     {
       "path": "./middlewares/wps-knowledge-connector"
+    },
+    {
+      "path": "./middlewares/notion-connector"
     }
   ]
 }

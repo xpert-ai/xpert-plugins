@@ -1,0 +1,36 @@
+{
+  "name": "@xpert-ai/plugin-notion-connector",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "middlewares/notion-connector/src",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "middlewares/notion-connector/dist",
+        "main": "middlewares/notion-connector/src/index.ts",
+        "rootDir": "middlewares/notion-connector/src",
+        "tsConfig": "middlewares/notion-connector/tsconfig.lib.json",
+        "generatePackageJson": false
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "cwd": "middlewares/notion-connector",
+        "command": "tsc -p tsconfig.spec.json --noEmit"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "cwd": "middlewares/notion-connector",
+        "command": "jest --config jest.config.ts --runInBand"
+      }
+    }
+  }
+}
