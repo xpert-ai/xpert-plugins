@@ -10,7 +10,7 @@
 
 ## Decision
 
-Cut ships a portable, plugin-managed **Cut IR MCP server** in M8, but does **not** claim or implement an OpenCut Editor API adapter yet.
+Cut exposes host-native MCP Publication capabilities, but does **not** claim or implement an OpenCut Editor API adapter yet.
 
 This is a contract decision, not a scheduling shortcut. At the observed OpenCut `main` commit:
 
@@ -24,39 +24,13 @@ The pinned Classic code is useful source architecture, but it is not a stable ex
 
 The stable boundary remains `CutProjectDocument` schema version 1. Xpert persistence, Agent tools, proposals, Workbench actions, browser export, Sandbox rendering and the MCP surface all use this IR and the same deterministic edit engine.
 
-## M8 delivered MCP surface
+## Delivered MCP surface
 
-The package registers `cut-ir`, a platform-managed stdio MCP server launched from `${PLUGIN_ROOT}/dist/mcp-server.js`. It exposes exactly four tools:
+The Cut plugin registers a native toolset provider. Xpert discovers the original Cut middleware implementation and classifies its 50 capabilities as mutation/query Tools, seven ID-addressed Resource Templates, durable transcription/export Tasks, and four workflow Prompts. Agent and MCP execution therefore share project persistence, revision compare-and-swap, proposal review, action logs, caption jobs, and render jobs.
 
-| Tool | Purpose | External side effects |
-| --- | --- | --- |
-| `cut_ir_create_project` | Create a standalone Cut IR v1 document | None |
-| `cut_ir_validate_project` | Validate and canonicalize a caller-supplied document | None |
-| `cut_ir_apply_operations` | Atomically apply 1–100 shared edit operations in memory and return a new document plus diff | None |
-| `cut_ir_compare_projects` | Compare two documents and return changed clip/track IDs and summaries | None |
+The public MCP service belongs to the authenticated tenant or organization, not to an Xpert workspace. Every project operation requires an explicit Cut `projectId`. File-reading operations accept only a portable `platform.workspace.files` reference with a catalog and scope; the host rejects tenant, organization, or user scope conflicts before reading bytes. Xpert remains responsible for publication selection, API keys/OAuth, approvals, audit, limits, and Streamable HTTP transport.
 
-The MCP server deliberately has no database, tenant API, filesystem, Workspace Files or network client. It cannot discover or mutate a persisted Xpert project. The caller must explicitly supply a document. In Xpert workflows, persisted mutations continue to use the native Cut middleware tools with tenant/org scope, `baseRevision`, compare-and-swap, action logs and proposal review.
-
-MCP inputs are capped at 2 MiB UTF-8 JSON, 2,000 clips and 100 operations per batch. The manifest uses `${PLUGIN_ROOT}`, a platform-controlled local-process runtime, bounded startup/idle/lifetime values and an explicit enabled-tool allowlist. Production remains fail-closed unless the platform administrator enables the managed stdio runtime with `XPERT_MCP_STDIO_RUNTIME_ENABLED=true`.
-
-Cut does not add an MCP App iframe in M8. The persistent editing surface is already the Cut Workbench remote view; duplicating the editor as an inline tool-result app would create a second UI lifecycle and weaken dirty-state/revision handling.
-
-## Why the MCP layer is safe and thin
-
-```text
-External MCP client
-  -> bounded caller-supplied Cut IR
-  -> shared Zod schema
-  -> shared deterministic applyCutEdit engine
-  -> new Cut IR + structured diff
-
-Xpert persisted workflow
-  -> scoped native Cut tools
-  -> revision CAS / proposal review / action log
-  -> persisted Cut IR
-```
-
-There is no MCP-only project model and no alternative edit implementation. Random identifiers produced by split/duplicate/add-without-ID mean mutation results are not advertised as idempotent; validation and comparison tools are read-only and idempotent.
+There is no plugin-owned stdio process, `cut_ir_*` compatibility surface, MCP-only project model, or alternative edit implementation. Cut Workbench remains the persistent editing UI rather than being duplicated as an MCP App iframe.
 
 ## OpenCut adapter activation gates
 

@@ -10,7 +10,7 @@ const execFileAsync = promisify(execFile)
 const maxUnpackedBytes = 50 * 1024 * 1024
 const maxPackedBytes = 25 * 1024 * 1024
 const required = [
-  'dist/index.js', 'dist/index.d.ts', 'dist/mcp-server.js', 'dist/mcp-server.d.ts', 'dist/xpert-cut-assistant.yaml',
+  'dist/index.js', 'dist/index.d.ts', 'dist/xpert-cut-assistant.yaml',
   'dist/lib/remote-components/cut-workbench/app.js', 'dist/lib/remote-components/cut-workbench/app.css',
   'dist/sandbox-actions/cut-render/action.json', 'dist/sandbox-actions/cut-render/bundle/runner.mjs',
   'dist/sandbox-actions/cut-render/bundle/browser-entry.js',
@@ -24,6 +24,16 @@ const required = [
 ]
 const missing = required.filter((file) => !existsSync(join(root, file)))
 if (missing.length) { console.error(`Cut plugin package output is missing: ${missing.join(', ')}`); process.exit(1) }
+
+const removedStdioMcpEntries = [
+  'dist/mcp-server.js',
+  'dist/mcp-capabilities.json',
+  'dist/lib/cut-mcp.js'
+]
+const staleStdioMcpEntries = removedStdioMcpEntries.filter((file) => existsSync(join(root, file)))
+if (staleStdioMcpEntries.length) {
+  throw new Error(`Cut npm output contains removed stdio MCP artifacts: ${staleStdioMcpEntries.join(', ')}`)
+}
 
 const outputFiles = await collectFiles(join(root, 'dist'))
 const forbiddenAsset = outputFiles.find(({ path }) => path.endsWith('.onnx') || path.endsWith('.wasm') || path.split('/').includes('models'))

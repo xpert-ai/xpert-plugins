@@ -28,6 +28,7 @@ import {
   CUT_COMMIT_CAPTION_DRAFT_TOOL_NAME,
   CUT_COMMIT_CAPTION_DRAFTS_TOOL_NAME,
   CUT_CANCEL_ANALYSIS_JOB_TOOL_NAME,
+  CUT_DEFAULT_TRANSCRIPTION_MODE,
   CUT_DELETE_CLIPS_TOOL_NAME,
   CUT_DUPLICATE_CLIPS_TOOL_NAME,
   CUT_FEATURE,
@@ -210,8 +211,8 @@ const importSubtitleSchema = z.object({
 const startTranscriptionSchema = z.object({
   projectId: currentProjectId,
   mediaAssetId: z.string().uuid(),
-  mode: z.enum(['platform', 'sandbox_whisper']).default('platform').describe(
-    'platform uses the current Xpert Speech-to-Text provider; sandbox_whisper runs the pinned Q4 Whisper resource in the managed browser-ai queue without an online media URL.'
+  mode: z.enum(['platform', 'sandbox_whisper']).default(CUT_DEFAULT_TRANSCRIPTION_MODE).describe(
+    'Defaults to sandbox_whisper, which runs the pinned Q4 Whisper resource in the managed browser-ai queue without an online media URL. platform explicitly uses the current Xpert Speech-to-Text provider.'
   ),
   language: z.string().trim().min(1).max(35).default('und').describe(
     'Source language. For sandbox_whisper use und/auto for detection, zh (or zh-CN/zh-Hans/zh-Hant) for Chinese, or en for English.'
@@ -434,6 +435,20 @@ CURRENT_PROJECT_TOOLS.delete(CUT_REPORT_FAILURE_TOOL_NAME)
 const MISSING_PROJECT_CONTEXT_MESSAGE =
   'No Cut projectId was provided and no active Cut Workbench project is available. Ask the user to select a Cut project or create one first.'
 
+export type CutToolExecutionContext = Pick<
+  IAgentMiddlewareContext,
+  | 'tenantId'
+  | 'organizationId'
+  | 'userId'
+  | 'workspaceId'
+  | 'projectId'
+  | 'conversationId'
+  | 'xpertId'
+  | 'xpertFeatures'
+> & {
+  runtime: Pick<IAgentMiddlewareContext['runtime'], 'capabilities'>
+}
+
 @Injectable()
 @AgentMiddlewareStrategy(CUT_MIDDLEWARE_NAME)
 export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, never>> {
@@ -458,7 +473,10 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
     private readonly storyHandoffs?: CutStoryHandoffService
   ) {}
 
-  createMiddleware(_options: Record<string, never>, context: IAgentMiddlewareContext): PromiseOrValue<AgentMiddleware> {
+  createMiddleware(
+    _options: Record<string, never>,
+    context: IAgentMiddlewareContext | CutToolExecutionContext
+  ): PromiseOrValue<AgentMiddleware> {
     const scope = scopeFromContext(context)
     return {
       name: CUT_MIDDLEWARE_NAME,
@@ -653,7 +671,7 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
           return compact(await this.captions.startTranscription(scope, input))
         }, {
           name: CUT_START_TRANSCRIPTION_TOOL_NAME,
-          description: 'Queue durable background transcription for one imported audio/video asset. mode=platform uses the current Xpert Speech-to-Text provider; mode=sandbox_whisper uses the pinned offline Q4 Whisper resource in the browser-ai Sandbox Runtime. Browser-local Whisper remains an interactive Workbench action. Returns a jobId and does not change the timeline.',
+          description: 'Queue durable background transcription for one imported audio/video asset. mode defaults to sandbox_whisper, which uses the pinned offline Q4 Whisper resource in the browser-ai Sandbox Runtime; mode=platform explicitly uses the current Xpert Speech-to-Text provider. Browser-local Whisper remains an interactive Workbench action. Returns a jobId and does not change the timeline.',
           schema: startTranscriptionSchema,
           verboseParsingErrors: true
         }),
@@ -1091,7 +1109,7 @@ function getBooleanFromString(value: string | undefined): boolean | undefined {
   return value === 'true' ? true : value === 'false' ? false : undefined
 }
 
-function scopeFromContext(context: IAgentMiddlewareContext): CutScope {
+function scopeFromContext(context: IAgentMiddlewareContext | CutToolExecutionContext): CutScope {
   return {
     tenantId: context.tenantId,
     organizationId: context.organizationId === undefined ? RequestContext.getOrganizationId() ?? null : context.organizationId ?? null,

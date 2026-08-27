@@ -49,7 +49,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
         runtime: { middlewareProviders: [CUT_MIDDLEWARE_NAME], viewProviders: [CUT_PROVIDER_KEY], templateProviders: [CUT_TEMPLATE_PROVIDER_KEY] }
       },
       xpert: {
-        types: ['assistant-template', 'skill', 'app', 'xpertai-bundle', 'mcp-server', 'tool'],
+        types: ['assistant-template', 'skill', 'app', 'xpertai-bundle', 'mcp'],
         capabilities: [CUT_FEATURE, CUT_WORKBENCH_CAPABILITY, CUT_AGENT_CAPABILITY, CUT_TEMPLATE_CAPABILITY, CUT_MCP_CAPABILITY],
         marketplace: {
           contents: [
@@ -58,7 +58,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
             { type: 'app', name: 'cut', displayName: 'Cut', description: 'Agentic non-linear video editor.', operations },
             { type: 'view', name: CUT_WORKBENCH_VIEW_KEY, displayName: 'Cut Workbench', description: 'Video editing Workbench.', metadata: { app: 'cut' } },
             { type: 'middleware', name: CUT_MIDDLEWARE_NAME, displayName: 'Cut Agent Tools', description: 'Scoped Cut editing tools.', metadata: { app: 'cut' } },
-            { type: 'tool', name: 'cut-ir-mcp', displayName: 'Cut IR MCP Tools', description: 'Portable, side-effect-free Cut project validation, comparison, and in-memory editing tools.', metadata: { app: 'cut', protocol: 'mcp' } }
+            { type: 'mcp', name: 'cut', displayName: 'Cut MCP Capabilities', description: 'Host-native Cut tools, resources, tasks, and prompts backed by the same implementation used by Cut agents.', metadata: { protocol: 'native', provider: 'cut' } }
           ]
         }
       }
@@ -108,6 +108,8 @@ export * from './lib/entities/index.js'
 export * from './lib/cut.plugin.js'
 export * from './lib/cut.service.js'
 export * from './lib/cut.middleware.js'
+export * from './lib/cut-native-capabilities.js'
+export * from './lib/cut-toolset.strategy.js'
 export * from './lib/cut-view.provider.js'
 export * from './lib/cut.templates.js'
 export * from './lib/tokens.js'

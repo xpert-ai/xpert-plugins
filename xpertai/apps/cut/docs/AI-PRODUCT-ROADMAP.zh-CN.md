@@ -14,7 +14,7 @@ Cut 不应只复刻一个带聊天框的视频编辑器，而应成为 Xpert 平
 素材理解 -> 编辑提案 -> 人工审阅 -> 确定性原子应用 -> 浏览器/Headless 渲染
 ```
 
-相较 OpenCut Classic，Cut 已经领先于 Agent 接入、租户级持久化、版本冲突保护、操作日志和 Xpert Workbench 协同；M1–M8 已补齐共享项目 Schema、原子编辑、服务端可审阅字幕、浏览器本地 Whisper、可定位到媒体时间片段的基础内容理解、证据化粗剪提案审阅闭环、revision-bound 的无人值守生产导出，以及复用相同 IR/编辑内核的可移植 MCP 文档工具。OpenCut Rewrite 尚未发布 Editor API/MCP/Headless 契约，因此真实 OpenCut adapter 继续受证据门禁约束；当前最明显的产品短板转为更高级的多模态理解/创作能力与生产部署矩阵。
+相较 OpenCut Classic，Cut 已经领先于 Agent 接入、租户级持久化、版本冲突保护、操作日志和 Xpert Workbench 协同；M1–M8 已补齐共享项目 Schema、原子编辑、服务端可审阅字幕、浏览器本地 Whisper、可定位到媒体时间片段的基础内容理解、证据化粗剪提案审阅闭环、revision-bound 的无人值守生产导出，以及复用相同业务实现的宿主原生 MCP 能力目录。OpenCut Rewrite 尚未发布 Editor API/MCP/Headless 契约，因此真实 OpenCut adapter 继续受证据门禁约束；当前最明显的产品短板转为更高级的多模态理解/创作能力与生产部署矩阵。
 
 因此按以下顺序建设：
 
@@ -63,7 +63,7 @@ OpenCut 主线重写公开规划包括 Editor API、插件、MCP Server、Headle
 | 人机协同 Workbench | 无 Agent 审阅闭环 | 有目标化宿主事件、脏编辑保护、提案 diff/预览/逐项审阅 | Cut 领先 |
 | 内容理解/片段搜索 | 无 | 有 transcript、音频活动/静音、镜头证据及精确片段检索 | Cut 已形成基础差异化；OCR/embedding 待扩展 |
 | 自动粗剪提案 | 无 | 有证据绑定、风险下限、版本 CAS、原子应用和安全回滚 | Cut 已形成核心差异化 |
-| Headless/MCP | Rewrite 主线仍列为 “What’s coming” | Headless 已交付；Cut IR MCP 已交付；OpenCut adapter 因无上游契约暂缓 | Cut 已有可验证外部 MCP 入口，不虚构 OpenCut 兼容 |
+| Headless/MCP | Rewrite 主线仍列为 “What’s coming” | Headless 已交付；Cut 原有能力已接入宿主原生 MCP Publication；OpenCut adapter 因无上游契约暂缓 | 外部 MCP 与 Agent 共用业务实现，不再维护独立 IR/stdio 服务，也不虚构 OpenCut 兼容 |
 
 当前剩余风险：
 
@@ -76,7 +76,7 @@ OpenCut 主线重写公开规划包括 Editor API、插件、MCP Server、Headle
 7. M7 已支持受限后台生产导出，但自定义字体、透明通道、更多输入编解码器、硬件差异矩阵和长视频压力基线尚未建立；当前固定使用 Browser Runtime 的 H.264/AAC 与系统字体。
 8. M6 已建立确定性的提案执行与审阅基础设施，但粗剪质量仍取决于 Agent 对搜索证据和原子操作的规划；尚未建立离线评测集、目标时长达成率、信息保留率和人工接受率等质量指标。
 9. Headless 的项目快照、Action 版本、Runtime Profile、媒体 checksum 和幂等产物都已固定；不同 Provider/浏览器构建之间的逐字节编码一致性仍需部署矩阵证明，当前不宣称跨运行时 bit-exact。
-10. M8 MCP 是显式传入文档的纯转换接口，不具备 tenant-scoped 项目发现/持久化能力；这是一条安全边界。持久化编辑仍必须使用 Cut native Agent tools 的 `baseRevision`/CAS/审阅链路。生产环境还需管理员显式启用 `XPERT_MCP_STDIO_RUNTIME_ENABLED=true`。
+10. M8 已从独立的纯转换 stdio 试点切换到宿主原生 MCP Publication；旧 `cut_ir_*` 接口和 `XPERT_MCP_STDIO_RUNTIME_ENABLED` 开关不再适用。外部调用继续受 tenant/org、显式 `projectId`、`baseRevision` CAS 和提案审阅约束；组织级 MCP 对既有 workspace-scoped 项目的访问仍需完成宿主回归验证。
 11. OpenCut `main@bab8af831b354a0b5a98a4a6e818ab7d633b94df` 尚无可发布的 Editor API、MCP、Headless 或版本化项目交换实现；因此 OpenCut adapter 状态为 `deferred-upstream-contract`，不能按内部 IndexedDB 类型进行伪兼容。
 
 ### 3.0 Revision 与版本决策（2026-07-18）
@@ -88,7 +88,7 @@ OpenCut 主线重写公开规划包括 Editor API、插件、MCP Server、Headle
 
 ### 3.1 M1–M8 实机收口
 
-2026-07-16 已在真实 `http://localhost:4300` 宿主完成插件重载、Workbench、外部 `cut-ir` MCP Toolset 四工具和 Managed Queue/Sandbox Job 后台 MP4 闭环。最终任务一次执行成功并在 Workbench 显示 `complete · 100%`；Sandbox 临时目录清理后，MP4、报告和输入媒体仍可通过 Workspace Files 读取。
+2026-07-16 已在真实 `http://localhost:4300` 宿主完成插件重载、Workbench 和 Managed Queue/Sandbox Job 后台 MP4 闭环。2026-08-24 起外部 MCP 改由宿主原生 Publication 承载，不再使用独立 `cut-ir` 进程。
 
 实机调试同时固化了平台契约：Managed Queue `scopeKey` 表示插件安装 scope，不承载业务资源键；异步 job 的 tenant/org/user/project 通过独立 envelope 字段恢复；本地热重装会使旧 Sandbox Action 缓存失效；即使采用扁平开发 Volume，`runtime-jobs/<jobId>` 也必须与 durable catalogs 物理隔离。完整证据见 [GOAL-COMPLETION-AUDIT.zh-CN.md](./GOAL-COMPLETION-AUDIT.zh-CN.md)。
 
@@ -125,15 +125,15 @@ flowchart LR
     T --> P
     R --> B["Browser Renderer"]
     R --> H["Headless Renderer"]
-    C["Portable Cut IR MCP"] --> E
+    C["Xpert MCP Publication"] --> A
     X["Future OpenCut Editor API"] -. contract gate .-> E
 ```
 
 架构边界：
 
 - **项目 IR 是唯一编辑事实源**：所有入口最终转换为同一组领域操作。
-- **内部工具固定使用 middleware tools**：Cut Assistant 对项目发现/持久化、时间线编辑、字幕、媒体分析、提案和后台导出的调用，必须通过 Xpert middleware 获得 tenant/org 上下文、revision CAS、审阅规则和目标化宿主事件。
-- **MCP tools 只面向外部服务**：`cut-ir` MCP 仅处理调用方显式传入的可移植文档，不作为 Cut Assistant 的内部工具源，也不得访问 Xpert 项目、数据库、Workspace Files 或平台身份。
+- **内部和外部入口共用实现**：Cut Assistant 通过 middleware 使用原有能力；MCP Publication 通过同一 middleware/service 实现执行宿主原生声明，不复制编辑逻辑。
+- **MCP 服务无隐式工作区**：服务属于 tenant/org，项目由显式 `projectId` 定位；文件输入必须是带 catalog/scope 的 `platform.workspace.files` 引用并由宿主校验。
 - **工具输入严格验证**：使用共享 Zod Schema、`verboseParsingErrors`、显式判别联合类型和有界数组。
 - **项目读取渐进披露**：`cut_get_project` 只返回概要、revision、资源计数和后续读取提示；轨道、片段、素材及项目资源通过严格分页/过滤工具按需展开，不向 Agent 暴露完整 IR、Workspace Reference、预览 URL、快照或渲染报告。
 - **每次变更带 `baseRevision`**：先验证再事务应用，冲突不进行隐式覆盖。
@@ -310,15 +310,12 @@ Workbench 流程固定为三步：选择来源 -> 转录与进度 -> 校对/预�
 
 当前交付（M8）：
 
-- 注册 `${PLUGIN_ROOT}/dist/mcp-server.js` 的平台托管 stdio MCP Server，提供 `cut_ir_create_project`、`cut_ir_validate_project`、`cut_ir_apply_operations`、`cut_ir_compare_projects` 四个工具。
-- MCP 只接收调用方显式提供的 `CutProjectDocument v1`，复用同一 Zod Schema 与 `applyCutEdit`；批处理在内存中全成或全败，返回新文档、summary 和 changed clip/track diff。
-- 边界固定为最多 2 MiB JSON、2,000 clips、100 operations；无数据库、tenant API、Workspace Files、文件系统或网络访问，不会绕过 Xpert native tools 的 revision CAS 与 proposal 审阅。
-- manifest 使用 `${PLUGIN_ROOT}`、明确 enabled tools、受控 local-process runtime 和启动/空闲/总寿命上限；生产默认关闭，需平台管理员显式启用托管 stdio runtime。
+- 原有 50 项 Cut 能力由宿主原生声明，按语义拆为 Tool、Resource Template、Task 和 Prompt，并复用同一服务与 revision CAS / proposal 审阅链路。
+- Xpert 统一负责 MCP Publication、认证、授权、审批、审计、限流和 Streamable HTTP；Cut 不再启动 stdio 子进程。
+- MCP 服务不绑定工作区。调用方必须显式传入 `projectId`；素材输入必须使用带 catalog/scope 的 `platform.workspace.files` 引用，宿主会校验 tenant、organization 和 principal 边界。
 - 2026-07-16 对 OpenCut `main@bab8af8` 复核确认 Editor API、MCP、Headless 仍只存在于 “What’s coming”，代码树无稳定实现或发布契约；故不创建 OpenCut runtime adapter。证据与激活门槛见 [EDITOR-API-ROADMAP.md](./EDITOR-API-ROADMAP.md)。
 
-当前边界：MCP 适用于外部客户端对显式文档做可移植转换，不负责持久化 Xpert 项目；OpenCut adapter 只有在上游发布可固定版本和无损 fixture 的契约后才激活。
-
-内部/外部工具面不可互换：Cut Assistant 的项目操作继续注册为 middleware tools；MCP Toolset 只供外部 Agent、脚本或其他平台按显式文档调用，不挂接到 Cut Assistant，也不允许借 MCP 绕过 tenant scope、`baseRevision` CAS、proposal 审阅或目标化 Workbench 刷新。
+当前边界：MCP 与 Cut Assistant 共用实现，但入口治理不同；外部客户端仍不能绕过 tenant/org scope、`baseRevision` CAS、proposal 审阅或目标化 Workbench 刷新。OpenCut adapter 只有在上游发布可固定版本和无损 fixture 的契约后才激活。
 
 ### R7 / P3：高级 AI 创作
 
@@ -335,7 +332,7 @@ Workbench 流程固定为三步：选择来源 -> 转录与进度 -> 校对/预�
 | M5 Intelligence | transcript/静音/镜头分析与片段搜索 | Agent 可用证据定位内容 |
 | M6 Rough Cut | proposal/diff/preview/apply | 复杂自然语言剪辑可审阅且可回滚 |
 | M7 Production | Headless 音视频导出、模板批处理 | 无人值守任务可靠产出 Workspace File |
-| M8 Ecosystem | Cut IR MCP + OpenCut contract gate | MCP 外部入口与核心行为一致；无稳定上游 API 时明确拒绝伪适配 |
+| M8 Ecosystem | Cut 原生 MCP Publication + OpenCut contract gate | MCP 外部入口与 Agent 共用实现；无稳定上游 API 时明确拒绝伪适配 |
 
 ## 7. 实施与验证规则
 
@@ -358,8 +355,8 @@ Workbench 流程固定为三步：选择来源 -> 转录与进度 -> 校对/预�
 - **M5 Intelligence（2026-07-16 完成）**：新增 tenant/org scoped 的媒体证据实体和本地分析落库服务。Workbench 可对真实媒体做浏览器本地分析：音频以 100 ms 窗口提取能量，形成有最小时长保护的活动/静音区间；视频通过受限采样、低分辨率亮度直方图差异形成镜头区间及 `thumbnailTime`。完成结果经项目 revision、媒体时长边界、数量上限和内容哈希幂等保护后保存为成功的 `media_analysis` job，不直接修改时间线。`cut_search_media_segments` 和 `cut_get_media_segment` 使用严格 Schema，合并 transcript 与分析证据，并返回精确 `mediaId`、时间范围、证据类型、相关度及可跳转的预览 URL/缩略图时间。当前交付不包含 OCR、画面描述、embedding，也不宣称服务端后台分析。
 - **M6 Rough Cut（2026-07-16 完成）**：新增 tenant/org scoped 的 `CutEditProposal`，保存精确 `sourceRevision` 与源项目快照；每个有界 operation 必须引用由 M5 服务重新解析的 transcript/audio/shot 证据，系统会根据实际操作把风险提升到最低安全等级，Agent 不能降低破坏性操作风险。创建、读取、逐项启停、应用、拒绝和回滚工具均使用严格 Schema。Workbench 提供提案列表、风险/证据时间、changed clip/track diff、只读时间线画面预览和逐项复选。应用通过 `draft -> applying -> applied` CAS 状态机调用同一原子 batch 内核；中断重试以源快照计算预期文档并对账。回滚通过 `applied -> reverting -> reverted` 恢复源快照，只允许项目仍处于该提案的 `appliedRevision`，不会覆盖后续编辑；应用和回滚重复调用均幂等。
 - **M7 Production（2026-07-18 更新）**：`cut.render-mp4@1.1.5`、浏览器导出与 `CutExport` 已共享显式导出配置，完整支持 MP4/WebM、四档质量和可选音频。后台导出冻结 source revision、导出配置和渲染文档 checksum，媒体只通过 tenant-scoped portable Workspace Files 引用进入沙箱；支持最多 5 个画幅/文本变量/媒体映射变体、整批预校验与入队失败补偿、Sandbox/Queue 双层取消、瞬态容量/启动/OOM 三次指数退避、结构化 Sandbox 进度持久化、相机 MOV 首帧时间戳偏移兼容、确定性媒体失败不做整任务重跑、资源上限、报告和可追踪 `CutExport`。Workbench 顶部只保留统一导出按钮，全部持久化后台工作进入独立任务 Tab；缺失 Workspace 媒体会给出重新上传修复入口，同 checksum 素材会更新原 Media Asset Reference 而不重复添加片段。Agent prompt/skill 使用 `cut_start_headless_export` + `cut_get_analysis_job` 的无人值守流程。
-- **M8 Ecosystem（2026-07-16 完成）**：新增可直接运行且由 Xpert manifest 托管的 `xpert-cut-ir` stdio MCP Server；四个 `cut_ir_*` 工具通过 SDK 协议发现/调用，严格复用 `CutProjectDocument v1` 和原子编辑内核，提供有界的创建、校验、批量转换和差异比较。MCP 不访问持久化或平台身份数据。OpenCut 主线按不可变 commit 重新取证，确认尚无可适配契约；兼容状态与八项激活 gate 已文档化，未创建第二套模型或虚假 adapter。
-- 全量验证：24 个测试套件、103 项测试、正式 build、MCP 协议级 package smoke、插件生命周期加载/卸载，以及既有 19 项 Workbench 浏览器 gate。Sandbox Action 的真实本地 Chrome 双格式冒烟生成 18 帧、12,618 字节且包含 video/audio track 的 MP4，以及 5,515 字节、明确关闭音频的 WebM；两者容器结构、配置报告、Bundle hash/结构验证均通过。额外以原失败项目快照完成 1920×1980、30 fps、140.759 秒、4,223 帧的带音频 MP4 回归，产物 189,232,957 字节且 `moov` 有效；真实网络烟测也已使用 Hugging Face JFK 样本、`Xenova/whisper-tiny` Q4 与内置 WASM 成功生成字幕草稿。
+- **M8 Ecosystem（2026-08-24 更新）**：删除独立 `cut_ir_*` stdio 试点；原有 50 项 Cut 能力通过插件 Toolset Strategy 接入宿主原生能力目录，按语义发布 Tool、Resource Template、Task 与 Prompt，外部调用与 Agent 共用同一业务实现。OpenCut 主线仍无可适配的稳定契约，故不创建虚假 adapter。
+- 全量验证要求：插件单测、类型检查、正式 build、prepack、插件生命周期加载/卸载和宿主 MCP Publication 协议测试；Workbench 行为变更仍执行既有浏览器 gate。
 - 本地重装待办：当前仓库缺少 `community/.env`，进程环境也没有 `XPERT_API_URL`/`XPERT_TOKEN`；按仓库安全规则保留已验证构建，凭据补齐后再安装到 4300 宿主，不生成临时 JWT、不直接修改数据库。
 
-M1–M8 路线图实现已完成。下一阶段进入 **R7 Advanced AI** 的独立产品评估：优先建立粗剪质量离线评测集，再按证据价值选择 OCR/画面描述/embedding/说话人/翻译等能力；不在没有评测指标时堆叠生成式功能。OpenCut adapter 继续按 [EDITOR-API-ROADMAP.md](./EDITOR-API-ROADMAP.md) 监控，只有上游形成稳定版本、许可和无损 fixture 后才新增。4300 宿主安装与真实平台 Sandbox Provider E2E 仍等待安全的 `community/.env` 凭据和运行时补齐。
+M1–M7 已完成既有产品门禁；M8 宿主原生 MCP 实现已完成代码接入，仍需通过最新插件生命周期、宿主能力发现和真实协议调用门禁后才能标记发布验证完成。下一阶段进入 **R7 Advanced AI** 的独立产品评估：优先建立粗剪质量离线评测集，再按证据价值选择 OCR/画面描述/embedding/说话人/翻译等能力；不在没有评测指标时堆叠生成式功能。OpenCut adapter 继续按 [EDITOR-API-ROADMAP.md](./EDITOR-API-ROADMAP.md) 监控，只有上游形成稳定版本、许可和无损 fixture 后才新增。4300 宿主安装与真实平台 Sandbox Provider E2E 仍等待安全的 `community/.env` 凭据和运行时补齐。

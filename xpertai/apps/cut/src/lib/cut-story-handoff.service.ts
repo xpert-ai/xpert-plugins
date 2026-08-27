@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { createHash } from 'node:crypto'
-import type { WorkspaceRuntimeFileBuffer } from '@xpert-ai/plugin-sdk'
+import type { WorkspaceFileLocator, WorkspaceRuntimeFileBuffer } from '@xpert-ai/plugin-sdk'
 import type { FindOptionsWhere, Repository } from 'typeorm'
 import { CutMediaIntelligenceService } from './cut-media-intelligence.service.js'
 import { CutProposalService } from './cut-proposal.service.js'
@@ -25,7 +25,7 @@ import type {
 } from './types.js'
 
 type ReadWorkspaceFile = (
-  workspacePath: string
+  locator: WorkspaceFileLocator
 ) => Promise<WorkspaceRuntimeFileBuffer>
 
 @Injectable()
@@ -206,7 +206,9 @@ export class CutStoryHandoffService {
     const mediaAssetIds = stringMap(receipt.mediaAssetIds)
     for (const shot of handoff.shots) {
       if (mediaAssetIds[shot.shotId]) continue
-      const file = await readWorkspaceFile(shot.file.workspacePath)
+      const file = await readWorkspaceFile(
+        shot.file.reference ?? shot.file.workspacePath ?? ''
+      )
       const verifiedFile = verifyWorkspaceFile(shot, file)
       const current = await this.cut.getProjectSummary(scope, projectId)
       const imported = await this.cut.registerRuntimeMedia(
