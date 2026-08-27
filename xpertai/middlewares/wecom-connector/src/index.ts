@@ -28,8 +28,8 @@ const plugin: XpertPlugin = {
     icon: WECOM_CONNECTOR_ICON_DEFINITION,
     displayName: 'WeCom Connector',
     description:
-      'Connects a workspace to WeCom by scanning a QR code and injects the credential into sandboxed commands.',
-    keywords: ['wecom', 'enterprise wechat', 'connector', 'oauth', 'qr', 'middleware'],
+      'Connects a workspace to WeCom and provides bounded directory and application-messaging tools.',
+    keywords: ['wecom', 'enterprise wechat', 'connector', 'oauth', 'qr', 'directory', 'messaging', 'middleware'],
     author: 'XpertAI Team'
   },
   config: {

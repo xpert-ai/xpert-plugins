@@ -1,7 +1,10 @@
 import 'reflect-metadata'
-import { MODULE_METADATA } from '@nestjs/common/constants'
+import { MODULE_METADATA } from '@nestjs/common/constants.js'
+import { WeComApiClient } from './api/wecom-api.client.js'
+import { WeComConfirmationStore } from './tools/confirmation-store.js'
 import { WeComAuthIntegrationStrategy } from './wecom-auth-integration.strategy.js'
 import { WeComConnectorPluginModule } from './wecom-connector.module.js'
+import { WeComConnectorRuntimeMiddleware } from './wecom-connector-runtime.middleware.js'
 import { WeComConnectorStrategy } from './wecom-connector.strategy.js'
 
 jest.mock('@xpert-ai/plugin-sdk', () => {
@@ -10,6 +13,7 @@ jest.mock('@xpert-ai/plugin-sdk', () => {
   return {
     AgentMiddlewareStrategy: () => () => undefined,
     ConnectorRuntimeCapability: { id: 'platform.connector' },
+    WorkspaceFilesRuntimeCapability: { id: 'platform.workspace.files' },
     ConnectorStrategyKey: () => () => undefined,
     INTEGRATION_PERMISSION_SERVICE_TOKEN: 'XPERT_PLUGIN_INTEGRATION_PERMISSION_SERVICE',
     IntegrationStrategyKey: () => () => undefined,
@@ -23,5 +27,8 @@ describe('WeComConnectorPluginModule', () => {
 
     expect(providers).toContain(WeComAuthIntegrationStrategy)
     expect(providers).toContain(WeComConnectorStrategy)
+    expect(providers).toContain(WeComConnectorRuntimeMiddleware)
+    expect(providers).toContain(WeComApiClient)
+    expect(providers).toContain(WeComConfirmationStore)
   })
 })

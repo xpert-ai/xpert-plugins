@@ -1,330 +1,444 @@
-import { SystemMessage } from '@langchain/core/messages'
 import { Injectable } from '@nestjs/common'
-import { randomUUID } from 'node:crypto'
-import { posix as path } from 'node:path'
+import type { TAgentMiddlewareMeta } from '@xpert-ai/contracts'
 import {
-  type AgentBuiltInState,
   AgentMiddlewareStrategy,
-  type BaseSandbox,
   ConnectorRuntimeCapability,
   type AgentMiddleware,
   type ConnectorRuntimeApi,
   type ConnectorRuntimeCredentialV2,
   type IAgentMiddlewareContext,
-  type IAgentMiddlewareStrategy,
-  type Runtime,
-  type ToolCallRequest
+  type IAgentMiddlewareStrategy
 } from '@xpert-ai/plugin-sdk'
-import { WECOM_CONNECTOR_PROVIDER, WECOM_CONNECTOR_RUNTIME_MIDDLEWARE_NAME } from './types.js'
+import {
+  mapAgent,
+  mapDepartment,
+  mapDepartmentList,
+  mapDepartmentMembers,
+  mapMedia,
+  mapMember,
+  mapMessageReceipt,
+  mapTagList,
+  mapTagMembers
+} from './api/mappers.js'
+import type { WeComRuntimeCredential } from './api/types.js'
+import { WeComApiClient } from './api/wecom-api.client.js'
+import { WeComConnectorError } from './errors.js'
+import { prepareWorkspaceFile } from './middlewares/workspace-file.js'
+import { WeComConfirmationStore } from './tools/confirmation-store.js'
+import { defineAgentTool } from './tools/define-agent-tool.js'
+import {
+  getContextSchema,
+  getDepartmentSchema,
+  getMemberSchema,
+  getTagMembersSchema,
+  listDepartmentMembersSchema,
+  listDepartmentsSchema,
+  listTagsSchema,
+  recallMessageSchema,
+  sendFileMessageSchema,
+  sendMarkdownMessageSchema,
+  sendTextMessageSchema,
+  type GetContextInput,
+  type GetDepartmentInput,
+  type GetMemberInput,
+  type GetTagMembersInput,
+  type ListDepartmentMembersInput,
+  type ListDepartmentsInput,
+  type ListTagsInput,
+  type RecallMessageInput,
+  type SendFileMessageInput,
+  type SendMarkdownMessageInput,
+  type SendTextMessageInput
+} from './tools/schemas.js'
+import {
+  WECOM_CONNECTOR_ICON_DEFINITION,
+  WECOM_CONNECTOR_PROVIDER,
+  WECOM_CONNECTOR_RUNTIME_MIDDLEWARE_NAME,
+  readString
+} from './types.js'
 
 type WeComConnectorRuntimeConfig = {
   provider?: string
   connectorId?: string
 }
 
-type HiddenAgentMiddlewareMeta = {
-  name: string
-  label: { en_US: string; zh_Hans: string }
-  description: { en_US: string; zh_Hans: string }
-  builtin: true
-  configSchema: {
-    type: 'object'
-    properties: Record<string, never>
-  }
-}
-
-type WeComSandboxBackend = Pick<BaseSandbox, 'execute' | 'uploadFiles' | 'workingDirectory'>
-
-const SANDBOX_SHELL_TOOL_NAME = 'sandbox_shell'
-const DEFAULT_WORKSPACE_ROOT = '/workspace'
-const WECOM_SYSTEM_PROMPT = [
-  'WeCom access is available in `sandbox_shell` through environment variables.',
-  'Use `curl` or your own scripts against `qyapi.weixin.qq.com` and read `WECOM_ACCESS_TOKEN` from the environment.',
-  'Never print, inspect, or return `WECOM_ACCESS_TOKEN` or connector app secrets.'
-].join('\n')
+type HiddenAgentMiddlewareMeta = TAgentMiddlewareMeta & { builtin: true }
+type ConfirmableInput = { confirmation_handle?: string; confirmed?: true }
 
 @Injectable()
 @AgentMiddlewareStrategy(WECOM_CONNECTOR_RUNTIME_MIDDLEWARE_NAME)
 export class WeComConnectorRuntimeMiddleware implements IAgentMiddlewareStrategy<WeComConnectorRuntimeConfig> {
   readonly meta: HiddenAgentMiddlewareMeta = {
     name: WECOM_CONNECTOR_RUNTIME_MIDDLEWARE_NAME,
-    label: {
-      en_US: 'WeCom connector runtime',
-      zh_Hans: '企业微信连接器运行时'
-    },
+    label: { en_US: 'WeCom connector runtime', zh_Hans: '企业微信连接器运行时' },
     description: {
-      en_US: 'Hidden runtime implementation used by the platform connector middleware.',
-      zh_Hans: '供平台连接器中间件调用的隐藏运行时实现。'
+      en_US: 'Hidden runtime implementation for bounded WeCom Agent tools.',
+      zh_Hans: '为企业微信受限 Agent 工具提供隐藏运行时实现。'
     },
+    icon: WECOM_CONNECTOR_ICON_DEFINITION,
     builtin: true,
-    configSchema: {
-      type: 'object',
-      properties: {}
-    }
+    configSchema: { type: 'object', properties: {} }
   }
 
+  constructor(
+    private readonly api: WeComApiClient,
+    private readonly confirmations: WeComConfirmationStore
+  ) {}
+
   createMiddleware(options: WeComConnectorRuntimeConfig, context: IAgentMiddlewareContext): AgentMiddleware {
-    const workspaceId = context.workspaceId
-    const connectorId = readString(options?.connectorId)
-    const connectorRuntime = context.runtime?.capabilities?.get(ConnectorRuntimeCapability) as
-      | ConnectorRuntimeApi
-      | undefined
+    const resolveRuntime = () => resolveRuntimeContext(options, context)
 
     return {
       name: WECOM_CONNECTOR_RUNTIME_MIDDLEWARE_NAME,
-      tools: [],
-      wrapModelCall: async (request, handler) => {
-        const backend = getSandboxBackend(request.runtime)
-        if (!backend) {
-          return handler(request)
-        }
-
-        const baseContent = `${request.systemMessage?.content ?? ''}`.trim()
-        const content = [baseContent, WECOM_SYSTEM_PROMPT].filter(Boolean).join('\n\n')
-
-        return handler({
-          ...request,
-          systemMessage: new SystemMessage({ content })
-        })
-      },
-      wrapToolCall: async (request: ToolCallRequest<AgentBuiltInState>, handler) => {
-        if (!isSandboxShellTool(request.tool)) {
-          return handler(request)
-        }
-
-        const command = getSandboxShellCommand(request)
-        if (!isWeComCommand(command)) {
-          return handler(request)
-        }
-
-        if (!workspaceId) {
-          throw new Error('WeCom connector CLI mode requires workspaceId')
-        }
-        if (!connectorRuntime?.getConnectorCredential) {
-          throw new Error('WeCom connector CLI mode requires Xpert plugin SDK 3.15.15 or later')
-        }
-
-        const backend = getSandboxBackend(request.runtime)
-        if (!backend) {
-          throw new Error('WeCom connector CLI mode requires SandboxShell')
-        }
-
-        const credential = await connectorRuntime.getConnectorCredential({
-          workspaceId,
-          provider: WECOM_CONNECTOR_PROVIDER,
-          ...(connectorId ? { connectorId } : {})
-        })
-
-        const paths = getWeComCredentialPaths(credential, getWeComRuntimePaths(request.runtime))
-        let operationFailed = false
-        let operationError: unknown
-        let cleanupFailed = false
-        let cleanupError: unknown
-        let result: Awaited<ReturnType<typeof handler>> | undefined
-
-        try {
-          await syncConnectorCredential(backend, credential, paths)
-          result = await handler(withConnectorCommand(request, command, paths.envPath))
-        } catch (error) {
-          operationFailed = true
-          operationError = error
-        }
-
-        try {
-          await removeConnectorCredential(backend, paths.envPath)
-        } catch (error) {
-          cleanupFailed = true
-          cleanupError = error
-        }
-
-        if (operationFailed && cleanupFailed) {
-          throw new AggregateError(
-            [operationError, cleanupError],
-            'WeCom connector command failed and its credential file could not be removed'
+      tools: [
+        defineAgentTool<GetContextInput>(
+          async () => {
+            const runtime = await resolveRuntime()
+            const application = mapAgent(await this.api.getAgent(runtime.accessToken, runtime.agentId))
+            return {
+              connectorId: runtime.connectorId,
+              connectedIdentity: compact({
+                userId: runtime.profile.userId,
+                name: runtime.profile.name
+              }),
+              application
+            }
+          },
+          toolFields(
+            'wecom_get_context',
+            'Read the connected WeCom identity, application metadata, and visible-scope counts. Returns no access token or app secret.',
+            'Get WeCom context',
+            '获取企业微信上下文',
+            getContextSchema
           )
-        }
-        if (operationFailed) {
-          throw operationError
-        }
-        if (cleanupFailed) {
-          throw cleanupError
-        }
-        return result
-      }
+        ),
+        defineAgentTool<ListDepartmentsInput>(
+          async (input) => {
+            const runtime = await resolveRuntime()
+            return mapDepartmentList(
+              await this.api.listDepartments(runtime.accessToken, input.parent_department_id),
+              input.parent_department_id,
+              input.limit
+            )
+          },
+          toolFields(
+            'wecom_list_departments',
+            'List a bounded page of direct child department IDs visible to the connected WeCom application. Use wecom_get_department to resolve one department name.',
+            'List WeCom departments',
+            '列出企业微信部门',
+            listDepartmentsSchema
+          )
+        ),
+        defineAgentTool<GetDepartmentInput>(
+          async (input) => {
+            const runtime = await resolveRuntime()
+            return mapDepartment(await this.api.getDepartment(runtime.accessToken, input.department_id))
+          },
+          toolFields(
+            'wecom_get_department',
+            'Read one exact visible WeCom department by department ID.',
+            'Get WeCom department',
+            '获取企业微信部门',
+            getDepartmentSchema
+          )
+        ),
+        defineAgentTool<ListDepartmentMembersInput>(
+          async (input) => {
+            const runtime = await resolveRuntime()
+            return mapDepartmentMembers(
+              await this.api.listDepartmentMembers(runtime.accessToken, input.department_id),
+              input.limit
+            )
+          },
+          toolFields(
+            'wecom_list_department_members',
+            'List a bounded page of member summaries in one exact visible WeCom department. This does not recurse into child departments.',
+            'List department members',
+            '列出部门成员',
+            listDepartmentMembersSchema
+          )
+        ),
+        defineAgentTool<GetMemberInput>(
+          async (input) => {
+            const runtime = await resolveRuntime()
+            return mapMember(await this.api.getMember(runtime.accessToken, input.user_id))
+          },
+          toolFields(
+            'wecom_get_member',
+            'Read an allowlisted business profile for one exact visible WeCom user ID. Mobile, email, address, and raw provider fields are omitted.',
+            'Get WeCom member',
+            '获取企业微信成员',
+            getMemberSchema
+          )
+        ),
+        defineAgentTool<ListTagsInput>(
+          async (input) => {
+            const runtime = await resolveRuntime()
+            return mapTagList(await this.api.listTags(runtime.accessToken), input.limit)
+          },
+          toolFields(
+            'wecom_list_tags',
+            'List a bounded page of tags visible to the connected WeCom application.',
+            'List WeCom tags',
+            '列出企业微信标签',
+            listTagsSchema
+          )
+        ),
+        defineAgentTool<GetTagMembersInput>(
+          async (input) => {
+            const runtime = await resolveRuntime()
+            return mapTagMembers(await this.api.getTagMembers(runtime.accessToken, input.tag_id), input.limit)
+          },
+          toolFields(
+            'wecom_get_tag_members',
+            'Read bounded member and department membership for one exact visible WeCom tag.',
+            'Get tag members',
+            '获取标签成员',
+            getTagMembersSchema
+          )
+        ),
+        defineAgentTool<SendTextMessageInput>(
+          async (input) => {
+            const runtime = await resolveRuntime()
+            const operationArguments = { userIds: input.to_user_ids, content: input.content }
+            return this.executeMutation({
+              runtime,
+              operation: 'send_text_message',
+              input,
+              arguments: operationArguments,
+              summary: { recipients: input.to_user_ids, messageType: 'text', content: input.content },
+              execute: async () =>
+                mapMessageReceipt(
+                  await this.api.sendMessage({
+                    accessToken: runtime.accessToken,
+                    agentId: runtime.agentId,
+                    userIds: input.to_user_ids,
+                    message: { type: 'text', content: input.content }
+                  }),
+                  'send_text_message'
+                )
+            })
+          },
+          toolFields(
+            'wecom_send_text_message',
+            'Prepare or send one WeCom application text message to explicit user IDs only. The first call returns confirmation_required; repeat the exact call with its confirmation_handle and confirmed=true only after explicit user confirmation.',
+            'Send WeCom text',
+            '发送企业微信文本',
+            sendTextMessageSchema
+          )
+        ),
+        defineAgentTool<SendMarkdownMessageInput>(
+          async (input) => {
+            const runtime = await resolveRuntime()
+            const operationArguments = { userIds: input.to_user_ids, content: input.content }
+            return this.executeMutation({
+              runtime,
+              operation: 'send_markdown_message',
+              input,
+              arguments: operationArguments,
+              summary: { recipients: input.to_user_ids, messageType: 'markdown', content: input.content },
+              execute: async () =>
+                mapMessageReceipt(
+                  await this.api.sendMessage({
+                    accessToken: runtime.accessToken,
+                    agentId: runtime.agentId,
+                    userIds: input.to_user_ids,
+                    message: { type: 'markdown', content: input.content }
+                  }),
+                  'send_markdown_message'
+                )
+            })
+          },
+          toolFields(
+            'wecom_send_markdown_message',
+            'Prepare or send one WeCom application Markdown message to explicit user IDs only. The first call requires confirmation and does not send.',
+            'Send WeCom Markdown',
+            '发送企业微信 Markdown',
+            sendMarkdownMessageSchema
+          )
+        ),
+        defineAgentTool<SendFileMessageInput>(
+          async (input) => {
+            const source = await prepareWorkspaceFile(context, input.file)
+            const runtime = await resolveRuntime()
+            const operationArguments = {
+              userIds: input.to_user_ids,
+              file: {
+                name: source.fileName,
+                size: source.size,
+                sha256: source.sha256,
+                workspacePath: source.workspacePath
+              }
+            }
+            return this.executeMutation({
+              runtime,
+              operation: 'send_file_message',
+              input,
+              arguments: operationArguments,
+              summary: { recipients: input.to_user_ids, messageType: 'file', file: operationArguments.file },
+              execute: async () => {
+                const media = mapMedia(
+                  await this.api.uploadFile({
+                    accessToken: runtime.accessToken,
+                    fileName: source.fileName,
+                    mimeType: source.mimeType,
+                    buffer: source.buffer
+                  })
+                )
+                if (!media.mediaId) {
+                  throw new WeComConnectorError('PROVIDER_REJECTED', 'WeCom did not return a media ID for the file.')
+                }
+                return {
+                  ...mapMessageReceipt(
+                    await this.api.sendMessage({
+                      accessToken: runtime.accessToken,
+                      agentId: runtime.agentId,
+                      userIds: input.to_user_ids,
+                      message: { type: 'file', mediaId: media.mediaId }
+                    }),
+                    'send_file_message'
+                  ),
+                  file: operationArguments.file
+                }
+              }
+            })
+          },
+          toolFields(
+            'wecom_send_file_message',
+            'Prepare or send one Workspace Files object as a WeCom file message to explicit user IDs. Reads at most 20 MiB, binds confirmation to the SHA-256 digest, and never exposes Base64.',
+            'Send WeCom file',
+            '发送企业微信文件',
+            sendFileMessageSchema
+          )
+        ),
+        defineAgentTool<RecallMessageInput>(
+          async (input) => {
+            const runtime = await resolveRuntime()
+            const operationArguments = { messageId: input.message_id }
+            return this.executeMutation({
+              runtime,
+              operation: 'recall_message',
+              input,
+              arguments: operationArguments,
+              summary: { messageId: input.message_id },
+              execute: async () => ({
+                ...mapMessageReceipt(
+                  await this.api.recallMessage(runtime.accessToken, input.message_id),
+                  'recall_message'
+                ),
+                messageId: input.message_id
+              })
+            })
+          },
+          toolFields(
+            'wecom_recall_message',
+            'Prepare or recall one application message by exact message ID. WeCom only permits recall within its provider time window. The first call does not recall.',
+            'Recall WeCom message',
+            '撤回企业微信消息',
+            recallMessageSchema
+          )
+        )
+      ]
     }
   }
-}
 
-function getSandboxBackend(runtime: Runtime | undefined): WeComSandboxBackend | null {
-  const backend = runtime?.configurable?.sandbox?.backend
-  if (backend && typeof (backend as BaseSandbox).execute === 'function') {
-    return backend as BaseSandbox
+  private async executeMutation(input: {
+    runtime: WeComRuntimeCredential
+    operation: string
+    input: ConfirmableInput
+    arguments: Record<string, unknown>
+    summary: Record<string, unknown>
+    execute: () => Promise<unknown>
+  }) {
+    if (!input.input.confirmation_handle) {
+      const confirmation = this.confirmations.create({
+        connectorId: input.runtime.connectorId,
+        operation: input.operation,
+        arguments: input.arguments
+      })
+      return {
+        status: 'confirmation_required',
+        errorCode: 'CONFIRMATION_REQUIRED',
+        confirmationHandle: confirmation.handle,
+        expiresAt: confirmation.expiresAt,
+        operationSummary: input.summary,
+        nextAction:
+          'Request explicit user confirmation through Xpert structured human input, then repeat the exact tool call with confirmation_handle and confirmed=true.'
+      }
+    }
+    if (input.input.confirmed !== true) {
+      throw new WeComConnectorError('CONFIRMATION_INVALID', 'Explicit structured user confirmation is required.')
+    }
+    this.confirmations.take({
+      handle: input.input.confirmation_handle,
+      connectorId: input.runtime.connectorId,
+      operation: input.operation,
+      arguments: input.arguments
+    })
+    return input.execute()
   }
-  return null
 }
 
-function getWeComRuntimePaths(runtime: Runtime | undefined) {
-  const configurable = runtime?.configurable as Record<string, unknown> | undefined
-  const sandbox = configurable?.['sandbox']
-  const sandboxRecord = isRecord(sandbox) ? sandbox : {}
-  const backend = sandboxRecord['backend']
-  const backendWorkingDirectory = isRecord(backend) ? readString(backend['workingDirectory']) : undefined
-  const workspaceRoot =
-    normalizeAbsolutePath(sandboxRecord['workspaceRoot']) ??
-    normalizeAbsolutePath(sandboxRecord['workingDirectory']) ??
-    normalizeAbsolutePath(backendWorkingDirectory) ??
-    DEFAULT_WORKSPACE_ROOT
+async function resolveRuntimeContext(
+  options: WeComConnectorRuntimeConfig,
+  context: IAgentMiddlewareContext
+): Promise<WeComRuntimeCredential> {
+  if (!context.workspaceId) {
+    throw new WeComConnectorError('RUNTIME_UNAVAILABLE', 'The WeCom connector requires a workspace ID.')
+  }
+  const connectorRuntime = context.runtime.capabilities?.get(ConnectorRuntimeCapability) as
+    | ConnectorRuntimeApi
+    | undefined
+  if (!connectorRuntime?.getConnectorCredential) {
+    throw new WeComConnectorError(
+      'RUNTIME_UNAVAILABLE',
+      'The WeCom connector requires the multi-auth connector runtime capability.'
+    )
+  }
+  const stored = await connectorRuntime.getConnectorCredential({
+    workspaceId: context.workspaceId,
+    provider: WECOM_CONNECTOR_PROVIDER,
+    ...(options.connectorId ? { connectorId: options.connectorId } : {})
+  })
+  return readRuntimeCredential(stored)
+}
 
+function readRuntimeCredential(value: ConnectorRuntimeCredentialV2): WeComRuntimeCredential {
+  const accessToken = readString(value.credentials.accessToken)
+  const corpId = readString(value.credentials.corpId)
+  const agentId = readString(value.credentials.agentId)
+  if (!value.connectorId || !accessToken || !corpId || !agentId) {
+    throw new WeComConnectorError('TOKEN_EXPIRED', 'The WeCom runtime credential is incomplete. Reconnect and retry.')
+  }
+  const profile = value.profile as Record<string, unknown> | undefined
   return {
-    workspaceRoot,
-    connectorEnvDir: path.join(workspaceRoot, '.xpert', 'secrets', 'wecom-connectors')
+    connectorId: value.connectorId,
+    accessToken,
+    corpId,
+    agentId,
+    profile: compact({
+      userId: readString(profile?.userId),
+      name: readString(profile?.name)
+    })
   }
 }
 
-function isSandboxShellTool(toolValue: { name?: string } | Record<string, unknown>) {
-  return toolValue?.name === SANDBOX_SHELL_TOOL_NAME
-}
-
-function getSandboxShellCommand(request: ToolCallRequest<AgentBuiltInState>) {
-  const args = request.toolCall?.args
-  if (!args || typeof args !== 'object') {
-    return ''
-  }
-  const command = Reflect.get(args, 'command')
-  return typeof command === 'string' ? command : ''
-}
-
-function isWeComCommand(command: string) {
-  return /(?:qyapi\.weixin\.qq\.com|open\.work\.weixin\.qq\.com|\bwecom\b)/i.test(command)
-}
-
-async function syncConnectorCredential(
-  backend: WeComSandboxBackend,
-  credential: ConnectorRuntimeCredentialV2,
-  paths: { envDir: string; envPath: string }
+function toolFields(
+  name: string,
+  description: string,
+  en_US: string,
+  zh_Hans: string,
+  schema: Parameters<typeof defineAgentTool>[1]['schema']
 ) {
-  if (typeof backend.uploadFiles !== 'function') {
-    throw new Error('Sandbox backend does not support secure uploads required for WeCom connector credentials')
-  }
-
-  const accessToken = readRuntimeAccessToken(credential.credentials)
-  const prepared = await backend.execute(
-    `mkdir -p ${shellQuote(paths.envDir)} && chmod 700 ${shellQuote(paths.envDir)}`
-  )
-  if (prepared.exitCode !== 0) {
-    throw new Error(`Failed to prepare WeCom connector credential directory: ${prepared.output || 'Unknown error'}`)
-  }
-
-  const uploaded = await backend.uploadFiles([
-    [toUploadPath(backend, paths.envPath), Buffer.from(buildConnectorEnv(credential, accessToken), 'utf8')]
-  ])
-  if (!Array.isArray(uploaded) || uploaded.length !== 1 || uploaded[0]?.error) {
-    throw new Error('Failed to upload WeCom connector credential file')
-  }
-
-  const protectedFile = await backend.execute(`chmod 600 ${shellQuote(paths.envPath)}`)
-  if (protectedFile.exitCode !== 0) {
-    throw new Error(`Failed to protect WeCom connector credential file: ${protectedFile.output || 'Unknown error'}`)
-  }
-}
-
-function getWeComCredentialPaths(credential: ConnectorRuntimeCredentialV2, paths: { connectorEnvDir: string }) {
-  if (!credential.connectorId) {
-    throw new Error('WeCom connector runtime credential is missing connectorId')
-  }
-
-  const envDir = path.join(paths.connectorEnvDir, safePathSegment(credential.connectorId))
   return {
-    envDir,
-    envPath: path.join(envDir, `env-${randomUUID()}`)
+    name,
+    description,
+    schema,
+    verboseParsingErrors: true as const,
+    metadata: { toolName: { en_US, zh_Hans } }
   }
 }
 
-async function removeConnectorCredential(backend: WeComSandboxBackend, envPath: string) {
-  const removed = await backend.execute(`rm -f ${shellQuote(envPath)}`)
-  if (removed.exitCode !== 0) {
-    throw new Error(`Failed to remove WeCom connector credential file: ${removed.output || 'Unknown error'}`)
-  }
-}
-
-function buildConnectorEnv(credential: ConnectorRuntimeCredentialV2, accessToken: string) {
-  const data = credential.credentials as Record<string, unknown>
-  const profile = credential.profile as Record<string, unknown> | undefined
-
-  return [
-    `export WECOM_ACCESS_TOKEN=${shellQuote(accessToken)}`,
-    `export WECOM_CORP_ID=${shellQuote(readString(data.corpId) ?? '')}`,
-    `export WECOM_AGENT_ID=${shellQuote(readString(data.agentId) ?? '')}`,
-    `export WECOM_USER_ID=${shellQuote(readString(profile?.userId) ?? '')}`,
-    `export WECOM_OPEN_ID=${shellQuote(readString(profile?.openId) ?? '')}`,
-    `export WECOM_UNION_ID=${shellQuote(readString(profile?.unionId) ?? '')}`,
-    `export WECOM_API_BASE=${shellQuote('https://qyapi.weixin.qq.com')}`
-  ].join('\n')
-}
-
-function withConnectorCommand(
-  request: ToolCallRequest<AgentBuiltInState>,
-  command: string,
-  envPath: string
-): ToolCallRequest<AgentBuiltInState> {
-  return {
-    ...request,
-    toolCall: {
-      ...request.toolCall,
-      args: {
-        ...((request.toolCall?.args as Record<string, unknown>) ?? {}),
-        command: `. ${shellQuote(envPath)} && ${command}`
-      }
-    }
-  }
-}
-
-function readRuntimeAccessToken(value: Record<string, unknown>) {
-  return requireString(value.accessToken, 'WeCom connector access token is missing')
-}
-
-function shellQuote(value: string) {
-  return `'${value.replace(/'/g, `'\\''`)}'`
-}
-
-function toUploadPath(backend: WeComSandboxBackend, envPath: string) {
-  const normalizedTargetPath = path.normalize(envPath)
-  const workingDirectory = normalizeAbsolutePath(backend.workingDirectory)
-  if (!path.isAbsolute(normalizedTargetPath) || !workingDirectory) {
-    return normalizedTargetPath
-  }
-
-  const relativePath = path.relative(workingDirectory, normalizedTargetPath)
-  if (!relativePath || path.isAbsolute(relativePath)) {
-    return normalizedTargetPath
-  }
-
-  return path.normalize(path.join(workingDirectory, relativePath)) === normalizedTargetPath
-    ? relativePath
-    : normalizedTargetPath
-}
-
-function normalizeAbsolutePath(value: unknown) {
-  const normalized = readString(value)
-  return normalized && normalized.startsWith('/') ? normalized : undefined
-}
-
-function safePathSegment(value: string) {
-  return value.replace(/[^a-zA-Z0-9._-]/g, '_')
-}
-
-function readString(value: unknown) {
-  return typeof value === 'string' && value.trim() ? value.trim() : undefined
-}
-
-function requireString(value: unknown, message: string) {
-  const result = readString(value)
-  if (!result) {
-    throw new Error(message)
-  }
-  return result
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value)
+function compact<T extends Record<string, unknown>>(value: T) {
+  return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined)) as T
 }
