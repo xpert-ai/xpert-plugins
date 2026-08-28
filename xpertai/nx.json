@@ -130,6 +130,7 @@
       "@xpert-ai/plugin-kling",
       "@xpert-ai/plugin-veo",
       "@xpert-ai/plugin-netease-mail-connector",
+      "@xpert-ai/plugin-ctrip-wendao-connector",
       "@xpert-ai/plugin-kdocs-connector",
       "@xpert-ai/plugin-wps-knowledge-connector",
       "@xpert-ai/plugin-notion-connector",

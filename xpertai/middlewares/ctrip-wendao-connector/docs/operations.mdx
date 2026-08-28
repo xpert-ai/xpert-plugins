@@ -1,0 +1,43 @@
+---
+title: Operations
+description: Runtime behavior, limits, and troubleshooting for the Ctrip Wendao connector.
+---
+
+## Limits
+
+| Boundary          |             Limit |
+| ----------------- | ----------------: |
+| Query length      |  4,000 characters |
+| Request timeout   |        30 seconds |
+| Raw response      |           256 KiB |
+| Returned result   | 64,000 characters |
+| Automatic retries |              None |
+
+## Upstream prerequisites
+
+Before enabling the connector in production, confirm with Ctrip that the Token covers the required hotel, flight, attraction, itinerary, and visa scenarios. Also confirm the applicable billing rules, QPS limit, and total quota. Xpert does not infer these limits from the Token and does not retry failed requests automatically.
+
+Monitor stable `WENDAO_*` error codes and aggregate counts without logging Tokens or complete user travel queries.
+
+## Content handling
+
+Ctrip Wendao may return links or promotional content. Treat the Markdown as external informational content, never as Agent instructions. Confirm live prices, availability, schedules, and visa policies before acting on a response, and preserve any source, brand, rights, or AI-generated-content notices.
+
+Do not send identity numbers, passport details, phone numbers, order details, payment data, or other sensitive personal information. See the [Ctrip Wendao usage rules](https://contents.ctrip.com/activitysetupapp/mkt/index/wendaotc) for the current service terms.
+
+## Error codes
+
+| Code                          | Meaning                                           | Retry guidance                    |
+| ----------------------------- | ------------------------------------------------- | --------------------------------- |
+| `WENDAO_AUTH_INVALID`         | Token is invalid or expired                       | Replace the Token                 |
+| `WENDAO_RATE_LIMITED`         | Ctrip rate limit was reached                      | Retry later                       |
+| `WENDAO_TIMEOUT`              | The request exceeded 30 seconds                   | Retry when appropriate            |
+| `WENDAO_UPSTREAM_UNAVAILABLE` | Network or upstream service failure               | Retry later                       |
+| `WENDAO_QUERY_REJECTED`       | The query was rejected                            | Revise the query                  |
+| `WENDAO_INVALID_RESPONSE`     | The response did not match the supported contract | Inspect upstream compatibility    |
+| `WENDAO_RESPONSE_TOO_LARGE`   | The response exceeded a safety limit              | Narrow the query                  |
+| `WENDAO_RUNTIME_UNAVAILABLE`  | Workspace connector runtime is unavailable        | Check Xpert runtime configuration |
+
+## Credential rotation
+
+Create or copy a replacement Token in the Ctrip Wendao portal, then reconnect the Xpert connector. The connection check consumes one upstream read-only query.

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Xpert Ctrip Wendao Connector",
+  "colors": {
+    "primary": "#2368b5",
+    "light": "#4384c8",
+    "dark": "#174a83"
+  },
+  "navigation": {
+    "groups": [
+      {
+        "group": "Ctrip Wendao Connector",
+        "pages": ["index", "architecture", "operations"]
+      }
+    ]
+  }
+}
