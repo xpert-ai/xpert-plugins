@@ -27,7 +27,9 @@ describe('DingTalkConnectorStrategy', () => {
       size: 24
     })
     expect(strategy.definition.authMethods).toEqual([expect.objectContaining({ id: 'oauth2', type: 'oauth2' })])
-    expect(strategy.definition.authMethods[0].appCredentials).toEqual({
+    const authMethod = strategy.definition.authMethods[0]
+    if (authMethod.type !== 'oauth2') throw new Error('Expected OAuth2 connector method')
+    expect(authMethod.appCredentials).toEqual({
       help: expect.objectContaining({
         url: '/settings/integration/create?provider=dingtalk-connector'
       })

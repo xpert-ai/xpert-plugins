@@ -51,8 +51,8 @@ export class DingTalkConnectorIntegrationStrategy implements IntegrationStrategy
           type: 'string',
           title: i18n('Robot Code', '机器人编码'),
           description: i18n(
-            'Optional. Required by dingtalk_send_message. Find it in DingTalk Open Platform under Application > Robot.',
-            '可选。使用 dingtalk_send_message 时必填，可在钉钉开放平台的“应用 > 机器人”中获取。'
+            'Optional. Required by DingTalk CLI bot messaging commands. Find it in DingTalk Open Platform under Application > Robot.',
+            '可选。使用钉钉 CLI 的机器人消息命令时必填，可在钉钉开放平台的“应用 > 机器人”中获取。'
           )
         }
       },
