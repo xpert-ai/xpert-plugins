@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module'
 import plugin from './index.js'
 import {
   PRESENTATION_COLLABORATION_CAPABILITY,
@@ -7,10 +8,12 @@ import {
   PRESENTATION_WORKBENCH_CAPABILITY
 } from './lib/constants.js'
 
+const packageJson = createRequire(import.meta.url)('../package.json') as { version: string }
+
 describe('Presentation Studio plugin', () => {
   it('publishes aligned system Agentic App metadata', () => {
     expect(plugin.meta.name).toBe('@xpert-ai/plugin-presentation-studio')
-    expect(plugin.meta.version).toBe('0.6.4')
+    expect(plugin.meta.version).toBe(packageJson.version)
     expect(plugin.meta.level).toBe('system')
     expect(plugin.meta.targetApps).toEqual(['data-xpert', 'xpert'])
     const capabilities = plugin.meta.targetAppMeta?.['data-xpert']?.capabilities ?? []

@@ -1214,6 +1214,9 @@ importers:
       html-to-image:
         specifier: ^1.11.13
         version: 1.11.13
+      js-sha256:
+        specifier: 1.0.0
+        version: 1.0.0
       jszip:
         specifier: 3.10.1
         version: 3.10.1
@@ -13225,6 +13228,9 @@ packages:
 
   js-md4@0.3.2:
     resolution: {integrity: sha512-/GDnfQYsltsjRswQhN9fhv3EMw2sCpUdrdxyWDOUK7eyD++r3gRhzgiQgc/x4MAv2i1iuQ4lxO5mvqM3vj4bwA==}
+
+  js-sha256@1.0.0:
+    resolution: {integrity: sha512-Bqxf6ENUzYIMzuELCmRNrJOVbjKH1oMgbfYJBKVr/W1Xf9fazpahqCbb24v1pR7XV1isuqhM+w9KWpK7zCyUQw==}
 
   js-tiktoken@1.0.21:
     resolution: {integrity: sha512-biOj/6M5qdgx5TKjDnFT1ymSpM5tbd3ylwDtrQvFQSu0Z7bBYko2dF+W/aUkXUPuk6IVpRxk/3Q2sHOzGlS36g==}
@@ -27929,6 +27935,8 @@ snapshots:
       react: 18.3.1
 
   js-md4@0.3.2: {}
+
+  js-sha256@1.0.0: {}
 
   js-tiktoken@1.0.21:
     dependencies:
