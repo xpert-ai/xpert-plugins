@@ -1,0 +1,20 @@
+---
+title: Architecture
+description: Credential, runtime, request, and response boundaries for the Ctrip Wendao connector.
+---
+
+## Credential flow
+
+The connector declares one `api_key` authentication method with a secret `apiToken` field. The organization-level connector service encrypts the credential in the platform vault. Agent tools receive only the selected connector ID and ask `ConnectorRuntimeCapability` to resolve the credential inside the server runtime.
+
+The Token is never included in tool output, plugin logs, connector profiles, or Agent-visible configuration.
+
+## Request flow
+
+`query_ctrip_wendao` validates and trims a query of at most 4,000 characters. The client sends a single JSON `POST` request to the fixed Ctrip Wendao endpoint with a 30-second timeout. Requests are not retried automatically.
+
+## Response boundary
+
+The client reads at most 256 KiB of response data and exposes at most 64,000 characters from the `result` field. It never returns the upstream response object because that object may contain request state, including the Token.
+
+Both HTTP status errors and structured business errors are mapped to stable `WENDAO_*` error codes.

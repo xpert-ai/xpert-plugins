@@ -1,0 +1,20 @@
+{
+  "name": "@xpert-ai/plugin-ctrip-wendao-connector",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "middlewares/ctrip-wendao-connector/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "middlewares/ctrip-wendao-connector/dist",
+        "main": "middlewares/ctrip-wendao-connector/src/index.ts",
+        "rootDir": "middlewares/ctrip-wendao-connector/src",
+        "tsConfig": "middlewares/ctrip-wendao-connector/tsconfig.lib.json",
+        "generatePackageJson": false
+      }
+    }
+  },
+  "tags": []
+}

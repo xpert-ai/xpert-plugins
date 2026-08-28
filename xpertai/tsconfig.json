@@ -313,6 +313,9 @@
       "path": "./middlewares/netease-mail-connector"
     },
     {
+      "path": "./middlewares/ctrip-wendao-connector"
+    },
+    {
       "path": "./middlewares/kdocs-connector"
     },
     {
