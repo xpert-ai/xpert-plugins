@@ -1,5 +1,4 @@
 export const TENCENT_MAP_PLUGIN_LEVEL = 'organization' as const
-export const TENCENT_MAP_ARTIFACT_NAMESPACE = 'tencent_map_connector' as const
 export const TENCENT_MAP_CONNECTOR_PROVIDER = 'tencent-map'
 export const TENCENT_MAP_AUTH_METHOD_ID = 'api-key'
 export const TENCENT_MAP_RUNTIME_MIDDLEWARE_NAME = `ConnectorRuntime:${TENCENT_MAP_CONNECTOR_PROVIDER}`

@@ -45,8 +45,7 @@
   },
   "xpert": {
     "plugin": {
-      "level": "organization",
-      "artifactNamespace": "tencent_map_connector"
+      "level": "organization"
     }
   },
   "dependencies": {

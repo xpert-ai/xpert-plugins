@@ -3,10 +3,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import { TENCENT_MAP_ICON } from './lib/branding.js'
-import {
-  TENCENT_MAP_ARTIFACT_NAMESPACE,
-  TENCENT_MAP_PLUGIN_LEVEL
-} from './lib/constants.js'
+import { TENCENT_MAP_PLUGIN_LEVEL } from './lib/constants.js'
 import {
   TencentMapPluginConfigFormSchema,
   TencentMapPluginConfigSchema
@@ -24,7 +21,6 @@ const plugin: XpertPlugin = {
     name: packageJson.name,
     version: packageJson.version,
     level: TENCENT_MAP_PLUGIN_LEVEL,
-    artifactNamespace: TENCENT_MAP_ARTIFACT_NAMESPACE,
     category: 'middleware',
     icon: TENCENT_MAP_ICON,
     displayName: 'Tencent Maps Connector',
@@ -51,7 +47,6 @@ export { TencentMapWebServiceClient } from './lib/client/tencent-map-webservice.
 export { TencentMapConnectorRuntimeMiddleware } from './lib/middlewares/tencent-map-connector-runtime.middleware.js'
 export { TencentMapPluginConfigFormSchema, TencentMapPluginConfigSchema } from './lib/plugin-config.js'
 export {
-  TENCENT_MAP_ARTIFACT_NAMESPACE,
   TENCENT_MAP_AUTH_METHOD_ID,
   TENCENT_MAP_CONNECTOR_PROVIDER,
   TENCENT_MAP_PLUGIN_LEVEL,
