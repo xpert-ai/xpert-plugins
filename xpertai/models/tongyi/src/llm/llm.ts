@@ -1,6 +1,6 @@
 import { HumanMessage } from '@langchain/core/messages'
 import { ClientOptions } from '@langchain/openai'
-import { AiModelTypeEnum, ICopilotModel } from '@xpert-ai/contracts'
+import { AiModelTypeEnum, ICopilotModel, ParameterRule } from '@xpert-ai/contracts'
 import { Injectable, Logger } from '@nestjs/common'
 import { ChatOAICompatReasoningModel, LargeLanguageModel, TChatModelOptions } from '@xpert-ai/plugin-sdk'
 import { isNil, omitBy } from 'lodash-es'
@@ -386,7 +386,7 @@ export class TongyiLargeLanguageModel extends LargeLanguageModel {
     super(modelProvider, AiModelTypeEnum.LLM)
   }
 
-  protected override _commonParameterRules(model: string) {
+  protected override _commonParameterRules(model: string): ParameterRule[] {
     const rules = super._commonParameterRules(model)
     if (!TONGYI_FIXED_SAMPLING_AND_REASONING_MODELS.has(model)) return rules
     return rules.filter((rule) => rule.name !== 'temperature')
