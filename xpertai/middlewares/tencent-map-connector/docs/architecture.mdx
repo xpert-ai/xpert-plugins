@@ -1,0 +1,34 @@
+---
+title: Architecture
+description: Credential, runtime, request, and response boundaries.
+---
+
+## Runtime flow
+
+```text
+Workspace connector
+  -> encrypted platform vault credential
+  -> ConnectorRuntime:tencent-map
+  -> bounded Agent tool
+  -> fixed Tencent Maps WebService endpoint
+  -> allowlisted DTO
+```
+
+The plugin registers a connector strategy and a hidden Agent middleware strategy. The host selects the connector by `provider=tencent-map`, resolves the credential only for the active workspace, and passes it to the runtime middleware.
+
+## WebService client
+
+WebService calls are stateless. The client receives the workspace-scoped credential only for the active tool call and does not retain a session or credential fingerprint.
+
+The origin is hard-coded to `https://apis.map.qq.com`, and each operation selects one reviewed path. The origin is not plugin-configurable, which prevents endpoint-based SSRF. Redirects are rejected, request URLs and responses are bounded, and Key-bearing query strings are redacted from errors.
+
+## Trust boundaries
+
+- Plugin level: `organization`
+- Artifact namespace: `tencent_map_connector`
+- Credential storage: `platform_vault`
+- Permission: `map.read`
+- Provider mutations: none
+- Human confirmation: not required because all tools are idempotent reads
+
+Responses must contain a numeric Tencent Maps `status`, are rejected above 1 MiB, and are explicitly mapped. Successful geocoding, reverse geocoding, routing, matrix, weather, and IP calls must also contain their required business fields. Raw provider payloads, polylines, and unknown fields do not enter the Agent context.

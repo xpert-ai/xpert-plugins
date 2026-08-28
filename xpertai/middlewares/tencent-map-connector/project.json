@@ -1,0 +1,20 @@
+{
+  "name": "@xpert-ai/plugin-tencent-map-connector",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "middlewares/tencent-map-connector/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "middlewares/tencent-map-connector/dist",
+        "main": "middlewares/tencent-map-connector/src/index.ts",
+        "rootDir": "middlewares/tencent-map-connector/src",
+        "tsConfig": "middlewares/tencent-map-connector/tsconfig.lib.json",
+        "generatePackageJson": false
+      }
+    }
+  },
+  "tags": []
+}

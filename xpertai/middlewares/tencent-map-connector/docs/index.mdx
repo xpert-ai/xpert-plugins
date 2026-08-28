@@ -1,0 +1,24 @@
+---
+title: Tencent Maps Connector
+description: Connect Xpert Agents to the official Tencent Maps WebService API.
+---
+
+The Tencent Maps connector adds bounded, read-only location tools to Xpert Agents. The plugin uses Xpert's connector vault for credentials and calls fixed official Tencent Maps WebService endpoints.
+
+## Prerequisites
+
+1. Create an application in the [Tencent Location Services console](https://lbs.qq.com/dev/console/application/mine).
+2. Create a Key with WebService API access.
+3. Ensure the deployment can reach `https://apis.map.qq.com` over HTTPS.
+
+## Connect
+
+In the Xpert workspace connector page, select **Tencent Maps**, enter the developer Key, and save. The connector performs one address geocoding request to prove that the Key can execute a real location operation.
+
+The platform encrypts the Key. Connection status and tool responses never include it.
+
+## Coordinate contract
+
+All input and output coordinates are `{ lat, lng }` objects in GCJ-02. The adapter converts these objects to Tencent's `lat,lng` wire format. Convert WGS84 or BD-09 coordinates before calling the tools.
+
+Read the [official Tencent Maps WebService guide](https://lbs.qq.com/service/webService/webServiceGuide/webServiceOverview) and [status code reference](https://lbs.qq.com/service/webService/webServiceGuide/status) for provider behavior and quota details.

@@ -1,0 +1,48 @@
+---
+title: Tool Contracts
+description: Agent tool names, inputs, limits, and upstream mappings.
+---
+
+## Connection and address
+
+| Agent tool | Core input | WebService endpoint |
+| --- | --- | --- |
+| `tencent_map_connection_status` | none | none |
+| `tencent_map_geocode` | `address` | `/ws/geocoder/v1/?address=...` |
+| `tencent_map_reverse_geocode` | `location` | `/ws/geocoder/v1/?location=...` |
+
+## Places
+
+| Agent tool | Core input | WebService endpoint |
+| --- | --- | --- |
+| `tencent_map_search_places` | `keyword`, optional `region`, `page`, `pageSize` | `/ws/place/v1/suggestion` |
+| `tencent_map_search_nearby` | `keyword`, `location`, `radiusMeters`, `autoExtend`, pagination | `/ws/place/v1/search` |
+| `tencent_map_get_place` | exact POI `id` | `/ws/place/v1/detail` |
+| `tencent_map_search_along_route` | `from`, `to`, `keyword` | driving route, then `/ws/place/v1/alongby` |
+
+Place results are capped at 20 POI summaries per call. Page numbers are limited to 1-10. Nearby radius is limited to 10-1000 meters. Along-route search consumes two provider requests and requires the advanced along-route permission.
+
+## Routes and utilities
+
+| Agent tool | Core input | WebService endpoint |
+| --- | --- | --- |
+| `tencent_map_route_driving` | `from`, `to` | `/ws/direction/v1/driving` |
+| `tencent_map_route_transit` | `from`, `to`, policies | `/ws/direction/v1/transit` |
+| `tencent_map_route_walking` | `from`, `to` | `/ws/direction/v1/walking` |
+| `tencent_map_route_bicycling` | `from`, `to` | `/ws/direction/v1/bicycling` |
+| `tencent_map_route_future_driving` | `from`, `to`, `departure_time` | driving with `departure_time` |
+| `tencent_map_optimize_waypoints` | `from`, `to`, 1-16 `waypoints` | driving with `waypoint_order=1` |
+| `tencent_map_distance_matrix` | origins, destinations, mode | `/ws/distance/v1/matrix` |
+| `tencent_map_weather` | exactly one of `adcode` or `location` | `/ws/weather/v1/` |
+| `tencent_map_ip_location` | explicit IPv4 or IPv6 `ip` | `/ws/location/v1/ip` |
+
+Future departure time is a Unix timestamp from now through seven days. Future driving and waypoint ordering require advanced provider permissions. Matrix dimensions may be up to 25 on either side, but their product cannot exceed 100. Route results include concise steps and omit raw polylines.
+
+## Timeouts
+
+- Connection validation: 15 seconds
+- Normal calls: 30 seconds
+- Routes, matrices, and waypoint optimization: 45 seconds
+- Response size: 1 MiB
+
+Provider quotas still apply and can be lower than connector limits.

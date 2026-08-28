@@ -132,7 +132,8 @@
       "@xpert-ai/plugin-netease-mail-connector",
       "@xpert-ai/plugin-kdocs-connector",
       "@xpert-ai/plugin-wps-knowledge-connector",
-      "@xpert-ai/plugin-notion-connector"
+      "@xpert-ai/plugin-notion-connector",
+      "@xpert-ai/plugin-tencent-map-connector"
     ],
     "version": {
       "preVersionCommand": "npx nx run-many -t build && npx nx run-many -t prepack"
