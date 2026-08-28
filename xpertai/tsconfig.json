@@ -320,6 +320,9 @@
     },
     {
       "path": "./middlewares/notion-connector"
+    },
+    {
+      "path": "./middlewares/tencent-map-connector"
     }
   ]
 }

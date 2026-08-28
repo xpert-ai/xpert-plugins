@@ -1,0 +1,4 @@
+- Keep documented Tencent Maps WebService endpoints, argument formats, response limits, coordinate system, and timeout values synchronized with the implementation.
+- Never include a real Tencent Location Services Key, a full Key-bearing WebService URL, private IP address, tenant identifier, or workspace identifier.
+- Document all connector capabilities as read-only unless the implementation and permission model explicitly change.
+- Link to Tencent Location Services primary documentation for provider behavior and quotas.

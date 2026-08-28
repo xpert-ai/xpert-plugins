@@ -1,0 +1,43 @@
+---
+title: Operations
+description: Deployment, security, observability, and troubleshooting guidance.
+---
+
+## Build and deploy
+
+Run type checking, tests, and a production build before local deployment:
+
+```bash
+pnpm exec nx run @xpert-ai/plugin-tencent-map-connector:typecheck
+pnpm exec nx run @xpert-ai/plugin-tencent-map-connector:test
+pnpm exec nx run @xpert-ai/plugin-tencent-map-connector:build
+pnpm plugin:deploy:local \
+  --plugin-dir <plugin-repo-root>/xpertai/middlewares/tencent-map-connector \
+  --scope organization \
+  --org-id <organization-id>
+```
+
+Restart or refresh the Xpert server plugin runtime after replacing the package.
+
+## Key policy
+
+Use a dedicated server-side Key with WebService access. Configure an IP allowlist for the Xpert API server when appropriate. Rotate the Key by reconnecting the connector; WebService calls are stateless and use the latest vault credential.
+
+Never log a WebService URL after its Key query parameter is attached. The client sanitizes known Key patterns from errors, but infrastructure access logs and proxies must also redact query strings.
+
+## Troubleshooting
+
+| Connector code | Meaning | Action |
+| --- | --- | --- |
+| `AUTHENTICATION_FAILED` | Missing, malformed, or rejected Key | Verify the Key and reconnect |
+| `PERMISSION_DENIED` | Key restriction or WebService permission denied | Review Tencent console restrictions |
+| `QUOTA_EXCEEDED` | QPS or daily allocation exhausted | Reduce load or increase quota |
+| `INVALID_ARGUMENT` | Tencent rejected a tool argument | Correct coordinates, policy, ID, or timestamp |
+| `NO_RESULT` | No POI or geocoding result | Refine the address or keyword |
+| `UPSTREAM_TIMEOUT` | WebService call exceeded its deadline | Retry the read after checking provider health |
+| `UPSTREAM_UNAVAILABLE` | Tencent service returned a temporary failure | Retry with backoff |
+| `UPSTREAM_RESPONSE_INVALID` | Response JSON is malformed or lacks required fields | Preserve the request ID and inspect provider health |
+| `UPSTREAM_REQUEST_FAILED` | Tencent rejected the request outside a known status class | Review the status and request parameters |
+| `RESPONSE_TOO_LARGE` | Response exceeded 1 MiB | Narrow the search or route request |
+
+Do not automatically retry arbitrary route or matrix calls in the plugin. Let the Agent or workflow decide whether a retry still matches the user's intent and quota budget.
