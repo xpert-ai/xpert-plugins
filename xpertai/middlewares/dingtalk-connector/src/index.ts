@@ -50,4 +50,5 @@ export default plugin
 export { DingTalkConnectorPluginModule } from './lib/dingtalk-connector.module.js'
 export { DingTalkConnectorIntegrationStrategy } from './lib/dingtalk-connector-integration.strategy.js'
 export { DingTalkConnectorStrategy } from './lib/dingtalk-connector.strategy.js'
+export { DingTalkCliBootstrapService } from './lib/middlewares/dingtalk-cli-bootstrap.service.js'
 export { DingTalkConnectorRuntimeMiddleware } from './lib/middlewares/dingtalk-connector-runtime.middleware.js'
