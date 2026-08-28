@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-notion-connector",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Public OAuth Notion connector for XpertAI with bounded read tools.",
   "author": {
     "name": "XpertAI",
