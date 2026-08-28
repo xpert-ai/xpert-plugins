@@ -102,6 +102,7 @@ import {
   presentationDeckKind
 } from '../../../presentation-theme-preview.contract'
 import './styles.css'
+import { createUuid } from './browser-crypto'
 import { debug, setDebugDefault } from './debug-logger'
 import { translator } from './i18n'
 import { executeAction, executeFileAction, invokeClientCommand, isObject, notify, payload, reportResize, requestData, startRemoteBridge } from './runtime'
@@ -365,6 +366,8 @@ function App() {
     setError('')
     try {
       const opened = actionData<OpenDeckPayload>(await executeAction('open_deck', deckId, { deckId }))
+      const runtime = actionData<NativeThemeRuntimePayload>(await executeAction('load_theme_runtime', deckId, { deckId }))
+      const loadedRuntime = await loadNativeThemeRuntime(runtime)
       const nextDetail: DeckDetail = { item: opened.item, versions: opened.versions ?? [], exports: opened.exports ?? [], assets: opened.assets ?? [], exportCapabilities: opened.exportCapabilities, sharePolicy: opened.sharePolicy }
       setSelectedId(deckId)
       setDetail(nextDetail)
@@ -373,10 +376,9 @@ function App() {
       setActiveSlideId(null)
       setAssetPreviews({})
       setControlDrafts({})
-      startCollaboration(opened)
-      const runtime = actionData<NativeThemeRuntimePayload>(await executeAction('load_theme_runtime', deckId, { deckId }))
       setRuntimePayload(runtime)
-      setNativeRuntime(await loadNativeThemeRuntime(runtime))
+      setNativeRuntime(loadedRuntime)
+      startCollaboration(opened)
       debug.info('deck-opened', { deckId, themePack: runtime.themePack })
     } catch (caught) {
       setError(messageOf(caught))
@@ -857,7 +859,7 @@ function App() {
     if (!doc) return
     const source = snapshot.slides.find((slide) => slide.id === slideId)
     if (!source) return
-    const copyId = crypto.randomUUID()
+    const copyId = createUuid()
     doc.transact(() => {
       const copy = new Y.Map<YValue>()
       copy.set('id', copyId)

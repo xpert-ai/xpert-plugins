@@ -1,4 +1,5 @@
 import type { EditorState, JsonObject, NativeThemeRuntimePayload } from './types'
+import { sha256Hex } from './browser-crypto'
 
 export interface DashiRuntimeBridge {
   getState(): Pick<EditorState, 'props' | 'text'>
@@ -81,7 +82,7 @@ async function activateRuntime(payload: NativeThemeRuntimePayload): Promise<Load
   if (payload.protocolVersion !== 1 || !/^theme(?:0[1-9]|1[0-4])$/.test(payload.themePack)) {
     throw new Error('Presentation theme runtime payload is invalid.')
   }
-  const actualChecksum = await sha256(payload.script)
+  const actualChecksum = await sha256Hex(payload.script)
   if (actualChecksum !== payload.runtimeChecksum) throw new Error('Presentation theme runtime checksum validation failed.')
 
   const before = new Set(Array.from(document.head.querySelectorAll('style')))
@@ -102,9 +103,4 @@ async function activateRuntime(payload: NativeThemeRuntimePayload): Promise<Load
   const styleBaseline: ReadonlySet<HTMLStyleElement> = before
   const runtime = { checksum: payload.runtimeChecksum, themePack: payload.themePack, styleText: '', styleBaseline }
   return { ...runtime, styleText: collectNativeRuntimeStyleText(runtime) }
-}
-
-async function sha256(value: string) {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
 }
