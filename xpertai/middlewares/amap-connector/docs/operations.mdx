@@ -1,0 +1,44 @@
+---
+title: 运维与排障
+description: 构建、部署、密钥策略和稳定错误码。
+---
+
+## 构建和部署
+
+```bash
+pnpm exec nx run @xpert-ai/plugin-amap-connector:typecheck
+pnpm exec nx run @xpert-ai/plugin-amap-connector:test
+pnpm exec nx run @xpert-ai/plugin-amap-connector:build
+pnpm plugin:deploy:local \
+  --plugin-dir <plugin-repo-root>/xpertai/middlewares/amap-connector \
+  --scope organization \
+  --org-id <organization-id>
+```
+
+替换插件包后，应刷新或重启 Xpert 服务端插件运行时，并确认运行时已加载新版本，而不只是完成 staging。
+
+## 密钥策略
+
+使用专用的服务端 Web 服务 Key，并根据部署环境设置服务器 IP 白名单。若开启数字签名校验，连接器按高德参数排序规则生成 `sig`。轮换凭据时重新连接即可，运行时总是读取平台凭据库中的最新值。
+
+客户端会清理已知的 `key`、`sig` 和私钥模式，但反向代理与基础设施访问日志也应关闭或脱敏查询参数记录。
+
+## 稳定错误码
+
+| 连接器错误码 | 含义 | 建议处理 |
+| --- | --- | --- |
+| `CONFIGURATION_INVALID` | 平台上下文、认证方式或本地配置无效 | 修正配置后重试 |
+| `CREDENTIAL_INVALID` | Key 缺失、无效或被高德拒绝 | 核对 Key 并重新连接 |
+| `CREDENTIAL_RESTRICTED` | IP 白名单或数字签名校验失败 | 核对限制与签名私钥 |
+| `PERMISSION_DENIED` | Web 服务权限不足 | 检查应用平台和接口权限 |
+| `QUOTA_EXCEEDED` | QPS、日配额或购买能力耗尽 | 降低并发或扩容配额 |
+| `INVALID_ARGUMENT` | 参数不符合本地或高德约束 | 修正坐标、城市代码、策略或 POI ID |
+| `NO_RESULT` | 未找到地点或无法规划路线 | 调整地址、关键词或端点 |
+| `OUT_OF_SERVICE` | 地区或服务不在覆盖范围 | 更换位置或服务类型 |
+| `UPSTREAM_TIMEOUT` | 请求超过截止时间 | 检查网络与高德状态后重试 |
+| `UPSTREAM_UNAVAILABLE` | 临时网络或高德服务故障 | 使用退避策略重试 |
+| `UPSTREAM_RESPONSE_INVALID` | JSON 或业务必需字段不完整 | 保存非敏感上下文并检查提供方状态 |
+| `UPSTREAM_REQUEST_FAILED` | 未归类的上游拒绝 | 核对 `infocode` 与参数 |
+| `RESPONSE_TOO_LARGE` | 响应超过 1 MiB | 缩小搜索或路线范围 |
+
+工具只对标记为临时故障的错误进行有限重试。配额、权限、参数和无结果错误不会自动重试。

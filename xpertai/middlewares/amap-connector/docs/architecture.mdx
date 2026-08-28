@@ -1,0 +1,37 @@
+---
+title: 架构与安全边界
+description: 凭据、运行时、请求和响应的信任边界。
+---
+
+## 运行链路
+
+```text
+工作区连接器
+  -> 平台凭据库中的加密凭据
+  -> ConnectorRuntime:amap
+  -> 严格 Zod Agent 工具
+  -> 固定高德 Web 服务端点
+  -> 白名单 DTO
+```
+
+插件注册一个连接器策略和一个隐藏的 Agent 中间件策略。主机按 `provider=amap` 解析当前工作区的凭据，只在工具调用期间将其交给 Web 服务客户端。
+
+## 请求边界
+
+- 插件级别：`organization`
+- Artifact namespace：`amap_connector`
+- 凭据存储：`platform_vault`
+- 权限范围：`map.read`
+- 提供方写操作：无
+- 上游域名：固定为 `https://restapi.amap.com`
+- 重定向：拒绝
+- 普通超时：30 秒；路线和距离：45 秒
+- 最大响应：1 MiB
+
+每个操作只能选择代码中审核过的路径，因此插件配置不能改变上游地址。除超长驾车路线参数可按高德约定切换为表单 POST 外，其余调用使用 GET；签名私钥只参与本地 MD5 数字签名计算，不进入 URL。
+
+## 响应边界
+
+响应必须包含高德官方 `status` 与 `infocode`，成功值必须是 `status=1`、`infocode=10000`。之后 Mapper 只保留业务所需字段，并限制 POI、路线、步骤、公交段和天气天数。原始 payload、polyline、未知字段和凭据均不会进入 Agent 上下文。
+
+工具输出坐标统一标记为 GCJ-02。连接器不会隐式转换 WGS84 或 BD-09。

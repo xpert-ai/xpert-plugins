@@ -1,0 +1,23 @@
+---
+title: 配置连接
+description: 创建 Web 服务 Key，并在 Xpert 中验证连接。
+---
+
+<Steps>
+  <Step title="创建高德应用">
+    打开[应用管理](https://console.amap.com/dev/key/app)，创建或选择一个应用。
+  </Step>
+  <Step title="创建 Web 服务 Key">
+    添加 Key 时将服务平台选择为 **Web 服务**。根据部署环境配置服务器 IP 白名单。需要数字签名时，在控制台开启该能力并妥善保存私钥。
+  </Step>
+  <Step title="连接 Xpert">
+    在工作区的连接器页面选择 **高德地图**，填写 Key；开启签名校验时再填写私钥，然后选择 **保存并连接**。
+  </Step>
+  <Step title="验证工具">
+    连接成功后，为 Agent 启用高德地图连接器。先调用 `amap_connection_status`，再使用 `amap_geocode` 解析一个完整中国地址。
+  </Step>
+</Steps>
+
+<Warning>
+  不要把 Key 或签名私钥写入 Agent 指令、插件配置、日志或源码。连接器凭据字段由平台凭据库加密管理。
+</Warning>

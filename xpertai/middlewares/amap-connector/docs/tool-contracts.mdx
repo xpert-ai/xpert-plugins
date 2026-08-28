@@ -1,0 +1,46 @@
+---
+title: 工具契约
+description: 13 个 Agent 工具、输入限制与高德端点映射。
+---
+
+## 连接与地址
+
+| Agent 工具 | 核心输入 | Web 服务端点 |
+| --- | --- | --- |
+| `amap_connection_status` | 无 | 不调用高德 |
+| `amap_geocode` | `address`、可选 `city` | `/v3/geocode/geo` |
+| `amap_reverse_geocode` | `location`、半径、可选 POI 类型 | `/v3/geocode/regeo` |
+
+## 地点
+
+| Agent 工具 | 核心输入 | Web 服务端点 |
+| --- | --- | --- |
+| `amap_search_places` | `keywords` 或 `types`、可选区域、分页 | `/v5/place/text` |
+| `amap_search_nearby` | 中心点、半径、关键词或类型、分页 | `/v5/place/around` |
+| `amap_get_place` | 精确 POI `id` | `/v5/place/detail` |
+
+地点工具每页最多返回 20 条，页码限制为 1-10，并限制在前 200 条结果内。附近搜索半径最大 50 公里。`types` 使用高德六位 POI 类型编码。
+
+## 路线与实用服务
+
+| Agent 工具 | 核心输入 | Web 服务端点 |
+| --- | --- | --- |
+| `amap_route_driving` | 起终点、语义策略、最多 16 个途经点 | `/v5/direction/driving` |
+| `amap_route_transit` | 起终点、两地城市代码、语义策略 | `/v5/direction/transit/integrated` |
+| `amap_route_walking` | 起终点、可选 POI ID、室内选项 | `/v5/direction/walking` |
+| `amap_route_bicycling` | 起终点 | `/v5/direction/bicycling` |
+| `amap_distance` | 最多 100 个起点、一个终点、模式 | `/v3/distance` |
+| `amap_weather` | 六位 `adcode`、实时或预报 | `/v3/weather/weatherInfo` |
+| `amap_ip_location` | 显式公网 IPv4 | `/v3/ip` |
+
+路线策略对 Agent 使用稳定的语义枚举，适配器再转换为高德数值策略。路线响应包含距离、耗时、费用和精简步骤，但不返回原始 polyline。公交 `subway_map` 策略要求同时提供起终点 POI ID。
+
+## 默认限额
+
+- 连接验证：15 秒
+- 普通请求：30 秒
+- 路线和距离请求：45 秒
+- 响应体：1 MiB
+- 重试：仅临时网络、超时和部分上游不可用错误，最多 3 次
+
+高德应用自身的 QPS、日配额和购买能力仍然生效，且可能低于连接器限制。

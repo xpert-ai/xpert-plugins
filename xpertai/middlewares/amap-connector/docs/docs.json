@@ -1,0 +1,26 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Xpert AMap Connector",
+  "colors": {
+    "primary": "#1677FF",
+    "light": "#4096FF",
+    "dark": "#0958D9"
+  },
+  "favicon": "/favicon.png",
+  "navigation": {
+    "groups": [
+      {
+        "group": "高德地图连接器",
+        "pages": ["index", "quickstart", "architecture", "tool-contracts", "operations"]
+      }
+    ]
+  },
+  "logo": {
+    "light": "/logo/amap-light.png",
+    "dark": "/logo/amap-dark.png"
+  },
+  "contextual": {
+    "options": ["copy", "view", "chatgpt", "claude", "perplexity", "mcp", "cursor", "vscode"]
+  }
+}
