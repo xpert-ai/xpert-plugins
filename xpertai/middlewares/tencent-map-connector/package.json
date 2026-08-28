@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-tencent-map-connector",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Tencent Maps WebService connector for XpertAI.",
   "author": {
     "name": "XpertAI",
