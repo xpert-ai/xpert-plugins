@@ -1,7 +1,6 @@
 import 'reflect-metadata'
 import { MODULE_METADATA } from '@nestjs/common/constants.js'
-import { DingTalkConnectorIntegrationStrategy } from './dingtalk-connector-integration.strategy.js'
-import { DingTalkConnectorApiClient } from './api/dingtalk-connector-api.client.js'
+import { DingTalkDwsAuthClient } from './api/dingtalk-dws-auth.client.js'
 import { DingTalkConnectorPluginModule } from './dingtalk-connector.module.js'
 import { DingTalkConnectorStrategy } from './dingtalk-connector.strategy.js'
 import { DingTalkCliBootstrapService } from './middlewares/dingtalk-cli-bootstrap.service.js'
@@ -10,8 +9,6 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   AgentMiddlewareStrategy: () => () => undefined,
   ConnectorRuntimeCapability: { id: 'platform.connector' },
   ConnectorStrategyKey: () => () => undefined,
-  INTEGRATION_PERMISSION_SERVICE_TOKEN: 'XPERT_PLUGIN_INTEGRATION_PERMISSION_SERVICE',
-  IntegrationStrategyKey: () => () => undefined,
   XpertServerPlugin: (metadata: Parameters<typeof import('@nestjs/common').Module>[0]) => {
     const { Module } = jest.requireActual('@nestjs/common') as typeof import('@nestjs/common')
     return Module(metadata)
@@ -19,12 +16,11 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
 }))
 
 describe('DingTalkConnectorPluginModule', () => {
-  it('registers the connector-owned system integration strategy', () => {
+  it('registers the DWS OAuth client, connector, and CLI runtime', () => {
     const providers = Reflect.getMetadata(MODULE_METADATA.PROVIDERS, DingTalkConnectorPluginModule) as unknown[]
 
-    expect(providers).toContain(DingTalkConnectorIntegrationStrategy)
     expect(providers).toContain(DingTalkConnectorStrategy)
-    expect(providers).toContain(DingTalkConnectorApiClient)
+    expect(providers).toContain(DingTalkDwsAuthClient)
     expect(providers).toContain(DingTalkCliBootstrapService)
   })
 })

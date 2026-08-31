@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import {
   ConnectorStrategyKey,
   type ConnectorAuthorizationCodeInput,
@@ -9,83 +9,64 @@ import {
   type ConnectorMultiAuthDefinition,
   type ConnectorMultiAuthStrategy,
   type ConnectorProfile,
-  type ConnectorRuntimeCredentialResolveInput,
-  INTEGRATION_PERMISSION_SERVICE_TOKEN,
-  type IntegrationPermissionService,
-  type PluginContext
+  type ConnectorRuntimeCredentialResolveInput
 } from '@xpert-ai/plugin-sdk'
-import type { IIntegration } from '@xpert-ai/contracts'
-import { DingTalkConnectorApiClient } from './api/dingtalk-connector-api.client.js'
 import { DINGTALK_CONNECTOR_ICON } from './branding.js'
-import { DINGTALK_CONNECTOR_AUTH_INTEGRATION_URL, DINGTALK_CONNECTOR_INTEGRATION_PROVIDER } from './constants.js'
-import { DingTalkConnectorSecretService } from './dingtalk-connector-secret.service.js'
-import { DINGTALK_CONNECTOR_PLUGIN_CONTEXT } from './tokens.js'
+import {
+  DINGTALK_DWS_AUTHORIZE_URL,
+  DINGTALK_DWS_MCP_BASE_URL,
+  DingTalkDwsAuthClient,
+  type DingTalkDwsOAuthToken
+} from './api/dingtalk-dws-auth.client.js'
 
 export const DINGTALK_CONNECTOR_PROVIDER = 'dingtalk'
-export const DINGTALK_CONNECTOR_AUTHORIZE_URL = 'https://login.dingtalk.com/oauth2/auth'
-export const DINGTALK_CONNECTOR_TOKEN_URL = 'https://api.dingtalk.com/v1.0/oauth2/userAccessToken'
-export const DINGTALK_CONNECTOR_USER_INFO_URL = 'https://api.dingtalk.com/v1.0/contact/users/me'
+export const DINGTALK_CONNECTOR_AUTH_METHOD_ID = 'oauth2'
+export const DINGTALK_CONNECTOR_AUTHORIZE_URL = DINGTALK_DWS_AUTHORIZE_URL
+export const DINGTALK_CONNECTOR_TOKEN_URL = `${DINGTALK_DWS_MCP_BASE_URL}/oauth2/getToken`
+export const DINGTALK_DWS_MANAGED_OAUTH_APP_ID = 'dingtalk-dws-managed-oauth'
 
 const DEFAULT_DINGTALK_SCOPES = ['openid', 'corpid'] as const
-const REQUEST_TIMEOUT_MS = 15_000
+
+export type DingTalkDwsAuth = Pick<
+  DingTalkDwsAuthClient,
+  | 'startLoopbackAuthorization'
+  | 'exchangeAuthorizationCode'
+  | 'refreshToken'
+  | 'assertCliAccess'
+  | 'getOfficialClientId'
+>
 
 @Injectable()
 @ConnectorStrategyKey(DINGTALK_CONNECTOR_PROVIDER)
 export class DingTalkConnectorStrategy implements ConnectorMultiAuthStrategy {
-  private readonly logger = new Logger(DingTalkConnectorStrategy.name)
-  private _integrationPermissionService: IntegrationPermissionService
-
-  constructor(
-    private readonly secretService: DingTalkConnectorSecretService,
-    private readonly api: DingTalkConnectorApiClient,
-    @Inject(DINGTALK_CONNECTOR_PLUGIN_CONTEXT)
-    private readonly pluginContext: PluginContext
-  ) {}
-
-  private get integrationPermissionService(): IntegrationPermissionService {
-    if (!this._integrationPermissionService) {
-      this._integrationPermissionService = this.pluginContext.resolve(INTEGRATION_PERMISSION_SERVICE_TOKEN)
-    }
-    return this._integrationPermissionService
-  }
+  constructor(private readonly dwsAuth: DingTalkDwsAuthClient) {}
 
   readonly definition: ConnectorMultiAuthDefinition = {
     provider: DINGTALK_CONNECTOR_PROVIDER,
-    label: {
-      en_US: 'DingTalk',
-      zh_Hans: '钉钉'
-    },
+    label: { en_US: 'DingTalk', zh_Hans: '钉钉' },
     description: {
-      en_US: 'Connect DingTalk using the configured system integration.',
-      zh_Hans: '使用系统集成中配置的钉钉应用进行 OAuth 授权连接。'
+      en_US: 'Connect DingTalk with DWS managed OAuth. No user application setup is required.',
+      zh_Hans: '使用 DWS 托管 OAuth 连接钉钉，用户无需配置应用凭据。'
     },
     icon: DINGTALK_CONNECTOR_ICON,
+    auth: {
+      type: 'oauth2',
+      authorizationUrl: DINGTALK_CONNECTOR_AUTHORIZE_URL,
+      tokenUrl: DINGTALK_CONNECTOR_TOKEN_URL,
+      scopes: [...DEFAULT_DINGTALK_SCOPES],
+      redirectPath: '/api/connector/oauth/callback'
+    },
     authMethods: [
       {
-        id: 'oauth2',
+        id: DINGTALK_CONNECTOR_AUTH_METHOD_ID,
         type: 'oauth2',
-        label: {
-          en_US: 'DingTalk OAuth',
-          zh_Hans: '钉钉 OAuth 授权'
-        },
-        appCredentials: {
-          help: {
-            label: {
-              en_US: 'Configure DingTalk OAuth system integration',
-              zh_Hans: '配置钉钉 OAuth 系统集成'
-            },
-            url: DINGTALK_CONNECTOR_AUTH_INTEGRATION_URL
-          }
-        }
+        label: { en_US: 'DingTalk OAuth', zh_Hans: '钉钉 OAuth 授权' }
       }
     ],
     permissions: [
       {
         key: 'dingtalk.user_access_token',
-        label: {
-          en_US: 'DingTalk user access token',
-          zh_Hans: '钉钉用户访问令牌'
-        },
+        label: { en_US: 'DingTalk user access token', zh_Hans: '钉钉用户访问令牌' },
         identity: 'user',
         credential: 'access_token',
         storage: 'runtime_only',
@@ -93,367 +74,139 @@ export class DingTalkConnectorStrategy implements ConnectorMultiAuthStrategy {
       },
       {
         key: 'dingtalk.refresh_token',
-        label: {
-          en_US: 'DingTalk refresh token',
-          zh_Hans: '钉钉刷新令牌'
-        },
+        label: { en_US: 'DingTalk refresh token', zh_Hans: '钉钉刷新令牌' },
         identity: 'user',
         credential: 'refresh_token',
         storage: 'platform_vault'
       },
       {
-        key: 'dingtalk.app_credential',
-        label: {
-          en_US: 'DingTalk system integration',
-          zh_Hans: '钉钉系统集成'
-        },
-        identity: 'app',
-        credential: 'app_credential',
-        storage: 'platform_vault'
+        key: 'dingtalk.dws_cli_access',
+        label: { en_US: 'DingTalk DWS CLI access', zh_Hans: '钉钉 DWS 命令行访问权限' },
+        identity: 'user',
+        credential: 'access_token',
+        storage: 'runtime_only',
+        required: true
       }
     ]
   }
 
   async connect(input: ConnectorConnectInput): Promise<ConnectorConnectResult> {
-    requireDingTalkOAuthMethod(input.authMethodId)
-    const app = await this.resolveConfiguredApp()
-    const scopes = resolveDingTalkScopes(input.scopes)
-    const url = new URL(DINGTALK_CONNECTOR_AUTHORIZE_URL)
-    url.searchParams.set('client_id', app.clientId)
-    url.searchParams.set('redirect_uri', input.redirectUri)
-    url.searchParams.set('response_type', 'code')
-    url.searchParams.set('scope', scopes.join(' '))
-    url.searchParams.set('state', input.state)
-    url.searchParams.set('prompt', 'consent')
+    requireAuthMethod(input.authMethodId)
+    const scopes = resolveScopes(input.scopes)
+    const authorization = await this.dwsAuth.startLoopbackAuthorization({
+      state: input.state,
+      scopes,
+      forwardRedirectUri: input.redirectUri
+    })
 
     return {
       status: 'pending',
-      authorizationUrl: url.toString(),
+      authorizationUrl: authorization.authorizationUrl,
       scopes,
       metadata: {
-        integrationId: app.integrationId
+        authMode: 'loopback',
+        managedApp: DINGTALK_DWS_MANAGED_OAUTH_APP_ID,
+        clientId: authorization.clientId,
+        loopbackRedirectUri: authorization.redirectUri
       }
     }
   }
 
   async exchangeAuthorizationCode(input: ConnectorAuthorizationCodeInput): Promise<ConnectorCredential> {
-    requireDingTalkOAuthMethod(input.authMethodId)
-    const app = await this.resolveConfiguredApp(input.metadata?.integrationId)
-    const scopes = resolveDingTalkScopes(input.scopes)
-    const token = await requestOAuthToken({
-      clientId: app.clientId,
-      clientSecret: app.clientSecret,
-      code: input.code,
-      grantType: 'authorization_code'
-    })
-    const profile = await this.fetchUserProfile(token.accessToken)
-    const corpId = resolveReturnedCorpId(token, profile)
-
-    return toConnectorCredential(app, token, profile, scopes, corpId)
+    requireAuthMethod(input.authMethodId)
+    const clientId = await resolveManagedClientId(this.dwsAuth, input.metadata)
+    const token = await this.dwsAuth.exchangeAuthorizationCode(
+      clientId,
+      requireString(input.code, 'DingTalk authorization code is missing')
+    )
+    await this.dwsAuth.assertCliAccess(token.accessToken)
+    const profile = toConnectorProfile(token)
+    return toConnectorCredential(token, profile, resolveScopes(input.scopes), clientId)
   }
 
   async refreshConnectionCredential(input: ConnectorCredentialRefreshInput): Promise<ConnectorCredential> {
-    requireDingTalkOAuthMethod(input.authMethodId)
-    const app = await this.resolveConfiguredApp(input.credential.data.integrationId)
+    requireAuthMethod(input.authMethodId)
+    const clientId = readString(input.credential.data.appId) ?? (await this.dwsAuth.getOfficialClientId())
     const refreshToken = requireString(input.credential.data.refreshToken, 'DingTalk refresh token is missing')
-    const token = await requestOAuthToken({
-      clientId: app.clientId,
-      clientSecret: app.clientSecret,
-      grantType: 'refresh_token',
-      refreshToken
-    })
-    const profile = await this.fetchUserProfile(token.accessToken).catch((error) => {
-      this.logger.warn(`Failed to refresh DingTalk profile: ${errorMessage(error)}`)
-      return input.credential.profile ?? undefined
-    })
-    const corpId = resolveReturnedCorpId(token, profile) ?? readString(input.credential.data.corpId)
-
+    const token = await this.dwsAuth.refreshToken(clientId, refreshToken)
+    await this.dwsAuth.assertCliAccess(token.accessToken)
+    const profile = toConnectorProfile(token, input.credential.profile ?? undefined)
     return toConnectorCredential(
-      app,
       { ...token, refreshToken: token.refreshToken ?? refreshToken },
       profile,
-      input.credential.scopes,
-      corpId
+      input.credential.scopes ?? [...DEFAULT_DINGTALK_SCOPES],
+      clientId
     )
   }
 
-  async resolveRuntimeCredential(input: ConnectorRuntimeCredentialResolveInput) {
-    requireDingTalkOAuthMethod(input.authMethodId)
-    const integrationId = requireString(
-      input.credential.data.integrationId,
-      'DingTalk connector integrationId is missing'
-    )
-    const app = await this.resolveConfiguredApp(integrationId)
-    const appAccessToken = await this.api.getAppAccessToken(app)
+  resolveRuntimeCredential(input: ConnectorRuntimeCredentialResolveInput) {
+    requireAuthMethod(input.authMethodId)
     return {
       appId: requireString(input.credential.data.appId, 'DingTalk connector appId is missing'),
       brand: readString(input.credential.data.brand) ?? 'dingtalk',
-      accessToken: requireString(input.credential.data.accessToken, 'DingTalk connector access token is missing'),
-      appAccessToken,
-      integrationId,
-      ...(app.robotCode ? { robotCode: app.robotCode } : {})
-    }
-  }
-
-  private async resolveConfiguredApp(integrationId?: unknown): Promise<ResolvedDingTalkApp> {
-    const integration = await this.resolveIntegration(integrationId)
-    const options = integration.options ?? ({} as DingTalkOAuthIntegrationOptions)
-    const clientId = requireString(
-      options.clientId,
-      'DingTalk OAuth system integration Client ID (AppKey) is not configured'
-    )
-    const encryptedClientSecret = requireString(
-      options.clientSecret,
-      'DingTalk OAuth system integration Client Secret (AppSecret) is not configured'
-    )
-    return {
-      integrationId: integration.id,
-      clientId,
-      clientSecret: this.secretService.decrypt(encryptedClientSecret),
-      robotCode: readString(options.robotCode) ?? undefined
-    }
-  }
-
-  private async resolveIntegration(integrationId?: unknown): Promise<IIntegration<DingTalkOAuthIntegrationOptions>> {
-    const id = readString(integrationId)
-    if (id) {
-      const integration = await this.integrationPermissionService.read<IIntegration<DingTalkOAuthIntegrationOptions>>(
-        id,
-        {
-          relations: ['tenant']
-        }
-      )
-      if (!integration) {
-        throw new Error(`DingTalk OAuth system integration '${id}' was not found`)
-      }
-      if (integration.provider !== DINGTALK_CONNECTOR_INTEGRATION_PROVIDER) {
-        throw new Error(`Integration '${id}' is not a DingTalk Connector OAuth system integration`)
-      }
-      return integration
-    }
-
-    const service = this.integrationPermissionService
-    const result = service.findAllWithInheritance
-      ? await service.findAllWithInheritance<IIntegration<DingTalkOAuthIntegrationOptions>>({
-          where: { provider: DINGTALK_CONNECTOR_INTEGRATION_PROVIDER },
-          order: { updatedAt: 'DESC' },
-          take: 10
-        })
-      : await service.findAll<IIntegration<DingTalkOAuthIntegrationOptions>>({
-          where: { provider: DINGTALK_CONNECTOR_INTEGRATION_PROVIDER },
-          order: { updatedAt: 'DESC' },
-          take: 10
-        })
-    const integration = result.items.find(
-      (item) =>
-        item.provider === DINGTALK_CONNECTOR_INTEGRATION_PROVIDER &&
-        item.options?.clientId &&
-        item.options?.clientSecret
-    )
-    if (!integration) {
-      throw new Error(
-        'DingTalk Connector OAuth system integration is not configured. Configure Client ID (AppKey) and Client Secret (AppSecret) in the DingTalk Connector OAuth system integration.'
-      )
-    }
-    return integration
-  }
-
-  private async fetchUserProfile(accessToken: string): Promise<ConnectorProfile> {
-    const payload = await fetchJson(DINGTALK_CONNECTOR_USER_INFO_URL, {
-      headers: {
-        accept: 'application/json',
-        'x-acs-dingtalk-access-token': accessToken
-      }
-    })
-
-    return {
-      corpId: readString(payload, ['corpId', 'corp_id']) ?? undefined,
-      unionId: readString(payload, ['unionId', 'union_id']) ?? undefined,
-      openId: readString(payload, ['openId', 'open_id']) ?? undefined,
-      userId: readString(payload, ['unionId', 'union_id', 'openId', 'open_id']) ?? undefined,
-      name: readString(payload, ['nick', 'name']) ?? undefined,
-      avatarUrl: readString(payload, ['avatarUrl', 'avatar_url']) ?? undefined,
-      email: readString(payload, ['email']) ?? undefined
+      accessToken: requireString(input.credential.data.accessToken, 'DingTalk connector access token is missing')
     }
   }
 }
 
-type ResolvedDingTalkApp = {
-  integrationId: string
-  clientId: string
-  clientSecret: string
-  robotCode?: string
-}
-
-type DingTalkOAuthIntegrationOptions = {
-  clientId?: string
-  clientSecret?: string
-  robotCode?: string
-}
-
-type DingTalkOAuthToken = {
-  accessToken: string
-  refreshToken?: string
-  expiresIn?: number
-  refreshExpiresIn?: number
-  corpId?: string
-}
-
-function requireDingTalkOAuthMethod(authMethodId: string) {
-  if (authMethodId !== 'oauth2') {
-    throw new Error(`Unsupported DingTalk connector authentication method '${authMethodId}'`)
+function toConnectorProfile(token: DingTalkDwsOAuthToken, fallback?: ConnectorProfile): ConnectorProfile | undefined {
+  const profile: ConnectorProfile = {
+    ...(fallback ?? {}),
+    ...(token.corpId ? { corpId: token.corpId } : {}),
+    ...(token.userId ? { userId: token.userId } : {}),
+    ...(token.userName ? { name: token.userName } : {})
   }
-}
-
-async function requestOAuthToken(input: {
-  clientId: string
-  clientSecret: string
-  code?: string
-  grantType: 'authorization_code' | 'refresh_token'
-  refreshToken?: string
-}): Promise<DingTalkOAuthToken> {
-  const payload = await fetchJson(DINGTALK_CONNECTOR_TOKEN_URL, {
-    method: 'POST',
-    headers: {
-      accept: 'application/json',
-      'content-type': 'application/json'
-    },
-    body: JSON.stringify({
-      clientId: input.clientId,
-      clientSecret: input.clientSecret,
-      ...(input.code ? { code: input.code } : {}),
-      grantType: input.grantType,
-      ...(input.refreshToken ? { refreshToken: input.refreshToken } : {})
-    })
-  })
-
-  const accessToken = readString(payload, ['accessToken', 'access_token'])
-  if (!accessToken) {
-    throw new Error('DingTalk token response did not include accessToken')
-  }
-
-  return {
-    accessToken,
-    refreshToken: readString(payload, ['refreshToken', 'refresh_token']) ?? undefined,
-    expiresIn: readNumber(payload, ['expiresIn', 'expireIn', 'expires_in']) ?? undefined,
-    refreshExpiresIn:
-      readNumber(payload, ['refreshExpiresIn', 'refresh_expires_in', 'refresh_token_expires_in']) ?? undefined,
-    corpId: readString(payload, ['corpId', 'corp_id']) ?? undefined
-  }
-}
-
-async function fetchJson(url: string, init: RequestInit): Promise<Record<string, unknown>> {
-  let response: Response
-  try {
-    response = await fetch(url, {
-      ...init,
-      signal: init.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS)
-    })
-  } catch (error) {
-    throw new Error(`DingTalk request failed: ${errorMessage(error)}`)
-  }
-
-  let text: string
-  try {
-    text = await response.text()
-  } catch (error) {
-    throw new Error(`Failed to read DingTalk response: ${errorMessage(error)}`)
-  }
-
-  let payload: unknown
-  try {
-    payload = text ? JSON.parse(text) : {}
-  } catch (error) {
-    throw new Error(`DingTalk returned invalid JSON: ${errorMessage(error)}`)
-  }
-
-  if (!response.ok) {
-    const message =
-      readString(payload, ['message', 'error_description', 'errmsg', 'msg']) ??
-      `DingTalk request failed with HTTP ${response.status}`
-    throw new Error(message)
-  }
-
-  return isRecord(payload) ? payload : {}
+  return Object.keys(profile).length ? profile : undefined
 }
 
 function toConnectorCredential(
-  app: ResolvedDingTalkApp,
-  token: DingTalkOAuthToken,
+  token: DingTalkDwsOAuthToken,
   profile: ConnectorProfile | undefined,
-  scopes?: string[],
-  corpId?: string | null
+  scopes: string[],
+  clientId: string
 ): ConnectorCredential {
   return {
     data: {
-      appId: app.clientId,
-      integrationId: app.integrationId,
+      appId: clientId,
       brand: 'dingtalk',
-      ...(corpId ? { corpId } : {}),
+      ...(token.corpId || profile?.corpId ? { corpId: token.corpId ?? profile?.corpId } : {}),
       accessToken: token.accessToken,
       ...(token.refreshToken ? { refreshToken: token.refreshToken } : {})
     },
     ...(token.expiresIn != null ? { expiresAt: toExpiresAt(token.expiresIn) } : {}),
     ...(token.refreshExpiresIn != null ? { refreshExpiresAt: toExpiresAt(token.refreshExpiresIn) } : {}),
-    scopes: scopes ?? [...DEFAULT_DINGTALK_SCOPES],
+    scopes,
     profile
   }
 }
 
-function resolveDingTalkScopes(scopes?: string[]) {
+async function resolveManagedClientId(client: DingTalkDwsAuthClient, metadata?: Record<string, unknown> | null) {
+  return readString(metadata?.clientId) ?? (await client.getOfficialClientId())
+}
+
+function resolveScopes(scopes?: string[]) {
   const resolved: string[] = [...DEFAULT_DINGTALK_SCOPES]
   for (const scope of scopes ?? []) {
-    const trimmed = typeof scope === 'string' ? scope.trim() : ''
-    if (trimmed && !resolved.includes(trimmed)) {
-      resolved.push(trimmed)
-    }
+    const value = readString(scope)
+    if (value && !resolved.includes(value)) resolved.push(value)
   }
   return resolved
 }
 
-function resolveReturnedCorpId(token: DingTalkOAuthToken, profile?: ConnectorProfile | null) {
-  return token.corpId ?? readString(profile?.corpId)
+function requireAuthMethod(authMethodId: string) {
+  if (authMethodId !== DINGTALK_CONNECTOR_AUTH_METHOD_ID) {
+    throw new Error(`Unsupported DingTalk connector authentication method '${authMethodId}'`)
+  }
 }
 
-function readString(value: unknown, keys?: string[]) {
-  if (keys) {
-    const record = isRecord(value) ? value : {}
-    for (const key of keys) {
-      const candidate = record[key]
-      if (typeof candidate === 'string' && candidate.trim()) {
-        return candidate.trim()
-      }
-    }
-    return null
-  }
+function readString(value: unknown) {
   return typeof value === 'string' && value.trim() ? value.trim() : null
 }
 
 function requireString(value: unknown, message: string) {
   const result = readString(value)
-  if (!result) {
-    throw new Error(message)
-  }
+  if (!result) throw new Error(message)
   return result
-}
-
-function readNumber(value: unknown, keys: string[]) {
-  const record = isRecord(value) ? value : {}
-  for (const key of keys) {
-    const candidate = record[key]
-    if (typeof candidate === 'number' && Number.isFinite(candidate)) {
-      return candidate
-    }
-  }
-  return null
-}
-
-function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error)
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function toExpiresAt(expiresInSeconds: number) {

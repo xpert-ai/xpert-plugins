@@ -31,29 +31,19 @@ describe('DingTalkCliBootstrapService', () => {
 
   it('accepts spaces and shell characters inside quoted DWS arguments', () => {
     expect(() =>
-      service.validateAgentCommand("dws contact user search --query 'Alice & Bob' --jq '.items[] | .name' --format json")
+      service.validateAgentCommand(
+        "dws contact user search --query 'Alice & Bob' --jq '.items[] | .name' --format json"
+      )
     ).not.toThrow()
   })
 
-  it('requires an application token for raw dws api commands', () => {
+  it('rejects commands that require application credentials', () => {
+    expect(() => service.validateAgentCommand('dws api GET /v1.0/microApp/allApps --format json')).toThrow(
+      'unavailable with the user OAuth credential'
+    )
     expect(() =>
-      service.buildConnectorCommand(
-        'dws api GET /v1.0/microApp/allApps --format json',
-        {
-          connectorId: 'connector-1',
-          workspaceId: 'workspace-1',
-          provider: 'dingtalk',
-          authMethodId: 'oauth2',
-          credentials: { accessToken: 'user-token' }
-        },
-        {
-          envDir: '/workspace/.xpert/dingtalk-cli/connectors/connector-1/secrets',
-          envPath: '/workspace/.xpert/dingtalk-cli/connectors/connector-1/secrets/env-1',
-          configDir: '/workspace/.xpert/dingtalk-cli/connectors/connector-1/config',
-          cacheDir: '/workspace/.xpert/dingtalk-cli/connectors/connector-1/cache'
-        }
-      )
-    ).toThrow('application access token is required')
+      service.validateAgentCommand('dws chat message send-by-bot --users user-1 --text hello --dry-run --format json')
+    ).toThrow('application-robot commands')
   })
 
   it('bootstraps the pinned CLI and official multi-product skills', async () => {

@@ -2,11 +2,7 @@ import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
 import { posix as path } from 'node:path'
 import { Injectable } from '@nestjs/common'
-import {
-  BaseSandbox,
-  type ConnectorRuntimeCredential,
-  type ConnectorRuntimeCredentialV2
-} from '@xpert-ai/plugin-sdk'
+import { BaseSandbox, type ConnectorRuntimeCredential, type ConnectorRuntimeCredentialV2 } from '@xpert-ai/plugin-sdk'
 
 const DEFAULT_WORKSPACE_ROOT = '/workspace'
 const DINGTALK_CLI_PACKAGE = 'dingtalk-workspace-cli'
@@ -60,7 +56,7 @@ export class DingTalkCliBootstrapService {
       '',
       '## Authentication',
       '- Call `dingtalk-cli-auth-ensure` before the first DingTalk operation.',
-      '- Authentication comes from the active Xpert workspace connector. Never run `dws auth`.',
+      '- Authentication comes from the active Xpert workspace connector using DWS-managed OAuth. Never run `dws auth`.',
       '- Never provide `--token`, `--client-id`, or `--client-secret`; the connector injects credentials securely.',
       '- If a command exits with code 4 and returns host-owned PAT scopes, inspect the requested scopes and use `dws pat chmod`.',
       '- Preview PAT grants with `--dry-run --format json`, ask for explicit user confirmation, then repeat with `--yes` and retry the original command once.',
@@ -68,7 +64,7 @@ export class DingTalkCliBootstrapService {
       '## Usage',
       '- Run DingTalk operations through `sandbox_shell` with the `dws` command.',
       '- Prefer product commands such as `dws contact`, `dws chat`, `dws calendar`, `dws doc`, and `dws todo`.',
-      '- Use `dws api` only when no product command supports the operation. It uses the connector application token when available.',
+      '- Raw `dws api` calls and application-robot commands are unavailable because this connector provides a user OAuth credential, not application credentials.',
       '- Use `--format json` and bounded filters or pagination for machine-readable, limited results.',
       '- Run mutations with `--dry-run` first. Add `--yes` only after the user explicitly confirms the exact operation.',
       '- Never print environment variables, credential files, access tokens, refresh tokens, or application secrets.',
@@ -91,10 +87,24 @@ export class DingTalkCliBootstrapService {
       throw new Error('DingTalk CLI requests cannot access Xpert runtime or secret paths')
     }
     if (/\bdws\b[\s\S]*?\bauth\b/i.test(command)) {
-      throw new Error('DingTalk CLI authentication is managed by the Xpert connector; dws auth commands are not allowed')
+      throw new Error(
+        'DingTalk CLI authentication is managed by the Xpert connector; dws auth commands are not allowed'
+      )
+    }
+    if (/^\s*dws\s+api(?=\s|$)/i.test(command)) {
+      throw new Error(
+        'Raw dws api commands require application credentials and are unavailable with the user OAuth credential'
+      )
+    }
+    if (isApplicationRobotCommand(command)) {
+      throw new Error(
+        'DingTalk application-robot commands require Robot Code and are unavailable with the user OAuth credential'
+      )
     }
     if (/(^|\s)--(?:token|client-id|client-secret)(?:=|\s|$)/i.test(command)) {
-      throw new Error('DingTalk CLI credential flags are managed by the Xpert connector and cannot be supplied by the Agent')
+      throw new Error(
+        'DingTalk CLI credential flags are managed by the Xpert connector and cannot be supplied by the Agent'
+      )
     }
     if (/\b(?:DINGTALK_|DWS_CONFIG_DIR|DWS_CACHE_DIR)/.test(command)) {
       throw new Error('DingTalk credential environment variables cannot be referenced by the Agent')
@@ -107,8 +117,7 @@ export class DingTalkCliBootstrapService {
     const cliReady = await this.isCliReady(backend)
     const skillsReady = await this.areSkillsReady(backend, runtimePaths)
     const stampMatches =
-      stamp?.cliVersion === DINGTALK_CLI_VERSION &&
-      stamp?.bootstrapVersion === DINGTALK_CLI_BOOTSTRAP_VERSION
+      stamp?.cliVersion === DINGTALK_CLI_VERSION && stamp?.bootstrapVersion === DINGTALK_CLI_BOOTSTRAP_VERSION
 
     if (cliReady && skillsReady && stampMatches) {
       return { output: 'already bootstrapped', exitCode: 0, truncated: false }
@@ -165,8 +174,12 @@ export class DingTalkCliBootstrapService {
     const runtimePaths = paths ?? this.resolveRuntimePaths({ workingDirectory: backend.workingDirectory })
     const credentialPaths = this.getCredentialPaths(credential.connectorId, runtimePaths)
     const prepared = await backend.execute(
-      `mkdir -p ${shellQuote(credentialPaths.envDir)} ${shellQuote(credentialPaths.configDir)} ${shellQuote(credentialPaths.cacheDir)} && ` +
-        `chmod 700 ${shellQuote(credentialPaths.envDir)} ${shellQuote(credentialPaths.configDir)} ${shellQuote(credentialPaths.cacheDir)}`
+      `mkdir -p ${shellQuote(credentialPaths.envDir)} ${shellQuote(credentialPaths.configDir)} ${shellQuote(
+        credentialPaths.cacheDir
+      )} && ` +
+        `chmod 700 ${shellQuote(credentialPaths.envDir)} ${shellQuote(credentialPaths.configDir)} ${shellQuote(
+          credentialPaths.cacheDir
+        )}`
     )
     if (prepared.exitCode !== 0) {
       throw new Error(`Failed to prepare DingTalk CLI credential directories: ${prepared.output || 'Unknown error'}`)
@@ -187,33 +200,25 @@ export class DingTalkCliBootstrapService {
     return credentialPaths
   }
 
-  buildConnectorCommand(command: string, credential: ConnectorRuntimeCredential | ConnectorRuntimeCredentialV2, paths: DingTalkCliCredentialPaths) {
+  buildConnectorCommand(
+    command: string,
+    credential: ConnectorRuntimeCredential | ConnectorRuntimeCredentialV2,
+    paths: DingTalkCliCredentialPaths
+  ) {
     this.validateAgentCommand(command)
-    const appAccessToken = readCredentialValue(credential, 'appAccessToken')
-    if (isRawApiCommand(command) && !appAccessToken) {
-      throw new Error('DingTalk application access token is required for dws api commands')
-    }
-    const tokenVariable = isRawApiCommand(command) ? 'DINGTALK_APP_ACCESS_TOKEN' : 'DINGTALK_ACCESS_TOKEN'
-    const commandWithRobot = injectRobotCode(command, readCredentialValue(credential, 'robotCode'))
-    const rewrittenCommand = commandWithRobot.replace(
+    const rewrittenCommand = command.replace(
       /^\s*dws(?=\s|$)/i,
       'env -u DINGTALK_ACCESS_TOKEN -u DINGTALK_APP_ACCESS_TOKEN -u DINGTALK_DWS_TOKEN -u DINGTALK_ROBOT_CODE ' +
-        'dws --token "$DINGTALK_DWS_TOKEN"'
+        'dws --token "$DINGTALK_ACCESS_TOKEN"'
     )
     const redactedCommand = [
       'set -o pipefail',
       `{ ${rewrittenCommand}; } 2>&1 | while IFS= read -r line; do ` +
         'line=${line//"$DINGTALK_ACCESS_TOKEN"/[REDACTED]}; ' +
-        'if [ -n "$DINGTALK_APP_ACCESS_TOKEN" ]; then line=${line//"$DINGTALK_APP_ACCESS_TOKEN"/[REDACTED]}; fi; ' +
-        'if [ -n "$DINGTALK_ROBOT_CODE" ]; then line=${line//"$DINGTALK_ROBOT_CODE"/[REDACTED]}; fi; ' +
         'printf \'%s\\n\' "$line"; done'
     ].join('; ')
 
-    return [
-      `. ${shellQuote(paths.envPath)}`,
-      `export DINGTALK_DWS_TOKEN="$${tokenVariable}"`,
-      `/bin/bash -c ${shellQuote(redactedCommand)}`
-    ].join(' && ')
+    return [`. ${shellQuote(paths.envPath)}`, `/bin/bash -c ${shellQuote(redactedCommand)}`].join(' && ')
   }
 
   async removeCredential(backend: DingTalkCliBackend, envPath: string) {
@@ -240,7 +245,9 @@ export class DingTalkCliBootstrapService {
   }
 
   private async areSkillsReady(backend: DingTalkCliBackend, paths: DingTalkCliRuntimePaths) {
-    const result = await backend.execute(`test -f ${shellQuote(path.join(paths.skillsDir, 'dingtalk-shared', 'SKILL.md'))}`)
+    const result = await backend.execute(
+      `test -f ${shellQuote(path.join(paths.skillsDir, 'dingtalk-shared', 'SKILL.md'))}`
+    )
     return result.exitCode === 0
   }
 
@@ -259,7 +266,9 @@ export class DingTalkCliBootstrapService {
       bootstrapVersion: DINGTALK_CLI_BOOTSTRAP_VERSION
     })
     const result = await backend.execute(
-      `mkdir -p ${shellQuote(path.dirname(paths.stampPath))} && printf '%s' ${shellQuote(stamp)} > ${shellQuote(paths.stampPath)}`
+      `mkdir -p ${shellQuote(path.dirname(paths.stampPath))} && printf '%s' ${shellQuote(stamp)} > ${shellQuote(
+        paths.stampPath
+      )}`
     )
     if (result.exitCode !== 0) {
       throw new Error(`Failed to write DingTalk CLI bootstrap stamp: ${result.output || 'Unknown error'}`)
@@ -273,8 +282,6 @@ function buildCredentialEnv(
   credentialPaths: DingTalkCliCredentialPaths
 ) {
   const accessToken = requireCredentialValue(credential, 'accessToken', 'DingTalk connector access token is missing')
-  const appAccessToken = readCredentialValue(credential, 'appAccessToken')
-  const robotCode = readCredentialValue(credential, 'robotCode')
   return [
     `export HOME=${shellQuote(runtimePaths.workspaceRoot)}`,
     `export DWS_CONFIG_DIR=${shellQuote(credentialPaths.configDir)}`,
@@ -285,27 +292,12 @@ function buildCredentialEnv(
     "export DWS_DISABLE_KEYCHAIN='1'",
     "export DINGTALK_DWS_AGENTCODE='xpert'",
     `export DINGTALK_ACCESS_TOKEN=${shellQuote(accessToken)}`,
-    ...(appAccessToken ? [`export DINGTALK_APP_ACCESS_TOKEN=${shellQuote(appAccessToken)}`] : []),
-    ...(robotCode ? [`export DINGTALK_ROBOT_CODE=${shellQuote(robotCode)}`] : []),
     ''
   ].join('\n')
 }
 
-function isRawApiCommand(command: string) {
-  return /^\s*dws\s+api(?=\s|$)/i.test(command)
-}
-
-function injectRobotCode(command: string, robotCode?: string) {
-  if (!/^\s*dws\s+chat\s+(?:message\s+(?:send-by-bot|recall-by-bot)|group\s+members\s+add-bot)(?=\s|$)/i.test(command)) {
-    return command
-  }
-  if (/(^|\s)--robot-code(?:=|\s)/i.test(command)) {
-    throw new Error('DingTalk Robot Code is managed by the connector system integration and cannot be overridden')
-  }
-  if (!robotCode) {
-    throw new Error('DingTalk Robot Code is not configured in the DingTalk Connector OAuth system integration')
-  }
-  return `${command} --robot-code "$DINGTALK_ROBOT_CODE"`
+function isApplicationRobotCommand(command: string) {
+  return /^\s*dws\s+chat\s+(?:message\s+(?:send-by-bot|recall-by-bot)|group\s+members\s+add-bot)(?=\s|$)/i.test(command)
 }
 
 function hasUnsafeShellSyntax(command: string) {
@@ -368,7 +360,10 @@ function toUploadPath(backend: DingTalkCliBackend, targetPath: string) {
 }
 
 function safePathSegment(value: string) {
-  const normalized = value.trim().replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 160)
+  const normalized = value
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .slice(0, 160)
   if (!normalized || normalized === '.' || normalized === '..') {
     throw new Error('DingTalk connector ID cannot be mapped to a safe runtime path')
   }

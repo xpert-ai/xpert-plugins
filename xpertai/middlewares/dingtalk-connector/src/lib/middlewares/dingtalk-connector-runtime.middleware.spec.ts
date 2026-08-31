@@ -30,10 +30,7 @@ describe('DingTalkConnectorRuntimeMiddleware', () => {
     const middleware = createMiddleware().middleware
 
     expect(middleware.name).toBe('ConnectorRuntime:dingtalk')
-    expect(middleware.tools?.map((item) => item.name)).toEqual([
-      'dingtalk-cli-auth-ensure',
-      'dingtalk-cli-wait-user'
-    ])
+    expect(middleware.tools?.map((item) => item.name)).toEqual(['dingtalk-cli-auth-ensure', 'dingtalk-cli-wait-user'])
     expect(middleware.tools?.every((item) => !!item.metadata?.['toolName'])).toBe(true)
   })
 
@@ -58,6 +55,8 @@ describe('DingTalkConnectorRuntimeMiddleware', () => {
     expect(content).toContain('`sandbox_shell`')
     expect(content).toContain('`dws`')
     expect(content).toContain('`dws pat chmod`')
+    expect(content).toContain('DWS-managed OAuth')
+    expect(content).toContain('Raw `dws api` calls')
     expect(content).toContain('Never provide `--token`, `--client-id`, or `--client-secret`')
     expect(content).not.toContain('dingtalk_get_account')
   })
@@ -67,9 +66,10 @@ describe('DingTalkConnectorRuntimeMiddleware', () => {
     const backend = sandboxBackend()
     bootstrap.ensureBootstrap.mockResolvedValue({ output: 'ok', exitCode: 0, truncated: false })
 
-    const result = JSON.parse(
-      String(await invoke(middleware, 'dingtalk-cli-auth-ensure', {}, backend))
-    ) as Record<string, unknown>
+    const result = JSON.parse(String(await invoke(middleware, 'dingtalk-cli-auth-ensure', {}, backend))) as Record<
+      string,
+      unknown
+    >
 
     expect(connectorRuntime.getConnectorCredential).toHaveBeenCalledWith({
       workspaceId: 'workspace-1',
@@ -94,9 +94,10 @@ describe('DingTalkConnectorRuntimeMiddleware', () => {
     const backend = sandboxBackend()
     bootstrap.ensureBootstrap.mockResolvedValue({ output: 'ok', exitCode: 0, truncated: false })
 
-    const result = JSON.parse(
-      String(await invoke(middleware, 'dingtalk-cli-wait-user', {}, backend))
-    ) as Record<string, unknown>
+    const result = JSON.parse(String(await invoke(middleware, 'dingtalk-cli-wait-user', {}, backend))) as Record<
+      string,
+      unknown
+    >
 
     expect(result).toMatchObject({
       success: true,
@@ -113,55 +114,48 @@ describe('DingTalkConnectorRuntimeMiddleware', () => {
     const handler = jest.fn().mockResolvedValue('handled')
 
     await expect(
-      middleware.wrapToolCall?.(
-        shellRequest('dws contact user get-self --format json', backend),
-        handler
-      )
+      middleware.wrapToolCall?.(shellRequest('dws contact user get-self --format json', backend), handler)
     ).resolves.toBe('handled')
 
     const uploaded = backend.uploadFiles.mock.calls[0][0][0][1] as Buffer
     expect(uploaded.toString('utf8')).toContain("export DINGTALK_ACCESS_TOKEN='connector-token'")
-    expect(uploaded.toString('utf8')).toContain("export DINGTALK_APP_ACCESS_TOKEN='app-token'")
+    expect(uploaded.toString('utf8')).not.toContain('DINGTALK_APP_ACCESS_TOKEN')
+    expect(uploaded.toString('utf8')).not.toContain('DINGTALK_ROBOT_CODE')
     expect(uploaded.toString('utf8')).toContain("export DINGTALK_DWS_AGENTCODE='xpert'")
 
     const wrappedCommand = handler.mock.calls[0][0].toolCall.args.command as string
-    expect(wrappedCommand).toContain('export DINGTALK_DWS_TOKEN="$DINGTALK_ACCESS_TOKEN"')
-    expect(wrappedCommand).toContain('dws --token "$DINGTALK_DWS_TOKEN" contact user get-self')
+    expect(wrappedCommand).toContain('dws --token "$DINGTALK_ACCESS_TOKEN" contact user get-self')
     expect(wrappedCommand).not.toContain('connector-token')
-    expect(wrappedCommand).not.toContain('app-token')
     expect(backend.execute).toHaveBeenLastCalledWith(expect.stringMatching(/^rm -f /))
   })
 
-  it('uses the application token for dws api without exposing it in the command', async () => {
-    const { middleware, bootstrap } = createMiddleware()
-    const backend = sandboxBackend()
-    bootstrap.ensureBootstrap.mockResolvedValue({ output: 'ok', exitCode: 0, truncated: false })
+  it('rejects raw dws api commands because user OAuth has no application credential', async () => {
+    const { middleware } = createMiddleware()
     const handler = jest.fn().mockResolvedValue('handled')
 
-    await middleware.wrapToolCall?.(
-      shellRequest('dws api GET /v1.0/microApp/allApps --format json', backend),
-      handler
-    )
-
-    const wrappedCommand = handler.mock.calls[0][0].toolCall.args.command as string
-    expect(wrappedCommand).toContain('export DINGTALK_DWS_TOKEN="$DINGTALK_APP_ACCESS_TOKEN"')
-    expect(wrappedCommand).not.toContain('app-token')
+    await expect(
+      middleware.wrapToolCall?.(
+        shellRequest('dws api GET /v1.0/microApp/allApps --format json', sandboxBackend()),
+        handler
+      )
+    ).rejects.toThrow('unavailable with the user OAuth credential')
+    expect(handler).not.toHaveBeenCalled()
   })
 
-  it('injects the configured robot code for bot commands', async () => {
-    const { middleware, bootstrap } = createMiddleware()
-    const backend = sandboxBackend()
-    bootstrap.ensureBootstrap.mockResolvedValue({ output: 'ok', exitCode: 0, truncated: false })
+  it('rejects application-robot commands because official login has no Robot Code', async () => {
+    const { middleware } = createMiddleware()
     const handler = jest.fn().mockResolvedValue('handled')
 
-    await middleware.wrapToolCall?.(
-      shellRequest('dws chat message send-by-bot --users user-1 --text "hello" --dry-run --format json', backend),
-      handler
-    )
-
-    const wrappedCommand = handler.mock.calls[0][0].toolCall.args.command as string
-    expect(wrappedCommand).toContain('--robot-code "$DINGTALK_ROBOT_CODE"')
-    expect(wrappedCommand).not.toContain('robot-code-value')
+    await expect(
+      middleware.wrapToolCall?.(
+        shellRequest(
+          'dws chat message send-by-bot --users user-1 --text "hello" --dry-run --format json',
+          sandboxBackend()
+        ),
+        handler
+      )
+    ).rejects.toThrow('application-robot commands')
+    expect(handler).not.toHaveBeenCalled()
   })
 
   it.each([
@@ -248,9 +242,8 @@ function connectorApi(): ConnectorRuntimeApi & { getConnectorCredential: jest.Mo
       credentials: {
         appId: 'ding-client',
         brand: 'dingtalk',
+        credentialSource: 'dws_official',
         accessToken: 'connector-token',
-        appAccessToken: 'app-token',
-        robotCode: 'robot-code-value',
         corpId: 'corp-1'
       },
       expiresAt: '2026-08-28T00:00:00.000Z',
@@ -285,7 +278,10 @@ function runtimeContext(connectorRuntime: ConnectorRuntimeApi) {
   } as unknown as IAgentMiddlewareContext
 }
 
-function shellRequest(command: string, backend?: ReturnType<typeof sandboxBackend>): ToolCallRequest<AgentBuiltInState> {
+function shellRequest(
+  command: string,
+  backend?: ReturnType<typeof sandboxBackend>
+): ToolCallRequest<AgentBuiltInState> {
   return {
     tool: { name: 'sandbox_shell' },
     toolCall: { name: 'sandbox_shell', args: { command } },

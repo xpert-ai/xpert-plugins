@@ -83,7 +83,7 @@ export class DingTalkConnectorRuntimeMiddleware implements IAgentMiddlewareStrat
       {
         name: 'dingtalk-cli-auth-ensure',
         description:
-          'Check whether DingTalk Workspace CLI and the active workspace DingTalk OAuth connector are ready. ' +
+          'Check whether DingTalk Workspace CLI and the active DWS-managed DingTalk connector are ready. ' +
           'This tool never starts a second DingTalk login and never returns access tokens or application secrets.',
         schema: z.object({}).strict(),
         verboseParsingErrors: true,
@@ -117,8 +117,8 @@ export class DingTalkConnectorRuntimeMiddleware implements IAgentMiddlewareStrat
       {
         name: 'dingtalk-cli-wait-user',
         description:
-          'Recheck the workspace DingTalk OAuth connector after the user completes authorization in the connector page. ' +
-          'Connector mode does not use DingTalk CLI device login.',
+          'Recheck the DWS-managed DingTalk connector after the user completes authorization in the connector page. ' +
+          'This tool does not start a device login.',
         schema: z.object({}).strict(),
         verboseParsingErrors: true,
         metadata: {
@@ -158,10 +158,7 @@ export class DingTalkConnectorRuntimeMiddleware implements IAgentMiddlewareStrat
           paths
         })
         const credentialPaths = await this.bootstrap.syncConnectorCredential(backend, credential, paths)
-        const wrapped = withCommand(
-          request,
-          this.bootstrap.buildConnectorCommand(command, credential, credentialPaths)
-        )
+        const wrapped = withCommand(request, this.bootstrap.buildConnectorCommand(command, credential, credentialPaths))
 
         const operation = await capture(() => Promise.resolve(handler(wrapped)))
         const cleanup = await capture(() => this.bootstrap.removeCredential(backend, credentialPaths.envPath))
@@ -217,7 +214,7 @@ async function buildAuthEnsureResponse(input: {
       connectorId: credential.connectorId,
       profile: allowlistedProfile(credential),
       scopes: credential.scopes ?? [],
-      message: 'Workspace connector authentication and DingTalk CLI are ready.'
+      message: 'DWS-managed connector authentication and DingTalk CLI are ready.'
     }
   } catch (error) {
     return {

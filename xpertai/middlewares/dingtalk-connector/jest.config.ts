@@ -1,8 +1,18 @@
 /* eslint-disable */
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const swcJestConfig = JSON.parse(readFileSync(join(__dirname, '.spec.swcrc'), 'utf-8'))
+const swcConfigPath = [
+  join(process.cwd(), 'xpertai/middlewares/dingtalk-connector/.spec.swcrc'),
+  join(process.cwd(), 'middlewares/dingtalk-connector/.spec.swcrc'),
+  join(process.cwd(), '.spec.swcrc')
+].find((path) => existsSync(path))
+
+if (!swcConfigPath) {
+  throw new Error('Unable to locate DingTalk connector SWC config')
+}
+
+const swcJestConfig = JSON.parse(readFileSync(swcConfigPath, 'utf-8'))
 swcJestConfig.swcrc = false
 
 export default {
