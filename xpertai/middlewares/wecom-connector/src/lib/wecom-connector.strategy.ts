@@ -1,10 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto'
-import type { IIntegration } from '@xpert-ai/contracts'
-import { Inject, Injectable } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import {
   ConnectorStrategyKey,
-  INTEGRATION_PERMISSION_SERVICE_TOKEN,
-  type ConnectorAppCredentialField,
   type ConnectorConnectInput,
   type ConnectorConnectResult,
   type ConnectorConnectionPollInput,
@@ -12,14 +9,10 @@ import {
   type ConnectorMultiAuthDefinition,
   type ConnectorMultiAuthStrategy,
   type ConnectorRuntimeCredentialResolveInput,
-  type IntegrationPermissionService,
-  type PluginContext
+  type RuntimeI18nText
 } from '@xpert-ai/plugin-sdk'
 import {
-  WECOM_AUTH_INTEGRATION_PROVIDER,
-  WECOM_AUTH_INTEGRATION_URL,
   WECOM_CLI_AUTH_URL,
-  WECOM_CLI_MANUAL_AUTH_METHOD,
   WECOM_CLI_QR_AUTH_METHOD,
   WECOM_CONNECTOR_ICON,
   WECOM_CONNECTOR_PROVIDER,
@@ -33,10 +26,8 @@ import {
   readNumber,
   readString,
   requireString,
-  type WeComAuthIntegrationOptions,
   type WeComBotCredential
 } from './types.js'
-import { WECOM_CONNECTOR_PLUGIN_CONTEXT } from './tokens.js'
 
 type PendingQrAuthorization = {
   version: 1
@@ -50,59 +41,58 @@ type WeComQrGenerateData = {
   authUrl: string
 }
 
-type WeComAuthIntegration = IIntegration<WeComAuthIntegrationOptions>
-
-type IntegrationCredentialField = Omit<ConnectorAppCredentialField, 'type'> & {
-  type: 'integration'
-  provider: string
+type EmbeddedQrAuthorizationPresentation = {
+  mode: 'embedded_qr'
+  title: RuntimeI18nText
+  description: RuntimeI18nText
+  ariaLabel: RuntimeI18nText
+  completionHint: RuntimeI18nText
+  cancelLabel: RuntimeI18nText
+  copyLinkLabel: RuntimeI18nText
+  copyLinkError: RuntimeI18nText
 }
 
-function integrationCredentialField(field: IntegrationCredentialField) {
-  return field as unknown as ConnectorAppCredentialField
+type WeComConnectorDefinition = Omit<ConnectorMultiAuthDefinition, 'authMethods'> & {
+  authMethods: Array<
+    ConnectorMultiAuthDefinition['authMethods'][number] & {
+      authorizationPresentation?: EmbeddedQrAuthorizationPresentation
+    }
+  >
 }
 
 @Injectable()
 @ConnectorStrategyKey(WECOM_CONNECTOR_PROVIDER)
 export class WeComConnectorStrategy implements ConnectorMultiAuthStrategy {
-  private _integrationPermissionService?: IntegrationPermissionService
-
-  constructor(@Inject(WECOM_CONNECTOR_PLUGIN_CONTEXT) private readonly pluginContext: PluginContext) {}
-
-  readonly definition: ConnectorMultiAuthDefinition = {
+  readonly definition: WeComConnectorDefinition = {
     provider: WECOM_CONNECTOR_PROVIDER,
     label: { en_US: 'WeCom', zh_Hans: '企业微信' },
     description: {
-      en_US: 'Connect an official WeCom AI Bot by QR code or Bot ID and Secret for use with WeCom CLI.',
-      zh_Hans: '通过扫码或 Bot ID 与 Secret 连接企业微信智能机器人，并供企业微信 CLI 使用。'
+      en_US: 'Connect an official WeCom AI Bot by QR code for use with WeCom CLI.',
+      zh_Hans: '通过扫码连接企业微信智能机器人，并供企业微信 CLI 使用。'
     },
     icon: { type: 'svg', value: WECOM_CONNECTOR_ICON },
     authMethods: [
       {
         id: WECOM_CLI_QR_AUTH_METHOD,
         type: 'oauth2',
-        label: { en_US: 'WeCom AI Bot QR connection', zh_Hans: '企业微信智能机器人扫码连接' }
-      },
-      {
-        id: WECOM_CLI_MANUAL_AUTH_METHOD,
-        type: 'api_key',
-        label: { en_US: 'WeCom AI Bot credentials', zh_Hans: '企业微信智能机器人凭据' },
-        credentials: {
-          fields: [
-            integrationCredentialField({
-              name: 'integrationId',
-              type: 'integration',
-              provider: WECOM_AUTH_INTEGRATION_PROVIDER,
-              required: true,
-              label: { en_US: 'WeCom system integration', zh_Hans: '企业微信系统集成' },
-              description: {
-                en_US: 'Select the system integration containing the WeCom AI Bot ID and Secret.',
-                zh_Hans: '选择包含企业微信智能机器人 Bot ID 和 Secret 的系统集成。'
-              }
-            })
-          ],
-          help: {
-            label: { en_US: 'Configure WeCom system integration', zh_Hans: '配置企业微信系统集成' },
-            url: WECOM_AUTH_INTEGRATION_URL
+        label: { en_US: 'WeCom AI Bot QR connection', zh_Hans: '企业微信智能机器人扫码连接' },
+        authorizationPresentation: {
+          mode: 'embedded_qr',
+          title: { en_US: 'Connect WeCom intelligent robot', zh_Hans: '接入企业微信智能机器人' },
+          description: {
+            en_US: 'Use WeCom to scan the QR code and complete authorization.',
+            zh_Hans: '请使用企业微信扫描二维码完成授权配置。'
+          },
+          ariaLabel: { en_US: 'WeCom authorization QR code', zh_Hans: '企业微信授权二维码' },
+          completionHint: {
+            en_US: 'The dialog will close automatically after authorization.',
+            zh_Hans: '扫码完成后页面将自动关闭。'
+          },
+          cancelLabel: { en_US: 'Cancel authorization', zh_Hans: '取消授权' },
+          copyLinkLabel: { en_US: 'Copy link', zh_Hans: '复制链接' },
+          copyLinkError: {
+            en_US: 'Could not copy authorization link.',
+            zh_Hans: '无法复制授权链接。'
           }
         }
       }
@@ -110,10 +100,11 @@ export class WeComConnectorStrategy implements ConnectorMultiAuthStrategy {
     permissions: [
       {
         key: 'wecom.ai_bot_credential',
-        label: { en_US: 'WeCom AI Bot credential', zh_Hans: '企业微信智能机器人凭据' },
+        label: { en_US: 'WeCom AI Bot access', zh_Hans: '企业微信智能机器人访问' },
         description: {
-          en_US: 'The Bot ID and Secret are encrypted by the platform and resolved only inside the connector runtime.',
-          zh_Hans: 'Bot ID 与 Secret 由平台加密保存，仅在连接器运行时解析。'
+          en_US:
+            'The QR authorization result is encrypted by the platform and resolved only inside the connector runtime.',
+          zh_Hans: '扫码授权结果由平台加密保存，仅在连接器运行时解析。'
         },
         identity: 'app',
         credential: 'app_credential',
@@ -124,13 +115,6 @@ export class WeComConnectorStrategy implements ConnectorMultiAuthStrategy {
   }
 
   async connect(input: ConnectorConnectInput): Promise<ConnectorConnectResult> {
-    if (input.authMethodId === WECOM_CLI_MANUAL_AUTH_METHOD) {
-      const integrationId = requireString(input.values?.integrationId, 'A WeCom system integration is required.')
-      const configured = await this.resolveConfiguredCredential(integrationId)
-      await validateBotCredential(configured.credential, 1)
-      return activeCredential(configured.credential, configured.integrationId)
-    }
-
     if (input.authMethodId === WECOM_LEGACY_AUTH_METHOD) {
       throw new Error(
         'This WeCom connection uses the retired application OAuth flow. Reconnect it with WeCom AI Bot QR authentication.'
@@ -180,78 +164,21 @@ export class WeComConnectorStrategy implements ConnectorMultiAuthStrategy {
     if (input.authMethodId === WECOM_LEGACY_AUTH_METHOD) {
       throw new Error('This WeCom connection must be reauthorized with the official WeCom AI Bot connector.')
     }
-    if (input.authMethodId !== WECOM_CLI_QR_AUTH_METHOD && input.authMethodId !== WECOM_CLI_MANUAL_AUTH_METHOD) {
+    if (input.authMethodId !== WECOM_CLI_QR_AUTH_METHOD) {
       throw new Error(`Unsupported WeCom connector authentication method '${input.authMethodId}'.`)
-    }
-    const integrationId = readString(input.credential.data.integrationId)
-    if (integrationId) {
-      return (await this.resolveConfiguredCredential(integrationId)).credential
     }
     return {
       botId: requireString(input.credential.data.botId, 'WeCom connector Bot ID is missing.'),
       botSecret: requireString(input.credential.data.botSecret, 'WeCom connector Bot Secret is missing.')
     }
   }
-
-  private get integrationPermissionService(): IntegrationPermissionService {
-    this._integrationPermissionService ??= this.pluginContext.resolve(INTEGRATION_PERMISSION_SERVICE_TOKEN)
-    return this._integrationPermissionService
-  }
-
-  private async resolveConfiguredCredential(
-    integrationId?: unknown
-  ): Promise<{ integrationId: string; credential: WeComBotCredential }> {
-    const id = readString(integrationId)
-    let integration: WeComAuthIntegration | null = null
-
-    if (id) {
-      integration = await this.integrationPermissionService.read<WeComAuthIntegration>(id, {
-        relations: ['tenant']
-      })
-      if (!integration) throw new Error(`WeCom system integration '${id}' was not found.`)
-      if (integration.provider !== WECOM_AUTH_INTEGRATION_PROVIDER) {
-        throw new Error(`Integration '${id}' is not a WeCom AI Bot system integration.`)
-      }
-    } else {
-      const result = this.integrationPermissionService.findAllWithInheritance
-        ? await this.integrationPermissionService.findAllWithInheritance<WeComAuthIntegration>({
-            where: { provider: WECOM_AUTH_INTEGRATION_PROVIDER },
-            order: { updatedAt: 'DESC' },
-            take: 10
-          })
-        : await this.integrationPermissionService.findAll<WeComAuthIntegration>({
-            where: { provider: WECOM_AUTH_INTEGRATION_PROVIDER },
-            order: { updatedAt: 'DESC' },
-            take: 10
-          })
-      integration =
-        result.items.find(
-          (item) =>
-            item.provider === WECOM_AUTH_INTEGRATION_PROVIDER &&
-            readString(item.options?.botId) &&
-            readString(item.options?.botSecret)
-        ) ?? null
-    }
-
-    const botId = readString(integration?.options?.botId)
-    const botSecret = readString(integration?.options?.botSecret)
-    if (!integration || !botId || !botSecret) {
-      throw new Error(
-        'WeCom AI Bot system integration is missing Bot ID or Secret. Configure both fields in System Integrations.'
-      )
-    }
-    return {
-      integrationId: requireString(integration.id, 'WeCom system integration ID is missing.'),
-      credential: { botId, botSecret }
-    }
-  }
 }
 
-function activeCredential(credential: WeComBotCredential, integrationId?: string) {
+function activeCredential(credential: WeComBotCredential) {
   return {
     status: 'active' as const,
     credential: {
-      data: integrationId ? { integrationId } : credential,
+      data: credential,
       profile: {
         name: 'WeCom AI Bot',
         identityType: 'bot'

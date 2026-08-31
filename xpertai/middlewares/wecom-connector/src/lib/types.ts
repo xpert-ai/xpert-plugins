@@ -2,14 +2,11 @@ import { z } from 'zod'
 
 export const WECOM_CONNECTOR_PLUGIN_NAME = '@xpert-ai/plugin-wecom-connector'
 export const WECOM_CONNECTOR_PROVIDER = 'wecom'
-export const WECOM_AUTH_INTEGRATION_PROVIDER = 'wecom_auth'
-export const WECOM_AUTH_INTEGRATION_URL = `/settings/integration/create?provider=${WECOM_AUTH_INTEGRATION_PROVIDER}`
 export const WECOM_CONNECTOR_INSTALL_LEVEL = 'tenant' as const
 export const WECOM_CONNECTOR_ARTIFACT_NAMESPACE = 'wecom_connector' as const
 export const WECOM_CONNECTOR_RUNTIME_MIDDLEWARE_NAME = `ConnectorRuntime:${WECOM_CONNECTOR_PROVIDER}`
 
 export const WECOM_CLI_QR_AUTH_METHOD = 'wecom-cli-qr'
-export const WECOM_CLI_MANUAL_AUTH_METHOD = 'wecom-cli-manual'
 export const WECOM_LEGACY_AUTH_METHOD = 'wecom-qr'
 
 export const WECOM_CLI_VERSION = '1.2.0'
@@ -79,8 +76,6 @@ export type WeComBotCredential = {
   botId: string
   botSecret: string
 }
-
-export type WeComAuthIntegrationOptions = WeComBotCredential
 
 export const WECOM_CONNECTOR_ICON = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">

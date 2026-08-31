@@ -22,12 +22,7 @@ import {
   isDirectSkillReadCommand,
   parseWeComCliCommand
 } from './wecom-cli-command-policy.js'
-import {
-  WECOM_CLI_MANUAL_AUTH_METHOD,
-  WECOM_CLI_QR_AUTH_METHOD,
-  WECOM_CONNECTOR_PROVIDER,
-  WECOM_CONNECTOR_RUNTIME_MIDDLEWARE_NAME
-} from './types.js'
+import { WECOM_CLI_QR_AUTH_METHOD, WECOM_CONNECTOR_PROVIDER, WECOM_CONNECTOR_RUNTIME_MIDDLEWARE_NAME } from './types.js'
 
 const SANDBOX_SHELL_TOOL_NAME = 'sandbox_shell'
 
@@ -135,10 +130,7 @@ async function resolveConnectorCredential(
     provider: WECOM_CONNECTOR_PROVIDER,
     ...(connectorId ? { connectorId } : {})
   })
-  if (
-    credential.authMethodId !== WECOM_CLI_QR_AUTH_METHOD &&
-    credential.authMethodId !== WECOM_CLI_MANUAL_AUTH_METHOD
-  ) {
+  if (credential.authMethodId !== WECOM_CLI_QR_AUTH_METHOD) {
     throw new Error(
       'This WeCom connector uses the retired application OAuth flow. Reconnect it with WeCom AI Bot authentication.'
     )

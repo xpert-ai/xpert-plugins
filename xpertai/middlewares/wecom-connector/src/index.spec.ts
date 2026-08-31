@@ -2,17 +2,11 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import plugin from './index.js'
-import {
-  WECOM_AUTH_INTEGRATION_PROVIDER,
-  WECOM_CONNECTOR_ARTIFACT_NAMESPACE,
-  WECOM_CONNECTOR_ICON,
-  WECOM_CONNECTOR_INSTALL_LEVEL
-} from './lib/types.js'
+import { WECOM_CONNECTOR_ARTIFACT_NAMESPACE, WECOM_CONNECTOR_ICON, WECOM_CONNECTOR_INSTALL_LEVEL } from './lib/types.js'
 
 jest.mock('@xpert-ai/plugin-sdk', () => ({
   AgentMiddlewareStrategy: () => () => undefined,
   ConnectorRuntimeCapability: { id: 'platform.connector' },
-  IntegrationStrategyKey: () => () => undefined,
   ConnectorStrategyKey: () => () => undefined,
   XpertServerPlugin: () => () => undefined
 }))
@@ -38,8 +32,6 @@ describe('WeCom connector plugin metadata', () => {
       artifactNamespace: WECOM_CONNECTOR_ARTIFACT_NAMESPACE
     })
     expect(plugin.meta.icon).toEqual({ type: 'svg', value: WECOM_CONNECTOR_ICON })
-    expect(plugin.permissions).toEqual([
-      { type: 'integration', service: WECOM_AUTH_INTEGRATION_PROVIDER, operations: ['read'] }
-    ])
+    expect(plugin.permissions).toBeUndefined()
   })
 })

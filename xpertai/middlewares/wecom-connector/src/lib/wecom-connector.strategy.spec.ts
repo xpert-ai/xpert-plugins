@@ -1,6 +1,4 @@
 import {
-  WECOM_AUTH_INTEGRATION_PROVIDER,
-  WECOM_CLI_MANUAL_AUTH_METHOD,
   WECOM_CLI_QR_AUTH_METHOD,
   WECOM_QR_AUTHORIZATION_TTL_MS,
   WECOM_QR_GENERATE_URL,
@@ -10,65 +8,43 @@ import {
 import { WeComConnectorStrategy } from './wecom-connector.strategy.js'
 
 jest.mock('@xpert-ai/plugin-sdk', () => ({
-  INTEGRATION_PERMISSION_SERVICE_TOKEN: 'XPERT_PLUGIN_INTEGRATION_PERMISSION_SERVICE',
   ConnectorStrategyKey: () => (target: object) => target
 }))
 
 describe('WeComConnectorStrategy', () => {
   afterEach(() => jest.restoreAllMocks())
 
-  it('declares QR auth and routes manual credentials through a system integration', () => {
-    const strategy = new WeComConnectorStrategy(pluginContext())
+  it('declares QR authentication as the only connection method', () => {
+    const strategy = new WeComConnectorStrategy()
     expect(strategy.definition.provider).toBe('wecom')
     expect(strategy.definition.permissions).toEqual([
       expect.objectContaining({ key: 'wecom.ai_bot_credential', storage: 'platform_vault' })
     ])
     expect(strategy.definition.authMethods).toEqual([
-      expect.objectContaining({ id: WECOM_CLI_QR_AUTH_METHOD, type: 'oauth2' }),
       expect.objectContaining({
-        id: WECOM_CLI_MANUAL_AUTH_METHOD,
-        type: 'api_key',
-        credentials: expect.objectContaining({
-          fields: [
-            expect.objectContaining({
-              name: 'integrationId',
-              type: 'integration',
-              provider: WECOM_AUTH_INTEGRATION_PROVIDER
-            })
-          ]
-        })
+        id: WECOM_CLI_QR_AUTH_METHOD,
+        type: 'oauth2',
+        authorizationPresentation: {
+          mode: 'embedded_qr',
+          title: { en_US: 'Connect WeCom intelligent robot', zh_Hans: '接入企业微信智能机器人' },
+          description: {
+            en_US: 'Use WeCom to scan the QR code and complete authorization.',
+            zh_Hans: '请使用企业微信扫描二维码完成授权配置。'
+          },
+          ariaLabel: { en_US: 'WeCom authorization QR code', zh_Hans: '企业微信授权二维码' },
+          completionHint: {
+            en_US: 'The dialog will close automatically after authorization.',
+            zh_Hans: '扫码完成后页面将自动关闭。'
+          },
+          cancelLabel: { en_US: 'Cancel authorization', zh_Hans: '取消授权' },
+          copyLinkLabel: { en_US: 'Copy link', zh_Hans: '复制链接' },
+          copyLinkError: {
+            en_US: 'Could not copy authorization link.',
+            zh_Hans: '无法复制授权链接。'
+          }
+        }
       })
     ])
-  })
-
-  it('validates the selected system integration and stores only its ID in the connector credential', async () => {
-    jest.spyOn(global, 'fetch').mockResolvedValue(jsonResponse({ errcode: 0, token: 'bootstrap-token' }))
-    const strategy = new WeComConnectorStrategy(
-      pluginContext({
-        read: jest.fn().mockResolvedValue({
-          id: 'integration-1',
-          provider: WECOM_AUTH_INTEGRATION_PROVIDER,
-          options: { botId: 'bot-1', botSecret: 'secret-1' }
-        })
-      })
-    )
-
-    const result = await strategy.connect({
-      authMethodId: WECOM_CLI_MANUAL_AUTH_METHOD,
-      values: { integrationId: 'integration-1' }
-    } as never)
-
-    expect(result).toEqual({
-      status: 'active',
-      credential: {
-        data: { integrationId: 'integration-1' },
-        profile: { name: 'WeCom AI Bot', identityType: 'bot' }
-      }
-    })
-    expect(JSON.stringify(result)).not.toContain('botSecret')
-    const request = (global.fetch as jest.Mock).mock.calls[0]
-    expect(request[0]).toBe('https://qyapi.weixin.qq.com/cgi-bin/aibot/cli/get_cli_config')
-    expect(JSON.parse(request[1].body)).toEqual(expect.objectContaining({ bot_id: 'bot-1', bind_source: 1 }))
   })
 
   it('starts QR authorization and polls until the official CLI bot is returned', async () => {
@@ -81,7 +57,7 @@ describe('WeComConnectorStrategy', () => {
         jsonResponse({ data: { status: 'success', bot_info: { botid: 'bot-1', secret: 'secret-1' } } })
       )
       .mockResolvedValueOnce(jsonResponse({ errcode: 0, token: 'bootstrap-token' }))
-    const strategy = new WeComConnectorStrategy(pluginContext())
+    const strategy = new WeComConnectorStrategy()
 
     const connected = await strategy.connect({
       authMethodId: WECOM_CLI_QR_AUTH_METHOD,
@@ -115,7 +91,7 @@ describe('WeComConnectorStrategy', () => {
   })
 
   it('rejects legacy application OAuth credentials with a reauthorization message', async () => {
-    const strategy = new WeComConnectorStrategy(pluginContext())
+    const strategy = new WeComConnectorStrategy()
     await expect(
       strategy.resolveRuntimeCredential({
         authMethodId: 'wecom-qr',
@@ -124,37 +100,16 @@ describe('WeComConnectorStrategy', () => {
     ).rejects.toThrow('reauthorized')
   })
 
-  it('resolves manual runtime credentials from the selected system integration', async () => {
-    const strategy = new WeComConnectorStrategy(
-      pluginContext({
-        read: jest.fn().mockResolvedValue({
-          id: 'integration-1',
-          provider: WECOM_AUTH_INTEGRATION_PROVIDER,
-          options: { botId: 'bot-1', botSecret: 'secret-1' }
-        })
-      })
-    )
-
+  it('rejects the removed manual credential authentication method', async () => {
+    const strategy = new WeComConnectorStrategy()
     await expect(
       strategy.resolveRuntimeCredential({
-        authMethodId: WECOM_CLI_MANUAL_AUTH_METHOD,
-        credential: { data: { integrationId: 'integration-1' } }
+        authMethodId: 'wecom-cli-manual',
+        credential: { data: { botId: 'bot-1', botSecret: 'secret-1' } }
       } as never)
-    ).resolves.toEqual({ botId: 'bot-1', botSecret: 'secret-1' })
+    ).rejects.toThrow('Unsupported')
   })
 })
-
-function pluginContext(integrationService?: Record<string, unknown>) {
-  return {
-    resolve: jest.fn().mockReturnValue(
-      integrationService ?? {
-        read: jest.fn(),
-        findAll: jest.fn().mockResolvedValue({ items: [], total: 0 }),
-        findAllWithInheritance: jest.fn().mockResolvedValue({ items: [], total: 0 })
-      }
-    )
-  } as never
-}
 
 function jsonResponse(body: unknown, status = 200) {
   return {

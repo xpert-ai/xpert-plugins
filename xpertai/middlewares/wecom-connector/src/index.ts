@@ -7,11 +7,9 @@ import {
   WECOM_CONNECTOR_ARTIFACT_NAMESPACE,
   WECOM_CONNECTOR_ICON,
   WECOM_CONNECTOR_INSTALL_LEVEL,
-  WECOM_AUTH_INTEGRATION_PROVIDER,
   WeComConnectorPluginConfigFormSchema,
   WeComConnectorPluginConfigSchema
 } from './lib/types.js'
-import { WECOM_CONNECTOR_PLUGIN_CONTEXT } from './lib/tokens.js'
 
 const moduleDir = dirname(fileURLToPath(import.meta.url))
 const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 'utf8')) as {
@@ -40,12 +38,10 @@ const plugin: XpertPlugin = {
     schema: WeComConnectorPluginConfigSchema,
     formSchema: WeComConnectorPluginConfigFormSchema
   },
-  permissions: [{ type: 'integration', service: WECOM_AUTH_INTEGRATION_PROVIDER, operations: ['read'] }],
   register(ctx) {
     ctx.logger.log('register wecom connector plugin')
     return {
       module: WeComConnectorPluginModule,
-      providers: [{ provide: WECOM_CONNECTOR_PLUGIN_CONTEXT, useValue: ctx }],
       global: true
     }
   }
@@ -56,4 +52,3 @@ export { WeComConnectorPluginModule } from './lib/wecom-connector.module.js'
 export { WeComCliBootstrapService } from './lib/wecom-cli-bootstrap.service.js'
 export { WeComConnectorStrategy } from './lib/wecom-connector.strategy.js'
 export { WeComConnectorRuntimeMiddleware } from './lib/wecom-connector-runtime.middleware.js'
-export { WeComAuthIntegrationStrategy } from './lib/wecom-auth-integration.strategy.js'

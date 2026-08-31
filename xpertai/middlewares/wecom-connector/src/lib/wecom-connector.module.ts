@@ -1,17 +1,11 @@
 import { IOnPluginBootstrap, IOnPluginDestroy, XpertServerPlugin } from '@xpert-ai/plugin-sdk'
 import { WeComCliBootstrapService } from './wecom-cli-bootstrap.service.js'
-import { WeComAuthIntegrationStrategy } from './wecom-auth-integration.strategy.js'
 import { WeComConnectorRuntimeMiddleware } from './wecom-connector-runtime.middleware.js'
 import { WeComConnectorStrategy } from './wecom-connector.strategy.js'
 
 @XpertServerPlugin({
   imports: [],
-  providers: [
-    WeComCliBootstrapService,
-    WeComAuthIntegrationStrategy,
-    WeComConnectorStrategy,
-    WeComConnectorRuntimeMiddleware
-  ]
+  providers: [WeComCliBootstrapService, WeComConnectorStrategy, WeComConnectorRuntimeMiddleware]
 })
 export class WeComConnectorPluginModule implements IOnPluginBootstrap, IOnPluginDestroy {
   onPluginBootstrap(): void | Promise<void> {

@@ -126,7 +126,7 @@ function connectorApi(): ConnectorRuntimeApi {
       connectorId: 'connector-1',
       workspaceId: 'workspace-1',
       provider: 'wecom',
-      authMethodId: 'wecom-cli-manual',
+      authMethodId: 'wecom-cli-qr',
       credentials: { botId: 'bot-1', botSecret: 'secret-1' },
       profile: { name: 'WeCom AI Bot', identityType: 'bot' }
     })
