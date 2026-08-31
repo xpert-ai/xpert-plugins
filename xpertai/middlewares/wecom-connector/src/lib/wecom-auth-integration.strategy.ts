@@ -1,60 +1,60 @@
-import type { I18nObject, TIntegrationProvider } from '@xpert-ai/contracts'
+import type { I18nObject, IIntegration, TIntegrationProvider } from '@xpert-ai/contracts'
 import { Injectable } from '@nestjs/common'
-import { IntegrationStrategy, IntegrationStrategyKey, type IntegrationTestResult } from '@xpert-ai/plugin-sdk'
-import { WECOM_AUTH_INTEGRATION_PROVIDER, WECOM_CONNECTOR_ICON, type WeComConnectorAppCredentials } from './types.js'
+import {
+  IntegrationStrategyKey,
+  type IntegrationStrategy,
+  type IntegrationTestResult,
+  type TIntegrationStrategyParams
+} from '@xpert-ai/plugin-sdk'
+import { WECOM_AUTH_INTEGRATION_PROVIDER, WECOM_CONNECTOR_ICON, type WeComAuthIntegrationOptions } from './types.js'
 
 @Injectable()
 @IntegrationStrategyKey(WECOM_AUTH_INTEGRATION_PROVIDER)
-export class WeComAuthIntegrationStrategy implements IntegrationStrategy<WeComConnectorAppCredentials> {
+export class WeComAuthIntegrationStrategy implements IntegrationStrategy<WeComAuthIntegrationOptions> {
   readonly meta: TIntegrationProvider = {
     name: WECOM_AUTH_INTEGRATION_PROVIDER,
-    label: i18n('WeCom Connector OAuth', '企业微信连接器认证'),
+    label: i18n('WeCom AI Bot credentials', '企业微信智能机器人凭据'),
     description: i18n(
-      'Tenant- or organization-level WeCom application credentials used by the workspace QR connector.',
-      '供工作区企业微信连接器扫码授权使用的租户级或组织级企业微信应用凭证。'
+      'Bot ID and Secret used by the WeCom connector and the official WeCom CLI.',
+      '供企业微信连接器和官方企业微信 CLI 使用的 Bot ID 与 Secret。'
     ),
     icon: { type: 'svg', value: WECOM_CONNECTOR_ICON },
-    helpUrl: 'https://developer.work.weixin.qq.com/document/path/97291',
+    helpUrl: 'https://developer.work.weixin.qq.com/document/path/101463',
+    helpLabel: i18n('Open WeCom AI Bot documentation', '打开企业微信智能机器人文档'),
     schema: {
       type: 'object',
       properties: {
-        corpId: {
+        botId: {
           type: 'string',
-          title: i18n('CorpID', 'CorpID'),
-          description: i18n('The WeCom enterprise ID.', '企业微信的企业 ID。')
+          title: i18n('Bot ID', 'Bot ID'),
+          description: i18n('Bot ID from the WeCom AI Bot configuration.', '企业微信智能机器人配置中的 Bot ID。')
         },
-        agentId: {
+        botSecret: {
           type: 'string',
-          title: i18n('Agent ID', 'Agent ID'),
-          description: i18n(
-            'The AgentID of the WeCom application used for QR login.',
-            '用于扫码登录的企业微信应用 AgentID。'
-          )
-        },
-        corpSecret: {
-          type: 'string',
-          title: i18n('CorpSecret', 'CorpSecret'),
-          description: i18n(
-            'The application secret used to exchange the QR login code.',
-            '用于换取扫码登录 code 的应用 Secret。'
-          ),
-          'x-ui': { component: 'secretInput', revealable: true, maskSymbol: '*', persist: true }
+          title: i18n('Secret', 'Secret'),
+          description: i18n('Secret from the WeCom AI Bot configuration.', '企业微信智能机器人配置中的 Secret。'),
+          'x-ui': { component: 'password' as const }
         }
       },
-      required: ['corpId', 'agentId', 'corpSecret'],
-      secret: ['corpSecret']
+      required: ['botId', 'botSecret'],
+      secret: ['botSecret']
     }
   }
 
-  async execute(): Promise<null> {
+  async execute(
+    _integration: IIntegration<WeComAuthIntegrationOptions>,
+    _payload: TIntegrationStrategyParams
+  ): Promise<null> {
     return null
   }
 
-  async validateConfig(config: WeComConnectorAppCredentials): Promise<IntegrationTestResult> {
-    const corpId = required(config?.corpId, 'WeCom CorpID is required.')
-    const agentId = required(config?.agentId, 'WeCom AgentID is required.')
-    const corpSecret = required(config?.corpSecret, 'WeCom CorpSecret is required.')
-    return { mode: 'oauth_app', options: { corpId, agentId, corpSecret } }
+  async validateConfig(config: WeComAuthIntegrationOptions): Promise<IntegrationTestResult> {
+    required(config?.botId, 'WeCom AI Bot ID is required.')
+    required(config?.botSecret, 'WeCom AI Bot Secret is required.')
+    return {
+      mode: 'wecom-ai-bot',
+      probe: { state: 'configured', checkedAt: Date.now() }
+    }
   }
 }
 

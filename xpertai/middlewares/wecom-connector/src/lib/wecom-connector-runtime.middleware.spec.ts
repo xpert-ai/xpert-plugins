@@ -1,88 +1,121 @@
-import { AIMessage, SystemMessage } from '@langchain/core/messages'
+import { AIMessage } from '@langchain/core/messages'
 import {
-  type AgentBuiltInState,
   ConnectorRuntimeCapability,
   type ConnectorRuntimeApi,
-  type IAgentMiddlewareContext,
-  type ToolCallRequest
+  type IAgentMiddlewareContext
 } from '@xpert-ai/plugin-sdk'
+import { WeComCliBootstrapService } from './wecom-cli-bootstrap.service.js'
 import { WeComConnectorRuntimeMiddleware } from './wecom-connector-runtime.middleware.js'
 
 jest.mock('@xpert-ai/plugin-sdk', () => ({
   AgentMiddlewareStrategy: () => () => undefined,
-  ConnectorStrategyKey: () => () => undefined,
   ConnectorRuntimeCapability: { id: 'platform.connector' }
 }))
 
 describe('WeComConnectorRuntimeMiddleware', () => {
-  it('teaches the agent how to use WeCom from sandbox_shell', async () => {
-    const middleware = new WeComConnectorRuntimeMiddleware().createMiddleware({}, runtimeContext(connectorApi()))
-    const handler = jest.fn().mockResolvedValue(new AIMessage('ok'))
-
-    await middleware.wrapModelCall?.(
-      {
-        model: {} as never,
-        messages: [],
-        tools: [],
-        state: {} as never,
-        runtime: {
-          configurable: { sandbox: { backend: sandboxBackend() } }
-        } as never,
-        systemMessage: new SystemMessage('base prompt')
-      },
-      handler
+  it('adds official CLI usage instructions and exposes only the auth tool', () => {
+    const middleware = new WeComConnectorRuntimeMiddleware(new WeComCliBootstrapService()).createMiddleware(
+      {},
+      runtimeContext(connectorApi())
     )
-
-    const content = `${handler.mock.calls[0][0].systemMessage.content}`
-    expect(content).toContain('base prompt')
-    expect(content).toContain('WECOM_ACCESS_TOKEN')
-    expect(content).toContain('qyapi.weixin.qq.com')
+    expect(middleware.tools).toHaveLength(1)
+    expect(middleware.tools?.[0].name).toBe('wecom_cli_auth_ensure')
   })
 
-  it('injects a temporary env file for WeCom commands and cleans it up afterwards', async () => {
+  it('bootstraps and rewrites a direct WeCom CLI command with connector-scoped config', async () => {
     const connectorRuntime = connectorApi()
-    const backend = sandboxBackend()
-    const middleware = new WeComConnectorRuntimeMiddleware().createMiddleware({}, runtimeContext(connectorRuntime))
-    const handler = jest.fn().mockResolvedValue('handled')
-
-    await expect(
-      middleware.wrapToolCall?.(shellRequest('curl https://qyapi.weixin.qq.com/cgi-bin/gettoken', backend), handler)
-    ).resolves.toBe('handled')
-
-    expect(connectorRuntime.getConnectorCredential).toHaveBeenCalledWith({
-      workspaceId: 'workspace-1',
-      provider: 'wecom'
+    const sandboxBackend = createBackend()
+    const bootstrap = new WeComCliBootstrapService()
+    jest.spyOn(bootstrap, 'ensureAuthorized').mockResolvedValue({
+      status: 'authorized',
+      cliVersion: '1.2.0',
+      skillsVersion: 'skills-ref',
+      identityType: 'bot',
+      message: 'authorized'
     })
-    expect(backend.uploadFiles).toHaveBeenCalledTimes(1)
-    const uploadedPath = backend.uploadFiles.mock.calls[0][0][0][0] as string
-    const uploaded = backend.uploadFiles.mock.calls[0][0][0][1] as Buffer
-    expect(uploadedPath).toMatch(/^\.xpert\/secrets\/wecom-connectors\/wecom-1\/env-/)
-    expect(uploaded.toString('utf8')).toContain("export WECOM_ACCESS_TOKEN='access-token-1'")
-    expect(uploaded.toString('utf8')).toContain("export WECOM_CORP_ID='corp-1'")
-    expect(uploaded.toString('utf8')).toContain("export WECOM_AGENT_ID='1000002'")
+    const middleware = new WeComConnectorRuntimeMiddleware(bootstrap).createMiddleware(
+      {},
+      runtimeContext(connectorRuntime)
+    )
+    const handler = jest.fn().mockResolvedValue('handled')
+    const request = shellRequest('wecom-cli message list', sandboxBackend)
+
+    await expect(middleware.wrapToolCall?.(request, handler)).resolves.toBe('handled')
+    expect(bootstrap.ensureAuthorized).toHaveBeenCalled()
     expect(handler).toHaveBeenCalledWith(
       expect.objectContaining({
         toolCall: expect.objectContaining({
           args: expect.objectContaining({
-            command: `. '/workspace/${uploadedPath}' && curl https://qyapi.weixin.qq.com/cgi-bin/gettoken`
+            command: expect.stringContaining(
+              "WECOM_CLI_CONFIG_DIR='/workspace/.xpert/secrets/wecom-cli/connector-1/config'"
+            )
           })
         })
       })
     )
-    expect(backend.execute).toHaveBeenLastCalledWith(`rm -f '/workspace/${uploadedPath}'`)
+    expect(handler.mock.calls[0][0].toolCall.args.command).toContain(
+      "'/workspace/.xpert/tools/wecom-cli/bin/wecom-cli' message list"
+    )
+  })
+
+  it('bootstraps before allowing the model to read official Skills', async () => {
+    const sandboxBackend = createBackend()
+    const bootstrap = new WeComCliBootstrapService()
+    const ensureBootstrap = jest.spyOn(bootstrap, 'ensureBootstrap').mockResolvedValue()
+    const middleware = new WeComConnectorRuntimeMiddleware(bootstrap).createMiddleware(
+      {},
+      runtimeContext(connectorApi())
+    )
+    const request = shellRequest('cat /workspace/.xpert/skills/wecom-cli/wecomcli-message/SKILL.md', sandboxBackend)
+    const handler = jest.fn().mockResolvedValue('read')
+
+    await expect(middleware.wrapToolCall?.(request, handler)).resolves.toBe('read')
+    expect(ensureBootstrap).toHaveBeenCalled()
+    expect(handler).toHaveBeenCalledWith(request)
   })
 
   it('leaves unrelated sandbox commands unchanged', async () => {
     const connectorRuntime = connectorApi()
-    const backend = sandboxBackend()
-    const middleware = new WeComConnectorRuntimeMiddleware().createMiddleware({}, runtimeContext(connectorRuntime))
-    const request = shellRequest('ls -la', backend)
-    const handler = jest.fn().mockResolvedValue('handled')
+    const middleware = new WeComConnectorRuntimeMiddleware(new WeComCliBootstrapService()).createMiddleware(
+      {},
+      runtimeContext(connectorRuntime)
+    )
+    const request = shellRequest('ls -la', createBackend())
+    const handler = jest.fn().mockResolvedValue(new AIMessage('handled'))
 
-    await expect(middleware.wrapToolCall?.(request, handler)).resolves.toBe('handled')
-
+    await expect(middleware.wrapToolCall?.(request, handler)).resolves.toEqual(expect.any(AIMessage))
     expect(handler).toHaveBeenCalledWith(request)
     expect(connectorRuntime.getConnectorCredential).not.toHaveBeenCalled()
+  })
+
+  it('rejects shell wrappers instead of allowing a CLI auth bypass', async () => {
+    const middleware = new WeComConnectorRuntimeMiddleware(new WeComCliBootstrapService()).createMiddleware(
+      {},
+      runtimeContext(connectorApi())
+    )
+    const handler = jest.fn()
+    await expect(
+      middleware.wrapToolCall?.(shellRequest("sh -c 'wecom-cli message list'", createBackend()), handler)
+    ).rejects.toThrow('direct `wecom-cli` command')
+    expect(handler).not.toHaveBeenCalled()
+  })
+
+  it('does not let a Skill-file read bypass the CLI command policy', async () => {
+    const middleware = new WeComConnectorRuntimeMiddleware(new WeComCliBootstrapService()).createMiddleware(
+      {},
+      runtimeContext(connectorApi())
+    )
+    const handler = jest.fn()
+    await expect(
+      middleware.wrapToolCall?.(
+        shellRequest(
+          "sh -c 'cat /workspace/.xpert/skills/wecom-cli/wecomcli-message/SKILL.md; wecom-cli auth show'",
+          createBackend()
+        ),
+        handler
+      )
+    ).rejects.toThrow()
+    expect(handler).not.toHaveBeenCalled()
   })
 })
 
@@ -90,67 +123,35 @@ function connectorApi(): ConnectorRuntimeApi {
   return {
     getConnector: jest.fn(),
     getConnectorCredential: jest.fn().mockResolvedValue({
-      connectorId: 'wecom-1',
+      connectorId: 'connector-1',
       workspaceId: 'workspace-1',
       provider: 'wecom',
-      authMethodId: 'wecom-qr',
-      credentials: {
-        corpId: 'corp-1',
-        agentId: '1000002',
-        accessToken: 'access-token-1'
-      },
-      profile: {
-        userId: 'user-1',
-        openId: 'open-1',
-        unionId: 'union-1'
-      }
+      authMethodId: 'wecom-cli-manual',
+      credentials: { botId: 'bot-1', botSecret: 'secret-1' },
+      profile: { name: 'WeCom AI Bot', identityType: 'bot' }
     })
-  }
+  } as never
 }
 
-function sandboxBackend() {
+function createBackend() {
   return {
     workingDirectory: '/workspace',
-    execute: jest.fn().mockResolvedValue(commandResult()),
-    uploadFiles: jest.fn().mockResolvedValue([
-      {
-        path: '.xpert/secrets/wecom-connectors/wecom-1/env-uploaded',
-        error: null
-      }
-    ])
-  }
+    execute: jest.fn().mockResolvedValue({ output: '', exitCode: 0, truncated: false }),
+    uploadFiles: jest.fn().mockResolvedValue([])
+  } as never
 }
 
-function commandResult(exitCode = 0, output = '') {
-  return { output, exitCode, truncated: false }
-}
-
-function shellRequest(
-  command: string,
-  backend?: ReturnType<typeof sandboxBackend>
-): ToolCallRequest<AgentBuiltInState> {
+function shellRequest(command: string, sandboxBackend: unknown) {
   return {
     tool: { name: 'sandbox_shell' },
-    toolCall: {
-      args: {
-        command
-      }
-    },
-    runtime: {
-      configurable: {
-        sandbox: {
-          backend
-        }
-      }
-    } as never
-  } as ToolCallRequest<AgentBuiltInState>
+    toolCall: { args: { command } },
+    runtime: { configurable: { sandbox: { backend: sandboxBackend } } }
+  } as never
 }
 
 function runtimeContext(connectorRuntime: ConnectorRuntimeApi): IAgentMiddlewareContext {
   return {
     workspaceId: 'workspace-1',
-    runtime: {
-      capabilities: new Map([[ConnectorRuntimeCapability, connectorRuntime]])
-    }
-  } as IAgentMiddlewareContext
+    runtime: { capabilities: new Map([[ConnectorRuntimeCapability, connectorRuntime]]) }
+  } as never
 }

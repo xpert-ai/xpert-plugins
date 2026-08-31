@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import plugin from './index.js'
 import {
+  WECOM_AUTH_INTEGRATION_PROVIDER,
   WECOM_CONNECTOR_ARTIFACT_NAMESPACE,
   WECOM_CONNECTOR_ICON,
   WECOM_CONNECTOR_INSTALL_LEVEL
@@ -11,9 +12,8 @@ import {
 jest.mock('@xpert-ai/plugin-sdk', () => ({
   AgentMiddlewareStrategy: () => () => undefined,
   ConnectorRuntimeCapability: { id: 'platform.connector' },
-  ConnectorStrategyKey: () => () => undefined,
-  INTEGRATION_PERMISSION_SERVICE_TOKEN: 'XPERT_PLUGIN_INTEGRATION_PERMISSION_SERVICE',
   IntegrationStrategyKey: () => () => undefined,
+  ConnectorStrategyKey: () => () => undefined,
   XpertServerPlugin: () => () => undefined
 }))
 
@@ -38,5 +38,8 @@ describe('WeCom connector plugin metadata', () => {
       artifactNamespace: WECOM_CONNECTOR_ARTIFACT_NAMESPACE
     })
     expect(plugin.meta.icon).toEqual({ type: 'svg', value: WECOM_CONNECTOR_ICON })
+    expect(plugin.permissions).toEqual([
+      { type: 'integration', service: WECOM_AUTH_INTEGRATION_PROVIDER, operations: ['read'] }
+    ])
   })
 })
