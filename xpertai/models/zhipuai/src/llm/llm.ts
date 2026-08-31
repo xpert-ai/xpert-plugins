@@ -69,6 +69,7 @@ export class ZhipuAILargeLanguageModel extends LargeLanguageModel {
             web_search: modelCredentials?.web_search,
             do_sample: modelCredentials?.do_sample,
             tool_stream: modelCredentials?.tool_stream,
+            reasoning_effort: modelCredentials?.reasoning_effort,
             response_format: modelCredentials?.response_format
               ? { type: modelCredentials.response_format }
               : undefined,
