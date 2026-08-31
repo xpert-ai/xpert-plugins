@@ -326,6 +326,9 @@
     },
     {
       "path": "./middlewares/tencent-map-connector"
+    },
+    {
+      "path": "./middlewares/amap-connector"
     }
   ]
 }

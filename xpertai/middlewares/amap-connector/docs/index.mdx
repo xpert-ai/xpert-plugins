@@ -1,0 +1,24 @@
+---
+title: 高德地图连接器
+description: 将 Xpert Agent 连接到高德开放平台 Web 服务 API。
+---
+
+高德地图连接器为 Xpert Agent 提供边界明确的只读位置服务工具。插件使用 Xpert 连接器凭据库保存密钥，并且只访问固定的高德官方 Web 服务端点。
+
+## 前置条件
+
+1. 在[高德开放平台控制台](https://console.amap.com/dev/key/app)创建应用。
+2. 创建平台类型为 **Web 服务** 的 Key。
+3. 确认 Xpert API 服务可以通过 HTTPS 访问 `https://restapi.amap.com`。
+
+## 连接方式
+
+在 Xpert 工作区连接器页面选择 **高德地图**，输入 Web 服务 Key 并保存。若该 Key 已开启数字签名校验，同时填写对应私钥。连接器会调用一次地址解析接口，只有凭据能够返回有效坐标时才会激活。
+
+平台会加密保存 Key 和私钥。连接状态与工具输出都不会返回凭据。
+
+## 坐标契约
+
+所有工具使用 `{ lng, lat }` 结构，并按 GCJ-02 坐标系接收和返回坐标。调用前应将 WGS84 或 BD-09 坐标转换为 GCJ-02。
+
+更多提供方行为、配额与错误码请参考[高德 Web 服务 API 开发指南](https://lbs.amap.com/api/webservice/guide/api/georegeo)和[错误码说明](https://lbs.amap.com/api/webservice/guide/tools/info)。
