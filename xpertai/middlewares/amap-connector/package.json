@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-amap-connector",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "AMap Web Service connector for XpertAI.",
   "author": {
     "name": "XpertAI",
