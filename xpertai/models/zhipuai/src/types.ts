@@ -26,6 +26,7 @@ export interface ZhipuaiModelOptions extends CommonChatModelParameters {
 	clear_thinking?: boolean
 	tool_stream?: boolean
 	web_search?: boolean
+	reasoning_effort?: 'low' | 'high' | 'max'
 	response_format?: 'text' | 'json_object'
 }
 
