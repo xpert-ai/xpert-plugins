@@ -1,17 +1,81 @@
-import { randomBytes, createHash } from 'node:crypto'
+import { z } from 'zod'
 
+export const WECOM_CONNECTOR_PLUGIN_NAME = '@xpert-ai/plugin-wecom-connector'
 export const WECOM_CONNECTOR_PROVIDER = 'wecom'
-export const WECOM_AUTH_INTEGRATION_PROVIDER = 'wecom_auth'
 export const WECOM_CONNECTOR_INSTALL_LEVEL = 'tenant' as const
 export const WECOM_CONNECTOR_ARTIFACT_NAMESPACE = 'wecom_connector' as const
 export const WECOM_CONNECTOR_RUNTIME_MIDDLEWARE_NAME = `ConnectorRuntime:${WECOM_CONNECTOR_PROVIDER}`
 
-export const WECOM_CONNECTOR_AUTHORIZE_URL = 'https://open.work.weixin.qq.com/wwopen/sso/qrConnect'
-export const WECOM_CONNECTOR_ACCESS_TOKEN_URL = 'https://qyapi.weixin.qq.com/cgi-bin/gettoken'
-export const WECOM_CONNECTOR_USER_INFO_URL = 'https://qyapi.weixin.qq.com/cgi-bin/auth/getuserinfo'
-export const WECOM_CONNECTOR_USER_DETAIL_URL = 'https://qyapi.weixin.qq.com/cgi-bin/auth/getuserdetail'
+export const WECOM_CLI_QR_AUTH_METHOD = 'wecom-cli-qr'
+export const WECOM_LEGACY_AUTH_METHOD = 'wecom-qr'
 
-export const WECOM_CONNECTOR_AUTH_INTEGRATION_URL = `/settings/integration/create?provider=${WECOM_AUTH_INTEGRATION_PROVIDER}`
+export const WECOM_CLI_VERSION = '1.2.0'
+export const WECOM_CLI_SKILLS_REF = '78c514b2afee7c0d3d7be715628478421f37ee63'
+export const WECOM_CLI_SKILLS_SHA256 = '591149d0f796e118213f2fb18f6f2cfb2bf63618c778c81baf033d62a05e64bc'
+export const WECOM_CLI_BOOTSTRAP_SCHEMA_VERSION = 1
+export const WECOM_CLI_SKILLS = [
+  'wecomcli-shared',
+  'wecomcli-contact',
+  'wecomcli-calendar',
+  'wecomcli-meeting',
+  'wecomcli-todo',
+  'wecomcli-email',
+  'wecomcli-disk',
+  'wecomcli-media',
+  'wecomcli-message',
+  'wecomcli-doc-manage',
+  'wecomcli-doc',
+  'wecomcli-sheet',
+  'wecomcli-smartsheet',
+  'wecomcli-smartpage'
+] as const
+
+export const WECOM_QR_GENERATE_URL = 'https://work.weixin.qq.com/ai/qc/generate'
+export const WECOM_QR_QUERY_URL = 'https://work.weixin.qq.com/ai/qc/query_result'
+export const WECOM_QR_PAGE_URL = 'https://work.weixin.qq.com/ai/qc/gen'
+export const WECOM_CLI_AUTH_URL = 'https://qyapi.weixin.qq.com/cgi-bin/aibot/cli/get_cli_config'
+export const WECOM_QR_SOURCE = 'wecom_cli_external'
+export const WECOM_QR_POLL_INTERVAL_SECONDS = 3
+export const WECOM_QR_AUTHORIZATION_TTL_MS = 5 * 60 * 1000
+
+const OptionalUrlSchema = z.preprocess(
+  (value) => (typeof value === 'string' && !value.trim() ? undefined : value),
+  z.string().trim().url().optional()
+)
+
+export const WeComConnectorPluginConfigSchema = z.object({
+  proxy: OptionalUrlSchema,
+  npmRegistryUrl: OptionalUrlSchema
+})
+
+export type WeComConnectorPluginConfig = z.infer<typeof WeComConnectorPluginConfigSchema>
+
+export const WeComConnectorPluginConfigFormSchema = {
+  type: 'object',
+  properties: {
+    proxy: {
+      type: 'string',
+      title: { en_US: 'Network proxy', zh_Hans: '网络代理' },
+      description: {
+        en_US: 'Optional HTTP(S) proxy used to install WeCom CLI, download Skills, and run CLI requests.',
+        zh_Hans: '可选。用于安装企业微信 CLI、下载 Skills 和执行 CLI 请求的 HTTP(S) 代理。'
+      }
+    },
+    npmRegistryUrl: {
+      type: 'string',
+      title: { en_US: 'npm registry', zh_Hans: 'npm 镜像地址' },
+      description: {
+        en_US: 'Optional npm registry used to install the pinned official @wecom/cli package.',
+        zh_Hans: '可选。用于安装固定版本官方 @wecom/cli 包的 npm 镜像地址。'
+      }
+    }
+  }
+} as const
+
+export type WeComBotCredential = {
+  botId: string
+  botSecret: string
+}
 
 export const WECOM_CONNECTOR_ICON = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
@@ -19,44 +83,6 @@ export const WECOM_CONNECTOR_ICON = `
   <path d="M519.253333 821.376q-28.586667 4.821333-57.514666 5.845333-72.064 3.456-142.506667-13.44-2.005333-0.042667-3.968 0.426667l-99.925333 49.066667q-40.277333 20.821333-72.533334-4.522667-27.392-20.650667-24.021333-63.786667l0.128-1.408 0.213333-1.365333q5.546667-34.688 9.898667-76.8Q46.506667 631.893333 20.352 547.2-38.698667 346.368 115.2 194.304q133.205333-130.432 331.221333-125.909333 197.461333 4.522667 325.034667 139.904 46.464 49.322667 70.698667 106.794666 12.458667 29.525333 18.944 60.928a34.133333 34.133333 0 0 1-66.858667 13.824q-5.12-24.874667-14.933333-48.213333-19.541333-46.165333-57.557334-86.528-107.946667-114.602667-276.906666-118.442667-169.216-3.882667-281.642667 106.24-124.928 123.349333-77.653333 284.117334 21.546667 69.845333 94.250666 142.677333l0.512 0.512 0.512 0.554667q15.36 16.768 16.853334 39.466666l0.170666 2.816-0.298666 2.816q-4.650667 46.762667-10.794667 85.418667l102.826667-50.56 2.048-0.682667q18.261333-6.272 37.418666-3.84l1.962667 0.213334 1.92 0.469333q62.08 15.189333 126.293333 12.117333 24.490667-0.853333 48.64-4.949333a34.133333 34.133333 0 0 1 11.306667 67.328z m-335.36-17.066667l0.554667-0.725333 0.426667 1.408-0.469334-0.341333-0.469333-0.341334z" fill="#333333"/>
 </svg>
 `.trim()
-
-export type WeComConnectorAppCredentials = {
-  corpId: string
-  agentId: string
-  corpSecret: string
-  lang?: 'zh' | 'en'
-}
-
-export type WeComAccessTokenResponse = {
-  accessToken: string
-  expiresIn?: number
-}
-
-export type WeComUserInfo = {
-  userId?: string
-  openUserId?: string
-  userTicket?: string
-}
-
-export type WeComUserDetail = {
-  userId?: string
-  name?: string
-  avatarUrl?: string
-  email?: string
-  mobile?: string
-  openUserId?: string
-  unionId?: string
-}
-
-export function createWeComSignature(params: { token: string; timestamp: string; nonce: string; encrypt: string }) {
-  return createHash('sha1')
-    .update([params.token, params.timestamp, params.nonce, params.encrypt].sort().join(''))
-    .digest('hex')
-}
-
-export function randomStateSecret() {
-  return randomBytes(16).toString('hex')
-}
 
 export function readString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined
@@ -66,58 +92,12 @@ export function readNumber(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined
 }
 
-export function requireString(value: unknown, message: string) {
+export function requireString(value: unknown, message: string): string {
   const result = readString(value)
-  if (!result) {
-    throw new Error(message)
-  }
+  if (!result) throw new Error(message)
   return result
 }
 
-export function toExpiresAt(expiresIn?: number) {
-  return expiresIn == null ? undefined : new Date(Date.now() + expiresIn * 1000).toISOString()
-}
-
-export function normalizeWeComAppCredentials(
-  payload: Record<string, unknown> | undefined
-): WeComConnectorAppCredentials {
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-    throw new Error('WeCom QR login requires app credentials.')
-  }
-
-  const corpId =
-    readString(payload.corpId) ??
-    readString(payload.clientId) ??
-    readString(payload.appId) ??
-    readString(payload.corp_id)
-  const agentId = readString(payload.agentId) ?? readString(payload.agent_id)
-  const corpSecret = readString(payload.corpSecret) ?? readString(payload.clientSecret) ?? readString(payload.secret)
-
-  if (!corpId || !agentId || !corpSecret) {
-    throw new Error('WeCom QR login requires CorpID, AgentID, and CorpSecret.')
-  }
-
-  return {
-    corpId,
-    agentId,
-    corpSecret,
-    lang: readString(payload.lang) === 'en' ? 'en' : readString(payload.lang) === 'zh' ? 'zh' : undefined
-  }
-}
-
-export function toWeComProfile(input: { userInfo: WeComUserInfo; detail?: WeComUserDetail | null }) {
-  const detail = input.detail ?? {}
-  const userId = detail.userId ?? input.userInfo.userId
-  const openUserId = detail.openUserId ?? input.userInfo.openUserId
-  const name = detail.name ?? userId ?? openUserId
-
-  return {
-    userId,
-    openId: openUserId,
-    unionId: detail.unionId,
-    name,
-    avatarUrl: detail.avatarUrl,
-    email: detail.email,
-    mobile: detail.mobile
-  }
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
 }
