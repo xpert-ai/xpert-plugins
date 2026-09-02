@@ -17,7 +17,7 @@ import {
 import type { IIntegration } from '@xpert-ai/contracts'
 import { DingTalkConnectorApiClient } from './api/dingtalk-connector-api.client.js'
 import { DINGTALK_CONNECTOR_ICON } from './branding.js'
-import { DINGTALK_CONNECTOR_AUTH_INTEGRATION_URL, DINGTALK_CONNECTOR_INTEGRATION_PROVIDER } from './constants.js'
+import { DINGTALK_CONNECTOR_INTEGRATION_PROVIDER } from './constants.js'
 import { DingTalkConnectorSecretService } from './dingtalk-connector-secret.service.js'
 import { DINGTALK_CONNECTOR_PLUGIN_CONTEXT } from './tokens.js'
 
@@ -57,7 +57,7 @@ export class DingTalkConnectorStrategy implements ConnectorMultiAuthStrategy {
     },
     description: {
       en_US: 'Connect DingTalk using the configured system integration.',
-      zh_Hans: '使用系统集成中配置的钉钉应用进行 OAuth 授权连接。'
+      zh_Hans: '使用预配置的钉钉应用进行 OAuth 授权连接。'
     },
     icon: DINGTALK_CONNECTOR_ICON,
     authMethods: [
@@ -67,15 +67,6 @@ export class DingTalkConnectorStrategy implements ConnectorMultiAuthStrategy {
         label: {
           en_US: 'DingTalk OAuth',
           zh_Hans: '钉钉 OAuth 授权'
-        },
-        appCredentials: {
-          help: {
-            label: {
-              en_US: 'Configure DingTalk OAuth system integration',
-              zh_Hans: '配置钉钉 OAuth 系统集成'
-            },
-            url: DINGTALK_CONNECTOR_AUTH_INTEGRATION_URL
-          }
         }
       }
     ],
@@ -215,47 +206,42 @@ export class DingTalkConnectorStrategy implements ConnectorMultiAuthStrategy {
   }
 
   private async resolveIntegration(integrationId?: unknown): Promise<IIntegration<DingTalkOAuthIntegrationOptions>> {
+    const organizationId = requireString(
+      this.pluginContext.organizationId,
+      'DingTalk Connector must be installed and used at organization scope'
+    )
     const id = readString(integrationId)
-    if (id) {
-      const integration = await this.integrationPermissionService.read<IIntegration<DingTalkOAuthIntegrationOptions>>(
-        id,
-        {
-          relations: ['tenant']
-        }
-      )
-      if (!integration) {
-        throw new Error(`DingTalk OAuth system integration '${id}' was not found`)
-      }
-      if (integration.provider !== DINGTALK_CONNECTOR_INTEGRATION_PROVIDER) {
-        throw new Error(`Integration '${id}' is not a DingTalk Connector OAuth system integration`)
-      }
-      return integration
-    }
-
-    const service = this.integrationPermissionService
-    const result = service.findAllWithInheritance
-      ? await service.findAllWithInheritance<IIntegration<DingTalkOAuthIntegrationOptions>>({
-          where: { provider: DINGTALK_CONNECTOR_INTEGRATION_PROVIDER },
-          order: { updatedAt: 'DESC' },
-          take: 10
-        })
-      : await service.findAll<IIntegration<DingTalkOAuthIntegrationOptions>>({
-          where: { provider: DINGTALK_CONNECTOR_INTEGRATION_PROVIDER },
-          order: { updatedAt: 'DESC' },
-          take: 10
-        })
-    const integration = result.items.find(
+    const result = await this.integrationPermissionService.findAll<IIntegration<DingTalkOAuthIntegrationOptions>>({
+      where: {
+        provider: DINGTALK_CONNECTOR_INTEGRATION_PROVIDER,
+        organizationId,
+        ...(id ? { id } : {})
+      },
+      order: { updatedAt: 'DESC' },
+      take: id ? 1 : 10
+    })
+    const integrations = result.items.filter(
       (item) =>
         item.provider === DINGTALK_CONNECTOR_INTEGRATION_PROVIDER &&
+        item.organizationId === organizationId &&
+        (!id || item.id === id) &&
         item.options?.clientId &&
         item.options?.clientSecret
     )
-    if (!integration) {
+    if (id && !integrations.length) {
+      throw new Error(`DingTalk OAuth system integration '${id}' was not found in the current organization`)
+    }
+    if (!integrations.length) {
       throw new Error(
-        'DingTalk Connector OAuth system integration is not configured. Configure Client ID (AppKey) and Client Secret (AppSecret) in the DingTalk Connector OAuth system integration.'
+        'DingTalk Connector OAuth system integration is not configured for the current organization. Configure Client ID (AppKey) and Client Secret (AppSecret) in an organization-level DingTalk Connector OAuth system integration.'
       )
     }
-    return integration
+    if (!id && integrations.length > 1) {
+      throw new Error(
+        'Multiple DingTalk Connector OAuth system integrations are configured for the current organization. Keep exactly one active integration.'
+      )
+    }
+    return integrations[0]
   }
 
   private async fetchUserProfile(accessToken: string): Promise<ConnectorProfile> {

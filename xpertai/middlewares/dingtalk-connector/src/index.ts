@@ -22,7 +22,7 @@ const plugin: XpertPlugin = {
     category: 'middleware',
     icon: DINGTALK_CONNECTOR_ICON,
     displayName: 'DingTalk Connector',
-    description: 'Connects a workspace to DingTalk with OAuth using the configured system integration.',
+    description: 'Connects a workspace to DingTalk with OAuth using an organization-level system integration.',
     keywords: ['dingtalk', 'connector', 'oauth', 'middleware'],
     author: 'XpertAI Team'
   },

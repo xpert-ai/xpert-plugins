@@ -29,15 +29,11 @@ describe('DingTalkConnectorStrategy', () => {
     expect(strategy.definition.authMethods).toEqual([expect.objectContaining({ id: 'oauth2', type: 'oauth2' })])
     const authMethod = strategy.definition.authMethods[0]
     if (authMethod.type !== 'oauth2') throw new Error('Expected OAuth2 connector method')
-    expect(authMethod.appCredentials).toEqual({
-      help: expect.objectContaining({
-        url: '/settings/integration/create?provider=dingtalk-connector'
-      })
-    })
+    expect(authMethod).not.toHaveProperty('appCredentials')
   })
 
   it('builds the OAuth URL from the connector-owned system integration', async () => {
-    const strategy = createStrategy()
+    const { strategy, integrationPermissionService } = createHarness()
 
     const result = await strategy.connect({
       authMethodId: 'oauth2',
@@ -59,6 +55,51 @@ describe('DingTalkConnectorStrategy', () => {
     expect(url.searchParams.get('state')).toBe('state-1')
     expect(url.searchParams.get('prompt')).toBe('consent')
     expect(result.metadata).toEqual({ integrationId: 'integration-1' })
+    expect(integrationPermissionService.findAll).toHaveBeenCalledWith({
+      where: {
+        provider: DINGTALK_CONNECTOR_INTEGRATION_PROVIDER,
+        organizationId: 'organization-1'
+      },
+      order: { updatedAt: 'DESC' },
+      take: 10
+    })
+    expect(integrationPermissionService.findAllWithInheritance).not.toHaveBeenCalled()
+  })
+
+  it('does not use a tenant-level system integration', async () => {
+    const strategy = createStrategy(true, DINGTALK_CONNECTOR_INTEGRATION_PROVIDER, undefined, null)
+
+    await expect(
+      strategy.connect({
+        authMethodId: 'oauth2',
+        redirectUri: 'https://xpert.example.com/api/connector/oauth/callback',
+        state: 'tenant-state'
+      })
+    ).rejects.toThrow('is not configured for the current organization')
+  })
+
+  it('does not use a system integration owned by another organization', async () => {
+    const strategy = createStrategy(true, DINGTALK_CONNECTOR_INTEGRATION_PROVIDER, undefined, 'organization-2')
+
+    await expect(
+      strategy.connect({
+        authMethodId: 'oauth2',
+        redirectUri: 'https://xpert.example.com/api/connector/oauth/callback',
+        state: 'other-organization-state'
+      })
+    ).rejects.toThrow('is not configured for the current organization')
+  })
+
+  it('requires the connector plugin to run at organization scope', async () => {
+    const strategy = createStrategy(true, DINGTALK_CONNECTOR_INTEGRATION_PROVIDER, undefined, 'organization-1', null)
+
+    await expect(
+      strategy.connect({
+        authMethodId: 'oauth2',
+        redirectUri: 'https://xpert.example.com/api/connector/oauth/callback',
+        state: 'missing-organization-state'
+      })
+    ).rejects.toThrow('must be installed and used at organization scope')
   })
 
   it('does not discover the DingTalk SSO system integration', async () => {
@@ -271,18 +312,32 @@ describe('DingTalkConnectorStrategy', () => {
           }
         }
       })
-    ).rejects.toThrow("Integration 'integration-1' is not a DingTalk Connector OAuth system integration")
+    ).rejects.toThrow("DingTalk OAuth system integration 'integration-1' was not found in the current organization")
   })
 })
 
 function createStrategy(
   withIntegration = true,
   integrationProvider = DINGTALK_CONNECTOR_INTEGRATION_PROVIDER,
-  robotCode?: string
+  robotCode?: string,
+  integrationOrganizationId: string | null = 'organization-1',
+  pluginOrganizationId: string | null = 'organization-1'
+) {
+  return createHarness(withIntegration, integrationProvider, robotCode, integrationOrganizationId, pluginOrganizationId)
+    .strategy
+}
+
+function createHarness(
+  withIntegration = true,
+  integrationProvider = DINGTALK_CONNECTOR_INTEGRATION_PROVIDER,
+  robotCode?: string,
+  integrationOrganizationId: string | null = 'organization-1',
+  pluginOrganizationId: string | null = 'organization-1'
 ) {
   const integration = {
     id: 'integration-1',
     provider: integrationProvider,
+    organizationId: integrationOrganizationId,
     options: {
       clientId: 'system-client',
       clientSecret: 'enc:v1:encrypted-secret',
@@ -296,6 +351,7 @@ function createStrategy(
     findAllWithInheritance: jest.fn().mockResolvedValue({ items, total: items.length })
   }
   const pluginContext = {
+    organizationId: pluginOrganizationId,
     resolve: jest.fn().mockReturnValue(integrationPermissionService)
   }
   const secretService = {
@@ -304,7 +360,10 @@ function createStrategy(
   const api = {
     getAppAccessToken: jest.fn().mockResolvedValue('app-access-token')
   }
-  return new DingTalkConnectorStrategy(secretService as never, api as never, pluginContext as never)
+  return {
+    strategy: new DingTalkConnectorStrategy(secretService as never, api as never, pluginContext as never),
+    integrationPermissionService
+  }
 }
 
 function jsonResponse(body: unknown, status = 200) {
