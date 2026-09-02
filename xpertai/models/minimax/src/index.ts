@@ -20,8 +20,8 @@ const plugin: XpertPlugin<any> = {
     category: 'model',
     icon: { type: 'svg', value: SvgIcon },
     displayName: 'MiniMax',
-    description: 'MiniMax LLM / TTS via OpenAI compatible API',
-    keywords: ['minimax', 'openai-compatible', 'llm', 'tts'],
+    description: 'MiniMax LLM, TTS, and H3 video generation',
+    keywords: ['minimax', 'openai-compatible', 'llm', 'tts', 'video', 'h3'],
     author: 'XpertAI Team'
   },
   config: {
