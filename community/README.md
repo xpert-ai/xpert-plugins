@@ -187,11 +187,11 @@ pnpm --filter "$PKG" publish --access public --publish-branch main
 
 ```sh
 npm whoami
-pnpm --filter ./apps/sales-ontology build
-pnpm --filter ./apps/sales-ontology publish --access public --publish-branch main
+pnpm --filter ./apps/<name> build
+pnpm --filter ./apps/<name> publish --access public --publish-branch main
 ```
 
-发布后检查 npm 页或安装验证：`pnpm add @xpert-ai/plugin-sales-ontology`
+发布后检查 npm 页或安装验证：`pnpm add @xpert-ai/plugin-<name>`
 
 ## 结构约定
 - `tools/`：具体工具实现（如 parser、converter）。
