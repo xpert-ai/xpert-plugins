@@ -5,17 +5,28 @@ import {
   WECOM_QR_QUERY_URL,
   WECOM_QR_SOURCE
 } from './types.js'
-import { WeComConnectorStrategy } from './wecom-connector.strategy.js'
+import { fetch as undiciFetch, Response } from 'undici'
+import { WeComCliBootstrapService } from './wecom-cli-bootstrap.service.js'
+import { resolveRequestCa, WeComConnectorStrategy } from './wecom-connector.strategy.js'
 
 jest.mock('@xpert-ai/plugin-sdk', () => ({
   ConnectorStrategyKey: () => (target: object) => target
 }))
+jest.mock('undici', () => {
+  const actual = jest.requireActual<typeof import('undici')>('undici')
+  return { ...actual, fetch: jest.fn() }
+})
+
+const fetchMock = jest.mocked(undiciFetch)
 
 describe('WeComConnectorStrategy', () => {
-  afterEach(() => jest.restoreAllMocks())
+  afterEach(() => {
+    jest.restoreAllMocks()
+    fetchMock.mockReset()
+  })
 
   it('declares QR authentication as the only connection method', () => {
-    const strategy = new WeComConnectorStrategy()
+    const strategy = createStrategy()
     expect(strategy.definition.provider).toBe('wecom')
     expect(strategy.definition.permissions).toEqual([
       expect.objectContaining({ key: 'wecom.ai_bot_credential', storage: 'platform_vault' })
@@ -50,14 +61,13 @@ describe('WeComConnectorStrategy', () => {
   it('starts QR authorization and polls until the official CLI bot is returned', async () => {
     const now = Date.parse('2026-08-27T08:00:00.000Z')
     jest.spyOn(Date, 'now').mockReturnValue(now)
-    jest
-      .spyOn(global, 'fetch')
+    fetchMock
       .mockResolvedValueOnce(jsonResponse({ data: { scode: 'scode-1234', auth_url: 'https://qr.example/1' } }))
       .mockResolvedValueOnce(
         jsonResponse({ data: { status: 'success', bot_info: { botid: 'bot-1', secret: 'secret-1' } } })
       )
       .mockResolvedValueOnce(jsonResponse({ errcode: 0, token: 'bootstrap-token' }))
-    const strategy = new WeComConnectorStrategy()
+    const strategy = createStrategy()
 
     const connected = await strategy.connect({
       authMethodId: WECOM_CLI_QR_AUTH_METHOD,
@@ -84,14 +94,42 @@ describe('WeComConnectorStrategy', () => {
         profile: { name: 'WeCom AI Bot', identityType: 'bot' }
       }
     })
-    const calls = (global.fetch as jest.Mock).mock.calls
+    const calls = fetchMock.mock.calls
     expect(calls[0][0]).toBe(`${WECOM_QR_GENERATE_URL}?source=${WECOM_QR_SOURCE}&plat=3`)
     expect(calls[1][0]).toBe(`${WECOM_QR_QUERY_URL}?scode=scode-1234`)
     expect(JSON.stringify(result)).toContain('botSecret')
   })
 
+  it('uses an environment-aware dispatcher for WeCom requests', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ data: { scode: 'scode-1234', auth_url: 'https://qr.example/1' } }))
+    const strategy = createStrategy()
+
+    await strategy.connect({
+      authMethodId: WECOM_CLI_QR_AUTH_METHOD,
+      redirectUri: 'unused',
+      state: 'unused'
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${WECOM_QR_GENERATE_URL}?source=${WECOM_QR_SOURCE}&plat=3`,
+      expect.objectContaining({ dispatcher: expect.anything() })
+    )
+  })
+
+  it('preserves default and extra CAs while adding system CAs', () => {
+    const getCACertificates = jest.fn((type = 'default') => {
+      if (type === 'default') return ['bundled-ca', 'extra-ca']
+      if (type === 'system') return ['system-ca', 'bundled-ca']
+      return []
+    })
+
+    expect(resolveRequestCa(getCACertificates)).toEqual(['bundled-ca', 'extra-ca', 'system-ca'])
+    expect(getCACertificates).toHaveBeenCalledWith('default')
+    expect(getCACertificates).toHaveBeenCalledWith('system')
+  })
+
   it('rejects legacy application OAuth credentials with a reauthorization message', async () => {
-    const strategy = new WeComConnectorStrategy()
+    const strategy = createStrategy()
     await expect(
       strategy.resolveRuntimeCredential({
         authMethodId: 'wecom-qr',
@@ -101,7 +139,7 @@ describe('WeComConnectorStrategy', () => {
   })
 
   it('rejects the removed manual credential authentication method', async () => {
-    const strategy = new WeComConnectorStrategy()
+    const strategy = createStrategy()
     await expect(
       strategy.resolveRuntimeCredential({
         authMethodId: 'wecom-cli-manual',
@@ -111,10 +149,13 @@ describe('WeComConnectorStrategy', () => {
   })
 })
 
+function createStrategy() {
+  return new WeComConnectorStrategy(new WeComCliBootstrapService())
+}
+
 function jsonResponse(body: unknown, status = 200) {
-  return {
-    ok: status >= 200 && status < 300,
+  return new Response(JSON.stringify(body), {
     status,
-    json: async () => body
-  } as Response
+    headers: { 'content-type': 'application/json' }
+  })
 }

@@ -31,7 +31,8 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "undici": "^7.29.0"
   },
   "peerDependencies": {
     "@langchain/core": "0.3.72",
