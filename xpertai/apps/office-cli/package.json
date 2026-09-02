@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-office-cli",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Visual OfficeCLI app plugin for native DOCX, XLSX, and PPTX automation, rendering, versioning, and Agent editing.",
   "author": {
     "name": "XpertAI",
