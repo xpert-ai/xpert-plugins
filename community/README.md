@@ -156,6 +156,7 @@ curl -X POST "${XPERT_API_URL%/}/api/plugin" \
 新包第一次发布时，如果 npm 上还不存在该 package，通常需要维护者先从本地 bootstrap 发布一次。发布完成后再到 npm package settings 中配置 Trusted Publisher，后续版本就走 changeset release workflow。
 
 ```sh
+npm login
 PKG=@xpert-ai/plugin-sales-ontology
 
 npm view "$PKG" version || echo "$PKG has not been published yet"
