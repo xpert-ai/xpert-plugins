@@ -56,8 +56,8 @@ export class DingTalkConnectorStrategy implements ConnectorMultiAuthStrategy {
       zh_Hans: '钉钉'
     },
     description: {
-      en_US: 'Connect DingTalk using the configured system integration.',
-      zh_Hans: '使用预配置的钉钉应用进行 OAuth 授权连接。'
+      en_US: 'Connect DingTalk using the tenant system integration when available, otherwise the current organization integration.',
+      zh_Hans: '优先使用租户级系统集成，没有可用配置时回退到当前组织系统集成。'
     },
     icon: DINGTALK_CONNECTOR_ICON,
     authMethods: [
@@ -206,42 +206,55 @@ export class DingTalkConnectorStrategy implements ConnectorMultiAuthStrategy {
   }
 
   private async resolveIntegration(integrationId?: unknown): Promise<IIntegration<DingTalkOAuthIntegrationOptions>> {
+    const tenantId = requireString(
+      this.pluginContext.tenantId,
+      'DingTalk Connector requires a tenant-scoped runtime context'
+    )
     const organizationId = requireString(
       this.pluginContext.organizationId,
       'DingTalk Connector must be installed and used at organization scope'
     )
     const id = readString(integrationId)
-    const result = await this.integrationPermissionService.findAll<IIntegration<DingTalkOAuthIntegrationOptions>>({
+    const findAllWithInheritance = this.integrationPermissionService.findAllWithInheritance
+    if (!findAllWithInheritance) {
+      throw new Error('The host does not support tenant and organization system integration lookup')
+    }
+
+    const result = await findAllWithInheritance<IIntegration<DingTalkOAuthIntegrationOptions>>({
       where: {
         provider: DINGTALK_CONNECTOR_INTEGRATION_PROVIDER,
-        organizationId,
         ...(id ? { id } : {})
       },
       order: { updatedAt: 'DESC' },
       take: id ? 1 : 10
     })
-    const integrations = result.items.filter(
+    const integrations = (result.items ?? []).filter(
       (item) =>
         item.provider === DINGTALK_CONNECTOR_INTEGRATION_PROVIDER &&
-        item.organizationId === organizationId &&
+        item.tenantId === tenantId &&
+        (item.organizationId == null || item.organizationId === organizationId) &&
         (!id || item.id === id) &&
         item.options?.clientId &&
         item.options?.clientSecret
     )
     if (id && !integrations.length) {
-      throw new Error(`DingTalk OAuth system integration '${id}' was not found in the current organization`)
+      throw new Error(`DingTalk OAuth system integration '${id}' was not found in the current tenant or organization`)
     }
-    if (!integrations.length) {
+
+    const tenantIntegrations = integrations.filter((item) => item.organizationId == null)
+    const organizationIntegrations = integrations.filter((item) => item.organizationId === organizationId)
+    const candidates = tenantIntegrations.length ? tenantIntegrations : organizationIntegrations
+    if (!candidates.length) {
       throw new Error(
-        'DingTalk Connector OAuth system integration is not configured for the current organization. Configure Client ID (AppKey) and Client Secret (AppSecret) in an organization-level DingTalk Connector OAuth system integration.'
+        'DingTalk Connector OAuth system integration is not configured for the current tenant or organization. Configure Client ID (AppKey) and Client Secret (AppSecret) in a system integration.'
       )
     }
-    if (!id && integrations.length > 1) {
+    if (!id && candidates.length > 1) {
       throw new Error(
-        'Multiple DingTalk Connector OAuth system integrations are configured for the current organization. Keep exactly one active integration.'
+        'Multiple DingTalk Connector OAuth system integrations are configured at the preferred scope. Keep exactly one active integration or pass an explicit integration selection.'
       )
     }
-    return integrations[0]
+    return candidates[0]
   }
 
   private async fetchUserProfile(accessToken: string): Promise<ConnectorProfile> {

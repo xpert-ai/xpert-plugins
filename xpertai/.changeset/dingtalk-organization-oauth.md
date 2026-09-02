@@ -2,4 +2,4 @@
 '@xpert-ai/plugin-dingtalk-connector': patch
 ---
 
-Enforce organization-scoped DingTalk Connector OAuth configuration and keep connector login configuration-free.
+Prefer tenant-level DingTalk Connector OAuth configuration, fall back to the current organization, and keep connector login configuration-free.

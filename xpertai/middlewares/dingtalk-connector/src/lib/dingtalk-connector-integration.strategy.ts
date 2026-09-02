@@ -25,8 +25,8 @@ export class DingTalkConnectorIntegrationStrategy implements IntegrationStrategy
     name: DINGTALK_CONNECTOR_INTEGRATION_PROVIDER,
     label: i18n('DingTalk Connector OAuth', '钉钉连接器 OAuth'),
     description: i18n(
-      'Configure the DingTalk OAuth application and optional Robot Code used exclusively by the DingTalk connector.',
-      '配置仅供钉钉连接器使用的 OAuth 应用，以及消息工具所需的可选机器人编码。'
+      'Tenant-level DingTalk OAuth application credentials are preferred; an organization-specific integration is used as a fallback. Robot Code is optional.',
+      '优先使用租户级钉钉 OAuth 应用凭据；没有可用租户配置时回退到当前组织配置。机器人编码为可选项。'
     ),
     icon: DINGTALK_CONNECTOR_ICON,
     helpUrl: 'https://open.dingtalk.com/document/orgapp/tutorial-obtaining-user-personal-information',
@@ -36,7 +36,10 @@ export class DingTalkConnectorIntegrationStrategy implements IntegrationStrategy
         clientId: {
           type: 'string',
           title: i18n('Client ID (AppKey)', '客户端 ID（AppKey）'),
-          description: i18n('Client ID or AppKey of the DingTalk application.', '钉钉应用的 Client ID 或 AppKey。')
+          description: i18n(
+            'Client ID or AppKey of the DingTalk application configured for the current tenant or organization.',
+            '当前租户或组织配置的钉钉应用 Client ID 或 AppKey。'
+          )
         },
         clientSecret: {
           type: 'string',
