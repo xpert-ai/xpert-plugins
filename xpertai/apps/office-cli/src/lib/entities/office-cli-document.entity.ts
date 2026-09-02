@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
+import { Column, CreateDateColumn, Entity, ForeignKey, Index, PrimaryGeneratedColumn, Unique, UpdateDateColumn } from 'typeorm'
 import type {
   OfficeCliDocumentFormat,
   OfficeCliDocumentStatus,
@@ -7,6 +7,11 @@ import type {
 import { officeCliTable } from '../constants.js'
 
 @Entity(officeCliTable('document'))
+@Unique('plugin_office_cli_document_id_project_uq', ['id', 'projectId'])
+@ForeignKey('xpert_project', ['projectId'], ['id'], {
+  name: 'plugin_office_cli_document_project_fk',
+  onDelete: 'CASCADE'
+})
 @Index(['tenantId', 'organizationId', 'projectId', 'format', 'status'])
 @Index(['tenantId', 'organizationId', 'assistantId', 'format', 'status'])
 @Index(['tenantId', 'organizationId', 'updatedAt'])
@@ -25,7 +30,7 @@ export class OfficeCliDocument {
   @Column({ type: 'varchar', nullable: true })
   workspaceId?: string
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ type: 'uuid', nullable: true, update: false })
   projectId?: string
 
   @Column({ type: 'varchar', nullable: true })

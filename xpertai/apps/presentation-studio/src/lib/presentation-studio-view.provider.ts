@@ -13,6 +13,7 @@ import type {
   XpertViewActionRequest,
   XpertViewActionResult,
   XpertViewDataResult,
+  XpertViewFileAccessRequest,
   XpertViewQuery
 } from '@xpert-ai/contracts'
 import { ASSISTANT_CONTEXT_SET_COMMAND } from '@xpert-ai/contracts'
@@ -20,7 +21,8 @@ import {
   IXpertViewExtensionProvider,
   renderRemoteModuleIframeHtml,
   ViewExtensionProvider,
-  type XpertViewFileActionFile
+  type XpertViewFileActionFile,
+  type XpertViewFileResource
 } from '@xpert-ai/plugin-sdk'
 import {
   AGENT_WORKBENCH_FIXED_SLOT,
@@ -58,7 +60,7 @@ export class PresentationStudioViewProvider implements IXpertViewExtensionProvid
   getViewManifests(context: XpertResolvedViewHostContext, slot: string): XpertExtensionViewManifest[] {
     if (!isSupportedSlot(context, slot)) return []
     const fixed = context.hostType === 'agent' && slot === AGENT_WORKBENCH_FIXED_SLOT
-    return [{
+    const manifest = {
       key: PRESENTATION_VIEW_KEY,
       title: text('Presentation Studio', '演示文稿工作室'),
       description: text('Agentic DashiAI presentation generation, collaboration, review, and export.', '基于 DashiAI 的演示文稿生成、协作、审阅与导出。'),
@@ -70,6 +72,7 @@ export class PresentationStudioViewProvider implements IXpertViewExtensionProvid
       activation: { requiredFeatures: [PRESENTATION_FEATURE] },
       ...(fixed ? { workbench: { fixed: true, menu: { enabled: true, label: text('Presentation Studio', '演示文稿'), order: 43, icon: VIEW_ICON_COMPAT } } } : {}),
       source: { provider: PRESENTATION_PROVIDER_KEY, plugin: PRESENTATION_PLUGIN_NAME },
+      fileAccess: { purposes: ['preview'] },
       view: {
         type: 'remote_component', runtime: 'react', protocolVersion: 1,
         component: { isolation: 'iframe', entry: PRESENTATION_REMOTE_ENTRY_KEY },
@@ -84,6 +87,10 @@ export class PresentationStudioViewProvider implements IXpertViewExtensionProvid
           key: 'presentation-studio-tool-completed', event: 'assistant.tool.completed',
           filter: { sources: ['chatkit'], toolNames: [...PRESENTATION_MUTATION_TOOL_NAMES] },
           action: { type: 'forward' }
+        }, {
+          key: 'presentation-studio-data-changed', event: 'view.data.changed',
+          filter: { sources: ['view-extension'], viewKeys: [PRESENTATION_VIEW_KEY] },
+          action: { type: 'refresh-and-forward', debounceMs: 250 }
         }]
       },
       clientCommands: [{
@@ -91,27 +98,40 @@ export class PresentationStudioViewProvider implements IXpertViewExtensionProvid
         label: text('Set Assistant Context', '设置 Assistant 上下文')
       }],
       actions: [
-        { key: 'refresh', label: text('Refresh', '刷新'), icon: 'ri-refresh-line', placement: 'toolbar', actionType: 'refresh' },
-        { key: 'create_deck', label: text('New deck', '新建演示稿'), icon: 'ri-add-line', placement: 'toolbar', actionType: 'invoke' },
-        { key: 'open_deck', label: text('Open deck', '打开演示稿'), actionType: 'invoke' },
-        { key: 'load_theme_previews', label: text('Load theme previews', '加载 PPT 主题预览'), actionType: 'invoke' },
-        { key: 'load_theme_runtime', label: text('Load theme runtime', '加载主题运行时'), actionType: 'invoke' },
-        { key: 'load_asset_previews', label: text('Load asset previews', '加载素材预览'), actionType: 'invoke' },
-        { key: 'set_current_context', label: text('Set current presentation context', '设置当前演示文稿上下文'), actionType: 'invoke' },
-        { key: 'rename_deck', label: text('Rename deck', '重命名演示稿'), actionType: 'invoke' },
-        { key: 'finalize_deck', label: text('Save version', '保存版本'), icon: 'ri-save-line', actionType: 'invoke' },
-        { key: 'restore_version', label: text('Restore version', '恢复版本'), actionType: 'invoke' },
-        { key: 'delete_version', label: text('Delete version', '删除版本'), actionType: 'invoke' },
-        { key: 'update_status', label: text('Update status', '更新状态'), actionType: 'invoke' },
-        { key: 'request_export', label: text('Export', '导出'), icon: 'ri-download-line', actionType: 'invoke' },
-        { key: 'share_deck_html', label: text('Share current deck HTML', '分享当前演示稿 HTML'), icon: 'ri-share-forward-line', actionType: 'invoke' },
-        { key: 'share_export', label: text('Share HTML', '分享 HTML'), icon: 'ri-share-line', actionType: 'invoke' },
-        { key: 'revoke_deck_html_share', label: text('Revoke HTML share', '撤销 HTML 分享'), icon: 'ri-link-unlink', actionType: 'invoke' },
-        { key: 'cancel_export', label: text('Cancel export', '取消导出'), actionType: 'invoke' },
-        { key: 'delete_export', label: text('Delete export', '删除导出'), actionType: 'invoke' },
-        { key: 'upload_asset', label: text('Upload media', '上传媒体'), icon: 'ri-upload-cloud-2-line', placement: 'toolbar', actionType: 'invoke', transport: 'file' }
+        { key: 'refresh', label: text('Refresh', '刷新'), icon: 'ri-refresh-line', placement: 'toolbar', actionType: 'refresh', requiredHostAccess: 'read' },
+        { key: 'create_deck', label: text('New deck', '新建演示稿'), icon: 'ri-add-line', placement: 'toolbar', actionType: 'invoke', requiredHostAccess: 'edit' },
+        { key: 'open_deck', label: text('Open deck', '打开演示稿'), actionType: 'invoke', requiredHostAccess: 'read' },
+        { key: 'load_theme_previews', label: text('Load theme previews', '加载 PPT 主题预览'), actionType: 'invoke', requiredHostAccess: 'read' },
+        { key: 'load_theme_runtime', label: text('Load theme runtime', '加载主题运行时'), actionType: 'invoke', requiredHostAccess: 'read' },
+        { key: 'load_asset_previews', label: text('Load asset previews', '加载素材预览'), actionType: 'invoke', requiredHostAccess: 'read' },
+        { key: 'set_current_context', label: text('Set current presentation context', '设置当前演示文稿上下文'), actionType: 'invoke', requiredHostAccess: 'read' },
+        { key: 'rename_deck', label: text('Rename deck', '重命名演示稿'), actionType: 'invoke', requiredHostAccess: 'edit' },
+        { key: 'finalize_deck', label: text('Save version', '保存版本'), icon: 'ri-save-line', actionType: 'invoke', requiredHostAccess: 'edit' },
+        { key: 'restore_version', label: text('Restore version', '恢复版本'), actionType: 'invoke', requiredHostAccess: 'edit' },
+        { key: 'delete_version', label: text('Delete version', '删除版本'), actionType: 'invoke', requiredHostAccess: 'manage' },
+        { key: 'update_status', label: text('Update status', '更新状态'), actionType: 'invoke', requiredHostAccess: 'edit' },
+        { key: 'request_export', label: text('Export', '导出'), icon: 'ri-download-line', actionType: 'invoke', requiredHostAccess: 'edit' },
+        { key: 'share_deck_html', label: text('Share current deck HTML', '分享当前演示稿 HTML'), icon: 'ri-share-forward-line', actionType: 'invoke', requiredHostAccess: 'manage' },
+        { key: 'share_export', label: text('Share HTML', '分享 HTML'), icon: 'ri-share-line', actionType: 'invoke', requiredHostAccess: 'manage' },
+        { key: 'revoke_deck_html_share', label: text('Revoke HTML share', '撤销 HTML 分享'), icon: 'ri-link-unlink', actionType: 'invoke', requiredHostAccess: 'manage' },
+        { key: 'cancel_export', label: text('Cancel export', '取消导出'), actionType: 'invoke', requiredHostAccess: 'edit' },
+        { key: 'delete_export', label: text('Delete export', '删除导出'), actionType: 'invoke', requiredHostAccess: 'manage' },
+        { key: 'upload_asset', label: text('Upload media', '上传媒体'), icon: 'ri-upload-cloud-2-line', placement: 'toolbar', actionType: 'invoke', transport: 'file', requiredHostAccess: 'edit' }
       ]
-    }]
+    } satisfies XpertExtensionViewManifest
+    return [manifest]
+  }
+
+  async resolveViewFile(
+    context: XpertResolvedViewHostContext,
+    viewKey: string,
+    request: XpertViewFileAccessRequest
+  ): Promise<XpertViewFileResource> {
+    if (viewKey !== PRESENTATION_VIEW_KEY || request.purpose !== 'preview') {
+      throw new Error('Presentation Studio file access request is invalid.')
+    }
+    const resource = await this.service.resolveThemePreviewFile(scopeFromContext(context), request.fileKey)
+    return resource
   }
 
   async getRemoteComponentEntry(
@@ -172,11 +192,12 @@ export class PresentationStudioViewProvider implements IXpertViewExtensionProvid
         return { ...success('Presentation opened', false), data: await this.service.openDeck(scope, deckId(request)) }
       }
       if (actionKey === 'load_theme_previews') {
+        const items = await this.service.getThemePreviewGallery(scope)
         return {
           ...success('Presentation theme previews loaded', false),
           data: {
             title: PRESENTATION_THEME_PREVIEW_TITLE,
-            items: await this.service.getThemePreviewGallery(scope)
+            items: items.map(themePreviewViewItem)
           }
         }
       }
@@ -294,19 +315,34 @@ export class PresentationStudioViewProvider implements IXpertViewExtensionProvid
   }
 }
 
+function themePreviewViewItem(
+  item: Awaited<ReturnType<PresentationStudioService['getThemePreviewGallery']>>[number]
+) {
+  return {
+    themePack: item.themePack,
+    fileKey: item.fileKey,
+    displayName: item.displayName,
+    scenario: item.scenario,
+    ...(item.fileUrl ? { fileUrl: item.fileUrl } : {})
+  }
+}
+
 function isSupportedSlot(context: XpertResolvedViewHostContext, slot: string) {
   if (context.hostType === 'project') return slot === PROJECT_DETAIL_SECTIONS_SLOT
   return context.hostType === 'agent' && (slot === AGENT_WORKBENCH_FIXED_SLOT || slot === AGENT_WORKBENCH_MAIN_SLOT)
 }
 
 function scopeFromContext(context: XpertResolvedViewHostContext): PresentationScope {
+  const runtimeScope = context.runtimeScope
   return {
     tenantId: context.tenantId, organizationId: context.organizationId ?? null, workspaceId: context.workspaceId ?? null,
-    projectId: context.hostType === 'project' ? context.hostId : null, userId: context.userId,
+    projectId: runtimeScope?.projectId ?? (context.hostType === 'project' ? context.hostId : null), userId: context.userId,
     xpertId: context.hostType === 'agent' ? context.hostId : null,
     assistantId: context.hostType === 'agent' ? context.hostId : null,
     assistantDisplayName: hostDisplayName(context),
-    conversationId: conversationIdFromContext(context)
+    conversationId: runtimeScope?.conversationId ?? conversationIdFromContext(context),
+    collaborationAccess: runtimeScope?.projectAccess?.canEdit === false ? 'read' : 'write',
+    workspaceFiles: runtimeScope?.workspaceFiles ?? null
   }
 }
 

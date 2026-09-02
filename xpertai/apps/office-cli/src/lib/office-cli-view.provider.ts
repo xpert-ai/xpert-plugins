@@ -134,6 +134,11 @@ export class OfficeCliViewProvider implements IXpertViewExtensionProvider {
             type: 'refresh-and-forward',
             debounceMs: 1000
           }
+        }, {
+          key: 'office-cli-data-changed',
+          event: 'view.data.changed',
+          filter: { sources: ['view-extension'], viewKeys: [OFFICE_CLI_VIEW_KEY] },
+          action: { type: 'refresh-and-forward', debounceMs: 250 }
         }]
       },
       clientCommands: [{
@@ -141,13 +146,13 @@ export class OfficeCliViewProvider implements IXpertViewExtensionProvider {
         label: text('Set active Office document', '设置当前 Office 文件')
       }],
       actions: [
-        { key: 'refresh', label: text('Refresh', '刷新'), icon: 'ri-refresh-line', placement: 'toolbar', actionType: 'refresh' },
-        { key: 'create_document', label: text('New Office File', '新建 Office 文件'), icon: 'ri-add-line', placement: 'toolbar', actionType: 'invoke' },
-        { key: 'import_document', label: text('Import Office File', '导入 Office 文件'), icon: 'ri-upload-cloud-2-line', placement: 'toolbar', actionType: 'invoke', transport: 'file' },
-        { key: 'run_command', label: text('Run OfficeCLI Command', '执行 OfficeCLI 命令'), actionType: 'invoke' },
-        { key: 'restore_version', label: text('Restore Version', '恢复版本'), icon: 'ri-history-line', actionType: 'invoke' },
-        { key: 'get_file', label: text('Download Native File', '下载原生文件'), icon: 'ri-download-line', actionType: 'invoke' },
-        { key: 'delete_document', label: text('Delete Document', '永久删除文档'), icon: 'ri-delete-bin-line', actionType: 'invoke' }
+        { key: 'refresh', label: text('Refresh', '刷新'), icon: 'ri-refresh-line', placement: 'toolbar', actionType: 'refresh', requiredHostAccess: 'read' },
+        { key: 'create_document', label: text('New Office File', '新建 Office 文件'), icon: 'ri-add-line', placement: 'toolbar', actionType: 'invoke', requiredHostAccess: 'edit' },
+        { key: 'import_document', label: text('Import Office File', '导入 Office 文件'), icon: 'ri-upload-cloud-2-line', placement: 'toolbar', actionType: 'invoke', transport: 'file', requiredHostAccess: 'edit' },
+        { key: 'run_command', label: text('Run OfficeCLI Command', '执行 OfficeCLI 命令'), actionType: 'invoke', requiredHostAccess: 'edit' },
+        { key: 'restore_version', label: text('Restore Version', '恢复版本'), icon: 'ri-history-line', actionType: 'invoke', requiredHostAccess: 'edit' },
+        { key: 'get_file', label: text('Download Native File', '下载原生文件'), icon: 'ri-download-line', actionType: 'invoke', requiredHostAccess: 'read' },
+        { key: 'delete_document', label: text('Delete Document', '永久删除文档'), icon: 'ri-delete-bin-line', actionType: 'invoke', requiredHostAccess: 'manage' }
       ]
     }]
   }
@@ -317,13 +322,16 @@ function isSupportedSlot(context: XpertResolvedViewHostContext, slot: string) {
 }
 
 function scopeFromContext(context: XpertResolvedViewHostContext): OfficeCliScope {
+  const runtimeScope = context.runtimeScope
   return {
     tenantId: context.tenantId,
     organizationId: context.organizationId ?? null,
     workspaceId: context.workspaceId ?? null,
-    projectId: context.hostType === 'project' ? context.hostId : null,
+    projectId: runtimeScope?.projectId ?? (context.hostType === 'project' ? context.hostId : null),
     userId: context.userId,
-    assistantId: context.hostType === 'agent' ? context.hostId : null
+    assistantId: context.hostType === 'agent' ? context.hostId : null,
+    conversationId: runtimeScope?.conversationId ?? null,
+    workspaceFiles: runtimeScope?.workspaceFiles ?? null
   }
 }
 

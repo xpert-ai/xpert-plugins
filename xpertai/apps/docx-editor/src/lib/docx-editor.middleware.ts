@@ -318,7 +318,7 @@ export class DocxEditorMiddleware implements IAgentMiddlewareStrategy<Record<str
           'docx_suggest_change',
           suggestChangeSchema,
           [
-            'Create tracked change suggestions with exact paragraph plain-text matching.',
+            'Create tracked change suggestions with exact paragraph plain text matching.',
             'For one paragraph, pass paraId/search/replaceWith.',
             'For selected text spanning multiple paragraphs, pass changes[] with one item per paraId.',
             'Visual indentation, numbering, and bullet glyphs are often formatting, not paragraph plain text; use docx_read_document or docx_find_text output for search.'
@@ -425,14 +425,27 @@ export class DocxEditorMiddleware implements IAgentMiddlewareStrategy<Record<str
 }
 
 function scopeFromContext(context: IAgentMiddlewareContext): DocxEditorScope {
+  const projectId = context.projectId ?? null
+  const xpertId = context.xpertId ?? null
   return {
     tenantId: context.tenantId,
     organizationId: context.organizationId === undefined ? RequestContext.getOrganizationId() : context.organizationId,
     workspaceId: context.workspaceId ?? null,
-    projectId: context.projectId ?? null,
+    projectId,
     userId: context.userId,
-    assistantId: context.xpertId ?? null,
-    conversationId: context.conversationId ?? null
+    assistantId: xpertId,
+    conversationId: context.conversationId ?? null,
+    workspaceFiles: projectId
+      ? { catalog: 'projects', scopeId: projectId, projectId, userId: context.userId }
+      : xpertId
+        ? {
+            catalog: context.workspaceDataScope === 'user' ? 'user-xperts' : 'xperts',
+            scopeId: xpertId,
+            xpertId,
+            userId: context.userId,
+            isolateByUser: context.workspaceDataScope === 'user'
+          }
+        : undefined
   }
 }
 

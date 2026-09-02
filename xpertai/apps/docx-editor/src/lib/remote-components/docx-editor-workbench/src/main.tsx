@@ -491,7 +491,8 @@ function App() {
           fileName: detail?.item?.fileName,
           mimeType: detail?.item?.mimeType,
           size: saved.byteLength,
-          changeSummary
+          changeSummary,
+          expectedVersionNumber: detail?.item?.currentVersionNumber ?? detail?.currentVersion?.versionNumber
         },
         { documentId: selectedId }
       )
@@ -1123,7 +1124,8 @@ function App() {
                     title: detail?.item?.title,
                     fileName: detail?.item?.fileName,
                     size: saved.byteLength,
-                    changeSummary: 'Saved from editor toolbar.'
+                    changeSummary: 'Saved from editor toolbar.',
+                    expectedVersionNumber: detail?.item?.currentVersionNumber ?? detail?.currentVersion?.versionNumber
                   }, { documentId: selectedId })
                 }}
                 onError={(error) => notify('error', error.message)}

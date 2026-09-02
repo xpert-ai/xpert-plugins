@@ -30,6 +30,9 @@ function request(type: string, body: JsonObject = {}, transfer: Transferable[] =
 }
 
 export function requestData(query: JsonObject, timeoutMs = 60000) { return request('requestData', { query }, [], timeoutMs) }
+export function requestFileAccess(fileKey: string, purpose: 'preview' = 'preview') {
+  return request('requestFileAccess', { fileKey, purpose }, [], 60000)
+}
 export function executeAction(actionKey: string, targetId: string | null, input: JsonObject, parameters: JsonObject = {}) {
   return request('executeAction', { actionKey, targetId, input, parameters }, [], 120000)
 }

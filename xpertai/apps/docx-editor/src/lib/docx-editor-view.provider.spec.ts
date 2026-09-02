@@ -72,6 +72,39 @@ describe('DocxEditorViewProvider', () => {
     expect(subscription?.action?.type).toBe('forward')
   })
 
+  it('declares host access requirements for every document action', () => {
+    const provider = new DocxEditorViewProvider(createService() as never)
+    const [manifest] = provider.getViewManifests(
+      {
+        tenantId: 'tenant-1',
+        organizationId: 'org-1',
+        workspaceId: 'workspace-1',
+        userId: 'user-1',
+        hostType: 'agent',
+        hostId: 'xpert-1',
+        slots: [{ key: 'agent.workbench.fixed', mode: 'sections' }]
+      },
+      'agent.workbench.fixed'
+    )
+    const accessByAction = Object.fromEntries(
+      (manifest.actions ?? []).map((action) => [action.key, action.requiredHostAccess])
+    )
+
+    expect(accessByAction).toEqual({
+      refresh: 'read',
+      create_document: 'edit',
+      upload_docx: 'edit',
+      save_document_version: 'edit',
+      publish_artifact: 'manage',
+      revoke_artifact_share: 'manage',
+      sync_snapshot: 'edit',
+      complete_operation: 'edit',
+      delete_document: 'manage',
+      restore_version: 'edit',
+      prepare_assistant_prompt: 'edit'
+    })
+  })
+
   it('forwards selected version id when loading Workbench data', async () => {
     const service = createService()
     service.getWorkbenchData.mockResolvedValue({})
@@ -114,6 +147,54 @@ describe('DocxEditorViewProvider', () => {
         page: 2,
         pageSize: 25
       })
+    )
+  })
+
+  it('passes the host-resolved user-xperts scope to document reads', async () => {
+    const service = createService()
+    service.getWorkbenchData.mockResolvedValue({})
+    const provider = new DocxEditorViewProvider(service as never)
+
+    await provider.getViewData(
+      {
+        tenantId: 'tenant-1',
+        organizationId: 'org-1',
+        workspaceId: 'workspace-1',
+        userId: 'user-1',
+        hostType: 'agent',
+        hostId: 'xpert-1',
+        slots: [{ key: 'agent.workbench.fixed', mode: 'sections' }],
+        runtimeScope: {
+          projectId: null,
+          conversationId: 'conversation-1',
+          dataScopeKey: 'user-xperts:xpert-1:user-1',
+          workspaceFiles: {
+            catalog: 'user-xperts',
+            scopeId: 'xpert-1',
+            xpertId: 'xpert-1',
+            userId: 'user-1',
+            isolateByUser: true
+          }
+        }
+      },
+      DOCX_EDITOR_VIEW_KEY,
+      { parameters: { documentId: 'document-1' } } as never
+    )
+
+    expect(service.getWorkbenchData).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        assistantId: 'xpert-1',
+        conversationId: 'conversation-1',
+        workspaceFiles: {
+          catalog: 'user-xperts',
+          scopeId: 'xpert-1',
+          xpertId: 'xpert-1',
+          userId: 'user-1',
+          isolateByUser: true
+        }
+      }),
+      expect.objectContaining({ documentId: 'document-1' })
     )
   })
 

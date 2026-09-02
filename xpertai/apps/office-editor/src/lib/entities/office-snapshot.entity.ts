@@ -1,8 +1,17 @@
-import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm'
+import { Column, CreateDateColumn, Entity, ForeignKey, Index, PrimaryGeneratedColumn } from 'typeorm'
 import type { OfficeSnapshotSource } from '../types.js'
 import { officeEditorTable } from '../constants.js'
+import { OfficeDocument } from './office-document.entity.js'
 
 @Entity(officeEditorTable('snapshot'))
+@ForeignKey(() => OfficeDocument, ['documentId'], ['id'], {
+  name: 'plugin_office_editor_snapshot_parent_fk',
+  onDelete: 'CASCADE'
+})
+@ForeignKey(() => OfficeDocument, ['documentId', 'projectId'], ['id', 'projectId'], {
+  name: 'plugin_office_editor_snapshot_parent_project_fk',
+  onDelete: 'CASCADE'
+})
 @Index(['tenantId', 'organizationId', 'documentId', 'versionNumber'])
 @Index(['tenantId', 'organizationId', 'documentId', 'createdAt'])
 export class OfficeSnapshot {
@@ -20,10 +29,10 @@ export class OfficeSnapshot {
   @Column({ type: 'varchar', nullable: true })
   workspaceId?: string
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ type: 'uuid', nullable: true, update: false })
   projectId?: string
 
-  @Column({ type: 'varchar' })
+  @Column({ type: 'uuid' })
   documentId!: string
 
   @Column({ type: 'int' })

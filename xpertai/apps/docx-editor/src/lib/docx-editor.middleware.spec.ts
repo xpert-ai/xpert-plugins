@@ -69,6 +69,42 @@ describe('DocxEditorMiddleware', () => {
     expect(output).toContain('document-created')
   })
 
+  it('passes the authoritative user-xperts scope to Agent document tools', async () => {
+    const runAgentTool = jest.fn(async () => ({ document: { id: 'document-1' } }))
+    const middleware = new DocxEditorMiddleware({ runAgentTool } as never)
+    const runtime = middleware.createMiddleware({}, {
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      workspaceId: 'workspace-1',
+      userId: 'user-1',
+      xpertId: 'xpert-1',
+      workspaceDataScope: 'user'
+    })
+    const readDocumentTool = runtime.tools?.find((item) => item.name === 'docx_read_document')
+
+    await readDocumentTool?.invoke({ documentId: 'document-1' })
+
+    expect(runAgentTool).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-1',
+        organizationId: 'org-1',
+        userId: 'user-1',
+        assistantId: 'xpert-1',
+        workspaceFiles: {
+          catalog: 'user-xperts',
+          scopeId: 'xpert-1',
+          xpertId: 'xpert-1',
+          userId: 'user-1',
+          isolateByUser: true
+        }
+      }),
+      expect.objectContaining({
+        documentId: 'document-1',
+        toolName: 'docx_read_document'
+      })
+    )
+  })
+
   it('allows documentId to be omitted from DOCX tool schemas', () => {
     const middleware = new DocxEditorMiddleware({
       runAgentTool: jest.fn()

@@ -309,16 +309,29 @@ function artifactResult(
 }
 
 function scopeFromContext(context: IAgentMiddlewareContext): OfficeCliScope {
+  const projectId = context.projectId ?? null
+  const xpertId = context.xpertId ?? null
   return {
     tenantId: context.tenantId,
     organizationId: context.organizationId === undefined
       ? RequestContext.getOrganizationId()
       : context.organizationId,
     workspaceId: context.workspaceId ?? null,
-    projectId: context.projectId ?? null,
+    projectId,
     userId: context.userId,
-    assistantId: context.xpertId ?? null,
-    conversationId: context.conversationId ?? null
+    assistantId: xpertId,
+    conversationId: context.conversationId ?? null,
+    workspaceFiles: projectId
+      ? { catalog: 'projects', scopeId: projectId, projectId, userId: context.userId, isolateByUser: false }
+      : xpertId
+        ? {
+            catalog: context.workspaceDataScope === 'user' ? 'user-xperts' : 'xperts',
+            scopeId: xpertId,
+            xpertId,
+            userId: context.userId,
+            isolateByUser: context.workspaceDataScope === 'user'
+          }
+        : undefined
   }
 }
 

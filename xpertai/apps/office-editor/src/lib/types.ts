@@ -15,7 +15,7 @@ export type OfficeOperationSource = 'agent' | 'workbench' | 'system'
 export type OfficeToolName = (typeof OFFICE_EDITOR_TOOL_NAMES)[number]
 export type OfficeImportFormat = (typeof OFFICE_EDITOR_IMPORT_FORMATS)[number]
 export type OfficeFileVersionSource = 'import' | 'agent' | 'workbench' | 'restore'
-export type OfficeWorkspaceCatalog = 'xperts' | 'projects'
+export type OfficeWorkspaceCatalog = 'xperts' | 'user-xperts' | 'projects'
 
 export interface OfficeScope {
   tenantId?: string | null
@@ -25,6 +25,8 @@ export interface OfficeScope {
   userId?: string | null
   assistantId?: string | null
   conversationId?: string | null
+  workspaceFiles?: OfficeWorkspaceFileScope | null
+  collaborationAccess?: 'read' | 'write'
 }
 
 export interface OfficeWorkbenchQuery {

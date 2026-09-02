@@ -8,7 +8,7 @@ import {
   OfficeSnapshot,
   OfficeYjsUpdate
 } from './entities/index.js'
-import { OfficeEditorCollabGateway } from './office-editor-collab.gateway.js'
+import { OfficeEditorCollaborationProvider } from './office-editor-collaboration.provider.js'
 import { OfficeEditorMiddleware } from './office-editor.middleware.js'
 import { OfficeEditorService } from './office-editor.service.js'
 import { OfficeEditorViewProvider } from './office-editor-view.provider.js'
@@ -28,7 +28,7 @@ export const OFFICE_EDITOR_ENTITIES = [
     OfficeEditorService,
     OfficeEditorMiddleware,
     OfficeEditorViewProvider,
-    OfficeEditorCollabGateway
+    OfficeEditorCollaborationProvider
   ],
   exports: [OfficeEditorService]
 })

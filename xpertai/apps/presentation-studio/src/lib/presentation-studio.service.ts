@@ -11,7 +11,9 @@ import {
   SandboxJobsRuntimeCapability,
   SYSTEM_GLOBAL_SCOPE,
   WorkspaceFilesRuntimeCapability,
+  XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN,
   XPERT_RUNTIME_CAPABILITIES_TOKEN,
+  type AgentMiddlewareRuntimeServiceApi,
   type AgentMiddlewareRuntimeCapabilityRegistry,
   type ArtifactAccessMode,
   type ArtifactLinkVersionMode,
@@ -27,7 +29,7 @@ import {
   type WorkspacePortableFileReference,
   WORKSPACE_FILES_SOURCE
 } from '@xpert-ai/plugin-sdk'
-import { Repository, type FindOptionsWhere } from 'typeorm'
+import { IsNull, Repository, type FindOptionsWhere } from 'typeorm'
 import * as Y from 'yjs'
 import {
   DASHIAI_UPSTREAM_COMMIT,
@@ -122,13 +124,16 @@ interface PatchSlideInput {
 
 interface ThemePreviewGalleryItem {
   themePack: PresentationThemePack
+  fileKey: PresentationThemePack
   displayName: string
   scenario: string
   fileName: string
-  fileUrl: string
+  fileUrl?: string
   filePath: string
   mimeType: 'image/png'
   extension: 'png'
+  size: number
+  reference: WorkspacePortableFileReference
 }
 
 const WORKING_EXPORT_SNAPSHOT_KEY = '__presentationWorkingSnapshot'
@@ -150,7 +155,8 @@ export class PresentationStudioService {
     private readonly renderer: PresentationRendererService,
     private readonly config: PresentationConfigService,
     @Optional() @Inject(MANAGED_QUEUE_SERVICE_TOKEN) private readonly queue?: ManagedQueueService,
-    @Optional() @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtimeCapabilities?: AgentMiddlewareRuntimeCapabilityRegistry
+    @Optional() @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtimeCapabilities?: AgentMiddlewareRuntimeCapabilityRegistry,
+    @Optional() @Inject(XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN) private readonly runtimeService?: AgentMiddlewareRuntimeServiceApi
   ) {}
 
   async createDeck(scope: PresentationScope, input: CreateDeckInput) {
@@ -210,13 +216,30 @@ export class PresentationStudioService {
     }
   }
 
+  async resolveThemePreviewFile(scope: PresentationScope, fileKey: string) {
+    const themePack = requireTheme(fileKey)
+    const item = (await this.getThemePreviewGallery(scope)).find((candidate) => candidate.themePack === themePack)
+    if (!item) throw new NotFoundException(`Presentation theme preview not found: ${themePack}`)
+    return {
+      reference: item.reference,
+      fileName: item.fileName,
+      mimeType: item.mimeType,
+      size: item.size
+    }
+  }
+
   async getThemePreviewGuide(scope: PresentationScope) {
     const items = await this.getThemePreviewGallery(scope)
+    const guideItems = items.map((item) => {
+      const fileUrl = optionalText(item.fileUrl)
+      if (!fileUrl) throw new Error(`Theme preview direct URL is unavailable: ${item.themePack}`)
+      return { ...item, fileUrl }
+    })
     return {
       title: PRESENTATION_THEME_PREVIEW_TITLE,
-      markdown: themePreviewMarkdown(items),
-      themes: items.map(({ fileName, filePath, mimeType, extension, ...item }) => item),
-      files: items.map(({ fileName, fileUrl, filePath, mimeType, extension }) => ({
+      markdown: themePreviewMarkdown(guideItems),
+      themes: guideItems.map(({ fileKey, fileName, filePath, mimeType, extension, size, reference, ...item }) => item),
+      files: guideItems.map(({ fileName, fileUrl, filePath, mimeType, extension }) => ({
         fileName, fileUrl, filePath, mimeType, extension
       }))
     }
@@ -224,7 +247,7 @@ export class PresentationStudioService {
 
   private async loadThemePreviewGallery(scope: PresentationScope): Promise<ThemePreviewGalleryItem[]> {
     const workspaceScope = themePreviewWorkspaceScope(scope)
-    const files = this.workspaceFiles()
+    const files = this.workspaceFiles(scope)
     const items: ThemePreviewGalleryItem[] = []
     for (const item of PRESENTATION_THEME_PREVIEW_ITEMS) {
       const buffer = await readFile(resolveThemePreviewImagePath(item.filename))
@@ -238,16 +261,34 @@ export class PresentationStudioService {
       })
       const fileUrl = optionalText(uploaded.fileUrl) ?? optionalText(uploaded.url)
       const filePath = optionalText(uploaded.filePath) ?? optionalText(uploaded.workspacePath)
-      if (!fileUrl || !filePath) throw new Error(`Theme preview workspace file is unavailable: ${item.themePack}`)
+      const workspacePath = optionalText(uploaded.workspacePath) ?? filePath
+      if (!filePath || !workspacePath) throw new Error(`Theme preview workspace file is unavailable: ${item.themePack}`)
+      const size = typeof uploaded.size === 'number' ? uploaded.size : buffer.byteLength
+      const reference: WorkspacePortableFileReference = {
+        source: WORKSPACE_FILES_SOURCE,
+        ...workspaceScope,
+        tenantId: optionalText(workspaceScope.tenantId) ?? optionalText(scope.tenantId),
+        organizationId: optionalText(scope.organizationId),
+        userId: optionalText(workspaceScope.userId) ?? optionalText(scope.userId),
+        filePath,
+        workspacePath,
+        originalName: item.filename,
+        name: optionalText(uploaded.name) ?? item.filename,
+        mimeType: 'image/png',
+        size
+      }
       items.push({
         themePack: item.themePack,
+        fileKey: item.themePack,
         displayName: item.displayName,
         scenario: item.scenario,
         fileName: item.filename,
-        fileUrl,
+        ...(fileUrl ? { fileUrl } : {}),
         filePath,
         mimeType: 'image/png',
-        extension: 'png'
+        extension: 'png',
+        size,
+        reference
       })
     }
     return items
@@ -327,7 +368,7 @@ export class PresentationStudioService {
     let totalBytes = 0
     const previews = []
     for (const asset of selected) {
-      const file = await this.workspaceFiles().readRuntimeBuffer(asset.fileReference.reference)
+      const file = await this.workspaceFiles(scope).readRuntimeBuffer(asset.fileReference.reference)
       totalBytes += file.buffer.byteLength
       if (totalBytes > this.config.get().maxPreviewBytes) throw new BadRequestException('Presentation asset previews exceed the configured preview limit.')
       const mimeType = asset.mimeType ?? file.mimeType ?? 'application/octet-stream'
@@ -454,7 +495,7 @@ export class PresentationStudioService {
     const deck = await this.requireDeck(scope, input.deckId)
     validateAssetType(input.fileName, input.mimeType)
     await this.validateAssetSize(scope, deck.id as string, buffer.byteLength)
-    const files = this.workspaceFiles()
+    const files = this.workspaceFiles(scope)
     const workspaceScope = explicitWorkspaceScope(deck, scope)
     const uploaded = await files.uploadBuffer({
       ...workspaceScope, buffer, originalName: input.fileName, mimeType: input.mimeType, size: buffer.byteLength,
@@ -491,7 +532,7 @@ export class PresentationStudioService {
     const deck = await this.requireCanonicalDeck(scope, deckId)
     if (deck.revision !== expectedRevision) throw new BadRequestException(`Presentation revision conflict. Current revision is ${deck.revision}.`)
     const version = await this.requireVersion(scope, deckId, versionId)
-    const collaboration = this.collaboration()
+    const collaboration = this.collaboration(scope)
     const document = await collaboration.ensureDocument({ providerKey: PRESENTATION_COLLABORATION_PROVIDER_KEY, resourceId: deckId, schemaVersion: 2 })
     const state = await collaboration.getDocumentState({ documentId: document.id })
     if (state.sequenceNumber !== expectedRevision) throw new BadRequestException(`Presentation revision conflict. Current revision is ${state.sequenceNumber}.`)
@@ -849,7 +890,7 @@ export class PresentationStudioService {
       }
     }
     const linkRevoked = await this.revokeArtifactLinkBestEffort(item.artifactLinkId)
-    const fileDeleted = await this.deleteWorkspaceFile(item.fileReference?.reference)
+    const fileDeleted = await this.deleteWorkspaceFile(scope, item.fileReference?.reference)
     await this.exportRepository.delete(scopedExportWhere(scope, { id: exportId }))
     await this.log(scope, {
       deckId: item.deckId,
@@ -919,7 +960,7 @@ export class PresentationStudioService {
       const output = await this.renderer.exportRendered(rendered, item.kind, deck.title)
       if (await this.exportWasCancelled(scope, data.exportId)) return
       item.stage = 'uploading'; item.progress = 85; await this.exportRepository.save(item)
-      const uploaded = await this.workspaceFiles().uploadBuffer({
+      const uploaded = await this.workspaceFiles(scope).uploadBuffer({
         ...workspaceScope, buffer: output.buffer, originalName: item.fileName ?? normalizeExportName(deck.title, item.kind),
         mimeType: output.mimeType, size: output.buffer.byteLength, folder: `files/presentation-studio/${deck.id}/exports`
       })
@@ -1044,13 +1085,16 @@ export class PresentationStudioService {
 
   /** Issue browser credentials for the canonical collaboration document behind a Deck. */
   async createCollabSession(scope: PresentationScope, deckId: string) {
-    const collaboration = this.collaboration()
+    const collaboration = this.collaboration(scope)
     const document = await collaboration.ensureDocument({
       providerKey: PRESENTATION_COLLABORATION_PROVIDER_KEY,
       resourceId: deckId,
       schemaVersion: 2
     })
-    const session = await collaboration.createSession({ documentId: document.id, access: 'write' })
+    const session = await collaboration.createSession({
+      documentId: document.id,
+      access: scope.collaborationAccess ?? 'write'
+    })
     return { ...session, deckId }
   }
 
@@ -1082,7 +1126,7 @@ export class PresentationStudioService {
     actor: ReturnType<PresentationStudioService['createAgentCollabActor']>,
     awareness: PresentationAwarenessV2
   ) {
-    const collaboration = this.collaboration()
+    const collaboration = this.collaboration(scope)
     const document = await collaboration.ensureDocument({ providerKey: PRESENTATION_COLLABORATION_PROVIDER_KEY, resourceId: deckId, schemaVersion: 2 })
     return collaboration.upsertVirtualPresence({
       documentId: document.id,
@@ -1096,7 +1140,7 @@ export class PresentationStudioService {
   }
 
   async removeAgentAwareness(scope: PresentationScope, deckId: string, agentPresenceId: string) {
-    const collaboration = this.collaboration()
+    const collaboration = this.collaboration(scope)
     const document = await collaboration.ensureDocument({ providerKey: PRESENTATION_COLLABORATION_PROVIDER_KEY, resourceId: deckId, schemaVersion: 2 })
     await collaboration.removeVirtualPresence({ documentId: document.id, actorKey: agentPresenceId })
   }
@@ -1117,7 +1161,7 @@ export class PresentationStudioService {
       throw new BadRequestException('The built-in theme preview presentation is read-only.')
     }
     const deckId = requireId(deck.id, 'Deck id is required for Yjs mutation.')
-    const collaboration = this.collaboration()
+    const collaboration = this.collaboration(scope)
     const document = await collaboration.ensureDocument({ providerKey: PRESENTATION_COLLABORATION_PROVIDER_KEY, resourceId: deckId, schemaVersion: 2 })
     const state = await collaboration.getDocumentState({ documentId: document.id })
     if (expectedRevision !== undefined && state.sequenceNumber !== expectedRevision) {
@@ -1181,9 +1225,22 @@ export class PresentationStudioService {
     })
   }
 
+  private resolveCollaboration(scope: PresentationScope) {
+    return this.runtimeService?.createScopedApi({
+      tenantId: scope.tenantId,
+      organizationId: scope.organizationId,
+      userId: scope.userId,
+      workspaceId: scope.projectId ? null : scope.workspaceId,
+      projectId: scope.projectId,
+      xpertId: scopeXpertId(scope),
+      conversationId: scope.conversationId
+    }).capabilities?.get(CollaborationRuntimeCapability)
+      ?? this.runtimeCapabilities?.get(CollaborationRuntimeCapability)
+  }
+
   /** Require the platform capability so editing never silently falls back to a second authority. */
-  private collaboration() {
-    const capability = this.runtimeCapabilities?.get(CollaborationRuntimeCapability)
+  private collaboration(scope: PresentationScope) {
+    const capability = this.resolveCollaboration(scope)
     if (!capability) throw new Error('Platform collaboration capability is not available.')
     return capability
   }
@@ -1260,8 +1317,27 @@ export class PresentationStudioService {
     if (assets.reduce((sum, asset) => sum + asset.size, 0) + size > config.maxDeckMediaBytes) throw new BadRequestException('Presentation media total exceeds the configured deck limit.')
   }
 
-  private workspaceFiles(): WorkspaceFilesApi {
-    const files = this.runtimeCapabilities?.get(WorkspaceFilesRuntimeCapability)
+  private resolveWorkspaceFiles(scope: PresentationScope) {
+    const workspaceFiles = scope.workspaceFiles
+    const projectId = workspaceFiles?.projectId ?? scope.projectId
+    const files = this.runtimeService?.createScopedApi({
+      tenantId: workspaceFiles?.tenantId ?? scope.tenantId,
+      organizationId: scope.organizationId,
+      userId: workspaceFiles?.userId ?? scope.userId,
+      workspaceId: projectId ? null : scope.workspaceId,
+      projectId,
+      xpertId: workspaceFiles?.xpertId ?? scopeXpertId(scope),
+      conversationId: scope.conversationId,
+      catalog: workspaceFiles?.catalog,
+      scopeId: workspaceFiles?.scopeId,
+      isolateByUser: workspaceFiles?.isolateByUser
+    }).capabilities?.get(WorkspaceFilesRuntimeCapability)
+      ?? this.runtimeCapabilities?.get(WorkspaceFilesRuntimeCapability)
+    return files
+  }
+
+  private workspaceFiles(scope: PresentationScope): WorkspaceFilesApi {
+    const files = this.resolveWorkspaceFiles(scope)
     if (!files) throw new Error('Platform workspace files capability is not available.')
     return files
   }
@@ -1348,9 +1424,9 @@ export class PresentationStudioService {
     return this.config.resolveShareAccessMode(scope, normalized, actor)
   }
 
-  private async deleteWorkspaceFile(reference?: WorkspacePortableFileReference | null) {
+  private async deleteWorkspaceFile(scope: PresentationScope, reference?: WorkspacePortableFileReference | null) {
     if (!reference?.filePath) return false
-    const files = this.runtimeCapabilities?.get(WorkspaceFilesRuntimeCapability)
+    const files = this.resolveWorkspaceFiles(scope)
     if (!files) return false
     try {
       await files.deleteFile({ ...reference, filePath: reference.filePath })
@@ -1389,7 +1465,7 @@ export class PresentationStudioService {
   /** Repair a stale Deck projection before versioning, finalize, or export reads it. */
   private async requireCanonicalDeck(scope: PresentationScope, deckId: string) {
     const current = await this.requireDeck(scope, deckId)
-    const collaboration = this.runtimeCapabilities?.get(CollaborationRuntimeCapability)
+    const collaboration = this.resolveCollaboration(scope)
     if (!collaboration) return current
     const document = await collaboration.ensureDocument({ providerKey: PRESENTATION_COLLABORATION_PROVIDER_KEY, resourceId: deckId, schemaVersion: 2 })
     const state = await collaboration.getDocumentState({ documentId: document.id })
@@ -1551,6 +1627,13 @@ function themePreviewScopeKey(scope: PresentationScope) {
 }
 
 function themePreviewWorkspaceScope(scope: PresentationScope) {
+  if (scope.workspaceFiles) {
+    return {
+      ...scope.workspaceFiles,
+      tenantId: optionalText(scope.workspaceFiles.tenantId) ?? optionalText(scope.tenantId),
+      userId: optionalText(scope.workspaceFiles.userId) ?? optionalText(scope.userId)
+    }
+  }
   const tenantId = optionalText(scope.tenantId)
   const userId = optionalText(scope.userId)
   const projectId = optionalText(scope.projectId)
@@ -1562,7 +1645,18 @@ function themePreviewWorkspaceScope(scope: PresentationScope) {
 
 function scopedDeckWhere(scope: PresentationScope, id?: string): FindOptionsWhere<PresentationDeck> {
   const xpertId = scopeXpertId(scope)
-  return { ...(id ? { id } : {}), ...scopeFilter(scope), ...(xpertId ? { assistantId: xpertId } : {}) }
+  return {
+    ...(id ? { id } : {}),
+    ...scopeFilter(scope),
+    ...(!scope.projectId
+      ? {
+          assistantId: xpertId ?? IsNull(),
+          ...(scope.workspaceFiles?.isolateByUser
+            ? { createdById: optionalText(scope.userId) ?? IsNull() }
+            : {})
+        }
+      : {})
+  }
 }
 function scopedVersionWhere(scope: PresentationScope, deckId: string) { return { deckId, ...scopeFilter(scope) } }
 function scopedVersionIdWhere(scope: PresentationScope, deckId: string, id: string) { return { id, deckId, ...scopeFilter(scope) } }
@@ -1572,8 +1666,8 @@ function scopeFilter(scope: PresentationScope) {
   return {
     ...(scope.tenantId ? { tenantId: scope.tenantId } : {}),
     ...(scope.organizationId ? { organizationId: scope.organizationId } : {}),
-    ...(scope.workspaceId ? { workspaceId: scope.workspaceId } : {}),
-    ...(scope.projectId ? { projectId: scope.projectId } : {})
+    ...(!scope.projectId && scope.workspaceId ? { workspaceId: scope.workspaceId } : {}),
+    projectId: scope.projectId ?? IsNull()
   }
 }
 
@@ -1583,6 +1677,7 @@ function scopeXpertId(scope: PresentationScope) {
 }
 
 function explicitWorkspaceScope(deck: PresentationDeck, scope: PresentationScope) {
+  if (scope.workspaceFiles) return { ...scope.workspaceFiles }
   if (deck.projectId) return { tenantId: deck.tenantId, userId: scope.userId, catalog: 'projects' as const, scopeId: deck.projectId, projectId: deck.projectId }
   if (deck.assistantId) return { tenantId: deck.tenantId, userId: scope.userId, catalog: 'xperts' as const, scopeId: deck.assistantId, xpertId: deck.assistantId, isolateByUser: false }
   throw new BadRequestException('Presentation deck has no project or Xpert workspace scope.')

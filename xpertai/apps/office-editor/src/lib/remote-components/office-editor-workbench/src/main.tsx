@@ -73,7 +73,15 @@ import {
   Upload,
 } from '@xpert-ai/plugin-shadcn-ui'
 import '@xpert-ai/plugin-shadcn-ui/style.css'
+import {
+  createCollaborationClient,
+  createSocketIoTransportAdapter,
+  createYjsDocumentAdapter,
+  type CollaborationClient,
+  type CollaborationSessionDescriptor
+} from '@xpert-ai/plugin-sdk/collaboration-client'
 import { React, ReactDOM, h } from './vendor'
+import { getSuccessfulActionData, requireSuccessfulActionResult } from './action-response'
 import { createTranslator } from './i18n'
 import { injectStyles } from './styles'
 import {
@@ -102,11 +110,7 @@ type DetailPayload = {
   snapshots?: SnapshotRecord[]
   operations?: OperationRecord[]
   fileVersions?: Array<Record<string, any>>
-  collab?: {
-    sessionId: string
-    namespace: string
-    expiresAt: number
-  }
+  collab?: CollaborationSessionDescriptor
 }
 
 const univerLocaleBundles = {
@@ -154,6 +158,7 @@ function App() {
   const importInputRef = React.useRef<HTMLInputElement | null>(null)
   const ydocRef = React.useRef<Y.Doc | null>(null)
   const socketRef = React.useRef<Socket | null>(null)
+  const collaborationClientRef = React.useRef<CollaborationClient | null>(null)
   const clientIdRef = React.useRef(`office-editor-${Math.random().toString(36).slice(2)}`)
   const applyingOperationsRef = React.useRef(false)
   const t = createTranslator(context?.locale)
@@ -247,16 +252,20 @@ function App() {
     if (!documentId) {
       return
     }
-    const response = await executeAction('open_document', documentId, { documentId }, { documentId })
-    const payload = getResponsePayload(response)?.data || getResponsePayload(response)
-    applyDetailPayload(payload)
+    try {
+      const response = await executeAction('open_document', documentId, { documentId }, { documentId })
+      const payload = getSuccessfulActionData(response, context?.locale)
+      applyDetailPayload(payload)
+    } catch (error) {
+      notify('error', getErrorMessage(error))
+    }
   }
 
   async function createDocument() {
     const title = `${typeLabel(documentType, t)} ${new Date().toISOString().slice(0, 10)}`
     await runBusy(async () => {
       const response = await executeAction('create_document', null, { documentType, title }, null)
-      const payload = getResponsePayload(response)?.data || getResponsePayload(response)
+      const payload = getSuccessfulActionData(response, context?.locale)
       const documentId = payload?.document?.id || payload?.item?.id || payload?.id
       await reloadList()
       if (documentId) {
@@ -283,7 +292,7 @@ function App() {
         null,
         file
       )
-      const payload = getResponsePayload(response)?.data || getResponsePayload(response)
+      const payload = getSuccessfulActionData(response, context?.locale)
       const documentId = payload?.document?.id || payload?.item?.id || payload?.id
       const warnings = Array.isArray(payload?.warnings) ? payload.warnings : Array.isArray(payload?.import?.warnings) ? payload.import.warnings : []
       await reloadList()
@@ -314,7 +323,7 @@ function App() {
         },
         { documentId: selectedId }
       )
-      const payload = getResponsePayload(response)
+      const payload = requireSuccessfulActionResult(response, context?.locale)
       notify('success', resolveMessage(payload?.message, context?.locale) || t('save'))
       setDirty(false)
       await openDocument(selectedId)
@@ -327,29 +336,8 @@ function App() {
     }
     await runBusy(async () => {
       const snapshot = editorRef.current.getSnapshot()
-      const yjsStateBase64 = updateYjsSnapshot(snapshot)
-      await executeAction(
-        'sync_yjs_state',
-        selectedId,
-        {
-          documentId: selectedId,
-          fullStateBase64: yjsStateBase64,
-          stateVectorBase64: yjsStateBase64 ? encodeStateVectorBase64(yjsStateBase64) : undefined,
-          snapshot,
-          snapshotText: summarizeSnapshot(snapshot, documentType),
-          origin: 'workbench',
-          clientId: clientIdRef.current
-        },
-        { documentId: selectedId }
-      )
-      socketRef.current?.emit('snapshot', {
-        fullStateBase64: yjsStateBase64,
-        stateVectorBase64: yjsStateBase64 ? encodeStateVectorBase64(yjsStateBase64) : undefined,
-        snapshot,
-        snapshotText: summarizeSnapshot(snapshot, documentType),
-        origin: 'workbench',
-        clientId: clientIdRef.current
-      })
+      updateYjsSnapshot(snapshot)
+      collaborationClientRef.current?.flush()
       setDirty(false)
       notify('success', t('synced'))
     })
@@ -367,7 +355,7 @@ function App() {
         { documentId: selectedId, instruction: assistantInstruction || t('assistantPlaceholder') },
         { documentId: selectedId }
       )
-      const payload = getResponsePayload(response)?.data || getResponsePayload(response)
+      const payload = getSuccessfulActionData(response, context?.locale)
       if (payload?.commandKey && payload?.payload) {
         await invokeClientCommand(payload.commandKey, payload.payload)
       }
@@ -379,7 +367,8 @@ function App() {
       return
     }
     await runBusy(async () => {
-      await executeAction('delete_document', selectedId, { documentId: selectedId }, { documentId: selectedId })
+      const response = await executeAction('delete_document', selectedId, { documentId: selectedId }, { documentId: selectedId })
+      requireSuccessfulActionResult(response, context?.locale)
       selectedIdRef.current = ''
       setSelectedId('')
       setDetail(null)
@@ -399,7 +388,7 @@ function App() {
         { documentId: selectedId },
         { documentId: selectedId }
       )
-      const payload = getResponsePayload(response)?.data || getResponsePayload(response)
+      const payload = getSuccessfulActionData(response, context?.locale)
       if (!payload?.fileBase64) {
         throw new Error('The current XLSX file is unavailable.')
       }
@@ -427,7 +416,7 @@ function App() {
     try {
       for (const operation of queued) {
         const result = await editorRef.current.applyOperation(operation)
-        await executeAction(
+        const response = await executeAction(
           'complete_operation',
           selectedId,
           {
@@ -438,6 +427,7 @@ function App() {
           },
           { documentId: selectedId }
         )
+        requireSuccessfulActionResult(response, context?.locale)
         if (result.success) {
           appliedCount += 1
           setDirty(true)
@@ -477,64 +467,46 @@ function App() {
     if (!map.get('snapshot') && payload.currentSnapshot?.snapshot) {
       map.set('snapshot', payload.currentSnapshot.snapshot)
     }
-    nextDoc.on('update', (update: Uint8Array, origin: unknown) => {
-      if (origin === 'remote' || origin === 'server') {
-        return
-      }
-      socketRef.current?.emit('yjs-update', {
-        updateBase64: uint8ArrayToBase64(update),
-        origin: 'workbench',
-        clientId: clientIdRef.current
-      })
-    })
     ydocRef.current = nextDoc
   }
 
   function initializeSocket(payload: DetailPayload) {
     closeSocket()
     const collab = payload.collab
-    if (!collab?.sessionId || !collab.namespace) {
+    if (!collab?.sessionId || !collab.namespace || !collab.connectionUrl || !collab.clientKey || !ydocRef.current) {
       setCollabState('disconnected')
       return
     }
     setCollabState('connecting')
-    const socket = io(collab.namespace, {
+    const socket = io(collab.connectionUrl, {
+      autoConnect: false,
       transports: ['websocket'],
       auth: {
-        sessionId: collab.sessionId
+        sessionId: collab.sessionId,
+        clientKey: collab.clientKey,
+        documentId: collab.documentId
       }
     })
-    socket.on('connect', () => setCollabState('connected'))
-    socket.on('disconnect', () => setCollabState('disconnected'))
-    socket.on('sync', (message: any) => {
-      if (message?.yjsStateBase64 && ydocRef.current) {
-        try {
-          Y.applyUpdate(ydocRef.current, base64ToUint8Array(message.yjsStateBase64), 'remote')
-        } catch {
-          // Ignore malformed remote state; platform snapshot loading remains available.
-        }
-      }
-    })
-    socket.on('yjs-update', (message: any) => {
-      if (!message?.updateBase64 || !ydocRef.current) {
-        return
-      }
-      try {
-        Y.applyUpdate(ydocRef.current, base64ToUint8Array(message.updateBase64), 'remote')
-      } catch {
-        // Ignore malformed peer updates.
-      }
-    })
-    socket.on('snapshot', (message: any) => {
-      if (message?.snapshot) {
-        void openDocument(selectedIdRef.current)
-      }
-    })
-    socket.on('office-error', (message: any) => notify('error', String(message?.message || t('remoteRequestFailed'))))
     socketRef.current = socket
+    const collaborationClient = createCollaborationClient({
+      session: collab,
+      transport: createSocketIoTransportAdapter(socket),
+      document: createYjsDocumentAdapter(ydocRef.current, {
+        applyUpdate: (document, update, origin) => Y.applyUpdate(document, update, origin),
+        encodeStateVector: (document) => Y.encodeStateVector(document),
+        mergeUpdates: (updates) => Y.mergeUpdates(updates)
+      }),
+      initialPresence: { mode: collab.access === 'read' ? 'view' : 'edit' },
+      onConnectionChange: setCollabState,
+      onError: (error) => notify('error', error.message)
+    })
+    collaborationClientRef.current = collaborationClient
+    collaborationClient.connect()
   }
 
   function closeSocket() {
+    collaborationClientRef.current?.disconnect()
+    collaborationClientRef.current = null
     socketRef.current?.disconnect()
     socketRef.current = null
   }

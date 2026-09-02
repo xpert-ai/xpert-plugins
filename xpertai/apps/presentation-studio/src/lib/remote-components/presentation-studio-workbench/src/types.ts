@@ -75,11 +75,17 @@ export interface ExportSummary {
 }
 export interface AssetSummary { id: string; role: string; fileName: string; size: number; reference: string }
 
-export interface ThemePreviewItem {
+export interface ThemePreviewDescriptor {
   themePack: string
   displayName: string
   scenario: string
+  fileKey: string
+  fileUrl?: string
+}
+
+export interface ThemePreviewItem extends ThemePreviewDescriptor {
   fileUrl: string
+  accessExpiresAt?: string
 }
 
 export interface LayoutControl {

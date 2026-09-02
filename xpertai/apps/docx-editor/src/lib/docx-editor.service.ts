@@ -1,16 +1,20 @@
-import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common'
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { createHash } from 'node:crypto'
-import { Repository } from 'typeorm'
+import { IsNull, Repository } from 'typeorm'
 import {
   ArtifactsRuntimeCapability,
+  WorkspaceFilesRuntimeCapability,
   WORKSPACE_FILES_SOURCE,
+  XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN,
   XPERT_RUNTIME_CAPABILITIES_TOKEN,
   type AgentMiddlewareRuntimeCapabilityRegistry,
+  type AgentMiddlewareRuntimeServiceApi,
   type ArtifactAccessMode,
   type ArtifactLinkRecord,
   type ArtifactLinkVersionMode,
   type ArtifactsApi,
+  type WorkspaceFile,
   type WorkspaceFilesApi,
   type WorkspacePortableFileReference
 } from '@xpert-ai/plugin-sdk'
@@ -44,7 +48,6 @@ import type {
   DocxEditorToolExecutionTarget,
   ImportDocxRuntimeFileInput,
   DocxWorkspaceFileScope,
-  DocxWorkspaceFilesApi,
   DocxWorkbenchQuery,
   PrepareDocxAssistantPromptInput,
   RestoreDocxVersionInput,
@@ -137,7 +140,10 @@ export class DocxEditorService {
     @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN)
     private readonly runtimeCapabilities?: AgentMiddlewareRuntimeCapabilityRegistry,
     @Optional()
-    private readonly artifactViewer?: DocxEditorArtifactViewerService
+    private readonly artifactViewer?: DocxEditorArtifactViewerService,
+    @Optional()
+    @Inject(XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN)
+    private readonly runtimeService?: AgentMiddlewareRuntimeServiceApi
   ) {}
 
   async createDocument(scope: DocxEditorScope, input: CreateDocxDocumentInput) {
@@ -156,19 +162,32 @@ export class DocxEditorService {
     )
   }
 
-  async uploadDocx(scope: DocxEditorScope, input: UploadDocxInput) {
+  async uploadDocx(scope: DocxEditorScope, input: UploadDocxInput, workspaceFiles?: WorkspaceFilesApi) {
+    const createdDocument = !input.documentId
     const document = input.documentId
       ? await this.requireDocument(scope, input.documentId)
       : await this.createDocument(scope, {
           title: input.title ?? createTitleFromFileName(input.fileName),
           description: input.description
         })
+    const documentId = requireEntityId(document.id, 'Document id is required.')
 
-    return this.saveDocumentVersion(scope, {
-      ...input,
-      documentId: requireEntityId(document.id, 'Document id is required.'),
-      source: input.source ?? 'upload'
-    })
+    try {
+      return await this.saveDocumentVersion(scope, {
+        ...input,
+        documentId,
+        source: input.source ?? 'upload'
+      }, workspaceFiles)
+    } catch (error) {
+      if (createdDocument) {
+        try {
+          await this.documentRepository.delete(scopedDocumentWhere(scope, { id: documentId }))
+        } catch {
+          // Keep the original storage failure while making draft cleanup best-effort.
+        }
+      }
+      throw error
+    }
   }
 
   async importRuntimeFile(
@@ -201,7 +220,7 @@ export class DocxEditorService {
       docxBase64: file.buffer.toString('base64'),
       source: 'agent',
       changeSummary: normalizeOptional(input.changeSummary) ?? `Imported ${fileName} from the Agent workspace.`
-    })
+    }, workspaceFiles)
 
     return {
       documentId: requireEntityId(saved.document.id, 'Document id is required.'),
@@ -217,7 +236,7 @@ export class DocxEditorService {
     }
   }
 
-  async saveDocumentVersion(scope: DocxEditorScope, input: SaveDocxVersionInput) {
+  async saveDocumentVersion(scope: DocxEditorScope, input: SaveDocxVersionInput, workspaceFiles?: WorkspaceFilesApi) {
     const document = await this.requireDocument(scope, input.documentId)
     const docxBuffer = parseDocxBase64(input.docxBase64)
     validateDocxBuffer(docxBuffer)
@@ -225,10 +244,19 @@ export class DocxEditorService {
       throw new BadRequestException(`DOCX file exceeds ${DOCX_EDITOR_MAX_INLINE_DOCX_BYTES} bytes.`)
     }
 
-    const nextVersionNumber = (document.currentVersionNumber ?? 0) + 1
+    const currentVersionNumber = document.currentVersionNumber ?? 0
+    if (
+      input.expectedVersionNumber !== undefined &&
+      input.expectedVersionNumber !== null &&
+      input.expectedVersionNumber !== currentVersionNumber
+    ) {
+      throw new ConflictException(`DOCX document changed since version ${input.expectedVersionNumber}.`)
+    }
+    const nextVersionNumber = currentVersionNumber + 1
     const checksumValue = checksum(docxBuffer)
     const workspaceScope = resolveDocumentWorkspaceScope(scope, document)
-    const workspaceFile = await this.workspaceFiles().uploadBuffer({
+    const files = this.workspaceFiles(scope, workspaceFiles)
+    const workspaceFile = await files.uploadBuffer({
       ...workspaceScope,
       buffer: docxBuffer,
       originalName: normalizeOptional(input.fileName) ?? normalizeOptional(document.fileName) ?? `document-${input.documentId}.docx`,
@@ -243,40 +271,66 @@ export class DocxEditorService {
         source: input.source ?? 'workbench'
       }
     })
-    const version = await this.versionRepository.save(
-      this.versionRepository.create({
-        ...scopedCreate(scope),
-        documentId: input.documentId,
-        versionNumber: nextVersionNumber,
-        source: input.source ?? 'workbench',
-        workspaceFilePath: workspaceFile.filePath,
-        workspaceFileUrl: normalizeOptional(workspaceFile.fileUrl) ?? normalizeOptional(workspaceFile.url),
-        workspaceCatalog: workspaceScope.catalog,
-        workspaceScopeId: workspaceScope.scopeId,
-        mimeType: normalizeOptional(input.mimeType) ?? normalizeOptional(document.mimeType) ?? DOCX_MIME_TYPE,
-        size: input.size ?? docxBuffer.byteLength,
-        checksum: checksumValue,
-        changeSummary: normalizeOptional(input.changeSummary),
-        operationId: normalizeOptional(input.operationId),
-        createdById: normalizeOptional(scope.userId)
+    let persistedWorkspaceScope = workspaceScope
+    try {
+      persistedWorkspaceScope = resolvePersistedWorkspaceScope(workspaceScope, workspaceFile)
+      return await this.documentRepository.manager.transaction(async (manager) => {
+        const versionRepository = manager.getRepository(DocxEditorVersion)
+        const documentRepository = manager.getRepository(DocxEditorDocument)
+        const version = await versionRepository.save(
+          versionRepository.create({
+            ...scopedCreate(scope),
+            documentId: input.documentId,
+            versionNumber: nextVersionNumber,
+            source: input.source ?? 'workbench',
+            workspaceFilePath: workspaceFile.filePath,
+            workspaceFileUrl: normalizeOptional(workspaceFile.fileUrl) ?? normalizeOptional(workspaceFile.url),
+            workspaceCatalog: persistedWorkspaceScope.catalog,
+            workspaceScopeId: persistedWorkspaceScope.scopeId,
+            mimeType: normalizeOptional(input.mimeType) ?? normalizeOptional(document.mimeType) ?? DOCX_MIME_TYPE,
+            size: input.size ?? docxBuffer.byteLength,
+            checksum: checksumValue,
+            changeSummary: normalizeOptional(input.changeSummary),
+            operationId: normalizeOptional(input.operationId),
+            createdById: normalizeOptional(scope.userId)
+          })
+        )
+        const update = await documentRepository.update(
+          {
+            ...scopedDocumentWhere(scope, { id: input.documentId }),
+            currentVersionNumber
+          },
+          {
+            ...extractDocumentFileFields(input, workspaceFile, persistedWorkspaceScope),
+            title: normalizeOptional(input.title) ?? document.title,
+            description: normalizeOptional(input.description) ?? document.description,
+            status: 'active',
+            currentVersionId: version.id,
+            currentVersionNumber: nextVersionNumber,
+            lastEditedById: normalizeOptional(scope.userId),
+            lastEditedAt: new Date()
+          }
+        )
+        if (update.affected !== 1) {
+          throw new ConflictException('DOCX document was changed by another editor. Reload and try again.')
+        }
+        const savedDocument = await documentRepository.findOne({
+          where: scopedDocumentWhere(scope, { id: input.documentId })
+        })
+        if (!savedDocument) throw new NotFoundException('DOCX document was not found.')
+        return { document: savedDocument, version }
       })
-    )
-
-    const savedDocument = await this.documentRepository.save({
-      ...document,
-      ...extractDocumentFileFields(input, workspaceFile, workspaceScope),
-      title: normalizeOptional(input.title) ?? document.title,
-      description: normalizeOptional(input.description) ?? document.description,
-      status: 'active',
-      currentVersionId: version.id,
-      currentVersionNumber: nextVersionNumber,
-      lastEditedById: normalizeOptional(scope.userId),
-      lastEditedAt: new Date()
-    })
-
-    return {
-      document: savedDocument,
-      version
+    } catch (error) {
+      const concurrentWrite = error instanceof ConflictException || isUniqueViolation(error)
+      if (!concurrentWrite) {
+        await files
+          .deleteFile({ ...persistedWorkspaceScope, filePath: workspaceFile.filePath })
+          .catch(() => undefined)
+      }
+      if (isUniqueViolation(error)) {
+        throw new ConflictException('DOCX document was changed by another editor. Reload and try again.')
+      }
+      throw error
     }
   }
 
@@ -314,6 +368,7 @@ export class DocxEditorService {
     if (!operation) {
       throw new NotFoundException('DOCX editor operation was not found.')
     }
+    await this.requireDocument(scope, operation.documentId)
     return this.operationRepository.save({
       ...operation,
       status: input.status,
@@ -327,7 +382,7 @@ export class DocxEditorService {
     const versions = await this.versionRepository.find({
       where: scopedWhere(scope, { documentId })
     })
-    const workspaceFiles = this.runtimeCapabilities?.get<DocxWorkspaceFilesApi>(DOCX_WORKSPACE_FILES_RUNTIME_CAPABILITY)
+    const workspaceFiles = this.optionalWorkspaceFiles(scope)
     if (workspaceFiles) {
       await Promise.all(
         versions
@@ -350,7 +405,7 @@ export class DocxEditorService {
     await this.operationRepository.delete(scopedWhere(scope, { documentId }))
     await this.snapshotRepository.delete(scopedWhere(scope, { documentId }))
     await this.versionRepository.delete(scopedWhere(scope, { documentId }))
-    await this.documentRepository.delete(scopedWhere(scope, { id: documentId }))
+    await this.documentRepository.delete(scopedDocumentWhere(scope, { id: documentId }))
     return {
       deleted: true,
       documentId
@@ -442,7 +497,7 @@ export class DocxEditorService {
     if (!workspaceFileRef) {
       const workspaceScope = resolveDocumentWorkspaceScope(scope, document)
       const workspaceName = `${rendered.sha256}.html`
-      const file = await this.workspaceFiles().uploadBuffer({
+      const file = await this.workspaceFiles(scope).uploadBuffer({
         ...workspaceScope,
         buffer: rendered.buffer,
         originalName: workspaceName,
@@ -625,7 +680,7 @@ export class DocxEditorService {
     const page = Math.max(1, query.page ?? 1)
     const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 20))
     const [items, total] = await this.documentRepository.findAndCount({
-      where: scopedWhere(scope, {}),
+      where: scopedDocumentWhere(scope, {}),
       order: { updatedAt: 'DESC' },
       skip: (page - 1) * pageSize,
       take: pageSize
@@ -651,12 +706,28 @@ export class DocxEditorService {
     }
   }
 
-  private workspaceFiles() {
-    const files = this.runtimeCapabilities?.get<DocxWorkspaceFilesApi>(DOCX_WORKSPACE_FILES_RUNTIME_CAPABILITY)
+  private workspaceFiles(scope: DocxEditorScope, supplied?: WorkspaceFilesApi) {
+    const files = supplied ?? this.optionalWorkspaceFiles(scope)
     if (!files) {
       throw new BadRequestException('Xpert workspace file runtime capability is required for DOCX storage.')
     }
     return files
+  }
+
+  private optionalWorkspaceFiles(scope: DocxEditorScope) {
+    return this.runtimeService?.createScopedApi({
+      tenantId: scope.tenantId,
+      organizationId: scope.organizationId,
+      userId: scope.userId,
+      workspaceId: scope.projectId ? null : scope.workspaceId,
+      projectId: scope.projectId,
+      xpertId: scope.assistantId,
+      conversationId: scope.conversationId,
+      catalog: scope.workspaceFiles?.catalog,
+      scopeId: scope.workspaceFiles?.scopeId,
+      isolateByUser: scope.workspaceFiles?.isolateByUser
+    }).capabilities?.get(WorkspaceFilesRuntimeCapability)
+      ?? this.runtimeCapabilities?.get<WorkspaceFilesApi>(DOCX_WORKSPACE_FILES_RUNTIME_CAPABILITY)
   }
 
   private artifacts() {
@@ -686,7 +757,7 @@ export class DocxEditorService {
       throw new BadRequestException('DOCX version workspace file path is missing. Re-upload the document.')
     }
     const workspaceScope = resolveVersionWorkspaceScope(scope, version)
-    const file = await this.workspaceFiles().readBuffer({
+    const file = await this.workspaceFiles(scope).readBuffer({
       ...workspaceScope,
       filePath: version.workspaceFilePath
     })
@@ -865,7 +936,7 @@ export class DocxEditorService {
 
   private async requireDocument(scope: DocxEditorScope, documentId: string) {
     const document = await this.documentRepository.findOne({
-      where: scopedWhere(scope, { id: documentId })
+      where: scopedDocumentWhere(scope, { id: documentId })
     })
     if (!document) {
       throw new NotFoundException('DOCX document was not found.')
@@ -1885,15 +1956,16 @@ function truncateText(value: string, maxLength: number) {
 }
 
 function portableArtifactReference(
-  file: { name?: string; filePath: string; workspacePath?: string; mimeType?: string; size?: number },
+  file: WorkspaceFile,
   scope: DocxWorkspaceFileScope,
   originalName: string,
   rendered: { mimeType: string; size: number }
 ): WorkspacePortableFileReference {
   const workspacePath = normalizeRequired(file.workspacePath, 'Workspace upload did not return a workspace path.')
+  const persistedScope = resolvePersistedWorkspaceScope(scope, file)
   return {
     source: WORKSPACE_FILES_SOURCE,
-    ...scope,
+    ...persistedScope,
     filePath: file.filePath,
     workspacePath,
     originalName,
@@ -1952,9 +2024,24 @@ function scopedCreate(scope: DocxEditorScope): ScopedFields & { createdById?: st
   return {
     tenantId: normalizeOptional(scope.tenantId),
     organizationId: normalizeOptional(scope.organizationId),
-    workspaceId: normalizeOptional(scope.workspaceId),
+    workspaceId: scope.projectId ? undefined : normalizeOptional(scope.workspaceId),
     projectId: normalizeOptional(scope.projectId),
     createdById: normalizeOptional(scope.userId)
+  }
+}
+
+function scopedDocumentWhere(scope: DocxEditorScope, query: ScopedQuery) {
+  return {
+    ...scopedWhere(scope, query),
+    ...(scope.projectId
+      ? {}
+      : {
+          projectId: IsNull(),
+          assistantId: normalizeOptional(scope.assistantId) ?? IsNull(),
+          ...(scope.workspaceFiles?.catalog === 'user-xperts'
+            ? { createdById: normalizeOptional(scope.userId) ?? IsNull() }
+            : {})
+        })
   }
 }
 
@@ -1966,11 +2053,13 @@ function scopedWhere(scope: DocxEditorScope, query: ScopedQuery) {
   if (scope.organizationId) {
     where.organizationId = scope.organizationId
   }
-  if (scope.workspaceId) {
+  if (!scope.projectId && scope.workspaceId) {
     where.workspaceId = scope.workspaceId
   }
   if (scope.projectId) {
     where.projectId = scope.projectId
+  } else {
+    where.projectId = IsNull()
   }
   return where
 }
@@ -1995,7 +2084,7 @@ function validateDocxBuffer(buffer: Buffer) {
 
 function extractDocumentFileFields(
   input: SaveDocxVersionInput,
-  workspaceFile: { filePath: string; fileUrl?: string; url?: string },
+  workspaceFile: WorkspaceFile,
   workspaceScope: DocxWorkspaceFileScope
 ) {
   return {
@@ -2010,10 +2099,23 @@ function extractDocumentFileFields(
 }
 
 function resolveDocumentWorkspaceScope(scope: DocxEditorScope, document: DocxEditorDocument): DocxWorkspaceFileScope {
+  if (scope.workspaceFiles) {
+    return {
+      tenantId: scope.tenantId,
+      organizationId: scope.organizationId,
+      userId: scope.workspaceFiles.userId ?? scope.userId,
+      catalog: scope.workspaceFiles.catalog,
+      scopeId: scope.workspaceFiles.scopeId,
+      xpertId: scope.workspaceFiles.xpertId,
+      projectId: scope.workspaceFiles.projectId,
+      isolateByUser: scope.workspaceFiles.isolateByUser
+    }
+  }
   const projectId = normalizeOptional(scope.projectId) ?? normalizeOptional(document.projectId)
   if (projectId) {
     return {
       tenantId: scope.tenantId,
+      organizationId: scope.organizationId,
       userId: scope.userId,
       catalog: 'projects',
       scopeId: projectId,
@@ -2028,6 +2130,7 @@ function resolveDocumentWorkspaceScope(scope: DocxEditorScope, document: DocxEdi
 
   return {
     tenantId: scope.tenantId,
+    organizationId: scope.organizationId,
     userId: scope.userId,
     catalog: 'xperts',
     scopeId: xpertId,
@@ -2040,6 +2143,7 @@ function resolveVersionWorkspaceScope(scope: DocxEditorScope, version: DocxEdito
   if (version.workspaceCatalog === 'projects' && version.workspaceScopeId) {
     return {
       tenantId: scope.tenantId,
+      organizationId: scope.organizationId,
       userId: scope.userId,
       catalog: 'projects',
       scopeId: version.workspaceScopeId,
@@ -2049,6 +2153,7 @@ function resolveVersionWorkspaceScope(scope: DocxEditorScope, version: DocxEdito
   if (version.workspaceCatalog === 'xperts' && version.workspaceScopeId) {
     return {
       tenantId: scope.tenantId,
+      organizationId: scope.organizationId,
       userId: scope.userId,
       catalog: 'xperts',
       scopeId: version.workspaceScopeId,
@@ -2056,11 +2161,24 @@ function resolveVersionWorkspaceScope(scope: DocxEditorScope, version: DocxEdito
       isolateByUser: false
     }
   }
+  if (version.workspaceCatalog === 'user-xperts' && version.workspaceScopeId) {
+    const userId = normalizeRequired(scope.userId, 'User-scoped DOCX version requires a user id.')
+    return {
+      tenantId: scope.tenantId,
+      organizationId: scope.organizationId,
+      userId,
+      catalog: 'user-xperts',
+      scopeId: version.workspaceScopeId,
+      xpertId: version.workspaceScopeId,
+      isolateByUser: true
+    }
+  }
 
   const projectId = normalizeOptional(scope.projectId)
   if (projectId) {
     return {
       tenantId: scope.tenantId,
+      organizationId: scope.organizationId,
       userId: scope.userId,
       catalog: 'projects',
       scopeId: projectId,
@@ -2074,11 +2192,45 @@ function resolveVersionWorkspaceScope(scope: DocxEditorScope, version: DocxEdito
   }
   return {
     tenantId: scope.tenantId,
+    organizationId: scope.organizationId,
     userId: scope.userId,
     catalog: 'xperts',
     scopeId: xpertId,
     xpertId,
     isolateByUser: false
+  }
+}
+
+function resolvePersistedWorkspaceScope(
+  requestedScope: DocxWorkspaceFileScope,
+  workspaceFile: WorkspaceFile
+): DocxWorkspaceFileScope {
+  if (
+    workspaceFile.catalog !== 'projects' &&
+    workspaceFile.catalog !== 'xperts' &&
+    workspaceFile.catalog !== 'user-xperts'
+  ) {
+    throw new BadRequestException(`Unsupported DOCX workspace catalog: ${workspaceFile.catalog}`)
+  }
+  const scopeId = normalizeOptional(workspaceFile.scopeId) ?? requestedScope.scopeId
+  if (workspaceFile.catalog === 'projects') {
+    return {
+      tenantId: requestedScope.tenantId,
+      organizationId: requestedScope.organizationId,
+      userId: requestedScope.userId,
+      catalog: 'projects',
+      scopeId,
+      projectId: scopeId
+    }
+  }
+  return {
+    tenantId: requestedScope.tenantId,
+    organizationId: requestedScope.organizationId,
+    userId: requestedScope.userId,
+    catalog: workspaceFile.catalog,
+    scopeId,
+    xpertId: scopeId,
+    isolateByUser: workspaceFile.catalog === 'user-xperts'
   }
 }
 
@@ -2143,6 +2295,14 @@ function readPagesFromSnapshot(pages: unknown, toolName: DocxEditorToolName, inp
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value))
+}
+
+function isUniqueViolation(error: unknown) {
+  if (!error || typeof error !== 'object' || !('driverError' in error)) return false
+  const driverError = error.driverError
+  return Boolean(
+    driverError && typeof driverError === 'object' && 'code' in driverError && driverError.code === '23505'
+  )
 }
 
 function createTitleFromFileName(fileName?: string | null) {
