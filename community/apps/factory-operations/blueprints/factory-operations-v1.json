@@ -1,0 +1,783 @@
+{
+  "schemaVersion": "1.3",
+  "pipeline": {
+    "key": "factory-anomaly-recovery",
+    "title": "Factory Intelligent Operations and Anomaly Recovery",
+    "description": "A fixed, versioned DAG for investigating a production anomaly, reconciling specialist findings, approving a recovery plan, executing governed simulator actions, and verifying recovery.",
+    "artifactNamespace": "factory_ops",
+    "templateKey": "factory_anomaly_recovery",
+    "templateVersion": 3,
+    "startNodeKey": "detect-anomaly"
+  },
+  "caseModel": {
+    "keyField": "case-id",
+    "titleField": "case-title",
+    "statusField": "case-status",
+    "revisionField": "case-revision",
+    "templateKeyField": "flow-template-key",
+    "templateVersionField": "flow-template-version",
+    "scopeFields": ["tenant-id", "organization-id"],
+    "lifecycleStatuses": [
+      "investigating",
+      "awaiting-approval",
+      "approved",
+      "verifying",
+      "recovered",
+      "escalated",
+      "rejected"
+    ]
+  },
+  "delivery": {
+    "surfaces": ["assistant", "backend", "workbench"],
+    "assistantTopology": "both",
+    "assistantParticipants": {
+      "roleMode": "independent_assistants",
+      "orchestratorDelegation": "external_xperts",
+      "externalXpertConnections": "direct_required"
+    },
+    "pipelineWorkbench": {
+      "mode": "required",
+      "overviewViewKey": "factory-operations-center",
+      "dashboardViewKey": "factory-operations-dashboard"
+    }
+  },
+  "projectionContract": {
+    "dashboardProject": "factory-dashboard-project",
+    "caseList": "factory-case-list",
+    "caseCreate": "factory-case-create",
+    "caseGet": "factory-case-get",
+    "flowProject": "factory-flow-project",
+    "executableNodes": "factory-executable-nodes",
+    "nodeStart": "factory-node-start",
+    "nextNodeProcess": "factory-next-node-process",
+    "humanTaskComplete": "factory-human-task-complete",
+    "blockerResolve": "factory-blocker-resolve",
+    "nodeWorkspaceGet": "factory-node-workspace-get",
+    "executionRecordList": "factory-execution-record-list",
+    "refreshStrategy": "hybrid"
+  },
+  "executionRecords": {
+    "mode": "case_node_lane_bound",
+    "retention": "immutable_attempts",
+    "navigationClientCommand": "workbench.navigation.open",
+    "navigationTarget": "assistant.conversation",
+    "visibleLimit": 10,
+    "presentationTargets": ["assistant_card", "task_card"]
+  },
+  "viewExperience": {
+    "componentLibrary": "shadcn-ui-local-cli",
+    "dashboard": {
+      "chartLibrary": "echarts",
+      "layout": "management_monitoring"
+    },
+    "swimlane": {
+      "assistantAvatarSource": "platform_assistant",
+      "assistantExecutionMarkerPlacement": "assistant_card_bottom_right",
+      "nodeExecutionMarkerPlacement": "task_card_bottom_right",
+      "logicNodeShape": "diamond",
+      "dragPan": true,
+      "laneSelection": true
+    }
+  },
+  "features": [
+    "factory-case-coordination",
+    "factory-event-triage",
+    "factory-equipment-diagnostics",
+    "factory-quality-risk",
+    "factory-production-impact",
+    "factory-resource-readiness",
+    "factory-recovery-planning",
+    "factory-recovery-execution",
+    "factory-recovery-validation",
+    "factory-operations-workbench",
+    "factory-operations-management-dashboard"
+  ],
+  "roles": [
+    {
+      "key": "operations-coordinator",
+      "title": "Operations Coordinator",
+      "kind": "orchestrator",
+      "writeAuthority": false,
+      "assistantTemplateKey": "factory-operations-autopilot",
+      "middlewareBindings": [
+        "factory-case-coordination",
+        "factory-recovery-execution"
+      ]
+    },
+    {
+      "key": "anomaly-triage-specialist",
+      "title": "Anomaly Triage Specialist",
+      "kind": "business",
+      "writeAuthority": true,
+      "assistantTemplateKey": "factory-anomaly-triage-assistant",
+      "middlewareBindings": ["factory-event-triage"]
+    },
+    {
+      "key": "equipment-diagnostics-specialist",
+      "title": "Equipment Diagnostics Specialist",
+      "kind": "business",
+      "writeAuthority": true,
+      "assistantTemplateKey": "factory-equipment-diagnostics-assistant",
+      "middlewareBindings": ["factory-equipment-diagnostics"]
+    },
+    {
+      "key": "quality-risk-specialist",
+      "title": "Quality Risk Specialist",
+      "kind": "business",
+      "writeAuthority": true,
+      "assistantTemplateKey": "factory-quality-risk-assistant",
+      "middlewareBindings": ["factory-quality-risk"]
+    },
+    {
+      "key": "production-impact-specialist",
+      "title": "Production Impact Specialist",
+      "kind": "business",
+      "writeAuthority": true,
+      "assistantTemplateKey": "factory-production-impact-assistant",
+      "middlewareBindings": ["factory-production-impact"]
+    },
+    {
+      "key": "resource-readiness-specialist",
+      "title": "Resource Readiness Specialist",
+      "kind": "business",
+      "writeAuthority": true,
+      "assistantTemplateKey": "factory-resource-readiness-assistant",
+      "middlewareBindings": ["factory-resource-readiness"]
+    },
+    {
+      "key": "recovery-planning-specialist",
+      "title": "Recovery Planning Specialist",
+      "kind": "business",
+      "writeAuthority": true,
+      "assistantTemplateKey": "factory-recovery-planning-assistant",
+      "middlewareBindings": ["factory-recovery-planning"]
+    },
+    {
+      "key": "operations-approval-advisor",
+      "title": "Production Operations Approval Advisor",
+      "kind": "business",
+      "writeAuthority": false,
+      "assistantTemplateKey": "factory-operations-approval-advisor",
+      "middlewareBindings": [
+        "factory-case-coordination",
+        "factory-recovery-execution"
+      ]
+    },
+    {
+      "key": "operations-manager",
+      "title": "Factory Operations Manager",
+      "kind": "business",
+      "writeAuthority": false,
+      "assistantTemplateKey": "factory-operations-manager",
+      "middlewareBindings": [
+        "factory-case-coordination",
+        "factory-operations-monitoring"
+      ]
+    },
+    {
+      "key": "recovery-verification-specialist",
+      "title": "Recovery Verification Specialist",
+      "kind": "business",
+      "writeAuthority": true,
+      "assistantTemplateKey": "factory-recovery-verification-assistant",
+      "middlewareBindings": ["factory-recovery-validation"]
+    }
+  ],
+  "lanes": [
+    {
+      "key": "event-intake",
+      "title": "Event Intake",
+      "accountableRoleKey": "anomaly-triage-specialist",
+      "order": 10
+    },
+    {
+      "key": "equipment-engineering",
+      "title": "Equipment Engineering",
+      "accountableRoleKey": "equipment-diagnostics-specialist",
+      "order": 20
+    },
+    {
+      "key": "quality-management",
+      "title": "Quality Management",
+      "accountableRoleKey": "quality-risk-specialist",
+      "order": 30
+    },
+    {
+      "key": "production-planning",
+      "title": "Production Planning",
+      "accountableRoleKey": "production-impact-specialist",
+      "order": 40
+    },
+    {
+      "key": "maintenance-and-logistics",
+      "title": "Maintenance and Logistics",
+      "accountableRoleKey": "resource-readiness-specialist",
+      "order": 50
+    },
+    {
+      "key": "recovery-planning",
+      "title": "Recovery Planning",
+      "accountableRoleKey": "recovery-planning-specialist",
+      "order": 60
+    },
+    {
+      "key": "operations-approval",
+      "title": "Operations Approval",
+      "accountableRoleKey": "operations-approval-advisor",
+      "order": 70
+    },
+    {
+      "key": "recovery-validation",
+      "title": "Recovery Validation",
+      "accountableRoleKey": "recovery-verification-specialist",
+      "order": 80
+    }
+  ],
+  "stages": [
+    { "key": "detection", "title": "Detection", "order": 10 },
+    { "key": "triage", "title": "Triage", "order": 20 },
+    { "key": "parallel-analysis", "title": "Parallel Analysis", "order": 30 },
+    { "key": "recovery-planning", "title": "Recovery Planning", "order": 40 },
+    { "key": "human-decision", "title": "Human Decision", "order": 50 },
+    { "key": "governed-execution", "title": "Governed Execution", "order": 60 },
+    { "key": "verification", "title": "Verification and Outcome", "order": 70 }
+  ],
+  "artifacts": [
+    {
+      "key": "anomaly-event",
+      "title": "Anomaly Event",
+      "ownerRoleKey": "anomaly-triage-specialist",
+      "versioned": true
+    },
+    {
+      "key": "triage-assessment",
+      "title": "Triage Assessment",
+      "ownerRoleKey": "anomaly-triage-specialist",
+      "versioned": true
+    },
+    {
+      "key": "equipment-diagnosis",
+      "title": "Equipment Diagnosis",
+      "ownerRoleKey": "equipment-diagnostics-specialist",
+      "versioned": true
+    },
+    {
+      "key": "quality-impact",
+      "title": "Quality Impact Assessment",
+      "ownerRoleKey": "quality-risk-specialist",
+      "versioned": true
+    },
+    {
+      "key": "production-impact",
+      "title": "Production and Order Impact",
+      "ownerRoleKey": "production-impact-specialist",
+      "versioned": true
+    },
+    {
+      "key": "resource-readiness",
+      "title": "Maintenance and Resource Readiness",
+      "ownerRoleKey": "resource-readiness-specialist",
+      "versioned": true
+    },
+    {
+      "key": "recovery-plan",
+      "title": "Recovery Plan",
+      "ownerRoleKey": "recovery-planning-specialist",
+      "versioned": true
+    },
+    {
+      "key": "execution-batch",
+      "title": "Recovery Execution Batch",
+      "ownerRoleKey": "operations-coordinator",
+      "versioned": true
+    },
+    {
+      "key": "recovery-verification",
+      "title": "Recovery Verification",
+      "ownerRoleKey": "recovery-verification-specialist",
+      "versioned": true
+    }
+  ],
+  "middleware": [
+    {
+      "key": "factory-case-coordination",
+      "ownerRoleKey": "operations-coordinator",
+      "featureKeys": ["factory-case-coordination", "factory-operations-workbench"],
+      "tools": [
+        { "name": "factory_case_get_summary", "mode": "read" },
+        { "name": "factory_case_get_progress", "mode": "read" }
+      ]
+    },
+    {
+      "key": "factory-operations-monitoring",
+      "ownerRoleKey": "operations-manager",
+      "featureKeys": ["factory-operations-management-dashboard"],
+      "tools": [
+        { "name": "factory_operations_dashboard_get", "mode": "read" }
+      ]
+    },
+    {
+      "key": "factory-event-triage",
+      "ownerRoleKey": "anomaly-triage-specialist",
+      "featureKeys": ["factory-event-triage"],
+      "tools": [
+        { "name": "factory_event_triage_record", "mode": "write" }
+      ]
+    },
+    {
+      "key": "factory-equipment-diagnostics",
+      "ownerRoleKey": "equipment-diagnostics-specialist",
+      "featureKeys": ["factory-equipment-diagnostics"],
+      "tools": [
+        { "name": "factory_equipment_diagnosis_record", "mode": "write" }
+      ]
+    },
+    {
+      "key": "factory-quality-risk",
+      "ownerRoleKey": "quality-risk-specialist",
+      "featureKeys": ["factory-quality-risk"],
+      "tools": [
+        { "name": "factory_quality_impact_record", "mode": "write" }
+      ]
+    },
+    {
+      "key": "factory-production-impact",
+      "ownerRoleKey": "production-impact-specialist",
+      "featureKeys": ["factory-production-impact"],
+      "tools": [
+        { "name": "factory_production_impact_record", "mode": "write" }
+      ]
+    },
+    {
+      "key": "factory-resource-readiness",
+      "ownerRoleKey": "resource-readiness-specialist",
+      "featureKeys": ["factory-resource-readiness"],
+      "tools": [
+        { "name": "factory_resource_readiness_record", "mode": "write" }
+      ]
+    },
+    {
+      "key": "factory-recovery-planning",
+      "ownerRoleKey": "recovery-planning-specialist",
+      "featureKeys": ["factory-recovery-planning"],
+      "tools": [
+        { "name": "factory_recovery_plan_generate", "mode": "decision_support" }
+      ]
+    },
+    {
+      "key": "factory-recovery-execution",
+      "ownerRoleKey": "operations-coordinator",
+      "featureKeys": ["factory-recovery-execution"],
+      "tools": [
+        { "name": "factory_execution_status_get", "mode": "read" }
+      ]
+    },
+    {
+      "key": "factory-recovery-validation",
+      "ownerRoleKey": "recovery-verification-specialist",
+      "featureKeys": ["factory-recovery-validation"],
+      "tools": [
+        { "name": "factory_recovery_verification_record", "mode": "write" }
+      ]
+    }
+  ],
+  "views": [
+    {
+      "key": "factory-operations-center",
+      "title": "Factory Recovery Pipeline",
+      "kind": "pipeline_overview",
+      "featureKeys": [
+        "factory-operations-workbench",
+        "factory-case-coordination"
+      ],
+      "actionKeys": [
+        "case-create",
+        "case-refresh",
+        "case-filter-blocked",
+        "case-zoom",
+        "case-process-next",
+        "node-open",
+        "node-start",
+        "dispatch_assistant_task",
+        "cancel_assistant_task",
+        "retry_case_project",
+        "create_demo_incident",
+        "approve_recovery_plan",
+        "reject_recovery_plan",
+        "execute_recovery_plan",
+        "retry_recovery_action",
+        "verify_recovery",
+        "blocker-resolve"
+      ],
+      "clientCommandKeys": [
+        "workbench.navigation.open"
+      ]
+    },
+    {
+      "key": "factory-case-workspace",
+      "title": "Factory Case Workspace",
+      "kind": "node_workspace",
+      "featureKeys": [
+        "factory-operations-workbench",
+        "factory-case-coordination"
+      ],
+      "actionKeys": [
+        "human-task-complete",
+        "dispatch_assistant_task",
+        "cancel_assistant_task",
+        "retry_case_project",
+        "approve_recovery_plan",
+        "reject_recovery_plan",
+        "execute_recovery_plan",
+        "verify_recovery"
+      ],
+      "clientCommandKeys": [
+        "workbench.navigation.open"
+      ]
+    },
+    {
+      "key": "factory-operations-dashboard",
+      "title": "Factory Operations Management Dashboard",
+      "kind": "operations_dashboard",
+      "featureKeys": ["factory-operations-management-dashboard"],
+      "actionKeys": ["case-refresh"],
+      "clientCommandKeys": ["workbench.navigation.open"]
+    }
+  ],
+  "routeFacts": [
+    {
+      "key": "execution-authority",
+      "sourceArtifactKey": "recovery-plan",
+      "values": ["auto-safe", "approval-required"]
+    },
+    {
+      "key": "execution-outcome",
+      "sourceArtifactKey": "execution-batch",
+      "values": ["complete", "partial-failure"]
+    },
+    {
+      "key": "approval-outcome",
+      "sourceArtifactKey": "recovery-plan",
+      "values": ["approved", "rejected"]
+    },
+    {
+      "key": "recovery-outcome",
+      "sourceArtifactKey": "recovery-verification",
+      "values": ["recovered", "needs-intervention"]
+    }
+  ],
+  "nodes": [
+    {
+      "key": "detect-anomaly",
+      "title": "Detect Production Anomaly",
+      "kind": "task",
+      "laneKey": "event-intake",
+      "stageKey": "detection",
+      "openMode": "dialog",
+      "accountableRoleKey": "anomaly-triage-specialist",
+      "completion": {
+        "artifactKey": "anomaly-event",
+        "predicate": "status == open && severity in [high, critical]"
+      },
+      "execution": { "mode": "system", "toolNames": [] },
+      "requiredFeatureKeys": ["factory-event-triage"],
+      "allowedActionKeys": ["create_demo_incident"],
+      "risk": "low",
+      "humanGate": "none"
+    },
+    {
+      "key": "triage-event",
+      "title": "Triage Anomaly Event",
+      "kind": "task",
+      "laneKey": "event-intake",
+      "stageKey": "triage",
+      "openMode": "view",
+      "workspaceKey": "factory-case-workspace",
+      "accountableRoleKey": "anomaly-triage-specialist",
+      "completion": {
+        "artifactKey": "triage-assessment",
+        "predicate": "status == confirmed && evidenceCount >= 2"
+      },
+      "execution": {
+        "mode": "assistant_task",
+        "toolNames": ["factory_event_triage_record"]
+      },
+      "requiredFeatureKeys": ["factory-event-triage"],
+      "allowedActionKeys": ["node-open", "node-start"],
+      "risk": "medium",
+      "humanGate": "none"
+    },
+    {
+      "key": "diagnose-equipment",
+      "title": "Diagnose Equipment",
+      "kind": "task",
+      "laneKey": "equipment-engineering",
+      "stageKey": "parallel-analysis",
+      "openMode": "view",
+      "workspaceKey": "factory-case-workspace",
+      "accountableRoleKey": "equipment-diagnostics-specialist",
+      "completion": {
+        "artifactKey": "equipment-diagnosis",
+        "predicate": "status == completed && evidenceCount >= 1"
+      },
+      "execution": {
+        "mode": "assistant_task",
+        "toolNames": ["factory_equipment_diagnosis_record"]
+      },
+      "requiredFeatureKeys": ["factory-equipment-diagnostics"],
+      "allowedActionKeys": ["node-open", "node-start"],
+      "risk": "medium",
+      "humanGate": "review"
+    },
+    {
+      "key": "assess-quality-impact",
+      "title": "Assess Quality Impact",
+      "kind": "task",
+      "laneKey": "quality-management",
+      "stageKey": "parallel-analysis",
+      "openMode": "view",
+      "workspaceKey": "factory-case-workspace",
+      "accountableRoleKey": "quality-risk-specialist",
+      "completion": {
+        "artifactKey": "quality-impact",
+        "predicate": "status == completed && affectedQuantity >= 0"
+      },
+      "execution": {
+        "mode": "assistant_task",
+        "toolNames": ["factory_quality_impact_record"]
+      },
+      "requiredFeatureKeys": ["factory-quality-risk"],
+      "allowedActionKeys": ["node-open", "node-start"],
+      "risk": "high",
+      "humanGate": "review"
+    },
+    {
+      "key": "assess-production-impact",
+      "title": "Assess Production Impact",
+      "kind": "task",
+      "laneKey": "production-planning",
+      "stageKey": "parallel-analysis",
+      "openMode": "view",
+      "workspaceKey": "factory-case-workspace",
+      "accountableRoleKey": "production-impact-specialist",
+      "completion": {
+        "artifactKey": "production-impact",
+        "predicate": "status == completed && impactedWorkOrderCount >= 0"
+      },
+      "execution": {
+        "mode": "assistant_task",
+        "toolNames": ["factory_production_impact_record"]
+      },
+      "requiredFeatureKeys": ["factory-production-impact"],
+      "allowedActionKeys": ["node-open", "node-start"],
+      "risk": "medium",
+      "humanGate": "review"
+    },
+    {
+      "key": "check-resource-readiness",
+      "title": "Check Resource Readiness",
+      "kind": "task",
+      "laneKey": "maintenance-and-logistics",
+      "stageKey": "parallel-analysis",
+      "openMode": "view",
+      "workspaceKey": "factory-case-workspace",
+      "accountableRoleKey": "resource-readiness-specialist",
+      "completion": {
+        "artifactKey": "resource-readiness",
+        "predicate": "status == completed && spareAvailability in [available, unavailable]"
+      },
+      "execution": {
+        "mode": "assistant_task",
+        "toolNames": ["factory_resource_readiness_record"]
+      },
+      "requiredFeatureKeys": ["factory-resource-readiness"],
+      "allowedActionKeys": ["node-open", "node-start"],
+      "risk": "medium",
+      "humanGate": "review"
+    },
+    {
+      "key": "generate-recovery-plan",
+      "title": "Generate Recovery Plan",
+      "kind": "task",
+      "laneKey": "recovery-planning",
+      "stageKey": "recovery-planning",
+      "openMode": "view",
+      "workspaceKey": "factory-case-workspace",
+      "accountableRoleKey": "recovery-planning-specialist",
+      "completion": {
+        "artifactKey": "recovery-plan",
+        "predicate": "status == proposed && optionCount >= 2 && recommendedOptionId != null"
+      },
+      "execution": {
+        "mode": "assistant_task",
+        "toolNames": ["factory_recovery_plan_generate"]
+      },
+      "requiredFeatureKeys": ["factory-recovery-planning"],
+      "allowedActionKeys": ["node-open", "node-start"],
+      "risk": "high",
+      "humanGate": "review"
+    },
+    {
+      "key": "route-execution-authority",
+      "title": "Route Execution Authority",
+      "kind": "router",
+      "stageKey": "human-decision",
+      "routeFactKey": "execution-authority"
+    },
+    {
+      "key": "approve-recovery-plan",
+      "title": "Decide Recovery Plan",
+      "kind": "task",
+      "laneKey": "operations-approval",
+      "stageKey": "human-decision",
+      "openMode": "dialog",
+      "accountableRoleKey": "operations-approval-advisor",
+      "completion": {
+        "artifactKey": "recovery-plan",
+        "predicate": "approvalStatus in [approved, rejected] && approvalRevision == revision"
+      },
+      "execution": { "mode": "human", "toolNames": [] },
+      "requiredFeatureKeys": ["factory-operations-workbench"],
+      "allowedActionKeys": [
+        "node-open",
+        "human-task-complete",
+        "approve_recovery_plan",
+        "reject_recovery_plan"
+      ],
+      "risk": "irreversible",
+      "humanGate": "approval"
+    },
+    {
+      "key": "route-approval-outcome",
+      "title": "Route Approval Outcome",
+      "kind": "router",
+      "stageKey": "human-decision",
+      "routeFactKey": "approval-outcome"
+    },
+    {
+      "key": "execute-recovery-plan",
+      "title": "Execute Approved Recovery Plan",
+      "kind": "task",
+      "laneKey": "operations-approval",
+      "stageKey": "governed-execution",
+      "openMode": "dialog",
+      "accountableRoleKey": "operations-approval-advisor",
+      "completion": {
+        "artifactKey": "execution-batch",
+        "predicate": "status in [completed, partial_failure] && confirmationCount == actionCount"
+      },
+      "execution": { "mode": "system", "toolNames": [] },
+      "requiredFeatureKeys": ["factory-recovery-execution"],
+      "allowedActionKeys": [
+        "node-open",
+        "execute_recovery_plan",
+        "retry_recovery_action"
+      ],
+      "risk": "irreversible",
+      "humanGate": "external_confirmation"
+    },
+    {
+      "key": "route-execution-outcome",
+      "title": "Route Execution Outcome",
+      "kind": "router",
+      "stageKey": "governed-execution",
+      "routeFactKey": "execution-outcome"
+    },
+    {
+      "key": "verify-recovery",
+      "title": "Verify Production Recovery",
+      "kind": "task",
+      "laneKey": "recovery-validation",
+      "stageKey": "verification",
+      "openMode": "view",
+      "workspaceKey": "factory-case-workspace",
+      "accountableRoleKey": "recovery-verification-specialist",
+      "completion": {
+        "artifactKey": "recovery-verification",
+        "predicate": "status == completed && evidenceCount >= 3"
+      },
+      "execution": {
+        "mode": "assistant_task",
+        "toolNames": ["factory_recovery_verification_record"]
+      },
+      "requiredFeatureKeys": ["factory-recovery-validation"],
+      "allowedActionKeys": ["node-open", "node-start", "verify_recovery"],
+      "risk": "high",
+      "humanGate": "review"
+    },
+    {
+      "key": "route-recovery-outcome",
+      "title": "Route Recovery Outcome",
+      "kind": "router",
+      "stageKey": "verification",
+      "routeFactKey": "recovery-outcome"
+    },
+    {
+      "key": "production-recovered",
+      "title": "Production Recovered",
+      "kind": "terminal",
+      "stageKey": "verification"
+    },
+    {
+      "key": "human-intervention-required",
+      "title": "Human Intervention Required",
+      "kind": "terminal",
+      "stageKey": "verification"
+    }
+  ],
+  "edges": [
+    { "from": "detect-anomaly", "to": "triage-event" },
+    { "from": "triage-event", "to": "diagnose-equipment" },
+    { "from": "triage-event", "to": "assess-quality-impact" },
+    { "from": "triage-event", "to": "assess-production-impact" },
+    { "from": "triage-event", "to": "check-resource-readiness" },
+    { "from": "diagnose-equipment", "to": "generate-recovery-plan" },
+    { "from": "assess-quality-impact", "to": "generate-recovery-plan" },
+    { "from": "assess-production-impact", "to": "generate-recovery-plan" },
+    { "from": "check-resource-readiness", "to": "generate-recovery-plan" },
+    { "from": "generate-recovery-plan", "to": "route-execution-authority" },
+    {
+      "from": "route-execution-authority",
+      "to": "execute-recovery-plan",
+      "condition": { "factKey": "execution-authority", "value": "auto-safe" }
+    },
+    {
+      "from": "route-execution-authority",
+      "to": "approve-recovery-plan",
+      "condition": { "factKey": "execution-authority", "value": "approval-required" }
+    },
+    { "from": "approve-recovery-plan", "to": "route-approval-outcome" },
+    {
+      "from": "route-approval-outcome",
+      "to": "execute-recovery-plan",
+      "condition": { "factKey": "approval-outcome", "value": "approved" }
+    },
+    {
+      "from": "route-approval-outcome",
+      "to": "human-intervention-required",
+      "condition": { "factKey": "approval-outcome", "value": "rejected" }
+    },
+    { "from": "execute-recovery-plan", "to": "route-execution-outcome" },
+    {
+      "from": "route-execution-outcome",
+      "to": "verify-recovery",
+      "condition": { "factKey": "execution-outcome", "value": "complete" }
+    },
+    {
+      "from": "route-execution-outcome",
+      "to": "human-intervention-required",
+      "condition": { "factKey": "execution-outcome", "value": "partial-failure" }
+    },
+    { "from": "verify-recovery", "to": "route-recovery-outcome" },
+    {
+      "from": "route-recovery-outcome",
+      "to": "production-recovered",
+      "condition": { "factKey": "recovery-outcome", "value": "recovered" }
+    },
+    {
+      "from": "route-recovery-outcome",
+      "to": "human-intervention-required",
+      "condition": { "factKey": "recovery-outcome", "value": "needs-intervention" }
+    }
+  ]
+}

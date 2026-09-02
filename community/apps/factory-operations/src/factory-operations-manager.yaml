@@ -1,0 +1,125 @@
+team:
+  name: factory-operations-manager
+  type: agent
+  title: 工厂运营管理监控助手
+  description: 只读监控组织范围内的异常恢复风险、泳道阻塞、恢复吞吐和智能体执行健康度。
+  avatar:
+    emoji:
+      id: bar_chart
+      unified: 1f4ca
+    background: rgb(235, 244, 255)
+  options:
+    templateKey: factory-operations-manager
+    workbench:
+      initialLayout: workbench-maximized
+      defaultViewKey: factory_ops__factory-operations-dashboard
+    dataXpert:
+      managedBy: data-xpert
+      templateKey: factory-operations-manager
+      assistantKind: business-assistant
+      businessDomain: factory-operations-management
+      requiredPlugin: '@xpert-ai/plugin-factory-operations'
+      requiredPlugins:
+        - '@xpert-ai/plugin-factory-operations'
+      requiredCapabilities:
+        - factory-case-coordination
+        - factory-operations-monitoring
+        - factory-operations-management-dashboard
+    agent:
+      Agent_FactoryOperationsManager: { position: { x: 420, y: 40 } }
+  agentConfig:
+    recursionLimit: 80
+    maxConcurrency: 1
+    stateVariables: []
+    mute: []
+  memory:
+    enabled: false
+  summarize:
+    enabled: true
+    maxMessages: 30
+    retainMessages: 10
+  features:
+    opener:
+      enabled: true
+      message: ''
+      questions:
+        - 请汇总当前组织内活动异常、严重风险和等待审批事件。
+        - 哪些角色泳道存在阻塞，最近失败的智能体执行是什么？
+        - 请说明平均响应与恢复时间，以及避免的停机和损失。
+    suggestion:
+      enabled: true
+      prompt: 基于当前管理指标，给出不超过三个只读分析问题。
+    attachment:
+      enabled: false
+    memoryReply:
+      enabled: false
+    sandbox:
+      enabled: false
+    title:
+      enabled: true
+      instruction: 生成包含工厂运营指标或风险主题的简短标题。
+  version: "2"
+  agent:
+    key: Agent_FactoryOperationsManager
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: qwen3.6-plus
+    options:
+      context_size: 256000
+      temperature: 0.1
+      maxRetries: 3
+      max_tokens: 4096
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_FactoryOperationsManager
+    position: { x: 420, y: 40 }
+    entity:
+      key: Agent_FactoryOperationsManager
+      name: factory-operations-manager
+      title: 工厂运营管理 Agent
+      description: 读取组织范围内的恢复指标、阻塞和智能体执行健康度。
+      prompt: |
+        You are the read-only Factory Operations Manager. Use
+        factory_operations_dashboard_get as the organization-scoped source of
+        truth. You may also use factory_case_get_summary for one exact Case.
+
+        Never approve or reject a plan, execute a production change, create or
+        mutate a Factory Case, or claim a simulated confirmation is an external
+        system receipt. You have no mutation middleware. Explain active and
+        critical Case counts, approval queues, role-lane blockers, recovery
+        throughput, and failed Agent executions. Distinguish a failed attempt
+        from a later successful retry, preserve superseded history, and cite the
+        dashboard refresh time. If results are truncated, say so. Match the
+        user's language and keep management summaries concise.
+      promptTemplates: null
+      parameters: null
+      outputVariables: null
+      options:
+        parallelToolCalls: false
+        middlewares:
+          order:
+            - Middleware_FactoryMonitoring
+            - Middleware_FactoryCoordination
+      copilotModel: null
+      leaderKey: null
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: factory-operations-manager-v2
+  - type: workflow
+    key: Middleware_FactoryMonitoring
+    position: { x: 320, y: 360 }
+    entity: { type: middleware, key: Middleware_FactoryMonitoring, title: Factory organization monitoring, provider: FactoryOperationsMonitoringMiddleware, required: true }
+    hash: factory-monitoring-middleware-v1
+  - type: workflow
+    key: Middleware_FactoryCoordination
+    position: { x: 540, y: 360 }
+    entity: { type: middleware, key: Middleware_FactoryCoordination, title: Factory Case read tools, provider: FactoryCaseCoordinationMiddleware, required: true }
+    hash: factory-coordination-middleware-v1
+connections:
+  - { type: workflow, key: Agent_FactoryOperationsManager/Middleware_FactoryMonitoring, from: Agent_FactoryOperationsManager, to: Middleware_FactoryMonitoring, required: true }
+  - { type: workflow, key: Agent_FactoryOperationsManager/Middleware_FactoryCoordination, from: Agent_FactoryOperationsManager, to: Middleware_FactoryCoordination, required: true }

@@ -1,0 +1,9 @@
+---
+title: 管理监控 Dashboard
+description: 管理者的组织级只读监控入口。
+---
+
+Dashboard 使用服务端授权投影，展示五个关键 KPI、七日恢复吞吐趋势、责任泳道瓶颈、近期 Factory Case 和 Assistant 执行。ECharts 只消费后端提供的 `kpis` 与 `series`，不在浏览器内重新计算业务指标。
+
+Case 行可下钻到精确泳道上下文；执行行在存在会话句柄时可回到精确会话、线程和运行。仿真模式会持续显示边界提示，避免把模拟回执理解为真实 PLC 或生产系统控制。
+

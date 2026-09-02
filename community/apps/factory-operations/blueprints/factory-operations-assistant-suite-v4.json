@@ -1,0 +1,83 @@
+{
+  "schemaVersion": "xpert-assistant-suite@1",
+  "key": "factory-operations-independent-assistants-v4",
+  "plugin": {
+    "name": "@xpert-ai/plugin-factory-operations",
+    "version": "0.4.0"
+  },
+  "roles": [
+    {
+      "key": "triage",
+      "templateKey": "factory-anomaly-triage-assistant",
+      "name": "factory-anomaly-triage",
+      "title": "工厂异常研判助手",
+      "primaryAgentKey": "Agent_AnomalyTriage"
+    },
+    {
+      "key": "equipment",
+      "templateKey": "factory-equipment-diagnostics-assistant",
+      "name": "factory-equipment-diagnostics",
+      "title": "设备故障诊断助手",
+      "primaryAgentKey": "Agent_EquipmentDiagnostics"
+    },
+    {
+      "key": "quality",
+      "templateKey": "factory-quality-risk-assistant",
+      "name": "factory-quality-risk",
+      "title": "质量风险评估助手",
+      "primaryAgentKey": "Agent_QualityImpact"
+    },
+    {
+      "key": "production",
+      "templateKey": "factory-production-impact-assistant",
+      "name": "factory-production-impact",
+      "title": "生产影响分析助手",
+      "primaryAgentKey": "Agent_ProductionImpact"
+    },
+    {
+      "key": "resources",
+      "templateKey": "factory-resource-readiness-assistant",
+      "name": "factory-resource-readiness",
+      "title": "维修资源就绪助手",
+      "primaryAgentKey": "Agent_ResourceReadiness"
+    },
+    {
+      "key": "planning",
+      "templateKey": "factory-recovery-planning-assistant",
+      "name": "factory-recovery-planning",
+      "title": "恢复方案规划助手",
+      "primaryAgentKey": "Agent_RecoveryPlanning"
+    },
+    {
+      "key": "approval",
+      "templateKey": "factory-operations-approval-advisor",
+      "name": "factory-operations-approval-advisor",
+      "title": "生产运营审批顾问",
+      "primaryAgentKey": "Agent_OperationsApprovalAdvisor"
+    },
+    {
+      "key": "verification",
+      "templateKey": "factory-recovery-verification-assistant",
+      "name": "factory-recovery-verification",
+      "title": "生产恢复验证助手",
+      "primaryAgentKey": "Agent_RecoveryVerification"
+    }
+  ],
+  "orchestrator": {
+    "key": "orchestrator",
+    "templateKey": "factory-operations-autopilot",
+    "name": "factory-operations-autopilot",
+    "title": "工厂异常恢复编排助手",
+    "primaryAgentKey": "Agent_FactoryCoordinator",
+    "externalRoleKeys": [
+      "triage",
+      "equipment",
+      "quality",
+      "production",
+      "resources",
+      "planning",
+      "approval",
+      "verification"
+    ]
+  }
+}

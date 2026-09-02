@@ -1,0 +1,55 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Factory Operations Center",
+  "description": "Xpert multi-Agent factory anomaly recovery plugin",
+  "colors": {
+    "primary": "#0F766E",
+    "light": "#2A9187",
+    "dark": "#5EEAD4"
+  },
+  "favicon": "/favicon.svg",
+  "navigation": {
+    "pages": [
+      {
+        "group": "开始使用",
+        "pages": ["index", "quickstart"]
+      },
+      {
+        "group": "设计与运行",
+        "pages": ["architecture", "operations", "deployment-v040", "acceptance"]
+      },
+      {
+        "group": "产品",
+        "pages": [
+          "product/index",
+          "product/features/independent-assistants",
+          "product/processes/factory-anomaly-recovery",
+          "product/views/multi-agent-swimlane",
+          "product/views/factory-case-workspace",
+          "product/views/management-dashboard"
+        ]
+      },
+      {
+        "group": "Assistant 角色",
+        "pages": [
+          "product/roles/anomaly-triage",
+          "product/roles/equipment-diagnostics",
+          "product/roles/quality-risk",
+          "product/roles/production-impact",
+          "product/roles/resource-readiness",
+          "product/roles/recovery-planning",
+          "product/roles/operations-approval-advisor",
+          "product/roles/recovery-verification"
+        ]
+      }
+    ]
+  },
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg"
+  },
+  "contextual": {
+    "options": ["copy", "view", "chatgpt", "claude", "cursor", "vscode"]
+  }
+}

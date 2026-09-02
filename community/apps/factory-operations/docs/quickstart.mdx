@@ -1,0 +1,55 @@
+---
+title: "快速开始"
+description: "构建、安装并走完 M-07 多 Agent 恢复流程"
+---
+
+## 前置条件
+
+- Node.js 22 和 pnpm 10.24。
+- 本地 Xpert 3.16 源码与可运行的 PostgreSQL、Redis 和 Xpert 服务。
+- 能安装租户级插件并创建 Assistant 的 Xpert 管理权限。
+
+## 构建与验证
+
+在插件根目录运行：
+
+```bash
+corepack pnpm install
+corepack pnpm check
+corepack pnpm test:e2e
+```
+
+`check` 会验证蓝图、TypeScript、领域状态机、工具 Schema、Remote View 生成结果和发布产物。
+
+## 安装到 Xpert
+
+<Steps>
+  <Step title="构建插件">
+    ```bash
+    corepack pnpm build
+    ```
+  </Step>
+  <Step title="执行本地插件安装命令">
+    根据当前 Xpert 环境的插件 CLI，将本目录或生成的包安装为租户级插件。安装前确认 `.xpertai-plugin/plugin.json` 的版本、`level` 和 `artifactNamespace` 与 `package.json` 一致。
+  </Step>
+  <Step title="初始化管理应用">
+    在 Xpert 应用市场打开 **工厂智能运营与异常恢复中心**，通过 `appConfig` 创建组织共享的专用工作区并发布只读管理 Assistant。
+  </Step>
+  <Step title="初始化运营 Assistant 套件">
+    使用 `blueprints/factory-operations-assistant-suite-v4.json` 运行宿主的 `assistant:suite:init`。确认八个角色 Assistants 均独立发布，Orchestrator 的 `Agent_FactoryCoordinator` 具有八条 direct、required External Xpert 连接，且 Orchestrator 与八个角色均启用 `project-required`。
+  </Step>
+  <Step title="打开 Workbench">
+    打开 Assistant 的 **工厂智能运营与异常恢复中心** 固定视图，点击 **载入 M-07 异常**。
+  </Step>
+</Steps>
+
+## 完整演示路径
+
+1. 点击 **推进下一任务**。Orchestrator 首先读取 Case，并委派独立异常研判 Assistant。
+2. 异常确认后，设备、质量、生产和资源 Assistants 并行写入四个独立工件。
+3. 恢复规划 Assistant 生成 A/B/C 三套方案，并停在人工审批点。
+4. 用户在 Workbench 中批准方案 B。审批与最新 Case 修订绑定。
+5. 用户点击 **执行已批准方案**。仿真模式生成 12 个明确标注的系统确认。
+6. 恢复验证 Assistant 检查设备、首件质量和生产证据，最终关闭事件。
+
+成功结果应显示 Case 状态 `recovered`、进度 100%、避免停机 210 分钟和避免损失 186,000 元。

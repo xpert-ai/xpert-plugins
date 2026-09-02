@@ -1,0 +1,37 @@
+---
+title: "运行与故障处理"
+description: "配置、可观测性、冲突恢复和安全回滚"
+---
+
+## 配置
+
+| 配置项 | 值 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `mode` | `simulation`、`external` | `simulation` | 执行适配模式 |
+| `debug` | boolean | `false` | 启用脱敏的插件与 Remote View 调试日志 |
+
+## 可观测性
+
+每个写工具通过 Xpert `ON_TOOL_MESSAGE` 发送运行、成功和失败状态。消息只包含工具名、Case 标识、修订和变更摘要；租户、组织、令牌和密钥会被过滤。
+
+## 常见错误
+
+| 错误码 | 原因 | 处理方式 |
+| --- | --- | --- |
+| `factory_revision_conflict` | Case 已被其他 Agent 或用户更新 | 重新读取 Case，使用最新修订重新评估 |
+| `factory_operation_payload_conflict` | 相同 operationId 被用于不同载荷 | 生成新的 operationId；只对完全相同的重试复用旧值 |
+| `factory_case_project_not_ready` | Case Project 尚未就绪 | 由原创建者重试 Project 同步，确认角色 Assistant 已发布且绑定无歧义 |
+| `factory_case_project_retry_forbidden` | 非 Case 创建者尝试重试 Project | 由创建者重试，或先按组织治理流程处理所有权 |
+| `factory_plan_not_approved` | 试图执行未审批方案 | 在 Workbench 审批当前修订的方案 B |
+| `factory_external_adapters_unconfigured` | 外部模式没有生产系统适配器 | 配置真实适配器，或明确切换回仿真环境 |
+| `factory_execution_incomplete` | 执行确认不完整 | 检查失败动作并转人工干预，不得伪造确认 |
+
+## Queue 恢复与取消
+
+Managed Queue 使用 `factory_ops.assistant-tasks`。排队任务通过 Queue job 取消；已经启动的任务通过宿主 Assistant Task cancel 取消。重试会创建新的执行 attempt，旧 attempt 保持不可变。平台状态未知时保留可恢复状态，不推断 Case 已完成。
+
+## v0.4.0 重置与回滚
+
+v0.4.0 不兼容旧 Factory Operations 业务数据。升级必须先停止 API，只读列出全部 `plugin_factory_ops_*` 表及行数，再用审核过的显式表名清空这些插件自有 Case、执行、审计、制品和投影表。禁止删除宿主 Assistant、会话、用户或 Xpert Project 表。完整顺序见 [v0.4.0 部署清单](/deployment-v040)。
+
+完成 v0.4.0 重置后不能通过回退代码恢复旧插件业务数据。代码回滚与数据恢复必须使用发布前数据库备份并作为独立受控变更执行。

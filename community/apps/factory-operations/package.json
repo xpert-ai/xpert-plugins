@@ -1,0 +1,103 @@
+{
+  "name": "@xpert-ai/plugin-factory-operations",
+  "version": "0.4.0",
+  "description": "Xpert Agentic App with independent role Assistants, governed factory anomaly recovery, and management monitoring.",
+  "author": "XpertAI",
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins",
+    "directory": "community/apps/factory-operations"
+  },
+  "type": "module",
+  "packageManager": "pnpm@10.24.0",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    ".xpertai-plugin",
+    "assets",
+    "blueprints",
+    "docs",
+    "README.md",
+    "!docs/.mintignore",
+    "!docs/AGENTS.md",
+    "!**/*.tsbuildinfo"
+  ],
+  "scripts": {
+    "generate:remote": "node scripts/build-remote-components.mjs",
+    "copy:assets": "node scripts/copy-assets.mjs",
+    "build": "node scripts/clean-build-output.mjs && pnpm run generate:remote && tsc -p tsconfig.lib.json && pnpm run copy:assets && pnpm run verify:dist",
+    "typecheck": "tsc -p tsconfig.lib.json --noEmit && tsc -p tsconfig.remote.json --noEmit",
+    "test": "vitest run",
+    "test:e2e": "node --test --test-concurrency=1 src/lib/remote-components/factory-operations-center/workbench.e2e.mjs src/lib/remote-components/factory-case-workspace/workspace.e2e.mjs src/lib/remote-components/factory-operations-dashboard/dashboard.e2e.mjs",
+    "verify:blueprint": "node scripts/validate-blueprint.mjs",
+    "verify:dist": "node scripts/build-remote-components.mjs --check && node scripts/verify-dist.mjs",
+    "check": "pnpm run verify:blueprint && pnpm run typecheck && pnpm run test && pnpm run build",
+    "prepack": "pnpm run build"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "tenant",
+      "artifactNamespace": "factory_ops"
+    }
+  },
+  "peerDependencies": {
+    "@langchain/core": ">=0.3.0",
+    "@nestjs/common": "^11.1.13",
+    "@nestjs/core": "^11.1.13",
+    "@nestjs/typeorm": "^11.0.0",
+    "@xpert-ai/contracts": "^3.16.0",
+    "@xpert-ai/plugin-sdk": "^3.16.0",
+    "react": ">=18",
+    "react-dom": ">=18",
+    "typeorm": "^0.3.28",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@langchain/core": "0.3.72",
+    "@nestjs/common": "11.1.13",
+    "@nestjs/core": "11.1.13",
+    "@nestjs/typeorm": "11.0.0",
+    "@types/node": "^22.17.0",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@xpert-ai/contracts": "3.16.0",
+    "@xpert-ai/plugin-sdk": "3.16.0",
+    "esbuild": "^0.27.0",
+    "pg": "^8.16.3",
+    "pg-mem": "^3.0.5",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "reflect-metadata": "^0.2.2",
+    "short-unique-id": "4.4.4",
+    "typeorm": "^0.3.28",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4",
+    "zod": "3.25.67"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@tailwindcss/cli": "^4.3.3",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "echarts": "5.6.0",
+    "lucide-react": "^1.38.0",
+    "radix-ui": "^1.6.7",
+    "tailwind-merge": "^3.6.0",
+    "tailwindcss": "^4.3.3",
+    "tw-animate-css": "^1.4.0",
+    "yaml": "2.9.0"
+  }
+}

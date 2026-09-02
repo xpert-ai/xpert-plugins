@@ -1,0 +1,43 @@
+---
+title: "验收清单"
+description: "用于发布前核对多 Agent 流程、治理和产物"
+---
+
+## 自动化检查
+
+```bash
+corepack pnpm verify:blueprint
+corepack pnpm typecheck
+corepack pnpm test
+corepack pnpm test:e2e
+corepack pnpm build
+corepack pnpm verify:dist
+corepack pnpm pack --dry-run
+```
+
+## 功能验收
+
+- M-07 事件显示 8.7 mm/s 振动、86.4°C 温度、3 张工单、126 件产品和 2 个风险订单。
+- 异常研判完成后，四个专业 Agent 可以并行完成且不会覆盖彼此工件。
+- 方案 A 延期 210 分钟；方案 B 增加 1,800 元且不延期；方案 C 显示不可接受风险。
+- 未审批时执行必须失败；Agent 无审批或执行工具。
+- 审批记录包含用户身份、理由、时间和修订。
+- 仿真执行恰好生成 12 个明确的模拟确认。
+- 恢复验证包含 IoT、QMS、MES 三类证据，并将 Case 关闭为 `recovered`。
+- Remote View 在宿主主题切换、工具完成事件和刷新后保持一致。
+- 泳道和 Factory Case 任务工作区显示平台 Assistant 绑定返回的真实头像，并统一为圆角方形；模板 Emoji 使用平台可解析的标准 `id/unified`，插件不得通过私有 ID 映射伪造头像。选择角色后整条泳道具有选中样式，Escape 可清除。
+- 顶部任务上下文合并为单行；状态、下一项受控动作、恢复进度与主操作常显，次要 Case 元数据通过可聚焦的 shadcn `HoverCard` 展示。
+- `factory-case-workspace` 在 `agent.workbench.fixed` 插槽可解析，任务导航保留 `selectionId`、`caseId` 与 `nodeKey`，并可返回同一 Case 的流水线。
+- 新建两个 Factory Case 得到两个不同、非空且唯一的 Xpert Project；Project owner 均等于对应 Case 创建者。
+- 每个 Case Project 恰好连接当前 Orchestrator 与八个已发布角色 Assistant；模板全部为 `project-required`，管理 Assistant 除外。
+- Case 切换先保存 Workbench 选择，再切换 `assistant.project`；ChatKit 与 Workbench 的运行 Project 等于 `workspaceProjectId`。
+- 单角色和四角色并行 Assistant Task 的文件范围均为 `catalog=projects`、`scopeId=workspaceProjectId`，不同 Case 的文件互不可见。
+- Project `failed` 时仅原创建者可重试；Project 未 `ready` 时不能启动 Assistant Task。
+- 重复 operation 不重复排队；revision 冲突不启动任务；排队和已启动任务分别通过 Queue 和 Assistant Task 取消。
+- 平台任务成功但未调用业务 finalizer 时不推进 Case；执行记录仍可恢复并保留 Project、task、conversation、thread、execution 与 executor 元数据。
+- 插件不包含 `@xpert-ai/plugin-shadcn-ui` 或 `@xpert-ai/shadcn-ui` 跨项目链接；shadcn 组件由当前仓库 CLI 安装，图标来自本地 `lucide-react`。
+- 源 YAML 与构建产物完全一致；插件包不包含 TypeScript 源码或用户数据。
+
+## 发布证据
+
+发布记录应附上：插件版本与校验和、Xpert 版本、蓝图验证结果、Assistant DSL 验证结果、测试摘要、安装日志、健康检查和回滚步骤。

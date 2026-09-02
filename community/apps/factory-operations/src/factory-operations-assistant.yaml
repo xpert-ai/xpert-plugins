@@ -1,0 +1,168 @@
+team:
+  name: factory-operations-autopilot
+  type: agent
+  title: 工厂异常恢复编排助手
+  description: 通过必需的 External Xpert 直连编排独立角色 Assistants，推进异常研判、审批、受控执行与恢复验证。
+  avatar:
+    emoji:
+      id: factory
+      unified: 1f3ed
+    background: rgb(231, 248, 241)
+  options:
+    templateKey: factory-operations-autopilot
+    workspaceScope:
+      mode: project-required
+    workbench:
+      initialLayout: workbench-maximized
+      defaultViewKey: factory_ops__factory-operations-center
+    dataXpert:
+      managedBy: data-xpert
+      templateKey: factory-operations-autopilot
+      assistantKind: business-assistant
+      businessDomain: factory-operations
+      assistantTopology: independent-assistants
+      requiredPlugin: '@xpert-ai/plugin-factory-operations'
+      requiredPlugins:
+        - '@xpert-ai/plugin-factory-operations'
+      requiredCapabilities:
+        - factory-case-coordination
+        - factory-recovery-execution
+        - factory-operations-workbench
+    agent:
+      Agent_FactoryCoordinator: { position: { x: 420, y: 40 } }
+  agentConfig:
+    recursionLimit: 120
+    maxConcurrency: 8
+    timeout: 600000
+    stateVariables: []
+    mute: []
+  memory:
+    enabled: false
+  summarize:
+    enabled: true
+    maxMessages: 40
+    retainMessages: 12
+  features:
+    opener:
+      enabled: true
+      message: ''
+      questions:
+        - 请研判当前 M-07 严重异常，并并行协调设备、质量、生产和资源 Assistants。
+        - 请读取这个工厂事件的最新进度，说明阻塞项和下一步。
+        - 方案 B 已经批准，请检查执行确认并完成恢复验证。
+    suggestion:
+      enabled: true
+      prompt: 基于当前 Factory Case 的服务端投影，建议不超过三个可执行或需要人工决策的问题。
+    attachment:
+      enabled: false
+    memoryReply:
+      enabled: false
+    sandbox:
+      enabled: false
+    title:
+      enabled: true
+      instruction: 生成包含 Factory Case、设备或恢复阶段的简短标题。
+  version: '4'
+  agent:
+    key: Agent_FactoryCoordinator
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: qwen3.6-plus
+    options:
+      context_size: 256000
+      temperature: 0.1
+      maxRetries: 3
+      max_tokens: 8192
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_FactoryCoordinator
+    position: { x: 420, y: 40 }
+    entity:
+      key: Agent_FactoryCoordinator
+      name: factory-operations-coordinator
+      title: 工厂异常恢复编排 Agent
+      description: 只负责读取持久化 Case、选择下一节点并委派给独立角色 Assistants。
+      prompt: |
+        You are the Factory Operations Orchestrator. Every AI lane owner is an
+        independently installed Assistant connected to you as one direct,
+        required External Xpert. Never perform a specialist role yourself and
+        never treat an embedded child Agent as an acceptable substitute.
+
+        Before any delegation, call factory_case_get_summary for the exact
+        caseId. The returned revision and structured Case are authoritative.
+        Delegate only the server-projected executable node and pass these
+        correctness-critical parameters to the matching External Assistant:
+        - caseId: exact Factory Case UUID
+        - baseRevision: exact current persisted revision
+        - operationId: fac-<case-fragment>-<domain>-r<revision>
+        - caseContext: bounded JSON containing the current Case projection
+        - input: one bounded role task and its completion predicate
+
+        Role routing:
+        - triage-event -> 工厂异常研判助手
+        - diagnose-equipment -> 设备故障诊断助手
+        - assess-quality-impact -> 质量风险评估助手
+        - assess-production-impact -> 生产影响分析助手
+        - check-resource-readiness -> 维修资源就绪助手
+        - generate-recovery-plan -> 恢复方案规划助手
+        - approve/execute recovery -> 生产运营审批顾问 for read-only review;
+          the human must use the Workbench approval control
+        - verify-recovery -> 生产恢复验证助手
+
+        Equipment, quality, production, and resource analysis may be delegated
+        in parallel after triage. Re-read the Case after every persisted receipt.
+        Never approve, reject, execute, or fabricate an external confirmation.
+        If a required External Assistant is missing, unpublished, incompatible,
+        or fails, report the exact blocker and stop that branch. Distinguish
+        simulation receipts from external-system confirmations. Match the
+        user's language and cite Case revision, evidence, decision, and next step.
+      promptTemplates: null
+      parameters: null
+      outputVariables: null
+      options:
+        parallelToolCalls: true
+        middlewares:
+          order:
+            - Middleware_FactoryCoordination
+            - Middleware_FactoryExecution
+      copilotModel: null
+      leaderKey: null
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: factory-operations-coordinator-v4
+  - type: workflow
+    key: Middleware_FactoryCoordination
+    position: { x: 300, y: 360 }
+    entity:
+      type: middleware
+      key: Middleware_FactoryCoordination
+      title: Factory Case read tools
+      provider: FactoryCaseCoordinationMiddleware
+      required: true
+    hash: factory-coordination-middleware-v1
+  - type: workflow
+    key: Middleware_FactoryExecution
+    position: { x: 540, y: 360 }
+    entity:
+      type: middleware
+      key: Middleware_FactoryExecution
+      title: Recovery execution status
+      provider: FactoryRecoveryExecutionMiddleware
+      required: true
+    hash: factory-execution-middleware-v1
+connections:
+  - type: workflow
+    key: Agent_FactoryCoordinator/Middleware_FactoryCoordination
+    from: Agent_FactoryCoordinator
+    to: Middleware_FactoryCoordination
+    required: true
+  - type: workflow
+    key: Agent_FactoryCoordinator/Middleware_FactoryExecution
+    from: Agent_FactoryCoordinator
+    to: Middleware_FactoryExecution
+    required: true

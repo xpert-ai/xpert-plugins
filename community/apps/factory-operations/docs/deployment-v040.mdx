@@ -1,0 +1,34 @@
+---
+title: "v0.4.0 部署清单"
+description: "Case 与 Xpert Project 强绑定版本的受控重置、部署和 Assistant 同步步骤"
+---
+
+## 部署前
+
+- [ ] 确认插件包版本为 `0.4.0`，角色模板为 v2，Orchestrator 为 v4，套件 profile 为 v4。
+- [ ] 记录宿主版本、插件校验和、数据库备份标识和回滚负责人；不得记录令牌、密码或内部连接串。
+- [ ] 停止 API，并确认没有 Factory Operations Queue worker 仍在消费任务。
+- [ ] 只读枚举全部 `plugin_factory_ops_*` 表及行数，由操作人确认列表。
+- [ ] 使用确认后的显式表名重置插件自有 Case、执行、审计、制品和投影表；禁止使用通配删除，禁止影响 Assistant、会话、用户和 Xpert Project 表。
+
+## 构建与部署
+
+- [ ] 构建宿主 SDK、server-ai、API 与 Cloud 前端。
+- [ ] 运行插件 `typecheck`、单元测试、Remote View E2E、`verify:dist` 和 pack 内容检查。
+- [ ] 使用宿主 `plugin:deploy:local` 刷新插件，再重启 API。
+- [ ] 在日志中确认 v0.4.0 实体、三个 View、`factory_ops.assistant-tasks` Processor、Project provisioning 与 Assistant Task capability 已加载。
+
+## Assistant 升级
+
+- [ ] 对八个现有角色 Assistant 逐个执行官方 Update from Template，保存并发布；保留 ID、slug 和会话。
+- [ ] 同步现有 Orchestrator，恢复八条精确 direct、required External Xpert 连接，保存并发布；保留 ID、slug 和会话。
+- [ ] 确认 Orchestrator v4 和八个角色 v2 均为 `project-required`；Manager 不设置该约束。
+- [ ] 确认不存在重复、未发布或跨组织绑定。
+
+## 真实环境验收
+
+- [ ] 新建两个 Case，并验证不同 Project ID、正确 owner 和每个 Project 的九个 Assistant 连接。
+- [ ] 切换 Case，验证 Workbench/ChatKit Project 同步变化且 Case 选择不丢失。
+- [ ] 验证单角色任务、四角色并行任务、finalizer、执行记录导航与两类取消。
+- [ ] 验证文件范围为 `catalog=projects` 和 Case Project scope；两个 Case 文件系统互相隔离。
+- [ ] 保存泳道、Project 工作区、执行记录和管理 Dashboard 截图，并附无敏感信息的测试摘要。

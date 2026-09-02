@@ -1,0 +1,12 @@
+---
+title: Factory Case 任务工作区
+description: 单个授权任务的聚焦操作面板。
+---
+
+`factory-case-workspace` 是固定 Workbench 插槽中的支持性 View，不出现在主菜单中，由泳道任务卡通过 `workbench.navigation.open` 精确打开。导航携带 `selectionId`、`caseId` 和 `nodeKey`，服务端按租户与组织范围重新投影 Case，不信任客户端业务状态。
+
+工作区只展示当前节点所需的内容：Case 与修订上下文、责任 Assistant 的真实头像、阻塞项、恢复方案比较、当前授权动作、节点证据、执行尝试和 Case 时间线。头像沿用泳道中的平台 Assistant 头像并显示为圆角方形，不使用插件私有图标替代。Assistant 节点直接调用服务端 `dispatch_assistant_task`；人工审批、拒绝、受控执行和恢复验证仍由服务端动作校验修订号与权限。
+
+打开或切换 Case 时，Workbench 先保存 `selectionId/caseId`，再比较当前 `runtimeScope.projectId`。不一致时调用宿主 `assistant.project` 切换到 Case 的 `workspaceProjectId`，路由刷新后保留原 Case 选择。Project 未 `ready` 时工作区禁止启动任务，并只允许原创建者重试同步。
+
+点击“返回流水线”会保留当前 Case 选择并回到 `factory-operations-center`。执行记录只通过宿主导航打开精确会话、线程与运行，插件 View 不接触宿主路由或内部聊天 DOM。

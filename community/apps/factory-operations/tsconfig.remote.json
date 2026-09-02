@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "types": ["react", "react-dom"],
+    "baseUrl": "."
+  },
+  "include": [
+    "src/lib/remote-components/factory-operations-center/src/**/*.ts",
+    "src/lib/remote-components/factory-operations-center/src/**/*.tsx",
+    "src/lib/remote-components/factory-case-workspace/src/**/*.ts",
+    "src/lib/remote-components/factory-case-workspace/src/**/*.tsx",
+    "src/lib/remote-components/factory-operations-dashboard/src/**/*.ts",
+    "src/lib/remote-components/factory-operations-dashboard/src/**/*.tsx"
+  ],
+  "exclude": ["dist", "node_modules"]
+}

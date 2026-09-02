@@ -1,0 +1,12 @@
+---
+title: 多智能体泳道
+description: 一般用户的异常恢复主入口。
+---
+
+泳道按照责任 Assistant 排列，并直接渲染平台 Assistant 绑定返回的头像对象（图片、标准 Emoji `id/unified` 和背景），同时显示模板键、主 Agent、发布版本与可用状态。头像统一使用圆角方形；插件不维护私有 Emoji ID 映射，避免泳道显示的头像与平台 Assistant 列表不一致。无法解析实际头像时才显示名称缩写。阶段表头横向排列；任务、菱形路由和终点采用不同视觉语义，分支标签来自持久化路由事实。
+
+流水线顶部使用单行任务上下文栏：活动事件、状态、下一项受控动作、恢复进度与“推进下一任务”常显。设备、产线、严重度、风险订单、Case 修订和流程版本属于次要信息，通过可聚焦的 shadcn `HoverCard` 按需查看，不再占用独立元数据网格。
+
+点击角色会选中整条泳道，按 Escape 或再次点击清除选择。空白区域支持拖拽平移。`openMode=view` 的任务卡会打开独立的 [Factory Case 任务工作区](/product/views/factory-case-workspace)；审批和受控执行使用有边界的宿主对话框。泳道与节点最多显示十个执行点，点开后可查看安全摘要，并回到精确会话、线程和运行。
+
+泳道不再生成聊天提示或调用 `assistant.chat.send_message`。Assistant 节点通过 `dispatch_assistant_task` 写入 Managed Queue，并固定携带 Case Project、节点键、期望修订和 operation ID。打开任务工作区时先保存 Case 选择，再切换到对应 Project。

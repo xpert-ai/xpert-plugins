@@ -1,0 +1,6 @@
+<svg width="246" height="36" viewBox="0 0 246 36" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Factory Operations Center">
+  <rect width="36" height="36" rx="8" fill="#123B36"/>
+  <path d="M7 28V14l8 5v-5l8 5v-8h6v17H7Z" fill="#5EEAD4"/>
+  <circle cx="29" cy="10" r="5" fill="#78350F" stroke="#FBBF24" stroke-width="2"/>
+  <text x="46" y="23" font-family="Inter,Arial,sans-serif" font-size="16" font-weight="700" fill="#F4F4F5">Factory Operations Center</text>
+</svg>

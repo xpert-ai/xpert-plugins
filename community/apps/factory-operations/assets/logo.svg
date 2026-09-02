@@ -1,0 +1,11 @@
+<svg viewBox="0 0 512 160" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Factory Operations Center">
+  <rect width="512" height="160" rx="24" fill="#F8FAF9"/>
+  <rect x="24" y="24" width="112" height="112" rx="24" fill="#E7F8F1"/>
+  <path d="M42 115V69l24 14V67l24 14V57h18v58H42Z" fill="#0F766E"/>
+  <path d="M54 95h12v10H54zm24 0h12v10H78z" fill="#ECFDF5"/>
+  <circle cx="110" cy="55" r="18" fill="#FEF3C7" stroke="#D97706" stroke-width="6"/>
+  <path d="M110 47v10m0 6v1" stroke="#92400E" stroke-width="5" stroke-linecap="round"/>
+  <text x="160" y="72" font-family="Inter,Arial,sans-serif" font-size="32" font-weight="700" fill="#18201E">Factory Operations</text>
+  <text x="160" y="107" font-family="Inter,Arial,sans-serif" font-size="20" font-weight="600" fill="#0F766E">智能运营与异常恢复中心</text>
+</svg>
+

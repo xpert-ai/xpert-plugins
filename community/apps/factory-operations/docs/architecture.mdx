@@ -1,0 +1,53 @@
+---
+title: "架构与权限边界"
+description: "角色拓扑、领域工件、并发控制和人类治理"
+---
+
+## 多 Agent 拓扑
+
+协调 Agent 只拥有 Case 与执行状态的只读能力。八个独立角色 Assistant 通过 direct、required External Xpert 连接加入 Orchestrator，其中七个专业 Agent 各拥有一个写入中间件；生产运营审批顾问只读，不替代具名用户审批。
+
+```text
+Factory Coordinator
+├── Anomaly Triage ─────────── triage-assessment
+├── Equipment Diagnostics ─── equipment-finding
+├── Quality Impact ────────── quality-finding
+├── Production Impact ─────── production-finding
+├── Resource Readiness ────── resource-finding
+├── Recovery Planning ─────── recovery-plan
+└── Recovery Verification ─── recovery-verification
+```
+
+Orchestrator 与八个角色模板均使用 `team.options.workspaceScope.mode=project-required`；管理 Dashboard Assistant 不要求 Case Project。
+
+## Case 与 Project 强绑定
+
+Factory Case 和 Xpert Project 使用两个预生成且互不相同的 UUID。Case 事务先持久化 `createdById`、唯一 `workspaceProjectId` 和 `provisioning`，提交后以可移植的插件名、模板键、Agent 键 expectations 调用宿主 Project ensure。全部角色预验证通过后，宿主一次连接 Orchestrator 与八个角色 Assistant；失败时 Case 保留相同 Project ID 并进入 `failed`。
+
+Project owner 是 Case 创建者。其他用户必须先成为 Project 成员。Case 未达到 `ready` 时，任何 Assistant Task 都不能派发。本版本不读取或回填无 Project 的旧业务数据。
+
+设备、质量、生产与资源四个分支可以并行。它们以相同基础修订开始，但只允许对互不相同且尚未存在的工件进行安全重放；最终仍通过数据库 compare-and-swap 提交。
+
+## 领域真相
+
+`FactoryCaseEntity.snapshot` 是当前聚合状态。每次状态变更还会写入：
+
+- `FactoryArtifactEntity`：带工件修订、证据、置信度和 Agent 身份的不可变投影。
+- `FactoryAuditEntity`：带操作指纹、前后修订、用户可见变更摘要和紧凑回执的审计记录。
+- `FactoryExecutionRecordEntity`：不可变任务尝试，保存 Queue job、Project、Assistant Task、会话、线程、运行和实际 executor 元数据。
+
+所有查询和写入都强制使用认证上下文中的 `tenantId` 与 `organizationId`。模型输入不接受租户或组织标识。
+
+## Assistant Task 执行边界
+
+Remote View 调用 `dispatch_assistant_task`，先写执行尝试，再写入平台 Managed Queue `factory_ops.assistant-tasks`。Processor 重新读取 Case，检查组织范围、Project `ready`、成员权限、节点状态、修订和幂等键，然后调用目标角色 Assistant Task，并强制使用 Case 的 `workspaceProjectId`。角色 Middleware finalizer 必须以同一 `operationId` 更新该尝试；平台任务成功但未 finalizer 时，Case 不推进。
+
+## 人类审批闸门
+
+恢复规划 Agent 只能生成方案。它不能批准或执行。Workbench 审批会记录审批人、理由、决定时间和审批后 Case 修订。只有已批准的方案 B 可以进入执行。
+
+## 外部系统边界
+
+默认 `simulation` 模式仅用于可重复演示。`external` 模式当前没有 MES、CMMS、WMS、AGV、APS 和 QMS 适配器，因此执行会返回 `factory_external_adapters_unconfigured`，不会降级成模拟成功。
+
+版本化 DAG 的机器可读蓝图位于 `blueprints/factory-operations-v1.json`。

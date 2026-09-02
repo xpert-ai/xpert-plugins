@@ -1,0 +1,32 @@
+---
+title: "工厂智能运营与异常恢复中心"
+description: "运行在 Xpert 3.16 上的受控多 Agent 工厂异常恢复应用插件"
+---
+
+`@xpert-ai/plugin-factory-operations` 将一个生产异常组织为可持久化、可审批、可恢复的 Factory Case。它不是一次性问答：一个 Orchestrator 通过 direct、required External Xpert 连接协调八个独立角色 Assistants，直到设备、质量和生产恢复均有证据支持。
+
+<CardGroup cols={2}>
+  <Card title="完整演示" icon="play" href="/quickstart">
+    从 M-07 严重异常走到方案 B 审批、12 项执行确认和恢复验证。
+  </Card>
+  <Card title="架构与边界" icon="diagram-project" href="/architecture">
+    查看角色拓扑、工件、并发控制、审批闸门和系统边界。
+  </Card>
+</CardGroup>
+
+## 交付内容
+
+- 八个独立角色 Assistant 模板、一个 Orchestrator 和一个只读管理 Assistant。
+- 一个多智能体泳道 Remote View 与一个 ECharts 管理监控 Dashboard。
+- 十个最小权限 Agent Middleware Provider 和十一个严格工具。
+- 一个组织级 `appConfig` 管理入口与一个版本化 Assistant 套件初始化配置。
+- 租户与组织隔离的 PostgreSQL 持久化、不可变工件和审计回执。
+- 可重复运行的 M-07 仿真纵向切片。
+
+<Warning>
+  默认配置是 `simulation`。所有执行动作都会明确记录为模拟确认，不代表已经控制 PLC、MES、CMMS、WMS、APS 或 QMS。`external` 模式在适配器未配置时会安全失败。
+</Warning>
+
+## 治理原则
+
+方案生成、审批、执行和恢复验证是四个不同生命周期状态。任何 Agent 都没有审批或执行权限；方案 B 必须由 Workbench 中的用户对当前 Case 修订进行审批。

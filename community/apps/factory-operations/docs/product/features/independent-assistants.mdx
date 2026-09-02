@@ -1,0 +1,12 @@
+---
+title: 独立 Assistant 套件
+description: 角色 Assistant、Orchestrator 与管理入口的安装和边界。
+---
+
+八个业务角色分别作为可独立安装、发布、授权和审计的 Assistant。Orchestrator 仅保留协调与执行状态读取工具，并通过八条 direct、required External Xpert 连接委派任务。角色 Assistant 不包含子 Agent，也不能调用其他角色的中间件。
+
+`appConfig` 初始化组织共享的专用工作区和只读管理 Assistant。运营套件由 `xpert-assistant-suite@1` 的 v4 profile 配置初始化，以便创建或同步八个角色 Assistant v2、一个 Orchestrator v4，并验证全部 External Xpert 绑定。同步更新必须保留原 Assistant ID、slug 和会话。
+
+每个新 Factory Case 同步创建一个由创建者所有的 Xpert Project。Orchestrator 和八个角色 Assistant 全部连接到该 Project，且模板均声明 `project-required`。环境内 Assistant UUID 不写入插件数据；Project ensure 只接收插件名、模板键和 Agent 键 expectations，再由宿主解析当前已发布 Assistant。
+
+人工审批仍由具名用户在 Workbench 中完成；审批顾问 Assistant 只能整理依据与查看执行状态。
