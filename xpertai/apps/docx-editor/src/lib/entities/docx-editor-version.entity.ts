@@ -1,8 +1,17 @@
-import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm'
+import { Column, CreateDateColumn, Entity, ForeignKey, Index, PrimaryGeneratedColumn } from 'typeorm'
 import type { DocxEditorVersionSource, DocxEditorWorkspaceCatalog } from '../types.js'
+import { DocxEditorDocument } from './docx-editor-document.entity.js'
 
 @Entity('plugin_docx_editor_version')
-@Index(['tenantId', 'organizationId', 'documentId', 'versionNumber'])
+@ForeignKey(() => DocxEditorDocument, ['documentId'], ['id'], {
+  name: 'plugin_docx_editor_version_parent_fk',
+  onDelete: 'CASCADE'
+})
+@ForeignKey(() => DocxEditorDocument, ['documentId', 'projectId'], ['id', 'projectId'], {
+  name: 'plugin_docx_editor_version_parent_project_fk',
+  onDelete: 'CASCADE'
+})
+@Index('plugin_docx_editor_version_document_version_uq', ['documentId', 'versionNumber'], { unique: true })
 @Index(['tenantId', 'organizationId', 'documentId', 'createdAt'])
 export class DocxEditorVersion {
   @PrimaryGeneratedColumn('uuid')
@@ -19,10 +28,10 @@ export class DocxEditorVersion {
   @Column({ type: 'varchar', nullable: true })
   workspaceId?: string
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ type: 'uuid', nullable: true, update: false })
   projectId?: string
 
-  @Column({ type: 'varchar' })
+  @Column({ type: 'uuid' })
   documentId!: string
 
   @Column({ type: 'int' })

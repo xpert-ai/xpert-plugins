@@ -90,7 +90,159 @@ describe('PresentationStudioService export versioning', () => {
     expect(deckRepository.save).not.toHaveBeenCalled()
     expect(guide.markdown).toContain('**theme01 轻拟态风**')
     expect(guide.markdown).toContain('![theme14 紫橙怪趣风](https://xpert.test/files/')
+    expect(guide.markdown.match(/!\[/g)).toHaveLength(14)
     expect(guide.files).toHaveLength(14)
+    expect(guide.files.every((file) => file.fileUrl.startsWith('https://xpert.test/files/'))).toBe(true)
+  })
+
+  it('returns a scoped theme preview resource when Project uploads have no direct URL', async () => {
+    const deckRepository = {
+      find: jest.fn(),
+      create: jest.fn(),
+      save: jest.fn()
+    }
+    const workspaceFiles = {
+      uploadBuffer: jest.fn(async ({ originalName }) => ({
+        name: originalName,
+        filePath: `files/presentation-studio/theme-previews/${originalName}`,
+        workspacePath: `files/presentation-studio/theme-previews/${originalName}`,
+        catalog: 'projects',
+        scopeId: 'project-1',
+        mimeType: 'image/png',
+        size: 1024
+      }))
+    }
+    const runtimeCapabilities = { get: jest.fn().mockReturnValue(workspaceFiles) }
+    const config = {
+      get: jest.fn().mockReturnValue({
+        maxPageCount: 30,
+        maxAssetBytes: 100 * 1024 * 1024,
+        maxDeckMediaBytes: 300 * 1024 * 1024
+      })
+    }
+    const service = new PresentationStudioService(
+      deckRepository as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      config as never,
+      undefined,
+      runtimeCapabilities as never
+    )
+    const scope = {
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      workspaceId: 'workspace-1',
+      userId: 'user-1',
+      projectId: 'project-1',
+      workspaceFiles: {
+        catalog: 'projects' as const,
+        scopeId: 'project-1',
+        projectId: 'project-1'
+      }
+    }
+
+    const gallery = await service.getThemePreviewGallery(scope)
+    const resource = await service.resolveThemePreviewFile(scope, 'theme01')
+
+    await expect(service.getThemePreviewGuide(scope)).rejects.toThrow(
+      'Theme preview direct URL is unavailable: theme01'
+    )
+
+    expect(gallery).toHaveLength(14)
+    expect(gallery[0]).toMatchObject({
+      themePack: 'theme01',
+      fileKey: 'theme01'
+    })
+    expect(resource).toEqual({
+      reference: expect.objectContaining({
+        source: 'platform.workspace.files',
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        catalog: 'projects',
+        scopeId: 'project-1',
+        projectId: 'project-1',
+        filePath: 'files/presentation-studio/theme-previews/theme01-轻拟态风.png',
+        workspacePath: 'files/presentation-studio/theme-previews/theme01-轻拟态风.png'
+      }),
+      fileName: 'theme01-轻拟态风.png',
+      mimeType: 'image/png',
+      size: 1024
+    })
+  })
+
+  it('uses the scoped workspace files capability for personal Xpert theme previews', async () => {
+    const workspaceFiles = {
+      uploadBuffer: jest.fn(async ({ originalName }) => ({
+        name: originalName,
+        filePath: `files/presentation-studio/theme-previews/${originalName}`,
+        workspacePath: `files/presentation-studio/theme-previews/${originalName}`,
+        catalog: 'user-xperts',
+        scopeId: 'xpert-1',
+        mimeType: 'image/png',
+        size: 1024
+      }))
+    }
+    const scopedCapabilities = { get: jest.fn().mockReturnValue(workspaceFiles) }
+    const runtimeService = { createScopedApi: jest.fn().mockReturnValue({ capabilities: scopedCapabilities }) }
+    const globalCapabilities = { get: jest.fn() }
+    const config = {
+      get: jest.fn().mockReturnValue({
+        maxPageCount: 30,
+        maxAssetBytes: 100 * 1024 * 1024,
+        maxDeckMediaBytes: 300 * 1024 * 1024
+      })
+    }
+    const service = new PresentationStudioService(
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      config as never,
+      undefined,
+      globalCapabilities as never,
+      runtimeService as never
+    )
+    const scope = {
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      workspaceId: 'workspace-1',
+      userId: 'user-1',
+      xpertId: 'xpert-1',
+      conversationId: 'conversation-1',
+      workspaceFiles: {
+        catalog: 'user-xperts' as const,
+        scopeId: 'xpert-1',
+        xpertId: 'xpert-1',
+        userId: 'user-1',
+        isolateByUser: true
+      }
+    }
+
+    await expect(service.getThemePreviewGallery(scope)).resolves.toHaveLength(14)
+
+    expect(runtimeService.createScopedApi).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      userId: 'user-1',
+      workspaceId: 'workspace-1',
+      projectId: undefined,
+      xpertId: 'xpert-1',
+      conversationId: 'conversation-1',
+      catalog: 'user-xperts',
+      scopeId: 'xpert-1',
+      isolateByUser: true
+    })
+    expect(scopedCapabilities.get).toHaveBeenCalledWith(expect.objectContaining({ id: 'platform.workspace.files' }))
+    expect(globalCapabilities.get).not.toHaveBeenCalled()
   })
 
   it('filters deck lists by the current Xpert id', async () => {
@@ -124,6 +276,84 @@ describe('PresentationStudioService export versioning', () => {
         assistantId: 'assistant-1'
       })
     }))
+  })
+
+  it('isolates personal Xpert deck queries by the current user', async () => {
+    const deckRepository = {
+      findAndCount: jest.fn().mockResolvedValue([[], 0])
+    }
+    const service = new PresentationStudioService(
+      deckRepository as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      availableExportCapabilities() as never,
+      {} as never
+    )
+
+    await service.searchDecks({
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      workspaceId: 'workspace-1',
+      userId: 'user-1',
+      xpertId: 'assistant-1',
+      workspaceFiles: {
+        catalog: 'user-xperts',
+        scopeId: 'assistant-1',
+        xpertId: 'assistant-1',
+        userId: 'user-1',
+        isolateByUser: true
+      }
+    }, {})
+
+    expect(deckRepository.findAndCount).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        projectId: expect.objectContaining({ _type: 'isNull' }),
+        assistantId: 'assistant-1',
+        createdById: 'user-1'
+      })
+    }))
+  })
+
+  it('shares Project deck queries without filtering by creator', async () => {
+    const deckRepository = {
+      findAndCount: jest.fn().mockResolvedValue([[], 0])
+    }
+    const service = new PresentationStudioService(
+      deckRepository as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      availableExportCapabilities() as never,
+      {} as never
+    )
+
+    await service.searchDecks({
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      workspaceId: 'workspace-1',
+      projectId: 'project-1',
+      userId: 'user-2',
+      xpertId: 'assistant-1',
+      workspaceFiles: {
+        catalog: 'projects',
+        scopeId: 'project-1',
+        projectId: 'project-1',
+        userId: 'user-2',
+        isolateByUser: false
+      }
+    }, {})
+
+    const where = deckRepository.findAndCount.mock.calls[0][0].where
+    expect(where).toEqual(expect.objectContaining({ projectId: 'project-1' }))
+    expect(where).not.toHaveProperty('createdById')
+    expect(where).not.toHaveProperty('assistantId')
   })
 
   it('excludes legacy theme preview decks from presentation search results', async () => {
@@ -325,6 +555,99 @@ describe('PresentationStudioService export versioning', () => {
 
     expect(session.connectionUrl).toBe('http://localhost:3333/api/collaboration')
     expect(session.documentId).toBe('collaboration-document-1')
+  })
+
+  it.each([
+    {
+      name: 'Project',
+      scope: {
+        tenantId: 'tenant-1', organizationId: 'org-1', workspaceId: 'workspace-1', projectId: 'project-1',
+        userId: 'user-1', conversationId: 'conversation-1'
+      },
+      expectedDefaults: {
+        tenantId: 'tenant-1', organizationId: 'org-1', userId: 'user-1', workspaceId: null,
+        projectId: 'project-1', xpertId: undefined, conversationId: 'conversation-1'
+      }
+    },
+    {
+      name: 'personal Xpert',
+      scope: {
+        tenantId: 'tenant-1', organizationId: 'org-1', workspaceId: 'workspace-1', xpertId: 'xpert-1',
+        assistantId: 'xpert-1', userId: 'user-1', conversationId: 'conversation-1'
+      },
+      expectedDefaults: {
+        tenantId: 'tenant-1', organizationId: 'org-1', userId: 'user-1', workspaceId: 'workspace-1',
+        projectId: undefined, xpertId: 'xpert-1', conversationId: 'conversation-1'
+      }
+    }
+  ])('uses the scoped collaboration capability for $name hosts', async ({ scope, expectedDefaults }) => {
+    const scopedCollaboration = {
+      ensureDocument: jest.fn().mockResolvedValue({ id: 'scoped-document-1' }),
+      createSession: jest.fn().mockResolvedValue({ documentId: 'scoped-document-1', access: 'write' })
+    }
+    const fallbackCollaboration = {
+      ensureDocument: jest.fn().mockResolvedValue({ id: 'fallback-document-1' }),
+      createSession: jest.fn().mockResolvedValue({ documentId: 'fallback-document-1', access: 'write' })
+    }
+    const scopedCapabilities = { get: jest.fn().mockReturnValue(scopedCollaboration) }
+    const runtimeService = { createScopedApi: jest.fn().mockReturnValue({ capabilities: scopedCapabilities }) }
+    const service = new PresentationStudioService(
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      undefined,
+      { get: jest.fn().mockReturnValue(fallbackCollaboration) } as never,
+      runtimeService as never
+    )
+
+    const session = await service.createCollabSession(scope, '97aab7a0-f241-49a8-b52a-88cb6eb84c8e')
+
+    expect(runtimeService.createScopedApi).toHaveBeenCalledWith(expectedDefaults)
+    expect(scopedCapabilities.get).toHaveBeenCalledWith(expect.objectContaining({ id: 'platform.collaboration' }))
+    expect(scopedCollaboration.ensureDocument).toHaveBeenCalled()
+    expect(fallbackCollaboration.ensureDocument).not.toHaveBeenCalled()
+    expect(session.documentId).toBe('scoped-document-1')
+  })
+
+  it('requests a read-only collaboration session when the host scope cannot edit', async () => {
+    const collaboration = {
+      ensureDocument: jest.fn().mockResolvedValue({ id: 'collaboration-document-1' }),
+      createSession: jest.fn(async (input) => ({
+        sessionId: 'session-1',
+        documentId: input.documentId,
+        access: input.access
+      }))
+    }
+    const service = new PresentationStudioService(
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      undefined,
+      { get: jest.fn().mockReturnValue(collaboration) } as never
+    )
+
+    const session = await service.createCollabSession(
+      { collaborationAccess: 'read' },
+      '97aab7a0-f241-49a8-b52a-88cb6eb84c8e'
+    )
+
+    expect(collaboration.createSession).toHaveBeenCalledWith({
+      documentId: 'collaboration-document-1',
+      access: 'read'
+    })
+    expect(session.access).toBe('read')
   })
 
   it('uses the platform collaboration actor identity', async () => {

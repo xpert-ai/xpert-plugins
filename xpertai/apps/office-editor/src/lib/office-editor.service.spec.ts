@@ -3,6 +3,8 @@ import { createRequire } from 'node:module'
 import * as Y from 'yjs'
 
 jest.mock('@xpert-ai/plugin-sdk', () => ({
+  CollaborationRuntimeCapability: { id: 'platform.collaboration' },
+  XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN: Symbol('XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN'),
   XPERT_RUNTIME_CAPABILITIES_TOKEN: Symbol('XPERT_RUNTIME_CAPABILITIES_TOKEN'),
   pluginArtifactTableName: (namespace: string, tableKey: string) => `plugin_${namespace}_${tableKey}`
 }))
@@ -50,7 +52,8 @@ describe('OfficeEditorService', () => {
         id: expect.any(String),
         tenantId: 'tenant-1',
         organizationId: 'org-1',
-        workspaceId: 'workspace-1',
+        workspaceId: undefined,
+        projectId: 'project-1',
         documentType: 'spreadsheet',
         title: 'Revenue model',
         currentVersionNumber: 1
@@ -72,6 +75,157 @@ describe('OfficeEditorService', () => {
 
     expect(visible.items.map((item: any) => item.id)).toEqual([created.document.id])
     expect(hidden.items).toHaveLength(0)
+  })
+
+  it('shares Project documents with another user in the same Project', async () => {
+    const created = await service.createDocument(testScope(), {
+      documentType: 'document',
+      title: 'Shared project brief'
+    })
+
+    const visible = await service.getWorkbenchData(
+      { ...testScope(), userId: 'user-2' },
+      { page: 1, pageSize: 20 }
+    )
+
+    expect(visible.items.map((item: any) => item.id)).toEqual([created.document.id])
+  })
+
+  it('isolates personal Xpert documents by user', async () => {
+    await service.createDocument(personalScope('user-1'), {
+      documentType: 'document',
+      title: 'Private draft'
+    })
+
+    const hidden = await service.getWorkbenchData(personalScope('user-2'), {
+      page: 1,
+      pageSize: 20
+    })
+
+    expect(hidden.items).toHaveLength(0)
+  })
+
+  it('denies collaboration access to another user\'s personal Xpert document', async () => {
+    const created = await service.createDocument(personalScope('user-1'), {
+      documentType: 'document',
+      title: 'Private collaboration draft'
+    })
+
+    await expect(service.authorizeCollaborationDocument({
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      workspaceId: 'workspace-1',
+      projectId: null,
+      userId: 'user-2',
+      xpertId: 'assistant-1',
+      providerKey: 'office-editor',
+      resourceId: created.document.id,
+      operation: 'read'
+    })).resolves.toBe(false)
+  })
+
+  it('opens collaboration with runtime capabilities scoped to the current Xpert or Project', async () => {
+    const collaboration = {
+      ensureDocument: jest.fn().mockResolvedValue({ id: 'collaboration-document-1' }),
+      createSession: jest.fn().mockResolvedValue({
+        sessionId: 'session-1',
+        documentId: 'collaboration-document-1',
+        namespace: '/api/collaboration',
+        connectionUrl: '/api/collaboration',
+        clientKey: 'client-1',
+        access: 'write'
+      })
+    }
+    const scopedCapabilities = { get: jest.fn(() => collaboration) }
+    const runtimeService = {
+      createScopedApi: jest.fn(() => ({ capabilities: scopedCapabilities }))
+    }
+    service = new OfficeEditorService(
+      documents as never,
+      snapshots as never,
+      updates as never,
+      operations as never,
+      fileVersions as never,
+      { get: () => workspaceFiles } as never,
+      runtimeService as never
+    )
+    const scope = {
+      ...personalScope('user-1'),
+      workspaceFiles: {
+        ...personalScope('user-1').workspaceFiles,
+        scopeId: 'user-1:assistant-1'
+      }
+    }
+    const created = await service.createDocument(scope, {
+      documentType: 'document',
+      title: 'Scoped collaboration document'
+    })
+
+    const opened = await service.openDocument(scope, created.document.id)
+
+    expect(runtimeService.createScopedApi).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      userId: 'user-1',
+      workspaceId: 'workspace-1',
+      projectId: null,
+      xpertId: 'assistant-1',
+      conversationId: 'conversation-1',
+      catalog: 'user-xperts',
+      scopeId: 'user-1:assistant-1',
+      isolateByUser: true
+    })
+    expect(scopedCapabilities.get).toHaveBeenCalledWith({ id: 'platform.collaboration' })
+    expect(collaboration.ensureDocument).toHaveBeenCalledWith(expect.objectContaining({
+      resourceId: created.document.id
+    }))
+    expect(collaboration.createSession).toHaveBeenCalledWith({
+      documentId: 'collaboration-document-1',
+      access: 'write'
+    })
+    expect(opened.collab).toEqual(expect.objectContaining({ sessionId: 'session-1' }))
+
+    const projectScope = testScope()
+    const projectDocument = await service.createDocument(projectScope, {
+      documentType: 'document',
+      title: 'Project collaboration document'
+    })
+    await service.openDocument(projectScope, projectDocument.document.id)
+
+    expect(runtimeService.createScopedApi).toHaveBeenLastCalledWith({
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      userId: 'user-1',
+      workspaceId: null,
+      projectId: 'project-1',
+      xpertId: 'assistant-1',
+      conversationId: 'conversation-1',
+      catalog: undefined,
+      scopeId: undefined,
+      isolateByUser: undefined
+    })
+  })
+
+  it('prevents another user from completing a personal Xpert operation', async () => {
+    const created = await service.createDocument(personalScope('user-1'), {
+      documentType: 'spreadsheet',
+      title: 'Private operation target'
+    })
+    const queued = await service.queueOperation(personalScope('user-1'), {
+      documentId: created.document.id,
+      operationType: 'sheet_set_range_values',
+      input: {
+        operationType: 'sheet_set_range_values',
+        range: 'A1',
+        values: [['private']]
+      },
+      source: 'agent'
+    })
+
+    await expect(service.completeOperation(personalScope('user-2'), {
+      operationId: queued.id,
+      status: 'applied'
+    })).rejects.toThrow('not found')
   })
 
   it('increments snapshot versions and points the document at the latest snapshot', async () => {
@@ -294,7 +448,7 @@ describe('OfficeEditorService', () => {
     expect((await fileVersions.find({ where: { documentId: imported.document.id } }))).toHaveLength(2)
   })
 
-  it('keeps later XLSX versions in the persisted owner scope when another assistant edits the document', async () => {
+  it('keeps later XLSX versions in the persisted owner scope when another user edits a shared Xpert document', async () => {
     const ownerScope = {
       ...testScope(),
       projectId: null,
@@ -315,12 +469,12 @@ describe('OfficeEditorService', () => {
       xpertId: 'assistant-a'
     }))
 
-    const otherAssistantScope = {
+    const otherUserScope = {
       ...ownerScope,
-      assistantId: 'assistant-b',
+      userId: 'user-2',
       conversationId: 'conversation-b'
     }
-    await service.editExcel(otherAssistantScope, {
+    await service.editExcel(otherUserScope, {
       documentId: imported.document.id,
       expectedVersionNumber: 1,
       idempotencyKey: 'assistant-b-edit',
@@ -337,7 +491,7 @@ describe('OfficeEditorService', () => {
       scopeId: 'assistant-a',
       xpertId: 'assistant-a'
     }))
-    await service.saveSnapshot(otherAssistantScope, {
+    await service.saveSnapshot(otherUserScope, {
       documentId: imported.document.id,
       source: 'workbench',
       snapshot: imported.snapshot.snapshot,
@@ -420,6 +574,21 @@ function testScope() {
     userId: 'user-1',
     assistantId: 'assistant-1',
     conversationId: 'conversation-1'
+  }
+}
+
+function personalScope(userId: string) {
+  return {
+    ...testScope(),
+    projectId: null,
+    userId,
+    workspaceFiles: {
+      catalog: 'user-xperts' as const,
+      scopeId: 'assistant-1',
+      xpertId: 'assistant-1',
+      userId,
+      isolateByUser: true
+    }
   }
 }
 
@@ -655,5 +824,10 @@ class MemoryWorkspaceFiles {
 }
 
 function matchesWhere(item: Record<string, any>, where?: Record<string, unknown>) {
-  return Object.entries(where ?? {}).every(([key, value]) => item[key] === value)
+  return Object.entries(where ?? {}).every(([key, value]) => {
+    if (value && typeof value === 'object' && '_type' in value && value._type === 'isNull') {
+      return item[key] === null || item[key] === undefined
+    }
+    return item[key] === value
+  })
 }

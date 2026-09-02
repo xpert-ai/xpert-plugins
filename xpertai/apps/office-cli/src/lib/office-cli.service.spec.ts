@@ -143,6 +143,231 @@ describe('OfficeCliService file management', () => {
     )
   })
 
+  it('does not delete the successful archive when a concurrent save loses the version race', async () => {
+    const buffer = Buffer.from([0x50, 0x4b, 0x03, 0x04])
+    const staleDocument = {
+      id: 'document-a',
+      format: 'xlsx',
+      title: 'Shared workbook',
+      status: 'active',
+      fileName: 'shared.xlsx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      currentVersionId: undefined,
+      currentVersionNumber: 0,
+      workspaceFilePath: 'files/office-cli/documents/document-a/shared.xlsx'
+    }
+    const documentRepository = {
+      findOne: jest.fn().mockResolvedValue(staleDocument),
+      save: jest.fn(async (value) => value)
+    }
+    const versionRepository = {
+      create: jest.fn((value) => value),
+      save: jest.fn()
+        .mockImplementationOnce(async (value) => ({ ...value, id: 'version-1' }))
+        .mockRejectedValueOnce(new Error('duplicate version')),
+      find: jest.fn().mockResolvedValue([]),
+      delete: jest.fn()
+    }
+    const storedFiles = new Map<string, Buffer>()
+    const workspaceFiles = {
+      writeRuntimeBuffer: jest.fn(async (input) => {
+        const filePath = `${input.folder}/${input.fileName}`
+        storedFiles.set(filePath, Buffer.from(input.buffer))
+        return {
+          name: input.fileName,
+          filePath,
+          workspacePath: `/workspace/${filePath}`,
+          catalog: input.catalog,
+          scopeId: input.scopeId,
+          size: input.buffer.byteLength
+        }
+      }),
+      readBuffer: jest.fn(async ({ filePath }) => {
+        const stored = storedFiles.get(filePath)
+        if (!stored) throw new Error('File not found')
+        return { filePath, buffer: Buffer.from(stored) }
+      }),
+      deleteFile: jest.fn(async ({ filePath }) => {
+        storedFiles.delete(filePath)
+      })
+    }
+    const service = new OfficeCliService(
+      documentRepository as never,
+      versionRepository as never,
+      {} as never,
+      { get: jest.fn(() => workspaceFiles) } as never
+    )
+    const saveVersion = (service as unknown as {
+      saveVersion(
+        scope: OfficeCliScope,
+        document: typeof staleDocument,
+        buffer: Buffer,
+        metadata: { source: 'workbench'; command: string }
+      ): Promise<any>
+    }).saveVersion.bind(service)
+
+    const successful = await saveVersion(scope, staleDocument, buffer, {
+      source: 'workbench',
+      command: 'set'
+    })
+    const successfulPath = successful.version.workspaceFilePath
+
+    await expect(saveVersion(scope, staleDocument, buffer, {
+      source: 'workbench',
+      command: 'set'
+    })).rejects.toThrow('duplicate version')
+    await expect(workspaceFiles.readBuffer({ filePath: successfulPath })).resolves.toMatchObject({ buffer })
+  })
+
+  it('isolates personal Xpert document queries by the current user', async () => {
+    const documentRepository = {
+      findAndCount: jest.fn().mockResolvedValue([[], 0])
+    }
+    const service = new OfficeCliService(
+      documentRepository as never,
+      {} as never,
+      {} as never,
+      undefined
+    )
+
+    await service.getWorkbenchData({
+      tenantId: 'tenant-a',
+      organizationId: 'organization-a',
+      workspaceId: 'workspace-a',
+      userId: 'user-a',
+      assistantId: 'assistant-a',
+      workspaceFiles: {
+        catalog: 'user-xperts',
+        scopeId: 'assistant-a',
+        xpertId: 'assistant-a',
+        userId: 'user-a',
+        isolateByUser: true
+      }
+    })
+
+    expect(documentRepository.findAndCount).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        assistantId: 'assistant-a',
+        createdById: 'user-a'
+      })
+    }))
+  })
+
+  it('authorizes a Project version through its parent document instead of repeating request scope filters', async () => {
+    const buffer = Buffer.from([0x50, 0x4b, 0x03, 0x04])
+    const checksum = createHash('sha256').update(buffer).digest('hex')
+    const documentRepository = {
+      findOne: jest.fn().mockResolvedValue({
+        id: 'document-a',
+        status: 'active',
+        format: 'xlsx',
+        currentVersionId: 'version-a'
+      })
+    }
+    const version = {
+      id: 'version-a',
+      documentId: 'document-a',
+      workspaceCatalog: 'projects',
+      workspaceScopeId: 'project-a',
+      workspaceFilePath: 'files/office-cli/document-a/v1.xlsx',
+      checksum
+    }
+    const versionRepository = {
+      findOne: jest.fn(async ({ where }) => {
+        return where.id === 'version-a'
+          && where.documentId === 'document-a'
+          && where.tenantId === undefined
+          && where.organizationId === undefined
+          && where.workspaceId === undefined
+          && where.projectId === undefined
+          ? version
+          : null
+      })
+    }
+    const readBuffer = jest.fn(async () => ({ buffer }))
+    const service = new OfficeCliService(
+      documentRepository as never,
+      versionRepository as never,
+      {
+        executeDocumentCommand: jest.fn().mockResolvedValue({
+          command: 'get', args: ['/', '--depth', '2'], exitCode: 0, stdout: '{}', stderr: '', durationMs: 1
+        })
+      } as never,
+      { get: jest.fn(() => ({ readBuffer })) } as never
+    )
+
+    await expect(service.readDocument({
+      ...scope,
+      workspaceId: 'workspace-a',
+      userId: 'user-b'
+    }, 'document-a')).resolves.toMatchObject({ version: { id: 'version-a' } })
+    expect(versionRepository.findOne).toHaveBeenCalledWith({
+      where: {
+        id: 'version-a',
+        documentId: 'document-a'
+      }
+    })
+    expect(readBuffer).toHaveBeenCalledWith(expect.objectContaining({
+      catalog: 'projects',
+      projectId: 'project-a',
+      isolateByUser: false
+    }))
+  })
+
+  it('reopens a personal version from its persisted user-Xpert file scope', async () => {
+    const buffer = Buffer.from([0x50, 0x4b, 0x03, 0x04])
+    const checksum = createHash('sha256').update(buffer).digest('hex')
+    const documentRepository = {
+      findOne: jest.fn().mockResolvedValue({
+        id: 'document-a',
+        status: 'active',
+        format: 'xlsx',
+        currentVersionId: 'version-a'
+      })
+    }
+    const versionRepository = {
+      findOne: jest.fn().mockResolvedValue({
+        id: 'version-a',
+        documentId: 'document-a',
+        workspaceCatalog: 'user-xperts',
+        workspaceScopeId: 'assistant-a',
+        workspaceFilePath: 'files/office-cli/document-a/v1.xlsx',
+        checksum
+      })
+    }
+    const readBuffer = jest.fn(async (input) => {
+      if (input.catalog !== 'user-xperts' || input.userId !== 'user-a' || input.isolateByUser !== true) {
+        throw new Error('personal file scope was not preserved')
+      }
+      return { buffer }
+    })
+    const service = new OfficeCliService(
+      documentRepository as never,
+      versionRepository as never,
+      {
+        executeDocumentCommand: jest.fn().mockResolvedValue({
+          command: 'get', args: ['/', '--depth', '2'], exitCode: 0, stdout: '{}', stderr: '', durationMs: 1
+        })
+      } as never,
+      { get: jest.fn(() => ({ readBuffer })) } as never
+    )
+
+    await expect(service.readDocument({
+      tenantId: 'tenant-a',
+      organizationId: 'organization-a',
+      workspaceId: 'workspace-a',
+      userId: 'user-a',
+      assistantId: 'assistant-a',
+      workspaceFiles: {
+        catalog: 'user-xperts',
+        scopeId: 'assistant-a',
+        xpertId: 'assistant-a',
+        userId: 'user-a',
+        isolateByUser: true
+      }
+    }, 'document-a')).resolves.toMatchObject({ version: { id: 'version-a' } })
+  })
+
   it('permanently deletes the document, its version rows, and workspace files', async () => {
     const fixture = createFixture()
     fixture.documentRepository.findOne.mockResolvedValue({

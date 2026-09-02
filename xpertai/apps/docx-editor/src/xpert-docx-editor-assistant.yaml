@@ -127,8 +127,103 @@ nodes:
       provider: DocxEditorMiddleware
       required: true
     hash: docx-editor-middleware-v1
+  - type: workflow
+    key: Middleware_WebTools
+    position: { x: 820, y: 480 }
+    entity:
+      type: middleware
+      key: Middleware_WebTools
+      title: Web Tools
+      provider: WebTools
+      required: true
+    hash: docx-editor-web-tools-middleware-v1
+  - type: workflow
+    key: Middleware_SandboxFile
+    position: { x: 1460, y: 332 }
+    entity:
+      type: middleware
+      key: Middleware_SandboxFile
+      title: Sandbox File
+      provider: SandboxFile
+      required: true
+    hash: docx-editor-sandbox-file-middleware-v1
+  - type: workflow
+    key: Middleware_SandboxShell
+    position: { x: 1460, y: 480 }
+    entity:
+      type: middleware
+      key: Middleware_SandboxShell
+      title: Sandbox Shell
+      provider: SandboxShell
+      required: true
+    hash: docx-editor-sandbox-shell-middleware-v1
+  - type: workflow
+    key: Middleware_LoopGuard
+    position: { x: 960, y: 660 }
+    entity:
+      type: middleware
+      key: Middleware_LoopGuard
+      title: Loop Guard
+      provider: LoopGuardMiddleware
+      required: true
+    hash: docx-editor-loop-guard-middleware-v1
+  - type: workflow
+    key: Middleware_ModelRetry
+    position: { x: 1160, y: 520 }
+    entity:
+      type: middleware
+      key: Middleware_ModelRetry
+      title: Model Retry
+      provider: ModelRetryMiddleware
+      required: true
+      options:
+        maxRetries: 2
+        initialDelayMs: 1000
+        backoffFactor: 2
+        maxDelayMs: 60000
+        jitter: true
+        retryAllErrors: true
+        retryableErrorNames: []
+        retryableStatusCodes: []
+        retryableMessageIncludes: []
+        onFailure: continue
+    hash: docx-editor-model-retry-middleware-v1
+  - type: workflow
+    key: Middleware_ViewImage
+    position: { x: 1720, y: 480 }
+    entity:
+      type: middleware
+      key: Middleware_ViewImage
+      title: View Image
+      provider: ViewImageMiddleware
+      required: true
+    hash: docx-editor-view-image-middleware-v1
 connections:
   - type: workflow
     key: Agent_DocxEditor/Middleware_DocxEditor
     from: Agent_DocxEditor
     to: Middleware_DocxEditor
+  - type: workflow
+    key: Agent_DocxEditor/Middleware_WebTools
+    from: Agent_DocxEditor
+    to: Middleware_WebTools
+  - type: workflow
+    key: Agent_DocxEditor/Middleware_SandboxFile
+    from: Agent_DocxEditor
+    to: Middleware_SandboxFile
+  - type: workflow
+    key: Agent_DocxEditor/Middleware_SandboxShell
+    from: Agent_DocxEditor
+    to: Middleware_SandboxShell
+  - type: workflow
+    key: Agent_DocxEditor/Middleware_LoopGuard
+    from: Agent_DocxEditor
+    to: Middleware_LoopGuard
+  - type: workflow
+    key: Agent_DocxEditor/Middleware_ModelRetry
+    from: Agent_DocxEditor
+    to: Middleware_ModelRetry
+  - type: workflow
+    key: Agent_DocxEditor/Middleware_ViewImage
+    from: Agent_DocxEditor
+    to: Middleware_ViewImage

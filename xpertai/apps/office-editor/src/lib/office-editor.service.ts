@@ -1,14 +1,20 @@
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { randomUUID, createHash } from 'node:crypto'
-import { Repository } from 'typeorm'
+import { IsNull, Repository } from 'typeorm'
 import * as Y from 'yjs'
 import {
+  CollaborationRuntimeCapability,
+  type CollaborationMaterializationEvent,
+  type CollaborationProviderContext,
+  type AgentMiddlewareRuntimeServiceApi,
+  XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN,
   XPERT_RUNTIME_CAPABILITIES_TOKEN
 } from '@xpert-ai/plugin-sdk'
 import type { AgentMiddlewareRuntimeCapabilityRegistry } from '@xpert-ai/plugin-sdk'
 import {
   OFFICE_EDITOR_COLLAB_NAMESPACE_PREFIX,
+  OFFICE_EDITOR_COLLABORATION_PROVIDER_KEY,
   OFFICE_EDITOR_COLLAB_SESSION_TTL_MS,
   OFFICE_EDITOR_DOCUMENT_TYPES,
   OFFICE_EDITOR_IMPORT_FORMATS,
@@ -101,7 +107,10 @@ export class OfficeEditorService {
     private readonly fileVersionRepository: Repository<OfficeFileVersion>,
     @Optional()
     @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN)
-    private readonly runtimeCapabilities?: AgentMiddlewareRuntimeCapabilityRegistry
+    private readonly runtimeCapabilities?: AgentMiddlewareRuntimeCapabilityRegistry,
+    @Optional()
+    @Inject(XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN)
+    private readonly runtimeService?: AgentMiddlewareRuntimeServiceApi
   ) {}
 
   async createDocument(scope: OfficeScope, input: CreateOfficeDocumentInput) {
@@ -124,6 +133,8 @@ export class OfficeEditorService {
         conversationId: normalizeOptional(input.conversationId) ?? normalizeOptional(scope.conversationId),
         status: 'active',
         currentVersionNumber: 0,
+        workspaceCatalog: scope.workspaceFiles?.catalog,
+        workspaceScopeId: scope.workspaceFiles?.scopeId,
         yjsStateBase64: initialYjsStateBase64,
         yjsStateVectorBase64: encodeStateVectorBase64(initialYjsStateBase64),
         createdById: normalizeOptional(scope.userId),
@@ -728,6 +739,10 @@ export class OfficeEditorService {
     if (!operation) {
       throw new NotFoundException('Office Editor operation was not found.')
     }
+    await this.requireDocument(
+      scope,
+      requireEntityId(operation.documentId, 'Office Editor operation document id is required.')
+    )
     return this.operationRepository.save({
       ...operation,
       status: input.status,
@@ -758,7 +773,7 @@ export class OfficeEditorService {
     await this.yjsUpdateRepository.delete(scopedWhere(scope, { documentId }))
     await this.snapshotRepository.delete(scopedWhere(scope, { documentId }))
     await this.fileVersionRepository.delete(scopedWhere(scope, { documentId }))
-    await this.documentRepository.delete(scopedWhere(scope, { id: documentId }))
+    await this.documentRepository.delete(scopedDocumentWhere(scope, { id: documentId }))
     return {
       deleted: true,
       documentId
@@ -793,7 +808,7 @@ export class OfficeEditorService {
 
     const page = Math.max(1, query.page ?? 1)
     const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 20))
-    const where = scopedWhere(scope, {})
+    const where = scopedDocumentWhere(scope, {})
     if (query.documentType) {
       where.documentType = requireDocumentType(query.documentType)
     }
@@ -828,27 +843,103 @@ export class OfficeEditorService {
     const detail = await this.getDocumentDetail(scope, documentId)
     return {
       ...detail,
-      collab: this.createCollabSession(scope, documentId)
+      collab: await this.createCollabSession(scope, documentId)
     }
   }
 
-  createCollabSession(scope: OfficeScope, documentId: string) {
-    this.cleanupExpiredCollabSessions()
-    const sessionId = randomUUID()
-    const session: OfficeCollabSession = {
-      sessionId,
-      documentId,
-      scope: { ...scope },
-      userId: normalizeOptional(scope.userId),
-      expiresAt: Date.now() + OFFICE_EDITOR_COLLAB_SESSION_TTL_MS
+  async createCollabSession(scope: OfficeScope, documentId: string) {
+    await this.requireDocument(scope, documentId)
+    const collaboration = this.collaboration(scope)
+    const document = await collaboration.ensureDocument({
+      providerKey: OFFICE_EDITOR_COLLABORATION_PROVIDER_KEY,
+      resourceId: documentId,
+      schemaVersion: 1
+    })
+    return collaboration.createSession({
+      documentId: document.id,
+      access: scope.collaborationAccess ?? 'write'
+    })
+  }
+
+  async authorizeCollaborationDocument(context: CollaborationProviderContext) {
+    const scope = collaborationScope(context)
+    const document = await this.documentRepository.findOne({
+      where: scopedDocumentWhere(scope, { id: context.resourceId })
+    })
+    if (!document || !canAccessCollaborationDocument(document, scope.userId)) return false
+    return context.operation === 'read'
+      || context.operation === 'initialize'
+      || context.operation === 'materialize'
+      || context.operation === 'delete'
+      || scope.collaborationAccess === 'write'
+  }
+
+  async initializeCollaborationDocument(context: CollaborationProviderContext) {
+    const scope = collaborationScope(context)
+    const document = await this.requireDocument(scope, context.resourceId)
+    if (!canAccessCollaborationDocument(document, scope.userId)) {
+      throw new NotFoundException('Office document was not found.')
     }
-    this.collabSessions.set(sessionId, session)
     return {
-      sessionId,
-      documentId,
-      namespace: `${OFFICE_EDITOR_COLLAB_NAMESPACE_PREFIX}${encodeURIComponent(documentId)}`,
-      expiresAt: session.expiresAt
+      stateBase64: document.yjsStateBase64
+        ?? createYjsStateBase64({ documentId: context.resourceId, documentType: document.documentType, snapshot: {} }),
+      schemaVersion: 1,
+      initialSequence: document.collaborationSequence ?? 0
     }
+  }
+
+  async materializeCollaborationDocument(event: CollaborationMaterializationEvent) {
+    const scope = collaborationScope(event)
+    await this.documentRepository.manager.transaction(async (manager) => {
+      const documents = manager.getRepository(OfficeDocument)
+      const snapshots = manager.getRepository(OfficeSnapshot)
+      const document = await documents.findOne({
+        where: scopedDocumentWhere(scope, { id: event.resourceId }),
+        lock: { mode: 'pessimistic_write' }
+      })
+      if (!document || !canAccessCollaborationDocument(document, scope.userId)) {
+        throw new NotFoundException('Office document was not found during collaboration materialization.')
+      }
+      if ((document.collaborationSequence ?? 0) >= event.sequenceNumber) return
+      const doc = new Y.Doc()
+      Y.applyUpdate(doc, Buffer.from(event.stateBase64, 'base64'))
+      const snapshot = doc.getMap('office').get('snapshot')
+      document.yjsStateBase64 = event.stateBase64
+      document.yjsStateVectorBase64 = event.stateVectorBase64
+      document.collaborationSequence = event.sequenceNumber
+      document.lastEditedById = normalizeOptional(scope.userId)
+      document.lastEditedAt = new Date()
+      await documents.save(document)
+      if (document.currentSnapshotId && snapshot !== undefined) {
+        await snapshots.update(
+          { id: document.currentSnapshotId, documentId: document.id },
+          {
+            snapshot,
+            snapshotText: summarizeSnapshotText(document.documentType, snapshot),
+            yjsStateBase64: event.stateBase64,
+            yjsStateVectorBase64: event.stateVectorBase64
+          }
+        )
+      }
+    })
+  }
+
+  private collaboration(scope: OfficeScope) {
+    const capability = this.runtimeService?.createScopedApi({
+      tenantId: scope.tenantId,
+      organizationId: scope.organizationId,
+      userId: scope.userId,
+      workspaceId: scope.projectId ? null : scope.workspaceId,
+      projectId: scope.projectId,
+      xpertId: scope.assistantId,
+      conversationId: scope.conversationId,
+      catalog: scope.workspaceFiles?.catalog,
+      scopeId: scope.workspaceFiles?.scopeId,
+      isolateByUser: scope.workspaceFiles?.isolateByUser
+    }).capabilities?.get(CollaborationRuntimeCapability)
+      ?? this.runtimeCapabilities?.get(CollaborationRuntimeCapability)
+    if (!capability) throw new Error('Platform collaboration capability is not available.')
+    return capability
   }
 
   resolveCollabSession(sessionId: string | undefined, documentId?: string | null) {
@@ -922,7 +1013,7 @@ export class OfficeEditorService {
 
   private async requireDocument(scope: OfficeScope, documentId: string) {
     const document = await this.documentRepository.findOne({
-      where: scopedWhere(scope, { id: documentId })
+      where: scopedDocumentWhere(scope, { id: documentId })
     })
     if (!document) {
       throw new NotFoundException('Office Editor document was not found.')
@@ -1111,11 +1202,12 @@ export class OfficeEditorService {
 }
 
 function scopedCreate(scope: OfficeScope): ScopedFields & { createdById?: string } {
+  const projectId = normalizeOptional(scope.projectId)
   return {
     tenantId: normalizeOptional(scope.tenantId),
     organizationId: normalizeOptional(scope.organizationId),
-    workspaceId: normalizeOptional(scope.workspaceId),
-    projectId: normalizeOptional(scope.projectId),
+    workspaceId: projectId ? undefined : normalizeOptional(scope.workspaceId),
+    projectId,
     createdById: normalizeOptional(scope.userId)
   }
 }
@@ -1128,13 +1220,45 @@ function scopedWhere(scope: OfficeScope, query: ScopedQuery) {
   if (scope.organizationId) {
     where.organizationId = scope.organizationId
   }
-  if (scope.workspaceId) {
+  if (!scope.projectId && scope.workspaceId) {
     where.workspaceId = scope.workspaceId
   }
   if (scope.projectId) {
     where.projectId = scope.projectId
+  } else {
+    where.projectId = IsNull()
   }
   return where
+}
+
+function scopedDocumentWhere(scope: OfficeScope, query: ScopedQuery) {
+  const where = scopedWhere(scope, query)
+  if (!scope.projectId) {
+    where.assistantId = normalizeOptional(scope.assistantId) ?? IsNull()
+    if (scope.workspaceFiles?.isolateByUser) {
+      where.createdById = normalizeOptional(scope.userId) ?? IsNull()
+    }
+  }
+  return where
+}
+
+function collaborationScope(context: CollaborationProviderContext): OfficeScope {
+  return {
+    tenantId: context.tenantId,
+    organizationId: context.organizationId,
+    workspaceId: context.projectId ? null : context.workspaceId,
+    projectId: context.projectId,
+    userId: context.userId,
+    assistantId: context.xpertId,
+    collaborationAccess: context.operation === 'read' ? 'read' : 'write'
+  }
+}
+
+function canAccessCollaborationDocument(document: OfficeDocument, userId: string | null | undefined) {
+  if (document.workspaceCatalog !== 'user-xperts') return true
+  const ownerId = normalizeOptional(document.createdById)
+  const actorId = normalizeOptional(userId)
+  return Boolean(ownerId && actorId && ownerId === actorId)
 }
 
 function requireDocumentType(value: string): OfficeDocumentType {
@@ -1257,6 +1381,9 @@ function normalizeExpectedVersion(value: number | null | undefined) {
 }
 
 function resolveDocumentWorkspaceScope(scope: OfficeScope, document: OfficeDocument): OfficeWorkspaceFileScope {
+  if (scope.workspaceFiles) {
+    return { ...scope.workspaceFiles }
+  }
   const persistedScope = resolvePersistedWorkspaceScope(
     scope,
     document.workspaceCatalog,
@@ -1321,14 +1448,14 @@ function resolvePersistedWorkspaceScope(
       projectId: normalizedScopeId
     }
   }
-  if (catalog === 'xperts' && normalizedScopeId) {
+  if ((catalog === 'xperts' || catalog === 'user-xperts') && normalizedScopeId) {
     return {
       tenantId: scope.tenantId,
       userId: scope.userId,
-      catalog: 'xperts',
+      catalog,
       scopeId: normalizedScopeId,
       xpertId: normalizedScopeId,
-      isolateByUser: false
+      isolateByUser: catalog === 'user-xperts'
     }
   }
   return null

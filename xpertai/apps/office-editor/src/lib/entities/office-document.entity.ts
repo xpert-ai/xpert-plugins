@@ -1,8 +1,13 @@
-import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
+import { Column, CreateDateColumn, Entity, ForeignKey, Index, PrimaryGeneratedColumn, Unique, UpdateDateColumn } from 'typeorm'
 import type { OfficeDocumentStatus, OfficeDocumentType, OfficeWorkspaceCatalog } from '../types.js'
 import { officeEditorTable } from '../constants.js'
 
 @Entity(officeEditorTable('document'))
+@Unique('plugin_office_editor_document_id_project_uq', ['id', 'projectId'])
+@ForeignKey('xpert_project', ['projectId'], ['id'], {
+  name: 'plugin_office_editor_document_project_fk',
+  onDelete: 'CASCADE'
+})
 @Index(['tenantId', 'organizationId', 'projectId', 'documentType', 'status'])
 @Index(['tenantId', 'organizationId', 'assistantId', 'documentType', 'status'])
 @Index(['tenantId', 'organizationId', 'updatedAt'])
@@ -21,7 +26,7 @@ export class OfficeDocument {
   @Column({ type: 'varchar', nullable: true })
   workspaceId?: string
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ type: 'uuid', nullable: true, update: false })
   projectId?: string
 
   @Column({ type: 'varchar', nullable: true })
@@ -83,6 +88,9 @@ export class OfficeDocument {
 
   @Column({ type: 'text', nullable: true })
   yjsStateVectorBase64?: string
+
+  @Column({ type: 'int', default: 0 })
+  collaborationSequence?: number
 
   @Column({ type: 'varchar', nullable: true })
   lastEditedById?: string

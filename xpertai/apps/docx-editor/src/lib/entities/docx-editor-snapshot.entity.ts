@@ -1,6 +1,15 @@
-import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
+import { Column, CreateDateColumn, Entity, ForeignKey, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
+import { DocxEditorDocument } from './docx-editor-document.entity.js'
 
 @Entity('plugin_docx_editor_snapshot')
+@ForeignKey(() => DocxEditorDocument, ['documentId'], ['id'], {
+  name: 'plugin_docx_editor_snapshot_parent_fk',
+  onDelete: 'CASCADE'
+})
+@ForeignKey(() => DocxEditorDocument, ['documentId', 'projectId'], ['id', 'projectId'], {
+  name: 'plugin_docx_editor_snapshot_parent_project_fk',
+  onDelete: 'CASCADE'
+})
 @Index(['tenantId', 'organizationId', 'documentId', 'updatedAt'])
 export class DocxEditorSnapshot {
   @PrimaryGeneratedColumn('uuid')
@@ -17,10 +26,10 @@ export class DocxEditorSnapshot {
   @Column({ type: 'varchar', nullable: true })
   workspaceId?: string
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ type: 'uuid', nullable: true, update: false })
   projectId?: string
 
-  @Column({ type: 'varchar' })
+  @Column({ type: 'uuid' })
   documentId!: string
 
   @Column({ type: 'varchar', nullable: true })

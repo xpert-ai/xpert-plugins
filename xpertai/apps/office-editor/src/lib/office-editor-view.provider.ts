@@ -141,6 +141,12 @@ export class OfficeEditorViewProvider implements IXpertViewExtensionProvider {
                 type: 'refresh-and-forward',
                 debounceMs: 1000
               }
+            },
+            {
+              key: 'office-editor-data-changed',
+              event: 'view.data.changed',
+              filter: { sources: ['view-extension'], viewKeys: [OFFICE_EDITOR_VIEW_KEY] },
+              action: { type: 'refresh-and-forward', debounceMs: 250 }
             }
           ]
         },
@@ -151,17 +157,17 @@ export class OfficeEditorViewProvider implements IXpertViewExtensionProvider {
           }
         ],
         actions: [
-          { key: 'refresh', label: text('Refresh', '刷新'), icon: 'ri-refresh-line', placement: 'toolbar', actionType: 'refresh' },
-          { key: 'create_document', label: text('New Office Document', '新建 Office 文档'), icon: 'ri-add-line', placement: 'toolbar', actionType: 'invoke' },
-          { key: 'import_document', label: text('Import Office File', '导入 Office 文件'), icon: 'ri-upload-cloud-2-line', placement: 'toolbar', actionType: 'invoke', transport: 'file' },
-          { key: 'get_excel_file', label: text('Download XLSX', '下载 XLSX'), icon: 'ri-download-line', actionType: 'invoke' },
-          { key: 'open_document', label: text('Open Document', '打开文档'), actionType: 'invoke' },
-          { key: 'save_snapshot', label: text('Save Snapshot', '保存快照'), icon: 'ri-save-line', actionType: 'invoke' },
-          { key: 'sync_yjs_state', label: text('Sync Collaboration State', '同步协作状态'), actionType: 'invoke' },
-          { key: 'queue_operation', label: text('Queue Operation', '排队操作'), actionType: 'invoke' },
-          { key: 'complete_operation', label: text('Complete Operation', '完成操作'), actionType: 'invoke' },
-          { key: 'delete_document', label: text('Delete Document', '删除文档'), icon: 'ri-delete-bin-line', actionType: 'invoke' },
-          { key: 'prepare_assistant_prompt', label: text('Ask Assistant', '询问助手'), icon: 'ri-magic-line', actionType: 'invoke' }
+          { key: 'refresh', label: text('Refresh', '刷新'), icon: 'ri-refresh-line', placement: 'toolbar', actionType: 'refresh', requiredHostAccess: 'read' },
+          { key: 'create_document', label: text('New Office Document', '新建 Office 文档'), icon: 'ri-add-line', placement: 'toolbar', actionType: 'invoke', requiredHostAccess: 'edit' },
+          { key: 'import_document', label: text('Import Office File', '导入 Office 文件'), icon: 'ri-upload-cloud-2-line', placement: 'toolbar', actionType: 'invoke', transport: 'file', requiredHostAccess: 'edit' },
+          { key: 'get_excel_file', label: text('Download XLSX', '下载 XLSX'), icon: 'ri-download-line', actionType: 'invoke', requiredHostAccess: 'read' },
+          { key: 'open_document', label: text('Open Document', '打开文档'), actionType: 'invoke', requiredHostAccess: 'read' },
+          { key: 'save_snapshot', label: text('Save Snapshot', '保存快照'), icon: 'ri-save-line', actionType: 'invoke', requiredHostAccess: 'edit' },
+          { key: 'sync_yjs_state', label: text('Sync Collaboration State', '同步协作状态'), actionType: 'invoke', requiredHostAccess: 'edit' },
+          { key: 'queue_operation', label: text('Queue Operation', '排队操作'), actionType: 'invoke', requiredHostAccess: 'edit' },
+          { key: 'complete_operation', label: text('Complete Operation', '完成操作'), actionType: 'invoke', requiredHostAccess: 'edit' },
+          { key: 'delete_document', label: text('Delete Document', '删除文档'), icon: 'ri-delete-bin-line', actionType: 'invoke', requiredHostAccess: 'manage' },
+          { key: 'prepare_assistant_prompt', label: text('Ask Assistant', '询问助手'), icon: 'ri-magic-line', actionType: 'invoke', requiredHostAccess: 'edit' }
         ]
       }
     ]
@@ -387,13 +393,17 @@ function isSupportedSlot(context: XpertResolvedViewHostContext, slot: string) {
 }
 
 function scopeFromContext(context: XpertResolvedViewHostContext): OfficeScope {
+  const runtimeScope = context.runtimeScope
   return {
     tenantId: context.tenantId,
     organizationId: context.organizationId ?? null,
     workspaceId: context.workspaceId ?? null,
-    projectId: context.hostType === 'project' ? context.hostId : null,
+    projectId: runtimeScope?.projectId ?? (context.hostType === 'project' ? context.hostId : null),
     userId: context.userId,
-    assistantId: context.hostType === 'agent' ? context.hostId : null
+    assistantId: context.hostType === 'agent' ? context.hostId : null,
+    conversationId: runtimeScope?.conversationId ?? null,
+    workspaceFiles: runtimeScope?.workspaceFiles ?? null,
+    collaborationAccess: runtimeScope?.projectAccess && !runtimeScope.projectAccess.canEdit ? 'read' : 'write'
   }
 }
 

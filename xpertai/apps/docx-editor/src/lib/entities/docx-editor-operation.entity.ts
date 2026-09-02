@@ -1,7 +1,16 @@
-import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
+import { Column, CreateDateColumn, Entity, ForeignKey, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 import type { DocxEditorOperationSource, DocxEditorOperationStatus, DocxEditorToolName } from '../types.js'
+import { DocxEditorDocument } from './docx-editor-document.entity.js'
 
 @Entity('plugin_docx_editor_operation')
+@ForeignKey(() => DocxEditorDocument, ['documentId'], ['id'], {
+  name: 'plugin_docx_editor_operation_parent_fk',
+  onDelete: 'CASCADE'
+})
+@ForeignKey(() => DocxEditorDocument, ['documentId', 'projectId'], ['id', 'projectId'], {
+  name: 'plugin_docx_editor_operation_parent_project_fk',
+  onDelete: 'CASCADE'
+})
 @Index(['tenantId', 'organizationId', 'documentId', 'status'])
 @Index(['tenantId', 'organizationId', 'documentId', 'createdAt'])
 export class DocxEditorOperation {
@@ -19,10 +28,10 @@ export class DocxEditorOperation {
   @Column({ type: 'varchar', nullable: true })
   workspaceId?: string
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ type: 'uuid', nullable: true, update: false })
   projectId?: string
 
-  @Column({ type: 'varchar' })
+  @Column({ type: 'uuid' })
   documentId!: string
 
   @Column({ type: 'varchar', nullable: true })

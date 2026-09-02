@@ -38,9 +38,9 @@ import {
 import { DocxEditorService } from './docx-editor.service.js'
 import type { DocxEditorScope, DocxEditorOperationStatus } from './types.js'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
-const requireFromHere = createRequire(__filename)
+const moduleFilename = fileURLToPath(import.meta.url)
+const moduleDirname = dirname(moduleFilename)
+const requireFromHere = createRequire(moduleFilename)
 const text = (en_US: string, zh_Hans: string): I18nObject => ({ en_US, zh_Hans })
 const DOCX_EDITOR_VIEW_ICON = {
   type: 'svg',
@@ -134,6 +134,12 @@ export class DocxEditorViewProvider implements IXpertViewExtensionProvider {
                 type: 'forward',
                 debounceMs: 1000
               }
+            },
+            {
+              key: 'docx-editor-data-changed',
+              event: 'view.data.changed',
+              filter: { sources: ['view-extension'], viewKeys: [DOCX_EDITOR_VIEW_KEY] },
+              action: { type: 'refresh-and-forward', debounceMs: 250 }
             }
           ]
         },
@@ -148,17 +154,17 @@ export class DocxEditorViewProvider implements IXpertViewExtensionProvider {
           }
         ],
         actions: [
-          { key: 'refresh', label: text('Refresh', '刷新'), icon: 'ri-refresh-line', placement: 'toolbar', actionType: 'refresh' },
-          { key: 'create_document', label: text('New DOCX Document', '新建 DOCX 文档'), icon: 'ri-add-line', placement: 'toolbar', actionType: 'invoke' },
-          { key: 'upload_docx', label: text('Upload DOCX', '上传 DOCX'), icon: 'ri-upload-cloud-2-line', placement: 'toolbar', actionType: 'invoke', transport: 'file' },
-          { key: 'save_document_version', label: text('Save Version', '保存版本'), icon: 'ri-save-line', actionType: 'invoke' },
-          { key: 'publish_artifact', label: text('Share Document', '分享文档'), icon: 'ri-share-line', placement: 'toolbar', actionType: 'invoke' },
-          { key: 'revoke_artifact_share', label: text('Revoke Share', '撤销分享'), icon: 'ri-link-unlink', actionType: 'invoke' },
-          { key: 'sync_snapshot', label: text('Sync Snapshot', '同步快照'), icon: 'ri-refresh-line', actionType: 'invoke' },
-          { key: 'complete_operation', label: text('Complete Operation', '完成操作'), actionType: 'invoke' },
-          { key: 'delete_document', label: text('Delete Document', '删除文档'), icon: 'ri-delete-bin-line', actionType: 'invoke' },
-          { key: 'restore_version', label: text('Restore Version', '恢复版本'), icon: 'ri-history-line', actionType: 'invoke' },
-          { key: 'prepare_assistant_prompt', label: text('Ask Assistant', '询问助手'), icon: 'ri-magic-line', actionType: 'invoke' }
+          { key: 'refresh', label: text('Refresh', '刷新'), icon: 'ri-refresh-line', placement: 'toolbar', actionType: 'refresh', requiredHostAccess: 'read' },
+          { key: 'create_document', label: text('New DOCX Document', '新建 DOCX 文档'), icon: 'ri-add-line', placement: 'toolbar', actionType: 'invoke', requiredHostAccess: 'edit' },
+          { key: 'upload_docx', label: text('Upload DOCX', '上传 DOCX'), icon: 'ri-upload-cloud-2-line', placement: 'toolbar', actionType: 'invoke', transport: 'file', requiredHostAccess: 'edit' },
+          { key: 'save_document_version', label: text('Save Version', '保存版本'), icon: 'ri-save-line', actionType: 'invoke', requiredHostAccess: 'edit' },
+          { key: 'publish_artifact', label: text('Share Document', '分享文档'), icon: 'ri-share-line', placement: 'toolbar', actionType: 'invoke', requiredHostAccess: 'manage' },
+          { key: 'revoke_artifact_share', label: text('Revoke Share', '撤销分享'), icon: 'ri-link-unlink', actionType: 'invoke', requiredHostAccess: 'manage' },
+          { key: 'sync_snapshot', label: text('Sync Snapshot', '同步快照'), icon: 'ri-refresh-line', actionType: 'invoke', requiredHostAccess: 'edit' },
+          { key: 'complete_operation', label: text('Complete Operation', '完成操作'), actionType: 'invoke', requiredHostAccess: 'edit' },
+          { key: 'delete_document', label: text('Delete Document', '删除文档'), icon: 'ri-delete-bin-line', actionType: 'invoke', requiredHostAccess: 'manage' },
+          { key: 'restore_version', label: text('Restore Version', '恢复版本'), icon: 'ri-history-line', actionType: 'invoke', requiredHostAccess: 'edit' },
+          { key: 'prepare_assistant_prompt', label: text('Ask Assistant', '询问助手'), icon: 'ri-magic-line', actionType: 'invoke', requiredHostAccess: 'edit' }
         ]
       }
     ]
@@ -176,7 +182,7 @@ export class DocxEditorViewProvider implements IXpertViewExtensionProvider {
       }
     }
 
-    const componentDir = join(__dirname, 'remote-components', DOCX_EDITOR_REMOTE_ENTRY_KEY)
+    const componentDir = join(moduleDirname, 'remote-components', DOCX_EDITOR_REMOTE_ENTRY_KEY)
     const appScript = await readFile(join(componentDir, 'app.js'), 'utf8')
     const appCssPath = join(componentDir, 'app.css')
     const appCss = existsSync(appCssPath) ? await readFile(appCssPath, 'utf8') : ''
@@ -250,7 +256,8 @@ export class DocxEditorViewProvider implements IXpertViewExtensionProvider {
           mimeType: getStringInput(request.input, 'mimeType'),
           size: getNumberInput(request.input, 'size'),
           source: 'workbench',
-          changeSummary: getStringInput(request.input, 'changeSummary')
+          changeSummary: getStringInput(request.input, 'changeSummary'),
+          expectedVersionNumber: getNumberInput(request.input, 'expectedVersionNumber')
         })
         return { ...success('DOCX version saved', 'DOCX 版本已保存'), data: result }
       }
@@ -384,13 +391,16 @@ function isSupportedSlot(context: XpertResolvedViewHostContext, slot: string) {
 }
 
 function scopeFromContext(context: XpertResolvedViewHostContext): DocxEditorScope {
+  const runtimeScope = context.runtimeScope
   return {
     tenantId: context.tenantId,
     organizationId: context.organizationId ?? null,
-    workspaceId: context.workspaceId ?? null,
-    projectId: context.hostType === 'project' ? context.hostId : null,
+    workspaceId: runtimeScope?.projectId ? null : context.workspaceId ?? null,
+    projectId: runtimeScope?.projectId ?? (context.hostType === 'project' ? context.hostId : null),
     userId: context.userId,
-    assistantId: context.hostType === 'agent' ? context.hostId : null
+    assistantId: context.hostType === 'agent' ? context.hostId : null,
+    conversationId: runtimeScope?.conversationId ?? null,
+    workspaceFiles: runtimeScope?.workspaceFiles
   }
 }
 

@@ -441,17 +441,31 @@ function stableStringify(value: unknown) {
 }
 
 function scopeFromContext(context: IAgentMiddlewareContext): PresentationScope {
+  const projectId = context.projectId ?? null
+  const xpertId = context.xpertId ?? null
+  const workspaceDataScope = context.workspaceDataScope
   return {
     tenantId: context.tenantId,
     organizationId: context.organizationId === undefined ? RequestContext.getOrganizationId() : context.organizationId,
     workspaceId: context.workspaceId ?? null,
-    projectId: context.projectId ?? null,
+    projectId,
     userId: context.userId,
-    xpertId: context.xpertId ?? null,
-    assistantId: context.xpertId ?? null,
+    xpertId,
+    assistantId: xpertId,
     assistantDisplayName: stringValue(context.node.title) ?? null,
     agentKey: context.agentKey ?? null,
-    conversationId: context.conversationId ?? null
+    conversationId: context.conversationId ?? null,
+    workspaceFiles: projectId
+      ? { catalog: 'projects', scopeId: projectId, projectId, userId: context.userId, isolateByUser: false }
+      : xpertId
+        ? {
+            catalog: workspaceDataScope === 'user' ? 'user-xperts' : 'xperts',
+            scopeId: xpertId,
+            xpertId,
+            userId: context.userId,
+            isolateByUser: workspaceDataScope === 'user'
+          }
+        : undefined
   }
 }
 

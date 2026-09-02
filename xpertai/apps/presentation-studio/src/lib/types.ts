@@ -58,6 +58,16 @@ export interface PresentationScope {
   assistantDisplayName?: string | null
   agentKey?: string | null
   conversationId?: string | null
+  collaborationAccess?: 'read' | 'write'
+  workspaceFiles?: {
+    tenantId?: string | null
+    userId?: string | null
+    catalog: 'xperts' | 'user-xperts' | 'projects'
+    scopeId: string
+    xpertId?: string | null
+    projectId?: string | null
+    isolateByUser?: boolean | null
+  } | null
 }
 
 export interface PresentationSlideSpec {

@@ -19,7 +19,7 @@ export type OfficeCliCommand = OfficeCliReadCommand | OfficeCliWriteCommand
 export type OfficeCliToolName = (typeof OFFICE_CLI_TOOL_NAMES)[number]
 export type OfficeCliDocumentStatus = 'draft' | 'active' | 'archived'
 export type OfficeCliVersionSource = 'create' | 'import' | 'agent' | 'workbench' | 'restore'
-export type OfficeCliWorkspaceCatalog = 'xperts' | 'projects'
+export type OfficeCliWorkspaceCatalog = 'xperts' | 'user-xperts' | 'projects'
 
 export interface OfficeCliScope {
   tenantId?: string | null
@@ -29,6 +29,7 @@ export interface OfficeCliScope {
   userId?: string | null
   assistantId?: string | null
   conversationId?: string | null
+  workspaceFiles?: OfficeCliWorkspaceFileScope | null
 }
 
 export interface OfficeCliWorkbenchQuery {

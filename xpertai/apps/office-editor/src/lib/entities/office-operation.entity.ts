@@ -1,8 +1,17 @@
-import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
+import { Column, CreateDateColumn, Entity, ForeignKey, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 import type { OfficeAuditOperationType, OfficeOperationSource, OfficeOperationStatus } from '../types.js'
 import { officeEditorTable } from '../constants.js'
+import { OfficeDocument } from './office-document.entity.js'
 
 @Entity(officeEditorTable('operation'))
+@ForeignKey(() => OfficeDocument, ['documentId'], ['id'], {
+  name: 'plugin_office_editor_operation_parent_fk',
+  onDelete: 'CASCADE'
+})
+@ForeignKey(() => OfficeDocument, ['documentId', 'projectId'], ['id', 'projectId'], {
+  name: 'plugin_office_editor_operation_parent_project_fk',
+  onDelete: 'CASCADE'
+})
 @Index(['tenantId', 'organizationId', 'documentId', 'status'])
 @Index(['tenantId', 'organizationId', 'documentId', 'createdAt'])
 @Index(['tenantId', 'organizationId', 'documentId', 'idempotencyKey'])
@@ -22,10 +31,10 @@ export class OfficeOperation {
   @Column({ type: 'varchar', nullable: true })
   workspaceId?: string
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ type: 'uuid', nullable: true, update: false })
   projectId?: string
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   documentId?: string
 
   @Column({ type: 'varchar', nullable: true })

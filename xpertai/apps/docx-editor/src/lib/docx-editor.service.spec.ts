@@ -1,6 +1,17 @@
 import * as docxAgentsServer from '@eigenpal/docx-editor-agents/server'
+import { WorkspaceFilesRuntimeCapability } from '@xpert-ai/plugin-sdk'
 import { DocxEditorService } from './docx-editor.service.js'
 import { DOCX_WORKSPACE_FILES_RUNTIME_CAPABILITY, type DocxEditorScope } from './types.js'
+import { DocxEditorVersion } from './entities/index.js'
+
+jest.mock('@eigenpal/docx-editor-agents/server', () => {
+  const actual = jest.requireActual('@eigenpal/docx-editor-agents/server')
+  return {
+    ...actual,
+    createReviewerBridge: jest.fn(actual.createReviewerBridge),
+    executeToolCall: jest.fn(actual.executeToolCall)
+  }
+})
 
 describe('DocxEditorService', () => {
   const scope: DocxEditorScope = {
@@ -17,8 +28,23 @@ describe('DocxEditorService', () => {
     findOne: jest.fn(),
     find: jest.fn(),
     findAndCount: jest.fn(),
-    delete: jest.fn()
+    delete: jest.fn(),
+    update: jest.fn(async () => ({ affected: 1 })),
+    manager: {
+      transaction: jest.fn()
+    }
   })
+
+  const attachTransactionManager = (
+    documentRepository: ReturnType<typeof createRepository>,
+    versionRepository: ReturnType<typeof createRepository>
+  ) => {
+    documentRepository.manager.transaction.mockImplementation(async (callback) =>
+      callback({
+        getRepository: (entity: unknown) => entity === DocxEditorVersion ? versionRepository : documentRepository
+      })
+    )
+  }
 
   const createWorkspaceFiles = () => ({
     uploadBuffer: jest.fn(async () => ({
@@ -36,7 +62,7 @@ describe('DocxEditorService', () => {
       workspacePath: 'files/docx-editor/documents/document-1/versions/v1-abcd1234.docx',
       buffer: Buffer.from([0x50, 0x4b, 0x03, 0x04])
     })),
-    deleteFile: jest.fn()
+    deleteFile: jest.fn(async () => undefined)
   })
 
   const createAgentBridge = (paragraphs: Array<{ paraId: string; text: string }>) => ({
@@ -92,6 +118,7 @@ describe('DocxEditorService', () => {
     versionRepository.findOne.mockResolvedValue(version)
     versionRepository.save.mockImplementation(async (value) => ({ ...value, id: 'version-2' }))
     operationRepository.save.mockImplementation(async (value) => ({ ...value, id: value.id ?? 'operation-1' }))
+    attachTransactionManager(documentRepository, versionRepository)
     const reviewer = {
       toBuffer: jest.fn(async () => {
         const buffer = Buffer.from([0x50, 0x4b, 0x03, 0x04])
@@ -154,6 +181,7 @@ describe('DocxEditorService', () => {
       currentVersionNumber: 0
     })
     versionRepository.save.mockImplementation(async (value) => ({ ...value, id: 'version-1' }))
+    attachTransactionManager(documentRepository, versionRepository)
     const service = new DocxEditorService(
       documentRepository as never,
       versionRepository as never,
@@ -200,6 +228,177 @@ describe('DocxEditorService', () => {
     expect(savedVersion).not.toHaveProperty('docxBase64')
   })
 
+  it('uses the current scoped runtime capability when the global registry is unbound', async () => {
+    const documentRepository = createRepository()
+    const versionRepository = createRepository()
+    const snapshotRepository = createRepository()
+    const operationRepository = createRepository()
+    const workspaceFiles = createWorkspaceFiles()
+    const scopedCapabilities = {
+      get: jest.fn((key) => key === WorkspaceFilesRuntimeCapability ? workspaceFiles : undefined)
+    }
+    const runtimeService = {
+      createScopedApi: jest.fn(() => ({ capabilities: scopedCapabilities }))
+    }
+    documentRepository.findOne.mockResolvedValue({
+      id: 'document-1',
+      title: 'Project contract',
+      projectId: 'project-1',
+      assistantId: 'xpert-1',
+      currentVersionNumber: 0
+    })
+    versionRepository.save.mockImplementation(async (value) => ({ ...value, id: 'version-1' }))
+    attachTransactionManager(documentRepository, versionRepository)
+    const service = new DocxEditorService(
+      documentRepository as never,
+      versionRepository as never,
+      snapshotRepository as never,
+      operationRepository as never,
+      { get: jest.fn(() => undefined) } as never,
+      undefined,
+      runtimeService as never
+    )
+
+    await service.saveDocumentVersion(
+      {
+        ...scope,
+        projectId: 'project-1',
+        workspaceFiles: {
+          catalog: 'projects',
+          scopeId: 'project-1',
+          projectId: 'project-1',
+          userId: 'user-1',
+          isolateByUser: false
+        }
+      },
+      {
+        documentId: 'document-1',
+        docxBase64: Buffer.from([0x50, 0x4b, 0x03, 0x04]).toString('base64'),
+        fileName: 'project-contract.docx'
+      }
+    )
+
+    expect(runtimeService.createScopedApi).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      userId: 'user-1',
+      workspaceId: null,
+      projectId: 'project-1',
+      xpertId: 'xpert-1',
+      conversationId: undefined,
+      catalog: 'projects',
+      scopeId: 'project-1',
+      isolateByUser: false
+    })
+    expect(scopedCapabilities.get).toHaveBeenCalledWith(WorkspaceFilesRuntimeCapability)
+    expect(workspaceFiles.uploadBuffer).toHaveBeenCalledTimes(1)
+  })
+
+  it('removes a newly created draft when its first version cannot be stored', async () => {
+    const documentRepository = createRepository()
+    const versionRepository = createRepository()
+    const snapshotRepository = createRepository()
+    const operationRepository = createRepository()
+    const workspaceFiles = createWorkspaceFiles()
+    workspaceFiles.uploadBuffer.mockRejectedValue(new Error('storage failed'))
+    documentRepository.save.mockImplementation(async (value) => ({ ...value, id: 'document-created' }))
+    documentRepository.findOne.mockResolvedValue({
+      id: 'document-created',
+      title: 'Failed upload',
+      assistantId: 'xpert-1',
+      currentVersionNumber: 0
+    })
+    documentRepository.delete.mockResolvedValue({ affected: 1 })
+    const service = new DocxEditorService(
+      documentRepository as never,
+      versionRepository as never,
+      snapshotRepository as never,
+      operationRepository as never,
+      {
+        get: jest.fn((key) => key === DOCX_WORKSPACE_FILES_RUNTIME_CAPABILITY ? workspaceFiles : undefined)
+      } as never
+    )
+
+    await expect(service.uploadDocx(scope, {
+      title: 'Failed upload',
+      fileName: 'failed.docx',
+      docxBase64: Buffer.from([0x50, 0x4b, 0x03, 0x04]).toString('base64')
+    })).rejects.toThrow('storage failed')
+
+    expect(documentRepository.delete).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'document-created' })
+    )
+  })
+
+  it('does not delete the successful version file when a concurrent save loses the version race', async () => {
+    const documentRepository = createRepository()
+    const versionRepository = createRepository()
+    const snapshotRepository = createRepository()
+    const operationRepository = createRepository()
+    const storedFiles = new Map<string, Buffer>()
+    const workspaceFiles = {
+      uploadBuffer: jest.fn(async (input) => {
+        const filePath = `${input.folder}/${input.fileName}`
+        storedFiles.set(filePath, Buffer.from(input.buffer))
+        return {
+          name: input.fileName,
+          filePath,
+          workspacePath: filePath,
+          catalog: input.catalog,
+          scopeId: input.scopeId,
+          size: input.buffer.byteLength
+        }
+      }),
+      readBuffer: jest.fn(async ({ filePath }) => {
+        const buffer = storedFiles.get(filePath)
+        if (!buffer) throw new Error('File not found')
+        return { filePath, buffer: Buffer.from(buffer) }
+      }),
+      deleteFile: jest.fn(async ({ filePath }) => {
+        storedFiles.delete(filePath)
+      })
+    }
+    const document = {
+      id: 'document-1',
+      title: 'Contract',
+      assistantId: 'xpert-1',
+      currentVersionNumber: 0
+    }
+    documentRepository.findOne.mockResolvedValue(document)
+    versionRepository.save
+      .mockImplementationOnce(async (value) => ({ ...value, id: 'version-1' }))
+      .mockRejectedValueOnce(Object.assign(new Error('duplicate version'), {
+        driverError: { code: '23505' }
+      }))
+    attachTransactionManager(documentRepository, versionRepository)
+    const service = new DocxEditorService(
+      documentRepository as never,
+      versionRepository as never,
+      snapshotRepository as never,
+      operationRepository as never,
+      {
+        get: jest.fn((key) => (key === DOCX_WORKSPACE_FILES_RUNTIME_CAPABILITY ? workspaceFiles : undefined))
+      } as never
+    )
+    const input = {
+      documentId: 'document-1',
+      expectedVersionNumber: 0,
+      docxBase64: Buffer.from([0x50, 0x4b, 0x03, 0x04]).toString('base64'),
+      fileName: 'contract.docx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    }
+
+    const successful = await service.saveDocumentVersion(scope, input)
+    const successfulPath = successful.version.workspaceFilePath
+
+    await expect(service.saveDocumentVersion(scope, input)).rejects.toThrow(
+      'DOCX document was changed by another editor'
+    )
+    await expect(workspaceFiles.readBuffer({ filePath: successfulPath })).resolves.toMatchObject({
+      buffer: Buffer.from([0x50, 0x4b, 0x03, 0x04])
+    })
+  })
+
   it('imports a generated runtime DOCX as an official editor document and version', async () => {
     const documentRepository = createRepository()
     const versionRepository = createRepository()
@@ -208,6 +407,7 @@ describe('DocxEditorService', () => {
     const workspaceFiles = createWorkspaceFiles()
     const docxBuffer = Buffer.from([0x50, 0x4b, 0x03, 0x04])
     const runtimeWorkspaceFiles = {
+      ...workspaceFiles,
       readRuntimeBuffer: jest.fn(async () => ({
         name: 'generated.docx',
         filePath: 'sessions/conversation-1/generated.docx',
@@ -232,6 +432,7 @@ describe('DocxEditorService', () => {
       currentVersionNumber: 0
     })
     versionRepository.save.mockImplementation(async (value) => ({ ...value, id: 'version-created' }))
+    attachTransactionManager(documentRepository, versionRepository)
     const service = new DocxEditorService(
       documentRepository as never,
       versionRepository as never,
@@ -331,8 +532,8 @@ describe('DocxEditorService', () => {
       filePath: input.filePath,
       workspacePath: input.filePath,
       buffer: input.filePath.endsWith('v1-history.docx')
-        ? Buffer.from([0x01])
-        : Buffer.from([0x02])
+        ? Buffer.from([0x50, 0x4b, 0x01, 0x00])
+        : Buffer.from([0x50, 0x4b, 0x02, 0x00])
     }))
     documentRepository.findOne.mockResolvedValue({
       id: 'document-1',
@@ -391,7 +592,343 @@ describe('DocxEditorService', () => {
     )
     expect(data.currentVersion?.id).toBe('version-1')
     expect(data.currentVersion?.versionNumber).toBe(1)
-    expect(data.currentVersion?.docxBase64).toBe(Buffer.from([0x01]).toString('base64'))
+    expect(data.currentVersion?.docxBase64).toBe(Buffer.from([0x50, 0x4b, 0x01, 0x00]).toString('base64'))
+  })
+
+  it('uses the canonical workspace scope returned by the host when persisting a save', async () => {
+    const documentRepository = createRepository()
+    const versionRepository = createRepository()
+    const snapshotRepository = createRepository()
+    const operationRepository = createRepository()
+    const workspaceFiles = createWorkspaceFiles()
+    workspaceFiles.uploadBuffer.mockResolvedValue({
+      name: 'v1-private.docx',
+      filePath: 'files/docx-editor/documents/document-1/versions/v1-private.docx',
+      workspacePath: 'files/docx-editor/documents/document-1/versions/v1-private.docx',
+      catalog: 'user-xperts',
+      scopeId: 'canonical-xpert-1',
+      size: 4
+    })
+    documentRepository.findOne.mockResolvedValue({
+      id: 'document-1',
+      title: 'Private contract',
+      assistantId: 'xpert-1',
+      createdById: 'user-1',
+      currentVersionNumber: 0
+    })
+    versionRepository.save.mockImplementation(async (value) => ({ ...value, id: 'version-1' }))
+    attachTransactionManager(documentRepository, versionRepository)
+    const service = new DocxEditorService(
+      documentRepository as never,
+      versionRepository as never,
+      snapshotRepository as never,
+      operationRepository as never,
+      {
+        get: jest.fn((key) => (key === DOCX_WORKSPACE_FILES_RUNTIME_CAPABILITY ? workspaceFiles : undefined))
+      } as never
+    )
+
+    await service.saveDocumentVersion(
+      {
+        ...scope,
+        workspaceFiles: {
+          catalog: 'user-xperts',
+          scopeId: 'xpert-1',
+          xpertId: 'xpert-1',
+          userId: 'user-1',
+          isolateByUser: true
+        }
+      },
+      {
+        documentId: 'document-1',
+        docxBase64: Buffer.from([0x50, 0x4b, 0x03, 0x04]).toString('base64')
+      }
+    )
+
+    expect(versionRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceCatalog: 'user-xperts',
+        workspaceScopeId: 'canonical-xpert-1'
+      })
+    )
+    expect(documentRepository.update).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        workspaceCatalog: 'user-xperts',
+        workspaceScopeId: 'canonical-xpert-1'
+      })
+    )
+  })
+
+  it('shares Project document queries without filtering by creator', async () => {
+    const documentRepository = createRepository()
+    documentRepository.findAndCount.mockResolvedValue([[], 0])
+    const service = new DocxEditorService(
+      documentRepository as never,
+      createRepository() as never,
+      createRepository() as never,
+      createRepository() as never
+    )
+
+    await service.getWorkbenchData({
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      workspaceId: 'workspace-1',
+      projectId: 'project-1',
+      userId: 'user-2',
+      assistantId: 'xpert-1',
+      workspaceFiles: {
+        catalog: 'projects',
+        scopeId: 'project-1',
+        projectId: 'project-1',
+        userId: 'user-2',
+        isolateByUser: false
+      }
+    }, {})
+
+    const where = documentRepository.findAndCount.mock.calls[0][0].where
+    expect(where).toEqual(expect.objectContaining({ projectId: 'project-1' }))
+    expect(where).not.toHaveProperty('createdById')
+    expect(where).not.toHaveProperty('assistantId')
+  })
+
+  it('reads private user-xperts versions with the current authorized user scope', async () => {
+    const documentRepository = createRepository()
+    const versionRepository = createRepository()
+    const snapshotRepository = createRepository()
+    const operationRepository = createRepository()
+    const workspaceFiles = createWorkspaceFiles()
+    documentRepository.findOne.mockResolvedValue({
+      id: 'document-1',
+      title: 'Private contract',
+      assistantId: 'xpert-1',
+      createdById: 'user-1',
+      currentVersionId: 'version-1',
+      currentVersionNumber: 1
+    })
+    versionRepository.find.mockResolvedValue([
+      {
+        id: 'version-1',
+        documentId: 'document-1',
+        versionNumber: 1,
+        workspaceFilePath: 'files/docx-editor/documents/document-1/versions/v1-private.docx',
+        workspaceCatalog: 'user-xperts',
+        workspaceScopeId: 'xpert-1',
+        size: 4
+      }
+    ])
+    snapshotRepository.findOne.mockResolvedValue(null)
+    operationRepository.find.mockResolvedValue([])
+    const service = new DocxEditorService(
+      documentRepository as never,
+      versionRepository as never,
+      snapshotRepository as never,
+      operationRepository as never,
+      {
+        get: jest.fn((key) => (key === DOCX_WORKSPACE_FILES_RUNTIME_CAPABILITY ? workspaceFiles : undefined))
+      } as never
+    )
+
+    await service.getWorkbenchData(
+      {
+        ...scope,
+        workspaceFiles: {
+          catalog: 'user-xperts',
+          scopeId: 'xpert-1',
+          xpertId: 'xpert-1',
+          userId: 'user-1',
+          isolateByUser: true
+        }
+      },
+      { documentId: 'document-1' }
+    )
+
+    expect(workspaceFiles.readBuffer).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      userId: 'user-1',
+      catalog: 'user-xperts',
+      scopeId: 'xpert-1',
+      xpertId: 'xpert-1',
+      isolateByUser: true,
+      filePath: 'files/docx-editor/documents/document-1/versions/v1-private.docx'
+    })
+  })
+
+  it('restores and deletes private user-xperts versions in their persisted scope', async () => {
+    const documentRepository = createRepository()
+    const versionRepository = createRepository()
+    const snapshotRepository = createRepository()
+    const operationRepository = createRepository()
+    const workspaceFiles = createWorkspaceFiles()
+    const document = {
+      id: 'document-1',
+      title: 'Private contract',
+      assistantId: 'xpert-1',
+      createdById: 'user-1',
+      currentVersionId: 'version-1',
+      currentVersionNumber: 1
+    }
+    const version = {
+      id: 'version-1',
+      documentId: 'document-1',
+      versionNumber: 1,
+      workspaceFilePath: 'files/docx-editor/documents/document-1/versions/v1-private.docx',
+      workspaceCatalog: 'user-xperts' as const,
+      workspaceScopeId: 'xpert-1',
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      size: 4
+    }
+    documentRepository.findOne.mockResolvedValue(document)
+    versionRepository.findOne.mockResolvedValue(version)
+    versionRepository.find.mockResolvedValue([version])
+    versionRepository.save.mockImplementation(async (value) => ({ ...value, id: 'version-2' }))
+    workspaceFiles.uploadBuffer.mockResolvedValue({
+      name: 'v2-private.docx',
+      filePath: 'files/docx-editor/documents/document-1/versions/v2-private.docx',
+      workspacePath: 'files/docx-editor/documents/document-1/versions/v2-private.docx',
+      catalog: 'user-xperts',
+      scopeId: 'xpert-1',
+      size: 4
+    })
+    attachTransactionManager(documentRepository, versionRepository)
+    const service = new DocxEditorService(
+      documentRepository as never,
+      versionRepository as never,
+      snapshotRepository as never,
+      operationRepository as never,
+      {
+        get: jest.fn((key) => (key === DOCX_WORKSPACE_FILES_RUNTIME_CAPABILITY ? workspaceFiles : undefined))
+      } as never
+    )
+    const privateScope: DocxEditorScope = {
+      ...scope,
+      workspaceFiles: {
+        catalog: 'user-xperts',
+        scopeId: 'xpert-1',
+        xpertId: 'xpert-1',
+        userId: 'user-1',
+        isolateByUser: true
+      }
+    }
+
+    await service.restoreVersion(privateScope, {
+      documentId: 'document-1',
+      versionId: 'version-1'
+    })
+    await service.deleteDocument(privateScope, 'document-1')
+
+    expect(workspaceFiles.readBuffer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        catalog: 'user-xperts',
+        scopeId: 'xpert-1',
+        xpertId: 'xpert-1',
+        userId: 'user-1',
+        isolateByUser: true
+      })
+    )
+    expect(workspaceFiles.uploadBuffer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        catalog: 'user-xperts',
+        scopeId: 'xpert-1',
+        xpertId: 'xpert-1',
+        userId: 'user-1',
+        isolateByUser: true
+      })
+    )
+    expect(workspaceFiles.deleteFile).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      userId: 'user-1',
+      catalog: 'user-xperts',
+      scopeId: 'xpert-1',
+      xpertId: 'xpert-1',
+      isolateByUser: true,
+      filePath: 'files/docx-editor/documents/document-1/versions/v1-private.docx'
+    })
+  })
+
+  it('authorizes an operation through its parent document before completing it', async () => {
+    const documentRepository = createRepository()
+    const versionRepository = createRepository()
+    const snapshotRepository = createRepository()
+    const operationRepository = createRepository()
+    operationRepository.findOne.mockResolvedValue({
+      id: 'operation-foreign',
+      documentId: 'document-foreign',
+      status: 'queued'
+    })
+    documentRepository.findOne.mockResolvedValue(null)
+    const service = new DocxEditorService(
+      documentRepository as never,
+      versionRepository as never,
+      snapshotRepository as never,
+      operationRepository as never
+    )
+
+    await expect(
+      service.completeOperation(
+        {
+          ...scope,
+          workspaceFiles: {
+            catalog: 'user-xperts',
+            scopeId: 'xpert-1',
+            xpertId: 'xpert-1',
+            userId: 'user-1',
+            isolateByUser: true
+          }
+        },
+        { operationId: 'operation-foreign', status: 'applied' }
+      )
+    ).rejects.toThrow('DOCX document was not found.')
+    expect(documentRepository.findOne).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: 'document-foreign',
+          assistantId: 'xpert-1',
+          createdById: 'user-1'
+        })
+      })
+    )
+    expect(operationRepository.save).not.toHaveBeenCalled()
+  })
+
+  it('uses the same authorized document scope for list queries', async () => {
+    const documentRepository = createRepository()
+    documentRepository.findAndCount.mockResolvedValue([[], 0])
+    const repository = createRepository()
+    const service = new DocxEditorService(
+      documentRepository as never,
+      repository as never,
+      repository as never,
+      repository as never
+    )
+
+    await service.getWorkbenchData(
+      {
+        ...scope,
+        workspaceFiles: {
+          catalog: 'user-xperts',
+          scopeId: 'xpert-1',
+          xpertId: 'xpert-1',
+          userId: 'user-1',
+          isolateByUser: true
+        }
+      },
+      {}
+    )
+
+    expect(documentRepository.findAndCount).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          tenantId: 'tenant-1',
+          organizationId: 'org-1',
+          workspaceId: 'workspace-1',
+          assistantId: 'xpert-1',
+          createdById: 'user-1'
+        })
+      })
+    )
   })
 
   it('preserves existing snapshot fields when syncing only the live selection', async () => {
@@ -792,7 +1329,7 @@ describe('DocxEditorService', () => {
     },
     {
       name: 'search appears multiple times',
-      paragraphs: [{ paraId: 'p1', text: 'Repeated text and repeated text.' }],
+      paragraphs: [{ paraId: 'p1', text: 'repeated text and repeated text.' }],
       input: {
         changes: [{ paraId: 'p1', search: 'repeated text', replaceWith: 'replacement text' }]
       },

@@ -1,7 +1,16 @@
-import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm'
+import { Column, CreateDateColumn, Entity, ForeignKey, Index, PrimaryGeneratedColumn } from 'typeorm'
 import { officeEditorTable } from '../constants.js'
+import { OfficeDocument } from './office-document.entity.js'
 
 @Entity(officeEditorTable('yjs_update'))
+@ForeignKey(() => OfficeDocument, ['documentId'], ['id'], {
+  name: 'plugin_office_editor_yjs_update_parent_fk',
+  onDelete: 'CASCADE'
+})
+@ForeignKey(() => OfficeDocument, ['documentId', 'projectId'], ['id', 'projectId'], {
+  name: 'plugin_office_editor_yjs_update_parent_project_fk',
+  onDelete: 'CASCADE'
+})
 @Index(['tenantId', 'organizationId', 'documentId', 'sequenceNumber'])
 @Index(['tenantId', 'organizationId', 'documentId', 'updateHash'])
 export class OfficeYjsUpdate {
@@ -19,10 +28,10 @@ export class OfficeYjsUpdate {
   @Column({ type: 'varchar', nullable: true })
   workspaceId?: string
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ type: 'uuid', nullable: true, update: false })
   projectId?: string
 
-  @Column({ type: 'varchar' })
+  @Column({ type: 'uuid' })
   documentId!: string
 
   @Column({ type: 'int' })

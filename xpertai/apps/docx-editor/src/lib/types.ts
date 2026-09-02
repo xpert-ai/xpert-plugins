@@ -1,4 +1,4 @@
-import type { WorkspaceFileLocator } from '@xpert-ai/plugin-sdk'
+import type { WorkspaceFileLocator, WorkspaceFileScope } from '@xpert-ai/plugin-sdk'
 import type { DOCX_EDITOR_TOOL_NAMES } from './constants.js'
 
 export type DocxEditorDocumentStatus = 'draft' | 'active' | 'archived'
@@ -7,7 +7,7 @@ export type DocxEditorOperationStatus = 'queued' | 'applied' | 'failed'
 export type DocxEditorOperationSource = 'agent' | 'workbench' | 'system'
 export type DocxEditorToolName = (typeof DOCX_EDITOR_TOOL_NAMES)[number]
 export type DocxEditorToolExecutionTarget = 'server_persist' | 'workbench_live'
-export type DocxEditorWorkspaceCatalog = 'xperts' | 'projects'
+export type DocxEditorWorkspaceCatalog = 'xperts' | 'user-xperts' | 'projects'
 
 export const DOCX_WORKSPACE_FILES_RUNTIME_CAPABILITY = 'platform.workspace.files'
 
@@ -19,6 +19,14 @@ export interface DocxEditorScope {
   userId?: string | null
   assistantId?: string | null
   conversationId?: string | null
+  workspaceFiles?: {
+    catalog: DocxEditorWorkspaceCatalog
+    scopeId: string
+    xpertId?: string | null
+    projectId?: string | null
+    userId?: string | null
+    isolateByUser?: boolean | null
+  }
 }
 
 export interface CreateDocxDocumentInput {
@@ -39,6 +47,7 @@ export interface SaveDocxVersionInput {
   source?: DocxEditorVersionSource
   changeSummary?: string | null
   operationId?: string | null
+  expectedVersionNumber?: number | null
 }
 
 export interface UploadDocxInput extends Omit<SaveDocxVersionInput, 'documentId'> {
@@ -80,50 +89,9 @@ export interface RestoreDocxVersionInput {
   changeSummary?: string | null
 }
 
-export interface DocxWorkspaceFileScope {
-  tenantId?: string | null
-  userId?: string | null
+export interface DocxWorkspaceFileScope extends Omit<WorkspaceFileScope, 'catalog' | 'scopeId'> {
   catalog: DocxEditorWorkspaceCatalog
   scopeId: string
-  xpertId?: string | null
-  projectId?: string | null
-  isolateByUser?: boolean | null
-}
-
-export interface DocxWorkspaceFileRecord {
-  name?: string
-  filePath: string
-  workspacePath?: string
-  fileUrl?: string
-  url?: string
-  mimeType?: string
-  size?: number
-  catalog?: DocxEditorWorkspaceCatalog
-  scopeId?: string
-}
-
-export interface DocxWorkspaceFileBuffer extends DocxWorkspaceFileRecord {
-  buffer: Buffer
-}
-
-export interface DocxWorkspaceFilesApi {
-  uploadBuffer(input: DocxWorkspaceFileScope & {
-    buffer: Buffer
-    originalName: string
-    mimeType?: string | null
-    size?: number | null
-    folder?: string | null
-    fileName?: string | null
-    metadata?: Record<string, unknown>
-  }): Promise<DocxWorkspaceFileRecord>
-
-  readBuffer(input: DocxWorkspaceFileScope & {
-    filePath: string
-  }): Promise<DocxWorkspaceFileBuffer>
-
-  deleteFile(input: DocxWorkspaceFileScope & {
-    filePath: string
-  }): Promise<void>
 }
 
 export interface PrepareDocxAssistantPromptInput {

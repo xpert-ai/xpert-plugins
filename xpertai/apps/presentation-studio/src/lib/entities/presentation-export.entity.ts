@@ -1,8 +1,17 @@
-import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
+import { Column, CreateDateColumn, Entity, ForeignKey, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 import { presentationStudioTable } from '../constants.js'
 import type { PresentationAssetReference, PresentationExportKind, PresentationExportStatus, PresentationJsonObject } from '../types.js'
+import { PresentationDeck } from './presentation-deck.entity.js'
 
 @Entity(presentationStudioTable('export'))
+@ForeignKey(() => PresentationDeck, ['deckId'], ['id'], {
+  name: 'plugin_presentation_studio_export_parent_fk',
+  onDelete: 'CASCADE'
+})
+@ForeignKey(() => PresentationDeck, ['deckId', 'projectId'], ['id', 'projectId'], {
+  name: 'plugin_presentation_studio_export_parent_project_fk',
+  onDelete: 'CASCADE'
+})
 @Index(['tenantId', 'organizationId', 'deckId', 'createdAt'])
 @Index(['tenantId', 'organizationId', 'status'])
 export class PresentationExport {
@@ -10,9 +19,9 @@ export class PresentationExport {
   @Index() @Column({ type: 'varchar', nullable: true }) tenantId?: string
   @Index() @Column({ type: 'varchar', nullable: true }) organizationId?: string
   @Column({ type: 'varchar', nullable: true }) workspaceId?: string
-  @Column({ type: 'varchar', nullable: true }) projectId?: string
+  @Column({ type: 'uuid', nullable: true, update: false }) projectId?: string
   @Column({ type: 'varchar', nullable: true }) userId?: string
-  @Column({ type: 'varchar' }) deckId!: string
+  @Column({ type: 'uuid' }) deckId!: string
   @Column({ type: 'varchar' }) versionId!: string
   @Column({ type: 'varchar' }) kind!: PresentationExportKind
   @Column({ type: 'varchar', default: 'queued' }) status!: PresentationExportStatus

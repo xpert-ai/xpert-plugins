@@ -37,6 +37,7 @@ describe('PresentationStudioViewProvider incremental host events', () => {
     const subscription = manifest.hostEvents?.subscriptions?.[0]
 
     expect(manifest.dataSource.cache?.enabled).toBe(false)
+    expect(manifest.fileAccess).toEqual({ purposes: ['preview'] })
     expect(manifest.actions?.some((action) => action.key === 'load_theme_previews' && !action.placement)).toBe(true)
     expect(manifest.actions?.some((action) => action.key === 'load_theme_runtime' && !action.placement)).toBe(true)
     expect(manifest.actions?.some((action) => action.key === 'load_asset_previews' && !action.placement)).toBe(true)
@@ -91,9 +92,20 @@ describe('PresentationStudioViewProvider incremental host events', () => {
     const service = {
       getThemePreviewGallery: jest.fn().mockResolvedValue([{
         themePack: 'theme01',
+        fileKey: 'theme01',
         displayName: '轻拟态风',
         scenario: '产品介绍',
-        fileUrl: 'https://xpert.test/theme01.png'
+        fileUrl: 'https://xpert.test/theme01.png',
+        filePath: 'files/presentation-studio/theme-previews/theme01.png',
+        reference: {
+          source: 'platform.workspace.files',
+          tenantId: 'tenant-1',
+          catalog: 'xperts',
+          scopeId: 'assistant-1',
+          xpertId: 'assistant-1',
+          filePath: 'files/presentation-studio/theme-previews/theme01.png',
+          workspacePath: 'files/presentation-studio/theme-previews/theme01.png'
+        }
       }])
     }
     const provider = new PresentationStudioViewProvider(service as never)
@@ -117,8 +129,110 @@ describe('PresentationStudioViewProvider incremental host events', () => {
       success: true,
       data: {
         title: 'ppt主题预览',
-        items: [{ themePack: 'theme01', fileUrl: 'https://xpert.test/theme01.png' }]
+        items: [{ themePack: 'theme01', fileKey: 'theme01', fileUrl: 'https://xpert.test/theme01.png' }]
       }
     })
+    expect(JSON.stringify(result)).not.toContain('"reference"')
+    expect(JSON.stringify(result)).not.toContain('"filePath"')
+  })
+
+  it('resolves theme previews through the scoped View file-access boundary', async () => {
+    const resource = {
+      reference: {
+        source: 'platform.workspace.files' as const,
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        catalog: 'projects' as const,
+        scopeId: 'project-1',
+        projectId: 'project-1',
+        filePath: 'files/presentation-studio/theme-previews/theme01-轻拟态风.png',
+        workspacePath: 'files/presentation-studio/theme-previews/theme01-轻拟态风.png'
+      },
+      fileName: 'theme01-轻拟态风.png',
+      mimeType: 'image/png',
+      size: 1024
+    }
+    const service = {
+      resolveThemePreviewFile: jest.fn().mockResolvedValue(resource)
+    }
+    const provider = new PresentationStudioViewProvider(service as never)
+    const context = {
+      tenantId: 'tenant-1', organizationId: 'org-1', workspaceId: 'workspace-1', userId: 'user-1',
+      hostType: 'agent' as const, hostId: 'assistant-1', slots: [],
+      runtimeScope: {
+        projectId: 'project-1',
+        conversationId: null,
+        dataScopeKey: 'project:project-1',
+        workspaceFiles: {
+          catalog: 'projects' as const,
+          scopeId: 'project-1',
+          projectId: 'project-1'
+        }
+      }
+    }
+
+    await expect(provider.resolveViewFile(context, 'presentation_studio', {
+      fileKey: 'theme01',
+      purpose: 'preview'
+    })).resolves.toEqual(resource)
+    expect(service.resolveThemePreviewFile).toHaveBeenCalledWith(expect.objectContaining({
+      tenantId: 'tenant-1',
+      projectId: 'project-1',
+      workspaceFiles: expect.objectContaining({ catalog: 'projects', scopeId: 'project-1' })
+    }), 'theme01')
+  })
+
+  it('opens a Project deck with read-only collaboration access for a member', async () => {
+    const service = {
+      openDeck: jest.fn().mockImplementation(async (scope) => ({
+        item: { id: 'deck-1', title: 'Shared deck' },
+        versions: [],
+        exports: [],
+        assets: [],
+        collab: { sessionId: 'session-1', documentId: 'document-1', access: scope.collaborationAccess }
+      }))
+    }
+    const provider = new PresentationStudioViewProvider(service as never)
+    const context = {
+      tenantId: 'tenant-1', organizationId: 'org-1', workspaceId: 'workspace-1', userId: 'user-2',
+      hostType: 'agent' as const, hostId: 'assistant-1', slots: [],
+      runtimeScope: {
+        projectId: 'project-1',
+        conversationId: null,
+        dataScopeKey: 'project:project-1',
+        projectAccess: {
+          role: 'member' as const,
+          canRead: true,
+          canEdit: false,
+          canManage: false,
+          canUse: true
+        },
+        workspaceFiles: {
+          catalog: 'projects' as const,
+          scopeId: 'project-1',
+          projectId: 'project-1',
+          userId: 'user-2',
+          isolateByUser: false
+        }
+      }
+    }
+
+    const result = await provider.executeViewAction(
+      context,
+      'presentation_studio',
+      'open_deck',
+      { targetId: 'deck-1', input: {} } as never
+    )
+
+    expect(result).toMatchObject({
+      success: true,
+      data: {
+        collab: { access: 'read' }
+      }
+    })
+    expect(service.openDeck).toHaveBeenCalledWith(
+      expect.objectContaining({ collaborationAccess: 'read' }),
+      'deck-1'
+    )
   })
 })

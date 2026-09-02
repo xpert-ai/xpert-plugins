@@ -1,7 +1,12 @@
-import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
+import { Column, CreateDateColumn, Entity, ForeignKey, Index, PrimaryGeneratedColumn, Unique, UpdateDateColumn } from 'typeorm'
 import type { DocxEditorDocumentStatus, DocxEditorWorkspaceCatalog } from '../types.js'
 
 @Entity('plugin_docx_editor_document')
+@Unique('plugin_docx_editor_document_id_project_uq', ['id', 'projectId'])
+@ForeignKey('xpert_project', ['projectId'], ['id'], {
+  name: 'plugin_docx_editor_document_project_fk',
+  onDelete: 'CASCADE'
+})
 @Index(['tenantId', 'organizationId', 'projectId', 'status'])
 @Index(['tenantId', 'organizationId', 'assistantId', 'status'])
 @Index(['tenantId', 'organizationId', 'updatedAt'])
@@ -20,7 +25,7 @@ export class DocxEditorDocument {
   @Column({ type: 'varchar', nullable: true })
   workspaceId?: string
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ type: 'uuid', nullable: true, update: false })
   projectId?: string
 
   @Column({ type: 'varchar', nullable: true })

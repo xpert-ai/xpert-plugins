@@ -30,3 +30,25 @@ test('localizes the DOCX Editor installed assistant descriptions', () => {
   assert.match(template.dslContent ?? '', /docx_publish_artifact_link/)
   assert.match(template.dslContent ?? '', /Do not\s+ask the user to upload or open the generated file/)
 })
+
+test('connects the common execution middlewares to the DOCX Editor Agent', () => {
+  const dsl = docxEditorTemplates[0]?.dslContent ?? ''
+  const middlewares = [
+    ['Middleware_WebTools', 'WebTools'],
+    ['Middleware_SandboxFile', 'SandboxFile'],
+    ['Middleware_SandboxShell', 'SandboxShell'],
+    ['Middleware_LoopGuard', 'LoopGuardMiddleware'],
+    ['Middleware_ModelRetry', 'ModelRetryMiddleware'],
+    ['Middleware_ViewImage', 'ViewImageMiddleware']
+  ]
+
+  assert.ok(dsl.includes('provider: docker-sandbox'))
+  for (const [key, provider] of middlewares) {
+    assert.ok(dsl.includes(`provider: ${provider}`))
+    assert.ok(dsl.includes([
+      `    key: Agent_DocxEditor/${key}`,
+      '    from: Agent_DocxEditor',
+      `    to: ${key}`
+    ].join('\n')))
+  }
+})

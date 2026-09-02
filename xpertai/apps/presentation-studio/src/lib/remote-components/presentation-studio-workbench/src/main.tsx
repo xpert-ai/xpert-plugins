@@ -105,10 +105,15 @@ import './styles.css'
 import { createUuid } from './browser-crypto'
 import { debug, setDebugDefault } from './debug-logger'
 import { translator } from './i18n'
-import { executeAction, executeFileAction, invokeClientCommand, isObject, notify, payload, reportResize, requestData, startRemoteBridge } from './runtime'
+import { executeAction, executeFileAction, invokeClientCommand, isObject, notify, payload, reportResize, requestData, requestFileAccess, startRemoteBridge } from './runtime'
 import { unwrapRemoteResponse } from './response-data'
 import { installDashiRuntimeBridge, loadNativeThemeRuntime, type LoadedNativeRuntime } from './native-runtime'
 import { NativeSlideSurface } from './native-slide-surface'
+import {
+  hydrateThemePreviewAccess,
+  themePreviewAccessNeedsRefresh,
+  themePreviewAccessRefreshDelay
+} from './theme-preview-access'
 import { normalizePresentationToolEvent } from './tool-event-refresh'
 import type {
   AssetPreview,
@@ -128,6 +133,7 @@ import type {
   RemoteContext,
   ShareAccessMode,
   SharePolicy,
+  ThemePreviewDescriptor,
   ThemePreviewItem,
   VersionSummary
 } from './types'
@@ -232,6 +238,8 @@ function App() {
   const awarenessRef = React.useRef<AwarenessPatch>({ protocolVersion: 2, mode: 'edit' })
   const requestedTextFieldsRef = React.useRef(new Set<string>())
   const downloadedExportsRef = React.useRef(new Set<string>())
+  const themePreviewLoadRef = React.useRef<Promise<void> | null>(null)
+  const themePreviewAccessFailuresRef = React.useRef(new Set<string>())
   const autoDownloadExportsRef = React.useRef(new Set<string>())
   const controlTimersRef = React.useRef(new Map<string, number>())
   const autoOpenAttemptedRef = React.useRef(false)
@@ -389,24 +397,52 @@ function App() {
     }
   }, [startCollaboration])
 
+  const loadThemePreviews = React.useCallback(async () => {
+    const current = themePreviewLoadRef.current
+    if (current) {
+      await current
+      return
+    }
+    const pending = (async () => {
+      setThemePreviewsBusy(true)
+      setError('')
+      try {
+        const result = actionData<{ title: string; items: JsonValue[] }>(
+          await executeAction('load_theme_previews', null, {})
+        )
+        const descriptors = Array.isArray(result.items)
+          ? result.items.map(toThemePreviewDescriptor).filter((item): item is ThemePreviewDescriptor => item !== null)
+          : []
+        setThemePreviews(await hydrateThemePreviewAccess(descriptors, requestFileAccess))
+      } catch (caught) {
+        setError(messageOf(caught))
+        notify('error', messageOf(caught))
+      } finally {
+        setThemePreviewsBusy(false)
+      }
+    })()
+    themePreviewLoadRef.current = pending
+    try {
+      await pending
+    } finally {
+      if (themePreviewLoadRef.current === pending) themePreviewLoadRef.current = null
+    }
+  }, [])
+
   const openThemePreviews = React.useCallback(async () => {
     setWorkspaceMode('theme-previews')
     setPresenting(false)
-    if (themePreviews.length || themePreviewsBusy) return
-    setThemePreviewsBusy(true)
-    setError('')
-    try {
-      const result = actionData<{ title: string; items: ThemePreviewItem[] }>(
-        await executeAction('load_theme_previews', null, {})
-      )
-      setThemePreviews(Array.isArray(result.items) ? result.items.map(toThemePreviewItem).filter((item): item is ThemePreviewItem => item !== null) : [])
-    } catch (caught) {
-      setError(messageOf(caught))
-      notify('error', messageOf(caught))
-    } finally {
-      setThemePreviewsBusy(false)
-    }
-  }, [themePreviews.length, themePreviewsBusy])
+    if (!themePreviewAccessNeedsRefresh(themePreviews)) return
+    await loadThemePreviews()
+  }, [loadThemePreviews, themePreviews])
+
+  const handleThemePreviewAccessError = React.useCallback((item: ThemePreviewItem) => {
+    if (!item.accessExpiresAt) return
+    const failureKey = `${item.fileKey}:${item.fileUrl}`
+    if (themePreviewAccessFailuresRef.current.has(failureKey)) return
+    themePreviewAccessFailuresRef.current.add(failureKey)
+    void loadThemePreviews()
+  }, [loadThemePreviews])
 
   const refreshDetail = React.useCallback(async (deckId: string) => {
     const response = await requestData({ parameters: { table: 'deck_detail', deckId } })
@@ -449,6 +485,14 @@ function App() {
   }, [ready, loadDecks, openDeck])
 
   React.useEffect(() => () => stopCollaboration(), [stopCollaboration])
+
+  React.useEffect(() => {
+    if (workspaceMode !== 'theme-previews' || themePreviewsBusy) return undefined
+    const delay = themePreviewAccessRefreshDelay(themePreviews)
+    if (delay === null) return undefined
+    const timer = window.setTimeout(() => void loadThemePreviews(), delay)
+    return () => window.clearTimeout(timer)
+  }, [loadThemePreviews, themePreviews, themePreviewsBusy, workspaceMode])
 
   React.useEffect(() => {
     hostEventRef.current = (event) => {
@@ -907,19 +951,31 @@ function App() {
           {leftCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
         </Button> : null}
         <strong className="ps-product-title">{t('title')}</strong>
-        <Select value={selectedId ?? undefined} onValueChange={(value) => void openDeck(value)}>
-          <SelectTrigger className="ps-deck-switcher" onPointerDown={() => setWorkspaceMode('deck')}><SelectValue placeholder={t('noDeck')} /></SelectTrigger>
-          <SelectContent>{decks.map((deck) => <SelectItem value={deck.deckId} key={deck.deckId}>{deck.title}</SelectItem>)}</SelectContent>
-        </Select>
-        <Button
-          className="ps-theme-preview-trigger"
-          variant={workspaceMode === 'theme-previews' ? 'secondary' : 'outline'}
-          aria-pressed={workspaceMode === 'theme-previews'}
-          onClick={() => void openThemePreviews()}
-        >
-          <Image />{t('themePreviews')}
-        </Button>
-        {workspaceMode === 'deck' ? <Badge variant={collabState === 'connected' || collabState === 'connecting' ? 'outline' : 'secondary'} data-status={collabState === 'connected' ? 'success' : collabState === 'connecting' ? 'warning' : undefined}>{t(collabState)}</Badge> : null}
+        <div className="ps-context-controls">
+          <Select value={selectedId ?? undefined} onValueChange={(value) => void openDeck(value)}>
+            <SelectTrigger className="ps-deck-switcher" onPointerDown={() => setWorkspaceMode('deck')}><SelectValue placeholder={t('noDeck')} /></SelectTrigger>
+            <SelectContent>{decks.map((deck) => <SelectItem value={deck.deckId} key={deck.deckId}>{deck.title}</SelectItem>)}</SelectContent>
+          </Select>
+          <Button
+            className="ps-theme-preview-trigger"
+            variant={workspaceMode === 'theme-previews' ? 'secondary' : 'outline'}
+            aria-pressed={workspaceMode === 'theme-previews'}
+            onClick={() => void openThemePreviews()}
+          >
+            <Image />
+            <span>{t('themePreviews')}</span>
+          </Button>
+          {workspaceMode === 'deck' ? <Badge
+            className="ps-connection-status"
+            variant={collabState === 'connected' || collabState === 'connecting' ? 'outline' : 'secondary'}
+            data-status={collabState === 'connected' ? 'success' : collabState === 'connecting' ? 'warning' : 'neutral'}
+            role="status"
+            aria-live="polite"
+          >
+            <span className="ps-connection-dot" aria-hidden="true" />
+            <span>{t(collabState)}</span>
+          </Badge> : null}
+        </div>
       </div>
       {workspaceMode === 'deck' ? <div className="ps-topbar-actions">
         <div className="ps-avatar-stack">
@@ -968,7 +1024,7 @@ function App() {
     {error ? <div className="ps-error-banner">{error}<Button variant="ghost" size="sm" onClick={() => setError('')}>×</Button></div> : null}
 
     <main className="ps-workspace">
-      {workspaceMode === 'theme-previews' ? <ThemePreviewGallery items={themePreviews} busy={themePreviewsBusy} t={t} /> :
+      {workspaceMode === 'theme-previews' ? <ThemePreviewGallery items={themePreviews} busy={themePreviewsBusy} onAccessError={handleThemePreviewAccessError} t={t} /> :
       <ResizablePanelGroup orientation="horizontal">
         {!leftCollapsed ? <>
           <ResizablePanel defaultSize="18%" minSize="14%" maxSize="24%" className="ps-panel ps-left-panel">
@@ -1072,6 +1128,7 @@ function App() {
 function ThemePreviewGallery(props: {
   items: ThemePreviewItem[]
   busy: boolean
+  onAccessError(item: ThemePreviewItem): void
   t: ReturnType<typeof translator>
 }) {
   return <section className="ps-theme-preview-workspace" aria-label={props.t('themePreviews')}>
@@ -1085,7 +1142,12 @@ function ThemePreviewGallery(props: {
     {props.busy && !props.items.length ? <div className="ps-loading">{props.t('loadingThemePreviews')}</div> :
       <ol className="ps-theme-preview-list">
         {props.items.map((item) => <li className="ps-theme-preview-page" key={item.themePack}>
-          <img src={item.fileUrl} alt={`${item.themePack} ${item.displayName}`} loading="lazy" />
+          <img
+            src={item.fileUrl}
+            alt={`${item.themePack} ${item.displayName}`}
+            loading="lazy"
+            onError={item.accessExpiresAt ? () => props.onAccessError(item) : undefined}
+          />
         </li>)}
       </ol>}
   </section>
@@ -1383,13 +1445,16 @@ async function loadAssetPreviewBatch(deckId: string, assetIds: string[]) {
   return Array.isArray(result.items) ? result.items : []
 }
 
-function toThemePreviewItem(value: ThemePreviewItem): ThemePreviewItem | null {
-  if (!isObject(value) || typeof value.themePack !== 'string' || typeof value.displayName !== 'string' || typeof value.scenario !== 'string' || typeof value.fileUrl !== 'string') return null
+function toThemePreviewDescriptor(value: JsonValue): ThemePreviewDescriptor | null {
+  if (!isObject(value) || typeof value.themePack !== 'string' || typeof value.displayName !== 'string' || typeof value.scenario !== 'string') return null
+  const fileKey = typeof value.fileKey === 'string' && value.fileKey.trim() ? value.fileKey.trim() : value.themePack
+  const fileUrl = typeof value.fileUrl === 'string' && value.fileUrl.trim() ? value.fileUrl.trim() : undefined
   return {
     themePack: value.themePack,
+    fileKey,
     displayName: value.displayName,
     scenario: value.scenario,
-    fileUrl: value.fileUrl
+    ...(fileUrl ? { fileUrl } : {})
   }
 }
 

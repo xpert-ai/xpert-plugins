@@ -238,10 +238,7 @@ export class OfficeCliService {
   async listVersions(scope: OfficeCliScope, documentId: string) {
     await this.requireDocument(scope, documentId)
     return this.versionRepository.find({
-      where: {
-        ...scopedVersionWhere(scope),
-        documentId
-      },
+      where: { documentId },
       order: { versionNumber: 'DESC' },
       take: 100
     })
@@ -252,7 +249,6 @@ export class OfficeCliService {
     assertExpectedVersion(document, input.expectedVersionNumber)
     const sourceVersion = await this.versionRepository.findOne({
       where: {
-        ...scopedVersionWhere(scope),
         id: input.versionId,
         documentId: input.documentId
       }
@@ -305,10 +301,7 @@ export class OfficeCliService {
   async deleteDocument(scope: OfficeCliScope, documentId: string) {
     const document = await this.requireDocument(scope, documentId)
     const versions = await this.versionRepository.find({
-      where: {
-        ...scopedVersionWhere(scope),
-        documentId
-      }
+      where: { documentId }
     })
     const workspaceFiles = this.runtimeCapabilities?.get<OfficeCliWorkspaceFilesApi>(
       OFFICE_CLI_WORKSPACE_FILES_RUNTIME_CAPABILITY
@@ -348,10 +341,7 @@ export class OfficeCliService {
     } else {
       failedWorkspaceFiles = versions.length + (document.workspaceFilePath ? 1 : 0)
     }
-    await this.versionRepository.delete({
-      ...scopedVersionWhere(scope),
-      documentId
-    })
+    await this.versionRepository.delete({ documentId })
     await this.documentRepository.delete({
       ...scopedDocumentWhere(scope),
       id: documentId
@@ -785,21 +775,17 @@ export class OfficeCliService {
       if (persistedVersion?.id) {
         try {
           await this.versionRepository.delete({
-            ...scopedVersionWhere(scope),
-            id: persistedVersion.id
+            id: persistedVersion.id,
+            documentId
           })
         } catch {
           // Preserve the primary error; cleanup remains best effort.
         }
       }
-      try {
-        await workspaceFiles.deleteFile({
-          ...workspaceScope,
-          filePath: versionUpload.filePath
-        })
-      } catch {
-        // Preserve the primary error; cleanup remains best effort.
-      }
+      // Version paths are deterministic by version number and checksum. A concurrent
+      // writer may already have committed the same path, so deleting it here can
+      // remove the successful writer's archive. Orphan cleanup must verify database
+      // references before removing a version file.
       const priorCurrentPath = normalizeOptional(currentDocument.workspaceFilePath)
       if (!priorCurrentPath || priorCurrentPath !== currentUpload.filePath) {
         try {
@@ -817,10 +803,7 @@ export class OfficeCliService {
 
   private async pruneOldVersions(scope: OfficeCliScope, documentId: string) {
     const obsoleteVersions = await this.versionRepository.find({
-      where: {
-        ...scopedVersionWhere(scope),
-        documentId
-      },
+      where: { documentId },
       order: { versionNumber: 'DESC' },
       skip: MAX_RETAINED_VERSIONS
     })
@@ -837,8 +820,8 @@ export class OfficeCliService {
           filePath: version.workspaceFilePath
         })
         await this.versionRepository.delete({
-          ...scopedVersionWhere(scope),
-          id: version.id
+          id: version.id,
+          documentId
         })
       } catch {
         // Retention cleanup is best effort and must not fail a successful document save.
@@ -866,7 +849,6 @@ export class OfficeCliService {
     }
     const version = await this.versionRepository.findOne({
       where: {
-        ...scopedVersionWhere(scope),
         id: document.currentVersionId,
         documentId: requireId(document.id, 'OfficeCLI document id is required.')
       }
@@ -1121,11 +1103,12 @@ function normalizeWordAccentColor(value: string | null | undefined) {
 }
 
 function scopedCreate(scope: OfficeCliScope) {
+  const projectId = normalizeOptional(scope.projectId)
   return {
     tenantId: normalizeOptional(scope.tenantId),
     organizationId: normalizeOptional(scope.organizationId),
-    workspaceId: normalizeOptional(scope.workspaceId),
-    projectId: normalizeOptional(scope.projectId)
+    workspaceId: projectId ? null : normalizeOptional(scope.workspaceId),
+    projectId
   }
 }
 
@@ -1135,22 +1118,23 @@ function scopedDocumentWhere(scope: OfficeCliScope): FindOptionsWhere<OfficeCliD
   return {
     tenantId: normalizeOptional(scope.tenantId) ?? IsNull(),
     organizationId: normalizeOptional(scope.organizationId) ?? IsNull(),
-    workspaceId: normalizeOptional(scope.workspaceId) ?? IsNull(),
+    workspaceId: projectId ? IsNull() : normalizeOptional(scope.workspaceId) ?? IsNull(),
     projectId: projectId ?? IsNull(),
-    ...(projectId ? {} : { assistantId: assistantId ?? IsNull() })
-  }
-}
-
-function scopedVersionWhere(scope: OfficeCliScope): FindOptionsWhere<OfficeCliVersion> {
-  return {
-    tenantId: normalizeOptional(scope.tenantId) ?? IsNull(),
-    organizationId: normalizeOptional(scope.organizationId) ?? IsNull(),
-    workspaceId: normalizeOptional(scope.workspaceId) ?? IsNull(),
-    projectId: normalizeOptional(scope.projectId) ?? IsNull()
+    ...(projectId
+      ? {}
+      : {
+          assistantId: assistantId ?? IsNull(),
+          ...(scope.workspaceFiles?.isolateByUser
+            ? { createdById: normalizeOptional(scope.userId) ?? IsNull() }
+            : {})
+        })
   }
 }
 
 function resolveWorkspaceScope(scope: OfficeCliScope): OfficeCliWorkspaceFileScope {
+  if (scope.workspaceFiles) {
+    return { ...scope.workspaceFiles }
+  }
   const projectId = normalizeOptional(scope.projectId)
   if (projectId) {
     return {
@@ -1187,6 +1171,16 @@ function resolveVersionWorkspaceScope(scope: OfficeCliScope, version: OfficeCliV
       isolateByUser: false
     }
   }
+  if (version.workspaceCatalog === 'user-xperts') {
+    return {
+      tenantId: normalizeOptional(scope.tenantId),
+      userId: normalizeOptional(scope.userId),
+      catalog: 'user-xperts',
+      scopeId: version.workspaceScopeId,
+      xpertId: version.workspaceScopeId,
+      isolateByUser: true
+    }
+  }
   return {
     tenantId: normalizeOptional(scope.tenantId),
     userId: normalizeOptional(scope.userId),
@@ -1209,6 +1203,16 @@ function resolveDocumentWorkspaceScope(
       scopeId: document.workspaceScopeId,
       projectId: document.workspaceScopeId,
       isolateByUser: false
+    }
+  }
+  if (document.workspaceCatalog === 'user-xperts' && document.workspaceScopeId) {
+    return {
+      tenantId: normalizeOptional(scope.tenantId),
+      userId: normalizeOptional(scope.userId),
+      catalog: 'user-xperts',
+      scopeId: document.workspaceScopeId,
+      xpertId: document.workspaceScopeId,
+      isolateByUser: true
     }
   }
   if (document.workspaceCatalog === 'xperts' && document.workspaceScopeId) {
