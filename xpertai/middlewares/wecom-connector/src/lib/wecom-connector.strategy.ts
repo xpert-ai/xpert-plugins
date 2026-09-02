@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto'
-import { Injectable } from '@nestjs/common'
+import * as tls from 'node:tls'
+import { Injectable, type OnModuleDestroy } from '@nestjs/common'
 import {
   ConnectorStrategyKey,
   type ConnectorConnectInput,
@@ -11,6 +12,7 @@ import {
   type ConnectorRuntimeCredentialResolveInput,
   type RuntimeI18nText
 } from '@xpert-ai/plugin-sdk'
+import { EnvHttpProxyAgent, fetch as undiciFetch, type Dispatcher, type RequestInit } from 'undici'
 import {
   WECOM_CLI_AUTH_URL,
   WECOM_CLI_QR_AUTH_METHOD,
@@ -28,6 +30,7 @@ import {
   requireString,
   type WeComBotCredential
 } from './types.js'
+import { WeComCliBootstrapService } from './wecom-cli-bootstrap.service.js'
 
 type PendingQrAuthorization = {
   version: 1
@@ -62,7 +65,23 @@ type WeComConnectorDefinition = Omit<ConnectorMultiAuthDefinition, 'authMethods'
 
 @Injectable()
 @ConnectorStrategyKey(WECOM_CONNECTOR_PROVIDER)
-export class WeComConnectorStrategy implements ConnectorMultiAuthStrategy {
+export class WeComConnectorStrategy implements ConnectorMultiAuthStrategy, OnModuleDestroy {
+  private readonly dispatcher: Dispatcher
+
+  constructor(bootstrap: WeComCliBootstrapService) {
+    const { proxy } = bootstrap.resolveConfig()
+    const requestCa = resolveRequestCa()
+    this.dispatcher = new EnvHttpProxyAgent({
+      httpProxy: proxy,
+      httpsProxy: proxy,
+      ...(requestCa ? { requestTls: { ca: requestCa } } : {})
+    })
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    await this.dispatcher.close()
+  }
+
   readonly definition: WeComConnectorDefinition = {
     provider: WECOM_CONNECTOR_PROVIDER,
     label: { en_US: 'WeCom', zh_Hans: '企业微信' },
@@ -122,7 +141,7 @@ export class WeComConnectorStrategy implements ConnectorMultiAuthStrategy {
     }
     requireQrAuthMethod(input.authMethodId)
 
-    const qr = await createQrAuthorization()
+    const qr = await createQrAuthorization(this.dispatcher)
     const now = Date.now()
     const metadata: PendingQrAuthorization = {
       version: 1,
@@ -147,7 +166,7 @@ export class WeComConnectorStrategy implements ConnectorMultiAuthStrategy {
       return { status: 'error', error: 'WeCom QR authorization timed out. Start the connection again.' }
     }
 
-    const result = await queryQrAuthorization(pending.scode)
+    const result = await queryQrAuthorization(pending.scode, this.dispatcher)
     if (!result) {
       return {
         status: 'pending',
@@ -156,7 +175,7 @@ export class WeComConnectorStrategy implements ConnectorMultiAuthStrategy {
       }
     }
 
-    await validateBotCredential(result, 2)
+    await validateBotCredential(result, 2, this.dispatcher)
     return { status: 'complete', credential: activeCredential(result).credential }
   }
 
@@ -187,11 +206,11 @@ function activeCredential(credential: WeComBotCredential) {
   }
 }
 
-async function createQrAuthorization(): Promise<WeComQrGenerateData> {
+async function createQrAuthorization(dispatcher: Dispatcher): Promise<WeComQrGenerateData> {
   const url = new URL(WECOM_QR_GENERATE_URL)
   url.searchParams.set('source', WECOM_QR_SOURCE)
   url.searchParams.set('plat', '3')
-  const payload = await fetchJson(url.toString())
+  const payload = await fetchJson(url.toString(), dispatcher)
   const data = isRecord(payload.data) ? payload.data : {}
   return {
     scode: requireString(data.scode, 'WeCom QR response did not include a session code.'),
@@ -199,10 +218,10 @@ async function createQrAuthorization(): Promise<WeComQrGenerateData> {
   }
 }
 
-async function queryQrAuthorization(scode: string): Promise<WeComBotCredential | null> {
+async function queryQrAuthorization(scode: string, dispatcher: Dispatcher): Promise<WeComBotCredential | null> {
   const url = new URL(WECOM_QR_QUERY_URL)
   url.searchParams.set('scode', scode)
-  const payload = await fetchJson(url.toString())
+  const payload = await fetchJson(url.toString(), dispatcher)
   const data = isRecord(payload.data) ? payload.data : {}
   if (readString(data.status) !== 'success') return null
   const bot = isRecord(data.bot_info) ? data.bot_info : {}
@@ -212,13 +231,17 @@ async function queryQrAuthorization(scode: string): Promise<WeComBotCredential |
   }
 }
 
-async function validateBotCredential(credential: WeComBotCredential, bindSource: 1 | 2): Promise<void> {
+async function validateBotCredential(
+  credential: WeComBotCredential,
+  bindSource: 1 | 2,
+  dispatcher: Dispatcher
+): Promise<void> {
   const time = Math.floor(Date.now() / 1000)
   const nonce = `cli_${Date.now()}_${randomBytes(4).toString('hex')}`
   const signature = createHash('sha256')
     .update(`${credential.botSecret}${credential.botId}${time}${nonce}`)
     .digest('hex')
-  const payload = await fetchJson(WECOM_CLI_AUTH_URL, {
+  const payload = await fetchJson(WECOM_CLI_AUTH_URL, dispatcher, {
     method: 'POST',
     headers: { accept: 'application/json', 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -236,10 +259,19 @@ async function validateBotCredential(credential: WeComBotCredential, bindSource:
   requireString(payload.token, 'WeCom AI Bot authentication did not return a token.')
 }
 
-async function fetchJson(url: string, init: RequestInit = {}): Promise<Record<string, unknown>> {
-  let response: Response
+async function fetchJson(
+  url: string,
+  dispatcher: Dispatcher,
+  init: RequestInit = {}
+): Promise<Record<string, unknown>> {
+  let response: Awaited<ReturnType<typeof undiciFetch>>
   try {
-    response = await fetch(url, { ...init, signal: init.signal ?? AbortSignal.timeout(15_000) })
+    const requestInit: RequestInit = {
+      ...init,
+      dispatcher,
+      signal: init.signal ?? AbortSignal.timeout(15_000)
+    }
+    response = await undiciFetch(url, requestInit)
   } catch (error) {
     throw new Error(`WeCom request failed: ${error instanceof Error ? error.message : String(error)}`)
   }
@@ -276,4 +308,27 @@ function requireQrAuthMethod(authMethodId: string): void {
   if (authMethodId !== WECOM_CLI_QR_AUTH_METHOD) {
     throw new Error(`Unsupported WeCom connector authentication method '${authMethodId}'.`)
   }
+}
+
+export function resolveRequestCa(
+  getCACertificates: unknown = Reflect.get(tls, 'getCACertificates')
+): string[] | undefined {
+  if (typeof getCACertificates !== 'function') {
+    return undefined
+  }
+
+  const readCertificates = (type: 'default' | 'system'): string[] | null => {
+    const certificates: unknown = Reflect.apply(getCACertificates, tls, [type])
+    return Array.isArray(certificates) &&
+      certificates.every((certificate): certificate is string => typeof certificate === 'string')
+      ? certificates
+      : null
+  }
+  const defaultCertificates = readCertificates('default')
+  if (!defaultCertificates?.length) {
+    return undefined
+  }
+  const systemCertificates = readCertificates('system') ?? []
+
+  return [...new Set([...defaultCertificates, ...systemCertificates])]
 }
