@@ -57,7 +57,7 @@ export class DingTalkConnectorStrategy implements ConnectorMultiAuthStrategy {
     },
     description: {
       en_US: 'Connect DingTalk using the tenant system integration when available, otherwise the current organization integration.',
-      zh_Hans: '优先使用租户级系统集成，没有可用配置时回退到当前组织系统集成。'
+      zh_Hans: '优先使用组织级系统集成，没有可用组织配置时使用租户级系统集成。'
     },
     icon: DINGTALK_CONNECTOR_ICON,
     authMethods: [
@@ -243,7 +243,7 @@ export class DingTalkConnectorStrategy implements ConnectorMultiAuthStrategy {
 
     const tenantIntegrations = integrations.filter((item) => item.organizationId == null)
     const organizationIntegrations = integrations.filter((item) => item.organizationId === organizationId)
-    const candidates = tenantIntegrations.length ? tenantIntegrations : organizationIntegrations
+    const candidates = organizationIntegrations.length ? organizationIntegrations : tenantIntegrations
     if (!candidates.length) {
       throw new Error(
         'DingTalk Connector OAuth system integration is not configured for the current tenant or organization. Configure Client ID (AppKey) and Client Secret (AppSecret) in a system integration.'

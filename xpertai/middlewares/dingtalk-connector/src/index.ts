@@ -23,7 +23,7 @@ const plugin: XpertPlugin = {
     icon: DINGTALK_CONNECTOR_ICON,
     displayName: 'DingTalk Connector',
     description:
-      'Connects a workspace to DingTalk with a tenant-level system integration when available, falling back to the current organization integration.',
+      'Connects a workspace to DingTalk with the current organization system integration when available, falling back to the tenant integration.',
     keywords: ['dingtalk', 'connector', 'oauth', 'middleware'],
     author: 'XpertAI Team'
   },

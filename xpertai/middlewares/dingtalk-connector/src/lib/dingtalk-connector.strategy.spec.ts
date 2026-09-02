@@ -62,7 +62,7 @@ describe('DingTalkConnectorStrategy', () => {
     })
   })
 
-  it('uses the tenant-level system integration when it is available', async () => {
+  it('uses the tenant-level system integration when organization configuration is unavailable', async () => {
     const strategy = createStrategy(true, DINGTALK_CONNECTOR_INTEGRATION_PROVIDER, undefined, null)
 
     const result = await strategy.connect({
@@ -88,7 +88,7 @@ describe('DingTalkConnectorStrategy', () => {
     ).rejects.toThrow('is not configured for the current tenant or organization')
   })
 
-  it('prefers the tenant integration over the organization fallback', async () => {
+  it('prefers the organization integration over the tenant fallback', async () => {
     const { strategy } = createHarness(
       true,
       DINGTALK_CONNECTOR_INTEGRATION_PROVIDER,
@@ -110,13 +110,13 @@ describe('DingTalkConnectorStrategy', () => {
     const result = await strategy.connect({
       authMethodId: 'oauth2',
       redirectUri: 'https://xpert.example.com/api/connector/oauth/callback',
-      state: 'tenant-priority-state'
+      state: 'organization-priority-state'
     })
 
     expect(result.status).toBe('pending')
     if (result.status !== 'pending') throw new Error('Expected pending OAuth result')
-    expect(new URL(result.authorizationUrl).searchParams.get('client_id')).toBe('system-client')
-    expect(result.metadata).toEqual({ integrationId: 'integration-1' })
+    expect(new URL(result.authorizationUrl).searchParams.get('client_id')).toBe('organization-client')
+    expect(result.metadata).toEqual({ integrationId: 'organization-integration' })
   })
 
   it('requires the connector plugin to run at organization scope', async () => {

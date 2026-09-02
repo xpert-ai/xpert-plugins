@@ -25,8 +25,8 @@ export class DingTalkConnectorIntegrationStrategy implements IntegrationStrategy
     name: DINGTALK_CONNECTOR_INTEGRATION_PROVIDER,
     label: i18n('DingTalk Connector OAuth', '钉钉连接器 OAuth'),
     description: i18n(
-      'Tenant-level DingTalk OAuth application credentials are preferred; an organization-specific integration is used as a fallback. Robot Code is optional.',
-      '优先使用租户级钉钉 OAuth 应用凭据；没有可用租户配置时回退到当前组织配置。机器人编码为可选项。'
+      'Organization-level DingTalk OAuth application credentials are preferred; the tenant integration is used as a fallback. Robot Code is optional.',
+      '优先使用组织级钉钉 OAuth 应用凭据；没有可用组织配置时使用租户级配置。机器人编码为可选项。'
     ),
     icon: DINGTALK_CONNECTOR_ICON,
     helpUrl: 'https://open.dingtalk.com/document/orgapp/tutorial-obtaining-user-personal-information',
