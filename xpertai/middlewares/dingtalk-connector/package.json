@@ -30,6 +30,11 @@
     "dist",
     "!**/*.tsbuildinfo"
   ],
+  "xpert": {
+    "plugin": {
+      "level": "organization"
+    }
+  },
   "dependencies": {
     "tslib": "^2.3.0"
   },
