@@ -56,7 +56,7 @@ export class DingTalkConnectorStrategy implements ConnectorMultiAuthStrategy {
       zh_Hans: '钉钉'
     },
     description: {
-      en_US: 'Connect DingTalk using the tenant system integration when available, otherwise the current organization integration.',
+      en_US: 'Connect DingTalk using the current organization system integration when available, otherwise the tenant integration.',
       zh_Hans: '优先使用组织级系统集成，没有可用组织配置时使用租户级系统集成。'
     },
     icon: DINGTALK_CONNECTOR_ICON,
@@ -215,12 +215,12 @@ export class DingTalkConnectorStrategy implements ConnectorMultiAuthStrategy {
       'DingTalk Connector must be installed and used at organization scope'
     )
     const id = readString(integrationId)
-    const findAllWithInheritance = this.integrationPermissionService.findAllWithInheritance
-    if (!findAllWithInheritance) {
+    const permissionService = this.integrationPermissionService
+    if (!permissionService.findAllWithInheritance) {
       throw new Error('The host does not support tenant and organization system integration lookup')
     }
 
-    const result = await findAllWithInheritance<IIntegration<DingTalkOAuthIntegrationOptions>>({
+    const result = await permissionService.findAllWithInheritance<IIntegration<DingTalkOAuthIntegrationOptions>>({
       where: {
         provider: DINGTALK_CONNECTOR_INTEGRATION_PROVIDER,
         ...(id ? { id } : {})

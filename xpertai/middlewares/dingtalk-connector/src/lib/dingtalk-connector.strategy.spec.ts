@@ -388,9 +388,12 @@ function createHarness(
   }
   const items = withIntegration ? [integration, ...additionalIntegrations] : additionalIntegrations
   const integrationPermissionService = {
+    items,
     read: jest.fn().mockResolvedValue(withIntegration ? integration : null),
     findAll: jest.fn().mockResolvedValue({ items, total: items.length }),
-    findAllWithInheritance: jest.fn().mockResolvedValue({ items, total: items.length })
+    findAllWithInheritance: jest.fn(function (this: { items: Array<Record<string, unknown>> }) {
+      return Promise.resolve({ items: this.items, total: this.items.length })
+    })
   }
   const pluginContext = {
     tenantId: 'tenant-1',
