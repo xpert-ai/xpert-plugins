@@ -329,6 +329,9 @@
     },
     {
       "path": "./middlewares/amap-connector"
+    },
+    {
+      "path": "./middlewares/baidu-netdisk-connector"
     }
   ]
 }

@@ -1,0 +1,60 @@
+---
+title: 'Quickstart'
+description: 'Configure the tenant OAuth application and connect a Baidu account from Xpert.'
+---
+
+## 1. Create the Baidu application
+
+Create an application in the [Baidu Netdisk Open Platform](https://pan.baidu.com/union/doc/%E4%BD%BF%E7%94%A8%E5%85%A5%E9%97%A8/%E5%88%9B%E5%BB%BA%E5%BA%94%E7%94%A8/). Complete the required enterprise verification and request the minimum Netdisk permissions needed by the tenant.
+
+Register the exact Xpert callback URL:
+
+```text
+<XPERT_BASE_URL>/api/connector/oauth/callback
+```
+
+Keep the application `AppKey` and `SecretKey` ready for a tenant-level Xpert System Integration. They are not user-facing connection fields.
+
+## 2. Configure the tenant System Integration
+
+Open **Settings -> System Integration** at tenant scope, create **Baidu Netdisk OAuth**, and enter:
+
+```json
+{
+  "appKey": "<Baidu AppKey>",
+  "secretKey": "<Baidu SecretKey>",
+  "scopes": ["basic", "netdisk"]
+}
+```
+
+The integration is tenant-owned and cannot be created at organization scope. Xpert validates the required fields and stores the secret through the platform's integration secret handling.
+
+## 3. Configure the plugin
+
+Install `@xpert-ai/plugin-baidu-netdisk-connector` at tenant scope and set:
+
+```json
+{
+  "pathPolicy": {
+    "mode": "app_folder",
+    "appFolder": "/apps/xpert",
+    "allowOutsideAppFolder": false
+  }
+}
+```
+
+The plugin configuration is tenant-scoped and controls runtime policy defaults. The connector validates HTTPS OAuth/API origins, bounds response size and timeout, and applies defaults for omitted policy and limit fields. Do not put OAuth application credentials or a user's access token in plugin configuration.
+
+When upgrading from an earlier build that stored an `oauth` block in organization plugin configuration, copy its values to the tenant System Integration first, then remove the old block. The current connector does not read organization-level OAuth credentials.
+
+## 4. Connect as a user
+
+In the Xpert workspace connector page, choose **Baidu Netdisk** and click **Connect**. Xpert opens `https://openapi.baidu.com/oauth/2.0/authorize` in the browser. After approval, the callback is handled server-side and the user sees a connected state similar to the WorkBuddy flow.
+
+## 5. Add runtime middleware
+
+Attach the hidden middleware `ConnectorRuntime:baidu-netdisk` to the Agent. The middleware receives the workspace identity from Xpert runtime context; an Agent cannot select an arbitrary tenant, user, or access token.
+
+## 6. Verify
+
+Run `baidu_netdisk_connection_status`, then `baidu_netdisk_list_files` with `/apps/xpert` (or the configured root). Pass exact returned paths or file IDs to follow-up operations.

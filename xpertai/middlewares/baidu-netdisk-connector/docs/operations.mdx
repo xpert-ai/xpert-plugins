@@ -1,0 +1,30 @@
+---
+title: 'Operations'
+description: 'Operational checks, failure handling, and capability rollout.'
+---
+
+## Connection lifecycle
+
+The host owns connector records and vault persistence. On access-token expiry, the host invokes the strategy refresh hook. Baidu may rotate the refresh token; the strategy persists the newly returned token rather than retaining the old one.
+
+OAuth refresh uses the tenant System Integration recorded when the user authorized. If that integration is deleted or moved to organization scope, reconnect after fixing the tenant configuration.
+
+On disconnect, revoke or remove the connector record in the host vault and remove the Baidu authorization from the user's Baidu account authorization management page.
+
+## Error handling
+
+The plugin returns stable codes such as `CONNECTOR_UNAVAILABLE`, `CONFIGURATION_INVALID`, `OAUTH_STATE_INVALID`, `AUTHENTICATION_FAILED`, `PERMISSION_DENIED`, `PATH_OUTSIDE_ALLOWED_ROOT`, `RESPONSE_TOO_LARGE`, and `UPSTREAM_TIMEOUT`. Messages are user-readable and do not include access tokens, refresh tokens, client secrets, or full authenticated URLs.
+
+Retry transient upstream failures at the host job boundary with bounded exponential backoff. Do not blindly retry delete, move, rename, or copy without an operation receipt or a fresh read of the target path.
+
+## Capability rollout
+
+Workspace-file upload and bounded text upload use the verified three-step Baidu upload contract. Keep `capabilities.delete` set to `false` until the organization approves destructive operations. URL transfer and sharing are not exposed until each operation has an approved production contract, audit event, and idempotency policy.
+
+## Verification checklist
+
+- Build and typecheck the plugin.
+- Run unit tests for OAuth URL construction, malformed token responses, path traversal, response mapping, strict tool schemas, semantic-search encoding, and upload/rapid-upload flows.
+- Install with the Xpert plugin development harness and inspect the manifest/config schema.
+- In staging, verify the callback URL, refresh-token rotation, revoked authorization, permission denial, quota errors, and a path outside the configured root.
+- Confirm logs contain operation names and stable error codes but no bearer credentials.

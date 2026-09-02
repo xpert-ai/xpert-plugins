@@ -1,0 +1,44 @@
+---
+title: 'Baidu Netdisk connector'
+description: 'Connect an Xpert workspace to Baidu Netdisk through platform-managed OAuth and bounded Agent tools.'
+---
+
+The Baidu Netdisk connector is installed at tenant scope. A tenant administrator supplies one approved Baidu Open Platform application in the **Baidu Netdisk OAuth** tenant-level System Integration. Tenant plugin configuration contains only runtime policy and limits. Users in each organization then connect their own Baidu account from the Xpert connector page.
+
+The connector uses the first tenant-level integration for this provider when more than one exists. Keep one active Baidu Netdisk OAuth integration per tenant to avoid ambiguity.
+
+## Administrator setup
+
+1. Open **Settings -> System Integration** at tenant scope.
+2. Create **Baidu Netdisk OAuth** and enter the Baidu `AppKey` and `SecretKey`; keep the default `basic` and `netdisk` scopes unless the Baidu application was approved for a narrower set.
+3. Save and validate the integration. Do not enter these values in the tenant plugin configuration.
+
+## End-user experience
+
+1. The user opens the connector page and clicks **Connect**.
+2. Xpert creates a short-lived OAuth state and redirects the browser to Baidu's official authorization page.
+3. The user signs in to Baidu if needed and approves the requested scopes.
+4. Baidu redirects to the Xpert callback. Xpert exchanges the one-time code server-side and stores the resulting credential in the platform vault.
+5. Agent middleware resolves that credential only for the active workspace.
+
+No browser automation, copied access token, or end-user app credential is required.
+
+## Included tools
+
+| Tool                                                    | Purpose                                                                    |
+| ------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `baidu_netdisk_connection_status`                       | Confirm an active workspace connection without returning credentials       |
+| `baidu_netdisk_get_quota`                               | Read used, total, and free capacity                                        |
+| `baidu_netdisk_get_user_info`                           | Read allowlisted account metadata                                          |
+| `baidu_netdisk_list_files`                              | List one directory with an exact path and bounded page                     |
+| `baidu_netdisk_get_file`                                | Read metadata for exact file IDs returned by the connector                 |
+| `baidu_netdisk_search_files`                            | Search file names by keyword                                               |
+| `baidu_netdisk_semantic_search`                         | Search supported indexed content using a natural-language query            |
+| `baidu_netdisk_create_folder`                           | Create one directory under the allowed root                                |
+| `baidu_netdisk_copy_files` / `baidu_netdisk_move_files` | Copy or move exact source paths                                            |
+| `baidu_netdisk_rename_file`                             | Rename one exact path                                                      |
+| `baidu_netdisk_upload_workspace_file`                   | Upload a scoped Xpert Workspace file with Baidu's verified three-step flow |
+| `baidu_netdisk_upload_text`                             | Save up to 20,000 characters as a UTF-8 file                               |
+| `baidu_netdisk_delete_files`                            | Delete exact paths only with `confirmed: true` and an enabled capability   |
+
+URL transfer and share links remain disabled extension points until the corresponding Baidu service contracts are approved.
