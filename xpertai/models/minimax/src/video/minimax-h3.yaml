@@ -1,0 +1,32 @@
+model: MiniMax-H3
+label:
+  en_US: MiniMax H3
+  zh_Hans: MiniMax H3
+model_type: video
+features: []
+model_properties:
+  mode: video
+parameter_rules: []
+pricing:
+  type: usage
+  rules:
+    - id: minimax-h3-768p-output-second
+      version: "2026-09-02"
+      effective_from: "2026-09-02T00:00:00+08:00"
+      unit: second
+      unit_size: 1
+      unit_price: 0.5
+      currency: CNY
+      charge_type: paid
+      dimensions: { resolution: 768P }
+      source_url: https://platform.minimaxi.com/docs/guides/pricing-paygo
+    - id: minimax-h3-2k-output-second
+      version: "2026-09-02"
+      effective_from: "2026-09-02T00:00:00+08:00"
+      unit: second
+      unit_size: 1
+      unit_price: 0.8
+      currency: CNY
+      charge_type: paid
+      dimensions: { resolution: 2K }
+      source_url: https://platform.minimaxi.com/docs/guides/pricing-paygo

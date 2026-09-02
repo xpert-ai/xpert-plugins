@@ -1,0 +1,110 @@
+model: MiniMax-M3
+label:
+  en_US: MiniMax-M3
+  zh_Hans: MiniMax-M3
+model_type: llm
+features:
+  - agent-thought
+  - tool-call
+  - stream-tool-call
+model_properties:
+  mode: chat
+  context_size: 1000000
+parameter_rules:
+  - name: temperature
+    use_template: temperature
+    min: 0.01
+    max: 1
+    default: 0.1
+  - name: top_p
+    use_template: top_p
+    min: 0.01
+    max: 1
+    default: 0.95
+  - name: max_tokens
+    use_template: max_tokens
+    required: true
+    default: 10240
+    min: 1
+    max: 128000
+  - name: service_tier
+    label:
+      en_US: Service tier
+      zh_Hans: 服务等级
+    type: select
+    default: standard
+    options:
+      - value: standard
+        label:
+          en_US: Standard
+          zh_Hans: 标准
+      - value: priority
+        label:
+          en_US: Priority
+          zh_Hans: 优先
+pricing:
+  input: "4.2"
+  output: "16.8"
+  unit: "0.000001"
+  currency: RMB
+  rules:
+    - component: input
+      unit_price: 4.2
+      unit_size: 1000000
+      max_input_tokens: 512000
+      service_tier: standard
+    - component: cache_read_input
+      unit_price: 0.84
+      unit_size: 1000000
+      max_input_tokens: 512000
+      service_tier: standard
+    - component: output
+      unit_price: 16.8
+      unit_size: 1000000
+      max_input_tokens: 512000
+      service_tier: standard
+    - component: input
+      unit_price: 8.4
+      unit_size: 1000000
+      min_input_tokens: 512001
+      service_tier: standard
+    - component: cache_read_input
+      unit_price: 1.68
+      unit_size: 1000000
+      min_input_tokens: 512001
+      service_tier: standard
+    - component: output
+      unit_price: 33.6
+      unit_size: 1000000
+      min_input_tokens: 512001
+      service_tier: standard
+    - component: input
+      unit_price: 6.3
+      unit_size: 1000000
+      max_input_tokens: 512000
+      service_tier: priority
+    - component: cache_read_input
+      unit_price: 1.26
+      unit_size: 1000000
+      max_input_tokens: 512000
+      service_tier: priority
+    - component: output
+      unit_price: 25.2
+      unit_size: 1000000
+      max_input_tokens: 512000
+      service_tier: priority
+    - component: input
+      unit_price: 12.6
+      unit_size: 1000000
+      min_input_tokens: 512001
+      service_tier: priority
+    - component: cache_read_input
+      unit_price: 2.52
+      unit_size: 1000000
+      min_input_tokens: 512001
+      service_tier: priority
+    - component: output
+      unit_price: 50.4
+      unit_size: 1000000
+      min_input_tokens: 512001
+      service_tier: priority

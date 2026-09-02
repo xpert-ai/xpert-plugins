@@ -3,8 +3,8 @@ label:
   en_US: MiniMax
   zh_Hans: MiniMax
 description:
-  en_US: MiniMax models for chat and text-to-speech.
-  zh_Hans: MiniMax 提供的对话和语音合成模型。
+  en_US: MiniMax models for chat, text-to-speech, and video generation.
+  zh_Hans: MiniMax 提供的对话、语音合成和视频生成模型。
 icon_small:
   en_US: icon_s_en.png
 icon_large:
@@ -19,6 +19,7 @@ help:
 supported_model_types:
   - llm
   - tts
+  - video
 configurate_methods:
   - predefined-model
 provider_credential_schema:

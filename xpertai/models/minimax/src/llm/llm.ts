@@ -2,7 +2,10 @@ import { AIMessage, AIMessageChunk, BaseMessage } from '@langchain/core/messages
 import { ChatGenerationChunk } from '@langchain/core/outputs';
 import { OpenAIClient } from '@langchain/openai';
 import { Injectable } from '@nestjs/common';
-import { AiModelTypeEnum, ICopilotModel } from '@xpert-ai/contracts';
+import {
+  AiModelTypeEnum,
+  ICopilotModel
+} from '@xpert-ai/contracts';
 import {
   ChatOAICompatReasoningModel,
   CredentialsValidateFailedError,
@@ -323,14 +326,19 @@ export class MiniMaxLargeLanguageModel extends LargeLanguageModel {
       ...params,
       model,
       modelKwargs: {
-        reasoning_split: true
+        reasoning_split: true,
+        ...(modelCredentials.service_tier ? { service_tier: modelCredentials.service_tier } : {})
       },
       streaming: copilotModel.options?.['streaming'] ?? true,
       temperature: copilotModel.options?.['temperature'] ?? 0,
       maxTokens: copilotModel.options?.['max_tokens'],
       verbose: options?.verbose,
       callbacks: [
-        ...this.createHandleUsageCallbacks(copilot, model, modelCredentials, handleLLMTokens)
+        ...this.createHandleUsageCallbacks(copilot, model, modelCredentials, handleLLMTokens, {
+          context: {
+            serviceTier: modelCredentials.service_tier === 'priority' ? 'priority' : 'standard'
+          }
+        })
       ]
     });
   }
