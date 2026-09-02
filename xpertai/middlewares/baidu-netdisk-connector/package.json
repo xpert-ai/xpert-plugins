@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-baidu-netdisk-connector",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Baidu Netdisk OAuth and Agent connector for XpertAI.",
   "author": {
     "name": "XpertAI",
