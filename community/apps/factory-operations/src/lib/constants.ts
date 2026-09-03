@@ -3,6 +3,12 @@ import type { IconDefinition } from '@xpert-ai/contracts'
 export const FACTORY_PLUGIN_NAME = '@xpert-ai/plugin-factory-operations'
 export const FACTORY_PLUGIN_LEVEL = 'tenant' as const
 export const FACTORY_ARTIFACT_NAMESPACE = 'factory_ops'
+export const FACTORY_TOOLSET_COMPONENT_KEY = 'factory-operations'
+export const FACTORY_TOOLSET_PROVIDER_KEY = 'factory_ops'
+export const FACTORY_MCP_CAPABILITY = 'factory-operations-mcp'
+export const FACTORY_INSIGHTS_TOOLSET_COMPONENT_KEY = 'factory-operations-insights'
+export const FACTORY_INSIGHTS_TOOLSET_PROVIDER_KEY = 'factory_ops_insights'
+export const FACTORY_INSIGHTS_MCP_CAPABILITY = 'factory-operations-insights-mcp'
 export const FACTORY_FLOW_TEMPLATE_KEY = 'factory_anomaly_recovery'
 export const FACTORY_FLOW_TEMPLATE_VERSION = 3
 export const FACTORY_VIEW_PROVIDER_KEY = 'factory_ops'
@@ -50,6 +56,7 @@ export const FACTORY_FEATURE = {
 } as const
 
 export const FACTORY_TOOL = {
+  casesSearch: 'factory_cases_search',
   caseSummary: 'factory_case_get_summary',
   caseProgress: 'factory_case_get_progress',
   dashboard: 'factory_operations_dashboard_get',
@@ -71,6 +78,14 @@ export const FACTORY_MUTATION_TOOL_NAMES = [
   FACTORY_TOOL.resources,
   FACTORY_TOOL.plan,
   FACTORY_TOOL.verification
+] as const
+
+export const FACTORY_READ_TOOL_NAMES = [
+  FACTORY_TOOL.casesSearch,
+  FACTORY_TOOL.caseSummary,
+  FACTORY_TOOL.caseProgress,
+  FACTORY_TOOL.dashboard,
+  FACTORY_TOOL.execution
 ] as const
 
 export const FACTORY_ICON_SVG = `

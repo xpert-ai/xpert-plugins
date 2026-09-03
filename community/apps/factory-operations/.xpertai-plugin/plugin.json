@@ -4,13 +4,7 @@
   "description": "Independent-Assistant factory anomaly investigation, recovery approval, execution, verification, and management monitoring.",
   "author": "XpertAI",
   "license": "AGPL-3.0",
-  "keywords": [
-    "factory-operations",
-    "anomaly-recovery",
-    "multi-agent",
-    "production",
-    "agentic-app"
-  ],
+  "keywords": ["factory-operations", "anomaly-recovery", "multi-agent", "production", "agentic-app"],
   "level": "tenant",
   "artifactNamespace": "factory_ops",
   "interface": {
@@ -31,9 +25,7 @@
     "composerIcon": "./assets/composerIcon.svg",
     "logo": "./assets/logo.svg",
     "brandColor": "#0F766E",
-    "screenshots": [
-      "./assets/screenshot-01.jpg"
-    ]
+    "screenshots": ["./assets/screenshot-01.jpg"]
   },
   "policy": {
     "installation": "AVAILABLE",
@@ -47,9 +39,7 @@
   "assets": {
     "composerIcon": "./assets/composerIcon.svg",
     "logo": "./assets/logo.svg",
-    "screenshots": [
-      "./assets/screenshot-01.jpg"
-    ]
+    "screenshots": ["./assets/screenshot-01.jpg"]
   },
   "targetApps": ["data-xpert", "xpert"],
   "targetAppMeta": {
@@ -106,13 +96,14 @@
                   "zh_Hans": "包含独立角色 Assistants、人工审批门、运营泳道和 ECharts 管理监控面板的受控工厂异常恢复应用。"
                 },
                 "developer": "XpertAI",
-                "screenshots": [
-                  "./assets/screenshot-01.jpg"
-                ],
+                "screenshots": ["./assets/screenshot-01.jpg"],
                 "features": [
                   {
                     "key": "independent-role-assistants",
-                    "title": { "en_US": "Independent role Assistants", "zh_Hans": "独立角色 Assistants" },
+                    "title": {
+                      "en_US": "Independent role Assistants",
+                      "zh_Hans": "独立角色 Assistants"
+                    },
                     "description": {
                       "en_US": "Eight lane owners are installed independently and connected through direct required External Xperts.",
                       "zh_Hans": "八个泳道责任角色独立安装，并通过必需的 External Xpert 直连完成编排。"
@@ -120,7 +111,10 @@
                   },
                   {
                     "key": "governed-recovery-pipeline",
-                    "title": { "en_US": "Governed recovery pipeline", "zh_Hans": "受控异常恢复流水线" },
+                    "title": {
+                      "en_US": "Governed recovery pipeline",
+                      "zh_Hans": "受控异常恢复流水线"
+                    },
                     "description": {
                       "en_US": "Revision-bound evidence, human approval, execution confirmations, and recovery verification remain auditable.",
                       "zh_Hans": "修订绑定证据、人工审批、执行确认与恢复验证全程可审计。"
@@ -128,7 +122,10 @@
                   },
                   {
                     "key": "management-monitoring",
-                    "title": { "en_US": "Management monitoring", "zh_Hans": "管理监控" },
+                    "title": {
+                      "en_US": "Management monitoring",
+                      "zh_Hans": "管理监控"
+                    },
                     "description": {
                       "en_US": "ECharts trends and lane bottlenecks drill down to the exact Factory Case.",
                       "zh_Hans": "ECharts 趋势与泳道瓶颈可下钻到精确 Factory Case。"
@@ -136,9 +133,18 @@
                   }
                 ],
                 "useCases": [
-                  { "en_US": "Severe equipment anomaly recovery", "zh_Hans": "严重设备异常恢复" },
-                  { "en_US": "Cross-role evidence reconciliation", "zh_Hans": "跨角色证据会诊" },
-                  { "en_US": "Recovery throughput and blocker monitoring", "zh_Hans": "恢复吞吐与阻塞监控" }
+                  {
+                    "en_US": "Severe equipment anomaly recovery",
+                    "zh_Hans": "严重设备异常恢复"
+                  },
+                  {
+                    "en_US": "Cross-role evidence reconciliation",
+                    "zh_Hans": "跨角色证据会诊"
+                  },
+                  {
+                    "en_US": "Recovery throughput and blocker monitoring",
+                    "zh_Hans": "恢复吞吐与阻塞监控"
+                  }
                 ],
                 "dataScope": {
                   "en_US": "All application resources are scoped to the current organization.",
@@ -149,9 +155,18 @@
                   "zh_Hans": "创建组织共享工作空间并发布只读管理 Assistant；运营角色套件通过 assistant:suite:init 部署。"
                 },
                 "initializationSteps": [
-                  { "en_US": "Verify an enabled primary model.", "zh_Hans": "检查可用的主模型。" },
-                  { "en_US": "Create the dedicated organization workspace.", "zh_Hans": "创建专用组织工作空间。" },
-                  { "en_US": "Install and publish the management Assistant.", "zh_Hans": "安装并发布管理 Assistant。" }
+                  {
+                    "en_US": "Verify an enabled primary model.",
+                    "zh_Hans": "检查可用的主模型。"
+                  },
+                  {
+                    "en_US": "Create the dedicated organization workspace.",
+                    "zh_Hans": "创建专用组织工作空间。"
+                  },
+                  {
+                    "en_US": "Install and publish the management Assistant.",
+                    "zh_Hans": "安装并发布管理 Assistant。"
+                  }
                 ]
               },
               "entry": { "type": "assistant-chat" }
@@ -276,7 +291,7 @@
       }
     },
     "xpert": {
-      "types": ["assistant-template", "app", "xpertai-bundle"],
+      "types": ["assistant-template", "app", "xpertai-bundle", "mcp"],
       "capabilities": [
         "factory-case-coordination",
         "factory-operations-monitoring",
@@ -290,7 +305,9 @@
         "factory-recovery-validation",
         "factory-operations-workbench",
         "factory-operations-management-dashboard",
-        "factory-operations-assistant-template"
+        "factory-operations-assistant-template",
+        "factory-operations-mcp",
+        "factory-operations-insights-mcp"
       ],
       "marketplace": {
         "contents": [
@@ -333,6 +350,35 @@
                 "access": "read"
               }
             ]
+          },
+          {
+            "type": "mcp",
+            "name": "factory-operations",
+            "displayName": {
+              "en_US": "Factory Recovery MCP Capabilities",
+              "zh_Hans": "工厂恢复 MCP 能力"
+            },
+            "description": {
+              "en_US": "Host-native, organization-scoped Factory Case recovery mutation tools backed by the Agent middleware implementation.",
+              "zh_Hans": "宿主原生、组织级、由 Agent Middleware 实现支撑的 Factory Case 恢复写入工具。"
+            },
+            "metadata": { "protocol": "native", "provider": "factory_ops" }
+          },
+          {
+            "type": "mcp",
+            "name": "factory-operations-insights",
+            "displayName": {
+              "en_US": "Factory Operations Insights MCP",
+              "zh_Hans": "工厂运营洞察 MCP"
+            },
+            "description": {
+              "en_US": "Host-native, organization-scoped read-only Factory Case search, progress, dashboard, and execution tools.",
+              "zh_Hans": "宿主原生、组织级、只读的 Factory Case 搜索、进度、看板与执行状态工具。"
+            },
+            "metadata": {
+              "protocol": "native",
+              "provider": "factory_ops_insights"
+            }
           }
         ]
       }

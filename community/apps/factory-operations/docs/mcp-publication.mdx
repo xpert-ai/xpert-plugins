@@ -1,0 +1,82 @@
+---
+title: '原生 MCP 发布'
+description: '通过装饰器发现 Factory Operations Provider，并一键启停宿主管理的 MCP Publication'
+---
+
+Factory Operations 使用两个 Xpert host-native MCP capability provider。`FactoryOperationsInsightsTools` 通过 `factory_ops_insights` 暴露 5 个只读 Tool，`FactoryOperationsTools` 通过 `factory_ops` 暴露 7 个恢复写入 Tool。12 个带 `@XpertTool()` 的方法均返回普通 DTO，宿主同时派生原有 10 个 Agent Middleware strategy。插件不启动 stdio MCP Server，也不复制业务 handler。
+
+## Tool 合同
+
+所有 Tool 都要求调用时存在 `tenant`、`organization`、`principal` 和 `execution` 上下文，且默认仅对 model 可见。模型输入不能提供或覆盖这些安全作用域。
+
+| 类型 | Tool                                   | 行为                                                    |
+| ---- | -------------------------------------- | ------------------------------------------------------- |
+| 读取 | `factory_cases_search`                 | 按 Case 编号或设备编号搜索当前组织的 Case，返回分页摘要 |
+| 读取 | `factory_case_get_summary`             | 读取一个 Factory Case 的当前修订、工件和下一步          |
+| 读取 | `factory_case_get_progress`            | 读取一个 Factory Case 的紧凑恢复进度                    |
+| 读取 | `factory_operations_dashboard_get`     | 读取当前组织的运营看板摘要                              |
+| 读取 | `factory_execution_status_get`         | 读取恢复动作确认状态                                    |
+| 写入 | `factory_event_triage_record`          | 记录异常研判                                            |
+| 写入 | `factory_equipment_diagnosis_record`   | 记录设备诊断                                            |
+| 写入 | `factory_quality_impact_record`        | 记录质量影响                                            |
+| 写入 | `factory_production_impact_record`     | 记录生产与交付影响                                      |
+| 写入 | `factory_resource_readiness_record`    | 记录备件与维修资源就绪情况                              |
+| 写入 | `factory_recovery_plan_generate`       | 生成确定性的恢复备选方案                                |
+| 写入 | `factory_recovery_verification_record` | 记录生产恢复验证                                        |
+
+五个读取 Tool 标记为 `read / none / safe`。七个写入 Tool 标记为 `write / irreversible / idempotent`，重试必须复用完全相同载荷的 `operationId`；共享服务仍执行审计、最新修订检查和 compare-and-swap。
+
+`factory_cases_search` 接受可选的 `search`、`page` 和 `pageSize`。`search` 只匹配 Case 编号或设备编号，`pageSize` 最大为 50；返回值是紧凑摘要。后续写入前仍必须用返回的 `caseId` 调用 `factory_case_get_summary`，获取当前精确修订。
+
+## 治理边界
+
+MCP 不提供以下操作：
+
+- 批准或驳回恢复方案；
+- 执行已批准方案或恢复执行；
+- 创建演示事件；
+- 批量运行演示分析。
+
+方案批准、驳回和执行只能由现有用户治理流程触发。`factory_recovery_plan_generate` 只提出方案，成功不代表方案已获批或已执行。`factory_recovery_verification_record` 仍要求真实、完整的设备、首件质量和生产确认。
+
+## 生命周期
+
+插件安装后，超级管理员在插件详情 Dialog 的 MCP 部分可以看到 **Factory Recovery MCP Capabilities** 和 **Factory Operations Insights MCP** 两张 Provider 卡片。两个 Provider 在当前组织中独立启停：
+
+1. 将租户级插件部署或刷新到 Xpert，并在需要时重启加载它的 API 进程。
+2. 在对应 Provider 卡片中点击 **启用 MCP Server**。宿主幂等创建或复用组织 Toolset、刷新能力目录、认领自动管理 Publication，并分别同步 7 个写入 Tool 或 5 个只读 Tool。
+3. 如果 Publication 尚无有效 Key，宿主以当前管理员身份创建仅含 `tools:list`、`tools:call` scope 的 API Key。Secret 只在这次响应中显示。
+4. 点击 **关闭** 会立即停用 Publication，但保留 Toolset、绑定、Key 和审计；重新启用不会重复显示已有 Key secret。
+
+插件版本刷新会在原地同步已启用 Publication：同名 Tool 保留公开名称、启用状态和策略覆盖，新 Tool 自动加入，删除的 Tool 自动解绑，descriptor/schema 更新到快照。默认策略为 read=`allow`、write=`confirm`、dangerous=`deny`。高级策略、Key 轮换和审计继续在 MCP Publications 页面管理。
+
+## 通用 MCP Client 配置
+
+将首次启用时显示的 Secret 安全写入本机环境变量 `XPERT_MCP_API_KEY`，不要把 Secret 写入配置文件：
+
+```json
+{
+  "mcpServers": {
+    "factory_ops": {
+      "type": "streamableHttp",
+      "url": "https://YOUR_XPERT_HOST/api/mcp/p/factory-operations-mcp",
+      "headers": {
+        "Authorization": "Bearer ${XPERT_MCP_API_KEY}"
+      }
+    }
+  }
+}
+```
+
+## 协议验收
+
+对两个启用后的自动管理 Publication 分别执行：
+
+1. `initialize`，确认服务器返回受支持的 MCP 协议版本；
+2. 对 `factory_ops_insights` 执行 `tools/list`，确认出现 5 个只读 Tool，并包含 `factory_cases_search`；
+3. 对 `factory_ops` 执行 `tools/list`，确认出现 7 个幂等写入 Tool；
+4. 在只读 Publication 中调用 `factory_operations_dashboard_get`，确认返回简短 `content` 和稳定 `structuredContent`；
+5. 检查宿主 MCP 审计记录包含本次调用；
+6. 在高级设置中确认协议审计记录。
+
+API Key 不写日志、部署回执或仓库文件。Agent Middleware 的 `wrapToolCall` 进度事件不会在 MCP 调用中伪造；幂等、修订冲突、授权和业务审计由共享服务层保证。

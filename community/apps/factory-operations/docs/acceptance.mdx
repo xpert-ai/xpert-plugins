@@ -1,6 +1,6 @@
 ---
-title: "验收清单"
-description: "用于发布前核对多 Agent 流程、治理和产物"
+title: '验收清单'
+description: '用于发布前核对多 Agent 流程、治理和产物'
 ---
 
 ## 自动化检查
@@ -36,6 +36,10 @@ corepack pnpm pack --dry-run
 - 重复 operation 不重复排队；revision 冲突不启动任务；排队和已启动任务分别通过 Queue 和 Assistant Task 取消。
 - 平台任务成功但未调用业务 finalizer 时不推进 Case；执行记录仍可恢复并保留 Project、task、conversation、thread、execution 与 executor 元数据。
 - 插件不包含 `@xpert-ai/plugin-shadcn-ui` 或 `@xpert-ai/shadcn-ui` 跨项目链接；shadcn 组件由当前仓库 CLI 安装，图标来自本地 `lucide-react`。
+- 插件详情 Dialog 无需 manifest `toolsets` 条目即可发现 `factory_ops` 与 `factory_ops_insights` 两个运行时 Provider；前者恰好包含 7 个幂等且不可逆的写 Tool，后者恰好包含 5 个安全只读 Tool，合计 12 个且名称不重复。
+- `factory_cases_search` 只在调用时组织作用域内按 Case 编号或设备编号查询，分页上限为 50，返回结果不包含完整证据、时间线或内部实体字段。
+- 两个自动管理的 MCP Publication 均完成 `initialize` 与 `tools/list`；只读洞察 Publication 还完成 `factory_operations_dashboard_get` 的 `tools/call`，调用结果包含紧凑文本和结构化看板 DTO，并生成协议审计记录。
+- MCP Tool 列表不包含方案审批、驳回、执行、演示事件创建或批量演示分析；这些能力继续受现有用户治理边界控制。
 - 源 YAML 与构建产物完全一致；插件包不包含 TypeScript 源码或用户数据。
 
 ## 发布证据

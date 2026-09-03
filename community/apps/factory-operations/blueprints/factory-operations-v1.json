@@ -304,6 +304,7 @@
       "ownerRoleKey": "operations-coordinator",
       "featureKeys": ["factory-case-coordination", "factory-operations-workbench"],
       "tools": [
+        { "name": "factory_cases_search", "mode": "read" },
         { "name": "factory_case_get_summary", "mode": "read" },
         { "name": "factory_case_get_progress", "mode": "read" }
       ]

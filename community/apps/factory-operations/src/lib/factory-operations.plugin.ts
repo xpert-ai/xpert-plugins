@@ -10,9 +10,7 @@ import { FactoryOperationsService } from './factory-operations.service.js'
 import { FactoryCaseProjectService } from './factory-case-project.service.js'
 import { FactoryAssistantTaskService } from './factory-assistant-task.service.js'
 import { FactoryAssistantTaskProcessor } from './factory-assistant-task.processor.js'
-import {
-  FACTORY_MIDDLEWARE_PROVIDERS
-} from './factory-middlewares.js'
+import { FactoryOperationsInsightsTools, FactoryOperationsTools } from './factory-middlewares.js'
 import { FactoryToolEventService } from './factory-tool-events.js'
 import { FactoryOperationsViewProvider } from './factory-view.provider.js'
 
@@ -32,9 +30,10 @@ export const FACTORY_ENTITIES = [
     FactoryAssistantTaskProcessor,
     FactoryOperationsService,
     FactoryToolEventService,
-    ...FACTORY_MIDDLEWARE_PROVIDERS,
+    FactoryOperationsInsightsTools,
+    FactoryOperationsTools,
     FactoryOperationsViewProvider
   ],
-  exports: [FactoryOperationsService]
+  exports: [FactoryOperationsService, FactoryOperationsInsightsTools, FactoryOperationsTools]
 })
 export class FactoryOperationsPlugin {}

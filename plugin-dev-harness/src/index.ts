@@ -75,6 +75,9 @@ interface PluginSdkRuntimeLike {
   SPEECH_TO_TEXT_PERMISSION_SERVICE_TOKEN?: unknown;
   ANALYTICS_PERMISSION_SERVICE_TOKEN?: unknown;
   HANDOFF_QUEUE_SERVICE_TOKEN?: unknown;
+  XPERT_RUNTIME_CAPABILITIES_TOKEN?: unknown;
+  DefaultRuntimeCapabilityRegistry?: new () => unknown;
+  MANAGED_QUEUE_SERVICE_TOKEN?: unknown;
 }
 
 interface HarnessPluginContext {
@@ -452,6 +455,21 @@ function createPermissionServiceMocks(workspaceRoot: string, pluginName: string)
     ensureCreateIndicatorAccess: async () => undefined,
     validateIndicatorStatement: async () => undefined
   };
+  const runtimeCapabilities = runtime.DefaultRuntimeCapabilityRegistry
+    ? new runtime.DefaultRuntimeCapabilityRegistry()
+    : {
+        has: () => false,
+        get: () => undefined,
+        require: (key: string) => {
+          throw new Error(`Harness runtime capability '${key}' is not registered.`);
+        },
+        list: () => []
+      };
+  const managedQueueService = {
+    enqueue: async () => ({ id: 'mock-managed-queue-job' }),
+    getJob: async () => null,
+    cancel: async () => false
+  };
 
   const providers: ProviderLike[] = [];
   const register = (token: unknown, value: unknown) => {
@@ -470,6 +488,8 @@ function createPermissionServiceMocks(workspaceRoot: string, pluginName: string)
   register(runtime.HANDOFF_PERMISSION_SERVICE_TOKEN, handoffPermissionService);
   register(runtime.SPEECH_TO_TEXT_PERMISSION_SERVICE_TOKEN, speechToTextPermissionService);
   register(runtime.ANALYTICS_PERMISSION_SERVICE_TOKEN, analyticsPermissionService);
+  register(runtime.XPERT_RUNTIME_CAPABILITIES_TOKEN, runtimeCapabilities);
+  register(runtime.MANAGED_QUEUE_SERVICE_TOKEN, managedQueueService);
 
   if (!providers.length) {
     return { fallbacks };

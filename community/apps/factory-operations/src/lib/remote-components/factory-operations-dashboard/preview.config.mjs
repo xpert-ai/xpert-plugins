@@ -2,7 +2,9 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const componentRoot = dirname(fileURLToPath(import.meta.url))
-const platformRoot = resolve(componentRoot, '../../../../../v3_16/xpert')
+const platformRoot = resolve(
+  process.env.XPERT_PLATFORM_ROOT ?? resolve(componentRoot, '../../../../../../../../xpert')
+)
 export { platformRoot }
 
 const now = '2026-08-31T06:45:00.000Z'

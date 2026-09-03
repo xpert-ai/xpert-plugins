@@ -3,9 +3,11 @@ import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
 import test from 'node:test'
 
-import { startRemoteViewPreview } from '../../../../../v3_16/xpert/tools/remote-view-preview/preview-host.mjs'
 import previewConfig, { platformRoot } from './preview.config.mjs'
 
+const { startRemoteViewPreview } = await import(
+  resolve(platformRoot, 'tools/remote-view-preview/preview-host.mjs')
+)
 const requireFromPlatform = createRequire(resolve(platformRoot, 'package.json'))
 const { chromium } = requireFromPlatform('playwright')
 
