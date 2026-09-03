@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-zsxq-connector",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Official Knowledge Planet connector for Xpert using isolated zsxq-cli OAuth sessions and bounded Agent tools.",
   "author": {
     "name": "XpertAI",
