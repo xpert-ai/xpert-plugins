@@ -332,6 +332,9 @@
     },
     {
       "path": "./middlewares/baidu-netdisk-connector"
+    },
+    {
+      "path": "./middlewares/canva-connector"
     }
   ]
 }

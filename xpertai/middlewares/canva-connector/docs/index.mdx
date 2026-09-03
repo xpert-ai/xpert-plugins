@@ -1,0 +1,24 @@
+---
+title: Canva 可画 Connector
+description: 在 Xpert 中安全连接个人 Canva 账号并使用受控设计工具。
+---
+
+## 概览
+
+插件采用用户级 Connector。一个 workspace 的不同成员拥有各自独立的 Canva 授权，Assistant 配置只引用 `canva` provider，运行时按当前用户解析凭据。
+
+中国区主路线是 `https://mcp.canva.cn/mcp` 的 OAuth 2.0 + PKCE。新建连接只提供 `Canva 可画中国区 MCP OAuth` 认证：组织管理员保存 Canva OAuth Client ID 和 Client Secret，连接器后端自动查找当前组织可见的系统集成，用户无需选择或填写字段，点击连接后直接跳转 Canva 可画认证页。用户 access/refresh token 仍由 Xpert ConnectorService 按用户加密保存。
+
+DCR 直接登录和全球 Canva Connect REST OAuth 不在新建连接界面出现，也不能用于发起新的授权。已保存的旧凭据仍可由兼容代码刷新和使用。
+
+## 能力
+
+- 检索设计并分页查看摘要
+- 读取设计页面和有限内容预览
+- 生成多个设计结果，并通过可信的 Canva 链接打开所选设计继续编辑
+- 启动、执行、提交或取消编辑事务
+- 查询导出格式并将导出写入 Workspace Files
+- 从受控 HTTPS URL 导入 PDF
+- 连接状态、权限和上游错误稳定化
+
+写操作都有严格输入上限、确认句柄和 `operationId`。上游 MCP `tools/list` 不包含 allowlist 工具时，插件会返回稳定的 capability 错误。

@@ -1,0 +1,19 @@
+---
+title: 运维与故障处理
+description: 配置、验证和常见故障。
+---
+
+## 配置顺序
+
+1. 在 Canva MCP 开发者设置中确认 Xpert API 的 OAuth callback 已加入 allowlist；生产环境必须使用 HTTPS，开发环境可使用 localhost 回调。
+2. 在 Xpert **系统集成**中新建 **Canva 可画中国区 MCP OAuth**，填写 Canva OAuth Client ID 和 Client Secret。
+3. 安装或刷新插件后，在 workspace 连接器页面点击 Canva 的加号。
+4. 连接器会自动找到当前组织可见的 Canva 系统集成；用户无需选择或填写系统集成，点击连接即可跳转 Canva 可画认证页。
+5. 用户完成授权后，Xpert 保存该用户的独立凭据。
+6. 先调用 `canva_connection_status`，再执行搜索和导出 error path。
+
+## 稳定错误码
+
+`CANVA_CONNECTOR_UNAVAILABLE` 表示当前用户没有 active Connector；`CANVA_SCOPE_MISSING` 表示授权范围不足；`CANVA_TOOL_UNAVAILABLE` 表示上游 capability 不在 allowlist；`CANVA_RATE_LIMITED`、`CANVA_CONFLICT` 和 `CANVA_JOB_TIMEOUT` 分别表示限流、并发冲突和有界轮询超时。
+
+解绑时 Xpert 总会清理本地凭据并关闭本地 MCP session。若 Canva 撤销接口失败，连接器状态会保留一条不含敏感信息的 warning，用户应到 Canva 授权管理页复核。

@@ -1,0 +1,14 @@
+---
+title: 工具契约
+description: Agent middleware 的输入、输出和安全边界。
+---
+
+所有 Agent 工具使用 Zod v3 strict schema。集合读取使用 `page`/`pageSize`，单页最多 50 条；文本、操作数组、URL 和设计 ID 都有长度上限。工具输出只包含 allowlisted DTO，例如 `id`、`title`、`status`、`revision`、`nextCursor` 和 `hasMore`。
+
+`commit_editing_transaction`、`export_design` 和 `import_design_from_url` 首次调用返回 `confirmationRequired` 与短期句柄，不会调用上游写接口。再次调用必须携带匹配当前用户、连接器和参数指纹的句柄。
+
+`canva_generate_design` 在中国区 MCP 中直接返回 `design_compositions`。连接器将其映射为带序号和可信 `openUrl` 的设计结果；中国区不提供 `create-design-from-candidate` 工具，也不返回 `candidateId`。
+
+设计生成使用独立的 120 秒超时。超时返回 `CANVA_JOB_TIMEOUT`，由于上游结果未知且重试可能重复消耗 AI 额度，该错误不可自动重试。月度 AI 额度耗尽返回 `CANVA_AI_QUOTA_EXHAUSTED`，同样不可重试；连接器不会把第三方返回的指令性包装文本透传给 Agent。
+
+导出成功后只返回 Workspace 文件名、MIME、大小和 portable reference 元数据。不会返回 Canva signed URL、token、`/workspace` 主机路径或原始 MCP 响应。
