@@ -1,11 +1,25 @@
 import { BaseMessage, BaseMessageChunk, isAIMessage, isAIMessageChunk } from '@langchain/core/messages'
 import type { OpenAIClient } from '@langchain/openai'
-import { AiModelTypeEnum, FetchFrom, type AIModelEntity, type ICopilotModel, ModelFeature, ModelPropertyKey, ParameterType } from '@xpert-ai/contracts'
+import {
+  AiModelTypeEnum,
+  FetchFrom,
+  type AIModelEntity,
+  type ICopilotModel,
+  ModelFeature,
+  ModelPropertyKey,
+  ParameterType
+} from '@xpert-ai/contracts'
 import { Injectable } from '@nestjs/common'
-import { ChatOAICompatReasoningModel, CredentialsValidateFailedError, getErrorMessage, LargeLanguageModel, type TChatModelOptions } from '@xpert-ai/plugin-sdk'
+import {
+  ChatOAICompatReasoningModel,
+  CredentialsValidateFailedError,
+  getErrorMessage,
+  LargeLanguageModel,
+  type TChatModelOptions
+} from '@xpert-ai/plugin-sdk'
 import { randomUUID } from 'node:crypto'
 import { XirangProviderStrategy } from '../provider.strategy.js'
-import { toCredentialKwargs, type XirangModelCredentials } from '../types.js'
+import { resolveXirangModelLimits, toCredentialKwargs, type XirangModelCredentials } from '../types.js'
 
 class XirangChatModel extends ChatOAICompatReasoningModel {
   private activeStreamResponseId: string | null = null
@@ -29,7 +43,8 @@ class XirangChatModel extends ChatOAICompatReasoningModel {
     rawResponse: OpenAIClient.ChatCompletion
   ): BaseMessage {
     const converted = super._convertCompletionsMessageToBaseMessage(message, rawResponse)
-    if (isAIMessage(converted)) converted._updateId(rawResponse.id === 'chatcmpl' ? `chatcmpl-${randomUUID()}` : rawResponse.id)
+    if (isAIMessage(converted))
+      converted._updateId(rawResponse.id === 'chatcmpl' ? `chatcmpl-${randomUUID()}` : rawResponse.id)
     return converted
   }
 
@@ -55,7 +70,11 @@ export class XirangLargeLanguageModel extends LargeLanguageModel {
     }
   }
 
-  override getChatModel(copilotModel: ICopilotModel, options?: TChatModelOptions, credentials?: XirangModelCredentials) {
+  override getChatModel(
+    copilotModel: ICopilotModel,
+    options?: TChatModelOptions,
+    credentials?: XirangModelCredentials
+  ) {
     const copilot = copilotModel.copilot
     credentials ??= {
       ...(copilot?.modelProvider?.credentials ?? {}),
@@ -65,7 +84,8 @@ export class XirangLargeLanguageModel extends LargeLanguageModel {
     const modelOptions = copilotModel.options ?? {}
     const runtimeThinking = modelOptions.enable_thinking
     if (runtimeThinking !== undefined) {
-      const enabled = runtimeThinking === true || runtimeThinking === 'true' || runtimeThinking === 1 || runtimeThinking === '1'
+      const enabled =
+        runtimeThinking === true || runtimeThinking === 'true' || runtimeThinking === 1 || runtimeThinking === '1'
       params.modelKwargs.enable_thinking = enabled
       params.modelKwargs.chat_template_kwargs = { enable_thinking: enabled }
     }
@@ -86,8 +106,11 @@ export class XirangLargeLanguageModel extends LargeLanguageModel {
     })
   }
 
-  override getCustomizableModelSchemaFromCredentials(model: string, credentials: Record<string, any>): AIModelEntity | null {
-    const contextSize = Number(credentials.context_size ?? 32768)
+  override getCustomizableModelSchemaFromCredentials(
+    model: string,
+    credentials: Record<string, unknown>
+  ): AIModelEntity | null {
+    const { contextSize, maxOutputTokens } = resolveXirangModelLimits(credentials)
     return {
       model,
       label: { zh_Hans: String(credentials.display_name || model), en_US: String(credentials.display_name || model) },
@@ -96,11 +119,41 @@ export class XirangLargeLanguageModel extends LargeLanguageModel {
       features: [ModelFeature.TOOL_CALL, ModelFeature.MULTI_TOOL_CALL, ModelFeature.STREAM_TOOL_CALL],
       model_properties: { [ModelPropertyKey.MODE]: 'chat', [ModelPropertyKey.CONTEXT_SIZE]: contextSize },
       parameter_rules: [
-        { name: 'temperature', type: ParameterType.FLOAT, useTemplate: 'temperature', label: { zh_Hans: '温度', en_US: 'Temperature' }, default: 0.2, min: 0, max: 2 },
-        { name: 'top_p', type: ParameterType.FLOAT, useTemplate: 'top_p', label: { zh_Hans: 'Top P', en_US: 'Top P' }, default: 1, min: 0, max: 1 },
-        { name: 'max_tokens', type: ParameterType.INT, useTemplate: 'max_tokens', label: { zh_Hans: '最大输出 Token', en_US: 'Max output tokens' }, default: 2048, min: 1, max: contextSize },
-        { name: 'enable_thinking', type: ParameterType.BOOLEAN, label: { zh_Hans: '思考模式', en_US: 'Thinking mode' }, default: false, required: false }
-      ],
+        {
+          name: 'temperature',
+          type: ParameterType.FLOAT,
+          useTemplate: 'temperature',
+          label: { zh_Hans: '温度', en_US: 'Temperature' },
+          default: 0.2,
+          min: 0,
+          max: 2
+        },
+        {
+          name: 'top_p',
+          type: ParameterType.FLOAT,
+          useTemplate: 'top_p',
+          label: { zh_Hans: 'Top P', en_US: 'Top P' },
+          default: 1,
+          min: 0,
+          max: 1
+        },
+        {
+          name: 'max_tokens',
+          type: ParameterType.INT,
+          useTemplate: 'max_tokens',
+          label: { zh_Hans: '最大输出 Token', en_US: 'Max output tokens' },
+          default: Math.min(2048, maxOutputTokens),
+          min: 1,
+          max: maxOutputTokens
+        },
+        {
+          name: 'enable_thinking',
+          type: ParameterType.BOOLEAN,
+          label: { zh_Hans: '思考模式', en_US: 'Thinking mode' },
+          default: false,
+          required: false
+        }
+      ]
     }
   }
 }
