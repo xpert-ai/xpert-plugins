@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-xirang",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "description": "Tianyi Cloud Xirang model provider plugin for XpertAI",
   "xpert": {
     "plugin": {
