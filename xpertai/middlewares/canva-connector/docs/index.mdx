@@ -1,24 +1,41 @@
 ---
-title: Canva 可画 Connector
-description: 在 Xpert 中安全连接个人 Canva 账号并使用受控设计工具。
+title: 'Canva connector'
+description: 'Connect an Xpert workspace to Canva through platform-managed OAuth and bounded design tools.'
 ---
 
-## 概览
+The Canva connector is installed at organization scope. An organization administrator supplies one approved Canva China MCP OAuth application in **System Integration**. Users in each workspace then connect their own Canva account from the Xpert connector page. Each user receives an independently encrypted access and refresh credential; the Assistant references only the `canva` provider, and runtime resolution is bound to the active user and workspace.
 
-插件采用用户级 Connector。一个 workspace 的不同成员拥有各自独立的 Canva 授权，Assistant 配置只引用 `canva` provider，运行时按当前用户解析凭据。
+The connector automatically resolves an organization-visible **Canva China MCP OAuth** System Integration. Keep one active Canva integration per organization to avoid ambiguity. Users do not select an integration or enter application credentials in the connector UI.
 
-中国区主路线是 `https://mcp.canva.cn/mcp` 的 OAuth 2.0 + PKCE。新建连接只提供 `Canva 可画中国区 MCP OAuth` 认证：组织管理员保存 Canva OAuth Client ID 和 Client Secret，连接器后端自动查找当前组织可见的系统集成，用户无需选择或填写字段，点击连接后直接跳转 Canva 可画认证页。用户 access/refresh token 仍由 Xpert ConnectorService 按用户加密保存。
+## Administrator setup
 
-DCR 直接登录和全球 Canva Connect REST OAuth 不在新建连接界面出现，也不能用于发起新的授权。已保存的旧凭据仍可由兼容代码刷新和使用。
+1. Register the exact Xpert callback URL in the Canva developer settings.
+2. Open **Settings -> System Integration** at organization scope.
+3. Create **Canva China MCP OAuth** and enter the Canva OAuth client ID and client secret.
+4. Save the integration, then install or refresh the connector plugin.
 
-## 能力
+Do not place OAuth application credentials in plugin configuration or expose them to end users.
 
-- 检索设计并分页查看摘要
-- 读取设计页面和有限内容预览
-- 生成多个设计结果，并通过可信的 Canva 链接打开所选设计继续编辑
-- 启动、执行、提交或取消编辑事务
-- 查询导出格式并将导出写入 Workspace Files
-- 从受控 HTTPS URL 导入 PDF
-- 连接状态、权限和上游错误稳定化
+## End-user experience
 
-写操作都有严格输入上限、确认句柄和 `operationId`。上游 MCP `tools/list` 不包含 allowlist 工具时，插件会返回稳定的 capability 错误。
+1. The user opens the workspace connector page and clicks **Connect** for Canva.
+2. Xpert creates a short-lived OAuth state and redirects the browser to Canva's official authorization page.
+3. The user signs in to Canva if needed and approves the requested scopes.
+4. Canva redirects to the Xpert callback. Xpert exchanges the one-time code server-side and stores the user's credential in the platform vault.
+5. Agent middleware resolves that credential only for the active user and workspace.
+
+No browser automation, copied access token, integration selector, or end-user application credential is required.
+
+## Included capabilities
+
+- Search designs with bounded pagination and read allowlisted summaries
+- Read design metadata, pages, and bounded content previews
+- Generate design compositions and return trusted Canva edit URLs
+- Start, execute, commit, or cancel editing transactions
+- List export formats and write exported files to Xpert Workspace Files
+- Import a PDF from one validated public HTTPS URL
+- Normalize connection, permission, capability, quota, timeout, and upstream failures into stable errors
+
+Mutation tools enforce strict input limits, short-lived confirmation handles, and `operationId` values. If the upstream MCP `tools/list` response omits an allowlisted capability, the plugin returns a stable capability error instead of presenting a non-functional operation.
+
+Direct DCR login and global Canva Connect REST OAuth are not available for new authorizations. Compatibility code may refresh and use credentials saved by earlier versions.

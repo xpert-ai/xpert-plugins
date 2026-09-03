@@ -1,14 +1,14 @@
 ---
-title: 工具契约
-description: Agent middleware 的输入、输出和安全边界。
+title: 'Tool contracts'
+description: 'Input, output, confirmation, and trust boundaries for Canva Agent tools.'
 ---
 
-所有 Agent 工具使用 Zod v3 strict schema。集合读取使用 `page`/`pageSize`，单页最多 50 条；文本、操作数组、URL 和设计 ID 都有长度上限。工具输出只包含 allowlisted DTO，例如 `id`、`title`、`status`、`revision`、`nextCursor` 和 `hasMore`。
+All Agent tools use strict Zod v3 schemas. Collection reads use `page` and `pageSize`, with at most 50 items per page. Text fields, operation arrays, URLs, and design IDs have explicit length limits. Tool results contain only allowlisted DTO fields such as `id`, `title`, `status`, `revision`, `nextCursor`, and `hasMore`.
 
-`commit_editing_transaction`、`export_design` 和 `import_design_from_url` 首次调用返回 `confirmationRequired` 与短期句柄，不会调用上游写接口。再次调用必须携带匹配当前用户、连接器和参数指纹的句柄。
+The first call to `commit_editing_transaction`, `export_design`, or `import_design_from_url` returns `confirmationRequired` and a short-lived confirmation handle without invoking the upstream mutation. A second call must provide a handle that matches the active user, connector, and argument fingerprint.
 
-`canva_generate_design` 在中国区 MCP 中直接返回 `design_compositions`。连接器将其映射为带序号和可信 `openUrl` 的设计结果；中国区不提供 `create-design-from-candidate` 工具，也不返回 `candidateId`。
+The Canva China MCP implementation of `canva_generate_design` returns `design_compositions` directly. The connector maps them to ordered design results with trusted `openUrl` values. The China service does not expose `create-design-from-candidate` or return a `candidateId`.
 
-设计生成使用独立的 120 秒超时。超时返回 `CANVA_JOB_TIMEOUT`，由于上游结果未知且重试可能重复消耗 AI 额度，该错误不可自动重试。月度 AI 额度耗尽返回 `CANVA_AI_QUOTA_EXHAUSTED`，同样不可重试；连接器不会把第三方返回的指令性包装文本透传给 Agent。
+Design generation uses a dedicated 120-second timeout. A timeout returns `CANVA_JOB_TIMEOUT` and is not automatically retryable because the upstream outcome is unknown and a repeated request may consume AI quota twice. Exhausted monthly AI quota returns `CANVA_AI_QUOTA_EXHAUSTED` and is also not retryable. The connector strips instruction-like wrappers from third-party errors before returning a stable message to the Agent.
 
-导出成功后只返回 Workspace 文件名、MIME、大小和 portable reference 元数据。不会返回 Canva signed URL、token、`/workspace` 主机路径或原始 MCP 响应。
+After a successful export, the tool returns only the Workspace file name, MIME type, size, and portable reference metadata. It never returns a Canva signed URL, token, `/workspace` host path, or raw MCP response.

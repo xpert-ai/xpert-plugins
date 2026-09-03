@@ -1,10 +1,10 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "name": "Canva 可画 Connector",
+  "name": "Canva Connector",
   "theme": "mint",
   "colors": { "primary": "#00C4CC", "light": "#00A7B0", "dark": "#7BE7EB" },
   "navigation": [
-    { "group": "使用", "pages": ["index", "api-contracts"] },
-    { "group": "运维", "pages": ["operations"] }
+    { "group": "Usage", "pages": ["index", "api-contracts"] },
+    { "group": "Operations", "pages": ["operations"] }
   ]
 }

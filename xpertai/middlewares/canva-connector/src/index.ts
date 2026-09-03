@@ -24,7 +24,7 @@ const plugin: XpertPlugin<CanvaPluginConfig> = {
     artifactNamespace: CANVA_ARTIFACT_NAMESPACE,
     category: 'middleware',
     icon: CANVA_ICON,
-    displayName: 'Canva 可画 Connector',
+    displayName: 'Canva Connector',
     description: 'Connect each Xpert workspace user to Canva through bounded OAuth and MCP tools.',
     keywords: ['canva', 'canva-cn', 'design', 'mcp', 'oauth', 'connector'],
     author: 'XpertAI Team'

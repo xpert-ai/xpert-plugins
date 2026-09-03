@@ -1,19 +1,30 @@
 ---
-title: 运维与故障处理
-description: 配置、验证和常见故障。
+title: 'Operations'
+description: 'Configuration, connection lifecycle, failure handling, and verification.'
 ---
 
-## 配置顺序
+## Configuration sequence
 
-1. 在 Canva MCP 开发者设置中确认 Xpert API 的 OAuth callback 已加入 allowlist；生产环境必须使用 HTTPS，开发环境可使用 localhost 回调。
-2. 在 Xpert **系统集成**中新建 **Canva 可画中国区 MCP OAuth**，填写 Canva OAuth Client ID 和 Client Secret。
-3. 安装或刷新插件后，在 workspace 连接器页面点击 Canva 的加号。
-4. 连接器会自动找到当前组织可见的 Canva 系统集成；用户无需选择或填写系统集成，点击连接即可跳转 Canva 可画认证页。
-5. 用户完成授权后，Xpert 保存该用户的独立凭据。
-6. 先调用 `canva_connection_status`，再执行搜索和导出 error path。
+1. In the Canva MCP developer settings, allowlist the exact Xpert API OAuth callback. Production callbacks must use HTTPS; localhost is supported for development.
+2. In Xpert **System Integration**, create **Canva China MCP OAuth** and enter the Canva OAuth client ID and client secret.
+3. Install or refresh the plugin, then open the workspace connector page and click Connect for Canva.
+4. The connector automatically resolves an organization-visible Canva System Integration and redirects the user to Canva. The user does not select or enter an integration.
+5. After approval, Xpert exchanges the authorization code server-side and stores an independent credential for that user.
+6. Call `canva_connection_status`, then verify a bounded search and an export error path.
 
-## 稳定错误码
+## Error handling
 
-`CANVA_CONNECTOR_UNAVAILABLE` 表示当前用户没有 active Connector；`CANVA_SCOPE_MISSING` 表示授权范围不足；`CANVA_TOOL_UNAVAILABLE` 表示上游 capability 不在 allowlist；`CANVA_RATE_LIMITED`、`CANVA_CONFLICT` 和 `CANVA_JOB_TIMEOUT` 分别表示限流、并发冲突和有界轮询超时。
+The plugin returns stable codes such as `CANVA_CONNECTOR_UNAVAILABLE` when the active user has no connected Canva account, `CANVA_SCOPE_MISSING` when the OAuth grant lacks a required scope, and `CANVA_TOOL_UNAVAILABLE` when the upstream service does not advertise an allowlisted capability. `CANVA_RATE_LIMITED`, `CANVA_CONFLICT`, and `CANVA_JOB_TIMEOUT` represent rate limiting, concurrent mutation conflicts, and bounded request timeouts.
 
-解绑时 Xpert 总会清理本地凭据并关闭本地 MCP session。若 Canva 撤销接口失败，连接器状态会保留一条不含敏感信息的 warning，用户应到 Canva 授权管理页复核。
+Do not blindly retry a design generation timeout because the upstream result is unknown and a duplicate request may consume additional AI quota. A `CANVA_AI_QUOTA_EXHAUSTED` response is not retryable until the provider resets or increases the account quota.
+
+On disconnect, Xpert always removes the local credential and closes the local MCP session. If Canva revocation fails, the connector records a warning without sensitive data; the user should verify the authorization from Canva's account authorization settings.
+
+## Verification checklist
+
+- Build and typecheck the plugin.
+- Run unit tests for OAuth state, token exchange, refresh, MCP argument normalization, strict tool schemas, response mapping, quota handling, and timeout handling.
+- Install with the Xpert plugin development harness and inspect the manifest and connector definition.
+- In staging, verify authorization, callback exchange, refresh-token rotation, revoked authorization, missing scopes, AI quota exhaustion, and upstream timeout behavior.
+- Confirm that generated designs return trusted Canva URLs and exported files use portable Workspace Files references.
+- Confirm logs and Agent DTOs contain no bearer credentials, client secrets, signed download URLs, private workspace paths, or raw provider payloads.

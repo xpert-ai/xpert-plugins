@@ -10,5 +10,5 @@ export const CANVA_ICON = {
   type: 'image' as const,
   value: `data:image/png;base64,${readFileSync(join(moduleDir, '../../assets/canva-logo.png')).toString('base64')}`,
   size: 32,
-  alt: 'Canva 可画'
+  alt: 'Canva'
 } satisfies IconDefinition

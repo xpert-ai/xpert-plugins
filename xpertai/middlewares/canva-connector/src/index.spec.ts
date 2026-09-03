@@ -36,7 +36,7 @@ describe('Canva connector plugin', () => {
     expect(CANVA_ICON).toMatchObject({
       type: 'image',
       size: 32,
-      alt: 'Canva 可画'
+      alt: 'Canva'
     })
     expect(CANVA_ICON.value).toMatch(/^data:image\/png;base64,/)
     expect(Buffer.from(CANVA_ICON.value.split(',')[1], 'base64').subarray(0, 8)).toEqual(

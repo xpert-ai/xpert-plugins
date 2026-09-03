@@ -1,19 +1,28 @@
-# Canva 可画 Connector
+# Canva Connector
 
-XpertAI 的 Canva 可画连接器插件。它为每位 workspace 用户保存独立 OAuth 凭据，通过中国区 Canva MCP 提供受控的设计检索、读取、设计生成、编辑事务和导出工具。设计生成会返回可信的 Canva 打开链接，用户可选择一个结果并在 Canva 中继续编辑。
+Organization-scoped Xpert middleware connector for Canva. It follows the WorkBuddy-style connection flow: an organization administrator configures a Canva China MCP OAuth application in **System Integration**, and an end user clicks Connect to open Canva's official authorization page. The end user never selects an integration or enters a client ID or client secret in the connector UI.
 
-新建连接只保留 `Canva 可画中国区 MCP OAuth` 认证。组织管理员预先配置系统集成；连接器会自动查找当前组织可见的 Canva 配置，用户无需选择或填写任何字段，点击连接即可跳转 Canva 可画网页完成 OAuth 授权。
+The plugin stores a separate OAuth credential for each workspace user and exposes bounded design search, read, generation, editing-transaction, import, and export tools through the Canva China MCP service. Generated designs include trusted Canva URLs so the user can select a result and continue editing it in Canva.
 
-DCR 直接登录和全球 Canva Connect REST OAuth 不再作为新建认证方式显示。运行时仅保留对已保存旧凭据的兼容处理。
+The first release includes:
 
-插件不接受任意 MCP URL，不把 token、临时下载地址或 workspace 主机路径返回给 Agent。导出文件通过 Xpert Workspace Files runtime capability 写入当前用户工作区。
+- Platform-managed OAuth authorization-code flow with PKCE and refresh-token rotation
+- Workspace-scoped runtime credentials resolved through `ConnectorRuntime:canva`
+- Bounded design search, metadata, page, and content reads
+- Design generation with trusted Canva edit URLs
+- Guarded editing transactions, imports, and exports with explicit confirmation
+- Export delivery through Xpert Workspace Files
+- Stable capability, quota, timeout, and upstream error handling
+- Allowlisted Agent DTOs that omit tokens, temporary download URLs, raw provider payloads, and workspace host paths
 
-详细的架构、工具契约、配置和故障处理见 [`docs/index.mdx`](./docs/index.mdx)。
+Direct DCR login and global Canva Connect REST OAuth are not offered for new connections. Compatibility code remains available only for previously stored credentials. The connector never accepts an arbitrary MCP URL.
 
-开发命令：
+See [`docs/`](./docs/) for setup, tool contracts, operations, and verification.
+
+## Development
 
 ```bash
-corepack pnpm exec nx run @xpert-ai/plugin-canva-connector:typecheck
-corepack pnpm exec nx run @xpert-ai/plugin-canva-connector:test
-corepack pnpm exec nx run @xpert-ai/plugin-canva-connector:build
+pnpm exec nx run @xpert-ai/plugin-canva-connector:build
+pnpm exec nx run @xpert-ai/plugin-canva-connector:typecheck
+pnpm exec nx exec -- jest --config middlewares/canva-connector/jest.config.ts --runInBand
 ```
