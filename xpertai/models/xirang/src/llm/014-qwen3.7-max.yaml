@@ -41,7 +41,7 @@
       },
       "default": 8192,
       "min": 1,
-      "max": 65536
+      "max": 131072
     },
     {
       "name": "response_format",
@@ -68,12 +68,11 @@
     }
   ],
   "features": [
-    "tool-call",
-    "multi-tool-call",
-    "stream-tool-call",
     "structured-output",
     "agent-thought",
-    "vision"
+    "tool-call",
+    "multi-tool-call",
+    "stream-tool-call"
   ],
   "pricing": {
     "input": "12",

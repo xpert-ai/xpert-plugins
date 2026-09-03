@@ -6,20 +6,29 @@ const packageRoot = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const srcRoot = join(packageRoot, 'src')
 const sourcePath = join(srcRoot, 'catalog', 'source.snapshot.json')
 const llmSpecsPath = join(srcRoot, 'catalog', 'llm-specs.json')
+const modelMetadataPath = join(srcRoot, 'catalog', 'model-metadata.json')
 const source = JSON.parse(readFileSync(sourcePath, 'utf8'))
 const llmSpecsSource = JSON.parse(readFileSync(llmSpecsPath, 'utf8'))
+const modelMetadataSource = JSON.parse(readFileSync(modelMetadataPath, 'utf8'))
 const capturedAt = source.captured_at || new Date().toISOString()
+const sourceModelNames = new Set(source.models.map((row) => row.name))
 
 // JSON is a valid YAML 1.2 document and keeps this catalog generator
 // dependency-free when the plugin repository is checked out standalone.
 const stringify = (value) => `${JSON.stringify(value, null, 2)}\n`
 
-const imagePattern = /(seedream|qwen-image|wan2\.[67]-image)/i
-const videoPattern = /(t2v|i2v|r2v|kf2v|video|seedance|animate-mix|^minimax-h3$)/i
-const speechPattern = /(asr|speech-to-text)/i
-const embeddingPattern = /(embedding|bge-m3)/i
-const rerankPattern = /(rerank|reranker|gte-rerank)/i
 const runtimeModelTypes = new Set(['llm', 'text-embedding', 'rerank', 'image'])
+const catalogModelTypes = new Set([...runtimeModelTypes, 'multimodal-embedding', 'video', 'speech2text'])
+const supportedFeatures = new Set([
+  'vision',
+  'video',
+  'structured-output',
+  'agent-thought',
+  'tool-call',
+  'multi-tool-call',
+  'stream-tool-call',
+  'document'
+])
 const rerankContextSizes = {
   'BGE-Reranker-Large': 512,
   'BGE-Reranker-V2-m3': 8192,
@@ -35,20 +44,44 @@ for (const group of llmSpecsSource.groups) {
       context_size: group.context_size,
       max_output_tokens: group.max_output_tokens,
       default_max_tokens: group.default_max_tokens,
-      source: group.source
+      source: group.source,
+      features: []
     })
   }
 }
 
+const explicitModelTypes = new Map()
+for (const [modelType, models] of Object.entries(modelMetadataSource.model_types)) {
+  if (!catalogModelTypes.has(modelType) || modelType === 'llm') throw new Error(`Unsupported model type: ${modelType}`)
+  for (const model of models) {
+    if (!sourceModelNames.has(model)) throw new Error(`Model type references unknown catalog model: ${model}`)
+    if (explicitModelTypes.has(model)) throw new Error(`Duplicate explicit model type: ${model}`)
+    explicitModelTypes.set(model, modelType)
+  }
+}
+
+const explicitFeatureModels = new Set()
+for (const profile of modelMetadataSource.llm_feature_profiles) {
+  if (!Object.prototype.hasOwnProperty.call(modelMetadataSource.sources, profile.source)) {
+    throw new Error(`Feature profile references unknown source: ${profile.source}`)
+  }
+  for (const feature of profile.features) {
+    if (!supportedFeatures.has(feature)) throw new Error(`Unsupported LLM feature: ${feature}`)
+  }
+  for (const model of profile.models) {
+    const specification = llmSpecs.get(model)
+    if (!specification) throw new Error(`Feature profile references unknown LLM: ${model}`)
+    if (explicitFeatureModels.has(model)) throw new Error(`Duplicate LLM feature profile: ${model}`)
+    explicitFeatureModels.add(model)
+    specification.features = [...profile.features]
+  }
+}
+
 function classify(row) {
-  if (row.model_type) return row.model_type
-  const name = row.name
-  if (imagePattern.test(name)) return 'image'
-  if (videoPattern.test(name)) return 'video'
-  if (speechPattern.test(name)) return 'speech-to-text'
-  if (embeddingPattern.test(name)) return 'text-embedding'
-  if (rerankPattern.test(name)) return 'rerank'
-  return 'llm'
+  if (llmSpecs.has(row.name)) return 'llm'
+  const modelType = explicitModelTypes.get(row.name)
+  if (!modelType) throw new Error(`Missing explicit model type: ${row.name}`)
+  return modelType
 }
 
 function slug(name, index) {
@@ -60,19 +93,9 @@ function slug(name, index) {
   return `${String(index).padStart(3, '0')}-${value || 'model'}`
 }
 
-function llmFeatures(name) {
-  const normalized = name.toLowerCase()
-  const features = ['tool-call', 'multi-tool-call', 'stream-tool-call', 'structured-output']
-  if (/(deepseek|reason|thinking|kimi-k[23]|glm-5|glm4\.6v|minimax-m[23]|qwen3\.[5-8])/i.test(normalized))
-    features.push('agent-thought')
-  if (/(vl|vision|omni|seed-1\.6-vision|glm4\.6v|glm-5\.3-flash|qwen3\.[5-8])/i.test(normalized))
-    features.push('vision')
-  return [...new Set(features)]
-}
-
 function parameterRules(modelType, llmSpec) {
   if (modelType === 'llm') {
-    return [
+    const rules = [
       {
         name: 'temperature',
         use_template: 'temperature',
@@ -89,22 +112,27 @@ function parameterRules(modelType, llmSpec) {
         default: llmSpec.default_max_tokens,
         min: 1,
         max: llmSpec.max_output_tokens
-      },
-      {
+      }
+    ]
+    if (llmSpec.features.includes('structured-output')) {
+      rules.push({
         name: 'response_format',
         type: 'string',
         label: { zh_Hans: '回复格式', en_US: 'Response format' },
         required: false,
         options: ['text', 'json_object']
-      },
-      {
+      })
+    }
+    if (llmSpec.features.includes('agent-thought')) {
+      rules.push({
         name: 'enable_thinking',
         type: 'boolean',
         label: { zh_Hans: '思考模式', en_US: 'Thinking mode' },
         required: false,
         default: false
-      }
-    ]
+      })
+    }
+    return rules
   }
   if (modelType === 'image') {
     return [
@@ -117,13 +145,6 @@ function parameterRules(modelType, llmSpec) {
         required: false,
         default: 'url',
         options: ['url', 'b64_json']
-      },
-      {
-        name: 'watermark',
-        type: 'boolean',
-        label: { zh_Hans: '水印', en_US: 'Watermark' },
-        required: false,
-        default: true
       }
     ]
   }
@@ -146,6 +167,21 @@ for (const modelType of ['llm', 'text-embedding', 'rerank', 'image']) {
   }
 }
 
+function runtimePricing(pricing, modelType) {
+  if (pricing === undefined || modelType !== 'image' || !Array.isArray(pricing.rules)) return pricing
+  const rules = pricing.rules
+    .map((rule) =>
+      Array.isArray(rule.operations)
+        ? { ...rule, operations: rule.operations.filter((operation) => operation === 'text_to_image') }
+        : rule
+    )
+    .filter((rule) => !Array.isArray(rule.operations) || rule.operations.length > 0)
+  return {
+    ...pricing,
+    rules
+  }
+}
+
 function modelSchema(row, modelType) {
   const name = row.name
   const llmSpec = modelType === 'llm' ? llmSpecs.get(name) : undefined
@@ -154,29 +190,40 @@ function modelSchema(row, modelType) {
     model: name,
     label: { en_US: name, zh_Hans: name },
     model_type: modelType,
+    ...(row.model_id ? { modelConfig: { endpoint_model_name: row.model_id } } : {}),
     model_properties:
       modelType === 'llm'
         ? { mode: 'chat', context_size: llmSpec.context_size }
-        : { context_size: modelType === 'rerank' ? rerankContextSizes[name] || 8192 : 8192 },
+        : modelType === 'image'
+          ? { mode: 'image' }
+          : { context_size: modelType === 'rerank' ? rerankContextSizes[name] || 8192 : 8192 },
     parameter_rules: parameterRules(modelType, llmSpec)
   }
-  const generated = modelType === 'llm' ? { ...base, features: llmFeatures(name) } : base
+  const generated = modelType === 'llm' ? { ...base, features: llmSpec.features } : base
   const preserved = preservedModels.get(name)
   return {
     ...generated,
-    ...(preserved?.model_properties
+    ...(preserved?.model_properties && modelType !== 'image'
       ? {
           model_properties: { ...preserved.model_properties, ...generated.model_properties }
         }
       : {}),
-    ...(preserved?.pricing !== undefined ? { pricing: preserved.pricing } : {})
+    ...(preserved?.pricing !== undefined ? { pricing: runtimePricing(preserved.pricing, modelType) } : {})
   }
 }
 
 const activeRows = source.models.filter((row) => !row.name.includes('（即将下线）') && row.availability !== 'retired')
 const unsupported = activeRows.filter((row) => !runtimeModelTypes.has(classify(row)) || row.runtime_supported === false)
 const runtimeRows = activeRows.filter((row) => runtimeModelTypes.has(classify(row)) && row.runtime_supported !== false)
-const counts = { llm: 0, 'text-embedding': 0, rerank: 0, image: 0, video: 0, 'speech-to-text': 0 }
+const counts = {
+  llm: 0,
+  'text-embedding': 0,
+  'multimodal-embedding': 0,
+  rerank: 0,
+  image: 0,
+  video: 0,
+  speech2text: 0
+}
 const generated = []
 
 for (const row of activeRows) {
@@ -229,7 +276,10 @@ const normalized = {
     excluded_retired: source.models.filter((row) => row.availability === 'retired').map((row) => row.name),
     unsupported_status: 'catalog-only-until-the-model-type-api-contract-is-implemented-and-verified',
     llm_specs_verified_at: llmSpecsSource.verified_at,
-    llm_spec_sources: llmSpecsSource.sources
+    llm_spec_sources: llmSpecsSource.sources,
+    model_metadata_verified_at: modelMetadataSource.verified_at,
+    model_metadata_sources: modelMetadataSource.sources,
+    unknown_capabilities: 'not-declared-until-explicitly-verified'
   },
   counts,
   active_models: generated,

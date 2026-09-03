@@ -2,4 +2,4 @@
 "@xpert-ai/plugin-xirang": minor
 ---
 
-Publish the updated Xirang model catalog.
+Correct Xirang model capabilities and API contracts, and publish the updated catalog as 0.2.0.

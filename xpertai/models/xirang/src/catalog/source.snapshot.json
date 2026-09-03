@@ -166,7 +166,9 @@
     },
     {
       "group": "体验中心",
-      "name": "qwen3-vl-embedding"
+      "name": "qwen3-vl-embedding",
+      "runtime_supported": false,
+      "unsupported_reason": "multimodal-embedding-api-contract-not-implemented"
     },
     {
       "group": "体验中心",
@@ -400,7 +402,9 @@
     },
     {
       "group": "体验中心",
-      "name": "qwen-image-edit"
+      "name": "qwen-image-edit",
+      "runtime_supported": false,
+      "unsupported_reason": "image-edit-api-contract-not-verified"
     },
     {
       "group": "体验中心",
@@ -420,11 +424,15 @@
     },
     {
       "group": "体验中心",
-      "name": "qwen-image-edit-plus"
+      "name": "qwen-image-edit-plus",
+      "runtime_supported": false,
+      "unsupported_reason": "image-edit-api-contract-not-verified"
     },
     {
       "group": "体验中心",
-      "name": "qwen-image-edit-max"
+      "name": "qwen-image-edit-max",
+      "runtime_supported": false,
+      "unsupported_reason": "image-edit-api-contract-not-verified"
     },
     {
       "group": "体验中心",

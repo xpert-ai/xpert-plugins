@@ -11,6 +11,9 @@ module.exports = {
     '^.+\\.[tj]s$': ['@swc/jest', swcJestConfig]
   },
   transformIgnorePatterns: ['/node_modules/(?!(lodash-es)/)'],
+  moduleNameMapper: {
+    '^lodash-es$': '<rootDir>/../../test-utils/lodashEsMock.ts'
+  },
   moduleFileExtensions: ['ts', 'js', 'html'],
   coverageDirectory: 'test-output/jest/coverage'
 }

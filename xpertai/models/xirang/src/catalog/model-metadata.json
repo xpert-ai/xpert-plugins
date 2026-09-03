@@ -1,0 +1,166 @@
+{
+  "verified_at": "2026-09-03",
+  "sources": {
+    "xirang_api_types": "https://www.ctyun.cn/document/11061839/11062345",
+    "qwen_capabilities": "https://help.aliyun.com/zh/model-studio/vision-model",
+    "qwen3_8_max": "https://help.aliyun.com/zh/model-studio/qwen3-8-max",
+    "qwen3_8_flash": "https://help.aliyun.com/zh/model-studio/qwen3-8-flash",
+    "qwen3_7_max": "https://help.aliyun.com/zh/model-studio/qwen3-7-max",
+    "xpert": "Existing model specifications in this repository"
+  },
+  "model_types": {
+    "text-embedding": ["BGE-m3", "text-embedding-v4", "text-embedding-v3"],
+    "multimodal-embedding": ["qwen3-vl-embedding"],
+    "rerank": [
+      "BGE-Reranker-Large",
+      "BGE-Reranker-V2-m3",
+      "qwen3-rerank",
+      "gte-rerank-v2"
+    ],
+    "image": [
+      "wan2.7-image",
+      "Doubao-seedream-4.5",
+      "Doubao-Seedream-5.0-lite",
+      "Doubao-seedream-4.0",
+      "qwen-image-2.0-pro",
+      "qwen-image-edit",
+      "qwen-image-edit-plus",
+      "qwen-image-edit-max",
+      "wan2.7-image-pro",
+      "wan2.6-image",
+      "doubao-seedream-5.0-pro",
+      "qwen-image-edit-max-2026-01-16（国际）",
+      "qwen-image-edit-max（国际）",
+      "qwen-image-2.0-pro-2026-03-03（国际）",
+      "qwen-image-2.0-pro（国际）",
+      "qwen-image-2.0-2026-03-03（国际）",
+      "qwen-image-2.0（国际）"
+    ],
+    "video": [
+      "wan2.2-i2v-flash",
+      "wan2.6-r2v",
+      "happyhorse-1.0-r2v-20260618",
+      "wan2.2-kf2v-flash",
+      "wan2.2-animate-mix",
+      "wan2.6-t2v",
+      "wan2.6-r2v-flash",
+      "Doubao-Seedance-1.5-pro",
+      "happyhorse-1.0-t2v",
+      "Doubao-Seedance-1.0-pro",
+      "happyhorse-1.1-t2v",
+      "happyhorse-1.0-i2v",
+      "wan2.5-i2v-preview",
+      "wan2.6-i2v-flash",
+      "Doubao-Seedance-1.5-pro-noaudio",
+      "happyhorse-1.1-r2v",
+      "wan2.6-i2v",
+      "happyhorse-1.0-r2v",
+      "wan2.2-t2v-plus",
+      "wan2.7-r2v",
+      "happyhorse-1.0-video-edit-20260618",
+      "happyhorse-1.0-video-edit",
+      "happyhorse-1.1-i2v",
+      "happyhorse-1.0-i2v-20260618",
+      "wan2.2-i2v-plus",
+      "wan2.7-t2v",
+      "happyhorse-1.0-t2v-20260618",
+      "wan2.7-i2v",
+      "wan2.5-t2v-preview",
+      "wan3.0-video",
+      "wan3.0-video-prime",
+      "minimax-h3"
+    ],
+    "speech2text": [
+      "qwen-audio-3.0-asr-flash-filetrans",
+      "qwen-audio-3.0-asr-flash",
+      "fun-asr"
+    ]
+  },
+  "llm_feature_profiles": [
+    {
+      "models": ["qwen3.8-max", "qwen3.8-flash"],
+      "features": [
+        "vision",
+        "video",
+        "structured-output",
+        "agent-thought",
+        "tool-call",
+        "multi-tool-call",
+        "stream-tool-call"
+      ],
+      "source": "qwen_capabilities"
+    },
+    {
+      "models": ["qwen3.7-max"],
+      "features": [
+        "structured-output",
+        "agent-thought",
+        "tool-call",
+        "multi-tool-call",
+        "stream-tool-call"
+      ],
+      "source": "qwen3_7_max"
+    },
+    {
+      "models": [
+        "qwen3.7-plus",
+        "qwen3.6-plus",
+        "qwen3.6-flash",
+        "qwen3.6-flash-0717",
+        "qwen3.6-flash（全球）",
+        "qwen3.6-plus-2026-04-02（全球）",
+        "qwen3.6-plus（全球）",
+        "qwen3.6-plus-2026-04-02（国际）",
+        "qwen3.6-plus（国际）",
+        "qwen3.6-flash（国际）",
+        "qwen3.6-35b-a3b",
+        "qwen3.6-27b",
+        "qwen3.5-plus",
+        "qwen3.5-flash",
+        "qwen3.5-flash（全球）",
+        "qwen3.5-flash（国际）",
+        "Qwen3.5-122B-A10B",
+        "qwen3.5-35b-a3b",
+        "qwen3.5-397b-a17b（正式版）",
+        "qwen3.5-27b"
+      ],
+      "features": [
+        "vision",
+        "video",
+        "structured-output",
+        "agent-thought",
+        "tool-call",
+        "multi-tool-call",
+        "stream-tool-call"
+      ],
+      "source": "qwen_capabilities"
+    },
+    {
+      "models": [
+        "Qwen3-VL-235B-A22B-Instruct",
+        "Qwen3-VL-30B-A3B-Instruct",
+        "Qwen3-VL-Plus",
+        "qwen3-vl-flash"
+      ],
+      "features": [
+        "vision",
+        "video",
+        "structured-output",
+        "tool-call",
+        "multi-tool-call",
+        "stream-tool-call"
+      ],
+      "source": "qwen_capabilities"
+    },
+    {
+      "models": ["Qwen3-Omni-Flash", "Qwen2.5-VL-72B-Instruct", "qwen-vl-plus"],
+      "features": ["vision", "video"],
+      "source": "qwen_capabilities"
+    },
+    {
+      "models": ["Qwen-VL-Chat", "GLM4.6V", "glm-5.3-flash", "Doubao-Seed-1.6-vision"],
+      "features": ["vision"],
+      "source": "xpert"
+    }
+  ]
+}

@@ -5,6 +5,9 @@
     "zh_Hans": "qwen3.8-flash"
   },
   "model_type": "llm",
+  "modelConfig": {
+    "endpoint_model_name": "865d804fa96848bbad8d047707f33565"
+  },
   "model_properties": {
     "mode": "chat",
     "context_size": 1000000
@@ -68,12 +71,13 @@
     }
   ],
   "features": [
-    "tool-call",
-    "multi-tool-call",
-    "stream-tool-call",
+    "vision",
+    "video",
     "structured-output",
     "agent-thought",
-    "vision"
+    "tool-call",
+    "multi-tool-call",
+    "stream-tool-call"
   ],
   "pricing": {
     "input": "0.8",

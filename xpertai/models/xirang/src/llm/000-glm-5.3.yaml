@@ -5,6 +5,9 @@
     "zh_Hans": "glm-5.3"
   },
   "model_type": "llm",
+  "modelConfig": {
+    "endpoint_model_name": "e8e2511658054053a7e56e950d80f0e4"
+  },
   "model_properties": {
     "mode": "chat",
     "context_size": 1000000
@@ -42,38 +45,9 @@
       "default": 4096,
       "min": 1,
       "max": 131072
-    },
-    {
-      "name": "response_format",
-      "type": "string",
-      "label": {
-        "zh_Hans": "回复格式",
-        "en_US": "Response format"
-      },
-      "required": false,
-      "options": [
-        "text",
-        "json_object"
-      ]
-    },
-    {
-      "name": "enable_thinking",
-      "type": "boolean",
-      "label": {
-        "zh_Hans": "思考模式",
-        "en_US": "Thinking mode"
-      },
-      "required": false,
-      "default": false
     }
   ],
-  "features": [
-    "tool-call",
-    "multi-tool-call",
-    "stream-tool-call",
-    "structured-output",
-    "agent-thought"
-  ],
+  "features": [],
   "pricing": {
     "input": "8",
     "output": "28",

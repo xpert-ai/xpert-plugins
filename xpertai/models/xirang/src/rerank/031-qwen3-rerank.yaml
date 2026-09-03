@@ -5,6 +5,9 @@
     "zh_Hans": "qwen3-rerank"
   },
   "model_type": "rerank",
+  "modelConfig": {
+    "endpoint_model_name": "a18944d8204c4e969cd4635c28af56e5"
+  },
   "model_properties": {
     "context_size": 120000
   },

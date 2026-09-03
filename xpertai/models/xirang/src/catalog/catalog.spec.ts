@@ -24,22 +24,142 @@ describe('generated Xirang catalog', () => {
   it('keeps the synchronized runtime counts and unsupported model audit list', () => {
     expect(normalized.counts).toEqual({
       llm: 109,
-      'text-embedding': 4,
+      'text-embedding': 3,
+      'multimodal-embedding': 1,
       rerank: 4,
       image: 17,
       video: 32,
-      'speech-to-text': 3
+      speech2text: 3
     })
-    expect(activeModels).toHaveLength(128)
-    expect(normalized.unsupported_models).toHaveLength(41)
+    expect(activeModels).toHaveLength(124)
+    expect(normalized.unsupported_models).toHaveLength(45)
     expect((normalized.unsupported_video_models as unknown[]).length).toBe(32)
   })
 
   it('generates all four runtime model directories', () => {
-    for (const directory of ['llm', 'text-embedding', 'rerank', 'image']) {
-      expect(readdirSync(join(root, '..', directory)).filter((file) => file.endsWith('.yaml')).length).toBeGreaterThan(
-        1
-      )
+    const expected = { llm: 109, 'text-embedding': 3, rerank: 4, image: 8 }
+    for (const [directory, count] of Object.entries(expected)) {
+      expect(
+        readdirSync(join(root, '..', directory)).filter((file) => file.endsWith('.yaml') && !file.startsWith('_'))
+      ).toHaveLength(count)
+    }
+  })
+
+  it('keeps unsupported multimodal embedding and image-edit contracts out of runtime YAML', () => {
+    const unsupported = normalized.unsupported_models as Array<Record<string, unknown>>
+    expect(unsupported).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'qwen3-vl-embedding',
+          model_type: 'multimodal-embedding',
+          reason: 'multimodal-embedding-api-contract-not-implemented'
+        }),
+        ...['qwen-image-edit', 'qwen-image-edit-plus', 'qwen-image-edit-max'].map((name) =>
+          expect.objectContaining({ name, reason: 'image-edit-api-contract-not-verified' })
+        )
+      ])
+    )
+
+    for (const directory of ['text-embedding', 'image']) {
+      const models = readdirSync(join(root, '..', directory))
+        .filter((file) => file.endsWith('.yaml') && !file.startsWith('_'))
+        .map((file) => readJson(join(root, '..', directory, file)).model)
+      expect(models).not.toContain('qwen3-vl-embedding')
+      expect(models).not.toContain('qwen-image-edit')
+      expect(models).not.toContain('qwen-image-edit-plus')
+      expect(models).not.toContain('qwen-image-edit-max')
+    }
+  })
+
+  it('uses explicit model types instead of inferring them from names', () => {
+    const metadata = readJson(join(root, 'model-metadata.json'))
+    const llmSpecifications = readJson(join(root, 'llm-specs.json'))
+    const llmModels = new Set(
+      (llmSpecifications.groups as Array<{ models: string[] }>).flatMap((group) => group.models)
+    )
+    const typeEntries = Object.entries(metadata.model_types as Record<string, string[]>).flatMap(([type, models]) =>
+      models.map((model) => [model, type] as const)
+    )
+    const explicitTypes = new Map(typeEntries)
+    const sourceModels = source.models as Array<Record<string, unknown>>
+    const activeSourceModels = sourceModels.filter(
+      (model) => !String(model.name).includes('（即将下线）') && model.availability !== 'retired'
+    )
+
+    for (const model of activeSourceModels) {
+      if (llmModels.has(String(model.name))) continue
+      expect(explicitTypes.has(String(model.name))).toBe(true)
+    }
+    expect(explicitTypes.get('qwen-audio-3.0-asr-flash')).toBe('speech2text')
+    expect(explicitTypes.get('qwen3-vl-embedding')).toBe('multimodal-embedding')
+  })
+
+  it('publishes exact multimodal features and limits for Qwen3.8 without leaking them to Qwen3.7 Max', () => {
+    for (const model of ['qwen3.8-max', 'qwen3.8-flash']) {
+      const file = readdirSync(join(root, '..', 'llm')).find((candidate) => {
+        if (!candidate.endsWith('.yaml') || candidate.startsWith('_')) return false
+        return readJson(join(root, '..', 'llm', candidate)).model === model
+      })
+      const schema = readJson(join(root, '..', 'llm', file as string))
+      expect(schema.features).toEqual([
+        'vision',
+        'video',
+        'structured-output',
+        'agent-thought',
+        'tool-call',
+        'multi-tool-call',
+        'stream-tool-call'
+      ])
+    }
+
+    const qwen37File = readdirSync(join(root, '..', 'llm')).find((candidate) => {
+      if (!candidate.endsWith('.yaml') || candidate.startsWith('_')) return false
+      return readJson(join(root, '..', 'llm', candidate)).model === 'qwen3.7-max'
+    })
+    const qwen37 = readJson(join(root, '..', 'llm', qwen37File as string))
+    expect(qwen37.features).not.toEqual(expect.arrayContaining(['vision', 'video']))
+    expect(
+      (qwen37.parameter_rules as Array<Record<string, unknown>>).find((rule) => rule.name === 'max_tokens')?.max
+    ).toBe(131072)
+  })
+
+  it('uses captured endpoint IDs without changing logical model names', () => {
+    const captured = (source.models as Array<Record<string, unknown>>).filter((model) => model.model_id)
+    const capturedIds = captured.map((model) => String(model.model_id))
+    expect(new Set(capturedIds).size).toBe(capturedIds.length)
+
+    for (const sourceModel of captured) {
+      const runtimeModel = activeModels.find((model) => model.name === sourceModel.name)
+      if (!runtimeModel) continue
+      const directory = String(runtimeModel.model_type)
+      const file = readdirSync(join(root, '..', directory)).find((candidate) => {
+        if (!candidate.endsWith('.yaml') || candidate.startsWith('_')) return false
+        return readJson(join(root, '..', directory, candidate)).model === sourceModel.name
+      })
+      const schema = readJson(join(root, '..', directory, file as string))
+      expect(schema.model).toBe(sourceModel.name)
+      expect(schema.modelConfig).toEqual({ endpoint_model_name: sourceModel.model_id })
+    }
+  })
+
+  it('uses image model properties rather than a token context window', () => {
+    for (const file of readdirSync(join(root, '..', 'image')).filter(
+      (candidate) => candidate.endsWith('.yaml') && !candidate.startsWith('_')
+    )) {
+      expect(readJson(join(root, '..', 'image', file)).model_properties).toEqual({ mode: 'image' })
+    }
+  })
+
+  it('only declares parameters and pricing operations covered by the verified text-to-image contract', () => {
+    for (const file of readdirSync(join(root, '..', 'image')).filter(
+      (candidate) => candidate.endsWith('.yaml') && !candidate.startsWith('_')
+    )) {
+      const schema = readJson(join(root, '..', 'image', file))
+      const parameterNames = (schema.parameter_rules as Array<Record<string, unknown>>).map((rule) => rule.name)
+      expect(parameterNames).not.toContain('watermark')
+      for (const rule of ((schema.pricing as Record<string, unknown>).rules ?? []) as Array<Record<string, unknown>>) {
+        if (rule.operations) expect(rule.operations).toEqual(['text_to_image'])
+      }
     }
   })
 
@@ -84,6 +204,8 @@ describe('generated Xirang catalog', () => {
 
   it.each([
     ['qwen3.8-flash', 1000000, 131072],
+    ['qwen3.7-max', 1000000, 131072],
+    ['Qwen3.5-122B-A10B', 32768, 8192],
     ['deepseek-v4-flash-vision-exp-0817', 1000000, 384000],
     ['glm-5.3-flash', 1000000, 131072],
     ['deepseek-v4-pro-0813', 1000000, 384000],
@@ -133,7 +255,7 @@ describe('generated Xirang catalog', () => {
           yamlPricingCount += 1
       }
     }
-    expect(yamlPricingCount).toBe(128)
+    expect(yamlPricingCount).toBe(124)
 
     const glmFile = readdirSync(join(root, '..', 'llm')).find((file) => {
       if (!file.endsWith('.yaml') || file.startsWith('_')) return false
@@ -165,11 +287,6 @@ describe('generated Xirang catalog', () => {
     expect(String(seedreamPricing.source_note)).toContain('2.61MP')
     expect(seedreamPricing.rules).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({
-          unit_price: 0.02,
-          component: 'input',
-          source_url: 'https://ctxirang.ctyun.cn/maas/inlineService'
-        }),
         expect.objectContaining({
           unit_price: 0.3,
           component: 'output',

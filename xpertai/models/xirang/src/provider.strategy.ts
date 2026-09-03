@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { AIModelProviderStrategy, CredentialsValidateFailedError, ModelProvider, getErrorMessage } from '@xpert-ai/plugin-sdk'
-import { Xirang, type XirangCredentials, getXirangBaseUrl } from './types.js'
+import { Xirang, type XirangCredentials, getXirangAuthorization, getXirangBaseUrl } from './types.js'
 
 @Injectable()
 @AIModelProviderStrategy(Xirang)
@@ -12,7 +12,7 @@ export class XirangProviderStrategy extends ModelProvider {
   }
 
   getAuthorization(credentials: XirangCredentials): string {
-    return credentials.app_key
+    return getXirangAuthorization(credentials)
   }
 
   override async validateProviderCredentials(credentials: XirangCredentials): Promise<void> {
@@ -25,7 +25,7 @@ export class XirangProviderStrategy extends ModelProvider {
     try {
       const response = await fetch(`${getXirangBaseUrl(credentials)}/models`, {
         method: 'GET',
-        headers: { Authorization: credentials.app_key.trim(), Accept: 'application/json' },
+        headers: { Authorization: getXirangAuthorization(credentials), Accept: 'application/json' },
         signal: controller.signal
       })
       if (!response.ok) {

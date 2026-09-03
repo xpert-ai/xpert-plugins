@@ -16,22 +16,33 @@
       "Kimi-K2-Instruct"
     ],
     "unsupported_status": "catalog-only-until-the-model-type-api-contract-is-implemented-and-verified",
-    "llm_specs_verified_at": "2026-09-02",
+    "llm_specs_verified_at": "2026-09-03",
     "llm_spec_sources": {
       "xirang": "https://ctxirang.ctyun.cn/maas/inlineService",
       "qwen": "https://help.aliyun.com/zh/model-studio/models",
       "deepseek": "https://api-docs.deepseek.com/quick_start/pricing",
       "zhipu": "https://docs.bigmodel.cn/cn/guide/models/text/glm-5",
       "xpert": "Existing model specifications in this repository"
-    }
+    },
+    "model_metadata_verified_at": "2026-09-03",
+    "model_metadata_sources": {
+      "xirang_api_types": "https://www.ctyun.cn/document/11061839/11062345",
+      "qwen_capabilities": "https://help.aliyun.com/zh/model-studio/vision-model",
+      "qwen3_8_max": "https://help.aliyun.com/zh/model-studio/qwen3-8-max",
+      "qwen3_8_flash": "https://help.aliyun.com/zh/model-studio/qwen3-8-flash",
+      "qwen3_7_max": "https://help.aliyun.com/zh/model-studio/qwen3-7-max",
+      "xpert": "Existing model specifications in this repository"
+    },
+    "unknown_capabilities": "not-declared-until-explicitly-verified"
   },
   "counts": {
     "llm": 109,
-    "text-embedding": 4,
+    "text-embedding": 3,
+    "multimodal-embedding": 1,
     "rerank": 4,
     "image": 17,
     "video": 32,
-    "speech-to-text": 3
+    "speech2text": 3
   },
   "active_models": [
     {
@@ -138,7 +149,7 @@
       "name": "qwen3.7-max",
       "model_type": "llm",
       "context_size": 1000000,
-      "max_output_tokens": 65536,
+      "max_output_tokens": 131072,
       "spec_source": "qwen"
     },
     {
@@ -274,10 +285,6 @@
       "spec_source": "qwen"
     },
     {
-      "name": "qwen3-vl-embedding",
-      "model_type": "text-embedding"
-    },
-    {
       "name": "text-embedding-v3",
       "model_type": "text-embedding"
     },
@@ -335,8 +342,8 @@
     {
       "name": "Qwen3.5-122B-A10B",
       "model_type": "llm",
-      "context_size": 262144,
-      "max_output_tokens": 65536,
+      "context_size": 32768,
+      "max_output_tokens": 8192,
       "spec_source": "qwen"
     },
     {
@@ -349,8 +356,8 @@
     {
       "name": "qwen3.5-35b-a3b",
       "model_type": "llm",
-      "context_size": 262144,
-      "max_output_tokens": 65536,
+      "context_size": 32768,
+      "max_output_tokens": 8192,
       "spec_source": "qwen"
     },
     {
@@ -405,8 +412,8 @@
     {
       "name": "qwen3.5-397b-a17b（正式版）",
       "model_type": "llm",
-      "context_size": 262144,
-      "max_output_tokens": 65536,
+      "context_size": 32768,
+      "max_output_tokens": 8192,
       "spec_source": "qwen"
     },
     {
@@ -578,8 +585,8 @@
     {
       "name": "qwen3.5-27b",
       "model_type": "llm",
-      "context_size": 262144,
-      "max_output_tokens": 65536,
+      "context_size": 32768,
+      "max_output_tokens": 8192,
       "spec_source": "qwen"
     },
     {
@@ -590,23 +597,11 @@
       "spec_source": "xpert"
     },
     {
-      "name": "qwen-image-edit",
-      "model_type": "image"
-    },
-    {
       "name": "glm-4.7-flashx",
       "model_type": "llm",
       "context_size": 200000,
       "max_output_tokens": 131072,
       "spec_source": "zhipu"
-    },
-    {
-      "name": "qwen-image-edit-plus",
-      "model_type": "image"
-    },
-    {
-      "name": "qwen-image-edit-max",
-      "model_type": "image"
     },
     {
       "name": "glm-5-turbo",
@@ -883,6 +878,11 @@
   ],
   "unsupported_models": [
     {
+      "name": "qwen3-vl-embedding",
+      "model_type": "multimodal-embedding",
+      "reason": "multimodal-embedding-api-contract-not-implemented"
+    },
+    {
       "name": "wan2.2-i2v-flash",
       "model_type": "video",
       "reason": "model-type-not-implemented"
@@ -913,6 +913,11 @@
       "reason": "model-type-not-implemented"
     },
     {
+      "name": "qwen-image-edit",
+      "model_type": "image",
+      "reason": "image-edit-api-contract-not-verified"
+    },
+    {
       "name": "wan2.6-r2v-flash",
       "model_type": "video",
       "reason": "model-type-not-implemented"
@@ -926,6 +931,16 @@
       "name": "happyhorse-1.0-t2v",
       "model_type": "video",
       "reason": "model-type-not-implemented"
+    },
+    {
+      "name": "qwen-image-edit-plus",
+      "model_type": "image",
+      "reason": "image-edit-api-contract-not-verified"
+    },
+    {
+      "name": "qwen-image-edit-max",
+      "model_type": "image",
+      "reason": "image-edit-api-contract-not-verified"
     },
     {
       "name": "Doubao-Seedance-1.0-pro",
@@ -1039,17 +1054,17 @@
     },
     {
       "name": "qwen-audio-3.0-asr-flash-filetrans",
-      "model_type": "speech-to-text",
+      "model_type": "speech2text",
       "reason": "model-type-not-implemented"
     },
     {
       "name": "qwen-audio-3.0-asr-flash",
-      "model_type": "speech-to-text",
+      "model_type": "speech2text",
       "reason": "model-type-not-implemented"
     },
     {
       "name": "fun-asr",
-      "model_type": "speech-to-text",
+      "model_type": "speech2text",
       "reason": "model-type-not-implemented"
     },
     {
