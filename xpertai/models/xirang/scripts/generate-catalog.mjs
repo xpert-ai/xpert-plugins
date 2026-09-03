@@ -40,6 +40,15 @@ for (const group of llmSpecsSource.groups) {
   }
 }
 
+const llmFeatureSpecs = new Map()
+for (const group of llmSpecsSource.feature_groups ?? []) {
+  for (const model of group.models) {
+    const features = llmFeatureSpecs.get(model) ?? new Set()
+    for (const feature of group.features) features.add(feature)
+    llmFeatureSpecs.set(model, features)
+  }
+}
+
 function classify(row) {
   if (row.model_type) return row.model_type
   const name = row.name
@@ -65,8 +74,7 @@ function llmFeatures(name) {
   const features = ['tool-call', 'multi-tool-call', 'stream-tool-call', 'structured-output']
   if (/(deepseek|reason|thinking|kimi-k[23]|glm-5|glm4\.6v|minimax-m[23]|qwen3\.[5-8])/i.test(normalized))
     features.push('agent-thought')
-  if (/(vl|vision|omni|seed-1\.6-vision|glm4\.6v|glm-5\.3-flash|qwen3\.[5-8])/i.test(normalized))
-    features.push('vision')
+  features.push(...(llmFeatureSpecs.get(name) ?? []))
   return [...new Set(features)]
 }
 
@@ -176,6 +184,11 @@ function modelSchema(row, modelType) {
 const activeRows = source.models.filter((row) => !row.name.includes('（即将下线）') && row.availability !== 'retired')
 const unsupported = activeRows.filter((row) => !runtimeModelTypes.has(classify(row)) || row.runtime_supported === false)
 const runtimeRows = activeRows.filter((row) => runtimeModelTypes.has(classify(row)) && row.runtime_supported !== false)
+const runtimeLlmNames = new Set(runtimeRows.filter((row) => classify(row) === 'llm').map((row) => row.name))
+const unknownFeatureModels = [...llmFeatureSpecs.keys()].filter((model) => !runtimeLlmNames.has(model))
+if (unknownFeatureModels.length) {
+  throw new Error(`LLM feature specifications reference unknown runtime models: ${unknownFeatureModels.join(', ')}`)
+}
 const counts = { llm: 0, 'text-embedding': 0, rerank: 0, image: 0, video: 0, 'speech-to-text': 0 }
 const generated = []
 
@@ -229,6 +242,7 @@ const normalized = {
     excluded_retired: source.models.filter((row) => row.availability === 'retired').map((row) => row.name),
     unsupported_status: 'catalog-only-until-the-model-type-api-contract-is-implemented-and-verified',
     llm_specs_verified_at: llmSpecsSource.verified_at,
+    llm_features_verified_at: llmSpecsSource.features_verified_at,
     llm_spec_sources: llmSpecsSource.sources
   },
   counts,

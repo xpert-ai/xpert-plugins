@@ -72,8 +72,7 @@
     "multi-tool-call",
     "stream-tool-call",
     "structured-output",
-    "agent-thought",
-    "vision"
+    "agent-thought"
   ],
   "pricing": {
     "input": "12",

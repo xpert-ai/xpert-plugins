@@ -10,6 +10,7 @@ function readJson(path: string): Record<string, unknown> {
 
 describe('generated Xirang catalog', () => {
   const source = readJson(join(root, 'source.snapshot.json'))
+  const llmSpecs = readJson(join(root, 'llm-specs.json'))
   const normalized = readJson(join(root, 'normalized.snapshot.json'))
   const activeModels = normalized.active_models as Array<Record<string, unknown>>
   const policy = normalized.policy as Record<string, unknown>
@@ -96,6 +97,27 @@ describe('generated Xirang catalog', () => {
         max_output_tokens: maxOutputTokens
       })
     )
+  })
+
+  it('keeps generated vision features aligned with the verified Xirang catalog', () => {
+    const featureGroups = llmSpecs.feature_groups as Array<Record<string, unknown>>
+    const expectedVisionModels = featureGroups
+      .filter((group) => (group.features as string[]).includes('vision'))
+      .flatMap((group) => group.models as string[])
+      .sort()
+    const actualVisionModels = readdirSync(join(root, '..', 'llm'))
+      .filter((file) => file.endsWith('.yaml') && !file.startsWith('_'))
+      .map((file) => readJson(join(root, '..', 'llm', file)))
+      .filter((model) => ((model.features as string[] | undefined) ?? []).includes('vision'))
+      .map((model) => String(model.model))
+      .sort()
+
+    expect(policy.llm_features_verified_at).toBe(llmSpecs.features_verified_at)
+    expect(expectedVisionModels).toHaveLength(48)
+    expect(new Set(expectedVisionModels).size).toBe(expectedVisionModels.length)
+    expect(actualVisionModels).toEqual(expectedVisionModels)
+    expect(actualVisionModels).toEqual(expect.arrayContaining(['qwen3.8-max', 'qwen3.8-flash', 'kimi-k3']))
+    expect(actualVisionModels).not.toContain('qwen3.7-max')
   })
 
   it('keeps the public catalog free of commercial pricing metadata', () => {
