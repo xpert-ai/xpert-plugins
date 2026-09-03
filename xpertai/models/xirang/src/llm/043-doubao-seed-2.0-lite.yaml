@@ -71,7 +71,8 @@
     "tool-call",
     "multi-tool-call",
     "stream-tool-call",
-    "structured-output"
+    "structured-output",
+    "vision"
   ],
   "pricing": {
     "input": "0.6",

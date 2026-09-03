@@ -17,8 +17,10 @@
     ],
     "unsupported_status": "catalog-only-until-the-model-type-api-contract-is-implemented-and-verified",
     "llm_specs_verified_at": "2026-09-02",
+    "llm_features_verified_at": "2026-09-03",
     "llm_spec_sources": {
       "xirang": "https://ctxirang.ctyun.cn/maas/inlineService",
+      "xirang_model_square": "https://ctxirang.ctyun.cn/maas/modelSquare",
       "qwen": "https://help.aliyun.com/zh/model-studio/models",
       "deepseek": "https://api-docs.deepseek.com/quick_start/pricing",
       "zhipu": "https://docs.bigmodel.cn/cn/guide/models/text/glm-5",
