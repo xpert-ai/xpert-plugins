@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   recordEquipmentFindingSchema,
-  recordTriageSchema
+  recordTriageSchema,
+  searchFactoryCasesSchema
 } from './tool-schemas.js'
 
 const base = {
@@ -12,6 +13,19 @@ const base = {
 }
 
 describe('factory tool schemas', () => {
+  it('accepts bounded case search and rejects model-supplied scope', () => {
+    expect(searchFactoryCasesSchema.parse({ search: '  M-07  ' })).toEqual({
+      search: 'M-07',
+      page: 1,
+      pageSize: 20
+    })
+    expect(() => searchFactoryCasesSchema.parse({ page: 0 })).toThrow()
+    expect(() => searchFactoryCasesSchema.parse({ pageSize: 51 })).toThrow()
+    expect(() =>
+      searchFactoryCasesSchema.parse({ organizationId: 'model-controlled' })
+    ).toThrow()
+  })
+
   it('rejects unknown fields and incomplete evidence', () => {
     expect(() =>
       recordTriageSchema.parse({

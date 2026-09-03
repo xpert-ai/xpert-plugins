@@ -51,7 +51,7 @@ npx -y node@20 plugin-dev-harness/dist/index.js --workspace ./xpertai --plugin @
 
 - This tool resolves plugin packages from the selected `--workspace` using `createRequire(<workspace>/package.json)`.
 - This tool loads Nest runtime (`@nestjs/core`) from the selected `--workspace` to avoid duplicate Nest containers.
-- This tool provides global `TypeORM` (`DataSource` / `EntityManager`) and `CACHE_MANAGER` mocks so plugins using `TypeOrmModule.forFeature(...)` can boot without a full app infrastructure.
+- This tool provides global `TypeORM` (`DataSource` / `EntityManager`), `CACHE_MANAGER`, permission-service, and empty runtime-capability registry mocks so plugins using host-injected infrastructure can boot without a full app runtime.
 - TypeORM/cache mocks are no-op test doubles intended for lifecycle validation only.
 - You can disable mocks with `--no-mocks` to validate plugin behavior against real dependencies.
 - Default behavior is dist-export-first (no direct `src` loading).

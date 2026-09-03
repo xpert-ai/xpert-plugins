@@ -17,7 +17,7 @@
       },
       {
         "group": "设计与运行",
-        "pages": ["architecture", "operations", "deployment-v040", "acceptance"]
+        "pages": ["architecture", "operations", "mcp-publication", "deployment-v040", "acceptance"]
       },
       {
         "group": "产品",

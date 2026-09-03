@@ -12,7 +12,9 @@ description: "配置、可观测性、冲突恢复和安全回滚"
 
 ## 可观测性
 
-每个写工具通过 Xpert `ON_TOOL_MESSAGE` 发送运行、成功和失败状态。消息只包含工具名、Case 标识、修订和变更摘要；租户、组织、令牌和密钥会被过滤。
+Agent middleware 中的每个写工具通过 Xpert `ON_TOOL_MESSAGE` 发送运行、成功和失败状态。消息只包含工具名、Case 标识、修订和变更摘要；租户、组织、令牌和密钥会被过滤。
+
+原生 MCP 直接调用装饰器注册的共享业务方法，不经过 Agent middleware 的 `wrapToolCall`，因此不承诺发送上述 Agent 进度事件。业务写入、`operationId` 幂等、修订冲突和审计均由共享服务层保证；MCP Publication 还保留宿主协议审计。
 
 ## 常见错误
 

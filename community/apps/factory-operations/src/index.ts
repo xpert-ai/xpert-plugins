@@ -1,34 +1,39 @@
 import { z } from 'zod'
-import type { I18nObject } from '@xpert-ai/contracts'
+import type { I18nObject, PluginMarketplaceContribution } from '@xpert-ai/contracts'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import { FACTORY_PACKAGE_METADATA } from './package-metadata.js'
 import {
   FACTORY_ARTIFACT_NAMESPACE,
   FACTORY_FEATURE,
   FACTORY_ICON,
+  FACTORY_INSIGHTS_MCP_CAPABILITY,
+  FACTORY_INSIGHTS_TOOLSET_PROVIDER_KEY,
   FACTORY_MANAGEMENT_DASHBOARD_FEATURE,
   FACTORY_MANAGER_TEMPLATE_KEY,
+  FACTORY_MCP_CAPABILITY,
   FACTORY_MIDDLEWARE,
   FACTORY_PLUGIN_LEVEL,
   FACTORY_PLUGIN_NAME,
   FACTORY_TEMPLATE_PROVIDER_KEY,
+  FACTORY_TOOLSET_PROVIDER_KEY,
   FACTORY_VIEW_KEY,
   FACTORY_VIEW_PROVIDER_KEY,
   FACTORY_WORKBENCH_FEATURE
 } from './lib/constants.js'
-import {
-  FACTORY_CONFIG,
-  FACTORY_RUNTIME_SCOPE,
-  FactoryConfigSchema
-} from './lib/config.js'
+import { FACTORY_CONFIG, FACTORY_RUNTIME_SCOPE, FactoryConfigSchema } from './lib/config.js'
 import { FactoryOperationsPlugin } from './lib/factory-operations.plugin.js'
 import { factoryOperationsTemplates } from './lib/factory-templates.js'
 
-const text = (en_US: string, zh_Hans: string): I18nObject => ({ en_US, zh_Hans })
+const text = (en_US: string, zh_Hans: string): I18nObject => ({
+  en_US,
+  zh_Hans
+})
 // Keep this helper until the published 3.16 contracts package includes the host's
 // newer appConfig field. The returned object remains structurally assignable to
 // PluginMarketplaceContribution while preserving full appConfig inference.
-const applicationContribution = <T extends { type: 'app'; name: string; appConfig: object }>(value: T) => value
+const applicationContribution = <T extends { type: 'app'; name: string; appConfig: object }>(
+  value: T
+): PluginMarketplaceContribution => value as unknown as PluginMarketplaceContribution
 const capabilities = [
   ...Object.values(FACTORY_FEATURE),
   FACTORY_WORKBENCH_FEATURE,
@@ -59,28 +64,19 @@ const plugin: XpertPlugin<z.infer<typeof FactoryConfigSchema>> = {
               type: 'app',
               name: 'factory-operations',
               displayName: 'Factory Operations Center',
-              description: text(
-                'Coordinate governed factory anomaly recovery.',
-                '协同完成受控的工厂异常恢复。'
-              ),
+              description: text('Coordinate governed factory anomaly recovery.', '协同完成受控的工厂异常恢复。'),
               icon: FACTORY_ICON,
               operations: [
                 {
                   name: 'investigate-anomalies',
                   displayName: 'Investigate anomalies',
-                  description: text(
-                    'Persist evidence-backed specialist findings.',
-                    '持久化带证据的专业研判结论。'
-                  ),
+                  description: text('Persist evidence-backed specialist findings.', '持久化带证据的专业研判结论。'),
                   access: 'write'
                 },
                 {
                   name: 'approve-recovery-plans',
                   displayName: 'Approve recovery plans',
-                  description: text(
-                    'Authorize a revision-bound recovery plan.',
-                    '审批与修订号绑定的恢复方案。'
-                  ),
+                  description: text('Authorize a revision-bound recovery plan.', '审批与修订号绑定的恢复方案。'),
                   access: 'write'
                 },
                 {
@@ -103,18 +99,15 @@ const plugin: XpertPlugin<z.infer<typeof FactoryConfigSchema>> = {
         }
       },
       xpert: {
-        types: ['assistant-template', 'app'],
-        capabilities,
+        types: ['assistant-template', 'app', 'mcp'],
+        capabilities: [...capabilities, FACTORY_MCP_CAPABILITY, FACTORY_INSIGHTS_MCP_CAPABILITY],
         requiredPlugins: [FACTORY_PLUGIN_NAME],
         marketplace: {
           contents: [
             applicationContribution({
               type: 'app',
               name: 'factory-operations',
-              displayName: text(
-                'Factory Intelligent Operations Center',
-                '工厂智能运营与异常恢复中心'
-              ),
+              displayName: text('Factory Intelligent Operations Center', '工厂智能运营与异常恢复中心'),
               description: text(
                 'Initialize the management entry for the independent-Assistant factory recovery suite.',
                 '初始化独立 Assistant 工厂异常恢复套件的管理入口。'
@@ -123,14 +116,11 @@ const plugin: XpertPlugin<z.infer<typeof FactoryConfigSchema>> = {
               color: '#0F766E',
               tags: ['business-operations', 'factory', 'multi-agent'],
               appConfig: {
-                scope: 'organization',
+                scope: 'organization' as const,
                 assistantTemplateKey: FACTORY_MANAGER_TEMPLATE_KEY,
                 workspace: {
                   mode: 'dedicated',
-                  name: text(
-                    'Factory Intelligent Operations',
-                    '工厂智能运营与异常恢复'
-                  ),
+                  name: text('Factory Intelligent Operations', '工厂智能运营与异常恢复'),
                   description: text(
                     'Organization-shared workspace for factory recovery monitoring and the independent Assistant suite.',
                     '用于工厂异常恢复监控与独立 Assistant 套件的组织共享工作空间。'
@@ -148,9 +138,7 @@ const plugin: XpertPlugin<z.infer<typeof FactoryConfigSchema>> = {
                     '包含独立角色 Assistants、人工审批门、运营泳道和 ECharts 管理监控面板的受控工厂异常恢复应用。'
                   ),
                   developer: 'XpertAI',
-                  screenshots: [
-                    './assets/screenshot-01.jpg',
-                  ],
+                  screenshots: ['./assets/screenshot-01.jpg'],
                   features: [
                     {
                       key: 'independent-role-assistants',
@@ -198,7 +186,33 @@ const plugin: XpertPlugin<z.infer<typeof FactoryConfigSchema>> = {
                 },
                 entry: { type: 'assistant-chat' }
               }
-            })
+            }),
+            {
+              type: 'mcp',
+              name: 'factory-operations',
+              displayName: text('Factory Recovery MCP Capabilities', '工厂恢复 MCP 能力'),
+              description: text(
+                'Host-native, organization-scoped Factory Case recovery mutation tools backed by the Agent middleware implementation.',
+                '宿主原生、组织级、由 Agent Middleware 实现支撑的 Factory Case 恢复写入工具。'
+              ),
+              metadata: {
+                protocol: 'native',
+                provider: FACTORY_TOOLSET_PROVIDER_KEY
+              }
+            },
+            {
+              type: 'mcp',
+              name: 'factory-operations-insights',
+              displayName: text('Factory Operations Insights MCP', '工厂运营洞察 MCP'),
+              description: text(
+                'Host-native, organization-scoped read-only Factory Case search, progress, dashboard, and execution tools.',
+                '宿主原生、组织级、只读的 Factory Case 搜索、进度、看板与执行状态工具。'
+              ),
+              metadata: {
+                protocol: 'native',
+                provider: FACTORY_INSIGHTS_TOOLSET_PROVIDER_KEY
+              }
+            }
           ]
         }
       }
@@ -233,3 +247,8 @@ export default plugin
 export * from './lib/constants.js'
 export * from './lib/domain/types.js'
 export * from './lib/factory-templates.js'
+export {
+  FactoryOperationsInsightsTools,
+  FactoryOperationsTools,
+  type FactoryToolExecutionContext
+} from './lib/factory-middlewares.js'

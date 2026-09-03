@@ -2,7 +2,9 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const componentRoot = dirname(fileURLToPath(import.meta.url))
-const platformRoot = resolve(componentRoot, '../../../../../v3_16/xpert')
+const platformRoot = resolve(
+  process.env.XPERT_PLATFORM_ROOT ?? resolve(componentRoot, '../../../../../../../../xpert')
+)
 const caseId = '00000000-0000-4000-8000-000000000070'
 const projectId = '10000000-0000-4000-8000-000000000070'
 
