@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-canva-connector",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Canva OAuth and MCP connector for XpertAI.",
   "author": {
     "name": "XpertAI",
