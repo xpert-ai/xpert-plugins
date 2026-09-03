@@ -14,12 +14,14 @@ describe('CanvaConnectorStrategy System Integration login', () => {
       metadata: { version: 1, mode: 'mcp-cn' }
     })
     const findAllWithInheritance = jest.fn().mockResolvedValue({
-      items: [{
-        id: 'integration-1',
-        organizationId: 'organization-1',
-        provider: 'canva-mcp-cn',
-        options: { clientId: 'system-client', clientSecret: 'system-secret' }
-      }],
+      items: [
+        {
+          id: 'integration-1',
+          organizationId: 'organization-1',
+          provider: 'canva-mcp-cn',
+          options: { clientId: 'system-client', clientSecret: 'system-secret' }
+        }
+      ],
       total: 1
     })
     const resolve = jest.fn().mockReturnValue({ findAllWithInheritance })
@@ -66,7 +68,14 @@ describe('CanvaConnectorStrategy System Integration login', () => {
           throw new Error('permission service receiver was lost')
         }
         return {
-          items: [{ id: 'bound-integration', provider: 'canva-mcp-cn', organizationId: 'organization-1', options: { clientId: 'bound-client', clientSecret: 'bound-secret' } }],
+          items: [
+            {
+              id: 'bound-integration',
+              provider: 'canva-mcp-cn',
+              organizationId: 'organization-1',
+              options: { clientId: 'bound-client', clientSecret: 'bound-secret' }
+            }
+          ],
           total: 1
         }
       }
@@ -77,11 +86,13 @@ describe('CanvaConnectorStrategy System Integration login', () => {
       { config: {}, resolve: jest.fn().mockReturnValue(permissionService) } as never
     )
 
-    await expect(strategy.connect({
-      authMethodId: 'mcp-oauth-cn',
-      redirectUri: 'https://xpert.example/api/connector/oauth/callback',
-      state: 'state-bound'
-    })).resolves.toEqual(expect.objectContaining({ status: 'pending' }))
+    await expect(
+      strategy.connect({
+        authMethodId: 'mcp-oauth-cn',
+        redirectUri: 'https://xpert.example/api/connector/oauth/callback',
+        state: 'state-bound'
+      })
+    ).resolves.toEqual(expect.objectContaining({ status: 'pending' }))
   })
 
   it('prefers an organization integration over an inherited tenant integration', async () => {
@@ -92,8 +103,18 @@ describe('CanvaConnectorStrategy System Integration login', () => {
     })
     const findAllWithInheritance = jest.fn().mockResolvedValue({
       items: [
-        { id: 'tenant-integration', organizationId: null, provider: 'canva-mcp-cn', options: { clientId: 'tenant-client', clientSecret: 'tenant-secret' } },
-        { id: 'organization-integration', organizationId: 'organization-1', provider: 'canva-mcp-cn', options: { clientId: 'organization-client', clientSecret: 'organization-secret' } }
+        {
+          id: 'tenant-integration',
+          organizationId: null,
+          provider: 'canva-mcp-cn',
+          options: { clientId: 'tenant-client', clientSecret: 'tenant-secret' }
+        },
+        {
+          id: 'organization-integration',
+          organizationId: 'organization-1',
+          provider: 'canva-mcp-cn',
+          options: { clientId: 'organization-client', clientSecret: 'organization-secret' }
+        }
       ],
       total: 2
     })
@@ -120,14 +141,21 @@ describe('CanvaConnectorStrategy System Integration login', () => {
     const strategy = new CanvaConnectorStrategy(
       { buildAuthorization: jest.fn() } as never,
       {} as never,
-      { config: {}, resolve: jest.fn().mockReturnValue({ findAllWithInheritance: jest.fn().mockResolvedValue({ items: [], total: 0 }) }) } as never
+      {
+        config: {},
+        resolve: jest
+          .fn()
+          .mockReturnValue({ findAllWithInheritance: jest.fn().mockResolvedValue({ items: [], total: 0 }) })
+      } as never
     )
 
-    await expect(strategy.connect({
-      authMethodId: 'mcp-oauth-cn',
-      redirectUri: 'https://xpert.example/api/connector/oauth/callback',
-      state: 'state-missing'
-    })).rejects.toThrow('Configure a Canva China MCP OAuth System Integration before connecting')
+    await expect(
+      strategy.connect({
+        authMethodId: 'mcp-oauth-cn',
+        redirectUri: 'https://xpert.example/api/connector/oauth/callback',
+        state: 'state-missing'
+      })
+    ).rejects.toThrow('Configure a Canva China MCP OAuth System Integration before connecting')
   })
 
   it('requires a System Integration id when an explicit legacy value is supplied', async () => {
@@ -138,12 +166,14 @@ describe('CanvaConnectorStrategy System Integration login', () => {
       { config: {}, resolve: jest.fn().mockReturnValue({ read }) } as never
     )
 
-    await expect(strategy.connect({
-      authMethodId: 'mcp-oauth-cn',
-      redirectUri: 'https://xpert.example/api/connector/oauth/callback',
-      state: 'state-explicit',
-      values: { integrationId: 'missing-integration' }
-    })).rejects.toThrow("System Integration 'missing-integration' is not a Canva MCP integration")
+    await expect(
+      strategy.connect({
+        authMethodId: 'mcp-oauth-cn',
+        redirectUri: 'https://xpert.example/api/connector/oauth/callback',
+        state: 'state-explicit',
+        values: { integrationId: 'missing-integration' }
+      })
+    ).rejects.toThrow("System Integration 'missing-integration' is not a Canva MCP integration")
   })
 
   it('reads the integration by id during a public OAuth callback', async () => {
@@ -172,8 +202,16 @@ describe('CanvaConnectorStrategy System Integration login', () => {
         resolve: jest.fn().mockReturnValue({ read })
       } as never
     )
-    const metadata = await new (await import('./oauth/canva-oauth.client.js')).CanvaOAuthClient().buildAuthorization(
-      { integrationId: 'integration-callback', clientId: 'callback-client', clientSecret: 'callback-secret', clientAuthentication: 'client_secret_basic', mode: 'mcp-cn' },
+    const metadata = await new (
+      await import('./oauth/canva-oauth.client.js')
+    ).CanvaOAuthClient().buildAuthorization(
+      {
+        integrationId: 'integration-callback',
+        clientId: 'callback-client',
+        clientSecret: 'callback-secret',
+        clientAuthentication: 'client_secret_basic',
+        mode: 'mcp-cn'
+      },
       'https://xpert.example/api/connector/oauth/callback',
       'state-callback'
     )
@@ -199,11 +237,13 @@ describe('CanvaConnectorStrategy System Integration login', () => {
       { config: {}, resolve } as never
     )
 
-    await expect(strategy.connect({
-      authMethodId: 'mcp-oauth-cn-public',
-      redirectUri: 'https://xpert.example/api/connector/oauth/callback',
-      state: 'state-3'
-    })).rejects.toThrow('Unsupported Canva authentication method for a new connection')
+    await expect(
+      strategy.connect({
+        authMethodId: 'mcp-oauth-cn-public',
+        redirectUri: 'https://xpert.example/api/connector/oauth/callback',
+        state: 'state-3'
+      })
+    ).rejects.toThrow('Unsupported Canva authentication method for a new connection')
 
     expect(buildAuthorization).not.toHaveBeenCalled()
     expect(resolve).not.toHaveBeenCalled()

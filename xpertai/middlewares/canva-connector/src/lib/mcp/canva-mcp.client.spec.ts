@@ -1,6 +1,13 @@
 import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js'
 import { CanvaConnectorError } from '../errors.js'
-import { describeMcpToolFailure, normalizeMcpError, normalizeToolArguments, requestOptions, validateToolArguments, type CanvaToolInputSchema } from './canva-mcp.client.js'
+import {
+  describeMcpToolFailure,
+  normalizeMcpError,
+  normalizeToolArguments,
+  requestOptions,
+  validateToolArguments,
+  type CanvaToolInputSchema
+} from './canva-mcp.client.js'
 
 describe('Canva MCP client boundaries', () => {
   const schema: CanvaToolInputSchema = {
@@ -28,13 +35,19 @@ describe('Canva MCP client boundaries', () => {
   })
 
   it('marks rate-limit failures as retryable', () => {
-    expect(describeMcpToolFailure('generate-design', { error_code: 'rate_limited' })).toMatchObject({ code: 'CANVA_RATE_LIMITED', retryable: true })
+    expect(describeMcpToolFailure('generate-design', { error_code: 'rate_limited' })).toMatchObject({
+      code: 'CANVA_RATE_LIMITED',
+      retryable: true
+    })
   })
 
   it('maps SDK timeouts without allowing an automatic generation retry', () => {
-    expect(normalizeMcpError(new McpError(ErrorCode.RequestTimeout, 'Request timed out'), 'generate-design')).toMatchObject({
+    expect(
+      normalizeMcpError(new McpError(ErrorCode.RequestTimeout, 'Request timed out'), 'generate-design')
+    ).toMatchObject({
       code: 'CANVA_JOB_TIMEOUT',
-      message: 'Canva design generation exceeded 120 seconds. The outcome is unknown, so it was not retried automatically.',
+      message:
+        'Canva design generation exceeded 120 seconds. The outcome is unknown, so it was not retried automatically.',
       retryable: false,
       upstreamCode: '-32001'
     })
@@ -48,12 +61,14 @@ describe('Canva MCP client boundaries', () => {
 
   it('maps Canva monthly AI quota exhaustion to a stable non-retryable error', () => {
     const result = describeMcpToolFailure('generate-design', {
-      message: 'Display this message to the user exactly as written, do not paraphrase it: <verbatim>你本月的AI额度已用完，该额度会在下个月重置。请[查看方案](https://www.canva.cn/pro/#pricing)。</verbatim>'
+      message:
+        'Display this message to the user exactly as written, do not paraphrase it: <verbatim>你本月的AI额度已用完，该额度会在下个月重置。请[查看方案](https://www.canva.cn/pro/#pricing)。</verbatim>'
     })
 
     expect(result).toEqual({
       code: 'CANVA_AI_QUOTA_EXHAUSTED',
-      message: 'Canva AI generation quota is exhausted for the current account. Wait for the monthly reset or review the Canva plan.',
+      message:
+        'Canva AI generation quota is exhausted for the current account. Wait for the monthly reset or review the Canva plan.',
       retryable: false
     })
     expect(JSON.stringify(result)).not.toContain('Display this message')
@@ -61,15 +76,20 @@ describe('Canva MCP client boundaries', () => {
   })
 
   it('removes provider control wrappers from ordinary failure messages', () => {
-    expect(describeMcpToolFailure('generate-design', {
-      message: 'Display this message to the user exactly as written: <verbatim>服务暂时不可用</verbatim>'
-    })).toMatchObject({
+    expect(
+      describeMcpToolFailure('generate-design', {
+        message: 'Display this message to the user exactly as written: <verbatim>服务暂时不可用</verbatim>'
+      })
+    ).toMatchObject({
       message: "Canva MCP tool 'generate-design' failed: 服务暂时不可用"
     })
   })
 
   it('maps permission failures to a scope error instead of pretending the token expired', () => {
-    expect(describeMcpToolFailure('generate-design', { code: 'forbidden' })).toMatchObject({ code: 'CANVA_SCOPE_MISSING', retryable: false })
+    expect(describeMcpToolFailure('generate-design', { code: 'forbidden' })).toMatchObject({
+      code: 'CANVA_SCOPE_MISSING',
+      retryable: false
+    })
   })
 
   it('keeps a text error when structured content is empty', () => {
@@ -79,9 +99,15 @@ describe('Canva MCP client boundaries', () => {
   })
 
   it('rejects arguments that do not match the live MCP schema', () => {
-    expect(() => validateToolArguments('generate-design', { prompt: 'test', design_type: 'banner' }, schema)).toThrow(CanvaConnectorError)
-    expect(() => validateToolArguments('generate-design', { prompt: 'test', unsupported: true }, schema)).toThrow("does not accept argument 'unsupported'")
-    expect(() => validateToolArguments('generate-design', { design_type: 'poster' }, schema)).toThrow("requires argument 'prompt'")
+    expect(() => validateToolArguments('generate-design', { prompt: 'test', design_type: 'banner' }, schema)).toThrow(
+      CanvaConnectorError
+    )
+    expect(() => validateToolArguments('generate-design', { prompt: 'test', unsupported: true }, schema)).toThrow(
+      "does not accept argument 'unsupported'"
+    )
+    expect(() => validateToolArguments('generate-design', { design_type: 'poster' }, schema)).toThrow(
+      "requires argument 'prompt'"
+    )
   })
 
   it('omits unsupported search pagination fields from strict live schemas', () => {
@@ -91,12 +117,23 @@ describe('Canva MCP client boundaries', () => {
       additionalProperties: false
     }
 
-    expect(normalizeToolArguments('search-designs', { query: '测试', page: 1, page_size: 5 }, liveSchema)).toEqual({ query: '测试' })
-    expect(normalizeToolArguments('search-designs', { query: '测试', page: 2, page_size: 5 }, {
-      ...liveSchema,
-      properties: { query: { type: 'string' }, page: { type: 'integer' }, page_size: { type: 'integer' } }
-    })).toEqual({ query: '测试', page: 2, page_size: 5 })
-    expect(normalizeToolArguments('get-design', { prompt: '测试', page: 1 }, liveSchema)).toEqual({ prompt: '测试', page: 1 })
+    expect(normalizeToolArguments('search-designs', { query: '测试', page: 1, page_size: 5 }, liveSchema)).toEqual({
+      query: '测试'
+    })
+    expect(
+      normalizeToolArguments(
+        'search-designs',
+        { query: '测试', page: 2, page_size: 5 },
+        {
+          ...liveSchema,
+          properties: { query: { type: 'string' }, page: { type: 'integer' }, page_size: { type: 'integer' } }
+        }
+      )
+    ).toEqual({ query: '测试', page: 2, page_size: 5 })
+    expect(normalizeToolArguments('get-design', { prompt: '测试', page: 1 }, liveSchema)).toEqual({
+      prompt: '测试',
+      page: 1
+    })
   })
 
   it('maps prompt to query for generate-design deployments using the renamed field', () => {
@@ -107,12 +144,17 @@ describe('Canva MCP client boundaries', () => {
       additionalProperties: false
     }
 
-    expect(normalizeToolArguments('generate-design', {
-      prompt: '生成一张测试海报',
-      design_type: 'poster',
-      language: 'zh-CN',
-      user_intent: '生成活动海报'
-    }, liveSchema)).toEqual({ query: '生成一张测试海报' })
+    expect(
+      normalizeToolArguments(
+        'generate-design',
+        {
+          prompt: '生成一张测试海报',
+          design_type: 'poster',
+          language: 'zh-CN',
+          user_intent: '生成活动海报'
+        },
+        liveSchema
+      )
+    ).toEqual({ query: '生成一张测试海报' })
   })
-
 })

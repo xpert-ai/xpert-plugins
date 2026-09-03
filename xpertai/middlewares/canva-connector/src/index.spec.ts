@@ -6,7 +6,9 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   ConnectorRuntimeCapability: { id: 'platform.connector' },
   WorkspaceFilesRuntimeCapability: { id: 'platform.workspace.files' }
 }))
-jest.mock('@langchain/core/tools', () => ({ tool: (handler: object, config: object) => ({ ...config, invoke: handler }) }))
+jest.mock('@langchain/core/tools', () => ({
+  tool: (handler: object, config: object) => ({ ...config, invoke: handler })
+}))
 
 import plugin from './index.js'
 import { CANVA_ICON } from './lib/branding.js'
@@ -65,7 +67,12 @@ describe('Canva connector plugin', () => {
 
   it('binds confirmations to user, connector, operation and payload', () => {
     const store = new CanvaConfirmationStore()
-    const input = { userId: 'user-1', connectorId: 'connector-1', operation: 'export_design', payload: { designId: 'design-1', format: 'png' } }
+    const input = {
+      userId: 'user-1',
+      connectorId: 'connector-1',
+      operation: 'export_design',
+      payload: { designId: 'design-1', format: 'png' }
+    }
     const pending = store.request(input)
     expect(pending.confirmationRequired).toBe(true)
     expect(() => store.consume({ ...input, handle: pending.confirmationHandle })).not.toThrow()

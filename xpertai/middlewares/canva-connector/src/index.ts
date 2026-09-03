@@ -11,7 +11,10 @@ import { CanvaPluginConfigFormSchema, CanvaPluginConfigSchema, type CanvaPluginC
 import { CANVA_PLUGIN_CONTEXT } from './lib/tokens.js'
 
 const moduleDir = dirname(fileURLToPath(import.meta.url))
-const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 'utf8')) as { name: string; version: string }
+const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 'utf8')) as {
+  name: string
+  version: string
+}
 
 const plugin: XpertPlugin<CanvaPluginConfig> = {
   meta: {
@@ -26,7 +29,11 @@ const plugin: XpertPlugin<CanvaPluginConfig> = {
     keywords: ['canva', 'canva-cn', 'design', 'mcp', 'oauth', 'connector'],
     author: 'XpertAI Team'
   },
-  config: { schema: CanvaPluginConfigSchema, defaults: { mcpRegistration: 'dcr' }, formSchema: CanvaPluginConfigFormSchema },
+  config: {
+    schema: CanvaPluginConfigSchema,
+    defaults: { mcpRegistration: 'dcr' },
+    formSchema: CanvaPluginConfigFormSchema
+  },
   permissions: [
     { type: 'integration', service: CANVA_CONNECTOR_PROVIDER, operations: ['read', 'write'] },
     { type: 'integration', service: CANVA_MCP_INTEGRATION_PROVIDER, operations: ['read'] },
@@ -35,7 +42,11 @@ const plugin: XpertPlugin<CanvaPluginConfig> = {
   register(ctx) {
     CanvaPluginConfigSchema.parse(ctx.config ?? {})
     ctx.logger.log('register Canva connector plugin')
-    return { module: CanvaConnectorPluginModule, global: true, providers: [{ provide: CANVA_PLUGIN_CONTEXT, useValue: ctx }] }
+    return {
+      module: CanvaConnectorPluginModule,
+      global: true,
+      providers: [{ provide: CANVA_PLUGIN_CONTEXT, useValue: ctx }]
+    }
   }
 }
 
@@ -49,4 +60,10 @@ export { CanvaDesignService } from './lib/canva-design.service.js'
 export { CanvaMcpClient } from './lib/mcp/canva-mcp.client.js'
 export { CanvaOAuthClient } from './lib/oauth/canva-oauth.client.js'
 export { CanvaPluginConfigFormSchema, CanvaPluginConfigSchema } from './lib/plugin-config.js'
-export { CANVA_ARTIFACT_NAMESPACE, CANVA_CONNECTOR_PROVIDER, CANVA_MCP_CN_AUTH_METHOD, CANVA_PLUGIN_LEVEL, CANVA_RUNTIME_MIDDLEWARE_NAME } from './lib/constants.js'
+export {
+  CANVA_ARTIFACT_NAMESPACE,
+  CANVA_CONNECTOR_PROVIDER,
+  CANVA_MCP_CN_AUTH_METHOD,
+  CANVA_PLUGIN_LEVEL,
+  CANVA_RUNTIME_MIDDLEWARE_NAME
+} from './lib/constants.js'

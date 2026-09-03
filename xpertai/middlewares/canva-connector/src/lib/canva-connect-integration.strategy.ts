@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import type { IIntegration } from '@xpert-ai/contracts'
-import { IntegrationStrategyKey, type IntegrationStrategy, type TIntegrationStrategyParams } from '@xpert-ai/plugin-sdk'
+import { IntegrationStrategyKey, type IntegrationStrategy } from '@xpert-ai/plugin-sdk'
 import { CANVA_ICON } from './branding.js'
 
 export const CANVA_CONNECT_INTEGRATION_PROVIDER = 'canva-connect-global'
@@ -35,10 +34,7 @@ export class CanvaConnectIntegrationStrategy implements IntegrationStrategy<Canv
     }
   }
 
-  async execute(
-    _integration: IIntegration<CanvaConnectIntegrationOptions>,
-    _payload: TIntegrationStrategyParams
-  ): Promise<null> {
+  async execute(): Promise<null> {
     return null
   }
   async validateConfig(config: CanvaConnectIntegrationOptions) {

@@ -3,14 +3,33 @@ import { Injectable, Logger } from '@nestjs/common'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport, StreamableHTTPError } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js'
-import { CANVA_MCP_CN_ENDPOINT, CANVA_MCP_GENERATE_TIMEOUT_MS, CANVA_MCP_MAX_SESSIONS, CANVA_MCP_REQUEST_TIMEOUT_MS, CANVA_MCP_SESSION_IDLE_TTL_MS, CANVA_MCP_TOOL_NAMES, type CanvaMcpToolName } from '../constants.js'
+import {
+  CANVA_MCP_CN_ENDPOINT,
+  CANVA_MCP_GENERATE_TIMEOUT_MS,
+  CANVA_MCP_MAX_SESSIONS,
+  CANVA_MCP_REQUEST_TIMEOUT_MS,
+  CANVA_MCP_SESSION_IDLE_TTL_MS,
+  CANVA_MCP_TOOL_NAMES,
+  type CanvaMcpToolName
+} from '../constants.js'
 import { CanvaConnectorError, errorMessage, readString } from '../errors.js'
 import { readRecord, type CanvaPayload } from './canva-mappers.js'
 
 type CanvaToolPropertySchema = { type?: string; enum?: readonly unknown[] }
-export type CanvaToolInputSchema = { type: 'object'; properties?: Record<string, object>; required?: readonly string[]; additionalProperties?: boolean }
+export type CanvaToolInputSchema = {
+  type: 'object'
+  properties?: Record<string, object>
+  required?: readonly string[]
+  additionalProperties?: boolean
+}
 type CanvaToolDefinition = { name: string; inputSchema: CanvaToolInputSchema }
-type CanvaSession = { key: string; tokenFingerprint: string; client: Client; tools: Map<string, CanvaToolDefinition>; lastUsedAt: number }
+type CanvaSession = {
+  key: string
+  tokenFingerprint: string
+  client: Client
+  tools: Map<string, CanvaToolDefinition>
+  lastUsedAt: number
+}
 type MpcCallResult = Awaited<ReturnType<Client['callTool']>>
 
 @Injectable()
@@ -19,10 +38,20 @@ export class CanvaMcpClient {
   private readonly sessions = new Map<string, CanvaSession>()
   private readonly creating = new Map<string, Promise<CanvaSession>>()
 
-  async callTool(input: { connectorId: string; accessToken: string; resource: string; name: CanvaMcpToolName; arguments: Record<string, unknown> }): Promise<CanvaPayload> {
+  async callTool(input: {
+    connectorId: string
+    accessToken: string
+    resource: string
+    name: CanvaMcpToolName
+    arguments: Record<string, unknown>
+  }): Promise<CanvaPayload> {
     const session = await this.getSession(input.connectorId, input.accessToken, input.resource)
     const definition = session.tools.get(input.name)
-    if (!definition) throw new CanvaConnectorError('CANVA_TOOL_UNAVAILABLE', `Canva MCP tool '${input.name}' is not available for this account`)
+    if (!definition)
+      throw new CanvaConnectorError(
+        'CANVA_TOOL_UNAVAILABLE',
+        `Canva MCP tool '${input.name}' is not available for this account`
+      )
     const argumentsToSend = normalizeToolArguments(input.name, input.arguments, definition.inputSchema)
     validateToolArguments(input.name, argumentsToSend, definition.inputSchema)
     try {
@@ -32,7 +61,11 @@ export class CanvaMcpClient {
         await this.dropSession(session.key)
         const retry = await this.getSession(input.connectorId, input.accessToken, input.resource)
         const retryDefinition = retry.tools.get(input.name)
-        if (!retryDefinition) throw new CanvaConnectorError('CANVA_TOOL_UNAVAILABLE', `Canva MCP tool '${input.name}' is no longer available`)
+        if (!retryDefinition)
+          throw new CanvaConnectorError(
+            'CANVA_TOOL_UNAVAILABLE',
+            `Canva MCP tool '${input.name}' is no longer available`
+          )
         const retryArguments = normalizeToolArguments(input.name, input.arguments, retryDefinition.inputSchema)
         validateToolArguments(input.name, retryArguments, retryDefinition.inputSchema)
         return this.call(retry.client, input.name, retryArguments)
@@ -59,26 +92,60 @@ export class CanvaMcpClient {
     const tokenFingerprint = createHash('sha256').update(accessToken).digest('hex')
     const sessionKey = `${key}:${resource}`
     const current = this.sessions.get(sessionKey)
-    if (current?.tokenFingerprint === tokenFingerprint) { current.lastUsedAt = Date.now(); return current }
+    if (current?.tokenFingerprint === tokenFingerprint) {
+      current.lastUsedAt = Date.now()
+      return current
+    }
     if (current) await this.dropSession(sessionKey)
     const pending = this.creating.get(sessionKey)
     if (pending) return pending
     const creating = this.createSession(sessionKey, accessToken, resource, tokenFingerprint)
     this.creating.set(sessionKey, creating)
-    try { const session = await creating; this.sessions.set(sessionKey, session); this.enforceLimit(); return session } finally { this.creating.delete(sessionKey) }
+    try {
+      const session = await creating
+      this.sessions.set(sessionKey, session)
+      this.enforceLimit()
+      return session
+    } finally {
+      this.creating.delete(sessionKey)
+    }
   }
 
-  private async createSession(key: string, accessToken: string, resource: string, tokenFingerprint: string): Promise<CanvaSession> {
+  private async createSession(
+    key: string,
+    accessToken: string,
+    resource: string,
+    tokenFingerprint: string
+  ): Promise<CanvaSession> {
     const client = new Client({ name: 'xpert-canva-connector', version: '0.1.0' }, { capabilities: {} })
-    const transport = new StreamableHTTPClientTransport(new URL(CANVA_MCP_CN_ENDPOINT), { requestInit: { headers: { Authorization: `Bearer ${accessToken}`, 'X-Canva-Resource': resource, 'User-Agent': 'Xpert-Canva-Connector' } }, reconnectionOptions: { initialReconnectionDelay: 500, maxReconnectionDelay: 2_000, reconnectionDelayGrowFactor: 1.5, maxRetries: 1 } })
+    const transport = new StreamableHTTPClientTransport(new URL(CANVA_MCP_CN_ENDPOINT), {
+      requestInit: {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'X-Canva-Resource': resource,
+          'User-Agent': 'Xpert-Canva-Connector'
+        }
+      },
+      reconnectionOptions: {
+        initialReconnectionDelay: 500,
+        maxReconnectionDelay: 2_000,
+        reconnectionDelayGrowFactor: 1.5,
+        maxRetries: 1
+      }
+    })
     try {
       await client.connect(transport)
       const listed = await client.listTools(undefined, requestOptions())
-      const tools = new Map(listed.tools
-        .filter((tool) => (CANVA_MCP_TOOL_NAMES as readonly string[]).includes(tool.name))
-        .map((tool) => [tool.name, { name: tool.name, inputSchema: tool.inputSchema as CanvaToolInputSchema }]))
+      const tools = new Map(
+        listed.tools
+          .filter((tool) => (CANVA_MCP_TOOL_NAMES as readonly string[]).includes(tool.name))
+          .map((tool) => [tool.name, { name: tool.name, inputSchema: tool.inputSchema as CanvaToolInputSchema }])
+      )
       return { key, tokenFingerprint, client, tools, lastUsedAt: Date.now() }
-    } catch (error) { await client.close().catch(() => undefined); throw normalizeMcpError(error) }
+    } catch (error) {
+      await client.close().catch(() => undefined)
+      throw normalizeMcpError(error)
+    }
   }
 
   private async call(client: Client, name: CanvaMcpToolName, args: Record<string, unknown>) {
@@ -87,22 +154,47 @@ export class CanvaMcpClient {
     const normalized = normalizeResult(result)
     if (normalized.isError) {
       const failure = describeMcpToolFailure(name, normalized.payload)
-      this.logger.warn(`Canva MCP tool failed: tool=${name} durationMs=${Date.now() - startedAt} retryable=${failure.retryable}${failure.upstreamCode ? ` upstreamCode=${failure.upstreamCode}` : ''}`)
+      this.logger.warn(
+        `Canva MCP tool failed: tool=${name} durationMs=${Date.now() - startedAt} retryable=${failure.retryable}${
+          failure.upstreamCode ? ` upstreamCode=${failure.upstreamCode}` : ''
+        }`
+      )
       throw new CanvaConnectorError(failure.code, failure.message, failure.retryable, failure.upstreamCode)
     }
     this.logger.debug(`Canva MCP tool completed: tool=${name} durationMs=${Date.now() - startedAt}`)
     return normalized.payload
   }
 
-  private evictExpired() { const cutoff = Date.now() - CANVA_MCP_SESSION_IDLE_TTL_MS; for (const [key, session] of this.sessions) if (session.lastUsedAt < cutoff) void this.dropSession(key) }
-  private enforceLimit() { while (this.sessions.size > CANVA_MCP_MAX_SESSIONS) { const first = this.sessions.keys().next(); if (first.done) return; void this.dropSession(first.value) } }
-  private async dropSession(key: string) { const session = this.sessions.get(key); this.sessions.delete(key); if (session) await session.client.close().catch(() => undefined) }
+  private evictExpired() {
+    const cutoff = Date.now() - CANVA_MCP_SESSION_IDLE_TTL_MS
+    for (const [key, session] of this.sessions) if (session.lastUsedAt < cutoff) void this.dropSession(key)
+  }
+  private enforceLimit() {
+    while (this.sessions.size > CANVA_MCP_MAX_SESSIONS) {
+      const first = this.sessions.keys().next()
+      if (first.done) return
+      void this.dropSession(first.value)
+    }
+  }
+  private async dropSession(key: string) {
+    const session = this.sessions.get(key)
+    this.sessions.delete(key)
+    if (session) await session.client.close().catch(() => undefined)
+  }
 }
 
 function normalizeResult(result: MpcCallResult): { payload: CanvaPayload; isError: boolean } {
   const structured = readRecord(result.structuredContent)
   const content = Array.isArray(result.content) ? result.content : []
-  const text = content.find((item): item is { type: 'text'; text: string } => typeof item === 'object' && item !== null && 'type' in item && item.type === 'text' && 'text' in item && typeof item.text === 'string')?.text
+  const text = content.find(
+    (item): item is { type: 'text'; text: string } =>
+      typeof item === 'object' &&
+      item !== null &&
+      'type' in item &&
+      item.type === 'text' &&
+      'text' in item &&
+      typeof item.text === 'string'
+  )?.text
   const textPayload = text?.trim() ? parseTextPayload(text) : {}
   const payload = boundedPayload({ ...textPayload, ...(structured ? boundedPayload(structured) : {}) })
   return { payload, isError: result.isError === true || hasErrorEnvelope(payload) }
@@ -118,7 +210,14 @@ function parseTextPayload(text: string): CanvaPayload {
 }
 
 function hasErrorEnvelope(payload: CanvaPayload) {
-  if (payload.error != null || payload.error_code != null || payload.errorCode != null || payload.failure_code != null || payload.failureCode != null) return true
+  if (
+    payload.error != null ||
+    payload.error_code != null ||
+    payload.errorCode != null ||
+    payload.failure_code != null ||
+    payload.failureCode != null
+  )
+    return true
   const status = readString(payload.status)
   return Boolean(status && /^(error|failed|failure|rejected)$/i.test(status))
 }
@@ -134,14 +233,21 @@ function bounded(value: unknown, depth: number): unknown {
   if (typeof value === 'string') return value.slice(0, 8_000)
   if (typeof value === 'number' || typeof value === 'boolean' || value === null) return value
   if (Array.isArray(value)) return value.slice(0, 100).map((item) => bounded(item, depth + 1))
-  if (typeof value === 'object' && value) return Object.fromEntries(Object.entries(value).slice(0, 100).map(([key, item]) => [key, bounded(item, depth + 1)]))
+  if (typeof value === 'object' && value)
+    return Object.fromEntries(
+      Object.entries(value)
+        .slice(0, 100)
+        .map(([key, item]) => [key, bounded(item, depth + 1)])
+    )
   return null
 }
 export function requestOptions(name?: CanvaMcpToolName) {
   const timeout = name === 'generate-design' ? CANVA_MCP_GENERATE_TIMEOUT_MS : CANVA_MCP_REQUEST_TIMEOUT_MS
   return { timeout, maxTotalTimeout: timeout }
 }
-function isSessionLost(error: unknown) { return error instanceof StreamableHTTPError && error.code === 404 }
+function isSessionLost(error: unknown) {
+  return error instanceof StreamableHTTPError && error.code === 404
+}
 export function normalizeMcpError(error: unknown, operation?: CanvaMcpToolName): CanvaConnectorError {
   if (error instanceof CanvaConnectorError) return error
   if (error instanceof McpError && error.code === ErrorCode.RequestTimeout) {
@@ -149,29 +255,63 @@ export function normalizeMcpError(error: unknown, operation?: CanvaMcpToolName):
     return new CanvaConnectorError(
       'CANVA_JOB_TIMEOUT',
       generation
-        ? `Canva design generation exceeded ${CANVA_MCP_GENERATE_TIMEOUT_MS / 1_000} seconds. The outcome is unknown, so it was not retried automatically.`
+        ? `Canva design generation exceeded ${
+            CANVA_MCP_GENERATE_TIMEOUT_MS / 1_000
+          } seconds. The outcome is unknown, so it was not retried automatically.`
         : 'Canva MCP request timed out.',
       false,
       String(error.code)
     )
   }
   const status = error instanceof StreamableHTTPError ? error.code : undefined
-  if (status === 401 || status === 403) return new CanvaConnectorError('CANVA_TOKEN_EXPIRED', 'Canva access token was rejected')
+  if (status === 401 || status === 403)
+    return new CanvaConnectorError('CANVA_TOKEN_EXPIRED', 'Canva access token was rejected')
   if (status === 404) return new CanvaConnectorError('CANVA_MCP_SESSION_LOST', 'Canva MCP session was lost', true)
   if (status === 429) return new CanvaConnectorError('CANVA_RATE_LIMITED', 'Canva request rate limit was reached', true)
   return new CanvaConnectorError('CANVA_MCP_TOOL_FAILED', `Canva MCP request failed: ${errorMessage(error)}`)
 }
 
-type McpToolFailure = { code: 'CANVA_MCP_TOOL_FAILED' | 'CANVA_RATE_LIMITED' | 'CANVA_AI_QUOTA_EXHAUSTED' | 'CANVA_TOKEN_EXPIRED' | 'CANVA_SCOPE_MISSING' | 'CANVA_INPUT_INVALID' | 'CANVA_JOB_TIMEOUT'; message: string; upstreamCode?: string; retryable: boolean }
+type McpToolFailure = {
+  code:
+    | 'CANVA_MCP_TOOL_FAILED'
+    | 'CANVA_RATE_LIMITED'
+    | 'CANVA_AI_QUOTA_EXHAUSTED'
+    | 'CANVA_TOKEN_EXPIRED'
+    | 'CANVA_SCOPE_MISSING'
+    | 'CANVA_INPUT_INVALID'
+    | 'CANVA_JOB_TIMEOUT'
+  message: string
+  upstreamCode?: string
+  retryable: boolean
+}
 
 export function describeMcpToolFailure(name: string, payload: CanvaPayload): McpToolFailure {
   const nestedError = readRecord(payload.error) ?? readRecord(payload.failure) ?? readRecord(payload.details)
-  const upstreamCode = normalizeUpstreamCode(readString(nestedError?.code ?? nestedError?.error_code ?? payload.error_code ?? payload.errorCode ?? payload.failure_code ?? payload.failureCode ?? payload.code))
-  const upstreamMessage = readString(nestedError?.message ?? nestedError?.detail ?? payload.error_message ?? payload.errorMessage ?? payload.message ?? payload.detail ?? payload.error)
+  const upstreamCode = normalizeUpstreamCode(
+    readString(
+      nestedError?.code ??
+        nestedError?.error_code ??
+        payload.error_code ??
+        payload.errorCode ??
+        payload.failure_code ??
+        payload.failureCode ??
+        payload.code
+    )
+  )
+  const upstreamMessage = readString(
+    nestedError?.message ??
+      nestedError?.detail ??
+      payload.error_message ??
+      payload.errorMessage ??
+      payload.message ??
+      payload.detail ??
+      payload.error
+  )
   if (isAiQuotaExhausted(upstreamCode, upstreamMessage)) {
     return {
       code: 'CANVA_AI_QUOTA_EXHAUSTED',
-      message: 'Canva AI generation quota is exhausted for the current account. Wait for the monthly reset or review the Canva plan.',
+      message:
+        'Canva AI generation quota is exhausted for the current account. Wait for the monthly reset or review the Canva plan.',
       ...(upstreamCode ? { upstreamCode } : {}),
       retryable: false
     }
@@ -180,7 +320,9 @@ export function describeMcpToolFailure(name: string, payload: CanvaPayload): Mcp
   const retryable = isRetryableMcpFailure(upstreamCode)
   return {
     code: mapUpstreamErrorCode(upstreamCode),
-    message: `Canva MCP tool '${name}' failed${upstreamCode ? ` (${upstreamCode})` : ''}${message ? `: ${message}` : ': upstream service returned an error'}`,
+    message: `Canva MCP tool '${name}' failed${upstreamCode ? ` (${upstreamCode})` : ''}${
+      message ? `: ${message}` : ': upstream service returned an error'
+    }`,
     ...(upstreamCode ? { upstreamCode } : {}),
     retryable
   }
@@ -189,18 +331,31 @@ export function describeMcpToolFailure(name: string, payload: CanvaPayload): Mcp
 export function validateToolArguments(name: string, args: Record<string, unknown>, schema: CanvaToolInputSchema) {
   const properties = schema.properties ?? {}
   for (const required of schema.required ?? []) {
-    if (!(required in args) || args[required] === undefined) throw new CanvaConnectorError('CANVA_INPUT_INVALID', `Canva MCP tool '${name}' requires argument '${required}'`)
+    if (!(required in args) || args[required] === undefined)
+      throw new CanvaConnectorError('CANVA_INPUT_INVALID', `Canva MCP tool '${name}' requires argument '${required}'`)
   }
   if (schema.additionalProperties === false) {
     const unknown = Object.keys(args).find((key) => !(key in properties))
-    if (unknown) throw new CanvaConnectorError('CANVA_INPUT_INVALID', `Canva MCP tool '${name}' does not accept argument '${unknown}'`)
+    if (unknown)
+      throw new CanvaConnectorError(
+        'CANVA_INPUT_INVALID',
+        `Canva MCP tool '${name}' does not accept argument '${unknown}'`
+      )
   }
   for (const [key, value] of Object.entries(args)) {
     const property = properties[key]
     if (!property) continue
     const details = readToolPropertySchema(property)
-    if (details?.type && !matchesJsonType(value, details.type)) throw new CanvaConnectorError('CANVA_INPUT_INVALID', `Canva MCP tool '${name}' argument '${key}' must be ${details.type}`)
-    if (details?.enum && !details.enum.some((candidate) => Object.is(candidate, value))) throw new CanvaConnectorError('CANVA_INPUT_INVALID', `Canva MCP tool '${name}' argument '${key}' has an unsupported value`)
+    if (details?.type && !matchesJsonType(value, details.type))
+      throw new CanvaConnectorError(
+        'CANVA_INPUT_INVALID',
+        `Canva MCP tool '${name}' argument '${key}' must be ${details.type}`
+      )
+    if (details?.enum && !details.enum.some((candidate) => Object.is(candidate, value)))
+      throw new CanvaConnectorError(
+        'CANVA_INPUT_INVALID',
+        `Canva MCP tool '${name}' argument '${key}' has an unsupported value`
+      )
   }
 }
 
@@ -260,9 +415,11 @@ function isRetryableMcpFailure(code: string | undefined) {
 function isAiQuotaExhausted(code: string | undefined, message: string | undefined) {
   if (code && /(?:ai.*quota|quota.*(?:exhaust|used)|monthly.*(?:quota|limit))/i.test(code)) return true
   if (!message) return false
-  return /本月.{0,30}AI.{0,20}额度已用完/i.test(message)
-    || /AI.{0,20}额度.{0,20}(?:用完|耗尽|不足)/i.test(message)
-    || /(?:AI\s*)?(?:quota|credits?|generation limit).{0,40}(?:exhausted|used up|reached)/i.test(message)
+  return (
+    /本月.{0,30}AI.{0,20}额度已用完/i.test(message) ||
+    /AI.{0,20}额度.{0,20}(?:用完|耗尽|不足)/i.test(message) ||
+    /(?:AI\s*)?(?:quota|credits?|generation limit).{0,40}(?:exhausted|used up|reached)/i.test(message)
+  )
 }
 
 function mapUpstreamErrorCode(code: string | undefined): McpToolFailure['code'] {
@@ -284,12 +441,14 @@ function normalizeUpstreamCode(value: string | undefined) {
 function sanitizeProviderMessage(value: string | undefined) {
   if (!value) return undefined
   const wrapped = value.match(/<verbatim>([\s\S]*?)<\/verbatim>/i)?.[1]
-  return (wrapped ?? value)
-    .replace(/<\/?verbatim>/gi, '')
-    .replace(/^display this message to the user[^:]{0,300}:\s*/i, '')
-    .replace(/Bearer\s+[A-Za-z0-9._~-]+/gi, 'Bearer [redacted]')
-    .replace(/((?:access[_-]?token|refresh[_-]?token|client[_-]?secret)\s*[:=]\s*)[^\s,;]+/gi, '$1[redacted]')
-    .replace(/[\r\n]+/g, ' ')
-    .trim()
-    .slice(0, 1_000) || undefined
+  return (
+    (wrapped ?? value)
+      .replace(/<\/?verbatim>/gi, '')
+      .replace(/^display this message to the user[^:]{0,300}:\s*/i, '')
+      .replace(/Bearer\s+[A-Za-z0-9._~-]+/gi, 'Bearer [redacted]')
+      .replace(/((?:access[_-]?token|refresh[_-]?token|client[_-]?secret)\s*[:=]\s*)[^\s,;]+/gi, '$1[redacted]')
+      .replace(/[\r\n]+/g, ' ')
+      .trim()
+      .slice(0, 1_000) || undefined
+  )
 }

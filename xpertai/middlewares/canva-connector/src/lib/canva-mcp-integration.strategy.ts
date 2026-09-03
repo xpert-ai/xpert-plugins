@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import type { IIntegration } from '@xpert-ai/contracts'
-import { IntegrationStrategyKey, type IntegrationStrategy, type TIntegrationStrategyParams } from '@xpert-ai/plugin-sdk'
+import { IntegrationStrategyKey, type IntegrationStrategy } from '@xpert-ai/plugin-sdk'
 import { CANVA_ICON } from './branding.js'
 
 export const CANVA_MCP_INTEGRATION_PROVIDER = 'canva-mcp-cn'
@@ -35,10 +34,7 @@ export class CanvaMcpIntegrationStrategy implements IntegrationStrategy<CanvaMcp
     }
   }
 
-  async execute(
-    _integration: IIntegration<CanvaMcpIntegrationOptions>,
-    _payload: TIntegrationStrategyParams
-  ): Promise<null> {
+  async execute(): Promise<null> {
     return null
   }
   async validateConfig(config: CanvaMcpIntegrationOptions) {

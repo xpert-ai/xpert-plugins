@@ -2,9 +2,16 @@
   "name": "@xpert-ai/plugin-canva-connector",
   "version": "0.1.0",
   "description": "Canva 可画 OAuth and MCP connector for XpertAI.",
-  "author": { "name": "XpertAI", "url": "https://xpertai.cn" },
+  "author": {
+    "name": "XpertAI",
+    "url": "https://xpertai.cn"
+  },
   "license": "AGPL-3.0",
-  "repository": { "type": "git", "url": "https://github.com/xpert-ai/xpert-plugins.git", "directory": "xpertai/middlewares/canva-connector" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins.git",
+    "directory": "xpertai/middlewares/canva-connector"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -18,14 +25,27 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist", "docs", "assets", "README.md", "!**/*.tsbuildinfo"],
+  "files": [
+    "dist",
+    "docs",
+    "assets",
+    "README.md",
+    "!**/*.tsbuildinfo"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.lib.json",
     "test": "jest --config jest.config.ts --runInBand",
     "typecheck": "tsc -p tsconfig.lib.json && tsc -p tsconfig.spec.json --noEmit"
   },
-  "publishConfig": { "access": "public" },
-  "xpert": { "plugin": { "level": "organization", "artifactNamespace": "canva_connector" } },
+  "publishConfig": {
+    "access": "public"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "organization",
+      "artifactNamespace": "canva_connector"
+    }
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "tslib": "^2.3.0"

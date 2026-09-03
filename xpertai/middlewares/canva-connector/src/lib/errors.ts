@@ -22,7 +22,12 @@ export type CanvaErrorCode =
   | 'CANVA_INPUT_INVALID'
 
 export class CanvaConnectorError extends Error {
-  constructor(readonly code: CanvaErrorCode, message: string, readonly retryable = false, readonly upstreamCode?: string) {
+  constructor(
+    readonly code: CanvaErrorCode,
+    message: string,
+    readonly retryable = false,
+    readonly upstreamCode?: string
+  ) {
     super(message)
     this.name = 'CanvaConnectorError'
   }

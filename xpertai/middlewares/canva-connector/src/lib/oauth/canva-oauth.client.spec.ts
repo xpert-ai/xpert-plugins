@@ -103,7 +103,13 @@ describe('CanvaOAuthClient', () => {
       'state-public'
     )
     const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ access_token: 'access-token', scope: 'design:meta:read design:content:read design:content:write asset:read' }), { status: 200 })
+      new Response(
+        JSON.stringify({
+          access_token: 'access-token',
+          scope: 'design:meta:read design:content:read design:content:write asset:read'
+        }),
+        { status: 200 }
+      )
     )
 
     await client.exchangeCode({ app: publicApp, code: 'authorization-code', pending: authorization.metadata })

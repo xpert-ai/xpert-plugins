@@ -11,9 +11,22 @@ import { CanvaConfirmationStore } from './tools/confirmation-store.js'
 
 @XpertServerPlugin({
   imports: [],
-  providers: [CanvaMcpIntegrationStrategy, CanvaConnectIntegrationStrategy, CanvaOAuthClient, CanvaMcpClient, CanvaConnectClient, CanvaDesignService, CanvaConfirmationStore, CanvaConnectorStrategy, CanvaConnectorRuntimeMiddleware]
+  providers: [
+    CanvaMcpIntegrationStrategy,
+    CanvaConnectIntegrationStrategy,
+    CanvaOAuthClient,
+    CanvaMcpClient,
+    CanvaConnectClient,
+    CanvaDesignService,
+    CanvaConfirmationStore,
+    CanvaConnectorStrategy,
+    CanvaConnectorRuntimeMiddleware
+  ]
 })
 export class CanvaConnectorPluginModule implements IOnPluginDestroy {
   constructor(private readonly mcp: CanvaMcpClient, private readonly confirmations: CanvaConfirmationStore) {}
-  async onPluginDestroy() { this.confirmations.clear(); await this.mcp.closeAll() }
+  async onPluginDestroy() {
+    this.confirmations.clear()
+    await this.mcp.closeAll()
+  }
 }
