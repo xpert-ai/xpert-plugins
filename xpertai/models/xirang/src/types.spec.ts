@@ -1,4 +1,4 @@
-import { getXirangBaseUrl, toCredentialKwargs } from './types.js'
+import { getXirangBaseUrl, resolveXirangModelLimits, toCredentialKwargs } from './types.js'
 
 describe('Xirang credentials', () => {
   it('normalizes the default endpoint and preserves raw AppKey auth', () => {
@@ -11,5 +11,23 @@ describe('Xirang credentials', () => {
 
   it('rejects an empty AppKey before creating a client', () => {
     expect(() => toCredentialKwargs({ app_key: '  ' }, 'glm-5.3')).toThrow('AppKey is missing')
+  })
+
+  it('keeps context and maximum output limits independent', () => {
+    expect(
+      resolveXirangModelLimits({
+        context_size: '1000000',
+        max_tokens_to_sample: '131072'
+      })
+    ).toEqual({ contextSize: 1000000, maxOutputTokens: 131072 })
+  })
+
+  it('clamps an invalid maximum output limit to the context window', () => {
+    expect(
+      resolveXirangModelLimits({
+        context_size: 8192,
+        max_tokens_to_sample: 16384
+      })
+    ).toEqual({ contextSize: 8192, maxOutputTokens: 8192 })
   })
 })
