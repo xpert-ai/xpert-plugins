@@ -31,6 +31,12 @@
       "qwen3_8_max": "https://help.aliyun.com/zh/model-studio/qwen3-8-max",
       "qwen3_8_flash": "https://help.aliyun.com/zh/model-studio/qwen3-8-flash",
       "qwen3_7_max": "https://help.aliyun.com/zh/model-studio/qwen3-7-max",
+      "kimi_capabilities": "https://www.kimi.ai/help/kimi-api/api-overview",
+      "doubao_capabilities": "https://www.volcengine.com/docs/6492/2192001?lang=zh",
+      "deepseek_capabilities": "https://api-docs.deepseek.com/guides/vision/",
+      "minimax_capabilities": "Same-model schemas under xpertai/models/minimax",
+      "zhipu_capabilities": "Same-model schemas under xpertai/models/zhipuai",
+      "xpert_provider_catalogs": "Same-model and same-series schemas under xpertai/models",
       "xpert": "Existing model specifications in this repository"
     },
     "unknown_capabilities": "not-declared-until-explicitly-verified"

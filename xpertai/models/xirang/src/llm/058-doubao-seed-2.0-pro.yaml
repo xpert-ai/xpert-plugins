@@ -42,9 +42,29 @@
       "default": 4096,
       "min": 1,
       "max": 131072
+    },
+    {
+      "name": "response_format",
+      "type": "string",
+      "label": {
+        "zh_Hans": "回复格式",
+        "en_US": "Response format"
+      },
+      "required": false,
+      "options": [
+        "text",
+        "json_object"
+      ]
     }
   ],
-  "features": [],
+  "features": [
+    "tool-call",
+    "multi-tool-call",
+    "stream-tool-call",
+    "structured-output",
+    "vision",
+    "video"
+  ],
   "pricing": {
     "input": "3.2",
     "output": "16",

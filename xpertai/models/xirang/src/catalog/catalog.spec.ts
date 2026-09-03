@@ -94,6 +94,60 @@ describe('generated Xirang catalog', () => {
     expect(explicitTypes.get('qwen3-vl-embedding')).toBe('multimodal-embedding')
   })
 
+  it('assigns every active catalog model to exactly one explicit model type', () => {
+    const metadata = readJson(join(root, 'model-metadata.json'))
+    const llmSpecifications = readJson(join(root, 'llm-specs.json'))
+    const assignments = [
+      ...(llmSpecifications.groups as Array<{ models: string[] }>).flatMap((group) =>
+        group.models.map((model) => [model, 'llm'] as const)
+      ),
+      ...Object.entries(metadata.model_types as Record<string, string[]>).flatMap(([type, models]) =>
+        models.map((model) => [model, type] as const)
+      )
+    ]
+    const activeSourceNames = (source.models as Array<Record<string, unknown>>)
+      .filter((model) => !String(model.name).includes('（即将下线）') && model.availability !== 'retired')
+      .map((model) => String(model.name))
+
+    expect(new Set(assignments.map(([model]) => model)).size).toBe(assignments.length)
+    expect(new Set(assignments.map(([model]) => model))).toEqual(new Set(activeSourceNames))
+  })
+
+  it('declares an explicit feature profile for every runtime LLM', () => {
+    const metadata = readJson(join(root, 'model-metadata.json'))
+    const llmSpecifications = readJson(join(root, 'llm-specs.json'))
+    const llmModels = (llmSpecifications.groups as Array<{ models: string[] }>).flatMap((group) => group.models)
+    const profiledModels = (
+      metadata.llm_feature_profiles as Array<{ models: string[]; features: string[]; source: string }>
+    ).flatMap((profile) => profile.models)
+
+    expect(new Set(profiledModels).size).toBe(profiledModels.length)
+    expect(new Set(profiledModels)).toEqual(new Set(llmModels))
+  })
+
+  it.each([
+    ['kimi-k3', ['vision', 'video']],
+    ['kimi-k2.6', ['vision', 'video']],
+    ['Kimi-K2.5', ['vision']],
+    ['Doubao-Seed-2.0-Pro', ['vision', 'video']],
+    ['Doubao-Seed-1.8', ['vision', 'video']],
+    ['GLM4.6V', ['vision', 'video']],
+    ['glm-5.3-flash', ['vision', 'video']],
+    ['deepseek-v4-flash-vision-exp-0817', ['vision']],
+    ['Qwen3-14B', ['agent-thought']],
+    ['Qwen3-Omni-Flash', ['vision', 'video', 'agent-thought']],
+    ['qwen-long', ['document', 'agent-thought']],
+    ['glm-4.7', ['agent-thought']]
+  ])('publishes the verified capabilities for %s', (model, features) => {
+    const file = readdirSync(join(root, '..', 'llm')).find((candidate) => {
+      if (!candidate.endsWith('.yaml') || candidate.startsWith('_')) return false
+      return readJson(join(root, '..', 'llm', candidate)).model === model
+    })
+    expect(file).toBeDefined()
+    const schema = readJson(join(root, '..', 'llm', file as string))
+    expect(schema.features).toEqual(expect.arrayContaining(features))
+  })
+
   it('publishes exact multimodal features and limits for Qwen3.8 without leaking them to Qwen3.7 Max', () => {
     for (const model of ['qwen3.8-max', 'qwen3.8-flash']) {
       const file = readdirSync(join(root, '..', 'llm')).find((candidate) => {
@@ -102,13 +156,13 @@ describe('generated Xirang catalog', () => {
       })
       const schema = readJson(join(root, '..', 'llm', file as string))
       expect(schema.features).toEqual([
-        'vision',
-        'video',
-        'structured-output',
-        'agent-thought',
         'tool-call',
         'multi-tool-call',
-        'stream-tool-call'
+        'stream-tool-call',
+        'structured-output',
+        'agent-thought',
+        'vision',
+        'video'
       ])
     }
 

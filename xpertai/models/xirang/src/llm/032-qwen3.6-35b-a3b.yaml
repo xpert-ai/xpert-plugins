@@ -68,13 +68,13 @@
     }
   ],
   "features": [
-    "vision",
-    "video",
-    "structured-output",
-    "agent-thought",
     "tool-call",
     "multi-tool-call",
-    "stream-tool-call"
+    "stream-tool-call",
+    "structured-output",
+    "agent-thought",
+    "vision",
+    "video"
   ],
   "pricing": {
     "input": "1.8",

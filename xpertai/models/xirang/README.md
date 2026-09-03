@@ -9,7 +9,7 @@
 - 目录快照来自 `https://ctxirang.ctyun.cn/maas/inlineService`。
 - 名称包含“（即将下线）”的 5 个服务不会生成模型配置。
 - 109 个 LLM、3 个文本向量模型、4 个 Rerank 模型和 8 个图片模型会生成预置模型 YAML。
-- `qwen3.8-max` 和 `qwen3.8-flash` 按精确模型版本声明图片、视频、思考、工具调用和结构化输出能力；模型类型及能力来自 `src/catalog/model-metadata.json` 的显式清单，未核实的能力不会按名称猜测。
+- 109 个 LLM 均按精确模型版本显式声明能力；Qwen3.5–3.8、Kimi K3/K2.6、Doubao Seed 1.8/2.x 等多模态模型包含对应的图片、视频和思考能力。模型类型及能力来自 `src/catalog/model-metadata.json` 的显式清单，未核实的能力不会按名称猜测。
 - 8 个图片模型统一通过 `POST /v1/images/generations` 接入，仅声明天翼公开契约覆盖的文生图能力。`qwen-image-edit`、`qwen-image-edit-plus`、`qwen-image-edit-max` 和多模态 `qwen3-vl-embedding` 在专用协议实现并验证前保留在审计快照，不生成运行时 YAML。视频服务同样保留在 `src/catalog/normalized.snapshot.json`，待天翼云提供稳定的异步任务提交/查询契约后再启用。
 
 ## 配置方式

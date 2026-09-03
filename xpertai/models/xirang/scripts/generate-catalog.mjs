@@ -19,16 +19,17 @@ const stringify = (value) => `${JSON.stringify(value, null, 2)}\n`
 
 const runtimeModelTypes = new Set(['llm', 'text-embedding', 'rerank', 'image'])
 const catalogModelTypes = new Set([...runtimeModelTypes, 'multimodal-embedding', 'video', 'speech2text'])
-const supportedFeatures = new Set([
-  'vision',
-  'video',
-  'structured-output',
-  'agent-thought',
+const featureOrder = [
   'tool-call',
   'multi-tool-call',
   'stream-tool-call',
+  'structured-output',
+  'agent-thought',
+  'vision',
+  'video',
   'document'
-])
+]
+const supportedFeatures = new Set(featureOrder)
 const rerankContextSizes = {
   'BGE-Reranker-Large': 512,
   'BGE-Reranker-V2-m3': 8192,
@@ -73,8 +74,13 @@ for (const profile of modelMetadataSource.llm_feature_profiles) {
     if (!specification) throw new Error(`Feature profile references unknown LLM: ${model}`)
     if (explicitFeatureModels.has(model)) throw new Error(`Duplicate LLM feature profile: ${model}`)
     explicitFeatureModels.add(model)
-    specification.features = [...profile.features]
+    specification.features = featureOrder.filter((feature) => profile.features.includes(feature))
   }
+}
+
+const missingFeatureProfiles = [...llmSpecs.keys()].filter((model) => !explicitFeatureModels.has(model))
+if (missingFeatureProfiles.length > 0) {
+  throw new Error(`Missing LLM feature profile: ${missingFeatureProfiles.join(', ')}`)
 }
 
 function classify(row) {
