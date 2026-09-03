@@ -1,0 +1,14 @@
+---
+title: 'Tool contracts'
+description: 'Input, output, confirmation, and trust boundaries for Canva Agent tools.'
+---
+
+All Agent tools use strict Zod v3 schemas. Collection reads use `page` and `pageSize`, with at most 50 items per page. Text fields, operation arrays, URLs, and design IDs have explicit length limits. Tool results contain only allowlisted DTO fields such as `id`, `title`, `status`, `revision`, `nextCursor`, and `hasMore`.
+
+The first call to `commit_editing_transaction`, `export_design`, or `import_design_from_url` returns `confirmationRequired` and a short-lived confirmation handle without invoking the upstream mutation. A second call must provide a handle that matches the active user, connector, and argument fingerprint.
+
+The Canva China MCP implementation of `canva_generate_design` returns `design_compositions` directly. The connector maps them to ordered design results with trusted `openUrl` values. The China service does not expose `create-design-from-candidate` or return a `candidateId`.
+
+Design generation uses a dedicated 120-second timeout. A timeout returns `CANVA_JOB_TIMEOUT` and is not automatically retryable because the upstream outcome is unknown and a repeated request may consume AI quota twice. Exhausted monthly AI quota returns `CANVA_AI_QUOTA_EXHAUSTED` and is also not retryable. The connector strips instruction-like wrappers from third-party errors before returning a stable message to the Agent.
+
+After a successful export, the tool returns only the Workspace file name, MIME type, size, and portable reference metadata. It never returns a Canva signed URL, token, `/workspace` host path, or raw MCP response.

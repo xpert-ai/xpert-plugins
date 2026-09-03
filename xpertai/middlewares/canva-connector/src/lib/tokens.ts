@@ -1,0 +1,1 @@
+export const CANVA_PLUGIN_CONTEXT = Symbol('CANVA_PLUGIN_CONTEXT')

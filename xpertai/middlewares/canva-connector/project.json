@@ -1,0 +1,20 @@
+{
+  "name": "@xpert-ai/plugin-canva-connector",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "middlewares/canva-connector/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "middlewares/canva-connector/dist",
+        "main": "middlewares/canva-connector/src/index.ts",
+        "rootDir": "middlewares/canva-connector/src",
+        "tsConfig": "middlewares/canva-connector/tsconfig.lib.json",
+        "generatePackageJson": false
+      }
+    }
+  },
+  "tags": []
+}
