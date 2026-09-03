@@ -1,0 +1,21 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Xpert Knowledge Planet Connector",
+  "colors": {
+    "primary": "#12B886",
+    "light": "#39D4A1",
+    "dark": "#087F5B"
+  },
+  "navigation": {
+    "groups": [
+      {
+        "group": "知识星球连接器",
+        "pages": ["index", "quickstart", "architecture", "tool-contracts", "operations"]
+      }
+    ]
+  },
+  "contextual": {
+    "options": ["copy", "view", "chatgpt", "claude", "perplexity", "mcp", "cursor", "vscode"]
+  }
+}

@@ -1,0 +1,40 @@
+---
+title: 架构与安全
+description: 了解设备授权、CLI 会话隔离和 Xpert Runtime 边界。
+---
+
+## 组件
+
+```text
+Xpert Connector Strategy
+  -> ZsxqCliService
+       -> SystemZsxqCliRunner (固定 zsxq-cli@0.5.1)
+       -> connections/<uuid>/ (每个连接独立配置目录)
+  -> ConnectorRuntimeCapability
+  -> ZsxqConnectorRuntimeMiddleware
+       -> strict Zod schemas
+       -> WorkspaceFilesRuntimeCapability
+       -> allowlist mappers
+```
+
+## 授权状态机
+
+`connect` 先创建随机 UUID 目录并启动设备登录。CLI 写入 `device_auth_pending.json` 后，插件会校验内容，并在启动后台轮询器前保存带版本号的 `xpert-authorization.json`。CLI 可以安全消费自己的临时文件；后续状态查询以及 API 重启恢复都使用插件自有状态继续授权。`user +info` 成功后只把账户 ID、名称和可信 HTTPS 头像写入 profile，同时删除临时授权状态。过期时也会清理该状态；权限不足和 CLI 错误会映射为稳定错误码。
+
+`resolveRuntimeCredential` 只接受连接器签发的 `connectionHandle`。运行时根据 workspace 和 connector ID 重新取得凭据，不接受 Agent 自带的目录、Token、Cookie 或命令行参数。
+
+## 隔离与生命周期
+
+- 目录：`<cliDataRoot>/connections/<uuid>`，目录权限 0700，文件权限 0600。
+- 路径：句柄必须符合 UUID v4，路径解析后不能越出 connections 根目录。
+- 并发：同一连接使用单独 CLI 目录；模块销毁时停止所有设备授权轮询器。
+- 注销：连接被显式断开时调用 `auth logout`，只有该账户没有其他连接后才清理账户会话。
+- 容器：`cliDataRoot` 必须挂载持久卷，否则重启后需要重新授权。
+
+## 凭据与权限
+
+Xpert 平台凭据库只保存不透明句柄，`zsxq-cli` 管理正式登录凭据。设备授权尚未完成时，插件只在对应连接的本地隔离目录暂存恢复轮询所需的数据，文件权限为 0600，完成或过期后立即删除。插件不打印 stdout/stderr 中的设备码或 Bearer Token；错误信息会截断并脱敏。运行时读取默认只声明 `zsxq.read`，组织开启写入后才声明 `zsxq.write`。
+
+## 为什么不使用直连 HTTP
+
+知识星球官方 Skill 已经把 OAuth、API 兼容和权限错误封装在 CLI 中。插件固定调用 CLI 的命令和参数，避免维护私有 API、模拟网页登录或处理 Cookie。未来若 Xpert 获得官方 MCP OAuth 客户端注册，可新增受控 MCP transport，但不改变现有工具 DTO 和人工审批边界。

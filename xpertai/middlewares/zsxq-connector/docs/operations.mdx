@@ -1,0 +1,42 @@
+---
+title: 运维与排障
+description: 生产部署、日志和常见故障处理。
+---
+
+## 生产清单
+
+- 为每个 API 节点安装锁定的 `zsxq-cli@0.5.1`，不要使用全局 CLI。
+- 将 `cliDataRoot` 指向持久卷，并限制运行用户访问权限。
+- 只在确有需要时开启写工具；确认 Xpert HITL 会拦截所有写工具。
+- 监控 `CLI_UNAVAILABLE`、`AUTH_EXPIRED`、`RATE_LIMITED`、`PROVIDER_RESPONSE_INVALID` 和设备授权过期率。
+- 备份或迁移时只处理受保护的 CLI 凭据目录，不把它们放进 Git、日志、工件或聊天。
+
+## 常见问题
+
+### CLI 不可用
+
+查看插件启动日志中的平台和版本信息，确认节点架构在支持列表内，且包版本精确为 `0.5.1`。重新安装插件依赖后运行：
+
+```bash
+pnpm nx run @xpert-ai/plugin-zsxq-connector:build
+```
+
+### 授权一直 pending
+
+确认浏览器完成的是当前连接返回的验证 URL，节点可以访问 `garden.zsxq.com`，并且 `cliDataRoot` 在轮询期间没有被清理。超过 CLI 返回的过期时间后必须重新连接。
+
+### 重启后显示 AUTH_EXPIRED
+
+检查 `cliDataRoot/connections/<uuid>` 是否来自持久卷、权限是否仍为运行用户可读。临时 Home 或不同节点没有共享 CLI 会话时，需要在目标节点重新授权。
+
+### 写工具没有出现
+
+这是默认安全行为。确认组织配置 `enableWrites=true`，重新加载插件，并为工具绑定 Xpert HITL。连接凭据的 scope 也必须包含 `zsxq.write`。
+
+### 附件失败
+
+确认 Agent Runtime 注册了 Workspace Files capability，引用属于当前 workspace，单个和总大小不超过 20 MiB，问答图片使用图片 MIME 类型。插件不接受主机绝对路径或远程 URL。
+
+## 升级策略
+
+升级 `zsxq-cli` 前先阅读官方 [zsxq-skill 变更](https://github.com/unnoo/zsxq-skill)、更新固定参数和 fixture，跑完 Nx typecheck/test/build 以及 plugin-dev-harness 的安装、刷新、卸载验证，再发布新的插件版本。若 CLI 改变授权文件格式，应视为迁移事件并提供重新授权说明。

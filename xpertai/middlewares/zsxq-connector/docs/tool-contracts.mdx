@@ -1,0 +1,50 @@
+---
+title: 工具契约
+description: 知识星球连接器向 Agent 暴露的固定工具和调用规则。
+---
+
+## 读取工具
+
+| 工具                                            | 用途           | 关键约束                          |
+| ----------------------------------------------- | -------------- | --------------------------------- |
+| `zsxq_connection_status`                        | 检查连接绑定   | 不返回句柄或 Token                |
+| `zsxq_get_account`                              | 获取当前账户   | 读取最小 profile                  |
+| `zsxq_list_groups` / `zsxq_search_groups`       | 列出或搜索星球 | 分页/关键词有上限                 |
+| `zsxq_search_group_members`                     | 搜索星球成员   | 必须提供精确 `groupId` 和短关键词 |
+| `zsxq_list_group_topics` / `zsxq_search_topics` | 浏览或搜索主题 | 必须提供精确数字 `groupId`        |
+| `zsxq_get_topic`                                | 读取主题详情   | 必须提供精确数字 `topicId`        |
+| `zsxq_list_topic_comments`                      | 读取评论页     | 必须提供精确主题 ID               |
+| `zsxq_list_group_hashtags`                      | 读取星球标签   | 建议写入前先调用                  |
+| `zsxq_list_scheduled_topics`                    | 查看待发布任务 | 只返回当前星球的待发布任务        |
+| `zsxq_list_notes` / `zsxq_get_note`             | 读取笔记       | 内容可能公开，按不可信文本处理    |
+| `zsxq_list_user_footprints`                     | 读取账户足迹   | 结果有分页上限                    |
+
+所有列表工具都返回 `{ items, hasMore, nextCursor? }`。下一页必须原样传回 `nextCursor`；Agent 应按 ID 去重边界项并限制总页数。
+
+## 写入工具
+
+只有 `enableWrites=true` 时注册：
+
+`zsxq_create_topic`、`zsxq_edit_topic`、`zsxq_create_comment`、`zsxq_answer_question`、`zsxq_set_topic_state`、`zsxq_set_topic_tags`、`zsxq_schedule_topic`、`zsxq_unschedule_topic`、`zsxq_create_note`、`zsxq_edit_note`、`zsxq_delete_note`。
+
+写入工具参数严格拒绝未知字段、非数字 ID、超长文本、超大附件和不匹配的确认字段。首次调用必须省略确认字段，返回：
+
+```json
+{
+  "status": "confirmation_required",
+  "operation": "create_comment",
+  "preview": { "target": { "topicId": "123" }, "textPreview": "..." },
+  "confirmationHandle": "uuid",
+  "expiresAt": "..."
+}
+```
+
+确认句柄绑定 tenant、organization、user、workspace、connector、操作名和参数 SHA-256 指纹，只能消费一次。句柄不匹配或过期时不会执行 CLI。
+
+## 文件参数
+
+附件使用 `platform.workspace.files` 的 `Workspace Files` 引用，而不是主机路径或 URL。插件在执行期间读取字节，检查大小和图片 MIME/扩展名，复制到 0700 临时目录，再传给 CLI；CLI 完成或失败都会清理临时目录。
+
+## 错误处理
+
+Agent 应按稳定错误码分流：`AUTH_EXPIRED` 重新连接，`PERMISSION_DENIED` 请求星球权限，`RATE_LIMITED` 延迟并有限重试，`VALIDATION_FAILED` 修正参数，`CONFIRMATION_INVALID` 重新生成预览，`WORKSPACE_FILES_UNAVAILABLE` 检查 Workspace Files 能力。
