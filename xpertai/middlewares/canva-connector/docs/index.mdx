@@ -1,0 +1,41 @@
+---
+title: 'Canva connector'
+description: 'Connect an Xpert workspace to Canva through platform-managed OAuth and bounded design tools.'
+---
+
+The Canva connector is installed at organization scope. An organization administrator supplies one approved Canva China MCP OAuth application in **System Integration**. Users in each workspace then connect their own Canva account from the Xpert connector page. Each user receives an independently encrypted access and refresh credential; the Assistant references only the `canva` provider, and runtime resolution is bound to the active user and workspace.
+
+The connector automatically resolves an organization-visible **Canva China MCP OAuth** System Integration. Keep one active Canva integration per organization to avoid ambiguity. Users do not select an integration or enter application credentials in the connector UI.
+
+## Administrator setup
+
+1. Register the exact Xpert callback URL in the Canva developer settings.
+2. Open **Settings -> System Integration** at organization scope.
+3. Create **Canva China MCP OAuth** and enter the Canva OAuth client ID and client secret.
+4. Save the integration, then install or refresh the connector plugin.
+
+Do not place OAuth application credentials in plugin configuration or expose them to end users.
+
+## End-user experience
+
+1. The user opens the workspace connector page and clicks **Connect** for Canva.
+2. Xpert creates a short-lived OAuth state and redirects the browser to Canva's official authorization page.
+3. The user signs in to Canva if needed and approves the requested scopes.
+4. Canva redirects to the Xpert callback. Xpert exchanges the one-time code server-side and stores the user's credential in the platform vault.
+5. Agent middleware resolves that credential only for the active user and workspace.
+
+No browser automation, copied access token, integration selector, or end-user application credential is required.
+
+## Included capabilities
+
+- Search designs with bounded pagination and read allowlisted summaries
+- Read design metadata, pages, and bounded content previews
+- Generate design compositions and return trusted Canva edit URLs
+- Start, execute, commit, or cancel editing transactions
+- List export formats and write exported files to Xpert Workspace Files
+- Import a PDF from one validated public HTTPS URL
+- Normalize connection, permission, capability, quota, timeout, and upstream failures into stable errors
+
+Mutation tools enforce strict input limits, short-lived confirmation handles, and `operationId` values. If the upstream MCP `tools/list` response omits an allowlisted capability, the plugin returns a stable capability error instead of presenting a non-functional operation.
+
+Direct DCR login and global Canva Connect REST OAuth are not available for new authorizations. Compatibility code may refresh and use credentials saved by earlier versions.

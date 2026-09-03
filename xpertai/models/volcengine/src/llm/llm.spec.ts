@@ -1,10 +1,19 @@
 jest.mock('@xpert-ai/plugin-sdk', () => ({
   AIModelProviderStrategy: () => () => undefined,
   ChatOAICompatReasoningModel: class {
-    constructor(readonly clientConfig: { maxTokens?: number; modelKwargs?: object }) {}
+    constructor(
+      readonly clientConfig: {
+        temperature?: number
+        topP?: number
+        maxTokens?: number
+        modelKwargs?: object
+      }
+    ) {}
 
     invocationParams() {
       return {
+        ...(this.clientConfig.temperature === undefined ? {} : { temperature: this.clientConfig.temperature }),
+        ...(this.clientConfig.topP === undefined ? {} : { top_p: this.clientConfig.topP }),
         ...(this.clientConfig.modelKwargs ?? {}),
         ...(this.clientConfig.maxTokens === undefined ? {} : { max_tokens: this.clientConfig.maxTokens })
       }
@@ -35,12 +44,18 @@ import { VolcengineProviderStrategy } from '../provider.strategy.js'
 import { normalizeVolcengineToolSchema, VolcengineLargeLanguageModel } from './llm.js'
 
 type VolcengineModelOptions = {
+  temperature?: number
+  top_p?: number
   max_tokens?: number
   thinking?: 'enabled' | 'disabled'
   reasoning_effort?: string
+  response_format?: 'json_object' | 'json_schema'
+  json_schema?: string | Record<string, unknown>
 }
 
-function createCopilotModel(options?: VolcengineModelOptions): Parameters<VolcengineLargeLanguageModel['getChatModel']>[0] {
+function createCopilotModel(
+  options?: VolcengineModelOptions
+): Parameters<VolcengineLargeLanguageModel['getChatModel']>[0] {
   return {
     model: 'doubao-seed-2-0-mini-260215',
     options,
@@ -80,9 +95,7 @@ describe('Volcengine model adapter', () => {
   })
 
   it('forwards an explicit reasoning effort value', () => {
-    const model = llm.getChatModel(
-      createCopilotModel({ thinking: 'disabled', reasoning_effort: 'high' })
-    )
+    const model = llm.getChatModel(createCopilotModel({ thinking: 'disabled', reasoning_effort: 'high' }))
 
     expect(model.invocationParams()).toEqual({
       thinking: {
@@ -102,6 +115,33 @@ describe('Volcengine model adapter', () => {
     const model = llm.getChatModel(createCopilotModel({ max_tokens: 2048 }))
 
     expect(model.invocationParams()).toEqual({ max_tokens: 2048 })
+  })
+
+  it('forwards sampling and structured-output parameters to the Ark request', () => {
+    const schema = {
+      type: 'object',
+      properties: {
+        answer: { type: 'string' }
+      },
+      required: ['answer']
+    }
+    const model = llm.getChatModel(
+      createCopilotModel({
+        temperature: 0.4,
+        top_p: 0.8,
+        response_format: 'json_schema',
+        json_schema: JSON.stringify(schema)
+      })
+    )
+
+    expect(model.invocationParams()).toEqual({
+      temperature: 0.4,
+      top_p: 0.8,
+      response_format: {
+        type: 'json_schema',
+        json_schema: schema
+      }
+    })
   })
 
   it('inlines local schema references that cross anyOf array members', () => {

@@ -1,0 +1,30 @@
+---
+title: 'Operations'
+description: 'Configuration, connection lifecycle, failure handling, and verification.'
+---
+
+## Configuration sequence
+
+1. In the Canva MCP developer settings, allowlist the exact Xpert API OAuth callback. Production callbacks must use HTTPS; localhost is supported for development.
+2. In Xpert **System Integration**, create **Canva China MCP OAuth** and enter the Canva OAuth client ID and client secret.
+3. Install or refresh the plugin, then open the workspace connector page and click Connect for Canva.
+4. The connector automatically resolves an organization-visible Canva System Integration and redirects the user to Canva. The user does not select or enter an integration.
+5. After approval, Xpert exchanges the authorization code server-side and stores an independent credential for that user.
+6. Call `canva_connection_status`, then verify a bounded search and an export error path.
+
+## Error handling
+
+The plugin returns stable codes such as `CANVA_CONNECTOR_UNAVAILABLE` when the active user has no connected Canva account, `CANVA_SCOPE_MISSING` when the OAuth grant lacks a required scope, and `CANVA_TOOL_UNAVAILABLE` when the upstream service does not advertise an allowlisted capability. `CANVA_RATE_LIMITED`, `CANVA_CONFLICT`, and `CANVA_JOB_TIMEOUT` represent rate limiting, concurrent mutation conflicts, and bounded request timeouts.
+
+Do not blindly retry a design generation timeout because the upstream result is unknown and a duplicate request may consume additional AI quota. A `CANVA_AI_QUOTA_EXHAUSTED` response is not retryable until the provider resets or increases the account quota.
+
+On disconnect, Xpert always removes the local credential and closes the local MCP session. If Canva revocation fails, the connector records a warning without sensitive data; the user should verify the authorization from Canva's account authorization settings.
+
+## Verification checklist
+
+- Build and typecheck the plugin.
+- Run unit tests for OAuth state, token exchange, refresh, MCP argument normalization, strict tool schemas, response mapping, quota handling, and timeout handling.
+- Install with the Xpert plugin development harness and inspect the manifest and connector definition.
+- In staging, verify authorization, callback exchange, refresh-token rotation, revoked authorization, missing scopes, AI quota exhaustion, and upstream timeout behavior.
+- Confirm that generated designs return trusted Canva URLs and exported files use portable Workspace Files references.
+- Confirm logs and Agent DTOs contain no bearer credentials, client secrets, signed download URLs, private workspace paths, or raw provider payloads.

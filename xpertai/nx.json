@@ -135,7 +135,9 @@
       "@xpert-ai/plugin-wps-knowledge-connector",
       "@xpert-ai/plugin-notion-connector",
       "@xpert-ai/plugin-tencent-map-connector",
-      "@xpert-ai/plugin-amap-connector"
+      "@xpert-ai/plugin-amap-connector",
+      "@xpert-ai/plugin-baidu-netdisk-connector",
+      "@xpert-ai/plugin-canva-connector"
     ],
     "version": {
       "preVersionCommand": "npx nx run-many -t build && npx nx run-many -t prepack"

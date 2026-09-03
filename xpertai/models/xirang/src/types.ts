@@ -23,6 +23,18 @@ export type XirangModelCredentials = XirangCredentials & {
   enable_thinking?: boolean | string | number
 }
 
+export function resolveXirangModelLimits(credentials: { context_size?: unknown; max_tokens_to_sample?: unknown }) {
+  const configuredContextSize = Number(credentials.context_size)
+  const contextSize =
+    Number.isFinite(configuredContextSize) && configuredContextSize > 0 ? Math.floor(configuredContextSize) : 32768
+  const configuredMaxOutput = Number(credentials.max_tokens_to_sample)
+  const maxOutputTokens =
+    Number.isFinite(configuredMaxOutput) && configuredMaxOutput > 0
+      ? Math.min(Math.floor(configuredMaxOutput), contextSize)
+      : contextSize
+  return { contextSize, maxOutputTokens }
+}
+
 export function getXirangBaseUrl(credentials: Pick<XirangCredentials, 'endpoint_url'>): string {
   const value = credentials.endpoint_url?.trim() || XirangDefaultBaseUrl
   return value.replace(/\/+$/, '')
@@ -39,7 +51,11 @@ export function toCredentialKwargs(
 
   const modelKwargs: Record<string, unknown> = {}
   if (credentials.enable_thinking !== undefined) {
-    const enabled = credentials.enable_thinking === true || credentials.enable_thinking === 'true' || credentials.enable_thinking === 1 || credentials.enable_thinking === '1'
+    const enabled =
+      credentials.enable_thinking === true ||
+      credentials.enable_thinking === 'true' ||
+      credentials.enable_thinking === 1 ||
+      credentials.enable_thinking === '1'
     modelKwargs.enable_thinking = enabled
     modelKwargs.chat_template_kwargs = { enable_thinking: enabled }
   }
@@ -60,6 +76,9 @@ export function toCredentialKwargs(
 
 export type XirangImageInput = Record<string, unknown> & {
   prompt?: string
+  image?: string | string[]
+  images?: string | string[]
+  image_url?: string
   size?: string
   response_format?: string
   watermark?: boolean
@@ -67,6 +86,6 @@ export type XirangImageInput = Record<string, unknown> & {
 
 export type XirangImageResponse = {
   created?: number
-  data?: Array<{ url?: string; b64_json?: string; revised_prompt?: string }>
+  data?: Array<{ url?: string; b64_json?: string; revised_prompt?: string; size?: string }>
   [key: string]: unknown
 }

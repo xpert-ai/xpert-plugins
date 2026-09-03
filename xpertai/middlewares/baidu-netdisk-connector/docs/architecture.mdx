@@ -1,0 +1,39 @@
+---
+title: 'Architecture'
+description: 'Credential, runtime, request, and response boundaries for the Baidu Netdisk connector.'
+---
+
+## Runtime flow
+
+```text
+Tenant System Integration (AppKey/SecretKey)
+  -> tenant connector strategy
+  -> Baidu official OAuth authorization page
+  -> encrypted platform vault credential
+  -> ConnectorRuntime:baidu-netdisk
+  -> bounded Agent tool
+  -> fixed Baidu OpenAPI operation
+  -> allowlisted DTO
+```
+
+The connector strategy implements authorization-code exchange and refresh. It resolves the first tenant-level `baidu-netdisk-oauth` System Integration through the inherited integration permission service; organization-level overrides are rejected. The pending OAuth metadata contains only a version, integration ID, a SHA-256 AppKey fingerprint, callback URL, and requested scopes. The authorization code is exchanged server-side and is never returned to an Agent.
+
+## API client
+
+`BaiduNetdiskClient` maps each operation to a reviewed path on `https://pan.baidu.com` and sends the access token only in the upstream request. POST operations use bounded form encoding; redirects are rejected; timeout and response byte limits are enforced; Baidu `errno` values are normalized to stable Xpert error codes.
+
+The semantic-search endpoint is `POST /xpan/unisearch`; parameters are query-string encoded, the body is `{}`, and nested `data[].list[]` results are flattened into bounded DTOs.
+
+Uploads read bytes only through `WorkspaceFilesRuntimeCapability.readRuntimeBuffer()` or from the bounded text tool. They then execute Baidu's `precreate -> slice upload -> create` flow with 4 MiB chunks, including the rapid-upload branch. Sandbox paths such as `/workspace/report.docx` are resolved by the platform and are never treated as API-process filesystem paths.
+
+## Trust boundaries
+
+- Plugin level: `tenant`
+- Artifact namespace: `baidu_netdisk_connector`
+- Credential storage: `platform_vault`; runtime projection contains the access token and non-secret tenant integration ID only for the current call
+- Permission declarations: connector integration `baidu-netdisk` with read/write/update/delete operations, plus read-only tenant System Integration `baidu-netdisk-oauth`
+- Default path root: `/apps/xpert`; traversal and outside-root access are rejected
+- Default mutation posture: Workspace-file and text upload enabled; delete, URL transfer, and sharing disabled
+- Agent DTOs: file IDs, paths, names, type, bounded content/abstract, sizes, hashes, and timestamps only
+
+Raw payloads, OAuth secrets, refresh tokens, thumbnail URLs, and arbitrary upstream fields do not enter Agent context.

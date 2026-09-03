@@ -7,7 +7,7 @@
   "model_type": "llm",
   "model_properties": {
     "mode": "chat",
-    "context_size": 32768
+    "context_size": 262144
   },
   "parameter_rules": [
     {
@@ -39,9 +39,9 @@
         "zh_Hans": "最大输出 Token",
         "en_US": "Max output tokens"
       },
-      "default": 2048,
+      "default": 8192,
       "min": 1,
-      "max": 32768
+      "max": 65536
     },
     {
       "name": "response_format",
@@ -71,7 +71,9 @@
     "tool-call",
     "multi-tool-call",
     "stream-tool-call",
-    "structured-output"
+    "structured-output",
+    "agent-thought",
+    "vision"
   ],
   "pricing": {
     "input": "0.6",

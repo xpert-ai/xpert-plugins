@@ -3,6 +3,20 @@ import { ICopilotModel } from '@xpert-ai/contracts';
 import { MiniMaxProviderStrategy } from '../provider.strategy.js';
 import { MiniMaxLargeLanguageModel } from './llm.js';
 
+class TestableMiniMaxLargeLanguageModel extends MiniMaxLargeLanguageModel {
+  calculateUsage(model: string, promptTokens: number, completionTokens: number, serviceTier: string) {
+    return this.calcResponseUsage(
+      model,
+      {},
+      promptTokens,
+      completionTokens,
+      0,
+      { promptTokens, completionTokens, totalTokens: promptTokens + completionTokens },
+      { serviceTier }
+    );
+  }
+}
+
 type PatchedChatModel = ReturnType<MiniMaxLargeLanguageModel['getChatModel']> & {
   completionWithRetry: (...args: unknown[]) => unknown;
   invocationParams: (...args: unknown[]) => Record<string, unknown>;
@@ -47,6 +61,38 @@ describe('MiniMaxLargeLanguageModel', () => {
     llm = new MiniMaxLargeLanguageModel(provider);
   });
 
+  it('supports MiniMax-M3 and forwards the selected service tier', async () => {
+    await expect(
+      llm.validateCredentials('MiniMax-M3', {
+        api_key: 'test-key',
+        group_id: 'test-group'
+      })
+    ).resolves.toBeUndefined();
+
+    const model = llm.getChatModel(
+      createCopilotModel(
+        'MiniMax-M3',
+        { streaming: true, max_tokens: 256 },
+        { api_key: 'test-key', group_id: 'test-group', service_tier: 'priority' }
+      )
+    ) as PatchedChatModel;
+
+    expect(model.invocationParams()).toEqual(
+      expect.objectContaining({ reasoning_split: true, service_tier: 'priority' })
+    );
+  });
+
+  it('uses MiniMax-M3 original prices across token and service tiers', () => {
+    const testable = new TestableMiniMaxLargeLanguageModel(provider);
+
+    expect(testable.calculateUsage('MiniMax-M3', 500_000, 1_000, 'standard')).toEqual(
+      expect.objectContaining({ promptPrice: 2.1, completionPrice: 0.0168, currency: 'RMB' })
+    );
+    expect(testable.calculateUsage('MiniMax-M3', 600_000, 1_000, 'priority')).toEqual(
+      expect.objectContaining({ promptPrice: 7.56, completionPrice: 0.0504, currency: 'RMB' })
+    );
+  });
+
   it('enables reasoning_split for MiniMax chat requests', () => {
     const model = llm.getChatModel(
       createCopilotModel('MiniMax-M2.7-highspeed', {
@@ -83,7 +129,8 @@ describe('MiniMaxLargeLanguageModel', () => {
       expect.any(Object),
       'MiniMax-M2.7-highspeed',
       expect.objectContaining({ api_key: 'test-key', group_id: 'test-group' }),
-      handleLLMTokens
+      handleLLMTokens,
+      { context: { serviceTier: 'standard' } }
     );
   });
 

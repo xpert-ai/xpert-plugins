@@ -26,6 +26,7 @@ describe('DingTalkConnectorIntegrationStrategy', () => {
         })
       })
     )
+    expect(strategy.meta.description).toEqual(expect.objectContaining({ zh_Hans: expect.stringContaining('组织级') }))
   })
 
   it('normalizes and encrypts the client secret for storage', async () => {

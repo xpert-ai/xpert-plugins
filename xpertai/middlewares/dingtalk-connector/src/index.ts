@@ -22,7 +22,8 @@ const plugin: XpertPlugin = {
     category: 'middleware',
     icon: DINGTALK_CONNECTOR_ICON,
     displayName: 'DingTalk Connector',
-    description: 'Connects a workspace to DingTalk with OAuth using the configured system integration.',
+    description:
+      'Connects a workspace to DingTalk with the current organization system integration when available, falling back to the tenant integration.',
     keywords: ['dingtalk', 'connector', 'oauth', 'middleware'],
     author: 'XpertAI Team'
   },
@@ -33,9 +34,7 @@ const plugin: XpertPlugin = {
       properties: {}
     }
   },
-  permissions: [
-    { type: 'integration', service: DINGTALK_CONNECTOR_INTEGRATION_PROVIDER, operations: ['read'] }
-  ],
+  permissions: [{ type: 'integration', service: DINGTALK_CONNECTOR_INTEGRATION_PROVIDER, operations: ['read'] }],
   register(ctx) {
     ctx.logger.log('register DingTalk connector plugin')
     return {

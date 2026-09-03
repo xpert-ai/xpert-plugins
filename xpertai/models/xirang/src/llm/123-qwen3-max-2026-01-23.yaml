@@ -1,0 +1,130 @@
+{
+  "model": "qwen3-max-2026-01-23（国际）",
+  "label": {
+    "en_US": "qwen3-max-2026-01-23（国际）",
+    "zh_Hans": "qwen3-max-2026-01-23（国际）"
+  },
+  "model_type": "llm",
+  "model_properties": {
+    "mode": "chat",
+    "context_size": 262144
+  },
+  "parameter_rules": [
+    {
+      "name": "temperature",
+      "use_template": "temperature",
+      "label": {
+        "zh_Hans": "温度",
+        "en_US": "Temperature"
+      },
+      "default": 0.2,
+      "min": 0,
+      "max": 2
+    },
+    {
+      "name": "top_p",
+      "use_template": "top_p",
+      "label": {
+        "zh_Hans": "Top P",
+        "en_US": "Top P"
+      },
+      "default": 1,
+      "min": 0,
+      "max": 1
+    },
+    {
+      "name": "max_tokens",
+      "use_template": "max_tokens",
+      "label": {
+        "zh_Hans": "最大输出 Token",
+        "en_US": "Max output tokens"
+      },
+      "default": 8192,
+      "min": 1,
+      "max": 32768
+    },
+    {
+      "name": "response_format",
+      "type": "string",
+      "label": {
+        "zh_Hans": "回复格式",
+        "en_US": "Response format"
+      },
+      "required": false,
+      "options": [
+        "text",
+        "json_object"
+      ]
+    },
+    {
+      "name": "enable_thinking",
+      "type": "boolean",
+      "label": {
+        "zh_Hans": "思考模式",
+        "en_US": "Thinking mode"
+      },
+      "required": false,
+      "default": false
+    }
+  ],
+  "features": [
+    "tool-call",
+    "multi-tool-call",
+    "stream-tool-call",
+    "structured-output"
+  ],
+  "pricing": {
+    "input": "8.81",
+    "output": "44.03",
+    "unit": "0.000001",
+    "currency": "CNY",
+    "source_url": "https://ctxirang.ctyun.cn/maas/inlineService",
+    "source_note": "Exact CNY tier prices are taken from the Tianyi Cloud price-detail tooltip without cross-platform currency conversion.",
+    "rules": [
+      {
+        "component": "input",
+        "unit_price": 8.81,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "max_input_tokens": 32768
+      },
+      {
+        "component": "input",
+        "unit_price": 17.61,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "min_input_tokens": 32769,
+        "max_input_tokens": 131072
+      },
+      {
+        "component": "input",
+        "unit_price": 22.02,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "min_input_tokens": 131073
+      },
+      {
+        "component": "output",
+        "unit_price": 44.03,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "max_input_tokens": 32768
+      },
+      {
+        "component": "output",
+        "unit_price": 88.07,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "min_input_tokens": 32769,
+        "max_input_tokens": 131072
+      },
+      {
+        "component": "output",
+        "unit_price": 110.09,
+        "unit_size": 1000000,
+        "currency": "CNY",
+        "min_input_tokens": 131073
+      }
+    ]
+  }
+}

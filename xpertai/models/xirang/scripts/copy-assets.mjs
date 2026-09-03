@@ -21,6 +21,23 @@ if (existsSync(sourceDir)) {
 const srcRoot = path.join(packageRoot, 'src')
 const distRoot = path.join(packageRoot, 'dist')
 
+function removeCopiedModelFiles(directory) {
+  if (!existsSync(directory)) return
+  for (const entry of readdirSync(directory)) {
+    const file = path.join(directory, entry)
+    const stats = statSync(file)
+    if (stats.isDirectory()) removeCopiedModelFiles(file)
+    else if (entry.endsWith('.yaml') || entry.endsWith('.yml')) rmSync(file, { force: true })
+  }
+}
+
+// Model catalogs are generated artifacts. Remove stale copied assets before
+// copying while preserving the JavaScript emitted into the same directories.
+for (const directory of ['llm', 'text-embedding', 'rerank', 'image']) {
+  removeCopiedModelFiles(path.join(distRoot, directory))
+}
+rmSync(path.join(distRoot, 'catalog'), { recursive: true, force: true })
+
 function copyYamlFiles(srcDir, destDir) {
   const entries = readdirSync(srcDir)
   for (const entry of entries) {
@@ -30,7 +47,11 @@ function copyYamlFiles(srcDir, destDir) {
 
     if (stats.isDirectory()) {
       copyYamlFiles(srcPath, destPath)
-    } else if (entry.endsWith('.yaml') || entry.endsWith('.yml') || (srcDir.endsWith(`${path.sep}catalog`) && entry.endsWith('.json'))) {
+    } else if (
+      entry.endsWith('.yaml') ||
+      entry.endsWith('.yml') ||
+      (srcDir.endsWith(`${path.sep}catalog`) && entry.endsWith('.json'))
+    ) {
       mkdirSync(path.dirname(destPath), { recursive: true })
       cpSync(srcPath, destPath)
       // console.info(`Copied ${srcPath.replace(packageRoot + '/', '')} → ${destPath.replace(packageRoot + '/', '')}`)
