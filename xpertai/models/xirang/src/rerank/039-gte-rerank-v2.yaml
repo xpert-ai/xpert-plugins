@@ -5,6 +5,9 @@
     "zh_Hans": "gte-rerank-v2"
   },
   "model_type": "rerank",
+  "modelConfig": {
+    "endpoint_model_name": "c5f2125a07474e31b6926e184ea8627e"
+  },
   "model_properties": {
     "context_size": 30000
   },

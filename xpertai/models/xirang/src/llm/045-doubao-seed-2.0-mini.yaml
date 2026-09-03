@@ -55,23 +55,15 @@
         "text",
         "json_object"
       ]
-    },
-    {
-      "name": "enable_thinking",
-      "type": "boolean",
-      "label": {
-        "zh_Hans": "思考模式",
-        "en_US": "Thinking mode"
-      },
-      "required": false,
-      "default": false
     }
   ],
   "features": [
     "tool-call",
     "multi-tool-call",
     "stream-tool-call",
-    "structured-output"
+    "structured-output",
+    "vision",
+    "video"
   ],
   "pricing": {
     "input": "0.2",

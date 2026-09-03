@@ -6,7 +6,7 @@
   },
   "model_type": "image",
   "model_properties": {
-    "context_size": 8192
+    "mode": "image"
   },
   "parameter_rules": [
     {
@@ -41,16 +41,6 @@
         "url",
         "b64_json"
       ]
-    },
-    {
-      "name": "watermark",
-      "type": "boolean",
-      "label": {
-        "zh_Hans": "水印",
-        "en_US": "Watermark"
-      },
-      "required": false,
-      "default": true
     }
   ],
   "pricing": {
@@ -58,22 +48,6 @@
     "source_url": "https://ctxirang.ctyun.cn/maas/inlineService",
     "source_note": "Tianyi Cloud publishes the CNY 0.02 input and CNY 0.3-0.6 output range; the formal Seedream billing document defines the 2.61MP output boundary.",
     "rules": [
-      {
-        "id": "xirang-seedream-5-pro-input-image",
-        "version": "2026-09-02",
-        "effective_from": "2026-09-02T00:00:00+08:00",
-        "unit": "generation",
-        "unit_size": 1,
-        "unit_price": 0.02,
-        "currency": "CNY",
-        "charge_type": "paid",
-        "component": "input",
-        "operations": [
-          "image_to_image",
-          "multi_image_to_image"
-        ],
-        "source_url": "https://ctxirang.ctyun.cn/maas/inlineService"
-      },
       {
         "id": "xirang-seedream-5-pro-output-le-2-61mp",
         "version": "2026-09-02",
@@ -85,9 +59,7 @@
         "charge_type": "paid",
         "component": "output",
         "operations": [
-          "text_to_image",
-          "image_to_image",
-          "multi_image_to_image"
+          "text_to_image"
         ],
         "dimensions": {
           "resolution": "le-2.61mp",
@@ -106,9 +78,7 @@
         "charge_type": "paid",
         "component": "output",
         "operations": [
-          "text_to_image",
-          "image_to_image",
-          "multi_image_to_image"
+          "text_to_image"
         ],
         "dimensions": {
           "resolution": "gt-2.61mp",

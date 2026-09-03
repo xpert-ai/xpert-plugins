@@ -6,7 +6,7 @@
   },
   "model_type": "image",
   "model_properties": {
-    "context_size": 8192
+    "mode": "image"
   },
   "parameter_rules": [
     {
@@ -41,16 +41,6 @@
         "url",
         "b64_json"
       ]
-    },
-    {
-      "name": "watermark",
-      "type": "boolean",
-      "label": {
-        "zh_Hans": "水印",
-        "en_US": "Watermark"
-      },
-      "required": false,
-      "default": true
     }
   ],
   "pricing": {
@@ -67,9 +57,7 @@
         "charge_type": "paid",
         "component": "output",
         "operations": [
-          "text_to_image",
-          "image_to_image",
-          "multi_image_to_image"
+          "text_to_image"
         ],
         "source_url": "https://ctxirang.ctyun.cn/maas/inlineService"
       }

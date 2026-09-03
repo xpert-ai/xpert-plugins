@@ -73,7 +73,8 @@
     "stream-tool-call",
     "structured-output",
     "agent-thought",
-    "vision"
+    "vision",
+    "video"
   ],
   "pricing": {
     "input": "0.73",
