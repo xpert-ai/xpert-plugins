@@ -159,6 +159,7 @@ function App() {
   const ydocRef = React.useRef<Y.Doc | null>(null)
   const socketRef = React.useRef<Socket | null>(null)
   const collaborationClientRef = React.useRef<CollaborationClient | null>(null)
+  const openingDocumentsRef = React.useRef(new Map<string, Promise<void>>())
   const clientIdRef = React.useRef(`office-editor-${Math.random().toString(36).slice(2)}`)
   const applyingOperationsRef = React.useRef(false)
   const t = createTranslator(context?.locale)
@@ -230,9 +231,10 @@ function App() {
   }
 
   async function reloadAfterHostEvent() {
+    const selectedBeforeReload = selectedIdRef.current
     await reloadList()
-    if (selectedIdRef.current) {
-      await openDocument(selectedIdRef.current)
+    if (selectedBeforeReload && selectedIdRef.current === selectedBeforeReload) {
+      await openDocument(selectedBeforeReload)
     }
   }
 
@@ -252,14 +254,37 @@ function App() {
     if (!documentId) {
       return
     }
-    try {
-      const response = await executeAction('open_document', documentId, { documentId }, { documentId })
-      const payload = getSuccessfulActionData(response, context?.locale)
-      applyDetailPayload(payload)
-    } catch (error) {
-      notify('error', getErrorMessage(error))
+    const pending = openingDocumentsRef.current.get(documentId)
+    if (pending) {
+      await pending
+      return
     }
+    const request = (async () => {
+      try {
+        const response = await executeAction('open_document', documentId, { documentId }, { documentId })
+        const payload = getSuccessfulActionData(response, context?.locale)
+        applyDetailPayload(payload)
+      } catch (error) {
+        notify('error', getErrorMessage(error))
+      } finally {
+        if (openingDocumentsRef.current.get(documentId) === request) {
+          openingDocumentsRef.current.delete(documentId)
+        }
+      }
+    })()
+    openingDocumentsRef.current.set(documentId, request)
+    await request
   }
+
+  function closeOpeningDocumentRequests() {
+    openingDocumentsRef.current.clear()
+  }
+
+  React.useEffect(() => {
+    return () => {
+      closeOpeningDocumentRequests()
+    }
+  }, [])
 
   async function createDocument() {
     const title = `${typeLabel(documentType, t)} ${new Date().toISOString().slice(0, 10)}`

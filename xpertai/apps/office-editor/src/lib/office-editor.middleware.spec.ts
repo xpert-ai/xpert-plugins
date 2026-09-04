@@ -7,6 +7,7 @@ jest.mock('@langchain/core/tools', () => ({
 }))
 
 jest.mock('@xpert-ai/plugin-sdk', () => ({
+  WorkspaceFilesRuntimeCapability: { id: 'platform.workspace.files' },
   AgentMiddlewareStrategy: () => (target: unknown) => target,
   pluginArtifactTableName: (namespace: string, tableKey: string) => `plugin_${namespace}_${tableKey}`,
   RequestContext: {
