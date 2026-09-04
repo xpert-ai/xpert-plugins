@@ -9,6 +9,11 @@
   "bugs": {
     "url": "https://github.com/xpert-ai/xpert-plugins/issues"
   },
+  "xpert": {
+    "plugin": {
+      "level": "organization"
+    }
+  },
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

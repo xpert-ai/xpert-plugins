@@ -10,9 +10,7 @@ interface PackageMetadata {
 }
 
 function readPackageMetadata(): PackageMetadata {
-  const value: unknown = JSON.parse(
-    readFileSync(new URL('../package.json', import.meta.url), 'utf8')
-  )
+  const value: unknown = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
   if (
     typeof value !== 'object' ||
     value === null ||
@@ -36,14 +34,14 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   meta: {
     name: packageMetadata.name,
     version: packageMetadata.version,
+    level: 'organization',
     category: 'database',
     icon: {
       type: 'svg',
       value: SAP_BW_ICON
     },
     displayName: 'SAP BW Data Source',
-    description:
-      'Provide SAP Business Warehouse OLAP access through the XMLA protocol',
+    description: 'Discover and query SAP BW cubes and variables through the XMLA protocol',
     keywords: ['sap', 'sap-bw', 'xmla', 'olap', 'mdx'],
     author: 'XpertAI Team'
   },
@@ -65,8 +63,8 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   }
 }
 
-export { SAP_BW_TYPE, SapBwRunner } from './lib/sap-bw.runner.js'
-export type { SapBwAdapterOptions } from './lib/sap-bw.runner.js'
+export { SAP_BW_TYPE, SAP_BW_VARIABLES_REQUEST, SapBwRunner } from './lib/sap-bw.runner.js'
+export type { SapBwAdapterOptions, SapBwVariable } from './lib/sap-bw.runner.js'
 export { SapBwPlugin } from './lib/sap-bw.module.js'
 export { SapBwDataSourceStrategy } from './lib/sap-bw.strategy.js'
 

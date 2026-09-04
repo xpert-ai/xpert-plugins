@@ -10,9 +10,7 @@ interface PackageMetadata {
 }
 
 function readPackageMetadata(): PackageMetadata {
-  const value: unknown = JSON.parse(
-    readFileSync(new URL('../package.json', import.meta.url), 'utf8')
-  )
+  const value: unknown = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
   if (
     typeof value !== 'object' ||
     value === null ||
@@ -36,14 +34,14 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   meta: {
     name: packageMetadata.name,
     version: packageMetadata.version,
+    level: 'organization',
     category: 'database',
     icon: {
       type: 'svg',
       value: XMLA_ICON
     },
     displayName: 'XMLA Data Source',
-    description:
-      'Proxy XMLA SOAP requests with authentication, cookie reuse, and TLS controls',
+    description: 'Discover XMLA catalogs and cubes, inspect metadata, and execute SOAP or MDX requests',
     keywords: ['xmla', 'olap', 'mdx', 'soap', 'datasource'],
     author: 'XpertAI Team'
   },
@@ -65,16 +63,36 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   }
 }
 
-export {
-  XMLA_TYPE,
-  XMLARunner,
-  createXmlaConfigurationSchema
-} from './lib/xmla.runner.js'
+export { XMLA_TYPE, XMLARunner, createXmlaConfigurationSchema } from './lib/xmla.runner.js'
 export type {
   XmlaAdapterOptions,
+  XmlaDiscoverOptions,
+  XmlaExecuteOptions,
   XmlaHttpClient,
   XmlaHttpClientFactory
 } from './lib/xmla.runner.js'
+export {
+  XMLA_DISCOVER_REQUEST,
+  XmlaSoapFaultError,
+  buildXmlaDiscoverEnvelope,
+  buildXmlaExecuteEnvelope,
+  parseXmlaRowset,
+  requireXmlaString,
+  xmlaDataTypeToColumnType,
+  xmlaValueAsNumber,
+  xmlaValueAsString
+} from './lib/xmla.protocol.js'
+export type {
+  XmlaDiscoverEnvelopeOptions,
+  XmlaDiscoverRequestType,
+  XmlaExecuteEnvelopeOptions,
+  XmlaRequestItems,
+  XmlaRequestValue,
+  XmlaRow,
+  XmlaRowset,
+  XmlaScalar,
+  XmlaValue
+} from './lib/xmla.protocol.js'
 export { XmlaPlugin } from './lib/xmla.module.js'
 export { XmlaDataSourceStrategy } from './lib/xmla.strategy.js'
 

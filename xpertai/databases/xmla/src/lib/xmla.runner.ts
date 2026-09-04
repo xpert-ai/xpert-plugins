@@ -1,19 +1,25 @@
 import { Agent } from 'node:https'
 import axios from 'axios'
-import type {
-  AxiosRequestConfig,
-  AxiosResponse
-} from 'axios'
-import {
-  DBProtocolEnum,
-  DBSyntaxEnum
-} from '@xpert-ai/plugin-sdk'
+import type { AxiosRequestConfig, AxiosResponse } from 'axios'
+import { DBProtocolEnum, DBSyntaxEnum } from '@xpert-ai/plugin-sdk'
 import type {
   DBQueryRunner,
   HttpAdapterOptions,
+  IColumnDef,
   IDSSchema,
+  IDSTable,
   QueryOptions
 } from '@xpert-ai/plugin-sdk'
+import {
+  buildXmlaDiscoverEnvelope,
+  buildXmlaExecuteEnvelope,
+  parseXmlaRowset,
+  requireXmlaString,
+  XMLA_DISCOVER_REQUEST,
+  xmlaDataTypeToColumnType,
+  xmlaValueAsString
+} from './xmla.protocol.js'
+import type { XmlaRequestItems, XmlaRow, XmlaRowset, XmlaValue } from './xmla.protocol.js'
 
 export const XMLA_TYPE = 'xmla'
 
@@ -38,21 +44,29 @@ export interface XmlaAdapterOptions extends HttpAdapterOptions {
   use_ssl?: boolean
   disable_reject_cert?: boolean
   data_source_info?: string
+  language?: string
+  query_timeout?: number
+}
+
+export interface XmlaDiscoverOptions {
+  properties?: XmlaRequestItems
+  restrictions?: XmlaRequestItems
+  headers?: Readonly<Record<string, string>>
+}
+
+export interface XmlaExecuteOptions {
+  properties?: XmlaRequestItems
+  headers?: Readonly<Record<string, string>>
 }
 
 export interface XmlaHttpClient {
-  post(
-    url: string,
-    body: string,
-    config: AxiosRequestConfig
-  ): Promise<AxiosResponse<unknown>>
+  post(url: string, body: string, config: AxiosRequestConfig): Promise<AxiosResponse<unknown>>
 }
 
 export type XmlaHttpClientFactory = () => XmlaHttpClient
 
 const defaultHttpClientFactory: XmlaHttpClientFactory = () => ({
-  post: (url, body, config) =>
-    axios.post<unknown>(url, body, config)
+  post: (url, body, config) => axios.post<unknown>(url, body, config)
 })
 
 export function createXmlaConfigurationSchema(): Record<string, unknown> {
@@ -72,6 +86,15 @@ export function createXmlaConfigurationSchema(): Record<string, unknown> {
       data_source_info: {
         type: 'string',
         title: 'Data Source Info'
+      },
+      language: {
+        type: 'string',
+        title: 'Language'
+      },
+      query_timeout: {
+        type: 'number',
+        title: 'Query timeout (ms)',
+        minimum: 1
       },
       disable_reject_cert: {
         type: 'boolean',
@@ -123,9 +146,7 @@ export class XMLARunner implements DBQueryRunner {
 
   get url(): string {
     const protocol = this.options.use_ssl ? 'https' : 'http'
-    const path = this.options.path
-      ? `${this.options.path.startsWith('/') ? '' : '/'}${this.options.path}`
-      : ''
+    const path = this.options.path ? `${this.options.path.startsWith('/') ? '' : '/'}${this.options.path}` : ''
     return `${protocol}://${this.host}:${this.port}${path}`
   }
 
@@ -146,19 +167,14 @@ export class XMLARunner implements DBQueryRunner {
 
   async authenticate(options?: QueryOptions): Promise<void> {
     if (!this.#authenticating) {
-      this.#authenticating = this.performAuthentication(options).finally(
-        () => {
-          this.#authenticating = undefined
-        }
-      )
+      this.#authenticating = this.performAuthentication(options).finally(() => {
+        this.#authenticating = undefined
+      })
     }
     return this.#authenticating
   }
 
-  async runQuery(
-    query: string,
-    options?: QueryOptions
-  ): Promise<AxiosResponse<unknown>> {
+  async runQuery(query: string, options?: QueryOptions): Promise<AxiosResponse<unknown>> {
     const headers: Record<string, string | string[]> = {
       ...SOAP_HEADERS,
       ...options?.headers
@@ -198,26 +214,85 @@ export class XMLARunner implements DBQueryRunner {
     }
   }
 
-  run(
-    query: string
-  ): Promise<AxiosResponse<unknown>> {
+  run(query: string): Promise<AxiosResponse<unknown>> {
     return this.runQuery(query)
   }
 
-  getCatalogs(): Promise<IDSSchema[]> {
-    throw new Error('XMLA catalog discovery is not implemented')
+  async discover(requestType: string, options: XmlaDiscoverOptions = {}): Promise<XmlaRowset> {
+    const response = await this.runQuery(
+      buildXmlaDiscoverEnvelope(requestType, {
+        properties: this.metadataProperties(options.properties),
+        restrictions: options.restrictions
+      }),
+      {
+        headers: this.metadataHeaders(options.headers)
+      }
+    )
+    return parseXmlaRowset(response.data, requestType)
   }
 
-  getSchema(): Promise<IDSSchema[]> {
-    throw new Error('XMLA schema discovery is not implemented')
+  async executeTabular(statement: string, options: XmlaExecuteOptions = {}): Promise<XmlaRowset> {
+    const response = await this.runQuery(
+      buildXmlaExecuteEnvelope(statement, {
+        properties: this.metadataProperties(options.properties)
+      }),
+      {
+        headers: this.metadataHeaders(options.headers)
+      }
+    )
+    return parseXmlaRowset(response.data)
   }
 
-  describe(): Promise<never> {
-    throw new Error('XMLA statement description is not implemented')
+  async getCatalogs(): Promise<IDSSchema[]> {
+    const { rows } = await this.discover(XMLA_DISCOVER_REQUEST.catalogs)
+    return rows.map((row) => {
+      const name = requireXmlaString(row, 'CATALOG_NAME')
+      return {
+        catalog: name,
+        schema: xmlaValueAsString(row, 'SCHEMA_NAME'),
+        name,
+        label: xmlaValueAsString(row, 'DESCRIPTION'),
+        type: xmlaValueAsString(row, 'SCHEMA_NAME')
+      }
+    })
+  }
+
+  async getSchema(catalog?: string, tableName?: string): Promise<IDSSchema[]> {
+    const restrictions: XmlaRequestItems = {
+      CATALOG_NAME: catalog,
+      CUBE_NAME: tableName
+    }
+    const properties: XmlaRequestItems = {
+      Catalog: catalog
+    }
+    const { rows } = await this.discover(XMLA_DISCOVER_REQUEST.cubes, { properties, restrictions })
+    const cubes = uniqueCubes(rows)
+
+    if (tableName) {
+      await Promise.all(
+        cubes.map(async (cube) => {
+          cube.columns = await this.discoverCubeColumns(cube)
+        })
+      )
+    }
+
+    return groupCubesByCatalog(cubes)
+  }
+
+  async describe(catalog: string, statement: string): Promise<{ columns?: IDSTable['columns'] }> {
+    if (!statement.trim()) {
+      return { columns: [] }
+    }
+    const result = await this.executeTabular(statement, {
+      properties: {
+        Catalog: catalog
+      }
+    })
+    return { columns: result.fields }
   }
 
   async ping(): Promise<void> {
-    await this.runQuery('')
+    await this.discover(XMLA_DISCOVER_REQUEST.dataSources)
   }
 
   import(): Promise<never> {
@@ -240,9 +315,7 @@ export class XMLARunner implements DBQueryRunner {
     this.#authCookie = undefined
   }
 
-  private async performAuthentication(
-    options?: QueryOptions
-  ): Promise<void> {
+  private async performAuthentication(options?: QueryOptions): Promise<void> {
     const response = await this.#httpClient.post(
       this.url,
       '',
@@ -257,16 +330,12 @@ export class XMLARunner implements DBQueryRunner {
     this.captureCookie(response)
   }
 
-  private createRequestConfig(
-    headers: Record<string, string | string[]>,
-    includeAuth: boolean
-  ): AxiosRequestConfig {
+  private createRequestConfig(headers: Record<string, string | string[]>, includeAuth: boolean): AxiosRequestConfig {
     return {
       headers,
       auth: includeAuth ? this.getAuth() : undefined,
-      httpsAgent: this.options.disable_reject_cert
-        ? INSECURE_HTTPS_AGENT
-        : undefined
+      timeout: this.options.query_timeout,
+      httpsAgent: this.options.disable_reject_cert ? INSECURE_HTTPS_AGENT : undefined
     }
   }
 
@@ -276,17 +345,139 @@ export class XMLARunner implements DBQueryRunner {
       this.#authCookie = cookie
     }
   }
+
+  protected measureColumnType(dataType: XmlaValue | undefined): IColumnDef['type'] {
+    return xmlaDataTypeToColumnType(dataType)
+  }
+
+  private async discoverCubeColumns(cube: XmlaCubeMetadata): Promise<IColumnDef[]> {
+    const restrictions: XmlaRequestItems = {
+      CATALOG_NAME: cube.catalog,
+      CUBE_NAME: cube.name
+    }
+    const properties: XmlaRequestItems = {
+      Catalog: cube.catalog
+    }
+    const [dimensionResult, measureResult] = await Promise.all([
+      this.discover(XMLA_DISCOVER_REQUEST.dimensions, {
+        properties,
+        restrictions
+      }),
+      this.discover(XMLA_DISCOVER_REQUEST.measures, {
+        properties,
+        restrictions
+      })
+    ])
+    const dimensions = dimensionResult.rows.filter((row) => row.DIMENSION_TYPE !== 2 && row.DIMENSION_TYPE !== '2')
+    const columns = [
+      ...dimensions.map((row, index) => dimensionToColumn(row, index)),
+      ...measureResult.rows.map((row, index) =>
+        measureToColumn(row, dimensions.length + index, this.measureColumnType(row.DATA_TYPE))
+      )
+    ]
+    return Array.from(new Map(columns.map((column) => [column.name, column])).values())
+  }
+
+  private metadataProperties(properties?: XmlaRequestItems): XmlaRequestItems {
+    return {
+      DataSourceInfo: this.options.data_source_info || undefined,
+      ...properties
+    }
+  }
+
+  private metadataHeaders(headers?: Readonly<Record<string, string>>): Record<string, string> {
+    return {
+      ...(this.options.language ? { 'Accept-Language': this.options.language } : {}),
+      ...headers
+    }
+  }
 }
 
-function isXmlaHttpClientFactory(
-  value: unknown
-): value is XmlaHttpClientFactory {
+interface XmlaCubeMetadata {
+  catalog: string
+  schema?: string
+  name: string
+  label?: string
+  type?: string
+  columns?: IColumnDef[]
+}
+
+function uniqueCubes(rows: XmlaRow[]): XmlaCubeMetadata[] {
+  const cubes = rows.map((row) => ({
+    catalog: requireXmlaString(row, 'CATALOG_NAME'),
+    schema: xmlaValueAsString(row, 'SCHEMA_NAME'),
+    name: requireXmlaString(row, 'CUBE_NAME'),
+    label: xmlaValueAsString(row, 'CUBE_CAPTION') ?? xmlaValueAsString(row, 'DESCRIPTION'),
+    type: xmlaValueAsString(row, 'CUBE_TYPE')
+  }))
+  return Array.from(
+    new Map(cubes.map((cube) => [`${cube.catalog}\u0000${cube.schema ?? ''}\u0000${cube.name}`, cube])).values()
+  )
+}
+
+function groupCubesByCatalog(cubes: XmlaCubeMetadata[]): IDSSchema[] {
+  const groups = new Map<string, XmlaCubeMetadata[]>()
+  for (const cube of cubes) {
+    const values = groups.get(cube.catalog) ?? []
+    values.push(cube)
+    groups.set(cube.catalog, values)
+  }
+
+  return Array.from(groups, ([catalog, catalogCubes]) => ({
+    catalog,
+    schema: catalogCubes[0]?.schema,
+    name: catalog,
+    tables: catalogCubes.map((cube) => ({
+      schema: cube.schema ?? catalog,
+      name: cube.name,
+      label: cube.label,
+      columns: cube.columns
+    }))
+  }))
+}
+
+function dimensionToColumn(row: XmlaRow, fallbackPosition: number): IColumnDef {
+  return {
+    name: xmlaValueAsString(row, 'DIMENSION_UNIQUE_NAME') ?? requireXmlaString(row, 'DIMENSION_NAME'),
+    label: xmlaValueAsString(row, 'DIMENSION_CAPTION') ?? xmlaValueAsString(row, 'DESCRIPTION'),
+    type: 'string',
+    dataType: 'MDX_DIMENSION',
+    nullable: true,
+    position: numericPosition(row.DIMENSION_ORDINAL, fallbackPosition),
+    comment: xmlaValueAsString(row, 'DESCRIPTION')
+  }
+}
+
+function measureToColumn(row: XmlaRow, fallbackPosition: number, type: IColumnDef['type']): IColumnDef {
+  const dataType = row.DATA_TYPE
+  return {
+    name: xmlaValueAsString(row, 'MEASURE_UNIQUE_NAME') ?? requireXmlaString(row, 'MEASURE_NAME'),
+    label: xmlaValueAsString(row, 'MEASURE_CAPTION') ?? xmlaValueAsString(row, 'DESCRIPTION'),
+    type,
+    dataType: dataType === undefined || Array.isArray(dataType) ? 'MDX_MEASURE' : String(dataType),
+    nullable: true,
+    position: fallbackPosition,
+    comment: xmlaValueAsString(row, 'DESCRIPTION')
+  }
+}
+
+function numericPosition(value: XmlaValue | undefined, fallback: number): number {
+  if (typeof value === 'number') {
+    return value
+  }
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    if (Number.isFinite(parsed)) {
+      return parsed
+    }
+  }
+  return fallback
+}
+
+function isXmlaHttpClientFactory(value: unknown): value is XmlaHttpClientFactory {
   return typeof value === 'function'
 }
 
 function isUnauthorizedError(error: unknown): boolean {
-  return (
-    axios.isAxiosError(error) &&
-    error.response?.status === 401
-  )
+  return axios.isAxiosError(error) && error.response?.status === 401
 }
