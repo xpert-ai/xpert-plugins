@@ -1,5 +1,6 @@
 import { Column, CreateDateColumn, Entity, ForeignKey, Index, PrimaryGeneratedColumn } from 'typeorm'
 import { officeEditorTable } from '../constants.js'
+import type { WorkspacePortableFileReference } from '@xpert-ai/plugin-sdk'
 import type { OfficeFileVersionSource, OfficeWorkspaceCatalog } from '../types.js'
 import { OfficeDocument } from './office-document.entity.js'
 
@@ -47,7 +48,13 @@ export class OfficeFileVersion {
   workspaceFilePath!: string
 
   @Column({ type: 'text', nullable: true })
-  workspaceFileUrl?: string
+  workspaceFileUrl?: string | null
+
+  @Column({ type: 'jsonb', nullable: true })
+  workspaceFileReference?: WorkspacePortableFileReference | null
+
+  @Column({ type: 'varchar', nullable: true })
+  fileAssetId?: string | null
 
   @Column({ type: 'varchar' })
   workspaceCatalog!: OfficeWorkspaceCatalog

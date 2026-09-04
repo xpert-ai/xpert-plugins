@@ -5,21 +5,23 @@ import { IsNull, Repository } from 'typeorm'
 import * as Y from 'yjs'
 import {
   CollaborationRuntimeCapability,
+  WORKSPACE_FILES_SOURCE,
+  WorkspaceFilesRuntimeCapability,
   type CollaborationMaterializationEvent,
   type CollaborationProviderContext,
   type AgentMiddlewareRuntimeServiceApi,
+  type WorkspaceFile,
+  type WorkspaceFilesApi,
+  type WorkspacePortableFileReference,
   XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN,
   XPERT_RUNTIME_CAPABILITIES_TOKEN
 } from '@xpert-ai/plugin-sdk'
 import type { AgentMiddlewareRuntimeCapabilityRegistry } from '@xpert-ai/plugin-sdk'
 import {
-  OFFICE_EDITOR_COLLAB_NAMESPACE_PREFIX,
   OFFICE_EDITOR_COLLABORATION_PROVIDER_KEY,
-  OFFICE_EDITOR_COLLAB_SESSION_TTL_MS,
   OFFICE_EDITOR_DOCUMENT_TYPES,
   OFFICE_EDITOR_IMPORT_FORMATS,
-  OFFICE_EDITOR_OPERATION_TYPES,
-  OFFICE_WORKSPACE_FILES_RUNTIME_CAPABILITY
+  OFFICE_EDITOR_OPERATION_TYPES
 } from './constants.js'
 import {
   OfficeDocument,
@@ -43,7 +45,6 @@ import type {
   CreateOfficeDocumentInput,
   EditExcelWorkbookInput,
   ImportOfficeDocumentInput,
-  OfficeCollabSession,
   OfficeDocumentType,
   OfficeImportFormat,
   OfficeOperationInput,
@@ -51,7 +52,6 @@ import type {
   OfficeScope,
   OfficeWorkspaceCatalog,
   OfficeWorkspaceFileScope,
-  OfficeWorkspaceFilesApi,
   OfficeWorkbenchQuery,
   PrepareOfficeAssistantPromptInput,
   QueueOfficeOperationInput,
@@ -67,6 +67,17 @@ type ScopedFields = {
   organizationId?: string | null
   workspaceId?: string | null
   projectId?: string | null
+}
+
+// Kept local so this plugin remains buildable against older SDK declarations;
+// the platform SDK carries the same optional field at runtime.
+type CollaborationAuthorization = {
+  canRead: boolean
+  canEdit: boolean
+  canManage: boolean
+}
+type CollaborationProviderContextWithAuthorization = CollaborationProviderContext & {
+  authorization?: CollaborationAuthorization | null
 }
 
 type ScopedQuery = {
@@ -92,8 +103,6 @@ type ExcelFileResult = {
 
 @Injectable()
 export class OfficeEditorService {
-  private readonly collabSessions = new Map<string, OfficeCollabSession>()
-
   constructor(
     @InjectRepository(OfficeDocument)
     private readonly documentRepository: Repository<OfficeDocument>,
@@ -216,56 +225,61 @@ export class OfficeEditorService {
       assistantId: normalizeOptional(input.assistantId) ?? normalizeOptional(scope.assistantId),
       conversationId: normalizeOptional(input.conversationId) ?? normalizeOptional(scope.conversationId)
     })
-    const fileVersion = importFormat === 'xlsx'
-      ? await this.saveExcelFileVersion(scope, created.document, buffer, {
-          fileName,
-          source: 'import',
-          changeSummary: `Imported XLSX file ${fileName}.`
-        })
-      : null
+    try {
+      const fileVersion = importFormat === 'xlsx'
+        ? await this.saveExcelFileVersion(scope, created.document, buffer, {
+            fileName,
+            source: 'import',
+            changeSummary: `Imported XLSX file ${fileName}.`
+          })
+        : null
 
-    const operation = await this.operationRepository.save(
-      this.operationRepository.create({
-        ...scopedCreate(scope),
-        documentId: created.document.id,
-        snapshotId: created.snapshot.id,
-        operationType: 'import_document',
-        source: 'workbench',
-        status: 'applied',
-        input: {
+      const operation = await this.operationRepository.save(
+        this.operationRepository.create({
+          ...scopedCreate(scope),
+          documentId: created.document.id,
+          snapshotId: created.snapshot.id,
+          operationType: 'import_document',
+          source: 'workbench',
+          status: 'applied',
+          input: {
+            importFormat,
+            documentType,
+            fileName,
+            mimeType: normalizeOptional(input.mimeType),
+            size: declaredSize
+          },
+          result: {
+            fidelity: conversion.fidelity,
+            warnings: conversion.warnings,
+            fileVersionId: fileVersion?.id ?? null
+          },
+          createdById: normalizeOptional(scope.userId)
+        })
+      )
+      const storedDocument = fileVersion
+        ? await this.requireDocument(scope, requireEntityId(created.document.id, 'Office document id is required.'))
+        : created.document
+
+      return {
+        ...created,
+        document: storedDocument,
+        fileVersion,
+        operation,
+        import: {
           importFormat,
           documentType,
           fileName,
-          mimeType: normalizeOptional(input.mimeType),
-          size: declaredSize
-        },
-        result: {
+          mimeType: normalizeOptional(input.mimeType) ?? null,
+          size: declaredSize,
           fidelity: conversion.fidelity,
-          warnings: conversion.warnings,
-          fileVersionId: fileVersion?.id ?? null
+          warnings: conversion.warnings
         },
-        createdById: normalizeOptional(scope.userId)
-      })
-    )
-    const storedDocument = fileVersion
-      ? await this.requireDocument(scope, requireEntityId(created.document.id, 'Office document id is required.'))
-      : created.document
-
-    return {
-      ...created,
-      document: storedDocument,
-      fileVersion,
-      operation,
-      import: {
-        importFormat,
-        documentType,
-        fileName,
-        mimeType: normalizeOptional(input.mimeType) ?? null,
-        size: declaredSize,
-        fidelity: conversion.fidelity,
         warnings: conversion.warnings
-      },
-      warnings: conversion.warnings
+      }
+    } catch (error) {
+      await this.rollbackImportedDocument(scope, created.document.id)
+      throw error
     }
   }
 
@@ -301,7 +315,7 @@ export class OfficeEditorService {
         const version = fileVersionId
           ? await this.requireExcelVersion(scope, input.documentId, fileVersionId)
           : await this.requireCurrentExcelVersion(scope, document)
-        return this.buildExcelEditResult(document, version, existing, true)
+        return this.buildExcelEditResult(scope, document, version, existing, true)
       }
       if (existing) {
         throw new ConflictException(`Excel operation with idempotencyKey "${idempotencyKey}" is ${existing.status}.`)
@@ -402,7 +416,7 @@ export class OfficeEditorService {
         },
         errorMessage: undefined
       })
-      return this.buildExcelEditResult(saved.document, fileVersion, operation, false)
+      return this.buildExcelEditResult(scope, saved.document, fileVersion, operation, false)
     } catch (error) {
       operation = await this.operationRepository.save({
         ...operation,
@@ -493,7 +507,7 @@ export class OfficeEditorService {
           snapshotId: saved.snapshot.id
         }
       })
-      return this.buildExcelEditResult(saved.document, fileVersion, operation, false)
+      return this.buildExcelEditResult(scope, saved.document, fileVersion, operation, false)
     } catch (error) {
       await this.operationRepository.save({
         ...operation,
@@ -509,13 +523,14 @@ export class OfficeEditorService {
   async getExcelFile(scope: OfficeScope, documentId: string, includeBase64 = false): Promise<ExcelFileResult | (ExcelFileResult & { fileBase64: string })> {
     const document = await this.requireSpreadsheet(scope, documentId)
     const version = await this.requireCurrentExcelVersion(scope, document)
+    const resolved = await this.resolveExcelVersionFile(scope, version)
     const result: ExcelFileResult = {
       documentId,
       fileVersionId: version.id,
       versionNumber: version.versionNumber,
       fileName: version.fileName,
       filePath: version.workspaceFilePath,
-      fileUrl: version.workspaceFileUrl ?? '',
+      fileUrl: resolved.fileUrl ?? resolved.url ?? '',
       mimeType: version.mimeType,
       size: version.size,
       extension: 'xlsx'
@@ -532,58 +547,82 @@ export class OfficeEditorService {
 
   async saveSnapshot(scope: OfficeScope, input: SaveOfficeSnapshotInput) {
     let document = await this.requireDocument(scope, input.documentId)
+    const previousFileState = {
+      fileName: document.fileName,
+      mimeType: document.mimeType,
+      size: document.size,
+      workspaceFilePath: document.workspaceFilePath,
+      workspaceFileUrl: document.workspaceFileUrl,
+      workspaceFileReference: document.workspaceFileReference,
+      workspaceCatalog: document.workspaceCatalog,
+      workspaceScopeId: document.workspaceScopeId,
+      currentFileVersionId: document.currentFileVersionId,
+      currentFileAssetId: document.currentFileAssetId,
+      currentFileVersionNumber: document.currentFileVersionNumber
+    }
     const nextVersionNumber = (document.currentVersionNumber ?? 0) + 1
     const yjsStateBase64 = normalizeOptional(input.yjsStateBase64) ?? document.yjsStateBase64
     const yjsStateVectorBase64 = normalizeOptional(input.yjsStateVectorBase64) ?? (yjsStateBase64 ? encodeStateVectorBase64(yjsStateBase64) : document.yjsStateVectorBase64)
     const yjsUpdateCount = await this.countYjsUpdates(scope, input.documentId)
 
-    const snapshot = await this.snapshotRepository.save(
-      this.snapshotRepository.create({
-        ...scopedCreate(scope),
-        documentId: input.documentId,
-        versionNumber: nextVersionNumber,
-        source: input.source ?? 'workbench',
-        snapshot: input.snapshot ?? null,
-        snapshotText: normalizeOptional(input.snapshotText) ?? summarizeSnapshotText(document.documentType, input.snapshot),
+    let snapshot: OfficeSnapshot | null = null
+    let fileVersion: OfficeFileVersion | null = null
+    try {
+      snapshot = await this.snapshotRepository.save(
+        this.snapshotRepository.create({
+          ...scopedCreate(scope),
+          documentId: input.documentId,
+          versionNumber: nextVersionNumber,
+          source: input.source ?? 'workbench',
+          snapshot: input.snapshot ?? null,
+          snapshotText: normalizeOptional(input.snapshotText) ?? summarizeSnapshotText(document.documentType, input.snapshot),
+          yjsStateBase64,
+          yjsStateVectorBase64,
+          yjsUpdateCount,
+          changeSummary: normalizeOptional(input.changeSummary),
+          operationId: normalizeOptional(input.operationId),
+          createdById: normalizeOptional(scope.userId)
+        })
+      )
+      if (
+        document.documentType === 'spreadsheet' &&
+        document.currentFileVersionId &&
+        (input.source ?? 'workbench') === 'workbench'
+      ) {
+        const buffer = exportSpreadsheetSnapshotToXlsx(input.snapshot, document.title)
+        fileVersion = await this.saveExcelFileVersion(scope, document, buffer, {
+          fileName: document.fileName ?? `${document.title}.xlsx`,
+          source: 'workbench',
+          operationId: normalizeOptional(input.operationId),
+          changeSummary: normalizeOptional(input.changeSummary) ?? 'Saved from Office Editor Workbench.'
+        })
+        document = await this.requireDocument(scope, input.documentId)
+      }
+
+      const savedDocument = await this.documentRepository.save({
+        ...document,
+        status: 'active',
+        currentSnapshotId: snapshot.id,
+        currentVersionNumber: nextVersionNumber,
         yjsStateBase64,
         yjsStateVectorBase64,
-        yjsUpdateCount,
-        changeSummary: normalizeOptional(input.changeSummary),
-        operationId: normalizeOptional(input.operationId),
-        createdById: normalizeOptional(scope.userId)
+        lastEditedById: normalizeOptional(scope.userId),
+        lastEditedAt: new Date()
       })
-    )
-    let fileVersion: OfficeFileVersion | null = null
-    if (
-      document.documentType === 'spreadsheet' &&
-      document.currentFileVersionId &&
-      (input.source ?? 'workbench') === 'workbench'
-    ) {
-      const buffer = exportSpreadsheetSnapshotToXlsx(input.snapshot, document.title)
-      fileVersion = await this.saveExcelFileVersion(scope, document, buffer, {
-        fileName: document.fileName ?? `${document.title}.xlsx`,
-        source: 'workbench',
-        operationId: normalizeOptional(input.operationId),
-        changeSummary: normalizeOptional(input.changeSummary) ?? 'Saved from Office Editor Workbench.'
-      })
-      document = await this.requireDocument(scope, input.documentId)
-    }
 
-    const savedDocument = await this.documentRepository.save({
-      ...document,
-      status: 'active',
-      currentSnapshotId: snapshot.id,
-      currentVersionNumber: nextVersionNumber,
-      yjsStateBase64,
-      yjsStateVectorBase64,
-      lastEditedById: normalizeOptional(scope.userId),
-      lastEditedAt: new Date()
-    })
-
-    return {
-      document: savedDocument,
-      snapshot,
-      fileVersion
+      return {
+        document: savedDocument,
+        snapshot,
+        fileVersion
+      }
+    } catch (error) {
+      if (snapshot?.id) {
+        await this.snapshotRepository.delete(scopedWhere(scope, { id: snapshot.id })).catch(() => undefined)
+      }
+      if (fileVersion?.id) {
+        await this.rollbackSnapshotFileVersion(scope, input.documentId, fileVersion, previousFileState)
+      }
+      throw error
     }
   }
 
@@ -753,16 +792,38 @@ export class OfficeEditorService {
 
   async deleteDocument(scope: OfficeScope, documentId: string) {
     await this.requireDocument(scope, documentId)
+    const collaboration = this.optionalCollaboration(scope)
+    if (collaboration) {
+      try {
+        await collaboration.ensureDocument({
+          providerKey: OFFICE_EDITOR_COLLABORATION_PROVIDER_KEY,
+          resourceId: documentId,
+          schemaVersion: 1
+        })
+        await collaboration.deleteDocument({
+          providerKey: OFFICE_EDITOR_COLLABORATION_PROVIDER_KEY,
+          resourceId: documentId
+        })
+      } catch (error) {
+        if (!(error instanceof Error) || !/not found/i.test(error.message)) {
+          throw error
+        }
+      }
+    }
     const fileVersions = await this.fileVersionRepository.find({
       where: scopedWhere(scope, { documentId })
     })
-    const workspaceFiles = this.runtimeCapabilities?.get<OfficeWorkspaceFilesApi>(OFFICE_WORKSPACE_FILES_RUNTIME_CAPABILITY)
+    let workspaceFiles: WorkspaceFilesApi | undefined
+    try {
+      workspaceFiles = this.workspaceFiles(scope)
+    } catch {
+      // Database cleanup remains valid when storage cleanup is unavailable.
+    }
     if (workspaceFiles) {
       await Promise.all(fileVersions.map(async (version) => {
         try {
           await workspaceFiles.deleteFile({
-            ...resolveFileVersionWorkspaceScope(scope, version),
-            filePath: version.workspaceFilePath
+            ...resolveFileVersionReference(scope, version)
           })
         } catch {
           // Best-effort file cleanup; scoped database records are still removed below.
@@ -777,6 +838,17 @@ export class OfficeEditorService {
     return {
       deleted: true,
       documentId
+    }
+  }
+
+  private async rollbackImportedDocument(scope: OfficeScope, documentId: string | undefined) {
+    if (!documentId) {
+      return
+    }
+    try {
+      await this.deleteDocument(scope, documentId)
+    } catch {
+      // Preserve the import failure; rollback is best effort for an already-created record.
     }
   }
 
@@ -857,7 +929,7 @@ export class OfficeEditorService {
     })
     return collaboration.createSession({
       documentId: document.id,
-      access: scope.collaborationAccess ?? 'write'
+      access: scope.collaborationAccess === 'read' ? 'read' : 'write'
     })
   }
 
@@ -867,11 +939,25 @@ export class OfficeEditorService {
       where: scopedDocumentWhere(scope, { id: context.resourceId })
     })
     if (!document || !canAccessCollaborationDocument(document, scope.userId)) return false
-    return context.operation === 'read'
-      || context.operation === 'initialize'
-      || context.operation === 'materialize'
-      || context.operation === 'delete'
-      || scope.collaborationAccess === 'write'
+    // Materialization is an internal platform lifecycle operation. All user-facing
+    // operations use the host-resolved authorization carried by the scoped runtime.
+    if (context.operation === 'materialize') {
+      return true
+    }
+    const authorization = (context as CollaborationProviderContextWithAuthorization).authorization
+    if (context.operation === 'read' || context.operation === 'initialize') {
+      return authorization?.canRead !== false
+    }
+    if (context.operation === 'write') {
+      return authorization ? authorization.canEdit : true
+    }
+    if (context.operation === 'manage' || context.operation === 'delete') {
+      // A project must carry an explicit manager decision. Personal/shared Xpert
+      // documents retain their plugin-level owner/scope checks when no project
+      // authorization exists.
+      return authorization ? authorization.canManage : !context.projectId
+    }
+    return false
   }
 
   async initializeCollaborationDocument(context: CollaborationProviderContext) {
@@ -925,7 +1011,7 @@ export class OfficeEditorService {
   }
 
   private collaboration(scope: OfficeScope) {
-    const capability = this.runtimeService?.createScopedApi({
+    const runtimeScope = {
       tenantId: scope.tenantId,
       organizationId: scope.organizationId,
       userId: scope.userId,
@@ -935,47 +1021,15 @@ export class OfficeEditorService {
       conversationId: scope.conversationId,
       catalog: scope.workspaceFiles?.catalog,
       scopeId: scope.workspaceFiles?.scopeId,
-      isolateByUser: scope.workspaceFiles?.isolateByUser
-    }).capabilities?.get(CollaborationRuntimeCapability)
-      ?? this.runtimeCapabilities?.get(CollaborationRuntimeCapability)
+      isolateByUser: scope.workspaceFiles?.isolateByUser,
+      authorization: collaborationAuthorization(scope.collaborationAccess)
+    }
+    const capability = this.runtimeService?.createScopedApi(
+      runtimeScope as Parameters<AgentMiddlewareRuntimeServiceApi['createScopedApi']>[0]
+    ).capabilities?.get(CollaborationRuntimeCapability)
+      ?? (this.runtimeService ? undefined : this.runtimeCapabilities?.get(CollaborationRuntimeCapability))
     if (!capability) throw new Error('Platform collaboration capability is not available.')
     return capability
-  }
-
-  resolveCollabSession(sessionId: string | undefined, documentId?: string | null) {
-    this.cleanupExpiredCollabSessions()
-    const normalizedSessionId = normalizeOptional(sessionId)
-    if (!normalizedSessionId) {
-      return null
-    }
-    const session = this.collabSessions.get(normalizedSessionId)
-    if (!session || session.expiresAt < Date.now()) {
-      if (session) {
-        this.collabSessions.delete(normalizedSessionId)
-      }
-      return null
-    }
-    if (documentId && session.documentId !== documentId) {
-      return null
-    }
-    session.expiresAt = Date.now() + OFFICE_EDITOR_COLLAB_SESSION_TTL_MS
-    return session
-  }
-
-  async getDocumentForCollab(session: OfficeCollabSession) {
-    const detail = await this.getDocumentDetail(session.scope, session.documentId)
-    return {
-      document: detail.item,
-      snapshot: detail.currentSnapshot,
-      yjsStateBase64: detail.item?.yjsStateBase64 ?? detail.currentSnapshot?.yjsStateBase64
-    }
-  }
-
-  async persistCollabUpdate(session: OfficeCollabSession, input: Omit<SyncOfficeYjsStateInput, 'documentId'>) {
-    return this.syncYjsState(session.scope, {
-      ...input,
-      documentId: session.documentId
-    })
   }
 
   private async getDocumentDetail(scope: OfficeScope, documentId: string) {
@@ -1046,19 +1100,51 @@ export class OfficeEditorService {
     return version
   }
 
-  private workspaceFiles() {
-    const files = this.runtimeCapabilities?.get<OfficeWorkspaceFilesApi>(OFFICE_WORKSPACE_FILES_RUNTIME_CAPABILITY)
+  private workspaceFiles(scope: OfficeScope) {
+    const scopedCapabilities = this.runtimeService?.createScopedApi({
+      tenantId: scope.tenantId,
+      organizationId: scope.organizationId,
+      userId: scope.userId,
+      workspaceId: scope.projectId ? null : scope.workspaceId,
+      projectId: scope.projectId,
+      xpertId: scope.assistantId,
+      conversationId: scope.conversationId,
+      catalog: scope.workspaceFiles?.catalog,
+      scopeId: scope.workspaceFiles?.scopeId,
+      isolateByUser: scope.workspaceFiles?.isolateByUser
+    }).capabilities
+    const files = scopedCapabilities?.get<WorkspaceFilesApi>(WorkspaceFilesRuntimeCapability)
+      ?? (this.runtimeService
+        ? undefined
+        : this.runtimeCapabilities?.get<WorkspaceFilesApi>(WorkspaceFilesRuntimeCapability))
     if (!files) {
       throw new BadRequestException('Xpert workspace file runtime capability is required for XLSX storage.')
     }
     return files
   }
 
+  private optionalCollaboration(scope: OfficeScope) {
+    const scopedCapabilities = this.runtimeService?.createScopedApi({
+      tenantId: scope.tenantId,
+      organizationId: scope.organizationId,
+      userId: scope.userId,
+      workspaceId: scope.projectId ? null : scope.workspaceId,
+      projectId: scope.projectId,
+      xpertId: scope.assistantId,
+      conversationId: scope.conversationId,
+      catalog: scope.workspaceFiles?.catalog,
+      scopeId: scope.workspaceFiles?.scopeId,
+      isolateByUser: scope.workspaceFiles?.isolateByUser
+    }).capabilities
+    const capability = scopedCapabilities?.get(CollaborationRuntimeCapability)
+      ?? (this.runtimeService ? undefined : this.runtimeCapabilities?.get(CollaborationRuntimeCapability))
+    return capability && typeof capability.ensureDocument === 'function' ? capability : undefined
+  }
+
   private async readExcelVersionBuffer(scope: OfficeScope, version: OfficeFileVersion) {
-    return this.workspaceFiles().readBuffer({
-      ...resolveFileVersionWorkspaceScope(scope, version),
-      filePath: version.workspaceFilePath
-    })
+    const files = this.workspaceFiles(scope)
+    const reference = resolveFileVersionReference(scope, version)
+    return files.readBuffer(reference)
   }
 
   private async saveExcelFileVersion(
@@ -1084,23 +1170,44 @@ export class OfficeEditorService {
     const nextVersionNumber = (currentDocument.currentFileVersionNumber ?? 0) + 1
     const checksumValue = checksum(buffer)
     const workspaceScope = resolveDocumentWorkspaceScope(scope, currentDocument)
-    const uploaded = await this.workspaceFiles().uploadBuffer({
-      ...workspaceScope,
-      buffer,
-      originalName: input.fileName,
-      mimeType: XLSX_MIME_TYPE,
-      size: buffer.byteLength,
-      folder: buildExcelVersionFolder(documentId),
-      fileName: buildExcelVersionFileName(nextVersionNumber, checksumValue),
-      metadata: {
-        documentType: 'office-editor-xlsx-version',
-        documentId,
-        versionNumber: nextVersionNumber,
-        source: input.source
-      }
-    })
+    const workspaceFiles = this.workspaceFiles(scope)
+    let uploaded: WorkspaceFile | null = null
+    let workspaceFileReference: WorkspacePortableFileReference | null = null
+    let fileAssetId: string | null = null
     let persistedVersion: OfficeFileVersion | null = null
     try {
+      uploaded = await workspaceFiles.uploadBuffer({
+        ...workspaceScope,
+        buffer,
+        originalName: input.fileName,
+        mimeType: XLSX_MIME_TYPE,
+        size: buffer.byteLength,
+        folder: buildExcelVersionFolder(documentId),
+        fileName: buildExcelVersionFileName(nextVersionNumber, checksumValue),
+        metadata: {
+          documentType: 'office-editor-xlsx-version',
+          documentId,
+          versionNumber: nextVersionNumber,
+          source: input.source
+        }
+      })
+      const uploadedReference = await resolveUploadedWorkspaceReference(workspaceFiles, uploaded, workspaceScope, input.fileName, buffer.byteLength)
+      const understood = await workspaceFiles.understandFile({
+        ...uploadedReference,
+        originalName: input.fileName,
+        mimeType: XLSX_MIME_TYPE,
+        size: buffer.byteLength,
+        purpose: 'workspace',
+        parseMode: 'deep',
+        metadata: {
+          documentType: 'office-editor-xlsx-version',
+          documentId,
+          versionNumber: nextVersionNumber,
+          source: input.source
+        }
+      })
+      fileAssetId = understood.fileAssetId
+      workspaceFileReference = normalizePersistedWorkspaceReference(uploadedReference)
       currentDocument = await this.requireDocument(scope, documentId)
       if ((currentDocument.currentFileVersionId ?? null) !== sourceFileVersionId) {
         throw new ConflictException(
@@ -1114,7 +1221,9 @@ export class OfficeEditorService {
           versionNumber: nextVersionNumber,
           source: input.source,
           workspaceFilePath: uploaded.filePath,
-          workspaceFileUrl: normalizeOptional(uploaded.fileUrl) ?? normalizeOptional(uploaded.url),
+          workspaceFileUrl: null,
+          workspaceFileReference,
+          fileAssetId,
           workspaceCatalog: workspaceScope.catalog,
           workspaceScopeId: workspaceScope.scopeId,
           fileName: input.fileName,
@@ -1134,10 +1243,12 @@ export class OfficeEditorService {
         mimeType: XLSX_MIME_TYPE,
         size: buffer.byteLength,
         workspaceFilePath: uploaded.filePath,
-        workspaceFileUrl: normalizeOptional(uploaded.fileUrl) ?? normalizeOptional(uploaded.url),
+        workspaceFileUrl: null,
+        workspaceFileReference,
         workspaceCatalog: workspaceScope.catalog,
         workspaceScopeId: workspaceScope.scopeId,
         currentFileVersionId: version.id,
+        currentFileAssetId: fileAssetId,
         currentFileVersionNumber: nextVersionNumber,
         lastEditedById: normalizeOptional(scope.userId),
         lastEditedAt: new Date()
@@ -1151,24 +1262,29 @@ export class OfficeEditorService {
           // Best-effort rollback of a file version whose document pointer was not committed.
         }
       }
-      try {
-        await this.workspaceFiles().deleteFile({
-          ...workspaceScope,
-          filePath: uploaded.filePath
-        })
-      } catch {
-        // The primary error is more actionable; orphan cleanup remains best-effort.
+      if (uploaded) {
+        try {
+          await workspaceFiles.deleteFile(
+            workspaceFileReference
+              ? resolveFileReference(workspaceFileReference, workspaceScope)
+              : { ...workspaceScope, filePath: uploaded.filePath }
+          )
+        } catch {
+          // The primary error is more actionable; orphan cleanup remains best-effort.
+        }
       }
       throw error
     }
   }
 
-  private buildExcelEditResult(
+  private async buildExcelEditResult(
+    scope: OfficeScope,
     document: OfficeDocument,
     version: OfficeFileVersion,
     operation: OfficeOperation,
     replayed: boolean
   ) {
+    const resolved = await this.resolveExcelVersionFile(scope, version)
     return {
       document,
       fileVersion: version,
@@ -1177,10 +1293,48 @@ export class OfficeEditorService {
       file: {
         fileName: version.fileName,
         filePath: version.workspaceFilePath,
-        fileUrl: version.workspaceFileUrl ?? '',
+        fileUrl: resolved.fileUrl ?? resolved.url ?? '',
         mimeType: version.mimeType,
         extension: 'xlsx'
       }
+    }
+  }
+
+  private async resolveExcelVersionFile(scope: OfficeScope, version: OfficeFileVersion) {
+    const files = this.workspaceFiles(scope)
+    const reference = resolveFileVersionReference(scope, version)
+    if (typeof files.resolveFile !== 'function') {
+      return {
+        filePath: version.workspaceFilePath,
+        fileUrl: version.workspaceFileUrl,
+        url: version.workspaceFileUrl
+      }
+    }
+    return files.resolveFile(reference)
+  }
+
+  private async rollbackSnapshotFileVersion(
+    scope: OfficeScope,
+    documentId: string,
+    version: OfficeFileVersion,
+    previousFileState: Record<string, unknown>
+  ) {
+    try {
+      const files = this.workspaceFiles(scope)
+      await files.deleteFile(resolveFileVersionReference(scope, version))
+    } catch {
+      // Best-effort storage cleanup; the database rollback below remains authoritative.
+    }
+    try {
+      await this.fileVersionRepository.delete(scopedWhere(scope, { id: version.id, documentId }))
+    } catch {
+      // Preserve the original snapshot error if rollback itself cannot complete.
+    }
+    try {
+      const current = await this.requireDocument(scope, documentId)
+      await this.documentRepository.save({ ...current, ...previousFileState })
+    } catch {
+      // Preserve the original snapshot error if rollback itself cannot complete.
     }
   }
 
@@ -1191,14 +1345,6 @@ export class OfficeEditorService {
     return updates.length
   }
 
-  private cleanupExpiredCollabSessions() {
-    const now = Date.now()
-    for (const [sessionId, session] of this.collabSessions.entries()) {
-      if (session.expiresAt < now) {
-        this.collabSessions.delete(sessionId)
-      }
-    }
-  }
 }
 
 function scopedCreate(scope: OfficeScope): ScopedFields & { createdById?: string } {
@@ -1243,6 +1389,14 @@ function scopedDocumentWhere(scope: OfficeScope, query: ScopedQuery) {
 }
 
 function collaborationScope(context: CollaborationProviderContext): OfficeScope {
+  const authorization = (context as CollaborationProviderContextWithAuthorization).authorization
+  const collaborationAccess = authorization?.canManage
+    ? 'manage'
+    : authorization?.canEdit
+      ? 'write'
+      : authorization?.canRead
+        ? 'read'
+        : undefined
   return {
     tenantId: context.tenantId,
     organizationId: context.organizationId,
@@ -1250,8 +1404,15 @@ function collaborationScope(context: CollaborationProviderContext): OfficeScope 
     projectId: context.projectId,
     userId: context.userId,
     assistantId: context.xpertId,
-    collaborationAccess: context.operation === 'read' ? 'read' : 'write'
+    collaborationAccess
   }
+}
+
+function collaborationAuthorization(access: OfficeScope['collaborationAccess']) {
+  if (access === 'manage') return { canRead: true, canEdit: true, canManage: true }
+  if (access === 'write') return { canRead: true, canEdit: true, canManage: false }
+  if (access === 'read') return { canRead: true, canEdit: false, canManage: false }
+  return null
 }
 
 function canAccessCollaborationDocument(document: OfficeDocument, userId: string | null | undefined) {
@@ -1381,7 +1542,7 @@ function normalizeExpectedVersion(value: number | null | undefined) {
 }
 
 function resolveDocumentWorkspaceScope(scope: OfficeScope, document: OfficeDocument): OfficeWorkspaceFileScope {
-  if (scope.workspaceFiles) {
+  if (scope.workspaceFiles?.catalog && scope.workspaceFiles.scopeId) {
     return { ...scope.workspaceFiles }
   }
   const persistedScope = resolvePersistedWorkspaceScope(
@@ -1422,6 +1583,9 @@ function resolveFileVersionWorkspaceScope(
   scope: OfficeScope,
   version: OfficeFileVersion
 ): OfficeWorkspaceFileScope {
+  if (version.workspaceFileReference) {
+    return requirePortableWorkspaceScope(version.workspaceFileReference)
+  }
   const persistedScope = resolvePersistedWorkspaceScope(
     scope,
     version.workspaceCatalog,
@@ -1431,6 +1595,78 @@ function resolveFileVersionWorkspaceScope(
     return persistedScope
   }
   throw new BadRequestException('Excel file version workspace scope is missing. Re-import the XLSX file.')
+}
+
+function resolveFileVersionReference(
+  scope: OfficeScope,
+  version: OfficeFileVersion
+): OfficeWorkspaceFileScope & { filePath: string } {
+  if (version.workspaceFileReference) {
+    return {
+      ...requirePortableWorkspaceScope(version.workspaceFileReference),
+      filePath: version.workspaceFileReference.filePath
+    }
+  }
+  return {
+    ...resolveFileVersionWorkspaceScope(scope, version),
+    filePath: version.workspaceFilePath
+  }
+}
+
+function requirePortableWorkspaceScope(reference: WorkspacePortableFileReference): OfficeWorkspaceFileScope {
+  if (!reference.catalog || !reference.scopeId) {
+    throw new BadRequestException('Excel file version portable workspace reference is incomplete. Re-import the XLSX file.')
+  }
+  return reference as OfficeWorkspaceFileScope
+}
+
+async function resolveUploadedWorkspaceReference(
+  workspaceFiles: WorkspaceFilesApi,
+  uploaded: WorkspaceFile,
+  workspaceScope: OfficeWorkspaceFileScope,
+  originalName: string,
+  size: number
+): Promise<WorkspacePortableFileReference> {
+  if (typeof workspaceFiles.resolveRuntimeReference === 'function') {
+    return workspaceFiles.resolveRuntimeReference({
+      ...workspaceScope,
+      filePath: uploaded.filePath,
+      workspacePath: uploaded.workspacePath,
+      originalName,
+      name: uploaded.name,
+      mimeType: uploaded.mimeType,
+      size
+    })
+  }
+  return {
+    source: WORKSPACE_FILES_SOURCE,
+    ...workspaceScope,
+    filePath: uploaded.filePath,
+    workspacePath: uploaded.workspacePath ?? uploaded.filePath,
+    originalName,
+    name: uploaded.name ?? originalName,
+    mimeType: uploaded.mimeType ?? XLSX_MIME_TYPE,
+    size
+  }
+}
+
+function normalizePersistedWorkspaceReference(reference: WorkspacePortableFileReference): WorkspacePortableFileReference {
+  if (reference.catalog === 'user-xperts') {
+    return reference
+  }
+  const { userId: _userId, ...sharedReference } = reference
+  return sharedReference
+}
+
+function resolveFileReference(
+  reference: WorkspacePortableFileReference,
+  fallbackScope: OfficeWorkspaceFileScope
+): OfficeWorkspaceFileScope & { filePath: string } {
+  return {
+    ...fallbackScope,
+    ...reference,
+    filePath: reference.filePath
+  }
 }
 
 function resolvePersistedWorkspaceScope(
