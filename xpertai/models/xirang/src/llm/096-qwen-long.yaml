@@ -71,7 +71,9 @@
     "tool-call",
     "multi-tool-call",
     "stream-tool-call",
-    "structured-output"
+    "structured-output",
+    "agent-thought",
+    "document"
   ],
   "pricing": {
     "input": "0.5",

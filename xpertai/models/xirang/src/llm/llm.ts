@@ -19,7 +19,13 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import { randomUUID } from 'node:crypto'
 import { XirangProviderStrategy } from '../provider.strategy.js'
-import { resolveXirangModelLimits, toCredentialKwargs, type XirangModelCredentials } from '../types.js'
+import {
+  resolveXirangModelLimits,
+  isOfficialXirangEndpoint,
+  toCredentialKwargs,
+  type XirangModelCredentials,
+  type XirangPredefinedModelConfig
+} from '../types.js'
 
 class XirangChatModel extends ChatOAICompatReasoningModel {
   private activeStreamResponseId: string | null = null
@@ -63,7 +69,8 @@ export class XirangLargeLanguageModel extends LargeLanguageModel {
 
   async validateCredentials(model: string, credentials: XirangModelCredentials): Promise<void> {
     try {
-      const params = toCredentialKwargs(credentials, model)
+      const modelConfig = this.getModelSchema(model)?.modelConfig as XirangPredefinedModelConfig | undefined
+      const params = toCredentialKwargs(credentials, model, modelConfig)
       await new XirangChatModel({ ...params, temperature: 0, maxTokens: 2 }).invoke([{ role: 'human', content: 'Hi' }])
     } catch (error) {
       throw new CredentialsValidateFailedError(getErrorMessage(error))
@@ -80,7 +87,8 @@ export class XirangLargeLanguageModel extends LargeLanguageModel {
       ...(copilot?.modelProvider?.credentials ?? {}),
       ...(options?.modelProperties ?? {})
     } as XirangModelCredentials
-    const params = toCredentialKwargs(credentials, copilotModel.model)
+    const modelConfig = this.getModelSchema(copilotModel.model)?.modelConfig as XirangPredefinedModelConfig | undefined
+    const params = toCredentialKwargs(credentials, copilotModel.model, modelConfig)
     const modelOptions = copilotModel.options ?? {}
     const runtimeThinking = modelOptions.enable_thinking
     if (runtimeThinking !== undefined) {
@@ -89,6 +97,10 @@ export class XirangLargeLanguageModel extends LargeLanguageModel {
       params.modelKwargs.enable_thinking = enabled
       params.modelKwargs.chat_template_kwargs = { enable_thinking: enabled }
     }
+    if (typeof modelOptions.response_format === 'string' && modelOptions.response_format.trim()) {
+      params.modelKwargs.response_format = { type: modelOptions.response_format.trim() }
+    }
+    const usageModel = isOfficialXirangEndpoint(credentials) ? copilotModel.model : params.model
 
     return new XirangChatModel({
       ...params,
@@ -102,7 +114,9 @@ export class XirangLargeLanguageModel extends LargeLanguageModel {
       // Usage chunks are required for authoritative Xirang billing.
       streamUsage: true,
       verbose: options?.verbose,
-      callbacks: [...this.createHandleUsageCallbacks(copilot, params.model, credentials, options?.handleLLMTokens)]
+      callbacks: [
+        ...this.createHandleUsageCallbacks(copilot, usageModel, credentials, options?.handleLLMTokens)
+      ]
     })
   }
 

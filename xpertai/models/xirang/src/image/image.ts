@@ -7,18 +7,20 @@ import {
 } from '@xpert-ai/contracts'
 import { Injectable } from '@nestjs/common'
 import {
-  RerankModel,
   type AIGCModelClient,
   type AIGCModelResult,
-  type IRerank,
+  ImageGenerationModel,
   type TChatModelOptions
 } from '@xpert-ai/plugin-sdk'
 import { XirangProviderStrategy } from '../provider.strategy.js'
 import {
   getXirangBaseUrl,
+  getXirangAuthorization,
+  resolveXirangEndpointModel,
   type XirangImageInput,
   type XirangImageResponse,
-  type XirangModelCredentials
+  type XirangModelCredentials,
+  type XirangPredefinedModelConfig
 } from '../types.js'
 import { getXirangImagePricingDimensions } from './pricing.js'
 
@@ -26,41 +28,31 @@ class XirangImageClient implements AIGCModelClient<XirangImageInput, XirangImage
   constructor(
     private readonly credentials: XirangModelCredentials,
     private readonly model: string,
+    private readonly endpointModel: string,
     private readonly handleModelUsage?: (report: ModelUsageReport) => void | Promise<void>,
     private readonly resolveUsagePricingSnapshot?: NonNullable<TChatModelOptions['resolveUsagePricingSnapshot']>
   ) {}
 
   async invoke(input: XirangImageInput): Promise<AIGCModelResult<XirangImageResponse>> {
+    if (countInputImages(input) > 0) {
+      throw new Error('天翼云图片编辑接口尚未验证，当前仅支持文生图')
+    }
     const startedAt = new Date().toISOString()
     const response = await fetch(`${getXirangBaseUrl(this.credentials)}/images/generations`, {
       method: 'POST',
-      headers: { Authorization: this.credentials.app_key, 'Content-Type': 'application/json' },
+      headers: { Authorization: getXirangAuthorization(this.credentials), 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...input,
-        model: this.credentials.endpoint_model_name || this.model,
-        response_format: input.response_format || 'url',
-        stream: false,
-        watermark: input.watermark ?? true
+        model: this.endpointModel,
+        response_format: input.response_format || 'url'
       })
     })
     if (!response.ok) throw new Error(`Xirang image endpoint returned HTTP ${response.status}`)
     const data = (await response.json()) as XirangImageResponse
-    const operation = resolveImageGenerationOperation(input)
+    const operation: ImageGenerationOperation = 'text_to_image'
     const pricingDimensions = getXirangImagePricingDimensions(this.model, input, data)
     const outputQuantity = Array.isArray(data.data) && data.data.length > 0 ? data.data.length : 1
-    const inputQuantity = countInputImages(input)
     const metrics = [
-      ...(inputQuantity > 0
-        ? [
-            {
-              unit: 'generation' as const,
-              quantity: inputQuantity,
-              authority: 'provider' as const,
-              component: 'input' as const,
-              pricingDimensions
-            }
-          ]
-        : []),
       {
         unit: 'generation' as const,
         quantity: outputQuantity,
@@ -102,11 +94,6 @@ class XirangImageClient implements AIGCModelClient<XirangImageInput, XirangImage
   }
 }
 
-function resolveImageGenerationOperation(input: XirangImageInput): ImageGenerationOperation {
-  const inputImageCount = countInputImages(input)
-  return inputImageCount > 1 ? 'multi_image_to_image' : inputImageCount === 1 ? 'image_to_image' : 'text_to_image'
-}
-
 function countInputImages(input: XirangImageInput): number {
   const images = input.images
   if (Array.isArray(images)) return images.length
@@ -118,10 +105,7 @@ function countInputImages(input: XirangImageInput): number {
 }
 
 @Injectable()
-// The host's 3.16 runtime does not export ImageGenerationModel yet. RerankModel
-// shares the AIModel registration/runtime base, so it is a compatible fallback
-// until the host SDK exposes the dedicated image manager class.
-export class XirangImageGenerationModel extends RerankModel {
+export class XirangImageGenerationModel extends ImageGenerationModel {
   constructor(modelProvider: XirangProviderStrategy) {
     super(modelProvider, AiModelTypeEnum.IMAGE)
   }
@@ -129,10 +113,6 @@ export class XirangImageGenerationModel extends RerankModel {
   override async validateCredentials(model: string, credentials: XirangModelCredentials): Promise<void> {
     if (!credentials?.app_key?.trim()) throw new Error('天翼云 AppKey 不能为空')
     if (!model?.trim()) throw new Error('图片模型名称不能为空')
-  }
-
-  override async getReranker(): Promise<IRerank> {
-    throw new Error('天翼云图片模型不支持重排')
   }
 
   override getAIGCModel(
@@ -143,9 +123,13 @@ export class XirangImageGenerationModel extends RerankModel {
       ...(copilotModel.copilot?.modelProvider?.credentials ?? {}),
       ...(options?.modelProperties ?? {})
     } as XirangModelCredentials
+    const modelConfig = this.getModelSchema(copilotModel.model)?.modelConfig as XirangPredefinedModelConfig | undefined
+    const endpointModel = resolveXirangEndpointModel(credentials, copilotModel.model, modelConfig)
+    if (!endpointModel) throw new Error('天翼云图片模型名称不能为空')
     return new XirangImageClient(
       credentials,
       copilotModel.model,
+      endpointModel,
       options?.handleModelUsage,
       options?.resolveUsagePricingSnapshot
     )

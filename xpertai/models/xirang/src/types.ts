@@ -23,6 +23,10 @@ export type XirangModelCredentials = XirangCredentials & {
   enable_thinking?: boolean | string | number
 }
 
+export type XirangPredefinedModelConfig = {
+  endpoint_model_name?: string
+}
+
 export function resolveXirangModelLimits(credentials: { context_size?: unknown; max_tokens_to_sample?: unknown }) {
   const configuredContextSize = Number(credentials.context_size)
   const contextSize =
@@ -40,14 +44,41 @@ export function getXirangBaseUrl(credentials: Pick<XirangCredentials, 'endpoint_
   return value.replace(/\/+$/, '')
 }
 
-export function toCredentialKwargs(
-  credentials: XirangModelCredentials,
-  model?: string
-): OpenAIBaseInput & { configuration: ClientOptions } {
-  const endpointModel = credentials.endpoint_model_name?.trim() || model
-  const baseURL = getXirangBaseUrl(credentials)
+export function isOfficialXirangEndpoint(credentials: Pick<XirangCredentials, 'endpoint_url'>): boolean {
+  try {
+    return new URL(getXirangBaseUrl(credentials)).hostname.toLowerCase() === 'ai.ctaigw.cn'
+  } catch {
+    return false
+  }
+}
+
+export function getXirangAuthorization(credentials: XirangCredentials): string {
   const appKey = credentials.app_key?.trim()
   if (!appKey) throw new Error('Tianyi Cloud Xirang AppKey is missing')
+  if (/^Bearer\s+/i.test(appKey)) return appKey
+  return isOfficialXirangEndpoint(credentials) ? `Bearer ${appKey}` : appKey
+}
+
+export function resolveXirangEndpointModel(
+  credentials: Pick<XirangModelCredentials, 'endpoint_model_name' | 'endpoint_url'>,
+  model?: string,
+  predefinedConfig?: XirangPredefinedModelConfig
+): string | undefined {
+  return (
+    credentials.endpoint_model_name?.trim() ||
+    (isOfficialXirangEndpoint(credentials) ? predefinedConfig?.endpoint_model_name?.trim() : undefined) ||
+    model
+  )
+}
+
+export function toCredentialKwargs(
+  credentials: XirangModelCredentials,
+  model?: string,
+  predefinedConfig?: XirangPredefinedModelConfig
+): OpenAIBaseInput & { configuration: ClientOptions } {
+  const endpointModel = resolveXirangEndpointModel(credentials, model, predefinedConfig)
+  const baseURL = getXirangBaseUrl(credentials)
+  const authorization = getXirangAuthorization(credentials)
 
   const modelKwargs: Record<string, unknown> = {}
   if (credentials.enable_thinking !== undefined) {
@@ -67,8 +98,7 @@ export function toCredentialKwargs(
     configuration: {
       baseURL,
       defaultHeaders: {
-        // Xirang documents AppKey as a raw Authorization value, not Bearer auth.
-        Authorization: appKey
+        Authorization: authorization
       }
     }
   } as unknown as OpenAIBaseInput & { configuration: ClientOptions }

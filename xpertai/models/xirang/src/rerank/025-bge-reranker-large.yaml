@@ -5,6 +5,9 @@
     "zh_Hans": "BGE-Reranker-Large"
   },
   "model_type": "rerank",
+  "modelConfig": {
+    "endpoint_model_name": "0cb4c1ed8f374eadbe8bffe30bd039dc"
+  },
   "model_properties": {
     "context_size": 512
   },

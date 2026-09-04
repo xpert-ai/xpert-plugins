@@ -5,6 +5,9 @@
     "zh_Hans": "BGE-Reranker-V2-m3"
   },
   "model_type": "rerank",
+  "modelConfig": {
+    "endpoint_model_name": "fdfd185a79494673b65451956cf5b4ba"
+  },
   "model_properties": {
     "context_size": 8192
   },
