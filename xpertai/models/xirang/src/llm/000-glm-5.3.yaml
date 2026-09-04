@@ -5,9 +5,12 @@
     "zh_Hans": "glm-5.3"
   },
   "model_type": "llm",
+  "modelConfig": {
+    "endpoint_model_name": "e8e2511658054053a7e56e950d80f0e4"
+  },
   "model_properties": {
     "mode": "chat",
-    "context_size": 32768
+    "context_size": 1000000
   },
   "parameter_rules": [
     {
@@ -39,9 +42,9 @@
         "zh_Hans": "最大输出 Token",
         "en_US": "Max output tokens"
       },
-      "default": 2048,
+      "default": 4096,
       "min": 1,
-      "max": 32768
+      "max": 131072
     },
     {
       "name": "response_format",

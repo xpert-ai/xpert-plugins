@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-minimax",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "MiniMax AI model plugin for XpertAI platform",
   "author": {
     "name": "XpertAI",
@@ -32,14 +32,16 @@
     "!**/*.tsbuildinfo"
   ],
   "scripts": {
-    "test": "jest",
+    "build": "tsc --build tsconfig.lib.json && node ./scripts/copy-assets.mjs",
+    "test": "pnpm run build && jest --config jest.config.cjs --runInBand",
+    "typecheck": "pnpm run build",
     "prepack": "node ./scripts/copy-assets.mjs"
   },
   "peerDependencies": {
-    "@xpert-ai/contracts": "^3.7.0",
+    "@xpert-ai/contracts": "^3.17.0",
     "@nestjs/common": "^11.1.6",
     "@nestjs/config": "^4.0.2",
-    "@xpert-ai/plugin-sdk": "^3.7.1",
+    "@xpert-ai/plugin-sdk": "^3.17.0",
     "@langchain/core": "^0.3.72",
     "@langchain/openai": "^0.6.9",
     "zod": "^3.22.4",

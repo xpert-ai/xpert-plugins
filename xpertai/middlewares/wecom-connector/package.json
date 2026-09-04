@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-wecom-connector",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "author": {
     "name": "XpertAI",
     "url": "https://xpertai.cn"
@@ -31,7 +31,8 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "undici": "^7.29.0"
   },
   "peerDependencies": {
     "@langchain/core": "0.3.72",

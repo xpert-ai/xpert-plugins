@@ -1,0 +1,5 @@
+- Keep the WorkBuddy-style end-user OAuth flow explicit: users click Connect and are redirected to Baidu; they do not enter AppKey or SecretKey.
+- Keep documented Baidu endpoints, OAuth scopes, path policy, capability defaults, and response limits synchronized with the implementation.
+- Do not include real AppKey, SecretKey, access token, refresh token, tenant identifier, organization identifier, or a full authenticated URL.
+- Document Workspace-file and text upload as implemented through the verified three-step API. Keep URL transfer and sharing as disabled extension points until their contracts are verified.
+- Link to Baidu Netdisk Open Platform or the official Baidu Netdisk MCP/SDK repository for provider behavior and quotas.

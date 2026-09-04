@@ -1,3 +1,4 @@
+import { FactoryApprovalPolicy } from './factory-approval-policy.service.js'
 import { randomUUID } from 'node:crypto'
 import { DataType, newDb } from 'pg-mem'
 import type { DataSource } from 'typeorm'
@@ -100,13 +101,19 @@ describe('FactoryOperationsService persistence boundary', () => {
       dataSource.getRepository(FactoryCaseEntity),
       projectCapabilities as never
     )
+    const policy = new FactoryApprovalPolicy({
+      register() { return this }, has() { return false }, get() { return undefined }, require() { throw new Error('Not configured in this persistence test') }
+    })
+    vi.spyOn(policy, 'assertContinuationStep').mockResolvedValue(undefined)
+    vi.spyOn(policy, 'assertHumanApprover').mockResolvedValue({ projectId: 'project', role: 'owner', canManage: true, archived: false })
     service = new FactoryOperationsService(
       dataSource.getRepository(FactoryCaseEntity),
       dataSource.getRepository(FactoryArtifactEntity),
       dataSource.getRepository(FactoryAuditEntity),
       dataSource.getRepository(FactoryExecutionRecordEntity),
       caseProjects,
-      { mode: 'simulation', debug: false }
+      { mode: 'simulation', debug: false },
+      policy
     )
     queuedPayload = null
     queuedEnvelopeScopeKey = null

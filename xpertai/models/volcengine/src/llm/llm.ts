@@ -102,7 +102,31 @@ class VolcengineChatOAICompatReasoningModel extends ChatOAICompatReasoningModel 
   }
 }
 
-function buildVolcengineModelKwargs(thinking: unknown, reasoningEffort: unknown) {
+function toResponseFormat(responseFormat: unknown, jsonSchema: unknown) {
+  if (responseFormat === 'json_object') {
+    return { type: 'json_object' }
+  }
+  if (responseFormat !== 'json_schema') {
+    return undefined
+  }
+
+  const schema = typeof jsonSchema === 'string' ? JSON.parse(jsonSchema) : jsonSchema
+  if (!isJsonObject(schema)) {
+    throw new Error('JSON Schema must be an object')
+  }
+
+  return {
+    type: 'json_schema',
+    json_schema: schema
+  }
+}
+
+function buildVolcengineModelKwargs(
+  thinking: unknown,
+  reasoningEffort: unknown,
+  responseFormat: unknown,
+  jsonSchema: unknown
+) {
   const modelKwargs: Record<string, unknown> = {}
 
   if (thinking === 'enabled' || thinking === 'disabled') {
@@ -112,6 +136,10 @@ function buildVolcengineModelKwargs(thinking: unknown, reasoningEffort: unknown)
     modelKwargs['reasoning_effort'] = reasoningEffort
   } else if (thinking === 'disabled') {
     modelKwargs['reasoning_effort'] = 'minimal'
+  }
+  const resolvedResponseFormat = toResponseFormat(responseFormat, jsonSchema)
+  if (resolvedResponseFormat) {
+    modelKwargs['response_format'] = resolvedResponseFormat
   }
 
   return modelKwargs
@@ -156,10 +184,14 @@ export class VolcengineLargeLanguageModel extends LargeLanguageModel {
       {
         ...params,
         model,
+        temperature: copilotModel.options?.['temperature'],
+        topP: copilotModel.options?.['top_p'],
         maxTokens: copilotModel.options?.['max_tokens'],
         modelKwargs: buildVolcengineModelKwargs(
           copilotModel.options?.['thinking'],
-          copilotModel.options?.['reasoning_effort']
+          copilotModel.options?.['reasoning_effort'],
+          copilotModel.options?.['response_format'],
+          copilotModel.options?.['json_schema']
         ),
         // include token usage in the stream. this will include an additional chunk at the end of the stream with the token usage.
         streamUsage: true

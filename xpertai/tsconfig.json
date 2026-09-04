@@ -329,6 +329,15 @@
     },
     {
       "path": "./middlewares/amap-connector"
+    },
+    {
+      "path": "./middlewares/baidu-netdisk-connector"
+    },
+    {
+      "path": "./middlewares/canva-connector"
+    },
+    {
+      "path": "./middlewares/zsxq-connector"
     }
   ]
 }

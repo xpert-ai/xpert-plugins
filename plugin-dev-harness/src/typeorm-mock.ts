@@ -212,6 +212,7 @@ function createEntityManagerMock(
   getRepository: (target: unknown) => unknown
 ) {
   const manager: Record<string, unknown> = {
+    query: async () => [],
     find: async () => [],
     findOne: async () => null,
     save: async (value: unknown) => value,
@@ -256,6 +257,7 @@ function createDataSourceMock() {
   const manager = createEntityManagerMock(getRepository);
   const dataSource: Record<string, unknown> = {
     name: 'default',
+    query: async () => [],
     isInitialized: true,
     options: {
       type: 'mock'

@@ -1,6 +1,6 @@
 {
   "source": "https://ctxirang.ctyun.cn/maas/inlineService",
-  "captured_at": "2026-08-21T03:26:01.453Z",
+  "captured_at": "2026-09-02T00:00:00.000Z",
   "models": [
     {
       "group": "体验中心",
@@ -82,7 +82,8 @@
     },
     {
       "group": "体验中心",
-      "name": "Kimi-K2-Thinking"
+      "name": "Kimi-K2-Thinking",
+      "availability": "retired"
     },
     {
       "group": "体验中心",
@@ -165,7 +166,9 @@
     },
     {
       "group": "体验中心",
-      "name": "qwen3-vl-embedding"
+      "name": "qwen3-vl-embedding",
+      "runtime_supported": false,
+      "unsupported_reason": "multimodal-embedding-api-contract-not-implemented"
     },
     {
       "group": "体验中心",
@@ -354,7 +357,8 @@
     },
     {
       "group": "体验中心",
-      "name": "Kimi-K2-Instruct"
+      "name": "Kimi-K2-Instruct",
+      "availability": "retired"
     },
     {
       "group": "体验中心",
@@ -398,7 +402,9 @@
     },
     {
       "group": "体验中心",
-      "name": "qwen-image-edit"
+      "name": "qwen-image-edit",
+      "runtime_supported": false,
+      "unsupported_reason": "image-edit-api-contract-not-verified"
     },
     {
       "group": "体验中心",
@@ -418,11 +424,15 @@
     },
     {
       "group": "体验中心",
-      "name": "qwen-image-edit-plus"
+      "name": "qwen-image-edit-plus",
+      "runtime_supported": false,
+      "unsupported_reason": "image-edit-api-contract-not-verified"
     },
     {
       "group": "体验中心",
-      "name": "qwen-image-edit-max"
+      "name": "qwen-image-edit-max",
+      "runtime_supported": false,
+      "unsupported_reason": "image-edit-api-contract-not-verified"
     },
     {
       "group": "体验中心",
@@ -603,6 +613,127 @@
     {
       "group": "体验中心",
       "name": "qwen3-coder-next"
+    },
+    {
+      "group": "体验中心",
+      "model_id": "865d804fa96848bbad8d047707f33565",
+      "name": "qwen3.8-flash"
+    },
+    {
+      "group": "体验中心",
+      "name": "deepseek-v4-flash-vision-exp-0817"
+    },
+    {
+      "group": "体验中心",
+      "name": "glm-5.3-flash"
+    },
+    {
+      "group": "体验中心",
+      "name": "doubao-seedream-5.0-pro"
+    },
+    {
+      "group": "体验中心",
+      "name": "wan3.0-video"
+    },
+    {
+      "group": "体验中心",
+      "name": "wan3.0-video-prime"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen-audio-3.0-asr-flash-filetrans"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen-audio-3.0-asr-flash"
+    },
+    {
+      "group": "体验中心",
+      "name": "fun-asr"
+    },
+    {
+      "group": "体验中心",
+      "name": "minimax-h3"
+    },
+    {
+      "group": "体验中心",
+      "name": "deepseek-v4-pro-0813"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen3.6-flash（全球）"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen3.5-flash（全球）"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen3.6-plus-2026-04-02（全球）"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen3.6-plus（全球）"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen-image-edit-max-2026-01-16（国际）",
+      "runtime_supported": false,
+      "unsupported_reason": "image-edit-api-contract-not-verified"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen-image-edit-max（国际）",
+      "runtime_supported": false,
+      "unsupported_reason": "image-edit-api-contract-not-verified"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen-image-2.0-pro-2026-03-03（国际）",
+      "runtime_supported": false,
+      "unsupported_reason": "international-image-api-contract-not-verified"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen-image-2.0-pro（国际）",
+      "runtime_supported": false,
+      "unsupported_reason": "international-image-api-contract-not-verified"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen-image-2.0-2026-03-03（国际）",
+      "runtime_supported": false,
+      "unsupported_reason": "international-image-api-contract-not-verified"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen-image-2.0（国际）",
+      "runtime_supported": false,
+      "unsupported_reason": "international-image-api-contract-not-verified"
+    },
+    {
+      "group": "体验中心",
+      "name": "deepseek-v3.2（国际）"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen3-max-2026-01-23（国际）"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen3.5-flash（国际）"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen3.6-plus-2026-04-02（国际）"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen3.6-plus（国际）"
+    },
+    {
+      "group": "体验中心",
+      "name": "qwen3.6-flash（国际）"
     }
   ]
 }

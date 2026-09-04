@@ -1,0 +1,62 @@
+{
+  "name": "@xpert-ai/plugin-zsxq-connector",
+  "version": "0.2.0",
+  "description": "Official Knowledge Planet connector for Xpert using isolated zsxq-cli OAuth sessions and bounded Agent tools.",
+  "author": {
+    "name": "XpertAI",
+    "url": "https://xpertai.cn"
+  },
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins.git",
+    "directory": "xpertai/middlewares/zsxq-connector"
+  },
+  "bugs": {
+    "url": "https://github.com/xpert-ai/xpert-plugins/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@xpert-plugins-starter/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "docs",
+    "README.md",
+    "!**/*.tsbuildinfo"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.lib.json",
+    "test": "jest --config jest.config.ts --runInBand",
+    "typecheck": "tsc -p tsconfig.lib.json && tsc -p tsconfig.spec.json --noEmit"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "organization",
+      "artifactNamespace": "zsxq_connector"
+    }
+  },
+  "dependencies": {
+    "tslib": "^2.3.0",
+    "zsxq-cli": "0.5.1"
+  },
+  "peerDependencies": {
+    "@langchain/core": "0.3.72",
+    "@nestjs/common": "^11.1.6",
+    "@xpert-ai/contracts": "^3.17.0",
+    "@xpert-ai/plugin-sdk": "^3.17.0",
+    "zod": "3.25.67"
+  }
+}

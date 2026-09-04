@@ -57,6 +57,12 @@ export class FactoryCaseEntity {
   @Column({ type: 'varchar', length: 500, nullable: true })
   workspaceProjectErrorSummary?: string | null
 
+  @Column({ type: 'varchar', nullable: true })
+  coordinatorXpertId?: string | null
+
+  @Column({ type: 'jsonb', default: () => "'[]'::jsonb" })
+  assignedAssistantIds!: string[]
+
   @Column({ type: 'varchar', length: 100 })
   currentStage!: string
 

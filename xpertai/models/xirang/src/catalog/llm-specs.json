@@ -1,0 +1,401 @@
+{
+  "verified_at": "2026-09-03",
+  "sources": {
+    "xirang": "https://ctxirang.ctyun.cn/maas/inlineService",
+    "qwen": "https://help.aliyun.com/zh/model-studio/models",
+    "deepseek": "https://api-docs.deepseek.com/quick_start/pricing",
+    "zhipu": "https://docs.bigmodel.cn/cn/guide/models/text/glm-5",
+    "xpert": "Existing model specifications in this repository"
+  },
+  "groups": [
+    {
+      "models": [
+        "deepseek-v4-flash-0731-new",
+        "deepseek-v4-flash-0817（正式版）",
+        "deepseek-v4-pro-0817（正式版）",
+        "DeepSeek-V4-Flash-0731",
+        "deepseek-v4-flash",
+        "deepseek-v4-pro",
+        "DeepSeek-V4-Flash",
+        "DeepSeek-V4-Pro",
+        "deepseek-v4-flash-vision-exp-0817",
+        "deepseek-v4-pro-0813"
+      ],
+      "context_size": 1000000,
+      "max_output_tokens": 384000,
+      "default_max_tokens": 4096,
+      "source": "deepseek"
+    },
+    {
+      "models": ["qwen3.8-max", "qwen3.8-flash"],
+      "context_size": 1000000,
+      "max_output_tokens": 131072,
+      "default_max_tokens": 8192,
+      "source": "qwen"
+    },
+    {
+      "models": ["qwen3.7-max"],
+      "context_size": 1000000,
+      "max_output_tokens": 131072,
+      "default_max_tokens": 8192,
+      "source": "qwen"
+    },
+    {
+      "models": ["qwen3.7-plus"],
+      "context_size": 1000000,
+      "max_output_tokens": 65536,
+      "default_max_tokens": 8192,
+      "source": "qwen"
+    },
+    {
+      "models": [
+        "qwen3.6-plus",
+        "qwen3.6-flash",
+        "qwen3.6-flash-0717",
+        "qwen3.6-flash（全球）",
+        "qwen3.6-plus-2026-04-02（全球）",
+        "qwen3.6-plus（全球）",
+        "qwen3.6-plus-2026-04-02（国际）",
+        "qwen3.6-plus（国际）",
+        "qwen3.6-flash（国际）"
+      ],
+      "context_size": 1000000,
+      "max_output_tokens": 65536,
+      "default_max_tokens": 8192,
+      "source": "qwen"
+    },
+    {
+      "models": ["qwen3.5-plus", "qwen3.5-flash", "qwen3.5-flash（全球）", "qwen3.5-flash（国际）"],
+      "context_size": 1000000,
+      "max_output_tokens": 65536,
+      "default_max_tokens": 8192,
+      "source": "qwen"
+    },
+    {
+      "models": ["glm-5.3", "glm-5.3-flash"],
+      "context_size": 1000000,
+      "max_output_tokens": 131072,
+      "default_max_tokens": 4096,
+      "source": "zhipu"
+    },
+    {
+      "models": ["GLM-5.2"],
+      "context_size": 1000000,
+      "max_output_tokens": 131072,
+      "default_max_tokens": 65536,
+      "source": "zhipu"
+    },
+    {
+      "models": ["GLM-5.1", "GLM-5.0（正式版）", "glm-5-turbo", "glm-4.7", "glm-4.7-flashx"],
+      "context_size": 200000,
+      "max_output_tokens": 131072,
+      "default_max_tokens": 65536,
+      "source": "zhipu"
+    },
+    {
+      "models": ["GLM4.6V"],
+      "context_size": 131072,
+      "max_output_tokens": 32768,
+      "default_max_tokens": 4096,
+      "source": "zhipu"
+    },
+    {
+      "models": ["kimi-k3"],
+      "context_size": 1048576,
+      "max_output_tokens": 1048576,
+      "default_max_tokens": 131072,
+      "source": "xpert"
+    },
+    {
+      "models": ["MiniMax-M3"],
+      "context_size": 1048576,
+      "max_output_tokens": 1048576,
+      "default_max_tokens": 8192,
+      "source": "xpert"
+    },
+    {
+      "models": ["Qwen2.5-VL-72B-Instruct", "Qwen2.5-72B-Instruct"],
+      "context_size": 131072,
+      "max_output_tokens": 8192,
+      "default_max_tokens": 4096,
+      "source": "xpert"
+    },
+    {
+      "models": ["DeepSeek-R1-Distill-Llama-70B"],
+      "context_size": 131072,
+      "max_output_tokens": 8192,
+      "default_max_tokens": 4096,
+      "source": "xpert"
+    },
+    {
+      "models": ["DeepSeek-R1-Distill-Qwen-32B"],
+      "context_size": 32000,
+      "max_output_tokens": 8192,
+      "default_max_tokens": 4096,
+      "source": "xpert"
+    },
+    {
+      "models": ["Qwen3-14B", "Qwen3-8B", "Qwen3-4B"],
+      "context_size": 131072,
+      "max_output_tokens": 8192,
+      "default_max_tokens": 4096,
+      "source": "qwen"
+    },
+    {
+      "models": ["Qwen-VL-Chat"],
+      "context_size": 8192,
+      "max_output_tokens": 2048,
+      "default_max_tokens": 1024,
+      "source": "xpert"
+    },
+    {
+      "models": [
+        "Qwen3-30B-A3B",
+        "Qwen3-235B-A22B-Instruct-2507",
+        "Qwen3-30B-A3B-Instruct-2507",
+        "Qwen3-235B-A22B",
+        "Qwen3-32B",
+        "qwen3-32b",
+        "qwen3-235b-a22b-thinking-2507",
+        "qwen3-235b-a22b"
+      ],
+      "context_size": 131072,
+      "max_output_tokens": 16384,
+      "default_max_tokens": 4096,
+      "source": "qwen"
+    },
+    {
+      "models": ["Qwen3-Coder-480B-A35B-Instruct"],
+      "context_size": 262144,
+      "max_output_tokens": 65536,
+      "default_max_tokens": 8192,
+      "source": "qwen"
+    },
+    {
+      "models": [
+        "DeepSeek-V3.2（正式版）",
+        "DeepSeek-V3.2（旗舰版）",
+        "deepseek-v3.2",
+        "DeepSeek-V3.2",
+        "DeepSeek-V3.2-Exp",
+        "DeepSeek-V3.1",
+        "deepseek-v3.2（国际）"
+      ],
+      "context_size": 131072,
+      "max_output_tokens": 65536,
+      "default_max_tokens": 4096,
+      "source": "deepseek"
+    },
+    {
+      "models": ["qwen3.6-35b-a3b", "qwen3.6-27b"],
+      "context_size": 262144,
+      "max_output_tokens": 65536,
+      "default_max_tokens": 8192,
+      "source": "qwen"
+    },
+    {
+      "models": ["Qwen3-Omni-Flash"],
+      "context_size": 65536,
+      "max_output_tokens": 32768,
+      "default_max_tokens": 4096,
+      "source": "qwen"
+    },
+    {
+      "models": [
+        "Doubao-Seed-2.0-Code",
+        "Doubao-Seed-2.0-Lite",
+        "Doubao-Seed-2.0-Mini",
+        "Doubao-Seed-2.0-Pro",
+        "Doubao-Seed-1.8",
+        "Doubao-Seed-1.6-0615",
+        "Doubao-Seed-1.6-flash"
+      ],
+      "context_size": 256000,
+      "max_output_tokens": 131072,
+      "default_max_tokens": 4096,
+      "source": "xpert"
+    },
+    {
+      "models": ["Doubao-Seed-1.6-vision"],
+      "context_size": 256000,
+      "max_output_tokens": 32768,
+      "default_max_tokens": 4096,
+      "source": "xpert"
+    },
+    {
+      "models": ["Doubao1.5-lite-32k"],
+      "context_size": 32000,
+      "max_output_tokens": 16384,
+      "default_max_tokens": 4096,
+      "source": "xpert"
+    },
+    {
+      "models": ["Doubao1.5-pro-32k"],
+      "context_size": 128000,
+      "max_output_tokens": 32768,
+      "default_max_tokens": 4096,
+      "source": "xpert"
+    },
+    {
+      "models": ["Qwen3.5-122B-A10B", "qwen3.5-35b-a3b", "qwen3.5-397b-a17b（正式版）", "qwen3.5-27b"],
+      "context_size": 32768,
+      "max_output_tokens": 8192,
+      "default_max_tokens": 8192,
+      "source": "qwen"
+    },
+    {
+      "models": ["Qwen3-VL-235B-A22B-Instruct", "Qwen3-VL-30B-A3B-Instruct"],
+      "context_size": 131072,
+      "max_output_tokens": 32768,
+      "default_max_tokens": 4096,
+      "source": "qwen"
+    },
+    {
+      "models": ["Minimax-M2.5", "minimax-m2.7"],
+      "context_size": 204800,
+      "max_output_tokens": 128000,
+      "default_max_tokens": 8192,
+      "source": "xpert"
+    },
+    {
+      "models": ["Kimi-K2.5"],
+      "context_size": 262144,
+      "max_output_tokens": 32768,
+      "default_max_tokens": 8192,
+      "source": "xpert"
+    },
+    {
+      "models": ["Qwen3-Next-80B-A3B-Instruct"],
+      "context_size": 131072,
+      "max_output_tokens": 32768,
+      "default_max_tokens": 8192,
+      "source": "qwen"
+    },
+    {
+      "models": ["Qwen3-Max", "qwen3-max-preview", "qwen3-max-2026-01-23（国际）"],
+      "context_size": 262144,
+      "max_output_tokens": 32768,
+      "default_max_tokens": 8192,
+      "source": "qwen"
+    },
+    {
+      "models": ["Qwen3-Coder-Plus"],
+      "context_size": 1000000,
+      "max_output_tokens": 65536,
+      "default_max_tokens": 8192,
+      "source": "qwen"
+    },
+    {
+      "models": ["Qwen3-VL-Plus"],
+      "context_size": 262144,
+      "max_output_tokens": 32768,
+      "default_max_tokens": 8192,
+      "source": "qwen"
+    },
+    {
+      "models": ["DeepSeek-R1-0528", "DeepSeek-R1"],
+      "context_size": 131072,
+      "max_output_tokens": 16384,
+      "default_max_tokens": 4096,
+      "source": "deepseek"
+    },
+    {
+      "models": ["DeepSeek-V3-0324"],
+      "context_size": 131072,
+      "max_output_tokens": 8192,
+      "default_max_tokens": 4096,
+      "source": "deepseek"
+    },
+    {
+      "models": ["DeepSeek-V3"],
+      "context_size": 64000,
+      "max_output_tokens": 4096,
+      "default_max_tokens": 4096,
+      "source": "deepseek"
+    },
+    {
+      "models": ["Baichuan-M2-32B"],
+      "context_size": 32768,
+      "max_output_tokens": 8192,
+      "default_max_tokens": 4096,
+      "source": "xpert"
+    },
+    {
+      "models": ["Baichuan2-Turbo"],
+      "context_size": 32768,
+      "max_output_tokens": 4096,
+      "default_max_tokens": 2048,
+      "source": "xpert"
+    },
+    {
+      "models": ["Qwen2-7B-Instruct"],
+      "context_size": 32768,
+      "max_output_tokens": 4096,
+      "default_max_tokens": 2048,
+      "source": "qwen"
+    },
+    {
+      "models": ["Llama3-8B-Instruct"],
+      "context_size": 8192,
+      "max_output_tokens": 4096,
+      "default_max_tokens": 2048,
+      "source": "xpert"
+    },
+    {
+      "models": ["kimi-k2.6", "kimi-k2.6-ant", "kimi-k2.7-code"],
+      "context_size": 262144,
+      "max_output_tokens": 262144,
+      "default_max_tokens": 8192,
+      "source": "xpert"
+    },
+    {
+      "models": ["qwen-long"],
+      "context_size": 10000000,
+      "max_output_tokens": 8192,
+      "default_max_tokens": 4096,
+      "source": "qwen"
+    },
+    {
+      "models": ["doubao-seed-2.1-pro"],
+      "context_size": 262144,
+      "max_output_tokens": 131072,
+      "default_max_tokens": 4096,
+      "source": "xpert"
+    },
+    {
+      "models": ["qwen-vl-plus"],
+      "context_size": 131072,
+      "max_output_tokens": 8192,
+      "default_max_tokens": 4096,
+      "source": "qwen"
+    },
+    {
+      "models": ["qwen-turbo"],
+      "context_size": 131072,
+      "max_output_tokens": 16384,
+      "default_max_tokens": 4096,
+      "source": "qwen"
+    },
+    {
+      "models": ["qwen3-vl-flash"],
+      "context_size": 131072,
+      "max_output_tokens": 32768,
+      "default_max_tokens": 4096,
+      "source": "qwen"
+    },
+    {
+      "models": ["Qwen-plus", "Qwen-flash"],
+      "context_size": 1000000,
+      "max_output_tokens": 32768,
+      "default_max_tokens": 4096,
+      "source": "qwen"
+    },
+    {
+      "models": ["qwen3-coder-next"],
+      "context_size": 262144,
+      "max_output_tokens": 65536,
+      "default_max_tokens": 8192,
+      "source": "qwen"
+    }
+  ]
+}

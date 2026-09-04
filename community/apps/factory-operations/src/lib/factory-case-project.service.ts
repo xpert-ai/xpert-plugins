@@ -42,7 +42,7 @@ export class FactoryCaseProjectService {
       workspaceProjectErrorSummary: null
     })
     try {
-      await requireFactoryProjectProvisioning(this.capabilities).ensure({
+      const project = await requireFactoryProjectProvisioning(this.capabilities).ensure({
         projectId: entity.workspaceProjectId,
         xpertId: requesterXpertId,
         requesterAgentKey: AGENT_KEYS.coordinator,
@@ -55,6 +55,8 @@ export class FactoryCaseProjectService {
         status: 'active'
       })
       await this.cases.update(entity.id, {
+        coordinatorXpertId: requesterXpertId,
+        assignedAssistantIds: [...new Set(project.xpertIds)],
         workspaceProjectSyncStatus: 'ready',
         workspaceProjectSyncedAt: new Date(),
         workspaceProjectErrorCode: null,

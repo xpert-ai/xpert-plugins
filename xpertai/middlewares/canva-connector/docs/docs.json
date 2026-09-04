@@ -1,0 +1,10 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "name": "Canva Connector",
+  "theme": "mint",
+  "colors": { "primary": "#00C4CC", "light": "#00A7B0", "dark": "#7BE7EB" },
+  "navigation": [
+    { "group": "Usage", "pages": ["index", "api-contracts"] },
+    { "group": "Operations", "pages": ["operations"] }
+  ]
+}

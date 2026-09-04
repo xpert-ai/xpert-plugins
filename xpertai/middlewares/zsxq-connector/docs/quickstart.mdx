@@ -1,0 +1,40 @@
+---
+title: 快速开始
+description: 在 Xpert 中安装、配置并完成一次知识星球设备授权。
+---
+
+## 前置条件
+
+1. Xpert API/Agent Runtime 可以访问 `https://garden.zsxq.com` 和 `https://mcp.zsxq.com`。
+2. 运行节点支持 `zsxq-cli@0.5.1` 的平台二进制：macOS arm64/x64、Linux arm64/x64 或 Windows arm64/x64。
+3. 生产容器为 CLI 数据目录配置持久化卷。推荐设置插件 `cliDataRoot` 为绝对路径，例如 `/var/lib/xpert/zsxq`。
+
+## 安装
+
+在插件目录执行：
+
+```bash
+pnpm install
+pnpm nx run @xpert-ai/plugin-zsxq-connector:build
+```
+
+通过 Xpert 插件管理器安装生成的包。插件元数据为 `@xpert-ai/plugin-zsxq-connector`，provider 为 `zsxq`，级别为 `organization`。
+
+## 连接账户
+
+1. 在工作区连接器页面选择 **知识星球**。
+2. 点击 **设备登录**。Xpert 会执行 `auth login --no-browser --no-wait --json`，返回官方验证 URL。
+3. 在浏览器完成扫码或设备确认；Xpert 后台使用同一个隔离 CLI 目录执行 `auth login --device-code ... --json`。
+4. 状态变为 active 后，用 `zsxq_get_account` 验证账户身份。
+
+平台凭据只保存随机连接句柄、CLI 版本和最小 profile；Token 由官方 CLI 的配置/凭据机制管理。不要复制 CLI 配置目录中的任何文件到聊天、日志或工单。
+
+## 开启写入
+
+保持 `enableWrites=false` 是推荐生产默认值。若确需发布，组织管理员必须同时：
+
+- 将插件配置设为 `enableWrites=true`；
+- 为所有 `zsxq_*` 写工具配置 Xpert HITL；
+- 要求审批人检查工具返回的目标 ID、文本摘要、附件名和破坏性后果。
+
+第一次写工具调用只返回预览和十分钟有效的一次性句柄。只有用户明确批准后，才可用完全相同的参数加 `confirmed=true` 和句柄重试。

@@ -1,0 +1,19 @@
+---
+title: 知识星球连接器
+description: 让 Xpert Agent 通过官方 zsxq-cli 设备授权访问知识星球。
+---
+
+知识星球连接器是一个 organization 级 Xpert 插件。它通过官方 `zsxq-cli@0.5.1` 完成设备授权，把会话状态隔离在每个连接实例的本地 CLI 配置目录中，再向 Agent 暴露固定、分页、有上限的工具。
+
+## 能力概览
+
+- 连接：浏览器打开知识星球设备授权页，Xpert 轮询授权状态。
+- 读取：账户、星球、成员、主题、评论、标签、定时任务、笔记和用户足迹。
+- 写入：主题创建/编辑、评论、问答、主题状态、主题标签、定时发布和笔记管理。写入默认关闭，开启后每次调用都先生成一次性确认句柄。
+- 文件：附件只能通过 Xpert Workspace Files 读取并复制到短生命周期临时目录，工具完成后清理。
+
+## 设计边界
+
+插件不读取浏览器 Cookie，不把 OAuth Token 放进 Xpert 工具参数，也不提供任意命令或任意 HTTP URL。提供方返回值会映射为 allowlist DTO，原始响应不会直接回传给 Agent。
+
+当前版本基于官方开源 [zsxq-skill](https://github.com/unnoo/zsxq-skill) 和 npm 包 [zsxq-cli](https://www.npmjs.com/package/zsxq-cli)。提供方命令或权限变化时，应先更新 CLI 版本和契约测试，再发布插件。

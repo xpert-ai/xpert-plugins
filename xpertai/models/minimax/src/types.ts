@@ -19,9 +19,11 @@ export interface MiniMaxCredentials {
 
 export type MiniMaxModelCredentials = MiniMaxCredentials & {
   maxRetries?: number;
+  service_tier?: 'standard' | 'priority';
 };
 
 export const SUPPORTED_LLM_MODELS = [
+  'MiniMax-M3',
   'MiniMax-M2.7',
   'MiniMax-M2.7-highspeed',
   'MiniMax-M2.5',
