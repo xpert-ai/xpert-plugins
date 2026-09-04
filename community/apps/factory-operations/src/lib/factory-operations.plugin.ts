@@ -1,7 +1,14 @@
+import { FactoryProfileMigration } from './migrations/assistant-profile.migration.js'
+import { FactoryProfileService } from './factory-profile.service.js'
+import { FactoryProfileAccessService } from './factory-profile-access.service.js'
+import { FactoryApprovalPolicy } from './factory-approval-policy.service.js'
+import { FactoryContinuationService } from './factory-continuation.service.js'
+import { FactoryContinuationProcessor } from './factory-continuation.processor.js'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { XpertServerPlugin } from '@xpert-ai/plugin-sdk'
 import {
   FactoryArtifactEntity,
+  FactoryContinuationEntity,
   FactoryAuditEntity,
   FactoryCaseEntity,
   FactoryExecutionRecordEntity
@@ -14,7 +21,7 @@ import { FactoryOperationsInsightsTools, FactoryOperationsTools } from './factor
 import { FactoryToolEventService } from './factory-tool-events.js'
 import { FactoryOperationsViewProvider } from './factory-view.provider.js'
 
-export const FACTORY_ENTITIES = [
+export const FACTORY_ENTITIES = [FactoryContinuationEntity,
   FactoryCaseEntity,
   FactoryArtifactEntity,
   FactoryAuditEntity,
@@ -24,7 +31,7 @@ export const FACTORY_ENTITIES = [
 @XpertServerPlugin({
   imports: [TypeOrmModule.forFeature(FACTORY_ENTITIES)],
   entities: FACTORY_ENTITIES,
-  providers: [
+  providers: [FactoryProfileMigration,FactoryProfileService, FactoryProfileAccessService, FactoryApprovalPolicy, FactoryContinuationService, FactoryContinuationProcessor,
     FactoryCaseProjectService,
     FactoryAssistantTaskService,
     FactoryAssistantTaskProcessor,

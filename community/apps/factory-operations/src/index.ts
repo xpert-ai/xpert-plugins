@@ -1,3 +1,4 @@
+import { FACTORY_PROFILE_FEATURE } from './lib/factory-profile.views.js'
 import { z } from 'zod'
 import type { I18nObject, PluginMarketplaceContribution } from '@xpert-ai/contracts'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
@@ -35,6 +36,7 @@ const applicationContribution = <T extends { type: 'app'; name: string; appConfi
   value: T
 ): PluginMarketplaceContribution => value as unknown as PluginMarketplaceContribution
 const capabilities = [
+  FACTORY_PROFILE_FEATURE,
   ...Object.values(FACTORY_FEATURE),
   FACTORY_WORKBENCH_FEATURE,
   FACTORY_MANAGEMENT_DASHBOARD_FEATURE,
@@ -247,6 +249,7 @@ export default plugin
 export * from './lib/constants.js'
 export * from './lib/domain/types.js'
 export * from './lib/factory-templates.js'
+export * from './lib/factory-mcp-apps.js'
 export {
   FactoryOperationsInsightsTools,
   FactoryOperationsTools,

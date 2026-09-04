@@ -7,7 +7,7 @@ Factory Operations 使用两个 Xpert host-native MCP capability provider。`Fac
 
 ## Tool 合同
 
-所有 Tool 都要求调用时存在 `tenant`、`organization`、`principal` 和 `execution` 上下文，且默认仅对 model 可见。模型输入不能提供或覆盖这些安全作用域。
+所有 Tool 都要求调用时存在 `tenant`、`organization`、`principal` 和 `execution` 上下文。除两个带 App 的读取 Tool 同时具有 `model` 与 `app` 可见性外，其余 Tool 仅对 model 可见。模型输入不能提供或覆盖这些安全作用域。
 
 | 类型 | Tool                                   | 行为                                                    |
 | ---- | -------------------------------------- | ------------------------------------------------------- |
@@ -27,6 +27,12 @@ Factory Operations 使用两个 Xpert host-native MCP capability provider。`Fac
 五个读取 Tool 标记为 `read / none / safe`。七个写入 Tool 标记为 `write / irreversible / idempotent`，重试必须复用完全相同载荷的 `operationId`；共享服务仍执行审计、最新修订检查和 compare-and-swap。
 
 `factory_cases_search` 接受可选的 `search`、`page` 和 `pageSize`。`search` 只匹配 Case 编号或设备编号，`pageSize` 最大为 50；返回值是紧凑摘要。后续写入前仍必须用返回的 `caseId` 调用 `factory_case_get_summary`，获取当前精确修订。
+
+## MCP Apps
+
+`factory_operations_dashboard_get` 绑定运营看板 App，展示当前组织的事件指标和恢复泳道健康度；`factory_case_get_summary` 绑定 Case 摘要 App，展示状态、修订、恢复进度、事件信息、专业研判与治理阶段。两者都保留非 App Client 可读的简短文本和稳定 `structuredContent`。
+
+App 以构建后的静态 HTML 存放在插件包内，由宿主发布为 `ui://` Resource。iframe 使用 `ui/initialize` 获取语言，使用 `ui/notifications/tool-input` 与 `ui/notifications/tool-result` 接收上下文，并在布局变化后发送 `ui/notifications/size-changed`。刷新操作通过 `tools/call` 重新调用对应只读 Tool；不会直接访问 Xpert API，也不会接收 API Key、租户或组织标识。
 
 ## 治理边界
 
@@ -75,8 +81,9 @@ MCP 不提供以下操作：
 1. `initialize`，确认服务器返回受支持的 MCP 协议版本；
 2. 对 `factory_ops_insights` 执行 `tools/list`，确认出现 5 个只读 Tool，并包含 `factory_cases_search`；
 3. 对 `factory_ops` 执行 `tools/list`，确认出现 7 个幂等写入 Tool；
-4. 在只读 Publication 中调用 `factory_operations_dashboard_get`，确认返回简短 `content` 和稳定 `structuredContent`；
-5. 检查宿主 MCP 审计记录包含本次调用；
-6. 在高级设置中确认协议审计记录。
+4. 在只读 Publication 中调用 `factory_operations_dashboard_get` 与 `factory_case_get_summary`，确认返回简短 `content`、稳定 `structuredContent` 和各自的 `_meta.ui.resourceUri`；
+5. 执行 `resources/list` 与两个 `resources/read`，确认资源 MIME 类型为 `text/html;profile=mcp-app`，HTML 包含标准 MCP Apps bridge；
+6. 在 ChatKit 中确认两个 App 能接收初始结果、按宿主语言和主题渲染，并能通过 app-visible 只读 Tool 刷新；
+7. 检查宿主 MCP 审计记录包含本次调用与资源读取。
 
 API Key 不写日志、部署回执或仓库文件。Agent Middleware 的 `wrapToolCall` 进度事件不会在 MCP 调用中伪造；幂等、修订冲突、授权和业务审计由共享服务层保证。

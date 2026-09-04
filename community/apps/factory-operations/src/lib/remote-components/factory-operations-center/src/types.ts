@@ -6,6 +6,7 @@ export interface RemoteObject {
 }
 
 export interface HostContext {
+  active?: boolean
   locale?: string
   manifest?: RemoteValue
   payload?: RemoteValue

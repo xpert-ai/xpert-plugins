@@ -37,3 +37,13 @@ Managed Queue 使用 `factory_ops.assistant-tasks`。排队任务通过 Queue jo
 v0.4.0 不兼容旧 Factory Operations 业务数据。升级必须先停止 API，只读列出全部 `plugin_factory_ops_*` 表及行数，再用审核过的显式表名清空这些插件自有 Case、执行、审计、制品和投影表。禁止删除宿主 Assistant、会话、用户或 Xpert Project 表。完整顺序见 [v0.4.0 部署清单](/deployment-v040)。
 
 完成 v0.4.0 重置后不能通过回退代码恢复旧插件业务数据。代码回滚与数据恢复必须使用发布前数据库备份并作为独立受控变更执行。
+
+## Profile 续跑运维
+
+`plugin_factory_ops_continuation` 保存审批用户、Case 协调者、审批/方案/预期修订、步骤幂等键、验证记录、租约、代次与下一次调度时间。插件启动执行带 advisory lock 和版本账本的增量迁移，保留既有 Case、审计、执行与 Project 数据。不要删除续跑表作为“重试”手段。
+
+后台每 5 秒补偿待入队意图。处理器采用 90 秒租约，验证期间延迟检查，基础设施失败最多 5 次；验证超过 30 分钟进入人工处理。排查时关联 continuation ID、Case ID、验证 execution record、Assistant Task 和业务 finalizer；不能仅凭队列完成或模型回答判断恢复成功。
+
+权限撤销、方案变化、协调者缺失与外部适配器缺失均需先修复原因，再由有权限用户选择“重试续跑”。需要更新审批版本的方案不能沿用旧审批。原 Workbench 的审批动作继续保持仅审批语义。
+
+多个本地 checkout 共用 Redis 时，为各 API 配置不同的 `MANAGED_QUEUE_PREFIX`，防止另一个版本的 Worker 消费任务。一个生产环境的副本应使用同一前缀。

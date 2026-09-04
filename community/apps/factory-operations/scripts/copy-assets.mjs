@@ -7,7 +7,8 @@ const distRoot = join(packageRoot, 'dist')
 const remoteNames = [
   'factory-operations-center',
   'factory-case-workspace',
-  'factory-operations-dashboard'
+  'factory-operations-dashboard',
+  'factory-assistant-profile'
 ]
 
 await Promise.all(remoteNames.map((remoteName) =>
