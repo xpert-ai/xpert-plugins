@@ -1,4 +1,5 @@
 jest.mock('@xpert-ai/plugin-sdk', () => ({
+  XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN: Symbol('runtime-service'),
   XPERT_RUNTIME_CAPABILITIES_TOKEN: Symbol('runtime-capabilities'),
   pluginArtifactTableName: (namespace: string, key: string) => `${namespace}_${key}`
 }))
@@ -127,7 +128,7 @@ describe('OfficeCliService file management', () => {
       fileName: '销售汇总.xlsx'
     }))
     expect(result.file).toMatchObject({
-      filePath: '/workspace/files/office-cli/documents/document-a/销售汇总.xlsx',
+      filePath: 'files/office-cli/documents/document-a/销售汇总.xlsx',
       workspacePath: '/workspace/files/office-cli/documents/document-a/销售汇总.xlsx',
       storageFilePath: 'files/office-cli/documents/document-a/销售汇总.xlsx',
       fileRef: {
