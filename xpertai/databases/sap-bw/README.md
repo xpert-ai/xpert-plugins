@@ -19,6 +19,23 @@ user; it does not fabricate catalogs or suppress transport errors.
 The unit suite uses an in-memory HTTP boundary. A live integration check
 requires an SAP BW XMLA endpoint and credentials.
 
+Build and package commands must run from the `xpertai` pnpm workspace. Building
+SAP BW through Nx builds `@xpert-ai/plugin-xmla` first. The SAP BW runtime entry
+then bundles the locally built XMLA implementation, while keeping the XMLA
+package as a build-time workspace dependency and a type-level peer. This makes
+local source-code deployment self-contained: the host never has to pass the
+pnpm-only `workspace:*` protocol to npm.
+
+Packing from the package directory runs the same build and verifies the bundled
+runtime entry before creating the archive:
+
+```bash
+pnpm exec nx build @xpert-ai/plugin-sap-bw
+pnpm --filter @xpert-ai/plugin-sap-bw pack
+```
+
+Use the generated package archive for installation outside this pnpm workspace.
+
 MDX generation, SAP hierarchy semantics, variable serialization into MDX, and
 multidimensional cellset materialization remain in `@xpert-ai/ocap-xmla`.
 Those are semantic analytics responsibilities and are not duplicated in the

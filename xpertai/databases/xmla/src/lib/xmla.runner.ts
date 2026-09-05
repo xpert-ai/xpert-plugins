@@ -20,8 +20,23 @@ import {
   xmlaValueAsString
 } from './xmla.protocol.js'
 import type { XmlaRequestItems, XmlaRow, XmlaRowset, XmlaValue } from './xmla.protocol.js'
+import { discoverXmlaOlapMetadata } from './xmla.metadata.js'
+import type { XmlaOlapMetadata, XmlaOlapMetadataRequest } from './xmla.metadata.js'
 
 export const XMLA_TYPE = 'xmla'
+export const XMLA_METADATA_CAPABILITY = 'xmla.metadata'
+export const XMLA_METADATA_DISCOVER_OPERATION = 'discover'
+
+/**
+ * Generic host query shape, kept local for compatibility with older SDKs.
+ * @deprecated Use IDataSourceCapabilityQuery from @xpert-ai/plugin-sdk once the
+ * plugin's minimum host SDK version exports that canonical contract.
+ */
+export interface DataSourceCapabilityQuery {
+  capability: string
+  operation: string
+  payload?: unknown
+}
 
 const SOAP_HEADERS = {
   Accept: 'text/xml, application/xml, application/soap+xml',
@@ -279,6 +294,18 @@ export class XMLARunner implements DBQueryRunner {
     return groupCubesByCatalog(cubes)
   }
 
+  async queryCapability(query: DataSourceCapabilityQuery): Promise<XmlaOlapMetadata> {
+    if (query.capability !== XMLA_METADATA_CAPABILITY || query.operation !== XMLA_METADATA_DISCOVER_OPERATION) {
+      throw new Error(`Unsupported XMLA data-source capability: ${query.capability}/${query.operation}`)
+    }
+    const request = parseMetadataRequest(query.payload)
+    return discoverXmlaOlapMetadata(
+      (requestType, options) => this.discover(requestType, options),
+      request,
+      this.options.data_source_info
+    )
+  }
+
   async describe(catalog: string, statement: string): Promise<{ columns?: IDSTable['columns'] }> {
     if (!statement.trim()) {
       return { columns: [] }
@@ -391,6 +418,35 @@ export class XMLARunner implements DBQueryRunner {
       ...headers
     }
   }
+}
+
+function parseMetadataRequest(payload: DataSourceCapabilityQuery['payload']): XmlaOlapMetadataRequest {
+  if (payload === undefined || payload === null) return {}
+  if (!isRecord(payload)) {
+    throw new Error('XMLA metadata discovery payload must be an object')
+  }
+  return {
+    catalog: optionalString(payload.catalog, 'catalog'),
+    cube: optionalString(payload.cube, 'cube'),
+    includeMemberProperties: optionalBoolean(payload.includeMemberProperties, 'includeMemberProperties'),
+    includeSapVariables: optionalBoolean(payload.includeSapVariables, 'includeSapVariables')
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function optionalString(value: unknown, field: string): string | undefined {
+  if (value === undefined) return undefined
+  if (typeof value !== 'string') throw new Error(`XMLA metadata field '${field}' must be a string`)
+  return value
+}
+
+function optionalBoolean(value: unknown, field: string): boolean | undefined {
+  if (value === undefined) return undefined
+  if (typeof value !== 'boolean') throw new Error(`XMLA metadata field '${field}' must be a boolean`)
+  return value
 }
 
 interface XmlaCubeMetadata {

@@ -56,6 +56,7 @@ export const XMLA_DISCOVER_REQUEST = {
   measures: 'MDSCHEMA_MEASURES',
   members: 'MDSCHEMA_MEMBERS',
   memberProperties: 'MDSCHEMA_PROPERTIES',
+  sapVariables: 'MDSCHEMA_SAP_VARIABLES',
   sets: 'MDSCHEMA_SETS'
 } as const
 
@@ -283,11 +284,24 @@ function normalizeXmlPayload(payload: unknown): string {
 }
 
 function parseXml(xml: string): Document {
-  return new DOMParser({
+  const errors: Array<{ level: string; message: string }> = []
+  const document = new DOMParser({
     onError(level, message) {
-      throw new Error(`Invalid XMLA response (${level}): ${message}`)
+      // SAP BW can emit recoverable XSD formatting issues such as adjacent
+      // attributes without whitespace. xmldom repairs those documents and
+      // reports a warning, so only parser errors are fatal here.
+      if (level !== 'warning') {
+        errors.push({ level, message })
+      }
     }
   }).parseFromString(xml, 'text/xml')
+
+  const firstError = errors[0]
+  if (firstError) {
+    throw new Error(`Invalid XMLA response (${firstError.level}): ${firstError.message}`)
+  }
+
+  return document
 }
 
 function throwForXmlaFault(document: Document): void {
@@ -303,9 +317,9 @@ function throwForXmlaFault(document: Document): void {
     return
   }
 
-  const faultCode = fault ? descendantText(fault, 'faultcode') ?? providerErrors[0] : providerErrors[0]
+  const faultCode = fault ? (descendantText(fault, 'faultcode') ?? providerErrors[0]) : providerErrors[0]
   const faultMessage = fault
-    ? descendantText(fault, 'faultstring') ?? providerErrors.join('; ')
+    ? (descendantText(fault, 'faultstring') ?? providerErrors.join('; '))
     : providerErrors.join('; ')
   throw new XmlaSoapFaultError(faultMessage || 'XMLA server returned a SOAP fault', faultCode, providerErrors)
 }

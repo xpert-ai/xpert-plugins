@@ -15,16 +15,21 @@
     }
   },
   "type": "module",
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
+  "scripts": {
+    "build": "tsc --build tsconfig.lib.json && esbuild dist/index.js --bundle --platform=node --format=esm --target=node20 --outfile=dist/bundle.js --external:@nestjs/common --external:@xpert-ai/plugin-sdk --external:@xmldom/xmldom --external:axios --external:zod && pnpm run verify:dist",
+    "verify:dist": "node scripts/verify-dist.mjs",
+    "prepack": "pnpm run build"
+  },
+  "main": "./dist/bundle.js",
+  "module": "./dist/bundle.js",
   "types": "./dist/index.d.ts",
   "exports": {
     "./package.json": "./package.json",
     ".": {
       "@xpert-plugins-starter/source": "./src/index.ts",
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "default": "./dist/index.js"
+      "import": "./dist/bundle.js",
+      "default": "./dist/bundle.js"
     }
   },
   "files": [
@@ -32,15 +37,35 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
-    "@xpert-ai/plugin-xmla": "workspace:*",
+    "@xmldom/xmldom": "0.9.12",
+    "axios": "^1.12.2",
     "tslib": "^2.3.0"
   },
   "devDependencies": {
-    "axios": "^1.12.2"
+    "@xpert-ai/plugin-xmla": "workspace:*",
+    "esbuild": "0.28.1"
   },
   "peerDependencies": {
     "@nestjs/common": "^11.1.6",
+    "@xpert-ai/plugin-xmla": "0.0.1",
     "@xpert-ai/plugin-sdk": "^3.15.15",
     "zod": "3.25.67"
+  },
+  "nx": {
+    "targets": {
+      "build": {
+        "dependsOn": [
+          "^build"
+        ],
+        "cache": true,
+        "inputs": [
+          "production",
+          "^production"
+        ],
+        "outputs": [
+          "{projectRoot}/dist"
+        ]
+      }
+    }
   }
 }

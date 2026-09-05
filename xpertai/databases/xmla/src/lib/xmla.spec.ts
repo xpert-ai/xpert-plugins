@@ -176,6 +176,24 @@ describe('@xpert-ai/plugin-xmla', () => {
     expect(() => parseXmlaRowset('<!DOCTYPE root><root/>')).toThrow('must not contain a DOCTYPE')
   })
 
+  it('accepts recoverable SAP BW schema warnings for adjacent attributes', () => {
+    const payload = rowsetResponse(
+      [{ name: 'DESCRIPTION', nullable: true }],
+      [{ DESCRIPTION: '资产负债表利润表POC(DEMO)' }]
+    ).replace('name="DESCRIPTION" type=', 'name="DESCRIPTION"type=')
+
+    expect(parseXmlaRowset(payload)).toMatchObject({
+      fields: [expect.objectContaining({ name: 'DESCRIPTION' })],
+      rows: [{ DESCRIPTION: '资产负债表利润表POC(DEMO)' }]
+    })
+  })
+
+  it('still rejects XMLA parser errors', () => {
+    expect(() => parseXmlaRowset('<root><x name="DESCRIPTION"!/></root>')).toThrow(
+      'Invalid XMLA response (error)'
+    )
+  })
+
   it('authenticates once, reuses cookies, and returns the raw SOAP response', async () => {
     const client = new FakeXmlaHttpClient((_call, index) =>
       index === 0 ? httpResponse('', 200, ['SESSION=abc']) : httpResponse('<xmla>result</xmla>')
@@ -401,6 +419,208 @@ describe('@xpert-ai/plugin-xmla', () => {
     const requestBodies = client.calls.map(({ body }) => body).join('\n')
     expect(requestBodies).toContain('<CATALOG_NAME>FoodMart</CATALOG_NAME>')
     expect(requestBodies).toContain('<CUBE_NAME>Sales</CUBE_NAME>')
+  })
+
+  it('discovers a SAP BW cube with hierarchy, level, properties, measures and variables', async () => {
+    const responses: Array<[string, XmlaFixtureField[], XmlaFixtureRow[]]> = [
+      [
+        'MDSCHEMA_CUBES',
+        [{ name: 'CATALOG_NAME' }, { name: 'CUBE_NAME' }, { name: 'CUBE_CAPTION' }],
+        [{ CATALOG_NAME: '$BWCATALOG', CUBE_NAME: 'ZSD_SALES_Q01', CUBE_CAPTION: '销售分析' }]
+      ],
+      [
+        'MDSCHEMA_DIMENSIONS',
+        [
+          { name: 'DIMENSION_NAME' },
+          { name: 'DIMENSION_UNIQUE_NAME' },
+          { name: 'DIMENSION_CAPTION' },
+          { name: 'DIMENSION_TYPE', type: 'xsd:short' }
+        ],
+        [
+          {
+            DIMENSION_NAME: 'Measures',
+            DIMENSION_UNIQUE_NAME: '[Measures]',
+            DIMENSION_CAPTION: 'Measures',
+            DIMENSION_TYPE: 2
+          },
+          {
+            DIMENSION_NAME: '0FISCPER',
+            DIMENSION_UNIQUE_NAME: '[0FISCPER]',
+            DIMENSION_CAPTION: 'Fiscal period',
+            DIMENSION_TYPE: 1
+          }
+        ]
+      ],
+      [
+        'MDSCHEMA_HIERARCHIES',
+        [
+          { name: 'DIMENSION_UNIQUE_NAME' },
+          { name: 'HIERARCHY_NAME' },
+          { name: 'HIERARCHY_UNIQUE_NAME' },
+          { name: 'HIERARCHY_CAPTION' }
+        ],
+        [
+          {
+            DIMENSION_UNIQUE_NAME: '[0FISCPER]',
+            HIERARCHY_NAME: '0FISCPER',
+            HIERARCHY_UNIQUE_NAME: '[0FISCPER].[0FISCPER]',
+            HIERARCHY_CAPTION: 'Fiscal period'
+          }
+        ]
+      ],
+      [
+        'MDSCHEMA_LEVELS',
+        [
+          { name: 'HIERARCHY_UNIQUE_NAME' },
+          { name: 'LEVEL_NAME' },
+          { name: 'LEVEL_UNIQUE_NAME' },
+          { name: 'LEVEL_CAPTION' },
+          { name: 'LEVEL_NUMBER', type: 'xsd:unsignedInt' }
+        ],
+        [
+          {
+            HIERARCHY_UNIQUE_NAME: '[0FISCPER].[0FISCPER]',
+            LEVEL_NAME: 'FISCPER',
+            LEVEL_UNIQUE_NAME: '[0FISCPER].[0FISCPER].[FISCPER]',
+            LEVEL_CAPTION: 'Fiscal period',
+            LEVEL_NUMBER: 1
+          }
+        ]
+      ],
+      [
+        'MDSCHEMA_MEASURES',
+        [
+          { name: 'MEASURE_NAME' },
+          { name: 'MEASURE_UNIQUE_NAME' },
+          { name: 'MEASURE_CAPTION' },
+          { name: 'DATA_TYPE', type: 'xsd:unsignedShort' },
+          { name: 'MEASURE_IS_VISIBLE', type: 'xsd:boolean' },
+          { name: 'MEASURE_UNITS' },
+          { name: 'MEASURE_CURRENCY' },
+          { name: 'DEFAULT_FORMAT_STRING' }
+        ],
+        [
+          {
+            MEASURE_NAME: 'NET_VALUE',
+            MEASURE_UNIQUE_NAME: '[Measures].[NET_VALUE]',
+            MEASURE_CAPTION: 'Net value',
+            DATA_TYPE: 5,
+            MEASURE_IS_VISIBLE: true,
+            MEASURE_UNITS: 'CURR',
+            MEASURE_CURRENCY: 'CNY',
+            DEFAULT_FORMAT_STRING: '#,##0.00'
+          }
+        ]
+      ],
+      [
+        'MDSCHEMA_PROPERTIES',
+        [
+          { name: 'PROPERTY_NAME' },
+          { name: 'PROPERTY_UNIQUE_NAME' },
+          { name: 'HIERARCHY_UNIQUE_NAME' },
+          { name: 'LEVEL_UNIQUE_NAME' },
+          { name: 'DATA_TYPE' }
+        ],
+        [
+          {
+            PROPERTY_NAME: 'KEY',
+            PROPERTY_UNIQUE_NAME: '[0FISCPER].[KEY]',
+            HIERARCHY_UNIQUE_NAME: '[0FISCPER].[0FISCPER]',
+            LEVEL_UNIQUE_NAME: '[0FISCPER].[0FISCPER].[FISCPER]',
+            DATA_TYPE: 'string'
+          }
+        ]
+      ],
+      [
+        'MDSCHEMA_SAP_VARIABLES',
+        [
+          { name: 'VARIABLE_NAME' },
+          { name: 'VARIABLE_CAPTION' },
+          { name: 'VARIABLE_TYPE', type: 'xsd:unsignedShort' },
+          { name: 'VARIABLE_SELECTION_TYPE', type: 'xsd:unsignedShort' },
+          { name: 'VARIABLE_ENTRY_TYPE', type: 'xsd:unsignedShort' },
+          { name: 'REFERENCE_DIMENSION' },
+          { name: 'REFERENCE_HIERARCHY' },
+          { name: 'DEFAULT_LOW', nullable: true }
+        ],
+        [
+          {
+            VARIABLE_NAME: '[OP_FISCPER]',
+            VARIABLE_CAPTION: 'Fiscal period',
+            VARIABLE_TYPE: 1,
+            VARIABLE_SELECTION_TYPE: 1,
+            VARIABLE_ENTRY_TYPE: 1,
+            REFERENCE_DIMENSION: '[0FISCPER]',
+            REFERENCE_HIERARCHY: '[0FISCPER].[0FISCPER]',
+            DEFAULT_LOW: null
+          }
+        ]
+      ]
+    ]
+    const client = new FakeXmlaHttpClient(({ body }) => {
+      if (!body) return httpResponse('', 200, ['SESSION=sap-metadata'])
+      const response = responses.find(([requestType]) => body.includes(requestType))
+      if (!response) throw new Error(`Unexpected XMLA request: ${body}`)
+      return httpResponse(rowsetResponse(response[1], response[2]))
+    })
+    const runner = createRunner(client)
+
+    const result = await runner.queryCapability({
+      capability: 'xmla.metadata',
+      operation: 'discover',
+      payload: { catalog: '$BWCATALOG', cube: 'ZSD_SALES_Q01' }
+    })
+
+    expect(result.warnings).toEqual([])
+    expect(result.catalogs[0].cubes[0]).toMatchObject({
+      uniqueName: 'ZSD_SALES_Q01',
+      measures: [
+        {
+          uniqueName: '[Measures].[NET_VALUE]',
+          unit: 'CURR',
+          currency: 'CNY',
+          visible: true,
+          formatString: '#,##0.00'
+        }
+      ],
+      dimensions: [
+        {
+          uniqueName: '[0FISCPER]',
+          hierarchies: [
+            {
+              uniqueName: '[0FISCPER].[0FISCPER]',
+              levels: [
+                {
+                  uniqueName: '[0FISCPER].[0FISCPER].[FISCPER]',
+                  memberProperties: [{ uniqueName: '[0FISCPER].[KEY]' }]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      variables: [
+        {
+          uniqueName: '[OP_FISCPER]',
+          variableType: 'member',
+          selectionType: 'value',
+          mandatory: true,
+          initialValueAllowed: true,
+          valueHelp: {
+            dimensionUniqueName: '[0FISCPER]',
+            hierarchyUniqueName: '[0FISCPER].[0FISCPER]'
+          }
+        }
+      ]
+    })
+  })
+
+  it('rejects capability operations that are not owned by the XMLA adapter', async () => {
+    const runner = createRunner(new FakeXmlaHttpClient(() => httpResponse('')))
+
+    await expect(
+      runner.queryCapability({ capability: 'database.admin', operation: 'drop', payload: {} })
+    ).rejects.toThrow('Unsupported XMLA data-source capability')
   })
 
   it('describes a tabular MDX result from its XMLA rowset schema', async () => {

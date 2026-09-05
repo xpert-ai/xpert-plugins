@@ -63,8 +63,15 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   }
 }
 
-export { XMLA_TYPE, XMLARunner, createXmlaConfigurationSchema } from './lib/xmla.runner.js'
+export {
+  XMLA_METADATA_CAPABILITY,
+  XMLA_METADATA_DISCOVER_OPERATION,
+  XMLA_TYPE,
+  XMLARunner,
+  createXmlaConfigurationSchema
+} from './lib/xmla.runner.js'
 export type {
+  DataSourceCapabilityQuery,
   XmlaAdapterOptions,
   XmlaDiscoverOptions,
   XmlaExecuteOptions,
@@ -82,6 +89,20 @@ export {
   xmlaValueAsNumber,
   xmlaValueAsString
 } from './lib/xmla.protocol.js'
+export { discoverXmlaOlapMetadata } from './lib/xmla.metadata.js'
+export type {
+  XmlaOlapCatalogMetadata,
+  XmlaOlapCubeMetadata,
+  XmlaOlapDimensionMetadata,
+  XmlaOlapHierarchyMetadata,
+  XmlaOlapLevelMetadata,
+  XmlaOlapMeasureMetadata,
+  XmlaOlapMemberPropertyMetadata,
+  XmlaOlapMetadata,
+  XmlaOlapMetadataRequest,
+  XmlaOlapMetadataWarning,
+  XmlaOlapVariableMetadata
+} from './lib/xmla.metadata.js'
 export type {
   XmlaDiscoverEnvelopeOptions,
   XmlaDiscoverRequestType,

@@ -20,6 +20,15 @@ property lists, while `language` is sent as `Accept-Language`.
 The test suite uses a typed HTTP boundary and does not contact a live XMLA
 server. External runtime verification requires an XMLA endpoint and credentials.
 
+Build or package this plugin from the `xpertai` pnpm workspace. `pnpm pack`
+runs the package build first so the archive cannot silently reuse stale `dist`
+output:
+
+```bash
+pnpm exec nx build @xpert-ai/plugin-xmla
+pnpm --filter @xpert-ai/plugin-xmla pack
+```
+
 The semantic analytics layer remains in `@xpert-ai/ocap-xmla`: MDX AST/query
 generation, multidimensional cellset materialization, semantic-model caching,
 and member navigation are application concerns rather than database-runner
