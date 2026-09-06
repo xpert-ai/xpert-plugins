@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-sap-bw",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "license": "AGPL-3.0",
   "repository": {
     "type": "git",
@@ -47,7 +47,7 @@
   },
   "peerDependencies": {
     "@nestjs/common": "^11.1.6",
-    "@xpert-ai/plugin-xmla": "0.0.1",
+    "@xpert-ai/plugin-xmla": "0.0.2",
     "@xpert-ai/plugin-sdk": "^3.15.15",
     "zod": "3.25.67"
   },
