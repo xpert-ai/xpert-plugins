@@ -1,0 +1,28 @@
+{
+  "contractVersion": "2026-09-05-material-identity",
+  "platformFamily": "Xpert 3.x",
+  "schema": "assistant-dsl.schema.json",
+  "fieldCatalog": "field-catalog.json",
+  "sources": [
+    {
+      "path": "packages/server-ai/src/xpert/dto/xpert-dsl.dto.ts",
+      "sha256": "75b8d025d5fed3935c8b6ab7889cf51f435cc850cd33b597323cdbd98d367d35",
+      "purpose": "Serialized team, Agent, model, knowledge and toolset fields"
+    },
+    {
+      "path": "packages/contracts/src/ai/xpert.model.ts",
+      "sha256": "aed5f8cf6a6e1b649e684744b95a70298bf7e0a7d7166787796601959975c6a4",
+      "purpose": "Features, options, Agent config, memory, parameters and graph"
+    },
+    {
+      "path": "packages/contracts/src/ai/xpert-agent.model.ts",
+      "sha256": "5b0248c029189d998f6bb4b4e1200cf49a0dfb75c723374cf8ff52a681346af8",
+      "purpose": "Agent options, attachments, tools and middleware order"
+    },
+    {
+      "path": "packages/plugin-sdk/src/lib/types.ts",
+      "sha256": "bad9b6b1ee1f93dad6660c1704a3fa7b46a1a4d52171438218513556372f9406",
+      "purpose": "Plugin XpertTemplateContribution"
+    }
+  ]
+}

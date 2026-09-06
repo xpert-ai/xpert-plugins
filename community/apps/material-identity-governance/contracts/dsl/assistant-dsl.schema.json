@@ -1,0 +1,243 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://xpert.ai/schemas/assistant-dsl/2026-08-27",
+  "title": "Xpert Reusable Agent Assistant DSL",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["team", "nodes", "connections"],
+  "properties": {
+    "team": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "type", "agent"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "type": { "const": "agent" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "avatar": { "type": ["object", "null"], "additionalProperties": true },
+        "options": { "type": ["object", "null"], "additionalProperties": true },
+        "agentConfig": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "recursionLimit": { "type": "integer", "minimum": 1 },
+            "maxConcurrency": { "type": "integer", "minimum": 1 },
+            "timeout": { "type": "integer", "minimum": 1 },
+            "interruptBefore": { "type": "array", "items": { "type": "string" } },
+            "endNodes": { "type": "array", "items": { "type": "string" } },
+            "stateVariables": { "type": "array", "items": { "$ref": "#/$defs/parameter" } },
+            "parameters": { "type": "array", "items": { "$ref": "#/$defs/parameter" } },
+            "toolsMemory": { "type": "object" },
+            "disableOutputs": { "type": "array", "items": { "type": "string" } },
+            "mute": {
+              "type": "array",
+              "items": { "type": "array", "minItems": 1, "items": { "type": "string" } }
+            },
+            "recalls": { "type": "object" },
+            "retrievals": { "type": "object" },
+            "tools": { "type": "object" }
+          }
+        },
+        "memory": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/memory" }] },
+        "summarize": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/summarize" }] },
+        "features": { "$ref": "#/$defs/features" },
+        "version": { "type": ["string", "number"] },
+        "agent": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["key"],
+          "properties": { "key": { "type": "string", "minLength": 1 } }
+        },
+        "copilotModel": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/model" }] },
+        "knowledgebases": { "type": "array" },
+        "toolsets": { "type": "array" },
+        "tags": { "type": "array" }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "key", "entity"],
+        "properties": {
+          "type": { "enum": ["agent", "knowledge", "toolset", "xpert", "workflow"] },
+          "key": { "type": "string", "minLength": 1 },
+          "position": { "$ref": "#/$defs/point" },
+          "size": { "$ref": "#/$defs/size" },
+          "hash": { "type": "string" },
+          "parentId": { "type": "string" },
+          "readonly": { "type": "boolean" },
+          "entity": { "type": "object", "additionalProperties": true },
+          "nodes": { "type": "array" },
+          "connections": { "type": "array" },
+          "expanded": { "type": "boolean" }
+        }
+      }
+    },
+    "connections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "from", "to", "type"],
+        "properties": {
+          "key": { "type": "string", "minLength": 1 },
+          "from": { "type": "string", "minLength": 1 },
+          "to": { "type": "string", "minLength": 1 },
+          "type": { "enum": ["edge", "agent", "knowledge", "toolset", "xpert", "workflow"] },
+          "required": { "type": "boolean" },
+          "readonly": { "type": "boolean" }
+        }
+      }
+    },
+    "memories": { "type": "array" }
+  },
+  "$defs": {
+    "point": {
+      "type": "object",
+      "required": ["x", "y"],
+      "properties": { "x": { "type": "number" }, "y": { "type": "number" } },
+      "additionalProperties": true
+    },
+    "size": {
+      "type": "object",
+      "properties": { "width": { "type": "number" }, "height": { "type": "number" } },
+      "additionalProperties": true
+    },
+    "parameter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "name"],
+      "properties": {
+        "type": {
+          "enum": ["text", "paragraph", "string", "number", "object", "select", "file", "array[string]", "array[number]", "array[object]", "array[file]", "array[document]", "boolean", "secret"]
+        },
+        "name": { "type": "string", "minLength": 1 },
+        "title": { "type": "string" },
+        "description": {},
+        "optional": { "type": "boolean" },
+        "default": {},
+        "maximum": { "type": "number" },
+        "options": { "type": "array", "items": { "type": "string" } },
+        "item": { "type": "array", "items": { "$ref": "#/$defs/parameter" } }
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "copilot": { "type": "object" },
+        "copilotId": { "type": ["string", "null"] },
+        "referencedId": { "type": ["string", "null"] },
+        "modelType": { "type": "string" },
+        "model": { "type": "string" },
+        "options": { "type": "object" }
+      }
+    },
+    "memory": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "copilotModel": { "$ref": "#/$defs/model" },
+        "profile": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "prompt": { "type": "string" },
+            "afterSeconds": { "type": "number", "minimum": 0 }
+          }
+        },
+        "qa": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "prompt": { "type": "string" }
+          }
+        }
+      }
+    },
+    "summarize": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "prompt": { "type": "string" },
+        "maxMessages": { "type": "integer", "minimum": 1 },
+        "retainMessages": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "features": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "opener": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled", "message", "questions"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "message": { "type": "string" },
+            "questions": {
+              "type": "array",
+              "maxItems": 10,
+              "uniqueItems": true,
+              "items": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "suggestion": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled", "prompt"],
+          "properties": { "enabled": { "type": "boolean" }, "prompt": { "type": "string" } }
+        },
+        "textToSpeech": { "$ref": "#/$defs/modelFeature" },
+        "speechToText": { "$ref": "#/$defs/modelFeature" },
+        "attachment": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "type": { "enum": ["upload", "url", "all"] },
+            "maxNum": { "type": "integer", "minimum": 1 },
+            "fileTypes": {
+              "type": "array",
+              "items": { "enum": ["document", "image", "audio", "video", "others"] }
+            }
+          }
+        },
+        "memoryReply": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "enabled": { "type": "boolean" }, "scoreThreshold": { "type": "number" } }
+        },
+        "sandbox": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled"],
+          "properties": { "enabled": { "type": "boolean" }, "provider": { "type": "string" } }
+        },
+        "title": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled"],
+          "properties": { "enabled": { "type": "boolean" }, "instruction": { "type": "string" } }
+        }
+      }
+    },
+    "modelFeature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "copilotModel": { "$ref": "#/$defs/model" }
+      }
+    }
+  }
+}

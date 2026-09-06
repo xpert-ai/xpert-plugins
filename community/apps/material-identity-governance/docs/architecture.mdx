@@ -1,0 +1,41 @@
+---
+title: 物料主数据治理设计
+description: 角色能力、数据持久化和治理边界
+---
+
+应用以全局物料身份和本地编码映射为核心。名称或相似度只帮助查找候选，材质、尺寸、精度、密封、图号和图纸版本由类别规则作硬约束。缺失关键证据不等于属性相同。替代关系和版本继承不作为身份相等。
+
+## 角色和能力
+
+| 角色 | 独立主 Agent | 业务职责 | 写入节点 |
+| --- | --- | --- | --- |
+| 治理协调者 | Agent_coordinator | 读取、授权下一段流水线 | dispatch_next |
+| 数据采集专员 | Agent_intake | 封存来源证据 | collect-evidence |
+| 研发图纸工程师 | Agent_engineering | 验证发布图纸与结构化标注 | extract-drawing |
+| 物料标准化工程师 | Agent_standardization | 单位归一和身份硬核验 | normalize-material / match-identity |
+| 质量冲突审计员 | Agent_quality | 审计同码规格冲突 | audit-conflicts |
+| 供应链影响分析师 | Agent_impact | 核对 BOM 库存和采购影响 | assess-impact |
+| 主数据治理专员 | Agent_governance | 提交当前证据的治理建议 | propose-governance |
+| 系统发布与监控专员 | Agent_publisher | 发布已经人工批准的方案 | publish-records |
+
+每个角色都有独立 Assistant 模板、主 Agent、固定角色 Middleware 和专属读取工具。业务工具仅由对应 Middleware 暴露。协调者通过七条直接且 required 的 External Xpert 连线调度；不使用一个多 Agent Assistant 冒充八位独立角色。
+
+三个视图共享 `material_identity_workbench` 功能开关：ECharts 管理监控、案例泳道、证据与审批工作区。工具能力仍由角色开关独立控制。审批入口只接受有案例 Project 管理权的人类用户。
+
+## 数据和执行
+
+案例、节点投影、不可变执行尝试、幂等操作回执、Mock 系统投递、全局物料身份和编码别名共七类表，均按租户与组织隔离。案例创建后通过公开 ProjectProvisioning 能力建立项目并分配八位 Assistants。
+
+版本变更使用事务与行锁；创建阶段使用操作范围的 advisory lock。请求不得携带调用者自行指定的租户、组织或角色。工具必须处于真实平台 execution 上下文，并核对案例 Project 和已分配 Assistant 身份。
+
+流水线蓝图持久化版本为 1。Managed Queue 负责启动和监督任务，通过公开 AssistantTaskRuntime 能力调用独立 External Assistant。业务工具提交成果与平台执行完成分别验证。业务成果写入成功并且模型任务结束成功，执行圆点才成为成功状态。重试保留旧尝试，以新记录关联同一案例和节点。
+
+来源快照采用对象键排序后的 canonical JSON SHA-256，数组顺序和值仍参与校验。这样数据库 JSONB 的字段重排不会被误认为证据变更。研发 SVG 文件有独立内容哈希，结构化标注与属性证据逐项核验。
+
+## 明确边界
+
+外部 PLM、ERP、MES、WMS、SRM 和 QMS 均为程序生成的演示来源。MDM 和 ERP 发布写入本插件的 Mock 投递表并返回确认编号。库存隔离、采购管控和在制 BOM 变更只形成建议，没有修改真实企业交易系统。
+
+图纸识别读取 Mock PLM 发布 SVG 中的结构化标注，不包含通用扫描件 OCR、视觉模型或 CAD 几何解析。候选集合来自本案例的程序 Mock 来源，不包含跨企业向量库检索。类别规则可扩展，但当前演示覆盖轴承、托架和精密隔套。
+
+方案审批绑定当前方案修订。完成案例不可再次执行业务节点；可创建新的独立案例进行演示。初期开发失败案例保留审计轨迹，不能代表最终验收结果。

@@ -1,0 +1,13 @@
+{
+  "name": "@xpert-ai/plugin-material-identity-governance",
+  "version": "0.1.0",
+  "description": "汽车零部件物料身份和主数据治理 Agentic App",
+  "author": "XpertAI",
+  "license": "AGPL-3.0",
+  "level": "tenant",
+  "artifactNamespace": "material_identity",
+  "targetApps": ["data-xpert", "xpert"],
+  "assets": {
+    "screenshots": ["./assets/dashboard.jpg", "./assets/pipeline.jpg"]
+  }
+}
