@@ -79,10 +79,10 @@ if (
 }
 
 if (
-  packageJson.peerDependencies?.["@xpert-ai/contracts"] !== "^3.18.0" ||
-  packageJson.peerDependencies?.["@xpert-ai/plugin-sdk"] !== "^3.18.1" ||
-  packageJson.devDependencies?.["@xpert-ai/contracts"] !== "3.18.0" ||
-  packageJson.devDependencies?.["@xpert-ai/plugin-sdk"] !== "3.18.1"
+  packageJson.peerDependencies?.["@xpert-ai/contracts"] !== "^3.18.2" ||
+  packageJson.peerDependencies?.["@xpert-ai/plugin-sdk"] !== "^3.18.3" ||
+  packageJson.devDependencies?.["@xpert-ai/contracts"] !== "3.18.2" ||
+  packageJson.devDependencies?.["@xpert-ai/plugin-sdk"] !== "3.18.3"
 ) {
   throw new Error("Host-native MCP SDK dependency versions are inconsistent.");
 }
