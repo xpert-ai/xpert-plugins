@@ -76,6 +76,7 @@ interface PluginSdkRuntimeLike {
   ANALYTICS_PERMISSION_SERVICE_TOKEN?: unknown;
   HANDOFF_QUEUE_SERVICE_TOKEN?: unknown;
   XPERT_RUNTIME_CAPABILITIES_TOKEN?: unknown;
+  XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN?: unknown;
   DefaultRuntimeCapabilityRegistry?: new () => unknown;
   MANAGED_QUEUE_SERVICE_TOKEN?: unknown;
 }
@@ -489,6 +490,16 @@ function createPermissionServiceMocks(workspaceRoot: string, pluginName: string)
   register(runtime.SPEECH_TO_TEXT_PERMISSION_SERVICE_TOKEN, speechToTextPermissionService);
   register(runtime.ANALYTICS_PERMISSION_SERVICE_TOKEN, analyticsPermissionService);
   register(runtime.XPERT_RUNTIME_CAPABILITIES_TOKEN, runtimeCapabilities);
+  // Lifecycle-only scoped runtime. Business capabilities remain unregistered;
+  // loading a plugin must never masquerade as an actual Assistant execution.
+  register(runtime.XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN, {
+    createScopedApi: () => ({
+      capabilities: runtimeCapabilities,
+      createModelClient: async () => {
+        throw new Error('Harness model execution is not configured.');
+      }
+    })
+  });
   register(runtime.MANAGED_QUEUE_SERVICE_TOKEN, managedQueueService);
 
   if (!providers.length) {

@@ -1,3 +1,5 @@
+import { FactoryProfileService } from './factory-profile.service.js'
+import { factoryProfileManifests, isFactoryProfileView, FACTORY_PROFILE_ENTRY } from './factory-profile.views.js'
 import { HttpException, Injectable } from '@nestjs/common'
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
@@ -6,6 +8,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   WORKBENCH_NAVIGATION_OPEN_COMMAND,
+  AGENT_PROFILE_TABS_SLOT,
   type I18nObject,
   type XpertExtensionViewManifest,
   type XpertRemoteComponentEntry,
@@ -82,7 +85,8 @@ export class FactoryOperationsViewProvider implements IXpertViewExtensionProvide
   constructor(
     private readonly service: FactoryOperationsService,
     private readonly caseProjects: FactoryCaseProjectService,
-    private readonly assistantTasks: FactoryAssistantTaskService
+    private readonly assistantTasks: FactoryAssistantTaskService,
+    private readonly profiles: FactoryProfileService
   ) {}
 
   supports(context: XpertResolvedViewHostContext) {
@@ -93,6 +97,7 @@ export class FactoryOperationsViewProvider implements IXpertViewExtensionProvide
     context: XpertResolvedViewHostContext,
     slot: string
   ): XpertExtensionViewManifest[] {
+    if (context.hostType === 'agent' && slot === AGENT_PROFILE_TABS_SLOT) return factoryProfileManifests()
     if (
       context.hostType !== 'agent' ||
       (slot !== AGENT_WORKBENCH_MAIN_SLOT && slot !== AGENT_WORKBENCH_FIXED_SLOT)
@@ -112,6 +117,7 @@ export class FactoryOperationsViewProvider implements IXpertViewExtensionProvide
     component: XpertRemoteComponentViewSchema['component']
   ): Promise<XpertRemoteComponentEntry> {
     const supported =
+      (isFactoryProfileView(viewKey) && component.entry === FACTORY_PROFILE_ENTRY) ||
       (viewKey === FACTORY_VIEW_KEY && component.entry === FACTORY_REMOTE_ENTRY_KEY) ||
       (viewKey === FACTORY_CASE_WORKSPACE_VIEW_KEY &&
         component.entry === FACTORY_CASE_WORKSPACE_REMOTE_ENTRY_KEY) ||
@@ -154,6 +160,7 @@ export class FactoryOperationsViewProvider implements IXpertViewExtensionProvide
     viewKey: string,
     query: XpertViewQuery
   ): Promise<FactoryWorkbenchData | FactoryDashboardData | XpertViewDataResult> {
+    if (isFactoryProfileView(viewKey)) return this.profiles.getData(context, viewKey, query)
     if (viewKey === FACTORY_DASHBOARD_VIEW_KEY) {
       return this.service.getManagementDashboard(scopeFromContext(context))
     }
@@ -210,6 +217,9 @@ export class FactoryOperationsViewProvider implements IXpertViewExtensionProvide
     actionKey: string,
     request: XpertViewActionRequest
   ): Promise<XpertViewActionResult> {
+    if (isFactoryProfileView(viewKey)) {
+      try { return await this.profiles.execute(context, actionKey, request) } catch (error) { return actionFailure(error) }
+    }
     if (viewKey !== FACTORY_VIEW_KEY && viewKey !== FACTORY_CASE_WORKSPACE_VIEW_KEY) {
       return failure('Unsupported Factory Operations View.')
     }

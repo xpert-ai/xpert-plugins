@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-factory-operations",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Independent-Assistant factory anomaly investigation, recovery approval, execution, verification, and management monitoring.",
   "author": "XpertAI",
   "license": "AGPL-3.0",

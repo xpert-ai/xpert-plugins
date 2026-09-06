@@ -45,3 +45,35 @@ corepack pnpm pack --dry-run
 ## 发布证据
 
 发布记录应附上：插件版本与校验和、Xpert 版本、蓝图验证结果、Assistant DSL 验证结果、测试摘要、安装日志、健康检查和回滚步骤。
+
+## Assistant Profile 与后台续跑（0.5.0）
+
+- 侧栏展开、折叠和聊天页头使用共享资料卡；原导航保持可用，资料入口不同时显示 Tooltip。
+- 350 ms 打开、300 ms 关闭延迟；跨间隙、iframe 焦点、触屏点击、键盘、Escape 焦点恢复、视口边缘、窄屏和深浅色均验收。
+- 基本资料、tabs 固定，内容独立滚动；扩展失败局部重试；已访问 tab 缓存 iframe，隐藏时暂停轮询，切回不立刻重复查询；切换 Assistant 或关闭时丢弃旧响应并释放缓存。
+- “待处理”只包含待审批、阻塞或失败的续跑，以及尚未被成功重试覆盖的执行失败；已被 `supersededByRecordId` 标记为替代的历史失败不得继续占用待处理列表。详情明确显示处理方式与权限要求，按钮、弹窗、标签和间距采用紧凑规格。
+- Feature 移除后不能读取或执行该 View；未声明 action 被宿主拒绝。
+- 同角色实例互不混淆；发布版本参与记录可识别；跨租户、跨组织、无 Project 权限不可读取或通过 selection 绕过。
+- owner / manager 可以审批，editor / member 与 Agent 工具不能审批；原 Workbench 入口使用同一规则。
+- 取消不产生动作，拒绝有原因；旧版本失败；重复请求保持相同 operation ID 和内容。
+- 审批及续跑意图同事务写入；入队失败、服务重建、检查点重放、权限撤销和外部模式阻塞均覆盖。
+- 真实验收使用独立模拟案件：批准后关闭卡片，核对后台验证 Assistant Task、业务 finalizer、最终状态和审计。平台 Task 成功但没有 finalizer 不得标记恢复。
+- 只从唯一 requester 历史回填协调者，歧义记录保留待修复；续跑使用案件协调者而非当前 Profile 的专业 Assistant。
+
+可选真实 PostgreSQL 集成测试（使用独立测试库，测试自行创建并释放独立 schema）：
+
+```bash
+FACTORY_PROFILE_TEST_ENV_FILE=/absolute/path/to/test.env corepack pnpm exec vitest run src/lib/factory-profile.postgres.spec.ts
+```
+
+`test.env` 使用 `DB_HOST`、`DB_PORT`、`DB_NAME`、`DB_USER`、`DB_PASS`。测试中的平台 Assistant Task 边界是替身；此结果不能替代真实 Task 验收。Profile 的浏览器测试使用 UI fixture，覆盖 opaque-origin iframe、确认/取消、失败重试、中英文、窄屏和关闭后停止轮询。
+
+### 本地验证记录（2026-09-03）
+
+- 0.5.0 已通过平台本地刷新流程安装，API 重启后运行时状态为 `loaded`。
+- 蓝图验证、后端与 Remote View typecheck、31 项单元/既有集成测试、8 项独立 PostgreSQL 测试、5 项浏览器测试、构建及生成资源一致性检查通过；生命周期 harness 可加载并正常关闭插件。
+- 在真实平台中新建独立模拟案件，由实际协调与专业 Assistant Tasks 形成方案；人在资料卡批准后立即关闭卡片，后台继续执行 12 项模拟确认并派发真实验证 Assistant Task，最终 Case 为 `recovered`、修订 10、续跑记录为 `completed`。
+- 审计依次记录人类批准并续跑、方案执行及 Agent 恢复验证；验证记录包含平台 Task、会话、线程、执行和协调者/执行者标识。
+- 故障注入的队列恢复、服务重建、权限撤销和外部模式阻塞使用独立数据库测试；不会据此宣称完成生产系统操作。
+
+当前版本依赖配套平台的 Profile contracts 与 Project access runtime capability。对外发布插件前，应先发布包含这些能力的 SDK/contracts，并更新插件的最低兼容版本。

@@ -98,6 +98,29 @@ Migrate independent runners first, then base runners before derived runners:
 - Live database checks remain credential-gated as recorded per plugin below;
   no endpoint or credential set was available in this workspace.
 
+## XMLA and SAP BW remediation
+
+The original adapter migration copied the complete runnable contents of
+`legacies/adapter/src/adapters/xmla.ts` and `sap-bw.ts`, but that was not enough
+to satisfy the `DBQueryRunner` contract: the legacy XMLA adapter itself threw
+for `getCatalogs()` and `getSchema()`. The protocol implementation then lived
+in `packages/xmla` (now maintained in `data-xpert/packages/ocap-xmla`) and was
+not represented at the plugin runner boundary.
+
+The remediation deliberately separates ownership:
+
+- `@xpert-ai/plugin-xmla` owns SOAP transport, Discover/Execute envelope
+  construction, typed rowset/fault parsing, catalog and cube discovery,
+  selected-cube dimension/measure columns, and tabular statement description.
+- `@xpert-ai/plugin-sap-bw` inherits the standard XMLA behavior and owns the
+  SAP-only `SAP_VARIABLES` rowset plus SAP BW measure data-type mapping.
+- `@xpert-ai/ocap-xmla` continues to own MDX query construction, semantic-model
+  composition, member navigation, caching, and multidimensional cellsets.
+
+This avoids copying the legacy `Xmla.ts` compatibility implementation (over
+7,000 lines and compiled with `ts-nocheck`) into a second repository while
+restoring the database capabilities that the host actually invokes.
+
 ## Validation log
 
 ### `@xpert-ai/plugin-clickhouse` 0.0.1
@@ -171,9 +194,11 @@ Migrate independent runners first, then base runners before derived runners:
 ### `@xpert-ai/plugin-xmla` 0.0.1
 
 - Nx build, typecheck, and lint: passed
-- Nx test: passed (7 tests)
-- Package dry run: passed
+- Nx test: passed (13 tests)
+- Package dry run: passed; package includes the protocol parser, runner,
+  strategy, module, declarations, README, and package metadata
 - Source escape-hatch scan: passed
+- Historical `MDSCHEMA_MEASURES` fixture replay: passed (13 fields, 5 rows)
 - `plugin-dev-harness`: passed plugin registration, Nest application boot,
   `onStart`, `onStop`, and application shutdown
 - Live XMLA request: not run because no XMLA endpoint or credentials are
@@ -182,7 +207,7 @@ Migrate independent runners first, then base runners before derived runners:
 ### `@xpert-ai/plugin-sap-bw` 0.0.1
 
 - Nx build, typecheck, and lint: passed
-- Nx test: passed (5 tests)
+- Nx test: passed (7 tests)
 - Package dry run: passed
 - Source escape-hatch scan: passed
 - `plugin-dev-harness`: passed plugin registration, Nest application boot,

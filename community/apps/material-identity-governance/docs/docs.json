@@ -1,0 +1,25 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "物料主数据智能治理",
+  "colors": {
+    "primary": "#2457A7",
+    "light": "#527BC1",
+    "dark": "#183D78"
+  },
+  "navigation": {
+    "groups": [
+      {
+        "group": "使用指南",
+        "pages": [
+          "index",
+          "setup",
+          "operations",
+          "pipeline-overview",
+          "assistant-profile",
+          "architecture"
+        ]
+      }
+    ]
+  }
+}

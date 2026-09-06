@@ -1,0 +1,14 @@
+---
+title: 部署与初始化
+description: 在本地 Xpert 与 DataXpert 中安装助理套件
+---
+
+需要包含本 App 配套改动的 xpert-pro 与 data-xpert。宿主需支持 Assistant Suite 初始化、ProjectAccess 与公开作用域化 Assistant runtime。组织配置可用的主模型。
+
+在宿主构建公开 SDK 后，在插件源码目录安装依赖，并运行 `scripts/use-platform-sdk.mjs --platform-root /path/to/xpert-pro`。该脚本检查公开能力，再绑定当前宿主构建的 SDK。
+
+执行 `pnpm verify:blueprint`、`pnpm typecheck`、`pnpm test`、`pnpm build`。在宿主通过官方 `plugin:deploy:local` 将插件按 tenant scope 安装，配置 `mode` 为 `mock`，`debug` 为 `false`。按部署输出提示重启确认过的本地 API。
+
+在 DataXpert 的插件详情点击初始化应用。套件初始化先发布七位角色，再创建协调者的直接 External Xpert 连线。显示已就绪后打开应用。已初始化的套件可通过校验助理套件恢复缺失的菜单注册。
+
+不要使用旧宿主的安装成功提示替代应用初始化验证。若 Project 未就绪，先校验套件，再在案例中重试项目同步。

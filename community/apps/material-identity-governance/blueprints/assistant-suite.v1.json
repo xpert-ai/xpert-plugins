@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "xpert-assistant-suite@1",
+  "key": "material-identity-suite-v1",
+  "plugin": {
+    "name": "@xpert-ai/plugin-material-identity-governance",
+    "version": "0.1.0"
+  },
+  "roles": [
+    {
+      "key": "intake",
+      "templateKey": "material-identity-intake",
+      "name": "material-identity-intake",
+      "title": "数据采集专员",
+      "primaryAgentKey": "Agent_intake"
+    },
+    {
+      "key": "engineering",
+      "templateKey": "material-identity-engineering",
+      "name": "material-identity-engineering",
+      "title": "研发图纸工程师",
+      "primaryAgentKey": "Agent_engineering"
+    },
+    {
+      "key": "standardization",
+      "templateKey": "material-identity-standardization",
+      "name": "material-identity-standardization",
+      "title": "物料标准化工程师",
+      "primaryAgentKey": "Agent_standardization"
+    },
+    {
+      "key": "quality",
+      "templateKey": "material-identity-quality",
+      "name": "material-identity-quality",
+      "title": "质量冲突审计员",
+      "primaryAgentKey": "Agent_quality"
+    },
+    {
+      "key": "impact",
+      "templateKey": "material-identity-impact",
+      "name": "material-identity-impact",
+      "title": "供应链影响分析师",
+      "primaryAgentKey": "Agent_impact"
+    },
+    {
+      "key": "governance",
+      "templateKey": "material-identity-governance",
+      "name": "material-identity-governance",
+      "title": "主数据治理专员",
+      "primaryAgentKey": "Agent_governance"
+    },
+    {
+      "key": "publisher",
+      "templateKey": "material-identity-publisher",
+      "name": "material-identity-publisher",
+      "title": "系统发布与监控专员",
+      "primaryAgentKey": "Agent_publisher"
+    }
+  ],
+  "orchestrator": {
+    "key": "coordinator",
+    "templateKey": "material-identity-coordinator",
+    "name": "material-identity-coordinator",
+    "title": "治理协调者",
+    "primaryAgentKey": "Agent_coordinator",
+    "externalRoleKeys": [
+      "intake",
+      "engineering",
+      "standardization",
+      "quality",
+      "impact",
+      "governance",
+      "publisher"
+    ]
+  }
+}

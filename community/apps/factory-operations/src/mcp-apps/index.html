@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Factory Operations</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main id="app" class="app-shell">
+    <header class="app-header">
+      <div>
+        <p id="eyebrow" class="eyebrow">Factory Operations</p>
+        <h1 id="title">Loading…</h1>
+        <p id="subtitle" class="subtitle"></p>
+      </div>
+      <button id="refresh" class="button" type="button">Refresh</button>
+    </header>
+    <div id="content" aria-live="polite"></div>
+    <p id="error" class="error" role="alert" hidden></p>
+  </main>
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>

@@ -10,7 +10,8 @@ const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)))
 const componentNames = [
   'factory-operations-center',
   'factory-case-workspace',
-  'factory-operations-dashboard'
+  'factory-operations-dashboard',
+  'factory-assistant-profile'
 ]
 const sharedSourceDir = join(
   packageRoot,

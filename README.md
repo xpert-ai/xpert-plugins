@@ -9,14 +9,16 @@ This is the source code repository for plugins on the [XpertAI platform](https:/
 
 ## Getting Started
 
-1. Clone the repository and enter the root directory.
+1. Clone the repository and enter the root directory. The repository root and
+   `xpertai/` are separate pnpm workspaces; official plugin commands run from
+   `xpertai/`.
 2. To view or participate in official plugin development:
-    - Enter `xpertai/` and run `npm install` to install dependencies.
-    - Use `npx nx graph` or `npx nx list` to explore current plugins and tasks.
+    - Enter `xpertai/` and run `corepack pnpm install` to install dependencies.
+    - Use `corepack pnpm exec nx graph` or `corepack pnpm exec nx list` to explore current plugins and tasks.
     - Common commands:
-      - `npx nx build <project>` to build a plugin.
-      - `npx nx test <project>` to run unit tests.
-      - `npx nx lint <project>` to perform code linting.
+      - `corepack pnpm exec nx build <project>` to build a plugin.
+      - `corepack pnpm exec nx test <project>` to run unit tests.
+      - `corepack pnpm exec nx lint <project>` to perform code linting.
 3. To create a new partner plugin:
     - Add a new `<your-org>/` (your company/organization’s English name) directory in the repository root.
     - Refer to the [official documentation](https://xpertai.cn/docs/plugin/) or the sample projects in `xpertai/` to initialize your project structure.

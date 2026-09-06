@@ -1,0 +1,195 @@
+[
+  {
+    "path": "team.name",
+    "type": "string",
+    "layer": "Assistant DSL",
+    "ui": "Assistant stable name",
+    "published": "Assistant name",
+    "source": "XpertDslDTO.name"
+  },
+  {
+    "path": "team.title",
+    "type": "string",
+    "layer": "Assistant DSL",
+    "ui": "Assistant title",
+    "published": "Assistant title",
+    "source": "XpertDslDTO.title"
+  },
+  {
+    "path": "team.description",
+    "type": "string",
+    "layer": "Assistant DSL",
+    "ui": "Assistant description",
+    "published": "Assistant description",
+    "source": "XpertDslDTO.description"
+  },
+  {
+    "path": "team.avatar",
+    "type": "TAvatar",
+    "layer": "Assistant DSL",
+    "ui": "Assistant avatar",
+    "published": "Assistant avatar",
+    "source": "XpertDslDTO.avatar"
+  },
+  {
+    "path": "team.features.opener.enabled",
+    "type": "boolean",
+    "layer": "Assistant DSL feature",
+    "ui": "功能 → 对话开场白 switch",
+    "published": "xpert.features.opener.enabled",
+    "source": "TXpertFeatures.opener.enabled"
+  },
+  {
+    "path": "team.features.opener.message",
+    "type": "string",
+    "layer": "Assistant DSL feature",
+    "ui": "功能 → 对话开场白 message",
+    "published": "xpert.features.opener.message",
+    "source": "TXpertFeatures.opener.message"
+  },
+  {
+    "path": "team.features.opener.questions",
+    "type": "string[]",
+    "layer": "Assistant DSL feature",
+    "ui": "功能 → 对话开场白 → 开场白问题",
+    "published": "xpert.features.opener.questions",
+    "source": "TXpertFeatures.opener.questions",
+    "notes": "Generate from the same source as contribution.startPrompts."
+  },
+  {
+    "path": "team.features.suggestion",
+    "type": "{ enabled, prompt }",
+    "layer": "Assistant DSL feature",
+    "ui": "功能 → 问题建议",
+    "published": "xpert.features.suggestion",
+    "source": "TXpertFeatures.suggestion"
+  },
+  {
+    "path": "team.features.attachment",
+    "type": "TXpertAttachment",
+    "layer": "Assistant DSL feature",
+    "ui": "功能 → 文件上传",
+    "published": "xpert.features.attachment",
+    "source": "TXpertFeatures.attachment"
+  },
+  {
+    "path": "team.features.memoryReply",
+    "type": "{ enabled, scoreThreshold? }",
+    "layer": "Assistant DSL feature",
+    "ui": "功能 → 记忆回复",
+    "published": "xpert.features.memoryReply",
+    "source": "TXpertFeatures.memoryReply"
+  },
+  {
+    "path": "team.features.title",
+    "type": "{ enabled, instruction? }",
+    "layer": "Assistant DSL feature",
+    "ui": "功能 → 总结标题",
+    "published": "xpert.features.title",
+    "source": "TXpertFeatures.title"
+  },
+  {
+    "path": "team.memory",
+    "type": "TLongTermMemory | null",
+    "layer": "Assistant DSL",
+    "ui": "长期记忆 configuration",
+    "published": "Assistant long-term memory",
+    "source": "XpertDslDTO.memory"
+  },
+  {
+    "path": "team.summarize",
+    "type": "TSummarize | null",
+    "layer": "Assistant DSL",
+    "ui": "Conversation summarization",
+    "published": "Assistant summarization",
+    "source": "XpertDslDTO.summarize"
+  },
+  {
+    "path": "team.copilotModel",
+    "type": "TCopilotModel | null",
+    "layer": "Assistant DSL",
+    "ui": "Primary model",
+    "published": "Assistant model binding",
+    "source": "CopilotModelDslDTO"
+  },
+  {
+    "path": "team.agentConfig",
+    "type": "TXpertAgentConfig",
+    "layer": "Assistant runtime",
+    "ui": "Advanced graph configuration",
+    "published": "LangGraph runtime config",
+    "source": "TXpertAgentConfig"
+  },
+  {
+    "path": "team.options",
+    "type": "TXpertOptions",
+    "layer": "Assistant DSL",
+    "ui": "Template, Workbench and canvas metadata",
+    "published": "Assistant options",
+    "source": "TXpertOptions"
+  },
+  {
+    "path": "team.agent.key",
+    "type": "string",
+    "layer": "Assistant DSL",
+    "ui": "Primary Agent",
+    "published": "Primary Agent reference",
+    "source": "XpertDslDTO.agent transform"
+  },
+  {
+    "path": "nodes[].entity.prompt",
+    "type": "string",
+    "layer": "Agent DSL",
+    "ui": "Agent prompt",
+    "published": "Agent prompt",
+    "source": "XpertAgentDslDTO.prompt"
+  },
+  {
+    "path": "nodes[].entity.parameters",
+    "type": "TXpertParameter[] | null",
+    "layer": "Agent DSL",
+    "ui": "Agent structured inputs",
+    "published": "Agent parameters",
+    "source": "XpertAgentDslDTO.parameters"
+  },
+  {
+    "path": "nodes[].entity.options",
+    "type": "TXpertAgentOptions | null",
+    "layer": "Agent runtime",
+    "ui": "Agent advanced settings",
+    "published": "Agent runtime options",
+    "source": "XpertAgentDslDTO.options"
+  },
+  {
+    "path": "nodes[].entity.leaderKey",
+    "type": "string | null",
+    "layer": "Agent graph",
+    "ui": "Parent Agent",
+    "published": "Agent hierarchy",
+    "source": "XpertAgentDslDTO.leaderKey"
+  },
+  {
+    "path": "connections[]",
+    "type": "TXpertTeamConnection[]",
+    "layer": "Graph",
+    "ui": "Visual/runtime graph edges",
+    "published": "Agent/workflow/knowledge connections",
+    "source": "TXpertTeamConnection"
+  },
+  {
+    "path": "contribution.startPrompts",
+    "type": "string[]",
+    "layer": "Plugin template contribution",
+    "ui": "Template/application common questions",
+    "published": "Not automatically merged into team.features",
+    "source": "XpertTemplateContribution.startPrompts"
+  },
+  {
+    "path": "contribution.targetAppMeta",
+    "type": "PluginTargetAppMeta | null",
+    "layer": "Plugin template contribution",
+    "ui": "Target application catalog",
+    "published": "Installer capability/dependency metadata",
+    "source": "XpertTemplateContribution.targetAppMeta"
+  }
+]

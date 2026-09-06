@@ -1,0 +1,30 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "types": [
+      "react",
+      "react-dom"
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "@xpert-ai/plugin-shadcn-ui": [
+        "../../../packages/shadcn-ui/dist/index.d.ts"
+      ],
+      "@xpert-ai/plugin-shadcn-ui/theme": [
+        "../../../packages/shadcn-ui/dist/theme.d.ts"
+      ]
+    }
+  },
+  "include": [
+    "src/lib/remote-components/**/*.ts",
+    "src/lib/remote-components/**/*.tsx"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules"
+  ]
+}

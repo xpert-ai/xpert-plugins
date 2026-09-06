@@ -23,13 +23,14 @@ interface RemoteMessage extends RemoteResponse {
   locale?: string
   theme?: RemoteValue
   debug?: RemoteValue
+  active?: boolean
 }
 
 type RemoteWindow = Window & { XpertRemoteUI?: { applyTheme?: (theme: RemoteValue) => void } }
 
 let instanceId: string | null = null
 let sequence = 0
-const pending = new Map<string, { resolve: (value: RemoteResponse) => void; reject: (error: Error) => void }>()
+const pending = new Map<string, { resolve: (value: RemoteResponse) => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> }>()
 
 export function isObject(value: unknown): value is RemoteObject {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value))
@@ -37,11 +38,12 @@ export function isObject(value: unknown): value is RemoteObject {
 
 export function startBridge(
   onInit: (context: HostContext) => void,
-  onHostEvent: (event: RemoteValue) => void
+  onHostEvent: (event: RemoteValue) => void,
+  onActiveChange?: (active: boolean) => void
 ) {
   let context: HostContext = {}
   const listener = (event: MessageEvent) => {
-    if (!isObject(event.data)) return
+    if (event.source !== window.parent || !isObject(event.data)) return
     const message = event.data as RemoteMessage
     if (message.channel !== CHANNEL || message.protocolVersion !== VERSION) return
     if (message.type === 'init') {
@@ -53,15 +55,22 @@ export function startBridge(
         initialQuery: isObject(message.initialQuery) ? message.initialQuery : {},
         locale: message.locale,
         theme: message.theme,
-        debug: message.debug
+        debug: message.debug,
+        active: message.active !== false
       }
       applyTheme(message.theme)
       onInit(context)
+      onActiveChange?.(context.active !== false)
       debug('bridge.init', { locale: context.locale ?? '', hasTheme: message.theme !== undefined })
       setTimeout(reportResize, 0)
       return
     }
     if (message.instanceId !== instanceId) return
+    if (message.type === 'viewActive') {
+      context = { ...context, active: message.active !== false }
+      onActiveChange?.(context.active !== false)
+      return
+    }
     if (message.type === 'theme' || message.type === 'themeChanged' || message.type === 'hostTheme') {
       context = { ...context, theme: message.theme ?? message.payload ?? message.data }
       applyTheme(context.theme)
@@ -77,13 +86,18 @@ export function startBridge(
       const request = pending.get(key)
       if (!request) return
       pending.delete(key)
+      clearTimeout(request.timer)
       if (message.type === 'error') request.reject(new Error(message.message ?? 'Remote request failed.'))
       else request.resolve(message)
     }
   }
   window.addEventListener('message', listener)
   post('ready')
-  return () => window.removeEventListener('message', listener)
+  return () => {
+    window.removeEventListener('message', listener)
+    for (const request of pending.values()) { clearTimeout(request.timer); request.reject(new Error('Remote view disposed.')) }
+    pending.clear()
+  }
 }
 
 function post(type: string, body: RemoteObject = {}) {
@@ -94,13 +108,13 @@ function post(type: string, body: RemoteObject = {}) {
 function request(type: string, body: RemoteObject = {}, timeoutMs = 30_000) {
   const requestId = String(++sequence)
   return new Promise<RemoteResponse>((resolve, reject) => {
-    pending.set(requestId, { resolve, reject })
-    post(type, { requestId, ...body })
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       if (!pending.has(requestId)) return
       pending.delete(requestId)
       reject(new Error('Remote request timed out.'))
     }, timeoutMs)
+    pending.set(requestId, { resolve, reject, timer })
+    post(type, { requestId, ...body })
   })
 }
 
@@ -156,4 +170,3 @@ function localizedMessage(value: RemoteValue) {
 function applyTheme(theme: RemoteValue) {
   ;(window as RemoteWindow).XpertRemoteUI?.applyTheme?.(theme)
 }
-

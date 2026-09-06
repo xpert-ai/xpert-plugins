@@ -1,0 +1,3 @@
+# Host contract review · 2026-09-05
+
+The installed DSL skill snapshot predates the host's optional `team.options.modelSelection` field. The current source adds allowedModels without changing the imported/exported fields used by these templates. All four authoritative contract files were reviewed; a project-local manifest records their current SHA-256 values. No modelSelection is emitted by this App. The inherited schema already permits application options and therefore needs no field relaxation. Template tests validate canonical metadata, middleware ownership, feature activation, and isolated primary Agents. Installed and published entities must additionally be checked during acceptance.

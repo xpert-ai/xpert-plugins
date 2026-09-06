@@ -27,7 +27,8 @@
           "product/processes/factory-anomaly-recovery",
           "product/views/multi-agent-swimlane",
           "product/views/factory-case-workspace",
-          "product/views/management-dashboard"
+          "product/views/management-dashboard",
+          "product/views/assistant-profile"
         ]
       },
       {

@@ -13,7 +13,7 @@ import {
   type RuntimeCapabilityRegistry
 } from '@xpert-ai/plugin-sdk'
 import { createHash } from 'node:crypto'
-import { IsNull, type FindOptionsWhere, type Repository } from 'typeorm'
+import { In, IsNull, type FindOptionsWhere, type Repository } from 'typeorm'
 import {
   AGENT_KEYS,
   FACTORY_ASSISTANT_TASK_JOB,
@@ -177,7 +177,8 @@ export class FactoryAssistantTaskService {
       where: executionWhere(scope, { operationId: payload.operationId })
     })
     if (!record) throw new Error('factory_execution_attempt_missing')
-    if (record.status !== 'queued') return
+    if (!['queued', 'running'].includes(record.status)) return
+    if (record.status === 'running' && record.assistantTaskId) return
     const entity = await this.requireCase(scope, payload.caseId)
     assertProjectReady(entity)
     if (entity.workspaceProjectId !== record.workspaceProjectId) {
@@ -189,7 +190,7 @@ export class FactoryAssistantTaskService {
     }
     const target = requireAssistantNode(entity, payload.nodeKey)
     const claimed = await this.executions.update(
-      { id: record.id, status: 'queued' },
+      { id: record.id, status: record.status },
       { status: 'running', safeSummary: 'Assistant Task is starting in the Case Project.' }
     )
     if (claimed.affected !== 1) return
@@ -241,12 +242,6 @@ export class FactoryAssistantTaskService {
         }
       })
       await this.executions.update(record.id, {
-        status: result.status === 'failed' || result.status === 'interrupted'
-          ? result.status
-          : 'running',
-        safeSummary: result.status === 'failed'
-          ? 'Assistant Task failed before the business finalizer completed.'
-          : 'Assistant Task started; waiting for the role finalizer.',
         assistantTaskId: result.taskId ?? null,
         conversationId: result.conversationId ?? null,
         threadId: result.threadId ?? null,
@@ -255,10 +250,13 @@ export class FactoryAssistantTaskService {
         executorAgentKey: result.executorAgentKey ?? null,
         executorAssistantTemplateKey: result.executorAssistantTemplateKey ?? null,
         executorAssistantTitle: result.executorAssistantTitle ?? null,
-        executorPublishedVersion: result.executorPublishedVersion ?? null,
-        finishedAt: result.status === 'failed' || result.status === 'interrupted'
-          ? new Date()
-          : null
+        executorPublishedVersion: result.executorPublishedVersion ?? null
+      })
+      // A fast business finalizer may finish before startTask returns its runtime metadata.
+      await this.executions.update({ id: record.id, status: In(['queued', 'running']) }, {
+        status: result.status === 'failed' || result.status === 'interrupted' ? result.status : 'running',
+        safeSummary: 'Assistant Task started; waiting for the role finalizer.',
+        finishedAt: result.status === 'failed' || result.status === 'interrupted' ? new Date() : null
       })
     } catch (error) {
       throw error
@@ -364,7 +362,7 @@ export class FactoryAssistantTaskService {
       })
       if (!status || status.status === 'unknown') continue
       if (status.status === 'succeeded') {
-        await this.executions.update(record.id, {
+        await this.executions.update({ id: record.id, status: In(['queued', 'running']) }, {
           status: 'interrupted',
           safeSummary: 'Assistant finished without the required business finalizer; retry is allowed.',
           finishedAt: new Date()
