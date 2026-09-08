@@ -46,12 +46,15 @@ export function injectStyles() {
     .oe-format-trigger { width: 92px; min-width: 92px; }
     .oe-textarea { min-height: 100px; resize: vertical; }
     .oe-list { min-height: 0; overflow: auto; padding: 8px; display: grid; align-content: start; gap: 6px; }
-    .oe-doc-button { width: 100%; min-height: 58px; text-align: left; border: 1px solid transparent; border-radius: calc(var(--oe-radius) - 1px); background: transparent; color: var(--oe-text); padding: 8px; cursor: pointer; transition: background-color 120ms ease, border-color 120ms ease; }
-    .oe-doc-button:hover { background: var(--oe-muted-bg); }
-    .oe-doc-button.is-active { border-color: color-mix(in srgb, var(--oe-primary) 72%, var(--oe-border)); background: color-mix(in srgb, var(--oe-primary) 14%, var(--oe-panel)); }
+    .oe-doc-row { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) 32px; align-items: center; gap: 2px; border: 1px solid transparent; border-radius: calc(var(--oe-radius) - 1px); transition: background-color 120ms ease, border-color 120ms ease; }
+    .oe-doc-row:hover { background: var(--oe-muted-bg); }
+    .oe-doc-row.is-active { border-color: color-mix(in srgb, var(--oe-primary) 72%, var(--oe-border)); background: color-mix(in srgb, var(--oe-primary) 14%, var(--oe-panel)); }
+    .oe-doc-button { min-width: 0; min-height: 58px; text-align: left; border: 0; border-radius: calc(var(--oe-radius) - 1px); background: transparent; color: var(--oe-text); padding: 8px; cursor: pointer; }
     .oe-doc-button strong, .oe-doc-button span { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .oe-doc-button strong { font-size: 13px; line-height: 18px; }
     .oe-doc-button span { color: var(--oe-muted); font-size: 12px; line-height: 16px; }
+    .oe-doc-delete { width: 28px; height: 28px; padding: 0; opacity: 0; color: var(--oe-danger); }
+    .oe-doc-row:hover .oe-doc-delete, .oe-doc-row:focus-within .oe-doc-delete, .oe-doc-row.is-active .oe-doc-delete { opacity: 1; }
     .oe-main { min-width: 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); }
     .oe-toolbar { min-height: 56px; background: var(--oe-panel); border-bottom: 1px solid var(--oe-border); display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; }
     .oe-toolbar-title { min-width: 0; }

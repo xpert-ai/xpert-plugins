@@ -93,6 +93,42 @@ describe('OfficeEditorService', () => {
     expect(visible.items.map((item: any) => item.id)).toEqual([created.document.id])
   })
 
+  it('keeps workbench list and history payloads free of duplicated collaboration state', async () => {
+    const created = await service.createDocument(testScope(), {
+      documentType: 'presentation',
+      title: 'Large presentation',
+      initialSnapshot: {
+        id: 'deck-1',
+        body: {
+          pageOrder: ['slide-1'],
+          pages: {
+            'slide-1': {
+              id: 'slide-1',
+              pageElements: {
+                image: { src: `data:image/png;base64,${'a'.repeat(20_000)}` }
+              }
+            }
+          }
+        }
+      }
+    })
+
+    const list = await service.getWorkbenchData(testScope(), { page: 1, pageSize: 20 })
+    expect(list.items[0]).toEqual(expect.objectContaining({
+      id: created.document.id,
+      title: 'Large presentation'
+    }))
+    expect(list.items[0]).not.toHaveProperty('yjsStateBase64')
+    expect(list.items[0]).not.toHaveProperty('yjsStateVectorBase64')
+
+    const detail = await service.getWorkbenchData(testScope(), { documentId: created.document.id })
+    expect(detail.currentSnapshot?.snapshot).toEqual(created.snapshot.snapshot)
+    expect(detail.item).not.toHaveProperty('yjsStateBase64')
+    expect(detail.currentSnapshot).not.toHaveProperty('yjsStateBase64')
+    expect(detail.snapshots[0]).not.toHaveProperty('snapshot')
+    expect(detail.snapshots[0]).not.toHaveProperty('yjsStateBase64')
+  })
+
   it('isolates personal Xpert documents by user', async () => {
     await service.createDocument(personalScope('user-1'), {
       documentType: 'document',

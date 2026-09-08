@@ -53,6 +53,14 @@ import '@univerjs/slides-ui/lib/index.css'
 import { io, type Socket } from 'socket.io-client'
 import * as Y from 'yjs'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   Badge,
   Button,
   Download,
@@ -150,6 +158,7 @@ function App() {
   const [busy, setBusy] = React.useState(false)
   const [dirty, setDirty] = React.useState(false)
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
+  const [deleteTarget, setDeleteTarget] = React.useState<DocumentRecord | null>(null)
   const [collabState, setCollabState] = React.useState<'connecting' | 'connected' | 'disconnected'>('disconnected')
   const [assistantInstruction, setAssistantInstruction] = React.useState('')
   const selectedIdRef = React.useRef('')
@@ -159,7 +168,8 @@ function App() {
   const ydocRef = React.useRef<Y.Doc | null>(null)
   const socketRef = React.useRef<Socket | null>(null)
   const collaborationClientRef = React.useRef<CollaborationClient | null>(null)
-  const openingDocumentsRef = React.useRef(new Map<string, Promise<void>>())
+  const openingDocumentRef = React.useRef<{ documentId: string; promise: Promise<void> } | null>(null)
+  const openRequestSequenceRef = React.useRef(0)
   const clientIdRef = React.useRef(`office-editor-${Math.random().toString(36).slice(2)}`)
   const applyingOperationsRef = React.useRef(false)
   const t = createTranslator(context?.locale)
@@ -184,8 +194,11 @@ function App() {
     startRemoteBridge(
       (nextContext) => {
         setContext(nextContext)
-        hydratePayload(nextContext.payload || null)
-        setTimeout(() => reloadList(), 0)
+        const payload = nextContext.payload || null
+        hydratePayload(payload)
+        if (!payload?.item && !Array.isArray(payload?.items) && !Array.isArray(payload?.table?.items)) {
+          setTimeout(() => reloadList(), 0)
+        }
       },
       () => {
         void reloadAfterHostEvent()
@@ -206,9 +219,6 @@ function App() {
     }
     if (Array.isArray(payload.items)) {
       setDocuments(payload.items)
-      if (!selectedIdRef.current && payload.items[0]?.id) {
-        void openDocument(payload.items[0].id)
-      }
       return
     }
     if (payload.item) {
@@ -244,47 +254,48 @@ function App() {
     const payload = getResponsePayload(response)
     const items = Array.isArray(payload?.items) ? payload.items : Array.isArray(payload?.table?.items) ? payload.table.items : []
     setDocuments(items)
-    if (!selectedIdRef.current && items[0]?.id) {
-      await openDocument(items[0].id)
-    }
     return items
   }
 
-  async function openDocument(documentId: string) {
+  function openDocument(documentId: string): Promise<void> {
     if (!documentId) {
-      return
+      return Promise.resolve()
     }
-    const pending = openingDocumentsRef.current.get(documentId)
-    if (pending) {
-      await pending
-      return
+    if (selectedIdRef.current !== documentId) {
+      selectedIdRef.current = documentId
+      setSelectedId(documentId)
+      detailRef.current = null
+      setDetail(null)
+      setDirty(false)
+      closeSocket()
+      setCollabState('disconnected')
     }
-    const request = (async () => {
+    if (openingDocumentRef.current?.documentId === documentId) {
+      return openingDocumentRef.current.promise
+    }
+    const requestSequence = ++openRequestSequenceRef.current
+    const promise = (async () => {
       try {
         const response = await executeAction('open_document', documentId, { documentId }, { documentId })
         const payload = getSuccessfulActionData(response, context?.locale)
-        applyDetailPayload(payload)
+        if (requestSequence === openRequestSequenceRef.current && selectedIdRef.current === documentId) {
+          applyDetailPayload(payload)
+        }
       } catch (error) {
-        notify('error', getErrorMessage(error))
-      } finally {
-        if (openingDocumentsRef.current.get(documentId) === request) {
-          openingDocumentsRef.current.delete(documentId)
+        if (requestSequence === openRequestSequenceRef.current && selectedIdRef.current === documentId) {
+          notify('error', getErrorMessage(error))
         }
       }
     })()
-    openingDocumentsRef.current.set(documentId, request)
-    await request
+    const request = { documentId, promise }
+    openingDocumentRef.current = request
+    void promise.finally(() => {
+      if (openingDocumentRef.current === request) {
+        openingDocumentRef.current = null
+      }
+    })
+    return promise
   }
-
-  function closeOpeningDocumentRequests() {
-    openingDocumentsRef.current.clear()
-  }
-
-  React.useEffect(() => {
-    return () => {
-      closeOpeningDocumentRequests()
-    }
-  }, [])
 
   async function createDocument() {
     const title = `${typeLabel(documentType, t)} ${new Date().toISOString().slice(0, 10)}`
@@ -387,18 +398,26 @@ function App() {
     })
   }
 
-  async function deleteDocument() {
-    if (!selectedId) {
+  async function deleteDocument(documentId: string) {
+    if (!documentId) {
       return
     }
     await runBusy(async () => {
-      const response = await executeAction('delete_document', selectedId, { documentId: selectedId }, { documentId: selectedId })
+      const response = await executeAction('delete_document', documentId, { documentId }, { documentId })
       requireSuccessfulActionResult(response, context?.locale)
-      selectedIdRef.current = ''
-      setSelectedId('')
-      setDetail(null)
-      closeSocket()
+      if (selectedIdRef.current === documentId) {
+        openRequestSequenceRef.current += 1
+        openingDocumentRef.current = null
+        selectedIdRef.current = ''
+        setSelectedId('')
+        detailRef.current = null
+        setDetail(null)
+        closeSocket()
+        setCollabState('disconnected')
+      }
       await reloadList()
+      setDeleteTarget(null)
+      notify('success', t('deleted'))
     })
   }
 
@@ -547,11 +566,12 @@ function App() {
     return uint8ArrayToBase64(Y.encodeStateAsUpdate(ydocRef.current))
   }
 
-  const currentTitle = detail?.item?.title || (selectedId ? t('untitled') : t('noDocument'))
+  const selectedDocument = documents.find((item) => item.id === selectedId)
+  const currentTitle = detail?.item?.title || selectedDocument?.title || (selectedId ? t('untitled') : t('noDocument'))
   const currentMeta = [
-    detail?.item?.documentType ? typeLabel(detail.item.documentType, t) : '',
-    detail?.item?.currentVersionNumber ? `v${detail.item.currentVersionNumber}` : '',
-    formatDate(detail?.item?.updatedAt)
+    detail?.item?.documentType || selectedDocument?.documentType ? typeLabel(detail?.item?.documentType || selectedDocument?.documentType, t) : '',
+    detail?.item?.currentVersionNumber || selectedDocument?.currentVersionNumber ? `v${detail?.item?.currentVersionNumber || selectedDocument?.currentVersionNumber}` : '',
+    formatDate(detail?.item?.updatedAt || selectedDocument?.updatedAt)
   ].filter(Boolean).join(' · ')
   const operations = detail?.operations || []
   const snapshots = detail?.snapshots || []
@@ -611,15 +631,27 @@ function App() {
             {documents.map((item) => {
               const active = item.id === selectedId
               return (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={`oe-doc-button ${active ? 'is-active' : ''}`}
-                  onClick={() => openDocument(item.id)}
-                >
-                  <strong>{item.title || t('untitled')}</strong>
-                  <span>{typeLabel(item.documentType, t)} · v{item.currentVersionNumber || 0} · {formatDate(item.updatedAt)}</span>
-                </button>
+                <div key={item.id} className={`oe-doc-row ${active ? 'is-active' : ''}`}>
+                  <button
+                    type="button"
+                    className="oe-doc-button"
+                    onClick={() => openDocument(item.id)}
+                  >
+                    <strong>{item.title || t('untitled')}</strong>
+                    <span>{typeLabel(item.documentType, t)} · v{item.currentVersionNumber || 0} · {formatDate(item.updatedAt)}</span>
+                  </button>
+                  <Button
+                    className="oe-doc-delete"
+                    variant="ghost"
+                    size="icon"
+                    title={`${t('delete')} ${item.title || t('untitled')}`}
+                    aria-label={`${t('delete')} ${item.title || t('untitled')}`}
+                    disabled={busy}
+                    onClick={() => setDeleteTarget(item)}
+                  >
+                    <Trash2 className="oe-icon" aria-hidden="true" />
+                  </Button>
+                </div>
               )
             })}
           </div>
@@ -662,7 +694,7 @@ function App() {
               <Save className="oe-icon" aria-hidden="true" />
               {t('save')}
             </Button>
-            <Button variant="destructive" size="icon" title={t('delete')} disabled={!selectedId || busy} onClick={deleteDocument}>
+            <Button variant="destructive" size="icon" title={t('delete')} disabled={!selectedId || busy} onClick={() => setDeleteTarget(selectedDocument || { id: selectedId, title: currentTitle })}>
               <Trash2 className="oe-icon" aria-hidden="true" />
             </Button>
           </div>
@@ -739,6 +771,37 @@ function App() {
           </section>
         </div>
       </aside>
+      <AlertDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open && !busy) {
+            setDeleteTarget(null)
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('delete')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('deleteConfirm').replace('{title}', deleteTarget?.title || t('untitled'))}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>{t('cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={busy || !deleteTarget?.id}
+              onClick={() => {
+                if (deleteTarget?.id) {
+                  void deleteDocument(deleteTarget.id)
+                }
+              }}
+            >
+              {t('delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -886,14 +886,32 @@ export class OfficeEditorService {
     }
     const [items, total] = await this.documentRepository.findAndCount({
       where,
+      select: {
+        id: true,
+        documentType: true,
+        title: true,
+        description: true,
+        status: true,
+        currentSnapshotId: true,
+        currentVersionNumber: true,
+        fileName: true,
+        mimeType: true,
+        size: true,
+        currentFileVersionId: true,
+        currentFileVersionNumber: true,
+        collaborationSequence: true,
+        lastEditedAt: true,
+        createdAt: true,
+        updatedAt: true
+      },
       order: { updatedAt: 'DESC' },
       skip: (page - 1) * pageSize,
       take: pageSize
     })
     const normalizedSearch = normalizeOptional(query.search)?.toLowerCase()
-    const filteredItems = normalizedSearch
+    const filteredItems = (normalizedSearch
       ? items.filter((item) => item.title?.toLowerCase().includes(normalizedSearch))
-      : items
+      : items).map(toDocumentSummary)
 
     return {
       tableKey: 'documents',
@@ -1034,9 +1052,26 @@ export class OfficeEditorService {
 
   private async getDocumentDetail(scope: OfficeScope, documentId: string) {
     const document = await this.requireDocument(scope, documentId)
-    const [snapshots, operations, fileVersions] = await Promise.all([
+    const [currentSnapshot, snapshots, operations, fileVersions] = await Promise.all([
+      this.snapshotRepository.findOne({
+        where: scopedWhere(scope, document.currentSnapshotId
+          ? { id: document.currentSnapshotId, documentId }
+          : { documentId }),
+        order: { versionNumber: 'DESC' }
+      }),
       this.snapshotRepository.find({
         where: scopedWhere(scope, { documentId }),
+        select: {
+          id: true,
+          documentId: true,
+          versionNumber: true,
+          source: true,
+          yjsUpdateCount: true,
+          changeSummary: true,
+          operationId: true,
+          createdById: true,
+          createdAt: true
+        },
         order: { versionNumber: 'DESC' },
         take: 20
       }),
@@ -1051,15 +1086,11 @@ export class OfficeEditorService {
         take: 20
       })
     ])
-    const currentSnapshot =
-      snapshots.find((snapshot) => snapshot.id === document.currentSnapshotId) ??
-      snapshots[0] ??
-      null
 
     return {
-      item: document,
-      currentSnapshot,
-      snapshots,
+      item: toDocumentSummary(document),
+      currentSnapshot: currentSnapshot ? toCurrentSnapshot(currentSnapshot) : null,
+      snapshots: snapshots.map(toSnapshotSummary),
       operations,
       fileVersions
     }
@@ -1711,6 +1742,49 @@ function normalizePathSegment(value: string) {
     throw new BadRequestException('Invalid Office document path segment.')
   }
   return normalized
+}
+
+function toDocumentSummary(document: OfficeDocument) {
+  return {
+    id: document.id,
+    documentType: document.documentType,
+    title: document.title,
+    description: document.description,
+    status: document.status,
+    currentSnapshotId: document.currentSnapshotId,
+    currentVersionNumber: document.currentVersionNumber,
+    fileName: document.fileName,
+    mimeType: document.mimeType,
+    size: document.size,
+    currentFileVersionId: document.currentFileVersionId,
+    currentFileVersionNumber: document.currentFileVersionNumber,
+    collaborationSequence: document.collaborationSequence,
+    lastEditedAt: document.lastEditedAt,
+    createdAt: document.createdAt,
+    updatedAt: document.updatedAt
+  }
+}
+
+function toCurrentSnapshot(snapshot: OfficeSnapshot) {
+  return {
+    ...toSnapshotSummary(snapshot),
+    snapshot: snapshot.snapshot,
+    snapshotText: snapshot.snapshotText
+  }
+}
+
+function toSnapshotSummary(snapshot: OfficeSnapshot) {
+  return {
+    id: snapshot.id,
+    documentId: snapshot.documentId,
+    versionNumber: snapshot.versionNumber,
+    source: snapshot.source,
+    yjsUpdateCount: snapshot.yjsUpdateCount,
+    changeSummary: snapshot.changeSummary,
+    operationId: snapshot.operationId,
+    createdById: snapshot.createdById,
+    createdAt: snapshot.createdAt
+  }
 }
 
 function createDefaultSnapshot(documentType: OfficeDocumentType, title: string) {
