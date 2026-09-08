@@ -24,13 +24,15 @@ export interface TongyiModelCredentials extends CommonChatModelParameters {
     streaming?: boolean
     top_p?: number
     max_tokens?: number
+    max_completion_tokens?: number
     frequency_penalty?: number
     enable_thinking?: boolean
     thinking_budget?: number
     reasoning_effort?: 'low' | 'medium' | 'xhigh'
     tool_stream?: boolean
     enable_search?: boolean
-    response_format?: 'text' | 'json_object'
+    response_format?: 'text' | 'json_object' | 'json_schema'
+    json_schema?: string | object
     extra_headers?: string
 }
 

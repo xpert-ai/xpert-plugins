@@ -71,6 +71,7 @@ describe('getTongyiPricingContext', () => {
 
 describe('applyTongyiExplicitCache', () => {
   it.each([
+    'qwen3.8-flash',
     'qwen3.8-max',
     'qwen3.7-max',
     'qwen3.7-flash',
@@ -229,6 +230,62 @@ describe('Tongyi China-region explicit-cache pricing', () => {
         expect.objectContaining({ component: 'cache_write_input', pricingStatus: 'priced' }),
         expect.objectContaining({ component: 'output', pricingStatus: 'priced' })
       ])
+    )
+  })
+})
+
+describe('Tongyi Qwen3.8 Flash catalog', () => {
+  const manager = new TongyiLargeLanguageModel(new TongyiProviderStrategy())
+  const model = manager.predefinedModels().find((candidate) => candidate.model === 'qwen3.8-flash')
+
+  it('forwards output limits, thinking controls and a complete JSON Schema', () => {
+    const schema = { name: 'answer', schema: { type: 'object', properties: { answer: { type: 'string' } } } }
+    const chat = manager.getChatModel(createCopilotModel('qwen3.8-flash', {
+      max_completion_tokens: 32768, enable_thinking: true, thinking_budget: 4096,
+      response_format: 'json_schema', json_schema: JSON.stringify(schema)
+    }))
+    expect(chat.maxTokens).toBe(32768)
+    expect(chat.modelKwargs).toEqual(expect.objectContaining({
+      enable_thinking: true, thinking_budget: 4096,
+      response_format: { type: 'json_schema', json_schema: schema }
+    }))
+  })
+
+  it('rejects an invalid structured-output schema before calling the provider', () => {
+    expect(() => manager.getChatModel(createCopilotModel('qwen3.8-flash', {
+      response_format: 'json_schema', json_schema: '[]'
+    }))).toThrow('JSON Schema must be an object')
+  })
+
+  it('preserves legacy output limits and JSON object mode', () => {
+    const chat = manager.getChatModel(createCopilotModel('qwen-plus', {
+      max_tokens: 2048, response_format: 'json_object'
+    }))
+    expect(chat.maxTokens).toBe(2048)
+    expect(chat.modelKwargs?.response_format).toEqual({ type: 'json_object' })
+  })
+
+  it('loads multimodal capabilities and the Dify output and thinking limits', () => {
+    expect(model?.features).toEqual(expect.arrayContaining(['vision', 'video', 'structured-output', 'multi-tool-call']))
+    expect(model?.model_properties?.context_size).toBe(1000000)
+    expect(model?.parameter_rules).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'max_completion_tokens', max: 131072 }),
+      expect.objectContaining({ name: 'enable_thinking', default: false }),
+      expect.objectContaining({ name: 'thinking_budget', max: 262144 }),
+      expect.objectContaining({ name: 'response_format', options: ['text', 'json_object', 'json_schema'] })
+    ]))
+  })
+
+  it.each([
+    { region: 'cn', prices: [0.8, 2.7, 0.1, 1.25] },
+    { region: 'international', prices: [1.094, 3.427, 0.117, 1.458] }
+  ])('preserves official prices including non-proportional cache rates in $region', ({ region, prices }) => {
+    const rules = model?.pricing && 'rules' in model.pricing ? model.pricing.rules ?? [] : []
+    const components = ['input', 'output', 'cache_read_input', 'cache_write_input']
+    expect(rules.filter((rule) => rule.region === region)).toEqual(
+      components.map((component, index) => expect.objectContaining({
+        component, region, unit_price: prices[index], unit_size: 1000000
+      }))
     )
   })
 })
