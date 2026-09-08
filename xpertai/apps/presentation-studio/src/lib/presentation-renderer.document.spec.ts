@@ -1,4 +1,8 @@
-import { preparePresentationHtmlForExport, sanitizePresentationEditorText } from './presentation-renderer.service.js'
+import {
+  preparePresentationHtmlForExport,
+  sanitizePresentationEditorText,
+  sanitizePresentationSlideProps
+} from './presentation-renderer.service.js'
 
 describe('Presentation renderer document modes', () => {
   it('locks distributed HTML to presentation mode without editor chrome', () => {
@@ -15,5 +19,13 @@ describe('Presentation renderer document modes', () => {
     expect(sanitizePresentationEditorText({ title: '<span>Annual &amp; Review</span><br>2026', note: 'plain text' })).toEqual({
       title: 'Annual & Review\n2026', note: 'plain text'
     })
+  })
+
+  it('removes Studio-only metadata before validating strict layout props', () => {
+    expect(sanitizePresentationSlideProps({
+      title: 'Technology timeline',
+      __studioElementPositions: { 'element:theme13-024:p0-1': { x: 12, y: 16 } },
+      __studioFutureMetadata: { selected: true }
+    })).toEqual({ title: 'Technology timeline' })
   })
 })

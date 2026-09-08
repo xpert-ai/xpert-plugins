@@ -4,6 +4,7 @@ import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { classifyExportError } from './errors.mjs'
+import { sandboxChildEnvironment } from './environment.mjs'
 
 const actionRoot = path.dirname(fileURLToPath(import.meta.url))
 const projectRoot = path.join(actionRoot, 'project')
@@ -23,6 +24,7 @@ async function main() {
   await mkdir(outputDir, { recursive: true })
   const workRoot = await mkdtemp(path.join(outputDir, '.presentation-action-'))
   try {
+    const childEnvironment = sandboxChildEnvironment(workRoot)
     const deckDir = path.join(workRoot, 'deck')
     const pptDir = path.join(deckDir, 'ppt')
     await mkdir(pptDir, { recursive: true })
@@ -36,7 +38,12 @@ async function main() {
     const indexPath = path.join(pptDir, 'index.html')
     await writeFile(goalPath, `${JSON.stringify(request.payload.goal, null, 2)}\n`)
     emitProgress('deck.render.started', request.payload.kind)
-    await execute(process.execPath, [path.join(projectRoot, 'scripts/render-goal-deck.action.mjs'), goalPath, indexPath], workRoot)
+    await execute(
+      process.execPath,
+      [path.join(projectRoot, 'scripts/render-goal-deck.action.mjs'), goalPath, indexPath],
+      workRoot,
+      childEnvironment
+    )
     emitProgress('deck.render.completed', request.payload.kind)
     const outputPath = path.join(outputDir, `presentation.${request.payload.kind}`)
     const reportPath = path.join(outputDir, 'report.json')
@@ -51,12 +58,7 @@ async function main() {
     ]
     if (request.payload.kind === 'pdf') args.push('--pdf')
     emitProgress('document.export.started', request.payload.kind)
-    await execute(process.execPath, args, workRoot, {
-      INIT_CWD: workRoot,
-      DASHI_PPT_THEME_RUNTIME: 'prebuilt',
-      DASHI_PPT_CERT_DIR: path.join(workRoot, '.https-preview'),
-      HOME: path.join(workRoot, '.home')
-    })
+    await execute(process.execPath, args, workRoot, childEnvironment)
     emitProgress('document.export.completed', request.payload.kind)
     await validateOutput(outputPath, request.payload.kind)
     emitProgress('output.validated', request.payload.kind)
@@ -66,7 +68,7 @@ async function main() {
 }
 
 function parseRequest(value) {
-  if (!isObject(value) || value.contractVersion !== '1' || value.action !== 'presentation.export' || value.actionVersion !== '1.0.2') {
+  if (!isObject(value) || value.contractVersion !== '1' || value.action !== 'presentation.export' || value.actionVersion !== '1.0.4') {
     throw new Error('EXPORT_INPUT_INVALID: Sandbox Action contract or version does not match.')
   }
   if (!isObject(value.payload) || (value.payload.kind !== 'pdf' && value.payload.kind !== 'pptx')) {

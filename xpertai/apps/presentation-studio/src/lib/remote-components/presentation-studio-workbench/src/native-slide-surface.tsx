@@ -64,6 +64,7 @@ export interface NativeSlideSurfaceProps {
   onPointerChange(pointer: { x: number; y: number; visible: boolean }): void
   onElementMove(key: string, position: ElementPosition): void
   onAssetSlot(): void
+  onContentEdit(slideId: string): void
 }
 
 export function NativeSlideSurface({
@@ -82,7 +83,8 @@ export function NativeSlideSurface({
   onSelectionChange,
   onPointerChange,
   onElementMove,
-  onAssetSlot
+  onAssetSlot,
+  onContentEdit
 }: NativeSlideSurfaceProps) {
   const surfaceRef = React.useRef<HTMLDivElement | null>(null)
   const shadowHostRef = React.useRef<HTMLDivElement | null>(null)
@@ -205,13 +207,14 @@ export function NativeSlideSurface({
         doc,
         localOrigin,
         onTextFieldsDiscovered,
-        onSelectionChange
+        onSelectionChange,
+        onContentEdit: () => onContentEdit(slideId)
       })
     }
     if (dragRef.current) paintActiveDrag(dragRef.current, surfaceRef.current, slide, selectionRef.current)
     else refreshElementSelection(surfaceRef.current, slide, selectedElement, setSelectedElement)
     return () => window.clearTimeout(timer)
-  }, [props, mountRevision, editable, layout, doc, localOrigin, onTextFieldsDiscovered, onSelectionChange, runtime, selectedElement])
+  }, [props, mountRevision, editable, layout, doc, localOrigin, onTextFieldsDiscovered, onSelectionChange, onContentEdit, runtime, selectedElement, slideId])
 
   React.useLayoutEffect(() => {
     if (!slideRef.current) return
@@ -405,8 +408,9 @@ function bindEditableText(input: {
   localOrigin: object
   onTextFieldsDiscovered(fields: Record<string, string>): void
   onSelectionChange(selection: PresenceState['selection'] | null, focus: PresenceState['focus'] | null): void
+  onContentEdit(): void
 }) {
-  const { slide, slideKey, doc, localOrigin, onTextFieldsDiscovered, onSelectionChange } = input
+  const { slide, slideKey, doc, localOrigin, onTextFieldsDiscovered, onSelectionChange, onContentEdit } = input
   const fields = prepareTextElements(slide, slideKey)
   if (Object.keys(fields).length) onTextFieldsDiscovered(fields)
 
@@ -430,8 +434,8 @@ function bindEditableText(input: {
         selectionEvent()
       }, 0)
     }
-    const compositionEnd = () => { composing.delete(element); updateYText(text, element.textContent ?? '', doc, localOrigin); scheduleSelectionEvent() }
-    const inputEvent = () => { if (!composing.has(element)) updateYText(text, element.textContent ?? '', doc, localOrigin); scheduleSelectionEvent() }
+    const compositionEnd = () => { composing.delete(element); onContentEdit(); updateYText(text, element.textContent ?? '', doc, localOrigin); scheduleSelectionEvent() }
+    const inputEvent = () => { if (!composing.has(element)) { onContentEdit(); updateYText(text, element.textContent ?? '', doc, localOrigin) } scheduleSelectionEvent() }
     const focusEvent = () => { onSelectionChange(null, { kind: 'text', key }); scheduleSelectionEvent() }
     const selectionEvent = () => {
       if (document.activeElement !== element && !element.matches(':focus')) return

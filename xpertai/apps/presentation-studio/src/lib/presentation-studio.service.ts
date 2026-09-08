@@ -21,6 +21,7 @@ import {
   type CollaborationMaterializationEvent,
   type CollaborationPresencePatch,
   type CollaborationProviderContext,
+  type ManagedQueueJobContext,
   type ManagedQueueService,
   type SandboxJobErrorCode,
   type SandboxJobsApi,
@@ -101,6 +102,7 @@ interface CreateDeckInput {
   owner?: string
   themePack: PresentationThemePack
   pageCount: number
+  initializeSlides?: boolean
 }
 
 interface AddSlideInput {
@@ -137,6 +139,7 @@ interface ThemePreviewGalleryItem {
 }
 
 const WORKING_EXPORT_SNAPSHOT_KEY = '__presentationWorkingSnapshot'
+const STUDIO_SHELL_PROP = '__studioShell'
 const WORKBENCH_AGENT_CONTEXT_TTL_SECONDS = 30 * 60
 /** Business façade for deck state, collaboration, versioning, exports, and sharing. */
 @Injectable()
@@ -164,6 +167,10 @@ export class PresentationStudioService {
     const goal = requireText(input.goal, 'Presentation goal is required.')
     const themePack = requireTheme(input.themePack)
     const pageCount = clampPageCount(input.pageCount, this.config.get().maxPageCount)
+    const slides: PresentationSlideSpec[] = input.initializeSlides
+      ? (await this.catalog.scaffoldLayouts({ theme: themePack, pageCount, seed: `${title}:${goal}` }))
+          .map((layout) => ({ id: randomUUID(), layout, status: 'active', props: { [STUDIO_SHELL_PROP]: true } }))
+      : []
     const spec: PresentationDeckSpec = {
       kind: PRESENTATION_STANDARD_DECK_KIND,
       title,
@@ -173,7 +180,7 @@ export class PresentationStudioService {
       themePack,
       pageCount,
       preview: { autosave: false, themeSwitcher: false },
-      slides: []
+      slides
     }
     const doc = createPresentationYDoc(spec)
     const encoded = encodeYDoc(doc)
@@ -199,7 +206,9 @@ export class PresentationStudioService {
       lastEditedAt: new Date()
     }))
     await this.log(scope, { deckId: deck.id, action: 'deck_created', actor: 'agent', message: title })
-    return compactDeck(deck, 'Deck created. Search and inspect layouts before adding slides.')
+    return compactDeck(deck, input.initializeSlides
+      ? `Deck created with ${pageCount} theme layout placeholders.`
+      : 'Deck created. Search and inspect layouts before adding slides.')
   }
 
   async getThemePreviewGallery(scope: PresentationScope) {
@@ -386,20 +395,29 @@ export class PresentationStudioService {
   async addSlide(scope: PresentationScope, input: AddSlideInput) {
     const deck = await this.requireDeck(scope, input.deckId)
     await this.catalog.requireLayout(input.layout, deck.themePack)
-    const validation = await this.catalog.validateLayoutProps(input.layout, input.props)
-    if (deck.deckSpec.slides.some((slide) => slide.layout === input.layout && slide.status !== 'deleted')) {
+    const validation = await this.catalog.validateLayoutProps(input.layout, publicLayoutProps(input.props))
+    const shellSlides = activeSlides(deck.deckSpec).filter(isStudioShellSlide)
+    const replacement = shellSlides.find((slide) => slide.layout === input.layout) ?? shellSlides[0]
+    if (deck.deckSpec.slides.some((slide) => slide.id !== replacement?.id && slide.layout === input.layout && slide.status !== 'deleted')) {
       throw new BadRequestException(`Layout ${input.layout} is already used in this deck.`)
     }
-    if (activeSlides(deck.deckSpec).length >= deck.deckSpec.pageCount) {
+    if (!replacement && activeSlides(deck.deckSpec).length >= deck.deckSpec.pageCount) {
       throw new BadRequestException(`Deck already contains its requested ${deck.deckSpec.pageCount} active slides.`)
     }
-    const slide: PresentationSlideSpec = { id: randomUUID(), layout: input.layout, status: 'active', props: input.props }
+    const slide: PresentationSlideSpec = { id: replacement?.id ?? randomUUID(), layout: input.layout, status: 'active', props: input.props }
     const result = await this.mutateDeck(scope, deck, `presentation:agent:presentation_add_slide:${slide.id}`, ({ slideOrder, slides }) => {
       slides.set(slide.id, slideToYMap(slide))
-      const position = Math.min(slideOrder.length, Math.max(0, input.position ?? slideOrder.length))
-      slideOrder.insert(position, [slide.id])
+      if (!replacement) {
+        const position = Math.min(slideOrder.length, Math.max(0, input.position ?? slideOrder.length))
+        slideOrder.insert(position, [slide.id])
+      } else if (input.position !== undefined) {
+        const currentPosition = slideOrder.toArray().indexOf(slide.id)
+        if (currentPosition >= 0) slideOrder.delete(currentPosition, 1)
+        const position = Math.min(slideOrder.length, Math.max(0, input.position))
+        slideOrder.insert(position, [slide.id])
+      }
     })
-    await this.log(scope, { deckId: deck.id, action: 'slide_added', actor: 'agent', message: input.changeSummary, summary: { slideId: slide.id, layout: slide.layout } })
+    await this.log(scope, { deckId: deck.id, action: 'slide_added', actor: 'agent', message: input.changeSummary, summary: { slideId: slide.id, layout: slide.layout, replacedShell: Boolean(replacement) } })
     return {
       message: 'Slide added.', deckId: deck.id, slideId: slide.id, revision: result.revision,
       activeSlides: activeSlides(result.deckSpec).length, warnings: validation.warnings
@@ -423,7 +441,7 @@ export class PresentationStudioService {
       throw new BadRequestException(`Deck already contains its requested ${deck.deckSpec.pageCount} active slides.`)
     }
     const validation = input.propsPatch || input.layout
-      ? await this.catalog.validateLayoutProps(input.layout ?? current.layout, mergePresentationObjects(current.props, input.propsPatch ?? {}))
+      ? await this.catalog.validateLayoutProps(input.layout ?? current.layout, publicLayoutProps(mergePresentationObjects(current.props, input.propsPatch ?? {})))
       : { warnings: [] }
     validateTextPatch(input.textPatch)
     const result = await this.mutateDeck(scope, deck, `presentation:agent:presentation_patch_slide:${input.slideId}`, ({ slides, texts }) => {
@@ -432,7 +450,10 @@ export class PresentationStudioService {
       const patch: PresentationJsonObject = {}
       if (input.layout) patch.layout = input.layout
       if (input.status) patch.status = input.status
-      if (input.propsPatch) patch.props = input.propsPatch
+      const fillsShell = isStudioShellSlide(current) && Boolean(input.layout || input.propsPatch || Object.keys(input.textPatch ?? {}).length)
+      if (input.propsPatch || fillsShell) patch.props = fillsShell
+        ? { [STUDIO_SHELL_PROP]: false, ...(input.propsPatch ?? {}) }
+        : input.propsPatch as PresentationJsonObject
       patchSlideYMap(slide, patch)
       for (const [key, value] of Object.entries(input.textPatch ?? {})) setPresentationYText(texts, key, value)
     }, input.layout || input.status === 'deleted' ? input.expectedRevision : undefined)
@@ -653,10 +674,7 @@ export class PresentationStudioService {
     }))
     const exportId = requireId(exportRecord.id, 'Export id is required.')
     const jobId = `presentation-studio-${exportId}`
-    const payload: PresentationExportJobData = {
-      exportId,
-      tenantId: optionalText(scope.tenantId), organizationId: optionalText(scope.organizationId)
-    }
+    const payload: PresentationExportJobData = { exportId }
     try {
       const queued = await this.queue.enqueue({
         pluginName: PRESENTATION_STUDIO_PLUGIN_NAME, queueName: PRESENTATION_EXPORT_QUEUE, jobName: PRESENTATION_EXPORT_JOB,
@@ -903,14 +921,46 @@ export class PresentationStudioService {
     return { message: 'Presentation export deleted.', exportId, deckId: item.deckId, fileDeleted, linkRevoked }
   }
 
-  async processExportJob(data: PresentationExportJobData) {
-    const scope: PresentationScope = { tenantId: data.tenantId, organizationId: data.organizationId }
-    const item = await this.exportRepository.findOne({ where: scopedExportWhere(scope, { id: data.exportId }) })
-    if (!item || item.status === 'cancelled' || item.status === 'succeeded') return
+  async processExportJob(data: PresentationExportJobData, jobContext: ManagedQueueJobContext) {
+    const tenantId = requireText(
+      jobContext.tenantId,
+      'Managed Queue job context tenantId is required for Presentation export.'
+    )
+    const organizationId = optionalText(jobContext.organizationId) ?? null
+    const item = await this.exportRepository.findOne({
+      where: {
+        id: data.exportId,
+        tenantId,
+        organizationId: organizationId ?? IsNull()
+      }
+    })
+    if (!item) throw new BadRequestException('Presentation export was not found in the Managed Queue job scope.')
+    if (item.status === 'cancelled' || item.status === 'succeeded') return
     const deckId = requireId(item.deckId, 'Presentation export deck id is required.')
     const versionId = requireId(item.versionId, 'Presentation export version id is required.')
     const checksum = requireText(item.checksum, 'Presentation export checksum is required.')
-    const deck = await this.requireDeck(scope, deckId)
+    const projectId = optionalText(item.projectId) ?? null
+    const workspaceId = optionalText(item.workspaceId) ?? null
+    const deck = await this.deckRepository.findOne({
+      where: {
+        id: deckId,
+        tenantId,
+        organizationId: organizationId ?? IsNull(),
+        projectId: projectId ?? IsNull(),
+        ...(!projectId && workspaceId ? { workspaceId } : {})
+      }
+    })
+    if (!deck) throw new NotFoundException('Presentation deck was not found in the export job scope.')
+    const xpertId = optionalText(deck.assistantId) ?? null
+    const scope: PresentationScope = {
+      tenantId,
+      organizationId,
+      workspaceId: optionalText(deck.workspaceId) ?? workspaceId,
+      projectId: optionalText(deck.projectId) ?? projectId,
+      userId: optionalText(item.userId) ?? optionalText(jobContext.userId) ?? null,
+      xpertId,
+      assistantId: xpertId
+    }
     const version = deserializeWorkingExportVersion(item.report, this.versionRepository)
       ?? await this.requireVersion(scope, deckId, versionId)
     if (version.checksum !== checksum) throw new Error('Presentation export checksum mismatch.')
@@ -1010,7 +1060,12 @@ export class PresentationStudioService {
       return this.exportRepository.save(item)
     }
     if (job.state === 'failed') {
-      return this.failPendingExport(scope, item, 'queue-failed', 'Managed queue job failed before the export processor completed.')
+      return this.failPendingExport(
+        scope,
+        item,
+        'queue-failed',
+        job.failedReason?.trim() || 'Managed queue job failed before the export processor completed.'
+      )
     }
     if (job.state === 'completed') {
       return this.failPendingExport(scope, item, 'queue-inconsistent', 'Managed queue job completed without a persisted export result.')
@@ -1828,6 +1883,10 @@ function deserializeWorkingExportVersion(
 }
 
 function activeSlides(spec: PresentationDeckSpec) { return spec.slides.filter((slide) => slide.status === 'active') }
+function isStudioShellSlide(slide: PresentationSlideSpec) { return slide.props[STUDIO_SHELL_PROP] === true }
+function publicLayoutProps(props: PresentationJsonObject) {
+  return Object.fromEntries(Object.entries(props).filter(([key]) => !key.startsWith('__studio')))
+}
 function requireText(value: string | null | undefined, message: string) { const text = optionalText(value); if (!text) throw new BadRequestException(message); return text }
 function optionalText(value: string | null | undefined) { return typeof value === 'string' && value.trim() ? value.trim() : undefined }
 function requireId(value: string | undefined, message: string) { if (!value) throw new Error(message); return value }

@@ -183,6 +183,7 @@ type CollaboratorAvatarActor = {
 
 const LOCAL_ORIGIN = { source: 'presentation-studio-native-workbench' }
 const STUDIO_ELEMENT_POSITIONS_KEY = '__studioElementPositions'
+const STUDIO_SHELL_PROP = '__studioShell'
 const ASSISTANT_CONTEXT_SET_COMMAND = 'assistant.context.set'
 const PRESENTATION_ASSISTANT_CONTEXT_KEY = 'presentationStudio'
 const NOOP_FIELDS = (_fields: Record<string, string>) => undefined
@@ -495,6 +496,11 @@ function App() {
   }, [loadThemePreviews, themePreviews, themePreviewsBusy, workspaceMode])
 
   React.useEffect(() => {
+    if (!showCreate || !themePreviewAccessNeedsRefresh(themePreviews)) return
+    void loadThemePreviews()
+  }, [loadThemePreviews, showCreate, themePreviews])
+
+  React.useEffect(() => {
     hostEventRef.current = (event) => {
       const normalized = normalizePresentationToolEvent(event)
       if (!normalized || !rememberHostEvent(processedHostEventKeysRef.current, normalized.eventKey)) return
@@ -703,7 +709,7 @@ function App() {
     setBusy(true)
     try {
       const created = actionData<DeckSummary>(await executeAction('create_deck', null, {
-        title: newTitle.trim(), goal: newGoal.trim(), themePack: newTheme, pageCount: newPages
+        title: newTitle.trim(), goal: newGoal.trim(), themePack: newTheme, pageCount: newPages, initializeSlides: true
       }))
       setShowCreate(false)
       setNewTitle('')
@@ -848,10 +854,20 @@ function App() {
       const slide = doc.getMap<Y.Map<YValue>>('slides').get(slideId)
       if (!slide) return
       const propsMap = ensureYMap(slide, 'props')
+      propsMap.delete(STUDIO_SHELL_PROP)
       propsMap.set(key, jsonToY(value))
     }, LOCAL_ORIGIN)
     setControlDrafts((current) => removeControlDraft(current, slideId, key))
   }
+
+  const markSlideFilled = React.useCallback((slideId: string) => {
+    if (!doc) return
+    const slide = doc.getMap<Y.Map<YValue>>('slides').get(slideId)
+    if (!slide) return
+    const propsMap = ensureYMap(slide, 'props')
+    if (propsMap.get(STUDIO_SHELL_PROP) !== true) return
+    doc.transact(() => propsMap.delete(STUDIO_SHELL_PROP), LOCAL_ORIGIN)
+  }, [doc])
 
   function scheduleProp(key: string, value: JsonValue) {
     if (!activeSlide) return
@@ -1049,7 +1065,7 @@ function App() {
                       onDuplicate={() => duplicateSlide(slide.id)}
                       onSkip={() => updateSlideStatus(slide.id, slide.status === 'skipped' ? 'active' : 'skipped')}
                       onDelete={() => updateSlideStatus(slide.id, 'deleted')}
-                      labels={{ duplicate: t('duplicate'), skip: t('skip'), unskip: t('unskip'), delete: t('delete') }}
+                      labels={{ duplicate: t('duplicate'), skip: t('skip'), unskip: t('unskip'), delete: t('delete'), shell: t('shellPlaceholder') }}
                     />)}</div>
                   </SortableContext>
                 </DndContext>
@@ -1090,7 +1106,9 @@ function App() {
                 onPointerChange={setPointerAwareness}
                 onElementMove={moveSlideElement}
                 onAssetSlot={openAssetPicker}
+                onContentEdit={markSlideFilled}
               />
+              {activeProps[STUDIO_SHELL_PROP] === true ? <span className="ps-shell-badge">{t('shellPlaceholder')}</span> : null}
             </div> : <div className="ps-empty-state"><Image /><strong>{detail ? t('waitingForSlides') : t('noDeck')}</strong></div>}
           </div>
           <div className="ps-pager"><Button variant="ghost" size="icon" onClick={() => navigateSlide(-1)} disabled={activeIndex <= 0}><ChevronLeft /></Button><strong>{String(activeIndex + 1).padStart(2, '0')} / {String(visibleSlides.length).padStart(2, '0')}</strong><Button variant="ghost" size="icon" onClick={() => navigateSlide(1)} disabled={activeIndex >= visibleSlides.length - 1}><ChevronRight /></Button></div>
@@ -1114,12 +1132,12 @@ function App() {
 
     <input ref={fileInputRef} className="ps-file-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif,video/mp4,video/webm,video/quicktime" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadAsset(file); event.currentTarget.value = '' }} />
 
-    <Dialog open={showCreate} onOpenChange={setShowCreate}><DialogContent><DialogHeader><DialogTitle>{t('newDeck')}</DialogTitle><DialogDescription>{t('goal')}</DialogDescription></DialogHeader><div className="ps-dialog-form"><Input value={newTitle} placeholder={t('title')} onChange={(event) => setNewTitle(event.target.value)} /><Input value={newGoal} placeholder={t('goal')} onChange={(event) => setNewGoal(event.target.value)} /><Select value={newTheme} onValueChange={setNewTheme}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Array.from({ length: 14 }, (_, index) => `theme${String(index + 1).padStart(2, '0')}`).map((theme) => <SelectItem value={theme} key={theme}>{theme}</SelectItem>)}</SelectContent></Select><Input type="number" min={3} max={30} value={newPages} onChange={(event) => setNewPages(Number(event.target.value))} /></div><DialogFooter><Button variant="outline" onClick={() => setShowCreate(false)}>{t('cancel')}</Button><Button onClick={() => void createDeck()} disabled={busy}>{t('create')}</Button></DialogFooter></DialogContent></Dialog>
+    <Dialog open={showCreate} onOpenChange={setShowCreate}><DialogContent className="ps-create-dialog"><DialogHeader><DialogTitle>{t('newDeck')}</DialogTitle><DialogDescription>{t('themeSelectionDescription')}</DialogDescription></DialogHeader><div className="ps-dialog-form"><div className="ps-dialog-field"><label className="ps-dialog-label" htmlFor="ps-new-title">{t('presentationTitle')}</label><Input id="ps-new-title" value={newTitle} placeholder={t('presentationTitlePlaceholder')} onChange={(event) => setNewTitle(event.target.value)} /></div><div className="ps-dialog-field"><label className="ps-dialog-label" htmlFor="ps-new-goal">{t('presentationGoal')}</label><Input id="ps-new-goal" value={newGoal} placeholder={t('presentationGoalPlaceholder')} onChange={(event) => setNewGoal(event.target.value)} /></div><div className="ps-dialog-field ps-page-field"><div className="ps-dialog-label-row"><label className="ps-dialog-label" htmlFor="ps-new-pages">{t('pages')}</label><span className="ps-dialog-help">{t('pageCountRange')}</span></div><Input id="ps-new-pages" type="number" min={3} max={30} value={newPages} onChange={(event) => setNewPages(Number(event.target.value))} /></div><ThemePicker items={themePreviews} busy={themePreviewsBusy} value={newTheme} onChange={setNewTheme} onAccessError={handleThemePreviewAccessError} t={t} /></div><DialogFooter><Button variant="outline" onClick={() => setShowCreate(false)}>{t('cancel')}</Button><Button onClick={() => void createDeck()} disabled={busy}>{t('create')}</Button></DialogFooter></DialogContent></Dialog>
 
     <Dialog open={assetPickerOpen} onOpenChange={setAssetPickerOpen}><DialogContent className="ps-asset-dialog"><DialogHeader><DialogTitle>{t('chooseAsset')}</DialogTitle><DialogDescription>{t('assetDialogDescription')}</DialogDescription></DialogHeader><ScrollArea className="ps-asset-dialog-scroll"><div className="ps-asset-grid ps-asset-grid-large">{detail?.assets.map((asset) => <button onClick={() => void selectAsset(asset)} key={asset.id}>{assetPreviews[asset.id]?.dataUrl ? <img src={assetPreviews[asset.id].dataUrl} alt="" /> : <Image />}<span>{asset.fileName}</span></button>)}</div></ScrollArea><DialogFooter><Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload />{t('upload')}</Button></DialogFooter></DialogContent></Dialog>
 
     {presenting && activeSlide && nativeRuntime && doc ? <div className="ps-present-overlay">
-      <NativeSlideSurface slideId={activeSlide.id} layout={activeSlide.layout} props={resolveAssetObject(activeProps, assetPreviews)} index={activeIndex} total={visibleSlides.length} runtime={nativeRuntime} doc={doc} localOrigin={LOCAL_ORIGIN} textRevision={textRevision} presences={[]} onTextFieldsDiscovered={NOOP_FIELDS} onSelectionChange={NOOP_SELECTION} onPointerChange={NOOP_POINTER} onElementMove={NOOP_ELEMENT_MOVE} onAssetSlot={NOOP} />
+      <NativeSlideSurface slideId={activeSlide.id} layout={activeSlide.layout} props={resolveAssetObject(activeProps, assetPreviews)} index={activeIndex} total={visibleSlides.length} runtime={nativeRuntime} doc={doc} localOrigin={LOCAL_ORIGIN} textRevision={textRevision} presences={[]} onTextFieldsDiscovered={NOOP_FIELDS} onSelectionChange={NOOP_SELECTION} onPointerChange={NOOP_POINTER} onElementMove={NOOP_ELEMENT_MOVE} onAssetSlot={NOOP} onContentEdit={NOOP} />
       <div className="ps-present-controls"><Button variant="secondary" size="icon" onClick={() => navigateSlide(-1)}><ChevronLeft /></Button><span>{activeIndex + 1} / {visibleSlides.length}</span><Button variant="secondary" size="icon" onClick={() => navigateSlide(1)}><ChevronRight /></Button><Button variant="secondary" onClick={() => { setPresenting(false); void document.exitFullscreen?.() }}>{t('exit')}</Button></div>
     </div> : null}
   </div>
@@ -1153,6 +1171,31 @@ function ThemePreviewGallery(props: {
   </section>
 }
 
+function ThemePicker(props: {
+  items: ThemePreviewItem[]
+  busy: boolean
+  value: string
+  onChange(value: string): void
+  onAccessError(item: ThemePreviewItem): void
+  t: ReturnType<typeof translator>
+}) {
+  const fallbackThemes = Array.from({ length: 14 }, (_, index) => `theme${String(index + 1).padStart(2, '0')}`)
+  const selected = props.items.find((item) => item.themePack === props.value)
+  return <div className="ps-theme-picker-shell">
+    <div className="ps-dialog-label-row">
+      <div className="ps-dialog-field-heading"><span className="ps-dialog-label">{props.t('themeSelection')}</span><small>{props.t('themeSelectionDescription')}</small></div>
+      {selected ? <Badge variant="secondary">{props.t('selected')}: {selected.displayName}</Badge> : null}
+    </div>
+    {props.busy && !props.items.length ? <div className="ps-theme-picker-status">{props.t('loadingThemePreviews')}</div> : props.items.length ? <div className="ps-theme-picker" role="radiogroup" aria-label={props.t('themeSelection')}>
+      {props.items.map((item) => <button type="button" className="ps-theme-picker-card" data-selected={item.themePack === props.value} role="radio" aria-checked={item.themePack === props.value} onClick={() => props.onChange(item.themePack)} key={item.themePack}>
+        <span className="ps-theme-picker-media"><img src={item.fileUrl} alt={`${item.themePack} ${item.displayName}`} loading="lazy" onError={item.accessExpiresAt ? () => props.onAccessError(item) : undefined} /></span>
+        <span className="ps-theme-picker-meta"><strong>{item.displayName}</strong><small>{item.scenario}</small></span>
+        {item.themePack === props.value ? <span className="ps-theme-picker-check" aria-hidden="true"><Check /></span> : null}
+      </button>)}
+    </div> : <div className="ps-theme-picker-fallback"><span>{props.t('themePreviewUnavailable')}</span><Select value={props.value} onValueChange={props.onChange}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{fallbackThemes.map((theme) => <SelectItem value={theme} key={theme}>{theme}</SelectItem>)}</SelectContent></Select></div>}
+  </div>
+}
+
 function SortableSlideItem(props: {
   slide: SlideSnapshot
   slideProps: JsonObject
@@ -1168,7 +1211,7 @@ function SortableSlideItem(props: {
   onDuplicate(): void
   onSkip(): void
   onDelete(): void
-  labels: { duplicate: string; skip: string; unskip: string; delete: string }
+  labels: { duplicate: string; skip: string; unskip: string; delete: string; shell: string }
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: props.slide.id,
@@ -1179,9 +1222,10 @@ function SortableSlideItem(props: {
   return <ContextMenu><ContextMenuTrigger asChild><div ref={setNodeRef} className={`ps-slide-item${props.selected ? ' is-active' : ''}${props.slide.status === 'skipped' ? ' is-skipped' : ''}${isDragging ? ' is-dragging' : ''}`} style={{ transform: CSS.Transform.toString(transform), transition }}>
     <button className="ps-slide-thumb-button" onClick={props.onSelect} {...attributes} {...listeners}>
       <div ref={visibilityRef} className="ps-slide-thumb">
-        {visible && props.runtime && props.doc ? <NativeSlideSurface slideId={props.slide.id} layout={props.slide.layout} props={resolveAssetObject(props.slideProps, props.assetPreviews)} index={props.index} total={props.total} runtime={props.runtime} doc={props.doc} localOrigin={LOCAL_ORIGIN} textRevision={props.textRevision} presences={[]} onTextFieldsDiscovered={NOOP_FIELDS} onSelectionChange={NOOP_SELECTION} onPointerChange={NOOP_POINTER} onElementMove={NOOP_ELEMENT_MOVE} onAssetSlot={NOOP} /> : null}
+        {visible && props.runtime && props.doc ? <NativeSlideSurface slideId={props.slide.id} layout={props.slide.layout} props={resolveAssetObject(props.slideProps, props.assetPreviews)} index={props.index} total={props.total} runtime={props.runtime} doc={props.doc} localOrigin={LOCAL_ORIGIN} textRevision={props.textRevision} presences={[]} onTextFieldsDiscovered={NOOP_FIELDS} onSelectionChange={NOOP_SELECTION} onPointerChange={NOOP_POINTER} onElementMove={NOOP_ELEMENT_MOVE} onAssetSlot={NOOP} onContentEdit={NOOP} /> : null}
       </div>
       <span className="ps-slide-number">{String(props.index + 1).padStart(2, '0')}</span>
+      {props.slideProps[STUDIO_SHELL_PROP] === true ? <span className="ps-slide-shell-label">{props.labels.shell}</span> : null}
     </button>
     {!props.readOnly ? <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="ps-slide-more" onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={props.onDuplicate}><Copy />{props.labels.duplicate}</DropdownMenuItem><DropdownMenuItem onSelect={props.onSkip}><EyeOff />{props.slide.status === 'skipped' ? props.labels.unskip : props.labels.skip}</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem className="ps-destructive-menu-item" onSelect={props.onDelete}><Trash2 />{props.labels.delete}</DropdownMenuItem></DropdownMenuContent></DropdownMenu> : null}
   </div></ContextMenuTrigger>{!props.readOnly ? <ContextMenuContent><ContextMenuItem onSelect={props.onDuplicate}><Copy />{props.labels.duplicate}</ContextMenuItem><ContextMenuItem onSelect={props.onSkip}><EyeOff />{props.slide.status === 'skipped' ? props.labels.unskip : props.labels.skip}</ContextMenuItem><ContextMenuSeparator /><ContextMenuItem onSelect={props.onDelete}><Trash2 />{props.labels.delete}</ContextMenuItem></ContextMenuContent> : null}</ContextMenu>

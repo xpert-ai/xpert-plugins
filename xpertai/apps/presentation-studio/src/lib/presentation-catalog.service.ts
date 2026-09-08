@@ -55,6 +55,12 @@ export interface SearchLayoutsInput {
   seed?: string
 }
 
+export interface ScaffoldLayoutsInput {
+  theme: PresentationThemePack
+  pageCount: number
+  seed: string
+}
+
 @Injectable()
 export class PresentationCatalogService {
   private manifestPromise?: Promise<LayoutManifest>
@@ -93,7 +99,40 @@ export class PresentationCatalogService {
   }
 
   async searchLayouts(input: SearchLayoutsInput): Promise<PresentationJsonObject> {
-    const args = ['--theme', input.theme, '--limit', String(Math.min(12, Math.max(1, input.limit ?? 12)))]
+    return this.queryLayouts(input, Math.min(12, Math.max(1, input.limit ?? 12)))
+  }
+
+  async scaffoldLayouts(input: ScaffoldLayoutsInput): Promise<string[]> {
+    const pageCount = Math.min(30, Math.max(3, Math.trunc(input.pageCount)))
+    const [coverResult, bodyResult, closingResult, allResult] = await Promise.all([
+      this.queryLayouts({ theme: input.theme, role: 'cover', seed: `${input.seed}:cover` }, 1),
+      this.queryLayouts({ theme: input.theme, role: 'content', seed: `${input.seed}:body` }, pageCount),
+      this.queryLayouts({ theme: input.theme, role: 'closing', seed: `${input.seed}:closing` }, 1),
+      this.queryLayouts({ theme: input.theme, seed: `${input.seed}:fallback` }, 50)
+    ])
+    const allLayouts = layoutKeys(allResult)
+    const cover = layoutKeys(coverResult)[0] ?? allLayouts[0]
+    const closing = layoutKeys(closingResult).find((layout) => layout !== cover)
+    const candidates = uniqueLayoutKeys([...layoutKeys(bodyResult), ...allLayouts])
+    const layouts = cover ? [cover] : []
+    for (const layout of candidates) {
+      if (layouts.length >= pageCount - (closing ? 1 : 0)) break
+      if (layout === cover || layout === closing) continue
+      layouts.push(layout)
+    }
+    if (closing && layouts.length < pageCount) layouts.push(closing)
+    for (const layout of candidates) {
+      if (layouts.length >= pageCount) break
+      if (!layouts.includes(layout)) layouts.push(layout)
+    }
+    if (layouts.length !== pageCount) {
+      throw new BadRequestException(`Theme ${input.theme} does not contain ${pageCount} unique presentation layouts.`)
+    }
+    return layouts
+  }
+
+  private async queryLayouts(input: SearchLayoutsInput, limit: number): Promise<PresentationJsonObject> {
+    const args = ['--theme', input.theme, '--limit', String(Math.min(50, Math.max(1, limit)))]
     appendArg(args, '--role', input.role)
     appendArg(args, '--keyword', input.keyword)
     appendArg(args, '--media-kind', input.mediaKind)
@@ -280,6 +319,16 @@ function appendArg(args: string[], name: string, value: string | number | undefi
 
 function isJsonObject(value: unknown): value is PresentationJsonObject {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value))
+}
+
+function layoutKeys(value: PresentationJsonObject) {
+  return Array.isArray(value.layouts)
+    ? value.layouts.flatMap((item) => isJsonObject(item) && typeof item.layout === 'string' ? [item.layout] : [])
+    : []
+}
+
+function uniqueLayoutKeys(layouts: string[]) {
+  return [...new Set(layouts)]
 }
 
 function rewritePortableMediaForVendor(value: PresentationJsonValue): PresentationJsonValue {

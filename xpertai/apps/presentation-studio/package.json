@@ -43,6 +43,7 @@
     "build:ui": "pnpm --filter @xpert-ai/plugin-shadcn-ui build",
     "sync:theme-runtime": "node scripts/sync-theme-runtime.mjs",
     "verify:vendor": "pnpm run sync:theme-runtime && node scripts/verify-vendor.mjs",
+    "verify:dist": "node scripts/verify-package-output.mjs",
     "build:sandbox-action": "node scripts/build-sandbox-action.mjs",
     "verify:sandbox-action": "node scripts/verify-sandbox-action.mjs",
     "test:sandbox-action": "node --test sandbox-actions/presentation-export/*.spec.mjs",

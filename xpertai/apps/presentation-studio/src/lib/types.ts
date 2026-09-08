@@ -135,8 +135,6 @@ export interface PresentationAwarenessV2 {
 /** Minimal Managed Queue payload; deck snapshots and assets stay in persistent storage. */
 export interface PresentationExportJobData {
   exportId: string
-  tenantId?: string | null
-  organizationId?: string | null
 }
 
 /** Structured reason used to disable PDF/PPTX while keeping HTML independently available. */
