@@ -245,7 +245,7 @@ export class OfficeEditorViewProvider implements IXpertViewExtensionProvider {
           title: requireStringInput(request.input, 'title', 'Office document title is required.'),
           description: getStringInput(request.input, 'description'),
           initialSnapshot: getUnknownInput(request.input, 'initialSnapshot'),
-          assistantId: getActionXpertId(context, request.input),
+          assistantId: getActionXpertId(context),
           conversationId: getStringInput(request.input, 'conversationId')
         })
         return { ...success('Office document created', 'Office 文档已创建'), data: result }
@@ -360,7 +360,7 @@ export class OfficeEditorViewProvider implements IXpertViewExtensionProvider {
         mimeType: file.mimetype ?? getStringInput(request.input, 'mimeType'),
         size: file.size,
         fileBase64: file.buffer.toString('base64'),
-        assistantId: getActionXpertId(context, request.input),
+        assistantId: getActionXpertId(context),
         conversationId: getStringInput(request.input, 'conversationId')
       })
       return {
@@ -394,6 +394,16 @@ function isSupportedSlot(context: XpertResolvedViewHostContext, slot: string) {
 
 function scopeFromContext(context: XpertResolvedViewHostContext): OfficeScope {
   const runtimeScope = context.runtimeScope
+  const projectAccess = runtimeScope?.projectAccess
+  const collaborationAccess = projectAccess
+    ? projectAccess.canManage
+      ? 'manage'
+      : projectAccess.canEdit
+        ? 'write'
+        : 'read'
+    : context.hostType === 'project'
+      ? 'write'
+      : 'manage'
   return {
     tenantId: context.tenantId,
     organizationId: context.organizationId ?? null,
@@ -403,12 +413,12 @@ function scopeFromContext(context: XpertResolvedViewHostContext): OfficeScope {
     assistantId: context.hostType === 'agent' ? context.hostId : null,
     conversationId: runtimeScope?.conversationId ?? null,
     workspaceFiles: runtimeScope?.workspaceFiles ?? null,
-    collaborationAccess: runtimeScope?.projectAccess && !runtimeScope.projectAccess.canEdit ? 'read' : 'write'
+    collaborationAccess
   }
 }
 
-function getActionXpertId(context: XpertResolvedViewHostContext, input: XpertViewActionRequest['input']) {
-  return getStringInput(input, 'xpertId') ?? (context.hostType === 'agent' ? context.hostId : undefined)
+function getActionXpertId(context: XpertResolvedViewHostContext) {
+  return context.hostType === 'agent' ? context.hostId : undefined
 }
 
 function success(en_US: string, zh_Hans: string): XpertViewActionResult {

@@ -5,7 +5,7 @@ Xpert system plugin for editing Univer-native spreadsheets, documents, and prese
 This plugin provides:
 
 - A React remote component Workbench powered by Univer OSS.
-- A plugin-owned Yjs/Socket.IO collaboration gateway for real-time rooms and update persistence.
+- Platform-managed Yjs collaboration through the shared Collaboration Runtime, with scoped rooms and durable update materialization.
 - Versioned XLSX file storage plus best-effort OSS import for XLSX, DOCX, and experimental PPTX into Univer-native snapshots.
 - Server-side XLSX automation for reading ranges, setting values and formulas, clearing ranges, and managing sheets.
 - Agent middleware tools for automatic XLSX editing and download as well as queued document and presentation review.

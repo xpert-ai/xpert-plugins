@@ -26,8 +26,6 @@ export const OFFICE_EDITOR_AGENT_KEY = 'Agent_OfficeEditor'
 export const OFFICE_EDITOR_ROUTE_NAMESPACE = OFFICE_EDITOR_ARTIFACT_NAMESPACE.replace(/_/g, '-')
 export const OFFICE_EDITOR_COLLAB_NAMESPACE_PREFIX = `/api/${OFFICE_EDITOR_ROUTE_NAMESPACE}/collab/ws/`
 export const OFFICE_EDITOR_COLLAB_ROOM_PREFIX = `${OFFICE_EDITOR_ROUTE_NAMESPACE}:`
-export const OFFICE_EDITOR_COLLAB_SESSION_TTL_MS = 15 * 60 * 1000
-export const OFFICE_WORKSPACE_FILES_RUNTIME_CAPABILITY = 'platform.workspace.files'
 
 /**
  * Build Office Editor table names with the shared plugin artifact namespace.

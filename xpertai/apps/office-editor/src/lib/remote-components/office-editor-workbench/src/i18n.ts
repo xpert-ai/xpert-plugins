@@ -9,6 +9,9 @@ export type TranslationKey =
   | 'sync'
   | 'ask'
   | 'delete'
+  | 'deleteConfirm'
+  | 'deleted'
+  | 'cancel'
   | 'download'
   | 'downloaded'
   | 'documents'
@@ -68,6 +71,9 @@ const zh: Record<TranslationKey, string> = {
   sync: '同步',
   ask: '询问',
   delete: '删除',
+  deleteConfirm: '确定删除“{title}”及其所有历史版本吗？',
+  deleted: '文档已删除',
+  cancel: '取消',
   download: '下载 XLSX',
   downloaded: 'XLSX 已下载',
   documents: '文档',
@@ -128,6 +134,9 @@ const en: Record<TranslationKey, string> = {
   sync: 'Sync',
   ask: 'Ask',
   delete: 'Delete',
+  deleteConfirm: 'Delete “{title}” and all of its version history?',
+  deleted: 'Document deleted',
+  cancel: 'Cancel',
   download: 'Download XLSX',
   downloaded: 'XLSX downloaded',
   documents: 'Documents',
