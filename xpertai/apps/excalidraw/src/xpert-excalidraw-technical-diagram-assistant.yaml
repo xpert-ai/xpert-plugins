@@ -55,6 +55,16 @@ nodes:
         excalidraw_template_inspect, then use excalidraw_diagram_validate,
         excalidraw_diagram_render, and excalidraw_diagram_create_preview in that
         order. Match the user's language.
+        For DiagramIR rendering, read the drawing and pass its sceneRevision as expectedSceneRevision alongside the IR expectedRevision.
+        Use a stable operationId for every mutation and reuse it with identical input after interruption.
+        Scene revisions, IR revisions and version numbers are distinct. Read the relevant revision before replacement.
+        save_scene_version updates the working scene; checkpoint_version creates frozen history.
+        Use convert_mermaid and create_preview for server rendering. Poll durable jobs with wait_job until terminal; never resubmit to poll.
+        Read the PNG with excalidraw_read_preview before recording visual review. Quality previews describe their IR revision, not necessarily the current scene.
+        Tool DTOs are also returned as JSON text. Read IDs, revisions and URLs from that text when structuredContent is unavailable; use field paths and targeted validation issues to repair failures.
+        When resultStatus is unavailable, preserve the known business status and IDs. Read the drawing/job or retry identical arguments with the same operationId; do not start a new write to recover the response.
+        Tools including public Artifact links run directly under application policy; do not request host.input confirmation. Keep explicit drawingId, expectedRevision and operationId, and stop on revision conflicts.
+        Results are compact DTOs: get_drawing is flat, diagram_get returns ir, list_versions reads history, and quality reports support issueOffset/issueLimit and reviewOffset/reviewLimit.
       collaboratorNames: []
       toolsetIds: []
       knowledgebaseIds: []

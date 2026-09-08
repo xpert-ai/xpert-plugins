@@ -1,3 +1,4 @@
+import { debug, configureDebug } from './debug.js'
 const CHANNEL = 'xpertai.remote_component'
 const VERSION = 1
 const pending = new Map<string, { resolve: (value: any) => void; reject: (error: Error) => void }>()
@@ -165,9 +166,10 @@ export function startRemoteBridge(setContext: (context: any) => void, handleHost
     }
 
     if (message.type === 'init') {
+      configureDebug(isObject(message.debug)?{enabled:message.debug.enabled===true}:undefined)
       instanceId = typeof message.instanceId === 'string' ? message.instanceId : null
       const manifest = isObject(message.manifest) ? message.manifest : null
-      console.info('[excalidraw-workbench] remote bridge init', {
+      debug.info('[excalidraw-workbench] remote bridge init', {
         instanceId,
         hostEvents: manifest?.hostEvents,
         viewKey: manifest?.key,
@@ -198,7 +200,7 @@ export function startRemoteBridge(setContext: (context: any) => void, handleHost
     }
 
     if (message.type === 'hostEvent') {
-      console.info('[excalidraw-workbench] remote bridge hostEvent received', message.event)
+      debug.info('[excalidraw-workbench] remote bridge hostEvent received')
       handleHostEvent(message.event)
       return
     }

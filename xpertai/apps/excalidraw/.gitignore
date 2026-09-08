@@ -1,0 +1,5 @@
+# Third-party font binaries are prepared in dist; keep only their provenance here.
+/assets/fonts/*.otf
+/assets/fonts/*.ttf
+/assets/fonts/*.woff
+/assets/fonts/*.woff2

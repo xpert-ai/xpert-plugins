@@ -29,6 +29,9 @@ export class ExcalidrawDrawingVersion {
   @Column({ type: 'int' })
   versionNumber!: number
 
+  @Column({ type: 'boolean', default: false })
+  isCheckpoint?: boolean
+
   @Column({ type: 'varchar', default: 'workbench' })
   sourceType?: ExcalidrawVersionSource
 

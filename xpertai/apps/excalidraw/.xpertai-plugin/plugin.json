@@ -17,7 +17,9 @@
     "artifact-template",
     "diagram-quality",
     "collaboration",
-    "artifact-sharing"
+    "artifact-sharing",
+    "mcp-tools",
+    "mcp-app"
   ],
   "skills": "./skills/",
   "artifactNamespace": "excalidraw",
@@ -44,7 +46,9 @@
     "composerIcon": "./assets/composerIcon.svg",
     "logo": "./assets/logo.svg",
     "brandColor": "#6965DB",
-    "screenshots": []
+    "screenshots": [
+      "./assets/screenshots/excalidraw-workbench.png"
+    ]
   },
   "policy": {
     "installation": "AVAILABLE",
@@ -60,7 +64,9 @@
   "assets": {
     "composerIcon": "./assets/composerIcon.svg",
     "logo": "./assets/logo.svg",
-    "screenshots": []
+    "screenshots": [
+      "./assets/screenshots/excalidraw-workbench.png"
+    ]
   },
   "targetApps": [
     "data-xpert",
@@ -119,7 +125,14 @@
               "en_US": "Template selection, semantic DiagramIR modeling, deterministic validation, preview inspection, and bounded visual correction.",
               "zh_Hans": "模板选择、DiagramIR 语义建模、确定性校验、预览检查和有界视觉修正。"
             },
-            "tags": ["skill", "diagram-ir", "technical-diagram", "templates", "diagram-quality", "visual-review"]
+            "tags": [
+              "skill",
+              "diagram-ir",
+              "technical-diagram",
+              "templates",
+              "diagram-quality",
+              "visual-review"
+            ]
           },
           {
             "type": "assistant-template",
@@ -135,8 +148,138 @@
             "name": "excalidraw",
             "displayName": "Excalidraw",
             "description": {
-              "en_US": "Workbench and Agent middleware tools for Excalidraw diagrams.",
-              "zh_Hans": "用于 Excalidraw 图形的工作台和 Agent 中间件工具。"
+              "en_US": "Create editable diagrams with AI, collaborate on the canvas, and share reviewed versions.",
+              "zh_Hans": "用 AI 创作可编辑图形，在画布中协作，并分享经过审阅的版本。"
+            },
+            "icon": {
+              "type": "svg",
+              "value": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"256\" height=\"256\" viewBox=\"0 0 256 256\" fill=\"none\">\n  <rect width=\"256\" height=\"256\" rx=\"40\" fill=\"#F8FAFC\"/>\n  <rect x=\"44\" y=\"52\" width=\"168\" height=\"124\" rx=\"18\" fill=\"#FFFFFF\" stroke=\"#2563EB\" stroke-width=\"9\"/>\n  <path d=\"M76 92H132\" stroke=\"#0F172A\" stroke-width=\"10\" stroke-linecap=\"round\"/>\n  <path d=\"M76 124H112\" stroke=\"#64748B\" stroke-width=\"8\" stroke-linecap=\"round\"/>\n  <path d=\"M154 86L184 116L154 146\" stroke=\"#14B8A6\" stroke-width=\"10\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\n  <path d=\"M74 202C96 178 124 172 158 185C170 190 184 190 196 180\" stroke=\"#2563EB\" stroke-width=\"10\" stroke-linecap=\"round\"/>\n  <circle cx=\"68\" cy=\"202\" r=\"10\" fill=\"#14B8A6\"/>\n  <circle cx=\"202\" cy=\"178\" r=\"10\" fill=\"#14B8A6\"/>\n</svg>",
+              "color": "#6965DB"
+            },
+            "color": "#6965DB",
+            "tags": [
+              "excalidraw",
+              "diagrams",
+              "collaboration",
+              "mcp"
+            ],
+            "appConfig": {
+              "scope": "organization",
+              "assistantTemplateKey": "excalidraw-assistant",
+              "workspace": {
+                "mode": "dedicated",
+                "name": {
+                  "en_US": "Excalidraw Workspace",
+                  "zh_Hans": "Excalidraw 绘图工作空间"
+                },
+                "description": {
+                  "en_US": "Shared organization workspace for diagram creation, canvas review, and drawing history.",
+                  "zh_Hans": "用于图形创作、画布审阅和版本管理的组织共享工作空间。"
+                },
+                "sharing": "organization"
+              },
+              "modelRequirements": {
+                "primary": true
+              },
+              "presentation": {
+                "tagline": {
+                  "en_US": "From an idea to an editable diagram",
+                  "zh_Hans": "让想法成为可以继续编辑的图形"
+                },
+                "longDescription": {
+                  "en_US": "Describe a flowchart, architecture, wireframe, or whiteboard to the Drawing Assistant, then refine the same scene in Excalidraw Workbench. The plugin also includes technical diagram templates, quality checks, and native MCP tools with interactive previews for external clients.",
+                  "zh_Hans": "向绘图助手描述流程、架构、线框图或白板想法，再在 Excalidraw 工作台中继续完善同一份场景。插件还提供技术图模板、质量检查，以及供外部客户端使用的原生 MCP 工具和交互预览。"
+                },
+                "developer": "XpertAI",
+                "screenshots": [
+                  "./assets/screenshots/excalidraw-workbench.png"
+                ],
+                "features": [
+                  {
+                    "key": "editable-drawings",
+                    "title": {
+                      "en_US": "AI drawing and canvas collaboration",
+                      "zh_Hans": "AI 绘图与画布协作"
+                    },
+                    "description": {
+                      "en_US": "Create with natural language and refine elements together in the live Excalidraw canvas.",
+                      "zh_Hans": "用自然语言生成图形，与同事在实时同步的 Excalidraw 画布中调整元素。"
+                    }
+                  },
+                  {
+                    "key": "versions-and-sharing",
+                    "title": {
+                      "en_US": "Versions, exports, and sharing",
+                      "zh_Hans": "版本、导出与分享"
+                    },
+                    "description": {
+                      "en_US": "Save checkpoints, restore earlier versions, export JSON/SVG/PNG, and publish revocable public Artifact links.",
+                      "zh_Hans": "保存检查点、恢复历史版本、导出 JSON/SVG/PNG，并发布可撤销的公开 Artifact 链接。"
+                    }
+                  },
+                  {
+                    "key": "technical-diagrams",
+                    "title": {
+                      "en_US": "Technical diagram templates",
+                      "zh_Hans": "技术图模板"
+                    },
+                    "description": {
+                      "en_US": "Use the separately available Technical Diagram Assistant template for DiagramIR layout, validation, and visual review.",
+                      "zh_Hans": "按需使用独立提供的技术图助手模板，完成 DiagramIR 布局、校验与视觉审核。"
+                    }
+                  },
+                  {
+                    "key": "native-mcp",
+                    "title": {
+                      "en_US": "Native MCP tools and previews",
+                      "zh_Hans": "原生 MCP 工具与预览"
+                    },
+                    "description": {
+                      "en_US": "Connect an authorized MCP client to create, convert, and preview drawings without opening Workbench.",
+                      "zh_Hans": "连接已授权的 MCP 客户端，无需打开工作台即可创建、转换和预览图形。"
+                    }
+                  }
+                ],
+                "useCases": [
+                  {
+                    "en_US": "Flowcharts and process reviews",
+                    "zh_Hans": "流程图与业务流程审阅"
+                  },
+                  {
+                    "en_US": "System architecture and data flows",
+                    "zh_Hans": "系统架构与数据流"
+                  },
+                  {
+                    "en_US": "Wireframes and team whiteboards",
+                    "zh_Hans": "线框图与团队白板"
+                  }
+                ],
+                "dataScope": {
+                  "en_US": "The application workspace is shared within the current organization. Authorized MCP clients can access drawings across that organization. Tools run directly under the application policy, including public sharing; links can be revoked.",
+                  "zh_Hans": "应用工作空间在当前组织内共享。已授权的 MCP 客户端可访问当前组织内的图形。工具按应用策略直接执行，包括公开分享；已发布的链接可以撤销。"
+                },
+                "initializationSummary": {
+                  "en_US": "Xpert creates a dedicated organization workspace, installs the Drawing Assistant and its dependencies, and publishes its chat entry. An organization-visible language model is required.",
+                  "zh_Hans": "Xpert 将创建组织专用工作空间，安装绘图助手及其依赖，并发布对话入口。初始化需要组织内可用的语言模型。"
+                },
+                "initializationSteps": [
+                  {
+                    "en_US": "Create the shared drawing workspace",
+                    "zh_Hans": "创建共享绘图工作空间"
+                  },
+                  {
+                    "en_US": "Install the Drawing Assistant and its dependencies",
+                    "zh_Hans": "安装绘图助手及其依赖"
+                  },
+                  {
+                    "en_US": "Publish the Assistant chat entry",
+                    "zh_Hans": "发布助手对话入口"
+                  }
+                ]
+              },
+              "entry": {
+                "type": "assistant-chat"
+              }
             }
           }
         ]
@@ -178,9 +321,18 @@
           "ExcalidrawMiddleware",
           "ExcalidrawDiagramEngineMiddleware"
         ],
-        "viewProviders": ["excalidraw"],
-        "templateProviders": ["excalidrawTemplates"]
+        "viewProviders": [
+          "excalidraw"
+        ],
+        "templateProviders": [
+          "excalidrawTemplates"
+        ],
+        "toolProviders": [
+          "excalidraw_tools"
+        ]
       }
     }
-  }
+  },
+  "level": "system",
+  "sandboxActions": "./dist/sandbox-actions/excalidraw-render/action.json"
 }

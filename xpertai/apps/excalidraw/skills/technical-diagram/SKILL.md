@@ -51,3 +51,19 @@ Before creating DiagramIR, call `excalidraw_list_typography_presets`, choose a m
 ## Attribution
 
 The diagram taxonomy, semantic vocabulary, routing discipline, and bounded generation workflow are adapted from `yizhiyanhua-ai/fireworks-tech-graph` at commit `14be3ad3b05389a5d603562c207eb37157637127`, distributed under the MIT License. This skill uses Excalidraw-native themes and the Xpert DiagramIR implementation rather than the upstream Python/Cairo renderer.
+
+## Native MCP and recovery
+
+MCP calls require explicit drawingId for existing drawings and a stable operationId for mutations. Reuse an operationId only with identical input. Read the scene revision for scene replacement/restore, and the IR revision for technical edits; diagram_validate writes a new IR revision. save_scene_version updates the working scene; checkpoint_version freezes history.
+
+Use create_preview or convert_mermaid for headless work. Persist jobId and cursor, use wait_job (up to 45 seconds per call) until terminal, and resume with get_job after reconnecting. Read PNG content with read_preview before visual review. DiagramIR quality images carry their IR revision and can differ from the actual scene. A conversion conflict retains its result for read_export and never overwrites current work.
+
+All Excalidraw tools, including public sharing, declare direct invocation under application policy. Do not request host.input confirmation or send a confirmation boolean. Public links still require an explicit drawingId, expectedRevision and operationId; stale revisions must fail. Use only platform Artifact URLs and revoke with revoke_artifact_link.
+
+`excalidraw_diagram_render` requires both `expectedRevision` (DiagramIR) and `expectedSceneRevision` (canvas) over MCP. Read the drawing again before replacing the scene.
+
+Tool results are compact DTOs. Drawing summaries are flat (drawingId, sceneRevision, versionNumber); read history with list_versions. diagram_get returns ir without quality history. Read paged issues with diagram_get_quality_report (issueOffset/issueLimit, reviewOffset/reviewLimit). Export metadata appears only in the first chunk. Do not expect entity fields, data/item wrappers on parent reads, or echoed input.
+
+Tool DTOs are available as JSON text as well as structuredContent. Read returned IDs/revisions/URLs directly; no shell fallback is needed for text-only clients. Use validation issue paths or targetIds to repair the reported defects. Follow nextIssueOffset with diagram_get_quality_report for persisted reports; a failed create has no report to read. Retain changedIds for subsequent scene edits and the effective review decision/attempt for the correction limit.
+
+Tool output recovery: `resultStatus: "unavailable"` means the detailed result could not be prepared. Preserve the known business status and IDs; read the returned drawing/job or retry identical arguments with the same `operationId`. Do not start a new write to recover a missing response.

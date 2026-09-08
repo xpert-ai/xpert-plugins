@@ -6,6 +6,16 @@ Excalidraw for Xpert 是面向 Xpert 的多人协作 Agentic 图表产品，将 
 
 用户与智能体操作的是同一份图形，而不是在静态图片之间反复传递结果。用户可以在 Workbench 中自由编辑，智能体则能够读取当前图形和选区、添加或修补元素、重新组织场景、创建版本，或者生成一份仍可在 Excalidraw 中继续编辑的结构化技术图。
 
+## 在 Explore 中启用应用
+
+0.14.0 随包提供实际工作台截图，用于 Explore 应用卡片和详情页的预览。
+
+从 0.13.1 起，插件通过 `targetAppMeta.xpert.marketplace.contents` 注册 `excalidraw` 应用及类型化 `appConfig`，提供中英文介绍、功能说明和初始化入口。管理员在 Explore 中打开 Excalidraw 后，平台检查当前组织的语言模型，并创建专用的组织共享工作空间，安装 `excalidraw-assistant` 模板及其依赖，然后发布助手对话入口。绘图应用无需额外的知识库、嵌入模型或知识库视觉模型。
+
+技术图助手模板 `excalidraw-technical-diagram-assistant` 继续独立提供，可按需安装。MCP 服务的 Publication 和凭据由平台单独管理；启用应用不会扩大 MCP 权限。已授权的 MCP 客户端可以访问当前组织内不同项目的图形，包括公开分享在内的工具按应用策略直接执行。
+
+插件部署使应用配置生效；首次组织初始化和已有助手的模板升级由平台分别管理。重复初始化复用平台记录，升级健康的已有助手请使用“从模板更新”。
+
 ## 为什么使用 Excalidraw for Xpert
 
 常见的 AI 图表生成结果往往难以修改、重复生成不稳定，或者与实际审阅中的文档脱节。本插件保留 Excalidraw 的自由编辑体验，并为技术图增加一套可选的质量工程流程：
@@ -32,7 +42,7 @@ Workbench 是图形的主要可视化工作界面，提供：
 - 当前场景保存与显式版本检查点
 - 版本历史、历史恢复和审阅状态
 - Excalidraw JSON 导入，以及 JSON、PNG、SVG 导出
-- 交互式 HTML Artifact 发布，支持公开链接明确确认、组织/工作区访问、稳定链接复用和撤销
+- 交互式 HTML Artifact 发布，支持应用授权的公开链接、组织/工作区访问、稳定链接复用和撤销
 - 在支持的情况下将 Mermaid 草稿转换为可编辑场景
 - 模板搜索、分类和标签过滤
 - 模板参数表单、缩略图预览和“从模板新建”
@@ -121,7 +131,7 @@ SVG、PNG 预览与 Excalidraw elements 来自同一份解析后几何。PNG 使
 
 协作文档以稳定 element ID 保存元素，显式保存元素顺序，并将 app state、内嵌文件和 Mermaid source 放在独立 Yjs 结构中。不同元素上的更新可以独立合并。创建版本、恢复、导出和分享等强一致操作，会先与平台权威文档完成同步。
 
-Artifact 分享会物化权威协作场景，并发布一份包含原生只读 Excalidraw Viewer 的自包含 HTML 页面。页面支持平移、缩放和适应画布，不访问私有 API 或外部资源；随后写入限定作用域的 Workspace Files，并注册为交互式 Xpert Artifact。Workbench 不自行拼接分享地址，只使用平台返回的 URL。公开链接必须由可信 UI 明确确认；内容和访问策略未改变时会复用当前链接。
+Artifact 分享会物化权威协作场景，并发布一份包含原生只读 Excalidraw Viewer 的自包含 HTML 页面。页面支持平移、缩放和适应画布，不访问私有 API 或外部资源；随后写入限定作用域的 Workspace Files，并注册为交互式 Xpert Artifact。Workbench 不自行拼接分享地址，只使用平台返回的 URL。工具按应用策略授权公开链接；Workbench 保留显式分享界面。内容和访问策略未改变时会复用当前链接。
 
 ## 文件与输出
 
@@ -174,13 +184,15 @@ Artifact 分享会物化权威协作场景，并发布一份包含原生只读 E
 在 `xpert-plugins` 仓库根目录执行：
 
 ```bash
-pnpm -C xpertai --filter @xpert-ai/plugin-excalidraw test
-pnpm -C xpertai --filter @xpert-ai/plugin-excalidraw build
+pnpm -C xpertai exec nx test @xpert-ai/plugin-excalidraw
+pnpm -C xpertai exec nx build @xpert-ai/plugin-excalidraw
 NODE_PATH="$PWD/xpertai/node_modules/.pnpm/node_modules" \
   node plugin-dev-harness/dist/index.js \
   --workspace ./xpertai \
   --plugin @xpert-ai/plugin-excalidraw
 ```
+
+构建和测试会将固定版本的质量预览字体准备到 `dist/assets/fonts/`。首次运行下载并校验文件大小与 SHA-256，后续运行校验并复用缓存；Git 仅保存来源清单、许可证与说明。CI 可通过 `XPERT_EXCALIDRAW_FONT_CACHE` 指定绝对缓存目录，设置 `XPERT_EXCALIDRAW_FONTS_OFFLINE=1` 则要求预先存在校验通过的缓存。发布包包含字体，运行时无需下载。详见[字体来源与构建说明](assets/fonts/README.md)。
 
 多人协作要求 Xpert Collaboration runtime capability；Artifact 分享要求 Artifacts 和 Workspace Files runtime capabilities；质量预览同样依赖 Workspace Files。
 
@@ -189,3 +201,44 @@ NODE_PATH="$PWD/xpertai/node_modules/.pnpm/node_modules" \
 本插件使用 [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.html) 许可证发布。
 
 技术图分类和工作流规范参考了 [`yizhiyanhua-ai/fireworks-tech-graph`](https://github.com/yizhiyanhua-ai/fireworks-tech-graph)，具体来源 commit 记录在 `skills/NOTICE.fireworks-tech-graph.txt` 中，并遵循上游 MIT License。本插件使用 Excalidraw 原生主题和自有 TypeScript/Resvg 渲染链，不复制上游 Python/Cairo runtime。
+
+## 原生 MCP 工具与交互预览（0.13）
+
+在插件管理的 MCP 服务中启用 **Excalidraw**，通过 Xpert 提供的 Publication 地址和用户绑定组织凭据连接客户端。Provider 为 `excalidraw_tools`，组件为 `excalidraw-tools`。Publication 控制工具访问；每次调用还会校验租户、组织和调用主体。MCP 可以操作当前组织不同项目中的图形，无需打开 Workbench，也不依赖 Assistant 或对话上下文。
+
+建议调用顺序：
+
+1. 使用 `excalidraw_search_drawings`、`excalidraw_get_drawing` 获取图形摘要、场景修订和分页元素引用，再通过 `excalidraw_get_scene_item` 读取具体项。
+2. `excalidraw_create_drawing` 仅创建元数据，再用 `excalidraw_add_elements` 小批量添加元素。MCP 操作已有图形必须明确传入 `drawingId`。
+3. 每次修改传入稳定的 `operationId`。中断后用同一标识和相同输入重试；同标识不同输入会被拒绝。整体替换、删除和恢复需要读取当前场景并传入 `expectedRevision`。
+4. 预览、无界面 Mermaid 转换和导出返回持久化 `jobId`、`cursor`。用 `excalidraw_wait_job` 有界等待，每次最多 45 秒，直到 `terminal`；重连后用 `excalidraw_get_job` 恢复，也可用 `excalidraw_cancel_job` 取消。不要通过重复提交来轮询。
+5. 完成后用 `excalidraw_read_preview` 获取标准 PNG 图片内容。JSON、SVG、PNG 导出及冲突后保留的转换 JSON 通过 `excalidraw_read_export` 分页读取 base64，按 offset 顺序拼接、解码并验证 SHA-256。
+6. `excalidraw_save_scene_version` 保持旧行为：更新当前工作场景。显式保存历史使用 `excalidraw_checkpoint_version`，历史列表和恢复分别使用 `excalidraw_list_versions`、`excalidraw_restore_version`。检查点保持冻结，其后首次修改会创建工作版本。
+
+场景修订、DiagramIR 修订和业务版本号是独立计数器。`excalidraw_diagram_validate` 会写入新的 IR 修订，后续技术图工具应使用返回的 `irRevision`。技术图流程为：模板实例化或创建 IR → 编辑 → 校验 → 渲染 → 创建质量预览 → 读取 PNG → 记录视觉审核。每个质量任务最多允许两轮纠正。质量预览明确标注对应的 IR 修订，不能冒充当前人工编辑场景的预览。
+
+`excalidraw_preview` MCP App 提供缩放、平移、适应画布、刷新、版本信息和质量结果，支持简体中文、英文与宿主明暗主题。App 不接收私有文件路径或凭据，也不使用 Web Storage。普通 MCP 客户端仍能使用工具、文本和标准图片结果；手工绘图继续使用 Workbench。
+
+### 渲染、分享与宿主升级
+
+原生预览及 Mermaid 转换由插件 `excalidraw.render@1.0.0` Sandbox Action 执行，运行时为 `browser/playwright-1.61/v1`。Action 固定 Excalidraw 0.18.1、Mermaid 转换库 2.2.2 和随包字体，浏览器不访问外部资源。需要可用的 Browser Runtime Binding 和 `sandbox-browser` Managed Queue 消费者；缺少运行时或认证文件身份时返回明确错误。JSON 导出不依赖浏览器。任务、输出引用、校验值和失败状态均持久化。预览缓存包含租户、组织、图形修订、渲染版本和调用主体；Mermaid 转换遇到场景冲突时保留输出，不覆盖期间的修改。
+
+所有写工具及公开分享声明 `mcp.defaultApprovalMode: allow`。自动创建或同步 Publication 时，没有管理员显式覆盖的工具采用该默认策略；显式策略仍优先。工具不调用 `host.input`，公开分享通过可信 `publicLinkAuthorization: application_policy` 授权，不伪造用户确认。主体范围、修订检查、幂等、链接复用与撤销仍执行。无项目或 Assistant 时使用当前认证用户的 Workspace Files。
+
+依赖基线为已发布 SDK 3.18.3、contracts 3.18.2。本次源代码还需要同步宿主 SDK 的 `resultFormat: 'tool_result'` 与严格对象交叉字段校验支持；本地联调使用宿主工作区构建。**npm 发布前必须把依赖版本更新为实际包含这些接口的已发布版本。** 旧宿主会在插件注册时收到明确升级错误。
+
+关闭数据库自动同步的环境应先执行 `migrations/20260906-native-mcp.sql`。迁移只新增操作回执、渲染任务表和检查点字段，保留现有图形 ID、表名、历史及 Yjs 场景映射。Workbench 详细日志默认关闭，仅由宿主 `init.debug.enabled` 开启；中间件诊断可通过 `XPERT_EXCALIDRAW_DEBUG=true` 开启。
+
+交付验证使用 Nx 构建和测试、`verify:dist`、实际打包及 `plugin-dev-harness`，随后通过 `plugin:deploy:local` 安装；出现 `restartRequired` 时重启选定宿主并验证真实 MCP 调用。npm 发布与生产部署是后续步骤。
+
+本地宿主使用 MCP `2026-07-28`，同时接受旧版 `2025-11-25` 调用。Excalidraw 默认直接执行，两种协议均不依赖 elicitation。管理员显式设置 `confirm` 后才需要支持交互确认的客户端。`defaultApprovalMode` 和 Artifact 应用授权需要配套升级宿主 contracts 与 plugin SDK；已发布 SDK 3.18.3 尚未包含这些新增接口。
+
+通过 MCP 调用 `excalidraw_diagram_render` 时需同时传入 `expectedRevision`（DiagramIR）和 `expectedSceneRevision`（画布）。替换前重新读取图形以获取画布修订。
+
+宿主配套修改还包括用户身份恢复、Workspace Files/Collaboration/Artifacts 的全局运行时发现，以及 Publication 确认后继续进行工具自身确认的能力。技术图质量 PNG 使用随包分发的 Noto Sans CJK SC 2.004 OTF 字体（OFL 许可）；原生画布渲染仍使用固定版本 Excalidraw 字体。
+
+本地验收脚本从宿主 Keychain 登录助手读取身份，不记录凭据。先启用当前组织的 MCP 服务，再设置 `XPERT_HOST_CHECKOUT`、`XPERT_API_URL`、`XPERT_ORGANIZATION_ID`。`scripts/smoke-native-concurrency.mjs` 验证真实并发、重复预览、Mermaid 冲突和取消；`scripts/smoke-installed-workbench.mjs <playwright-core目录>` 还需要 `XPERT_ASSISTANT_ID`，会创建专用验收图形并验证人工编辑与 MCP 同步。验收客户端不声明 elicitation，遇到确认请求即失败；分享验收同时覆盖旧协议连接。截图和脱敏结果写入 `test-output/mcp/`。
+
+每个工具都在 `content.text` 与 `structuredContent` 中返回相同的精简 JSON，兼容只透传文本的客户端。保留 ID、修订号、URL、变更元素 ID 和可修正的校验问题。Schema 错误指出字段路径，DiagramIR 失败返回具体目标及原因。运行 `scripts/smoke-text-client.mjs` 验证完全不读取 structuredContent 的调用闭环。
+
+工具返回 `resultStatus: "unavailable"` 时，表示详细结果未能完整返回。保留回执中的业务状态和标识，读取对应图形/任务，或使用相同参数和 `operationId` 重试；不要为补取结果创建新的写操作。输出转换统一由 SDK 校验和恢复，保留 MCP 协议校验。

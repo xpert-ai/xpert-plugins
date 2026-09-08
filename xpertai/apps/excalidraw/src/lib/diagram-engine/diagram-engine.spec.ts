@@ -40,10 +40,12 @@ describe('Excalidraw DiagramEngine reference implementation', () => {
   it('returns readable template parameter errors and never evaluates template expressions', () => {
     const { catalog } = createEngine()
     expect(() => catalog.instantiate('rag-pipeline', '1.0.0', { title: '' })).toThrow(BadRequestException)
-    expect(() => catalog.instantiate('rag-pipeline', '1.0.0', {
-      title: 'RAG',
-      expression: '${process.exit(1)}'
-    })).toThrow(/must NOT have additional properties/)
+    expect(() =>
+      catalog.instantiate('rag-pipeline', '1.0.0', {
+        title: 'RAG',
+        expression: '${process.exit(1)}'
+      })
+    ).toThrow(/must NOT have additional properties/)
   })
 
   it.each(BUILTIN_DIAGRAM_TEMPLATES.map((template) => [template.descriptor.key, template] as const))(
@@ -60,11 +62,16 @@ describe('Excalidraw DiagramEngine reference implementation', () => {
       expect(first.svg).toContain('<svg')
       expect(first.svg).not.toMatch(/(?:href|src)=["']https?:\/\//)
       expect(first.svg).not.toMatch(/@import|url\(["']?https?:\/\//)
-      expect(() => normalizeExcalidrawScene({
-        elements: first.elements,
-        appState: first.appState,
-        files: first.files
-      }, { context: template.descriptor.key })).not.toThrow()
+      expect(() =>
+        normalizeExcalidrawScene(
+          {
+            elements: first.elements,
+            appState: first.appState,
+            files: first.files
+          },
+          { context: template.descriptor.key }
+        )
+      ).not.toThrow()
     }
   )
 
@@ -145,9 +152,26 @@ describe('Excalidraw DiagramEngine reference implementation', () => {
       'files/excalidraw/diagrams/drawing-1/quality/quality-run-1/preview-0.png'
     ])
     expect(writes[0].buffer.toString('utf8')).toContain('<svg')
-    expect(writes[0].buffer.toString('utf8')).toContain('Noto Sans SC')
+    expect(writes[0].buffer.toString('utf8')).toContain('Noto Sans CJK SC')
     expect(writes[0].buffer.toString('utf8')).toContain('分层技术架构')
     expect(writes[1].buffer.subarray(1, 4).toString('ascii')).toBe('PNG')
     expect(result.png.size).toBeGreaterThan(100)
+  })
+  it.each(['A', '中'])('rasterizes the %s glyph with the pinned font without system fonts', async (text) => {
+    const renders: Buffer[] = []
+    const files = {
+      writeRuntimeBuffer: async (input: { path: string; buffer: Buffer; mimeType: string }) => {
+        if (input.mimeType === 'image/png') renders.push(input.buffer)
+        return { filePath: input.path, workspacePath: input.path }
+      }
+    }
+    for (const label of ['', text])
+      await new DiagramPreviewService().createPreview(files, {
+        drawingId: 'font-test',
+        qualityRunId: 'run',
+        attempt: 0,
+        svg: `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50"><rect width="100" height="50" fill="white"/><text x="10" y="35" font-size="28">${label}</text></svg>`
+      })
+    expect(renders[1].equals(renders[0])).toBe(false)
   })
 })

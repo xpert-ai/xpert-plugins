@@ -277,7 +277,17 @@ function templateKey(key: string, version: string) {
 }
 
 function formatAjvErrors(errors: ErrorObject[] | null | undefined) {
-  return errors?.map((error) => `${error.instancePath || '/'} ${error.message ?? 'is invalid'}`).join('; ') ?? 'Template parameters are invalid.'
+  return JSON.stringify({
+    errorCode: 'invalid_template_parameters',
+    issues: (errors ?? []).slice(0, 20).map(error => {
+      const property = error.keyword === 'required' ? error.params.missingProperty
+        : error.keyword === 'additionalProperties' ? error.params.additionalProperty : undefined
+      const path = `/parameters${error.instancePath}${typeof property === 'string' ? `/${property.replace(/~/g, '~0').replace(/\//g, '~1')}` : ''}`
+      return { path: path.slice(0, 1000), code: error.keyword, message: error.message ?? 'Invalid value' }
+    }),
+    issueTotal: errors?.length ?? 0,
+    truncated: (errors?.length ?? 0) > 20
+  })
 }
 
 function readString(value: unknown) {
