@@ -1,6 +1,8 @@
 const dictionary = {
   en: {
     title: 'Presentation Studio', deckActions: 'Deck', newDeck: 'New deck', refresh: 'Refresh', goal: 'Goal', theme: 'Theme', pages: 'Pages', create: 'Create',
+    presentationTitle: 'Presentation title', presentationTitlePlaceholder: 'e.g. Q4 product launch', presentationGoal: 'Presentation goal', presentationGoalPlaceholder: 'Describe what the audience should understand',
+    themeSelection: 'Choose a theme', themeSelectionDescription: 'Select a visual style and preview the actual theme pages below.', themePreviewUnavailable: 'Theme previews are temporarily unavailable. You can still choose a theme.', pageCountRange: '3-30 pages', selected: 'Selected', shellPlaceholder: 'Awaiting content',
     saveVersion: 'Save version', upload: 'Upload media', exportHtml: 'Export HTML', exportPdf: 'Export PDF', exportPptx: 'Export PPTX',
     browserExportUnavailable: 'PDF/PPTX export is temporarily unavailable:',
     versions: 'Versions', exports: 'Exports', assets: 'Assets', noDeck: 'Create or select a deck to begin.', collaboration: 'Collaboration',
@@ -34,6 +36,8 @@ const dictionary = {
   },
   zh: {
     title: '演示文稿工作室', deckActions: '文稿', newDeck: '新建演示稿', refresh: '刷新', goal: '目标', theme: '主题', pages: '页数', create: '创建',
+    presentationTitle: '演示稿标题', presentationTitlePlaceholder: '例如：Q4 产品发布会', presentationGoal: '演示目标', presentationGoalPlaceholder: '说明这份演示稿需要帮助观众理解什么',
+    themeSelection: '选择主题', themeSelectionDescription: '选择视觉风格，下面可直接预览主题页面效果。', themePreviewUnavailable: '主题预览暂时不可用，仍可选择主题。', pageCountRange: '3-30 页', selected: '已选择', shellPlaceholder: '待填充内容',
     saveVersion: '保存版本', upload: '上传媒体', exportHtml: '导出 HTML', exportPdf: '导出 PDF', exportPptx: '导出 PPTX',
     browserExportUnavailable: 'PDF/PPTX 导出暂不可用：',
     versions: '版本', exports: '导出', assets: '素材', noDeck: '新建或选择一个演示稿开始编辑。', collaboration: '协作',

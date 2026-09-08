@@ -32,7 +32,10 @@ describe('DashiAI renderer integration', () => {
       deckSpec: spec,
       editorState: {
       slideOrder: spec.slides.map((slide) => slide.id), skippedSlides: [], deletedSlides: [], duplicatedSlides: [], text: {},
-      props: Object.fromEntries(spec.slides.map((slide) => [slide.id, slide.props])), preview: {}
+      props: Object.fromEntries(spec.slides.map((slide, index) => [slide.id, {
+        ...slide.props,
+        ...(index === 0 ? { __studioElementPositions: { 'element:test': { x: 12, y: 16 } } } : {})
+      }])), preview: {}
       },
       checksum: 'integration-test',
       rendererVersion: '0.1.0',

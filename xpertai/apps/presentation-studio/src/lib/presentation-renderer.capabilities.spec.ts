@@ -10,7 +10,11 @@ describe('PresentationRendererService export capabilities', () => {
   function createRenderer(options?: {
     workers?: number
     jobs?: boolean
-    health?: { available: boolean; reason?: 'RUNTIME_UNBOUND' | 'PROVIDER_UNAVAILABLE'; message?: string }
+    health?: {
+      available: boolean
+      reason?: 'RUNTIME_UNBOUND' | 'PROVIDER_UNAVAILABLE' | 'PROFILE_UNHEALTHY'
+      message?: string
+    }
   }) {
     const workers = options?.workers ?? 1
     const jobs = {
@@ -106,6 +110,37 @@ describe('PresentationRendererService export capabilities', () => {
     expect(capabilities.pdf).toMatchObject({ available: false, reason: 'PROVIDER_UNAVAILABLE' })
     expect(capabilities.pdf.message).toContain('OSS base deployment intentionally does not include')
     expect(capabilities.pdf.message).toContain('HTML remains available')
+  })
+
+  it('turns a missing Docker Runtime Suite lock into a concise deployment diagnostic', async () => {
+    const { renderer } = createRenderer({
+      health: {
+        available: false,
+        reason: 'PROFILE_UNHEALTHY',
+        message: "docker-runtime: ENOENT: no such file or directory, open '/srv/xpert/runtime-suite.lock.json'\n    at readFile (node:fs/promises:123:4)"
+      }
+    })
+
+    const capabilities = await renderer.getExportCapabilities()
+
+    expect(capabilities.pdf.message).toContain('missing /srv/xpert/runtime-suite.lock.json')
+    expect(capabilities.pdf.message).toContain('immutable Runtime Suite lock')
+    expect(capabilities.pdf.message).not.toContain('at readFile')
+  })
+
+  it('turns a missing local Headless Shell into a concise local repair command', async () => {
+    const { renderer } = createRenderer({
+      health: {
+        available: false,
+        reason: 'PROFILE_UNHEALTHY',
+        message: "BROWSER_LAUNCH_FAILED: browserType.launch: Executable doesn't exist at /Users/example/Library/Caches/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell"
+      }
+    })
+
+    const capabilities = await renderer.getExportCapabilities()
+
+    expect(capabilities.pdf.message).toContain('install:browser')
+    expect(capabilities.pdf.message).not.toContain('chromium_headless_shell-1228')
   })
 
   it('budgets enough Sandbox Job time for a maximum-size PPTX export', async () => {
