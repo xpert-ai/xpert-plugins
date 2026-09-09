@@ -6,6 +6,8 @@
 
 ## 依赖和兼容范围
 
+本包通过 `package.json` 的 `"private": true` 禁止发布到 npm，Changesets 发布流程会跳过它。仍可在工作区构建、测试，并通过下述本地部署 CLI 安装到 Xpert。
+
 本版本需要同一工作区内已加入 Assistant Suite 初始化契约的 xpert-pro，以及配套 DataXpert 应用初始化和执行记录页面改动。单独安装插件到尚不支持这些契约的旧宿主不会自动获得套件初始化能力。
 
 公开依赖最低要求为 `@xpert-ai/plugin-sdk@3.18.3` 和 `@xpert-ai/contracts@3.18.2`。这些已发布 npm 包包含 `ProjectAccessRuntimeCapability`、`XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN` 与 Assistant Profile 契约；构建直接使用声明的公开依赖。
