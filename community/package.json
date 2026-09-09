@@ -6,11 +6,11 @@
   "packageManager": "pnpm@8.15.8",
   "scripts": {
     "create:package": "node ./scripts/create-package.mjs",
-    "build": "pnpm -r run build",
+    "build": "pnpm -r --workspace-concurrency=1 --if-present run build",
     "lint": "pnpm -r run lint",
     "check:entity-names": "node ./scripts/check-entity-names.mjs",
     "test": "pnpm run check:entity-names && pnpm -r run test",
-    "release:publish": "pnpm -r --if-present run build && pnpm exec changeset publish"
+    "release:publish": "pnpm run build && pnpm exec changeset publish"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.8",
