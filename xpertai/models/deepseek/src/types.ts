@@ -22,7 +22,7 @@ export interface DeepseekModelCredentials extends CommonChatModelParameters {
 	max_tokens?: number
 	frequency_penalty?: number
 	thinking?: boolean
-	reasoning_effort?: 'high' | 'max'
+	reasoning_effort?: 'low' | 'high' | 'max'
 }
 
 export function toCredentialKwargs(credentials: DeepseekCredentials) {

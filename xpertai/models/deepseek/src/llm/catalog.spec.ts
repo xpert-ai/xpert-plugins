@@ -7,7 +7,24 @@ describe('DeepSeek model catalog', () => {
   const models = modelManager.predefinedModels()
 
   it('only exposes the current V4 models as active', () => {
-    expect(models.map((model) => model.model)).toEqual(['deepseek-v4-flash', 'deepseek-v4-pro'])
+    expect(models.map((model) => model.model)).toEqual([
+      'deepseek-v4-flash',
+      'deepseek-v4-flash-vision-exp',
+      'deepseek-v4-pro'
+    ])
+  })
+
+  it('declares the experimental vision model capabilities and parameters', () => {
+    const model = models.find((candidate) => candidate.model === 'deepseek-v4-flash-vision-exp')
+
+    expect(model).toMatchObject({
+      features: expect.arrayContaining(['vision', 'agent-thought', 'tool-call', 'multi-tool-call', 'stream-tool-call']),
+      model_properties: { mode: 'chat', context_size: 1000000 }
+    })
+    expect(model?.parameter_rules?.find((rule) => rule.name === 'max_tokens')).toMatchObject({ max: 384000 })
+    expect(model?.parameter_rules?.find((rule) => rule.name === 'reasoning_effort')).toMatchObject({
+      options: ['low', 'high', 'max']
+    })
   })
 
   it('validates provider credentials with V4 Flash', async () => {
@@ -21,21 +38,17 @@ describe('DeepSeek model catalog', () => {
   })
 
   it.each([
+    ['deepseek-v4-flash', { cacheRead: 0.05, input: 1.5, output: 4.5 }, { cacheRead: 0.1, input: 3, output: 9 }],
     [
-      'deepseek-v4-flash',
+      'deepseek-v4-flash-vision-exp',
       { cacheRead: 0.05, input: 1.5, output: 4.5 },
       { cacheRead: 0.1, input: 3, output: 9 }
     ],
-    [
-      'deepseek-v4-pro',
-      { cacheRead: 0.15, input: 4.5, output: 13.5 },
-      { cacheRead: 0.3, input: 9, output: 27 }
-    ]
+    ['deepseek-v4-pro', { cacheRead: 0.15, input: 4.5, output: 13.5 }, { cacheRead: 0.3, input: 9, output: 27 }]
   ])('contains current recurring prices for %s', (modelName, offPeak, peak) => {
     const model = models.find((candidate) => candidate.model === modelName)
     const rules = model?.pricing && 'rules' in model.pricing ? model.pricing.rules : []
-    const byWindow = (startTime?: string) =>
-      rules.filter((rule) => rule.daily_time_window?.start_time === startTime)
+    const byWindow = (startTime?: string) => rules.filter((rule) => rule.daily_time_window?.start_time === startTime)
 
     expect(model?.pricing).toMatchObject({ currency: 'RMB', unit: '0.000001' })
     expect(byWindow(undefined)).toEqual(
@@ -62,5 +75,4 @@ describe('DeepSeek model catalog', () => {
       )
     }
   })
-
 })
