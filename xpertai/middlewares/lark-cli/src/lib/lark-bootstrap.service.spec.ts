@@ -9,6 +9,8 @@ import {
   DEFAULT_LARK_CLI_SECRETS_DIR,
   DEFAULT_LARK_CLI_STAMP_PATH,
   LARK_CLI_BOOTSTRAP_SCHEMA_VERSION,
+  LARK_CLI_SKILLS_REF,
+  LARK_CLI_VERSION,
   LarkAuthMode
 } from './lark-cli.types.js'
 import { LarkBootstrapService } from './lark-bootstrap.service.js'
@@ -91,6 +93,9 @@ describe('LarkBootstrapService', () => {
       expect(prompt).toContain('<skill>')
       expect(prompt).toContain('Lark CLI')
       expect(prompt).toContain('/workspace/.xpert/skills/lark-cli/')
+      expect(prompt).toContain('not an Agent tool or graph node')
+      expect(prompt).toContain('Never emit a tool call named `lark-cli`')
+      expect(prompt).toContain('Call `sandbox_shell`')
       expect(prompt).toContain('lark-cli calendar +agenda')
       expect(prompt).toContain('lark-cli im +messages-send')
     })
@@ -101,6 +106,16 @@ describe('LarkBootstrapService', () => {
       expect(prompt).toContain('lark-calendar')
       expect(prompt).toContain('lark-im')
       expect(prompt).toContain('lark-doc')
+      expect(prompt).toContain('lark-slides')
+    })
+
+    it('routes presentation requests through the complete lark-slides workflow', () => {
+      const prompt = service.buildSystemPrompt()
+      expect(prompt).toContain('/workspace/.xpert/skills/lark-cli/lark-slides/SKILL.md')
+      expect(prompt).toContain('slide_plan.json')
+      expect(prompt).toContain('bundled XML lint')
+      expect(prompt).toContain('does not invoke the private Doubao PPT product')
+      expect(prompt).toContain('lark-cli-skill-ensure')
     })
   })
 
@@ -163,7 +178,8 @@ describe('LarkBootstrapService', () => {
       const backend = {
         workingDirectory: '/workspace',
         execute: jest.fn().mockResolvedValue({ output: '', exitCode: 0, truncated: false }),
-        uploadFiles: jest.fn()
+        uploadFiles: jest
+          .fn()
           .mockResolvedValueOnce([{ path: DEFAULT_LARK_CLI_APP_ID_UPLOAD_PATH, error: null }])
           .mockResolvedValueOnce([{ path: DEFAULT_LARK_CLI_APP_SECRET_UPLOAD_PATH, error: null }])
       }
@@ -197,29 +213,29 @@ describe('LarkBootstrapService', () => {
 
   describe('ensureBootstrap', () => {
     it('throws if backend is not available', async () => {
-      await expect(service.ensureBootstrap(null as any)).rejects.toThrow(
-        'Sandbox backend is not available'
-      )
+      await expect(service.ensureBootstrap(null as any)).rejects.toThrow('Sandbox backend is not available')
     })
 
     it('throws when node is missing', async () => {
       const backend = {
-        execute: jest.fn()
+        execute: jest
+          .fn()
           .mockResolvedValueOnce({ output: '', exitCode: 0 })
           .mockResolvedValueOnce({ output: '', exitCode: 1 })
       }
 
-      await expect(service.ensureBootstrap(backend as any)).rejects.toThrow(
-        'Node.js is not available in the sandbox'
-      )
+      await expect(service.ensureBootstrap(backend as any)).rejects.toThrow('Node.js is not available in the sandbox')
     })
 
     it('skips bootstrap when stamp matches, binary exists, and skills are present', async () => {
       const backend = {
-        execute: jest.fn()
+        execute: jest
+          .fn()
           .mockResolvedValueOnce({
             output: JSON.stringify({
               tool: 'lark-cli',
+              cliVersion: LARK_CLI_VERSION,
+              skillsRef: LARK_CLI_SKILLS_REF,
               bootstrapVersion: LARK_CLI_BOOTSTRAP_SCHEMA_VERSION,
               installedAt: new Date().toISOString()
             }),
@@ -238,7 +254,8 @@ describe('LarkBootstrapService', () => {
     it('installs lark-cli when bootstrap is needed', async () => {
       const backend = {
         workingDirectory: '/workspace',
-        execute: jest.fn()
+        execute: jest
+          .fn()
           .mockResolvedValueOnce({ output: '', exitCode: 0 })
           .mockResolvedValueOnce({ output: '/usr/bin/node', exitCode: 0 })
           .mockResolvedValueOnce({ output: '', exitCode: 1 })
@@ -249,18 +266,15 @@ describe('LarkBootstrapService', () => {
       const result = await service.ensureBootstrap(backend as any)
 
       expect(result.exitCode).toBe(0)
-      expect(backend.execute).toHaveBeenCalledWith(
-        expect.stringContaining('npm install -g @larksuite/cli')
-      )
-      expect(backend.execute).toHaveBeenCalledWith(
-        expect.stringContaining(DEFAULT_LARK_CLI_STAMP_PATH)
-      )
+      expect(backend.execute).toHaveBeenCalledWith(expect.stringContaining('npm install -g @larksuite/cli'))
+      expect(backend.execute).toHaveBeenCalledWith(expect.stringContaining(DEFAULT_LARK_CLI_STAMP_PATH))
     })
 
     it('uses runtime workspace root for bootstrap files', async () => {
       const backend = {
         workingDirectory: '/tmp/local-shell-workspace',
-        execute: jest.fn()
+        execute: jest
+          .fn()
           .mockResolvedValueOnce({ output: '', exitCode: 0 })
           .mockResolvedValueOnce({ output: '/usr/bin/node', exitCode: 0 })
           .mockResolvedValueOnce({ output: '/usr/bin/lark-cli', exitCode: 0 })
@@ -278,6 +292,15 @@ describe('LarkBootstrapService', () => {
       expect(findCommand(backend.execute.mock.calls, 'test -f')).toContain(
         "'/tmp/local-shell-workspace/.xpert/skills/lark-cli/lark-shared/SKILL.md'"
       )
+      expect(findCommand(backend.execute.mock.calls, 'test -f')).toContain(
+        "'/tmp/local-shell-workspace/.xpert/skills/lark-cli/lark-slides/scripts/xml_lint.py'"
+      )
+      expect(findCommand(backend.execute.mock.calls, 'test -f')).toContain(
+        "'/tmp/local-shell-workspace/.xpert/skills/lark-cli/lark-slides/references/xml/slides_xml_schema_definition.xml'"
+      )
+      expect(findCommand(backend.execute.mock.calls, 'test -f')).toContain(
+        "'/tmp/local-shell-workspace/.xpert/skills/lark-cli/UPSTREAM_LICENSE'"
+      )
       expect(findCommand(backend.execute.mock.calls, 'bootstrapVersion')).toContain(
         "'/tmp/local-shell-workspace/.xpert/.lark-cli-bootstrap.json'"
       )
@@ -286,7 +309,8 @@ describe('LarkBootstrapService', () => {
     it('fails fast when the skills directory cannot be prepared', async () => {
       const backend = {
         workingDirectory: '/workspace',
-        execute: jest.fn()
+        execute: jest
+          .fn()
           .mockResolvedValueOnce({ output: '', exitCode: 0 })
           .mockResolvedValueOnce({ output: '/usr/bin/node', exitCode: 0 })
           .mockResolvedValueOnce({ output: '', exitCode: 1 })
@@ -301,15 +325,71 @@ describe('LarkBootstrapService', () => {
       await expect(service.ensureBootstrap(backend as any)).rejects.toThrow(
         'Failed to prepare Lark skills directory: mkdir: /workspace: Read-only file system'
       )
-      expect(backend.execute.mock.calls.some(([command]) =>
-        typeof command === 'string' && command.includes('curl -sSL')
-      )).toBe(false)
+      expect(
+        backend.execute.mock.calls.some(([command]) => typeof command === 'string' && command.includes('curl -sSL'))
+      ).toBe(false)
+    })
+
+    it('fails bootstrap when the complete skills archive cannot be installed', async () => {
+      const backend = {
+        workingDirectory: '/workspace',
+        execute: jest
+          .fn()
+          .mockResolvedValueOnce({ output: '', exitCode: 0 })
+          .mockResolvedValueOnce({ output: '/usr/bin/node', exitCode: 0 })
+          .mockResolvedValueOnce({ output: '', exitCode: 1 })
+          .mockResolvedValueOnce({ output: 'installed', exitCode: 0 })
+          .mockResolvedValueOnce({ output: '', exitCode: 0 })
+          .mockResolvedValueOnce({ output: 'curl: download failed', exitCode: 22 }),
+        uploadFiles: jest.fn()
+      }
+
+      await expect(service.ensureBootstrap(backend as any)).rejects.toThrow(
+        'Failed to download complete Lark skills bundle: curl: download failed'
+      )
+      expect(
+        backend.execute.mock.calls.some(
+          ([command]) => typeof command === 'string' && command.includes('bootstrapVersion')
+        )
+      ).toBe(false)
+    })
+
+    it('reinstalls when the pinned CLI or skills version changes', async () => {
+      const backend = {
+        workingDirectory: '/workspace',
+        execute: jest
+          .fn()
+          .mockResolvedValueOnce({
+            output: JSON.stringify({
+              tool: 'lark-cli',
+              cliVersion: '1.0.92',
+              skillsRef: 'old-commit',
+              bootstrapVersion: LARK_CLI_BOOTSTRAP_SCHEMA_VERSION,
+              installedAt: new Date().toISOString()
+            }),
+            exitCode: 0
+          })
+          .mockResolvedValueOnce({ output: '/usr/bin/node', exitCode: 0 })
+          .mockResolvedValueOnce({ output: '/usr/bin/lark-cli', exitCode: 0 })
+          .mockResolvedValueOnce({ output: '', exitCode: 0 })
+          .mockResolvedValue({ output: '', exitCode: 0 }),
+        uploadFiles: jest.fn()
+      }
+
+      const result = await service.ensureBootstrap(backend as any)
+
+      expect(result).toEqual({ output: 'bootstrapped lark cli', exitCode: 0, truncated: false })
+      expect(findCommand(backend.execute.mock.calls, 'npm install -g @larksuite/cli')).toContain(
+        `@larksuite/cli@${LARK_CLI_VERSION}`
+      )
+      expect(findCommand(backend.execute.mock.calls, 'curl -sSL')).toContain(LARK_CLI_SKILLS_REF)
     })
 
     it('includes proxy in npm install and curl download when configured', async () => {
       const backend = {
         workingDirectory: '/workspace',
-        execute: jest.fn()
+        execute: jest
+          .fn()
           .mockResolvedValueOnce({ output: '', exitCode: 0 })
           .mockResolvedValueOnce({ output: '/usr/bin/node', exitCode: 0 })
           .mockResolvedValueOnce({ output: '', exitCode: 1 })
@@ -329,12 +409,14 @@ describe('LarkBootstrapService', () => {
       expect(installCommand).toContain("--proxy 'http://proxy.example.com:7890'")
       expect(installCommand).toContain("--https-proxy 'http://proxy.example.com:7890'")
       expect(curlCommand).toContain("--proxy 'http://proxy.example.com:7890'")
+      expect(curlCommand).toContain(`/tar.gz/${LARK_CLI_SKILLS_REF}`)
     })
 
     it('includes npm registry only in npm install when configured', async () => {
       const backend = {
         workingDirectory: '/workspace',
-        execute: jest.fn()
+        execute: jest
+          .fn()
           .mockResolvedValueOnce({ output: '', exitCode: 0 })
           .mockResolvedValueOnce({ output: '/usr/bin/node', exitCode: 0 })
           .mockResolvedValueOnce({ output: '', exitCode: 1 })
@@ -353,12 +435,14 @@ describe('LarkBootstrapService', () => {
 
       expect(installCommand).toContain("--registry 'https://registry.npmmirror.com'")
       expect(curlCommand).not.toContain('--registry')
+      expect(curlCommand).toContain('lark-slides/scripts/xml_lint.py')
     })
 
     it('shell-quotes proxy and npm registry when both are configured', async () => {
       const backend = {
         workingDirectory: '/workspace',
-        execute: jest.fn()
+        execute: jest
+          .fn()
           .mockResolvedValueOnce({ output: '', exitCode: 0 })
           .mockResolvedValueOnce({ output: '/usr/bin/node', exitCode: 0 })
           .mockResolvedValueOnce({ output: '', exitCode: 1 })
@@ -380,15 +464,19 @@ describe('LarkBootstrapService', () => {
       expect(installCommand).toContain("--proxy 'http://user:pass@proxy.example.com:7890'")
       expect(installCommand).toContain("--https-proxy 'http://user:pass@proxy.example.com:7890'")
       expect(curlCommand).toContain("--proxy 'http://user:pass@proxy.example.com:7890'")
+      expect(installCommand).toContain(`@larksuite/cli@${LARK_CLI_VERSION}`)
     })
 
     it('reinstalls when proxy changes', async () => {
       const backend = {
         workingDirectory: '/workspace',
-        execute: jest.fn()
+        execute: jest
+          .fn()
           .mockResolvedValueOnce({
             output: JSON.stringify({
               tool: 'lark-cli',
+              cliVersion: LARK_CLI_VERSION,
+              skillsRef: LARK_CLI_SKILLS_REF,
               proxy: 'http://old-proxy.example.com:7890',
               bootstrapVersion: LARK_CLI_BOOTSTRAP_SCHEMA_VERSION,
               installedAt: new Date().toISOString()
@@ -417,10 +505,13 @@ describe('LarkBootstrapService', () => {
     it('reinstalls when npm registry changes', async () => {
       const backend = {
         workingDirectory: '/workspace',
-        execute: jest.fn()
+        execute: jest
+          .fn()
           .mockResolvedValueOnce({
             output: JSON.stringify({
               tool: 'lark-cli',
+              cliVersion: LARK_CLI_VERSION,
+              skillsRef: LARK_CLI_SKILLS_REF,
               npmRegistryUrl: 'https://registry.npmjs.org',
               bootstrapVersion: LARK_CLI_BOOTSTRAP_SCHEMA_VERSION,
               installedAt: new Date().toISOString()
@@ -449,10 +540,13 @@ describe('LarkBootstrapService', () => {
     it('reinstalls when the binary is missing even if stamp matches', async () => {
       const backend = {
         workingDirectory: '/workspace',
-        execute: jest.fn()
+        execute: jest
+          .fn()
           .mockResolvedValueOnce({
             output: JSON.stringify({
               tool: 'lark-cli',
+              cliVersion: LARK_CLI_VERSION,
+              skillsRef: LARK_CLI_SKILLS_REF,
               bootstrapVersion: LARK_CLI_BOOTSTRAP_SCHEMA_VERSION,
               installedAt: new Date().toISOString()
             }),
@@ -479,10 +573,13 @@ describe('LarkBootstrapService', () => {
     it('reinstalls when skills are missing even if stamp matches', async () => {
       const backend = {
         workingDirectory: '/workspace',
-        execute: jest.fn()
+        execute: jest
+          .fn()
           .mockResolvedValueOnce({
             output: JSON.stringify({
               tool: 'lark-cli',
+              cliVersion: LARK_CLI_VERSION,
+              skillsRef: LARK_CLI_SKILLS_REF,
               bootstrapVersion: LARK_CLI_BOOTSTRAP_SCHEMA_VERSION,
               installedAt: new Date().toISOString()
             }),
@@ -510,7 +607,8 @@ describe('LarkBootstrapService', () => {
     it('writes stamp with proxy and npm registry config', async () => {
       const backend = {
         workingDirectory: '/workspace',
-        execute: jest.fn()
+        execute: jest
+          .fn()
           .mockResolvedValueOnce({ output: '', exitCode: 0 })
           .mockResolvedValueOnce({ output: '/usr/bin/node', exitCode: 0 })
           .mockResolvedValueOnce({ output: '', exitCode: 1 })
@@ -532,15 +630,15 @@ describe('LarkBootstrapService', () => {
       const stampData = JSON.parse(echoMatch![1])
       expect(stampData.proxy).toBe('http://proxy.example.com:7890')
       expect(stampData.npmRegistryUrl).toBe('https://registry.npmmirror.com')
+      expect(stampData.cliVersion).toBe(LARK_CLI_VERSION)
+      expect(stampData.skillsRef).toBe(LARK_CLI_SKILLS_REF)
       expect(stampData.bootstrapVersion).toBe(LARK_CLI_BOOTSTRAP_SCHEMA_VERSION)
     })
   })
 
   describe('checkAuthStatus', () => {
     it('throws if backend is not available', async () => {
-      await expect(service.checkAuthStatus(null as any)).rejects.toThrow(
-        'Sandbox backend is not available'
-      )
+      await expect(service.checkAuthStatus(null as any)).rejects.toThrow('Sandbox backend is not available')
     })
 
     it('parses JSON auth status output', async () => {
@@ -597,10 +695,13 @@ describe('LarkBootstrapService', () => {
       // Mock a fully bootstrapped environment
       const backend = {
         workingDirectory: '/workspace',
-        execute: jest.fn()
+        execute: jest
+          .fn()
           .mockResolvedValueOnce({
             output: JSON.stringify({
               tool: 'lark-cli',
+              cliVersion: LARK_CLI_VERSION,
+              skillsRef: LARK_CLI_SKILLS_REF,
               bootstrapVersion: LARK_CLI_BOOTSTRAP_SCHEMA_VERSION,
               installedAt: new Date().toISOString()
             }),
@@ -609,7 +710,16 @@ describe('LarkBootstrapService', () => {
           .mockResolvedValueOnce({ output: '/usr/bin/node', exitCode: 0 }) // node check
           .mockResolvedValueOnce({ output: '/usr/bin/lark-cli', exitCode: 0 }) // which lark-cli
           .mockResolvedValueOnce({ output: '', exitCode: 0 }) // skills check (lark-shared exists)
-          .mockResolvedValueOnce({ output: JSON.stringify({ appId: 'cli_test', brand: 'lark', defaultAs: 'auto', identity: 'bot', note: 'No user logged in.' }), exitCode: 0 }) // auth status
+          .mockResolvedValueOnce({
+            output: JSON.stringify({
+              appId: 'cli_test',
+              brand: 'lark',
+              defaultAs: 'auto',
+              identity: 'bot',
+              note: 'No user logged in.'
+            }),
+            exitCode: 0
+          }) // auth status
           .mockResolvedValueOnce({
             output: JSON.stringify({
               verification_url: 'https://example.com/auth',
@@ -630,11 +740,14 @@ describe('LarkBootstrapService', () => {
     it('returns bot mode response with successful config', async () => {
       const backend = {
         workingDirectory: '/workspace',
-        execute: jest.fn()
+        execute: jest
+          .fn()
           // ensureBootstrap: stamp matches, cli ready, skills ready
           .mockResolvedValueOnce({
             output: JSON.stringify({
               tool: 'lark-cli',
+              cliVersion: LARK_CLI_VERSION,
+              skillsRef: LARK_CLI_SKILLS_REF,
               bootstrapVersion: LARK_CLI_BOOTSTRAP_SCHEMA_VERSION,
               installedAt: new Date().toISOString()
             }),
@@ -645,7 +758,8 @@ describe('LarkBootstrapService', () => {
           .mockResolvedValueOnce({ output: '', exitCode: 0 }) // skills check (test -f)
           // performBotLogin → syncBotCredentials
           .mockResolvedValue({ output: '', exitCode: 0 }), // rm, mkdir, chmod, write config
-        uploadFiles: jest.fn()
+        uploadFiles: jest
+          .fn()
           .mockResolvedValueOnce([{ path: '.xpert/secrets/lark_app_id', error: null }])
           .mockResolvedValueOnce([{ path: '.xpert/secrets/lark_app_secret', error: null }])
       }
@@ -662,22 +776,23 @@ describe('LarkBootstrapService', () => {
       expect(response.isLoggedIn).toBe(true)
       expect(response.message).toContain('Bot configuration ready')
       expect(findCommand(backend.execute.mock.calls, 'lark-cli config init --app-id')).toContain('cli_test_id')
-      expect(backend.execute.mock.calls.some(
-        ([cmd]: [string]) => typeof cmd === 'string' && cmd.includes('lark-cli auth login')
-      )).toBe(false)
+      expect(
+        backend.execute.mock.calls.some(
+          ([cmd]: [string]) => typeof cmd === 'string' && cmd.includes('lark-cli auth login')
+        )
+      ).toBe(false)
     })
   })
 
   describe('waitForUserLogin', () => {
     it('throws if backend is not available', async () => {
-      await expect(service.waitForUserLogin(null as any, 'ABC123')).rejects.toThrow(
-        'Sandbox backend is not available'
-      )
+      await expect(service.waitForUserLogin(null as any, 'ABC123')).rejects.toThrow('Sandbox backend is not available')
     })
 
     it('returns success when login completes', async () => {
       const backend = {
-        execute: jest.fn()
+        execute: jest
+          .fn()
           .mockResolvedValueOnce({ output: '{"status":"pending"}', exitCode: 0 })
           .mockResolvedValueOnce({ output: '{"status":"success", "logged_in": true}', exitCode: 0 })
       }
@@ -691,9 +806,7 @@ describe('LarkBootstrapService', () => {
 })
 
 function findCommand(calls: Array<[unknown]>, pattern: string) {
-  const match = calls.find(([command]) =>
-    typeof command === 'string' && command.includes(pattern)
-  )
+  const match = calls.find(([command]) => typeof command === 'string' && command.includes(pattern))
 
   if (!match) {
     throw new Error(`Expected command containing "${pattern}" but none was found.`)

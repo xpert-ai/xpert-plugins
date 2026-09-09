@@ -16,6 +16,8 @@ import {
   DEFAULT_LARK_CLI_STAMP_PATH,
   DEFAULT_LARK_CLI_WORKSPACE_ROOT,
   LARK_CLI_BOOTSTRAP_SCHEMA_VERSION,
+  LARK_CLI_SKILLS_REF,
+  LARK_CLI_VERSION,
   LarkAuthEnsureResponse,
   LarkAuthMode,
   LarkCliAuthStatus,
@@ -47,6 +49,8 @@ export type LarkCliRuntimePaths = {
 
 type LarkBootstrapStamp = {
   tool?: string
+  cliVersion?: string
+  skillsRef?: string
   proxy?: string
   npmRegistryUrl?: string
   bootstrapVersion?: number
@@ -54,8 +58,8 @@ type LarkBootstrapStamp = {
 }
 
 const LARK_CLI_GITHUB_REPO = 'larksuite/cli'
-const LARK_CLI_SKILLS_BRANCH = 'main'
-const LARK_CLI_SKILLS_URL = `https://raw.githubusercontent.com/${LARK_CLI_GITHUB_REPO}/${LARK_CLI_SKILLS_BRANCH}/skills`
+const LARK_CLI_SKILLS_ARCHIVE_URL = `https://codeload.github.com/${LARK_CLI_GITHUB_REPO}/tar.gz/${LARK_CLI_SKILLS_REF}`
+const LARK_CLI_SKILLS_ARCHIVE_ROOT = `cli-${LARK_CLI_SKILLS_REF}`
 
 // List of skills to download from the larksuite/cli repository
 const LARK_SKILLS = [
@@ -65,6 +69,7 @@ const LARK_SKILLS = [
   'lark-doc',
   'lark-drive',
   'lark-sheets',
+  'lark-slides',
   'lark-base',
   'lark-task',
   'lark-mail',
@@ -94,12 +99,11 @@ export class LarkBootstrapService {
     }
     const pluginDefaults: LarkCliPluginConfig = {}
 
-    const pluginConfig =
-      LarkCliPluginConfigSchema.parse(
-        this.pluginConfigResolver?.resolve<LarkCliPluginConfig>(LarkCliPluginName, {
-          defaults: pluginDefaults
-        }) ?? pluginDefaults
-      )
+    const pluginConfig = LarkCliPluginConfigSchema.parse(
+      this.pluginConfigResolver?.resolve<LarkCliPluginConfig>(LarkCliPluginName, {
+        defaults: pluginDefaults
+      }) ?? pluginDefaults
+    )
 
     // Merge config manually since discriminated union doesn't support .partial()
     const mergedConfig = {
@@ -168,13 +172,14 @@ export class LarkBootstrapService {
 
     return [
       '<skill>',
-      'Lark CLI - A command-line tool for Lark/Feishu Open Platform with 200+ commands and 19 AI Agent Skills.',
+      `Lark CLI ${LARK_CLI_VERSION} - A command-line tool for Lark/Feishu Open Platform with 200+ commands and AI Agent Skills.`,
       '',
       '## Available Skills',
       skillsList,
       '',
       '## Installation',
       'The Lark CLI is installed and available as `lark-cli` in the sandbox.',
+      'Before reading any Lark skill files, call the `lark-cli-skill-ensure` tool once to install the pinned complete skill bundle.',
       '',
       '## Authentication',
       '- Connector mode: Uses the active workspace Feishu OAuth connector from platform.connector',
@@ -182,6 +187,8 @@ export class LarkBootstrapService {
       '- Bot mode: Uses App ID/Secret configured in middleware',
       '',
       '## Usage',
+      '`lark-cli` is a shell executable, not an Agent tool or graph node.',
+      'Never emit a tool call named `lark-cli`. Call `sandbox_shell` and pass the complete CLI command in its `command` argument.',
       'Run commands through `sandbox_shell`:',
       '```bash',
       'lark-cli calendar +agenda',
@@ -189,6 +196,16 @@ export class LarkBootstrapService {
       '```',
       '',
       `Read the skill files in \`${this.getSkillsDir(paths)}/\` for detailed usage instructions.`,
+      '',
+      '## Feishu Slides / PPT',
+      `For every request to create, edit, inspect, or import a presentation, call \`lark-cli-skill-ensure\`, then read \`${this.getSkillsDir(
+        paths
+      )}/lark-slides/SKILL.md\` in full and follow every referenced workflow required for that operation.`,
+      '- The lark-slides skill is the planning and authoring guide. Use `lark-cli slides` and `lark-cli drive` for execution.',
+      '- For a new deck or a major rewrite, create `slide_plan.json` before slide XML, run the bundled XML lint before publishing, then read back and validate the created presentation.',
+      '- Use `--as user` for Slides unless the user explicitly requests bot ownership.',
+      '- For a local PPTX copy, use `lark-cli drive +export` with `.pptx` and save it inside the current sandbox working directory. Report the resulting sandbox-relative path to the user.',
+      '- This integration creates native Feishu Slides through Open Platform APIs; it does not invoke the private Doubao PPT product or Feishu template gallery.',
       '</skill>'
     ].join('\n')
   }
@@ -225,10 +242,10 @@ export class LarkBootstrapService {
     const skillsReady = cliReady ? await this.areSkillsReady(backend, runtimePaths) : false
     const recordedConfigMatches =
       stamp?.proxy === config.proxy &&
-      stamp?.npmRegistryUrl === config.npmRegistryUrl
-    const stampMatches =
-      recordedConfigMatches &&
-      stamp?.bootstrapVersion === LARK_CLI_BOOTSTRAP_SCHEMA_VERSION
+      stamp?.npmRegistryUrl === config.npmRegistryUrl &&
+      stamp?.cliVersion === LARK_CLI_VERSION &&
+      stamp?.skillsRef === LARK_CLI_SKILLS_REF
+    const stampMatches = recordedConfigMatches && stamp?.bootstrapVersion === LARK_CLI_BOOTSTRAP_SCHEMA_VERSION
 
     if (stampMatches && cliReady && skillsReady) {
       return { output: 'already bootstrapped', exitCode: 0, truncated: false }
@@ -245,11 +262,7 @@ export class LarkBootstrapService {
     }
   }
 
-  async syncBotCredentials(
-    backend: LarkBootstrapBackend | null,
-    config: LarkCliConfig,
-    paths?: LarkCliRuntimePaths
-  ) {
+  async syncBotCredentials(backend: LarkBootstrapBackend | null, config: LarkCliConfig, paths?: LarkCliRuntimePaths) {
     if (!backend || typeof backend.execute !== 'function') {
       throw new Error('Sandbox backend is not available for Lark CLI credential sync.')
     }
@@ -282,9 +295,7 @@ export class LarkBootstrapService {
 
     // Upload App ID
     const appIdUploadPath = this.toUploadPath(backend, this.getAppIdPath(runtimePaths))
-    const appIdUploadResults = await backend.uploadFiles([
-      [appIdUploadPath, Buffer.from(config.appId, 'utf8')]
-    ])
+    const appIdUploadResults = await backend.uploadFiles([[appIdUploadPath, Buffer.from(config.appId, 'utf8')]])
     if (!Array.isArray(appIdUploadResults) || appIdUploadResults.length !== 1 || appIdUploadResults[0]?.error) {
       throw new Error(`Failed to upload Lark App ID file`)
     }
@@ -294,12 +305,18 @@ export class LarkBootstrapService {
     const appSecretUploadResults = await backend.uploadFiles([
       [appSecretUploadPath, Buffer.from(config.appSecret, 'utf8')]
     ])
-    if (!Array.isArray(appSecretUploadResults) || appSecretUploadResults.length !== 1 || appSecretUploadResults[0]?.error) {
+    if (
+      !Array.isArray(appSecretUploadResults) ||
+      appSecretUploadResults.length !== 1 ||
+      appSecretUploadResults[0]?.error
+    ) {
       throw new Error(`Failed to upload Lark App Secret file`)
     }
 
     // Lock down permissions
-    await backend.execute(`chmod 600 ${shellQuote(this.getAppIdPath(runtimePaths))} ${shellQuote(this.getAppSecretPath(runtimePaths))}`)
+    await backend.execute(
+      `chmod 600 ${shellQuote(this.getAppIdPath(runtimePaths))} ${shellQuote(this.getAppSecretPath(runtimePaths))}`
+    )
 
     return { output: 'synced lark cli bot credentials', exitCode: 0, truncated: false }
   }
@@ -319,16 +336,22 @@ export class LarkBootstrapService {
     }
 
     if (typeof backend.uploadFiles !== 'function') {
-      throw new Error('Sandbox backend does not support secure file uploads required for Lark CLI connector credentials.')
+      throw new Error(
+        'Sandbox backend does not support secure file uploads required for Lark CLI connector credentials.'
+      )
     }
 
     const envDir = path.dirname(this.getConnectorEnvPath(credential.connectorId, runtimePaths))
     const configDir = this.getConnectorConfigDir(credential.connectorId, runtimePaths)
     const prepareResult = await backend.execute(
-      `mkdir -p ${shellQuote(envDir)} ${shellQuote(configDir)} && chmod 700 ${shellQuote(envDir)} ${shellQuote(configDir)}`
+      `mkdir -p ${shellQuote(envDir)} ${shellQuote(configDir)} && chmod 700 ${shellQuote(envDir)} ${shellQuote(
+        configDir
+      )}`
     )
     if (prepareResult?.exitCode !== 0) {
-      throw new Error(`Failed to prepare Lark connector credential directory: ${prepareResult?.output || 'Unknown error'}`)
+      throw new Error(
+        `Failed to prepare Lark connector credential directory: ${prepareResult?.output || 'Unknown error'}`
+      )
     }
 
     const uploadPath = this.toUploadPath(backend, this.getConnectorEnvPath(credential.connectorId, runtimePaths))
@@ -369,31 +392,9 @@ export class LarkBootstrapService {
       throw new Error(`Failed to prepare Lark skills directory: ${prepareSkillsDir?.output || 'Unknown error'}`)
     }
 
-    // Download each skill from GitHub
-    for (const skillName of LARK_SKILLS) {
-      const skillUrl = `${LARK_CLI_SKILLS_URL}/${skillName}/SKILL.md`
-      const skillPath = `${skillsDir}/${skillName}`
-
-      // Create skill directory
-      const prepareSkillDir = await backend.execute(`mkdir -p ${shellQuote(skillPath)}`)
-      if (prepareSkillDir?.exitCode !== 0) {
-        throw new Error(`Failed to prepare Lark skill directory ${skillName}: ${prepareSkillDir?.output || 'Unknown error'}`)
-      }
-
-      // Download SKILL.md using curl
-      const downloadResult = await backend.execute(
-        this.buildSkillDownloadCommand(
-          skillUrl,
-          `${skillPath}/SKILL.md`,
-          skillName,
-          config
-        )
-      )
-
-      // Continue even if some skills fail to download
-      if (downloadResult?.exitCode !== 0) {
-        console.warn(`Warning: Failed to download skill ${skillName}`)
-      }
+    const downloadResult = await backend.execute(this.buildSkillsDownloadCommand(skillsDir, config))
+    if (downloadResult?.exitCode !== 0) {
+      throw new Error(`Failed to download complete Lark skills bundle: ${downloadResult?.output || 'Unknown error'}`)
     }
 
     return { output: 'downloaded lark skills', exitCode: 0 }
@@ -404,9 +405,15 @@ export class LarkBootstrapService {
   }
 
   private async areSkillsReady(backend: LarkBootstrapBackend, paths: LarkCliRuntimePaths) {
-    // Check if at least the lark-shared skill exists (required by all other skills)
-    const sharedSkillPath = `${this.getSkillsDir(paths)}/lark-shared/SKILL.md`
-    const result = await backend.execute(`test -f ${shellQuote(sharedSkillPath)}`)
+    const skillsDir = this.getSkillsDir(paths)
+    const requiredFiles = [
+      `${skillsDir}/lark-shared/SKILL.md`,
+      `${skillsDir}/lark-slides/SKILL.md`,
+      `${skillsDir}/lark-slides/references/xml/slides_xml_schema_definition.xml`,
+      `${skillsDir}/lark-slides/scripts/xml_lint.py`,
+      `${skillsDir}/UPSTREAM_LICENSE`
+    ]
+    const result = await backend.execute(requiredFiles.map((file) => `test -f ${shellQuote(file)}`).join(' && '))
     return result?.exitCode === 0
   }
 
@@ -414,6 +421,8 @@ export class LarkBootstrapService {
     const stampPath = this.getStampPath(paths)
     const stampData = JSON.stringify({
       tool: 'lark-cli',
+      cliVersion: LARK_CLI_VERSION,
+      skillsRef: LARK_CLI_SKILLS_REF,
       proxy: config.proxy,
       npmRegistryUrl: config.npmRegistryUrl,
       bootstrapVersion: LARK_CLI_BOOTSTRAP_SCHEMA_VERSION,
@@ -428,9 +437,7 @@ export class LarkBootstrapService {
   }
 
   private async readStamp(backend: LarkBootstrapBackend, paths: LarkCliRuntimePaths) {
-    const stampCheck = await backend.execute(
-      `cat ${shellQuote(this.getStampPath(paths))} 2>/dev/null || echo ''`
-    )
+    const stampCheck = await backend.execute(`cat ${shellQuote(this.getStampPath(paths))} 2>/dev/null || echo ''`)
     const stampContent = stampCheck?.output?.trim() ?? ''
 
     if (!stampContent) {
@@ -450,7 +457,7 @@ export class LarkBootstrapService {
   }
 
   private buildNpmInstallCommand(config: LarkCliConfig) {
-    const args = ['npm install -g @larksuite/cli']
+    const args = [`npm install -g @larksuite/cli@${LARK_CLI_VERSION}`]
     if (config.npmRegistryUrl) {
       args.push(`--registry ${shellQuote(config.npmRegistryUrl)}`)
     }
@@ -461,19 +468,27 @@ export class LarkBootstrapService {
     return `${args.join(' ')} 2>&1`
   }
 
-  private buildSkillDownloadCommand(
-    skillUrl: string,
-    outputPath: string,
-    skillName: string,
-    config: LarkCliConfig
-  ) {
-    const args = ['curl -sSL']
+  private buildSkillsDownloadCommand(skillsDir: string, config: LarkCliConfig) {
+    const curlArgs = ['curl -sSL', '--fail']
     if (config.proxy) {
-      args.push(`--proxy ${shellQuote(config.proxy)}`)
+      curlArgs.push(`--proxy ${shellQuote(config.proxy)}`)
     }
-    args.push(shellQuote(skillUrl))
-    args.push(`-o ${shellQuote(outputPath)}`)
-    return `${args.join(' ')} 2>&1 || echo "Warning: Failed to download ${skillName}"`
+    curlArgs.push(shellQuote(LARK_CLI_SKILLS_ARCHIVE_URL))
+    curlArgs.push('--output "$lark_skills_tmp/lark-cli.tgz"')
+
+    const extractedRoot = `$lark_skills_tmp/${LARK_CLI_SKILLS_ARCHIVE_ROOT}`
+    return [
+      'set -eu',
+      'lark_skills_tmp="$(mktemp -d)"',
+      'trap \'rm -rf "$lark_skills_tmp"\' EXIT',
+      `${curlArgs.join(' ')} 2>&1`,
+      'tar -xzf "$lark_skills_tmp/lark-cli.tgz" -C "$lark_skills_tmp"',
+      `cp -R "${extractedRoot}/skills/." ${shellQuote(skillsDir)}/`,
+      `cp "${extractedRoot}/LICENSE" ${shellQuote(`${skillsDir}/UPSTREAM_LICENSE`)}`,
+      `test -f ${shellQuote(`${skillsDir}/lark-slides/SKILL.md`)}`,
+      `test -f ${shellQuote(`${skillsDir}/lark-slides/references/xml/slides_xml_schema_definition.xml`)}`,
+      `test -f ${shellQuote(`${skillsDir}/lark-slides/scripts/xml_lint.py`)}`
+    ].join('; ')
   }
 
   private toUploadPath(backend: LarkBootstrapBackend, targetPath: string) {
@@ -522,7 +537,10 @@ export class LarkBootstrapService {
       return LarkCliAuthStatusSchema.parse(parsed)
     } catch {
       // If JSON parsing fails, return an error status
-      return { ok: false, error: { type: 'parse_error', message: output || 'Failed to parse auth status output' } } as LarkCliAuthStatus
+      return {
+        ok: false,
+        error: { type: 'parse_error', message: output || 'Failed to parse auth status output' }
+      } as LarkCliAuthStatus
     }
   }
 
@@ -553,7 +571,9 @@ export class LarkBootstrapService {
     // then `config default-as bot` to set the default identity to bot.
     const brand = config.brand ?? 'lark'
     const initResult = await backend.execute(
-      `echo ${shellQuote(config.appSecret)} | lark-cli config init --app-id ${shellQuote(config.appId)} --app-secret-stdin --brand ${shellQuote(brand)} 2>&1`
+      `echo ${shellQuote(config.appSecret)} | lark-cli config init --app-id ${shellQuote(
+        config.appId
+      )} --app-secret-stdin --brand ${shellQuote(brand)} 2>&1`
     )
 
     if (initResult?.exitCode !== 0) {
@@ -564,9 +584,7 @@ export class LarkBootstrapService {
     }
 
     // Set default identity to bot
-    const defaultAsResult = await backend.execute(
-      `lark-cli config default-as bot 2>&1`
-    )
+    const defaultAsResult = await backend.execute(`lark-cli config default-as bot 2>&1`)
 
     if (defaultAsResult?.exitCode !== 0) {
       return {
@@ -576,9 +594,7 @@ export class LarkBootstrapService {
     }
 
     // Verify bot credentials by checking auth status
-    const verifyResult = await backend.execute(
-      `lark-cli auth status --verify 2>&1`
-    )
+    const verifyResult = await backend.execute(`lark-cli auth status --verify 2>&1`)
 
     if (verifyResult?.exitCode === 0) {
       return { success: true, message: 'Bot configuration initialized and verified successfully.' }
@@ -587,7 +603,9 @@ export class LarkBootstrapService {
     // Config was written but credentials may be invalid
     return {
       success: false,
-      message: `Bot credentials verification failed: ${verifyResult?.output || 'Invalid appId or appSecret. Please check your Lark app configuration.'}`
+      message: `Bot credentials verification failed: ${
+        verifyResult?.output || 'Invalid appId or appSecret. Please check your Lark app configuration.'
+      }`
     }
   }
 
@@ -600,9 +618,7 @@ export class LarkBootstrapService {
     }
 
     // Run lark-cli auth login with --no-wait to get URL immediately
-    const result = await backend.execute(
-      `lark-cli auth login --recommend --no-wait --json 2>&1`
-    )
+    const result = await backend.execute(`lark-cli auth login --recommend --no-wait --json 2>&1`)
 
     const output = result?.output?.trim() ?? ''
 
@@ -640,9 +656,9 @@ export class LarkBootstrapService {
    * until the user authorizes or the code expires (~180s).
    */
   async waitForUserLogin(
-    backend: LarkBootstrapBackend, 
+    backend: LarkBootstrapBackend,
     deviceCode: string,
-    _maxWaitSeconds: number = 60
+    _maxWaitSeconds = 60
   ): Promise<LarkWaitUserResponse> {
     if (!backend || typeof backend.execute !== 'function') {
       throw new Error('Sandbox backend is not available for user login wait.')
@@ -652,9 +668,7 @@ export class LarkBootstrapService {
 
     // `--device-code` resumes the device flow and blocks until authorization
     // completes or the code expires. It does not support `--json`.
-    const result = await backend.execute(
-      `lark-cli auth login --device-code ${shellQuote(deviceCode)} 2>&1`
-    )
+    const result = await backend.execute(`lark-cli auth login --device-code ${shellQuote(deviceCode)} 2>&1`)
 
     const waitedSeconds = Math.round((Date.now() - startTime) / 1000)
     const output = result?.output?.trim() ?? ''
@@ -744,7 +758,7 @@ export class LarkBootstrapService {
         // 1. Credential files synced to the sandbox
         // 2. lark-cli config.json written with appId + appSecret file reference
         const loginResult = await this.performBotLogin(backend, config, paths)
-        
+
         if (loginResult.success) {
           return {
             configExists,
@@ -759,7 +773,7 @@ export class LarkBootstrapService {
             message: 'Bot configuration ready. Default identity is set to bot.'
           }
         }
-        
+
         return {
           configExists,
           configValid,
@@ -791,15 +805,11 @@ export class LarkBootstrapService {
     // For user mode, check current status and provide URL if needed
     try {
       const authStatus = await this.checkAuthStatus(backend)
-      
+
       // Check for error response from CLI
       if (authStatus.ok === false || authStatus.error) {
         // auth status returned an error — treat as not logged in
-      } else if (
-        authStatus.identity === 'user' &&
-        authStatus.tokenStatus &&
-        authStatus.tokenStatus !== 'expired'
-      ) {
+      } else if (authStatus.identity === 'user' && authStatus.tokenStatus && authStatus.tokenStatus !== 'expired') {
         return {
           configExists,
           configValid,
@@ -813,10 +823,10 @@ export class LarkBootstrapService {
           message: 'User authentication active.'
         }
       }
-      
+
       // User not logged in - initiate login and return URL
       const loginInfo = await this.initiateUserLogin(backend)
-      
+
       return {
         configExists,
         configValid,
@@ -850,11 +860,11 @@ export class LarkBootstrapService {
    */
   private validateConfig(config: LarkCliConfig): boolean {
     if (!config) return false
-    
+
     if (config.authMode === LarkAuthMode.USER) {
       return true // User mode always valid (no required fields)
     }
-    
+
     if (config.authMode === LarkAuthMode.BOT) {
       return !!config.appId && !!config.appSecret
     }
@@ -862,7 +872,7 @@ export class LarkBootstrapService {
     if (config.authMode === LarkAuthMode.CONNECTOR) {
       return true
     }
-    
+
     return false
   }
 }

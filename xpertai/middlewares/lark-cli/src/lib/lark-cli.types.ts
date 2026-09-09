@@ -1,5 +1,4 @@
 import { JsonSchemaObjectType } from '@xpert-ai/contracts'
-import type { ISchemaSecretField } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod'
 
 type JsonSchemaUIDependency =
@@ -12,6 +11,9 @@ type JsonSchemaUIDependency =
 
 type JsonSchemaUIWithContextDepends = {
   component?: string
+  label?: string
+  description?: string
+  placeholder?: string
   enumLabels?: Record<string, unknown>
   revealable?: boolean
   maskSymbol?: string
@@ -33,7 +35,7 @@ type JsonSchemaObjectTypeWithContextDepends = Omit<JsonSchemaObjectType, 'proper
   properties: Record<
     string,
     JsonSchemaObjectType['properties'][string] & {
-      'x-ui'?: JsonSchemaUIWithContextDepends | ISchemaSecretField
+      'x-ui'?: JsonSchemaUIWithContextDepends
     }
   >
 }
@@ -51,7 +53,9 @@ export const DEFAULT_LARK_CLI_CONNECTOR_ENV_DIR = `${DEFAULT_LARK_CLI_WORKSPACE_
 export const DEFAULT_LARK_BOOTSTRAP_SCRIPT_PATH = `${DEFAULT_LARK_CLI_SKILLS_DIR}/scripts/lark-bootstrap.sh`
 export const DEFAULT_LARK_CLI_APP_ID_PATH = `${DEFAULT_LARK_CLI_SECRETS_DIR}/lark_app_id`
 export const DEFAULT_LARK_CLI_APP_SECRET_PATH = `${DEFAULT_LARK_CLI_SECRETS_DIR}/lark_app_secret`
-export const LARK_CLI_BOOTSTRAP_SCHEMA_VERSION = 2
+export const LARK_CLI_VERSION = '1.0.93'
+export const LARK_CLI_SKILLS_REF = '2aebe8970f0a472dfc864b6ac3d19d080e75041f'
+export const LARK_CLI_BOOTSTRAP_SCHEMA_VERSION = 3
 
 // Authentication mode enum
 export const LarkAuthMode = {
@@ -129,7 +133,7 @@ export const LarkCliConfigSchema = z.discriminatedUnion('authMode', [
 export type LarkCliConfig = z.infer<typeof LarkCliConfigSchema>
 
 // Plugin-level config form schema for organization-wide defaults
-export const LarkCliPluginConfigFormSchema: JsonSchemaObjectType = {
+export const LarkCliPluginConfigFormSchema: JsonSchemaObjectTypeWithContextDepends = {
   type: 'object',
   properties: {
     proxy: {
@@ -142,7 +146,7 @@ export const LarkCliPluginConfigFormSchema: JsonSchemaObjectType = {
         en_US: 'Optional shared HTTP(S) proxy URL used for both npm install and GitHub skill downloads during sandbox bootstrap.',
         zh_Hans: '可选的共享 HTTP(S) 代理地址，在 sandbox bootstrap 时同时用于 npm 安装和 GitHub skill 下载。'
       },
-      'x-ui': <ISchemaSecretField>{
+      'x-ui': {
         component: 'secretInput',
         placeholder: 'http://proxy.example.com:7890',
         revealable: true,
@@ -209,7 +213,7 @@ export const LarkCliMiddlewareConfigFormSchema: JsonSchemaObjectTypeWithContextD
         en_US: 'Lark App ID for bot-level authentication. Required when authMode is "bot".',
         zh_Hans: '用于应用级认证的飞书应用 ID。当认证模式为 "bot" 时必填。'
       },
-      'x-ui': <ISchemaSecretField>{
+      'x-ui': {
         component: 'secretInput',
         placeholder: 'cli_xxxxxxxxxxxx',
         revealable: true,
@@ -232,7 +236,7 @@ export const LarkCliMiddlewareConfigFormSchema: JsonSchemaObjectTypeWithContextD
         en_US: 'Lark App Secret for bot-level authentication. Required when authMode is "bot".',
         zh_Hans: '用于应用级认证的飞书应用密钥。当认证模式为 "bot" 时必填。'
       },
-      'x-ui': <ISchemaSecretField>{
+      'x-ui': {
         component: 'secretInput',
         placeholder: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
         revealable: true,

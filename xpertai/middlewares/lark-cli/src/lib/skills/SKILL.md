@@ -5,14 +5,14 @@ description: "Interact with Lark/Feishu Open Platform using the official CLI too
 
 # Lark CLI - Lark/Feishu Open Platform Integration
 
-A command-line tool for Lark/Feishu Open Platform with 200+ commands and 19 AI Agent Skills covering Calendar, Messenger, Docs, Base, Sheets, Tasks, Mail, Meetings, and more.
+A command-line tool for Lark/Feishu Open Platform with 200+ commands and AI Agent Skills covering Calendar, Messenger, Docs, Base, Sheets, Slides, Tasks, Mail, Meetings, and more.
 
 ## Installation
 
 The Lark CLI is automatically installed in the sandbox via npm:
 
 ```bash
-npm install -g @larksuite/cli
+npm install -g @larksuite/cli@1.0.93
 ```
 
 ## Authentication
@@ -46,6 +46,7 @@ The following skills are downloaded from the larksuite/cli GitHub repository:
 - `lark-doc` - Create, read, update documents
 - `lark-drive` - Upload, download files, manage permissions
 - `lark-sheets` - Create, read, write spreadsheets
+- `lark-slides` - Plan, create, validate, inspect, and edit native Feishu presentations
 - `lark-base` - Tables, fields, records, dashboards
 - `lark-task` - Tasks, task lists, subtasks
 - `lark-mail` - Browse, search, send emails
@@ -101,6 +102,29 @@ lark-cli sheets +read --spreadsheet-token "shtcn_xxx" --range "A1:D10"
 # Write data to a sheet
 lark-cli sheets +write --spreadsheet-token "shtcn_xxx" --range "A1" --values '[["Name", "Value"], ["Test", "123"]]'
 ```
+
+### Slides / PPT
+
+Before creating or editing a presentation, read `lark-slides/SKILL.md` and every operation-specific reference it requires. For new decks and major rewrites, follow the complete planning and validation workflow:
+
+1. Create `.lark-slides/plan/<deck-id>/slide_plan.json`.
+2. Generate one complete SML `<slide>` XML file per page.
+3. Run `lark-slides/scripts/xml_lint.py`; publish only when `summary.error_count` is zero.
+4. Create or update the deck with `lark-cli slides` using `--as user` by default.
+5. Read the deck back with `slides +xml-get`, validate it, and use `slides +screenshot` when available before returning the Feishu link.
+
+```bash
+lark-cli auth login --domain slides
+lark-cli slides +create --as user --title "Project update" --slide @.lark-slides/plan/project/slide-01.xml
+lark-cli slides +xml-get --as user --presentation <xml_presentation_id> --output .lark-slides/plan/project/readback.xml
+```
+
+The Slides skill guides the Agent and `lark-cli` executes official Open Platform operations. It does not invoke Feishu's private Doubao PPT product or the Feishu template gallery.
+
+For a finished presentation that also needs a local copy, use `lark-cli drive +export` with
+`.pptx` and save the result inside the current sandbox working directory. Return the
+sandbox-relative path together with the Feishu Slides link. No Xpert workspace import is needed
+for this workflow.
 
 ## Identity Switching
 

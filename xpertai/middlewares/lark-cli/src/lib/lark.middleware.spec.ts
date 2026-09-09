@@ -22,6 +22,44 @@ import { LarkCLISkillMiddleware } from './lark.middleware.js'
 import { LarkAuthMode } from './lark-cli.types.js'
 
 describe('LarkCLISkillMiddleware', () => {
+  it('exposes a skill bootstrap tool so agents can read lark-slides before the first CLI command', async () => {
+    const runtimePaths = {
+      workspaceRoot: '/workspace',
+      skillsDir: '/workspace/.xpert/skills/lark-cli',
+      secretsDir: '/workspace/.xpert/secrets',
+      stampPath: '/workspace/.xpert/.lark-cli-bootstrap.json',
+      connectorEnvDir: '/workspace/.xpert/secrets/lark-cli-connectors',
+      appIdPath: '/workspace/.xpert/secrets/lark_app_id',
+      appSecretPath: '/workspace/.xpert/secrets/lark_app_secret'
+    }
+    const backend = { execute: jest.fn() }
+    const bootstrapService = {
+      resolveConfig: jest.fn().mockReturnValue({ authMode: LarkAuthMode.USER }),
+      resolveRuntimePaths: jest.fn().mockReturnValue(runtimePaths),
+      ensureBootstrap: jest.fn().mockResolvedValue({ output: '', exitCode: 0, truncated: false }),
+      buildSystemPrompt: jest.fn().mockReturnValue('prompt')
+    }
+    const middleware = new LarkCLISkillMiddleware(bootstrapService as any).createMiddleware(
+      {},
+      { runtime: { capabilities: { get: jest.fn() } } } as any
+    )
+    const skillTool = middleware.tools?.find((item: any) => item.name === 'lark-cli-skill-ensure') as any
+
+    const result = JSON.parse(await skillTool.handler({}, {
+      configurable: { sandbox: { backend, workspaceRoot: '/workspace' } }
+    }))
+
+    expect(bootstrapService.ensureBootstrap).toHaveBeenCalledWith(
+      backend,
+      { authMode: LarkAuthMode.USER },
+      runtimePaths
+    )
+    expect(result).toEqual(expect.objectContaining({
+      success: true,
+      slidesSkillPath: '/workspace/.xpert/skills/lark-cli/lark-slides/SKILL.md'
+    }))
+  })
+
   it('does not bootstrap lark-cli before normal agent turns', () => {
     const bootstrapService = {
       resolveConfig: jest.fn().mockReturnValue({
@@ -195,5 +233,22 @@ describe('LarkCLISkillMiddleware', () => {
 
     expect(handler).not.toHaveBeenCalled()
     expect(connectorApi.getConnector).not.toHaveBeenCalled()
+  })
+
+  it('leaves workspace publishing to the platform sandbox file middleware', () => {
+    const bootstrapService = {
+      resolveConfig: jest.fn().mockReturnValue({ authMode: LarkAuthMode.USER }),
+      buildSystemPrompt: jest.fn().mockReturnValue('prompt')
+    }
+    const middleware = new LarkCLISkillMiddleware(bootstrapService as any).createMiddleware(
+      {},
+      { runtime: { capabilities: { get: jest.fn() } } } as any
+    )
+
+    expect(middleware.tools?.map((item: any) => item.name)).toEqual([
+      'lark-cli-skill-ensure',
+      'lark-cli-auth-ensure',
+      'lark-cli-wait-user'
+    ])
   })
 })

@@ -60,6 +60,46 @@ export class LarkCLISkillMiddleware implements IAgentMiddlewareStrategy<Partial<
       | undefined
     const workspaceId = context.workspaceId
 
+    const skillEnsureTool = tool(
+      async (_input: Record<string, never>, runConfig?: RunnableConfig) => {
+        const backend = getSandboxBackendFromConfig(runConfig)
+        const paths = getLarkCliRuntimePathsFromConfig(bootstrapService, runConfig)
+        if (!backend) {
+          return JSON.stringify({
+            success: false,
+            skillsDirectory: paths.skillsDir,
+            slidesSkillPath: `${paths.skillsDir}/lark-slides/SKILL.md`,
+            message: 'Sandbox backend not available. Lark skills require SandboxShell.'
+          })
+        }
+
+        try {
+          await bootstrapService.ensureBootstrap(backend, config, paths)
+          return JSON.stringify({
+            success: true,
+            skillsDirectory: paths.skillsDir,
+            slidesSkillPath: `${paths.skillsDir}/lark-slides/SKILL.md`,
+            message: 'Pinned Lark CLI and complete skill bundle are ready.'
+          })
+        } catch (error) {
+          return JSON.stringify({
+            success: false,
+            skillsDirectory: paths.skillsDir,
+            slidesSkillPath: `${paths.skillsDir}/lark-slides/SKILL.md`,
+            message: `Lark skill bootstrap failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+          })
+        }
+      },
+      {
+        name: 'lark-cli-skill-ensure',
+        description:
+          'Install and verify the pinned Lark CLI and complete official skill bundle before reading skill files. ' +
+          'Call this before every Lark workflow if the sandbox has not been prepared yet. ' +
+          'For presentation work, read the returned slidesSkillPath in full after this tool succeeds.',
+        schema: z.object({})
+      }
+    )
+
     // Tool: lark-cli-auth-ensure
     const authEnsureTool = tool(
       async (_input: Record<string, never>, runConfig?: RunnableConfig) => {
@@ -132,7 +172,7 @@ export class LarkCLISkillMiddleware implements IAgentMiddlewareStrategy<Partial<
 
     return {
       name: LARK_CLI_SKILL_MIDDLEWARE_NAME,
-      tools: [authEnsureTool, waitUserTool],
+      tools: [skillEnsureTool, authEnsureTool, waitUserTool],
       wrapModelCall: async (request, handler) => {
         const backend = getSandboxBackend(request.runtime)
         if (!backend) {
