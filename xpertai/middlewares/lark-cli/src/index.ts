@@ -28,8 +28,22 @@ const plugin: XpertPlugin = {
     },
     displayName: 'Lark CLI',
     description:
-      'Bootstraps the Lark CLI tool into the sandbox, downloads AI Agent Skills from GitHub, and teaches the agent how to interact with Lark/Feishu through sandbox_shell. Supports workspace connector, user-level (OAuth), and bot-level (App ID/Secret) authentication.',
-    keywords: ['lark', 'feishu', 'cli', 'middleware', 'sandbox', 'calendar', 'messenger', 'docs', 'sheets', 'base'],
+      'Bootstraps the Lark CLI tool and complete AI Agent Skills into the sandbox, including the lark-slides workflow for planning, creating, validating, and editing native Feishu presentations. Supports workspace connector, user-level (OAuth), and bot-level (App ID/Secret) authentication.',
+    keywords: [
+      'lark',
+      'feishu',
+      'cli',
+      'middleware',
+      'sandbox',
+      'calendar',
+      'messenger',
+      'docs',
+      'sheets',
+      'slides',
+      'ppt',
+      'presentations',
+      'base'
+    ],
     author: 'XpertAI Team'
   },
   config: {

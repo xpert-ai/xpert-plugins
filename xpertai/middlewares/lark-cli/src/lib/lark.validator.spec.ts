@@ -1,4 +1,4 @@
-import type { TXpertTeamDraft } from '@metad/contracts'
+import type { TXpertTeamDraft } from '@xpert-ai/contracts'
 import {
   CONNECTOR_MIDDLEWARE_NAME,
   LARK_CONNECTOR_PROVIDER,
@@ -7,7 +7,7 @@ import {
 } from './lark-cli.types.js'
 import { LarkSkillValidator } from './lark.validator.js'
 
-jest.mock('@metad/contracts', () => ({
+jest.mock('@xpert-ai/contracts', () => ({
   getAgentMiddlewareNodes: (draft: TXpertTeamDraft, agentKey: string) =>
     draft.connections
       .filter((connection) => connection.from === agentKey && connection.type === 'agent')

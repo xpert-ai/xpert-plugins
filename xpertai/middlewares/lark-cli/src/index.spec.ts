@@ -30,6 +30,8 @@ describe('plugin-lark-cli', () => {
     expect(plugin.meta.description).toContain('Lark CLI')
     expect(plugin.meta.description).toContain('sandbox')
     expect(plugin.meta.description).toContain('workspace connector')
+    expect(plugin.meta.description).toContain('lark-slides')
+    expect(plugin.meta.description).toContain('native Feishu presentations')
     expect(plugin.meta.description).not.toContain('placeholder')
     expect(plugin.register({ logger } as any)).toEqual({
       module: LarkCliPluginModule,
@@ -43,5 +45,7 @@ describe('plugin-lark-cli', () => {
     expect(plugin.meta.keywords).toContain('feishu')
     expect(plugin.meta.keywords).toContain('cli')
     expect(plugin.meta.keywords).toContain('middleware')
+    expect(plugin.meta.keywords).toContain('slides')
+    expect(plugin.meta.keywords).toContain('ppt')
   })
 })
