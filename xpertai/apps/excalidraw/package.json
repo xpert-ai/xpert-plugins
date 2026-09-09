@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-excalidraw",
-  "version": "0.12.4",
+  "version": "0.14.2",
   "description": "Collaborative Excalidraw plugin with Agent-created diagrams, Yjs multiplayer editing, interactive HTML Artifact sharing, reviewable versions, DiagramIR, and an editable workbench.",
   "author": {
     "name": "XpertAI",
@@ -32,19 +32,29 @@
     "dist",
     ".xpertai-plugin",
     "assets",
+    "!assets/fonts/*.otf",
+    "!assets/fonts/*.ttf",
+    "!assets/fonts/*.woff",
+    "!assets/fonts/*.woff2",
     "skills",
     "README.md",
     "README_zh-hans.md",
-    "!**/*.tsbuildinfo"
+    "!**/*.tsbuildinfo",
+    "migrations"
   ],
   "scripts": {
-    "build:fonts": "pnpm --filter @xpert-ai/design-fonts build",
+    "prepare:fonts": "node scripts/prepare-fonts.mjs",
+    "test:fonts": "node --test scripts/prepare-fonts.test.mjs",
+    "build:fonts": "pnpm --filter @xpert-ai/design-fonts build && pnpm run prepare:fonts",
     "build:ui": "pnpm --filter @xpert-ai/plugin-shadcn-ui build",
-    "build": "pnpm run build:fonts && pnpm run build:ui && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node ../../scripts/vendor-design-fonts.mjs && node scripts/copy-assets.mjs",
+    "build": "pnpm run build:fonts && pnpm run build:ui && node scripts/build-remote-components.mjs && node scripts/build-mcp-app.mjs && node scripts/build-sandbox-action.mjs && tsc -p tsconfig.lib.json && node ../../scripts/vendor-design-fonts.mjs && node scripts/copy-assets.mjs",
     "lint": "echo \"(todo) add lint\"",
-    "test": "pnpm run build:ui && jest --config jest.config.ts && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
-    "typecheck": "pnpm run build:ui && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
-    "prepack": "pnpm run build:ui && npm run build && node scripts/verify-package-output.mjs"
+    "test": "pnpm run prepare:fonts && pnpm run test:fonts && pnpm run build:ui && pnpm run typecheck:mcp-app && jest --config jest.config.ts && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
+    "typecheck": "pnpm run build:ui && pnpm run typecheck:mcp-app && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
+    "prepack": "pnpm run build:ui && npm run build && node scripts/verify-package-output.mjs",
+    "verify:dist": "node scripts/build-remote-components.mjs --check && node scripts/build-mcp-app.mjs --check && node scripts/verify-package-output.mjs",
+    "typecheck:mcp-app": "tsc -p mcp-apps/tsconfig.json",
+    "verify:pack": "node scripts/verify-packed-output.mjs"
   },
   "xpert": {
     "plugin": {
@@ -67,8 +77,8 @@
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "@nestjs/typeorm": "^11.0.0",
-    "@xpert-ai/contracts": "^3.15.10",
-    "@xpert-ai/plugin-sdk": "^3.15.10",
+    "@xpert-ai/contracts": "^3.18.2",
+    "@xpert-ai/plugin-sdk": "^3.18.3",
     "react": ">=18",
     "react-dom": ">=18",
     "typeorm": "^0.3.24",
@@ -80,17 +90,18 @@
     "@nestjs/core": "^11.1.6",
     "@nestjs/typeorm": "^11.0.0",
     "@types/node": "^20.19.9",
-    "@xpert-ai/contracts": "3.15.11",
+    "@xpert-ai/contracts": "3.18.2",
     "@xpert-ai/design-fonts": "workspace:*",
     "@xpert-ai/plugin-shadcn-ui": "workspace:*",
-    "@xpert-ai/plugin-sdk": "3.15.11",
+    "@xpert-ai/plugin-sdk": "3.18.3",
     "esbuild": "^0.27.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "reflect-metadata": "^0.2.2",
     "typeorm": "^0.3.24",
     "typescript": "^5.9.2",
-    "zod": "3.25.67"
+    "zod": "3.25.67",
+    "@modelcontextprotocol/ext-apps": "1.7.5"
   },
   "publishConfig": {
     "access": "public"

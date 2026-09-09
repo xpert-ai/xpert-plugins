@@ -24,6 +24,8 @@ export type ExcalidrawActionType =
 
 export interface ExcalidrawScope {
   tenantId: string
+  actorId?: string
+  surface?: 'middleware' | 'mcp' | 'workbench'
   organizationId?: string | null
   workspaceId?: string | null
   projectId?: string | null
@@ -49,12 +51,15 @@ export interface CreateExcalidrawDrawingInput extends ExcalidrawSceneInput {
 }
 
 export interface SaveExcalidrawSceneVersionInput extends ExcalidrawSceneInput {
+  isCheckpoint?: boolean
+  expectedRevision?: number
   drawingId: string
   sourceType?: ExcalidrawVersionSource
   changeSummary?: string
 }
 
 export interface PatchExcalidrawSceneInput {
+  expectedRevision?: number
   drawingId: string
   addElements?: unknown[]
   updateElements?: Array<Record<string, unknown> & { id: string }>

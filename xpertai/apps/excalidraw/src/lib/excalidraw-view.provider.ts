@@ -306,7 +306,8 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
           drawingId: requireDrawingId(request),
           versionMode: getStringInput(request.input, 'versionMode') as 'latest' | 'version' | undefined,
           accessMode: getStringInput(request.input, 'accessMode') as 'owner_only' | 'workspace_all' | 'organization_all' | 'public_link' | undefined,
-          userConfirmedPublicLink: getBooleanInput(request.input, 'userConfirmedPublicLink')
+          userConfirmedPublicLink: getBooleanInput(request.input, 'userConfirmedPublicLink'),
+          expectedRevision: getOptionalNumberInput(request.input, 'expectedRevision')
         })
         return { ...success('Excalidraw Artifact shared', 'Excalidraw Artifact 已分享'), data: result }
       }
@@ -380,6 +381,7 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
         const drawingId = requireDrawingId(request)
         const result = await this.service.saveCurrentScene(scope, {
           drawingId,
+          expectedRevision:getOptionalNumberInput(request.input,'expectedRevision'),
           elements: getArrayInput(request.input, 'elements'),
           appState: getRecordInput(request.input, 'appState'),
           files: getRecordInput(request.input, 'files'),
@@ -387,7 +389,6 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
           sourceType: actionKey === 'save_converted_mermaid_scene' ? 'workbench_mermaid' : 'workbench',
           changeSummary: getStringInput(request.input, 'changeSummary')
         })
-        await this.diagrams?.markDiverged(scope, drawingId, result.version.id)
         return {
           ...success('Drawing saved', '图形已保存'),
           data: result
@@ -398,6 +399,8 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
         const drawingId = requireDrawingId(request)
         const result = await this.service.saveSceneVersion(scope, {
           drawingId,
+          isCheckpoint:true,
+          expectedRevision:getOptionalNumberInput(request.input,'expectedRevision'),
           elements: getArrayInput(request.input, 'elements'),
           appState: getRecordInput(request.input, 'appState'),
           files: getRecordInput(request.input, 'files'),
@@ -405,7 +408,6 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
           sourceType: 'workbench',
           changeSummary: getStringInput(request.input, 'changeSummary')
         })
-        await this.diagrams?.markDiverged(scope, drawingId, result.version.id)
         return {
           ...success('Drawing version saved', '图形版本已保存'),
           data: result
@@ -436,7 +438,6 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
               changeSummary
             })
 
-        if (drawingId) await this.diagrams?.markDiverged(scope, drawingId, readResultVersionId(result))
 
         return {
           ...success('Excalidraw file imported', 'Excalidraw 文件已导入'),
@@ -449,9 +450,9 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
           scope,
           requireDrawingId(request),
           requireStringInput(request.input, 'versionId', 'Version id is required.'),
-          getStringInput(request.input, 'changeSummary')
+          getStringInput(request.input, 'changeSummary'),
+          getOptionalNumberInput(request.input,'expectedRevision')
         )
-        await this.diagrams?.markDiverged(scope, requireDrawingId(request), result.version.id)
         return {
           ...success('Drawing version restored', '图形版本已恢复'),
           data: result
@@ -554,7 +555,6 @@ export class ExcalidrawViewProvider implements IXpertViewExtensionProvider {
             changeSummary: `Imported ${file.originalname ?? 'Excalidraw file'}`
           })
 
-      if (drawingId) await this.diagrams?.markDiverged(scope, drawingId, readResultVersionId(result))
 
       return {
         ...success('Excalidraw file imported', 'Excalidraw 文件已导入'),

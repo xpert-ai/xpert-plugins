@@ -8,15 +8,11 @@
 
 本版本需要同一工作区内已加入 Assistant Suite 初始化契约的 xpert-pro，以及配套 DataXpert 应用初始化和执行记录页面改动。单独安装插件到尚不支持这些契约的旧宿主不会自动获得套件初始化能力。
 
-公开 SDK 需要 `ProjectAccessRuntimeCapability` 和 `XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN`。当前宿主构建版本为 3.18.2，但同版本已发布 npm 包缺少前一项能力，因此本地开发显式绑定宿主公开 SDK 构建产物；不导入私有 server-ai 或其他插件源码。
+公开依赖最低要求为 `@xpert-ai/plugin-sdk@3.18.3` 和 `@xpert-ai/contracts@3.18.2`。这些已发布 npm 包包含 `ProjectAccessRuntimeCapability`、`XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN` 与 Assistant Profile 契约；构建直接使用声明的公开依赖。
 
 ```sh
-# 在 xpert-pro 中先构建公开 SDK
-corepack pnpm exec nx build plugin-sdk
-
-# 回到此插件目录
+# 在此插件目录
 corepack pnpm install --ignore-scripts
-node scripts/use-platform-sdk.mjs --platform-root /path/to/xpert-pro
 corepack pnpm verify:blueprint
 corepack pnpm typecheck
 corepack pnpm test
@@ -53,4 +49,4 @@ Mock 图纸由程序生成 SVG 和结构化标注。当前没有通用扫描件 
 
 八位助理分别提供活动与待办视图，共 16 个 `agent.profile.tabs` 扩展。协调者与治理专员支持受项目管理权限保护的人工快捷审批。详见 [资料卡使用说明](docs/assistant-profile.mdx)。
 
-本地联调依赖当前 Xpert checkout 中的 `AGENT_PROFILE_TABS_SLOT`、`XpertAssistantProfile` 与可信 Assistant 版本族上下文。历史同版本 npm 包可能尚未包含这些新增契约；需配套构建和链接当前 `xpert-pro/packages/contracts/dist`，正式发布前同步契约包发布。
+`@xpert-ai/contracts@3.18.2` 已提供 `AGENT_PROFILE_TABS_SLOT`、`XpertAssistantProfile` 与可信 Assistant 版本族上下文。运行宿主也需要支持这些契约及 SDK 项目访问能力。

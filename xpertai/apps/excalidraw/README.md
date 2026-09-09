@@ -6,6 +6,16 @@ Excalidraw for Xpert is a collaborative Agentic diagramming product that brings 
 
 Users and Agents work on the same drawing instead of exchanging flattened images. A user can edit freely in the Workbench while an Agent reads the active drawing and selection, adds or patches elements, reorganizes a scene, creates versions, or produces a structured technical diagram that remains editable in Excalidraw.
 
+## Enable the App in Explore
+
+Version 0.14.0 packages an actual Workbench screenshot for the Explore App card and detail preview.
+
+Since 0.13.1, the plugin contributes the `excalidraw` App with typed `appConfig` under `targetAppMeta.xpert.marketplace.contents`. It includes English and Simplified Chinese presentation, features, and setup guidance. When an administrator applies the App in Explore, Xpert checks for an organization-visible language model, creates a dedicated organization-shared workspace, installs the `excalidraw-assistant` template and its dependencies, and publishes the Assistant chat entry. Drawing setup requires no additional Knowledge bases, embedding models, or Knowledge vision models.
+
+The `excalidraw-technical-diagram-assistant` template remains separately available for optional installation. MCP Publication and credentials are managed separately by the platform; App setup does not expand MCP permissions. Authorized MCP clients can access drawings across projects in the current organization, and tools including public sharing run directly under the application policy.
+
+Plugin deployment activates the App definition. First-time organization setup and later Assistant template updates use their respective host lifecycles. Repeated initialization reuses the host installation record; use Update from Template to upgrade an existing healthy Assistant.
+
 ## Why Excalidraw for Xpert
 
 AI-generated diagrams are often hard to revise, inconsistent between runs, or disconnected from the document being reviewed. This plugin keeps diagrams editable and introduces an optional quality-engineered workflow for technical content:
@@ -32,7 +42,7 @@ The Workbench is the visual home for drawings. It provides:
 - Current-scene saves and explicit version checkpoints
 - Version history, restoration, and review status
 - Excalidraw JSON import and JSON, PNG, or SVG export
-- Interactive HTML Artifact publishing with explicit public-link confirmation, organization/workspace access, stable-link reuse, and revocation
+- Interactive HTML Artifact publishing with application-authorized public links, organization/workspace access, stable-link reuse, and revocation
 - Mermaid draft conversion into an editable scene where supported
 - Template search with category and tag filters
 - Template parameter forms, previews, and create-from-template actions
@@ -121,7 +131,7 @@ The plugin uses Xpert platform capabilities instead of owning a second session s
 
 The collaborative document stores elements by stable element ID, preserves explicit element order, and keeps app state, embedded files, and Mermaid source in separate Yjs structures. Updates to different elements merge independently. Strong operations—version checkpoints, restore, export, and sharing—synchronize with the authoritative document before continuing.
 
-Artifact sharing materializes the authoritative collaborative scene and publishes a self-contained HTML page containing a native read-only Excalidraw viewer. The page supports pan, zoom, and fit-to-content without calling private APIs or external resources. It is written to scoped Workspace Files and registered as an interactive Xpert Artifact. The Workbench never constructs a share URL: it uses the URL returned by the platform. Public links require trusted UI confirmation, and unchanged content with the same policy reuses the active link.
+Artifact sharing materializes the authoritative collaborative scene and publishes a self-contained HTML page containing a native read-only Excalidraw viewer. The page supports pan, zoom, and fit-to-content without calling private APIs or external resources. It is written to scoped Workspace Files and registered as an interactive Xpert Artifact. The Workbench never constructs a share URL: it uses the URL returned by the platform. Tools authorize public links through application policy; the Workbench retains its explicit sharing UI. Unchanged content with the same policy reuses the active link.
 
 ## Files and output
 
@@ -174,13 +184,15 @@ Artifact sharing materializes the authoritative collaborative scene and publishe
 From the `xpert-plugins` repository root:
 
 ```bash
-pnpm -C xpertai --filter @xpert-ai/plugin-excalidraw test
-pnpm -C xpertai --filter @xpert-ai/plugin-excalidraw build
+pnpm -C xpertai exec nx test @xpert-ai/plugin-excalidraw
+pnpm -C xpertai exec nx build @xpert-ai/plugin-excalidraw
 NODE_PATH="$PWD/xpertai/node_modules/.pnpm/node_modules" \
   node plugin-dev-harness/dist/index.js \
   --workspace ./xpertai \
   --plugin @xpert-ai/plugin-excalidraw
 ```
+
+Build and test prepare the pinned quality-preview font in `dist/assets/fonts/`. The first run downloads and checks its size and SHA-256; later runs verify and reuse the cache. Git contains only its manifest, license and documentation. Set `XPERT_EXCALIDRAW_FONT_CACHE` to an absolute cache directory for CI, and `XPERT_EXCALIDRAW_FONTS_OFFLINE=1` to require a pre-populated verified cache. The published plugin includes the font and does not download it at runtime. See [font provenance and build details](assets/fonts/README.md).
 
 Collaboration requires the Xpert Collaboration runtime capability. Artifact sharing requires the Artifacts and Workspace Files runtime capabilities. Quality-preview tools also require Workspace Files.
 
@@ -189,3 +201,44 @@ Collaboration requires the Xpert Collaboration runtime capability. Artifact shar
 This plugin is distributed under the [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.html) license.
 
 Technical-diagram taxonomy and workflow guidance are adapted from [`yizhiyanhua-ai/fireworks-tech-graph`](https://github.com/yizhiyanhua-ai/fireworks-tech-graph) at the commit recorded in `skills/NOTICE.fireworks-tech-graph.txt`, under the upstream MIT License. The plugin uses Excalidraw-native themes and its own TypeScript/Resvg rendering pipeline; it does not copy the upstream Python/Cairo runtime.
+
+## Native MCP tools and interactive preview (0.13)
+
+Enable **Excalidraw** in the plugin's managed MCP services. Its provider is `excalidraw_tools` and component is `excalidraw-tools`. Connect an MCP client using the Publication URL and user-bound organization credentials supplied by Xpert. The publication controls tool access; every call also requires tenant, organization and principal context. MCP searches include all drawings in that organization, across projects. They do not depend on a Workbench, Assistant or conversation.
+
+A typical drawing workflow is:
+
+1. `excalidraw_search_drawings` and `excalidraw_get_drawing` identify the drawing and scene revision; use paged element references and `excalidraw_get_scene_item` for exact data.
+2. Create metadata with `excalidraw_create_drawing`, then append small batches with `excalidraw_add_elements`. Existing targets require an explicit `drawingId` in MCP.
+3. Supply a stable `operationId` for every mutation. Repeat it with exactly the same input after an interrupted call; changing its input is rejected. Destructive scene replacement, deletion and restoration require the scene `expectedRevision`.
+4. `excalidraw_create_preview`, `excalidraw_convert_mermaid` and `excalidraw_export_drawing` return a durable `jobId` and `cursor`. Call `excalidraw_wait_job` (at most 45 seconds per call) until `terminal`; reconnect with `excalidraw_get_job`, or cancel with `excalidraw_cancel_job`. Do not resubmit to poll.
+5. Read the completed PNG with `excalidraw_read_preview`. JSON/SVG/PNG exports and converted JSON retained after a revision conflict can be read in bounded base64 chunks with `excalidraw_read_export`; concatenate in offset order, decode and verify the returned SHA-256.
+6. `excalidraw_save_scene_version` retains its existing meaning: update the current working scene. Use **`excalidraw_checkpoint_version`** to create a frozen checkpoint, `excalidraw_list_versions` to inspect history and `excalidraw_restore_version` to restore it. The first edit after a checkpoint creates a working version.
+
+Scene revision, DiagramIR revision and business version number are separate counters. `excalidraw_diagram_validate` writes a new IR revision; pass its returned `irRevision` as the next technical tool's `expectedRevision`. Technical quality previews are explicitly labeled as DiagramIR previews, with their IR revision; they are not proof of the current manually edited scene. For visual review: instantiate/create → edit IR → validate → render → create quality preview → read PNG → record review. A quality run permits at most two correction passes.
+
+The `excalidraw_preview` MCP App provides pan, zoom, fit, refresh, version information and quality results in English or Simplified Chinese, using host theme variables. It has no storage credentials or private file URLs. Clients without MCP Apps still receive tool results and standard image content. Manual canvas editing remains available in Workbench.
+
+### Rendering, sharing and host compatibility
+
+Native previews and Mermaid conversion use the plugin's immutable `excalidraw.render@1.0.0` Sandbox Action with Browser Runtime `browser/playwright-1.61/v1`. The action bundles Excalidraw 0.18.1, Mermaid conversion 2.2.2 and fixed fonts, with no outbound resource access. A compatible Browser Runtime binding and a `sandbox-browser` Managed Queue consumer must be available. Missing rendering or authenticated file capabilities produce an explicit error. Plain JSON export does not require Browser Runtime. Jobs, portable file references and checksums are persisted. Preview caches include tenant/organization, drawing revision, render version and principal. A conversion that loses its revision check keeps its result and never overwrites the changed drawing.
+
+All write tools and public sharing declare `mcp.defaultApprovalMode: allow`. A Publication with no explicit administrator override follows this default on creation and synchronization; explicit overrides remain authoritative. No tool calls `host.input`. Public sharing passes trusted `publicLinkAuthorization: application_policy` to Artifacts rather than claiming a user confirmed. Caller scope, revision checks, idempotency, link reuse and revocation remain enforced. Drawings without a project or Assistant use the authenticated user's Workspace Files.
+
+The dependency baseline is published SDK 3.18.3 / contracts 3.18.2. This source upgrade also requires the companion host SDK changes for decorated `resultFormat: 'tool_result'` and strict object refinements. Local verification uses that host workspace build. **Before an npm release, update the dependency versions to published packages that actually contain those changes.** Older hosts are rejected at plugin registration instead of returning malformed image DTOs.
+
+For installations with schema synchronization disabled, apply `migrations/20260906-native-mcp.sql` before loading 0.13. It only adds operation/job tables and the checkpoint flag; existing drawing IDs, tables, history and Yjs scene maps are preserved. Detailed Workbench logs are off by default and are enabled only by the host's typed `init.debug.enabled` flag; middleware diagnostics use `XPERT_EXCALIDRAW_DEBUG=true`.
+
+Build/test with Nx, run `verify:dist`, inspect the real package and run `plugin-dev-harness` before `plugin:deploy:local`. Restart the selected API when deployment returns `restartRequired`, then verify a live MCP call. npm publishing and production deployment are separate release steps.
+
+The local host advertises MCP `2026-07-28` and accepts legacy `2025-11-25` calls. Excalidraw's default direct policy works without elicitation on either protocol. An explicit administrator `confirm` override requires a compatible interactive client. Upgrade the host contracts and plugin SDK together for `defaultApprovalMode` and Artifact application authorization; published SDK 3.18.3 does not yet include these additions.
+
+`excalidraw_diagram_render` requires both `expectedRevision` (DiagramIR) and `expectedSceneRevision` (canvas) over MCP. Read the drawing again before replacing the scene.
+
+Companion host changes also restore the authenticated user, discover Workspace Files/Collaboration/Artifacts globally, and resume tool-specific input after Publication approval. DiagramIR quality PNGs use the bundled Noto Sans CJK SC 2.004 OTF font under the OFL license. Native scene exports retain the pinned Excalidraw fonts.
+
+Local acceptance scripts obtain credentials from the host Keychain helper without recording them. Enable the organization's MCP service, then set `XPERT_HOST_CHECKOUT`, `XPERT_API_URL`, and `XPERT_ORGANIZATION_ID`. Run `scripts/smoke-native-concurrency.mjs` for concurrent edits, preview deduplication, Mermaid conflicts and cancellation. `scripts/smoke-installed-workbench.mjs <playwright-core directory>` also requires `XPERT_ASSISTANT_ID` and creates a dedicated drawing to verify manual editing alongside MCP changes. The acceptance client declares no elicitation capability and rejects unexpected confirmation requests. Sharing acceptance also runs the legacy connection path. Screenshots and sanitized results go to `test-output/mcp/`.
+
+Every tool returns its compact JSON in both `content.text` and `structuredContent` for clients that expose only text. IDs, revisions, URLs, changed element IDs and actionable validation issues remain visible. Schema errors name the field path; DiagramIR failures include targeted issues. Run `scripts/smoke-text-client.mjs` to verify a workflow that never reads structuredContent.
+
+Tool output recovery: `resultStatus: "unavailable"` means the detailed result could not be prepared. Preserve the known business status and IDs; read the returned drawing/job or retry identical arguments with the same `operationId`. Do not start a new write to recover a missing response.

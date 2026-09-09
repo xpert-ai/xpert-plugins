@@ -11,6 +11,7 @@ export default {
   displayName: '@xpert-ai/plugin-excalidraw',
   preset: '../../jest.preset.js',
   testEnvironment: 'node',
+  moduleNameMapper: { '^lodash-es$': 'lodash' },
   transform: {
     '^.+\\.[tj]s$': ['@swc/jest', swcJestConfig]
   },

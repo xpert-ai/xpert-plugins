@@ -43,6 +43,9 @@ function createFixture() {
   let drawingId = 0
   let versionId = 0
   const excalidraw = {
+    requireDrawing:jest.fn(async (_scope,requestedDrawingId)=>({id:requestedDrawingId})),
+    requireCanonicalDrawing:jest.fn(async (_scope,requestedDrawingId)=>({id:requestedDrawingId,revision:0})),
+    assertSceneRevision:jest.fn(),
     createDrawing: jest.fn(async () => ({ item: { id: `drawing-${++drawingId}` } })),
     deleteDrawing: jest.fn(async () => ({ success: true })),
     getDrawing: jest.fn(async (_scope, requestedDrawingId) => ({ item: { id: requestedDrawingId } })),
@@ -66,6 +69,18 @@ function createFixture() {
 }
 
 describe('DiagramIrService revision and divergence rules', () => {
+  it('returns targeted geometry diagnostics when creation or rendering is rejected', async () => {
+    const { service, excalidraw, ir } = createFixture()
+    const node = { ...ir.nodes[0], size: { height: 1000 } }
+    const invalidIr = { ...ir, nodes: [node, ...ir.nodes.slice(1)] }
+    await expect(service.create(scope('tenant-a'), { ir: invalidIr })).rejects.toThrow(/canvas.node_out_of_bounds/)
+    expect(excalidraw.createDrawing).not.toHaveBeenCalled()
+    const created = await service.create(scope('tenant-a'), { ir })
+    const edited = await service.upsertNode(scope('tenant-a'), { drawingId: created.drawingId, expectedRevision: created.revision, node })
+    await expect(service.render(scope('tenant-a'), { drawingId: created.drawingId, expectedRevision: edited.revision })).rejects.toThrow(/"irRevision":2/)
+    expect(excalidraw.saveSceneVersion).not.toHaveBeenCalled()
+  })
+
   it('prevalidates a new DiagramIR before creating an Excalidraw drawing', async () => {
     const { service, excalidraw, ir, rows } = createFixture()
     const invalidIr = {

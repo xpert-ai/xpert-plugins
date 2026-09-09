@@ -1,31 +1,8 @@
 import type { I18nObject, JsonSchemaObjectType } from '@xpert-ai/contracts'
 
-// Temporary structural compatibility types for plugin-sdk 3.10.x. Replace with
-// the official Workspace Files exports when the Excalidraw peer range advances.
-export interface DiagramWorkspaceFileReference {
-  source: 'platform.workspace.files'
-  filePath: string
-  workspacePath: string
-  originalName?: string | null
-  name?: string | null
-  mimeType?: string | null
-  size?: number | null
-  [key: string]: unknown
-}
-
-export interface DiagramWorkspaceFilesApi {
-  writeRuntimeBuffer(input: {
-    path: string
-    originalName: string
-    mimeType: string
-    buffer: Buffer
-  }): Promise<{
-    filePath: string
-    workspacePath: string
-    size?: number | null
-    reference: DiagramWorkspaceFileReference
-  }>
-}
+import type { WorkspaceFilesApi, WorkspacePortableFileReference } from '@xpert-ai/plugin-sdk'
+export type DiagramWorkspaceFileReference = WorkspacePortableFileReference
+export type DiagramWorkspaceFilesApi = Pick<WorkspaceFilesApi, 'writeRuntimeBuffer'>
 
 export type DiagramJsonPrimitive = string | number | boolean | null
 export type DiagramJsonValue = DiagramJsonPrimitive | DiagramJsonObject | DiagramJsonValue[]

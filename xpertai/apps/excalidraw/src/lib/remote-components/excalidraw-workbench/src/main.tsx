@@ -1,3 +1,6 @@
+import { debug, configureDebug } from './debug'
+import { restorePersistedScene, restoreImportedExcalidrawFile, restoreExcalidrawScenePayload, isRecoverableSceneError, shouldAutoSaveMermaidVersion, isBlankPersistedVersion, isBlankSceneData, hasVisibleElements, formatVersionTime, parseDateValue, resolveDateLocale, withHostThemeAppState, defaultCanvasBackground, resolveExcalidrawTheme, normalizeThemeInput, readCssColor, themeFromCssColor, parseCssColor, wait, createSceneSignature, createDraftRecoverySnapshot, cloneDraftRecoverySnapshot, cloneScenePayload, stableStringify, normalizeJsonValue, isObject, synchronizeCollaboration, buildExcalidrawCollaborators, normalizeExcalidrawPointer, readZoom, readPositiveNumber, readFiniteNumber, clamp, collaboratorInitials, copyTextWithTextarea, normalizeArtifactShare, readOptionalString, isArtifactAccessSelection, localizedText, removeExcalidrawExtension, downloadBlob } from './scene-runtime'
+import type { StatusFilter, Drawing, DrawingVersion, ExcalidrawTheme, DetailPayload, ArtifactShareSummary, ArtifactAccessSelection, ArtifactVersionSelection, CollaborationDescriptor, DiagramTemplateSummary, DiagramQualitySummary, SceneApplyPayload, DraftRecoverySnapshot, SaveCurrentSceneOptions, LoadDrawingDetailOptions, DeleteTarget, ConfirmationRequest } from './workbench-types'
 import '@excalidraw/excalidraw/index.css'
 import {
   Excalidraw,
@@ -123,99 +126,6 @@ import {
   startRemoteBridge
 } from './runtime'
 
-type StatusFilter = '' | 'draft' | 'reviewed' | 'archived'
-type Drawing = Record<string, any>
-type DrawingVersion = Record<string, any>
-type ExcalidrawTheme = 'light' | 'dark'
-type DetailPayload = {
-  item?: Drawing
-  currentVersion?: DrawingVersion | null
-  versions?: DrawingVersion[]
-  logs?: any[]
-  diagramTemplates?: DiagramTemplateSummary[]
-  diagramQuality?: DiagramQualitySummary | null
-  artifactShare?: ArtifactShareSummary | null
-}
-type ArtifactShareSummary = {
-  artifactId?: string
-  artifactVersionId?: string
-  artifactLinkId?: string
-  versionMode?: 'latest' | 'version'
-  accessMode?: string
-  shareUrl?: string
-  sharedAt?: string
-  status?: string
-  revision?: number
-}
-type ArtifactAccessSelection = 'public_link' | 'organization_all' | 'workspace_all'
-type ArtifactVersionSelection = 'latest' | 'version'
-type CollaborationDescriptor = CollaborationSessionDescriptor & { drawingId: string; revision: number }
-type DiagramTemplateSummary = {
-  key: string
-  version: string
-  artifactType: string
-  title: Record<string, string>
-  description?: Record<string, string>
-  category: string
-  tags: string[]
-  preview?: { assetPath: string; alt: Record<string, string> }
-  previewDataUrl?: string
-  inputSchema?: Record<string, any>
-  defaults?: Record<string, any>
-}
-type DiagramQualitySummary = {
-  drawingId: string
-  revision: number
-  status: string
-  renderedExcalidrawVersionId?: string | null
-  validationReport?: { valid?: boolean; issues?: any[] } | null
-  visualReviews?: any[]
-  qualityArtifacts?: Record<string, any> | null
-}
-type SceneApplyPayload = {
-  elements: any[]
-  appState: Record<string, unknown>
-  files: Record<string, unknown>
-  mermaidSource: string
-}
-type DraftRecoverySnapshot = SceneApplyPayload & {
-  drawingId: string
-  signature: string
-  savedAt: number
-}
-type SaveCurrentSceneOptions = {
-  force?: boolean
-  changeSummary?: string
-  silent?: boolean
-  background?: boolean
-  reloadAfterSave?: boolean
-}
-type LoadDrawingDetailOptions = {
-  applyScene?: boolean
-  resetDirty?: boolean
-  closeVersions?: boolean
-  clearChangeSummary?: boolean
-  suppressErrorNotify?: boolean
-}
-type DeleteTarget =
-  | {
-      type: 'drawing'
-      drawingId: string
-      title: string
-    }
-type ConfirmationRequest = {
-  title: string
-  description: string
-  confirmLabel: string
-  destructive?: boolean
-}
-  | {
-      type: 'version'
-      drawingId: string
-      versionId: string
-      versionNumber?: number
-    }
-
 const DEFAULT_MERMAID = `flowchart TD
   A[User Request] --> B[Agent Plans Diagram]
   B --> C{Best Format?}
@@ -225,12 +135,6 @@ const DEFAULT_MERMAID = `flowchart TD
   E --> G[Human Review]
   F --> G`
 
-const SCENE_APP_STATE_SIGNATURE_KEYS = [
-  'viewBackgroundColor',
-  'gridSize',
-  'objectsSnapModeEnabled',
-  'frameRendering'
-]
 const AUTO_SAVE_DELAY_MS = 1200
 const MAX_DRAFT_RECOVERY_SNAPSHOTS = 20
 const HOST_EVENT_DETAIL_RETRY_DELAYS_MS = [150, 350, 700, 1200]
@@ -599,6 +503,24 @@ function App() {
     }
   }, [])
 
+  // Refresh metadata independently from scene synchronization, including MCP changes
+  // that have no ChatKit completion event. Never replace dirty canvas contents.
+  const refreshMetadataRef=React.useRef<() => Promise<void>>(async()=>undefined)
+  refreshMetadataRef.current=async()=>{
+    const id=selectedIdRef.current
+    await reloadList()
+    if(id&&selectedIdRef.current===id)await loadDrawingDetail(id,{applyScene:false,resetDirty:false,closeVersions:false,clearChangeSummary:false,suppressErrorNotify:true})
+  }
+  React.useEffect(()=>{
+    let running=false
+    const timer=window.setInterval(()=>{
+      if(document.visibilityState==='hidden'||running)return
+      running=true
+      void refreshMetadataRef.current().catch(()=>undefined).finally(()=>{running=false})
+    },5000)
+    return ()=>window.clearInterval(timer)
+  },[])
+
   React.useEffect(reportResize, [drawings, detail, busy, dirty, collaborators, collaborationState, leftPanelCollapsed, rightPanelCollapsed, versionsOpen, deleteTarget])
 
   React.useEffect(() => {
@@ -622,7 +544,7 @@ function App() {
         return false
       }
       const translate = createTranslator(contextRef.current?.locale)
-      console.warn('[excalidraw-workbench] recovered from Excalidraw scene error', error)
+      debug.warn('[excalidraw-workbench] recovered from Excalidraw scene error', error)
       notify('warning', translate('sceneDataInvalid'))
       applyBlankScene({ clearMermaid: false })
       return true
@@ -724,7 +646,7 @@ function App() {
       isDirty: dirtyRef.current,
       canReplaceDirtyScene: canReplaceCurrentDirtyScene()
     }
-    console.info('[excalidraw-workbench] handling hostEvent', {
+    debug.info('[excalidraw-workbench] handling hostEvent', {
       rawEvent: event,
       normalizedEvent,
       selectedId: selectedIdRef.current,
@@ -733,7 +655,7 @@ function App() {
     })
     const initialDecision = decideToolEventRefresh(normalizedEvent, refreshOptions)
     if (!initialDecision.shouldReloadList) {
-      console.info('[excalidraw-workbench] hostEvent ignored', {
+      debug.info('[excalidraw-workbench] hostEvent ignored', {
         normalizedEvent,
         decision: initialDecision
       })
@@ -743,7 +665,7 @@ function App() {
     cancelSceneAnimation()
     const sequence = ++hostEventSequenceRef.current
     const items = await reloadList()
-    console.info('[excalidraw-workbench] hostEvent list reloaded', {
+    debug.info('[excalidraw-workbench] hostEvent list reloaded', {
       sequence,
       currentSequence: hostEventSequenceRef.current,
       itemCount: items.length,
@@ -751,7 +673,7 @@ function App() {
     })
     if (sequence !== hostEventSequenceRef.current) {
       // A newer tool event won the race; avoid applying an older scene after the list reload.
-      console.info('[excalidraw-workbench] hostEvent refresh skipped because a newer event arrived', {
+      debug.info('[excalidraw-workbench] hostEvent refresh skipped because a newer event arrived', {
         sequence,
         currentSequence: hostEventSequenceRef.current
       })
@@ -763,7 +685,7 @@ function App() {
       isDirty: dirtyRef.current,
       canReplaceDirtyScene: canReplaceCurrentDirtyScene()
     })
-    console.info('[excalidraw-workbench] hostEvent refresh decision', decision)
+    debug.info('[excalidraw-workbench] hostEvent refresh decision', decision)
     let selectedPayload: DetailPayload | null = null
     let sceneApplied = true
     const shouldAnimateScene = isAnimatedPatchTool(normalizedEvent) && Boolean(apiRef.current)
@@ -772,7 +694,7 @@ function App() {
     if (decision.shouldProtectDirtyScene) {
       // Preserve unsaved local canvas edits; only refresh version metadata unless applying is explicitly safe.
       if (decision.shouldLoadProtectedDetail && decision.targetDrawingId) {
-        console.info('[excalidraw-workbench] loading detail without applying scene because canvas is dirty', {
+        debug.info('[excalidraw-workbench] loading detail without applying scene because canvas is dirty', {
           drawingId: decision.targetDrawingId
         })
         selectedPayload = await loadDrawingDetail(decision.targetDrawingId, {
@@ -788,7 +710,7 @@ function App() {
     }
 
     if (decision.shouldSelectDrawing && decision.targetDrawingId) {
-      console.info('[excalidraw-workbench] selecting drawing after hostEvent', {
+      debug.info('[excalidraw-workbench] selecting drawing after hostEvent', {
         drawingId: decision.targetDrawingId,
         animated: shouldAnimateScene,
         mermaidPreview: shouldPreviewMermaidDraft
@@ -811,7 +733,7 @@ function App() {
         sequence
       )
       if (sequence !== hostEventSequenceRef.current) {
-        console.info('[excalidraw-workbench] hostEvent scene apply skipped because a newer event arrived', {
+        debug.info('[excalidraw-workbench] hostEvent scene apply skipped because a newer event arrived', {
           sequence,
           currentSequence: hostEventSequenceRef.current
         })
@@ -820,7 +742,7 @@ function App() {
       if (normalizedEvent?.isCreateDrawing && selectedPayload?.item && !items.some((item) => item?.id === selectedPayload?.item?.id)) {
         await reloadList()
         if (sequence !== hostEventSequenceRef.current) {
-          console.info('[excalidraw-workbench] hostEvent post-create list refresh skipped because a newer event arrived', {
+          debug.info('[excalidraw-workbench] hostEvent post-create list refresh skipped because a newer event arrived', {
             sequence,
             currentSequence: hostEventSequenceRef.current
           })
@@ -837,7 +759,7 @@ function App() {
           return
         }
       }
-      console.info('[excalidraw-workbench] selected drawing after hostEvent', {
+      debug.info('[excalidraw-workbench] selected drawing after hostEvent', {
         drawingId: decision.targetDrawingId,
         currentVersionId: selectedPayload?.currentVersion?.id,
         currentVersionNumber: selectedPayload?.currentVersion?.versionNumber,
@@ -847,7 +769,7 @@ function App() {
     }
 
     if (decision.shouldQueueMermaidPreview && selectedPayload?.currentVersion?.mermaidSource) {
-      console.info('[excalidraw-workbench] previewing Mermaid draft after hostEvent', {
+      debug.info('[excalidraw-workbench] previewing Mermaid draft after hostEvent', {
         drawingId: decision.targetDrawingId,
         versionId: selectedPayload.currentVersion.id
       })
@@ -883,7 +805,7 @@ function App() {
       const payload = getResponsePayload(response) || {}
       applyDiagramTemplatesPayload(payload)
       const items = Array.isArray(payload.items) ? payload.items : []
-      console.info('[excalidraw-workbench] reloadList result', {
+      debug.info('[excalidraw-workbench] reloadList result', {
         search: nextSearch,
         status: nextStatus,
         itemCount: items.length,
@@ -937,7 +859,7 @@ function App() {
         return null
       }
       const retryDelay = HOST_EVENT_DETAIL_RETRY_DELAYS_MS[attempt]
-      console.info('[excalidraw-workbench] hostEvent detail not ready; retrying', {
+      debug.info('[excalidraw-workbench] hostEvent detail not ready; retrying', {
         drawingId,
         attempt: attempt + 1,
         retryDelay
@@ -972,7 +894,7 @@ function App() {
       const payload = getResponsePayload(response) || {}
       applyDiagramTemplatesPayload(payload)
       if (!payload.item) {
-        console.warn('[excalidraw-workbench] loadDrawingDetail returned no drawing item', {
+        debug.warn('[excalidraw-workbench] loadDrawingDetail returned no drawing item', {
           drawingId,
           payload
         })
@@ -982,7 +904,7 @@ function App() {
         }
         return null
       }
-      console.info('[excalidraw-workbench] loadDrawingDetail result', {
+      debug.info('[excalidraw-workbench] loadDrawingDetail result', {
         drawingId,
         applyScene,
         currentVersionId: payload.currentVersion?.id,
@@ -1192,6 +1114,7 @@ function App() {
       const previousSavedSnapshot = lastSavedSnapshotRef.current
       const response = await executeAction(sourceAction, drawingId, {
         drawingId,
+        expectedRevision:detailRef.current?.item?.revision,
         elements: scene.elements,
         appState: scene.appState,
         files: scene.files,
@@ -1225,7 +1148,7 @@ function App() {
       return true
     } catch (error) {
       if (options.background) {
-        console.warn('[excalidraw-workbench] auto-save failed', error)
+        debug.warn('[excalidraw-workbench] auto-save failed', error)
         if (!autoSaveFailureNotifiedRef.current) {
           autoSaveFailureNotifiedRef.current = true
           notify('warning', getErrorMessage(error))
@@ -1427,7 +1350,7 @@ function App() {
     setBusy(true)
     try {
       const conversionSource = normalizeMermaidSourceForExcalidrawConversion(source)
-      const result = await parseMermaidToExcalidrawWithoutFallbackErrorLog(conversionSource, {
+      const result = await parseMermaidToExcalidraw(conversionSource, {
         themeVariables: {
           fontSize: '25px'
         },
@@ -1437,7 +1360,7 @@ function App() {
       const elements = convertToExcalidrawElements(result.elements || [])
       const files = result.files || {}
       const imageFallback = isSingleImageMermaidResult(elements, files)
-      console.info('[excalidraw-workbench] Mermaid conversion result', {
+      debug.info('[excalidraw-workbench] Mermaid conversion result', {
         elementCount: elements.length,
         elementTypes: elements.slice(0, 20).map((element: any) => element?.type),
         fileCount: countSceneFiles(files),
@@ -1484,38 +1407,6 @@ function App() {
     }
   }
 
-  async function parseMermaidToExcalidrawWithoutFallbackErrorLog(
-    source: string,
-    options: Parameters<typeof parseMermaidToExcalidraw>[1]
-  ) {
-    const restoreConsoleError = suppressMermaidImageFallbackErrorLog()
-    try {
-      return await parseMermaidToExcalidraw(source, options)
-    } finally {
-      restoreConsoleError()
-    }
-  }
-
-  function suppressMermaidImageFallbackErrorLog() {
-    const originalError = console.error
-    const patchedError = (...args: unknown[]) => {
-      if (isMermaidImageFallbackErrorLog(args)) {
-        console.info('[excalidraw-workbench] Mermaid structured conversion fell back to image', args[1] || args[0])
-        return
-      }
-      originalError(...args)
-    }
-    console.error = patchedError
-    return () => {
-      if (console.error === patchedError) {
-        console.error = originalError
-      }
-    }
-  }
-
-  function isMermaidImageFallbackErrorLog(args: unknown[]) {
-    return typeof args[0] === 'string' && args[0].startsWith('Error processing Mermaid diagram:')
-  }
 
   function queueMermaidPreview(version: DrawingVersion, options: { autoSave?: boolean } = {}) {
     const source = typeof version.mermaidSource === 'string' ? version.mermaidSource.trim() : ''
@@ -1560,10 +1451,10 @@ function App() {
       const response = await invokeClientCommand(command.commandKey, command.payload)
       const result = getResponsePayload(response)
       if (result?.success === false) {
-        console.warn('[excalidraw-workbench] assistant selection context command failed', result)
+        debug.warn('[excalidraw-workbench] assistant selection context command failed', result)
       }
     } catch (error) {
-      console.warn('[excalidraw-workbench] failed to sync assistant selection context', error)
+      debug.warn('[excalidraw-workbench] failed to sync assistant selection context', error)
     }
   }
 
@@ -1658,7 +1549,7 @@ function App() {
 
   function handleSceneApplicationError(error: unknown, options: { fallbackToBlank?: boolean } = {}) {
     const translate = createTranslator(contextRef.current?.locale)
-    console.warn('[excalidraw-workbench] failed to apply Excalidraw scene', error)
+    debug.warn('[excalidraw-workbench] failed to apply Excalidraw scene', error)
     notify('warning', `${translate('sceneDataInvalid')}: ${getErrorMessage(error)}`)
     if (options.fallbackToBlank) {
       applyBlankScene({ clearMermaid: false })
@@ -2923,523 +2814,6 @@ function App() {
   )
 }
 
-function restorePersistedScene(version: DrawingVersion | null | undefined, theme: ExcalidrawTheme) {
-  const fallbackAppState = withHostThemeAppState(isObject(version?.appState) ? version?.appState : {}, theme)
-  const fallbackElements = normalizeExcalidrawElementsForPersistence(Array.isArray(version?.elements) ? version?.elements : [])
-  const fallbackScene = {
-    elements: fallbackElements,
-    appState: fallbackAppState,
-    files: isObject(version?.files) ? version?.files : {}
-  }
-  try {
-    const restored = restore(
-      {
-        elements: fallbackScene.elements as any,
-        appState: fallbackAppState as any,
-        files: fallbackScene.files as any
-      },
-      fallbackAppState as any,
-      null,
-      {
-        repairBindings: true
-      }
-    ) as any
-    return {
-      elements: normalizeExcalidrawElementsForPersistence(Array.isArray(restored?.elements) ? restored.elements : fallbackScene.elements),
-      appState: withHostThemeAppState(isObject(restored?.appState) ? restored.appState : fallbackScene.appState, theme),
-      files: isObject(restored?.files) ? restored.files : fallbackScene.files
-    }
-  } catch (error) {
-    console.warn('[excalidraw-workbench] invalid persisted Excalidraw scene, falling back to blank scene', error)
-    return {
-      elements: [],
-      appState: fallbackAppState,
-      files: {}
-    }
-  }
-}
-
-async function restoreImportedExcalidrawFile(file: File, theme: ExcalidrawTheme) {
-  const parsed = JSON.parse(await file.text())
-  return restoreExcalidrawScenePayload(parsed, theme)
-}
-
-function restoreExcalidrawScenePayload(payload: unknown, theme: ExcalidrawTheme) {
-  const source = isObject(payload) ? payload : {}
-  const appState = isObject(source.appState) ? source.appState : {}
-  const files = isObject(source.files) ? source.files : {}
-  const elements = Array.isArray(source.elements) ? source.elements : []
-  const fallbackAppState = withHostThemeAppState(appState, theme)
-  const restored = restore(
-    {
-      elements: elements as any,
-      appState: appState as any,
-      files: files as any
-    },
-    fallbackAppState as any,
-    null,
-    {
-      repairBindings: true,
-      refreshDimensions: false
-    }
-  ) as any
-
-  return {
-    elements: normalizeExcalidrawElementsForPersistence(Array.isArray(restored?.elements) ? restored.elements : elements),
-    appState: withHostThemeAppState(isObject(restored?.appState) ? restored.appState : fallbackAppState, theme),
-    files: isObject(restored?.files) ? restored.files : files
-  }
-}
-
-function isRecoverableSceneError(error: unknown) {
-  const message = getErrorMessage(error).toLowerCase()
-  return message.includes('order key')
-    || message.includes('invalid integer part')
-    || message.includes('trailing zero')
-    || message.includes('excalidraw scene')
-}
-
-function shouldAutoSaveMermaidVersion(version: DrawingVersion | null | undefined) {
-  return Boolean(
-    version?.sourceType === 'agent_mermaid'
-      && typeof version.mermaidSource === 'string'
-      && version.mermaidSource.trim()
-      && (!Array.isArray(version.elements) || version.elements.length === 0)
-  )
-}
-
-function isBlankPersistedVersion(version: DrawingVersion | null | undefined) {
-  if (!version) {
-    return true
-  }
-  return isBlankSceneData(version.elements, version.files, version.mermaidSource)
-}
-
-function isBlankSceneData(elements: unknown, files: unknown, mermaidSource: unknown) {
-  return !hasVisibleElements(elements)
-    && !(isObject(files) && Object.keys(files).length > 0)
-    && !(typeof mermaidSource === 'string' && mermaidSource.trim())
-}
-
-function hasVisibleElements(elements: unknown) {
-  return Array.isArray(elements) && elements.some((element) => !isObject(element) || element.isDeleted !== true)
-}
-
-function formatVersionTime(version: DrawingVersion, locale: unknown) {
-  const value = version.createdAt ?? version.created_at ?? version.updatedAt ?? version.updated_at
-  const date = parseDateValue(value)
-  if (!date) {
-    return ''
-  }
-  try {
-    return new Intl.DateTimeFormat(resolveDateLocale(locale), {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(date)
-  } catch {
-    return date.toLocaleString()
-  }
-}
-
-function parseDateValue(value: unknown): Date | null {
-  if (value instanceof Date && Number.isFinite(value.getTime())) {
-    return value
-  }
-  if (typeof value === 'string' || typeof value === 'number') {
-    const date = new Date(value)
-    return Number.isFinite(date.getTime()) ? date : null
-  }
-  return null
-}
-
-function resolveDateLocale(locale: unknown) {
-  return String(locale || '').toLowerCase().startsWith('zh') ? 'zh-CN' : 'en-US'
-}
-
-function withHostThemeAppState(appState: Record<string, unknown>, theme: ExcalidrawTheme) {
-  return {
-    ...appState,
-    theme,
-    viewBackgroundColor: typeof appState.viewBackgroundColor === 'string' && appState.viewBackgroundColor
-      ? appState.viewBackgroundColor
-      : defaultCanvasBackground(theme)
-  }
-}
-
-function defaultCanvasBackground(theme: ExcalidrawTheme) {
-  return theme === 'dark' ? '#121212' : '#ffffff'
-}
-
-function resolveExcalidrawTheme(hostTheme: unknown): ExcalidrawTheme {
-  const explicitTheme = normalizeThemeInput(hostTheme)
-  if (explicitTheme) {
-    return explicitTheme
-  }
-
-  const documentTheme = normalizeThemeInput(document.documentElement.dataset.theme)
-    ?? normalizeThemeInput(document.documentElement.dataset.colorScheme)
-    ?? normalizeThemeInput(document.body?.dataset.theme)
-    ?? normalizeThemeInput(document.body?.dataset.colorScheme)
-    ?? normalizeThemeInput(document.documentElement.className)
-    ?? normalizeThemeInput(document.body?.className)
-  if (documentTheme) {
-    return documentTheme
-  }
-
-  const backgroundTheme = themeFromCssColor(readCssColor('--background') || readCssColor('--xui-color-background'))
-  if (backgroundTheme) {
-    return backgroundTheme
-  }
-
-  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-}
-
-function normalizeThemeInput(value: unknown): ExcalidrawTheme | null {
-  if (typeof value === 'boolean') {
-    return value ? 'dark' : 'light'
-  }
-  if (typeof value === 'string') {
-    const normalized = value.toLowerCase()
-    if (normalized.includes('dark') || normalized.includes('night')) {
-      return 'dark'
-    }
-    if (normalized.includes('light') || normalized.includes('day')) {
-      return 'light'
-    }
-    return null
-  }
-  if (!isObject(value)) {
-    return null
-  }
-  if (value.isDark === true || value.dark === true) {
-    return 'dark'
-  }
-  if (value.isDark === false || value.dark === false) {
-    return 'light'
-  }
-  for (const key of ['mode', 'theme', 'colorScheme', 'appearance', 'name', 'type']) {
-    const resolved = normalizeThemeInput(value[key])
-    if (resolved) {
-      return resolved
-    }
-  }
-  return null
-}
-
-function readCssColor(variableName: string) {
-  if (typeof window === 'undefined') {
-    return ''
-  }
-  return getComputedStyle(document.documentElement).getPropertyValue(variableName).trim()
-    || getComputedStyle(document.body).getPropertyValue(variableName).trim()
-}
-
-function themeFromCssColor(color: string): ExcalidrawTheme | null {
-  const rgb = parseCssColor(color)
-  if (!rgb) {
-    return null
-  }
-  const [r, g, b] = rgb.map((value) => {
-    const normalized = value / 255
-    return normalized <= 0.03928 ? normalized / 12.92 : Math.pow((normalized + 0.055) / 1.055, 2.4)
-  })
-  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b
-  return luminance < 0.36 ? 'dark' : 'light'
-}
-
-function parseCssColor(color: string): [number, number, number] | null {
-  const trimmed = color.trim()
-  if (!trimmed) {
-    return null
-  }
-  const hex = trimmed.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i)
-  if (hex) {
-    const value = hex[1].length === 3
-      ? hex[1].split('').map((part) => part + part).join('')
-      : hex[1]
-    return [
-      Number.parseInt(value.slice(0, 2), 16),
-      Number.parseInt(value.slice(2, 4), 16),
-      Number.parseInt(value.slice(4, 6), 16)
-    ]
-  }
-
-  const rgb = trimmed.match(/^rgba?\(([^)]+)\)$/i)
-  if (rgb) {
-    const parts = rgb[1].split(',').slice(0, 3).map((part) => Number.parseFloat(part.trim()))
-    if (parts.length === 3 && parts.every((part) => Number.isFinite(part))) {
-      return parts as [number, number, number]
-    }
-  }
-  return null
-}
-
-function wait(delayMs: number) {
-  return new Promise<void>((resolve) => {
-    window.setTimeout(resolve, delayMs)
-  })
-}
-
-function createSceneSignature(
-  elements: unknown[],
-  appState: Record<string, unknown>,
-  files: Record<string, unknown>,
-  mermaidSource: string
-) {
-  const comparableAppState = SCENE_APP_STATE_SIGNATURE_KEYS.reduce<Record<string, unknown>>((acc, key) => {
-    if (Object.prototype.hasOwnProperty.call(appState, key)) {
-      acc[key] = appState[key]
-    }
-    return acc
-  }, {})
-  return stableStringify({
-    elements,
-    appState: comparableAppState,
-    files,
-    mermaidSource: mermaidSource.replace(/\r\n/g, '\n')
-  })
-}
-
-function createDraftRecoverySnapshot(
-  drawingId: string,
-  scene: SceneApplyPayload,
-  signature = createSceneSignature(scene.elements, scene.appState, scene.files, scene.mermaidSource)
-): DraftRecoverySnapshot {
-  const cloned = cloneScenePayload(scene)
-  return {
-    drawingId,
-    signature,
-    savedAt: Date.now(),
-    ...cloned
-  }
-}
-
-function cloneDraftRecoverySnapshot(snapshot: DraftRecoverySnapshot): DraftRecoverySnapshot {
-  return createDraftRecoverySnapshot(snapshot.drawingId, snapshot, snapshot.signature)
-}
-
-function cloneScenePayload(scene: SceneApplyPayload): SceneApplyPayload {
-  try {
-    return structuredClone(scene)
-  } catch {
-    const normalized = normalizeJsonValue(scene) as SceneApplyPayload
-    return {
-      elements: Array.isArray(normalized?.elements) ? normalized.elements : [],
-      appState: isObject(normalized?.appState) ? normalized.appState : {},
-      files: isObject(normalized?.files) ? normalized.files : {},
-      mermaidSource: typeof normalized?.mermaidSource === 'string' ? normalized.mermaidSource : ''
-    }
-  }
-}
-
-function stableStringify(value: unknown) {
-  return JSON.stringify(normalizeJsonValue(value))
-}
-
-function normalizeJsonValue(value: unknown, seen = new WeakSet<object>()): unknown {
-  if (value === undefined || typeof value === 'function' || typeof value === 'symbol') {
-    return undefined
-  }
-  if (value === null || typeof value !== 'object') {
-    return value
-  }
-  if (value instanceof Date) {
-    return value.toISOString()
-  }
-  if (seen.has(value)) {
-    return '[Circular]'
-  }
-  seen.add(value)
-  if (Array.isArray(value)) {
-    return value.map((item) => {
-      const normalized = normalizeJsonValue(item, seen)
-      return normalized === undefined ? null : normalized
-    })
-  }
-  if (value instanceof Map) {
-    return Array.from(value.entries())
-      .map(([key, mapValue]) => [String(key), normalizeJsonValue(mapValue, seen)] as const)
-      .sort(([left], [right]) => left.localeCompare(right))
-  }
-  if (value instanceof Set) {
-    return Array.from(value.values()).map((item) => normalizeJsonValue(item, seen))
-  }
-
-  return Object.keys(value as Record<string, unknown>)
-    .sort()
-    .reduce<Record<string, unknown>>((acc, key) => {
-      const normalized = normalizeJsonValue((value as Record<string, unknown>)[key], seen)
-      if (normalized !== undefined) {
-        acc[key] = normalized
-      }
-      return acc
-    }, {})
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === 'object' && !Array.isArray(value))
-}
-
-function synchronizeCollaboration(client: CollaborationClient | null, socket: Socket | null) {
-  if (!client || !socket?.connected) return Promise.resolve(false)
-  client.flush()
-  return new Promise<boolean>((resolve) => {
-    const complete = () => {
-      window.clearTimeout(timer)
-      resolve(true)
-    }
-    const timer = window.setTimeout(() => {
-      socket.off('sync', complete)
-      resolve(false)
-    }, 3_000)
-    socket.once('sync', complete)
-    client.requestSync()
-  })
-}
-
-function buildExcalidrawCollaborators(items: ICollaborationPresence[], appState: Record<string, unknown>) {
-  const width = readPositiveNumber(appState.width, window.innerWidth)
-  const height = readPositiveNumber(appState.height, window.innerHeight)
-  const zoom = readZoom(appState)
-  const scrollX = readFiniteNumber(appState.scrollX, 0)
-  const scrollY = readFiniteNumber(appState.scrollY, 0)
-  const collaborators = new Map<string, Record<string, unknown>>()
-  for (const item of items) {
-    const pointer = item.pointer?.visible
-      ? {
-          x: item.pointer.x * width / zoom - scrollX,
-          y: item.pointer.y * height / zoom - scrollY,
-          tool: 'pointer'
-        }
-      : null
-    const selectedIds = item.selection?.kind === 'elements' ? item.selection.elementIds ?? [] : []
-    collaborators.set(item.clientId, {
-      id: item.presenceId,
-      socketId: item.clientId,
-      username: item.displayName,
-      avatarUrl: item.avatarUrl ?? undefined,
-      color: {
-        background: item.color,
-        stroke: item.color
-      },
-      pointer,
-      button: 'up',
-      selectedElementIds: Object.fromEntries(selectedIds.map((id) => [id, true]))
-    })
-  }
-  return collaborators
-}
-
-function normalizeExcalidrawPointer(
-  pointer: { x: number; y: number },
-  appState: Record<string, unknown>,
-  width: number,
-  height: number
-) {
-  const zoom = readZoom(appState)
-  const scrollX = readFiniteNumber(appState.scrollX, 0)
-  const scrollY = readFiniteNumber(appState.scrollY, 0)
-  return {
-    x: clamp((pointer.x + scrollX) * zoom / width, 0, 1),
-    y: clamp((pointer.y + scrollY) * zoom / height, 0, 1),
-    visible: true
-  }
-}
-
-function readZoom(appState: Record<string, unknown>) {
-  const zoom = appState.zoom
-  if (typeof zoom === 'number') return readPositiveNumber(zoom, 1)
-  if (isObject(zoom)) return readPositiveNumber(zoom.value, 1)
-  return 1
-}
-
-function readPositiveNumber(value: unknown, fallback: number) {
-  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : fallback
-}
-
-function readFiniteNumber(value: unknown, fallback: number) {
-  return typeof value === 'number' && Number.isFinite(value) ? value : fallback
-}
-
-function clamp(value: number, minimum: number, maximum: number) {
-  return Math.min(maximum, Math.max(minimum, value))
-}
-
-function collaboratorInitials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean)
-  if (!parts.length) return '?'
-  return parts.slice(0, 2).map((part) => part.slice(0, 1).toUpperCase()).join('')
-}
-
-function copyTextWithTextarea(value: string) {
-  const input = document.createElement('textarea')
-  input.value = value
-  input.style.position = 'fixed'
-  input.style.opacity = '0'
-  document.body.appendChild(input)
-  input.focus()
-  input.select()
-  const copied = document.execCommand('copy')
-  input.remove()
-  return copied
-}
-
-function normalizeArtifactShare(value: unknown, depth = 0): ArtifactShareSummary | null {
-  if (!isObject(value) || depth > 4) return null
-  const nested = normalizeArtifactShare(value.data, depth + 1)
-  if (nested) return nested
-  const shareUrl = readOptionalString(value.shareUrl)
-    ?? readOptionalString(value.publicUrl)
-    ?? readOptionalString(value.artifactPublicUrl)
-  const artifactId = readOptionalString(value.artifactId)
-  const artifactVersionId = readOptionalString(value.artifactVersionId)
-  const artifactLinkId = readOptionalString(value.artifactLinkId)
-  if (!shareUrl && !artifactId && !artifactVersionId && !artifactLinkId) return null
-  return {
-    artifactId,
-    artifactVersionId,
-    artifactLinkId,
-    versionMode: value.versionMode === 'latest' || value.versionMode === 'version' ? value.versionMode : undefined,
-    accessMode: readOptionalString(value.accessMode),
-    shareUrl,
-    sharedAt: readOptionalString(value.sharedAt),
-    status: readOptionalString(value.status),
-    revision: typeof value.revision === 'number' && Number.isInteger(value.revision) ? value.revision : undefined
-  }
-}
-
-function readOptionalString(value: unknown) {
-  return typeof value === 'string' && value.trim() ? value.trim() : undefined
-}
-
-function isArtifactAccessSelection(value: unknown): value is ArtifactAccessSelection {
-  return value === 'public_link' || value === 'organization_all' || value === 'workspace_all'
-}
-
-function localizedText(value: Record<string, string> | undefined, locale: unknown) {
-  if (!value) return ''
-  const chinese = String(locale || '').toLowerCase().startsWith('zh')
-  return chinese ? value.zh_Hans || value.en_US || '' : value.en_US || value.zh_Hans || ''
-}
-
-function removeExcalidrawExtension(name: string) {
-  return name.replace(/\.excalidraw(?:\.json)?$/i, '').replace(/\.json$/i, '') || name
-}
-
-function downloadBlob(blob: Blob, fileName: string) {
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = fileName
-  document.body.appendChild(anchor)
-  anchor.click()
-  anchor.remove()
-  URL.revokeObjectURL(url)
-}
-
 const root = ReactDOM.createRoot(document.getElementById('root'))
 
 class CanvasErrorBoundary extends React.Component {
@@ -3460,7 +2834,7 @@ class CanvasErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error: Error) {
-    console.error('[excalidraw-workbench] recovered from canvas render crash', error)
+    debug.error('[excalidraw-workbench] recovered from canvas render crash', error)
   }
 
   render() {
@@ -3482,7 +2856,7 @@ class WorkbenchErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error: Error) {
-    console.error('[excalidraw-workbench] recovered from render crash', error)
+    debug.error('[excalidraw-workbench] recovered from render crash', error)
   }
 
   render() {

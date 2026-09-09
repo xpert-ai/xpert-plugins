@@ -1,4 +1,6 @@
+import { excalidrawUnitOfWork } from '../excalidraw-unit-of-work.js'
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common'
+import { diagramDiagnostics } from './diagram-diagnostics.js'
 import { InjectRepository } from '@nestjs/typeorm'
 import { randomUUID } from 'node:crypto'
 import { Repository } from 'typeorm'
@@ -39,17 +41,22 @@ type RevisionMutationInput = {
 }
 
 export class DiagramIrRevisionConflictException extends ConflictException {
-  constructor(
-    readonly expectedRevision: number | undefined,
-    readonly currentRevision: number
-  ) {
+  constructor(readonly expectedRevision: number | undefined, readonly currentRevision: number) {
     super(`DiagramIR revision conflict: expected ${expectedRevision ?? 'missing'}, current ${currentRevision}.`)
   }
 }
 
 export class DiagramIrValidationException extends BadRequestException {
-  constructor(readonly report: DiagramValidationReport) {
-    super('DiagramIR has blocking validation errors. No drawing or DiagramIR revision was created.')
+  constructor(readonly report: DiagramValidationReport, context?: { drawingId: string; irRevision: number }) {
+    super(JSON.stringify({
+      success: false,
+      errorCode: 'diagram_validation_failed',
+      ...context,
+      validation: diagramDiagnostics(report),
+      nextAction: context
+        ? 'Correct the targeted items. Use excalidraw_diagram_validate to persist and page the complete report.'
+        : 'Correct the targeted items and retry. No drawing or DiagramIR revision was created; no report can be read yet.'
+    }))
   }
 }
 
@@ -57,12 +64,16 @@ export class DiagramIrValidationException extends BadRequestException {
 export class DiagramIrService {
   constructor(
     @InjectRepository(DiagramIrRevision)
-    private readonly revisionRepository: Repository<DiagramIrRevision>,
+    private readonly baseRevisionRepository: Repository<DiagramIrRevision>,
     private readonly excalidraw: ExcalidrawService,
     private readonly compiler: DiagramCompilerService,
     private readonly preview: DiagramPreviewService,
     private readonly templates: ArtifactTemplateCatalogService
   ) {}
+
+  private get revisionRepository() {
+    return excalidrawUnitOfWork.getStore()?.manager.getRepository(DiagramIrRevision) ?? this.baseRevisionRepository
+  }
 
   async create(scope: ExcalidrawScope, input: CreateSpecInput) {
     const ir = parseDiagramIr(input.ir)
@@ -73,7 +84,9 @@ export class DiagramIrService {
       await this.excalidraw.getDrawing(scope, input.drawingId)
       const current = await this.latestOrNull(scope, input.drawingId)
       if (current && !input.replaceCurrent) {
-        throw new ConflictException('A DiagramIR already exists for this drawing. Set replaceCurrent=true after explicit user confirmation.')
+        throw new ConflictException(
+          'A DiagramIR already exists for this drawing. Set replaceCurrent=true after explicit user confirmation.'
+        )
       }
       if (current && input.expectedRevision !== current.revision) {
         throw new DiagramIrRevisionConflictException(input.expectedRevision, current.revision)
@@ -110,20 +123,23 @@ export class DiagramIrService {
       try {
         await this.excalidraw.deleteDrawing(scope, drawingId)
       } catch (rollbackError) {
-        console.warn('[DiagramIrService] failed to roll back drawing after DiagramIR persistence failure:', rollbackError)
+        if (process.env.EXCALIDRAW_DEBUG === 'true') console.warn('[DiagramIrService] drawing rollback failed')
       }
       throw error
     }
   }
 
-  async instantiateTemplate(scope: ExcalidrawScope, input: {
-    key: string
-    version?: string
-    parameters: DiagramJsonObject
-    drawingId?: string
-    expectedRevision?: number
-    replaceCurrent?: boolean
-  }) {
+  async instantiateTemplate(
+    scope: ExcalidrawScope,
+    input: {
+      key: string
+      version?: string
+      parameters: DiagramJsonObject
+      drawingId?: string
+      expectedRevision?: number
+      replaceCurrent?: boolean
+    }
+  ) {
     const version = input.version ?? '1.0.0'
     const ir = this.templates.instantiate(input.key, version, input.parameters)
     return this.create(scope, {
@@ -147,26 +163,48 @@ export class DiagramIrService {
   }
 
   async upsertGroup(scope: ExcalidrawScope, input: RevisionMutationInput & { group: DiagramGroup }) {
-    return this.mutate(scope, input, (ir) => ({ ...ir, groups: upsertById(ir.groups, input.group) }), `Upserted group ${input.group.id}`)
+    return this.mutate(
+      scope,
+      input,
+      (ir) => ({ ...ir, groups: upsertById(ir.groups, input.group) }),
+      `Upserted group ${input.group.id}`
+    )
   }
 
   async upsertNode(scope: ExcalidrawScope, input: RevisionMutationInput & { node: DiagramNode }) {
-    return this.mutate(scope, input, (ir) => ({ ...ir, nodes: upsertById(ir.nodes, input.node) }), `Upserted node ${input.node.id}`)
+    return this.mutate(
+      scope,
+      input,
+      (ir) => ({ ...ir, nodes: upsertById(ir.nodes, input.node) }),
+      `Upserted node ${input.node.id}`
+    )
   }
 
   async upsertEdge(scope: ExcalidrawScope, input: RevisionMutationInput & { edge: DiagramEdge }) {
-    return this.mutate(scope, input, (ir) => ({ ...ir, edges: upsertById(ir.edges, input.edge) }), `Upserted edge ${input.edge.id}`)
+    return this.mutate(
+      scope,
+      input,
+      (ir) => ({ ...ir, edges: upsertById(ir.edges, input.edge) }),
+      `Upserted edge ${input.edge.id}`
+    )
   }
 
   async removeItems(scope: ExcalidrawScope, input: RevisionMutationInput & { ids: string[] }) {
     const ids = new Set(input.ids)
-    return this.mutate(scope, input, (ir) => ({
-      ...ir,
-      groups: ir.groups.filter((item) => !ids.has(item.id)),
-      nodes: ir.nodes.filter((item) => !ids.has(item.id)),
-      edges: ir.edges.filter((item) => !ids.has(item.id) && !ids.has(item.source.nodeId) && !ids.has(item.target.nodeId)),
-      annotations: ir.annotations.filter((item) => !ids.has(item.id) && (!item.targetId || !ids.has(item.targetId)))
-    }), `Removed ${input.ids.length} DiagramIR items`)
+    return this.mutate(
+      scope,
+      input,
+      (ir) => ({
+        ...ir,
+        groups: ir.groups.filter((item) => !ids.has(item.id)),
+        nodes: ir.nodes.filter((item) => !ids.has(item.id)),
+        edges: ir.edges.filter(
+          (item) => !ids.has(item.id) && !ids.has(item.source.nodeId) && !ids.has(item.target.nodeId)
+        ),
+        annotations: ir.annotations.filter((item) => !ids.has(item.id) && (!item.targetId || !ids.has(item.targetId)))
+      }),
+      `Removed ${input.ids.length} DiagramIR items`
+    )
   }
 
   async validate(scope: ExcalidrawScope, input: { drawingId: string; expectedRevision: number }) {
@@ -183,21 +221,35 @@ export class DiagramIrService {
       renderedExcalidrawVersionId: current.renderedExcalidrawVersionId,
       changeSummary: 'Validated DiagramIR'
     })
-    return this.result(revision, compiled.report.valid ? 'DiagramIR validation passed.' : 'DiagramIR validation failed.', {
-      includeValidationReport: true
-    })
+    return this.result(
+      revision,
+      compiled.report.valid ? 'DiagramIR validation passed.' : 'DiagramIR validation failed.',
+      {
+        includeValidationReport: true
+      }
+    )
   }
 
-  async render(scope: ExcalidrawScope, input: { drawingId: string; expectedRevision: number; replaceDiverged?: boolean }) {
+  async render(
+    scope: ExcalidrawScope,
+    input: { drawingId: string; expectedRevision: number; expectedSceneRevision?: number; replaceDiverged?: boolean }
+  ) {
     const current = await this.assertRevision(scope, input.drawingId, input.expectedRevision)
     if (current.status === 'diverged' && !input.replaceDiverged) {
-      throw new ConflictException('The Excalidraw scene diverged from DiagramIR. Set replaceDiverged=true only after explicit user confirmation.')
+      throw new ConflictException(
+        'The Excalidraw scene diverged from DiagramIR. Set replaceDiverged=true only after explicit user confirmation.'
+      )
     }
+    const drawing = await this.excalidraw.requireCanonicalDrawing(scope, input.drawingId)
+    this.excalidraw.assertSceneRevision(drawing, input.expectedSceneRevision)
+    const expectedSceneRevision = drawing.revision ?? 0
     const compiled = this.compiler.compile(current.ir)
-    if (!compiled.report.valid) throw new BadRequestException('DiagramIR has blocking validation errors and cannot be rendered.')
+    if (!compiled.report.valid)
+      throw new DiagramIrValidationException(compiled.report, { drawingId: input.drawingId, irRevision: current.revision })
     const saved = await this.excalidraw.saveSceneVersion(scope, {
       drawingId: input.drawingId,
       sourceType: 'agent_diagram_ir',
+      expectedRevision: expectedSceneRevision,
       elements: compiled.elements,
       appState: compiled.appState,
       files: compiled.files,
@@ -218,11 +270,15 @@ export class DiagramIrService {
     })
   }
 
-  async createPreview(scope: ExcalidrawScope, workspaceFiles: DiagramWorkspaceFilesApi, input: {
-    drawingId: string
-    expectedRevision: number
-    qualityRunId?: string
-  }) {
+  async createPreview(
+    scope: ExcalidrawScope,
+    workspaceFiles: DiagramWorkspaceFilesApi,
+    input: {
+      drawingId: string
+      expectedRevision: number
+      qualityRunId?: string
+    }
+  ) {
     const current = await this.assertRevision(scope, input.drawingId, input.expectedRevision)
     const qualityRunId = input.qualityRunId ?? randomUUID()
     const reviews = (current.visualReviews ?? []).filter((review) => review.qualityRunId === qualityRunId)
@@ -265,14 +321,17 @@ export class DiagramIrService {
     }
   }
 
-  async recordVisualReview(scope: ExcalidrawScope, input: {
-    drawingId: string
-    expectedRevision: number
-    qualityRunId: string
-    decision: Exclude<DiagramVisualReviewDecision, 'exhausted'>
-    issues: DiagramQualityIssue[]
-    notes?: string
-  }) {
+  async recordVisualReview(
+    scope: ExcalidrawScope,
+    input: {
+      drawingId: string
+      expectedRevision: number
+      qualityRunId: string
+      decision: Exclude<DiagramVisualReviewDecision, 'exhausted'>
+      issues: DiagramQualityIssue[]
+      notes?: string
+    }
+  ) {
     const current = await this.assertRevision(scope, input.drawingId, input.expectedRevision)
     const existing = (current.visualReviews ?? []).filter((review) => review.qualityRunId === input.qualityRunId)
     const attempt = existing.length
@@ -288,13 +347,16 @@ export class DiagramIrService {
     if (input.decision === 'needs_revision' && input.issues.some((item) => !item.correctionIntent?.trim())) {
       throw new BadRequestException('Every visual revision issue must include a correction intent.')
     }
-    const artifactRunId = typeof current.qualityArtifacts?.qualityRunId === 'string'
-      ? current.qualityArtifacts.qualityRunId
-      : undefined
-    if (input.decision !== 'skipped' && (artifactRunId !== input.qualityRunId || !readQualityArtifacts(current.qualityArtifacts).png)) {
+    const artifactRunId =
+      typeof current.qualityArtifacts?.qualityRunId === 'string' ? current.qualityArtifacts.qualityRunId : undefined
+    if (
+      input.decision !== 'skipped' &&
+      (artifactRunId !== input.qualityRunId || !readQualityArtifacts(current.qualityArtifacts).png)
+    ) {
       throw new BadRequestException('passed and needs_revision require a PNG preview from the same quality run.')
     }
-    const decision: DiagramVisualReviewDecision = input.decision === 'needs_revision' && attempt >= 2 ? 'exhausted' : input.decision
+    const decision: DiagramVisualReviewDecision =
+      input.decision === 'needs_revision' && attempt >= 2 ? 'exhausted' : input.decision
     const artifacts = readQualityArtifacts(current.qualityArtifacts)
     const review: DiagramVisualReviewRecord = {
       qualityRunId: input.qualityRunId,
@@ -307,7 +369,8 @@ export class DiagramIrService {
       pngFile: artifacts.png
     }
     const visualReviews = [...(current.visualReviews ?? []), review]
-    const status: DiagramIrRevisionStatus = decision === 'passed' ? 'reviewed' : decision === 'exhausted' ? 'failed' : current.status
+    const status: DiagramIrRevisionStatus =
+      decision === 'passed' ? 'reviewed' : decision === 'exhausted' ? 'failed' : current.status
     const revision = await this.saveRevision(scope, {
       drawingId: input.drawingId,
       parent: current,
@@ -341,7 +404,12 @@ export class DiagramIrService {
     })
   }
 
-  private async mutate(scope: ExcalidrawScope, input: RevisionMutationInput, update: (ir: DiagramIR) => DiagramIR, fallbackSummary: string) {
+  private async mutate(
+    scope: ExcalidrawScope,
+    input: RevisionMutationInput,
+    update: (ir: DiagramIR) => DiagramIR,
+    fallbackSummary: string
+  ) {
     const current = await this.assertRevision(scope, input.drawingId, input.expectedRevision)
     const ir = parseDiagramIr(update(structuredClone(current.ir)))
     const revision = await this.saveRevision(scope, {
@@ -358,14 +426,20 @@ export class DiagramIrService {
   }
 
   private async createDrawing(scope: ExcalidrawScope, ir: DiagramIR) {
-    const result = await this.excalidraw.createDrawing(scope, { title: ir.title, description: ir.subtitle, kind: kindForDrawing(ir.kind), source: 'diagram_ir' })
+    const result = await this.excalidraw.createDrawing(scope, {
+      title: ir.title,
+      description: ir.subtitle,
+      kind: kindForDrawing(ir.kind),
+      source: 'diagram_ir'
+    })
     if (!result.item.id) throw new Error('Excalidraw drawing id was not created.')
     return result.item.id
   }
 
   private async assertRevision(scope: ExcalidrawScope, drawingId: string, expectedRevision: number) {
     const current = await this.latest(scope, drawingId)
-    if (current.revision !== expectedRevision) throw new DiagramIrRevisionConflictException(expectedRevision, current.revision)
+    if (current.revision !== expectedRevision)
+      throw new DiagramIrRevisionConflictException(expectedRevision, current.revision)
     return current
   }
 
@@ -375,47 +449,53 @@ export class DiagramIrService {
     return revision
   }
 
-  private latestOrNull(scope: ExcalidrawScope, drawingId: string) {
+  private async latestOrNull(scope: ExcalidrawScope, drawingId: string) {
+    await this.excalidraw.requireDrawing(scope, drawingId)
     return this.revisionRepository.findOne({
       where: scopedWhere(scope, { drawingId }),
       order: { revision: 'DESC' }
     })
   }
 
-  private async saveRevision(scope: ExcalidrawScope, input: {
-    drawingId: string
-    parent: DiagramIrRevision | null
-    ir: DiagramIR
-    status: DiagramIrRevisionStatus
-    templateKey?: string
-    templateVersion?: string
-    resolved?: DiagramIrRevision['resolved']
-    validationReport?: DiagramIrRevision['validationReport']
-    visualReviews?: DiagramVisualReviewRecord[] | null
-    qualityArtifacts?: Record<string, unknown> | null
-    renderedExcalidrawVersionId?: string | null
-    changeSummary?: string
-  }) {
+  private async saveRevision(
+    scope: ExcalidrawScope,
+    input: {
+      drawingId: string
+      parent: DiagramIrRevision | null
+      ir: DiagramIR
+      status: DiagramIrRevisionStatus
+      templateKey?: string
+      templateVersion?: string
+      resolved?: DiagramIrRevision['resolved']
+      validationReport?: DiagramIrRevision['validationReport']
+      visualReviews?: DiagramVisualReviewRecord[] | null
+      qualityArtifacts?: Record<string, unknown> | null
+      renderedExcalidrawVersionId?: string | null
+      changeSummary?: string
+    }
+  ) {
     try {
-      return await this.revisionRepository.save(this.revisionRepository.create({
-        ...scopedCreate(scope),
-        drawingId: input.drawingId,
-        revision: (input.parent?.revision ?? 0) + 1,
-        parentRevision: input.parent?.revision ?? null,
-        templateKey: input.templateKey ?? input.parent?.templateKey ?? null,
-        templateVersion: input.templateVersion ?? input.parent?.templateVersion ?? null,
-        status: input.status,
-        ir: input.ir,
-        resolved: input.resolved ?? null,
-        validationReport: input.validationReport ?? null,
-        visualReviews: input.visualReviews ?? input.parent?.visualReviews ?? [],
-        qualityArtifacts: input.qualityArtifacts ?? null,
-        renderedExcalidrawVersionId: input.renderedExcalidrawVersionId ?? null,
-        createdById: scope.userId ?? null,
-        assistantId: scope.assistantId ?? null,
-        conversationId: scope.conversationId ?? null,
-        changeSummary: input.changeSummary ?? null
-      }))
+      return await this.revisionRepository.save(
+        this.revisionRepository.create({
+          ...scopedCreate(scope),
+          drawingId: input.drawingId,
+          revision: (input.parent?.revision ?? 0) + 1,
+          parentRevision: input.parent?.revision ?? null,
+          templateKey: input.templateKey ?? input.parent?.templateKey ?? null,
+          templateVersion: input.templateVersion ?? input.parent?.templateVersion ?? null,
+          status: input.status,
+          ir: input.ir,
+          resolved: input.resolved ?? null,
+          validationReport: input.validationReport ?? null,
+          visualReviews: input.visualReviews ?? input.parent?.visualReviews ?? [],
+          qualityArtifacts: input.qualityArtifacts ?? null,
+          renderedExcalidrawVersionId: input.renderedExcalidrawVersionId ?? null,
+          createdById: scope.userId ?? null,
+          assistantId: scope.assistantId ?? null,
+          conversationId: scope.conversationId ?? null,
+          changeSummary: input.changeSummary ?? null
+        })
+      )
     } catch (error) {
       if (isUniqueConstraintError(error)) {
         throw new ConflictException('DiagramIR revision conflict: another writer saved the next revision first.')
@@ -424,11 +504,15 @@ export class DiagramIrService {
     }
   }
 
-  private result(revision: DiagramIrRevision, message: string, options: {
-    includeIr?: boolean
-    includeValidationReport?: boolean
-    includeVisualReviews?: boolean
-  } = {}) {
+  private result(
+    revision: DiagramIrRevision,
+    message: string,
+    options: {
+      includeIr?: boolean
+      includeValidationReport?: boolean
+      includeVisualReviews?: boolean
+    } = {}
+  ) {
     return {
       success: true,
       message,
@@ -446,7 +530,7 @@ export class DiagramIrService {
 
 function upsertById<T extends { id: string }>(items: T[], item: T) {
   const found = items.some((candidate) => candidate.id === item.id)
-  return found ? items.map((candidate) => candidate.id === item.id ? item : candidate) : [...items, item]
+  return found ? items.map((candidate) => (candidate.id === item.id ? item : candidate)) : [...items, item]
 }
 
 function kindForDrawing(kind: DiagramIR['kind']) {
@@ -459,8 +543,6 @@ function scopedWhere<T extends object>(scope: ExcalidrawScope, extra: T) {
   return {
     tenantId: scope.tenantId,
     organizationId: scope.organizationId ?? null,
-    ...(scope.workspaceId ? { workspaceId: scope.workspaceId } : {}),
-    ...(scope.projectId ? { projectId: scope.projectId } : {}),
     ...extra
   }
 }

@@ -1,4 +1,5 @@
 jest.mock('@xpert-ai/plugin-sdk', () => ({
+  pluginArtifactTableName: (namespace:string,key:string)=>`plugin_${namespace}_${key}`,
   ArtifactsRuntimeCapability: Symbol('artifacts'),
   CollaborationRuntimeCapability: Symbol('collaboration'),
   WorkspaceFilesRuntimeCapability: Symbol('workspace-files'),
@@ -71,6 +72,24 @@ describe('ExcalidrawService patchScene', () => {
         updateElements: [{ id: 'missing', x: 10 }]
       })
     ).rejects.toThrow(BadRequestException)
+  })
+
+  it('keeps MCP-created versions readable from the drawing Workbench scope', async () => {
+    const workbenchScope = { ...testScope(), workspaceId: 'drawing-workspace' }
+    const created = await service.createDrawing(workbenchScope, { title: 'Workbench parent' })
+    const mcpScope = { ...testScope(), workspaceId: null, projectId: null, surface: 'mcp' as const }
+    const saved = await service.saveSceneVersion(mcpScope, {
+      drawingId: created.item.id,
+      elements: [baseElement({ id: 'mcp-element' })],
+      sourceType: 'agent_json'
+    })
+    expect(saved.version.workspaceId).toBe('drawing-workspace')
+    const detail = await service.getDrawing(workbenchScope, created.item.id)
+    expect(detail.currentVersion.id).toBe(saved.version.id)
+    // Historical rows written before this fix may have no workspace metadata.
+    await versions.save({ ...saved.version, workspaceId: null })
+    expect((await service.getDrawing(workbenchScope, created.item.id)).currentVersion.id).toBe(saved.version.id)
+    await expect(service.getDrawing({ ...workbenchScope, organizationId: 'other-org' }, created.item.id)).rejects.toThrow(/not found/i)
   })
 
   it('rejects duplicate added ids', async () => {
@@ -615,6 +634,19 @@ describe('ExcalidrawService Artifact sharing', () => {
       presentation: { disposition: 'inline', allowDownload: false, safeHtmlProfile: 'interactive' }
     }))
     expect(artifacts.updateArtifactLinkAccess).toHaveBeenCalledTimes(1)
+
+    const changing = await service.createDrawing(testScope(), {
+      title: 'Changed during artifact upload', elements: [baseElement({ id: 'changing' })]
+    })
+    artifacts.createArtifactVersion.mockImplementationOnce(async () => {
+      await service.patchScene(testScope(), { drawingId: changing.item.id, updateElements: [{ id: 'changing', x: 99 }] })
+      return { id: 'artifact-version-changed' }
+    })
+    await expect(service.publishDrawingViewerArtifact(testScope(), {
+      drawingId: changing.item.id, accessMode: 'public_link', userConfirmedPublicLink: true,
+      expectedRevision: changing.item.revision
+    })).rejects.toThrow('scene_revision_conflict')
+    expect(artifacts.createArtifactLink).toHaveBeenCalledTimes(1)
   })
 
   it('migrates an active SVG publication only after the HTML link succeeds', async () => {
@@ -793,7 +825,16 @@ class MemoryRepository<T extends { id?: string }> {
   private sequence = 0
   private items: T[] = []
 
-  constructor(private readonly prefix: string) {}
+  static repositories = new Map<string, MemoryRepository<any>>()
+  constructor(private readonly prefix: string) { MemoryRepository.repositories.set(prefix,this) }
+  get manager(){return {transaction:async (action)=>action(this.manager),getRepository:(entity)=>{
+    const keys={ExcalidrawDrawing:'drawing',ExcalidrawDrawingVersion:'version',ExcalidrawActionLog:'log',ExcalidrawArtifactPublication:'publication'}
+    const repository=MemoryRepository.repositories.get(keys[entity.name]);if(!repository)throw new Error('Missing repository '+entity.name);return repository
+  }}}
+  createQueryBuilder(){let criteria:{id:string;revision:number};const query={update:()=>query,set:()=>query,where:(_sql:string,params:{id:string;revision:number})=>{criteria=params;return query},execute:async()=>{
+    const item=this.items.find(value=>value.id===criteria.id);if(!item||(Reflect.get(item,'revision')??0)!==criteria.revision)return {affected:0};Reflect.set(item,'revision',criteria.revision+1);return {affected:1}
+  }};return query}
+
 
   create(value: Partial<T>) {
     return { ...value } as T
@@ -810,7 +851,7 @@ class MemoryRepository<T extends { id?: string }> {
     } else {
       this.items.push(item)
     }
-    return this.items.find((candidate) => candidate.id === item.id) as T
+    return structuredClone(this.items.find((candidate) => candidate.id === item.id)) as T
   }
 
   async find(options: { where?: Partial<T>; order?: Record<string, 'ASC' | 'DESC'> } = {}) {
@@ -831,7 +872,7 @@ class MemoryRepository<T extends { id?: string }> {
   }
 
   async findOne(options: { where?: Partial<T> } = {}) {
-    return this.items.find((item) => matchesWhere(item, options.where)) ?? null
+    return structuredClone(this.items.find((item) => matchesWhere(item, options.where)) ?? null)
   }
 
   async delete(where: Partial<T> = {}) {

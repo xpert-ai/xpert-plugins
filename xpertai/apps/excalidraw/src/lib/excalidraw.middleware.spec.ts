@@ -27,144 +27,12 @@ import {
 } from './constants.js'
 import { SystemMessage, ToolMessage } from '@langchain/core/messages'
 import { ChatMessageEventTypeEnum } from '@xpert-ai/contracts'
-import { ExcalidrawMiddleware } from './excalidraw.middleware.js'
+import { excalidrawMiddlewareExtensions } from './tools/middleware-extensions.js'
 
-describe('ExcalidrawMiddleware staged element tools', () => {
-  beforeEach(() => {
-    mockDispatchCustomEvent.mockReset()
-    mockDispatchCustomEvent.mockResolvedValue(undefined)
-  })
-
-  it('keeps excalidraw_create_drawing metadata-only even if scene fields are provided', async () => {
-    const createDrawing = jest.fn(async (_scope, input) => ({
-      success: true,
-      message: 'Excalidraw drawing was created.',
-      item: {
-        id: 'drawing-1',
-        title: input.title,
-        description: input.description,
-        kind: input.kind,
-        status: 'draft',
-        currentVersionNumber: 0
-      },
-      currentVersion: null,
-      versions: []
-    }))
-    const middleware = await new ExcalidrawMiddleware({ createDrawing } as any).createMiddleware({}, testContext())
-
-    const createTool = middleware.tools.find((candidate: any) => candidate.name === EXCALIDRAW_CREATE_DRAWING_TOOL_NAME) as any
-    expect(createTool).toBeTruthy()
-    expect(createTool.description).toContain('no current Workbench drawing id')
-    expect(createTool.description).toContain('do not call this tool for additions')
-
-    const result = JSON.parse(await createTool.invoke({
-      title: 'Metadata only',
-      description: 'Create the record first.',
-      kind: 'architecture',
-      elements: [{ id: 'rect-1', type: 'rectangle' }],
-      appState: { viewBackgroundColor: '#fff' },
-      files: { file1: { id: 'file1' } },
-      mermaidSource: 'flowchart TD'
-    }))
-
-    expect(createDrawing).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: 'tenant-1', organizationId: 'org-1' }),
-      {
-        title: 'Metadata only',
-        description: 'Create the record first.',
-        kind: 'architecture',
-        tags: undefined,
-        source: undefined,
-        changeSummary: undefined
-      }
-    )
-    expect(result.drawingId).toBe('drawing-1')
-    expect(result.drawing).toBeUndefined()
-  })
-
-  it('registers excalidraw_add_elements and routes it through patchScene', async () => {
-    const patchScene = jest.fn(async (_scope, input) => ({
-      success: true,
-      message: 'Excalidraw elements were added.',
-      drawing: {
-        item: {
-          id: input.drawingId,
-          title: 'Staged drawing',
-          status: 'draft',
-          currentVersionId: 'version-2',
-          currentVersionNumber: 2
-        },
-        currentVersion: {
-          id: 'version-2',
-          drawingId: input.drawingId,
-          versionNumber: 2,
-          sourceType: 'agent_patch',
-          elements: input.addElements,
-          files: {}
-        }
-      },
-      version: {
-        id: 'version-2',
-        drawingId: input.drawingId,
-        versionNumber: 2,
-        sourceType: 'agent_patch',
-        elements: input.addElements,
-        files: {}
-      },
-      patch: {
-        addCount: input.addElements.length,
-        updateCount: 0,
-        deleteCount: 0,
-        addedIds: input.addElements.map((element: any) => element.id),
-        updatedIds: [],
-        deletedIds: []
-      }
-    }))
-    const middleware = await new ExcalidrawMiddleware({ patchScene } as any).createMiddleware({}, testContext())
-
-    const addTool = middleware.tools.find((candidate: any) => candidate.name === EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME) as any
-    expect(addTool).toBeTruthy()
-    expect(addTool.description).toContain('excalidrawDrawingId')
-    expect(addTool.description).toContain('blank area')
-    expect(addTool.schema.safeParse({
-      elements: [{ id: 'rect-1', type: 'rectangle' }]
-    }).success).toBe(true)
-
-    const result = JSON.parse(await addTool.invoke({
-      drawingId: 'drawing-1',
-      elements: [{ id: 'rect-1', type: 'rectangle' }],
-      changeSummary: 'Add rectangle'
-    }))
-
-    expect(patchScene).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: 'tenant-1', organizationId: 'org-1' }),
-      expect.objectContaining({
-        drawingId: 'drawing-1',
-        addElements: [{ id: 'rect-1', type: 'rectangle' }],
-        changeSummary: 'Add rectangle'
-      })
-    )
-    expect(result.patch).toEqual({
-      addCount: 1,
-      updateCount: 0,
-      deleteCount: 0,
-      addedIds: ['rect-1'],
-      updatedIds: [],
-      deletedIds: []
-    })
-    expect(result.message).toBe('Excalidraw elements were added.')
-    expect(result.drawingId).toBeUndefined()
-    expect(result.versionId).toBeUndefined()
-    expect(result.versionNumber).toBeUndefined()
-    expect(result.drawing).toBeUndefined()
-    expect(result.currentVersion).toBeUndefined()
-    expect(result.version).toBeUndefined()
-    expect(result.summary).toBeUndefined()
-  })
-
+describe('Excalidraw middleware context and event extensions', () => {
   it('injects drawingId from runtime structured context before Excalidraw tool execution', async () => {
-    const middleware = await new ExcalidrawMiddleware({ patchScene: jest.fn() } as any).createMiddleware({}, testContext())
-    const addTool = middleware.tools.find((candidate: any) => candidate.name === EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME) as any
+    const middleware = excalidrawMiddlewareExtensions()
+    const addTool = {name:EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME}
     const handler = jest.fn(async () => new ToolMessage({ content: 'ok', tool_call_id: 'tool-call-1' }))
 
     await middleware.wrapToolCall?.(
@@ -205,8 +73,8 @@ describe('ExcalidrawMiddleware staged element tools', () => {
   })
 
   it('injects drawingId from runtime env context before Excalidraw tool execution', async () => {
-    const middleware = await new ExcalidrawMiddleware({ patchScene: jest.fn() } as any).createMiddleware({}, testContext())
-    const addTool = middleware.tools.find((candidate: any) => candidate.name === EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME) as any
+    const middleware = excalidrawMiddlewareExtensions()
+    const addTool = {name:EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME}
     const handler = jest.fn(async () => new ToolMessage({ content: 'ok', tool_call_id: 'tool-call-1' }))
 
     await middleware.wrapToolCall?.(
@@ -244,8 +112,8 @@ describe('ExcalidrawMiddleware staged element tools', () => {
   })
 
   it('returns a clear error when drawingId and current Workbench context are missing', async () => {
-    const middleware = await new ExcalidrawMiddleware({ patchScene: jest.fn() } as any).createMiddleware({}, testContext())
-    const addTool = middleware.tools.find((candidate: any) => candidate.name === EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME) as any
+    const middleware = excalidrawMiddlewareExtensions()
+    const addTool = {name:EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME}
     const handler = jest.fn()
 
     const result = await middleware.wrapToolCall?.(
@@ -272,7 +140,7 @@ describe('ExcalidrawMiddleware staged element tools', () => {
   })
 
   it('injects current Workbench drawing context into model calls', async () => {
-    const middleware = await new ExcalidrawMiddleware({ patchScene: jest.fn() } as any).createMiddleware({}, testContext())
+    const middleware = excalidrawMiddlewareExtensions()
     const handler = jest.fn(async () => 'ok')
 
     await middleware.wrapModelCall?.(
@@ -312,8 +180,8 @@ describe('ExcalidrawMiddleware staged element tools', () => {
   })
 
   it('dispatches changeSummary as the tool event message', async () => {
-    const middleware = await new ExcalidrawMiddleware({ patchScene: jest.fn() } as any).createMiddleware({}, testContext())
-    const addTool = middleware.tools.find((candidate: any) => candidate.name === EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME) as any
+    const middleware = excalidrawMiddlewareExtensions()
+    const addTool = {name:EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME}
     const handler = jest.fn(async () => ({
       content: '{"success":true}',
       name: EXCALIDRAW_ADD_ELEMENTS_TOOL_NAME,
@@ -373,75 +241,4 @@ describe('ExcalidrawMiddleware staged element tools', () => {
     )
   })
 
-  it('registers excalidraw_get_scene_item and routes it through getSceneItemForAgent', async () => {
-    const getSceneItemForAgent = jest.fn(async (_scope, input) => ({
-      itemType: input.itemType,
-      drawingId: input.drawingId,
-      version: {
-        id: 'version-1',
-        versionNumber: input.versionNumber,
-        elementCount: 1
-      },
-      elementId: input.elementId,
-      element: {
-        id: input.elementId,
-        type: 'text',
-        text: 'Full text'
-      }
-    }))
-    const middleware = await new ExcalidrawMiddleware({ getSceneItemForAgent } as any).createMiddleware({}, testContext())
-
-    const getItemTool = middleware.tools.find((candidate: any) => candidate.name === EXCALIDRAW_GET_SCENE_ITEM_TOOL_NAME) as any
-    expect(getItemTool).toBeTruthy()
-
-    const result = JSON.parse(await getItemTool.invoke({
-      drawingId: 'drawing-1',
-      itemType: 'element',
-      versionNumber: 1,
-      elementId: 'text-1'
-    }))
-
-    expect(getSceneItemForAgent).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: 'tenant-1', organizationId: 'org-1' }),
-      expect.objectContaining({
-        drawingId: 'drawing-1',
-        itemType: 'element',
-        versionNumber: 1,
-        elementId: 'text-1'
-      })
-    )
-    expect(result.element.text).toBe('Full text')
-  })
-
-  it('marks a DiagramIR drawing diverged after generic scene mutations', async () => {
-    const patchScene = jest.fn(async () => ({
-      success: true,
-      drawing: { item: { id: 'drawing-1' } },
-      version: { id: 'version-manual', drawingId: 'drawing-1', versionNumber: 2 },
-      patch: { addCount: 1, updateCount: 0, deleteCount: 0 }
-    }))
-    const markDiverged = jest.fn(async () => null)
-    const middleware = await new ExcalidrawMiddleware({ patchScene } as any, { markDiverged } as any).createMiddleware({}, testContext())
-    const patchTool = middleware.tools.find((candidate: any) => candidate.name === EXCALIDRAW_PATCH_SCENE_TOOL_NAME) as any
-
-    await patchTool.invoke({ drawingId: 'drawing-1', addElements: [{ id: 'rect-1', type: 'rectangle' }] })
-
-    expect(markDiverged).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: 'tenant-1', organizationId: 'org-1' }),
-      'drawing-1',
-      'version-manual'
-    )
-  })
 })
-
-function testContext() {
-  return {
-    tenantId: 'tenant-1',
-    organizationId: 'org-1',
-    workspaceId: null,
-    projectId: null,
-    userId: 'user-1',
-    xpertId: 'assistant-1',
-    conversationId: 'conversation-1'
-  } as any
-}

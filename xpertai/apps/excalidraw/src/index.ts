@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { z } from 'zod'
 import type { I18nObject } from '@xpert-ai/contracts'
+import { XPERT_TOOL_RESULT_FORMAT_VERSION } from '@xpert-ai/plugin-sdk'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import {
   EXCALIDRAW_AGENT_DRAWING_CAPABILITY,
@@ -24,6 +25,7 @@ import {
 } from './lib/constants.js'
 import { ExcalidrawPlugin } from './lib/excalidraw.plugin.js'
 import { excalidrawTemplates } from './lib/excalidraw.templates.js'
+import { excalidrawApp } from './lib/excalidraw.app-config.js'
 import { EXCALIDRAW_DIAGRAM_ENGINE_MIDDLEWARE_NAME } from './lib/diagram-engine/diagram.middleware.js'
 
 const moduleDir = dirname(fileURLToPath(import.meta.url))
@@ -225,15 +227,7 @@ const plugin: ExcalidrawXpertPlugin = {
                 '执行从模板到 DiagramIR 再到质量闭环的助手模板。'
               )
             },
-            {
-              type: 'app',
-              name: 'excalidraw',
-              displayName: 'Excalidraw',
-              description: text(
-                'Workbench and Agent middleware tools for Excalidraw diagrams.',
-                '用于 Excalidraw 图形的工作台和 Agent 中间件工具。'
-              )
-            }
+            excalidrawApp
           ]
         }
       }
@@ -254,6 +248,7 @@ const plugin: ExcalidrawXpertPlugin = {
   },
   templates: excalidrawTemplates,
   register(ctx) {
+    if(XPERT_TOOL_RESULT_FORMAT_VERSION!==1)throw new Error('Excalidraw native MCP requires the host SDK tool_result format extension. Upgrade the host SDK before installation.')
     ctx.logger.log('register excalidraw plugin')
     return { module: ExcalidrawPlugin, global: true }
   },
@@ -287,3 +282,5 @@ export * from './lib/diagram-engine/diagram-rendering.service.js'
 export * from './lib/diagram-engine/diagram-ir.service.js'
 export * from './lib/diagram-engine/diagram.middleware.js'
 export * from './lib/diagram-engine/entities/index.js'
+
+export * from './lib/tools/excalidraw-tools.provider.js'
