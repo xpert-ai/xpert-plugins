@@ -6,6 +6,8 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   HANDOFF_PERMISSION_SERVICE_TOKEN: Symbol('HANDOFF_PERMISSION_SERVICE_TOKEN'),
   INTEGRATION_PERMISSION_SERVICE_TOKEN: Symbol('INTEGRATION_PERMISSION_SERVICE_TOKEN'),
   WORKSPACE_FILES_SOURCE: 'platform.workspace.files',
+  WorkspaceFilesRuntimeCapability: { id: 'platform.workspace.files' },
+  XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN: 'XPERT_AGENT_MIDDLEWARE_RUNTIME',
   RequestContext: {
     currentTenantId: () => undefined,
     currentUserId: () => undefined,
@@ -17,6 +19,7 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
 import { WechatTriggerStrategy } from './wechat-trigger.strategy.js'
 import { WechatMessage } from '../message.js'
 import type { WechatAggregateLockLease } from './wechat-trigger-aggregation.service.js'
+import type { AgentMiddlewareRuntimeScope } from '@xpert-ai/plugin-sdk'
 
 describe('WechatTriggerStrategy', () => {
   it('replays published trigger bindings during server bootstrap', () => {
@@ -159,11 +162,19 @@ describe('WechatTriggerStrategy', () => {
     const messageLogRepository = {
       update: jest.fn().mockResolvedValue(undefined)
     }
+    const runtimeService = {
+      createScopedApi: jest.fn((_scope: AgentMiddlewareRuntimeScope) => ({
+        capabilities: { get: jest.fn(() => workspaceFiles) }
+      }))
+    }
     const pluginContext = {
       resolve: jest.fn((token) => {
+        if (token === 'XPERT_AGENT_MIDDLEWARE_RUNTIME') {
+          return runtimeService
+        }
         if (token === 'XPERT_RUNTIME_CAPABILITIES') {
           return {
-            get: jest.fn((key) => (key === 'platform.workspace.files' ? workspaceFiles : undefined))
+            get: jest.fn(() => undefined)
           }
         }
         return integrationPermissionService
@@ -203,6 +214,8 @@ describe('WechatTriggerStrategy', () => {
       accountRepository,
       wechatClient,
       workspaceFiles,
+      runtimeService,
+      pluginContext,
       integrationPermissionService,
       messageFileRepository,
       messageLogRepository,
@@ -1115,7 +1128,7 @@ describe('WechatTriggerStrategy', () => {
   })
 
   it('uploads decoded inbound images to workspace storage while preserving the data URL for vision dispatch', async () => {
-    const { strategy, dispatchService, workspaceFiles, messageFileRepository, wechatMessage } = createStrategy()
+    const { strategy, dispatchService, workspaceFiles, messageFileRepository, wechatMessage, runtimeService, pluginContext } = createStrategy()
     workspaceFiles.uploadBuffer.mockResolvedValueOnce({
       name: 'wechat-image.png',
       filePath: 'files/wechat/integration-1/uuid-1/image-msg-1/wechat-image.png',
@@ -1175,6 +1188,16 @@ describe('WechatTriggerStrategy', () => {
       dispatched: true
     })
 
+    expect(runtimeService.createScopedApi).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      userId: 'user-1',
+      xpertId: 'xpert-1',
+      catalog: 'xperts',
+      scopeId: 'xpert-1',
+      isolateByUser: false
+    })
+    expect(pluginContext.resolve).not.toHaveBeenCalledWith('XPERT_RUNTIME_CAPABILITIES')
     expect(workspaceFiles.uploadBuffer).toHaveBeenCalledWith(
       expect.objectContaining({
         catalog: 'xperts',
@@ -1217,6 +1240,68 @@ describe('WechatTriggerStrategy', () => {
       })
     )
     expect(JSON.stringify(dispatchService.enqueueDispatch.mock.calls[0][0])).not.toContain('"data":')
+  })
+
+  function inboundImageInput(wechatMessage: WechatMessage): Parameters<WechatTriggerStrategy['handleInboundMessage']>[0] {
+    return {
+      integrationId: 'integration-1',
+      input: '',
+      pendingFiles: [{
+        kind: 'image',
+        uuid: 'uuid-1',
+        contactId: 'wxid_friend',
+        imageRef: { uuid: 'uuid-1', contactId: 'wxid_friend', newMsgId: 'image-msg-1', msgType: 3, msgContent: '<msg><img /></msg>' }
+      }],
+      wechatMessage,
+      conversationUserKey: 'integration-1:uuid-1:wxid_friend:wxid_friend',
+      tenantId: 'tenant-1',
+      organizationId: 'org-1'
+    }
+  }
+
+  it('fails without scoped file access and resolves it again on the next inbound operation', async () => {
+    const { strategy, runtimeService, workspaceFiles, dispatchService, wechatMessage } = createStrategy()
+    runtimeService.createScopedApi.mockReturnValueOnce({ capabilities: { get: jest.fn(() => undefined) } })
+    const input = inboundImageInput(wechatMessage)
+
+    await expect(strategy.handleInboundMessage(input)).resolves.toMatchObject({
+      accepted: false,
+      error: 'inbound_image_materialize_failed: platform.workspace.files capability is not available'
+    })
+    expect(workspaceFiles.uploadBuffer).not.toHaveBeenCalled()
+    expect(dispatchService.enqueueDispatch).not.toHaveBeenCalled()
+
+    await expect(strategy.handleInboundMessage(input)).resolves.toMatchObject({ dispatched: true })
+    expect(runtimeService.createScopedApi).toHaveBeenCalledTimes(2)
+    expect(workspaceFiles.uploadBuffer).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not reuse inbound file capabilities across tenants and Xperts', async () => {
+    const { strategy, runtimeService, workspaceFiles, bindingRepository, integrationPermissionService, wechatMessage } = createStrategy()
+    const secondFiles = {
+      uploadBuffer: jest.fn(workspaceFiles.uploadBuffer.getMockImplementation()),
+      understandFile: jest.fn(workspaceFiles.understandFile.getMockImplementation())
+    }
+    await strategy.handleInboundMessage(inboundImageInput(wechatMessage))
+
+    bindingRepository.findOne.mockResolvedValue({ xpertId: 'xpert-2', summaryWindowSeconds: 0 })
+    integrationPermissionService.read.mockResolvedValue({
+      id: 'integration-2', tenantId: 'tenant-2', organizationId: 'org-2', createdById: 'user-2', updatedById: 'user-2'
+    })
+    runtimeService.createScopedApi.mockReturnValueOnce({ capabilities: { get: jest.fn(() => secondFiles) } })
+    await expect(strategy.handleInboundMessage({
+      ...inboundImageInput(wechatMessage),
+      integrationId: 'integration-2', tenantId: 'tenant-2', organizationId: 'org-2'
+    })).resolves.toMatchObject({ dispatched: true })
+
+    expect(runtimeService.createScopedApi).toHaveBeenNthCalledWith(2, {
+      tenantId: 'tenant-2', organizationId: 'org-2', userId: 'user-2',
+      xpertId: 'xpert-2', catalog: 'xperts', scopeId: 'xpert-2', isolateByUser: false
+    })
+    expect(workspaceFiles.uploadBuffer).toHaveBeenCalledTimes(1)
+    expect(workspaceFiles.understandFile).toHaveBeenCalledTimes(1)
+    expect(secondFiles.uploadBuffer).toHaveBeenCalledTimes(1)
+    expect(secondFiles.understandFile).toHaveBeenCalledTimes(1)
   })
 
   it('skips known oversized file messages before wx2.0 download or workspace upload', async () => {

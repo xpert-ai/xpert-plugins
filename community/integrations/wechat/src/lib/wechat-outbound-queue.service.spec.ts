@@ -2,6 +2,8 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   INTEGRATION_PERMISSION_SERVICE_TOKEN: Symbol('INTEGRATION_PERMISSION_SERVICE_TOKEN'),
   MANAGED_QUEUE_SERVICE_TOKEN: 'XPERT_MANAGED_QUEUE_SERVICE',
   WORKSPACE_FILES_SOURCE: 'platform.workspace.files',
+  WorkspaceFilesRuntimeCapability: { id: 'platform.workspace.files' },
+  XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN: 'XPERT_AGENT_MIDDLEWARE_RUNTIME',
   RequestContext: {
     currentTenantId: () => undefined,
     currentUserId: () => undefined,
@@ -15,7 +17,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
   INTEGRATION_PERMISSION_SERVICE_TOKEN,
-  MANAGED_QUEUE_SERVICE_TOKEN
+  MANAGED_QUEUE_SERVICE_TOKEN,
+  type AgentMiddlewareRuntimeScope,
+  type WorkspacePortableFileReference
 } from '@xpert-ai/plugin-sdk'
 import {
   WECHAT_OUTBOUND_QUEUE_NAME,
@@ -134,6 +138,11 @@ describe('WechatOutboundQueueService', () => {
     const integrationPermissionService = {
       read: integrationRead
     }
+    const runtimeService = {
+      createScopedApi: jest.fn((_scope: AgentMiddlewareRuntimeScope) => ({
+        capabilities: { get: jest.fn(() => options.workspaceFiles) }
+      }))
+    }
     const pluginContext = {
       scopeKey: 'org:org-1',
       resolve: jest.fn((token) => {
@@ -143,9 +152,12 @@ describe('WechatOutboundQueueService', () => {
         if (token === INTEGRATION_PERMISSION_SERVICE_TOKEN) {
           return integrationPermissionService
         }
+        if (token === 'XPERT_AGENT_MIDDLEWARE_RUNTIME') {
+          return runtimeService
+        }
         if (token === 'XPERT_RUNTIME_CAPABILITIES') {
           return {
-            get: jest.fn((key) => (key === 'platform.workspace.files' ? options.workspaceFiles : undefined))
+            get: jest.fn(() => undefined)
           }
         }
         return integrationPermissionService
@@ -158,7 +170,7 @@ describe('WechatOutboundQueueService', () => {
       messageLogRepository as any,
       pluginContext as any
     )
-    return { service, client, redis, managedQueue, accountRepository, messageLogRepository, integrationRead }
+    return { service, client, redis, managedQueue, accountRepository, messageLogRepository, integrationRead, runtimeService, pluginContext }
   }
 
   function createLog(overrides: Record<string, unknown> = {}) {
@@ -180,6 +192,8 @@ describe('WechatOutboundQueueService', () => {
   function createJob(overrides: Partial<{ attemptsMade: number; opts: Record<string, unknown> }> = {}) {
     return {
       id: 'job-1',
+      name: WECHAT_OUTBOUND_SEND_TEXT_JOB,
+      updateData: jest.fn(async (_data: WechatOutboundQueueJobData) => undefined),
       data: {
         integrationId: 'integration-1',
         outboundLogId: 'log-1',
@@ -666,6 +680,76 @@ describe('WechatOutboundQueueService', () => {
       expect.objectContaining({ id: 'log-1' }),
       expect.objectContaining({ status: 'sent', messageId: 'wx-file-1', sentAt: expect.any(Date) })
     )
+  })
+
+  it('restores each queued file scope from its persisted reference without caching capabilities', async () => {
+    const bytes = Buffer.from('queued-file-bytes')
+    const sha256 = createHash('sha256').update(bytes).digest('hex')
+    const references: WorkspacePortableFileReference[] = [
+      {
+        source: 'platform.workspace.files', filePath: 'report.pdf', workspacePath: '/workspace/report.pdf',
+        tenantId: 'tenant-1', organizationId: 'org-1', userId: 'user-1',
+        catalog: 'projects', scopeId: 'project-1', xpertId: 'xpert-1'
+      },
+      {
+        source: 'platform.workspace.files', filePath: 'report.pdf', workspacePath: '/workspace/report.pdf',
+        tenantId: 'tenant-1', organizationId: 'org-1', userId: 'user-2',
+        catalog: 'user-xperts', scopeId: 'xpert-2', isolateByUser: true
+      }
+    ]
+    const { service, client, runtimeService, pluginContext, messageLogRepository } = createService()
+    const readers = references.map((reference) => ({
+      readRuntimeBuffer: jest.fn(async () => ({
+        buffer: bytes, reference, name: 'report.pdf', filePath: reference.filePath, mimeType: 'application/pdf'
+      }))
+    }))
+    for (const [index, reference] of references.entries()) {
+      runtimeService.createScopedApi.mockReturnValueOnce({ capabilities: { get: jest.fn(() => readers[index]) } })
+      messageLogRepository.findOne.mockResolvedValueOnce(createLog({
+        xpertId: 'sending-xpert',
+        conversationId: `conversation-${index}`,
+        payloadSummary: JSON.stringify({
+          type: 'file', fileRef: reference, filePath: reference.filePath, fileName: 'report.pdf', size: bytes.length, sha256
+        })
+      }))
+      await service.processSendTextJob(createJob())
+      expect(runtimeService.createScopedApi).toHaveBeenNthCalledWith(index + 1, {
+        tenantId: 'tenant-1', organizationId: 'org-1', userId: reference.userId,
+        projectId: index === 0 ? 'project-1' : undefined, xpertId: index === 0 ? 'xpert-1' : 'xpert-2',
+        catalog: reference.catalog, scopeId: reference.scopeId, isolateByUser: reference.isolateByUser,
+        conversationId: `conversation-${index}`
+      })
+      expect(readers[index].readRuntimeBuffer).toHaveBeenCalledTimes(1)
+      expect(readers[index].readRuntimeBuffer).toHaveBeenCalledWith(expect.objectContaining(reference))
+    }
+    expect(client.sendFile).toHaveBeenCalledTimes(2)
+    expect(pluginContext.resolve).not.toHaveBeenCalledWith('XPERT_RUNTIME_CAPABILITIES')
+  })
+
+  it('does not send a workspace file when scoped access is unavailable', async () => {
+    const { service, client, messageLogRepository } = createService()
+    messageLogRepository.findOne.mockResolvedValueOnce(createLog({
+      payloadSummary: JSON.stringify({
+        type: 'file', fileName: 'report.pdf', filePath: 'report.pdf',
+        fileRef: { source: 'platform.workspace.files', filePath: 'report.pdf', xpertId: 'xpert-1' }
+      })
+    }))
+    await expect(service.processSendTextJob(createJob())).rejects.toThrow('platform.workspace.files capability is not available')
+    expect(client.sendFile).not.toHaveBeenCalled()
+    expect(client.sendText).not.toHaveBeenCalled()
+  })
+
+  it('rejects a queued file without a workspace owner before resolving capabilities', async () => {
+    const { service, client, runtimeService, messageLogRepository } = createService()
+    messageLogRepository.findOne.mockResolvedValueOnce(createLog({
+      payloadSummary: JSON.stringify({
+        type: 'file', fileName: 'report.pdf', filePath: 'report.pdf',
+        fileRef: { source: 'platform.workspace.files', filePath: 'report.pdf' }
+      })
+    }))
+    await expect(service.processSendTextJob(createJob())).rejects.toThrow('requires an Xpert or Project scope')
+    expect(runtimeService.createScopedApi).not.toHaveBeenCalled()
+    expect(client.sendFile).not.toHaveBeenCalled()
   })
 
   it('defers the job instead of sending when the contact lock is unavailable', async () => {

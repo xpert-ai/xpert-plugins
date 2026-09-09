@@ -11,7 +11,6 @@ import {
   type ManagedQueueService,
   RequestContext,
   WORKSPACE_FILES_SOURCE,
-  type WorkspaceFilesApi,
   type WorkspacePortableFileReference,
   type PluginContext
 } from '@xpert-ai/plugin-sdk'
@@ -39,6 +38,7 @@ import {
 } from './types.js'
 import type { WechatChatCallbackContext } from './handoff/wechat-chat.types.js'
 import { fetchWechatImageAsBase64 } from './wechat-image.js'
+import { resolveWechatWorkspaceFiles } from './wechat-workspace-files.js'
 import {
   WechatClient,
   WechatSendFileInput,
@@ -49,13 +49,6 @@ import {
   resolveWechatSendFile,
   resolveWechatSendFileFromWorkspace
 } from './wechat-send-file.js'
-
-const XPERT_RUNTIME_CAPABILITIES_TOKEN = 'XPERT_RUNTIME_CAPABILITIES'
-
-/** Minimal runtime registry contract used to discover platform capabilities. */
-type RuntimeCapabilityRegistry = {
-  get<T>(key: string): T | undefined
-}
 
 export type WechatOutboundQueueJobData = {
   integrationId: string
@@ -256,6 +249,7 @@ function normalizeQueuedFileRef(value: unknown): WorkspacePortableFileReference 
     filePath,
     workspacePath: normalizeString(record.workspacePath) || filePath,
     ...(normalizeString(record.tenantId) ? { tenantId: normalizeString(record.tenantId) } : {}),
+    ...(normalizeString(record.organizationId) ? { organizationId: normalizeString(record.organizationId) } : {}),
     ...(normalizeString(record.userId) ? { userId: normalizeString(record.userId) } : {}),
     ...(catalog ? { catalog } : {}),
     ...(normalizeString(record.scopeId) ? { scopeId: normalizeString(record.scopeId) } : {}),
@@ -280,7 +274,8 @@ function normalizeWorkspaceFileCatalog(value: unknown): WorkspacePortableFileRef
     catalog === 'users' ||
     catalog === 'knowledges' ||
     catalog === 'skills' ||
-    catalog === 'xperts'
+    catalog === 'xperts' ||
+    catalog === 'user-xperts'
     ? catalog
     : undefined
 }
@@ -290,7 +285,6 @@ export class WechatOutboundQueueService {
   private readonly logger = new Logger(WechatOutboundQueueService.name)
   private _integrationPermissionService?: IntegrationPermissionService
   private _managedQueueService?: ManagedQueueService
-  private _workspaceFiles?: Pick<WorkspaceFilesApi, 'readRuntimeBuffer'> | null
 
   constructor(
     private readonly client: WechatClient,
@@ -314,19 +308,6 @@ export class WechatOutboundQueueService {
       this._managedQueueService = this.pluginContext.resolve(MANAGED_QUEUE_SERVICE_TOKEN)
     }
     return this._managedQueueService
-  }
-
-  /** Lazily resolve the workspace-files capability for delayed file retries. */
-  private get workspaceFiles(): Pick<WorkspaceFilesApi, 'readRuntimeBuffer'> | null {
-    if (this._workspaceFiles === undefined) {
-      try {
-        const registry = this.pluginContext.resolve<RuntimeCapabilityRegistry>(XPERT_RUNTIME_CAPABILITIES_TOKEN)
-        this._workspaceFiles = registry?.get<Pick<WorkspaceFilesApi, 'readRuntimeBuffer'>>(WORKSPACE_FILES_SOURCE) ?? null
-      } catch {
-        this._workspaceFiles = null
-      }
-    }
-    return this._workspaceFiles
   }
 
   async enqueueText(
@@ -1214,7 +1195,20 @@ export class WechatOutboundQueueService {
     payload: Extract<WechatResolvedQueuedPayload, { type: 'file' }>
   ) {
     if (payload.fileRef) {
-      const workspaceFiles = this.workspaceFiles
+      const reference = payload.fileRef
+      const workspaceFiles = resolveWechatWorkspaceFiles(this.pluginContext, {
+        tenantId: log.tenantId ?? reference.tenantId,
+        organizationId: log.organizationId ?? reference.organizationId,
+        userId: reference.userId ?? log.createdById,
+        projectId: reference.projectId ?? (reference.catalog === 'projects' ? reference.scopeId : undefined),
+        xpertId: reference.xpertId ?? (
+          reference.catalog === 'xperts' || reference.catalog === 'user-xperts' ? reference.scopeId : undefined
+        ) ?? log.xpertId,
+        catalog: reference.catalog,
+        scopeId: reference.scopeId,
+        isolateByUser: reference.isolateByUser,
+        conversationId: log.conversationId
+      })
       if (!workspaceFiles?.readRuntimeBuffer) {
         throw new Error('微信文件发送无法读取 workspace 文件：platform.workspace.files capability is not available.')
       }
