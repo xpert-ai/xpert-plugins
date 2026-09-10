@@ -82,14 +82,16 @@ describe('MiniMaxLargeLanguageModel', () => {
     );
   });
 
-  it('uses MiniMax-M3 original prices across token and service tiers', () => {
+  it.each([
+    ['standard', 500_000, 1.05, 0.0084],
+    ['standard', 600_000, 2.52, 0.0168],
+    ['priority', 500_000, 1.575, 0.0126],
+    ['priority', 600_000, 3.78, 0.0252],
+  ])('uses MiniMax-M3 permanent prices for %s with %i input tokens', (serviceTier, promptTokens, promptPrice, completionPrice) => {
     const testable = new TestableMiniMaxLargeLanguageModel(provider);
 
-    expect(testable.calculateUsage('MiniMax-M3', 500_000, 1_000, 'standard')).toEqual(
-      expect.objectContaining({ promptPrice: 2.1, completionPrice: 0.0168, currency: 'RMB' })
-    );
-    expect(testable.calculateUsage('MiniMax-M3', 600_000, 1_000, 'priority')).toEqual(
-      expect.objectContaining({ promptPrice: 7.56, completionPrice: 0.0504, currency: 'RMB' })
+    expect(testable.calculateUsage('MiniMax-M3', promptTokens, 1_000, serviceTier)).toEqual(
+      expect.objectContaining({ promptPrice, completionPrice, currency: 'RMB' })
     );
   });
 

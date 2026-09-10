@@ -10,7 +10,6 @@
 - Implements `MoonshotLargeLanguageModel`, a LangChain-powered adapter built on `ChatOpenAI` that supports streaming chat completions, function calling, and token accounting callbacks for agent telemetry.
 - Shares a console-ready `moonshot.yaml` that drives the XpertAI UI forms (icons, help links, credential prompts) for quick operator onboarding.
 - Supports multiple Moonshot model variants including:
-  - **Moonshot V1 Series**: `moonshot-v1-8k`, `moonshot-v1-32k`, `moonshot-v1-128k` for various context length requirements
   - **Kimi K2.7 Code Series**: `kimi-k2.7-code`, `kimi-k2.7-code-highspeed` for coding workloads
   - **Kimi K3**: `kimi-k3` for long-context agent and knowledge work
 
@@ -43,7 +42,7 @@ During validation, the plugin sends an authenticated `GET /models` request to ve
 
 ## Model Capabilities
 
-- **Long Context Support**: All Moonshot models excel at handling long-context scenarios, with the V1-128K variant supporting up to 128,000 tokens of context.
+- **Long Context Support**: Kimi K2.7 Code and K3 support long-context coding and knowledge work.
 - **Conversational Models**: `MoonshotLargeLanguageModel` merges provider credentials with per-model overrides, enables streaming, and registers token usage callbacks so agent telemetry stays accurate.
 - **Advanced Reasoning**: Kimi K2.7 Code and K3 provide reasoning capabilities for coding and agent tasks.
 - **OpenAI Compatibility**: Built on LangChain's `ChatOpenAI`, ensuring seamless integration with existing OpenAI-compatible workflows.
