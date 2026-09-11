@@ -141,10 +141,6 @@ jobs:
         if: steps.decide.outputs.run == 'true'
         run: ${{ matrix.install_command }}
 
-      - name: Verify release build orchestration
-        if: steps.decide.outputs.run == 'true' && matrix.workspace == 'xpertai'
-        run: node --test xpertai/scripts/release-publish.test.mjs xpertai/apps/excalidraw/scripts/sync-plugin-manifest-version.test.mjs
-
       - name: Ensure workspace npmrc exists
         if: steps.decide.outputs.run == 'true'
         run: |

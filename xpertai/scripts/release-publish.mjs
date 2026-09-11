@@ -146,20 +146,9 @@ if (changedPackageNames.length > 0) {
   console.log(
     `Building ${changedPackageNames.length} package(s): ${changedPackageNames.join(', ')}`
   );
-  // Plugin build scripts rebuild shared workspace dependencies themselves. In
-  // particular, shadcn-ui clears dist, so another plugin must not read it mid-build.
-  run('pnpm', ['exec', 'nx', 'run-many', '-t', 'build', '-p', changedPackageNames.join(','), '--parallel=1']);
-  // Changesets publishes packages concurrently. Complete their packaging hooks
-  // here as well, before disabling lifecycle scripts only for the publish phase.
-  run('pnpm', ['exec', 'nx', 'run-many', '-t', 'prepack', '-p', changedPackageNames.join(','), '--parallel=1']);
+  run('pnpm', ['exec', 'nx', 'run-many', '-t', 'build', '-p', changedPackageNames.join(',')]);
 } else {
   console.log('No publish-target workspace packages detected. Skip build.');
 }
 
-run('pnpm', ['exec', 'changeset', 'publish'], {
-  env: {
-    ...process.env,
-    npm_config_ignore_scripts: 'true',
-    PNPM_CONFIG_IGNORE_SCRIPTS: 'true'
-  }
-});
+run('pnpm', ['exec', 'changeset', 'publish']);
