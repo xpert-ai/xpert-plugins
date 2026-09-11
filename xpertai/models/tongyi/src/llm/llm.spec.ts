@@ -384,6 +384,49 @@ describe('Tongyi Kimi K3 catalog', () => {
   })
 })
 
+describe('Tongyi Zhipu GLM-5.3 catalog', () => {
+  const manager = new TongyiLargeLanguageModel(new TongyiProviderStrategy())
+  const models = manager.predefinedModels()
+  const glm53 = models.find((candidate) => candidate.model === 'ZHIPU/GLM-5.3')
+  const glm53Flash = models.find((candidate) => candidate.model === 'ZHIPU/GLM-5.3-Flash')
+
+  it('uses the Alibaba Cloud model IDs and published Beijing pricing', () => {
+    expect(glm53).toBeDefined()
+    expect(glm53Flash).toBeDefined()
+    expect(glm53?.model_properties?.context_size).toBe(1000000)
+    expect(glm53Flash?.model_properties?.context_size).toBe(1000000)
+    expect(glm53Flash?.features).toEqual(expect.arrayContaining(['vision', 'video']))
+    expect(glm53?.parameter_rules).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'max_tokens', default: 65536, max: 131072 }),
+      expect.objectContaining({ name: 'reasoning_effort', default: 'max', options: ['low', 'high', 'max'] })
+    ]))
+
+    const regularRules = glm53?.pricing && 'rules' in glm53.pricing ? glm53.pricing.rules ?? [] : []
+    expect(regularRules).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ component: 'input', unit_price: 8, unit_size: 1000000, region: 'cn' }),
+        expect.objectContaining({ component: 'cache_read_input', unit_price: 2, unit_size: 1000000, region: 'cn' }),
+        expect.objectContaining({ component: 'output', unit_price: 28, unit_size: 1000000, region: 'cn' })
+      ])
+    )
+
+    const flashRules = glm53Flash?.pricing && 'rules' in glm53Flash.pricing ? glm53Flash.pricing.rules ?? [] : []
+    expect(flashRules).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ component: 'input', unit_price: 0.8, unit_size: 1000000, region: 'cn' }),
+        expect.objectContaining({ component: 'cache_read_input', unit_price: 0.2, unit_size: 1000000, region: 'cn' }),
+        expect.objectContaining({ component: 'output', unit_price: 2.8, unit_size: 1000000, region: 'cn' })
+      ])
+    )
+  })
+
+  it.each(['ZHIPU/GLM-5.3', 'ZHIPU/GLM-5.3-Flash'])('forwards %s reasoning effort', (model) => {
+    const chatModel = manager.getChatModel(createCopilotModel(model, { reasoning_effort: 'max' }))
+
+    expect(chatModel.invocationParams()['reasoning_effort']).toBe('max')
+  })
+})
+
 describe('toTongyiConfigurationWithExtraHeaders', () => {
   it('keeps the original configuration when extra headers are empty', () => {
     const configuration = {
