@@ -109,6 +109,10 @@ function App() {
       setCurrentDocumentId(documentId)
       selectedDocumentRef.current = nextData.selected?.document
       void syncAssistantContext(nextData.selected?.document, selectedPathRef.current, selectedTextRef.current)
+    } else if (!nextData.selected) {
+      setCurrentDocumentId('')
+      selectedDocumentRef.current = undefined
+      clearSelectedElement(false)
     }
   }
 

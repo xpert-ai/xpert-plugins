@@ -8,12 +8,16 @@ import {
 } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { createHash } from 'node:crypto'
-import { IsNull } from 'typeorm'
+import { IsNull, Not } from 'typeorm'
 import type { FindOptionsWhere, Repository } from 'typeorm'
 import {
+  XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN,
   XPERT_RUNTIME_CAPABILITIES_TOKEN
 } from '@xpert-ai/plugin-sdk'
-import type { AgentMiddlewareRuntimeCapabilityRegistry } from '@xpert-ai/plugin-sdk'
+import type {
+  AgentMiddlewareRuntimeCapabilityRegistry,
+  AgentMiddlewareRuntimeServiceApi
+} from '@xpert-ai/plugin-sdk'
 import {
   OFFICE_CLI_MIME_TYPES,
   OFFICE_CLI_WORKSPACE_FILES_RUNTIME_CAPABILITY
@@ -56,7 +60,10 @@ export class OfficeCliService {
     private readonly runtime: OfficeCliRuntimeService,
     @Optional()
     @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN)
-    private readonly runtimeCapabilities?: AgentMiddlewareRuntimeCapabilityRegistry
+    private readonly runtimeCapabilities?: AgentMiddlewareRuntimeCapabilityRegistry,
+    @Optional()
+    @Inject(XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN)
+    private readonly runtimeService?: AgentMiddlewareRuntimeServiceApi
   ) {}
 
   async createDocument(scope: OfficeCliScope, input: CreateOfficeCliDocumentInput) {
@@ -86,7 +93,7 @@ export class OfficeCliService {
           includeTableOfContents: false
         })).buffer
       }
-      return this.saveVersion(scope, document, buffer, {
+      return await this.saveVersion(scope, document, buffer, {
         source: 'create',
         command: 'create',
         commandArgs: [],
@@ -120,7 +127,7 @@ export class OfficeCliService {
     )
     const documentId = requireId(document.id, 'OfficeCLI document id was not generated.')
     try {
-      return this.saveVersion(scope, document, input.buffer, {
+      return await this.saveVersion(scope, document, input.buffer, {
         source: 'import',
         command: 'import',
         commandArgs: [],
@@ -136,8 +143,13 @@ export class OfficeCliService {
     const page = Math.max(1, query.page ?? 1)
     const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 20))
     const where = scopedDocumentWhere(scope)
+    const availableWhere = {
+      ...where,
+      status: 'active' as const,
+      currentVersionId: Not(IsNull())
+    }
     const [unfilteredItems, total] = await this.documentRepository.findAndCount({
-      where,
+      where: availableWhere,
       order: { updatedAt: 'DESC' },
       skip: (page - 1) * pageSize,
       take: pageSize
@@ -271,7 +283,7 @@ export class OfficeCliService {
     const document = await this.requireDocument(scope, documentId)
     const version = await this.requireCurrentVersion(scope, document)
     const storageFilePath = document.workspaceFilePath ?? version.workspaceFilePath
-    const reference = await this.workspaceFiles().resolveRuntimeReference({
+    const reference = await this.workspaceFiles(scope).resolveRuntimeReference({
       ...resolveVersionWorkspaceScope(scope, version),
       source: OFFICE_CLI_WORKSPACE_FILES_RUNTIME_CAPABILITY,
       filePath: storageFilePath,
@@ -286,7 +298,7 @@ export class OfficeCliService {
       versionId: version.id,
       versionNumber: version.versionNumber,
       fileName: document.fileName,
-      filePath: reference.workspacePath,
+      filePath: reference.filePath,
       workspacePath: reference.workspacePath,
       storageFilePath,
       fileUrl: document.workspaceFileUrl ?? version.workspaceFileUrl ?? '',
@@ -303,9 +315,12 @@ export class OfficeCliService {
     const versions = await this.versionRepository.find({
       where: { documentId }
     })
-    const workspaceFiles = this.runtimeCapabilities?.get<OfficeCliWorkspaceFilesApi>(
-      OFFICE_CLI_WORKSPACE_FILES_RUNTIME_CAPABILITY
-    )
+    let workspaceFiles: OfficeCliWorkspaceFilesApi | undefined
+    try {
+      workspaceFiles = this.workspaceFiles(scope)
+    } catch {
+      // Database cleanup remains valid when storage cleanup is unavailable.
+    }
     let deletedWorkspaceFiles = 0
     let failedWorkspaceFiles = 0
     if (workspaceFiles) {
@@ -419,6 +434,11 @@ export class OfficeCliService {
 
   private async getSelectedDocumentData(scope: OfficeCliScope, documentId: string) {
     const document = await this.requireDocument(scope, documentId)
+    if (document.status !== 'active' || !document.currentVersionId) {
+      // Failed imports can leave a draft row behind after a process restart.
+      // Do not turn that row into a preview error during a normal refresh.
+      return undefined
+    }
     const version = await this.requireCurrentVersion(scope, document)
     const buffer = await this.readVersionBuffer(scope, version)
     let preview: { html?: string; error?: string; generatedAt?: string }
@@ -663,7 +683,7 @@ export class OfficeCliService {
     const nextVersionNumber = (currentDocument.currentVersionNumber ?? 0) + 1
     const checksum = sha256(buffer)
     const workspaceScope = resolveWorkspaceScope(scope)
-    const workspaceFiles = this.workspaceFiles()
+    const workspaceFiles = this.workspaceFiles(scope)
     const versionFileName = `v${String(nextVersionNumber).padStart(6, '0')}-${checksum.slice(0, 12)}.${document.format}`
     const versionUpload = await workspaceFiles.writeRuntimeBuffer({
       ...workspaceScope,
@@ -701,14 +721,8 @@ export class OfficeCliService {
         }
       })
     } catch (error) {
-      try {
-        await workspaceFiles.deleteFile({
-          ...workspaceScope,
-          filePath: versionUpload.filePath
-        })
-      } catch {
-        // Preserve the current-file write error.
-      }
+      // The deterministic archive path may already belong to a concurrent writer.
+      // Leave cleanup to a reference-aware retention/reconciliation pass.
       throw error
     }
     let persistedVersion: OfficeCliVersion | null = null
@@ -761,7 +775,7 @@ export class OfficeCliService {
         version,
         file: {
           fileName: currentDocument.fileName,
-          filePath: currentUpload.workspacePath,
+          filePath: currentUpload.filePath,
           workspacePath: currentUpload.workspacePath,
           storageFilePath: currentUpload.filePath,
           fileUrl: currentUpload.fileUrl ?? currentUpload.url ?? '',
@@ -808,9 +822,12 @@ export class OfficeCliService {
       skip: MAX_RETAINED_VERSIONS
     })
     if (!obsoleteVersions.length) return
-    const workspaceFiles = this.runtimeCapabilities?.get<OfficeCliWorkspaceFilesApi>(
-      OFFICE_CLI_WORKSPACE_FILES_RUNTIME_CAPABILITY
-    )
+    let workspaceFiles: OfficeCliWorkspaceFilesApi | undefined
+    try {
+      workspaceFiles = this.workspaceFiles(scope)
+    } catch {
+      // Retention cleanup is best effort and must not fail a successful document save.
+    }
     if (!workspaceFiles) return
     for (const version of obsoleteVersions) {
       if (!version.id) continue
@@ -860,7 +877,7 @@ export class OfficeCliService {
   }
 
   private async readVersionBuffer(scope: OfficeCliScope, version: OfficeCliVersion) {
-    const file = await this.workspaceFiles().readBuffer({
+    const file = await this.workspaceFiles(scope).readBuffer({
       ...resolveVersionWorkspaceScope(scope, version),
       filePath: version.workspaceFilePath
     })
@@ -871,10 +888,26 @@ export class OfficeCliService {
     return file.buffer
   }
 
-  private workspaceFiles() {
-    const files = this.runtimeCapabilities?.get<OfficeCliWorkspaceFilesApi>(
-      OFFICE_CLI_WORKSPACE_FILES_RUNTIME_CAPABILITY
-    )
+  private workspaceFiles(scope: OfficeCliScope) {
+    if (scope.runtimeWorkspaceFiles) {
+      return scope.runtimeWorkspaceFiles
+    }
+    const scopedCapabilities = this.runtimeService?.createScopedApi({
+      tenantId: scope.tenantId,
+      organizationId: scope.organizationId,
+      userId: scope.userId,
+      workspaceId: scope.projectId ? null : scope.workspaceId,
+      projectId: scope.projectId,
+      xpertId: scope.assistantId,
+      conversationId: scope.conversationId,
+      catalog: scope.workspaceFiles?.catalog,
+      scopeId: scope.workspaceFiles?.scopeId,
+      isolateByUser: scope.workspaceFiles?.isolateByUser
+    }).capabilities
+    const files = scopedCapabilities?.get<OfficeCliWorkspaceFilesApi>(OFFICE_CLI_WORKSPACE_FILES_RUNTIME_CAPABILITY)
+      ?? (this.runtimeService
+        ? undefined
+        : this.runtimeCapabilities?.get<OfficeCliWorkspaceFilesApi>(OFFICE_CLI_WORKSPACE_FILES_RUNTIME_CAPABILITY))
     if (!files) {
       throw new BadRequestException('Xpert workspace file runtime capability is required for OfficeCLI storage.')
     }
