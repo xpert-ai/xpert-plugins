@@ -80,7 +80,7 @@ describe('@xpert-ai/plugin-sap-bw', () => {
   it('exports aligned database plugin metadata', () => {
     expect(plugin.meta).toMatchObject({
       name: '@xpert-ai/plugin-sap-bw',
-      version: '0.0.1',
+      version: '0.0.2',
       level: 'organization',
       category: 'database'
     })
@@ -153,6 +153,36 @@ describe('@xpert-ai/plugin-sap-bw', () => {
 
     expect(catalogs.map((catalog) => catalog.name)).toEqual(['BW_A', 'BW_B'])
     expect(catalogs.every((catalog) => !catalog.tables)).toBe(true)
+    expect(discover).toHaveBeenCalledTimes(1)
+    expect(discover).toHaveBeenCalledWith('MDSCHEMA_CUBES', expect.any(Object))
+  })
+
+  it('uses the cube index for native metadata discovery when configured', async () => {
+    const runner = new SapBwRunner({ ...options, catalog_discovery: 'cubes' }, () => new FakeSapBwClient())
+    const discover = jest.spyOn(runner, 'discover').mockImplementation(async (requestType) => {
+      if (requestType !== 'MDSCHEMA_CUBES') {
+        throw new Error(`Unexpected discovery request: ${requestType}`)
+      }
+      return {
+        fields: [],
+        rows: [
+          { CATALOG_NAME: 'BW_A', CUBE_NAME: 'BW_A/QUERY_1', CUBE_CAPTION: 'Sales' },
+          { CATALOG_NAME: 'BW_A', CUBE_NAME: 'BW_A/QUERY_2', CUBE_CAPTION: 'Purchasing' },
+          { CATALOG_NAME: 'BW_B', CUBE_NAME: 'BW_B/QUERY_3', CUBE_CAPTION: 'Finance' }
+        ]
+      }
+    })
+
+    const metadata = await runner.queryCapability({
+      capability: 'xmla.metadata',
+      operation: 'discover'
+    })
+
+    expect(metadata.catalogs.map(({ uniqueName }) => uniqueName)).toEqual(['BW_A', 'BW_B'])
+    expect(metadata.catalogs[0].cubes.map(({ uniqueName }) => uniqueName)).toEqual([
+      'BW_A/QUERY_1',
+      'BW_A/QUERY_2'
+    ])
     expect(discover).toHaveBeenCalledTimes(1)
     expect(discover).toHaveBeenCalledWith('MDSCHEMA_CUBES', expect.any(Object))
   })
