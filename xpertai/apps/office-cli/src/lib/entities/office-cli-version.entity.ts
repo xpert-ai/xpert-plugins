@@ -1,17 +1,8 @@
-import { Column, CreateDateColumn, Entity, ForeignKey, Index, PrimaryGeneratedColumn } from 'typeorm'
+import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm'
 import { officeCliTable } from '../constants.js'
 import type { OfficeCliVersionSource, OfficeCliWorkspaceCatalog } from '../types.js'
-import { OfficeCliDocument } from './office-cli-document.entity.js'
 
 @Entity(officeCliTable('version'))
-@ForeignKey(() => OfficeCliDocument, ['documentId'], ['id'], {
-  name: 'plugin_office_cli_version_parent_fk',
-  onDelete: 'CASCADE'
-})
-@ForeignKey(() => OfficeCliDocument, ['documentId', 'projectId'], ['id', 'projectId'], {
-  name: 'plugin_office_cli_version_parent_project_fk',
-  onDelete: 'CASCADE'
-})
 @Index(['tenantId', 'organizationId', 'documentId', 'versionNumber'])
 @Index(['documentId', 'versionNumber'], { unique: true })
 export class OfficeCliVersion {
@@ -29,10 +20,11 @@ export class OfficeCliVersion {
   @Column({ type: 'varchar', nullable: true })
   workspaceId?: string
 
-  @Column({ type: 'uuid', nullable: true, update: false })
+  // Keep the persisted identifier type compatible with OfficeCLI 0.2.x tables.
+  @Column({ type: 'varchar', nullable: true, update: false })
   projectId?: string
 
-  @Column({ type: 'uuid' })
+  @Column({ type: 'varchar' })
   documentId!: string
 
   @Column({ type: 'int' })
