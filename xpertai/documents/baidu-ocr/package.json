@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-baidu-ocr",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Official Baidu Cloud and self-hosted PaddleOCR-VL document converter plugin for XpertAI.",
   "license": "AGPL-3.0",
   "repository": {
