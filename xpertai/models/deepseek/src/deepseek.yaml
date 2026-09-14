@@ -2,8 +2,8 @@ background: '#c0cdff'
 configurate_methods:
 - predefined-model
 description:
-  en_US: DeepSeek V4 models with reasoning, tool calling, and experimental vision.
-  zh_Hans: DeepSeek V4 模型，支持推理、工具调用和实验性视觉理解。
+  en_US: DeepSeek V4.1 Flash and V4 models with reasoning, tool calling, and vision.
+  zh_Hans: DeepSeek V4.1 Flash 和 V4 模型，支持推理、工具调用和视觉理解。
 help:
   title:
     en_US: Get your API Key from deepseek
