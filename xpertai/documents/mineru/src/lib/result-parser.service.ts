@@ -6,6 +6,7 @@ import type { ChunkMetadata, TDocumentAsset, XpFileSystem } from '@xpert-ai/plug
 import axios from 'axios'
 import unzipper from 'unzipper'
 import { v4 as uuid } from 'uuid'
+import { withMinerUTransferError } from './transfer-error.js'
 import {
   MinerU,
   type MinerUChunkMetadata,
@@ -43,12 +44,14 @@ export class MinerUResultParserService {
     context: MinerUParseContext = {}
   ): Promise<ParsedResult> {
     if (!fullZipUrl) throw new Error(`MinerU result URL is missing [taskId=${taskId}]`)
-    const response = await axios.get<ArrayBuffer>(fullZipUrl, {
-      responseType: 'arraybuffer',
-      timeout: 120_000,
-      maxContentLength: MAX_RESULT_BYTES,
-      maxBodyLength: MAX_RESULT_BYTES
-    })
+    const response = await withMinerUTransferError('result download', fullZipUrl, () =>
+      axios.get<ArrayBuffer>(fullZipUrl, {
+        responseType: 'arraybuffer',
+        timeout: 120_000,
+        maxContentLength: MAX_RESULT_BYTES,
+        maxBodyLength: MAX_RESULT_BYTES
+      })
+    )
     const zipBuffer = Buffer.from(response.data)
     if (!zipBuffer.length) throw new Error(`MinerU returned an empty result archive [taskId=${taskId}]`)
     if (zipBuffer.length > MAX_RESULT_BYTES) throw new Error('MinerU result archive exceeds the 1 GiB safety limit')
