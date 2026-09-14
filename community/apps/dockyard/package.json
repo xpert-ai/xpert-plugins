@@ -1,0 +1,96 @@
+{
+  "name": "@community/apps-dockyard",
+  "version": "0.3.0",
+  "private": true,
+  "description": "Dockyard workbench with editor and file context menus for ChatKit references.",
+  "license": "AGPL-3.0",
+  "type": "module",
+  "packageManager": "pnpm@8.15.8",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "THIRD_PARTY_NOTICES.md",
+    "docs",
+    "vendor/dockyard/src",
+    "vendor/dockyard/LICENSE",
+    "vendor/dockyard/NOTICE.md",
+    "vendor/provenance.json"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yurongk/xpert-plugins.git",
+    "directory": "community/apps/dockyard"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "tenant",
+      "artifactNamespace": "dockyard"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.remote.json",
+    "build": "node scripts/clean-dist.mjs && tsc -p tsconfig.remote.json && tsc -p tsconfig.json && node scripts/build-remote.mjs",
+    "test:upstream": "node --test vendor/dockyard/tests/*.test.mjs",
+    "test:domain": "tsx --test tests/*.test.ts",
+    "test": "pnpm run verify:vendor && pnpm run build && pnpm run test:upstream && pnpm run test:domain && pnpm run verify:dist",
+    "verify:vendor": "node scripts/verify-vendor.mjs",
+    "verify:dist": "node scripts/build-remote.mjs --check"
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "peerDependencies": {
+    "@langchain/core": "^0.3.72",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/cqrs": "^11.0.3",
+    "@nestjs/typeorm": "^11.0.0",
+    "@xpert-ai/contracts": "^3.18.4",
+    "@xpert-ai/plugin-sdk": "^3.18.4",
+    "typeorm": "^0.3.24",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@langchain/core": "0.3.72",
+    "@nestjs/common": "11.1.6",
+    "@nestjs/core": "11.1.6",
+    "@nestjs/cqrs": "11.0.3",
+    "@nestjs/typeorm": "11.0.0",
+    "@types/jsdom": "21.1.7",
+    "@types/node": "22.18.6",
+    "@xpert-ai/contracts": "3.18.4",
+    "@xpert-ai/plugin-sdk": "3.18.4",
+    "esbuild": "0.25.10",
+    "jsdom": "26.1.0",
+    "reflect-metadata": "0.2.2",
+    "sql.js": "1.13.0",
+    "tsx": "4.20.5",
+    "typeorm": "0.3.24",
+    "typescript": "5.9.2",
+    "zod": "3.25.67"
+  },
+  "pnpm": {
+    "packageExtensions": {
+      "@xpert-ai/contracts@3.18.4": {
+        "dependencies": {
+          "short-unique-id": "5.3.2"
+        }
+      },
+      "@xpert-ai/plugin-sdk@3.18.4": {
+        "dependencies": {
+          "axios": "1.12.2"
+        }
+      }
+    }
+  }
+}
