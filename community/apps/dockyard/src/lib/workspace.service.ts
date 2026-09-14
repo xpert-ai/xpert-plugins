@@ -9,6 +9,7 @@ import {
 } from './domain/contracts.js'
 import type { BufferEntry, WorkspaceScope } from './domain/contracts.js'
 import { validateWorkspace } from './domain/layout.js'
+import { editFileSchema, type EditFileInput } from './domain/edit-file.js'
 import { WorkspaceRecord } from './workspace.entity.js'
 
 function recordId(scope: WorkspaceScope, kind: WorkspaceRecord['kind']) {
@@ -72,6 +73,25 @@ export class DockyardWorkspaceService {
   async saveBuffers(scope: WorkspaceScope, input: ReturnType<typeof saveBuffersSchema.parse>, manager = this.records.manager) {
     const parsed = saveBuffersSchema.parse(input)
     return this.write(scope, 'buffers', parsed.expectedRevision, JSON.stringify(parsed.buffers), manager)
+  }
+
+  async editFile(scope: WorkspaceScope, input: EditFileInput) {
+    const parsed = editFileSchema.parse(input)
+    const record = await this.read(scope, 'buffers')
+    if (!record) throw new DockyardError('not_found')
+    if (record.revision !== parsed.expectedRevision) throw new DockyardError('conflict')
+    const buffers = saveBuffersSchema.shape.buffers.parse(JSON.parse(record.payloadJson))
+    const target = buffers.find(item => item.contentId === parsed.contentId)
+    if (!target) throw new DockyardError('not_found')
+    const offset = target.text.indexOf(parsed.oldText)
+    if (offset < 0 || target.text.indexOf(parsed.oldText, offset + 1) >= 0) throw new DockyardError('invalid_target')
+    const text = target.text.slice(0, offset) + parsed.newText + target.text.slice(offset + parsed.oldText.length)
+    const receipt = await this.saveBuffers(scope, {
+      expectedRevision: parsed.expectedRevision,
+      buffers: buffers.map(item => item === target ? { ...item, text } : item)
+    })
+    // Do not expose unrelated buffers or unreferenced text to the model.
+    return { success: true, contentId: parsed.contentId, revision: receipt.revision }
   }
 
   async saveScratchpad(scope: WorkspaceScope, input: ReturnType<typeof saveScratchpadSchema.parse>) {

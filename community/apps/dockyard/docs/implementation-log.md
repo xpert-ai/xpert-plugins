@@ -47,3 +47,15 @@ The vendor verification script passed for all 42 files at Dockyard commit `116dc
 
 
 0.3.0：按用户新范围移除旧 AI 面板、任务服务与工具，保留选区和文件树的两项右键 ChatKit 引用操作。历史数据结构保留；详细验证与未完成运行升级状态见项目 docs/20-简化版右键AI操作说明.md。
+
+## 0.4.0 guarded AI edit tool — 2026-09-14
+
+Added dockyard_edit_file using trusted middleware scope, reference revision, unique exact-text replacement and existing buffer compare-and-swap persistence. Help me edit now checks that the selected file matches saved content before adding a revision-bearing reference. Explain remains read-only by template policy. Added regression coverage for competing writes, replay, stale UI saves, all scope dimensions, ambiguous/missing text, deletion, tool receipts and unsaved reference rejection. No host changes, deployment, restart, browser session or model call.
+
+Verification: 0.4.0 build/typecheck, 56 upstream tests and 16 plugin tests passed; dist-first lifecycle harness passed with mocks. Real model/UI acceptance remains pending.
+
+## 0.4.1 saved buffer synchronization — 2026-09-14
+
+The live database contained theme.css revision 11 while an open editor retained revision 10. Fresh HTML initialization read revision 11 correctly; the missing boundary was external-change synchronization. Added visible-page polling and focus refresh through the existing view query, repainting clean editors and preserving local edits, including edits made during an in-flight query. Conflict notifications are deduplicated per server revision; disposal removes polling and listeners. No host changes or storage migration.
+
+Verification: 56 upstream and 17 plugin tests passed; dist consistency and lifecycle harness passed. Browser acceptance is pending.

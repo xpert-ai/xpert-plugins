@@ -1,6 +1,6 @@
 {
   "name": "@community/apps-dockyard",
-  "version": "0.3.0",
+  "version": "0.4.1",
   "private": true,
   "description": "Dockyard workbench with editor and file context menus for ChatKit references.",
   "license": "AGPL-3.0",

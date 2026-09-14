@@ -16,6 +16,7 @@ test('right click snapshots selection, keeps empty native menu and never sends a
  try {
   const notices: string[] = []; let entries: (MenuEntry|null)[] = []
   const menu = mock.method(manager,'ShowMenu',(items:(MenuEntry|null)[]) => { entries = items })
+  mock.method(adapter, 'editReferenceRevision', async () => 7)
   const append = mock.method(adapter.bridge,'appendReferences',async () => ({success:true}))
   const buffers = new Map([['whole.md','first\nsecond\n']])
   const dispose = mountSelectionReferenceMenu({manager,buffers,sourceDocuments:new ObservableCollection(),getPreset:()=> 'development',toast:s=>notices.push(s),openFile:()=>{}})
@@ -25,7 +26,7 @@ test('right click snapshots selection, keeps empty native menu and never sends a
   assert.equal(event.defaultPrevented,true);assert.equal(menu.mock.callCount(),1)
   editor.value = 'changed after menu opened'
   entries[0]?.Execute?.(); await new Promise(setImmediate)
-  assert.deepEqual(append.mock.calls[0].arguments,[[{type:'code',path:'theme.css',text:'  selected\n',label:'Help me edit · theme.css',startLine:2,endLine:2}]])
+  assert.deepEqual(append.mock.calls[0].arguments,[[{type:'code',path:'theme.css',text:'  selected\n',label:'Help me edit · theme.css · buffers revision=7',startLine:2,endLine:2}]])
   assert.equal(notices.length,1)
   editor.setSelectionRange(0,0)
   const empty = new dom.window.MouseEvent('contextmenu',{bubbles:true,cancelable:true});editor.dispatchEvent(empty)
