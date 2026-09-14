@@ -1,0 +1,2409 @@
+{
+  "package": "@wieslawsoltes/dockyard",
+  "version": "0.1.0",
+  "scope": "Implemented JavaScript exports only; not a completeness comparison with WPF AvalonDock.",
+  "exports": {
+    "AeroTheme": {
+      "kind": "class",
+      "extends": "Theme",
+      "ownProperties": [],
+      "ownMethods": [],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "AnchorSide": {
+      "kind": "namespace-or-enum",
+      "members": [
+        "Bottom",
+        "Left",
+        "Right",
+        "Top"
+      ]
+    },
+    "AnchorableShowStrategy": {
+      "kind": "namespace-or-enum",
+      "members": [
+        "Bottom",
+        "Left",
+        "Most",
+        "Right",
+        "Top"
+      ]
+    },
+    "AvalonDock": {
+      "kind": "namespace-or-enum",
+      "members": [
+        "AeroTheme",
+        "AnchorSide",
+        "AnchorableShowStrategy",
+        "AvalonDockElement",
+        "CancelEventArgs",
+        "Commands",
+        "Controls",
+        "DarkTheme",
+        "DockingManager",
+        "DocumentClosedEventArgs",
+        "DocumentClosingEventArgs",
+        "EventSignal",
+        "GenericTheme",
+        "GridLength",
+        "GridUnitType",
+        "HighContrastTheme",
+        "JsonLayoutSerializer",
+        "Layout",
+        "LayoutAnchorControl",
+        "LayoutAnchorGroup",
+        "LayoutAnchorGroupControl",
+        "LayoutAnchorSide",
+        "LayoutAnchorSideControl",
+        "LayoutAnchorable",
+        "LayoutAnchorableControl",
+        "LayoutAnchorableFloatingWindow",
+        "LayoutAnchorableFloatingWindowControl",
+        "LayoutAnchorableItem",
+        "LayoutAnchorablePane",
+        "LayoutAnchorablePaneControl",
+        "LayoutAnchorablePaneGroup",
+        "LayoutAnchorablePaneGroupControl",
+        "LayoutAutoHideWindowControl",
+        "LayoutContent",
+        "LayoutControl",
+        "LayoutDocument",
+        "LayoutDocumentControl",
+        "LayoutDocumentFloatingWindow",
+        "LayoutDocumentFloatingWindowControl",
+        "LayoutDocumentItem",
+        "LayoutDocumentPane",
+        "LayoutDocumentPaneControl",
+        "LayoutDocumentPaneGroup",
+        "LayoutDocumentPaneGroupControl",
+        "LayoutElement",
+        "LayoutElementEventArgs",
+        "LayoutEventArgs",
+        "LayoutFloatingWindow",
+        "LayoutFloatingWindowControl",
+        "LayoutGroup",
+        "LayoutGroupBase",
+        "LayoutItem",
+        "LayoutPane",
+        "LayoutPanel",
+        "LayoutPanelControl",
+        "LayoutPositionableGroup",
+        "LayoutRoot",
+        "LayoutSerializationCallbackEventArgs",
+        "LayoutSerializer",
+        "LayoutTypes",
+        "LightTheme",
+        "MetroTheme",
+        "NavigatorWindow",
+        "ObservableCollection",
+        "ObservableObject",
+        "Orientation",
+        "PropertyChangedEventArgs",
+        "RelayCommand",
+        "Serialization",
+        "Theme",
+        "Themes",
+        "VS2010Theme",
+        "XmlLayoutSerializer",
+        "boolean",
+        "contents",
+        "controlFor",
+        "finite",
+        "getSchema",
+        "hydrate",
+        "positive",
+        "properties",
+        "registerAvalonDock",
+        "snapshot",
+        "toXml",
+        "uid",
+        "validateLayout",
+        "version",
+        "xmlToSnapshot"
+      ]
+    },
+    "AvalonDockElement": {
+      "kind": "class",
+      "extends": null,
+      "ownProperties": [
+        {
+          "name": "Layout",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "DockingManager",
+          "read": true,
+          "write": false
+        }
+      ],
+      "ownMethods": [
+        "connectedCallback",
+        "disconnectedCallback",
+        "attributeChangedCallback"
+      ],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "CancelEventArgs": {
+      "kind": "class",
+      "extends": null,
+      "ownProperties": [],
+      "ownMethods": [
+        "preventDefault"
+      ],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "Commands": {
+      "kind": "namespace-or-enum",
+      "members": [
+        "RelayCommand"
+      ]
+    },
+    "Controls": {
+      "kind": "namespace-or-enum",
+      "members": [
+        "LayoutAnchorControl",
+        "LayoutAnchorGroupControl",
+        "LayoutAnchorSideControl",
+        "LayoutAnchorableControl",
+        "LayoutAnchorableFloatingWindowControl",
+        "LayoutAnchorablePaneControl",
+        "LayoutAnchorablePaneGroupControl",
+        "LayoutAutoHideWindowControl",
+        "LayoutControl",
+        "LayoutDocumentControl",
+        "LayoutDocumentFloatingWindowControl",
+        "LayoutDocumentPaneControl",
+        "LayoutDocumentPaneGroupControl",
+        "LayoutFloatingWindowControl",
+        "LayoutPanelControl",
+        "NavigatorWindow",
+        "controlFor"
+      ]
+    },
+    "DarkTheme": {
+      "kind": "class",
+      "extends": "Theme",
+      "ownProperties": [],
+      "ownMethods": [],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "DockingManager": {
+      "kind": "class",
+      "extends": "ObservableObject",
+      "ownProperties": [
+        {
+          "name": "Layout",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "ActiveContent",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "ActiveModel",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "FloatingWindows",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "AutoHideWindow",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "LayoutRootPanel",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "LeftSidePanel",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "RightSidePanel",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "TopSidePanel",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "BottomSidePanel",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "CanUndo",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "CanRedo",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "DocumentsSource",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "AnchorablesSource",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "AllowMixedOrientation",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "Theme",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "GridSplitterWidth",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "GridSplitterHeight",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "FloatingWindowMinWidth",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "FloatingWindowMinHeight",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "ShowSystemMenu",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "AllowKeyboardNavigation",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "AutoHideDelay",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "AutoHideCloseDelay",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "EnableHistory",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "HistoryLimit",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "StorageKey",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "AutoSave",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "RestoreOnLoad",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "FlowDirection",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "LayoutUpdateStrategy",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "LayoutItemTemplate",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "LayoutItemTemplateSelector",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "DocumentHeaderTemplate",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "DocumentHeaderTemplateSelector",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "AnchorableHeaderTemplate",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "AnchorableHeaderTemplateSelector",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "DocumentTitleTemplate",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "DocumentTitleTemplateSelector",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "AnchorableTitleTemplate",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "AnchorableTitleTemplateSelector",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "DocumentPaneMenuItemHeaderTemplate",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "DocumentPaneMenuItemHeaderTemplateSelector",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "IconContentTemplate",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "IconContentTemplateSelector",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "DocumentPaneTemplate",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "AnchorablePaneTemplate",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "AnchorGroupTemplate",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "AnchorSideTemplate",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "AnchorTemplate",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "DocumentPaneControlStyle",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "AnchorablePaneControlStyle",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "LayoutItemContainerStyle",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "LayoutItemContainerStyleSelector",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "DocumentContextMenu",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "AnchorableContextMenu",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "Strings",
+          "read": true,
+          "write": true
+        }
+      ],
+      "ownMethods": [
+        "Attach",
+        "Detach",
+        "Dispose",
+        "dispose",
+        "OnApplyTemplate",
+        "ApplyTemplate",
+        "Refresh",
+        "Transaction",
+        "BeginUpdate",
+        "EndUpdate",
+        "Undo",
+        "Redo",
+        "ClearHistory",
+        "Find",
+        "FindById",
+        "GetLayoutItemFromModel",
+        "CreateUIElementForModel",
+        "Activate",
+        "AddDocument",
+        "AddAnchorable",
+        "Float",
+        "CanDockAt",
+        "Dock",
+        "DockAsDocument",
+        "NewTabGroup",
+        "MoveToTabGroup",
+        "Hide",
+        "Show",
+        "ToggleAutoHide",
+        "ShowAutoHideWindow",
+        "HideAutoHideWindow",
+        "Close",
+        "CloseAll",
+        "CloseFloatingWindow",
+        "PopOut",
+        "FocusNextPane",
+        "ShowNavigator",
+        "ShowMenu",
+        "ShowContextMenu",
+        "SaveLayout",
+        "LoadLayout",
+        "SaveToStorage",
+        "LoadFromStorage",
+        "ReleaseContent",
+        "RefreshSources",
+        "TransferTo"
+      ],
+      "observableProperties": [
+        "AllowKeyboardNavigation",
+        "AllowMixedOrientation",
+        "AnchorGroupTemplate",
+        "AnchorSideTemplate",
+        "AnchorTemplate",
+        "AnchorableContextMenu",
+        "AnchorableHeaderTemplate",
+        "AnchorableHeaderTemplateSelector",
+        "AnchorablePaneControlStyle",
+        "AnchorablePaneTemplate",
+        "AnchorableTitleTemplate",
+        "AnchorableTitleTemplateSelector",
+        "AutoHideCloseDelay",
+        "AutoHideDelay",
+        "AutoSave",
+        "DocumentContextMenu",
+        "DocumentHeaderTemplate",
+        "DocumentHeaderTemplateSelector",
+        "DocumentPaneControlStyle",
+        "DocumentPaneMenuItemHeaderTemplate",
+        "DocumentPaneMenuItemHeaderTemplateSelector",
+        "DocumentPaneTemplate",
+        "DocumentTitleTemplate",
+        "DocumentTitleTemplateSelector",
+        "EnableHistory",
+        "FloatingWindowMinHeight",
+        "FloatingWindowMinWidth",
+        "FlowDirection",
+        "GridSplitterHeight",
+        "GridSplitterWidth",
+        "HistoryLimit",
+        "IconContentTemplate",
+        "IconContentTemplateSelector",
+        "LayoutItemContainerStyle",
+        "LayoutItemContainerStyleSelector",
+        "LayoutItemTemplate",
+        "LayoutItemTemplateSelector",
+        "LayoutUpdateStrategy",
+        "RestoreOnLoad",
+        "ShowSystemMenu",
+        "StorageKey",
+        "Strings",
+        "Theme"
+      ],
+      "ownPropertyTokens": [
+        "ActiveContentProperty",
+        "AllowKeyboardNavigationProperty",
+        "AllowMixedOrientationProperty",
+        "AnchorGroupTemplateProperty",
+        "AnchorSideTemplateProperty",
+        "AnchorTemplateProperty",
+        "AnchorableContextMenuProperty",
+        "AnchorableHeaderTemplateProperty",
+        "AnchorableHeaderTemplateSelectorProperty",
+        "AnchorablePaneControlStyleProperty",
+        "AnchorablePaneTemplateProperty",
+        "AnchorableTitleTemplateProperty",
+        "AnchorableTitleTemplateSelectorProperty",
+        "AnchorablesSourceProperty",
+        "AutoHideCloseDelayProperty",
+        "AutoHideDelayProperty",
+        "AutoSaveProperty",
+        "DocumentContextMenuProperty",
+        "DocumentHeaderTemplateProperty",
+        "DocumentHeaderTemplateSelectorProperty",
+        "DocumentPaneControlStyleProperty",
+        "DocumentPaneMenuItemHeaderTemplateProperty",
+        "DocumentPaneMenuItemHeaderTemplateSelectorProperty",
+        "DocumentPaneTemplateProperty",
+        "DocumentTitleTemplateProperty",
+        "DocumentTitleTemplateSelectorProperty",
+        "DocumentsSourceProperty",
+        "EnableHistoryProperty",
+        "FloatingWindowMinHeightProperty",
+        "FloatingWindowMinWidthProperty",
+        "FlowDirectionProperty",
+        "GridSplitterHeightProperty",
+        "GridSplitterWidthProperty",
+        "HistoryLimitProperty",
+        "IconContentTemplateProperty",
+        "IconContentTemplateSelectorProperty",
+        "LayoutItemContainerStyleProperty",
+        "LayoutItemContainerStyleSelectorProperty",
+        "LayoutItemTemplateProperty",
+        "LayoutItemTemplateSelectorProperty",
+        "LayoutProperty",
+        "LayoutUpdateStrategyProperty",
+        "RestoreOnLoadProperty",
+        "ShowSystemMenuProperty",
+        "StorageKeyProperty",
+        "StringsProperty",
+        "ThemeProperty"
+      ]
+    },
+    "DocumentClosedEventArgs": {
+      "kind": "class",
+      "extends": null,
+      "ownProperties": [],
+      "ownMethods": [],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "DocumentClosingEventArgs": {
+      "kind": "class",
+      "extends": "CancelEventArgs",
+      "ownProperties": [],
+      "ownMethods": [],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "EventSignal": {
+      "kind": "class",
+      "extends": null,
+      "ownProperties": [
+        {
+          "name": "Count",
+          "read": true,
+          "write": false
+        }
+      ],
+      "ownMethods": [
+        "add",
+        "remove",
+        "Add",
+        "Remove",
+        "subscribe",
+        "emit",
+        "clear"
+      ],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "GenericTheme": {
+      "kind": "class",
+      "extends": "Theme",
+      "ownProperties": [],
+      "ownMethods": [],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "GridLength": {
+      "kind": "class",
+      "extends": null,
+      "ownProperties": [
+        {
+          "name": "IsStar",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "IsAbsolute",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "IsAuto",
+          "read": true,
+          "write": false
+        }
+      ],
+      "ownMethods": [
+        "Equals",
+        "toString",
+        "toJSON"
+      ],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "GridUnitType": {
+      "kind": "namespace-or-enum",
+      "members": [
+        "Auto",
+        "Pixel",
+        "Star"
+      ]
+    },
+    "HighContrastTheme": {
+      "kind": "class",
+      "extends": "Theme",
+      "ownProperties": [],
+      "ownMethods": [],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "JsonLayoutSerializer": {
+      "kind": "class",
+      "extends": "LayoutSerializer",
+      "ownProperties": [],
+      "ownMethods": [
+        "Serialize",
+        "Deserialize"
+      ],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "Layout": {
+      "kind": "namespace-or-enum",
+      "members": [
+        "AnchorSide",
+        "AnchorableShowStrategy",
+        "GridLength",
+        "LayoutAnchorGroup",
+        "LayoutAnchorSide",
+        "LayoutAnchorable",
+        "LayoutAnchorableFloatingWindow",
+        "LayoutAnchorablePane",
+        "LayoutAnchorablePaneGroup",
+        "LayoutContent",
+        "LayoutDocument",
+        "LayoutDocumentFloatingWindow",
+        "LayoutDocumentPane",
+        "LayoutDocumentPaneGroup",
+        "LayoutElement",
+        "LayoutFloatingWindow",
+        "LayoutGroup",
+        "LayoutGroupBase",
+        "LayoutPane",
+        "LayoutPanel",
+        "LayoutPositionableGroup",
+        "LayoutRoot",
+        "LayoutTypes",
+        "ObservableCollection",
+        "Serialization",
+        "contents",
+        "validateLayout"
+      ]
+    },
+    "LayoutAnchorControl": {
+      "kind": "class",
+      "extends": "LayoutControl",
+      "ownProperties": [
+        {
+          "name": "Element",
+          "read": true,
+          "write": false
+        }
+      ],
+      "ownMethods": [],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "LayoutAnchorGroup": {
+      "kind": "class",
+      "extends": "LayoutGroup",
+      "ownProperties": [],
+      "ownMethods": [],
+      "observableProperties": [
+        "Id"
+      ],
+      "ownPropertyTokens": []
+    },
+    "LayoutAnchorGroupControl": {
+      "kind": "class",
+      "extends": "LayoutControl",
+      "ownProperties": [],
+      "ownMethods": [],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "LayoutAnchorSide": {
+      "kind": "class",
+      "extends": "LayoutGroup",
+      "ownProperties": [
+        {
+          "name": "Side",
+          "read": true,
+          "write": true
+        }
+      ],
+      "ownMethods": [],
+      "observableProperties": [
+        "Id",
+        "Side"
+      ],
+      "ownPropertyTokens": [
+        "SideProperty"
+      ]
+    },
+    "LayoutAnchorSideControl": {
+      "kind": "class",
+      "extends": "LayoutControl",
+      "ownProperties": [
+        {
+          "name": "Element",
+          "read": true,
+          "write": false
+        }
+      ],
+      "ownMethods": [],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "LayoutAnchorable": {
+      "kind": "class",
+      "extends": "LayoutContent",
+      "ownProperties": [
+        {
+          "name": "IsAutoHidden",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "IsHidden",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "IsVisible",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "CanHide",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "CanAutoHide",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "CanDockAsTabbedDocument",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "AutoHideWidth",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "AutoHideHeight",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "AutoHideMinWidth",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "AutoHideMinHeight",
+          "read": true,
+          "write": true
+        }
+      ],
+      "ownMethods": [
+        "Hide",
+        "Show",
+        "ToggleAutoHide",
+        "AddToLayout"
+      ],
+      "observableProperties": [
+        "AutoHideHeight",
+        "AutoHideMinHeight",
+        "AutoHideMinWidth",
+        "AutoHideWidth",
+        "CanAutoHide",
+        "CanClose",
+        "CanDock",
+        "CanDockAsTabbedDocument",
+        "CanFloat",
+        "CanHide",
+        "CanMove",
+        "Content",
+        "ContentId",
+        "Description",
+        "FloatingHeight",
+        "FloatingLeft",
+        "FloatingTop",
+        "FloatingWidth",
+        "IconSource",
+        "Id",
+        "IsEnabled",
+        "IsMaximized",
+        "IsModified",
+        "IsPinned",
+        "LastActivationTimeStamp",
+        "PreviousContainerIndex",
+        "Title",
+        "ToolTip",
+        "UserData"
+      ],
+      "ownPropertyTokens": [
+        "AutoHideHeightProperty",
+        "AutoHideMinHeightProperty",
+        "AutoHideMinWidthProperty",
+        "AutoHideWidthProperty",
+        "CanAutoHideProperty",
+        "CanDockAsTabbedDocumentProperty",
+        "CanHideProperty"
+      ]
+    },
+    "LayoutAnchorableControl": {
+      "kind": "class",
+      "extends": "LayoutDocumentControl",
+      "ownProperties": [],
+      "ownMethods": [],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "LayoutAnchorableFloatingWindow": {
+      "kind": "class",
+      "extends": "LayoutFloatingWindow",
+      "ownProperties": [],
+      "ownMethods": [],
+      "observableProperties": [
+        "FloatingHeight",
+        "FloatingLeft",
+        "FloatingTop",
+        "FloatingWidth",
+        "Id",
+        "IsMaximized",
+        "ZIndex"
+      ],
+      "ownPropertyTokens": []
+    },
+    "LayoutAnchorableFloatingWindowControl": {
+      "kind": "class",
+      "extends": "LayoutFloatingWindowControl",
+      "ownProperties": [],
+      "ownMethods": [],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "LayoutAnchorableItem": {
+      "kind": "class",
+      "extends": "LayoutItem",
+      "ownProperties": [
+        {
+          "name": "CanHide",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "CanAutoHide",
+          "read": true,
+          "write": true
+        }
+      ],
+      "ownMethods": [],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "LayoutAnchorablePane": {
+      "kind": "class",
+      "extends": "LayoutPane",
+      "ownProperties": [],
+      "ownMethods": [],
+      "observableProperties": [
+        "ActualHeight",
+        "ActualWidth",
+        "CanRepositionItems",
+        "DockHeight",
+        "DockMaxHeight",
+        "DockMaxWidth",
+        "DockMinHeight",
+        "DockMinWidth",
+        "DockWidth",
+        "FloatingHeight",
+        "FloatingLeft",
+        "FloatingTop",
+        "FloatingWidth",
+        "Id",
+        "IsMaximized",
+        "Name",
+        "ResizableAbsoluteDockHeight",
+        "ResizableAbsoluteDockWidth",
+        "ShowHeader"
+      ],
+      "ownPropertyTokens": []
+    },
+    "LayoutAnchorablePaneControl": {
+      "kind": "class",
+      "extends": "LayoutControl",
+      "ownProperties": [],
+      "ownMethods": [],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "LayoutAnchorablePaneGroup": {
+      "kind": "class",
+      "extends": "LayoutPositionableGroup",
+      "ownProperties": [
+        {
+          "name": "Orientation",
+          "read": true,
+          "write": true
+        }
+      ],
+      "ownMethods": [],
+      "observableProperties": [
+        "ActualHeight",
+        "ActualWidth",
+        "DockHeight",
+        "DockMaxHeight",
+        "DockMaxWidth",
+        "DockMinHeight",
+        "DockMinWidth",
+        "DockWidth",
+        "FloatingHeight",
+        "FloatingLeft",
+        "FloatingTop",
+        "FloatingWidth",
+        "Id",
+        "IsMaximized",
+        "Orientation",
+        "ResizableAbsoluteDockHeight",
+        "ResizableAbsoluteDockWidth"
+      ],
+      "ownPropertyTokens": [
+        "OrientationProperty"
+      ]
+    },
+    "LayoutAnchorablePaneGroupControl": {
+      "kind": "class",
+      "extends": "LayoutControl",
+      "ownProperties": [],
+      "ownMethods": [],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "LayoutAutoHideWindowControl": {
+      "kind": "class",
+      "extends": "LayoutControl",
+      "ownProperties": [
+        {
+          "name": "Element",
+          "read": true,
+          "write": false
+        }
+      ],
+      "ownMethods": [
+        "Show",
+        "Hide"
+      ],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "LayoutContent": {
+      "kind": "class",
+      "extends": "LayoutElement",
+      "ownProperties": [
+        {
+          "name": "IsSelected",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "IsActive",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "IsFloating",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "IsLastFocusedDocument",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "IsVisible",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "PreviousContainer",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "PreviousContainerId",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "IsDocked",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "IsAutoHidden",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "Title",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "ContentId",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "Content",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "IconSource",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "ToolTip",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "Description",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "CanClose",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "CanFloat",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "CanMove",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "CanDock",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "IsEnabled",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "IsModified",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "IsPinned",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "FloatingLeft",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "FloatingTop",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "FloatingWidth",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "FloatingHeight",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "IsMaximized",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "PreviousContainerIndex",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "LastActivationTimeStamp",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "UserData",
+          "read": true,
+          "write": true
+        }
+      ],
+      "ownMethods": [
+        "Activate",
+        "Float",
+        "Dock",
+        "DockAsDocument",
+        "Close"
+      ],
+      "observableProperties": [
+        "CanClose",
+        "CanDock",
+        "CanFloat",
+        "CanMove",
+        "Content",
+        "ContentId",
+        "Description",
+        "FloatingHeight",
+        "FloatingLeft",
+        "FloatingTop",
+        "FloatingWidth",
+        "IconSource",
+        "Id",
+        "IsEnabled",
+        "IsMaximized",
+        "IsModified",
+        "IsPinned",
+        "LastActivationTimeStamp",
+        "PreviousContainerIndex",
+        "Title",
+        "ToolTip",
+        "UserData"
+      ],
+      "ownPropertyTokens": [
+        "CanCloseProperty",
+        "CanDockProperty",
+        "CanFloatProperty",
+        "CanMoveProperty",
+        "ContentIdProperty",
+        "ContentProperty",
+        "DescriptionProperty",
+        "FloatingHeightProperty",
+        "FloatingLeftProperty",
+        "FloatingTopProperty",
+        "FloatingWidthProperty",
+        "IconSourceProperty",
+        "IsEnabledProperty",
+        "IsMaximizedProperty",
+        "IsModifiedProperty",
+        "IsPinnedProperty",
+        "LastActivationTimeStampProperty",
+        "PreviousContainerIndexProperty",
+        "TitleProperty",
+        "ToolTipProperty",
+        "UserDataProperty"
+      ]
+    },
+    "LayoutControl": {
+      "kind": "class",
+      "extends": null,
+      "ownProperties": [
+        {
+          "name": "Element",
+          "read": true,
+          "write": false
+        }
+      ],
+      "ownMethods": [
+        "Focus"
+      ],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "LayoutDocument": {
+      "kind": "class",
+      "extends": "LayoutContent",
+      "ownProperties": [],
+      "ownMethods": [],
+      "observableProperties": [
+        "CanClose",
+        "CanDock",
+        "CanFloat",
+        "CanMove",
+        "Content",
+        "ContentId",
+        "Description",
+        "FloatingHeight",
+        "FloatingLeft",
+        "FloatingTop",
+        "FloatingWidth",
+        "IconSource",
+        "Id",
+        "IsEnabled",
+        "IsMaximized",
+        "IsModified",
+        "IsPinned",
+        "LastActivationTimeStamp",
+        "PreviousContainerIndex",
+        "Title",
+        "ToolTip",
+        "UserData"
+      ],
+      "ownPropertyTokens": []
+    },
+    "LayoutDocumentControl": {
+      "kind": "class",
+      "extends": "LayoutControl",
+      "ownProperties": [
+        {
+          "name": "Element",
+          "read": true,
+          "write": false
+        }
+      ],
+      "ownMethods": [],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "LayoutDocumentFloatingWindow": {
+      "kind": "class",
+      "extends": "LayoutFloatingWindow",
+      "ownProperties": [
+        {
+          "name": "RootDocument",
+          "read": true,
+          "write": true
+        }
+      ],
+      "ownMethods": [],
+      "observableProperties": [
+        "FloatingHeight",
+        "FloatingLeft",
+        "FloatingTop",
+        "FloatingWidth",
+        "Id",
+        "IsMaximized",
+        "ZIndex"
+      ],
+      "ownPropertyTokens": []
+    },
+    "LayoutDocumentFloatingWindowControl": {
+      "kind": "class",
+      "extends": "LayoutFloatingWindowControl",
+      "ownProperties": [],
+      "ownMethods": [],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "LayoutDocumentItem": {
+      "kind": "class",
+      "extends": "LayoutItem",
+      "ownProperties": [],
+      "ownMethods": [],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "LayoutDocumentPane": {
+      "kind": "class",
+      "extends": "LayoutPane",
+      "ownProperties": [
+        {
+          "name": "IsVisible",
+          "read": true,
+          "write": false
+        }
+      ],
+      "ownMethods": [],
+      "observableProperties": [
+        "ActualHeight",
+        "ActualWidth",
+        "CanRepositionItems",
+        "DockHeight",
+        "DockMaxHeight",
+        "DockMaxWidth",
+        "DockMinHeight",
+        "DockMinWidth",
+        "DockWidth",
+        "FloatingHeight",
+        "FloatingLeft",
+        "FloatingTop",
+        "FloatingWidth",
+        "Id",
+        "IsMaximized",
+        "Name",
+        "ResizableAbsoluteDockHeight",
+        "ResizableAbsoluteDockWidth",
+        "ShowHeader"
+      ],
+      "ownPropertyTokens": []
+    },
+    "LayoutDocumentPaneControl": {
+      "kind": "class",
+      "extends": "LayoutControl",
+      "ownProperties": [],
+      "ownMethods": [],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "LayoutDocumentPaneGroup": {
+      "kind": "class",
+      "extends": "LayoutPositionableGroup",
+      "ownProperties": [
+        {
+          "name": "Orientation",
+          "read": true,
+          "write": true
+        }
+      ],
+      "ownMethods": [],
+      "observableProperties": [
+        "ActualHeight",
+        "ActualWidth",
+        "DockHeight",
+        "DockMaxHeight",
+        "DockMaxWidth",
+        "DockMinHeight",
+        "DockMinWidth",
+        "DockWidth",
+        "FloatingHeight",
+        "FloatingLeft",
+        "FloatingTop",
+        "FloatingWidth",
+        "Id",
+        "IsMaximized",
+        "Orientation",
+        "ResizableAbsoluteDockHeight",
+        "ResizableAbsoluteDockWidth"
+      ],
+      "ownPropertyTokens": [
+        "OrientationProperty"
+      ]
+    },
+    "LayoutDocumentPaneGroupControl": {
+      "kind": "class",
+      "extends": "LayoutControl",
+      "ownProperties": [],
+      "ownMethods": [],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "LayoutElement": {
+      "kind": "class",
+      "extends": "ObservableObject",
+      "ownProperties": [
+        {
+          "name": "Parent",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "Root",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "Manager",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "Children",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "ChildrenCount",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "Id",
+          "read": true,
+          "write": true
+        }
+      ],
+      "ownMethods": [
+        "Descendents",
+        "Descendants",
+        "FindParent",
+        "FindRoot",
+        "toString"
+      ],
+      "observableProperties": [
+        "Id"
+      ],
+      "ownPropertyTokens": [
+        "IdProperty"
+      ]
+    },
+    "LayoutElementEventArgs": {
+      "kind": "class",
+      "extends": null,
+      "ownProperties": [],
+      "ownMethods": [],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "LayoutEventArgs": {
+      "kind": "class",
+      "extends": null,
+      "ownProperties": [],
+      "ownMethods": [],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "LayoutFloatingWindow": {
+      "kind": "class",
+      "extends": "LayoutGroup",
+      "ownProperties": [
+        {
+          "name": "IsValid",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "IsVisible",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "IsSinglePane",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "SinglePane",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "RootPanel",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "FloatingLeft",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "FloatingTop",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "FloatingWidth",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "FloatingHeight",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "IsMaximized",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "ZIndex",
+          "read": true,
+          "write": true
+        }
+      ],
+      "ownMethods": [],
+      "observableProperties": [
+        "FloatingHeight",
+        "FloatingLeft",
+        "FloatingTop",
+        "FloatingWidth",
+        "Id",
+        "IsMaximized",
+        "ZIndex"
+      ],
+      "ownPropertyTokens": [
+        "FloatingHeightProperty",
+        "FloatingLeftProperty",
+        "FloatingTopProperty",
+        "FloatingWidthProperty",
+        "IsMaximizedProperty",
+        "ZIndexProperty"
+      ]
+    },
+    "LayoutFloatingWindowControl": {
+      "kind": "class",
+      "extends": "LayoutControl",
+      "ownProperties": [
+        {
+          "name": "IsMaximized",
+          "read": true,
+          "write": false
+        }
+      ],
+      "ownMethods": [
+        "Show",
+        "Close",
+        "Dock",
+        "Maximize",
+        "Restore"
+      ],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "LayoutGroup": {
+      "kind": "class",
+      "extends": "LayoutGroupBase",
+      "ownProperties": [],
+      "ownMethods": [],
+      "observableProperties": [
+        "Id"
+      ],
+      "ownPropertyTokens": []
+    },
+    "LayoutGroupBase": {
+      "kind": "class",
+      "extends": "LayoutElement",
+      "ownProperties": [
+        {
+          "name": "Children",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "ChildrenCount",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "IsVisible",
+          "read": true,
+          "write": false
+        }
+      ],
+      "ownMethods": [
+        "IndexOf",
+        "InsertChildAt",
+        "RemoveChild",
+        "RemoveChildAt",
+        "ReplaceChild",
+        "MoveChild",
+        "ComputeVisibility"
+      ],
+      "observableProperties": [
+        "Id"
+      ],
+      "ownPropertyTokens": []
+    },
+    "LayoutItem": {
+      "kind": "class",
+      "extends": "ObservableObject",
+      "ownProperties": [
+        {
+          "name": "View",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "Title",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "ContentId",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "IconSource",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "ToolTip",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "CanClose",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "CanFloat",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "IsSelected",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "IsActive",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "IsEnabled",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "Description",
+          "read": true,
+          "write": true
+        }
+      ],
+      "ownMethods": [
+        "RaiseCanExecuteChanged",
+        "Dispose"
+      ],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "LayoutPane": {
+      "kind": "class",
+      "extends": "LayoutPositionableGroup",
+      "ownProperties": [
+        {
+          "name": "SelectedContentIndex",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "SelectedContent",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "IsActive",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "CanClose",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "CanHide",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "CanAutoHide",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "IsDirectlyHostedInFloatingWindow",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "CanRepositionItems",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "ShowHeader",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "Name",
+          "read": true,
+          "write": true
+        }
+      ],
+      "ownMethods": [
+        "SetNextSelectedIndex"
+      ],
+      "observableProperties": [
+        "ActualHeight",
+        "ActualWidth",
+        "CanRepositionItems",
+        "DockHeight",
+        "DockMaxHeight",
+        "DockMaxWidth",
+        "DockMinHeight",
+        "DockMinWidth",
+        "DockWidth",
+        "FloatingHeight",
+        "FloatingLeft",
+        "FloatingTop",
+        "FloatingWidth",
+        "Id",
+        "IsMaximized",
+        "Name",
+        "ResizableAbsoluteDockHeight",
+        "ResizableAbsoluteDockWidth",
+        "ShowHeader"
+      ],
+      "ownPropertyTokens": [
+        "CanRepositionItemsProperty",
+        "NameProperty",
+        "ShowHeaderProperty"
+      ]
+    },
+    "LayoutPanel": {
+      "kind": "class",
+      "extends": "LayoutPositionableGroup",
+      "ownProperties": [
+        {
+          "name": "Orientation",
+          "read": true,
+          "write": true
+        }
+      ],
+      "ownMethods": [],
+      "observableProperties": [
+        "ActualHeight",
+        "ActualWidth",
+        "DockHeight",
+        "DockMaxHeight",
+        "DockMaxWidth",
+        "DockMinHeight",
+        "DockMinWidth",
+        "DockWidth",
+        "FloatingHeight",
+        "FloatingLeft",
+        "FloatingTop",
+        "FloatingWidth",
+        "Id",
+        "IsMaximized",
+        "Orientation",
+        "ResizableAbsoluteDockHeight",
+        "ResizableAbsoluteDockWidth"
+      ],
+      "ownPropertyTokens": [
+        "OrientationProperty"
+      ]
+    },
+    "LayoutPanelControl": {
+      "kind": "class",
+      "extends": "LayoutControl",
+      "ownProperties": [],
+      "ownMethods": [],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "LayoutPositionableGroup": {
+      "kind": "class",
+      "extends": "LayoutGroup",
+      "ownProperties": [
+        {
+          "name": "DockWidth",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "DockHeight",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "DockMinWidth",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "DockMinHeight",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "DockMaxWidth",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "DockMaxHeight",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "FloatingLeft",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "FloatingTop",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "FloatingWidth",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "FloatingHeight",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "IsMaximized",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "ActualWidth",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "ActualHeight",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "ResizableAbsoluteDockWidth",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "ResizableAbsoluteDockHeight",
+          "read": true,
+          "write": true
+        }
+      ],
+      "ownMethods": [],
+      "observableProperties": [
+        "ActualHeight",
+        "ActualWidth",
+        "DockHeight",
+        "DockMaxHeight",
+        "DockMaxWidth",
+        "DockMinHeight",
+        "DockMinWidth",
+        "DockWidth",
+        "FloatingHeight",
+        "FloatingLeft",
+        "FloatingTop",
+        "FloatingWidth",
+        "Id",
+        "IsMaximized",
+        "ResizableAbsoluteDockHeight",
+        "ResizableAbsoluteDockWidth"
+      ],
+      "ownPropertyTokens": [
+        "ActualHeightProperty",
+        "ActualWidthProperty",
+        "DockHeightProperty",
+        "DockMaxHeightProperty",
+        "DockMaxWidthProperty",
+        "DockMinHeightProperty",
+        "DockMinWidthProperty",
+        "DockWidthProperty",
+        "FloatingHeightProperty",
+        "FloatingLeftProperty",
+        "FloatingTopProperty",
+        "FloatingWidthProperty",
+        "IsMaximizedProperty",
+        "ResizableAbsoluteDockHeightProperty",
+        "ResizableAbsoluteDockWidthProperty"
+      ]
+    },
+    "LayoutRoot": {
+      "kind": "class",
+      "extends": "LayoutElement",
+      "ownProperties": [
+        {
+          "name": "RootPanel",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "Children",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "ActiveContent",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "LastFocusedDocument",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "IsVisible",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "LeftSide",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "TopSide",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "RightSide",
+          "read": true,
+          "write": true
+        },
+        {
+          "name": "BottomSide",
+          "read": true,
+          "write": true
+        }
+      ],
+      "ownMethods": [
+        "RemoveChild",
+        "ReplaceChild",
+        "CollectGarbage"
+      ],
+      "observableProperties": [
+        "Id"
+      ],
+      "ownPropertyTokens": []
+    },
+    "LayoutSerializationCallbackEventArgs": {
+      "kind": "class",
+      "extends": "CancelEventArgs",
+      "ownProperties": [],
+      "ownMethods": [],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "LayoutSerializer": {
+      "kind": "class",
+      "extends": null,
+      "ownProperties": [],
+      "ownMethods": [],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "LayoutTypes": {
+      "kind": "namespace-or-enum",
+      "members": [
+        "LayoutAnchorGroup",
+        "LayoutAnchorSide",
+        "LayoutAnchorable",
+        "LayoutAnchorableFloatingWindow",
+        "LayoutAnchorablePane",
+        "LayoutAnchorablePaneGroup",
+        "LayoutContent",
+        "LayoutDocument",
+        "LayoutDocumentFloatingWindow",
+        "LayoutDocumentPane",
+        "LayoutDocumentPaneGroup",
+        "LayoutElement",
+        "LayoutFloatingWindow",
+        "LayoutGroup",
+        "LayoutGroupBase",
+        "LayoutPane",
+        "LayoutPanel",
+        "LayoutPositionableGroup",
+        "LayoutRoot"
+      ]
+    },
+    "LightTheme": {
+      "kind": "class",
+      "extends": "Theme",
+      "ownProperties": [],
+      "ownMethods": [],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "MetroTheme": {
+      "kind": "class",
+      "extends": "Theme",
+      "ownProperties": [],
+      "ownMethods": [],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "NavigatorWindow": {
+      "kind": "class",
+      "extends": "LayoutControl",
+      "ownProperties": [
+        {
+          "name": "Element",
+          "read": true,
+          "write": false
+        }
+      ],
+      "ownMethods": [
+        "Show",
+        "Close"
+      ],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "ObservableCollection": {
+      "kind": "class",
+      "extends": null,
+      "ownProperties": [
+        {
+          "name": "Count",
+          "read": true,
+          "write": false
+        },
+        {
+          "name": "length",
+          "read": true,
+          "write": false
+        }
+      ],
+      "ownMethods": [
+        "at",
+        "get",
+        "IndexOf",
+        "indexOf",
+        "Contains",
+        "includes",
+        "find",
+        "findIndex",
+        "filter",
+        "map",
+        "forEach",
+        "every",
+        "some",
+        "reduce",
+        "slice",
+        "ToArray",
+        "Add",
+        "AddRange",
+        "push",
+        "Insert",
+        "Set",
+        "Remove",
+        "RemoveAt",
+        "Move",
+        "Clear",
+        "pop",
+        "shift",
+        "unshift",
+        "splice"
+      ],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "ObservableObject": {
+      "kind": "class",
+      "extends": null,
+      "ownProperties": [],
+      "ownMethods": [
+        "on",
+        "off",
+        "GetValue",
+        "SetValue",
+        "SetCurrentValue",
+        "ClearValue"
+      ],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "Orientation": {
+      "kind": "namespace-or-enum",
+      "members": [
+        "Horizontal",
+        "Vertical"
+      ]
+    },
+    "PropertyChangedEventArgs": {
+      "kind": "class",
+      "extends": null,
+      "ownProperties": [],
+      "ownMethods": [],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "RelayCommand": {
+      "kind": "class",
+      "extends": null,
+      "ownProperties": [],
+      "ownMethods": [
+        "CanExecute",
+        "Execute",
+        "RaiseCanExecuteChanged"
+      ],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "Serialization": {
+      "kind": "namespace-or-enum",
+      "members": [
+        "JsonLayoutSerializer",
+        "LayoutSerializationCallbackEventArgs",
+        "LayoutSerializer",
+        "XmlLayoutSerializer",
+        "hydrate",
+        "snapshot",
+        "toXml",
+        "xmlToSnapshot"
+      ]
+    },
+    "Theme": {
+      "kind": "class",
+      "extends": null,
+      "ownProperties": [],
+      "ownMethods": [
+        "GetResourceUri",
+        "toString"
+      ],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "Themes": {
+      "kind": "namespace-or-enum",
+      "members": [
+        "AeroTheme",
+        "DarkTheme",
+        "GenericTheme",
+        "HighContrastTheme",
+        "LightTheme",
+        "MetroTheme",
+        "Theme",
+        "VS2010Theme"
+      ]
+    },
+    "VS2010Theme": {
+      "kind": "class",
+      "extends": "Theme",
+      "ownProperties": [],
+      "ownMethods": [],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "XmlLayoutSerializer": {
+      "kind": "class",
+      "extends": "LayoutSerializer",
+      "ownProperties": [],
+      "ownMethods": [
+        "Serialize",
+        "Deserialize"
+      ],
+      "observableProperties": [],
+      "ownPropertyTokens": []
+    },
+    "boolean": {
+      "kind": "function"
+    },
+    "contents": {
+      "kind": "function"
+    },
+    "controlFor": {
+      "kind": "function"
+    },
+    "default": {
+      "kind": "namespace-or-enum",
+      "members": [
+        "AeroTheme",
+        "AnchorSide",
+        "AnchorableShowStrategy",
+        "AvalonDockElement",
+        "CancelEventArgs",
+        "Commands",
+        "Controls",
+        "DarkTheme",
+        "DockingManager",
+        "DocumentClosedEventArgs",
+        "DocumentClosingEventArgs",
+        "EventSignal",
+        "GenericTheme",
+        "GridLength",
+        "GridUnitType",
+        "HighContrastTheme",
+        "JsonLayoutSerializer",
+        "Layout",
+        "LayoutAnchorControl",
+        "LayoutAnchorGroup",
+        "LayoutAnchorGroupControl",
+        "LayoutAnchorSide",
+        "LayoutAnchorSideControl",
+        "LayoutAnchorable",
+        "LayoutAnchorableControl",
+        "LayoutAnchorableFloatingWindow",
+        "LayoutAnchorableFloatingWindowControl",
+        "LayoutAnchorableItem",
+        "LayoutAnchorablePane",
+        "LayoutAnchorablePaneControl",
+        "LayoutAnchorablePaneGroup",
+        "LayoutAnchorablePaneGroupControl",
+        "LayoutAutoHideWindowControl",
+        "LayoutContent",
+        "LayoutControl",
+        "LayoutDocument",
+        "LayoutDocumentControl",
+        "LayoutDocumentFloatingWindow",
+        "LayoutDocumentFloatingWindowControl",
+        "LayoutDocumentItem",
+        "LayoutDocumentPane",
+        "LayoutDocumentPaneControl",
+        "LayoutDocumentPaneGroup",
+        "LayoutDocumentPaneGroupControl",
+        "LayoutElement",
+        "LayoutElementEventArgs",
+        "LayoutEventArgs",
+        "LayoutFloatingWindow",
+        "LayoutFloatingWindowControl",
+        "LayoutGroup",
+        "LayoutGroupBase",
+        "LayoutItem",
+        "LayoutPane",
+        "LayoutPanel",
+        "LayoutPanelControl",
+        "LayoutPositionableGroup",
+        "LayoutRoot",
+        "LayoutSerializationCallbackEventArgs",
+        "LayoutSerializer",
+        "LayoutTypes",
+        "LightTheme",
+        "MetroTheme",
+        "NavigatorWindow",
+        "ObservableCollection",
+        "ObservableObject",
+        "Orientation",
+        "PropertyChangedEventArgs",
+        "RelayCommand",
+        "Serialization",
+        "Theme",
+        "Themes",
+        "VS2010Theme",
+        "XmlLayoutSerializer",
+        "boolean",
+        "contents",
+        "controlFor",
+        "finite",
+        "getSchema",
+        "hydrate",
+        "positive",
+        "properties",
+        "registerAvalonDock",
+        "snapshot",
+        "toXml",
+        "uid",
+        "validateLayout",
+        "version",
+        "xmlToSnapshot"
+      ]
+    },
+    "finite": {
+      "kind": "function"
+    },
+    "getSchema": {
+      "kind": "function"
+    },
+    "hydrate": {
+      "kind": "function"
+    },
+    "parseLayoutElement": {
+      "kind": "function"
+    },
+    "positive": {
+      "kind": "function"
+    },
+    "properties": {
+      "kind": "function"
+    },
+    "registerAvalonDock": {
+      "kind": "function"
+    },
+    "snapshot": {
+      "kind": "function"
+    },
+    "toXml": {
+      "kind": "function"
+    },
+    "uid": {
+      "kind": "function"
+    },
+    "validateLayout": {
+      "kind": "function"
+    },
+    "version": {
+      "kind": "string",
+      "value": "0.1.0"
+    },
+    "xmlToSnapshot": {
+      "kind": "function"
+    }
+  }
+}

@@ -1,0 +1,2 @@
+# Test-only dependency. The component has no runtime dependencies.
+playwright==1.57.0
