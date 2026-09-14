@@ -1,4 +1,5 @@
 const en = {
+  externalSaved: 'Saved file changes have been loaded.',
   loading: 'Loading your workspace…', loadFailed: 'Workspace could not be loaded. No saved data was overwritten.', reload: 'Reload',
   saved: 'Saved', saving: 'Saving…', dirty: 'Not saved', saveError: 'Save failed. Your edits are retained; click to retry.',
   conflict: 'Saved data changed elsewhere. Keep your edits and reload before retrying.',
@@ -7,6 +8,7 @@ const en = {
 }
 export type MessageKey = keyof typeof en
 const zh: Record<MessageKey, string> = {
+  externalSaved: '已同步最新保存的文件内容。',
   loading: '正在加载你的工作台…', loadFailed: '工作台加载失败，未覆盖已保存的数据。', reload: '重新加载',
   saved: '已保存', saving: '正在保存…', dirty: '尚未保存', saveError: '保存失败，编辑内容已保留；点击重试。',
   conflict: '其他窗口已更新保存的数据，请保留当前编辑，重新加载后重试。',

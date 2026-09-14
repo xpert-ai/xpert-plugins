@@ -15,7 +15,7 @@ export type Sample = {
 }
 
 const revisionReceipt = z.object({ revision: revisionSchema }).strict()
-class WorkspaceAdapter {
+export class WorkspaceAdapter {
   readonly bridge = new HostBridge()
   initial!: z.infer<typeof workspaceLoadSchema>
   layout!: SaveQueue<WorkspaceState>
@@ -25,6 +25,9 @@ class WorkspaceAdapter {
   private timers = new Map<string, ReturnType<typeof setTimeout>>()
   private removers: (() => void)[] = []
   private editedBuffers = false
+  private bufferBaseline = new Map<string, string>()
+  private synchronizing = false
+  private notifiedRevision = -1
   scratchpadText = ''
 
   async connect() {
@@ -44,6 +47,11 @@ class WorkspaceAdapter {
 
   attach(sample: Sample) {
     this.sample = sample
+    this.bufferBaseline = new Map(sample.buffers)
+    const refresh = () => { if (document.visibilityState !== 'hidden') void this.syncSavedBuffers().catch(() => {}) }
+    const poll = setInterval(refresh, 5000)
+    window.addEventListener('focus', refresh)
+    this.removers.push(() => clearInterval(poll), () => window.removeEventListener('focus', refresh))
     const schedule = () => {
       this.layout.set(this.currentState())
       if (this.layout.state !== 'error') this.debounce('layout', () => this.layout.flush())
@@ -82,8 +90,51 @@ class WorkspaceAdapter {
   async saveBuffers(items: BufferEntry[]) {
     this.buffers.set(items)
     await this.buffers.flush()
+    this.bufferBaseline = new Map(items.map(item => [item.contentId, item.text]))
     this.editedBuffers = !this.sample || this.sample.buffers.size !== items.length || items.some(item => this.sample!.buffers.get(item.contentId) !== item.text)
     this.updateStatus()
+  }
+  async syncSavedBuffers() {
+    if (!this.sample || this.synchronizing || this.buffers.state === 'saving') return
+    this.synchronizing = true
+    try {
+      const next = (await this.bridge.query(workspaceLoadSchema)).buffers
+      if (next.revision <= this.buffers.revision) return
+      // Recheck after the asynchronous query: the user may have typed or saved meanwhile.
+      if (this.editedBuffers || this.buffers.state !== 'saved' ||
+        this.sample.buffers.size !== this.bufferBaseline.size ||
+        [...this.sample.buffers].some(([id, text]) => this.bufferBaseline.get(id) !== text)) {
+        if (this.notifiedRevision !== next.revision) this.sample.toast(t('conflict'))
+        this.notifiedRevision = next.revision
+        return
+      }
+      const nextMap = new Map(next.items.map(item => [item.contentId, item.text]))
+      for (const id of this.bufferBaseline.keys()) if (!nextMap.has(id)) this.sample.buffers.delete(id)
+      for (const [id, text] of nextMap) this.sample.buffers.set(id, text)
+      for (const input of document.querySelectorAll<HTMLTextAreaElement>('textarea[data-editor]')) {
+        const id = input.dataset.editor!
+        const text = nextMap.get(id)
+        if (text !== undefined && input.value !== text) {
+          const start = input.selectionStart, end = input.selectionEnd
+          input.value = text
+          input.setSelectionRange(Math.min(start, text.length), Math.min(end, text.length))
+          // The original editor's click handler repaints without marking a user edit.
+          input.dispatchEvent(new Event('click'))
+        }
+      }
+      this.bufferBaseline = new Map(this.sample.buffers)
+      this.buffers.accept(next.items, next.revision)
+      this.initial.buffers = next
+      this.sample.toast(t('externalSaved'))
+    } finally { this.synchronizing = false }
+  }
+
+  async editReferenceRevision(contentId: string, fullText: string) {
+    const saved = await this.bridge.query(workspaceLoadSchema)
+    if (saved.buffers.items.find(item => item.contentId === contentId)?.text !== fullText) {
+      throw new Error('save_before_edit')
+    }
+    return saved.buffers.revision
   }
   bufferEdited() { this.editedBuffers = true; this.updateStatus() }
   saveScratchpad(text: string) {
