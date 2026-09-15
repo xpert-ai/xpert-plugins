@@ -1,3 +1,4 @@
+import { CUT_SKILLS } from './lib/cut-skills.js'
 import { z } from 'zod'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import { CUT_PACKAGE_METADATA } from './package-metadata.js'
@@ -53,7 +54,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
         capabilities: [CUT_FEATURE, CUT_WORKBENCH_CAPABILITY, CUT_AGENT_CAPABILITY, CUT_TEMPLATE_CAPABILITY, CUT_MCP_CAPABILITY],
         marketplace: {
           contents: [
-            { type: 'skill', name: 'cut-agent-skill', displayName: 'Cut Agent Skill', description: 'Use Cut project, media, timeline edit, version, and failure tools.', tags: ['skill', 'cut', 'video', 'timeline'] },
+            ...CUT_SKILLS.map((skill) => ({ ...skill, tags: [...skill.tags] })),
             { type: 'assistant-template', name: 'cut-assistant', displayName: 'Cut Assistant', description: 'Assistant template for video editing.', metadata: { app: 'cut' } },
             { type: 'app', name: 'cut', displayName: 'Cut', description: 'Agentic non-linear video editor.', operations },
             { type: 'view', name: CUT_WORKBENCH_VIEW_KEY, displayName: 'Cut Workbench', description: 'Video editing Workbench.', metadata: { app: 'cut' } },

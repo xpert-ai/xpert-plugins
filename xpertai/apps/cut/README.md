@@ -222,3 +222,21 @@ Then run the publish command. It verifies the prepared package again before prom
 ```bash
 pnpm --filter @xpert-ai/plugin-cut release:publish
 ```
+
+## Cut workflow Skills (Batch 2)
+
+The existing `cut-agent-skill` is the shared basics and content-authorization
+entry. The Assistant template binds it with `cut-speech-editing`, `cut-captions`,
+`cut-verification` and `cut-export`. Specialist skills load the base rules first;
+install the base skill as well when selecting an individual specialist.
+
+The four existing MCP workflow Prompts read the same packaged Skill bodies,
+including the base rules, so standalone clients can retrieve them through
+`prompts/get` without installing an Assistant. Use the requested workflow Prompt
+for each stage; tool selection/Tool Profiles are a later batch.
+
+Prior user approval is reused only for the same project, content and operation.
+Platform confirmation, access checks, proposal state and revision CAS remain
+mandatory. Update installed skill resources and templates through the normal
+plugin flow to consume these instructions; a source edit does not update a
+running installation.

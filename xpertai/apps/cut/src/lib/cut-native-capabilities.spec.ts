@@ -143,10 +143,17 @@ describe('Cut native MCP capabilities', () => {
     expect(getCaptionDraft).toHaveBeenCalledWith(expect.objectContaining({ userId: 'user-1' }), projectId, draftId, 2, 5)
   })
 
-  it('provides workflow prompts in the requested language', async () => {
+  it.each([
+    ['cut_plan_rough_cut', 'Cut speech editing', 'zh-Hans'],
+    ['cut_review_edit_proposal', 'Cut verification', 'en'],
+    ['cut_translate_captions', 'Cut captions', 'zh-Hans'],
+    ['cut_prepare_export', 'Cut export', 'en']
+  ])('provides the packaged workflow for %s in %s (%s)', async (key, heading, language) => {
     expect(definitions.prompts).toHaveLength(4)
-    const prompt = await definitions.prompts[0].get(
-      { projectId: 'ca8cfba3-a8e6-4e97-839d-f4fe6d8203f2', language: 'zh-Hans' },
+    const definition = definitions.prompts.find((item) => item.key === key)
+    if (!definition) throw new Error(`Missing Cut prompt ${key}`)
+    const prompt = await definition.get(
+      { projectId: 'ca8cfba3-a8e6-4e97-839d-f4fe6d8203f2', language, goal: 'Keep the introduction' },
       {
         source: 'mcp',
         tenantId: 'tenant-1',
@@ -161,7 +168,13 @@ describe('Cut native MCP capabilities', () => {
     if (content?.type !== 'text') {
       throw new Error('Expected the Cut workflow prompt to return text content.')
     }
-    expect(content.text).toContain('Cut 项目')
+    expect(content.text).toContain(language === 'zh-Hans' ? 'Cut 项目' : 'For Cut project')
+    expect(content.text).toContain('ca8cfba3-a8e6-4e97-839d-f4fe6d8203f2')
+    expect(content.text).toContain('Keep the introduction')
+    expect(content.text).toContain(`# ${heading}`)
+    expect(content.text).toContain('# Cut basics')
+    expect(content.text).toContain('Reuse existing user approval')
+    expect(content.text).toContain('Platform authorization')
   })
 })
 jest.mock('@xpert-ai/plugin-sdk', () => ({

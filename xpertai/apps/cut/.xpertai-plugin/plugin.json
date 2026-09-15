@@ -54,7 +54,11 @@
       "capabilities": ["cut", "cut-workbench", "cut-agent", "cut-assistant-template", "cut-mcp"],
       "marketplace": {
         "contents": [
-          { "type": "skill", "name": "cut-agent-skill", "displayName": "Cut Agent Skill", "description": "Revision-safe Cut project, media, timeline, version, and failure workflow.", "tags": ["skill", "cut", "video", "timeline"] },
+          {"type": "skill", "name": "cut-agent-skill", "displayName": "Cut Basics", "description": "Project identity, revision-safe edits and content authorization.", "tags": ["skill", "cut", "video"]},
+          {"type": "skill", "name": "cut-speech-editing", "displayName": "Cut Speech Editing", "description": "Evidence-backed speech cleanup and rough cuts.", "tags": ["skill", "cut", "video"]},
+          {"type": "skill", "name": "cut-captions", "displayName": "Cut Captions", "description": "Transcription, correction, translation and synchronized captions.", "tags": ["skill", "cut", "video"]},
+          {"type": "skill", "name": "cut-verification", "displayName": "Cut Verification", "description": "Verify edits, caption alignment and produced media.", "tags": ["skill", "cut", "video"]},
+          {"type": "skill", "name": "cut-export", "displayName": "Cut Export", "description": "Background render jobs and authenticated file delivery.", "tags": ["skill", "cut", "video"]},
           { "type": "assistant-template", "name": "cut-assistant", "displayName": "Cut Assistant", "description": "Assistant template for video editing.", "metadata": { "app": "cut" } },
           { "type": "app", "name": "cut", "displayName": "Cut", "description": "Agentic non-linear video editor.", "operations": [
             { "name": "cut_create_projects", "displayName": "Create Cut projects", "description": "Create scoped versioned video projects.", "access": "write" },

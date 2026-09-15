@@ -1,3 +1,4 @@
+import { readCutWorkflow, type CutSkillName } from './cut-skills.js'
 import type { StructuredToolInterface } from '@langchain/core/tools'
 import type { IXpertToolset } from '@xpert-ai/contracts'
 import {
@@ -408,14 +409,14 @@ function resourceSpec(
 
 function createCutPrompts(): McpPromptDefinition[] {
   return [
-    prompt('cut_plan_rough_cut', 'Plan a rough cut', 'Plan a revision-safe rough cut from available media.'),
-    prompt('cut_review_edit_proposal', 'Review an edit proposal', 'Review proposal evidence before applying it.'),
-    prompt('cut_translate_captions', 'Translate captions', 'Prepare synchronized multilingual caption review.'),
-    prompt('cut_prepare_export', 'Prepare an export', 'Check the project revision and prepare bounded export variants.')
+    prompt('cut_plan_rough_cut', 'Plan a rough cut', 'Plan a revision-safe rough cut from available media.', 'cut-speech-editing'),
+    prompt('cut_review_edit_proposal', 'Review an edit proposal', 'Review proposal evidence before applying it.', 'cut-verification'),
+    prompt('cut_translate_captions', 'Translate captions', 'Prepare synchronized multilingual caption review.', 'cut-captions'),
+    prompt('cut_prepare_export', 'Prepare an export', 'Check the project revision and prepare bounded export variants.', 'cut-export')
   ]
 }
 
-function prompt(key: string, title: string, description: string): McpPromptDefinition {
+function prompt(key: string, title: string, description: string, skill: CutSkillName): McpPromptDefinition {
   return {
     key,
     name: key,
@@ -432,19 +433,16 @@ function prompt(key: string, title: string, description: string): McpPromptDefin
       const chinese = language?.startsWith('zh')
       const projectId = arguments_['projectId']
       const goal = arguments_['goal']?.trim()
-      const review = key === 'cut_review_edit_proposal'
-        ? (chinese ? '读取提案及证据资源，向用户展示删除片段、保留片段和时间线影响，并在获得同意后应用。MCP 写操作确认不能替代内容审阅。' : ' Read proposal and evidence resources, show removals, retained ranges and timeline effects to the user, and obtain approval before applying. MCP write confirmation does not replace content review.')
-        : ''
-      const text = (chinese
+      const text = chinese
         ? `针对 Cut 项目 ${projectId}，${descriptionZh(key)}${
             goal ? `目标：${goal}。` : ''
-          }先读取项目和相关资源，再提出修改；任何写操作都必须使用最新 revision。`
+          }按以下工作流执行，使用显式 projectId 和当前 revision；复用同一编辑已有的用户授权，平台工具确认仍需遵守。用请求的语言回复。`
         : `For Cut project ${projectId}, ${description}${
             goal ? ` Goal: ${goal}.` : ''
-          } Read the project and relevant resources first, then propose changes; every write must use the latest revision.`) + review
+          } Follow the workflow below with explicit projectId and current revision. Reuse existing user approval for the same edits; platform tool confirmation still applies. Respond in the requested language.`
       return {
         description,
-        messages: [{ role: 'user', content: { type: 'text', text } }]
+        messages: [{ role: 'user', content: { type: 'text', text: `${text}\n\n${readCutWorkflow(skill)}` } }]
       }
     }
   }

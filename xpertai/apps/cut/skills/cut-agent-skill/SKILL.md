@@ -1,39 +1,59 @@
 ---
 name: cut-agent-skill
-description: Use Cut Agent tools to create video projects, search scoped media evidence, create reviewable edit proposals, apply revision-safe timeline edits, finalize versions, and coordinate browser or Sandbox Job MP4 export.
+description: Use for Cut project setup, importing media, revision-safe timeline edits, and routing speech, caption, verification, or export work.
 ---
 
-# Cut Agent workflow
+# Cut basics
 
-For an external MCP client, use discovered Resource Templates for `cut_get_project`,
-`cut_get_clip`, `cut_get_media_asset`, `cut_get_analysis_job`, `cut_get_media_segment`,
-`cut_get_edit_proposal`, and `cut_get_caption_draft`; these are reads, not MCP Tools.
-Pass explicit Cut project IDs. Upload local files through the Publication's
-`/files` endpoint and use its portable reference; native Agent runtime paths are
-not external client paths. Read completed `cut_get_export` metadata and download
-its reference through the same authenticated endpoint. The binary transfer limit
-is 256 MiB per file. Read paginated captions until every cue has been covered.
+## Route by the requested outcome
 
+Use `cut-speech-editing` for speech cleanup or evidence-backed rough cuts, `cut-captions` for transcription and subtitles, `cut-verification` for checking proposals and results, and `cut-export` for rendering and delivery. Load only the workflow needed for the current step through the available skill reader. These skills are packaged with Cut; if one is unavailable, report the missing skill instead of inventing its workflow.
 
-1. Call `cut_get_project` before modifying an existing project. It returns only a compact overview, resource counts, the current internal edit revision, and `availableReads`; retain that revision as an optimistic-concurrency token, not as a user-visible saved version.
-2. Disclose details progressively. Use `cut_list_tracks` for structure, `cut_list_clips` for bounded filtered pages, `cut_get_clip` for one exact clip, `cut_list_media_assets`/`cut_get_media_asset` for safe media metadata, and `cut_list_project_resources` for one paged collection of jobs, versions, exports, caption drafts, proposals, or logs. Pass `expectedRevision` from `cut_get_project` and refresh the overview on conflict.
-3. Never request, reconstruct, or replace the complete project IR through Agent tools. Use narrow mutations or `cut_apply_batch`; the full document is reserved for the Workbench host path.
-4. Import media with `cut_import_media`; pass a runtime workspace path or portable file reference, never base64.
-5. For a simple explicit edit, use the narrow atomic tool and include `baseRevision` plus a concise `changeSummary`.
-6. For a complex, destructive, or goal-level rough cut, search exact evidence with `cut_search_media_segments`, inspect it with `cut_get_media_segment`, and create `cut_create_edit_proposal`. Every proposal item must cite evidence.
-7. Let the user review the proposal diff, risk, evidence, and preview in Workbench, or show the corresponding proposal/evidence Resource contents in the external client. Obtain an explicit decision; generic MCP write confirmation does not replace content review. Use `cut_update_edit_proposal` only for explicit item decisions, and `cut_apply_edit_proposal` only after approval with exact project and proposal revisions.
-8. Never silently apply, rebase, or recreate a stale/rejected proposal. Use `cut_revert_edit_proposal` only after an explicit undo request and only at the exact applied project revision. Never bypass proposal review with a whole-document replacement.
-9. Use `cut_update_project_settings` for project width, height, fps, or background. Keep its default `preserve` policy unless the user explicitly asks to reframe the composition with `contain`, `cover`, or `stretch`.
-10. Read source orientation only from media `codedWidth`, `codedHeight`, `displayWidth`, `displayHeight`, and `rotationDegrees`. A clip `transform.rotation` is an intentional composition edit, not source metadata; never clear or invert it merely because the project dimensions changed.
-11. On an internal edit-revision conflict, reload; never overwrite a dirty Workbench copy. Repeated saves of unchanged document data do not advance the edit revision, and non-timeline operations such as transcription, task polling, and caption-draft editing do not create project versions.
-12. Create an immutable milestone only when the user explicitly requests one with `cut_finalize_version`; ordinary edits never create version snapshots automatically.
-13. For smart speech cleanup, transcribe the source and inspect the available timestamped transcript evidence first. Use existing analysis evidence when available; never claim visual or silence analysis was performed unless its job succeeded. Standalone cleanup can use supported transcript evidence and explicit manual segment selections; do not invent precise word timing from estimated timestamps. Call `cut_create_speech_cleanup_proposal` with an explicit `mode` (`conservative`, `balanced`, or `aggressive`) and only the requested categories: long pauses, filler words, repeated phrases, word-level stutters, or exact `manualSegmentIds` selected from the transcript. The tool maps source evidence to the current timeline and proposes end-to-start `ripple_delete_ranges` so picture and sound stay synchronized. Show the typed `speech_cleanup` proposal, category counts, estimated removed duration, evidence, and preview; apply it only after approval. Retain the exact applied ranges.
-14. For a request such as “add subtitles to this video”, use `cut_start_transcription` with its default `sandbox_whisper` mode. The managed Sandbox Runtime prepares and runs the bundled multilingual Q4 Whisper Tiny model against the Workspace Reference; no model-provider API key, Publication transcription binding, or user-supplied mode parameter is required. An existing platform model binding must not change this default. Use `mode: platform` only when the user explicitly requests platform transcription and the current Xpert Speech-to-Text provider is configured (native Xpert execution only; standalone MCP uses Sandbox Whisper). If that explicit request cannot be fulfilled, report the missing configuration or error without silently switching engines. Browser-local Whisper is separate from this server-side Sandbox task. Use `language: zh` when Chinese is known, `language: en` when English is known, or `language: und` for automatic detection. Browser-local Whisper remains a user-triggered Workbench action and is not a backend tool mode. Poll `cut_get_analysis_job` and do not create captions until transcription succeeds. Inspect actual transcript `timingSource` and segment evidence before creating captions: the current platform path provides estimated timing, not model-aligned cues. If timing is estimated or unavailable, show the recognized text and explain that alignment is required; stop before creating, committing, or exporting synchronized captions. Never invent cue times or claim estimated timing is reliable. With reliable timing, create and review the caption draft, commit it, export, and return the completed artifact.
-15. Add a title cover with `cut_add_cover` only after speech cleanup. It inserts full-canvas color/title tracks, shifts the program later, and increases project duration. Retain its duration as the caption timeline offset.
-16. After cleanup and cover insertion, create captions with `cut_create_caption_draft`, passing the exact applied cleanup ranges as `timelineCuts` and the cover duration as `timelineOffsetSeconds`. This retimes transcript cues to the final program timeline.
-17. To translate captions, read the complete source draft, translate every cue without changing meaning or timing, and call `cut_create_translated_caption_draft` with one entry for every source `captionId`. A caption draft's `sourceRevision` is provenance and does not make it stale after unrelated project edits. For simultaneous bilingual or multilingual burned-in tracks, call `cut_commit_caption_drafts` once with 1–4 approved drafts so all tracks are written atomically.
-18. Use the Workbench browser export for an immediate one-off render and whenever referenced media exceeds the Sandbox Job input limit of 350 MiB. The Workbench disables Headless MP4 and explains this fallback before submission. An external client must report an exceeded limit and obtain an explicit decision to use another delivery path; it must not require opening Workbench for supported bounded exports. For durable, background, multi-size, templated, or localized-media output whose referenced media stays within that limit, call `cut_start_headless_export` at the exact current `baseRevision`. Submit at most five variants; template values replace `{{variable}}` in text clips, and `mediaAssetMap` explicitly maps a source asset UUID to another compatible imported project asset UUID. Every media clip must refer to an imported `mediaAssetId`.
-19. Poll each returned job with `cut_get_analysis_job`. Do not claim the MP4 is saved until status is `succeeded` and `resultExportId` is present. Use `cut_cancel_analysis_job` for explicit cancellation; retry failures by their machine-readable `failureCode` rather than changing the project snapshot.
-20. Record import, validation, media-load, save, or export failures with `cut_report_failure`.
+## MCP reads and workflow discovery
 
-The project document is versioned schema `1`. Time values are seconds. Clips may not extend beyond the project duration. `split.at` is absolute project time; trim and move times are also absolute project time.
+The names below describe the shared Cut operations. In standalone MCP, discover
+Resource Templates and use `resources/read` for these reads instead of calling
+nonexistent tools:
+
+| Operation | Resource URI |
+| --- | --- |
+| `cut_get_project` | `cut://projects/{projectId}` |
+| `cut_get_clip` | `cut://projects/{projectId}/clips/{clipId}` |
+| `cut_get_media_asset` | `cut://projects/{projectId}/media/{mediaAssetId}` |
+| `cut_get_analysis_job` | `cut://projects/{projectId}/jobs/{jobId}` |
+| `cut_get_media_segment` | `cut://projects/{projectId}/segments/{segmentId}` |
+| `cut_get_edit_proposal` | `cut://projects/{projectId}/proposals/{proposalId}` |
+| `cut_get_caption_draft` | `cut://projects/{projectId}/caption-drafts/{draftId}` |
+| `cut_get_export` | `cut://projects/{projectId}/exports/{exportId}` |
+
+Use the discovered optional query parameters for revision checks and caption
+pagination. List/search operations remain tools. List exports using
+`cut_list_project_resources` with `resource: exports`, then read the exact
+`cut_get_export` Resource for its authorized portable file reference. Only use file paths/checksums actually returned by an
+authorized interface; if the current surface omits them, report that delivery
+or verification gap rather than derive a path from an export ID.
+
+For clients without a skill reader, retrieve the next stage through MCP
+`prompts/get`: `cut_plan_rough_cut` includes speech editing,
+`cut_translate_captions` includes captions/transcription,
+`cut_review_edit_proposal` includes verification, and `cut_prepare_export`
+includes export. Each includes the base rules as well.
+
+## Project and file identity
+
+1. In Workbench, the host supplies `cut.currentProject`; middleware may resolve an omitted projectId to that selection. For standalone MCP, pass the exact Cut `projectId` returned by creation or a project read. A Cut project ID is never a platform Assistant ID or file owner.
+2. Read `cut_get_project` before edits. Use its current revision as `baseRevision`, and pass `expectedRevision` to bounded reads. Follow `availableReads`: tracks, clips, media assets, and paged project resources. Read all pages needed for the requested scope, not the entire IR.
+3. Import through `cut_import_media` with a runtime path or authorized portable file reference. Standalone MCP uploads/downloads use the publication's authenticated HTTP file endpoints and personal-file binding. Reuse returned file references; never fabricate a catalog or pass base64.
+4. Use narrow mutations with `changeSummary`. Validate multi-step edits with `cut_apply_batch` before applying. On a conflict, refresh and compare the affected content; never silently overwrite a dirty Workbench or replace the whole project document.
+5. Times are seconds. Keep source-media times distinct from project-timeline times. Use media orientation metadata for source facts; preserve clip transforms when changing project settings unless reframing was requested.
+6. Create `cut_finalize_version` snapshots only when explicitly requested. Internal revisions are concurrency tokens, not user-visible saved versions.
+
+## Content authorization
+
+Reuse existing user approval for the same edits. Before a write, match the user's instruction to the exact project, affected content/ranges, and operation. An explicit instruction such as deleting specified ranges or committing reviewed captions already authorizes that content change. Inspect evidence and validate it, then proceed without asking the user to approve it again.
+
+A broad outcome such as "make this better" does not approve newly selected destructive cuts. Prepare a concrete proposal with ranges, evidence and impact and ask only for the unresolved decisions. Honor explicit requests to preview or wait. Expanded scope, changed selections or rejected proposals require a new decision. A revision conflict requires re-reading; reuse approval only if the authorized content and effects are still demonstrably identical, and never silently rebase a stale proposal.
+
+Platform authorization is independent: comply with tool confirmation/elicitation, access checks, proposal state and revision CAS. Conversation approval is not a platform approval token and must never bypass those checks.
+
+Completion: report the resulting project ID/revision and actual changes. Report failures with `cut_report_failure`; keep completed writes distinct from pending jobs and unavailable evidence.
