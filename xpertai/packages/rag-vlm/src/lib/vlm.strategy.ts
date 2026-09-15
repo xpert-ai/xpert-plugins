@@ -7,16 +7,17 @@ import {
   ImageUnderstandingStrategy,
   LLMPermission,
   TImageUnderstandingConfig,
+  TDocumentAsset,
   TImageUnderstandingResult
 } from '@xpert-ai/plugin-sdk'
-import { buildChunkTree, collectTreeLeaves, IconType, IKnowledgeDocument } from '@xpert-ai/contracts'
+import { buildChunkTree, collectTreeLeaves, IconType } from '@xpert-ai/contracts'
 import { Document, DocumentInterface } from '@langchain/core/documents'
 import sharp from 'sharp'
 import { v4 as uuid } from 'uuid'
 import { SvgIcon, VlmDefault } from './types.js'
 
 // Regex for markdown image tag: ![](image.png) or ![alt](image.png)
-const IMAGE_REGEX = /!\[[^\]]*\]\s*\(((?:https?:\/\/[^)]+|[^)\s]+))(\s*"[^"]*")?\)/g;
+const IMAGE_REGEX = /!\[[^\]]*\]\s*\(((?:https?:\/\/[^)]+|[^)\s]+))(\s*"[^"]*")?\)/g
 
 @Injectable()
 @ImageUnderstandingStrategy(VlmDefault)
@@ -29,10 +30,10 @@ export class VlmDefaultStrategy implements IImageUnderstandingStrategy {
     } as FileSystemPermission,
     {
       type: 'llm',
-      capability: 'vision',
+      capability: 'vision'
     } as LLMPermission
   ]
-  
+
   readonly meta = {
     name: VlmDefault,
     label: { en_US: 'VLM', zh_Hans: '视觉语言模型' },
@@ -58,86 +59,89 @@ export class VlmDefaultStrategy implements IImageUnderstandingStrategy {
   }
 
   async understandImages(
-    doc: IKnowledgeDocument<ChunkMetadata>,
+    doc: Parameters<IImageUnderstandingStrategy['understandImages']>[0],
     config: TImageUnderstandingConfig
   ): Promise<TImageUnderstandingResult> {
-
     await this.validateConfig(config)
 
     const client = config.visionModel // ✅ Injected by the core system
-    const params = {
-      files: doc.metadata?.assets?.filter((asset) => asset.type === 'image'),
-      chunks: doc.chunks as DocumentInterface<ChunkMetadata>[]
-    }
-
-    const tree = buildChunkTree(doc.chunks)
-    const leaves = collectTreeLeaves(tree)
-
-    const chunks: Document<Partial<ChunkMetadata>>[] = []
-    // const pages : Document<Partial<ChunkMetadata>>[] = []
-
-    for await (const chunk of leaves) {
-      const assets: string[] = []
-      chunk.metadata['chunkId'] ??= uuid()
-
-      // Source Document Block
+    const files = doc.metadata?.assets?.filter((asset) => asset.type === 'image') ?? []
+    const leaves = collectTreeLeaves(buildChunkTree(doc.chunks))
+    // Keep context parents as well as retrieval leaves, and avoid repeated OCR for overlapping chunks.
+    const chunks: DocumentInterface<Partial<ChunkMetadata>>[] = []
+    const leafIds = new Set(leaves.map((chunk) => chunk.metadata.chunkId))
+    chunks.push(...doc.chunks.filter((chunk) => !leafIds.has(chunk.metadata.chunkId)))
+    const processed = new Set<string>()
+    const warnings: { type: 'image_understanding_failed'; message: string; imagePath: string }[] = []
+    for (const chunk of leaves) {
       chunks.push(chunk)
-
-      // Find image tags inside the chunk
-      const matches = Array.from(chunk.pageContent.matchAll(IMAGE_REGEX))
-      for (const match of matches) {
-        const url = match[1] // image-url.png
-        const asset = params.files.find((a) => a.url === url)
-        if (asset && !assets.some((_) => _ === asset.url)) {
-          const description = await this.runV(client, chunk.pageContent, asset.filePath, config)
-          assets.push(asset.url)
-          chunks.push(new Document({
-            pageContent: description,
-            metadata: {
-              mediaType: 'image',
-              chunkId: `img-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-              parentId: chunk.metadata['chunkId'],
-              imagePath: asset.filePath,
-              // source: asset.filename,
-              parser: 'vlm'
-            }
-          }))
+      for (const match of chunk.pageContent.matchAll(IMAGE_REGEX)) {
+        const asset = files.find((item) => item.url === match[1])
+        if (!asset || processed.has(asset.filePath)) continue
+        processed.add(asset.filePath)
+        try {
+          const description = await this.runV(client, asset, config)
+          if (!description.trim()) throw new Error('The vision model returned no text.')
+          chunks.push(
+            new Document({
+              pageContent: description,
+              metadata: {
+                mediaType: 'image',
+                chunkId: uuid(),
+                // Page transcriptions are independent source text and will be split by the host.
+                ...(asset.sourceType === 'pdf_page'
+                  ? { page: asset.page, sourceType: 'pdf_page', contentFormat: 'markdown' }
+                  : { parentId: chunk.metadata.chunkId }),
+                imagePath: asset.filePath,
+                imageUrl: asset.url,
+                parser: 'vlm'
+              }
+            })
+          )
+        } catch (error) {
+          warnings.push({
+            type: 'image_understanding_failed',
+            message: error instanceof Error ? error.message : 'Image recognition failed.',
+            imagePath: asset.filePath
+          })
         }
       }
     }
-
-    return {
-      chunks,
-      metadata: {}
-    }
+    return { chunks, metadata: { warnings } }
   }
 
-  private async runV(client: BaseChatModel, context: string, imagePath: string, config: TImageUnderstandingConfig): Promise<string> {
-    const imageStr = await config.permissions.fileSystem.readFile(imagePath)
-    const sharped = sharp(imageStr)
-    const imageData = await sharped.resize(1024).toBuffer()
-    const fileInfo = await sharped.metadata()
-    const mimetype = fileInfo.format ? `image/${fileInfo.format}` : 'image/png'
+  private async runV(client: BaseChatModel, asset: TDocumentAsset, config: TImageUnderstandingConfig): Promise<string> {
+    const imageStr = await config.permissions.fileSystem.readFile(asset.filePath)
+    const page = asset.sourceType === 'pdf_page'
+    const imageData = await sharp(imageStr)
+      .resize({ width: page ? 2200 : 1024, height: page ? 2200 : 1024, fit: 'inside', withoutEnlargement: true })
+      .png()
+      .toBuffer()
 
     const response = await client.invoke([
       {
         role: 'system',
-        content: 'You are a professional assistant, helping people understand images in context. Please provide a narrative description of the image.'
+        content: page
+          ? 'Transcribe all visible content of this document page into Markdown in reading order. Preserve headings, lists, table rows and merged-cell relationships. Copy numbers, leading zeroes, codes and punctuation exactly. Do not summarize, describe the page, invent text, or add a preface. Mark unreadable text as [unreadable].'
+          : 'You are a professional assistant, helping people understand images in context. Please provide a narrative description of the image.'
       },
       {
         role: 'user',
         content: [
-          // { type: 'text', text: context },
           {
             type: 'image_url',
             image_url: {
-              url: `data:${mimetype};base64,${imageData.toString('base64')}`
+              url: `data:image/png;base64,${imageData.toString('base64')}`
             }
           }
         ]
       }
     ])
 
-    return response.content as string
+    return typeof response.content === 'string'
+      ? response.content
+      : response.content
+          .flatMap((part) => (part.type === 'text' && typeof part.text === 'string' ? [part.text] : []))
+          .join('\n')
   }
 }
