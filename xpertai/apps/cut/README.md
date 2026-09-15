@@ -178,8 +178,9 @@ the original actor and host file scope. Read proposal evidence through Resources
 and obtain the user's decision before applying; the Workbench is optional for
 standalone review. MCP write confirmation remains a separate gate.
 
-Deploy the updated host/worker contracts and SDK before loading this paired Cut
-build. Refresh capability discovery and review the changed URI templates and new
+This Cut build requires `@xpert-ai/plugin-sdk >=3.18.5` (within major version 3).
+The lockfile uses published SDK and contracts 3.18.5. Deploy the matching
+host/worker functionality before loading the plugin. Refresh capability discovery and review the changed URI templates and new
 export resource. See the host repository's
 `docs/plans/2026-09-14-cut-mcp-batch1-acceptance.md` for setup, fixtures and the
 media-to-artifact Codex acceptance procedure. The narrowed local deployment passed
