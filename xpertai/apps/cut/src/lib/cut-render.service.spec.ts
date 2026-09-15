@@ -116,7 +116,7 @@ describe('CutRenderService', () => {
     expect(harness.sandbox.run).toHaveBeenCalledWith(expect.objectContaining({
       jobId,
       action: 'cut.render-mp4',
-      actionVersion: '1.1.5',
+      actionVersion: '1.1.6',
       files: [expect.objectContaining({
         targetPath: `media/${ASSET_ID}/voice.wav`,
         size: 4_096,
@@ -133,7 +133,7 @@ describe('CutRenderService', () => {
       sourceRevision: 7,
       checksum: 'b'.repeat(64),
       kind: 'mp4',
-      renderer: 'sandbox-job:cut.render-mp4@1.1.5'
+      renderer: 'sandbox-job:cut.render-mp4@1.1.6'
     })
     expect(harness.jobs.rows[0]).toMatchObject({ status: 'succeeded', progress: 100, resultExportId: harness.exports.rows[0]!.id, sandboxJobId: jobId })
     expect(harness.logs.rows.map((row) => row.action)).toEqual(['cut_render_started', 'cut_render_completed'])
@@ -219,10 +219,10 @@ describe('CutRenderService', () => {
     const runStarted = new Promise<void>((resolve) => { markStarted = resolve })
     harness.sandbox.getJob.mockResolvedValue({
       id: jobId,
-      runtimeProfile: 'browser/playwright-1.61/v1',
+      runtimeProfile: 'browser/video-playwright-1.61/v1',
       sandboxRuntimeVersion: '1.0.0',
       action: 'cut.render-mp4',
-      actionVersion: '1.1.5',
+      actionVersion: '1.1.6',
       status: 'running',
       attempt: 1,
       outputs: [],
@@ -416,11 +416,11 @@ function createHarness(options: { assetSize?: number } = {}) {
     cancel: jest.fn(async (input: { jobId: string }) => ({ success: true, jobId: input.jobId, state: 'waiting' }))
   } as unknown as jest.Mocked<ManagedQueueService>
   const sandbox = {
-    getActionHealth: jest.fn(async () => ({ pluginName: '@xpert-ai/plugin-cut', action: 'cut.render-mp4', actionVersion: '1.1.5', available: true, runtimeProfile: 'browser/playwright-1.61/v1', sandboxRuntimeVersion: '1.0.0' })),
+    getActionHealth: jest.fn(async () => ({ pluginName: '@xpert-ai/plugin-cut', action: 'cut.render-mp4', actionVersion: '1.1.6', available: true, runtimeProfile: 'browser/video-playwright-1.61/v1', sandboxRuntimeVersion: '1.0.0' })),
     run: jest.fn(async (input: { jobId?: string; outputs?: Array<{ path: string; originalName: string; mimeType: string }> }) => {
       const video = input.outputs?.find((item) => item.path !== 'report.json') ?? { path: 'cut.mp4', originalName: 'master.mp4', mimeType: 'video/mp4' }
       return {
-        id: input.jobId!, runtimeProfile: 'browser/playwright-1.61/v1', sandboxRuntimeVersion: '1.0.0', action: 'cut.render-mp4', actionVersion: '1.1.5', status: 'succeeded' as const, attempt: 1,
+        id: input.jobId!, runtimeProfile: 'browser/video-playwright-1.61/v1', sandboxRuntimeVersion: '1.0.0', action: 'cut.render-mp4', actionVersion: '1.1.6', status: 'succeeded' as const, attempt: 1,
         outputs: [
           output(video.path, video.mimeType, video.originalName, 12_345, 'b'.repeat(64)),
           output('report.json', 'application/json', 'master.report.json', 512, 'c'.repeat(64))
