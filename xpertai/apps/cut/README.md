@@ -240,3 +240,25 @@ Platform confirmation, access checks, proposal state and revision CAS remain
 mandatory. Update installed skill resources and templates through the normal
 plugin flow to consume these instructions; a source edit does not update a
 running installation.
+
+## Xpert and Portable installation entries
+
+Xpert users install **Xpert Cut Plugin** through `.xpertai-plugin/plugin.json`.
+Codex / ChatGPT users install **Xpert Cut Agent Plugin** through the portable
+root `plugin.json` and connect their chosen **Xpert Cut MCP** service.
+Both entries consume the same `skills/` source; environment-specific instructions
+live in the base skill's `references/xpert.md` and `references/mcp.md`.
+
+Build a client-only distribution with `node scripts/build-agent-plugin.mjs
+--mcp-url <HTTPS_PUBLICATION_URL> --output <ABSOLUTE_NEW_PARENT>/xpert-cut-agent`.
+The source `mcp.json` is unbound. The generated output pins the chosen endpoint
+and contains no runtime, dependencies or credentials. See
+[Portable installation and connection](docs/AGENT-PLUGIN.md) for commands,
+client-surface requirements, tests and publishing boundaries.
+
+### Install the Agent Plugin into Codex from source
+
+From this directory, run `node scripts/install-codex.mjs` and enter your Cut MCP
+URL and API Key. Use `--allow-local-http` for a loopback service and `--update`
+to refresh Skills while preserving your saved connection. Requires Node.js 20+
+and Codex CLI plugin support. See [installation instructions](docs/AGENT-PLUGIN.md#install-from-source-into-codex).

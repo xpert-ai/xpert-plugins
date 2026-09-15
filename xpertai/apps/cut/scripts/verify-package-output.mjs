@@ -22,6 +22,7 @@ const required = [
   '.xpertai-plugin/plugin.json', 'assets/logo.svg', 'assets/composerIcon.svg', 'skills/cut-agent-skill/SKILL.md',
   'skills/cut-speech-editing/SKILL.md', 'skills/cut-captions/SKILL.md',
   'skills/cut-verification/SKILL.md', 'skills/cut-export/SKILL.md',
+  'skills/cut-agent-skill/references/mcp.md', 'skills/cut-agent-skill/references/xpert.md',
   'docs/EDITOR-API-ROADMAP.md', 'docs/GATE-VERIFICATION.md', 'README.md'
 ]
 const missing = required.filter((file) => !existsSync(join(root, file)))
