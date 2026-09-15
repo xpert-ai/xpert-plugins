@@ -16,7 +16,7 @@
 | 本地浏览器 | Windows 上已安装的 Microsoft Edge，headless |
 | 本地 UI 构建 | `TRIAGE_ESBUILD_WASM=1`，esbuild-wasm `0.25.10` |
 
-实际测试提交 SHA 将随 PR 的验证摘要提供。构建生成 `dist/build-manifest.json`，记录源代码与产物哈希；构建产物不提交 Git。`verify:dist` 检查源码与产物仍一致。
+本轮实际测试源码提交：`f35b3fdb5d1adf1b15628142debfd00d9895c010`；其后的验收记录补充只修改文档。后续真实平台测试 SHA 将随最终 PR 提供。构建生成 `dist/build-manifest.json`，记录源代码与产物哈希；构建产物不提交 Git。`verify:dist` 检查源码与产物仍一致。
 
 ## 四层验证
 
@@ -51,6 +51,8 @@ corepack pnpm verify:dist
 - 实际中间件工具调用持久化，宿主命令失败后立即释放尝试。
 
 安装依赖时，固定基线的 `@xpert-ai/chatkit-types` 对 LangChain 主版本报告 peer warning。当前插件遵循 SDK `3.18.4` 与现有示例的 `@langchain/core 0.3.72`，上述测试通过；真实平台兼容性仍须第四层验证，不以忽略警告代替验收。
+
+提交时仓库的 Entity 表名 pre-commit 检查通过；它对本插件现有 `plugin_` 表名前缀给出 v1 兼容提示。额外执行全仓库 `node scripts/check-app-view-storage.mjs` 未通过，命中上游 `drawio/viewer-static.min.js` 和 `story-studio/studio-panel-layout.tsx`。这些文件相对 main 基线没有改动；本插件独立构建扫描和禁用 Web Storage 的浏览器测试通过。未将全仓库检查记为通过，也未混入对其他应用的修改。
 
 ### 2. 官方生命周期
 
