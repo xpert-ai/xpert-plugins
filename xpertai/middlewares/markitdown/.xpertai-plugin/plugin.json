@@ -1,0 +1,5 @@
+{
+  "name": "@xpert-ai/plugin-markitdown",
+  "version": "0.0.5",
+  "sandboxActions": "./dist/sandbox-actions/convert/action.json"
+}

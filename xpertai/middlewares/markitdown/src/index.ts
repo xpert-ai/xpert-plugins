@@ -20,7 +20,8 @@ const plugin: XpertPlugin = {
   meta: {
     name: packageJson.name,
     version: packageJson.version,
-    level: 'organization',
+    level: 'system',
+    artifactNamespace: 'markitdown',
     category: 'middleware',
     icon: {
       type: 'svg',
