@@ -42,14 +42,15 @@
     "smoke:sandbox-action": "pnpm run build:sandbox-action && pnpm run verify:sandbox-action && node scripts/smoke-sandbox-action.mjs && node scripts/smoke-transcription-audio-action.mjs",
     "build": "pnpm run clean && pnpm run build:ui && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs && pnpm run build:sandbox-action && pnpm run verify:sandbox-action",
     "lint": "echo \"(todo) add lint\"",
-    "test": "node --test scripts/build-agent-plugin.test.mjs && pnpm run build:ui && jest --config jest.config.ts && tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check && pnpm run build:sandbox-action && pnpm run verify:sandbox-action",
+    "test": "node --test scripts/build-agent-plugin.test.mjs scripts/install-codex.test.mjs scripts/codex-mcp-check.test.mjs scripts/install-codex-cli.test.mjs scripts/codex-cli.test.mjs && pnpm run build:ui && jest --config jest.config.ts && tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check && pnpm run build:sandbox-action && pnpm run verify:sandbox-action",
     "test:e2e": "node scripts/verify-workbench-e2e.mjs",
     "typecheck": "pnpm run build:ui && tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check",
     "prepack": "node scripts/verify-package-output.mjs",
     "release:prepare": "npm run build && node scripts/verify-package-output.mjs && node scripts/prepare-release.mjs",
     "release:publish": "node scripts/publish-prepared-release.mjs",
     "build:agent": "node scripts/build-agent-plugin.mjs",
-    "test:agent": "node --test scripts/build-agent-plugin.test.mjs"
+    "install:codex": "node scripts/install-codex.mjs",
+    "test:agent": "node --test scripts/build-agent-plugin.test.mjs scripts/install-codex.test.mjs scripts/codex-mcp-check.test.mjs scripts/install-codex-cli.test.mjs scripts/codex-cli.test.mjs"
   },
   "xpert": {
     "plugin": {

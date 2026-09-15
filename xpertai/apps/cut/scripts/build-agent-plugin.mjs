@@ -1,18 +1,25 @@
 import { copyFile, lstat, mkdir, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises'
-import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { basename, dirname, isAbsolute, join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 
-/** Package only client assets. Never copy Runtime code or credentials. */
-export async function buildAgentPlugin({ output, mcpUrl }) {
+export function validateMcpUrl(mcpUrl, allowLocalHttp = false) {
   let url
   try { url = new URL(mcpUrl) } catch { throw new Error('A valid Cut MCP HTTPS URL is required.') }
-  if (url.protocol !== 'https:') throw new Error('The Cut MCP URL must use HTTPS.')
+  const localHttp = allowLocalHttp && url.protocol === 'http:' &&
+    ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
+  if (url.protocol !== 'https:' && !localHttp) throw new Error('The Cut MCP URL must use HTTPS; explicit local HTTP is limited to loopback hosts.')
   if (url.username || url.password || url.search || url.hash) {
     throw new Error('The MCP URL must not contain credentials, query parameters or a fragment.')
   }
+  return url
+}
+
+/** Package only client assets. Never copy Runtime code or credentials. */
+export async function buildAgentPlugin({ output, mcpUrl, allowLocalHttp = false }) {
+  const url = validateMcpUrl(mcpUrl, allowLocalHttp)
   if (!output || !isAbsolute(output) || basename(output) !== 'xpert-cut-agent') {
     throw new Error('Use an absolute output path ending in xpert-cut-agent.')
   }
@@ -56,10 +63,10 @@ async function copyTree(source, target) {
   else throw new Error('Shared skill assets must be regular files or directories.')
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && await realpath(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
-    const { values } = parseArgs({ options: { output: { type: 'string' }, 'mcp-url': { type: 'string' } } })
-    const output = await buildAgentPlugin({ output: values.output, mcpUrl: values['mcp-url'] })
+    const { values } = parseArgs({ options: { output: { type: 'string' }, 'mcp-url': { type: 'string' }, 'allow-local-http': { type: 'boolean', default: false } } })
+    const output = await buildAgentPlugin({ output: values.output, mcpUrl: values['mcp-url'], allowLocalHttp: values['allow-local-http'] })
     process.stdout.write(`Built Xpert Cut Agent Plugin: ${output}\n`)
   } catch (error) {
     process.stderr.write(`${error instanceof Error ? error.message : 'Agent plugin build failed.'}\n`)

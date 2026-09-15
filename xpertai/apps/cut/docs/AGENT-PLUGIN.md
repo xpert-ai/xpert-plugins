@@ -16,6 +16,65 @@ entry instructions. The portable package copies those files byte-for-byte.
 `references/xpert.md` and `references/mcp.md` describe the environment-specific
 identity, read and file-transfer entry points; editing rules stay shared.
 
+## Install from source into Codex
+
+Prerequisites: Node.js 20+ and a Codex CLI supporting `plugin add`. The installer
+checks PATH, then the Codex/ChatGPT desktop app bundles on macOS. For a custom
+location, pass `--codex-path /absolute/path/to/codex`. No Xpert backend build or npm
+installation is needed for this client installer.
+
+From `xpertai/apps/cut`:
+
+```sh
+node scripts/install-codex.mjs
+```
+
+Enter your Cut MCP Publication URL, then its MCP API Key at the hidden prompt.
+Obtain the key from the corresponding Xpert MCP publication/plugin connection
+settings. The key must belong to that service and have publication access.
+Do not enter an OpenAI API key or an Xpert browser login token.
+The installer sends `Authorization: Bearer <key>` and verifies MCP initialization
+and discovery of the published `cut_list_clips` tool before installation.
+It never invokes editing tools or opens a browser.
+
+For a desktop-local service only:
+
+```sh
+node scripts/install-codex.mjs --allow-local-http
+```
+
+This allows HTTP only on loopback hosts. Remote services require HTTPS.
+Authentication is still required for local services.
+
+The installer manages `~/.local/share/xpert-cut-codex/` as a private local plugin
+source and registers it using the Codex CLI. It installs
+`xpert-cut-agent@xpert-cut-codex-local`, independently of other configured MCPs.
+It does not edit an existing `cut_local` connection or other installed plugins.
+Connection settings are retained in `connection.json`; the generated local
+plugin's `mcp.json` contains the authentication header. These credential files
+use owner-only permissions on POSIX systems, and the installation directory is
+private. Codex also maintains its own plugin cache. Do not share either local
+installation or cache; use the credential-free builder below for distribution.
+
+After installation, reload Codex and start a new task to load the Skills and MCP.
+After pulling source updates, run:
+
+```sh
+node scripts/install-codex.mjs --update
+```
+
+Updates revalidate and reuse the saved address and key, rebuild shared Skills,
+and reinstall through Codex with a new local cache version. To change services
+or rotate a key, edit the managed `connection.json` locally and run `--update`.
+If validation fails, the existing installation is preserved. If CLI registration
+fails after local files are prepared, correct the CLI problem and retry with
+`--update`; the managed source and credentials remain available.
+
+A 401 means the service rejected authentication; verify the MCP key. A 403 means
+publication access needs checking. A successful connection without the expected
+Cut tool indicates a different or incompletely configured publication.
+This script targets desktop Codex; it does not install into remote ChatGPT.
+
 ## Build for a selected MCP service
 
 From the Cut source directory, with Node.js available:
@@ -31,6 +90,11 @@ parent must exist, the final directory must be new, and output must be outside
 the Cut source directory. The builder accepts HTTPS and rejects credentials,
 query strings and fragments. Configure authentication through the client;
 never add bearer tokens to this command, the package or version control.
+
+For desktop development, `--allow-local-http` also permits HTTP on `localhost`,
+`127.0.0.1` or `[::1]` only. This opt-in does not permit remote HTTP or embedded
+credentials. Loopback packages connect to the desktop's local service and cannot
+be used by a remote ChatGPT service.
 
 The output is a self-contained folder:
 
@@ -77,7 +141,14 @@ support. The agent reports unsupported transfer instead of claiming delivery.
 ## Checks
 
 ```sh
-node --test scripts/build-agent-plugin.test.mjs
+node --test scripts/build-agent-plugin.test.mjs scripts/install-codex.test.mjs scripts/codex-mcp-check.test.mjs scripts/install-codex-cli.test.mjs scripts/codex-cli.test.mjs
+```
+
+With a compatible `codex` executable, run the real CLI integration test in an
+isolated temporary Codex configuration:
+
+```sh
+CUT_TEST_CODEX=1 node --test scripts/install-codex-cli.test.mjs scripts/codex-cli.test.mjs
 ```
 
 The package test checks endpoint binding, identical shared skill content,

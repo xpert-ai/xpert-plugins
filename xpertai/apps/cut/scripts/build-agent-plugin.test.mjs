@@ -36,3 +36,25 @@ for (const mcpUrl of ['', 'http://example.test/mcp', 'https://user:secret@exampl
     await assert.rejects(buildAgentPlugin({ output: '/unused/xpert-cut-agent', mcpUrl }), /HTTPS|credentials|query|fragment|URL/)
   })
 }
+
+for (const host of ['localhost', '127.0.0.1', '[::1]']) {
+  test(`allows explicit local HTTP for ${host}`, async () => {
+    const temp = await mkdtemp(join(tmpdir(), 'cut-agent-local-test-'))
+    try {
+      const output = join(temp, 'xpert-cut-agent')
+      const mcpUrl = `http://${host}:3301/api/mcp/p/local`
+      await assert.rejects(buildAgentPlugin({ output, mcpUrl }), /HTTPS/)
+      await buildAgentPlugin({ output, mcpUrl, allowLocalHttp: true })
+      const mcp = JSON.parse(await readFile(join(output, 'mcp.json'), 'utf8'))
+      assert.equal(mcp.mcpServers.cut.url, mcpUrl)
+    } finally { await rm(temp, { recursive: true, force: true }) }
+  })
+}
+
+for (const mcpUrl of ['http://example.test/mcp', 'http://localhost.example.test/mcp',
+  'http://127.0.0.1:3301/mcp?token=secret', 'http://user:secret@localhost/mcp']) {
+  test('local HTTP option still rejects remote hosts and credentials', async () => {
+    await assert.rejects(buildAgentPlugin({ output: '/unused/xpert-cut-agent', mcpUrl, allowLocalHttp: true }),
+      /HTTPS|credentials|query|fragment/)
+  })
+}

@@ -255,3 +255,10 @@ The source `mcp.json` is unbound. The generated output pins the chosen endpoint
 and contains no runtime, dependencies or credentials. See
 [Portable installation and connection](docs/AGENT-PLUGIN.md) for commands,
 client-surface requirements, tests and publishing boundaries.
+
+### Install the Agent Plugin into Codex from source
+
+From this directory, run `node scripts/install-codex.mjs` and enter your Cut MCP
+URL and API Key. Use `--allow-local-http` for a loopback service and `--update`
+to refresh Skills while preserving your saved connection. Requires Node.js 20+
+and Codex CLI plugin support. See [installation instructions](docs/AGENT-PLUGIN.md#install-from-source-into-codex).
