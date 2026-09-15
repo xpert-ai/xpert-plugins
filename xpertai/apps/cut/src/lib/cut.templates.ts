@@ -1,3 +1,4 @@
+import { CUT_SKILLS } from './cut-skills.js'
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -60,7 +61,7 @@ export const cutTemplates: XpertTemplateContribution[] = [
         requiredPlugins: [CUT_PLUGIN_NAME]
       }
     },
-    dependencies: { plugins: [CUT_PLUGIN_NAME], skills: [{ componentKey: 'cut-agent-skill', targetAgentKey: 'Agent_Cut' }] },
+    dependencies: { plugins: [CUT_PLUGIN_NAME], skills: CUT_SKILLS.map((skill) => ({ componentKey: skill.name, targetAgentKey: 'Agent_Cut' })) },
     dslContent: readCutDsl(),
     order: 64,
     default: false,
