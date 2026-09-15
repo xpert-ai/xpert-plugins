@@ -4,6 +4,7 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
 }))
 
 import { MarkItDownBootstrapService } from './markitdown-bootstrap.service.js'
+import type { IPluginConfigResolver } from '@xpert-ai/plugin-sdk'
 
 describe('MarkItDownBootstrapService', () => {
   let service: MarkItDownBootstrapService
@@ -13,6 +14,18 @@ describe('MarkItDownBootstrapService', () => {
   })
 
   describe('resolveConfig', () => {
+    it('resolves system defaults by package name and keeps per-agent index overrides', () => {
+      const resolve: IPluginConfigResolver['resolve'] = <T extends object>(name: string) => {
+        expect(name).toBe('@xpert-ai/plugin-markitdown')
+        return { pipIndexUrl: 'https://system.example/simple', pipExtraIndexUrl: 'https://extra.example/simple' } as T
+      }
+      const scopedService = new MarkItDownBootstrapService({ resolve })
+      expect(scopedService.resolveConfig({ pipIndexUrl: 'https://agent.example/simple' })).toMatchObject({
+        pipIndexUrl: 'https://agent.example/simple',
+        pipExtraIndexUrl: 'https://extra.example/simple'
+      })
+    })
+
     it('should return defaults when no config provided', () => {
       const config = service.resolveConfig()
       expect(config.version).toBe('latest')
