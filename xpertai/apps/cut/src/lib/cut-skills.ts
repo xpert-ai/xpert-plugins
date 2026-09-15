@@ -14,8 +14,10 @@ export type CutSkillName = (typeof CUT_SKILLS)[number]['name']
 // Source and dist modules have the same depth relative to the packaged skills.
 export function readCutWorkflow(name: CutSkillName): string {
   const names: CutSkillName[] = name === 'cut-agent-skill' ? [name] : ['cut-agent-skill', name]
-  return names.map((skill) => {
+  const workflows = names.map((skill) => {
     const path = fileURLToPath(new URL(`../../skills/${skill}/SKILL.md`, import.meta.url))
     return readFileSync(path, 'utf8').replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '').trim()
-  }).join('\n\n')
+  })
+  const entry = readFileSync(fileURLToPath(new URL('../../skills/cut-agent-skill/references/mcp.md', import.meta.url)), 'utf8')
+  return [...workflows, entry.trim()].join('\n\n')
 }
