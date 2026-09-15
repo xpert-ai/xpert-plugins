@@ -4,9 +4,9 @@ Cut is an Agentic non-linear video editor for Xpert. It combines a remote React 
 
 The first implementation is pinned to OpenCut's `pre-rewrite` tag at commit `238750c0250650f1254cf7a4738f8e8c8a0c268c`. See `assets/upstream/ATTRIBUTION.md`. The plugin deliberately owns a compact versioned IR instead of persisting OpenCut internals so a future OpenCut Editor API/headless adapter can be added without rewriting Xpert persistence.
 
-The MP4 exporter renders H.264 video and, when AAC encoding is available, mixes explicit unmuted audio-track clips into the output. One-off exports run in Workbench; durable background, templated, and multi-aspect exports run through the registered `cut.render-mp4@1.1.5` Sandbox Action with fixed revision snapshots, portable Workspace Files inputs, resource limits, cancellation, retry, and traceable outputs. See [`docs/AI-PRODUCT-ROADMAP.zh-CN.md`](docs/AI-PRODUCT-ROADMAP.zh-CN.md) for the OpenCut AI comparison and staged Agentic product plan, [`docs/EDITOR-API-ROADMAP.md`](docs/EDITOR-API-ROADMAP.md) for the evidence required before adopting a future OpenCut API/headless runtime, [`docs/GATE-VERIFICATION.md`](docs/GATE-VERIFICATION.md) for the executable Workbench gate harness, and [`docs/GOAL-COMPLETION-AUDIT.zh-CN.md`](docs/GOAL-COMPLETION-AUDIT.zh-CN.md) for the completed requirement-by-requirement audit and real-host evidence.
+The MP4 exporter renders H.264 video and, when AAC encoding is available, mixes explicit unmuted audio-track clips into the output. One-off exports run in Workbench; durable background, templated, and multi-aspect exports run through the registered `cut.render-mp4@1.1.6` Sandbox Action with fixed revision snapshots, portable Workspace Files inputs, resource limits, cancellation, retry, and traceable outputs. See [`docs/AI-PRODUCT-ROADMAP.zh-CN.md`](docs/AI-PRODUCT-ROADMAP.zh-CN.md) for the OpenCut AI comparison and staged Agentic product plan, [`docs/EDITOR-API-ROADMAP.md`](docs/EDITOR-API-ROADMAP.md) for the evidence required before adopting a future OpenCut API/headless runtime, [`docs/GATE-VERIFICATION.md`](docs/GATE-VERIFICATION.md) for the executable Workbench gate harness, and [`docs/GOAL-COMPLETION-AUDIT.zh-CN.md`](docs/GOAL-COMPLETION-AUDIT.zh-CN.md) for the completed requirement-by-requirement audit and real-host evidence.
 
-Server transcription runs as a Managed Queue job against the current Xpert's configured Speech-to-Text model. It stores only a portable Workspace Files reference in the queue payload, supports idempotent start/retry/cancellation, and creates a reviewable caption draft rather than writing unreviewed text directly to the timeline. Current shared STT providers return plain text, so generated cue timings are explicitly marked as estimated until a timestamp-capable provider contract is available.
+Server transcription runs as a Managed Queue job using Sandbox Whisper by default. The optional platform mode uses the current Xpert's configured Speech-to-Text model. It stores only a portable Workspace Files reference in the queue payload, supports idempotent start/retry/cancellation, and creates a reviewable caption draft rather than writing unreviewed text directly to the timeline. Sandbox Whisper returns model timestamps. When the optional platform provider returns only plain text, generated cue timings are explicitly marked as estimated.
 
 Local Workbench transcription runs Transformers.js/Whisper in an isolated browser Worker. It loads the pinned ONNX Runtime browser files and Whisper Q4 model only after the user starts transcription, reuses browser caches, decodes and resamples media to 16 kHz mono, and does not upload media bytes to the Xpert server. The `sandbox_whisper` mode remains network-disabled: it resolves the exact `Xenova/whisper-tiny:q4` model and ONNX Runtime from the hash-verified `browser/ai-playwright-1.61/v1` Runtime Artifact instead of carrying them in the Cut npm package. Local jobs can be cancelled by terminating the Worker. WebGPU remains disabled until its JSEP runtime has a separate compatibility gate.
 
@@ -29,12 +29,12 @@ Cut is a host-native MCP capability provider:
 
 ### Capability model
 
-The original 50 `CutMiddleware` operations are classified exactly once as 43 Tools or 7 Resource Templates. Two of the 43 Tools additionally support the MCP Task execution mode. The four workflow Prompts are separate guidance templates and are not counted as original operations.
+The original 50 `CutMiddleware` operations are classified exactly once as 43 Tools or 7 Resource Templates. Two of the 43 Tools additionally support the MCP Task execution mode. The new completed-export Resource is additional to those original operations, so MCP now declares 8 Resource Templates. The four workflow Prompts are separate guidance templates and are not counted as original operations.
 
 | MCP capability | Count | Meaning |
 | --- | ---: | --- |
 | Tools | 43 | Mutations, searches, list operations, imports, proposal/caption workflows, and lifecycle commands. |
-| Resource Templates | 7 | Read-only lookup operations exposed as `cut://` resources rather than duplicate Tools. |
+| Resource Templates | 8 | Read-only lookup operations exposed as `cut://` resources rather than duplicate Tools. |
 | Task-capable Tools | 2 | Long-running transcription and headless export; these are included in the 43 Tools. |
 | Prompts | 4 | Multilingual rough-cut, proposal-review, caption-translation, and export workflows. |
 
@@ -43,12 +43,13 @@ The Resource Templates are:
 | Capability key | URI template |
 | --- | --- |
 | `cut_get_project` | `cut://projects/{projectId}` |
-| `cut_get_clip` | `cut://projects/{projectId}/clips/{clipId}` |
-| `cut_get_media_asset` | `cut://projects/{projectId}/media/{mediaAssetId}` |
+| `cut_get_clip` | `cut://projects/{projectId}/clips/{clipId}{?expectedRevision}` |
+| `cut_get_media_asset` | `cut://projects/{projectId}/media/{mediaAssetId}{?expectedRevision}` |
 | `cut_get_analysis_job` | `cut://projects/{projectId}/jobs/{jobId}` |
 | `cut_get_media_segment` | `cut://projects/{projectId}/segments/{segmentId}` |
 | `cut_get_edit_proposal` | `cut://projects/{projectId}/proposals/{proposalId}` |
-| `cut_get_caption_draft` | `cut://projects/{projectId}/captions/{draftId}` |
+| `cut_get_caption_draft` | `cut://projects/{projectId}/captions/{draftId}{?page,pageSize}` |
+| `cut_get_export` | `cut://projects/{projectId}/exports/{exportId}` |
 
 The Task-capable Tools are:
 
@@ -155,6 +156,38 @@ The `workspacePath` inside a portable file reference is a normalized file-runtim
 Existing development databases may still contain a legacy workspace-scoped `cut-ir` MCP Toolset created by an older package. It is not provided by the current Cut plugin and should be removed before testing the organization-native installation.
 
 OpenCut's current rewrite still lists Editor API, MCP, and Headless as future work, so Cut does not advertise a fictional OpenCut adapter. The exact upstream evidence and activation gates are recorded in [`docs/EDITOR-API-ROADMAP.md`](docs/EDITOR-API-ROADMAP.md).
+
+### Standalone files and Sandbox transcription
+
+A paired host build can explicitly configure Publication `runtime.files` as
+`{"type":"user"}` for personal files owned by the authenticated user.
+Standalone transcription uses the bundled Whisper model in Sandbox Runtime
+without an Assistant or external model-provider configuration.
+
+Upload one media/subtitle file with authenticated `POST /api/mcp/p/<slug>/files`
+(multipart field `file`, scope `files:write`), then pass the returned portable
+reference to the import tool. Read a completed `cut_get_export` Resource, then
+retrieve its relative `reference.filePath` with authenticated
+`GET /api/mcp/p/<slug>/files?filePath=...` (scope `files:read`). This binary transport
+has a 256 MiB limit per file. Keep file bytes and credentials out of MCP JSON.
+
+`mode: sandbox_whisper` is the standalone default and needs its offline Sandbox
+Runtime resource. The existing `platform` mode requires native Xpert execution
+with an explicitly configured Speech-to-Text feature. Background jobs retain
+the original actor and host file scope. Read proposal evidence through Resources
+and obtain the user's decision before applying; the Workbench is optional for
+standalone review. MCP write confirmation remains a separate gate.
+
+This Cut build requires `@xpert-ai/plugin-sdk >=3.18.5` (within major version 3).
+The lockfile uses published SDK and contracts 3.18.5. Deploy the matching
+host/worker functionality before loading the plugin. Refresh capability discovery and review the changed URI templates and new
+export resource. See the host repository's
+`docs/plans/2026-09-14-cut-mcp-batch1-acceptance.md` for setup, fixtures and the
+media-to-artifact Codex acceptance procedure. The narrowed local deployment passed
+small-model transcription, caption commit, MP4 export and authenticated download
+on 2026-09-15; the user also confirmed this workflow. Small-model recognition
+accuracy still needs content review. Resource callbacks use the paired SDK
+`ResourceReadContext.resourceUri` to preserve the exact requested URI.
 
 ## Local verification
 

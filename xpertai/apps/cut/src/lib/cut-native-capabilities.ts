@@ -8,6 +8,7 @@ import {
   type McpPromptDefinition,
   type McpResourceTemplateDefinition,
   type ToolExecutionContext,
+  type ResourceReadContext,
   WorkspaceFilesRuntimeCapability,
   type TBuiltinToolsetParams,
   type XpertToolResult
@@ -50,6 +51,8 @@ import {
 } from './constants.js'
 import { CutMiddleware, type CutToolExecutionContext } from './cut.middleware.js'
 import { workspacePortableFileReferenceSchema } from './workspace-file-reference.js'
+import type { CutService } from './cut.service.js'
+import { cutExportResource } from './cut-export-resource.js'
 
 export type CutNativeCapabilityDefinitions = McpCapabilityDefinitions & {
   instructions: string
@@ -109,13 +112,13 @@ const RESOURCE_SPECS = [
   resourceSpec(CUT_GET_PROJECT_TOOL_NAME, 'cut://projects/{projectId}', ['projectId']),
   resourceSpec(
     CUT_GET_CLIP_TOOL_NAME,
-    'cut://projects/{projectId}/clips/{clipId}',
+    'cut://projects/{projectId}/clips/{clipId}{?expectedRevision}',
     ['projectId', 'clipId', 'expectedRevision'],
     ['expectedRevision']
   ),
   resourceSpec(
     CUT_GET_MEDIA_ASSET_TOOL_NAME,
-    'cut://projects/{projectId}/media/{mediaAssetId}',
+    'cut://projects/{projectId}/media/{mediaAssetId}{?expectedRevision}',
     ['projectId', 'mediaAssetId', 'expectedRevision'],
     ['expectedRevision']
   ),
@@ -130,7 +133,7 @@ const RESOURCE_SPECS = [
   ]),
   resourceSpec(
     CUT_GET_CAPTION_DRAFT_TOOL_NAME,
-    'cut://projects/{projectId}/captions/{draftId}',
+    'cut://projects/{projectId}/captions/{draftId}{?page,pageSize}',
     ['projectId', 'draftId', 'page', 'pageSize'],
     ['page', 'pageSize']
   )
@@ -142,7 +145,8 @@ export class CutNativeToolset extends BuiltinToolset<StructuredToolInterface, Re
   constructor(
     toolset: IXpertToolset,
     params: TBuiltinToolsetParams | undefined,
-    private readonly middleware: CutMiddleware
+    private readonly middleware: CutMiddleware,
+    cut: Pick<CutService, 'resolveExportFile'>
   ) {
     super('cut', toolset, params)
     this.tools = []
@@ -156,7 +160,7 @@ export class CutNativeToolset extends BuiltinToolset<StructuredToolInterface, Re
       xpertId: params?.xpertId,
       xpertFeatures: null,
       runtime: {}
-    })
+    }, cut)
   }
 
   override async _validateCredentials(): Promise<void> {}
@@ -179,7 +183,8 @@ export class CutNativeToolset extends BuiltinToolset<StructuredToolInterface, Re
 
 export function createCutNativeCapabilityDefinitions(
   middleware: CutMiddleware,
-  discoveryContext: CutToolExecutionContext
+  discoveryContext: CutToolExecutionContext,
+  cut: Pick<CutService, 'resolveExportFile'>
 ): CutNativeCapabilityDefinitions {
   const metadataTools = middlewareTools(middleware, discoveryContext)
   const metadataByName = new Map(metadataTools.map((item) => [item.name, item]))
@@ -193,6 +198,7 @@ export function createCutNativeCapabilityDefinitions(
       inputSchema,
       exposure: { mcp: { eligible: true } },
       behavior: toolBehavior(name),
+      defaultApprovalMode: 'allow' as const,
       requiredContext: [...REQUIRED_CONTEXT],
       ...(TASK_TOOL_NAMES.has(name) ? { task: { mode: 'optional' as const, maxLifetimeMs: 3_600_000 } } : {}),
       execute: (input: unknown, context: ToolExecutionContext) => invokeCutTool(middleware, name, input, context)
@@ -216,7 +222,7 @@ export function createCutNativeCapabilityDefinitions(
         ])
       ),
       requiredContext: [...REQUIRED_CONTEXT],
-      read: async (arguments_: Record<string, string>, context: ToolExecutionContext) => {
+      read: async (arguments_: Record<string, string>, context: ResourceReadContext) => {
         const input = Object.fromEntries(
           Object.entries(arguments_).map(([name, value]) => [
             name,
@@ -227,7 +233,7 @@ export function createCutNativeCapabilityDefinitions(
         return {
           contents: [
             {
-              uri: expandUri(spec.uriTemplate, arguments_),
+              uri: context.resourceUri,
               mimeType: 'application/json',
               text: firstTextContent(result) ?? '{}'
             }
@@ -239,9 +245,9 @@ export function createCutNativeCapabilityDefinitions(
 
   return {
     instructions:
-      'Cut capabilities operate on tenant- or organization-scoped Cut projects. External callers must pass projectId explicitly. File imports require a portable platform.workspace.files reference; no current workspace is inferred.',
+      'For subtitle requests, use the default sandbox_whisper small model in Sandbox Runtime; platform model configuration is not required. Use platform transcription only when explicitly requested and configured; never substitute another engine silently. After successful transcription inspect timingSource; estimated timing is not synchronized subtitle evidence. Stop and explain missing alignment rather than inventing cue times. Cut capabilities operate on tenant- or organization-scoped Cut projects. External callers must pass projectId explicitly. File imports require a portable platform.workspace.files reference; no current workspace is inferred. For standalone file transfer, use POST/GET on the publication URL plus /files with the same authenticated credential and files:write/files:read scopes. Read proposal evidence and impacts through resources, show them to the user, and obtain approval before applying. Tools default to direct execution; publication administrators may override this policy. Reuse existing user approval for the same edits. Read completed artifacts through cut_get_export and download the returned relative filePath through the files endpoint.',
     tools,
-    resourceTemplates,
+    resourceTemplates: [...resourceTemplates, cutExportResource(cut)],
     prompts: createCutPrompts()
   }
 }
@@ -400,13 +406,6 @@ function resourceSpec(
   }
 }
 
-function expandUri(template: string, arguments_: Record<string, string>) {
-  return Object.entries(arguments_).reduce(
-    (uri, [name, value]) => uri.replace(`{${name}}`, encodeURIComponent(value)),
-    template
-  )
-}
-
 function createCutPrompts(): McpPromptDefinition[] {
   return [
     prompt('cut_plan_rough_cut', 'Plan a rough cut', 'Plan a revision-safe rough cut from available media.'),
@@ -433,13 +432,16 @@ function prompt(key: string, title: string, description: string): McpPromptDefin
       const chinese = language?.startsWith('zh')
       const projectId = arguments_['projectId']
       const goal = arguments_['goal']?.trim()
-      const text = chinese
+      const review = key === 'cut_review_edit_proposal'
+        ? (chinese ? '读取提案及证据资源，向用户展示删除片段、保留片段和时间线影响，并在获得同意后应用。MCP 写操作确认不能替代内容审阅。' : ' Read proposal and evidence resources, show removals, retained ranges and timeline effects to the user, and obtain approval before applying. MCP write confirmation does not replace content review.')
+        : ''
+      const text = (chinese
         ? `针对 Cut 项目 ${projectId}，${descriptionZh(key)}${
             goal ? `目标：${goal}。` : ''
           }先读取项目和相关资源，再提出修改；任何写操作都必须使用最新 revision。`
         : `For Cut project ${projectId}, ${description}${
             goal ? ` Goal: ${goal}.` : ''
-          } Read the project and relevant resources first, then propose changes; every write must use the latest revision.`
+          } Read the project and relevant resources first, then propose changes; every write must use the latest revision.`) + review
       return {
         description,
         messages: [{ role: 'user', content: { type: 'text', text } }]

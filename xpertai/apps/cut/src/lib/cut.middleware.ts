@@ -28,7 +28,6 @@ import {
   CUT_COMMIT_CAPTION_DRAFT_TOOL_NAME,
   CUT_COMMIT_CAPTION_DRAFTS_TOOL_NAME,
   CUT_CANCEL_ANALYSIS_JOB_TOOL_NAME,
-  CUT_DEFAULT_TRANSCRIPTION_MODE,
   CUT_DELETE_CLIPS_TOOL_NAME,
   CUT_DUPLICATE_CLIPS_TOOL_NAME,
   CUT_FEATURE,
@@ -211,8 +210,8 @@ const importSubtitleSchema = z.object({
 const startTranscriptionSchema = z.object({
   projectId: currentProjectId,
   mediaAssetId: z.string().uuid(),
-  mode: z.enum(['platform', 'sandbox_whisper']).default(CUT_DEFAULT_TRANSCRIPTION_MODE).describe(
-    'Defaults to sandbox_whisper, which runs the pinned Q4 Whisper resource in the managed browser-ai queue without an online media URL. platform explicitly uses the current Xpert Speech-to-Text provider.'
+  mode: z.enum(['platform', 'sandbox_whisper']).default('sandbox_whisper').describe(
+    'Defaults to sandbox_whisper, using the bundled small Whisper model in Sandbox Runtime without provider credentials. Use platform only when explicitly requested and configured; platform errors never trigger silent fallback.'
   ),
   language: z.string().trim().min(1).max(35).default('und').describe(
     'Source language. For sandbox_whisper use und/auto for detection, zh (or zh-CN/zh-Hans/zh-Hant) for Chinese, or en for English.'
@@ -659,7 +658,8 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
           verboseParsingErrors: true
         }),
         tool(async (rawInput) => {
-          const input = requireCutProjectInput(rawInput)
+          const parsed = requireCutProjectInput(rawInput)
+          const input = { ...parsed, mode: parsed.mode ?? 'sandbox_whisper' as const }
           if (input.mode === 'platform') {
             const feature = context.xpertFeatures?.speechToText
             if (!feature?.enabled || !feature.copilotModel) {
@@ -671,7 +671,7 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
           return compact(await this.captions.startTranscription(scope, input))
         }, {
           name: CUT_START_TRANSCRIPTION_TOOL_NAME,
-          description: 'Queue durable background transcription for one imported audio/video asset. mode defaults to sandbox_whisper, which uses the pinned offline Q4 Whisper resource in the browser-ai Sandbox Runtime; mode=platform explicitly uses the current Xpert Speech-to-Text provider. Browser-local Whisper remains an interactive Workbench action. Returns a jobId and does not change the timeline.',
+          description: 'Queue durable background transcription for one imported audio/video asset. Defaults to sandbox_whisper using the bundled small model in Sandbox Runtime; no platform model configuration is required. Use platform only when explicitly requested and configured. Explicit modes are respected and platform errors never trigger a fallback. Browser-local Whisper remains an interactive Workbench action. Returns a jobId and does not change the timeline.',
           schema: startTranscriptionSchema,
           verboseParsingErrors: true
         }),
@@ -1111,6 +1111,7 @@ function getBooleanFromString(value: string | undefined): boolean | undefined {
 
 function scopeFromContext(context: IAgentMiddlewareContext | CutToolExecutionContext): CutScope {
   return {
+    fileScope: context.runtime.capabilities?.get(WorkspaceFilesRuntimeCapability)?.scope,
     tenantId: context.tenantId,
     organizationId: context.organizationId === undefined ? RequestContext.getOrganizationId() ?? null : context.organizationId ?? null,
     workspaceId: context.workspaceId ?? null,

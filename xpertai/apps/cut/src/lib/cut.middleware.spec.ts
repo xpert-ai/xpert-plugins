@@ -160,7 +160,7 @@ describe('CutMiddleware', () => {
       userId: 'user-a', xpertId: 'assistant-a', conversationId: 'conversation-a',
       node: {} as never,
       tools: new Map(),
-      runtime: { capabilities: { require: jest.fn() } } as never
+      runtime: { capabilities: { require: jest.fn(), get: jest.fn() } } as never
     } as IAgentMiddlewareContext
     const middleware = strategy.createMiddleware({}, context) as AgentMiddleware
     expect(middleware.tools?.map((item) => item.name)).toEqual([...CUT_MIDDLEWARE_TOOL_NAMES])
@@ -353,6 +353,15 @@ describe('CutMiddleware', () => {
     expect(startTranscription).toHaveBeenCalledWith(expect.any(Object), input, 'xpert-cut', expect.objectContaining({ model: 'whisper-large-v3' }))
     expect(output).toMatchObject({ status: 'queued', jobId: '33333333-3333-4333-8333-333333333333' })
     expect(() => transcriptionTool.schema.parse({ ...input, unexpected: true })).toThrow()
+    const automatic = { ...input, mode: undefined }
+    await transcriptionTool.invoke(automatic)
+    expect(startTranscription).toHaveBeenLastCalledWith(expect.any(Object), { ...input, mode: 'sandbox_whisper' })
+    await transcriptionTool.invoke({ ...input, mode: 'sandbox_whisper' })
+    expect(startTranscription).toHaveBeenLastCalledWith(expect.any(Object), { ...input, mode: 'sandbox_whisper' })
+    startTranscription.mockRejectedValueOnce(new Error('Provider unavailable'))
+    const callsBefore = startTranscription.mock.calls.length
+    await expect(transcriptionTool.invoke(input)).rejects.toThrow('Provider unavailable')
+    expect(startTranscription).toHaveBeenCalledTimes(callsBefore + 1)
   })
 
   it('defaults to Sandbox Whisper without requiring an Xpert speech-to-text model', async () => {
@@ -379,7 +388,7 @@ describe('CutMiddleware', () => {
     })
     expect(input).toMatchObject({ mode: 'sandbox_whisper' })
     expect(JSON.parse(await transcriptionTool.invoke(input))).toMatchObject({ mode: 'sandbox_whisper', status: 'queued' })
-    expect(startTranscription).toHaveBeenCalledWith(expect.any(Object), input)
+    expect(startTranscription).toHaveBeenCalledWith(expect.any(Object), { ...input, mode: 'sandbox_whisper' })
   })
 
   it('searches bounded media evidence with a strict read-only schema', async () => {
@@ -511,6 +520,6 @@ function middlewareContext() {
     userId: 'user-a', xpertId: 'assistant-a', conversationId: 'conversation-a',
     node: {} as never,
     tools: new Map(),
-    runtime: { capabilities: { require: jest.fn() } } as never
+    runtime: { capabilities: { require: jest.fn(), get: jest.fn() } } as never
   } as IAgentMiddlewareContext
 }

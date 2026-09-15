@@ -162,6 +162,7 @@ function scopeFromPayload(input: CutTranscriptionQueueJobData): CutScope {
     workspaceId: input.workspaceId ?? null,
     projectId: input.platformProjectId ?? null,
     userId: input.userId ?? null,
+    fileScope: input.fileScope,
     assistantId: input.assistantId ?? input.xpertId ?? null
   }
 }
