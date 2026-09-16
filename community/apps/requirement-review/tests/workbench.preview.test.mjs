@@ -34,6 +34,8 @@ test('production preview covers failed, stale, successful and empty source revis
     context
   )
   assert.equal(review.status, 'FAILED')
+  assert.equal(review.attempts.length, 1)
+  assert.equal(review.attempts[0].status, 'FAILED')
 
   const stale = await execute('revise', {
     reviewId,
@@ -70,6 +72,27 @@ test('production preview covers failed, stale, successful and empty source revis
     context
   )
   assert.equal(review.status, 'EMPTY')
+  assert.equal(review.attempts.length, 2)
+  assert.equal(review.attempts[0].status, 'SUCCEEDED')
+  assert.equal(review.attempts[1].status, 'FAILED')
+  assert.equal(review.attempts[0].promptVersion, 'reqtrace-1')
+  const previewData = await preview.handleRequest(
+    {
+      type: 'requestData',
+      query: { parameters: { reviewId } }
+    },
+    context
+  )
+  assert.equal(previewData.data.meta.detail.attempts.length, 2)
+  assert.equal(previewData.data.meta.detail.attempt.model, 'preview-model')
+  assert.deepEqual(previewData.data.meta.detail.attempt.usage, {
+    inputTokens: 32,
+    outputTokens: 4
+  })
+  assert.equal(
+    typeof previewData.data.meta.detail.attempt.durationMs,
+    'number'
+  )
 
   const revisedEmpty = await execute('revise', {
     reviewId,

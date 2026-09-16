@@ -48,6 +48,27 @@ const summary = z.object({
   updatedAt: z.string(),
   requirementCount: z.number()
 })
+const attemptStatus = z.enum([
+  'RUNNING',
+  'SUCCEEDED',
+  'FAILED',
+  'INTERRUPTED'
+])
+const attemptSchema = z.object({
+  id: z.string(),
+  inputVersion: z.number(),
+  status: attemptStatus,
+  startedAt: z.string(),
+  deadlineAt: z.string(),
+  completedAt: z.string().nullable(),
+  durationMs: z.number().nullable(),
+  model: z.string().nullable(),
+  promptVersion: z.string(),
+  errorCode: z.string().nullable(),
+  usage: z
+    .object({ inputTokens: z.number(), outputTokens: z.number() })
+    .nullable()
+})
 const detailSchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -76,14 +97,8 @@ const detailSchema = z.object({
   blockers: z.array(
     z.object({ id: z.string().optional(), reason: z.string() })
   ),
-  attempt: z
-    .object({
-      id: z.string(),
-      status: z.string(),
-      errorCode: z.string().nullable(),
-      deadlineAt: z.string()
-    })
-    .nullable()
+  attempt: attemptSchema.nullable(),
+  attempts: z.array(attemptSchema)
 })
 const dataset = z.object({
   items: z.array(summary),
@@ -118,6 +133,11 @@ type SourceRevision = {
   title: string
   sourceText: string
 }
+function durationLabel(value: number | null, locale: string) {
+  if (value === null) return '—'
+  if (value < 1000) return `${Math.round(value)} ms`
+  return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(value / 1000)} s`
+}
 function App() {
   const [locale, setLocale] = useState('zh-CN')
   const t = translator(locale)
@@ -132,6 +152,7 @@ function App() {
   const [error, setError] = useState('')
   const [confirming, setConfirming] = useState(false)
   const [showSource, setShowSource] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const [highlight, setHighlight] = useState('')
   const [search, setSearch] = useState('')
   const selected = useRef<string | undefined>()
@@ -204,6 +225,9 @@ function App() {
     const timer = setInterval(() => void load(), 3000)
     return () => clearInterval(timer)
   }, [detail?.status])
+  useEffect(() => {
+    setHistoryOpen(detail?.status === 'FAILED')
+  }, [detail?.id, detail?.status])
   useEffect(() => {
     if (!initialized.current) return
     const timer = setTimeout(() => {
@@ -652,6 +676,83 @@ function App() {
                       timeStyle: 'short'
                     }).format(new Date(detail.confirmedAt))}
                 </p>
+              )}
+              {!!detail.attempts.length && (
+                <details
+                  className="border rounded-md p-3"
+                  open={historyOpen}
+                  onToggle={(event) =>
+                    setHistoryOpen(event.currentTarget.open)
+                  }
+                >
+                  <summary className="cursor-pointer font-medium">
+                    {t('analysisHistory')} ({detail.attempts.length})
+                  </summary>
+                  <ol className="mt-3 space-y-3">
+                    {detail.attempts.map((attempt, index) => (
+                      <li
+                        key={attempt.id}
+                        className="rounded-md border p-3 text-sm space-y-2"
+                      >
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant="outline">{t(attempt.status)}</Badge>
+                          {index === 0 && (
+                            <span className="text-xs text-muted-foreground">
+                              {t('latestAttempt')}
+                            </span>
+                          )}
+                          <span className="text-xs text-muted-foreground">
+                            {new Intl.DateTimeFormat(locale, {
+                              dateStyle: 'medium',
+                              timeStyle: 'medium'
+                            }).format(new Date(attempt.startedAt))}
+                          </span>
+                        </div>
+                        <dl className="grid gap-x-4 gap-y-1 sm:grid-cols-2 text-xs">
+                          <div className="flex gap-2">
+                            <dt className="text-muted-foreground">
+                              {t('inputVersion')}
+                            </dt>
+                            <dd>v{attempt.inputVersion}</dd>
+                          </div>
+                          <div className="flex gap-2">
+                            <dt className="text-muted-foreground">
+                              {t('duration')}
+                            </dt>
+                            <dd>{durationLabel(attempt.durationMs, locale)}</dd>
+                          </div>
+                          <div className="flex gap-2">
+                            <dt className="text-muted-foreground">
+                              {t('promptVersion')}
+                            </dt>
+                            <dd>{attempt.promptVersion}</dd>
+                          </div>
+                          <div className="flex gap-2">
+                            <dt className="text-muted-foreground">
+                              {t('model')}
+                            </dt>
+                            <dd>{attempt.model ?? t('notReported')}</dd>
+                          </div>
+                          <div className="flex gap-2 sm:col-span-2">
+                            <dt className="text-muted-foreground">
+                              {t('tokenUsage')}
+                            </dt>
+                            <dd>
+                              {attempt.usage
+                                ? `${attempt.usage.inputTokens} ${t('inputTokens')} / ${attempt.usage.outputTokens} ${t('outputTokens')}`
+                                : t('notReported')}
+                            </dd>
+                          </div>
+                        </dl>
+                        {attempt.errorCode && (
+                          <p className="text-destructive">
+                            {t(attempt.errorCode)}
+                          </p>
+                        )}
+                      </li>
+                    ))}
+                  </ol>
+                </details>
               )}
               {showSource && (
                 <section

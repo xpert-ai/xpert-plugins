@@ -21,6 +21,7 @@ import { ReviewService, type ReviewDetail } from './services/review.service.js'
 import { ReviewError, confirmationProblems } from './domain/policy.js'
 import { InputError } from './domain/source.js'
 import { editableDraftSchema } from './domain/contracts.js'
+import type { AnalysisAttempt } from './entities/analysis-attempt.entity.js'
 import {
   FEATURE,
   ICON,
@@ -163,7 +164,44 @@ export const actionSchemas = {
     .object({ reviewId: z.string().uuid(), attemptId: z.string().uuid() })
     .strict()
 }
-export function publicDetail({ review, attempt }: ReviewDetail) {
+function publicAttempt(attempt: AnalysisAttempt) {
+  const startedAt = Date.parse(attempt.startedAt)
+  const completedAt = attempt.completedAt
+    ? Date.parse(attempt.completedAt)
+    : Number.NaN
+  const durationMs =
+    Number.isFinite(startedAt) && Number.isFinite(completedAt)
+      ? Math.max(0, completedAt - startedAt)
+      : null
+  const model = attempt.model
+    ?.replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 120)
+  const usage =
+    attempt.usage &&
+    Number.isFinite(attempt.usage.inputTokens) &&
+    Number.isFinite(attempt.usage.outputTokens)
+      ? {
+          inputTokens: Math.max(0, Math.floor(attempt.usage.inputTokens)),
+          outputTokens: Math.max(0, Math.floor(attempt.usage.outputTokens))
+        }
+      : null
+  return {
+    id: attempt.id,
+    inputVersion: attempt.inputVersion,
+    status: attempt.status,
+    startedAt: attempt.startedAt,
+    deadlineAt: attempt.deadlineAt,
+    completedAt: attempt.completedAt,
+    durationMs,
+    model: model || null,
+    promptVersion: attempt.promptVersion,
+    errorCode: attempt.errorCode,
+    usage
+  }
+}
+export function publicDetail({ review, attempt, attempts }: ReviewDetail) {
   return {
     id: review.id,
     title: review.title,
@@ -186,16 +224,8 @@ export function publicDetail({ review, attempt }: ReviewDetail) {
     blockers: review.editableDraft
       ? confirmationProblems(review.editableDraft)
       : [],
-    attempt: attempt
-      ? {
-          id: attempt.id,
-          status: attempt.status,
-          startedAt: attempt.startedAt,
-          deadlineAt: attempt.deadlineAt,
-          completedAt: attempt.completedAt,
-          errorCode: attempt.errorCode
-        }
-      : null
+    attempt: attempt ? publicAttempt(attempt) : null,
+    attempts: attempts.map(publicAttempt)
   }
 }
 const scopeOf = (context: XpertResolvedViewHostContext) => ({

@@ -26,6 +26,7 @@ export type ReviewScope = {
 }
 export const PROMPT_VERSION = 'reqtrace-1'
 export const ANALYSIS_TIMEOUT_MS = 90_000
+export const ATTEMPT_HISTORY_LIMIT = 20
 export type ReviewReceipt = {
   reviewId: string
   version: number
@@ -33,7 +34,11 @@ export type ReviewReceipt = {
   code?: string
   attemptId?: string
 }
-export type ReviewDetail = { review: Review; attempt: AnalysisAttempt | null }
+export type ReviewDetail = {
+  review: Review
+  attempt: AnalysisAttempt | null
+  attempts: AnalysisAttempt[]
+}
 
 function scoped(scope: ReviewScope): {
   tenantId: string
@@ -139,11 +144,18 @@ export class ReviewService {
     return this.db.transaction(async (manager) => {
       const review = await this.lock(manager, scope, id)
       await this.recoverExpired(manager, review)
-      const attempt = await manager.getRepository(AnalysisAttempt).findOne({
+      const attempts = await manager.getRepository(AnalysisAttempt).find({
         where: { ...scoped(scope), reviewId: id },
-        order: { startedAt: 'DESC', id: 'DESC' }
+        order: { startedAt: 'DESC', id: 'DESC' },
+        take: ATTEMPT_HISTORY_LIMIT
       })
-      return { review, attempt }
+      const attempt =
+        review.status === 'ANALYZING'
+          ? (attempts.find((item) => item.status === 'RUNNING') ??
+            attempts[0] ??
+            null)
+          : (attempts[0] ?? null)
+      return { review, attempt, attempts }
     })
   }
 
@@ -203,7 +215,16 @@ export class ReviewService {
       this.checkVersion(review, input.version)
       if (!['READY', 'FAILED', 'EMPTY'].includes(review.status))
         throw new ReviewError('invalid_state')
-      const now = new Date()
+      const latest = await repository.findOne({
+        where: { ...scoped(scope), reviewId: review.id },
+        order: { startedAt: 'DESC', id: 'DESC' }
+      })
+      const previousStartedAt = latest ? Date.parse(latest.startedAt) : Number.NaN
+      const now = new Date(
+        Number.isFinite(previousStartedAt)
+          ? Math.max(Date.now(), previousStartedAt + 1)
+          : Date.now()
+      )
       const attempt = repository.create({
         id: randomUUID(),
         tenantId: review.tenantId,

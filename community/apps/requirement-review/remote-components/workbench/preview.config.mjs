@@ -5,31 +5,41 @@ import { segmentSource } from '../../dist/domain/source.js'
 import { actionSchemas } from '../../dist/view.provider.js'
 import { makeEditable, confirmationProblems } from '../../dist/domain/policy.js'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
+const attemptView = attempt => {
+  const durationMs = attempt.completedAt
+    ? Math.max(0, Date.parse(attempt.completedAt) - Date.parse(attempt.startedAt))
+    : null
+  return { ...attempt, durationMs }
+}
 export default {
   title: 'ReqTrace synthetic acceptance', workspaceRoot: root, instanceId: 'reqtrace-preview', component: { root: resolve(root, 'dist/remote'), runtime: 'react' },
   hostContext: { manifest: { key: 'reqtrace.workbench' }, initialQuery: { page: 1, parameters: {} }, locale: 'zh-CN', theme: { mode: 'light', tokens: { colorBackground: '#ffffff', colorForeground: '#171717', colorPrimary: '#2563eb', colorPrimaryForeground: '#ffffff', colorBorder: '#e5e5e5' } } },
   state: { reviews: [], failNext: true, emptyNext: false, conflictNextRevision: true },
   async handleRequest(message, { state }) {
     if (message.type === 'requestData') {
-      const detail = state.reviews.find(item => item.id === message.query?.parameters?.reviewId) ?? null
+      const record = state.reviews.find(item => item.id === message.query?.parameters?.reviewId) ?? null
+      const detail = record ? { ...record, attempt: record.attempt ? attemptView(record.attempt) : null, attempts: record.attempts.map(attemptView) } : null
       const items = state.reviews.map(item => ({ id: item.id, title: item.title, status: item.status, version: item.version, updatedAt: item.updatedAt, requirementCount: item.editableDraft?.requirements.length ?? 0 }))
       return { data: { items, total: items.length, meta: { items, total: items.length, page: 1, pageSize: 20, detail, sendCommand: 'assistant.chat.send_message' } } }
     }
     if (message.type === 'invokeClientCommand') {
       const review = state.reviews.find(item => item.status === 'ANALYZING')
       if (!review) return { result: { success: false, handled: true } }
-      if (state.failNext) { state.failNext = false; review.status = 'FAILED'; review.attempt.status = 'FAILED'; review.attempt.errorCode = 'model_failed' }
+      if (state.failNext) { state.failNext = false; review.status = 'FAILED'; review.attempt.status = 'FAILED'; review.attempt.errorCode = 'model_failed'; review.attempt.completedAt = new Date().toISOString() }
       else if (state.emptyNext) {
         state.emptyNext = false
         review.aiDraft = { summary: 'Synthetic empty result', requirements: [] }
         review.editableDraft = makeEditable(review.aiDraft)
         review.status = 'EMPTY'
         review.attempt.status = 'SUCCEEDED'
+        review.attempt.completedAt = new Date().toISOString()
+        review.attempt.model = 'preview-model'
+        review.attempt.usage = { inputTokens: 32, outputTokens: 4 }
         review.blockers = []
       }
       else {
         review.aiDraft = { summary: 'Synthetic fixture only', requirements: [{ title: '按项目筛选需求', description: '按照项目筛选需求列表。', evidence: [{ segmentId: 'S01', quote: review.sourceSegments[0].text }], acceptance: [{ text: '仅展示选定项目的需求。', basis: 'proposal' }], openQuestions: ['需要默认选择项目吗？'] }] }
-        review.editableDraft = makeEditable(review.aiDraft); review.status = 'REVIEWING'; review.attempt.status = 'SUCCEEDED'; review.blockers = confirmationProblems(review.editableDraft)
+        review.editableDraft = makeEditable(review.aiDraft); review.status = 'REVIEWING'; review.attempt.status = 'SUCCEEDED'; review.attempt.completedAt = new Date().toISOString(); review.attempt.model = 'preview-model'; review.attempt.usage = { inputTokens: 64, outputTokens: 48 }; review.blockers = confirmationProblems(review.editableDraft)
       }
       review.version++; return { result: { success: true, handled: true } }
     }
@@ -38,7 +48,7 @@ export default {
     if (!parsed?.success) return { result: { success: false, data: { code: 'invalid_input' } } }
     const input = parsed.data
     if (message.actionKey === 'create') {
-      const id = randomUUID(); state.reviews.push({ id, title: input.title, sourceText: input.sourceText, sourceSegments: segmentSource(input.sourceText), status: 'READY', version: 1, inputVersion: 1, aiDraft: null, editableDraft: null, confirmedSnapshot: null, confirmedAt: null, updatedAt: new Date().toISOString(), blockers: [], attempt: null })
+      const id = randomUUID(); state.reviews.push({ id, title: input.title, sourceText: input.sourceText, sourceSegments: segmentSource(input.sourceText), status: 'READY', version: 1, inputVersion: 1, aiDraft: null, editableDraft: null, confirmedSnapshot: null, confirmedAt: null, updatedAt: new Date().toISOString(), blockers: [], attempt: null, attempts: [] })
       return { result: { success: true, data: { reviewId: id } } }
     }
     const review = state.reviews.find(item => item.id === input.reviewId)
@@ -69,7 +79,7 @@ export default {
       return { result: { success: true, data: { reviewId: review.id } } }
     }
     if (message.actionKey === 'start') {
-      review.status = 'ANALYZING'; review.version++; review.attempt = { id: randomUUID(), status: 'RUNNING', errorCode: null, deadlineAt: new Date(Date.now() + 90000).toISOString() }
+      const startedAt = new Date().toISOString(); review.status = 'ANALYZING'; review.version++; review.attempt = { id: randomUUID(), inputVersion: review.inputVersion, status: 'RUNNING', startedAt, deadlineAt: new Date(Date.now() + 90000).toISOString(), completedAt: null, model: null, promptVersion: 'reqtrace-1', errorCode: null, usage: null }; review.attempts.unshift(review.attempt)
       return { result: { success: true, data: { reviewId: review.id, attemptId: review.attempt.id, clientCommand: { commandKey: 'assistant.chat.send_message', payload: { text: 'Synthetic analysis request' } } } } }
     }
     if (message.actionKey === 'save') { review.editableDraft = input.draft; review.blockers = confirmationProblems(input.draft) }

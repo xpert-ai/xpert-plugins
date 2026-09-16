@@ -94,7 +94,55 @@ test('view DTO allowlists business data and hides scope and confirmer identity',
         confirmedBy: 'secret-owner'
       }
     },
-    attempt: null
+    attempt: null,
+    attempts: []
   })
+  assert.equal(JSON.stringify(dto).includes('secret-'), false)
+})
+test('view DTO exposes bounded attempt facts without scope or request keys', () => {
+  const attempt = {
+    id: 'attempt-1',
+    tenantId: 'secret-tenant',
+    organizationId: 'secret-org',
+    ownerId: 'secret-owner',
+    reviewId: 'review-1',
+    requestKey: 'secret-request-key',
+    inputVersion: 2,
+    status: 'SUCCEEDED',
+    startedAt: '2026-09-16T12:00:00.000Z',
+    deadlineAt: '2026-09-16T12:01:30.000Z',
+    completedAt: '2026-09-16T12:00:01.250Z',
+    model: '  deepseek\nflash  ',
+    promptVersion: 'reqtrace-1',
+    errorCode: null,
+    usage: { inputTokens: 12.9, outputTokens: 4.2 }
+  }
+  const dto = publicDetail({
+    review: {
+      id: 'review-1',
+      title: 'x',
+      sourceText: 'x',
+      sourceSegments: [],
+      status: 'REVIEWING',
+      version: 3,
+      inputVersion: 2,
+      aiDraft: null,
+      editableDraft: null,
+      sourceHash: 'secret-hash',
+      confirmedAt: null,
+      confirmedSnapshot: null,
+      updatedAt: '2026-09-16T12:00:01.250Z'
+    },
+    attempt,
+    attempts: [attempt]
+  })
+  assert.equal(dto.attempts.length, 1)
+  assert.equal(dto.attempts[0].durationMs, 1250)
+  assert.equal(dto.attempts[0].model, 'deepseek flash')
+  assert.deepEqual(dto.attempts[0].usage, {
+    inputTokens: 12,
+    outputTokens: 4
+  })
+  assert.deepEqual(dto.attempt, dto.attempts[0])
   assert.equal(JSON.stringify(dto).includes('secret-'), false)
 })

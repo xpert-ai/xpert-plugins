@@ -106,6 +106,16 @@ test('PostgreSQL scope, concurrency, attempts and confirmation persistence', asy
       draft
     })
     assert.equal(good.status, 'REVIEWING')
+    const attemptHistory = (await service.get(scope, created.reviewId)).attempts
+    assert.equal(attemptHistory.length, 2)
+    assert.deepEqual(
+      new Set(attemptHistory.map((item) => item.status)),
+      new Set(['SUCCEEDED', 'FAILED'])
+    )
+    assert.equal(
+      attemptHistory.every((item) => item.inputVersion === 1),
+      true
+    )
     await assert.rejects(
       () =>
         service.confirm(scope, {
@@ -209,12 +219,32 @@ test('PostgreSQL scope, concurrency, attempts and confirmation persistence', asy
       version: revisedTimeout.review.version,
       requestKey: randomUUID()
     })
+    assert.equal(
+      (await service.get(scope, timeoutReview.reviewId)).attempt.id,
+      fresh.attemptId
+    )
     await service.submit(scope, {
       reviewId: timeoutReview.reviewId,
       attemptId: fresh.attemptId,
       inputVersion: 2,
       draft
     })
+    const revisedHistory = (
+      await service.get(scope, timeoutReview.reviewId)
+    ).attempts
+    assert.equal(revisedHistory.length, 2)
+    assert.deepEqual(
+      new Set(revisedHistory.map((item) => item.status)),
+      new Set(['SUCCEEDED', 'INTERRUPTED'])
+    )
+    assert.deepEqual(
+      new Set(revisedHistory.map((item) => item.inputVersion)),
+      new Set([1, 2])
+    )
+    assert.deepEqual(
+      revisedHistory.map((item) => item.inputVersion),
+      [2, 1]
+    )
     const late = await service.submit(scope, {
       reviewId: timeoutReview.reviewId,
       attemptId: old.attemptId,
