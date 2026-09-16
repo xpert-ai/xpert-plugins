@@ -78,6 +78,7 @@
     const [content, setContent] = React.useState('')
     const [risks, setRisks] = React.useState([])
     const [summary, setSummary] = React.useState('')
+    const [detectedIndustry, setDetectedIndustry] = React.useState(null)
 
     // PDF 与多模态表格解析状态
     const [parsingPdf, setParsingPdf] = React.useState(false)
@@ -170,6 +171,7 @@
       setContent(rec.revisedContent || rec.originalContent || '')
       setRisks(rec.risks || [])
       setSummary(rec.summary || '')
+      setDetectedIndustry(rec.detectedIndustry || null)
     }
 
     React.useEffect(() => {
@@ -182,6 +184,7 @@
       setContent(sample.content)
       setRisks([])
       setSummary('')
+      setDetectedIndustry(null)
       setErrorMessage(null)
       setUploadedFileName(sample.title.includes('PDF') ? '工程物资设备采购合同(含附录表).pdf' : '')
       showToast('已载入测试合同样例')
@@ -216,7 +219,7 @@
             content: content
           }
         })
-        const rec = res?.data || res
+        const rec = res?.data || res?.result?.data || res
         if (rec) {
           applyRecord(rec)
           showToast('AI 合规排查完成！共发现 ' + (rec.risks?.length || 0) + ' 处风险')
@@ -384,13 +387,20 @@
             h('div', { className: 'cra-card-title' }, '📝 合同正文与表格附录'),
             h('div', { className: 'cra-sample-select' },
               h('span', null, '快速范例：'),
-              sampleContracts.map((s, idx) =>
-                h('button', {
+              sampleContracts.map((s, idx) => {
+                const sampleLabels = [
+                  '案例1 (供应链)',
+                  '案例2 (IT定制)',
+                  '案例3 (工程·PDF表)',
+                  '案例4 (传媒营销)'
+                ]
+                return h('button', {
                   key: idx,
                   className: 'cra-btn-tag ' + (idx === 2 ? 'cra-btn-tag-pdf' : ''),
+                  title: s.title,
                   onClick: () => handleSelectSample(s)
-                }, idx === 2 ? '案例 3 (📎 含PDF表格)' : '案例 ' + (idx + 1))
-              )
+                }, sampleLabels[idx] || ('案例 ' + (idx + 1)))
+              })
             )
           ),
           uploadedFileName && h('div', { className: 'cra-pdf-tag' },
@@ -425,6 +435,16 @@
             h('div', { className: 'cra-card-title' }, '🔍 法律风险与条款修订建议'),
             risks.length > 0 && h('div', { className: 'cra-stats' },
               '待处理: ' + pendingCount + ' | 已采纳: ' + acceptedCount
+            )
+          ),
+          detectedIndustry && h('div', { className: 'cra-industry-card' },
+            h('div', { className: 'cra-industry-top' },
+              h('span', { className: 'cra-industry-badge' }, '🏷️ 智能判定行业：' + detectedIndustry.name),
+              h('span', { className: 'cra-industry-ref' }, '依据标准：' + detectedIndustry.standardRef)
+            ),
+            detectedIndustry.focusAreas && detectedIndustry.focusAreas.length > 0 && h('div', { className: 'cra-industry-focus' },
+              h('span', { className: 'cra-focus-label' }, '🎯 行业专属排查要点：'),
+              detectedIndustry.focusAreas.map((f, i) => h('span', { key: i, className: 'cra-focus-pill' }, f))
             )
           ),
           summary && h('div', { className: 'cra-summary-box' }, summary),
@@ -540,6 +560,13 @@
       .cra-textarea { flex: 1; resize: none; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; font-size: 13px; line-height: 1.6; color: #1e293b; font-family: monospace; outline: none; }
       .cra-card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
       .cra-meta { font-size: 12px; color: #94a3b8; }
+      .cra-industry-card { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 12px; margin-bottom: 12px; }
+      .cra-industry-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px; }
+      .cra-industry-badge { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+      .cra-industry-ref { font-size: 11px; color: #64748b; }
+      .cra-industry-focus { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 11px; margin-top: 4px; }
+      .cra-focus-label { color: #475569; font-weight: 600; }
+      .cra-focus-pill { background: #f1f5f9; color: #334155; border: 1px solid #e2e8f0; padding: 1px 6px; border-radius: 4px; }
       .cra-summary-box { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; padding: 10px; border-radius: 6px; font-size: 12px; margin-bottom: 12px; }
       .cra-risk-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
       .cra-risk-card { border-radius: 6px; padding: 12px; font-size: 12px; border: 1px solid #e2e8f0; background: #fff; }

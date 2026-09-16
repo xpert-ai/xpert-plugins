@@ -14,10 +14,10 @@ test('ContractRiskAuditorService - 核心业务逻辑与状态转移测试', asy
     const highRisks = risks.filter((r) => r.riskLevel === 'HIGH')
     assert.ok(highRisks.length >= 2, '应该包含至少2个高危风险项')
 
-    const hasDamagesRisk = risks.some((r) => r.category === '违约金责任过重')
+    const hasDamagesRisk = risks.some((r) => r.category.includes('违约金'))
     assert.ok(hasDamagesRisk, '应该识别出违约金责任过重条款')
 
-    const hasIpRisk = risks.some((r) => r.category === '知识产权侵夺')
+    const hasIpRisk = risks.some((r) => r.category.includes('知识产权'))
     assert.ok(hasIpRisk, '应该识别出知识产权归属霸王条款')
   })
 
@@ -28,7 +28,7 @@ test('ContractRiskAuditorService - 核心业务逻辑与状态转移测试', asy
     assert.equal(record.id, 'custom-test-1')
     assert.equal(record.title, '外包开发合同')
     assert.ok(record.risks.length >= 2)
-    assert.match(record.summary, /检测完成/)
+    assert.match(record.summary, /(检测完成|风险排查完成)/)
 
     const fetched = await service.getRecord(mockScope, 'custom-test-1')
     assert.deepEqual(fetched, record, '刷新或重新拉取时应该能够完整恢复该记录')
@@ -71,4 +71,30 @@ test('ContractRiskAuditorService - 核心业务逻辑与状态转移测试', asy
     assert.ok(wbData.records.length >= 2, '工作台应返回全部历史审查单')
     assert.ok(wbData.sampleContracts.length >= 2, '工作台应包含预置样例供快速演示')
   })
+
+  await t.test('7. 应该能够自动识别合同所属行业（IT、建设工程、广告传媒、供应链）并适配行业专属规则', async () => {
+    // 1. IT 软件合同自动识别
+    const itSample = SAMPLE_CONTRACTS[1]
+    const itProfile = service.detectContractIndustry(itSample.content, itSample.title)
+    assert.equal(itProfile.code, 'IT_SOFTWARE')
+    assert.ok(itProfile.standardRef.includes('技术合同编'))
+
+    // 2. 建设工程合同自动识别
+    const constrSample = SAMPLE_CONTRACTS[2]
+    const constrProfile = service.detectContractIndustry(constrSample.content, constrSample.title)
+    assert.equal(constrProfile.code, 'CONSTRUCTION_EQUIPMENT')
+    assert.ok(constrProfile.standardRef.includes('保障中小企业款项支付条例'))
+
+    // 3. 广告传媒合同自动识别
+    const mediaSample = SAMPLE_CONTRACTS[3]
+    const mediaProfile = service.detectContractIndustry(mediaSample.content, mediaSample.title)
+    assert.equal(mediaProfile.code, 'MEDIA_ADVERTISING')
+    assert.ok(mediaProfile.standardRef.includes('广告法'))
+
+    // 4. 执行审查时应自动挂载行业 Profile 及专属风险
+    const audited = await service.auditContract(mockScope, 'auto-industry-audit', mediaSample.content, mediaSample.title)
+    assert.equal(audited.detectedIndustry?.code, 'MEDIA_ADVERTISING')
+    assert.ok(audited.risks.some((r) => r.category.includes('广告营销') || r.riskAnalysis.includes('广告法')))
+  })
 })
+

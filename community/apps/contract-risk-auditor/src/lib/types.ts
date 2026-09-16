@@ -12,6 +12,20 @@ export interface ClauseRiskItem {
   status: ClauseRiskStatus
 }
 
+export type IndustryType =
+  | 'IT_SOFTWARE'
+  | 'CONSTRUCTION_EQUIPMENT'
+  | 'SUPPLY_CHAIN'
+  | 'MEDIA_ADVERTISING'
+  | 'GENERAL_COMMERCIAL'
+
+export interface IndustryProfile {
+  code: IndustryType
+  name: string
+  standardRef: string
+  focusAreas: string[]
+}
+
 export interface ContractAuditRecord {
   id: string
   title: string
@@ -19,6 +33,7 @@ export interface ContractAuditRecord {
   revisedContent: string
   risks: ClauseRiskItem[]
   summary: string
+  detectedIndustry?: IndustryProfile
   createdAt: string
   updatedAt: string
 }
