@@ -52,6 +52,7 @@ export default {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${apiKey}`
               },
+              signal: AbortSignal.timeout(12000),
               body: JSON.stringify({
                 model: modelName,
                 response_format: { type: 'json_object' },

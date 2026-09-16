@@ -39,7 +39,7 @@
         if (!pending.has(requestId)) return
         pending.delete(requestId)
         reject(new Error('请求超时，请检查网络或稍后重试'))
-      }, 15000)
+      }, 45000)
     })
   }
 
