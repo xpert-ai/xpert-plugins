@@ -1,4 +1,5 @@
 import { AiProviderRole } from '@xpert-ai/contracts'
+import { calculateLLMUsagePrice } from '@xpert-ai/plugin-sdk'
 import {
   applyTongyiExplicitCache,
   getTongyiPricingContext,
@@ -24,6 +25,51 @@ function createCopilotModel(
     }
   }
 }
+
+describe('Tongyi DeepSeek V4.1 Flash', () => {
+  const manager = new TongyiLargeLanguageModel(new TongyiProviderStrategy())
+
+  it.each([
+    ['cn', 2, 8, 0.2],
+    ['international', 2.188, 8.75, 0.219],
+    [undefined, 2.188, 8.75, 0.219]
+  ] as const)('uses verified peak rates for region %s even off peak', (region, input, output, cache) => {
+    const model = manager.predefinedModels().find((entry) => entry.model === 'deepseek-v4.1-flash')
+    if (!model?.pricing) throw new Error('Missing DeepSeek V4.1 Flash pricing')
+    const charge = calculateLLMUsagePrice(model.pricing, {
+      promptTokens: 1500000,
+      completionTokens: 1000000,
+      totalTokens: 2500000,
+      cacheReadInputTokens: 500000
+    }, { region, pricingTime: '2026-09-20T00:00:00+08:00' })
+    expect(charge.pricingStatus).toBe('priced')
+    expect(charge.totalAmount).toBeCloseTo(input + output + cache / 2, 8)
+  })
+
+  it('exposes the vision model and numeric reasoning control', () => {
+    const model = manager.predefinedModels().find((entry) => entry.model === 'deepseek-v4.1-flash')
+    expect(model?.features).toEqual(expect.arrayContaining(['vision', 'multi-tool-call']))
+    expect(model?.parameter_rules).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'reasoning_effort', type: 'int', min: 1, max: 100 }),
+      expect.objectContaining({ name: 'max_completion_tokens', max: 393216 })
+    ]))
+  })
+
+  it.each([true, false])('forwards numeric reasoning effort and thinking=%s', (thinking) => {
+    const model = manager.getChatModel(createCopilotModel('deepseek-v4.1-flash', {
+      reasoning_effort: 25,
+      enable_thinking: thinking,
+      max_completion_tokens: 65536,
+      response_format: 'json_object'
+    }))
+    expect(model.invocationParams()).toEqual(expect.objectContaining({
+      reasoning_effort: 25,
+      enable_thinking: thinking,
+      max_tokens: 65536,
+      response_format: { type: 'json_object' }
+    }))
+  })
+})
 
 describe('getTongyiPricingContext', () => {
   it('uses explicit request mode and the selected DashScope endpoint', () => {
@@ -420,10 +466,11 @@ describe('Tongyi Zhipu GLM-5.3 catalog', () => {
     )
   })
 
-  it.each(['ZHIPU/GLM-5.3', 'ZHIPU/GLM-5.3-Flash'])('forwards %s reasoning effort', (model) => {
-    const chatModel = manager.getChatModel(createCopilotModel(model, { reasoning_effort: 'max' }))
-
-    expect(chatModel.invocationParams()['reasoning_effort']).toBe('max')
+  it.each(['low', 'high', 'max'])('forwards GLM-5.3 reasoning effort %s', (effort) => {
+    for (const model of ['ZHIPU/GLM-5.3', 'ZHIPU/GLM-5.3-Flash']) {
+      const chatModel = manager.getChatModel(createCopilotModel(model, { reasoning_effort: effort }))
+      expect(chatModel.invocationParams()['reasoning_effort']).toBe(effort)
+    }
   })
 })
 
