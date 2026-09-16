@@ -444,7 +444,6 @@
     const [streamProgress, setStreamProgress] = React.useState(0)
     const [isStreaming, setIsStreaming] = React.useState(false)
     const [streamedSummary, setStreamedSummary] = React.useState('')
-    const [visibleRiskCount, setVisibleRiskCount] = React.useState(0)
     const timerRef = React.useRef(null)
     const typewriterRef = React.useRef(null)
 
