@@ -338,6 +338,10 @@
     },
     {
       "path": "./middlewares/zsxq-connector"
+    },
+    {
+      "path": "./documents/anydoc"
+
     }
   ]
 }
