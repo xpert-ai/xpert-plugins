@@ -36,7 +36,7 @@ async function start() {
   const title = '商务采购合同智能合规排查工作台 · 本地运行预览'
   const instanceId = 'contract-risk-auditor-preview-instance'
 
-  const iframeHtml = `<!doctype html>
+  const renderIframeHtml = (scriptContent) => `<!doctype html>
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
@@ -47,7 +47,7 @@ async function start() {
   </head>
   <body>
     <div id="root"></div>
-    <script>${appScript}</script>
+    <script>${scriptContent}</script>
   </body>
 </html>`
 
@@ -131,12 +131,14 @@ async function start() {
 
       if (req.method === 'GET' && url.pathname === '/') {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
-        return res.end(hostHtml)
+        const renderedHost = hostHtml.replace('src="/__xpert/component"', `src="/__xpert/component${url.search || ''}"`)
+        return res.end(renderedHost)
       }
 
       if (req.method === 'GET' && url.pathname === '/__xpert/component') {
+        const freshAppScript = await readFile(join(componentDir, 'app.js'), 'utf8')
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
-        return res.end(iframeHtml)
+        return res.end(renderIframeHtml(freshAppScript))
       }
 
       if (req.method === 'POST' && url.pathname === '/__xpert/bridge') {

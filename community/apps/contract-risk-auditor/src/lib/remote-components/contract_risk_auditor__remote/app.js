@@ -297,7 +297,74 @@
     }
 
     React.useEffect(() => {
-      loadWorkbenchData()
+      loadWorkbenchData().then(() => {
+        try {
+          const params = new URLSearchParams(window.location.search)
+          const shot = params.get('shot')
+          if (shot === 'initial') {
+            const s = DEFAULT_SAMPLES[0]
+            setTitle(s.title)
+            setContent(s.content)
+            setRisks([])
+            setSummary('')
+            setDetectedIndustry(null)
+          } else if (shot === 'analyzing') {
+            const s = DEFAULT_SAMPLES[0]
+            setTitle(s.title)
+            setContent(s.content)
+            setAuditing(true)
+            setAuditStep('【第 3/5 阶】正在比对《民法典·合同编》违约赔偿与免责陷阱司法解释...')
+          } else if (shot === 'review') {
+            const s = DEFAULT_SAMPLES[0]
+            setTitle(s.title)
+            setContent(s.content)
+            const sampleRisks = [
+              {
+                id: 'risk-1',
+                clauseTitle: '通用商事·违约金畸高陷阱',
+                severity: 'HIGH',
+                originalText: '乙方每日须向甲方支付相当于合同总价款5%的违约金；逾期超过3日，甲方有权单方解除合同，乙方须退还全部已收款项并支付合同总额50%的惩罚性违约金。',
+                legalBasis: '《民法典》第585条及相关司法解释明确规定，约定的违约金超过造成损失的30%的，一般可以认定为“过分高于造成的损失”。按日5%及总额50%已构成显失公平的惩罚性条款。',
+                suggestedRevision: '违约金按照守约方因迟延交付遭受之直接实际损失计算，违约金最高累计不超过合同总价款的20%，不可抗力因素应予扣除。',
+                status: 'PENDING'
+              },
+              {
+                id: 'risk-2',
+                clauseTitle: '验收与付款·无限期顺延霸王条款',
+                severity: 'HIGH',
+                originalText: '甲方在收到全部货物后享有长达180日的验收期。在甲方出具正式无保留最终合格验收书之前，甲方无需支付任何款项。若验收期内因任何技术瑕疵导致甲方不满，甲方有权无限期顺延付款且不承担逾期付款违约责任。',
+                legalBasis: '《民法典》第510条、第628条：买受人应当按照约定的时间支付价款。180天超长验收期且允许单方无限期顺延付款，免除了买受人主要义务，排除出卖人主要权利。',
+                suggestedRevision: '甲方应于收到货物后15个工作日内完成初验并出具验收意见；逾期未提出书面异议的，视为初验合格并支付相应批次货款。',
+                status: 'ACCEPTED'
+              }
+            ]
+            setRisks(sampleRisks)
+            setVisibleRiskCount(2)
+            setSummary('【大宗供应链行业】风险排查完成：共识别 2 处合规隐患（2项高危）。已依据《民法典·合同编》自动匹配行业专属审查策略并生成改写建议。')
+            setStreamedSummary('【大宗供应链行业】风险排查完成：共识别 2 处合规隐患（2项高危）。已依据《民法典·合同编》自动匹配行业专属审查策略并生成改写建议。')
+            setDetectedIndustry({
+              key: 'supply_chain',
+              name: '大宗供应链与工业品采购',
+              standards: ['《民法典》买卖合同编', '《工业品买卖合同监督管理办法》', '最高人民法院关于审理买卖合同纠纷案件司法解释'],
+              keyCheckPoints: ['逾期付款违约金上限', '质量异议期合理性(不得超30日)', '异地管辖排他性条款', '损耗率与交付交接']
+            })
+            setEditingRiskId('risk-1')
+            setEditingRevisionText('违约金按照守约方直接实际损失计算，违约金最高累计不超过合同总价款的15%，因不可抗力导致延期的免除违约责任。')
+          } else if (shot === 'error') {
+            const s = DEFAULT_SAMPLES[0]
+            setTitle(s.title)
+            setContent(s.content)
+            setSimulatingError(true)
+            setErrorMessage('【504 网关超时 (Gateway Timeout)】大模型法务规则引擎响应超时。系统已启用安全降级保护，您的合同草稿完好无损，请检查网络或点击立即重试。')
+          } else if (shot === 'history') {
+            setTimeout(() => {
+              window.scrollTo(0, 500)
+              document.documentElement.scrollTop = 500
+              document.body.scrollTop = 500
+            }, 800)
+          }
+        } catch (e) {}
+      })
     }, [])
 
     // 载入样例
