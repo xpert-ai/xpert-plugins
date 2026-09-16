@@ -1,0 +1,43 @@
+---
+title: '验证记录'
+description: '区分各层验证的范围'
+---
+
+## 已通过
+
+- TypeScript 后端与 TSX 类型检查、生产构建及生成资源一致性检查。
+- 9 个单元、契约与生产预览状态测试：输入限制、分段、引用、严格输出、确认阻断、DTO 白名单、修订动作的乐观版本契约，以及生产预览中的失败/空结果恢复。
+- PostgreSQL 集成测试：创建、并发分析、重复请求、无效证据、失败重试、跨租户/组织/用户拒绝、原始草稿保留、乐观版本冲突、确认幂等、服务重新实例化恢复、超时及旧结果拒绝、失败和空结果修改原文。使用随机独立测试 schema，不访问生产评审表。
+- plugin-dev-harness 从 dist 加载并关闭 Nest 容器，模拟数据库仅用于生命周期检查。
+- 同一生产资源在官方 Preview Host 中完成新建、合成失败、修改原文、陈旧版本拒绝并自动刷新、再次保存恢复待分析、空结果恢复、重试、证据定位、人工编辑、保存、确认及刷新重开。修订表单的桌面与 390×844 手机宽度布局均通过检查。
+
+## 实际平台
+
+已在本地 Xpert 源码环境完成实际安装和业务验收：
+
+- 从插件模板创建并发布“ReqTrace 需求评审助手”，绑定已配置的 `deepseek-flash` 与 ReqTrace 中间件。
+- 使用合成访谈创建真实评审。模型成功调用“读取访谈原文”和“提交需求证据草稿”，生成 4 条带连续原文摘录、验收条件来源和待澄清问题的草稿。
+- 人工保留 3 条当前范围内的需求，排除“Excel 导出是否纳入本期”这一未定项，清空已解决问题并修改描述。
+- 保存后确认生成只读快照；刷新整个 Xpert 页面并重新打开该评审，状态仍为“已确认”，只恢复 3 条需求，人工修改仍在。
+- 首次发布的 v1 在两个工具成功后触发助手递归上限，但草稿已安全提交。v2 将递归上限提高到 40，并作为当前发布版本。
+
+![实际 Xpert 中的已确认快照](images/installed-confirmed.png)
+
+## 复现命令
+
+```bash
+corepack pnpm --filter @community/apps-requirement-review test
+node plugin-dev-harness/dist/index.js --workspace ./community --plugin @community/apps-requirement-review
+```
+
+在插件目录，用本地平台环境启动独立数据库测试，凭据仅由 Node 环境读取，不会打印：
+
+```bash
+node --env-file=../../../../xpert/.env --test tests/persistence.integration.mjs
+```
+
+预览仅使用合成数据，结果不证明真实模型调用：
+
+```bash
+node tools/remote-view-preview/cli.mjs --config community/apps/requirement-review/remote-components/workbench/preview.config.mjs --port 4417
+```
