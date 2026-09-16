@@ -138,6 +138,14 @@
     }
   ]
 
+  const AUDIT_STEPS = [
+    { icon: '📡', title: '全文本语义切分与核心要素抽取', desc: '提取标的物、违约金比例、异议期限、结算前置条件与争议管辖' },
+    { icon: '🏷️', title: '智能判定所属行业领域与监管主体', desc: '精准匹配《民法典》技术合同编/建工司法解释/广告法专属规则' },
+    { icon: '⚖️', title: '检索国家强制法规与权威司法裁判库', desc: '比对格式条款公平原则与《保障中小企业款项支付条例》强制规定' },
+    { icon: '🛡️', title: '深度排查显失公平与霸王条款', desc: '逐句排查“以审代付”、知识产权侵夺、无偿变更与超限赔偿陷阱' },
+    { icon: '✍️', title: '流式生成对等中立合规修订建议', desc: '起草利益平衡的修正条款，保留双方合法抗辩与救济权利' }
+  ]
+
   function App() {
     const [loading, setLoading] = React.useState(false)
     const [auditing, setAuditing] = React.useState(false)
@@ -153,6 +161,15 @@
     const [risks, setRisks] = React.useState([])
     const [summary, setSummary] = React.useState('')
     const [detectedIndustry, setDetectedIndustry] = React.useState(null)
+
+    // 实时流式与审计动画状态
+    const [auditStepIndex, setAuditStepIndex] = React.useState(0)
+    const [streamProgress, setStreamProgress] = React.useState(0)
+    const [isStreaming, setIsStreaming] = React.useState(false)
+    const [streamedSummary, setStreamedSummary] = React.useState('')
+    const [visibleRiskCount, setVisibleRiskCount] = React.useState(0)
+    const timerRef = React.useRef(null)
+    const typewriterRef = React.useRef(null)
 
     // PDF 与多模态表格解析状态
     const [parsingPdf, setParsingPdf] = React.useState(false)
@@ -244,8 +261,11 @@
       setTitle(rec.title || '未命名合同审查单')
       setContent(rec.revisedContent || rec.originalContent || '')
       setRisks(rec.risks || [])
+      setVisibleRiskCount(rec.risks ? rec.risks.length : 0)
       setSummary(rec.summary || '')
+      setStreamedSummary(rec.summary || '')
       setDetectedIndustry(rec.detectedIndustry || null)
+      setIsStreaming(false)
     }
 
     React.useEffect(() => {
@@ -257,7 +277,10 @@
       setTitle(sample.title)
       setContent(sample.content)
       setRisks([])
+      setVisibleRiskCount(0)
       setSummary('')
+      setStreamedSummary('')
+      setIsStreaming(false)
       setDetectedIndustry(null)
       setErrorMessage(null)
       setUploadedFileName(sample.title.includes('PDF') ? '工程物资设备采购合同(含附录表).pdf' : '')
@@ -284,6 +307,30 @@
       }
 
       setAuditing(true)
+      setIsStreaming(false)
+      setRisks([])
+      setSummary('')
+      setStreamedSummary('')
+      setVisibleRiskCount(0)
+      setAuditStepIndex(0)
+      setStreamProgress(8)
+
+      // 启动扫描进度与阶段指示器定时器
+      let currentProgress = 8
+      let currentStep = 0
+      clearInterval(timerRef.current)
+      timerRef.current = setInterval(() => {
+        if (currentProgress < 90) {
+          currentProgress += Math.floor(Math.random() * 10) + 7
+          if (currentProgress > 90) currentProgress = 90
+          setStreamProgress(currentProgress)
+        }
+        if (currentProgress > 22 && currentStep < 1) { currentStep = 1; setAuditStepIndex(1) }
+        if (currentProgress > 45 && currentStep < 2) { currentStep = 2; setAuditStepIndex(2) }
+        if (currentProgress > 68 && currentStep < 3) { currentStep = 3; setAuditStepIndex(3) }
+        if (currentProgress > 85 && currentStep < 4) { currentStep = 4; setAuditStepIndex(4) }
+      }, 650)
+
       try {
         const res = await request('view.action', {
           actionKey: 'audit_contract',
@@ -295,13 +342,50 @@
         })
         const rec = res?.data || res?.result?.data || res
         if (rec) {
-          applyRecord(rec)
-          showToast('AI 合规排查完成！共发现 ' + (rec.risks?.length || 0) + ' 处风险')
+          clearInterval(timerRef.current)
+          setStreamProgress(100)
+          setAuditStepIndex(4)
+          setCurrentRecordId(rec.id)
+          setTitle(rec.title || '未命名合同审查单')
+          setContent(rec.revisedContent || rec.originalContent || '')
+          setDetectedIndustry(rec.detectedIndustry || null)
+          setSummary(rec.summary || '')
+
+          // 开启流式打印输出
+          setAuditing(false)
+          setIsStreaming(true)
+
+          // 1. 流式输出 summary
+          const fullSummary = rec.summary || '合规审查已完成'
+          let charIndex = 0
+          clearInterval(typewriterRef.current)
+          typewriterRef.current = setInterval(() => {
+            charIndex++
+            setStreamedSummary(fullSummary.slice(0, charIndex))
+            if (charIndex >= fullSummary.length) {
+              clearInterval(typewriterRef.current)
+            }
+          }, 16)
+
+          // 2. 逐张卡片流式弹入
+          const fullRisks = rec.risks || []
+          setRisks(fullRisks)
+          let shown = 0
+          const cardTimer = setInterval(() => {
+            shown++
+            setVisibleRiskCount(shown)
+            if (shown >= fullRisks.length) {
+              clearInterval(cardTimer)
+              setIsStreaming(false)
+              showToast('✨ AI 合规扫描完成！已流式定位 ' + fullRisks.length + ' 处风险条款')
+            }
+          }, 240)
         }
       } catch (err) {
+        clearInterval(timerRef.current)
         setErrorMessage(err.message || '合规审查失败，请重试')
-      } finally {
         setAuditing(false)
+        setIsStreaming(false)
       }
     }
 
@@ -487,91 +571,134 @@
             placeholder: '合同文件名称',
             onChange: (e) => setTitle(e.target.value)
           }),
-          h('textarea', {
-            className: 'cra-textarea',
-            value: content,
-            placeholder: '在此粘贴合同文本，或点击上方「📎 上传 PDF 合同文件」/「案例 3 (含PDF表格)」载入...',
-            onChange: (e) => setContent(e.target.value)
-          }),
+          h('div', { className: 'cra-textarea-container' },
+            auditing && h('div', { className: 'cra-scan-laser' }),
+            auditing && h('div', { className: 'cra-scan-overlay' }),
+            h('textarea', {
+              className: 'cra-textarea ' + (auditing ? 'cra-textarea-scanning' : ''),
+              value: content,
+              placeholder: '在此粘贴合同文本，或点击上方「📎 上传 PDF 合同文件」/「案例 3 (含PDF表格)」载入...',
+              onChange: (e) => setContent(e.target.value)
+            })
+          ),
           h('div', { className: 'cra-card-footer' },
             h('span', { className: 'cra-meta' }, '字符数: ' + content.length + ' 字' + (content.includes('|') ? ' (含 Markdown 附录表格)' : '')),
             h('button', {
-              className: 'cra-btn cra-btn-primary',
+              className: 'cra-btn ' + (auditing ? 'cra-btn-scanning' : 'cra-btn-primary'),
               disabled: auditing || parsingPdf,
               onClick: handleRunAudit
-            }, auditing ? '正在进行 AI 合规扫描...' : '⚡ 开始 AI 合规审查')
+            }, auditing ? '⚡ 正在深度扫描合规风险...' : '⚡ 开始 AI 合规审查')
           )
         ),
 
         // 右栏：风险清单与修订建议
         h('div', { className: 'cra-card' },
           h('div', { className: 'cra-card-header' },
-            h('div', { className: 'cra-card-title' }, '🔍 法律风险与条款修订建议'),
+            h('div', { className: 'cra-card-title' },
+              h('span', null, '🔍 法律风险与条款修订建议'),
+              isStreaming && h('span', { className: 'cra-streaming-badge' }, '🌊 正在实时流式输出中...')
+            ),
             risks.length > 0 && h('div', { className: 'cra-stats' },
               '待处理: ' + pendingCount + ' | 已采纳: ' + acceptedCount
             )
           ),
-          detectedIndustry && h('div', { className: 'cra-industry-card' },
-            h('div', { className: 'cra-industry-top' },
-              h('span', { className: 'cra-industry-badge' }, '🏷️ 智能判定行业：' + detectedIndustry.name),
-              h('span', { className: 'cra-industry-ref' }, '依据标准：' + detectedIndustry.standardRef)
-            ),
-            detectedIndustry.focusAreas && detectedIndustry.focusAreas.length > 0 && h('div', { className: 'cra-industry-focus' },
-              h('span', { className: 'cra-focus-label' }, '🎯 行业专属排查要点：'),
-              detectedIndustry.focusAreas.map((f, i) => h('span', { key: i, className: 'cra-focus-pill' }, f))
-            )
-          ),
-          summary && h('div', { className: 'cra-summary-box' }, summary),
 
-          risks.length === 0
-            ? h('div', { className: 'cra-empty-state' },
-                h('div', { className: 'cra-empty-icon' }, '📄'),
-                h('div', { className: 'cra-empty-text' }, '暂无审查结果'),
-                h('div', { className: 'cra-empty-hint' }, '请在左侧输入合同内容并点击「开始 AI 合规审查」')
-              )
-            : h('div', { className: 'cra-risk-list' },
-                risks.map((risk) => {
-                  const isHigh = risk.riskLevel === 'HIGH'
-                  const isAccepted = risk.status === 'ACCEPTED'
-                  const isIgnored = risk.status === 'IGNORED'
-
-                  return h('div', {
-                    key: risk.id,
-                    className: 'cra-risk-card ' + (isAccepted ? 'cra-card-accepted' : isIgnored ? 'cra-card-ignored' : isHigh ? 'cra-card-high' : 'cra-card-warn')
-                  },
-                    h('div', { className: 'cra-risk-header' },
-                      h('span', { className: 'cra-badge ' + (isHigh ? 'cra-badge-danger' : 'cra-badge-warn') },
-                        isHigh ? '🔴 高危风险' : '🟡 提示风险'
-                      ),
-                      h('span', { className: 'cra-risk-category' }, risk.category),
-                      h('span', { className: 'cra-risk-status' },
-                        isAccepted ? '✅ 已采纳替换' : isIgnored ? '⚪ 已忽略' : '⏳ 待审核'
+          auditing
+            ? h('div', { className: 'cra-audit-hud' },
+                h('div', { className: 'cra-hud-header' },
+                  h('span', { className: 'cra-hud-spinner' }, '⚡'),
+                  h('div', { className: 'cra-hud-info' },
+                    h('div', { className: 'cra-hud-title' }, 'AI 法务引擎正在实时深度合规扫描'),
+                    h('div', { className: 'cra-hud-sub' }, '正在逐句比对现行法律条文、行业司法解释与格式条款裁判库')
+                  ),
+                  h('span', { className: 'cra-hud-pct' }, streamProgress + '%')
+                ),
+                h('div', { className: 'cra-progress-bar-bg' },
+                  h('div', { className: 'cra-progress-bar-fill', style: { width: streamProgress + '%' } })
+                ),
+                h('div', { className: 'cra-steps-list' },
+                  AUDIT_STEPS.map((step, idx) => {
+                    const isActive = idx === auditStepIndex
+                    const isDone = idx < auditStepIndex
+                    return h('div', {
+                      key: idx,
+                      className: 'cra-step-item ' + (isActive ? 'cra-step-active' : isDone ? 'cra-step-done' : 'cra-step-pending')
+                    },
+                      h('span', { className: 'cra-step-icon' }, isDone ? '✅' : step.icon),
+                      h('div', { className: 'cra-step-content' },
+                        h('div', { className: 'cra-step-title' }, step.title + (isActive ? ' · 正在分析中...' : '')),
+                        h('div', { className: 'cra-step-desc' }, step.desc)
                       )
-                    ),
-                    h('div', { className: 'cra-clause-section' },
-                      h('div', { className: 'cra-section-label' }, '【涉险原条款】:'),
-                      h('div', { className: 'cra-clause-origin' }, risk.originalText)
-                    ),
-                    h('div', { className: 'cra-clause-section' },
-                      h('div', { className: 'cra-section-label' }, '【法务剖析】:'),
-                      h('div', { className: 'cra-clause-analysis' }, risk.riskAnalysis)
-                    ),
-                    h('div', { className: 'cra-clause-section' },
-                      h('div', { className: 'cra-section-label' }, '【建议修订条款】:'),
-                      h('div', { className: 'cra-clause-suggest' }, risk.suggestedRevision)
-                    ),
-                    !isAccepted && !isIgnored && h('div', { className: 'cra-risk-actions' },
-                      h('button', {
-                        className: 'cra-btn-sm cra-btn-success',
-                        onClick: () => handleAcceptRevision(risk)
-                      }, '✨ 采纳建议并替换原文'),
-                      h('button', {
-                        className: 'cra-btn-sm cra-btn-ghost',
-                        onClick: () => handleIgnoreRisk(risk)
-                      }, '忽略')
                     )
+                  })
+                )
+              )
+            : h(React.Fragment, null,
+                detectedIndustry && h('div', { className: 'cra-industry-card cra-fade-in' },
+                  h('div', { className: 'cra-industry-top' },
+                    h('span', { className: 'cra-industry-badge' }, '🏷️ 智能判定行业：' + detectedIndustry.name),
+                    h('span', { className: 'cra-industry-ref' }, '依据标准：' + detectedIndustry.standardRef)
+                  ),
+                  detectedIndustry.focusAreas && detectedIndustry.focusAreas.length > 0 && h('div', { className: 'cra-industry-focus' },
+                    h('span', { className: 'cra-focus-label' }, '🎯 行业专属排查要点：'),
+                    detectedIndustry.focusAreas.map((f, i) => h('span', { key: i, className: 'cra-focus-pill' }, f))
                   )
-                })
+                ),
+                (streamedSummary || summary) && h('div', { className: 'cra-summary-box cra-fade-in' },
+                  h('span', null, streamedSummary || summary),
+                  isStreaming && h('span', { className: 'cra-typewriter-cursor' }, '▍')
+                ),
+
+                risks.length === 0
+                  ? h('div', { className: 'cra-empty-state' },
+                      h('div', { className: 'cra-empty-icon' }, '📄'),
+                      h('div', { className: 'cra-empty-text' }, '暂无审查结果'),
+                      h('div', { className: 'cra-empty-hint' }, '请在左侧输入合同内容并点击「开始 AI 合规审查」')
+                    )
+                  : h('div', { className: 'cra-risk-list' },
+                      risks.slice(0, visibleRiskCount > 0 ? visibleRiskCount : risks.length).map((risk) => {
+                        const isHigh = risk.riskLevel === 'HIGH'
+                        const isAccepted = risk.status === 'ACCEPTED'
+                        const isIgnored = risk.status === 'IGNORED'
+
+                        return h('div', {
+                          key: risk.id,
+                          className: 'cra-risk-card cra-card-streamed ' + (isAccepted ? 'cra-card-accepted' : isIgnored ? 'cra-card-ignored' : isHigh ? 'cra-card-high' : 'cra-card-warn')
+                        },
+                          h('div', { className: 'cra-risk-header' },
+                            h('span', { className: 'cra-badge ' + (isHigh ? 'cra-badge-danger' : 'cra-badge-warn') },
+                              isHigh ? '🔴 高危风险' : '🟡 提示风险'
+                            ),
+                            h('span', { className: 'cra-risk-category' }, risk.category),
+                            h('span', { className: 'cra-risk-status' },
+                              isAccepted ? '✅ 已采纳替换' : isIgnored ? '⚪ 已忽略' : '⏳ 待审核'
+                            )
+                          ),
+                          h('div', { className: 'cra-clause-section' },
+                            h('div', { className: 'cra-section-label' }, '【涉险原条款】:'),
+                            h('div', { className: 'cra-clause-origin' }, risk.originalText)
+                          ),
+                          h('div', { className: 'cra-clause-section' },
+                            h('div', { className: 'cra-section-label' }, '【法务剖析】:'),
+                            h('div', { className: 'cra-clause-analysis' }, risk.riskAnalysis)
+                          ),
+                          h('div', { className: 'cra-clause-section' },
+                            h('div', { className: 'cra-section-label' }, '【建议修订条款】:'),
+                            h('div', { className: 'cra-clause-suggest' }, risk.suggestedRevision)
+                          ),
+                          !isAccepted && !isIgnored && h('div', { className: 'cra-risk-actions' },
+                            h('button', {
+                              className: 'cra-btn-sm cra-btn-success',
+                              onClick: () => handleAcceptRevision(risk)
+                            }, '✨ 采纳建议并替换原文'),
+                            h('button', {
+                              className: 'cra-btn-sm cra-btn-ghost',
+                              onClick: () => handleIgnoreRisk(risk)
+                            }, '忽略')
+                          )
+                        )
+                      })
+                    )
               )
         )
       ),
@@ -668,6 +795,108 @@
       .cra-chip { font-size: 12px; padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 16px; cursor: pointer; background: #f8fafc; }
       .cra-chip:hover { border-color: #2563eb; background: #eff6ff; }
       .cra-chip-active { border-color: #2563eb; background: #eff6ff; color: #2563eb; font-weight: 600; }
+
+      /* 文本域与激光扫描雷达动画 */
+      .cra-textarea-container { position: relative; flex: 1; display: flex; flex-direction: column; overflow: hidden; border-radius: 6px; }
+      .cra-scan-laser {
+        position: absolute; top: 0; left: 0; right: 0; height: 3px;
+        background: linear-gradient(90deg, transparent, #38bdf8, #2563eb, #60a5fa, transparent);
+        box-shadow: 0 0 12px 3px rgba(56, 189, 248, 0.85);
+        animation: scanMove 2.2s ease-in-out infinite alternate;
+        z-index: 10; pointer-events: none;
+      }
+      .cra-scan-overlay {
+        position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+        background: linear-gradient(180deg, rgba(37,99,235,0.03) 0%, rgba(56,189,248,0.08) 50%, rgba(37,99,235,0.03) 100%);
+        pointer-events: none; z-index: 5;
+        animation: pulseOverlay 2s ease-in-out infinite alternate;
+      }
+      @keyframes scanMove {
+        0% { top: 4%; opacity: 0.8; }
+        50% { opacity: 1; }
+        100% { top: 94%; opacity: 0.8; }
+      }
+      @keyframes pulseOverlay {
+        0% { opacity: 0.4; }
+        100% { opacity: 0.85; }
+      }
+      .cra-textarea-scanning {
+        box-shadow: 0 0 0 2px rgba(37,99,235,0.3) !important;
+        border-color: #3b82f6 !important;
+        background: #fcfdff !important;
+      }
+      .cra-btn-scanning {
+        background: linear-gradient(135deg, #1d4ed8, #2563eb, #38bdf8);
+        background-size: 200% 200%;
+        color: #fff;
+        animation: gradientGlow 1.8s ease infinite;
+        cursor: wait !important;
+      }
+      @keyframes gradientGlow {
+        0% { background-position: 0% 50%; box-shadow: 0 0 10px rgba(37,99,235,0.4); }
+        50% { background-position: 100% 50%; box-shadow: 0 0 18px rgba(56,189,248,0.7); }
+        100% { background-position: 0% 50%; box-shadow: 0 0 10px rgba(37,99,235,0.4); }
+      }
+
+      /* 右栏实时审查 HUD 面板 */
+      .cra-audit-hud {
+        background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 18px;
+        display: flex; flex-direction: column; gap: 14px; box-shadow: 0 8px 24px rgba(15,23,42,0.18);
+        border: 1px solid #1e293b;
+      }
+      .cra-hud-header { display: flex; align-items: center; gap: 10px; }
+      .cra-hud-spinner {
+        font-size: 20px; color: #38bdf8; display: inline-block;
+        animation: pulseIcon 1.2s ease-in-out infinite alternate;
+      }
+      @keyframes pulseIcon { 0% { transform: scale(0.9); opacity: 0.7; } 100% { transform: scale(1.15); opacity: 1; } }
+      .cra-hud-info { flex: 1; }
+      .cra-hud-title { font-size: 13px; font-weight: 700; color: #f8fafc; }
+      .cra-hud-sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+      .cra-hud-pct { font-size: 14px; font-weight: 800; color: #38bdf8; font-family: monospace; }
+      .cra-progress-bar-bg { height: 6px; background: #334155; border-radius: 3px; overflow: hidden; }
+      .cra-progress-bar-fill {
+        height: 100%; background: linear-gradient(90deg, #2563eb, #38bdf8);
+        border-radius: 3px; transition: width 0.4s ease;
+      }
+      .cra-steps-list { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+      .cra-step-item {
+        display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px;
+        border-radius: 6px; font-size: 11px; transition: all 0.3s;
+      }
+      .cra-step-active { background: rgba(37,99,235,0.22); border-left: 3px solid #38bdf8; color: #e0f2fe; }
+      .cra-step-done { color: #94a3b8; opacity: 0.85; }
+      .cra-step-pending { color: #64748b; opacity: 0.45; }
+      .cra-step-icon { font-size: 13px; line-height: 1.4; }
+      .cra-step-content { flex: 1; }
+      .cra-step-title { font-weight: 600; font-size: 12px; }
+      .cra-step-desc { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+
+      /* 流式输出卡片与动效 */
+      .cra-streaming-badge {
+        font-size: 11px; background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe;
+        padding: 2px 8px; border-radius: 12px; font-weight: 600; margin-left: 8px;
+        display: inline-flex; align-items: center; gap: 4px; animation: pulse 1.5s infinite;
+      }
+      .cra-typewriter-cursor {
+        display: inline-block; color: #2563eb; font-weight: 900; animation: blink 0.8s infinite;
+        margin-left: 2px;
+      }
+      @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+      .cra-card-streamed {
+        animation: slideInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+      }
+      @keyframes slideInUp {
+        from { opacity: 0; transform: translateY(14px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .cra-fade-in {
+        animation: fadeIn 0.4s ease both;
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
     `
     const style = document.createElement('style')
     style.textContent = css
