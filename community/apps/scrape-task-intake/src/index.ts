@@ -9,6 +9,7 @@ import {
 } from './lib/scrape-task-intake.config'
 import { ScrapeTaskIntakePlugin } from './lib/scrape-task-intake.plugin'
 import {
+  SCRAPE_TASK_INTAKE_ARTIFACT_NAMESPACE,
   SCRAPE_TASK_INTAKE_FEATURE,
   SCRAPE_TASK_INTAKE_ICON,
   SCRAPE_TASK_INTAKE_MIDDLEWARE_NAME,
@@ -32,6 +33,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
     name: packageJson.name,
     version: packageJson.version,
     level: 'organization',
+    artifactNamespace: SCRAPE_TASK_INTAKE_ARTIFACT_NAMESPACE,
     targetApps: ['data-xpert'],
     targetAppMeta: {
       'data-xpert': {
