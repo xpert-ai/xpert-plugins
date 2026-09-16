@@ -177,6 +177,10 @@
     const [uploadedFileName, setUploadedFileName] = React.useState('')
     const fileInputRef = React.useRef(null)
 
+    // 人工手动微调修订条款状态（Human-in-the-loop）
+    const [editingRiskId, setEditingRiskId] = React.useState(null)
+    const [editingRevisionText, setEditingRevisionText] = React.useState('')
+
     const showToast = (msg) => {
       setToast(msg)
       setTimeout(() => setToast(null), 3000)
@@ -437,15 +441,29 @@
       })
     }
 
-    // 采纳修订
-    const handleAcceptRevision = async (risk) => {
+    // 采纳修订（支持直接采纳AI建议或应用法务人工定制修改）
+    const handleAcceptRevision = async (risk, customText) => {
+      const isManual = customText !== undefined && customText.trim() !== ''
+      const revisionToApply = isManual ? customText.trim() : risk.suggestedRevision
+
+      // 确定需要替换的旧文本：优先替换涉险原文，若此前已被修改过则替换上次的修订文本
+      let targetText = risk.originalText
+      if (!content.includes(targetText) && risk.suggestedRevision && content.includes(risk.suggestedRevision)) {
+        targetText = risk.suggestedRevision
+      }
+
       if (!currentRecordId) {
-        // 本地更新
-        if (content.includes(risk.originalText)) {
-          setContent(content.replace(risk.originalText, risk.suggestedRevision))
+        // 本地更新未入库记录
+        if (content.includes(targetText)) {
+          setContent(content.replace(targetText, revisionToApply))
         }
-        setRisks(risks.map(r => r.id === risk.id ? Object.assign({}, r, { status: 'ACCEPTED' }) : r))
-        showToast('已采纳并替换原文条款')
+        setRisks(risks.map(r => r.id === risk.id ? Object.assign({}, r, {
+          suggestedRevision: revisionToApply,
+          status: 'ACCEPTED',
+          isCustom: isManual
+        }) : r))
+        setEditingRiskId(null)
+        showToast(isManual ? '已应用人工手动修改并替换合同原文！' : '已采纳AI建议并替换原文条款')
         return
       }
 
@@ -454,14 +472,16 @@
           actionKey: 'accept_revision',
           input: {
             recordId: currentRecordId,
-            riskId: risk.id
+            riskId: risk.id,
+            customRevision: isManual ? revisionToApply : undefined
           }
         })
         const rec = res?.data || res
         if (rec) {
           applyRecord(rec)
           syncRecordToHistory(rec)
-          showToast('已采纳建议并同步保存')
+          setEditingRiskId(null)
+          showToast(isManual ? '已应用人工手动修改并同步替换合同正文！' : '已采纳AI建议并同步保存')
         }
       } catch (err) {
         setErrorMessage(err.message || '采纳失败')
@@ -774,6 +794,7 @@
                               isHigh ? '🔴 高危风险' : '🟡 提示风险'
                             ),
                             h('span', { className: 'cra-risk-category' }, risk.category),
+                            risk.isCustom && h('span', { className: 'cra-badge-custom' }, '✍️ 法务人工精修'),
                             h('span', { className: 'cra-risk-status' },
                               isAccepted ? '✅ 已采纳替换' : isIgnored ? '⚪ 已忽略' : '⏳ 待审核'
                             )
@@ -786,16 +807,60 @@
                             h('div', { className: 'cra-section-label' }, '【法务剖析】:'),
                             h('div', { className: 'cra-clause-analysis' }, risk.riskAnalysis)
                           ),
-                          h('div', { className: 'cra-clause-section' },
-                            h('div', { className: 'cra-section-label' }, '【建议修订条款】:'),
-                            h('div', { className: 'cra-clause-suggest' }, risk.suggestedRevision)
-                          ),
-                          !isAccepted && !isIgnored && h('div', { className: 'cra-risk-actions' },
-                            h('button', {
+
+                          // 修订条款与卡片内手动编辑区域
+                          editingRiskId === risk.id
+                            ? h('div', { className: 'cra-edit-box' },
+                                h('div', { className: 'cra-edit-box-header' },
+                                  h('span', null, '✏️ 法务人工微调与定制修改'),
+                                  h('span', { className: 'cra-edit-tip' }, '支持在卡片内直接微调条款并应用到正文')
+                                ),
+                                h('textarea', {
+                                  className: 'cra-edit-textarea',
+                                  value: editingRevisionText,
+                                  onChange: (e) => setEditingRevisionText(e.target.value),
+                                  rows: 4,
+                                  placeholder: '可直接在此微调条款内容、违约金比例、异议期限或履约免责条件...'
+                                }),
+                                h('div', { className: 'cra-edit-actions' },
+                                  h('button', {
+                                    className: 'cra-btn-sm cra-btn-success',
+                                    onClick: () => handleAcceptRevision(risk, editingRevisionText)
+                                  }, '💾 应用手动修改并替换正文'),
+                                  h('button', {
+                                    className: 'cra-btn-sm cra-btn-secondary',
+                                    onClick: () => setEditingRevisionText(risk.suggestedRevision)
+                                  }, '🔄 还原建议'),
+                                  h('button', {
+                                    className: 'cra-btn-sm cra-btn-ghost',
+                                    onClick: () => setEditingRiskId(null)
+                                  }, '✕ 取消')
+                                )
+                              )
+                            : h('div', { className: 'cra-clause-section' },
+                                h('div', { className: 'cra-section-label-row' },
+                                  h('span', { className: 'cra-section-label' }, '【建议修订条款】:'),
+                                  risk.isCustom
+                                    ? h('span', { className: 'cra-tag-custom' }, '✍️ 人工定制')
+                                    : h('span', { className: 'cra-tag-ai' }, '🤖 AI 生成')
+                                ),
+                                h('div', { className: 'cra-clause-suggest' }, risk.suggestedRevision)
+                              ),
+
+                          // 卡片操作按钮（非编辑状态下展示）
+                          editingRiskId !== risk.id && h('div', { className: 'cra-risk-actions' },
+                            !isAccepted && h('button', {
                               className: 'cra-btn-sm cra-btn-success',
                               onClick: () => handleAcceptRevision(risk)
-                            }, '✨ 采纳建议并替换原文'),
+                            }, '✨ 采纳AI建议'),
                             h('button', {
+                              className: 'cra-btn-sm cra-btn-manual',
+                              onClick: () => {
+                                setEditingRiskId(risk.id)
+                                setEditingRevisionText(risk.suggestedRevision)
+                              }
+                            }, isAccepted ? '✏️ 重新编辑修改' : '✏️ 手动修改条款'),
+                            !isAccepted && !isIgnored && h('button', {
                               className: 'cra-btn-sm cra-btn-ghost',
                               onClick: () => handleIgnoreRisk(risk)
                             }, '忽略')
@@ -948,6 +1013,20 @@
       .cra-risk-actions { display: flex; gap: 8px; margin-top: 10px; }
       .cra-empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #94a3b8; }
       .cra-empty-icon { font-size: 40px; margin-bottom: 8px; }
+
+      /* 卡片内手动人工编辑样式 */
+      .cra-badge-custom { font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: 700; background: #fdf2f8; color: #db2777; border: 1px solid #fbcfe8; }
+      .cra-section-label-row { display: flex; justify-content: space-between; align-items: center; }
+      .cra-tag-custom { font-size: 10px; color: #db2777; background: #fdf2f8; padding: 1px 6px; border-radius: 3px; font-weight: 600; }
+      .cra-tag-ai { font-size: 10px; color: #16a34a; background: #dcfce7; padding: 1px 6px; border-radius: 3px; font-weight: 600; }
+      .cra-edit-box { background: #f0fdf4; border: 1px dashed #16a34a; border-radius: 6px; padding: 10px; margin-top: 6px; }
+      .cra-edit-box-header { display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: 700; color: #166534; margin-bottom: 6px; }
+      .cra-edit-tip { font-size: 10px; color: #64748b; font-weight: normal; }
+      .cra-edit-textarea { width: 100%; border: 1px solid #86efac; border-radius: 4px; padding: 8px; font-size: 12px; line-height: 1.5; color: #1e293b; font-family: inherit; outline: none; resize: vertical; background: #fff; box-sizing: border-box; }
+      .cra-edit-textarea:focus { border-color: #16a34a; box-shadow: 0 0 0 2px rgba(22,163,74,0.2); }
+      .cra-edit-actions { display: flex; gap: 8px; margin-top: 8px; align-items: center; flex-wrap: wrap; }
+      .cra-btn-manual { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 4px; padding: 4px 10px; transition: all 0.2s; }
+      .cra-btn-manual:hover { background: #dbeafe; border-color: #93c5fd; }
       
       /* 底部丰富历史审查单卡片网格与操作区 */
       .cra-history-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-top: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }

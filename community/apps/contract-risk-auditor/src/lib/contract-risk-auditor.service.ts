@@ -353,7 +353,8 @@ export class ContractRiskAuditorService {
   async acceptRevision(
     _scope: ContractAuditorScope,
     recordId: string,
-    riskId: string
+    riskId: string,
+    customRevision?: string
   ): Promise<ContractAuditRecord> {
     const record = this.records.get(recordId)
     if (!record) {
@@ -365,11 +366,22 @@ export class ContractRiskAuditorService {
       throw new Error(`未找到风险项: ${riskId}`)
     }
 
-    // 替换原句为建议修改
+    const revisionToApply = customRevision !== undefined && customRevision.trim()
+      ? customRevision.trim()
+      : risk.suggestedRevision
+
+    // 优先替换原句，若此前已被修改过则替换上次的修订句
     if (record.revisedContent.includes(risk.originalText)) {
-      record.revisedContent = record.revisedContent.replace(risk.originalText, risk.suggestedRevision)
+      record.revisedContent = record.revisedContent.replace(risk.originalText, revisionToApply)
+    } else if (risk.suggestedRevision && record.revisedContent.includes(risk.suggestedRevision)) {
+      record.revisedContent = record.revisedContent.replace(risk.suggestedRevision, revisionToApply)
     }
+
+    risk.suggestedRevision = revisionToApply
     risk.status = 'ACCEPTED'
+    if (customRevision !== undefined) {
+      risk.isCustom = true
+    }
     record.updatedAt = new Date().toISOString()
     this.records.set(recordId, record)
     return record

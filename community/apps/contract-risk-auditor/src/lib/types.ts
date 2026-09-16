@@ -10,6 +10,7 @@ export interface ClauseRiskItem {
   riskAnalysis: string
   suggestedRevision: string
   status: ClauseRiskStatus
+  isCustom?: boolean
 }
 
 export type IndustryType =

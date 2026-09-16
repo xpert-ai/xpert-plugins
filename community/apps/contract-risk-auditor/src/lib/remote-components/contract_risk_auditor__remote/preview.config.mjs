@@ -170,7 +170,7 @@ export default {
       }
 
       if (actionKey === 'accept_revision') {
-        const record = await service.acceptRevision(mockScope, input.recordId, input.riskId)
+        const record = await service.acceptRevision(mockScope, input.recordId, input.riskId, input.customRevision)
         persistRecords()
         return { data: record, result: { success: true, data: record } }
       }

@@ -45,6 +45,20 @@ test('ContractRiskAuditorService - 核心业务逻辑与状态转移测试', asy
     assert.ok(updated.revisedContent.includes(targetRisk.suggestedRevision), '定稿中应该包含建议修订语句')
   })
 
+  await t.test('3.1 支持法务在卡片中人工手动微调修改条款，并以自定义文本替换原文', async () => {
+    const record = await service.getRecord(mockScope, 'custom-test-1')
+    assert.ok(record)
+    const targetRisk = record.risks[0]
+    const customText = '【人工修改条款】：违约金按照守约方实际直接损失据实结算，且最高上限不超过合同总金额的5%'
+
+    const updated = await service.acceptRevision(mockScope, record.id, targetRisk.id, customText)
+    const updatedRisk = updated.risks.find((r) => r.id === targetRisk.id)
+    assert.equal(updatedRisk?.status, 'ACCEPTED')
+    assert.equal(updatedRisk?.isCustom, true)
+    assert.equal(updatedRisk?.suggestedRevision, customText)
+    assert.ok(updated.revisedContent.includes(customText), '正文中应该包含法务人工自定义修改的条款')
+  })
+
   await t.test('4. 人工忽略某项风险后，状态应置为 IGNORED 且不改变条款文本', async () => {
     const record = await service.getRecord(mockScope, 'custom-test-1')
     assert.ok(record)
