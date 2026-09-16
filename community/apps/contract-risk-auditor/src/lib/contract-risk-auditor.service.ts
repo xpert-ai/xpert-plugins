@@ -148,20 +148,35 @@ export class ContractRiskAuditorService {
   }
 
   private initDefaultRecords() {
-    const sample = SAMPLE_CONTRACTS[0]
-    const industry = this.detectContractIndustry(sample.content, sample.title)
-    const initialRecord: ContractAuditRecord = {
+    const s1 = SAMPLE_CONTRACTS[0]
+    const ind1 = this.detectContractIndustry(s1.content, s1.title)
+    const rec1: ContractAuditRecord = {
       id: 'demo-contract-1',
-      title: sample.title,
-      originalContent: sample.content,
-      revisedContent: sample.content,
-      detectedIndustry: industry,
-      risks: this.analyzeContractText(sample.content, industry.code),
+      title: s1.title,
+      originalContent: s1.content,
+      revisedContent: s1.content,
+      detectedIndustry: ind1,
+      risks: this.analyzeContractText(s1.content, ind1.code),
       summary: '检测到 4 项高危合规风险（含过高违约金50%、不合理单方免责、知识产权不当归属及异地管辖陷阱），建议采纳修订条款。',
+      createdAt: new Date(Date.now() - 3600000).toISOString(),
+      updatedAt: new Date(Date.now() - 3600000).toISOString()
+    }
+    this.records.set(rec1.id, rec1)
+
+    const s2 = SAMPLE_CONTRACTS[1]
+    const ind2 = this.detectContractIndustry(s2.content, s2.title)
+    const rec2: ContractAuditRecord = {
+      id: 'demo-contract-2',
+      title: s2.title,
+      originalContent: s2.content,
+      revisedContent: s2.content,
+      detectedIndustry: ind2,
+      risks: this.analyzeContractText(s2.content, ind2.code),
+      summary: '【IT软件开发】风险排查完成：识别 3 处合规隐患（含无限制免费修改、30%违约金连带损失及任意单方解约）。',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     }
-    this.records.set(initialRecord.id, initialRecord)
+    this.records.set(rec2.id, rec2)
   }
 
   analyzeContractText(content: string, industryCode?: IndustryType): ClauseRiskItem[] {
@@ -388,6 +403,14 @@ export class ContractRiskAuditorService {
     record.updatedAt = new Date().toISOString()
     this.records.set(record.id, record)
     return record
+  }
+
+  async deleteRecord(_scope: ContractAuditorScope, id: string): Promise<boolean> {
+    return this.records.delete(id)
+  }
+
+  async clearRecords(_scope: ContractAuditorScope): Promise<void> {
+    this.records.clear()
   }
 
   async getWorkbenchData(

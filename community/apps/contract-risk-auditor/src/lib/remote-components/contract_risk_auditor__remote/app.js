@@ -227,6 +227,7 @@
 第四条 争议管辖（源自 PDF 签署页）
 因履行本协议及其附录表格引发之纠纷，均排他性由甲方所在地人民法院管辖，乙方放弃一切管辖异议主张。`)
             
+            setCurrentRecordId('')
             setRisks([])
             setSummary('')
             showToast('PDF 合同文档与附录表格已成功结构化提取！')
@@ -235,16 +236,39 @@
       }, 700)
     }
 
-    // 初始化加载数据
+    // 初始化加载数据（合并服务端持久化与浏览器本地缓存）
     const loadWorkbenchData = async () => {
       setLoading(true)
       try {
         const res = await request('view.data', { query: {} })
         const payload = res?.data || res || {}
         setSampleContracts(payload.sampleContracts || [])
-        setRecords(payload.records || [])
+        
+        let mergedRecords = payload.records || []
+        try {
+          const cached = localStorage.getItem('cra_audit_records_v1')
+          if (cached) {
+            const parsed = JSON.parse(cached)
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              const map = new Map()
+              mergedRecords.forEach(r => map.set(r.id, r))
+              parsed.forEach(r => { if (!map.has(r.id)) map.set(r.id, r) })
+              mergedRecords = Array.from(map.values())
+            }
+          }
+        } catch (e) {}
+
+        // 按时间倒序排列
+        mergedRecords.sort((a, b) => new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime())
+        setRecords(mergedRecords)
+        try {
+          localStorage.setItem('cra_audit_records_v1', JSON.stringify(mergedRecords))
+        } catch (e) {}
+
         if (payload.activeRecord) {
           applyRecord(payload.activeRecord)
+        } else if (mergedRecords.length > 0) {
+          applyRecord(mergedRecords[0])
         } else if (payload.sampleContracts && payload.sampleContracts.length > 0) {
           setTitle(payload.sampleContracts[0].title)
           setContent(payload.sampleContracts[0].content)
@@ -274,6 +298,7 @@
 
     // 载入样例
     const handleSelectSample = (sample) => {
+      setCurrentRecordId('') // 切换样例时清空绑定ID，下次点击审查生成新的独立审查档案
       setTitle(sample.title)
       setContent(sample.content)
       setRisks([])
@@ -331,11 +356,14 @@
         if (currentProgress > 85 && currentStep < 4) { currentStep = 4; setAuditStepIndex(4) }
       }, 650)
 
+      // 每次发起审查均生成全新的审计单 ID，确保持久化多条历史版本
+      const newAuditId = 'audit-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6)
+
       try {
         const res = await request('view.action', {
           actionKey: 'audit_contract',
           input: {
-            id: currentRecordId || undefined,
+            id: newAuditId,
             title: title || '采购合同审查单',
             content: content
           }
@@ -350,6 +378,15 @@
           setContent(rec.revisedContent || rec.originalContent || '')
           setDetectedIndustry(rec.detectedIndustry || null)
           setSummary(rec.summary || '')
+
+          // 同步更新历史列表与持久化缓存
+          setRecords(prev => {
+            const next = [rec, ...prev.filter(r => r.id !== rec.id)]
+            try {
+              localStorage.setItem('cra_audit_records_v1', JSON.stringify(next))
+            } catch (e) {}
+            return next
+          })
 
           // 开启流式打印输出
           setAuditing(false)
@@ -389,6 +426,17 @@
       }
     }
 
+    // 辅助同步单条更新到历史列表与本地存储
+    const syncRecordToHistory = (updatedRec) => {
+      setRecords(prev => {
+        const next = prev.map(r => r.id === updatedRec.id ? updatedRec : r)
+        try {
+          localStorage.setItem('cra_audit_records_v1', JSON.stringify(next))
+        } catch (e) {}
+        return next
+      })
+    }
+
     // 采纳修订
     const handleAcceptRevision = async (risk) => {
       if (!currentRecordId) {
@@ -412,6 +460,7 @@
         const rec = res?.data || res
         if (rec) {
           applyRecord(rec)
+          syncRecordToHistory(rec)
           showToast('已采纳建议并同步保存')
         }
       } catch (err) {
@@ -438,6 +487,7 @@
         const rec = res?.data || res
         if (rec) {
           applyRecord(rec)
+          syncRecordToHistory(rec)
           showToast('已忽略该项风险')
         }
       } catch (err) {
@@ -447,15 +497,17 @@
 
     // 保存合同审查单
     const handleSaveRecord = async () => {
+      const targetId = currentRecordId || ('audit-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6))
       try {
         const res = await request('view.action', {
           actionKey: 'save_contract',
           input: {
             record: {
-              id: currentRecordId || ('contract-' + Date.now()),
+              id: targetId,
               title,
               originalContent: content,
               revisedContent: content,
+              detectedIndustry,
               risks,
               summary
             }
@@ -464,12 +516,64 @@
         const rec = res?.data || res
         if (rec) {
           applyRecord(rec)
-          showToast('审查单已成功持久化保存！刷新后可随时恢复。')
-          loadWorkbenchData()
+          setRecords(prev => {
+            const next = [rec, ...prev.filter(r => r.id !== rec.id)]
+            try {
+              localStorage.setItem('cra_audit_records_v1', JSON.stringify(next))
+            } catch (e) {}
+            return next
+          })
+          showToast('审查单已成功持久化保存！已同步至本地磁盘与缓存。')
         }
       } catch (err) {
         setErrorMessage(err.message || '保存失败')
       }
+    }
+
+    // 删除单条历史审查单
+    const handleDeleteRecord = async (recordId, e) => {
+      if (e) e.stopPropagation()
+      if (!confirm('确定要删除此份历史审查单吗？')) return
+
+      try {
+        await request('view.action', {
+          actionKey: 'delete_record',
+          input: { recordId }
+        })
+      } catch (e) {
+        console.warn('后端删除返回警告:', e)
+      }
+
+      setRecords(prev => {
+        const next = prev.filter(r => r.id !== recordId)
+        try {
+          localStorage.setItem('cra_audit_records_v1', JSON.stringify(next))
+        } catch (e) {}
+        return next
+      })
+
+      if (currentRecordId === recordId) {
+        setCurrentRecordId('')
+      }
+      showToast('已删除该审查归档记录')
+    }
+
+    // 清空所有历史审查单
+    const handleClearAllRecords = async () => {
+      if (!confirm('确定清空所有历史审查单归档吗？此操作将重置本地与持久化存储。')) return
+
+      try {
+        await request('view.action', { actionKey: 'clear_records' })
+      } catch (e) {
+        console.warn('后端清空返回警告:', e)
+      }
+
+      setRecords([])
+      try {
+        localStorage.removeItem('cra_audit_records_v1')
+      } catch (e) {}
+      setCurrentRecordId('')
+      showToast('已清空全部历史审查档案')
     }
 
     if (loading) {
@@ -703,21 +807,76 @@
         )
       ),
 
-      // 底部历史审查单列表（持久化恢复展示）
-      records.length > 0 && h('div', { className: 'cra-history-panel' },
-        h('div', { className: 'cra-history-title' }, '📚 历史审查单记录（点击可随时还原历史审查快照）'),
-        h('div', { className: 'cra-history-chips' },
-          records.map(rec =>
-            h('div', {
-              key: rec.id,
-              className: 'cra-chip ' + (rec.id === currentRecordId ? 'cra-chip-active' : ''),
-              onClick: () => applyRecord(rec)
-            },
-              h('span', null, '📄 ' + (rec.title || rec.id)),
-              h('small', null, ' (' + new Date(rec.updatedAt).toLocaleTimeString() + ')')
-            )
+      // 底部历史审查单归档与快照管理（双层持久化，随时还原）
+      h('div', { className: 'cra-history-section' },
+        h('div', { className: 'cra-history-section-header' },
+          h('div', { className: 'cra-history-header-left' },
+            h('span', { className: 'cra-history-section-title' }, '📚 历史审查档案库与版本快照'),
+            h('span', { className: 'cra-history-badge-count' }, `共 ${records.length} 份归档 · 双层持久化已开启`)
+          ),
+          h('div', { className: 'cra-history-header-actions' },
+            h('button', {
+              className: 'cra-btn-hist-action',
+              onClick: loadWorkbenchData,
+              title: '从磁盘与本地缓存刷新'
+            }, '🔄 刷新归档'),
+            records.length > 0 && h('button', {
+              className: 'cra-btn-hist-action cra-btn-hist-danger',
+              onClick: handleClearAllRecords,
+              title: '清空全部历史归档'
+            }, '🗑️ 清空历史')
           )
-        )
+        ),
+
+        records.length === 0
+          ? h('div', { className: 'cra-history-empty' }, '暂无历史审查归档。每次执行“开始 AI 合规审查”都会自动生成独立快照，永久保存不丢失。')
+          : h('div', { className: 'cra-history-grid' },
+              records.map(rec => {
+                const isCurrent = rec.id === currentRecordId
+                const highCount = rec.risks ? rec.risks.filter(r => r.riskLevel === 'HIGH').length : 0
+                const otherCount = rec.risks ? rec.risks.length - highCount : 0
+                const indName = rec.detectedIndustry ? rec.detectedIndustry.name.replace('行业', '') : '通用商事'
+                const formattedTime = new Date(rec.updatedAt || rec.createdAt).toLocaleString('zh-CN', {
+                  month: '2-digit',
+                  day: '2-digit',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit'
+                })
+
+                return h('div', {
+                  key: rec.id,
+                  className: 'cra-history-card ' + (isCurrent ? 'cra-history-card-current' : ''),
+                  onClick: () => applyRecord(rec)
+                },
+                  h('div', { className: 'cra-hcard-top' },
+                    h('span', { className: 'cra-hcard-ind' }, '🏷️ ' + indName),
+                    isCurrent && h('span', { className: 'cra-hcard-active-tag' }, '当前打开'),
+                    h('span', { className: 'cra-hcard-time' }, formattedTime)
+                  ),
+                  h('div', { className: 'cra-hcard-title', title: rec.title }, rec.title || '未命名审查单'),
+                  h('div', { className: 'cra-hcard-summary' }, rec.summary || '已完成合规审查'),
+                  h('div', { className: 'cra-hcard-bottom' },
+                    h('div', { className: 'cra-hcard-risks' },
+                      highCount > 0 && h('span', { className: 'cra-hcard-risk-high' }, `🔴 ${highCount}项高危`),
+                      otherCount > 0 && h('span', { className: 'cra-hcard-risk-med' }, `🟡 ${otherCount}项提示`),
+                      highCount === 0 && otherCount === 0 && h('span', { className: 'cra-hcard-risk-ok' }, '🟢 合规通过')
+                    ),
+                    h('div', { className: 'cra-hcard-actions' },
+                      h('button', {
+                        className: 'cra-hcard-btn-restore',
+                        onClick: (e) => { e.stopPropagation(); applyRecord(rec) }
+                      }, isCurrent ? '正在查看' : '还原快照 ↗'),
+                      h('button', {
+                        className: 'cra-hcard-btn-del',
+                        title: '删除该归档',
+                        onClick: (e) => handleDeleteRecord(rec.id, e)
+                      }, '✕')
+                    )
+                  )
+                )
+              })
+            )
       )
     )
   }
@@ -789,12 +948,39 @@
       .cra-risk-actions { display: flex; gap: 8px; margin-top: 10px; }
       .cra-empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #94a3b8; }
       .cra-empty-icon { font-size: 40px; margin-bottom: 8px; }
-      .cra-history-panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; }
-      .cra-history-title { font-size: 12px; font-weight: 700; color: #64748b; margin-bottom: 8px; }
-      .cra-history-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-      .cra-chip { font-size: 12px; padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 16px; cursor: pointer; background: #f8fafc; }
-      .cra-chip:hover { border-color: #2563eb; background: #eff6ff; }
-      .cra-chip-active { border-color: #2563eb; background: #eff6ff; color: #2563eb; font-weight: 600; }
+      
+      /* 底部丰富历史审查单卡片网格与操作区 */
+      .cra-history-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-top: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+      .cra-history-section-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 12px; border-bottom: 1px solid #f1f5f9; margin-bottom: 12px; }
+      .cra-history-header-left { display: flex; align-items: center; gap: 10px; }
+      .cra-history-section-title { font-size: 14px; font-weight: 700; color: #0f172a; }
+      .cra-history-badge-count { font-size: 11px; background: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 12px; font-weight: 600; }
+      .cra-history-header-actions { display: flex; align-items: center; gap: 8px; }
+      .cra-btn-hist-action { font-size: 12px; padding: 4px 10px; border-radius: 4px; border: 1px solid #cbd5e1; background: #fff; color: #475569; cursor: pointer; transition: all 0.2s; font-weight: 500; }
+      .cra-btn-hist-action:hover { background: #f8fafc; border-color: #94a3b8; }
+      .cra-btn-hist-danger { color: #dc2626; border-color: #fecaca; background: #fef2f2; }
+      .cra-btn-hist-danger:hover { background: #fee2e2; border-color: #f87171; }
+      .cra-history-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 12px; }
+      .cra-history-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; cursor: pointer; transition: all 0.2s; }
+      .cra-history-card:hover { background: #fff; border-color: #93c5fd; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(37,99,235,0.08); }
+      .cra-history-card-current { background: #eff6ff; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
+      .cra-hcard-top { display: flex; justify-content: space-between; align-items: center; font-size: 11px; }
+      .cra-hcard-ind { font-size: 11px; font-weight: 600; color: #1d4ed8; background: #dbeafe; padding: 1px 6px; border-radius: 4px; }
+      .cra-hcard-active-tag { font-size: 10px; font-weight: 700; background: #2563eb; color: #fff; padding: 1px 6px; border-radius: 3px; }
+      .cra-hcard-time { font-size: 11px; color: #94a3b8; margin-left: auto; }
+      .cra-hcard-title { font-size: 13px; font-weight: 700; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .cra-hcard-summary { font-size: 11px; color: #64748b; line-height: 1.4; height: 32px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+      .cra-hcard-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 8px; border-top: 1px solid #f1f5f9; }
+      .cra-hcard-risks { display: flex; gap: 6px; font-size: 11px; font-weight: 600; }
+      .cra-hcard-risk-high { color: #dc2626; background: #fee2e2; padding: 1px 5px; border-radius: 3px; }
+      .cra-hcard-risk-med { color: #d97706; background: #fef3c7; padding: 1px 5px; border-radius: 3px; }
+      .cra-hcard-risk-ok { color: #16a34a; background: #dcfce7; padding: 1px 5px; border-radius: 3px; }
+      .cra-hcard-actions { display: flex; align-items: center; gap: 6px; }
+      .cra-hcard-btn-restore { font-size: 11px; font-weight: 600; color: #2563eb; background: transparent; border: none; cursor: pointer; padding: 2px 6px; border-radius: 4px; }
+      .cra-hcard-btn-restore:hover { background: #dbeafe; }
+      .cra-hcard-btn-del { font-size: 12px; font-weight: 700; color: #94a3b8; background: transparent; border: none; cursor: pointer; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; }
+      .cra-hcard-btn-del:hover { color: #dc2626; background: #fee2e2; }
+      .cra-history-empty { text-align: center; padding: 24px; color: #94a3b8; font-size: 12px; }
 
       /* 文本域与激光扫描雷达动画 */
       .cra-textarea-container { position: relative; flex: 1; display: flex; flex-direction: column; overflow: hidden; border-radius: 6px; }

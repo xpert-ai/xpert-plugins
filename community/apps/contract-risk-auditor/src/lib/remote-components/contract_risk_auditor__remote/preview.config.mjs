@@ -1,11 +1,48 @@
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { ContractRiskAuditorService, SAMPLE_CONTRACTS } from '../../../../dist/lib/contract-risk-auditor.service.js'
 
 const componentRoot = dirname(fileURLToPath(import.meta.url))
 const pluginRoot = resolve(componentRoot, '../../../..')
+const storageDir = resolve(pluginRoot, '.storage')
+const storageFile = resolve(storageDir, 'preview-records.json')
 const service = new ContractRiskAuditorService()
 const mockScope = { userId: 'local-preview-user', tenantId: 'local-tenant' }
+
+function loadPersistedRecords() {
+  try {
+    if (existsSync(storageFile)) {
+      const raw = readFileSync(storageFile, 'utf8')
+      const list = JSON.parse(raw)
+      if (Array.isArray(list) && list.length > 0) {
+        for (const rec of list) {
+          service.records.set(rec.id, rec)
+        }
+        console.log(`[Storage] 成功从本地磁盘文件载入 ${list.length} 条历史审查单 (${storageFile})`)
+        return
+      }
+    }
+  } catch (err) {
+    console.warn('[Storage] 读取历史记录失败:', err.message)
+  }
+  persistRecords()
+}
+
+function persistRecords() {
+  try {
+    if (!existsSync(storageDir)) {
+      mkdirSync(storageDir, { recursive: true })
+    }
+    const list = Array.from(service.records.values())
+    writeFileSync(storageFile, JSON.stringify(list, null, 2), 'utf8')
+    console.log(`[Storage] 已持久化同步 ${list.length} 条审查单至本地磁盘`)
+  } catch (err) {
+    console.warn('[Storage] 写入持久化记录失败:', err.message)
+  }
+}
+
+loadPersistedRecords()
 
 export default {
   title: '商务采购合同智能合规排查工作台 · 本地预览',
@@ -120,6 +157,7 @@ export default {
               updatedAt: new Date().toISOString()
             }
             await service.saveContract(mockScope, record)
+            persistRecords()
             return { data: record, result: { success: true, data: record } }
           } catch (err) {
             console.warn('真实大模型调用异常，fallback 到本地语义引擎:', err.message)
@@ -127,22 +165,39 @@ export default {
         }
 
         const record = await service.auditContract(mockScope, input.id || '', input.content, input.title)
+        persistRecords()
         return { data: record, result: { success: true, data: record } }
       }
 
       if (actionKey === 'accept_revision') {
         const record = await service.acceptRevision(mockScope, input.recordId, input.riskId)
+        persistRecords()
         return { data: record, result: { success: true, data: record } }
       }
 
       if (actionKey === 'ignore_risk') {
         const record = await service.ignoreRisk(mockScope, input.recordId, input.riskId)
+        persistRecords()
         return { data: record, result: { success: true, data: record } }
       }
 
       if (actionKey === 'save_contract') {
         const record = await service.saveContract(mockScope, input.record)
+        persistRecords()
         return { data: record, result: { success: true, data: record } }
+      }
+
+      if (actionKey === 'delete_record') {
+        await service.deleteRecord(mockScope, input.recordId)
+        persistRecords()
+        const records = await service.listRecords(mockScope)
+        return { data: { success: true, records }, result: { success: true, records } }
+      }
+
+      if (actionKey === 'clear_records') {
+        await service.clearRecords(mockScope)
+        persistRecords()
+        return { data: { success: true, records: [] }, result: { success: true, records: [] } }
       }
 
       return { result: { success: false, message: '未知的操作' } }
