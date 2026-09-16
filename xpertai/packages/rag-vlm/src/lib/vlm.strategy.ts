@@ -19,9 +19,11 @@ import { SvgIcon, VlmDefault } from './types.js'
 // Regex for markdown image tag: ![](image.png) or ![alt](image.png)
 const IMAGE_REGEX = /!\[[^\]]*\]\s*\(((?:https?:\/\/[^)]+|[^)\s]+))(\s*"[^"]*")?\)/g
 
+type VlmConfig = TImageUnderstandingConfig & { promptTemplate?: string }
+
 @Injectable()
 @ImageUnderstandingStrategy(VlmDefault)
-export class VlmDefaultStrategy implements IImageUnderstandingStrategy {
+export class VlmDefaultStrategy implements IImageUnderstandingStrategy<VlmConfig> {
   readonly permissions = [
     {
       type: 'filesystem',
@@ -60,7 +62,7 @@ export class VlmDefaultStrategy implements IImageUnderstandingStrategy {
 
   async understandImages(
     doc: Parameters<IImageUnderstandingStrategy['understandImages']>[0],
-    config: TImageUnderstandingConfig
+    config: VlmConfig
   ): Promise<TImageUnderstandingResult> {
     await this.validateConfig(config)
 
@@ -72,7 +74,11 @@ export class VlmDefaultStrategy implements IImageUnderstandingStrategy {
     const leafIds = new Set(leaves.map((chunk) => chunk.metadata.chunkId))
     chunks.push(...doc.chunks.filter((chunk) => !leafIds.has(chunk.metadata.chunkId)))
     const processed = new Set<string>()
-    const warnings: { type: 'image_understanding_failed'; message: string; imagePath: string }[] = []
+    const warnings: {
+      type: 'image_understanding_failed' | 'image_understanding_skipped'
+      message: string
+      imagePath: string
+    }[] = []
     for (const chunk of leaves) {
       chunks.push(chunk)
       for (const match of chunk.pageContent.matchAll(IMAGE_REGEX)) {
@@ -80,7 +86,12 @@ export class VlmDefaultStrategy implements IImageUnderstandingStrategy {
         if (!asset || processed.has(asset.filePath)) continue
         processed.add(asset.filePath)
         try {
-          const description = await this.runV(client, asset, config)
+          const result = await this.runV(client, asset, config, chunk.pageContent)
+          if (result.type === 'skipped') {
+            warnings.push({ type: 'image_understanding_skipped', message: result.reason, imagePath: asset.filePath })
+            continue
+          }
+          const description = result.text
           if (!description.trim()) throw new Error('The vision model returned no text.')
           chunks.push(
             new Document({
@@ -110,10 +121,22 @@ export class VlmDefaultStrategy implements IImageUnderstandingStrategy {
     return { chunks, metadata: { warnings } }
   }
 
-  private async runV(client: BaseChatModel, asset: TDocumentAsset, config: TImageUnderstandingConfig): Promise<string> {
+  private async runV(
+    client: BaseChatModel,
+    asset: TDocumentAsset,
+    config: VlmConfig,
+    context: string
+  ): Promise<{ type: 'recognized'; text: string } | { type: 'skipped'; reason: string }> {
     const imageStr = await config.permissions.fileSystem.readFile(asset.filePath)
     const page = asset.sourceType === 'pdf_page'
-    const imageData = await sharp(imageStr)
+    const image = sharp(imageStr)
+    const { width, height } = await image.metadata()
+    // Embedded tracking/spacer pixels contain no readable content. Never silently skip a PDF page.
+    if (width === 1 || height === 1) {
+      if (page) throw new Error(`PDF page image is too small to recognize (${width}×${height}).`)
+      return { type: 'skipped', reason: `Skipped a ${width}×${height} placeholder image.` }
+    }
+    const imageData = await image
       .resize({ width: page ? 2200 : 1024, height: page ? 2200 : 1024, fit: 'inside', withoutEnlargement: true })
       .png()
       .toBuffer()
@@ -128,6 +151,9 @@ export class VlmDefaultStrategy implements IImageUnderstandingStrategy {
       {
         role: 'user',
         content: [
+          ...(config.promptTemplate?.trim()
+            ? [{ type: 'text' as const, text: config.promptTemplate.replaceAll('{{context}}', () => context) }]
+            : []),
           {
             type: 'image_url',
             image_url: {
@@ -138,10 +164,14 @@ export class VlmDefaultStrategy implements IImageUnderstandingStrategy {
       }
     ])
 
-    return typeof response.content === 'string'
-      ? response.content
-      : response.content
-          .flatMap((part) => (part.type === 'text' && typeof part.text === 'string' ? [part.text] : []))
-          .join('\n')
+    return {
+      type: 'recognized',
+      text:
+        typeof response.content === 'string'
+          ? response.content
+          : response.content
+              .flatMap((part) => (part.type === 'text' && typeof part.text === 'string' ? [part.text] : []))
+              .join('\n')
+    }
   }
 }
