@@ -161,3 +161,46 @@ Specification: [OpenAI portable plugin packaging](https://developers.openai.com/
 The portable entry is root `plugin.json` plus `mcp.json`; the older
 `.codex-plugin/plugin.json` layout is a compatibility option, not the source of
 truth for this package.
+
+## Tool profiles in Codex
+
+The shared catalogue is `skills/cut-agent-skill/references/tool-profiles.json`.
+Native Xpert registers four base queries plus discovery/execution gateways;
+operation schemas are returned on demand inside the plugin. Codex's public
+configuration supports a static allowlist for the existing MCP tools.
+The MCP endpoint therefore retains the full compatible tool directory by default.
+
+From the Cut source, inspect profiles or generate a static configuration fragment:
+
+```sh
+node scripts/codex-tool-profiles.mjs --list
+node scripts/codex-tool-profiles.mjs --profiles timeline-visual
+node scripts/codex-tool-profiles.mjs --profiles speech-evidence,proposal-create,proposal-manage,caption-authoring,caption-commit,export-video --pending-jobs
+```
+
+The output targets `xpert-cut-agent@xpert-cut-codex-local`; use `--plugin` for a
+different installed plugin ID. Merge `enabled_tools` into the matching table in
+Codex configuration, preserving credentials and other settings; do not duplicate
+the table. Reload the client. These commands never modify local configuration.
+Select the union of all required stages for static presets. An eight-tool visual
+preset is not suitable for an entire speech/captions/export workflow.
+
+Reference: [Codex MCP configuration](https://developers.openai.com/codex/mcp).
+
+## Native decorated registration
+
+`CutToolProvider` is the single registered provider for Middleware and native MCP.
+Its `@XpertTool` methods expose the four base queries on both surfaces, all other
+published operations on MCP only, and discovery/execution gateways on Middleware
+only. Operation metadata lives in `cut-operation-definitions.ts`; original scoped
+business implementations remain in the internal Cut operation registry.
+Resources and prompts are supplied by `getMcpExtensions`; they are not converted
+into model tools. Transcription and export retain their task policies. Shared
+input validation runs before the stricter MCP project/file checks. Native calls
+retain the existing Workbench context hooks and scoped file capability.
+
+This migration requires the SDK 3.19.0 release containing decorated MCP
+extensions. Until that release is published, build and validate against the matching
+local SDK source. Do not deploy this plugin with an older SDK. The legacy
+`CutNativeToolset`/`CutToolsetStrategy` exports remain for compatibility, but are
+not registered by the plugin; there is no second provider claiming `cut`.
