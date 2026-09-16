@@ -35,6 +35,7 @@
     "build": "tsc -p tsconfig.json && node scripts/copy-assets.mjs",
     "lint": "echo \"(todo) add lint\"",
     "test": "node --test dist/lib/contract-risk-auditor.service.spec.js",
+    "test:harness": "node --experimental-require-module ../../../plugin-dev-harness/dist/index.js --workspace ../.. --plugin @community/apps-contract-risk-auditor",
     "preview": "node scripts/preview-server.mjs"
   },
   "dependencies": {
