@@ -341,7 +341,9 @@
     },
     {
       "path": "./documents/anydoc"
-
+    },
+    {
+      "path": "./documents/opendataloader"
     }
   ]
 }
