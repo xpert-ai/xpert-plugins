@@ -5,11 +5,16 @@
   let instanceId = null
   let requestSequence = 0
   const pending = new Map()
+  const queue = []
+  let onReadyHook = null
 
   injectStyles()
 
   function post(type, body, transfer) {
-    if (!instanceId && type !== 'ready') return
+    if (!instanceId && type !== 'ready') {
+      queue.push({ type, body, transfer })
+      return
+    }
     parent.postMessage(
       Object.assign(
         {
@@ -45,6 +50,11 @@
     if (data.type === 'init') {
       instanceId = data.instanceId
       post('ready')
+      while (queue.length > 0) {
+        const item = queue.shift()
+        post(item.type, item.body, item.transfer)
+      }
+      if (onReadyHook) onReadyHook()
       return
     }
 
@@ -64,18 +74,82 @@
   window.addEventListener('message', handleMessage)
   post('ready')
 
+  const DEFAULT_SAMPLES = [
+    {
+      title: '企业硬件设备定制采购协议（含典型霸王条款样例）',
+      content: `第一条 货物与交付
+乙方须在合同签订后10日内完成全部定制硬件交付。因任何原因（包括不可抗力、原材料短缺等）导致延期交付的，乙方每日须向甲方支付相当于合同总价款5%的违约金；逾期超过3日，甲方有权单方解除合同，乙方须退还全部已收款项并支付合同总额50%的惩罚性违约金。
+
+第二条 验收与付款
+甲方在收到全部货物后享有长达180日的验收期。在甲方出具正式无保留最终合格验收书之前，甲方无需支付任何款项。若验收期内因任何技术瑕疵导致甲方不满，甲方有权无限期顺延付款且不承担逾期付款违约责任。
+
+第三条 知识产权与成果归属
+在履行本合同过程中产生的所有技术方案、设计图纸、软件代码及衍生知识产权，无论是否由乙方独立研发或出资，其全部知识产权及衍生权益均自产生之日起无偿且排他性地永久归属甲方所有。
+
+第四条 责任免除与限制
+甲方在任何情况下均不对乙方的任何间接损失、利润损失或商业机会损失承担责任。因甲方指令失误或现场配合不当导致乙方损失的，甲方累计赔偿限额不超过人民币100元。
+
+第五条 争议管辖
+本合同履行过程中发生争议的，双方应协商解决；协商不成的，任何一方必须向甲方所在地有管辖权的人民法院提起诉讼，乙方放弃任何管辖权异议权利。`
+    },
+    {
+      title: '软件系统定制开发委托合同（风险样例）',
+      content: `第一条 需求变更与开发周期
+甲方可随时提出业务需求变更，乙方须无条件免费响应该等变更并于3日内交付上线，不得以此为由顺延开发交付期限或主张增加开发费用。
+
+第二条 违约赔偿责任
+如乙方交付之系统存在任何缺陷或偶发Bug，乙方须按合同总金额的30%向甲方支付违约赔偿金，并全额赔偿甲方预期的所有商业利润损失。
+
+第三条 单方解除权
+在合同履行全过程中，甲方有权无需任何理由随时单方通知乙方立即终止本合同，且甲方无需支付乙方已发生之任何开发工时费用。`
+    },
+    {
+      title: '【PDF扫描件抽取】工程设备定制采购合同（含附录付款里程碑表）',
+      content: `第一条 交付与规格标准
+乙方须严格依照《技术规格与设备选型表》交付定制工业设备，任何规格差异甲方享有无条件拒收权。
+
+第二条 附录一·项目实施里程碑与付款周期表（PDF表格抽取）
+| 里程碑节点 | 交付物与验收标准 | 付款比例 | 支付前提条件 | 违约与扣款细则 |
+| :--- | :--- | :--- | :--- | :--- |
+| 阶段一：首付款 | 签署技术协议后 | 10% | 提交全额履约保证保险保单 | 无 |
+| 阶段二：设备抵场 | 核心机组运抵现场 | 30% | 甲方签署初步收货单 | 延期按日扣除合同总价 1% |
+| 阶段三：初验点火 | 完成现场负荷调试 | 30% | 连续平稳运转60天 | 延期按日扣除合同总价 1.5% |
+| 阶段四：终验与尾款 | 集团联合竣工决算 | 30% | 须待第三方上级审计单位出具无保留最终审计报告，且集团资金池审批后方可支付（未设定最迟付款时间） | 任何技术或质量瑕疵甲方有权单方全额扣除尾款 |
+
+第三条 附录图纸与知识产权
+合同附录包含的所有装配工程图纸、BOM表、控制源代码，不论是否为乙方已有背景专利，其全部知识产权自移交时起永久无偿归甲方独家所有。
+
+第四条 争议管辖
+因履行本协议及其附录表格引发之纠纷，均排他性由甲方所在地人民法院管辖，乙方放弃一切管辖异议主张。`
+    },
+    {
+      title: '【广告营销行业】品牌代言与全媒体广告投放合作协议',
+      content: `第一条 代言合作与授权范围
+乙方同意委派旗下艺人担任甲方品牌代言人，并无偿授权甲方在全球范围内、全媒体渠道（包括电视、户外大屏、网络流媒体及衍生品）永久免费使用艺人肖像与声音。
+
+第二条 广告投放与行政合规责任倒扣
+甲方负责提供所有广告投放文案及宣传物料。如因该广告文案违反《广告法》（包含虚假宣传、绝对化极致用语）而遭受市场监督管理局行政处罚的，全部行政罚款及品牌公关损失均由乙方连带全额承担。
+
+第三条 效果对赌与转化KPI
+乙方承诺代言投放期内甲方旗舰店销售额必须突破5000万元。如未达成该指标，甲方有权拒付任何后续代言费用并要求乙方退还已支付之70%代言服务费。
+
+第四条 道德条款与单方无条件解约
+如艺人出现任何可能引起公众舆论争议的情形（由甲方单方自由心证认定），甲方有权即时无偿解除本合同，并要求乙方退还全部费用并支付合同总金额三倍之惩罚性赔偿金。`
+    }
+  ]
+
   function App() {
-    const [loading, setLoading] = React.useState(true)
+    const [loading, setLoading] = React.useState(false)
     const [auditing, setAuditing] = React.useState(false)
     const [simulatingError, setSimulatingError] = React.useState(false)
     const [errorMessage, setErrorMessage] = React.useState(null)
     const [toast, setToast] = React.useState(null)
 
-    const [sampleContracts, setSampleContracts] = React.useState([])
+    const [sampleContracts, setSampleContracts] = React.useState(DEFAULT_SAMPLES)
     const [records, setRecords] = React.useState([])
     const [currentRecordId, setCurrentRecordId] = React.useState('')
-    const [title, setTitle] = React.useState('采购合同合规排查草稿')
-    const [content, setContent] = React.useState('')
+    const [title, setTitle] = React.useState(DEFAULT_SAMPLES[0].title)
+    const [content, setContent] = React.useState(DEFAULT_SAMPLES[0].content)
     const [risks, setRisks] = React.useState([])
     const [summary, setSummary] = React.useState('')
     const [detectedIndustry, setDetectedIndustry] = React.useState(null)
