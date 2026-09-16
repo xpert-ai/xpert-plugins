@@ -93,6 +93,8 @@ test('production preview covers failed, stale, successful and empty source revis
     typeof previewData.data.meta.detail.attempt.durationMs,
     'number'
   )
+  assert.equal(previewData.data.meta.detail.audit.aiRequirementCount, 0)
+  assert.equal(previewData.data.meta.detail.audit.humanChanges.length, 0)
 
   const revisedEmpty = await execute('revise', {
     reviewId,

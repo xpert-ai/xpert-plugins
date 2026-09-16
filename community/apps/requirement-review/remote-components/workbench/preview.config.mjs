@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { segmentSource } from '../../dist/domain/source.js'
 import { actionSchemas } from '../../dist/view.provider.js'
 import { makeEditable, confirmationProblems } from '../../dist/domain/policy.js'
+import { buildReviewAudit } from '../../dist/domain/audit.js'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const attemptView = attempt => {
   const durationMs = attempt.completedAt
@@ -18,7 +19,7 @@ export default {
   async handleRequest(message, { state }) {
     if (message.type === 'requestData') {
       const record = state.reviews.find(item => item.id === message.query?.parameters?.reviewId) ?? null
-      const detail = record ? { ...record, attempt: record.attempt ? attemptView(record.attempt) : null, attempts: record.attempts.map(attemptView) } : null
+      const detail = record ? { ...record, audit: buildReviewAudit(record.aiDraft, record.editableDraft, record.confirmedSnapshot), attempt: record.attempt ? attemptView(record.attempt) : null, attempts: record.attempts.map(attemptView) } : null
       const items = state.reviews.map(item => ({ id: item.id, title: item.title, status: item.status, version: item.version, updatedAt: item.updatedAt, requirementCount: item.editableDraft?.requirements.length ?? 0 }))
       return { data: { items, total: items.length, meta: { items, total: items.length, page: 1, pageSize: 20, detail, sendCommand: 'assistant.chat.send_message' } } }
     }

@@ -48,12 +48,11 @@ export function checkDraftIdentity(
   before: EditableDraft,
   after: EditableDraft
 ): void {
-  const expected = new Set(before.requirements.map((item) => item.id))
-  const actual = new Set(after.requirements.map((item) => item.id))
   if (
-    actual.size !== after.requirements.length ||
-    expected.size !== actual.size ||
-    [...actual].some((id) => !expected.has(id))
+    before.requirements.length !== after.requirements.length ||
+    after.requirements.some(
+      (item, index) => item.id !== before.requirements[index]?.id
+    )
   )
     throw new ReviewError('draft_ids_changed')
 }

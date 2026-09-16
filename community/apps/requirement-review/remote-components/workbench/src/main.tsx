@@ -69,6 +69,35 @@ const attemptSchema = z.object({
     .object({ inputTokens: z.number(), outputTokens: z.number() })
     .nullable()
 })
+const auditField = z.enum([
+  'title',
+  'description',
+  'evidence',
+  'acceptance',
+  'openQuestions',
+  'included'
+])
+const auditSchema = z
+  .object({
+    aiRequirementCount: z.number(),
+    savedRequirementCount: z.number(),
+    humanChanges: z.array(
+      z.object({
+        requirementNumber: z.number(),
+        title: z.string(),
+        fields: z.array(auditField)
+      })
+    ),
+    confirmation: z
+      .object({
+        confirmedAt: z.string(),
+        sourceVersion: z.number(),
+        includedCount: z.number(),
+        excludedCount: z.number()
+      })
+      .nullable()
+  })
+  .nullable()
 const detailSchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -97,6 +126,7 @@ const detailSchema = z.object({
   blockers: z.array(
     z.object({ id: z.string().optional(), reason: z.string() })
   ),
+  audit: auditSchema,
   attempt: attemptSchema.nullable(),
   attempts: z.array(attemptSchema)
 })
@@ -752,6 +782,62 @@ function App() {
                       </li>
                     ))}
                   </ol>
+                </details>
+              )}
+              {detail.audit && (
+                <details className="border rounded-md p-3">
+                  <summary className="cursor-pointer font-medium">
+                    {t('reviewAudit')} ({detail.audit.humanChanges.length})
+                  </summary>
+                  <div className="mt-3 space-y-3 text-sm">
+                    <p className="text-muted-foreground">
+                      {t('aiDraftCount')}: {detail.audit.aiRequirementCount} ·{' '}
+                      {t('savedDraftCount')}:{' '}
+                      {detail.audit.savedRequirementCount}
+                    </p>
+                    {detail.audit.humanChanges.length ? (
+                      <ol className="space-y-2">
+                        {detail.audit.humanChanges.map((change) => (
+                          <li
+                            key={change.requirementNumber}
+                            className="rounded-md border p-3"
+                          >
+                            <p className="font-medium">
+                              {change.requirementNumber}. {change.title}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {t('changedFields')}:{' '}
+                              {change.fields
+                                .map((field) => t(`audit_${field}`))
+                                .join(', ')}
+                            </p>
+                          </li>
+                        ))}
+                      </ol>
+                    ) : (
+                      <p>{t('noHumanChanges')}</p>
+                    )}
+                    {detail.audit.confirmation ? (
+                      <p className="rounded-md bg-muted p-3 text-xs">
+                        {t('confirmedIncluded')}:{' '}
+                        {detail.audit.confirmation.includedCount} ·{' '}
+                        {t('confirmedExcluded')}:{' '}
+                        {detail.audit.confirmation.excludedCount} ·{' '}
+                        {t('inputVersion')}: v
+                        {detail.audit.confirmation.sourceVersion} ·{' '}
+                        {new Intl.DateTimeFormat(locale, {
+                          dateStyle: 'medium',
+                          timeStyle: 'short'
+                        }).format(
+                          new Date(detail.audit.confirmation.confirmedAt)
+                        )}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        {t('auditNotConfirmed')}
+                      </p>
+                    )}
+                  </div>
                 </details>
               )}
               {showSource && (

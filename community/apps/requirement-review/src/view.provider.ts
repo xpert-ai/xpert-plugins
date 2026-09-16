@@ -21,6 +21,7 @@ import { ReviewService, type ReviewDetail } from './services/review.service.js'
 import { ReviewError, confirmationProblems } from './domain/policy.js'
 import { InputError } from './domain/source.js'
 import { editableDraftSchema } from './domain/contracts.js'
+import { buildReviewAudit } from './domain/audit.js'
 import type { AnalysisAttempt } from './entities/analysis-attempt.entity.js'
 import {
   FEATURE,
@@ -224,6 +225,11 @@ export function publicDetail({ review, attempt, attempts }: ReviewDetail) {
     blockers: review.editableDraft
       ? confirmationProblems(review.editableDraft)
       : [],
+    audit: buildReviewAudit(
+      review.aiDraft,
+      review.editableDraft,
+      review.confirmedSnapshot
+    ),
     attempt: attempt ? publicAttempt(attempt) : null,
     attempts: attempts.map(publicAttempt)
   }

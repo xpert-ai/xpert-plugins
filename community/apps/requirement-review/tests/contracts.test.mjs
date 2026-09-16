@@ -2,7 +2,11 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readSchema, failureSchema, submitSchema } from '../dist/middleware.js'
 import { publicDetail, actionSchemas } from '../dist/view.provider.js'
-import { confirmationProblems, makeEditable } from '../dist/domain/policy.js'
+import {
+  checkDraftIdentity,
+  confirmationProblems,
+  makeEditable
+} from '../dist/domain/policy.js'
 test('tools reject invalid IDs, extra identity and unbounded data', () => {
   assert.equal(
     readSchema.safeParse({ reviewId: 'x', attemptId: 'x' }).success,
@@ -68,6 +72,32 @@ test('confirmation is blocked for empty selection, questions and missing accepta
   assert.equal(confirmationProblems(draft).length, 2)
   draft.requirements[0].included = false
   assert.equal(confirmationProblems(draft)[0].reason, 'empty')
+  const twoItems = makeEditable({
+    summary: '',
+    requirements: [
+      {
+        title: 'a',
+        description: 'a',
+        evidence: [{ segmentId: 'S01', quote: 'a' }],
+        acceptance: [],
+        openQuestions: []
+      },
+      {
+        title: 'b',
+        description: 'b',
+        evidence: [{ segmentId: 'S02', quote: 'b' }],
+        acceptance: [],
+        openQuestions: []
+      }
+    ]
+  })
+  assert.throws(
+    () =>
+      checkDraftIdentity(twoItems, {
+        requirements: [...twoItems.requirements].reverse()
+      }),
+    { code: 'draft_ids_changed' }
+  )
 })
 test('view DTO allowlists business data and hides scope and confirmer identity', () => {
   const dto = publicDetail({
