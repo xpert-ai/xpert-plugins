@@ -44,7 +44,8 @@ team:
       max_tokens: 4096
       top_p: 0.9
   knowledgebases: []
-  toolsets: []
+  toolsets:
+    - pdfium
   tags: []
 nodes:
   - type: agent
@@ -73,3 +74,4 @@ nodes:
         请务必保持严谨、客观、专业的法律态度，给出切实可行的改写建议。
       tools:
         - ContractRiskAuditorMiddleware
+        - pdf_to_markdown
