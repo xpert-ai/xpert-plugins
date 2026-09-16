@@ -1,7 +1,7 @@
 import { SiliconflowLargeLanguageModel } from './llm.js'
 import { SiliconflowProviderStrategy } from '../provider.strategy.js'
 import { ModelFeature } from '@xpert-ai/contracts'
-import { TChatModelOptions } from '@xpert-ai/plugin-sdk'
+import { calculateLLMUsagePrice, TChatModelOptions } from '@xpert-ai/plugin-sdk'
 import { SiliconflowModelCredentials } from '../types.js'
 
 describe('getCustomizableModelSchemaFromCredentials', () => {
@@ -41,6 +41,38 @@ describe('getCustomizableModelSchemaFromCredentials', () => {
       }
     } as unknown as Parameters<SiliconflowLargeLanguageModel['getChatModel']>[0]
   }
+
+  it('prices Hy4 preview cache hits using the official price table', () => {
+    const model = llm.predefinedModels().find((entry) => entry.model === 'tencent/Hy4-preview')
+    if (!model?.pricing) throw new Error('Missing Hy4 preview pricing')
+    const charge = calculateLLMUsagePrice(model.pricing, {
+      promptTokens: 1500000,
+      completionTokens: 1000000,
+      totalTokens: 2500000,
+      cacheReadInputTokens: 500000
+    })
+    expect(charge.pricingStatus).toBe('priced')
+    expect(charge.totalAmount).toBeCloseTo(6 + 18 + 0.3 / 2, 8)
+  })
+
+  it('loads Hy4 preview and forwards its structured output settings', () => {
+    const model = llm.predefinedModels().find((entry) => entry.model === 'tencent/Hy4-preview')
+    expect(model?.model_properties?.context_size).toBe(1048576)
+    expect(model?.parameter_rules).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'max_tokens', max: 65536 }),
+      expect.objectContaining({ name: 'response_format', options: ['text', 'json_object', 'json_schema'] })
+    ]))
+    const schema = { type: 'object', properties: { answer: { type: 'string' } } }
+    const chat = llm.getChatModel(createCopilotModel('tencent/Hy4-preview', {
+      max_tokens: 32768,
+      response_format: 'json_schema',
+      json_schema: JSON.stringify(schema)
+    }))
+    expect(chat.invocationParams()['response_format']).toEqual({
+      type: 'json_schema',
+      json_schema: { name: 'response', schema }
+    })
+  })
 
   it('should return correct schema for chat model with tool call support', () => {
     const credentials = {
