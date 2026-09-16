@@ -67,12 +67,12 @@ export default {
     records: []
   },
   async handleRequest(message, { state, events }) {
-    if (message.type === 'view.data') {
+    if (message.type === 'view.data' || message.type === 'requestData') {
       const data = await service.getWorkbenchData(mockScope)
       return { data }
     }
 
-    if (message.type === 'view.action') {
+    if (message.type === 'view.action' || message.type === 'executeAction') {
       const { actionKey, input } = message
 
       if (actionKey === 'audit_contract') {

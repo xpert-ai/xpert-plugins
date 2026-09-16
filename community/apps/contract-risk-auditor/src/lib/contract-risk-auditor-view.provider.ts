@@ -236,7 +236,8 @@ export class ContractRiskAuditorViewProvider implements IXpertViewExtensionProvi
       if (actionKey === 'accept_revision') {
         const recordId = String(input.recordId || '')
         const riskId = String(input.riskId || '')
-        const record = await this.service.acceptRevision(scope, recordId, riskId)
+        const customRevision = typeof input.customRevision === 'string' ? input.customRevision : undefined
+        const record = await this.service.acceptRevision(scope, recordId, riskId, customRevision)
         return success('Revision accepted', '已采纳修改建议并更新合同', record)
       }
 
@@ -251,6 +252,17 @@ export class ContractRiskAuditorViewProvider implements IXpertViewExtensionProvi
         const record = input.record as ContractAuditRecord
         const saved = await this.service.saveContract(scope, record)
         return success('Contract saved', '合同审核单保存成功', saved)
+      }
+
+      if (actionKey === 'delete_record') {
+        const recordId = String(input.recordId || '')
+        await this.service.deleteRecord(scope, recordId)
+        return success('Record deleted', '已删除该审查记录')
+      }
+
+      if (actionKey === 'clear_records') {
+        await this.service.clearRecords(scope)
+        return success('All records cleared', '已清空所有审查记录')
       }
 
       return failure('Unknown action', `未知的动作: ${actionKey}`)
