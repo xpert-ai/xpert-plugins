@@ -31,28 +31,15 @@ import {
   CONVERSATION_REVIEW_VIEW_KEY,
   IMPORT_MAX_FILE_CHARS
 } from './constants'
-import { detectImportFormat, parseConversations } from './conversation-import'
+import { detectImportFormat, parseConversations, parseExcelConversations } from './conversation-import'
 import { ConversationReviewService } from './conversation-review.service'
 import type {
   ConversationImportFormat,
-  ConversationImportResult,
-  ConversationImportSkip,
   ConversationIntentLevel,
   ConversationIssueSeverity,
   ConversationReviewScope,
   ConversationReviewStatus
 } from './types'
-
-/**
- * Files a real WeCom/CRM connector would return over HTTP, bundled instead because this project
- * has no such credentials. "获取聊天会话记录" replays them through the exact same parse+import path
- * as a manually picked file — the only difference is what supplies the bytes — so the workbench can
- * be driven either by hand (file picker) or by a one-click simulated fetch, side by side.
- */
-const SIMULATED_FETCH_SOURCES: { file: string; format: ConversationImportFormat; label: string }[] = [
-  { file: 'conversations.sample.json', format: 'json', label: '会话存档接口' },
-  { file: 'conversations.sample.csv', format: 'csv', label: '运营导出表' }
-]
 
 const requireFromHere = createRequire(__filename)
 const text = (en_US: string, zh_Hans: string): I18nObject => ({ en_US, zh_Hans })
@@ -288,8 +275,9 @@ export class ConversationReviewViewProvider implements IXpertViewExtensionProvid
         }
       }
 
-      // Batch ingestion. The browser only reads the file into a string; format detection and
-      // parsing happen here, where a real WeCom/CRM connector would also live.
+      // Batch ingestion. The browser only reads the file into a string (base64 for the binary
+      // Excel format, plain text for JSON/CSV); format detection and parsing happen here, where a
+      // real WeCom/CRM connector would also live.
       if (actionKey === 'import_conversations') {
         const content = getStringInput(input, 'content') as string
         if (!content || !content.trim()) {
@@ -301,11 +289,15 @@ export class ConversationReviewViewProvider implements IXpertViewExtensionProvid
         const fileName = getStringInput(input, 'fileName')
         const format =
           (getStringInput(input, 'format') as ConversationImportFormat | undefined) ?? detectImportFormat(fileName)
-        if (format !== 'json' && format !== 'csv') {
-          return failure('Unsupported file type', `无法识别文件类型${fileName ? `：${fileName}` : ''}，请使用 .json 或 .csv`)
+        if (format !== 'json' && format !== 'csv' && format !== 'excel') {
+          return failure(
+            'Unsupported file type',
+            `无法识别文件类型${fileName ? `：${fileName}` : ''}，请使用 .json、.csv 或 .xlsx`
+          )
         }
 
-        const parsed = parseConversations(content, format)
+        const parsed =
+          format === 'excel' ? parseExcelConversations(Buffer.from(content, 'base64')) : parseConversations(content, format)
         const result = await this.service.importConversations(scope, parsed.rows, `import:${format}`, parsed.skipped)
         return {
           success: true,
@@ -320,18 +312,11 @@ export class ConversationReviewViewProvider implements IXpertViewExtensionProvid
         }
       }
 
-      // Simulated connector fetch — the "auto" counterpart to picking a file by hand. Reads the
-      // same bundled fixtures a person could otherwise drag in, through the same adapters, so it
-      // proves the ingestion port works when driven programmatically and not just from a click.
+      // Simulated connector fetch — the "auto" counterpart to picking a file by hand. Same service
+      // call as the `conversation_review_fetch_conversations` chat tool — see
+      // `ConversationReviewService.simulateFetchConversations`.
       if (actionKey === 'simulate_fetch_conversations') {
-        const results: ConversationImportResult[] = []
-        for (const { file, format, label } of SIMULATED_FETCH_SOURCES) {
-          const content = await readBundledExample(file)
-          const parsed = parseConversations(content, format)
-          const imported = await this.service.importConversations(scope, parsed.rows, `import:${format}`, parsed.skipped)
-          results.push({ ...imported, skipped: labelSkipped(imported.skipped, label) })
-        }
-        const merged = mergeImportResults(results)
+        const merged = await this.service.simulateFetchConversations(scope)
         return {
           success: true,
           message: text(
@@ -567,27 +552,6 @@ function getIssueArrayInput(input: Record<string, unknown> | null | undefined, k
 async function readPackageFile(packageName: string, relativePath: string) {
   const packageRoot = dirname(requireFromHere.resolve(`${packageName}/package.json`))
   return readFile(join(packageRoot, relativePath), 'utf8')
-}
-
-/** `examples/` is copied next to `dist/lib` by `copy-assets.mjs`, alongside the remote component. */
-async function readBundledExample(fileName: string) {
-  return readFile(join(__dirname, '..', 'examples', fileName), 'utf8')
-}
-
-function labelSkipped(items: ConversationImportSkip[], label: string): ConversationImportSkip[] {
-  return items.map((item) => ({ ...item, reason: `[${label}] ${item.reason}` }))
-}
-
-function mergeImportResults(results: ConversationImportResult[]): ConversationImportResult {
-  return results.reduce(
-    (acc, result) => ({
-      imported: acc.imported + result.imported,
-      duplicates: acc.duplicates + result.duplicates,
-      skipped: [...acc.skipped, ...result.skipped],
-      recordIds: [...acc.recordIds, ...result.recordIds]
-    }),
-    { imported: 0, duplicates: 0, skipped: [], recordIds: [] } as ConversationImportResult
-  )
 }
 
 function success(en_US: string, zh_Hans: string): XpertViewActionResult {

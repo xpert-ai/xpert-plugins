@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
+import { readFile } from 'fs/promises'
+import { join } from 'path'
 import type { Repository } from 'typeorm'
 import {
   BATCH_ANALYSIS_MAX,
@@ -16,6 +18,7 @@ import {
   SCORE_DIMENSIONS,
   TREND_DAYS
 } from './constants'
+import { parseConversations } from './conversation-import'
 import { historyKey, resolveCustomerId } from './customer-identity'
 import { ConversationReviewRecord } from './entities'
 import { getRuleDisclosure, RULE_VERSION } from './rule-check'
@@ -49,6 +52,18 @@ import type {
   CreateConversationReviewInput,
   SaveAnalysisInput
 } from './types'
+
+/**
+ * Files a real WeCom/CRM connector would return over HTTP, bundled instead because this project
+ * has no such credentials. `simulateFetchConversations` replays them through the exact same
+ * parse+import path as a manually picked file — from the workbench's "获取聊天会话记录" button and
+ * from the `conversation_review_fetch_conversations` chat tool alike — the only difference is what
+ * supplies the bytes.
+ */
+const SIMULATED_FETCH_SOURCES: { file: string; format: 'json' | 'csv'; label: string }[] = [
+  { file: 'conversations.sample.json', format: 'json', label: '会话存档接口' },
+  { file: 'conversations.sample.csv', format: 'csv', label: '运营导出表' }
+]
 
 const INTENT_LEVELS: ConversationIntentLevel[] = ['high', 'medium', 'low', 'unknown']
 
@@ -152,6 +167,23 @@ export class ConversationReviewService {
     }
 
     return { imported: recordIds.length, duplicates, skipped, recordIds }
+  }
+
+  /**
+   * Simulated connector fetch — the "auto" counterpart to picking a file by hand. Reads the same
+   * bundled fixtures a person could otherwise drag in, through the same adapters (`importConversations`
+   * above), so it proves the ingestion port works when driven programmatically — from a workbench
+   * button or from a chat instruction — and not just from a click.
+   */
+  async simulateFetchConversations(scope: ConversationReviewScope): Promise<ConversationImportResult> {
+    const results: ConversationImportResult[] = []
+    for (const { file, format, label } of SIMULATED_FETCH_SOURCES) {
+      const content = await readBundledExample(file)
+      const parsed = parseConversations(content, format)
+      const imported = await this.importConversations(scope, parsed.rows, `import:${format}`, parsed.skipped)
+      results.push({ ...imported, skipped: labelSkipped(imported.skipped, label) })
+    }
+    return mergeImportResults(results)
   }
 
   /**
@@ -1025,4 +1057,28 @@ function normalizeList(value: string[] | undefined) {
 
 function trimToUndefined(value: string | undefined | null) {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined
+}
+
+// -------------------------------------------------------- simulated fetch helpers
+
+/** `examples/` is copied next to `dist/lib` by `copy-assets.mjs`, alongside the remote component. */
+async function readBundledExample(fileName: string) {
+  return readFile(join(__dirname, '..', 'examples', fileName), 'utf8')
+}
+
+/** Exported so `conversation_review_import_conversations` can label per-file the same way when resolving chat attachments. */
+export function labelSkipped(items: ConversationImportSkip[], label: string): ConversationImportSkip[] {
+  return items.map((item) => ({ ...item, reason: `[${label}] ${item.reason}` }))
+}
+
+export function mergeImportResults(results: ConversationImportResult[]): ConversationImportResult {
+  return results.reduce(
+    (acc, result) => ({
+      imported: acc.imported + result.imported,
+      duplicates: acc.duplicates + result.duplicates,
+      skipped: [...acc.skipped, ...result.skipped],
+      recordIds: [...acc.recordIds, ...result.recordIds]
+    }),
+    { imported: 0, duplicates: 0, skipped: [], recordIds: [] } as ConversationImportResult
+  )
 }

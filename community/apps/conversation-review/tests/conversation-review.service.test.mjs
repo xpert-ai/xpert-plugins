@@ -1244,3 +1244,35 @@ describe('assistant message', () => {
     assert.match(message, /上次失败原因：模型返回超时/)
   })
 })
+
+/**
+ * Shared by the workbench's "获取聊天会话记录" button and the `conversation_review_fetch_conversations`
+ * chat tool — same service method, same bundled fixtures, so the two entry points cannot drift.
+ */
+describe('simulateFetchConversations', () => {
+  it('imports both bundled fixture sources as drafts', async () => {
+    const { service, repository } = newService()
+    const result = await service.simulateFetchConversations(SCOPE)
+
+    assert.ok(result.imported > 0, 'both bundled sample files carry at least one conversation each')
+    assert.equal(repository.rows.length, result.imported)
+    assert.ok(
+      repository.rows.every((row) => row.status === 'draft'),
+      'a simulated fetch never triggers analysis on its own'
+    )
+    assert.ok(
+      repository.rows.some((row) => row.source === 'import:json') && repository.rows.some((row) => row.source === 'import:csv'),
+      'both the JSON and CSV bundled sources land'
+    )
+  })
+
+  it('re-running it is idempotent, same as re-importing the same file', async () => {
+    const { service, repository } = newService()
+    const first = await service.simulateFetchConversations(SCOPE)
+    const second = await service.simulateFetchConversations(SCOPE)
+
+    assert.equal(second.imported, 0, 'the bundled fixtures carry externalId, so a second fetch is all duplicates')
+    assert.ok(second.duplicates > 0)
+    assert.equal(repository.rows.length, first.imported, 'the second run added no new records')
+  })
+})
