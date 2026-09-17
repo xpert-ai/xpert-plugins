@@ -20,6 +20,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json && node scripts/build.mjs",
+    "smoke:installed": "node scripts/installed-platform-smoke.mjs",
     "verify:dist": "node scripts/build.mjs --check",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.remote.json",
     "test": "tsc -p tsconfig.json && node scripts/build.mjs && node --test tests/*.test.mjs"

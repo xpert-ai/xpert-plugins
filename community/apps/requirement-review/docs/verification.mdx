@@ -6,7 +6,7 @@ description: '区分各层验证的范围'
 ## 已通过
 
 - TypeScript 后端与 TSX 类型检查、生产构建及生成资源一致性检查。
-- 12 个单元、契约与生产预览状态测试：输入限制、分段、引用、严格输出、确认阻断、DTO 白名单、修订动作的乐观版本契约、尝试历史 DTO 白名单、人工审计差异与确认人隐藏，以及生产预览中的失败/空结果恢复和历史展示数据。
+- 14 个单元、契约、生产预览状态与已安装 smoke 安全门测试：输入限制、分段、引用、严格输出、确认阻断、DTO 白名单、修订动作的乐观版本契约、尝试历史 DTO 白名单、人工审计差异与确认人隐藏、生产预览中的失败/空结果恢复和历史展示数据，以及真实模型调用必须显式开启。
 - PostgreSQL 集成测试：创建、并发分析、重复请求、无效证据、失败重试、跨租户/组织/用户拒绝、原始草稿保留、乐观版本冲突、确认幂等、服务重新实例化恢复、超时及旧结果拒绝、失败和空结果修改原文，以及失败/成功记录跨原文版本保留。使用随机独立测试 schema，不访问生产评审表。
 - plugin-dev-harness 从 dist 加载并关闭 Nest 容器，模拟数据库仅用于生命周期检查。
 - 同一生产资源在官方 Preview Host 中完成新建、合成失败、修改原文、陈旧版本拒绝并自动刷新、再次保存恢复待分析、空结果恢复、重试、证据定位、人工编辑、保存、确认及刷新重开。分析历史在失败时自动展开，重试成功后同时显示新旧两次记录、耗时、提示词版本、错误信息、模型和 token 已上报/未上报状态；桌面与 390×844 手机宽度布局均通过检查。
@@ -26,6 +26,13 @@ description: '区分各层验证的范围'
 - 确认阶段返回纳入/排除数量、确认时间和原文版本；`confirmedBy` 和其他内部用户 ID 不进入公开 DTO。
 - 生产 Preview Host 已验证修改描述、清空待澄清问题、保存、确认后的完整差异展示；桌面和 390×844 手机布局通过。
 - 本阶段尚未重新安装到实际 Xpert。
+
+## P1 已安装平台自动化
+
+- `smoke:installed` 使用带时间戳的合成原文，自动覆盖创建评审、真实模型提交、保留一项需求、修改描述、清空待澄清问题、保存、确认、完整刷新后重新搜索并恢复确认快照。
+- 刷新后同时断言分析历史和审计差异入口存在；人工描述中的唯一标记必须从持久化结果恢复，因此该步骤不是只验证前端内存状态。
+- 脚本不会读取或打印 token。登录态由 Playwright 的 cookie/localStorage 文件提供，默认放在工作区 `.xpert-local-environment`，不得提交。
+- 为避免误用模型额度，真实运行必须显式设置 `REQTRACE_E2E_ALLOW_MODEL=1`。当前阶段已验证帮助、参数保护和 Playwright 加载路径；重新安装当前插件版本后仍需执行一次完整真实闭环。
 
 ## 实际平台
 
@@ -62,3 +69,14 @@ node --env-file=../../../../xpert/.env --test tests/persistence.integration.mjs
 ```bash
 node tools/remote-view-preview/cli.mjs --config community/apps/requirement-review/remote-components/workbench/preview.config.mjs --port 4417
 ```
+
+已安装平台自动化先捕获一次专用浏览器登录态，再显式运行真实模型闭环。URL 应指向已经绑定 ReqTrace 模板、模型和中间件的 Xpert 对话工作台：
+
+```powershell
+$env:REQTRACE_E2E_URL = 'http://localhost:4200/chat/x/<slug>/c/<conversation>?view=reqtrace.review__reqtrace.workbench'
+corepack pnpm smoke:installed -- capture-auth
+$env:REQTRACE_E2E_ALLOW_MODEL = '1'
+corepack pnpm smoke:installed -- run
+```
+
+需要观察过程时设置 `REQTRACE_E2E_HEADED=1`；模型较慢时可提高 `REQTRACE_E2E_TIMEOUT_MS`。脚本复用同级 Xpert 工作区安装的 Playwright，不修改插件仓库 lockfile；其他目录布局可通过 `REQTRACE_E2E_PLAYWRIGHT_ROOT` 指向包含 `playwright` 的 Node 项目。
