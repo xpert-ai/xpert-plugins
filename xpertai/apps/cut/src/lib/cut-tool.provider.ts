@@ -7,6 +7,7 @@ import {
   type XpertBusinessToolContext,
   type XpertToolOptions,
   type IAgentMiddlewareContext,
+  type AgentMiddleware,
   type XpertToolProviderInstance,
   type ResourceReadContext,
   type ToolExecutionContext
@@ -77,7 +78,11 @@ export class CutToolProvider implements XpertToolProviderInstance {
     private readonly cut: CutService
   ) {}
 
-  getMiddlewareExtensions(_provider: string, _options: unknown, context: IAgentMiddlewareContext) {
+  getMiddlewareExtensions(
+    _provider: string,
+    _options: unknown,
+    context: IAgentMiddlewareContext
+  ): Omit<AgentMiddleware, 'name' | 'tools'> {
     const { name, tools, ...extensions } = this.middleware.createMiddleware({}, context)
     return extensions
   }
