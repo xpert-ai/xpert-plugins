@@ -138,6 +138,9 @@ function hasVersionChange(relativePath) {
   return /(^[-+]\s*"version"\s*:)/m.test(result.stdout);
 }
 
+// Fail before building or publishing if the pinned Changesets error path regresses.
+run(process.execPath, ['--test', 'scripts/changesets-publish-error.test.mjs']);
+
 const workspacePackageFiles = getWorkspacePackageFiles();
 const changedPackageFiles = getChangedWorkspacePackageFiles();
 const changedPackageNames = resolvePackageNames(workspacePackageFiles, changedPackageFiles);
