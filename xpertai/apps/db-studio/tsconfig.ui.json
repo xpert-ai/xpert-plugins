@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.lib.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "composite": false,
+    "noEmit": true,
+    "types": [
+      "react",
+      "react-dom"
+    ],
+    "declarationMap": false
+  },
+  "include": [
+    "src/ui/**/*.ts",
+    "src/ui/**/*.tsx"
+  ],
+  "exclude": []
+}
