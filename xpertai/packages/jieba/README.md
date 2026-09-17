@@ -15,18 +15,13 @@ The host stores analyzed terms in the existing chunk table and shared GIN index.
 
 ## Compatibility and release order
 
-This plugin is temporarily `private: true` while the keyword analyzer SDK exports
-are unpublished. It builds with the published `@xpert-ai/plugin-sdk` 3.18.6 and a
-local `keyword-analyzer.sdk.mock.ts` containing the pending interface and decorator.
-The decorator preserves the host's strategy metadata; segmentation still uses real
-Jieba. This does not add keyword analyzer support to older hosts.
+Requires `@xpert-ai/plugin-sdk` **3.18.7 or later within 3.x**. The plugin imports
+`IKeywordAnalyzerStrategy` and `KeywordAnalyzerStrategy` directly from the SDK;
+its scoped lifecycle test uses the SDK's `KeywordAnalyzerRegistry`.
 
-After the SDK exports `IKeywordAnalyzerStrategy`, `KeywordAnalyzerStrategy`, and
-`KeywordAnalyzerRegistry`, replace the local mock imports with SDK imports, restore
-the registry integration test to the SDK registry, and remove the mock file. Update
-the SDK peer range and lockfile, verify the build, tests, and lifecycle harness,
-then remove `private: true` and add a release changeset. Deploy the host analyzer
-implementation before distributing the plugin.
+The host must also include the knowledgebase keyword analyzer implementation.
+Updating the SDK alone does not add analyzer selection or indexing to older hosts.
+Deploy the host analyzer implementation before installing the plugin.
 
 ## Build and test
 

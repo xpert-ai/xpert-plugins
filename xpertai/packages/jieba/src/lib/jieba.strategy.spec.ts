@@ -2,14 +2,13 @@ import 'reflect-metadata'
 import { DiscoveryService, ModulesContainer, Reflector } from '@nestjs/core'
 import { Test } from '@nestjs/testing'
 import {
-  BaseStrategyRegistry,
+  KEYWORD_ANALYZER_STRATEGY,
+  KeywordAnalyzerRegistry,
   ORGANIZATION_METADATA_KEY,
   PLUGIN_METADATA_KEY,
   STRATEGY_META_KEY,
   StrategyBus
 } from '@xpert-ai/plugin-sdk'
-import { KEYWORD_ANALYZER_STRATEGY } from './keyword-analyzer.sdk.mock.js'
-import type { IKeywordAnalyzerStrategy } from './keyword-analyzer.sdk.mock.js'
 import { JiebaPlugin } from './jieba.plugin.js'
 import { JiebaKeywordAnalyzer } from './jieba.strategy.js'
 
@@ -48,8 +47,7 @@ describe('Jieba keyword analyzer plugin', () => {
     Reflect.defineMetadata(PLUGIN_METADATA_KEY, '@xpert-ai/plugin-jieba', JiebaKeywordAnalyzer)
     const app = await Test.createTestingModule({ imports: [JiebaPlugin] }).compile()
     await app.init()
-    const registry = new BaseStrategyRegistry<IKeywordAnalyzerStrategy>(
-      KEYWORD_ANALYZER_STRATEGY,
+    const registry = new KeywordAnalyzerRegistry(
       new DiscoveryService(new ModulesContainer()),
       new Reflector()
     )
@@ -78,8 +76,12 @@ describe('Jieba keyword analyzer plugin', () => {
         scopeKey: 'org-a',
         pluginName: '@xpert-ai/plugin-jieba'
       })
+      const source = registry.getSource(registry.get('jieba', 'org-a'))
+      expect(registry.getBySource('jieba', source, 'org-a')).toBe(app.get(JiebaKeywordAnalyzer))
+      expect(registry.getBySource('jieba', source, 'org-b')).toBeUndefined()
       bus.remove('org-a', '@xpert-ai/plugin-jieba', 'uninstall')
       expect(() => registry.get('jieba', 'org-a')).toThrow('No strategy')
+      expect(registry.getBySource('jieba', source, 'org-a')).toBeUndefined()
     } finally {
       Reflect.deleteMetadata(ORGANIZATION_METADATA_KEY, JiebaKeywordAnalyzer)
       Reflect.deleteMetadata(PLUGIN_METADATA_KEY, JiebaKeywordAnalyzer)
