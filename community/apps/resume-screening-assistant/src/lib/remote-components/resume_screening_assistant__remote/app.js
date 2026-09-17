@@ -97,6 +97,11 @@
       }
     }, [])
 
+    React.useEffect(() => {
+      if (!context) return
+      reload(selectedJobId)
+    }, [context])
+
     React.useEffect(reportResize, [data, selectedJobId, busy])
 
     async function reload(jobId) {
