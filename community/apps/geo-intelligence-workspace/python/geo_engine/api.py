@@ -504,8 +504,8 @@ def create_app(
                 results.append({"query": query, "status": "failed", "error": type(e).__name__})
         return results
 
-    # ── Static files (login.html, workbench.html) ──
-    static_dir = Path(__file__).resolve().parents[2]
+    # ─ Static files (login.html, workbench.html) ──
+    static_dir = Path(os.environ.get("GEO_STATIC_DIR", "")).resolve() if os.environ.get("GEO_STATIC_DIR") else Path(__file__).resolve().parents[2]
 
     @app.get("/")
     def root_redirect():
