@@ -1,0 +1,2 @@
+# Source awaiting published dependencies must not enter the Nx build/test graph.
+pending/**

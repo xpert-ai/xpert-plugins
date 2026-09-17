@@ -140,8 +140,7 @@
       "@xpert-ai/plugin-canva-connector",
       "@xpert-ai/plugin-zsxq-connector",
       "@xpert-ai/plugin-anydoc",
-      "@xpert-ai/plugin-opendataloader",
-      "@xpert-ai/plugin-jieba"
+      "@xpert-ai/plugin-opendataloader"
     ],
     "version": {
       "preVersionCommand": "npx nx run-many -t build && npx nx run-many -t prepack"

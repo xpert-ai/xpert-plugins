@@ -1,5 +1,25 @@
 # Jieba keyword analyzer
 
+## Pending SDK release
+
+This unpublished plugin is parked outside the package-manager workspaces and Nx
+project graph until the required SDK exports are published. Its release changeset
+is kept as `release.changeset.md` beside the source, outside the active Changesets
+directory. Other plugins continue to use the existing frozen lockfile.
+
+To activate after a compatible SDK is published:
+
+1. Verify the published SDK exports `IKeywordAnalyzerStrategy`,
+   `KeywordAnalyzerStrategy`, and `KeywordAnalyzerRegistry`; update the peer range
+   to the actual compatible release if it differs from the planned 3.19.0.
+2. Move this directory back to `xpertai/packages/jieba` and move
+   `release.changeset.md` to `xpertai/.changeset/jieba-keyword-analyzer.md`.
+3. Restore the `@xpert-ai/plugin-jieba` entry in `xpertai/nx.json` release projects
+   and `./packages/jieba` in `xpertai/tsconfig.json` references.
+4. Regenerate `xpertai/pnpm-lock.yaml` using the published SDK, verify a clean
+   frozen-lockfile install, then run the build, tests, and lifecycle harness below.
+5. Deploy the host analyzer implementation before enabling the plugin for users.
+
 `@xpert-ai/plugin-jieba` adds Chinese keyword search segmentation to Xpert knowledgebases. Install it for an organization, then select **Jieba** when creating a knowledgebase or configuring an empty knowledgebase. The host retains its built-in **Basic (Unicode)** analyzer without this plugin.
 
 ## Behavior
