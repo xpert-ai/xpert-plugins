@@ -205,6 +205,9 @@
         await reload(selectedJobId)
       } catch (error) {
         setFileImportStatus(getErrorMessage(error))
+        if (files.length === 1) {
+          setResumeForm((current) => Object.assign({}, current, { sourceName: current.sourceName || files[0].name }))
+        }
         notify('error', getErrorMessage(error))
       } finally {
         setBusy(false)
@@ -470,16 +473,40 @@
 
   function extractPdfVisibleText(text) {
     const chunks = []
-    const literalPattern = /\((?:\\.|[^\\)])*\)\s*Tj|\[(?:[^\]]|\][^\sT])*?\]\s*TJ/g
+    const literalPattern = /(?:\((?:\\.|[^\\)])*\)|<[\da-fA-F\s]+>)\s*Tj|\[(?:[^\]]|\][^\sT])*?\]\s*TJ/g
     let match
     while ((match = literalPattern.exec(text))) {
       const item = match[0]
       const strings = item.match(/\((?:\\.|[^\\)])*\)/g) || []
-      if (strings.length) {
-        chunks.push(strings.map((value) => decodePdfLiteral(value.slice(1, -1))).join(''))
-      }
+      const hexStrings = item.match(/<[\da-fA-F\s]+>/g) || []
+      const decoded = strings
+        .map((value) => decodePdfLiteral(value.slice(1, -1)))
+        .concat(hexStrings.map(decodePdfHexString))
+        .join('')
+      if (decoded) chunks.push(decoded)
     }
     return chunks.join('\n')
+  }
+
+  function decodePdfHexString(value) {
+    const hex = value.replace(/[<>\s]/g, '')
+    const bytes = new Uint8Array(Math.floor(hex.length / 2))
+    for (let index = 0; index < bytes.length; index += 1) {
+      bytes[index] = parseInt(hex.slice(index * 2, index * 2 + 2), 16)
+    }
+    if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) {
+      return new TextDecoder('utf-16be').decode(bytes.slice(2))
+    }
+    if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xfe) {
+      return new TextDecoder('utf-16le').decode(bytes.slice(2))
+    }
+    const utf16 = bytes.length % 2 === 0 ? new TextDecoder('utf-16be', { fatal: false }).decode(bytes) : ''
+    const utf8 = new TextDecoder('utf-8', { fatal: false }).decode(bytes)
+    return scoreDecodedText(utf16) > scoreDecodedText(utf8) ? utf16 : utf8
+  }
+
+  function scoreDecodedText(value) {
+    return (value.match(/[\u4e00-\u9fa5A-Za-z0-9]/g) || []).length - (value.match(/\uFFFD/g) || []).length * 5
   }
 
   function decodePdfLiteral(value) {
