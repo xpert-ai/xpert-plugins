@@ -183,11 +183,8 @@ standalone review. MCP write confirmation remains a separate gate.
 prompt handlers reuse the existing scoped business implementations. Cut no longer
 implements `getMcpExtensions()`; the SDK collects all declarations together.
 
-This Cut build requires `@xpert-ai/plugin-sdk >=3.19.0` (within major version 3).
-The decorator migration depends on the matching local SDK changes until 3.19.0
-is released; the existing lockfile still resolves the previous published SDK.
-Update the SDK dependency resolution after publication and deploy matching
-host/worker functionality before loading the plugin. Refresh capability discovery and review the changed URI templates and new
+This Cut build requires `@xpert-ai/plugin-sdk >=3.18.6` (within major version 3).
+Deploy matching host/worker functionality before loading the plugin. Refresh capability discovery and review the changed URI templates and new
 export resource. See the host repository's
 `docs/plans/2026-09-14-cut-mcp-batch1-acceptance.md` for setup, fixtures and the
 media-to-artifact Codex acceptance procedure. The narrowed local deployment passed

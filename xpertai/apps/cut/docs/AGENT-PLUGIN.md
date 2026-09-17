@@ -199,8 +199,7 @@ into model tools. Transcription and export retain their task policies. Shared
 input validation runs before the stricter MCP project/file checks. Native calls
 retain the existing Workbench context hooks and scoped file capability.
 
-This migration requires the SDK 3.19.0 release containing decorated MCP
-extensions. Until that release is published, build and validate against the matching
-local SDK source. Do not deploy this plugin with an older SDK. The legacy
+This migration requires SDK 3.18.6 or later within major version 3, containing
+the decorated MCP extensions. Do not deploy this plugin with an older SDK. The legacy
 `CutNativeToolset`/`CutToolsetStrategy` exports remain for compatibility, but are
 not registered by the plugin; there is no second provider claiming `cut`.
