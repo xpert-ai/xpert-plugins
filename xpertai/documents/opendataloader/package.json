@@ -39,5 +39,10 @@
   "scripts": {
     "prepack": "node scripts/build-sandbox-action.mjs",
     "test:runtime": "node --test tests/*.test.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins.git",
+    "directory": "xpertai/documents/opendataloader"
   }
 }
