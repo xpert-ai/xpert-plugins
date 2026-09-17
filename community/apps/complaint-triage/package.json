@@ -1,0 +1,26 @@
+{
+  "name": "@community/apps-complaint-triage",
+  "version": "0.0.0",
+  "description": "Complaint triage desk: AI extracts, grades and drafts replies for customer complaints; a human reviews and confirms.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "echo \"(todo) add lint\"",
+    "test": "echo \"(todo) add tests\""
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "restricted"
+  }
+}
