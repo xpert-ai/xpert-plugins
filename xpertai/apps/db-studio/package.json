@@ -1,0 +1,101 @@
+{
+  "name": "@xpert-ai/plugin-db-studio",
+  "version": "0.1.0",
+  "description": "Governed database workbench and Xpert Agent tools for Apache Doris, MySQL and PostgreSQL.",
+  "author": {
+    "name": "XpertAI",
+    "url": "https://xpertai.cn"
+  },
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins.git",
+    "directory": "xpertai/apps/db-studio"
+  },
+  "bugs": {
+    "url": "https://github.com/xpert-ai/xpert-plugins/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@xpert-plugins-starter/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    ".xpertai-plugin",
+    "assets",
+    "skills",
+    "README.md",
+    "!**/*.tsbuildinfo"
+  ],
+  "scripts": {
+    "build": "pnpm --filter @xpert-ai/plugin-shadcn-ui build && node scripts/build-ui.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
+    "typecheck": "tsc -p tsconfig.lib.json --noEmit && tsc -p tsconfig.ui.json --noEmit",
+    "test": "node scripts/run-tests.mjs",
+    "prepack": "pnpm run build && node scripts/build-ui.mjs --check",
+    "test:ui": "node scripts/test-ui.mjs",
+    "preview:ui": "node ../../../../xpert-pro/tools/remote-view-preview/cli.mjs --config ./preview.config.mjs --port 4417",
+    "test:preview": "node --test ./preview.e2e.mjs"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "system",
+      "artifactNamespace": "db_studio"
+    }
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "peerDependencies": {
+    "@langchain/core": ">=0.3.0",
+    "@langchain/langgraph": ">=0.4.7",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/typeorm": "^11.0.0",
+    "@xpert-ai/contracts": ">=3.18.2",
+    "@xpert-ai/plugin-sdk": ">=3.18.3",
+    "react": ">=18",
+    "react-dom": ">=18",
+    "typeorm": "^0.3.24",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@langchain/core": "0.3.72",
+    "@langchain/langgraph": "0.4.7",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/typeorm": "^11.0.0",
+    "@types/node": "^20.19.9",
+    "@xpert-ai/contracts": "3.18.2",
+    "@xpert-ai/plugin-shadcn-ui": "workspace:*",
+    "@xpert-ai/plugin-sdk": "3.18.3",
+    "esbuild": "^0.27.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "reflect-metadata": "^0.2.2",
+    "typeorm": "^0.3.24",
+    "typescript": "^5.9.2",
+    "zod": "3.25.67",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "monaco-editor": "^0.52.2",
+    "@tanstack/react-virtual": "^3.13.0",
+    "sql-formatter": "^15.6.0",
+    "lucide-react": "^0.468.0",
+    "@tailwindcss/cli": "^4.1.0",
+    "tailwindcss": "^4.1.0",
+    "yaml": "^2.8.0",
+    "@playwright/test": "^1.62.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
