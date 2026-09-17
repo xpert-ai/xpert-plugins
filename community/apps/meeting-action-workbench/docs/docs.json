@@ -1,0 +1,17 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Meeting Action Workbench",
+  "colors": { "primary": "#0369A1", "light": "#38BDF8", "dark": "#075985" },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "文档",
+        "groups": [
+          { "group": "开始", "pages": ["index", "usage", "demo"] },
+          { "group": "开发", "pages": ["architecture", "verification", "ai-collaboration", "privacy", "troubleshooting"] }
+        ]
+      }
+    ]
+  }
+}

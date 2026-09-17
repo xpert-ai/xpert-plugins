@@ -1,0 +1,20 @@
+---
+title: 故障排查
+description: 常见本地开发问题
+---
+
+## 工作台未出现
+
+确认插件已按 tenant scope 安装到 Default tenant，API 已在需要时重启，并且 Assistant 模板已创建、保存和发布。
+
+## 提取后页面未刷新
+
+检查 Assistant 是否调用了 meeting_finalize_extraction 或 meeting_report_extraction_failure。工作台只监听本插件的变更工具完成事件。
+
+## 版本冲突
+
+MEETING_REVISION_CONFLICT 表示页面基于旧版本编辑。刷新工作台，确认最新内容后重新提交。
+
+## operationId 冲突
+
+OPERATION_ID_REUSED 表示同一个 operationId 被用于不同参数。新业务操作必须生成新 operationId；仅在相同工具、相同参数的网络重试中复用。
