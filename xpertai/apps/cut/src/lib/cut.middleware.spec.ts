@@ -17,6 +17,7 @@ jest.mock('./cut-media-intelligence.service.js', () => ({ CutMediaIntelligenceSe
 jest.mock('./cut-proposal.service.js', () => ({ CutProposalService: class CutProposalService {} }))
 jest.mock('./cut-render.service.js', () => ({ CutRenderService: class CutRenderService {} }))
 
+import { AIMessage, ToolMessage } from '@langchain/core/messages'
 import { dispatchCustomEvent } from '@langchain/core/callbacks/dispatch'
 import {
   CUT_APPLY_BATCH_TOOL_NAME,
@@ -37,7 +38,14 @@ import {
   CUT_UPDATE_TRANSFORM_TOOL_NAME
 } from './constants.js'
 import { createStarterCutProject } from './cut-project.js'
-import { CutMiddleware } from './cut.middleware.js'
+import { CutMiddleware as PublicCutMiddleware } from './cut.middleware.js'
+
+// Existing operation unit tests exercise the internal registry and the same runtime hooks.
+class CutMiddleware extends PublicCutMiddleware {
+  override createMiddleware(options: Record<string, never>, context: IAgentMiddlewareContext): AgentMiddleware {
+    return { ...super.createMiddleware(options, context), tools: this.createOperationTools(context) }
+  }
+}
 import type { CutCaptionService } from './cut-caption.service.js'
 import type { CutMediaIntelligenceService } from './cut-media-intelligence.service.js'
 import type { CutProposalService } from './cut-proposal.service.js'
@@ -45,6 +53,74 @@ import type { CutRenderService } from './cut-render.service.js'
 import type { CutService } from './cut.service.js'
 
 describe('CutMiddleware', () => {
+  beforeEach(() => jest.mocked(dispatchCustomEvent).mockReset())
+  it('registers only six public tools and discovers visual schemas without injecting them', async () => {
+    const strategy = new PublicCutMiddleware({} as CutService, {} as CutCaptionService,
+      {} as CutMediaIntelligenceService, {} as CutProposalService, {} as CutRenderService)
+    const middleware = strategy.createMiddleware({}, middlewareContext())
+    expect(middleware.tools?.map((item) => item.name)).toEqual([
+      CUT_LIST_TRACKS_TOOL_NAME, CUT_LIST_CLIPS_TOOL_NAME, CUT_LIST_MEDIA_ASSETS_TOOL_NAME,
+      CUT_LIST_PROJECT_RESOURCES_TOOL_NAME, 'cut_discover_tools', 'cut_execute_tool'
+    ])
+    const discover = middleware.tools!.find((item) => item.name === 'cut_discover_tools')!
+    const result = JSON.parse(await discover.invoke({ profiles: ['timeline-visual'] }))
+    expect(result.profiles[0].operations.map((item: { name: string }) => item.name)).toEqual([
+      'cut_update_transform', 'cut_update_effects', 'cut_update_mask', 'cut_update_transition'
+    ])
+    expect(result.profiles[0].operations[0].inputSchema.properties).toHaveProperty('baseRevision')
+    await middleware.wrapModelCall!({ tools: middleware.tools, runtime: {} } as never, async (request) => {
+      expect(request.tools).toBe(middleware.tools)
+      expect(request.tools).toHaveLength(6)
+      return new AIMessage('ok')
+    })
+    expect(strategy.createOperationTools(middlewareContext())).toHaveLength(50)
+  })
+
+  it('dispatches the original scoped operation, resolves project context and rejects invalid arguments', async () => {
+    const projectId = '11111111-1111-4111-8111-111111111111'
+    const getProjectSummary = jest.fn(async (_scope, id) => ({ project: { id }, timeline: {} }))
+    const middleware = new PublicCutMiddleware({ getProjectSummary } as unknown as CutService,
+      {} as CutCaptionService, {} as CutMediaIntelligenceService, {} as CutProposalService,
+      {} as CutRenderService).createMiddleware({}, middlewareContext())
+    const execute = middleware.tools!.find((item) => item.name === 'cut_execute_tool')!
+    const handler = jest.fn(async (request: { toolCall: { args: object } }) => execute.invoke(request.toolCall.args))
+    await middleware.wrapToolCall!({
+      toolCall: { id: 'detail', name: 'cut_execute_tool', args: {
+        profile: 'detail-reads', operation: 'cut_get_project', arguments: {}
+      } }, runtime: { context: { cut: { currentProject: { id: projectId } } } }
+    } as never, handler as never)
+    expect(getProjectSummary).toHaveBeenCalledWith(expect.objectContaining({ tenantId: 'tenant-a' }), projectId)
+    await expect(execute.invoke({ profile: 'timeline-visual', operation: 'cut_get_project', arguments: { projectId } }))
+      .rejects.toThrow('does not belong')
+    await expect(execute.invoke({ profile: 'timeline-visual', operation: 'cut_update_transform', arguments: { projectId } }))
+      .rejects.toThrow()
+    expect(getProjectSummary).toHaveBeenCalledTimes(1)
+  })
+
+  it('preserves revision failures and operation names in gateway events', async () => {
+    const dispatch = jest.mocked(dispatchCustomEvent)
+    dispatch.mockReset()
+    dispatch.mockResolvedValue(undefined)
+    const applyEdit = jest.fn(async () => { throw new Error('Revision conflict') })
+    const middleware = new PublicCutMiddleware({ applyEdit } as unknown as CutService,
+      {} as CutCaptionService, {} as CutMediaIntelligenceService, {} as CutProposalService,
+      {} as CutRenderService).createMiddleware({}, middlewareContext())
+    const execute = middleware.tools!.find((item) => item.name === 'cut_execute_tool')!
+    const args = { profile: 'timeline-visual', operation: 'cut_update_transform', arguments: {
+      projectId: '11111111-1111-4111-8111-111111111111', baseRevision: 9,
+      operation: { kind: 'update_transform', clipId: 'clip-a', transform: { x: 120 } },
+      changeSummary: 'Move the title.'
+    } }
+    await expect(middleware.wrapToolCall!({
+      toolCall: { id: 'gateway-edit', name: 'cut_execute_tool', args }, runtime: {}
+    } as never, async (request) => execute.invoke(request.toolCall.args))).rejects.toThrow('Revision conflict')
+    expect(applyEdit).toHaveBeenCalledWith(expect.objectContaining({ tenantId: 'tenant-a' }),
+      expect.objectContaining({ baseRevision: 9 }))
+    expect(dispatch).toHaveBeenLastCalledWith(expect.any(String), expect.objectContaining({
+      tool: 'cut_update_transform', tool_call_id: 'gateway-edit', status: 'fail', error: 'Revision conflict'
+    }))
+  })
+
   it('resolves an omitted or invalid projectId from the active Cut Workbench context before schema validation', async () => {
     const currentProjectId = '11111111-1111-4111-8111-111111111111'
     const getProjectSummary = jest.fn(async (_scope, projectId) => ({
@@ -160,10 +236,10 @@ describe('CutMiddleware', () => {
       userId: 'user-a', xpertId: 'assistant-a', conversationId: 'conversation-a',
       node: {} as never,
       tools: new Map(),
-      runtime: { capabilities: { require: jest.fn() } } as never
+      runtime: { capabilities: { require: jest.fn(), get: jest.fn() } } as never
     } as IAgentMiddlewareContext
     const middleware = strategy.createMiddleware({}, context) as AgentMiddleware
-    expect(middleware.tools?.map((item) => item.name)).toEqual([...CUT_MIDDLEWARE_TOOL_NAMES])
+    expect(middleware.tools?.map((item) => item.name)).toEqual(CUT_MIDDLEWARE_TOOL_NAMES)
     expect(middleware.tools?.map((item) => item.name)).not.toContain('cut_save_project')
 
     const dispatch = dispatchCustomEvent as jest.MockedFunction<typeof dispatchCustomEvent>
@@ -353,6 +429,15 @@ describe('CutMiddleware', () => {
     expect(startTranscription).toHaveBeenCalledWith(expect.any(Object), input, 'xpert-cut', expect.objectContaining({ model: 'whisper-large-v3' }))
     expect(output).toMatchObject({ status: 'queued', jobId: '33333333-3333-4333-8333-333333333333' })
     expect(() => transcriptionTool.schema.parse({ ...input, unexpected: true })).toThrow()
+    const automatic = { ...input, mode: undefined }
+    await transcriptionTool.invoke(automatic)
+    expect(startTranscription).toHaveBeenLastCalledWith(expect.any(Object), { ...input, mode: 'sandbox_whisper' })
+    await transcriptionTool.invoke({ ...input, mode: 'sandbox_whisper' })
+    expect(startTranscription).toHaveBeenLastCalledWith(expect.any(Object), { ...input, mode: 'sandbox_whisper' })
+    startTranscription.mockRejectedValueOnce(new Error('Provider unavailable'))
+    const callsBefore = startTranscription.mock.calls.length
+    await expect(transcriptionTool.invoke(input)).rejects.toThrow('Provider unavailable')
+    expect(startTranscription).toHaveBeenCalledTimes(callsBefore + 1)
   })
 
   it('defaults to Sandbox Whisper without requiring an Xpert speech-to-text model', async () => {
@@ -379,7 +464,7 @@ describe('CutMiddleware', () => {
     })
     expect(input).toMatchObject({ mode: 'sandbox_whisper' })
     expect(JSON.parse(await transcriptionTool.invoke(input))).toMatchObject({ mode: 'sandbox_whisper', status: 'queued' })
-    expect(startTranscription).toHaveBeenCalledWith(expect.any(Object), input)
+    expect(startTranscription).toHaveBeenCalledWith(expect.any(Object), { ...input, mode: 'sandbox_whisper' })
   })
 
   it('searches bounded media evidence with a strict read-only schema', async () => {
@@ -511,6 +596,6 @@ function middlewareContext() {
     userId: 'user-a', xpertId: 'assistant-a', conversationId: 'conversation-a',
     node: {} as never,
     tools: new Map(),
-    runtime: { capabilities: { require: jest.fn() } } as never
+    runtime: { capabilities: { require: jest.fn(), get: jest.fn() } } as never
   } as IAgentMiddlewareContext
 }

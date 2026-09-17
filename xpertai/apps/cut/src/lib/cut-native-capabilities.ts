@@ -1,3 +1,5 @@
+import { cutOperationDefinition } from './cut-operation-definitions.js'
+import { readCutWorkflow, type CutSkillName } from './cut-skills.js'
 import type { StructuredToolInterface } from '@langchain/core/tools'
 import type { IXpertToolset } from '@xpert-ai/contracts'
 import {
@@ -8,8 +10,10 @@ import {
   type McpPromptDefinition,
   type McpResourceTemplateDefinition,
   type ToolExecutionContext,
+  type ResourceReadContext,
   WorkspaceFilesRuntimeCapability,
   type TBuiltinToolsetParams,
+  type XpertBusinessToolContext,
   type XpertToolResult
 } from '@xpert-ai/plugin-sdk'
 import type { ZodTypeAny } from 'zod/v3'
@@ -50,6 +54,10 @@ import {
 } from './constants.js'
 import { CutMiddleware, type CutToolExecutionContext } from './cut.middleware.js'
 import { workspacePortableFileReferenceSchema } from './workspace-file-reference.js'
+import type { CutService } from './cut.service.js'
+import { cutExportResource } from './cut-export-resource.js'
+
+export const CUT_MCP_INSTRUCTIONS = 'For subtitle requests, use the default sandbox_whisper small model in Sandbox Runtime; platform model configuration is not required. Use platform transcription only when explicitly requested and configured; never substitute another engine silently. After successful transcription inspect timingSource; estimated timing is not synchronized subtitle evidence. Stop and explain missing alignment rather than inventing cue times. Cut capabilities operate on tenant- or organization-scoped Cut projects. External callers must pass projectId explicitly. File imports require a portable platform.workspace.files reference; no current workspace is inferred. For standalone file transfer, use POST/GET on the publication URL plus /files with the same authenticated credential and files:write/files:read scopes. Read proposal evidence and impacts through resources, show them to the user, and obtain approval before applying. Tools default to direct execution; publication administrators may override this policy. Reuse existing user approval for the same edits. Read completed artifacts through cut_get_export and download the returned relative filePath through the files endpoint.'
 
 export type CutNativeCapabilityDefinitions = McpCapabilityDefinitions & {
   instructions: string
@@ -58,7 +66,7 @@ export type CutNativeCapabilityDefinitions = McpCapabilityDefinitions & {
   prompts: readonly McpPromptDefinition[]
 }
 
-const REQUIRED_CONTEXT = ['tenant', 'principal', 'execution'] as const
+export const REQUIRED_CONTEXT = ['tenant', 'principal', 'execution'] as const
 const RESOURCE_TOOL_NAMES = new Set<string>([
   CUT_GET_PROJECT_TOOL_NAME,
   CUT_GET_CLIP_TOOL_NAME,
@@ -77,7 +85,7 @@ const READ_TOOL_NAMES = new Set<string>([
   CUT_LIST_TRANSCRIPT_SEGMENTS_TOOL_NAME
 ])
 const FILE_INPUT_TOOL_NAMES = new Set<string>([CUT_IMPORT_MEDIA_TOOL_NAME, CUT_IMPORT_SUBTITLE_TOOL_NAME])
-const TASK_TOOL_NAMES = new Set<string>([CUT_START_TRANSCRIPTION_TOOL_NAME, CUT_START_HEADLESS_EXPORT_TOOL_NAME])
+export const TASK_TOOL_NAMES = new Set<string>([CUT_START_TRANSCRIPTION_TOOL_NAME, CUT_START_HEADLESS_EXPORT_TOOL_NAME])
 const PROJECT_OPTIONAL_TOOL_NAMES = new Set<string>([
   CUT_CREATE_PROJECT_TOOL_NAME,
   CUT_ACCEPT_STORY_HANDOFF_TOOL_NAME,
@@ -109,13 +117,13 @@ const RESOURCE_SPECS = [
   resourceSpec(CUT_GET_PROJECT_TOOL_NAME, 'cut://projects/{projectId}', ['projectId']),
   resourceSpec(
     CUT_GET_CLIP_TOOL_NAME,
-    'cut://projects/{projectId}/clips/{clipId}',
+    'cut://projects/{projectId}/clips/{clipId}{?expectedRevision}',
     ['projectId', 'clipId', 'expectedRevision'],
     ['expectedRevision']
   ),
   resourceSpec(
     CUT_GET_MEDIA_ASSET_TOOL_NAME,
-    'cut://projects/{projectId}/media/{mediaAssetId}',
+    'cut://projects/{projectId}/media/{mediaAssetId}{?expectedRevision}',
     ['projectId', 'mediaAssetId', 'expectedRevision'],
     ['expectedRevision']
   ),
@@ -130,7 +138,7 @@ const RESOURCE_SPECS = [
   ]),
   resourceSpec(
     CUT_GET_CAPTION_DRAFT_TOOL_NAME,
-    'cut://projects/{projectId}/captions/{draftId}',
+    'cut://projects/{projectId}/captions/{draftId}{?page,pageSize}',
     ['projectId', 'draftId', 'page', 'pageSize'],
     ['page', 'pageSize']
   )
@@ -142,7 +150,8 @@ export class CutNativeToolset extends BuiltinToolset<StructuredToolInterface, Re
   constructor(
     toolset: IXpertToolset,
     params: TBuiltinToolsetParams | undefined,
-    private readonly middleware: CutMiddleware
+    private readonly middleware: CutMiddleware,
+    cut: Pick<CutService, 'resolveExportFile'>
   ) {
     super('cut', toolset, params)
     this.tools = []
@@ -156,7 +165,7 @@ export class CutNativeToolset extends BuiltinToolset<StructuredToolInterface, Re
       xpertId: params?.xpertId,
       xpertFeatures: null,
       runtime: {}
-    })
+    }, cut)
   }
 
   override async _validateCredentials(): Promise<void> {}
@@ -179,7 +188,8 @@ export class CutNativeToolset extends BuiltinToolset<StructuredToolInterface, Re
 
 export function createCutNativeCapabilityDefinitions(
   middleware: CutMiddleware,
-  discoveryContext: CutToolExecutionContext
+  discoveryContext: CutToolExecutionContext,
+  cut: Pick<CutService, 'resolveExportFile'>
 ): CutNativeCapabilityDefinitions {
   const metadataTools = middlewareTools(middleware, discoveryContext)
   const metadataByName = new Map(metadataTools.map((item) => [item.name, item]))
@@ -193,69 +203,92 @@ export function createCutNativeCapabilityDefinitions(
       inputSchema,
       exposure: { mcp: { eligible: true } },
       behavior: toolBehavior(name),
+      defaultApprovalMode: 'allow' as const,
       requiredContext: [...REQUIRED_CONTEXT],
       ...(TASK_TOOL_NAMES.has(name) ? { task: { mode: 'optional' as const, maxLifetimeMs: 3_600_000 } } : {}),
       execute: (input: unknown, context: ToolExecutionContext) => invokeCutTool(middleware, name, input, context)
     }
   })
-  const resourceTemplates = RESOURCE_SPECS.map((spec) => {
-    const metadata = requireTool(metadataByName, spec.toolName)
-    return {
-      key: spec.toolName,
-      uriTemplate: spec.uriTemplate,
-      title: humanize(spec.toolName),
-      description: metadata.description,
-      mimeType: 'application/json',
-      arguments: Object.fromEntries(
-        spec.arguments.map((name) => [
-          name,
-          {
-            required: !spec.optionalArguments.includes(name),
-            description: `${humanizeArgument(name)} used by ${spec.toolName}.`
-          }
-        ])
-      ),
-      requiredContext: [...REQUIRED_CONTEXT],
-      read: async (arguments_: Record<string, string>, context: ToolExecutionContext) => {
-        const input = Object.fromEntries(
-          Object.entries(arguments_).map(([name, value]) => [
-            name,
-            spec.numberArguments.includes(name) ? Number(value) : value
-          ])
-        )
-        const result = await invokeCutTool(middleware, spec.toolName, input, context)
-        return {
-          contents: [
-            {
-              uri: expandUri(spec.uriTemplate, arguments_),
-              mimeType: 'application/json',
-              text: firstTextContent(result) ?? '{}'
-            }
-          ]
-        }
-      }
-    }
-  })
+  return { tools, ...createCutMcpExtensions(middleware, discoveryContext, cut) }
+}
+
+export function createCutMcpExtensions(
+  middleware: CutMiddleware,
+  _discoveryContext: CutToolExecutionContext,
+  cut: Pick<CutService, 'resolveExportFile'>
+) {
+  const resourceTemplates = RESOURCE_SPECS.map((spec) => ({
+    ...cutResourceOptions(spec.toolName),
+    read: (args: Record<string, string>, context: ResourceReadContext) =>
+      readCutResource(middleware, spec.toolName, args, context)
+  }))
 
   return {
-    instructions:
-      'Cut capabilities operate on tenant- or organization-scoped Cut projects. External callers must pass projectId explicitly. File imports require a portable platform.workspace.files reference; no current workspace is inferred.',
-    tools,
-    resourceTemplates,
+    instructions: CUT_MCP_INSTRUCTIONS,
+    resourceTemplates: [...resourceTemplates, cutExportResource(cut)],
     prompts: createCutPrompts()
   }
 }
 
-async function invokeCutTool(
+export function cutResourceOptions(name: string): Omit<McpResourceTemplateDefinition, 'read'> {
+  const spec = requireResourceSpec(name)
+  return {
+    key: spec.toolName,
+    uriTemplate: spec.uriTemplate,
+    title: humanize(spec.toolName),
+    description: cutOperationDefinition(name).description,
+    mimeType: 'application/json',
+    arguments: Object.fromEntries(spec.arguments.map((argument) => [argument, {
+      required: !spec.optionalArguments.includes(argument),
+      description: `${humanizeArgument(argument)} used by ${spec.toolName}.`
+    }])),
+    requiredContext: [...REQUIRED_CONTEXT]
+  }
+}
+
+export async function readCutResource(
+  middleware: CutMiddleware, name: string, args: Record<string, string>, context: ResourceReadContext
+) {
+  const spec = requireResourceSpec(name)
+  const input = Object.fromEntries(Object.entries(args).map(([key, value]) => [
+    key, spec.numberArguments.includes(key) ? Number(value) : value
+  ]))
+  const result = await invokeCutTool(middleware, name, input, context)
+  return { contents: [{ uri: context.resourceUri, mimeType: 'application/json', text: firstTextContent(result) ?? '{}' }] }
+}
+
+function requireResourceSpec(name: string) {
+  const spec = RESOURCE_SPECS.find((item) => item.toolName === name)
+  if (!spec) throw new Error(`Unknown Cut resource template '${name}'.`)
+  return spec
+}
+
+export function cutPromptOptions(name: string): Omit<McpPromptDefinition, 'get'> {
+  const { get, ...options } = requirePrompt(name)
+  return options
+}
+
+export function getCutPrompt(name: string, args: Record<string, string>, context: ToolExecutionContext) {
+  return requirePrompt(name).get(args, context)
+}
+
+function requirePrompt(name: string) {
+  const definition = createCutPrompts().find((item) => item.name === name)
+  if (!definition) throw new Error(`Unknown Cut prompt '${name}'.`)
+  return definition
+}
+
+export async function invokeCutTool(
   middleware: CutMiddleware,
   name: string,
   input: unknown,
-  context: ToolExecutionContext
+  context: ToolExecutionContext | XpertBusinessToolContext
 ): Promise<XpertToolResult> {
   const toolContext = executionContext(context)
   const tool = requireTool(new Map(middlewareTools(middleware, toolContext).map((item) => [item.name, item])), name)
   const normalizedInput = requireObjectInput(input, name)
   const result = await tool.invoke(normalizedInput, {
+    signal: context.signal,
     configurable: {
       tool_call_id: context.requestId,
       toolExecutionContext: context
@@ -268,7 +301,7 @@ async function invokeCutTool(
   }
 }
 
-function executionContext(context: ToolExecutionContext): CutToolExecutionContext {
+export function executionContext(context: ToolExecutionContext | XpertBusinessToolContext): CutToolExecutionContext {
   const capabilities = new DefaultRuntimeCapabilityRegistry()
   if (context.host.files) {
     capabilities.register(WorkspaceFilesRuntimeCapability, context.host.files)
@@ -281,21 +314,13 @@ function executionContext(context: ToolExecutionContext): CutToolExecutionContex
     projectId: context.projectId,
     conversationId: context.conversationId,
     xpertId: context.xpertId,
-    xpertFeatures: null,
+    xpertFeatures: 'xpertFeatures' in context ? context.xpertFeatures : null,
     runtime: { capabilities }
   }
 }
 
 function middlewareTools(middleware: CutMiddleware, context: CutToolExecutionContext) {
-  const value = middleware.createMiddleware({}, context)
-  if (isPromiseLike(value)) {
-    throw new Error('Cut middleware tool declaration must remain synchronous.')
-  }
-  return (value.tools ?? []).filter(isStructuredTool)
-}
-
-function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
-  return typeof value === 'object' && value !== null && typeof Reflect.get(value, 'then') === 'function'
+  return middleware.createOperationTools(context).filter(isStructuredTool)
 }
 
 function isStructuredTool(value: unknown): value is StructuredToolInterface {
@@ -326,7 +351,7 @@ function requireZodSchema(value: unknown, name: string): ZodTypeAny {
   return value as ZodTypeAny
 }
 
-function nativeInputSchema(name: string, schema: ZodTypeAny) {
+export function nativeInputSchema(name: string, schema: ZodTypeAny) {
   let result = PROJECT_OPTIONAL_TOOL_NAMES.has(name)
     ? schema
     : z.intersection(z.object({ projectId: z.string().uuid() }), schema)
@@ -354,7 +379,7 @@ function nativeInputSchema(name: string, schema: ZodTypeAny) {
   return result
 }
 
-function toolBehavior(name: string): AnyXpertToolDefinition['behavior'] {
+export function toolBehavior(name: string): AnyXpertToolDefinition['behavior'] {
   if (READ_TOOL_NAMES.has(name)) {
     return { risk: 'read', sideEffect: 'none', idempotency: 'safe' }
   }
@@ -400,23 +425,16 @@ function resourceSpec(
   }
 }
 
-function expandUri(template: string, arguments_: Record<string, string>) {
-  return Object.entries(arguments_).reduce(
-    (uri, [name, value]) => uri.replace(`{${name}}`, encodeURIComponent(value)),
-    template
-  )
-}
-
 function createCutPrompts(): McpPromptDefinition[] {
   return [
-    prompt('cut_plan_rough_cut', 'Plan a rough cut', 'Plan a revision-safe rough cut from available media.'),
-    prompt('cut_review_edit_proposal', 'Review an edit proposal', 'Review proposal evidence before applying it.'),
-    prompt('cut_translate_captions', 'Translate captions', 'Prepare synchronized multilingual caption review.'),
-    prompt('cut_prepare_export', 'Prepare an export', 'Check the project revision and prepare bounded export variants.')
+    prompt('cut_plan_rough_cut', 'Plan a rough cut', 'Plan a revision-safe rough cut from available media.', 'cut-speech-editing'),
+    prompt('cut_review_edit_proposal', 'Review an edit proposal', 'Review proposal evidence before applying it.', 'cut-verification'),
+    prompt('cut_translate_captions', 'Translate captions', 'Prepare synchronized multilingual caption review.', 'cut-captions'),
+    prompt('cut_prepare_export', 'Prepare an export', 'Check the project revision and prepare bounded export variants.', 'cut-export')
   ]
 }
 
-function prompt(key: string, title: string, description: string): McpPromptDefinition {
+function prompt(key: string, title: string, description: string, skill: CutSkillName): McpPromptDefinition {
   return {
     key,
     name: key,
@@ -436,13 +454,13 @@ function prompt(key: string, title: string, description: string): McpPromptDefin
       const text = chinese
         ? `针对 Cut 项目 ${projectId}，${descriptionZh(key)}${
             goal ? `目标：${goal}。` : ''
-          }先读取项目和相关资源，再提出修改；任何写操作都必须使用最新 revision。`
+          }按以下工作流执行，使用显式 projectId 和当前 revision；复用同一编辑已有的用户授权，平台工具确认仍需遵守。用请求的语言回复。`
         : `For Cut project ${projectId}, ${description}${
             goal ? ` Goal: ${goal}.` : ''
-          } Read the project and relevant resources first, then propose changes; every write must use the latest revision.`
+          } Follow the workflow below with explicit projectId and current revision. Reuse existing user approval for the same edits; platform tool confirmation still applies. Respond in the requested language.`
       return {
         description,
-        messages: [{ role: 'user', content: { type: 'text', text } }]
+        messages: [{ role: 'user', content: { type: 'text', text: `${text}\n\n${readCutWorkflow(skill)}` } }]
       }
     }
   }
@@ -461,7 +479,7 @@ function descriptionZh(key: string) {
   }
 }
 
-function humanize(value: string) {
+export function humanize(value: string) {
   return value
     .replace(/^cut_/, '')
     .split('_')

@@ -1,0 +1,43 @@
+{
+  "name": "@xpert-ai/plugin-opendataloader",
+  "version": "0.0.2",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@xpert-plugins-starter/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    ".xpertai-plugin",
+    "!**/*.tsbuildinfo"
+  ],
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "license": "AGPL-3.0",
+  "author": "XpertAI",
+  "description": "OpenDataLoader PDF knowledge document parser using platform-managed Sandbox Jobs.",
+  "peerDependencies": {
+    "@nestjs/common": "^11.1.6",
+    "@xpert-ai/plugin-sdk": "^3.17.3",
+    "zod": "3.25.67"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "system",
+      "artifactNamespace": "opendataloader"
+    }
+  },
+  "scripts": {
+    "prepack": "node scripts/build-sandbox-action.mjs",
+    "test:runtime": "node --test tests/*.test.mjs"
+  }
+}

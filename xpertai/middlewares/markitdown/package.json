@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-markitdown",
-  "version": "0.0.5",
+  "version": "0.1.0",
   "author": {
     "name": "XpertAI",
     "url": "https://xpertai.cn"
@@ -28,16 +28,29 @@
   },
   "files": [
     "dist",
-    "!**/*.tsbuildinfo"
+    "!**/*.tsbuildinfo",
+    ".xpertai-plugin"
   ],
   "scripts": {
-    "prepack": "node ./scripts/copy-assets.mjs"
+    "prepack": "node ./scripts/copy-assets.mjs && node ./scripts/build-sandbox-action.mjs",
+    "test:runtime": "node --test tests/*.test.mjs"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "system",
+      "artifactNamespace": "markitdown"
+    }
   },
   "dependencies": {
     "tslib": "^2.3.0"
   },
   "peerDependencies": {
+    "@langchain/core": "0.3.72",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/event-emitter": "^3.0.1",
     "@xpert-ai/contracts": "^3.8.3",
-    "@xpert-ai/plugin-sdk": "^3.8.3"
+    "@xpert-ai/plugin-sdk": "^3.15.18",
+    "chalk": "4.1.2",
+    "zod": "3.25.67"
   }
 }

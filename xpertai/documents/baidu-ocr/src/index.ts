@@ -12,7 +12,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
     category: 'integration',
     icon: { type: 'svg', value: icon },
     displayName: 'Baidu OCR Document Transformers',
-    description: 'Baidu Cloud PaddleOCR-VL and Unlimited-OCR document converters with shared credentials.',
+    description: 'Official Baidu Cloud document parsing and self-hosted PaddleOCR-VL, configured through integrations.',
     keywords: ['document', 'ocr', 'pdf', 'image', 'baidu', 'paddleocr-vl', 'unlimited-ocr', 'transformer'],
     author: 'XpertAI Team',
     homepage: 'https://cloud.baidu.com/product/OCR/doc_parser.html'

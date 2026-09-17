@@ -6,6 +6,7 @@ import axios, { AxiosResponse } from 'axios';
 import FormData from 'form-data';
 import { randomUUID } from 'crypto';
 import { basename } from 'path';
+import { withMinerUTransferError } from './transfer-error.js';
 import {
   ENV_MINERU_API_BASE_URL,
   ENV_MINERU_API_TOKEN,
@@ -790,13 +791,17 @@ export class MinerUClient {
   }
 
   private async uploadSignedFile(url: string, file: CreateUploadBatchFile): Promise<void> {
-    await this.retryRequest(`upload '${file.name}'`, async () => {
-      await axios.put(url, file.buffer, {
-        maxBodyLength: Infinity,
-        maxContentLength: Infinity,
-        timeout: this.requestTimeoutMs,
-      });
-    });
+    await withMinerUTransferError('file upload', url, () =>
+      this.retryRequest(`upload '${file.name}'`, async () => {
+        await axios.put(url, file.buffer, {
+          // OSS signed uploads must not inherit Axios's default Content-Type or API authorization.
+          headers: { 'Content-Type': false, Authorization: false },
+          maxBodyLength: Infinity,
+          maxContentLength: Infinity,
+          timeout: this.requestTimeoutMs,
+        });
+      })
+    );
   }
 
   private async officialRequest(

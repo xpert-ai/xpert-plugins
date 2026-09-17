@@ -18,6 +18,7 @@ export interface DeepseekCredentials {
 
 export interface DeepseekModelCredentials extends CommonChatModelParameters {
   streaming?: boolean
+  response_format?: 'text' | 'json_object'
 	top_p?: number
 	max_tokens?: number
 	frequency_penalty?: number

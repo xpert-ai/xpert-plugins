@@ -9,6 +9,7 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import { BAIDU_OCR, BAIDU_UNLIMITED_OCR, icon } from './constants.js'
 import { BaiduOcrTransformService } from './transform.service.js'
+import { resolveBaiduParseOptions, validateBaiduIntegration } from './parse-options.js'
 import type { BaiduUnlimitedOcrTransformerConfig } from './types.js'
 
 @Injectable()
@@ -38,28 +39,16 @@ export class BaiduUnlimitedOcrTransformerStrategy
     },
     icon: { type: 'svg' as IconType, value: icon, color: '#2563eb' },
     helpUrl: 'https://cloud.baidu.com/doc/OCR/s/fmr1p39gb',
-    configSchema: {
-      type: 'object',
-      properties: {
-        preserveRawOutput: {
-          type: 'boolean',
-          default: true,
-          title: { en_US: 'Preserve Raw Output', zh_Hans: '保留原始结果' },
-          description: {
-            en_US: 'Store provider Markdown, available JSON and task responses as scoped knowledge assets.',
-            zh_Hans: '将服务返回的 Markdown、可用 JSON 和任务响应保存为知识库作用域资产。'
-          }
-        }
-      },
-      required: []
-    }
+    configScope: 'integration' as const,
+    configSchema: { type: 'object', properties: {} }
   }
 
   constructor(private readonly service: BaiduOcrTransformService) {}
 
-  validateConfig(config: BaiduUnlimitedOcrTransformerConfig): Promise<void> {
-    void config
-    return Promise.resolve()
+  async validateConfig(config: BaiduUnlimitedOcrTransformerConfig): Promise<void> {
+    const options = config.permissions?.integration?.options
+    resolveBaiduParseOptions(config, options ?? {})
+    if (options) validateBaiduIntegration(options, 'unlimited-ocr')
   }
 
   transformDocuments(

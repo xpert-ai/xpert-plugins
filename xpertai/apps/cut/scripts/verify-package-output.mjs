@@ -20,6 +20,11 @@ const required = [
   'dist/sandbox-actions/cut-transcription-whisper/bundle/browser-entry.js',
   'dist/assets/upstream/LICENSE', 'dist/assets/upstream/ATTRIBUTION.md',
   '.xpertai-plugin/plugin.json', 'assets/logo.svg', 'assets/composerIcon.svg', 'skills/cut-agent-skill/SKILL.md',
+  'skills/cut-speech-editing/SKILL.md', 'skills/cut-captions/SKILL.md',
+  'skills/cut-verification/SKILL.md', 'skills/cut-export/SKILL.md',
+  'skills/cut-agent-skill/references/mcp.md',
+  'skills/cut-agent-skill/references/tool-profiles.md',
+  'skills/cut-agent-skill/references/tool-profiles.json', 'skills/cut-agent-skill/references/xpert.md',
   'docs/EDITOR-API-ROADMAP.md', 'docs/GATE-VERIFICATION.md', 'README.md'
 ]
 const missing = required.filter((file) => !existsSync(join(root, file)))
@@ -51,6 +56,9 @@ const { stdout } = await execFileAsync('npm', ['pack', '--dry-run', '--json', '-
   maxBuffer: 4 * 1024 * 1024
 })
 const metadata = parsePackMetadata(stdout)
+const packedPaths = new Set(metadata.files.map((file) => file.path))
+const omitted = required.filter((path) => !packedPaths.has(path))
+if (omitted.length) throw new Error(`Cut npm archive omits required files: ${omitted.join(', ')}`)
 if (metadata.unpackedSize > maxUnpackedBytes) {
   throw new Error(`Cut npm unpacked size ${metadata.unpackedSize} exceeds ${maxUnpackedBytes} bytes.`)
 }

@@ -1,0 +1,5 @@
+{
+  "name": "@xpert-ai/plugin-anydoc",
+  "version": "0.0.1",
+  "sandboxActions": "./dist/sandbox-actions/convert/action.json"
+}

@@ -10,6 +10,7 @@ module.exports = {
   displayName: '@xpert-ai/plugin-pdfium',
   preset: '../../jest.preset.js',
   testEnvironment: 'node',
+  moduleNameMapper: { '^(\\.{1,2}/.*)\\.js$': '$1' },
   transform: {
     '^.+\\.[tj]s$': ['@swc/jest', swcJestConfig],
   },

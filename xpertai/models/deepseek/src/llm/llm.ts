@@ -371,6 +371,25 @@ export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningM
     this.thinkingEnabled = thinking;
   }
 
+  override invocationParams(
+    ...args: Parameters<ChatOAICompatReasoningModel['invocationParams']>
+  ): ReturnType<ChatOAICompatReasoningModel['invocationParams']> {
+    const params = super.invocationParams(...args);
+    Object.assign(params, buildDeepSeekThinkingParameter(this.thinkingEnabled));
+    if (this.model === 'deepseek-flash') {
+      // V4.1 uses top_p only while thinking; other models retain their existing behavior.
+      if (this.thinkingEnabled === false) {
+        delete params.top_p;
+        delete params.reasoning_effort;
+      } else {
+        delete params.temperature;
+        delete params.presence_penalty;
+        delete params.frequency_penalty;
+      }
+    }
+    return params;
+  }
+
   override async _generate(
     messages: BaseMessage[],
     options?: DeepSeekCallOptions,
@@ -452,7 +471,6 @@ export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningM
         messages: safeMessages as never,
       } as Record<string, unknown>;
 
-      Object.assign(requestParams, buildDeepSeekThinkingParameter(this.thinkingEnabled));
       
       const data = (await this.completionWithRetry(
         requestParams as never,
@@ -588,7 +606,6 @@ export class DeepSeekChatOAICompatReasoningModel extends ChatOAICompatReasoningM
       stream: true,
     } as Record<string, unknown>;
     
-    Object.assign(params, buildDeepSeekThinkingParameter(this.thinkingEnabled));
     let defaultRole: 'function' | 'system' | 'tool' | 'assistant' | 'user' | undefined;
     const streamIterable = (await this.completionWithRetry(
       params as never,
@@ -778,10 +795,14 @@ export class DeepSeekLargeLanguageModel extends LargeLanguageModel {
       topP: modelCredentials?.top_p,
       frequencyPenalty: modelCredentials?.frequency_penalty,
       thinking: modelCredentials?.thinking,
-      modelKwargs:
-        modelCredentials?.reasoning_effort === undefined
-          ? undefined
-          : { reasoning_effort: modelCredentials.reasoning_effort },
+      modelKwargs: {
+        ...(modelCredentials?.reasoning_effort === undefined
+          ? {}
+          : { reasoning_effort: modelCredentials.reasoning_effort }),
+        ...(model === 'deepseek-flash' && modelCredentials?.response_format
+          ? { response_format: { type: modelCredentials.response_format } }
+          : {}),
+      },
       maxRetries: modelCredentials?.maxRetries,
       streamUsage: false,
       verbose: options?.verbose,

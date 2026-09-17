@@ -338,6 +338,15 @@
     },
     {
       "path": "./middlewares/zsxq-connector"
+    },
+    {
+      "path": "./documents/anydoc"
+    },
+    {
+      "path": "./documents/opendataloader"
+    },
+    {
+      "path": "./packages/jieba"
     }
   ]
 }

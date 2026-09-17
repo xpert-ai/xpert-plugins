@@ -1,3 +1,4 @@
+- deepseek-v4.1-flash
 - qwen3.7-max
 - qwen3.7-plus
 - qwen3.7-flash
@@ -21,6 +22,8 @@
 - deepseek-v3.2-exp
 - deepseek-v3.1
 - deepseek-v3
+- ZHIPU/GLM-5.3
+- ZHIPU/GLM-5.3-Flash
 - glm-5.2
 - glm-5.1
 - glm-5

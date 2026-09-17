@@ -1,3 +1,4 @@
+import { createMysqlWorkbench } from './mysql-workbench.js'
 import mysql from 'mysql2'
 import { Connection, Pool, createConnection, FieldPacket, ConnectionOptions } from 'mysql2'
 import { BaseSQLQueryRunner, DBCreateTableMode, DBProtocolEnum, DBSyntaxEnum, DBTableAction, DBTableDataAction, DBTableDataParams, DBTableOperationParams, getErrorMessage, IDSSchema, QueryOptions, SQLAdapterOptions } from '@xpert-ai/plugin-sdk'
@@ -7,6 +8,8 @@ import { MySQLDataSource } from './types.js'
 export const MYSQL_TYPE = MySQLDataSource
 
 export interface MysqlAdapterOptions extends SQLAdapterOptions {
+  ssl_cert?: string
+  ssl_key?: string
   queryTimeout?: number
   timezone?: string
   serverTimezone?: string
@@ -15,6 +18,7 @@ export interface MysqlAdapterOptions extends SQLAdapterOptions {
 const MYSQL_DEFAULT_PORT = 3306
 
 export class MySQLRunner<T extends MysqlAdapterOptions = MysqlAdapterOptions> extends BaseSQLQueryRunner<T> {
+  getWorkbenchAdapter() { return createMysqlWorkbench(this.options, 'mysql') }
   override readonly name: string = 'MySQL'
   override readonly type: string = MYSQL_TYPE
   override readonly syntax = DBSyntaxEnum.SQL
@@ -70,6 +74,7 @@ export class MySQLRunner<T extends MysqlAdapterOptions = MysqlAdapterOptions> ex
   }
 
   #connection: mysql.Connection | null = null
+  #catalogConnections = new Map<string, Connection>()
   protected createConnection(database?: string): Connection {
     const config: ConnectionOptions = pick(this.options, ['host', 'port', 'password', 'database'])
     if (this.options.username) {
@@ -106,11 +111,10 @@ export class MySQLRunner<T extends MysqlAdapterOptions = MysqlAdapterOptions> ex
   }
 
   getConnection(catalog: string): Connection {
-    if (!this.#connection) {
-      this.#connection = this.createConnection(catalog)
-    }
-
-    return this.#connection
+    const key = catalog || this.options.catalog || ''
+    let connection = this.#catalogConnections.get(key)
+    if (!connection) { connection = this.createConnection(key || undefined); this.#catalogConnections.set(key, connection) }
+    return connection
   }
 
   async query(connection: Connection | Pool, statment: string, values?: any) {
@@ -145,7 +149,7 @@ export class MySQLRunner<T extends MysqlAdapterOptions = MysqlAdapterOptions> ex
 
   async runQuery(query: string, options?: QueryOptions): Promise<any> {
     const connection = this.getConnection(options?.catalog ?? this.options.catalog)
-    return await this.query(connection, query)
+    return await this.query(connection, query, options?.params)
   }
 
   async getCatalogs(): Promise<IDSSchema[]> {
@@ -500,6 +504,8 @@ export class MySQLRunner<T extends MysqlAdapterOptions = MysqlAdapterOptions> ex
   }
   
   async teardown() {
+    for (const connection of this.#catalogConnections.values()) connection.destroy()
+    this.#catalogConnections.clear()
     if (this.#connection) {
       this.#connection.destroy()
       this.#connection = null

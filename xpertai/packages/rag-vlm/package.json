@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-rag-vlm",
-  "version": "0.0.1",
+  "version": "0.1.1",
   "repository": {
     "type": "git",
     "url": "https://github.com/xpert-ai/xpert-plugins"
@@ -27,7 +27,7 @@
     "tslib": "^2.3.0"
   },
   "peerDependencies": {
-    "@xpert-ai/plugin-sdk": "^3.6.0",
+    "@xpert-ai/plugin-sdk": "^3.15.18",
     "zod": "3.25.67",
     "@nestjs/config": "^4.0.2",
     "chalk": "4.1.2",

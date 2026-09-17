@@ -1,3 +1,4 @@
+import { cutFileDestination } from './cut-file-scope.js'
 import { ConflictException, Inject, Injectable, Logger, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { createHash } from 'node:crypto'
@@ -14,8 +15,7 @@ import {
   type SandboxJobErrorCode,
   type SandboxJobOutput,
   type SandboxJobsApi,
-  type WorkspaceFilesApi,
-  type WorkspaceFileScope
+  type WorkspaceFilesApi
 } from '@xpert-ai/plugin-sdk'
 import type { FindOptionsWhere, Repository } from 'typeorm'
 import {
@@ -239,6 +239,7 @@ export class CutRenderService {
         organizationId: scope.organizationId ?? null,
         workspaceId: scope.workspaceId ?? null,
         platformProjectId: scope.projectId ?? null,
+        ...(scope.fileScope ? { fileScope: scope.fileScope } : {}),
         userId: scope.userId ?? null,
         assistantId: scope.assistantId ?? null
       }
@@ -307,7 +308,7 @@ export class CutRenderService {
     this.logRenderProgress('sandbox-starting', input, metadata, { progress: 10 })
     try {
       const assets = await this.loadAssets(scope, input.projectId, metadata.assetIds)
-      const destination = renderDestination(scope, input.projectId)
+      const destination = cutFileDestination(scope)
       const sandbox = this.sandboxJobs()
       row.progress = 20
       row.metadata = { ...metadata, stage: 'rendering' } as unknown as CutJsonValue
@@ -825,12 +826,7 @@ function requireQueuePayload(value: CutRenderQueueJobData) {
   return value
 }
 function scopeFromPayload(input: CutRenderQueueJobData): CutScope {
-  return { tenantId: input.tenantId, organizationId: input.organizationId ?? null, workspaceId: input.workspaceId ?? null, projectId: input.platformProjectId ?? null, userId: input.userId ?? null, assistantId: input.assistantId ?? null }
-}
-function renderDestination(scope: CutScope, cutProjectId: string): WorkspaceFileScope {
-  if (scope.projectId) return { tenantId: scope.tenantId, userId: scope.userId, catalog: 'projects', scopeId: scope.projectId, projectId: scope.projectId }
-  const scopeId = scope.assistantId ?? cutProjectId
-  return { tenantId: scope.tenantId, userId: scope.userId, catalog: 'xperts', scopeId, xpertId: scopeId }
+  return { tenantId: input.tenantId, organizationId: input.organizationId ?? null, workspaceId: input.workspaceId ?? null, projectId: input.platformProjectId ?? null, userId: input.userId ?? null, assistantId: input.assistantId ?? null, fileScope: input.fileScope }
 }
 function renderCreate(scope: CutScope): RenderScopedEntity {
   return { tenantId: scope.tenantId, organizationId: scope.organizationId ?? null, workspaceId: scope.workspaceId ?? null, platformProjectId: scope.projectId ?? null }

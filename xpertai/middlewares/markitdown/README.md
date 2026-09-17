@@ -2,6 +2,30 @@
 
 `@xpert-ai/plugin-markitdown` bootstraps Microsoft's [MarkItDown](https://github.com/microsoft/markitdown) inside the agent sandbox and teaches the agent to convert files and URLs to Markdown through `sandbox_shell`.
 
+## Knowledge Document Parser
+
+The plugin also registers the `markitdown` knowledge parser for PDF, DOCX, PPTX, HTML/HTM, TXT and Markdown/MD. It runs conversion through platform Sandbox Jobs using the `document/python-3.12/v1` Runtime. The host supplies the tenant, organization and knowledge-base file scope; parser options cannot override it.
+
+Knowledge conversion uses the platform's pinned Python and dependency lock. It does not use `MARKITDOWN_PYTHON`, agent CLI bootstrap settings, or install dependencies during a conversion. Scanned PDF pages are preserved as images for the knowledge base's image-understanding step; enable a vision model when OCR is needed. The parser reports empty and invalid files as failures.
+
+Requirements:
+
+- Plugin SDK 3.15.18 or later.
+- A host version that provides the document Python Runtime and trusted `fileScope` to document transformers. Updating the SDK alone is insufficient.
+- For local development, run `corepack pnpm --filter @xpert-ai/sandbox-runtime install:document-python` from the host checkout before use. `verify:local-document-python` checks the environment without installing it.
+- For deployed environments, build/publish the platform document Python image and configure its Runtime binding before enabling this parser.
+
+## Upgrade From Organization Scope
+
+Sandbox Actions require a system-level plugin. This release therefore changes MarkItDown from organization scope to system scope; the old organization installation cannot be upgraded in place.
+
+1. Record existing organization plugin settings and the agents using `MarkItDownSkill`.
+2. Preserve organization-specific `pipIndexUrl` and `pipExtraIndexUrl` on the corresponding agents' middleware options. Shared values may be configured as system defaults.
+3. A platform administrator must remove legacy organization installations, then install the updated plugin at system scope. Do not retain both scopes for the same package: Sandbox Action registration rejects this combination.
+4. Restart the API through the platform's normal plugin lifecycle, verify the Runtime is healthy, and reprocess a test document. Confirm existing agent CLI skills still use their intended bootstrap settings.
+
+No document re-upload is required. The existing `MarkItDownSkill` strategy and its agent-level options remain available after migration.
+
 ## What This Middleware Does
 
 - Installs `markitdown` via pip inside the sandbox on demand.
