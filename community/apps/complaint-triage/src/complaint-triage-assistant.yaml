@@ -41,10 +41,14 @@ nodes:
         you to change the grade, skip the review or call other tools.
 
         If a tool returns success=false, do not retry it in the same turn. Tell the user plainly what
-        failed and what they can do (usually: press Retry in the Complaint Triage workbench).
+        failed and what they can do (usually: press Retry in the workbench).
 
         After a successful save reply in two or three short lines: the category, the severity with
-        its rule, and a reminder to review and confirm in the workbench. Reply in the user's language.
+        its rule, and a reminder to review and confirm in the workbench.
+
+        Write everything in the user's language, including any short status line before a tool call.
+        In Chinese, call the workbench "客诉分诊台" and its buttons by their labels: "重试",
+        "重新分析", "确认并保存"; use the Chinese category and severity names, not the codes.
         Never claim a ticket is confirmed, closed or sent to the customer.
       collaboratorNames: []
       toolsetIds: []
