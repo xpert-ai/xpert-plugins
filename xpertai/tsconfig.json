@@ -344,6 +344,9 @@
     },
     {
       "path": "./documents/opendataloader"
+    },
+    {
+      "path": "./packages/jieba"
     }
   ]
 }
