@@ -15,13 +15,22 @@ The host stores analyzed terms in the existing chunk table and shared GIN index.
 
 ## Compatibility and release order
 
-Requires Xpert's keyword analyzer host implementation and `@xpert-ai/plugin-sdk` **3.19.0 or later within major 3**. Publish the SDK containing `IKeywordAnalyzerStrategy`, `KeywordAnalyzerStrategy` and `KeywordAnalyzerRegistry`, and deploy the host changes before distributing this plugin. SDK 3.18.5 does not contain this interface.
+This plugin is temporarily `private: true` while the keyword analyzer SDK exports
+are unpublished. It builds with the published `@xpert-ai/plugin-sdk` 3.18.6 and a
+local `keyword-analyzer.sdk.mock.ts` containing the pending interface and decorator.
+The decorator preserves the host's strategy metadata; segmentation still uses real
+Jieba. This does not add keyword analyzer support to older hosts.
 
-During development, build the updated SDK in `<platform-root>` and link its `packages/plugin-sdk/dist` into this package's local `node_modules/@xpert-ai/plugin-sdk`. Keep local links outside tracked files. Do not replace the workspace-wide SDK used by other plugins.
+After the SDK exports `IKeywordAnalyzerStrategy`, `KeywordAnalyzerStrategy`, and
+`KeywordAnalyzerRegistry`, replace the local mock imports with SDK imports, restore
+the registry integration test to the SDK registry, and remove the mock file. Update
+the SDK peer range and lockfile, verify the build, tests, and lifecycle harness,
+then remove `private: true` and add a release changeset. Deploy the host analyzer
+implementation before distributing the plugin.
 
 ## Build and test
 
-From `xpertai/`, after dependencies and the compatible SDK are available:
+From `xpertai/`, after installing dependencies:
 
 ```sh
 corepack pnpm exec nx build @xpert-ai/plugin-jieba

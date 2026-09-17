@@ -2,13 +2,14 @@ import 'reflect-metadata'
 import { DiscoveryService, ModulesContainer, Reflector } from '@nestjs/core'
 import { Test } from '@nestjs/testing'
 import {
-  KEYWORD_ANALYZER_STRATEGY,
-  KeywordAnalyzerRegistry,
+  BaseStrategyRegistry,
   ORGANIZATION_METADATA_KEY,
   PLUGIN_METADATA_KEY,
   STRATEGY_META_KEY,
   StrategyBus
 } from '@xpert-ai/plugin-sdk'
+import { KEYWORD_ANALYZER_STRATEGY } from './keyword-analyzer.sdk.mock.js'
+import type { IKeywordAnalyzerStrategy } from './keyword-analyzer.sdk.mock.js'
 import { JiebaPlugin } from './jieba.plugin.js'
 import { JiebaKeywordAnalyzer } from './jieba.strategy.js'
 
@@ -47,7 +48,11 @@ describe('Jieba keyword analyzer plugin', () => {
     Reflect.defineMetadata(PLUGIN_METADATA_KEY, '@xpert-ai/plugin-jieba', JiebaKeywordAnalyzer)
     const app = await Test.createTestingModule({ imports: [JiebaPlugin] }).compile()
     await app.init()
-    const registry = new KeywordAnalyzerRegistry(new DiscoveryService(new ModulesContainer()), new Reflector())
+    const registry = new BaseStrategyRegistry<IKeywordAnalyzerStrategy>(
+      KEYWORD_ANALYZER_STRATEGY,
+      new DiscoveryService(new ModulesContainer()),
+      new Reflector()
+    )
     const bus = new StrategyBus()
     // The host publishes provider instances from the plugin container on this same bus.
     Object.defineProperty(registry, 'bus', { value: bus })
