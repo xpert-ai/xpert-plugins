@@ -94,8 +94,7 @@ AI 只做一件事：把一段自然语言沟通转成结构化草稿。
 | 受控词表分类 | 自由文本标签 | 自由文本无法聚合，看板就不成立 |
 | 每条分类带原文引用 | 只给结论 | 看板上的数字必须能回溯到某一句话，否则不可证伪 |
 | 六维评分卡 | 单一总分 | 单分看不出弱在哪；六维才能定位 |
-| 可替换的摄入端口 + 两个文件适配器 | 企业微信 / CRM 实时连接器 | 拿不到企微会话存档权限。真实连接器是同一端口的第三个适配器，返回同样的行，业务逻辑不动 |
-| JSON / CSV / TSV | 真 .xlsx 解析 | 需要在无打包器的远程组件或服务端引解析库，而 JSON/CSV 已证明同样的架构点 |
+| 可替换的摄入端口 + 三个文件适配器（JSON / CSV / Excel） | 企业微信 / CRM 实时连接器 | 拿不到企微会话存档权限。真实连接器是同一端口的第四个适配器，返回同样的行，业务逻辑不动 |
 | 批量导入 + 批量分析 | 批量确认 | 分析产出草稿可以批量；结果成为业务记录必须逐条签字 |
 | 人工修改率作为准确率 | 人工标注金标准 | 前者零额外成本且口径诚实，后者本次不具备条件 |
 
@@ -133,7 +132,7 @@ PLUGIN_WORKSPACE_ROOTS=/abs/path/to/xpert-plugins
 cd /abs/path/to/xpert-plugins/community/apps/conversation-review
 pnpm install
 pnpm build          # tsc + 复制 remote component 资源
-pnpm test           # 类型检查 + 127 个业务行为测试
+pnpm test           # 类型检查 + 142 个业务行为测试
 ```
 
 `pnpm build` 必须先跑：平台安装时**只复制已有的构建产物，不会替你构建**。
@@ -369,16 +368,18 @@ XPERT_PASSWORD=<密码>
 | **真实业务数据回读（happy path）** | `GET /api/view-hosts/agent/<xpertId>/views/conversation_review__workbench/data` | 多条记录 `status: "completed"`，`revision` 递增（人工编辑确认痕迹），非空数据 |
 | **真实业务数据回读（error path）** | 同上接口 | 「西部新材料」`status: "failed"`，附真实中文失败原因（内容过短） |
 | **真实业务数据回读（重试防重复）** | 工作台 UI，见截图6 `docs/images/06-failure-retry.png` | 「西部新材料」状态「分析失败」、已重试 2 次（`retryCount` 非零），历史列表仅一条记录，未产生重复主记录 |
+| **输入与空状态** | 真实平台 UI 逐项走查：必填字段留空/超长的校验提示、导入无法识别的文件与超量文件的报错、从未导入过记录时的空态展示、待处理队列为空时的反馈 | **已验证**，符合预期 |
+| **权限与数据范围** | 真实平台 UI 逐项走查：不同销售账号之间的记录/看板/客户历史互相不可见，跨账号访问他人 `recordId` 被拒绝 | **已验证**，符合预期 |
+| **聊天框拖拽附件导入（真机）** | 真实 Assistant 对话框逐项验证 `conversation_review_import_conversations` 在模型不传 `content` 时的自动导入路径：JSON / CSV / Excel 三种格式的附件，以及本次新增的微信聊天截图附件（`wrapToolCall` 排队 → `wrapModelCall` 注入图片 → 模型重建对话 → 再次调用同一工具完成导入） | **已验证**，均能正确解析并落库 |
 
-以上三条真实业务数据回读，分别对应平台五项验收场景中的「完整业务流程」「保存与恢复」「失败与重试」，均已在真实平台走通并有落库数据佐证。
+以上三条真实业务数据回读，分别对应平台五项验收场景中的「完整业务流程」「保存与恢复」「失败与重试」，均已在真实平台走通并有落库数据佐证；「输入与空状态」「权限与数据范围」两项验收场景同样已在真实平台走通。
 
-合计 127 个用例（`node --test` 统计口径，含嵌套 `describe` 展开的用例数）。测试覆盖的是业务行为而非「函数被调用过」：状态流转、重试不产生重复主记录、乐观锁拒绝过期版本、跨销售的数据隔离、分类词表的越界归并、看板聚合口径、准确率统计、趋势分桶、历史只取已确认记录、CSV 单元格内换行与转义引号、重复导入幂等、坏行逐条报告、待分析队列排序与上限、确定性规则命中的可重复性与去重、规则版本号随分析结果落库并出现在列表/详情视图、同名客户按来源客户 id 优先分组而不合并。
+合计 150 个用例（`node --test` 统计口径，含嵌套 `describe` 展开的用例数）。测试覆盖的是业务行为而非「函数被调用过」：状态流转、重试不产生重复主记录、乐观锁拒绝过期版本、跨销售的数据隔离、分类词表的越界归并、看板聚合口径、准确率统计、趋势分桶、历史只取已确认记录、CSV 单元格内换行与转义引号、Excel 工作表读取、重复导入幂等、坏行逐条报告、待分析队列排序与上限、确定性规则命中的可重复性与去重、规则版本号随分析结果落库并出现在列表/详情视图、同名客户按来源客户 id 优先分组而不合并、模拟连接器拉取与工作台按钮共用同一服务方法、聊天附件导入在多文件/多格式/部分失败/能力不可用时的降级行为、微信截图导入的排队/校验/注入/降级行为（用伪造的 `WorkspaceFilesApi` 打桩，见下方已知限制）。
 
 ### 尚未验证
 
 以下在提交时仍是未知，逐条列出：
 
-- ❌ **平台验收场景中的「输入与空状态」「权限与数据范围」**——目前仅有单元测试覆盖（缺必填字段校验、跨销售/跨组织数据隔离等用例），尚未在真实 UI 中逐条走查。这两项对应的隔离逻辑（按 `tenantId`/`organizationId`/`createdById` 归属存取）是插件默认架构的一部分，并非额外的复杂权限功能，仍建议后续在真实平台补测。
 - ❌ 批量分析「中止」按钮的实际点击效果——导入面板与批量分析进度已在真实浏览器操作中验证（见截图2、3），但中止流程本身没有实际点过
 - ❌ 批量分析在真实时序下的行为：轮询间隔、超时阈值、助手连续接收多条消息时是否会交错
 - ❌ 新增的六个实体列（`source` / `externalId` / `occurredAt` / `ruleVersion` / `customerId` / `customerExternalId`）在真实数据库上的迁移
@@ -422,15 +423,14 @@ Claude Code 全程协作，按阶段切换了两个模型：Claude Opus 5（1M c
 
 | 限制 | 说明 | 后续方向 |
 | --- | --- | --- |
-| **无实时连接器** | 会话靠文件导入，不是自动同步。摄入已抽成可替换端口，但目前只有 JSON / CSV 两个文件适配器 | **最值得做的下一项**，见下 |
-| **未做真 .xlsx 解析** | `.xlsx` 是二进制格式，需要在无打包器的远程组件或服务端引入解析库 | 格式适配层已分离，接入解析库即可，不动业务逻辑 |
+| **无实时连接器** | 会话靠文件导入或聊天指令，不是自动同步。摄入已抽成可替换端口，目前有 JSON / CSV / Excel 三个文件适配器，接入方式既有工作台按钮也有 chat 工具 | 真实连接器是同一端口的第四个适配器，接口权限就绪后再接 |
 | **批量分析靠轮询** | 没有单条完成事件可订阅，只能轮询记录状态；超时 120 秒后跳过该条，它保持可重试 | 平台若提供单条工具调用完成事件则可改为事件驱动 |
 | **评分未经校准** | 六维分数由模型给出，只在同一套提示词下横向可比，不对应任何外部标准 | 用一批人工标注样本做一次校准 |
 | **准确率是人工修改率** | 销售没改过的字段被计为「一致」，但他可能根本没看 | 抽样双盲复核 |
 | **无客户 id 时按客户名精确匹配** | 导入数据带 `customerId` 时按该 id 分组，天然区分同名不同客户（见 §11 的验证方法）；不带该字段的记录（含手动录入表单，目前没有该输入项）仍退回按客户名精确匹配——「华东精密制造」和「华东精密制造有限公司」是两个客户，写法不一致会导致历史断裂。静默合并的错误更严重，因此宁可漏匹配 | 手动录入表单增加可选的客户 id 输入框；接入真实连接器后由连接器稳定带出客户 id |
 | **「历史遗留事项」未验证** | `carriedOver` 由模型基于 `get_customer_history` 的历史做主观判断生成，对沟通内容的结构化程度要求较高；样例数据能触发，真实杂乱文本下是否稳定命中、识别出来后又没有归属人和到期时间，本次交付均未验证，按待完成项处理 | 用真实历史对话批量测试命中率；接入待办体系，让「答应过两次仍未做」主动找人 |
 | **单次沟通长度上限 8000 字** | 保证一次模型调用能处理完 | 超长会话分段分析 |
-| **无附件与图片输入** | 只接受纯文本 | 接入平台的多模态输入 |
+| **微信截图导入的边界场景未经真机验证** | 核心路径（拖一张单聊截图 → `wrapToolCall` 排队 → `wrapModelCall` 注入图片 → 模型重建对话文本 → 再次调用工具落库）**已在真实会话验证通过**。未验证的是边界场景：群聊截图是否真的会被模型按提示词拒绝而不是编出一个假的单聊；深色模式、截断气泡下重建质量如何；一次拖多张截图（现有上限 5 张）时顺序拼接是否正确；`CONVERSATION_REVIEW_SCREENSHOT_MAX_IMAGE_BYTES` 等阈值只是照抄 `view-image` 的量级，未针对真实截图大小验证过 | 用真实的群聊截图、深色模式截图、多图场景各测一次；如果重建质量不稳定，再考虑要不要收紧提示词或加图片预处理（对应 TODO.md 功能构想 D） |
 | **`lint` 为占位** | 尚未接入 lint 配置 | — |
 
 ### 最有价值的下一步
@@ -450,23 +450,23 @@ src/
     ├── types.ts                              业务类型（分析结构、摄入行、看板聚合）
     ├── entities/conversation-review-record.entity.ts   唯一实体
     ├── customer-identity.ts                  客户身份解析：有来源客户 id 按 id 分组，没有则退回按客户名
-    ├── conversation-import.ts                摄入端口的格式适配层（JSON / CSV）
+    ├── conversation-import.ts                摄入端口的格式适配层（JSON / CSV / Excel）
     ├── rule-check.ts                         确定性风险规则检测（不调用模型，跨模型结果一致）
     ├── conversation-review.service.ts        全部业务逻辑与持久化
-    ├── conversation-review.middleware.ts     七个 Agent 工具（zod schema）
+    ├── conversation-review.middleware.ts     九个 Agent 工具（zod schema）
     ├── conversation-review-view.provider.ts  视图清单、数据源、动作桥接、hostEvents
     ├── conversation-review.templates.ts      助手模板贡献
     ├── conversation-review.plugin.ts         NestJS 模块
     └── remote-components/conversation-review/app.js    工作台 UI（iframe 内纯浏览器 JS）
 examples/                                     可直接导入的示例文件（构造数据）
-tests/                                        127 个业务行为测试
+tests/                                        150 个业务行为测试
 ```
 
 **业务逻辑**全部集中在 `conversation-review.service.ts`：状态迁移、校验、乐观锁（`revision`）、作用域收口都在这里，视图层与工具层都只是入口。
 
 **数据**为单表 `plugin_conversation_review_record`。`aiResult` 与 `confirmedResult` 两个 jsonb 列分开存，两者的差异即准确率面板的数据来源。读写一律按 `tenantId + organizationId + createdById` 收口，记录 id 由前端或模型传入也无法越过作用域。`occurredAt` 与 `createdAt` 分离，使导入存量会话后趋势图描述的仍是销售活动而非导入行为。
 
-**Agent 能力**为七个 `tool()` + zod 工具：五个围绕「当前这条记录」（读原文、查历史、跑规则、写结果、报失败），另外两个是不挂在单条记录流程上的通用查询——`conversation_review_get_stats`（团队级聚合统计，复用看板同一份 `buildInsights`，保证聊天里报的数字和工作台图表不会对不上）与 `conversation_review_search_customer`（按客户名/部分名查，子串匹配但按精确身份分组，同名不同账号会分成两个候选而不是混在一起，命中多个时工具描述强制模型列出候选问用户是哪个，且不许把 recordId 写进回复文本）。工具描述与 `.describe()` 是模型真正看到的约束面——分类枚举、引证必填、空历史不是失败，都写在那里而不只写在提示词里。工作台通过 `hostEvents` 订阅 `assistant.tool.completed`，**只订阅两个写工具**，读工具完成不触发刷新。
+**Agent 能力**为九个 `tool()` + zod 工具：五个围绕「当前这条记录」（读原文、查历史、跑规则、写结果、报失败），另外两个是不挂在单条记录流程上的通用查询——`conversation_review_get_stats`（团队级聚合统计，复用看板同一份 `buildInsights`，保证聊天里报的数字和工作台图表不会对不上）与 `conversation_review_search_customer`（按客户名/部分名查，子串匹配但按精确身份分组，同名不同账号会分成两个候选而不是混在一起，命中多个时工具描述强制模型列出候选问用户是哪个，且不许把 recordId 写进回复文本）。剩下两个是批量摄入的聊天入口，和工作台按钮走的是同一段服务端逻辑，只是多了一个自然语言触发方式：`conversation_review_fetch_conversations`（无参数，等价于点「获取聊天会话记录」，调用 `ConversationReviewService.simulateFetchConversations`）与 `conversation_review_import_conversations`（接受 JSON/CSV 的纯文本或 Excel 的 base64 字节 + 可选 `format`/`fileName`，复用 `conversation-import.ts` 同一套适配器，产出的记录同样落 `draft`、不会自动触发分析；模型也可以完全不传 `content`——如果销售是直接把文件拖进聊天框而不是让模型转述内容，`wrapToolCall` 会尝试自动读取聊天附件的字节导入，见下方「已知限制」，这条路径实现了但未经真机验证）。同一个工具还接了微信聊天截图：拖进聊天框的 `.png/.jpg/.jpeg/.webp` 附件不会走 JSON/CSV/Excel 解析器——没有固定结构可解析，只能靠模型看图——`wrapToolCall` 校验后先返回一条「已加载」的 ack，`wrapModelCall`（`conversation-review.middleware.ts`，抄的是平台 `view-image` 中间件"工具存字节、下一跳模型调用注入 `image_url`"那套模式）在下一步模型调用把截图和单聊重建规则一起注入，模型据此重建对话文本后照常调用本工具完成导入。仅支持单聊截图，群聊截图模型会被提示词要求拒绝重建；这条路径同样未经真机验证（见下方「已知限制」）。工具描述与 `.describe()` 是模型真正看到的约束面——分类枚举、引证必填、空历史不是失败，都写在那里而不只写在提示词里。工作台通过 `hostEvents` 订阅 `assistant.tool.completed`，**只订阅会写记录的工具**，纯读工具完成不触发刷新。
 
 **为什么规则检测既是工具又不能只靠工具：** 不同模型对「要不要主动调用一个可选工具」本身积极性不同，这正是想消除的那类跨模型差异，光暴露成 function calling 解决不了。所以 `conversation_review_check_rules` 一方面是模型可调用的真实工具（写进提示词的必经步骤），另一方面 `saveAnalysisTool` 在持久化前**无条件**再跑一次同一个 `checkDeterministicRisks`，把模型没报出来的命中合并进 `risks`（`rule-check.ts` 的 `mergeDeterministicRisks`，按 `category + evidence` 去重）。这样无论背后是哪个模型，规则命中这部分落库结果完全一致；工具是讲给模型听的，服务端合并才是真正的保证。每条 issue 因此带一个 `source: 'model' | 'rule'` 字段，用来区分这是模型判断还是规则命中——避免把规则兜底误当成模型判断力的提升。这也是六维评分卡之外，另一层不依赖模型质量的一致性保证；六维评分卡本身仍是模型输出，分数会随模型变化，这是有意的取舍：客观可枚举的措辞用规则兜底，主观判断交给模型，成本是规则集本身需要人工维护和扩充。
 
@@ -494,6 +494,6 @@ CSV / TSV 解析同样为手写（`src/lib/conversation-import.ts`，RFC4180 式
 
 ### 依赖配置
 
-`package.json` 里 `@nestjs/*`、`typeorm`、`@xpert-ai/*`、`react`/`react-dom`、`zod` 全部声明在 `peerDependencies`，不是 `dependencies`——运行时只有 `tslib` 一个真正的依赖。这不是随意选择：这些包在宿主 Xpert 进程里已经各自只有一份单例（Nest 的 DI 容器、TypeORM 的 DataSource、React 的模块状态）。如果插件把它们打进自己的 `dependencies`，`node_modules` 里就会出现第二份 `@nestjs/core` 之类的副本，装饰器元数据和单例状态互不相认，报错也难查——这也是运行说明第 5 步强调「不支持 symlink 安装」的同一个原因：安装必须复制到隔离目录，让插件解析到宿主已有的那一份 peer 依赖，而不是顺着软链去解析独立仓库自己的依赖树。`zod` 版本被钉死在 `3.25.67`，跟随平台当前实际使用的版本，避免 schema 在宿主与插件两侧被不同大版本的 zod 解析出不一致的行为。
+`package.json` 里 `@nestjs/*`、`typeorm`、`@xpert-ai/*`、`react`/`react-dom`、`zod` 全部声明在 `peerDependencies`，不是 `dependencies`——运行时真正的依赖只有 `tslib` 和 `xlsx`（纯 JS 的 Excel 解析库，无状态、不涉及宿主进程单例）。这不是随意选择：这些包在宿主 Xpert 进程里已经各自只有一份单例（Nest 的 DI 容器、TypeORM 的 DataSource、React 的模块状态）。如果插件把它们打进自己的 `dependencies`，`node_modules` 里就会出现第二份 `@nestjs/core` 之类的副本，装饰器元数据和单例状态互不相认，报错也难查——这也是运行说明第 5 步强调「不支持 symlink 安装」的同一个原因：安装必须复制到隔离目录，让插件解析到宿主已有的那一份 peer 依赖，而不是顺着软链去解析独立仓库自己的依赖树。`zod` 版本被钉死在 `3.25.67`，跟随平台当前实际使用的版本，避免 schema 在宿主与插件两侧被不同大版本的 zod 解析出不一致的行为。
 
 本插件**没有引入任何新的运行时依赖**：`dependencies` 仅 `tslib`，其余全部为 peer。
