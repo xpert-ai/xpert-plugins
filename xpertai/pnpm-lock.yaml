@@ -9,6 +9,9 @@ overrides:
   i18next: 25.6.0
   i18next-fs-backend: 2.6.0
 
+patchedDependencies:
+  '@changesets/cli@2.31.1': fa117b0b5cb8c495e87f0683f7acafb89ae43a100eee3b0e76127a4789f93da1
+
 importers:
 
   .:
@@ -130,7 +133,7 @@ importers:
     devDependencies:
       '@changesets/cli':
         specifier: ^2.29.8
-        version: 2.31.1(@types/node@20.19.9)
+        version: 2.31.1(patch_hash=fa117b0b5cb8c495e87f0683f7acafb89ae43a100eee3b0e76127a4789f93da1)(@types/node@20.19.9)
       '@eslint/js':
         specifier: ^9.8.0
         version: 9.39.5
@@ -18494,7 +18497,7 @@ snapshots:
     dependencies:
       '@changesets/types': 6.1.0
 
-  '@changesets/cli@2.31.1(@types/node@20.19.9)':
+  '@changesets/cli@2.31.1(patch_hash=fa117b0b5cb8c495e87f0683f7acafb89ae43a100eee3b0e76127a4789f93da1)(@types/node@20.19.9)':
     dependencies:
       '@changesets/apply-release-plan': 7.1.1
       '@changesets/assemble-release-plan': 6.0.10
