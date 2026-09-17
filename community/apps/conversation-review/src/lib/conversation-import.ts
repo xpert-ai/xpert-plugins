@@ -15,6 +15,7 @@
  * Parsing lives on the server, not in the iframe, for the same reason: that is where a real
  * connector would live. The browser only reads the file into a string.
  */
+import * as XLSX from 'xlsx'
 import type { ConversationImportFormat, ConversationImportRow, ConversationImportSkip } from './types'
 
 export interface ConversationImportParseResult {
@@ -58,10 +59,14 @@ export function detectImportFormat(fileName: string | undefined): ConversationIm
   if (name.endsWith('.csv') || name.endsWith('.tsv') || name.endsWith('.txt')) {
     return 'csv'
   }
+  if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
+    return 'excel'
+  }
   return undefined
 }
 
-export function parseConversations(content: string, format: ConversationImportFormat): ConversationImportParseResult {
+/** Text formats — `json`/`csv` — the browser (or the model) hands over as a plain string. */
+export function parseConversations(content: string, format: 'json' | 'csv'): ConversationImportParseResult {
   const text = stripBom(content ?? '')
   if (!text.trim()) {
     throw new Error('导入文件是空的')
@@ -185,13 +190,52 @@ function parseCsvConversations(text: string): ConversationImportParseResult {
   if (!table.length) {
     throw new Error('CSV 里没有任何内容')
   }
+  return parseTable(table, 'CSV')
+}
 
+// --------------------------------------------------------------------------- excel
+
+/**
+ * The Excel adapter, for the `.xlsx` / `.xls` export an operations colleague sends around instead
+ * of a CSV. Reuses `parseTable` — the header-alias lookup and row mapping are identical to CSV, the
+ * only difference is that `xlsx` (SheetJS) already turns the binary workbook into a 2D array
+ * instead of hand-rolled delimiter scanning.
+ *
+ * Only the first non-empty sheet is read: a multi-sheet workbook where the "real" data is not on
+ * sheet one is not a shape this import has ever needed to support, and guessing which sheet is
+ * meant would be worse than asking for one sheet per file.
+ */
+export function parseExcelConversations(buffer: Buffer): ConversationImportParseResult {
+  let workbook: XLSX.WorkBook
+  try {
+    workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true, codepage: 65001 })
+  } catch (error) {
+    throw new Error(`Excel 解析失败：${(error as Error).message}`)
+  }
+
+  const sheetName = workbook.SheetNames.find((name) => workbook.Sheets[name])
+  const sheet = sheetName ? workbook.Sheets[sheetName] : undefined
+  if (!sheet) {
+    throw new Error('Excel 文件里没有可读取的工作表')
+  }
+
+  const table = XLSX.utils
+    .sheet_to_json<unknown[]>(sheet, { header: 1, defval: '', raw: false, blankrows: false })
+    .map((row) => row.map((cell) => (cell === null || cell === undefined ? '' : String(cell))))
+  if (!table.length) {
+    throw new Error('Excel 工作表里没有任何内容')
+  }
+  return parseTable(table, 'Excel')
+}
+
+/** Shared by the CSV and Excel adapters: both produce a plain 2D string table, header row first. */
+function parseTable(table: string[][], sourceLabel: string): ConversationImportParseResult {
   const header = table[0].map((cell) => cell.trim().toLowerCase())
   const customerIndex = findColumn(header, CUSTOMER_KEYS)
   const conversationIndex = findColumn(header, CONVERSATION_KEYS)
   if (customerIndex < 0 || conversationIndex < 0) {
     throw new Error(
-      `CSV 需要客户名称与沟通内容两列，未找到。当前表头：${table[0].join(' | ')}。` +
+      `${sourceLabel} 需要客户名称与沟通内容两列，未找到。当前表头：${table[0].join(' | ')}。` +
         `客户列可用 ${CUSTOMER_KEYS.slice(0, 3).join(' / ')}，内容列可用 ${CONVERSATION_KEYS.slice(0, 3).join(' / ')}。`
     )
   }
@@ -204,7 +248,7 @@ function parseCsvConversations(text: string): ConversationImportParseResult {
 
   table.slice(1).forEach((cells, index) => {
     const row = index + 1
-    // A trailing newline produces one empty tuple; that is not a user error worth reporting.
+    // A trailing newline (or blank row) produces one empty tuple; not a user error worth reporting.
     if (cells.every((cell) => !cell.trim())) {
       return
     }

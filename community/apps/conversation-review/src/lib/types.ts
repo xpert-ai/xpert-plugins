@@ -100,9 +100,9 @@ export interface CreateConversationReviewInput {
  * ingestion. Kept on the record so the dashboard and the README can be honest about provenance,
  * and so a re-import can tell its own rows apart from hand-filed ones.
  */
-export type ConversationSource = 'manual' | 'import:json' | 'import:csv'
+export type ConversationSource = 'manual' | 'import:json' | 'import:csv' | 'import:excel'
 
-export type ConversationImportFormat = 'json' | 'csv'
+export type ConversationImportFormat = 'json' | 'csv' | 'excel'
 
 /** One conversation as it comes out of a source adapter, before business validation. */
 export interface ConversationImportRow {

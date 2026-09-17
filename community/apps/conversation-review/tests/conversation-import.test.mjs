@@ -12,8 +12,17 @@ import { createRequire } from 'node:module'
 import { describe, it } from 'node:test'
 
 const require = createRequire(import.meta.url)
-const { parseConversations, detectImportFormat } = require('../dist/lib/conversation-import.js')
+const { parseConversations, parseExcelConversations, detectImportFormat } = require('../dist/lib/conversation-import.js')
 const { ConversationReviewService } = require('../dist/lib/conversation-review.service.js')
+const XLSX = require('xlsx')
+
+/** Builds an .xlsx buffer from a 2D array of cells, the same shape a spreadsheet export would have. */
+function workbookBuffer(rows) {
+  const sheet = XLSX.utils.aoa_to_sheet(rows)
+  const workbook = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(workbook, sheet, 'Sheet1')
+  return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' })
+}
 
 const SCOPE = { tenantId: 't1', organizationId: 'o1', userId: 'seller-a', assistantId: 'x1' }
 const OTHER_SELLER = { tenantId: 't1', organizationId: 'o1', userId: 'seller-b', assistantId: 'x1' }
@@ -57,7 +66,8 @@ describe('format detection', () => {
     assert.equal(detectImportFormat('export.json'), 'json')
     assert.equal(detectImportFormat('会话导出.CSV'), 'csv')
     assert.equal(detectImportFormat('dump.tsv'), 'csv')
-    assert.equal(detectImportFormat('sheet.xlsx'), undefined, 'xlsx is not supported yet, and says so')
+    assert.equal(detectImportFormat('sheet.xlsx'), 'excel')
+    assert.equal(detectImportFormat('legacy.xls'), 'excel')
     assert.equal(detectImportFormat(undefined), undefined)
   })
 })
@@ -192,6 +202,57 @@ describe('csv adapter', () => {
     const csv = ['客户名称,沟通记录,客户编号', '华东精密制造,客户问交付。,CRM-EAST-9001'].join('\n')
     const { rows } = parseConversations(csv, 'csv')
     assert.equal(rows[0].customerExternalId, 'CRM-EAST-9001')
+  })
+})
+
+describe('excel adapter', () => {
+  it('reads a workbook the same way the CSV adapter reads a table', () => {
+    const buffer = workbookBuffer([
+      ['customerName', 'conversation', 'externalId'],
+      ['华东制造', '销售：您好。客户：价格太贵。', 'wecom-001']
+    ])
+    const { rows, skipped } = parseExcelConversations(buffer)
+    assert.equal(skipped.length, 0)
+    assert.equal(rows.length, 1)
+    assert.equal(rows[0].customerName, '华东制造')
+    assert.equal(rows[0].conversation, '销售：您好。客户：价格太贵。')
+    assert.equal(rows[0].externalId, 'wecom-001')
+  })
+
+  it('accepts Chinese headers', () => {
+    const buffer = workbookBuffer([
+      ['客户名称', '沟通记录', '客户编号'],
+      ['华南贸易', '客户关心价格。', 'CRM-EAST-9001']
+    ])
+    const { rows } = parseExcelConversations(buffer)
+    assert.equal(rows.length, 1)
+    assert.equal(rows[0].customerName, '华南贸易')
+    assert.equal(rows[0].customerExternalId, 'CRM-EAST-9001')
+  })
+
+  it('skips a blank row instead of reporting it as a user error', () => {
+    const buffer = workbookBuffer([
+      ['customerName', 'conversation'],
+      ['华东制造', '客户问交付。'],
+      ['', ''],
+      ['华南贸易', '客户关心价格。']
+    ])
+    const { rows, skipped } = parseExcelConversations(buffer)
+    assert.equal(rows.length, 2)
+    assert.equal(skipped.length, 0)
+  })
+
+  it('names the headers it found when the required columns are missing', () => {
+    const buffer = workbookBuffer([
+      ['name', 'notes'],
+      ['a', 'b']
+    ])
+    assert.throws(() => parseExcelConversations(buffer), /当前表头：name \| notes/)
+  })
+
+  it('rejects a workbook whose sheet has no rows at all', () => {
+    const buffer = workbookBuffer([])
+    assert.throws(() => parseExcelConversations(buffer), /没有任何内容/)
   })
 })
 

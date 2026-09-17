@@ -32,7 +32,8 @@
   /** Give up waiting on one record and move on; it stays retryable from its row. */
   const BATCH_RECORD_TIMEOUT_MS = 120 * 1000
 
-  const IMPORT_ACCEPT = '.json,.csv,.tsv,.txt'
+  const IMPORT_ACCEPT = '.json,.csv,.tsv,.txt,.xlsx,.xls'
+  const IMPORT_BINARY_EXTENSIONS = ['.xlsx', '.xls']
 
   let instanceId = null
   let requestSequence = 0
@@ -906,25 +907,36 @@
     }
 
     /**
-     * Batch ingestion. The browser only turns the file into text — detecting the format and
-     * parsing it happens on the server, where a real WeCom/CRM connector would also live.
+     * Batch ingestion. The browser only turns the file into text (or, for the binary Excel
+     * format, base64) — detecting the format and parsing it happens on the server, where a real
+     * WeCom/CRM connector would also live.
      */
     function handleImportFile(file) {
       if (!file) return
       setImportResult(null)
+      const isBinary = IMPORT_BINARY_EXTENSIONS.some((extension) =>
+        file.name.toLowerCase().endsWith(extension)
+      )
       const reader = new FileReader()
       reader.onerror = () => notify('读取文件失败，请确认文件没有被占用。', 'error')
       reader.onload = () => {
+        const content = isBinary
+          ? String(reader.result || '').split(',').pop() || ''
+          : String(reader.result || '')
         runAction('import_conversations', undefined, {
           fileName: file.name,
-          content: String(reader.result || '')
+          content
         }).then((result) => {
           if (!result) return undefined
           setImportResult(result)
           return load()
         })
       }
-      reader.readAsText(file, 'utf-8')
+      if (isBinary) {
+        reader.readAsDataURL(file)
+      } else {
+        reader.readAsText(file, 'utf-8')
+      }
     }
 
     /**
@@ -1343,7 +1355,7 @@
         h(
           'p',
           { className: 'cr-hint' },
-          '生产环境的会话来自企业微信会话存档或 CRM。此处用文件适配器代替连接器：JSON 按接口返回的结构解析，CSV 对应运营导出的表格。导入的记录一律落为「待分析」，不会自动消耗模型调用。「选择文件导入」是手动挡，自己挑文件；「获取聊天会话记录」是自动挡，一键模拟连接器把两个示例来源一起拉回来——两条路径走的是同一套解析与导入逻辑。'
+          '生产环境的会话来自企业微信会话存档或 CRM。此处用文件适配器代替连接器：JSON 按接口返回的结构解析，CSV / Excel 对应运营导出的表格。导入的记录一律落为「待分析」，不会自动消耗模型调用。「选择文件导入」是手动挡，自己挑文件；「获取聊天会话记录」是自动挡，一键模拟连接器把两个示例来源一起拉回来——两条路径走的是同一套解析与导入逻辑，在 Assistant 对话里用自然语言说出同样的意图也能触发。'
         ),
         h('input', {
           type: 'file',
@@ -1403,7 +1415,7 @@
         h(
           'p',
           { className: 'cr-hint' },
-          `支持 .json / .csv / .tsv。必需字段：客户名称（customerName / 客户名称）与沟通内容（conversation / 沟通记录，JSON 也可用 messages 数组）。可选字段：externalId 用于会话去重，customerId（客户id / 客户编号）用于区分同名客户，occurredAt 用于还原真实沟通时间。单次最多 ${BATCH_ANALYSIS_MAX} 条参与批量分析。`
+          `支持 .json / .csv / .tsv / .xlsx / .xls。必需字段：客户名称（customerName / 客户名称）与沟通内容（conversation / 沟通记录，JSON 也可用 messages 数组）。可选字段：externalId 用于会话去重，customerId（客户id / 客户编号）用于区分同名客户，occurredAt 用于还原真实沟通时间。单次最多 ${BATCH_ANALYSIS_MAX} 条参与批量分析。同样的三种格式也能直接在 Assistant 对话里说"帮我导入这份会话"来触发。`
         ),
         running ? renderBatchProgress() : null,
         importResult ? renderImportResult(importResult) : null
