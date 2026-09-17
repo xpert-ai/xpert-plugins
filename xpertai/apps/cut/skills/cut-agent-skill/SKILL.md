@@ -34,3 +34,11 @@ A broad outcome such as "make this better" does not approve newly selected destr
 Platform authorization is independent: comply with tool confirmation/elicitation, access checks, proposal state and revision CAS. Conversation approval is not a platform approval token and must never bypass those checks.
 
 Completion: report the resulting project ID/revision and actual changes. Report failures with `cut_report_failure`; keep completed writes distinct from pending jobs and unavailable evidence.
+
+## Tool selection
+
+Read [tool profiles](references/tool-profiles.md) for native Xpert operation discovery
+and portable MCP limitations. The exact shared mapping is
+[tool-profiles.json](references/tool-profiles.json). Select only profiles needed
+for the current operation. When the gateway is available, invoke the named
+operation through `cut_execute_tool`; discovery never grants content authorization.

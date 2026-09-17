@@ -42,7 +42,7 @@
     "smoke:sandbox-action": "pnpm run build:sandbox-action && pnpm run verify:sandbox-action && node scripts/smoke-sandbox-action.mjs && node scripts/smoke-transcription-audio-action.mjs",
     "build": "pnpm run clean && pnpm run build:ui && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs && pnpm run build:sandbox-action && pnpm run verify:sandbox-action",
     "lint": "echo \"(todo) add lint\"",
-    "test": "node --test scripts/build-agent-plugin.test.mjs scripts/install-codex.test.mjs scripts/codex-mcp-check.test.mjs scripts/install-codex-cli.test.mjs scripts/codex-cli.test.mjs && pnpm run build:ui && jest --config jest.config.ts && tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check && pnpm run build:sandbox-action && pnpm run verify:sandbox-action",
+    "test": "node --test scripts/build-agent-plugin.test.mjs scripts/install-codex.test.mjs scripts/codex-mcp-check.test.mjs scripts/install-codex-cli.test.mjs scripts/codex-cli.test.mjs scripts/codex-tool-profiles.test.mjs && pnpm run build:ui && jest --config jest.config.ts && tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check && pnpm run build:sandbox-action && pnpm run verify:sandbox-action",
     "test:e2e": "node scripts/verify-workbench-e2e.mjs",
     "typecheck": "pnpm run build:ui && tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check",
     "prepack": "node scripts/verify-package-output.mjs",
@@ -50,7 +50,7 @@
     "release:publish": "node scripts/publish-prepared-release.mjs",
     "build:agent": "node scripts/build-agent-plugin.mjs",
     "install:codex": "node scripts/install-codex.mjs",
-    "test:agent": "node --test scripts/build-agent-plugin.test.mjs scripts/install-codex.test.mjs scripts/codex-mcp-check.test.mjs scripts/install-codex-cli.test.mjs scripts/codex-cli.test.mjs"
+    "test:agent": "node --test scripts/build-agent-plugin.test.mjs scripts/install-codex.test.mjs scripts/codex-mcp-check.test.mjs scripts/install-codex-cli.test.mjs scripts/codex-cli.test.mjs scripts/codex-tool-profiles.test.mjs"
   },
   "xpert": {
     "plugin": {
@@ -68,7 +68,7 @@
     "@nestjs/core": "^11.1.6",
     "@nestjs/typeorm": "^11.0.0",
     "@xpert-ai/contracts": "^3.10.1",
-    "@xpert-ai/plugin-sdk": "^3.18.5",
+    "@xpert-ai/plugin-sdk": "^3.18.6",
     "react": ">=18",
     "react-dom": ">=18",
     "typeorm": "^0.3.24",
@@ -87,7 +87,7 @@
     "@types/react-dom": "^18.3.7",
     "@xpert-ai/contracts": "3.18.5",
     "@xpert-ai/plugin-shadcn-ui": "workspace:*",
-    "@xpert-ai/plugin-sdk": "^3.18.5",
+    "@xpert-ai/plugin-sdk": "^3.18.6",
     "esbuild": "^0.27.0",
     "jest": "^30.0.2",
     "lucide-react": "1.24.0",

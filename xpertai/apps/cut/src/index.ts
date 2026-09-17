@@ -114,3 +114,5 @@ export * from './lib/cut-toolset.strategy.js'
 export * from './lib/cut-view.provider.js'
 export * from './lib/cut.templates.js'
 export * from './lib/tokens.js'
+
+export * from './lib/cut-tool.provider.js'

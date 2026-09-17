@@ -26,7 +26,7 @@ import { CutProposalService } from './cut-proposal.service.js'
 import { CutRenderProcessor } from './cut-render.processor.js'
 import { CutRenderService } from './cut-render.service.js'
 import { CutStoryHandoffService } from './cut-story-handoff.service.js'
-import { CutToolsetStrategy } from './cut-toolset.strategy.js'
+import { CutToolProvider } from './cut-tool.provider.js'
 
 export const CUT_ENTITIES = [
   CutProject,
@@ -46,7 +46,7 @@ export const CUT_ENTITIES = [
 @XpertServerPlugin({
   imports: [TypeOrmModule.forFeature(CUT_ENTITIES)],
   entities: CUT_ENTITIES,
-  providers: [CutService, CutCaptionService, CutMediaIntelligenceService, CutProposalService, CutStoryHandoffService, CutRenderService, CutTranscriptionMediaService, CutSandboxWhisperService, CutTranscriptionProcessor, CutRenderProcessor, CutMiddleware, CutToolsetStrategy, CutViewProvider],
+  providers: [CutService, CutCaptionService, CutMediaIntelligenceService, CutProposalService, CutStoryHandoffService, CutRenderService, CutTranscriptionMediaService, CutSandboxWhisperService, CutTranscriptionProcessor, CutRenderProcessor, CutMiddleware, CutToolProvider, CutViewProvider],
   exports: [CutService, CutCaptionService, CutMediaIntelligenceService, CutProposalService, CutStoryHandoffService, CutRenderService, CutTranscriptionMediaService, CutSandboxWhisperService]
 })
 export class CutPlugin implements IOnPluginBootstrap, IOnPluginDestroy {

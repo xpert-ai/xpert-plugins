@@ -1,23 +1,23 @@
+import { cutOperationDefinition } from './cut-operation-definitions.js'
+import { changeSummary, cutProjectUuid, currentProjectId, createProjectSchema, getProjectSchema, expectedRevision, listTracksSchema, listClipsSchema, getClipSchema, listMediaAssetsSchema, getMediaAssetSchema, listProjectResourcesSchema, importMediaSchema, editSchema, editBatchSchema, finalizeSchema, reportFailureSchema, importSubtitleSchema, startTranscriptionSchema, startHeadlessExportSchema, cancelAnalysisJobSchema, getAnalysisJobSchema, searchMediaSegmentsSchema, getMediaSegmentSchema, createEditProposalSchema, getEditProposalSchema, updateEditProposalSchema, applyEditProposalSchema, rejectEditProposalSchema, revertEditProposalSchema, listTranscriptSegmentsSchema, createCaptionDraftSchema, createTranslatedCaptionDraftSchema, createSpeechCleanupProposalSchema, getCaptionDraftSchema, updateCaptionDraftSchema, commitCaptionDraftSchema, commitCaptionDraftsSchema, exportSubtitleSchema, ATOMIC_EDIT_TOOL_SPECS } from './cut-tool-schemas.js'
+import { CUT_DISCOVER_TOOLS, CUT_EXECUTE_TOOL, CUT_TOOL_PROFILES, CUT_DETAIL_READS, cutDiscoverySchema, cutExecutionSchema, cutProfileTools, cutProfileInstructions } from './cut-tool-profiles.js'
+import { toJsonSchema } from '@langchain/core/utils/json_schema'
 import { Injectable } from '@nestjs/common'
 import { dispatchCustomEvent } from '@langchain/core/callbacks/dispatch'
 import { SystemMessage, ToolMessage } from '@langchain/core/messages'
 import { tool } from '@langchain/core/tools'
 import { ChatMessageEventTypeEnum, ChatMessageStepCategory, type TAgentMiddlewareMeta } from '@xpert-ai/contracts'
 import {
-  AgentMiddlewareStrategy,
   RequestContext,
   WorkspaceFilesRuntimeCapability,
   type AgentMiddleware,
   type IAgentMiddlewareContext,
-  type IAgentMiddlewareStrategy,
-  type PromiseOrValue
+  type IAgentMiddlewareStrategy
 } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod/v3'
 import {
   CUT_AGENT_CAPABILITY,
   CUT_ACCEPT_STORY_HANDOFF_TOOL_NAME,
-  CUT_ADD_COVER_TOOL_NAME,
-  CUT_ADD_CLIP_TOOL_NAME,
   CUT_APPLY_BATCH_TOOL_NAME,
   CUT_APPLY_EDIT_TOOL_NAME,
   CUT_CREATE_PROJECT_TOOL_NAME,
@@ -28,8 +28,6 @@ import {
   CUT_COMMIT_CAPTION_DRAFT_TOOL_NAME,
   CUT_COMMIT_CAPTION_DRAFTS_TOOL_NAME,
   CUT_CANCEL_ANALYSIS_JOB_TOOL_NAME,
-  CUT_DELETE_CLIPS_TOOL_NAME,
-  CUT_DUPLICATE_CLIPS_TOOL_NAME,
   CUT_FEATURE,
   CUT_FINALIZE_VERSION_TOOL_NAME,
   CUT_EXPORT_SUBTITLE_TOOL_NAME,
@@ -48,8 +46,6 @@ import {
   CUT_LIST_PROJECT_RESOURCES_TOOL_NAME,
   CUT_LIST_TRACKS_TOOL_NAME,
   CUT_LIST_TRANSCRIPT_SEGMENTS_TOOL_NAME,
-  CUT_MANAGE_TRACK_TOOL_NAME,
-  CUT_RIPPLE_DELETE_RANGES_TOOL_NAME,
   CUT_MIDDLEWARE_NAME,
   CUT_MIDDLEWARE_TOOL_NAMES,
   CUT_REPORT_FAILURE_TOOL_NAME,
@@ -59,42 +55,13 @@ import {
   CUT_START_TRANSCRIPTION_TOOL_NAME,
   CUT_START_HEADLESS_EXPORT_TOOL_NAME,
   CUT_APPLY_EDIT_PROPOSAL_TOOL_NAME,
-  CUT_UPDATE_AUDIO_TOOL_NAME,
   CUT_UPDATE_EDIT_PROPOSAL_TOOL_NAME,
   CUT_UPDATE_CAPTION_DRAFT_TOOL_NAME,
-  CUT_UPDATE_CLIP_TIMING_TOOL_NAME,
-  CUT_UPDATE_EFFECTS_TOOL_NAME,
-  CUT_UPDATE_MASK_TOOL_NAME,
-  CUT_UPDATE_TEXT_TOOL_NAME,
-  CUT_UPDATE_TRANSFORM_TOOL_NAME,
-  CUT_UPDATE_PROJECT_SETTINGS_TOOL_NAME,
-  CUT_UPDATE_TRANSITION_TOOL_NAME,
   CUT_WORKBENCH_CAPABILITY
 } from './constants.js'
 import { CutCaptionService } from './cut-caption.service.js'
-import {
-  cutAddCoverOperationSchema,
-  cutAddClipOperationSchema,
-  cutDeleteClipsOperationSchema,
-  cutDuplicateClipsOperationSchema,
-  cutEditOperationSchema,
-  cutManageTrackOperationSchema,
-  cutRippleDeleteRangesOperationSchema,
-  cutUpdateAudioOperationSchema,
-  cutUpdateClipTimingOperationSchema,
-  cutUpdateEffectsOperationSchema,
-  cutUpdateMaskOperationSchema,
-  cutUpdateTextOperationSchema,
-  cutUpdateTransformOperationSchema,
-  cutUpdateProjectSettingsOperationSchema,
-  cutUpdateTransitionOperationSchema
-} from './cut-project.js'
 import { CutService } from './cut.service.js'
 import { CutMediaIntelligenceService } from './cut-media-intelligence.service.js'
-import {
-  cutProposalConstraintsSchema,
-  cutProposalItemsInputSchema
-} from './cut-proposal.js'
 import { CutProposalService } from './cut-proposal.service.js'
 import { CutRenderService } from './cut-render.service.js'
 import { CutStoryHandoffService } from './cut-story-handoff.service.js'
@@ -104,316 +71,6 @@ import {
 } from './cut-story-handoff.js'
 import type { SearchCutMediaSegmentsInput } from './cut-media-intelligence.service.js'
 import type { ApplyCutEditBatchInput, ApplyCutEditInput, CutEditOperation, CutJsonValue, CutScope } from './types.js'
-
-const changeSummary = z.string().trim().min(1).max(240)
-const cutProjectUuid = z.string().uuid()
-const currentProjectId = cutProjectUuid.optional().describe(
-  'Cut project UUID. Omit it to use cut.currentProject.id or env.cutProjectId from the active Workbench context.'
-)
-const workspaceFileLocatorSchema = z.union([z.string().min(1), z.object({}).passthrough()])
-const createProjectSchema = z.object({
-  title: z.string().trim().min(1).max(200),
-  brief: z.string().max(4000).optional(),
-  width: z.number().int().min(16).max(7680).optional(),
-  height: z.number().int().min(16).max(4320).optional(),
-  fps: z.number().int().min(1).max(120).optional(),
-  durationSeconds: z.number().min(0.1).max(3600).optional(),
-  changeSummary
-})
-const getProjectSchema = z.object({ projectId: currentProjectId }).strict()
-const expectedRevision = z.number().int().positive().optional().describe(
-  'Revision returned by cut_get_project. If the project changed, the read is rejected so the Agent can refresh its plan.'
-)
-const listTracksSchema = z.object({
-  projectId: currentProjectId,
-  expectedRevision,
-  page: z.number().int().positive().optional(),
-  pageSize: z.number().int().min(1).max(100).optional()
-}).strict()
-const listClipsSchema = z.object({
-  projectId: currentProjectId,
-  expectedRevision,
-  trackIds: z.array(z.string().min(1).max(160)).min(1).max(50).optional(),
-  mediaAssetIds: z.array(z.string().uuid()).min(1).max(50).optional(),
-  types: z.array(z.enum(['video', 'image', 'audio', 'text', 'color'])).min(1).max(5).optional(),
-  start: z.number().min(0).max(86_400).optional(),
-  end: z.number().positive().max(86_400).optional(),
-  page: z.number().int().positive().optional(),
-  pageSize: z.number().int().min(1).max(100).optional()
-}).strict().refine((value) => value.start == null || value.end == null || value.end > value.start, {
-  message: 'end must be greater than start', path: ['end']
-})
-const getClipSchema = z.object({
-  projectId: currentProjectId,
-  clipId: z.string().min(1).max(160),
-  expectedRevision
-}).strict()
-const listMediaAssetsSchema = z.object({
-  projectId: currentProjectId,
-  expectedRevision,
-  kinds: z.array(z.enum(['video', 'audio', 'image'])).min(1).max(3).optional(),
-  search: z.string().trim().min(1).max(200).optional(),
-  unusedOnly: z.boolean().optional(),
-  page: z.number().int().positive().optional(),
-  pageSize: z.number().int().min(1).max(100).optional()
-}).strict()
-const getMediaAssetSchema = z.object({
-  projectId: currentProjectId,
-  mediaAssetId: z.string().uuid(),
-  expectedRevision
-}).strict()
-const listProjectResourcesSchema = z.object({
-  projectId: currentProjectId,
-  resource: z.enum(['analysis_jobs', 'versions', 'exports', 'caption_drafts', 'edit_proposals', 'logs']),
-  expectedRevision,
-  status: z.string().trim().min(1).max(80).optional(),
-  page: z.number().int().positive().optional(),
-  pageSize: z.number().int().min(1).max(100).optional()
-}).strict()
-const importMediaSchema = z.object({
-  projectId: currentProjectId,
-  file: workspaceFileLocatorSchema,
-  duration: z.number().positive().max(3600).optional(),
-  baseRevision: z.number().int().positive(),
-  changeSummary
-})
-const editSchema = z.object({
-  projectId: currentProjectId,
-  operation: cutEditOperationSchema,
-  baseRevision: z.number().int().positive(),
-  changeSummary
-})
-const editBatchSchema = z.object({
-  projectId: currentProjectId,
-  operations: z.array(cutEditOperationSchema).min(1).max(100),
-  baseRevision: z.number().int().positive(),
-  mode: z.enum(['validate', 'apply']).default('apply'),
-  changeSummary
-})
-const finalizeSchema = z.object({ projectId: currentProjectId, baseRevision: z.number().int().positive(), changeSummary })
-const reportFailureSchema = z.object({
-  projectId: currentProjectId,
-  operation: z.string().min(1).max(120),
-  errorMessage: z.string().min(1).max(4000),
-  recoverable: z.boolean().optional()
-})
-const subtitleFormatSchema = z.enum(['srt', 'vtt', 'ass'])
-const importSubtitleSchema = z.object({
-  projectId: currentProjectId,
-  file: workspaceFileLocatorSchema,
-  format: subtitleFormatSchema.optional(),
-  language: z.string().trim().min(1).max(35).default('und'),
-  baseRevision: z.number().int().positive(),
-  idempotencyKey: z.string().trim().min(1).max(160).optional(),
-  changeSummary
-})
-const startTranscriptionSchema = z.object({
-  projectId: currentProjectId,
-  mediaAssetId: z.string().uuid(),
-  mode: z.enum(['platform', 'sandbox_whisper']).default('sandbox_whisper').describe(
-    'Defaults to sandbox_whisper, using the bundled small Whisper model in Sandbox Runtime without provider credentials. Use platform only when explicitly requested and configured; platform errors never trigger silent fallback.'
-  ),
-  language: z.string().trim().min(1).max(35).default('und').describe(
-    'Source language. For sandbox_whisper use und/auto for detection, zh (or zh-CN/zh-Hans/zh-Hant) for Chinese, or en for English.'
-  ),
-  baseRevision: z.number().int().positive(),
-  idempotencyKey: z.string().trim().min(1).max(160).optional(),
-  changeSummary
-}).strict()
-const startHeadlessExportSchema = z.object({
-  projectId: currentProjectId,
-  baseRevision: z.number().int().positive(),
-  exportSettings: z.object({
-    format: z.enum(['mp4', 'webm']).default('mp4'),
-    quality: z.enum(['low', 'medium', 'high', 'very_high']).default('high'),
-    includeAudio: z.boolean().default(true)
-  }).strict().default({ format: 'mp4', quality: 'high', includeAudio: true }),
-  variants: z.array(z.object({
-    name: z.string().trim().min(1).max(80),
-    width: z.number().int().min(16).max(3840).optional(),
-    height: z.number().int().min(16).max(2160).optional(),
-    variables: z.record(z.string().regex(/^[a-zA-Z0-9_.-]{1,64}$/), z.string().max(5_000)).optional(),
-    mediaAssetMap: z.record(z.string().uuid(), z.string().uuid()).optional()
-  }).strict()).min(1).max(5).optional(),
-  idempotencyKey: z.string().trim().min(1).max(160).optional(),
-  changeSummary
-}).strict()
-const cancelAnalysisJobSchema = z.object({
-  projectId: currentProjectId,
-  jobId: z.string().uuid(),
-  changeSummary
-}).strict()
-const getAnalysisJobSchema = z.object({ projectId: currentProjectId, jobId: z.string().uuid() })
-const mediaEvidenceTypeSchema = z.enum(['transcript', 'silence', 'audio_activity', 'shot', 'keyframe', 'visual_description', 'ocr'])
-const searchMediaSegmentsSchema = z.object({
-  projectId: currentProjectId,
-  query: z.string().trim().min(1).max(200).optional(),
-  mediaAssetId: z.string().uuid().optional(),
-  evidenceTypes: z.array(mediaEvidenceTypeSchema).min(1).max(7).optional(),
-  start: z.number().min(0).max(86_400).optional(),
-  end: z.number().positive().max(86_400).optional(),
-  minScore: z.number().min(0).max(1).optional(),
-  limit: z.number().int().min(1).max(50).optional()
-}).strict().refine((value) => value.start == null || value.end == null || value.end > value.start, {
-  message: 'end must be greater than start', path: ['end']
-})
-const getMediaSegmentSchema = z.object({
-  projectId: currentProjectId,
-  segmentId: z.string().regex(/^(transcript|analysis):[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)
-}).strict()
-const createEditProposalSchema = z.object({
-  projectId: currentProjectId,
-  sourceRevision: z.number().int().positive(),
-  goal: z.string().trim().min(1).max(4_000),
-  constraints: cutProposalConstraintsSchema.optional(),
-  items: cutProposalItemsInputSchema,
-  idempotencyKey: z.string().trim().min(1).max(160).optional(),
-  changeSummary
-}).strict()
-const getEditProposalSchema = z.object({
-  projectId: currentProjectId,
-  proposalId: z.string().uuid()
-}).strict()
-const updateEditProposalSchema = z.object({
-  projectId: currentProjectId,
-  proposalId: z.string().uuid(),
-  baseProposalRevision: z.number().int().positive(),
-  itemUpdates: z.array(z.object({ itemId: z.string().uuid(), enabled: z.boolean() }).strict()).min(1).max(50),
-  reviewNote: z.string().trim().min(1).max(4_000).optional(),
-  changeSummary
-}).strict()
-const applyEditProposalSchema = z.object({
-  projectId: currentProjectId,
-  proposalId: z.string().uuid(),
-  baseRevision: z.number().int().positive(),
-  baseProposalRevision: z.number().int().positive(),
-  changeSummary
-}).strict()
-const rejectEditProposalSchema = z.object({
-  projectId: currentProjectId,
-  proposalId: z.string().uuid(),
-  baseProposalRevision: z.number().int().positive(),
-  reviewNote: z.string().trim().min(1).max(4_000).optional(),
-  changeSummary
-}).strict()
-const revertEditProposalSchema = z.object({
-  projectId: currentProjectId,
-  proposalId: z.string().uuid(),
-  baseRevision: z.number().int().positive(),
-  changeSummary
-}).strict()
-const listTranscriptSegmentsSchema = z.object({
-  projectId: currentProjectId, transcriptId: z.string().uuid(),
-  page: z.number().int().positive().optional(), pageSize: z.number().int().min(1).max(200).optional()
-})
-const captionRulesSchema = z.object({
-  maxCharsPerLine: z.number().int().min(8).max(120).optional(),
-  maxLines: z.number().int().min(1).max(4).optional(),
-  minDuration: z.number().min(0.1).max(10).optional(),
-  maxDuration: z.number().min(0.2).max(30).optional(),
-  targetTrackName: z.string().trim().min(1).max(120).optional()
-})
-const captionTimelineCutSchema = z.object({
-  start: z.number().min(0),
-  end: z.number().positive()
-}).strict().refine((range) => range.end > range.start, { message: 'end must be greater than start', path: ['end'] })
-const createCaptionDraftSchema = z.object({
-  projectId: currentProjectId, transcriptId: z.string().uuid(), baseRevision: z.number().int().positive(),
-  targetTrackId: z.string().min(1).optional(), rules: captionRulesSchema.optional(),
-  timelineCuts: z.array(captionTimelineCutSchema).max(200).optional(),
-  timelineOffsetSeconds: z.number().min(0).max(60).optional(),
-  changeSummary
-}).strict()
-const createTranslatedCaptionDraftSchema = z.object({
-  projectId: currentProjectId,
-  sourceDraftId: z.string().uuid(),
-  targetLanguage: z.string().trim().min(2).max(35),
-  baseRevision: z.number().int().positive(),
-  translations: z.array(z.object({
-    captionId: z.string().min(1).max(160),
-    text: z.string().trim().min(1).max(10_000)
-  }).strict()).min(1).max(500),
-  targetTrackName: z.string().trim().min(1).max(120).optional(),
-  changeSummary
-}).strict()
-const createSpeechCleanupProposalSchema = z.object({
-  projectId: currentProjectId,
-  transcriptId: z.string().uuid(),
-  sourceRevision: z.number().int().positive(),
-  mode: z.enum(['conservative', 'balanced', 'aggressive']).optional(),
-  minimumSilenceSeconds: z.number().min(0.3).max(5).optional(),
-  keepPaddingSeconds: z.number().min(0.02).max(0.5).optional(),
-  removeFillers: z.boolean().optional(),
-  removeSilence: z.boolean().optional(),
-  removeRepeatedPhrases: z.boolean().optional(),
-  removeStutters: z.boolean().optional(),
-  fillerWords: z.array(z.string().trim().min(1).max(40)).max(80).optional(),
-  manualSegmentIds: z.array(z.string().uuid()).max(50).optional(),
-  maxRemovalRatio: z.number().min(0.05).max(0.6).optional(),
-  idempotencyKey: z.string().trim().min(1).max(160).optional(),
-  changeSummary
-}).strict()
-const getCaptionDraftSchema = z.object({
-  projectId: currentProjectId, draftId: z.string().uuid(),
-  page: z.number().int().positive().optional(), pageSize: z.number().int().min(1).max(200).optional()
-})
-const captionDraftEditOperationSchema = z.discriminatedUnion('action', [
-  z.object({
-    action: z.literal('update'), captionId: z.string().min(1), start: z.number().min(0).optional(),
-    end: z.number().positive().optional(), text: z.string().max(10_000).optional(), speaker: z.string().max(120).nullable().optional()
-  }),
-  z.object({
-    action: z.literal('split'), captionId: z.string().min(1), at: z.number().positive(),
-    leftText: z.string().trim().min(1).max(10_000), rightText: z.string().trim().min(1).max(10_000)
-  }),
-  z.object({
-    action: z.literal('merge'), captionIds: z.array(z.string().min(1)).min(2).max(20), text: z.string().trim().min(1).max(10_000).optional()
-  }),
-  z.object({ action: z.literal('delete'), captionIds: z.array(z.string().min(1)).min(1).max(100) }),
-  z.object({
-    action: z.literal('offset'), seconds: z.number().min(-3600).max(3600),
-    captionIds: z.array(z.string().min(1)).min(1).max(500).optional()
-  })
-])
-const updateCaptionDraftSchema = z.object({
-  projectId: currentProjectId, draftId: z.string().uuid(), baseRevision: z.number().int().positive(),
-  baseDraftRevision: z.number().int().positive(), operation: captionDraftEditOperationSchema, changeSummary
-})
-const commitCaptionDraftSchema = z.object({
-  projectId: currentProjectId, draftId: z.string().uuid(), baseRevision: z.number().int().positive(),
-  baseDraftRevision: z.number().int().positive(), targetTrackId: z.string().min(1).optional(), changeSummary
-})
-const commitCaptionDraftsSchema = z.object({
-  projectId: currentProjectId,
-  baseRevision: z.number().int().positive(),
-  drafts: z.array(z.object({
-    draftId: z.string().uuid(),
-    baseDraftRevision: z.number().int().positive(),
-    targetTrackId: z.string().min(1).optional()
-  }).strict()).min(1).max(4),
-  changeSummary
-}).strict()
-const exportSubtitleSchema = z.object({
-  projectId: currentProjectId, draftId: z.string().uuid(), format: subtitleFormatSchema,
-  fileName: z.string().trim().min(1).max(240).optional(), changeSummary
-})
-
-const ATOMIC_EDIT_TOOL_SPECS = [
-  { name: CUT_ADD_CLIP_TOOL_NAME, operationSchema: cutAddClipOperationSchema, description: 'Add one validated media, text, or color clip to a compatible Cut track.' },
-  { name: CUT_DELETE_CLIPS_TOOL_NAME, operationSchema: cutDeleteClipsOperationSchema, description: 'Delete 1-100 explicitly identified Cut clips in one revision-safe operation.' },
-  { name: CUT_DUPLICATE_CLIPS_TOOL_NAME, operationSchema: cutDuplicateClipsOperationSchema, description: 'Duplicate 1-100 Cut clips with an optional time offset and compatible destination track.' },
-  { name: CUT_UPDATE_CLIP_TIMING_TOOL_NAME, operationSchema: cutUpdateClipTimingOperationSchema, description: 'Update start, duration, trim bounds, or playback rate for one Cut clip.' },
-  { name: CUT_UPDATE_TRANSFORM_TOOL_NAME, operationSchema: cutUpdateTransformOperationSchema, description: 'Patch position, size, rotation, opacity, or media fit for one visual Cut clip.' },
-  { name: CUT_UPDATE_PROJECT_SETTINGS_TOOL_NAME, operationSchema: cutUpdateProjectSettingsOperationSchema, description: 'Patch project width, height, frame rate, or background with an explicit preserve, contain, cover, or stretch reframe policy. Preserve never changes clip transforms or rotations.' },
-  { name: CUT_UPDATE_TEXT_TOOL_NAME, operationSchema: cutUpdateTextOperationSchema, description: 'Patch text content, typography, alignment, or color for one text clip.' },
-  { name: CUT_UPDATE_AUDIO_TOOL_NAME, operationSchema: cutUpdateAudioOperationSchema, description: 'Patch volume and fades for one audio-capable Cut clip.' },
-  { name: CUT_UPDATE_EFFECTS_TOOL_NAME, operationSchema: cutUpdateEffectsOperationSchema, description: 'Patch or clear visual effects and set blend mode for one visual Cut clip.' },
-  { name: CUT_UPDATE_MASK_TOOL_NAME, operationSchema: cutUpdateMaskOperationSchema, description: 'Set or clear a validated visual mask for one Cut clip.' },
-  { name: CUT_UPDATE_TRANSITION_TOOL_NAME, operationSchema: cutUpdateTransitionOperationSchema, description: 'Set or clear an incoming or outgoing transition for one visual Cut clip.' },
-  { name: CUT_MANAGE_TRACK_TOOL_NAME, operationSchema: cutManageTrackOperationSchema, description: 'Add, update, move, or explicitly delete one Cut track.' },
-  { name: CUT_RIPPLE_DELETE_RANGES_TOOL_NAME, operationSchema: cutRippleDeleteRangesOperationSchema, description: 'Ripple-delete validated time ranges across every track while preserving media source trims and A/V sync.' },
-  { name: CUT_ADD_COVER_TOOL_NAME, operationSchema: cutAddCoverOperationSchema, description: 'Insert a timed full-canvas title cover and shift the existing program later without overwriting it.' }
-] as const
 
 const MUTATIONS = new Set<string>(CUT_MIDDLEWARE_TOOL_NAMES)
 MUTATIONS.delete(CUT_GET_PROJECT_TOOL_NAME)
@@ -448,10 +105,7 @@ export type CutToolExecutionContext = Pick<
   runtime: Pick<IAgentMiddlewareContext['runtime'], 'capabilities'>
 }
 
-@Injectable()
-@AgentMiddlewareStrategy(CUT_MIDDLEWARE_NAME)
-export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, never>> {
-  readonly meta: TAgentMiddlewareMeta = {
+export const CUT_MIDDLEWARE_META: TAgentMiddlewareMeta = {
     name: CUT_MIDDLEWARE_NAME,
     label: { en_US: 'Cut', zh_Hans: 'Cut 视频剪辑' },
     description: {
@@ -463,6 +117,10 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
     configSchema: { type: 'object', properties: {}, required: [] }
   }
 
+@Injectable()
+export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, never>> {
+  readonly meta = CUT_MIDDLEWARE_META
+
   constructor(
     private readonly service: CutService,
     private readonly captions: CutCaptionService,
@@ -472,14 +130,10 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
     private readonly storyHandoffs?: CutStoryHandoffService
   ) {}
 
-  createMiddleware(
-    _options: Record<string, never>,
-    context: IAgentMiddlewareContext | CutToolExecutionContext
-  ): PromiseOrValue<AgentMiddleware> {
+  // Internal operation registry is also consumed by the existing per-operation MCP publication.
+  createOperationTools(context: IAgentMiddlewareContext | CutToolExecutionContext): NonNullable<AgentMiddleware['tools']> {
     const scope = scopeFromContext(context)
-    return {
-      name: CUT_MIDDLEWARE_NAME,
-      tools: [
+    return [
         tool(async (input: AcceptStoryCutHandoffInput) => {
           const files = context.runtime.capabilities?.require(
             WorkspaceFilesRuntimeCapability
@@ -501,13 +155,7 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
               (workspacePath) => files.readRuntimeBuffer(workspacePath)
             )
           )
-        }, {
-          name: CUT_ACCEPT_STORY_HANDOFF_TOOL_NAME,
-          description:
-            'Accept one strict StoryCutHandoff v1 contract. The first handoff creates a Cut project and Story-managed timeline clips; later Story revisions import media and create an evidence-backed review proposal without changing the timeline. Return the receipt to story_record_cut_handoff_delivery.',
-          schema: cutAcceptStoryHandoffSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_ACCEPT_STORY_HANDOFF_TOOL_NAME), schema: cutAcceptStoryHandoffSchema }),
         tool(async (input) => {
           const result = await this.service.createProject(scope, input)
           return compact({
@@ -517,75 +165,35 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
             status: result.item.status,
             changeSummary: input.changeSummary
           })
-        }, {
-          name: CUT_CREATE_PROJECT_TOOL_NAME,
-          description: 'Create a scoped Cut project with a versioned 1080p timeline IR. Always provide a concise changeSummary.',
-          schema: createProjectSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_CREATE_PROJECT_TOOL_NAME), schema: createProjectSchema }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
           return compact(await this.service.getProjectSummary(scope, input.projectId))
-        }, {
-          name: CUT_GET_PROJECT_TOOL_NAME,
-          description: 'Read a compact Cut project overview, current revision, timeline/resource counts, and available follow-up reads. It intentionally omits the full document and file references. Omit projectId to use the active Workbench project.',
-          schema: getProjectSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_GET_PROJECT_TOOL_NAME), schema: getProjectSchema }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
           return compact(await this.service.listTracks(scope, input))
-        }, {
-          name: CUT_LIST_TRACKS_TOOL_NAME,
-          description: 'List compact track summaries for a Cut project. Pass expectedRevision from cut_get_project to reject stale reads.',
-          schema: listTracksSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_LIST_TRACKS_TOOL_NAME), schema: listTracksSchema }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
           return compact(await this.service.listClips(scope, input))
-        }, {
-          name: CUT_LIST_CLIPS_TOOL_NAME,
-          description: 'Page through compact Cut clips, optionally filtered by tracks, media assets, clip types, or an overlapping time range. Source references and preview URLs are never returned.',
-          schema: listClipsSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_LIST_CLIPS_TOOL_NAME), schema: listClipsSchema }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
           return compact(await this.service.getClip(scope, input))
-        }, {
-          name: CUT_GET_CLIP_TOOL_NAME,
-          description: 'Read one Cut clip and its immediate same-track neighbors after discovering the clip id with cut_list_clips. Workspace file references and preview URLs are omitted.',
-          schema: getClipSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_GET_CLIP_TOOL_NAME), schema: getClipSchema }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
           return compact(await this.service.listMediaAssets(scope, input))
-        }, {
-          name: CUT_LIST_MEDIA_ASSETS_TOOL_NAME,
-          description: 'Page through safe media asset metadata and timeline usage counts. Filter by kind, filename, or unused assets; file references are never returned.',
-          schema: listMediaAssetsSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_LIST_MEDIA_ASSETS_TOOL_NAME), schema: listMediaAssetsSchema }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
           return compact(await this.service.getMediaAsset(scope, input))
-        }, {
-          name: CUT_GET_MEDIA_ASSET_TOOL_NAME,
-          description: 'Read one media asset metadata record, timeline usage count, evidence types, and related analysis job ids without exposing its Workspace file reference.',
-          schema: getMediaAssetSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_GET_MEDIA_ASSET_TOOL_NAME), schema: getMediaAssetSchema }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
           return compact(await this.service.listProjectResources(scope, input))
-        }, {
-          name: CUT_LIST_PROJECT_RESOURCES_TOOL_NAME,
-          description: 'Page through one project resource collection: analysis jobs, versions, exports, caption drafts, edit proposals, or operation logs. Large documents, snapshots, reports, URLs, and file references are omitted.',
-          schema: listProjectResourcesSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_LIST_PROJECT_RESOURCES_TOOL_NAME), schema: listProjectResourcesSchema }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
           const files = context.runtime.capabilities?.require(WorkspaceFilesRuntimeCapability)
@@ -601,12 +209,7 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
             changedTrackIds: result.changedTrackIds,
             changeSummary: input.changeSummary
           })
-        }, {
-          name: CUT_IMPORT_MEDIA_TOOL_NAME,
-          description: 'Import an image, audio, or video at a required baseRevision from the current Agent workspace using a runtime path or portable Workspace Files reference. Never pass base64.',
-          schema: importMediaSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_IMPORT_MEDIA_TOOL_NAME), schema: importMediaSchema }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
           const result = await this.service.applyEdit(scope, input as ApplyCutEditInput)
@@ -619,12 +222,7 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
             changedTrackIds: result.changedTrackIds,
             changeSummary: input.changeSummary
           })
-        }, {
-          name: CUT_APPLY_EDIT_TOOL_NAME,
-          description: 'Apply one validated atomic Cut operation. Prefer a narrow named tool; use this generic entry for programmatic operation payloads.',
-          schema: editSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_APPLY_EDIT_TOOL_NAME), schema: editSchema }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
           const result = await this.service.applyEditBatch(scope, input as ApplyCutEditBatchInput)
@@ -638,12 +236,7 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
             changedTrackIds: result.changedTrackIds,
             changeSummary: input.changeSummary
           })
-        }, {
-          name: CUT_APPLY_BATCH_TOOL_NAME,
-          description: 'Validate or atomically apply 1-100 ordered Cut edit operations at one required baseRevision. The project is unchanged if validation fails.',
-          schema: editBatchSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_APPLY_BATCH_TOOL_NAME), schema: editBatchSchema }),
         ...ATOMIC_EDIT_TOOL_SPECS.map((spec) => createAtomicEditTool(this.service, scope, spec)),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
@@ -651,12 +244,7 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
           if (!files) throw new Error('Workspace Files capability is required for cut_import_subtitle.')
           const file = await files.readRuntimeBuffer(input.file)
           return compact(await this.captions.importSubtitle(scope, input, { buffer: file.buffer, name: file.name }))
-        }, {
-          name: CUT_IMPORT_SUBTITLE_TOOL_NAME,
-          description: 'Import an SRT, WebVTT, or ASS Workspace File into a scoped transcript and reviewable caption draft without changing the timeline.',
-          schema: importSubtitleSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_IMPORT_SUBTITLE_TOOL_NAME), schema: importSubtitleSchema }),
         tool(async (rawInput) => {
           const parsed = requireCutProjectInput(rawInput)
           const input = { ...parsed, mode: parsed.mode ?? 'sandbox_whisper' as const }
@@ -669,87 +257,42 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
             return compact(await this.captions.startTranscription(scope, input, context.xpertId, feature.copilotModel))
           }
           return compact(await this.captions.startTranscription(scope, input))
-        }, {
-          name: CUT_START_TRANSCRIPTION_TOOL_NAME,
-          description: 'Queue durable background transcription for one imported audio/video asset. Defaults to sandbox_whisper using the bundled small model in Sandbox Runtime; no platform model configuration is required. Use platform only when explicitly requested and configured. Explicit modes are respected and platform errors never trigger a fallback. Browser-local Whisper remains an interactive Workbench action. Returns a jobId and does not change the timeline.',
-          schema: startTranscriptionSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_START_TRANSCRIPTION_TOOL_NAME), schema: startTranscriptionSchema }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
           const job = await this.captions.getAnalysisJob(scope, input.projectId, input.jobId)
           return compact(job.type === 'render'
             ? await this.renders.cancel(scope, input.projectId, input.jobId, input.changeSummary)
             : await this.captions.cancelAnalysisJob(scope, input.projectId, input.jobId, input.changeSummary))
-        }, {
-          name: CUT_CANCEL_ANALYSIS_JOB_TOOL_NAME,
-          description: 'Cancel a queued Cut analysis job or request cooperative cancellation for an active transcription job.',
-          schema: cancelAnalysisJobSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_CANCEL_ANALYSIS_JOB_TOOL_NAME), schema: cancelAnalysisJobSchema }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
           return compact(await this.renders.start(scope, input))
-        }, {
-          name: CUT_START_HEADLESS_EXPORT_TOOL_NAME,
-          description: 'Queue 1-5 immutable-revision MP4/H.264 or WebM/VP9 variants through the bounded Cut Sandbox Action. Supports low through very-high quality, optional audio, per-variant dimensions, {{template}} text variables, and explicit source-to-replacement mediaAssetId maps; returns durable render job ids immediately.',
-          schema: startHeadlessExportSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_START_HEADLESS_EXPORT_TOOL_NAME), schema: startHeadlessExportSchema }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
           return compact(await this.captions.getAnalysisJob(scope, input.projectId, input.jobId))
-        }, {
-          name: CUT_GET_ANALYSIS_JOB_TOOL_NAME,
-          description: 'Read one scoped Cut analysis job by jobId. Omit projectId to use the active Cut Workbench project context.',
-          schema: getAnalysisJobSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_GET_ANALYSIS_JOB_TOOL_NAME), schema: getAnalysisJobSchema }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
           return compact(sanitizeCutToolEvidence(await this.intelligence.search(scope, input as SearchCutMediaSegmentsInput)))
-        }, {
-          name: CUT_SEARCH_MEDIA_SEGMENTS_TOOL_NAME,
-          description: 'Search scoped transcript, silence, audio-activity, shot, keyframe, OCR, or visual-description evidence. Every result includes a media asset, exact time range, evidence type, relevance, and thumbnail locator.',
-          schema: searchMediaSegmentsSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_SEARCH_MEDIA_SEGMENTS_TOOL_NAME), schema: searchMediaSegmentsSchema }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
           return compact(sanitizeCutToolEvidence(await this.intelligence.getSegment(scope, input.projectId, input.segmentId)))
-        }, {
-          name: CUT_GET_MEDIA_SEGMENT_TOOL_NAME,
-          description: 'Read one exact scoped media evidence segment returned by cut_search_media_segments using its transcript:<uuid> or analysis:<uuid> id.',
-          schema: getMediaSegmentSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_GET_MEDIA_SEGMENT_TOOL_NAME), schema: getMediaSegmentSchema }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
           return compact(sanitizeCutToolEvidence(await this.proposals.create(scope, input)))
-        }, {
-          name: CUT_CREATE_EDIT_PROPOSAL_TOOL_NAME,
-          description: 'Create an idempotent, source-revision-bound rough-cut proposal. Every item must cite exact Cut media evidence and is validated without changing the timeline.',
-          schema: createEditProposalSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_CREATE_EDIT_PROPOSAL_TOOL_NAME), schema: createEditProposalSchema }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
           return compact(sanitizeCutToolEvidence(await this.proposals.createSpeechCleanup(scope, input)))
-        }, {
-          name: CUT_CREATE_SPEECH_CLEANUP_PROPOSAL_TOOL_NAME,
-          description: 'Create a reviewable smart speech-cleanup proposal from exact transcript/media evidence. It can detect pauses, filler words, repeated phrases, and word-level stutters, include explicitly selected transcript segments, map source timestamps onto timeline clips, and propose A/V-safe ripple deletes. Nothing is applied until the user reviews and approves the proposal.',
-          schema: createSpeechCleanupProposalSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_CREATE_SPEECH_CLEANUP_PROPOSAL_TOOL_NAME), schema: createSpeechCleanupProposalSchema }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
           return compact(sanitizeCutToolEvidence(await this.proposals.get(scope, input.projectId, input.proposalId, false)))
-        }, {
-          name: CUT_GET_EDIT_PROPOSAL_TOOL_NAME,
-          description: 'Read one scoped Cut edit proposal, its deterministic operations, evidence, risk, review state, and compact diff coordinates.',
-          schema: getEditProposalSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_GET_EDIT_PROPOSAL_TOOL_NAME), schema: getEditProposalSchema }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
           const result = await this.proposals.update(scope, input)
@@ -759,106 +302,51 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
             estimatedDurationSeconds: result.preview.estimatedDurationSeconds,
             enabledItemCount: result.preview.enabledItemCount
           } }))
-        }, {
-          name: CUT_UPDATE_EDIT_PROPOSAL_TOOL_NAME,
-          description: 'Revision-safely enable or disable 1-50 proposal items during review without changing the project timeline.',
-          schema: updateEditProposalSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_UPDATE_EDIT_PROPOSAL_TOOL_NAME), schema: updateEditProposalSchema }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
           return compact(await this.proposals.apply(scope, input))
-        }, {
-          name: CUT_APPLY_EDIT_PROPOSAL_TOOL_NAME,
-          description: 'Atomically apply enabled items from an approved Cut proposal only at its exact source project and proposal revisions. Repeated completed calls are idempotent.',
-          schema: applyEditProposalSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_APPLY_EDIT_PROPOSAL_TOOL_NAME), schema: applyEditProposalSchema }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
           return compact(await this.proposals.reject(scope, input))
-        }, {
-          name: CUT_REJECT_EDIT_PROPOSAL_TOOL_NAME,
-          description: 'Reject a draft Cut proposal at its exact proposal revision without changing the timeline.',
-          schema: rejectEditProposalSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_REJECT_EDIT_PROPOSAL_TOOL_NAME), schema: rejectEditProposalSchema }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
           return compact(await this.proposals.revert(scope, input))
-        }, {
-          name: CUT_REVERT_EDIT_PROPOSAL_TOOL_NAME,
-          description: 'Revert one applied Cut proposal only when the project is still at its exact applied revision. Repeated completed calls are idempotent and later edits are never overwritten.',
-          schema: revertEditProposalSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_REVERT_EDIT_PROPOSAL_TOOL_NAME), schema: revertEditProposalSchema }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
           return compact(await this.captions.listTranscriptSegments(
             scope, input.projectId, input.transcriptId, input.page, input.pageSize
           ))
-        }, {
-          name: CUT_LIST_TRANSCRIPT_SEGMENTS_TOOL_NAME,
-          description: 'Page through timestamped segments for one scoped Cut transcript; returns at most 200 segments.',
-          schema: listTranscriptSegmentsSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_LIST_TRANSCRIPT_SEGMENTS_TOOL_NAME), schema: listTranscriptSegmentsSchema }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
           return compact(await this.captions.createCaptionDraft(scope, input))
-        }, {
-          name: CUT_CREATE_CAPTION_DRAFT_TOOL_NAME,
-          description: 'Create a revision-bound reviewable caption draft from an existing Cut transcript without changing the timeline. Pass the exact applied ripple-delete ranges and cover offset to keep cues synchronized after speech cleanup and intro insertion.',
-          schema: createCaptionDraftSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_CREATE_CAPTION_DRAFT_TOOL_NAME), schema: createCaptionDraftSchema }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
           return compact(await this.captions.createTranslatedCaptionDraft(scope, input))
-        }, {
-          name: CUT_CREATE_TRANSLATED_CAPTION_DRAFT_TOOL_NAME,
-          description: 'Create a target-language caption draft from an existing reviewed draft. The Agent supplies one translated text per source caption id; timings remain exact and the source draft is preserved.',
-          schema: createTranslatedCaptionDraftSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_CREATE_TRANSLATED_CAPTION_DRAFT_TOOL_NAME), schema: createTranslatedCaptionDraftSchema }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
           return compact(await this.captions.getCaptionDraft(
             scope, input.projectId, input.draftId, input.page, input.pageSize
           ))
-        }, {
-          name: CUT_GET_CAPTION_DRAFT_TOOL_NAME,
-          description: 'Read one caption draft summary and at most 200 reviewable cues for the requested page.',
-          schema: getCaptionDraftSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_GET_CAPTION_DRAFT_TOOL_NAME), schema: getCaptionDraftSchema }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
           return compact(await this.captions.updateCaptionDraft(scope, input))
-        }, {
-          name: CUT_UPDATE_CAPTION_DRAFT_TOOL_NAME,
-          description: 'Update, split, merge, delete, or offset bounded cues in a reviewable caption draft without changing the timeline. baseDraftRevision protects concurrent draft edits; sourceRevision is provenance and does not block editing after unrelated project changes.',
-          schema: updateCaptionDraftSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_UPDATE_CAPTION_DRAFT_TOOL_NAME), schema: updateCaptionDraftSchema }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
           return compact(await this.captions.commitCaptionDraft(scope, input))
-        }, {
-          name: CUT_COMMIT_CAPTION_DRAFT_TOOL_NAME,
-          description: 'Commit an approved caption draft to a visual text track at the current required baseRevision. A draft may originate from an older project revision; repeated committed calls are idempotent.',
-          schema: commitCaptionDraftSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_COMMIT_CAPTION_DRAFT_TOOL_NAME), schema: commitCaptionDraftSchema }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
           return compact(await this.captions.commitCaptionDrafts(scope, input))
-        }, {
-          name: CUT_COMMIT_CAPTION_DRAFTS_TOOL_NAME,
-          description: 'Atomically commit 1-4 approved caption drafts as separate language tracks in one project edit, keeping multilingual cues synchronized even when their provenance revisions differ.',
-          schema: commitCaptionDraftsSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_COMMIT_CAPTION_DRAFTS_TOOL_NAME), schema: commitCaptionDraftsSchema }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
           const files = context.runtime.capabilities?.require(WorkspaceFilesRuntimeCapability)
@@ -883,12 +371,7 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
             file: written.reference,
             changeSummary: input.changeSummary
           })
-        }, {
-          name: CUT_EXPORT_SUBTITLE_TOOL_NAME,
-          description: 'Export one reviewed caption draft as SRT, WebVTT, or ASS into the current Agent Workspace Files scope.',
-          schema: exportSubtitleSchema,
-          verboseParsingErrors: true
-        }),
+        }, { ...cutOperationDefinition(CUT_EXPORT_SUBTITLE_TOOL_NAME), schema: exportSubtitleSchema }),
         tool(async (rawInput) => {
           const input = requireCutProjectInput(rawInput)
           const result = await this.service.finalizeVersion(scope, input.projectId, input.baseRevision, input.changeSummary)
@@ -900,38 +383,76 @@ export class CutMiddleware implements IAgentMiddlewareStrategy<Record<string, ne
             versionNumber: result.version.versionNumber,
             changeSummary: input.changeSummary
           })
-        }, {
-          name: CUT_FINALIZE_VERSION_TOOL_NAME,
-          description: 'Finalize the current Cut working timeline at a required baseRevision as an immutable reviewable version.',
-          schema: finalizeSchema,
-          verboseParsingErrors: true
+        }, { ...cutOperationDefinition(CUT_FINALIZE_VERSION_TOOL_NAME), schema: finalizeSchema }),
+        tool(async (input) => compact(await this.service.reportFailure(scope, input)), { ...cutOperationDefinition(CUT_REPORT_FAILURE_TOOL_NAME), schema: reportFailureSchema }),
+    ]
+  }
+
+  createMiddleware(
+    _options: Record<string, never>,
+    context: IAgentMiddlewareContext | CutToolExecutionContext
+  ): AgentMiddleware {
+    const operations = this.createOperationTools(context)
+    const registry = new Map(operations.map((operation) => [operation.name, operation]))
+    const base = new Set(cutProfileTools('base'))
+    return {
+      name: CUT_MIDDLEWARE_NAME,
+      tools: [
+        ...operations.filter((operation) => base.has(operation.name)),
+        tool(async ({ profiles }) => compact(profiles.length ? {
+          profiles: profiles.map((profile) => ({ profile, operations: cutProfileTools(profile).map((name) => {
+            const operation = registry.get(name)
+            if (!operation) throw new Error(`Unknown Cut operation: ${name}`)
+            return { name, description: operation.description, inputSchema: toJsonSchema(operation.schema) }
+          }) }))
+        } : { profiles: [...CUT_TOOL_PROFILES.map(({ id, tools }) => ({ id, operations: tools })),
+          { id: 'detail-reads', operations: CUT_DETAIL_READS }] }), {
+          name: CUT_DISCOVER_TOOLS,
+          description: 'List Cut profiles, or return operation descriptions and parameter schemas for requested profiles. Read-only discovery; does not grant approval.',
+          schema: cutDiscoverySchema
         }),
-        tool(async (input) => compact(await this.service.reportFailure(scope, input)), {
-          name: CUT_REPORT_FAILURE_TOOL_NAME,
-          description: 'Record a Cut import, validation, timeline edit, media load, save, or export failure with recoverability.',
-          schema: reportFailureSchema,
-          verboseParsingErrors: true
+        tool(async (input, config) => {
+          if (!cutProfileTools(input.profile).includes(input.operation)) {
+            throw new Error(`Cut operation ${input.operation} does not belong to profile ${input.profile}`)
+          }
+          const operation = registry.get(input.operation)
+          if (!operation) throw new Error(`Unknown Cut operation: ${input.operation}`)
+          // Invoke the original structured tool: its schema, scoped service and revision checks still apply.
+          if (!(operation.schema instanceof z.ZodType)) throw new Error('Cut operation requires a Zod schema')
+          const args = await operation.schema.parseAsync(input.arguments)
+          return operation.invoke(args, config)
+        }, {
+          name: CUT_EXECUTE_TOOL,
+          description: 'Execute a discovered Cut operation using its exact arguments. Writes require the same user approval and revision preconditions as the original operation. Discovery is not approval.',
+          schema: cutExecutionSchema
         })
       ],
       wrapModelCall: (request, handler) => {
         const currentProject = resolveCurrentWorkbenchProject(request.runtime)
-        if (!currentProject) return handler(request)
-
+        const instructions = [cutProfileInstructions(),
+          currentProject ? buildCurrentProjectSystemPrompt(currentProject) : ''].filter(Boolean).join('\n\n')
         return handler({
           ...request,
-          systemMessage: appendSystemMessage(request.systemMessage, buildCurrentProjectSystemPrompt(currentProject))
+          systemMessage: appendSystemMessage(request.systemMessage, instructions)
         })
       },
       wrapToolCall: async (request, handler) => {
-        const prepared = prepareCutToolRequest(request)
+        const envelope = request.toolCall.name === CUT_EXECUTE_TOOL
+          ? cutExecutionSchema.parse(request.toolCall.args) : null
+        const prepared = prepareCutToolRequest(envelope ? {
+          ...request, toolCall: { ...request.toolCall, name: envelope.operation, args: envelope.arguments }
+        } : request)
         if (prepared instanceof ToolMessage) return prepared
 
+        const dispatch = () => handler(envelope ? {
+          ...request, toolCall: { ...request.toolCall, args: { ...envelope, arguments: prepared.toolCall.args } }
+        } : prepared)
         const summary = readChangeSummary(prepared.toolCall.args)
-        if (!summary || !MUTATIONS.has(prepared.toolCall.name)) return handler(prepared)
+        if (!summary || !MUTATIONS.has(prepared.toolCall.name)) return dispatch()
         const createdAt = new Date()
         await safeDispatchToolEvent(prepared, summary, 'running', createdAt)
         try {
-          const result = await handler(prepared)
+          const result = await dispatch()
           await safeDispatchToolEvent(prepared, summary, 'success', createdAt, undefined, result)
           return result
         } catch (error) {
@@ -973,10 +494,8 @@ function createAtomicEditTool(
       changeSummary: input.changeSummary
     })
   }, {
-    name: spec.name,
-    description: `${spec.description} projectId may be omitted for the active Cut Workbench project; baseRevision and a concise changeSummary are required.`,
-    schema,
-    verboseParsingErrors: true
+    ...cutOperationDefinition(spec.name),
+    schema
   })
 }
 
