@@ -1,10 +1,21 @@
 {
-  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "./dist",
-    "rootDir": "./src"
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "useDefineForClassFields": false,
+    "declaration": true,
+    "importHelpers": true,
+    "outDir": "dist",
+    "rootDir": "src"
   },
-  "include": [
-    "src/**/*"
-  ]
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/lib/remote"]
 }
