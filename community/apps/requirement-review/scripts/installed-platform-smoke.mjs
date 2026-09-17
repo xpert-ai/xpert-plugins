@@ -48,7 +48,7 @@ if (command === 'capture-auth') {
 
 async function captureAuth({ chromium, url, storageStatePath }) {
   await mkdir(dirname(storageStatePath), { recursive: true })
-  const browser = await chromium.launch({ headless: false })
+  const browser = await launchChromium(chromium, false)
   const context = await browser.newContext()
   const page = await context.newPage()
   const prompt = createInterface({ input: stdin, output: stdout })
@@ -80,7 +80,7 @@ async function runSmoke({ chromium, url, storageStatePath }) {
     'REQTRACE_E2E_TIMEOUT_MS'
   )
   const headed = process.env.REQTRACE_E2E_HEADED === '1'
-  const browser = await chromium.launch({ headless: !headed })
+  const browser = await launchChromium(chromium, !headed)
   const context = await browser.newContext({ storageState: storageStatePath })
   const page = await context.newPage()
   page.setDefaultTimeout(15_000)
@@ -326,6 +326,51 @@ async function setCheckbox(locator, checked) {
   assert.equal(updated, checked, '需求纳入状态没有更新。')
 }
 
+async function launchChromium(chromium, headless) {
+  const executablePath = await resolveBrowserExecutable(chromium)
+  return chromium.launch({
+    headless,
+    ...(executablePath ? { executablePath } : {})
+  })
+}
+
+async function resolveBrowserExecutable(chromium) {
+  const explicit = process.env.REQTRACE_E2E_BROWSER_EXECUTABLE?.trim()
+  if (explicit) {
+    const resolved = resolve(explicit)
+    await access(resolved).catch(() => {
+      fail(`REQTRACE_E2E_BROWSER_EXECUTABLE 指向的文件不存在：${resolved}`)
+    })
+    return resolved
+  }
+
+  try {
+    await access(chromium.executablePath())
+    return undefined
+  } catch {
+    // Fall back to a preinstalled browser without downloading software.
+  }
+
+  const candidates =
+    process.platform === 'win32'
+      ? [
+          'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+          'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+          'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+          'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe'
+        ]
+      : []
+  for (const candidate of candidates) {
+    try {
+      await access(candidate)
+      return candidate
+    } catch {
+      // Continue to the next deterministic local browser path.
+    }
+  }
+  return undefined
+}
+
 function loadPlaywright() {
   const candidates = [
     { name: '当前插件依赖', require: createRequire(import.meta.url) },
@@ -397,6 +442,7 @@ function printHelp() {
   REQTRACE_E2E_HEADED=1         以可见浏览器运行
   REQTRACE_E2E_SCREENSHOT       成功后保存截图的路径
   REQTRACE_E2E_PLAYWRIGHT_ROOT  包含 playwright 依赖的 Node 项目目录
+  REQTRACE_E2E_BROWSER_EXECUTABLE  Chrome/Edge/Chromium 可执行文件路径
 
 capture-auth 只保存浏览器 cookie/localStorage，不调用模型。run 会创建带时间戳的
 合成评审，触发真实模型，人工修改并确认，完整刷新后验证数据库恢复、分析历史和审计入口。`)

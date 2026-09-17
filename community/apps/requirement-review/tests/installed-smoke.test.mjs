@@ -15,6 +15,7 @@ test('installed smoke help documents the explicit model-call gate', () => {
   assert.equal(result.status, 0, result.stderr)
   assert.match(result.stdout, /capture-auth/)
   assert.match(result.stdout, /REQTRACE_E2E_ALLOW_MODEL=1/)
+  assert.match(result.stdout, /REQTRACE_E2E_BROWSER_EXECUTABLE/)
   assert.match(result.stdout, /完整刷新/)
 })
 
