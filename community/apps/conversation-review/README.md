@@ -362,13 +362,13 @@ XPERT_PASSWORD=<密码>
 | **规则判断一致性测试** | `tests/rule-check.test.mjs`，13 个用例：同一输入两次跑出相同命中、同句同类别不重复计数、模型已报的命中不重复合并、模型没报任何风险时规则命中仍能独立成组、`RULE_VERSION` 是非空稳定标识、`getRuleDisclosure()` 不泄露 `RegExp`、公示的每条示例表述确实会被对应规则命中（防止示例文案与真实规则漂移） | 全部通过 |
 | 远程组件语法 | `node --check .../app.js` | 通过 |
 | 示例文件解析 | 两个示例文件的解析结果与预期一致（5 条 / 3 条，0 跳过） | 通过 |
-| **真实模型调用** | 平台内跑通一次完整分析：助手读取记录 → 产出结构化结果 → 写回并在看板呈现 | **已验证**，但见下方说明 |
+| **真实模型调用（4 次工具调用版本）** | 平台内跑通完整分析：`get_record → get_customer_history → check_rules → save_analysis`，助手读取记录、查历史、跑规则、产出结构化结果并写回 | **已验证**，见截图4 `docs/images/04-tools.png` |
 | **插件生命周期** | `plugin-dev-harness`（Node 24.20.0）：`onInit → onStart → onPluginBootstrap → onPluginDestroy → onStop` | 全部触发，无报错 |
 | **部署与加载** | `plugin:deploy:local --scope tenant` → 重启 API → `POST /api/plugin/by-names` | `loadStatus: "loaded"`，`loadError: null` |
 | **Assistant 安装与发布** | `POST /api/plugin-applications/initialize` | 返回 `201`，`status: "ready"` |
 | **真实业务数据回读（happy path）** | `GET /api/view-hosts/agent/<xpertId>/views/conversation_review__workbench/data` | 多条记录 `status: "completed"`，`revision` 递增（人工编辑确认痕迹），非空数据 |
 | **真实业务数据回读（error path）** | 同上接口 | 「西部新材料」`status: "failed"`，附真实中文失败原因（内容过短） |
-| **真实业务数据回读（重试防重复）** | 同上接口 | 「华东精密制造」`retryCount: 3`、`revision: 8`，仅一条记录 id，未产生重复主记录 |
+| **真实业务数据回读（重试防重复）** | 工作台 UI，见截图6 `docs/images/06-failure-retry.png` | 「西部新材料」状态「分析失败」、已重试 2 次（`retryCount` 非零），历史列表仅一条记录，未产生重复主记录 |
 
 以上三条真实业务数据回读，分别对应平台五项验收场景中的「完整业务流程」「保存与恢复」「失败与重试」，均已在真实平台走通并有落库数据佐证。
 
@@ -378,9 +378,8 @@ XPERT_PASSWORD=<密码>
 
 以下在提交时仍是未知，逐条列出：
 
-- ❌ **上述真实模型调用是加入客户历史工具、规则检测工具与批量摄入之前的构建**（对话中可见 2 次工具调用；新版本应为 4 次）。含 `get_customer_history`、`check_rules`、批量导入、批量分析的版本**尚未在平台内运行过**——`check_rules` 作为可选工具是否被模型主动调用尚未在真实对话里观察，只验证了「即使不调用，保存时也会补齐」这条服务端逻辑（单测覆盖，非平台内验证）。
 - ❌ **平台验收场景中的「输入与空状态」「权限与数据范围」**——目前仅有单元测试覆盖（缺必填字段校验、跨销售/跨组织数据隔离等用例），尚未在真实 UI 中逐条走查。这两项对应的隔离逻辑（按 `tenantId`/`organizationId`/`createdById` 归属存取）是插件默认架构的一部分，并非额外的复杂权限功能，仍建议后续在真实平台补测。
-- ❌ UI 集成层：导入面板、批量分析的轮询与中止的完整浏览器交互，只有语法检查和接口层数据验证，未逐项在浏览器中走查（表单校验、加载态、中止按钮等纯前端交互）
+- ❌ 批量分析「中止」按钮的实际点击效果——导入面板与批量分析进度已在真实浏览器操作中验证（见截图2、3），但中止流程本身没有实际点过
 - ❌ 批量分析在真实时序下的行为：轮询间隔、超时阈值、助手连续接收多条消息时是否会交错
 - ❌ 新增的六个实体列（`source` / `externalId` / `occurredAt` / `ruleVersion` / `customerId` / `customerExternalId`）在真实数据库上的迁移
 
@@ -391,8 +390,6 @@ XPERT_PASSWORD=<密码>
 ---
 
 ## 五、AI 协作说明
-
-> 本节由候选人填写。以下是协作过程中的事实记录与几次关键判断，可据此补充自己的表述和对话片段。
 
 ### 工具与模型
 
