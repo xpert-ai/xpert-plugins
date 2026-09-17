@@ -30,13 +30,22 @@ export const CONVERSATION_REVIEW_REPORT_FAILURE_TOOL_NAME = 'conversation_review
 export const CONVERSATION_REVIEW_GET_STATS_TOOL_NAME = 'conversation_review_get_stats'
 export const CONVERSATION_REVIEW_SEARCH_CUSTOMER_TOOL_NAME = 'conversation_review_search_customer'
 /**
- * The tools the workbench listens for. Only these two change a record, so only these are worth a
- * view refresh — subscribing to the read tools as well would reload the whole workbench in the
- * middle of the agent's own lookup, before there is anything new to show.
+ * Ingestion tools, chat-triggered counterparts to the workbench toolbar buttons — same service
+ * calls, same adapters, just a natural-language entry point instead of a click. Neither takes
+ * recordId, so `wrapToolCall`'s silent-context injection does not apply to them either.
+ */
+export const CONVERSATION_REVIEW_FETCH_CONVERSATIONS_TOOL_NAME = 'conversation_review_fetch_conversations'
+export const CONVERSATION_REVIEW_IMPORT_CONVERSATIONS_TOOL_NAME = 'conversation_review_import_conversations'
+/**
+ * The tools the workbench listens for. These change records, so only these are worth a view
+ * refresh — subscribing to the read tools as well would reload the whole workbench in the middle
+ * of the agent's own lookup, before there is anything new to show.
  */
 export const CONVERSATION_REVIEW_REFRESH_TOOL_NAMES = [
   CONVERSATION_REVIEW_SAVE_ANALYSIS_TOOL_NAME,
-  CONVERSATION_REVIEW_REPORT_FAILURE_TOOL_NAME
+  CONVERSATION_REVIEW_REPORT_FAILURE_TOOL_NAME,
+  CONVERSATION_REVIEW_FETCH_CONVERSATIONS_TOOL_NAME,
+  CONVERSATION_REVIEW_IMPORT_CONVERSATIONS_TOOL_NAME
 ] as const
 
 /**
@@ -55,6 +64,40 @@ export const CUSTOMER_HISTORY_MAX_LIMIT = 10
  */
 export const CUSTOMER_SEARCH_DEFAULT_LIMIT = 5
 export const CUSTOMER_SEARCH_MAX_LIMIT = 10
+
+/**
+ * Chat-attached WeChat screenshot import (TODO.md item D).
+ *
+ * Byte source and size ceiling deliberately mirror the platform's `view-image` middleware
+ * (`xpertai/middlewares/view-image`) — same allowed mime set, same order-of-magnitude byte cap —
+ * because that middleware's "read bytes, inject as `image_url` on the next model call" pattern is
+ * what `wrapModelCall` below copies. `MAX_IMAGES` is smaller than a hard technical limit; it is how
+ * many scrolled screenshots of one conversation a salesperson is realistically dragging in at once.
+ */
+export const CONVERSATION_REVIEW_SCREENSHOT_ALLOWED_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp']
+export const CONVERSATION_REVIEW_SCREENSHOT_ALLOWED_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const
+export const CONVERSATION_REVIEW_SCREENSHOT_MAX_IMAGE_BYTES = 10 * 1024 * 1024
+export const CONVERSATION_REVIEW_SCREENSHOT_MAX_IMAGES = 5
+/** ToolMessage metadata key marking "an image was queued, inject it on the next model step". */
+export const CONVERSATION_REVIEW_SCREENSHOT_PENDING_METADATA_KEY = 'conversationReviewPendingScreenshot'
+
+/**
+ * v1 reconstruction rules, injected as a system message only on the model step right after a
+ * screenshot was queued (see `wrapModelCall`). Scope is deliberately narrow: single-party chat only
+ * — a WeChat bubble's left/right position is the only speaker-attribution signal available, and that
+ * signal breaks down for group chats (multiple senders can appear on the same side). Rather than
+ * guess, the model is told to refuse and explain, per TODO.md item D's stated v1 scope.
+ */
+export const CONVERSATION_REVIEW_SCREENSHOT_SYSTEM_PROMPT = [
+  '一张或多张微信单聊聊天截图已经附加到这条消息，供你查看。',
+  '重建规则：',
+  '- 只支持单聊（一个客户 + 一个销售）截图。气泡靠右通常是当前操作者（销售）发的，靠左是对方（客户）发的——用这个左右位置区分说话人，不要靠头像或用户名猜测。',
+  '- 如果截图看起来是群聊（出现三个及以上不同发言人，或群公告/多人头像列表等群聊特征），不要尝试重建，改为调用 conversation_review_import_conversations 报告失败原因：截图疑似群聊，当前只支持单聊截图。',
+  '- 忽略时间戳分隔、系统提示（如"以下是新消息"、撤回提示）、红包/转账卡片等非对话内容，除非它们是判断上下文所必需的。',
+  '- 多张截图按时间先后拼接为一段连续对话，不要重复或颠倒顺序。',
+  '完成重建后，调用 conversation_review_import_conversations，参数 format 传 "json"，content 传如下结构的 JSON 文本（不要额外包裹数组）：',
+  '{"customerName": "从截图或上下文判断的客户名，判断不出时留空字符串", "conversation": "客户：...\\n销售：...（按真实对话顺序逐行还原）", "occurredAt": "截图中出现的日期时间，判断不出时省略此字段"}'
+].join('\n')
 
 export const AGENT_WORKBENCH_MAIN_SLOT = 'agent.workbench.main'
 export const AGENT_WORKBENCH_FIXED_SLOT = 'agent.workbench.fixed'

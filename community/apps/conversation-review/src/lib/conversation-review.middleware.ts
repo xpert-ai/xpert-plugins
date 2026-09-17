@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { SystemMessage, ToolMessage } from '@langchain/core/messages'
+import { HumanMessage, SystemMessage, ToolMessage } from '@langchain/core/messages'
 import { tool } from '@langchain/core/tools'
 import { TAgentMiddlewareMeta } from '@xpert-ai/contracts'
 import {
@@ -7,20 +7,30 @@ import {
   AgentMiddlewareStrategy,
   IAgentMiddlewareContext,
   IAgentMiddlewareStrategy,
-  PromiseOrValue
+  PromiseOrValue,
+  WorkspaceFilesApi,
+  WorkspaceFilesRuntimeCapability
 } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod/v3'
 import {
   CONCERN_CATEGORIES,
   CONVERSATION_REVIEW_CHECK_RULES_TOOL_NAME,
   CONVERSATION_REVIEW_FEATURE,
+  CONVERSATION_REVIEW_FETCH_CONVERSATIONS_TOOL_NAME,
   CONVERSATION_REVIEW_GET_HISTORY_TOOL_NAME,
   CONVERSATION_REVIEW_GET_RECORD_TOOL_NAME,
   CONVERSATION_REVIEW_GET_STATS_TOOL_NAME,
   CONVERSATION_REVIEW_ICON,
+  CONVERSATION_REVIEW_IMPORT_CONVERSATIONS_TOOL_NAME,
   CONVERSATION_REVIEW_MIDDLEWARE_NAME,
   CONVERSATION_REVIEW_REPORT_FAILURE_TOOL_NAME,
   CONVERSATION_REVIEW_SAVE_ANALYSIS_TOOL_NAME,
+  CONVERSATION_REVIEW_SCREENSHOT_ALLOWED_EXTENSIONS,
+  CONVERSATION_REVIEW_SCREENSHOT_ALLOWED_MIME_TYPES,
+  CONVERSATION_REVIEW_SCREENSHOT_MAX_IMAGE_BYTES,
+  CONVERSATION_REVIEW_SCREENSHOT_MAX_IMAGES,
+  CONVERSATION_REVIEW_SCREENSHOT_PENDING_METADATA_KEY,
+  CONVERSATION_REVIEW_SCREENSHOT_SYSTEM_PROMPT,
   CONVERSATION_REVIEW_SEARCH_CUSTOMER_TOOL_NAME,
   CUSTOMER_HISTORY_DEFAULT_LIMIT,
   CUSTOMER_HISTORY_MAX_LIMIT,
@@ -29,9 +39,13 @@ import {
   ISSUE_SEVERITIES,
   RISK_CATEGORIES
 } from './constants'
-import { ConversationReviewService } from './conversation-review.service'
+import { detectImportFormat, parseConversations, parseExcelConversations } from './conversation-import'
+import { ConversationReviewService, labelSkipped, mergeImportResults } from './conversation-review.service'
 import { checkDeterministicRisks, mergeDeterministicRisks } from './rule-check'
 import type {
+  ConversationImportResult,
+  ConversationImportRow,
+  ConversationImportSkip,
   ConversationIssue,
   ConversationIssueSeverity,
   ConversationReviewScope,
@@ -168,6 +182,27 @@ const reportFailureSchema = z.object({
 /** No parameters: always answers over every record the current seller can see. */
 const getStatsSchema = z.object({})
 
+/** No parameters: always replays the same bundled connector fixtures as the workbench button. */
+const fetchConversationsSchema = z.object({})
+
+const importConversationsSchema = z.object({
+  content: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(
+      'File content to import. For json/csv: the plain text content, exactly as it would be pasted or read from disk. For excel: the raw file bytes, base64-encoded. Omit this entirely when the salesperson attached the file (or a WeChat chat screenshot) directly to this chat message — for a screenshot, calling with no content queues it and the image is attached to your very next turn; look at it, reconstruct the single-party dialogue, then call this tool again with content set to {"customerName": "...", "conversation": "客户：...\\n销售：...", "occurredAt": "..."} as JSON text and format "json". Group-chat screenshots are not supported — say so instead of guessing.'
+    ),
+  format: z
+    .enum(['json', 'csv', 'excel'])
+    .optional()
+    .describe('The file format. Omit it and pass fileName instead to let the extension decide.'),
+  fileName: z
+    .string()
+    .optional()
+    .describe('Original file name, e.g. "conversations.xlsx". Used to infer format when format is omitted.')
+})
+
 const searchCustomerSchema = z.object({
   query: z
     .string()
@@ -215,6 +250,14 @@ export class ConversationReviewMiddleware implements IAgentMiddlewareStrategy<Re
     context: IAgentMiddlewareContext
   ): PromiseOrValue<AgentMiddleware> {
     const scope = scopeFromContext(context)
+    /**
+     * Reading workspace bytes is a genuinely new integration for this plugin — see the
+     * `conversation_review_import_conversations` tool below and the README "已知限制" entry it
+     * links to. `context.runtime.capabilities` is the fixed, per-invocation-agnostic registry
+     * (unlike the per-turn `request.runtime` used elsewhere in this file for the current record),
+     * so it is captured once here rather than re-resolved per tool call.
+     */
+    const workspaceFiles: WorkspaceFilesApi | undefined = context.runtime?.capabilities?.get(WorkspaceFilesRuntimeCapability)
 
     const getRecordTool = tool(
       async (input: z.infer<typeof getRecordSchema>) => {
@@ -375,6 +418,66 @@ export class ConversationReviewMiddleware implements IAgentMiddlewareStrategy<Re
       }
     )
 
+    const fetchConversationsTool = tool(
+      async () => {
+        const result = await this.service.simulateFetchConversations(scope)
+        return JSON.stringify({
+          success: true,
+          message: `Simulated connector fetch imported ${result.imported} conversation(s)${
+            result.duplicates ? `, skipped ${result.duplicates} duplicate(s)` : ''
+          }${result.skipped.length ? `, ${result.skipped.length} row(s) could not be imported` : ''}. Every one lands as a draft — analysis is not triggered automatically.`,
+          data: result
+        })
+      },
+      {
+        name: CONVERSATION_REVIEW_FETCH_CONVERSATIONS_TOOL_NAME,
+        description:
+          'Fetch recent customer conversations from the archive connector, exactly like clicking "获取聊天会话记录" in the workbench toolbar — same bundled connector sources, same parsing and import path, no parameters. Use this when the salesperson asks in chat to pull in or sync the latest conversations. Imported conversations land as drafts; call conversation_review_get_stats or list_pending afterwards, and analysis still has to be requested separately per record.',
+        schema: fetchConversationsSchema,
+        verboseParsingErrors: true
+      }
+    )
+
+    const importConversationsTool = tool(
+      async (input: z.infer<typeof importConversationsSchema>) => {
+        // `wrapToolCall` below tries to resolve chat-attached files first and only calls this
+        // handler when that did not apply or did not find anything — see resolveChatAttachmentImport.
+        if (!input.content) {
+          return JSON.stringify({
+            success: false,
+            message:
+              'No file content was provided, and no chat attachment could be resolved for this call. Ask the salesperson to attach the file again, paste its content directly as content, or use "选择文件导入" in the workbench.'
+          })
+        }
+        const format = input.format ?? detectImportFormat(input.fileName)
+        if (format !== 'json' && format !== 'csv' && format !== 'excel') {
+          return JSON.stringify({
+            success: false,
+            message: `Could not determine the file format${
+              input.fileName ? ` from "${input.fileName}"` : ''
+            }. Pass format explicitly as one of json/csv/excel, or a fileName ending in .json/.csv/.xlsx.`
+          })
+        }
+        const parsed: { rows: ConversationImportRow[]; skipped: ConversationImportSkip[] } =
+          format === 'excel'
+            ? parseExcelConversations(Buffer.from(input.content, 'base64'))
+            : parseConversations(input.content, format)
+        const result = await this.service.importConversations(scope, parsed.rows, `import:${format}`, parsed.skipped)
+        return JSON.stringify({
+          success: true,
+          message: buildImportToolMessage(result),
+          data: result
+        })
+      },
+      {
+        name: CONVERSATION_REVIEW_IMPORT_CONVERSATIONS_TOOL_NAME,
+        description:
+          'Import a batch of conversations, in the same json/csv/excel shapes the workbench file picker accepts, or reconstruct one from a WeChat chat screenshot attached to this message. If the salesperson attached the file directly to this chat message, call this with NO arguments at all (or just format/fileName as a hint) — a json/csv/excel attachment is resolved and imported automatically; a screenshot attachment (png/jpg/jpeg/webp) is instead queued and shown to you on the next turn so you can reconstruct the dialogue and call this tool again with the reconstructed content (see the content parameter for the exact shape). Only single-party (one customer, one salesperson) screenshots are supported — refuse a group-chat screenshot instead of guessing. Otherwise pass content yourself: plain text for json/csv, base64-encoded bytes for excel. Every row lands as a draft, exactly like the workbench import — analysis is never triggered automatically by import.',
+        schema: importConversationsSchema,
+        verboseParsingErrors: true
+      }
+    )
+
     return {
       name: CONVERSATION_REVIEW_MIDDLEWARE_NAME,
       tools: [
@@ -384,19 +487,54 @@ export class ConversationReviewMiddleware implements IAgentMiddlewareStrategy<Re
         saveAnalysisTool,
         reportFailureTool,
         getStatsTool,
-        searchCustomerTool
+        searchCustomerTool,
+        fetchConversationsTool,
+        importConversationsTool
       ],
-      wrapModelCall: (request, handler) => {
+      wrapModelCall: async (request, handler) => {
         const currentRecord = resolveCurrentRecord(request.runtime)
-        if (!currentRecord) {
+        const screenshotMessage = await resolvePendingScreenshotInjection(request.messages, request.runtime, workspaceFiles)
+
+        if (!currentRecord && !screenshotMessage) {
           return handler(request)
         }
+
+        let systemMessage = request.systemMessage
+        if (currentRecord) {
+          systemMessage = appendSystemMessage(systemMessage, buildCurrentRecordSystemPrompt(currentRecord))
+        }
+        if (screenshotMessage) {
+          systemMessage = appendSystemMessage(systemMessage, CONVERSATION_REVIEW_SCREENSHOT_SYSTEM_PROMPT)
+        }
+
         return handler({
           ...request,
-          systemMessage: appendSystemMessage(request.systemMessage, buildCurrentRecordSystemPrompt(currentRecord))
+          systemMessage,
+          ...(screenshotMessage ? { messages: [...request.messages, screenshotMessage] } : {})
         })
       },
-      wrapToolCall: (request, handler) => {
+      wrapToolCall: async (request, handler) => {
+        if (request.toolCall.name === CONVERSATION_REVIEW_IMPORT_CONVERSATIONS_TOOL_NAME) {
+          const args = isRecord(request.toolCall.args) ? request.toolCall.args : {}
+          if (!getString(args['content'])) {
+            const attachmentResult = await resolveChatAttachmentImport(this.service, scope, request.runtime, workspaceFiles)
+            if (attachmentResult) {
+              return new ToolMessage({
+                content: JSON.stringify(attachmentResult),
+                tool_call_id: request.toolCall.id ?? 'unknown',
+                name: request.toolCall.name,
+                status: attachmentResult.success ? 'success' : 'error',
+                ...(attachmentResult.pendingScreenshot
+                  ? { metadata: { [CONVERSATION_REVIEW_SCREENSHOT_PENDING_METADATA_KEY]: true } }
+                  : {})
+              })
+            }
+            // No chat attachment either — fall through so the tool's own handler returns its
+            // "no content provided" message, worded for the model rather than duplicated here.
+          }
+          return handler(request)
+        }
+
         if (!CONTEXTUAL_TOOL_NAMES.has(request.toolCall.name)) {
           return handler(request)
         }
@@ -525,6 +663,289 @@ function isRecord(value: unknown): value is RuntimeContextRecord {
 
 function getString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined
+}
+
+// ------------------------------------------------- chat-attached file import (see README §6)
+//
+// `humanInput.files` arrives through the exact same `runtime.context` channel as
+// `assistant.context.set` above (see `resolveRuntimeContext`) — the platform puts the chat
+// attachment's reference there whenever the salesperson drags a file straight into the chat
+// input, distinct from this plugin's own `import_conversations` view action file picker. Nothing
+// in the platform has exercised turning that reference into bytes before this, so every step here
+// degrades to a plain-language message instead of throwing: the workbench file picker is always
+// the fallback.
+
+function resolveHumanInputFiles(runtime: unknown): RuntimeContextRecord[] {
+  const runtimeContext = resolveRuntimeContext(runtime)
+  const humanInput = getRecord(runtimeContext, 'humanInput')
+  const files = humanInput?.['files']
+  return Array.isArray(files) ? files.filter(isRecord) : []
+}
+
+function buildImportToolMessage(result: ConversationImportResult) {
+  return `Imported ${result.imported} conversation(s)${
+    result.duplicates ? `, skipped ${result.duplicates} duplicate(s)` : ''
+  }${result.skipped.length ? `, ${result.skipped.length} row(s) could not be imported` : ''}. Every one lands as a draft — analysis is not triggered automatically.`
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function fileLabel(file: RuntimeContextRecord): string | undefined {
+  return getString(file['name']) ?? getString(file['originalName']) ?? getString(file['fileName'])
+}
+
+// ------------------------------------------------- WeChat screenshot import (see README §6, TODO.md D)
+//
+// A screenshot attachment does not go through `conversation-import.ts`'s deterministic parsers —
+// there is no fixed structure to parse, the model has to look at the image and reconstruct the
+// dialogue itself. So this tool call does not import anything: it validates and acks, tagging the
+// `ToolMessage` with `CONVERSATION_REVIEW_SCREENSHOT_PENDING_METADATA_KEY` so `wrapModelCall` can
+// detect it on the very next model step and inject the image there (same `image_url` content-block
+// pattern the platform's `view-image` middleware uses). The model then reconstructs the
+// conversation text and calls `conversation_review_import_conversations` a second time with that
+// text as `content` — that second call is the existing, unmodified json import path.
+//
+// Bytes are re-read from `humanInput.files` twice (once here to validate, once in `wrapModelCall`
+// to inject) instead of being cached, because `humanInput.files` is turn-scoped runtime context —
+// unlike `view-image`'s sandbox-path lookups, it should still be readable on the next model call
+// without needing an in-memory batch cache with its own TTL/eviction concerns.
+
+function isScreenshotFileName(name: string | undefined): boolean {
+  if (!name) {
+    return false
+  }
+  const lower = name.trim().toLowerCase()
+  return CONVERSATION_REVIEW_SCREENSHOT_ALLOWED_EXTENSIONS.some((ext) => lower.endsWith(ext))
+}
+
+/** Sniffs PNG/JPEG/WEBP from magic bytes — same three formats `view-image` accepts. */
+function detectScreenshotMimeType(buffer: Buffer): (typeof CONVERSATION_REVIEW_SCREENSHOT_ALLOWED_MIME_TYPES)[number] | null {
+  if (
+    buffer.length >= 8 &&
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47 &&
+    buffer[4] === 0x0d &&
+    buffer[5] === 0x0a &&
+    buffer[6] === 0x1a &&
+    buffer[7] === 0x0a
+  ) {
+    return 'image/png'
+  }
+  if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return 'image/jpeg'
+  }
+  if (
+    buffer.length >= 12 &&
+    buffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
+    buffer.subarray(8, 12).toString('ascii') === 'WEBP'
+  ) {
+    return 'image/webp'
+  }
+  return null
+}
+
+async function resolveScreenshotAttachment(
+  screenshotFiles: RuntimeContextRecord[],
+  otherFileCount: number,
+  workspaceFiles: WorkspaceFilesApi
+): Promise<{ success: boolean; message: string; pendingScreenshot?: boolean }> {
+  if (screenshotFiles.length > CONVERSATION_REVIEW_SCREENSHOT_MAX_IMAGES) {
+    return {
+      success: false,
+      message: `一次最多支持 ${CONVERSATION_REVIEW_SCREENSHOT_MAX_IMAGES} 张截图，本次附加了 ${screenshotFiles.length} 张。请分批发送，或减少截图数量。`
+    }
+  }
+
+  const failures: string[] = []
+  let validCount = 0
+
+  for (const file of screenshotFiles) {
+    const label = fileLabel(file) ?? 'screenshot'
+    try {
+      const resolved = await workspaceFiles.readRuntimeBuffer(file as never)
+      if (resolved.buffer.byteLength > CONVERSATION_REVIEW_SCREENSHOT_MAX_IMAGE_BYTES) {
+        failures.push(`${label}：超过 ${Math.round(CONVERSATION_REVIEW_SCREENSHOT_MAX_IMAGE_BYTES / (1024 * 1024))}MB 大小上限`)
+        continue
+      }
+      if (!detectScreenshotMimeType(resolved.buffer)) {
+        failures.push(`${label}：不是受支持的图片格式（仅支持 PNG/JPEG/WEBP）`)
+        continue
+      }
+      validCount += 1
+    } catch (error) {
+      failures.push(`${label}：${getErrorMessage(error)}`)
+    }
+  }
+
+  if (!validCount) {
+    return {
+      success: false,
+      message: `无法读取附加的截图（${failures.join('；')}）。请重新发送，或使用工作台文件导入。`
+    }
+  }
+
+  return {
+    success: true,
+    pendingScreenshot: true,
+    message:
+      `已加载 ${validCount} 张微信聊天截图${
+        failures.length ? `（另有 ${failures.length} 张读取失败：${failures.join('；')}）` : ''
+      }${otherFileCount ? `。本次只处理截图，另外 ${otherFileCount} 个非图片附件未处理，请单独发送` : ''}` +
+      '。请查看截图内容，按单聊对话重建文本，然后再次调用本工具并传入重建后的 content（JSON 格式）完成导入。'
+  }
+}
+
+/**
+ * Re-reads the same `humanInput.files` reference used to queue the screenshot, this time to build
+ * the `image_url` content blocks for the next model call. Returns `null` whenever there is nothing
+ * to inject — no pending marker, no files, nothing readable — so the caller falls back to a plain
+ * model call rather than surfacing a half-built message.
+ */
+async function resolvePendingScreenshotInjection(
+  messages: unknown[],
+  runtime: unknown,
+  workspaceFiles: WorkspaceFilesApi | undefined
+): Promise<HumanMessage | null> {
+  if (!workspaceFiles || !hasPendingScreenshotMarker(messages)) {
+    return null
+  }
+
+  const files = resolveHumanInputFiles(runtime).filter((file) => isScreenshotFileName(fileLabel(file)))
+  if (!files.length) {
+    return null
+  }
+
+  const items: { fileName: string; mimeType: string; dataUrl: string }[] = []
+  const failures: string[] = []
+
+  for (const file of files.slice(0, CONVERSATION_REVIEW_SCREENSHOT_MAX_IMAGES)) {
+    const label = fileLabel(file) ?? 'screenshot'
+    try {
+      const resolved = await workspaceFiles.readRuntimeBuffer(file as never)
+      if (resolved.buffer.byteLength > CONVERSATION_REVIEW_SCREENSHOT_MAX_IMAGE_BYTES) {
+        failures.push(`${label}：超过大小上限`)
+        continue
+      }
+      const mimeType = detectScreenshotMimeType(resolved.buffer)
+      if (!mimeType) {
+        failures.push(`${label}：不受支持的图片格式`)
+        continue
+      }
+      items.push({
+        fileName: resolved.name || label,
+        mimeType,
+        dataUrl: `data:${mimeType};base64,${resolved.buffer.toString('base64')}`
+      })
+    } catch (error) {
+      failures.push(`${label}：${getErrorMessage(error)}`)
+    }
+  }
+
+  if (!items.length) {
+    return null
+  }
+
+  return new HumanMessage({
+    content: [
+      {
+        type: 'text',
+        text: `以下 ${items.length} 张微信聊天截图已加载：${items.map((item) => item.fileName).join('、')}。${
+          failures.length ? `另有 ${failures.length} 张未能重新读取（${failures.join('；')}），按已加载的截图继续。` : ''
+        }`
+      },
+      ...items.map((item) => ({
+        type: 'image_url' as const,
+        image_url: { url: item.dataUrl, detail: 'low' as const }
+      }))
+    ]
+  })
+}
+
+function hasPendingScreenshotMarker(messages: unknown[]): boolean {
+  const last = messages[messages.length - 1]
+  if (!(last instanceof ToolMessage)) {
+    return false
+  }
+  const metadata = last.metadata
+  return Boolean(
+    metadata &&
+      typeof metadata === 'object' &&
+      (metadata as Record<string, unknown>)[CONVERSATION_REVIEW_SCREENSHOT_PENDING_METADATA_KEY] === true
+  )
+}
+
+/**
+ * Returns `null` when there is nothing to do here (no chat attachment on this turn) so the caller
+ * falls through to the tool's own "no content provided" handler. Returns a result object — success
+ * or not — once an attachment was found, so a resolution failure is reported back to the model
+ * instead of silently falling through to a more confusing error.
+ */
+async function resolveChatAttachmentImport(
+  service: ConversationReviewService,
+  scope: ConversationReviewScope,
+  runtime: unknown,
+  workspaceFiles: WorkspaceFilesApi | undefined
+): Promise<{ success: boolean; message: string; data?: ConversationImportResult; pendingScreenshot?: boolean } | null> {
+  const files = resolveHumanInputFiles(runtime)
+  if (!files.length) {
+    return null
+  }
+  if (!workspaceFiles) {
+    return {
+      success: false,
+      message:
+        'This chat message appears to have a file attached, but reading chat-attachment bytes is not available in this environment. Ask the salesperson to use "选择文件导入" in the workbench instead, or paste the file content directly.'
+    }
+  }
+
+  const screenshotFiles = files.filter((file) => isScreenshotFileName(fileLabel(file)))
+  if (screenshotFiles.length) {
+    return resolveScreenshotAttachment(screenshotFiles, files.length - screenshotFiles.length, workspaceFiles)
+  }
+
+  const results: ConversationImportResult[] = []
+  const failures: string[] = []
+
+  for (const file of files) {
+    const label = getString(file['name']) ?? getString(file['originalName']) ?? getString(file['fileName']) ?? 'attachment'
+    try {
+      const resolved = await workspaceFiles.readRuntimeBuffer(file as never)
+      const fileName = resolved.name || label
+      const format = detectImportFormat(fileName)
+      if (format !== 'json' && format !== 'csv' && format !== 'excel') {
+        failures.push(`${fileName}: unrecognized file type`)
+        continue
+      }
+      const parsed =
+        format === 'excel' ? parseExcelConversations(resolved.buffer) : parseConversations(resolved.buffer.toString('utf8'), format)
+      const imported = await service.importConversations(scope, parsed.rows, `import:${format}`, parsed.skipped)
+      results.push({ ...imported, skipped: labelSkipped(imported.skipped, fileName) })
+    } catch (error) {
+      failures.push(`${label}: ${getErrorMessage(error)}`)
+    }
+  }
+
+  if (!results.length) {
+    return {
+      success: false,
+      message: `Could not read any of the ${files.length} chat attachment(s)${
+        failures.length ? ` (${failures.join('; ')})` : ''
+      }. Ask the salesperson to use the workbench file picker instead, or paste the content directly.`
+    }
+  }
+
+  const merged = mergeImportResults(results)
+  return {
+    success: true,
+    message: `${buildImportToolMessage(merged)}${
+      failures.length ? ` ${failures.length} attachment(s) could not be read: ${failures.join('; ')}.` : ''
+    }`,
+    data: merged
+  }
 }
 
 /**
