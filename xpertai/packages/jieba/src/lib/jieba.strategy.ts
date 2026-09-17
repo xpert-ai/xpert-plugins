@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common'
 import { Jieba } from '@node-rs/jieba'
 import { dict } from '@node-rs/jieba/dict.js'
-import { KeywordAnalyzerStrategy } from './keyword-analyzer.sdk.mock.js'
-import type { IKeywordAnalyzerStrategy } from './keyword-analyzer.sdk.mock.js'
+import { KeywordAnalyzerStrategy } from '@xpert-ai/plugin-sdk'
+import type { IKeywordAnalyzerStrategy } from '@xpert-ai/plugin-sdk'
 
 @Injectable()
 @KeywordAnalyzerStrategy('jieba')
