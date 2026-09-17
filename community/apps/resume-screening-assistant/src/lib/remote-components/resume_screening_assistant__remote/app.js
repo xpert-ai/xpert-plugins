@@ -84,6 +84,7 @@
       sourceName: '',
       rawText: ''
     })
+    const [fileImportStatus, setFileImportStatus] = React.useState(null)
     const [xpertId, setXpertId] = React.useState('')
 
     React.useEffect(() => {
@@ -171,6 +172,39 @@
         notify('success', '简历已添加')
         await reload(selectedJobId)
       } catch (error) {
+        notify('error', getErrorMessage(error))
+      } finally {
+        setBusy(false)
+      }
+    }
+
+    async function importResumeFiles(event) {
+      const files = Array.from(event.target.files || [])
+      event.target.value = ''
+      if (!selectedJobId || !files.length) return
+      setBusy(true)
+      setFileImportStatus(`正在解析 ${files.length} 个文件...`)
+      try {
+        let imported = 0
+        for (const file of files) {
+          setFileImportStatus(`正在解析 ${file.name}`)
+          const parsed = await parseResumeFile(file)
+          const response = await executeAction('add_candidate_resume', selectedJobId, {
+            jobId: selectedJobId,
+            sourceName: parsed.sourceName,
+            rawText: parsed.rawText
+          }, { jobId: selectedJobId })
+          const result = getResponsePayload(response)
+          if (result && result.success === false) {
+            throw new Error(resolveMessage(result.message) || `保存 ${file.name} 失败`)
+          }
+          imported += 1
+        }
+        notify('success', `已导入 ${imported} 份简历`)
+        setFileImportStatus(`已导入 ${imported} 份简历`)
+        await reload(selectedJobId)
+      } catch (error) {
+        setFileImportStatus(getErrorMessage(error))
         notify('error', getErrorMessage(error))
       } finally {
         setBusy(false)
@@ -294,6 +328,13 @@
                 'form',
                 { className: 'rsa-form', onSubmit: addResume },
                 h('h3', null, '添加简历'),
+                h(
+                  'label',
+                  { className: 'rsa-upload' },
+                  h('span', null, '上传 PDF / Word'),
+                  h('input', { type: 'file', accept: '.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document', multiple: true, onChange: importResumeFiles, disabled: busy }),
+                  h('small', null, fileImportStatus || '支持批量选择，解析成功后会创建候选人记录。')
+                ),
                 h('label', { className: 'rsa-field' }, h('span', null, '来源名称'), h('input', { value: resumeForm.sourceName, onChange: (event) => setResumeForm(Object.assign({}, resumeForm, { sourceName: event.target.value })), placeholder: 'candidate-a.txt' })),
                 h('label', { className: 'rsa-field' }, h('span', null, '简历文本'), h('textarea', { value: resumeForm.rawText, onChange: (event) => setResumeForm(Object.assign({}, resumeForm, { rawText: event.target.value })), rows: 9, placeholder: '粘贴候选人简历文本' })),
                 h('button', { type: 'submit', disabled: busy || !resumeForm.rawText.trim() }, '保存简历记录')
@@ -380,6 +421,188 @@
     return error && error.message ? error.message : '操作失败'
   }
 
+  async function parseResumeFile(file) {
+    const buffer = await file.arrayBuffer()
+    const name = file.name || 'resume'
+    const lowerName = name.toLowerCase()
+    let rawText = ''
+
+    if (lowerName.endsWith('.pdf') || file.type === 'application/pdf') {
+      rawText = await extractPdfText(buffer)
+    } else if (
+      lowerName.endsWith('.docx') ||
+      file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ) {
+      rawText = await extractDocxText(buffer)
+    } else if (lowerName.endsWith('.doc') || file.type === 'application/msword') {
+      rawText = extractLegacyWordText(buffer)
+    } else {
+      throw new Error(`${name} 不是支持的 PDF / Word 文件`)
+    }
+
+    const cleaned = normalizeExtractedText(rawText)
+    if (!cleaned) {
+      throw new Error(`${name} 未解析到可用文本，请确认文件不是扫描图片或加密文档`)
+    }
+    return { sourceName: name, rawText: cleaned }
+  }
+
+  async function extractPdfText(buffer) {
+    const bytes = new Uint8Array(buffer)
+    const source = latin1Decode(bytes)
+    const streamTexts = []
+    const streamPattern = /stream\r?\n([\s\S]*?)\r?\nendstream/g
+    let match
+    while ((match = streamPattern.exec(source))) {
+      const streamStart = match.index
+      const dictionary = source.slice(Math.max(0, streamStart - 600), streamStart)
+      const streamBytes = latin1Encode(match[1])
+      if (/FlateDecode/.test(dictionary)) {
+        const inflated = await inflatePdfBytes(streamBytes).catch(() => null)
+        if (inflated) streamTexts.push(latin1Decode(inflated))
+      } else {
+        streamTexts.push(match[1])
+      }
+    }
+    streamTexts.push(source)
+    return streamTexts.map(extractPdfVisibleText).join('\n')
+  }
+
+  function extractPdfVisibleText(text) {
+    const chunks = []
+    const literalPattern = /\((?:\\.|[^\\)])*\)\s*Tj|\[(?:[^\]]|\][^\sT])*?\]\s*TJ/g
+    let match
+    while ((match = literalPattern.exec(text))) {
+      const item = match[0]
+      const strings = item.match(/\((?:\\.|[^\\)])*\)/g) || []
+      if (strings.length) {
+        chunks.push(strings.map((value) => decodePdfLiteral(value.slice(1, -1))).join(''))
+      }
+    }
+    return chunks.join('\n')
+  }
+
+  function decodePdfLiteral(value) {
+    return value
+      .replace(/\\([nrtbf()\\])/g, (_match, token) => {
+        if (token === 'n') return '\n'
+        if (token === 'r') return '\r'
+        if (token === 't') return '\t'
+        if (token === 'b') return '\b'
+        if (token === 'f') return '\f'
+        return token
+      })
+      .replace(/\\([0-7]{1,3})/g, (_match, octal) => String.fromCharCode(parseInt(octal, 8)))
+  }
+
+  async function extractDocxText(buffer) {
+    const file = await readZipFile(buffer, 'word/document.xml')
+    if (!file) {
+      throw new Error('Word 文档缺少 word/document.xml')
+    }
+    const xml = utf8Decode(file)
+    return xml
+      .replace(/<w:tab\/>/g, '\t')
+      .replace(/<\/w:p>/g, '\n')
+      .replace(/<\/w:tr>/g, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
+  }
+
+  function extractLegacyWordText(buffer) {
+    const bytes = new Uint8Array(buffer)
+    const utf16Text = new TextDecoder('utf-16le', { fatal: false }).decode(bytes)
+    const asciiText = latin1Decode(bytes)
+    return [utf16Text, asciiText]
+      .map((text) => text.replace(/[^\x09\x0a\x0d\x20-\x7e\u4e00-\u9fa5，。；：！？、（）《》【】]/g, ' '))
+      .sort((a, b) => b.length - a.length)[0]
+  }
+
+  async function readZipFile(buffer, wantedName) {
+    const bytes = new Uint8Array(buffer)
+    for (let offset = Math.max(0, bytes.length - 22); offset >= 0; offset -= 1) {
+      if (readUint32(bytes, offset) !== 0x06054b50) continue
+      const centralDirectorySize = readUint32(bytes, offset + 12)
+      const centralDirectoryOffset = readUint32(bytes, offset + 16)
+      let cursor = centralDirectoryOffset
+      const end = centralDirectoryOffset + centralDirectorySize
+      while (cursor < end && readUint32(bytes, cursor) === 0x02014b50) {
+        const method = readUint16(bytes, cursor + 10)
+        const compressedSize = readUint32(bytes, cursor + 20)
+        const fileNameLength = readUint16(bytes, cursor + 28)
+        const extraLength = readUint16(bytes, cursor + 30)
+        const commentLength = readUint16(bytes, cursor + 32)
+        const localHeaderOffset = readUint32(bytes, cursor + 42)
+        const fileName = utf8Decode(bytes.slice(cursor + 46, cursor + 46 + fileNameLength))
+        if (fileName === wantedName) {
+          const localNameLength = readUint16(bytes, localHeaderOffset + 26)
+          const localExtraLength = readUint16(bytes, localHeaderOffset + 28)
+          const dataStart = localHeaderOffset + 30 + localNameLength + localExtraLength
+          const compressed = bytes.slice(dataStart, dataStart + compressedSize)
+          if (method === 0) return compressed
+          if (method === 8) return inflateBytes(compressed, 'deflate-raw')
+          throw new Error(`Word 文档压缩方式不支持：${method}`)
+        }
+        cursor += 46 + fileNameLength + extraLength + commentLength
+      }
+      break
+    }
+    return null
+  }
+
+  async function inflatePdfBytes(bytes) {
+    return inflateBytes(bytes, 'deflate').catch(() => inflateBytes(bytes, 'deflate-raw'))
+  }
+
+  async function inflateBytes(bytes, format) {
+    if (typeof DecompressionStream !== 'function') {
+      throw new Error('当前浏览器不支持本地解压缩解析')
+    }
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream(format))
+    return new Uint8Array(await new Response(stream).arrayBuffer())
+  }
+
+  function normalizeExtractedText(text) {
+    return String(text || '')
+      .replace(/\u0000/g, '')
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+  }
+
+  function readUint16(bytes, offset) {
+    return bytes[offset] | (bytes[offset + 1] << 8)
+  }
+
+  function readUint32(bytes, offset) {
+    return (bytes[offset] | (bytes[offset + 1] << 8) | (bytes[offset + 2] << 16) | (bytes[offset + 3] << 24)) >>> 0
+  }
+
+  function utf8Decode(bytes) {
+    return new TextDecoder('utf-8', { fatal: false }).decode(bytes)
+  }
+
+  function latin1Decode(bytes) {
+    let result = ''
+    const chunkSize = 0x8000
+    for (let index = 0; index < bytes.length; index += chunkSize) {
+      result += String.fromCharCode.apply(null, bytes.subarray(index, index + chunkSize))
+    }
+    return result
+  }
+
+  function latin1Encode(text) {
+    const bytes = new Uint8Array(text.length)
+    for (let index = 0; index < text.length; index += 1) {
+      bytes[index] = text.charCodeAt(index) & 0xff
+    }
+    return bytes
+  }
+
   function injectStyles() {
     const style = document.createElement('style')
     style.textContent = `
@@ -404,6 +627,9 @@
 .rsa-mini-actions button { min-height: 28px; padding: 4px 8px; font-size: 12px; }
 .rsa-form { display: grid; gap: 10px; }
 .rsa-field { display: grid; gap: 5px; font-size: 12px; font-weight: 700; }
+.rsa-upload { display: grid; gap: 6px; border: 1px dashed var(--xui-color-border); border-radius: 8px; padding: 10px; font-size: 12px; font-weight: 700; }
+.rsa-upload input { width: 100%; box-sizing: border-box; border: 1px solid var(--xui-color-border); border-radius: 8px; background: var(--xui-color-background); color: var(--xui-color-foreground); padding: 8px; font: inherit; font-weight: 400; }
+.rsa-upload small { color: var(--xui-color-muted-foreground); font-weight: 400; line-height: 1.45; }
 .rsa-field input, .rsa-field textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--xui-color-border); border-radius: 8px; background: var(--xui-color-background); color: var(--xui-color-foreground); padding: 8px 10px; font: inherit; font-weight: 400; resize: vertical; }
 .rsa-field input:focus, .rsa-field textarea:focus { border-color: var(--xui-color-primary); outline: none; }
 .rsa-error { color: var(--xui-color-destructive) !important; }

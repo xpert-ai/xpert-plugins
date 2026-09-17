@@ -7,7 +7,7 @@ Resume Screening Assistant helps recruiters process early-stage candidate screen
 ## 2. First Version Scope
 
 - Create a screening job with title, JD, required skills, nice-to-have skills, minimum years of experience, and screening notes.
-- Add candidate resumes as text records.
+- Add candidate resumes from PDF, Word DOCX/DOC, or pasted text records.
 - Ask the assistant to analyze pending or failed resumes.
 - Save structured resume extraction through middleware tools.
 - Save JD match score, recommendation, missing requirements, risk flags, and interview questions.
@@ -19,7 +19,7 @@ Resume Screening Assistant helps recruiters process early-stage candidate screen
 
 - Full ATS integration.
 - Email, calendar, interview scheduling, or offer workflow.
-- OCR for scanned resumes.
+- OCR for scanned or image-only resumes.
 - Multi-user approval flow.
 - External resume database synchronization.
 
