@@ -1,0 +1,111 @@
+team:
+  name: inspection-assistant
+  type: agent
+  title: 机房/基站巡检与故障处理助手
+  description: 面向通信机房/基站巡检场景，解析故障描述、评估紧急程度、检索历史处理方案并给出处理建议的业务助手
+  avatar:
+    emoji:
+      id: hospital_building
+    background: rgb(207, 250, 254)
+  options:
+    templateKey: inspection-assistant
+    dataXpert:
+      managedBy: data-xpert
+      templateKey: inspection-assistant
+      assistantKind: business-assistant
+      businessDomain: inspection-assistant
+      requiredPlugin: '@xpert-ai/plugin-inspection-assistant'
+      requiredPlugins:
+        - '@xpert-ai/plugin-inspection-assistant'
+      requiredCapabilities:
+        - inspection-assistant
+        - inspection-assistant-workbench
+        - inspection-history-retrieval
+  agentConfig:
+    stateVariables:
+      - name: currentCaseId
+        type: string
+        default: ""
+        description: Current inspection case id selected in the workbench
+        operation: null
+    recursionLimit: 10000
+  features:
+    sandbox:
+      enabled: true
+      provider: docker-sandbox
+  version: "1"
+  agent:
+    key: Agent_InspectionAssistant
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: qwen3.6-plus
+    options:
+      context_size: 1000000
+      temperature: 0.2
+      maxRetries: 6
+      max_tokens: 8192
+      top_p: 0.95
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_InspectionAssistant
+    position:
+      x: 860
+      y: 20
+    entity:
+      key: Agent_InspectionAssistant
+      name: inspection-assistant
+      title: 机房/基站巡检与故障处理助手
+      description: 解析巡检故障描述，检索历史处理方案并给出处理建议
+      avatar:
+        emoji:
+          id: hospital_building
+        background: rgb(207, 250, 254)
+      prompt: >
+        You are Inspection & Fault Handling Assistant, a data-xpert business assistant for telecom
+        site inspection and fault handling. You help O&M engineers turn fault descriptions into
+        structured, reviewable work orders with actionable handling recommendations.
+
+        Work only from explicit inspection case context. Use the caseId supplied by the workbench
+        message or the user-provided case number/caseId. Do not invent case ids, device types,
+        severities, or resolution evidence.
+
+        Fault analysis workflow:
+        1. Read the fault description of the target case.
+        2. Call inspection_analyze_fault to save the structured analysis: deviceType
+           (e.g. BBU, RRU, 传输设备, 动环监控, 天线, 蓄电池组), faultCategory, faultSummary,
+           severity (low/medium/high/critical), impact, and possibleCauses.
+        3. Call inspection_search_history with the deviceType and fault keywords to retrieve
+           similar historical resolution records. If none match, state that no similar history
+           was found and reason from first principles.
+        4. Call inspection_save_recommendation with an actionable, ordered handling plan
+           referencing historyReferenceIds when available. Explain why the steps are chosen.
+        5. If the fault description is too vague to analyze, call inspection_report_failure with
+           a clear reason, then ask the user to provide more detail or retry in the workbench.
+
+        Keep every saved result reviewable. Prefer concise Chinese responses for end users unless
+        they ask otherwise.
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: inspection-assistant-agent-v1
+  - type: workflow
+    key: Middleware_InspectionAssistant
+    position:
+      x: 1160
+      y: 332
+    entity:
+      type: middleware
+      key: Middleware_InspectionAssistant
+      title: Inspection Assistant Tools
+      provider: InspectionMiddleware
+      required: true
+    hash: inspection-assistant-middleware-v1
+connections:
+  - type: workflow
+    key: Agent_InspectionAssistant/Middleware_InspectionAssistant
+    from: Agent_InspectionAssistant
+    to: Middleware_InspectionAssistant
