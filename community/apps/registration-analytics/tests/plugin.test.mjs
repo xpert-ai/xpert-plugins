@@ -51,3 +51,14 @@ test('assistant DSL has a primary agent node graph structure', () => {
   assert.ok(dsl.includes('connections:'), 'dsl must declare connections:')
   assert.ok(dsl.includes('type: middleware'), 'dsl must connect the agent middleware')
 })
+
+test('middleware strategy name matches DSL provider and registered middleware', () => {
+  const template = plugin.templates.find((t) => t.key === 'registration-analytics-assistant')
+  const dsl = template.dslContent
+  const providerMatch = dsl.match(/provider:\s*(\S+)/)
+  assert.ok(providerMatch, 'dsl must declare a middleware provider')
+  const provider = providerMatch[1]
+  assert.equal(provider, 'RegistrationMiddleware', 'DSL provider must match middleware class/strategy name')
+  const meta = plugin.meta.targetAppMeta['data-xpert']
+  assert.ok(meta.runtime.middlewareProviders.includes('RegistrationMiddleware'), 'runtime must register RegistrationMiddleware strategy')
+})
