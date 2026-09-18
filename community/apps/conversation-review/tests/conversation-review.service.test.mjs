@@ -1213,14 +1213,17 @@ describe('carried-over items', () => {
 })
 
 describe('assistant message', () => {
-  it('carries the customer name in plain language and keeps recordId out of the chat bubble', async () => {
+  it('carries the customer name plus a short id badge, and keeps the full recordId out of the chat bubble', async () => {
     const { service } = newService()
     const record = await seedRecord(service, { customerName: '华东制造' })
 
     const { message } = await service.requestAnalysis(SCOPE, record.id)
-    // recordId travels silently via assistant.context.set (see the remote component and
-    // ConversationReviewMiddleware.wrapToolCall), never as text in the visible chat bubble.
+    // The *full* recordId travels silently via assistant.context.set (see the remote component
+    // and ConversationReviewMiddleware.wrapToolCall) — a tool call never needs it spelled out in
+    // the visible chat bubble. The bubble does show a short #XXXXXXXX badge derived from it, so a
+    // salesperson can match this bubble against the record in the workbench's history list.
     assert.doesNotMatch(message, new RegExp(record.id))
+    assert.match(message, new RegExp(`#${record.id.slice(0, 8).toUpperCase()}`))
     assert.match(message, /华东制造/)
     assert.doesNotMatch(message, /重试/, 'a first run must not read as a retry')
     // The required call order, the scorecard rules and the empty-history reassurance are the

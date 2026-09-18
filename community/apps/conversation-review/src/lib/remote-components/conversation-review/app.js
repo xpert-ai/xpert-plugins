@@ -5,10 +5,11 @@
   const ASSISTANT_CHAT_COMMAND_KEY = 'assistant.chat.send_message'
   /**
    * Silent counterpart to ASSISTANT_CHAT_COMMAND_KEY: sets context the Assistant can read without
-   * it ever rendering as a chat bubble. Used to hand the current record's id to the model, so the
-   * visible chat text (built server-side by `buildAnalysisMessage`) never has to spell out
-   * `recordId` for the salesperson to stare at. Mirrors the `docxEditor` / `excalidraw` pattern —
-   * `key` here must match `resolveCurrentRecord`'s lookup in `conversation-review.middleware.ts`.
+   * it ever rendering as a chat bubble. Used to hand the current record's *full* id to the model,
+   * so the visible chat text (built server-side by `buildAnalysisMessage`) never has to spell out
+   * the full `recordId` for a tool call to work — it shows only a short `#XXXXXXXX` badge instead.
+   * Mirrors the `docxEditor` / `excalidraw` pattern — `key` here must match
+   * `resolveCurrentRecord`'s lookup in `conversation-review.middleware.ts`.
    */
   const ASSISTANT_CONTEXT_COMMAND_KEY = 'assistant.context.set'
   const CONVERSATION_REVIEW_CONTEXT_KEY = 'conversationReview'
@@ -1299,11 +1300,14 @@
                         'div',
                         { className: 'cr-customer-group' },
                         h('span', { className: 'cr-customer' }, item.customerName || '未命名客户'),
-                        item.customerId
+                        item.id
                           ? h(
                               'span',
-                              { className: 'cr-customer-id', title: `客户标识：${item.customerId}` },
-                              `#${item.customerId.slice(0, 8).toUpperCase()}`
+                              {
+                                className: 'cr-record-id',
+                                title: `记录标识：${item.id}${item.customerId ? ` ・ 客户标识：${item.customerId}` : ''}`
+                              },
+                              `#${item.id.slice(0, 8).toUpperCase()}`
                             )
                           : null
                       ),
@@ -2433,7 +2437,7 @@
       .cr-list-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
       .cr-customer-group { display: flex; align-items: baseline; gap: 6px; min-width: 0; overflow: hidden; }
       .cr-customer { font-weight: 660; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-      .cr-customer-id { flex: none; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: var(--cr-muted); }
+      .cr-record-id { flex: none; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: var(--cr-muted); }
       .cr-preview { margin: 5px 0 0; color: var(--cr-muted); font-size: 12px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
       .cr-list-meta { display: flex; gap: 10px; margin-top: 8px; color: var(--cr-muted); font-size: 11px; letter-spacing: 0.01em; }
 

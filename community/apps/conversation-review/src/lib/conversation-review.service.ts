@@ -467,22 +467,26 @@ export class ConversationReviewService {
  * The message the workbench forwards into the Assistant chat. The plugin never calls a model
  * itself — the Assistant does, and then writes back through the middleware tools.
  *
- * Deliberately minimal, and deliberately free of `recordId`. The full procedure — required tool
- * call order, the six-dimension scorecard, category enums, the evidence requirement, what
- * carriedOver means — lives once in the assistant's system prompt
- * (`xpert-conversation-review-assistant.yaml`), which every analysis run already carries. This
- * text is what the salesperson sees rendered as a chat bubble, so it stays plain language; the
- * record id instead rides silently on `assistant.context.set` (see the remote component and
- * `ConversationReviewMiddleware.wrapToolCall`), which the tools read when a call omits recordId.
+ * Deliberately minimal. The full procedure — required tool call order, the six-dimension
+ * scorecard, category enums, the evidence requirement, what carriedOver means — lives once in
+ * the assistant's system prompt (`xpert-conversation-review-assistant.yaml`), which every
+ * analysis run already carries. The *full* record id still rides silently on
+ * `assistant.context.set` (see the remote component and `ConversationReviewMiddleware.wrapToolCall`),
+ * which the tools read when a call omits recordId — this text never has to spell that out for the
+ * model. What this text does show the salesperson is a short `#XXXXXXXX` badge (first 8 chars of
+ * `record.id`, uppercased) next to the customer name — the exact same value and format as the
+ * badge on the record's card in the workbench's history list, so a chat bubble can be traced back
+ * to the exact record it's about just by matching the two badges.
  */
 export function buildAnalysisMessage(
   record: ConversationReviewRecord,
   options: { isRetry?: boolean; previousError?: string } = {}
 ) {
+  const customerLabel = record.id
+    ? `「${record.customerName}」（#${record.id.slice(0, 8).toUpperCase()}）`
+    : `「${record.customerName}」`
   return [
-    options.isRetry
-      ? `请重新分析这条与「${record.customerName}」的沟通记录。`
-      : `请对这条与「${record.customerName}」的沟通记录做一次质检与跟进分析。`,
+    options.isRetry ? `请重新分析这条与${customerLabel}的沟通记录。` : `请对这条与${customerLabel}的沟通记录做一次质检与跟进分析。`,
     options.isRetry ? `本次为第 ${record.retryCount ?? 0} 次重试。` : '',
     options.previousError ? `上次失败原因：${options.previousError}` : ''
   ]

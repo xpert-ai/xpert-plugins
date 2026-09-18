@@ -48,7 +48,8 @@ const ASSISTANT_CHAT_COMMAND_KEY = 'assistant.chat.send_message'
 /**
  * Silent counterpart to `assistant.chat.send_message`: sets context the Assistant can read
  * without it ever rendering as a chat bubble. The remote component uses this to hand the current
- * record's id to the model, so `buildAnalysisMessage` never has to put `recordId` in visible text.
+ * record's *full* id to the model, so `buildAnalysisMessage` never has to spell it out in visible
+ * text for a tool call to work — the chat bubble itself only shows a short `#XXXXXXXX` badge.
  */
 const ASSISTANT_CONTEXT_COMMAND_KEY = 'assistant.context.set'
 

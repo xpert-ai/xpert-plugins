@@ -565,8 +565,9 @@ export class ConversationReviewMiddleware implements IAgentMiddlewareStrategy<Re
 //
 // Mirrors the `assistant.context.set` pattern used by docx-editor / excalidraw / story-studio:
 // the remote component hands the current record to the Assistant on a channel that never renders
-// as a chat bubble, so `buildAnalysisMessage` can stay plain language and the salesperson never
-// has to see or supply `recordId`.
+// as a chat bubble, so `buildAnalysisMessage` never has to spell out the full `recordId` for a
+// tool call to work, and the salesperson never has to supply it. The chat bubble itself does show
+// a short `#XXXXXXXX` badge derived from the id, for traceability against the history list.
 
 type RuntimeContextRecord = Record<string, unknown>
 
