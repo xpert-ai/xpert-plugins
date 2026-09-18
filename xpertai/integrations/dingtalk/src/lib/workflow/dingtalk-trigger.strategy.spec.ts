@@ -19,7 +19,12 @@ jest.mock('../dingtalk-channel.strategy.js', () => ({
 	DingTalkChannelStrategy: class DingTalkChannelStrategy {}
 }))
 
+jest.mock('../dingtalk-long-connection.service.js', () => ({
+	DingTalkLongConnectionService: class DingTalkLongConnectionService {}
+}))
+
 import { DingTalkTriggerStrategy } from './dingtalk-trigger.strategy.js'
+import { DingTalkLongConnectionService } from '../dingtalk-long-connection.service.js'
 
 describe('DingTalkTriggerStrategy', () => {
 	function createStrategy(params?: {
@@ -140,8 +145,10 @@ describe('DingTalkTriggerStrategy', () => {
 				return { affected: 1 }
 			})
 		}
+		const longConnection = { connect: jest.fn().mockResolvedValue(undefined), disconnect: jest.fn().mockResolvedValue(undefined) }
 		const pluginContext = {
 			resolve: jest.fn((token: unknown) => {
+				if (token === DingTalkLongConnectionService) return longConnection
 				if (token === 'INTEGRATION_PERMISSION_SERVICE_TOKEN') {
 					return integrationPermissionService
 				}
@@ -161,6 +168,7 @@ describe('DingTalkTriggerStrategy', () => {
 		)
 		return {
 			strategy,
+			longConnection,
 			dispatchService,
 			aggregationService,
 			aggregateLockLease,
@@ -195,7 +203,7 @@ describe('DingTalkTriggerStrategy', () => {
 	})
 
 	it('publishes binding and forwards inbound messages via callback', async () => {
-		const { strategy, dispatchService, bindingRepository, persistedBindings } = createStrategy()
+		const { strategy, dispatchService, bindingRepository, persistedBindings, longConnection } = createStrategy()
 		const callback = jest.fn()
 
 		await strategy.publish(
@@ -218,6 +226,8 @@ describe('DingTalkTriggerStrategy', () => {
 		expect(handled).toBe(true)
 		expect(dispatchService.buildDispatchMessage).toHaveBeenCalledTimes(1)
 		expect(bindingRepository.upsert).toHaveBeenCalledTimes(1)
+		expect(longConnection.connect).toHaveBeenCalledWith('integration-1')
+		expect(bindingRepository.upsert.mock.invocationCallOrder[0]).toBeLessThan(longConnection.connect.mock.invocationCallOrder[0])
 		expect(persistedBindings.get('integration-1')).toEqual({
 			xpertId: 'xpert-1',
 			sessionTimeoutSeconds: 3600,
@@ -230,6 +240,24 @@ describe('DingTalkTriggerStrategy', () => {
 				handoffMessage: expect.objectContaining({ id: 'handoff-id' })
 			})
 		)
+	})
+
+	it('disconnects a stopped trigger only when its binding belongs to the xpert', async () => {
+		const { strategy, longConnection, persistedBindings } = createStrategy({
+			dbBindings: [['integration-1', { xpertId: 'xpert-1' }]]
+		})
+		await strategy.stop({ xpertId: 'other-xpert', config: { integrationId: 'integration-1' } })
+		expect(longConnection.disconnect).not.toHaveBeenCalled()
+		expect(persistedBindings.has('integration-1')).toBe(true)
+		await strategy.stop({ xpertId: 'xpert-1', config: { integrationId: 'integration-1' } })
+		expect(longConnection.disconnect).toHaveBeenCalledWith('integration-1')
+		expect(persistedBindings.has('integration-1')).toBe(false)
+	})
+
+	it('does not connect a disabled trigger', async () => {
+		const { strategy, longConnection } = createStrategy()
+		await strategy.publish({ xpertId: 'xpert-1', config: { enabled: false, integrationId: 'integration-1' } }, jest.fn())
+		expect(longConnection.connect).not.toHaveBeenCalled()
 	})
 
 	it('throws when one integration is bound to different xperts', async () => {

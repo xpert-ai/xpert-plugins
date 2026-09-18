@@ -14,6 +14,9 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import axios from 'axios'
 import express from 'express'
+import { InjectRepository } from '@nestjs/typeorm'
+import type { Repository } from 'typeorm'
+import { DingTalkTriggerBindingEntity } from './entities/dingtalk-trigger-binding.entity.js'
 import { DingTalkConversationService } from './conversation.service.js'
 import { DingTalkChannelStrategy } from './dingtalk-channel.strategy.js'
 import { DINGTALK_PLUGIN_CONTEXT } from './tokens.js'
@@ -121,7 +124,9 @@ export class DingTalkLongConnectionService implements OnModuleInit, OnModuleDest
     @Inject(DINGTALK_PLUGIN_CONTEXT)
     private readonly pluginContext: PluginContext,
     private readonly dingtalkChannel: DingTalkChannelStrategy,
-    private readonly conversation: DingTalkConversationService
+    private readonly conversation: DingTalkConversationService,
+    @InjectRepository(DingTalkTriggerBindingEntity)
+    private readonly bindingRepository: Repository<DingTalkTriggerBindingEntity>
   ) {}
 
   private get integrationPermissionService(): IntegrationPermissionService {
@@ -143,7 +148,9 @@ export class DingTalkLongConnectionService implements OnModuleInit, OnModuleDest
   }
 
   async onModuleInit(): Promise<void> {
-    const integrationIds = await this.loadBootstrapIntegrationIds()
+    const bindings = await this.bindingRepository.find({ select: { integrationId: true } })
+    const published = new Set(bindings.map((binding) => binding.integrationId))
+    const integrationIds = (await this.loadBootstrapIntegrationIds()).filter((id) => published.has(id))
     this.logger.debug(
       `[dingtalk-stream] bootstrapping Stream Mode sessions for integrations: [${integrationIds.join(', ')}]`
     )
@@ -183,6 +190,8 @@ export class DingTalkLongConnectionService implements OnModuleInit, OnModuleDest
   }
 
   async reconnect(integrationId: string): Promise<TDingTalkRuntimeStatus> {
+    const binding = await this.bindingRepository.findOne({ where: { integrationId }, select: { id: true } })
+    if (!binding) return this.disconnect(integrationId)
     const session = this.sessions.get(integrationId)
     if (session) {
       await this.stopSession(session)

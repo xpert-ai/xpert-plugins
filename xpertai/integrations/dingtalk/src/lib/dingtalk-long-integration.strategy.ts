@@ -8,6 +8,8 @@ import {
   TIntegrationStrategyParams
 } from '@xpert-ai/plugin-sdk'
 import { DingTalkLongConnectionService } from './dingtalk-long-connection.service.js'
+import { beginDingTalkQrAuthorization, pollDingTalkQrAuthorization } from './dingtalk-qr-authorization.js'
+import { z } from 'zod'
 import { DingTalkClient } from './dingtalk.client.js'
 import {
   DINGTALK_APP_CREDENTIALS_HELP_LABEL,
@@ -43,6 +45,7 @@ export class DingTalkLongIntegrationStrategy implements IntegrationStrategy<TInt
     },
     webhook: false,
     enterpriseH5: DINGTALK_ENTERPRISE_H5_CAPABILITY,
+    setup: { qrAuthorization: true },
     helpUrl: DINGTALK_APP_CREDENTIALS_HELP_URL,
     helpLabel: DINGTALK_APP_CREDENTIALS_HELP_LABEL,
     schema: {
@@ -140,6 +143,19 @@ export class DingTalkLongIntegrationStrategy implements IntegrationStrategy<TInt
       externalOrganizationId: corpId,
       clientConfig: { clientId, corpId }
     }
+  }
+
+  beginQrAuthorization() {
+    return beginDingTalkQrAuthorization()
+  }
+
+  pollQrAuthorization(deviceCode: string) {
+    return pollDingTalkQrAuthorization(deviceCode)
+  }
+
+  getQrAuthorizationIdentity(options: unknown): string | null {
+    const parsed = z.object({ clientId: z.string().trim().min(1) }).safeParse(options)
+    return parsed.success ? parsed.data.clientId : null
   }
 
   async onUpdate(

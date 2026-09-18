@@ -1,4 +1,10 @@
 import axios from 'axios'
+import type { Repository } from 'typeorm'
+import { DingTalkTriggerBindingEntity } from './entities/dingtalk-trigger-binding.entity.js'
+
+jest.mock('./entities/dingtalk-trigger-binding.entity.js', () => ({
+  DingTalkTriggerBindingEntity: class DingTalkTriggerBindingEntity {}
+}))
 
 jest.mock('@xpert-ai/contracts', () => ({}))
 
@@ -30,6 +36,11 @@ import { INTEGRATION_DINGTALK_LONG } from './types.js'
 
 describe('DingTalkLongConnectionService', () => {
   const mockedAxios = axios as jest.Mocked<typeof axios>
+  const bindingRepository = {
+    find: jest.fn().mockResolvedValue([{ integrationId: 'integration-long' }]),
+    findOne: jest.fn().mockResolvedValue(null)
+  }
+  const repository = bindingRepository as unknown as Repository<DingTalkTriggerBindingEntity>
 
   function createRedisMock(initialMembers: string[] = [], initialHashes: Record<string, Record<string, string>> = {}) {
     const sets = new Map<string, Set<string>>()
@@ -91,8 +102,21 @@ describe('DingTalkLongConnectionService', () => {
 
   afterEach(() => {
     jest.clearAllMocks()
-    const service = new DingTalkLongConnectionService({} as any, {} as any, {} as any)
+    const service = new DingTalkLongConnectionService({} as any, {} as any, {} as any, repository)
     ;(service as any).socketRegistry.clear()
+  })
+
+  it('does not start an unbound robot when its saved credentials change', async () => {
+    type Dependencies = ConstructorParameters<typeof DingTalkLongConnectionService>
+    const service = new DingTalkLongConnectionService({} as Dependencies[0], {} as Dependencies[1], {} as Dependencies[2], repository)
+    const connect = jest.spyOn(service, 'connect')
+    const disconnect = jest.spyOn(service, 'disconnect').mockResolvedValue({
+      integrationId: 'unbound', connectionMode: 'long_connection', connected: false, state: 'idle',
+      lastConnectedAt: null, lastDisconnectedAt: null, lastError: null, reconnectAttempts: 0, lastCallbackAt: null
+    })
+    await service.reconnect('unbound')
+    expect(connect).not.toHaveBeenCalled()
+    expect(disconnect).toHaveBeenCalledWith('unbound')
   })
 
   it('registers robot and card Stream subscriptions as callbacks', async () => {
@@ -103,7 +127,7 @@ describe('DingTalkLongConnectionService', () => {
       }
     } as any)
 
-    const service = new DingTalkLongConnectionService({} as any, {} as any, {} as any)
+    const service = new DingTalkLongConnectionService({} as any, {} as any, {} as any, repository)
     const connectUrl = await (service as any).getConnectUrl('client-id', 'client-secret')
 
     expect(connectUrl).toBe('wss://stream.dingtalk.example/connect?ticket=stream-ticket')
@@ -143,6 +167,7 @@ describe('DingTalkLongConnectionService', () => {
           items:
             where.provider === INTEGRATION_DINGTALK_LONG
               ? [
+                  { id: 'integration-unbound', provider: INTEGRATION_DINGTALK_LONG, options: { clientId: 'client-id', clientSecret: 'client-secret' } },
                   {
                     id: 'integration-long',
                     provider: INTEGRATION_DINGTALK_LONG,
@@ -165,7 +190,7 @@ describe('DingTalkLongConnectionService', () => {
         throw new Error(`Unexpected token: ${String(token)}`)
       })
     }
-    const service = new DingTalkLongConnectionService(pluginContext as any, {} as any, {} as any)
+    const service = new DingTalkLongConnectionService(pluginContext as any, {} as any, {} as any, repository)
     jest.spyOn(service, 'connect').mockResolvedValue({
       integrationId: 'integration-long',
       connectionMode: 'long_connection',
@@ -187,6 +212,7 @@ describe('DingTalkLongConnectionService', () => {
       relations: ['tenant']
     })
     expect(service.connect).toHaveBeenCalledWith('integration-long')
+    expect(service.connect).not.toHaveBeenCalledWith('integration-unbound')
   })
 
   it('does not block module initialization while restoring Stream sessions', async () => {
@@ -221,7 +247,7 @@ describe('DingTalkLongConnectionService', () => {
         throw new Error(`Unexpected token: ${String(token)}`)
       })
     }
-    const service = new DingTalkLongConnectionService(pluginContext as any, {} as any, {} as any)
+    const service = new DingTalkLongConnectionService(pluginContext as any, {} as any, {} as any, repository)
     jest.spyOn(service, 'connect').mockReturnValue(new Promise(() => undefined))
 
     const result = await Promise.race([
@@ -249,7 +275,7 @@ describe('DingTalkLongConnectionService', () => {
         throw new Error(`Unexpected token: ${String(token)}`)
       })
     }
-    const service = new DingTalkLongConnectionService(pluginContext as any, {} as any, {} as any)
+    const service = new DingTalkLongConnectionService(pluginContext as any, {} as any, {} as any, repository)
     jest.spyOn(service, 'connect').mockResolvedValue({
       integrationId: 'integration-long',
       connectionMode: 'long_connection',
@@ -292,7 +318,7 @@ describe('DingTalkLongConnectionService', () => {
         throw new Error(`Unexpected token: ${String(token)}`)
       })
     }
-    const service = new DingTalkLongConnectionService(pluginContext as any, {} as any, {} as any)
+    const service = new DingTalkLongConnectionService(pluginContext as any, {} as any, {} as any, repository)
     jest.spyOn(service as any, 'startSession').mockResolvedValue(undefined)
 
     await service.connect('integration-long')
@@ -321,7 +347,7 @@ describe('DingTalkLongConnectionService', () => {
         throw new Error(`Unexpected token: ${String(token)}`)
       })
     }
-    const service = new DingTalkLongConnectionService(pluginContext as any, {} as any, {} as any)
+    const service = new DingTalkLongConnectionService(pluginContext as any, {} as any, {} as any, repository)
 
     await expect(service.status('integration-long')).resolves.toEqual({
       integrationId: 'integration-long',
@@ -361,7 +387,7 @@ describe('DingTalkLongConnectionService', () => {
         throw new Error(`Unexpected token: ${String(token)}`)
       })
     }
-    const service = new DingTalkLongConnectionService(pluginContext as any, {} as any, {} as any)
+    const service = new DingTalkLongConnectionService(pluginContext as any, {} as any, {} as any, repository)
     jest.spyOn(service as any, 'getConnectUrl').mockResolvedValue('wss://stream.dingtalk.example/connect')
     jest.spyOn(service as any, 'openWebSocket').mockResolvedValue(createSocket())
 
@@ -386,7 +412,7 @@ describe('DingTalkLongConnectionService', () => {
   })
 
   it('closes stale registered sockets before opening a new Stream session', async () => {
-    const service = new DingTalkLongConnectionService({} as any, {} as any, {} as any)
+    const service = new DingTalkLongConnectionService({} as any, {} as any, {} as any, repository)
     const staleSocket = createSocket()
     const freshSocket = createSocket()
     const session = {
@@ -417,7 +443,7 @@ describe('DingTalkLongConnectionService', () => {
   })
 
   it('disconnects all registered Stream sockets on module destroy', async () => {
-    const service = new DingTalkLongConnectionService({} as any, {} as any, {} as any)
+    const service = new DingTalkLongConnectionService({} as any, {} as any, {} as any, repository)
     const socket = createSocket()
 
     ;(service as any).registerSocket('integration-long', socket)
