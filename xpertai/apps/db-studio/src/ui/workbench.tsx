@@ -1,3 +1,4 @@
+import { PlanChatReview } from './plan-chat-review'
 import { policyInput } from '../lib/policy-input'
 import { CaptureSnapshotButton, SnapshotComparison } from './schema-snapshots'
 import { Button, ControlInput, SelectField, Table, SelectOption } from './controls'
@@ -76,54 +77,6 @@ const sqlPreview = (item: SavedRecord): string => {
     return trimmed.replace(/\s+/g, ' ').slice(0, 140)
   }
   return ''
-}
-/** Plan approval failures carry terse backend codes; map them to actionable guidance. */
-const PLAN_ERROR_TEXT: Record<string, { zh: string; en: string }> = {
-  approval_expired: {
-    zh: '审批已过期（计划有效期 30 分钟）：请在右侧对话框重新发起变更指令生成新计划，并在 30 分钟内完成批准与执行。',
-    en: 'Approval expired (30-minute validity). Ask the assistant for a new plan, then approve and execute within 30 minutes.',
-  },
-  plan_expired: {
-    zh: '计划已超过 30 分钟有效期：请重新生成计划，再批准与执行。',
-    en: 'The plan exceeded its 30-minute validity. Generate a new plan, then approve and execute it.',
-  },
-  plan_policy_changed: {
-    zh: '连接执行策略已变更，旧计划已失效。请按当前策略重新生成计划，再批准与执行。',
-    en: 'The connection policy changed, invalidating this plan independently of its 30-minute deadline. Generate a new plan under the current policy, then approve and execute it.',
-  },
-  connection_read_only: {
-    zh: '连接执行策略为只读，审批和预授权均不能绕过。若需写入，请由管理员调整策略后重新生成计划。',
-    en: 'The connection is read-only; neither approval nor preauthorization overrides it. To write, an administrator must change the policy, then a new plan must be generated.',
-  },
-  read_only_test_mode: {
-    zh: '测试模式下不允许审批计划。',
-    en: 'Approvals are disabled while test mode is on.',
-  },
-  data_source_edit_permission_required: {
-    zh: '当前账号缺少数据源编辑权限，无法审批计划。',
-    en: 'The current account lacks data source edit permission.',
-  },
-  plan_not_awaiting_approval: {
-    zh: '计划状态已变化，请刷新操作计划列表后重试。',
-    en: 'The plan status changed. Refresh the operation plans list and retry.',
-  },
-  approval_content_changed: {
-    zh: '计划内容与审批摘要不一致，请重新生成计划。',
-    en: 'Plan content does not match its digest. Regenerate the plan.',
-  },
-  approval_conflict: {
-    zh: '计划已被其他会话更新，请刷新后重试。',
-    en: 'The plan was updated elsewhere. Refresh and retry.',
-  },
-  feature_not_enabled: {
-    zh: '当前助手未启用「数据库变更」能力，无法审批或执行计划。',
-    en: 'The database changes capability is not enabled for this assistant.',
-  },
-}
-const planError = (error: unknown, zh: boolean): Error => {
-  const code = error instanceof Error ? error.message : String(error)
-  const known = PLAN_ERROR_TEXT[code]
-  return new Error(known ? (zh ? known.zh : known.en) : code)
 }
 const STATUS_TEXT: Record<string, { zh: string; en: string }> = {
   saved: { zh: '已保存', en: 'Saved' },
@@ -831,54 +784,10 @@ export function Workbench(props: StudioState) {
                     </p>
                   )
                 })()}
-                <div className="toolbar">
-                  <Button
-                    disabled={testMode || plan.status !== 'awaiting_approval'}
-                    onClick={() =>
-                      void protect(async () => {
-                        try {
-                          refreshPlan(await action('approve_plan', { id: plan.id, digest: plan.payload.digest, approve: false }))
-                        } catch (error) {
-                          throw planError(error, zh)
-                        }
-                      })
-                    }
-                  >
-                    {translate(zh, 'm_39589b77')}
-                  </Button>
-                  <Button
-                    size="sm"
-                    disabled={testMode || plan.status !== 'awaiting_approval'}
-                    onClick={() =>
-                      void protect(async () => {
-                        try {
-                          refreshPlan(await action('approve_plan', { id: plan.id, digest: plan.payload.digest, approve: true }))
-                        } catch (error) {
-                          throw planError(error, zh)
-                        }
-                      })
-                    }
-                  >
-                    {translate(zh, 'm_9f7239b9')}
-                  </Button>
-                  <Button
-                    size="sm"
-                    disabled={testMode || plan.status !== 'ready'}
-                    onClick={() =>
-                      void protect(async () => {
-                        try {
-                          const queued = await action<Plan>('execute_plan', { id: plan.id })
-                          refreshPlan(queued)
-                          setTask(queued)
-                        } catch (error) {
-                          throw planError(error, zh)
-                        }
-                      })
-                    }
-                  >
-                    {translate(zh, 'm_70e140d6')}
-                  </Button>
-                </div>
+                <PlanChatReview plan={plan} zh={zh} disabled={busy || testMode || !canChange}
+                  protect={protect} onRefresh={async () => {
+                    refreshPlan(await requestItem('record', { id: plan.id }))
+                  }} />
                 {plan.payload.receipt != null && <pre>{JSON.stringify(plan.payload.receipt, null, 2)}</pre>}
               </div>
             )}

@@ -22,9 +22,9 @@ const deferred = () => {
 }
 try {
   await writeFile(`${temp}/bridge.cjs`, `
-    const state = {data: async () => ({items: []}), action: async () => ({})};
+    const state = {data: async () => ({items: []}), action: async () => ({}), commands: []};
     module.exports = {state, data: (...args) => state.data(...args), action: (...args) => state.action(...args),
-      command: async () => {}, onHost: () => () => {}, startBridge: () => () => {}, upload: async () => {}};
+      command: async (...args) => {state.commands.push(args)}, onHost: () => () => {}, startBridge: () => () => {}, upload: async () => {}};
   `)
   await writeFile(`${temp}/controls.cjs`, `
     const React = require('react');
@@ -33,7 +33,7 @@ try {
   `)
   await writeFile(`${temp}/charts.cjs`, `exports.ChartPanel = () => null;`)
   await build({
-    entryPoints: ['src/ui/controller.ts', 'src/ui/dashboard.tsx'], outdir: temp, outExtension: { '.js': '.cjs' },
+    entryPoints: ['src/ui/controller.ts', 'src/ui/dashboard.tsx', 'src/ui/plan-chat-review.tsx'], outdir: temp, outExtension: { '.js': '.cjs' },
     bundle: true, platform: 'node', format: 'cjs', packages: 'external', jsx: 'automatic',
     plugins: [{ name: 'test-host', setup(build) {
       for (const [name, file] of [['bridge', 'bridge'], ['controls', 'controls'], ['analysis-panels', 'charts']]) {
@@ -47,6 +47,8 @@ try {
   let studio
   function App() { studio = useStudio(); return null }
   await act(async () => root.render(React.createElement(App)))
+  await act(async () => studio.createConnection())
+  assert.deepEqual(state.commands.pop(), ['platform.data-source.create', {}, { waitForUser: true }])
   const a = { id: 'A', kind: 'plan', revision: 1, status: 'queued', payload: {} }
   const b = { ...a, id: 'B', status: 'awaiting_approval' }
   state.data = async (kind) => kind === 'record' ? { item: { ...a, status: 'succeeded' } } : { items: [b] }
@@ -99,6 +101,22 @@ try {
   assert.ok([...select.options].some((option) => option.value === 'board-51'))
   await act(async () => { select.value = 'board-51'; select.dispatchEvent(new Event('change', { bubbles: true })) })
   assert.ok(document.querySelector('.dashboard-chart')?.textContent.includes('older chart'), 'a dashboard must load referenced charts beyond page one')
+  const { PlanChatReview } = require(`${temp}/plan-chat-review.cjs`)
+  let refreshes = 0
+  const reviewProps = { plan: { id: 'frozen-plan', status: 'awaiting_approval' }, zh: false,
+    disabled: false, protect: async work => work(), onRefresh: async () => { refreshes++ } }
+  await act(async () => root.render(React.createElement(PlanChatReview, reviewProps)))
+  assert.deepEqual([...document.querySelectorAll('button')].map(button => button.textContent), ['Review in chat', 'Refresh status'])
+  await act(async () => [...document.querySelectorAll('button')].find(button => button.textContent === 'Review in chat').click())
+  assert.equal(state.commands.length, 1)
+  assert.equal(state.commands[0][0], 'assistant.chat.send_message')
+  assert.ok(state.commands[0][1].text.includes('frozen-plan'))
+  await act(async () => [...document.querySelectorAll('button')].find(button => button.textContent === 'Refresh status').click())
+  assert.equal(refreshes, 1)
+  await act(async () => root.render(React.createElement(PlanChatReview, { ...reviewProps, disabled: true })))
+  assert.ok([...document.querySelectorAll('button')].find(button => button.textContent === 'Review in chat').disabled)
+  await act(async () => root.render(React.createElement(PlanChatReview, { ...reviewProps, plan: { id: 'frozen-plan', status: 'succeeded' } })))
+  assert.deepEqual([...document.querySelectorAll('button')].map(button => button.textContent), ['Refresh status'])
   console.log('Controller and dashboard DOM regressions passed: polling, navigation, search ordering, collection paging, saved chart restoration.')
 } finally {
   await act(async () => root.unmount())

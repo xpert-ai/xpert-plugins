@@ -1,3 +1,9 @@
+import { StudioViewProvider } from '../src/lib/view.provider.js'
+import { StudioJobs } from '../src/lib/jobs.js'
+import { FEATURES, VIEW } from '../src/lib/constants.js'
+import type { XpertResolvedViewHostContext } from '@xpert-ai/contracts'
+import { Annotation, Command, END, MemorySaver, START, StateGraph } from '@langchain/langgraph'
+import { executeReviewedPlan } from '../src/lib/plan-execution.js'
 import 'reflect-metadata'
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
@@ -430,4 +436,110 @@ test('collection pagination includes every accessible record beyond fifty and ex
   assert.equal(new Set(all.map((item) => item.id)).size, 56)
   assert.ok(all.every((item) => item.userId === scope.userId && item.dataSourceId !== 'denied'))
   assert.deepEqual(await service.list(scope, 'favorite', 2), second.items)
+})
+
+function approvalGraph(service: StudioService, scheduled: string[]) {
+  const state = Annotation.Root({ id: Annotation<string>(), status: Annotation<string>() })
+  return new StateGraph(state)
+    .addNode('execute', async (input) => {
+      const result = await executeReviewedPlan(service, {
+        schedulePlan: async (actor, id) => {
+          scheduled.push(id)
+          return service.executePlan(actor, id)
+        },
+      }, scope, input.id)
+      return { status: result.status }
+    })
+    .addEdge(START, 'execute').addEdge('execute', END)
+    .compile({ checkpointer: new MemorySaver() })
+}
+
+test('ChatKit approval pauses before SQL, resumes the same plan and never replays a completed write', () =>
+  withPermission(async () => {
+    const { service, counters } = fixture()
+    const plan = await service.propose(scope, change()), scheduled: string[] = []
+    const graph = approvalGraph(service, scheduled), config = { configurable: { thread_id: randomUUID() } }
+    await graph.invoke({ id: plan.id }, config)
+    const snapshot = await graph.getState(config)
+    assert.equal(snapshot.tasks[0].interrupts.length, 1)
+    assert.equal(counters.writes, 0)
+    assert.deepEqual(scheduled, [])
+    const completed = await graph.invoke(new Command({ resume: { decisions: [{ type: 'approve' }] } }), config)
+    assert.equal(completed.status, 'succeeded')
+    assert.equal(counters.writes, 1)
+    assert.deepEqual(scheduled, [plan.id])
+    await graph.invoke({ id: plan.id }, config)
+    assert.equal(counters.writes, 1)
+    assert.deepEqual(scheduled, [plan.id])
+  }))
+
+test('ChatKit rejection cancels the plan without submitting a database job', () =>
+  withPermission(async () => {
+    const { service, counters } = fixture(), scheduled: string[] = []
+    const plan = await service.propose(scope, change())
+    const graph = approvalGraph(service, scheduled), config = { configurable: { thread_id: randomUUID() } }
+    await graph.invoke({ id: plan.id }, config)
+    const result = await graph.invoke(new Command({ resume: { decisions: [{ type: 'reject' }] } }), config)
+    assert.equal(result.status, 'cancelled')
+    assert.equal(counters.writes, 0)
+    assert.deepEqual(scheduled, [])
+  }))
+
+test('read-only policies fail before displaying an actionable approval card', () =>
+  withPermission(async () => {
+    const { service, policy, counters } = fixture(), scheduled: string[] = []
+    policy.readOnly = true
+    const plan = await service.propose(scope, change())
+    const graph = approvalGraph(service, scheduled), config = { configurable: { thread_id: randomUUID() } }
+    await assert.rejects(() => graph.invoke({ id: plan.id }, config), /connection_read_only/)
+    assert.equal(counters.writes, 0)
+    assert.ok((await graph.getState(config)).tasks.every((task) => !task.interrupts.length))
+  }))
+
+test('policy changes while awaiting ChatKit approval cannot authorize the old plan', () =>
+  withPermission(async () => {
+    const { service, policy, counters } = fixture(), scheduled: string[] = []
+    const plan = await service.propose(scope, change())
+    const graph = approvalGraph(service, scheduled), config = { configurable: { thread_id: randomUUID() } }
+    await graph.invoke({ id: plan.id }, config)
+    policy.revision++
+    await assert.rejects(() => graph.invoke(new Command({ resume: { decisions: [{ type: 'approve' }] } }), config), /plan_policy_changed/)
+    assert.equal(counters.writes, 0)
+    assert.deepEqual(scheduled, [])
+  }))
+
+test('malformed approval responses cannot silently complete or schedule a plan', () =>
+  withPermission(async () => {
+    const { service, counters } = fixture(), scheduled: string[] = []
+    const plan = await service.propose(scope, change())
+    const graph = approvalGraph(service, scheduled), config = { configurable: { thread_id: randomUUID() } }
+    await graph.invoke({ id: plan.id }, config)
+    await assert.rejects(() => graph.invoke(new Command({ resume: {} }), config), /plan_approval_response_invalid/)
+    assert.equal(counters.writes, 0)
+    assert.deepEqual(scheduled, [])
+  }))
+
+test('workbench cannot approve or execute a plan outside ChatKit', async (t) => {
+  const { service, records, counters } = fixture()
+  const jobs = Object.create(StudioJobs.prototype) as StudioJobs
+  t.mock.method(jobs, 'schedulePlan', async () => { throw new Error('must_not_schedule') })
+  const view = new StudioViewProvider(service, jobs)
+  const context: XpertResolvedViewHostContext = {
+    ...scope, hostType: 'agent', hostId: scope.xpertId, slots: [],
+    capabilities: { features: [FEATURES.explore, FEATURES.changes] },
+  }
+  const manifests = view.getViewManifests(context, 'agent.workbench.main')
+  for (const manifest of manifests) {
+    assert.ok(manifest.clientCommands?.some((command) => command.key === 'platform.data-source.create'))
+    assert.ok(!manifest.clientCommands?.some((command) => command.key === 'db-studio.connections.manage'))
+    assert.ok(!manifest.actions?.some((action) => ['approve_plan', 'execute_plan'].includes(action.key)))
+  }
+  t.mock.method(console, 'error', () => {})
+  for (const key of ['approve_plan', 'execute_plan']) {
+    const result = await view.executeViewAction(context, VIEW, key, { input: { id: randomUUID() } })
+    assert.equal(result.success, false)
+    assert.equal(result.message?.en_US, 'plan_review_in_chat_required')
+  }
+  assert.equal(records.rows.size, 0)
+  assert.equal(counters.writes, 0)
 })

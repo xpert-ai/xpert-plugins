@@ -5,6 +5,7 @@ import { z } from 'zod/v3'
 import { XpertTypeEnum } from '@xpert-ai/contracts'
 import type { XpertPlugin, XpertTemplateContribution } from '@xpert-ai/plugin-sdk'
 import { appConfig } from './lib/app-config.js'
+import { dbStudioPromptWorkflows } from './lib/prompt-workflows.js'
 import { DbStudioPlugin } from './lib/plugin.js'
 import { STUDIO_CONFIG, FEATURES, ICON, MIDDLEWARE, PLUGIN, PROVIDER, TEMPLATE, VIEW, text } from './lib/constants.js'
 const root = dirname(fileURLToPath(import.meta.url))
@@ -29,6 +30,7 @@ export const templates: XpertTemplateContribution[] = [
       '分析当前 SQL 的估算执行计划并提出优化建议',
       '根据已选对象生成数据库文档',
     ],
+    promptWorkflows: dbStudioPromptWorkflows,
     targetAppMeta: {
       'data-xpert': {
         types: ['business-assistant'],

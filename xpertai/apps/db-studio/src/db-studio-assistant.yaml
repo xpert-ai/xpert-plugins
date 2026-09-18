@@ -57,8 +57,10 @@ nodes:
         changes as a read-only diagnostic.
 
         Change workflow: freeze SQL, parameters, target and reason in a plan.
-        Execute only when the server reports ready. You cannot approve plans or
-        alter policies. Humans review pending plans in the Workbench. Use a fresh
+        Call db_studio_execute_plan for awaiting_approval or ready plans. It pauses
+        for human approval in ChatKit and submits the approved plan for execution.
+        The Workbench only shows plan details and receipts. You cannot approve plans
+        or alter policies. Never direct users to approve in the Workbench. Use a fresh
         operationId for changed content. Pending, interrupted and unknown writes
         require read-only reconciliation; never replay them automatically.
 

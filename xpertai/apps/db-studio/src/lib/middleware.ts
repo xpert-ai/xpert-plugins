@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { SystemMessage } from '@langchain/core/messages'
 import { tool } from '@langchain/core/tools'
-import { interrupt } from '@langchain/langgraph'
 import { z } from 'zod/v3'
 import type { TAgentMiddlewareMeta } from '@xpert-ai/contracts'
 import {
@@ -14,8 +13,8 @@ import {
 import { FEATURES, ICON, MIDDLEWARE, text } from './constants.js'
 import { StudioJobs } from './jobs.js'
 import { StudioService } from './studio.service.js'
-import { changeSchema, importSchema, objectSchema, querySchema, targetSchema, type PlanPayload, type StudioScope } from './types.js'
-import { approvalDetails } from './approval.js'
+import { changeSchema, importSchema, objectSchema, querySchema, targetSchema, type StudioScope } from './types.js'
+import { executeReviewedPlan } from './plan-execution.js'
 const selectionSchema = z.object({
   db_studio: z
     .object({ draftId: z.string().uuid(), target: targetSchema, object: objectSchema.nullable().optional() })
@@ -70,31 +69,6 @@ function meta(kind: keyof typeof FEATURES): TAgentMiddlewareMeta {
 }
 const output = (value: unknown) => JSON.stringify(value)
 
-type PlanDecision = { type: 'approve' | 'reject'; message?: string }
-type PlanApprovalResponse = { decisions?: PlanDecision[] }
-
-function requestPlanApproval(plan: {
-  id: string
-  title: string
-  payload: Record<string, unknown>
-}): PlanApprovalResponse {
-  return interrupt<
-    {
-      actionRequests: Array<{ name: string; args: Record<string, unknown>; description: string }>
-      reviewConfigs: Array<{ actionName: string; allowedDecisions: Array<'approve' | 'reject'> }>
-    },
-    PlanApprovalResponse
-  >({
-    actionRequests: [
-      {
-        name: 'db_studio_execute_plan',
-        args: { id: plan.id, ...approvalDetails(plan.payload as PlanPayload) },
-        description: `Confirm database change "${plan.title}" before execution. Review the exact SQL and ordered parameters, or the import table, columns, row count and preview in the action details.`,
-      },
-    ],
-    reviewConfigs: [{ actionName: 'db_studio_execute_plan', allowedDecisions: ['approve', 'reject'] }],
-  })
-}
 @Injectable()
 @AgentMiddlewareStrategy(MIDDLEWARE.explore)
 export class DbStudioExploreMiddleware implements IAgentMiddlewareStrategy<Record<string, never>> {
@@ -222,32 +196,23 @@ export class DbStudioChangesMiddleware implements IAgentMiddlewareStrategy<Recor
     const scope = await this.service.scope(middlewareScope(context))
     return {
       name: MIDDLEWARE.changes,
+      wrapModelCall: async (request, handler) => {
+        const instructions = 'DB Studio approval workflow: freeze changes with db_studio_plan_change (or imports with db_studio_plan_import), then call db_studio_execute_plan with the returned id to request human approval in ChatKit and continue execution. Call execute_plan for awaiting_approval as well as ready plans. For an existing plan ID, reuse that plan instead of creating another one. The Workbench only displays plan details and receipts; never direct the user there to approve or execute. Approval is supplied exclusively by the human interrupt response. A read-only connection, missing permission, expired plan or changed policy cannot be overridden by approval; explain the tool error and do not retry it automatically. A queued job is not a success receipt; check db_studio_plan_status for the actual result.'
+        const current = request.systemMessage
+        const content = typeof current === 'string' ? current : current?.content ?? ''
+        return handler({ ...request, systemMessage: new SystemMessage({
+          content: typeof content === 'string' ? `${content}\n\n${instructions}` : [...content, { type: 'text', text: instructions }],
+        }) })
+      },
       tools: [
         tool(async (input) => output(await this.service.propose(scope, input)), {
           name: 'db_studio_plan_change',
           description:
-            'Freeze one supported mutation, exact target and parameters for policy validation and human review. Reuse operationId only for the same logical plan. Does not execute SQL.',
+            'Freeze one supported mutation, exact target and parameters for policy validation and human review. Reuse operationId only for the same logical plan. Does not execute SQL. Next call db_studio_execute_plan with the returned id to request approval in ChatKit; do not direct the user to the Workbench.',
           schema: changeSchema,
           verboseParsingErrors: true,
         }),
-        tool(async (input) => {
-          const plan = await this.service.record(scope, input.id)
-          if (plan.kind !== 'plan') throw new Error('plan_required')
-          if (plan.status === 'awaiting_approval') {
-            const response = requestPlanApproval({
-              id: plan.id,
-              title: plan.title,
-              payload: plan.payload as unknown as Record<string, unknown>,
-            })
-            const decision = response.decisions?.[0]
-            if (decision?.type === 'reject') {
-              return output(await this.service.approve(scope, plan.id, String((plan.payload as { digest?: string }).digest), false))
-            }
-            if (decision?.type !== 'approve') return output({ status: 'awaiting_approval', id: plan.id })
-            await this.service.approve(scope, plan.id, String((plan.payload as { digest?: string }).digest), true)
-          }
-          return output(await this.jobs.schedulePlan(scope, input.id))
-        }, {
+        tool(async (input) => output(await executeReviewedPlan(this.service, this.jobs, scope, input.id)), {
           name: 'db_studio_execute_plan',
           description:
             'Execute a ready plan. If the plan is awaiting approval, pause with a ChatKit human-in-the-loop confirmation; resume only after approve or reject. Unknown or pending outcomes must be reconciled, not retried.',

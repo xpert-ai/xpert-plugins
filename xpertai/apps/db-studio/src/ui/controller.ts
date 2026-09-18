@@ -277,7 +277,7 @@ export function useStudio() {
     const stamp = generation.current
     try {
       await saveAll()
-      const result = await command('db-studio.connections.manage', {}, { waitForUser: true })
+      const result = await command('platform.data-source.create', {}, { waitForUser: true })
       if (!result || typeof result !== 'object' || !('status' in result) || result.status !== 'created') return
       const response = await data<{ summary: { items: DataSourceSummary[] } }>('bootstrap')
       setSources(response.summary.items)
