@@ -1,4 +1,4 @@
-import type { ChecklistItem, TWorkflowTriggerMeta } from '@xpert-ai/contracts'
+import type { ChecklistItem } from '@xpert-ai/contracts'
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import {
@@ -16,13 +16,14 @@ import {
 import { randomUUID } from 'crypto'
 import { Repository } from 'typeorm'
 import { DingTalkChannelStrategy } from '../dingtalk-channel.strategy.js'
+import { DingTalkLongConnectionService } from '../dingtalk-long-connection.service.js'
 import {
 	DingTalkChatDispatchService,
 	type TDingTalkChatDispatchInput
 } from '../handoff/dingtalk-chat-dispatch.service.js'
 import { ChatDingTalkMessage } from '../message.js'
 import { DINGTALK_PLUGIN_CONTEXT } from '../tokens.js'
-import { DINGTALK_INTEGRATION_SELECT_URL, type DingTalkInboundFile, iconImage } from '../types.js'
+import { DINGTALK_INTEGRATION_SELECT_URL, type DingTalkInboundFile, type TDingTalkTriggerMeta, iconImage } from '../types.js'
 import { DingTalkTriggerBindingEntity } from '../entities/dingtalk-trigger-binding.entity.js'
 import {
 	type DingTalkAggregateLockLease,
@@ -52,8 +53,9 @@ export class DingTalkTriggerStrategy implements IWorkflowTriggerStrategy<TDingTa
 	private _integrationPermissionService: IntegrationPermissionService
 	private _handoffPermissionService: HandoffPermissionService
 
-	readonly meta: TWorkflowTriggerMeta = {
+	readonly meta: TDingTalkTriggerMeta = {
 		name: DingTalkTrigger,
+		quickConnect: { method: 'qr', integrationProvider: 'dingtalk_long', configField: 'integrationId' },
 		label: {
 			en_US: 'DingTalk Trigger',
 			zh_Hans: '钉钉触发器'
@@ -249,14 +251,26 @@ export class DingTalkTriggerStrategy implements IWorkflowTriggerStrategy<TDingTa
 
 		// Keep only runtime callback in memory; integration/xpert binding source of truth is DB.
 		this.callbacks.set(integrationId, callback)
+		await this.pluginContext.resolve(DingTalkLongConnectionService).connect(integrationId)
+	}
+
+	async connectionStatus(config: TDingTalkTriggerConfig) {
+		if (!config?.enabled || !config.integrationId) return { connected: false, state: 'disconnected' as const }
+		const status = await this.pluginContext.resolve(DingTalkLongConnectionService).status(config.integrationId)
+		return {
+			connected: status.connected,
+			state: status.connected ? 'connected' as const : status.state === 'failed' ? 'failed' as const : 'connecting' as const
+		}
 	}
 
 	async stop(payload: TWorkflowTriggerParams<TDingTalkTriggerConfig>): Promise<void> {
 		const { xpertId, config } = payload
 		const integrationId = config?.integrationId
 		if (integrationId) {
+			const owned = await this.getBoundXpertId(integrationId) === xpertId
 			this.callbacks.delete(integrationId)
 			await this.removeBindingFromStore(integrationId, xpertId)
+			if (owned) await this.pluginContext.resolve(DingTalkLongConnectionService).disconnect(integrationId)
 			return
 		}
 
@@ -267,6 +281,7 @@ export class DingTalkTriggerStrategy implements IWorkflowTriggerStrategy<TDingTa
 		})
 		for (const binding of persistedBindings) {
 			this.callbacks.delete(binding.integrationId)
+			await this.pluginContext.resolve(DingTalkLongConnectionService).disconnect(binding.integrationId)
 		}
 		await this.removeBindingsByXpertId(xpertId)
 	}

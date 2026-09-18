@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto'
-import type { TIntegrationProvider } from '@xpert-ai/contracts'
+import type { TIntegrationProvider, TWorkflowTriggerMeta } from '@xpert-ai/contracts'
 
 export const INTEGRATION_DINGTALK = 'dingtalk'
 export const INTEGRATION_DINGTALK_LONG = 'dingtalk_long'
@@ -16,6 +16,15 @@ export type TDingTalkIntegrationProvider = TIntegrationProvider & {
   helpLabel?: typeof DINGTALK_APP_CREDENTIALS_HELP_LABEL
   // Compatibility with hosts preceding the shared QR setup contract.
   setup?: TIntegrationProvider['setup'] & { qrAuthorization?: boolean }
+}
+
+// Keep the plugin buildable with the published SDK before the host QR contract is released.
+export type TDingTalkTriggerMeta = TWorkflowTriggerMeta & {
+  quickConnect: {
+    method: 'qr'
+    integrationProvider: string
+    configField: string
+  }
 }
 
 export const DINGTALK_ENTERPRISE_H5_CAPABILITY = {
