@@ -31,6 +31,14 @@ This plugin is loaded automatically when placed in the plugins directory.
 
 ## Configuration
 
+### QR setup for system integrations
+
+On compatible Xpert hosts, choose **System Integrations > New > DingTalk (Stream Mode) > Scan to create**. Complete DingTalk authorization to create or reuse an integration for the same client ID in the current organization. New integrations keep their name, description and avatar, and credentials remain on the server. This entry does not bind an assistant or activate a trigger. Manual configuration remains available.
+
+The plugin follows DingTalk's device registration `init`, `begin` and `poll` flow using the official connector source `DING_DWS_CLAW`. The `SCANNED` state still awaits authorization. Closing the dialog discards the local pending session; it does not delete a robot already created in DingTalk.
+
+### Manual setup
+
 Choose one of the DingTalk integration providers in the admin panel:
 
 - `DingTalk (Stream Mode)` / `钉钉-Stream模式`: recommended mode. It does not require a public HTTP callback URL.

@@ -14,6 +14,8 @@ export const DINGTALK_APP_CREDENTIALS_HELP_LABEL = {
 
 export type TDingTalkIntegrationProvider = TIntegrationProvider & {
   helpLabel?: typeof DINGTALK_APP_CREDENTIALS_HELP_LABEL
+  // Compatibility with hosts preceding the shared QR setup contract.
+  setup?: TIntegrationProvider['setup'] & { qrAuthorization?: boolean }
 }
 
 export const DINGTALK_ENTERPRISE_H5_CAPABILITY = {
