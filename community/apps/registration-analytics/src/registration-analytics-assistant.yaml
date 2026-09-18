@@ -43,7 +43,8 @@ nodes:
         - 用户不确定有哪些活动时，先调用 registration_list_activities。
         - 用户明确要求保存某个查询时，调用 registration_save_query。
         - 用户想查看历史查询时，调用 registration_list_saved_queries。
-        - 查询失败或条件不完整时，如实说明原因，并请用户补充或换一种问法，不要编造数据。
+        - 查询失败或条件不完整时，如实说明原因，并请用户补充或换一种问法，不要编造数据，也不要反复重试同一个失败的查询。
+        - 每个问题最多调用一次 registration_query；拿到结果后立即用中文总结回答并结束，不要再次调用工具。
         - 给出结论时，用简洁的中文概括关键数字，并提示结果可在"报名问数台"工作台查看。
       collaboratorNames: []
       toolsetIds: []

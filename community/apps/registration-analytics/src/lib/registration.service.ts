@@ -271,21 +271,30 @@ const SUGGESTED_QUESTIONS = [
   '哪个活动报名人数最多？'
 ]
 
-function applyFilters(qb: { andWhere: (condition: string, parameters?: Record<string, unknown>) => unknown }, alias: string, filters?: Array<{ field: string; op: string; value: string | number }>) {
+export function applyFilters(qb: { andWhere: (condition: string, parameters?: Record<string, unknown>) => unknown }, alias: string, filters?: Array<{ field: string; op: string; value: string | number }>) {
   const list = (filters ?? []).filter((f) => f && f.field && f.op !== undefined && f.value !== undefined && f.value !== null && f.value !== '')
   for (let index = 0; index < list.length; index += 1) {
     const filter = list[index]
     const param = `filter_value_${index}`
     const numeric = typeof filter.value === 'number'
+    const textField = isTextField(filter.field)
     switch (filter.op) {
       case 'eq':
-        qb.andWhere(numeric ? `${alias}.${filter.field} = :${param}` : `LOWER(${alias}.${filter.field}) = LOWER(:${param})`, { [param]: filter.value })
+        qb.andWhere(
+          numeric ? `${alias}.${filter.field} = :${param}` : textField ? `LOWER(${alias}.${filter.field}) = LOWER(:${param})` : `${alias}.${filter.field} = :${param}`,
+          { [param]: filter.value }
+        )
         break
       case 'neq':
-        qb.andWhere(numeric ? `${alias}.${filter.field} <> :${param}` : `LOWER(${alias}.${filter.field}) <> LOWER(:${param})`, { [param]: filter.value })
+        qb.andWhere(
+          numeric ? `${alias}.${filter.field} <> :${param}` : textField ? `LOWER(${alias}.${filter.field}) <> LOWER(:${param})` : `${alias}.${filter.field} <> :${param}`,
+          { [param]: filter.value }
+        )
         break
       case 'contains':
-        qb.andWhere(`LOWER(${alias}.${filter.field}) LIKE :${param}`, { [param]: `%${String(filter.value).toLowerCase()}%` })
+        qb.andWhere(textField ? `LOWER(${alias}.${filter.field}) LIKE :${param}` : `${alias}.${filter.field} LIKE :${param}`, {
+          [param]: `%${String(filter.value).toLowerCase()}%`
+        })
         break
       case 'gt':
         qb.andWhere(`${alias}.${filter.field} > :${param}`, { [param]: filter.value })
@@ -303,6 +312,12 @@ function applyFilters(qb: { andWhere: (condition: string, parameters?: Record<st
         break
     }
   }
+}
+
+const NON_TEXT_FIELDS = new Set(['registerTime', 'createdAt', 'updatedAt', 'fee'])
+
+export function isTextField(field: string) {
+  return !NON_TEXT_FIELDS.has(field)
 }
 
 function serializeRecord(record: RegistrationRecord) {
