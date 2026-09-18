@@ -2,6 +2,10 @@
 
 An independent Xpert Agentic App for customer-service specialists and complaint supervisors. It persists a `ComplaintCase`, asks the host Xpert Assistant to produce structured triage recommendations, and keeps the final business decision under human control.
 
+Customer-service staff otherwise read complaint narratives, summarize the issue, decide urgency, draft a reply, and record a disposition manually. This MVP collects those steps around one saved case: AI proposes a consistent seven-field review, while a person edits and confirms the business result. These are intended workflow benefits, not measured customer outcomes.
+
+See [product scope and page wireframes](docs/product.md), [AI collaboration](docs/ai-collaboration.md), and [reference sources and reuse](docs/source-reuse.md). Source: [the submission branch](https://github.com/Darlingair1/xpert-plugins/tree/feat/complaint-triage-workbench/community/apps/complaint-triage-workbench).
+
 ## Business workflow
 
 ```text
@@ -39,6 +43,32 @@ The AI result contains:
 - Assistant Template: binds the `complaint_triage` middleware and the fixed Workbench view.
 
 Business records are isolated by tenant and, when present, organization. The UI reloads records through the host bridge and does not use Web Storage as persistence.
+
+## Real Xpert screenshots
+
+These are real-platform captures using fictitious complaint data, not Remote View Preview mocks. Account surroundings were cropped; business values were not changed. Live acceptance used the locally patched Windows host described below. [Screenshot provenance](docs/evidence/README.md) and [the acceptance record](docs/acceptance.md) distinguish user confirmation, browser observations and automated checks.
+
+### Complaint input and AI triage
+
+The saved POST-PUBLISH-021 complaint and its AI original are visible in PENDING_REVIEW. All seven fields were inspected live; not all fit in this crop.
+
+![Saved complaint input and real AI triage in pending review](docs/evidence/post-publish-pending-review.png)
+
+### Human confirmation and recovery
+
+After saving a human edit, confirming and refreshing, the same case is CONFIRMED and its AI original remains unchanged.
+
+![Same complaint confirmed after reload with AI original preserved](docs/evidence/post-publish-confirmed-reload.png)
+
+The continuation below shows the separately stored human final result, including the edited summary. Its case reference is above the viewport; read it with the preceding capture and execution record.
+
+![Human confirmed result with revised summary after reload](docs/evidence/post-publish-human-final.png)
+
+### Failure and Retry control
+
+The user-provided POST-PUBLISH-025 capture shows FAILED, one attempt, a readable host Copilot-plan error and Retry. It does not prove recovery for this case. Original-case Retry acceptance was separately user-confirmed for RETRY-021; these are not one case's before/after sequence.
+
+![Failed complaint with readable error and Retry action](docs/evidence/failure-post-publish-025.png)
 
 ## Local verification
 
@@ -89,6 +119,16 @@ Build success, Harness success, plugin load success, and business-flow success a
 
 Keep local platform settings in `community/.env`; never commit credentials. This plugin is system-level, so local installation requires a valid `SUPER_ADMIN` platform login JWT. The exact install flow must follow the host repository version in use. After reinstalling a changed plugin, restart the API only when the install response reports `restartRequired: true`, then verify the descriptor version and `loadStatus` before testing the business UI.
 
+Example local connection settings (placeholders only, not model credentials):
+
+```dotenv
+XPERT_API_URL=http://localhost:3000
+XPERT_TOKEN=<SUPER_ADMIN_PLATFORM_LOGIN_JWT>
+XPERT_INSTALL_SCOPE=global
+```
+
+Set model-provider credentials in the host's model configuration and enable a tool-calling Primary Copilot in the demo organization. Do not commit that configuration or real credentials. The system/global installation does not use an organization-id header; the business App is initialized separately in its organization.
+
 At the recorded host SHA, `PluginController.installPlugin` accepts `POST /api/plugin` with this body (replace the absolute directory for your checkout):
 
 ```json
@@ -130,10 +170,10 @@ In an isolated local demo organization, temporarily disable Primary Copilot, ana
 
 ## Delivery boundaries
 
-Submit plugin source, README, acceptance record, baseline SHAs, AI collaboration disclosure, known limitations, and redacted screenshots through the requested upstream-main PR after review. See [PR draft](docs/pull-request.md) and [delivery checklist](docs/delivery.md). Source commit and committed-source verification are complete. Push is blocked by credential-store access and failed escalation review; no successful push or PR creation is claimed. No npm publication or Skills-repository PR was performed. The repository and this package declare AGPL-3.0.
+Submit plugin source, README, acceptance record, baseline SHAs, AI collaboration disclosure, known limitations, and redacted screenshots through the requested upstream-main PR after review. See [PR draft](docs/pull-request.md) and [delivery checklist](docs/delivery.md). Source commit and committed-source verification are complete. The user successfully pushed the Fork branch; GitHub comparison independently showed two commits and 41 App files at the previously verified delivery-doc HEAD 3c9f6a8ed949b692dd1d21fdb88c4fe1b129daf4. The earlier credential-store/approval failure is historical. The PR form has been prepared, but no PR has been created. This documentation follow-up does not change executable inputs; its submission SHA must be recorded after commit. No npm publication or Skills-repository PR was performed. The repository and this package declare AGPL-3.0.
 
 Final source review, host compatibility disclosures and the interview demo runbook are in [submission-review.md](docs/submission-review.md).
 
 ## AI-assisted development
 
-AI coding assistance was used for source reconnaissance, implementation, and test drafting. The acceptance evidence remains the repository diff, automated checks, lifecycle Harness result, and the separately recorded real-platform validation; generated code or an AI statement is not treated as proof of runtime success.
+Codex assistance was used for source reconnaissance, implementation, test drafting and delivery. [Representative collaboration decisions](docs/ai-collaboration.md) cover failure propagation, dependency isolation and evidence review. Exact coding-model/provider-model identifiers were not archived and remain a candidate confirmation item; no model name is inferred from a successful reply. The acceptance evidence remains the repository diff, automated checks, lifecycle Harness result, and the separately recorded real-platform validation; generated code or an AI statement is not treated as proof of runtime success.

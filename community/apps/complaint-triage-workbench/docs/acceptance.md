@@ -75,6 +75,12 @@ Redacted screenshots and attribution are in [evidence/README.md](evidence/README
 
 ## Delivery checklist
 
+Follow-up checks at approximately 15:55 on 2026-09-18: the existing independently installed community verification copy rebuilt successfully, all 27 tests passed, and mock-backed lifecycle Harness completed onStart/onStop/shutdown. Its 25 executable/build/test inputs match the active App after CRLF/LF normalization; only delivery Markdown changed. A read-only documentation scan checked 12 Markdown files, 51 local links and four embedded images, with no missing targets, trailing whitespace or common JWT/long sk-key matches. This remains a limited pattern check, not a security audit.
+
+Package dry-run was repeated with an explicit writable cache: npm pack --dry-run --json --ignore-scripts --cache G:/Xpert/.npm-verification-cache. It passed with 80 entries, including all four new reports and runtime/UI/YAML assets, with no dependency/environment/test paths. The initial default-cache attempt failed and was not counted as a pass. No archive was created/published, no model call was made and no host restart was performed.
+
+Delivery follow-up: the user successfully pushed the Fork branch and GitHub comparison showed the expected two commits/41 App files at 3c9f6a8ed949b692dd1d21fdb88c4fe1b129daf4. Earlier push-failure records are historical. README now embeds real screenshots directly and links product/wireframe, AI collaboration and source-reuse reports. No business code, model setting or host configuration was changed. No PR has been created. Stock-host preparation is recorded in [upstream-host-verification.md](upstream-host-verification.md).
+
 - [x] Plugin source, readable architecture/workflow documentation, AI assistance disclosure, limitations, baseline SHAs.
 - [x] Build, automated test, lifecycle Harness, Entity naming results kept separate.
 - [x] User-confirmed real workflow and failure/Retry results attributed explicitly.
@@ -88,6 +94,10 @@ Redacted screenshots and attribution are in [evidence/README.md](evidence/README
 - [x] Separate local host Windows fixes documented; no host-source modifications made this phase or included in the proposed plugin scope.
 - [x] Final scoped source/whitespace/credential-pattern/artifact review completed; latest candidate scan covers 33 text files. Not a comprehensive security review.
 - [x] User authorized Git operations; implementation SHA recorded, exact committed source/config/tests/scripts rehydrated in the disposable workspace and build/27 tests/mock-backed Harness passed.
-- [ ] Push/Fork ref verified and upstream-main PR opened. Push could not access local credential storage; escalation review returned 503 without execution.
+- [x] Fork push verified at the prior delivery-doc HEAD by local tracking ref and GitHub comparison; follow-up commits require their own push verification.
+- [x] Real screenshots directly embedded in README with relative paths and evidence captions.
+- [x] Product scope, retrospective page wireframes, reference licenses/reuse and representative AI collaboration decisions documented.
+- [ ] Exact coding-model/live model identifiers confirmed by candidate; not inferred from replies.
+- [ ] Upstream-main PR opened; the prepared form has not been submitted.
 
-Video and npm publication are not required by the current delivery plan. New local commits were authorized; no reset/rebase/merge or successful remote update was performed.
+Video and npm publication are not required by the current delivery plan. Git operations are user-authorized; the Fork push was completed by the user. No reset/rebase/merge or PR submission was performed in this follow-up.

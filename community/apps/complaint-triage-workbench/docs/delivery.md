@@ -48,6 +48,8 @@ The workspace-wide App storage scanner failed in unrelated Drawio/Story Studio f
 
 ## Final release gate
 
+Current status update: the user pushed the Fork branch successfully, independently confirmed in GitHub comparison (two commits, 41 files, prior HEAD 3c9f6a8ed949b692dd1d21fdb88c4fe1b129daf4). Earlier credential/approval failures are historical. The prepared PR form is not an opened PR. This documentation follow-up does not alter executable inputs.
+
 - [x] Published main prompt synchronized; new ordinary-chat behavior and post-publish normal business flow checked.
 - [x] Single-package isolated install, build, tests, and mock-backed Harness completed.
 - [x] Fresh community-workspace installation and Complaint-targeted build/tests/Harness verified.
@@ -58,7 +60,11 @@ The workspace-wide App storage scanner failed in unrelated Drawio/Story Studio f
 - [x] Corrected single-package isolated install/build, 27 tests and mock-backed Harness passed; broader workspace/platform installation is outside this result.
 - [x] Lifecycle Harness rerun using repository instructions with host mocks; passed.
 - [x] User authorized commit/push/PR; implementation commit SHA recorded and exact committed inputs rebuilt/tested with mock-backed Harness.
-- [ ] Push to Fork completed and verified; PR created targeting upstream main. Currently blocked by local credential access and approval-review HTTP 503; no bypass attempted.
+- [x] Prior Fork push completed and verified; any documentation follow-up must be pushed and verified separately.
+- [x] README directly embeds the existing real screenshots; product, page wireframes, AI collaboration and source reuse are documented.
+- [ ] Exact coding-model and business provider/model identifiers confirmed by candidate without exposing credentials.
+- [ ] Stock-host verification completed or recruiter acceptance recorded; [preparation and user handoff](upstream-host-verification.md).
+- [ ] PR created targeting upstream main; current form is prepared but not submitted.
 
 No npm release, video, extra Skills PR, complex RBAC, multi-agent orchestration, RAG, or channel integration is required for this delivery.
 

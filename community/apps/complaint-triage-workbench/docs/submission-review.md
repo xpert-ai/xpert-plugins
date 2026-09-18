@@ -16,7 +16,9 @@ Date: 2026-09-18, Asia/Shanghai. Plugin 0.2.1; implementation committed at `4a11
 | Fresh community workspace, Complaint target | Passed | User installation, filtered build, 27 tests, mock-backed Harness and asset checks; not all workspace packages |
 | Unmodified upstream host | Not verified | Live checks used local Windows compatibility patches |
 | Exact implementation commit | Verified | 4a115e6f398a1e6f16494c895ec0f8b0493293be; rebuilt, 27 tests and mock-backed Harness passed |
-| Fork push / upstream PR | Blocked | Credential store inaccessible; escalation-review 503 prevented retry; no successful push or opened PR claimed |
+| Fork push | Passed for prior HEAD | User push and GitHub comparison verified 3c9f6a8ed949b692dd1d21fdb88c4fe1b129daf4, two commits/41 files; documentation follow-up requires separate verification |
+| README delivery | Documentation gap closed | Direct relative-path screenshots, product/wireframes, reuse/license and representative AI collaboration; exact model identifiers still need candidate confirmation |
+| Upstream PR | Not submitted | Form prepared; stock-host gate still open |
 
 ## Source review
 
@@ -76,7 +78,7 @@ Current checks: source candidate list reviewed; no dist, node_modules, environme
 
 Latest package dry-run passed with 76 entries and explicitly includes both review/verification reports, runtime JS, Assistant YAML and UI JS/CSS; environment, dependency and test paths are excluded. No tarball was created or published. Candidate source review covers 41 files, including 33 text files and eight screenshots. A clean scan is not a guarantee against every secret or privacy format.
 
-Submission target: origin Darlingair1/xpert-plugins, feat/complaint-triage-workbench -> upstream xpert-ai/xpert-plugins, main. Commit is complete; push/PR are still pending. No npm release, Skills PR or additional product feature is planned.
+Submission target: origin Darlingair1/xpert-plugins, feat/complaint-triage-workbench -> upstream xpert-ai/xpert-plugins, main. Prior commit/push is complete; this documentation follow-up needs separate commit/push verification. The upstream PR has not been submitted. No npm release, Skills PR or additional product feature is planned.
 
 ## Authorized Git execution and committed-source verification
 
@@ -86,7 +88,7 @@ Commit ZIP was extracted to `G:\Xpert\complaint-committed-source-4a115e6f\repo`.
 
 Push attempt using corrected shell and noninteractive credentials failed with inability to persist credentials in wincredman and terminal prompts disabled. Escalation request for the same Fork push returned approval-service HTTP 503; it was not executed. No credential was printed, no force push was attempted, and no alternate network path bypassed approval. GitHub CLI is not installed. No remote-main freshness check or PR creation was possible in this execution.
 
-The user can complete the pending push from their own authenticated terminal:
+The initial push blockage below is historical: the user later pushed successfully and the GitHub comparison verified the prior HEAD. If an additional scoped documentation commit cannot be pushed by the agent, the same authenticated user-terminal command can publish it without force:
 
 ```powershell
 Set-Location 'G:\Xpert\xpert-plugins'
@@ -94,3 +96,11 @@ git -c safe.directory=G:/Xpert/xpert-plugins push -u origin feat/complaint-triag
 ```
 
 Authenticate through Git's normal account flow if prompted; do not share a personal access token in chat. After successful push, verify the Fork branch SHA, check current upstream main without rewriting local history, and create/check the upstream-main PR using the draft. Authorization is already granted, but a remote success must be observed before claiming submission complete.
+
+## Delivery follow-up and independent-host handoff
+
+README now directly embeds the existing real input/AI/confirmed/failure screenshots. New product.md, ai-collaboration.md and source-reuse.md document intended user pain, retrospective page wireframes, scope decisions, representative Codex collaboration and source/license boundaries. No new business source/test/config input was changed. Exact coding-model/provider-model identifiers were not recorded and require candidate confirmation.
+
+Read-only Docker and WSL inventory checks failed for the agent account with access denied; both escalated checks failed at the approval service with HTTP 503 and were not executed. No container, host configuration, model or active data was changed. The candidate's own terminal inventory and the source-based stock-host verification boundary are in [upstream-host-verification.md](upstream-host-verification.md). Do not replace this remaining gate with a published latest image or label the old local-patch acceptance as a stock-host pass.
+
+Follow-up verification at approximately 15:55: the existing fresh-community copy rebuilt, passed 27/27 tests and completed mock-backed lifecycle shutdown. Its 25 executable/build/test inputs match current source after line-ending normalization. Documentation link/image and scoped credential-pattern checks passed. Package dry-run with a writable verification cache passed with 80 entries including the four added reports; no package was published. These checks do not close stock-host or model-identity confirmation.

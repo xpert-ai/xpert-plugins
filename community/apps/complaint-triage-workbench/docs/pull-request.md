@@ -37,7 +37,9 @@ Exact commands, baselines, limitations, and evidence attribution are in README.m
 - Fresh community ZIP-copy Complaint verification passed after user installation: filtered build, 27 tests, mock-backed lifecycle and asset checks. Nested pnpm settings are ignored, but existing root dependencies satisfy tested import paths without metadata changes. Workspace peer warnings and earlier failed attempts remain disclosed. Evidence: docs/workspace-verification.md.
 - Unmodified-host behavior remains a separate verification gate; see docs/submission-review.md. Do not claim a build/test pass for all workspace packages or full upstream compatibility.
 - Verified implementation SHA: 4a115e6f398a1e6f16494c895ec0f8b0493293be. Exact committed source/config/tests/scripts were rebuilt in the disposable community workspace; build, 27 tests and mock-backed Harness passed. Follow-up delivery documentation does not change executable inputs.
-- Fork push is pending: local credential storage was inaccessible and escalation review returned 503 without execution. No remote branch update or PR creation has been verified; current remote main freshness has not been checked.
+- The user completed the Fork push; GitHub comparison independently showed two expected commits and 41 App files at prior HEAD 3c9f6a8ed949b692dd1d21fdb88c4fe1b129daf4. Earlier credential/approval failures are historical. The documentation follow-up must be separately pushed/verified. No PR has been created; the current prepared form is not a submission.
+- README directly embeds real input/AI/confirmed/failure images with captions and relative paths. Product scope and retrospective wireframes, source/AGPL reuse and representative Codex decisions are in product.md, source-reuse.md and ai-collaboration.md. Exact coding-model/live model IDs remain a candidate disclosure item.
+- Stock-host inventory is blocked for the agent account by Docker/WSL access restrictions and failed approval-service checks; this is not proof of an unavailable candidate environment. See upstream-host-verification.md for the two read-only user checks. No new environment was started or active host altered.
 
 ## Scope and non-goals
 
@@ -51,4 +53,4 @@ AI assistance supported source reconnaissance, implementation, tests, and docume
 
 Head: `Darlingair1/xpert-plugins`, `feat/complaint-triage-workbench`.
 Base: `xpert-ai/xpert-plugins`, `main`.
-Implementation commit and source verification are complete. User authorization covers push/PR, but no successful push or opened PR is claimed. See docs/submission-review.md for continuation details.
+Implementation commit and source verification are complete. User authorization covers Git operations; prior Fork push is verified, the prepared PR is not yet submitted. See docs/submission-review.md and upstream-host-verification.md for remaining gates.
