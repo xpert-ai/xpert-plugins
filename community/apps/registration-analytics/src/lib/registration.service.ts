@@ -114,44 +114,52 @@ export class RegistrationService {
       ? condition.aggregates!.filter((agg) => QUERYABLE_FIELDS.has(agg.field) && agg.op !== undefined)
       : [{ field: 'id', op: 'count' as const }]
 
-    const params: unknown[] = []
-    const where: string[] = []
-    if (scope.tenantId) {
-      where.push(`record."tenantId" = ?`)
-      params.push(scope.tenantId)
-    } else {
-      where.push(`record."tenantId" IS NULL`)
-    }
-    if (scope.organizationId) {
-      where.push(`record."organizationId" = ?`)
-      params.push(scope.organizationId)
-    } else {
-      where.push(`record."organizationId" IS NULL`)
-    }
+    const qb = this.recordRepository.createQueryBuilder('record')
+    applyScopeToQueryBuilder(qb, 'record', scope)
     if (condition.activityId) {
-      where.push(`record."activityId" = ?`)
-      params.push(condition.activityId)
+      qb.andWhere('record.activityId = :activityId', { activityId: condition.activityId })
     }
-    appendFilterSql(where, params, condition.filters)
+    applyFilters(qb, 'record', condition.filters)
 
-    const selectParts: string[] = []
+    // Clear the implicit entity-column selection, otherwise every column of the
+    // entity is added to the SELECT and breaks GROUP BY aggregation queries.
+    qb.select([])
+    const groupAliases = new Map<string, string>()
     for (const field of groupBy) {
-      selectParts.push(`record."${field}" AS "${field}"`)
+      const alias = `group_${field}`
+      groupAliases.set(field, alias)
+      qb.addSelect(`record.${field}`, alias)
+      qb.addGroupBy(`record.${field}`)
     }
+    const aggAliases = new Map<string, string>()
     for (const agg of aggregates) {
+      const key = `${agg.op}(${agg.field})`
+      const alias = `agg_${agg.op}_${agg.field}`
+      aggAliases.set(key, alias)
       if (agg.op === 'count') {
-        selectParts.push(`COUNT(record.id) AS "count(id)"`)
+        qb.addSelect('COUNT(record.id)', alias)
       } else {
-        selectParts.push(`${agg.op.toUpperCase()}(record."${agg.field}") AS "${agg.op}(${agg.field})"`)
+        qb.addSelect(`${agg.op.toUpperCase()}(record.${agg.field})`, alias)
       }
     }
     if (!groupBy.length) {
-      selectParts.push(`COUNT(record.id) AS "count(id)"`)
+      qb.addSelect('COUNT(record.id)', 'agg_count_id')
     }
 
-    const sql = `SELECT ${selectParts.join(', ')} FROM plugin_registration_record record ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ${groupBy.length ? `GROUP BY ${groupBy.map((f) => `record."${f}"`).join(', ')}` : ''}`
-    const rows: Array<Record<string, unknown>> = await this.recordRepository.query(sql, params)
-    return rows
+    const rows = await qb.getRawMany()
+    return rows.map((row) => {
+      const out: Record<string, unknown> = {}
+      for (const field of groupBy) {
+        out[field] = row[groupAliases.get(field)!]
+      }
+      for (const agg of aggregates) {
+        out[`${agg.op}(${agg.field})`] = row[aggAliases.get(`${agg.op}(${agg.field})`)!]
+      }
+      if (!groupBy.length) {
+        out['count(id)'] = row['agg_count_id']
+      }
+      return out
+    })
   }
 
   async queryRegistrations(scope: RegistrationScope, input: RegistrationQueryInput) {
@@ -329,46 +337,6 @@ const QUERYABLE_FIELDS = new Set([
   'createdAt',
   'updatedAt'
 ])
-
-export function appendFilterSql(where: string[], params: unknown[], filters?: Array<{ field: string; op: string; value: string | number }>) {
-  const list = (filters ?? []).filter((f) => f && QUERYABLE_FIELDS.has(f.field) && f.op !== undefined && f.value !== undefined && f.value !== null && f.value !== '')
-  for (const filter of list) {
-    const numeric = typeof filter.value === 'number'
-    const textField = isTextField(filter.field)
-    switch (filter.op) {
-      case 'eq':
-        where.push(numeric ? `record."${filter.field}" = ?` : textField ? `LOWER(record."${filter.field}") = LOWER(?)` : `record."${filter.field}" = ?`)
-        params.push(filter.value)
-        break
-      case 'neq':
-        where.push(numeric ? `record."${filter.field}" <> ?` : textField ? `LOWER(record."${filter.field}") <> LOWER(?)` : `record."${filter.field}" <> ?`)
-        params.push(filter.value)
-        break
-      case 'contains':
-        where.push(textField ? `LOWER(record."${filter.field}") LIKE ?` : `CAST(record."${filter.field}" AS TEXT) LIKE ?`)
-        params.push(`%${String(filter.value).toLowerCase()}%`)
-        break
-      case 'gt':
-        where.push(`record."${filter.field}" > ?`)
-        params.push(filter.value)
-        break
-      case 'gte':
-        where.push(`record."${filter.field}" >= ?`)
-        params.push(filter.value)
-        break
-      case 'lt':
-        where.push(`record."${filter.field}" < ?`)
-        params.push(filter.value)
-        break
-      case 'lte':
-        where.push(`record."${filter.field}" <= ?`)
-        params.push(filter.value)
-        break
-      default:
-        break
-    }
-  }
-}
 
 function serializeRecord(record: RegistrationRecord) {
   return {

@@ -55,18 +55,3 @@ test('applyFilters rejects unknown/injected fields', () => {
   assert.ok(clauses[0].condition.includes('record.status'))
 })
 
-test('appendFilterSql emits positional ? placeholders with array params', () => {
-  const { appendFilterSql } = loadService()
-  const where = []
-  const params = []
-  appendFilterSql(where, params, [
-    { field: 'registerTime', op: 'eq', value: '2026-09-01T00:00:00Z' },
-    { field: 'status', op: 'eq', value: 'confirmed' },
-    { field: 'city', op: 'contains', value: '北' }
-  ])
-  const all = where.join(' ')
-  assert.ok(!all.includes(':'), 'SQL must not contain named : placeholders')
-  assert.ok(all.includes('LOWER(record."status") = LOWER(?)'), 'text eq should use positional ?')
-  assert.ok(!all.includes('LOWER(record."registerTime")'), 'timestamp eq must not use LOWER()')
-  assert.equal(params.length, 3, 'one param per filter')
-})
