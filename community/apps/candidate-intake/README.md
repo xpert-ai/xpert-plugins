@@ -98,4 +98,5 @@ node tools/remote-view-preview/cli.mjs \
 
 - Xpert 平台：`182f2f4a7d05d968016a9ec20a93833687c4394f`
 - xpert-plugins：`03de3fefa289fb32e9f53c967a1427ba07f1be0e`
+- 源码仓库：[xpert-ai/xpert-plugins](https://github.com/xpert-ai/xpert-plugins/tree/main/community/apps/candidate-intake)
 - 许可：AGPL-3.0，与仓库许可保持一致。
