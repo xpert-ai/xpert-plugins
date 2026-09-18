@@ -37,3 +37,20 @@ test('applyFilters does not wrap timestamp columns in LOWER()', () => {
   assert.ok(all.includes('LOWER(record.status)'), 'text eq filter should use LOWER()')
   assert.ok(all.includes('LOWER(record.city) LIKE'), 'text contains filter should use LOWER()')
 })
+
+test('applyFilters rejects unknown/injected fields', () => {
+  const { applyFilters } = loadService()
+  const clauses = []
+  const qb = {
+    andWhere(condition, parameters) {
+      clauses.push({ condition, parameters })
+    }
+  }
+  applyFilters(qb, 'record', [
+    { field: 'id; DROP TABLE x', op: 'eq', value: '1' },
+    { field: '__proto__', op: 'eq', value: 'x' },
+    { field: 'status', op: 'eq', value: 'confirmed' }
+  ])
+  assert.equal(clauses.length, 1, 'only the known field filter should be emitted')
+  assert.ok(clauses[0].condition.includes('record.status'))
+})
