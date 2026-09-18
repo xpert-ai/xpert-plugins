@@ -101,7 +101,7 @@ nodes:
       type: middleware
       key: Middleware_InspectionAssistant
       title: Inspection Assistant Tools
-      provider: InspectionMiddleware
+      provider: inspection-assistant-middleware
       required: true
     hash: inspection-assistant-middleware-v1
 connections:

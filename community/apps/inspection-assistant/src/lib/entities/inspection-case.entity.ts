@@ -67,7 +67,7 @@ export class InspectionCase {
   @Column('varchar', { length: 64, nullable: true })
   resolvedBy: string | null
 
-  @Column('datetime', { nullable: true })
+  @Column('timestamp', { nullable: true })
   resolvedAt: Date | null
 
   @CreateDateColumn()

@@ -36,11 +36,12 @@
     "build": "tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
     "lint": "echo \"(todo) add lint\"",
     "typecheck": "tsc -p tsconfig.spec.json --noEmit",
-    "test": "tsx --test tests/*.test.ts"
+    "test": "tsx --test tests/inspection.service.spec.ts tests/inspection.middleware.spec.ts"
   },
   "xpert": {
     "plugin": {
-      "level": "system"
+      "level": "system",
+      "artifactNamespace": "inspection_assistant"
     }
   },
   "dependencies": {

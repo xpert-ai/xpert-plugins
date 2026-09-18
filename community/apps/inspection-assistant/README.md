@@ -76,11 +76,49 @@ node plugin-dev-harness/dist/index.js --workspace community/apps/inspection-assi
 - 单元测试 14/14 通过（服务层 8 项 + 中间件 6 项）
 - plugin-dev-harness 生命周期：register / Nest 初始化 / onStart / bootstrap / destroy / stop 全部成功
 
+## 真实平台验证（Xpert 开源版 + DeepSeek 真实 AI 调用）
+
+> 部署平台：本地 Docker Compose 运行的 Xpert 开源版（commit `d24ca81b9`，API v3.9.0），
+> 插件安装到 `system:global` 并成功加载，业务表 `plugin_inspection_case` /
+> `plugin_inspection_history_record` 自动建表；助手 `inspection-assistant` 经 DSL 导入创建，
+> 绑定 DeepSeek 模型（`deepseek-v4-pro`，真实 API Key），通过平台聊天接口完成**真实 AI 推理与工具闭环**：
+
+```
+真实对话(SSE) → DeepSeek 推理流(reasoning tokens) → inspection_analyze_fault(保存AI解析)
+→ inspection_search_history(检索历史方案) → inspection_save_recommendation(保存处理建议)
+→ 工单状态 draft→reviewing，AI解析/建议/历史引用全部落库
+```
+
+实测记录（平台 API 流 + 数据库核对）：
+- 真实 AI 调用计费：input 1,789 tokens / output 352 tokens，总价 ¥0.0128（DeepSeek API 计费，非模拟）
+- 工具调用：`inspection_analyze_fault` / `inspection_search_history` / `inspection_save_recommendation` 全部执行成功
+- 落库核对：工单 `INSP-20260918-1001` 状态 `reviewing`，`aiAnalysis`（severity=critical、5 条可能原因）、
+  `recommendedAction`（3 条有序处理建议）、`historyReferences`（1 条历史引用）全部写入
+  `plugin_inspection_case`；历史方案库 `plugin_inspection_history_record` 7 条（种子 6 + 引用）
+- 部署期修复的插件缺陷（已随本 PR 提交）：
+  1. `package.json` test 脚本 Windows 下 glob 不展开 → 显式列出 spec 文件
+  2. 插件缺 `xpert.plugin.artifactNamespace` → 补 `inspection_assistant`
+  3. 实体 `@Column('datetime')` Postgres 不支持 → 改 `@Column('timestamp')`
+  4. Assistant 模板 DSL 的 middleware `provider` 用类名 `InspectionMiddleware`，
+     与 `@AgentMiddlewareStrategy` 注册名不一致导致工具不注入 → 改为 `inspection-assistant-middleware`
+
+### 4. 真实平台：助手创建并绑定 DeepSeek 模型
+
+![真实平台助手](docs/screenshots/04-platform-assistant.png)
+
+### 5. 真实平台：真实 AI 对话与工具调用闭环（SSE 事件流）
+
+![真实AI调用](docs/screenshots/05-platform-real-ai-chat.png)
+
+### 6. 真实平台：工具落库核对（工单 AI 解析/建议/历史引用）
+
+![工具落库](docs/screenshots/06-platform-data-persisted.png)
+
 ## 运行截图（本地验证）
 
 > 以下截图均为本分支真实运行输出（`scripts/demo.mjs` 调用编译产物 `dist/` 完成业务闭环；
-> 测试与生命周期验证使用真实命令执行）。数据为演示数据（内存存储），部署到 Xpert 平台后的
-> 在线运行效果待审阅阶段在真实环境中补充。
+> 测试与生命周期验证使用真实命令执行；数据为演示数据（内存存储）。
+> 真实平台在线运行验证见上文「真实平台验证」章节（截图 4-6）。
 
 ### 1. 业务闭环演示（创建 → AI 解析 → 历史检索 → AI 建议 → 人工确认 → 沉淀 → 失败重试）
 
