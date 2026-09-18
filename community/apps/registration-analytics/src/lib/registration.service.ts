@@ -114,23 +114,23 @@ export class RegistrationService {
       ? condition.aggregates!.filter((agg) => QUERYABLE_FIELDS.has(agg.field) && agg.op !== undefined)
       : [{ field: 'id', op: 'count' as const }]
 
-    const params: Record<string, unknown> = {}
+    const params: unknown[] = []
     const where: string[] = []
     if (scope.tenantId) {
-      where.push(`record."tenantId" = :tenantId`)
-      params.tenantId = scope.tenantId
+      where.push(`record."tenantId" = ?`)
+      params.push(scope.tenantId)
     } else {
       where.push(`record."tenantId" IS NULL`)
     }
     if (scope.organizationId) {
-      where.push(`record."organizationId" = :organizationId`)
-      params.organizationId = scope.organizationId
+      where.push(`record."organizationId" = ?`)
+      params.push(scope.organizationId)
     } else {
       where.push(`record."organizationId" IS NULL`)
     }
     if (condition.activityId) {
-      where.push(`record."activityId" = :activityId`)
-      params.activityId = condition.activityId
+      where.push(`record."activityId" = ?`)
+      params.push(condition.activityId)
     }
     appendFilterSql(where, params, condition.filters)
 
@@ -150,7 +150,7 @@ export class RegistrationService {
     }
 
     const sql = `SELECT ${selectParts.join(', ')} FROM plugin_registration_record record ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ${groupBy.length ? `GROUP BY ${groupBy.map((f) => `record."${f}"`).join(', ')}` : ''}`
-    const rows: Array<Record<string, unknown>> = await this.recordRepository.query(sql, [params])
+    const rows: Array<Record<string, unknown>> = await this.recordRepository.query(sql, params)
     return rows
   }
 
@@ -330,41 +330,39 @@ const QUERYABLE_FIELDS = new Set([
   'updatedAt'
 ])
 
-function appendFilterSql(where: string[], params: Record<string, unknown>, filters?: Array<{ field: string; op: string; value: string | number }>) {
+export function appendFilterSql(where: string[], params: unknown[], filters?: Array<{ field: string; op: string; value: string | number }>) {
   const list = (filters ?? []).filter((f) => f && QUERYABLE_FIELDS.has(f.field) && f.op !== undefined && f.value !== undefined && f.value !== null && f.value !== '')
-  for (let index = 0; index < list.length; index += 1) {
-    const filter = list[index]
-    const param = `filter_value_${index}`
+  for (const filter of list) {
     const numeric = typeof filter.value === 'number'
     const textField = isTextField(filter.field)
     switch (filter.op) {
       case 'eq':
-        where.push(numeric ? `record."${filter.field}" = :${param}` : textField ? `LOWER(record."${filter.field}") = LOWER(:${param})` : `record."${filter.field}" = :${param}`)
-        params[param] = filter.value
+        where.push(numeric ? `record."${filter.field}" = ?` : textField ? `LOWER(record."${filter.field}") = LOWER(?)` : `record."${filter.field}" = ?`)
+        params.push(filter.value)
         break
       case 'neq':
-        where.push(numeric ? `record."${filter.field}" <> :${param}` : textField ? `LOWER(record."${filter.field}") <> LOWER(:${param})` : `record."${filter.field}" <> :${param}`)
-        params[param] = filter.value
+        where.push(numeric ? `record."${filter.field}" <> ?` : textField ? `LOWER(record."${filter.field}") <> LOWER(?)` : `record."${filter.field}" <> ?`)
+        params.push(filter.value)
         break
       case 'contains':
-        where.push(textField ? `LOWER(record."${filter.field}") LIKE :${param}` : `CAST(record."${filter.field}" AS TEXT) LIKE :${param}`)
-        params[param] = `%${String(filter.value).toLowerCase()}%`
+        where.push(textField ? `LOWER(record."${filter.field}") LIKE ?` : `CAST(record."${filter.field}" AS TEXT) LIKE ?`)
+        params.push(`%${String(filter.value).toLowerCase()}%`)
         break
       case 'gt':
-        where.push(`record."${filter.field}" > :${param}`)
-        params[param] = filter.value
+        where.push(`record."${filter.field}" > ?`)
+        params.push(filter.value)
         break
       case 'gte':
-        where.push(`record."${filter.field}" >= :${param}`)
-        params[param] = filter.value
+        where.push(`record."${filter.field}" >= ?`)
+        params.push(filter.value)
         break
       case 'lt':
-        where.push(`record."${filter.field}" < :${param}`)
-        params[param] = filter.value
+        where.push(`record."${filter.field}" < ?`)
+        params.push(filter.value)
         break
       case 'lte':
-        where.push(`record."${filter.field}" <= :${param}`)
-        params[param] = filter.value
+        where.push(`record."${filter.field}" <= ?`)
+        params.push(filter.value)
         break
       default:
         break
