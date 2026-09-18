@@ -48,7 +48,7 @@ try {
   function App() { studio = useStudio(); return null }
   await act(async () => root.render(React.createElement(App)))
   await act(async () => studio.createConnection())
-  assert.deepEqual(state.commands.pop(), ['db-studio.connections.manage', {}, { waitForUser: true }])
+  assert.deepEqual(state.commands.pop(), ['platform.data-source.create', {}, { waitForUser: true }])
   const a = { id: 'A', kind: 'plan', revision: 1, status: 'queued', payload: {} }
   const b = { ...a, id: 'B', status: 'awaiting_approval' }
   state.data = async (kind) => kind === 'record' ? { item: { ...a, status: 'succeeded' } } : { items: [b] }

@@ -530,8 +530,8 @@ test('workbench cannot approve or execute a plan outside ChatKit', async (t) => 
   }
   const manifests = view.getViewManifests(context, 'agent.workbench.main')
   for (const manifest of manifests) {
-    assert.ok(manifest.clientCommands?.some((command) => command.key === 'db-studio.connections.manage'))
-    assert.ok(!manifest.clientCommands?.some((command) => command.key === 'platform.data-source.create'))
+    assert.ok(manifest.clientCommands?.some((command) => command.key === 'platform.data-source.create'))
+    assert.ok(!manifest.clientCommands?.some((command) => command.key === 'db-studio.connections.manage'))
     assert.ok(!manifest.actions?.some((action) => ['approve_plan', 'execute_plan'].includes(action.key)))
   }
   t.mock.method(console, 'error', () => {})

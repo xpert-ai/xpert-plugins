@@ -123,7 +123,7 @@ export class StudioViewProvider implements IXpertViewExtensionProvider {
         clientCommands: [
           { key: 'assistant.context.set', label: text('Select database context', '选择数据库上下文') },
           { key: 'assistant.chat.send_message', label: text('Ask Agent', '询问智能体') },
-          { key: 'db-studio.connections.manage', label: text('Manage connections', '管理连接') },
+          { key: 'platform.data-source.create', label: text('Manage connections', '管理连接') },
         ],
         hostEvents: {
           subscriptions: [
