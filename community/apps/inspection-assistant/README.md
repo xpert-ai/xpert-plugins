@@ -76,6 +76,24 @@ node plugin-dev-harness/dist/index.js --workspace community/apps/inspection-assi
 - 单元测试 14/14 通过（服务层 8 项 + 中间件 6 项）
 - plugin-dev-harness 生命周期：register / Nest 初始化 / onStart / bootstrap / destroy / stop 全部成功
 
+## 运行截图（本地验证）
+
+> 以下截图均为本分支真实运行输出（`scripts/demo.mjs` 调用编译产物 `dist/` 完成业务闭环；
+> 测试与生命周期验证使用真实命令执行）。数据为演示数据（内存存储），部署到 Xpert 平台后的
+> 在线运行效果待审阅阶段在真实环境中补充。
+
+### 1. 业务闭环演示（创建 → AI 解析 → 历史检索 → AI 建议 → 人工确认 → 沉淀 → 失败重试）
+
+![业务闭环演示](docs/screenshots/01-business-closed-loop.png)
+
+### 2. 单元测试 14/14 通过
+
+![单元测试](docs/screenshots/02-unit-tests.png)
+
+### 3. 插件生命周期验证（plugin-dev-harness）
+
+![插件生命周期](docs/screenshots/03-plugin-lifecycle.png)
+
 ## 演示路径（部署到 data-xpert 后）
 
 1. 在 Workbench 点「+ 新建巡检工单」，填写设备类型与故障描述（如：XX 基站 BBU 反复掉电）
