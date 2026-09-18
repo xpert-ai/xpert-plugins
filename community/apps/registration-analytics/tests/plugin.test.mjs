@@ -41,3 +41,13 @@ test('assistant DSL declares query workflow guidance', () => {
   assert.ok(dsl.includes('registration_list_activities'))
   assert.ok(dsl.includes('registration_save_query'))
 })
+
+test('assistant DSL has a primary agent node graph structure', () => {
+  const template = plugin.templates.find((t) => t.key === 'registration-analytics-assistant')
+  const dsl = template.dslContent
+  assert.ok(dsl.includes('team:'), 'dsl must start with team:')
+  assert.ok(dsl.includes('nodes:'), 'dsl must declare nodes:')
+  assert.ok(/-\s+type:\s*agent/.test(dsl), 'dsl must contain an agent node (primary agent)')
+  assert.ok(dsl.includes('connections:'), 'dsl must declare connections:')
+  assert.ok(dsl.includes('type: middleware'), 'dsl must connect the agent middleware')
+})
