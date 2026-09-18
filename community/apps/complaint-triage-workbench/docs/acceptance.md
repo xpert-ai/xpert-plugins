@@ -1,11 +1,11 @@
 # Acceptance and delivery record
 
-Updated: 2026-09-18 (Asia/Shanghai). Local hardening revision: `0.2.1`, uncommitted.
+Updated: 2026-09-18 (Asia/Shanghai). Revision: `0.2.1`; implementation commit `4a115e6f398a1e6f16494c895ec0f8b0493293be`. Earlier runtime evidence below predates Git submission.
 
 ## Evidence boundaries
 
 - Xpert HEAD: `182f2f4a7d05d968016a9ec20a93833687c4394f`; local Windows compatibility changes remain outside the plugin delivery.
-- Plugin branch: `feat/complaint-triage-workbench`; HEAD/upstream-main baseline: `759e5a547d39f53dbafc7c58642936ebb104f121`. This baseline does not identify the uncommitted plugin source.
+- Plugin branch: `feat/complaint-triage-workbench`; pre-implementation HEAD/local upstream-main baseline: `759e5a547d39f53dbafc7c58642936ebb104f121`. Verified implementation SHA is the separate commit above, not that baseline.
 - This revision: build passed, 27 automated tests passed. Lifecycle and source audit results are recorded separately below.
 - `0.2.1`: the user confirmed the normal workflow, human edits/confirmation, refresh recovery, and failure/Retry on the original case. A read-only host descriptor check returned `currentVersion: 0.2.1`, `loadStatus: loaded`, `scopeKey: system:global`.
 - Initial live browser inspection showed four cases, including confirmed `REGRESSION-021` and confirmed `RETRY-021` with two analysis attempts. This supports the Retry final state, not an independently replayed failure or PostgreSQL integration test.
@@ -87,6 +87,7 @@ Redacted screenshots and attribution are in [evidence/README.md](evidence/README
 - [ ] Unmodified-host reproducibility verified or its limitation explicitly accepted.
 - [x] Separate local host Windows fixes documented; no host-source modifications made this phase or included in the proposed plugin scope.
 - [x] Final scoped source/whitespace/credential-pattern/artifact review completed; latest candidate scan covers 33 text files. Not a comprehensive security review.
-- [ ] User-authorized commit/push/upstream-main PR; final implementation SHA recorded.
+- [x] User authorized Git operations; implementation SHA recorded, exact committed source/config/tests/scripts rehydrated in the disposable workspace and build/27 tests/mock-backed Harness passed.
+- [ ] Push/Fork ref verified and upstream-main PR opened. Push could not access local credential storage; escalation review returned 503 without execution.
 
-Video and npm publication are not required by the current delivery plan. No Git history or remote state was changed in this phase.
+Video and npm publication are not required by the current delivery plan. New local commits were authorized; no reset/rebase/merge or successful remote update was performed.

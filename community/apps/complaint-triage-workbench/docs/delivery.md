@@ -2,7 +2,7 @@
 
 ## Proposed source scope
 
-Only `community/apps/complaint-triage-workbench/` and any necessary, separately reviewed community dependency metadata belong to the plugin PR. The plugin currently remains untracked and uncommitted.
+Only `community/apps/complaint-triage-workbench/` and any necessary, separately reviewed community dependency metadata belong to the plugin PR. Implementation is committed at `4a115e6f398a1e6f16494c895ec0f8b0493293be`; follow-up changes are delivery documentation only. No root dependency changes were needed.
 
 Include source, tests, build configuration/asset-copy script, package metadata, README, and acceptance/evidence documentation. Exclude `.env`, tokens, model credentials, `node_modules`, `dist`, private logs, temporary verification directories, and unrelated plugins.
 
@@ -15,7 +15,7 @@ The root `Complaint-Triage-Workbench-Development-Guide.md` is local guidance out
 - Branch: `feat/complaint-triage-workbench`.
 - Fork remote: `https://github.com/Darlingair1/xpert-plugins.git`.
 - Upstream/base: `https://github.com/xpert-ai/xpert-plugins.git`, `main`.
-- Final plugin source commit SHA: unavailable until a user-authorized commit exists. Do not use the upstream baseline as the plugin implementation SHA.
+- Verified plugin implementation SHA: `4a115e6f398a1e6f16494c895ec0f8b0493293be`. Follow-up documentation commit(s) are identified by Git HEAD; do not substitute the upstream baseline or claim a self-referential final documentation SHA.
 
 The local host includes Windows plugin/npm execution and model-provider compatibility changes. These are not part of the proposed plugin PR. The documented real-platform result used that modified local host; reproducing on an unmodified Windows host is not yet certified. Verify on a supported upstream environment or disclose/review the required host fixes separately.
 
@@ -57,7 +57,8 @@ The workspace-wide App storage scanner failed in unrelated Drawio/Story Studio f
 - [x] Final scoped source/credential-pattern/build-artifact review completed; latest dry-run package contains 76 files and excludes environment files/tests.
 - [x] Corrected single-package isolated install/build, 27 tests and mock-backed Harness passed; broader workspace/platform installation is outside this result.
 - [x] Lifecycle Harness rerun using repository instructions with host mocks; passed.
-- [ ] User authorizes commit/push/PR; implementation SHA recorded and PR targets upstream main.
+- [x] User authorized commit/push/PR; implementation commit SHA recorded and exact committed inputs rebuilt/tested with mock-backed Harness.
+- [ ] Push to Fork completed and verified; PR created targeting upstream main. Currently blocked by local credential access and approval-review HTTP 503; no bypass attempted.
 
 No npm release, video, extra Skills PR, complex RBAC, multi-agent orchestration, RAG, or channel integration is required for this delivery.
 

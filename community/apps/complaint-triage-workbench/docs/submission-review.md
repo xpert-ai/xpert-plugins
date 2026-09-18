@@ -1,6 +1,6 @@
 # Submission review and interview runbook
 
-Date: 2026-09-18, Asia/Shanghai. Plugin 0.2.1, untracked/uncommitted. No Git submission or live environment change was performed during this review.
+Date: 2026-09-18, Asia/Shanghai. Plugin 0.2.1; implementation committed at `4a115e6f398a1e6f16494c895ec0f8b0493293be` after user authorization. Earlier source review predates that commit. No live environment change was performed.
 
 ## Current gates
 
@@ -15,7 +15,8 @@ Date: 2026-09-18, Asia/Shanghai. Plugin 0.2.1, untracked/uncommitted. No Git sub
 | Live failure/original-case Retry | User confirmed | Supporting final-state image; not an independently captured complete transition |
 | Fresh community workspace, Complaint target | Passed | User installation, filtered build, 27 tests, mock-backed Harness and asset checks; not all workspace packages |
 | Unmodified upstream host | Not verified | Live checks used local Windows compatibility patches |
-| Exact implementation commit | Unavailable | Commit/push/PR remain separately authorized steps |
+| Exact implementation commit | Verified | 4a115e6f398a1e6f16494c895ec0f8b0493293be; rebuilt, 27 tests and mock-backed Harness passed |
+| Fork push / upstream PR | Blocked | Credential store inaccessible; escalation-review 503 prevented retry; no successful push or opened PR claimed |
 
 ## Source review
 
@@ -75,4 +76,21 @@ Current checks: source candidate list reviewed; no dist, node_modules, environme
 
 Latest package dry-run passed with 76 entries and explicitly includes both review/verification reports, runtime JS, Assistant YAML and UI JS/CSS; environment, dependency and test paths are excluded. No tarball was created or published. Candidate source review covers 41 files, including 33 text files and eight screenshots. A clean scan is not a guarantee against every secret or privacy format.
 
-Submission target: origin Darlingair1/xpert-plugins, feat/complaint-triage-workbench -> upstream xpert-ai/xpert-plugins, main. Commit, push and PR creation have not been performed. No npm release, Skills PR or additional product feature is planned.
+Submission target: origin Darlingair1/xpert-plugins, feat/complaint-triage-workbench -> upstream xpert-ai/xpert-plugins, main. Commit is complete; push/PR are still pending. No npm release, Skills PR or additional product feature is planned.
+
+## Authorized Git execution and committed-source verification
+
+The implementation commit contains only 41 App files, with no host code, root metadata, environment files, dependencies or dist. git diff --cached --check passed. The pre-commit entity checker ran successfully with its existing namespace warning; runtime namespace metadata was not renamed to satisfy a scanner heuristic. Initial missing-sh failures were fixed for the invocation using Git's bundled shell and PATH; no hook was disabled and repository configuration was not rewritten.
+
+Commit ZIP was extracted to `G:\Xpert\complaint-committed-source-4a115e6f\repo`. Git line-ending normalization caused raw-byte differences for some files; all 25 executable/build/test inputs match the verified workspace after CRLF/LF normalization. Those exact committed inputs were then copied into the disposable community App directory, rebuilt, and tested: build exit 0, 27/27 tests exit 0, lifecycle Harness exit 0 (approximately 15:19). This reuses the independently installed verification dependencies; it is not a second dependency installation or a new real-model/database test.
+
+Push attempt using corrected shell and noninteractive credentials failed with inability to persist credentials in wincredman and terminal prompts disabled. Escalation request for the same Fork push returned approval-service HTTP 503; it was not executed. No credential was printed, no force push was attempted, and no alternate network path bypassed approval. GitHub CLI is not installed. No remote-main freshness check or PR creation was possible in this execution.
+
+The user can complete the pending push from their own authenticated terminal:
+
+```powershell
+Set-Location 'G:\Xpert\xpert-plugins'
+git -c safe.directory=G:/Xpert/xpert-plugins push -u origin feat/complaint-triage-workbench
+```
+
+Authenticate through Git's normal account flow if prompted; do not share a personal access token in chat. After successful push, verify the Fork branch SHA, check current upstream main without rewriting local history, and create/check the upstream-main PR using the draft. Authorization is already granted, but a remote success must be observed before claiming submission complete.

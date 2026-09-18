@@ -63,7 +63,7 @@ The lifecycle Harness uses host mocks. A successful Harness run proves that the 
 
 ## Validation status
 
-Baselines: Xpert `main` at `182f2f4a7d05d968016a9ec20a93833687c4394f`; plugins `upstream/main` at `759e5a547d39f53dbafc7c58642936ebb104f121`. Plugin source is on `feat/complaint-triage-workbench`, not committed. The local platform contains separate Windows compatibility changes; verification must not be described as an unmodified upstream-main run.
+Baselines: Xpert `main` at `182f2f4a7d05d968016a9ec20a93833687c4394f`; plugins local `upstream/main` at `759e5a547d39f53dbafc7c58642936ebb104f121`. Plugin implementation commit: `4a115e6f398a1e6f16494c895ec0f8b0493293be`, on `feat/complaint-triage-workbench`. Its exact committed source/build inputs were rebuilt and passed 27 tests plus mock-backed Harness. Subsequent delivery-doc commits do not change business code. The local platform contains separate Windows compatibility changes; verification must not be described as an unmodified upstream-main run.
 
 - Direct TypeScript build and asset copy: passed for the local hardening revision `0.2.1` on 2026-09-18.
 - Automated tests: 27 passed. Coverage includes scoped reads/writes, missing identity, concurrent analyze/Retry, stale and repeated Tool writes, invalid output, repeated confirmation, task failure/interruption, immediate and persisted error redaction, internal-only Tool registration, built UI assets, cross-organization state writes, View input/scope validation, and empty state.
@@ -130,7 +130,7 @@ In an isolated local demo organization, temporarily disable Primary Copilot, ana
 
 ## Delivery boundaries
 
-Submit plugin source, README, acceptance record, baseline SHAs, AI collaboration disclosure, known limitations, and redacted screenshots through the requested upstream-main PR after review. See [PR draft](docs/pull-request.md) and [delivery checklist](docs/delivery.md). No commit, push, PR creation, npm publication, or Skills-repository PR has been performed in this phase. The repository and this package declare AGPL-3.0.
+Submit plugin source, README, acceptance record, baseline SHAs, AI collaboration disclosure, known limitations, and redacted screenshots through the requested upstream-main PR after review. See [PR draft](docs/pull-request.md) and [delivery checklist](docs/delivery.md). Source commit and committed-source verification are complete. Push is blocked by credential-store access and failed escalation review; no successful push or PR creation is claimed. No npm publication or Skills-repository PR was performed. The repository and this package declare AGPL-3.0.
 
 Final source review, host compatibility disclosures and the interview demo runbook are in [submission-review.md](docs/submission-review.md).
 
