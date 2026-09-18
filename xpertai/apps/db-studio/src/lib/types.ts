@@ -65,17 +65,19 @@ export type ImportInput = z.infer<typeof importSchema>
 export type Target = z.infer<typeof targetSchema>
 export type ArtifactInput = z.infer<typeof artifactSchema>
 export type PolicyInput = z.infer<typeof policySchema>
-export type PlanPayload = {
-  target: Target
-  sql?: string
-  parameters?: z.infer<typeof valueSchema>[]
-  transfer?: ImportInput
-  reason: string
-  action: 'sql' | 'row-update' | 'import'
-  object?: z.infer<typeof objectSchema>
-  policyRevision: number
-  digest: string
-  expiresAt: string
-  approvedBy?: string
-  receipt?: unknown
-}
+// Parse persisted plans before showing or accepting a human approval.
+export const planPayloadSchema = z.object({
+  target: targetSchema,
+  sql: z.string().optional(),
+  parameters: z.array(valueSchema).optional(),
+  transfer: importSchema.optional(),
+  reason: z.string(),
+  action: z.enum(['sql', 'row-update', 'import']),
+  object: objectSchema.optional(),
+  policyRevision: z.number().int(),
+  digest: z.string(),
+  expiresAt: z.string().datetime(),
+  approvedBy: z.string().optional(),
+  receipt: z.unknown().optional(),
+})
+export type PlanPayload = z.infer<typeof planPayloadSchema>

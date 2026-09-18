@@ -28,6 +28,7 @@ import {
   changeSchema,
   importSchema,
   policySchema,
+  planPayloadSchema,
   querySchema,
   type ArtifactInput,
   type ChangeInput,
@@ -551,18 +552,25 @@ export class StudioService implements OnModuleDestroy {
       })
     )
   }
-  async approve(scope: StudioScope, id: string, digest: string, approve: boolean) {
+  async preparePlanApproval(scope: StudioScope, id: string) {
     if (this.testReadOnly()) throw new Error('read_only_test_mode')
-    await this.access.assert(scope, (await this.record(scope, id)).dataSourceId!, true)
-    requireSourceEditPermission()
     const plan = await this.record(scope, id)
     if (plan.kind !== 'plan' || plan.status !== 'awaiting_approval') throw new Error('plan_not_awaiting_approval')
-    const payload = plan.payload as unknown as PlanPayload
-    if (payload.digest !== digest) throw new Error('approval_content_changed')
+    await this.access.assert(scope, plan.dataSourceId!, true)
+    requireSourceEditPermission()
+    const payload = planPayloadSchema.parse(plan.payload)
     const policy = await this.policy(scope, plan.dataSourceId!)
     if (policy.readOnly) throw new Error('connection_read_only')
     if (policy.revision !== payload.policyRevision) throw new Error('plan_policy_changed')
     if (Date.parse(payload.expiresAt) < Date.now()) throw new Error('approval_expired')
+    const { digest, approvedBy, receipt, ...frozen } = payload
+    if (digestPlan(frozen) !== digest) throw new Error('plan_integrity_failed')
+    return { plan, payload }
+  }
+  async approve(scope: StudioScope, id: string, digest: string, approve: boolean) {
+    // Recheck policy and permissions after the interrupt; they can change while the user reviews it.
+    const { plan, payload } = await this.preparePlanApproval(scope, id)
+    if (payload.digest !== digest) throw new Error('approval_content_changed')
     const result = await this.records.update(
       { ...scopeWhere(scope), id, status: 'awaiting_approval', revision: plan.revision },
       {

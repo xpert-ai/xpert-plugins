@@ -1,4 +1,10 @@
 export const messages = {
+  plan_review_in_chat: {
+    zh: '审批统一在右侧对话中完成；此处仅展示计划内容、状态和执行结果。',
+    en: 'Review and approve in the chat panel. This view shows plan details, status and execution receipts.',
+  },
+  plan_open_chat_review: { zh: '转到对话确认', en: 'Review in chat' },
+  plan_refresh_status: { zh: '刷新状态', en: 'Refresh status' },
   collection_more: { zh: '加载更多', en: 'Load more' },
   collection_loading: { zh: '正在加载…', en: 'Loading…' },
   dashboard_more: { zh: '更多看板', en: 'More dashboards' },

@@ -77,8 +77,6 @@ export class StudioViewProvider implements IXpertViewExtensionProvider {
       'snapshot',
       'export_result',
       'propose_change',
-      'approve_plan',
-      'execute_plan',
       'row_update',
       'set_policy',
       'transaction',
@@ -239,14 +237,9 @@ export class StudioViewProvider implements IXpertViewExtensionProvider {
           .parse(input)
         data = await this.jobs.snapshot(scope, parsed.target, parsed.title)
       } else if (actionKey === 'propose_change') data = await this.service.propose(scope, changeSchema.parse(input))
-      else if (actionKey === 'approve_plan') {
-        const parsed = id
-          .extend({ digest: z.string().length(64), approve: z.boolean() })
-          .strict()
-          .parse(input)
-        data = await this.service.approve(scope, parsed.id, parsed.digest, parsed.approve)
-      } else if (actionKey === 'execute_plan') data = await this.jobs.schedulePlan(scope, id.parse(input).id)
-      else if (actionKey === 'transaction') {
+      else if (actionKey === 'approve_plan' || actionKey === 'execute_plan') {
+        throw new Error('plan_review_in_chat_required')
+      } else if (actionKey === 'transaction') {
         const parsed = z
           .object({ target: targetSchema, action: z.enum(['begin', 'commit', 'rollback']) })
           .strict()
