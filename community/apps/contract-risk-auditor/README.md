@@ -160,7 +160,21 @@ ContractRiskAuditorPlugin is destroyed.
 
 ## 七、 快速启动指南
 
-### 1. 安装与构建
+### 1. 环境变量配置示例
+在插件根目录提供 `.env.example`（或 `.env`），支持如下环境配置项：
+```env
+# 服务端口配置（可选，默认 4417）
+PORT=4417
+HOST=0.0.0.0
+
+# 运行环境
+NODE_ENV=production
+
+# 规则引擎降级超时阈值（毫秒）
+AI_GATEWAY_TIMEOUT_MS=12000
+```
+
+### 2. 安装与构建
 ```bash
 # 进入插件目录
 cd community/apps/contract-risk-auditor
@@ -169,18 +183,32 @@ cd community/apps/contract-risk-auditor
 pnpm run build
 ```
 
-### 2. 执行自动化测试
+### 3. 执行自动化测试与生命周期验证
 ```bash
 # 运行 9 项核心业务单元测试
 pnpm run test
 
-# 运行官方 Harness 插件生命周期验证
+# 运行官方 Harness 插件生命周期容器验证
 pnpm run test:harness
 ```
 
-### 3. 本地启动独立工作台预览
+### 4. 本地启动独立工作台预览
 ```bash
 # 启动本地模拟预览服务
 pnpm run preview
 # 浏览器访问: http://localhost:4417
 ```
+
+---
+
+## 八、 已知限制、适用边界与演进方向
+
+### 1. 当前适用边界与限制
+* **文本解析格式边界**：目前原生支持纯文本（Plain Text）、Markdown 格式条款以及结构化附录 Markdown 表格。对于带有公章遮挡、多栏版面的图片扫描件 PDF，需经前置 OCR 视觉流水线抽取后载入；
+* **行业法条覆盖范围**：重点覆盖企业采购、IT定制、建设工程与广告营销 4 大高频民商事领域；对于极特殊的小众海商法、涉外多语言英文合同等场景，仍需进一步扩展法律知识图谱库。
+
+### 2. 后续最值得改进的方向
+* **动态私有法务 RAG 知识库**：支持企业法务上传自身历史判例与企业合规红线文档，实现企业级私有规则库热更新；
+* **Word (.docx) 红线批注双向导出**：支持将审查意见与替换结果直接导出为带修订痕迹的 Office Word 文档；
+* **多版本在线 Diff 视图**：支持同一合同多次修改版本的并排对比与法务审批签名。
+
