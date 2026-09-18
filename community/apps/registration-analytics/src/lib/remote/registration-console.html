@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>报名问数台</title>
+  <style>
+    :root {
+      --bg: #f6f8fa;
+      --surface: #ffffff;
+      --border: #e4e7ec;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --primary: #0e7490;
+      --primary-soft: #ecfeff;
+      --danger: #dc2626;
+      --radius: 10px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .shell { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+    .header { display: flex; align-items: center; gap: 10px; }
+    .header .mark {
+      width: 30px; height: 30px; border-radius: 8px;
+      background: var(--primary); color: #fff;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-weight: 700;
+    }
+    .header .title { font-size: 16px; font-weight: 600; }
+    .header .sub { color: var(--muted); font-size: 12px; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 12px 14px;
+    }
+    .card .num { font-size: 22px; font-weight: 700; }
+    .card .label { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .card .chip { display: inline-block; margin-right: 6px; margin-top: 6px; padding: 2px 8px; border-radius: 999px; background: var(--primary-soft); color: var(--primary); font-size: 12px; }
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .panel-head { padding: 10px 14px; border-bottom: 1px solid var(--border); font-weight: 600; display: flex; align-items: center; justify-content: space-between; }
+    .panel-head .actions { display: flex; gap: 8px; align-items: center; }
+    .hint { color: var(--muted); font-size: 12px; }
+    .search-input {
+      border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 13px; width: 180px; outline: none;
+    }
+    .search-input:focus { border-color: var(--primary); }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; padding: 8px 14px; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); background: #fafbfc; white-space: nowrap; }
+    td { padding: 8px 14px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f8fafc; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; }
+    .badge.confirmed { background: #ecfdf5; color: #059669; }
+    .badge.pending { background: #fffbeb; color: #d97706; }
+    .badge.cancelled { background: #fef2f2; color: #dc2626; }
+    .empty { padding: 24px; text-align: center; color: var(--muted); }
+    .suggestions { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 14px; }
+    .suggestion {
+      border: 1px solid var(--border); background: var(--surface); border-radius: 999px;
+      padding: 5px 12px; font-size: 12px; color: var(--primary); cursor: pointer;
+    }
+    .suggestion:hover { border-color: var(--primary); background: var(--primary-soft); }
+    .saved-list { display: flex; flex-direction: column; }
+    .saved-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 14px; border-bottom: 1px solid var(--border); }
+    .saved-item:last-child { border-bottom: none; }
+    .saved-item .q-name { font-weight: 600; }
+    .saved-item .q-text { color: var(--muted); font-size: 12px; }
+    .saved-item .q-empty { color: var(--muted); font-size: 12px; padding: 8px 14px; }
+    button {
+      border: 1px solid var(--border); background: var(--surface); color: var(--text);
+      border-radius: 8px; padding: 5px 12px; font-size: 12px; cursor: pointer;
+    }
+    button.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+    button.danger { color: var(--danger); }
+    button:hover { opacity: 0.85; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .notice { padding: 8px 14px; font-size: 12px; }
+    .notice.error { background: #fef2f2; color: var(--danger); }
+    .notice.success { background: #ecfdf5; color: #059669; }
+    .loading { padding: 24px; text-align: center; color: var(--muted); }
+    .footer-note { color: var(--muted); font-size: 12px; text-align: center; padding: 4px 0 12px; }
+  </style>
+</head>
+<body>
+  <div id="root" class="shell">
+    <div class="loading">加载中…</div>
+  </div>
+  <script>"use strict";
+(() => {
+  // src/lib/remote/bridge.ts
+  var CHANNEL = "xpertai.remote_component";
+  var VERSION = 1;
+  var HostBridge = class {
+    constructor() {
+      this.instanceId = null;
+      this.pending = /* @__PURE__ */ new Map();
+      this.connected = null;
+      this.initResolve = null;
+      this.initReject = null;
+      this.listeners = /* @__PURE__ */ new Set();
+      this.handle = (event) => {
+        if (event.source !== window.parent) return;
+        const message = event.data;
+        if (!isObject(message) || message.channel !== CHANNEL || message.protocolVersion !== VERSION) return;
+        if (message.type === "init" && message.instanceId) {
+          this.instanceId = message.instanceId;
+          this.initResolve?.({ locale: message.locale ?? "en-US" });
+          this.initResolve = null;
+          return;
+        }
+        if (!this.instanceId || message.instanceId !== this.instanceId) return;
+        if (message.type === "hostEvent") {
+          this.listeners.forEach((listener) => listener());
+          return;
+        }
+        const requestId = typeof message.requestId === "string" ? message.requestId : "";
+        if (requestId && this.pending.has(requestId)) {
+          const item = this.pending.get(requestId);
+          this.pending.delete(requestId);
+          if (!item) return;
+          clearTimeout(item.timer);
+          if (message.type === "error") {
+            item.reject(new Error("host_request_failed"));
+          } else {
+            item.resolve(message);
+          }
+        }
+      };
+    }
+    connect() {
+      if (this.connected) return this.connected;
+      this.connected = new Promise((resolve, reject) => {
+        this.initResolve = resolve;
+        this.initReject = reject;
+        window.addEventListener("message", this.handle);
+        window.parent.postMessage({ channel: CHANNEL, protocolVersion: VERSION, type: "ready" }, "*");
+      });
+      return this.connected;
+    }
+    request(type, body = {}) {
+      if (!this.instanceId) return Promise.reject(new Error("not_connected"));
+      const requestId = randomId();
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          this.pending.delete(requestId);
+          reject(new Error("host_timeout"));
+        }, 3e4);
+        this.pending.set(requestId, { resolve, reject, timer });
+        window.parent.postMessage(
+          { channel: CHANNEL, protocolVersion: VERSION, instanceId: this.instanceId, requestId, type, ...body },
+          "*"
+        );
+      });
+    }
+    async query(parameters = {}) {
+      const result = await this.request("requestData", { query: { parameters } });
+      if (result.type !== "data") throw new Error("unexpected_response");
+      return result.data;
+    }
+    async action(actionKey, input = {}, parameters = {}) {
+      const response = await this.request("executeAction", { actionKey, input, parameters });
+      if (response.type !== "actionResult") throw new Error("unexpected_response");
+      return response.result;
+    }
+    notify(message, level = "success") {
+      if (!this.instanceId) return;
+      window.parent.postMessage(
+        { channel: CHANNEL, protocolVersion: VERSION, instanceId: this.instanceId, type: "notify", message, level },
+        "*"
+      );
+    }
+    resize() {
+      const root = document.getElementById("root");
+      const shell = root?.firstElementChild;
+      const height = Math.max(shell?.scrollHeight ?? 0, 600);
+      if (this.instanceId) {
+        window.parent.postMessage(
+          { channel: CHANNEL, protocolVersion: VERSION, instanceId: this.instanceId, type: "resize", height: Math.ceil(height), viewportBound: false },
+          "*"
+        );
+      }
+    }
+    onHostEvent(callback) {
+      this.listeners.add(callback);
+      return () => {
+        this.listeners.delete(callback);
+      };
+    }
+  };
+  function isObject(value) {
+    return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+  }
+  function randomId() {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID();
+    }
+    return `req_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  }
+  var bridge = new HostBridge();
+
+  // src/lib/remote/main.ts
+  var CHANNEL_LABELS = {
+    website: "\u5B98\u7F51",
+    wechat: "\u5FAE\u4FE1",
+    offline: "\u7EBF\u4E0B",
+    partner: "\u5408\u4F5C\u6E20\u9053"
+  };
+  var STATUS_LABELS = {
+    confirmed: "\u5DF2\u786E\u8BA4",
+    pending: "\u5F85\u786E\u8BA4",
+    cancelled: "\u5DF2\u53D6\u6D88"
+  };
+  var STATUS_CLASSES = {
+    confirmed: "confirmed",
+    pending: "pending",
+    cancelled: "cancelled"
+  };
+  async function main() {
+    const root = document.getElementById("root");
+    if (!root) return;
+    try {
+      await bridge.connect();
+      const response = await bridge.query();
+      const data = normalizeData(response);
+      render(root, data);
+    } catch (error) {
+      renderError(root, error);
+    }
+    bridge.onHostEvent(() => {
+      bridge.query().then((response) => {
+        const data = normalizeData(response);
+        render(root, data);
+      }).catch(() => {
+      });
+    });
+  }
+  function normalizeData(raw) {
+    const value = isObject2(raw) ? raw : {};
+    const table = isObject2(value.table) ? value.table : {};
+    const summary = isObject2(value.summary) ? value.summary : {};
+    return {
+      summary: {
+        total: Number(summary.total ?? 0),
+        activities: Number(summary.activities ?? 0),
+        byStatus: isObject2(summary.byStatus) ? summary.byStatus : {}
+      },
+      table: {
+        items: Array.isArray(table.items) ? table.items : [],
+        total: Number(table.total ?? 0)
+      },
+      savedQueries: Array.isArray(value.savedQueries) ? value.savedQueries : [],
+      fields: Array.isArray(value.fields) ? value.fields : [],
+      suggestedQuestions: Array.isArray(value.suggestedQuestions) ? value.suggestedQuestions : []
+    };
+  }
+  function render(root, data) {
+    const summary = data.summary ?? {};
+    const byStatus = summary.byStatus ?? {};
+    const statusChips = Object.entries(byStatus).map(
+      ([status, count]) => `<span class="chip">${STATUS_LABELS[status] ?? status} ${count}</span>`
+    ).join("");
+    root.innerHTML = `
+    <div class="header">
+      <span class="mark">\u62A5</span>
+      <div>
+        <div class="title">\u62A5\u540D\u95EE\u6570\u53F0</div>
+        <div class="sub">\u5728\u53F3\u4FA7\u804A\u5929\u6846\u7528\u81EA\u7136\u8BED\u8A00\u63D0\u95EE\uFF0CAI \u5E2E\u4F60\u67E5\u6570\u636E\u3001\u505A\u7EDF\u8BA1</div>
+      </div>
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <div class="num">${summary.total ?? 0}</div>
+        <div class="label">\u603B\u62A5\u540D\u4EBA\u6570</div>
+        <div>${statusChips}</div>
+      </div>
+      <div class="card">
+        <div class="num">${summary.activities ?? 0}</div>
+        <div class="label">\u6D3B\u52A8\u6570</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <span>\u8BD5\u8BD5\u8FD9\u6837\u95EE</span>
+        <span class="hint">\u70B9\u51FB\u590D\u5236\u95EE\u9898\uFF0C\u7C98\u8D34\u5230\u53F3\u4FA7\u804A\u5929\u6846</span>
+      </div>
+      <div class="suggestions">
+        ${(data.suggestedQuestions ?? []).map((q) => `<button class="suggestion" data-question="${escapeHtml(q)}">${escapeHtml(q)}</button>`).join("")}
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <span>\u62A5\u540D\u8BB0\u5F55\uFF08\u6700\u8FD1 ${data.table?.total ?? 0} \u6761\uFF09</span>
+        <span class="hint">\u5B8C\u6574\u7EDF\u8BA1\u8BF7\u5728\u804A\u5929\u4E2D\u63D0\u95EE</span>
+      </div>
+      ${renderTable(data.table?.items ?? [])}
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <span>\u5E38\u7528\u67E5\u8BE2</span>
+        <span class="hint">\u53EF\u5728\u804A\u5929\u4E2D\u8BF4"\u4FDD\u5B58\u8FD9\u4E2A\u67E5\u8BE2"</span>
+      </div>
+      <div class="saved-list">
+        ${(data.savedQueries ?? []).length ? (data.savedQueries ?? []).map(renderSavedItem).join("") : '<div class="q-empty">\u8FD8\u6CA1\u6709\u5E38\u7528\u67E5\u8BE2\uFF0C\u95EE\u4E00\u4E2A\u95EE\u9898\u540E\u8BF4"\u4FDD\u5B58\u8FD9\u4E2A\u67E5\u8BE2"\u5373\u53EF\u3002</div>'}
+      </div>
+    </div>
+
+    <div class="footer-note">\u6570\u636E\u6765\u81EA\u62A5\u540D\u7CFB\u7EDF\uFF0CAI \u8D1F\u8D23\u628A\u95EE\u9898\u8F6C\u6210\u67E5\u8BE2\u5E76\u89E3\u8BFB\u7ED3\u679C</div>
+  `;
+    root.querySelectorAll(".suggestion").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const question = button.dataset.question ?? "";
+        try {
+          await navigator.clipboard.writeText(question);
+          bridge.notify("\u95EE\u9898\u5DF2\u590D\u5236\uFF0C\u8BF7\u7C98\u8D34\u5230\u53F3\u4FA7\u804A\u5929\u6846\u63D0\u95EE", "success");
+        } catch {
+          bridge.notify("\u8BF7\u624B\u52A8\u590D\u5236\u8BE5\u95EE\u9898\u5230\u804A\u5929\u6846", "success");
+        }
+      });
+    });
+  }
+  function renderTable(items) {
+    if (!items.length) {
+      return '<div class="empty">\u6682\u65E0\u62A5\u540D\u8BB0\u5F55</div>';
+    }
+    return `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>\u59D3\u540D</th>
+            <th>\u6D3B\u52A8</th>
+            <th>\u57CE\u5E02</th>
+            <th>\u6E20\u9053</th>
+            <th>\u62A5\u540D\u65F6\u95F4</th>
+            <th>\u72B6\u6001</th>
+            <th>\u8D39\u7528</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items.map(renderRow).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+  }
+  function renderRow(record) {
+    const status = record.status ?? "pending";
+    const statusLabel = STATUS_LABELS[status] ?? status;
+    const statusClass = STATUS_CLASSES[status] ?? "pending";
+    const channel = record.channel ? CHANNEL_LABELS[record.channel] ?? record.channel : "\u2014";
+    const time = record.registerTime ? formatTime(record.registerTime) : "\u2014";
+    const fee = record.fee !== null && record.fee !== void 0 ? `\xA5${record.fee}` : "\u2014";
+    return `
+    <tr>
+      <td><strong>${escapeHtml(record.name ?? "\u2014")}</strong></td>
+      <td>${escapeHtml(record.activityName ?? "\u2014")}</td>
+      <td>${escapeHtml(record.city ?? "\u2014")}</td>
+      <td>${escapeHtml(channel)}</td>
+      <td>${escapeHtml(time)}</td>
+      <td><span class="badge ${statusClass}">${escapeHtml(statusLabel)}</span></td>
+      <td>${escapeHtml(fee)}</td>
+    </tr>
+  `;
+  }
+  function renderSavedItem(item) {
+    return `
+    <div class="saved-item">
+      <div>
+        <div class="q-name">${escapeHtml(item.name)}</div>
+        <div class="q-text">${escapeHtml(item.question)}</div>
+      </div>
+    </div>
+  `;
+  }
+  function renderError(root, error) {
+    const message = error instanceof Error ? error.message : "\u52A0\u8F7D\u5931\u8D25";
+    root.innerHTML = `
+    <div class="panel">
+      <div class="notice error">\u52A0\u8F7D\u5931\u8D25\uFF1A${escapeHtml(message)}\u3002\u8BF7\u5237\u65B0\u91CD\u8BD5\u3002</div>
+    </div>
+  `;
+  }
+  function formatTime(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
+  function escapeHtml(value) {
+    return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+  function isObject2(value) {
+    return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+  }
+  main();
+})();
+</script>
+</body>
+</html>
