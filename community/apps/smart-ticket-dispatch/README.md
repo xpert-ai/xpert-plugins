@@ -2,6 +2,32 @@
 
 一个运行在 Xpert 平台上的客服工单分派业务应用（Agentic App 插件）：客服人员提交客户问题后，AI 自动完成分诊（分类、紧急度、建议处理团队与负责人、处理建议），由**人工在审核台确认分派**后工单才会执行——AI 只建议，人来决策，全程留痕、可恢复。
 
+## 运行截图
+
+**工单提交入口 + AI 分诊对话**（左侧表单提交，右侧助手自动调用工具保存工单并返回工单号）：
+
+![工单提交入口与 AI 分诊](docs/screenshots/01-submit-form-and-ai-triage.png)
+
+**AI 分诊对话（纯对话视图）**——工具调用成功，返回结构化工单信息：
+
+![AI 分诊对话](docs/screenshots/02-ai-triage-chat.png)
+
+**审核台**——状态筛选、工单列表与详情（AI 分诊建议 + 人工确认表单 + 处理结果）：
+
+![审核台-已分派详情](docs/screenshots/03-review-desk-dispatched.png)
+
+**标记解决后的完整操作记录**——AI 保存 → 人工确认分派 → 处理结果，全程留痕：
+
+![已解决与操作记录](docs/screenshots/04-resolved-with-operation-log.png)
+
+**驳回流程**——重复工单合并驳回并记录原因：
+
+![驳回流程](docs/screenshots/05-rejected.png)
+
+**Studio 中的工具绑定**——Agent 通过中间件获得三个业务工具：
+
+![Studio 工具绑定](docs/screenshots/06-studio-tool-binding.png)
+
 ## 目标用户与痛点
 
 - **目标用户**：中小客服团队的管理员与一线客服。
