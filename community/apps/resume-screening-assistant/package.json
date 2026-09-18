@@ -21,11 +21,23 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
+    "prompts:export": "node scripts/export-prompts.mjs",
+    "analyze:resume": "node scripts/analyze-resume.mjs",
     "lint": "echo \"(todo) add lint\"",
-    "test": "tsc -p tsconfig.spec.json --noEmit"
+    "test": "tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.lib.json && node --test \"tests/**/*.test.mjs\"",
+    "test:types": "tsc -p tsconfig.spec.json --noEmit",
+    "test:unit": "node --test \"tests/**/*.test.mjs\""
+  },
+  "xpert": {
+    "plugin": {
+      "level": "system",
+      "artifactNamespace": "resume_screening"
+    }
   },
   "license": "AGPL-3.0",
   "dependencies": {
+    "mammoth": "^1.12.3",
+    "pdf-parse": "^2.4.5",
     "tslib": "^2.3.0"
   },
   "peerDependencies": {
