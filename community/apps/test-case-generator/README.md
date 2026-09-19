@@ -209,14 +209,15 @@ corepack pnpm plugin:deploy:local \
 | 数据结构校验单测 | TestCase 字段完整性 | ✅ 通过 |
 | 失败场景返回值单测 | 语义模糊时不强制生成 | ✅ 返回明确提示 |
 
-### 第二层：插件生命周期测试
+### 第二层：插件生命周期与平台部署测试
 
 | 测试项 | 操作 | 结果 |
 |--------|------|------|
-| 插件可加载 | plugin-dev-harness 加载验证 | ⚠️ 未验证（harness 运行时依赖 reflect-metadata 未在隔离环境安装） |
-| 配置校验通过 | Zod schema 校验 | ✅ 代码层面通过 |
-| 初始化无错误 | onPluginBootstrap | ✅ 代码层面通过 |
-| 销毁无错误 | onPluginDestroy | ✅ 代码层面通过 |
+| 插件构建 | `pnpm build` | ✅ 通过，dist/ 产物完整 |
+| 插件安装到平台 | `pnpm plugin:deploy:local` 部署到本地 Xpert 开源版（main 分支） | ✅ 平台返回 installed and verified successfully |
+| 配置校验 | 数据库 plugin_instance.configurationStatus | ✅ valid，无 configurationError |
+| 数据表自动创建 | TypeORM 实体注册后检查数据库 | ✅ plugin_test_case + plugin_test_case_project 表已自动创建 |
+| 插件注册记录 | 数据库 plugin_instance 表 | ✅ pluginName、version=0.1.0、source=code、scope=organization 完整 |
 | 构建产物结构 | dist/index.js + lib/ + entities/ + remote-components/ + YAML | ✅ 完整 |
 
 ### 第三层：界面与平台业务流程测试
