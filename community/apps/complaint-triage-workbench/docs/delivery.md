@@ -2,7 +2,7 @@
 
 ## Proposed source scope
 
-Only `community/apps/complaint-triage-workbench/` and any necessary, separately reviewed community dependency metadata belong to the plugin PR. Implementation is committed at `4a115e6f398a1e6f16494c895ec0f8b0493293be`; follow-up changes are delivery documentation only. No root dependency changes were needed.
+Only `community/apps/complaint-triage-workbench/` and any necessary, separately reviewed community dependency metadata belong to the plugin PR. Implementation is committed at `4a115e6f398a1e6f16494c895ec0f8b0493293be`; follow-up changes are delivery documentation and repository-conventional package-author metadata only. No root dependency changes were needed.
 
 Include source, tests, build configuration/asset-copy script, package metadata, README, and acceptance/evidence documentation. Exclude `.env`, tokens, model credentials, `node_modules`, `dist`, private logs, temporary verification directories, and unrelated plugins.
 

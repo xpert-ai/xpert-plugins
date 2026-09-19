@@ -3,6 +3,10 @@
   "version": "0.2.1",
   "private": true,
   "description": "Complaint triage workbench Agentic App for human-reviewed AI recommendations.",
+  "author": {
+    "name": "XpertAI",
+    "url": "https://xpertai.cn"
+  },
   "license": "AGPL-3.0",
   "repository": {
     "type": "git",
