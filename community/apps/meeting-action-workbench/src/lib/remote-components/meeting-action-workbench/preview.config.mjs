@@ -81,6 +81,24 @@ export default {
       state.commands.push({ commandKey: message.commandKey, payload: message.payload })
       return { result: { success: true } }
     }
+    if (message.type === 'executeFileAction') {
+      if (message.actionKey !== 'import_meeting_file') throw new Error('UNSUPPORTED_FILE_ACTION')
+      const fileName = message.file?.name || 'meeting-record.txt'
+      const sourceText = new TextDecoder().decode(new Uint8Array(message.file?.buffer || [])).trim()
+      if (sourceText.length < 20) throw new Error('MEETING_FILE_CONTENT_TOO_SHORT')
+      return {
+        result: {
+          success: true,
+          data: {
+            fileName,
+            mimeType: message.file?.type || 'text/plain',
+            title: fileName.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' '),
+            sourceText,
+            characterCount: sourceText.length
+          }
+        }
+      }
+    }
     if (message.type === 'executeAction') {
       if (message.actionKey === 'update_risk_signal_status') {
         if (message.input?.expectedRevision !== state.review.revision) throw new Error('EXECUTION_REVIEW_REVISION_CONFLICT')

@@ -5,7 +5,9 @@ description: 创建、复核、确认、执行跟踪与 Agent 风险巡检
 
 ## 新建提取
 
-在工作台选择“新建提取”，填写会议标题并粘贴会议内容。工作台把请求发送到 Assistant；Assistant 先调用 meeting_begin_extraction 保存原文，再逐条写入决议和行动项，最后调用 meeting_finalize_extraction。
+在工作台选择“新建提取”，填写会议标题并粘贴会议内容；也可以选择“导入会议文件”，上传 TXT、Markdown、CSV、LOG、SRT、VTT 或 DOCX。文件必须不超过 5 MB，提取后的文本必须在 20 至 30,000 字符之间。导入成功后，文件名会生成默认会议标题，全文会回填到可滚动的输入区，用户仍可修改并核对。
+
+文件导入只完成本地插件侧的文本提取。用户选择“发送给 Assistant 提取”后，工作台才把核对后的标题和全文发送给 Assistant；Assistant 先调用 meeting_begin_extraction 保存原文，再逐条写入决议和行动项，最后调用 meeting_finalize_extraction。
 
 ## 人工复核
 

@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-meeting-action-workbench",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Xpert Agentic App for extracting, reviewing, confirming, and tracking meeting decisions and action items.",
   "author": { "name": "XpertAI", "url": "https://xpertai.cn" },
   "license": "AGPL-3.0",
@@ -32,7 +32,7 @@
     "test": "node scripts/build-package.mjs && node --test tests/*.test.mjs",
     "verify:dist": "node scripts/verify-dist.mjs"
   },
-  "dependencies": { "tslib": "^2.3.0" },
+  "dependencies": { "mammoth": "1.12.0", "tslib": "^2.3.0" },
   "peerDependencies": {
     "@langchain/core": ">=0.3.0",
     "@nestjs/common": "^11.1.6",

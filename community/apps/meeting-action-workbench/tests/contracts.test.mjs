@@ -16,6 +16,7 @@ test('plugin metadata uses one stable system namespace', async () => {
     readFile(join(packageRoot, '.xpertai-plugin/plugin.json'), 'utf8').then(JSON.parse)
   ])
   assert.equal(packageJson.name, '@xpert-ai/plugin-meeting-action-workbench')
+  assert.equal(manifest.version, packageJson.version)
   assert.equal(packageJson.xpert.plugin.level, 'system')
   assert.equal(packageJson.xpert.plugin.artifactNamespace, 'meeting_action_workbench')
   assert.equal(manifest.level, packageJson.xpert.plugin.level)
@@ -96,9 +97,10 @@ test('view manifest exposes human review actions and AI retry command', () => {
   assert.equal(manifest.activation.requiredFeatures.includes(constants.MEETING_FEATURE), true)
   assert.deepEqual(manifest.clientCommands.map((item) => item.key), ['assistant.chat.send_message'])
   assert.deepEqual(manifest.actions.map((item) => item.key), [
-    'refresh', 'update_decision', 'update_action_item', 'confirm_meeting',
+    'refresh', 'import_meeting_file', 'update_decision', 'update_action_item', 'confirm_meeting',
     'update_execution_action', 'update_risk_signal_status'
   ])
+  assert.equal(manifest.actions.find((item) => item.key === 'import_meeting_file').transport, 'file')
   assert.deepEqual(manifest.hostEvents.subscriptions[0].filter.toolNames, [...constants.MEETING_MUTATION_TOOL_NAMES])
 })
 
@@ -133,6 +135,8 @@ test('remote view uses generated shared-theme assets without browser storage', a
   assert.match(main, /@xpert-ai\/plugin-shadcn-ui\/style\.css/)
   assert.match(bridge, /installShadcnThemeVars/)
   assert.match(workbench, /assistant\.chat\.send_message/)
+  assert.match(workbench, /import_meeting_file/)
+  assert.match(bridge, /executeFileAction/)
   assert.match(workbench, /confirm_meeting/)
   assert.match(workbench, /update_execution_action/)
   assert.match(workbench, /update_risk_signal_status/)

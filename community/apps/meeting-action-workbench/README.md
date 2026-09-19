@@ -9,7 +9,7 @@
 - [验证记录](./docs/verification.mdx)：自动化测试、插件生命周期与真实 Xpert 平台验收结果。
 - [AI 协作说明](./docs/ai-collaboration.mdx)：Codex、DeepSeek 的使用范围、人工决策和问题修复记录。
 - [隐私说明](./docs/privacy.mdx)：会议数据、模型传输、存储、日志与删除边界。
-- [源码目录](https://github.com/xpert-ai/xpert-plugins/tree/main/community/apps/meeting-action-workbench)。
+- [源码目录](./src)：服务端持久化、Agent 工具、Assistant 模板和 Remote View 实现。
 
 本次最终验证基于 `xpert-ai/xpert-plugins@0df1e2e4a1ff4e7442e8fb4a42307ab59f42814b` 与 `xpert-ai/xpert@182f2f4a7d05d968016a9ec20a93833687c4394f`。应用目录不依赖本机绝对路径或私人包。
 
@@ -24,7 +24,7 @@
 
 ## 业务闭环
 
-1. 用户在工作台新建提取，填写标题并粘贴会议原文。
+1. 用户在工作台新建提取，填写标题并粘贴会议原文，或导入 TXT、Markdown、CSV、LOG、SRT、VTT、DOCX 文件。
 2. Assistant 调用 `meeting_begin_extraction` 保存原文并创建提取轮次。
 3. AI 通过 `meeting_upsert_decision` 和 `meeting_upsert_action_item` 幂等写入结构化结果。
 4. `meeting_finalize_extraction` 将会议推进到“待复核”；失败时使用 `meeting_report_extraction_failure` 保存安全错误信息。
@@ -64,7 +64,7 @@ corepack pnpm plugin:deploy:local `
 2. 若部署回执包含 `restartRequired: true`，重启 Xpert API，并确认 `/api/health/ready` 返回 `ready`，插件描述符的 `loadStatus` 为 `loaded`。
 3. 在 Xpert“模型提供商”中配置 DeepSeek。若同时使用租户级 Copilot 和组织级 Assistant，需要分别为租户和目标组织选择主提供商与默认语言模型。API Key 只在本机平台配置中录入，不写入仓库、截图或日志。
 4. 首次安装时从模板 `meeting-action-workbench-assistant` 创建并发布 Assistant；升级现有实例时使用 Assistant Settings 中的 “Update from Template”，不要新建替代实例。确认其绑定了本插件工具和“会议行动项” Workbench。
-5. 打开 Assistant 的 Workbench，选择“新建提取”，输入合成或脱敏的会议内容。状态变成“待复核”后检查证据和空值，再编辑或确认。
+5. 打开 Assistant 的 Workbench，选择“新建提取”。可以直接粘贴内容，也可以导入不超过 5 MB 且提取后不超过 30,000 字符的 TXT、Markdown、CSV、LOG、SRT、VTT 或 DOCX 文件。导入后先在窗口中核对标题和全文，再提交给 Assistant。状态变成“待复核”后检查证据和空值，再编辑或确认。
 6. 确认后切换到“执行跟踪”，更新行动项状态；选择“Agent 执行巡检”生成语义风险和下次会议简报，再由人工处置风险。
 
 完整操作和排障说明见 [使用流程](./docs/usage.mdx) 与 [故障排查](./docs/troubleshooting.mdx)。插件自身不要求额外环境变量；模型凭证沿用 Xpert 平台的安全配置。
@@ -79,6 +79,10 @@ corepack pnpm plugin:deploy:local `
 
 ![行动项执行与风险工作台](./docs/assets/workbench-execution.png)
 
+文件导入界面在长记录下保持正文可滚动、底部提交按钮可见：
+
+![长会议记录文件导入](./docs/assets/workbench-long-file-import.png)
+
 1024 像素紧凑视图见 [workbench-compact.png](./docs/assets/workbench-compact.png)。
 
 ## 异常与恢复示例
@@ -90,12 +94,13 @@ corepack pnpm plugin:deploy:local `
 
 ## 已执行验证
 
-2026-09-18 最终提交前复验结果：
+2026-09-19 最终提交前复验结果：
 
 - `lint`、`build`、`verify:dist` 全部通过。
-- Node 测试 11/11 通过，覆盖 Schema、工件契约、幂等、状态机、失败重试、执行状态、Agent 风险人工处置和 Remote View E2E。
+- Node 测试 14/14 通过，覆盖 Schema、工件契约、TXT/DOCX 文件提取、文件限制、幂等、状态机、失败重试、执行状态、Agent 风险人工处置和 Remote View E2E。
+- 长记录 E2E 自动上传 220 行文本，确认输入区可独立滚动、提交按钮保持可见，且 Assistant 收到的末行内容未被截断。
 - `plugin-dev-harness` 在 dist-first、启用框架 mocks 的模式下完整通过 `register`、`onStart`、`onPluginBootstrap`、加载、`onPluginDestroy` 和 `onStop`。
-- 本地 Xpert 已刷新插件 0.2.0 并通过 readiness；第三步 DeepSeek `deepseek-v4-flash` 真实提取曾生成 1 条决议和 2 条行动项，其中无法确定的截止日期保持为空。
+- 本地 Xpert 已刷新并加载插件 0.3.0，API readiness 与 Cloud UI 正常；真实平台文件导入、长记录滚动和固定底部操作区已完成人工复验。第三步 DeepSeek `deepseek-v4-flash` 真实提取曾生成 1 条决议和 2 条行动项，其中无法确定的截止日期保持为空。
 - 真实平台确认流程发现并修复了 PostgreSQL UPDATE 别名与 Remote View 业务失败误判两个问题；修复后的自动化回归与人工复验均已通过。数据库确认会议 revision 更新、审核时间落库、1 条决议和 2 条行动项全部确认，刷新后可恢复。
 - 在用户明确授权发送合成/脱敏会议数据后，现有 Assistant 已保留身份并同步模板 v4，真实 DeepSeek 巡检依次读取执行上下文、创建巡检、保存 2 条 Agent 风险并生成下次会议简报；真实平台“执行跟踪”页同时展示 2 条规则风险和 2 条 Agent 风险。
 
@@ -108,6 +113,7 @@ corepack pnpm plugin:deploy:local `
 ## 安全、已知限制与后续方向
 
 - 所有查询和写入均限定 `tenantId` 与 `organizationId`；工具输入拒绝未知字段，错误信息不向界面返回内部堆栈。
+- 导入文件的二进制内容只用于当前请求中的文本提取，不写入数据库或日志；真正保存的是用户核对并提交后的会议原文。文件大小上限为 5 MB，提取文本上限为 30,000 字符，不会静默截断。
 - 当前确认后不再允许修改已确认内容，只能更新行动项执行状态；删除/新增条目仍未实现。
 - 规则风险是实时派生信息；Agent 风险和简报是持久化巡检快照。当前没有通知、周期调度、日历和 Jira/Trello 同步。
 - 自动化截图覆盖成功、执行治理和失败重试；真实模型成功巡检已有平台级证据，真实模型失败与重试场景仍待补充平台级证据。

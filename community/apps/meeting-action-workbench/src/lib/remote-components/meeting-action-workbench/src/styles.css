@@ -50,6 +50,14 @@ textarea {
   min-height: 0;
 }
 
+.meeting-source-textarea {
+  field-sizing: fixed;
+  height: min(18rem, 38dvh);
+  min-height: 10rem;
+  overflow-y: auto;
+  resize: vertical;
+}
+
 @media (max-width: 900px) {
   main > div.grid {
     grid-template-columns: 15rem minmax(0, 1fr);

@@ -1,4 +1,4 @@
-import type { FormEvent } from 'react'
+import type { ChangeEvent, FormEvent } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,9 +38,10 @@ import {
   TabsList,
   TabsTrigger,
   Textarea,
+  Upload,
   WandSparkles
 } from '@xpert-ai/plugin-shadcn-ui'
-import { executeAction, invokeClientCommand, notify, requestData } from './bridge'
+import { executeAction, executeFileAction, invokeClientCommand, notify, requestData } from './bridge'
 import { ExecutionBoard } from './execution-board'
 import { CATALOG, formatDate, resolveLocale } from './i18n'
 import type {
@@ -61,7 +62,9 @@ import type {
 } from './types'
 import { React } from './vendor'
 
-const { useCallback, useEffect, useMemo, useState } = React
+const { useCallback, useEffect, useMemo, useRef, useState } = React
+
+const MEETING_FILE_MAX_BYTES = 5 * 1024 * 1024
 
 export function MeetingWorkbench({ context }: { context: HostContext }) {
   const locale = resolveLocale(context.locale)
@@ -77,6 +80,8 @@ export function MeetingWorkbench({ context }: { context: HostContext }) {
   const [newOpen, setNewOpen] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [newSource, setNewSource] = useState('')
+  const [newFileName, setNewFileName] = useState('')
+  const [newFileError, setNewFileError] = useState('')
   const [decisionDraft, setDecisionDraft] = useState<Decision | null>(null)
   const [actionDraft, setActionDraft] = useState<ActionItem | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -84,6 +89,7 @@ export function MeetingWorkbench({ context }: { context: HostContext }) {
   const [executionStatus, setExecutionStatus] = useState<'all' | Exclude<ActionStatus, 'pending_confirmation'>>('all')
   const [executionOwner, setExecutionOwner] = useState('')
   const [executionPage, setExecutionPage] = useState(1)
+  const newFileInput = useRef<HTMLInputElement | null>(null)
 
   const load = useCallback(async (meetingId = selectedId) => {
     setBusy(true)
@@ -153,8 +159,34 @@ export function MeetingWorkbench({ context }: { context: HostContext }) {
       setNewOpen(false)
       setNewTitle('')
       setNewSource('')
+      setNewFileName('')
+      setNewFileError('')
     } catch (error) {
       notify(error instanceof Error ? error.message : t.saveFailed, 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const importMeetingFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0]
+    event.currentTarget.value = ''
+    if (!file) return
+    setNewFileError('')
+    if (file.size > MEETING_FILE_MAX_BYTES) {
+      setNewFileError(t.fileTooLarge)
+      return
+    }
+    setBusy(true)
+    try {
+      const result = await executeFileAction('import_meeting_file', null, {}, file)
+      const imported = parseImportedMeetingFile(result)
+      setNewTitle(imported.title)
+      setNewSource(imported.sourceText)
+      setNewFileName(imported.fileName)
+      notify(t.fileImported)
+    } catch (error) {
+      setNewFileError(error instanceof Error ? error.message : t.fileImportFailed)
     } finally {
       setBusy(false)
     }
@@ -444,12 +476,36 @@ export function MeetingWorkbench({ context }: { context: HostContext }) {
         onPage={setExecutionPage}
       /> : <div className="grid h-full place-items-center text-sm text-muted-foreground">{t.loading}</div>}
 
-      <Dialog open={newOpen} onOpenChange={setNewOpen}>
-        <DialogContent className="sm:max-w-2xl">
+      <Dialog open={newOpen} onOpenChange={(open) => { setNewOpen(open); if (!open) setNewFileError('') }}>
+        <DialogContent className="max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-2xl">
           <DialogHeader><DialogTitle>{t.newExtraction}</DialogTitle><DialogDescription>{t.emptyHint}</DialogDescription></DialogHeader>
-          <div className="space-y-4">
+          <div className="min-h-0 space-y-4 overflow-y-auto pr-1">
+            <div className="rounded-lg border border-dashed p-3">
+              <input
+                ref={newFileInput}
+                type="file"
+                accept=".txt,.md,.markdown,.csv,.log,.srt,.vtt,.docx,text/plain,text/markdown,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                className="sr-only"
+                aria-label={t.importMeetingFile}
+                onChange={(event) => void importMeetingFile(event)}
+              />
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">{t.importMeetingFile}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{t.fileImportHint}</p>
+                  {newFileName ? <p className="mt-2 truncate text-xs text-foreground">{t.importedFile}：{newFileName}</p> : null}
+                </div>
+                <Button type="button" variant="outline" onClick={() => newFileInput.current?.click()} disabled={busy}>
+                  <Upload aria-hidden />{busy ? t.importingFile : t.chooseFile}
+                </Button>
+              </div>
+              {newFileError ? <p role="alert" className="mt-2 text-xs text-destructive">{newFileError}</p> : null}
+            </div>
             <label className="grid gap-2 text-sm"><span className="font-medium">{t.meetingTitle}</span><Input value={newTitle} onChange={(event) => setNewTitle(event.target.value)} placeholder={t.meetingTitlePlaceholder} maxLength={200} /></label>
-            <label className="grid gap-2 text-sm"><span className="font-medium">{t.meetingContent}</span><Textarea value={newSource} onChange={(event) => setNewSource(event.target.value)} placeholder={t.meetingContentPlaceholder} className="min-h-64" maxLength={30000} /></label>
+            <label className="grid min-h-0 gap-2 text-sm">
+              <span className="flex items-center justify-between gap-3"><span className="font-medium">{t.meetingContent}</span><span className="text-xs tabular-nums text-muted-foreground">{newSource.length.toLocaleString(locale)} / 30,000</span></span>
+              <Textarea value={newSource} onChange={(event) => setNewSource(event.target.value)} placeholder={t.meetingContentPlaceholder} className="meeting-source-textarea" maxLength={30000} />
+            </label>
           </div>
           <DialogFooter><Button variant="outline" onClick={() => setNewOpen(false)}>{t.cancel}</Button><Button onClick={() => void submitNew()} disabled={busy || !newTitle.trim() || newSource.trim().length < 20}><Send aria-hidden />{t.submitToAssistant}</Button></DialogFooter>
         </DialogContent>
@@ -557,6 +613,16 @@ function readParameters(value: Record<string, unknown> | undefined): { meetingId
   const rawStatus = value?.['status']
   const status = rawStatus === 'processing' || rawStatus === 'review_required' || rawStatus === 'confirmed' || rawStatus === 'failed' ? rawStatus : undefined
   return { meetingId, status }
+}
+
+function parseImportedMeetingFile(value: unknown) {
+  const result = readRecord(value, 'file action result')
+  const data = readRecord(result['data'], 'file action data')
+  return {
+    fileName: readString(data['fileName'], 'file name'),
+    title: readString(data['title'], 'file title'),
+    sourceText: readString(data['sourceText'], 'file source text')
+  }
 }
 
 function parseWorkbenchData(value: unknown): WorkbenchData {

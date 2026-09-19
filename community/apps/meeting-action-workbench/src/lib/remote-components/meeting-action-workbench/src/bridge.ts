@@ -54,16 +54,39 @@ export async function executeAction(actionKey: string, targetId: string, input: 
   }
   return result
 }
+export async function executeFileAction(
+  actionKey: string,
+  targetId: string | null,
+  input: Record<string, unknown>,
+  file: File
+) {
+  const buffer = await file.arrayBuffer()
+  const result = await requestHost('executeFileAction', {
+    actionKey,
+    targetId: targetId ?? undefined,
+    input,
+    file: {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      buffer
+    }
+  }, [buffer])
+  if (!isSuccessfulActionResult(result)) {
+    throw new Error(readActionError(result))
+  }
+  return result
+}
 export function invokeClientCommand(commandKey: string, payload: Record<string, unknown>) {
   return requestHost('invokeClientCommand', { commandKey, payload })
 }
 export function notify(message: string, level: 'success' | 'error' = 'success') { post('notify', { message, level }) }
 
-function requestHost(type: string, body: Record<string, unknown>) {
+function requestHost(type: string, body: Record<string, unknown>, transfer: Transferable[] = []) {
   const requestId = `${Date.now()}-${++sequence}`
   return new Promise<unknown>((resolve, reject) => {
     pending.set(requestId, { resolve, reject })
-    post(type, { requestId, ...body })
+    post(type, { requestId, ...body }, transfer)
     window.setTimeout(() => {
       if (!pending.has(requestId)) return
       pending.delete(requestId)
@@ -72,8 +95,8 @@ function requestHost(type: string, body: Record<string, unknown>) {
   })
 }
 
-function post(type: string, body: Record<string, unknown> = {}) {
-  window.parent.postMessage({ channel: CHANNEL, protocolVersion: VERSION, instanceId, type, ...body }, '*')
+function post(type: string, body: Record<string, unknown> = {}, transfer: Transferable[] = []) {
+  window.parent.postMessage({ channel: CHANNEL, protocolVersion: VERSION, instanceId, type, ...body }, '*', transfer)
 }
 
 function isBridgeMessage(value: unknown): value is BridgeMessage {

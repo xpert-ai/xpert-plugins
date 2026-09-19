@@ -98,13 +98,37 @@ test('generated Workbench bundle supports review, confirmation, reload, and Assi
 
     await view.getByRole('button', { name: '新建提取' }).click()
     const newDialog = view.getByRole('dialog')
-    await newDialog.getByLabel('会议标题').fill('客户需求评审会')
-    await newDialog.getByLabel('会议内容').fill('会议决定下周发布试用版本。李华负责整理验收清单，截止 2026-09-20。')
-    await newDialog.getByRole('button', { name: '发送给 Assistant' }).click()
+    const longMeetingText = Array.from({ length: 220 }, (_, index) =>
+      `第 ${index + 1} 项记录：会议决定按计划推进区域试点，负责人李华需要在 2026-09-20 前更新验收清单并反馈风险。`
+    ).join('\n')
+    await newDialog.getByLabel('导入会议记录文件').setInputFiles({
+      name: '客户需求评审会.txt',
+      mimeType: 'text/plain',
+      buffer: Buffer.from(longMeetingText, 'utf8')
+    })
+    await newDialog.getByText('已导入：客户需求评审会.txt', { exact: true }).waitFor()
+    assert.equal(await newDialog.getByLabel('会议标题').inputValue(), '客户需求评审会')
+    const sourceEditor = newDialog.getByLabel('会议内容')
+    assert.equal(await sourceEditor.inputValue(), longMeetingText)
+    const sourceMetrics = await sourceEditor.evaluate((element) => ({
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+      overflowY: getComputedStyle(element).overflowY
+    }))
+    assert.ok(sourceMetrics.scrollHeight > sourceMetrics.clientHeight, 'Long meeting text should scroll inside its editor.')
+    assert.equal(sourceMetrics.overflowY, 'auto')
+    const submitButton = newDialog.getByRole('button', { name: '发送给 Assistant' })
+    const submitBounds = await submitButton.boundingBox()
+    const dialogFrame = page.frames().find((item) => item.url().includes('/__xpert/component'))
+    assert.ok(dialogFrame && submitBounds, 'The long-text submit action should remain visible in the iframe.')
+    const frameHeight = await dialogFrame.evaluate(() => document.documentElement.clientHeight)
+    assert.ok(submitBounds.y + submitBounds.height <= frameHeight, 'The submit action should stay inside the viewport.')
+    await page.screenshot({ path: join(screenshotDir, 'workbench-long-file-import.png'), fullPage: true })
+    await submitButton.click()
     const state = await (await page.request.get(new URL('/__xpert/remote-view-preview/state', preview.url).href)).json()
     assert.equal(state.state.commands.at(-1).commandKey, 'assistant.chat.send_message')
     assert.match(state.state.commands.at(-1).payload.text, /客户需求评审会/)
-    assert.match(state.state.commands.at(-1).payload.text, /李华负责整理验收清单/)
+    assert.match(state.state.commands.at(-1).payload.text, /第 220 项记录/)
 
     await page.setViewportSize({ width: 1024, height: 800 })
     const narrow = await reloadedFrame.evaluate(() => ({

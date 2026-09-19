@@ -144,10 +144,19 @@ function renderHostHtml({ title, instanceId, hostContext }) {
           }
           if (!message.requestId) return
           try {
+            const bridgeMessage = message.type === 'executeFileAction' && message.file?.buffer instanceof ArrayBuffer
+              ? {
+                  ...message,
+                  file: {
+                    ...message.file,
+                    buffer: Array.from(new Uint8Array(message.file.buffer))
+                  }
+                }
+              : message
             const response = await fetch('/__xpert/bridge', {
               method: 'POST',
               headers: { 'content-type': 'application/json' },
-              body: JSON.stringify(message)
+              body: JSON.stringify(bridgeMessage)
             })
             const result = await response.json()
             if (!response.ok) throw new Error(result.error || 'Preview bridge request failed.')

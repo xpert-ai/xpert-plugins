@@ -5,17 +5,17 @@ description: 构建、契约和本地平台验收
 
 ## 自动化结果
 
-2026-09-18 在 Node.js 22 与 pnpm 10.24.0 下完成最终提交前复验：
+2026-09-19 在 Node.js 22 与 pnpm 10.24.0 下完成最终提交前复验：
 
 | 检查 | 结果 | 覆盖范围 |
 | --- | --- | --- |
 | `lint` | 通过 | 服务端与 Remote View TypeScript 检查 |
 | `build` | 通过 | 共享 UI、Remote View、服务端、Assistant 模板和资产复制 |
-| `test` | 11/11 通过 | 合约 6、服务状态机 3、Remote View E2E 2 |
+| `test` | 14/14 通过 | 合约、TXT/DOCX 文件解析与限制、服务状态机、Remote View E2E |
 | `verify:dist` | 通过 | `dist` 文件存在、非占位且与源码一致 |
 | `plugin-dev-harness` | 通过 | dist-first；启用框架 mocks；完整启动与销毁生命周期 |
 
-自动化覆盖了未知字段、超长文本和非法枚举拒绝，`operationId` 幂等与冲突，会议与执行巡检的 `revision` 并发保护，成功/失败/重试状态机，以及中文空状态、待复核、已确认、执行状态、规则风险、Agent 风险人工处置、跟进简报和失败重试界面。模型调用在自动化测试中使用固定模拟响应；不会消耗真实额度。
+自动化覆盖了未知字段、超长文本和非法枚举拒绝，`operationId` 幂等与冲突，会议与执行巡检的 `revision` 并发保护，成功/失败/重试状态机，以及中文空状态、待复核、已确认、执行状态、规则风险、Agent 风险人工处置、跟进简报和失败重试界面。文件测试会真实生成 DOCX 并验证正文提取，同时拒绝超限文件和不支持格式。Remote View E2E 自动上传 220 行 TXT，验证正文输入区可滚动、提交按钮位于 iframe 可视范围内，且发送给 Assistant 的最后一行未丢失。模型调用在自动化测试中使用固定模拟响应；不会消耗真实额度。
 
 ## 真实平台结果
 
@@ -24,7 +24,7 @@ description: 构建、契约和本地平台验收
 - 一次真实模型调用完成 `meeting_begin_extraction`、1 次 `meeting_upsert_decision`、2 次 `meeting_upsert_action_item` 和 `meeting_finalize_extraction`。
 - 合成样例生成 1 条决议和 2 条行动项；信息不足的行动项截止日期为 `null`，没有猜测。
 - 刷新后的 Workbench 能从 PostgreSQL 恢复会议原文、证据和提取结果。
-- 插件 0.2.0 已刷新到本地平台并在重启后注册；API readiness 返回 `ready`。
+- 插件 0.3.0 已刷新到本地平台并在重启后注册；部署描述符版本为 0.3.0、`loadStatus` 为 `loaded`，API readiness 返回 `ready`。
 - 现有 Assistant 保留原 ID、名称、会话和绑定并同步模板 v4；Agent 与 Middleware 工件哈希均升级到 v2。同步未创建新的发布版本，因此平台仍显示 v1。
 - 在用户明确授权发送合成/脱敏会议数据后，真实 DeepSeek 执行巡检完成 5 类领域工具调用，持久化 2 条 Agent 语义风险与中文下次会议简报。
 
@@ -35,3 +35,5 @@ description: 构建、契约和本地平台验收
 用户已在目标组织的“会议决议与行动项助手”中对“第三步本地验收会议”执行“确认全部结果”。只读数据库复核显示：会议状态为 `confirmed`，revision 从 5 更新为 6，确认时间和审核人已记录；1 条决议与 2 条行动项全部确认，行动项状态为 `pending`，空截止日期仍为 `null`。API readiness 为 `ready`，Cloud UI 返回 HTTP 200。
 
 升级版执行跟踪、规则风险、Agent 风险人工处置与跟进简报已经通过真实 Remote View 构建工件 E2E，并在已安装的真实平台中复验。页面显示 2 条已确认行动项、2 条规则风险、2 条 Agent 语义风险和完整中文跟进简报；人工处置按钮可见，Agent 没有代替用户接受或关闭风险。真实模型失败/重试的完整平台证据仍待补充。
+
+0.3.0 文件导入升级也已在同一已安装平台完成用户人工复验：页面显示支持格式、5 MB 限制、文件选择入口和 30,000 字符计数，长记录可滚动且底部操作按钮始终可点击。在 896×424 的 Workbench iframe 中，对话框高度为 392px，内部正文区域 `overflow-y: auto`，取消与发送按钮位于 y=360–392 的可视范围。浏览器 E2E 还真实上传 220 行 TXT 并验证末行完整传递。

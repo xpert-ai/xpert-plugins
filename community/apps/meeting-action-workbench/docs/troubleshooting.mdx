@@ -11,6 +11,12 @@ description: 常见本地开发问题
 
 检查 Assistant 是否调用了 meeting_finalize_extraction 或 meeting_report_extraction_failure。工作台只监听本插件的变更工具完成事件。
 
+## 文件无法导入
+
+确认文件格式为 TXT、Markdown、CSV、LOG、SRT、VTT 或 DOCX，大小不超过 5 MB，且提取后的正文在 20 至 30,000 字符之间。PDF、旧版 DOC 和图片不会被静默识别，请先转换为支持的格式。导入只回填预览；仍需核对内容并选择“发送给 Assistant 提取”。
+
+若长文本看不到底部按钮，请确认已刷新到 0.3.0。该版本把对话框限制在浏览器可视高度内，正文输入区和对话框内容均可滚动，底部操作区固定可见。
+
 ## 版本冲突
 
 MEETING_REVISION_CONFLICT 表示页面基于旧版本编辑。刷新工作台，确认最新内容后重新提交。

@@ -10,7 +10,7 @@ description: 5 分钟展示真实 AI 提取 人工确认和执行巡检闭环
 ## 演示前准备
 
 1. 确认 Xpert API readiness 为 `ready`，Cloud UI 可以登录。
-2. 确认插件 `@xpert-ai/plugin-meeting-action-workbench` 版本为 `0.2.0` 且 `loadStatus` 为 `loaded`。
+2. 确认插件 `@xpert-ai/plugin-meeting-action-workbench` 版本为 `0.3.0` 且 `loadStatus` 为 `loaded`。
 3. 打开已发布的“会议决议与行动项助手”，确认“会议行动项” Workbench 可见。
 4. 使用合成或脱敏会议文本；真实组织内容只有在获得授权后才发送给模型。
 
@@ -31,7 +31,7 @@ description: 5 分钟展示真实 AI 提取 人工确认和执行巡检闭环
 
 ### 0:40 至 1:40 真实 AI 提取
 
-在“会议复核”页选择“新建提取”，输入样例。Assistant 依次创建提取轮次、保存决议和行动项并完成提取。指出每条结果都带有原文证据与置信度；原文未给出的截止日期保持为空。
+在“会议复核”页选择“新建提取”，可以输入样例，也可以导入 TXT 或 DOCX 会议文件。先展示长记录可独立滚动且提交按钮始终可见，再发送给 Assistant。Assistant 依次创建提取轮次、保存决议和行动项并完成提取。指出每条结果都带有原文证据与置信度；原文未给出的截止日期保持为空。
 
 ### 1:40 至 2:30 人工确认
 
@@ -49,7 +49,7 @@ description: 5 分钟展示真实 AI 提取 人工确认和执行巡检闭环
 
 ### 4:30 至 5:00 可靠性证据
 
-打开验证记录，说明 11 个测试、`verify:dist`、插件生命周期、真实 DeepSeek 调用和已安装平台复验均已完成。用一个异常场景收尾：失败状态保留原会议，重试使用 `operationId` 和 revision 防止重复数据及陈旧覆盖。
+打开验证记录，说明 14 个测试、真实 TXT/DOCX 解析、长记录浏览器 E2E、`verify:dist`、插件生命周期、真实 DeepSeek 调用和已安装平台复验均已完成。用一个异常场景收尾：失败状态保留原会议，重试使用 `operationId` 和 revision 防止重复数据及陈旧覆盖。
 
 ## 演示失败时的回退
 

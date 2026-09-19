@@ -33,7 +33,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
     targetAppMeta: {
       'data-xpert': {
         types: ['business-app', 'workbench-view', 'assistant-tool', 'assistant-template'],
-        capabilities: [MEETING_FEATURE, 'meeting-ai-extraction', 'meeting-human-review', 'meeting-execution-tracking', 'meeting-agent-risk-review'],
+        capabilities: [MEETING_FEATURE, 'meeting-ai-extraction', 'meeting-file-import', 'meeting-human-review', 'meeting-execution-tracking', 'meeting-agent-risk-review'],
         marketplace: {
           contents: [
             {

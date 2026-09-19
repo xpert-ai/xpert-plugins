@@ -16,7 +16,12 @@ import type {
   XpertViewQuery,
   XpertViewScalar
 } from '@xpert-ai/contracts'
-import { IXpertViewExtensionProvider, renderRemoteReactIframeHtml, ViewExtensionProvider } from '@xpert-ai/plugin-sdk'
+import {
+  IXpertViewExtensionProvider,
+  renderRemoteReactIframeHtml,
+  ViewExtensionProvider,
+  type XpertViewFileActionFile
+} from '@xpert-ai/plugin-sdk'
 import { z } from 'zod/v3'
 import {
   AGENT_WORKBENCH_FIXED_SLOT,
@@ -30,6 +35,7 @@ import {
   MEETING_VIEW_KEY
 } from './constants'
 import { MeetingService } from './meeting.service'
+import { extractMeetingFile, MeetingFileImportError } from './meeting-file-import'
 import { MeetingDomainError, type MeetingScope, type MeetingStatus } from './types'
 
 const requireFromHere = createRequire(__filename)
@@ -189,6 +195,15 @@ export class MeetingViewProvider implements IXpertViewExtensionProvider {
       actions: [
         { key: 'refresh', label: text('Refresh', '刷新'), icon: 'ri-refresh-line', placement: 'toolbar', actionType: 'refresh' },
         {
+          key: 'import_meeting_file',
+          label: text('Import meeting file', '导入会议记录文件'),
+          icon: 'ri-upload-cloud-2-line',
+          placement: 'toolbar',
+          actionType: 'invoke',
+          transport: 'file',
+          requiredHostAccess: 'edit'
+        },
+        {
           key: 'update_decision',
           label: text('Save decision', '保存决议'),
           icon: 'ri-save-3-line',
@@ -327,6 +342,38 @@ export class MeetingViewProvider implements IXpertViewExtensionProvider {
       return failure(code, message, message)
     }
   }
+
+  async executeViewFileAction(
+    _context: XpertResolvedViewHostContext,
+    viewKey: string,
+    actionKey: string,
+    _request: XpertViewActionRequest,
+    file: XpertViewFileActionFile
+  ): Promise<XpertViewActionResult> {
+    if (viewKey !== MEETING_VIEW_KEY || actionKey !== 'import_meeting_file') {
+      return failure('UNSUPPORTED_FILE_ACTION', 'Unsupported meeting file action.', '不支持的会议文件操作。')
+    }
+    try {
+      const data = await extractMeetingFile({
+        buffer: file.buffer,
+        fileName: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size
+      })
+      return {
+        success: true,
+        message: text('Meeting file imported for review.', '会议记录文件已导入，请确认内容后发送。'),
+        refresh: false,
+        data
+      }
+    } catch (error) {
+      if (error instanceof MeetingFileImportError) {
+        const localized = meetingFileImportMessage(error.code)
+        return failure(error.code, localized.en_US, localized.zh_Hans)
+      }
+      return failure('MEETING_FILE_READ_FAILED', 'The meeting file could not be read.', '无法读取会议记录文件。')
+    }
+  }
 }
 
 function scopeFromContext(context: XpertResolvedViewHostContext): MeetingScope {
@@ -350,6 +397,26 @@ function isMeetingStatus(value?: string): value is MeetingStatus {
 
 function isActionStatus(value?: string): value is 'pending' | 'in_progress' | 'completed' | 'cancelled' {
   return value === 'pending' || value === 'in_progress' || value === 'completed' || value === 'cancelled'
+}
+
+function meetingFileImportMessage(code: MeetingFileImportError['code']) {
+  const messages: Record<MeetingFileImportError['code'], { en_US: string; zh_Hans: string }> = {
+    MEETING_FILE_REQUIRED: { en_US: 'Select a meeting file.', zh_Hans: '请选择会议记录文件。' },
+    MEETING_FILE_EMPTY: { en_US: 'The meeting file is empty.', zh_Hans: '会议记录文件为空。' },
+    MEETING_FILE_TOO_LARGE: { en_US: 'The meeting file exceeds the 5 MB limit.', zh_Hans: '会议记录文件超过 5 MB 限制。' },
+    MEETING_FILE_TYPE_UNSUPPORTED: {
+      en_US: 'Use a TXT, Markdown, CSV, LOG, SRT, VTT, or DOCX file.',
+      zh_Hans: '仅支持 TXT、Markdown、CSV、LOG、SRT、VTT 或 DOCX 文件。'
+    },
+    MEETING_FILE_CONTENT_EMPTY: { en_US: 'No readable meeting text was found.', zh_Hans: '文件中没有可读取的会议文本。' },
+    MEETING_FILE_CONTENT_TOO_SHORT: { en_US: 'Meeting text must contain at least 20 characters.', zh_Hans: '会议文本至少需要 20 个字符。' },
+    MEETING_FILE_CONTENT_TOO_LONG: {
+      en_US: 'Meeting text exceeds the 30,000 character limit. Split the record before importing.',
+      zh_Hans: '会议文本超过 30,000 字限制，请拆分记录后再导入。'
+    },
+    MEETING_FILE_READ_FAILED: { en_US: 'The meeting file could not be read.', zh_Hans: '无法读取会议记录文件。' }
+  }
+  return messages[code]
 }
 
 function getNumberParameter(parameters: Record<string, XpertViewScalar | XpertViewScalar[]> | undefined, key: string) {
