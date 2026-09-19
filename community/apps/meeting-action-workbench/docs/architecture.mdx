@@ -1,0 +1,17 @@
+---
+title: 架构
+description: 插件边界、持久化和并发策略
+---
+
+插件是 system 级 Xpert Server Plugin，工件命名空间固定为 meeting_action_workbench。
+
+- MeetingRecord 保存原文、状态、revision、提取轮次和失败原因。
+- MeetingDecision 与 MeetingActionItem 以 meetingId + itemKey 唯一，支持 AI 重试时稳定 upsert。
+- MeetingExecutionReview 保存一次 Agent 巡检的状态、revision、摘要、跟进简报和失败信息。
+- MeetingRiskSignal 以 reviewId + signalKey 唯一，保存有证据的 Agent 语义风险和人工处置状态。
+- MeetingOperation 以范围和 operationId 唯一，保存请求哈希与紧凑回执；同参数重试返回原回执，不同参数复用会被拒绝。
+- 所有读取和写入先按 tenant 与 organization 限定，再按业务 ID 查询。
+- 人工变更使用 expectedRevision；服务端事务持有会议写锁并拒绝陈旧修改。
+- Remote View 只通过 Xpert iframe bridge 查询和执行动作，不使用 Local Storage 或 Session Storage。
+
+执行治理采用混合判断：数据库查询派生逾期、即将到期和字段缺失等确定性规则；Assistant 只分析需要语义理解的风险。工具边界把“读取上下文、开始巡检、逐条写入风险、完成巡检、记录失败”拆成可审计状态机。行动项状态和风险处置只暴露给人工 View Action，不暴露给 Agent 工具。

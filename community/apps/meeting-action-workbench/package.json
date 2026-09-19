@@ -1,0 +1,71 @@
+{
+  "name": "@xpert-ai/plugin-meeting-action-workbench",
+  "version": "0.3.0",
+  "description": "Xpert Agentic App for extracting, reviewing, confirming, and tracking meeting decisions and action items.",
+  "author": { "name": "XpertAI", "url": "https://xpertai.cn" },
+  "license": "AGPL-3.0",
+  "private": true,
+  "packageManager": "pnpm@10.24.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins",
+    "directory": "community/apps/meeting-action-workbench"
+  },
+  "xpert": { "plugin": { "level": "system", "artifactNamespace": "meeting_action_workbench" } },
+  "main": "./index.cjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@xpert-plugins-starter/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "require": "./index.cjs",
+      "default": "./index.cjs"
+    }
+  },
+  "files": [".xpertai-plugin", "dist", "index.cjs", "README.md", "docs", "!**/*.tsbuildinfo"],
+  "scripts": {
+    "build:ui": "node scripts/build-shared-ui.mjs",
+    "build": "node scripts/build-package.mjs",
+    "lint": "node scripts/typecheck.mjs",
+    "remote:typecheck": "node scripts/typecheck.mjs --remote-only",
+    "test": "node scripts/build-package.mjs && node --test tests/*.test.mjs",
+    "verify:dist": "node scripts/verify-dist.mjs"
+  },
+  "dependencies": { "mammoth": "1.12.0", "tslib": "^2.3.0" },
+  "peerDependencies": {
+    "@langchain/core": ">=0.3.0",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/typeorm": "^11.0.0",
+    "@xpert-ai/contracts": "^3.10.1",
+    "@xpert-ai/plugin-sdk": "^3.10.1",
+    "react": ">=18",
+    "react-dom": ">=18",
+    "typeorm": "^0.3.24",
+    "yaml": ">=2.0.0",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@langchain/core": "0.3.72",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/typeorm": "^11.0.0",
+    "@types/node": "^20.19.9",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@xpert-ai/contracts": "^3.10.1",
+    "@xpert-ai/plugin-sdk": "^3.10.1",
+    "@xpert-ai/plugin-shadcn-ui": "workspace:*",
+    "esbuild": "^0.28.1",
+    "playwright-core": "1.58.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "reflect-metadata": "^0.2.2",
+    "typeorm": "^0.3.24",
+    "typescript": "^5.9.2",
+    "yaml": "^2.8.1",
+    "zod": "3.25.67"
+  },
+  "publishConfig": { "access": "public" }
+}
