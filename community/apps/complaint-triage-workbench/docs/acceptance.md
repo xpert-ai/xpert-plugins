@@ -1,6 +1,6 @@
 # Acceptance and delivery record
 
-Updated: 2026-09-18 (Asia/Shanghai). Revision: `0.2.1`; implementation commit `4a115e6f398a1e6f16494c895ec0f8b0493293be`. Earlier runtime evidence below predates Git submission.
+Updated: 2026-09-19 (Asia/Shanghai). Revision: `0.2.1`; implementation commit `4a115e6f398a1e6f16494c895ec0f8b0493293be`. Earlier runtime evidence below predates Git submission.
 
 ## Evidence boundaries
 
@@ -13,6 +13,7 @@ Updated: 2026-09-18 (Asia/Shanghai). Revision: `0.2.1`; implementation commit `4
 - A separate post-publication browser regression created the fictitious `POST-PUBLISH-021` at 13:35. Workbench AI analysis returned all seven structured fields and entered PENDING_REVIEW at 13:36. The operator changed only the human summary, saved at 13:37, refreshed and verified the draft, confirmed at 13:38, then refreshed and verified CONFIRMED, the revised final summary, and the unchanged AI original. Four -> five cases is an intentional new test case, not Retry duplication. Existing cases were preserved.
 - Prior Remote View Preview/mobile checks were mock-backed UI evidence, not real AI or persistence acceptance.
 - User-provided screenshot `133906b1` subsequently showed POST-PUBLISH-025 at 13:52: FAILED, one attempt, total six, error code `assistant_task_failed`, message "当前会员计划无法使用该 Copilot 模型。", and Retry control. This closes the failure-state screenshot gap, not a fresh independent replay or proof of Retry success for that case. It is distinct from POST-PUBLISH-021 and RETRY-021; do not join these images into one case's transitions.
+- On 2026-09-19 the candidate completed a separate manual replay in the dedicated `complaint-stock-182f2f4` environment after fresh database initialization. Plugin `0.2.1` reported loaded; the DeepSeek official provider and `deepseek-v4-flash` Primary Copilot were reconfigured. `CLEAN-20260919-001` passed required-field validation, creation, DRAFT reload, real structured AI analysis, review persistence, confirmation and final reload. With Primary Copilot temporarily disabled, `FAIL-20260919-001` entered FAILED; after restoring it, Retry used the same case, kept the total at two, incremented the attempt, entered PENDING_REVIEW, then passed human edit/save/reload and confirmation/reload. SOURCE: USER confirmations in the live run. Credentials were not supplied or recorded. The host image includes documented Windows/Auth compatibility fixes and therefore is not an unmodified-upstream-host pass.
 
 ## P0 matrix
 
@@ -70,7 +71,7 @@ Redacted screenshots and attribution are in [evidence/README.md](evidence/README
 1. Preserve the verified published prompt/model/middleware/Workbench. Ordinary chat and the post-publish normal business flow have now passed separately.
 2. Failure-state screenshot received and archived. If POST-PUBLISH-025 recovery is subsequently tested, record the same case reference and unchanged count separately; do not use RETRY-021's final state as its recovery proof. Existing user-confirmed Retry acceptance remains separately attributed.
 3. Verify live error filtering with safe synthetic credential-shaped text if needed; never use an actual credential. Automated filtering tests already cover common formats.
-4. Corrected single-package isolated dependency verification completed: user installation, own-compiler build, 27/27 tests and mock-backed Harness passed. Earlier dependency import failures remain recorded. No fresh entire-workspace/platform installation or new database/model business test is claimed. Upstream ChatKit/Core peers and workspace-root pnpm extension scope remain disclosed. See [clean-install.md](clean-install.md).
+4. Corrected single-package isolated dependency verification completed: user installation, own-compiler build, 27/27 tests and mock-backed Harness passed. Earlier dependency import failures remain recorded. A separate fresh-database/manual real-model platform replay passed on 2026-09-19, but it used the disclosed locally fixed host and is not an automated suite or unmodified-host certification. Upstream ChatKit/Core peers and workspace-root pnpm extension scope remain disclosed. See [clean-install.md](clean-install.md).
 5. Fresh community-workspace Complaint verification passed after user installation: filtered build, 27 tests, mock-backed Harness and source/asset checks. Nested pnpm settings are still ignored, but current root dependencies satisfy tested import paths without metadata changes. Earlier offline/approval failures remain historical evidence; not all workspace packages or an unmodified host were verified. See [workspace-verification.md](workspace-verification.md).
 
 ## Delivery checklist
@@ -90,6 +91,7 @@ Delivery follow-up: the user successfully pushed the Fork branch and GitHub comp
 - [x] User-provided FAILED/error/Retry-control screenshot added with provenance and same-case evidence limits.
 - [x] Single-package isolated installation, dependency versions and disposable lockfile hashes recorded; build, 27 tests and mock-backed Harness passed.
 - [x] Fresh community-workspace installation and Complaint-targeted build/tests/mock-backed Harness verified.
+- [x] Dedicated fresh-database host replay completed: plugin load, real DeepSeek analysis, persistence, confirmation, controlled failure and same-case Retry; SOURCE: USER, host fixes disclosed.
 - [ ] Unmodified-host reproducibility verified or its limitation explicitly accepted.
 - [x] Separate local host Windows fixes documented; no host-source modifications made this phase or included in the proposed plugin scope.
 - [x] Final scoped source/whitespace/credential-pattern/artifact review completed; latest candidate scan covers 33 text files. Not a comprehensive security review.
@@ -97,7 +99,7 @@ Delivery follow-up: the user successfully pushed the Fork branch and GitHub comp
 - [x] Fork push verified at the prior delivery-doc HEAD by local tracking ref and GitHub comparison; follow-up commits require their own push verification.
 - [x] Real screenshots directly embedded in README with relative paths and evidence captions.
 - [x] Product scope, retrospective page wireframes, reference licenses/reuse and representative AI collaboration decisions documented.
-- [ ] Exact coding-model/live model identifiers confirmed by candidate; not inferred from replies.
+- [x] Candidate confirmed Codex gpt5.6sol (GPT-5.6 Sol), DeepSeek official provider and Xpert deepseek-v4-flash; SOURCE: USER, not a per-request API trace. No credential recorded.
 - [ ] Upstream-main PR opened; the prepared form has not been submitted.
 
 Video and npm publication are not required by the current delivery plan. Git operations are user-authorized; the Fork push was completed by the user. No reset/rebase/merge or PR submission was performed in this follow-up.

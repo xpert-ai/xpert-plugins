@@ -62,7 +62,8 @@ Current status update: the user pushed the Fork branch successfully, independent
 - [x] User authorized commit/push/PR; implementation commit SHA recorded and exact committed inputs rebuilt/tested with mock-backed Harness.
 - [x] Prior Fork push completed and verified; any documentation follow-up must be pushed and verified separately.
 - [x] README directly embeds the existing real screenshots; product, page wireframes, AI collaboration and source reuse are documented.
-- [ ] Exact coding-model and business provider/model identifiers confirmed by candidate without exposing credentials.
+- [x] Coding/business model names confirmed by candidate: Codex gpt5.6sol (GPT-5.6 Sol), DeepSeek official provider, Xpert deepseek-v4-flash; no credentials provided.
+- [x] Dedicated fresh-database host replay completed on 2026-09-19: plugin load, real AI, persistence, confirmation, controlled failure and same-case Retry passed. Host Windows/Auth fixes remain disclosed, so this is not the unchecked unmodified-host gate below.
 - [ ] Stock-host verification completed or recruiter acceptance recorded; [preparation and user handoff](upstream-host-verification.md).
 - [ ] PR created targeting upstream main; current form is prepared but not submitted.
 

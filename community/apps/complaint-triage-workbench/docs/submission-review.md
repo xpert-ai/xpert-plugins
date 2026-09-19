@@ -1,6 +1,6 @@
 # Submission review and interview runbook
 
-Date: 2026-09-18, Asia/Shanghai. Plugin 0.2.1; implementation committed at `4a115e6f398a1e6f16494c895ec0f8b0493293be` after user authorization. Earlier source review predates that commit. No live environment change was performed.
+Date: 2026-09-19, Asia/Shanghai. Plugin 0.2.1; implementation committed at `4a115e6f398a1e6f16494c895ec0f8b0493293be` after user authorization. Earlier source review predates that commit.
 
 ## Current gates
 
@@ -10,14 +10,15 @@ Date: 2026-09-18, Asia/Shanghai. Plugin 0.2.1; implementation committed at `4a11
 | Isolated build and assets | Passed | Own TypeScript 5.9.3; no sibling bin fallback |
 | Automated tests | 27 passed | In-memory/static/runtime doubles, not PostgreSQL or a real model suite |
 | Lifecycle | Passed | Existing Harness runner against isolated app; host mocks enabled |
-| Live plugin load | Previously observed | Host descriptor 0.2.1, loaded, system:global |
-| Live normal flow | Previously passed | User confirmation and post-publication browser regression |
-| Live failure/original-case Retry | User confirmed | Supporting final-state image; not an independently captured complete transition |
+| Live plugin load | Revalidated | Dedicated fresh-database environment reported 0.2.1 loaded |
+| Live normal flow | Revalidated | 2026-09-19 user-confirmed create/validation, DeepSeek analysis, edit/save/confirm and reload |
+| Live failure/original-case Retry | Revalidated | Controlled Primary disable/restore; same case retried, count unchanged, attempt incremented |
 | Fresh community workspace, Complaint target | Passed | User installation, filtered build, 27 tests, mock-backed Harness and asset checks; not all workspace packages |
+| Dedicated isolated host | Passed with disclosed host fixes | Fresh database and isolated ports; manual real-model/business acceptance, not automated |
 | Unmodified upstream host | Not verified | Live checks used local Windows compatibility patches |
 | Exact implementation commit | Verified | 4a115e6f398a1e6f16494c895ec0f8b0493293be; rebuilt, 27 tests and mock-backed Harness passed |
-| Fork push | Passed for prior HEAD | User push and GitHub comparison verified 3c9f6a8ed949b692dd1d21fdb88c4fe1b129daf4, two commits/41 files; documentation follow-up requires separate verification |
-| README delivery | Documentation gap closed | Direct relative-path screenshots, product/wireframes, reuse/license and representative AI collaboration; exact model identifiers still need candidate confirmation |
+| Fork push | Passed through 0cf54302 | User push receipt and local HEAD/tracking ref confirm 0cf5430262cfb1cd5f16d6fde6d09fe0d5db371c; subsequent local Markdown updates are not committed/pushed |
+| README delivery | Documentation gap closed | Direct relative-path screenshots, product/wireframes, reuse/license and representative AI collaboration; model labels confirmed by the candidate, not per-request API traces |
 | Upstream PR | Not submitted | Form prepared; stock-host gate still open |
 
 ## Source review
@@ -66,7 +67,7 @@ This is a runbook, not a new execution record. Use fictitious complaint data and
 6. For Retry evidence, record one failed case's reference, attempt count and total count before Retry. Restore the authorized demo model setup if a controlled failure was induced. Retry that same case, observe attempt count increment, unchanged record count and PENDING_REVIEW. Do not create a replacement complaint.
 7. Pair before/after captures from that same case. Existing POST-PUBLISH-025 failure and RETRY-021 final-state images cannot be joined into one case's transition sequence.
 
-Controlled model failure changes host configuration and must be explicitly scoped/authorized before execution. Restore original configuration even if testing fails. This review did not run a new failure, Retry, model call or complaint creation. Previously attributed acceptance remains valid as recorded in acceptance.md.
+Controlled model failure changes host configuration and must be explicitly scoped/authorized before execution. On 2026-09-19 the candidate temporarily disabled Primary Copilot, observed FAILED, restored it, and passed same-case Retry without increasing the case count. The configuration was restored. This is SOURCE: USER manual acceptance, not an automated integration test.
 
 ## Submission contents and checks
 
@@ -76,9 +77,9 @@ Before authorized commit: review candidate file list and secret-pattern results 
 
 Current checks: source candidate list reviewed; no dist, node_modules, environment file or log included. Scoped JWT/long sk-key and trailing-whitespace scans had zero matches, not a comprehensive secrets audit. Community entity-name checker passed; the App uses complaintTable('case') rather than a literal table name, so the generic scanner alone is not proof of this App's table prefix. Existing isolated lifecycle Harness was rerun successfully. No business source/test/script drift from the passing isolated copy was found. Workspace attempt/configuration findings and the exact continuation command are in [workspace-verification.md](workspace-verification.md).
 
-Latest package dry-run passed with 76 entries and explicitly includes both review/verification reports, runtime JS, Assistant YAML and UI JS/CSS; environment, dependency and test paths are excluded. No tarball was created or published. Candidate source review covers 41 files, including 33 text files and eight screenshots. A clean scan is not a guarantee against every secret or privacy format.
+Initial package dry-run passed with 76 entries and explicitly includes both review/verification reports, runtime JS, Assistant YAML and UI JS/CSS; environment, dependency and test paths are excluded. The later delivery-report follow-up passed with 80 entries as recorded below. No tarball was created or published. Initial candidate source review covered 41 files, including 33 text files and eight screenshots. A clean scan is not a guarantee against every secret or privacy format.
 
-Submission target: origin Darlingair1/xpert-plugins, feat/complaint-triage-workbench -> upstream xpert-ai/xpert-plugins, main. Prior commit/push is complete; this documentation follow-up needs separate commit/push verification. The upstream PR has not been submitted. No npm release, Skills PR or additional product feature is planned.
+Submission target: origin Darlingair1/xpert-plugins, feat/complaint-triage-workbench -> upstream xpert-ai/xpert-plugins, main. Push through 0cf54302 is complete; the subsequent model-label and verification-preparation Markdown updates await a separate commit/push after verification. The upstream PR has not been submitted. No npm release, Skills PR or additional product feature is planned.
 
 ## Authorized Git execution and committed-source verification
 
@@ -99,8 +100,8 @@ Authenticate through Git's normal account flow if prompted; do not share a perso
 
 ## Delivery follow-up and independent-host handoff
 
-README now directly embeds the existing real input/AI/confirmed/failure screenshots. New product.md, ai-collaboration.md and source-reuse.md document intended user pain, retrospective page wireframes, scope decisions, representative Codex collaboration and source/license boundaries. No new business source/test/config input was changed. Exact coding-model/provider-model identifiers were not recorded and require candidate confirmation.
+README now directly embeds the existing real input/AI/confirmed/failure screenshots. New product.md, ai-collaboration.md and source-reuse.md document intended user pain, retrospective page wireframes, scope decisions, representative Codex collaboration and source/license boundaries. No new business source/test/config input was changed. The candidate confirmed coding model gpt5.6sol (GPT-5.6 Sol), DeepSeek official provider and Xpert business model deepseek-v4-flash (SOURCE: USER). This records labels, not a per-request API trace; no credential is recorded.
 
-Read-only Docker and WSL inventory checks failed for the agent account with access denied; both escalated checks failed at the approval service with HTTP 503 and were not executed. No container, host configuration, model or active data was changed. The candidate's own terminal inventory and the source-based stock-host verification boundary are in [upstream-host-verification.md](upstream-host-verification.md). Do not replace this remaining gate with a published latest image or label the old local-patch acceptance as a stock-host pass.
+Read-only Docker and WSL inventory checks failed for the agent account with access denied; escalated checks also encountered approval-service failures. The candidate nevertheless completed the prepared isolated environment through their authorized terminal. The 2026-09-19 run passed plugin/model/business acceptance on fresh data, while the host's disclosed Windows/Auth fixes keep the unmodified-upstream-host gate open. Details are in [upstream-host-verification.md](upstream-host-verification.md).
 
-Follow-up verification at approximately 15:55: the existing fresh-community copy rebuilt, passed 27/27 tests and completed mock-backed lifecycle shutdown. Its 25 executable/build/test inputs match current source after line-ending normalization. Documentation link/image and scoped credential-pattern checks passed. Package dry-run with a writable verification cache passed with 80 entries including the four added reports; no package was published. These checks do not close stock-host or model-identity confirmation.
+Follow-up verification at approximately 15:55: the existing fresh-community copy rebuilt, passed 27/27 tests and completed mock-backed lifecycle shutdown. Its 25 executable/build/test inputs match current source after line-ending normalization. Documentation link/image and scoped credential-pattern checks passed. Package dry-run with a writable verification cache passed with 80 entries including the four added reports; no package was published. These checks do not close stock-host acceptance or independently establish the model used for every historical request. The candidate's later model-label confirmation is recorded above.

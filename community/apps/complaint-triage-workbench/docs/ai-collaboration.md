@@ -4,7 +4,7 @@
 
 The development assistant was Codex. It supported source reconnaissance, plugin implementation, tests, debugging and delivery documentation. The business AI is the host Xpert Assistant using the demo organization's configured tool-calling Primary Copilot, not a model SDK embedded in this plugin.
 
-Exact coding-model and live provider/model identifiers were not archived in these delivery records. They remain UNKNOWN until the candidate checks the development-session information and host model settings. Do not substitute a guessed model name or publish credentials. This omission is a remaining interview disclosure item, not proof that no real business AI call occurred.
+The candidate confirmed the coding model as gpt5.6sol (GPT-5.6 Sol), the business provider as DeepSeek official, and the Xpert business model as deepseek-v4-flash. SOURCE: USER; these are candidate-reported identifiers, not an independently captured provider API trace or proof of which model handled every historical request. No credential is included.
 
 ## Representative decisions
 
@@ -36,4 +36,4 @@ The candidate supplied the supplemental POST-PUBLISH-025 failure screenshot. It 
 
 The candidate selected the complaint business direction, authorized the scoped Windows host fixes and Git operations, configured/logged into the model/platform, and confirmed normal and Retry behavior. Codex automated implementation/checks and part of the browser regression. These are attributed contributions, not invented quotations from a full transcript.
 
-Generated code and prose are not acceptance evidence by themselves. The evidence consists of source, executed checks, attributed browser/manual results and redacted screenshots. Build, mock lifecycle, real plugin load and real business flow remain different claims. Stock-host validation and exact model disclosure still need completion; this report does not call the product fully production-ready.
+Generated code and prose are not acceptance evidence by themselves. The evidence consists of source, executed checks, attributed browser/manual results and redacted screenshots. Build, mock lifecycle, real plugin load and real business flow remain different claims. Model names are now user-confirmed; stock-host validation still needs completion. This report does not call the product fully production-ready.
