@@ -149,7 +149,9 @@ if (changedPackageNames.length > 0) {
   console.log(
     `Building ${changedPackageNames.length} package(s): ${changedPackageNames.join(', ')}`
   );
-  run('pnpm', ['exec', 'nx', 'run-many', '-t', 'build', '-p', changedPackageNames.join(',')]);
+  // Plugin build scripts rebuild shared UI packages and clear their dist directories.
+  // Serialize consumers so one build cannot remove another build's dependencies.
+  run('pnpm', ['exec', 'nx', 'run-many', '-t', 'build', '-p', changedPackageNames.join(','), '--parallel=1']);
 } else {
   console.log('No publish-target workspace packages detected. Skip build.');
 }
