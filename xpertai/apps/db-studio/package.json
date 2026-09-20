@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-db-studio",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Governed database workbench and Xpert Agent tools for Apache Doris, MySQL and PostgreSQL.",
   "author": {
     "name": "XpertAI",
