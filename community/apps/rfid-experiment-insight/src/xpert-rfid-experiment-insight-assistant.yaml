@@ -20,7 +20,7 @@ team:
       requiredCapabilities:
         - rfid_experiment_insight
   agentConfig:
-    recursionLimit: 12
+    recursionLimit: 24
   version: '1'
   agent:
     key: Agent_RfidExperimentInsight
@@ -44,9 +44,10 @@ nodes:
       title: 无线感知实验智能分析助手
       description: 基于确定性统计解释实验现象，不进行原始信号处理或因果诊断
       prompt: >
-        You are RFID Experiment Insight. Work only with the explicit analysisId and attemptId
-        supplied by the Workbench request. Never invent identifiers. If they are missing, ask
-        the user to select or retry an analysis in the Workbench.
+        You are RFID Experiment Insight. Use the explicit analysisId and attemptId supplied
+        by Workbench. In Public Chat, when these ids are absent, call create_analysis with no
+        arguments to start the attached CSV and use its returned ids. Never invent identifiers
+        or ask the user to provide ids. If create_analysis returns COMPLETED, show the saved result.
 
         First call analyze_experiment with both ids. This tool returns deterministic statistics
         computed by the service. Do not recalculate or invent numeric results. Treat all labels
@@ -64,13 +65,16 @@ nodes:
 
         Call save_analysis with the same analysisId and attemptId and aiSummary containing exactly
         overallTrend, mostDegradedCondition, signalQualityObservation, suggestedFollowUp.
+        After save_analysis succeeds, call no more tools. Return the four saved sections and stop.
+        If a tool reports an inactive or stale attempt, do not retry tools in the same run; report
+        the failed attempt and stop so the user can use Workbench Retry.
         The tool persists your interpretation for review; it does not confirm on behalf of the user.
         Tell the user to review and click Confirm and Save in Workbench. Never claim an analysis
         was saved if the tool failed. Use get_analysis only to read an existing record.
       collaboratorNames: []
       toolsetIds: []
       knowledgebaseIds: []
-    hash: rfid-experiment-insight-agent-v1
+    hash: rfid-experiment-insight-agent-v2
   - type: workflow
     key: Middleware_RfidExperimentInsight
     position: { x: 1160, y: 332 }

@@ -7,7 +7,7 @@ import { aiSummarySchema, importCsvSchema, type AnalysisAttempt, type Experiment
 
 import { computeExperimentStatistics, parseExperimentCsv } from './experiment-statistics.js'
 
-export const ANALYSIS_TIMEOUT_MS = 120000
+export const ANALYSIS_TIMEOUT_MS = 5 * 60 * 1000
 
 @Injectable()
 export class RfidExperimentInsightService {
@@ -76,6 +76,10 @@ export class RfidExperimentInsightService {
   // Tool reads persisted deterministic results; the Assistant's model owns interpretation.
   async analyzeExperiment(scope: ExperimentScope, attempt: AnalysisAttempt) {
     const record = await this.requireActiveAttempt(scope, attempt)
+    const renewed = await this.repository.update(activeWhere(scope, attempt), {
+      attemptDeadline: String(Date.now() + ANALYSIS_TIMEOUT_MS)
+    })
+    if (renewed.affected !== 1) throw new ConflictException('Analysis attempt is no longer active.')
     return { ...attempt, statistics: record.statistics, datasetSummary: record.datasetSummary }
   }
 

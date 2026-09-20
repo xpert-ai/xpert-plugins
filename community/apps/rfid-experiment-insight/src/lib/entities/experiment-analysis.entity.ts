@@ -1,8 +1,8 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
-import { RFID_ARTIFACT_NAMESPACE } from '../rfid-constants.js'
 import type { AiSummary, AnalysisStatus, ExperimentRow, ExperimentStatistics } from '../experiment-contracts.js'
 
-@Entity(`plugin_${RFID_ARTIFACT_NAMESPACE}_analysis`)
+// Keep the persisted table name literal so the repository's static check can verify it.
+@Entity('plugin_rfid_experiment_insight_analysis')
 @Index(['tenantId', 'organizationId', 'workspaceId', 'projectId', 'createdById'])
 @Index(['tenantId', 'importKey'], { unique: true })
 export class ExperimentAnalysis {

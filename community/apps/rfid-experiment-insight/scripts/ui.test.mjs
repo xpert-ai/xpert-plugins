@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises'
 import { JSDOM, VirtualConsole } from 'jsdom'
 import { MockHost, scope, context, fixtureSummary } from './mock-host.mjs'
 import plugin from '../dist/index.js'
+import { RFID_REMOTE_PROTOCOL } from '../dist/lib/remote-protocol.js'
 
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 async function until(check, description) {
@@ -50,6 +51,7 @@ async function mount(host, { initialId, fastPoll = false } = {}) {
 
 test('ViewProvider is registered, manifests declare Assistant/events, and packaged UI renders', async () => {
   const host = new MockHost()
+  assert.equal(RFID_REMOTE_PROTOCOL.responses.executeFileAction, 'fileActionResult')
   assert.deepEqual(plugin.meta.targetAppMeta['data-xpert'].runtime.viewProviders, ['rfid_experiment_insight'])
   const manifest = host.view.getViewManifests(context, 'agent.workbench.fixed')[0]
   assert.ok(manifest.clientCommands.some((item) => item.key === 'assistant.chat.send_message'))

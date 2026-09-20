@@ -11,6 +11,7 @@ export function parseExperimentCsv(csv: string): ExperimentRow[] {
   if (new Set(header).size !== header.length) throw new Error('CSV contains duplicate column names.')
   if (header.length !== CSV_COLUMNS.length) throw new Error('CSV must contain exactly the seven documented columns.')
   if (!table.length) throw new Error('CSV contains no experiment records.')
+  if (table.length < 2) throw new Error('CSV must contain at least two experiment records.')
   if (table.length > 10000) throw new Error('CSV must contain at most 10000 records.')
   const ids = new Set<string>()
   return table.map((cells, index) => {

@@ -2,9 +2,11 @@ import 'reflect-metadata'
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { randomUUID } from 'node:crypto'
-import { IsNull } from 'typeorm'
+import { IsNull, getMetadataArgsStorage } from 'typeorm'
+import { ExperimentAnalysis } from '../dist/lib/entities/experiment-analysis.entity.js'
+import { RFID_ARTIFACT_NAMESPACE } from '../dist/lib/rfid-constants.js'
 import { parseExperimentCsv, computeExperimentStatistics } from '../dist/lib/experiment-statistics.js'
-import { RfidExperimentInsightService } from '../dist/lib/rfid-experiment-insight.service.js'
+import { ANALYSIS_TIMEOUT_MS, RfidExperimentInsightService } from '../dist/lib/rfid-experiment-insight.service.js'
 import { RfidExperimentInsightMiddleware } from '../dist/lib/rfid-experiment-insight.middleware.js'
 import { RfidExperimentInsightViewProvider } from '../dist/lib/rfid-experiment-insight-view.provider.js'
 import { rfidExperimentInsightTemplates } from '../dist/lib/rfid-experiment-insight.templates.js'
@@ -15,10 +17,17 @@ const summary = { overallTrend: 'Trend', mostDegradedCondition: 'Condition', sig
 const scope = { tenantId: 'tenant-1', organizationId: 'org-1', workspaceId: 'workspace-1', userId: 'user-1' }
 const attemptOf = ({ analysisId, attemptId }) => ({ analysisId, attemptId })
 
+test('runtime entity table retains the artifact namespace and persisted table name', () => {
+  const table = getMetadataArgsStorage().tables.find((entry) => entry.target === ExperimentAnalysis)
+  assert.equal(table?.name, 'plugin_rfid_experiment_insight_analysis')
+  assert.equal(table.name, `plugin_${RFID_ARTIFACT_NAMESPACE}_analysis`)
+})
+
 test('CSV supports BOM, quoted commas, escaped quotes and CRLF', () => {
-  assert.equal(parseExperimentCsv(`\uFEFF${header}\r\na,1,0,"lab, ""A""",0.9,2,0.1\r\n`)[0].environment, 'lab, "A"')
+  assert.equal(parseExperimentCsv(`\uFEFF${header}\r\na,1,0,"lab, ""A""",0.9,2,0.1\r\nb,1,0,lab,0.8,2,0.1\r\n`)[0].environment, 'lab, "A"')
 })
 test('CSV rejects missing/duplicate columns, empty data, invalid numbers and duplicate ids', () => {
+  assert.throws(() => parseExperimentCsv(`${header}\na,1,0,lab,0.9,2,0.1`), /at least two/)
   for (const invalid of [header, csv.replace('phase_dispersion', 'wrong'), csv.replace('angle_deg', 'accuracy'), csv.replace('0.9', '90'), csv.replace('0.9', 'NaN'), csv.replace('0.9', '0x1'), csv.replace('a,1', 'a,-1'), csv.replace('b,1', 'a,1'), csv.replace(',2,', ',,'), csv + '\n"unfinished']) assert.throws(() => parseExperimentCsv(invalid))
 })
 test('statistics group conditions, weight overall average and preserve signed differences', () => {
@@ -60,13 +69,44 @@ function repository() {
     }
   }
 }
-function setup() {
+function setup(runtime) {
   const repo = repository()
   const service = new RfidExperimentInsightService(repo)
-  const middleware = new RfidExperimentInsightMiddleware(service).createMiddleware({}, scope)
+  const middleware = new RfidExperimentInsightMiddleware(service).createMiddleware({}, { ...scope, runtime })
   return { repo, service, middleware, tools: Object.fromEntries(middleware.tools.map((tool) => [tool.name, tool])) }
 }
 const input = () => ({ requestId: randomUUID(), name: 'Experiment', fileName: 'test.csv', csv })
+test('Public Chat creates real ids and retries the same uploaded analysis without losing statistics', async () => {
+  const fileAssetId = randomUUID()
+  const runtime = { capabilities: { require: () => ({ readRuntimeBuffer: async (id) => {
+    assert.equal(id, fileAssetId)
+    return { name: 'demo.csv', buffer: Buffer.from(csv) }
+  } }) } }
+  const { repo, service, middleware, tools } = setup(runtime)
+  const request = { state: { human: { files: [{ fileAssetId }] } } }
+  await middleware.wrapModelCall(request, async (request) => { assert.match(request.systemMessage.text, /create_analysis/); return {} })
+  const attempt = JSON.parse(await tools.create_analysis.invoke({}))
+  assert.deepEqual(JSON.parse(await tools.create_analysis.invoke({})), attempt)
+  const stats = (await service.analyzeExperiment(scope, attempt)).statistics
+  await middleware.afterAgent()
+  assert.equal((await service.getWorkbenchData(scope, attempt.analysisId)).item.status, 'FAILED')
+  const retry = new RfidExperimentInsightMiddleware(service).createMiddleware({}, { ...scope, runtime })
+  await retry.wrapModelCall(request, async () => ({}))
+  const next = JSON.parse(await retry.tools.find((tool) => tool.name === 'create_analysis').invoke({}))
+  assert.equal(next.analysisId, attempt.analysisId)
+  assert.notEqual(next.attemptId, attempt.attemptId)
+  assert.deepEqual((await service.analyzeExperiment(scope, next)).statistics, stats)
+  await service.saveInterpretation(scope, next, summary)
+  assert.equal(repo.rows.size, 1)
+})
+test('Public Chat rejects missing or ambiguous attachments without creating records', async () => {
+  const { repo, middleware, tools } = setup()
+  for (const files of [undefined, [], [{ fileAssetId: randomUUID() }, { fileAssetId: randomUUID() }], [{ url: 'https://example.com/a.csv' }]]) {
+    await middleware.wrapModelCall({ state: { human: { files } } }, async () => ({}))
+    await assert.rejects(tools.create_analysis.invoke({}))
+  }
+  assert.equal(repo.rows.size, 0)
+})
 async function begin(service) {
   const record = await service.importCsv(scope, input())
   const prepared = await service.prepareAnalysis(scope, record.id)
@@ -110,7 +150,25 @@ test('Workbench → Assistant command → Middleware statistics → save tool pr
   await middleware.afterAgent()
   assert.equal(completed.status, 'COMPLETED')
   assert.equal(completed.confirmedAt, null)
+  assert.equal(completed.terminal, true)
+  assert.equal(completed.nextAction, 'respond_with_saved_four_sections_and_stop')
   assert.deepEqual((await service.getWorkbenchData(scope, record.id)).item.aiSummary, summary)
+})
+test('analyze_experiment renews the active attempt for slow model interpretation', async () => {
+  const { repo, service } = setup()
+  const actualNow = Date.now
+  const startedAt = 2_000_000_000_000
+  try {
+    Date.now = () => startedAt
+    const { record, attempt } = await begin(service)
+    Date.now = () => startedAt + ANALYSIS_TIMEOUT_MS - 1
+    await service.analyzeExperiment(scope, attempt)
+    assert.equal(repo.rows.get(record.id).attemptDeadline, String(startedAt + ANALYSIS_TIMEOUT_MS * 2 - 1))
+    Date.now = () => startedAt + ANALYSIS_TIMEOUT_MS + 1
+    assert.equal((await service.saveInterpretation(scope, attempt, summary)).status, 'COMPLETED')
+  } finally {
+    Date.now = actualNow
+  }
 })
 test('model failure hook persists FAILED without leaking provider messages; retry reuses record', async () => {
   const { repo, service, tools, middleware } = setup(), { record, attempt } = await begin(service)

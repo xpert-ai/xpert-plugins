@@ -60,7 +60,7 @@ export class MockHost {
       case 'requestData': return { type: 'data', data: await this.view.getViewData(context, 'workbench', message.query) }
       case 'executeFileAction': {
         const file = { buffer: Buffer.from(message.file.buffer), originalname: message.file.name, mimetype: message.file.type, size: message.file.size }
-        return { type: 'actionResult', result: await this.view.executeViewFileAction(context, 'workbench', message.actionKey, message, file) }
+        return { type: 'fileActionResult', result: await this.view.executeViewFileAction(context, 'workbench', message.actionKey, message, file) }
       }
       case 'executeAction': {
         const result = await this.view.executeViewAction(context, 'workbench', message.actionKey, message)

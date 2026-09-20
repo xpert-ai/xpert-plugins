@@ -40,7 +40,8 @@
   },
   "xpert": {
     "plugin": {
-      "level": "system"
+      "level": "system",
+      "artifactNamespace": "rfid_experiment_insight"
     }
   },
   "dependencies": {
