@@ -21,7 +21,11 @@ import {
 } from './xmla.protocol.js'
 import type { XmlaRequestItems, XmlaRow, XmlaRowset, XmlaValue } from './xmla.protocol.js'
 import { discoverXmlaOlapMetadata } from './xmla.metadata.js'
-import type { XmlaOlapMetadata, XmlaOlapMetadataRequest } from './xmla.metadata.js'
+import type {
+  XmlaCatalogDiscoveryMode,
+  XmlaOlapMetadata,
+  XmlaOlapMetadataRequest
+} from './xmla.metadata.js'
 
 export const XMLA_TYPE = 'xmla'
 export const XMLA_METADATA_CAPABILITY = 'xmla.metadata'
@@ -302,8 +306,13 @@ export class XMLARunner implements DBQueryRunner {
     return discoverXmlaOlapMetadata(
       (requestType, options) => this.discover(requestType, options),
       request,
-      this.options.data_source_info
+      this.options.data_source_info,
+      this.metadataCatalogDiscovery
     )
+  }
+
+  protected get metadataCatalogDiscovery(): XmlaCatalogDiscoveryMode {
+    return 'catalogs'
   }
 
   async describe(catalog: string, statement: string): Promise<{ columns?: IDSTable['columns'] }> {

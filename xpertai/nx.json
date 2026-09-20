@@ -67,6 +67,7 @@
       "@xpert-ai/plugin-volcengine",
       "@xpert-ai/plugin-openai-compatible",
       "@xpert-ai/plugin-mysql",
+      "@xpert-ai/plugin-db-studio",
       "@xpert-ai/plugin-hana",
       "@xpert-ai/plugin-xinference",
       "@xpert-ai/plugin-calculator",

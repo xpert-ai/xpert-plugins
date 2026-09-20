@@ -322,9 +322,6 @@
       "path": "./middlewares/wps-knowledge-connector"
     },
     {
-      "path": "./middlewares/notion-connector"
-    },
-    {
       "path": "./middlewares/tencent-map-connector"
     },
     {
@@ -347,6 +344,9 @@
     },
     {
       "path": "./packages/jieba"
+    },
+    {
+      "path": "./models/xirang"
     }
   ]
 }

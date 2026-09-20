@@ -120,7 +120,7 @@ describe('@xpert-ai/plugin-xmla', () => {
   it('exports aligned database plugin metadata', () => {
     expect(plugin.meta).toMatchObject({
       name: '@xpert-ai/plugin-xmla',
-      version: '0.0.1',
+      version: '0.0.2',
       level: 'organization',
       category: 'database'
     })
