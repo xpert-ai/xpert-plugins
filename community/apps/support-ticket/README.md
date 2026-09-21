@@ -127,7 +127,7 @@ corepack pnpm remote-view:preview \
 | 平台内真实模型调用 | 平台内配置 OpenAI-API-compatible 模型凭证，经 `POST /api/xpert/:id/chat` 触发助手处理工单 | 通过：助手调用中间件工具 `support_ticket_save_triage`，`aiCategory=delivery`、`aiPriority=p1`、`aiPriorityReason` 引用客户原话作为定级依据、`aiDraftReply` 为完整中文草稿（未承诺发货时间、主动索要订单号）、`aiMissingInfo` 列出 6 项未获取信息（未编造）；事件时间线记录 `ai_completed: AI 返回分类 delivery / 优先级 p1` |
 | 助手模板创建与绑定 | `POST /api/xpert-template/@xpert-ai/plugin-support-ticket:support-ticket-assistant/install` 创建，`POST /api/xpert/:id/publish` 发布 | 通过：助手 `support-ticket-assistant` 已绑定 LLM（`copilotModelId`）、工作台（`options.workbench.defaultViewKey=support_ticket__workbench`）与中间件节点（`provider=SupportTicketMiddleware`），发布后 `version=2`（同步双栏布局后重新发布）、`graph` 含 2 个节点 |
 
-**复现基线**：平台 `xpert-ai/xpert` main `d24ca81`；插件仓库 `xpert-ai/xpert-plugins` main `ceb57e6f`，本分支基于该提交。
+**复现基线**：平台 `xpert-ai/xpert` main `d24ca81`；插件仓库 `xpert-ai/xpert-plugins` main `ceb57e6f`，本分支基于该提交。实际测试版本：本分支 `e09fc81f`（第 5 节全部平台内验证与第 6 节截图均基于该版本的插件产物；其后仅 README 文档有增量提交）。
 
 **Windows 平台兼容说明（复现必需）**：在 Windows 上，`@xpert-ai/plugin-sdk` 的 `AIModelProviderStrategy` 装饰器通过调用栈推断 provider YAML 目录时，剥离 `file://` 前缀后残留前导斜杠（`file:///c:/...` → `/c:/...`），`path.join` 生成非法路径，导致所有模型插件读不到自身的 `<provider>.yaml`，平台「模型提供商」列表退化为空（接口返回 `[{}]`）；可在剥离前缀后去掉盘符前的多余斜杠（`/c:/...` → `c:/...`）修复。另需处理 `tools/scripts/deploy-local-plugin.mjs` 中 `spawnSync('corepack', ..., { shell: false })` 在 Windows 下无法执行 `.cmd` 的问题（本地通过 `XPERT_PLUGIN_BUILD_COMMAND` / `XPERT_PLUGIN_TEST_COMMAND` 环境变量走 `shell: true` 分支绕过）。以上均为平台侧问题，与插件产物无关。
 
