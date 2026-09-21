@@ -33,9 +33,9 @@
     "build": "node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
     "typecheck": "tsc -p tsconfig.lib.json --noEmit",
     "remote:typecheck": "tsc -p tsconfig.remote.json --noEmit",
-    "test": "tsc -p tsconfig.spec.json && node --test dist/test/tests/support-ticket-service.test.js dist/test/tests/support-ticket-workflow.test.js dist/test/tests/support-ticket-bridge-contract.test.js",
-    "verify": "corepack pnpm run typecheck && corepack pnpm run remote:typecheck && corepack pnpm run test && corepack pnpm run build",
-    "lint": "echo \"(todo) add lint\""
+    "test": "tsc -p tsconfig.spec.json && node --test dist/test/tests/support-ticket-service.test.js dist/test/tests/support-ticket-workflow.test.js dist/test/tests/support-ticket-bridge-contract.test.js dist/test/tests/support-ticket-query.test.js",
+    "verify": "corepack pnpm run lint && corepack pnpm run test && corepack pnpm run build",
+    "lint": "corepack pnpm run typecheck && corepack pnpm run remote:typecheck"
   },
   "dependencies": {
     "tslib": "^2.3.0"

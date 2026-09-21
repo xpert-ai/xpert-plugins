@@ -8,6 +8,12 @@ import type {
   SupportTicketStatus
 } from '../types'
 
+/**
+ * Indexes match the database-side query paths of the workbench list: scope + status for the status counters and
+ * scope + createdAt for the ordered pages. Category, priority and keyword filters are intentionally unindexed:
+ * the columns are low cardinality and `ILIKE '%term%'` cannot use a b-tree index, so PostgreSQL keeps walking the
+ * ordered index and stops at the page size. Revisit if ticket volume makes that ordered scan dominant.
+ */
 @Entity('plugin_support_ticket')
 @Index(['tenantId', 'organizationId', 'status'])
 @Index(['tenantId', 'organizationId', 'createdAt'])

@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import type { Repository } from 'typeorm'
+import { ILike } from 'typeorm'
+import type { FindOptionsWhere, Repository } from 'typeorm'
 import {
   SUPPORT_TICKET_CATEGORIES,
   SUPPORT_TICKET_CHANNELS,
@@ -227,20 +228,24 @@ export class SupportTicketService {
   }
 
   async getViewData(scope: SupportTicketScope, query: SupportTicketListQuery = {}) {
-    const rows = await this.findScopedTickets(scope)
-    const filtered = filterTickets(rows, query)
     const page = Math.max(1, query.page ?? 1)
     const pageSize = Math.min(50, Math.max(1, query.pageSize ?? 20))
-    const start = (page - 1) * pageSize
-    const selected = query.ticketId ? filtered.find((item) => item.id === query.ticketId) : filtered[0]
+    const [rows, total] = await this.ticketRepository.findAndCount({
+      where: this.filteredWhere(scope, query),
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * pageSize,
+      take: pageSize
+    })
+    // A selected ticket is fetched on its own so it stays visible even when it is not on the current page.
+    const selected = query.ticketId ? await this.findSelectedTicket(scope, query) : rows[0]
 
     return {
-      items: filtered.slice(start, start + pageSize).map(toListItem),
-      total: filtered.length,
+      items: rows.map(toListItem),
+      total,
       item: selected ? toDetail(selected) : undefined,
       summary: {
         mode: selected ? 'detail' : 'empty',
-        stats: buildStats(rows)
+        stats: await this.countScopedStats(scope)
       },
       meta: {
         statuses: SUPPORT_TICKET_STATUSES,
@@ -253,18 +258,21 @@ export class SupportTicketService {
   }
 
   async searchTickets(scope: SupportTicketScope, query: SupportTicketListQuery = {}) {
-    const rows = await this.findScopedTickets(scope)
-    const filtered = filterTickets(rows, query)
     const page = Math.max(1, query.page ?? 1)
     const pageSize = Math.min(50, Math.max(1, query.pageSize ?? 10))
-    const start = (page - 1) * pageSize
+    const [rows, total] = await this.ticketRepository.findAndCount({
+      where: this.filteredWhere(scope, query),
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * pageSize,
+      take: pageSize
+    })
 
     return {
-      items: filtered.slice(start, start + pageSize).map(toListItem),
-      total: filtered.length,
+      items: rows.map(toListItem),
+      total,
       page,
       pageSize,
-      stats: buildStats(rows)
+      stats: await this.countScopedStats(scope)
     }
   }
 
@@ -276,12 +284,66 @@ export class SupportTicketService {
     return this.getTicketDetail(scope, ticketId)
   }
 
-  private async findScopedTickets(scope: SupportTicketScope) {
-    return this.ticketRepository.find({
-      where: this.scopeWhere(scope),
-      order: { createdAt: 'DESC' },
-      take: 500
+  /**
+   * Translates a workbench query into database filters. Dimensions that match either the AI result or the
+   * human confirmed value are expanded into alternative where groups so PostgreSQL does the filtering.
+   */
+  private filteredWhere(
+    scope: SupportTicketScope,
+    query: SupportTicketListQuery
+  ): FindOptionsWhere<SupportTicket>[] {
+    const dimensions: FindOptionsWhere<SupportTicket>[][] = []
+    if (query.status) {
+      dimensions.push([{ status: query.status }])
+    }
+    if (query.category) {
+      dimensions.push([{ aiCategory: query.category }, { confirmedCategory: query.category }])
+    }
+    if (query.priority) {
+      dimensions.push([{ aiPriority: query.priority }, { confirmedPriority: query.priority }])
+    }
+    const keyword = escapeLikePattern(query.search)
+    if (keyword) {
+      const pattern = `%${keyword}%`
+      dimensions.push([
+        { ticketNo: ILike(pattern) },
+        { customerName: ILike(pattern) },
+        { originalMessage: ILike(pattern) },
+        { aiDraftReply: ILike(pattern) }
+      ])
+    }
+    return expandWhereAlternatives(this.scopeWhere(scope), dimensions)
+  }
+
+  private async findSelectedTicket(scope: SupportTicketScope, query: SupportTicketListQuery) {
+    const ticketId = trimToUndefined(query.ticketId)
+    if (!ticketId) {
+      return undefined
+    }
+    const [ticket] = await this.ticketRepository.find({
+      where: this.filteredWhere(scope, query).map((where) => ({ ...where, id: ticketId })),
+      take: 1
     })
+    return ticket
+  }
+
+  /** Status counters are aggregated by the database over the whole scope, never over the current page. */
+  private async countScopedStats(scope: SupportTicketScope) {
+    const where = this.scopeWhere(scope)
+    const [total, processing, pending, confirmed, failed] = await Promise.all([
+      this.ticketRepository.count({ where }),
+      this.ticketRepository.count({ where: { ...where, status: 'processing' } }),
+      this.ticketRepository.count({ where: { ...where, status: 'pending_review' } }),
+      this.ticketRepository.count({ where: { ...where, status: 'confirmed' } }),
+      this.ticketRepository.count({ where: { ...where, status: 'failed' } })
+    ])
+    return {
+      total,
+      processing,
+      pending_review: pending,
+      confirmed,
+      failed
+    }
   }
 
   private async getScopedTicket(scope: SupportTicketScope, ticketId: string) {
@@ -311,7 +373,7 @@ export class SupportTicketService {
     }
   }
 
-  private scopeWhere(scope: SupportTicketScope) {
+  private scopeWhere(scope: SupportTicketScope): FindOptionsWhere<SupportTicket> {
     return {
       tenantId: scope.tenantId,
       organizationId: scope.organizationId ?? undefined
@@ -359,44 +421,28 @@ function appendEvent(
   ]
 }
 
-function filterTickets(rows: SupportTicket[], query: SupportTicketListQuery) {
-  const keyword = query.search?.trim().toLowerCase()
-  return rows.filter((row) => {
-    if (query.status && row.status !== query.status) {
-      return false
-    }
-    if (query.category && row.aiCategory !== query.category && row.confirmedCategory !== query.category) {
-      return false
-    }
-    if (query.priority && row.aiPriority !== query.priority && row.confirmedPriority !== query.priority) {
-      return false
-    }
-    if (
-      keyword &&
-      ![row.ticketNo, row.customerName, row.originalMessage, row.aiDraftReply]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(keyword))
-    ) {
-      return false
-    }
-    return true
-  })
+/**
+ * Combines OR-dimensions into flat where objects: each option of a dimension becomes its own alternative, and
+ * all dimensions are AND-ed together. PostgreSQL receives one indexed query instead of an in-memory scan.
+ */
+function expandWhereAlternatives(
+  base: FindOptionsWhere<SupportTicket>,
+  dimensions: FindOptionsWhere<SupportTicket>[][]
+): FindOptionsWhere<SupportTicket>[] {
+  return dimensions.reduce<FindOptionsWhere<SupportTicket>[]>(
+    (alternatives, dimension) =>
+      alternatives.flatMap((current) => dimension.map((option) => ({ ...current, ...option }))),
+    [{ ...base }]
+  )
 }
 
-function buildStats(rows: SupportTicket[]) {
-  const stats = {
-    total: rows.length,
-    processing: 0,
-    pending_review: 0,
-    confirmed: 0,
-    failed: 0
+/** Escapes LIKE wildcards so a keyword such as `100%` matches literally instead of matching everything. */
+function escapeLikePattern(value?: string) {
+  const keyword = value?.trim()
+  if (!keyword) {
+    return undefined
   }
-  for (const row of rows) {
-    if (row.status && row.status in stats) {
-      stats[row.status] += 1
-    }
-  }
-  return stats
+  return keyword.replace(/[\\%_]/g, (match) => `\\${match}`)
 }
 
 export function toListItem(ticket: SupportTicket): SupportTicketListItem {
