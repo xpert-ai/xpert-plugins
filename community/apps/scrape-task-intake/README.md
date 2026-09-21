@@ -65,7 +65,7 @@ pending_confirmation(待确认) ──确认受理──> confirmed(已受理) �
 # 在插件仓库 community 工作区安装依赖后:
 cd community/apps/scrape-task-intake
 corepack pnpm build   # tsc + 拷贝 remote component 与 assistant 模板资源
-corepack pnpm test    # jest 32 个用例 + spec typecheck
+corepack pnpm test    # jest 34 个用例 + spec typecheck
 ```
 
 ### 安装到 Xpert
@@ -99,7 +99,7 @@ SCRAPE_TASK_INTAKE_DEDUPE_LOOKBACK_DAYS=7  # 可选,去重回溯天数
 
 | 层级 | 内容 | 结果 |
 |------|------|------|
-| 单元测试 | `corepack pnpm test`(jest 32 用例 + spec typecheck + build) | ✅ 32/32 通过 |
+| 单元测试 | `corepack pnpm test`(jest 34 用例 + spec typecheck + build) | ✅ 34/34 通过 |
 | 实体命名检查 | `node community/scripts/check-entity-names.mjs` | ✅ 通过 |
 | 插件生命周期 | plugin-dev-harness `--workspace ./community --plugin @xpert-ai/plugin-scrape-task-intake` | ✅ 加载/初始化/销毁通过 |
 | 平台业务流程 | 安装、真实模型调用、保存与恢复、失败重试 | ⏳ 见下文(按顺序验证后更新) |
@@ -122,7 +122,7 @@ SCRAPE_TASK_INTAKE_DEDUPE_LOOKBACK_DAYS=7  # 可选,去重回溯天数
 - Remote component 为单文件 `app.js`(无构建、React UMD 手写),这是对 smart-maintenance 既有约定的延续;若后续界面复杂化,应迁移到 TSX + esbuild + shadcn 方案。
 - 去重仅覆盖同一会话 + 相同原始文本 + 可编辑状态;跨会话重复提交不拦截。
 - 未在多个租户/组织间做过数据隔离的浏览器级验证(单元测试覆盖了服务层范围过滤)。
-- 平台侧两处本地开发环境的临时改动未随 PR 提交:`packages/server-ai/.../build.mjs`(Windows `.cmd` 需 shell)与 `xpert-tool` 两个 TS2742 返回类型标注,均属平台仓库 main(`182f2f4a7`)在 Windows 本机的构建问题,不影响插件代码本身。
+- 平台侧三处本地开发环境的临时改动未随 PR 提交:`packages/server-ai/.../build.mjs`(Windows `.cmd` 需 shell)、`xpert-tool` 两个 TS2742 返回类型标注、`organization-plugin.store.ts` 的 `execFile('npm')` Windows 兼容(`npm.cmd` 无法无 shell 解析导致插件 staging 失败)。均属平台仓库 main(`182f2f4a7`)在 Windows 本机的构建/运行问题,不影响插件代码本身,已通过邮件渠道反馈招聘方参考。
 
 ## 平台 Agent 提示词建议
 

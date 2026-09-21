@@ -1,10 +1,43 @@
 import { readFileSync } from 'fs'
 import { join } from 'path'
+import * as vm from 'vm'
 
 describe('scrape task intake remote component', () => {
   function readAppScript() {
     return readFileSync(join(__dirname, 'remote-components', 'scrape-task-intake', 'app.js'), 'utf8')
   }
+
+  it('parses as valid JavaScript', () => {
+    new vm.Script(readAppScript(), { filename: 'app.js' })
+  })
+
+  it('delivers the post() payload in a single bridge message', () => {
+    const script = readAppScript()
+    const lines = script.split('\n')
+    const postIndex = lines.findIndex((line) => line.startsWith('  function post('))
+    expect(postIndex).toBeGreaterThanOrEqual(0)
+    // Include the lines following the function until its closing brace at column 2.
+    let end = postIndex + 1
+    while (end < lines.length && !lines[end].startsWith('  }')) {
+      end++
+    }
+    const slice = lines.slice(postIndex, end + 1).join('\n')
+
+    const sent: Array<{ msg: Record<string, unknown>; origin: unknown; transfer?: unknown[] }> = []
+    const sandbox: Record<string, unknown> = {
+      window: { parent: { postMessage: (msg: unknown, origin: unknown, transfer: unknown[]) => sent.push({ msg, origin, transfer } as never) } },
+      instanceId: null
+    }
+    sandbox.CHANNEL = 'xpertai.remote_component'
+    sandbox.VERSION = 1
+    vm.createContext(sandbox)
+    vm.runInContext(`${slice}\ninstanceId = 'inst-1'; post('resize', { height: 600 }, ['x'])`, sandbox)
+
+    expect(sent).toHaveLength(1)
+    expect(sent[0].origin).toBe('*')
+    expect(sent[0].msg).toMatchObject({ type: 'resize', height: 600, instanceId: 'inst-1', channel: 'xpertai.remote_component' })
+    expect(sent[0].transfer).toEqual(['x'])
+  })
 
   it('never touches localStorage or sessionStorage inside the sandboxed iframe', () => {
     const script = readAppScript()

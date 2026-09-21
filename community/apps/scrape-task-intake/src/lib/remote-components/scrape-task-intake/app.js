@@ -78,22 +78,7 @@
   function post(type, body, transfer) {
     window.parent &&
       window.parent.postMessage(
-        {
-          channel: CHANNEL,
-          protocolVersion: VERSION,
-          instanceId,
-          type
-        },
-        body || {}
-      )
-    window.parent &&
-      window.parent.postMessage(
-        {
-          channel: CHANNEL,
-          protocolVersion: VERSION,
-          instanceId,
-          type
-        },
+        Object.assign({ channel: CHANNEL, protocolVersion: VERSION, instanceId, type }, body || {}),
         '*',
         transfer || []
       )
@@ -657,8 +642,7 @@
                   )
                 })
               )
-          )
-        ),
+          ),
         selected ? renderDetail() : h('div', { className: 'sti-review-right sti-empty' }, statusCount ? '请选择一条任务查看详情' : '')
       )
     }
