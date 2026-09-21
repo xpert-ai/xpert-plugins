@@ -36,7 +36,7 @@ export const supportTicketTemplates: XpertTemplateContribution[] = [
     description: '面向客户消息分类定级、回复草稿生成与人工确认归档的 data-xpert 业务助手模板。',
     category: 'Support',
     type: XpertTypeEnum.Agent,
-    targetApps: ['data-xpert'],
+    targetApps: ['data-xpert', 'xpert'],
     targetAppMeta: {
       'data-xpert': {
         types: ['business-assistant'],
@@ -46,6 +46,14 @@ export const supportTicketTemplates: XpertTemplateContribution[] = [
           assistantKind: 'business-assistant',
           businessDomain: 'support-ticket',
           managedBy: 'data-xpert',
+          viewProvider: SUPPORT_TICKET_PROVIDER_KEY
+        }
+      },
+      xpert: {
+        types: ['assistant-template'],
+        capabilities: [SUPPORT_TICKET_FEATURE, 'support-ticket-review-desk'],
+        requiredPlugins: [SUPPORT_TICKET_PLUGIN_NAME],
+        defaultConfig: {
           viewProvider: SUPPORT_TICKET_PROVIDER_KEY
         }
       }

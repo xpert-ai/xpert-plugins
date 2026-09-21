@@ -82,11 +82,11 @@ export class SupportTicketViewProvider implements IXpertViewExtensionProvider {
         slot,
         order: 22,
         refreshable: true,
+        activation: {
+          requiredFeatures: [SUPPORT_TICKET_FEATURE]
+        },
         ...(fixed
           ? {
-              activation: {
-                requiredFeatures: [SUPPORT_TICKET_FEATURE]
-              },
               workbench: {
                 fixed: true,
                 menu: {

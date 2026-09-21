@@ -31,7 +31,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
     name: packageJson.name,
     version: packageJson.version,
     level: 'organization',
-    targetApps: ['data-xpert'],
+    targetApps: ['data-xpert', 'xpert'],
     targetAppMeta: {
       'data-xpert': {
         types: ['workbench-view', 'assistant-tool', 'business-app'],
@@ -90,6 +90,15 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
             }
           ]
         },
+        runtime: {
+          middlewareProviders: [SUPPORT_TICKET_MIDDLEWARE_NAME],
+          viewProviders: [SUPPORT_TICKET_PROVIDER_KEY],
+          templateProviders: [SUPPORT_TICKET_TEMPLATE_PROVIDER_KEY]
+        }
+      },
+      xpert: {
+        types: ['assistant-template', 'workbench-view', 'assistant-tool'],
+        capabilities: [SUPPORT_TICKET_FEATURE, 'support-ticket-review-desk'],
         runtime: {
           middlewareProviders: [SUPPORT_TICKET_MIDDLEWARE_NAME],
           viewProviders: [SUPPORT_TICKET_PROVIDER_KEY],

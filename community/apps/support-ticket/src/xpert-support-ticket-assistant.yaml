@@ -9,6 +9,9 @@ team:
     background: rgb(219, 234, 254)
   options:
     templateKey: support-ticket-assistant
+    workbench:
+      initialLayout: workbench-maximized
+      defaultViewKey: support_ticket__workbench
     dataXpert:
       managedBy: data-xpert
       templateKey: support-ticket-assistant
