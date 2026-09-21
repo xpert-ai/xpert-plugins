@@ -121,9 +121,15 @@ corepack pnpm remote-view:preview \
 | 插件生命周期 | `npx -y node@20 plugin-dev-harness/dist/index.js --workspace ./community --plugin @xpert-ai/plugin-support-ticket` | 通过：入口解析到 `dist/index.js`，`register`/`onStart`/`onPluginBootstrap`/`onPluginDestroy`/`onStop` 全部完成，`Plugin loaded successfully` |
 | 插件配置校验 | 同上命令追加 `--config ./community/apps/support-ticket/dist/harness-config.json` | 通过：`{"aiTimeoutSeconds":120}` 被接受；`{"aiTimeoutSeconds":5}` 返回 `Config schema validation failed: aiTimeoutSeconds: Number must be greater than or equal to 15` 且退出码为 1 |
 | 界面资源与桥接 | `corepack pnpm remote-view:preview --config .../preview.config.mjs` | 通过：预览宿主用构建产物生成 iframe HTML（`GET /` 与 `GET /__xpert/component` 均 HTTP 200 且含工作台 bundle），桥接 `requestData` 返回 `items/total/item/summary/meta`（种子数据 2 条） |
-| 平台真实业务流程 | 需要真实 Xpert 实例（`api-url`/`scope`/账号） | **尚未执行** |
+| 平台安装 | `corepack pnpm plugin:deploy:local --plugin-dir .../community/apps/support-ticket --scope organization --api-url http://localhost:3000/ --org-id <org-id>` | 通过：平台 `plugin_instance` 写入 `@xpert-ai/plugin-support-ticket@0.1.0`，`source=code`、`level=organization`、`configurationStatus=valid` |
+| 平台加载 | 重启测试宿主后检查 API 启动日志 | 通过：`register support-ticket plugin` → `SupportTicketPlugin is being bootstrapped...` → `Bootstrapped Plugin [SupportTicketPlugin]` → `SupportTicketPlugin dependencies initialized` |
+| 平台内业务流程 | 在工作台录入客户消息 → 触发处理 → 人工确认归档 | 通过（以持久化记录为证）：`plugin_support_ticket` 中工单 `ST-20260921-0001` 的完整时间线 `submitted → ai_failed → retry_requested（第 2 次尝试）→ draft_saved → confirmed`，且 `attemptCount=2`、`revision=5`，说明工作台视图渲染、动作桥接、状态机、失败重试复用同一工单、人工确认归档都已在真实平台内落库 |
+| 平台内真实模型调用 | 需要先在平台配置可用的模型提供商与凭证 | **尚未执行** |
+| 助手模板创建与绑定 | 需要基于模板创建助手并绑定工具与工作台 | **尚未执行** |
 
-**尚未验证的部分（等待接入现有实例）**：平台内真实渲染与鼠标交互、真实模型调用的分类与草稿质量、安装回执与插件加载、助手模板创建与工具/工作台绑定、真实数据的保存恢复与失败重试。harness 与预览宿主都使用内置 mock，**不能**据此宣称真实数据库、权限或业务流程已经通过。
+**复现基线**：平台 `xpert-ai/xpert` main `d24ca81`（本地另有 6 处未提交改动，含 `tools/scripts/deploy-local-plugin.mjs` 的 Windows `spawn` 兼容修复）；插件仓库 `xpert-ai/xpert-plugins` main `ceb57e6f`，本分支基于该提交。
+
+**尚未验证的部分**：平台内真实模型调用的分类与草稿质量（测试实例尚未配置可用的模型提供商，因此 `plugin_support_ticket.aiCategory` / `aiPriority` / `aiDraftReply` 为空）、基于模板创建助手并绑定工具与工作台、平台内运行截图。harness、预览宿主与上面的加载结论只能证明"能加载、能落库"，**不能**替代真实模型调用与助手绑定的验证。
 
 ## 6. 运行截图
 
