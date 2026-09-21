@@ -76,6 +76,7 @@
   }
 
   function post(type, body, transfer) {
+    if (!instanceId && type !== 'ready') return
     window.parent &&
       window.parent.postMessage(
         Object.assign({ channel: CHANNEL, protocolVersion: VERSION, instanceId, type }, body || {}),

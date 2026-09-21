@@ -65,7 +65,7 @@ pending_confirmation(待确认) ──确认受理──> confirmed(已受理) �
 # 在插件仓库 community 工作区安装依赖后:
 cd community/apps/scrape-task-intake
 corepack pnpm build   # tsc + 拷贝 remote component 与 assistant 模板资源
-corepack pnpm test    # jest 34 个用例 + spec typecheck
+corepack pnpm test    # jest 35 个用例 + spec typecheck
 ```
 
 ### 安装到 Xpert
@@ -93,13 +93,13 @@ SCRAPE_TASK_INTAKE_DEDUPE_LOOKBACK_DAYS=7  # 可选,去重回溯天数
 
 > 以下截图在 Xpert 开源版 main(平台 SHA `182f2f4a7`)本地环境实际运行中截取。
 
-<!-- 截图占位:平台内实际运行后补充,相对路径引用 -->
+<!-- 截图占位:平台内实际运行后补充,存放于 doc/screenshots/,相对路径引用 -->
 
 ## 验证结果
 
 | 层级 | 内容 | 结果 |
 |------|------|------|
-| 单元测试 | `corepack pnpm test`(jest 34 用例 + spec typecheck + build) | ✅ 34/34 通过 |
+| 单元测试 | `corepack pnpm test`(jest 35 用例 + spec typecheck + build) | ✅ 35/35 通过 |
 | 实体命名检查 | `node community/scripts/check-entity-names.mjs` | ✅ 通过 |
 | 插件生命周期 | plugin-dev-harness `--workspace ./community --plugin @xpert-ai/plugin-scrape-task-intake` | ✅ 加载/初始化/销毁通过 |
 | 平台业务流程 | 安装、真实模型调用、保存与恢复、失败重试 | ⏳ 见下文(按顺序验证后更新) |

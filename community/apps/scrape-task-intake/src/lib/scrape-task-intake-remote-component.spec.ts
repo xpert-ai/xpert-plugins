@@ -39,6 +39,36 @@ describe('scrape task intake remote component', () => {
     expect(sent[0].transfer).toEqual(['x'])
   })
 
+  it('drops bridge messages sent before the host assigns an instanceId, except ready', () => {
+    const script = readAppScript()
+    const lines = script.split('\n')
+    const postIndex = lines.findIndex((line) => line.startsWith('  function post('))
+    expect(postIndex).toBeGreaterThanOrEqual(0)
+    let end = postIndex + 1
+    while (end < lines.length && !lines[end].startsWith('  }')) {
+      end++
+    }
+    const slice = lines.slice(postIndex, end + 1).join('\n')
+
+    const sent: Array<Record<string, unknown>> = []
+    const sandbox: Record<string, unknown> = {
+      window: { parent: { postMessage: (msg: unknown) => sent.push(msg as Record<string, unknown>) } },
+      instanceId: null
+    }
+    sandbox.CHANNEL = 'xpertai.remote_component'
+    sandbox.VERSION = 1
+    vm.createContext(sandbox)
+    // Resize fires from the ResizeObserver and every render, so it can happen before `init`.
+    vm.runInContext(
+      `${slice}\npost('resize', { height: 600 })\npost('ready')\ninstanceId = 'inst-1'\npost('resize', { height: 601 })`,
+      sandbox
+    )
+
+    expect(sent).toHaveLength(2)
+    expect(sent[0]).toMatchObject({ type: 'ready', instanceId: null })
+    expect(sent[1]).toMatchObject({ type: 'resize', height: 601, instanceId: 'inst-1' })
+  })
+
   it('never touches localStorage or sessionStorage inside the sandboxed iframe', () => {
     const script = readAppScript()
 
