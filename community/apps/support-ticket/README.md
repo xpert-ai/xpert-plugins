@@ -63,7 +63,7 @@ community/apps/support-ticket/
         ├── app.js / app.css                      # 构建产物与空样式（预览宿主需要 app.css）
         ├── preview.config.mjs                    # 本地预览宿主配置（含 mock 数据与失败开关）
         └── src/{main.tsx,bridge.ts,utils.ts,i18n.ts,styles.ts,types.ts,components/*}
-tests/                                            # 19 项单元测试（node:test）
+tests/                                            # 25 项单元测试（node:test）
 ```
 
 ## 3. 环境要求与本地验证
@@ -75,14 +75,16 @@ corepack pnpm install --filter "@xpert-ai/plugin-support-ticket..."
 cd community/apps/support-ticket
 corepack pnpm run typecheck          # 服务端类型检查
 corepack pnpm run remote:typecheck   # 远程界面类型检查
-corepack pnpm run test               # 19 项单元测试
+corepack pnpm run test               # 25 项单元测试
 corepack pnpm run build              # 远程界面打包 + 服务端编译 + 资源拷贝
 corepack pnpm run verify             # 上述四步串行执行
 
 # 插件生命周期验证（在插件仓库根目录，需先构建 plugin-dev-harness）
-node plugin-dev-harness/dist/index.js \
-  --workspace ./community/apps/support-ticket \
+# 本机 Node 为 v22+ 时用 node@20 运行，避免依赖包解析差异
+npx -y node@20 plugin-dev-harness/dist/index.js \
+  --workspace ./community \
   --plugin @xpert-ai/plugin-support-ticket
+# 需要校验插件配置时追加 --config <config.json>，例如 {"aiTimeoutSeconds":120}
 
 # 远程界面本地预览（需先 build）
 corepack pnpm remote-view:preview \
@@ -113,11 +115,12 @@ corepack pnpm remote-view:preview \
 
 | 层次 | 命令 | 结果 |
 | --- | --- | --- |
-| 单元测试与类型检查 | `corepack pnpm run test` / `typecheck` / `remote:typecheck` | 通过：19 项测试全部成功（业务规则、输入校验、状态流转、幂等、乐观锁、范围隔离、桥接契约） |
+| 单元测试与类型检查 | `corepack pnpm run test` / `typecheck` / `remote:typecheck` | 通过：25 项测试全部成功（业务规则、输入校验、状态流转、幂等、乐观锁、范围隔离、数据库侧查询与分页、桥接契约） |
 | 构建 | `corepack pnpm run build` | 通过：`dist/index.js`、`dist/xpert-support-ticket-assistant.yaml`、`dist/lib/remote-components/support-ticket/app.js` 齐全 |
-| 仓库约束 | `node community/scripts/check-entity-names.mjs` | 通过：实体表名以 `plugin_` 开头 |
-| 插件生命周期 | `node plugin-dev-harness/dist/index.js --workspace ./community/apps/support-ticket --plugin @xpert-ai/plugin-support-ticket` | 通过：入口解析到 `dist`、`register`/`onStart`/`onPluginBootstrap`/`onPluginDestroy`/`onStop` 全部完成，配置 JSON 校验通过 |
-| 界面资源与桥接 | `pnpm remote-view:preview --config .../preview.config.mjs` | 通过：预览宿主用构建产物生成 iframe HTML（HTTP 200，含工作台 bundle），`requestData` 返回 `items/total/summary/meta` |
+| 仓库约束 | `node community/scripts/check-entity-names.mjs` 与 `node scripts/check-plugin-entity-tables.mjs` | 通过：实体表名以 `plugin_` 开头，表名检查通过 |
+| 插件生命周期 | `npx -y node@20 plugin-dev-harness/dist/index.js --workspace ./community --plugin @xpert-ai/plugin-support-ticket` | 通过：入口解析到 `dist/index.js`，`register`/`onStart`/`onPluginBootstrap`/`onPluginDestroy`/`onStop` 全部完成，`Plugin loaded successfully` |
+| 插件配置校验 | 同上命令追加 `--config ./community/apps/support-ticket/dist/harness-config.json` | 通过：`{"aiTimeoutSeconds":120}` 被接受；`{"aiTimeoutSeconds":5}` 返回 `Config schema validation failed: aiTimeoutSeconds: Number must be greater than or equal to 15` 且退出码为 1 |
+| 界面资源与桥接 | `corepack pnpm remote-view:preview --config .../preview.config.mjs` | 通过：预览宿主用构建产物生成 iframe HTML（`GET /` 与 `GET /__xpert/component` 均 HTTP 200 且含工作台 bundle），桥接 `requestData` 返回 `items/total/item/summary/meta`（种子数据 2 条） |
 | 平台真实业务流程 | 需要真实 Xpert 实例（`api-url`/`scope`/账号） | **尚未执行** |
 
 **尚未验证的部分（等待接入现有实例）**：平台内真实渲染与鼠标交互、真实模型调用的分类与草稿质量、安装回执与插件加载、助手模板创建与工具/工作台绑定、真实数据的保存恢复与失败重试。harness 与预览宿主都使用内置 mock，**不能**据此宣称真实数据库、权限或业务流程已经通过。
@@ -136,7 +139,7 @@ corepack pnpm remote-view:preview \
 
 ## 7. 已知限制
 
-- 列表查询为范围内一次性取回后在内存中过滤与分页（上限 500 条），工单量级增大后应改为数据库分页与索引查询。
+- 列表与状态计数都已下推到数据库（作用域过滤 + `skip`/`take` + 索引），但筛选维度按 OR 组合展开：类别、优先级与关键词同时使用时最坏会拼出 16 组 `where`。真实工单量级下的查询耗时尚未压测。
 - 未接入真实发送渠道：确认归档后的回复仍需人工复制到邮件或 IM 中发送。
 - 分类与优先级取固定枚举；如需自定义类别体系，需要扩展 `src/lib/constants.ts` 与服务端校验。
 - 多人协作只通过 `revision` 乐观锁保证不静默覆盖，没有实时推送；他人修改后需要手动刷新。
