@@ -126,6 +126,16 @@ describe('scrape task intake remote component', () => {
     expect(script).toContain('reject_and_close')
   })
 
+  it('sends the selected taskId with the view-data request so a clicked row shows its own detail', () => {
+    // The platform resolves `item` from the `taskId` query parameter. Without it
+    // the response carries the first row's detail, which never matches the row
+    // the user clicked, and the detail pane is cleared instead.
+    const script = readAppScript()
+
+    expect(script).toContain('taskId: requestedTaskId')
+    expect(script).toContain('loadData({ taskId: item.id })')
+  })
+
   it('uses confirmation dialogs for reject and complete instead of native confirms', () => {
     const script = readAppScript()
 

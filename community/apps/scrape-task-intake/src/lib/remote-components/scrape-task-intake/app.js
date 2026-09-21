@@ -260,8 +260,14 @@
 
     async function loadData(options) {
       const feedbackFromTool = options && options.feedbackFromTool
+      // The selected task must travel with the request: the platform resolves
+      // `item` from the `taskId` parameter, and without it the returned detail
+      // belongs to the first list row, so clicking any other row would clear
+      // the detail pane instead of showing that task.
+      const requestedTaskId = (options && options.taskId) || (selected && selected.id) || ''
       const workbenchQuery = buildQuery(context, {
         parameters: {
+          taskId: requestedTaskId,
           status: (options && options.status) || filters.status || '',
           priority: filters.priority || '',
           search: filters.search || ''
@@ -271,7 +277,7 @@
         const response = await requestData(workbenchQuery)
         const payload = unwrapResponse(response) || {}
         const items = Array.isArray(payload.items) ? payload.items : []
-        const nextSelectedId = (options && options.taskId) || (selected && selected.id) || (payload.item && payload.item.id) || (items[0] && items[0].id)
+        const nextSelectedId = requestedTaskId || (payload.item && payload.item.id) || (items[0] && items[0].id)
         setData({ items, total: payload.total || 0, summary: payload.summary || {}, meta: payload.meta || {} })
         const nextItem = nextSelectedId ? payload.item && payload.item.id === nextSelectedId ? payload.item : null : null
         if (nextItem) {
