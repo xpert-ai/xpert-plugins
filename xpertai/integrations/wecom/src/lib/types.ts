@@ -2,7 +2,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypt
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { TIntegrationProvider } from '@xpert-ai/contracts'
+import type { TIntegrationProvider, TWorkflowTriggerMeta } from '@xpert-ai/contracts'
 
 const __filename = fileURLToPath(import.meta.url)
 const moduleDir = dirname(__filename)
@@ -23,6 +23,17 @@ export const WECOM_BOT_CREDENTIALS_HELP_LABEL = {
 
 export type TWeComIntegrationProvider = TIntegrationProvider & {
   helpLabel?: typeof WECOM_CALLBACK_CREDENTIALS_HELP_LABEL | typeof WECOM_BOT_CREDENTIALS_HELP_LABEL
+  // Compatibility with hosts preceding the shared QR setup contract.
+  setup?: TIntegrationProvider['setup'] & { qrAuthorization?: boolean }
+}
+
+// Compatibility with hosts preceding the shared trigger quick-connect contract.
+export type TWeComTriggerMeta = TWorkflowTriggerMeta & {
+  quickConnect: {
+    method: 'qr'
+    integrationProvider: string
+    configField: string
+  }
 }
 
 export type TIntegrationWeComShortOptions = {
