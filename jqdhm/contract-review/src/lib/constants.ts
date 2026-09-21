@@ -1,0 +1,10 @@
+export const PLUGIN_NAME = '@jqdhm/xpert-contract-review'
+export const FEATURE = 'contract-review:workbench'
+export const MIDDLEWARE_NAME = 'ContractReviewMiddleware'
+export const PROVIDER_KEY = 'contract-review.views'
+export const VIEW_KEY = 'contract-review'
+export const TEMPLATE_KEY = 'contract-review-assistant'
+export const REMOTE_ENTRY = 'contract-review.html'
+export const CONTRACT_REVIEW_CONFIG = Symbol('CONTRACT_REVIEW_CONFIG')
+export const TOOL_NAMES = ['contract_review_create', 'contract_review_list', 'contract_review_get', 'contract_review_summary'] as const
+export const ACTION_KEYS = ['update_contract', 'confirm_contract', 'get_summary'] as const

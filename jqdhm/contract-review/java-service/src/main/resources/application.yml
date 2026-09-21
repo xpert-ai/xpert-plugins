@@ -1,0 +1,33 @@
+server:
+  address: ${CONTRACT_SERVICE_BIND_ADDRESS:127.0.0.1}
+  port: ${CONTRACT_SERVICE_PORT:8097}
+  max-http-request-header-size: 16KB
+  tomcat:
+    connection-timeout: 5s
+    keep-alive-timeout: 20s
+    max-http-form-post-size: 2MB
+    max-swallow-size: 2MB
+  error:
+    include-message: never
+    include-stacktrace: never
+spring:
+  application:
+    name: contract-review-service
+  datasource:
+    url: ${CONTRACT_DB_URL:jdbc:h2:file:./data/contracts;DB_CLOSE_ON_EXIT=FALSE;LOCK_TIMEOUT=5000}
+    username: ${CONTRACT_DB_USER:sa}
+    password: ${CONTRACT_DB_PASSWORD:}
+    hikari:
+      maximum-pool-size: 8
+      connection-timeout: 5000
+  sql:
+    init:
+      mode: always
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+  h2:
+    console:
+      enabled: false
+contract:
+  service-token: ${CONTRACT_SERVICE_TOKEN:}
