@@ -10,7 +10,9 @@ team:
   options:
     templateKey: support-ticket-assistant
     workbench:
-      initialLayout: workbench-maximized
+      # 客服流程需要同时看到助手对话（AI 分类过程）与工作台（人工校对确认），
+      # workbench-maximized 会把对话收成悬浮球，用户无法回到控制台。
+      initialLayout: two-columns
       defaultViewKey: support_ticket__workbench
     dataXpert:
       managedBy: data-xpert

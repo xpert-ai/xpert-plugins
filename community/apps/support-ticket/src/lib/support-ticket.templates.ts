@@ -67,7 +67,10 @@ export const supportTicketTemplates: XpertTemplateContribution[] = [
       '请查看当前工单的 AI 分类结果和回复草稿。'
     ],
     releaseNotes: '创建客服工单业务助手。',
-    xpertName: '客服工单助手',
+    // 名称会被 convertToUrlPath 转成 slug（只保留 a-z0-9-），中文名会得到空 slug，
+    // 导致 validateName 判定「名称无效」而无法从模板创建助手。默认名必须用 ASCII，
+    // 与 team.name 保持一致；中文「客服工单助手」由 title 负责展示。
+    xpertName: 'support-ticket-assistant',
     providerKey: SUPPORT_TICKET_TEMPLATE_PROVIDER_KEY
   } as XpertTemplateContribution
 ]

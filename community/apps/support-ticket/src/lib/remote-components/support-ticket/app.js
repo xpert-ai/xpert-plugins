@@ -490,7 +490,7 @@ var XpertSupportTicketWorkbench = (() => {
   }
 
   // src/lib/remote-components/support-ticket/src/components/workbench.tsx
-  var { useCallback, useEffect: useEffect2, useMemo, useState: useState3 } = React;
+  var { useCallback, useEffect: useEffect2, useMemo, useRef, useState: useState3 } = React;
   var FALLBACK_META = {
     statuses: [],
     categories: [],
@@ -514,6 +514,7 @@ var XpertSupportTicketWorkbench = (() => {
     const [alert, setAlert] = useState3(null);
     const [waiting, setWaiting] = useState3(null);
     const [waitingSeconds, setWaitingSeconds] = useState3(null);
+    const selectedIdRef = useRef(null);
     const meta = data?.meta ?? FALLBACK_META;
     const statuses = meta.statuses ?? [];
     const categories = meta.categories ?? [];
@@ -556,7 +557,10 @@ var XpertSupportTicketWorkbench = (() => {
       return () => {
         cancelled = true;
       };
-    }, [fetchData]);
+    }, [fetchData, selectedId]);
+    useEffect2(() => {
+      selectedIdRef.current = selectedId;
+    }, [selectedId]);
     useEffect2(() => {
       const timer = window.setTimeout(() => setAppliedSearch(search.trim()), 400);
       return () => window.clearTimeout(timer);
@@ -572,10 +576,11 @@ var XpertSupportTicketWorkbench = (() => {
       if (!hostEventTick) {
         return;
       }
+      const ticketId = selectedIdRef.current;
       setWaiting(null);
-      void fetchData(selectedId).then((next) => {
+      void fetchData(ticketId).then((next) => {
         setData(next);
-        if (selectedId && next.item?.id === selectedId && next.item.status === "pending_review") {
+        if (ticketId && next.item?.id === ticketId && next.item.status === "pending_review") {
           setNotice({ kind: "success", text: t("noticeAiDone") });
         }
       }).catch((error) => console.error("support-ticket: refresh after tool event failed", error));

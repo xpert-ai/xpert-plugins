@@ -9,7 +9,7 @@ import { TicketList } from './ticket-list'
 import type { HostContext, TicketOption, WorkbenchData } from '../types'
 import type { ActionOutcome } from '../utils'
 
-const { useCallback, useEffect, useMemo, useState } = React
+const { useCallback, useEffect, useMemo, useRef, useState } = React
 
 const FALLBACK_META: WorkbenchData['meta'] = {
   statuses: [],
@@ -36,6 +36,8 @@ export function SupportTicketWorkbench(props: { context: HostContext; hostEventT
   const [alert, setAlert] = useState<PanelAlert | null>(null)
   const [waiting, setWaiting] = useState<{ ticketId: string; startedAt: number } | null>(null)
   const [waitingSeconds, setWaitingSeconds] = useState<number | null>(null)
+  /** Latest selection, readable from event-driven effects without re-subscribing on every click. */
+  const selectedIdRef = useRef<string | null>(null)
 
   const meta = data?.meta ?? FALLBACK_META
   const statuses: TicketOption[] = meta.statuses ?? []
@@ -84,7 +86,12 @@ export function SupportTicketWorkbench(props: { context: HostContext; hostEventT
     return () => {
       cancelled = true
     }
-  }, [fetchData])
+  }, [fetchData, selectedId])
+
+  /** Keep the ref in sync so event-driven effects read the current selection. */
+  useEffect(() => {
+    selectedIdRef.current = selectedId
+  }, [selectedId])
 
   /** Debounced search keeps list queries from firing on every keystroke. */
   useEffect(() => {
@@ -105,11 +112,12 @@ export function SupportTicketWorkbench(props: { context: HostContext; hostEventT
     if (!hostEventTick) {
       return
     }
+    const ticketId = selectedIdRef.current
     setWaiting(null)
-    void fetchData(selectedId)
+    void fetchData(ticketId)
       .then((next) => {
         setData(next)
-        if (selectedId && next.item?.id === selectedId && next.item.status === 'pending_review') {
+        if (ticketId && next.item?.id === ticketId && next.item.status === 'pending_review') {
           setNotice({ kind: 'success', text: t('noticeAiDone') })
         }
       })
