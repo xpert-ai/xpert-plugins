@@ -59,16 +59,20 @@ export class ScrapeTaskIntakeViewProvider implements IXpertViewExtensionProvider
       return []
     }
     const fixed = slot === AGENT_WORKBENCH_FIXED_SLOT
-    const base = fixed
-      ? {
-          activation: {
-            requiredFeatures: [SCRAPE_TASK_INTAKE_FEATURE]
-          },
-          workbench: {
-            fixed: true
+    // Both slots declare `requireFeatureActivation`, so a manifest without
+    // requiredFeatures is filtered out by the platform (isManifestActiveForContext).
+    const base = {
+      activation: {
+        requiredFeatures: [SCRAPE_TASK_INTAKE_FEATURE]
+      },
+      ...(fixed
+        ? {
+            workbench: {
+              fixed: true
+            }
           }
-        }
-      : {}
+        : {})
+    }
 
     return [
       {

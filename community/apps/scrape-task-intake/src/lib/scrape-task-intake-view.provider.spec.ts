@@ -5,7 +5,9 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
 
 import { ScrapeTaskIntakeViewProvider } from './scrape-task-intake-view.provider'
 import {
+  AGENT_WORKBENCH_FIXED_SLOT,
   AGENT_WORKBENCH_MAIN_SLOT,
+  SCRAPE_TASK_INTAKE_FEATURE,
   SCRAPE_TASK_INTAKE_PROVIDER_KEY,
   SCRAPE_TASK_INTAKE_REMOTE_ENTRY_KEY,
   SCRAPE_TASK_INTAKE_WORKBENCH_VIEW_KEY
@@ -65,6 +67,20 @@ describe('ScrapeTaskIntakeViewProvider', () => {
   it('returns no manifests for unsupported slots', () => {
     const provider = createProvider({})
     expect(provider.getViewManifests(hostContext, 'other.slot')).toEqual([])
+  })
+
+  it('declares requiredFeatures on every workbench slot manifest so the platform does not filter it out', () => {
+    // Both `agent.workbench.main` and `agent.workbench.fixed` are declared with
+    // `manifestPolicy.requireFeatureActivation: true` on the platform side, and
+    // `isManifestActiveForContext` drops any manifest that declares no
+    // requiredFeatures for such a slot.
+    const provider = createProvider({})
+
+    for (const slot of [AGENT_WORKBENCH_MAIN_SLOT, AGENT_WORKBENCH_FIXED_SLOT]) {
+      const manifests = provider.getViewManifests(hostContext, slot)
+      expect(manifests).toHaveLength(1)
+      expect(manifests[0].activation?.requiredFeatures).toEqual([SCRAPE_TASK_INTAKE_FEATURE])
+    }
   })
 
   it('prepares the report chat message with assistant instructions', async () => {
