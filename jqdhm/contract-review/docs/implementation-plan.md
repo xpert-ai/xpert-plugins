@@ -1,5 +1,7 @@
 # Java Contract Review Implementation Plan
 
+Status as of 2026-09-21: the local implementation, Java service, Xpert adapter, workbench, and real local Ollama flow have been verified. The checklist below is the original task breakdown; see `docs/validation.md` for completed checks and the remaining real-Xpert installation boundary.
+
 > **For agentic workers:** Use parallel bounded implementation tasks; main agent reviews interfaces and final changes.
 
 **Goal:** Deliver an installable Xpert contract-review app with Java-owned business rules and a human review desk.

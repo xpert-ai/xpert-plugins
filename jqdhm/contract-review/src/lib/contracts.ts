@@ -1,6 +1,10 @@
 import { z } from 'zod/v3'
 
 const nonblank = (max: number) => z.string().min(1).max(max).refine((value) => value.trim().length > 0)
+// Local preview capability is explicit; Xpert hosts omit it and retain their assistant flow.
+export const localExtractionCapabilitySchema = z.object({ enabled: z.boolean(), model: nonblank(128) }).strict()
+export type LocalExtractionCapability = z.infer<typeof localExtractionCapabilitySchema>
+export const localExtractSchema = z.object({ requestKey: nonblank(128), title: nonblank(120), sourceText: nonblank(6000) }).strict()
 export const fieldValueSchema = z.object({ value: nonblank(50000), evidence: nonblank(50000) }).strict()
 export const fieldsSchema = z.object({
   partyA: fieldValueSchema.nullable(), partyB: fieldValueSchema.nullable(), amount: fieldValueSchema.nullable(),

@@ -24,6 +24,10 @@ public final class ContractDtos {
                                 @NotBlank @Size(max = 50_000) String sourceText,
                                 @NotNull @Valid Fields fields) { }
 
+    public record ExtractRequest(@NotBlank @Size(max = 128) String requestKey,
+                                 @NotBlank @Size(max = 120) String title,
+                                 @NotBlank @Size(max = 6_000) String sourceText) { }
+
     public record UpdateRequest(@NotNull @Min(1) Long expectedVersion,
                                 @NotNull @Valid Fields fields) { }
 

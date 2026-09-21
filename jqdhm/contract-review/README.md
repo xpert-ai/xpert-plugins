@@ -40,11 +40,15 @@ mvn -f java-service/pom.xml package
 npm run demo
 ```
 
-打开 `http://127.0.0.1:4397`，点击顶部“载入测试草稿（不调用 AI）”，选择合同，查看原文和字段，修改后保存，再确认并生成摘要。
+先启动 Ollama，并通过 `ollama list` 确认已有 `qwen2.5:7b`。打开 `http://127.0.0.1:4397`，填入合同标题和正文（或点击“填入示例”），点击提取按钮。Java 会真实调用本机 Ollama，校验字段和原文依据后保存草稿；随后可以人工修改、确认并生成摘要。
+
+本地抽取最多接收 6,000 字符，每次只执行一个模型请求。首次加载 7B 模型可能较慢，请等待页面结果。模型不可用、超时或依据不匹配时会报错，不会用固定答案替代。若只想查看工作台，可以使用顶部“载入测试草稿（不调用 AI）”。
 
 `npm run demo` 启动真实 Java 服务和本地 bridge 预览服务器，并生成仅用于本次进程的随机通信 token，不输出 token。两个服务仅绑定本机回环地址；Ctrl+C 停止。Java 数据重启后保留。若端口被占用，可设置 `CONTRACT_SERVICE_PORT` / `PREVIEW_PORT`。若 Maven 提示不支持 release 21，检查 `mvn -v` 的 Java 路径并将当前终端 `JAVA_HOME` 指向 JDK 21+。
 
-**演示页明确标注：这不是实际 Xpert 部署，也没有运行大模型。** 固定 fixture 只替代“模型产生候选”一步；后续走真实插件视图适配器和 Java 业务接口。在此页点击“交给助手提取”会说明尚未连接 Xpert，不会伪造模型回复。
+**本地演示使用真实 Ollama 模型，工作台通信由本地预览服务器承接，尚未安装到 Xpert。** `npm run demo` 为 Java 启用 `local-extraction` 配置；在此模式下，`POST /api/contracts/extract` 接收原始文本，由 Java 调用模型。原文、标题和请求标识由服务持有，模型只能返回候选字段，不能改写原文或执行确认。正式 Xpert 模式仍由平台模型调用现有插件工具，不启用此本地专用接口。
+
+可选环境变量：`OLLAMA_BASE_URL`（默认 `http://127.0.0.1:11434`）、`OLLAMA_MODEL`（默认 `qwen2.5:7b`）、`OLLAMA_TIMEOUT_SECONDS`（默认 180）。这些是服务端配置，页面不能指定模型接口地址。`examples/draft.json` 始终是固定的虚构测试数据，与实时模型提取分开显示。
 
 ## 安装到 Xpert
 
@@ -65,6 +69,7 @@ npm run demo
 | 方法 | 路径 | 用途 |
 | --- | --- | --- |
 | POST | `/api/contracts` | 创建候选草稿；相同 requestKey 同负载重试返回原记录 |
+| POST | `/api/contracts/extract` | 仅本地抽取模式：接收 requestKey、title、sourceText，调用 Ollama 并校验保存草稿 |
 | GET | `/api/contracts` | 访问范围内最近 50 条摘要 |
 | GET | `/api/contracts/{id}` | 正文、字段、版本和操作记录 |
 | PUT | `/api/contracts/{id}` | 人工修改字段，要求 expectedVersion |
@@ -83,6 +88,8 @@ npm run test:ui
 npm run build
 npm pack --dry-run
 ```
+
+启动本地 Demo 后，另开一个终端执行 `node scripts/verify-local.mjs`，可使用虚构合同验证真实 Ollama 提取、Java 保存、重复提交、修改、版本冲突、确认和摘要。它会留下测试合同，并将验证结果写入已忽略的 `test-results/local-ollama-flow.json`。
 
 还需从仓库根目录按 `plugin-dev-harness/README.md` 安装构建 harness，然后执行：
 

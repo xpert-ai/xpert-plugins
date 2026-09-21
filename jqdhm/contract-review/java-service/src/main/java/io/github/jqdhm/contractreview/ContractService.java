@@ -14,6 +14,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static io.github.jqdhm.contractreview.ContractDtos.*;
@@ -45,6 +46,16 @@ public class ContractService {
             // Read after the failed insert transaction has rolled back; a concurrent winner owns this key.
             return replay(repository.findByKey(scope, request.requestKey()).orElseThrow(ApiException::conflict), hash);
         }
+    }
+
+    public Optional<CreateResult> replayExtraction(Scope scope, ExtractRequest request) {
+        return repository.findByKey(scope, request.requestKey()).map(existing -> {
+            // Compare immutable caller input, not a potentially nondeterministic model response.
+            if (!existing.title().equals(request.title()) || !existing.sourceText().equals(request.sourceText())) {
+                throw new ApiException(409, "IDEMPOTENCY_CONFLICT", "请求标识已用于不同内容，请使用新的请求标识。");
+            }
+            return new CreateResult(existing.dto(), false);
+        });
     }
 
     @Transactional(readOnly = true, timeout = 10)
