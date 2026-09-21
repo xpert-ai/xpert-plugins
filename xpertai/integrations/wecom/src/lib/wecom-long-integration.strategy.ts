@@ -10,6 +10,8 @@ import {
   WECOM_BOT_CREDENTIALS_HELP_LABEL
 } from './types.js'
 import { WeComLongConnectionService } from './wecom-long-connection.service.js'
+import { beginWeComQrAuthorization, pollWeComQrAuthorization } from './wecom-qr-authorization.js'
+import { z } from 'zod'
 
 @Injectable()
 @IntegrationStrategyKey(INTEGRATION_WECOM_LONG)
@@ -33,6 +35,7 @@ export class WeComLongIntegrationStrategy implements IntegrationStrategy<TIntegr
       zh_Hans: '企业微信智能机器人 WebSocket 长连接模式（aibot_subscribe / aibot_msg_callback）。'
     },
     webhook: false,
+    setup: { qrAuthorization: true },
     helpUrl: WECOM_APP_CREDENTIALS_HELP_URL,
     helpLabel: WECOM_BOT_CREDENTIALS_HELP_LABEL,
     schema: {
@@ -107,6 +110,19 @@ export class WeComLongIntegrationStrategy implements IntegrationStrategy<TIntegr
 
   async execute(_integration: IIntegration<TIntegrationWeComLongOptions>, _payload: TIntegrationStrategyParams): Promise<any> {
     return null
+  }
+
+  beginQrAuthorization() {
+    return beginWeComQrAuthorization()
+  }
+
+  pollQrAuthorization(scode: string) {
+    return pollWeComQrAuthorization(scode)
+  }
+
+  getQrAuthorizationIdentity(options: unknown): string | null {
+    const parsed = z.object({ botId: z.string().trim().min(1) }).safeParse(options)
+    return parsed.success ? parsed.data.botId : null
   }
 
   async onUpdate(

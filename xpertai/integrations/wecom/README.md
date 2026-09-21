@@ -53,6 +53,14 @@ Optional fields:
 
 When a long-connection integration is saved, the plugin attempts to establish the websocket connection automatically.
 
+### QR Authorization
+
+On hosts supporting QR setup, open **Assistant Settings > WeCom Trigger > Connect** and scan the displayed code with WeCom. The plugin uses the official CLI QR endpoints (`/ai/qc/generate` and `/ai/qc/query_result`, with source `wecom_cli_external`) to obtain the authorized bot's credentials on the server. The shared host flow creates or reuses a `wecom_long` integration for the same Bot ID in the current organization, binds the published assistant, and starts its connection immediately. Other unpublished assistant changes are preserved.
+
+The QR code expires after five minutes. Closing or refreshing the dialog cancels the pending host session. A successful scan is only reported as connected after the websocket is ready; startup failures allow retrying the authorization. Disconnect stops the assistant trigger binding immediately.
+
+**System Integrations > New > WeCom (Long Connection) > Scan to create** uses the same authorization adapter to create or reuse an integration without binding an assistant. Manual Bot ID and Secret configuration remains available. QR authorization requires a host with the shared integration QR lifecycle and trigger `quickConnect` support; bot availability and authorization permissions are controlled by WeCom.
+
 ## Routing to Xpert
 
 You can route inbound WeCom messages in either of these ways:

@@ -1,4 +1,4 @@
-import type { ChecklistItem, IIntegration, TWorkflowTriggerMeta } from '@xpert-ai/contracts'
+import type { ChecklistItem, IIntegration } from '@xpert-ai/contracts'
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import {
@@ -17,7 +17,7 @@ import { randomUUID } from 'crypto'
 import { Repository } from 'typeorm'
 import { ChatWeComMessage } from '../message.js'
 import { WECOM_LONG_CONNECTION_SERVICE, WECOM_PLUGIN_CONTEXT } from '../tokens.js'
-import { iconImage, INTEGRATION_WECOM_LONG, TIntegrationWeComLongOptions } from '../types.js'
+import { iconImage, INTEGRATION_WECOM_LONG, TIntegrationWeComLongOptions, TWeComTriggerMeta } from '../types.js'
 import type { WeComInboundFile } from '../types.js'
 import { WeComChannelStrategy } from '../wecom-channel.strategy.js'
 import { WeComTriggerBindingEntity } from '../entities/wecom-trigger-binding.entity.js'
@@ -32,6 +32,7 @@ import {
 
 type WeComLongConnectionClient = {
   connect: (integrationId: string) => Promise<unknown>
+  status: (integrationId: string) => Promise<{ connected: boolean; state: string }>
 }
 
 const DEFAULT_SESSION_TIMEOUT_SECONDS = 3600
@@ -45,8 +46,9 @@ export class WeComTriggerStrategy implements IWorkflowTriggerStrategy<TWeComTrig
   private _handoffPermissionService: HandoffPermissionService
   private _longConnectionService: WeComLongConnectionClient | null | undefined
 
-  readonly meta: TWorkflowTriggerMeta = {
+  readonly meta: TWeComTriggerMeta = {
     name: WeComTrigger,
+    quickConnect: { method: 'qr', integrationProvider: INTEGRATION_WECOM_LONG, configField: 'integrationId' },
     label: {
       en_US: 'WeCom Trigger',
       zh_Hans: '企业微信触发器'
@@ -251,6 +253,26 @@ export class WeComTriggerStrategy implements IWorkflowTriggerStrategy<TWeComTrig
 
     this.callbacks.set(integrationId, callback)
     await this.syncLongConnectionIfNeeded(integrationId)
+  }
+
+  async connectionStatus(config: TWeComTriggerConfig) {
+    if (!config?.enabled || !config.integrationId) {
+      return { connected: false, state: 'disconnected' as const }
+    }
+
+    const status = await this.longConnectionService?.status(config.integrationId)
+    if (!status) {
+      return { connected: false, state: 'disconnected' as const }
+    }
+
+    return {
+      connected: status.connected,
+      state: status.connected
+        ? ('connected' as const)
+        : status.state === 'unhealthy'
+        ? ('failed' as const)
+        : ('connecting' as const)
+    }
   }
 
   async stop(payload: TWorkflowTriggerParams<TWeComTriggerConfig>): Promise<void> {
