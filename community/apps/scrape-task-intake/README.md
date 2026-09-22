@@ -94,7 +94,7 @@ SCRAPE_TASK_INTAKE_DEDUPE_LOOKBACK_DAYS=7  # 可选,去重回溯天数
 
 ## 运行截图
 
-> 以下截图在 Xpert 开源版 main(平台 SHA `c9b29f554`)本地环境实际运行中截取:插件按 `source: code` 安装到组织 `5a3eea5e…`,通过助手模板创建 Assistant,在「采集需求受理台」工作bench 视图中操作。列表中的任务数据为便于展示多状态而预置的样本数据(未经过真实模型调用生成),界面本身由插件 remote component 经平台 `view-hosts` 桥接实时渲染。
+> 以下截图在 Xpert 开源版 main(平台 SHA `c9b29f554`)本地环境实际运行中截取:插件按 `source: code` 安装到组织 `5a3eea5e…`,通过助手模板创建 Assistant,在「采集需求受理台」工作bench 视图中操作。其中 01~03 的列表数据是便于展示多状态而预置的样本数据(未经过真实模型调用生成);**04 的任务由真实模型调用生成**,见下。界面本身由插件 remote component 经平台 `view-hosts` 桥接实时渲染。
 
 ### 提交需求:自然语言表单 + 站点类型字段模板 + 合规清单
 
@@ -107,6 +107,17 @@ SCRAPE_TASK_INTAKE_DEDUPE_LOOKBACK_DAYS=7  # 可选,去重回溯天数
 ### 任务详情:AI 提取任务书、字段表、风险与合规提示、操作记录
 
 ![任务详情](doc/screenshots/03-workbench-task-detail.png)
+
+### 真实模型调用生成的任务(非样本数据)
+
+下面这张是**端到端跑通后**截的:一句自然语言采集需求经过 Assistant 调用模型,
+再由 `scrape_intake_save_generated_task` 落库,任务编号 `ST-20260922-3665`,
+AI 置信度 70%,「AI 提取的任务书」里把原始描述拆成了标题 / 目标站点 / 页面范围 /
+交付格式 / 采集频率 / 采集字段(标题、发布日期),并附反爬风险提示。
+
+![真实模型调用生成的任务](doc/screenshots/04-workbench-ai-generated-task.png)
+
+> 上面 01~03 三张的列表数据是预置样本;这张 04 的任务是真实模型调用产生的。
 
 ## 验证结果
 
@@ -224,6 +235,23 @@ TypeError: Cannot read properties of undefined (reading 'toLowerCase')
 `agent.copilotModel` 就 500;该路由也只序列化 `copilotModelId`、不返回 `copilotModel` 对象。
 助手模型目录的正确路径是 `/api/ai/assistants/{id}/models`。
 
+### 平台侧修过的另一个缺陷:助手路由把 slug 当 UUID 用
+
+要打开助手指定的工作台视图(也就是上面那张截图的来源),工作室/聊天页会按 **slug**
+调 `GET /api/xpert/{slug}/team` 与 `GET /api/xpert/{slug}/version`,但路由 param 名叫
+`id`,`XpertGuard`、`XpertService.getTeam`、`XpertService.allVersions` 都把它直接当主键用,
+Postgres 直接报 `invalid input syntax for type uuid: "scrape-task-intake-assistant"`,
+整个助手页面 500 打不开。
+
+修法(平台仓库 `server-ai`,与上面那条一起提交):
+- 新增 `XpertService.findOneByIdOrSlug(identifier)`,按 `UUID_PATTERN` 判断走 `id` 还是
+  `slug`(沿用仓库里 `findPublicChatAppXpert` 已有的写法);
+- `getTeam` / `allVersions` 改用它,param 更名为 `identifier`;
+- `XpertGuard` 也改用它,否则守卫自己就先崩了。
+
+顺带说明:`/team` 这条路由带 `agent.copilotModel` 这类嵌套 relation 是**不会**崩的,
+崩的是 `GET /api/xpert/:id` 那条,两者别混淆。
+
 平台侧两项本地适配(均为 Windows 下平台仓库 main 自身问题,不影响插件代码):`deploy-local-plugin.mjs` 在无 shell 启动 `corepack` 时崩溃(与已修复的 `npm.cmd` 同类问题),本次以 `--skip-build --skip-test` 绕过;`organization-plugin.store.ts` 的 `npm.cmd` 修复已在平台仓库 `7d28a4727` 合入。
 
 #### 端到端实测证据(组织级模型供应商 + 真实模型调用)
@@ -258,12 +286,14 @@ TypeError: Cannot read properties of undefined (reading 'toLowerCase')
 ## 已知限制
 
 - 未实现真实采集执行调度、文件上传解析、多智能体协作、权限体系 UI;候选站点模板为内置 mock 数据。
-- 平台内真实模型调用**已**跑通:自然语言进、`scrape_intake_save_generated_task` 出、任务落库、受理台可见,证据见「验证结果」。仍未覆盖的:真实采集执行调度、多轮补充对话的完整人工复核流程、以及把整个链路录成新的运行截图(现有三张截图的列表数据是预置样本)。
+- 平台内真实模型调用**已**跑通:自然语言进、`scrape_intake_save_generated_task` 出、任务落库、受理台可见,证据见「验证结果」以及截图 04。仍未覆盖的:真实采集执行调度、多轮补充对话的完整人工复核流程。
 - Remote component 为单文件 `app.js`(无构建、React UMD 手写),这是对 smart-maintenance 既有约定的延续;若后续界面复杂化,应迁移到 TSX + esbuild + shadcn 方案。
 - 去重仅覆盖同一会话 + 相同原始文本 + 可编辑状态;跨会话重复提交不拦截。
 - 未在多个租户/组织间做过数据隔离的浏览器级验证(单元测试覆盖了服务层范围过滤)。
 - 平台侧在 Windows 本机的一处本地问题未随 PR 提交:`deploy-local-plugin.mjs` 无 shell 启动 `corepack` 时崩溃(与平台已修复的 `npm.cmd` 问题同类),本次用 `--skip-build --skip-test` 绕过;不影响插件代码本身。
 - 平台侧第二处 Windows 问题(本次新发现并已在本地平台修好):`AIModelProviderStrategy` 用正则解析调用栈帧定位供应商 YAML,处理 `file:///C:/…` 时留下盘符前多余的 `/`,导致 YAML 静默加载失败、任何走到 `getProviderModels()` 的请求 500。修法见「平台侧修过的一个 Windows 缺陷」,属平台 `plugin-sdk` 改动,不在本插件 PR 范围内。
+- 平台侧第三处问题(同样已在本地修好):助手路由把 slug 当 UUID 用,导致 `/api/xpert/{slug}/team` 与 `/version` 直接 500、助手页面打不开,连工作台视图都截不到图。修法见「平台侧修过的另一个缺陷」,属平台 `server-ai` 改动,不在本插件 PR 范围内。
+- `nx serve api` 在平台仓库会间歇性以 `0xC0000409` 退出,直接用 `NODE_ENV=development node dist/apps/api/main.js` 更稳。
 
 ## 平台 Agent 提示词建议
 
