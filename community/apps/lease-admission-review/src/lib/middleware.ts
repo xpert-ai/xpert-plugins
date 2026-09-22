@@ -86,7 +86,7 @@ export class ReviewMiddleware
           {
             name: TOOLS.save,
             description:
-              'Save exactly three evidence-backed candidates for management stability, stock pledge ratio, and debt/assets ratio. Preserve units and report periods; missing is null, not zero. This never confirms a case or computes a score.',
+              'Save exactly three evidence-backed candidates for management stability, stock pledge ratio, and debt/assets ratio. Preserve units and report periods; missing is null, not zero. Evidence must be a verbatim continuous substring, never a rewritten sentence. Missing facts may use an empty evidence array; do not invent a statement about missing data. This never confirms a case or computes a score.',
             schema: saveCandidateSchema,
             verboseParsingErrors: true,
             metadata: {

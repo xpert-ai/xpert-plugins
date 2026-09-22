@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { DataSource, EntityManager } from 'typeorm'
 import { randomUUID } from 'node:crypto'
+import { isDeepStrictEqual } from 'node:util'
 import { ReviewCase, ReviewEvent } from './entities'
 import {
   CaseDto,
@@ -9,14 +10,22 @@ import {
   createSchema,
   mutationSchema,
   confirmSchema,
+  saveDraftSchema,
   fieldsSchema,
   Fields,
   FailureCode,
   ReviewError,
   validateEvidence
 } from './contracts'
+import { emptyScoringInput } from './scoring-input'
+import { scoreReview, validDate } from './scoring'
 
 const leaseMs = 5 * 60 * 1000
+function sameFields(left: Fields | null, right: Fields) {
+  const ordered = (fields: Fields) =>
+    [...fields].sort((a, b) => a.key.localeCompare(b.key))
+  return left !== null && isDeepStrictEqual(ordered(left), ordered(right))
+}
 @Injectable()
 export class ReviewService {
   constructor(private readonly db: DataSource) {}
@@ -28,6 +37,8 @@ export class ReviewService {
   async create(scope: Scope, raw: unknown): Promise<CaseDto> {
     const input = createSchema.parse(raw),
       identity = this.scope(scope)
+    if (input.evaluationDate && !validDate(input.evaluationDate))
+      throw new ReviewError('score_incomplete')
     return this.db.transaction(async (manager) => {
       // Serialize duplicate creation requests in the same user's assistant scope.
       await manager.query(
@@ -46,6 +57,11 @@ export class ReviewService {
           createdOperation: input.operationId,
           title: input.title,
           source: input.source,
+          reviewDraft: {
+            fields: [],
+            reason: '',
+            inputs: emptyScoringInput(input.evaluationDate)
+          },
           status: 'draft',
           revision: 1
         })
@@ -55,14 +71,12 @@ export class ReviewService {
     })
   }
   async list(scope: Scope, page = 1) {
-    const [rows, total] = await this.db
-      .getRepository(ReviewCase)
-      .findAndCount({
-        where: this.scope(scope),
-        order: { createdAt: 'DESC', id: 'DESC' },
-        take: 20,
-        skip: (page - 1) * 20
-      })
+    const [rows, total] = await this.db.getRepository(ReviewCase).findAndCount({
+      where: this.scope(scope),
+      order: { createdAt: 'DESC', id: 'DESC' },
+      take: 20,
+      skip: (page - 1) * 20
+    })
     return {
       items: rows.map((r) => ({
         id: r.id,
@@ -118,8 +132,7 @@ export class ReviewService {
     const fields = fieldsSchema.parse(raw)
     return this.withAttempt(scope, attemptId, async (manager, row) => {
       if (row.status === 'review' || row.status === 'confirmed') {
-        if (JSON.stringify(row.candidates) === JSON.stringify(fields))
-          return this.receipt(row)
+        if (sameFields(row.candidates, fields)) return this.receipt(row)
         throw new ReviewError('invalid_state')
       }
       this.assertActive(row)
@@ -165,21 +178,76 @@ export class ReviewService {
       if (row.revision !== input.revision) throw new ReviewError('conflict')
       if (row.status !== 'review') throw new ReviewError('invalid_state')
       validateEvidence(row.source, input.fields)
-      if (
-        JSON.stringify(row.candidates) !== JSON.stringify(input.fields) &&
-        !input.reason
-      )
-        throw new ReviewError('reason_required')
+      const assessment = scoreReview(row.source, input.fields, input.inputs)
+      if (!assessment.complete) throw new ReviewError('score_incomplete')
+      if (!input.reason) {
+        if (!sameFields(row.candidates, input.fields))
+          throw new ReviewError('reason_required')
+        // A saved, fully specified human assessment is an audit baseline too.
+        // Check event snapshots so saving another draft cannot erase that baseline.
+        const drafts = await manager.getRepository(ReviewEvent).findBy({
+          ...this.scope(scope),
+          caseId: row.id,
+          kind: 'draft_saved'
+        })
+        for (const event of drafts) {
+          const draft = event.snapshot?.reviewDraft
+          if (
+            draft &&
+            scoreReview(row.source, draft.fields, draft.inputs).complete &&
+            !isDeepStrictEqual(draft.inputs, input.inputs)
+          )
+            throw new ReviewError('reason_required')
+        }
+      }
       row.confirmed = input.fields
       row.reason = input.reason
+      row.reviewDraft = {
+        fields: input.fields,
+        reason: input.reason,
+        inputs: input.inputs
+      }
+      row.assessment = assessment
       row.status = 'confirmed'
       row.revision++
       await manager.save(row)
       await this.event(manager, row, input.operationId, 'confirmed', {
         fields: input.fields,
-        reason: input.reason
+        reason: input.reason,
+        reviewDraft: row.reviewDraft,
+        assessment
       })
       return this.dto(row)
+    })
+  }
+  async saveDraft(scope: Scope, raw: unknown): Promise<CaseDto> {
+    const input = saveDraftSchema.parse(raw)
+    return this.db.transaction(async (manager) => {
+      const row = await this.lock(manager, scope, input.id)
+      if (await this.replayed(manager, row, input.operationId))
+        return this.dto(row)
+      if (row.revision !== input.revision) throw new ReviewError('conflict')
+      if (row.status !== 'review') throw new ReviewError('invalid_state')
+      row.reviewDraft = {
+        fields: input.fields,
+        reason: input.reason,
+        inputs: input.inputs
+      }
+      row.revision++
+      await manager.save(row)
+      await this.event(manager, row, input.operationId, 'draft_saved', {
+        reviewDraft: row.reviewDraft
+      })
+      return this.dto(row)
+    })
+  }
+  async previewScore(scope: Scope, raw: unknown) {
+    const input = saveDraftSchema.parse(raw)
+    return this.db.transaction(async (manager) => {
+      const row = await this.lock(manager, scope, input.id)
+      if (row.revision !== input.revision) throw new ReviewError('conflict')
+      if (row.status !== 'review') throw new ReviewError('invalid_state')
+      return scoreReview(row.source, input.fields, input.inputs)
     })
   }
   private assertActive(row: ReviewCase) {
@@ -211,23 +279,19 @@ export class ReviewService {
     fn: (manager: EntityManager, row: ReviewCase) => Promise<T>
   ): Promise<T> {
     return this.db.transaction(async (manager) => {
-      const row = await manager
-        .getRepository(ReviewCase)
-        .findOne({
-          where: { ...this.scope(scope), attemptId },
-          lock: { mode: 'pessimistic_write' }
-        })
+      const row = await manager.getRepository(ReviewCase).findOne({
+        where: { ...this.scope(scope), attemptId },
+        lock: { mode: 'pessimistic_write' }
+      })
       if (!row) throw new ReviewError('not_found')
       return fn(manager, row)
     })
   }
   private async lock(manager: EntityManager, scope: Scope, id: string) {
-    const row = await manager
-      .getRepository(ReviewCase)
-      .findOne({
-        where: { ...this.scope(scope), id },
-        lock: { mode: 'pessimistic_write' }
-      })
+    const row = await manager.getRepository(ReviewCase).findOne({
+      where: { ...this.scope(scope), id },
+      lock: { mode: 'pessimistic_write' }
+    })
     if (!row) throw new ReviewError('not_found')
     return row
   }
@@ -236,16 +300,14 @@ export class ReviewService {
     row: ReviewCase,
     operationId: string
   ) {
-    return manager
-      .getRepository(ReviewEvent)
-      .existsBy({
-        tenantId: row.tenantId,
-        organizationId: row.organizationId,
-        userId: row.userId,
-        assistantId: row.assistantId,
-        caseId: row.id,
-        operationId
-      })
+    return manager.getRepository(ReviewEvent).existsBy({
+      tenantId: row.tenantId,
+      organizationId: row.organizationId,
+      userId: row.userId,
+      assistantId: row.assistantId,
+      caseId: row.id,
+      operationId
+    })
   }
   private async event(
     manager: EntityManager,
@@ -254,19 +316,17 @@ export class ReviewService {
     kind: string,
     snapshot: ReviewEvent['snapshot']
   ) {
-    await manager
-      .getRepository(ReviewEvent)
-      .save({
-        tenantId: row.tenantId,
-        organizationId: row.organizationId,
-        userId: row.userId,
-        assistantId: row.assistantId,
-        caseId: row.id,
-        operationId,
-        kind,
-        revision: row.revision,
-        snapshot
-      })
+    await manager.getRepository(ReviewEvent).save({
+      tenantId: row.tenantId,
+      organizationId: row.organizationId,
+      userId: row.userId,
+      assistantId: row.assistantId,
+      caseId: row.id,
+      operationId,
+      kind,
+      revision: row.revision,
+      snapshot
+    })
   }
   private receipt(row: ReviewCase) {
     return { id: row.id, status: row.status, revision: row.revision }
@@ -282,6 +342,8 @@ export class ReviewService {
       candidates: row.candidates ?? null,
       confirmed: row.confirmed ?? null,
       reason: row.reason ?? null,
+      reviewDraft: row.reviewDraft ?? null,
+      assessment: row.assessment ?? null,
       failureCode: row.failureCode ?? null,
       updatedAt: row.updatedAt.toISOString()
     }

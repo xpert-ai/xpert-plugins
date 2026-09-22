@@ -8,7 +8,8 @@ import {
 } from 'typeorm'
 import { pluginArtifactTableName } from '@xpert-ai/plugin-sdk'
 import { NAMESPACE } from './constants'
-import type { Fields, Status, FailureCode } from './contracts'
+import type { Fields, Status, FailureCode, ReviewDraft } from './contracts'
+import type { ScoreResult } from './scoring-input'
 
 @Entity(pluginArtifactTableName(NAMESPACE, 'case'))
 @Index(
@@ -31,6 +32,8 @@ export class ReviewCase {
   attemptStartedAt!: Date | null
   @Column({ type: 'jsonb', nullable: true }) candidates!: Fields | null
   @Column({ type: 'jsonb', nullable: true }) confirmed!: Fields | null
+  @Column({ type: 'jsonb', nullable: true }) reviewDraft!: ReviewDraft | null
+  @Column({ type: 'jsonb', nullable: true }) assessment!: ScoreResult | null
   @Column({ type: 'text', nullable: true }) reason!: string | null
   @Column({ type: 'varchar', nullable: true }) failureCode!: FailureCode
   @CreateDateColumn() createdAt!: Date
@@ -63,6 +66,8 @@ export class ReviewEvent {
     fields?: Fields
     reason?: string
     failureCode?: FailureCode
+    reviewDraft?: ReviewDraft
+    assessment?: ScoreResult
   } | null
   @CreateDateColumn() createdAt!: Date
 }

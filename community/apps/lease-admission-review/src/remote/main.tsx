@@ -30,7 +30,18 @@ import {
 } from 'lucide-react'
 import '@xpert-ai/plugin-shadcn-ui/style.css'
 import './style.css'
-import { fieldsSchema, type Fields, type CaseDto } from '../lib/contracts'
+import {
+  fieldsSchema,
+  reviewDraftSchema,
+  type Fields,
+  type CaseDto
+} from '../lib/contracts'
+import {
+  emptyScoringInput,
+  scoreResultSchema,
+  type ScoreResult
+} from '../lib/scoring-input'
+import { ScoringForm, ScorePanel } from './score-panel'
 import { request, startBridge } from './bridge'
 import { t, setLocale, errorText } from './i18n'
 import { operationId } from './operation-id'
@@ -44,6 +55,8 @@ const caseSchema = z.object({
   candidates: fieldsSchema.nullable(),
   confirmed: fieldsSchema.nullable(),
   reason: z.string().nullable(),
+  reviewDraft: reviewDraftSchema.nullable(),
+  assessment: scoreResultSchema.nullable(),
   failureCode: z
     .enum(['timeout', 'dispatch_failed', 'unreadable', 'insufficient_input'])
     .nullable(),
@@ -75,6 +88,11 @@ async function action(name: string, input: object) {
   return result.data
 }
 function App() {
+  const [inputs, setInputs] = useState(emptyScoringInput())
+  const [preview, setPreview] = useState<ScoreResult | null>(null)
+  const [stale, setStale] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [evaluationDate, setEvaluationDate] = useState('')
   const [ready, setReady] = useState(false),
     [items, setItems] = useState<z.infer<typeof listSchema>['items']>([]),
     [total, setTotal] = useState(0),
@@ -107,8 +125,16 @@ function App() {
           : item
       )
     )
-    setFields(r.confirmed ?? r.candidates ?? [])
-    setReason(r.reason ?? '')
+    setFields(
+      r.confirmed ??
+        (r.reviewDraft?.fields.length ? r.reviewDraft.fields : r.candidates) ??
+        []
+    )
+    setReason(r.reviewDraft?.reason ?? r.reason ?? '')
+    setInputs(r.reviewDraft?.inputs ?? emptyScoringInput())
+    setPreview(r.assessment)
+    setStale(false)
+    setSaved(false)
     setDirty(false)
     setCreating(false)
   }
@@ -213,7 +239,23 @@ function App() {
     setFields((list) =>
       list.map((f, i) => (i === index ? { ...f, ...patch } : f))
     )
+    changed()
+  }
+  function changed() {
     setDirty(true)
+    setStale(true)
+    setSaved(false)
+  }
+  function scoringPayload() {
+    if (!row) throw new Error('not_found')
+    return {
+      id: row.id,
+      revision: row.revision,
+      operationId: operationId(),
+      fields,
+      reason,
+      inputs
+    }
   }
   return (
     <div className="shell text-foreground bg-background">
@@ -237,6 +279,7 @@ function App() {
               setRow(null)
               setTitle('')
               setSource('')
+              setEvaluationDate('')
               createOperation.current = operationId()
             }}
           >
@@ -307,6 +350,7 @@ function App() {
                     await action('create', {
                       title,
                       source,
+                      evaluationDate,
                       operationId: createOperation.current
                     })
                   )
@@ -315,6 +359,15 @@ function App() {
                 })
               }}
             >
+              <label className="block space-y-2">
+                <span>{t('evaluationDate')}</span>
+                <Input
+                  type="date"
+                  required
+                  value={evaluationDate}
+                  onChange={(e) => setEvaluationDate(e.target.value)}
+                />
+              </label>
               <label className="block space-y-2">
                 <span>{t('caseTitle')}</span>
                 <Input
@@ -457,14 +510,67 @@ function App() {
                     value={reason}
                     onChange={(e) => {
                       setReason(e.target.value)
-                      setDirty(true)
+                      changed()
                     }}
                   />
                 </label>
               )}
+              {!!fields.length &&
+                (row.status !== 'confirmed' || row.assessment) && (
+                  <ScoringForm
+                    inputs={inputs}
+                    disabled={busy || row.status !== 'review'}
+                    onChange={(next) => {
+                      setInputs(next)
+                      changed()
+                    }}
+                  />
+                )}
+              {row.status === 'confirmed' && !row.assessment ? (
+                <p>{t('historical')}</p>
+              ) : (
+                !!fields.length && <ScorePanel result={preview} stale={stale} />
+              )}
+              {saved && <p role="status">{t('draftSaved')}</p>}
               {row.status === 'review' && (
-                <div className="flex gap-2">
-                  <Button disabled={busy} onClick={() => setDialog(true)}>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    disabled={busy}
+                    variant="outline"
+                    onClick={() =>
+                      void run(async () => {
+                        apply(
+                          caseSchema.parse(
+                            await action('save_draft', scoringPayload())
+                          )
+                        )
+                        setSaved(true)
+                        await load()
+                      })
+                    }
+                  >
+                    {t('saveDraft')}
+                  </Button>
+                  <Button
+                    disabled={busy}
+                    variant="outline"
+                    onClick={() =>
+                      void run(async () => {
+                        setPreview(
+                          scoreResultSchema.parse(
+                            await action('preview_score', scoringPayload())
+                          )
+                        )
+                        setStale(false)
+                      })
+                    }
+                  >
+                    {t('previewScore')}
+                  </Button>
+                  <Button
+                    disabled={busy || stale || !preview?.complete}
+                    onClick={() => setDialog(true)}
+                  >
                     <Check size={16} />
                     {t('confirm')}
                   </Button>
@@ -501,15 +607,7 @@ function App() {
                 void run(async () => {
                   if (!row) return
                   apply(
-                    caseSchema.parse(
-                      await action('confirm', {
-                        id: row.id,
-                        revision: row.revision,
-                        operationId: operationId(),
-                        fields,
-                        reason
-                      })
-                    )
+                    caseSchema.parse(await action('confirm', scoringPayload()))
                   )
                   await load()
                 })

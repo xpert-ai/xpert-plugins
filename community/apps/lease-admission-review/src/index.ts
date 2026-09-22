@@ -16,7 +16,7 @@ class LeaseAdmissionReviewPlugin {}
 const plugin: XpertPlugin = {
   meta: {
     name: PLUGIN_NAME,
-    version: '0.1.0',
+    version: '0.2.0',
     level: 'system',
     artifactNamespace: NAMESPACE,
     targetApps: ['xpert'],

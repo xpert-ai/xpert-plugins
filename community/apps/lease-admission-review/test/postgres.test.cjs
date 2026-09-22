@@ -5,7 +5,7 @@ const { randomUUID } = require('node:crypto')
 const { DataSource } = require('typeorm')
 const { ReviewCase, ReviewEvent } = require('../dist/lib/entities.js')
 const { ReviewService } = require('../dist/lib/service.js')
-const { source, fields } = require('./fixture.cjs')
+const { source, fields, inputs } = require('./fixture.cjs')
 test(
   'PostgreSQL confirmation, isolation, recovery and retry invariants',
   { skip: !process.env.REVIEW_TEST_DB_HOST },
@@ -68,6 +68,7 @@ test(
           revision: ready.revision,
           operationId: randomUUID(),
           fields: corrected,
+          inputs,
           reason: ''
         }),
         /reason_required/
@@ -78,6 +79,7 @@ test(
           revision: 1,
           operationId: randomUUID(),
           fields,
+          inputs,
           reason: ''
         }),
         /conflict/
@@ -87,6 +89,7 @@ test(
         revision: ready.revision,
         operationId: randomUUID(),
         fields: corrected,
+        inputs,
         reason: 'Normalized management wording after checking evidence.'
       }
       const confirmed = await service.confirm(scope, confirmation)

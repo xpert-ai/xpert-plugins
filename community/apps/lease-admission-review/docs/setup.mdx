@@ -11,6 +11,8 @@ Install with tenant scope into the Default tenant. Mount the plugin workspace in
 
 The template intentionally contains no provider address, credential or runtime model parameters. Configure the assistant's runtime options through the host after installation: the template installer can copy the model reference without copying the provider's runtime defaults. Validate tool calling with your selected model.
 
+Load the assistant's `agent.copilotModel` relation explicitly when checking these options. An independent primary-node model may override the team model even when a default team response omits that relation. In this validation, the primary-node binding initially had empty options; syncing the host defaults to both the team and actual primary node corrected that omission. Do not infer the absence of an override from an unloaded relation.
+
 In the assistant page, open the workbench panel if the host initially maximizes the chat. The review view becomes available through the `lease_admission_review.review` capability.
 
 Each extraction uses a new host chat thread and a server-issued attempt identifier. A failed dispatch preserves the source. An extraction with no successful tool receipt expires after five minutes when its detail is read; retry creates a new attempt. A browser request timeout does not by itself prove that the server failed.
@@ -33,4 +35,16 @@ The host image can leave ChatKit blank while redirecting from an assistant entry
 
 Source baselines were Xpert `d24ca81b9f5885cf44dd77afdb0f91359b49c4ea` and plugins `ceb57e6fd5f9ccea48d5e8f8b431e4baae4f4e55`. Runtime API image digest: `sha256:139f4f44e22debdd15c93de54696e28285d38598d31a4db66d72b0b3821b434c`; Web: `sha256:700b54b9bac7638d69bbdd1dc242b2c8febf9253a70461378924c03d2abfbaf7`. Published images are not evidence of matching those source commits. The full host source build was not run.
 
-The tested runtime uses API Node 20, SDK 3.18.7 and contracts 3.18.6, with a Node 22 builder. No extra OCR, vector database or plugin backend is required. Multi-user browser permission checks, standalone edit-draft saving, deterministic scoring and historical-case reference remain subsequent work.
+The tested runtime uses API Node 20, SDK 3.18.7 and contracts 3.18.6, with a Node 22 builder. No extra OCR, vector database or plugin backend is required. Multi-user browser permission checks and historical-case reference remain subsequent work.
+
+## Version 0.2 scoring and draft upgrade
+
+The additive upgrade script was executed twice successfully against the isolated host database. It adds nullable `reviewDraft` and `assessment` JSONB columns and preserves old confirmations without scoring them. See [upgrade and rule conventions](scoring).
+
+Ten behavior tests passed with zero skips, including real PostgreSQL draft persistence, revision conflict, repeated operations, identity isolation, candidate preservation and historical null snapshots. Fixed-point tests cover four-decimal threshold neighbors, 80% versus 80.0001%, management counts, leap dates, units, missing evidence and invalid scopes. The JSONB comparison uses field content rather than serialization order. Changing previously saved complete human scoring inputs requires a correction reason at confirmation, even after saving another draft.
+
+During scoring validation, the host provider's declared output ceiling did not match its saved runtime limit. Its context metadata was aligned through the official API; a subsequent extraction succeeded, but this does not establish the mismatch as the sole cause of incomplete output. A later streamed response still contained incomplete tool arguments, so the local host was configured to request complete model responses before parsing. All connection and runtime values remain local. A missing-data extraction also rewrote a source quotation and was rejected. Tool guidance now requires continuous verbatim substrings and permits empty evidence for missing facts. Failed attempts remain in the history and are not counted as successful acceptance runs.
+
+Three synthetic browser scenarios then passed: a saved 14-point draft was restored, corrected against the source to 15, rejected without a correction reason and confirmed with one; missing management/pledge data could only remain a draft while valid debt data independently cleared the negative rule; 80.0001% debt produced 7/15 and hit the negative rule. Each used actual host model tool calls, then human workbench actions. Reload and navigation restored saved drafts or score snapshots, and historical confirmations remained unscored.
+
+After the final API restart, independent browser sessions logged in through both `localhost` and `127.0.0.1` Web origins. Both restored the normal/negative score snapshots, the incomplete human draft and historical unscored records; no new model calls were used for this recovery check.

@@ -1,5 +1,47 @@
 import i18next from 'i18next'
 const en = {
+  evaluationDate: 'Evaluation date',
+  departureCount: 'Departures in the past year',
+  managementStart: 'Window start (exclusive)',
+  managementEnd: 'Window end (inclusive)',
+  managementScopeVerified:
+    'Evidence covers chair, CEO, general manager, deputy general managers and CFO, and supports this departure count and window.',
+  pledgeDate: 'Pledge reporting date',
+  pledgeScopeVerified:
+    'Evidence supports this ratio of pledged shares to holdings of the controlling shareholder and concert parties, on this reporting date.',
+  debtDate: 'Debt/assets reporting date',
+  debtScopeVerified:
+    'Evidence supports this disclosed liabilities/assets ratio on this reporting date.',
+  scoreInputs: 'Human scoring checks',
+  saveDraft: 'Save draft',
+  previewScore: 'Calculate',
+  draftSaved: 'Draft saved',
+  scoreTitle: 'Selected indicators',
+  points: 'points',
+  pendingScore: 'Incomplete: no total score',
+  scoreStale: 'Inputs changed. Calculate again.',
+  noScore: 'Not calculated',
+  historical: 'Historical review record, not scored',
+  hit: 'Single negative rule: hit (>80%)',
+  clear: 'Single negative rule: not hit',
+  insufficient: 'Single negative rule: insufficient data',
+  supplement:
+    'Missing evidence: save the draft, then create a new case with supplemented material. This is not a full rating or admission decision.',
+  score_incomplete:
+    'Complete the evidence, dates and scope checks before confirmation.',
+  evaluation_date: 'Enter a valid evaluation date.',
+  fact_required: 'A present, unambiguous fact is required.',
+  value_period_required: 'Value and reporting period are required.',
+  evidence_required: 'Provide exact supporting source evidence.',
+  management_scope: 'Verify management scope and departure evidence.',
+  management_window:
+    'Use the year before the evaluation date (start exclusive, end inclusive).',
+  departure_count: 'Enter a non-negative integer departure count.',
+  pledge_scope: 'Verify controlling shareholder and concert-party denominator.',
+  debt_scope: 'Verify disclosed debt/assets scope.',
+  report_date: 'Reporting date must match the evaluation date.',
+  invalid_percent:
+    'Use an explicit non-negative percentage, up to four decimals; pledge cannot exceed 100%.',
   title: 'Admission review',
   newCase: 'New case',
   caseTitle: 'Case title',
@@ -52,6 +94,46 @@ const en = {
 }
 type Key = keyof typeof en
 const zh: Record<Key, string> = {
+  evaluationDate: '评估基准日',
+  departureCount: '近一年离职次数',
+  managementStart: '统计起日（不含）',
+  managementEnd: '统计止日（含）',
+  managementScopeVerified:
+    '已核对原文覆盖董事长、CEO、总经理、副总经理、财务总监，且支持所填离职次数和时间窗口。',
+  pledgeDate: '质押比例报告日',
+  pledgeScopeVerified:
+    '已核对原文支持控股股东及一致行动人质押数占其持股数的比例，以及所填报告日。',
+  debtDate: '资产负债率报告日',
+  debtScopeVerified:
+    '已核对原文支持所披露的负债总额占资产总额比例，以及所填报告日。',
+  scoreInputs: '人工评分核验',
+  saveDraft: '保存草稿',
+  previewScore: '试算',
+  draftSaved: '草稿已保存',
+  scoreTitle: '选定指标试算',
+  points: '分',
+  pendingScore: '资料待补充，暂不计算总分',
+  scoreStale: '输入已修改，请重新试算。',
+  noScore: '尚未试算',
+  historical: '历史核验记录，未评分',
+  hit: '单条负面规则：命中（>80%）',
+  clear: '单条负面规则：未命中',
+  insufficient: '单条负面规则：数据不足',
+  supplement:
+    '缺少依据时可保存草稿，并新建补充资料案例重新核验。本试算不代表完整评级或最终准入结论。',
+  score_incomplete: '请先补齐证据、日期与口径核验，再确认评分。',
+  evaluation_date: '请填写有效评估基准日。',
+  fact_required: '需提供无冲突的明确事实。',
+  value_period_required: '数值或事实及报告期不能为空。',
+  evidence_required: '需提供与原文完全对应的证据。',
+  management_scope: '请核对管理层范围及离职次数依据。',
+  management_window: '统计窗口须为基准日前一年（起日不含，止日含）。',
+  departure_count: '离职次数须为非负整数。',
+  pledge_scope: '请核对控股股东及一致行动人的质押分母口径。',
+  debt_scope: '请核对披露的资产负债率口径。',
+  report_date: '比例报告日须与评估基准日一致。',
+  invalid_percent:
+    '请输入明确的非负百分比，最多四位小数；质押比例不得超过100%。',
   title: '准入资料核验',
   newCase: '新建案例',
   caseTitle: '案例名称',

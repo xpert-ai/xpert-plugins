@@ -72,21 +72,28 @@ export class ReviewView implements IXpertViewExtensionProvider {
           cache: { enabled: false }
         },
         refreshable: true,
-        actions: ['create', 'start', 'confirm', 'dispatch_failed'].map(
-          (action) => ({
-            key: action,
-            label: text(
-              action,
-              {
-                create: '保存资料',
-                start: '开始提取',
-                confirm: '确认保存',
-                dispatch_failed: '记录发送失败'
-              }[action] ?? action
-            ),
-            actionType: 'invoke' as const
-          })
-        ),
+        actions: [
+          'create',
+          'start',
+          'save_draft',
+          'preview_score',
+          'confirm',
+          'dispatch_failed'
+        ].map((action) => ({
+          key: action,
+          label: text(
+            action,
+            {
+              create: '保存资料',
+              start: '开始提取',
+              confirm: '确认保存',
+              save_draft: '保存草稿',
+              preview_score: '试算',
+              dispatch_failed: '记录发送失败'
+            }[action] ?? action
+          ),
+          actionType: 'invoke' as const
+        })),
         clientCommands: [
           {
             key: 'assistant.chat.send_message',
@@ -139,6 +146,17 @@ export class ReviewView implements IXpertViewExtensionProvider {
     try {
       if (viewKey !== VIEW) throw new ReviewError('not_found')
       const identity = scope(c)
+      if (action === 'save_draft')
+        return {
+          success: true,
+          data: await this.service.saveDraft(identity, request.input),
+          refresh: true
+        }
+      if (action === 'preview_score')
+        return {
+          success: true,
+          data: await this.service.previewScore(identity, request.input)
+        }
       if (action === 'create')
         return {
           success: true,
@@ -160,7 +178,7 @@ export class ReviewView implements IXpertViewExtensionProvider {
             commandKey: 'assistant.chat.send_message',
             payload: {
               newThread: true,
-              text: `请核验准入资料。attemptId=${row.attemptId}。先调用 ${TOOLS.read} 读取原文，再调用 ${TOOLS.save} 保存三个指标的候选及原文证据。不要确认，不要评分。`
+              text: `请核验准入资料。attemptId=${row.attemptId}。先调用 ${TOOLS.read} 读取原文，再调用 ${TOOLS.save} 保存三个指标的候选及原文证据。引用须为原文连续子串，不改写或重组句子；缺失项value为null，没有可逐字引用依据时evidence为空数组。不要确认，不要评分。`
             }
           },
           refresh: true

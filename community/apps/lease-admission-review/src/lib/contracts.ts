@@ -1,11 +1,12 @@
 import { z } from 'zod/v3'
+import { scoringInputSchema, type ScoreResult } from './scoring-input'
 
 export const fieldKey = z.enum([
   'managementStability',
   'pledgeRatio',
   'debtAssetRatio'
 ])
-export const fieldSchema = z
+export const draftFieldSchema = z
   .object({
     key: fieldKey,
     status: z.enum(['present', 'missing', 'conflict', 'not_applicable']),
@@ -34,20 +35,20 @@ export const fieldSchema = z
       )
   })
   .strict()
-  .superRefine((v, ctx) => {
-    if (v.status === 'present' && (!v.value || !v.evidence.length))
-      ctx.addIssue({
-        code: 'custom',
-        message: 'Present facts require value and evidence'
-      })
-    if (v.status === 'missing' && v.value !== null)
-      ctx.addIssue({ code: 'custom', message: 'Missing is null, never zero' })
-    if (v.status === 'conflict' && v.evidence.length < 2)
-      ctx.addIssue({
-        code: 'custom',
-        message: 'Conflict requires at least two evidence spans'
-      })
-  })
+export const fieldSchema = draftFieldSchema.superRefine((v, ctx) => {
+  if (v.status === 'present' && (!v.value || !v.evidence.length))
+    ctx.addIssue({
+      code: 'custom',
+      message: 'Present facts require value and evidence'
+    })
+  if (v.status === 'missing' && v.value !== null)
+    ctx.addIssue({ code: 'custom', message: 'Missing is null, never zero' })
+  if (v.status === 'conflict' && v.evidence.length < 2)
+    ctx.addIssue({
+      code: 'custom',
+      message: 'Conflict requires at least two evidence spans'
+    })
+})
 export const fieldsSchema = z
   .array(fieldSchema)
   .length(3)
@@ -59,6 +60,7 @@ export const createSchema = z
   .object({
     title: z.string().trim().min(1).max(120),
     source: z.string().trim().min(1).max(20000),
+    evaluationDate: z.string().max(10).optional(),
     operationId: z.string().uuid()
   })
   .strict()
@@ -70,8 +72,34 @@ export const mutationSchema = z
   })
   .strict()
 export const confirmSchema = mutationSchema
-  .extend({ fields: fieldsSchema, reason: z.string().trim().max(1000) })
+  .extend({
+    fields: fieldsSchema,
+    reason: z.string().trim().max(1000),
+    inputs: scoringInputSchema
+  })
   .strict()
+export const draftFieldsSchema = z
+  .array(draftFieldSchema)
+  .length(3)
+  .refine(
+    (v) => new Set(v.map((f) => f.key)).size === 3,
+    'Each field appears exactly once'
+  )
+export const reviewDraftSchema = z
+  .object({
+    fields: z.union([draftFieldsSchema, z.array(draftFieldSchema).length(0)]),
+    reason: z.string().trim().max(1000),
+    inputs: scoringInputSchema
+  })
+  .strict()
+export const saveDraftSchema = mutationSchema
+  .extend({
+    fields: draftFieldsSchema,
+    reason: z.string().trim().max(1000),
+    inputs: scoringInputSchema
+  })
+  .strict()
+export type ReviewDraft = z.infer<typeof reviewDraftSchema>
 export const saveCandidateSchema = z
   .object({
     attemptId: z
@@ -118,6 +146,8 @@ export type CaseDto = {
   candidates: Fields | null
   confirmed: Fields | null
   reason: string | null
+  reviewDraft: ReviewDraft | null
+  assessment: ScoreResult | null
   failureCode: FailureCode
   updatedAt: string
 }
@@ -130,6 +160,7 @@ export class ReviewError extends Error {
       | 'invalid_evidence'
       | 'reason_required'
       | 'scope_required'
+      | 'score_incomplete'
   ) {
     super(code)
   }
