@@ -16,6 +16,7 @@ jest.mock('../lark-channel.strategy.js', () => ({
 
 import { HANDOFF_PERMISSION_SERVICE_TOKEN, INTEGRATION_PERMISSION_SERVICE_TOKEN } from '@xpert-ai/plugin-sdk'
 import { LarkTriggerStrategy } from './lark-trigger.strategy.js'
+import { LARK_LONG_CONNECTION_SERVICE } from '../tokens.js'
 
 const DEFAULT_TRIGGER_CONFIG = {
 	enabled: true,
@@ -53,6 +54,7 @@ describe('LarkTriggerStrategy', () => {
 		ownerUserId?: string
 		ownerUnionId?: string | null
 		ownerOpenId?: string | null
+		connectionMode?: 'webhook' | 'long_connection'
 	}) {
 		const persistedBindings = new Map<string, PersistedBinding>()
 		for (const binding of params?.bindings ?? []) {
@@ -84,6 +86,8 @@ describe('LarkTriggerStrategy', () => {
 		const integrationPermissionService = {
 			read: jest.fn().mockResolvedValue({
 				id: 'integration-1',
+				provider: 'lark',
+				options: { connectionMode: params?.connectionMode ?? 'webhook' },
 				tenantId: 'tenant-1',
 				organizationId: 'org-1',
 				createdById: params?.ownerUserId ?? 'user-1',
@@ -118,6 +122,24 @@ describe('LarkTriggerStrategy', () => {
 			})
 		}
 		const bindingRepository = {
+			update: jest.fn(async (criteria: { integrationId: string; xpertId: string }, patch: Partial<PersistedBinding>) => {
+				const current = persistedBindings.get(criteria.integrationId)
+				if (!current || current.xpertId !== criteria.xpertId) return { affected: 0 }
+				persistedBindings.set(criteria.integrationId, { ...current, ...patch })
+				return { affected: 1 }
+			}),
+			createQueryBuilder: () => {
+				let values: PersistedBinding
+				const query = {
+					insert: () => query,
+					values: (value: PersistedBinding) => { values = value; return query },
+					orIgnore: () => query,
+					execute: async () => {
+						if (!persistedBindings.has(values.integrationId)) persistedBindings.set(values.integrationId, values)
+					}
+				}
+				return query
+			},
 			findOne: jest.fn().mockImplementation(async ({ where }: { where: { integrationId: string } }) => {
 				return persistedBindings.get(where.integrationId) ?? null
 			}),
@@ -147,8 +169,14 @@ describe('LarkTriggerStrategy', () => {
 				return { affected: 1 }
 			})
 		}
+		const longConnection = {
+			connect: jest.fn().mockResolvedValue({ connected: true, state: 'connected' }),
+			reconnect: jest.fn().mockResolvedValue({ connected: true, state: 'connected' }),
+			status: jest.fn().mockResolvedValue({ connected: true, state: 'connected' })
+		}
 		const pluginContext = {
 			resolve: jest.fn((token: unknown) => {
+				if (token === LARK_LONG_CONNECTION_SERVICE) return longConnection
 				if (token === INTEGRATION_PERMISSION_SERVICE_TOKEN) {
 					return integrationPermissionService
 				}
@@ -176,6 +204,8 @@ describe('LarkTriggerStrategy', () => {
 		)
 		return {
 			strategy,
+			longConnection,
+			integrationPermissionService,
 			dispatchService,
 			aggregationService,
 			handoffPermissionService,
@@ -185,6 +215,113 @@ describe('LarkTriggerStrategy', () => {
 			persistedBindings
 		}
 	}
+
+	it('uses generic QR metadata and starts a saved long connection when the trigger is published', async () => {
+		const { strategy, longConnection, persistedBindings } = createStrategy({ connectionMode: 'long_connection' })
+		expect(strategy.meta.quickConnect).toEqual({ method: 'qr', integrationProvider: 'lark', configField: 'integrationId' })
+		longConnection.connect.mockImplementationOnce(async () => {
+			expect(persistedBindings.get('integration-1')?.xpertId).toBe('xpert-1')
+			return { connected: true, state: 'connected' }
+		})
+		await strategy.publish({ xpertId: 'xpert-1', config: { enabled: true, integrationId: 'integration-1' } }, jest.fn())
+		expect(longConnection.connect).toHaveBeenCalledWith('integration-1')
+		expect(longConnection.reconnect).not.toHaveBeenCalled()
+		expect(await strategy.connectionStatus({ enabled: true, integrationId: 'integration-1' })).toEqual({ connected: true, state: 'connected' })
+	})
+
+	it('retries an unhealthy runtime on an explicit publish', async () => {
+		const { strategy, longConnection } = createStrategy({ connectionMode: 'long_connection' })
+		longConnection.connect.mockResolvedValueOnce({ connected: false, state: 'unhealthy' })
+		await strategy.publish({ xpertId: 'xpert-1', config: { enabled: true, integrationId: 'integration-1' } }, jest.fn())
+		expect(longConnection.reconnect).toHaveBeenCalledWith('integration-1')
+	})
+
+	it.each([
+		['idle', 'disconnected'], ['connecting', 'connecting'], ['retrying', 'connecting'], ['unhealthy', 'failed']
+	])('reports runtime %s as %s without claiming the trigger is connected', async (state, expected) => {
+		const { strategy, longConnection } = createStrategy({ connectionMode: 'long_connection' })
+		longConnection.status.mockResolvedValueOnce({ connected: false, state })
+		expect(await strategy.connectionStatus({ enabled: true, integrationId: 'integration-1' })).toEqual({ connected: false, state: expected })
+	})
+
+	it('does not start a connection while reading disabled or unconfigured trigger status', async () => {
+		const { strategy, longConnection, integrationPermissionService } = createStrategy({ connectionMode: 'long_connection' })
+		expect(await strategy.connectionStatus({ enabled: false, integrationId: 'integration-1' })).toEqual({ connected: false, state: 'disconnected' })
+		expect(await strategy.connectionStatus({ enabled: true })).toEqual({ connected: false, state: 'disconnected' })
+		expect(longConnection.status).not.toHaveBeenCalled()
+		expect(integrationPermissionService.read).not.toHaveBeenCalled()
+	})
+
+	it('preserves manual webhook integrations without opening a socket', async () => {
+		const { strategy, longConnection } = createStrategy()
+		await strategy.publish({ xpertId: 'xpert-1', config: { enabled: true, integrationId: 'integration-1' } }, jest.fn())
+		expect(await strategy.connectionStatus({ enabled: true, integrationId: 'integration-1' })).toEqual({ connected: true, state: 'connected' })
+		expect(longConnection.connect).not.toHaveBeenCalled()
+		expect(longConnection.status).not.toHaveBeenCalled()
+	})
+
+	it('propagates startup failures so the host can roll back and stop the binding', async () => {
+		const { strategy, longConnection, persistedBindings } = createStrategy({ connectionMode: 'long_connection' })
+		const payload = { xpertId: 'xpert-1', config: { enabled: true, integrationId: 'integration-1' } }
+		longConnection.connect.mockRejectedValueOnce(new Error('connection failed'))
+		await expect(strategy.publish(payload, jest.fn())).rejects.toThrow('connection failed')
+		await strategy.stop(payload)
+		expect(persistedBindings.get('integration-1')?.config?.enabled).toBe(false)
+	})
+
+	it('stops only the selected assistant binding while retaining other assistants', async () => {
+		const { strategy, persistedBindings } = createStrategy({ bindings: [
+			createBinding(), createBinding({ integrationId: 'integration-2', xpertId: 'xpert-2' })
+		] })
+		await strategy.stop({ xpertId: 'xpert-1', config: { integrationId: 'integration-2' } })
+		expect(persistedBindings.has('integration-2')).toBe(true)
+		await strategy.stop({ xpertId: 'xpert-1', config: { integrationId: 'integration-1' } })
+		expect(persistedBindings.get('integration-1')?.config?.enabled).toBe(false)
+		expect(persistedBindings.has('integration-2')).toBe(true)
+		expect(persistedBindings.get('integration-2')?.config?.enabled).toBe(true)
+	})
+
+	it('persists disconnect when the old binding was deleted, and allows a new assistant to reconnect', async () => {
+		const { strategy, persistedBindings } = createStrategy()
+		await strategy.stop({ xpertId: 'xpert-1', config: { integrationId: 'integration-1' } })
+		expect(persistedBindings.get('integration-1')?.config?.enabled).toBe(false)
+		expect(await strategy.getBoundXpertId('integration-1')).toBeNull()
+		await strategy.publish({ xpertId: 'xpert-2', config: { enabled: true, integrationId: 'integration-1' } }, jest.fn())
+		expect(await strategy.getBoundXpertId('integration-1')).toBe('xpert-2')
+		expect(persistedBindings.get('integration-1')?.config?.enabled).toBe(true)
+	})
+
+	it('stops all bindings for one assistant without stopping other assistants', async () => {
+		const { strategy, persistedBindings } = createStrategy({ bindings: [
+			createBinding(), createBinding({ integrationId: 'integration-2' }),
+			createBinding({ integrationId: 'integration-3', xpertId: 'xpert-2' })
+		] })
+		await strategy.stop({ xpertId: 'xpert-1', config: {} })
+		expect(persistedBindings.get('integration-1')?.config?.enabled).toBe(false)
+		expect(persistedBindings.get('integration-2')?.config?.enabled).toBe(false)
+		expect(persistedBindings.get('integration-3')?.config?.enabled).toBe(true)
+	})
+
+	it('does not disable a binding reassigned while stop is awaiting its database write', async () => {
+		const { strategy, bindingRepository, persistedBindings } = createStrategy({ bindings: [createBinding()] })
+		bindingRepository.findOne.mockImplementationOnce(async () => {
+			const previous = persistedBindings.get('integration-1')
+			persistedBindings.set('integration-1', createBinding({ xpertId: 'xpert-2' }))
+			return previous ?? null
+		})
+		await strategy.stop({ xpertId: 'xpert-1', config: { integrationId: 'integration-1' } })
+		expect(persistedBindings.get('integration-1')).toMatchObject({ xpertId: 'xpert-2', config: { enabled: true } })
+	})
+
+	it.each(['disconnected', 'removed', 'reassigned'])('drops buffered messages after the binding is %s', async (state) => {
+		const { strategy, aggregationService, dispatchService } = createStrategy({ bindings: state === 'removed' ? [] : [
+			createBinding({ xpertId: state === 'reassigned' ? 'another-xpert' : 'xpert-1', config: { ...DEFAULT_TRIGGER_CONFIG, enabled: state !== 'disconnected' } })
+		] })
+		aggregationService.get.mockResolvedValue({ aggregateKey: 'group-buffer', integrationId: 'integration-1', xpertId: 'xpert-1', version: 1 })
+		expect(await strategy.flushBufferedConversation({ aggregateKey: 'group-buffer', version: 1 })).toBe(false)
+		expect(aggregationService.clear).toHaveBeenCalledWith('group-buffer')
+		expect(dispatchService.enqueueDispatch).not.toHaveBeenCalled()
+	})
 
 	function createBinding(overrides: Partial<PersistedBinding> = {}): PersistedBinding {
 		return {
@@ -884,7 +1021,7 @@ describe('LarkTriggerStrategy', () => {
 	})
 
 	it('flushes the current aggregate into a single dispatch payload', async () => {
-		const { strategy, aggregationService, dispatchService, messageHistoryService } = createStrategy()
+		const { strategy, aggregationService, dispatchService, messageHistoryService } = createStrategy({ bindings: [createBinding()] })
 		aggregationService.get.mockResolvedValue({
 			aggregateKey: 'lark:v2:scope:integration-1:group:chat-1',
 			integrationId: 'integration-1',

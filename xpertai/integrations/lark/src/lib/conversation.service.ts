@@ -1396,6 +1396,12 @@ export class LarkConversationService implements OnModuleDestroy {
 		if (!integration) {
 			throw new Error(`Integration ${integrationId} not found`)
 		}
+		const boundTriggerBinding = await this.getBoundTriggerBinding(integrationId)
+		if (boundTriggerBinding?.config?.enabled === false) {
+			await this.clearTypingReaction(options)
+			await this.messageHistoryService.updateInboundStatus(options.currentInboundLogIds ?? [], 'failed', 'trigger_disconnected')
+			return null
+		}
 
 		const semanticMessage = options.semanticMessage ?? extractLarkSemanticMessage(message)
 		let text = options.input || semanticMessage?.agentText
@@ -1453,7 +1459,6 @@ export class LarkConversationService implements OnModuleDestroy {
 			return resolvedFiles
 		}
 		const fallbackXpertId = integration.options?.xpertId
-		const boundTriggerBinding = await this.getBoundTriggerBinding(integrationId)
     const { scopeBinding, fallbackBinding, targetBinding, targetXpertId, useDispatchInputForTrigger } =
       await this.resolveTargetXpertId({
 			integrationId,
@@ -2180,6 +2185,8 @@ export class LarkConversationService implements OnModuleDestroy {
 	}
 
 	async handleMessage(message: TChatInboundMessage, ctx: TChatEventContext<TIntegrationLarkOptions>): Promise<void> {
+		const boundTriggerBinding = await this.getBoundTriggerBinding(ctx.integration.id)
+		if (boundTriggerBinding?.config?.enabled === false) return
 		const user = RequestContext.currentUser()
 		if (!user) {
 			this.logger.warn('No user in request context, cannot handle message')
@@ -2205,7 +2212,6 @@ export class LarkConversationService implements OnModuleDestroy {
 			senderOpenId: message.senderId,
 			fallbackUserId: user.id
 		})
-    const boundTriggerBinding = await this.getBoundTriggerBinding(ctx.integration.id)
     const larkTriggerStrategy = boundTriggerBinding ? await this.getLarkTriggerStrategy() : null
     const triggerConfig = boundTriggerBinding
       ? larkTriggerStrategy!.normalizeConfig(boundTriggerBinding.config, ctx.integration.id)
@@ -2388,6 +2394,8 @@ export class LarkConversationService implements OnModuleDestroy {
 	}
 
 	async handleCardAction(action: TChatCardAction, ctx: TChatEventContext<TIntegrationLarkOptions>): Promise<void> {
+		const boundTriggerBinding = await this.getBoundTriggerBinding(ctx.integration.id)
+		if (boundTriggerBinding?.config?.enabled === false) return
 		if (
 			isLarkCardActionValue(action.value) &&
 			resolveLarkCardActionValue(action.value) === LARK_DISMISS_PERMISSION_GUIDE
@@ -2446,7 +2454,6 @@ export class LarkConversationService implements OnModuleDestroy {
 			return
 		}
 
-		const boundTriggerBinding = await this.getBoundTriggerBinding(ctx.integration.id)
 		if (boundTriggerBinding) {
 			const larkTriggerStrategy = await this.getLarkTriggerStrategy()
 			const matchesBoundTrigger = larkTriggerStrategy.matchesInboundMessage({
