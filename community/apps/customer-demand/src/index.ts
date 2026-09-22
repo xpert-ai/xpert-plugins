@@ -22,7 +22,7 @@ const plugin: XpertPlugin<Record<string, never>> = {
   meta: {
     name: PLUGIN_NAME, version: '0.1.0', level: 'system', artifactNamespace: NAMESPACE,
     displayName: '客户需求评估与跟进工作台', description: 'Jev 辅助判断需求类型、信息完整度与下一步，由销售确认并保存。',
-    author: 'Customer Demand Workbench', category: 'middleware', targetApps: ['xpert'],
+    author: 'ShiXiangYu2', category: 'middleware', targetApps: ['xpert'],
     targetAppMeta: { xpert: { types: ['business-app', 'workbench-view', 'assistant-tool'], capabilities: [FEATURE],
       runtime: { middlewareProviders: [MIDDLEWARE], viewProviders: [PROVIDER] },
       marketplace: { contents: [

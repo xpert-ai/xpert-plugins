@@ -105,6 +105,7 @@ node plugin-dev-harness/dist/index.js \
 - [产品与数据设计](docs/product-design.md)
 - [验证记录](docs/verification.md)
 - [AI 协作说明](docs/ai-collaboration.md)
+- [隐私说明](docs/privacy.md)
 - [第三方来源与许可](docs/attribution.md)
 
 基线：`xpert-ai/xpert-plugins@b5fa7b0811443bdef6b8d1f2aad88047533063d0`；本地平台验证目标基线：`xpert-ai/xpert@d24ca81b9f5885cf44dd77afdb0f91359b49c4ea`。
