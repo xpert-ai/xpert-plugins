@@ -20,6 +20,24 @@
 - 数据按 tenant、organization、user 三层隔离；Assistant 只提供查询与发起评估工具，没有绕过人工确认的工具。
 - 中文和英文界面、深浅主题、桌面和移动布局。
 
+## 运行截图
+
+在完整 Xpert 平台（开源版 Docker 部署）中实拍，覆盖用户输入、AI 处理结果与异常场景：
+
+![新建需求表单](docs/screenshots/xpert-platform-create-form.png)
+
+新建需求：粘贴客户沟通原文，原文原样保存，不经过任何改写。
+
+![完整 Xpert 平台中的确认流程](docs/screenshots/xpert-platform-confirmed.png)
+
+Jev 评估后：展示信息完整度概率、模型建议，销售核对后保存自己的跟进决定。
+
+![失败后原文保留](docs/screenshots/local-failure-preserved.png)
+
+异常场景：一次受控的模型失败后，客户原文仍在、状态明确，可幂等重试。
+
+其余截图见 [docs/verification.md](docs/verification.md)：插件安装页、平台重启恢复、共享预览宿主、英文深色移动视口。
+
 ## Jev 设计
 
 单次请求把相互独立的判断一起发送，共享同一份客户原文：
@@ -90,7 +108,11 @@ node plugin-dev-harness/dist/index.js \
   --plugin @xpert-ai/plugin-customer-demand
 ```
 
-部署到本地 Xpert 时，设置服务器进程的 `TYPESAFE_API_KEY`，再使用仓库对应版本的本地插件部署流程。不要把密钥放入浏览器环境变量或插件配置 JSON。
+部署到本地 Xpert 时，设置服务器进程的 `TYPESAFE_API_KEY`（本例通过 API 容器的 `jev.env` 注入），不要把密钥放入浏览器环境变量或插件配置 JSON。
+
+2026-09-22 已在本地 Docker 完整 Xpert 平台完成安装验收：插件工作区只读挂载到 API 容器 `/srv` 下的路径，以 SUPER_ADMIN 调用 `POST /api/plugin`（`source: "code"`）安装并重启激活；更新代码后用 `POST /api/plugin/refresh` 重装。从"客户需求评估助手"模板创建并发布数字专家后，对话页工作台可完成 新建 → Jev 评估（实际模型 `jev-1.13.0`）→ 人工确认 的闭环，全部容器重启后数据完整恢复。步骤与发现见 [docs/verification.md](docs/verification.md)。
+
+![完整 Xpert 平台中的确认流程](docs/screenshots/xpert-platform-confirmed.png)
 
 ## 已知边界
 
@@ -98,7 +120,7 @@ node plugin-dev-harness/dist/index.js \
 - Jev 提供结构化语义判断，不生成方案、报价或回复话术。
 - 每条记录默认只对创建它的同一 tenant、organization、user 可见；团队共享需要额外的授权模型。
 - SQL.js 只用于独立集成预览；安装到 Xpert 后使用宿主提供的 TypeORM 数据库。
-- 仓库共享预览宿主验证 Remote View 协议和交互，但不等同于把插件安装进完整 Xpert 服务。完整平台验收证据应在目标 Xpert 环境中补充。
+- 仓库共享预览宿主验证 Remote View 协议和交互，但不校验服务端的 `querySchema` 声明；这类平台约束以完整 Xpert 安装验收为准（见验证记录）。
 
 ## 资料
 
