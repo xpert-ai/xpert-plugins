@@ -1,0 +1,126 @@
+import i18next from 'i18next'
+const en = {
+  title: 'Admission review',
+  newCase: 'New case',
+  caseTitle: 'Case title',
+  source: 'Source material',
+  create: 'Save source',
+  extract: 'Extract facts',
+  retry: 'Retry extraction',
+  confirm: 'Confirm and save',
+  reason: 'Reason for corrections',
+  refresh: 'Refresh',
+  empty: 'No cases',
+  select: 'Select or create a case',
+  evidence: 'Evidence',
+  period: 'Reporting period',
+  unit: 'Unit',
+  value: 'Value',
+  managementStability: 'Management stability',
+  pledgeRatio: 'Stock pledge ratio',
+  debtAssetRatio: 'Debt / assets',
+  draft: 'Draft',
+  extracting: 'Extracting',
+  review: 'Awaiting review',
+  confirmed: 'Confirmed',
+  failed: 'Failed',
+  present: 'Present',
+  missing: 'Missing',
+  conflict: 'Conflict',
+  not_applicable: 'Not applicable',
+  invalid_input: 'Check the required fields and evidence.',
+  invalid_evidence: 'Evidence must match the source text.',
+  reason_required: 'Enter a reason for the corrections.',
+  invalid_state: 'This action is unavailable in the current state.',
+  not_found: 'The case is unavailable.',
+  scope_required: 'Open this view within an organization assistant.',
+  operation_failed: 'Operation failed. Your saved data is preserved.',
+  request_timeout: 'Request timed out. Refresh to check the saved state.',
+  dirty: 'Unsaved corrections. Save or discard before refreshing.',
+  discard: 'Discard corrections',
+  back: 'Back',
+  next: 'Next',
+  timeout: 'Extraction timed out',
+  dispatch_failed: 'Assistant dispatch failed',
+  unreadable: 'Source unreadable',
+  insufficient_input: 'Insufficient source material',
+  confirmTitle: 'Confirm these facts?',
+  confirmDescription:
+    'The reviewed values and correction reason will be saved as a confirmation record.',
+  cancel: 'Cancel',
+  status: 'Status'
+}
+type Key = keyof typeof en
+const zh: Record<Key, string> = {
+  title: '准入资料核验',
+  newCase: '新建案例',
+  caseTitle: '案例名称',
+  source: '资料原文',
+  create: '保存资料',
+  extract: '提取候选',
+  retry: '重试提取',
+  confirm: '确认并保存',
+  reason: '修改原因',
+  refresh: '刷新',
+  empty: '暂无案例',
+  select: '选择或新建案例',
+  evidence: '原文证据',
+  period: '报告期',
+  unit: '单位',
+  value: '数值或事实',
+  managementStability: '管理层稳定性',
+  pledgeRatio: '股票质押比例',
+  debtAssetRatio: '资产负债率',
+  draft: '待提取',
+  extracting: '提取中',
+  review: '待人工确认',
+  confirmed: '已确认',
+  failed: '提取失败',
+  present: '已提供',
+  missing: '缺失',
+  conflict: '冲突',
+  not_applicable: '不适用',
+  invalid_input: '请检查必填项、字段状态和证据。',
+  invalid_evidence: '证据必须与资料原文完全对应。',
+  reason_required: '请填写修改原因。',
+  invalid_state: '当前状态不支持此操作。',
+  not_found: '案例不存在或无权访问。',
+  scope_required: '请在组织的助手工作台内打开。',
+  operation_failed: '操作失败，已保存的数据仍保留。',
+  request_timeout: '请求超时，请刷新检查保存状态。',
+  dirty: '有未保存的修改，请先保存或放弃修改。',
+  discard: '放弃修改',
+  back: '上一页',
+  next: '下一页',
+  timeout: '提取超时',
+  dispatch_failed: '发送到助手失败',
+  unreadable: '资料无法读取',
+  insufficient_input: '资料不足',
+  confirmTitle: '确认这些核验结果？',
+  confirmDescription: '将保存人工核验值和修改原因，形成确认记录。',
+  cancel: '取消',
+  status: '状态'
+}
+export const i18n = i18next.createInstance()
+void i18n.init({
+  lng: 'en-US',
+  fallbackLng: 'en-US',
+  resources: { 'en-US': { translation: en }, 'zh-Hans': { translation: zh } },
+  interpolation: { escapeValue: false },
+  initImmediate: false
+})
+export const t = (key: Key) => i18n.t(key)
+export function setLocale(raw?: string) {
+  const aliases: Record<string, string> = {
+    en_US: 'en-US',
+    en: 'en-US',
+    zh_Hans: 'zh-Hans',
+    'zh-CN': 'zh-Hans',
+    zh: 'zh-Hans'
+  }
+  const locale = raw === 'zh-Hans' ? 'zh-Hans' : aliases[raw ?? ''] ?? 'en-US'
+  document.documentElement.lang = locale
+  void i18n.changeLanguage(locale)
+}
+export const errorText = (code: string) =>
+  t(Object.hasOwn(en, code) ? (code as Key) : 'operation_failed')
