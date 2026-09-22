@@ -1,4 +1,4 @@
-import type { ChecklistItem, IIntegration, IUser, TWorkflowTriggerMeta } from '@xpert-ai/contracts'
+import type { ChecklistItem, IIntegration, IUser } from '@xpert-ai/contracts'
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import {
@@ -20,9 +20,10 @@ import { LarkChatDispatchService } from '../handoff/lark-chat-dispatch.service.j
 import { LarkMessageHistoryQueueService } from '../lark-message-history-queue.service.js'
 import { LarkMessageHistoryService } from '../lark-message-history.service.js'
 import { ChatLarkMessage } from '../message.js'
-import { LARK_PLUGIN_CONTEXT } from '../tokens.js'
-import type { LarkGroupWindow, LarkInboundFile, TIntegrationLarkOptions } from '../types.js'
-import { iconImage } from '../types.js'
+import { LARK_LONG_CONNECTION_SERVICE, LARK_PLUGIN_CONTEXT } from '../tokens.js'
+import type { LarkLongConnectionService } from '../lark-long-connection.service.js'
+import type { LarkGroupWindow, LarkInboundFile, TIntegrationLarkOptions, TLarkTriggerMeta } from '../types.js'
+import { iconImage, INTEGRATION_LARK } from '../types.js'
 import { LarkTriggerBindingEntity } from '../entities/lark-trigger-binding.entity.js'
 import {
 	DEFAULT_LARK_TRIGGER_CONFIG,
@@ -71,7 +72,7 @@ type TLarkInboundMatchParams = {
 	botMentioned?: boolean
 }
 
-type TLarkTriggerBindingConflict = Pick<LarkTriggerBindingEntity, 'integrationId' | 'xpertId'>
+type TLarkTriggerBindingConflict = Pick<LarkTriggerBindingEntity, 'integrationId' | 'xpertId' | 'config'>
 
 @Injectable()
 @WorkflowTriggerStrategy(LarkTrigger)
@@ -84,8 +85,9 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 	private _integrationPermissionService: IntegrationPermissionService
 	private _handoffPermissionService: HandoffPermissionService
 
-	readonly meta: TWorkflowTriggerMeta = {
+	readonly meta: TLarkTriggerMeta = {
 		name: LarkTrigger,
+		quickConnect: { method: 'qr', integrationProvider: INTEGRATION_LARK, configField: 'integrationId' },
 		label: {
 			en_US: 'Lark Trigger',
 			zh_Hans: '飞书触发器'
@@ -568,7 +570,7 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 		}
 
 		const existingBinding = await this.getBoundBinding(config.integrationId)
-		if (existingBinding?.xpertId && existingBinding.xpertId !== xpertId) {
+		if (existingBinding?.xpertId && existingBinding.config?.enabled !== false && existingBinding.xpertId !== xpertId) {
 			const boundXpertInfo = this.formatBoundXpertInfo(existingBinding)
 			items.push(
 				this.createChecklistError(
@@ -676,7 +678,7 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 
 		const integrationId = config.integrationId
 		const existingBinding = await this.getBoundBinding(integrationId)
-		if (existingBinding?.xpertId && existingBinding.xpertId !== xpertId) {
+		if (existingBinding?.xpertId && existingBinding.config?.enabled !== false && existingBinding.xpertId !== xpertId) {
 			throw new Error(
 				`Lark trigger integration "${integrationId}" is already bound to ${this.formatBoundXpertInfo(existingBinding)}`
 			)
@@ -729,14 +731,39 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 
 		// Keep only runtime callback in memory; integration/xpert binding source of truth is DB.
 		this.callbacks.set(integrationId, callback)
+		if (integration?.provider === INTEGRATION_LARK && integration.options?.connectionMode === 'long_connection') {
+			const runtime = this.pluginContext.resolve<LarkLongConnectionService>(LARK_LONG_CONNECTION_SERVICE)
+			const status = await runtime.connect(integrationId)
+			if (status.state === 'unhealthy') await runtime.reconnect(integrationId)
+		}
+	}
+
+	async connectionStatus(config: TLarkTriggerConfig) {
+		if (!config?.enabled || !config.integrationId) {
+			return { connected: false, state: 'disconnected' as const }
+		}
+		const integration = await this.integrationPermissionService.read<IIntegration<TIntegrationLarkOptions>>(config.integrationId)
+		if (integration?.provider !== INTEGRATION_LARK) {
+			return { connected: false, state: 'disconnected' as const }
+		}
+		if (integration.options?.connectionMode !== 'long_connection') {
+			return { connected: true, state: 'connected' as const }
+		}
+		const runtime = this.pluginContext.resolve<LarkLongConnectionService>(LARK_LONG_CONNECTION_SERVICE)
+		const status = await runtime.status(config.integrationId)
+		return {
+			connected: status.connected,
+			state: status.connected ? 'connected' as const
+				: status.state === 'unhealthy' ? 'failed' as const
+					: status.state === 'idle' ? 'disconnected' as const : 'connecting' as const
+		}
 	}
 
 	async stop(payload: TWorkflowTriggerParams<TLarkTriggerConfig>): Promise<void> {
 		const { xpertId, config } = payload
 		const integrationId = config?.integrationId
 		if (integrationId) {
-			this.callbacks.delete(integrationId)
-			await this.removeBindingFromStore(integrationId, xpertId)
+			await this.disableBinding(integrationId, xpertId, config)
 			return
 		}
 
@@ -746,14 +773,13 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 			}
 		})
 		for (const binding of persistedBindings) {
-			this.callbacks.delete(binding.integrationId)
+			await this.disableBinding(binding.integrationId, xpertId, binding.config)
 		}
-		await this.removeBindingsByXpertId(xpertId)
 	}
 
 	async getBoundXpertId(integrationId: string): Promise<string | null> {
 		const binding = await this.getBoundBinding(integrationId)
-		return binding?.xpertId ?? null
+		return binding?.config?.enabled === false ? null : binding?.xpertId ?? null
 	}
 
 	private async getBoundBinding(integrationId: string): Promise<TLarkTriggerBindingConflict | null> {
@@ -770,7 +796,8 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 		}
 		return {
 			integrationId: binding.integrationId,
-			xpertId: binding.xpertId
+			xpertId: binding.xpertId,
+			config: binding.config
 		}
 	}
 
@@ -947,6 +974,12 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 
 		const state = await this.aggregationService.get(aggregateKey)
 		if (!state || state.version !== payload.version) {
+			return false
+		}
+		const binding = await this.getBoundBinding(state.integrationId)
+		if (!binding || binding.config?.enabled === false || binding.xpertId !== state.xpertId) {
+			await this.aggregationService.clear(aggregateKey)
+			await this.messageHistoryService.updateInboundStatus(state.currentInboundLogIds ?? [], 'failed', 'trigger_disconnected')
 			return false
 		}
 
@@ -1424,30 +1457,28 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 		}
 	}
 
-	private async removeBindingFromStore(integrationId: string, expectedXpertId?: string): Promise<void> {
-		if (!integrationId) {
-			return
-		}
-
-		if (expectedXpertId) {
-			await this.bindingRepository.delete({
+	private async disableBinding(integrationId: string, xpertId: string, config?: TLarkTriggerConfig): Promise<void> {
+		const existing = await this.bindingRepository.findOne({ where: { integrationId } })
+		if (existing && existing.xpertId !== xpertId) return
+		// Keep an explicit disabled binding: absence would allow historical conversations to route again.
+		const callback = this.callbacks.get(integrationId)
+		const disabledConfig = { ...this.normalizeConfig(existing?.config ?? config, integrationId), enabled: false }
+		if (existing) {
+			// Scope the write too: another assistant may have acquired this integration since the read.
+			const result = await this.bindingRepository.update({ integrationId, xpertId }, { config: disabledConfig })
+			if (!result.affected) return
+		} else {
+			const context = await this.resolveBindingContext(integrationId)
+			await this.bindingRepository.createQueryBuilder().insert().values({
 				integrationId,
-				xpertId: expectedXpertId
-			})
-			return
+				xpertId,
+				config: disabledConfig,
+				tenantId: context.tenantId ?? null,
+				organizationId: context.organizationId ?? null,
+				createdById: context.createdById ?? null,
+				updatedById: context.updatedById ?? null
+			}).orIgnore().execute()
 		}
-
-		await this.bindingRepository.delete({
-			integrationId
-		})
-	}
-
-	private async removeBindingsByXpertId(xpertId: string): Promise<void> {
-		if (!xpertId) {
-			return
-		}
-		await this.bindingRepository.delete({
-			xpertId
-		})
+		if (this.callbacks.get(integrationId) === callback) this.callbacks.delete(integrationId)
 	}
 }

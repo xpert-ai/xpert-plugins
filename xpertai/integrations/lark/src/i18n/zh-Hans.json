@@ -25,5 +25,17 @@
                 "CredentialsFailed": "凭证验证失败"
             }
         }
+    },
+    "Qr": {
+        "NetworkError": "无法连接飞书，请重试。",
+        "Unavailable": "飞书扫码授权暂不可用，请重试或手动配置。",
+        "InvalidUrl": "飞书返回了无效的授权地址。",
+        "AppCheckNetworkError": "校验应用时无法连接飞书接口，请重试。",
+        "AppCheckApiError": "飞书应用校验接口调用失败（HTTP {{status}}，错误码 {{code}}）。请检查应用自身资源管理权限后重试。",
+        "AppCheckInvalidResponse": "飞书返回的应用信息不完整或格式不受支持，请重试。",
+        "AppCheckMissingScopes": "飞书应用尚未授予以下应用身份权限：{{scopes}}。请确认权限并发布应用后重试。",
+        "AppCheckMessageSubscription": "飞书应用的消息事件 im.message.receive_v1 尚未配置为长连接订阅，请配置事件订阅并发布应用后重试。",
+        "AppCheckCardSubscription": "飞书应用的卡片回调 card.action.trigger 尚未配置为长连接订阅，请配置回调并发布应用后重试。",
+        "ConnectionFailed": "无法建立飞书长连接，请重试。"
     }
 }
