@@ -36,7 +36,7 @@ export class DemandView implements IXpertViewExtensionProvider {
       workbench: { fixed: true, menu: { enabled: true, label: text('Customer demand', '客户需求'), order: 20 } },
       view: { type: 'remote_component', runtime: 'react', protocolVersion: 1,
         component: { isolation: 'iframe', entry: ENTRY }, dataSource: { mode: 'platform' } },
-      dataSource: { mode: 'platform', querySchema: { supportsPagination: true, supportsSearch: true, supportsParameters: true, defaultPageSize: 12 }, cache: { enabled: false } },
+      dataSource: { mode: 'platform', querySchema: { supportsPagination: true, supportsSearch: true, supportsParameters: true, supportsSelection: true, defaultPageSize: 12 }, cache: { enabled: false } },
       hostEvents: { subscriptions: [{ key: 'assessment-completed', event: 'assistant.tool.completed',
         filter: { sources: ['chatkit'], toolNames: ['customer_demand_evaluate'] }, action: { type: 'refresh-and-forward', debounceMs: 300 } }] },
       actions: actionKeys.map(key => ({ key, label: text(key, { create: '新建需求', edit: '修改原文', evaluate: 'Jev 评估', confirm: '保存跟进决定' }[key]), actionType: 'invoke' }))
