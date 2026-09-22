@@ -67,9 +67,6 @@ body,
   overflow-y: auto;
 }
 @media (max-width: 600px) {
-  .workspace {
-    grid-template-columns: 130px minmax(0, 1fr);
-  }
   .field-grid {
     grid-template-columns: 1fr;
   }
@@ -83,4 +80,141 @@ body,
   ::after {
     border-color: var(--border, var(--xui-color-border, #e4e4e7));
   }
+}
+
+.detail-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.detail-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px;
+  overflow-wrap: anywhere;
+  scroll-padding: 16px;
+}
+.action-bar {
+  flex: none;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--background);
+}
+.action-status {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  margin-bottom: 8px;
+  overflow-wrap: anywhere;
+}
+.action-status span,
+.window-hint,
+.score-values dt {
+  color: var(--muted-foreground);
+}
+.action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.section-title {
+  font-size: 14px;
+  font-weight: 600;
+  padding-top: 8px;
+}
+.candidate-source {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+}
+.candidate-item {
+  padding: 10px 0;
+  font-size: 13px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.score-item {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.score-values {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 8px 0;
+  font-size: 13px;
+}
+.score-values dd {
+  margin: 3px 0 0;
+  font-weight: 500;
+}
+.issue-list {
+  list-style: disc;
+  padding-left: 18px;
+  margin-top: 4px;
+}
+fieldset {
+  min-width: 0;
+}
+input,
+textarea {
+  min-width: 0;
+  max-width: 100%;
+}
+button,
+summary,
+input,
+textarea {
+  scroll-margin: 12px;
+}
+button:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+@media (max-width: 600px) {
+  .workspace {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(90px, 24%) minmax(0, 1fr);
+  }
+  .case-list {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .case-row {
+    padding: 8px 12px;
+  }
+  .detail-scroll {
+    padding: 12px;
+  }
+  .action-bar {
+    padding: 8px 12px;
+  }
+  .action-buttons {
+    gap: 6px;
+  }
+  .action-buttons button {
+    padding-inline: 10px;
+  }
+  .shell > header {
+    flex-wrap: wrap;
+    padding: 8px 12px;
+  }
+}
+
+.case-list[hidden] {
+  display: none;
+}
+.workspace.list-collapsed {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+
+/* Shared preflight can reset border colors outside Tailwind's base layer. */
+.shell :where(.border, .border-b, .border-r) {
+  border-color: var(--border, var(--xui-color-border, #e4e4e7));
 }

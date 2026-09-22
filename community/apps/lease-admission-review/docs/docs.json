@@ -1,7 +1,28 @@
 {
-  "$schema":"https://mintlify.com/docs.json",
-  "theme":"mint",
-  "name":"Admission Review",
-  "colors":{"primary":"#0f766e","light":"#0d9488","dark":"#115e59"},
-  "navigation":{"tabs":[{"tab":"Plugin","groups":[{"group":"Validation","pages":["index","scoring","setup"]}]}]}
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Admission Review",
+  "colors": {
+    "primary": "#0f766e",
+    "light": "#0d9488",
+    "dark": "#115e59"
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Plugin",
+        "groups": [
+          {
+            "group": "Validation",
+            "pages": [
+              "index",
+              "scoring",
+              "walkthrough",
+              "setup"
+            ]
+          }
+        ]
+      }
+    ]
+  }
 }

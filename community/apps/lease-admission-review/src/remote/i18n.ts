@@ -1,5 +1,34 @@
 import i18next from 'i18next'
 const en = {
+  hideCases: 'Hide case list',
+  showCases: 'Show case list',
+  materialCandidates: '1. Material and AI candidates',
+  originalCandidates: 'Original AI candidates (read only)',
+  humanReview: '2. Human review',
+  scoreResults: '3. Scoring results',
+  reviewActions: 'Review actions',
+  unsaved: 'Unsaved changes',
+  busyHint: 'An operation is in progress. Please wait.',
+  staleHint: 'Calculation expired. Calculate again before confirming.',
+  calculateHint:
+    'Save incomplete inputs as a draft, or calculate before confirming.',
+  incompleteHint:
+    'Resolve the items above before confirming. You can still save a draft.',
+  confirmReady:
+    'Ready to confirm. The server will validate and calculate again.',
+  expectedWindow: 'Required management window (start excluded, end included)',
+  windowReminder:
+    'Check material coverage yourself. Dates and scope checks are not filled automatically.',
+  reviewedValue: 'Reviewed value',
+  scoreBand: 'Matching band',
+  itemScore: 'Score',
+  pendingItems: 'Items to complete',
+  countUnit: 'departures',
+  factMissing: 'Missing disclosure; absence of mention does not mean zero.',
+  factConflict:
+    'Conflicting disclosures; a consistent supported fact is required.',
+  factNotApplicable:
+    'Marked not applicable; this fixed calculation requires all three indicators.',
   evaluationDate: 'Evaluation date',
   departureCount: 'Departures in the past year',
   managementStart: 'Window start (exclusive)',
@@ -94,6 +123,29 @@ const en = {
 }
 type Key = keyof typeof en
 const zh: Record<Key, string> = {
+  hideCases: '收起案例列表',
+  showCases: '展开案例列表',
+  materialCandidates: '1. 材料与 AI 候选',
+  originalCandidates: 'AI 原始候选（只读）',
+  humanReview: '2. 人工核验',
+  scoreResults: '3. 评分结果',
+  reviewActions: '核验操作',
+  unsaved: '未保存修改',
+  busyHint: '正在处理，请等待当前操作完成。',
+  staleHint: '试算已失效，请重新试算后确认。',
+  calculateHint: '可先保存未完成的草稿；确认前须完成试算。',
+  incompleteHint: '补齐上方待补项后才能确认，当前仍可保存草稿。',
+  confirmReady: '可以确认；保存时服务端会再次校验并计算。',
+  expectedWindow: '所需管理层统计窗口（起日不含，止日含）',
+  windowReminder: '请核对材料实际覆盖范围，日期及口径核验不会自动填入。',
+  reviewedValue: '核验值',
+  scoreBand: '命中档位',
+  itemScore: '得分',
+  pendingItems: '待补项',
+  countUnit: '次',
+  factMissing: '材料缺失，不能将未提及视为零。',
+  factConflict: '材料存在冲突，需有一致且明确的事实依据。',
+  factNotApplicable: '已标记不适用，本固定试算仍需三项有效指标。',
   evaluationDate: '评估基准日',
   departureCount: '近一年离职次数',
   managementStart: '统计起日（不含）',

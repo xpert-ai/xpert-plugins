@@ -2,6 +2,8 @@ import React from 'react'
 import { Input } from '@xpert-ai/plugin-shadcn-ui'
 import type { ScoringInput, ScoreResult } from '../lib/scoring-input'
 import { t, errorText } from './i18n'
+import { windowStart } from '../lib/scoring'
+import type { Fields } from '../lib/contracts'
 
 export function ScoringForm({
   inputs,
@@ -12,6 +14,7 @@ export function ScoringForm({
   disabled: boolean
   onChange: (inputs: ScoringInput) => void
 }) {
+  const expectedStart = windowStart(inputs.evaluationDate)
   const dates = [
     'evaluationDate',
     'managementStart',
@@ -37,6 +40,16 @@ export function ScoringForm({
               value={inputs[key]}
               onChange={(e) => onChange({ ...inputs, [key]: e.target.value })}
             />
+            {key === 'evaluationDate' && (
+              <small className="window-hint">
+                {t('expectedWindow')}：
+                {expectedStart
+                  ? expectedStart + ' → ' + inputs.evaluationDate
+                  : '—'}
+                <br />
+                {t('windowReminder')}
+              </small>
+            )}
           </label>
         ))}
         <label>
@@ -68,10 +81,12 @@ export function ScoringForm({
 }
 export function ScorePanel({
   result,
-  stale
+  stale,
+  fields
 }: {
   result: ScoreResult | null
   stale: boolean
+  fields: Fields
 }) {
   if (stale) return <p role="status">{t('scoreStale')}</p>
   if (!result) return <p role="status">{t('noScore')}</p>
@@ -85,20 +100,65 @@ export function ScorePanel({
       <p className={result.veto === 'hit' ? 'text-destructive' : ''}>
         {t(result.veto)}
       </p>
-      {result.items.map((item) => (
-        <div key={item.key}>
-          <p>
-            {t(item.key)}：
-            {item.score === null ? '—' : `${item.score}/${item.maximum}`}{' '}
-            {item.normalizedValue ?? ''} {item.band}
-          </p>
-          {item.issues.map((issue) => (
-            <p className="text-sm text-destructive" key={issue}>
-              {errorText(issue)}
-            </p>
-          ))}
-        </div>
-      ))}
+      {result.items.map((item) => {
+        const status = fields.find((field) => field.key === item.key)?.status
+        const factIssue =
+          status === 'missing'
+            ? t('factMissing')
+            : status === 'conflict'
+            ? t('factConflict')
+            : status === 'not_applicable'
+            ? t('factNotApplicable')
+            : errorText('fact_required')
+        const issues = [
+          ...new Set(
+            item.issues.map((issue) =>
+              issue === 'fact_required' ? factIssue : errorText(issue)
+            )
+          )
+        ]
+        const suffix =
+          item.key === 'managementStability' ? ' ' + t('countUnit') : ''
+        return (
+          <section
+            key={item.key}
+            aria-label={t(item.key)}
+            className="score-item"
+          >
+            <h4 className="font-medium">{t(item.key)}</h4>
+            <dl className="score-values">
+              <div>
+                <dt>{t('reviewedValue')}</dt>
+                <dd>
+                  {item.normalizedValue === null
+                    ? '—'
+                    : item.normalizedValue + suffix}
+                </dd>
+              </div>
+              <div>
+                <dt>{t('scoreBand')}</dt>
+                <dd>{item.band ? item.band + suffix : '—'}</dd>
+              </div>
+              <div>
+                <dt>{t('itemScore')}</dt>
+                <dd>
+                  {item.score === null ? '—' : item.score + '/' + item.maximum}
+                </dd>
+              </div>
+            </dl>
+            {!!issues.length && (
+              <div className="text-sm text-destructive">
+                <p>{t('pendingItems')}</p>
+                <ul className="issue-list">
+                  {issues.map((issue) => (
+                    <li key={issue}>{issue}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </section>
+        )
+      })}
       <small>{result.rulesetVersion}</small>
     </div>
   )

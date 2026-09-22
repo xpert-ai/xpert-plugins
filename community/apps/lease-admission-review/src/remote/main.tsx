@@ -26,7 +26,9 @@ import {
   Play,
   Check,
   ArrowLeft,
-  ArrowRight
+  ArrowRight,
+  PanelLeftClose,
+  PanelLeftOpen
 } from 'lucide-react'
 import '@xpert-ai/plugin-shadcn-ui/style.css'
 import './style.css'
@@ -88,10 +90,18 @@ async function action(name: string, input: object) {
   return result.data
 }
 function App() {
+  const [listOpen, setListOpen] = useState(() => window.innerWidth > 600)
+  useEffect(() => {
+    const narrow = window.matchMedia('(max-width: 600px)')
+    const collapse = (event: MediaQueryListEvent) => {
+      if (event.matches) setListOpen(false)
+    }
+    narrow.addEventListener('change', collapse)
+    return () => narrow.removeEventListener('change', collapse)
+  }, [])
   const [inputs, setInputs] = useState(emptyScoringInput())
   const [preview, setPreview] = useState<ScoreResult | null>(null)
   const [stale, setStale] = useState(false)
-  const [saved, setSaved] = useState(false)
   const [evaluationDate, setEvaluationDate] = useState('')
   const [ready, setReady] = useState(false),
     [items, setItems] = useState<z.infer<typeof listSchema>['items']>([]),
@@ -107,6 +117,7 @@ function App() {
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [dialog, setDialog] = useState(false)
+  const confirmOpener = useRef<HTMLButtonElement | null>(null)
   const current = useRef({ row, dirty, page })
   current.current = { row, dirty, page }
   const createOperation = useRef(operationId()),
@@ -134,7 +145,6 @@ function App() {
     setInputs(r.reviewDraft?.inputs ?? emptyScoringInput())
     setPreview(r.assessment)
     setStale(false)
-    setSaved(false)
     setDirty(false)
     setCreating(false)
   }
@@ -244,7 +254,6 @@ function App() {
   function changed() {
     setDirty(true)
     setStale(true)
-    setSaved(false)
   }
   function scoringPayload() {
     if (!row) throw new Error('not_found')
@@ -260,7 +269,23 @@ function App() {
   return (
     <div className="shell text-foreground bg-background">
       <header className="flex items-center justify-between gap-2 border-b px-4 py-3">
-        <h1 className="text-lg font-semibold">{t('title')}</h1>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={t(listOpen ? 'hideCases' : 'showCases')}
+            aria-expanded={listOpen}
+            aria-controls="case-list"
+            onClick={() => setListOpen((value) => !value)}
+          >
+            {listOpen ? (
+              <PanelLeftClose size={16} />
+            ) : (
+              <PanelLeftOpen size={16} />
+            )}
+          </Button>
+          <h1 className="text-lg font-semibold">{t('title')}</h1>
+        </div>
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -296,8 +321,8 @@ function App() {
           {error}
         </div>
       )}
-      <div className="workspace">
-        <aside className="case-list border-r">
+      <div className={listOpen ? 'workspace' : 'workspace list-collapsed'}>
+        <aside id="case-list" hidden={!listOpen} className="case-list border-r">
           <div className="grow overflow-y-auto">
             {items.length ? (
               items.map((item) => (
@@ -339,260 +364,333 @@ function App() {
             </Button>
           </div>
         </aside>
-        <main className="min-w-0 overflow-y-auto p-4">
-          {creating ? (
-            <form
-              className="space-y-4"
-              onSubmit={(event) => {
-                event.preventDefault()
-                void run(async () => {
-                  const saved = caseSchema.parse(
-                    await action('create', {
-                      title,
-                      source,
-                      evaluationDate,
-                      operationId: createOperation.current
-                    })
-                  )
-                  apply(saved)
-                  await load()
-                })
-              }}
-            >
-              <label className="block space-y-2">
-                <span>{t('evaluationDate')}</span>
-                <Input
-                  type="date"
-                  required
-                  value={evaluationDate}
-                  onChange={(e) => setEvaluationDate(e.target.value)}
-                />
-              </label>
-              <label className="block space-y-2">
-                <span>{t('caseTitle')}</span>
-                <Input
-                  required
-                  maxLength={120}
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                />
-              </label>
-              <label className="block space-y-2">
-                <span>{t('source')}</span>
-                <Textarea
-                  required
-                  maxLength={20000}
-                  rows={12}
-                  value={source}
-                  onChange={(e) => setSource(e.target.value)}
-                />
-              </label>
-              <Button type="submit" disabled={busy}>
-                <Save size={16} />
-                {t('create')}
-              </Button>
-            </form>
-          ) : row ? (
-            <div className="space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-base font-semibold break-words">
-                  {row.title}
-                </h2>
-                <span className="text-sm text-muted-foreground">
-                  {t(row.status)}
-                </span>
-              </div>
-              <details
-                open={row.status === 'draft' || row.status === 'failed'}
-                className="border-b pb-3"
+        <main className="detail-pane">
+          <div className="detail-scroll">
+            {creating ? (
+              <form
+                className="space-y-4"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  void run(async () => {
+                    const saved = caseSchema.parse(
+                      await action('create', {
+                        title,
+                        source,
+                        evaluationDate,
+                        operationId: createOperation.current
+                      })
+                    )
+                    apply(saved)
+                    await load()
+                  })
+                }}
               >
-                <summary>{t('source')}</summary>
-                <pre className="source mt-3 text-sm">{row.source}</pre>
-              </details>
-              {row.failureCode && (
-                <p role="status" className="text-destructive">
-                  {t(row.failureCode)}
-                </p>
-              )}
-              {['draft', 'failed'].includes(row.status) && (
-                <Button disabled={busy} onClick={() => void run(extract)}>
-                  <Play size={16} />
-                  {t(row.status === 'failed' ? 'retry' : 'extract')}
-                </Button>
-              )}
-              {fields.map((field, index) => (
-                <section key={field.key} className="border-b pb-4 space-y-3">
-                  <h3 className="font-medium">{t(field.key)}</h3>
-                  <div className="field-grid">
-                    <label>
-                      <span>{t('status')}</span>
-                      <Select
-                        value={field.status}
-                        disabled={busy || row.status !== 'review'}
-                        onValueChange={(value) => {
-                          const status = z
-                            .enum([
-                              'present',
-                              'missing',
-                              'conflict',
-                              'not_applicable'
-                            ])
-                            .parse(value)
-                          edit(index, {
-                            status,
-                            ...(status === 'missing' ? { value: null } : {})
-                          })
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(
-                            [
-                              'present',
-                              'missing',
-                              'conflict',
-                              'not_applicable'
-                            ] as const
-                          ).map((s) => (
-                            <SelectItem key={s} value={s}>
-                              {t(s)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </label>
-                    {(['value', 'unit', 'period'] as const).map((key) => (
-                      <label key={key}>
-                        <span>{t(key)}</span>
-                        <Input
-                          disabled={busy || row.status !== 'review'}
-                          value={field[key] ?? ''}
-                          maxLength={
-                            key === 'value' ? 200 : key === 'period' ? 100 : 40
-                          }
-                          onChange={(e) =>
-                            edit(index, { [key]: e.target.value || null })
-                          }
-                        />
-                      </label>
-                    ))}
-                  </div>
-                  <label className="block">
-                    <span
-                      id={`evidence-label-${field.key}`}
-                      className="text-sm text-muted-foreground"
-                    >
-                      {t('evidence')}
-                    </span>
-                    <Textarea
-                      aria-labelledby={`evidence-label-${field.key}`}
-                      disabled={busy || row.status !== 'review'}
-                      value={field.evidence.join('\n')}
-                      rows={2}
-                      onChange={(e) =>
-                        edit(index, {
-                          evidence: e.target.value.split('\n').filter(Boolean)
-                        })
-                      }
-                    />
-                  </label>
-                </section>
-              ))}
-              {!!fields.length && (
                 <label className="block space-y-2">
-                  <span id="correction-reason-label">{t('reason')}</span>
-                  <Textarea
-                    aria-labelledby="correction-reason-label"
-                    disabled={busy || row.status !== 'review'}
-                    maxLength={1000}
-                    value={reason}
-                    onChange={(e) => {
-                      setReason(e.target.value)
-                      changed()
-                    }}
+                  <span>{t('evaluationDate')}</span>
+                  <Input
+                    type="date"
+                    required
+                    value={evaluationDate}
+                    onChange={(e) => setEvaluationDate(e.target.value)}
                   />
                 </label>
-              )}
-              {!!fields.length &&
-                (row.status !== 'confirmed' || row.assessment) && (
-                  <ScoringForm
-                    inputs={inputs}
-                    disabled={busy || row.status !== 'review'}
-                    onChange={(next) => {
-                      setInputs(next)
-                      changed()
-                    }}
+                <label className="block space-y-2">
+                  <span>{t('caseTitle')}</span>
+                  <Input
+                    required
+                    maxLength={120}
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
                   />
-                )}
-              {row.status === 'confirmed' && !row.assessment ? (
-                <p>{t('historical')}</p>
-              ) : (
-                !!fields.length && <ScorePanel result={preview} stale={stale} />
-              )}
-              {saved && <p role="status">{t('draftSaved')}</p>}
-              {row.status === 'review' && (
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    disabled={busy}
-                    variant="outline"
-                    onClick={() =>
-                      void run(async () => {
-                        apply(
-                          caseSchema.parse(
-                            await action('save_draft', scoringPayload())
-                          )
-                        )
-                        setSaved(true)
-                        await load()
-                      })
-                    }
-                  >
-                    {t('saveDraft')}
-                  </Button>
-                  <Button
-                    disabled={busy}
-                    variant="outline"
-                    onClick={() =>
-                      void run(async () => {
-                        setPreview(
-                          scoreResultSchema.parse(
-                            await action('preview_score', scoringPayload())
-                          )
-                        )
-                        setStale(false)
-                      })
-                    }
-                  >
-                    {t('previewScore')}
-                  </Button>
-                  <Button
-                    disabled={busy || stale || !preview?.complete}
-                    onClick={() => setDialog(true)}
-                  >
-                    <Check size={16} />
-                    {t('confirm')}
-                  </Button>
-                  {dirty && (
-                    <Button
-                      variant="outline"
-                      disabled={busy}
-                      onClick={() => apply(row)}
-                    >
-                      {t('discard')}
-                    </Button>
-                  )}
+                </label>
+                <label className="block space-y-2">
+                  <span>{t('source')}</span>
+                  <Textarea
+                    required
+                    maxLength={20000}
+                    rows={12}
+                    value={source}
+                    onChange={(e) => setSource(e.target.value)}
+                  />
+                </label>
+                <Button type="submit" disabled={busy}>
+                  <Save size={16} />
+                  {t('create')}
+                </Button>
+              </form>
+            ) : row ? (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h2 className="text-base font-semibold break-words">
+                    {row.title}
+                  </h2>
+                  <span className="text-sm text-muted-foreground">
+                    {t(row.status)}
+                  </span>
                 </div>
-              )}
-            </div>
-          ) : (
-            <p className="text-muted-foreground">{t('select')}</p>
+                <h3 className="section-title">{t('materialCandidates')}</h3>
+                <details
+                  open={row.status === 'draft' || row.status === 'failed'}
+                  className="border-b pb-3"
+                >
+                  <summary>{t('source')}</summary>
+                  <pre className="source mt-3 text-sm">{row.source}</pre>
+                </details>
+                {row.failureCode && (
+                  <p role="status" className="text-destructive">
+                    {t(row.failureCode)}
+                  </p>
+                )}
+                {['draft', 'failed'].includes(row.status) && (
+                  <Button disabled={busy} onClick={() => void run(extract)}>
+                    <Play size={16} />
+                    {t(row.status === 'failed' ? 'retry' : 'extract')}
+                  </Button>
+                )}
+                {!!row.candidates?.length && (
+                  <details className="candidate-source">
+                    <summary>{t('originalCandidates')}</summary>
+                    {row.candidates.map((candidate) => (
+                      <div key={candidate.key} className="candidate-item">
+                        <h4>
+                          {t(candidate.key)} · {t(candidate.status)}
+                        </h4>
+                        <p>
+                          {t('value')}：{candidate.value ?? '—'}{' '}
+                          {candidate.unit ?? ''}
+                        </p>
+                        <p>
+                          {t('period')}：{candidate.period ?? '—'}
+                        </p>
+                        <p>
+                          {t('evidence')}：
+                          {candidate.evidence.join('\n') || '—'}
+                        </p>
+                      </div>
+                    ))}
+                  </details>
+                )}
+                {!!fields.length && (
+                  <h3 className="section-title">{t('humanReview')}</h3>
+                )}
+                {fields.map((field, index) => (
+                  <section
+                    key={field.key}
+                    data-field={field.key}
+                    aria-label={t(field.key)}
+                    className="border-b pb-4 space-y-3"
+                  >
+                    <h4 className="font-medium">{t(field.key)}</h4>
+                    <div className="field-grid">
+                      <label>
+                        <span>{t('status')}</span>
+                        <Select
+                          value={field.status}
+                          disabled={busy || row.status !== 'review'}
+                          onValueChange={(value) => {
+                            const status = z
+                              .enum([
+                                'present',
+                                'missing',
+                                'conflict',
+                                'not_applicable'
+                              ])
+                              .parse(value)
+                            edit(index, {
+                              status,
+                              ...(status === 'missing' ? { value: null } : {})
+                            })
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(
+                              [
+                                'present',
+                                'missing',
+                                'conflict',
+                                'not_applicable'
+                              ] as const
+                            ).map((s) => (
+                              <SelectItem key={s} value={s}>
+                                {t(s)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </label>
+                      {(['value', 'unit', 'period'] as const).map((key) => (
+                        <label key={key}>
+                          <span>{t(key)}</span>
+                          <Input
+                            disabled={busy || row.status !== 'review'}
+                            value={field[key] ?? ''}
+                            maxLength={
+                              key === 'value'
+                                ? 200
+                                : key === 'period'
+                                ? 100
+                                : 40
+                            }
+                            onChange={(e) =>
+                              edit(index, { [key]: e.target.value || null })
+                            }
+                          />
+                        </label>
+                      ))}
+                    </div>
+                    <label className="block">
+                      <span
+                        id={`evidence-label-${field.key}`}
+                        className="text-sm text-muted-foreground"
+                      >
+                        {t('evidence')}
+                      </span>
+                      <Textarea
+                        aria-labelledby={`evidence-label-${field.key}`}
+                        disabled={busy || row.status !== 'review'}
+                        value={field.evidence.join('\n')}
+                        rows={2}
+                        onChange={(e) =>
+                          edit(index, {
+                            evidence: e.target.value.split('\n').filter(Boolean)
+                          })
+                        }
+                      />
+                    </label>
+                  </section>
+                ))}
+                {!!fields.length && (
+                  <label className="block space-y-2">
+                    <span id="correction-reason-label">{t('reason')}</span>
+                    <Textarea
+                      aria-labelledby="correction-reason-label"
+                      disabled={busy || row.status !== 'review'}
+                      maxLength={1000}
+                      value={reason}
+                      onChange={(e) => {
+                        setReason(e.target.value)
+                        changed()
+                      }}
+                    />
+                  </label>
+                )}
+                {!!fields.length &&
+                  (row.status !== 'confirmed' || row.assessment) && (
+                    <ScoringForm
+                      inputs={inputs}
+                      disabled={busy || row.status !== 'review'}
+                      onChange={(next) => {
+                        setInputs(next)
+                        changed()
+                      }}
+                    />
+                  )}
+                {!!fields.length && (
+                  <h3 className="section-title">{t('scoreResults')}</h3>
+                )}
+                {row.status === 'confirmed' && !row.assessment ? (
+                  <p>{t('historical')}</p>
+                ) : (
+                  !!fields.length && (
+                    <ScorePanel
+                      result={preview}
+                      stale={stale}
+                      fields={fields}
+                    />
+                  )
+                )}
+              </div>
+            ) : (
+              <p className="text-muted-foreground">{t('select')}</p>
+            )}
+          </div>
+          {row?.status === 'review' && (
+            <footer className="action-bar" aria-label={t('reviewActions')}>
+              <div className="action-status" role="status">
+                <strong>
+                  {dirty
+                    ? t('unsaved')
+                    : row.reviewDraft?.fields.length
+                    ? t('draftSaved')
+                    : t('review')}
+                </strong>
+                <span>
+                  {busy
+                    ? t('busyHint')
+                    : stale
+                    ? t('staleHint')
+                    : !preview
+                    ? t('calculateHint')
+                    : !preview.complete
+                    ? t('incompleteHint')
+                    : t('confirmReady')}
+                </span>
+              </div>
+              <div className="action-buttons">
+                <Button
+                  disabled={busy}
+                  variant="outline"
+                  onClick={() =>
+                    void run(async () => {
+                      apply(
+                        caseSchema.parse(
+                          await action('save_draft', scoringPayload())
+                        )
+                      )
+                      await load()
+                    })
+                  }
+                >
+                  {t('saveDraft')}
+                </Button>
+                <Button
+                  disabled={busy}
+                  variant="outline"
+                  onClick={() =>
+                    void run(async () => {
+                      setPreview(
+                        scoreResultSchema.parse(
+                          await action('preview_score', scoringPayload())
+                        )
+                      )
+                      setStale(false)
+                    })
+                  }
+                >
+                  {t('previewScore')}
+                </Button>
+                <Button
+                  disabled={busy || stale || !preview?.complete}
+                  onClick={(event) => {
+                    confirmOpener.current = event.currentTarget
+                    setDialog(true)
+                  }}
+                >
+                  <Check size={16} />
+                  {t('confirm')}
+                </Button>
+                {dirty && (
+                  <Button
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => apply(row)}
+                  >
+                    {t('discard')}
+                  </Button>
+                )}
+              </div>
+            </footer>
           )}
         </main>
       </div>
       <AlertDialog open={dialog} onOpenChange={setDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent onCloseAutoFocus={(event) => {
+          event.preventDefault()
+          confirmOpener.current?.focus()
+        }}>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('confirmTitle')}</AlertDialogTitle>
             <AlertDialogDescription>

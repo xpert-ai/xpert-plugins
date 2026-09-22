@@ -35,7 +35,7 @@ The host image can leave ChatKit blank while redirecting from an assistant entry
 
 Source baselines were Xpert `d24ca81b9f5885cf44dd77afdb0f91359b49c4ea` and plugins `ceb57e6fd5f9ccea48d5e8f8b431e4baae4f4e55`. Runtime API image digest: `sha256:139f4f44e22debdd15c93de54696e28285d38598d31a4db66d72b0b3821b434c`; Web: `sha256:700b54b9bac7638d69bbdd1dc242b2c8febf9253a70461378924c03d2abfbaf7`. Published images are not evidence of matching those source commits. The full host source build was not run.
 
-The tested runtime uses API Node 20, SDK 3.18.7 and contracts 3.18.6, with a Node 22 builder. No extra OCR, vector database or plugin backend is required. Multi-user browser permission checks and historical-case reference remain subsequent work.
+The tested runtime uses API Node 20, SDK 3.18.7 and contracts 3.18.6, with a Node 22 builder. No extra OCR, vector database or plugin backend is required. Historical-case reference remains optional. Two ordinary-user browser checks were subsequently completed for 0.2.1, as described below.
 
 ## Version 0.2 scoring and draft upgrade
 
@@ -48,3 +48,17 @@ During scoring validation, the host provider's declared output ceiling did not m
 Three synthetic browser scenarios then passed: a saved 14-point draft was restored, corrected against the source to 15, rejected without a correction reason and confirmed with one; missing management/pledge data could only remain a draft while valid debt data independently cleared the negative rule; 80.0001% debt produced 7/15 and hit the negative rule. Each used actual host model tool calls, then human workbench actions. Reload and navigation restored saved drafts or score snapshots, and historical confirmations remained unscored.
 
 After the final API restart, independent browser sessions logged in through both `localhost` and `127.0.0.1` Web origins. Both restored the normal/negative score snapshots, the incomplete human draft and historical unscored records; no new model calls were used for this recovery check.
+
+## Version 0.2.1 workbench and ordinary-user acceptance
+
+No migration, new dependency, business service or bridge action is introduced. Build and deploy the package, honor the host restart requirement, then reload the signed-in assistant. The workbench adds labelled score breakdowns, distinct pending issues, a required-window hint, restored-draft status, a fixed action bar and a collapsible case list. Narrow views collapse the list automatically. See the [synthetic walkthrough](walkthrough).
+
+Two VIEWER accounts were created using the official user API, joined to the validation organization, and given assistant access through a dedicated user group. Each used an independent browser context and an actual model extraction. Cross-user detail and mutation requests were denied; save_draft, preview_score and confirm reached the plugin and returned not_found. After group membership was revoked, existing-session requests were rejected at the host boundary with HTTP 403, and browser reentry did not mount the plugin. The group grant was restored afterward.
+
+The ordinary-account confirmation covered a 14-point saved draft, correction to 15, rejection without a correction reason, cancellation/focus return and successful confirmation. An oversized evidence input was rejected without losing the unsaved field. Drafts intentionally accept incomplete or unverified evidence: an earlier test incorrectly expected verbatim validation during draft save. Its synthetic evidence edit was restored through a normal owner save; both authorized draft events remain in the history. Read-only before/after database snapshots distinguished those expected events from denied requests, which added none.
+
+The original suite still passes ten rule/real-PostgreSQL tests without skips. Build, typecheck, dist freshness and lifecycle loading pass; Harness infrastructure is mocked. Installed-browser checks cover 1366×768, 1920×1080 and a 550px-wide iframe, semantic border colors, keyboard actions and local-dirty protection against a controlled host-event notification. This notification is an explicit bridge refresh probe, not an additional live model completion. Two actual model extractions were used for the ordinary-user scenarios.
+
+After API restart, both ordinary users recovered their saved snapshots through localhost and 127.0.0.1. Cross-tenant/organization/assistant isolation remains service/database evidence; it is not claimed as additional browser-account coverage. The full host source build and optional historical-case reference are not part of this patch.
+
+Dark/default and dark/compact theme messages were also sent from the actual parent into the installed iframe; background, semantic borders and density were checked, and the original theme was restored. This is a protocol smoke test, not a claim that host settings were changed. Keyboard selection waits for the Radix option to receive focus before advancing; dispatching several keys without waiting had tested the wrong option.

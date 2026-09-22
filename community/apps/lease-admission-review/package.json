@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-lease-admission-review",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Evidence extraction and human confirmation for a small admission review workflow",
   "license": "AGPL-3.0",
   "main": "dist/index.js",
