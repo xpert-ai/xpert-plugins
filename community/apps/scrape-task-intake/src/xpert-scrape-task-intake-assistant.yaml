@@ -29,17 +29,13 @@ team:
         description: Current scrape task id selected in the workbench
         operation: null
     recursionLimit: 10000
-  features:
-    sandbox:
-      enabled: true
-      provider: docker-sandbox
   version: "1"
   agent:
     key: Agent_ScrapeTaskIntake
   copilotModel:
     referencedId: null
     modelType: llm
-    model: deepseek-v3
+    model: deepseek-v4-flash-0731
     options:
       context_size: 65536
       temperature: 0.2
@@ -105,7 +101,7 @@ nodes:
       collaboratorNames: []
       toolsetIds: []
       knowledgebaseIds: []
-    hash: scrape-task-intake-agent-v1
+    hash: scrape-task-intake-agent-v2
   - type: workflow
     key: Middleware_ScrapeTaskIntake
     position:

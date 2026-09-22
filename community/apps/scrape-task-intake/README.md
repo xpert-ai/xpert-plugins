@@ -57,7 +57,8 @@ pending_confirmation(待确认) ──确认受理──> confirmed(已受理) �
 
 - Xpert 开源版 main(本 PR 基线 SHA:平台 `c9b29f554`,插件仓库 `03de3fefa`)
 - Node.js ≥ 20、pnpm(Corepack 按仓库 packageManager 解析)
-- 平台需配置数据库、Redis 与至少一个模型供应商(本验证使用 DeepSeek,OpenAI 兼容)
+- 平台需配置数据库、Redis 与至少一个模型供应商。本插件使用 OpenAI 兼容供应商,
+  模型名 `deepseek-v4-flash-0731`(见下文「模型供应商配置」)
 
 ### 构建与测试
 
@@ -119,9 +120,126 @@ SCRAPE_TASK_INTAKE_DEDUPE_LOOKBACK_DAYS=7  # 可选,去重回溯天数
 | 平台视图数据 | `GET /view-hosts/.../views/scrape_task_intake__workbench/data` | ✅ 返回任务列表、状态统计与字段模板目录 |
 | Remote component | `GET /view-hosts/.../remote-component/entry` + 浏览器渲染 | ✅ 200,iframe 内经桥接渲染出受理台 |
 | 平台状态机 | 经 `POST /view-hosts/.../actions/{actionKey}` 驱动 确认受理 → 开始采集 → 标记完成 | ✅ 14/14 断言通过(状态落库、字段快照、操作日志、刷新恢复、非法流转被拒) |
-| 平台真实模型调用 | 安装后由 Assistant 触发 `scrape_intake_*` 工具并生成任务 | ⏳ 未验证——本地环境未配置模型供应商凭证,`POST /api/chat` 返回 "The Assistant Primary model is not configured" |
+| 组织级模型供应商 | 在平台内建成 org 级 `openai-compatible` 供应商并绑定 Discovery | ✅ 供应商与模型行均为 `organizationId=5a3eea5e…`;建模型时平台自身的联网校验返回 200 |
+| 助手模型绑定 | 修复 `copilot_model.copilotId` 为 NULL 导致的 "The Assistant Primary model is not configured" | ✅ 已修复并指向新供应商 |
+| **平台真实模型调用** | 安装后由 Assistant 触发 `scrape_intake_*` 工具并生成任务 | ✅ **自然语言 → 模型推理 → `scrape_intake_save_generated_task` → 任务落库 → 受理台可见**,全链路实测通过 |
+
+### 模型供应商配置(组织级)
+
+平台里"模型供应商"的实体是 `copilot_provider`,**没有 `level` 列**;org 级完全由请求头
+`Organization-Id`(+ 可选 `x-scope-level: organization`)决定,body 里传 `organizationId`
+会被 `writeToCurrentScope` 覆盖。
+
+OpenAI 兼容供应商的 key 是 `openai-compatible`,它**只有 `model_credential_schema`、
+没有 `provider_credential_schema`**,因此 `POST /api/copilot-provider` **不能带
+`credentials`**(会抛 `Provider openai-compatible does not have provider_credential_schema`);
+API key 与 base URL 必须放在**模型行**的 `modelProperties`(`api_key` / `endpoint_url` /
+`endpoint_model_name`,不是 `openai_api_key` 那套)。
+
+```bash
+# 1. 复用组织里已有的 primary copilot(role=primary, enabled=true),
+#    也可以 POST /api/copilot 新建一个
+# 2. 建供应商,绑定该 copilot——不带 credentials
+curl -X POST "$XPERT_API_URL/api/copilot-provider" \
+  -H "Authorization: Bearer $JWT" -H "Content-Type: application/json" \
+  -H "organization-id: $XPERT_ORG_ID" -H "x-scope-level: organization" \
+  -d '{"providerName":"openai-compatible","copilotId":"<copilotId>"}'
+
+# 3. 在供应商下建模型——这一步就是平台唯一的"测试连接":
+#    它会用 temperature 0 / maxTokens 5 向 Discovery 发一句 "Hi"
+curl -X POST "$XPERT_API_URL/api/copilot-provider/<providerId>/model" \
+  -H "Authorization: Bearer $JWT" -H "Content-Type: application/json" \
+  -H "organization-id: $XPERT_ORG_ID" -H "x-scope-level: organization" \
+  -d '{"modelName":"deepseek-v4-flash-0731","modelType":"llm","modelProperties":{
+        "api_key":"'"$MODEL_API_KEY"'",
+        "endpoint_url":"https://discovery-api.intern-ai.org.cn/v1",
+        "mode":"chat","context_size":"65536","max_tokens_to_sample":"8192",
+        "function_calling_type":"tool_call","vision_support":"no_support",
+        "structured_output_support":"not_supported"}}'
+```
+
+`function_calling_type` 必须是 `tool_call` 才会被识别为 `ModelFeature.TOOL_CALL`;
+本插件的工具全靠 function calling。
+
+> Discovery 的 base URL **必须带 `/v1`**:`/models` 与 `/api/v1/models` 都返回 404,
+> 只有 `/v1/models` 有服务。另外 Discovery 上没有 `deepseek-v3`,可用模型是
+> `deepseek-v4-flash-0731` / `deepseek-v4-flash-vision` / `deepseek-v4-pro-0813` /
+> `glm-5.3` / `intern-s2` / `kimi-k2.6` / `minimax-m3` / `qwen3.8-27b` 等;
+> 平台内置的 `deepseek` 供应商用裸名 `deepseek-v4-flash` 做凭证校验,在 Discovery 上
+> 必然 404,所以不能用它。
+
+### "The Assistant Primary model is not configured" 的真正原因
+
+不是"没配模型供应商",而是助手的 `copilot_model` 行 **`copilotId` 是 NULL**。
+`sanitizeAssistantCopilotModel` 要求 `copilotId` + `model` + `modelType=llm` 三者齐全
+才会认这个模型(`xpert/assistant-model-selection.util.ts`)。助手模板 YAML 里的
+`copilotModel` 没写 `copilotId`,而 `import.handler` 只在存在 org primary copilot 时才会
+补齐;本地库当时有一个 `role=primary` 的 copilot 却没有 `copilot_provider` 行,于是一直空着。
+
+修复:`PUT /api/xpert/:id` 把 `copilotModel` 指到 primary copilot,例如
+
+```json
+{"copilotModel":{"id":"<copilot_model 行 id>","copilotId":"<primary copilot id>",
+                 "model":"deepseek-v4-flash-0731","modelType":"llm"}}
+```
+
+同时给 primary copilot 自己设一个 LLM 模型(`resolvePrimaryLlmSelection` 需要它,
+否则后续模板导入会抛 `ManagedImportRequiresPrimaryLlmModel`)。
+
+### 平台侧修过的一个 Windows 缺陷(已修,供参考)
+
+端到端最初跑不通,卡在平台一个 Windows 路径缺陷上(与插件无关,但挡着所有供应商):
+
+```
+TypeError: Cannot read properties of undefined (reading 'toLowerCase')
+  at OAIAPICompatLargeLanguageModel.predefinedModels (packages/plugin-sdk/dist/index.cjs.js:2645)
+```
+
+`ai-model.ts:91` 的 `this.modelProvider.name.toLowerCase()` 中 `name` 为 undefined,因为
+`AIModelProviderStrategy` 靠**解析自己的调用栈帧**来定位 YAML
+(`packages/plugin-sdk/src/lib/ai-model/ai-model-provider.decorator.ts`)。Windows 上真实栈帧是
+`at file:///C:/…/plugin-openai-compatible/dist/provider.strategy.js:12:5`,正则匹配到了,
+但代码只做 `file.replace('file://','')`,**留下开头的 `/`**,于是 `dir` 变成
+`/C:/…/dist`,拼出的 YAML 路径必然 ENOENT;而
+`loadYamlFile(filePath, logger, ignoreError = true, defaultValue = {})`
+**把读取错误吞掉、返回 `{}`**,于是 `getProviderSchema().provider` 是 undefined。
+
+现象:`GET /api/copilot/providers` 返回 `[{}]`,任何走到 `getProviderModels()` 的请求
+(含 `POST /api/chat`)一律 500。
+
+**修法**(平台仓库 `plugin-sdk`):
+
+1. decorator 改用 Node 的 `fileURLToPath()`(它负责去掉盘符前那个 `/` 并解码百分号转义),
+   顺带补两条 Windows 盘符栈帧的正则分支;`:line:col` 后缀要在转换**之前**剥掉,
+   否则位置会漏进路径。
+2. `abstract-provider.ts` 的 `loadYamlFile(yamlPath, this.logger, false)` —— 让缺失的
+   schema 直接报错,而不是变成后面一个难懂的 undefined。
+
+改完必须重启 API 进程(`getProviderSchema()` 与 `predefinedModels()` 都有缓存)。
+
+> `nx serve api` 在这个仓库里会间歇性以 `0xC0000409` 退出;直接用
+> `NODE_ENV=development node dist/apps/api/main.js` 起更稳。
+
+另有两个平台读侧小缺陷(未修,与插件无关):`GET /api/xpert/:id` 的 `$relations` 里只要带
+`agent.copilotModel` 就 500;该路由也只序列化 `copilotModelId`、不返回 `copilotModel` 对象。
+助手模型目录的正确路径是 `/api/ai/assistants/{id}/models`。
 
 平台侧两项本地适配(均为 Windows 下平台仓库 main 自身问题,不影响插件代码):`deploy-local-plugin.mjs` 在无 shell 启动 `corepack` 时崩溃(与已修复的 `npm.cmd` 同类问题),本次以 `--skip-build --skip-test` 绕过;`organization-plugin.store.ts` 的 `npm.cmd` 修复已在平台仓库 `7d28a4727` 合入。
+
+#### 端到端实测证据(组织级模型供应商 + 真实模型调用)
+
+一次 `POST /api/chat`(`options.xpertId` 指向本插件助手,输入一句自然语言采集需求)的完整链路:
+
+| 环节 | 证据 |
+|---|---|
+| 模型真的被调用 | SSE 流 455 帧;`on_chat_event` 报 `contextTokens: 3730 / outputTokens: 139 / totalTokens: 3869`;流式 chunk 带上游 `chatcmpl-…` id |
+| 无配置类报错 | 全程无 `AssistantPrimaryModelMissing`,execution 记录里无 error |
+| 调用了插件工具 | `plugin_scrape_task_intake_task_log` 新增 `ai_generated` 记录 |
+| 任务落库 | `plugin_scrape_task_intake_task` 新增 `sourceType=agent_chat` 行,`aiRawResult` 为模型抽取的结构化任务书(如 `{"scope":"list","fields":["标题","发布日期"],"format":"json"}`),`aiConfidence` 0.7~0.75 |
+| 受理台可见 | `GET /api/view-hosts/agent/{xpertId}/views/scrape_task_intake__workbench/data` 返回这两条新任务,带 `dataFieldsCount` / `completenessTipsCount` |
+
+> 注意:请求里点名具体商业站点 + 采集意图会触发 Discovery 网关的内容审核
+> ("The request contains sensitive content"),验收时用中性描述的目标站点即可。
 
 ## AI 协作说明
 
@@ -140,11 +258,12 @@ SCRAPE_TASK_INTAKE_DEDUPE_LOOKBACK_DAYS=7  # 可选,去重回溯天数
 ## 已知限制
 
 - 未实现真实采集执行调度、文件上传解析、多智能体协作、权限体系 UI;候选站点模板为内置 mock 数据。
-- 未做过平台内真实模型调用验收:本地环境没有配置模型供应商凭证,`POST /api/chat` 直接返回 "The Assistant Primary model is not configured",因此「自然语言 → AI 提取 → 保存任务」这一跳只能由单元测试覆盖,未经端到端验证。界面截图中列表数据为预置样本。
+- 平台内真实模型调用**已**跑通:自然语言进、`scrape_intake_save_generated_task` 出、任务落库、受理台可见,证据见「验证结果」。仍未覆盖的:真实采集执行调度、多轮补充对话的完整人工复核流程、以及把整个链路录成新的运行截图(现有三张截图的列表数据是预置样本)。
 - Remote component 为单文件 `app.js`(无构建、React UMD 手写),这是对 smart-maintenance 既有约定的延续;若后续界面复杂化,应迁移到 TSX + esbuild + shadcn 方案。
 - 去重仅覆盖同一会话 + 相同原始文本 + 可编辑状态;跨会话重复提交不拦截。
 - 未在多个租户/组织间做过数据隔离的浏览器级验证(单元测试覆盖了服务层范围过滤)。
 - 平台侧在 Windows 本机的一处本地问题未随 PR 提交:`deploy-local-plugin.mjs` 无 shell 启动 `corepack` 时崩溃(与平台已修复的 `npm.cmd` 问题同类),本次用 `--skip-build --skip-test` 绕过;不影响插件代码本身。
+- 平台侧第二处 Windows 问题(本次新发现并已在本地平台修好):`AIModelProviderStrategy` 用正则解析调用栈帧定位供应商 YAML,处理 `file:///C:/…` 时留下盘符前多余的 `/`,导致 YAML 静默加载失败、任何走到 `getProviderModels()` 的请求 500。修法见「平台侧修过的一个 Windows 缺陷」,属平台 `plugin-sdk` 改动,不在本插件 PR 范围内。
 
 ## 平台 Agent 提示词建议
 
