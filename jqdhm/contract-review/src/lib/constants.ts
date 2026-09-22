@@ -6,5 +6,5 @@ export const VIEW_KEY = 'contract-review'
 export const TEMPLATE_KEY = 'contract-review-assistant'
 export const REMOTE_ENTRY = 'contract-review.html'
 export const CONTRACT_REVIEW_CONFIG = Symbol('CONTRACT_REVIEW_CONFIG')
-export const TOOL_NAMES = ['contract_review_create', 'contract_review_list', 'contract_review_get', 'contract_review_summary'] as const
-export const ACTION_KEYS = ['update_contract', 'confirm_contract', 'get_summary'] as const
+export const TOOL_NAMES = ['contract_review_candidates', 'contract_review_list', 'contract_review_get', 'contract_review_summary'] as const
+export const ACTION_KEYS = ['update_contract', 'confirm_contract', 'get_summary', 'intake_contract'] as const

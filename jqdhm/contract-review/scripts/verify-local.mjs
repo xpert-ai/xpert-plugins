@@ -23,7 +23,7 @@ async function action(actionKey, input) {
 
 const input = {
   requestKey: `live-ollama-${randomUUID()}`,
-  title: '本地 Ollama 联调合同（虚构数据）',
+  title: `本地 Ollama 联调合同（虚构数据）-${randomUUID().slice(0,8)}`,
   sourceText: await readFile(new URL('../examples/contract.txt', import.meta.url), 'utf8')
 };
 const started = performance.now();
@@ -33,8 +33,9 @@ const extractionMs = Math.round(performance.now() - started);
 assert.equal(draft.status, 'DRAFT');
 assert.equal(draft.sourceText, input.sourceText);
 assert.equal(draft.title, input.title);
-assert.equal(draft.version, 1);
-assert.deepEqual(draft.audit.map(entry => entry.action), ['CREATED']);
+assert.equal(draft.version, 2);
+assert.equal(draft.extractionPending, false);
+assert.deepEqual(draft.audit.map(entry => entry.action), ['RECEIVED', 'EXTRACTED']);
 for (const [key, field] of Object.entries(draft.fields)) {
   assert.ok(field, `The fictional example includes ${key}, but the model left it empty`);
   assert.ok(input.sourceText.includes(field.evidence), `${key}: evidence must quote original text`);
@@ -42,18 +43,18 @@ for (const [key, field] of Object.entries(draft.fields)) {
 }
 const replay = await action('extract_contract', input);
 assert.equal(replay.id, draft.id);
-assert.equal(replay.audit.length, 1);
+assert.equal(replay.audit.length, 2);
 const view = await post('/api/view', { query: { parameters: { contractId: draft.id } } });
 assert.equal(view.meta.selected.id, draft.id);
 assert.equal(view.meta.selected.sourceText, input.sourceText);
 const saved = await action('update_contract', { contractId: draft.id, expectedVersion: draft.version, fields: draft.fields });
-assert.equal(saved.version, 2);
+assert.equal(saved.version, 3);
 const stale = await post('/api/action', { actionKey: 'update_contract', input: { contractId: draft.id, expectedVersion: 1, fields: draft.fields } });
 assert.equal(stale.success, false);
 assert.equal(stale.data.code, 'CONFLICT');
 const confirmed = await action('confirm_contract', { contractId: draft.id, expectedVersion: saved.version });
 assert.equal(confirmed.status, 'CONFIRMED');
-assert.equal(confirmed.version, 3);
+assert.equal(confirmed.version, 4);
 const confirmationReplay = await action('confirm_contract', { contractId: draft.id, expectedVersion: saved.version });
 assert.equal(confirmationReplay.audit.length, confirmed.audit.length);
 const extractionReplayAfterReview = await action('extract_contract', input);

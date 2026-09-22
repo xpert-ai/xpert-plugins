@@ -117,8 +117,41 @@ class LocalExtractionTest {
         assertThat(payload.path("messages").get(1).path("content").asText()).isEqualTo(SOURCE);
         assertThat(payload.path("format").path("properties").path("fields").path("required")).hasSize(6);
         mvc.perform(scoped(post("/api/contracts/{id}/confirm", contract.path("id").asText()), "user-one")
-                        .content("{\"expectedVersion\":1}"))
+                        .content("{\"expectedVersion\":2}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CONFIRMED"));
+    }
+
+    @Test
+    void failedModelCanRetryTheSameSavedOriginal() throws Exception {
+        modelStatus = 503;
+        mvc.perform(scoped(post("/api/contracts/extract"), "user-one").content(request("retry-pending")))
+                .andExpect(status().isBadGateway());
+        String originalId = jdbc.queryForObject("SELECT id FROM contracts", String.class);
+        assertPendingDraftCount(1);
+        modelStatus = 200;
+        JsonNode recovered = extract("retry-pending", "user-one", 200);
+        assertThat(recovered.path("id").asText()).isEqualTo(originalId);
+        assertThat(recovered.path("extractionPending").asBoolean()).isFalse();
+        assertThat(recovered.path("version").asInt()).isEqualTo(2);
+        assertThat(rowCount()).isEqualTo(1);
+    }
+
+    @Test
+    void lateModelResultDoesNotOverwriteManualChangesDuringInference() throws Exception {
+        delayMillis = 500;
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            var running = executor.submit(() -> extract("late-result", "user-one", 201));
+            assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
+            String id = jdbc.queryForObject("SELECT id FROM contracts", String.class);
+            mvc.perform(scoped(put("/api/contracts/{id}", id), "user-one")
+                            .content(mapper.writeValueAsString(new UpdateRequest(1L,
+                                    new Fields(null, null, null, null, null, null)))))
+                    .andExpect(status().isOk());
+            JsonNode result = running.get(3, TimeUnit.SECONDS);
+            assertThat(result.path("version").asInt()).isEqualTo(2);
+            assertThat(result.path("fields").path("partyA").isNull()).isTrue();
+            assertThat(result.path("audit").get(1).path("action").asText()).isEqualTo("UPDATED");
+        }
     }
 
     @Test
@@ -142,13 +175,15 @@ class LocalExtractionTest {
         JsonNode empty = extract("empty", "user-one", 201);
         assertThat(empty.path("warnings")).hasSize(6);
         mvc.perform(scoped(post("/api/contracts/{id}/confirm", empty.path("id").asText()), "user-one")
-                        .content("{\"expectedVersion\":1}"))
+                        .content("{\"expectedVersion\":2}"))
                 .andExpect(status().isUnprocessableEntity());
         modelOutput(mapper.writeValueAsString(Map.of("fields",
                 new Fields(new FieldValue("不存在公司", "甲方：不存在公司"), null, null, null, null, null))));
-        mvc.perform(scoped(post("/api/contracts/extract"), "user-one").content(request("invented")))
+        mvc.perform(scoped(post("/api/contracts/extract"), "user-one")
+                        .content(mapper.writeValueAsString(new ExtractRequest("invented", "校验伪造证据", SOURCE))))
                 .andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.code").value("EVIDENCE_MISMATCH"));
-        assertThat(rowCount()).isEqualTo(1);
+        assertThat(rowCount()).isEqualTo(2);
+        assertPendingDraftCount(1);
     }
 
     @Test
@@ -160,9 +195,10 @@ class LocalExtractionTest {
                         + "\"effectiveDate\":null,\"expiryDate\":null,\"paymentTerms\":null}}")) {
             modelOutput(invalid);
             mvc.perform(scoped(post("/api/contracts/extract"), "user-one").content(request(UUID.randomUUID().toString())))
-                    .andExpect(status().isBadGateway()).andExpect(jsonPath("$.code").value("MODEL_OUTPUT_INVALID"));
+                .andExpect(status().isBadGateway()).andExpect(jsonPath("$.code").value("MODEL_OUTPUT_INVALID"));
         }
-        assertThat(rowCount()).isZero();
+        assertThat(rowCount()).isEqualTo(1);
+        assertPendingDraftCount(1);
     }
 
     @Test
@@ -189,7 +225,7 @@ class LocalExtractionTest {
     }
 
     @Test
-    void unavailableRedirectAndTimeoutNeverSaveOrFallBack() throws Exception {
+    void unavailableRedirectAndTimeoutPreserveOriginalWithoutSavingCandidatesOrFallingBack() throws Exception {
         for (int error : List.of(503, 302)) {
             modelStatus = error;
             mvc.perform(scoped(post("/api/contracts/extract"), "user-one").content(request("down-" + error)))
@@ -200,7 +236,8 @@ class LocalExtractionTest {
         delayMillis = 1800;
         mvc.perform(scoped(post("/api/contracts/extract"), "user-one").content(request("timeout")))
                 .andExpect(status().isGatewayTimeout()).andExpect(jsonPath("$.code").value("MODEL_TIMEOUT"));
-        assertThat(rowCount()).isZero();
+        assertThat(rowCount()).isEqualTo(1);
+        assertPendingDraftCount(1);
     }
 
     @Test
@@ -214,7 +251,9 @@ class LocalExtractionTest {
             running.get(3, TimeUnit.SECONDS);
         }
         delayMillis = 0;
-        extract("after-complete", "user-one", 201);
+        mvc.perform(scoped(post("/api/contracts/extract"), "user-one")
+                        .content(mapper.writeValueAsString(new ExtractRequest("after-complete", "另一份原文", SOURCE))))
+                .andExpect(status().isCreated());
         assertThat(CALLS.get()).isEqualTo(2);
     }
 
@@ -227,7 +266,26 @@ class LocalExtractionTest {
         RESPONSE.set("x".repeat(262_145));
         mvc.perform(scoped(post("/api/contracts/extract"), "user-one").content(request("huge-response")))
                 .andExpect(status().isBadGateway()).andExpect(jsonPath("$.code").value("MODEL_OUTPUT_INVALID"));
-        assertThat(rowCount()).isZero();
+        assertThat(rowCount()).isEqualTo(1);
+        assertPendingDraftCount(1);
+    }
+
+    @Test
+    void workbenchIntakeAndRefreshedLocalExtractionShareOneContract() throws Exception {
+        String response = mvc.perform(scoped(post("/api/contracts/intake"), "user-one")
+                        .content(mapper.writeValueAsString(new IntakeRequest("调用者标题", SOURCE))))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String id = mapper.readTree(response).path("id").asText();
+        JsonNode extracted = extract("page-key-one", "user-one", 200);
+        assertThat(extracted.path("id").asText()).isEqualTo(id);
+        mvc.perform(scoped(post("/api/contracts/{id}/confirm", id), "user-one")
+                        .content("{\"expectedVersion\":2}"))
+                .andExpect(status().isOk());
+        JsonNode refreshed = extract("new-key-after-refresh", "user-one", 200);
+        assertThat(refreshed.path("id").asText()).isEqualTo(id);
+        assertThat(refreshed.path("status").asText()).isEqualTo("CONFIRMED");
+        assertThat(CALLS.get()).isEqualTo(1);
+        assertThat(rowCount()).isEqualTo(1);
     }
 
     private void modelOutput(String fieldsJson) throws Exception {
@@ -244,6 +302,20 @@ class LocalExtractionTest {
     }
 
     private int rowCount() { return jdbc.queryForObject("SELECT COUNT(*) FROM contracts", Integer.class); }
+
+    private void assertPendingDraftCount(int expected) throws Exception {
+        var records = jdbc.queryForList("SELECT id FROM contracts WHERE version = 1");
+        assertThat(records).hasSize(expected);
+        for (var record : records) {
+            mvc.perform(scoped(get("/api/contracts/{id}", record.get("ID")), "user-one"))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.sourceText").value(SOURCE))
+                    .andExpect(jsonPath("$.status").value("DRAFT"))
+                    .andExpect(jsonPath("$.extractionPending").value(true))
+                    .andExpect(jsonPath("$.audit.length()").value(1))
+                    .andExpect(jsonPath("$.audit[0].action").value("RECEIVED"))
+                    .andExpect(jsonPath("$.fields.partyA").isEmpty());
+        }
+    }
 
     private static MockHttpServletRequestBuilder scoped(MockHttpServletRequestBuilder request, String user) {
         return request.contentType(MediaType.APPLICATION_JSON).header("Authorization", "Bearer " + TOKEN)

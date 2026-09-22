@@ -32,13 +32,23 @@ public class ContractService {
     }
 
     public CreateResult create(Scope scope, CreateRequest request) {
+        return create(scope, request, Action.CREATED);
+    }
+
+    public CreateResult intake(Scope scope, IntakeRequest request) {
+        String key = "intake:" + fingerprint(repository.encode(request));
+        return create(scope, new CreateRequest(key, request.title(), request.sourceText(),
+                new Fields(null, null, null, null, null, null)), Action.RECEIVED);
+    }
+
+    private CreateResult create(Scope scope, CreateRequest request, Action action) {
         ContractRules.validateEvidence(request.sourceText(), request.fields());
         String hash = fingerprint(repository.encode(request));
         var existing = repository.findByKey(scope, request.requestKey());
         if (existing.isPresent()) return replay(existing.get(), hash);
         Instant now = now();
         StoredContract contract = new StoredContract(UUID.randomUUID().toString(), request.title(), request.sourceText(),
-                request.fields(), Status.DRAFT, 1, now, now, List.of(new AuditEntry(Action.CREATED, scope.userId(), now)), hash);
+                request.fields(), Status.DRAFT, 1, now, now, List.of(new AuditEntry(action, scope.userId(), now)), hash);
         try {
             transactions.executeWithoutResult(ignored -> repository.insert(scope, request.requestKey(), contract));
             return new CreateResult(contract.dto(), true);
@@ -46,6 +56,57 @@ public class ContractService {
             // Read after the failed insert transaction has rolled back; a concurrent winner owns this key.
             return replay(repository.findByKey(scope, request.requestKey()).orElseThrow(ApiException::conflict), hash);
         }
+    }
+
+    public CreateResult intakeExtraction(Scope scope, ExtractRequest request) {
+        String originalHash = fingerprint(repository.encode(new IntakeRequest(request.title(), request.sourceText())));
+        String originalKey = "intake:" + originalHash;
+        for (int attempt = 0; attempt < 3; attempt++) {
+            try {
+                return transactions.execute(ignored -> {
+                    var binding = repository.findExtractionRequest(scope, request.requestKey());
+                    if (binding.isPresent()) {
+                        if (!binding.get().originalHash().equals(originalHash)) {
+                            throw new ApiException(409, "IDEMPOTENCY_CONFLICT", "请求标识已用于不同内容，请使用新的请求标识。");
+                        }
+                        return new CreateResult(require(scope, binding.get().contractId()).dto(), false);
+                    }
+                    var original = repository.findByKey(scope, originalKey);
+                    boolean created = original.isEmpty();
+                    StoredContract contract;
+                    if (created) {
+                        CreateRequest input = new CreateRequest(originalKey, request.title(), request.sourceText(),
+                                new Fields(null, null, null, null, null, null));
+                        Instant now = now();
+                        contract = new StoredContract(UUID.randomUUID().toString(), input.title(), input.sourceText(),
+                                input.fields(), Status.DRAFT, 1, now, now,
+                                List.of(new AuditEntry(Action.RECEIVED, scope.userId(), now)), fingerprint(repository.encode(input)));
+                        repository.insert(scope, originalKey, contract);
+                    } else {
+                        contract = original.get();
+                    }
+                    repository.bindExtractionRequest(scope, request.requestKey(), originalHash, contract.id());
+                    return new CreateResult(contract.dto(), created);
+                });
+            } catch (DuplicateKeyException concurrentBinding) {
+                // The transaction rolls back before resolving the winner of either unique constraint.
+                if (attempt == 2) throw ApiException.conflict();
+            }
+        }
+        throw ApiException.conflict();
+    }
+
+    @Transactional(timeout = 10)
+    public Contract candidates(Scope scope, String id, CandidatesRequest request) {
+        StoredContract current = require(scope, id);
+        if (!current.dto().extractionPending()) return current.dto();
+        ContractRules.validateEvidence(current.sourceText(), request.fields());
+        StoredContract next = changed(current, request.fields(), Status.DRAFT, Action.EXTRACTED, scope.userId());
+        if (repository.update(scope, next, current.version())) return next.dto();
+        // A concurrent extraction or human edit won. Keep its persisted result.
+        StoredContract winner = require(scope, id);
+        if (!winner.dto().extractionPending()) return winner.dto();
+        throw ApiException.conflict();
     }
 
     public Optional<CreateResult> replayExtraction(Scope scope, ExtractRequest request) {
@@ -86,6 +147,9 @@ public class ContractService {
         if (isConfirmationReplay(current, request.expectedVersion())) return current.dto();
         if (current.status() != Status.DRAFT || current.version() != request.expectedVersion()) {
             throw ApiException.conflict();
+        }
+        if (current.dto().extractionPending()) {
+            throw new ApiException(422, "EXTRACTION_PENDING", "原文已保存，请先完成字段提取或人工填写并保存，再确认资料。");
         }
         ContractRules.validateConfirmation(current.fields());
         StoredContract next = changed(current, current.fields(), Status.CONFIRMED, Action.CONFIRMED, scope.userId());

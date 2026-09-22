@@ -18,7 +18,7 @@ export class ContractReviewViewProvider implements IXpertViewExtensionProvider {
   supports(context: XpertResolvedViewHostContext) { return context.hostType === 'agent' }
   getViewManifests(context: XpertResolvedViewHostContext, slot: string): XpertExtensionViewManifest[] {
     if (!this.supports(context) || !['agent.workbench.main', 'agent.workbench.fixed'].includes(slot)) return []
-    const labels = [['Save corrections', '保存修订'], ['Confirm information', '确认资料'], ['Copyable summary', '生成摘要']]
+    const labels = [['Save corrections', '保存修订'], ['Confirm information', '确认资料'], ['Copyable summary', '生成摘要'], ['Save original text', '保存合同原文']]
     return [{
       key: VIEW_KEY, title: { en_US: 'Contract review', zh_Hans: '合同资料核对' },
       description: { en_US: 'Review extracted information against original contract text.', zh_Hans: '对照原文核对字段、修订依据并人工确认。' },
@@ -50,6 +50,7 @@ export class ContractReviewViewProvider implements IXpertViewExtensionProvider {
     try {
       const scope = this.scope(context, viewKey)
       switch (actionKey) {
+        case 'intake_contract': return { success: true, data: await this.client.intake(scope, request.input), refresh: true }
         case 'update_contract': return { success: true, data: await this.client.update(scope, request.input), refresh: true }
         case 'confirm_contract': return { success: true, data: await this.client.confirm(scope, request.input), refresh: true }
         case 'get_summary': return { success: true, data: await this.client.summary(scope, request.input) }

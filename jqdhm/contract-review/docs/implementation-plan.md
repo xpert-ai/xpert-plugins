@@ -1,50 +1,33 @@
-# Java Contract Review Implementation Plan
+# 实施与交付状态
 
-Status as of 2026-09-21: the local implementation, Java service, Xpert adapter, workbench, and real local Ollama flow have been verified. The checklist below is the original task breakdown; see `docs/validation.md` for completed checks and the remaining real-Xpert installation boundary.
+更新：2026-09-22。目标是交付一个在 Xpert 中运行、主要业务由 Java 实现的合同资料整理应用。完整设计见 [design.md](design.md)，测试证据见 [validation.md](validation.md)。
 
-> **For agentic workers:** Use parallel bounded implementation tasks; main agent reviews interfaces and final changes.
+## 已完成
 
-**Goal:** Deliver an installable Xpert contract-review app with Java-owned business rules and a human review desk.
+- [x] Java DTO、认证、四维作用域、JDBC/H2 持久化、字段证据校验。
+- [x] 原文 intake 先落库，模型 candidates 后提交；模型失败保留可恢复草稿。
+- [x] 提取请求键与原文记录绑定，重复点击、刷新重试不产生双草稿，同键不同内容拒绝。
+- [x] 人工修订、版本条件更新、确认幂等、迟到结果不覆盖人工内容。
+- [x] Xpert 工具、视图、助手模板、服务端配置及 SDK 适配；每次请求读取当前配置，支持后台修改服务地址/令牌后生效。
+- [x] Agent 只读原文/提交候选/查询/摘要，不提供修改和确认工具。
+- [x] 工作台录入、列表、原文、字段依据、失败提示、保存修订、确认与摘要。
+- [x] 本地真实 Ollama 演示；fixture 入口明确标注不调用 AI。
+- [x] Java 39 项、适配层 11 项、页面/HTTP 15 项测试通过；Java 错误提示修订后提取模块 12 项再次通过，最新 jar 已打包。
+- [x] npm 归档在独立 E 盘目录完成生产依赖安装，CJS/ESM 双入口、模板及工作台 HTML 读取通过。
+- [x] 本地真实浏览器验证失败保留、刷新恢复、真实模型提取、人工保存确认；截图随文档提供。
+- [x] 真实 Xpert `3.18.6` 平台完成四项浏览器验收：原文保存、Agent 工具与 Ollama 提取、受控保存失败、重试/刷新/人工确认/摘要。
+- [x] 平台四张关键截图加入原 README 和 `docs/screenshots/`；报告时间及 API/Web 镜像、测试组织边界写入验证记录。
+- [x] 本地 Docker 启动问题恢复，容器健康并保留原有数据。
+- [x] README 产品说明、实际命令、配置示例、AI 协作过程、复用来源和验证边界。
+- [x] Fork、独立开发分支与 upstream main PR 已建立：[PR #687](https://github.com/xpert-ai/xpert-plugins/pull/687)。
 
-**Architecture:** Xpert model → typed tools → TS HTTP adapter → Java transactional service; workbench actions use the same service for manual changes and confirmation.
+## 最终交付前继续核对
 
-**Tech Stack:** Java 21, Spring Boot 3, Maven, JDBC, H2; Node 22, TypeScript, Xpert SDK 3.18.4.
+- [x] 以本轮最终工作树执行插件打包、生命周期检查并核对安装产物；68 个归档文件包含 7 张截图，不含凭证、运行数据和测试输出目录。
+- [x] 完成真实 Xpert 平台的模型工具调用和人工工作台完整流程，保存失败使用受控 HTTP 503 注入，未冒充实际模型故障。
+- [x] 把平台关键界面、输入、AI 结果和至少一个异常截图加入原 README。
+- [x] 记录平台实际运行版本；明确源码 main 基线与部署镜像的区别，不宣称已从该 main 自编译运行。
+- [x] 核对本轮提交仅涉及插件文件；本地凭证扫描无命中，截图使用虚构合同。
+- [x] 将真实结果及验证边界写入原验证记录，沿用现有 PR；最终提交状态以 PR 的提交记录为准。
 
-**Spec:** docs/design.md
-
-## Global Constraints
-
-- All additions stay within jqdhm/contract-review; no changes to upstream plugins.
-- Tokens are external configuration; identity comes from Xpert context only.
-- Agent has no confirm/update tool. Exact source evidence is mandatory for extracted values.
-- Root plugin-dev-harness lifecycle validation is required; actual host/model verification is reported separately.
-
-## Task 1: Java service
-
-Files: java-service/pom.xml, src/main/java/io/github/jqdhm/contractreview/*, resources/application.yml/schema.sql, src/test/java/... .
-
-- [ ] Implement specification DTOs, bearer authentication, scoped JDBC persistence and bounded REST endpoints.
-- [ ] Test create → edit → confirm → summary and all failure/concurrency boundaries listed in spec.
-- [ ] Run mvn test/package; report precise results.
-
-## Task 2: Xpert adapter
-
-Files: package.json, tsconfig.json, src/index.ts, src/lib/{config,client,scope,contracts,middleware,view-provider,plugin,templates}.ts, assistant.yaml, test/*.
-
-- [ ] Reuse existing SDK extension points, pinned published types and explicit field schemas.
-- [ ] Test context enforcement, timeouts, malformed input, tool restrictions, and metadata/template alignment.
-- [ ] Build ESM/declarations and package assets; run typecheck and tests.
-
-## Task 3: Workbench and documentation
-
-Files: src/remote/*, scripts/*, README.md, examples/*, Dockerfile/compose.yaml, docs/validation.md.
-
-- [ ] Build scoped list/detail/field evidence editor with pending/error/confirmation behavior through platform bridge.
-- [ ] Provide fictional sample input, setup commands, manual validation, limitations and AI-assisted development notes.
-- [ ] Exercise UI with a clearly labeled bridge test host; run actual Java integration and plugin harness.
-
-## Task 4: Delivery
-
-- [ ] Review spec and code; resolve critical findings and run required targeted checks.
-- [ ] Check staged diff for secrets and unrelated changes, commit, push feature branch to Fork via authenticated Git.
-- [ ] Use gh pr create --base main with an exact body file. Record checks and remaining host/model requirements. Do not merge.
+只提交 PR，不合并、不发布 npm。平台本身有故障时按任务书提供复现与证据，不将本地预览验收当作平台验收。

@@ -3,16 +3,25 @@ import { z } from 'zod/v3'
 import { CONTRACT_REVIEW_CONFIG } from './constants.js'
 import { resolveConfig, type ContractReviewConfig, type ResolvedContractReviewConfig } from './config.js'
 import { validateScope, type ContractScope } from './scope.js'
-import { confirmSchema, contractSchema, createSchema, idInputSchema, listSchema, summarySchema, updateSchema, ContractReviewError } from './contracts.js'
+import { candidatesSchema, intakeSchema, confirmSchema, contractSchema, createSchema, idInputSchema, listSchema, summarySchema, updateSchema, ContractReviewError } from './contracts.js'
 
 const MAX_RESPONSE_BYTES = 2 * 1024 * 1024
 @Injectable()
 export class ContractServiceClient {
-  private readonly rawConfig: ContractReviewConfig
-  constructor(@Inject(CONTRACT_REVIEW_CONFIG) config: ContractReviewConfig | undefined) { this.rawConfig = config ?? {} }
+  private readonly getConfig: () => ContractReviewConfig | undefined
+  constructor(@Inject(CONTRACT_REVIEW_CONFIG) config: ContractReviewConfig | (() => ContractReviewConfig | undefined) | undefined) {
+    this.getConfig = typeof config === 'function' ? config : () => config
+  }
 
   async create(scope: ContractScope, input: unknown) {
     return this.request(scope, 'POST', '', contractSchema, createSchema.parse(input))
+  }
+  async intake(scope: ContractScope, input: unknown) {
+    return this.request(scope, 'POST', '/intake', contractSchema, intakeSchema.parse(input))
+  }
+  async candidates(scope: ContractScope, input: unknown) {
+    const { contractId, ...body } = candidatesSchema.parse(input)
+    return this.request(scope, 'POST', `/${contractId}/candidates`, contractSchema, body)
   }
   async list(scope: ContractScope) { return this.request(scope, 'GET', '', listSchema) }
   async get(scope: ContractScope, input: unknown) {
@@ -35,7 +44,7 @@ export class ContractServiceClient {
     const scope = validateScope(inputScope)
     // Credentials are deliberately resolved on first use so the plugin can load in
     // a host before its server-side secret is configured. They never reach metadata or UI.
-    const config = resolveConfig(this.rawConfig)
+    const config = resolveConfig(this.getConfig())
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), config.timeoutMs)
     try {

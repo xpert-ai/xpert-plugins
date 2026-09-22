@@ -17,3 +17,15 @@ CREATE TABLE IF NOT EXISTS contracts (
     CONSTRAINT contracts_scope_request_unique UNIQUE (tenant_id, organization_id, user_id, assistant_id, request_key)
 );
 CREATE INDEX IF NOT EXISTS contracts_scope_updated ON contracts (tenant_id, organization_id, user_id, assistant_id, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS contract_extraction_requests (
+    tenant_id VARCHAR(128) NOT NULL,
+    organization_id VARCHAR(128) NOT NULL,
+    user_id VARCHAR(128) NOT NULL,
+    assistant_id VARCHAR(128) NOT NULL,
+    request_key VARCHAR(128) NOT NULL,
+    original_hash VARCHAR(64) NOT NULL,
+    contract_id VARCHAR(36) NOT NULL,
+    PRIMARY KEY (tenant_id, organization_id, user_id, assistant_id, request_key),
+    CONSTRAINT extraction_request_contract_fk FOREIGN KEY (contract_id) REFERENCES contracts(id) ON DELETE CASCADE
+);

@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import type { PluginMarketplaceContribution } from '@xpert-ai/contracts'
 import { configSchema, type ContractReviewConfig } from './lib/config.js'
@@ -7,7 +7,7 @@ import { CONTRACT_REVIEW_CONFIG, FEATURE, MIDDLEWARE_NAME, PLUGIN_NAME, PROVIDER
 import { ContractReviewPlugin } from './lib/plugin.js'
 import { templates } from './lib/templates.js'
 
-const version: string = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version
+const version: string = createRequire(import.meta.url)(`${PLUGIN_NAME}/package.json`).version
 const app = {
   type: 'app', name: 'contract-review', displayName: { en_US: 'Contract Information Assistant', zh_Hans: '合同资料整理助手' },
   description: { en_US: 'Extract contract fields, review evidence and confirm information.', zh_Hans: '合同文本提取、原文核对、人工确认和摘要复制。' },
@@ -32,7 +32,7 @@ const app = {
 
 export const plugin: XpertPlugin<ContractReviewConfig> = {
   meta: {
-    name: PLUGIN_NAME, version, level: 'tenant', artifactNamespace: 'contract-review',
+    name: PLUGIN_NAME, version, level: 'organization', artifactNamespace: 'contract_review',
     displayName: '合同资料整理助手', description: 'Contract candidate extraction and human information review, backed by Java.',
     author: 'jqdhm', category: 'middleware', targetApps: ['xpert'],
     targetAppMeta: { xpert: {
@@ -47,7 +47,7 @@ export const plugin: XpertPlugin<ContractReviewConfig> = {
   },
   config: { schema: configSchema }, templates,
   register(context) {
-    return { module: ContractReviewPlugin, global: true, providers: [{ provide: CONTRACT_REVIEW_CONFIG, useValue: context.config }] }
+    return { module: ContractReviewPlugin, global: true, providers: [{ provide: CONTRACT_REVIEW_CONFIG, useValue: () => context.config }] }
   }
 }
 export default plugin

@@ -10,7 +10,7 @@ import { ContractServiceClient } from '../dist/lib/client.js'
 import { ContractReviewMiddleware } from '../dist/lib/middleware.js'
 import { ContractReviewViewProvider } from '../dist/lib/view-provider.js'
 import { resolveConfig } from '../dist/lib/config.js'
-import { createSchema, confirmSchema, updateSchema } from '../dist/lib/contracts.js'
+import { candidatesSchema, intakeSchema, createSchema, confirmSchema, updateSchema } from '../dist/lib/contracts.js'
 import { scopeFromAgent, scopeFromView } from '../dist/lib/scope.js'
 import { TOOL_NAMES, ACTION_KEYS, TEMPLATE_KEY, VIEW_KEY, FEATURE, MIDDLEWARE_NAME } from '../dist/lib/constants.js'
 
@@ -21,7 +21,7 @@ const fields = { partyA: { value: '甲公司', evidence: '甲方：甲公司' },
 const input = { requestKey: 'same-submission', title: '样例合同', sourceText: '甲方：甲公司', fields }
 const id = '7bb66ec0-c7b7-4af0-8f42-95b449df98de'
 const row = { id, title: input.title, status: 'DRAFT', version: 1, warnings: ['缺少乙方'], updatedAt: '2026-09-21T12:00:00Z' }
-const contract = { ...row, sourceText: input.sourceText, fields, createdAt: row.updatedAt, audit: [{ action: 'CREATED', actorId: scope.userId, at: row.updatedAt }] }
+const contract = { ...row, extractionPending: false, sourceText: input.sourceText, fields, createdAt: row.updatedAt, audit: [{ action: 'CREATED', actorId: scope.userId, at: row.updatedAt }] }
 const config = { serviceUrl: 'http://127.0.0.1:8097', serviceToken: 'test-only-token', timeoutMs: 1000 }
 const jsonResponse = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } })
 
@@ -63,6 +63,44 @@ test('input schemas require exact evidence and refuse identity, URLs, extra fiel
   for (const version of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1]) assert.equal(confirmSchema.safeParse({ contractId: id, expectedVersion: version }).success, false)
   assert.equal(confirmSchema.safeParse({ contractId: '../../health', expectedVersion: 1 }).success, false)
 })
+
+test('intake saves original text and model candidates cannot supply or replace it', async (t) => {
+  const calls: { url: string, body: unknown }[] = []
+  t.mock.method(globalThis, 'fetch', async (url: string, init: RequestInit) => {
+    calls.push({ url, body: JSON.parse(init.body as string) })
+    return jsonResponse(contract)
+  })
+  const client = new ContractServiceClient(config)
+  const original = { title: input.title, sourceText: input.sourceText }
+  assert.deepEqual(intakeSchema.parse(original), original)
+  await client.intake(scope, original)
+  await client.candidates(scope, { contractId: id, fields })
+  assert.deepEqual(calls, [
+    { url: `${config.serviceUrl}/api/contracts/intake`, body: original },
+    { url: `${config.serviceUrl}/api/contracts/${id}/candidates`, body: { fields } }
+  ])
+  for (const key of ['sourceText', 'requestKey', 'tenantId', 'userId']) {
+    assert.equal(candidatesSchema.safeParse({ contractId: id, fields, [key]: 'forged' }).success, false)
+  }
+})
+
+test('client reads replaced host configuration for the next request', async (t) => {
+  const calls: { url: string; token: string }[] = []
+  t.mock.method(globalThis, 'fetch', async (url: string, init: RequestInit) => {
+    calls.push({ url, token: new Headers(init.headers).get('authorization')! })
+    return jsonResponse(contract)
+  })
+  const context = { config }
+  const client = new ContractServiceClient(() => context.config)
+  await client.get(scope, { contractId: id })
+  context.config = { ...config, serviceUrl: 'http://127.0.0.1:8098', serviceToken: 'rotated-test-token' }
+  await client.get(scope, { contractId: id })
+  assert.deepEqual(calls, [
+    { url: `${config.serviceUrl}/api/contracts/${id}`, token: 'Bearer test-only-token' },
+    { url: `http://127.0.0.1:8098/api/contracts/${id}`, token: 'Bearer rotated-test-token' }
+  ])
+})
+
 
 test('client constructs only trusted scope headers and fixed service paths', async (t) => {
   const calls: { url: string; init: RequestInit }[] = []
@@ -175,7 +213,7 @@ test('app metadata, template provider, tools, manifest and packaged remote entry
   for (const name of TOOL_NAMES) assert.ok(templates[0].dslContent.includes(name))
   const app = plugin.meta.targetAppMeta!.xpert!.marketplace!.contents!.find((item: any) => item.type === 'app') as any
   assert.equal(app.appConfig.assistantTemplateKey, TEMPLATE_KEY)
-  assert.equal(plugin.meta.artifactNamespace, 'contract-review')
+  assert.equal(plugin.meta.artifactNamespace, 'contract_review')
   assert.equal(JSON.stringify(plugin.meta).includes('test-only-token'), false)
   assert.equal(await readFile(new URL('../dist/assistant.yaml', import.meta.url), 'utf8'), await readFile(new URL('../assistant.yaml', import.meta.url), 'utf8'))
 })

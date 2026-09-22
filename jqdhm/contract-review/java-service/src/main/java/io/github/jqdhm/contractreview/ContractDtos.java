@@ -1,5 +1,7 @@
 package io.github.jqdhm.contractreview;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -24,6 +26,11 @@ public final class ContractDtos {
                                 @NotBlank @Size(max = 50_000) String sourceText,
                                 @NotNull @Valid Fields fields) { }
 
+    public record IntakeRequest(@NotBlank @Size(max = 120) String title,
+                                @NotBlank @Size(max = 50_000) String sourceText) { }
+
+    public record CandidatesRequest(@NotNull @Valid Fields fields) { }
+
     public record ExtractRequest(@NotBlank @Size(max = 128) String requestKey,
                                  @NotBlank @Size(max = 120) String title,
                                  @NotBlank @Size(max = 6_000) String sourceText) { }
@@ -35,13 +42,19 @@ public final class ContractDtos {
 
     public enum Status { DRAFT, CONFIRMED }
 
-    public enum Action { CREATED, UPDATED, CONFIRMED }
+    public enum Action { CREATED, RECEIVED, EXTRACTED, UPDATED, CONFIRMED }
 
     public record AuditEntry(Action action, String actorId, Instant at) { }
 
     public record Contract(String id, String title, String sourceText, Fields fields,
                            Status status, long version, List<String> warnings,
-                           Instant createdAt, Instant updatedAt, List<AuditEntry> audit) { }
+                           Instant createdAt, Instant updatedAt, List<AuditEntry> audit) {
+        @JsonProperty("extractionPending")
+        public boolean extractionPending() {
+            return status == Status.DRAFT && version == 1 && audit.size() == 1
+                    && audit.getFirst().action() == Action.RECEIVED;
+        }
+    }
 
     public record ListItem(String id, String title, Status status, long version,
                            Instant updatedAt, List<String> warnings) { }

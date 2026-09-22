@@ -20,6 +20,8 @@ export const createSchema = z.object({
   }
 })
 export const contractIdSchema = z.string().uuid()
+export const intakeSchema = z.object({ title: nonblank(120), sourceText: nonblank(50000) }).strict()
+export const candidatesSchema = z.object({ contractId: contractIdSchema, fields: fieldsSchema }).strict()
 export const idInputSchema = z.object({ contractId: contractIdSchema }).strict()
 export const emptyInputSchema = z.object({}).strict()
 export const querySchema = z.object({ contractId: contractIdSchema.optional() }).strict()
@@ -34,7 +36,8 @@ export const contractSummarySchema = z.object({
 }).strict()
 export const contractSchema = contractSummarySchema.extend({
   sourceText: nonblank(50000), fields: fieldsSchema, createdAt: instantSchema,
-  audit: z.array(z.object({ action: z.enum(['CREATED', 'UPDATED', 'CONFIRMED']), actorId: nonblank(128), at: instantSchema }).strict())
+  extractionPending: z.boolean().default(false),
+  audit: z.array(z.object({ action: z.enum(['CREATED', 'RECEIVED', 'EXTRACTED', 'UPDATED', 'CONFIRMED']), actorId: nonblank(128), at: instantSchema }).strict())
 }).strict()
 export const listSchema = z.object({ items: z.array(contractSummarySchema).max(50) }).strict()
 export const summarySchema = z.object({ status: statusSchema, summary: nonblank(400000) }).strict()

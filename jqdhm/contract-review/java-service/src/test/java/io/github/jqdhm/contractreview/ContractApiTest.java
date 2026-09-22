@@ -93,6 +93,144 @@ class ContractApiTest {
     }
 
     @Test
+    void platformIntakePersistsExactSourceAndSurvivesRefreshWithoutClientRequestKey() throws Exception {
+        String input = json(java.util.Map.of("title", "原文先存", "sourceText", "  " + SOURCE + "  "));
+        String first = mvc.perform(scoped(post("/api/contracts/intake")).content(input))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.extractionPending").value(true))
+                .andExpect(jsonPath("$.sourceText").value("  " + SOURCE + "  "))
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        mvc.perform(scoped(post("/api/contracts/intake")).content(input))
+                .andExpect(status().isOk()).andExpect(content().json(first));
+        String id = mapper.readTree(first).get("id").asText();
+        mvc.perform(scoped(get("/api/contracts/{id}", id)))
+                .andExpect(status().isOk()).andExpect(content().json(first));
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM contracts", Integer.class)).isEqualTo(1);
+    }
+
+    @Test
+    void candidatesValidateAgainstSavedSourceAndNeverOverwriteHumanCorrections() throws Exception {
+        String id = intake("候选字段");
+        Fields invented = new Fields(new FieldValue("伪造公司", "甲方：伪造公司"), null, null, null, null, null);
+        mvc.perform(scoped(post("/api/contracts/{id}/candidates", id))
+                        .content(json(java.util.Map.of("fields", invented))))
+                .andExpect(status().isUnprocessableEntity());
+        mvc.perform(scoped(get("/api/contracts/{id}", id)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.extractionPending").value(true));
+        mvc.perform(scoped(post("/api/contracts/{id}/candidates", id))
+                        .content(json(java.util.Map.of("fields", fields()))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.extractionPending").value(false))
+                .andExpect(jsonPath("$.version").value(2));
+        // A later model response may differ, but must replay the first saved result.
+        mvc.perform(scoped(post("/api/contracts/{id}/candidates", id))
+                        .content(json(java.util.Map.of("fields", changedFields()))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.fields.amount.value").value("10000元"))
+                .andExpect(jsonPath("$.version").value(2));
+        service.update(SCOPE, id, new UpdateRequest(2L, changedFields()));
+        service.confirm(SCOPE, id, new ConfirmRequest(3L));
+        mvc.perform(scoped(post("/api/contracts/{id}/candidates", id))
+                        .content(json(java.util.Map.of("fields", fields()))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.fields.amount.value").value("12000元"))
+                .andExpect(jsonPath("$.status").value("CONFIRMED"))
+                .andExpect(jsonPath("$.version").value(4));
+        assertThat(service.get(SCOPE, id).sourceText()).isEqualTo(SOURCE);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM contracts", Integer.class)).isEqualTo(1);
+    }
+
+    @Test
+    void candidatesCannotChooseSourceOrCrossUserBoundary() throws Exception {
+        String id = intake("权限边界");
+        mvc.perform(scoped(post("/api/contracts/{id}/candidates", id))
+                        .content(json(java.util.Map.of("fields", fields(), "sourceText", "伪造原文"))))
+                .andExpect(status().isBadRequest());
+        Scope other = new Scope(SCOPE.tenantId(), SCOPE.organizationId(), "other-user", SCOPE.assistantId());
+        mvc.perform(scoped(post("/api/contracts/{id}/candidates", id), other)
+                        .content(json(java.util.Map.of("fields", fields()))))
+                .andExpect(status().isNotFound());
+        mvc.perform(scoped(post("/api/contracts/intake"))
+                        .content(json(java.util.Map.of("title", "empty", "sourceText", "  "))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void concurrentCandidatesRecordExactlyOneExtraction() throws Exception {
+        String id = intake("并发提取");
+        String body = json(java.util.Map.of("fields", fields()));
+        List<Integer> results = concurrently(8, () -> mvc.perform(scoped(post("/api/contracts/{id}/candidates", id))
+                .content(body)).andReturn().getResponse().getStatus());
+        assertThat(results).containsOnly(200);
+        Contract saved = service.get(SCOPE, id);
+        assertThat(saved.version()).isEqualTo(2);
+        assertThat(saved.audit()).hasSize(2);
+    }
+
+    @Test
+    void pendingDraftCannotConfirmAndLateCandidatesCannotOverwriteManualSave() throws Exception {
+        String id = intake("先人工补充");
+        mvc.perform(scoped(post("/api/contracts/{id}/confirm", id)).content("{\"expectedVersion\":1}"))
+                .andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.code").value("EXTRACTION_PENDING"));
+        Contract manual = service.update(SCOPE, id, new UpdateRequest(1L, changedFields()));
+        assertThat(manual.extractionPending()).isFalse();
+        mvc.perform(scoped(post("/api/contracts/{id}/candidates", id))
+                        .content(json(java.util.Map.of("fields", fields()))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.fields.amount.value").value("12000元"))
+                .andExpect(jsonPath("$.version").value(2));
+        assertThat(service.get(SCOPE, id).audit()).extracting(AuditEntry::action)
+                .containsExactly(Action.RECEIVED, Action.UPDATED);
+        service.confirm(SCOPE, id, new ConfirmRequest(2L));
+    }
+
+    @Test
+    void concurrentIntakesCreateOneDurableDraft() throws Exception {
+        List<CreateResult> results = concurrently(8, () -> service.intake(SCOPE, new IntakeRequest("并发原文", SOURCE)));
+        assertThat(results).filteredOn(CreateResult::created).hasSize(1);
+        assertThat(results.stream().map(result -> result.contract().id()).distinct()).hasSize(1);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM contracts", Integer.class)).isEqualTo(1);
+        assertThat(results.getFirst().contract().extractionPending()).isTrue();
+    }
+
+    @Test
+    void localExtractionReusesTheOriginalIntakeAcrossRefreshedClientKeys() {
+        Contract original = service.intake(SCOPE, new IntakeRequest("同一份原文", SOURCE)).contract();
+        for (String key : List.of("first-page", "refreshed-page")) {
+            CreateResult local = service.intakeExtraction(SCOPE, new ExtractRequest(key, "同一份原文", SOURCE));
+            assertThat(local.contract().id()).isEqualTo(original.id());
+            assertThat(local.created()).isFalse();
+        }
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM contracts", Integer.class)).isEqualTo(1);
+    }
+
+    @Test
+    void concurrentLocalRequestKeysBindToOneOriginal() throws Exception {
+        List<CreateResult> results = concurrently(8, () -> service.intakeExtraction(SCOPE,
+                new ExtractRequest(UUID.randomUUID().toString(), "同一份并发原文", SOURCE)));
+        assertThat(results).filteredOn(CreateResult::created).hasSize(1);
+        assertThat(results.stream().map(result -> result.contract().id()).distinct()).hasSize(1);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM contracts", Integer.class)).isEqualTo(1);
+    }
+
+    @Test
+    void conflictingConcurrentLocalRequestDoesNotLeaveAnotherDraft() throws Exception {
+        var sequence = new java.util.concurrent.atomic.AtomicInteger();
+        List<Integer> results = concurrently(2, () -> {
+            try {
+                service.intakeExtraction(SCOPE, new ExtractRequest("conflicting-key", "原文" + sequence.incrementAndGet(), SOURCE));
+                return 200;
+            } catch (ApiException conflict) {
+                return conflict.status();
+            }
+        });
+        assertThat(results).containsExactlyInAnyOrder(200, 409);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM contracts", Integer.class)).isEqualTo(1);
+    }
+
+    private String intake(String title) throws Exception {
+        String response = mvc.perform(scoped(post("/api/contracts/intake"))
+                        .content(json(java.util.Map.of("title", title, "sourceText", SOURCE))))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        return mapper.readTree(response).get("id").asText();
+    }
+
+    @Test
     void repeatedConfirmationHasNoExtraAuditOrVersionChange() throws Exception {
         String id = create(request("repeat-confirm")).get("id").asText();
         String confirmed = mvc.perform(scoped(post("/api/contracts/{id}/confirm", id)).content("{\"expectedVersion\":1}"))

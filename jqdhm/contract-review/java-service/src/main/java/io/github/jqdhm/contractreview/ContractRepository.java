@@ -38,6 +38,22 @@ public class ContractRepository {
                 scoped(scope).addValue("key", key), this::read).stream().findFirst();
     }
 
+    public Optional<ExtractionRequest> findExtractionRequest(Scope scope, String key) {
+        return jdbc.query("SELECT contract_id, original_hash FROM contract_extraction_requests WHERE " + SCOPE
+                        + " AND request_key = :key", scoped(scope).addValue("key", key),
+                (rs, row) -> new ExtractionRequest(rs.getString("contract_id"), rs.getString("original_hash")))
+                .stream().findFirst();
+    }
+
+    public void bindExtractionRequest(Scope scope, String key, String hash, String contractId) {
+        jdbc.update("INSERT INTO contract_extraction_requests "
+                        + "(tenant_id, organization_id, user_id, assistant_id, request_key, original_hash, contract_id) "
+                        + "VALUES (:tenant, :organization, :user, :assistant, :key, :hash, :id)",
+                scoped(scope).addValue("key", key).addValue("hash", hash).addValue("id", contractId));
+    }
+
+    public record ExtractionRequest(String contractId, String originalHash) { }
+
     public List<ListItem> list(Scope scope) {
         return jdbc.query("SELECT id, title, status, version, updated_at, fields_json FROM contracts WHERE " + SCOPE
                         + " ORDER BY updated_at DESC, id DESC LIMIT 50", scoped(scope), (rs, row) ->

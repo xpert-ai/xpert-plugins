@@ -59,22 +59,17 @@ public class LocalExtractionService {
         if (!validator.validate(request).isEmpty()) {
             throw new ApiException(400, "INVALID_REQUEST", "标题、请求标识或正文不合法，本地提取正文最多 6000 字。");
         }
-        var replay = contracts.replayExtraction(scope, request);
-        if (replay.isPresent()) return replay.get();
+        CreateResult intake = contracts.intakeExtraction(scope, request);
+        if (!intake.contract().extractionPending()) return intake;
         if (!inference.tryAcquire()) {
             throw new ApiException(429, "MODEL_BUSY", "本地模型正在处理另一份合同，请稍后重试。");
         }
         try {
-            replay = contracts.replayExtraction(scope, request);
-            if (replay.isPresent()) return replay.get();
-            // Inference finishes before ContractService opens the short insert transaction.
-            Fields fields = infer(request.sourceText());
-            try {
-                return contracts.create(scope, new CreateRequest(request.requestKey(), request.title(), request.sourceText(), fields));
-            } catch (ApiException conflict) {
-                if (!"IDEMPOTENCY_CONFLICT".equals(conflict.code())) throw conflict;
-                return contracts.replayExtraction(scope, request).orElseThrow(() -> conflict);
-            }
+            Contract saved = contracts.get(scope, intake.contract().id());
+            if (!saved.extractionPending()) return new CreateResult(saved, false);
+            // Original text is durable; inference holds no database transaction.
+            Fields fields = infer(saved.sourceText());
+            return new CreateResult(contracts.candidates(scope, saved.id(), new CandidatesRequest(fields)), intake.created());
         } finally {
             inference.release();
         }
@@ -108,14 +103,14 @@ public class LocalExtractionService {
             ContractRules.validateEvidence(sourceText, fields);
             return fields;
         } catch (HttpTimeoutException timeout) {
-            throw new ApiException(504, "MODEL_TIMEOUT", "本地模型处理超时，未保存合同，请稍后使用同一请求标识重试。");
+            throw new ApiException(504, "MODEL_TIMEOUT", "本地模型处理超时，原文已保存，字段尚未提取成功，请稍后使用同一请求标识重试。");
         } catch (JsonProcessingException invalidJson) {
             throw invalidOutput();
         } catch (IOException unavailable) {
             throw new ApiException(502, "MODEL_UNAVAILABLE", "无法连接本地模型，请检查 Ollama 是否启动。");
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
-            throw new ApiException(503, "MODEL_INTERRUPTED", "本地模型调用已中断，未保存合同。");
+            throw new ApiException(503, "MODEL_INTERRUPTED", "本地模型调用已中断，原文已保存，字段尚未提取成功，可以重试。");
         }
     }
 
@@ -179,6 +174,6 @@ public class LocalExtractionService {
     }
 
     private static ApiException invalidOutput() {
-        return new ApiException(502, "MODEL_OUTPUT_INVALID", "模型未返回有效字段，未保存合同，请核对原文后重试。");
+        return new ApiException(502, "MODEL_OUTPUT_INVALID", "模型未返回有效字段，原文已保存，请核对原文后重试。");
     }
 }

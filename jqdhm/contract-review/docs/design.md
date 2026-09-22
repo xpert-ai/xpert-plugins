@@ -1,41 +1,91 @@
-# 合同资料整理助手
+# 合同资料整理助手设计
 
-## 目标与交付
+## 1. 目标与边界
 
-在 Xpert 中安装独立 Agentic App，用户提交合同文本，由宿主配置的模型提取候选信息，经 Java 服务校验后在工作台核对、修订、确认并生成可复制摘要。主要业务由 Java 实现；TypeScript 仅承接 Xpert SDK、工具、配置和工作台协议。通过 GitHub CLI 管理 Fork 和 PR，目标为 upstream main，不合并、不发布 npm。
+用户是需要登记合同资料的运营或销售支持人员。输入合同纯文本后，系统先保存原文，再让模型整理候选字段；用户在同一工作台对照原文、修改、确认和生成摘要。
 
-## 范围
+Java 服务负责业务规则、原文和结果持久化、作用域、幂等、并发控制及审计。Xpert TypeScript 插件负责宿主扩展、上下文和视图桥接。模型没有修改或确认权限。首版不含 PDF/OCR、电子签署、法律判断或多级审批。
 
-- 首版接受合同纯文本，附有虚构样例；不宣称支持 PDF/OCR、电子签章、法律审查、Flowable 或生产部署。
-- 字段固定为 partyA、partyB、amount、effectiveDate、expiryDate、paymentTerms。字段值为原文字符串，每个非空字段同时提交 evidence 原文摘录。缺失字段为 null，禁止猜测。
-- Xpert 模式的模型运行于平台。无 Xpert 的本地演示通过 `local-extraction` 配置启用 Java → Ollama 的抽取入口；模型地址和模型名属于服务端配置。两种模式用明确的 capability 区分，不从提示词或显示文字猜测。固定 fixture 入口保留并单独标注。
-- Java 21 / Spring Boot 3 / Maven / JDBC / H2 文件库，保留重启数据。H2 仅为本地演示存储。Node 22 / TypeScript / Xpert SDK 3.18.4 / ESM；单独包目录，不修改上游业务代码。
+## 2. 一次交互
 
-## API 合同
+1. 页面调用 `intake_contract`，由插件请求 Java `POST /api/contracts/intake`，保存标题、原文和六个空字段。
+2. 返回 `DRAFT`、`version=1`、`extractionPending=true`，审计为 `RECEIVED`。页面此时已经拿到可恢复的记录 ID。
+3. 页面向助手发送记录 ID。模型调用 `contract_review_get` 读取服务端原文，再通过 `contract_review_candidates` 提交字段和依据。
+4. Java 校验依据确实来自已保存原文，以版本条件写入候选并记 `EXTRACTED`。正常首次提取后为 v2，`extractionPending=false`。
+5. 人工修改后，页面发送 `expectedVersion` 保存修订，记 `UPDATED`；典型流程为 v3。
+6. 人工确认时再次校验版本和关键字段，记 `CONFIRMED`；典型流程为 v4。摘要读取已保存结果，不另让模型重写。
 
-服务基址默认 http://127.0.0.1:8097，全部 /api/contracts 请求要求 Bearer CONTRACT_SERVICE_TOKEN。身份通过受信任插件设置的 X-Tenant-Id、X-Organization-Id、X-User-Id、X-Assistant-Id 四个头传入，不能为空。插件从 Xpert 执行上下文取值，模型、浏览器入参不得覆盖。四维组合为记录访问边界。
+v2/v3/v4 是“提取一次、人工保存一次、确认一次”的示例。每次有效修订都会递增版本，不能在客户端写死版本号。
 
-DTO：FieldValue={value:string,evidence:string}；Fields={partyA:FieldValue|null,partyB:FieldValue|null,amount:FieldValue|null,effectiveDate:FieldValue|null,expiryDate:FieldValue|null,paymentTerms:FieldValue|null}。每个 value/evidence 非空，evidence 必须为 sourceText 的连续子串，value 必须为 evidence 的子串；sourceText 不可在创建后修改。
+## 3. 数据契约
 
-- GET /health：公开返回 {status:"UP"}，不返回配置。
-- POST /api/contracts：{requestKey,title,sourceText,fields}，创建 DRAFT，HTTP 201；相同作用域 requestKey 与相同负载返回原记录，HTTP 200；同键不同负载为 409。sourceText 上限 50000 字符，title 上限 120，requestKey 上限 128。
-- POST /api/contracts/extract：仅 `local-extraction` 配置启用，接收 {requestKey,title,sourceText}，正文上限 6000 字符。Java 在数据库事务之外调用 Ollama，只接受六个候选字段，保留服务收到的原始正文；严格解析并复用原文依据校验、作用域和创建事务。成功后仅为 DRAFT，不自动确认。模型超时、无效输出、并发繁忙必须明确失败，不使用 fixture 兜底。
-- GET /api/contracts：{items:Contract[]}，最多返回最新 50 条摘要（不返回 sourceText、fields；包含 id,title,status,version,updatedAt,warnings）。
-- GET /api/contracts/{id}：完整 Contract。不存在或作用域不同统一 404。
-- PUT /api/contracts/{id}：{expectedVersion,fields}，只修改 DRAFT；校验依据、CAS 版本、事务内更新并记录审计。冲突 409。
-- POST /api/contracts/{id}/confirm：{expectedVersion}。只允许 DRAFT，partyA、partyB、amount 缺失或双方相同则 422；确认后 version+1。对 CONFIRMED、版本恰好为 expectedVersion+1 的重复确认返回原记录，不重复审计；其他冲突 409。
-- GET /api/contracts/{id}/summary：{status,summary}；DRAFT 摘要明确待核对，CONFIRMED 摘要明确已人工确认，不表示合同审批通过或法律有效。
+```text
+FieldValue = { value: string, evidence: string }
+Fields = {
+  partyA: FieldValue|null, partyB: FieldValue|null,
+  amount: FieldValue|null, effectiveDate: FieldValue|null,
+  expiryDate: FieldValue|null, paymentTerms: FieldValue|null
+}
+Contract = {
+  id, title, sourceText, fields,
+  status: DRAFT|CONFIRMED, version, extractionPending,
+  warnings, createdAt, updatedAt,
+  audit: [{ action, actorId, at }]
+}
+```
 
-Contract={id,title,sourceText,fields,status:"DRAFT"|"CONFIRMED",version,warnings:string[],createdAt,updatedAt,audit:[{action:"CREATED"|"UPDATED"|"CONFIRMED",actorId,at}]}。错误={code,message}，不回传堆栈、SQL、token。非法参数 400，字段证据不匹配 422，作用域/凭证问题 401。请求正文限制和明确超时。
+标题最多 120 字符；通用原文接口最多 50,000 字符，本地 Ollama 提取最多 6,000 字符。缺失信息用 `null`，不猜测。字段值和依据不能为空。JSON DTO 拒绝未知属性，`candidates` 不能额外夹带新原文。
 
-## 插件与界面
+| 请求 | 请求体 / 结果 |
+|---|---|
+| `POST /api/contracts/intake` | `{title, sourceText}`；创建或复用原文草稿 |
+| `POST /api/contracts/{id}/candidates` | `{fields}`；返回保存后的记录，或已有更晚结果 |
+| `GET /api/contracts` | `{items:[...]}`，最多最近 50 条 |
+| `GET /api/contracts/{id}` | 返回完整记录，包括原文及审计 |
+| `PUT /api/contracts/{id}` | `{expectedVersion, fields}`；只修改草稿 |
+| `POST /api/contracts/{id}/confirm` | `{expectedVersion}`；确认或幂等返回既有确认 |
+| `GET /api/contracts/{id}/summary` | `{status, summary}` |
+| `POST /api/contracts/extract` | 本地 profile：`{requestKey, title, sourceText}` |
+| `POST /api/contracts` | 兼容/fixture：`{requestKey, title, sourceText, fields}` |
 
-Plugin meta 提供 app、middleware、view、assistant-template，并附模板 DSL。Agent 工具仅包含 create/get/list/summary，不能确认或修改。服务调用基址和 token 为插件服务端配置，token 不进入 iframe、工具参数、日志或导出包。无凭证安装可以加载插件，但使用时明确提示配置缺失。
+`POST /api/contracts` 保留用于测试草稿与兼容，审计为 `CREATED`；当前 Agent 不暴露此入口。
 
-工作台通过平台 bridge 请求列表和详情、编辑六字段及依据、保存、确认、复制摘要；不让浏览器直连 Java。文本展示使用 textContent 或安全 DOM API。所有操作支持 pending、失败提示和刷新；确认遇到版本冲突保留输入并提示重新读取。原文展示、字段依据和缺失项清楚可见。
+## 4. 身份与权限
 
-## 验证与限制
+所有业务请求必须携带 Bearer 服务令牌及 `X-Tenant-Id`、`X-Organization-Id`、`X-User-Id`、`X-Assistant-Id`，共同构成访问范围。插件从宿主上下文解析身份，模型参数不包含这些身份字段。跨范围读取按不存在处理，避免暴露其他范围的数据。
 
-Java 集成测试覆盖正常流、证据错误、缺失必填、幂等冲突、重复确认、并发版本更新、作用域隔离、鉴权、持久化配置。插件完成类型检查、构建、adapter 测试、模板一致性检查、npm pack 内容检查，以及根 AGENTS 要求的 plugin-dev-harness 生命周期验证。
+服务令牌在 Java 与插件服务端配置。页面和模型看不到令牌。`/health` 公开，只返回健康状态。HTTP 错误返回 `{code,message}`，不返回 SQL、堆栈或令牌。
 
-Xpert 模型与工作台的整体验收仍需实际 Xpert 环境和登录配置。本地 Ollama 调用可独立验证真实提取与 Java 保存，但不代替平台安装、平台工具调用和宿主权限验收。README 分别记录已验证和待验证项。
+插件注册时注入 `() => context.config`，客户端在每次请求开始时解析当前配置。这样后台修改服务地址或令牌后，后续请求会采用新值，不会继续持有注册时的配置快照。配置边界仍由同一 schema 校验；适配层测试覆盖运行中的配置变更。
+
+Agent 仅有 get、candidates、list、summary 四个工具；页面 action 才有 intake、update、confirm、summary。页面展示使用文本赋值或安全 DOM，合同正文不作为 HTML 执行。
+
+## 5. 幂等、原子性和迟到结果
+
+原文接收键是 `intake:` 加对 `{title,sourceText}` JSON 的 SHA-256。数据库唯一约束包含访问范围和请求键。相同范围内相同标题、原文复用同一记录；它是精确内容复用，不做相似合同识别。
+
+本地 `/extract` 先建立 `contract_extraction_requests` 记录，把范围、调用方 `requestKey`、原文哈希和合同 ID 绑定。已有页面 intake 草稿时直接复用。创建/复用与请求键绑定在同一事务中；并发唯一键冲突后回滚重读，最多尝试 3 次。同键对应不同原文返回 `IDEMPOTENCY_CONFLICT`。绑定表外键在合同删除时级联清理；当前页面不提供合同删除功能。
+
+模型推理在数据库事务外执行，避免长时间占有数据库连接。模型返回后另开短事务：读取服务端原文并校验证据，按原版本及 `DRAFT` 条件更新。只有仍处于待提取状态的记录可以首次写候选。
+
+如果另一提取请求、人工修订或确认已先完成，迟到候选返回已保存的当前结果，不再覆盖。重复候选不递增版本、不重复记审计。人工修订和确认使用 `expectedVersion` 比较更新，旧版本返回 `VERSION_CONFLICT`。
+
+确认重复请求只在记录已确认且当前版本恰好是调用方预期版本加一时认作重放；不能把任意旧请求当作确认成功。确认条件更新的并发失败也会重读并判断是否为同一次已完成确认。
+
+## 6. 待提取、失败和恢复
+
+`extractionPending` 是服务端计算属性：初始 `RECEIVED` 的 v1 草稿仍在等待候选。失败保留这份记录及原文，刷新通过列表和 ID 找回，再次尝试同一合同。
+
+待提取草稿不能确认，返回 `EXTRACTION_PENDING`。人工也可以对照原文填写并保存，保存后不再处于待提取状态；确认仍需满足甲方、乙方、金额等关键字段要求。已确认记录不能继续修订。
+
+字段依据不匹配返回 `EVIDENCE_MISMATCH`，不写入错误候选。模型超时、不可用、无效 JSON 或忙碌都会明确失败，本地演示不以 fixture 兜底。超时、中断和无效输出的错误文案明确说明原文已经保存、候选未提取成功，避免误导用户认为原文也丢失。重复提交已经完成的记录，页面复用结果，不再启动本地提取。
+
+本地 Ollama 仅在 `local-extraction` profile 开启。默认 `qwen2.5:7b`、请求超时 180 秒、单并发；平台模式由 Xpert 的模型工具链完成提取。这两条推理入口共用 Java 原文、校验和确认规则，但不能把本地模式成功视作平台模式通过。
+
+## 7. 持久化和验证边界
+
+演示使用 H2 文件库，记录、版本和审计一起持久化。自动测试包含文件库重新启动后的读取。生产数据库适配、集群扩容、完整操作权限体系不在本次范围内。
+
+验证分为 Java 接口/持久化、TypeScript 适配层、JSDOM 页面与 HTTP 桥接、本地真实浏览器和真实 Xpert 平台。2026-09-22 已在真实 Xpert 工作台完成原文保存、Agent get/candidates 调用、Ollama 提取、人工修改、确认和刷新读取。另受控注入一次保存 HTTP 503，验证保留修改、阻止确认及重试恢复。
+
+平台验收使用测试管理员及“合同助手本地验证”组织。用户原账号也已成为该组织的有效成员，切换组织后可以打开助手；合同数据仍按用户等四维范围隔离。结果分别记录于 [validation.md](validation.md)，不以健康接口或插件加载成功替代完整业务验收。

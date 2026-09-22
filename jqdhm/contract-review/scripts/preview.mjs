@@ -7,7 +7,7 @@ import { ContractReviewViewProvider } from '../dist/lib/view-provider.js';
 import { contractSchema, localExtractionCapabilitySchema, localExtractSchema } from '../dist/lib/contracts.js';
 
 const scope = { hostType: 'agent', hostId: 'demo-assistant', tenantId: 'demo-tenant', organizationId: 'demo-org', userId: 'demo-user' };
-const actionKeys = new Set(['update_contract', 'confirm_contract', 'get_summary']);
+const actionKeys = new Set(['update_contract', 'confirm_contract', 'get_summary', 'intake_contract']);
 
 export async function startPreview({ serviceUrl = 'http://127.0.0.1:8097', serviceToken = process.env.CONTRACT_SERVICE_TOKEN, port = 4397, localExtraction = { enabled: false, model: 'qwen2.5:7b' } } = {}) {
   if (!serviceToken) throw new Error('CONTRACT_SERVICE_TOKEN is required. Use npm run demo for an ephemeral local token.');

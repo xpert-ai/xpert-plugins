@@ -5,7 +5,7 @@ import { AgentMiddlewareStrategy } from '@xpert-ai/plugin-sdk'
 import type { AgentMiddleware, IAgentMiddlewareContext, IAgentMiddlewareStrategy } from '@xpert-ai/plugin-sdk'
 import { ContractServiceClient } from './client.js'
 import { FEATURE, MIDDLEWARE_NAME, TOOL_NAMES } from './constants.js'
-import { createSchema, emptyInputSchema, idInputSchema, publicError } from './contracts.js'
+import { candidatesSchema, emptyInputSchema, idInputSchema, publicError } from './contracts.js'
 import { scopeFromAgent } from './scope.js'
 
 @Injectable()
@@ -29,9 +29,9 @@ export class ContractReviewMiddleware implements IAgentMiddlewareStrategy<Record
     return {
       name: MIDDLEWARE_NAME,
       tools: [
-        tool((input) => respond(() => this.client.create(scope, input)), {
-          name: TOOL_NAMES[0], schema: createSchema,
-          description: 'Create a DRAFT from user-supplied contract text. Copy sourceText verbatim. Every non-null value must be an exact substring of its evidence, and evidence must quote sourceText verbatim. All six field keys are required; missing information is null. Use the user-provided requestKey unchanged and reuse it for retries. This does not approve or confirm a contract.'
+        tool((input) => respond(() => this.client.candidates(scope, input)), {
+          name: TOOL_NAMES[0], schema: candidatesSchema,
+          description: 'Submit candidate fields for an already saved contractId. Read original text with contract_review_get first. Every non-null value must be an exact substring of its evidence, and evidence must quote the stored original text verbatim. All six field keys are required; missing information is null. Cannot replace original text, human edits or confirmed records. This does not approve or confirm a contract.'
         }),
         tool((input) => respond(() => { emptyInputSchema.parse(input); return this.client.list(scope) }), {
           name: TOOL_NAMES[1], schema: emptyInputSchema, description: 'List the latest 50 contract summaries accessible to the current trusted assistant and user.'

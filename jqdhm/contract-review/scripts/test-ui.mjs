@@ -13,7 +13,8 @@ const tick = () => new Promise(resolve => setTimeout(resolve, 0));
 
 async function mount(options={}) {
   const outgoing=[];
-  let dom, rejectUpdates=Boolean(options.rejectUpdates), extractFailures=options.extractFailures||0, current=structuredClone(contract);
+  let dom, rejectUpdates=Boolean(options.rejectUpdates), extractFailures=options.extractFailures||0, current=structuredClone(options.initialContract||{...contract,title:contract.title+'（已存记录）',extractionPending:false});
+  const records=new Map([[JSON.stringify([current.title,current.sourceText]),current]]);
   const timeouts=[];
   const origin='http://localhost:4397';
   const deliver=(data, fromParent=true)=>dom.window.dispatchEvent(new dom.window.MessageEvent('message',{ data:{channel:'xpertai.remote_component',protocolVersion:1,instanceId:'test-instance',...data},origin,source:fromParent?dom.window.parent:null }));
@@ -25,12 +26,19 @@ async function mount(options={}) {
     window.postMessage=message=>{outgoing.push(message);if(message.type==='ready')return;queueMicrotask(()=>{
       if(message.type==='requestData')deliver({type:'data',requestId:message.requestId,data:{items:[{id:current.id,title:current.title,status:current.status,version:current.version}],meta:{selected:message.query.parameters?.contractId?structuredClone(current):null}}});
       if(message.type==='executeAction'){
+        if(message.actionKey==='intake_contract'){
+          const key=JSON.stringify([message.input.title,message.input.sourceText]);
+          if(records.has(key))current=records.get(key);
+          else {current={...structuredClone(contract),id:randomUUID(),version:1,extractionPending:true,title:message.input.title,sourceText:message.input.sourceText,fields:Object.fromEntries(Object.keys(source.fields).map(key=>[key,null]))};records.set(key,current);}
+        }
         if(message.actionKey==='extract_contract' && extractFailures-->0){deliver({type:'error',requestId:message.requestId,message:'本地模型暂时不可用，请稍后重试。'});return;}
+        if(message.actionKey==='extract_contract' && current.extractionPending)current={...current,fields:structuredClone(source.fields),extractionPending:false,version:current.version+1};
         if(message.actionKey==='update_contract'){
           if(rejectUpdates){deliver({type:'actionResult',requestId:message.requestId,result:{success:false,data:{code:'CONFLICT',message:'conflict'}}});return;}
-          current={...current,fields:structuredClone(message.input.fields),version:current.version+1};
+          current={...current,fields:structuredClone(message.input.fields),extractionPending:false,version:current.version+1};
         }
         if(message.actionKey==='confirm_contract')current={...current,status:'CONFIRMED',version:current.version+1};
+        records.set(JSON.stringify([current.title,current.sourceText]),current);
         deliver({type:'actionResult',requestId:message.requestId,result:{success:true,data:message.actionKey==='get_summary'?{status:current.status,summary:'已人工确认的摘要'}:structuredClone(current)}});
       }
       if(message.type==='invokeClientCommand')deliver({type:'clientCommandResult',requestId:message.requestId,result:{success:true}});
@@ -53,7 +61,7 @@ test('save and confirm transition to a read-only review with summary',async()=>{
   const app=await mount();try{await app.select();const doc=app.dom.window.document;doc.getElementById('save').click();await tick();assert.equal(app.current.version,1);doc.getElementById('confirm').click();await tick();assert.equal(app.current.status,'CONFIRMED');assert.equal(doc.querySelectorAll('.field input:disabled').length,6);assert.equal(doc.getElementById('confirm'),null);doc.getElementById('get-summary').click();await tick();assert.match(doc.getElementById('summary').textContent,/已人工确认的摘要/);}finally{app.dom.window.close();}
 });
 test('tool submission preserves a requestKey for repeated same-content attempts',async()=>{
-  const app=await mount();try{const doc=app.dom.window.document;doc.getElementById('sample').click();doc.getElementById('send').click();await tick();doc.getElementById('send').click();await tick();const commands=app.outgoing.filter(m=>m.type==='invokeClientCommand');assert.equal(commands.length,2);const key=text=>text.match(/requestKey: ([^\n]+)/)[1];assert.equal(key(commands[0].payload.text),key(commands[1].payload.text));assert.match(commands[0].payload.text,/contract_review_create/);assert.match(commands[0].payload.text,/不要确认合同/);}finally{app.dom.window.close();}
+  const app=await mount();try{const doc=app.dom.window.document;doc.getElementById('sample').click();doc.getElementById('send').click();await tick();doc.getElementById('send').click();await tick();const commands=app.outgoing.filter(m=>m.type==='invokeClientCommand');assert.equal(commands.length,2);const key=text=>text.match(/contractId: ([^\n]+)/)[1];assert.equal(key(commands[0].payload.text),key(commands[1].payload.text));assert.match(commands[0].payload.text,/contract_review_candidates/);assert.match(commands[0].payload.text,/不要确认合同/);}finally{app.dom.window.close();}
 });
 test('malicious contract text is not interpreted as markup',async()=>{
   const app=await mount();try{app.current.title='<img src=x onerror="window.compromised=true">';app.current.sourceText='<script>window.compromised=true</script>';await app.select();assert.equal(app.dom.window.compromised,undefined);assert.equal(app.dom.window.document.querySelector('#detail img'),null);assert.match(app.dom.window.document.querySelector('.source').textContent,/<script>/);}finally{app.dom.window.close();}
@@ -89,10 +97,45 @@ test('local extraction failure retains entered text and reuses requestKey when r
     assert.match(doc.getElementById('notice').textContent,/不可用/);
     assert.equal(doc.getElementById('source-input').value,original);
     assert.equal(doc.getElementById('send').disabled,false);
-    doc.getElementById('send').click();await tick();
+    const id=app.current.id;
+    assert.equal(app.current.extractionPending,true);
+    assert.equal(doc.getElementById('confirm').disabled,true);
+    doc.getElementById('retry-extraction').click();await tick();
     const commands=app.outgoing.filter(m=>m.actionKey==='extract_contract');
     assert.equal(commands.length,2);assert.equal(commands[0].input.requestKey,commands[1].input.requestKey);
     assert.equal(doc.querySelectorAll('.field input').length,6);
+    assert.equal(app.current.id,id);
+    assert.equal(app.current.extractionPending,false);
+    assert.equal(doc.getElementById('retry-extraction'),null);
+    assert.equal(doc.getElementById('confirm').disabled,false);
+  }finally{app.dom.window.close();}
+});
+
+test('restored pending draft can retry after page refresh without replacing its identity',async()=>{
+  const pendingDraft={...contract,id:'restored-contract',version:1,extractionPending:true,fields:Object.fromEntries(Object.keys(source.fields).map(key=>[key,null]))};
+  const app=await mount({initialContract:pendingDraft,localExtraction:{enabled:true,model:'qwen2.5:7b'}});
+  try{
+    const doc=app.dom.window.document;
+    assert.equal(doc.getElementById('confirm').disabled,true);
+    doc.getElementById('retry-extraction').click();await tick();
+    assert.equal(app.current.id,'restored-contract');
+    assert.equal(app.current.version,2);
+    assert.equal(app.current.extractionPending,false);
+    assert.equal(doc.getElementById('retry-extraction'),null);
+    assert.equal(app.outgoing.filter(m=>m.actionKey==='extract_contract').length,1);
+  }finally{app.dom.window.close();}
+});
+
+test('duplicate local submission reopens saved candidates without another model call',async()=>{
+  const app=await mount({localExtraction:{enabled:true,model:'qwen2.5:7b'}});
+  try{
+    const doc=app.dom.window.document;doc.getElementById('sample').click();doc.getElementById('send').click();await tick();
+    const firstId=app.current.id,version=app.current.version;
+    doc.getElementById('send').click();await tick();
+    assert.equal(app.current.id,firstId);
+    assert.equal(app.current.version,version);
+    assert.equal(app.outgoing.filter(m=>m.actionKey==='extract_contract').length,1);
+    assert.match(doc.getElementById('notice').textContent,/保留已有提取结果/);
   }finally{app.dom.window.close();}
 });
 
@@ -109,9 +152,12 @@ test('replaying an extraction whose draft was already confirmed displays the exi
   const app=await mount({localExtraction:{enabled:true,model:'qwen2.5:7b'}});
   try{
     app.current.status='CONFIRMED';
-    const doc=app.dom.window.document;doc.getElementById('sample').click();doc.getElementById('send').click();await tick();
+    const doc=app.dom.window.document;doc.getElementById('title').value=app.current.title;doc.getElementById('source-input').value=app.current.sourceText;doc.getElementById('send').click();await tick();
     assert.equal(doc.querySelectorAll('.field input:disabled').length,6);
     assert.equal(app.outgoing.filter(m=>m.actionKey==='confirm_contract').length,0);
+    assert.equal(app.outgoing.filter(m=>m.actionKey==='extract_contract').length,0);
+    assert.equal(app.outgoing.filter(m=>m.type==='invokeClientCommand').length,0);
+    assert.equal(doc.getElementById('retry-extraction'),null);
   }finally{app.dom.window.close();}
 });
 

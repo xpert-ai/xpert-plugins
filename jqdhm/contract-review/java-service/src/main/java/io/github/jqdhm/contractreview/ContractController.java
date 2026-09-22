@@ -36,6 +36,19 @@ public class ContractController {
         return ResponseEntity.status(result.created() ? 201 : 200).body(result.contract());
     }
 
+    @PostMapping("/api/contracts/intake")
+    public ResponseEntity<Contract> intake(@RequestAttribute(Scope.REQUEST_ATTRIBUTE) Scope scope,
+                                            @Valid @RequestBody IntakeRequest request) {
+        CreateResult result = service.intake(scope, request);
+        return ResponseEntity.status(result.created() ? 201 : 200).body(result.contract());
+    }
+
+    @PostMapping("/api/contracts/{id}/candidates")
+    public Contract candidates(@RequestAttribute(Scope.REQUEST_ATTRIBUTE) Scope scope,
+                               @PathVariable String id, @Valid @RequestBody CandidatesRequest request) {
+        return service.candidates(scope, id, request);
+    }
+
     @GetMapping("/api/contracts")
     public ContractList list(@RequestAttribute(Scope.REQUEST_ATTRIBUTE) Scope scope) {
         return service.list(scope);
