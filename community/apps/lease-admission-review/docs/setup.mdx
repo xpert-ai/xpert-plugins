@@ -62,3 +62,31 @@ The original suite still passes ten rule/real-PostgreSQL tests without skips. Bu
 After API restart, both ordinary users recovered their saved snapshots through localhost and 127.0.0.1. Cross-tenant/organization/assistant isolation remains service/database evidence; it is not claimed as additional browser-account coverage. The full host source build and optional historical-case reference are not part of this patch.
 
 Dark/default and dark/compact theme messages were also sent from the actual parent into the installed iframe; background, semantic borders and density were checked, and the original theme was restored. This is a protocol smoke test, not a claim that host settings were changed. Keyboard selection waits for the Radix option to receive focus before advancing; dispatching several keys without waiting had tested the wrong option.
+
+## Reproduce the local validation
+
+Use an isolated official Docker deployment with API, Web, PostgreSQL and Redis. The installed plugin's entities must already exist; for an earlier 0.1 installation, run the [additive upgrade](scoring) first. The API container must be able to read the plugin workspace and its Linux dependencies. Replace the container/path placeholders below with your deployment values.
+
+Build/typecheck/verify commands in the README run in the Node 22 builder from the community workspace. In the API container, run the real PostgreSQL tests with its existing database environment; do not copy those credentials into source or command arguments:
+
+~~~sh
+docker exec -e REVIEW_TEST_DB_HOST=db \
+  -w /workspace/xpert-plugins/community/apps/lease-admission-review \
+  <api-container> node --test test/contracts.test.cjs test/scoring.test.cjs test/postgres.test.cjs test/draft-postgres.test.cjs
+
+docker exec -w /workspace/xpert-plugins <api-container> \
+  node plugin-dev-harness/dist/index.js --workspace ./community \
+  --plugin @xpert-ai/plugin-lease-admission-review
+~~~
+
+The tests consume DB_USER, DB_PASS and DB_NAME from the API environment and use PostgreSQL port 5432. Set REVIEW_TEST_DB_HOST to the actual test database service name. Without that variable the two database suites skip; a skipped run is not full acceptance. Tests use randomized synthetic identities and clean up their own fixtures. Harness dependencies/build follow its repository README; its infrastructure remains mocked.
+
+For installation, derive community/.env from community/env.example, using only local values for XPERT_API_URL, XPERT_TOKEN, XPERT_INSTALL_SCOPE=global and the tenant identifier required by the current deploy helper. Example values in documentation are placeholders, never operational credentials. Run the platform's documented plugin:deploy:local command with the plugin directory, tenant scope and API origin, then honor its restart requirement. Select the contributed assistant template, choose the host model, create/publish the assistant and open its workbench. No plugin-specific external API is required beyond that host model.
+
+The source baseline for this plugin branch is ceb57e6fd5f9ccea48d5e8f8b431e4baae4f4e55; the tested UI code is commit 81f9809691d7e910e95ce22751d200615192f433, with subsequent screenshot/documentation updates. Host source baseline and actual API/Web image digests are recorded above. The newer upstream branch was checked for merge conflicts before submission; it was not substituted for the tested host images.
+
+## User walkthrough and known host limitation
+
+On 2026-09-22 the user reported completing manual acceptance with results broadly consistent with the recorded development acceptance. This is user-reported overall acceptance, not an independently observed rerun of every automated test.
+
+The local marketplace detail route spent about 49 seconds waiting for its detail response. Adding the existing sourceId=platform-registry query parameter reduced the observed browser response to about 0.5 seconds and returned the installed 0.2.1 plugin. This selects a host marketplace source; it does not change permissions or publish the plugin. The current host returned a short description rather than the full installed README. Use this repository's README for complete instructions/images and the assistant workbench for business operations. The default marketplace aggregation behavior was not changed.
