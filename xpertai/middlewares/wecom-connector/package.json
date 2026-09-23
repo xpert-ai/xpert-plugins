@@ -32,7 +32,8 @@
   ],
   "dependencies": {
     "tslib": "^2.3.0",
-    "undici": "^7.29.0"
+    "undici": "^7.29.0",
+    "@xpert-ai/connector-runtime": "workspace:^"
   },
   "peerDependencies": {
     "@langchain/core": "0.3.72",

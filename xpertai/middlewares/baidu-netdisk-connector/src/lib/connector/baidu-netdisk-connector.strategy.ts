@@ -1,3 +1,4 @@
+import { createOAuth2Driver } from '@xpert-ai/connector-runtime'
 import { createHash } from 'node:crypto'
 import { Injectable } from '@nestjs/common'
 import {
@@ -12,7 +13,7 @@ import {
   type ConnectorProfile,
   type ConnectorRuntimeCredentialResolveInput
 } from '@xpert-ai/plugin-sdk'
-import { BAIDU_NETDISK_AUTH_METHOD_OAUTH, BAIDU_NETDISK_CONNECTOR_PROVIDER } from '../constants.js'
+import { BAIDU_NETDISK_AUTH_METHOD_OAUTH, BAIDU_NETDISK_CONNECTOR_PROVIDER, BAIDU_NETDISK_AUTHORIZE_URL, BAIDU_NETDISK_TOKEN_URL } from '../constants.js'
 import { BAIDU_NETDISK_ICON } from '../branding.js'
 import { BaiduNetdiskConnectorError, readString, requireString } from '../errors.js'
 import { BaiduNetdiskOAuthClient } from './baidu-netdisk-oauth.client.js'
@@ -80,27 +81,42 @@ export class BaiduNetdiskConnectorStrategy implements ConnectorMultiAuthStrategy
     private readonly oauth: BaiduNetdiskOAuthClient
   ) {}
 
+  private driver(app: Awaited<ReturnType<BaiduNetdiskOAuthConfigService['resolve']>>) {
+    return createOAuth2Driver({
+      kind: 'oauth2', authMethodId: BAIDU_NETDISK_AUTH_METHOD_OAUTH,
+      authorizationEndpoint: app.config.authorizationUrl || BAIDU_NETDISK_AUTHORIZE_URL,
+      tokenEndpoint: app.config.tokenUrl || BAIDU_NETDISK_TOKEN_URL,
+      encoding: 'query', clientAuthentication: 'client_secret_post', pkce: false,
+      scopes: app.config.scopes, scopeSeparator: ',', authorizationParameters: { qrcode: '1' }
+    }, {
+      assertAuthMethod,
+      stateError: oauthStateError,
+      resolveApp: async () => ({ integrationId: app.integrationId, clientId: app.config.appKey, clientSecret: app.config.secretKey }),
+      createMetadata: (_client, input): PendingOAuthMetadata => ({
+        version: 1, integrationId: app.integrationId,
+        appKeyFingerprint: fingerprint(app.config.appKey), redirectUri: input.redirectUri,
+        scopes: resolveScopes(input.scopes, app.config.scopes)
+      }),
+      validateMetadata: (_client, input) => {
+        const metadata = readPendingMetadata(input.metadata)
+        if (fingerprint(app.config.appKey) !== metadata.appKeyFingerprint)
+          throw oauthStateError('Baidu OAuth application configuration changed during authorization.')
+        resolveScopes(metadata.scopes, app.config.scopes)
+      },
+      requestToken: (_client, values) => values.grant_type === 'refresh_token'
+        ? this.oauth.refresh(app.config, values.refresh_token)
+        : this.oauth.exchangeCode(app.config, requireString(values.code, 'Baidu authorization code'), values.redirect_uri),
+      toCredential: (token, _client, previous, scopes) => toCredential(
+        token, app.integrationId, app.config.appKey,
+        resolveScopes(scopes, app.config.scopes), previous?.profile ?? undefined
+      )
+    })
+  }
+
   async connect(input: ConnectorConnectInput): Promise<ConnectorConnectResult> {
     assertAuthMethod(input.authMethodId)
     const app = await this.oauthConfig.resolve()
-    const scopes = resolveScopes(input.scopes, app.config.scopes)
-    const metadata: PendingOAuthMetadata = {
-      version: 1,
-      integrationId: app.integrationId,
-      appKeyFingerprint: fingerprint(app.config.appKey),
-      redirectUri: input.redirectUri,
-      scopes
-    }
-    return {
-      status: 'pending',
-      authorizationUrl: this.oauth.buildAuthorizationUrl(app.config, {
-        redirectUri: input.redirectUri,
-        state: input.state,
-        scopes
-      }),
-      scopes,
-      metadata
-    }
+    return this.driver(app).connect({ ...input, scopes: resolveScopes(input.scopes, app.config.scopes) })
   }
 
   async exchangeAuthorizationCode(input: ConnectorAuthorizationCodeInput): Promise<ConnectorCredential> {
@@ -109,29 +125,13 @@ export class BaiduNetdiskConnectorStrategy implements ConnectorMultiAuthStrategy
     if (metadata.redirectUri !== input.redirectUri)
       throw oauthStateError('Baidu OAuth redirect URI does not match the authorization request.')
     const app = await this.oauthConfig.resolve(metadata.integrationId)
-    if (fingerprint(app.config.appKey) !== metadata.appKeyFingerprint)
-      throw oauthStateError('Baidu OAuth application configuration changed during authorization.')
-    const token = await this.oauth.exchangeCode(
-      app.config,
-      requireString(input.code, 'Baidu authorization code'),
-      input.redirectUri
-    )
-    return toCredential(token, app.integrationId, app.config.appKey, resolveScopes(metadata.scopes, app.config.scopes))
+    return this.driver(app).exchangeAuthorizationCode(input)
   }
 
   async refreshConnectionCredential(input: ConnectorCredentialRefreshInput): Promise<ConnectorCredential> {
     assertAuthMethod(input.authMethodId)
-    const integrationId = readString(input.credential.data.integrationId)
-    const app = await this.oauthConfig.resolve(integrationId)
-    const refreshToken = requireString(input.credential.data.refreshToken, 'Baidu refresh token')
-    const token = await this.oauth.refresh(app.config, refreshToken)
-    return toCredential(
-      token,
-      app.integrationId,
-      app.config.appKey,
-      resolveScopes(input.credential.scopes, app.config.scopes),
-      input.credential.profile ?? undefined
-    )
+    const app = await this.oauthConfig.resolve(readString(input.credential.data.integrationId))
+    return this.driver(app).refreshConnectionCredential(input)
   }
 
   resolveRuntimeCredential(input: ConnectorRuntimeCredentialResolveInput) {

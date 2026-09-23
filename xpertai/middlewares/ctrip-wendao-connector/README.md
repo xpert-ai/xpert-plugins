@@ -21,3 +21,7 @@ pnpm exec nx build @xpert-ai/plugin-ctrip-wendao-connector
 ```
 
 See [`docs/index.mdx`](docs/index.mdx) for setup and operations.
+
+## Shared Connector authentication
+
+This connector uses [`@xpert-ai/connector-runtime`](../../packages/connector-runtime/README.md) for shared authentication infrastructure. The migration retains its provider/auth-method IDs, credential format and vendor-specific adapters. See the shared migration matrix and verification command before releasing.

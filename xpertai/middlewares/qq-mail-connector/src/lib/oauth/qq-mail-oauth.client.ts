@@ -1,3 +1,4 @@
+import { oauthTokenRequest } from '@xpert-ai/connector-runtime'
 import { Injectable } from '@nestjs/common'
 import {
   QQ_MAIL_AUTHORIZATION_METADATA_URL,
@@ -125,15 +126,9 @@ export class QqMailOAuthClient {
   ): Promise<QqMailToken> {
     let response: Response
     try {
-      response = await fetch(QQ_MAIL_TOKEN_URL, {
-        method: 'POST',
-        redirect: 'error',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'User-Agent': 'Xpert-QQ-Mail-Connector'
-        },
-        body: new URLSearchParams(values)
+      response = await oauthTokenRequest({
+        endpoint: QQ_MAIL_TOKEN_URL, encoding: 'form', values,
+        headers: { 'User-Agent': 'Xpert-QQ-Mail-Connector' }
       })
     } catch (error) {
       throw new QqMailConnectorError(

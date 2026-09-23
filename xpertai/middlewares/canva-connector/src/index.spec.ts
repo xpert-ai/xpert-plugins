@@ -23,7 +23,7 @@ describe('Canva connector plugin', () => {
   it('keeps package metadata, namespace and organization level aligned', () => {
     expect(plugin.meta).toMatchObject({
       name: '@xpert-ai/plugin-canva-connector',
-      version: '0.1.0',
+      version: '0.2.0',
       level: 'organization',
       artifactNamespace: CANVA_ARTIFACT_NAMESPACE,
       category: 'middleware',
@@ -44,17 +44,17 @@ describe('Canva connector plugin', () => {
     )
   })
 
-  it('declares only the user-scoped MCP System Integration auth method', () => {
+  it('supports personal Connector accounts while retaining shared bindings', () => {
     const strategy = new CanvaConnectorStrategy({} as never, {} as never, { resolve: jest.fn() } as never)
     const definition = strategy.definition as unknown as {
-      connectionScope?: string
+      authorizationModes?: string[]
       authMethods: Array<{
         id: string
         hidden?: boolean
         appCredentials?: { fields?: Array<{ name: string; type: string; provider: string; required: boolean }> }
       }>
     }
-    expect(definition.connectionScope).toBe('user')
+    expect(definition.authorizationModes).toEqual(['personal', 'shared'])
     expect(definition.authMethods.map((method) => method.id)).toEqual(['mcp-oauth-cn'])
     expect(definition.authMethods[0].hidden).not.toBe(true)
     expect(definition.authMethods[0].appCredentials).toBeUndefined()

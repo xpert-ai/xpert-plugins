@@ -1,3 +1,7 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+const packageVersion: string = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8')).version
+
 jest.mock('@xpert-ai/plugin-sdk', () => ({
   AgentMiddlewareStrategy: () => (target: object) => target,
   ConnectorStrategyKey: () => (target: object) => target,
@@ -22,7 +26,7 @@ describe('Baidu Netdisk connector plugin', () => {
   it('keeps package metadata and registration aligned', () => {
     expect(plugin.meta).toMatchObject({
       name: '@xpert-ai/plugin-baidu-netdisk-connector',
-      version: '0.1.0',
+      version: packageVersion,
       level: BAIDU_NETDISK_PLUGIN_LEVEL,
       artifactNamespace: BAIDU_NETDISK_ARTIFACT_NAMESPACE,
       category: 'middleware',

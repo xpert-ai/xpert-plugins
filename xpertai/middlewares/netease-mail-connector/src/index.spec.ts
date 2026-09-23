@@ -1,3 +1,7 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+const packageVersion: string = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8')).version
+
 import plugin from './index.js'
 import { NETEASE_MAIL_ICON } from './lib/branding.js'
 import { NETEASE_MAIL_PLUGIN_LEVEL } from './lib/constants.js'
@@ -16,7 +20,7 @@ jest.mock('@langchain/core/tools', () => ({
 describe('NetEase Mail connector plugin', () => {
   it('keeps runtime and package metadata aligned', () => {
     expect(plugin.meta.name).toBe('@xpert-ai/plugin-netease-mail-connector')
-    expect(plugin.meta.version).toBe('0.1.0')
+    expect(plugin.meta.version).toBe(packageVersion)
     expect(plugin.meta.level).toBe(NETEASE_MAIL_PLUGIN_LEVEL)
     expect(plugin.meta.category).toBe('middleware')
     expect(plugin.meta.icon).toEqual(NETEASE_MAIL_ICON)

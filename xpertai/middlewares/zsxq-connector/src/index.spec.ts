@@ -1,3 +1,7 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+const packageVersion: string = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8')).version
+
 jest.mock('@xpert-ai/plugin-sdk', () => ({
   AgentMiddlewareStrategy: () => (target: object) => target,
   ConnectorStrategyKey: () => (target: object) => target,
@@ -14,7 +18,7 @@ describe('Knowledge Planet connector plugin', () => {
   it('keeps package and runtime metadata aligned', () => {
     expect(plugin.meta).toMatchObject({
       name: '@xpert-ai/plugin-zsxq-connector',
-      version: '0.1.0',
+      version: packageVersion,
       level: 'organization',
       artifactNamespace: ZSXQ_ARTIFACT_NAMESPACE,
       category: 'middleware',

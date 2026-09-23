@@ -1,3 +1,4 @@
+import { createCredentialDriver } from '@xpert-ai/connector-runtime'
 import { Injectable } from '@nestjs/common'
 import {
   ConnectorStrategyKey,
@@ -105,42 +106,34 @@ export class NeteaseMailConnectorStrategy implements ConnectorMultiAuthStrategy 
     ]
   }
 
-  async connect(input: ConnectorConnectInput): Promise<ConnectorConnectResult> {
-    assertAuthMethod(input.authMethodId)
-    const email = readRequiredCredentialString(input.values?.email, 'Mailbox address')
-    const authorizationCode = readRequiredCredentialString(
-      input.values?.authorizationCode,
-      'IMAP/SMTP authorization code'
-    )
-    const credential = createNeteaseMailCredential(email, authorizationCode)
-    await this.mailService.verifyCredential(credential)
-    const preset = resolveNeteaseMailPreset(credential.providerPreset)
+  private get driver() {
+    return createCredentialDriver({
+      authMethodId: NETEASE_MAIL_AUTH_METHOD_ID,
+      assertAuthMethod,
+      kind: 'mail_protocol',
+      parse: (values) => createNeteaseMailCredential(
+        readRequiredCredentialString(values?.email, 'Mailbox address'),
+        readRequiredCredentialString(values?.authorizationCode, 'IMAP/SMTP authorization code')
+      ),
+      verify: (credential) => this.mailService.verifyCredential(credential),
+      scopes: ['mail.read', 'mail.write'],
+      profile: (credential) => ({
+        email: credential.email, name: credential.email,
+        providerPreset: credential.providerPreset,
+        providerName: resolveNeteaseMailPreset(credential.providerPreset).label,
+        runtimeMiddleware: NETEASE_MAIL_RUNTIME_MIDDLEWARE_NAME
+      })
+    })
+  }
 
-    return {
-      status: 'active',
-      credential: {
-        data: credential,
-        scopes: ['mail.read', 'mail.write'],
-        profile: {
-          email: credential.email,
-          name: credential.email,
-          providerPreset: credential.providerPreset,
-          providerName: preset.label,
-          runtimeMiddleware: NETEASE_MAIL_RUNTIME_MIDDLEWARE_NAME
-        }
-      }
-    }
+  async connect(input: ConnectorConnectInput): Promise<ConnectorConnectResult> {
+    return this.driver.connect(input)
   }
 
   resolveRuntimeCredential(input: ConnectorRuntimeCredentialResolveInput) {
-    assertAuthMethod(input.authMethodId)
-    const email = readRequiredCredentialString(input.credential.data.email, 'Mailbox address')
-    const authorizationCode = readRequiredCredentialString(
-      input.credential.data.authorizationCode,
-      'IMAP/SMTP authorization code'
-    )
-    return createNeteaseMailCredential(email, authorizationCode)
+    return this.driver.resolveRuntimeCredential(input)
   }
+
 }
 
 function assertAuthMethod(authMethodId: string): void {

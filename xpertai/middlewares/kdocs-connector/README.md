@@ -38,3 +38,7 @@ corepack pnpm exec nx run @xpert-ai/plugin-kdocs-connector:build
 ## Production status
 
 The SkillHub authentication and MCP endpoints match the current WPS-hosted flow used by the public WPS Docs Skill. A production deployment still requires WPS approval for third-party product access, the Xpert request-source identifier, token lifecycle, revocation, scopes, SLA, and data-processing terms. The plugin intentionally does not send WorkBuddy's request-source header.
+
+## Shared Connector authentication
+
+This connector uses [`@xpert-ai/connector-runtime`](../../packages/connector-runtime/README.md) for shared authentication infrastructure. The migration retains its provider/auth-method IDs, credential format and vendor-specific adapters. See the shared migration matrix and verification command before releasing.

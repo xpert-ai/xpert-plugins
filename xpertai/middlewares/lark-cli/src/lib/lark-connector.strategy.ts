@@ -1,3 +1,4 @@
+import { pollBeforeDeadline, authorizationUrl } from '@xpert-ai/connector-runtime'
 import { Buffer } from 'node:buffer'
 import { gzipSync } from 'node:zlib'
 import { Injectable, Logger } from '@nestjs/common'
@@ -249,16 +250,11 @@ export class LarkConnectorStrategy implements ConnectorStrategy {
 
     const app = requireConnectorApp(input.app)
     const baseUrl = resolveOpenApiBaseUrl(app)
-    const authorizationUrl = new URL(`${baseUrl}/open-apis/authen/v1/authorize`)
-    authorizationUrl.searchParams.set('app_id', app.appId)
-    authorizationUrl.searchParams.set('redirect_uri', input.redirectUri)
-    authorizationUrl.searchParams.set('state', input.state)
-    if (scopes.length) {
-      authorizationUrl.searchParams.set('scope', scopes.join(' '))
-    }
-
     return {
-      authorizationUrl: authorizationUrl.toString(),
+      authorizationUrl: authorizationUrl(`${baseUrl}/open-apis/authen/v1/authorize`, {
+        app_id: app.appId, redirect_uri: input.redirectUri, state: input.state,
+        scope: scopes.length ? scopes.join(' ') : undefined
+      }),
       scopes
     }
   }
@@ -295,6 +291,15 @@ export class LarkConnectorStrategy implements ConnectorStrategy {
     const metadata = parseConnectorMetadata(input.metadata)
     const scopes = resolveConnectorScopes(input.scopes)
 
+    return pollBeforeDeadline({
+      expiresAt: metadata.expiresAt,
+      // Older persisted sessions did not always include an expiry.
+      allowMissingDeadline: true,
+      expiredMessage: 'Feishu authorization timed out. Start the connection again.'
+    }, () => this.pollAuthorizationPhase(metadata, scopes))
+  }
+
+  private async pollAuthorizationPhase(metadata: LarkConnectorMetadata, scopes: string[]): Promise<ConnectorAuthorizationPollResult> {
     if (metadata.phase === 'app_registration') {
       const appRegistration = await pollAppRegistration(metadata.deviceCode, metadata.interval)
       if (appRegistration.status === 'pending') {

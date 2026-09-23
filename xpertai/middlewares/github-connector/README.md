@@ -13,3 +13,7 @@ When the GitHub Connector middleware and `SandboxShell` are enabled on the same 
 The runtime writes a permission-restricted environment file under the sandbox `.xpert/secrets/github-connectors` directory, sources it only for the intercepted command, and removes the token file after the command completes. `GH_CONFIG_DIR` is isolated from the host configuration so `gh` does not use the API host's existing login.
 
 The sandbox image or local sandbox host must already provide the `gh` and `git` executables.
+
+## Shared Connector authentication
+
+This connector uses [`@xpert-ai/connector-runtime`](../../packages/connector-runtime/README.md) for shared authentication infrastructure. The migration retains its provider/auth-method IDs, credential format and vendor-specific adapters. See the shared migration matrix and verification command before releasing.

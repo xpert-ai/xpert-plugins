@@ -5,6 +5,7 @@ This is the source code repository for plugins on the [XpertAI platform](https:/
 ## Repository Structure
 
 - `xpertai/`: Official plugin projects, managed with the Nx build tool for multiple plugin packages.
+- `agent-plugins/`: Portable Agent Plugins resource packages (Exa, Notion, Linear, Supabase, Sentry and Canva China), with their own packaging tools and [upstream comparison](agent-plugins/docs/UPSTREAM.md). These use ZIP/Git import, not the native npm/Nest plugin lifecycle; see the [quickstart](agent-plugins/README.md).
 - `<your-org>/`: Partner or community contributor plugin directories (example). Please create a top-level directory using your company or organization’s English name, and maintain plugin projects within.
 
 ## Getting Started
@@ -85,3 +86,5 @@ After releasing your plugin, register/update plugin metadata in: <https://github
 - For repository maintenance issues: create an issue in the GitHub Issues section, describing the situation and steps to reproduce.
 
 Thank you for contributing to the XpertAI plugin ecosystem!
+
+- [Connector authentication framework and migration matrix](xpertai/packages/connector-runtime/README.md)

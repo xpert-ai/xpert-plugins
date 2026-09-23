@@ -1,3 +1,4 @@
+import { oauthTokenRequest } from '@xpert-ai/connector-runtime'
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import {
   ConnectorStrategyKey,
@@ -311,20 +312,21 @@ async function requestOAuthToken(input: {
   grantType: 'authorization_code' | 'refresh_token'
   refreshToken?: string
 }): Promise<DingTalkOAuthToken> {
-  const payload = await fetchJson(DINGTALK_CONNECTOR_TOKEN_URL, {
-    method: 'POST',
-    headers: {
-      accept: 'application/json',
-      'content-type': 'application/json'
-    },
-    body: JSON.stringify({
-      clientId: input.clientId,
-      clientSecret: input.clientSecret,
-      ...(input.code ? { code: input.code } : {}),
-      grantType: input.grantType,
-      ...(input.refreshToken ? { refreshToken: input.refreshToken } : {})
+  let response: Response
+  try {
+    response = await oauthTokenRequest({
+      endpoint: DINGTALK_CONNECTOR_TOKEN_URL, encoding: 'json',
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      values: {
+        clientId: input.clientId, clientSecret: input.clientSecret,
+        ...(input.code ? { code: input.code } : {}), grantType: input.grantType,
+        ...(input.refreshToken ? { refreshToken: input.refreshToken } : {})
+      }
     })
-  })
+  } catch (error) {
+    throw new Error(`DingTalk request failed: ${errorMessage(error)}`)
+  }
+  const payload = await readJsonResponse(response)
 
   const accessToken = readString(payload, ['accessToken', 'access_token'])
   if (!accessToken) {
@@ -352,6 +354,10 @@ async function fetchJson(url: string, init: RequestInit): Promise<Record<string,
     throw new Error(`DingTalk request failed: ${errorMessage(error)}`)
   }
 
+  return readJsonResponse(response)
+}
+
+async function readJsonResponse(response: Response): Promise<Record<string, unknown>> {
   let text: string
   try {
     text = await response.text()

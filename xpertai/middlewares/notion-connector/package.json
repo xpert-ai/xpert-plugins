@@ -32,7 +32,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.lib.json",
-    "test": "jest --config jest.config.ts --runInBand",
+    "test": "jest --config jest.config.cjs --runInBand",
     "typecheck": "tsc -p tsconfig.spec.json --noEmit"
   },
   "publishConfig": {
@@ -45,7 +45,8 @@
   },
   "dependencies": {
     "@notionhq/client": "^5.12.0",
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "@xpert-ai/connector-runtime": "workspace:^"
   },
   "peerDependencies": {
     "@langchain/core": "0.3.72",

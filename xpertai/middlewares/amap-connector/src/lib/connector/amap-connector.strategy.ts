@@ -1,3 +1,4 @@
+import { createCredentialDriver } from '@xpert-ai/connector-runtime'
 import { Buffer } from 'node:buffer'
 import { Injectable } from '@nestjs/common'
 import {
@@ -88,27 +89,26 @@ export class AmapConnectorStrategy implements ConnectorMultiAuthStrategy {
     ]
   }
 
-  async connect(input: ConnectorConnectInput): Promise<ConnectorConnectResult> {
-    assertAuthMethod(input.authMethodId)
-    const credential = readCredential(input.values)
-    await this.client.verifyCredential(credential)
-    return {
-      status: 'active',
-      credential: {
-        data: credential,
-        scopes: ['map.read'],
-        profile: {
-          name: 'AMap',
-          runtimeMiddleware: AMAP_RUNTIME_MIDDLEWARE_NAME
-        }
-      }
-    }
+  private get driver() {
+    return createCredentialDriver({
+      authMethodId: AMAP_AUTH_METHOD_ID,
+      assertAuthMethod,
+      kind: 'api_key',
+      parse: readCredential,
+      verify: (credential) => this.client.verifyCredential(credential),
+      scopes: ['map.read'],
+      profile: () => ({ name: 'AMap', runtimeMiddleware: AMAP_RUNTIME_MIDDLEWARE_NAME })
+    })
   }
 
-  resolveRuntimeCredential(input: ConnectorRuntimeCredentialResolveInput): AmapRuntimeCredential {
-    assertAuthMethod(input.authMethodId)
-    return readCredential(input.credential.data)
+  async connect(input: ConnectorConnectInput): Promise<ConnectorConnectResult> {
+    return this.driver.connect(input)
   }
+
+  resolveRuntimeCredential(input: ConnectorRuntimeCredentialResolveInput) {
+    return this.driver.resolveRuntimeCredential(input)
+  }
+
 }
 
 function assertAuthMethod(authMethodId: string): void {

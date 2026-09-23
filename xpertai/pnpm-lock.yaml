@@ -2569,6 +2569,9 @@ importers:
       '@nestjs/common':
         specifier: ^11.1.6
         version: 11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
+      '@xpert-ai/connector-runtime':
+        specifier: workspace:^
+        version: link:../../packages/connector-runtime
       '@xpert-ai/contracts':
         specifier: ^3.17.0
         version: 3.17.5(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(zod@3.25.67)
@@ -2590,6 +2593,9 @@ importers:
       '@nestjs/common':
         specifier: ^11.1.6
         version: 11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
+      '@xpert-ai/connector-runtime':
+        specifier: workspace:^
+        version: link:../../packages/connector-runtime
       '@xpert-ai/contracts':
         specifier: ^3.17.0
         version: 3.18.0(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(zod@3.25.67)
@@ -2614,6 +2620,9 @@ importers:
       '@nestjs/common':
         specifier: ^11.1.6
         version: 11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
+      '@xpert-ai/connector-runtime':
+        specifier: workspace:^
+        version: link:../../packages/connector-runtime
       '@xpert-ai/contracts':
         specifier: ^3.17.0
         version: 3.18.0(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(zod@3.25.67)
@@ -2671,6 +2680,9 @@ importers:
       '@nestjs/common':
         specifier: ^11.1.6
         version: 11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
+      '@xpert-ai/connector-runtime':
+        specifier: workspace:^
+        version: link:../../packages/connector-runtime
       '@xpert-ai/contracts':
         specifier: ^3.17.0
         version: 3.17.5(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(zod@3.25.67)
@@ -2707,6 +2719,9 @@ importers:
       '@nestjs/config':
         specifier: ^4.0.2
         version: 4.0.4(@nestjs/common@11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(rxjs@7.8.2)
+      '@xpert-ai/connector-runtime':
+        specifier: workspace:^
+        version: link:../../packages/connector-runtime
       '@xpert-ai/contracts':
         specifier: ^3.10.0
         version: 3.17.3(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(zod@3.25.67)
@@ -2764,6 +2779,9 @@ importers:
       '@nestjs/common':
         specifier: ^11.1.6
         version: 11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
+      '@xpert-ai/connector-runtime':
+        specifier: workspace:^
+        version: link:../../packages/connector-runtime
       '@xpert-ai/contracts':
         specifier: ^3.10.0
         version: 3.15.12(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(zod@3.25.67)
@@ -2788,6 +2806,9 @@ importers:
       '@nestjs/common':
         specifier: ^11.1.6
         version: 11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
+      '@xpert-ai/connector-runtime':
+        specifier: workspace:^
+        version: link:../../packages/connector-runtime
       '@xpert-ai/contracts':
         specifier: ^3.17.0
         version: 3.17.3(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(zod@3.25.67)
@@ -2803,6 +2824,9 @@ importers:
 
   middlewares/lark-cli:
     dependencies:
+      '@xpert-ai/connector-runtime':
+        specifier: workspace:^
+        version: link:../../packages/connector-runtime
       '@xpert-ai/contracts':
         specifier: ^3.8.3
         version: 3.15.12(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(zod@3.25.67)
@@ -2971,6 +2995,9 @@ importers:
       '@nestjs/common':
         specifier: ^11.1.6
         version: 11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
+      '@xpert-ai/connector-runtime':
+        specifier: workspace:^
+        version: link:../../packages/connector-runtime
       '@xpert-ai/contracts':
         specifier: ^3.17.2
         version: 3.17.3(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(zod@3.25.67)
@@ -3011,6 +3038,9 @@ importers:
       '@notionhq/client':
         specifier: ^5.12.0
         version: 5.26.0
+      '@xpert-ai/connector-runtime':
+        specifier: workspace:^
+        version: link:../../packages/connector-runtime
       '@xpert-ai/contracts':
         specifier: ^3.17.0
         version: 3.17.5(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(zod@3.25.67)
@@ -3047,6 +3077,9 @@ importers:
       '@nestjs/common':
         specifier: ^11.1.6
         version: 11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
+      '@xpert-ai/connector-runtime':
+        specifier: workspace:^
+        version: link:../../packages/connector-runtime
       '@xpert-ai/contracts':
         specifier: ^3.17.0
         version: 3.17.3(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(zod@3.25.67)
@@ -3108,6 +3141,9 @@ importers:
       '@nestjs/common':
         specifier: ^11.1.6
         version: 11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
+      '@xpert-ai/connector-runtime':
+        specifier: workspace:^
+        version: link:../../packages/connector-runtime
       '@xpert-ai/contracts':
         specifier: ^3.17.0
         version: 3.17.5(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(zod@3.25.67)
@@ -3243,6 +3279,9 @@ importers:
       '@nestjs/common':
         specifier: ^11.1.6
         version: 11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
+      '@xpert-ai/connector-runtime':
+        specifier: workspace:^
+        version: link:../../packages/connector-runtime
       '@xpert-ai/contracts':
         specifier: ^3.17.2
         version: 3.17.3(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(zod@3.25.67)
@@ -3267,6 +3306,9 @@ importers:
       '@nestjs/common':
         specifier: ^11.1.6
         version: 11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
+      '@xpert-ai/connector-runtime':
+        specifier: workspace:^
+        version: link:../../packages/connector-runtime
       '@xpert-ai/contracts':
         specifier: ^3.17.0
         version: 3.17.5(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(zod@3.25.67)
@@ -3300,6 +3342,9 @@ importers:
       '@nestjs/common':
         specifier: ^11.1.6
         version: 11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
+      '@xpert-ai/connector-runtime':
+        specifier: workspace:^
+        version: link:../../packages/connector-runtime
       '@xpert-ai/contracts':
         specifier: ^3.17.0
         version: 3.18.0(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(zod@3.25.67)
@@ -3918,6 +3963,15 @@ importers:
       zod:
         specifier: 3.25.67
         version: 3.25.67
+
+  packages/connector-runtime:
+    dependencies:
+      '@xpert-ai/plugin-sdk':
+        specifier: ^3.17.0
+        version: 3.18.7(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(@nestjs/common@11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.1.28)(@nestjs/cqrs@11.0.3(@nestjs/common@11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.1.28)(reflect-metadata@0.2.2)(rxjs@7.8.2))(ajv@8.20.0)(i18next-fs-backend@2.6.0)(i18next@25.6.0(typescript@5.9.3))(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.17.21)(passport-jwt@4.0.1)(rxjs@7.8.2)(supports-color@8.1.1)(ws@8.21.1)(yaml@2.9.0)(zod@3.25.67)
+      tslib:
+        specifier: ^2.3.0
+        version: 2.8.1
 
   packages/design-fonts:
     dependencies:

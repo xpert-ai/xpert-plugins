@@ -347,6 +347,9 @@
     },
     {
       "path": "./models/xirang"
+    },
+    {
+      "path": "./packages/connector-runtime"
     }
   ]
 }

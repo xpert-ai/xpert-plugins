@@ -1,3 +1,7 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+const packageVersion: string = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8')).version
+
 jest.mock('@xpert-ai/plugin-sdk', () => ({
   AgentMiddlewareStrategy: () => (target: object) => target,
   ConnectorStrategyKey: () => (target: object) => target,
@@ -16,7 +20,7 @@ describe('Tencent Maps connector plugin', () => {
   it('keeps runtime and package metadata aligned', () => {
     expect(plugin.meta).toMatchObject({
       name: '@xpert-ai/plugin-tencent-map-connector',
-      version: '0.1.0',
+      version: packageVersion,
       level: 'organization',
       category: 'middleware',
       icon: TENCENT_MAP_ICON

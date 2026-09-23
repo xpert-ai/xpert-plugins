@@ -1,3 +1,4 @@
+import { createOAuth2Driver } from '@xpert-ai/connector-runtime'
 import { createHash } from 'node:crypto'
 import { Inject, Injectable } from '@nestjs/common'
 import type { IIntegration } from '@xpert-ai/contracts'
@@ -19,6 +20,7 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import {
   NOTION_AUTHORIZE_URL,
+  NOTION_TOKEN_URL,
   NOTION_CONNECTOR_PROVIDER,
   NOTION_PLUGIN_CONTEXT,
   NOTION_PUBLIC_OAUTH_AUTH_METHOD,
@@ -130,68 +132,52 @@ export class NotionConnectorStrategy implements ConnectorMultiAuthStrategy {
     private readonly oauth: NotionOAuthClient
   ) {}
 
+  private get driver() {
+    return createOAuth2Driver({
+      kind: 'oauth2', authMethodId: NOTION_PUBLIC_OAUTH_AUTH_METHOD,
+      authorizationEndpoint: NOTION_AUTHORIZE_URL, tokenEndpoint: NOTION_TOKEN_URL,
+      encoding: 'json', clientAuthentication: 'client_secret_basic', pkce: false,
+      authorizationParameters: { owner: 'user' }
+    }, {
+      assertAuthMethod: requireAuthMethod,
+      stateError: (message) => new NotionConnectorError('OAUTH_STATE_INVALID', message),
+      resolveApp: (context) => {
+        const integrationId = context.phase === 'connect'
+          ? requireString(context.input.values?.integrationId, 'A Notion system integration is required.')
+          : context.phase === 'exchange'
+            ? readPendingMetadata(context.input.metadata).integrationId
+            : requireString(context.input.credential.data.integrationId, 'Notion integration ID is missing.')
+        return this.resolveApp(integrationId)
+      },
+      createMetadata: (app, input): PendingOAuthMetadata => ({
+        version: 1, integrationId: app.integrationId,
+        clientIdFingerprint: fingerprint(app.clientId), redirectUri: input.redirectUri
+      }),
+      validateMetadata: (app, input) => {
+        const pending = readPendingMetadata(input.metadata)
+        if (fingerprint(app.clientId) !== pending.clientIdFingerprint) {
+          throw new NotionConnectorError('OAUTH_STATE_INVALID', 'Notion OAuth application configuration changed during authorization.')
+        }
+      },
+      requestToken: (app, values) => values.grant_type === 'refresh_token'
+        ? this.oauth.refresh({ clientId: app.clientId, clientSecret: app.clientSecret, refreshToken: values.refresh_token })
+        : this.oauth.exchangeCode({ clientId: app.clientId, clientSecret: app.clientSecret, code: values.code, redirectUri: values.redirect_uri }),
+      toCredential: (token, app, previous) => toCredential(app.integrationId, {
+        ...token, refreshToken: token.refreshToken ?? readString(previous?.data.refreshToken)
+      }, previous?.profile ?? undefined)
+    })
+  }
+
   async connect(input: ConnectorConnectInput): Promise<ConnectorConnectResult> {
-    requireAuthMethod(input.authMethodId)
-    const integrationId = requireString(input.values?.integrationId, 'A Notion system integration is required.')
-    const app = await this.resolveApp(integrationId)
-    const metadata: PendingOAuthMetadata = {
-      version: 1,
-      integrationId: app.integrationId,
-      clientIdFingerprint: fingerprint(app.clientId),
-      redirectUri: input.redirectUri
-    }
-    const authorizationUrl = new URL(NOTION_AUTHORIZE_URL)
-    authorizationUrl.searchParams.set('client_id', app.clientId)
-    authorizationUrl.searchParams.set('redirect_uri', input.redirectUri)
-    authorizationUrl.searchParams.set('response_type', 'code')
-    authorizationUrl.searchParams.set('owner', 'user')
-    authorizationUrl.searchParams.set('state', input.state)
-    return { status: 'pending', authorizationUrl: authorizationUrl.toString(), metadata }
+    return this.driver.connect(input)
   }
 
   async exchangeAuthorizationCode(input: ConnectorAuthorizationCodeInput): Promise<ConnectorCredential> {
-    requireAuthMethod(input.authMethodId)
-    const pending = readPendingMetadata(input.metadata)
-    if (pending.redirectUri !== input.redirectUri) {
-      throw new NotionConnectorError(
-        'OAUTH_STATE_INVALID',
-        'Notion OAuth redirect URI does not match the authorization request.'
-      )
-    }
-    const app = await this.resolveApp(pending.integrationId)
-    if (fingerprint(app.clientId) !== pending.clientIdFingerprint) {
-      throw new NotionConnectorError(
-        'OAUTH_STATE_INVALID',
-        'Notion OAuth application configuration changed during authorization.'
-      )
-    }
-    const token = await this.oauth.exchangeCode({
-      clientId: app.clientId,
-      clientSecret: app.clientSecret,
-      code: input.code,
-      redirectUri: input.redirectUri
-    })
-    return toCredential(app.integrationId, token)
+    return this.driver.exchangeAuthorizationCode(input)
   }
 
   async refreshConnectionCredential(input: ConnectorCredentialRefreshInput): Promise<ConnectorCredential> {
-    requireAuthMethod(input.authMethodId)
-    const integrationId = requireString(input.credential.data.integrationId, 'Notion integration ID is missing.')
-    const app = await this.resolveApp(integrationId)
-    const refreshToken = requireString(input.credential.data.refreshToken, 'Notion refresh token is missing.')
-    const token = await this.oauth.refresh({
-      clientId: app.clientId,
-      clientSecret: app.clientSecret,
-      refreshToken
-    })
-    return toCredential(
-      app.integrationId,
-      {
-        ...token,
-        refreshToken: token.refreshToken ?? refreshToken
-      },
-      input.credential.profile ?? undefined
-    )
+    return this.driver.refreshConnectionCredential(input)
   }
 
   resolveRuntimeCredential(input: ConnectorRuntimeCredentialResolveInput) {

@@ -24,9 +24,7 @@ const app = {
 
 describe('Baidu Netdisk connector strategy', () => {
   it('starts OAuth without requesting end-user app credentials', async () => {
-    const oauth = {
-      buildAuthorizationUrl: jest.fn().mockReturnValue('https://openapi.baidu.com/oauth/2.0/authorize?state=s')
-    } as unknown as BaiduNetdiskOAuthClient
+    const oauth = new BaiduNetdiskOAuthClient()
     const oauthConfig = { resolve: jest.fn().mockResolvedValue(app) } as unknown as BaiduNetdiskOAuthConfigService
     const strategy = new BaiduNetdiskConnectorStrategy(oauthConfig, oauth)
     const result = await strategy.connect({
@@ -42,10 +40,13 @@ describe('Baidu Netdisk connector strategy', () => {
       integrationId: 'integration-1',
       redirectUri: 'https://xpert.example/callback'
     })
-    expect(oauth.buildAuthorizationUrl).toHaveBeenCalledWith(
-      expect.objectContaining({ appKey: 'app-key' }),
-      expect.objectContaining({ state: 's' })
-    )
+    const url = new URL(result.authorizationUrl)
+    expect(url.origin + url.pathname).toBe(app.config.authorizationUrl)
+    expect(url.searchParams.get('client_id')).toBe('app-key')
+    expect(url.searchParams.get('state')).toBe('s')
+    expect(url.searchParams.get('scope')).toBe('basic,netdisk')
+    expect(url.searchParams.get('qrcode')).toBe('1')
+    expect(result.authorizationUrl).not.toContain('secret-key')
     expect(strategy.definition.authMethods?.[0]).toMatchObject({
       id: BAIDU_NETDISK_AUTH_METHOD_OAUTH,
       appCredentials: { fields: [] }

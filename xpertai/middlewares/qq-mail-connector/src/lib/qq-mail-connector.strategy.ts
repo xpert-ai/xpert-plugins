@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'node:crypto'
+import { createCredentialDriver, createPkce } from '@xpert-ai/connector-runtime'
 import { Inject, Injectable } from '@nestjs/common'
 import type { IIntegration } from '@xpert-ai/contracts'
 import {
@@ -162,8 +162,7 @@ export class QqMailConnectorStrategy implements ConnectorMultiAuthStrategy {
     const scopes = scopesForMethod(input.authMethodId)
     const metadata = await this.oauth.discover()
     const clientId = await this.oauth.registerClient(metadata, input.redirectUri)
-    const codeVerifier = randomBytes(48).toString('base64url')
-    const codeChallenge = createHash('sha256').update(codeVerifier).digest('base64url')
+    const { codeVerifier, codeChallenge } = createPkce(48)
     const authorizationUrl = new URL(metadata.authorizationEndpoint)
     authorizationUrl.searchParams.set('response_type', 'code')
     authorizationUrl.searchParams.set('client_id', clientId)
@@ -242,23 +241,22 @@ export class QqMailConnectorStrategy implements ConnectorMultiAuthStrategy {
   }
 
   private async connectProtocol(input: ConnectorConnectInput): Promise<ConnectorConnectResult> {
-    const integrationId = readRequiredString(input.values?.integrationId, 'QQ Mail System Integration')
-    const integration = await this.resolveIntegration(integrationId)
-    const credential = this.integrationCredential(integration)
-    await this.mailService.verifyCredential(credential)
-    return {
-      status: 'active',
-      credential: {
-        data: { integrationId },
-        scopes: [...QQ_MAIL_BASE_SCOPES],
-        profile: {
-          email: credential.email,
-          name: credential.email,
-          runtimeMiddleware: QQ_MAIL_RUNTIME_MIDDLEWARE_NAME,
-          authentication: 'imap-smtp'
-        }
-      }
-    }
+    return createCredentialDriver({
+      kind: 'mail_protocol', authMethodId: QQ_MAIL_PROTOCOL_AUTH_METHOD,
+      // Persist only the permitted integration reference, never its mailbox secret.
+      parse: (values) => ({ integrationId: readRequiredString(values?.integrationId, 'QQ Mail System Integration') }),
+      verify: async ({ integrationId }) => {
+        const integration = await this.resolveIntegration(integrationId)
+        const credential = this.integrationCredential(integration)
+        await this.mailService.verifyCredential(credential)
+        return credential
+      },
+      scopes: [...QQ_MAIL_BASE_SCOPES],
+      profile: (_data, credential) => ({
+        email: credential.email, name: credential.email,
+        runtimeMiddleware: QQ_MAIL_RUNTIME_MIDDLEWARE_NAME, authentication: 'imap-smtp'
+      })
+    }).connect(input)
   }
 
   private async resolveIntegration(id: string): Promise<IIntegration<QqMailIntegrationOptions>> {

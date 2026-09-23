@@ -29,7 +29,7 @@
       "dependsOn": ["build"],
       "options": {
         "cwd": "middlewares/kdocs-connector",
-        "command": "jest --config jest.config.ts --runInBand"
+        "command": "jest --config jest.config.cjs --runInBand"
       }
     }
   }

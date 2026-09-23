@@ -28,3 +28,7 @@ pnpm exec nx run @xpert-ai/plugin-amap-connector:build
 ```
 
 The upstream origin is fixed to `https://restapi.amap.com`. Every response is validated against the official `status` and `infocode` envelope before it reaches an Agent. See the [plugin documentation](./docs/index.mdx) for setup, architecture, tool contracts, and operations.
+
+## Shared Connector authentication
+
+This connector uses [`@xpert-ai/connector-runtime`](../../packages/connector-runtime/README.md) for shared authentication infrastructure. The migration retains its provider/auth-method IDs, credential format and vendor-specific adapters. See the shared migration matrix and verification command before releasing.

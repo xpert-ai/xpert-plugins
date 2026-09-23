@@ -51,10 +51,9 @@ describe('LarkBootstrapService connector mode', () => {
   })
 
   it('does not expose connector mode in the user-addable Lark CLI form', () => {
-    expect(LarkCliMiddlewareConfigFormSchema.properties.authMode.enum).toEqual([
-      LarkAuthMode.USER,
-      LarkAuthMode.BOT
-    ])
+    expect(LarkCliMiddlewareConfigFormSchema.properties.authMode).toMatchObject({
+      enum: [LarkAuthMode.USER, LarkAuthMode.BOT]
+    })
     expect(LarkCliMiddlewareConfigFormSchema.properties.connectorId).toBeUndefined()
   })
 
@@ -150,11 +149,13 @@ describe('LarkBootstrapService connector mode', () => {
   })
 
   it('does not start device login for connector mode', async () => {
-    const backend = {
+    const backend: AuthEnsureBackend = {
+      workingDirectory: '/workspace',
+      uploadFiles: jest.fn().mockResolvedValue([]),
       execute: jest.fn().mockResolvedValue({ output: '', exitCode: 0, truncated: false })
     }
 
-    const response = await service.buildAuthEnsureResponse(backend as AuthEnsureBackend, {
+    const response = await service.buildAuthEnsureResponse(backend, {
       authMode: LarkAuthMode.CONNECTOR
     })
 

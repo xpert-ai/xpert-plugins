@@ -1,3 +1,4 @@
+import { createCredentialDriver } from '@xpert-ai/connector-runtime'
 import { Injectable } from '@nestjs/common'
 import {
   ConnectorStrategyKey,
@@ -17,7 +18,6 @@ import {
 } from './constants.js'
 import { createCtripWendaoCredential } from './credential.js'
 import { CtripWendaoError } from './errors.js'
-import type { CtripWendaoCredential } from './types.js'
 
 @Injectable()
 @ConnectorStrategyKey(CTRIP_WENDAO_CONNECTOR_PROVIDER)
@@ -91,28 +91,26 @@ export class CtripWendaoConnectorStrategy implements ConnectorMultiAuthStrategy 
     ]
   }
 
+  private get driver() {
+    return createCredentialDriver({
+      authMethodId: CTRIP_WENDAO_AUTH_METHOD_ID,
+      assertAuthMethod,
+      kind: 'api_key',
+      parse: (values) => createCtripWendaoCredential(values?.apiToken),
+      verify: (credential) => this.client.validateCredential(credential.apiToken),
+      scopes: ['travel.query'],
+      profile: () => ({ name: 'Ctrip Wendao', runtimeMiddleware: CTRIP_WENDAO_RUNTIME_MIDDLEWARE_NAME })
+    })
+  }
+
   async connect(input: ConnectorConnectInput): Promise<ConnectorConnectResult> {
-    assertAuthMethod(input.authMethodId)
-    const credential = createCtripWendaoCredential(input.values?.apiToken)
-    await this.client.validateCredential(credential.apiToken)
-
-    return {
-      status: 'active',
-      credential: {
-        data: credential,
-        scopes: ['travel.query'],
-        profile: {
-          name: 'Ctrip Wendao',
-          runtimeMiddleware: CTRIP_WENDAO_RUNTIME_MIDDLEWARE_NAME
-        }
-      }
-    }
+    return this.driver.connect(input)
   }
 
-  resolveRuntimeCredential(input: ConnectorRuntimeCredentialResolveInput): CtripWendaoCredential {
-    assertAuthMethod(input.authMethodId)
-    return createCtripWendaoCredential(input.credential.data.apiToken)
+  resolveRuntimeCredential(input: ConnectorRuntimeCredentialResolveInput) {
+    return this.driver.resolveRuntimeCredential(input)
   }
+
 }
 
 function assertAuthMethod(authMethodId: string): void {

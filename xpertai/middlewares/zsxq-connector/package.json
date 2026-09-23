@@ -36,7 +36,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.lib.json",
-    "test": "jest --config jest.config.ts --runInBand",
+    "test": "jest --config jest.config.cjs --runInBand",
     "typecheck": "tsc -p tsconfig.lib.json && tsc -p tsconfig.spec.json --noEmit"
   },
   "publishConfig": {
@@ -50,7 +50,8 @@
   },
   "dependencies": {
     "tslib": "^2.3.0",
-    "zsxq-cli": "0.5.1"
+    "zsxq-cli": "0.5.1",
+    "@xpert-ai/connector-runtime": "workspace:^"
   },
   "peerDependencies": {
     "@langchain/core": "0.3.72",

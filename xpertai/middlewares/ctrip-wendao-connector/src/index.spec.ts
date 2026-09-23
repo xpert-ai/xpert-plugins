@@ -1,3 +1,7 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+const packageVersion: string = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8')).version
+
 import { createHash } from 'node:crypto'
 import plugin from './index.js'
 import { CTRIP_WENDAO_ICON } from './lib/branding.js'
@@ -16,7 +20,7 @@ jest.mock('@langchain/core/tools', () => ({
 describe('Ctrip Wendao connector plugin', () => {
   it('keeps runtime and package metadata aligned', () => {
     expect(plugin.meta.name).toBe('@xpert-ai/plugin-ctrip-wendao-connector')
-    expect(plugin.meta.version).toBe('0.1.0')
+    expect(plugin.meta.version).toBe(packageVersion)
     expect(plugin.meta.level).toBe(CTRIP_WENDAO_PLUGIN_LEVEL)
     expect(plugin.meta.category).toBe('middleware')
     expect(plugin.meta.icon).toEqual(CTRIP_WENDAO_ICON)

@@ -1,3 +1,4 @@
+import { createPollingDriver } from '@xpert-ai/connector-runtime'
 import { Inject, Injectable } from '@nestjs/common'
 import {
   ConnectorStrategyKey,
@@ -84,34 +85,42 @@ export class ZsxqConnectorStrategy implements ConnectorMultiAuthStrategy {
   }
 
   async pollConnection(input: ConnectorConnectionPollInput): Promise<ConnectorConnectionPollResult> {
-    requireAuthMethod(input.authMethodId)
-    const pending = readPendingMetadata(input.metadata)
-    const result = await this.cli.pollAuthorization(pending.handle)
-    if (result.status === 'error') return { status: 'error', error: result.error, metadata: pending }
-    if (result.status === 'pending') {
-      return {
-        status: 'pending',
-        metadata: pending,
-        pollIntervalSeconds: result.pollIntervalSeconds,
-        message: 'Waiting for Knowledge Planet authorization.'
-      }
-    }
-    return {
-      status: 'complete',
-      credential: {
-        data: {
-          connectionHandle: pending.handle,
-          transport: 'cli',
-          cliVersion: ZSXQ_CLI_VERSION
-        },
-        scopes: this.config.enableWrites ? ['zsxq.read', 'zsxq.write'] : ['zsxq.read'],
-        profile: {
-          id: result.profile.id,
-          name: result.profile.name,
-          avatarUrl: result.profile.avatarUrl
+    return createPollingDriver({
+      kind: 'polling',
+      assertAuthMethod: requireAuthMethod,
+      readPending: readPendingMetadata,
+      expiresAt: (pending) => pending.expiresAt,
+      expiredMessage: 'Knowledge Planet authorization timed out. Start the connection again.',
+      intervalSeconds: 2,
+      poll: async (pending) => {
+        const result = await this.cli.pollAuthorization(pending.handle)
+        if (result.status === 'error') return { status: 'error', error: result.error, metadata: pending }
+        if (result.status === 'pending') {
+          return {
+            status: 'pending',
+            metadata: pending,
+            pollIntervalSeconds: result.pollIntervalSeconds,
+            message: 'Waiting for Knowledge Planet authorization.'
+          }
+        }
+        return {
+          status: 'complete',
+          credential: {
+            data: {
+              connectionHandle: pending.handle,
+              transport: 'cli',
+              cliVersion: ZSXQ_CLI_VERSION
+            },
+            scopes: this.config.enableWrites ? ['zsxq.read', 'zsxq.write'] : ['zsxq.read'],
+            profile: {
+              id: result.profile.id,
+              name: result.profile.name,
+              avatarUrl: result.profile.avatarUrl
+            }
+          }
         }
       }
-    }
+    }).pollConnection(input)
   }
 
   resolveRuntimeCredential(input: ConnectorRuntimeCredentialResolveInput) {

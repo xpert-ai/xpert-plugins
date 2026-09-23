@@ -11,3 +11,7 @@ pnpm nx build @xpert-ai/plugin-zsxq-connector
 ```
 
 The plugin pins `zsxq-cli` to `0.5.1` and verifies the installed CLI version at runtime. See [`docs/index.mdx`](docs/index.mdx) for deployment, security, tool contracts, and operations.
+
+## Shared Connector authentication
+
+This connector uses [`@xpert-ai/connector-runtime`](../../packages/connector-runtime/README.md) for shared authentication infrastructure. The migration retains its provider/auth-method IDs, credential format and vendor-specific adapters. See the shared migration matrix and verification command before releasing.

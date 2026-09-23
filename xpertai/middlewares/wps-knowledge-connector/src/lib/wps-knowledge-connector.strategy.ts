@@ -1,3 +1,4 @@
+import { createPollingDriver } from '@xpert-ai/connector-runtime'
 import { Injectable } from '@nestjs/common'
 import {
   ConnectorStrategyKey,
@@ -84,26 +85,31 @@ export class WpsKnowledgeConnectorStrategy implements ConnectorMultiAuthStrategy
   }
 
   async pollConnection(input: ConnectorConnectionPollInput): Promise<ConnectorConnectionPollResult> {
-    requireAuthMethod(input.authMethodId)
-    const pending = readPendingAuthorization(input.metadata)
-    if (Date.now() >= Date.parse(pending.expiresAt)) {
-      return { status: 'error', error: 'WPS authorization timed out. Start the connection again.' }
-    }
-    const result = await this.auth.exchange(pending.code)
-    if (result.status === 'pending') {
-      return { status: 'pending', pollIntervalSeconds: 2, metadata: pending }
-    }
-    if (result.status === 'error') return { status: 'error', error: result.message }
-    return {
-      status: 'complete',
-      credential: {
-        data: { accessToken: result.accessToken, tokenType: 'kwiki' },
-        expiresAt: result.expiresIn
-          ? new Date(Date.now() + result.expiresIn * 1_000).toISOString()
-          : null,
-        profile: result.profile ?? null
+    return createPollingDriver({
+      kind: 'polling',
+      assertAuthMethod: requireAuthMethod,
+      readPending: readPendingAuthorization,
+      expiresAt: (pending) => pending.expiresAt,
+      expiredMessage: 'WPS authorization timed out. Start the connection again.',
+      intervalSeconds: 2,
+      poll: async (pending) => {
+        const result = await this.auth.exchange(pending.code)
+        if (result.status === 'pending') {
+          return { status: 'pending', pollIntervalSeconds: 2, metadata: pending }
+        }
+        if (result.status === 'error') return { status: 'error', error: result.message }
+        return {
+          status: 'complete',
+          credential: {
+            data: { accessToken: result.accessToken, tokenType: 'kwiki' },
+            expiresAt: result.expiresIn
+              ? new Date(Date.now() + result.expiresIn * 1_000).toISOString()
+              : null,
+            profile: result.profile ?? null
+          }
+        }
       }
-    }
+    }).pollConnection(input)
   }
 
   resolveRuntimeCredential(input: ConnectorRuntimeCredentialResolveInput) {

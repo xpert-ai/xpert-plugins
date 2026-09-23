@@ -1,0 +1,52 @@
+{
+  "name": "@xpert-ai/connector-runtime",
+  "version": "0.1.0",
+  "type": "commonjs",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo",
+    "README.md",
+    "migrations.json"
+  ],
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "description": "Shared authentication drivers for Xpert Connectors; the host owns accounts, vaults and grants.",
+  "license": "AGPL-3.0",
+  "peerDependencies": {
+    "@xpert-ai/plugin-sdk": "^3.17.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.lib.json",
+    "test": "node --test test/*.test.cjs"
+  },
+  "nx": {
+    "targets": {
+      "test": {
+        "dependsOn": [
+          "build"
+        ],
+        "cache": false
+      }
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins.git",
+    "directory": "xpertai/packages/connector-runtime"
+  }
+}

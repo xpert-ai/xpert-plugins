@@ -13,7 +13,7 @@ describe('ZsxqConnectorStrategy', () => {
     cli.startAuthorization = jest.fn().mockResolvedValue({
       handle: 'opaque-handle',
       authorizationUrl: 'https://garden.zsxq.com/device?code=ABCD',
-      expiresAt: '2026-09-02T00:10:00.000Z',
+      expiresAt: new Date(Date.now() + 600_000).toISOString(),
       pollIntervalSeconds: 5
     })
     const strategy = new ZsxqConnectorStrategy(cli, { enableWrites: false })
@@ -32,7 +32,7 @@ describe('ZsxqConnectorStrategy', () => {
       metadata: {
         version: 1,
         handle: 'opaque-handle',
-        expiresAt: '2026-09-02T00:10:00.000Z'
+        expiresAt: new Date(Date.now() + 600_000).toISOString()
       }
     })
     expect(result).toMatchObject({
@@ -43,6 +43,18 @@ describe('ZsxqConnectorStrategy', () => {
         profile: { id: '42', name: 'Alice' }
       }
     })
+  })
+
+  it('rejects an expired session before calling the CLI', async () => {
+    const cli = Object.create(null) as ZsxqCliService
+    cli.pollAuthorization = jest.fn()
+    const strategy = new ZsxqConnectorStrategy(cli, { enableWrites: false })
+    const result = await strategy.pollConnection({
+      authMethodId: ZSXQ_AUTH_METHOD_ID, redirectUri: '',
+      metadata: { version: 1, handle: 'opaque-handle', expiresAt: new Date(Date.now() - 1000).toISOString() }
+    })
+    expect(result).toMatchObject({ status: 'error' })
+    expect(cli.pollAuthorization).not.toHaveBeenCalled()
   })
 
   it('rejects unknown auth methods and malformed runtime credentials', () => {

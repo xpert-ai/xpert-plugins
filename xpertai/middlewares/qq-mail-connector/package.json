@@ -34,7 +34,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.lib.json",
-    "test": "jest --config jest.config.ts --runInBand",
+    "test": "jest --config jest.config.cjs --runInBand",
     "typecheck": "tsc -p tsconfig.lib.json && tsc -p tsconfig.spec.json --noEmit"
   },
   "publishConfig": {
@@ -50,7 +50,8 @@
     "html-to-text": "10.0.1",
     "imapflow": "1.7.6",
     "nodemailer": "9.0.5",
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "@xpert-ai/connector-runtime": "workspace:^"
   },
   "devDependencies": {
     "@types/html-to-text": "9.0.4",

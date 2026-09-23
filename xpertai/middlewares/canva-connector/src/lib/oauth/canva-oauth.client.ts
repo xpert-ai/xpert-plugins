@@ -1,4 +1,5 @@
-import { createHash, randomBytes } from 'node:crypto'
+import { createPkce, oauthTokenRequest } from '@xpert-ai/connector-runtime'
+import { createHash } from 'node:crypto'
 import { Injectable } from '@nestjs/common'
 import {
   CANVA_CONNECT_AUTHORIZE_URL,
@@ -57,8 +58,7 @@ export class CanvaOAuthClient {
   async buildAuthorization(app: CanvaOAuthApp, redirectUri: string, state: string) {
     requireHttpsCallback(redirectUri)
     const mode = app.mode
-    const codeVerifier = randomBytes(48).toString('base64url')
-    const codeChallenge = createHash('sha256').update(codeVerifier).digest('base64url')
+    const { codeVerifier, codeChallenge } = createPkce(48)
     const endpoints = endpointsFor(mode)
     const scopes = [...CANVA_DEFAULT_SCOPES]
     const url = new URL(endpoints.authorizationEndpoint)
@@ -237,20 +237,16 @@ export class CanvaOAuthClient {
       // RFC 6749 client_secret_basic authenticates the client in the header;
       // do not duplicate client_id in the form body for strict OAuth servers.
       const formValues = authorization ? { ...values, client_id: undefined } : values
-      const form = new URLSearchParams()
+      const filteredValues: Record<string, string> = {}
       for (const [key, value] of Object.entries(formValues)) {
-        if (value !== undefined) form.set(key, value)
+        if (value !== undefined) filteredValues[key] = value
       }
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        redirect: 'error',
+      const response = await oauthTokenRequest({
+        endpoint, encoding: 'form', values: filteredValues,
         headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/x-www-form-urlencoded',
           'User-Agent': 'Xpert-Canva-Connector',
           ...(authorization ? { Authorization: authorization } : {})
-        },
-        body: form
+        }
       })
       const body = await readJson(response)
       if (!response.ok || body.error) {

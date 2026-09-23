@@ -58,7 +58,7 @@ export class CanvaConnectorStrategy implements ConnectorMultiAuthStrategy {
 
   readonly definition: ConnectorMultiAuthDefinition = {
     provider: CANVA_CONNECTOR_PROVIDER,
-    connectionScope: 'user',
+    authorizationModes: ['personal', 'shared'],
     label: { en_US: 'Canva', zh_Hans: 'Canva 可画' },
     description: {
       en_US: "Connect each user's Canva account through the Canva MCP service.",

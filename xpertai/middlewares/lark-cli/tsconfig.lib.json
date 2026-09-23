@@ -14,7 +14,11 @@
   "include": [
     "src/**/*.ts"
   ],
-  "references": [],
+  "references": [
+    {
+      "path": "../../packages/connector-runtime/tsconfig.lib.json"
+    }
+  ],
   "exclude": [
     "jest.config.ts",
     "src/**/*.spec.ts",

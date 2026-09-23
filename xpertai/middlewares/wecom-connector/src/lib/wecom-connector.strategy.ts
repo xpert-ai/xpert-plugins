@@ -1,3 +1,4 @@
+import { createPollingDriver } from '@xpert-ai/connector-runtime'
 import { createHash, randomBytes } from 'node:crypto'
 import * as tls from 'node:tls'
 import { Injectable, type OnModuleDestroy } from '@nestjs/common'
@@ -160,23 +161,27 @@ export class WeComConnectorStrategy implements ConnectorMultiAuthStrategy, OnMod
   }
 
   async pollConnection(input: ConnectorConnectionPollInput): Promise<ConnectorConnectionPollResult> {
-    requireQrAuthMethod(input.authMethodId)
-    const pending = readPendingQrAuthorization(input.metadata)
-    if (Date.now() >= Date.parse(pending.expiresAt)) {
-      return { status: 'error', error: 'WeCom QR authorization timed out. Start the connection again.' }
-    }
+    return createPollingDriver({
+      kind: 'polling',
+      assertAuthMethod: requireQrAuthMethod,
+      readPending: readPendingQrAuthorization,
+      expiresAt: (pending) => pending.expiresAt,
+      expiredMessage: 'WeCom QR authorization timed out. Start the connection again.',
+      intervalSeconds: WECOM_QR_POLL_INTERVAL_SECONDS,
+      poll: async (pending) => {
+        const result = await queryQrAuthorization(pending.scode, this.dispatcher)
+        if (!result) {
+          return {
+            status: 'pending',
+            pollIntervalSeconds: WECOM_QR_POLL_INTERVAL_SECONDS,
+            metadata: pending
+          }
+        }
 
-    const result = await queryQrAuthorization(pending.scode, this.dispatcher)
-    if (!result) {
-      return {
-        status: 'pending',
-        pollIntervalSeconds: WECOM_QR_POLL_INTERVAL_SECONDS,
-        metadata: pending
+        await validateBotCredential(result, 2, this.dispatcher)
+        return { status: 'complete', credential: activeCredential(result).credential }
       }
-    }
-
-    await validateBotCredential(result, 2, this.dispatcher)
-    return { status: 'complete', credential: activeCredential(result).credential }
+    }).pollConnection(input)
   }
 
   async resolveRuntimeCredential(input: ConnectorRuntimeCredentialResolveInput): Promise<WeComBotCredential> {

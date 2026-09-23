@@ -1,3 +1,7 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+const packageVersion: string = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8')).version
+
 import plugin, { WPS_KNOWLEDGE_ICON } from './index.js'
 import { WPS_KNOWLEDGE_PLUGIN_LEVEL } from './lib/constants.js'
 
@@ -15,7 +19,7 @@ describe('WPS Knowledge connector plugin', () => {
   it('keeps runtime and package metadata aligned', () => {
     expect(plugin.meta).toMatchObject({
       name: '@xpert-ai/plugin-wps-knowledge-connector',
-      version: '0.1.0',
+      version: packageVersion,
       level: WPS_KNOWLEDGE_PLUGIN_LEVEL,
       category: 'middleware',
       icon: WPS_KNOWLEDGE_ICON

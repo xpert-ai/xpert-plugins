@@ -1,3 +1,4 @@
+import { oauthTokenRequest } from '@xpert-ai/connector-runtime'
 import { Injectable } from '@nestjs/common'
 import {
   BAIDU_NETDISK_AUTHORIZE_URL,
@@ -57,15 +58,13 @@ export class BaiduNetdiskOAuthClient {
     config: BaiduNetdiskOAuthConfig,
     values: Record<string, string>
   ): Promise<BaiduNetdiskOAuthToken> {
-    const url = new URL(config.tokenUrl || BAIDU_NETDISK_TOKEN_URL)
-    for (const [key, value] of Object.entries(values)) url.searchParams.set(key, value)
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), config.timeoutMs ?? BAIDU_NETDISK_DEFAULT_TIMEOUT_MS)
     try {
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: { Accept: 'application/json', 'User-Agent': 'Xpert-Baidu-Netdisk-Connector/0.1.0' },
-        redirect: 'error',
+      const response = await oauthTokenRequest({
+        endpoint: config.tokenUrl || BAIDU_NETDISK_TOKEN_URL,
+        encoding: 'query', values,
+        headers: { 'User-Agent': 'Xpert-Baidu-Netdisk-Connector/0.1.0' },
         signal: controller.signal
       })
       const body = await readBoundedJsonObject(

@@ -1,3 +1,4 @@
+import { oauthTokenRequest } from '@xpert-ai/connector-runtime'
 import { NOTION_TOKEN_URL } from './constants.js'
 import { Injectable } from '@nestjs/common'
 import { NotionConnectorError, isRecord, readString, requireString } from './errors.js'
@@ -42,14 +43,9 @@ export class NotionOAuthClient {
   ): Promise<NotionOAuthToken> {
     let response: Response
     try {
-      response = await fetch(NOTION_TOKEN_URL, {
-        method: 'POST',
-        headers: {
-          Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
-          'Content-Type': 'application/json',
-          Accept: 'application/json'
-        },
-        body: JSON.stringify(body)
+      response = await oauthTokenRequest({
+        endpoint: NOTION_TOKEN_URL, encoding: 'json', values: body,
+        basicAuth: { clientId, clientSecret }
       })
     } catch (error) {
       throw new NotionConnectorError('OAUTH_EXCHANGE_FAILED', `Notion OAuth request failed: ${errorMessage(error)}`)

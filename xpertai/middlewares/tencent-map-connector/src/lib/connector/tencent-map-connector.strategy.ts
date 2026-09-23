@@ -1,3 +1,4 @@
+import { createCredentialDriver } from '@xpert-ai/connector-runtime'
 import { Injectable } from '@nestjs/common'
 import {
   ConnectorStrategyKey,
@@ -9,7 +10,6 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import { TENCENT_MAP_ICON } from '../branding.js'
 import { TencentMapWebServiceClient } from '../client/tencent-map-webservice.client.js'
-import type { TencentMapRuntimeCredential } from '../client/types.js'
 import {
   TENCENT_MAP_AUTH_METHOD_ID,
   TENCENT_MAP_CONNECTOR_PROVIDER,
@@ -75,27 +75,26 @@ export class TencentMapConnectorStrategy implements ConnectorMultiAuthStrategy {
     ]
   }
 
-  async connect(input: ConnectorConnectInput): Promise<ConnectorConnectResult> {
-    assertAuthMethod(input.authMethodId)
-    const apiKey = readApiKey(input.values?.apiKey)
-    await this.client.verifyCredential(apiKey)
-    return {
-      status: 'active',
-      credential: {
-        data: { apiKey },
-        scopes: ['map.read'],
-        profile: {
-          name: 'Tencent Maps',
-          runtimeMiddleware: TENCENT_MAP_RUNTIME_MIDDLEWARE_NAME
-        }
-      }
-    }
+  private get driver() {
+    return createCredentialDriver({
+      authMethodId: TENCENT_MAP_AUTH_METHOD_ID,
+      assertAuthMethod,
+      kind: 'api_key',
+      parse: (values) => ({ apiKey: readApiKey(values?.apiKey) }),
+      verify: (credential) => this.client.verifyCredential(credential.apiKey),
+      scopes: ['map.read'],
+      profile: () => ({ name: 'Tencent Maps', runtimeMiddleware: TENCENT_MAP_RUNTIME_MIDDLEWARE_NAME })
+    })
   }
 
-  resolveRuntimeCredential(input: ConnectorRuntimeCredentialResolveInput): TencentMapRuntimeCredential {
-    assertAuthMethod(input.authMethodId)
-    return { apiKey: readApiKey(input.credential.data.apiKey) }
+  async connect(input: ConnectorConnectInput): Promise<ConnectorConnectResult> {
+    return this.driver.connect(input)
   }
+
+  resolveRuntimeCredential(input: ConnectorRuntimeCredentialResolveInput) {
+    return this.driver.resolveRuntimeCredential(input)
+  }
+
 }
 
 function assertAuthMethod(authMethodId: string): void {

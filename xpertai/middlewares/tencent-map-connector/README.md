@@ -34,3 +34,7 @@ The upstream origin is fixed to `https://apis.map.qq.com` and every response is 
 The connector does not persist tool request data. It sends the developer Key and only the address, coordinate, place keyword, route input, or explicit IP address required for the selected tool to the official Tencent Maps WebService API. Xpert stores the Key in its platform vault. Tencent's processing is governed by the [Tencent Privacy Protection Platform](https://privacy.qq.com/).
 
 Source code is maintained in the [Xpert plugins repository](https://github.com/xpert-ai/xpert-plugins/tree/main/xpertai/middlewares/tencent-map-connector).
+
+## Shared Connector authentication
+
+This connector uses [`@xpert-ai/connector-runtime`](../../packages/connector-runtime/README.md) for shared authentication infrastructure. The migration retains its provider/auth-method IDs, credential format and vendor-specific adapters. See the shared migration matrix and verification command before releasing.

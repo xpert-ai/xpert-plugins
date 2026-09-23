@@ -120,3 +120,7 @@ node /path/to/xpert-plugins/plugin-dev-harness/dist/index.js \
 ## License
 
 This project follows the [AGPL-3.0 License](../../../LICENSE) located at the repository root.
+
+## Shared Connector authentication
+
+This connector uses [`@xpert-ai/connector-runtime`](../../packages/connector-runtime/README.md) for shared authentication infrastructure. The migration retains its provider/auth-method IDs, credential format and vendor-specific adapters. See the shared migration matrix and verification command before releasing.

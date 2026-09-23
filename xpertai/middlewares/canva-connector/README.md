@@ -26,3 +26,18 @@ pnpm exec nx run @xpert-ai/plugin-canva-connector:build
 pnpm exec nx run @xpert-ai/plugin-canva-connector:typecheck
 pnpm exec nx exec -- jest --config middlewares/canva-connector/jest.config.ts --runInBand
 ```
+
+## Portable Agent Plugin dependency
+
+`agent-plugins/canva-cn` can reuse this provider through
+`cn.xpertai.connectors.canva = { type: "existing", provider: "canva", resource: "https://mcp.canva.cn" }`.
+Configure the existing Canva China MCP System Integration and create a **personal**
+workspace Connector binding before publishing the portable package. The current
+strategy explicitly supports `authorizationModes: ['personal', 'shared']`;
+legacy shared middleware bindings remain supported but cannot supply another
+user's portable plugin credentials. Global Canva REST credentials are not accepted
+for the China MCP resource. No OAuth client secret belongs in the portable package.
+
+## Shared Connector authentication
+
+This connector uses [`@xpert-ai/connector-runtime`](../../packages/connector-runtime/README.md) for shared authentication infrastructure. The migration retains its provider/auth-method IDs, credential format and vendor-specific adapters. See the shared migration matrix and verification command before releasing.

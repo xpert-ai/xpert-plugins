@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'node:crypto'
+import { createCredentialDriver, createPkce, oauthTokenRequest } from '@xpert-ai/connector-runtime'
 import { Inject, Injectable } from '@nestjs/common'
 import type { IIntegration } from '@xpert-ai/contracts'
 import {
@@ -124,24 +124,20 @@ export class GitHubConnectorStrategy implements ConnectorMultiAuthStrategy {
 
   async connect(input: ConnectorConnectInput): Promise<ConnectorConnectResult> {
     if (input.authMethodId === 'pat') {
-      const token = requireString(input.values?.token, 'GitHub personal access token is required')
-      const user = await requestGitHubUser(token)
-      return {
-        status: 'active',
-        credential: {
-          data: {
-            accessToken: token,
-            tokenType: 'bearer'
-          },
-          profile: toGitHubProfile(user)
-        }
-      }
+      return createCredentialDriver({
+        kind: 'api_key', authMethodId: 'pat',
+        parse: (values) => ({
+          accessToken: requireString(values?.token, 'GitHub personal access token is required'),
+          tokenType: 'bearer'
+        }),
+        verify: (credential) => requestGitHubUser(credential.accessToken),
+        profile: (_credential, user) => toGitHubProfile(user)
+      }).connect(input)
     }
 
     requireGitHubOAuthMethod(input.authMethodId)
     const app = await this.resolveGitHubApp()
-    const codeVerifier = randomBytes(32).toString('base64url')
-    const codeChallenge = createHash('sha256').update(codeVerifier).digest('base64url')
+    const { codeVerifier, codeChallenge } = createPkce()
     const authorizationUrl = new URL(GITHUB_AUTHORIZE_URL)
     authorizationUrl.searchParams.set('client_id', app.clientId)
     authorizationUrl.searchParams.set('redirect_uri', input.redirectUri)
@@ -298,14 +294,9 @@ export async function requestGitHubUser(accessToken: string): Promise<GitHubUser
 async function requestGitHubToken(values: Record<string, string>): Promise<GitHubToken> {
   let response: Response
   try {
-    response = await fetch(GITHUB_ACCESS_TOKEN_URL, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'Xpert-GitHub-Connector'
-      },
-      body: new URLSearchParams(values)
+    response = await oauthTokenRequest({
+      endpoint: GITHUB_ACCESS_TOKEN_URL, encoding: 'form', values,
+      headers: { 'User-Agent': 'Xpert-GitHub-Connector' }
     })
   } catch (error) {
     throw new Error(`GitHub token request failed: ${networkErrorMessage(error)}`)

@@ -5,7 +5,7 @@
     "types": ["jest", "node"],
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["jest.config.ts", "src/**/*.test.ts", "src/**/*.spec.ts", "src/**/*.d.ts"],
+  "include": [ "src/**/*.test.ts", "src/**/*.spec.ts", "src/**/*.d.ts"],
   "references": [
     {
       "path": "./tsconfig.lib.json"
