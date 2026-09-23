@@ -117,6 +117,7 @@ describe('getTongyiPricingContext', () => {
 
 describe('applyTongyiExplicitCache', () => {
   it.each([
+    'qwen3.8-27b',
     'qwen3.8-flash',
     'qwen3.8-max',
     'qwen3.7-max',
@@ -191,6 +192,7 @@ describe('Tongyi China-region explicit-cache pricing', () => {
   const manager = new TongyiLargeLanguageModel(new TongyiProviderStrategy())
   const models = manager.predefinedModels()
   const explicitlyCachedModels = [
+    'qwen3.8-27b',
     'qwen3.8-max',
     'qwen3.7-max',
     'qwen3-max',
@@ -333,6 +335,70 @@ describe('Tongyi Qwen3.8 Flash catalog', () => {
         component, region, unit_price: prices[index], unit_size: 1000000
       }))
     )
+  })
+})
+
+describe('Tongyi Qwen open model catalog', () => {
+  const manager = new TongyiLargeLanguageModel(new TongyiProviderStrategy())
+  const models = manager.predefinedModels()
+  const qwen3827b = models.find((candidate) => candidate.model === 'qwen3.8-27b')
+  const qwen3635b = models.find((candidate) => candidate.model === 'qwen3.6-35b-a3b')
+
+  it('publishes qwen3.8-27b multimodal limits and official explicit-cache prices', () => {
+    expect(qwen3827b?.features).toEqual(expect.arrayContaining([
+      'vision', 'video', 'structured-output', 'multi-tool-call'
+    ]))
+    expect(qwen3827b?.model_properties?.context_size).toBe(1000000)
+    expect(qwen3827b?.parameter_rules).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'max_completion_tokens', max: 131072 }),
+      expect.objectContaining({ name: 'enable_thinking', default: false }),
+      expect.objectContaining({ name: 'thinking_budget', max: 262144 }),
+      expect.objectContaining({ name: 'response_format', options: ['text', 'json_object', 'json_schema'] })
+    ]))
+    const rules = qwen3827b?.pricing && 'rules' in qwen3827b.pricing ? qwen3827b.pricing.rules ?? [] : []
+    expect(rules.filter((rule) => rule.region === 'cn')).toEqual([
+      expect.objectContaining({ component: 'input', unit_price: 3, unit_size: 1000000 }),
+      expect.objectContaining({ component: 'output', unit_price: 12, unit_size: 1000000 }),
+      expect.objectContaining({ component: 'cache_read_input', unit_price: 0.3, unit_size: 1000000 }),
+      expect.objectContaining({ component: 'cache_write_input', unit_price: 3.75, unit_size: 1000000 })
+    ])
+    expect(rules.filter((rule) => rule.region === 'international')).toEqual([
+      expect.objectContaining({ component: 'input', unit_price: 3.646, unit_size: 1000000 }),
+      expect.objectContaining({ component: 'output', unit_price: 21.875, unit_size: 1000000 }),
+      expect.objectContaining({ component: 'cache_read_input', unit_price: 0.365, unit_size: 1000000 }),
+      expect.objectContaining({ component: 'cache_write_input', unit_price: 4.557, unit_size: 1000000 })
+    ])
+  })
+
+  it('publishes qwen3.6-35b-a3b without context-cache prices', () => {
+    expect(qwen3635b?.features).toEqual(expect.arrayContaining([
+      'vision', 'video', 'structured-output', 'multi-tool-call'
+    ]))
+    expect(qwen3635b?.model_properties?.context_size).toBe(262144)
+    expect(qwen3635b?.parameter_rules).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'max_tokens', max: 65536 }),
+      expect.objectContaining({ name: 'enable_thinking', default: false }),
+      expect.objectContaining({ name: 'thinking_budget', max: 131072 }),
+      expect.objectContaining({ name: 'response_format', options: ['text', 'json_object'] })
+    ]))
+    const rules = qwen3635b?.pricing && 'rules' in qwen3635b.pricing ? qwen3635b.pricing.rules ?? [] : []
+    expect(rules.map((rule) => rule.component)).toEqual(['input', 'output', 'input', 'output'])
+    expect(rules.filter((rule) => rule.region === 'cn')).toEqual([
+      expect.objectContaining({ component: 'input', unit_price: 1.8, unit_size: 1000000 }),
+      expect.objectContaining({ component: 'output', unit_price: 10.8, unit_size: 1000000 })
+    ])
+    expect(rules.filter((rule) => rule.region === 'international')).toEqual([
+      expect.objectContaining({ component: 'input', unit_price: 2.810325, unit_size: 1000000 }),
+      expect.objectContaining({ component: 'output', unit_price: 16.86195, unit_size: 1000000 })
+    ])
+  })
+
+  it('does not attach explicit cache control to qwen3.6-35b-a3b', () => {
+    const request = {
+      model: 'qwen3.6-35b-a3b',
+      messages: [{ role: 'system', content: 'Long stable system prompt' }]
+    }
+    expect(applyTongyiExplicitCache(request, { model: 'qwen3.6-35b-a3b' })).toBe(request)
   })
 })
 

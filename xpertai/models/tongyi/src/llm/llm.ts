@@ -13,6 +13,7 @@ import {
 import { TongyiProviderStrategy } from '../provider.strategy.js'
 
 const TONGYI_EXPLICIT_CACHE_MODELS = new Set([
+  'qwen3.8-27b',
   'qwen3.8-flash',
   'qwen3.8-max',
   'qwen3.7-max',
@@ -43,6 +44,7 @@ const TONGYI_EXPLICIT_CACHE_MODELS = new Set([
   'glm-5.1'
 ])
 const TONGYI_CN_EXPLICIT_CACHE_PRICED_MODELS = new Set([
+  'qwen3.8-27b',
   'qwen3.8-max',
   'qwen3.7-max',
   'qwen3-max',
