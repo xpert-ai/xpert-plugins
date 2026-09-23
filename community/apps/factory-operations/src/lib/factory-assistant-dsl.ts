@@ -1,3 +1,4 @@
+import { FACTORY_CASE_PROJECT_TYPE } from './factory-project-type.js'
 import { stringify } from 'yaml'
 import { FACTORY_PLUGIN_NAME } from './constants.js'
 import type { FactoryRoleAssistantDefinition } from './factory-assistant-definitions.js'
@@ -90,7 +91,7 @@ export function buildRoleAssistantDsl(definition: FactoryRoleAssistantDefinition
       avatar: definition.avatar,
       options: {
         templateKey: definition.key,
-        workspaceScope: { mode: 'project-required' },
+        workspaceScope: { mode: 'project-required', projectType: FACTORY_CASE_PROJECT_TYPE },
         dataXpert: {
           managedBy: 'data-xpert',
           templateKey: definition.key,
@@ -134,7 +135,7 @@ export function buildRoleAssistantDsl(definition: FactoryRoleAssistantDefinition
           instruction: `生成包含 Factory Case 与${definition.title}任务的简短标题。`
         }
       },
-      version: '2',
+      version: '3',
       agent: { key: definition.agentKey },
       copilotModel: {
         referencedId: null,

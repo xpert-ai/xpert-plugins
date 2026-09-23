@@ -1,6 +1,7 @@
+import { FACTORY_CASE_PROJECT_PROVIDER } from './lib/factory-project-type.js'
 import { FACTORY_PROFILE_FEATURE } from './lib/factory-profile.views.js'
 import { z } from 'zod'
-import type { I18nObject, PluginMarketplaceContribution } from '@xpert-ai/contracts'
+import type { I18nObject } from '@xpert-ai/contracts'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import { FACTORY_PACKAGE_METADATA } from './package-metadata.js'
 import {
@@ -29,12 +30,6 @@ const text = (en_US: string, zh_Hans: string): I18nObject => ({
   en_US,
   zh_Hans
 })
-// Keep this helper until the published 3.16 contracts package includes the host's
-// newer appConfig field. The returned object remains structurally assignable to
-// PluginMarketplaceContribution while preserving full appConfig inference.
-const applicationContribution = <T extends { type: 'app'; name: string; appConfig: object }>(
-  value: T
-): PluginMarketplaceContribution => value as unknown as PluginMarketplaceContribution
 const capabilities = [
   FACTORY_PROFILE_FEATURE,
   ...Object.values(FACTORY_FEATURE),
@@ -106,7 +101,7 @@ const plugin: XpertPlugin<z.infer<typeof FactoryConfigSchema>> = {
         requiredPlugins: [FACTORY_PLUGIN_NAME],
         marketplace: {
           contents: [
-            applicationContribution({
+            ({
               type: 'app',
               name: 'factory-operations',
               displayName: text('Factory Intelligent Operations Center', '工厂智能运营与异常恢复中心'),
@@ -117,6 +112,8 @@ const plugin: XpertPlugin<z.infer<typeof FactoryConfigSchema>> = {
               icon: FACTORY_ICON,
               color: '#0F766E',
               tags: ['business-operations', 'factory', 'multi-agent'],
+              projectTypes: [{ key: 'case', title: text('Factory Case', '工厂 Case'),
+                binding: { kind: 'entity', providerKey: FACTORY_CASE_PROJECT_PROVIDER } }],
               appConfig: {
                 scope: 'organization' as const,
                 assistantTemplateKey: FACTORY_MANAGER_TEMPLATE_KEY,

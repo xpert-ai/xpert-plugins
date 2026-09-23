@@ -86,8 +86,8 @@ describe("Factory Operations decorated business tools", () => {
 
     for (const toolset of toolsets) {
       expect(await toolset.initTools()).toEqual([]);
-      expect(toolset.getMcpCapabilityDefinitions()?.resources).toBeUndefined();
-      expect(toolset.getMcpCapabilityDefinitions()?.prompts).toBeUndefined();
+      expect(toolset.getMcpCapabilityDefinitions()?.resources ?? []).toEqual([]);
+      expect(toolset.getMcpCapabilityDefinitions()?.prompts ?? []).toEqual([]);
       expect(toolset.getMcpCapabilitySource()).toEqual({
         pluginName: "@xpert-ai/plugin-factory-operations",
         pluginVersion: "0.4.0",

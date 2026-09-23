@@ -1,3 +1,4 @@
+import type { ProjectEnsureInput, ProjectEnsureResult, ProjectProvisioningApi } from '@xpert-ai/plugin-sdk'
 import type {
   RuntimeCapabilityRegistry
 } from '@xpert-ai/plugin-sdk'
@@ -8,24 +9,9 @@ export interface FactoryProjectExternalAssistantExpectation {
   agentKey: string
 }
 
-export interface FactoryProjectEnsureInput {
-  projectId: string
-  xpertId: string
-  requesterAgentKey?: string
-  externalAssistantExpectations?: FactoryProjectExternalAssistantExpectation[]
-  name: string
-  status: 'active' | 'archived'
-}
-
-export interface FactoryProjectEnsureResult {
-  projectId: string
-  xpertIds: string[]
-  operation: 'created' | 'updated'
-}
-
-export interface FactoryProjectProvisioningApi {
-  ensure(input: FactoryProjectEnsureInput): Promise<FactoryProjectEnsureResult>
-}
+export type FactoryProjectEnsureInput = ProjectEnsureInput
+export type FactoryProjectEnsureResult = ProjectEnsureResult
+export type FactoryProjectProvisioningApi = ProjectProvisioningApi
 
 export type FactoryAssistantTaskStatus =
   | 'queued'

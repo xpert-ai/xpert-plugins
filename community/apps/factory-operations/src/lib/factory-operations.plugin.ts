@@ -1,3 +1,4 @@
+import { FactoryProjectTypeProvider } from './factory-project-type.provider.js'
 import { FactoryProfileMigration } from './migrations/assistant-profile.migration.js'
 import { FactoryProfileService } from './factory-profile.service.js'
 import { FactoryProfileAccessService } from './factory-profile-access.service.js'
@@ -32,6 +33,7 @@ export const FACTORY_ENTITIES = [FactoryContinuationEntity,
   imports: [TypeOrmModule.forFeature(FACTORY_ENTITIES)],
   entities: FACTORY_ENTITIES,
   providers: [FactoryProfileMigration,FactoryProfileService, FactoryProfileAccessService, FactoryApprovalPolicy, FactoryContinuationService, FactoryContinuationProcessor,
+    FactoryProjectTypeProvider,
     FactoryCaseProjectService,
     FactoryAssistantTaskService,
     FactoryAssistantTaskProcessor,

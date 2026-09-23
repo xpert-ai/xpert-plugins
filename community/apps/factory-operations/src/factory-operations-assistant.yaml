@@ -12,6 +12,9 @@ team:
     templateKey: factory-operations-autopilot
     workspaceScope:
       mode: project-required
+      projectType:
+        applicationKey: "@xpert-ai/plugin-factory-operations:factory-operations"
+        projectTypeKey: case
     workbench:
       initialLayout: workbench-maximized
       defaultViewKey: factory_ops__factory-operations-center
@@ -62,7 +65,7 @@ team:
     title:
       enabled: true
       instruction: 生成包含 Factory Case、设备或恢复阶段的简短标题。
-  version: '4'
+  version: '5'
   agent:
     key: Agent_FactoryCoordinator
   copilotModel:
