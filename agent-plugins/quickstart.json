@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "plugins": [
+    {
+      "id": "exa",
+      "oauthServers": []
+    },
+    {
+      "id": "notion",
+      "oauthServers": []
+    },
+    {
+      "id": "linear",
+      "oauthServers": []
+    },
+    {
+      "id": "supabase",
+      "oauthServers": []
+    },
+    {
+      "id": "sentry",
+      "oauthServers": []
+    },
+    {
+      "id": "canva-cn",
+      "oauthServers": []
+    }
+  ]
+}

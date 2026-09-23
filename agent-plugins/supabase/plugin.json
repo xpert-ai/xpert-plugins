@@ -1,0 +1,23 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "supabase",
+  "version": "1.0.0",
+  "description": "Inspect authorized Supabase projects through the official read-only remote MCP endpoint.",
+  "author": {
+    "name": "Xpert AI"
+  },
+  "homepage": "https://supabase.com/docs/guides/ai-tools/mcp",
+  "extensions": {
+    "cn.xpertai": {
+      "version": 1,
+      "interface": {
+        "displayName": "Supabase (read-only)"
+      },
+      "connectors": {
+        "supabase": {
+          "type": "mcp_oauth"
+        }
+      }
+    }
+  }
+}

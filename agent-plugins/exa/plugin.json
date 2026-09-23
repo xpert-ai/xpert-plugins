@@ -1,0 +1,14 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "exa",
+  "version": "1.0.0",
+  "description": "Search the public web and read pages with Exa's hosted MCP server. No API key is required to get started; provider limits apply.",
+  "author": { "name": "Xpert AI" },
+  "homepage": "https://exa.ai/mcp",
+  "extensions": {
+    "cn.xpertai": {
+      "version": 1,
+      "interface": { "displayName": "Exa", "icon": "https://exa.ai/favicon.ico" }
+    }
+  }
+}

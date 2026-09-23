@@ -1,0 +1,23 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "sentry",
+  "version": "1.0.0",
+  "description": "Investigate issues and errors in authorized Sentry organizations.",
+  "author": {
+    "name": "Xpert AI"
+  },
+  "homepage": "https://mcp.sentry.dev/",
+  "extensions": {
+    "cn.xpertai": {
+      "version": 1,
+      "interface": {
+        "displayName": "Sentry"
+      },
+      "connectors": {
+        "sentry": {
+          "type": "mcp_oauth"
+        }
+      }
+    }
+  }
+}

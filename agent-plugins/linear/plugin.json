@@ -1,0 +1,23 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "linear",
+  "version": "1.0.0",
+  "description": "Find and manage issues and projects in authorized Linear workspaces.",
+  "author": {
+    "name": "Xpert AI"
+  },
+  "homepage": "https://linear.app/docs/mcp",
+  "extensions": {
+    "cn.xpertai": {
+      "version": 1,
+      "interface": {
+        "displayName": "Linear"
+      },
+      "connectors": {
+        "linear": {
+          "type": "mcp_oauth"
+        }
+      }
+    }
+  }
+}

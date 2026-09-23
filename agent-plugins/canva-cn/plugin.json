@@ -1,0 +1,25 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "canva-cn",
+  "version": "1.0.0",
+  "description": "Use the existing Xpert Canva Connector account with Canva China MCP.",
+  "author": {
+    "name": "Xpert AI"
+  },
+  "homepage": "https://www.canva.cn/",
+  "extensions": {
+    "cn.xpertai": {
+      "version": 1,
+      "interface": {
+        "displayName": "Canva China"
+      },
+      "connectors": {
+        "canva-cn": {
+          "type": "existing",
+          "provider": "canva",
+          "resource": "https://mcp.canva.cn"
+        }
+      }
+    }
+  }
+}

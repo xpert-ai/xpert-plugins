@@ -1,0 +1,24 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "notion",
+  "version": "1.1.0",
+  "description": "Search and work with your authorized Notion content using the official remote MCP server. Each user connects their own Notion account.",
+  "author": {
+    "name": "Xpert AI"
+  },
+  "homepage": "https://developers.notion.com/guides/mcp/overview",
+  "extensions": {
+    "cn.xpertai": {
+      "version": 1,
+      "interface": {
+        "displayName": "Notion",
+        "icon": "https://raw.githubusercontent.com/openai/plugins/main/plugins/notion/assets/notion-small.svg"
+      },
+      "connectors": {
+        "notion": {
+          "type": "mcp_oauth"
+        }
+      }
+    }
+  }
+}
