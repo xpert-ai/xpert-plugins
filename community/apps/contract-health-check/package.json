@@ -1,0 +1,83 @@
+{
+  "name": "@xpert-ai/plugin-contract-health-check",
+  "version": "0.1.0",
+  "description": "Contract health-check app plugin for small businesses: intake a contract, run AI risk review with rewrite suggestions, confirm findings, and persist a reviewable report.",
+  "author": {
+    "name": "XpertAI",
+    "url": "https://xpertai.cn"
+  },
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins.git",
+    "directory": "community/apps/contract-health-check"
+  },
+  "bugs": {
+    "url": "https://github.com/xpert-ai/xpert-plugins/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@xpert-plugins-starter/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
+    "lint": "echo \"(todo) add lint\"",
+    "typecheck": "tsc -p tsconfig.spec.json --noEmit",
+    "test": "tsc -p tsconfig.spec.json --noEmit && NODE_OPTIONS=--experimental-vm-modules pnpm exec jest --config jest.config.cjs",
+    "demo": "node demo/run-demo.mjs"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "system"
+    }
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "peerDependencies": {
+    "@langchain/core": ">=0.3.0",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/typeorm": "^11.0.0",
+    "@xpert-ai/contracts": "^3.10.1",
+    "@xpert-ai/plugin-sdk": "^3.10.1",
+    "react": ">=18",
+    "react-dom": ">=18",
+    "typeorm": "^0.3.24",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@langchain/core": "0.3.72",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/typeorm": "^11.0.0",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^20.19.9",
+    "@xpert-ai/contracts": "^3.10.1",
+    "@xpert-ai/plugin-sdk": "^3.10.1",
+    "jest": "^29.7.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "reflect-metadata": "^0.2.2",
+    "ts-jest": "^29.2.5",
+    "typeorm": "^0.3.24",
+    "typescript": "^5.9.2",
+    "zod": "3.25.67"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

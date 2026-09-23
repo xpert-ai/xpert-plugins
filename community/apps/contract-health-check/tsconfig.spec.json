@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.lib.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "isolatedModules": true,
+    "types": ["node", "jest"]
+  },
+  "include": ["src/**/*.ts"]
+}
