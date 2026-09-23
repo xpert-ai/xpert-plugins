@@ -350,6 +350,9 @@
     },
     {
       "path": "./packages/connector-runtime"
+    },
+    {
+      "path": "./integrations/agent-runtimes"
     }
   ]
 }

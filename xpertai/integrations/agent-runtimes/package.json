@@ -1,0 +1,52 @@
+{
+  "name": "@xpert-ai/plugin-agent-runtimes",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@xpert-plugins-starter/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "nx": {
+    "name": "agent-runtimes"
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "description": "Governed Codex, Pi, Claude Code and OpenCode execution strategies.",
+  "license": "AGPL-3.0",
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.lib.json",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "system"
+    }
+  },
+  "peerDependencies": {
+    "@xpert-ai/plugin-sdk": "^3.18.7",
+    "@nestjs/common": "^11.1.6",
+    "@langchain/core": "^0.3.72",
+    "zod": "^3.25.67",
+    "@anthropic-ai/claude-agent-sdk": "^0.3.278",
+    "@xpert-ai/contracts": "^3.17.0"
+  },
+  "peerDependenciesMeta": {
+    "@anthropic-ai/claude-agent-sdk": {
+      "optional": true
+    }
+  },
+  "private": true
+}
