@@ -2561,7 +2561,7 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
 
-  middlewares/amap-connector:
+  connectors/amap-connector:
     dependencies:
       '@langchain/core':
         specifier: 0.3.72
@@ -2585,7 +2585,7 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
 
-  middlewares/baidu-netdisk-connector:
+  connectors/baidu-netdisk-connector:
     dependencies:
       '@langchain/core':
         specifier: 0.3.72
@@ -2609,7 +2609,7 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
 
-  middlewares/canva-connector:
+  connectors/canva-connector:
     dependencies:
       '@langchain/core':
         specifier: 0.3.72
@@ -2672,7 +2672,7 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
 
-  middlewares/ctrip-wendao-connector:
+  connectors/ctrip-wendao-connector:
     dependencies:
       '@langchain/core':
         specifier: 0.3.72
@@ -2708,7 +2708,7 @@ importers:
         specifier: ^2.3.0
         version: 2.8.1
 
-  middlewares/dingtalk-connector:
+  connectors/dingtalk-connector:
     dependencies:
       '@langchain/core':
         specifier: 0.3.72
@@ -2771,7 +2771,7 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
 
-  middlewares/github-connector:
+  connectors/github-connector:
     dependencies:
       '@langchain/core':
         specifier: 0.3.72
@@ -2795,7 +2795,7 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
 
-  middlewares/kdocs-connector:
+  connectors/kdocs-connector:
     dependencies:
       '@langchain/core':
         specifier: 0.3.72
@@ -2822,7 +2822,7 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
 
-  middlewares/lark-cli:
+  connectors/lark-cli:
     dependencies:
       '@xpert-ai/connector-runtime':
         specifier: workspace:^
@@ -2987,7 +2987,7 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
 
-  middlewares/netease-mail-connector:
+  connectors/netease-mail-connector:
     dependencies:
       '@langchain/core':
         specifier: 0.3.72
@@ -3027,7 +3027,7 @@ importers:
         specifier: 8.0.1
         version: 8.0.1
 
-  middlewares/notion-connector:
+  connectors/notion-connector:
     dependencies:
       '@langchain/core':
         specifier: 0.3.72
@@ -3066,7 +3066,7 @@ importers:
         specifier: ^2.3.0
         version: 2.8.1
 
-  middlewares/qq-mail-connector:
+  connectors/qq-mail-connector:
     dependencies:
       '@langchain/core':
         specifier: 0.3.72
@@ -3133,7 +3133,7 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
 
-  middlewares/tencent-map-connector:
+  connectors/tencent-map-connector:
     dependencies:
       '@langchain/core':
         specifier: 0.3.72
@@ -3271,7 +3271,7 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
 
-  middlewares/wecom-connector:
+  connectors/wecom-connector:
     dependencies:
       '@langchain/core':
         specifier: 0.3.72
@@ -3298,7 +3298,7 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
 
-  middlewares/wps-knowledge-connector:
+  connectors/wps-knowledge-connector:
     dependencies:
       '@langchain/core':
         specifier: 0.3.72
@@ -3334,7 +3334,7 @@ importers:
         specifier: ^2.3.0
         version: 2.8.1
 
-  middlewares/zsxq-connector:
+  connectors/zsxq-connector:
     dependencies:
       '@langchain/core':
         specifier: 0.3.72

@@ -15,7 +15,7 @@ mkdirSync(output, { recursive: true, mode: 0o700 })
 const inventory = JSON.parse(readFileSync(join(workspace, 'packages/connector-runtime/migrations.json'), 'utf8'))
 assert.equal(inventory.schemaVersion, 1)
 const runtime = JSON.parse(readFileSync(join(workspace, 'packages/connector-runtime/package.json'), 'utf8'))
-const packages = [{ package: runtime.name, path: 'packages/connector-runtime' }, ...inventory.connectors.map(entry => ({ package: entry.package, path: `middlewares/${entry.directory}` }))]
+const packages = [{ package: runtime.name, path: 'packages/connector-runtime' }, ...inventory.connectors.map(entry => ({ package: entry.package, path: `connectors/${entry.directory}` }))]
 const results = []
 function run(label, command, argv, cwd) {
   const result = spawnSync(command, argv, { cwd, encoding: 'utf8', env: { ...process.env, NX_DAEMON: 'false' }, maxBuffer: 32 * 1024 * 1024 })

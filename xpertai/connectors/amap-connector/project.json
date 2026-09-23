@@ -1,0 +1,20 @@
+{
+  "name": "@xpert-ai/plugin-amap-connector",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "connectors/amap-connector/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "connectors/amap-connector/dist",
+        "main": "connectors/amap-connector/src/index.ts",
+        "rootDir": "connectors/amap-connector/src",
+        "tsConfig": "connectors/amap-connector/tsconfig.lib.json",
+        "generatePackageJson": false
+      }
+    }
+  },
+  "tags": []
+}

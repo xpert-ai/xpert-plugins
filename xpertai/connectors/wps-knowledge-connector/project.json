@@ -1,0 +1,36 @@
+{
+  "name": "@xpert-ai/plugin-wps-knowledge-connector",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "connectors/wps-knowledge-connector/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "connectors/wps-knowledge-connector/dist",
+        "main": "connectors/wps-knowledge-connector/src/index.ts",
+        "rootDir": "connectors/wps-knowledge-connector/src",
+        "tsConfig": "connectors/wps-knowledge-connector/tsconfig.lib.json",
+        "generatePackageJson": false
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "cwd": "connectors/wps-knowledge-connector",
+        "command": "tsc -p tsconfig.spec.json --noEmit"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "cwd": "connectors/wps-knowledge-connector",
+        "command": "jest --config jest.config.cjs --runInBand"
+      }
+    }
+  },
+  "tags": []
+}

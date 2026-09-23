@@ -9,6 +9,7 @@ packages:
   - documents/*
   - databases/*
   - middlewares/*
+  - connectors/*
   - skills/*
 
 overrides:

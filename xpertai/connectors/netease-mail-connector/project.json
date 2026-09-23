@@ -1,0 +1,20 @@
+{
+  "name": "@xpert-ai/plugin-netease-mail-connector",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "connectors/netease-mail-connector/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "connectors/netease-mail-connector/dist",
+        "main": "connectors/netease-mail-connector/src/index.ts",
+        "rootDir": "connectors/netease-mail-connector/src",
+        "tsConfig": "connectors/netease-mail-connector/tsconfig.lib.json",
+        "generatePackageJson": false
+      }
+    }
+  },
+  "tags": []
+}

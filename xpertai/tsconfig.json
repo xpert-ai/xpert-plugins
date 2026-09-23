@@ -145,10 +145,10 @@
       "path": "./middlewares/zip-unzip-cli"
     },
     {
-      "path": "./middlewares/lark-cli"
+      "path": "./connectors/lark-cli"
     },
     {
-      "path": "./middlewares/github-connector"
+      "path": "./connectors/github-connector"
     },
     {
       "path": "./middlewares/clarification"
@@ -301,40 +301,40 @@
       "path": "./integrations/dingtalk-sso"
     },
     {
-      "path": "./middlewares/wecom-connector"
+      "path": "./connectors/wecom-connector"
     },
     {
-      "path": "./middlewares/dingtalk-connector"
+      "path": "./connectors/dingtalk-connector"
     },
     {
-      "path": "./middlewares/qq-mail-connector"
+      "path": "./connectors/qq-mail-connector"
     },
     {
-      "path": "./middlewares/netease-mail-connector"
+      "path": "./connectors/netease-mail-connector"
     },
     {
-      "path": "./middlewares/ctrip-wendao-connector"
+      "path": "./connectors/ctrip-wendao-connector"
     },
     {
-      "path": "./middlewares/kdocs-connector"
+      "path": "./connectors/kdocs-connector"
     },
     {
-      "path": "./middlewares/wps-knowledge-connector"
+      "path": "./connectors/wps-knowledge-connector"
     },
     {
-      "path": "./middlewares/tencent-map-connector"
+      "path": "./connectors/tencent-map-connector"
     },
     {
-      "path": "./middlewares/amap-connector"
+      "path": "./connectors/amap-connector"
     },
     {
-      "path": "./middlewares/baidu-netdisk-connector"
+      "path": "./connectors/baidu-netdisk-connector"
     },
     {
-      "path": "./middlewares/canva-connector"
+      "path": "./connectors/canva-connector"
     },
     {
-      "path": "./middlewares/zsxq-connector"
+      "path": "./connectors/zsxq-connector"
     },
     {
       "path": "./documents/anydoc"

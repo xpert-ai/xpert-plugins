@@ -1,0 +1,20 @@
+{
+  "name": "@xpert-ai/plugin-baidu-netdisk-connector",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "connectors/baidu-netdisk-connector/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "connectors/baidu-netdisk-connector/dist",
+        "main": "connectors/baidu-netdisk-connector/src/index.ts",
+        "rootDir": "connectors/baidu-netdisk-connector/src",
+        "tsConfig": "connectors/baidu-netdisk-connector/tsconfig.lib.json",
+        "generatePackageJson": false
+      }
+    }
+  },
+  "tags": []
+}

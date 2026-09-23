@@ -30,7 +30,7 @@ test('all migrated packages ship a real runtime dependency and consume shared au
   assert.equal(migrations.schemaVersion, 1)
   assert.equal(new Set(migrations.connectors.map(entry => entry.provider)).size, migrations.connectors.length)
   for (const entry of migrations.connectors) {
-    const directory = join(workspace, 'middlewares', entry.directory)
+    const directory = join(workspace, 'connectors', entry.directory)
     const manifest = JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8'))
     assert.equal(manifest.name, entry.package)
     assert.equal(manifest.dependencies['@xpert-ai/connector-runtime'], 'workspace:^')

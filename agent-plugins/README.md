@@ -51,7 +51,7 @@ open workspace Connector settings; other users contact their administrator. The
 workspace flow owns OAuth, encrypted storage and refresh. ChatKit observes readiness
 and resumes selection; failed configuration retains the draft and selections. Installing a package does not grant external access.
 
-For Canva, first install/update `xpertai/middlewares/canva-connector`, configure its
+For Canva, first install/update `xpertai/connectors/canva-connector`, configure its
 System Integration and create a **shared** workspace binding for provider
 `canva`. Then install `canva-cn`. A token for global Canva's REST API cannot satisfy this package's `https://mcp.canva.cn` resource requirement.
 

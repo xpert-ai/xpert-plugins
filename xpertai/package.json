@@ -52,6 +52,7 @@
     "documents/*",
     "databases/*",
     "middlewares/*",
+    "connectors/*",
     "skills/*"
   ],
   "dependencies": {

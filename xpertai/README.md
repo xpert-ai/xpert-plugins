@@ -19,6 +19,7 @@ To create different types of plugins, you can replace 'packages' with different 
 - agents: for AI agents
 - databases: for databases
 - integrations: for third-party service integrations
+- connectors: for native Connector plugins
 - middlewares: for agent middlewares
 - packages: for general-purpose libraries
 

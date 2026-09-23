@@ -38,6 +38,8 @@ const driver = createStandardOAuth2Driver({
 
 对于已有公开 MCP 服务的标准 Agent Plugin，优先继续使用 `agent-plugins/` 的 `mcp.json` 和宿主通用 MCP OAuth Connector；不必再创建原生 Connector。MCP OAuth 和普通 REST OAuth 有不同的 client/resource/scopes，凭据不会相互冒充。
 
+原生 Connector 插件统一位于 `xpertai/connectors/`；公共认证库保留在 `xpertai/packages/connector-runtime/`。
+
 ## 全量迁移清单
 
 当前仓库注册的 15 个原生 Connector 全部接入共享认证层。`migrations.json` 是可测试的清单；测试会扫描真实 `ConnectorStrategyKey` 注册，发现遗漏或新增未登记的 Connector 时失败。
