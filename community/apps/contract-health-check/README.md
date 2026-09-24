@@ -6,7 +6,7 @@
 - 业务问题：签合同前缺乏低成本、可复用、可追溯的风险审查能力
 - AI 作用：要素抽取、风险审查、条款改写、报告摘要（结构化、可确认、可保存）
 
-完整产品与工作流设计见 [docs/design.md](docs/design.md)。
+配套文档：[产品与工作流设计](docs/design.md) · [需求与验收标准](docs/requirements.md) · [AI 协作说明](docs/ai-collaboration.md)
 
 ## What It Provides
 
@@ -35,6 +35,18 @@ draft → processing → needs_review → completed
 - Node.js ≥ 18（以插件仓库配置为准），pnpm ≥ 8
 - Xpert 开源版 `xpert-ai/xpert` main 分支
 - 插件仓库 `xpert-ai/xpert-plugins` main 分支（Fork 后从上游 main 创建功能分支）
+
+## 基线版本
+
+| 仓库 | 分支 | 基线 commit SHA |
+| --- | --- | --- |
+| 平台 `xpert-ai/xpert` | main | `d24ca81b9f5885cf44dd77afdb0f91359b49c4ea` † |
+| 插件 `xpert-ai/xpert-plugins` | main | `0be73cf89fe037ee1a8c4b1e053a94fb526738e6` |
+
+† 平台仓库 main 在 2026-09-18 的 HEAD 即为该 SHA，此后未再变动，本项目开发（2026-09-22 起）即以该版本为准。
+本地可用 `git -C <xpert 目录> rev-parse HEAD` 核对。
+
+功能分支：`feat/contract-health-check`（本插件全部改动位于 `community/apps/contract-health-check/`）。
 
 ## 构建
 
@@ -69,6 +81,9 @@ pnpm --filter @xpert-ai/plugin-contract-health-check demo
 
 完整输出见 [demo/demo-output.txt](demo/demo-output.txt)。
 
+> ⚠️ 该演示运行在本地进程内，使用内存数据源与模拟的模型回写，**用于验证业务状态机、保存恢复、失败重试与组织隔离等业务逻辑**。
+> 它不等于平台内真实运行验证 —— 平台中的实际使用流程与截图见下方 [运行截图与演示](#运行截图与演示)。
+
 ## 插件生命周期验证
 
 在插件仓库根目录执行：
@@ -77,9 +92,30 @@ pnpm --filter @xpert-ai/plugin-contract-health-check demo
 pnpm -C plugin-dev-harness install
 pnpm -C plugin-dev-harness build
 node plugin-dev-harness/dist/index.js \
-  --workspace ./community/apps/contract-health-check \
+  --workspace ./community \
   --plugin @xpert-ai/plugin-contract-health-check
 ```
+
+实际执行结果（2026-09-24 复核）：
+
+```
+[plugin-dev-harness] workspace: .../xpert-plugins/community
+[plugin-dev-harness] plugin: @xpert-ai/plugin-contract-health-check@0.1.0
+[plugin-dev-harness] entry: .../community/apps/contract-health-check/dist/index.js
+[plugin-dev-harness][plugin:@xpert-ai/plugin-contract-health-check][log] register contract health check plugin
+[plugin-dev-harness][plugin:@xpert-ai/plugin-contract-health-check][log] contract health check plugin started
+[plugin-dev-harness] onStart completed
+ContractHealthCheckPlugin is being bootstrapped...
+[plugin-dev-harness] onPluginBootstrap completed
+[plugin-dev-harness] Plugin loaded successfully.
+ContractHealthCheckPlugin is being destroyed...
+[plugin-dev-harness] onPluginDestroy completed
+[plugin-dev-harness][plugin:@xpert-ai/plugin-contract-health-check][log] contract health check plugin stopped
+[plugin-dev-harness] onStop completed
+[plugin-dev-harness] Application context closed
+```
+
+> ⚠️ Harness 默认包含数据库与运行能力的模拟对象，因此**不能**据此宣称真实数据库、权限或业务流程已经通过。
 
 ## 安装到 Xpert 测试平台
 
@@ -115,14 +151,36 @@ pnpm plugin:install:local \
 
 ## 运行截图与演示
 
-> 待补充：在 Xpert 中完成真实业务流程后，将以下截图放入本 README（相对路径，随代码提交）：
->
-> 1. 工作台录入页（新建合同体检、粘贴正文）
-> 2. AI 处理中的状态
-> 3. 体检报告页（风险清单 + 改写建议 + 评分）
-> 4. 逐条确认后的保存结果
-> 5. 历史记录恢复
-> 6. 一个失败场景（模型失败提示 + 重试）
+> **状态：待补充。** 需在 Xpert 开源版（main）中安装本插件并跑通一次真实业务流程后补齐此处截图。
+
+截图放在 `docs/images/`（随代码提交，相对路径引用，GitHub 中可直接显示），文件名固定为：
+
+| 序号 | 文件名 | 应展示的内容 |
+| --- | --- | --- |
+| 1 | `docs/images/01-intake.png` | 工作台录入页：新建合同体检、粘贴合同正文 |
+| 2 | `docs/images/02-processing.png` | AI 处理中的状态（四环节进度） |
+| 3 | `docs/images/03-report.png` | 体检报告页：风险清单 + 改写建议 + 风险评分 |
+| 4 | `docs/images/04-confirmed.png` | 逐条确认后的保存结果 |
+| 5 | `docs/images/05-history.png` | 历史记录，重新进入后恢复原记录与结果 |
+| 6 | `docs/images/06-failure.png` | 异常场景：模型/环节失败的可理解提示 + 重试 |
+
+截图齐备后，把下面这段直接替换掉本节内容（含本提示块）：
+
+````markdown
+| 录入 | 处理中 |
+| --- | --- |
+| ![工作台录入页](docs/images/01-intake.png) | ![AI 处理中](docs/images/02-processing.png) |
+
+| 报告 | 逐条确认后保存 |
+| --- | --- |
+| ![体检报告页](docs/images/03-report.png) | ![确认并保存](docs/images/04-confirmed.png) |
+
+| 历史记录恢复 | 失败与重试 |
+| --- | --- |
+| ![历史记录](docs/images/05-history.png) | ![失败场景](docs/images/06-failure.png) |
+
+平台基线：`xpert-ai/xpert` main `d24ca81b…`；插件基线：`xpert-ai/xpert-plugins` main `0be73cf8…`。
+````
 
 ## 验证结果
 
@@ -143,12 +201,14 @@ pnpm --filter @xpert-ai/plugin-contract-health-check build      # 通过
 # 测试（类型检查 + 9 条单测）
 pnpm --filter @xpert-ai/plugin-contract-health-check test        # 9 passed
 
-# 生命周期
+# 生命周期（按任务书附录二给定的命令形式）
 node plugin-dev-harness/dist/index.js \
-  --workspace ./community/apps/contract-health-check \
+  --workspace ./community \
   --plugin @xpert-ai/plugin-contract-health-check
-# → Plugin loaded successfully. onStart / onPluginBootstrap / onDestroy / onStop 全部 completed
+# → Plugin loaded successfully. onStart / onPluginBootstrap / onPluginDestroy / onStop 全部 completed
 ```
+
+第 1–3 项于 2026-09-24 在功能分支上复核通过（类型检查通过、9/9 单测通过、生命周期 4 个钩子全部 completed）。
 
 ### 尚未验证的部分（明确标注）
 
