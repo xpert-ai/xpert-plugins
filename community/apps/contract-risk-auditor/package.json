@@ -1,0 +1,68 @@
+{
+  "name": "@community/apps-contract-risk-auditor",
+  "version": "0.1.0",
+  "description": "商务采购合同风险排查与防违约条款修订工作台",
+  "author": {
+    "name": "Candidate",
+    "url": "https://github.com/xpert-ai/xpert-plugins"
+  },
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@xpert-plugins-starter/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "!**/*.tsbuildinfo"
+  ],
+  "xpert": {
+    "plugin": {
+      "level": "system",
+      "artifactNamespace": "contract_risk_auditor"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/copy-assets.mjs",
+    "lint": "echo \"(todo) add lint\"",
+    "test": "node --test dist/lib/contract-risk-auditor.service.spec.js",
+    "test:harness": "node --experimental-require-module ../../../plugin-dev-harness/dist/index.js --workspace ../.. --plugin @community/apps-contract-risk-auditor",
+    "preview": "node scripts/preview-server.mjs"
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "peerDependencies": {
+    "@langchain/core": ">=0.3.0",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@xpert-ai/contracts": "^3.10.1",
+    "@xpert-ai/plugin-sdk": "^3.10.1",
+    "react": ">=18",
+    "react-dom": ">=18",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@types/node": "^20.18.0",
+    "@xpert-ai/contracts": "^3.10.1",
+    "@xpert-ai/plugin-sdk": "^3.10.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.9.2",
+    "zod": "3.25.67"
+  },
+  "publishConfig": {
+    "access": "restricted"
+  }
+}
