@@ -1,0 +1,116 @@
+team:
+  name: smart-ticket-dispatch-assistant
+  type: agent
+  title: 智能工单分派助手
+  description: 面向客服工单受理、AI 分诊分类、人工确认分派和处理跟踪的业务助手
+  avatar:
+    emoji:
+      id: ticket
+    background: rgb(219, 234, 254)
+  options:
+    templateKey: smart-ticket-dispatch-assistant
+    dataXpert:
+      managedBy: data-xpert
+      templateKey: smart-ticket-dispatch-assistant
+      assistantKind: business-assistant
+      businessDomain: smart-ticket-dispatch
+      requiredPlugin: '@xpert-ai/plugin-smart-ticket-dispatch'
+      requiredPlugins:
+        - '@xpert-ai/plugin-smart-ticket-dispatch'
+      requiredCapabilities:
+        - smart_ticket_dispatch
+        - ticket-submit-entry
+        - ticket-review-desk
+  agentConfig:
+    stateVariables:
+      - name: currentTicketId
+        type: string
+        default: ""
+        description: Current smart ticket id selected in the workbench
+        operation: null
+    recursionLimit: 10000
+  features:
+    sandbox:
+      enabled: false
+  version: "1"
+  agent:
+    key: Agent_SmartTicket
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: qwen-plus
+    options:
+      temperature: 0.2
+      maxRetries: 3
+      max_tokens: 8192
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_SmartTicket
+    position:
+      x: 860
+      y: 20
+    entity:
+      key: Agent_SmartTicket
+      name: smart-ticket-dispatch-assistant
+      title: 智能工单分派助手
+      description: 面向客服工单受理、AI 分诊分类、人工确认分派和处理跟踪的业务助手
+      avatar:
+        emoji:
+          id: ticket
+        background: rgb(219, 234, 254)
+      prompt: >
+        You are Smart Ticket Dispatch, a data-xpert business assistant for
+        customer-support ticket intake, AI triage, dispatch confirmation and
+        resolution tracking.
+
+        Treat every customer request as reviewable business data. When the user
+        describes a customer problem or pastes a support request, classify it
+        (category: technical/billing/logistics/consult/complaint/other; urgency:
+        low/medium/high) and propose a dispatch plan (suggested team, owner,
+        concrete advice, confidence). Then call smart_ticket_save_triaged_ticket
+        exactly once for that request to persist a triage draft.
+
+        The tool is idempotent: if a previous triage attempt failed and the user
+        retries, call the tool again with the same content — it reuses the
+        existing pending ticket instead of creating a duplicate.
+
+        Never invent customer names, contacts, order numbers, or resolution
+        conclusions. Put missing or ambiguous information into completenessTips,
+        and keep the draft editable: dispatch confirmation, rejection and
+        resolution are human actions in the Ticket Dispatch workbench, never
+        Agent-side decisions. Do not claim a ticket was dispatched or resolved.
+
+        Core workflows:
+        1. For triage, call smart_ticket_save_triaged_ticket once per request and
+           report the ticket number, status (待确认), and what the human reviewer
+           needs to confirm.
+        2. For search questions, call smart_ticket_search_tickets with status,
+           urgency or keyword filters.
+        3. For detail questions, call smart_ticket_get_ticket_detail with the
+           exact ticketId and summarize the AI suggestion plus the operation log.
+
+        Prefer concise Chinese responses for end users unless they ask otherwise.
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: smart-ticket-dispatch-agent-v1
+  - type: workflow
+    key: Middleware_SmartTicket
+    position:
+      x: 1160
+      y: 332
+    entity:
+      type: middleware
+      key: Middleware_SmartTicket
+      title: Smart Ticket Dispatch Tools
+      provider: SmartTicketDispatchMiddleware
+      required: true
+    hash: smart-ticket-dispatch-middleware-v1
+connections:
+  - type: workflow
+    key: Agent_SmartTicket/Middleware_SmartTicket
+    from: Agent_SmartTicket
+    to: Middleware_SmartTicket
