@@ -209,3 +209,31 @@ natural-language generation request, opens the PPTX editor, changes and saves a
 text shape, then asks the Agent to inspect that saved file and create a modified
 copy. Download the actual UI result and inspect its text, tables, native chart
 workbook and notes. Keep screenshots and machine IDs in private receipts.
+
+### Spreadsheets verification
+
+Install the platform's `tools/spreadsheets-runtime/install.mjs`, LibreOffice Calc
+and Noto Sans CJK SC. From the plugin repository root:
+
+```sh
+corepack pnpm --filter @xpert-ai/artifact-tool test
+python3 agent-plugins/spreadsheets/skills/spreadsheets/scripts/spreadsheets.py run \
+  plugin-dev-harness/spreadsheets-smoke.py \
+  --skill agent-plugins/spreadsheets/skills/spreadsheets --output /tmp/spreadsheets-smoke-new
+python3 plugin-dev-harness/artifact-sandbox-smoke.py \
+  --image xpert-pro-sandbox:spreadsheets-test --output /tmp/spreadsheets-service-new \
+  --plugins spreadsheets presentations documents pdf
+```
+
+The fixture verifies real multi-sheet formulas and cached results, hidden sheets,
+number formats, native charts/tables, chart-cache refresh, source hashes, unchanged
+package parts, rejected stale edits, fresh outputs and Chinese PDF text. Review
+every final page PNG separately. The Docker harness uses the normal HTTP shell
+service as a non-root user with external networking disabled.
+
+Browser acceptance must select the published plugin and generate XLSX through
+an actual Agent conversation, edit a cell in Files, save it, then ask the Agent
+to inspect the saved value without supplying it in the prompt and produce an
+edited copy. Download the UI output and independently verify formulas, caches,
+charts, tables, hidden sheets and unchanged package parts. An API-only test is
+not a replacement. Keep account, conversation and workspace IDs in private receipts.

@@ -11,7 +11,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--image', required=True)
     parser.add_argument('--output', required=True, type=Path)
-    parser.add_argument('--plugins', nargs='+', choices=['documents', 'pdf', 'presentations'],
+    parser.add_argument('--plugins', nargs='+', choices=['documents', 'pdf', 'presentations', 'spreadsheets'],
                         default=['presentations', 'documents', 'pdf'])
     args = parser.parse_args()
     root = args.output.resolve()

@@ -191,3 +191,33 @@ Primary implementation references: [PptxGenJS](https://github.com/gitbrent/PptxG
 V1 excludes native Google Slides, complex imported-template editing, animation
 authoring and full PowerPoint fidelity. The older native Presentations plugin
 remains independent; select the portable workspace resource for this workflow.
+
+## Spreadsheets migration
+
+Xpert Spreadsheets 1.0.0 is independently authored. Its npm SDK
+`@xpert-ai/artifact-tool` 0.1.0 contains no OpenAI artifact-tool code, private
+binaries or copied Skill text. It is not an API-compatible replacement.
+
+Excelize WASM 0.1.3 authors native XLSX; Univer OSS 0.25.1 calculates the bounded
+formula subset shared with the platform editor. JSZip/xmldom preserve the original
+OPC package when updating cells, formula results, table headers and chart caches.
+LibreOffice Calc renders a disposable copy to PDF; PDFium produces page images.
+The authoritative workbook never undergoes a LibreOffice save round trip.
+
+The independent SDK is published as `@xpert-ai/artifact-tool` on npm. Platform
+desktop and PRO Docker runtimes should pin a released version and its dependency
+lockfile; migrating older vendored-tarball installations is a separate host change.
+The portable ZIP contains a manifest, Skill, references, launcher and display icon,
+and performs no dependency installation during Agent conversations.
+
+V1 excludes full Excel compatibility, live Google Sheets, macro execution, pivot
+authoring, array/shared/structured-reference formulas and collaborative editing.
+The browser saves values/formulas and preserves other package objects; it rejects
+unsupported structural/formatting edits and displays native charts through PDF/PNG
+previews. Source-byte checks detect changes before saving but are not an atomic
+server-side compare-and-swap. See the plugin acceptance document for coverage.
+
+Primary sources: [Excelize WASM](https://github.com/xuri/excelize-wasm),
+[Univer OSS](https://github.com/dream-num/univer),
+[JSZip](https://github.com/Stuk/jszip) and
+[xmldom](https://github.com/xmldom/xmldom).

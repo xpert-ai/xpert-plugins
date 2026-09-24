@@ -11,6 +11,7 @@ contain no npm entrypoint, server module, installation script or credential.
 | `documents` | DOCX creation, comments, revisions and page review | Interactive sandbox, Documents runtime and image-capable model |
 | `pdf` | PDF creation, extraction, page operations, forms and visual review | Interactive sandbox, PDF runtime and image-capable model |
 | `presentations` | Editable PPTX generation, conservative text edits and slide review | Interactive sandbox, Presentations runtime and image-capable model |
+| `spreadsheets` | Native XLSX, formulas, charts/tables, conservative cell edits and page review | Interactive sandbox, Spreadsheets runtime and image-capable model |
 | `exa`      | Public web search and page reading           | Anonymous starter quota                                               |
 | `notion`   | Workspace search/read and requested updates  | Workspace Connector OAuth                                              |
 | `linear`   | Issues, projects and team workflows          | Workspace Connector OAuth                                              |
@@ -28,6 +29,8 @@ It contributes SandboxShell, SandboxFile and ViewImageMiddleware for that run.
 PDF uses the same middleware contract with a separate [PDF runtime](pdf/README.md).
 Presentations adds an independent [editable PPTX workflow](presentations/README.md)
 with pinned Node/Python dependencies and LibreOffice Impress.
+Spreadsheets adds an independent [XLSX workflow](spreadsheets/README.md), using the
+published `@xpert-ai/artifact-tool` package, Univer OSS, Excelize WASM and Calc.
 
 ## Plugin display icons
 
@@ -41,7 +44,7 @@ Configure portable plugin icons in `plugin.json` at
 the native npm plugin's `IconDefinition` or an Assistant `avatar` object. The
 portable interface has no separate `avatar`, `composerIcon` or `logo` fields.
 
-Documents, PDF and Presentations include the corresponding Codex
+Documents, PDF, Presentations and Spreadsheets include the corresponding Codex
 `assets/icon.png` and embed its bytes as a `data:image/png;base64,...` URL in the
 manifest. This works offline after import. Relative paths such as
 `./assets/icon.png` are not resolved by the portable host. To regenerate an icon
@@ -64,7 +67,7 @@ changing Connector configuration. Exa and Notion retain their existing image URL
 
 ## Final deliverables
 
-Documents, PDF and Presentations 1.0.2 require the host's
+Documents, PDF, Presentations and Spreadsheets 1.0.2 require the host's
 SandboxFile `present_files({paths})` tool. The Agent selects final deliverables
 after verification; the host validates and saves immutable output cards. Writes
 and Shell commands record file changes without automatically displaying drafts.
@@ -114,7 +117,7 @@ System Integration and create a **shared** workspace binding for provider
 
 ```sh
 corepack pnpm quickstart --pack --output-dir /tmp/xpert-agent-plugins \
-  documents pdf presentations exa notion linear supabase sentry canva-cn
+  documents pdf presentations spreadsheets exa notion linear supabase sentry canva-cn
 ```
 
 Upload a ZIP through **Settings > Plugins > Agent Plugins**, choose the workspace
