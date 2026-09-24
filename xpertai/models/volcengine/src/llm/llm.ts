@@ -159,7 +159,10 @@ export class VolcengineLargeLanguageModel extends LargeLanguageModel {
         ...toCredentialKwargs(credentials),
         model,
         temperature: 0,
-        maxTokens: 5
+        maxTokens: 5,
+        maxRetries: 0,
+        timeout: 10000,
+        modelKwargs: { thinking: { type: 'disabled' } }
       })
       await chatModel.invoke([
         {
