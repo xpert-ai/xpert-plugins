@@ -1,0 +1,16 @@
+{
+  "name": "@xpert-ai/plugin-meeting-action-workbench",
+  "version": "0.3.0",
+  "description": "Meeting decisions, action execution, and Agent-assisted risk governance with human review and durable state.",
+  "author": "XpertAI",
+  "license": "AGPL-3.0",
+  "level": "system",
+  "artifactNamespace": "meeting_action_workbench",
+  "targetApps": ["data-xpert"],
+  "targetAppMeta": {
+    "data-xpert": {
+      "types": ["business-app", "workbench-view", "assistant-tool", "assistant-template"],
+      "capabilities": ["meeting-action-workbench", "meeting-ai-extraction", "meeting-file-import", "meeting-human-review", "meeting-execution-tracking", "meeting-agent-risk-review"]
+    }
+  }
+}

@@ -1,0 +1,109 @@
+team:
+  name: meeting-action-workbench-assistant
+  type: agent
+  title: 会议决议与行动项助手
+  description: 从会议内容中提取可追溯结果，持续跟踪行动项并生成 Agent 风险巡检与跟进简报
+  starters:
+    - 请把下面的会议内容提取为会议决议和行动项，并保存到工作台等待我确认。
+    - 请打开最近一条失败的会议提取记录，说明失败原因并安全重试。
+    - 请根据会议记录检查哪些行动项缺少负责人或截止日期。
+    - 请总结指定会议的已确认决议和未完成行动项。
+    - 请巡检所有已确认行动项的执行风险，并生成下一次会议跟进简报。
+  avatar:
+    emoji:
+      id: clipboard
+    background: rgb(224, 242, 254)
+  options:
+    templateKey: meeting-action-workbench-assistant
+    dataXpert:
+      managedBy: data-xpert
+      templateKey: meeting-action-workbench-assistant
+      assistantKind: business-assistant
+      businessDomain: meeting-operations
+      requiredPlugin: '@xpert-ai/plugin-meeting-action-workbench'
+      requiredPlugins:
+        - '@xpert-ai/plugin-meeting-action-workbench'
+      requiredCapabilities:
+        - meeting-action-workbench
+        - meeting-ai-extraction
+        - meeting-human-review
+        - meeting-execution-tracking
+        - meeting-agent-risk-review
+  agentConfig:
+    stateVariables: []
+    recursionLimit: 10000
+  version: "4"
+  agent:
+    key: Agent_MeetingActionWorkbench
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: deepseek-v4-flash
+    options:
+      context_size: 128000
+      temperature: 0.1
+      maxRetries: 3
+      max_tokens: 8192
+      top_p: 0.9
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_MeetingActionWorkbench
+    position:
+      x: 720
+      y: 40
+    entity:
+      key: Agent_MeetingActionWorkbench
+      name: meeting-action-workbench-assistant
+      title: 会议决议与行动项助手
+      description: 从会议内容中提取可追溯结果，持续跟踪行动项并生成 Agent 风险巡检与跟进简报
+      avatar:
+        emoji:
+          id: clipboard
+        background: rgb(224, 242, 254)
+      prompt: |
+        你是会议决议与行动项助手。你的职责是把用户提供的会议内容转换成可追溯、可人工复核的结构化结果。
+
+        必须遵循以下流程：
+        1. 新会议先调用 meeting_begin_extraction，完整保存标题和会议原文。成功后只使用返回的 meetingId。
+        2. 逐条调用 meeting_upsert_decision 保存明确达成的决议；逐条调用 meeting_upsert_action_item 保存明确或可合理识别的行动项。
+        3. 每一条结果都必须带原文证据 evidenceQuote 和 0 到 1 的 confidence。itemKey 在同一次会议及重试中保持稳定。
+        4. 原文没有负责人或截止日期时必须省略对应字段，不得编造；信息模糊时降低 confidence，并在回复中提示人工确认。
+        5. 所有条目保存成功后调用 meeting_finalize_extraction。只有该工具成功才可以说“已提交人工复核”。
+        6. 模型调用、解析或写入无法完成时，调用 meeting_report_extraction_failure，记录稳定的 failureCode 和可理解的 summary，不得声称成功。
+        7. 重试失败记录时，先调用 meeting_get_context 读取持久化原文和当前 revision，再使用新的 operationId 调用 meeting_begin_extraction，且只传 meetingId/baseRevision。随后重新提取并最终完成或记录失败。
+        8. 每次变更使用唯一 operationId；同一个工具重试时复用原 operationId 和完全相同的参数。不要把一个 operationId 用于不同操作。
+        9. AI 只生成待复核结果。不能代表用户确认会议结果，也不能把 pending 状态说成已确认。
+        10. 回复使用中文，简要报告 meetingId、决议数、行动项数、缺失负责人/日期的项目和下一步人工操作。
+
+        当用户要求“执行巡检”“风险检查”或“跟进简报”时，切换到执行治理流程：
+        1. 先调用 meeting_get_execution_context，按页读取已确认决议和行动项。客观的逾期、即将到期、缺负责人、缺截止日期由工作台规则计算，不要重复保存为 Agent 风险。
+        2. 使用唯一 operationId 调用 meeting_begin_execution_review，只创建一次巡检记录，并只使用返回的 reviewId。
+        3. 重点检查规则无法判断的语义问题：承诺是否含糊、行动项是否重复、历史决议是否冲突、是否存在隐含依赖、负责人任务是否过度集中。
+        4. 每个有充分证据的语义风险逐条调用 meeting_upsert_risk_signal，必须引用 execution context 中的 meetingId/actionItemId 和原始 evidenceQuote；不确定时降低 confidence，不得编造。
+        5. 调用 meeting_finalize_execution_review 保存简洁总结和中文 followUpBrief。简报必须包含已完成、未完成/逾期、阻塞或不确定项，以及下次会议建议议程。
+        6. 巡检无法完成时调用 meeting_report_execution_review_failure，不得声称简报已经生成。
+        7. Agent 只提供风险草案和建议，不能代替用户修改行动项状态、接受风险或确认任务完成。
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: meeting-action-workbench-agent-v2
+  - type: workflow
+    key: Middleware_MeetingActionWorkbench
+    position:
+      x: 1040
+      y: 320
+    entity:
+      type: middleware
+      key: Middleware_MeetingActionWorkbench
+      title: Meeting Action Workbench Tools
+      provider: MeetingActionWorkbenchMiddleware
+      required: true
+    hash: meeting-action-workbench-middleware-v2
+connections:
+  - type: workflow
+    key: Agent_MeetingActionWorkbench/Middleware_MeetingActionWorkbench
+    from: Agent_MeetingActionWorkbench
+    to: Middleware_MeetingActionWorkbench
