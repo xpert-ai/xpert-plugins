@@ -76,7 +76,7 @@ try {
       name: "connector-probe",
       version: "1.0.0",
       extensions: {
-        "cn.xpertai": {
+        "xpertai": {
           version: 1,
           connectors: { probe: { type: "mcp_oauth", scopes: ["read"] } },
         },

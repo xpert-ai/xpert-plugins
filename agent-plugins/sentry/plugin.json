@@ -1,17 +1,18 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "sentry",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Investigate issues and errors in authorized Sentry organizations.",
   "author": {
     "name": "Xpert AI"
   },
   "homepage": "https://mcp.sentry.dev/",
   "extensions": {
-    "cn.xpertai": {
+    "xpertai": {
       "version": 1,
       "interface": {
-        "displayName": "Sentry"
+        "displayName": "Sentry",
+        "icon": "data:image/png;base64,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"
       },
       "connectors": {
         "sentry": {

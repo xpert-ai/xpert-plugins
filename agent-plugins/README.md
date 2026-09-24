@@ -2,7 +2,7 @@
 
 These Xpert-authored Agent Plugins 1.0.0 packages connect to the providers' official
 MCP endpoints. They use standard `plugin.json`, `mcp.json` and Skills, with the
-versioned `cn.xpertai` extension for Connector dependencies. Package directories
+versioned `xpertai` extension for Connector dependencies. Package directories
 contain no npm entrypoint, server module, installation script or credential.
 
 | Package    | Capabilities                                 | Authorization                                                         |
@@ -16,6 +16,24 @@ contain no npm entrypoint, server module, installation script or credential.
 
 These are minimal, independently authored presets, not copies of the complete
 OpenAI plugin workflows. See [provenance and exact differences](docs/UPSTREAM.md).
+
+## Plugin display icons
+
+New packages use the short `extensions.xpertai` namespace. Upgrade the Xpert / PRO
+host together with these packages; older hosts only read the previous namespace.
+Updated hosts still accept `extensions["cn.xpertai"]` for existing packages, but
+prefer `xpertai` when both are present, without merging their contents.
+
+Configure portable plugin icons in `plugin.json` at
+`extensions["xpertai"].interface.icon`. This field is an image URL string, not
+the native npm plugin's `IconDefinition` or an Assistant `avatar` object. The
+portable interface has no separate `avatar`, `composerIcon` or `logo` fields.
+
+Canva China, Linear, Sentry and Supabase also bundle icons copied unchanged from
+their corresponding Codex plugins in `openai/plugins`. Each package embeds its
+PNG or SVG bytes in `interface.icon`; its `assets/README.md` records the upstream
+commit, selected asset and SHA-256. Their 1.0.1 packages add display icons without
+changing Connector configuration. Exa and Notion retain their existing image URLs.
 
 ## Install
 
@@ -63,7 +81,7 @@ corepack pnpm quickstart --pack --output-dir /tmp/xpert-agent-plugins \
 ```
 
 Upload a ZIP through **Settings > Plugins > Agent Plugins**, choose the workspace
-and publish. Connector requirements are read from `extensions["cn.xpertai"].connectors`;
+and publish. Connector requirements are read from `extensions["xpertai"].connectors`;
 no legacy OAuth checkbox is needed. Git imports can select the corresponding
 `agent-plugins/<name>` subdirectory of this repository at a pinned ref.
 

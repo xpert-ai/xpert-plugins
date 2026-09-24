@@ -2,7 +2,7 @@
 
 // Standard resource packages use /agent-plugins, never the native module installer.
 // Authentication and organization headers stay in the platform's shared CLI helper.
-import { readFile, readdir, mkdir, writeFile } from "node:fs/promises";
+import { readFile, readdir, mkdir, writeFile, lstat } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
@@ -38,11 +38,11 @@ export async function loadQuickstartPlugins() {
         ...entry,
         root,
         title:
-          manifest.extensions?.["cn.xpertai"]?.interface?.displayName ||
+          manifest.extensions?.["xpertai"]?.interface?.displayName ||
           manifest.name,
         description: manifest.description,
         version: manifest.version,
-        connectorServers: manifest.extensions?.["cn.xpertai"]?.connectors || {},
+        connectorServers: manifest.extensions?.["xpertai"]?.connectors || {},
       };
     }),
   );
@@ -50,21 +50,29 @@ export async function loadQuickstartPlugins() {
 
 export async function packQuickstartPlugin(plugin) {
   const files = [];
+  let bytes = 0;
   async function collect(directory, prefix = "") {
     for (const item of (await readdir(directory, { withFileTypes: true })).sort(
       (a, b) => a.name.localeCompare(b.name),
     )) {
       const name = prefix + item.name;
+      const resource = /^(skills|assets|docs)(\/|$)/.test(name);
+      const safe = !name.split('/').some((part) => part.startsWith('.') || ['node_modules', '__pycache__'].includes(part));
       if (
         item.isDirectory() &&
-        (name === "skills" || name.startsWith("skills/"))
+        resource && safe
       ) {
         await collect(join(directory, item.name), name + "/");
       } else if (
         item.isFile() &&
-        (["plugin.json", "mcp.json", "README.md"].includes(name) ||
-          /^skills\/[^/]+\/SKILL\.md$/.test(name))
+        safe &&
+        (["plugin.json", "mcp.json", "README.md", "LICENSE", "LICENSE.txt"].includes(name) ||
+          (resource && /\.(md|mdx|py|mjs|txt|json|yaml|yml|png|jpg|jpeg|svg|webp)$/.test(name)))
       ) {
+        const info = await lstat(join(directory, item.name));
+        bytes += info.size;
+        if (!info.isFile() || files.length >= 10000 || bytes > 100 * 1024 * 1024)
+          throw new Error(`Invalid or oversized quickstart package entry: ${name}`);
         files.push({
           name,
           content: await readFile(join(directory, item.name)),

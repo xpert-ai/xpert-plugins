@@ -193,6 +193,24 @@ test("API preserves scope headers and lets fetch set the multipart boundary", as
   assert.equal(headers["content-type"], "application/json");
 });
 
+test("resource packaging rejects nested credentials and bytecode caches", async () => {
+  const root = await mkdtemp(join(tmpdir(), 'agent-plugin-resources-'));
+  try {
+    await mkdir(join(root, 'skills/test/scripts'), { recursive: true });
+    await writeFile(join(root, 'skills/test/scripts/helper.py'), 'print("ready")');
+    await writeFile(join(root, 'skills/test/scripts/helper.mjs'), 'export const ready = true;');
+    await writeFile(join(root, 'skills/test/SKILL.md'), '---\nname: test\ndescription: test\n---\n');
+    assert.ok((await packQuickstartPlugin({ root })).length > 0);
+    await writeFile(join(root, 'skills/test/.env'), 'fixture');
+    await assert.rejects(packQuickstartPlugin({ root }), /Unexpected/);
+    await rm(join(root, 'skills/test/.env'));
+    await mkdir(join(root, 'skills/test/__pycache__'));
+    await assert.rejects(packQuickstartPlugin({ root }), /Unexpected/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("API errors do not echo provider payloads or credentials", async () => {
   const api = createAgentPluginApi(
     "https://xpert.example",

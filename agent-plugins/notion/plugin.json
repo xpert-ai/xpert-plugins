@@ -8,7 +8,7 @@
   },
   "homepage": "https://developers.notion.com/guides/mcp/overview",
   "extensions": {
-    "cn.xpertai": {
+    "xpertai": {
       "version": 1,
       "interface": {
         "displayName": "Notion",
