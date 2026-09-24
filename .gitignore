@@ -1,6 +1,8 @@
 .env*
 .artifacts
 node_modules
+.pnpm-store
+.build-temp
 dist
 coverage
 *.log
