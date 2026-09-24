@@ -120,7 +120,7 @@ The installed Codex Documents 26.909.12148 bundle was inspected as reference mat
 Its main implementation is Skill instructions, references and local document scripts,
 not an MCP server. Its embedded license differs from the manifest's MIT label and
 restricts redistribution. No upstream Skill text, executable or template is copied.
-The separately bundled plugin display icon is [documented with the asset](../documents/assets/README.md).
+The separately bundled plugin display icon is documented below.
 
 `documents` 1.0.0 is independently authored for Xpert. It preserves the workflow
 of writing DOCX, inspecting document structure, rendering pages, visually checking
@@ -148,7 +148,7 @@ The installed Codex PDF 26.909.12148 bundle is also a Skill wrapper, with no PDF
 MCP server. It uses local Python libraries, Poppler and Codex artifact-operation
 and citation conventions. Xpert's `pdf` 1.0.0 is independently authored; no upstream
 Skill text, artifact marker, Skill assets or executable is copied.
-The separately bundled plugin display icon is [documented with the asset](../pdf/assets/README.md).
+The separately bundled plugin display icon is documented below.
 
 Xpert uses ReportLab, pdfplumber, pypdf and PDFium in a separate Python environment.
 PDFium replaces the Poppler executable dependency and explicitly initializes forms
@@ -221,3 +221,18 @@ Primary sources: [Excelize WASM](https://github.com/xuri/excelize-wasm),
 [Univer OSS](https://github.com/dream-num/univer),
 [JSZip](https://github.com/Stuk/jszip) and
 [xmldom](https://github.com/xmldom/xmldom).
+
+## Plugin display icons (2026-09-24)
+
+Documents, PDF, Presentations and Spreadsheets reuse the corresponding root
+`assets/icon.png` from the installed OpenAI Codex plugin bundle `26.909.12148`.
+These are the plugins' `interface.composerIcon` assets, outside the Skill folders;
+the upstream plugin manifests identify OpenAI as author and declare MIT.
+Each Xpert package preserves the unchanged PNG and an `assets/README.md` with its
+source and SHA-256. This reuse is limited to display icons; the implementations
+and Skills remain independently authored.
+
+Xpert's portable interface supports a single `icon` string. The manifests embed
+the PNG bytes as data URLs, because the host passes this value directly to the
+resource catalog without resolving relative package asset paths. Codex's separate
+`composerIcon` and `logo` fields are not added to the Xpert extension.

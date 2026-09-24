@@ -30,7 +30,7 @@ pnpm exec nx exec -- jest --config connectors/canva-connector/jest.config.ts --r
 ## Portable Agent Plugin dependency
 
 `agent-plugins/canva-cn` can reuse this provider through
-`cn.xpertai.connectors.canva = { type: "existing", provider: "canva", resource: "https://mcp.canva.cn" }`.
+`xpertai.connectors.canva = { type: "existing", provider: "canva", resource: "https://mcp.canva.cn" }`.
 Configure the existing Canva China MCP System Integration and create a **personal**
 workspace Connector binding before publishing the portable package. The current
 strategy explicitly supports `authorizationModes: ['personal', 'shared']`;
