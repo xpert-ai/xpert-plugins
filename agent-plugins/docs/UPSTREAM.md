@@ -113,3 +113,31 @@ disconnect reuse the existing Connector service. Old personal MCP OAuth resource
 A standards-compliant upstream package may still import directly when it uses
 supported transports and host-independent Skills. Legacy Codex manifests, registered
 app IDs and desktop-only execution are not made portable by this OAuth change.
+
+## Documents migration (2026-09-23)
+
+The installed Codex Documents 26.909.12148 bundle was inspected as reference material.
+Its main implementation is Skill instructions, references and local document scripts,
+not an MCP server. Its embedded license differs from the manifest's MIT label and
+restricts redistribution. No upstream Skill text, executable or template is copied.
+The separately bundled plugin display icon is [documented with the asset](../documents/assets/README.md).
+
+`documents` 1.0.0 is independently authored for Xpert. It preserves the workflow
+of writing DOCX, inspecting document structure, rendering pages, visually checking
+them and iterating. It uses python-docx, a pinned Python environment, LibreOffice
+Writer and PDFium. Rendering uses a separate LibreOffice profile and fresh output
+directory; macOS supplies its installed font directories to headless Fontconfig.
+
+| Codex capability/assumption | Xpert implementation |
+| --- | --- |
+| Legacy plugin manifest | Standard root `plugin.json`, portable Skill assets |
+| Bundled desktop dependency cache | Dedicated desktop venv or PRO sandbox image |
+| Shell and file tools | `xpertai.middlewares`: SandboxShell and SandboxFile |
+| Page image inspection | Installed ViewImageMiddleware and an image-capable model |
+| Render helper | Independently written LibreOffice/PDFium pipeline and SHA-256 receipt |
+| Comments/redlines | Paragraph comments and conservative single-run tracked replacement |
+| Artifact links | Xpert conversation workspace file delivery |
+
+This is a first Documents implementation, not full Codex feature parity. Complex
+OOXML edits need deliberate handling; native Google Docs requires a separate
+Connector. The older native `xpertai/skills/documents` package is not replaced.

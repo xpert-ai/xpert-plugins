@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, writeFile, symlink, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, symlink, rm, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
@@ -193,6 +193,25 @@ test("API preserves scope headers and lets fetch set the multipart boundary", as
   assert.equal(headers["content-type"], "application/json");
 });
 
+for (const id of ['documents']) test(`${id} packages helpers and references and installs without an MCP server`, async () => {
+  const plugin = (await loadQuickstartPlugins()).find((item) => item.id === id);
+  const pkg = { id: `${id}-package`, descriptor: { name: id, diagnostics: [], skills: [{ key: id }], servers: [] } };
+  const calls = [];
+  const result = await installQuickstartPlugin(plugin, 'workspace', async (path, method, body) => {
+    calls.push(path);
+    if (path === '/options') return { workspaces: [{ id: 'workspace' }] };
+    if (path === '/zip') {
+      assert.ok(body.get('file').size > 5000);
+      return pkg;
+    }
+    if (!path) return { packages: [pkg], bindings: [] };
+    assert.equal(path, '/bindings');
+    return { ...body, id: 'binding', version: '1' };
+  });
+  assert.equal(result.binding.definition.packageId, pkg.id);
+  assert.deepEqual(calls, ['/options', '/zip', undefined, '/bindings']);
+});
+
 test("resource packaging rejects nested credentials and bytecode caches", async () => {
   const root = await mkdtemp(join(tmpdir(), 'agent-plugin-resources-'));
   try {
@@ -269,4 +288,16 @@ test("explicit replacement creates a new binding without mutating the pinned old
   });
   assert.equal(result.binding.id, "new-binding");
   assert.deepEqual(previous, before);
+});
+
+test("document presets require explicit presentation with the paths-only host tool", async () => {
+  for (const id of ["documents"]) {
+    const root = new URL(`../${id}/`, import.meta.url);
+    const manifest = JSON.parse(await readFile(new URL("plugin.json", root), "utf8"));
+    const skill = await readFile(new URL(`skills/${id}/SKILL.md`, root), "utf8");
+    assert.equal(manifest.version, "1.0.2");
+    assert.ok(manifest.extensions["xpertai"].middlewares.some(m => m.provider === "SandboxFile"));
+    assert.match(skill, /call `present_files` with only `paths`/);
+    assert.doesNotMatch(skill, /## Automatic output cards|host automatically saves/);
+  }
 });

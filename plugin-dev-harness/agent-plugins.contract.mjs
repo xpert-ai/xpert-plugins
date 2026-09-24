@@ -52,7 +52,11 @@ try {
       assert.deepEqual(plugin.diagnostics, []);
       assert.equal(plugin.name, entry.id);
       assert.equal(plugin.skills.length, 1);
-      assert.equal(plugin.servers.length, 1);
+      const source = await parseAgentPlugin(entry.root);
+      assert.deepEqual(plugin.servers, source.servers);
+      assert.deepEqual(plugin.skills, source.skills);
+      assert.deepEqual(plugin.extension, source.extension);
+      assert.ok(plugin.skills.length + plugin.servers.length > 0);
       assert.equal(
         await portablePackageDigest(root),
         await portablePackageDigest(entry.root),

@@ -117,6 +117,37 @@ Live provider discovery is recorded separately in `agent-plugins/README.md`.
 A provider authorization URL is not evidence of user consent or successful access
 to that user's private content.
 
+### Documents verification
+
+Prepare the desktop runtime with the platform's `tools/documents-runtime/install.mjs`,
+LibreOffice Writer and CJK fonts. From the repository root:
+
+```sh
+python3 agent-plugins/documents/skills/documents/scripts/documents.py run \
+  plugin-dev-harness/documents-smoke.py \
+  --skill agent-plugins/documents/skills/documents --output /tmp/documents-smoke-new
+node plugin-dev-harness/documents-live.mjs \
+  --platform-root "$XPERT_PLATFORM_ROOT" --sdk-root "$XPERT_SDK_ROOT" \
+  --api-url http://localhost:3000/api \
+  --context "$PRIVATE_TEST_CONTEXT" --output-dir "$PRIVATE_TEST_RECEIPTS"
+```
+
+The smoke test checks real DOCX comments/anchors, tracked text/style preservation,
+source preservation, rejected ambiguous edits, fresh output, Chinese PDF text and
+page images. Inspect every output PNG separately; test success is not visual approval.
+Pagination may differ between desktop and Linux LibreOffice/font versions.
+
+The live context has the same private fields as the Connector harness. Choose a
+published test Assistant with interactive sandbox enabled and an image-capable
+model; install the native view-image provider first. The harness publishes the
+portable Documents package, selects it for a new conversation, requests a two-page
+document and records the complete events privately. It checks successful doctor,
+inspection, rendering and image tool replies, downloads the DOCX/PDF/PNGs through
+the same authenticated endpoint as the Files panel, and compares the DOCX hash
+with the render receipt. Inspect the downloaded PNGs before claiming visual
+approval. It checks the graph stays unchanged. The package and conversation remain inspectable;
+this harness does not change the model or publish an Assistant.
+
 ### Native Connector migration verification
 
 Run `node plugin-dev-harness/verify-connectors.mjs` from the repository root. It reads the explicit 15-Connector inventory, builds and type-checks the shared authentication library and every Connector, runs their tests, then checks dist-first lifecycle loading and all 16 packed artifacts. It verifies that workspace dependencies become publishable version ranges. The script performs no deployment or third-party account authorization. See [Connector Runtime](../xpertai/packages/connector-runtime/README.md) for the migration matrix, preserved vendor adapters and release order.

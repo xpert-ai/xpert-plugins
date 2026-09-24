@@ -140,7 +140,7 @@ export async function installQuickstartPlugin(
     plugin.id + ".zip",
   );
   const pkg = await api("/zip", "POST", form);
-  if (pkg.descriptor.diagnostics.length || !pkg.descriptor.servers.length) {
+  if (pkg.descriptor.diagnostics.length || !(pkg.descriptor.servers.length || pkg.descriptor.skills?.length)) {
     throw new Error(
       `${plugin.id}: import has component diagnostics; review it before publishing.`,
     );

@@ -1,12 +1,14 @@
-# Remote MCP Agent Plugins
+# Xpert Agent Plugins
 
-These Xpert-authored Agent Plugins 1.0.0 packages connect to the providers' official
-MCP endpoints. They use standard `plugin.json`, `mcp.json` and Skills, with the
-versioned `xpertai` extension for Connector dependencies. Package directories
+These Xpert-authored Agent Plugins 1.0.0 packages provide sandbox document workflows
+and connections to providers' official MCP endpoints. They use standard `plugin.json`,
+Skills and optional `mcp.json`, with the versioned `xpertai` extension for
+middleware and Connector dependencies. Package directories
 contain no npm entrypoint, server module, installation script or credential.
 
 | Package    | Capabilities                                 | Authorization                                                         |
 | ---------- | -------------------------------------------- | --------------------------------------------------------------------- |
+| `documents` | DOCX creation, comments, revisions and page review | Interactive sandbox, Documents runtime and image-capable model |
 | `exa`      | Public web search and page reading           | Anonymous starter quota                                               |
 | `notion`   | Workspace search/read and requested updates  | Workspace Connector OAuth                                              |
 | `linear`   | Issues, projects and team workflows          | Workspace Connector OAuth                                              |
@@ -16,6 +18,11 @@ contain no npm entrypoint, server module, installation script or credential.
 
 These are minimal, independently authored presets, not copies of the complete
 OpenAI plugin workflows. See [provenance and exact differences](docs/UPSTREAM.md).
+
+Documents is a Skill package without an MCP server or OAuth connection. Prepare
+its desktop or PRO sandbox dependencies using [Documents setup](documents/README.md),
+then publish it to a workspace and select it in a conversation with sandbox enabled.
+It contributes SandboxShell, SandboxFile and ViewImageMiddleware for that run.
 
 ## Plugin display icons
 
@@ -29,11 +36,36 @@ Configure portable plugin icons in `plugin.json` at
 the native npm plugin's `IconDefinition` or an Assistant `avatar` object. The
 portable interface has no separate `avatar`, `composerIcon` or `logo` fields.
 
+Documents includes the corresponding Codex
+`assets/icon.png` and embed its bytes as a `data:image/png;base64,...` URL in the
+manifest. This works offline after import. Relative paths such as
+`./assets/icon.png` are not resolved by the portable host. To regenerate an icon
+value after replacing its PNG, run from that plugin's directory:
+
+```sh
+node --input-type=module -e 'import { readFileSync } from "node:fs"; console.log("data:image/png;base64," + readFileSync("assets/icon.png").toString("base64"))'
+```
+
+Copy the printed value into `interface.icon`, then package and import the updated
+plugin. Existing imported packages retain their previous descriptor until replaced;
+use the quickstart installer's `--replace` for an existing workspace resource.
+See each package's `assets/README.md` for icon provenance.
+
 Canva China, Linear, Sentry and Supabase also bundle icons copied unchanged from
 their corresponding Codex plugins in `openai/plugins`. Each package embeds its
 PNG or SVG bytes in `interface.icon`; its `assets/README.md` records the upstream
 commit, selected asset and SHA-256. Their 1.0.1 packages add display icons without
 changing Connector configuration. Exa and Notion retain their existing image URLs.
+
+## Final deliverables
+
+Documents 1.0.2 requires the host's
+SandboxFile `present_files({paths})` tool. The Agent selects final deliverables
+after verification; the host validates and saves immutable output cards. Writes
+and Shell commands record file changes without automatically displaying drafts.
+No delivery flags are added to existing tools and no new sandbox dependency is
+needed. Re-select the updated plugin in existing conversations to use its new
+instructions; older messages and pinned file versions remain available.
 
 ## Install
 
@@ -77,7 +109,7 @@ System Integration and create a **shared** workspace binding for provider
 
 ```sh
 corepack pnpm quickstart --pack --output-dir /tmp/xpert-agent-plugins \
-  exa notion linear supabase sentry canva-cn
+  documents exa notion linear supabase sentry canva-cn
 ```
 
 Upload a ZIP through **Settings > Plugins > Agent Plugins**, choose the workspace

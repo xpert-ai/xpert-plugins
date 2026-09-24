@@ -2,6 +2,10 @@
   "version": 1,
   "plugins": [
     {
+      "id": "documents",
+      "oauthServers": []
+    },
+    {
       "id": "exa",
       "oauthServers": []
     },
