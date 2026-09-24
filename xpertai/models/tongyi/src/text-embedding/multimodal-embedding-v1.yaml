@@ -2,7 +2,7 @@
 model: multimodal-embedding-v1
 model_type: text-embedding
 model_properties:
-  context_size: 8192
+  context_size: 512
   max_chunks: 10
 pricing:
   input: "0.0007"
