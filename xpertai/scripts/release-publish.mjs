@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
+import { planReleasePreparation } from './release-preparation.mjs';
 
 function getWorkspacePackagePatterns() {
   const rootPackageJsonPath = resolve(process.cwd(), 'package.json');
@@ -144,16 +145,25 @@ run(process.execPath, ['--test', 'scripts/changesets-publish-error.test.mjs']);
 const workspacePackageFiles = getWorkspacePackageFiles();
 const changedPackageFiles = getChangedWorkspacePackageFiles();
 const changedPackageNames = resolvePackageNames(workspacePackageFiles, changedPackageFiles);
+const preparation = planReleasePreparation(workspacePackageFiles.map((file) => ({
+  dir: dirname(resolve(process.cwd(), file)),
+  packageJson: JSON.parse(readFileSync(resolve(process.cwd(), file), 'utf8'))
+})), changedPackageNames);
 
-if (changedPackageNames.length > 0) {
+for (const pkg of preparation.scriptPackages) {
+  console.log(`Preparing ${pkg.name} using release:prepare`);
+  run('pnpm', ['run', 'release:prepare'], { cwd: pkg.dir });
+}
+
+if (preparation.nxPackages.length > 0) {
   console.log(
-    `Building ${changedPackageNames.length} package(s): ${changedPackageNames.join(', ')}`
+    `Building ${preparation.nxPackages.length} package(s): ${preparation.nxPackages.join(', ')}`
   );
   // Plugin build scripts rebuild shared UI packages and clear their dist directories.
   // Serialize consumers so one build cannot remove another build's dependencies.
-  run('pnpm', ['exec', 'nx', 'run-many', '-t', 'build', '-p', changedPackageNames.join(','), '--parallel=1']);
+  run('pnpm', ['exec', 'nx', 'run-many', '-t', 'build', '-p', preparation.nxPackages.join(','), '--parallel=1']);
 } else {
-  console.log('No publish-target workspace packages detected. Skip build.');
+  console.log('No publish-target Nx packages detected. Skip Nx build.');
 }
 
 run('pnpm', ['exec', 'changeset', 'publish']);

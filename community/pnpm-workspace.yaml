@@ -1,5 +1,7 @@
 packages:
   - ../packages/*
+  # Official spreadsheet SDK is versioned and published only by xpertai.
+  - '!../packages/artifact-tool'
   - apps/*
   - integrations/*
   - tools/*
