@@ -1,0 +1,78 @@
+{
+  "name": "@jqdhm/xpert-contract-review",
+  "version": "0.1.0",
+  "description": "Xpert contract information assistant with a Java review service and human confirmation workbench.",
+  "license": "AGPL-3.0",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "docs",
+    "examples",
+    "java-service/pom.xml",
+    "java-service/src",
+    "scripts",
+    "!scripts/*.test.*",
+    "!.env",
+    "!data",
+    "!java-service/target",
+    "!node_modules"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/build.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "pretest": "npm run build",
+    "test": "node --import tsx --test test/*.test.ts",
+    "test:ui": "node --test scripts/test-ui.mjs",
+    "test:browser": "node scripts/browser-acceptance.mjs",
+    "demo": "node scripts/start-demo.mjs",
+    "preview": "node scripts/preview.mjs"
+  },
+  "peerDependencies": {
+    "@langchain/core": ">=0.3.0 <0.4.0",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/cqrs": "^11.0.3",
+    "@xpert-ai/contracts": "3.18.4",
+    "@xpert-ai/plugin-sdk": "3.18.4",
+    "reflect-metadata": "^0.2.2",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@langchain/core": "0.3.72",
+    "@nestjs/common": "11.1.6",
+    "@nestjs/core": "11.1.6",
+    "@nestjs/cqrs": "11.0.3",
+    "@playwright/test": "^1.58.2",
+    "@types/node": "^22.0.0",
+    "@xpert-ai/contracts": "3.18.4",
+    "@xpert-ai/plugin-sdk": "3.18.4",
+    "esbuild": "0.28.2",
+    "jsdom": "26.1.0",
+    "reflect-metadata": "0.2.2",
+    "tsx": "^4.20.0",
+    "typescript": "~5.9.3",
+    "yaml": "^2.8.1",
+    "zod": "3.25.67"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "axios": "^1.20.0",
+    "short-unique-id": "^4.4.4"
+  }
+}
