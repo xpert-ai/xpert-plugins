@@ -168,3 +168,26 @@ Primary references: [pypdf forms](https://pypdf.readthedocs.io/en/latest/user/fo
 [ReportLab](https://www.reportlab.com/docs/reportlab-userguide.pdf),
 [PDFium Python bindings](https://pypdfium2.readthedocs.io/en/stable/), and
 [pinned Noto font source](https://github.com/google/fonts/tree/2894aab31764f10f29c421bdfd2340d3b382d384/ofl/notosanssc).
+
+## Presentations migration
+
+The installed Codex Presentations 26.909.12148 Skill delegates authoring to the
+bundled `@oai/artifact-tool`. Its local runtime distribution is private and is
+not a production redistribution dependency for Xpert. No Codex Skill text,
+templates, helper code or private runtime is included in this package.
+
+Xpert Presentations 1.0.0 uses PptxGenJS 4.0.1, python-pptx and an independently
+authored JSON schema, OOXML inspector/editor and Impress/PDFium renderer. Native
+text, tables, images, bar/line/pie charts and chart workbooks stay editable.
+Exact text edits preserve every other package part and require a current source
+hash. The host contributes shell, file and image tools; delivery uses Xpert Files.
+Two original themes replace dependence on proprietary templates. Rendering and
+the existing browser PPTX editor are separate implementations, so both are tested.
+
+Primary implementation references: [PptxGenJS](https://github.com/gitbrent/PptxGenJS),
+[python-pptx](https://python-pptx.readthedocs.io/en/latest/), and
+[LibreOffice conversion filters](https://help.libreoffice.org/latest/en-US/text/shared/guide/convertfilters.html).
+
+V1 excludes native Google Slides, complex imported-template editing, animation
+authoring and full PowerPoint fidelity. The older native Presentations plugin
+remains independent; select the portable workspace resource for this workflow.

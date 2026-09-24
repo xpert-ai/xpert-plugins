@@ -181,3 +181,31 @@ document. API-only generation is not a substitute for this UI check.
 ### Native Connector migration verification
 
 Run `node plugin-dev-harness/verify-connectors.mjs` from the repository root. It reads the explicit 15-Connector inventory, builds and type-checks the shared authentication library and every Connector, runs their tests, then checks dist-first lifecycle loading and all 16 packed artifacts. It verifies that workspace dependencies become publishable version ranges. The script performs no deployment or third-party account authorization. See [Connector Runtime](../xpertai/packages/connector-runtime/README.md) for the migration matrix, preserved vendor adapters and release order.
+
+### Presentations verification
+
+Install the platform's `tools/presentations-runtime/install.mjs`, LibreOffice
+Impress and Noto Sans CJK SC. Run:
+
+```sh
+python3 agent-plugins/presentations/skills/presentations/scripts/presentations.py run \
+  plugin-dev-harness/presentations-smoke.py \
+  --skill agent-plugins/presentations/skills/presentations --output /tmp/presentations-smoke-new
+python3 plugin-dev-harness/artifact-sandbox-smoke.py \
+  --image xpert-pro-sandbox:presentations-test --output /tmp/artifact-service-new
+```
+
+The fixture checks native objects, unique shape IDs (including table/title
+collisions), embedded chart workbooks, notes, CJK text, all three chart types,
+both themes, presentation order, fresh rendering, source preservation, stale
+hashes, ambiguous edits and external media rejection. The Docker harness starts
+the final image's normal HTTP service with a non-root user and no external network,
+then runs Presentations, Documents and PDF through its `/shell/exec/` endpoint.
+It removes only the container it created and leaves local result evidence.
+Review all final slide PNGs separately.
+
+Browser acceptance additionally selects the published portable plugin, sends a
+natural-language generation request, opens the PPTX editor, changes and saves a
+text shape, then asks the Agent to inspect that saved file and create a modified
+copy. Download the actual UI result and inspect its text, tables, native chart
+workbook and notes. Keep screenshots and machine IDs in private receipts.
