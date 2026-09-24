@@ -9,6 +9,7 @@ contain no npm entrypoint, server module, installation script or credential.
 | Package    | Capabilities                                 | Authorization                                                         |
 | ---------- | -------------------------------------------- | --------------------------------------------------------------------- |
 | `documents` | DOCX creation, comments, revisions and page review | Interactive sandbox, Documents runtime and image-capable model |
+| `pdf` | PDF creation, extraction, page operations, forms and visual review | Interactive sandbox, PDF runtime and image-capable model |
 | `exa`      | Public web search and page reading           | Anonymous starter quota                                               |
 | `notion`   | Workspace search/read and requested updates  | Workspace Connector OAuth                                              |
 | `linear`   | Issues, projects and team workflows          | Workspace Connector OAuth                                              |
@@ -23,6 +24,7 @@ Documents is a Skill package without an MCP server or OAuth connection. Prepare
 its desktop or PRO sandbox dependencies using [Documents setup](documents/README.md),
 then publish it to a workspace and select it in a conversation with sandbox enabled.
 It contributes SandboxShell, SandboxFile and ViewImageMiddleware for that run.
+PDF uses the same middleware contract with a separate [PDF runtime](pdf/README.md).
 
 ## Plugin display icons
 
@@ -36,7 +38,7 @@ Configure portable plugin icons in `plugin.json` at
 the native npm plugin's `IconDefinition` or an Assistant `avatar` object. The
 portable interface has no separate `avatar`, `composerIcon` or `logo` fields.
 
-Documents includes the corresponding Codex
+Documents and PDF include the corresponding Codex
 `assets/icon.png` and embed its bytes as a `data:image/png;base64,...` URL in the
 manifest. This works offline after import. Relative paths such as
 `./assets/icon.png` are not resolved by the portable host. To regenerate an icon
@@ -59,7 +61,7 @@ changing Connector configuration. Exa and Notion retain their existing image URL
 
 ## Final deliverables
 
-Documents 1.0.2 requires the host's
+Documents and PDF 1.0.2 require the host's
 SandboxFile `present_files({paths})` tool. The Agent selects final deliverables
 after verification; the host validates and saves immutable output cards. Writes
 and Shell commands record file changes without automatically displaying drafts.
@@ -109,7 +111,7 @@ System Integration and create a **shared** workspace binding for provider
 
 ```sh
 corepack pnpm quickstart --pack --output-dir /tmp/xpert-agent-plugins \
-  documents exa notion linear supabase sentry canva-cn
+  documents pdf exa notion linear supabase sentry canva-cn
 ```
 
 Upload a ZIP through **Settings > Plugins > Agent Plugins**, choose the workspace

@@ -148,6 +148,36 @@ with the render receipt. Inspect the downloaded PNGs before claiming visual
 approval. It checks the graph stays unchanged. The package and conversation remain inspectable;
 this harness does not change the model or publish an Assistant.
 
+### PDF verification
+
+Install the separate runtime with the platform's `tools/pdf-runtime/install.mjs`.
+From this repository root:
+
+```sh
+python3 agent-plugins/pdf/skills/pdf/scripts/pdf.py run \
+  plugin-dev-harness/pdf-smoke.py \
+  --skill agent-plugins/pdf/skills/pdf --output /tmp/pdf-smoke-new
+```
+
+The test verifies actual embedded Chinese text, table extraction, merged/reordered
+pages, source preservation, canonical form values and appearances, shared widgets
+on multiple pages, flattening, and rejected orphan/duplicate/hidden/read-only
+fields. Review all six rendered PNGs. A successful assertion is not visual QA.
+
+For PRO, build the complete interactive sandbox image, start its normal service
+as an unprivileged user with networking disabled, copy this harness and the Skill
+into the container, and invoke the same command through `POST /shell/exec/`.
+Run the Documents smoke in that image too. Copy source bytes rather than relying
+on a pre-existing Docker Desktop bind mount cache when validating recent edits.
+
+For product acceptance, publish PDF using the normal authenticated installer,
+open the local web UI, select PDF on a published sandbox Assistant, and send a
+natural-language request for a two-page Chinese PDF with a table. Observe the
+doctor, generation, inspection, rendering and image-review tools. Open the result
+in the Files panel and download it. Keep conversation IDs, downloaded evidence
+and credentials outside the repository; record results in the plugin acceptance
+document. API-only generation is not a substitute for this UI check.
+
 ### Native Connector migration verification
 
 Run `node plugin-dev-harness/verify-connectors.mjs` from the repository root. It reads the explicit 15-Connector inventory, builds and type-checks the shared authentication library and every Connector, runs their tests, then checks dist-first lifecycle loading and all 16 packed artifacts. It verifies that workspace dependencies become publishable version ranges. The script performs no deployment or third-party account authorization. See [Connector Runtime](../xpertai/packages/connector-runtime/README.md) for the migration matrix, preserved vendor adapters and release order.

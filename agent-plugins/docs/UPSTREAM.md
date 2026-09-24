@@ -141,3 +141,30 @@ directory; macOS supplies its installed font directories to headless Fontconfig.
 This is a first Documents implementation, not full Codex feature parity. Complex
 OOXML edits need deliberate handling; native Google Docs requires a separate
 Connector. The older native `xpertai/skills/documents` package is not replaced.
+
+## PDF migration
+
+The installed Codex PDF 26.909.12148 bundle is also a Skill wrapper, with no PDF
+MCP server. It uses local Python libraries, Poppler and Codex artifact-operation
+and citation conventions. Xpert's `pdf` 1.0.0 is independently authored; no upstream
+Skill text, artifact marker, Skill assets or executable is copied.
+The separately bundled plugin display icon is [documented with the asset](../pdf/assets/README.md).
+
+Xpert uses ReportLab, pdfplumber, pypdf and PDFium in a separate Python environment.
+PDFium replaces the Poppler executable dependency and explicitly initializes forms
+before rendering page widgets. The host mounts the portable Skill assets and adds
+SandboxShell, SandboxFile and ViewImageMiddleware through `xpertai`.
+
+The implementation adds bounded extraction, source preservation, page operations,
+fresh render receipts, a checksum-pinned Noto TrueType font and conservative form
+validation. It checks canonical field values against page widgets and their
+appearances, supports ordinary ASCII text/checkbox filling and explicit flattening,
+and rejects ambiguous/orphan relationships instead of attempting silent repair.
+Complex forms, OCR, signatures and encrypted PDFs are not covered by this package.
+Delivery uses Xpert Files; Codex-specific operation markers/citations are omitted.
+
+Primary references: [pypdf forms](https://pypdf.readthedocs.io/en/latest/user/forms.html),
+[pdfplumber](https://github.com/jsvine/pdfplumber),
+[ReportLab](https://www.reportlab.com/docs/reportlab-userguide.pdf),
+[PDFium Python bindings](https://pypdfium2.readthedocs.io/en/stable/), and
+[pinned Noto font source](https://github.com/google/fonts/tree/2894aab31764f10f29c421bdfd2340d3b382d384/ofl/notosanssc).

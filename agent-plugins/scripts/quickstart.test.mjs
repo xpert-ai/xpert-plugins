@@ -193,7 +193,7 @@ test("API preserves scope headers and lets fetch set the multipart boundary", as
   assert.equal(headers["content-type"], "application/json");
 });
 
-for (const id of ['documents']) test(`${id} packages helpers and references and installs without an MCP server`, async () => {
+for (const id of ['documents', 'pdf']) test(`${id} packages helpers and references and installs without an MCP server`, async () => {
   const plugin = (await loadQuickstartPlugins()).find((item) => item.id === id);
   const pkg = { id: `${id}-package`, descriptor: { name: id, diagnostics: [], skills: [{ key: id }], servers: [] } };
   const calls = [];
@@ -291,7 +291,7 @@ test("explicit replacement creates a new binding without mutating the pinned old
 });
 
 test("document presets require explicit presentation with the paths-only host tool", async () => {
-  for (const id of ["documents"]) {
+  for (const id of ["documents", "pdf"]) {
     const root = new URL(`../${id}/`, import.meta.url);
     const manifest = JSON.parse(await readFile(new URL("plugin.json", root), "utf8"));
     const skill = await readFile(new URL(`skills/${id}/SKILL.md`, root), "utf8");

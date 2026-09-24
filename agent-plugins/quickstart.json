@@ -6,6 +6,10 @@
       "oauthServers": []
     },
     {
+      "id": "pdf",
+      "oauthServers": []
+    },
+    {
       "id": "exa",
       "oauthServers": []
     },
