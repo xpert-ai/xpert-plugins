@@ -30,6 +30,8 @@ export interface OfficeCliScope {
   assistantId?: string | null
   conversationId?: string | null
   workspaceFiles?: OfficeCliWorkspaceFileScope | null
+  /** Scoped capability captured from middleware.runtime for this invocation. */
+  runtimeWorkspaceFiles?: OfficeCliWorkspaceFilesApi
 }
 
 export interface OfficeCliWorkbenchQuery {
