@@ -32,8 +32,79 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
     name: packageJson.name,
     version: packageJson.version,
     level: 'organization',
-    targetApps: ['data-xpert'],
+    targetApps: ['xpert', 'data-xpert'],
     targetAppMeta: {
+      'xpert': {
+        types: ['workbench-view', 'assistant-tool', 'business-app'],
+        capabilities: [
+          TEST_CASE_GENERATOR_FEATURE,
+          'test-case-generator-workbench',
+          'test-case-generator-assistant-template'
+        ],
+        marketplace: {
+          category: 'developer-tools',
+          subcategory: 'middleware',
+          contents: [
+            {
+              type: 'app',
+              name: 'test-case-generator',
+              displayName: 'Test Case Generator',
+              description:
+                'Generate AI-assisted structured test cases from requirement descriptions, edit them in a workbench, and save to a persistent test case library.',
+              icon: {
+                type: 'svg',
+                value: TEST_CASE_GENERATOR_ICON,
+                color: '#1D4ED8'
+              },
+              operations: [
+                {
+                  name: 'generate-test-cases',
+                  displayName: 'Generate test cases',
+                  description: 'Generate structured test cases covering normal, abnormal and boundary scenarios.',
+                  access: 'write'
+                },
+                {
+                  name: 'save-test-case-project',
+                  displayName: 'Save test case project',
+                  description: 'Save a generated test case project and its cases to the library.',
+                  access: 'write'
+                },
+                {
+                  name: 'list-test-case-projects',
+                  displayName: 'List test case projects',
+                  description: 'Browse saved test case projects and their case counts.',
+                  access: 'read'
+                }
+              ]
+            },
+            {
+              type: 'view',
+              name: TEST_CASE_GENERATOR_WORKBENCH_VIEW_KEY,
+              displayName: 'Test Case Generator Workbench',
+              description: 'Workbench view for requirement input, AI case generation, editing, saving and history browsing.'
+            },
+            {
+              type: 'tool',
+              name: TEST_CASE_GENERATOR_MIDDLEWARE_NAME,
+              displayName: 'Test Case Generator Tools',
+              description:
+                'Assistant middleware tools for generating structured test cases, saving projects, listing and deleting projects.'
+            },
+            {
+              type: 'assistant-template',
+              name: 'test-case-generator-assistant',
+              displayName: 'Test Case Generator Assistant Template',
+              description:
+                'Prebuilt assistant workflow template for requirement input, AI test case generation, case editing and history management.'
+            }
+          ]
+        },
+        runtime: {
+          middlewareProviders: [TEST_CASE_GENERATOR_MIDDLEWARE_NAME],
+          viewProviders: [TEST_CASE_GENERATOR_PROVIDER_KEY],
+          templateProviders: [TEST_CASE_GENERATOR_TEMPLATE_PROVIDER_KEY]
+        }
+      },
       'data-xpert': {
         types: ['workbench-view', 'assistant-tool', 'business-app'],
         capabilities: [

@@ -40,8 +40,19 @@ export const testCaseGeneratorTemplates: XpertTemplateContribution[] = [
     description: '面向需求描述输入、AI 测试用例生成、用例编辑和历史项目管理的 data-xpert 业务助手模板。',
     category: 'Test Case Generator',
     type: XpertTypeEnum.Agent,
-    targetApps: ['data-xpert'],
+    targetApps: ['xpert', 'data-xpert'],
     targetAppMeta: {
+      'xpert': {
+        types: ['business-assistant'],
+        capabilities: [TEST_CASE_GENERATOR_FEATURE],
+        requiredPlugins: [TEST_CASE_GENERATOR_PLUGIN_NAME],
+        defaultConfig: {
+          assistantKind: 'business-assistant',
+          businessDomain: 'test-case-generator',
+          managedBy: 'data-xpert',
+          viewProvider: TEST_CASE_GENERATOR_PROVIDER_KEY
+        }
+      },
       'data-xpert': {
         types: ['business-assistant'],
         capabilities: [TEST_CASE_GENERATOR_FEATURE],
