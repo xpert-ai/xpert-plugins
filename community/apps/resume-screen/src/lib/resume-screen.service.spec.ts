@@ -399,4 +399,46 @@ describe('ResumeScreenService', () => {
       expect(detail).not.toHaveProperty('sourceText')
     })
   })
+
+  // 轮结束超时兜底：中间件 afterAgent 钩子据此把滞留 parsing 行收敛为失败，
+  // 只允许早于阈值（轮开始时间）的 parsing 行被判定为超时，避免误伤本轮正在处理的行
+  describe('markStaleParsingFailed', () => {
+    it('marks only parsing rows whose updatedAt is before the threshold as failed', async () => {
+      const job = await service.createJob(scope, { title: '前端工程师', jdText: 'x'.repeat(30) })
+      await service.prepareIntakeDraft(scope, job.id, ['滞留简历', '新鲜简历'])
+      // 直接改写库内时间戳模拟滞留：第一行早于阈值，第二行晚于阈值
+      ;(candidateRepository.store[0] as ResumeScreenCandidate).updatedAt = new Date(MOCK_BASE_TIME - 10_000)
+      ;(candidateRepository.store[1] as ResumeScreenCandidate).updatedAt = new Date(MOCK_BASE_TIME + 10_000)
+
+      const failed = await service.markStaleParsingFailed(scope, new Date(MOCK_BASE_TIME))
+
+      expect(failed).toHaveLength(1)
+      expect(failed[0].status).toBe('failed')
+      expect(failed[0].failureReason).toBe('模型处理超时或失败')
+      // 失败语义与 markCandidateFailed 对齐：attemptCount +1 作为重试上限计数依据
+      expect(failed[0].attemptCount).toBe(1)
+      expect(candidateRepository.store[1].status).toBe('parsing')
+      // 新鲜行未被兜底触碰：failureReason 保持创建时的未写入状态
+      expect(candidateRepository.store[1].failureReason).toBeUndefined()
+    })
+
+    it('never touches rows that already left the parsing state', async () => {
+      const job = await service.createJob(scope, { title: '前端工程师', jdText: 'x'.repeat(30) })
+      const draft = await service.prepareIntakeDraft(scope, job.id, ['已回填简历'])
+      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '已回填简历', name: '张三' }])
+      // 即便 updatedAt 早于阈值，非 parsing 行（已是待评审）也不得被兜底改写
+      ;(candidateRepository.store[0] as ResumeScreenCandidate).updatedAt = new Date(MOCK_BASE_TIME - 10_000)
+
+      const failed = await service.markStaleParsingFailed(scope, new Date(MOCK_BASE_TIME))
+
+      expect(failed).toHaveLength(0)
+      expect(candidateRepository.store[0].status).toBe('pending_review')
+      expect(candidateRepository.store[0].id).toBe(draft.created[0].id)
+    })
+
+    it('returns an empty list when the scope has no candidates', async () => {
+      const failed = await service.markStaleParsingFailed(scope, new Date(MOCK_BASE_TIME))
+      expect(failed).toHaveLength(0)
+    })
+  })
 })

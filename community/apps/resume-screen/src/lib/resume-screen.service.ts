@@ -501,6 +501,41 @@ export class ResumeScreenService {
   }
 
   /**
+   * 收敛滞留的解析中候选人（轮结束超时兜底）
+   *
+   * 由中间件的 afterAgent 钩子在每轮对话结束时调用：仍停留在 parsing 且
+   * updatedAt 早于 threshold（轮开始时间）的行，说明本轮模型没有完成回填，
+   * 统一置为 failed 并写入可读失败原因，避免候选人永远卡在解析中无人处置；
+   * 本轮内新增/更新的行不受影响，等待模型继续处理。
+   *
+   * @param scope 多租户隔离范围
+   * @param threshold 轮开始时间（由中间件在 createMiddleware 时刻捕获），早于该时间的 parsing 行视为超时滞留
+   * @returns 被置为失败态的候选人视图数组；无滞留行时返回空数组
+   */
+  async markStaleParsingFailed(scope: ResumeScreenScope, threshold: Date): Promise<ResumeScreenCandidateView[]> {
+    // 查询条件先收敛到本作用域的 parsing 行以减少扫描量；状态与时间阈值在内存中二次判定，
+    // 作为业务口径的权威防线（不依赖具体驱动对 where 操作符的实现差异）
+    const rows = await this.candidateRepository.find({
+      where: { ...this.scopeWhere(scope), status: 'parsing' }
+    })
+    const stale = rows.filter(
+      (row) => row.status === 'parsing' && (row.updatedAt?.getTime() ?? 0) < threshold.getTime()
+    )
+    const failed: ResumeScreenCandidateView[] = []
+    for (const row of stale) {
+      // 失败语义与 markCandidateFailed 保持一致：attemptCount +1 作为重试上限的计数依据
+      const updated = await this.candidateRepository.save({
+        ...row,
+        status: 'failed',
+        failureReason: '模型处理超时或失败',
+        attemptCount: (row.attemptCount ?? 0) + 1
+      })
+      failed.push(toCandidateView(updated))
+    }
+    return failed
+  }
+
+  /**
    * 重试候选人解析
    *
    * 仅 failed / parsing 两种状态允许重试（M1 修正：parsing 行在模型彻底失败后

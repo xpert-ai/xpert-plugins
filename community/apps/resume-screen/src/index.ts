@@ -1,7 +1,7 @@
 /**
  * 简历筛选插件入口：声明插件 meta（应用归属、能力、市场内容）、
  * 配置模式与环境变量默认值，并注册 NestJS 插件模块。
- * 当前 runtime 提供者为空占位，随后续阶段补齐服务与工具。
+ * runtime 声明助手中间件、工作台视图与助手模板三类提供者。
  */
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -17,6 +17,7 @@ import { resumeScreenTemplates } from './lib/resume-screen.templates'
 import {
   RESUME_SCREEN_FEATURE,
   RESUME_SCREEN_ICON,
+  RESUME_SCREEN_MIDDLEWARE_NAME,
   RESUME_SCREEN_PROVIDER_KEY,
   RESUME_SCREEN_TEMPLATE_PROVIDER_KEY
 } from './lib/constants'
@@ -103,7 +104,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
           ]
         },
         runtime: {
-          middlewareProviders: [],
+          middlewareProviders: [RESUME_SCREEN_MIDDLEWARE_NAME],
           viewProviders: [RESUME_SCREEN_PROVIDER_KEY],
           templateProviders: [RESUME_SCREEN_TEMPLATE_PROVIDER_KEY]
         }
