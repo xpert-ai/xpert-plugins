@@ -1,0 +1,36 @@
+{
+  "name": "resume-screen",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/resume-screen/src",
+  "projectType": "library",
+  "release": {
+    "version": {
+      "generatorOptions": {
+        "packageRoot": "dist/{projectRoot}",
+        "currentVersionResolver": "git-tag"
+      }
+    }
+  },
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/rollup:rollup",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/apps/resume-screen",
+        "main": "apps/resume-screen/src/index.ts",
+        "tsConfig": "apps/resume-screen/tsconfig.lib.json",
+        "assets": [
+          {
+            "input": "apps/resume-screen/src/lib/remote-components",
+            "glob": "**/*",
+            "output": "remote-components"
+          }
+        ],
+        "project": "apps/resume-screen/package.json",
+        "compiler": "swc",
+        "external": "all"
+      }
+    }
+  }
+}
