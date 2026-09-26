@@ -13,7 +13,11 @@ import {
   readResumeScreenPluginEnvDefaults
 } from './lib/resume-screen.config'
 import { ResumeScreenPlugin } from './lib/resume-screen.plugin'
-import { RESUME_SCREEN_FEATURE, RESUME_SCREEN_ICON } from './lib/constants'
+import {
+  RESUME_SCREEN_FEATURE,
+  RESUME_SCREEN_ICON,
+  RESUME_SCREEN_PROVIDER_KEY
+} from './lib/constants'
 
 // 运行期以编译产物为基准读取包信息，meta 的 name/version 与 package.json 保持单一来源
 const moduleDir = __dirname
@@ -98,7 +102,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
         },
         runtime: {
           middlewareProviders: [],
-          viewProviders: [],
+          viewProviders: [RESUME_SCREEN_PROVIDER_KEY],
           templateProviders: []
         }
       }
