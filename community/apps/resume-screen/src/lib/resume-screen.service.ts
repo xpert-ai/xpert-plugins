@@ -330,4 +330,64 @@ export class ResumeScreenService {
     }
     return results
   }
+
+  // 按作用域查找候选人：查不到统一抛 404，防止跨租户/跨助手操作他人数据
+  private async findCandidate(scope: ResumeScreenScope, candidateId: string): Promise<ResumeScreenCandidate> {
+    const row = await this.candidateRepository.findOne({
+      where: { ...this.scopeWhere(scope), id: candidateId }
+    })
+    if (!row) {
+      throw new NotFoundException('候选人不存在')
+    }
+    return row
+  }
+
+  /**
+   * 标记候选人解析失败
+   *
+   * 记录可读的失败原因并累加 attemptCount（重试上限的计数依据），
+   * 只做状态标记不触发重试，重试由 retryCandidate 显式发起。
+   *
+   * @param scope 多租户隔离范围
+   * @param candidateId 候选人 id，必须已存在且属于当前作用域
+   * @param reason 失败原因（来自模型/解析层的可读描述），空值兜底为通用文案
+   * @returns 失败态的候选人视图
+   * @exception NotFoundException 候选人在作用域内不存在
+   */
+  async markCandidateFailed(scope: ResumeScreenScope, candidateId: string, reason: string): Promise<ResumeScreenCandidateView> {
+    const row = await this.findCandidate(scope, candidateId)
+    const updated = await this.candidateRepository.save({
+      ...row,
+      status: 'failed',
+      failureReason: reason || '处理失败',
+      attemptCount: (row.attemptCount ?? 0) + 1
+    })
+    return toCandidateView(updated)
+  }
+
+  /**
+   * 重试候选人解析
+   *
+   * 仅 failed / parsing 两种状态允许重试（M1 修正：parsing 行在模型彻底失败后
+   * 也要能被人工重新拉起）；重试复用同一行（不变更 dedupeKey），保证幂等不产生重复，
+   * attemptCount 保留历史次数以便上游执行重试上限策略。
+   *
+   * @param scope 多租户隔离范围
+   * @param candidateId 候选人 id，必须已存在且属于当前作用域
+   * @returns 重置为 parsing 态的候选人视图
+   * @exception NotFoundException 候选人在作用域内不存在
+   * @exception BadRequestException 当前状态（如 pending_review/终态）不支持重试
+   */
+  async retryCandidate(scope: ResumeScreenScope, candidateId: string): Promise<ResumeScreenCandidateView> {
+    const row = await this.findCandidate(scope, candidateId)
+    if (row.status !== 'failed' && row.status !== 'parsing') {
+      throw new BadRequestException('当前状态不支持重试')
+    }
+    const updated = await this.candidateRepository.save({
+      ...row,
+      status: 'parsing',
+      failureReason: null
+    })
+    return toCandidateView(updated)
+  }
 }

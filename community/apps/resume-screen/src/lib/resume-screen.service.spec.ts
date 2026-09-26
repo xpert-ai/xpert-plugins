@@ -223,18 +223,64 @@ describe('ResumeScreenService', () => {
     // })
 
     // enabled in Task 10（依赖 markCandidateFailed / retryCandidate）
-    // it('clears failureReason and keeps attemptCount on success', async () => {
-    //   const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
-    //   const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
-    //   const rowId = draft.created[0].id
-    //   await service.markCandidateFailed(scope, rowId, '模型处理超时')
-    //   await service.retryCandidate(scope, rowId)
-    //   await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: '张三' }])
-    //
-    //   const row = candidateRepository.store[0]
-    //   expect(row.status).toBe('pending_review')
-    //   expect(row.failureReason).toBeNull()
-    //   expect(row.attemptCount).toBe(1)
-    // })
+    it('clears failureReason and keeps attemptCount on success', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+      const rowId = draft.created[0].id
+      await service.markCandidateFailed(scope, rowId, '模型处理超时')
+      await service.retryCandidate(scope, rowId)
+      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: '张三' }])
+
+      const row = candidateRepository.store[0]
+      expect(row.status).toBe('pending_review')
+      expect(row.failureReason).toBeNull()
+      expect(row.attemptCount).toBe(1)
+    })
+  })
+
+  describe('markCandidateFailed / retryCandidate', () => {
+    it('marks failed with readable reason and increments attemptCount (AC4.1/4.2)', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+      const rowId = draft.created[0].id
+
+      const failed = await service.markCandidateFailed(scope, rowId, 'AI 返回格式不合法')
+      expect(failed.status).toBe('failed')
+      expect(failed.failureReason).toBe('AI 返回格式不合法')
+      expect(failed.attemptCount).toBe(1)
+
+      const retrying = await service.retryCandidate(scope, rowId)
+      expect(retrying.status).toBe('parsing')
+      // 视图层把清空后的 failureReason 归一为 undefined（null → undefined 序列化约定）
+      expect(retrying.failureReason).toBeUndefined()
+      expect(retrying.attemptCount).toBe(1)
+    })
+
+    it('retry keeps the same record id, no duplicates (AC4.3)', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+      const rowId = draft.created[0].id
+      await service.markCandidateFailed(scope, rowId, '模型处理超时')
+      await service.retryCandidate(scope, rowId)
+      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: '张三' }])
+      expect(candidateRepository.store).toHaveLength(1)
+      expect(candidateRepository.store[0].id).toBe(rowId)
+    })
+
+    it('retry rejects non-retryable statuses (M1: parsing is also retryable)', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+      const rowId = draft.created[0].id
+      // parsing 行可直接重试（模型彻底失败场景，spec 修正项 M1）
+      const retrying = await service.retryCandidate(scope, rowId)
+      expect(retrying.status).toBe('parsing')
+
+      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: '张三' }])
+      // pending_review 已是待人工评审状态，重试应被拒绝
+      await expect(service.retryCandidate(scope, rowId)).rejects.toBeInstanceOf(BadRequestException)
+      // enabled in Task 11（依赖 reviewCandidate）：补充 accept 终态后重试同样被拒绝
+      // await service.reviewCandidate(scope, rowId, 'accept', scope.userId ?? 'user-1')
+      // await expect(service.retryCandidate(scope, rowId)).rejects.toBeInstanceOf(BadRequestException)
+    })
   })
 })
