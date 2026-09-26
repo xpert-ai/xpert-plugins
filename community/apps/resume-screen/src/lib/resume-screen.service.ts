@@ -11,6 +11,7 @@ import { Repository } from 'typeorm'
 import { createHash } from 'crypto'
 import { ResumeScreenCandidate, ResumeScreenJob } from './entities'
 import type {
+  ResumeScreenCandidateInput,
   ResumeScreenCandidateView,
   ResumeScreenIntakeDraftResult,
   ResumeScreenJobInput,
@@ -236,5 +237,97 @@ export class ResumeScreenService {
       created.push(toCandidateView(row))
     }
     return { jobId, created, skippedAsExisting }
+  }
+
+  /**
+   * AI 解析结果的唯一写入口：按 dedupeKey 对 parsing 草稿行做回填式 upsert
+   *
+   * 与批量录入共用 `jobId|原文` 指纹作为幂等键，模型重试/重复回调不会产生重复行；
+   * 已被人工修正过的字段（humanEditedFields）永远不被 AI 覆盖。回填成功后行状态
+   * 统一流转到 pending_review 并清空历史失败原因。原文为空的条目直接跳过。
+   *
+   * @param scope 多租户隔离范围
+   * @param jobId 归属职位 id，必须已存在且属于当前作用域
+   * @param candidates AI 抽取出的候选人集合（sourceText 必填，用于对齐幂等键）
+   * @returns 落库后的候选人视图数组
+   * @exception NotFoundException jobId 在作用域内不存在
+   * @exception BadRequestException matchScore 不是 0-100 的整数
+   */
+  async saveCandidatesFromAgent(
+    scope: ResumeScreenScope,
+    jobId: string,
+    candidates: ResumeScreenCandidateInput[]
+  ): Promise<ResumeScreenCandidateView[]> {
+    const job = await this.jobRepository.findOne({ where: { ...this.scopeWhere(scope), id: jobId } })
+    if (!job) {
+      throw new NotFoundException('岗位不存在')
+    }
+    const results: ResumeScreenCandidateView[] = []
+    for (const candidate of candidates) {
+      const sourceText = candidate.sourceText?.trim()
+      // 无原文的条目无法对齐幂等键，直接跳过而不是落一条脏数据
+      if (!sourceText) {
+        continue
+      }
+      const dedupeKey = sha256(`${jobId}|${sourceText}`)
+      const score = candidate.matchScore
+      // 匹配分是看板排序与筛选的核心依据，越界值必须在入口处拒绝
+      if (score !== undefined && (!Number.isInteger(score) || score < 0 || score > 100)) {
+        throw new BadRequestException('matchScore 必须是 0-100 的整数')
+      }
+      let row = await this.candidateRepository.findOne({
+        where: { ...this.scopeWhere(scope), jobId, dedupeKey }
+      })
+      // 人工修正过的字段受保护：AI 重跑不得覆盖（AC5.2）
+      const humanEdited = new Set(row?.humanEditedFields ?? [])
+      const protectedFields: Array<keyof ResumeScreenCandidateInput> = [
+        'name',
+        'yearsOfExperience',
+        'education',
+        'currentCompany',
+        'skills',
+        'summary',
+        'matchScore',
+        'matchReason',
+        'hitPoints',
+        'riskPoints'
+      ]
+      const aiPatch: Partial<ResumeScreenCandidate> = {}
+      for (const field of protectedFields) {
+        if (humanEdited.has(field)) {
+          continue
+        }
+        const value = candidate[field]
+        if (value !== undefined) {
+          ;(aiPatch as Record<string, unknown>)[field] = value
+        }
+      }
+      if (row) {
+        // 已有草稿行（通常是 parsing 中/失败重试）：原地回填并推进状态，不新建行
+        row = await this.candidateRepository.save({
+          ...row,
+          ...aiPatch,
+          status: 'pending_review',
+          failureReason: null
+        })
+      } else {
+        row = await this.candidateRepository.save(
+          this.candidateRepository.create({
+            ...this.scopeWhere(scope),
+            conversationId: scope.conversationId ?? null,
+            jobId,
+            dedupeKey,
+            status: 'pending_review',
+            sourceText,
+            humanEditedFields: [],
+            attemptCount: 0,
+            revision: 1,
+            ...aiPatch
+          })
+        )
+      }
+      results.push(toCandidateView(row))
+    }
+    return results
   }
 }

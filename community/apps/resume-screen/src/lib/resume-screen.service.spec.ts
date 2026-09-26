@@ -170,4 +170,71 @@ describe('ResumeScreenService', () => {
       expect(result.created).toHaveLength(1)
     })
   })
+
+  describe('saveCandidatesFromAgent', () => {
+    it('backfills parsing rows and sets pending_review (AC2.3)', async () => {
+      const job = await service.createJob(scope, { title: '前端工程师', jdText: 'x'.repeat(30) })
+      const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+      const rowId = draft.created[0].id
+
+      const saved = await service.saveCandidatesFromAgent(scope, job.id, [
+        {
+          sourceText: '张三的简历',
+          name: '张三',
+          yearsOfExperience: '5',
+          education: '本科',
+          skills: ['React', 'TypeScript'],
+          matchScore: 86,
+          matchReason: '5 年 React 经验，与 JD 吻合',
+          hitPoints: ['技能栈匹配'],
+          riskPoints: ['无团队管理经验']
+        }
+      ])
+
+      expect(saved).toHaveLength(1)
+      expect(saved[0].id).toBe(rowId)
+      expect(saved[0].status).toBe('pending_review')
+      expect(saved[0].name).toBe('张三')
+      expect(saved[0].matchScore).toBe(86)
+    })
+
+    it('upserts by dedupeKey: same record, no duplicate (AC4.3 retry-safety)', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: '张三' }])
+      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: '张三', matchScore: 90 }])
+      expect(candidateRepository.store).toHaveLength(1)
+      expect(candidateRepository.store[0].matchScore).toBe(90)
+    })
+
+    // enabled in Task 11（依赖 updateCandidate）
+    // it('never overwrites human-edited fields (AC5.2)', async () => {
+    //   const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+    //   const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+    //   const rowId = draft.created[0].id
+    //   await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: '张三' }])
+    //   await service.updateCandidate(scope, rowId, { name: '张三丰' }, 1)
+    //
+    //   await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: 'AI猜的' }])
+    //
+    //   const row = candidateRepository.store[0]
+    //   expect(row.name).toBe('张三丰')
+    //   expect(row.humanEditedFields).toContain('name')
+    // })
+
+    // enabled in Task 10（依赖 markCandidateFailed / retryCandidate）
+    // it('clears failureReason and keeps attemptCount on success', async () => {
+    //   const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+    //   const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+    //   const rowId = draft.created[0].id
+    //   await service.markCandidateFailed(scope, rowId, '模型处理超时')
+    //   await service.retryCandidate(scope, rowId)
+    //   await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: '张三' }])
+    //
+    //   const row = candidateRepository.store[0]
+    //   expect(row.status).toBe('pending_review')
+    //   expect(row.failureReason).toBeNull()
+    //   expect(row.attemptCount).toBe(1)
+    // })
+  })
 })
