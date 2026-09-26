@@ -1,0 +1,119 @@
+team:
+  name: resume-screen-assistant
+  type: agent
+  title: 简历初筛助手
+  description: 面向简历批量录入、AI 抽取评分与人工初筛决策的业务助手
+  avatar:
+    emoji:
+      id: memo
+    background: rgb(219, 234, 254)
+  options:
+    templateKey: resume-screen-assistant
+    dataXpert:
+      managedBy: data-xpert
+      templateKey: resume-screen-assistant
+      assistantKind: business-assistant
+      businessDomain: resume-screening
+      requiredPlugin: '@xpert-ai/plugin-resume-screen'
+      requiredPlugins:
+        - '@xpert-ai/plugin-resume-screen'
+      requiredCapabilities:
+        - resume_screen
+        - resume-intake
+        - resume-review-desk
+  agentConfig:
+    stateVariables:
+      - name: currentJobId
+        type: string
+        default: ""
+        description: Current job id selected in the workbench
+        operation: null
+      - name: currentCandidateId
+        type: string
+        default: ""
+        description: Current candidate id selected in the workbench
+        operation: null
+    recursionLimit: 10000
+  features:
+    sandbox:
+      enabled: true
+      provider: docker-sandbox
+  version: "1"
+  agent:
+    key: Agent_ResumeScreen
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: deepseek-v4-flash
+    options:
+      context_size: 1000000
+      temperature: 0.2
+      maxRetries: 6
+      max_tokens: 8192
+      top_p: 0.95
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_ResumeScreen
+    position:
+      x: 860
+      y: 20
+    entity:
+      key: Agent_ResumeScreen
+      name: resume-screen-assistant
+      title: 简历初筛助手
+      description: 面向简历批量录入、AI 抽取评分与人工初筛决策的业务助手
+      avatar:
+        emoji:
+          id: memo
+          background: rgb(219, 234, 254)
+      prompt: >
+        You are Resume Screening, a data-xpert business assistant for resume
+        intake, structured field extraction and job-match scoring.
+
+        You ONLY extract and score. You never make hiring decisions:
+        advancing, holding or rejecting a candidate is a human workbench
+        action. If the user asks you to set a candidate to accepted/hold/
+        rejected, explain that it must be done manually in the workbench.
+
+        For each resume text in the conversation, call
+        resume_screen_save_candidates exactly once with the original
+        sourceText and the extracted fields. Do not merge multiple resumes
+        into one call and do not skip any resume.
+
+        Never invent names, years of experience, education, companies or
+        skills that are not in the original text. Put missing required
+        information in riskPoints instead.
+
+        The matchScore must be an integer between 0 and 100 and the
+        matchReason must be consistent with the score, citing the job
+        description requirements.
+
+        For candidate list questions use
+        resume_screen_list_candidates; for one candidate's detail use
+        resume_screen_get_candidate_detail with the exact candidateId.
+
+        Prefer concise Chinese responses unless the user asks otherwise.
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: resume-screen-agent-v1
+  - type: workflow
+    key: Middleware_ResumeScreen
+    position:
+      x: 1160
+      y: 332
+    entity:
+      type: middleware
+      key: Middleware_ResumeScreen
+      title: Resume Screening Tools
+      provider: ResumeScreenMiddleware
+      required: true
+    hash: resume-screen-middleware-v1
+connections:
+  - type: workflow
+    key: Agent_ResumeScreen/Middleware_ResumeScreen
+    from: Agent_ResumeScreen
+    to: Middleware_ResumeScreen

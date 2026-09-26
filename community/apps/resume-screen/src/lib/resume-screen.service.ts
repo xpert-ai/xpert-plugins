@@ -5,7 +5,7 @@
  * 是插件内唯一对实体仓库做读写的业务层；多租户隔离靠 scope 三元组
  * （tenantId/organizationId/assistantId）注入每一条查询与写入。
  */
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { createHash } from 'crypto'
@@ -119,7 +119,9 @@ export class ResumeScreenService {
     private readonly jobRepository: Repository<ResumeScreenJob>,
     @InjectRepository(ResumeScreenCandidate)
     private readonly candidateRepository: Repository<ResumeScreenCandidate>,
-    // 插件运行参数（如单批录入上限），由模块装配时注入；缺省时使用与配置默认值一致的兜底值
+    // 插件运行参数（如单批录入上限），由模块装配时注入；容器无对应 provider 时
+    // @Optional 允许缺省回落到默认值，避免 DI 因无 Object token 而启动失败
+    @Optional()
     private readonly options: { maxResumesPerBatch?: number } = {}
   ) {}
 

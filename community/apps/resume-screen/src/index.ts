@@ -13,10 +13,12 @@ import {
   readResumeScreenPluginEnvDefaults
 } from './lib/resume-screen.config'
 import { ResumeScreenPlugin } from './lib/resume-screen.plugin'
+import { resumeScreenTemplates } from './lib/resume-screen.templates'
 import {
   RESUME_SCREEN_FEATURE,
   RESUME_SCREEN_ICON,
-  RESUME_SCREEN_PROVIDER_KEY
+  RESUME_SCREEN_PROVIDER_KEY,
+  RESUME_SCREEN_TEMPLATE_PROVIDER_KEY
 } from './lib/constants'
 
 // 运行期以编译产物为基准读取包信息，meta 的 name/version 与 package.json 保持单一来源
@@ -103,7 +105,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
         runtime: {
           middlewareProviders: [],
           viewProviders: [RESUME_SCREEN_PROVIDER_KEY],
-          templateProviders: []
+          templateProviders: [RESUME_SCREEN_TEMPLATE_PROVIDER_KEY]
         }
       }
     },
@@ -123,6 +125,8 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
     formSchema: ResumeScreenPluginConfigFormSchema,
     defaults: readResumeScreenPluginEnvDefaults()
   },
+  // 预置助手模板：data-xpert 据此在模板市场展示并一键创建简历初筛助手
+  templates: resumeScreenTemplates,
   register(ctx) {
     ctx.logger.log('register resume-screen plugin')
     return { module: ResumeScreenPlugin, global: true }
