@@ -74,4 +74,90 @@ describe('ResumeScreenViewProvider', () => {
     const result = await provider.getViewData(createContext(), 'unknown', {} as never)
     expect(result).toEqual({})
   })
+
+  // 动作分支：录入/重试/保存/处置/未知动作的完整路由与可读失败兜底
+  describe('executeViewAction', () => {
+    const fullService = {
+      getViewData: jest.fn(async () => viewData),
+      prepareIntakeDraft: jest.fn(async () => ({
+        jobId: 'job-1',
+        created: [{ id: 'c1', status: 'parsing' }],
+        skippedAsExisting: []
+      })),
+      retryCandidate: jest.fn(async () => ({ id: 'c1', status: 'parsing', attemptCount: 1 })),
+      updateCandidate: jest.fn(async () => ({ id: 'c1', name: '张三丰', revision: 2 })),
+      reviewCandidate: jest.fn(async () => ({ id: 'c1', status: 'accepted' }))
+    }
+    const providerWithActions = new ResumeScreenViewProvider(fullService as never)
+
+    function actionRequest(input: Record<string, unknown> = {}, targetId?: string) {
+      return { input, targetId } as never
+    }
+
+    it('prepare_parse_message returns commandKey with a natural-language payload (spec §8.3)', async () => {
+      const result = await providerWithActions.executeViewAction(
+        createContext(),
+        RESUME_SCREEN_WORKBENCH_VIEW_KEY,
+        'prepare_parse_message',
+        actionRequest({ jobId: 'job-1', texts: ['简历甲', '简历乙'] })
+      )
+      expect(fullService.prepareIntakeDraft).toHaveBeenCalled()
+      expect(result.success).toBe(true)
+      // 平台契约中 commandKey/payload 收敛在 data 内（对齐 smart-maintenance 样板）
+      expect(result.data).toMatchObject({
+        commandKey: 'assistant.chat.send_message',
+        payload: { text: expect.stringContaining('简历甲') }
+      })
+    })
+
+    it('review actions map to service reviewCandidate', async () => {
+      const result = await providerWithActions.executeViewAction(
+        createContext(),
+        RESUME_SCREEN_WORKBENCH_VIEW_KEY,
+        'accept_candidate',
+        actionRequest({ candidateId: 'c1' }, 'c1')
+      )
+      expect(fullService.reviewCandidate).toHaveBeenCalledWith(
+        expect.anything(),
+        'c1',
+        'accept',
+        expect.any(String)
+      )
+      expect(result.success).toBe(true)
+      expect(result.refresh).toBe(true)
+    })
+
+    it('update_candidate forwards patch with expectedRevision', async () => {
+      const result = await providerWithActions.executeViewAction(
+        createContext(),
+        RESUME_SCREEN_WORKBENCH_VIEW_KEY,
+        'update_candidate',
+        actionRequest({ candidateId: 'c1', patch: { name: '张三丰' }, expectedRevision: 1 })
+      )
+      expect(fullService.updateCandidate).toHaveBeenCalledWith(expect.anything(), 'c1', { name: '张三丰' }, 1)
+      expect(result.success).toBe(true)
+    })
+
+    it('returns readable failure on service errors (no stack traces)', async () => {
+      fullService.reviewCandidate.mockRejectedValueOnce(new Error('记录已被他人修改，请刷新'))
+      const result = await providerWithActions.executeViewAction(
+        createContext(),
+        RESUME_SCREEN_WORKBENCH_VIEW_KEY,
+        'hold_candidate',
+        actionRequest({ candidateId: 'c1' })
+      )
+      expect(result.success).toBe(false)
+      expect(JSON.stringify(result.message)).toContain('刷新')
+    })
+
+    it('rejects unknown action keys and view keys', async () => {
+      const result = await providerWithActions.executeViewAction(
+        createContext(),
+        RESUME_SCREEN_WORKBENCH_VIEW_KEY,
+        'delete_everything',
+        actionRequest()
+      )
+      expect(result.success).toBe(false)
+    })
+  })
 })

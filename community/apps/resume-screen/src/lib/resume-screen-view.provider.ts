@@ -15,6 +15,8 @@ import type {
   XpertRemoteComponentEntry,
   XpertRemoteComponentViewSchema,
   XpertResolvedViewHostContext,
+  XpertViewActionRequest,
+  XpertViewActionResult,
   XpertViewDataResult,
   XpertViewDataSource,
   XpertViewQuery
@@ -291,10 +293,188 @@ export class ResumeScreenViewProvider implements IXpertViewExtensionProvider {
     }
     return (await this.service.getViewData(scopeFromContext(context), listQuery)) as never
   }
+
+  /**
+   * 视图动作执行：刷新/批量录入提交/重试/人工保存/处置动作的统一入口
+   *
+   * prepare_parse_message 与 retry_candidate 不直接驱动 AI，而是落库后通过
+   * commandKey=assistant.chat.send_message 把自然语言指令发往助手对话，由模型
+   * 调用中间件工具完成回填；服务层异常统一转为可读 I18n 失败结果，不向外
+   * 泄露堆栈。
+   *
+   * @param context 宿主上下文（scope.userId 作为处置操作人兜底）
+   * @param viewKey 视图标识，非本插件的视图直接返回失败
+   * @param actionKey manifest actions 中声明的动作键
+   * @param request 动作载荷（input/targetId），candidateId 优先取 input 再回退 targetId
+   * @returns 动作结果：成功时携带刷新标记与（如需）对话指令，失败时携带可读文案
+   */
+  async executeViewAction(
+    context: XpertResolvedViewHostContext,
+    viewKey: string,
+    actionKey: string,
+    request: XpertViewActionRequest
+  ): Promise<XpertViewActionResult> {
+    try {
+      if (!isResumeScreenViewKey(viewKey)) {
+        return failure('Unsupported action', '不支持的操作')
+      }
+      const scope = scopeFromContext(context)
+      // candidateId 允许走 targetId（行内按钮场景）或 input（表单场景）
+      const candidateId = getStringInput(request.input, 'candidateId') ?? request.targetId ?? undefined
+
+      if (actionKey === 'refresh') {
+        return success('Refreshed', '已刷新')
+      }
+
+      if (actionKey === 'prepare_parse_message') {
+        const jobId = getStringInput(request.input, 'jobId')
+        // texts 支持字符串数组或按空行分隔的整段文本两种录入形态
+        const texts = getStringArrayInput(request.input, 'texts') ?? []
+        if (!jobId) {
+          return failure('Select a job first', '请先选择岗位')
+        }
+        if (texts.length === 0) {
+          return failure('Paste at least one resume', '请粘贴至少一条简历文本')
+        }
+        const draft = await this.service.prepareIntakeDraft(scope, jobId, texts)
+        const payload = {
+          text: buildParseMessage(draft.created.length, texts)
+        }
+        // 指令通过 data.commandKey 交由宿主发送到助手对话（契约不含顶层 commandKey 字段）
+        return {
+          ...success('Resumes submitted to AI', '已提交 AI 解析'),
+          data: {
+            commandKey: 'assistant.chat.send_message',
+            payload
+          }
+        }
+      }
+
+      if (actionKey === 'retry_candidate') {
+        if (!candidateId) {
+          return failure('Candidate is required', '缺少候选人')
+        }
+        await this.service.retryCandidate(scope, candidateId)
+        return {
+          ...success('Retry started', '已重新开始解析，请在对话框发送重试消息'),
+          data: {
+            commandKey: 'assistant.chat.send_message',
+            // 重试由模型重新解析并调用保存工具回填，视图侧只负责重置状态与发起指令
+            payload: { text: `请重新解析该简历（candidateId: ${candidateId}），并调用工具回填结果。` }
+          }
+        }
+      }
+
+      if (actionKey === 'update_candidate') {
+        if (!candidateId) {
+          return failure('Candidate is required', '缺少候选人')
+        }
+        const patch = (request.input as { patch?: Record<string, unknown> })?.patch ?? {}
+        const expectedRevision = Number((request.input as { expectedRevision?: unknown })?.expectedRevision)
+        const updated = await this.service.updateCandidate(
+          scope,
+          candidateId,
+          patch as never,
+          Number.isInteger(expectedRevision) ? expectedRevision : 1
+        )
+        // 回传最新版本号，前端据此更新下一次提交的乐观锁期望值
+        return {
+          ...success('Saved', '已保存（人工修正字段不会被 AI 覆盖）'),
+          data: { id: updated.id, revision: updated.revision }
+        }
+      }
+
+      // 处置动作映射：accept/hold/reject/reset 一组同构分支合并处理
+      const reviewActionMap: Record<string, 'accept' | 'hold' | 'reject' | 'reset_to_pending'> = {
+        accept_candidate: 'accept',
+        hold_candidate: 'hold',
+        reject_candidate: 'reject',
+        reset_candidate: 'reset_to_pending'
+      }
+      const reviewAction = reviewActionMap[actionKey]
+      if (reviewAction) {
+        if (!candidateId) {
+          return failure('Candidate is required', '缺少候选人')
+        }
+        // 操作人取宿主上下文用户，缺省时以 unknown 兜底保证审计字段不空置
+        const reviewed = await this.service.reviewCandidate(scope, candidateId, reviewAction, scope.userId ?? 'unknown')
+        return { ...success('Reviewed', '处置成功'), data: { id: reviewed.id, status: reviewed.status } }
+      }
+
+      return failure(`Unknown action: ${actionKey}`, `未知操作：${actionKey}`)
+    } catch (error) {
+      // 服务层异常（如乐观锁冲突）转可读提示；message 为业务文案，不含堆栈
+      const message = getActionErrorMessage(error, '操作失败')
+      return failure(message, message)
+    }
+  }
 }
 
 // 从本包依赖中读取 react/react-dom 的 UMD 文件内容，避免硬编码 node_modules 路径
 async function readPackageFile(packageName: string, relativePath: string) {
   const packageRoot = dirname(requireFromHere.resolve(`${packageName}/package.json`))
   return readFile(join(packageRoot, relativePath), 'utf8')
+}
+
+// 动作输入取单值字符串：空串/纯空白视为未提供
+function getStringInput(input: Record<string, unknown> | null | undefined, key: string) {
+  const value = input?.[key]
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined
+}
+
+// 简历文本集合提取：兼容字符串数组与按空行分隔的整段粘贴文本两种形态
+function getStringArrayInput(input: Record<string, unknown> | null | undefined, key: string) {
+  const value = input?.[key]
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === 'string').map((item) => item.trim()).filter(Boolean)
+  }
+  if (typeof value === 'string' && value.trim()) {
+    return value
+      .split(/\n\s*\n+/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+  }
+  return undefined
+}
+
+// 构造批量解析指令：明确要求模型逐份调用保存工具落库，禁止只做总结或虚构原文
+function buildParseMessage(count: number, texts: string[]) {
+  const body = texts
+    .map((text, index) => `【简历 ${index + 1}】\n${text}`)
+    .join('\n\n')
+  return [
+    `请解析以下 ${count} 份简历。`,
+    '你必须为每一条简历恰好调用一次 resume_screen_save_candidates 工具落库（sourceText 使用简历原文），不要只做总结。',
+    '不要虚构原文没有的信息；缺失项留空并写进 riskPoints。',
+    '',
+    body
+  ].join('\n')
+}
+
+// 动作成功结果：默认要求宿主刷新视图以反映最新数据
+function success(en_US: string, zh_Hans: string): XpertViewActionResult {
+  return {
+    success: true,
+    message: text(en_US, zh_Hans),
+    refresh: true
+  }
+}
+
+// 动作失败结果：仅携带可读文案，不携带刷新标记
+function failure(en_US: string, zh_Hans: string): XpertViewActionResult {
+  return {
+    success: false,
+    message: text(en_US, zh_Hans)
+  }
+}
+
+// 异常消息归一：优先透出业务异常文案（如乐观锁冲突提示），无文案时回退通用提示
+function getActionErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) {
+    return error.message
+  }
+  if (typeof error === 'string' && error.trim()) {
+    return error.trim()
+  }
+  return fallback
 }
