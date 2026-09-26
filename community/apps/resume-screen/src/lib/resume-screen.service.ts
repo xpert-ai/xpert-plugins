@@ -11,14 +11,17 @@ import { Repository } from 'typeorm'
 import { createHash } from 'crypto'
 import { ResumeScreenCandidate, ResumeScreenJob } from './entities'
 import type {
+  ResumeScreenAgentCandidateSummary,
   ResumeScreenCandidateInput,
+  ResumeScreenCandidateListQuery,
   ResumeScreenCandidatePatch,
   ResumeScreenCandidateView,
   ResumeScreenIntakeDraftResult,
   ResumeScreenJobInput,
   ResumeScreenJobView,
   ResumeScreenReviewAction,
-  ResumeScreenScope
+  ResumeScreenScope,
+  ResumeScreenViewData
 } from './types'
 
 // JD 正文最短长度：过短的岗位描述无法支撑有效的匹配评分
@@ -81,6 +84,32 @@ function toCandidateView(row: ResumeScreenCandidate): ResumeScreenCandidateView 
     createdAt: row.createdAt ? new Date(row.createdAt).toISOString() : '',
     updatedAt: row.updatedAt ? new Date(row.updatedAt).toISOString() : ''
   }
+}
+
+// 工作台列表排序/筛选：关键字命中姓名/学历/公司/摘要，状态过滤后按白名单字段排序；
+// matchScore 缺省视为 -1 使未评分候选人稳定排在有分记录之后
+function sortCandidates(candidates: ResumeScreenCandidateView[], query: ResumeScreenCandidateListQuery) {
+  const sortBy = query.sortBy ?? 'createdAt'
+  const dir = query.sortDir === 'asc' ? 1 : -1
+  const keyword = query.search?.trim()?.toLowerCase()
+  const filtered = keyword
+    ? candidates.filter((candidate) =>
+        [candidate.name, candidate.education, candidate.currentCompany, candidate.summary]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(keyword))
+      )
+    : candidates
+  const statusFilter = query.status
+    ? filtered.filter((candidate) => candidate.status === statusFilter)
+    : filtered
+  return [...statusFilter].sort((a, b) => {
+    if (sortBy === 'matchScore') {
+      return ((a.matchScore ?? -1) - (b.matchScore ?? -1)) * dir
+    }
+    return String(a[sortBy === 'updatedAt' ? 'updatedAt' : 'createdAt']).localeCompare(
+      String(b[sortBy === 'updatedAt' ? 'updatedAt' : 'createdAt'])
+    ) * dir
+  })
 }
 
 @Injectable()
@@ -493,5 +522,101 @@ export class ResumeScreenService {
       failureReason: null
     })
     return toCandidateView(updated)
+  }
+
+  /**
+   * 聚合工作台视图数据：职位列表、当前职位、候选人分页与各状态统计
+   *
+   * 候选人始终挂在当前职位（显式 jobId 或最新职位）下，先排序筛选再内存分页，
+   * 统计基于过滤前的全量候选人，保证分页翻页时看板总数稳定。
+   *
+   * @param scope 多租户隔离范围
+   * @param query 列表查询条件（jobId/状态/关键字/排序/分页），全部可选
+   * @returns 视图聚合数据；作用域内无职位时 candidates/stats/page 返回空值结构
+   * @exception NotFoundException 显式指定的 jobId 在作用域内不存在
+   */
+  async getViewData(scope: ResumeScreenScope, query: ResumeScreenCandidateListQuery): Promise<ResumeScreenViewData> {
+    const jobs = await this.listJobs(scope)
+    const currentJob = await this.getCurrentJob(scope, query.jobId)
+    // 无当前职位时返回空结构，前端据此渲染引导页而不是报错
+    const candidates = currentJob
+      ? (
+          await this.candidateRepository.find({
+            where: { ...this.scopeWhere(scope), jobId: currentJob.id }
+          })
+        ).map(toCandidateView)
+      : []
+    const sorted = sortCandidates(candidates, query)
+    const pageSize = query.pageSize ?? 20
+    const pageNumber = query.page ?? 1
+    const start = (pageNumber - 1) * pageSize
+    const paged = sorted.slice(start, start + pageSize)
+    // 统计口径为当前职位全量候选人（过滤前），与列表分页解耦
+    const countBy = (status: ResumeScreenCandidateView['status']) =>
+      candidates.filter((candidate) => candidate.status === status).length
+    return {
+      jobs,
+      job: currentJob ?? undefined,
+      candidates: paged,
+      stats: {
+        total: candidates.length,
+        pendingReview: countBy('pending_review'),
+        accepted: countBy('accepted'),
+        hold: countBy('hold'),
+        rejected: countBy('rejected'),
+        failed: countBy('failed'),
+        parsing: countBy('parsing')
+      },
+      page: { number: pageNumber, size: pageSize, total: sorted.length }
+    }
+  }
+
+  /**
+   * 助手只读查询：返回候选人紧凑摘要列表（刻意不含简历原文）
+   *
+   * 供 resume_screen_list_candidates 工具使用；复用 getViewData 的排序/过滤口径，
+   * 单次最多返回 100 条以约束模型上下文长度，详情走 getCandidateDetailForAgent 二次查询。
+   *
+   * @param scope 多租户隔离范围
+   * @param query 列表查询条件（jobId 锁定职位维度，其余可选）
+   * @returns 精简摘要数组；无候选人时返回空数组
+   */
+  async listCandidatesForAgent(
+    scope: ResumeScreenScope,
+    query: ResumeScreenCandidateListQuery
+  ): Promise<ResumeScreenAgentCandidateSummary[]> {
+    const data = await this.getViewData(scope, { ...query, page: 1, pageSize: 100 })
+    // 逐字段白名单映射，确保 sourceText 等大字段永不进入模型上下文
+    return data.candidates.map((candidate) => ({
+      id: candidate.id,
+      name: candidate.name,
+      status: candidate.status,
+      matchScore: candidate.matchScore,
+      education: candidate.education,
+      yearsOfExperience: candidate.yearsOfExperience,
+      currentCompany: candidate.currentCompany,
+      createdAt: candidate.createdAt
+    }))
+  }
+
+  /**
+   * 助手只读查询：返回单个候选人详情（剥离简历原文）
+   *
+   * 供 resume_screen_get_candidate_detail 工具使用；sourceText 仅用于幂等对齐，
+   * 对模型无增量价值且占用大量上下文，故在出口剥离。
+   *
+   * @param scope 多租户隔离范围
+   * @param candidateId 候选人 id，必须已存在且属于当前作用域
+   * @returns 不含 sourceText 的候选人视图
+   * @exception NotFoundException 候选人在作用域内不存在
+   */
+  async getCandidateDetailForAgent(
+    scope: ResumeScreenScope,
+    candidateId: string
+  ): Promise<Omit<ResumeScreenCandidateView, 'sourceText'>> {
+    const row = await this.findCandidate(scope, candidateId)
+    const view = toCandidateView(row)
+    const { sourceText: _sourceText, ...detail } = view as ResumeScreenCandidateView & { sourceText?: string }
+    return detail
   }
 }

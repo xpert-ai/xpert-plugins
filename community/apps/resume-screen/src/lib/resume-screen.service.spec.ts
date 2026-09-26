@@ -352,4 +352,51 @@ describe('ResumeScreenService', () => {
       expect(reset.status).toBe('pending_review')
     })
   })
+
+  // 工作台视图聚合：一次返回职位/当前职位/候选人分页/统计，供前端看板渲染
+  describe('getViewData', () => {
+    it('returns jobs, current job, candidates, stats and pagination', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      await service.prepareIntakeDraft(scope, job.id, ['甲', '乙'])
+      await service.saveCandidatesFromAgent(scope, job.id, [
+        { sourceText: '甲', name: '甲', matchScore: 80 },
+        { sourceText: '乙', name: '乙', matchScore: 40 }
+      ])
+      await service.reviewCandidate(scope, (candidateRepository.store[0] as ResumeScreenCandidate).id, 'accept', 'user-1')
+
+      const data = await service.getViewData(scope, { jobId: job.id, page: 1, pageSize: 20 })
+      expect(data.jobs).toHaveLength(1)
+      expect(data.job?.id).toBe(job.id)
+      expect(data.candidates).toHaveLength(2)
+      expect(data.stats.total).toBe(2)
+      expect(data.stats.accepted).toBe(1)
+      expect(data.stats.pendingReview).toBe(1)
+      expect(data.page).toEqual({ number: 1, size: 20, total: 2 })
+    })
+
+    it('returns empty stats when nothing exists', async () => {
+      const data = await service.getViewData(scope, {})
+      expect(data.jobs).toHaveLength(0)
+      expect(data.candidates).toHaveLength(0)
+      expect(data.stats.total).toBe(0)
+    })
+  })
+
+  // 助手只读查询：摘要刻意精简且不携带简历原文，详情按 id 二次查询，控制模型上下文长度
+  describe('listCandidatesForAgent / getCandidateDetailForAgent', () => {
+    it('returns compact summaries without sourceText', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      await service.prepareIntakeDraft(scope, job.id, ['甲'])
+      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '甲', name: '甲', matchScore: 80 }])
+
+      const list = await service.listCandidatesForAgent(scope, { jobId: job.id })
+      expect(list).toHaveLength(1)
+      expect(list[0]).not.toHaveProperty('sourceText')
+      expect(list[0].name).toBe('甲')
+
+      const detail = await service.getCandidateDetailForAgent(scope, list[0].id)
+      expect(detail.matchScore).toBe(80)
+      expect(detail).not.toHaveProperty('sourceText')
+    })
+  })
 })
