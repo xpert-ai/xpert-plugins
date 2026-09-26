@@ -207,20 +207,20 @@ describe('ResumeScreenService', () => {
       expect(candidateRepository.store[0].matchScore).toBe(90)
     })
 
-    // enabled in Task 11（依赖 updateCandidate）
-    // it('never overwrites human-edited fields (AC5.2)', async () => {
-    //   const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
-    //   const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
-    //   const rowId = draft.created[0].id
-    //   await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: '张三' }])
-    //   await service.updateCandidate(scope, rowId, { name: '张三丰' }, 1)
-    //
-    //   await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: 'AI猜的' }])
-    //
-    //   const row = candidateRepository.store[0]
-    //   expect(row.name).toBe('张三丰')
-    //   expect(row.humanEditedFields).toContain('name')
-    // })
+    // 人工修正保护：人工改过的字段在 AI 重跑回填时必须原样保留（AC5.2）
+    it('never overwrites human-edited fields (AC5.2)', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+      const rowId = draft.created[0].id
+      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: '张三' }])
+      await service.updateCandidate(scope, rowId, { name: '张三丰' }, 1)
+
+      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: 'AI猜的' }])
+
+      const row = candidateRepository.store[0]
+      expect(row.name).toBe('张三丰')
+      expect(row.humanEditedFields).toContain('name')
+    })
 
     // enabled in Task 10（依赖 markCandidateFailed / retryCandidate）
     it('clears failureReason and keeps attemptCount on success', async () => {
@@ -278,9 +278,78 @@ describe('ResumeScreenService', () => {
       await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: '张三' }])
       // pending_review 已是待人工评审状态，重试应被拒绝
       await expect(service.retryCandidate(scope, rowId)).rejects.toBeInstanceOf(BadRequestException)
-      // enabled in Task 11（依赖 reviewCandidate）：补充 accept 终态后重试同样被拒绝
-      // await service.reviewCandidate(scope, rowId, 'accept', scope.userId ?? 'user-1')
-      // await expect(service.retryCandidate(scope, rowId)).rejects.toBeInstanceOf(BadRequestException)
+      // accept 终态后重试同样被拒绝（依赖 reviewCandidate 推进终态）
+      await service.reviewCandidate(scope, rowId, 'accept', scope.userId ?? 'user-1')
+      await expect(service.retryCandidate(scope, rowId)).rejects.toBeInstanceOf(BadRequestException)
+      // accept 终态后重试同样被拒绝（依赖 reviewCandidate 推进终态）
+      await service.reviewCandidate(scope, rowId, 'accept', scope.userId ?? 'user-1')
+      await expect(service.retryCandidate(scope, rowId)).rejects.toBeInstanceOf(BadRequestException)
+    })
+  })
+
+  // 乐观锁编辑：expectedRevision 不匹配即拒绝，防止并发场景下互相覆盖（AC5.1）
+  describe('updateCandidate', () => {
+    it('records humanEditedFields and bumps revision (AC5.1/5.2)', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+      const rowId = draft.created[0].id
+      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: '张三' }])
+
+      const updated = await service.updateCandidate(scope, rowId, { name: '张三丰', matchScore: 95 }, 1)
+      expect(updated.name).toBe('张三丰')
+      expect(updated.matchScore).toBe(95)
+      expect(updated.humanEditedFields).toEqual(expect.arrayContaining(['name', 'matchScore']))
+      expect(updated.revision).toBe(2)
+    })
+
+    it('rejects stale revision with a readable message', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+      const rowId = draft.created[0].id
+      await service.updateCandidate(scope, rowId, { name: '第一次修改' }, 1)
+      await expect(service.updateCandidate(scope, rowId, { name: '旧版本修改' }, 1)).rejects.toThrow(
+        '记录已被他人修改，请刷新'
+      )
+    })
+  })
+
+  // 人工处置动作：accept/hold/reject 终态流转并落评审人，目标态重复操作幂等，撤回退回待评审
+  describe('reviewCandidate', () => {
+    it('accepts / holds / rejects and stamps reviewer (AC3.1/3.2)', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+      const rowId = draft.created[0].id
+      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: '张三' }])
+
+      const accepted = await service.reviewCandidate(scope, rowId, 'accept', 'user-1')
+      expect(accepted.status).toBe('accepted')
+      expect(accepted.reviewedById).toBe('user-1')
+
+      const held = await service.reviewCandidate(scope, rowId, 'hold', 'user-1')
+      expect(held.status).toBe('hold')
+
+      const rejected = await service.reviewCandidate(scope, rowId, 'reject', 'user-1')
+      expect(rejected.status).toBe('rejected')
+    })
+
+    it('is idempotent when already in target status (AC3.3)', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+      const rowId = draft.created[0].id
+      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历' }])
+      await service.reviewCandidate(scope, rowId, 'accept', 'user-1')
+      const again = await service.reviewCandidate(scope, rowId, 'accept', 'user-1')
+      expect(again.status).toBe('accepted')
+    })
+
+    it('resets back to pending_review via reset_to_pending', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+      const rowId = draft.created[0].id
+      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历' }])
+      await service.reviewCandidate(scope, rowId, 'accept', 'user-1')
+      const reset = await service.reviewCandidate(scope, rowId, 'reset_to_pending', 'user-1')
+      expect(reset.status).toBe('pending_review')
     })
   })
 })

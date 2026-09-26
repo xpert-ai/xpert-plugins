@@ -12,10 +12,12 @@ import { createHash } from 'crypto'
 import { ResumeScreenCandidate, ResumeScreenJob } from './entities'
 import type {
   ResumeScreenCandidateInput,
+  ResumeScreenCandidatePatch,
   ResumeScreenCandidateView,
   ResumeScreenIntakeDraftResult,
   ResumeScreenJobInput,
   ResumeScreenJobView,
+  ResumeScreenReviewAction,
   ResumeScreenScope
 } from './types'
 
@@ -24,6 +26,17 @@ const MIN_JD_LENGTH = 30
 
 // 单批简历录入上限：与插件配置 maxResumesPerBatch 默认值保持一致，防止一次录入拖垮解析链路
 const DEFAULT_MAX_RESUMES_PER_BATCH = 10
+
+// 人工编辑字段白名单：刻意不含状态与评审结论，二者只能走 reviewCandidate 处置通道
+const EDITABLE_FIELDS: Array<keyof ResumeScreenCandidatePatch> = [
+  'name',
+  'yearsOfExperience',
+  'education',
+  'currentCompany',
+  'skills',
+  'summary',
+  'matchScore'
+]
 
 // JD 原文的 SHA-256 归一化指纹，用于同文 JD 去重与简历录入幂等键
 function sha256(value: string) {
@@ -340,6 +353,97 @@ export class ResumeScreenService {
       throw new NotFoundException('候选人不存在')
     }
     return row
+  }
+
+  /**
+   * 人工编辑候选人档案字段（乐观锁保护）
+   *
+   * 仅接受 EDITABLE_FIELDS 白名单内的字段，命中字段全部记入 humanEditedFields，
+   * 使其后续被 saveCandidatesFromAgent 的 AI 回填保护规则豁免；expectedRevision
+   * 与库内 revision 不一致时拒绝写入，避免工作台并发编辑互相覆盖。
+   *
+   * @param scope 多租户隔离范围
+   * @param candidateId 候选人 id，必须已存在且属于当前作用域
+   * @patch 人工修正的字段集合（白名单外的字段被忽略），允许为空对象
+   * @param expectedRevision 调用方持有的版本号（来自上次读取的视图），必须与库内一致
+   * @returns 版本号 +1 且带人工编辑痕迹的候选人视图
+   * @exception NotFoundException 候选人在作用域内不存在
+   * @exception BadRequestException 版本号过期（提示刷新）或 matchScore 不是 0-100 整数
+   */
+  async updateCandidate(
+    scope: ResumeScreenScope,
+    candidateId: string,
+    patch: ResumeScreenCandidatePatch,
+    expectedRevision: number
+  ): Promise<ResumeScreenCandidateView> {
+    const row = await this.findCandidate(scope, candidateId)
+    // 乐观锁校验：版本号不一致说明他人已先修改，必须让用户刷新后重试而不是静默覆盖
+    if ((row.revision ?? 1) !== expectedRevision) {
+      throw new BadRequestException('记录已被他人修改，请刷新')
+    }
+    // 匹配分是看板排序依据，越界值在入口拒绝，避免脏分数破坏排序与筛选
+    if (patch.matchScore !== undefined && (!Number.isInteger(patch.matchScore) || patch.matchScore < 0 || patch.matchScore > 100)) {
+      throw new BadRequestException('matchScore 必须是 0-100 的整数')
+    }
+    const humanEdited = new Set(row.humanEditedFields ?? [])
+    const applied: Partial<ResumeScreenCandidate> = {}
+    // 只放行白名单字段：状态/评审结论等业务字段不允许通过编辑通道篡改
+    for (const field of EDITABLE_FIELDS) {
+      const value = patch[field]
+      if (value !== undefined) {
+        ;(applied as Record<string, unknown>)[field] = value
+        // 记录人工编辑痕迹，AI 重跑回填时据此保护这些字段不被覆盖（AC5.2）
+        humanEdited.add(field)
+      }
+    }
+    const updated = await this.candidateRepository.save({
+      ...row,
+      ...applied,
+      humanEditedFields: Array.from(humanEdited),
+      revision: (row.revision ?? 1) + 1
+    })
+    return toCandidateView(updated)
+  }
+
+  /**
+   * 人工处置候选人：接受/搁置/淘汰/撤回为待评审
+   *
+   * 动作到目标状态的映射见 statusMap；已在目标状态时直接返回（幂等），
+   * 避免重复提交产生多余的写库与评审时间刷新。
+   *
+   * @param scope 多租户隔离范围
+   * @param candidateId 候选人 id，必须已存在且属于当前作用域
+   * @param action 评审动作（accept/hold/reject/reset_to_pending）
+   * @param reviewerId 评审人用户 id（来自会话上下文），落库用于审计追溯
+   * @returns 处置后的候选人视图
+   * @exception NotFoundException 候选人在作用域内不存在
+   */
+  async reviewCandidate(
+    scope: ResumeScreenScope,
+    candidateId: string,
+    action: ResumeScreenReviewAction,
+    reviewerId: string
+  ): Promise<ResumeScreenCandidateView> {
+    const row = await this.findCandidate(scope, candidateId)
+    // 评审动作 → 目标状态映射：终态流转集中在此，避免各调用方自行拼状态字符串
+    const statusMap: Record<ResumeScreenReviewAction, ResumeScreenCandidateView['status']> = {
+      accept: 'accepted',
+      hold: 'hold',
+      reject: 'rejected',
+      reset_to_pending: 'pending_review'
+    }
+    const target = statusMap[action]
+    // 幂等保护：重复提交同一处置动作直接返回当前行，不重复写库（AC3.3）
+    if (row.status === target) {
+      return toCandidateView(row)
+    }
+    const updated = await this.candidateRepository.save({
+      ...row,
+      status: target,
+      reviewedById: reviewerId,
+      reviewedAt: new Date()
+    })
+    return toCandidateView(updated)
   }
 
   /**
