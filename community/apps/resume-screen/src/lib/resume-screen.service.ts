@@ -10,10 +10,19 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { createHash } from 'crypto'
 import { ResumeScreenCandidate, ResumeScreenJob } from './entities'
-import type { ResumeScreenJobInput, ResumeScreenJobView, ResumeScreenScope } from './types'
+import type {
+  ResumeScreenCandidateView,
+  ResumeScreenIntakeDraftResult,
+  ResumeScreenJobInput,
+  ResumeScreenJobView,
+  ResumeScreenScope
+} from './types'
 
 // JD 正文最短长度：过短的岗位描述无法支撑有效的匹配评分
 const MIN_JD_LENGTH = 30
+
+// 单批简历录入上限：与插件配置 maxResumesPerBatch 默认值保持一致，防止一次录入拖垮解析链路
+const DEFAULT_MAX_RESUMES_PER_BATCH = 10
 
 // JD 原文的 SHA-256 归一化指纹，用于同文 JD 去重与简历录入幂等键
 function sha256(value: string) {
@@ -32,14 +41,49 @@ function toJobView(job: ResumeScreenJob): ResumeScreenJobView {
   }
 }
 
+// 实体行 → 候选人视图：空值统一归一为 undefined 以便 JSON 序列化时省略字段，
+// 时间字段序列化为 ISO 字符串，attemptCount/revision 兜底默认值
+function toCandidateView(row: ResumeScreenCandidate): ResumeScreenCandidateView {
+  return {
+    id: row.id,
+    jobId: row.jobId,
+    status: row.status,
+    name: row.name ?? undefined,
+    yearsOfExperience: row.yearsOfExperience ?? undefined,
+    education: row.education ?? undefined,
+    currentCompany: row.currentCompany ?? undefined,
+    skills: row.skills ?? undefined,
+    summary: row.summary ?? undefined,
+    matchScore: row.matchScore ?? undefined,
+    matchReason: row.matchReason ?? undefined,
+    hitPoints: row.hitPoints ?? undefined,
+    riskPoints: row.riskPoints ?? undefined,
+    humanEditedFields: row.humanEditedFields ?? [],
+    attemptCount: row.attemptCount ?? 0,
+    failureReason: row.failureReason ?? undefined,
+    reviewedById: row.reviewedById ?? undefined,
+    reviewedAt: row.reviewedAt ? new Date(row.reviewedAt).toISOString() : undefined,
+    revision: row.revision ?? 1,
+    createdAt: row.createdAt ? new Date(row.createdAt).toISOString() : '',
+    updatedAt: row.updatedAt ? new Date(row.updatedAt).toISOString() : ''
+  }
+}
+
 @Injectable()
 export class ResumeScreenService {
   constructor(
     @InjectRepository(ResumeScreenJob)
     private readonly jobRepository: Repository<ResumeScreenJob>,
     @InjectRepository(ResumeScreenCandidate)
-    private readonly candidateRepository: Repository<ResumeScreenCandidate>
+    private readonly candidateRepository: Repository<ResumeScreenCandidate>,
+    // 插件运行参数（如单批录入上限），由模块装配时注入；缺省时使用与配置默认值一致的兜底值
+    private readonly options: { maxResumesPerBatch?: number } = {}
   ) {}
+
+  // 单批录入上限：优先取注入配置，缺省回落到 10，避免未装配配置时放开限制
+  private get maxResumesPerBatch(): number {
+    return this.options.maxResumesPerBatch ?? DEFAULT_MAX_RESUMES_PER_BATCH
+  }
 
   // 多租户隔离条件：organizationId/assistantId 缺省时以 null 过滤，保证跨维度不串数据
   private scopeWhere(scope: ResumeScreenScope) {
@@ -128,5 +172,69 @@ export class ResumeScreenService {
       take: 1
     })
     return latest ? toJobView(latest) : null
+  }
+
+  /**
+   * 批量录入简历原文，生成 parsing 状态的候选人草稿行
+   *
+   * 以 `jobId|原文` 的 SHA-256 作为幂等键（dedupeKey）：命中同职位下已存在的
+   * 原文直接跳过并计入 skippedAsExisting，保证重复提交/断点重传不产生重复行；
+   * 不同职位下的同文简历视为不同候选人（dedupeKey 按职位隔离）。
+   *
+   * @param scope 多租户隔离范围
+   * @param jobId 归属职位 id，必须已存在且属于当前作用域
+   * @param texts 简历原文数组（用户粘贴/上传内容），空文本会被剔除
+   * @returns created 为新建的 parsing 行视图，skippedAsExisting 为被幂等跳过的原文摘要
+   * @exception NotFoundException jobId 在作用域内不存在
+   * @exception BadRequestException 剔除空文本后无有效输入，或单批超过 maxResumesPerBatch 上限
+   */
+  async prepareIntakeDraft(
+    scope: ResumeScreenScope,
+    jobId: string,
+    texts: string[]
+  ): Promise<ResumeScreenIntakeDraftResult> {
+    // 职位必须存在且属于当前作用域，防止跨租户/跨助手挂载候选人
+    const job = await this.jobRepository.findOne({ where: { ...this.scopeWhere(scope), id: jobId } })
+    if (!job) {
+      throw new NotFoundException('岗位不存在')
+    }
+    // 剔除空白输入，避免空文本产生无意义的解析任务
+    const normalized = texts.map((text) => text?.trim()).filter((text): text is string => Boolean(text))
+    if (normalized.length === 0) {
+      throw new BadRequestException('至少需要一条非空简历文本')
+    }
+    if (normalized.length > this.maxResumesPerBatch) {
+      throw new BadRequestException(`单批最多 ${this.maxResumesPerBatch} 条简历（maxResumesPerBatch 上限）`)
+    }
+    const created: ResumeScreenCandidateView[] = []
+    const skippedAsExisting: string[] = []
+    for (const text of normalized) {
+      // 幂等键 = 职位 id + 原文指纹，按职位隔离去重范围
+      const dedupeKey = sha256(`${jobId}|${text}`)
+      const existing = await this.candidateRepository.findOne({
+        where: { ...this.scopeWhere(scope), jobId, dedupeKey }
+      })
+      if (existing) {
+        // 只保留原文前 50 字作为跳过摘要，避免结果体携带完整简历原文
+        skippedAsExisting.push(text.slice(0, 50))
+        continue
+      }
+      const row = await this.candidateRepository.save(
+        this.candidateRepository.create({
+          ...this.scopeWhere(scope),
+          conversationId: scope.conversationId ?? null,
+          createdById: scope.userId ?? null,
+          jobId,
+          dedupeKey,
+          status: 'parsing',
+          sourceText: text,
+          humanEditedFields: [],
+          attemptCount: 0,
+          revision: 1
+        })
+      )
+      created.push(toCandidateView(row))
+    }
+    return { jobId, created, skippedAsExisting }
   }
 }

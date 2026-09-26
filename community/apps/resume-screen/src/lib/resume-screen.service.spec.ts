@@ -5,7 +5,7 @@
  * 不依赖真实数据库即可覆盖职位创建去重、列表排序与当前职位回退等核心业务路径；
  * 真实查询语义（where/order/take 的 SQL 行为）由 E2E 真机验证兜底。
  */
-import { BadRequestException } from '@nestjs/common'
+import { BadRequestException, NotFoundException } from '@nestjs/common'
 import { createHash } from 'crypto'
 import { ResumeScreenCandidate, ResumeScreenJob } from './entities'
 import { ResumeScreenService } from './resume-screen.service'
@@ -135,6 +135,39 @@ describe('ResumeScreenService', () => {
       const job = await service.createJob(scope, { title: 'B', jdText: 'b'.repeat(30) })
       const current = await service.getCurrentJob(scope, undefined)
       expect(current?.id).toBe(job.id)
+    })
+  })
+
+  describe('prepareIntakeDraft', () => {
+    it('creates parsing rows with dedupeKey and skips existing texts (AC2.4)', async () => {
+      const job = await service.createJob(scope, { title: '前端工程师', jdText: 'x'.repeat(30) })
+      const result = await service.prepareIntakeDraft(scope, job.id, ['简历甲', '简历乙'])
+      expect(result.created).toHaveLength(2)
+      expect(result.created[0].status).toBe('parsing')
+      expect(result.skippedAsExisting).toHaveLength(0)
+
+      const again = await service.prepareIntakeDraft(scope, job.id, ['简历甲', '简历丙'])
+      expect(again.created).toHaveLength(1)
+      expect(again.skippedAsExisting).toHaveLength(1)
+      expect(candidateRepository.store).toHaveLength(3)
+    })
+
+    it('rejects when jobId missing or batch exceeds maxResumesPerBatch', async () => {
+      await expect(service.prepareIntakeDraft(scope, 'missing-job', ['简历甲'])).rejects.toBeInstanceOf(
+        NotFoundException
+      )
+      const job = await service.createJob(scope, { title: '前端工程师', jdText: 'x'.repeat(30) })
+      await expect(
+        service.prepareIntakeDraft(scope, job.id, Array.from({ length: 11 }, (_, i) => `简历${i}`))
+      ).rejects.toBeInstanceOf(BadRequestException)
+    })
+
+    it('scopes dedupeKey per job (same text, different job → new row)', async () => {
+      const jobA = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const jobB = await service.createJob(scope, { title: 'B', jdText: 'b'.repeat(30) })
+      await service.prepareIntakeDraft(scope, jobA.id, ['同一份简历'])
+      const result = await service.prepareIntakeDraft(scope, jobB.id, ['同一份简历'])
+      expect(result.created).toHaveLength(1)
     })
   })
 })
