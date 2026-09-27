@@ -78,6 +78,7 @@ function toCandidateView(row: ResumeScreenCandidate): ResumeScreenCandidateView 
     humanEditedFields: row.humanEditedFields ?? [],
     attemptCount: row.attemptCount ?? 0,
     failureReason: row.failureReason ?? undefined,
+    sourceFileName: row.sourceFileName || undefined,
     reviewedById: row.reviewedById ?? undefined,
     reviewedAt: row.reviewedAt ? new Date(row.reviewedAt).toISOString() : undefined,
     revision: row.revision ?? 1,
@@ -229,6 +230,7 @@ export class ResumeScreenService {
    * @param scope 多租户隔离范围
    * @param jobId 归属职位 id，必须已存在且属于当前作用域
    * @param texts 简历原文数组（用户粘贴/上传内容），空文本会被剔除
+   * @param options 可选：sourceFileName 上传通道来源文件名，用于失败行按文件溯源展示
    * @returns created 为新建的 parsing 行视图，skippedAsExisting 为被幂等跳过的原文摘要
    * @exception NotFoundException jobId 在作用域内不存在
    * @exception BadRequestException 剔除空文本后无有效输入，或单批超过 maxResumesPerBatch 上限
@@ -236,7 +238,8 @@ export class ResumeScreenService {
   async prepareIntakeDraft(
     scope: ResumeScreenScope,
     jobId: string,
-    texts: string[]
+    texts: string[],
+    options?: { sourceFileName?: string }
   ): Promise<ResumeScreenIntakeDraftResult> {
     // 职位必须存在且属于当前作用域，防止跨租户/跨助手挂载候选人
     const job = await this.jobRepository.findOne({ where: { ...this.scopeWhere(scope), id: jobId } })
@@ -273,6 +276,8 @@ export class ResumeScreenService {
           dedupeKey,
           status: 'parsing',
           sourceText: text,
+          // 上传通道溯源：粘贴/助手录入不传该字段，保持空
+          sourceFileName: options?.sourceFileName,
           humanEditedFields: [],
           attemptCount: 0,
           revision: 1

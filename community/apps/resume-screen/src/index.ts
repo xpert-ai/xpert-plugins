@@ -13,6 +13,7 @@ import {
   readResumeScreenPluginEnvDefaults
 } from './lib/resume-screen.config'
 import { ResumeScreenPlugin } from './lib/resume-screen.plugin'
+import { RESUME_SCREEN_PLUGIN_CONTEXT } from './lib/resume-screen-plugin-context'
 import { resumeScreenTemplates } from './lib/resume-screen.templates'
 import {
   RESUME_SCREEN_FEATURE,
@@ -130,7 +131,12 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   templates: resumeScreenTemplates,
   register(ctx) {
     ctx.logger.log('register resume-screen plugin')
-    return { module: ResumeScreenPlugin, global: true }
+    // PluginContext 以 useValue 注入供入队服务读取安装作用域 scopeKey（F2/F3，对齐 img2threejs）
+    return {
+      module: ResumeScreenPlugin,
+      global: true,
+      providers: [{ provide: RESUME_SCREEN_PLUGIN_CONTEXT, useValue: ctx }]
+    }
   },
   async onStart(ctx) {
     ctx.logger.log('resume-screen plugin started')

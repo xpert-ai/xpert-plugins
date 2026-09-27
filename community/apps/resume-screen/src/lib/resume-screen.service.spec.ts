@@ -169,6 +169,14 @@ describe('ResumeScreenService', () => {
       const result = await service.prepareIntakeDraft(scope, jobB.id, ['同一份简历'])
       expect(result.created).toHaveLength(1)
     })
+
+    it('persists source file name onto the intake draft row', async () => {
+      const job = await service.createJob(scope, { title: '前端工程师', jdText: 'x'.repeat(30) })
+      const result = await service.prepareIntakeDraft(scope, job.id, ['  简历原文 A  '], { sourceFileName: 'a.docx' })
+      // 上传通道的文件名要能随草稿行落库并在视图带出（工作台失败行溯源用）
+      expect(candidateRepository.store[0].sourceFileName).toBe('a.docx')
+      expect(result.created[0].sourceFileName).toBe('a.docx')
+    })
   })
 
   describe('saveCandidatesFromAgent', () => {

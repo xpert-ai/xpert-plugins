@@ -22,6 +22,7 @@ import type {
   XpertViewQuery
 } from '@xpert-ai/contracts'
 import { IXpertViewExtensionProvider, ViewExtensionProvider, renderRemoteReactIframeHtml } from '@xpert-ai/plugin-sdk'
+import type { XpertViewFileActionFile } from '@xpert-ai/plugin-sdk'
 import {
   AGENT_WORKBENCH_MAIN_SLOT,
   RESUME_SCREEN_FEATURE,
@@ -31,6 +32,8 @@ import {
   RESUME_SCREEN_REMOTE_ENTRY_KEY,
   RESUME_SCREEN_WORKBENCH_VIEW_KEY
 } from './constants'
+import { ResumeScreenIntakeQueue } from './resume-screen-intake-queue'
+import { parseResumeFileContent, ResumeFileParseError } from './resume-file-parser'
 import { ResumeScreenService } from './resume-screen.service'
 import type {
   ResumeScreenCandidateListQuery,
@@ -130,7 +133,10 @@ function toolCompletedHostEvents() {
 @Injectable()
 @ViewExtensionProvider(RESUME_SCREEN_PROVIDER_KEY)
 export class ResumeScreenViewProvider implements IXpertViewExtensionProvider {
-  constructor(private readonly service: ResumeScreenService) {}
+  constructor(
+    private readonly service: ResumeScreenService,
+    private readonly intakeQueue: ResumeScreenIntakeQueue
+  ) {}
 
   // 仅在 agent 工作台宿主生效，其他宿主（如集成页）不发布本视图
   supports(context: XpertResolvedViewHostContext) {
@@ -405,6 +411,69 @@ export class ResumeScreenViewProvider implements IXpertViewExtensionProvider {
     } catch (error) {
       // 服务层异常（如乐观锁冲突）转可读提示；message 为业务文案，不含堆栈
       const message = getActionErrorMessage(error, '操作失败')
+      return failure(message, message)
+    }
+  }
+
+  /**
+   * 文件动作执行：上传简历文件 → 服务端解析 → 落 parsing 草稿 → 入队模型直调解析
+   *
+   * 上传通道是 sourceText 的服务端唯一来源（spec v2.2：不再接受前端粘贴文本入解析队列）；
+   * 解析失败（格式/加密/扫描件等）不落任何候选人行，直接以可读文案回执（§8.3 失败分支①）。
+   * jobId 取宿主 query-parameters 视图态通道（P5，与 getViewData 的 jobId 同源）。
+   *
+   * @param context 宿主上下文，收敛为服务层 scope
+   * @param viewKey manifest 裸键（平台已剥离 provider 前缀），仅本插件工作台命中
+   * @param actionKey manifest actions 中 transport=file 的动作键
+   * @param request 动作请求（parameters 携带当前选中 jobId）
+   * @param file 宿主透传的文件（buffer/originalname/mimetype/size）
+   * @returns 成功：refresh + created/skipped + sourceFileName；失败：可读指引文案
+   */
+  async executeViewFileAction(
+    context: XpertResolvedViewHostContext,
+    viewKey: string,
+    actionKey: string,
+    request: XpertViewActionRequest,
+    file: XpertViewFileActionFile
+  ): Promise<XpertViewActionResult> {
+    if (!isResumeScreenViewKey(viewKey) || actionKey !== 'upload_resume_files') {
+      return failure('Unsupported file action', '不支持的文件操作')
+    }
+    const scope = scopeFromContext(context)
+    const jobId = getStringParameter(request.parameters, 'jobId')
+    if (!jobId) {
+      return failure('Missing jobId', '请先选择岗位后再上传简历')
+    }
+    try {
+      // 文本唯一来源=服务端解析（spec v2.2）；失败不产生候选人行（§8.3 失败分支①）
+      const sourceText = await parseResumeFileContent(file.buffer as Buffer, file.originalname || 'resume')
+      const result = await this.service.prepareIntakeDraft(scope, jobId, [sourceText], { sourceFileName: file.originalname })
+      const fresh = result.created.filter((c) => c.status === 'parsing')
+      for (const candidate of fresh) {
+        await this.intakeQueue.enqueueParse({
+          candidateId: candidate.id,
+          attemptCount: candidate.attemptCount,
+          tenantId: scope.tenantId,
+          organizationId: scope.organizationId ?? undefined,
+          userId: scope.userId ?? undefined
+        })
+      }
+      return {
+        success: true,
+        refresh: true,
+        data: {
+          fileName: file.originalname,
+          created: result.created.map((c) => ({ id: c.id, status: c.status })),
+          skipped: result.skippedAsExisting,
+          ...(result.created[0] ? { sourceFileName: result.created[0].sourceFileName } : {})
+        }
+      }
+    } catch (error) {
+      if (error instanceof ResumeFileParseError) {
+        // 解析失败四类原因共用一条回执：中文指引文案放 zh_Hans
+        return failure('Resume file parse failed', error.message)
+      }
+      const message = getActionErrorMessage(error, '上传录入失败')
       return failure(message, message)
     }
   }

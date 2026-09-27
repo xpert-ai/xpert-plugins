@@ -78,6 +78,8 @@ export interface ResumeScreenCandidateView {
   humanEditedFields?: string[]
   attemptCount: number
   failureReason?: string
+  // 上传通道来源文件名：解析失败行在工作台展示“哪个文件”用的溯源字段
+  sourceFileName?: string
   reviewedById?: string
   reviewedAt?: string
   revision: number
@@ -90,6 +92,14 @@ export interface ResumeScreenIntakeDraftResult {
   created: ResumeScreenCandidateView[]
   skippedAsExisting: string[]
   jobId: string
+}
+
+/** 队列 job payload：红线=只放定位字段，大文本 handler 内按 id 现取（调研 B §3.4） */
+export interface ResumeScreenParseJobPayload {
+  candidateId: string
+  tenantId?: string
+  organizationId?: string
+  userId?: string
 }
 
 // 候选人列表查询条件：排序字段白名单限定为匹配分/创建/更新时间，避免任意排序注入

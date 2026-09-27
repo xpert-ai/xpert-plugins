@@ -9,10 +9,13 @@
 // 被测代码只使用装饰器与渲染壳函数，此处按行为等价替换（对齐 smart-maintenance 样板）
 jest.mock('@xpert-ai/plugin-sdk', () => ({
   ViewExtensionProvider: () => (target: unknown) => target,
+  MANAGED_QUEUE_SERVICE_TOKEN: 'XPERT_MANAGED_QUEUE_SERVICE',
   renderRemoteReactIframeHtml: (input: { title: string; appScript: string }) =>
     `<!doctype html><html><body><h1>${input.title}</h1><script>${input.appScript}</script></body></html>`
 }))
 
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { ResumeScreenViewProvider } from './resume-screen-view.provider'
 import { RESUME_SCREEN_WORKBENCH_VIEW_KEY } from './constants'
 import type { ResumeScreenScope, ResumeScreenViewData } from './types'
@@ -41,7 +44,10 @@ describe('ResumeScreenViewProvider', () => {
     getViewData: jest.fn(async (_scope: ResumeScreenScope) => viewData)
   }
 
-  const provider = new ResumeScreenViewProvider(service as never)
+  // 上传解析入队协作件：本 describe 只走非文件动作，给个空实现满足构造参数即可
+  const noopIntakeQueue = { enqueueParse: jest.fn(async () => undefined) }
+
+  const provider = new ResumeScreenViewProvider(service as never, noopIntakeQueue as never)
 
   it('supports agent host only', () => {
     expect(provider.supports(createContext({ hostType: 'agent' }))).toBe(true)
@@ -88,7 +94,7 @@ describe('ResumeScreenViewProvider', () => {
       updateCandidate: jest.fn(async () => ({ id: 'c1', name: '张三丰', revision: 2 })),
       reviewCandidate: jest.fn(async () => ({ id: 'c1', status: 'accepted' }))
     }
-    const providerWithActions = new ResumeScreenViewProvider(fullService as never)
+    const providerWithActions = new ResumeScreenViewProvider(fullService as never, noopIntakeQueue as never)
 
     function actionRequest(input: Record<string, unknown> = {}, targetId?: string) {
       return { input, targetId } as never
@@ -158,6 +164,111 @@ describe('ResumeScreenViewProvider', () => {
         actionRequest()
       )
       expect(result.success).toBe(false)
+    })
+  })
+
+  // 文件上传通道：服务端解析出文本 → 落 parsing 草稿行 → 入队解析（spec v2.2 链路 B 插件侧地基）
+  describe('executeViewFileAction (upload_resume_files)', () => {
+    const docxFixture = readFileSync(join(__dirname, '__fixtures__', 'resume-minimal.docx'))
+    const emptyPdfFixture = readFileSync(join(__dirname, '__fixtures__', 'resume-empty.pdf'))
+
+    let uploadService: { prepareIntakeDraft: jest.Mock }
+    let intakeQueue: { enqueueParse: jest.Mock }
+    let uploadProvider: ResumeScreenViewProvider
+
+    beforeEach(() => {
+      uploadService = {
+        prepareIntakeDraft: jest.fn(async () => ({
+          jobId: 'job-1',
+          created: [{ id: 'c1', status: 'parsing', attemptCount: 0, sourceFileName: '张三.docx' }],
+          skippedAsExisting: []
+        }))
+      }
+      intakeQueue = { enqueueParse: jest.fn(async () => undefined) }
+      uploadProvider = new ResumeScreenViewProvider(uploadService as never, intakeQueue as never)
+    })
+
+    // 视图态 jobId 走宿主 query-parameters 通道（P5），文件动作请求同样携带 request.parameters
+    const fileRequest = { parameters: { jobId: 'job-1' } } as never
+
+    it('upload action: parses file, persists draft row with source name and enqueues parse', async () => {
+      const file = {
+        buffer: docxFixture,
+        originalname: '张三.docx',
+        mimetype: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        size: docxFixture.length
+      } as never
+      const res = await uploadProvider.executeViewFileAction!(
+        createContext(),
+        RESUME_SCREEN_WORKBENCH_VIEW_KEY,
+        'upload_resume_files',
+        fileRequest,
+        file
+      )
+      expect(res).toMatchObject({ success: true, refresh: true })
+      // 解析文本是 sourceText 唯一来源，文件名随 options 落库
+      const [scope, jobId, texts, options] = uploadService.prepareIntakeDraft.mock.calls[0]
+      expect(scope).toMatchObject({ tenantId: 'tenant-1', organizationId: 'org-1', userId: 'user-1' })
+      expect(jobId).toBe('job-1')
+      expect(texts[0]).toContain('张三')
+      expect(options).toEqual({ sourceFileName: '张三.docx' })
+      expect(res.data).toMatchObject({ sourceFileName: '张三.docx' })
+      expect(intakeQueue.enqueueParse).toHaveBeenCalledTimes(1)
+      expect(intakeQueue.enqueueParse).toHaveBeenCalledWith(
+        expect.objectContaining({ candidateId: 'c1', attemptCount: 0, tenantId: 'tenant-1', organizationId: 'org-1', userId: 'user-1' })
+      )
+    })
+
+    it('upload action: parse failure returns success:false with reason and creates nothing', async () => {
+      const file = { buffer: emptyPdfFixture, originalname: 'scan.pdf', size: emptyPdfFixture.length } as never
+      const res = await uploadProvider.executeViewFileAction!(
+        createContext(),
+        RESUME_SCREEN_WORKBENCH_VIEW_KEY,
+        'upload_resume_files',
+        fileRequest,
+        file
+      )
+      expect(res).toMatchObject({ success: false })
+      expect(JSON.stringify(res.message)).toContain('转存为 Word')
+      expect(uploadService.prepareIntakeDraft).not.toHaveBeenCalled()
+      expect(intakeQueue.enqueueParse).not.toHaveBeenCalled()
+    })
+
+    it('upload action: missing jobId parameter fails before touching the file', async () => {
+      const res = await uploadProvider.executeViewFileAction!(
+        createContext(),
+        RESUME_SCREEN_WORKBENCH_VIEW_KEY,
+        'upload_resume_files',
+        {} as never,
+        { buffer: docxFixture, originalname: '张三.docx' } as never
+      )
+      expect(res).toMatchObject({ success: false })
+      expect(JSON.stringify(res.message)).toContain('请先选择岗位')
+      expect(uploadService.prepareIntakeDraft).not.toHaveBeenCalled()
+    })
+
+    it('upload action: unknown action key is rejected', async () => {
+      const res = await uploadProvider.executeViewFileAction!(
+        createContext(),
+        RESUME_SCREEN_WORKBENCH_VIEW_KEY,
+        'download_everything',
+        fileRequest,
+        { buffer: docxFixture, originalname: '张三.docx' } as never
+      )
+      expect(res).toMatchObject({ success: false })
+    })
+
+    it('upload action: enqueue failure surfaces as readable failure (row stays parsing for sweep)', async () => {
+      intakeQueue.enqueueParse.mockRejectedValueOnce(new Error('redis down'))
+      const res = await uploadProvider.executeViewFileAction!(
+        createContext(),
+        RESUME_SCREEN_WORKBENCH_VIEW_KEY,
+        'upload_resume_files',
+        fileRequest,
+        { buffer: docxFixture, originalname: '张三.docx' } as never
+      )
+      expect(res).toMatchObject({ success: false })
+      expect(JSON.stringify(res.message)).toContain('redis down')
     })
   })
 })

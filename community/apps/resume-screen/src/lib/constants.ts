@@ -20,6 +20,11 @@ export const RESUME_SCREEN_MIDDLEWARE_TOOL_NAMES = [
 
 export const AGENT_WORKBENCH_MAIN_SLOT = 'agent.workbench.main'
 
+// 解析队列（链路 B）：queue/job 名与入队默认重试预算（attempts=4 含首次，backoff 指数 2s 起）
+export const RESUME_SCREEN_PARSE_QUEUE = 'resume-screen.parse'
+export const RESUME_SCREEN_PARSE_JOB = 'parse-candidate'
+export const RESUME_SCREEN_PARSE_ATTEMPTS = 4
+
 export const RESUME_SCREEN_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
   <rect width="256" height="256" rx="36" fill="transparent"/>
   <rect x="56" y="40" width="144" height="176" rx="16" fill="#FFFFFF" stroke="#1D4ED8" stroke-width="8"/>

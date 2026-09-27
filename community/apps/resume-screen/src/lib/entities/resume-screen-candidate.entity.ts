@@ -51,6 +51,10 @@ export class ResumeScreenCandidate {
   @Column({ type: 'varchar' })
   status?: ResumeScreenCandidateStatus
 
+  // 上传通道来源文件名（粘贴/助手录入为空），解析失败行在工作台按文件溯源
+  @Column({ type: 'varchar', nullable: true })
+  sourceFileName?: string
+
   // 简历原文用 text 存储，作为抽取与追溯依据
   @Column({ type: 'text' })
   sourceText?: string

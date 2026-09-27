@@ -9,6 +9,7 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 import type { IOnPluginBootstrap, IOnPluginDestroy } from '@xpert-ai/plugin-sdk'
 import { XpertServerPlugin } from '@xpert-ai/plugin-sdk'
 import { ResumeScreenCandidate, ResumeScreenJob } from './entities'
+import { ResumeScreenIntakeQueue } from './resume-screen-intake-queue'
 import { ResumeScreenMiddleware } from './resume-screen.middleware'
 import { ResumeScreenService } from './resume-screen.service'
 import { ResumeScreenViewProvider } from './resume-screen-view.provider'
@@ -19,7 +20,7 @@ const RESUME_SCREEN_ENTITIES = [ResumeScreenJob, ResumeScreenCandidate]
 @XpertServerPlugin({
   imports: [TypeOrmModule.forFeature(RESUME_SCREEN_ENTITIES)],
   entities: RESUME_SCREEN_ENTITIES,
-  providers: [ResumeScreenService, ResumeScreenViewProvider, ResumeScreenMiddleware],
+  providers: [ResumeScreenService, ResumeScreenViewProvider, ResumeScreenMiddleware, ResumeScreenIntakeQueue],
   exports: [ResumeScreenService, ResumeScreenViewProvider]
 })
 export class ResumeScreenPlugin implements IOnPluginBootstrap, IOnPluginDestroy {
