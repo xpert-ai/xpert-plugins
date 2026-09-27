@@ -133,8 +133,9 @@ export class ResumeScreenParseProcessor {
       const structured = (client as { withStructuredOutput?: (s: unknown) => { invoke: (m: unknown, o?: unknown) => Promise<unknown> } }).withStructuredOutput?.(extractJsonSchema)
       const res = await structured.invoke(messages, { signal: AbortSignal.timeout(LLM_TIMEOUT_MS) })
       return normalizeExtracted(res)
-    } catch {
-      // 降级：纯文本调用 + JSON 容错抽取（F6 风险 5，必测路径）
+    } catch (error) {
+      // 降级是预期路径不告警，但留 debug 痕迹便于排查宿主 functionCalling 兼容性（M8' Minor）
+      this.logger.debug(`结构化输出不可用，降级文本 JSON 抽取：${(error as Error)?.message ?? 'unknown'}`)
       const res = await (client as { invoke: (m: unknown, o?: unknown) => Promise<{ content?: string }> }).invoke(messages, {
         signal: AbortSignal.timeout(LLM_TIMEOUT_MS)
       })
@@ -146,7 +147,12 @@ export class ResumeScreenParseProcessor {
     }
   }
 
-  /** 周期兜底：捞滞留 parsing 行，条件抢占成功才重投（新 jobId 绕 BullMQ 去重，F5） */
+  /**
+   * 周期兜底：捞滞留 parsing 行，条件抢占成功才重投（新 jobId 绕 BullMQ 去重，F5）
+   *
+   * 重投代号取 claimStaleParsing 回读的持久化新号（自增已随抢占落库）：内存 +1 在崩溃
+   * 循环下会反复读回同一旧值，与 Redis 内存活 job 同 id 被静默去重而永卡 parsing（M8' Important-1）。
+   */
   async sweepStale(): Promise<void> {
     if (this.sweeping) {
       return
@@ -154,15 +160,17 @@ export class ResumeScreenParseProcessor {
     this.sweeping = true
     try {
       const stale = await this.service.findStaleParsingRows(STALE_PARSING_THRESHOLD_MS)
+      // 抢占条件复用滞留口径：晚于本时刻被刷新的行视为新鲜，让给下一轮判定
+      const cutoff = new Date(Date.now() - STALE_PARSING_THRESHOLD_MS)
       for (const row of stale.slice(0, RESUME_SCREEN_SWEEP_BATCH_LIMIT)) {
         // 多副本/双 sweep 并发下只有一方抢占成功（DB 条件更新），失败方跳过避免重复投递
-        const claimed = await this.service.claimStaleParsing(row.id)
-        if (!claimed) {
+        const claimedAttempt = await this.service.claimStaleParsing(row.id, cutoff)
+        if (claimedAttempt === null) {
           continue
         }
         await this.intakeQueue.enqueueParse({
           candidateId: row.id,
-          attemptCount: row.attemptCount + 1,
+          attemptCount: claimedAttempt,
           tenantId: row.scope.tenantId,
           organizationId: row.scope.organizationId ?? undefined,
           userId: row.scope.userId ?? undefined

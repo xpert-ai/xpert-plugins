@@ -80,10 +80,21 @@ function createRepository<T extends { id?: string }>() {
       }
       return options?.take ? rows.slice(0, options.take) : rows
     }),
-    // 模拟条件更新：仅 where 命中的行被合并 data，affected 反映真实抢占语义（sweep 并发安全依赖它）
-    update: jest.fn(async (where: Record<string, unknown>, data: Partial<T>) => {
+    // 模拟条件更新：仅 where 命中的行被合并 data，affected 反映真实抢占语义（sweep 并发安全依赖它）；
+    // 值为函数时按 typeorm 原子自增 SQL 表达式（`() => '"col" + 1'`）解析，模拟列值 +1 落库
+    update: jest.fn(async (where: Record<string, unknown>, data: Record<string, unknown>) => {
       const targets = store.filter((item) => matchesWhere(item as Record<string, unknown>, where))
-      targets.forEach((item) => Object.assign(item, data))
+      targets.forEach((item) => {
+        const target = item as Record<string, unknown>
+        for (const [key, value] of Object.entries(data)) {
+          if (typeof value === 'function') {
+            const expression = /^"(?<column>\w+)"\s*\+\s*1$/.exec(String(value()))
+            target[key] = expression ? Number(target[expression.groups!.column] ?? 0) + 1 : value
+          } else {
+            target[key] = value
+          }
+        }
+      })
       return { affected: targets.length }
     }),
     count: jest.fn(async () => store.length)
@@ -513,16 +524,31 @@ describe('ResumeScreenService', () => {
       expect(none).toHaveLength(0)
     })
 
-    it('claimStaleParsing preempts only rows still in parsing', async () => {
+    it('claimStaleParsing preempts only stale parsing rows and persists the bumped attempt number', async () => {
       const job = await service.createJob(scope, { title: '前端工程师', jdText: 'x'.repeat(30) })
       const draft = await service.prepareIntakeDraft(scope, job.id, ['待抢占行'])
       const candidateId = draft.created[0].id
 
-      // parsing 行抢占成功（affected=1），供 sweep 判定是否重投
-      await expect(service.claimStaleParsing(candidateId)).resolves.toBe(true)
+      // 新鲜行保护：updatedAt 不早于 cutoff 的行不得被抢占，attemptCount 保持不变（防误计）
+      const earlyCutoff = new Date(MOCK_BASE_TIME - 10_000)
+      await expect(service.claimStaleParsing(candidateId, earlyCutoff)).resolves.toBeNull()
+      expect(candidateRepository.store[0].attemptCount).toBe(0)
+
+      // 第一轮：滞留 parsing 行抢占成功，返回值=持久化自增后的新号（重投 jobId 用它变号）
+      const cutoff = new Date(MOCK_BASE_TIME + 60_000)
+      await expect(service.claimStaleParsing(candidateId, cutoff)).resolves.toBe(1)
+      expect(candidateRepository.store[0].attemptCount).toBe(1)
+
+      // 第二轮（崩溃循环模拟：重投 job 再次丢失、行重新滞留）——上一轮抢占已把变号持久落库，
+      // 本轮读回的基数是 1，抢占返回 2，与上一代 jobId（…-1）必然不同，绕开 BullMQ 存活 job 去重
+      ;(candidateRepository.store[0] as ResumeScreenCandidate).updatedAt = new Date(MOCK_BASE_TIME)
+      await expect(service.claimStaleParsing(candidateId, new Date(Date.now() + 60_000))).resolves.toBe(2)
+      expect(candidateRepository.store[0].attemptCount).toBe(2)
+
+      // 已非 parsing 的行（他人已处理/已失败）抢占失败返回 null
       await service.markCandidateFailed(scope, candidateId, '已失败')
-      await expect(service.claimStaleParsing(candidateId)).resolves.toBe(false)
-      await expect(service.claimStaleParsing('unknown-id')).resolves.toBe(false)
+      await expect(service.claimStaleParsing(candidateId, new Date(Date.now() + 60_000))).resolves.toBeNull()
+      await expect(service.claimStaleParsing('unknown-id', new Date(Date.now() + 60_000))).resolves.toBeNull()
     })
   })
 })

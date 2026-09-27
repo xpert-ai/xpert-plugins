@@ -53,7 +53,8 @@ function buildService(row: unknown) {
     saveCandidatesFromAgent: jest.fn(async () => []),
     markCandidateFailed: jest.fn(async () => undefined),
     findStaleParsingRows: jest.fn(async () => []),
-    claimStaleParsing: jest.fn(async () => true)
+    // claim 新语义：抢占成功返回持久化自增后的新 attemptCount，失败返回 null
+    claimStaleParsing: jest.fn(async () => 1)
   }
 }
 
@@ -206,26 +207,49 @@ describe('buildParsePrompt / extraction helpers', () => {
 })
 
 describe('ResumeScreenParseProcessor.sweepStale', () => {
-  it('claims each stale row and re-enqueues with bumped attemptCount; skips lost claims', async () => {
+  it('re-enqueues with the attempt number persisted by claim, not the stale in-memory bump', async () => {
     const service = buildService(null)
     service.findStaleParsingRows.mockResolvedValue([
+      // c-1 的查询时值故意与 claim 回读值不同：证明重投口径取 claim 的持久化新号（崩溃循环下
+      // 内存 +1 会读回原值撞上 Redis 存活 job 被静默去重，F5 修复点）
       { id: 'c-1', attemptCount: 1, scope: SCOPE },
       { id: 'c-2', attemptCount: 0, scope: SCOPE }
     ])
     service.claimStaleParsing
-      .mockResolvedValueOnce(true)
-      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(5)
+      .mockResolvedValueOnce(null)
     const intakeQueue = { enqueueParse: jest.fn(async () => undefined) }
     const processor = new ResumeScreenParseProcessor(service as never, intakeQueue as never, runtimeStub(jest.fn()) as never)
 
     await processor.sweepStale()
 
-    // 新 jobId=attemptCount+1 绕开 BullMQ 同 id 去重（F5）；抢占失败（他人已处理）跳过
+    // 抢占条件带 cutoff（防抢窗口内新鲜行）；重投用 claim 返回的 5；c-2 抢占失败（null）跳过
+    expect(service.claimStaleParsing).toHaveBeenCalledWith('c-1', expect.any(Date))
     expect(intakeQueue.enqueueParse).toHaveBeenCalledTimes(1)
     expect(intakeQueue.enqueueParse).toHaveBeenCalledWith(
-      expect.objectContaining({ candidateId: 'c-1', attemptCount: 2, tenantId: 'tenant-1', organizationId: 'org-1', userId: 'user-1' })
+      expect.objectContaining({ candidateId: 'c-1', attemptCount: 5, tenantId: 'tenant-1', organizationId: 'org-1', userId: 'user-1' })
     )
-    expect(service.claimStaleParsing).toHaveBeenCalledWith('c-2')
+  })
+
+  it('crash loop: two consecutive sweep rounds claim and enqueue with strictly increasing attempt numbers', async () => {
+    // 模拟 service 的持久化自增：claim 把 attemptCount +1 落库并回读新值，findStale 每轮都从库里读
+    let persisted = 0
+    const service = buildService(null)
+    service.findStaleParsingRows.mockImplementation(async () => [{ id: 'c-1', attemptCount: persisted, scope: SCOPE }])
+    service.claimStaleParsing.mockImplementation(async () => {
+      persisted += 1
+      return persisted
+    })
+    const intakeQueue = { enqueueParse: jest.fn(async () => undefined) }
+    const processor = new ResumeScreenParseProcessor(service as never, intakeQueue as never, runtimeStub(jest.fn()) as never)
+
+    await processor.sweepStale()
+    await processor.sweepStale()
+
+    // 连续两轮 claim 各自变号 → enqueueParse jobId（resume-parse-c-1-{n}）逐轮递增，
+    // 不会与 Redis 内存活的上一代 job 同 id 被去重（F5）
+    const enqueued = intakeQueue.enqueueParse.mock.calls.map((call) => call[0].attemptCount)
+    expect(enqueued).toEqual([1, 2])
   })
 
   it('reentrancy guard: concurrent sweep rounds return immediately', async () => {

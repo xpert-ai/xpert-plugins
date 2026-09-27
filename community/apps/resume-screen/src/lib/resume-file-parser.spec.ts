@@ -4,6 +4,31 @@ import { parseResumeFileContent, ResumeFileParseError, ResumeFileParseReason } f
 
 const fixture = (name: string) => readFileSync(join(__dirname, '__fixtures__', name))
 
+// 页数异常用例专用：伪造 pdf 只需通过魔数与体积闸，真正解析被桩接管（不依赖 101 页真实样本）
+function fakePdfBuffer() {
+  return Buffer.concat([Buffer.from('%PDF-1.7'), Buffer.from('x'.repeat(64))])
+}
+
+// pdfjs 桩：doMock + 重新 require 被测模块，令其内部延迟 require 命中桩实现；
+// afterEach 统一解除，避免污染同文件其余真实 pdf 用例
+function withFakePdf(doc: { numPages: number; text?: string }) {
+  jest.resetModules()
+  jest.doMock('pdfjs-dist/legacy/build/pdf.js', () => ({
+    getDocument: () => ({
+      promise: Promise.resolve({
+        numPages: doc.numPages,
+        getPage: async () => ({ getTextContent: async () => ({ items: [{ str: doc.text ?? 'x' }] }) })
+      })
+    })
+  }))
+  return require('./resume-file-parser') as typeof import('./resume-file-parser')
+}
+
+afterEach(() => {
+  jest.dontMock('pdfjs-dist/legacy/build/pdf.js')
+  jest.resetModules()
+})
+
 describe('parseResumeFileContent', () => {
   it('extracts readable text from a docx resume', async () => {
     const text = await parseResumeFileContent(fixture('resume-minimal.docx'), 'resume-minimal.docx')
@@ -41,6 +66,21 @@ describe('parseResumeFileContent', () => {
     // 伪装成 pdf 魔数绕过格式嗅探，命中大小闸
     big.write('%PDF-1.7', 0)
     await expect(parseResumeFileContent(big, 'big.pdf')).rejects.toMatchObject({ reason: 'file_too_large' })
+  })
+
+  // 页数异常闸（M8' Minor）：简历正常不超过百页，超限视为畸形文档，快速失败不做逐页抽取
+  it('rejects a pdf over 100 pages as page-count anomaly', async () => {
+    const mod = withFakePdf({ numPages: 101, text: 'x' })
+    const err = await mod.parseResumeFileContent(fakePdfBuffer(), 'huge.pdf').catch((e) => e)
+    // 桩 doc 逐页抽取本可成功：旧实现会正常返回文本，新实现必须先于循环抛页数异常
+    expect(err).toBeInstanceOf(mod.ResumeFileParseError)
+    expect(err).toMatchObject({ reason: 'parse_error' })
+    expect(String(err.message)).toContain('页数')
+  })
+
+  it('accepts a pdf exactly at the 100-page boundary', async () => {
+    const mod = withFakePdf({ numPages: 100, text: 'boundary resume' })
+    await expect(mod.parseResumeFileContent(fakePdfBuffer(), 'edge.pdf')).resolves.toContain('boundary resume')
   })
 
   it('maps parser crashes to parse_error with Chinese message', async () => {

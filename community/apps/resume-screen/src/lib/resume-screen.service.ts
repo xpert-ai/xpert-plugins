@@ -629,17 +629,33 @@ export class ResumeScreenService {
   }
 
   /**
-   * 条件抢占：仍 parsing 才占位（多副本/双 sweep 并发安全，调研 B §4 lease 模式简化版）
+   * 条件抢占并原子变号：仍 parsing 且已滞留（updatedAt<cutoff）才占位
    *
-   * 只做 updatedAt 心跳式条件更新（不推进 attemptCount——重投 jobId 由调用方 +1 变号，
-   * 抢占失败的竞争方直接跳过），affected=1 视为独占成功。
+   * 多副本/双 sweep 并发安全（调研 B §4 lease 模式简化版），affected=1 视为独占成功。
+   * 关键点（M8' Important-1）：attemptCount 在同一条件更新里用 SQL 表达式原子 +1 持久化——
+   * 若只在内存 +1，重投 job 再次丢失（worker 崩溃循环）时下轮从库读回的还是原值，
+   * jobId 会与 Redis 内存活（failed 保留 7d）的上一代同 id 被 BullMQ 静默去重，行永卡 parsing。
+   * cutoff 条件同时防止抢占窗口内被回填的新鲜行被误计一次。
    *
    * @param candidateId 候选人行 id
-   * @returns true=本方抢到重投权；false=行已非 parsing（他人已处理/已回填）
+   * @param cutoff 滞留判定时刻（updatedAt 早于该时刻才允许抢占，来源为 sweep 的阈值时刻）
+   * @returns null=抢占失败（行非 parsing / 仍新鲜 / 竞争输给他人）；number=自增后回读的新投递代号，
+   *          调用方直接以该值入队，jobId 与上一代必然不同
    */
-  async claimStaleParsing(candidateId: string): Promise<boolean> {
-    const result = await this.candidateRepository.update({ id: candidateId, status: 'parsing' }, { updatedAt: new Date() })
-    return Number(result.affected ?? 0) === 1
+  async claimStaleParsing(candidateId: string, cutoff: Date): Promise<number | null> {
+    const result = await this.candidateRepository.update(
+      { id: candidateId, status: 'parsing', updatedAt: LessThan(cutoff) },
+      { updatedAt: new Date(), attemptCount: () => '"attemptCount" + 1' }
+    )
+    if (Number(result.affected ?? 0) !== 1) {
+      return null
+    }
+    // UPDATE 不回传列值：回读自增后的新号作为重投 jobId 的唯一口径（抢占成功后本方为唯一写者）
+    const claimed = await this.candidateRepository.findOne({
+      where: { id: candidateId },
+      select: { attemptCount: true }
+    })
+    return claimed?.attemptCount ?? 0
   }
 
   /**

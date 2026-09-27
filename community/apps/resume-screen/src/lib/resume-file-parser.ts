@@ -19,6 +19,9 @@ export class ResumeFileParseError extends Error {
 /** 与 spec v2.2 蓝图 D5 一致：单文件 10MB 上限 */
 export const RESUME_FILE_MAX_BYTES = 10 * 1024 * 1024
 
+/** pdf 页数上限（M8' Minor）：简历正常远达不到百页，超限视为畸形文档，逐页抽取前先拦 */
+export const RESUME_FILE_MAX_PDF_PAGES = 100
+
 /**
  * 简历文件 → 纯文本。上传链路唯一文本来源（spec v2.2：sourceText 不再接受粘贴）。
  * 按扩展名初筛 + 魔数复核，防止伪装后缀；解析失败统一抛 ResumeFileParseError，
@@ -75,6 +78,10 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
     // pdfjs-dist 锁定 3.x legacy CJS 构建（v4 为纯 ESM，与本仓 jest/ts-node CJS 链不兼容——决策 F6）
     const pdfjs = require('pdfjs-dist/legacy/build/pdf.js')
     const doc = await pdfjs.getDocument({ data: new Uint8Array(buffer), verbosity: 0, isEvalSupported: false }).promise
+    // 页数异常闸：畸形文档（巨页）会拖垮逐页抽取，先于循环快速失败（M8' Minor）
+    if (doc.numPages > RESUME_FILE_MAX_PDF_PAGES) {
+      throw new ResumeFileParseError('parse_error', `PDF 页数异常：${doc.numPages} 页超过 ${RESUME_FILE_MAX_PDF_PAGES} 页上限`)
+    }
     const pages: string[] = []
     for (let pageNo = 1; pageNo <= doc.numPages; pageNo++) {
       const page = await doc.getPage(pageNo)
@@ -84,6 +91,10 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
     }
     return pages.join('\n')
   } catch (error) {
+    // 业务异常（页数闸等）原样透出，不做二次包装
+    if (error instanceof ResumeFileParseError) {
+      throw error
+    }
     const message = String((error as Error)?.message || error)
     if (/encrypt|password/i.test(message)) {
       throw new ResumeFileParseError('encrypted', '文件已加密，请解除密码后重新上传')
