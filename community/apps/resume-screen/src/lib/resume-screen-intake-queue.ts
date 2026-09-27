@@ -16,6 +16,9 @@ import type { ResumeScreenParseJobPayload } from './types'
 export interface EnqueueParseInput {
   candidateId: string
   attemptCount: number
+  // 重试代际后缀（人工重试路径传 r{revision}）：attemptCount 可能与首投同值，
+  // 靠后缀把 jobId 与 Redis 内存活（failed 保留 7d）的上一代变号，绕开静默去重（F5）
+  jobSuffix?: string
   tenantId?: string
   organizationId?: string
   userId?: string
@@ -23,7 +26,8 @@ export interface EnqueueParseInput {
 
 /**
  * 录入/重试的统一入队出口（链路 B，spec v2.2 §7.7）。
- * jobId=resume-parse-{candidateId}-{attemptCount} 确定性幂等：retry 后 attemptCount 变号、同次重复投递被 BullMQ 去重（F5）。
+ * jobId=resume-parse-{candidateId}-{attemptCount}[-{jobSuffix}] 确定性幂等：投递代号变号
+ * （sweep 抢占持久自增 / 人工重试 r{revision} 后缀）即与存活旧 job 不同 id，同次重复投递被 BullMQ 去重（F5）。
  * 依赖 @Optional：harness/无 Redis 环境缺 queue 服务时本类仍可构造，enqueue 才报明确错误（F7/R10 精神）。
  */
 @Injectable()
@@ -39,7 +43,7 @@ export class ResumeScreenIntakeQueue {
    * payload 只放定位字段（大文本由 handler 按 candidateId 现取，调研 B §3.4 红线）；
    * 入队失败不吞异常，由调用方决定呈现（上传分支转失败提示，sweep 靠下轮重试）。
    *
-   * @param input 见 EnqueueParseInput；attemptCount 参与 jobId 幂等键
+   * @param input 见 EnqueueParseInput；attemptCount 与可选 jobSuffix 共同构成 jobId 幂等键
    * @exception Error ManagedQueueService 未注入（无队列环境）或平台入队失败原样上抛
    */
   async enqueueParse(input: EnqueueParseInput): Promise<void> {
@@ -55,7 +59,7 @@ export class ResumeScreenIntakeQueue {
       tenantId: input.tenantId ?? null,
       organizationId: input.organizationId ?? null,
       userId: input.userId ?? null,
-      jobId: `resume-parse-${input.candidateId}-${input.attemptCount}`,
+      jobId: `resume-parse-${input.candidateId}-${input.attemptCount}${input.jobSuffix ? '-' + input.jobSuffix : ''}`,
       payload: { candidateId: input.candidateId, tenantId: input.tenantId, organizationId: input.organizationId, userId: input.userId } satisfies ResumeScreenParseJobPayload,
       attempts: RESUME_SCREEN_PARSE_ATTEMPTS,
       backoffMs: { type: 'exponential', delay: 2000 },

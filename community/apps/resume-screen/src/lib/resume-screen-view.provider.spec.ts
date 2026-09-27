@@ -63,6 +63,28 @@ describe('ResumeScreenViewProvider', () => {
     expect(provider.getViewManifests(createContext(), 'other.slot')).toEqual([])
   })
 
+  // 动作目标态（Task 30）：上传/新建岗位入列、prepare_parse_message 出列（录入统一走文件通道）
+  it('manifest actions carry upload/create_job and drop prepare_parse_message', () => {
+    const manifest = provider.getViewManifests(createContext(), 'agent.workbench.main')[0]
+    const byKey = new Map((manifest.actions ?? []).map((action) => [action.key, action]))
+
+    // 上传动作必须显式声明 transport=file：平台按 manifest 校验，缺声明会直接拒绝文件动作
+    expect(byKey.get('upload_resume_files')).toMatchObject({
+      actionType: 'invoke',
+      transport: 'file',
+      placement: 'toolbar',
+      icon: 'ri-upload-cloud-line'
+    })
+    expect(byKey.get('create_job')).toMatchObject({ actionType: 'invoke', placement: 'toolbar', icon: 'ri-add-line' })
+    expect(byKey.has('prepare_parse_message')).toBe(false)
+    // 其余动作原样保留（刷新/重试/保存/处置四组）
+    for (const key of ['refresh', 'retry_candidate', 'update_candidate', 'accept_candidate', 'hold_candidate', 'reject_candidate', 'reset_candidate']) {
+      expect(byKey.has(key)).toBe(true)
+    }
+    // 对话旁路保留：clientCommands 仍供视图向助手发消息
+    expect(manifest.clientCommands).toHaveLength(1)
+  })
+
   it('getViewData delegates to the service with scope from context', async () => {
     const result = await provider.getViewData(
       createContext(),
@@ -81,16 +103,14 @@ describe('ResumeScreenViewProvider', () => {
     expect(result).toEqual({})
   })
 
-  // 动作分支：录入/重试/保存/处置/未知动作的完整路由与可读失败兜底
+  // 动作分支：新建岗位/重试入队/保存/处置/未知动作的完整路由与可读失败兜底
   describe('executeViewAction', () => {
     const fullService = {
       getViewData: jest.fn(async () => viewData),
-      prepareIntakeDraft: jest.fn(async () => ({
-        jobId: 'job-1',
-        created: [{ id: 'c1', status: 'parsing' }],
-        skippedAsExisting: []
-      })),
-      retryCandidate: jest.fn(async () => ({ id: 'c1', status: 'parsing', attemptCount: 1 })),
+      // jdHash 幂等由 service 自身保证（service.spec 已钉「同文 JD 返回既有岗位」），
+      // 这里固定返回同 id 视图，钉住视图层对重复创建照常 success
+      createJob: jest.fn(async () => ({ id: 'job-9', title: '岗位', jdText: 'x'.repeat(40) })),
+      retryCandidate: jest.fn(async () => ({ id: 'c1', status: 'parsing', attemptCount: 1, revision: 2 })),
       updateCandidate: jest.fn(async () => ({ id: 'c1', name: '张三丰', revision: 2 })),
       reviewCandidate: jest.fn(async () => ({ id: 'c1', status: 'accepted' }))
     }
@@ -100,20 +120,103 @@ describe('ResumeScreenViewProvider', () => {
       return { input, targetId } as never
     }
 
-    it('prepare_parse_message returns commandKey with a natural-language payload (spec §8.3)', async () => {
+    it('create_job trims input, delegates to service.createJob and returns the job view', async () => {
+      const jdText = `golang 高并发经验 ${'y'.repeat(40)}`
       const result = await providerWithActions.executeViewAction(
         createContext(),
         RESUME_SCREEN_WORKBENCH_VIEW_KEY,
-        'prepare_parse_message',
-        actionRequest({ jobId: 'job-1', texts: ['简历甲', '简历乙'] })
+        'create_job',
+        actionRequest({ title: '  后端工程师  ', jdText })
       )
-      expect(fullService.prepareIntakeDraft).toHaveBeenCalled()
+      expect(fullService.createJob).toHaveBeenCalledWith(
+        expect.objectContaining({ tenantId: 'tenant-1', assistantId: 'assistant-1' }),
+        { title: '后端工程师', jdText }
+      )
       expect(result.success).toBe(true)
-      // 平台契约中 commandKey/payload 收敛在 data 内（对齐 smart-maintenance 样板）
-      expect(result.data).toMatchObject({
-        commandKey: 'assistant.chat.send_message',
-        payload: { text: expect.stringContaining('简历甲') }
-      })
+      expect(result.refresh).toBe(true)
+      expect(result.data).toMatchObject({ job: { id: 'job-9' } })
+    })
+
+    it('create_job rejects blank title or short jdText without touching the service', async () => {
+      fullService.createJob.mockClear()
+      const short = await providerWithActions.executeViewAction(
+        createContext(),
+        RESUME_SCREEN_WORKBENCH_VIEW_KEY,
+        'create_job',
+        actionRequest({ title: 'A', jdText: 'x'.repeat(29) })
+      )
+      expect(short.success).toBe(false)
+      expect(JSON.stringify(short.message)).toContain('JD 不少于 30 字')
+      const blank = await providerWithActions.executeViewAction(
+        createContext(),
+        RESUME_SCREEN_WORKBENCH_VIEW_KEY,
+        'create_job',
+        actionRequest({ title: '   ', jdText: 'x'.repeat(40) })
+      )
+      expect(blank.success).toBe(false)
+      expect(fullService.createJob).not.toHaveBeenCalled()
+    })
+
+    it('create_job keeps success on duplicate title+jdText (service returns the existing job, same id)', async () => {
+      // service 的 jdHash 幂等语义：重复提交返回既有岗位而不是报错，视图层原样透传
+      const first = await providerWithActions.executeViewAction(
+        createContext(),
+        RESUME_SCREEN_WORKBENCH_VIEW_KEY,
+        'create_job',
+        actionRequest({ title: 'A', jdText: 'x'.repeat(40) })
+      )
+      const second = await providerWithActions.executeViewAction(
+        createContext(),
+        RESUME_SCREEN_WORKBENCH_VIEW_KEY,
+        'create_job',
+        actionRequest({ title: 'A', jdText: 'x'.repeat(40) })
+      )
+      expect(second.success).toBe(true)
+      expect((second.data as { job: { id: string } }).job.id).toBe((first.data as { job: { id: string } }).job.id)
+    })
+
+    it('retry_candidate resets via service then enqueues with a retry-generation suffix away from the first jobId', async () => {
+      // 队列化重试（链路 B）：首投失败链里 markCandidateFailed 已把 attemptCount 持久 +1，
+      // 重试读当前值（1）+ r{revision} 后缀 → jobId resume-parse-c1-1-r2，与首投 resume-parse-c1-0
+      // （可能仍以 failed 存活于 Redis 7d）天然变号，不会被 BullMQ 静默去重（F5）。
+      const intakeQueue = { enqueueParse: jest.fn(async () => undefined) }
+      const retryProvider = new ResumeScreenViewProvider(fullService as never, intakeQueue as never)
+      const result = await retryProvider.executeViewAction(
+        createContext(),
+        RESUME_SCREEN_WORKBENCH_VIEW_KEY,
+        'retry_candidate',
+        actionRequest({ candidateId: 'c1' }, 'c1')
+      )
+      expect(fullService.retryCandidate).toHaveBeenCalledWith(expect.objectContaining({ tenantId: 'tenant-1' }), 'c1')
+      expect(intakeQueue.enqueueParse).toHaveBeenCalledWith(
+        expect.objectContaining({
+          candidateId: 'c1',
+          attemptCount: 1,
+          jobSuffix: 'r2',
+          tenantId: 'tenant-1',
+          organizationId: 'org-1',
+          userId: 'user-1'
+        })
+      )
+      expect(result).toMatchObject({ success: true, refresh: true })
+      // 不再走对话指令旁路：重试直接入队，回执只带行状态
+      expect(result.data).toMatchObject({ id: 'c1', status: 'parsing' })
+      expect(JSON.stringify(result.data ?? {})).not.toContain('commandKey')
+    })
+
+    it('retry_candidate on the same generation collapses into one queued job (idempotent benefit, no guard needed)', async () => {
+      // 对同一 parsing 行连点重试：attemptCount/revision 不变 → jobId 相同 → BullMQ 去重
+      // 不重复投递，等待中不重复投是幂等收益，无需设防（M8' 审查裁定）
+      const intakeQueue = { enqueueParse: jest.fn(async () => undefined) }
+      const retryProvider = new ResumeScreenViewProvider(fullService as never, intakeQueue as never)
+      await retryProvider.executeViewAction(
+        createContext(), RESUME_SCREEN_WORKBENCH_VIEW_KEY, 'retry_candidate', actionRequest({ candidateId: 'c1' }, 'c1')
+      )
+      await retryProvider.executeViewAction(
+        createContext(), RESUME_SCREEN_WORKBENCH_VIEW_KEY, 'retry_candidate', actionRequest({ candidateId: 'c1' }, 'c1')
+      )
+      const stamps = intakeQueue.enqueueParse.mock.calls.map((call) => `${call[0].attemptCount}-${call[0].jobSuffix}`)
+      expect(stamps).toEqual(['1-r2', '1-r2'])
     })
 
     it('review actions map to service reviewCandidate', async () => {
@@ -162,6 +265,16 @@ describe('ResumeScreenViewProvider', () => {
         RESUME_SCREEN_WORKBENCH_VIEW_KEY,
         'delete_everything',
         actionRequest()
+      )
+      expect(result.success).toBe(false)
+    })
+
+    it('prepare_parse_message is retired: paste-to-chat intake no longer accepted', async () => {
+      const result = await providerWithActions.executeViewAction(
+        createContext(),
+        RESUME_SCREEN_WORKBENCH_VIEW_KEY,
+        'prepare_parse_message',
+        actionRequest({ jobId: 'job-1', texts: ['简历甲'] })
       )
       expect(result.success).toBe(false)
     })

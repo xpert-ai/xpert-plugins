@@ -35,6 +35,14 @@ describe('ResumeScreenIntakeQueue', () => {
     expect(JSON.stringify(input.payload)).not.toContain('sourceText')
   })
 
+  it('retry-generation suffix changes the jobId away from the failed first generation (F5)', async () => {
+    const q = buildQueue()
+    const intake = new ResumeScreenIntakeQueue(q as never, { scopeKey: 'org-9' } as never)
+    // 人工重试点位号可能不变（markCandidateFailed 未触发），靠 r{revision} 后缀与首投/上一代变号
+    await intake.enqueueParse({ candidateId: 'c-1', attemptCount: 1, jobSuffix: 'r2', tenantId: 't1' })
+    expect(q.enqueue.mock.calls[0][0].jobId).toBe('resume-parse-c-1-1-r2')
+  })
+
   it('swallows nothing: enqueue failure propagates to caller', async () => {
     const q = { enqueue: jest.fn().mockRejectedValue(new Error('redis down')) }
     const intake = new ResumeScreenIntakeQueue(q as never, { scopeKey: 's' } as never)

@@ -44,6 +44,9 @@ import type {
 // 以本文件位置为基准解析 react/react-dom 的 UMD 产物，供远端组件 iframe 渲染壳使用
 const requireFromHere = createRequire(__filename)
 
+// 新建岗位 JD 最短字数闸：与服务层 createJob 同口径，视图入口先拦一次避免异常兜底转译
+const MIN_JD_LENGTH = 30
+
 // 双语文案便捷构造：manifest 文案字段统一为 I18nObject
 const text = (en_US: string, zh_Hans: string): I18nObject => ({ en_US, zh_Hans })
 
@@ -195,12 +198,15 @@ export class ResumeScreenViewProvider implements IXpertViewExtensionProvider {
         actions: [
           { key: 'refresh', label: text('Refresh', '刷新'), icon: 'ri-refresh-line', placement: 'toolbar', actionType: 'refresh' },
           {
-            key: 'prepare_parse_message',
-            label: text('Submit Resumes to AI', '提交并交给 AI 解析'),
-            icon: 'ri-send-plane-line',
+            key: 'upload_resume_files',
+            label: text('Upload Resumes', '上传简历文件'),
+            icon: 'ri-upload-cloud-line',
             placement: 'toolbar',
-            actionType: 'invoke'
+            actionType: 'invoke',
+            // 文件通道必须在此声明：平台按 manifest 的 transport 路由 multipart 上传动作
+            transport: 'file'
           },
+          { key: 'create_job', label: text('Create Job', '新建岗位'), icon: 'ri-add-line', placement: 'toolbar', actionType: 'invoke' },
           { key: 'retry_candidate', label: text('Retry', '重试'), icon: 'ri-restart-line', placement: 'toolbar', actionType: 'invoke' },
           { key: 'update_candidate', label: text('Save', '保存'), icon: 'ri-save-line', placement: 'toolbar', actionType: 'invoke' },
           {
@@ -301,18 +307,17 @@ export class ResumeScreenViewProvider implements IXpertViewExtensionProvider {
   }
 
   /**
-   * 视图动作执行：刷新/批量录入提交/重试/人工保存/处置动作的统一入口
+   * 视图动作执行：刷新/新建岗位/重试入队/人工保存/处置动作的统一入口
    *
-   * prepare_parse_message 与 retry_candidate 不直接驱动 AI，而是落库后通过
-   * commandKey=assistant.chat.send_message 把自然语言指令发往助手对话，由模型
-   * 调用中间件工具完成回填；服务层异常统一转为可读 I18n 失败结果，不向外
-   * 泄露堆栈。
+   * 解析驱动已切到链路 B：重试直接经 intakeQueue 入队由 worker 模型直调，
+   * 不再走对话指令旁路（录入统一走 upload_resume_files 文件通道）；服务层
+   * 异常统一转为可读 I18n 失败结果，不向外泄露堆栈。
    *
    * @param context 宿主上下文（scope.userId 作为处置操作人兜底）
    * @param viewKey 视图标识，非本插件的视图直接返回失败
    * @param actionKey manifest actions 中声明的动作键
    * @param request 动作载荷（input/targetId），candidateId 优先取 input 再回退 targetId
-   * @returns 动作结果：成功时携带刷新标记与（如需）对话指令，失败时携带可读文案
+   * @returns 动作结果：成功时携带刷新标记与业务数据，失败时携带可读文案
    */
   async executeViewAction(
     context: XpertResolvedViewHostContext,
@@ -332,43 +337,37 @@ export class ResumeScreenViewProvider implements IXpertViewExtensionProvider {
         return success('Refreshed', '已刷新')
       }
 
-      if (actionKey === 'prepare_parse_message') {
-        const jobId = getStringInput(request.input, 'jobId')
-        // texts 支持字符串数组或按空行分隔的整段文本两种录入形态
-        const texts = getStringArrayInput(request.input, 'texts') ?? []
-        if (!jobId) {
-          return failure('Select a job first', '请先选择岗位')
+      if (actionKey === 'create_job') {
+        // 新建岗位：表单输入取标题与 JD 原文，校验口径与服务层 createJob 对齐
+        const input = request.input as Record<string, unknown> | undefined
+        const title = String(input?.title ?? '').trim()
+        const jdText = String(input?.jdText ?? '').trim()
+        if (!title || jdText.length < MIN_JD_LENGTH) {
+          return failure('Invalid job input', `岗位名称必填且 JD 不少于 ${MIN_JD_LENGTH} 字`)
         }
-        if (texts.length === 0) {
-          return failure('Paste at least one resume', '请粘贴至少一条简历文本')
-        }
-        const draft = await this.service.prepareIntakeDraft(scope, jobId, texts)
-        const payload = {
-          text: buildParseMessage(draft.created.length, texts)
-        }
-        // 指令通过 data.commandKey 交由宿主发送到助手对话（契约不含顶层 commandKey 字段）
-        return {
-          ...success('Resumes submitted to AI', '已提交 AI 解析'),
-          data: {
-            commandKey: 'assistant.chat.send_message',
-            payload
-          }
-        }
+        // 幂等由 service.jdHash 兜底：重复提交同文 JD 返回既有岗位，视图层照常 success
+        const job = await this.service.createJob(scope, { title, jdText })
+        return { ...success('Job created', '岗位已创建'), data: { job } }
       }
 
       if (actionKey === 'retry_candidate') {
         if (!candidateId) {
           return failure('Candidate is required', '缺少候选人')
         }
-        await this.service.retryCandidate(scope, candidateId)
-        return {
-          ...success('Retry started', '已重新开始解析，请在对话框发送重试消息'),
-          data: {
-            commandKey: 'assistant.chat.send_message',
-            // 重试由模型重新解析并调用保存工具回填，视图侧只负责重置状态与发起指令
-            payload: { text: `请重新解析该简历（candidateId: ${candidateId}），并调用工具回填结果。` }
-          }
-        }
+        // retryCandidate 条件重置为 parsing 并清失败原因，attemptCount 保留历史值
+        const view = await this.service.retryCandidate(scope, candidateId)
+        // 入队走链路 B 由 worker 直接重跑（不再发对话指令）。jobSuffix=r{revision} 保证
+        // 人工重试的 jobId 与首投 resume-parse-{id}-{n} 变号：首投失败后 attemptCount 可能
+        // 未自增（markCandidateFailed 路径才有 +1），靠 revision 后缀区分代际绕开 BullMQ 去重（F5）。
+        await this.intakeQueue.enqueueParse({
+          candidateId,
+          attemptCount: view.attemptCount ?? 0,
+          jobSuffix: `r${view.revision ?? 1}`,
+          tenantId: scope.tenantId,
+          organizationId: scope.organizationId ?? undefined,
+          userId: scope.userId ?? undefined
+        })
+        return { ...success('Retry enqueued', '已重新排队解析'), data: { id: candidateId, status: view.status } }
       }
 
       if (actionKey === 'update_candidate') {
@@ -489,35 +488,6 @@ async function readPackageFile(packageName: string, relativePath: string) {
 function getStringInput(input: Record<string, unknown> | null | undefined, key: string) {
   const value = input?.[key]
   return typeof value === 'string' && value.trim() ? value.trim() : undefined
-}
-
-// 简历文本集合提取：兼容字符串数组与按空行分隔的整段粘贴文本两种形态
-function getStringArrayInput(input: Record<string, unknown> | null | undefined, key: string) {
-  const value = input?.[key]
-  if (Array.isArray(value)) {
-    return value.filter((item): item is string => typeof item === 'string').map((item) => item.trim()).filter(Boolean)
-  }
-  if (typeof value === 'string' && value.trim()) {
-    return value
-      .split(/\n\s*\n+/)
-      .map((item) => item.trim())
-      .filter(Boolean)
-  }
-  return undefined
-}
-
-// 构造批量解析指令：明确要求模型逐份调用保存工具落库，禁止只做总结或虚构原文
-function buildParseMessage(count: number, texts: string[]) {
-  const body = texts
-    .map((text, index) => `【简历 ${index + 1}】\n${text}`)
-    .join('\n\n')
-  return [
-    `请解析以下 ${count} 份简历。`,
-    '你必须为每一条简历恰好调用一次 resume_screen_save_candidates 工具落库（sourceText 使用简历原文），不要只做总结。',
-    '不要虚构原文没有的信息；缺失项留空并写进 riskPoints。',
-    '',
-    body
-  ].join('\n')
 }
 
 // 动作成功结果：默认要求宿主刷新视图以反映最新数据
