@@ -63,10 +63,19 @@ export class ResumeScreenParseProcessor {
     private readonly intakeQueue: ResumeScreenIntakeQueue,
     @Optional() @Inject(XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN) private readonly modelRuntime: AgentMiddlewareRuntimeServiceApi | undefined,
     @Optional() @Inject(RESUME_SCREEN_PLUGIN_CONTEXT) private readonly pluginContext: ParsePluginContext | undefined
-  ) {}
+  ) {
+    // 崩溃恢复 sweep 定时器必须挂在构造函数而非 onModuleInit：平台插件热重载（runtime.restart）
+    // 重建实例但不执行 Nest 生命周期钩子，挂钩子上滞留行永不兜底（Task32 真机 Case6 FAIL 根因）。
+    // 热重载同样不调 onModuleDestroy，旧实例至多每次重载泄漏一个 interval：claimStaleParsing
+    // 条件更新 + 确定性 jobId 去重使重复 sweep 轮次幂等无害，可接受；常态销毁走 onModuleDestroy。
+    this.startSweepTimer()
+  }
 
-  /** 崩溃恢复权威：parsing 滞留行重投/标失败（OnModuleInit 起，unref 不阻进程退出） */
-  onModuleInit() {
+  /** 起 parsing 滞留行周期兜底定时器（unref 不阻进程退出）；单实例假设，重复调用幂等 */
+  private startSweepTimer() {
+    if (this.sweepTimer) {
+      return
+    }
     this.sweepTimer = setInterval(() => void this.sweepStale(), SWEEP_INTERVAL_MS)
     this.sweepTimer.unref?.()
   }

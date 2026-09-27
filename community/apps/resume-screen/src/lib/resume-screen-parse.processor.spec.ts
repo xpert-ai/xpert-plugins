@@ -4,7 +4,7 @@
  * 全部外部件按 R10 mock：service（内存 stub）、ManagedQueueService（经 intakeQueue stub）、
  * 模型 runtime token provider 链（createScopedApi→getModelProvider→createModelClient→invoke）。
  * 覆盖幂等认领、结构化优先/文本 JSON 容错降级、末次尝试落败+rethrow、provider 未配置、
- * prompt 纯函数与 sweep 抢占/重入。
+ * prompt 纯函数与 sweep 抢占/重入，以及 sweep 定时器的构造期挂接（热重载语义）。
  */
 // mock SDK：plugin-sdk 全量引入依赖 lodash-es 等 ESM 产物，jest(CommonJS) 无法解析；
 // 被测代码只消费装饰器与注入 token，此处提供行为等价实现（对齐 provider spec 的 mock 方式）
@@ -275,5 +275,41 @@ describe('ResumeScreenParseProcessor.sweepStale', () => {
     service.findStaleParsingRows.mockRejectedValue(new Error('db flaky'))
     const processor = new ResumeScreenParseProcessor(service as never, { enqueueParse: jest.fn() } as never, runtimeStub(jest.fn()) as never)
     await expect(processor.sweepStale()).resolves.toBeUndefined()
+  })
+})
+
+describe('ResumeScreenParseProcessor sweep timer wiring', () => {
+  it('constructing the processor schedules the sweep immediately, without any lifecycle hook (Task32: hot reload never runs onModuleInit)', async () => {
+    jest.useFakeTimers()
+    try {
+      const service = buildService(null)
+      // 只构造、不调用任何 Nest 生命周期钩子：热重载重建实例后 sweep 也必须存活
+      new ResumeScreenParseProcessor(service as never, { enqueueParse: jest.fn() } as never, runtimeStub(jest.fn()) as never)
+      expect(jest.getTimerCount()).toBe(1)
+      // 周期取 SWEEP_INTERVAL_MS（5 分钟）：未满周期不触发
+      await jest.advanceTimersByTimeAsync(4 * 60_000)
+      expect(service.findStaleParsingRows).not.toHaveBeenCalled()
+      await jest.advanceTimersByTimeAsync(60_000)
+      expect(service.findStaleParsingRows).toHaveBeenCalledTimes(1)
+      // 周期定时器持续滚动：下一轮照常再来
+      await jest.advanceTimersByTimeAsync(5 * 60_000)
+      expect(service.findStaleParsingRows).toHaveBeenCalledTimes(2)
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  it('startSweepTimer is idempotent: repeated calls keep a single interval', () => {
+    jest.useFakeTimers()
+    try {
+      const processor = new ResumeScreenParseProcessor(buildService(null) as never, { enqueueParse: jest.fn() } as never, runtimeStub(jest.fn()) as never)
+      const start = (processor as unknown as { startSweepTimer: () => void }).startSweepTimer.bind(processor)
+      // 构造已挂一次，再重复调用不得叠加定时器（单实例假设下的双启动防护）
+      start()
+      start()
+      expect(jest.getTimerCount()).toBe(1)
+    } finally {
+      jest.useRealTimers()
+    }
   })
 })
