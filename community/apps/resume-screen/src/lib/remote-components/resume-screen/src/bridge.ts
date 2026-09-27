@@ -17,7 +17,8 @@ interface PendingRequest {
 
 interface BridgeHandlers {
   onInit: (context: HostContext) => void
-  onHostEvent: () => void
+  // 宿主转发的订阅事件原文（本视图仅订阅 assistant.tool.completed，作对话旁路刷新信号）
+  onHostEvent: (event: unknown) => void
 }
 
 let instanceId: string | null = null
@@ -46,7 +47,7 @@ export function installBridgeListener(handlers: BridgeHandlers) {
     if (message.instanceId !== instanceId) return
 
     if (message.type === 'hostEvent') {
-      handlers.onHostEvent()
+      handlers.onHostEvent(message.event)
       return
     }
 
@@ -105,6 +106,32 @@ export function executeAction(
   parameters?: Record<string, unknown>
 ) {
   return request('executeAction', { actionKey, targetId, input, parameters })
+}
+
+/**
+ * 文件通道动作（transport:'file' 的 manifest 动作）
+ *
+ * 平台协议唯一合规的 iframe 侧文件上传路径（view-extension-protocol.md 能力表）：
+ * 文件字节 arrayBuffer 后经 postMessage 交给宿主，由宿主转 multipart 调
+ * provider.executeViewFileAction；iframe 不解析文件内容、不持久化字节。
+ * parameters 携带 jobId（服务端从 request.parameters 读取选中岗位）。
+ */
+export function executeFileAction(
+  actionKey: string,
+  targetId: string | null,
+  input: Record<string, unknown>,
+  parameters: Record<string, unknown>,
+  file: File
+) {
+  return file.arrayBuffer().then((buffer) =>
+    request('executeFileAction', {
+      actionKey,
+      targetId,
+      input,
+      parameters,
+      file: { name: file.name, type: file.type, size: file.size, buffer }
+    })
+  )
 }
 
 export function notify(message: string, level = 'success') {

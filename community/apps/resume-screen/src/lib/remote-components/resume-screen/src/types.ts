@@ -120,7 +120,8 @@ export interface I18nText {
 
 // ===== 上传队列（iframe 前端内存态，蓝图 §3.7/§6.6） =====
 
-// 文件级状态机：排队中→上传中→（服务端解析期以 uploading 超时文案近似）→已创建/跳过/失败
+// 文件级状态机（v4.2 五态）：排队中 → 上传中（单一进行态：字节传输+服务端校验/解析/落库同一请求往返）
+// → 回执终态 已创建/跳过/失败；队列行为前端内存态，无服务端台账（§0.3/§6.6）
 export type QueueStatus = 'queued' | 'uploading' | 'created' | 'skipped' | 'failed'
 
 export interface QueueRow {
@@ -134,6 +135,19 @@ export interface QueueRow {
   candidateId?: string
   // 入队时间戳：进行中行超 60s 的「仍在处理」提示判定（§6.6 约束）
   startedAt: number
+  // 「清除失败记录」淡出中（A8）：置位后 160ms 移除，不整队列重渲
+  leaving?: boolean
+}
+
+// 人工修正字段白名单镜像（服务端 ResumeScreenCandidatePatch：刻意不含状态与评审结论）
+export interface ResumeScreenCandidatePatchMirror {
+  name?: string
+  yearsOfExperience?: string
+  education?: string
+  currentCompany?: string
+  skills?: string[]
+  summary?: string
+  matchScore?: number
 }
 
 // 排序参数镜像：与服务端 ResumeScreenCandidateListQuery 白名单一致
