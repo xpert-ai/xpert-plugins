@@ -130,6 +130,8 @@ export function IntakePanel({ rows, now, busy, expanded, uploadRequestSeq, onExp
                       row={row}
                       elapsedLong={now - row.startedAt > UPLOAD_STILL_WORKING_MS}
                       enter={index < 10}
+                      // A7 节拍对齐候选人列表：仅前 10 行 ×40ms 级联，数值型 prop 不破坏行 memo
+                      enterDelay={index < 10 ? Math.min(index, 9) * 40 : null}
                       onJumpToCandidate={onJumpToCandidate}
                     />
                   ))}
@@ -148,16 +150,22 @@ const QueueRowItem = memo(function QueueRowItem({
   row,
   elapsedLong,
   enter,
+  enterDelay,
   onJumpToCandidate
 }: {
   row: QueueRow
   elapsedLong: boolean
   enter: boolean
+  enterDelay: number | null
   onJumpToCandidate: (candidateId: string) => void
 }) {
   const working = row.status === 'queued' || row.status === 'uploading'
   return (
-    <div className={`rs-queue-row${enter ? ' rs-enter' : ''}${row.leaving ? ' rs-leaving' : ''}`} role="listitem">
+    <div
+      className={`rs-queue-row${enter ? ' rs-enter' : ''}${row.leaving ? ' rs-leaving' : ''}`}
+      style={enter && enterDelay !== null ? ({ '--rs-stagger': `${enterDelay}ms` } as React.CSSProperties) : undefined}
+      role="listitem"
+    >
       <i className="ri-file-line" aria-hidden="true" />
       <span className="rs-queue-name" title={row.fileName}>
         {row.fileName}

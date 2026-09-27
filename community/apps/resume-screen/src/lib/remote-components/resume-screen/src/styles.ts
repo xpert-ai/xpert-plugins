@@ -50,8 +50,12 @@ export function injectStyles() {
     body { margin: 0; background: var(--rs-panel); color: var(--rs-text); }
     body, button, input, select, textarea { font-family: Inter, "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing: 0; }
     [data-slot="button"], [data-slot="input"], [data-slot="select-trigger"], [data-slot="textarea"] { font-size: var(--rs-font-control); }
-    /* 焦点环保留（蓝图 §6.8，对齐 crm 搜索框 focus 圈） */
-    [data-slot="input"]:focus-visible, [data-slot="textarea"]:focus-visible, [data-slot="select-trigger"]:focus-visible, .rs-pill:focus-visible, .rs-item:focus-visible, [data-slot="button"]:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12); }
+    /* 焦点环保留（蓝图 §6.8，对齐 crm 搜索框 focus 圈）；「琢」补齐自绘可交互件：把手/展开钮与输入族同环 */
+    [data-slot="input"]:focus-visible, [data-slot="textarea"]:focus-visible, [data-slot="select-trigger"]:focus-visible, .rs-pill:focus-visible, .rs-item:focus-visible, [data-slot="button"]:focus-visible, .rs-intake-handle:focus-visible, .rs-expand:focus-visible, .rs-notice button:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12); }
+    /* 列表容器是键盘导航宿主（↑/↓/Enter），焦点可见性用内描边免被 shell overflow 裁切 */
+    .rs-list:focus-visible { outline: 2px solid color-mix(in srgb, var(--rs-primary) 45%, transparent); outline-offset: -2px; }
+    /* 按钮按压触感：1px 下沉模拟物理按键（仅 transform，reduced-motion 下瞬时生效不伤性能） */
+    [data-slot="button"]:active:not(:disabled) { transform: translateY(1px); }
     i[class^="ri-"] { font-style: normal; line-height: 1; display: inline-flex; align-items: center; justify-content: center; }
 
     /* ===== 骨架布局（蓝图 §3.1：48/40/1fr/auto 四行；中缝 1px） ===== */
@@ -81,7 +85,7 @@ export function injectStyles() {
     .rs-header-actions [data-slot="button"] i { margin-right: 6px; font-size: 14px; }
     .rs-header-actions [data-slot="button"][data-size="icon"] i { margin-right: 0; }
     .rs-jd-popover [data-slot="popover-content"] { max-width: 420px; }
-    .rs-jd-text { max-height: 240px; overflow: auto; font-size: 12px; line-height: 1.6; color: var(--rs-muted); white-space: pre-wrap; overflow-wrap: anywhere; }
+    .rs-jd-text { max-height: 240px; overflow: auto; font-size: 12px; line-height: 1.6; color: var(--rs-muted); white-space: pre-wrap; overflow-wrap: anywhere; scrollbar-width: thin; scrollbar-color: var(--rs-border) transparent; }
 
     /* ===== 统计条 pill（蓝图 §3.3，sm .sm-stat-pill 规格） ===== */
     .rs-pill { display: inline-flex; align-items: center; gap: 6px; height: 24px; border: 1px solid var(--rs-border); border-radius: var(--rs-pill-round); background: var(--rs-panel); color: var(--rs-muted); padding: 0 9px; font-size: 12px; font-weight: 600; white-space: nowrap; cursor: pointer; transition: color var(--rs-motion-base) var(--rs-ease-entry), background-color var(--rs-motion-base) var(--rs-ease-entry), border-color var(--rs-motion-base) var(--rs-ease-entry); flex: 0 0 auto; }
@@ -125,9 +129,19 @@ export function injectStyles() {
     .rs-sk-pill-row { display: flex; gap: 6px; }
     .rs-item { display: grid; grid-template-columns: 28px minmax(0, 1fr) 46px; align-items: center; gap: 8px; min-height: 52px; padding: 0 10px; border-bottom: 1px solid var(--rs-border-soft); cursor: pointer; background: var(--rs-panel); transition: background-color var(--rs-motion-fast) var(--rs-ease-entry); }
     .rs-item:hover { background: var(--rs-hover); }
+    /* 点按瞬间即呈现选中底色预览（先于数据回流），行点击「跟手」；A8 退场行不可交互 */
+    .rs-item:active { background: var(--rs-active); }
     .rs-item[aria-current="true"] { background: var(--rs-active); }
+    /* 列表滚动条质感（§9 色板内取值）：细轨透明底，thumb 用边框灰，hover 升一级——与 crm 浅灰语言一致 */
+    .rs-list { scrollbar-width: thin; scrollbar-color: var(--rs-border) transparent; }
+    .rs-list::-webkit-scrollbar { width: 8px; }
+    .rs-list::-webkit-scrollbar-track { background: transparent; }
+    .rs-list::-webkit-scrollbar-thumb { background: var(--rs-border); border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
+    .rs-list::-webkit-scrollbar-thumb:hover { background-color: var(--rs-soft); background-clip: content-box; }
     .rs-item-main { min-width: 0; display: grid; gap: 2px; }
     .rs-item-title { min-width: 0; display: flex; align-items: center; gap: 6px; }
+    /* 「琢」长文本不挤压：收缩压力全部让给姓名（自带 ellipsis），来源角标与状态徽标永不压缩变形 */
+    .rs-item-title .rs-badge, .rs-item-title i { flex: 0 0 auto; }
     .rs-item-name { font-size: 13px; font-weight: 650; color: var(--rs-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .rs-item-source { color: var(--rs-soft); font-size: 10px; flex: 0 0 auto; }
     .rs-item-meta { font-size: 12px; color: var(--rs-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -140,11 +154,14 @@ export function injectStyles() {
     .rs-score-bar [data-slot="progress-indicator"] { background: var(--rs-blue); border-radius: 2px; }
     .rs-score-bar.tier-amber [data-slot="progress-indicator"] { background: var(--rs-amber); }
     .rs-score-bar.tier-red [data-slot="progress-indicator"] { background: var(--rs-red); }
+    /* Progress 过渡并档（§7 统一时长/缓动）：覆盖 shadcn 默认 transition-all 150ms——
+       AI 回填评分时细条 240ms ease-out 生长、分档换色 160ms，只动 transform/background */
+    .rs-score-bar [data-slot="progress-indicator"], .rs-score-detail [data-slot="progress-indicator"] { transition: transform var(--rs-motion-slow) var(--rs-ease-entry), background-color var(--rs-motion-base) var(--rs-ease-entry); }
     .rs-list-foot { min-height: 40px; border-top: 1px solid var(--rs-border); display: flex; align-items: center; gap: 10px; padding: 0 10px; color: var(--rs-soft); font-size: 12px; }
     .rs-list-foot [data-slot="button"] { height: 28px; }
 
     /* 空态（蓝图 §3.4：crm 居中竖排 + sm 软底块） */
-    .rs-empty { min-height: 280px; margin: 10px; border-radius: 7px; background: #f8fafc; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; color: var(--rs-muted); padding: 22px 14px; text-align: center; font-size: 13px; }
+    .rs-empty { min-height: 280px; margin: 10px; border-radius: 7px; background: #f8fafc; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; color: var(--rs-muted); padding: 22px 14px; text-align: center; font-size: 13px; /* 空态缓入：筛选切换后不「啪」地砸出，与 A6 详情入场同档 */ animation: rs-detail-in var(--rs-motion-slow) var(--rs-ease-entry); }
     .rs-empty i.rs-empty-icon { width: 42px; height: 42px; border-radius: var(--rs-radius); background: var(--rs-border); color: #4b5563; font-size: 22px; }
     .rs-empty strong { font-weight: 700; color: var(--rs-text); }
     .rs-empty small { color: var(--rs-soft); font-weight: 600; }
@@ -253,7 +270,8 @@ export function injectStyles() {
     .rs-queue-guidance { font-size: 12px; color: var(--rs-muted); line-height: 1.6; }
 
     /* ===== notice 条（蓝图 §6.1 通用错误出口；crm .crm20-notice 同构红/琥珀变体） ===== */
-    .rs-notice { position: absolute; left: 12px; right: 12px; top: 92px; z-index: 20; display: flex; align-items: flex-start; gap: 8px; border: 1px solid var(--rs-red); background: var(--rs-red-soft); color: var(--rs-red); padding: 8px 10px; border-radius: var(--rs-radius); font-size: 13px; box-shadow: 0 6px 20px rgba(31, 41, 55, 0.08); }
+    .rs-notice { position: absolute; left: 12px; right: 12px; top: 92px; z-index: 20; display: flex; align-items: flex-start; gap: 8px; border: 1px solid var(--rs-red); background: var(--rs-red-soft); color: var(--rs-red); padding: 8px 10px; border-radius: var(--rs-radius); font-size: 13px; box-shadow: 0 6px 20px rgba(31, 41, 55, 0.08); animation: rs-notice-in var(--rs-motion-slow) var(--rs-ease-entry); }
+    @keyframes rs-notice-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
     .rs-notice.tone-amber { border-color: #f2c94c; background: #fffbeb; color: #7a4d00; }
     .rs-notice button { margin-left: auto; border: 0; background: transparent; color: inherit; cursor: pointer; font-size: 14px; padding: 0 2px; }
     .rs-notice-inline { position: static; margin: 8px 12px 0; }
@@ -268,8 +286,8 @@ export function injectStyles() {
     /* A7 新结果行回填（逐行 stagger 仅前 10 行，行内联 delay 变量） */
     .rs-enter { animation: rs-row-in var(--rs-motion-slow) var(--rs-ease-entry) both; animation-delay: var(--rs-stagger, 0ms); }
     @keyframes rs-row-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-    /* A8 行移出淡出 */
-    .rs-leaving { animation: rs-row-out var(--rs-motion-base) var(--rs-ease-exit) both; }
+    /* A8 行移出淡出：退场中的行不再接受指针交互（列表行另有 aria-hidden 退出读屏） */
+    .rs-leaving { animation: rs-row-out var(--rs-motion-base) var(--rs-ease-exit) both; pointer-events: none; }
     @keyframes rs-row-out { from { opacity: 1; } to { opacity: 0; } }
     /* A9 进行中 loader（唯一无限动画豁免之一） */
     .rs-spin { animation: rs-rotate 1s linear infinite; display: inline-flex; }

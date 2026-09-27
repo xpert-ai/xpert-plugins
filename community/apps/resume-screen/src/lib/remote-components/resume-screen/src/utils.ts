@@ -26,6 +26,8 @@ export const PARSE_POLL_MS = 30_000
 export const PARSE_TIMEOUT_MS = 10 * 60 * 1000
 // 上传队列进行中行（v4.2 合并态「上传中」）无回执的行尾提醒阈值：60s（蓝图 §6.6 约束）
 export const UPLOAD_STILL_WORKING_MS = 60_000
+// A8 行移出淡出提交窗口：160ms 动画 + 20ms 缓冲，窗口结束才替换为纯净列表（蓝图 §7）
+export const LEAVE_FADE_MS = 180
 // 单文件大小前端预检上限（蓝图 §3.7/D5：≤10MB 预检 + 服务端复校；MB 数以服务端回执为准）
 export const UPLOAD_MAX_BYTES = 10 * 1024 * 1024
 // 预检超限的行内指引文案（与 §6.6 失败原因映射「文件过大」同一条，避免双处漂移）
@@ -175,6 +177,76 @@ export function mapUploadFailure(message: string): string {
   if (/格式|不支持/.test(text)) return '仅支持 .docx / .pdf（≤10MB），请转换格式后重新上传'
   if (/超过|过大|10MB|size/i.test(text)) return UPLOAD_OVERSIZE_HINT
   return text
+}
+
+/**
+ * 列表行内容签名（「琢」性能项）
+ *
+ * 覆盖行渲染读取的全部字段（含数组逐项）：签名相等 ⇒ 该行本次刷新视觉必然无差异。
+ * 只比内容不比引用——normalizeViewData 每轮requestData都产新对象，不收敛引用则
+ * memo 形同虚设（§11「避免 hostEvent 全量刷新时整列表重渲」）。
+ */
+export function candidateSignature(candidate: CandidateView): string {
+  return JSON.stringify([
+    candidate.status,
+    candidate.name ?? '',
+    candidate.yearsOfExperience ?? '',
+    candidate.education ?? '',
+    candidate.currentCompany ?? '',
+    candidate.skills ?? [],
+    candidate.summary ?? '',
+    candidate.matchScore ?? null,
+    candidate.matchReason ?? '',
+    candidate.hitPoints ?? [],
+    candidate.riskPoints ?? [],
+    candidate.humanEditedFields ?? [],
+    candidate.attemptCount,
+    candidate.failureReason ?? '',
+    candidate.sourceFileName ?? '',
+    candidate.revision,
+    candidate.createdAt,
+    candidate.updatedAt
+  ])
+}
+
+/**
+ * 引用复用合并（§11）：next 中与 previous 内容完全一致的行沿用旧引用
+ *
+ * 顺序一律以 next（服务端事实）为准；命中复用的行引用不变 ⇒ memo 行组件整行跳过重渲，
+ * 30s 心跳轮询与回执刷新的重渲成本收敛到「真实变化行 + 新增行」。
+ */
+export function reconcileCandidateItems(previous: CandidateView[], next: CandidateView[]): CandidateView[] {
+  if (previous.length === 0) return next
+  const previousById = new Map(previous.map((item) => [item.id, item]))
+  return next.map((item) => {
+    const existing = previousById.get(item.id)
+    return existing && !existing.leaving && candidateSignature(existing) === candidateSignature(item) ? existing : item
+  })
+}
+
+/**
+ * 静默刷新合并列表（A8 淡出的数据侧）：新增行直接在场、被移除行原地挂 leaving 副本淡出
+ *
+ * 关键设计：保留行的排列已经就是最终（next）顺序，淡出行按旧序邻居锚点插入——180ms 后
+ * 提交纯净列表时其余行零位移，不会出现「淡出结束后行突然跳位」。previous 里仍在淡出的
+ * 行（连续两轮移除竞态）不重复标记，随本轮结果一并延后提交。
+ */
+export function mergeRefreshedList(previous: CandidateView[], next: CandidateView[]): CandidateView[] {
+  const nextIds = new Set(next.map((item) => item.id))
+  const merged = reconcileCandidateItems(previous, next)
+  const carried = previous.filter((item) => item.leaving && !nextIds.has(item.id))
+  const removed = previous.filter((item) => !item.leaving && !nextIds.has(item.id))
+  if (removed.length === 0) return carried.length > 0 ? [...merged, ...carried] : merged
+  for (const item of removed) {
+    // 锚点=旧列表中最近一条仍存活的行：淡出行插在它后面，保持原视觉位置
+    const index = previous.indexOf(item)
+    const before = previous.slice(0, index).reverse().find((row) => !row.leaving && nextIds.has(row.id))
+    const after = before ? undefined : previous.slice(index + 1).find((row) => !row.leaving && nextIds.has(row.id))
+    const anchorIndex = before ? merged.findIndex((row) => row.id === before.id) : after ? merged.findIndex((row) => row.id === after.id) : -1
+    const position = before && anchorIndex >= 0 ? anchorIndex + 1 : after && anchorIndex >= 0 ? anchorIndex : merged.length
+    merged.splice(position, 0, { ...item, leaving: true })
+  }
+  return carried.length > 0 ? [...merged, ...carried] : merged
 }
 
 // 队列聚合计数：把手徽标与聚合条共用（进行中=queued+uploading）

@@ -94,18 +94,25 @@ export function CandidateList(props: CandidateListProps) {
     node?.scrollIntoView({ block: 'nearest' })
   }, [selectedId])
 
+  // 键盘导航只在存活行间移动：淡出中的行（A8）不可达，防选中一条正在消失的行
+  function liveRows() {
+    return items.some((item) => item.leaving) ? items.filter((item) => !item.leaving) : items
+  }
+
   function moveSelection(delta: number) {
-    if (!items.length) return
-    const index = items.findIndex((item) => item.id === selectedId)
-    const nextIndex = Math.min(items.length - 1, Math.max(0, (index < 0 ? 0 : index) + delta))
-    props.onSelect(items[nextIndex].id)
+    const rows = liveRows()
+    if (!rows.length) return
+    const index = rows.findIndex((item) => item.id === selectedId)
+    const nextIndex = Math.min(rows.length - 1, Math.max(0, (index < 0 ? 0 : index) + delta))
+    props.onSelect(rows[nextIndex].id)
   }
 
   const sortValue = `${sortBy}:${sortDir}`
   const sortLabel = SORT_OPTIONS.find((option) => sortValue === option.value)?.label ?? '匹配分降序'
   // 排序非默认时工具按钮挂 is-active 蓝底高亮（§3.4 crm 工具按钮样式）
   const sortActive = sortValue !== 'matchScore:desc'
-  const shown = items.length
+  // 计数条与「加载更多」判定不含淡出残影行（shown=真实在列数，items 仍全量渲染）
+  const shown = liveRows().length
   const overCap = shown >= DOM_ROW_CAP
 
   return (
@@ -192,16 +199,21 @@ export function CandidateList(props: CandidateListProps) {
           } else if (event.key === 'ArrowUp') {
             event.preventDefault()
             moveSelection(-1)
+          } else if (event.key === 'Enter' && selectedId) {
+            // Enter 与鼠标点行同径（§6.8 键盘可达）：窄容器下即打开 Sheet 详情抽屉
+            props.onSelect(selectedId)
           }
         }}
       >
         {loading && shown === 0 ? <ListSkeleton /> : null}
-        {!loading && shown === 0 ? <EmptyState {...props} /> : null}
+        {/* 空态在 A8 淡出行提交完毕后才登场：防「空态与正在消失的行」并存的观感噪声 */}
+        {!loading && shown === 0 && !items.some((item) => item.leaving) ? <EmptyState {...props} /> : null}
         {items.map((item, index) => (
           <CandidateItem
             key={item.id}
             candidate={item}
             selected={item.id === selectedId}
+            leaving={item.leaving === true}
             timedOut={props.isTimedOut(item)}
             // stagger 仅前 10 行 ×40ms（§7 A7）
             enterDelay={enteringIds.has(item.id) ? Math.min(index, 9) * 40 : null}
@@ -286,6 +298,8 @@ function EmptyState({ hasJobs, hasFilterActive, onUploadRequest, onCreateJobRequ
 interface ItemProps {
   candidate: CandidateView
   selected: boolean
+  // A8 淡出中：挂退场动画并退出可达（pointer-events/aria-hidden 由样式与属性保证）
+  leaving: boolean
   timedOut: boolean
   enterDelay: number | null
   jump: boolean
@@ -299,7 +313,7 @@ interface ItemProps {
  * 行结构：28px 首字头像（底色=状态强色）→ 主行 姓名+匹配分+状态徽标 → 副行
  * 「年限 · 学历 · 公司」（parsing/failed 时改为解析说明/失败原因一行摘要）。
  */
-const CandidateItem = memo(function CandidateItem({ candidate, selected, timedOut, enterDelay, jump, onJumpConsumed, onSelect }: ItemProps) {
+const CandidateItem = memo(function CandidateItem({ candidate, selected, leaving, timedOut, enterDelay, jump, onJumpConsumed, onSelect }: ItemProps) {
   const name = candidate.name || candidate.sourceFileName || '未命名候选人'
   const tier = scoreTier(candidate.matchScore)
   const subtitle =
@@ -323,26 +337,31 @@ const CandidateItem = memo(function CandidateItem({ candidate, selected, timedOu
   return (
     <div
       data-candidate-id={candidate.id}
-      className={`rs-item${enterDelay !== null ? ' rs-enter' : ''}${jump ? ' rs-jump' : ''}`}
+      className={`rs-item${enterDelay !== null ? ' rs-enter' : ''}${jump ? ' rs-jump' : ''}${leaving ? ' rs-leaving' : ''}`}
       style={enterDelay !== null ? ({ '--rs-stagger': `${enterDelay}ms` } as React.CSSProperties) : undefined}
       role="option"
       aria-selected={selected}
       aria-current={selected ? 'true' : undefined}
+      aria-hidden={leaving ? true : undefined}
       tabIndex={-1}
-      onClick={() => onSelect(candidate.id)}
+      onClick={() => {
+        // 淡出中的行不再响应选中（A8 退场竞态）
+        if (!leaving) onSelect(candidate.id)
+      }}
     >
       <span className="rs-mark" style={{ background: statusAccent(candidate.status, timedOut) }} aria-hidden="true">
         {name.slice(0, 1)}
       </span>
       <span className="rs-item-main">
         <span className="rs-item-title">
-          <span className="rs-item-name">{name}</span>
+          {/* 截断文本挂原生 title：hover 读全名（§8.5.3 长文本不挤压的可达补强，无新依赖） */}
+          <span className="rs-item-name" title={name}>{name}</span>
           {candidate.sourceFileName ? (
             <i className="ri-file-line rs-item-source" title={`来源：${candidate.sourceFileName}`} aria-label={`来源文件 ${candidate.sourceFileName}`} />
           ) : null}
           <CandidateBadge status={candidate.status} timedOut={timedOut} />
         </span>
-        <span className="rs-item-meta">{subtitle}</span>
+        <span className="rs-item-meta" title={subtitle}>{subtitle}</span>
       </span>
       <span className="rs-item-score">
         {/* 匹配分：右侧固定 40px Badge（tabular-nums）+ 3px Progress 细条（分档色 §3.4） */}

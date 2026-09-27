@@ -19,6 +19,7 @@ import type { SaveOutcome } from './candidate-detail'
 import type { CandidateView, HostContext, JobCreateOutcome, JobView, QueueRow, ResumeScreenCandidatePatchMirror, ResumeScreenViewData, SortBy, SortDir, StatusFilter } from '../types'
 import {
   DOM_ROW_CAP,
+  LEAVE_FADE_MS,
   PAGE_SIZE,
   PARSE_POLL_MS,
   buildQuery,
@@ -26,6 +27,7 @@ import {
   isParsingTimedOut,
   looksLikeRevisionConflict,
   mapUploadFailure,
+  mergeRefreshedList,
   nextPendingId,
   normalizeViewData,
   parseActionResult,
@@ -92,8 +94,12 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
   viewRef.current = view
   const selectedRef = useRef<string | null>(selectedId)
   selectedRef.current = selectedId
+  // A8 淡出提交令牌：每轮合并 +1，过期的收尾定时器令牌不符即失效，防旧快照覆盖新刷新结果
+  const removalToken = useRef(0)
   const queueSeq = useRef(0)
   const noticeTimer = useRef<number | null>(null)
+  const widthModeRef = useRef(widthMode)
+  widthModeRef.current = widthMode
 
   // ===== 加载 =====
 
@@ -139,7 +145,18 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
           // 仅对真实新增 id 播 A7（对比 prev/next 集合，防每轮全列表重播，§7 降级纪律）
           const previousIds = new Set(previous.map((item) => item.id))
           setEnteringIds(new Set([...nextIds].filter((id) => !previousIds.has(id))))
-          return result.candidates
+          // 静默刷新合并（§11 + A8）：内容未变的行沿用旧引用，memo 行不重渲（心跳/回执轮询的重渲
+          // 成本收敛到真实变化行）；被移除行挂 leaving 副本原地淡出，窗口结束提交纯净列表。
+          // 保留行排列已是最终顺序 ⇒ 淡出结束无行跳位；令牌防旧定时器覆盖更新的刷新结果。
+          const merged = mergeRefreshedList(previous, result.candidates)
+          const token = ++removalToken.current
+          if (merged.length === result.candidates.length) return merged
+          const finalList = result.candidates
+          window.setTimeout(() => {
+            if (removalToken.current !== token) return
+            setItems((current) => mergeRefreshedList(current.filter((item) => !item.leaving), finalList))
+          }, LEAVE_FADE_MS)
+          return merged
         })
         if (mode === 'more') setPagesLoaded(pagesLoaded + 1)
         setLoadError('')
@@ -205,7 +222,10 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
 
   // ===== 30s 心跳（§11）：存在 parsing/上传进行中行时轮询；parsing 清空即停轮 =====
 
-  const hasParsing = items.some((item) => item.status === 'parsing' || item.status === 'draft')
+  // A8 淡出中的行只是退场动画残留，不参与选中/统计/心跳等业务派生（渲染列表仍用 items）
+  const liveItems = useMemo(() => (items.some((item) => item.leaving) ? items.filter((item) => !item.leaving) : items), [items])
+
+  const hasParsing = liveItems.some((item) => item.status === 'parsing' || item.status === 'draft')
   // 上传进行中的乐观行同样维持心跳轮询（回执后列表校准，§11）
   const hasQueueWorking = queueRows.some((row) => row.status === 'queued' || row.status === 'uploading')
   useEffect(() => {
@@ -223,8 +243,17 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
     [nowTick]
   )
 
-  const selected = useMemo(() => items.find((item) => item.id === selectedId) ?? null, [items, selectedId])
-  const hasTimedOutParsing = useMemo(() => items.some((item) => isParsingTimedOut(item, nowTick)), [items, nowTick])
+  const selected = useMemo(() => liveItems.find((item) => item.id === selectedId) ?? null, [liveItems, selectedId])
+  const hasTimedOutParsing = useMemo(() => liveItems.some((item) => isParsingTimedOut(item, nowTick)), [liveItems, nowTick])
+
+  // 行级回调必须引用稳定：CandidateItem memo 以 onSelect/onJumpConsumed 做浅比较，
+  // 内联箭头会让每次 workbench 重渲染（心跳 tick/notice/扫描线开关）击穿整列表 memo（§11）
+  const handleSelect = useCallback((id: string) => {
+    setSelectedId(id)
+    // <720px：点行开 Sheet 抽屉承载详情与处置条（§4）；经 ref 读宽度避免回调身份随宽变化
+    if (widthModeRef.current !== 'wide') setSheetOpen(true)
+  }, [])
+  const consumeJumpHighlight = useCallback(() => setJumpCandidateId(null), [])
 
   // ===== 视图态变更 =====
 
@@ -272,7 +301,7 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
         if (actedSelected && key !== 'retry_candidate') {
           // 仅当被处置者当前被选中时推进到下一条待审（沿列表顺序，respectSorting §3.6）
           setItems((list) => {
-            const nextId = nextPendingId(list, candidate.id)
+            const nextId = nextPendingId(list.filter((item) => !item.leaving), candidate.id)
             if (nextId) setSelectedId(nextId)
             return list
           })
@@ -452,7 +481,8 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
   const loading = firstLoading || (!data && !loadError)
   const isError = Boolean(loadError) && !data && !firstLoading
   const stats = data?.stats ?? { total: 0, pendingReview: 0, accepted: 0, hold: 0, rejected: 0, failed: 0, parsing: 0 }
-  const total = data?.page?.total ?? items.length
+  // 服务端总数优先；兜底用存活行数（淡出残影不计入「已显示/共」）
+  const total = data?.page?.total ?? liveItems.length
   const hasFilterActive = view.status !== 'all' || view.search !== ''
 
   const detail = (
@@ -478,6 +508,7 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
         jobs={data?.jobs ?? []}
         currentJobId={view.jobId}
         busy={busyKey !== null}
+        refreshing={refreshing && !firstLoading}
         jobPulseSeq={jobPulseSeq}
         xsMode={widthMode === 'xs'}
         onSelectJob={selectJob}
@@ -516,12 +547,8 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
               hasJobs={(data?.jobs.length ?? 0) > 0}
               hasFilterActive={hasFilterActive}
               jumpCandidateId={jumpCandidateId}
-              onJumpConsumed={() => setJumpCandidateId(null)}
-              onSelect={(id) => {
-                setSelectedId(id)
-                // <720px：点行开 Sheet 抽屉承载详情与处置条（§4）
-                if (widthMode !== 'wide') setSheetOpen(true)
-              }}
+              onJumpConsumed={consumeJumpHighlight}
+              onSelect={handleSelect}
               onSearch={(value) => changeView({ search: value })}
               onStatusChange={(value) => changeView({ status: value })}
               onSortChange={(value) => {

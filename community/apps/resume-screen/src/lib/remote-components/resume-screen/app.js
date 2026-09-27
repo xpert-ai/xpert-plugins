@@ -98,6 +98,7 @@ var XpertResumeScreen = (() => {
   var PARSE_POLL_MS = 3e4;
   var PARSE_TIMEOUT_MS = 10 * 60 * 1e3;
   var UPLOAD_STILL_WORKING_MS = 6e4;
+  var LEAVE_FADE_MS = 180;
   var UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
   var UPLOAD_OVERSIZE_HINT = "\u6587\u4EF6\u8D85\u8FC7 10MB\uFF0C\u8BF7\u7CBE\u7B80\u6216\u62C6\u5206\u540E\u91CD\u65B0\u4E0A\u4F20";
   function isObject(value) {
@@ -203,6 +204,52 @@ var XpertResumeScreen = (() => {
     if (/格式|不支持/.test(text)) return "\u4EC5\u652F\u6301 .docx / .pdf\uFF08\u226410MB\uFF09\uFF0C\u8BF7\u8F6C\u6362\u683C\u5F0F\u540E\u91CD\u65B0\u4E0A\u4F20";
     if (/超过|过大|10MB|size/i.test(text)) return UPLOAD_OVERSIZE_HINT;
     return text;
+  }
+  function candidateSignature(candidate) {
+    return JSON.stringify([
+      candidate.status,
+      candidate.name ?? "",
+      candidate.yearsOfExperience ?? "",
+      candidate.education ?? "",
+      candidate.currentCompany ?? "",
+      candidate.skills ?? [],
+      candidate.summary ?? "",
+      candidate.matchScore ?? null,
+      candidate.matchReason ?? "",
+      candidate.hitPoints ?? [],
+      candidate.riskPoints ?? [],
+      candidate.humanEditedFields ?? [],
+      candidate.attemptCount,
+      candidate.failureReason ?? "",
+      candidate.sourceFileName ?? "",
+      candidate.revision,
+      candidate.createdAt,
+      candidate.updatedAt
+    ]);
+  }
+  function reconcileCandidateItems(previous, next) {
+    if (previous.length === 0) return next;
+    const previousById = new Map(previous.map((item) => [item.id, item]));
+    return next.map((item) => {
+      const existing = previousById.get(item.id);
+      return existing && !existing.leaving && candidateSignature(existing) === candidateSignature(item) ? existing : item;
+    });
+  }
+  function mergeRefreshedList(previous, next) {
+    const nextIds = new Set(next.map((item) => item.id));
+    const merged = reconcileCandidateItems(previous, next);
+    const carried = previous.filter((item) => item.leaving && !nextIds.has(item.id));
+    const removed = previous.filter((item) => !item.leaving && !nextIds.has(item.id));
+    if (removed.length === 0) return carried.length > 0 ? [...merged, ...carried] : merged;
+    for (const item of removed) {
+      const index2 = previous.indexOf(item);
+      const before = previous.slice(0, index2).reverse().find((row) => !row.leaving && nextIds.has(row.id));
+      const after = before ? void 0 : previous.slice(index2 + 1).find((row) => !row.leaving && nextIds.has(row.id));
+      const anchorIndex = before ? merged.findIndex((row) => row.id === before.id) : after ? merged.findIndex((row) => row.id === after.id) : -1;
+      const position = before && anchorIndex >= 0 ? anchorIndex + 1 : after && anchorIndex >= 0 ? anchorIndex : merged.length;
+      merged.splice(position, 0, { ...item, leaving: true });
+    }
+    return carried.length > 0 ? [...merged, ...carried] : merged;
   }
   function summarizeQueue(rows) {
     const count3 = (status) => rows.filter((row) => row.status === status).length;
@@ -416,8 +463,12 @@ var XpertResumeScreen = (() => {
     body { margin: 0; background: var(--rs-panel); color: var(--rs-text); }
     body, button, input, select, textarea { font-family: Inter, "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing: 0; }
     [data-slot="button"], [data-slot="input"], [data-slot="select-trigger"], [data-slot="textarea"] { font-size: var(--rs-font-control); }
-    /* \u7126\u70B9\u73AF\u4FDD\u7559\uFF08\u84DD\u56FE \xA76.8\uFF0C\u5BF9\u9F50 crm \u641C\u7D22\u6846 focus \u5708\uFF09 */
-    [data-slot="input"]:focus-visible, [data-slot="textarea"]:focus-visible, [data-slot="select-trigger"]:focus-visible, .rs-pill:focus-visible, .rs-item:focus-visible, [data-slot="button"]:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12); }
+    /* \u7126\u70B9\u73AF\u4FDD\u7559\uFF08\u84DD\u56FE \xA76.8\uFF0C\u5BF9\u9F50 crm \u641C\u7D22\u6846 focus \u5708\uFF09\uFF1B\u300C\u7422\u300D\u8865\u9F50\u81EA\u7ED8\u53EF\u4EA4\u4E92\u4EF6\uFF1A\u628A\u624B/\u5C55\u5F00\u94AE\u4E0E\u8F93\u5165\u65CF\u540C\u73AF */
+    [data-slot="input"]:focus-visible, [data-slot="textarea"]:focus-visible, [data-slot="select-trigger"]:focus-visible, .rs-pill:focus-visible, .rs-item:focus-visible, [data-slot="button"]:focus-visible, .rs-intake-handle:focus-visible, .rs-expand:focus-visible, .rs-notice button:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12); }
+    /* \u5217\u8868\u5BB9\u5668\u662F\u952E\u76D8\u5BFC\u822A\u5BBF\u4E3B\uFF08\u2191/\u2193/Enter\uFF09\uFF0C\u7126\u70B9\u53EF\u89C1\u6027\u7528\u5185\u63CF\u8FB9\u514D\u88AB shell overflow \u88C1\u5207 */
+    .rs-list:focus-visible { outline: 2px solid color-mix(in srgb, var(--rs-primary) 45%, transparent); outline-offset: -2px; }
+    /* \u6309\u94AE\u6309\u538B\u89E6\u611F\uFF1A1px \u4E0B\u6C89\u6A21\u62DF\u7269\u7406\u6309\u952E\uFF08\u4EC5 transform\uFF0Creduced-motion \u4E0B\u77AC\u65F6\u751F\u6548\u4E0D\u4F24\u6027\u80FD\uFF09 */
+    [data-slot="button"]:active:not(:disabled) { transform: translateY(1px); }
     i[class^="ri-"] { font-style: normal; line-height: 1; display: inline-flex; align-items: center; justify-content: center; }
 
     /* ===== \u9AA8\u67B6\u5E03\u5C40\uFF08\u84DD\u56FE \xA73.1\uFF1A48/40/1fr/auto \u56DB\u884C\uFF1B\u4E2D\u7F1D 1px\uFF09 ===== */
@@ -447,7 +498,7 @@ var XpertResumeScreen = (() => {
     .rs-header-actions [data-slot="button"] i { margin-right: 6px; font-size: 14px; }
     .rs-header-actions [data-slot="button"][data-size="icon"] i { margin-right: 0; }
     .rs-jd-popover [data-slot="popover-content"] { max-width: 420px; }
-    .rs-jd-text { max-height: 240px; overflow: auto; font-size: 12px; line-height: 1.6; color: var(--rs-muted); white-space: pre-wrap; overflow-wrap: anywhere; }
+    .rs-jd-text { max-height: 240px; overflow: auto; font-size: 12px; line-height: 1.6; color: var(--rs-muted); white-space: pre-wrap; overflow-wrap: anywhere; scrollbar-width: thin; scrollbar-color: var(--rs-border) transparent; }
 
     /* ===== \u7EDF\u8BA1\u6761 pill\uFF08\u84DD\u56FE \xA73.3\uFF0Csm .sm-stat-pill \u89C4\u683C\uFF09 ===== */
     .rs-pill { display: inline-flex; align-items: center; gap: 6px; height: 24px; border: 1px solid var(--rs-border); border-radius: var(--rs-pill-round); background: var(--rs-panel); color: var(--rs-muted); padding: 0 9px; font-size: 12px; font-weight: 600; white-space: nowrap; cursor: pointer; transition: color var(--rs-motion-base) var(--rs-ease-entry), background-color var(--rs-motion-base) var(--rs-ease-entry), border-color var(--rs-motion-base) var(--rs-ease-entry); flex: 0 0 auto; }
@@ -491,9 +542,19 @@ var XpertResumeScreen = (() => {
     .rs-sk-pill-row { display: flex; gap: 6px; }
     .rs-item { display: grid; grid-template-columns: 28px minmax(0, 1fr) 46px; align-items: center; gap: 8px; min-height: 52px; padding: 0 10px; border-bottom: 1px solid var(--rs-border-soft); cursor: pointer; background: var(--rs-panel); transition: background-color var(--rs-motion-fast) var(--rs-ease-entry); }
     .rs-item:hover { background: var(--rs-hover); }
+    /* \u70B9\u6309\u77AC\u95F4\u5373\u5448\u73B0\u9009\u4E2D\u5E95\u8272\u9884\u89C8\uFF08\u5148\u4E8E\u6570\u636E\u56DE\u6D41\uFF09\uFF0C\u884C\u70B9\u51FB\u300C\u8DDF\u624B\u300D\uFF1BA8 \u9000\u573A\u884C\u4E0D\u53EF\u4EA4\u4E92 */
+    .rs-item:active { background: var(--rs-active); }
     .rs-item[aria-current="true"] { background: var(--rs-active); }
+    /* \u5217\u8868\u6EDA\u52A8\u6761\u8D28\u611F\uFF08\xA79 \u8272\u677F\u5185\u53D6\u503C\uFF09\uFF1A\u7EC6\u8F68\u900F\u660E\u5E95\uFF0Cthumb \u7528\u8FB9\u6846\u7070\uFF0Chover \u5347\u4E00\u7EA7\u2014\u2014\u4E0E crm \u6D45\u7070\u8BED\u8A00\u4E00\u81F4 */
+    .rs-list { scrollbar-width: thin; scrollbar-color: var(--rs-border) transparent; }
+    .rs-list::-webkit-scrollbar { width: 8px; }
+    .rs-list::-webkit-scrollbar-track { background: transparent; }
+    .rs-list::-webkit-scrollbar-thumb { background: var(--rs-border); border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
+    .rs-list::-webkit-scrollbar-thumb:hover { background-color: var(--rs-soft); background-clip: content-box; }
     .rs-item-main { min-width: 0; display: grid; gap: 2px; }
     .rs-item-title { min-width: 0; display: flex; align-items: center; gap: 6px; }
+    /* \u300C\u7422\u300D\u957F\u6587\u672C\u4E0D\u6324\u538B\uFF1A\u6536\u7F29\u538B\u529B\u5168\u90E8\u8BA9\u7ED9\u59D3\u540D\uFF08\u81EA\u5E26 ellipsis\uFF09\uFF0C\u6765\u6E90\u89D2\u6807\u4E0E\u72B6\u6001\u5FBD\u6807\u6C38\u4E0D\u538B\u7F29\u53D8\u5F62 */
+    .rs-item-title .rs-badge, .rs-item-title i { flex: 0 0 auto; }
     .rs-item-name { font-size: 13px; font-weight: 650; color: var(--rs-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .rs-item-source { color: var(--rs-soft); font-size: 10px; flex: 0 0 auto; }
     .rs-item-meta { font-size: 12px; color: var(--rs-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -506,11 +567,14 @@ var XpertResumeScreen = (() => {
     .rs-score-bar [data-slot="progress-indicator"] { background: var(--rs-blue); border-radius: 2px; }
     .rs-score-bar.tier-amber [data-slot="progress-indicator"] { background: var(--rs-amber); }
     .rs-score-bar.tier-red [data-slot="progress-indicator"] { background: var(--rs-red); }
+    /* Progress \u8FC7\u6E21\u5E76\u6863\uFF08\xA77 \u7EDF\u4E00\u65F6\u957F/\u7F13\u52A8\uFF09\uFF1A\u8986\u76D6 shadcn \u9ED8\u8BA4 transition-all 150ms\u2014\u2014
+       AI \u56DE\u586B\u8BC4\u5206\u65F6\u7EC6\u6761 240ms ease-out \u751F\u957F\u3001\u5206\u6863\u6362\u8272 160ms\uFF0C\u53EA\u52A8 transform/background */
+    .rs-score-bar [data-slot="progress-indicator"], .rs-score-detail [data-slot="progress-indicator"] { transition: transform var(--rs-motion-slow) var(--rs-ease-entry), background-color var(--rs-motion-base) var(--rs-ease-entry); }
     .rs-list-foot { min-height: 40px; border-top: 1px solid var(--rs-border); display: flex; align-items: center; gap: 10px; padding: 0 10px; color: var(--rs-soft); font-size: 12px; }
     .rs-list-foot [data-slot="button"] { height: 28px; }
 
     /* \u7A7A\u6001\uFF08\u84DD\u56FE \xA73.4\uFF1Acrm \u5C45\u4E2D\u7AD6\u6392 + sm \u8F6F\u5E95\u5757\uFF09 */
-    .rs-empty { min-height: 280px; margin: 10px; border-radius: 7px; background: #f8fafc; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; color: var(--rs-muted); padding: 22px 14px; text-align: center; font-size: 13px; }
+    .rs-empty { min-height: 280px; margin: 10px; border-radius: 7px; background: #f8fafc; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; color: var(--rs-muted); padding: 22px 14px; text-align: center; font-size: 13px; /* \u7A7A\u6001\u7F13\u5165\uFF1A\u7B5B\u9009\u5207\u6362\u540E\u4E0D\u300C\u556A\u300D\u5730\u7838\u51FA\uFF0C\u4E0E A6 \u8BE6\u60C5\u5165\u573A\u540C\u6863 */ animation: rs-detail-in var(--rs-motion-slow) var(--rs-ease-entry); }
     .rs-empty i.rs-empty-icon { width: 42px; height: 42px; border-radius: var(--rs-radius); background: var(--rs-border); color: #4b5563; font-size: 22px; }
     .rs-empty strong { font-weight: 700; color: var(--rs-text); }
     .rs-empty small { color: var(--rs-soft); font-weight: 600; }
@@ -619,7 +683,8 @@ var XpertResumeScreen = (() => {
     .rs-queue-guidance { font-size: 12px; color: var(--rs-muted); line-height: 1.6; }
 
     /* ===== notice \u6761\uFF08\u84DD\u56FE \xA76.1 \u901A\u7528\u9519\u8BEF\u51FA\u53E3\uFF1Bcrm .crm20-notice \u540C\u6784\u7EA2/\u7425\u73C0\u53D8\u4F53\uFF09 ===== */
-    .rs-notice { position: absolute; left: 12px; right: 12px; top: 92px; z-index: 20; display: flex; align-items: flex-start; gap: 8px; border: 1px solid var(--rs-red); background: var(--rs-red-soft); color: var(--rs-red); padding: 8px 10px; border-radius: var(--rs-radius); font-size: 13px; box-shadow: 0 6px 20px rgba(31, 41, 55, 0.08); }
+    .rs-notice { position: absolute; left: 12px; right: 12px; top: 92px; z-index: 20; display: flex; align-items: flex-start; gap: 8px; border: 1px solid var(--rs-red); background: var(--rs-red-soft); color: var(--rs-red); padding: 8px 10px; border-radius: var(--rs-radius); font-size: 13px; box-shadow: 0 6px 20px rgba(31, 41, 55, 0.08); animation: rs-notice-in var(--rs-motion-slow) var(--rs-ease-entry); }
+    @keyframes rs-notice-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
     .rs-notice.tone-amber { border-color: #f2c94c; background: #fffbeb; color: #7a4d00; }
     .rs-notice button { margin-left: auto; border: 0; background: transparent; color: inherit; cursor: pointer; font-size: 14px; padding: 0 2px; }
     .rs-notice-inline { position: static; margin: 8px 12px 0; }
@@ -634,8 +699,8 @@ var XpertResumeScreen = (() => {
     /* A7 \u65B0\u7ED3\u679C\u884C\u56DE\u586B\uFF08\u9010\u884C stagger \u4EC5\u524D 10 \u884C\uFF0C\u884C\u5185\u8054 delay \u53D8\u91CF\uFF09 */
     .rs-enter { animation: rs-row-in var(--rs-motion-slow) var(--rs-ease-entry) both; animation-delay: var(--rs-stagger, 0ms); }
     @keyframes rs-row-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-    /* A8 \u884C\u79FB\u51FA\u6DE1\u51FA */
-    .rs-leaving { animation: rs-row-out var(--rs-motion-base) var(--rs-ease-exit) both; }
+    /* A8 \u884C\u79FB\u51FA\u6DE1\u51FA\uFF1A\u9000\u573A\u4E2D\u7684\u884C\u4E0D\u518D\u63A5\u53D7\u6307\u9488\u4EA4\u4E92\uFF08\u5217\u8868\u884C\u53E6\u6709 aria-hidden \u9000\u51FA\u8BFB\u5C4F\uFF09 */
+    .rs-leaving { animation: rs-row-out var(--rs-motion-base) var(--rs-ease-exit) both; pointer-events: none; }
     @keyframes rs-row-out { from { opacity: 1; } to { opacity: 0; } }
     /* A9 \u8FDB\u884C\u4E2D loader\uFF08\u552F\u4E00\u65E0\u9650\u52A8\u753B\u8C41\u514D\u4E4B\u4E00\uFF09 */
     .rs-spin { animation: rs-rotate 1s linear infinite; display: inline-flex; }
@@ -17502,16 +17567,20 @@ Defaulting to \`null\`.`;
       const node = listRef.current.querySelector(`[data-candidate-id="${CSS.escape(selectedId)}"]`);
       node?.scrollIntoView({ block: "nearest" });
     }, [selectedId]);
+    function liveRows() {
+      return items.some((item) => item.leaving) ? items.filter((item) => !item.leaving) : items;
+    }
     function moveSelection(delta) {
-      if (!items.length) return;
-      const index2 = items.findIndex((item) => item.id === selectedId);
-      const nextIndex = Math.min(items.length - 1, Math.max(0, (index2 < 0 ? 0 : index2) + delta));
-      props.onSelect(items[nextIndex].id);
+      const rows = liveRows();
+      if (!rows.length) return;
+      const index2 = rows.findIndex((item) => item.id === selectedId);
+      const nextIndex = Math.min(rows.length - 1, Math.max(0, (index2 < 0 ? 0 : index2) + delta));
+      props.onSelect(rows[nextIndex].id);
     }
     const sortValue = `${sortBy}:${sortDir}`;
     const sortLabel = SORT_OPTIONS.find((option) => sortValue === option.value)?.label ?? "\u5339\u914D\u5206\u964D\u5E8F";
     const sortActive = sortValue !== "matchScore:desc";
-    const shown = items.length;
+    const shown = liveRows().length;
     const overCap = shown >= DOM_ROW_CAP;
     return /* @__PURE__ */ react_shim_default.createElement(react_shim_default.Fragment, null, /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-list-tools" }, /* @__PURE__ */ react_shim_default.createElement("label", { className: "rs-search" }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-search-line", "aria-hidden": "true" }), /* @__PURE__ */ react_shim_default.createElement(
       "input",
@@ -17556,17 +17625,20 @@ Defaulting to \`null\`.`;
           } else if (event.key === "ArrowUp") {
             event.preventDefault();
             moveSelection(-1);
+          } else if (event.key === "Enter" && selectedId) {
+            props.onSelect(selectedId);
           }
         }
       },
       loading && shown === 0 ? /* @__PURE__ */ react_shim_default.createElement(ListSkeleton, null) : null,
-      !loading && shown === 0 ? /* @__PURE__ */ react_shim_default.createElement(EmptyState, { ...props }) : null,
+      !loading && shown === 0 && !items.some((item) => item.leaving) ? /* @__PURE__ */ react_shim_default.createElement(EmptyState, { ...props }) : null,
       items.map((item, index2) => /* @__PURE__ */ react_shim_default.createElement(
         CandidateItem,
         {
           key: item.id,
           candidate: item,
           selected: item.id === selectedId,
+          leaving: item.leaving === true,
           timedOut: props.isTimedOut(item),
           enterDelay: enteringIds.has(item.id) ? Math.min(index2, 9) * 40 : null,
           jump: props.jumpCandidateId === item.id,
@@ -17588,7 +17660,7 @@ Defaulting to \`null\`.`;
     }
     return /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-empty" }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-upload-cloud-line rs-empty-icon", "aria-hidden": "true" }), /* @__PURE__ */ react_shim_default.createElement("strong", null, "\u6682\u65E0\u5019\u9009\u4EBA\uFF0C\u4E0A\u4F20\u7B80\u5386\u6587\u4EF6\u5F00\u59CB\u521D\u7B5B"), /* @__PURE__ */ react_shim_default.createElement("small", null, "\u652F\u6301 .docx / .pdf\uFF0C\u53EF\u591A\u9009"), /* @__PURE__ */ react_shim_default.createElement(C, { onClick: onUploadRequest }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-upload-cloud-line", "aria-hidden": "true" }), "\u4E0A\u4F20\u7B80\u5386\u6587\u4EF6"));
   }
-  var CandidateItem = memo2(function CandidateItem2({ candidate, selected, timedOut, enterDelay, jump, onJumpConsumed, onSelect }) {
+  var CandidateItem = memo2(function CandidateItem2({ candidate, selected, leaving, timedOut, enterDelay, jump, onJumpConsumed, onSelect }) {
     const name = candidate.name || candidate.sourceFileName || "\u672A\u547D\u540D\u5019\u9009\u4EBA";
     const tier = scoreTier(candidate.matchScore);
     const subtitle = candidate.status === "failed" ? candidate.failureReason || "\u89E3\u6790\u5931\u8D25" : candidate.status === "parsing" || candidate.status === "draft" ? timedOut ? "\u89E3\u6790\u5DF2\u8D85\u8FC7 10 \u5206\u949F\uFF0C\u7CFB\u7EDF\u4F1A\u81EA\u52A8\u91CD\u6295" : "AI \u6B63\u5728\u89E3\u6790\u8BE5\u7B80\u5386\u2026" : [candidate.yearsOfExperience ?? "", candidate.education ?? "", candidate.currentCompany ?? ""].filter(Boolean).join(" \xB7 ") || formatMonthDay(candidate.createdAt);
@@ -17601,16 +17673,19 @@ Defaulting to \`null\`.`;
       "div",
       {
         "data-candidate-id": candidate.id,
-        className: `rs-item${enterDelay !== null ? " rs-enter" : ""}${jump ? " rs-jump" : ""}`,
+        className: `rs-item${enterDelay !== null ? " rs-enter" : ""}${jump ? " rs-jump" : ""}${leaving ? " rs-leaving" : ""}`,
         style: enterDelay !== null ? { "--rs-stagger": `${enterDelay}ms` } : void 0,
         role: "option",
         "aria-selected": selected,
         "aria-current": selected ? "true" : void 0,
+        "aria-hidden": leaving ? true : void 0,
         tabIndex: -1,
-        onClick: () => onSelect(candidate.id)
+        onClick: () => {
+          if (!leaving) onSelect(candidate.id);
+        }
       },
       /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-mark", style: { background: statusAccent(candidate.status, timedOut) }, "aria-hidden": "true" }, name.slice(0, 1)),
-      /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-item-main" }, /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-item-title" }, /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-item-name" }, name), candidate.sourceFileName ? /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-file-line rs-item-source", title: `\u6765\u6E90\uFF1A${candidate.sourceFileName}`, "aria-label": `\u6765\u6E90\u6587\u4EF6 ${candidate.sourceFileName}` }) : null, /* @__PURE__ */ react_shim_default.createElement(CandidateBadge, { status: candidate.status, timedOut })), /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-item-meta" }, subtitle)),
+      /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-item-main" }, /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-item-title" }, /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-item-name", title: name }, name), candidate.sourceFileName ? /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-file-line rs-item-source", title: `\u6765\u6E90\uFF1A${candidate.sourceFileName}`, "aria-label": `\u6765\u6E90\u6587\u4EF6 ${candidate.sourceFileName}` }) : null, /* @__PURE__ */ react_shim_default.createElement(CandidateBadge, { status: candidate.status, timedOut })), /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-item-meta", title: subtitle }, subtitle)),
       /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-item-score" }, /* @__PURE__ */ react_shim_default.createElement(vt2, { variant: "secondary", className: "rs-score-badge" }, candidate.matchScore ?? "\u2014"), /* @__PURE__ */ react_shim_default.createElement(
         Ma,
         {
@@ -17757,7 +17832,7 @@ Defaulting to \`null\`.`;
         setSaving(false);
       }
     }
-    return /* @__PURE__ */ react_shim_default.createElement(react_shim_default.Fragment, null, /* @__PURE__ */ react_shim_default.createElement("header", { className: "rs-detail-head" }, /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-detail-avatar", style: { background: statusAccent(candidate.status, timedOut) }, "aria-hidden": "true" }, (candidate.name || candidate.sourceFileName || "?").slice(0, 1)), /* @__PURE__ */ react_shim_default.createElement("div", { style: { minWidth: 0 } }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-detail-title" }, /* @__PURE__ */ react_shim_default.createElement("strong", null, candidate.name || candidate.sourceFileName || "\u672A\u547D\u540D\u5019\u9009\u4EBA"), /* @__PURE__ */ react_shim_default.createElement(CandidateBadge, { status: candidate.status, timedOut }), editedFields.length > 0 ? /* @__PURE__ */ react_shim_default.createElement(Be2, null, /* @__PURE__ */ react_shim_default.createElement($e2, { asChild: true }, /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-badge rs-badge-edit" }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-edit-2-line", "aria-hidden": "true" }), "\u4EBA\u5DE5\u4FEE\u6B63 ", editedFields.length, " \u9879")), /* @__PURE__ */ react_shim_default.createElement(Ee2, null, editedFields.map((field) => FIELD_LABELS[field] ?? field).join("\u3001"), " \u5DF2\u88AB\u4EBA\u5DE5\u4FEE\u6B63\uFF0CAI \u91CD\u65B0\u89E3\u6790\u4E0D\u4F1A\u8986\u76D6")) : null), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-detail-meta" }, /* @__PURE__ */ react_shim_default.createElement("span", null, candidate.yearsOfExperience ? `${candidate.yearsOfExperience} \xB7 ` : "", candidate.education || "", candidate.education ? " \xB7 " : "", candidate.currentCompany || ""), /* @__PURE__ */ react_shim_default.createElement("span", null, "\u521B\u5EFA\u4E8E ", formatMonthDay(candidate.createdAt) || "\u2014"), /* @__PURE__ */ react_shim_default.createElement("span", null, "\u7B2C ", candidate.attemptCount || 1, " \u6B21\u89E3\u6790"), candidate.sourceFileName ? /* @__PURE__ */ react_shim_default.createElement(Be2, null, /* @__PURE__ */ react_shim_default.createElement($e2, { asChild: true }, /* @__PURE__ */ react_shim_default.createElement("span", null, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-file-line", "aria-hidden": "true" }), "\u6765\u6E90 ", candidate.sourceFileName)), /* @__PURE__ */ react_shim_default.createElement(Ee2, null, candidate.sourceFileName)) : null))), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-detail-body" }, /* @__PURE__ */ react_shim_default.createElement(Ga, { className: "rs-detail-scroll" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-detail-pad" }, stashed && !editing ? /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-notice rs-notice-inline tone-amber", role: "status", style: { position: "static", marginTop: 0 } }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-edit-2-line", "aria-hidden": "true" }), /* @__PURE__ */ react_shim_default.createElement("div", { style: { minWidth: 0 } }, "\u4F60\u7684\u4FEE\u6539\u5DF2\u6682\u5B58\uFF0C\u53EF\u70B9\u51FB\u300C\u7F16\u8F91\u300D\u6062\u590D")) : null, isFailed ? (
+    return /* @__PURE__ */ react_shim_default.createElement(react_shim_default.Fragment, null, /* @__PURE__ */ react_shim_default.createElement("header", { className: "rs-detail-head" }, /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-detail-avatar", style: { background: statusAccent(candidate.status, timedOut) }, "aria-hidden": "true" }, (candidate.name || candidate.sourceFileName || "?").slice(0, 1)), /* @__PURE__ */ react_shim_default.createElement("div", { style: { minWidth: 0 } }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-detail-title" }, /* @__PURE__ */ react_shim_default.createElement("strong", { title: candidate.name || candidate.sourceFileName || void 0 }, candidate.name || candidate.sourceFileName || "\u672A\u547D\u540D\u5019\u9009\u4EBA"), /* @__PURE__ */ react_shim_default.createElement(CandidateBadge, { status: candidate.status, timedOut }), editedFields.length > 0 ? /* @__PURE__ */ react_shim_default.createElement(Be2, null, /* @__PURE__ */ react_shim_default.createElement($e2, { asChild: true }, /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-badge rs-badge-edit" }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-edit-2-line", "aria-hidden": "true" }), "\u4EBA\u5DE5\u4FEE\u6B63 ", editedFields.length, " \u9879")), /* @__PURE__ */ react_shim_default.createElement(Ee2, null, editedFields.map((field) => FIELD_LABELS[field] ?? field).join("\u3001"), " \u5DF2\u88AB\u4EBA\u5DE5\u4FEE\u6B63\uFF0CAI \u91CD\u65B0\u89E3\u6790\u4E0D\u4F1A\u8986\u76D6")) : null), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-detail-meta" }, /* @__PURE__ */ react_shim_default.createElement("span", null, [candidate.yearsOfExperience, candidate.education, candidate.currentCompany].filter(Boolean).join(" \xB7 ") || "\u2014"), /* @__PURE__ */ react_shim_default.createElement("span", null, "\u521B\u5EFA\u4E8E ", formatMonthDay(candidate.createdAt) || "\u2014"), /* @__PURE__ */ react_shim_default.createElement("span", null, "\u7B2C ", candidate.attemptCount || 1, " \u6B21\u89E3\u6790"), candidate.sourceFileName ? /* @__PURE__ */ react_shim_default.createElement(Be2, null, /* @__PURE__ */ react_shim_default.createElement($e2, { asChild: true }, /* @__PURE__ */ react_shim_default.createElement("span", null, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-file-line", "aria-hidden": "true" }), "\u6765\u6E90 ", candidate.sourceFileName)), /* @__PURE__ */ react_shim_default.createElement(Ee2, null, candidate.sourceFileName)) : null))), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-detail-body" }, /* @__PURE__ */ react_shim_default.createElement(Ga, { className: "rs-detail-scroll" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-detail-pad" }, stashed && !editing ? /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-notice rs-notice-inline tone-amber", role: "status", style: { position: "static", marginTop: 0 } }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-edit-2-line", "aria-hidden": "true" }), /* @__PURE__ */ react_shim_default.createElement("div", { style: { minWidth: 0 } }, "\u4F60\u7684\u4FEE\u6539\u5DF2\u6682\u5B58\uFF0C\u53EF\u70B9\u51FB\u300C\u7F16\u8F91\u300D\u6062\u590D")) : null, isFailed ? (
       // 失败覆盖态：告示卡（红变体 role=alert）+ 原因全文 + 重试；四区块隐藏（§3.5/§6.3）
       /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-notice rs-notice-inline", role: "alert", style: { position: "static" } }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-error-warning-line", "aria-hidden": "true" }), /* @__PURE__ */ react_shim_default.createElement("div", { style: { minWidth: 0 } }, /* @__PURE__ */ react_shim_default.createElement("div", null, "\u89E3\u6790\u5931\u8D25\uFF1A", candidate.failureReason || "\u672A\u77E5\u539F\u56E0"), (candidate.attemptCount ?? 0) > 2 ? /* @__PURE__ */ react_shim_default.createElement("div", { style: { marginTop: 4, fontSize: 12 } }, "\u591A\u6B21\u5931\u8D25\uFF0C\u5EFA\u8BAE\u68C0\u67E5\u6A21\u578B\u51ED\u8BC1\uFF1B\u82E5\u539F\u6587\u62BD\u53D6\u5B57\u6BB5\u6709\u8BEF\uFF0C\u53EF\u7528\u300C\u7F16\u8F91\u300D\u4EBA\u5DE5\u4FEE\u6B63") : null, /* @__PURE__ */ react_shim_default.createElement(C, { variant: "outline", size: "sm", style: { marginTop: 8 }, disabled: busyKey !== null, onClick: () => void onDispose("retry_candidate") }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-restart-line", "aria-hidden": "true" }), "\u91CD\u8BD5")))
     ) : isParsing ? /* @__PURE__ */ react_shim_default.createElement(ParsingBody, { candidate, timedOut, showTimeoutCard, now, busyKey, onDispose, onWaitMore }) : editing ? /* @__PURE__ */ react_shim_default.createElement(
@@ -17859,7 +17934,7 @@ Defaulting to \`null\`.`;
   }
   function EditForm({ draft, skillDraft, onSkillDraft, onField, onAddSkill, onRemoveSkill }) {
     const scoreInvalid = draft.matchScore !== void 0 && (Number.isNaN(draft.matchScore) || draft.matchScore < 0 || draft.matchScore > 100);
-    return /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-form" }, /* @__PURE__ */ react_shim_default.createElement("label", { className: "rs-form-field" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "\u59D3\u540D", /* @__PURE__ */ react_shim_default.createElement("small", null, "\u6587\u672C")), /* @__PURE__ */ react_shim_default.createElement(Z, { value: draft.name ?? "", onChange: (event) => onField("name", event.currentTarget.value) })), /* @__PURE__ */ react_shim_default.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 } }, /* @__PURE__ */ react_shim_default.createElement("label", { className: "rs-form-field" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "\u5E74\u9650", /* @__PURE__ */ react_shim_default.createElement("small", null, "\u5982 5\u5E74")), /* @__PURE__ */ react_shim_default.createElement(Z, { value: draft.yearsOfExperience ?? "", onChange: (event) => onField("yearsOfExperience", event.currentTarget.value) })), /* @__PURE__ */ react_shim_default.createElement("label", { className: "rs-form-field" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "\u5B66\u5386"), /* @__PURE__ */ react_shim_default.createElement(Z, { value: draft.education ?? "", onChange: (event) => onField("education", event.currentTarget.value) }))), /* @__PURE__ */ react_shim_default.createElement("label", { className: "rs-form-field" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "\u5F53\u524D\u516C\u53F8"), /* @__PURE__ */ react_shim_default.createElement(Z, { value: draft.currentCompany ?? "", onChange: (event) => onField("currentCompany", event.currentTarget.value) })), /* @__PURE__ */ react_shim_default.createElement("label", { className: "rs-form-field" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "\u6280\u80FD", /* @__PURE__ */ react_shim_default.createElement("small", null, "\u8F93\u5165\u540E Enter \u6216\u70B9\u300C\u6DFB\u52A0\u300D")), /* @__PURE__ */ react_shim_default.createElement("div", { style: { display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 6 } }, /* @__PURE__ */ react_shim_default.createElement(
+    return /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-form" }, /* @__PURE__ */ react_shim_default.createElement("label", { className: "rs-form-field" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "\u59D3\u540D", /* @__PURE__ */ react_shim_default.createElement("small", null, "\u6587\u672C")), /* @__PURE__ */ react_shim_default.createElement(Z, { autoFocus: true, value: draft.name ?? "", onChange: (event) => onField("name", event.currentTarget.value) })), /* @__PURE__ */ react_shim_default.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 } }, /* @__PURE__ */ react_shim_default.createElement("label", { className: "rs-form-field" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "\u5E74\u9650", /* @__PURE__ */ react_shim_default.createElement("small", null, "\u5982 5\u5E74")), /* @__PURE__ */ react_shim_default.createElement(Z, { value: draft.yearsOfExperience ?? "", onChange: (event) => onField("yearsOfExperience", event.currentTarget.value) })), /* @__PURE__ */ react_shim_default.createElement("label", { className: "rs-form-field" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "\u5B66\u5386"), /* @__PURE__ */ react_shim_default.createElement(Z, { value: draft.education ?? "", onChange: (event) => onField("education", event.currentTarget.value) }))), /* @__PURE__ */ react_shim_default.createElement("label", { className: "rs-form-field" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "\u5F53\u524D\u516C\u53F8"), /* @__PURE__ */ react_shim_default.createElement(Z, { value: draft.currentCompany ?? "", onChange: (event) => onField("currentCompany", event.currentTarget.value) })), /* @__PURE__ */ react_shim_default.createElement("label", { className: "rs-form-field" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "\u6280\u80FD", /* @__PURE__ */ react_shim_default.createElement("small", null, "\u8F93\u5165\u540E Enter \u6216\u70B9\u300C\u6DFB\u52A0\u300D")), /* @__PURE__ */ react_shim_default.createElement("div", { style: { display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 6 } }, /* @__PURE__ */ react_shim_default.createElement(
       Z,
       {
         value: skillDraft,
@@ -17929,6 +18004,7 @@ Defaulting to \`null\`.`;
         row,
         elapsedLong: now - row.startedAt > UPLOAD_STILL_WORKING_MS,
         enter: index2 < 10,
+        enterDelay: index2 < 10 ? Math.min(index2, 9) * 40 : null,
         onJumpToCandidate
       }
     )))))))));
@@ -17937,20 +18013,34 @@ Defaulting to \`null\`.`;
     row,
     elapsedLong,
     enter,
+    enterDelay,
     onJumpToCandidate
   }) {
     const working = row.status === "queued" || row.status === "uploading";
-    return /* @__PURE__ */ react_shim_default.createElement("div", { className: `rs-queue-row${enter ? " rs-enter" : ""}${row.leaving ? " rs-leaving" : ""}`, role: "listitem" }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-file-line", "aria-hidden": "true" }), /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-queue-name", title: row.fileName }, row.fileName), /* @__PURE__ */ react_shim_default.createElement(QueueBadge, { status: row.status }), /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-queue-actions" }, row.status === "created" && row.candidateId ? /* @__PURE__ */ react_shim_default.createElement(C, { variant: "ghost", size: "sm", onClick: () => onJumpToCandidate(row.candidateId) }, "\u67E5\u770B") : null, working && elapsedLong ? /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-queue-hint" }, "\u4ECD\u5728\u5904\u7406\uFF0C\u53EF\u7A0D\u540E\u67E5\u770B") : null), row.status === "skipped" ? /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-queue-hint rs-queue-span" }, "\u8BE5\u7B80\u5386\u5185\u5BB9\u5DF2\u5B58\u5728") : null, row.status === "failed" && row.failureReason ? (
-      // 行尾展开可执行重新上传指引（role=alert，四类原因文案在入队时已映射，§6.6）
-      /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-queue-fail", role: "alert" }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-error-warning-line", "aria-hidden": "true" }), row.failureReason)
-    ) : null);
+    return /* @__PURE__ */ react_shim_default.createElement(
+      "div",
+      {
+        className: `rs-queue-row${enter ? " rs-enter" : ""}${row.leaving ? " rs-leaving" : ""}`,
+        style: enter && enterDelay !== null ? { "--rs-stagger": `${enterDelay}ms` } : void 0,
+        role: "listitem"
+      },
+      /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-file-line", "aria-hidden": "true" }),
+      /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-queue-name", title: row.fileName }, row.fileName),
+      /* @__PURE__ */ react_shim_default.createElement(QueueBadge, { status: row.status }),
+      /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-queue-actions" }, row.status === "created" && row.candidateId ? /* @__PURE__ */ react_shim_default.createElement(C, { variant: "ghost", size: "sm", onClick: () => onJumpToCandidate(row.candidateId) }, "\u67E5\u770B") : null, working && elapsedLong ? /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-queue-hint" }, "\u4ECD\u5728\u5904\u7406\uFF0C\u53EF\u7A0D\u540E\u67E5\u770B") : null),
+      row.status === "skipped" ? /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-queue-hint rs-queue-span" }, "\u8BE5\u7B80\u5386\u5185\u5BB9\u5DF2\u5B58\u5728") : null,
+      row.status === "failed" && row.failureReason ? (
+        // 行尾展开可执行重新上传指引（role=alert，四类原因文案在入队时已映射，§6.6）
+        /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-queue-fail", role: "alert" }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-error-warning-line", "aria-hidden": "true" }), row.failureReason)
+      ) : null
+    );
   });
 
   // src/lib/remote-components/resume-screen/src/components/job-header.tsx
   var { useEffect: useEffect4, useMemo: useMemo2, useRef: useRef4, useState: useState5 } = react_shim_default;
   var MIN_JD_LENGTH = 30;
   var MAX_TITLE_LENGTH = 200;
-  function JobHeader({ jobs, currentJobId, busy, jobPulseSeq, xsMode, onSelectJob, onCreateJob, onRefresh }) {
+  function JobHeader({ jobs, currentJobId, busy, refreshing, jobPulseSeq, xsMode, onSelectJob, onCreateJob, onRefresh }) {
     const [createOpen, setCreateOpen] = useState5(false);
     const currentJob = useMemo2(() => jobs.find((job) => job.id === currentJobId) ?? null, [jobs, currentJobId]);
     const jobSelectRef = useRef4(null);
@@ -17969,8 +18059,8 @@ Defaulting to \`null\`.`;
     }, [jobPulseSeq]);
     return /* @__PURE__ */ react_shim_default.createElement("header", { className: "rs-header" }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-briefcase-line rs-job-icon", "aria-hidden": "true" }), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-job-select", ref: jobSelectRef }, /* @__PURE__ */ react_shim_default.createElement(ja, { value: currentJobId ?? void 0, onValueChange: onSelectJob }, /* @__PURE__ */ react_shim_default.createElement(Ea, { "aria-label": "\u9009\u62E9\u5C97\u4F4D" }, /* @__PURE__ */ react_shim_default.createElement($a, { placeholder: "\u9009\u62E9\u5C97\u4F4D" })), /* @__PURE__ */ react_shim_default.createElement(Oa, null, jobs.map((job) => /* @__PURE__ */ react_shim_default.createElement(Ha, { key: job.id, value: job.id }, job.title))))), currentJob ? /* @__PURE__ */ react_shim_default.createElement(JdPopover, { job: currentJob }) : null, /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-header-spacer" }), xsMode ? (
       // 超窄容器：新建/刷新收纳进「更多」下拉（蓝图 §4 <560px 断点）
-      /* @__PURE__ */ react_shim_default.createElement(ia, null, /* @__PURE__ */ react_shim_default.createElement(sa, { asChild: true }, /* @__PURE__ */ react_shim_default.createElement(C, { variant: "ghost", size: "icon", title: "\u66F4\u591A\u64CD\u4F5C", "aria-label": "\u66F4\u591A\u64CD\u4F5C" }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-more-line", "aria-hidden": "true" }))), /* @__PURE__ */ react_shim_default.createElement(la, { align: "end" }, /* @__PURE__ */ react_shim_default.createElement(ca, { disabled: busy, onSelect: () => setCreateOpen(true) }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-add-line", "aria-hidden": "true" }), "\u65B0\u5EFA\u5C97\u4F4D"), /* @__PURE__ */ react_shim_default.createElement(ca, { disabled: busy, onSelect: onRefresh }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-refresh-line", "aria-hidden": "true" }), "\u5237\u65B0")))
-    ) : /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-header-actions" }, /* @__PURE__ */ react_shim_default.createElement(C, { variant: "outline", size: "sm", disabled: busy, onClick: () => setCreateOpen(true) }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-add-line", "aria-hidden": "true" }), /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-header-label" }, "\u65B0\u5EFA\u5C97\u4F4D")), /* @__PURE__ */ react_shim_default.createElement(C, { variant: "ghost", size: "icon", title: "\u5237\u65B0", "aria-label": "\u5237\u65B0", disabled: busy, onClick: onRefresh }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-refresh-line", "aria-hidden": "true" }))), /* @__PURE__ */ react_shim_default.createElement(CreateJobDialog, { open: createOpen, onOpenChange: setCreateOpen, onSubmit: onCreateJob }));
+      /* @__PURE__ */ react_shim_default.createElement(ia, null, /* @__PURE__ */ react_shim_default.createElement(sa, { asChild: true }, /* @__PURE__ */ react_shim_default.createElement(C, { variant: "ghost", size: "icon", title: "\u66F4\u591A\u64CD\u4F5C", "aria-label": "\u66F4\u591A\u64CD\u4F5C" }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-more-line", "aria-hidden": "true" }))), /* @__PURE__ */ react_shim_default.createElement(la, { align: "end" }, /* @__PURE__ */ react_shim_default.createElement(ca, { disabled: busy, onSelect: () => setCreateOpen(true) }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-add-line", "aria-hidden": "true" }), "\u65B0\u5EFA\u5C97\u4F4D"), /* @__PURE__ */ react_shim_default.createElement(ca, { disabled: busy || refreshing, onSelect: onRefresh }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-refresh-line", "aria-hidden": "true" }), "\u5237\u65B0")))
+    ) : /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-header-actions" }, /* @__PURE__ */ react_shim_default.createElement(C, { variant: "outline", size: "sm", disabled: busy, onClick: () => setCreateOpen(true) }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-add-line", "aria-hidden": "true" }), /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-header-label" }, "\u65B0\u5EFA\u5C97\u4F4D")), /* @__PURE__ */ react_shim_default.createElement(C, { variant: "ghost", size: "icon", title: "\u5237\u65B0", "aria-label": "\u5237\u65B0", disabled: busy || refreshing, onClick: onRefresh }, /* @__PURE__ */ react_shim_default.createElement("i", { className: `ri-refresh-line${refreshing ? " rs-spin" : ""}`, "aria-hidden": "true" }))), /* @__PURE__ */ react_shim_default.createElement(CreateJobDialog, { open: createOpen, onOpenChange: setCreateOpen, onSubmit: onCreateJob }));
   }
   function JdPopover({ job }) {
     return /* @__PURE__ */ react_shim_default.createElement(Na, null, /* @__PURE__ */ react_shim_default.createElement(Ca, { asChild: true }, /* @__PURE__ */ react_shim_default.createElement(C, { variant: "ghost", size: "sm", title: "\u67E5\u770B\u5C97\u4F4D\u63CF\u8FF0" }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-file-text-line", "aria-hidden": "true" }), /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-header-label" }, "JD"))), /* @__PURE__ */ react_shim_default.createElement(Sa, { align: "start", className: "rs-jd-popover" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-section-title" }, job.title, " \xB7 \u804C\u4F4D\u63CF\u8FF0"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-jd-text" }, job.jdText)));
@@ -18077,7 +18167,7 @@ Defaulting to \`null\`.`;
     if (loading) {
       return /* @__PURE__ */ react_shim_default.createElement("nav", { className: "rs-statsbar", "aria-label": "\u72B6\u6001\u7EDF\u8BA1\u52A0\u8F7D\u4E2D", "aria-busy": "true" }, Array.from({ length: 5 }, (_, index2) => /* @__PURE__ */ react_shim_default.createElement(K2, { key: index2, className: "rs-pill-skeleton" })));
     }
-    return /* @__PURE__ */ react_shim_default.createElement("nav", { className: "rs-statsbar", "aria-label": "\u72B6\u6001\u7EDF\u8BA1\u7B5B\u9009" }, /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-pill rs-pill-total" }, /* @__PURE__ */ react_shim_default.createElement("strong", null, stats.total), "\u5171"), pills.map(({ def, count: count3 }) => {
+    return /* @__PURE__ */ react_shim_default.createElement("nav", { className: "rs-statsbar", "aria-label": "\u72B6\u6001\u7EDF\u8BA1\u7B5B\u9009" }, /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-pill rs-pill-total" }, "\u5171 ", /* @__PURE__ */ react_shim_default.createElement("strong", null, stats.total)), pills.map(({ def, count: count3 }) => {
       const selected = value === def.key;
       return /* @__PURE__ */ react_shim_default.createElement(
         "button",
@@ -18092,7 +18182,7 @@ Defaulting to \`null\`.`;
         count3,
         /* @__PURE__ */ react_shim_default.createElement("span", null, def.label),
         def.key === "parsing" && count3 > 0 ? /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-loader-4-line rs-spin", "aria-hidden": "true" }) : null,
-        def.key === "parsing" && hasTimedOutParsing ? /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-timeout-dot", "aria-label": "\u5B58\u5728\u89E3\u6790\u8D85\u65F6" }) : null
+        def.key === "parsing" && hasTimedOutParsing ? /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-timeout-dot", role: "img", "aria-label": "\u5B58\u5728\u89E3\u6790\u8D85\u65F6" }) : null
       );
     }));
   }
@@ -18139,8 +18229,11 @@ Defaulting to \`null\`.`;
     viewRef.current = view;
     const selectedRef = useRef5(selectedId);
     selectedRef.current = selectedId;
+    const removalToken = useRef5(0);
     const queueSeq = useRef5(0);
     const noticeTimer = useRef5(null);
+    const widthModeRef = useRef5(widthMode);
+    widthModeRef.current = widthMode;
     function showNotice(message) {
       setNotice(message);
       if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
@@ -18171,16 +18264,24 @@ Defaulting to \`null\`.`;
           setItems((previous) => {
             const nextIds = new Set(result.candidates.map((item) => item.id));
             if (mode === "more") {
-              const merged = [...previous];
+              const merged2 = [...previous];
               for (const item of result.candidates) {
-                if (!merged.some((existing) => existing.id === item.id)) merged.push(item);
+                if (!merged2.some((existing) => existing.id === item.id)) merged2.push(item);
               }
               setEnteringIds(new Set(result.candidates.map((item) => item.id)));
-              return merged;
+              return merged2;
             }
             const previousIds = new Set(previous.map((item) => item.id));
             setEnteringIds(new Set([...nextIds].filter((id) => !previousIds.has(id))));
-            return result.candidates;
+            const merged = mergeRefreshedList(previous, result.candidates);
+            const token = ++removalToken.current;
+            if (merged.length === result.candidates.length) return merged;
+            const finalList = result.candidates;
+            window.setTimeout(() => {
+              if (removalToken.current !== token) return;
+              setItems((current2) => mergeRefreshedList(current2.filter((item) => !item.leaving), finalList));
+            }, LEAVE_FADE_MS);
+            return merged;
           });
           if (mode === "more") setPagesLoaded(pagesLoaded + 1);
           setLoadError("");
@@ -18229,7 +18330,8 @@ Defaulting to \`null\`.`;
       observer.observe(shell);
       return () => observer.disconnect();
     }, []);
-    const hasParsing = items.some((item) => item.status === "parsing" || item.status === "draft");
+    const liveItems = useMemo4(() => items.some((item) => item.leaving) ? items.filter((item) => !item.leaving) : items, [items]);
+    const hasParsing = liveItems.some((item) => item.status === "parsing" || item.status === "draft");
     const hasQueueWorking = queueRows.some((row) => row.status === "queued" || row.status === "uploading");
     useEffect5(() => {
       if (!hasParsing && !hasQueueWorking) return void 0;
@@ -18243,8 +18345,13 @@ Defaulting to \`null\`.`;
       (candidate) => isParsingTimedOut(candidate, nowTick),
       [nowTick]
     );
-    const selected = useMemo4(() => items.find((item) => item.id === selectedId) ?? null, [items, selectedId]);
-    const hasTimedOutParsing = useMemo4(() => items.some((item) => isParsingTimedOut(item, nowTick)), [items, nowTick]);
+    const selected = useMemo4(() => liveItems.find((item) => item.id === selectedId) ?? null, [liveItems, selectedId]);
+    const hasTimedOutParsing = useMemo4(() => liveItems.some((item) => isParsingTimedOut(item, nowTick)), [liveItems, nowTick]);
+    const handleSelect = useCallback2((id) => {
+      setSelectedId(id);
+      if (widthModeRef.current !== "wide") setSheetOpen(true);
+    }, []);
+    const consumeJumpHighlight = useCallback2(() => setJumpCandidateId(null), []);
     function changeView(patch, options2) {
       setView((state) => ({ ...state, ...patch }));
       if (options2?.clearSelection) setSelectedId(null);
@@ -18280,7 +18387,7 @@ Defaulting to \`null\`.`;
           await silentRefresh();
           if (actedSelected && key !== "retry_candidate") {
             setItems((list) => {
-              const nextId = nextPendingId(list, candidate.id);
+              const nextId = nextPendingId(list.filter((item) => !item.leaving), candidate.id);
               if (nextId) setSelectedId(nextId);
               return list;
             });
@@ -18432,7 +18539,7 @@ Defaulting to \`null\`.`;
     const loading = firstLoading || !data && !loadError;
     const isError = Boolean(loadError) && !data && !firstLoading;
     const stats = data?.stats ?? { total: 0, pendingReview: 0, accepted: 0, hold: 0, rejected: 0, failed: 0, parsing: 0 };
-    const total = data?.page?.total ?? items.length;
+    const total = data?.page?.total ?? liveItems.length;
     const hasFilterActive = view.status !== "all" || view.search !== "";
     const detail = /* @__PURE__ */ react_shim_default.createElement(
       DetailContent,
@@ -18454,6 +18561,7 @@ Defaulting to \`null\`.`;
         jobs: data?.jobs ?? [],
         currentJobId: view.jobId,
         busy: busyKey !== null,
+        refreshing: refreshing && !firstLoading,
         jobPulseSeq,
         xsMode: widthMode === "xs",
         onSelectJob: selectJob,
@@ -18479,11 +18587,8 @@ Defaulting to \`null\`.`;
         hasJobs: (data?.jobs.length ?? 0) > 0,
         hasFilterActive,
         jumpCandidateId,
-        onJumpConsumed: () => setJumpCandidateId(null),
-        onSelect: (id) => {
-          setSelectedId(id);
-          if (widthMode !== "wide") setSheetOpen(true);
-        },
+        onJumpConsumed: consumeJumpHighlight,
+        onSelect: handleSelect,
         onSearch: (value) => changeView({ search: value }),
         onStatusChange: (value) => changeView({ status: value }),
         onSortChange: (value) => {

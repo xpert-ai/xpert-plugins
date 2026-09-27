@@ -161,7 +161,7 @@ function DetailBody({ candidate, timedOut, showTimeoutCard, now, busyKey, onDisp
         </span>
         <div style={{ minWidth: 0 }}>
           <div className="rs-detail-title">
-            <strong>{candidate.name || candidate.sourceFileName || '未命名候选人'}</strong>
+            <strong title={candidate.name || candidate.sourceFileName || undefined}>{candidate.name || candidate.sourceFileName || '未命名候选人'}</strong>
             <CandidateBadge status={candidate.status} timedOut={timedOut} />
             {editedFields.length > 0 ? (
               <Tooltip>
@@ -178,7 +178,8 @@ function DetailBody({ candidate, timedOut, showTimeoutCard, now, busyKey, onDisp
             ) : null}
           </div>
           <div className="rs-detail-meta">
-            <span>{candidate.yearsOfExperience ? `${candidate.yearsOfExperience} · ` : ''}{candidate.education || ''}{candidate.education ? ' · ' : ''}{candidate.currentCompany || ''}</span>
+            {/* 元信息用数组 join，逐段省略：修复旧「三元拼点」在仅有年限无学历时残留尾点「 · 」的观感缺陷 */}
+            <span>{[candidate.yearsOfExperience, candidate.education, candidate.currentCompany].filter(Boolean).join(' · ') || '—'}</span>
             <span>创建于 {formatMonthDay(candidate.createdAt) || '—'}</span>
             <span>第 {candidate.attemptCount || 1} 次解析</span>
             {candidate.sourceFileName ? (
@@ -521,7 +522,8 @@ function EditForm({ draft, skillDraft, onSkillDraft, onField, onAddSkill, onRemo
         <span>
           姓名<small>文本</small>
         </span>
-        <Input value={draft.name ?? ''} onChange={(event: React.ChangeEvent<HTMLInputElement>) => onField('name', event.currentTarget.value)} />
+        {/* 进入编辑态光标即落首个字段：省一次点击，交互手感（与新建岗位 Dialog 的聚焦约定一致） */}
+        <Input autoFocus value={draft.name ?? ''} onChange={(event: React.ChangeEvent<HTMLInputElement>) => onField('name', event.currentTarget.value)} />
       </label>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
         <label className="rs-form-field">

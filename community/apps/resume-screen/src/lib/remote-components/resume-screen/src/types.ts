@@ -79,6 +79,8 @@ export interface CandidateView {
   revision: number
   createdAt: string
   updatedAt: string
+  // 展示域（非服务端字段）：筛选/刷新导致行移除时的 A8 淡出标记，180ms 后随纯净列表提交消失
+  leaving?: boolean
 }
 
 export interface ViewStats {

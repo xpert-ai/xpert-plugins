@@ -41,6 +41,8 @@ interface JobHeaderProps {
   jobs: JobView[]
   currentJobId: string | null
   busy: boolean
+  // 静默刷新在途：刷新钮图标旋转（A9 语言）并在途防重点，让「手动刷新已受理」有即时反馈
+  refreshing: boolean
   // 蓝圈脉冲序号：A13 未选岗位上传被拒时递增触发一次
   jobPulseSeq: number
   // 容器 <560px：头部动作收纳进「更多」下拉（蓝图 §4，对齐 crm 断点折叠做法）
@@ -50,7 +52,7 @@ interface JobHeaderProps {
   onRefresh: () => void
 }
 
-export function JobHeader({ jobs, currentJobId, busy, jobPulseSeq, xsMode, onSelectJob, onCreateJob, onRefresh }: JobHeaderProps) {
+export function JobHeader({ jobs, currentJobId, busy, refreshing, jobPulseSeq, xsMode, onSelectJob, onCreateJob, onRefresh }: JobHeaderProps) {
   const [createOpen, setCreateOpen] = useState(false)
   const currentJob = useMemo(() => jobs.find((job) => job.id === currentJobId) ?? null, [jobs, currentJobId])
   const jobSelectRef = useRef<HTMLDivElement | null>(null)
@@ -105,7 +107,7 @@ export function JobHeader({ jobs, currentJobId, busy, jobPulseSeq, xsMode, onSel
               <i className="ri-add-line" aria-hidden="true" />
               新建岗位
             </DropdownMenuItem>
-            <DropdownMenuItem disabled={busy} onSelect={onRefresh}>
+            <DropdownMenuItem disabled={busy || refreshing} onSelect={onRefresh}>
               <i className="ri-refresh-line" aria-hidden="true" />
               刷新
             </DropdownMenuItem>
@@ -117,8 +119,9 @@ export function JobHeader({ jobs, currentJobId, busy, jobPulseSeq, xsMode, onSel
             <i className="ri-add-line" aria-hidden="true" />
             <span className="rs-header-label">新建岗位</span>
           </Button>
-          <Button variant="ghost" size="icon" title="刷新" aria-label="刷新" disabled={busy} onClick={onRefresh}>
-            <i className="ri-refresh-line" aria-hidden="true" />
+          {/* 刷新在途：图标旋转（复用 A9 loader 语言）+ disabled 防重点，即时反馈「已受理」 */}
+          <Button variant="ghost" size="icon" title="刷新" aria-label="刷新" disabled={busy || refreshing} onClick={onRefresh}>
+            <i className={`ri-refresh-line${refreshing ? ' rs-spin' : ''}`} aria-hidden="true" />
           </Button>
         </div>
       )}

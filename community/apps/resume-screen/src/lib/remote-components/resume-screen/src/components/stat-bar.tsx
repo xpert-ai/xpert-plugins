@@ -47,9 +47,9 @@ export function StatBar({ stats, loading, value, hasTimedOutParsing, onFilterCha
   }
   return (
     <nav className="rs-statsbar" aria-label="状态统计筛选">
+      {/* 「共 N」语序对齐蓝图 §3.3 内容定义（标签+数值读作「共 12」）；状态 pill 仍按 sm 形态「数值+弱标签」 */}
       <span className="rs-pill rs-pill-total">
-        <strong>{stats.total}</strong>
-        共
+        共 <strong>{stats.total}</strong>
       </span>
       {pills.map(({ def, count }) => {
         const selected = value === def.key
@@ -66,7 +66,8 @@ export function StatBar({ stats, loading, value, hasTimedOutParsing, onFilterCha
             {count}
             <span>{def.label}</span>
             {def.key === 'parsing' && count > 0 ? <i className="ri-loader-4-line rs-spin" aria-hidden="true" /> : null}
-            {def.key === 'parsing' && hasTimedOutParsing ? <span className="rs-timeout-dot" aria-label="存在解析超时" /> : null}
+            {/* role=img 让 aria-label 真正生效（裸 span 的 label 不被辅助技术播报） */}
+            {def.key === 'parsing' && hasTimedOutParsing ? <span className="rs-timeout-dot" role="img" aria-label="存在解析超时" /> : null}
           </button>
         )
       })}
