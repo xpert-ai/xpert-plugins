@@ -17318,6 +17318,19 @@ Defaulting to \`null\`.`;
       }
     );
   }
+  function Wa({
+    delayDuration: e = 0,
+    ...t
+  }) {
+    return /* @__PURE__ */ jsx(
+      dist_exports14.Provider,
+      {
+        "data-slot": "tooltip-provider",
+        delayDuration: e,
+        ...t
+      }
+    );
+  }
   function Be2({
     ...e
   }) {
@@ -17699,7 +17712,7 @@ Defaulting to \`null\`.`;
     if (!candidate) {
       return /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-detail-empty" }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-inbox-line", "aria-hidden": "true", style: { fontSize: 28 } }), "\u4ECE\u5DE6\u4FA7\u9009\u62E9\u5019\u9009\u4EBA\u67E5\u770B\u8BE6\u60C5");
     }
-    return /* @__PURE__ */ react_shim_default.createElement("div", { key: candidate.id, className: "rs-detail-stack rs-detail-anim" }, /* @__PURE__ */ react_shim_default.createElement(DetailBody, { ...props, candidate }));
+    return /* @__PURE__ */ react_shim_default.createElement("div", { key: candidate.id, className: "rs-detail-stack rs-detail-anim" }, /* @__PURE__ */ react_shim_default.createElement(Wa, { delayDuration: 300 }, /* @__PURE__ */ react_shim_default.createElement(DetailBody, { ...props, candidate })));
   }
   function DetailBody({ candidate, timedOut, showTimeoutCard, now, busyKey, onDispose, onWaitMore, onSave, onConflictRefresh }) {
     const [editing, setEditing] = useState4(false);

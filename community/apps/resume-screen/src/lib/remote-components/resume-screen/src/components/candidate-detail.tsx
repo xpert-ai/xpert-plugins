@@ -26,6 +26,7 @@ import {
   CollapsibleTrigger,
   Tooltip,
   TooltipContent,
+  TooltipProvider,
   TooltipTrigger
 } from '@xpert-ai/plugin-shadcn-ui'
 import { ActionBar, type DispositionKey } from './action-bar'
@@ -87,7 +88,12 @@ export function DetailContent(props: DetailProps) {
   // rs-detail-stack 自带三行栅格（头/正文/处置条），在宽栏面板与 Sheet 内均撑满
   return (
     <div key={candidate.id} className="rs-detail-stack rs-detail-anim">
-      <DetailBody {...props} candidate={candidate} />
+      {/* Radix 运行时强约束：Tooltip.Root 必须位于 Tooltip.Provider 之下，缺失直接抛错卸载整棵 React 树
+          （真机冒烟：点候选人行开详情渲染 Tooltip → iframe 白屏）。共享包 Tooltip 为裸 Root 不自动挂
+          Provider，故按仓库先例（valve-business-workbench）在唯一使用子树外层包一层；300ms 为 shadcn 官方默认 */}
+      <TooltipProvider delayDuration={300}>
+        <DetailBody {...props} candidate={candidate} />
+      </TooltipProvider>
     </div>
   )
 }
