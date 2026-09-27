@@ -5,7 +5,7 @@
  * 内容未变的行必须复用旧引用（memo 短路的前提）；合并结果中保留行顺序必须等于
  * 服务端最终顺序（淡出行只是过渡性插入，提交后不得留下行跳位）。
  */
-import { candidateSignature, mergeRefreshedList, reconcileCandidateItems } from './utils'
+import { candidateSignature, mergeAppendedPage, mergeRefreshedList, reconcileCandidateItems } from './utils'
 import type { CandidateView } from './types'
 
 // 构造最小可用候选人行：只填参与展示签名的字段
@@ -94,6 +94,30 @@ describe('mergeRefreshedList · A8 行移出淡出数据契约', () => {
     const positions = rows.map((row) => row.id)
     expect(positions.indexOf('b')).toBeGreaterThan(positions.indexOf('a'))
     expect(positions.indexOf('b')).toBeLessThan(positions.indexOf('c'))
+  })
+})
+
+describe('mergeAppendedPage · 加载更多与淡出窗口交叠竞态（I-2）', () => {
+  it('加载更多回执落在淡出窗口内：以存活行为基底并入第 2 页，淡出行即时净化无幽灵行滞留', () => {
+    // previous 模拟「筛选刷新已开淡出窗口」的渲染列表：b 为在途 leaving 副本
+    const fading = { ...makeCandidate({ id: 'b' }), leaving: true }
+    const previous = [makeCandidate({ id: 'a' }), fading, makeCandidate({ id: 'c' })]
+    const pageTwo = [makeCandidate({ id: 'd' }), makeCandidate({ id: 'e' })]
+    const rows = mergeAppendedPage(previous, pageTwo)
+    // 业务结果钉死：第 2 页数据完整在场，且列表不残留任何 opacity:0 占 DOM 的 leaving 行
+    // （在途淡出窗口由调用方令牌递增作废后，此处即为唯一收尸路径）
+    expect(rows.map((row) => row.id)).toEqual(['a', 'c', 'd', 'e'])
+    expect(rows.some((row) => row.leaving)).toBe(false)
+  })
+
+  it('加载更多回显列表已有 id（分页边界漂移）：不重复追加，且在场存活行沿用旧引用', () => {
+    const previous = [makeCandidate({ id: 'a' }), makeCandidate({ id: 'b' })]
+    const pageTwo = [makeCandidate({ id: 'b' }), makeCandidate({ id: 'c' })]
+    const rows = mergeAppendedPage(previous, pageTwo)
+    expect(rows.map((row) => row.id)).toEqual(['a', 'b', 'c'])
+    // 未变化行引用原样保留：追加分页轮次不得击穿 memo 造成整列表重渲（§11）
+    expect(rows[0]).toBe(previous[0])
+    expect(rows[1]).toBe(previous[1])
   })
 })
 

@@ -27,6 +27,7 @@ import {
   isParsingTimedOut,
   looksLikeRevisionConflict,
   mapUploadFailure,
+  mergeAppendedPage,
   mergeRefreshedList,
   nextPendingId,
   normalizeViewData,
@@ -135,10 +136,12 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
         setItems((previous) => {
           const nextIds = new Set(result.candidates.map((item) => item.id))
           if (mode === 'more') {
-            const merged = [...previous]
-            for (const item of result.candidates) {
-              if (!merged.some((existing) => existing.id === item.id)) merged.push(item)
-            }
+            // I-2 竞态防护：more 回执与在途淡出窗口交叠时，递增令牌作废旧定时器，
+            // 并以存活行为基底追加——旧定时器若存活会以陈旧单页快照把新页整页误标
+            // leaving 成无后续清理的幽灵行；淡出窗口就此提前终结（删除行即时离场），
+            // 刷新合并对存活行的引用复用已在 merge 时完成，截断不影响数据正确性
+            removalToken.current += 1
+            const merged = mergeAppendedPage(previous, result.candidates)
             setEnteringIds(new Set(result.candidates.map((item) => item.id)))
             return merged
           }

@@ -251,6 +251,13 @@ var XpertResumeScreen = (() => {
     }
     return carried.length > 0 ? [...merged, ...carried] : merged;
   }
+  function mergeAppendedPage(previous, appended) {
+    const merged = previous.filter((item) => !item.leaving);
+    for (const item of appended) {
+      if (!merged.some((existing) => existing.id === item.id)) merged.push(item);
+    }
+    return merged;
+  }
   function summarizeQueue(rows) {
     const count3 = (status) => rows.filter((row) => row.status === status).length;
     return {
@@ -18264,10 +18271,8 @@ Defaulting to \`null\`.`;
           setItems((previous) => {
             const nextIds = new Set(result.candidates.map((item) => item.id));
             if (mode === "more") {
-              const merged2 = [...previous];
-              for (const item of result.candidates) {
-                if (!merged2.some((existing) => existing.id === item.id)) merged2.push(item);
-              }
+              removalToken.current += 1;
+              const merged2 = mergeAppendedPage(previous, result.candidates);
               setEnteringIds(new Set(result.candidates.map((item) => item.id)));
               return merged2;
             }

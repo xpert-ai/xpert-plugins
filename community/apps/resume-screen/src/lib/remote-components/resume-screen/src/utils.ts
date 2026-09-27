@@ -249,6 +249,25 @@ export function mergeRefreshedList(previous: CandidateView[], next: CandidateVie
   return carried.length > 0 ? [...merged, ...carried] : merged
 }
 
+/**
+ * 「加载更多」分页追加合并（I-2 竞态防护的数据侧）
+ *
+ * 竞态背景：静默刷新若移除了行，会挂 leaving 副本并开 LEAVE_FADE_MS 提交窗口，窗口内的
+ * 定时器以「第 1 页快照」做最终合并；若这 180ms 内「加载更多」回执落地并入第 2 页，
+ * 旧定时器照常提交就会把整个新页当作「不在快照中」误标 leaving——这批新挂的淡出副本
+ * 没有任何后续定时器清理，成为滞留 DOM 的幽灵行。故追加侧以存活行为基底（淡出行即时
+ * 净化，不再等窗口提交），并由调用方（workbench）同步递增 removalToken 作废在途定时器，
+ * 二者共同保证业务结果：more 回执落地后列表无滞留 leaving 行、新页数据完整在场。
+ * 去重按 id：服务端分页边界漂移（新候选人插入使第 2 页回显已有行）不得产生重复 key。
+ */
+export function mergeAppendedPage(previous: CandidateView[], appended: CandidateView[]): CandidateView[] {
+  const merged = previous.filter((item) => !item.leaving)
+  for (const item of appended) {
+    if (!merged.some((existing) => existing.id === item.id)) merged.push(item)
+  }
+  return merged
+}
+
 // 队列聚合计数：把手徽标与聚合条共用（进行中=queued+uploading）
 export function summarizeQueue(rows: QueueRow[]) {
   const count = (status: QueueRow['status']) => rows.filter((row) => row.status === status).length
