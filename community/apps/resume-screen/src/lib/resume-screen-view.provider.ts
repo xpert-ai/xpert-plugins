@@ -261,6 +261,9 @@ export class ResumeScreenViewProvider implements IXpertViewExtensionProvider {
     // app.js 由远端组件构建链产出（copy-assets 负责拷入 dist），缺失时快速失败暴露构建问题
     const appPath = join(__dirname, 'remote-components', RESUME_SCREEN_REMOTE_ENTRY_KEY, 'app.js')
     const appScript = await readFile(appPath, 'utf8')
+    // app.css = shadcn 基础样式 + remixicon 图标子集：iframe 壳是内联 style，
+    // 不注入则组件无样式、`<i class="ri-*">` 无字形（蓝图 §10 P1 交付通道，写法对齐 crm）
+    const appCss = await readFile(join(__dirname, 'remote-components', RESUME_SCREEN_REMOTE_ENTRY_KEY, 'app.css'), 'utf8')
     const reactUmd = await readPackageFile('react', 'umd/react.production.min.js')
     const reactDomUmd = await readPackageFile('react-dom', 'umd/react-dom.production.min.js')
     return {
@@ -269,7 +272,8 @@ export class ResumeScreenViewProvider implements IXpertViewExtensionProvider {
         lang: 'zh-Hans',
         reactUmd,
         reactDomUmd,
-        appScript
+        appScript,
+        appCss
       }),
       contentType: 'text/html; charset=utf-8'
     }

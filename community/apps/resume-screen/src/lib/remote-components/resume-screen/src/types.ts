@@ -1,0 +1,151 @@
+/**
+ * 简历初筛工作台远端组件类型契约
+ *
+ * 本文件只放 iframe 侧需要的纯类型：bridge 消息协议类型（对齐平台
+ * xpertai.remote_component v1 协议，与 crm-workbench 同构）与服务端
+ * ResumeScreenViewData 的只读镜像（来源 lib/types.ts，iframe 不 import
+ * 服务端模块以避免把 node 依赖带进浏览器 bundle）。
+ */
+
+// ===== bridge 协议类型（与宿主 remote-component-renderer 约定一致） =====
+
+export interface HostContext {
+  locale?: string
+  manifest?: unknown
+  payload?: {
+    parameters?: Record<string, unknown>
+  }
+  initialQuery?: {
+    page?: number
+    pageSize?: number
+    search?: string
+    parameters?: Record<string, unknown>
+  }
+  theme?: unknown
+}
+
+export interface BridgeMessage {
+  channel?: string
+  protocolVersion?: number
+  instanceId?: string | null
+  type?: string
+  requestId?: string
+  manifest?: unknown
+  payload?: HostContext['payload']
+  initialQuery?: HostContext['initialQuery']
+  locale?: string
+  theme?: unknown
+  data?: unknown
+  result?: unknown
+  message?: string
+  event?: unknown
+}
+
+// ===== 视图数据镜像（服务端 lib/types.ts 的浏览器侧只读拷贝） =====
+
+// 候选人六态 + 服务端中间态 draft（UI 不呈现 draft，竞态时按解析中处理）
+export type CandidateStatus = 'draft' | 'parsing' | 'pending_review' | 'accepted' | 'hold' | 'rejected' | 'failed'
+
+export interface JobView {
+  id: string
+  title: string
+  jdText: string
+  jdHash: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CandidateView {
+  id: string
+  jobId: string
+  status: CandidateStatus
+  name?: string
+  yearsOfExperience?: string
+  education?: string
+  currentCompany?: string
+  skills?: string[]
+  summary?: string
+  matchScore?: number
+  matchReason?: string
+  hitPoints?: string[]
+  riskPoints?: string[]
+  humanEditedFields?: string[]
+  attemptCount: number
+  failureReason?: string
+  // 上传通道来源文件名：列表/详情来源角标与上传队列「查看」跳转的溯源字段
+  sourceFileName?: string
+  reviewedById?: string
+  reviewedAt?: string
+  revision: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ViewStats {
+  total: number
+  pendingReview: number
+  accepted: number
+  hold: number
+  rejected: number
+  failed: number
+  parsing: number
+}
+
+export interface ViewPage {
+  number: number
+  size: number
+  total: number
+}
+
+export interface ResumeScreenViewData {
+  jobs: JobView[]
+  job?: JobView
+  candidates: CandidateView[]
+  stats: ViewStats
+  page: ViewPage
+}
+
+// 动作回执（服务端 XpertViewActionResult 的镜像；message 为 I18n 双语文本）
+export interface ActionResult {
+  success?: boolean
+  message?: unknown
+  refresh?: boolean
+  data?: unknown
+}
+
+export interface I18nText {
+  en_US?: string
+  zh_Hans?: string
+}
+
+// ===== 上传队列（iframe 前端内存态，蓝图 §3.7/§6.6） =====
+
+// 文件级状态机：排队中→上传中→（服务端解析期以 uploading 超时文案近似）→已创建/跳过/失败
+export type QueueStatus = 'queued' | 'uploading' | 'created' | 'skipped' | 'failed'
+
+export interface QueueRow {
+  // 本地自增 id：乐观行不依赖服务端返回即可稳定渲染
+  localId: number
+  fileName: string
+  status: QueueStatus
+  // 失败时展示的服务端可读指引文案（failureReason 映射，§6.6 表）
+  failureReason?: string
+  // 已创建行的候选人 id：「查看」跳转选中用
+  candidateId?: string
+  // 入队时间戳：进行中行超 60s 的「仍在处理」提示判定（§6.6 约束）
+  startedAt: number
+}
+
+// 排序参数镜像：与服务端 ResumeScreenCandidateListQuery 白名单一致
+export type SortBy = 'matchScore' | 'createdAt' | 'updatedAt'
+export type SortDir = 'asc' | 'desc'
+
+// 状态筛选值：'all' 为前端态，其余映射服务端 status
+export type StatusFilter = 'all' | CandidateStatus
+
+declare global {
+  interface Window {
+    // bridge 层未就绪时宿主触发的重载钩子（对齐 crm __crmReload 模式）
+    __resumeScreenReload?: () => void
+  }
+}

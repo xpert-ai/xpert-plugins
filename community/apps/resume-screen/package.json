@@ -25,7 +25,7 @@
   "files": ["dist", "index.cjs", "README.md", "doc", "!**/*.tsbuildinfo"],
   "scripts": {
     "build:ui": "pnpm --filter @xpert-ai/plugin-shadcn-ui build",
-    "build": "tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
+    "build": "pnpm run build:ui && pnpm run remote:typecheck && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
     "lint": "echo \"(todo) add lint\"",
     "remote:typecheck": "tsc -p tsconfig.remote.json --noEmit",
     "test": "pnpm run build:ui && tsc -p tsconfig.spec.json --noEmit && pnpm run test:unit",
@@ -68,6 +68,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "reflect-metadata": "^0.2.2",
+    "remixicon": "4.9.1",
     "typeorm": "^0.3.24",
     "typescript": "^5.9.2",
     "yaml": "^2.8.1",

@@ -1,4 +1,4 @@
-// 构建资产拷贝脚本：把助手模板 yaml 与远端组件 app.js 拷入 dist 产物目录
+// 构建资产拷贝脚本：把助手模板 yaml 与远端组件 app.js / app.css 拷入 dist 产物目录
 // 注意：remoteComponentName 必须与 src/lib/constants.ts 的 RESUME_SCREEN_REMOTE_ENTRY_KEY 保持一致
 import { copyFile, mkdir } from 'fs/promises'
 import { existsSync } from 'fs'
@@ -27,4 +27,15 @@ if (existsSync(appJs)) {
   )
 } else {
   console.log('[copy-assets] 远端组件 app.js 尚未构建，已跳过拷贝。')
+}
+
+// app.css = shadcn 基础样式 + remixicon 图标子集（蓝图 §10 P1 交付通道），provider 经 appCss 注入 iframe
+const appCss = join(packageRoot, 'src', 'lib', 'remote-components', remoteComponentName, 'app.css')
+if (existsSync(appCss)) {
+  await copyFile(
+    appCss,
+    join(packageRoot, 'dist', 'lib', 'remote-components', remoteComponentName, 'app.css')
+  )
+} else {
+  console.log('[copy-assets] 远端组件 app.css 尚未构建，已跳过拷贝。')
 }
