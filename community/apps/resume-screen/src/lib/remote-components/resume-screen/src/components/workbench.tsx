@@ -8,7 +8,7 @@
  */
 import React from '../react-shim'
 import { Button, Sheet, SheetContent, SheetHeader, SheetTitle, Skeleton } from '@xpert-ai/plugin-shadcn-ui'
-import { executeAction, executeFileAction, notify, requestData } from '../bridge'
+import { executeAction, executeFileAction, notify, requestData, setOnLateReceipt } from '../bridge'
 import { CandidateList } from './candidate-list'
 import { DetailContent } from './candidate-detail'
 import { IntakePanel } from './intake-panel'
@@ -16,7 +16,7 @@ import { JobHeader } from './job-header'
 import { StatBar } from './stat-bar'
 import type { DispositionKey } from './action-bar'
 import type { SaveOutcome } from './candidate-detail'
-import type { CandidateView, HostContext, JobView, QueueRow, ResumeScreenCandidatePatchMirror, ResumeScreenViewData, SortBy, SortDir, StatusFilter } from '../types'
+import type { CandidateView, HostContext, JobCreateOutcome, JobView, QueueRow, ResumeScreenCandidatePatchMirror, ResumeScreenViewData, SortBy, SortDir, StatusFilter } from '../types'
 import {
   DOM_ROW_CAP,
   PAGE_SIZE,
@@ -115,8 +115,10 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
         sortDir: current.sortDir,
         search: current.search,
         page: mode === 'more' ? pagesLoaded + 1 : 1,
-        // 刷新/首屏一次取回已加载页跨度，避免多页请求拼接竞态（§11 DOM 上限内）
-        pageSize: Math.min(DOM_ROW_CAP, PAGE_SIZE * Math.max(1, loaded))
+        // M10 I-1：「加载更多」= 追加下一页且 page.size=20（§3.4/§11）。服务端窗口为 start=(page-1)*pageSize，
+        // more 若把 pageSize 传成已加载跨度，第二次起 start 跳越、返回空片，41+ 候选人永不可达——故固定 PAGE_SIZE；
+        // 刷新/首屏保留一次取回已加载全跨度的语义，避免多页请求拼接竞态（§11 DOM 上限内）
+        pageSize: mode === 'more' ? PAGE_SIZE : Math.min(DOM_ROW_CAP, PAGE_SIZE * Math.max(1, loaded))
       })
       if (mode === 'first') setFirstLoading(true)
       else setRefreshing(true)
@@ -180,6 +182,13 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
     return () => {
       delete window.__resumeScreenReload
     }
+  }, [silentRefresh])
+
+  // M10 M-4 竞态裁决：上传回执超时后队列行已判「失败」终态，迟到的真实回执不得再翻行，
+  // 仅触发一次列表刷新校准——候选人行自会呈现服务端事实（文件实际入库则列表出现该行）
+  useEffect(() => {
+    setOnLateReceipt(() => void silentRefresh())
+    return () => setOnLateReceipt(null)
   }, [silentRefresh])
 
   // 容器宽度探测（§4：iframe 视口≠宿主视口，ResizeObserver 属性驱动布局切换）
@@ -316,7 +325,7 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
   // ===== 新建岗位（v4 D1：成功自动切岗、失败保持 Dialog） =====
 
   const createJob = useCallback(
-    async (title: string, jdText: string): Promise<boolean> => {
+    async (title: string, jdText: string): Promise<JobCreateOutcome> => {
       try {
         const response = await executeAction('create_job', null, { title, jdText }, {})
         const result = parseActionResult(response)
@@ -324,7 +333,7 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
         if (!result.success) {
           // 标题重复（服务端 jdHash 幂等语义）等：toast 提示，Dialog 由子组件回焦名称字段
           notify(message || '该岗位已存在', 'error')
-          return false
+          return { ok: false }
         }
         notify(message || '岗位已创建')
         const jobField = isObject(result.data) ? result.data.job : undefined
@@ -335,12 +344,13 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
         } else {
           void silentRefresh()
         }
-        return true
+        return { ok: true }
       } catch (error) {
         const message = error instanceof Error ? error.message : '新建岗位失败'
-        showNotice(message)
+        // M10 M-3：「其他异常」= Dialog 内 notice 红变体 + notify 双通道（§3.2），
+        // 不再走全局顶部 notice；notice 文案交回 Dialog 呈现，Dialog 保持打开
         notify(message, 'error')
-        return false
+        return { ok: false, notice: message }
       }
     },
     // changeView 仅用函数式 setState，无外部状态依赖；静默刷新一并声明依赖

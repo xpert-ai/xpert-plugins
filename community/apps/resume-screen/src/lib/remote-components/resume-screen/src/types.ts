@@ -113,9 +113,11 @@ export interface ActionResult {
   data?: unknown
 }
 
-export interface I18nText {
-  en_US?: string
-  zh_Hans?: string
+// 新建岗位提交出口（蓝图 §3.2 双通道裁决）：ok=false 且无 notice 为标题重复类业务失败
+// （仅 notify + 回焦名称字段）；带 notice 为「其他异常」，由 Dialog 内 notice 红变体呈现（M10 M-3），Dialog 保持打开
+export interface JobCreateOutcome {
+  ok: boolean
+  notice?: string
 }
 
 // ===== 上传队列（iframe 前端内存态，蓝图 §3.7/§6.6） =====

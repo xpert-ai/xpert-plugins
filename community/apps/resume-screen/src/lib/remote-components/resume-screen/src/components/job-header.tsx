@@ -28,7 +28,7 @@ import {
   SelectValue,
   Textarea
 } from '@xpert-ai/plugin-shadcn-ui'
-import type { JobView } from '../types'
+import type { JobCreateOutcome, JobView } from '../types'
 
 const { useEffect, useMemo, useRef, useState } = React
 
@@ -46,7 +46,7 @@ interface JobHeaderProps {
   // 容器 <560px：头部动作收纳进「更多」下拉（蓝图 §4，对齐 crm 断点折叠做法）
   xsMode: boolean
   onSelectJob: (jobId: string) => void
-  onCreateJob: (title: string, jdText: string) => Promise<boolean>
+  onCreateJob: (title: string, jdText: string) => Promise<JobCreateOutcome>
   onRefresh: () => void
 }
 
@@ -159,12 +159,14 @@ function CreateJobDialog({
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSubmit: (title: string, jdText: string) => Promise<boolean>
+  onSubmit: (title: string, jdText: string) => Promise<JobCreateOutcome>
 }) {
   const [title, setTitle] = useState('')
   const [jdText, setJdText] = useState('')
   const [saving, setSaving] = useState(false)
   const [touched, setTouched] = useState(false)
+  // 「其他异常」提交失败文案（M10 M-3）：渲染进 Dialog 内 notice 红变体，随下次提交/重开清除
+  const [submitError, setSubmitError] = useState('')
   const titleRef = useRef<HTMLInputElement | null>(null)
   const jdRef = useRef<HTMLTextAreaElement | null>(null)
 
@@ -180,11 +182,13 @@ function CreateJobDialog({
       setJdText('')
       setTouched(false)
       setSaving(false)
+      setSubmitError('')
     }
   }, [open])
 
   async function submit() {
     setTouched(true)
+    setSubmitError('')
     if (!title.trim()) {
       titleRef.current?.focus()
       return
@@ -195,11 +199,12 @@ function CreateJobDialog({
     }
     setSaving(true)
     try {
-      const ok = await onSubmit(title.trim(), jdText.trim())
+      const outcome = await onSubmit(title.trim(), jdText.trim())
       // 成功才关闭；失败（重复/异常）保持打开并回焦名称字段（§3.2 错误呈现）
-      if (ok) {
+      if (outcome.ok) {
         onOpenChange(false)
       } else {
+        setSubmitError(outcome.notice ?? '')
         titleRef.current?.focus()
       }
     } finally {
@@ -265,6 +270,14 @@ function CreateJobDialog({
             ) : null}
           </label>
         </div>
+        {submitError ? (
+          // M10 M-3（§3.2）：「其他异常」在表单语境呈现——Dialog 内 notice 红变体（复用 .rs-notice sm token、role=alert），
+          // notify 轻提示由父编排双通道同步发出；Dialog 保持打开，文案给出失败事实
+          <div className="rs-notice rs-notice-inline" role="alert" style={{ position: 'static', margin: '10px 0 0' }}>
+            <i className="ri-error-warning-line" aria-hidden="true" />
+            <div style={{ minWidth: 0 }}>{submitError}</div>
+          </div>
+        ) : null}
         <DialogFooter>
           <Button variant="ghost" disabled={saving} onClick={() => onOpenChange(false)}>
             取消

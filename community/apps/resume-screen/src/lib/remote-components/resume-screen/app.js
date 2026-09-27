@@ -228,6 +228,15 @@ var XpertResumeScreen = (() => {
   // src/lib/remote-components/resume-screen/src/bridge.ts
   var CHANNEL = "xpertai.remote_component";
   var VERSION = 1;
+  var REQUEST_TIMEOUT_MS = 15e3;
+  var REQUEST_TIMEOUT_MESSAGE = "\u8BF7\u6C42\u8D85\u65F6\uFF0C\u8BF7\u7A0D\u540E\u91CD\u8BD5";
+  var FILE_ACTION_TIMEOUT_MS = 6e4;
+  var FILE_ACTION_TIMEOUT_MESSAGE = "\u56DE\u6267\u8D85\u65F6\uFF1A\u6587\u4EF6\u53EF\u80FD\u5DF2\u5F55\u5165\uFF0C\u8BF7\u5237\u65B0\u5217\u8868\u786E\u8BA4\uFF1B\u5982\u9700\u53EF\u91CD\u65B0\u4E0A\u4F20\uFF08\u91CD\u590D\u5185\u5BB9\u5C06\u81EA\u52A8\u8DF3\u8FC7\uFF09";
+  var LATE_RECEIPT_TTL_MS = 10 * 6e4;
+  var onLateReceipt = null;
+  function setOnLateReceipt(handler) {
+    onLateReceipt = handler;
+  }
   var instanceId = null;
   var requestSequence = 0;
   var pending = /* @__PURE__ */ new Map();
@@ -256,8 +265,14 @@ var XpertResumeScreen = (() => {
       const requestId = typeof message.requestId === "string" ? message.requestId : "";
       if (requestId && pending.has(requestId)) {
         const item = pending.get(requestId);
-        pending.delete(requestId);
         if (!item) return;
+        if (item.timedOut) {
+          pending.delete(requestId);
+          if (item.ttlTimer) window.clearTimeout(item.ttlTimer);
+          if (onLateReceipt) onLateReceipt();
+          return;
+        }
+        pending.delete(requestId);
         if (message.type === "error") {
           item.reject(new Error(typeof message.message === "string" ? message.message : "\u7B80\u5386\u5DE5\u4F5C\u53F0\u8FDC\u7AEF\u8BF7\u6C42\u5931\u8D25"));
         } else {
@@ -281,33 +296,68 @@ var XpertResumeScreen = (() => {
       "*"
     );
   }
-  function request(type, body) {
+  function request(type, body, timeout) {
     const requestId = String(++requestSequence);
     return new Promise((resolve, reject) => {
-      pending.set(requestId, { resolve, reject });
+      let settled = false;
+      const timer = window.setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        if (timeout.trackLate) {
+          const item = pending.get(requestId);
+          if (item) {
+            item.timedOut = true;
+            item.ttlTimer = window.setTimeout(() => pending.delete(requestId), LATE_RECEIPT_TTL_MS);
+          }
+        } else {
+          pending.delete(requestId);
+        }
+        reject(new Error(timeout.message));
+      }, timeout.ms);
+      pending.set(requestId, {
+        resolve: (message) => {
+          if (settled) return;
+          settled = true;
+          window.clearTimeout(timer);
+          resolve(message);
+        },
+        reject: (error) => {
+          if (settled) return;
+          settled = true;
+          window.clearTimeout(timer);
+          reject(error);
+        }
+      });
       try {
         post(type, { requestId, ...body ?? {} });
       } catch (error) {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timer);
         pending.delete(requestId);
         reject(error instanceof Error ? error : new Error(String(error)));
       }
     });
   }
   function requestData(query) {
-    return request("requestData", { query });
+    return request("requestData", { query }, { ms: REQUEST_TIMEOUT_MS, message: REQUEST_TIMEOUT_MESSAGE });
   }
   function executeAction(actionKey, targetId, input, parameters) {
-    return request("executeAction", { actionKey, targetId, input, parameters });
+    return request("executeAction", { actionKey, targetId, input, parameters }, { ms: REQUEST_TIMEOUT_MS, message: REQUEST_TIMEOUT_MESSAGE });
   }
   function executeFileAction(actionKey, targetId, input, parameters, file) {
     return file.arrayBuffer().then(
-      (buffer) => request("executeFileAction", {
-        actionKey,
-        targetId,
-        input,
-        parameters,
-        file: { name: file.name, type: file.type, size: file.size, buffer }
-      })
+      (buffer) => request(
+        "executeFileAction",
+        {
+          actionKey,
+          targetId,
+          input,
+          parameters,
+          file: { name: file.name, type: file.type, size: file.size, buffer }
+        },
+        { ms: FILE_ACTION_TIMEOUT_MS, message: FILE_ACTION_TIMEOUT_MESSAGE, trackLate: true }
+      )
     );
   }
   function notify(message, level = "success") {
@@ -17921,6 +17971,7 @@ Defaulting to \`null\`.`;
     const [jdText, setJdText] = useState5("");
     const [saving, setSaving] = useState5(false);
     const [touched, setTouched] = useState5(false);
+    const [submitError, setSubmitError] = useState5("");
     const titleRef = useRef4(null);
     const jdRef = useRef4(null);
     const titleError = touched && !title.trim() ? "\u5C97\u4F4D\u540D\u79F0\u5FC5\u586B" : "";
@@ -17933,10 +17984,12 @@ Defaulting to \`null\`.`;
         setJdText("");
         setTouched(false);
         setSaving(false);
+        setSubmitError("");
       }
     }, [open]);
     async function submit() {
       setTouched(true);
+      setSubmitError("");
       if (!title.trim()) {
         titleRef.current?.focus();
         return;
@@ -17947,10 +18000,11 @@ Defaulting to \`null\`.`;
       }
       setSaving(true);
       try {
-        const ok = await onSubmit(title.trim(), jdText.trim());
-        if (ok) {
+        const outcome = await onSubmit(title.trim(), jdText.trim());
+        if (outcome.ok) {
           onOpenChange(false);
         } else {
+          setSubmitError(outcome.notice ?? "");
           titleRef.current?.focus();
         }
       } finally {
@@ -17985,7 +18039,11 @@ Defaulting to \`null\`.`;
         placeholder: "\u7C98\u8D34\u5C97\u4F4D JD \u539F\u6587\uFF0CAI \u5C06\u636E\u6B64\u62BD\u53D6\u8BC4\u5206",
         onChange: (event) => setJdText(event.currentTarget.value)
       }
-    ), jdError ? /* @__PURE__ */ react_shim_default.createElement("span", { id: "rs-job-jd-error", className: "rs-form-error", role: "alert" }, jdError) : null)), /* @__PURE__ */ react_shim_default.createElement(Mt2, null, /* @__PURE__ */ react_shim_default.createElement(C, { variant: "ghost", disabled: saving, onClick: () => onOpenChange(false) }, "\u53D6\u6D88"), /* @__PURE__ */ react_shim_default.createElement(C, { disabled: !canSave, onClick: () => void submit() }, saving ? "\u4FDD\u5B58\u4E2D\u2026" : "\u4FDD\u5B58"))));
+    ), jdError ? /* @__PURE__ */ react_shim_default.createElement("span", { id: "rs-job-jd-error", className: "rs-form-error", role: "alert" }, jdError) : null)), submitError ? (
+      // M10 M-3（§3.2）：「其他异常」在表单语境呈现——Dialog 内 notice 红变体（复用 .rs-notice sm token、role=alert），
+      // notify 轻提示由父编排双通道同步发出；Dialog 保持打开，文案给出失败事实
+      /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-notice rs-notice-inline", role: "alert", style: { position: "static", margin: "10px 0 0" } }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-error-warning-line", "aria-hidden": "true" }), /* @__PURE__ */ react_shim_default.createElement("div", { style: { minWidth: 0 } }, submitError))
+    ) : null, /* @__PURE__ */ react_shim_default.createElement(Mt2, null, /* @__PURE__ */ react_shim_default.createElement(C, { variant: "ghost", disabled: saving, onClick: () => onOpenChange(false) }, "\u53D6\u6D88"), /* @__PURE__ */ react_shim_default.createElement(C, { disabled: !canSave, onClick: () => void submit() }, saving ? "\u4FDD\u5B58\u4E2D\u2026" : "\u4FDD\u5B58"))));
   }
 
   // src/lib/remote-components/resume-screen/src/components/stat-bar.tsx
@@ -18086,8 +18144,10 @@ Defaulting to \`null\`.`;
           sortDir: current.sortDir,
           search: current.search,
           page: mode === "more" ? pagesLoaded + 1 : 1,
-          // 刷新/首屏一次取回已加载页跨度，避免多页请求拼接竞态（§11 DOM 上限内）
-          pageSize: Math.min(DOM_ROW_CAP, PAGE_SIZE * Math.max(1, loaded))
+          // M10 I-1：「加载更多」= 追加下一页且 page.size=20（§3.4/§11）。服务端窗口为 start=(page-1)*pageSize，
+          // more 若把 pageSize 传成已加载跨度，第二次起 start 跳越、返回空片，41+ 候选人永不可达——故固定 PAGE_SIZE；
+          // 刷新/首屏保留一次取回已加载全跨度的语义，避免多页请求拼接竞态（§11 DOM 上限内）
+          pageSize: mode === "more" ? PAGE_SIZE : Math.min(DOM_ROW_CAP, PAGE_SIZE * Math.max(1, loaded))
         });
         if (mode === "first") setFirstLoading(true);
         else setRefreshing(true);
@@ -18141,6 +18201,10 @@ Defaulting to \`null\`.`;
       return () => {
         delete window.__resumeScreenReload;
       };
+    }, [silentRefresh]);
+    useEffect5(() => {
+      setOnLateReceipt(() => void silentRefresh());
+      return () => setOnLateReceipt(null);
     }, [silentRefresh]);
     useEffect5(() => {
       const shell = shellRef.current;
@@ -18257,7 +18321,7 @@ Defaulting to \`null\`.`;
           const message = resolveText(result.message);
           if (!result.success) {
             notify(message || "\u8BE5\u5C97\u4F4D\u5DF2\u5B58\u5728", "error");
-            return false;
+            return { ok: false };
           }
           notify(message || "\u5C97\u4F4D\u5DF2\u521B\u5EFA");
           const jobField = isObject(result.data) ? result.data.job : void 0;
@@ -18267,12 +18331,11 @@ Defaulting to \`null\`.`;
           } else {
             void silentRefresh();
           }
-          return true;
+          return { ok: true };
         } catch (error) {
           const message = error instanceof Error ? error.message : "\u65B0\u5EFA\u5C97\u4F4D\u5931\u8D25";
-          showNotice(message);
           notify(message, "error");
-          return false;
+          return { ok: false, notice: message };
         }
       },
       // changeView 仅用函数式 setState，无外部状态依赖；静默刷新一并声明依赖
