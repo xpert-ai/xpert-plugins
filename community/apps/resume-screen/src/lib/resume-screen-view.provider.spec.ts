@@ -1,7 +1,8 @@
 /**
  * 简历筛选视图提供者单元测试
  *
- * 以 jest.fn 模拟 ResumeScreenService，验证 manifest 只在工作台主槽位发布、
+ * 以 jest.fn 模拟 ResumeScreenService，验证 manifest 在 main/fixed 双槽发布
+ * （v2.4/v4.3 槽位模型：运行时对话只查询 fixed 槽）、
  * 视图数据按上下文作用域委托服务查询；manifest 字段结构与真实平台的
  * 合规性由 harness 加载与真机部署验证兜底。
  */
@@ -54,11 +55,39 @@ describe('ResumeScreenViewProvider', () => {
     expect(provider.supports(createContext({ hostType: 'other' }))).toBe(false)
   })
 
-  it('returns one manifest only for the workbench main slot', () => {
-    const manifests = provider.getViewManifests(createContext(), 'agent.workbench.main')
-    expect(manifests).toHaveLength(1)
-    expect(manifests[0].key).toBe(RESUME_SCREEN_WORKBENCH_VIEW_KEY)
-    expect(manifests[0].refreshable).toBe(true)
+  // 双槽注册（Task 33）：main 供 studio 中间件面板消费、fixed 供运行时用户对话开 tab；
+  // 仅 fixed 变体附加 workbench:{fixed,menu}，两槽 activation 均须保留（宿主 policy=requireFeatureActivation）
+  it('returns the workbench manifest for both main and fixed slots with fixed-only workbench descriptor', () => {
+    const mainManifests = provider.getViewManifests(createContext(), 'agent.workbench.main')
+    expect(mainManifests).toHaveLength(1)
+    expect(mainManifests[0].key).toBe(RESUME_SCREEN_WORKBENCH_VIEW_KEY)
+    expect(mainManifests[0].refreshable).toBe(true)
+
+    const fixedManifests = provider.getViewManifests(createContext(), 'agent.workbench.fixed')
+    expect(fixedManifests).toHaveLength(1)
+    expect(fixedManifests[0].key).toBe(RESUME_SCREEN_WORKBENCH_VIEW_KEY)
+
+    const { workbench: mainWorkbench, slot: mainSlot, ...mainRest } = mainManifests[0]
+    const { workbench: fixedWorkbench, slot: fixedSlot, ...fixedRest } = fixedManifests[0]
+    expect(mainSlot).toBe('agent.workbench.main')
+    expect(fixedSlot).toBe('agent.workbench.fixed')
+    // main 变体保持现状：无 workbench 字段
+    expect(mainWorkbench).toBeUndefined()
+    // fixed 变体附加置顶菜单注册描述符
+    expect(fixedWorkbench).toEqual({
+      fixed: true,
+      menu: {
+        enabled: true,
+        label: { en_US: 'Resume Screening', zh_Hans: '简历初筛' },
+        order: 20,
+        icon: { type: 'font', value: 'ri-file-user-line', color: '#1d4ed8' }
+      }
+    })
+    // 两槽 activation 原样保留，删了会被宿主第一分支直接拒
+    expect(mainManifests[0].activation).toEqual({ requiredFeatures: ['resume_screen'] })
+    expect(fixedManifests[0].activation).toEqual({ requiredFeatures: ['resume_screen'] })
+    // 除 slot/workbench 外两变体 manifest 逐字段一致，防止复制分叉
+    expect(fixedRest).toEqual(mainRest)
 
     expect(provider.getViewManifests(createContext(), 'other.slot')).toEqual([])
   })

@@ -19,6 +19,8 @@ export const RESUME_SCREEN_MIDDLEWARE_TOOL_NAMES = [
 ] as const
 
 export const AGENT_WORKBENCH_MAIN_SLOT = 'agent.workbench.main'
+// 运行时用户对话只查询该 fixed 槽并据此开远程组件 tab（spec v2.4/蓝图 v4.3 槽位模型）
+export const AGENT_WORKBENCH_FIXED_SLOT = 'agent.workbench.fixed'
 
 // 解析队列（链路 B）：queue/job 名与入队默认重试预算（attempts=4 含首次，backoff 指数 2s 起）
 export const RESUME_SCREEN_PARSE_QUEUE = 'resume-screen.parse'

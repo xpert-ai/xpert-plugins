@@ -1,9 +1,10 @@
 /**
  * 简历筛选工作台视图提供者
  *
- * 以 @ViewExtensionProvider 声明为 resume_screen 提供者：向 agent 工作台主槽位
- * 发布简历初筛工作台的远端组件 manifest，代理视图数据查询并把宿主上下文
- * （租户/组织/助手/会话）收敛为服务层 scope，保证视图读写与中间件工具同源隔离。
+ * 以 @ViewExtensionProvider 声明为 resume_screen 提供者：向 agent 工作台
+ * main/fixed 双槽位发布简历初筛工作台的远端组件 manifest，代理视图数据查询
+ * 并把宿主上下文（租户/组织/助手/会话）收敛为服务层 scope，保证视图读写与
+ * 中间件工具同源隔离。
  */
 import { Injectable } from '@nestjs/common'
 import { readFile } from 'fs/promises'
@@ -24,6 +25,7 @@ import type {
 import { IXpertViewExtensionProvider, ViewExtensionProvider, renderRemoteReactIframeHtml } from '@xpert-ai/plugin-sdk'
 import type { XpertViewFileActionFile } from '@xpert-ai/plugin-sdk'
 import {
+  AGENT_WORKBENCH_FIXED_SLOT,
   AGENT_WORKBENCH_MAIN_SLOT,
   RESUME_SCREEN_FEATURE,
   RESUME_SCREEN_MIDDLEWARE_TOOL_NAMES,
@@ -147,19 +149,23 @@ export class ResumeScreenViewProvider implements IXpertViewExtensionProvider {
   }
 
   /**
-   * 发布视图 manifest：仅 agent 工作台主槽位返回工作台视图
+   * 发布视图 manifest：agent 工作台 main/fixed 双槽均返回工作台视图
    *
-   * manifest 声明远端组件入口、平台数据源、AI 工具完成事件订阅与工作台全部
-   * 操作按钮；宿主据此渲染入口并路由数据/动作调用。
+   * 槽位分工（spec v2.4/蓝图 v4.3）：main 槽唯一消费者是 studio 工作流中间件
+   * 面板；运行时用户对话只查询 fixed 槽并据此开远程组件 tab——只注册 main 会让
+   * 工作台在真机对话中不出现。fixed 变体额外挂 workbench:{fixed,menu} 供宿主
+   * 渲染置顶菜单入口；两槽宿主 policy 均为 requireFeatureActivation，
+   * activation 必须原样保留。manifest 其余字段两变体逐字段一致。
    *
    * @param context 宿主解析后的上下文（本方法不读取，保持签名对齐接口）
-   * @param slot 宿主槽位标识，仅 agent.workbench.main 命中
+   * @param slot 宿主槽位标识，仅 agent.workbench.main / agent.workbench.fixed 命中
    * @returns manifest 数组；非目标槽位返回空数组
    */
   getViewManifests(_context: XpertResolvedViewHostContext, slot: string): XpertExtensionViewManifest[] {
-    if (slot !== AGENT_WORKBENCH_MAIN_SLOT) {
+    if (slot !== AGENT_WORKBENCH_MAIN_SLOT && slot !== AGENT_WORKBENCH_FIXED_SLOT) {
       return []
     }
+    const isFixedSlot = slot === AGENT_WORKBENCH_FIXED_SLOT
     return [
       {
         key: RESUME_SCREEN_WORKBENCH_VIEW_KEY,
@@ -181,6 +187,25 @@ export class ResumeScreenViewProvider implements IXpertViewExtensionProvider {
         activation: {
           requiredFeatures: [RESUME_SCREEN_FEATURE]
         },
+        // fixed 变体附加工作台注册描述符（照抄 smart-maintenance 写法）：运行时对话据此渲染置顶菜单并开 tab；
+        // main 变体保持现状不加 workbench 字段，studio 行为不受影响
+        ...(isFixedSlot
+          ? {
+              workbench: {
+                fixed: true,
+                menu: {
+                  enabled: true,
+                  label: text('Resume Screening', '简历初筛'),
+                  order: 20,
+                  icon: {
+                    type: 'font',
+                    value: 'ri-file-user-line',
+                    color: '#1d4ed8'
+                  }
+                }
+              }
+            }
+          : {}),
         source: {
           provider: RESUME_SCREEN_PROVIDER_KEY,
           plugin: RESUME_SCREEN_PLUGIN_NAME
