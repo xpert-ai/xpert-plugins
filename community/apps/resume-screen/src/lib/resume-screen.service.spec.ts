@@ -7,12 +7,37 @@
  */
 import { BadRequestException, NotFoundException } from '@nestjs/common'
 import { createHash } from 'crypto'
+import { FindOperator } from 'typeorm'
 import { ResumeScreenCandidate, ResumeScreenJob } from './entities'
 import { ResumeScreenService } from './resume-screen.service'
 import type { ResumeScreenScope } from './types'
 
 // 内存时间戳基准：保证模拟 save 写入的 createdAt 单调递增，供 order by createdAt 排序用例使用
 const MOCK_BASE_TIME = 1700000000000
+
+/**
+ * 模拟 TypeORM where 条件匹配：等值直接比较（undefined 视为不过滤），
+ * FindOperator 目前只需支持 lessThan（sweep 滞留行的 updatedAt 阈值过滤），其余操作符显式报错防误用。
+ */
+function matchesWhere(item: Record<string, unknown>, where?: Record<string, unknown>) {
+  if (!where) {
+    return true
+  }
+  return Object.entries(where).every(([key, value]) => {
+    if (value === undefined) {
+      return true
+    }
+    const actual = item[key]
+    if (value instanceof FindOperator) {
+      if (value.type === 'lessThan') {
+        const actualTime = actual instanceof Date ? actual.getTime() : Number(actual)
+        return Number.isFinite(actualTime) && actualTime < (value.value as Date).getTime()
+      }
+      throw new Error(`mock repository 未实现的操作符：${value.type}`)
+    }
+    return actual === value
+  })
+}
 
 function createRepository<T extends { id?: string }>() {
   const store: T[] = []
@@ -35,19 +60,12 @@ function createRepository<T extends { id?: string }>() {
       }
       return row
     }),
-    findOne: jest.fn(async ({ where }: { where: Record<string, unknown> }) => {
-      return (
-        store.find((item) =>
-          Object.entries(where).every(
-            ([key, value]) => value === undefined || (item as Record<string, unknown>)[key] === value
-          )
-        ) ?? null
-      )
+    findOne: jest.fn(async ({ where }: { where?: Record<string, unknown> }) => {
+      return store.find((item) => matchesWhere(item as Record<string, unknown>, where)) ?? null
     }),
-    // 模拟数据库排序与截取：按 order 选项排序（多键时从最后一个键起稳定排序），take 截取前 N 条；
-    // where 过滤不在此模拟，依赖该行为的断言需基于单一作用域的 store 设计
-    find: jest.fn(async (options?: { order?: Record<string, 'ASC' | 'DESC'>; take?: number }) => {
-      const rows = [...store]
+    // 模拟数据库过滤/排序/截取：where 走 matchesWhere，order 多键从最后一个键起稳定排序，take 截取前 N 条
+    find: jest.fn(async (options?: { where?: Record<string, unknown>; order?: Record<string, 'ASC' | 'DESC'>; take?: number }) => {
+      const rows = store.filter((item) => matchesWhere(item as Record<string, unknown>, options?.where))
       const orderEntries = Object.entries(options?.order ?? {})
       for (const [key, direction] of orderEntries.reverse()) {
         rows.sort((a, b) => {
@@ -61,6 +79,12 @@ function createRepository<T extends { id?: string }>() {
         })
       }
       return options?.take ? rows.slice(0, options.take) : rows
+    }),
+    // 模拟条件更新：仅 where 命中的行被合并 data，affected 反映真实抢占语义（sweep 并发安全依赖它）
+    update: jest.fn(async (where: Record<string, unknown>, data: Partial<T>) => {
+      const targets = store.filter((item) => matchesWhere(item as Record<string, unknown>, where))
+      targets.forEach((item) => Object.assign(item, data))
+      return { affected: targets.length }
     }),
     count: jest.fn(async () => store.length)
   }
@@ -447,6 +471,58 @@ describe('ResumeScreenService', () => {
     it('returns an empty list when the scope has no candidates', async () => {
       const failed = await service.markStaleParsingFailed(scope, new Date(MOCK_BASE_TIME))
       expect(failed).toHaveLength(0)
+    })
+  })
+
+  // worker 专用查询：链路 B 处理器按 candidateId 现取全量行 + 跨作用域 sweep 兜底
+  describe('parse worker helpers (getCandidateForParse / sweep)', () => {
+    it('getCandidateForParse returns row with job text and self-carried scope', async () => {
+      const job = await service.createJob(scope, { title: '前端工程师', jdText: 'react 三年经验优先'.repeat(3) })
+      const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'], { sourceFileName: 'a.docx' })
+
+      const row = await service.getCandidateForParse(draft.created[0].id)
+      expect(row).toMatchObject({
+        jobId: job.id,
+        status: 'parsing',
+        sourceText: '张三的简历',
+        attemptCount: 0,
+        humanEditedFields: [],
+        jobTitle: '前端工程师',
+        // worker 无请求上下文，隔离维度全靠行自携带（assistantId 是 saveCandidatesFromAgent 作用域校验的一部分）
+        scope: { tenantId: 'tenant-1', organizationId: 'org-1', userId: 'user-1', assistantId: 'assistant-1' },
+        jobJdText: 'react 三年经验优先'.repeat(3)
+      })
+    })
+
+    it('getCandidateForParse returns null for unknown id', async () => {
+      expect(await service.getCandidateForParse('missing')).toBeNull()
+    })
+
+    it('findStaleParsingRows returns only parsing rows older than threshold, across scopes', async () => {
+      const job = await service.createJob(scope, { title: '前端工程师', jdText: 'x'.repeat(30) })
+      const draft = await service.prepareIntakeDraft(scope, job.id, ['滞留行', '将被标失败的行'])
+      await service.markCandidateFailed(scope, draft.created[1].id, '手动标失败')
+
+      // MOCK 行的 updatedAt 固定在 2023 基准时间：阈值 0（cutoff=now）应命中全部 parsing 行、排除 failed 行
+      const stale = await service.findStaleParsingRows(0)
+      expect(stale.map((row) => row.id)).toEqual([draft.created[0].id])
+      expect(stale[0].scope).toMatchObject({ tenantId: 'tenant-1', assistantId: 'assistant-1' })
+
+      // 阈值大到 cutoff 晚于 MOCK 时间 → 该行不再视为滞留
+      const none = await service.findStaleParsingRows(Date.now() - MOCK_BASE_TIME + 60_000)
+      expect(none).toHaveLength(0)
+    })
+
+    it('claimStaleParsing preempts only rows still in parsing', async () => {
+      const job = await service.createJob(scope, { title: '前端工程师', jdText: 'x'.repeat(30) })
+      const draft = await service.prepareIntakeDraft(scope, job.id, ['待抢占行'])
+      const candidateId = draft.created[0].id
+
+      // parsing 行抢占成功（affected=1），供 sweep 判定是否重投
+      await expect(service.claimStaleParsing(candidateId)).resolves.toBe(true)
+      await service.markCandidateFailed(scope, candidateId, '已失败')
+      await expect(service.claimStaleParsing(candidateId)).resolves.toBe(false)
+      await expect(service.claimStaleParsing('unknown-id')).resolves.toBe(false)
     })
   })
 })

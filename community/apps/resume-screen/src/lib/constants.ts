@@ -24,6 +24,8 @@ export const AGENT_WORKBENCH_MAIN_SLOT = 'agent.workbench.main'
 export const RESUME_SCREEN_PARSE_QUEUE = 'resume-screen.parse'
 export const RESUME_SCREEN_PARSE_JOB = 'parse-candidate'
 export const RESUME_SCREEN_PARSE_ATTEMPTS = 4
+// sweep 单轮捞取上限：服务查询 take 与 worker 重投循环共用同一口径，防止兜底轮次挤占队列
+export const RESUME_SCREEN_SWEEP_BATCH_LIMIT = 50
 
 export const RESUME_SCREEN_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
   <rect width="256" height="256" rx="36" fill="transparent"/>

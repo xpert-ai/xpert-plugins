@@ -11,6 +11,7 @@ import { XpertServerPlugin } from '@xpert-ai/plugin-sdk'
 import { ResumeScreenCandidate, ResumeScreenJob } from './entities'
 import { ResumeScreenIntakeQueue } from './resume-screen-intake-queue'
 import { ResumeScreenMiddleware } from './resume-screen.middleware'
+import { ResumeScreenParseProcessor } from './resume-screen-parse.processor'
 import { ResumeScreenService } from './resume-screen.service'
 import { ResumeScreenViewProvider } from './resume-screen-view.provider'
 
@@ -20,7 +21,7 @@ const RESUME_SCREEN_ENTITIES = [ResumeScreenJob, ResumeScreenCandidate]
 @XpertServerPlugin({
   imports: [TypeOrmModule.forFeature(RESUME_SCREEN_ENTITIES)],
   entities: RESUME_SCREEN_ENTITIES,
-  providers: [ResumeScreenService, ResumeScreenViewProvider, ResumeScreenMiddleware, ResumeScreenIntakeQueue],
+  providers: [ResumeScreenService, ResumeScreenViewProvider, ResumeScreenMiddleware, ResumeScreenIntakeQueue, ResumeScreenParseProcessor],
   exports: [ResumeScreenService, ResumeScreenViewProvider]
 })
 export class ResumeScreenPlugin implements IOnPluginBootstrap, IOnPluginDestroy {

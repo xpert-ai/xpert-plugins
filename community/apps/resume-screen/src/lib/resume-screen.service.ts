@@ -7,8 +7,9 @@
  */
 import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
+import { LessThan, Repository } from 'typeorm'
 import { createHash } from 'crypto'
+import { RESUME_SCREEN_SWEEP_BATCH_LIMIT } from './constants'
 import { ResumeScreenCandidate, ResumeScreenJob } from './entities'
 import type {
   ResumeScreenAgentCandidateSummary,
@@ -564,6 +565,81 @@ export class ResumeScreenService {
       failureReason: null
     })
     return toCandidateView(updated)
+  }
+
+  /**
+   * 按 id 跨视图取解析所需全量行 + 所属 job 文本（链路 B worker 专用）
+   *
+   * 队列 handler 无请求上下文，不能走 scopeWhere 常规读路径；隔离维度靠行自携带
+   * 字段重建（含 assistantId——saveCandidatesFromAgent 的作用域校验依赖它），
+   * JD 文本按行 jobId 现查，prompt 构造不再回库。
+   *
+   * @param candidateId 候选人行 id（job payload 唯一业务字段）
+   * @returns 解析行视图；行不存在返回 null（幂等认领的判据之一）
+   */
+  async getCandidateForParse(candidateId: string) {
+    const row = await this.candidateRepository.findOne({ where: { id: candidateId } })
+    if (!row) {
+      return null
+    }
+    const job = await this.jobRepository.findOne({ where: { id: row.jobId } })
+    return {
+      id: row.id,
+      jobId: row.jobId,
+      status: row.status,
+      sourceText: row.sourceText ?? '',
+      attemptCount: row.attemptCount ?? 0,
+      humanEditedFields: row.humanEditedFields ?? [],
+      scope: {
+        tenantId: row.tenantId ?? '',
+        organizationId: row.organizationId ?? null,
+        userId: row.createdById ?? null,
+        assistantId: row.assistantId ?? null
+      },
+      jobTitle: job?.title ?? '',
+      jobJdText: job?.jdText ?? ''
+    }
+  }
+
+  /**
+   * sweep 查询：捞 updatedAt 早于阈值的 parsing 滞留行（全局无请求作用域）
+   *
+   * worker 上下文合法例外——跨租户捞取，但返回行自带原 scope 三元组，
+   * 重投 payload 按原行归属路由，不会把 A 租户的滞留行投给 B。
+   *
+   * @param thresholdMs 滞留判定毫秒数（parsing 且 updatedAt 早于 now-thresholdMs）
+   * @returns 每行 { id, attemptCount, scope }，供 sweep 抢占与重投使用
+   */
+  async findStaleParsingRows(thresholdMs: number) {
+    const cutoff = new Date(Date.now() - thresholdMs)
+    const rows = await this.candidateRepository.find({
+      where: { status: 'parsing', updatedAt: LessThan(cutoff) },
+      take: RESUME_SCREEN_SWEEP_BATCH_LIMIT
+    })
+    return rows.map((row) => ({
+      id: row.id,
+      attemptCount: row.attemptCount ?? 0,
+      scope: {
+        tenantId: row.tenantId ?? '',
+        organizationId: row.organizationId ?? null,
+        userId: row.createdById ?? null,
+        assistantId: row.assistantId ?? null
+      }
+    }))
+  }
+
+  /**
+   * 条件抢占：仍 parsing 才占位（多副本/双 sweep 并发安全，调研 B §4 lease 模式简化版）
+   *
+   * 只做 updatedAt 心跳式条件更新（不推进 attemptCount——重投 jobId 由调用方 +1 变号，
+   * 抢占失败的竞争方直接跳过），affected=1 视为独占成功。
+   *
+   * @param candidateId 候选人行 id
+   * @returns true=本方抢到重投权；false=行已非 parsing（他人已处理/已回填）
+   */
+  async claimStaleParsing(candidateId: string): Promise<boolean> {
+    const result = await this.candidateRepository.update({ id: candidateId, status: 'parsing' }, { updatedAt: new Date() })
+    return Number(result.affected ?? 0) === 1
   }
 
   /**
