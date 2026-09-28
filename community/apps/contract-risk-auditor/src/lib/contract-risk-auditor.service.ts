@@ -166,15 +166,6 @@ export class ContractRiskAuditorService {
       console.warn(`[ContractRiskAuditorService] 读取 scope[${scopeKey}] 持久化记录失败: ${err?.message}`)
     }
 
-    // 如果为 default-tenant 且无历史记录，初始化默认预置样例供快速演示
-    if (scopeKey.startsWith('default-tenant') || scopeKey.includes('local-preview-user') || scopeKey.includes('test-user')) {
-      const defaultRecords = this.buildInitialDemoRecords()
-      for (const rec of defaultRecords) {
-        map.set(rec.id, rec)
-      }
-      this.persistScopedRecords(scopeKey, map)
-    }
-
     return map
   }
 
@@ -199,40 +190,6 @@ export class ContractRiskAuditorService {
       this.memoryCache.set(scopeKey, map)
     }
     return { scopeKey, map }
-  }
-
-  private buildInitialDemoRecords(): ContractAuditRecord[] {
-    const s1 = SAMPLE_CONTRACTS[0]
-    const ind1 = this.detectContractIndustry(s1.content, s1.title)
-    const rec1: ContractAuditRecord = {
-      id: 'demo-contract-1',
-      title: s1.title,
-      originalContent: s1.content,
-      revisedContent: s1.content,
-      detectedIndustry: ind1,
-      engine: 'RULE_ENGINE',
-      risks: this.analyzeContractTextByRules(s1.content, ind1.code),
-      summary: '检测到 4 项高危合规风险（含过高违约金50%、不合理单方免责、知识产权不当归属及异地管辖陷阱），建议采纳修订条款。',
-      createdAt: new Date(Date.now() - 3600000).toISOString(),
-      updatedAt: new Date(Date.now() - 3600000).toISOString()
-    }
-
-    const s2 = SAMPLE_CONTRACTS[1]
-    const ind2 = this.detectContractIndustry(s2.content, s2.title)
-    const rec2: ContractAuditRecord = {
-      id: 'demo-contract-2',
-      title: s2.title,
-      originalContent: s2.content,
-      revisedContent: s2.content,
-      detectedIndustry: ind2,
-      engine: 'RULE_ENGINE',
-      risks: this.analyzeContractTextByRules(s2.content, ind2.code),
-      summary: '【IT软件开发】风险排查完成：识别 3 处合规隐患（含无限制免费修改、30%违约金连带损失及任意单方解约）。',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
-
-    return [rec1, rec2]
   }
 
   detectContractIndustry(content: string, title?: string): IndustryProfile {

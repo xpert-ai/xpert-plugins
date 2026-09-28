@@ -174,106 +174,6 @@
     { icon: '✍️', title: '流式生成对等中立合规修订建议', desc: '起草利益平衡的修正条款，保留双方合法抗辩与救济权利' }
   ]
 
-  const DEFAULT_DEMO_RECORDS = [
-    {
-      id: 'demo-contract-1',
-      title: DEFAULT_SAMPLES[0].title,
-      originalContent: DEFAULT_SAMPLES[0].content,
-      revisedContent: DEFAULT_SAMPLES[0].content,
-      detectedIndustry: {
-        code: 'GENERAL_COMMERCIAL',
-        name: '通用商事交易与商业服务',
-        standardRef: '《民法典》合同编通则',
-        focusAreas: ['过高违约金(超损失30%)', '单方免除重大过错', '无偿任意解除特权', '剥夺司法管辖异议']
-      },
-      risks: [
-        {
-          id: 'risk-liquidated-damages',
-          originalText: '支付合同总额50%的惩罚性违约金',
-          category: '通用商事·违约金畸高陷阱',
-          riskLevel: 'HIGH',
-          riskAnalysis: '约定违约金高达合同总额的30%~300%，严重违反《民法典》第五百八十五条第二款规定（约定的违约金超过造成损失的百分之三十的，可以请求人民法院予以适当减少），构成显失公平惩罚。',
-          suggestedRevision: '违约金按照守约方因迟延或违约遭受之直接实际损失计算，违约金最高累计不超过合同总价款的10%',
-          status: 'PENDING'
-        },
-        {
-          id: 'risk-acceptance-delay',
-          originalText: '若验收期内因任何技术瑕疵导致甲方不满，甲方有权无限期顺延付款且不承担逾期付款违约责任。',
-          category: '履行与验收·恶意拖延结算陷阱',
-          riskLevel: 'HIGH',
-          riskAnalysis: '以技术瑕疵为由无限期顺延付款，排除出卖人收取价款的主要权利，违反《民法典》第五百一十条及第六百二十八条规定。',
-          suggestedRevision: '甲方应在收到货物后15日内组织验收；逾期未验收且未提出书面异议的，视为验收合格并应按期付款',
-          status: 'PENDING'
-        },
-        {
-          id: 'risk-ip-confiscation',
-          originalText: '在履行本合同过程中产生的所有技术方案、设计图纸、软件代码及衍生知识产权，无论是否由乙方独立研发或出资，其全部知识产权及衍生权益均自产生之日起无偿且排他性地永久归属甲方所有。',
-          category: '知识产权·成果独占与背景专利侵夺',
-          riskLevel: 'HIGH',
-          riskAnalysis: '强制剥夺乙方独立研发或既有背景知识产权，违反《民法典》第八百五十九条关于委托开发完成的发明创造专利申请权归属原则。',
-          suggestedRevision: '履行本合同产生的新增定制开发知识产权归甲方，乙方既有背景专利及通用底层组件仍归乙方所有',
-          status: 'PENDING'
-        },
-        {
-          id: 'risk-jurisdiction',
-          originalText: '任何一方必须向甲方所在地有管辖权的人民法院提起诉讼，乙方放弃任何管辖权异议权利。',
-          category: '程序争议·管辖权异议权利剥夺',
-          riskLevel: 'WARN',
-          riskAnalysis: '预先迫使当事人放弃依法享有的管辖权异议程序性抗辩权利，该弃权约定属无效格式条款。',
-          suggestedRevision: '发生争议协商不成的，任何一方均可向原告所在地或合同履行地有管辖权的人民法院提起诉讼',
-          status: 'PENDING'
-        }
-      ],
-      summary: '检测到 4 项高危合规风险（含过高违约金50%、不合理单方免责、知识产权不当归属及异地管辖陷阱），建议采纳修订条款。',
-      createdAt: new Date(Date.now() - 3600000).toISOString(),
-      updatedAt: new Date(Date.now() - 3600000).toISOString()
-    },
-    {
-      id: 'demo-contract-2',
-      title: DEFAULT_SAMPLES[1].title,
-      originalContent: DEFAULT_SAMPLES[1].content,
-      revisedContent: DEFAULT_SAMPLES[1].content,
-      detectedIndustry: {
-        code: 'IT_SOFTWARE',
-        name: 'IT与软件技术开发行业',
-        standardRef: '《民法典》技术合同编 / 《数据安全法》 / GB/T 25000 软件质量评价',
-        focusAreas: ['背景知识产权隔离', '验收标准量化与默认通过', 'SLA服务可用性违约', '开源代码合规']
-      },
-      risks: [
-        {
-          id: 'risk-it-scope-creep',
-          originalText: '甲方可随时提出业务需求变更，乙方须无条件免费响应该等变更并于3日内交付上线',
-          category: 'IT软件·需求蔓延无偿赶工陷阱',
-          riskLevel: 'HIGH',
-          riskAnalysis: '无偿无限度响应范围变更，违反技术开发合同公平原则与工时成本核算基准。',
-          suggestedRevision: '业务需求发生重大变更的，双方应另行签署变更备忘录并相应追加开发费用与顺延交付工期',
-          status: 'PENDING'
-        },
-        {
-          id: 'risk-liquidated-damages',
-          originalText: '按合同总金额的30%向甲方支付违约赔偿金',
-          category: '通用商事·违约金畸高陷阱',
-          riskLevel: 'HIGH',
-          riskAnalysis: '约定违约金高达合同总额的30%，并叠加全额间接利润损失，构成双重过度索赔。',
-          suggestedRevision: '乙方因缺陷承担之累计赔偿金最高不超过产生缺陷模块对应合同费用的20%',
-          status: 'PENDING'
-        },
-        {
-          id: 'risk-unilateral-termination',
-          originalText: '甲方有权无需任何理由随时单方通知乙方立即终止本合同，且甲方无需支付乙方已发生之任何开发工时费用。',
-          category: '合同效力·显失公平单方解约权',
-          riskLevel: 'HIGH',
-          riskAnalysis: '赋予甲方任意解除权且免除付款义务，严重剥夺受托方基本权利，违反民法典公平原则。',
-          suggestedRevision: '任何一方违约导致合同目的无法实现的，守约方享有法定解除权；因不可抗力解除的，甲方应就乙方已完成工时折算结算款项',
-          status: 'PENDING'
-        }
-      ],
-      summary: '【IT软件开发】风险排查完成：识别 3 处合规隐患（含无限制免费修改、30%违约金连带损失及任意单方解约）。',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
-  ]
-
   function analyzeContractLocally(rawContent, contractTitle = '') {
     const text = ((contractTitle || '') + ' ' + (rawContent || '')).toLowerCase()
 
@@ -430,14 +330,14 @@
     const [toast, setToast] = React.useState(null)
 
     const [sampleContracts, setSampleContracts] = React.useState(DEFAULT_SAMPLES)
-    const [records, setRecords] = React.useState(DEFAULT_DEMO_RECORDS)
-    const [currentRecordId, setCurrentRecordId] = React.useState(DEFAULT_DEMO_RECORDS[0].id)
-    const [title, setTitle] = React.useState(DEFAULT_DEMO_RECORDS[0].title)
-    const [content, setContent] = React.useState(DEFAULT_DEMO_RECORDS[0].revisedContent)
-    const [risks, setRisks] = React.useState(DEFAULT_DEMO_RECORDS[0].risks)
-    const [summary, setSummary] = React.useState(DEFAULT_DEMO_RECORDS[0].summary)
-    const [detectedIndustry, setDetectedIndustry] = React.useState(DEFAULT_DEMO_RECORDS[0].detectedIndustry)
-    const [visibleRiskCount, setVisibleRiskCount] = React.useState(DEFAULT_DEMO_RECORDS[0].risks.length)
+    const [records, setRecords] = React.useState([])
+    const [currentRecordId, setCurrentRecordId] = React.useState('')
+    const [title, setTitle] = React.useState('')
+    const [content, setContent] = React.useState('')
+    const [risks, setRisks] = React.useState([])
+    const [summary, setSummary] = React.useState('')
+    const [detectedIndustry, setDetectedIndustry] = React.useState(null)
+    const [visibleRiskCount, setVisibleRiskCount] = React.useState(0)
 
     // 实时流式与审计动画状态
     const [auditStepIndex, setAuditStepIndex] = React.useState(0)
@@ -542,10 +442,6 @@
             }
           }
         } catch (e) {}
-
-        if (mergedRecords.length === 0) {
-          mergedRecords = DEFAULT_DEMO_RECORDS
-        }
 
         // 按时间倒序排列
         mergedRecords.sort((a, b) => new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime())
