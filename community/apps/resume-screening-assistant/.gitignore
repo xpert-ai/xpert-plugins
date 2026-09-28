@@ -1,0 +1,22 @@
+# 简历是个人隐私数据，谁跑谁自己放，不要提交进仓库
+demo/resumes/*
+!demo/resumes/README.md
+
+# 脚本跑出来的结果同理
+demo/output/
+
+# 本地预览保存的岗位和简历数据，可能包含个人隐私
+src/lib/remote-components/resume_screening_assistant__remote/.resume-screening-preview-state.json
+
+# 本地 key，不要提交
+.env
+.env.local
+
+# 但环境变量模板要提交（根目录的 .env* 规则会误伤它）
+!.env.example
+
+# 本地调试用的 AI 代理脚本，不属于插件运行时
+scripts/dev-ai-proxy.mjs
+
+# 未被页面引用的样式文件（样式写在 app.js 的 injectStyles 里）
+src/lib/remote-components/resume_screening_assistant__remote/app.css
