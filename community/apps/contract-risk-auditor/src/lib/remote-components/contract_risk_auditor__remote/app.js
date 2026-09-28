@@ -431,30 +431,35 @@
         
         let mergedRecords = (payload && Array.isArray(payload.records)) ? payload.records : []
         try {
-          const cached = localStorage.getItem('cra_audit_records_v1')
+          // 清理旧版本包含硬编码 mock 的缓存
+          localStorage.removeItem('cra_audit_records_v1')
+          const cached = localStorage.getItem('cra_audit_records_v2')
           if (cached) {
             const parsed = JSON.parse(cached)
             if (Array.isArray(parsed) && parsed.length > 0) {
               const map = new Map()
-              mergedRecords.forEach(r => map.set(r.id, r))
-              parsed.forEach(r => { if (!map.has(r.id)) map.set(r.id, r) })
+              mergedRecords.forEach(r => { if (r && r.id && !r.id.startsWith('demo-')) map.set(r.id, r) })
+              parsed.forEach(r => { if (r && r.id && !r.id.startsWith('demo-') && !map.has(r.id)) map.set(r.id, r) })
               mergedRecords = Array.from(map.values())
             }
           }
         } catch (e) {}
 
+        // 严格过滤任何残留的 demo 模拟记录
+        mergedRecords = mergedRecords.filter(r => r && r.id && !r.id.startsWith('demo-'))
+
         // 按时间倒序排列
         mergedRecords.sort((a, b) => new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime())
         setRecords(mergedRecords)
         try {
-          localStorage.setItem('cra_audit_records_v1', JSON.stringify(mergedRecords))
+          localStorage.setItem('cra_audit_records_v2', JSON.stringify(mergedRecords))
         } catch (e) {}
 
-        if (payload && payload.activeRecord) {
+        if (payload && payload.activeRecord && !payload.activeRecord.id?.startsWith('demo-')) {
           applyRecord(payload.activeRecord)
-        } else if (mergedRecords.length > 0) {
+        } else if (currentRecordId) {
           const existing = mergedRecords.find(r => r.id === currentRecordId)
-          applyRecord(existing || mergedRecords[0])
+          if (existing) applyRecord(existing)
         }
       } catch (err) {
         console.warn('加载数据警告:', err)
@@ -581,7 +586,7 @@
           setRecords(prev => {
             const next = [rec, ...prev.filter(r => r.id !== rec.id)]
             try {
-              localStorage.setItem('cra_audit_records_v1', JSON.stringify(next))
+              localStorage.setItem('cra_audit_records_v2', JSON.stringify(next))
             } catch (e) {}
             return next
           })
@@ -629,7 +634,7 @@
       setRecords(prev => {
         const next = prev.map(r => r.id === updatedRec.id ? updatedRec : r)
         try {
-          localStorage.setItem('cra_audit_records_v1', JSON.stringify(next))
+          localStorage.setItem('cra_audit_records_v2', JSON.stringify(next))
         } catch (e) {}
         return next
       })
@@ -751,7 +756,7 @@
       setRecords(prev => {
         const next = prev.filter(r => r.id !== recordId)
         try {
-          localStorage.setItem('cra_audit_records_v1', JSON.stringify(next))
+          localStorage.setItem('cra_audit_records_v2', JSON.stringify(next))
         } catch (e) {}
         return next
       })
@@ -775,6 +780,7 @@
       setRecords([])
       try {
         localStorage.removeItem('cra_audit_records_v1')
+        localStorage.removeItem('cra_audit_records_v2')
       } catch (e) {}
       setCurrentRecordId('')
       showToast('已清空全部历史审查档案')
