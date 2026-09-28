@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { z } from 'zod/v3'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
-import { TRAVEL_FEATURE, TRAVEL_ICON, TRAVEL_MIDDLEWARE_NAME, TRAVEL_PLUGIN_NAME, TRAVEL_PROVIDER_KEY, TRAVEL_TEMPLATE_PROVIDER_KEY, TRAVEL_WORKBENCH_VIEW_KEY } from './lib/constants'
+import { TRAVEL_ARTIFACT_NAMESPACE, TRAVEL_FEATURE, TRAVEL_ICON, TRAVEL_MIDDLEWARE_NAME, TRAVEL_PLUGIN_NAME, TRAVEL_PROVIDER_KEY, TRAVEL_TEMPLATE_PROVIDER_KEY, TRAVEL_WORKBENCH_VIEW_KEY } from './lib/constants'
 import { TravelItineraryPlugin } from './lib/travel-itinerary.plugin'
 import { travelTemplates } from './lib/travel-itinerary.templates'
 
@@ -13,7 +13,8 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   meta: {
     name: packageJson.name || TRAVEL_PLUGIN_NAME,
     version: packageJson.version,
-    level: 'organization',
+    level: 'tenant',
+    artifactNamespace: TRAVEL_ARTIFACT_NAMESPACE,
     targetApps: ['data-xpert'],
     targetAppMeta: {
       'data-xpert': {

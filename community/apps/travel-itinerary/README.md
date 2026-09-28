@@ -12,6 +12,8 @@
 
 生成失败时，方案会进入 `failed` 状态并保存原因。用户可以复用原有 `planId` 重试，不会重复创建业务记录。
 
+本插件声明为 `tenant` level，并使用稳定的 `travel_itinerary` artifact namespace，因为它注册了 TypeORM Entity。安装或更新后需要按 Xpert 平台提示重启 API，重启后再验证插件、助手和工作台。
+
 ## 业务状态
 
 | 状态 | 含义 |

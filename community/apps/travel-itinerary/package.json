@@ -10,7 +10,8 @@
   },
   "xpert": {
     "plugin": {
-      "level": "organization"
+      "level": "tenant",
+      "artifactNamespace": "travel_itinerary"
     }
   },
   "main": "./index.cjs",

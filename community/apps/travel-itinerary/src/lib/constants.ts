@@ -1,4 +1,5 @@
 export const TRAVEL_PLUGIN_NAME = '@xpert-ai/plugin-travel-itinerary'
+export const TRAVEL_ARTIFACT_NAMESPACE = 'travel_itinerary'
 export const TRAVEL_FEATURE = 'travel-itinerary'
 export const TRAVEL_PROVIDER_KEY = 'travel-itinerary'
 export const TRAVEL_TEMPLATE_PROVIDER_KEY = 'travel-itinerary-template-provider'
