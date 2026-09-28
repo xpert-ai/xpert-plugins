@@ -78,7 +78,7 @@ pnpm --filter @xpert-ai/plugin-resume-screen test:unit # 只跑 jest
 | `plugin-dev-harness` 生命周期（onStart/bootstrap/onStop） | 通过 |
 | M10 真机冒烟四链路（上传队列收敛 / 新建岗位 Dialog / 处置+自动滑条 / 乐观锁冲突+暂存提示） | 4 / 4 通过 |
 
-数字与取证见本地核验记录（`md/` 不进 git，留档在实施会话侧）：`plugins/md/operation/2026-09-28-task22-s5-closeout.md`（全量矩阵与三失败分支预演）、`plugins/md/operation/2026-09-27-m10-ui-smoke.md`（四链路冒烟与修复记录）。E2E 真机验收报告：`docs/spec/resume-screen-e2e-report.md`（Task 24 产出，**待 S6 补充**）。
+数字与取证见本地核验记录（`md/` 不进 git，留档在实施会话侧）：`plugins/md/operation/2026-09-28-task22-s5-closeout.md`（全量矩阵与三失败分支预演）、`plugins/md/operation/2026-09-27-m10-ui-smoke.md`（四链路冒烟与修复记录）。E2E 真机验收报告：`doc/e2e-report.md`（Task 24 产出，11/11 通过，证据截图见 `doc/assets/e2e-*.png`；主仓同步件 `docs/spec/resume-screen-e2e-report.md`）。
 
 ## 文档索引
 
@@ -96,6 +96,7 @@ pnpm --filter @xpert-ai/plugin-resume-screen test:unit # 只跑 jest
 - ❌ 多用户协作与角色权限细分（只做 tenant/organization 隔离）。
 - ❌ 面试评价、offer 流程。
 - ❌ i18n 完整化（中文优先，英文文案保留最小集）。
+- ⚠️ AC2.1「未选岗位→上传只提示不入队」分支**未做真机 E2E 覆盖**（验收环境组织内恒有岗位且无删除岗位入口，未选态真机不可达）；该行为仅有单元测试与实现证据（provider `Missing jobId` 失败回执 + 前端 notify 提示），见 `doc/e2e-report.md` E2E-05 行标注。
 
 **失败收敛机制（M1）补充说明**：「模型调用彻底失败/进程崩溃」可能让候选人滞留在 `parsing`，为此有三层兜底——① 队列 worker（attempts=4）末次尝试主动置 `failed` + 可读 `failureReason`；② 服务端 sweep 每 5 分钟捞「`parsing` 滞留超 10 分钟」的行重投队列或标失败（崩溃恢复权威）；③ 对话旁路的 agent 轮结束兜底 `markStaleParsingFailed`。`retry_candidate` 因此同时接受 `failed` 与滞留 `parsing` 行（重试 = 重新入队、同一条记录不重建），前端对 `parsing` 超 10 分钟的行显示超时提示。
 
