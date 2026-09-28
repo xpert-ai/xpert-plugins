@@ -155,7 +155,7 @@ export class ContractRiskAuditorService {
         const list = JSON.parse(raw)
         if (Array.isArray(list)) {
           for (const item of list) {
-            if (item && item.id) {
+            if (item && item.id && !item.id.startsWith('demo-')) {
               map.set(item.id, item)
             }
           }
@@ -700,11 +700,11 @@ export class ContractRiskAuditorService {
     query?: { recordId?: string }
   ): Promise<WorkbenchData> {
     const { map } = this.getScopedMap(scope)
-    const records = Array.from(map.values()).sort(
-      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-    )
-    const targetId = query?.recordId || records[0]?.id
-    const activeRecord = targetId ? map.get(targetId) : records[0]
+    const records = Array.from(map.values())
+      .filter((r) => r && r.id && !r.id.startsWith('demo-'))
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    const targetId = query?.recordId
+    const activeRecord = targetId ? map.get(targetId) : undefined
 
     return {
       records,
