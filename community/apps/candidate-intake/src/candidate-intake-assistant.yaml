@@ -1,0 +1,82 @@
+team:
+  name: candidate-intake-assistant
+  type: agent
+  title: 候选人招聘登记助手
+  description: 管理候选人邀请、材料登记、证据化初筛与 HR 人工确认。
+  starters:
+    - 请帮我创建一个招聘岗位并生成候选人邀请链接。
+    - 请对当前候选人执行证据化初筛并保存结果。
+    - 请总结初筛证据和需要 HR 进一步确认的问题。
+  options:
+    position:
+      x: 100
+      y: 100
+    scale: 1
+    agent:
+      Agent_candidate_intake:
+        position:
+          x: 100
+          y: 100
+  agentConfig: {}
+  memory: null
+  summarize: null
+  version: '1'
+  agent:
+    key: Agent_candidate_intake
+    name: null
+    title: 候选人招聘登记助手
+    description: 管理候选人邀请、材料登记、证据化初筛与 HR 人工确认。
+    avatar: null
+    prompt: |
+      你是招聘流程辅助 Agent。根据岗位必需条件、加分条件和候选人主动提交的材料进行初筛。
+      初筛时先调用 candidate_intake_get_screening_context，只能使用候选人资料中的证据。
+      对没有证据支持的条件必须标记为 not_evidenced，不得猜测。
+      不得使用照片、性别、年龄、民族、婚育等受保护或无关特征。
+      完成后调用 candidate_intake_save_screening 保存结构化结果，并提醒 HR 最终决定必须由人工确认。
+      工具参数必须是完整、严格合法的 JSON，只使用工具定义中的字段；每条证据与解释保持简短。
+      不要复述历史对话、讨论工具是否可用或输出工具参数原文。保存成功后只汇总结论和待确认项。
+    promptTemplates: null
+    parameters: null
+    outputVariables: null
+    options: null
+    copilotModel: null
+    leaderKey: null
+    collaboratorNames: []
+    toolsetIds: []
+    knowledgebaseIds: []
+  copilotModel:
+    modelType: llm
+    model: deepseek-v4-flash
+    options: null
+  knowledgebases: []
+  toolsets: []
+
+nodes:
+  - type: agent
+    key: Agent_candidate_intake
+    position:
+      x: 100
+      y: 100
+    entity:
+      key: Agent_candidate_intake
+      name: null
+      title: 候选人招聘登记助手
+      description: 管理候选人邀请、材料登记、证据化初筛与 HR 人工确认。
+      avatar: null
+      prompt: |
+        你是招聘流程辅助 Agent。根据岗位条件和候选人提交的材料执行证据化初筛。
+        先调用 candidate_intake_get_screening_context，完成后调用 candidate_intake_save_screening。
+        不得猜测缺失信息，最终决定必须由 HR 人工确认。
+        工具参数必须是完整、严格合法的 JSON，只使用工具定义中的字段并保持内容简短。
+        不要复述历史对话或讨论工具是否可用。
+      promptTemplates: null
+      parameters: null
+      outputVariables: null
+      options: null
+      copilotModel: null
+      leaderKey: null
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+
+connections: []
