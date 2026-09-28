@@ -10,7 +10,39 @@ Candidate Intake 是面向 HR 的 Xpert 招聘业务应用，用统一工作台�
 4. Xpert Assistant 通过受控工具读取岗位条件与候选人材料，逐条生成带证据的结构化初筛结果。
 5. HR 查看证据并选择“推进面试”“待补充信息”或“暂不推进”。AI 只提供建议，不作最终录用决定。
 
-![HR 工作台概览](docs/images/workbench-overview.png)
+## Xpert 平台实机运行截图
+
+以下截图均来自真实运行的 Xpert 平台完整窗口，包含 Xpert 导航、候选人招聘工作台和 Assistant 对话区。演示过程使用虚拟公司、虚拟候选人和示例邮箱，不包含真实候选人数据。
+
+### 1. 创建招聘岗位
+
+HR 在 Xpert 工作台填写岗位介绍、必需条件、加分条件和候选人补充问题。
+
+![在 Xpert 平台创建招聘岗位](docs/images/xpert-job-input-full.png)
+
+### 2. 查看候选人材料
+
+候选人提交 PDF 简历后，HR 在工作台查看解析并结构化保存的候选人信息。
+
+![在 Xpert 平台查看候选人材料](docs/images/xpert-candidate-review-full.png)
+
+### 3. Agent 证据化初筛
+
+Assistant 调用受控工具读取岗位与候选人材料，逐项输出条件判断、解释和对应证据，并保存结构化初筛结果。
+
+![Xpert Assistant 执行证据化初筛](docs/images/xpert-ai-screening-full.png)
+
+### 4. HR 人工确认
+
+Agent 将优势和待确认事项交给 HR；HR 可选择推进面试、待补充信息或暂不推进，最终决定始终由人工完成。
+
+![HR 在 Xpert 平台进行人工确认](docs/images/xpert-hr-decision-full.png)
+
+### 5. 可理解的错误提示
+
+创建岗位时缺少必填的公司名称，系统阻止提交并明确提示 `companyName is required.`，不会写入不完整数据。
+
+![Xpert 工作台显示必填字段错误](docs/images/xpert-validation-error-full.png)
 
 ## 功能与工作量
 
@@ -21,13 +53,7 @@ Candidate Intake 是面向 HR 的 Xpert 招聘业务应用，用统一工作台�
 - PostgreSQL 持久化与组织/租户隔离，支持页面刷新及服务重启后的状态恢复。
 - 23 项自动化断言覆盖核心服务流程、表单顺序、异步提交安全和筛选失败重试。
 
-| 岗位配置 | HR 审核与决策 |
-| --- | --- |
-| ![岗位配置](docs/images/job-form.png) | ![HR 审核](docs/images/hr-review.png) |
-
 系统将可恢复故障保留为明确状态，HR 可以重试，无需重建岗位或要求候选人重新提交。
-
-![可恢复错误](docs/images/recoverable-submit-error.png)
 
 ## 安全与隐私
 
