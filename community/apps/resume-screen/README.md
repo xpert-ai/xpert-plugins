@@ -45,15 +45,14 @@ pnpm --filter @xpert-ai/plugin-resume-screen test:unit # 只跑 jest
 - **organization 降级**：本插件按 `xpert.plugin.level = "organization"`（package.json）设计；若安装/登录账号没有 organization 权限，可降级按 `tenant` 级安装使用。服务端多租户隔离一律以宿主上下文三元组（`tenantId` / `organizationId` / `assistantId`）注入每条读写，`organizationId` 缺省时按 `null` 参与过滤（等效于租户 + 助手维度隔离），数据不会跨维度串。
 - 排查提示：查询视图槽位接口必须带作用域请求头（`X-Scope-Level` / `organization-id` 等，走前端真实链路即可），裸 fetch 缺头时 provider 枚举会落到全局桶、误报空列表。
 
-### 配置（插件级，`.env.example` 只有这三项占位）
+### 配置（插件级，`.env.example` 只有这两项占位）
 
 | 变量 | 默认 | 说明 |
 | --- | --- | --- |
-| `RESUME_SCREEN_ENABLED` | `true` | 仅显式 `false` 时关闭 |
-| `RESUME_SCREEN_MAX_RESUMES_PER_BATCH` | `10`（1–20） | 每批最多简历数，约束单次解析负载 |
+| `RESUME_SCREEN_MAX_RESUMES_PER_BATCH` | `10`（1–20） | 每批最多简历数，约束单次解析负载；服务端上传/批量录入路径强制生效，超限返回中文提示 |
 | `RESUME_SCREEN_SCORE_THRESHOLD` | `60`（0–100） | 评分阈值**仅作界面提示**，不参与自动推进——推进决策永远归人 |
 
-三项同时可在平台插件管理 UI 的配置表单里改（zod 校验）；环境变量只是未配置时的兜底默认值。
+两项同时可在平台插件管理 UI 的配置表单里改（zod 校验）；环境变量只是未配置时的兜底默认值。功能启停归平台安装态与 feature activation 通道，插件不另设 `enabled` 开关（S7 审核 F2 裁决：无消费语义即不声明）。
 
 ### 打开工作台（运行入口）
 
@@ -65,13 +64,25 @@ pnpm --filter @xpert-ai/plugin-resume-screen test:unit # 只跑 jest
 
 ## 截图
 
-截图占位目录：[`doc/assets/`](doc/assets/)（相对路径引用，GitHub 可直接显示；覆盖关键界面、用户输入、AI 处理结果与失败重试异常态，待 S6 补充真图）。
+以下均为真机验收截图（E2E 取证原件，位于 [`doc/assets/e2e/`](doc/assets/e2e/)，全量清单与验收结论见 [`doc/e2e-report.md`](doc/e2e-report.md)）。
+
+**工作台主界面**——左候选人列表（状态徽标/评分条/搜索排序）+ 右详情（抽取字段/评分理由/命中与风险），顶部岗位切换与统计条：
+
+![工作台主界面](doc/assets/e2e/e2e-03-workbench.png)
+
+**批量上传队列**——多选文件乐观入队、逐行「排队中→上传中→已创建/跳过/失败」推进，行尾可跳转候选人：
+
+![上传队列](doc/assets/e2e/e2e-05-upload-queue.png)
+
+**解析失败态**——详情区红色告示卡呈现服务端透传的可读失败原因，一键重试重新入队：
+
+![失败态](doc/assets/e2e/e2e-10-failed-state.png)
 
 ## 验证结果
 
 | 项 | 结果 |
 | --- | --- |
-| jest 单元测试 | **107 / 107 通过**（9 个 suite） |
+| jest 单元测试 | **116 / 116 通过**（9 个 suite） |
 | `build`（remote 组件 typecheck + 打包 + 服务端 tsc + 资源拷贝） | 通过 |
 | `check:entity-names`（实体名前缀 `plugin_`） | 通过 |
 | `check-plugin-entity-tables`（实体表名） | 通过 |
@@ -98,7 +109,7 @@ pnpm --filter @xpert-ai/plugin-resume-screen test:unit # 只跑 jest
 - ❌ i18n 完整化（中文优先，英文文案保留最小集）。
 - ⚠️ AC2.1「未选岗位→上传只提示不入队」分支**未做真机 E2E 覆盖**（验收环境组织内恒有岗位且无删除岗位入口，未选态真机不可达）；该行为仅有单元测试与实现证据（provider `Missing jobId` 失败回执 + 前端 notify 提示），见 `doc/e2e-report.md` E2E-05 行标注。
 
-**失败收敛机制（M1）补充说明**：「模型调用彻底失败/进程崩溃」可能让候选人滞留在 `parsing`，为此有三层兜底——① 队列 worker（attempts=4）末次尝试主动置 `failed` + 可读 `failureReason`；② 服务端 sweep 每 5 分钟捞「`parsing` 滞留超 10 分钟」的行重投队列或标失败（崩溃恢复权威）；③ 对话旁路的 agent 轮结束兜底 `markStaleParsingFailed`。`retry_candidate` 因此同时接受 `failed` 与滞留 `parsing` 行（重试 = 重新入队、同一条记录不重建），前端对 `parsing` 超 10 分钟的行显示超时提示。
+**失败收敛机制（M1 + S7 审核 F3/F4）补充说明**：「模型调用彻底失败/进程崩溃」可能让候选人滞留在 `parsing`，为此有双层兜底——① 队列 worker（attempts=4）末次尝试主动置 `failed` + 可读 `failureReason`；② 服务端 sweep 每 5 分钟捞「`parsing` 滞留超 10 分钟」的行条件抢占重投（崩溃恢复权威），持久化重投代号超尝试上限时不再重投、直接标 `failed` 给可读原因，封死队列反复丢失时的无界重投。对话旁路的 agent 轮结束兜底已删除：链路 B 下 `parsing` 行唯一来源是上传入队/重试，该钩子只剩与在途解析互踩的风险（S7 审核 F4 裁决）。`retry_candidate` 因此同时接受 `failed` 与滞留 `parsing` 行（重试 = 重新入队、同一条记录不重建），前端对 `parsing` 超 10 分钟的行显示超时提示。
 
 ## 测试脚本对样板的偏离声明（D6）
 

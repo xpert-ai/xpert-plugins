@@ -2,11 +2,9 @@ export const RESUME_SCREEN_PLUGIN_NAME = '@xpert-ai/plugin-resume-screen'
 export const RESUME_SCREEN_PROVIDER_KEY = 'resume_screen'
 export const RESUME_SCREEN_FEATURE = 'resume_screen'
 export const RESUME_SCREEN_WORKBENCH_VIEW_KEY = 'workbench'
-export const RESUME_SCREEN_PUBLIC_VIEW_KEY = `${RESUME_SCREEN_PROVIDER_KEY}__${RESUME_SCREEN_WORKBENCH_VIEW_KEY}`
 export const RESUME_SCREEN_REMOTE_ENTRY_KEY = 'resume-screen'
 export const RESUME_SCREEN_MIDDLEWARE_NAME = 'ResumeScreenMiddleware'
 export const RESUME_SCREEN_TEMPLATE_PROVIDER_KEY = 'resumeScreenTemplates'
-export const RESUME_SCREEN_ARTIFACT_NAMESPACE = 'resume_screen'
 
 // 模型可调用的工具（推进/待定/淘汰/撤回/编辑刻意不提供）
 export const RESUME_SCREEN_SAVE_TOOL_NAME = 'resume_screen_save_candidates'

@@ -2,10 +2,12 @@
  * 简历筛选助手中间件
  *
  * 为助手（Agent）运行时提供简历初筛三件套工具：保存 AI 抽取的候选人、
- * 查询候选人列表与详情；并在每轮对话结束时通过 afterAgent 钩子把滞留在
- * parsing 态的候选人收敛为失败，防止模型失联导致候选人永远卡在解析中。
+ * 查询候选人列表与详情。解析收敛权威是服务端队列 sweep（processor，含超限标失败），
+ * 本中间件不再挂 afterAgent 轮结束兜底：链路 B 下 parsing 行唯一来源是上传入队/重试，
+ * 对话旁路 save 直写 pending_review 不产生 parsing 行，钩子只剩与在途解析互踩的风险
+ * （误标 failed + 双计 attempt，S7 审核 F4 裁决）。
  */
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { tool } from '@langchain/core/tools'
 import { TAgentMiddlewareMeta } from '@xpert-ai/contracts'
 import {
@@ -66,8 +68,6 @@ const candidateDetailSchema = z.object({
 @Injectable()
 @AgentMiddlewareStrategy(RESUME_SCREEN_MIDDLEWARE_NAME)
 export class ResumeScreenMiddleware implements IAgentMiddlewareStrategy<Record<string, never>> {
-  private readonly logger = new Logger(ResumeScreenMiddleware.name)
-
   meta: TAgentMiddlewareMeta = {
     name: RESUME_SCREEN_MIDDLEWARE_NAME,
     label: {
@@ -98,9 +98,6 @@ export class ResumeScreenMiddleware implements IAgentMiddlewareStrategy<Record<s
     context: IAgentMiddlewareContext
   ): PromiseOrValue<AgentMiddleware> {
     const scope = scopeFromContext(context)
-    // 轮开始时间：早于该时刻仍停留在 parsing 的行才算超时滞留，
-    // 本轮内模型正在回填的行不会被兜底误伤
-    const roundStartedAt = new Date()
 
     const saveCandidatesTool = tool(
       async (input: z.infer<typeof saveCandidatesSchema>) => {
@@ -193,25 +190,7 @@ export class ResumeScreenMiddleware implements IAgentMiddlewareStrategy<Record<s
 
     return {
       name: RESUME_SCREEN_MIDDLEWARE_NAME,
-      tools: [saveCandidatesTool, listCandidatesTool, candidateDetailTool],
-      // 轮结束兜底（M1 ③④ 的运行时补充）：模型未完成回填的 parsing 行统一收敛为失败，
-      // 失败后仍可由用户在工作台显式重试拉起
-      afterAgent: async () => {
-        try {
-          const failed = await this.service.markStaleParsingFailed(scope, roundStartedAt)
-          if (failed.length > 0) {
-            this.logger.log(
-              `轮结束兜底：${failed.length} 条滞留候选人已置为失败（conversationId=${scope.conversationId ?? '未知'}, assistantId=${scope.assistantId ?? '未知'}）`
-            )
-          }
-        } catch (error) {
-          // 兜底清理属于旁路逻辑：失败不能影响对话收尾，仅记录错误供排查
-          this.logger.error(
-            `轮结束兜底失败：滞留候选人状态收敛未完成（conversationId=${scope.conversationId ?? '未知'}）`,
-            error as Error
-          )
-        }
-      }
+      tools: [saveCandidatesTool, listCandidatesTool, candidateDetailTool]
     }
   }
 }

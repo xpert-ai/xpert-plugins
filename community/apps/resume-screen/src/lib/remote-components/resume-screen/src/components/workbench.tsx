@@ -334,7 +334,8 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
         const result = parseActionResult(response)
         const message = resolveText(result.message)
         if (!result.success) {
-          const conflict = looksLikeRevisionConflict(message)
+          // 冲突判定优先看回执 data.code（F5）；message 正则只是旧回执兜底
+          const conflict = looksLikeRevisionConflict(message, isObject(result.data) ? result.data.code : undefined)
           if (!conflict) {
             showNotice(message || '保存失败')
             notify(message || '保存失败', 'error')

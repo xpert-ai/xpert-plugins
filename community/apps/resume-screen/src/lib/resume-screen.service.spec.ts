@@ -9,7 +9,7 @@ import { BadRequestException, NotFoundException } from '@nestjs/common'
 import { createHash } from 'crypto'
 import { FindOperator } from 'typeorm'
 import { ResumeScreenCandidate, ResumeScreenJob } from './entities'
-import { ResumeScreenService } from './resume-screen.service'
+import { ResumeScreenRevisionConflictError, ResumeScreenService } from './resume-screen.service'
 import type { ResumeScreenScope } from './types'
 
 // 内存时间戳基准：保证模拟 save 写入的 createdAt 单调递增，供 order by createdAt 排序用例使用
@@ -197,6 +197,22 @@ describe('ResumeScreenService', () => {
       ).rejects.toBeInstanceOf(BadRequestException)
     })
 
+    // S7 审核 F2 接线：上限取插件安装上下文 config.maxResumesPerBatch，而非恒缺省的 DI 参数
+    it('enforces the configured maxResumesPerBatch from the plugin install context', async () => {
+      const configured = new ResumeScreenService(
+        jobRepository as never,
+        candidateRepository as never,
+        { config: { maxResumesPerBatch: 3 } } as never
+      )
+      const job = await configured.createJob(scope, { title: '前端工程师', jdText: 'x'.repeat(30) })
+      // 恰等于上限放行、超限拒绝，且中文提示回显配置值而不是默认 10
+      const ok = await configured.prepareIntakeDraft(scope, job.id, ['甲', '乙', '丙'])
+      expect(ok.created).toHaveLength(3)
+      await expect(
+        configured.prepareIntakeDraft(scope, job.id, ['丁', '戊', '己', '庚'])
+      ).rejects.toThrow('单批最多 3 条简历')
+    })
+
     it('scopes dedupeKey per job (same text, different job → new row)', async () => {
       const jobA = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
       const jobB = await service.createJob(scope, { title: 'B', jdText: 'b'.repeat(30) })
@@ -279,6 +295,21 @@ describe('ResumeScreenService', () => {
       expect(row.failureReason).toBeNull()
       expect(row.attemptCount).toBe(1)
     })
+
+    // S7 审核 F9：AI 回填是系统写，不得推进乐观锁版本——否则心跳期正在编辑的用户会被
+    // 无端顶成「已被他人修改」冲突；人工编辑/处置/重试通道才负责递增
+    it('AI backfill leaves revision untouched while human edit still bumps it', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+      const rowId = draft.created[0].id
+      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: '张三' }])
+      expect(candidateRepository.store[0].revision).toBe(1)
+      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: '张三', matchScore: 90 }])
+      expect(candidateRepository.store[0].revision).toBe(1)
+
+      const edited = await service.updateCandidate(scope, rowId, { name: '张三丰' }, 1)
+      expect(edited.revision).toBe(2)
+    })
   })
 
   describe('markCandidateFailed / retryCandidate', () => {
@@ -308,6 +339,20 @@ describe('ResumeScreenService', () => {
       await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: '张三' }])
       expect(candidateRepository.store).toHaveLength(1)
       expect(candidateRepository.store[0].id).toBe(rowId)
+    })
+
+    // S7 审核 F9：人工重试属人工写，必须推进乐观锁版本使并发编辑旧版本号失效
+    it('retry bumps revision so a concurrent editor holding the old version loses', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+      const rowId = draft.created[0].id
+      await service.markCandidateFailed(scope, rowId, '模型处理超时')
+      const retried = await service.retryCandidate(scope, rowId)
+      expect(retried.revision).toBe(2)
+      // 持旧版本号 1 的编辑者保存即冲突（而非覆盖重试结果）
+      await expect(service.updateCandidate(scope, rowId, { name: '过期编辑' }, 1)).rejects.toBeInstanceOf(
+        ResumeScreenRevisionConflictError
+      )
     })
 
     it('retry rejects non-retryable statuses (M1: parsing is also retryable)', async () => {
@@ -345,14 +390,41 @@ describe('ResumeScreenService', () => {
       expect(updated.revision).toBe(2)
     })
 
-    it('rejects stale revision with a readable message', async () => {
+    it('rejects stale revision with a readable message and a machine-readable conflict code', async () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
       const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
       const rowId = draft.created[0].id
       await service.updateCandidate(scope, rowId, { name: '第一次修改' }, 1)
+      // 冲突必须是携带 code 的类型化异常：视图层据此回 data.code='revision_conflict'（F1/F5）
+      await expect(service.updateCandidate(scope, rowId, { name: '旧版本修改' }, 1)).rejects.toBeInstanceOf(
+        ResumeScreenRevisionConflictError
+      )
       await expect(service.updateCandidate(scope, rowId, { name: '旧版本修改' }, 1)).rejects.toThrow(
         '记录已被他人修改，请刷新'
       )
+    })
+
+    // S7 审核 F1：读-判-写原子化——预检通过之后、写库之前版本被他人抢先推进（并发窗口），
+    // 条件更新的 WHERE revision 失配使 affected=0，必须拒绝而不是拿旧快照盲写覆盖
+    it('blocks the write when the revision advanced after the pre-read (conditional update, no blind overwrite)', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+      const rowId = draft.created[0].id
+      // 库内已是版本 2（他人刚提交），但预读 findOne 返回竞态窗口里的旧快照（版本 1）
+      await candidateRepository.update({ id: rowId }, { revision: 2 })
+      candidateRepository.update.mockClear()
+      const staleSnapshot = { ...(candidateRepository.store[0] as object), revision: 1 }
+      ;(candidateRepository.findOne as jest.Mock).mockImplementationOnce(async () => staleSnapshot)
+
+      await expect(service.updateCandidate(scope, rowId, { name: '旧窗口修改' }, 1)).rejects.toBeInstanceOf(
+        ResumeScreenRevisionConflictError
+      )
+      // 冲突由条件更新拒绝（WHERE 带 expectedRevision），而不是 save 盲写：他人数据零改动
+      expect(candidateRepository.update).toHaveBeenCalledWith(
+        expect.objectContaining({ id: rowId, revision: 1 }),
+        expect.objectContaining({ name: '旧窗口修改' })
+      )
+      expect((candidateRepository.store[0] as ResumeScreenCandidate).name).not.toBe('旧窗口修改')
     })
   })
 
@@ -383,6 +455,27 @@ describe('ResumeScreenService', () => {
       await service.reviewCandidate(scope, rowId, 'accept', 'user-1')
       const again = await service.reviewCandidate(scope, rowId, 'accept', 'user-1')
       expect(again.status).toBe('accepted')
+    })
+
+    // S7 审核 F9（spec §7.5 硬约束 3）：每次实际处置写库都推进 revision；
+    // 幂等重复处置不写库也就不推进
+    it('disposition writes bump revision, repeated same-action stays idempotent', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+      const rowId = draft.created[0].id
+      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历' }])
+      expect(candidateRepository.store[0].revision).toBe(1)
+
+      const accepted = await service.reviewCandidate(scope, rowId, 'accept', 'user-1')
+      expect(accepted.revision).toBe(2)
+      const held = await service.reviewCandidate(scope, rowId, 'hold', 'user-1')
+      expect(held.revision).toBe(3)
+      const repeated = await service.reviewCandidate(scope, rowId, 'hold', 'user-1')
+      expect(repeated.revision).toBe(3)
+      // 处置推进版本后，持旧版本号的并发编辑必须收到冲突而不是被静默覆盖
+      await expect(service.updateCandidate(scope, rowId, { name: '过期编辑' }, 1)).rejects.toBeInstanceOf(
+        ResumeScreenRevisionConflictError
+      )
     })
 
     it('resets back to pending_review via reset_to_pending', async () => {
@@ -490,47 +583,29 @@ describe('ResumeScreenService', () => {
       expect(detail.matchScore).toBe(80)
       expect(detail).not.toHaveProperty('sourceText')
     })
-  })
 
-  // 轮结束超时兜底：中间件 afterAgent 钩子据此把滞留 parsing 行收敛为失败，
-  // 只允许早于阈值（轮开始时间）的 parsing 行被判定为超时，避免误伤本轮正在处理的行
-  describe('markStaleParsingFailed', () => {
-    it('marks only parsing rows whose updatedAt is before the threshold as failed', async () => {
-      const job = await service.createJob(scope, { title: '前端工程师', jdText: 'x'.repeat(30) })
-      await service.prepareIntakeDraft(scope, job.id, ['滞留简历', '新鲜简历'])
-      // 直接改写库内时间戳模拟滞留：第一行早于阈值，第二行晚于阈值
-      ;(candidateRepository.store[0] as ResumeScreenCandidate).updatedAt = new Date(MOCK_BASE_TIME - 10_000)
-      ;(candidateRepository.store[1] as ResumeScreenCandidate).updatedAt = new Date(MOCK_BASE_TIME + 10_000)
-
-      const failed = await service.markStaleParsingFailed(scope, new Date(MOCK_BASE_TIME))
-
-      expect(failed).toHaveLength(1)
-      expect(failed[0].status).toBe('failed')
-      expect(failed[0].failureReason).toBe('模型处理超时或失败')
-      // 失败语义与 markCandidateFailed 对齐：attemptCount +1 作为重试上限计数依据
-      expect(failed[0].attemptCount).toBe(1)
-      expect(candidateRepository.store[1].status).toBe('parsing')
-      // 新鲜行未被兜底触碰：failureReason 保持创建时的未写入状态
-      expect(candidateRepository.store[1].failureReason).toBeUndefined()
+    // S7 审核 F8：工具声明了 page/pageSize，服务层必须透传而不是硬覆盖回第 1 页
+    it('passes the requested page/pageSize through to the list query', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const draft = await service.prepareIntakeDraft(scope, job.id, ['甲', '乙', '丙', '丁'])
+      // 默认 createdAt 倒序：丁丙乙甲——第 2 页（size=2）应命中 乙、甲
+      const secondPage = await service.listCandidatesForAgent(scope, { jobId: job.id, page: 2, pageSize: 2 })
+      expect(secondPage.map((item) => item.id)).toEqual([draft.created[1].id, draft.created[0].id])
     })
 
-    it('never touches rows that already left the parsing state', async () => {
-      const job = await service.createJob(scope, { title: '前端工程师', jdText: 'x'.repeat(30) })
-      const draft = await service.prepareIntakeDraft(scope, job.id, ['已回填简历'])
-      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '已回填简历', name: '张三' }])
-      // 即便 updatedAt 早于阈值，非 parsing 行（已是待评审）也不得被兜底改写
-      ;(candidateRepository.store[0] as ResumeScreenCandidate).updatedAt = new Date(MOCK_BASE_TIME - 10_000)
-
-      const failed = await service.markStaleParsingFailed(scope, new Date(MOCK_BASE_TIME))
-
-      expect(failed).toHaveLength(0)
-      expect(candidateRepository.store[0].status).toBe('pending_review')
-      expect(candidateRepository.store[0].id).toBe(draft.created[0].id)
-    })
-
-    it('returns an empty list when the scope has no candidates', async () => {
-      const failed = await service.markStaleParsingFailed(scope, new Date(MOCK_BASE_TIME))
-      expect(failed).toHaveLength(0)
+    it('caps pageSize at 100 and defaults to page 1 when pagination is omitted', async () => {
+      const getViewDataSpy = jest.spyOn(service, 'getViewData').mockResolvedValue({
+        jobs: [],
+        candidates: [],
+        stats: { total: 0, pendingReview: 0, accepted: 0, hold: 0, rejected: 0, failed: 0, parsing: 0 },
+        page: { number: 1, size: 100, total: 0 }
+      })
+      await service.listCandidatesForAgent(scope, { jobId: 'job-1', page: undefined, pageSize: 500 })
+      // 越界 pageSize 收敛到封顶 100，保住「单次查询不撑爆模型上下文」的闸
+      expect(getViewDataSpy).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ page: 1, pageSize: 100 }))
+      await service.listCandidatesForAgent(scope, { jobId: 'job-1', page: 3, pageSize: 10 })
+      expect(getViewDataSpy).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ page: 3, pageSize: 10 }))
+      getViewDataSpy.mockRestore()
     })
   })
 

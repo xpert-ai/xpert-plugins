@@ -157,7 +157,8 @@ export class ResumeScreenParseProcessor {
   }
 
   /**
-   * 周期兜底：捞滞留 parsing 行，条件抢占成功才重投（新 jobId 绕 BullMQ 去重，F5）
+   * 周期兜底：捞滞留 parsing 行，条件抢占成功才重投（新 jobId 绕 BullMQ 去重，F5）；
+   * 持久化投递代号超上限的行不再重投，收敛为 failed（S7 审核 F3）
    *
    * 重投代号取 claimStaleParsing 回读的持久化新号（自增已随抢占落库）：内存 +1 在崩溃
    * 循环下会反复读回同一旧值，与 Redis 内存活 job 同 id 被静默去重而永卡 parsing（M8' Important-1）。
@@ -175,6 +176,18 @@ export class ResumeScreenParseProcessor {
         // 多副本/双 sweep 并发下只有一方抢占成功（DB 条件更新），失败方跳过避免重复投递
         const claimedAttempt = await this.service.claimStaleParsing(row.id, cutoff)
         if (claimedAttempt === null) {
+          continue
+        }
+        // 超限收敛（spec §7.7）：队列反复丢件导致持久化投递代号超过尝试上限时不再重投，
+        // 标 failed 给可读原因交工作台人工重试，封死「队列每丢一次就无限再循环 10 分钟」
+        // 的无界重投（S7 审核 F3）
+        if (claimedAttempt > RESUME_SCREEN_PARSE_ATTEMPTS) {
+          this.logger.warn(`解析重投超限收敛：candidate=${row.id} 持久化代号 ${claimedAttempt} 超上限 ${RESUME_SCREEN_PARSE_ATTEMPTS}`)
+          await this.service.markCandidateFailed(
+            row.scope,
+            row.id,
+            `解析任务多次排队丢失（已自动重投 ${claimedAttempt} 次），请点击重试或重新上传`
+          )
           continue
         }
         await this.intakeQueue.enqueueParse({

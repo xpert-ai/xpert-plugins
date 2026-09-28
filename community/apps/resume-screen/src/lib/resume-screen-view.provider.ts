@@ -36,7 +36,7 @@ import {
 } from './constants'
 import { ResumeScreenIntakeQueue } from './resume-screen-intake-queue'
 import { parseResumeFileContent, ResumeFileParseError } from './resume-file-parser'
-import { ResumeScreenService } from './resume-screen.service'
+import { RESUME_SCREEN_REVISION_CONFLICT_CODE, ResumeScreenRevisionConflictError, ResumeScreenService } from './resume-screen.service'
 import type {
   ResumeScreenCandidateListQuery,
   ResumeScreenCandidateStatus,
@@ -404,13 +404,13 @@ export class ResumeScreenViewProvider implements IXpertViewExtensionProvider {
           return failure('Candidate is required', '缺少候选人')
         }
         const patch = (request.input as { patch?: Record<string, unknown> })?.patch ?? {}
+        // 版本号必须是 ≥1 的整数：非法即直接失败回执，不再默认成 1 代打——默认值会把
+        // 调用方丢版本号的缺陷伪装成一次正常保存，并可能覆盖他人的新版本（S7 审核 F1）
         const expectedRevision = Number((request.input as { expectedRevision?: unknown })?.expectedRevision)
-        const updated = await this.service.updateCandidate(
-          scope,
-          candidateId,
-          patch as never,
-          Number.isInteger(expectedRevision) ? expectedRevision : 1
-        )
+        if (!Number.isInteger(expectedRevision) || expectedRevision < 1) {
+          return failure('Invalid expectedRevision', '保存版本号无效，请重新打开详情后重试')
+        }
+        const updated = await this.service.updateCandidate(scope, candidateId, patch as never, expectedRevision)
         // 回传最新版本号，前端据此更新下一次提交的乐观锁期望值
         return {
           ...success('Saved', '已保存（人工修正字段不会被 AI 覆盖）'),
@@ -437,7 +437,16 @@ export class ResumeScreenViewProvider implements IXpertViewExtensionProvider {
 
       return failure(`Unknown action: ${actionKey}`, `未知操作：${actionKey}`)
     } catch (error) {
-      // 服务层异常（如乐观锁冲突）转可读提示；message 为业务文案，不含堆栈
+      // 乐观锁冲突：失败回执额外携带机读 code='revision_conflict'，前端优先消费结构化
+      // 标记而不是中文文案正则（S7 审核 F5）；回执其余结构（success:false + 双语文案）不变
+      if (error instanceof ResumeScreenRevisionConflictError) {
+        const message = getActionErrorMessage(error, '操作失败')
+        return {
+          ...failure(message, message),
+          data: { code: RESUME_SCREEN_REVISION_CONFLICT_CODE }
+        }
+      }
+      // 其余服务层异常转可读提示；message 为业务文案，不含堆栈
       const message = getActionErrorMessage(error, '操作失败')
       return failure(message, message)
     }

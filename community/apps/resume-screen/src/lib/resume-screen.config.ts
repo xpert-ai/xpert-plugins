@@ -7,9 +7,13 @@
 import { z } from 'zod/v3'
 import type { JsonSchemaObjectType } from '@xpert-ai/contracts'
 
-// 配置校验模式：每批最多 20 份简历用于约束单次解析负载，分数阈值仅作界面提示不参与自动推进
+/**
+ * 配置校验模式：每批最多 20 份简历用于约束单次解析负载（service 经插件安装上下文读取生效，
+ * S7 审核 F2 接线），分数阈值仅作界面提示不参与自动推进。
+ * 刻意无 `enabled` 开关：全链路与 spec 均无消费语义（功能启停归平台安装态与 feature
+ * activation 通道），声明即死配置（S7 审核 F2 裁决移除）。
+ */
 export const ResumeScreenPluginConfigSchema = z.object({
-  enabled: z.boolean().default(true),
   maxResumesPerBatch: z.number().int().min(1).max(20).default(10),
   scoreThreshold: z.number().int().min(0).max(100).default(60)
 })
@@ -18,14 +22,6 @@ export const ResumeScreenPluginConfigSchema = z.object({
 export const ResumeScreenPluginConfigFormSchema: JsonSchemaObjectType = {
   type: 'object',
   properties: {
-    enabled: {
-      type: 'boolean',
-      title: {
-        en_US: 'Enabled',
-        zh_Hans: '启用'
-      },
-      default: true
-    },
     maxResumesPerBatch: {
       type: 'number',
       title: {
@@ -70,14 +66,12 @@ function toInt(raw: string | undefined, fallback: number, min: number, max: numb
 /**
  * 读取插件环境变量默认值（部署态兜底配置）
  *
- * 约定：RESUME_SCREEN_ENABLED 仅在显式为 'false' 时关闭（默认启用），
- * 数值项非法或缺省时回退默认，保证插件在零配置下可启动。
+ * 约定：数值项非法或缺省时回退默认，保证插件在零配置下可启动。
  *
- * @returns enabled/maxResumesPerBatch/scoreThreshold 三项默认值
+ * @returns maxResumesPerBatch/scoreThreshold 两项默认值
  */
 export function readResumeScreenPluginEnvDefaults() {
   return {
-    enabled: process.env['RESUME_SCREEN_ENABLED'] !== 'false',
     maxResumesPerBatch: toInt(process.env['RESUME_SCREEN_MAX_RESUMES_PER_BATCH'], 10, 1, 20),
     scoreThreshold: toInt(process.env['RESUME_SCREEN_SCORE_THRESHOLD'], 60, 0, 100)
   }

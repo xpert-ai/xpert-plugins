@@ -5,11 +5,12 @@
  * 是插件内唯一对实体仓库做读写的业务层；多租户隔离靠 scope 三元组
  * （tenantId/organizationId/assistantId）注入每一条查询与写入。
  */
-import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common'
+import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { LessThan, Repository } from 'typeorm'
 import { createHash } from 'crypto'
 import { RESUME_SCREEN_SWEEP_BATCH_LIMIT } from './constants'
+import { RESUME_SCREEN_PLUGIN_CONTEXT } from './resume-screen-plugin-context'
 import { ResumeScreenCandidate, ResumeScreenJob } from './entities'
 import type {
   ResumeScreenAgentCandidateSummary,
@@ -28,8 +29,29 @@ import type {
 // JD 正文最短长度：过短的岗位描述无法支撑有效的匹配评分
 const MIN_JD_LENGTH = 30
 
-// 单批简历录入上限：与插件配置 maxResumesPerBatch 默认值保持一致，防止一次录入拖垮解析链路
+// 单批简历录入上限的兜底值：与插件配置 maxResumesPerBatch 默认值保持一致，防止一次录入拖垮解析链路
 const DEFAULT_MAX_RESUMES_PER_BATCH = 10
+
+// 助手列表查询单页封顶：约束模型上下文长度（工具入参 schema 另有更严的 pageSize≤50 闸）
+const AGENT_LIST_MAX_PAGE_SIZE = 100
+
+// 乐观锁冲突的机读错误码：视图动作失败回执以 data.code 携带，前端优先消费结构化标记，
+// 不再从中文文案猜业务语义（S7 审核 F5）
+export const RESUME_SCREEN_REVISION_CONFLICT_CODE = 'revision_conflict'
+
+/**
+ * 乐观锁版本冲突异常
+ *
+ * 继承 BadRequestException 以保持既有 HTTP 400 语义与「message 透传为失败回执文案」的
+ * 处理链不变；额外携带 code 结构化标记，让视图层无需按中文文案正则即可识别冲突分支。
+ */
+export class ResumeScreenRevisionConflictError extends BadRequestException {
+  readonly code = RESUME_SCREEN_REVISION_CONFLICT_CODE
+
+  constructor() {
+    super('记录已被他人修改，请刷新')
+  }
+}
 
 // 人工编辑字段白名单：刻意不含状态与评审结论，二者只能走 reviewCandidate 处置通道
 const EDITABLE_FIELDS: Array<keyof ResumeScreenCandidatePatch> = [
@@ -46,6 +68,10 @@ const EDITABLE_FIELDS: Array<keyof ResumeScreenCandidatePatch> = [
 function sha256(value: string) {
   return createHash('sha256').update(value).digest('hex')
 }
+
+// 插件安装上下文里本服务只消费配置段（maxResumesPerBatch 上传限批）；
+// 上下文形态对齐 processor 的 ParsePluginContext 取法，声明为可选以兼容 harness/单测缺省
+type ServicePluginContext = { config?: { maxResumesPerBatch?: number } }
 
 // 实体行 → 职位视图：时间统一序列化为 ISO 字符串，隔离实体结构与对外契约
 function toJobView(job: ResumeScreenJob): ResumeScreenJobView {
@@ -123,15 +149,22 @@ export class ResumeScreenService {
     private readonly jobRepository: Repository<ResumeScreenJob>,
     @InjectRepository(ResumeScreenCandidate)
     private readonly candidateRepository: Repository<ResumeScreenCandidate>,
-    // 插件运行参数（如单批录入上限），由模块装配时注入；容器无对应 provider 时
-    // @Optional 允许缺省回落到默认值，避免 DI 因无 Object token 而启动失败
+    // 插件安装上下文（index.ts register 以 useValue 注册）：读取 ctx.config.maxResumesPerBatch，
+    // 让声明的配置真正生效（S7 审核 F2 接线）。harness/单测环境无此 provider 时 @Optional
+    // 缺省回落到默认上限
     @Optional()
-    private readonly options: { maxResumesPerBatch?: number } = {}
+    @Inject(RESUME_SCREEN_PLUGIN_CONTEXT)
+    private readonly pluginContext?: ServicePluginContext
   ) {}
 
-  // 单批录入上限：优先取注入配置，缺省回落到 10，避免未装配配置时放开限制
+  // 单批录入上限：优先取安装上下文配置（S7 审核 F2 接线），缺省或非法值回落到默认 10，
+  // 避免未装配配置时放开限制
   private get maxResumesPerBatch(): number {
-    return this.options.maxResumesPerBatch ?? DEFAULT_MAX_RESUMES_PER_BATCH
+    const configured = this.pluginContext?.config?.maxResumesPerBatch
+    if (typeof configured === 'number' && Number.isInteger(configured) && configured >= 1) {
+      return configured
+    }
+    return DEFAULT_MAX_RESUMES_PER_BATCH
   }
 
   // 多租户隔离条件：organizationId/assistantId 缺省时以 null 过滤，保证跨维度不串数据
@@ -355,7 +388,10 @@ export class ResumeScreenService {
         }
       }
       if (row) {
-        // 已有草稿行（通常是 parsing 中/失败重试）：原地回填并推进状态，不新建行
+        // 已有草稿行（通常是 parsing 中/失败重试）：原地回填并推进状态，不新建行。
+        // 刻意不递增 revision：本方法是 AI/系统写入口，回填不得把人工正在编辑的行顶成
+        // 「已被他人修改」的乐观锁冲突（spec §7.5 硬约束 3：版本推进只归属人工处置/编辑
+        // 通道）；人工编辑保护的语义由 humanEditedFields 承担，与版本号无关
         row = await this.candidateRepository.save({
           ...row,
           ...aiPatch,
@@ -399,7 +435,9 @@ export class ResumeScreenService {
    *
    * 仅接受 EDITABLE_FIELDS 白名单内的字段，命中字段全部记入 humanEditedFields，
    * 使其后续被 saveCandidatesFromAgent 的 AI 回填保护规则豁免；expectedRevision
-   * 与库内 revision 不一致时拒绝写入，避免工作台并发编辑互相覆盖。
+   * 与库内 revision 不一致时拒绝写入，避免工作台并发编辑互相覆盖。版本判定收敛进
+   * UPDATE 的 WHERE 条件（读-判-写原子化），并发窗口内版本被他人抢先推进时以
+   * affected=0 拒绝，杜绝「先读旧版本再盲目覆盖」的 TOCTOU 绕过（S7 审核 F1）。
    *
    * @param scope 多租户隔离范围
    * @param candidateId 候选人 id，必须已存在且属于当前作用域
@@ -407,7 +445,8 @@ export class ResumeScreenService {
    * @param expectedRevision 调用方持有的版本号（来自上次读取的视图），必须与库内一致
    * @returns 版本号 +1 且带人工编辑痕迹的候选人视图
    * @exception NotFoundException 候选人在作用域内不存在
-   * @exception BadRequestException 版本号过期（提示刷新）或 matchScore 不是 0-100 整数
+   * @exception ResumeScreenRevisionConflictError（BadRequestException 子类）版本号过期
+   *            （携带机读 code，视图层据此回冲突回执）；matchScore 越界抛 BadRequestException
    */
   async updateCandidate(
     scope: ResumeScreenScope,
@@ -416,9 +455,10 @@ export class ResumeScreenService {
     expectedRevision: number
   ): Promise<ResumeScreenCandidateView> {
     const row = await this.findCandidate(scope, candidateId)
-    // 乐观锁校验：版本号不一致说明他人已先修改，必须让用户刷新后重试而不是静默覆盖
+    // 预检快速失败：常态下的过期版本在这里拦截；预检与条件更新之间的并发窗口由下方
+    // UPDATE WHERE 的 revision 条件兜住，两层共同构成原子乐观锁
     if ((row.revision ?? 1) !== expectedRevision) {
-      throw new BadRequestException('记录已被他人修改，请刷新')
+      throw new ResumeScreenRevisionConflictError()
     }
     // 匹配分是看板排序依据，越界值在入口拒绝，避免脏分数破坏排序与筛选
     if (patch.matchScore !== undefined && (!Number.isInteger(patch.matchScore) || patch.matchScore < 0 || patch.matchScore > 100)) {
@@ -435,20 +475,35 @@ export class ResumeScreenService {
         humanEdited.add(field)
       }
     }
-    const updated = await this.candidateRepository.save({
-      ...row,
-      ...applied,
-      humanEditedFields: Array.from(humanEdited),
-      revision: (row.revision ?? 1) + 1
+    // 条件更新（同 claimStaleParsing 模式）：WHERE 带作用域 + id + expectedRevision，
+    // revision 用 SQL 表达式原子 +1——读-判-写三步在数据库层面原子化（S7 审核 F1）
+    const result = await this.candidateRepository.update(
+      { ...this.scopeWhere(scope), id: candidateId, revision: expectedRevision },
+      {
+        ...applied,
+        humanEditedFields: Array.from(humanEdited),
+        revision: () => '"revision" + 1',
+        updatedAt: new Date()
+      }
+    )
+    // affected≠1 即版本已在预检之后被他人推进（或行被并发删除），按冲突拒绝而不是覆盖
+    if (Number(result.affected ?? 0) !== 1) {
+      throw new ResumeScreenRevisionConflictError()
+    }
+    // UPDATE 不回传列值：回读写入后的行作为回执视图（条件更新成功即本窗口唯一写者）
+    const updated = await this.candidateRepository.findOne({
+      where: { ...this.scopeWhere(scope), id: candidateId }
     })
-    return toCandidateView(updated)
+    return toCandidateView(updated as ResumeScreenCandidate)
   }
 
   /**
    * 人工处置候选人：接受/搁置/淘汰/撤回为待评审
    *
    * 动作到目标状态的映射见 statusMap；已在目标状态时直接返回（幂等），
-   * 避免重复提交产生多余的写库与评审时间刷新。
+   * 避免重复提交产生多余的写库与评审时间刷新。每次实际写库都递增 revision：
+   * 处置同样是人工写，必须推进乐观锁版本使并发编辑者的旧版本号失效（S7 审核 F9，
+   * spec §7.5 硬约束 3）。
    *
    * @param scope 多租户隔离范围
    * @param candidateId 候选人 id，必须已存在且属于当前作用域
@@ -480,7 +535,9 @@ export class ResumeScreenService {
       ...row,
       status: target,
       reviewedById: reviewerId,
-      reviewedAt: new Date()
+      reviewedAt: new Date(),
+      // 处置写库推进版本号：让持有旧 revision 的并发编辑在下一次保存时收到冲突回执（F9）
+      revision: (row.revision ?? 1) + 1
     })
     return toCandidateView(updated)
   }
@@ -509,46 +566,12 @@ export class ResumeScreenService {
   }
 
   /**
-   * 收敛滞留的解析中候选人（轮结束超时兜底）
-   *
-   * 由中间件的 afterAgent 钩子在每轮对话结束时调用：仍停留在 parsing 且
-   * updatedAt 早于 threshold（轮开始时间）的行，说明本轮模型没有完成回填，
-   * 统一置为 failed 并写入可读失败原因，避免候选人永远卡在解析中无人处置；
-   * 本轮内新增/更新的行不受影响，等待模型继续处理。
-   *
-   * @param scope 多租户隔离范围
-   * @param threshold 轮开始时间（由中间件在 createMiddleware 时刻捕获），早于该时间的 parsing 行视为超时滞留
-   * @returns 被置为失败态的候选人视图数组；无滞留行时返回空数组
-   */
-  async markStaleParsingFailed(scope: ResumeScreenScope, threshold: Date): Promise<ResumeScreenCandidateView[]> {
-    // 查询条件先收敛到本作用域的 parsing 行以减少扫描量；状态与时间阈值在内存中二次判定，
-    // 作为业务口径的权威防线（不依赖具体驱动对 where 操作符的实现差异）
-    const rows = await this.candidateRepository.find({
-      where: { ...this.scopeWhere(scope), status: 'parsing' }
-    })
-    const stale = rows.filter(
-      (row) => row.status === 'parsing' && (row.updatedAt?.getTime() ?? 0) < threshold.getTime()
-    )
-    const failed: ResumeScreenCandidateView[] = []
-    for (const row of stale) {
-      // 失败语义与 markCandidateFailed 保持一致：attemptCount +1 作为重试上限的计数依据
-      const updated = await this.candidateRepository.save({
-        ...row,
-        status: 'failed',
-        failureReason: '模型处理超时或失败',
-        attemptCount: (row.attemptCount ?? 0) + 1
-      })
-      failed.push(toCandidateView(updated))
-    }
-    return failed
-  }
-
-  /**
    * 重试候选人解析
    *
    * 仅 failed / parsing 两种状态允许重试（M1 修正：parsing 行在模型彻底失败后
    * 也要能被人工重新拉起）；重试复用同一行（不变更 dedupeKey），保证幂等不产生重复，
-   * attemptCount 保留历史次数以便上游执行重试上限策略。
+   * attemptCount 保留历史次数以便上游执行重试上限策略。重试属人工写，同样递增
+   * revision 使并发编辑者的旧版本号失效（S7 审核 F9）。
    *
    * @param scope 多租户隔离范围
    * @param candidateId 候选人 id，必须已存在且属于当前作用域
@@ -564,7 +587,10 @@ export class ResumeScreenService {
     const updated = await this.candidateRepository.save({
       ...row,
       status: 'parsing',
-      failureReason: null
+      failureReason: null,
+      // 人工重试推进版本号（与 reviewCandidate 同口径，provider 的 r{revision} 入队
+      // 后缀也因此逐次变号，不与上一代 jobId 撞车）
+      revision: (row.revision ?? 1) + 1
     })
     return toCandidateView(updated)
   }
@@ -711,17 +737,23 @@ export class ResumeScreenService {
    * 助手只读查询：返回候选人紧凑摘要列表（刻意不含简历原文）
    *
    * 供 resume_screen_list_candidates 工具使用；复用 getViewData 的排序/过滤口径，
-   * 单次最多返回 100 条以约束模型上下文长度，详情走 getCandidateDetailForAgent 二次查询。
+   * 分页透传调用方取值、pageSize 封顶 100 以约束模型上下文长度（S7 审核 F8：
+   * 工具入参声明了 page/pageSize，服务层不得硬覆盖），详情走 getCandidateDetailForAgent 二次查询。
    *
    * @param scope 多租户隔离范围
-   * @param query 列表查询条件（jobId 锁定职位维度，其余可选）
+   * @param query 列表查询条件（jobId 锁定职位维度，page/pageSize 等可选）
    * @returns 精简摘要数组；无候选人时返回空数组
    */
   async listCandidatesForAgent(
     scope: ResumeScreenScope,
     query: ResumeScreenCandidateListQuery
   ): Promise<ResumeScreenAgentCandidateSummary[]> {
-    const data = await this.getViewData(scope, { ...query, page: 1, pageSize: 100 })
+    // 透传 page；pageSize 缺省取封顶值、超界值收敛到 100，保住「单次查询不撑爆上下文」的闸
+    const data = await this.getViewData(scope, {
+      ...query,
+      page: query.page ?? 1,
+      pageSize: Math.min(query.pageSize ?? AGENT_LIST_MAX_PAGE_SIZE, AGENT_LIST_MAX_PAGE_SIZE)
+    })
     // 逐字段白名单映射，确保 sourceText 等大字段永不进入模型上下文
     return data.candidates.map((candidate) => ({
       id: candidate.id,

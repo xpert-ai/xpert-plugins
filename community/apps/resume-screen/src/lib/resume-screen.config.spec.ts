@@ -3,18 +3,27 @@
  *
  * 覆盖三类场景：schema 默认值解析、越界批量数拒绝、
  * 环境变量缺省/非法时回退默认值、合法环境变量正确读取。
+ * S7 审核 F2 裁决：`enabled` 无消费语义已从配置面整体移除，用例不再断言该项。
  */
 import { readResumeScreenPluginEnvDefaults, ResumeScreenPluginConfigSchema } from './resume-screen.config'
 
 describe('ResumeScreenPluginConfigSchema', () => {
   it('parses defaults', () => {
     const config = ResumeScreenPluginConfigSchema.parse({})
-    expect(config).toEqual({ enabled: true, maxResumesPerBatch: 10, scoreThreshold: 60 })
+    expect(config).toEqual({ maxResumesPerBatch: 10, scoreThreshold: 60 })
   })
 
   it('rejects out-of-range batch size', () => {
     expect(() => ResumeScreenPluginConfigSchema.parse({ maxResumesPerBatch: 21 })).toThrow()
     expect(() => ResumeScreenPluginConfigSchema.parse({ maxResumesPerBatch: 0 })).toThrow()
+  })
+
+  // 已声明无 enabled 配置：历史安装残留的 enabled 字段应被 zod 静默剥离而不是报错
+  it('strips the retired enabled key instead of failing validation', () => {
+    expect(ResumeScreenPluginConfigSchema.parse({ enabled: false })).toEqual({
+      maxResumesPerBatch: 10,
+      scoreThreshold: 60
+    })
   })
 })
 
@@ -29,9 +38,7 @@ describe('readResumeScreenPluginEnvDefaults', () => {
   it('falls back to defaults when env is unset or invalid', () => {
     delete process.env['RESUME_SCREEN_MAX_RESUMES_PER_BATCH']
     delete process.env['RESUME_SCREEN_SCORE_THRESHOLD']
-    delete process.env['RESUME_SCREEN_ENABLED']
     expect(readResumeScreenPluginEnvDefaults()).toEqual({
-      enabled: true,
       maxResumesPerBatch: 10,
       scoreThreshold: 60
     })
@@ -44,9 +51,7 @@ describe('readResumeScreenPluginEnvDefaults', () => {
   it('reads valid env values', () => {
     process.env['RESUME_SCREEN_MAX_RESUMES_PER_BATCH'] = '5'
     process.env['RESUME_SCREEN_SCORE_THRESHOLD'] = '75'
-    process.env['RESUME_SCREEN_ENABLED'] = 'false'
     expect(readResumeScreenPluginEnvDefaults()).toEqual({
-      enabled: false,
       maxResumesPerBatch: 5,
       scoreThreshold: 75
     })

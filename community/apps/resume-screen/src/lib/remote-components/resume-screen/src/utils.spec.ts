@@ -5,7 +5,7 @@
  * 内容未变的行必须复用旧引用（memo 短路的前提）；合并结果中保留行顺序必须等于
  * 服务端最终顺序（淡出行只是过渡性插入，提交后不得留下行跳位）。
  */
-import { candidateSignature, mergeAppendedPage, mergeRefreshedList, reconcileCandidateItems } from './utils'
+import { candidateSignature, looksLikeRevisionConflict, mergeAppendedPage, mergeRefreshedList, reconcileCandidateItems } from './utils'
 import type { CandidateView } from './types'
 
 // 构造最小可用候选人行：只填参与展示签名的字段
@@ -128,5 +128,17 @@ describe('candidateSignature · 展示字段覆盖', () => {
     const same = makeCandidate({ id: 'a', skills: ['React'] })
     expect(candidateSignature(base)).not.toBe(candidateSignature(changed))
     expect(candidateSignature(base)).toBe(candidateSignature(same))
+  })
+})
+
+describe('looksLikeRevisionConflict · 冲突判定以回执 code 为先（S7 审核 F5）', () => {
+  it('回执携带 revision_conflict code 时直接判定冲突，不依赖 message 文案', () => {
+    // message 完全不含冲突字样也须命中：证明判据是结构化 code 而不是 localized copy
+    expect(looksLikeRevisionConflict('save rejected', 'revision_conflict')).toBe(true)
+  })
+
+  it('无 code（旧服务端）时回退中文文案正则兜底', () => {
+    expect(looksLikeRevisionConflict('记录已被他人修改，请刷新')).toBe(true)
+    expect(looksLikeRevisionConflict('matchScore 必须是 0-100 的整数', undefined)).toBe(false)
   })
 })

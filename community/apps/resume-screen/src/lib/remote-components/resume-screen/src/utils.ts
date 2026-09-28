@@ -69,8 +69,15 @@ export function parseActionResult(response: unknown): ActionResult {
   }
 }
 
-// 乐观锁冲突识别：服务端冲突异常文案透传，前端按语义匹配（蓝图 §6.5）
-export function looksLikeRevisionConflict(message: string): boolean {
+/**
+ * 乐观锁冲突识别（S7 审核 F5）
+ *
+ * 优先消费服务端失败回执的机读错误码（data.code='revision_conflict'），结构化标记
+ * 命中即判定冲突；中文文案正则仅作为旧服务端/回执缺 code 时的兜底通道保留，
+ * 不再作为主判据（不从 localized copy 猜 payload 语义），新增判定语义禁止挂到正则上。
+ */
+export function looksLikeRevisionConflict(message: string, code?: unknown): boolean {
+  if (code === 'revision_conflict') return true
   return /(刷新|冲突|其他人|已被|stale|conflict|revision)/i.test(message)
 }
 

@@ -20,7 +20,6 @@ import {
   Progress,
   ScrollArea,
   Skeleton,
-  Textarea,
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,

@@ -211,24 +211,46 @@ describe('ResumeScreenParseProcessor.sweepStale', () => {
     const service = buildService(null)
     service.findStaleParsingRows.mockResolvedValue([
       // c-1 的查询时值故意与 claim 回读值不同：证明重投口径取 claim 的持久化新号（崩溃循环下
-      // 内存 +1 会读回原值撞上 Redis 存活 job 被静默去重，F5 修复点）
+      // 内存 +1 会读回原值撞上 Redis 存活 job 被静默去重，F5 修复点）；4 仍在尝试上限内
       { id: 'c-1', attemptCount: 1, scope: SCOPE },
       { id: 'c-2', attemptCount: 0, scope: SCOPE }
     ])
     service.claimStaleParsing
-      .mockResolvedValueOnce(5)
+      .mockResolvedValueOnce(4)
       .mockResolvedValueOnce(null)
     const intakeQueue = { enqueueParse: jest.fn(async () => undefined) }
     const processor = new ResumeScreenParseProcessor(service as never, intakeQueue as never, runtimeStub(jest.fn()) as never)
 
     await processor.sweepStale()
 
-    // 抢占条件带 cutoff（防抢窗口内新鲜行）；重投用 claim 返回的 5；c-2 抢占失败（null）跳过
+    // 抢占条件带 cutoff（防抢窗口内新鲜行）；重投用 claim 返回的 4；c-2 抢占失败（null）跳过
     expect(service.claimStaleParsing).toHaveBeenCalledWith('c-1', expect.any(Date))
     expect(intakeQueue.enqueueParse).toHaveBeenCalledTimes(1)
     expect(intakeQueue.enqueueParse).toHaveBeenCalledWith(
-      expect.objectContaining({ candidateId: 'c-1', attemptCount: 5, tenantId: 'tenant-1', organizationId: 'org-1', userId: 'user-1' })
+      expect.objectContaining({ candidateId: 'c-1', attemptCount: 4, tenantId: 'tenant-1', organizationId: 'org-1', userId: 'user-1' })
     )
+    // 未超限不触发失败收敛
+    expect(service.markCandidateFailed).not.toHaveBeenCalled()
+  })
+
+  // S7 审核 F3（spec §7.7）：持久化投递代号超 RESUME_SCREEN_PARSE_ATTEMPTS 上限即停止重投，
+  // 标 failed 给可读原因——否则队列每丢一次件就再循环 10 分钟，无界重投
+  it('attempt cap overrun converges to failed with a readable reason instead of re-enqueueing', async () => {
+    const service = buildService(null)
+    service.findStaleParsingRows.mockResolvedValue([{ id: 'c-1', attemptCount: 4, scope: SCOPE }])
+    // claim 回读的持久化代号 5 > 上限 4：行已滞留过 4 轮自动重投，本轮只收敛不再排队
+    service.claimStaleParsing.mockResolvedValue(5)
+    const intakeQueue = { enqueueParse: jest.fn(async () => undefined) }
+    const processor = new ResumeScreenParseProcessor(service as never, intakeQueue as never, runtimeStub(jest.fn()) as never)
+
+    await processor.sweepStale()
+
+    expect(service.markCandidateFailed).toHaveBeenCalledWith(
+      SCOPE,
+      'c-1',
+      expect.stringContaining('请点击重试')
+    )
+    expect(intakeQueue.enqueueParse).not.toHaveBeenCalled()
   })
 
   it('crash loop: two consecutive sweep rounds claim and enqueue with strictly increasing attempt numbers', async () => {

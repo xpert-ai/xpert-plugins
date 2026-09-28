@@ -129,7 +129,8 @@ var XpertResumeScreen = (() => {
       data: isObject(value.data) ? value.data : void 0
     };
   }
-  function looksLikeRevisionConflict(message) {
+  function looksLikeRevisionConflict(message, code) {
+    if (code === "revision_conflict") return true;
     return /(刷新|冲突|其他人|已被|stale|conflict|revision)/i.test(message);
   }
   function normalizeViewData(raw) {
@@ -18419,7 +18420,7 @@ Defaulting to \`null\`.`;
           const result = parseActionResult(response);
           const message = resolveText(result.message);
           if (!result.success) {
-            const conflict = looksLikeRevisionConflict(message);
+            const conflict = looksLikeRevisionConflict(message, isObject(result.data) ? result.data.code : void 0);
             if (!conflict) {
               showNotice(message || "\u4FDD\u5B58\u5931\u8D25");
               notify(message || "\u4FDD\u5B58\u5931\u8D25", "error");

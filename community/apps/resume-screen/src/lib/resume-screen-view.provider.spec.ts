@@ -18,6 +18,7 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { ResumeScreenViewProvider } from './resume-screen-view.provider'
+import { ResumeScreenRevisionConflictError } from './resume-screen.service'
 import { RESUME_SCREEN_WORKBENCH_VIEW_KEY } from './constants'
 import type { ResumeScreenScope, ResumeScreenViewData } from './types'
 
@@ -274,6 +275,36 @@ describe('ResumeScreenViewProvider', () => {
       )
       expect(fullService.updateCandidate).toHaveBeenCalledWith(expect.anything(), 'c1', { name: '张三丰' }, 1)
       expect(result.success).toBe(true)
+    })
+
+    // S7 审核 F1：非法/缺失 expectedRevision 直接失败回执——不得默认成 1 代打，
+    // 否则调用方丢版本号的缺陷会被伪装成正常保存并可能覆盖他人新版本
+    it('update_candidate refuses invalid expectedRevision without touching the service', async () => {
+      fullService.updateCandidate.mockClear()
+      for (const bad of [undefined, 'abc', 1.5, 0, null]) {
+        const result = await providerWithActions.executeViewAction(
+          createContext(),
+          RESUME_SCREEN_WORKBENCH_VIEW_KEY,
+          'update_candidate',
+          actionRequest({ candidateId: 'c1', patch: { name: '张三丰' }, expectedRevision: bad })
+        )
+        expect(result.success).toBe(false)
+      }
+      expect(fullService.updateCandidate).not.toHaveBeenCalled()
+    })
+
+    // S7 审核 F5：乐观锁冲突失败回执携带机读 code，前端按结构化标记判定而不是中文文案
+    it('update_candidate conflict receipt carries the machine-readable revision_conflict code', async () => {
+      fullService.updateCandidate.mockRejectedValueOnce(new ResumeScreenRevisionConflictError())
+      const result = await providerWithActions.executeViewAction(
+        createContext(),
+        RESUME_SCREEN_WORKBENCH_VIEW_KEY,
+        'update_candidate',
+        actionRequest({ candidateId: 'c1', patch: { name: '张三丰' }, expectedRevision: 7 })
+      )
+      expect(result.success).toBe(false)
+      expect(result.data).toEqual({ code: 'revision_conflict' })
+      expect(JSON.stringify(result.message)).toContain('记录已被他人修改，请刷新')
     })
 
     it('returns readable failure on service errors (no stack traces)', async () => {

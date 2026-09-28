@@ -2,8 +2,8 @@
  * 简历筛选助手中间件单元测试
  *
  * 借鉴 smart-maintenance 的中间件测试模式：mock 掉 plugin-sdk 装饰器，
- * 以 jest.fn 服务桩验证 3 个工具的作用域透传、紧凑 JSON 出参与失败兜底，
- * 并覆盖 afterAgent 钩子把滞留 parsing 行收敛为失败的超时兜底路径。
+ * 以 jest.fn 服务桩验证 3 个工具的作用域透传、紧凑 JSON 出参与失败兜底。
+ * afterAgent 轮结束兜底已随 S7 审核 F4 删除（parsing 收敛权威=队列 sweep），不再测。
  */
 jest.mock('@xpert-ai/plugin-sdk', () => ({
   AgentMiddlewareStrategy: () => (target: unknown) => target
@@ -41,8 +41,7 @@ function createService() {
       { id: 'c1', name: '张三', status: 'pending_review', matchScore: 86 },
       { id: 'c2', name: '李四', status: 'pending_review', matchScore: 40 }
     ]),
-    getCandidateDetailForAgent: jest.fn(async () => ({ id: 'c1', name: '张三', status: 'pending_review' })),
-    markStaleParsingFailed: jest.fn(async () => [])
+    getCandidateDetailForAgent: jest.fn(async () => ({ id: 'c1', name: '张三', status: 'pending_review' }))
   }
 }
 
@@ -136,35 +135,11 @@ describe('ResumeScreenMiddleware', () => {
     )
   })
 
-  it('afterAgent marks stale parsing rows failed with the captured round start threshold', async () => {
-    const service = createService()
-    service.markStaleParsingFailed.mockResolvedValueOnce([{ id: 'c9', status: 'failed' }])
-    const middleware = new ResumeScreenMiddleware(service as never)
-    const before = Date.now()
+  // S7 审核 F4 回归钉子：中间件不再挂 afterAgent 轮结束兜底——链路 B 下该钩子唯一残留
+  // 作用是误伤队列在途解析行（误标 failed + 双计 attempt），收敛权威归 sweep
+  it('exposes no afterAgent hook (stale-parsing convergence belongs to the queue sweep)', async () => {
+    const middleware = new ResumeScreenMiddleware(createService() as never)
     const instance = await middleware.createMiddleware({}, createContext() as never)
-    const after = Date.now()
-    expect(typeof instance.afterAgent).toBe('function')
-    await instance.afterAgent!({}, {} as never)
-    expect(service.markStaleParsingFailed).toHaveBeenCalledTimes(1)
-    const [scopeArg, threshold] = service.markStaleParsingFailed.mock.calls[0]
-    // 作用域透传 + 阈值必须取自轮开始时刻（早于该时间的 parsing 行才算超时滞留）
-    expect(scopeArg).toEqual(
-      expect.objectContaining({
-        tenantId: 'tenant-1',
-        assistantId: 'assistant-1',
-        conversationId: 'conversation-1'
-      })
-    )
-    expect((threshold as Date).getTime()).toBeGreaterThanOrEqual(before)
-    expect((threshold as Date).getTime()).toBeLessThanOrEqual(after)
-  })
-
-  it('afterAgent swallows service errors so round cleanup never breaks the conversation', async () => {
-    const service = createService()
-    service.markStaleParsingFailed.mockRejectedValueOnce(new Error('db down'))
-    const middleware = new ResumeScreenMiddleware(service as never)
-    const instance = await middleware.createMiddleware({}, createContext() as never)
-    // 兜底清理属于旁路逻辑：服务抛错时钩子必须静默消化，不能中断对话收尾
-    await expect(instance.afterAgent!({}, {} as never)).resolves.toBeUndefined()
+    expect(instance.afterAgent).toBeUndefined()
   })
 })
