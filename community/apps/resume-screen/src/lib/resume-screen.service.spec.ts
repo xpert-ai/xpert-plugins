@@ -423,6 +423,55 @@ describe('ResumeScreenService', () => {
       expect(data.candidates).toHaveLength(0)
       expect(data.stats.total).toBe(0)
     })
+
+    // M11 真机缺陷回归：status 过滤回调曾因 TDZ 自引用（candidate.status === statusFilter）
+    // 在带 status 的查询上直接抛 ReferenceError → 工作台状态 pill 点击即 500
+    it('filters candidates by the requested status when the query carries a status', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const draft = await service.prepareIntakeDraft(scope, job.id, ['甲', '乙', '丙'])
+      await service.saveCandidatesFromAgent(scope, job.id, [
+        { sourceText: '甲', name: '甲' },
+        { sourceText: '乙', name: '乙' },
+        { sourceText: '丙', name: '丙' }
+      ])
+      await service.reviewCandidate(scope, draft.created[0].id, 'accept', 'user-1')
+
+      const data = await service.getViewData(scope, { jobId: job.id, status: 'pending_review' })
+      // 只返回待评审候选人，且按默认 createdAt 倒序（丙最新在前）
+      expect(data.candidates.map((candidate) => candidate.name)).toEqual(['丙', '乙'])
+      expect(data.candidates.every((candidate) => candidate.status === 'pending_review')).toBe(true)
+      expect(data.page.total).toBe(2)
+      // 统计口径与过滤解耦：stats 仍基于当前职位全量候选人
+      expect(data.stats.total).toBe(3)
+      expect(data.stats.accepted).toBe(1)
+    })
+
+    it('returns an empty candidate list when no row matches the requested status', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      await service.prepareIntakeDraft(scope, job.id, ['甲'])
+      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '甲', name: '甲' }])
+
+      const data = await service.getViewData(scope, { jobId: job.id, status: 'hold' })
+      expect(data.candidates).toHaveLength(0)
+      expect(data.page.total).toBe(0)
+      // 空过滤结果不影响全量统计
+      expect(data.stats.pendingReview).toBe(1)
+    })
+
+    it('returns all candidates of the current job when the query has no status', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const draft = await service.prepareIntakeDraft(scope, job.id, ['甲', '乙', '丙'])
+      await service.saveCandidatesFromAgent(scope, job.id, [
+        { sourceText: '甲', name: '甲' },
+        { sourceText: '乙', name: '乙' },
+        { sourceText: '丙', name: '丙' }
+      ])
+      await service.reviewCandidate(scope, draft.created[0].id, 'accept', 'user-1')
+
+      const data = await service.getViewData(scope, { jobId: job.id })
+      expect(data.candidates).toHaveLength(3)
+      expect(data.page.total).toBe(3)
+    })
   })
 
   // 助手只读查询：摘要刻意精简且不携带简历原文，详情按 id 二次查询，控制模型上下文长度

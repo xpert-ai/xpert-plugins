@@ -101,8 +101,10 @@ function sortCandidates(candidates: ResumeScreenCandidateView[], query: ResumeSc
           .some((value) => String(value).toLowerCase().includes(keyword))
       )
     : candidates
+  // 回调内必须对比 query.status 而不是 statusFilter 自身：statusFilter 此时仍在初始化表达式
+  // 求值中（TDZ），自引用会在带 status 过滤的查询上直接抛 ReferenceError（M11 真机 500 缺陷）
   const statusFilter = query.status
-    ? filtered.filter((candidate) => candidate.status === statusFilter)
+    ? filtered.filter((candidate) => candidate.status === query.status)
     : filtered
   return [...statusFilter].sort((a, b) => {
     if (sortBy === 'matchScore') {
