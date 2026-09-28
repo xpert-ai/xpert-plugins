@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "rootDir": ".", "noEmit": true },
+  "include": ["src/**/*.ts", "tests/**/*.ts"],
+  "exclude": ["src/remote", "src/remote-components", "tests/ui"]
+}
