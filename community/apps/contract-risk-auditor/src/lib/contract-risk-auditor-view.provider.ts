@@ -147,6 +147,48 @@ export class ContractRiskAuditorViewProvider implements IXpertViewExtensionProvi
             icon: 'ri-refresh-line',
             placement: 'toolbar',
             actionType: 'refresh'
+          },
+          {
+            key: 'audit_contract',
+            label: text('Audit Contract', '智能合规审查'),
+            icon: 'ri-shield-check-line',
+            placement: 'toolbar',
+            actionType: 'invoke'
+          },
+          {
+            key: 'accept_revision',
+            label: text('Accept Revision', '采纳修订建议'),
+            icon: 'ri-check-line',
+            placement: 'row',
+            actionType: 'invoke'
+          },
+          {
+            key: 'ignore_risk',
+            label: text('Ignore Risk', '忽略风险'),
+            icon: 'ri-close-line',
+            placement: 'row',
+            actionType: 'invoke'
+          },
+          {
+            key: 'save_contract',
+            label: text('Save Contract', '保存合同'),
+            icon: 'ri-save-line',
+            placement: 'toolbar',
+            actionType: 'invoke'
+          },
+          {
+            key: 'delete_record',
+            label: text('Delete Record', '删除记录'),
+            icon: 'ri-delete-bin-line',
+            placement: 'row',
+            actionType: 'invoke'
+          },
+          {
+            key: 'clear_records',
+            label: text('Clear Records', '清空记录'),
+            icon: 'ri-delete-bin-2-line',
+            placement: 'toolbar',
+            actionType: 'invoke'
           }
         ]
       }
