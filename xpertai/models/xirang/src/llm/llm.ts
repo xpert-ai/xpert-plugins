@@ -116,7 +116,10 @@ export class XirangLargeLanguageModel extends LargeLanguageModel {
       verbose: options?.verbose,
       callbacks: [
         ...this.createHandleUsageCallbacks(copilot, usageModel, credentials, options?.handleLLMTokens)
-      ]
+      ],
+      metadata: {
+        profile: this.getModelProfile(copilotModel.model, credentials)
+      }
     })
   }
 

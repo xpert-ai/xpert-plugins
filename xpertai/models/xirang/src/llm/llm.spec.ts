@@ -1,4 +1,5 @@
 import { AiProviderRole } from '@xpert-ai/contracts'
+import { getModelContextSize } from '@xpert-ai/plugin-sdk'
 import { XirangProviderStrategy } from '../provider.strategy.js'
 import { XirangLargeLanguageModel } from './llm.js'
 
@@ -22,6 +23,35 @@ describe('Xirang LLM request configuration', () => {
 
   afterEach(() => {
     jest.restoreAllMocks()
+  })
+
+  it.each(['qwen3.8-max', 'qwen3.8-flash'])('exposes the catalog context window for %s to compression', (model) => {
+    const chatModel = manager.getChatModel(createCopilotModel(model, { context_size: 1_000_000, max_tokens: 36_005 }))
+
+    expect(getModelContextSize(chatModel)).toBe(1_000_000)
+    expect(chatModel.metadata?.profile).toEqual(manager.getModelProfile(model, { app_key: 'test-key' }))
+    expect(chatModel.invocationParams().max_tokens).toBe(36_005)
+  })
+
+  it('retains the logical model profile when an endpoint model ID is overridden', () => {
+    const chatModel = manager.getChatModel(createCopilotModel('qwen3.8-max'), {
+      modelProperties: { endpoint_model_name: 'custom-endpoint-id' }
+    })
+
+    expect(chatModel.invocationParams().model).toBe('custom-endpoint-id')
+    expect(getModelContextSize(chatModel)).toBe(1_000_000)
+  })
+
+  it('exposes custom model limits from the resolved model properties', () => {
+    const chatModel = manager.getChatModel(
+      createCopilotModel('custom-model', {}, { app_key: 'test-key', context_size: '32768' }),
+      { modelProperties: { context_size: '262144', max_tokens_to_sample: '8192' } }
+    )
+
+    expect(getModelContextSize(chatModel)).toBe(262_144)
+    expect(chatModel.metadata?.profile).toEqual(
+      expect.objectContaining({ maxInputTokens: 262_144, maxOutputTokens: 8192, toolCalling: true })
+    )
   })
 
   it('uses the captured endpoint model ID and forwards response_format', () => {
