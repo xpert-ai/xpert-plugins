@@ -1,0 +1,11 @@
+node_modules/
+dist/
+*.tgz
+.env
+.env.*
+!.env.example
+java-service/target/
+java-service/data/
+data/
+playwright-report/
+test-results/
