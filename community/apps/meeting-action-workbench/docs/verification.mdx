@@ -5,7 +5,7 @@ description: 构建、契约和本地平台验收
 
 ## 自动化结果
 
-2026-09-19 在 Node.js 22 与 pnpm 10.24.0 下完成最终提交前复验：
+2026-09-28 在 Node.js 22 与 pnpm 10.24.0 下完成最终提交前复验：
 
 | 检查 | 结果 | 覆盖范围 |
 | --- | --- | --- |
@@ -34,6 +34,19 @@ description: 构建、契约和本地平台验收
 
 用户已在目标组织的“会议决议与行动项助手”中对“第三步本地验收会议”执行“确认全部结果”。只读数据库复核显示：会议状态为 `confirmed`，revision 从 5 更新为 6，确认时间和审核人已记录；1 条决议与 2 条行动项全部确认，行动项状态为 `pending`，空截止日期仍为 `null`。API readiness 为 `ready`，Cloud UI 返回 HTTP 200。
 
-升级版执行跟踪、规则风险、Agent 风险人工处置与跟进简报已经通过真实 Remote View 构建工件 E2E，并在已安装的真实平台中复验。页面显示 2 条已确认行动项、2 条规则风险、2 条 Agent 语义风险和完整中文跟进简报；人工处置按钮可见，Agent 没有代替用户接受或关闭风险。真实模型失败/重试的完整平台证据仍待补充。
+升级版执行跟踪、规则风险、Agent 风险人工处置与跟进简报已经通过真实 Remote View 构建工件 E2E，并在已安装的真实平台中复验。人工处置按钮可见，Agent 没有代替用户接受或关闭风险。
 
 0.3.0 文件导入升级也已在同一已安装平台完成用户人工复验：页面显示支持格式、5 MB 限制、文件选择入口和 30,000 字符计数，长记录可滚动且底部操作按钮始终可点击。在 896×424 的 Workbench iframe 中，对话框高度为 392px，内部正文区域 `overflow-y: auto`，取消与发送按钮位于 y=360–392 的可视范围。浏览器 E2E 还真实上传 220 行 TXT 并验证末行完整传递。
+
+## README 实际运行截图证据
+
+2026-09-28 在本地 Xpert Cloud 中使用合成/脱敏会议数据重新记录完整工作流；截图未包含 API Key、密码或其他凭据。
+
+| 场景 | 验证证据 | 文件 |
+| --- | --- | --- |
+| 用户输入与文件导入 | 新建提取窗口显示标题、2,192 字会议原文、支持格式、文件入口、字数上限和可见的提交按钮 | [xpert-workflow-input.png](./assets/xpert-workflow-input.png) |
+| AI 结果、人工复核与错误恢复 | 8 条决议、13 条行动项、原文证据和待复核状态；右侧 Assistant 记录 `operationId` 冲突，改用新 ID 后重试成功 | [xpert-workflow-ai-review.png](./assets/xpert-workflow-ai-review.png) |
+| 执行状态总览 | 13 条行动项及待处理、已逾期、缺截止日期等指标，支持负责人和状态筛选 | [xpert-workflow-execution-overview.png](./assets/xpert-workflow-execution-overview.png) |
+| 规则风险、Agent 研判与人工处置 | 同屏展示规则风险、带证据的 Agent 风险、处理建议、人工处置按钮和下次会议跟进简报 | [xpert-workflow-agent-risks.png](./assets/xpert-workflow-agent-risks.png) |
+
+截图中的错误场景是实际发生的工具写入幂等冲突，而不是人为制造的界面效果；恢复后同批其余结果继续成功写入。真实 DeepSeek 成功提取与巡检已完成，未为了截图故意制造模型服务故障。
