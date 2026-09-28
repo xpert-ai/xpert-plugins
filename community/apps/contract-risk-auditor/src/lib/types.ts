@@ -35,6 +35,8 @@ export interface ContractAuditRecord {
   risks: ClauseRiskItem[]
   summary: string
   detectedIndustry?: IndustryProfile
+  engine?: 'LLM' | 'RULE_ENGINE'
+  model?: string
   createdAt: string
   updatedAt: string
 }

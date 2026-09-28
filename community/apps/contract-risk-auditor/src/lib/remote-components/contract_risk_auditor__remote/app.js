@@ -659,14 +659,16 @@
             title: title || '采购合同审查单',
             content: content
           })
+          if (res && res.success === false) {
+            throw new Error(res.message?.zh_Hans || res.message || '审查服务执行失败')
+          }
           rec = res?.data || res?.result?.data || res
         } catch (backendErr) {
-          console.warn('后端审查请求未响应，启用智能本地合规引擎:', backendErr)
+          throw new Error(backendErr.message || '后端合规审查服务调用异常')
         }
 
         if (!rec || !rec.risks) {
-          // 本地合规审查引擎备用保底
-          rec = analyzeContractLocally(content, title)
+          throw new Error('审查结果异常，未能获取有效的合规风险条款数据')
         }
 
         if (rec) {

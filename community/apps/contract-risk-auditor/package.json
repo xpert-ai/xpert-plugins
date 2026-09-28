@@ -6,7 +6,7 @@
     "name": "Candidate",
     "url": "https://github.com/xpert-ai/xpert-plugins"
   },
-  "license": "MIT",
+  "license": "AGPL-3.0",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
