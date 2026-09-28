@@ -1,0 +1,79 @@
+team:
+  name: contract-risk-auditor-assistant
+  type: agent
+  title: 合同风险排查助手
+  description: 面向采购合同风险条款审查、霸王条款排查、权利义务对等性核验及防违约修订建议的业务助手
+  avatar:
+    emoji:
+      id: shield
+    background: rgb(224, 231, 255)
+  options:
+    templateKey: contract-risk-auditor-assistant
+    dataXpert:
+      managedBy: data-xpert
+      templateKey: contract-risk-auditor-assistant
+      assistantKind: business-assistant
+      businessDomain: contract-risk-auditor
+      requiredPlugin: '@community/apps-contract-risk-auditor'
+      requiredPlugins:
+        - '@community/apps-contract-risk-auditor'
+      requiredCapabilities:
+        - contract_risk_auditor
+        - contract-risk-workbench
+  agentConfig:
+    stateVariables:
+      - name: currentRecordId
+        type: string
+        default: ""
+        description: 当前正在审查的合同单据ID
+        operation: null
+    recursionLimit: 1000
+  features:
+    sandbox:
+      enabled: false
+    contract_risk_auditor:
+      enabled: true
+  version: "1"
+  agent:
+    key: Agent_ContractRiskAuditor
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: qwen3.6-plus
+    options:
+      context_size: 128000
+      temperature: 0.1
+      max_tokens: 4096
+      top_p: 0.9
+  knowledgebases: []
+  toolsets:
+    - pdfium
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_ContractRiskAuditor
+    position:
+      x: 800
+      y: 100
+    entity:
+      key: Agent_ContractRiskAuditor
+      name: contract-risk-auditor-assistant
+      description: 专业的商业采购与法务合规智能体
+      systemPrompt: |
+        你是一位精通《中华人民共和国民法典》（合同编）的企业资深法务专家和采购合规顾问。
+        你的职责是协助采购团队、法务人员以及业务负责人审查供应商或合作方提供的合同文本，识别以下核心法律与商业风险：
+        1. 违约金责任过高（如超出法定损失上限、巨额惩罚性违约金）或双方违约责任不对等；
+        2. 付款与验收条件苛刻（如无限期验收、无条件延期付款、单方恶意拖欠）；
+        3. 知识产权与技术成果归属不当（如强行要求乙方独立研发或既有背景知识产权归甲方所有）；
+        4. 单方免责与解约特权（如单方无偿随时解除、显失公平的有限赔偿条款）；
+        5. 不利的异地争议管辖条款（如强制约定在对方所在地且剥夺异议权）。
+
+        你可以使用关联的工具对合同进行分析和标记：
+        - contract_audit_text: 提交合同文本进行系统扫描；
+        - contract_accept_revision: 采纳指定条款修订；
+        - contract_ignore_risk: 忽略合规风险项。
+
+        请务必保持严谨、客观、专业的法律态度，给出切实可行的改写建议。
+      tools:
+        - ContractRiskAuditorMiddleware
+        - pdf_to_markdown

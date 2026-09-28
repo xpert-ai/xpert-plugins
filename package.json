@@ -9,6 +9,7 @@
     "check:app-view-storage": "node scripts/check-app-view-storage.mjs",
     "check:plugin-entity-tables": "node scripts/check-plugin-entity-tables.mjs",
     "test:plugin-entity-tables": "node --test scripts/check-plugin-entity-tables.test.mjs",
+    "test:harness:auditor": "node --experimental-require-module plugin-dev-harness/dist/index.js --workspace ./community --plugin @community/apps-contract-risk-auditor",
     "remote-view:preview": "node tools/remote-view-preview/cli.mjs",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
