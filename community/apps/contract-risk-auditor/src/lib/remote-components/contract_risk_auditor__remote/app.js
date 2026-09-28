@@ -30,7 +30,7 @@
     )
   }
 
-  function request(type, body, transfer, timeoutMs = 25000) {
+  function request(type, body, transfer, timeoutMs = 60000) {
     const requestId = String(++requestSequence)
     return new Promise((resolve, reject) => {
       pending.set(requestId, { resolve, reject })
@@ -47,26 +47,32 @@
     try {
       const res = await request('executeAction', {
         actionKey,
-        targetId: 'main',
+        targetId: null,
         input
-      }, [], 12000)
+      }, [], 60000)
       if (res && res.success === false) {
         throw new Error(res.message?.zh_Hans || res.message || '操作失败')
       }
-      return res?.data !== undefined ? res.data : res
+      return res?.data !== undefined ? res.data : (res?.result !== undefined ? res.result : res)
     } catch (err) {
-      const res2 = await request('view.action', { actionKey, input }, [], 12000)
-      return res2?.data !== undefined ? res2.data : res2
+      if (err.message && !err.message.includes('超时') && !err.message.includes('未响应')) {
+        throw err
+      }
+      const res2 = await request('view.action', { actionKey, input }, [], 60000)
+      if (res2 && res2.success === false) {
+        throw new Error(res2.message?.zh_Hans || res2.message || '操作失败')
+      }
+      return res2?.data !== undefined ? res2.data : (res2?.result !== undefined ? res2.result : res2)
     }
   }
 
   async function requestWorkbenchData(query = {}) {
     try {
-      const res = await request('requestData', { query }, [], 5000)
-      return res?.data !== undefined ? res.data : res
+      const res = await request('requestData', { query }, [], 30000)
+      return res?.data !== undefined ? res.data : (res?.result !== undefined ? res.result : res)
     } catch (err) {
-      const res2 = await request('view.data', { query }, [], 5000)
-      return res2?.data !== undefined ? res2.data : res2
+      const res2 = await request('view.data', { query }, [], 30000)
+      return res2?.data !== undefined ? res2.data : (res2?.result !== undefined ? res2.result : res2)
     }
   }
 
