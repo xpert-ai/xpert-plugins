@@ -24,7 +24,7 @@
       "default": "./index.cjs"
     }
   },
-  "files": ["dist", "index.cjs", "README.md", "src"],
+  "files": ["dist", "index.cjs", "README.md", "PRIVACY.md", "src"],
   "scripts": {
     "build": "tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
     "lint": "echo \"(todo) add lint\"",
