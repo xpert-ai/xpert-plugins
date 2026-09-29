@@ -332,13 +332,24 @@ export const RS_STYLES_CSS = `
     .rs-jump { animation: rs-jump-pulse 240ms ease-in-out 2; }
     @keyframes rs-jump-pulse { from { background-color: var(--rs-primary-soft); } to { background-color: transparent; } }
 
-    /* ===== <720px Sheet 抽屉（蓝图 §4/A11：宽 min(400px,100%-24px)） ===== */
-    .rs-sheet-content { width: min(400px, calc(100% - 24px)); max-width: calc(100% - 24px); padding: 0; gap: 0; display: grid; grid-template-rows: minmax(0, 1fr); }
-    /* xs 容器：抽屉满宽（T14 单栏化后详情唯一形态即 Sheet，§4） */
-    .rs-sheet-content.is-full { width: calc(100% - 24px); }
-    .rs-sheet-body { min-height: 0; }
-    /* SheetTitle 只服务无障碍（aria-labelledby），不占视觉（详情头部自带标题） */
-    .rs-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+    /* ===== 候选人详情抽屉（§5.5：三段 = 头部/滚动正文/处置条，单栏下是唯一详情载体） ===== */
+    .rs-sheet-content { width: min(460px, calc(100% - 24px)); max-width: calc(100% - 24px); padding: 0; gap: 0; display: grid; grid-template-rows: minmax(0, 1fr); z-index: var(--rs-layer-sheet); }
+    /* xs（<560px 容器）：抽屉满宽接管，不再留 24px 缝 */
+    .rs-sheet-content.is-full { width: 100%; max-width: 100%; }
+    .rs-sheet-body { min-height: 0; display: grid; }
+    /* 抽屉头部可读性：Radix 默认把 SheetHeader 排成块，这里交给 DetailContent 的 .rs-detail-head 承担，
+       SheetHeader 仅保留无障碍语义（aria-labelledby） */
+    .rs-sheet-sr-head { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+    /* ===== 浮层层级归位（§5.6）：Tailwind 工具类与宿主层互相踩，一律回刻度表 =====
+       同特异性下本表后置注入必胜 z-50（R-P80 通道事实），严禁 !important（T13 扫描器合规计数不认） */
+    [data-slot="sheet-overlay"] { z-index: var(--rs-layer-sheet-overlay); backdrop-filter: blur(2px); }
+    [data-slot="dialog-overlay"] { z-index: var(--rs-layer-sheet-overlay); backdrop-filter: blur(2px); }
+    [data-slot="sheet-content"] { z-index: var(--rs-layer-sheet); }
+    [data-slot="dialog-content"] { z-index: var(--rs-layer-dialog); }
+    [data-slot="alert-dialog-overlay"] { z-index: var(--rs-layer-sheet-overlay); }
+    [data-slot="alert-dialog-content"] { z-index: var(--rs-layer-dialog); }
+    [data-slot="popover-content"], [data-slot="select-content"], [data-slot="dropdown-menu-content"], [data-slot="tooltip-content"] { z-index: var(--rs-layer-popper); }
 
     /* 处置按钮/确认框红强调（淘汰语义，§3.6） */
     .rs-action-destructive { color: var(--rs-red); }

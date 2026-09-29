@@ -171,7 +171,7 @@ function DetailBody({ candidate, timedOut, showTimeoutCard, now, busyKey, onDisp
                     人工修正 {editedFields.length} 项
                   </span>
                 </TooltipTrigger>
-                <TooltipContent>
+                <TooltipContent collisionPadding={8}>
                   {editedFields.map((field) => FIELD_LABELS[field] ?? field).join('、')} 已被人工修正，AI 重新解析不会覆盖
                 </TooltipContent>
               </Tooltip>
@@ -190,7 +190,7 @@ function DetailBody({ candidate, timedOut, showTimeoutCard, now, busyKey, onDisp
                     来源 {candidate.sourceFileName}
                   </span>
                 </TooltipTrigger>
-                <TooltipContent>{candidate.sourceFileName}</TooltipContent>
+                <TooltipContent collisionPadding={8}>{candidate.sourceFileName}</TooltipContent>
               </Tooltip>
             ) : null}
             {/* 预览入口：无原始文件的存量行禁用并说明原因（§5.4/§6.4），不允许点了才报错 */}

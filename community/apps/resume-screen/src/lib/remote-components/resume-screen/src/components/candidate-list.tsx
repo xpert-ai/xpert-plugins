@@ -69,6 +69,8 @@ interface CandidateListProps {
   hasJobs: boolean
   hasFilterActive: boolean
   onSelect: (id: string) => void
+  // 键盘 ↑/↓ 导航：实现在 workbench（列表与抽屉共用同一游标，§5.5），本组件只派发 ±1
+  onMoveSelection: (delta: number) => void
   onSearch: (value: string) => void
   onStatusChange: (value: StatusFilter) => void
   onSortChange: (value: string) => void
@@ -99,16 +101,9 @@ export function CandidateList(props: CandidateListProps) {
   }, [selectedId])
 
   // 键盘导航只在存活行间移动：淡出中的行（A8）不可达，防选中一条正在消失的行
+  // （选中/导航本身的实现上提至 workbench，这里只保留计数用的存活行口径）
   function liveRows() {
     return items.some((item) => item.leaving) ? items.filter((item) => !item.leaving) : items
-  }
-
-  function moveSelection(delta: number) {
-    const rows = liveRows()
-    if (!rows.length) return
-    const index = rows.findIndex((item) => item.id === selectedId)
-    const nextIndex = Math.min(rows.length - 1, Math.max(0, (index < 0 ? 0 : index) + delta))
-    props.onSelect(rows[nextIndex].id)
   }
 
   const sortValue = `${sortBy}:${sortDir}`
@@ -144,7 +139,8 @@ export function CandidateList(props: CandidateListProps) {
             <SelectTrigger aria-label="状态筛选" className="rs-status-select">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            {/* popper 定位：浮层随触发器对齐、不落宿主滚动容器裁切区（§5.6），8px 碰撞边距 */}
+            <SelectContent position="popper" collisionPadding={8}>
               {STATUS_OPTIONS.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
@@ -173,7 +169,7 @@ export function CandidateList(props: CandidateListProps) {
                 {sortLabel}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" collisionPadding={8}>
               <DropdownMenuLabel>排序</DropdownMenuLabel>
               <DropdownMenuRadioGroup value={sortValue} onValueChange={props.onSortChange}>
                 {SORT_OPTIONS.map((option) => (
@@ -213,10 +209,10 @@ export function CandidateList(props: CandidateListProps) {
         onKeyDown={(event: React.KeyboardEvent) => {
           if (event.key === 'ArrowDown') {
             event.preventDefault()
-            moveSelection(1)
+            props.onMoveSelection(1)
           } else if (event.key === 'ArrowUp') {
             event.preventDefault()
-            moveSelection(-1)
+            props.onMoveSelection(-1)
           } else if (event.key === 'Enter' && selectedId) {
             // Enter 与鼠标点行同径（§6.8 键盘可达）：窄容器下即打开 Sheet 详情抽屉
             props.onSelect(selectedId)

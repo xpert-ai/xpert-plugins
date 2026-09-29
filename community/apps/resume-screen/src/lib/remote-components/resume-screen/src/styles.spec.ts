@@ -96,6 +96,33 @@ describe('RS_STYLES_CSS 浅色钉死', () => {
   })
 })
 
+describe('浮层与抽屉静态契约（spec §5.5/§5.6）', () => {
+  it('抽屉宽度钉死 460 上限且随容器收口', () => {
+    expect(RS_STYLES_CSS).toMatch(/\.rs-sheet-content\s*\{[^}]*width:\s*min\(460px,\s*calc\(100% - 24px\)\)/)
+  })
+
+  it('xs 态抽屉满宽（无残留 460 上限）', () => {
+    expect(RS_STYLES_CSS).toMatch(/\.rs-sheet-content\.is-full\s*\{[^}]*width:\s*100%/s)
+  })
+
+  it('遮罩与内容各自归位到刻度层：sheet/dialog/popover 三层不混用', () => {
+    expect(RS_STYLES_CSS).toMatch(/\[data-slot="sheet-overlay"\][^{]*\{[^}]*z-index:\s*var\(--rs-layer-sheet-overlay\)/s)
+    expect(RS_STYLES_CSS).toMatch(/\[data-slot="sheet-content"\][^{]*\{[^}]*z-index:\s*var\(--rs-layer-sheet\)/s)
+    expect(RS_STYLES_CSS).toMatch(/\[data-slot="dialog-content"\][^{]*\{[^}]*z-index:\s*var\(--rs-layer-dialog\)/s)
+    expect(RS_STYLES_CSS).toMatch(/z-index:\s*var\(--rs-layer-popper\)/)
+  })
+
+  it('抽屉遮罩有模糊脱层（区分于 dialog 的纯压暗）', () => {
+    // 锚定 sheet-overlay 规则本身：blur 若只泛匹配全文，dialog 行的 blur 会替 sheet 挡红（mutation ② 判伪依据）
+    expect(RS_STYLES_CSS).toMatch(/\[data-slot="sheet-overlay"\][^{]*\{[^}]*backdrop-filter:\s*blur\(2px\)/)
+  })
+
+  it('浮层内容不落在 .rs-shell 的 overflow 裁切区里（一律由 Radix portal 挂 body）', () => {
+    // Radix portal 容器在 body 下；样式里不得出现给浮层加 shell 内定位的写法
+    expect(RS_STYLES_CSS).not.toMatch(/\.rs-shell\s+\[data-slot="(dialog|sheet|popover|select|dropdown|tooltip)/)
+  })
+})
+
 describe('RS_STYLES_CSS 浮层层级单一真源', () => {
   // 扫描器口径：剥注释 + 整行匹配。旧写法有双绿绕过——`z-index :5`（冒号前置空格）
   // 两条正则都匹配不到；`z-index: calc(var(--x) + 1)` 会被 [^;]+ 贪婪放过当「走了变量」。

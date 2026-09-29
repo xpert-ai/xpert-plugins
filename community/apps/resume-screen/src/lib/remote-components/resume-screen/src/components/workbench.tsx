@@ -257,6 +257,16 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
   }, [])
   const consumeJumpHighlight = useCallback(() => setJumpCandidateId(null), [])
 
+  // 键盘导航唯一实现：列表与抽屉共用同一游标（选中即同步抽屉内容，§5.5）
+  // 复用既有 liveItems（淡出残影行不可达）与 handleSelect（点行同款副作用：抽屉已开时内容自然切换）
+  function moveSelection(delta: number) {
+    const rows = liveItems
+    if (!rows.length) return
+    const index = rows.findIndex((item) => item.id === selectedId)
+    const nextIndex = Math.min(rows.length - 1, Math.max(0, (index < 0 ? 0 : index) + delta))
+    handleSelect(rows[nextIndex].id)
+  }
+
   // ===== 视图态变更 =====
 
   function changeView(patch: Partial<ViewState>, options?: { clearSelection?: boolean }) {
@@ -581,6 +591,7 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
               jumpCandidateId={jumpCandidateId}
               onJumpConsumed={consumeJumpHighlight}
               onSelect={handleSelect}
+              onMoveSelection={moveSelection}
               onSearch={(value) => changeView({ search: value })}
               onStatusChange={(value) => changeView({ status: value })}
               onSortChange={(value) => {
@@ -604,10 +615,21 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
         </section>
       )}
 
-      {/* 详情抽屉：单栏布局下点行/键盘 Enter 均开 Sheet，xs 容器满宽（§4/§5.1） */}
+      {/* 详情抽屉（§5.5 三段）：DetailContent 自带 head/body/foot 三行栅格，容器只做遮罩与宽度；
+          单栏布局下点行/键盘 Enter 均开 Sheet，xs 容器满宽（§4/§5.1） */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent side="right" className={`rs-sheet-content${widthMode === 'xs' ? ' is-full' : ''}`}>
-          <SheetHeader className="rs-sr-only">
+        <SheetContent
+          side="right"
+          className={`rs-sheet-content${widthMode === 'xs' ? ' is-full' : ''}`}
+          aria-describedby={undefined}
+          // 抽屉打开时 ↑/↓ 仍可用：焦点被 Radix 陷阱收在抽屉内，键盘事件从这里派发才有效
+          onKeyDown={(event: React.KeyboardEvent) => {
+            if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
+            event.preventDefault()
+            moveSelection(event.key === 'ArrowDown' ? 1 : -1)
+          }}
+        >
+          <SheetHeader className="rs-sheet-sr-head">
             <SheetTitle>候选人详情</SheetTitle>
           </SheetHeader>
           <div className="rs-sheet-body">{detail}</div>
