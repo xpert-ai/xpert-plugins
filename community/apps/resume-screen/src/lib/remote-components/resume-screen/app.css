@@ -1,4 +1,4 @@
-/* packages/shadcn-ui/dist/style.css */
+/* ../../../packages/shadcn-ui/dist/style.css */
 @layer properties {
   @supports (((-webkit-hyphens:none)) and (not (margin-trim:inline))) or ((-moz-orient:inline) and (not (color:rgb(from red r g b)))) {
     :root,
@@ -3402,6 +3402,7 @@
 .ri-error-warning-line:before { content: "\eca1"; }
 .ri-file-add-line:before { content: "\ecc9"; }
 .ri-file-line:before { content: "\eceb"; }
+.ri-file-search-line:before { content: "\ed05"; }
 .ri-filter-3-line:before { content: "\ed25"; }
 .ri-inbox-line:before { content: "\ee4f"; }
 .ri-loader-4-line:before { content: "\eec6"; }

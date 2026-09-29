@@ -13,9 +13,10 @@ import { CandidateList } from './candidate-list'
 import { DetailContent } from './candidate-detail'
 import { JobHeader } from './job-header'
 import { UploadDialog } from './upload-dialog'
+import { PreviewDialog } from './preview-dialog'
 import type { DispositionKey } from './action-bar'
 import type { SaveOutcome } from './candidate-detail'
-import type { CandidateView, HostContext, JobCreateOutcome, JobView, ResumeScreenCandidatePatchMirror, ResumeScreenViewData, SortBy, SortDir, StatusFilter, UploadRow } from '../types'
+import type { CandidateView, HostContext, JobCreateOutcome, JobView, PreviewPayload, ResumeScreenCandidatePatchMirror, ResumeScreenViewData, SortBy, SortDir, StatusFilter, UploadRow } from '../types'
 import {
   DOM_ROW_CAP,
   LEAVE_FADE_MS,
@@ -349,6 +350,42 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
     [silentRefresh]
   )
 
+  // ===== 简历预览（spec §5.4：action 取字节 → 弹窗按 kind 分支渲染） =====
+
+  const [preview, setPreview] = useState<{ candidateId: string; fileName: string; payload: PreviewPayload } | null>(null)
+  const [previewBusy, setPreviewBusy] = useState(false)
+
+  const openPreview = useCallback(
+    async (candidate: CandidateView) => {
+      if (previewBusy) return
+      setPreviewBusy(true)
+      try {
+        const response = await executeAction('preview_candidate', candidate.id, { candidateId: candidate.id }, { jobId: candidate.jobId })
+        const result = parseActionResult(response)
+        const message = resolveText(result.message)
+        if (!result.success || !isObject(result.data)) {
+          // 失败双通道：顶部 notice + notify（§6.4 与重试失败同纪律）
+          showNotice(message || '简历预览加载失败')
+          notify(message || '简历预览加载失败', 'error')
+          return
+        }
+        const kind = result.data.kind === 'pdf' ? 'pdf' : 'html'
+        setPreview({
+          candidateId: candidate.id,
+          fileName: typeof result.data.fileName === 'string' ? result.data.fileName : candidate.sourceFileName || '简历',
+          payload: (kind === 'pdf' ? { kind: 'pdf', base64: String(result.data.base64 ?? '') } : { kind: 'html', html: String(result.data.html ?? '') }) as PreviewPayload
+        })
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '简历预览加载失败'
+        showNotice(message)
+        notify(message, 'error')
+      } finally {
+        setPreviewBusy(false)
+      }
+    },
+    [previewBusy]
+  )
+
   // ===== 新建岗位（v4 D1：成功自动切岗、失败保持 Dialog） =====
 
   const createJob = useCallback(
@@ -492,6 +529,7 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
       onWaitMore={(candidateId) => setTimeoutDismiss((map) => ({ ...map, [candidateId]: Date.now() + 5 * 60_000 }))}
       onSave={saveCandidate}
       onConflictRefresh={() => void silentRefresh()}
+      onPreview={openPreview}
     />
   )
 
@@ -602,6 +640,16 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
           jumpToCandidate(id)
         }}
       />
+
+      {/* 简历预览弹窗（§5.4）：有 preview 状态即挂载，关闭即卸载并触发 Blob URL 释放 */}
+      {preview ? (
+        <PreviewDialog
+          open
+          fileName={preview.fileName}
+          payload={preview.payload}
+          onClose={() => setPreview(null)}
+        />
+      ) : null}
     </main>
   )
 }

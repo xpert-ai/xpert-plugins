@@ -8,6 +8,8 @@
 import {
   UPLOAD_OVERSIZE_HINT,
   candidateSignature,
+  createPdfBlobUrl,
+  decodeBase64ToBytes,
   looksLikeRevisionConflict,
   mapUploadFailure,
   mergeAppendedPage,
@@ -25,6 +27,7 @@ function makeCandidate(overrides: Partial<CandidateView> & { id: string }): Cand
     name: `候选人-${overrides.id}`,
     matchScore: 70,
     attemptCount: 1,
+    hasFile: true,
     revision: 1,
     createdAt: '2026-09-27T08:00:00.000Z',
     updatedAt: '2026-09-27T08:00:00.000Z',
@@ -193,5 +196,73 @@ describe('mapUploadFailure · 服务端 reason token 优先（spec §6.4/§6.6�
   it('旧服务端的中文 message 通道不回归：未知 token 原样透出', () => {
     expect(mapUploadFailure('请先选择岗位再上传简历')).toBe('请先选择岗位再上传简历')
     expect(mapUploadFailure('')).toBe('上传失败，请重新上传')
+  })
+})
+
+describe('decodeBase64ToBytes · pdf 回执解码', () => {
+  it('还原含 +/ 与填充位的字节序列（Blob URL 分支的前提）', () => {
+    const bytes = decodeBase64ToBytes(Buffer.from('%PDF-1.7\nÊ½ñ¶\n').toString('base64'))
+    expect(Array.from(bytes.slice(0, 8))).toEqual([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37])
+  })
+
+  it('空串返回零长度数组（渲染层据此走失败提示，不抛）', () => {
+    expect(decodeBase64ToBytes('')).toHaveLength(0)
+  })
+
+  it('非法 base64 抛可读错误，交由弹窗落 notice', () => {
+    expect(() => decodeBase64ToBytes('!!!not base64!!!')).toThrow()
+  })
+})
+
+describe('createPdfBlobUrl · 创建与释放必须成对（spec §5.8 泄漏红线）', () => {
+  const created: string[] = []
+  const revoked: string[] = []
+  let originalUrl: typeof globalThis.URL
+
+  beforeEach(() => {
+    created.length = 0
+    revoked.length = 0
+    originalUrl = globalThis.URL
+    // iframe 侧才真有 Blob URL；node 环境按同构接口桩住，断言点在调用次序而非浏览器实现
+    const stub = {
+      createObjectURL: () => {
+        const url = `blob:mock/${created.length}`
+        created.push(url)
+        return url
+      },
+      revokeObjectURL: (url: string) => void revoked.push(url)
+    }
+    globalThis.URL = Object.assign(function URL() {}, stub) as unknown as typeof globalThis.URL
+  })
+  afterEach(() => {
+    globalThis.URL = originalUrl
+  })
+
+  it('创建后不立即释放（pdf 正在被查看），且 release 恰好释放一次', () => {
+    const handle = createPdfBlobUrl(new Uint8Array([1, 2, 3]), 'application/pdf')
+    expect(handle.url).toBe('blob:mock/0')
+    expect(revoked).toEqual([])
+    handle.release()
+    expect(revoked).toEqual(['blob:mock/0'])
+  })
+
+  // effect cleanup 与「关闭弹窗」两条路径都会调 release：必须幂等，否则重复 revoke 掩盖真实泄漏计数
+  it('release 重复调用只释放一次', () => {
+    const handle = createPdfBlobUrl(new Uint8Array([1]), 'application/pdf')
+    handle.release()
+    handle.release()
+    handle.release()
+    expect(revoked).toEqual(['blob:mock/0'])
+  })
+
+  it('创建即抛错时原样上抛，且不产生任何释放调用（没有孤儿 URL 可释放）', () => {
+    globalThis.URL = Object.assign(function URL() {}, {
+      createObjectURL: () => {
+        throw new Error('blob boom')
+      },
+      revokeObjectURL: (url: string) => void revoked.push(url)
+    }) as unknown as typeof globalThis.URL
+    expect(() => createPdfBlobUrl(new Uint8Array([1]), 'application/pdf')).toThrow('blob boom')
+    expect(revoked).toEqual([])
   })
 })

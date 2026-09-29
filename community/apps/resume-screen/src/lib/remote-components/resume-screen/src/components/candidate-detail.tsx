@@ -67,6 +67,7 @@ interface DetailProps {
   onWaitMore: (candidateId: string) => void
   onSave: (candidate: CandidateView, patch: ResumeScreenCandidatePatchMirror, expectedRevision: number) => Promise<SaveOutcome>
   onConflictRefresh: () => void
+  onPreview: (candidate: CandidateView) => Promise<void>
 }
 
 /**
@@ -97,7 +98,7 @@ export function DetailContent(props: DetailProps) {
   )
 }
 
-function DetailBody({ candidate, timedOut, showTimeoutCard, now, busyKey, onDispose, onWaitMore, onSave, onConflictRefresh }: DetailProps & { candidate: CandidateView }) {
+function DetailBody({ candidate, timedOut, showTimeoutCard, now, busyKey, onDispose, onWaitMore, onSave, onConflictRefresh, onPreview }: DetailProps & { candidate: CandidateView }) {
   // 编辑态与草稿暂存：冲突「查看最新」后草稿保留、可点编辑恢复（§6.5）
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState<ResumeScreenCandidatePatchMirror>({})
@@ -192,6 +193,18 @@ function DetailBody({ candidate, timedOut, showTimeoutCard, now, busyKey, onDisp
                 <TooltipContent>{candidate.sourceFileName}</TooltipContent>
               </Tooltip>
             ) : null}
+            {/* 预览入口：无原始文件的存量行禁用并说明原因（§5.4/§6.4），不允许点了才报错 */}
+            <span className="rs-detail-preview">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="sm" disabled={!candidate.hasFile} onClick={() => void onPreview(candidate)}>
+                    <i className="ri-file-search-line" aria-hidden="true" />
+                    预览简历
+                  </Button>
+                </TooltipTrigger>
+                {candidate.hasFile ? null : <TooltipContent collisionPadding={8}>旧数据未保留原始文件，请重新上传简历后预览</TooltipContent>}
+              </Tooltip>
+            </span>
           </div>
         </div>
       </header>

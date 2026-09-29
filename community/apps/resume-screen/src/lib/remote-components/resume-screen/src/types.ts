@@ -46,6 +46,9 @@ export interface BridgeMessage {
 // 候选人六态 + 服务端中间态 draft（UI 不呈现 draft，竞态时按解析中处理）
 export type CandidateStatus = 'draft' | 'parsing' | 'pending_review' | 'accepted' | 'hold' | 'rejected' | 'failed'
 
+// 原始简历文件类型镜像（值域照服务端 ResumeFileKind：'docx' | 'pdf'；iframe 不 import 服务端模块，仅镜像值域）
+export type ResumeFileKind = 'docx' | 'pdf'
+
 export interface JobView {
   id: string
   title: string
@@ -74,6 +77,12 @@ export interface CandidateView {
   failureReason?: string
   // 上传通道来源文件名：列表/详情来源角标与上传队列「查看」跳转的溯源字段
   sourceFileName?: string
+  // 文件呈现三字段镜像（服务端 T7 投影直供）：fileKind 决定预览渲染分支（html/pdf）；
+  // hasFile=false 的存量行（旧 11 行数据）前端必须禁用「预览简历」并给降级提示（§5.4/§6.4）。
+  // 服务端刻意不泄 filePath——内部路径不进浏览器，故镜像亦无此字段。
+  fileKind?: ResumeFileKind
+  fileSize?: number
+  hasFile: boolean
   reviewedById?: string
   reviewedAt?: string
   revision: number
@@ -114,6 +123,9 @@ export interface ActionResult {
   refresh?: boolean
   data?: unknown
 }
+
+// preview_candidate 回执载荷（服务端 ResumePreviewPayload 的镜像）
+export type PreviewPayload = { kind: 'html'; html: string } | { kind: 'pdf'; base64: string }
 
 // 新建岗位提交出口（蓝图 §3.2 双通道裁决）：ok=false 且无 notice 为标题重复类业务失败
 // （仅 notify + 回焦名称字段）；带 notice 为「其他异常」，由 Dialog 内 notice 红变体呈现（M10 M-3），Dialog 保持打开

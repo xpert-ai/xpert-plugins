@@ -13,7 +13,7 @@ var XpertResumeScreen = (() => {
   var __privateAdd = (obj, member, value) => member.has(obj) ? __typeError("Cannot add the same private member more than once") : member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
   var __privateSet = (obj, member, value, setter) => (__accessCheck(obj, member, "write to private field"), setter ? setter.call(obj, value) : member.set(obj, value), value);
 
-  // community/apps/resume-screen/src/lib/remote-components/resume-screen/src/react-shim.ts
+  // src/lib/remote-components/resume-screen/src/react-shim.ts
   var react_shim_exports = {};
   __export(react_shim_exports, {
     Children: () => Children,
@@ -87,12 +87,12 @@ var XpertResumeScreen = (() => {
   var useTransition = ReactGlobal.useTransition;
   var version = ReactGlobal.version;
 
-  // community/apps/resume-screen/src/lib/remote-components/resume-screen/src/react-dom-client-shim.ts
+  // src/lib/remote-components/resume-screen/src/react-dom-client-shim.ts
   var ReactDOMGlobal = window.ReactDOM;
   var createRoot = ReactDOMGlobal.createRoot;
   var hydrateRoot = ReactDOMGlobal.hydrateRoot;
 
-  // community/apps/resume-screen/src/lib/remote-components/resume-screen/src/utils.ts
+  // src/lib/remote-components/resume-screen/src/utils.ts
   var PAGE_SIZE = 20;
   var DOM_ROW_CAP = 200;
   var PARSE_POLL_MS = 3e4;
@@ -287,8 +287,28 @@ var XpertResumeScreen = (() => {
     }
     return null;
   }
+  function decodeBase64ToBytes(base64) {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let index2 = 0; index2 < binary.length; index2 += 1) {
+      bytes[index2] = binary.charCodeAt(index2);
+    }
+    return bytes;
+  }
+  function createPdfBlobUrl(bytes, mime) {
+    const url = URL.createObjectURL(new Blob([bytes.buffer], { type: mime }));
+    let released = false;
+    return {
+      url,
+      release: () => {
+        if (released) return;
+        released = true;
+        URL.revokeObjectURL(url);
+      }
+    };
+  }
 
-  // community/apps/resume-screen/src/lib/remote-components/resume-screen/src/bridge.ts
+  // src/lib/remote-components/resume-screen/src/bridge.ts
   var CHANNEL = "xpertai.remote_component";
   var VERSION = 1;
   var REQUEST_TIMEOUT_MS = 15e3;
@@ -433,7 +453,7 @@ var XpertResumeScreen = (() => {
     post("resize", { height: Math.ceil(height), viewportBound: false });
   }
 
-  // community/apps/resume-screen/src/lib/remote-components/resume-screen/src/styles.ts
+  // src/lib/remote-components/resume-screen/src/styles.ts
   var RS_STYLES_CSS = `
     :root {
       /* \u6D45\u8272\u9489\u6B7B\uFF1A\u4E0B\u5217 shadcn \u8BED\u4E49 token \u4E0E app.css \u7684 :root \u540C\u540D\u3002\u5BBF\u4E3B createRemoteTheme()
@@ -697,6 +717,20 @@ var XpertResumeScreen = (() => {
     .rs-upload-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding-top: 4px; border-top: 1px solid var(--rs-border-soft); }
     .rs-upload-foot [data-slot="button"] i { margin-right: 6px; font-size: 14px; }
 
+    /* ===== \u7B80\u5386\u9884\u89C8\uFF08\xA75.4\uFF1Adocx \u5BCC\u6587\u672C / pdf \u539F\u751F\u67E5\u770B\u5668\u5171\u7528\u540C\u4E00 Dialog \u5C3A\u5BF8\uFF09 ===== */
+    .rs-preview-dialog { width: min(880px, calc(100% - 32px)); height: min(72vh, 720px); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 12px; overflow: hidden; }
+    .rs-preview-scroll { min-height: 0; }
+    /* \u7248\u5F0F\u5BF9\u9F50\u771F\u5B9E\u9605\u8BFB\u5BC6\u5EA6\uFF1A14px/1.7\u3001\u6B63\u6587\u6700\u957F 72ch\uFF0C\u8D85\u5BBD\u89C6\u53E3\u4E0B\u4E0D\u62C9\u6210\u62A5\u7EB8\u680F */
+    .rs-preview-doc { max-width: 72ch; margin: 0 auto; padding: 4px 6px 12px; font-size: 14px; line-height: 1.7; color: var(--rs-text); overflow-wrap: anywhere; }
+    .rs-preview-doc h1, .rs-preview-doc h2, .rs-preview-doc h3 { font-size: 16px; font-weight: 700; margin: 14px 0 6px; }
+    .rs-preview-doc p, .rs-preview-doc li { margin: 0 0 6px; }
+    .rs-preview-doc table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 13px; }
+    .rs-preview-doc th, .rs-preview-doc td { border: 1px solid var(--rs-border); padding: 5px 7px; text-align: left; vertical-align: top; }
+    .rs-preview-doc img { max-width: 100%; height: auto; }
+    .rs-preview-pdf { width: 100%; height: 100%; min-height: 0; border: 1px solid var(--rs-border); border-radius: var(--rs-radius); background: var(--rs-bg-soft); }
+    .rs-preview-foot { display: flex; justify-content: flex-end; padding-top: 4px; border-top: 1px solid var(--rs-border-soft); }
+    .rs-detail-preview { margin-left: auto; }
+
     /* ===== notice \u6761\uFF08\u84DD\u56FE \xA76.1 \u901A\u7528\u9519\u8BEF\u51FA\u53E3\uFF1Bcrm .crm20-notice \u540C\u6784\u7EA2/\u7425\u73C0\u53D8\u4F53\uFF09 ===== */
     .rs-notice { position: absolute; left: 12px; right: 12px; top: 92px; z-index: var(--rs-layer-toast); display: flex; align-items: flex-start; gap: 8px; border: 1px solid var(--rs-red); background: var(--rs-red-soft); color: var(--rs-red); padding: 8px 10px; border-radius: var(--rs-radius); font-size: 13px; box-shadow: 0 6px 20px rgba(31, 41, 55, 0.08); animation: rs-notice-in var(--rs-motion-slow) var(--rs-ease-entry); }
     @keyframes rs-notice-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
@@ -761,7 +795,7 @@ var XpertResumeScreen = (() => {
     document.head.appendChild(style);
   }
 
-  // node_modules/.pnpm/clsx@2.1.1/node_modules/clsx/dist/clsx.mjs
+  // ../../../node_modules/.pnpm/clsx@2.1.1/node_modules/clsx/dist/clsx.mjs
   function r(e) {
     var t, f, n = "";
     if ("string" == typeof e || "number" == typeof e) n += e;
@@ -776,7 +810,7 @@ var XpertResumeScreen = (() => {
     return n;
   }
 
-  // node_modules/.pnpm/tailwind-merge@3.6.0/node_modules/tailwind-merge/dist/bundle-mjs.mjs
+  // ../../../node_modules/.pnpm/tailwind-merge@3.6.0/node_modules/tailwind-merge/dist/bundle-mjs.mjs
   var concatArrays = (array1, array2) => {
     const combinedArray = new Array(array1.length + array2.length);
     for (let i = 0; i < array1.length; i++) {
@@ -4030,27 +4064,27 @@ var XpertResumeScreen = (() => {
   };
   var twMerge = /* @__PURE__ */ createTailwindMerge(getDefaultConfig);
 
-  // node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils/mergeClasses.mjs
+  // ../../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils/mergeClasses.mjs
   var mergeClasses = (...classes) => classes.filter((className, index2, array) => {
     return Boolean(className) && className.trim() !== "" && array.indexOf(className) === index2;
   }).join(" ").trim();
 
-  // node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils/toKebabCase.mjs
+  // ../../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils/toKebabCase.mjs
   var toKebabCase = (string) => string.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
 
-  // node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils/toCamelCase.mjs
+  // ../../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils/toCamelCase.mjs
   var toCamelCase = (string) => string.replace(
     /^([A-Z])|[\s-_]+(\w)/g,
     (match, p1, p2) => p2 ? p2.toUpperCase() : p1.toLowerCase()
   );
 
-  // node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils/toPascalCase.mjs
+  // ../../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils/toPascalCase.mjs
   var toPascalCase = (string) => {
     const camelCase = toCamelCase(string);
     return camelCase.charAt(0).toUpperCase() + camelCase.slice(1);
   };
 
-  // node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/defaultAttributes.mjs
+  // ../../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/defaultAttributes.mjs
   var defaultAttributes = {
     xmlns: "http://www.w3.org/2000/svg",
     width: 24,
@@ -4063,7 +4097,7 @@ var XpertResumeScreen = (() => {
     strokeLinejoin: "round"
   };
 
-  // node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils/hasA11yProp.mjs
+  // ../../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils/hasA11yProp.mjs
   var hasA11yProp = (props) => {
     for (const prop in props) {
       if (prop.startsWith("aria-") || prop === "role" || prop === "title") {
@@ -4073,11 +4107,11 @@ var XpertResumeScreen = (() => {
     return false;
   };
 
-  // node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/context.mjs
+  // ../../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/context.mjs
   var LucideContext = createContext({});
   var useLucideContext = () => useContext(LucideContext);
 
-  // node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/Icon.mjs
+  // ../../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/Icon.mjs
   var Icon = forwardRef(
     ({ color, size: size4, strokeWidth, absoluteStrokeWidth, className = "", children, iconNode, ...rest }, ref) => {
       const {
@@ -4109,7 +4143,7 @@ var XpertResumeScreen = (() => {
     }
   );
 
-  // node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/createLucideIcon.mjs
+  // ../../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/createLucideIcon.mjs
   var createLucideIcon = (iconName, iconNode) => {
     const Component2 = forwardRef(
       ({ className, ...props }, ref) => createElement(Icon, {
@@ -4127,26 +4161,26 @@ var XpertResumeScreen = (() => {
     return Component2;
   };
 
-  // node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/check.mjs
+  // ../../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/check.mjs
   var __iconNode = [["path", { d: "M20 6 9 17l-5-5", key: "1gmf2c" }]];
   var Check = createLucideIcon("check", __iconNode);
 
-  // node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-down.mjs
+  // ../../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-down.mjs
   var __iconNode2 = [["path", { d: "m6 9 6 6 6-6", key: "qrunsl" }]];
   var ChevronDown = createLucideIcon("chevron-down", __iconNode2);
 
-  // node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-up.mjs
+  // ../../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-up.mjs
   var __iconNode3 = [["path", { d: "m18 15-6-6-6 6", key: "153udz" }]];
   var ChevronUp = createLucideIcon("chevron-up", __iconNode3);
 
-  // node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/x.mjs
+  // ../../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/x.mjs
   var __iconNode4 = [
     ["path", { d: "M18 6 6 18", key: "1bl5f8" }],
     ["path", { d: "m6 6 12 12", key: "d8bk6v" }]
   ];
   var X = createLucideIcon("x", __iconNode4);
 
-  // community/apps/resume-screen/src/lib/remote-components/resume-screen/src/react-jsx-runtime-shim.ts
+  // src/lib/remote-components/resume-screen/src/react-jsx-runtime-shim.ts
   var ReactGlobal2 = window.React;
   var Fragment2 = ReactGlobal2.Fragment;
   function jsx(type, props, key) {
@@ -4154,7 +4188,7 @@ var XpertResumeScreen = (() => {
   }
   var jsxs = jsx;
 
-  // community/apps/resume-screen/src/lib/remote-components/resume-screen/src/react-dom-shim.ts
+  // src/lib/remote-components/resume-screen/src/react-dom-shim.ts
   var ReactDOMGlobal2 = window.ReactDOM;
   var createPortal = ReactDOMGlobal2.createPortal;
   var flushSync = ReactDOMGlobal2.flushSync;
@@ -4165,7 +4199,7 @@ var XpertResumeScreen = (() => {
   var unmountComponentAtNode = ReactDOMGlobal2.unmountComponentAtNode;
   var version2 = ReactDOMGlobal2.version;
 
-  // node_modules/.pnpm/@radix-ui+react-slot@1.3.0_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-slot/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-slot@1.3.0_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-slot/dist/index.mjs
   var dist_exports = {};
   __export(dist_exports, {
     Root: () => Slot,
@@ -4175,7 +4209,7 @@ var XpertResumeScreen = (() => {
     createSlottable: () => createSlottable
   });
 
-  // node_modules/.pnpm/@radix-ui+react-compose-ref_1124f78b370d43bfeceaaa9b791be73d/node_modules/@radix-ui/react-compose-refs/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-compose-ref_1124f78b370d43bfeceaaa9b791be73d/node_modules/@radix-ui/react-compose-refs/dist/index.mjs
   function setRef(ref, value) {
     if (typeof ref === "function") {
       return ref(value);
@@ -4211,7 +4245,7 @@ var XpertResumeScreen = (() => {
     return useCallback(composeRefs(...refs), refs);
   }
 
-  // node_modules/.pnpm/@radix-ui+react-slot@1.3.0_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-slot/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-slot@1.3.0_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-slot/dist/index.mjs
   // @__NO_SIDE_EFFECTS__
   function createSlot(ownerName) {
     const Slot22 = forwardRef((props, forwardedRef) => {
@@ -4339,7 +4373,7 @@ var XpertResumeScreen = (() => {
   };
   var use = react_shim_exports[" use ".trim().toString()];
 
-  // node_modules/.pnpm/@radix-ui+react-primitive@2_4c60825657fad9e38f0a4d7b31c9e11d/node_modules/@radix-ui/react-primitive/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-primitive@2_4c60825657fad9e38f0a4d7b31c9e11d/node_modules/@radix-ui/react-primitive/dist/index.mjs
   var NODES = [
     "a",
     "button",
@@ -4376,7 +4410,7 @@ var XpertResumeScreen = (() => {
     if (target) flushSync(() => target.dispatchEvent(event));
   }
 
-  // node_modules/.pnpm/@radix-ui+react-visually-hi_c850badfde3651ed5cb7d90f2934dc1f/node_modules/@radix-ui/react-visually-hidden/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-visually-hi_c850badfde3651ed5cb7d90f2934dc1f/node_modules/@radix-ui/react-visually-hidden/dist/index.mjs
   var VISUALLY_HIDDEN_STYLES = Object.freeze({
     // See: https://github.com/twbs/bootstrap/blob/main/scss/mixins/_visually-hidden.scss
     position: "absolute",
@@ -4406,7 +4440,7 @@ var XpertResumeScreen = (() => {
   VisuallyHidden.displayName = NAME;
   var Root = VisuallyHidden;
 
-  // node_modules/.pnpm/@radix-ui+react-context@1.2_c68a3e9727ce2654dfdd7ac4b59b3999/node_modules/@radix-ui/react-context/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-context@1.2_c68a3e9727ce2654dfdd7ac4b59b3999/node_modules/@radix-ui/react-context/dist/index.mjs
   function createContextScope(scopeName, createContextScopeDeps = []) {
     let defaultContexts = [];
     function createContext3(rootComponentName, defaultContext) {
@@ -4468,7 +4502,7 @@ var XpertResumeScreen = (() => {
     return createScope;
   }
 
-  // node_modules/.pnpm/@radix-ui+react-collection@_48cd336a2ef85a82af4ed74226b41844/node_modules/@radix-ui/react-collection/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-collection@_48cd336a2ef85a82af4ed74226b41844/node_modules/@radix-ui/react-collection/dist/index.mjs
   function createCollection(name) {
     const PROVIDER_NAME3 = name + "CollectionProvider";
     const [createCollectionContext, createCollectionScope4] = createContextScope(PROVIDER_NAME3);
@@ -4532,7 +4566,7 @@ var XpertResumeScreen = (() => {
     ];
   }
 
-  // node_modules/.pnpm/@radix-ui+primitive@1.1.5/node_modules/@radix-ui/primitive/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+primitive@1.1.5/node_modules/@radix-ui/primitive/dist/index.mjs
   var canUseDOM = !!(typeof window !== "undefined" && window.document && window.document.createElement);
   function composeEventHandlers(originalEventHandler, ourEventHandler, { checkForDefaultPrevented = true } = {}) {
     return function handleEvent(event) {
@@ -4543,11 +4577,11 @@ var XpertResumeScreen = (() => {
     };
   }
 
-  // node_modules/.pnpm/@radix-ui+react-use-layout-_ad41f999ca2019252b887df955038ce1/node_modules/@radix-ui/react-use-layout-effect/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-use-layout-_ad41f999ca2019252b887df955038ce1/node_modules/@radix-ui/react-use-layout-effect/dist/index.mjs
   var useLayoutEffect2 = globalThis?.document ? useLayoutEffect : () => {
   };
 
-  // node_modules/.pnpm/@radix-ui+react-use-control_e3b0d353471f209a120bf58c8d35c552/node_modules/@radix-ui/react-use-controllable-state/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-use-control_e3b0d353471f209a120bf58c8d35c552/node_modules/@radix-ui/react-use-controllable-state/dist/index.mjs
   var useInsertionEffect2 = react_shim_exports[" useInsertionEffect ".trim().toString()] || useLayoutEffect2;
   function useControllableState({
     prop,
@@ -4613,7 +4647,7 @@ var XpertResumeScreen = (() => {
     return typeof value === "function";
   }
 
-  // node_modules/.pnpm/@radix-ui+react-collapsible_a9f09893a8761cb960ef9cb5a7a4a433/node_modules/@radix-ui/react-collapsible/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-collapsible_a9f09893a8761cb960ef9cb5a7a4a433/node_modules/@radix-ui/react-collapsible/dist/index.mjs
   var dist_exports2 = {};
   __export(dist_exports2, {
     Collapsible: () => Collapsible,
@@ -4625,7 +4659,7 @@ var XpertResumeScreen = (() => {
     createCollapsibleScope: () => createCollapsibleScope
   });
 
-  // node_modules/.pnpm/@radix-ui+react-presence@1._d6843a2439efb57a10ac44d5b494738a/node_modules/@radix-ui/react-presence/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-presence@1._d6843a2439efb57a10ac44d5b494738a/node_modules/@radix-ui/react-presence/dist/index.mjs
   function useStateMachine(initialState, machine) {
     return useReducer((state, event) => {
       const nextState = machine[state][event];
@@ -4795,7 +4829,7 @@ var XpertResumeScreen = (() => {
     return element.props.ref || element.ref;
   }
 
-  // node_modules/.pnpm/@radix-ui+react-id@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-id/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-id@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-id/dist/index.mjs
   var useReactId = react_shim_exports[" useId ".trim().toString()] || (() => void 0);
   var count = 0;
   function useId2(deterministicId) {
@@ -4806,7 +4840,7 @@ var XpertResumeScreen = (() => {
     return deterministicId || (id ? `radix-${id}` : "");
   }
 
-  // node_modules/.pnpm/@radix-ui+react-collapsible_a9f09893a8761cb960ef9cb5a7a4a433/node_modules/@radix-ui/react-collapsible/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-collapsible_a9f09893a8761cb960ef9cb5a7a4a433/node_modules/@radix-ui/react-collapsible/dist/index.mjs
   var COLLAPSIBLE_NAME = "Collapsible";
   var [createCollapsibleContext, createCollapsibleScope] = createContextScope(COLLAPSIBLE_NAME);
   var [CollapsibleProvider, useCollapsibleContext] = createCollapsibleContext(COLLAPSIBLE_NAME);
@@ -4940,14 +4974,14 @@ var XpertResumeScreen = (() => {
   var Trigger = CollapsibleTrigger;
   var Content = CollapsibleContent;
 
-  // node_modules/.pnpm/@radix-ui+react-direction@1_2157d1ab8e201288009ff536bb11c468/node_modules/@radix-ui/react-direction/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-direction@1_2157d1ab8e201288009ff536bb11c468/node_modules/@radix-ui/react-direction/dist/index.mjs
   var DirectionContext = createContext(void 0);
   function useDirection(localDir) {
     const globalDir = useContext(DirectionContext);
     return localDir || globalDir || "ltr";
   }
 
-  // node_modules/.pnpm/@radix-ui+react-alert-dialo_e6e41d2a4af4ab50646683a57177c7f1/node_modules/@radix-ui/react-alert-dialog/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-alert-dialo_e6e41d2a4af4ab50646683a57177c7f1/node_modules/@radix-ui/react-alert-dialog/dist/index.mjs
   var dist_exports4 = {};
   __export(dist_exports4, {
     Action: () => Action,
@@ -4971,7 +5005,7 @@ var XpertResumeScreen = (() => {
     createAlertDialogScope: () => createAlertDialogScope
   });
 
-  // node_modules/.pnpm/@radix-ui+react-dialog@1.1._19e637a1eb439fb7ac9fbd37f3b253ea/node_modules/@radix-ui/react-dialog/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-dialog@1.1._19e637a1eb439fb7ac9fbd37f3b253ea/node_modules/@radix-ui/react-dialog/dist/index.mjs
   var dist_exports3 = {};
   __export(dist_exports3, {
     Close: () => DialogClose,
@@ -4994,7 +5028,7 @@ var XpertResumeScreen = (() => {
     createDialogScope: () => createDialogScope
   });
 
-  // node_modules/.pnpm/@radix-ui+react-use-callbac_5106d65c013fadfe178f87486239c7af/node_modules/@radix-ui/react-use-callback-ref/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-use-callbac_5106d65c013fadfe178f87486239c7af/node_modules/@radix-ui/react-use-callback-ref/dist/index.mjs
   function useCallbackRef(callback) {
     const callbackRef = useRef(callback);
     useEffect(() => {
@@ -5003,7 +5037,7 @@ var XpertResumeScreen = (() => {
     return useMemo(() => ((...args) => callbackRef.current?.(...args)), []);
   }
 
-  // node_modules/.pnpm/@radix-ui+react-dismissable_52f617dd5f45a8e179b652efa1a9fb2f/node_modules/@radix-ui/react-dismissable-layer/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-dismissable_52f617dd5f45a8e179b652efa1a9fb2f/node_modules/@radix-ui/react-dismissable-layer/dist/index.mjs
   var DISMISSABLE_LAYER_NAME = "DismissableLayer";
   var CONTEXT_UPDATE = "dismissableLayer.update";
   var POINTER_DOWN_OUTSIDE = "dismissableLayer.pointerDownOutside";
@@ -5341,7 +5375,7 @@ var XpertResumeScreen = (() => {
     }
   }
 
-  // node_modules/.pnpm/@radix-ui+react-focus-scope_ea0a3c5eb186fbaed09fdcf83b961bfb/node_modules/@radix-ui/react-focus-scope/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-focus-scope_ea0a3c5eb186fbaed09fdcf83b961bfb/node_modules/@radix-ui/react-focus-scope/dist/index.mjs
   var AUTOFOCUS_ON_MOUNT = "focusScope.autoFocusOnMount";
   var AUTOFOCUS_ON_UNMOUNT = "focusScope.autoFocusOnUnmount";
   var EVENT_OPTIONS = { bubbles: false, cancelable: true };
@@ -5547,7 +5581,7 @@ var XpertResumeScreen = (() => {
     return items.filter((item) => item.tagName !== "A");
   }
 
-  // node_modules/.pnpm/@radix-ui+react-portal@1.1._dc7a74c2058d5b681fc692ae2e26f5cd/node_modules/@radix-ui/react-portal/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-portal@1.1._dc7a74c2058d5b681fc692ae2e26f5cd/node_modules/@radix-ui/react-portal/dist/index.mjs
   var PORTAL_NAME = "Portal";
   var Portal = forwardRef((props, forwardedRef) => {
     const { container: containerProp, ...portalProps } = props;
@@ -5558,7 +5592,7 @@ var XpertResumeScreen = (() => {
   });
   Portal.displayName = PORTAL_NAME;
 
-  // node_modules/.pnpm/@radix-ui+react-focus-guard_6b3d65e71789b2986a17d5efdb8859bf/node_modules/@radix-ui/react-focus-guards/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-focus-guard_6b3d65e71789b2986a17d5efdb8859bf/node_modules/@radix-ui/react-focus-guards/dist/index.mjs
   var count2 = 0;
   var guards = null;
   function useFocusGuards() {
@@ -5595,7 +5629,7 @@ var XpertResumeScreen = (() => {
     return element;
   }
 
-  // node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/tslib.es6.mjs
+  // ../../../node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/tslib.es6.mjs
   var __assign = function() {
     __assign = Object.assign || function __assign2(t) {
       for (var s, i = 1, n = arguments.length; i < n; i++) {
@@ -5627,13 +5661,13 @@ var XpertResumeScreen = (() => {
     return to.concat(ar || Array.prototype.slice.call(from));
   }
 
-  // node_modules/.pnpm/react-remove-scroll-bar@2.3_24279af7608b4a4e9fe00320b3c0cae7/node_modules/react-remove-scroll-bar/dist/es2015/constants.js
+  // ../../../node_modules/.pnpm/react-remove-scroll-bar@2.3_24279af7608b4a4e9fe00320b3c0cae7/node_modules/react-remove-scroll-bar/dist/es2015/constants.js
   var zeroRightClassName = "right-scroll-bar-position";
   var fullWidthClassName = "width-before-scroll-bar";
   var noScrollbarsClassName = "with-scroll-bars-hidden";
   var removedBarSizeVariable = "--removed-body-scroll-bar-size";
 
-  // node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/assignRef.js
+  // ../../../node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/assignRef.js
   function assignRef(ref, value) {
     if (typeof ref === "function") {
       ref(value);
@@ -5643,7 +5677,7 @@ var XpertResumeScreen = (() => {
     return ref;
   }
 
-  // node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/useRef.js
+  // ../../../node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/useRef.js
   function useCallbackRef2(initialValue, callback) {
     var ref = useState(function() {
       return {
@@ -5670,7 +5704,7 @@ var XpertResumeScreen = (() => {
     return ref.facade;
   }
 
-  // node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/useMergeRef.js
+  // ../../../node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/useMergeRef.js
   var useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
   var currentValues = /* @__PURE__ */ new WeakMap();
   function useMergeRefs(refs, defaultValue) {
@@ -5701,7 +5735,7 @@ var XpertResumeScreen = (() => {
     return callbackRef;
   }
 
-  // node_modules/.pnpm/use-sidecar@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/use-sidecar/dist/es2015/medium.js
+  // ../../../node_modules/.pnpm/use-sidecar@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/use-sidecar/dist/es2015/medium.js
   function ItoI(a2) {
     return a2;
   }
@@ -5787,7 +5821,7 @@ var XpertResumeScreen = (() => {
     return medium;
   }
 
-  // node_modules/.pnpm/use-sidecar@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/use-sidecar/dist/es2015/exports.js
+  // ../../../node_modules/.pnpm/use-sidecar@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/use-sidecar/dist/es2015/exports.js
   var SideCar = function(_a) {
     var sideCar = _a.sideCar, rest = __rest(_a, ["sideCar"]);
     if (!sideCar) {
@@ -5805,10 +5839,10 @@ var XpertResumeScreen = (() => {
     return SideCar;
   }
 
-  // node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/medium.js
+  // ../../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/medium.js
   var effectCar = createSidecarMedium();
 
-  // node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/UI.js
+  // ../../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/UI.js
   var nothing = function() {
     return;
   };
@@ -5840,7 +5874,7 @@ var XpertResumeScreen = (() => {
     zeroRight: zeroRightClassName
   };
 
-  // node_modules/.pnpm/get-nonce@1.0.1/node_modules/get-nonce/dist/es2015/index.js
+  // ../../../node_modules/.pnpm/get-nonce@1.0.1/node_modules/get-nonce/dist/es2015/index.js
   var currentNonce;
   var getNonce = function() {
     if (currentNonce) {
@@ -5852,7 +5886,7 @@ var XpertResumeScreen = (() => {
     return void 0;
   };
 
-  // node_modules/.pnpm/react-style-singleton@2.2.3_64be49a27fe392764e1764f59e110241/node_modules/react-style-singleton/dist/es2015/singleton.js
+  // ../../../node_modules/.pnpm/react-style-singleton@2.2.3_64be49a27fe392764e1764f59e110241/node_modules/react-style-singleton/dist/es2015/singleton.js
   function makeStyleTag() {
     if (!document)
       return null;
@@ -5898,7 +5932,7 @@ var XpertResumeScreen = (() => {
     };
   };
 
-  // node_modules/.pnpm/react-style-singleton@2.2.3_64be49a27fe392764e1764f59e110241/node_modules/react-style-singleton/dist/es2015/hook.js
+  // ../../../node_modules/.pnpm/react-style-singleton@2.2.3_64be49a27fe392764e1764f59e110241/node_modules/react-style-singleton/dist/es2015/hook.js
   var styleHookSingleton = function() {
     var sheet = stylesheetSingleton();
     return function(styles, isDynamic) {
@@ -5911,7 +5945,7 @@ var XpertResumeScreen = (() => {
     };
   };
 
-  // node_modules/.pnpm/react-style-singleton@2.2.3_64be49a27fe392764e1764f59e110241/node_modules/react-style-singleton/dist/es2015/component.js
+  // ../../../node_modules/.pnpm/react-style-singleton@2.2.3_64be49a27fe392764e1764f59e110241/node_modules/react-style-singleton/dist/es2015/component.js
   var styleSingleton = function() {
     var useStyle = styleHookSingleton();
     var Sheet = function(_a) {
@@ -5922,7 +5956,7 @@ var XpertResumeScreen = (() => {
     return Sheet;
   };
 
-  // node_modules/.pnpm/react-remove-scroll-bar@2.3_24279af7608b4a4e9fe00320b3c0cae7/node_modules/react-remove-scroll-bar/dist/es2015/utils.js
+  // ../../../node_modules/.pnpm/react-remove-scroll-bar@2.3_24279af7608b4a4e9fe00320b3c0cae7/node_modules/react-remove-scroll-bar/dist/es2015/utils.js
   var zeroGap = {
     left: 0,
     top: 0,
@@ -5957,7 +5991,7 @@ var XpertResumeScreen = (() => {
     };
   };
 
-  // node_modules/.pnpm/react-remove-scroll-bar@2.3_24279af7608b4a4e9fe00320b3c0cae7/node_modules/react-remove-scroll-bar/dist/es2015/component.js
+  // ../../../node_modules/.pnpm/react-remove-scroll-bar@2.3_24279af7608b4a4e9fe00320b3c0cae7/node_modules/react-remove-scroll-bar/dist/es2015/component.js
   var Style = styleSingleton();
   var lockAttribute = "data-scroll-locked";
   var getStyles = function(_a, allowRelative, gapMode, important) {
@@ -5997,7 +6031,7 @@ var XpertResumeScreen = (() => {
     return createElement(Style, { styles: getStyles(gap, !noRelative, gapMode, !noImportant ? "!important" : "") });
   };
 
-  // node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/aggresiveCapture.js
+  // ../../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/aggresiveCapture.js
   var passiveSupported = false;
   if (typeof window !== "undefined") {
     try {
@@ -6016,7 +6050,7 @@ var XpertResumeScreen = (() => {
   var options;
   var nonPassive = passiveSupported ? { passive: false } : false;
 
-  // node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/handleScroll.js
+  // ../../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/handleScroll.js
   var alwaysContainsScroll = function(node) {
     return node.tagName === "TEXTAREA";
   };
@@ -6116,7 +6150,7 @@ var XpertResumeScreen = (() => {
     return shouldCancelScroll;
   };
 
-  // node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/SideEffect.js
+  // ../../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/SideEffect.js
   var getTouchXY = function(event) {
     return "changedTouches" in event ? [event.changedTouches[0].clientX, event.changedTouches[0].clientY] : [0, 0];
   };
@@ -6287,17 +6321,17 @@ var XpertResumeScreen = (() => {
     return shadowParent;
   }
 
-  // node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/sidecar.js
+  // ../../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/sidecar.js
   var sidecar_default = exportSidecar(effectCar, RemoveScrollSideCar);
 
-  // node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/Combination.js
+  // ../../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/Combination.js
   var ReactRemoveScroll = forwardRef(function(props, ref) {
     return createElement(RemoveScroll, __assign({}, props, { ref, sideCar: sidecar_default }));
   });
   ReactRemoveScroll.classNames = RemoveScroll.classNames;
   var Combination_default = ReactRemoveScroll;
 
-  // node_modules/.pnpm/aria-hidden@1.2.6/node_modules/aria-hidden/dist/es2015/index.js
+  // ../../../node_modules/.pnpm/aria-hidden@1.2.6/node_modules/aria-hidden/dist/es2015/index.js
   var getDefaultParent = function(originalTarget) {
     if (typeof document === "undefined") {
       return null;
@@ -6418,7 +6452,7 @@ var XpertResumeScreen = (() => {
     return applyAttributeToOthers(targets, activeParentNode, markerName, "aria-hidden");
   };
 
-  // node_modules/.pnpm/@radix-ui+react-dialog@1.1._19e637a1eb439fb7ac9fbd37f3b253ea/node_modules/@radix-ui/react-dialog/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-dialog@1.1._19e637a1eb439fb7ac9fbd37f3b253ea/node_modules/@radix-ui/react-dialog/dist/index.mjs
   var DIALOG_NAME = "Dialog";
   var [createDialogContext, createDialogScope] = createContextScope(DIALOG_NAME);
   var [DialogProvider, useDialogContext] = createDialogContext(DIALOG_NAME);
@@ -6678,7 +6712,7 @@ var XpertResumeScreen = (() => {
     return open ? "open" : "closed";
   }
 
-  // node_modules/.pnpm/@radix-ui+react-alert-dialo_e6e41d2a4af4ab50646683a57177c7f1/node_modules/@radix-ui/react-alert-dialog/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-alert-dialo_e6e41d2a4af4ab50646683a57177c7f1/node_modules/@radix-ui/react-alert-dialog/dist/index.mjs
   var ROOT_NAME = "AlertDialog";
   var [createAlertDialogContext, createAlertDialogScope] = createContextScope(ROOT_NAME, [
     createDialogScope
@@ -6789,7 +6823,7 @@ var XpertResumeScreen = (() => {
   var Title2 = AlertDialogTitle;
   var Description2 = AlertDialogDescription;
 
-  // node_modules/.pnpm/@radix-ui+react-use-previou_58b78c95af3b98dc4c1bc8bce73c779d/node_modules/@radix-ui/react-use-previous/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-use-previou_58b78c95af3b98dc4c1bc8bce73c779d/node_modules/@radix-ui/react-use-previous/dist/index.mjs
   function usePrevious(value) {
     const ref = useRef({ value, previous: value });
     return useMemo(() => {
@@ -6801,7 +6835,7 @@ var XpertResumeScreen = (() => {
     }, [value]);
   }
 
-  // node_modules/.pnpm/@radix-ui+react-use-size@1._4b75a7cfb879b922004e7a6caa492077/node_modules/@radix-ui/react-use-size/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-use-size@1._4b75a7cfb879b922004e7a6caa492077/node_modules/@radix-ui/react-use-size/dist/index.mjs
   function useSize(element) {
     const [size4, setSize] = useState(void 0);
     useLayoutEffect2(() => {
@@ -6837,7 +6871,7 @@ var XpertResumeScreen = (() => {
     return size4;
   }
 
-  // node_modules/.pnpm/@floating-ui+utils@0.2.11/node_modules/@floating-ui/utils/dist/floating-ui.utils.mjs
+  // ../../../node_modules/.pnpm/@floating-ui+utils@0.2.11/node_modules/@floating-ui/utils/dist/floating-ui.utils.mjs
   var sides = ["top", "right", "bottom", "left"];
   var min = Math.min;
   var max = Math.max;
@@ -6966,7 +7000,7 @@ var XpertResumeScreen = (() => {
     };
   }
 
-  // node_modules/.pnpm/@floating-ui+core@1.7.5/node_modules/@floating-ui/core/dist/floating-ui.core.mjs
+  // ../../../node_modules/.pnpm/@floating-ui+core@1.7.5/node_modules/@floating-ui/core/dist/floating-ui.core.mjs
   function computeCoordsFromPlacement(_ref, placement, rtl) {
     let {
       reference,
@@ -7683,7 +7717,7 @@ var XpertResumeScreen = (() => {
     };
   };
 
-  // node_modules/.pnpm/@floating-ui+utils@0.2.11/node_modules/@floating-ui/utils/dist/floating-ui.utils.dom.mjs
+  // ../../../node_modules/.pnpm/@floating-ui+utils@0.2.11/node_modules/@floating-ui/utils/dist/floating-ui.utils.dom.mjs
   function hasWindow() {
     return typeof window !== "undefined";
   }
@@ -7839,7 +7873,7 @@ var XpertResumeScreen = (() => {
     return win.parent && Object.getPrototypeOf(win.parent) ? win.frameElement : null;
   }
 
-  // node_modules/.pnpm/@floating-ui+dom@1.7.6/node_modules/@floating-ui/dom/dist/floating-ui.dom.mjs
+  // ../../../node_modules/.pnpm/@floating-ui+dom@1.7.6/node_modules/@floating-ui/dom/dist/floating-ui.dom.mjs
   function getCssDimensions(element) {
     const css = getComputedStyle2(element);
     let width = parseFloat(css.width) || 0;
@@ -8454,7 +8488,7 @@ var XpertResumeScreen = (() => {
     });
   };
 
-  // node_modules/.pnpm/@floating-ui+react-dom@2.1._f1bed12861163fa290e602839f1ebdb9/node_modules/@floating-ui/react-dom/dist/floating-ui.react-dom.mjs
+  // ../../../node_modules/.pnpm/@floating-ui+react-dom@2.1._f1bed12861163fa290e602839f1ebdb9/node_modules/@floating-ui/react-dom/dist/floating-ui.react-dom.mjs
   var isClient = typeof document !== "undefined";
   var noop = function noop2() {
   };
@@ -8762,7 +8796,7 @@ var XpertResumeScreen = (() => {
     };
   };
 
-  // node_modules/.pnpm/@radix-ui+react-arrow@1.1.1_46841099dde2429c8edffbf91fdd0f75/node_modules/@radix-ui/react-arrow/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-arrow@1.1.1_46841099dde2429c8edffbf91fdd0f75/node_modules/@radix-ui/react-arrow/dist/index.mjs
   var NAME2 = "Arrow";
   var Arrow = forwardRef((props, forwardedRef) => {
     const { children, width = 10, height = 5, ...arrowProps } = props;
@@ -8782,7 +8816,7 @@ var XpertResumeScreen = (() => {
   Arrow.displayName = NAME2;
   var Root3 = Arrow;
 
-  // node_modules/.pnpm/@radix-ui+react-popper@1.3._0a9221ab1b0956a4d531653402915605/node_modules/@radix-ui/react-popper/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-popper@1.3._0a9221ab1b0956a4d531653402915605/node_modules/@radix-ui/react-popper/dist/index.mjs
   var POPPER_NAME = "Popper";
   var [createPopperContext, createPopperScope] = createContextScope(POPPER_NAME);
   var [PopperProvider, usePopperContext] = createPopperContext(POPPER_NAME);
@@ -9107,7 +9141,7 @@ var XpertResumeScreen = (() => {
   var Content3 = PopperContent;
   var Arrow2 = PopperArrow;
 
-  // node_modules/.pnpm/@radix-ui+react-use-is-hydr_d8b55bd05f5d50f7ea21f52744760552/node_modules/@radix-ui/react-use-is-hydrated/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-use-is-hydr_d8b55bd05f5d50f7ea21f52744760552/node_modules/@radix-ui/react-use-is-hydrated/dist/index.mjs
   var _isHydrated = false;
   function useIsHydrated() {
     const [isHydrated, setIsHydrated] = useState(_isHydrated);
@@ -9133,7 +9167,7 @@ var XpertResumeScreen = (() => {
   }
   var useIsHydrated2 = typeof useReactSyncExternalStore === "function" ? useIsHydratedModern : useIsHydrated;
 
-  // node_modules/.pnpm/@radix-ui+react-roving-focu_6f6d23a80cf2852a1243fe7c18f7ea40/node_modules/@radix-ui/react-roving-focus/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-roving-focu_6f6d23a80cf2852a1243fe7c18f7ea40/node_modules/@radix-ui/react-roving-focus/dist/index.mjs
   var ENTRY_FOCUS = "rovingFocusGroup.onEntryFocus";
   var EVENT_OPTIONS2 = { bubbles: false, cancelable: true };
   var GROUP_NAME = "RovingFocusGroup";
@@ -9353,7 +9387,7 @@ var XpertResumeScreen = (() => {
   var Root4 = RovingFocusGroup;
   var Item = RovingFocusGroupItem;
 
-  // node_modules/.pnpm/@radix-ui+react-menu@2.1.20_e838fb73c3335c4850fd37fa077066a8/node_modules/@radix-ui/react-menu/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-menu@2.1.20_e838fb73c3335c4850fd37fa077066a8/node_modules/@radix-ui/react-menu/dist/index.mjs
   var SELECTION_KEYS = ["Enter", " "];
   var FIRST_KEYS = ["ArrowDown", "PageUp", "Home"];
   var LAST_KEYS = ["ArrowUp", "PageDown", "End"];
@@ -10185,7 +10219,7 @@ var XpertResumeScreen = (() => {
   var SubTrigger = MenuSubTrigger;
   var SubContent = MenuSubContent;
 
-  // node_modules/.pnpm/@radix-ui+react-dropdown-me_859a9e2ff47818a9da5ac1bd196880aa/node_modules/@radix-ui/react-dropdown-menu/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-dropdown-me_859a9e2ff47818a9da5ac1bd196880aa/node_modules/@radix-ui/react-dropdown-menu/dist/index.mjs
   var dist_exports8 = {};
   __export(dist_exports8, {
     Arrow: () => Arrow23,
@@ -10480,12 +10514,12 @@ var XpertResumeScreen = (() => {
   var SubTrigger2 = DropdownMenuSubTrigger;
   var SubContent2 = DropdownMenuSubContent;
 
-  // node_modules/.pnpm/@radix-ui+number@1.1.2/node_modules/@radix-ui/number/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+number@1.1.2/node_modules/@radix-ui/number/dist/index.mjs
   function clamp2(value, [min2, max2]) {
     return Math.min(max2, Math.max(min2, value));
   }
 
-  // node_modules/.pnpm/@radix-ui+react-progress@1._ba0a23888d03d7a38e90b386f3352204/node_modules/@radix-ui/react-progress/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-progress@1._ba0a23888d03d7a38e90b386f3352204/node_modules/@radix-ui/react-progress/dist/index.mjs
   var dist_exports10 = {};
   __export(dist_exports10, {
     Indicator: () => Indicator,
@@ -10581,7 +10615,7 @@ Defaulting to \`null\`.`;
   var Root5 = Progress;
   var Indicator = ProgressIndicator;
 
-  // node_modules/.pnpm/@radix-ui+react-scroll-area_42744b7ae87cd630a69f8d88c5a61168/node_modules/@radix-ui/react-scroll-area/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-scroll-area_42744b7ae87cd630a69f8d88c5a61168/node_modules/@radix-ui/react-scroll-area/dist/index.mjs
   var dist_exports11 = {};
   __export(dist_exports11, {
     Corner: () => Corner,
@@ -11313,7 +11347,7 @@ Defaulting to \`null\`.`;
   var Thumb = ScrollAreaThumb;
   var Corner = ScrollAreaCorner;
 
-  // node_modules/.pnpm/@radix-ui+react-select@2.3._e41ea4091319bba4ffed6d0f7126160f/node_modules/@radix-ui/react-select/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-select@2.3._e41ea4091319bba4ffed6d0f7126160f/node_modules/@radix-ui/react-select/dist/index.mjs
   var dist_exports12 = {};
   __export(dist_exports12, {
     Arrow: () => SelectArrow,
@@ -12526,7 +12560,7 @@ Defaulting to \`null\`.`;
     return array.map((_, index2) => array[(startIndex + index2) % array.length]);
   }
 
-  // node_modules/.pnpm/@radix-ui+react-tooltip@1.2_722bdaa997c75963a9f848c204fdd02f/node_modules/@radix-ui/react-tooltip/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-tooltip@1.2_722bdaa997c75963a9f848c204fdd02f/node_modules/@radix-ui/react-tooltip/dist/index.mjs
   var dist_exports13 = {};
   __export(dist_exports13, {
     Arrow: () => Arrow24,
@@ -13021,7 +13055,7 @@ Defaulting to \`null\`.`;
   var Content24 = TooltipContent;
   var Arrow24 = TooltipArrow;
 
-  // node_modules/.pnpm/class-variance-authority@0.7.1/node_modules/class-variance-authority/dist/index.mjs
+  // ../../../node_modules/.pnpm/class-variance-authority@0.7.1/node_modules/class-variance-authority/dist/index.mjs
   var falsyToString = (value) => typeof value === "boolean" ? `${value}` : value === 0 ? "0" : value;
   var cx = clsx;
   var cva = (base, config) => (props) => {
@@ -13063,7 +13097,7 @@ Defaulting to \`null\`.`;
     return cx(base, getVariantClassNames, getCompoundVariantClassNames, props === null || props === void 0 ? void 0 : props.class, props === null || props === void 0 ? void 0 : props.className);
   };
 
-  // node_modules/.pnpm/react-resizable-panels@4.12_161ced68c111c71d90739887f576eb70/node_modules/react-resizable-panels/dist/react-resizable-panels.js
+  // ../../../node_modules/.pnpm/react-resizable-panels@4.12_161ced68c111c71d90739887f576eb70/node_modules/react-resizable-panels/dist/react-resizable-panels.js
   function St(e, t) {
     const n = getComputedStyle(e), o = parseFloat(n.fontSize);
     return t * o;
@@ -15178,7 +15212,7 @@ Defaulting to \`null\`.`;
   }
   tn.displayName = "Separator";
 
-  // packages/shadcn-ui/dist/index.js
+  // ../../../packages/shadcn-ui/dist/index.js
   function r2(...e) {
     return twMerge(clsx(e));
   }
@@ -16151,7 +16185,7 @@ Defaulting to \`null\`.`;
     orientation: "horizontal"
   });
 
-  // community/apps/resume-screen/src/lib/remote-components/resume-screen/src/components/badges.tsx
+  // src/lib/remote-components/resume-screen/src/components/badges.tsx
   function candidateSpec(status, timedOut) {
     switch (status) {
       case "pending_review":
@@ -16196,7 +16230,7 @@ Defaulting to \`null\`.`;
     return /* @__PURE__ */ react_shim_default.createElement("span", { className: `rs-badge ${spec.tone}`, title: spec.hint ?? spec.label }, spec.icon ? /* @__PURE__ */ react_shim_default.createElement("i", { className: spec.spin ? `${spec.icon} rs-spin` : spec.icon, "aria-hidden": "true" }) : null, spec.label);
   }
 
-  // community/apps/resume-screen/src/lib/remote-components/resume-screen/src/components/candidate-list.tsx
+  // src/lib/remote-components/resume-screen/src/components/candidate-list.tsx
   var { memo: memo2, useEffect: useEffect2, useRef: useRef2, useState: useState2 } = react_shim_default;
   var SORT_OPTIONS = [
     { value: "matchScore:desc", label: "\u5339\u914D\u5206\u964D\u5E8F", by: "matchScore", dir: "desc" },
@@ -16356,7 +16390,7 @@ Defaulting to \`null\`.`;
     );
   });
 
-  // community/apps/resume-screen/src/lib/remote-components/resume-screen/src/components/action-bar.tsx
+  // src/lib/remote-components/resume-screen/src/components/action-bar.tsx
   var { useState: useState3 } = react_shim_default;
   var BUTTONS = [
     {
@@ -16429,7 +16463,7 @@ Defaulting to \`null\`.`;
     ));
   }
 
-  // community/apps/resume-screen/src/lib/remote-components/resume-screen/src/components/candidate-detail.tsx
+  // src/lib/remote-components/resume-screen/src/components/candidate-detail.tsx
   var { useState: useState4 } = react_shim_default;
   var HUMAN_EDIT_NOTE = "\u5DF2\u4FDD\u5B58\uFF08\u4EBA\u5DE5\u4FEE\u6B63\u5B57\u6BB5\u4E0D\u4F1A\u88AB AI \u8986\u76D6\uFF09";
   var FIELD_LABELS = {
@@ -16448,7 +16482,7 @@ Defaulting to \`null\`.`;
     }
     return /* @__PURE__ */ react_shim_default.createElement("div", { key: candidate.id, className: "rs-detail-stack rs-detail-anim" }, /* @__PURE__ */ react_shim_default.createElement(Wa, { delayDuration: 300 }, /* @__PURE__ */ react_shim_default.createElement(DetailBody, { ...props, candidate })));
   }
-  function DetailBody({ candidate, timedOut, showTimeoutCard, now, busyKey, onDispose, onWaitMore, onSave, onConflictRefresh }) {
+  function DetailBody({ candidate, timedOut, showTimeoutCard, now, busyKey, onDispose, onWaitMore, onSave, onConflictRefresh, onPreview }) {
     const [editing, setEditing] = useState4(false);
     const [draft, setDraft] = useState4({});
     const [skillDraft, setSkillDraft] = useState4("");
@@ -16491,7 +16525,7 @@ Defaulting to \`null\`.`;
         setSaving(false);
       }
     }
-    return /* @__PURE__ */ react_shim_default.createElement(react_shim_default.Fragment, null, /* @__PURE__ */ react_shim_default.createElement("header", { className: "rs-detail-head" }, /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-detail-avatar", style: { background: statusAccent(candidate.status, timedOut) }, "aria-hidden": "true" }, (candidate.name || candidate.sourceFileName || "?").slice(0, 1)), /* @__PURE__ */ react_shim_default.createElement("div", { style: { minWidth: 0 } }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-detail-title" }, /* @__PURE__ */ react_shim_default.createElement("strong", { title: candidate.name || candidate.sourceFileName || void 0 }, candidate.name || candidate.sourceFileName || "\u672A\u547D\u540D\u5019\u9009\u4EBA"), /* @__PURE__ */ react_shim_default.createElement(CandidateBadge, { status: candidate.status, timedOut }), editedFields.length > 0 ? /* @__PURE__ */ react_shim_default.createElement(Be2, null, /* @__PURE__ */ react_shim_default.createElement($e2, { asChild: true }, /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-badge rs-badge-edit" }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-edit-2-line", "aria-hidden": "true" }), "\u4EBA\u5DE5\u4FEE\u6B63 ", editedFields.length, " \u9879")), /* @__PURE__ */ react_shim_default.createElement(Ee, null, editedFields.map((field) => FIELD_LABELS[field] ?? field).join("\u3001"), " \u5DF2\u88AB\u4EBA\u5DE5\u4FEE\u6B63\uFF0CAI \u91CD\u65B0\u89E3\u6790\u4E0D\u4F1A\u8986\u76D6")) : null), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-detail-meta" }, /* @__PURE__ */ react_shim_default.createElement("span", null, [candidate.yearsOfExperience, candidate.education, candidate.currentCompany].filter(Boolean).join(" \xB7 ") || "\u2014"), /* @__PURE__ */ react_shim_default.createElement("span", null, "\u521B\u5EFA\u4E8E ", formatMonthDay(candidate.createdAt) || "\u2014"), /* @__PURE__ */ react_shim_default.createElement("span", null, "\u7B2C ", candidate.attemptCount || 1, " \u6B21\u89E3\u6790"), candidate.sourceFileName ? /* @__PURE__ */ react_shim_default.createElement(Be2, null, /* @__PURE__ */ react_shim_default.createElement($e2, { asChild: true }, /* @__PURE__ */ react_shim_default.createElement("span", null, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-file-line", "aria-hidden": "true" }), "\u6765\u6E90 ", candidate.sourceFileName)), /* @__PURE__ */ react_shim_default.createElement(Ee, null, candidate.sourceFileName)) : null))), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-detail-body" }, /* @__PURE__ */ react_shim_default.createElement(Ga, { className: "rs-detail-scroll" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-detail-pad" }, stashed && !editing ? /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-notice rs-notice-inline tone-amber", role: "status", style: { position: "static", marginTop: 0 } }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-edit-2-line", "aria-hidden": "true" }), /* @__PURE__ */ react_shim_default.createElement("div", { style: { minWidth: 0 } }, "\u4F60\u7684\u4FEE\u6539\u5DF2\u6682\u5B58\uFF0C\u53EF\u70B9\u51FB\u300C\u7F16\u8F91\u300D\u6062\u590D")) : null, isFailed ? (
+    return /* @__PURE__ */ react_shim_default.createElement(react_shim_default.Fragment, null, /* @__PURE__ */ react_shim_default.createElement("header", { className: "rs-detail-head" }, /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-detail-avatar", style: { background: statusAccent(candidate.status, timedOut) }, "aria-hidden": "true" }, (candidate.name || candidate.sourceFileName || "?").slice(0, 1)), /* @__PURE__ */ react_shim_default.createElement("div", { style: { minWidth: 0 } }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-detail-title" }, /* @__PURE__ */ react_shim_default.createElement("strong", { title: candidate.name || candidate.sourceFileName || void 0 }, candidate.name || candidate.sourceFileName || "\u672A\u547D\u540D\u5019\u9009\u4EBA"), /* @__PURE__ */ react_shim_default.createElement(CandidateBadge, { status: candidate.status, timedOut }), editedFields.length > 0 ? /* @__PURE__ */ react_shim_default.createElement(Be2, null, /* @__PURE__ */ react_shim_default.createElement($e2, { asChild: true }, /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-badge rs-badge-edit" }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-edit-2-line", "aria-hidden": "true" }), "\u4EBA\u5DE5\u4FEE\u6B63 ", editedFields.length, " \u9879")), /* @__PURE__ */ react_shim_default.createElement(Ee, null, editedFields.map((field) => FIELD_LABELS[field] ?? field).join("\u3001"), " \u5DF2\u88AB\u4EBA\u5DE5\u4FEE\u6B63\uFF0CAI \u91CD\u65B0\u89E3\u6790\u4E0D\u4F1A\u8986\u76D6")) : null), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-detail-meta" }, /* @__PURE__ */ react_shim_default.createElement("span", null, [candidate.yearsOfExperience, candidate.education, candidate.currentCompany].filter(Boolean).join(" \xB7 ") || "\u2014"), /* @__PURE__ */ react_shim_default.createElement("span", null, "\u521B\u5EFA\u4E8E ", formatMonthDay(candidate.createdAt) || "\u2014"), /* @__PURE__ */ react_shim_default.createElement("span", null, "\u7B2C ", candidate.attemptCount || 1, " \u6B21\u89E3\u6790"), candidate.sourceFileName ? /* @__PURE__ */ react_shim_default.createElement(Be2, null, /* @__PURE__ */ react_shim_default.createElement($e2, { asChild: true }, /* @__PURE__ */ react_shim_default.createElement("span", null, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-file-line", "aria-hidden": "true" }), "\u6765\u6E90 ", candidate.sourceFileName)), /* @__PURE__ */ react_shim_default.createElement(Ee, null, candidate.sourceFileName)) : null, /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-detail-preview" }, /* @__PURE__ */ react_shim_default.createElement(Be2, null, /* @__PURE__ */ react_shim_default.createElement($e2, { asChild: true }, /* @__PURE__ */ react_shim_default.createElement(C2, { variant: "ghost", size: "sm", disabled: !candidate.hasFile, onClick: () => void onPreview(candidate) }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-file-search-line", "aria-hidden": "true" }), "\u9884\u89C8\u7B80\u5386")), candidate.hasFile ? null : /* @__PURE__ */ react_shim_default.createElement(Ee, { collisionPadding: 8 }, "\u65E7\u6570\u636E\u672A\u4FDD\u7559\u539F\u59CB\u6587\u4EF6\uFF0C\u8BF7\u91CD\u65B0\u4E0A\u4F20\u7B80\u5386\u540E\u9884\u89C8")))))), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-detail-body" }, /* @__PURE__ */ react_shim_default.createElement(Ga, { className: "rs-detail-scroll" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-detail-pad" }, stashed && !editing ? /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-notice rs-notice-inline tone-amber", role: "status", style: { position: "static", marginTop: 0 } }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-edit-2-line", "aria-hidden": "true" }), /* @__PURE__ */ react_shim_default.createElement("div", { style: { minWidth: 0 } }, "\u4F60\u7684\u4FEE\u6539\u5DF2\u6682\u5B58\uFF0C\u53EF\u70B9\u51FB\u300C\u7F16\u8F91\u300D\u6062\u590D")) : null, isFailed ? (
       // 失败覆盖态：告示卡（红变体 role=alert）+ 原因全文 + 重试；四区块隐藏（§3.5/§6.3）
       /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-notice rs-notice-inline", role: "alert", style: { position: "static" } }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-error-warning-line", "aria-hidden": "true" }), /* @__PURE__ */ react_shim_default.createElement("div", { style: { minWidth: 0 } }, /* @__PURE__ */ react_shim_default.createElement("div", null, "\u89E3\u6790\u5931\u8D25\uFF1A", candidate.failureReason || "\u672A\u77E5\u539F\u56E0"), (candidate.attemptCount ?? 0) > 2 ? /* @__PURE__ */ react_shim_default.createElement("div", { style: { marginTop: 4, fontSize: 12 } }, "\u591A\u6B21\u5931\u8D25\uFF0C\u5EFA\u8BAE\u68C0\u67E5\u6A21\u578B\u51ED\u8BC1\uFF1B\u82E5\u539F\u6587\u62BD\u53D6\u5B57\u6BB5\u6709\u8BEF\uFF0C\u53EF\u7528\u300C\u7F16\u8F91\u300D\u4EBA\u5DE5\u4FEE\u6B63") : null, /* @__PURE__ */ react_shim_default.createElement(C2, { variant: "outline", size: "sm", style: { marginTop: 8 }, disabled: busyKey !== null, onClick: () => void onDispose("retry_candidate") }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-restart-line", "aria-hidden": "true" }), "\u91CD\u8BD5")))
     ) : isParsing ? /* @__PURE__ */ react_shim_default.createElement(ParsingBody, { candidate, timedOut, showTimeoutCard, now, busyKey, onDispose, onWaitMore }) : editing ? /* @__PURE__ */ react_shim_default.createElement(
@@ -16623,7 +16657,7 @@ Defaulting to \`null\`.`;
     ), scoreInvalid ? /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-form-error", role: "alert" }, "\u5339\u914D\u5206\u9700\u4E3A 0\u2013100 \u7684\u6570\u5B57") : null), /* @__PURE__ */ react_shim_default.createElement("div", { style: { fontSize: 12, color: "var(--rs-soft)" } }, HUMAN_EDIT_NOTE));
   }
 
-  // community/apps/resume-screen/src/lib/remote-components/resume-screen/src/components/job-header.tsx
+  // src/lib/remote-components/resume-screen/src/components/job-header.tsx
   var { useEffect: useEffect3, useRef: useRef3, useState: useState5 } = react_shim_default;
   var MIN_JD_LENGTH = 30;
   var MAX_TITLE_LENGTH = 200;
@@ -16732,7 +16766,7 @@ Defaulting to \`null\`.`;
     ) : null, /* @__PURE__ */ react_shim_default.createElement(Mt2, null, /* @__PURE__ */ react_shim_default.createElement(C2, { variant: "ghost", disabled: saving, onClick: () => onOpenChange(false) }, "\u53D6\u6D88"), /* @__PURE__ */ react_shim_default.createElement(C2, { disabled: !canSave, onClick: () => void submit() }, saving ? "\u4FDD\u5B58\u4E2D\u2026" : "\u4FDD\u5B58"))));
   }
 
-  // community/apps/resume-screen/src/lib/remote-components/resume-screen/src/components/upload-dialog.tsx
+  // src/lib/remote-components/resume-screen/src/components/upload-dialog.tsx
   var { memo: memo3, useEffect: useEffect4, useRef: useRef4, useState: useState6 } = react_shim_default;
   var ROW_CAP = 24;
   function UploadDialog({ open, rows, busy, uploadRequestSeq, onClose, onPickFiles, onClearFailed, onJumpToCandidate }) {
@@ -16833,8 +16867,38 @@ Defaulting to \`null\`.`;
     );
   });
 
-  // community/apps/resume-screen/src/lib/remote-components/resume-screen/src/components/workbench.tsx
-  var { useCallback: useCallback2, useEffect: useEffect5, useMemo: useMemo2, useRef: useRef5, useState: useState7 } = react_shim_default;
+  // src/lib/remote-components/resume-screen/src/components/preview-dialog.tsx
+  var { useEffect: useEffect5, useState: useState7 } = react_shim_default;
+  function PreviewDialog({ open, fileName, payload, onClose }) {
+    const [blobUrl, setBlobUrl] = useState7("");
+    useEffect5(() => {
+      if (payload.kind !== "pdf") {
+        setBlobUrl("");
+        return void 0;
+      }
+      let handle = null;
+      try {
+        handle = createPdfBlobUrl(decodeBase64ToBytes(payload.base64), "application/pdf");
+      } catch {
+        setBlobUrl("");
+        return void 0;
+      }
+      setBlobUrl(handle.url);
+      const current = handle;
+      return () => current.release();
+    }, [payload]);
+    const failed = payload.kind === "pdf" && !blobUrl;
+    return /* @__PURE__ */ react_shim_default.createElement(pe2, { open, onOpenChange: (next) => next ? void 0 : onClose(false) }, /* @__PURE__ */ react_shim_default.createElement(be2, { className: "rs-preview-dialog" }, /* @__PURE__ */ react_shim_default.createElement(ve2, null, /* @__PURE__ */ react_shim_default.createElement(he, null, "\u9884\u89C8\u7B80\u5386"), /* @__PURE__ */ react_shim_default.createElement(xe2, null, fileName)), failed ? (
+      // 与首载失败卡同构的红变体 notice（§6.1），文案给可执行下一步
+      /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-notice rs-notice-inline", role: "alert", style: { position: "static" } }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-error-warning-line", "aria-hidden": "true" }), /* @__PURE__ */ react_shim_default.createElement("div", { style: { minWidth: 0 } }, "\u7B80\u5386\u9884\u89C8\u52A0\u8F7D\u5931\u8D25\uFF0C\u53EF\u5173\u95ED\u7A97\u53E3\u540E\u91CD\u65B0\u6253\u5F00\uFF1B\u82E5\u53CD\u590D\u5931\u8D25\uFF0C\u8BF7\u91CD\u65B0\u4E0A\u4F20\u8BE5\u7B80\u5386\u3002"))
+    ) : payload.kind === "html" ? (
+      // 内容已在服务端 sanitizePreviewHtml 消毒（T10），此处 dangerouslySetInnerHTML 是受控用法
+      /* @__PURE__ */ react_shim_default.createElement(Ga, { className: "rs-preview-scroll" }, /* @__PURE__ */ react_shim_default.createElement("article", { className: "rs-preview-doc", dangerouslySetInnerHTML: { __html: payload.html } }))
+    ) : /* @__PURE__ */ react_shim_default.createElement("iframe", { className: "rs-preview-pdf", src: blobUrl, title: `${fileName} \u7B80\u5386\u9884\u89C8` }), /* @__PURE__ */ react_shim_default.createElement("footer", { className: "rs-preview-foot" }, /* @__PURE__ */ react_shim_default.createElement(C2, { variant: "outline", size: "sm", onClick: () => onClose(false) }, "\u5173\u95ED"))));
+  }
+
+  // src/lib/remote-components/resume-screen/src/components/workbench.tsx
+  var { useCallback: useCallback2, useEffect: useEffect6, useMemo: useMemo2, useRef: useRef5, useState: useState8 } = react_shim_default;
   var INITIAL_VIEW = { jobId: null, status: "all", sortBy: "matchScore", sortDir: "desc", search: "" };
   function pickJobIdFromContext(context) {
     const fromPayload = context.payload?.parameters?.jobId ?? context.initialQuery?.parameters?.jobId;
@@ -16845,31 +16909,31 @@ Defaulting to \`null\`.`;
     return data.job?.id ?? pickJobIdFromContext(context) ?? data.jobs[0]?.id ?? null;
   }
   function ResumeScreenWorkbench({ context }) {
-    const [data, setData] = useState7(null);
-    const [items, setItems] = useState7([]);
-    const [view, setView] = useState7(() => ({
+    const [data, setData] = useState8(null);
+    const [items, setItems] = useState8([]);
+    const [view, setView] = useState8(() => ({
       ...INITIAL_VIEW,
       jobId: pickJobIdFromContext(context),
       search: context.initialQuery?.search ?? ""
     }));
-    const [pagesLoaded, setPagesLoaded] = useState7(1);
-    const [firstLoading, setFirstLoading] = useState7(true);
-    const [loadError, setLoadError] = useState7("");
-    const [refreshing, setRefreshing] = useState7(false);
-    const [selectedId, setSelectedId] = useState7(null);
-    const [busyKey, setBusyKey] = useState7(null);
-    const [notice, setNotice] = useState7("");
-    const [queueRows, setQueueRows] = useState7([]);
-    const [queueBusy, setQueueBusy] = useState7(false);
-    const [jobPulseSeq, setJobPulseSeq] = useState7(0);
-    const [jumpCandidateId, setJumpCandidateId] = useState7(null);
-    const [uploadRequestSeq, setUploadRequestSeq] = useState7(0);
-    const [uploadOpen, setUploadOpen] = useState7(false);
-    const [enteringIds, setEnteringIds] = useState7(() => /* @__PURE__ */ new Set());
-    const [nowTick, setNowTick] = useState7(() => Date.now());
-    const [sheetOpen, setSheetOpen] = useState7(false);
-    const [widthMode, setWidthMode] = useState7("default");
-    const [timeoutDismiss, setTimeoutDismiss] = useState7({});
+    const [pagesLoaded, setPagesLoaded] = useState8(1);
+    const [firstLoading, setFirstLoading] = useState8(true);
+    const [loadError, setLoadError] = useState8("");
+    const [refreshing, setRefreshing] = useState8(false);
+    const [selectedId, setSelectedId] = useState8(null);
+    const [busyKey, setBusyKey] = useState8(null);
+    const [notice, setNotice] = useState8("");
+    const [queueRows, setQueueRows] = useState8([]);
+    const [queueBusy, setQueueBusy] = useState8(false);
+    const [jobPulseSeq, setJobPulseSeq] = useState8(0);
+    const [jumpCandidateId, setJumpCandidateId] = useState8(null);
+    const [uploadRequestSeq, setUploadRequestSeq] = useState8(0);
+    const [uploadOpen, setUploadOpen] = useState8(false);
+    const [enteringIds, setEnteringIds] = useState8(() => /* @__PURE__ */ new Set());
+    const [nowTick, setNowTick] = useState8(() => Date.now());
+    const [sheetOpen, setSheetOpen] = useState8(false);
+    const [widthMode, setWidthMode] = useState8("default");
+    const [timeoutDismiss, setTimeoutDismiss] = useState8({});
     const shellRef = useRef5(null);
     const viewRef = useRef5(view);
     viewRef.current = view;
@@ -16949,20 +17013,20 @@ Defaulting to \`null\`.`;
     const silentRefresh = useCallback2(async () => {
       await load("refresh");
     }, [load]);
-    useEffect5(() => {
+    useEffect6(() => {
       void load(items.length === 0 && !data ? "first" : "refresh");
     }, [view]);
-    useEffect5(() => {
+    useEffect6(() => {
       window.__resumeScreenReload = () => void silentRefresh();
       return () => {
         delete window.__resumeScreenReload;
       };
     }, [silentRefresh]);
-    useEffect5(() => {
+    useEffect6(() => {
       setOnLateReceipt(() => void silentRefresh());
       return () => setOnLateReceipt(null);
     }, [silentRefresh]);
-    useEffect5(() => {
+    useEffect6(() => {
       const shell = shellRef.current;
       if (!shell || typeof ResizeObserver === "undefined") return void 0;
       const observer = new ResizeObserver((entries) => {
@@ -16975,7 +17039,7 @@ Defaulting to \`null\`.`;
     const liveItems = useMemo2(() => items.some((item) => item.leaving) ? items.filter((item) => !item.leaving) : items, [items]);
     const hasParsing = liveItems.some((item) => item.status === "parsing" || item.status === "draft");
     const hasQueueWorking = queueRows.some((row) => row.status === "queued" || row.status === "uploading");
-    useEffect5(() => {
+    useEffect6(() => {
       if (!hasParsing && !hasQueueWorking) return void 0;
       const timer = window.setInterval(() => {
         setNowTick(Date.now());
@@ -17070,6 +17134,37 @@ Defaulting to \`null\`.`;
         }
       },
       [silentRefresh]
+    );
+    const [preview, setPreview] = useState8(null);
+    const [previewBusy, setPreviewBusy] = useState8(false);
+    const openPreview = useCallback2(
+      async (candidate) => {
+        if (previewBusy) return;
+        setPreviewBusy(true);
+        try {
+          const response = await executeAction("preview_candidate", candidate.id, { candidateId: candidate.id }, { jobId: candidate.jobId });
+          const result = parseActionResult(response);
+          const message = resolveText(result.message);
+          if (!result.success || !isObject(result.data)) {
+            showNotice(message || "\u7B80\u5386\u9884\u89C8\u52A0\u8F7D\u5931\u8D25");
+            notify(message || "\u7B80\u5386\u9884\u89C8\u52A0\u8F7D\u5931\u8D25", "error");
+            return;
+          }
+          const kind = result.data.kind === "pdf" ? "pdf" : "html";
+          setPreview({
+            candidateId: candidate.id,
+            fileName: typeof result.data.fileName === "string" ? result.data.fileName : candidate.sourceFileName || "\u7B80\u5386",
+            payload: kind === "pdf" ? { kind: "pdf", base64: String(result.data.base64 ?? "") } : { kind: "html", html: String(result.data.html ?? "") }
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "\u7B80\u5386\u9884\u89C8\u52A0\u8F7D\u5931\u8D25";
+          showNotice(message);
+          notify(message, "error");
+        } finally {
+          setPreviewBusy(false);
+        }
+      },
+      [previewBusy]
     );
     const createJob = useCallback2(
       async (title, jdText) => {
@@ -17188,7 +17283,8 @@ Defaulting to \`null\`.`;
         onDispose: (key) => selected ? runDisposition(key, selected) : Promise.resolve(),
         onWaitMore: (candidateId) => setTimeoutDismiss((map) => ({ ...map, [candidateId]: Date.now() + 5 * 6e4 })),
         onSave: saveCandidate,
-        onConflictRefresh: () => void silentRefresh()
+        onConflictRefresh: () => void silentRefresh(),
+        onPreview: openPreview
       }
     );
     return /* @__PURE__ */ react_shim_default.createElement("main", { className: "rs-shell", ref: shellRef, "data-rs-width": widthMode }, refreshing && !firstLoading ? /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-scanline", "aria-hidden": "true" }) : null, /* @__PURE__ */ react_shim_default.createElement(
@@ -17259,15 +17355,23 @@ Defaulting to \`null\`.`;
           jumpToCandidate(id);
         }
       }
-    ));
+    ), preview ? /* @__PURE__ */ react_shim_default.createElement(
+      PreviewDialog,
+      {
+        open: true,
+        fileName: preview.fileName,
+        payload: preview.payload,
+        onClose: () => setPreview(null)
+      }
+    ) : null);
   }
 
-  // community/apps/resume-screen/src/lib/remote-components/resume-screen/src/main.tsx
-  var { useEffect: useEffect6, useState: useState8 } = react_shim_default;
+  // src/lib/remote-components/resume-screen/src/main.tsx
+  var { useEffect: useEffect7, useState: useState9 } = react_shim_default;
   injectStyles();
   function App() {
-    const [context, setContext] = useState8(null);
-    useEffect6(() => {
+    const [context, setContext] = useState9(null);
+    useEffect7(() => {
       const disposeBridge = installBridgeListener({
         onInit: setContext,
         // 宿主对话旁路事件（assistant.tool.completed 转发）：交给工作台做静默刷新
@@ -17276,14 +17380,14 @@ Defaulting to \`null\`.`;
       post("ready");
       return disposeBridge;
     }, []);
-    useEffect6(() => {
+    useEffect7(() => {
       const root = document.getElementById("root");
       if (!root || typeof ResizeObserver === "undefined") return void 0;
       const observer = new ResizeObserver(() => setTimeout(reportResize, 0));
       observer.observe(root);
       return () => observer.disconnect();
     }, []);
-    useEffect6(() => {
+    useEffect7(() => {
       setTimeout(reportResize, 0);
     });
     if (!context) {

@@ -288,6 +288,20 @@ export const RS_STYLES_CSS = `
     .rs-upload-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding-top: 4px; border-top: 1px solid var(--rs-border-soft); }
     .rs-upload-foot [data-slot="button"] i { margin-right: 6px; font-size: 14px; }
 
+    /* ===== 简历预览（§5.4：docx 富文本 / pdf 原生查看器共用同一 Dialog 尺寸） ===== */
+    .rs-preview-dialog { width: min(880px, calc(100% - 32px)); height: min(72vh, 720px); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 12px; overflow: hidden; }
+    .rs-preview-scroll { min-height: 0; }
+    /* 版式对齐真实阅读密度：14px/1.7、正文最长 72ch，超宽视口下不拉成报纸栏 */
+    .rs-preview-doc { max-width: 72ch; margin: 0 auto; padding: 4px 6px 12px; font-size: 14px; line-height: 1.7; color: var(--rs-text); overflow-wrap: anywhere; }
+    .rs-preview-doc h1, .rs-preview-doc h2, .rs-preview-doc h3 { font-size: 16px; font-weight: 700; margin: 14px 0 6px; }
+    .rs-preview-doc p, .rs-preview-doc li { margin: 0 0 6px; }
+    .rs-preview-doc table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 13px; }
+    .rs-preview-doc th, .rs-preview-doc td { border: 1px solid var(--rs-border); padding: 5px 7px; text-align: left; vertical-align: top; }
+    .rs-preview-doc img { max-width: 100%; height: auto; }
+    .rs-preview-pdf { width: 100%; height: 100%; min-height: 0; border: 1px solid var(--rs-border); border-radius: var(--rs-radius); background: var(--rs-bg-soft); }
+    .rs-preview-foot { display: flex; justify-content: flex-end; padding-top: 4px; border-top: 1px solid var(--rs-border-soft); }
+    .rs-detail-preview { margin-left: auto; }
+
     /* ===== notice 条（蓝图 §6.1 通用错误出口；crm .crm20-notice 同构红/琥珀变体） ===== */
     .rs-notice { position: absolute; left: 12px; right: 12px; top: 92px; z-index: var(--rs-layer-toast); display: flex; align-items: flex-start; gap: 8px; border: 1px solid var(--rs-red); background: var(--rs-red-soft); color: var(--rs-red); padding: 8px 10px; border-radius: var(--rs-radius); font-size: 13px; box-shadow: 0 6px 20px rgba(31, 41, 55, 0.08); animation: rs-notice-in var(--rs-motion-slow) var(--rs-ease-entry); }
     @keyframes rs-notice-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
