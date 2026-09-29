@@ -373,13 +373,19 @@ describe('ResumeScreenService', () => {
       await service.saveCandidatesFromAgent(scope, job.id, [{ candidateId: rowId, name: '张三' }])
       // AI 回填属系统写不推进版本，人工编辑仍按版本 1 提交（AC5.1/5.2 口径）
       await service.updateCandidate(scope, rowId, { name: '张三丰' }, 1)
-      // 待审行不允许「重试」（retry 只收 parsing/failed），重新解析要把行推回解析中：
-      // reset_to_pending 保证语义走人工处置通道，markCandidateParsing 复现 processor 重投
-      await service.reviewCandidate(scope, rowId, 'reset_to_pending', 'user-1')
-      await service.markCandidateParsing(scope, rowId)
-      await service.saveCandidatesFromAgent(scope, job.id, [{ candidateId: rowId, name: 'AI猜的' }])
+      // 重开解析的真实通道是 processor 重投（parsing 行直接接受回填），这里用内存仓库
+      // 等价复现「人工已改过 + 正在重解析」的前置态；不走 reviewCandidate+markCandidateParsing，
+      // 因为那条路径整体保留 humanEditedFields，会让下面的断言与保护分支解耦
+      await candidateRepository.update({ id: rowId, revision: 2 }, { status: 'parsing' })
+      // 同一批里同时给出未人工编辑的 matchScore 与已人工编辑的 name：只有保护分支生效时
+      // 「分数被改写、姓名不被改写」这个组合才成立，删掉保护逻辑本用例必红
+      await service.saveCandidatesFromAgent(scope, job.id, [
+        { candidateId: rowId, name: 'AI猜的', matchScore: 77, yearsOfExperience: '8' }
+      ])
       expect(candidateRepository.store[0].name).toBe('张三丰')
       expect(candidateRepository.store[0].humanEditedFields).toContain('name')
+      expect(candidateRepository.store[0].matchScore).toBe(77)
+      expect(candidateRepository.store[0].yearsOfExperience).toBe('8')
     })
 
     // S7 审核 F9：AI 回填是系统写，不推进乐观锁版本

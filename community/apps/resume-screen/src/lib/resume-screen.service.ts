@@ -425,7 +425,7 @@ export class ResumeScreenService {
       // 幂等保护：只有等待解析的行可写。pending_review 及人工处置终态一律跳过——
       // 迟到的重复回执不得改写已交人评审的结果（spec §3.4）
       if (row.status !== 'parsing' && row.status !== 'failed') {
-        console.warn(`[ResumeScreenService] 行状态不接受 AI 回填，已跳过: candidateId=${candidateId}, status=${row.status}`)
+        console.warn(`[ResumeScreenService] 行状态不接受 AI 回填，已跳过: jobId=${jobId}, candidateId=${candidateId}, status=${row.status}`)
         continue
       }
       // 人工修正过的字段受保护：AI 重跑不得覆盖（AC5.2）
