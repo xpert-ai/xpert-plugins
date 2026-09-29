@@ -71,6 +71,24 @@ describe('sanitizePreviewHtml', () => {
     expect(escapedText).toBe('<p>&lt;b&gt;加粗写法&lt;/b&gt;</p>')
   })
 
+  // scheme 内部制表符绕过：WHATWG URL 解析在进入 scheme 前会移除整串的 tab/LF/CR，
+  // 所以 `java<TAB>script:` 与其实体形态 `java&#9;script:` 在浏览器眼里都是真实 javascript: URL；
+  // 而 DANGEROUS_URL 的 ^\s* 只锚属性值前导，scheme 内空白无处匹配，必须靠判定前折叠才能挡住。
+  // 明文 tab 形态可达：OOXML 超链接目标存于 document.xml.rels，XML 属性里的 &#9; 在 XML 解析阶段即成字面 tab，
+  // mammoth 写 href 时不转义控制字符，故字面 tab 能活着走到最终 HTML。
+  it('scheme 内的 tab（实体与明文两种形态）不能绕过危险协议判定', () => {
+    const TAB = '\t'
+    const entityForm = sanitizePreviewHtml('<a href="java&#9;script:alert(1)">点我</a>')
+    expect(entityForm).not.toContain('href')
+    expect(entityForm).not.toContain('alert(1)')
+    const literalForm = sanitizePreviewHtml(`<a class="MsoHyperlink" title="外部链接" href="java${TAB}script:alert(2)">点我</a>`)
+    expect(literalForm).not.toContain('href')
+    expect(literalForm).not.toContain('alert(2)')
+    // 良性对照：折叠只服务于协议判定，不得顺手删掉安全链接与常规排版属性
+    const benign = sanitizePreviewHtml('<a class="MsoHyperlink" title="公司主页" href="https://ok.example">正常</a>')
+    expect(benign).toBe('<a class="MsoHyperlink" title="公司主页" href="https://ok.example">正常</a>')
+  })
+
   // 常规属性存活：spec §3.5 保留「常规排版标签与属性」，此前该保证的输入完全不含属性，
   // 属性白名单被收窄时无人报警；同时钉住 data-* 不被误删（清洗列表曾因包含 data 而误伤合法自定义属性）。
   it('常规排版属性原样保留（class/title/id/target/data-*）', () => {

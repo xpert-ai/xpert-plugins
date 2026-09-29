@@ -14,7 +14,10 @@ export type ResumePreviewPayload = { kind: 'html'; html: string } | { kind: 'pdf
 // 同理外链像素类属性（srcset）也不清洗——收紧属于 spec 变更，不在此私自加。
 const DROP_TAGS = ['script', 'iframe', 'object', 'embed', 'style', 'link', 'form', 'base', 'meta', 'noscript']
 
-// 属性内需要清洗的危险协议值：本正则只匹配「原始文本形态」的前导空白与大小写（java\tscript 之类靠 \s* 挡）；
+// 属性内需要清洗的危险协议值：本正则只做「前导空白 + 大小写 + 关键词」形态匹配，
+// 其中 \s* 仅出现在 data\s*:\s*text\/html（吃掉 data: 与 text 之间及冒号两侧的空白）与 ^\s*（只锚属性值前导），
+// scheme 关键字内部的空白本正则无处匹配；java\tscript 一类 scheme 内制表符绕过由调用方在判定前
+// 用 foldControlInScheme 按浏览器 URL 取值模型折叠掉，再由本正则命中。
 // 字符实体形态（&#106;avascript:…）不靠这里，而是先经 decodeForProtocolTest 解码后再由本正则判定。
 const DANGEROUS_URL = /^\s*(javascript|data\s*:\s*text\/html|vbscript)/i
 
@@ -56,7 +59,29 @@ function codePointToChar(codePoint: number): string {
   return String.fromCodePoint(codePoint)
 }
 
+/**
+ * 只为「危险协议判定」这一步折叠属性值内的控制字符，折叠结果绝不写回 HTML。
+ *
+ * 为什么必须在判定前折叠：WHATWG URL 解析在进入 scheme 之前会先移除整个输入串中的
+ * ASCII 制表符 / LF / CR，所以 `java\tscript:alert(1)` 在浏览器眼里就是可执行的
+ * `javascript:` URL；而 DANGEROUS_URL 的 ^\s* 只锚属性值前导，scheme 关键字内部的
+ * 空白无处匹配，光靠正则挡不住这一形态。可达性也真实存在：OOXML 超链接目标存于
+ * document.xml.rels，XML 属性里的 `&#9;` 在 XML 解析阶段即变成字面 tab，mammoth 写
+ * href 时只转义 & < > 与引号、不转义控制字符，故字面 tab 能活着走到最终 HTML。
+ * 因此「先按浏览器规则折叠 scheme 内 tab/CR/LF，再测前缀」是把 spec §3.5 既有的
+ * 「以 javascript: 开头的值置空」语义谓词做对，不是新增过滤项。
+ * 只折叠 tab/CR/LF 这三种浏览器会剥的字符：form-feed(\f) 浏览器不剥，
+ * `java\fscript:` 本身也不是合法 scheme，无需处理。
+ *
+ * @param value 已完成 trim（或已解码）的待判定字符串副本
+ * @returns 移除全部 \t \r \n 后的副本，仅用于协议判定
+ */
+function foldControlInScheme(value: string): string {
+  return value.replace(/[\t\r\n]/g, '')
+}
+
 // 解码 `:` 与空白这几类可直接改写协议前缀形态的命名实体（键为小写实体名，不含 & ;）
+// 完整性由 foldControlInScheme 的判定前折叠保证，本表不是控制字符实体的穷举清单
 const NAMED_PROTOCOL_ENTITIES: Record<string, string> = {
   colon: ':',
   tab: '\t',
@@ -91,9 +116,14 @@ export function sanitizePreviewHtml(html: string): string {
       (match, double?: string, single?: string, bare?: string) => {
         const value = (double ?? single ?? bare ?? '').trim()
         // 放行 data:image/*（docx 内嵌图片）与安全协议；其余危险协议整条属性丢弃。
-        // 双值判定：原始形态挡住 java\tscript 一类空白绕过，解码形态挡住 &#106;avascript 一类实体绕过；
-        // 解码串只用于这里的判定，不写回 HTML（写回等于全文实体归一，会复活正文里已转义的标签）。
-        if (DANGEROUS_URL.test(value) || DANGEROUS_URL.test(decodeForProtocolTest(value))) {
+        // 双值判定：原始形态与解码形态各测一轮，前者挡字面控制字符绕过，后者挡实体编码绕过。
+        // 两轮都在测前缀前用 foldControlInScheme 折叠 scheme 内的 tab/CR/LF，理由是该折叠与浏览器取属性值后
+        // 解析 URL 的模型等价（URL 解析进 scheme 前先剥这三种字符），不折叠则 java 与 script 之间的制表符会漏判。
+        // 解码串与折叠串都只用于这里的判定，绝不写回 HTML（写回等于全文实体归一，会复活正文里已转义的标签）。
+        if (
+          DANGEROUS_URL.test(foldControlInScheme(value)) ||
+          DANGEROUS_URL.test(foldControlInScheme(decodeForProtocolTest(value)))
+        ) {
           return ''
         }
         return match
