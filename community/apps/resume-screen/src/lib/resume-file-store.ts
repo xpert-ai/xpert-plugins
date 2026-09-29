@@ -22,7 +22,14 @@ import { detectResumeFileKind, RESUME_FILE_MAX_BYTES, ResumeFileKind } from './r
 
 /** 一次落盘的完整结果：key 入库（相对路径，可安全下发到视图层做预览），absolutePath 仅服务端内部使用 */
 export interface StoredResumeFile {
-  /** 相对存储根目录的 key，形如 `2026-09-29/{sha256 前 16 位}.pdf`；数据库 filePath 列存这个值 */
+  /**
+   * 相对存储根目录的 key，数据库 filePath 列存这个值。
+   *
+   * 形态固定为 `{yyyy-MM-dd UTC}/{sha256 前 16 位}.{ext}`，**没有第二段**：
+   * 日期桶之后就是哈希前缀加后缀，不含 candidateId、不含随机段、不含用户文件名。
+   * 这是硬契约——去重依赖「同一份字节算出同一个 key」，一旦追加任何可变后缀，
+   * 重复上传就会各写一份副本，幂等探测失效。下游解析 key 时只允许切这两段。
+   */
   key: string
   /** key 对应的绝对路径，供解析/预览直接 open，不外泄给前端 */
   absolutePath: string

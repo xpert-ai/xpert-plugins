@@ -33,9 +33,12 @@ describe('ResumeFileStore', () => {
 
   it('按 UTC 日期分桶落盘并返回相对 key', async () => {
     const saved = await store.put({ buffer: PDF_BYTES, fileName: '张三-简历.pdf', date: FIXED_UTC })
-    // 哈希前缀后的尾段可选：内容寻址要求同字节必得同 key（见下一条幂等用例），
-    // 因此不能引入随机/时间后缀；「key 不含用户文件名」由下方注入用例单独守护
-    expect(saved.key).toMatch(/^2026-09-29\/[0-9a-f]{16}(-.*)?\.pdf$/)
+    // key 只有「日期桶 / 哈希前缀 + 后缀」两部分，严禁任何第二段（candidateId、随机或时间后缀）：
+    // 一旦容忍尾段，本条断言就挡不住「重新引入随机后缀」这类改动——它会照样通过，
+    // 同时悄悄毁掉下一条幂等用例守护的「同字节必得同 key」。故这里精确匹配完整 key。
+    const hashPrefix = saved.sha256.slice(0, 16)
+    expect(saved.key).toBe(`2026-09-29/${hashPrefix}.pdf`)
+    expect(hashPrefix).toMatch(/^[0-9a-f]{16}$/)
     expect(saved.key.startsWith(root)).toBe(false) // key 必须是相对路径
     expect(await readdir(join(root, '2026-09-29'))).toHaveLength(1)
   })
@@ -60,7 +63,15 @@ describe('ResumeFileStore', () => {
   it('resolveSafe 阻断目录穿越与绝对路径', () => {
     expect(() => store.resolveSafe('../../etc/passwd')).toThrow(/非法文件路径/)
     expect(() => store.resolveSafe('/etc/passwd')).toThrow(/非法文件路径/)
+    // resolveSafe 的文档声称连 Windows 反斜杠变体一起挡，这里必须真的验一次
+    expect(() => store.resolveSafe('..\\..\\windows\\win.ini')).toThrow(/非法文件路径/)
     expect(store.resolveSafe('2026-09-29/a.pdf').startsWith(root)).toBe(true)
+  })
+
+  it('read 在碰磁盘之前就拒绝穿越 key（非法路径而非 ENOENT）', async () => {
+    await expect(store.read('../../etc/passwd')).rejects.toThrow(/非法文件路径/)
+    // 空根目录即证明拦截发生在 resolveSafe，readFile 根本没被执行到
+    expect(await readdir(root)).toEqual([])
   })
 
   it('read 能取回原始字节，exists 对不存在 key 返回 false', async () => {
