@@ -106,9 +106,17 @@ describe('ResumeScreenViewProvider', () => {
       icon: 'ri-upload-cloud-line'
     })
     expect(byKey.get('create_job')).toMatchObject({ actionType: 'invoke', placement: 'toolbar', icon: 'ri-add-line' })
+    // v5 预览动作：invoke 通道（base64/html 走 action 回执，不走文件下载通道）
+    // 契约的 transport 只有 'json'|'file'，本动作刻意不声明——所以这里钉的是「不等于 file」
+    expect(byKey.get('preview_candidate')).toMatchObject({
+      actionType: 'invoke',
+      icon: 'ri-file-search-line',
+      placement: 'toolbar'
+    })
+    expect(byKey.get('preview_candidate')?.transport).toBeUndefined()
     expect(byKey.has('prepare_parse_message')).toBe(false)
-    // 其余动作原样保留（刷新/重试/保存/处置四组）
-    for (const key of ['refresh', 'retry_candidate', 'update_candidate', 'accept_candidate', 'hold_candidate', 'reject_candidate', 'reset_candidate']) {
+    // 其余动作原样保留（刷新/重试/保存/处置四组 + 新建岗位）
+    for (const key of ['refresh', 'retry_candidate', 'update_candidate', 'accept_candidate', 'hold_candidate', 'reject_candidate', 'reset_candidate', 'create_job']) {
       expect(byKey.has(key)).toBe(true)
     }
     // 对话旁路保留：clientCommands 仍供视图向助手发消息
@@ -340,22 +348,65 @@ describe('ResumeScreenViewProvider', () => {
     })
   })
 
-  // 文件上传通道：服务端解析出文本 → 落 parsing 草稿行 → 入队解析（spec v2.2 链路 B 插件侧地基）
+  // v5 上传通道：请求内不再解析文本，只做「校验 → 落盘 → 建 draft 行 → 置 parsing → 入队」
   describe('executeViewFileAction (upload_resume_files)', () => {
     const docxFixture = readFileSync(join(__dirname, '__fixtures__', 'resume-minimal.docx'))
-    const emptyPdfFixture = readFileSync(join(__dirname, '__fixtures__', 'resume-empty.pdf'))
+    const junkPdf = Buffer.concat([Buffer.from('%PDF-1.7'), Buffer.from('junk')])
 
-    let uploadService: { prepareIntakeDraft: jest.Mock }
+    // DOCX/PDF 的标准 MIME：store 桩按 fileName 后缀回写，与 ResumeFileStore.KIND_TO_MIME 同口径
+    const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    const PDF_MIME = 'application/pdf'
+
+    let uploadService: {
+      prepareIntakeDraft: jest.Mock
+      markCandidateParsing: jest.Mock
+      markCandidateFailed: jest.Mock
+      fileStore: { put: jest.Mock }
+    }
     let intakeQueue: { enqueueParse: jest.Mock }
     let uploadProvider: ResumeScreenViewProvider
 
     beforeEach(() => {
       uploadService = {
-        prepareIntakeDraft: jest.fn(async () => ({
+        prepareIntakeDraft: jest.fn(async (_scope: unknown, _jobId: string, files: Array<{ sourceFileName: string }>) => ({
           jobId: 'job-1',
-          created: [{ id: 'c1', status: 'parsing', attemptCount: 0, sourceFileName: '张三.docx' }],
+          created: files.map((_, index) => ({ id: `c${index + 1}`, status: 'draft', attemptCount: 0, revision: 1, hasFile: true })),
           skippedAsExisting: []
-        }))
+        })),
+        markCandidateParsing: jest.fn(async () => ({ id: 'c1', status: 'parsing' })),
+        markCandidateFailed: jest.fn(async () => undefined),
+        // 桩刻意复刻真实 key 不变量：`{yyyy-MM-dd}/{sha256 前 16 位}.{ext}` 单段、无第二段、
+        // 永不拼接用户文件名（越界防护与内容寻址幂等都挂在这条上）；mime 随后缀走，
+        // 不能固定返回 pdf，否则会把「上传 docx 却回执 pdf」钉成契约。
+        // 校验顺序也照抄真实实现（体积闸 → detectResumeFileKind 类型闸 → 写盘）：
+        // 非法字节一律零写入，所以伪装后缀在这里抛出「扩展名不符」。
+        // 注意桩的 mime 按「文件名后缀」给，而真实实现按魔数复核后的 kind 给：两者在
+        // 「伪装 pdf」这类输入上必然不同，用来钉住 provider 的描述符只认自己判定的 kind
+        fileStore: {
+          put: jest.fn(async ({ buffer, fileName }: { buffer: Buffer; fileName: string }) => {
+            if (buffer.length > 10 * 1024 * 1024) {
+              throw new Error('文件超过 10MB 上限，请压缩或拆分后重新上传')
+            }
+            const lower = fileName.toLowerCase()
+            const head = buffer.subarray(0, 5).toString('latin1')
+            if (lower.endsWith('.docx') && !head.startsWith('PK')) {
+              throw new Error('文件内容与 .docx 扩展名不符')
+            }
+            if (lower.endsWith('.pdf') && !head.startsWith('%PDF-')) {
+              throw new Error('文件内容与 .pdf 扩展名不符')
+            }
+            if (!lower.endsWith('.docx') && !lower.endsWith('.pdf')) {
+              throw new Error('仅支持 .docx / .pdf 文件')
+            }
+            return {
+              key: `2026-09-29/${lower.endsWith('.pdf') ? '951b13649f7bc2db.pdf' : '153b80d355c9fe86.docx'}`,
+              absolutePath: '/var/xpert/resume/2026-09-29/153b80d355c9fe86.docx',
+              size: buffer.length,
+              sha256: 'a'.repeat(64),
+              mime: lower.endsWith('.pdf') ? PDF_MIME : DOCX_MIME
+            }
+          })
+        }
       }
       intakeQueue = { enqueueParse: jest.fn(async () => undefined) }
       uploadProvider = new ResumeScreenViewProvider(uploadService as never, intakeQueue as never)
@@ -364,84 +415,287 @@ describe('ResumeScreenViewProvider', () => {
     // 视图态 jobId 走宿主 query-parameters 通道（P5），文件动作请求同样携带 request.parameters
     const fileRequest = { parameters: { jobId: 'job-1' } } as never
 
-    it('upload action: parses file, persists draft row with source name and enqueues parse', async () => {
-      const file = {
-        buffer: docxFixture,
-        originalname: '张三.docx',
-        mimetype: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        size: docxFixture.length
-      } as never
+    it('落盘 → 建行 → 置 parsing → 入队，回执结构与 v4 保持一致（spec §3.6）', async () => {
       const res = await uploadProvider.executeViewFileAction!(
         createContext(),
         RESUME_SCREEN_WORKBENCH_VIEW_KEY,
         'upload_resume_files',
         fileRequest,
-        file
+        { buffer: docxFixture, originalname: '张三-简历.docx', size: docxFixture.length } as never
       )
       expect(res).toMatchObject({ success: true, refresh: true })
-      // 解析文本是 sourceText 唯一来源，文件名随 options 落库
-      const [scope, jobId, texts, options] = uploadService.prepareIntakeDraft.mock.calls[0]
-      expect(scope).toMatchObject({ tenantId: 'tenant-1', organizationId: 'org-1', userId: 'user-1' })
-      expect(jobId).toBe('job-1')
-      expect(texts[0]).toContain('张三')
-      expect(options).toEqual({ sourceFileName: '张三.docx' })
-      expect(res.data).toMatchObject({ sourceFileName: '张三.docx' })
-      expect(intakeQueue.enqueueParse).toHaveBeenCalledTimes(1)
+      expect(res.data).toMatchObject({
+        fileName: '张三-简历.docx',
+        sourceFileName: '张三-简历.docx',
+        created: [{ id: 'c1', status: 'draft' }],
+        skipped: 0
+      })
+      // 描述符四要素来自 store 回执，逐文件携带文件名（不再有整批同名口径）
+      expect(uploadService.prepareIntakeDraft.mock.calls[0][2]).toEqual([
+        { key: '2026-09-29/153b80d355c9fe86.docx', size: docxFixture.length, sha256: 'a'.repeat(64), mime: DOCX_MIME, sourceFileName: '张三-简历.docx' }
+      ])
+      expect(uploadService.markCandidateParsing).toHaveBeenCalledWith(expect.objectContaining({ tenantId: 'tenant-1' }), 'c1')
       expect(intakeQueue.enqueueParse).toHaveBeenCalledWith(
         expect.objectContaining({ candidateId: 'c1', attemptCount: 0, tenantId: 'tenant-1', organizationId: 'org-1', userId: 'user-1' })
       )
     })
 
-    it('upload action: parse failure returns success:false with reason and creates nothing', async () => {
-      const file = { buffer: emptyPdfFixture, originalname: 'scan.pdf', size: emptyPdfFixture.length } as never
+    it('内部存储 key 与绝对路径不出现在上传回执里（红线：filePath 不下发浏览器）', async () => {
       const res = await uploadProvider.executeViewFileAction!(
-        createContext(),
-        RESUME_SCREEN_WORKBENCH_VIEW_KEY,
-        'upload_resume_files',
-        fileRequest,
-        file
+        createContext(), RESUME_SCREEN_WORKBENCH_VIEW_KEY, 'upload_resume_files', fileRequest,
+        { buffer: docxFixture, originalname: '张三.docx', size: docxFixture.length } as never
+      )
+      const receipt = JSON.stringify(res.data)
+      expect(receipt).not.toContain('2026-09-29/')
+      expect(receipt).not.toContain('/var/xpert/resume')
+      expect(receipt).not.toContain('a'.repeat(64))
+    })
+
+    it('请求内不再解析文本（扫描件照常落盘建行，字节原样交 store）', async () => {
+      const res = await uploadProvider.executeViewFileAction!(
+        createContext(), RESUME_SCREEN_WORKBENCH_VIEW_KEY, 'upload_resume_files', fileRequest,
+        { buffer: junkPdf, originalname: 'scan.pdf', size: junkPdf.length } as never
+      )
+      // 扫描件在 v4 会当场报 no_text_layer；v5 必须照常落盘建行（解析推迟到任务期）
+      expect(res).toMatchObject({ success: true })
+      expect((res.data as { created: Array<{ status: string }> }).created[0].status).toBe('draft')
+      expect(uploadService.fileStore.put).toHaveBeenCalledTimes(1)
+      expect(uploadService.prepareIntakeDraft).toHaveBeenCalledTimes(1)
+    })
+
+    it('超过 10MB 的文件在落盘前拒绝，不建行不入队', async () => {
+      const big = Buffer.alloc(10 * 1024 * 1024 + 1, 1)
+      big.write('%PDF-1.7', 0)
+      const res = await uploadProvider.executeViewFileAction!(
+        createContext(), RESUME_SCREEN_WORKBENCH_VIEW_KEY, 'upload_resume_files', fileRequest,
+        { buffer: big, originalname: 'big.pdf', size: big.length } as never
       )
       expect(res).toMatchObject({ success: false })
-      expect(JSON.stringify(res.message)).toContain('转存为 Word')
+      expect(JSON.stringify(res.message)).toContain('10MB')
+      expect(uploadService.fileStore.put).not.toHaveBeenCalled()
+      expect(uploadService.prepareIntakeDraft).not.toHaveBeenCalled()
+    })
+
+    it('扩展名与内容不符（伪装 pdf）拒绝并给可读原因', async () => {
+      // 桩在此处放宽为「只认后缀」：既能走到拒绝分支，也让 store 返回的 mime 与本层
+      // kind 判定结果可区分——描述符若错信 store 的 mime，docx 会被记成 pdf 而选错预览分支
+      uploadService.fileStore.put.mockImplementationOnce(async () => ({
+        key: '2026-09-29/951b13649f7bc2db.pdf',
+        absolutePath: '/var/xpert/resume/2026-09-29/951b13649f7bc2db.pdf',
+        size: docxFixture.length,
+        sha256: 'a'.repeat(64),
+        mime: PDF_MIME
+      }))
+      const res = await uploadProvider.executeViewFileAction!(
+        createContext(), RESUME_SCREEN_WORKBENCH_VIEW_KEY, 'upload_resume_files', fileRequest,
+        { buffer: docxFixture, originalname: 'fake.pdf', size: docxFixture.length } as never
+      )
+      expect(res).toMatchObject({ success: false })
+      expect(JSON.stringify(res.message)).toContain('扩展名不符')
+      // 类型校验与落盘同处 store（其校验先于写盘，非法字节零写入），
+      // 本层可观测的收敛点是「不建行、不入队」
       expect(uploadService.prepareIntakeDraft).not.toHaveBeenCalled()
       expect(intakeQueue.enqueueParse).not.toHaveBeenCalled()
     })
 
-    it('upload action: missing jobId parameter fails before touching the file', async () => {
+    it('描述符 mime 由本层 kind 判定给出，不采信存储回执的后缀推断', async () => {
+      // 上传真实 docx，但桩按后缀给 pdf mime：只有本层自己判定的 kind 才能产出正确 mime
+      uploadService.fileStore.put.mockImplementationOnce(async () => ({
+        key: '2026-09-29/951b13649f7bc2db.pdf',
+        absolutePath: '/var/xpert/resume/2026-09-29/951b13649f7bc2db.pdf',
+        size: docxFixture.length,
+        sha256: 'a'.repeat(64),
+        mime: PDF_MIME
+      }))
       const res = await uploadProvider.executeViewFileAction!(
-        createContext(),
-        RESUME_SCREEN_WORKBENCH_VIEW_KEY,
-        'upload_resume_files',
-        {} as never,
+        createContext(), RESUME_SCREEN_WORKBENCH_VIEW_KEY, 'upload_resume_files', fileRequest,
+        { buffer: docxFixture, originalname: 'resume.docx', size: docxFixture.length } as never
+      )
+      expect(res).toMatchObject({ success: true })
+      expect(uploadService.prepareIntakeDraft.mock.calls[0][2][0].mime).toBe(DOCX_MIME)
+    })
+
+    it('非 .docx/.pdf 扩展名直接拒绝', async () => {
+      const res = await uploadProvider.executeViewFileAction!(
+        createContext(), RESUME_SCREEN_WORKBENCH_VIEW_KEY, 'upload_resume_files', fileRequest,
+        { buffer: Buffer.from('hello'), originalname: 'resume.txt', size: 5 } as never
+      )
+      expect(res).toMatchObject({ success: false })
+      expect(JSON.stringify(res.message)).toContain('docx')
+      expect(uploadService.prepareIntakeDraft).not.toHaveBeenCalled()
+    })
+
+    it('store 给出的 key 只用于入库，绝不回显到上传回执（即便存储实现分叉）', async () => {
+      // 恶意/异常 store 桩：key 里带上用户文件名与第二段——provider 不得据此拼装任何展示字段，
+      // 也不得把 absolutePath 透出；这条守的是「回执不含内部路径」红线本身，与 store 实现无关
+      uploadService.fileStore.put.mockImplementationOnce(async ({ fileName }: { fileName: string }) => ({
+        key: `2026-09-29/hash-${fileName}/secret.docx`,
+        absolutePath: '/var/xpert/resume/2026-09-29/hash-张三.docx',
+        size: 20480,
+        sha256: 'a'.repeat(64),
+        mime: DOCX_MIME
+      }))
+      const res = await uploadProvider.executeViewFileAction!(
+        createContext(), RESUME_SCREEN_WORKBENCH_VIEW_KEY, 'upload_resume_files', fileRequest,
+        { buffer: docxFixture, originalname: '张三.docx', size: docxFixture.length } as never
+      )
+      expect(res).toMatchObject({ success: true })
+      expect(uploadService.prepareIntakeDraft.mock.calls[0][2][0].key).toBe('2026-09-29/hash-张三.docx/secret.docx')
+      expect(JSON.stringify(res.data)).not.toContain('2026-09-29/')
+      expect(JSON.stringify(res.data)).not.toContain('/var/xpert/resume')
+    })
+
+    it('空字节拒绝，不落盘', async () => {
+      const res = await uploadProvider.executeViewFileAction!(
+        createContext(), RESUME_SCREEN_WORKBENCH_VIEW_KEY, 'upload_resume_files', fileRequest,
+        { buffer: Buffer.alloc(0), originalname: 'a.docx', size: 0 } as never
+      )
+      expect(res).toMatchObject({ success: false })
+      expect(uploadService.fileStore.put).not.toHaveBeenCalled()
+    })
+
+    it('建行失败时回报可读原因，不入队（已落盘字节由目录日期清理兜底）', async () => {
+      uploadService.prepareIntakeDraft.mockRejectedValueOnce(new Error('岗位不存在'))
+      const res = await uploadProvider.executeViewFileAction!(
+        createContext(), RESUME_SCREEN_WORKBENCH_VIEW_KEY, 'upload_resume_files', fileRequest,
+        { buffer: docxFixture, originalname: '张三.docx', size: docxFixture.length } as never
+      )
+      expect(res).toMatchObject({ success: false })
+      expect(JSON.stringify(res.message)).toContain('岗位不存在')
+      expect(intakeQueue.enqueueParse).not.toHaveBeenCalled()
+      expect(uploadService.markCandidateParsing).not.toHaveBeenCalled()
+    })
+
+    it('入队失败时把行收敛为 failed，让工作台出现可重试入口（不留 parsing 黑洞）', async () => {
+      intakeQueue.enqueueParse.mockRejectedValueOnce(new Error('redis down'))
+      const res = await uploadProvider.executeViewFileAction!(
+        createContext(), RESUME_SCREEN_WORKBENCH_VIEW_KEY, 'upload_resume_files', fileRequest,
+        { buffer: docxFixture, originalname: '张三.docx', size: docxFixture.length } as never
+      )
+      expect(res).toMatchObject({ success: false })
+      expect(JSON.stringify(res.message)).toContain('redis down')
+      // 收敛动作必须带业务原因落库：draft 行不会被 sweep 捞（sweep 只扫 parsing），
+      // 只有 failed 才在工作台暴露重试入口
+      expect(uploadService.markCandidateFailed).toHaveBeenCalledWith(
+        expect.objectContaining({ tenantId: 'tenant-1' }),
+        'c1',
+        expect.stringContaining('解析任务入队失败：redis down')
+      )
+    })
+
+    it('首行入队失败即中断，不再投递后续候选人（避免半批入队的不可解释状态）', async () => {
+      uploadService.prepareIntakeDraft.mockImplementationOnce(async (_scope: unknown, _jobId: string, files: Array<{ sourceFileName: string }>) => ({
+        jobId: 'job-1',
+        created: files.map((_, index) => ({ id: `c${index + 1}`, status: 'draft', attemptCount: 0, revision: 1, hasFile: true })),
+        skippedAsExisting: []
+      }))
+      intakeQueue.enqueueParse.mockRejectedValueOnce(new Error('redis down'))
+      const res = await uploadProvider.executeViewFileAction!(
+        createContext(), RESUME_SCREEN_WORKBENCH_VIEW_KEY, 'upload_resume_files', fileRequest,
+        { buffer: docxFixture, originalname: '张三.docx', size: docxFixture.length } as never
+      )
+      expect(res).toMatchObject({ success: false })
+      expect(intakeQueue.enqueueParse).toHaveBeenCalledTimes(1)
+      expect(uploadService.markCandidateFailed).toHaveBeenCalledTimes(1)
+    })
+
+    it('未选岗位时先失败，不触碰字节（AC2.1）', async () => {
+      const res = await uploadProvider.executeViewFileAction!(
+        createContext(), RESUME_SCREEN_WORKBENCH_VIEW_KEY, 'upload_resume_files', {} as never,
         { buffer: docxFixture, originalname: '张三.docx' } as never
       )
       expect(res).toMatchObject({ success: false })
       expect(JSON.stringify(res.message)).toContain('请先选择岗位')
-      expect(uploadService.prepareIntakeDraft).not.toHaveBeenCalled()
+      expect(uploadService.fileStore.put).not.toHaveBeenCalled()
     })
 
-    it('upload action: unknown action key is rejected', async () => {
+    it('未知文件动作 key 被拒绝', async () => {
       const res = await uploadProvider.executeViewFileAction!(
-        createContext(),
-        RESUME_SCREEN_WORKBENCH_VIEW_KEY,
-        'download_everything',
-        fileRequest,
-        { buffer: docxFixture, originalname: '张三.docx' } as never
+        createContext(), RESUME_SCREEN_WORKBENCH_VIEW_KEY, 'download_everything', fileRequest,
+        { buffer: docxFixture, originalname: 'a.docx' } as never
       )
       expect(res).toMatchObject({ success: false })
     })
+  })
 
-    it('upload action: enqueue failure surfaces as readable failure (row stays parsing for sweep)', async () => {
-      intakeQueue.enqueueParse.mockRejectedValueOnce(new Error('redis down'))
-      const res = await uploadProvider.executeViewFileAction!(
-        createContext(),
-        RESUME_SCREEN_WORKBENCH_VIEW_KEY,
-        'upload_resume_files',
-        fileRequest,
-        { buffer: docxFixture, originalname: '张三.docx' } as never
+  // v5 预览动作：按候选人行取原始文件 → 渲染 html/base64；内部 key 绝不进回执（spec §3.6）
+  describe('executeViewAction (preview_candidate)', () => {
+    const docxFixture = readFileSync(join(__dirname, '__fixtures__', 'resume-minimal.docx'))
+    const pdfFixture = readFileSync(join(__dirname, '__fixtures__', 'resume-minimal.pdf'))
+    const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+
+    /**
+     * 构造只带预览协作件的 provider
+     *
+     * @param buffer 读盘桩返回的字节（真实字节，让 html/base64 分支走到真实现）
+     * @param file getResumeFileForPreview 返回的定位三要素；service 已 fail-closed，
+     *             任何不可预览（不存在/无权/无文件/数据不一致）都收敛为 null，
+     *             因此本层不再有「空 mime」这类中间分支
+     */
+    function previewProvider(buffer: Buffer, file: { filePath: string; mime: string; fileName: string } | null) {
+      const svc = {
+        getViewData: jest.fn(async () => viewData),
+        getResumeFileForPreview: jest.fn(async () => file),
+        fileStore: { read: jest.fn(async () => buffer) }
+      }
+      return { svc, provider: new ResumeScreenViewProvider(svc as never, noopIntakeQueue as never) }
+    }
+
+    it('docx → kind html，回执不含内部文件路径', async () => {
+      const { provider } = previewProvider(docxFixture, { filePath: '2026-09-29/153b80d355c9fe86.docx', mime: DOCX_MIME, fileName: '张三.docx' })
+      const res = await provider.executeViewAction(
+        createContext(), RESUME_SCREEN_WORKBENCH_VIEW_KEY, 'preview_candidate',
+        { input: { candidateId: 'c1' }, targetId: 'c1' } as never
       )
-      expect(res).toMatchObject({ success: false })
-      expect(JSON.stringify(res.message)).toContain('redis down')
+      expect(res.success).toBe(true)
+      expect(res.refresh).toBe(false)
+      expect((res.data as { kind: string }).kind).toBe('html')
+      expect(JSON.stringify(res.data)).not.toContain('2026-09-29/153b80d355c9fe86.docx')
+      expect((res.data as { fileName: string }).fileName).toBe('张三.docx')
+    })
+
+    it('pdf → kind pdf + base64', async () => {
+      const { provider } = previewProvider(pdfFixture, { filePath: '2026-09-29/951b13649f7bc2db.pdf', mime: 'application/pdf', fileName: '李四.pdf' })
+      const res = await provider.executeViewAction(
+        createContext(), RESUME_SCREEN_WORKBENCH_VIEW_KEY, 'preview_candidate',
+        { input: { candidateId: 'c1' }, targetId: 'c1' } as never
+      )
+      expect((res.data as { kind: string; base64?: string }).kind).toBe('pdf')
+      expect(Buffer.from((res.data as { base64: string }).base64, 'base64').equals(pdfFixture)).toBe(true)
+      expect(JSON.stringify(res.data)).not.toContain('951b13649f7bc2db')
+    })
+
+    it('行上没有溯源文件名时用中性文案，不回显候选人主键', async () => {
+      // sourceFileName 为空的历史行：fileName 兜底必须是给人看的文案，而不是 UUID 或存储 key
+      const { provider } = previewProvider(pdfFixture, { filePath: '2026-09-29/951b13649f7bc2db.pdf', mime: 'application/pdf', fileName: '' })
+      const res = await provider.executeViewAction(
+        createContext(), RESUME_SCREEN_WORKBENCH_VIEW_KEY, 'preview_candidate',
+        { input: { candidateId: 'c1' }, targetId: 'c1' } as never
+      )
+      expect(res.success).toBe(true)
+      expect((res.data as { fileName: string }).fileName).toBe('未命名简历')
+      // 内部定位 key 不作为展示字段下发（红线：filePath 不进浏览器）
+      expect(Object.keys(res.data as Record<string, unknown>)).toEqual(['kind', 'base64', 'fileName', 'mime'])
+    })
+
+    it('存量行没有文件：可读失败，不落 500（spec §6.4）', async () => {
+      const { svc, provider } = previewProvider(pdfFixture, null)
+      const res = await provider.executeViewAction(
+        createContext(), RESUME_SCREEN_WORKBENCH_VIEW_KEY, 'preview_candidate',
+        { input: { candidateId: 'c1' }, targetId: 'c1' } as never
+      )
+      expect(res.success).toBe(false)
+      expect(JSON.stringify(res.message)).toContain('重新上传')
+      expect(svc.fileStore.read).not.toHaveBeenCalled()
+    })
+
+    it('缺少 candidateId 参数直接失败', async () => {
+      const { svc, provider } = previewProvider(pdfFixture, null)
+      const res = await provider.executeViewAction(
+        createContext(), RESUME_SCREEN_WORKBENCH_VIEW_KEY, 'preview_candidate', { input: {} } as never
+      )
+      expect(res.success).toBe(false)
+      expect(svc.getResumeFileForPreview).not.toHaveBeenCalled()
     })
   })
 })

@@ -6,7 +6,7 @@
  * 并把宿主上下文（租户/组织/助手/会话）收敛为服务层 scope，保证视图读写与
  * 中间件工具同源隔离。
  */
-import { Injectable } from '@nestjs/common'
+import { Injectable, Logger } from '@nestjs/common'
 import { readFile } from 'fs/promises'
 import { createRequire } from 'module'
 import { dirname, join } from 'path'
@@ -35,11 +35,17 @@ import {
   RESUME_SCREEN_WORKBENCH_VIEW_KEY
 } from './constants'
 import { ResumeScreenIntakeQueue } from './resume-screen-intake-queue'
-import { parseResumeFileContent, ResumeFileParseError } from './resume-file-parser'
+import { RESUME_FILE_MAX_BYTES, detectResumeFileKind } from './resume-file-parser'
+import type { ResumeFileKind } from './resume-file-parser'
+import { ResumeFileStore } from './resume-file-store'
+import type { StoredResumeFile } from './resume-file-store'
+import { renderResumePreview } from './resume-preview'
 import { RESUME_SCREEN_REVISION_CONFLICT_CODE, ResumeScreenRevisionConflictError, ResumeScreenService } from './resume-screen.service'
 import type {
   ResumeScreenCandidateListQuery,
   ResumeScreenCandidateStatus,
+  ResumeScreenIntakeDraftResult,
+  ResumeScreenIntakeFile,
   ResumeScreenScope
 } from './types'
 
@@ -138,6 +144,9 @@ function toolCompletedHostEvents() {
 @Injectable()
 @ViewExtensionProvider(RESUME_SCREEN_PROVIDER_KEY)
 export class ResumeScreenViewProvider implements IXpertViewExtensionProvider {
+  // 上传/预览属用户入口，失败原因必须落服务端日志（只记业务标识，绝不记简历字节）
+  private readonly logger = new Logger(ResumeScreenViewProvider.name)
+
   constructor(
     private readonly service: ResumeScreenService,
     private readonly intakeQueue: ResumeScreenIntakeQueue
@@ -233,6 +242,15 @@ export class ResumeScreenViewProvider implements IXpertViewExtensionProvider {
           },
           { key: 'create_job', label: text('Create Job', '新建岗位'), icon: 'ri-add-line', placement: 'toolbar', actionType: 'invoke' },
           { key: 'retry_candidate', label: text('Retry', '重试'), icon: 'ri-restart-line', placement: 'toolbar', actionType: 'invoke' },
+          {
+            key: 'preview_candidate',
+            label: text('Preview resume', '预览简历'),
+            icon: 'ri-file-search-line',
+            placement: 'toolbar',
+            // 刻意不声明 transport：契约里该字段只有 'json'|'file'，缺省即普通 invoke 回执通道
+            // （html/base64 经 action 回执下发，不走 multipart 文件通道）
+            actionType: 'invoke'
+          },
           { key: 'update_candidate', label: text('Save', '保存'), icon: 'ri-save-line', placement: 'toolbar', actionType: 'invoke' },
           {
             key: 'accept_candidate',
@@ -336,10 +354,11 @@ export class ResumeScreenViewProvider implements IXpertViewExtensionProvider {
   }
 
   /**
-   * 视图动作执行：刷新/新建岗位/重试入队/人工保存/处置动作的统一入口
+   * 视图动作执行：刷新/新建岗位/重试入队/预览原始简历/人工保存/处置动作的统一入口
    *
    * 解析驱动已切到链路 B：重试直接经 intakeQueue 入队由 worker 模型直调，
-   * 不再走对话指令旁路（录入统一走 upload_resume_files 文件通道）；服务层
+   * 不再走对话指令旁路（录入统一走 upload_resume_files 文件通道）；v5 的预览动作
+   * 只读服务端已落盘的原始字节并渲染成 html/base64，内部存储 key 不进回执。服务层
    * 异常统一转为可读 I18n 失败结果，不向外泄露堆栈。
    *
    * @param context 宿主上下文（scope.userId 作为处置操作人兜底）
@@ -399,6 +418,28 @@ export class ResumeScreenViewProvider implements IXpertViewExtensionProvider {
         return { ...success('Retry enqueued', '已重新排队解析'), data: { id: candidateId, status: view.status } }
       }
 
+      if (actionKey === 'preview_candidate') {
+        if (!candidateId) {
+          return failure('Candidate is required', '缺少候选人')
+        }
+        // service 侧 fail-closed：要么给完整三要素，要么 null（行不存在/越权/无文件/
+        // 有 key 无 mime 的数据不一致四种原因在调用方不可区分），所以这里没有「空 mime」分支
+        const file = await this.service.getResumeFileForPreview(scope, candidateId)
+        if (!file) {
+          // 与 §6.4 界面文案同源：旧数据没有字节，只能重新上传
+          return failure('Resume file unavailable', '该候选人未保留原始简历文件，无法预览，请重新上传该简历')
+        }
+        const buffer = await this.service.fileStore.read(file.filePath)
+        const payload = await renderResumePreview(buffer, file.mime)
+        // filePath 只用于服务端读盘，回执里绝不外泄（spec §3.6）；
+        // 文件名缺省走中性文案，不把内部主键 UUID 当简历名回显给用户
+        return {
+          success: true,
+          refresh: false,
+          data: { ...payload, fileName: file.fileName || '未命名简历', mime: file.mime }
+        }
+      }
+
       if (actionKey === 'update_candidate') {
         if (!candidateId) {
           return failure('Candidate is required', '缺少候选人')
@@ -453,10 +494,11 @@ export class ResumeScreenViewProvider implements IXpertViewExtensionProvider {
   }
 
   /**
-   * 文件动作执行：上传简历文件 → 服务端解析 → 落 parsing 草稿 → 入队模型直调解析
+   * 文件动作：上传简历（spec v5 §3.4/§3.5）
    *
-   * 上传通道是 sourceText 的服务端唯一来源（spec v2.2：不再接受前端粘贴文本入解析队列）；
-   * 解析失败（格式/加密/扫描件等）不落任何候选人行，直接以可读文案回执（§8.3 失败分支①）。
+   * 请求内只做「大小闸 → 字节校验 → 落盘 → 建 draft 行 → 置 parsing → 入队」，
+   * 文本解析推迟到队列任务期执行：上传回执延迟从秒级降到百毫秒级，解析崩溃不再丢文件。
+   * 入队失败必须把行收敛为 failed，否则工作台留下不可重试的黑洞行。
    * jobId 取宿主 query-parameters 视图态通道（P5，与 getViewData 的 jobId 同源）。
    *
    * @param context 宿主上下文，收敛为服务层 scope
@@ -464,7 +506,7 @@ export class ResumeScreenViewProvider implements IXpertViewExtensionProvider {
    * @param actionKey manifest actions 中 transport=file 的动作键
    * @param request 动作请求（parameters 携带当前选中 jobId）
    * @param file 宿主透传的文件（buffer/originalname/mimetype/size）
-   * @returns 成功：refresh + created/skipped + sourceFileName；失败：可读指引文案
+   * @returns 成功：refresh + created/skipped + 文件名；失败：可读指引文案（不含内部存储 key）
    */
   async executeViewFileAction(
     context: XpertResolvedViewHostContext,
@@ -477,41 +519,90 @@ export class ResumeScreenViewProvider implements IXpertViewExtensionProvider {
       return failure('Unsupported file action', '不支持的文件操作')
     }
     const scope = scopeFromContext(context)
+    // 岗位是候选人行的归属前提：未选岗位时必须在看不到任何字节之前就失败
     const jobId = getStringParameter(request.parameters, 'jobId')
     if (!jobId) {
       return failure('Missing jobId', '请先选择岗位后再上传简历')
     }
+    const buffer = file.buffer as Buffer
+    const fileName = file.originalname || ''
+    if (!buffer?.length) {
+      return failure('Empty file', '文件内容为空')
+    }
+    // 尺寸闸前置在任何写盘之前：不把 10MB+ 字节落进磁盘再失败
+    if (buffer.length > RESUME_FILE_MAX_BYTES) {
+      return failure('File too large', `单个简历文件不能超过 ${Math.floor(RESUME_FILE_MAX_BYTES / (1024 * 1024))}MB，请压缩或拆分后重新上传`)
+    }
+    // 类型闸（扩展名 + 魔数双重判定，复用 T3 纯函数 detectResumeFileKind）先于落盘：
+    // 既不让伪装后缀写成无人引用的孤儿文件，也给下面描述符的 mime 提供唯一来源
+    let kind: ResumeFileKind
     try {
-      // 文本唯一来源=服务端解析（spec v2.2）；失败不产生候选人行（§8.3 失败分支①）
-      const sourceText = await parseResumeFileContent(file.buffer as Buffer, file.originalname || 'resume')
-      const result = await this.service.prepareIntakeDraft(scope, jobId, [sourceText], { sourceFileName: file.originalname })
-      const fresh = result.created.filter((c) => c.status === 'parsing')
-      for (const candidate of fresh) {
+      kind = detectResumeFileKind(buffer, fileName)
+    } catch (error) {
+      // detectResumeFileKind 只抛 unsupported_format，其文案本身即可读指引
+      const message = getActionErrorMessage(error, '文件格式不支持')
+      this.logger.warn(`简历文件类型校验失败：job=${jobId} file=${fileName} 原因=${message}`)
+      return failure(message, message)
+    }
+    let stored: StoredResumeFile
+    try {
+      // 只复用 service 上的唯一 ResumeFileStore 实例（全插件单例，§3.1）：本类绝不 new 第二个
+      // store——两个实例意味着两套根目录解析，落盘与读盘可能指向不同物理路径。
+      // key 由内容决定、永不拼接用户文件名（越界防护与幂等去重都挂在这条不变量上）
+      stored = await this.service.fileStore.put({ buffer, fileName })
+    } catch (error) {
+      const message = getActionErrorMessage(error, '文件写入失败')
+      // 日志刻意不带任何字节信息，只留可定位的业务标识
+      this.logger.warn(`简历文件落盘失败：job=${jobId} file=${fileName} 原因=${message}`)
+      return failure(message, message)
+    }
+    // mime 取本层 kind 而不是 store 回执：预览分支（html/pdf）完全由 mime 决定，
+    // 必须与上面判定的类型同源；store 只负责贡献 key/size/sha256 三个落盘事实
+    const descriptor: ResumeScreenIntakeFile = {
+      key: stored.key,
+      size: stored.size,
+      sha256: stored.sha256,
+      mime: ResumeFileStore.kindToMime(kind),
+      sourceFileName: fileName
+    }
+    let result: ResumeScreenIntakeDraftResult
+    try {
+      result = await this.service.prepareIntakeDraft(scope, jobId, [descriptor])
+    } catch (error) {
+      // 建行失败（岗位不存在/超批量上限）：字节已落盘但无行引用它，属可重传的孤儿字节，
+      // 由目录按日期清理策略兜底（§3.1）；此处只回报失败，不静默吞掉原因
+      const message = getActionErrorMessage(error, '候选人记录创建失败')
+      this.logger.warn(`简历草稿行创建失败：job=${jobId} file=${fileName} 原因=${message}`)
+      return failure(message, message)
+    }
+    for (const candidate of result.created) {
+      try {
+        // 两段式状态推进：draft → parsing 由 service 条件写库（只对 draft 生效）
+        await this.service.markCandidateParsing(scope, candidate.id)
         await this.intakeQueue.enqueueParse({
           candidateId: candidate.id,
-          attemptCount: candidate.attemptCount,
+          attemptCount: candidate.attemptCount ?? 0,
           tenantId: scope.tenantId,
           organizationId: scope.organizationId ?? undefined,
           userId: scope.userId ?? undefined
         })
+      } catch (error) {
+        // 入队失败：行留在 draft 不会被 sweep 捞（sweep 只扫 parsing），必须就地标 failed 给用户重试入口
+        const message = getActionErrorMessage(error, '解析任务入队失败')
+        await this.service.markCandidateFailed(scope, candidate.id, `解析任务入队失败：${message.slice(0, 500)}`)
+        this.logger.warn(`解析任务入队失败并已收敛为 failed：job=${jobId} candidate=${candidate.id} 原因=${message}`)
+        return failure(message, message)
       }
-      return {
-        success: true,
-        refresh: true,
-        data: {
-          fileName: file.originalname,
-          created: result.created.map((c) => ({ id: c.id, status: c.status })),
-          skipped: result.skippedAsExisting,
-          ...(result.created[0] ? { sourceFileName: result.created[0].sourceFileName } : {})
-        }
+    }
+    return {
+      success: true,
+      refresh: true,
+      data: {
+        fileName,
+        created: result.created.map((c) => ({ id: c.id, status: c.status })),
+        skipped: result.skippedAsExisting.length,
+        sourceFileName: fileName
       }
-    } catch (error) {
-      if (error instanceof ResumeFileParseError) {
-        // 解析失败四类原因共用一条回执：中文指引文案放 zh_Hans
-        return failure('Resume file parse failed', error.message)
-      }
-      const message = getActionErrorMessage(error, '上传录入失败')
-      return failure(message, message)
     }
   }
 }
