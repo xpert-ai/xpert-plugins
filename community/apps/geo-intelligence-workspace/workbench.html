@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GEO Hub - 工作台</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a1628;color:#e0e6ed;font-family:system-ui,-apple-system,sans-serif;overflow:hidden;height:100vh}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:rgba(0,255,136,.2);border-radius:3px}
+.bg-p{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;overflow:hidden}
+.bg-p span{position:absolute;width:3px;height:3px;background:#00ff88;border-radius:50%;animation:r linear infinite;box-shadow:0 0 4px #00ff88}
+@keyframes r{0%{transform:translateY(100vh) scale(0);opacity:0}10%{opacity:.6}100%{transform:translateY(-5vh) scale(1);opacity:0}}
+.nav{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:48px;background:rgba(10,22,40,.95);border-bottom:1px solid rgba(0,255,136,.2)}
+.nav-l{display:flex;align-items:center;gap:10px}
+.nav-logo{width:28px;height:28px;border:1.5px solid #00ff88;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#00ff88;font-size:14px}
+.nav-t{font-size:15px;font-weight:700;color:#00ff88;letter-spacing:2px}
+.nav-s{color:#7a8ba0;font-size:10px;letter-spacing:2px;margin-left:8px}
+.nav-r{display:flex;align-items:center;gap:10px;color:#7a8ba0;font-size:13px}
+.btn-out{background:none;border:1px solid rgba(255,68,102,.3);border-radius:5px;padding:4px 10px;color:#ff4466;cursor:pointer;font-size:12px}
+.btn-out:hover{background:rgba(255,68,102,.1)}
+.grid{position:relative;z-index:1;display:grid;grid-template-columns:240px 1fr 280px;gap:1px;height:calc(100vh - 48px);background:rgba(0,255,136,.04)}
+.col{background:rgba(10,22,40,.92);overflow-y:auto;padding:14px}
+.hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid rgba(0,255,136,.15)}
+.hdr-t{font-size:11px;font-weight:600;color:#7a8ba0;letter-spacing:2px}
+.hdr-b{font-size:10px;color:#00ff88;background:rgba(0,255,136,.1);padding:1px 7px;border-radius:8px;border:1px solid rgba(0,255,136,.2)}
+.btn{border:none;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:12px;font-weight:600;transition:all .2s;display:inline-flex;align-items:center;gap:5px}
+.btn-g{background:linear-gradient(135deg,#00ff88,#00d4ff);color:#0a1628}.btn-g:hover{box-shadow:0 0 12px rgba(0,255,136,.3)}
+.btn-g:disabled{opacity:.5;cursor:not-allowed}
+.btn-b{background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.25);color:#00d4ff}.btn-b:hover{background:rgba(0,212,255,.2)}
+.btn-o{background:none;border:1px solid rgba(0,255,136,.2);color:#7a8ba0}.btn-o:hover{border-color:#00ff88;color:#00ff88}
+.btn-d{background:rgba(255,68,102,.1);border:1px solid rgba(255,68,102,.25);color:#ff4466}.btn-d:hover{background:rgba(255,68,102,.2)}
+.btn-s{padding:4px 8px;font-size:11px}
+.btn-i{background:none;border:none;cursor:pointer;font-size:14px;padding:2px 4px;opacity:.5;transition:opacity .2s}.btn-i:hover{opacity:1}
+.inp{width:100%;padding:8px 10px;background:rgba(13,33,55,.8);border:1px solid rgba(0,255,136,.15);border-radius:5px;color:#e0e6ed;font-size:13px;outline:none;font-family:inherit}
+.inp:focus{border-color:#00ff88}.inp::placeholder{color:#4a5e75}
+textarea.inp{resize:vertical;min-height:50px}
+.lbl{display:block;font-size:10px;color:#7a8ba0;letter-spacing:1px;margin-bottom:3px}
+.fg{margin-bottom:8px}
+.empty{text-align:center;padding:20px;color:#7a8ba0;font-size:12px}
+.tabs{display:flex;gap:0;margin-bottom:10px;border-bottom:1px solid rgba(0,255,136,.1)}
+.tab{padding:6px 12px;font-size:11px;font-weight:600;color:#7a8ba0;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
+.tab:hover{color:#00d4ff}.tab.on{color:#00ff88;border-bottom-color:#00ff88}
+.tc{background:#1a2f4a;border:1px solid rgba(0,255,136,.08);border-radius:7px;padding:10px;margin-bottom:6px;transition:border-color .2s}
+.tc:hover{border-color:rgba(0,255,136,.2)}
+.tc-h{display:flex;align-items:flex-start;justify-content:space-between}
+.tc-n{font-size:13px;font-weight:600;margin-bottom:2px}
+.tc-br{font-size:11px;color:#00d4ff;margin-bottom:3px}
+.tc-m{display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#7a8ba0}
+.badge{display:inline-flex;padding:1px 7px;border-radius:8px;font-size:10px;font-weight:600}
+.b-ok{background:rgba(0,255,136,.12);color:#00ff88;border:1px solid rgba(0,255,136,.2)}
+.b-run{background:rgba(0,212,255,.12);color:#00d4ff;border:1px solid rgba(0,212,255,.2)}
+.b-pend{background:rgba(255,170,0,.12);color:#ffaa00;border:1px solid rgba(255,170,0,.2)}
+.pc{background:#1a2f4a;border:1px solid rgba(0,212,255,.08);border-radius:7px;padding:8px 10px;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.pc:hover{border-color:rgba(0,212,255,.2)}
+.pc-q{font-size:12px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pc-br{font-size:10px;color:#00d4ff}
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:14px}
+.sc{background:#1a2f4a;border:1px solid rgba(0,255,136,.1);border-radius:8px;padding:12px;border-top:2px solid #00ff88}
+.sc-l{font-size:9px;color:#7a8ba0;letter-spacing:1px;margin-bottom:6px}
+.sc-v{font-size:22px;font-weight:700;color:#00ff88}
+.sc-d{font-size:10px;color:#7a8ba0;margin-top:3px}
+.qm{background:#1a2f4a;border:1px solid rgba(0,255,136,.1);border-radius:8px;padding:12px;margin-bottom:14px}
+.qm-t{font-size:11px;font-weight:600;color:#7a8ba0;letter-spacing:1px;margin-bottom:8px}
+.qm-r{display:flex;gap:6px}
+.rc{background:#1a2f4a;border:1px solid rgba(0,255,136,.06);border-radius:8px;padding:12px;margin-bottom:6px}
+.rc:hover{border-color:rgba(0,255,136,.2)}
+.rc-h{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px}
+.rc-q{font-size:13px;font-weight:600}
+.rc-a{font-size:11px;color:#7a8ba0;line-height:1.5;padding:8px;background:rgba(10,22,40,.5);border-radius:5px;border-left:2px solid #00d4ff;margin-bottom:8px}
+.ra-short{max-height:60px;overflow:hidden;position:relative}
+.ra-short::after{content:'...';position:absolute;bottom:0;right:8px;background:linear-gradient(transparent,#1a2f4a 60%);padding-left:20px}
+.ra-full{max-height:400px;overflow-y:auto}
+.exp{font-size:11px;color:#00d4ff;cursor:pointer;background:none;border:none;padding:0;margin-bottom:6px}.exp:hover{text-decoration:underline}
+.mr{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.mb{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:10px;font-size:10px}
+.m-y{background:rgba(0,255,136,.1);color:#00ff88}.m-n{background:rgba(255,68,102,.08);color:#ff4466}
+.m-pos{background:rgba(0,255,136,.08);color:#00ff88}.m-neg{background:rgba(255,68,102,.08);color:#ff4466}.m-neu{background:rgba(122,139,160,.1);color:#7a8ba0}
+.m-i{background:rgba(0,212,255,.08);color:#00d4ff}
+.fc{background:#1a2f4a;border:1px solid rgba(0,255,136,.06);border-radius:7px;padding:10px;margin-bottom:6px}
+.fc:hover{border-color:rgba(0,255,136,.2)}
+.fc-h{display:flex;align-items:flex-start;justify-content:space-between}
+.fc-q{font-size:12px;font-weight:600;margin-bottom:4px}
+.fc-a{font-size:11px;color:#7a8ba0;margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fc-f{display:flex;align-items:center;gap:6px;font-size:10px}
+.ct{font-size:9px;color:#00d4ff;background:rgba(0,212,255,.1);padding:1px 6px;border-radius:4px;border:1px solid rgba(0,212,255,.2)}
+.ov{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:100;display:flex;align-items:center;justify-content:center}
+.md{background:#0d2137;border:1px solid rgba(0,255,136,.2);border-radius:10px;padding:20px;width:400px;max-height:80vh;overflow-y:auto}
+.md-t{font-size:14px;font-weight:700;color:#00ff88;letter-spacing:1px;margin-bottom:14px}
+.md-a{display:flex;gap:6px;justify-content:flex-end;margin-top:12px}
+.hid{display:none!important}
+.bar-c{display:flex;align-items:flex-end;gap:12px;height:120px;padding:0 8px}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;max-width:200px}
+.bar{width:100%;border-radius:4px 4px 0 0;min-height:2px}
+.bar-l{font-size:10px;color:#7a8ba0;text-align:center}.bar-v{font-size:11px;font-weight:600;color:#00ff88}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(0,212,255,.2);border-top-color:#00d4ff;border-radius:50%;animation:sp .6s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.lm{text-align:center;padding:8px;color:#00d4ff;font-size:12px;cursor:pointer;border:1px dashed rgba(0,212,255,.3);border-radius:6px;margin-top:6px}.lm:hover{background:rgba(0,212,255,.05)}
+.bb{background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.2);border-radius:6px;padding:8px 10px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.bb span{font-size:12px;color:#00d4ff}
+.toast{position:fixed;top:56px;left:50%;transform:translateX(-50%);z-index:200;padding:8px 20px;border-radius:6px;font-size:13px;font-weight:600;transition:opacity .3s;max-width:400px;text-align:center}
+.ti{background:rgba(0,212,255,.15);border:1px solid rgba(0,212,255,.3);color:#00d4ff}
+.ts{background:rgba(0,255,136,.12);border:1px solid rgba(0,255,136,.3);color:#00ff88}
+.te{background:rgba(255,68,102,.12);border:1px solid rgba(255,68,102,.3);color:#ff4466;cursor:pointer}
+.th{opacity:0;pointer-events:none}
+
+/* GEO visual refresh: presentation only. Existing markup and handlers remain intact. */
+:root{--geo-bg:#0b1220;--geo-panel:#111c2d;--geo-card:#182538;--geo-card-hover:#1d2d43;--geo-line:#2b3d52;--geo-text:#e8eef5;--geo-muted:#a2b2c5;--geo-accent:#38b6c8;--geo-accent-hover:#58c7d5;--geo-success:#61cba2;--geo-warning:#e7b96a;--geo-danger:#f08795}
+body{background:var(--geo-bg);color:var(--geo-text);font-family:Inter,'Segoe UI','Microsoft YaHei UI',system-ui,sans-serif;font-size:13px;line-height:1.5}
+.bg-p{display:none}
+::-webkit-scrollbar-thumb{background:#3a5368}
+.nav{height:56px;padding:0 24px;background:#101b2b;border-bottom:1px solid var(--geo-line);box-shadow:0 4px 18px rgba(0,0,0,.12)}
+.nav-logo{width:30px;height:30px;border:1px solid rgba(56,182,200,.45);border-radius:9px;background:#193446;color:var(--geo-accent);font-size:16px}
+.nav-t{color:var(--geo-text);font-size:15px;letter-spacing:.3px}
+.nav-s{color:var(--geo-muted);font-size:11px;letter-spacing:.4px;margin-left:3px}
+.nav-r{color:var(--geo-muted);font-size:12px;gap:14px}
+.btn-out{border-color:var(--geo-line);border-radius:7px;color:var(--geo-muted);padding:6px 11px}
+.btn-out:hover{border-color:var(--geo-danger);background:rgba(240,135,149,.09);color:var(--geo-danger)}
+.grid{height:calc(100vh - 56px);background:var(--geo-line);grid-template-columns:240px minmax(0,1fr) 280px}
+.col{background:var(--geo-panel);padding:18px 16px}
+.col:nth-child(2){background:#0e1929;padding:20px 22px}
+.hdr{margin-bottom:13px;padding-bottom:10px;border-bottom:1px solid var(--geo-line)}
+.hdr-t,.qm-t{font-size:13px;font-weight:650;color:var(--geo-text);letter-spacing:.2px}
+.hdr-b{color:var(--geo-accent);background:rgba(56,182,200,.1);border:1px solid rgba(56,182,200,.22);font-size:11px;padding:2px 8px}
+.btn{border-radius:8px;padding:9px 14px;font-size:12px;line-height:1.35;min-height:34px;transition:background .18s,border-color .18s,color .18s,box-shadow .18s}
+.btn-s{padding:6px 10px;min-height:30px;font-size:12px}
+.btn-g{background:var(--geo-accent);color:#09202b;box-shadow:none}
+.btn-g:hover{background:var(--geo-accent-hover);box-shadow:0 4px 14px rgba(56,182,200,.17)}
+.btn-b{background:rgba(56,182,200,.1);border:1px solid rgba(56,182,200,.24);color:#8bdce5}
+.btn-b:hover{background:rgba(56,182,200,.18)}
+.btn-o{background:#19283a;border:1px solid var(--geo-line);color:var(--geo-text)}
+.btn-o:hover{background:#22364b;border-color:#4c6d82;color:var(--geo-text)}
+.btn-d{background:rgba(240,135,149,.09);border:1px solid rgba(240,135,149,.26);color:var(--geo-danger)}
+.btn-d:hover{background:rgba(240,135,149,.17)}
+.btn-i{color:var(--geo-muted);opacity:.78;font-size:15px;padding:3px 5px}
+.btn-i:hover{color:var(--geo-text);opacity:1}
+.inp{background:#0f1c2c;border:1px solid #3a5066;border-radius:8px;color:var(--geo-text);font-size:13px;padding:9px 11px;min-height:36px}
+.inp::placeholder{color:#8499ad}
+.inp:focus{border-color:var(--geo-accent);box-shadow:0 0 0 3px rgba(56,182,200,.15)}
+.lbl{font-size:12px;color:var(--geo-muted);letter-spacing:0;margin-bottom:5px}
+.fg{margin-bottom:12px}
+.empty{color:var(--geo-muted);font-size:12px;padding:25px 12px}
+.tabs{border-bottom:1px solid var(--geo-line);margin-bottom:15px}
+.tab{padding:8px 9px;font-size:12px;color:var(--geo-muted);white-space:nowrap}
+.tab:hover{color:var(--geo-text)}
+.tab.on{color:var(--geo-accent);border-bottom-color:var(--geo-accent)}
+.tc,.pc,.rc,.fc,.qm,.sc,.col:nth-child(2)>div[style*="background:#1a2f4a"]{background:var(--geo-card)!important;border:1px solid var(--geo-line)!important;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.tc:hover,.pc:hover,.rc:hover,.fc:hover{background:var(--geo-card-hover)!important;border-color:#456178!important}
+.tc{padding:13px;margin-bottom:9px}
+.tc-n,.rc-q{font-size:13px;color:var(--geo-text);line-height:1.45}
+.tc-br,.pc-br{font-size:11px;color:#8bcbd3}
+.tc-m{font-size:11px;color:var(--geo-muted);margin-top:6px}
+.badge,.mb,.ct{font-size:11px;line-height:1.35;padding:3px 8px;border-radius:999px}
+.b-ok,.m-y,.m-pos{background:rgba(97,203,162,.12);color:var(--geo-success);border-color:rgba(97,203,162,.22)}
+.b-run,.m-i,.ct{background:rgba(56,182,200,.12);color:#8bdce5;border-color:rgba(56,182,200,.22)}
+.b-pend{background:rgba(231,185,106,.12);color:var(--geo-warning);border-color:rgba(231,185,106,.22)}
+.m-n,.m-neg{background:rgba(240,135,149,.12);color:var(--geo-danger)}
+.m-neu{background:rgba(162,178,197,.12);color:var(--geo-muted)}
+.pc{padding:10px 11px;margin-bottom:7px}
+.pc-q,.fc-q{font-size:12px;color:var(--geo-text)}
+.pc input[type="checkbox"]{accent-color:var(--geo-accent)!important}
+.stats{gap:10px;margin-bottom:16px}
+.sc{padding:15px 14px;border-top:1px solid var(--geo-line)!important}
+.sc-l{font-size:11px;color:var(--geo-muted);letter-spacing:0;margin-bottom:4px}
+.sc-v{font-size:25px;font-weight:700;color:var(--geo-text);letter-spacing:-.4px}
+.sc-d{font-size:11px;color:var(--geo-muted);margin-top:2px}
+.qm{padding:15px;margin-bottom:16px}
+.qm-t{margin-bottom:10px}
+.qm-r{gap:8px}
+.rc{padding:16px;margin-bottom:10px}
+.rc-h{margin-bottom:9px}
+.rc-a{font-size:12px;line-height:1.65;color:#c0cede;background:#111d2d;border-left-color:var(--geo-accent);padding:11px 12px;margin-bottom:9px}
+.ra-short::after{background:linear-gradient(transparent,var(--geo-card) 60%)}
+.exp{font-size:12px;color:#8bdce5;margin-bottom:9px}
+.mr{gap:6px}
+.fc{padding:12px;margin-bottom:9px}
+.fc-a{font-size:12px;color:var(--geo-muted);line-height:1.5;margin-bottom:8px}
+.fc-f{font-size:11px}
+.bar-c{height:130px}
+.bar-l{font-size:11px;color:var(--geo-muted)}
+.bar-v{font-size:12px;color:var(--geo-text)}
+.bar-col:nth-child(1) .bar{background:var(--geo-success)!important}
+.bar-col:nth-child(2) .bar{background:var(--geo-danger)!important}
+.bar-col:nth-child(3) .bar{background:#728aa3!important}
+.ov{background:rgba(4,10,18,.72);backdrop-filter:blur(4px)}
+.md{background:#162338;border:1px solid #40566c;border-radius:13px;padding:23px;width:min(420px,calc(100vw - 32px));box-shadow:0 24px 70px rgba(0,0,0,.35)}
+.md-t{font-size:16px;color:var(--geo-text);letter-spacing:0;margin-bottom:18px}
+.md-a{margin-top:18px}
+.lm{font-size:12px;color:#8bdce5;border-color:#426578;padding:10px}
+.lm:hover{background:rgba(56,182,200,.08)}
+.bb{background:rgba(56,182,200,.1);border-color:rgba(56,182,200,.24);border-radius:8px}
+.bb span{color:#8bdce5}
+.toast{top:64px;border-radius:8px;padding:10px 16px;box-shadow:0 12px 30px rgba(0,0,0,.2)}
+.ti{background:#19374a;border-color:#386b7c;color:#a0e1e8}
+.ts{background:#17392f;border-color:#347962;color:#9ce2c3}
+.te{background:#432734;border-color:#945160;color:#ffb3bd}
+.spin{border-color:rgba(56,182,200,.2);border-top-color:var(--geo-accent)}
+.btn:focus-visible,.btn-i:focus-visible,.tab:focus-visible,.exp:focus-visible,.lm:focus-visible,.btn-out:focus-visible{outline:2px solid var(--geo-accent);outline-offset:2px}
+@media(max-width:1050px){.grid{grid-template-columns:220px minmax(0,1fr) 250px}.col{padding:14px}.col:nth-child(2){padding:16px}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:780px){body{overflow:auto;height:auto}.grid{height:auto;min-height:calc(100vh - 56px);grid-template-columns:1fr}.col{overflow:visible}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
+</head>
+<body>
+<div class="bg-p" id="bgp"></div>
+<div class="toast th" id="toast"></div>
+
+<div class="nav">
+  <div class="nav-l"><div class="nav-logo">&#9671;</div><span class="nav-t">GEO Hub</span><span class="nav-s">&#26234;&#33021;&#24773;&#25253;&#24179;&#21488;</span></div>
+  <div class="nav-r"><span id="uLbl">admin</span><button class="btn-out" onclick="doLogout()">&#36864;&#20986;</button></div>
+</div>
+
+<div class="grid">
+  <!-- LEFT -->
+  <div class="col">
+    <div class="tabs">
+      <div class="tab on" id="tabT" onclick="switchTab('t')">&#30417;&#27979;&#20219;&#21153;</div>
+      <div class="tab" id="tabP" onclick="switchTab('p')">Prompt &#24211;</div>
+    </div>
+    <div id="paneT">
+      <button class="btn btn-b btn-s" style="width:100%;margin-bottom:10px" onclick="openTask()">&#43; &#26032;&#24314;&#20219;&#21153;</button>
+      <div id="taskList"></div>
+    </div>
+    <div id="paneP" class="hid">
+      <button class="btn btn-b btn-s" style="width:100%;margin-bottom:6px" onclick="openPrompt()">&#43; &#28155;&#21152;Prompt</button>
+      <div id="batchBar" class="bb hid"><span>&#24050;&#36873; <b id="selN">0</b> &#26465;</span><div style="display:flex;gap:4px"><button class="btn btn-s btn-o" onclick="clearSel()">&#21462;&#28040;</button><button class="btn btn-s btn-g" id="batchBtn" onclick="doBatch()">&#25209;&#37327;&#30417;&#27979;</button></div></div>
+      <div id="promptList"></div>
+    </div>
+  </div>
+
+  <!-- CENTER -->
+  <div class="col">
+    <div class="qm">
+      <div class="qm-t">&#9889; &#24555;&#36895;&#30417;&#27979;</div>
+      <div class="qm-r">
+        <input class="inp" id="qInp" placeholder="&#36755;&#20837;&#35201;&#30417;&#27979;&#30340;&#38382;&#39064;..." onkeydown="if(event.key==='Enter')doQuick()">
+        <button class="btn btn-g" id="qBtn" onclick="doQuick()">&#36816;&#34892;</button>
+        <button class="btn btn-o" onclick="savePrompt()" title="&#20445;&#23384;&#21040;Prompt&#24211;">&#128190;</button>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="sc"><div class="sc-l">&#24635;&#36816;&#34892;&#25968;</div><div class="sc-v" id="sT">0</div><div class="sc-d" id="sTD">-</div></div>
+      <div class="sc"><div class="sc-l">&#25552;&#21450;&#29575;</div><div class="sc-v" id="sM">0%</div><div class="sc-d" id="sMD">-</div></div>
+      <div class="sc"><div class="sc-l">&#24179;&#22343;&#24773;&#24863;</div><div class="sc-v" id="sS">0.00</div><div class="sc-d" id="sSD">-</div></div>
+      <div class="sc"><div class="sc-l">FAQ&#21305;&#37197;</div><div class="sc-v" id="sF">0/0</div><div class="sc-d" id="sFD">-</div></div>
+    </div>
+    <div style="background:#1a2f4a;border:1px solid rgba(0,255,136,.08);border-radius:8px;padding:12px;margin-bottom:14px">
+      <div style="font-size:11px;color:#7a8ba0;letter-spacing:1px;margin-bottom:8px">&#24773;&#24863;&#20998;&#24067;</div>
+      <div class="bar-c" id="barC"></div>
+    </div>
+    <div class="hdr"><span class="hdr-t">&#30417;&#27979;&#32467;&#26524;</span><span class="hdr-b" id="rCnt">0</span></div>
+    <div id="runList"></div>
+    <div class="lm hid" id="lmBtn" onclick="loadMore()">&#26174;&#31034;&#26356;&#22810;</div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="col">
+    <div class="hdr"><span class="hdr-t">FAQ &#30693;&#35782;&#24211;</span><span class="hdr-b" id="fCnt">0</span></div>
+    <button class="btn btn-b btn-s" style="width:100%;margin-bottom:10px" onclick="openFaq()">&#43; &#28155;&#21152;FAQ</button>
+    <div id="faqList"></div>
+  </div>
+</div>
+
+<!-- TASK MODAL -->
+<div class="ov hid" id="mTask" onclick="if(event.target===this)closeM('mTask')">
+  <div class="md">
+    <div class="md-t" id="mTT">&#26032;&#24314;&#30417;&#27979;&#20219;&#21153;</div>
+    <input type="hidden" id="tEid">
+    <div class="fg"><label class="lbl">&#20219;&#21153;&#21517;&#31216;</label><input class="inp" id="tNm" placeholder="&#20363;&#22914;&#65306;&#27599;&#21608;&#21697;&#29260;&#30417;&#27979;"></div>
+    <div class="fg"><label class="lbl">&#21697;&#29260;</label><input class="inp" id="tBr" placeholder="&#20363;&#22914;&#65306;&#26143;&#27827;&#21307;&#38498;"></div>
+    <div class="fg"><label class="lbl">&#38382;&#39064;&#21015;&#34920;&#65288;&#27599;&#34892;&#19968;&#20010;&#65289;</label><textarea class="inp" id="tQ" rows="4" placeholder="&#26143;&#27827;&#21307;&#38498;&#24590;&#20040;&#26679;&#65311;&#10;&#21335;&#20140;&#21738;&#23478;&#21307;&#38498;&#22909;&#65311;"></textarea></div>
+    <div class="md-a">
+      <button class="btn btn-d btn-s" id="tDel" onclick="delTask()" style="margin-right:auto;display:none">&#21024;&#38500;&#20219;&#21153;</button>
+      <button class="btn btn-o" onclick="closeM('mTask')">&#21462;&#28040;</button>
+      <button class="btn btn-g" onclick="saveTask()">&#20445;&#23384;</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROMPT MODAL -->
+<div class="ov hid" id="mPrompt" onclick="if(event.target===this)closeM('mPrompt')">
+  <div class="md">
+    <div class="md-t">&#28155;&#21152; Prompt</div>
+    <div class="fg"><label class="lbl">&#30417;&#27979;&#38382;&#39064;</label><input class="inp" id="pQ" placeholder="&#36755;&#20837;&#38382;&#39064;..."></div>
+    <div class="fg"><label class="lbl">&#21697;&#29260;</label><input class="inp" id="pBr" placeholder="&#20369;&#22914;&#65306;&#26143;&#27827;&#21307;&#38498;" value="&#26143;&#27827;&#21307;&#38498;"></div>
+    <div class="md-a"><button class="btn btn-o" onclick="closeM('mPrompt')">&#21462;&#28040;</button><button class="btn btn-g" onclick="savePromptM()">&#20445;&#23384;</button></div>
+  </div>
+</div>
+
+<!-- FAQ MODAL -->
+<div class="ov hid" id="mFaq" onclick="if(event.target===this)closeM('mFaq')">
+  <div class="md">
+    <div class="md-t">&#28155;&#21152; FAQ</div>
+    <div class="fg"><label class="lbl">&#38382;&#39064;</label><input class="inp" id="fQ" placeholder="&#36755;&#20837;&#38382;&#39064;..."></div>
+    <div class="fg"><label class="lbl">&#21442;&#32771;&#31572;&#26696;</label><textarea class="inp" id="fA" rows="3" placeholder="&#36755;&#20837;&#31572;&#26696;..."></textarea></div>
+    <div class="fg"><label class="lbl">&#20998;&#31867;</label><select class="inp" id="fCat"><option value="&#32508;&#21512;">&#32508;&#21512;</option><option value="&#31185;&#23460;">&#31185;&#23460;</option><option value="&#25910;&#36153;">&#25910;&#36153;</option><option value="&#39044;&#32422;">&#39044;&#32422;</option><option value="&#29615;&#22659;">&#29615;&#22659;</option><option value="&#26381;&#21153;">&#26381;&#21153;</option></select></div>
+    <div class="md-a"><button class="btn btn-o" onclick="closeM('mFaq')">&#21462;&#28040;</button><button class="btn btn-g" onclick="saveFaq()">&#28155;&#21152;</button></div>
+  </div>
+</div>
+
+<!-- CONFIRM -->
+<div class="ov hid" id="mCfm">
+  <div class="md" style="width:320px">
+    <div class="md-t">&#30830;&#35748;&#21024;&#38500;</div>
+    <p style="font-size:13px;color:#7a8ba0;margin-bottom:12px" id="cfmMsg">&#30830;&#23450;&#35201;&#21024;&#38500;&#21527;&#65311;</p>
+    <div class="md-a"><button class="btn btn-o" onclick="closeM('mCfm')">&#21462;&#28040;</button><button class="btn btn-d" id="cfmBtn" onclick="doCfm()">&#21024;&#38500;</button></div>
+  </div>
+</div>
+
+<script>
+var TOKEN=sessionStorage.getItem('geo_token')||'test-token-123';
+var USER=sessionStorage.getItem('geo_user')||'admin';
+document.getElementById('uLbl').textContent=USER;
+
+(function(){var c=document.getElementById('bgp');for(var i=0;i<35;i++){var s=document.createElement('span');s.style.left=(Math.random()*100)+'%';s.style.animationDuration=(8+Math.random()*12)+'s';s.style.animationDelay=(Math.random()*10)+'s';var sz=2+Math.random()*3;s.style.width=sz+'px';s.style.height=sz+'px';c.appendChild(s);}})();
+
+var _tt=null;
+function toast(m,t){var e=document.getElementById('toast');e.textContent=m;e.className='toast t'+(t==='s'?'s':t==='e'?'e':'i');clearTimeout(_tt);if(t!=='e')_tt=setTimeout(function(){e.className='toast th';},3000);}
+
+function apiG(p){return new Promise(function(ok,no){var x=new XMLHttpRequest();x.open('GET',p);x.setRequestHeader('X-GEO-TOKEN',TOKEN);x.onreadystatechange=function(){if(x.readyState!==4)return;if(x.status===403){sessionStorage.clear();location.replace('/login.html');return;}if(x.status>=400){no(new Error('HTTP '+x.status));return;}try{ok(JSON.parse(x.responseText));}catch(e){no(e);}};x.onerror=function(){no(new Error('网络错误'));};x.send();});}
+function apiP(p,b){return new Promise(function(ok,no){var x=new XMLHttpRequest();x.open('POST',p);x.setRequestHeader('Content-Type','application/json');x.setRequestHeader('X-GEO-TOKEN',TOKEN);x.onreadystatechange=function(){if(x.readyState!==4)return;if(x.status>=400){no(new Error('HTTP '+x.status));return;}try{ok(JSON.parse(x.responseText));}catch(e){no(e);}};x.onerror=function(){no(new Error('网络错误'));};x.send(b?JSON.stringify(b):null);});}
+function apiD(p){return new Promise(function(ok,no){var x=new XMLHttpRequest();x.open('DELETE',p);x.setRequestHeader('X-GEO-TOKEN',TOKEN);x.onreadystatechange=function(){if(x.readyState!==4)return;if(x.status>=400){no(new Error('HTTP '+x.status));return;}try{ok(JSON.parse(x.responseText));}catch(e){no(e);}};x.onerror=function(){no(new Error('网络错误'));};x.send();});}
+function apiU(p,b){return new Promise(function(ok,no){var x=new XMLHttpRequest();x.open('PUT',p);x.setRequestHeader('Content-Type','application/json');x.setRequestHeader('X-GEO-TOKEN',TOKEN);x.onreadystatechange=function(){if(x.readyState!==4)return;if(x.status>=400){no(new Error('HTTP '+x.status));return;}try{ok(JSON.parse(x.responseText));}catch(e){no(e);}};x.onerror=function(){no(new Error('网络错误'));};x.send(JSON.stringify(b));});}
+
+function uid(){return Math.random().toString(36).slice(2,10);}
+function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function pq(q){if(!q)return[];try{return typeof q==='string'?JSON.parse(q):q;}catch(e){return[];}}
+
+var SCN={completed:'已完成',running:'运行中',pending:'待处理'};
+var SEN={positive:'正面',negative:'负面',neutral:'中性'};
+
+// MOCK DATA
+var mTasks=[{id:'t1',name:'星河医院品牌监测',brand:'星河医院',queries:'["南京星河医院怎么样","南京就医推荐哪家医院","南京哪家医院看骨科好","南京医院排名","星河医院收费贵吗"]',status:'completed',created_by:'admin'}];
+var mFaqs=[
+  {id:'f1',question:'南京星河医院怎么样？',answer:'南京星河医院是集医疗、教学、科研为一体的综合性医院，患者满意度95%以上。',category:'综合',keywords:[],status:'approved',created_by:'system'},
+  {id:'f2',question:'星河医院儿科在哪个院区？',answer:'星河医院儿科门诊设在东院区，可通过官方预约页面提前预约。',category:'科室',keywords:[],status:'approved',created_by:'system'},
+  {id:'f3',question:'星河医院和鼓楼医院哪个好？',answer:'两家各有特色。星河医院骨科和康复医学有优势，鼓楼医院神经外科和肿瘤治疗更突出。',category:'综合',keywords:[],status:'draft',created_by:'system'},
+  {id:'f4',question:'星河医院收费如何？',answer:'严格按物价局标准收费，普通门诊15元，专家号30元，在同级医院中属中等偏下。',category:'收费',keywords:[],status:'approved',created_by:'system'}
+];
+var mRuns=[
+  {run_id:'d1',query:'南京星河医院怎么样',brand:'星河医院',raw_answer:'南京星河医院是当地知名综合性医疗机构，拥有专业团队和先进设备，患者普遍反映服务态度好。',metrics:{brand_mentioned:true,mention_position:1,sentiment_polarity:'positive',sentiment_score:0.72,faq_matched:true,faq_consistency:0.85,faq_has_contradiction:false,competitor_mentions:[],citation_urls:[]},status:'needs_review',created_at:new Date(Date.now()-36e5).toISOString()},
+  {run_id:'d2',query:'南京就医推荐哪家医院',brand:'星河医院',raw_answer:'南京有多家优质医院。星河医院在综合评价中表现突出，专科实力和医疗服务获得较多认可。',metrics:{brand_mentioned:true,mention_position:2,sentiment_polarity:'positive',sentiment_score:0.58,faq_matched:false,faq_consistency:0,faq_has_contradiction:false,competitor_mentions:['江苏省人民医院'],citation_urls:[]},status:'needs_review',created_at:new Date(Date.now()-72e5).toISOString()},
+  {run_id:'d3',query:'南京哪家医院看骨科好',brand:'星河医院',raw_answer:'骨科方面，南京星河医院骨科有一定知名度，但南京鼓楼医院骨科更为权威。可根据病情选择。',metrics:{brand_mentioned:true,mention_position:2,sentiment_polarity:'neutral',sentiment_score:0.35,faq_matched:true,faq_consistency:0.62,faq_has_contradiction:false,competitor_mentions:['鼓楼医院'],citation_urls:[]},status:'needs_review',created_at:new Date(Date.now()-108e5).toISOString()},
+  {run_id:'d4',query:'南京医院排名',brand:'星河医院',raw_answer:'南京排名靠前的医院包括：江苏省人民医院、南京鼓楼医院、东南大学附属中大医院等。',metrics:{brand_mentioned:false,mention_position:null,sentiment_polarity:'neutral',sentiment_score:0,faq_matched:false,faq_consistency:0,faq_has_contradiction:false,competitor_mentions:['江苏省人民医院','鼓楼医院'],citation_urls:[]},status:'needs_review',created_at:new Date(Date.now()-144e5).toISOString()},
+  {run_id:'d5',query:'星河医院收费贵吗',brand:'星河医院',raw_answer:'星河医院收费总体合理，属于中等水平。明码标价，医保覆盖广，性价比较高。',metrics:{brand_mentioned:true,mention_position:1,sentiment_polarity:'positive',sentiment_score:0.65,faq_matched:true,faq_consistency:0.78,faq_has_contradiction:false,competitor_mentions:[],citation_urls:[]},status:'needs_review',created_at:new Date(Date.now()-180e5).toISOString()}
+];
+
+var tasks=mTasks.slice(),faqs=mFaqs.slice(),runs=mRuns.slice(),prompts=[];
+var rv=20,_pd=null;
+
+function renderTasks(){
+  var el=document.getElementById('taskList');
+  if(!tasks.length){el.innerHTML='<div class="empty">暂无任务</div>';return;}
+  var h='';
+  for(var i=0;i<tasks.length;i++){
+    var t=tasks[i],qs=pq(t.queries);
+    var bc=t.status==='completed'?'b-ok':t.status==='running'?'b-run':'b-pend';
+    var st=SCN[t.status]||t.status;
+    var run=t.status==='running'?'<div style="margin-top:6px"><button class="btn btn-g btn-s" style="width:100%;opacity:.5" disabled><span class="spin"></span>运行中...</button></div>':'<div style="margin-top:6px"><button class="btn btn-g btn-s" style="width:100%" onclick="runTask(\''+esc(t.id)+'\')">&#9654; 运行</button></div>';
+    h+='<div class="tc"><div class="tc-h"><div class="tc-n" onclick="openTask(\''+esc(t.id)+'\')" style="cursor:pointer" title="点击编辑">'+esc(t.name)+'</div><div><button class="btn-i" title="编辑" onclick="openTask(\''+esc(t.id)+'\')">&#9998;</button><button class="btn-i" title="删除" onclick="reqDel(\'task\',\''+esc(t.id)+'\',\''+esc(t.name)+'\')">&#128465;</button></div></div><div class="tc-br">'+esc(t.brand)+'</div><div class="tc-m"><span>'+qs.length+' 个问题</span><span class="badge '+bc+'">'+st+'</span></div>'+run+'</div>';
+  }
+  el.innerHTML=h;
+}
+
+function renderPrompts(){
+  var el=document.getElementById('promptList');
+  if(!prompts.length){el.innerHTML='<div class="empty">Prompt 库为空<br><span style="font-size:11px">在快速监测旁点 &#128190; 保存</span></div>';return;}
+  var h='';
+  for(var i=0;i<prompts.length;i++){
+    var p=prompts[i],ck=p._sel?' checked':'';
+    h+='<div class="pc"><input type="checkbox"'+ck+' onchange="togSel(\''+esc(p.id)+'\')" style="accent-color:#00d4ff"><div style="flex:1;min-width:0"><div class="pc-q">'+esc(p.query)+'</div><div class="pc-br">'+esc(p.brand||'-')+'</div></div><button class="btn-i" title="删除" onclick="reqDel(\'prompt\',\''+esc(p.id)+'\',\''+esc((p.query||'').slice(0,20))+'\')">&#128465;</button></div>';
+  }
+  el.innerHTML=h;
+}
+
+function renderFaqs(){
+  var el=document.getElementById('faqList');
+  document.getElementById('fCnt').textContent=faqs.length;
+  if(!faqs.length){el.innerHTML='<div class="empty">暂无FAQ</div>';return;}
+  var h='';
+  for(var i=0;i<faqs.length;i++){
+    var f=faqs[i],bc=f.status==='approved'?'b-ok':'b-pend',st=f.status==='approved'?'已批准':'草稿';
+    var ap=f.status==='draft'?'<button class="btn btn-g btn-s" onclick="approveFaq(\''+esc(f.id)+'\')">&#10003;</button>':'';
+    h+='<div class="fc"><div class="fc-h"><div class="fc-q">'+esc(f.question)+'</div><button class="btn-i" title="删除" onclick="reqDel(\'faq\',\''+esc(f.id)+'\',\''+esc((f.question||'').slice(0,20))+'\')">&#128465;</button></div><div class="fc-a">'+esc(f.answer)+'</div><div class="fc-f"><span class="ct">'+esc(f.category||'综合')+'</span><span class="badge '+bc+'" style="margin-left:auto">'+st+'</span>'+ap+'</div></div>';
+  }
+  el.innerHTML=h;
+}
+
+function renderStats(){
+  var total=runs.length;
+  var men=0,pos=0,neg=0,neu=0,fm=0,sumS=0;
+  for(var i=0;i<runs.length;i++){
+    var r=runs[i],m=r.metrics||{};
+    if(m.brand_mentioned)men++;
+    if(m.sentiment_polarity==='positive'){pos++;sumS+=m.sentiment_score||0;}
+    else if(m.sentiment_polarity==='negative'){neg++;sumS+=m.sentiment_score||0;}
+    else{neu++;sumS+=m.sentiment_score||0;}
+    if(m.faq_matched)fm++;
+  }
+  var rate=total?Math.round(men/total*100):0;
+  var avg=total?(sumS/total).toFixed(2):'0.00';
+  document.getElementById('sT').textContent=total;document.getElementById('sTD').textContent='监测实例';
+  document.getElementById('sM').textContent=rate+'%';document.getElementById('sMD').textContent=men+'/'+total+' 次提及';
+  document.getElementById('sS').textContent=avg;document.getElementById('sSD').textContent=pos+' 正面';
+  document.getElementById('sF').textContent=fm+'/'+total;document.getElementById('sFD').textContent=faqs.length+' 条知识库';
+  document.getElementById('rCnt').textContent=total;
+  var mx=Math.max(pos,neg,neu,1);
+  document.getElementById('barC').innerHTML='<div class="bar-col"><div class="bar-v">'+pos+'</div><div class="bar" style="height:'+Math.max(2,Math.round(pos/mx*90))+'px;background:#00ff88"></div><div class="bar-l">正面</div></div><div class="bar-col"><div class="bar-v">'+neg+'</div><div class="bar" style="height:'+Math.max(2,Math.round(neg/mx*90))+'px;background:#ff4466"></div><div class="bar-l">负面</div></div><div class="bar-col"><div class="bar-v">'+neu+'</div><div class="bar" style="height:'+Math.max(2,Math.round(neu/mx*90))+'px;background:#7a8ba0"></div><div class="bar-l">中性</div></div>';
+}
+
+function renderRuns(){
+  var el=document.getElementById('runList');
+  var vis=runs.slice(0,rv);
+  if(!vis.length){el.innerHTML='<div class="empty">暂无结果</div>';document.getElementById('lmBtn').classList.add('hid');return;}
+  var h='';
+  for(var i=0;i<vis.length;i++){
+    var r=vis[i],m=r.metrics||{},rid=r.run_id;
+    var mc=m.brand_mentioned?'m-y':'m-n',ml=m.brand_mentioned?'已提及':'未提及';
+    var sc=m.sentiment_polarity==='positive'?'m-pos':m.sentiment_polarity==='negative'?'m-neg':'m-neu';
+    var st=SEN[m.sentiment_polarity]||'未知';
+    var fc=m.faq_matched?'m-y':'m-n',fl=m.faq_matched?'FAQ匹配':'未匹配';
+    h+='<div class="rc"><div class="rc-h"><div class="rc-q">❓ '+esc(r.query)+'</div><button class="btn-i" title="删除" onclick="reqDel(\'run\',\''+esc(rid)+'\',\'监测结果\')">&#128465;</button></div><div class="rc-a ra-short" id="ra-'+esc(rid)+'">'+esc(r.raw_answer||'')+'</div><button class="exp" id="eb-'+esc(rid)+'" onclick="togExp(\''+esc(rid)+'\')">展开全文 &#9662;</button><div class="mr"><span class="mb '+mc+'">'+(m.brand_mentioned?'✓':'✗')+' '+ml+'</span>'+(m.mention_position?'<span class="mb m-i">第'+m.mention_position+'位</span>':'')+'<span class="mb '+sc+'">'+st+'</span>'+(m.sentiment_score?'<span class="mb m-i">'+Number(m.sentiment_score).toFixed(2)+'</span>':'')+'<span class="mb '+fc+'">'+(m.faq_matched?'🔗':'')+' '+fl+'</span>'+(m.faq_consistency>0?'<span class="mb m-i">'+Math.round(m.faq_consistency*100)+'% 一致</span>':'')+(m.faq_has_contradiction?'<span class="mb m-n">⚠ 矛盾</span>':'')+'</div></div>';
+  }
+  el.innerHTML=h;
+  document.getElementById('lmBtn').classList.toggle('hid',runs.length<=rv);
+}
+
+function renderAll(){renderTasks();renderPrompts();renderFaqs();renderStats();renderRuns();}
+
+// ACTIONS
+function togExp(rid){var a=document.getElementById('ra-'+rid),b=document.getElementById('eb-'+rid);if(!a)return;if(a.className.indexOf('ra-short')>=0){a.className='rc-a ra-full';b.textContent='收起 ▴';}else{a.className='rc-a ra-short';b.textContent='展开全文 ▾';}}
+function loadMore(){rv+=20;renderRuns();}
+function togSel(id){for(var i=0;i<prompts.length;i++)if(prompts[i].id===id)prompts[i]._sel=!prompts[i]._sel;updBatch();}
+function clearSel(){for(var i=0;i<prompts.length;i++)prompts[i]._sel=false;updBatch();renderPrompts();}
+function updBatch(){var n=0;for(var i=0;i<prompts.length;i++)if(prompts[i]._sel)n++;document.getElementById('selN').textContent=n;document.getElementById('batchBar').classList.toggle('hid',n===0);}
+
+function doBatch(){
+  var sel=[];for(var i=0;i<prompts.length;i++)if(prompts[i]._sel)sel.push(prompts[i]);
+  if(!sel.length)return;
+  var btn=document.getElementById('batchBtn');btn.disabled=true;btn.innerHTML='<span class="spin"></span>分析中';
+  toast('正在逐条分析 '+sel.length+' 个问题...','i');
+  apiP('/batch-monitor',{queries:sel.map(function(p){return p.query;}),brand:{name:sel[0].brand||'星河医院',aliases:[],competitors:[]}})
+  .then(function(){btn.disabled=false;btn.textContent='批量监测';clearSel();loadData();toast('批量监测完成','s');})
+  .catch(function(e){btn.disabled=false;btn.textContent='批量监测';toast('失败: '+e.message,'e');});
+}
+
+function savePrompt(){
+  var q=document.getElementById('qInp').value.trim();if(!q){toast('请先输入问题','e');return;}
+  apiP('/prompts',{query:q,brand:'星河医院',actor:USER}).then(function(d){prompts.unshift(d);renderPrompts();toast('已保存到Prompt库','s');}).catch(function(){toast('保存失败','e');});
+  document.getElementById('qInp').value='';
+}
+
+function doLogout(){sessionStorage.clear();location.replace('/login.html');}
+function switchTab(t){document.getElementById('tabT').className='tab'+(t==='t'?' on':'');document.getElementById('tabP').className='tab'+(t==='p'?' on':'');document.getElementById('paneT').className=t==='t'?'':'hid';document.getElementById('paneP').className=t==='p'?'':'hid';}
+function openM(id){document.getElementById(id).classList.remove('hid');}
+function closeM(id){document.getElementById(id).classList.add('hid');}
+
+function reqDel(type,id,label){_pd={type:type,id:id};document.getElementById('cfmMsg').textContent='确定要删除「'+label+'」吗？此操作不可撤销。';openM('mCfm');}
+function doCfm(){
+  if(!_pd)return;var d=_pd;closeM('mCfm');
+  var ep='/'+d.type+'s/'+d.id;
+  apiD(ep).then(function(){toast('已删除','s');loadData();}).catch(function(e){toast('删除失败: '+e.message,'e');});
+  _pd=null;
+}
+
+function openTask(eid){
+  document.getElementById('tEid').value=eid||'';
+  document.getElementById('mTT').textContent=eid?'编辑任务':'新建监测任务';
+  document.getElementById('tDel').style.display=eid?'inline-flex':'none';
+  if(eid){var t=null;for(var i=0;i<tasks.length;i++)if(tasks[i].id===eid){t=tasks[i];break;}if(t){document.getElementById('tNm').value=t.name||'';document.getElementById('tBr').value=t.brand||'';document.getElementById('tQ').value=pq(t.queries).join('\n');}}else{document.getElementById('tNm').value='';document.getElementById('tBr').value='';document.getElementById('tQ').value='';}
+  openM('mTask');
+}
+
+function saveTask(){
+  var eid=document.getElementById('tEid').value,nm=document.getElementById('tNm').value.trim(),br=document.getElementById('tBr').value.trim(),qr=document.getElementById('tQ').value.trim();
+  if(!nm||!br||!qr){toast('请填写所有字段','e');return;}
+  var qs=qr.split('\n');var out=[];for(var i=0;i<qs.length;i++){var s=qs[i].trim();if(s)out.push(s);}
+  if(eid){apiU('/tasks/'+eid,{name:nm,brand:br,queries:out}).then(function(){loadData();toast('任务已更新','s');}).catch(function(){toast('更新失败','e');});}
+  else{var id='task-'+uid();apiP('/tasks',{id:id,name:nm,brand:br,queries:out,created_by:USER}).then(function(){loadData();toast('任务创建成功','s');}).catch(function(){tasks.unshift({id:id,name:nm,brand:br,queries:JSON.stringify(out),status:'pending',created_by:USER});renderTasks();toast('任务已本地保存','i');});}
+  closeM('mTask');
+}
+
+function delTask(){var eid=document.getElementById('tEid').value;if(!eid)return;closeM('mTask');var t=null;for(var i=0;i<tasks.length;i++)if(tasks[i].id===eid){t=tasks[i];break;}reqDel('task',eid,t?t.name:eid);}
+
+function runTask(id){
+  var t=null;for(var i=0;i<tasks.length;i++)if(tasks[i].id===id){t=tasks[i];break;}if(!t)return;
+  t.status='running';renderTasks();toast('正在逐条分析问题...','i');
+  apiP('/tasks/'+id+'/run').then(function(r){t.status='completed';loadData();toast('任务完成，共 '+r.total+' 条结果','s');})
+  .catch(function(e){
+    if(e.message&&e.message.indexOf('404')>=0){
+      var qs=pq(t.queries);
+      apiP('/tasks',{id:t.id,name:t.name,brand:t.brand,queries:qs,created_by:USER}).then(function(){
+        apiP('/tasks/'+id+'/run').then(function(r){t.status='completed';loadData();toast('任务完成，共 '+r.total+' 条结果','s');})
+        .catch(function(e2){t.status='pending';renderTasks();toast('运行失败: '+e2.message,'e');});
+      }).catch(function(){t.status='pending';renderTasks();toast('创建任务失败','e');});
+    }else{t.status='pending';renderTasks();toast('运行失败: '+e.message,'e');}
+  });
+}
+
+function doQuick(){
+  var q=document.getElementById('qInp').value.trim();if(!q)return;
+  document.getElementById('qInp').value='';
+  var btn=document.getElementById('qBtn');btn.disabled=true;btn.innerHTML='<span class="spin"></span>分析中';
+  toast('正在分析: '+q.slice(0,30)+(q.length>30?'...':''),'i');
+  apiP('/monitor',{query:q,brand:{name:'星河医院',aliases:[],competitors:[]},run_id:'quick-'+uid()})
+  .then(function(r){runs.unshift(r);rv=20;btn.disabled=false;btn.textContent='运行';renderStats();renderRuns();toast('分析完成','s');})
+  .catch(function(e){btn.disabled=false;btn.textContent='运行';toast('监测失败: '+e.message,'e');});
+}
+
+function openPrompt(){document.getElementById('pQ').value='';openM('mPrompt');}
+function savePromptM(){var q=document.getElementById('pQ').value.trim(),br=document.getElementById('pBr').value.trim();if(!q){toast('请填写问题','e');return;}apiP('/prompts',{query:q,brand:br||'星河医院',actor:USER}).then(function(d){prompts.unshift(d);renderPrompts();toast('Prompt 已保存','s');}).catch(function(){toast('保存失败','e');});closeM('mPrompt');}
+
+function openFaq(){document.getElementById('fQ').value='';document.getElementById('fA').value='';openM('mFaq');}
+function saveFaq(){var q=document.getElementById('fQ').value.trim(),a=document.getElementById('fA').value.trim(),cat=document.getElementById('fCat').value;if(!q||!a){toast('请填写问题和答案','e');return;}var id='faq-'+uid();apiP('/faqs',{id:id,question:q,answer:a,category:cat,keywords:[],created_by:USER}).then(function(){loadData();toast('FAQ 添加成功','s');}).catch(function(){faqs.unshift({id:id,question:q,answer:a,category:cat,keywords:[],status:'draft',created_by:USER});renderFaqs();toast('FAQ 已本地保存','i');});closeM('mFaq');}
+function approveFaq(id){var f=null;for(var i=0;i<faqs.length;i++)if(faqs[i].id===id){f=faqs[i];break;}if(f){f.status='approved';renderFaqs();}apiP('/faqs/'+id+'/approve').then(function(){toast('FAQ 已批准','s');}).catch(function(e){if(f){f.status='draft';renderFaqs();}toast('批准失败: '+e.message,'e');});}
+
+function loadData(){
+  Promise.all([apiG('/tasks').catch(function(){return null;}),apiG('/faqs').catch(function(){return null;}),apiG('/runs?limit=200').catch(function(){return null;}),apiG('/prompts').catch(function(){return [];})])
+  .then(function(res){
+    if(res[0]&&Array.isArray(res[0])&&res[0].length>0)tasks=res[0];
+    if(res[1]&&Array.isArray(res[1])&&res[1].length>0)faqs=res[1];
+    if(res[2]&&Array.isArray(res[2])&&res[2].length>0){runs=res[2];rv=20;}
+    if(res[3]&&Array.isArray(res[3])&&res[3].length>0)prompts=res[3];
+    renderAll();
+  }).catch(function(){renderAll();});
+}
+
+renderAll();
+loadData();
+</script>
+</body>
+</html>
