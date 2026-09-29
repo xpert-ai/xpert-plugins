@@ -344,7 +344,7 @@ export const RS_STYLES_CSS = `
     /* ===== 浮层层级归位（§5.6）：Tailwind 工具类与宿主层互相踩，一律回刻度表 =====
        同特异性下本表后置注入必胜 z-50（R-P80 通道事实），严禁 !important（T13 扫描器合规计数不认） */
     [data-slot="sheet-overlay"] { z-index: var(--rs-layer-sheet-overlay); backdrop-filter: blur(2px); }
-    [data-slot="dialog-overlay"] { z-index: var(--rs-layer-sheet-overlay); backdrop-filter: blur(2px); }
+    [data-slot="dialog-overlay"] { z-index: var(--rs-layer-sheet-overlay); }
     [data-slot="sheet-content"] { z-index: var(--rs-layer-sheet); }
     [data-slot="dialog-content"] { z-index: var(--rs-layer-dialog); }
     [data-slot="alert-dialog-overlay"] { z-index: var(--rs-layer-sheet-overlay); }

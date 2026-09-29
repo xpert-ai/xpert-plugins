@@ -13,7 +13,7 @@ var XpertResumeScreen = (() => {
   var __privateAdd = (obj, member, value) => member.has(obj) ? __typeError("Cannot add the same private member more than once") : member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
   var __privateSet = (obj, member, value, setter) => (__accessCheck(obj, member, "write to private field"), setter ? setter.call(obj, value) : member.set(obj, value), value);
 
-  // community/apps/resume-screen/src/lib/remote-components/resume-screen/src/react-shim.ts
+  // src/lib/remote-components/resume-screen/src/react-shim.ts
   var react_shim_exports = {};
   __export(react_shim_exports, {
     Children: () => Children,
@@ -87,12 +87,12 @@ var XpertResumeScreen = (() => {
   var useTransition = ReactGlobal.useTransition;
   var version = ReactGlobal.version;
 
-  // community/apps/resume-screen/src/lib/remote-components/resume-screen/src/react-dom-client-shim.ts
+  // src/lib/remote-components/resume-screen/src/react-dom-client-shim.ts
   var ReactDOMGlobal = window.ReactDOM;
   var createRoot = ReactDOMGlobal.createRoot;
   var hydrateRoot = ReactDOMGlobal.hydrateRoot;
 
-  // community/apps/resume-screen/src/lib/remote-components/resume-screen/src/utils.ts
+  // src/lib/remote-components/resume-screen/src/utils.ts
   var PAGE_SIZE = 20;
   var DOM_ROW_CAP = 200;
   var PARSE_POLL_MS = 3e4;
@@ -308,7 +308,7 @@ var XpertResumeScreen = (() => {
     };
   }
 
-  // community/apps/resume-screen/src/lib/remote-components/resume-screen/src/bridge.ts
+  // src/lib/remote-components/resume-screen/src/bridge.ts
   var CHANNEL = "xpertai.remote_component";
   var VERSION = 1;
   var REQUEST_TIMEOUT_MS = 15e3;
@@ -453,7 +453,7 @@ var XpertResumeScreen = (() => {
     post("resize", { height: Math.ceil(height), viewportBound: false });
   }
 
-  // community/apps/resume-screen/src/lib/remote-components/resume-screen/src/styles.ts
+  // src/lib/remote-components/resume-screen/src/styles.ts
   var RS_STYLES_CSS = `
     :root {
       /* \u6D45\u8272\u9489\u6B7B\uFF1A\u4E0B\u5217 shadcn \u8BED\u4E49 token \u4E0E app.css \u7684 :root \u540C\u540D\u3002\u5BBF\u4E3B createRemoteTheme()
@@ -773,7 +773,7 @@ var XpertResumeScreen = (() => {
     /* ===== \u6D6E\u5C42\u5C42\u7EA7\u5F52\u4F4D\uFF08\xA75.6\uFF09\uFF1ATailwind \u5DE5\u5177\u7C7B\u4E0E\u5BBF\u4E3B\u5C42\u4E92\u76F8\u8E29\uFF0C\u4E00\u5F8B\u56DE\u523B\u5EA6\u8868 =====
        \u540C\u7279\u5F02\u6027\u4E0B\u672C\u8868\u540E\u7F6E\u6CE8\u5165\u5FC5\u80DC z-50\uFF08R-P80 \u901A\u9053\u4E8B\u5B9E\uFF09\uFF0C\u4E25\u7981 !important\uFF08T13 \u626B\u63CF\u5668\u5408\u89C4\u8BA1\u6570\u4E0D\u8BA4\uFF09 */
     [data-slot="sheet-overlay"] { z-index: var(--rs-layer-sheet-overlay); backdrop-filter: blur(2px); }
-    [data-slot="dialog-overlay"] { z-index: var(--rs-layer-sheet-overlay); backdrop-filter: blur(2px); }
+    [data-slot="dialog-overlay"] { z-index: var(--rs-layer-sheet-overlay); }
     [data-slot="sheet-content"] { z-index: var(--rs-layer-sheet); }
     [data-slot="dialog-content"] { z-index: var(--rs-layer-dialog); }
     [data-slot="alert-dialog-overlay"] { z-index: var(--rs-layer-sheet-overlay); }
@@ -806,7 +806,7 @@ var XpertResumeScreen = (() => {
     document.head.appendChild(style);
   }
 
-  // node_modules/.pnpm/clsx@2.1.1/node_modules/clsx/dist/clsx.mjs
+  // ../../../node_modules/.pnpm/clsx@2.1.1/node_modules/clsx/dist/clsx.mjs
   function r(e) {
     var t, f, n = "";
     if ("string" == typeof e || "number" == typeof e) n += e;
@@ -821,7 +821,7 @@ var XpertResumeScreen = (() => {
     return n;
   }
 
-  // node_modules/.pnpm/tailwind-merge@3.6.0/node_modules/tailwind-merge/dist/bundle-mjs.mjs
+  // ../../../node_modules/.pnpm/tailwind-merge@3.6.0/node_modules/tailwind-merge/dist/bundle-mjs.mjs
   var concatArrays = (array1, array2) => {
     const combinedArray = new Array(array1.length + array2.length);
     for (let i = 0; i < array1.length; i++) {
@@ -4075,27 +4075,27 @@ var XpertResumeScreen = (() => {
   };
   var twMerge = /* @__PURE__ */ createTailwindMerge(getDefaultConfig);
 
-  // node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils/mergeClasses.mjs
+  // ../../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils/mergeClasses.mjs
   var mergeClasses = (...classes) => classes.filter((className, index2, array) => {
     return Boolean(className) && className.trim() !== "" && array.indexOf(className) === index2;
   }).join(" ").trim();
 
-  // node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils/toKebabCase.mjs
+  // ../../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils/toKebabCase.mjs
   var toKebabCase = (string) => string.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
 
-  // node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils/toCamelCase.mjs
+  // ../../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils/toCamelCase.mjs
   var toCamelCase = (string) => string.replace(
     /^([A-Z])|[\s-_]+(\w)/g,
     (match, p1, p2) => p2 ? p2.toUpperCase() : p1.toLowerCase()
   );
 
-  // node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils/toPascalCase.mjs
+  // ../../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils/toPascalCase.mjs
   var toPascalCase = (string) => {
     const camelCase = toCamelCase(string);
     return camelCase.charAt(0).toUpperCase() + camelCase.slice(1);
   };
 
-  // node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/defaultAttributes.mjs
+  // ../../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/defaultAttributes.mjs
   var defaultAttributes = {
     xmlns: "http://www.w3.org/2000/svg",
     width: 24,
@@ -4108,7 +4108,7 @@ var XpertResumeScreen = (() => {
     strokeLinejoin: "round"
   };
 
-  // node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils/hasA11yProp.mjs
+  // ../../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/shared/src/utils/hasA11yProp.mjs
   var hasA11yProp = (props) => {
     for (const prop in props) {
       if (prop.startsWith("aria-") || prop === "role" || prop === "title") {
@@ -4118,11 +4118,11 @@ var XpertResumeScreen = (() => {
     return false;
   };
 
-  // node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/context.mjs
+  // ../../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/context.mjs
   var LucideContext = createContext({});
   var useLucideContext = () => useContext(LucideContext);
 
-  // node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/Icon.mjs
+  // ../../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/Icon.mjs
   var Icon = forwardRef(
     ({ color, size: size4, strokeWidth, absoluteStrokeWidth, className = "", children, iconNode, ...rest }, ref) => {
       const {
@@ -4154,7 +4154,7 @@ var XpertResumeScreen = (() => {
     }
   );
 
-  // node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/createLucideIcon.mjs
+  // ../../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/createLucideIcon.mjs
   var createLucideIcon = (iconName, iconNode) => {
     const Component2 = forwardRef(
       ({ className, ...props }, ref) => createElement(Icon, {
@@ -4172,26 +4172,26 @@ var XpertResumeScreen = (() => {
     return Component2;
   };
 
-  // node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/check.mjs
+  // ../../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/check.mjs
   var __iconNode = [["path", { d: "M20 6 9 17l-5-5", key: "1gmf2c" }]];
   var Check = createLucideIcon("check", __iconNode);
 
-  // node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-down.mjs
+  // ../../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-down.mjs
   var __iconNode2 = [["path", { d: "m6 9 6 6 6-6", key: "qrunsl" }]];
   var ChevronDown = createLucideIcon("chevron-down", __iconNode2);
 
-  // node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-up.mjs
+  // ../../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/chevron-up.mjs
   var __iconNode3 = [["path", { d: "m18 15-6-6-6 6", key: "153udz" }]];
   var ChevronUp = createLucideIcon("chevron-up", __iconNode3);
 
-  // node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/x.mjs
+  // ../../../node_modules/.pnpm/lucide-react@1.24.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/x.mjs
   var __iconNode4 = [
     ["path", { d: "M18 6 6 18", key: "1bl5f8" }],
     ["path", { d: "m6 6 12 12", key: "d8bk6v" }]
   ];
   var X = createLucideIcon("x", __iconNode4);
 
-  // community/apps/resume-screen/src/lib/remote-components/resume-screen/src/react-jsx-runtime-shim.ts
+  // src/lib/remote-components/resume-screen/src/react-jsx-runtime-shim.ts
   var ReactGlobal2 = window.React;
   var Fragment2 = ReactGlobal2.Fragment;
   function jsx(type, props, key) {
@@ -4199,7 +4199,7 @@ var XpertResumeScreen = (() => {
   }
   var jsxs = jsx;
 
-  // community/apps/resume-screen/src/lib/remote-components/resume-screen/src/react-dom-shim.ts
+  // src/lib/remote-components/resume-screen/src/react-dom-shim.ts
   var ReactDOMGlobal2 = window.ReactDOM;
   var createPortal = ReactDOMGlobal2.createPortal;
   var flushSync = ReactDOMGlobal2.flushSync;
@@ -4210,7 +4210,7 @@ var XpertResumeScreen = (() => {
   var unmountComponentAtNode = ReactDOMGlobal2.unmountComponentAtNode;
   var version2 = ReactDOMGlobal2.version;
 
-  // node_modules/.pnpm/@radix-ui+react-slot@1.3.0_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-slot/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-slot@1.3.0_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-slot/dist/index.mjs
   var dist_exports = {};
   __export(dist_exports, {
     Root: () => Slot,
@@ -4220,7 +4220,7 @@ var XpertResumeScreen = (() => {
     createSlottable: () => createSlottable
   });
 
-  // node_modules/.pnpm/@radix-ui+react-compose-ref_1124f78b370d43bfeceaaa9b791be73d/node_modules/@radix-ui/react-compose-refs/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-compose-ref_1124f78b370d43bfeceaaa9b791be73d/node_modules/@radix-ui/react-compose-refs/dist/index.mjs
   function setRef(ref, value) {
     if (typeof ref === "function") {
       return ref(value);
@@ -4256,7 +4256,7 @@ var XpertResumeScreen = (() => {
     return useCallback(composeRefs(...refs), refs);
   }
 
-  // node_modules/.pnpm/@radix-ui+react-slot@1.3.0_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-slot/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-slot@1.3.0_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-slot/dist/index.mjs
   // @__NO_SIDE_EFFECTS__
   function createSlot(ownerName) {
     const Slot22 = forwardRef((props, forwardedRef) => {
@@ -4384,7 +4384,7 @@ var XpertResumeScreen = (() => {
   };
   var use = react_shim_exports[" use ".trim().toString()];
 
-  // node_modules/.pnpm/@radix-ui+react-primitive@2_4c60825657fad9e38f0a4d7b31c9e11d/node_modules/@radix-ui/react-primitive/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-primitive@2_4c60825657fad9e38f0a4d7b31c9e11d/node_modules/@radix-ui/react-primitive/dist/index.mjs
   var NODES = [
     "a",
     "button",
@@ -4421,7 +4421,7 @@ var XpertResumeScreen = (() => {
     if (target) flushSync(() => target.dispatchEvent(event));
   }
 
-  // node_modules/.pnpm/@radix-ui+react-visually-hi_c850badfde3651ed5cb7d90f2934dc1f/node_modules/@radix-ui/react-visually-hidden/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-visually-hi_c850badfde3651ed5cb7d90f2934dc1f/node_modules/@radix-ui/react-visually-hidden/dist/index.mjs
   var VISUALLY_HIDDEN_STYLES = Object.freeze({
     // See: https://github.com/twbs/bootstrap/blob/main/scss/mixins/_visually-hidden.scss
     position: "absolute",
@@ -4451,7 +4451,7 @@ var XpertResumeScreen = (() => {
   VisuallyHidden.displayName = NAME;
   var Root = VisuallyHidden;
 
-  // node_modules/.pnpm/@radix-ui+react-context@1.2_c68a3e9727ce2654dfdd7ac4b59b3999/node_modules/@radix-ui/react-context/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-context@1.2_c68a3e9727ce2654dfdd7ac4b59b3999/node_modules/@radix-ui/react-context/dist/index.mjs
   function createContextScope(scopeName, createContextScopeDeps = []) {
     let defaultContexts = [];
     function createContext3(rootComponentName, defaultContext) {
@@ -4513,7 +4513,7 @@ var XpertResumeScreen = (() => {
     return createScope;
   }
 
-  // node_modules/.pnpm/@radix-ui+react-collection@_48cd336a2ef85a82af4ed74226b41844/node_modules/@radix-ui/react-collection/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-collection@_48cd336a2ef85a82af4ed74226b41844/node_modules/@radix-ui/react-collection/dist/index.mjs
   function createCollection(name) {
     const PROVIDER_NAME3 = name + "CollectionProvider";
     const [createCollectionContext, createCollectionScope4] = createContextScope(PROVIDER_NAME3);
@@ -4577,7 +4577,7 @@ var XpertResumeScreen = (() => {
     ];
   }
 
-  // node_modules/.pnpm/@radix-ui+primitive@1.1.5/node_modules/@radix-ui/primitive/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+primitive@1.1.5/node_modules/@radix-ui/primitive/dist/index.mjs
   var canUseDOM = !!(typeof window !== "undefined" && window.document && window.document.createElement);
   function composeEventHandlers(originalEventHandler, ourEventHandler, { checkForDefaultPrevented = true } = {}) {
     return function handleEvent(event) {
@@ -4588,11 +4588,11 @@ var XpertResumeScreen = (() => {
     };
   }
 
-  // node_modules/.pnpm/@radix-ui+react-use-layout-_ad41f999ca2019252b887df955038ce1/node_modules/@radix-ui/react-use-layout-effect/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-use-layout-_ad41f999ca2019252b887df955038ce1/node_modules/@radix-ui/react-use-layout-effect/dist/index.mjs
   var useLayoutEffect2 = globalThis?.document ? useLayoutEffect : () => {
   };
 
-  // node_modules/.pnpm/@radix-ui+react-use-control_e3b0d353471f209a120bf58c8d35c552/node_modules/@radix-ui/react-use-controllable-state/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-use-control_e3b0d353471f209a120bf58c8d35c552/node_modules/@radix-ui/react-use-controllable-state/dist/index.mjs
   var useInsertionEffect2 = react_shim_exports[" useInsertionEffect ".trim().toString()] || useLayoutEffect2;
   function useControllableState({
     prop,
@@ -4658,7 +4658,7 @@ var XpertResumeScreen = (() => {
     return typeof value === "function";
   }
 
-  // node_modules/.pnpm/@radix-ui+react-collapsible_a9f09893a8761cb960ef9cb5a7a4a433/node_modules/@radix-ui/react-collapsible/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-collapsible_a9f09893a8761cb960ef9cb5a7a4a433/node_modules/@radix-ui/react-collapsible/dist/index.mjs
   var dist_exports2 = {};
   __export(dist_exports2, {
     Collapsible: () => Collapsible,
@@ -4670,7 +4670,7 @@ var XpertResumeScreen = (() => {
     createCollapsibleScope: () => createCollapsibleScope
   });
 
-  // node_modules/.pnpm/@radix-ui+react-presence@1._d6843a2439efb57a10ac44d5b494738a/node_modules/@radix-ui/react-presence/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-presence@1._d6843a2439efb57a10ac44d5b494738a/node_modules/@radix-ui/react-presence/dist/index.mjs
   function useStateMachine(initialState, machine) {
     return useReducer((state, event) => {
       const nextState = machine[state][event];
@@ -4840,7 +4840,7 @@ var XpertResumeScreen = (() => {
     return element.props.ref || element.ref;
   }
 
-  // node_modules/.pnpm/@radix-ui+react-id@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-id/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-id@1.1.2_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-id/dist/index.mjs
   var useReactId = react_shim_exports[" useId ".trim().toString()] || (() => void 0);
   var count = 0;
   function useId2(deterministicId) {
@@ -4851,7 +4851,7 @@ var XpertResumeScreen = (() => {
     return deterministicId || (id ? `radix-${id}` : "");
   }
 
-  // node_modules/.pnpm/@radix-ui+react-collapsible_a9f09893a8761cb960ef9cb5a7a4a433/node_modules/@radix-ui/react-collapsible/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-collapsible_a9f09893a8761cb960ef9cb5a7a4a433/node_modules/@radix-ui/react-collapsible/dist/index.mjs
   var COLLAPSIBLE_NAME = "Collapsible";
   var [createCollapsibleContext, createCollapsibleScope] = createContextScope(COLLAPSIBLE_NAME);
   var [CollapsibleProvider, useCollapsibleContext] = createCollapsibleContext(COLLAPSIBLE_NAME);
@@ -4985,14 +4985,14 @@ var XpertResumeScreen = (() => {
   var Trigger = CollapsibleTrigger;
   var Content = CollapsibleContent;
 
-  // node_modules/.pnpm/@radix-ui+react-direction@1_2157d1ab8e201288009ff536bb11c468/node_modules/@radix-ui/react-direction/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-direction@1_2157d1ab8e201288009ff536bb11c468/node_modules/@radix-ui/react-direction/dist/index.mjs
   var DirectionContext = createContext(void 0);
   function useDirection(localDir) {
     const globalDir = useContext(DirectionContext);
     return localDir || globalDir || "ltr";
   }
 
-  // node_modules/.pnpm/@radix-ui+react-alert-dialo_e6e41d2a4af4ab50646683a57177c7f1/node_modules/@radix-ui/react-alert-dialog/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-alert-dialo_e6e41d2a4af4ab50646683a57177c7f1/node_modules/@radix-ui/react-alert-dialog/dist/index.mjs
   var dist_exports4 = {};
   __export(dist_exports4, {
     Action: () => Action,
@@ -5016,7 +5016,7 @@ var XpertResumeScreen = (() => {
     createAlertDialogScope: () => createAlertDialogScope
   });
 
-  // node_modules/.pnpm/@radix-ui+react-dialog@1.1._19e637a1eb439fb7ac9fbd37f3b253ea/node_modules/@radix-ui/react-dialog/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-dialog@1.1._19e637a1eb439fb7ac9fbd37f3b253ea/node_modules/@radix-ui/react-dialog/dist/index.mjs
   var dist_exports3 = {};
   __export(dist_exports3, {
     Close: () => DialogClose,
@@ -5039,7 +5039,7 @@ var XpertResumeScreen = (() => {
     createDialogScope: () => createDialogScope
   });
 
-  // node_modules/.pnpm/@radix-ui+react-use-callbac_5106d65c013fadfe178f87486239c7af/node_modules/@radix-ui/react-use-callback-ref/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-use-callbac_5106d65c013fadfe178f87486239c7af/node_modules/@radix-ui/react-use-callback-ref/dist/index.mjs
   function useCallbackRef(callback) {
     const callbackRef = useRef(callback);
     useEffect(() => {
@@ -5048,7 +5048,7 @@ var XpertResumeScreen = (() => {
     return useMemo(() => ((...args) => callbackRef.current?.(...args)), []);
   }
 
-  // node_modules/.pnpm/@radix-ui+react-dismissable_52f617dd5f45a8e179b652efa1a9fb2f/node_modules/@radix-ui/react-dismissable-layer/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-dismissable_52f617dd5f45a8e179b652efa1a9fb2f/node_modules/@radix-ui/react-dismissable-layer/dist/index.mjs
   var DISMISSABLE_LAYER_NAME = "DismissableLayer";
   var CONTEXT_UPDATE = "dismissableLayer.update";
   var POINTER_DOWN_OUTSIDE = "dismissableLayer.pointerDownOutside";
@@ -5386,7 +5386,7 @@ var XpertResumeScreen = (() => {
     }
   }
 
-  // node_modules/.pnpm/@radix-ui+react-focus-scope_ea0a3c5eb186fbaed09fdcf83b961bfb/node_modules/@radix-ui/react-focus-scope/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-focus-scope_ea0a3c5eb186fbaed09fdcf83b961bfb/node_modules/@radix-ui/react-focus-scope/dist/index.mjs
   var AUTOFOCUS_ON_MOUNT = "focusScope.autoFocusOnMount";
   var AUTOFOCUS_ON_UNMOUNT = "focusScope.autoFocusOnUnmount";
   var EVENT_OPTIONS = { bubbles: false, cancelable: true };
@@ -5592,7 +5592,7 @@ var XpertResumeScreen = (() => {
     return items.filter((item) => item.tagName !== "A");
   }
 
-  // node_modules/.pnpm/@radix-ui+react-portal@1.1._dc7a74c2058d5b681fc692ae2e26f5cd/node_modules/@radix-ui/react-portal/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-portal@1.1._dc7a74c2058d5b681fc692ae2e26f5cd/node_modules/@radix-ui/react-portal/dist/index.mjs
   var PORTAL_NAME = "Portal";
   var Portal = forwardRef((props, forwardedRef) => {
     const { container: containerProp, ...portalProps } = props;
@@ -5603,7 +5603,7 @@ var XpertResumeScreen = (() => {
   });
   Portal.displayName = PORTAL_NAME;
 
-  // node_modules/.pnpm/@radix-ui+react-focus-guard_6b3d65e71789b2986a17d5efdb8859bf/node_modules/@radix-ui/react-focus-guards/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-focus-guard_6b3d65e71789b2986a17d5efdb8859bf/node_modules/@radix-ui/react-focus-guards/dist/index.mjs
   var count2 = 0;
   var guards = null;
   function useFocusGuards() {
@@ -5640,7 +5640,7 @@ var XpertResumeScreen = (() => {
     return element;
   }
 
-  // node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/tslib.es6.mjs
+  // ../../../node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/tslib.es6.mjs
   var __assign = function() {
     __assign = Object.assign || function __assign2(t) {
       for (var s, i = 1, n = arguments.length; i < n; i++) {
@@ -5672,13 +5672,13 @@ var XpertResumeScreen = (() => {
     return to.concat(ar || Array.prototype.slice.call(from));
   }
 
-  // node_modules/.pnpm/react-remove-scroll-bar@2.3_24279af7608b4a4e9fe00320b3c0cae7/node_modules/react-remove-scroll-bar/dist/es2015/constants.js
+  // ../../../node_modules/.pnpm/react-remove-scroll-bar@2.3_24279af7608b4a4e9fe00320b3c0cae7/node_modules/react-remove-scroll-bar/dist/es2015/constants.js
   var zeroRightClassName = "right-scroll-bar-position";
   var fullWidthClassName = "width-before-scroll-bar";
   var noScrollbarsClassName = "with-scroll-bars-hidden";
   var removedBarSizeVariable = "--removed-body-scroll-bar-size";
 
-  // node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/assignRef.js
+  // ../../../node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/assignRef.js
   function assignRef(ref, value) {
     if (typeof ref === "function") {
       ref(value);
@@ -5688,7 +5688,7 @@ var XpertResumeScreen = (() => {
     return ref;
   }
 
-  // node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/useRef.js
+  // ../../../node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/useRef.js
   function useCallbackRef2(initialValue, callback) {
     var ref = useState(function() {
       return {
@@ -5715,7 +5715,7 @@ var XpertResumeScreen = (() => {
     return ref.facade;
   }
 
-  // node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/useMergeRef.js
+  // ../../../node_modules/.pnpm/use-callback-ref@1.3.3_@types+react@18.3.31_react@18.3.1/node_modules/use-callback-ref/dist/es2015/useMergeRef.js
   var useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
   var currentValues = /* @__PURE__ */ new WeakMap();
   function useMergeRefs(refs, defaultValue) {
@@ -5746,7 +5746,7 @@ var XpertResumeScreen = (() => {
     return callbackRef;
   }
 
-  // node_modules/.pnpm/use-sidecar@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/use-sidecar/dist/es2015/medium.js
+  // ../../../node_modules/.pnpm/use-sidecar@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/use-sidecar/dist/es2015/medium.js
   function ItoI(a2) {
     return a2;
   }
@@ -5832,7 +5832,7 @@ var XpertResumeScreen = (() => {
     return medium;
   }
 
-  // node_modules/.pnpm/use-sidecar@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/use-sidecar/dist/es2015/exports.js
+  // ../../../node_modules/.pnpm/use-sidecar@1.1.3_@types+react@18.3.31_react@18.3.1/node_modules/use-sidecar/dist/es2015/exports.js
   var SideCar = function(_a) {
     var sideCar = _a.sideCar, rest = __rest(_a, ["sideCar"]);
     if (!sideCar) {
@@ -5850,10 +5850,10 @@ var XpertResumeScreen = (() => {
     return SideCar;
   }
 
-  // node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/medium.js
+  // ../../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/medium.js
   var effectCar = createSidecarMedium();
 
-  // node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/UI.js
+  // ../../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/UI.js
   var nothing = function() {
     return;
   };
@@ -5885,7 +5885,7 @@ var XpertResumeScreen = (() => {
     zeroRight: zeroRightClassName
   };
 
-  // node_modules/.pnpm/get-nonce@1.0.1/node_modules/get-nonce/dist/es2015/index.js
+  // ../../../node_modules/.pnpm/get-nonce@1.0.1/node_modules/get-nonce/dist/es2015/index.js
   var currentNonce;
   var getNonce = function() {
     if (currentNonce) {
@@ -5897,7 +5897,7 @@ var XpertResumeScreen = (() => {
     return void 0;
   };
 
-  // node_modules/.pnpm/react-style-singleton@2.2.3_64be49a27fe392764e1764f59e110241/node_modules/react-style-singleton/dist/es2015/singleton.js
+  // ../../../node_modules/.pnpm/react-style-singleton@2.2.3_64be49a27fe392764e1764f59e110241/node_modules/react-style-singleton/dist/es2015/singleton.js
   function makeStyleTag() {
     if (!document)
       return null;
@@ -5943,7 +5943,7 @@ var XpertResumeScreen = (() => {
     };
   };
 
-  // node_modules/.pnpm/react-style-singleton@2.2.3_64be49a27fe392764e1764f59e110241/node_modules/react-style-singleton/dist/es2015/hook.js
+  // ../../../node_modules/.pnpm/react-style-singleton@2.2.3_64be49a27fe392764e1764f59e110241/node_modules/react-style-singleton/dist/es2015/hook.js
   var styleHookSingleton = function() {
     var sheet = stylesheetSingleton();
     return function(styles, isDynamic) {
@@ -5956,7 +5956,7 @@ var XpertResumeScreen = (() => {
     };
   };
 
-  // node_modules/.pnpm/react-style-singleton@2.2.3_64be49a27fe392764e1764f59e110241/node_modules/react-style-singleton/dist/es2015/component.js
+  // ../../../node_modules/.pnpm/react-style-singleton@2.2.3_64be49a27fe392764e1764f59e110241/node_modules/react-style-singleton/dist/es2015/component.js
   var styleSingleton = function() {
     var useStyle = styleHookSingleton();
     var Sheet = function(_a) {
@@ -5967,7 +5967,7 @@ var XpertResumeScreen = (() => {
     return Sheet;
   };
 
-  // node_modules/.pnpm/react-remove-scroll-bar@2.3_24279af7608b4a4e9fe00320b3c0cae7/node_modules/react-remove-scroll-bar/dist/es2015/utils.js
+  // ../../../node_modules/.pnpm/react-remove-scroll-bar@2.3_24279af7608b4a4e9fe00320b3c0cae7/node_modules/react-remove-scroll-bar/dist/es2015/utils.js
   var zeroGap = {
     left: 0,
     top: 0,
@@ -6002,7 +6002,7 @@ var XpertResumeScreen = (() => {
     };
   };
 
-  // node_modules/.pnpm/react-remove-scroll-bar@2.3_24279af7608b4a4e9fe00320b3c0cae7/node_modules/react-remove-scroll-bar/dist/es2015/component.js
+  // ../../../node_modules/.pnpm/react-remove-scroll-bar@2.3_24279af7608b4a4e9fe00320b3c0cae7/node_modules/react-remove-scroll-bar/dist/es2015/component.js
   var Style = styleSingleton();
   var lockAttribute = "data-scroll-locked";
   var getStyles = function(_a, allowRelative, gapMode, important) {
@@ -6042,7 +6042,7 @@ var XpertResumeScreen = (() => {
     return createElement(Style, { styles: getStyles(gap, !noRelative, gapMode, !noImportant ? "!important" : "") });
   };
 
-  // node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/aggresiveCapture.js
+  // ../../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/aggresiveCapture.js
   var passiveSupported = false;
   if (typeof window !== "undefined") {
     try {
@@ -6061,7 +6061,7 @@ var XpertResumeScreen = (() => {
   var options;
   var nonPassive = passiveSupported ? { passive: false } : false;
 
-  // node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/handleScroll.js
+  // ../../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/handleScroll.js
   var alwaysContainsScroll = function(node) {
     return node.tagName === "TEXTAREA";
   };
@@ -6161,7 +6161,7 @@ var XpertResumeScreen = (() => {
     return shouldCancelScroll;
   };
 
-  // node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/SideEffect.js
+  // ../../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/SideEffect.js
   var getTouchXY = function(event) {
     return "changedTouches" in event ? [event.changedTouches[0].clientX, event.changedTouches[0].clientY] : [0, 0];
   };
@@ -6332,17 +6332,17 @@ var XpertResumeScreen = (() => {
     return shadowParent;
   }
 
-  // node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/sidecar.js
+  // ../../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/sidecar.js
   var sidecar_default = exportSidecar(effectCar, RemoveScrollSideCar);
 
-  // node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/Combination.js
+  // ../../../node_modules/.pnpm/react-remove-scroll@2.7.2_@types+react@18.3.31_react@18.3.1/node_modules/react-remove-scroll/dist/es2015/Combination.js
   var ReactRemoveScroll = forwardRef(function(props, ref) {
     return createElement(RemoveScroll, __assign({}, props, { ref, sideCar: sidecar_default }));
   });
   ReactRemoveScroll.classNames = RemoveScroll.classNames;
   var Combination_default = ReactRemoveScroll;
 
-  // node_modules/.pnpm/aria-hidden@1.2.6/node_modules/aria-hidden/dist/es2015/index.js
+  // ../../../node_modules/.pnpm/aria-hidden@1.2.6/node_modules/aria-hidden/dist/es2015/index.js
   var getDefaultParent = function(originalTarget) {
     if (typeof document === "undefined") {
       return null;
@@ -6463,7 +6463,7 @@ var XpertResumeScreen = (() => {
     return applyAttributeToOthers(targets, activeParentNode, markerName, "aria-hidden");
   };
 
-  // node_modules/.pnpm/@radix-ui+react-dialog@1.1._19e637a1eb439fb7ac9fbd37f3b253ea/node_modules/@radix-ui/react-dialog/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-dialog@1.1._19e637a1eb439fb7ac9fbd37f3b253ea/node_modules/@radix-ui/react-dialog/dist/index.mjs
   var DIALOG_NAME = "Dialog";
   var [createDialogContext, createDialogScope] = createContextScope(DIALOG_NAME);
   var [DialogProvider, useDialogContext] = createDialogContext(DIALOG_NAME);
@@ -6723,7 +6723,7 @@ var XpertResumeScreen = (() => {
     return open ? "open" : "closed";
   }
 
-  // node_modules/.pnpm/@radix-ui+react-alert-dialo_e6e41d2a4af4ab50646683a57177c7f1/node_modules/@radix-ui/react-alert-dialog/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-alert-dialo_e6e41d2a4af4ab50646683a57177c7f1/node_modules/@radix-ui/react-alert-dialog/dist/index.mjs
   var ROOT_NAME = "AlertDialog";
   var [createAlertDialogContext, createAlertDialogScope] = createContextScope(ROOT_NAME, [
     createDialogScope
@@ -6834,7 +6834,7 @@ var XpertResumeScreen = (() => {
   var Title2 = AlertDialogTitle;
   var Description2 = AlertDialogDescription;
 
-  // node_modules/.pnpm/@radix-ui+react-use-previou_58b78c95af3b98dc4c1bc8bce73c779d/node_modules/@radix-ui/react-use-previous/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-use-previou_58b78c95af3b98dc4c1bc8bce73c779d/node_modules/@radix-ui/react-use-previous/dist/index.mjs
   function usePrevious(value) {
     const ref = useRef({ value, previous: value });
     return useMemo(() => {
@@ -6846,7 +6846,7 @@ var XpertResumeScreen = (() => {
     }, [value]);
   }
 
-  // node_modules/.pnpm/@radix-ui+react-use-size@1._4b75a7cfb879b922004e7a6caa492077/node_modules/@radix-ui/react-use-size/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-use-size@1._4b75a7cfb879b922004e7a6caa492077/node_modules/@radix-ui/react-use-size/dist/index.mjs
   function useSize(element) {
     const [size4, setSize] = useState(void 0);
     useLayoutEffect2(() => {
@@ -6882,7 +6882,7 @@ var XpertResumeScreen = (() => {
     return size4;
   }
 
-  // node_modules/.pnpm/@floating-ui+utils@0.2.11/node_modules/@floating-ui/utils/dist/floating-ui.utils.mjs
+  // ../../../node_modules/.pnpm/@floating-ui+utils@0.2.11/node_modules/@floating-ui/utils/dist/floating-ui.utils.mjs
   var sides = ["top", "right", "bottom", "left"];
   var min = Math.min;
   var max = Math.max;
@@ -7011,7 +7011,7 @@ var XpertResumeScreen = (() => {
     };
   }
 
-  // node_modules/.pnpm/@floating-ui+core@1.7.5/node_modules/@floating-ui/core/dist/floating-ui.core.mjs
+  // ../../../node_modules/.pnpm/@floating-ui+core@1.7.5/node_modules/@floating-ui/core/dist/floating-ui.core.mjs
   function computeCoordsFromPlacement(_ref, placement, rtl) {
     let {
       reference,
@@ -7728,7 +7728,7 @@ var XpertResumeScreen = (() => {
     };
   };
 
-  // node_modules/.pnpm/@floating-ui+utils@0.2.11/node_modules/@floating-ui/utils/dist/floating-ui.utils.dom.mjs
+  // ../../../node_modules/.pnpm/@floating-ui+utils@0.2.11/node_modules/@floating-ui/utils/dist/floating-ui.utils.dom.mjs
   function hasWindow() {
     return typeof window !== "undefined";
   }
@@ -7884,7 +7884,7 @@ var XpertResumeScreen = (() => {
     return win.parent && Object.getPrototypeOf(win.parent) ? win.frameElement : null;
   }
 
-  // node_modules/.pnpm/@floating-ui+dom@1.7.6/node_modules/@floating-ui/dom/dist/floating-ui.dom.mjs
+  // ../../../node_modules/.pnpm/@floating-ui+dom@1.7.6/node_modules/@floating-ui/dom/dist/floating-ui.dom.mjs
   function getCssDimensions(element) {
     const css = getComputedStyle2(element);
     let width = parseFloat(css.width) || 0;
@@ -8499,7 +8499,7 @@ var XpertResumeScreen = (() => {
     });
   };
 
-  // node_modules/.pnpm/@floating-ui+react-dom@2.1._f1bed12861163fa290e602839f1ebdb9/node_modules/@floating-ui/react-dom/dist/floating-ui.react-dom.mjs
+  // ../../../node_modules/.pnpm/@floating-ui+react-dom@2.1._f1bed12861163fa290e602839f1ebdb9/node_modules/@floating-ui/react-dom/dist/floating-ui.react-dom.mjs
   var isClient = typeof document !== "undefined";
   var noop = function noop2() {
   };
@@ -8807,7 +8807,7 @@ var XpertResumeScreen = (() => {
     };
   };
 
-  // node_modules/.pnpm/@radix-ui+react-arrow@1.1.1_46841099dde2429c8edffbf91fdd0f75/node_modules/@radix-ui/react-arrow/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-arrow@1.1.1_46841099dde2429c8edffbf91fdd0f75/node_modules/@radix-ui/react-arrow/dist/index.mjs
   var NAME2 = "Arrow";
   var Arrow = forwardRef((props, forwardedRef) => {
     const { children, width = 10, height = 5, ...arrowProps } = props;
@@ -8827,7 +8827,7 @@ var XpertResumeScreen = (() => {
   Arrow.displayName = NAME2;
   var Root3 = Arrow;
 
-  // node_modules/.pnpm/@radix-ui+react-popper@1.3._0a9221ab1b0956a4d531653402915605/node_modules/@radix-ui/react-popper/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-popper@1.3._0a9221ab1b0956a4d531653402915605/node_modules/@radix-ui/react-popper/dist/index.mjs
   var POPPER_NAME = "Popper";
   var [createPopperContext, createPopperScope] = createContextScope(POPPER_NAME);
   var [PopperProvider, usePopperContext] = createPopperContext(POPPER_NAME);
@@ -9152,7 +9152,7 @@ var XpertResumeScreen = (() => {
   var Content3 = PopperContent;
   var Arrow2 = PopperArrow;
 
-  // node_modules/.pnpm/@radix-ui+react-use-is-hydr_d8b55bd05f5d50f7ea21f52744760552/node_modules/@radix-ui/react-use-is-hydrated/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-use-is-hydr_d8b55bd05f5d50f7ea21f52744760552/node_modules/@radix-ui/react-use-is-hydrated/dist/index.mjs
   var _isHydrated = false;
   function useIsHydrated() {
     const [isHydrated, setIsHydrated] = useState(_isHydrated);
@@ -9178,7 +9178,7 @@ var XpertResumeScreen = (() => {
   }
   var useIsHydrated2 = typeof useReactSyncExternalStore === "function" ? useIsHydratedModern : useIsHydrated;
 
-  // node_modules/.pnpm/@radix-ui+react-roving-focu_6f6d23a80cf2852a1243fe7c18f7ea40/node_modules/@radix-ui/react-roving-focus/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-roving-focu_6f6d23a80cf2852a1243fe7c18f7ea40/node_modules/@radix-ui/react-roving-focus/dist/index.mjs
   var ENTRY_FOCUS = "rovingFocusGroup.onEntryFocus";
   var EVENT_OPTIONS2 = { bubbles: false, cancelable: true };
   var GROUP_NAME = "RovingFocusGroup";
@@ -9398,7 +9398,7 @@ var XpertResumeScreen = (() => {
   var Root4 = RovingFocusGroup;
   var Item = RovingFocusGroupItem;
 
-  // node_modules/.pnpm/@radix-ui+react-menu@2.1.20_e838fb73c3335c4850fd37fa077066a8/node_modules/@radix-ui/react-menu/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-menu@2.1.20_e838fb73c3335c4850fd37fa077066a8/node_modules/@radix-ui/react-menu/dist/index.mjs
   var SELECTION_KEYS = ["Enter", " "];
   var FIRST_KEYS = ["ArrowDown", "PageUp", "Home"];
   var LAST_KEYS = ["ArrowUp", "PageDown", "End"];
@@ -10230,7 +10230,7 @@ var XpertResumeScreen = (() => {
   var SubTrigger = MenuSubTrigger;
   var SubContent = MenuSubContent;
 
-  // node_modules/.pnpm/@radix-ui+react-dropdown-me_859a9e2ff47818a9da5ac1bd196880aa/node_modules/@radix-ui/react-dropdown-menu/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-dropdown-me_859a9e2ff47818a9da5ac1bd196880aa/node_modules/@radix-ui/react-dropdown-menu/dist/index.mjs
   var dist_exports8 = {};
   __export(dist_exports8, {
     Arrow: () => Arrow23,
@@ -10525,12 +10525,12 @@ var XpertResumeScreen = (() => {
   var SubTrigger2 = DropdownMenuSubTrigger;
   var SubContent2 = DropdownMenuSubContent;
 
-  // node_modules/.pnpm/@radix-ui+number@1.1.2/node_modules/@radix-ui/number/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+number@1.1.2/node_modules/@radix-ui/number/dist/index.mjs
   function clamp2(value, [min2, max2]) {
     return Math.min(max2, Math.max(min2, value));
   }
 
-  // node_modules/.pnpm/@radix-ui+react-progress@1._ba0a23888d03d7a38e90b386f3352204/node_modules/@radix-ui/react-progress/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-progress@1._ba0a23888d03d7a38e90b386f3352204/node_modules/@radix-ui/react-progress/dist/index.mjs
   var dist_exports10 = {};
   __export(dist_exports10, {
     Indicator: () => Indicator,
@@ -10626,7 +10626,7 @@ Defaulting to \`null\`.`;
   var Root5 = Progress;
   var Indicator = ProgressIndicator;
 
-  // node_modules/.pnpm/@radix-ui+react-scroll-area_42744b7ae87cd630a69f8d88c5a61168/node_modules/@radix-ui/react-scroll-area/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-scroll-area_42744b7ae87cd630a69f8d88c5a61168/node_modules/@radix-ui/react-scroll-area/dist/index.mjs
   var dist_exports11 = {};
   __export(dist_exports11, {
     Corner: () => Corner,
@@ -11358,7 +11358,7 @@ Defaulting to \`null\`.`;
   var Thumb = ScrollAreaThumb;
   var Corner = ScrollAreaCorner;
 
-  // node_modules/.pnpm/@radix-ui+react-select@2.3._e41ea4091319bba4ffed6d0f7126160f/node_modules/@radix-ui/react-select/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-select@2.3._e41ea4091319bba4ffed6d0f7126160f/node_modules/@radix-ui/react-select/dist/index.mjs
   var dist_exports12 = {};
   __export(dist_exports12, {
     Arrow: () => SelectArrow,
@@ -12571,7 +12571,7 @@ Defaulting to \`null\`.`;
     return array.map((_, index2) => array[(startIndex + index2) % array.length]);
   }
 
-  // node_modules/.pnpm/@radix-ui+react-tooltip@1.2_722bdaa997c75963a9f848c204fdd02f/node_modules/@radix-ui/react-tooltip/dist/index.mjs
+  // ../../../node_modules/.pnpm/@radix-ui+react-tooltip@1.2_722bdaa997c75963a9f848c204fdd02f/node_modules/@radix-ui/react-tooltip/dist/index.mjs
   var dist_exports13 = {};
   __export(dist_exports13, {
     Arrow: () => Arrow24,
@@ -13066,7 +13066,7 @@ Defaulting to \`null\`.`;
   var Content24 = TooltipContent;
   var Arrow24 = TooltipArrow;
 
-  // node_modules/.pnpm/class-variance-authority@0.7.1/node_modules/class-variance-authority/dist/index.mjs
+  // ../../../node_modules/.pnpm/class-variance-authority@0.7.1/node_modules/class-variance-authority/dist/index.mjs
   var falsyToString = (value) => typeof value === "boolean" ? `${value}` : value === 0 ? "0" : value;
   var cx = clsx;
   var cva = (base, config) => (props) => {
@@ -13108,7 +13108,7 @@ Defaulting to \`null\`.`;
     return cx(base, getVariantClassNames, getCompoundVariantClassNames, props === null || props === void 0 ? void 0 : props.class, props === null || props === void 0 ? void 0 : props.className);
   };
 
-  // node_modules/.pnpm/react-resizable-panels@4.12_161ced68c111c71d90739887f576eb70/node_modules/react-resizable-panels/dist/react-resizable-panels.js
+  // ../../../node_modules/.pnpm/react-resizable-panels@4.12_161ced68c111c71d90739887f576eb70/node_modules/react-resizable-panels/dist/react-resizable-panels.js
   function St(e, t) {
     const n = getComputedStyle(e), o = parseFloat(n.fontSize);
     return t * o;
@@ -15223,7 +15223,7 @@ Defaulting to \`null\`.`;
   }
   tn.displayName = "Separator";
 
-  // packages/shadcn-ui/dist/index.js
+  // ../../../packages/shadcn-ui/dist/index.js
   function r2(...e) {
     return twMerge(clsx(e));
   }
@@ -16196,7 +16196,7 @@ Defaulting to \`null\`.`;
     orientation: "horizontal"
   });
 
-  // community/apps/resume-screen/src/lib/remote-components/resume-screen/src/components/badges.tsx
+  // src/lib/remote-components/resume-screen/src/components/badges.tsx
   function candidateSpec(status, timedOut) {
     switch (status) {
       case "pending_review":
@@ -16241,7 +16241,7 @@ Defaulting to \`null\`.`;
     return /* @__PURE__ */ react_shim_default.createElement("span", { className: `rs-badge ${spec.tone}`, title: spec.hint ?? spec.label }, spec.icon ? /* @__PURE__ */ react_shim_default.createElement("i", { className: spec.spin ? `${spec.icon} rs-spin` : spec.icon, "aria-hidden": "true" }) : null, spec.label);
   }
 
-  // community/apps/resume-screen/src/lib/remote-components/resume-screen/src/components/candidate-list.tsx
+  // src/lib/remote-components/resume-screen/src/components/candidate-list.tsx
   var { memo: memo2, useEffect: useEffect2, useRef: useRef2, useState: useState2 } = react_shim_default;
   var SORT_OPTIONS = [
     { value: "matchScore:desc", label: "\u5339\u914D\u5206\u964D\u5E8F", by: "matchScore", dir: "desc" },
@@ -16394,7 +16394,7 @@ Defaulting to \`null\`.`;
     );
   });
 
-  // community/apps/resume-screen/src/lib/remote-components/resume-screen/src/components/action-bar.tsx
+  // src/lib/remote-components/resume-screen/src/components/action-bar.tsx
   var { useState: useState3 } = react_shim_default;
   var BUTTONS = [
     {
@@ -16467,7 +16467,7 @@ Defaulting to \`null\`.`;
     ));
   }
 
-  // community/apps/resume-screen/src/lib/remote-components/resume-screen/src/components/candidate-detail.tsx
+  // src/lib/remote-components/resume-screen/src/components/candidate-detail.tsx
   var { useState: useState4 } = react_shim_default;
   var HUMAN_EDIT_NOTE = "\u5DF2\u4FDD\u5B58\uFF08\u4EBA\u5DE5\u4FEE\u6B63\u5B57\u6BB5\u4E0D\u4F1A\u88AB AI \u8986\u76D6\uFF09";
   var FIELD_LABELS = {
@@ -16661,7 +16661,7 @@ Defaulting to \`null\`.`;
     ), scoreInvalid ? /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-form-error", role: "alert" }, "\u5339\u914D\u5206\u9700\u4E3A 0\u2013100 \u7684\u6570\u5B57") : null), /* @__PURE__ */ react_shim_default.createElement("div", { style: { fontSize: 12, color: "var(--rs-soft)" } }, HUMAN_EDIT_NOTE));
   }
 
-  // community/apps/resume-screen/src/lib/remote-components/resume-screen/src/components/job-header.tsx
+  // src/lib/remote-components/resume-screen/src/components/job-header.tsx
   var { useEffect: useEffect3, useRef: useRef3, useState: useState5 } = react_shim_default;
   var MIN_JD_LENGTH = 30;
   var MAX_TITLE_LENGTH = 200;
@@ -16770,7 +16770,7 @@ Defaulting to \`null\`.`;
     ) : null, /* @__PURE__ */ react_shim_default.createElement(Mt2, null, /* @__PURE__ */ react_shim_default.createElement(C2, { variant: "ghost", disabled: saving, onClick: () => onOpenChange(false) }, "\u53D6\u6D88"), /* @__PURE__ */ react_shim_default.createElement(C2, { disabled: !canSave, onClick: () => void submit() }, saving ? "\u4FDD\u5B58\u4E2D\u2026" : "\u4FDD\u5B58"))));
   }
 
-  // community/apps/resume-screen/src/lib/remote-components/resume-screen/src/components/upload-dialog.tsx
+  // src/lib/remote-components/resume-screen/src/components/upload-dialog.tsx
   var { memo: memo3, useEffect: useEffect4, useRef: useRef4, useState: useState6 } = react_shim_default;
   var ROW_CAP = 24;
   function UploadDialog({ open, rows, busy, uploadRequestSeq, onClose, onPickFiles, onClearFailed, onJumpToCandidate }) {
@@ -16871,7 +16871,7 @@ Defaulting to \`null\`.`;
     );
   });
 
-  // community/apps/resume-screen/src/lib/remote-components/resume-screen/src/components/preview-dialog.tsx
+  // src/lib/remote-components/resume-screen/src/components/preview-dialog.tsx
   var { useEffect: useEffect5, useState: useState7 } = react_shim_default;
   function PreviewDialog({ open, fileName, payload, onClose }) {
     const [blobUrl, setBlobUrl] = useState7("");
@@ -16901,7 +16901,7 @@ Defaulting to \`null\`.`;
     ) : /* @__PURE__ */ react_shim_default.createElement("iframe", { className: "rs-preview-pdf", src: blobUrl, title: `${fileName} \u7B80\u5386\u9884\u89C8` }), /* @__PURE__ */ react_shim_default.createElement("footer", { className: "rs-preview-foot" }, /* @__PURE__ */ react_shim_default.createElement(C2, { variant: "outline", size: "sm", onClick: () => onClose(false) }, "\u5173\u95ED"))));
   }
 
-  // community/apps/resume-screen/src/lib/remote-components/resume-screen/src/components/workbench.tsx
+  // src/lib/remote-components/resume-screen/src/components/workbench.tsx
   var { useCallback: useCallback2, useEffect: useEffect6, useMemo: useMemo2, useRef: useRef5, useState: useState8 } = react_shim_default;
   var INITIAL_VIEW = { jobId: null, status: "all", sortBy: "matchScore", sortDir: "desc", search: "" };
   function pickJobIdFromContext(context) {
@@ -17392,7 +17392,7 @@ Defaulting to \`null\`.`;
     ) : null);
   }
 
-  // community/apps/resume-screen/src/lib/remote-components/resume-screen/src/main.tsx
+  // src/lib/remote-components/resume-screen/src/main.tsx
   var { useEffect: useEffect7, useState: useState9 } = react_shim_default;
   injectStyles();
   function App() {
