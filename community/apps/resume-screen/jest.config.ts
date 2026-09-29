@@ -20,5 +20,9 @@ export default {
   moduleFileExtensions: ['ts', 'js', 'json'],
   testEnvironment: 'node',
   testMatch: ['<rootDir>/src/**/*.spec.ts'],
-  coverageDirectory: './coverage'
+  coverageDirectory: './coverage',
+  // 24 核机器上 jest 默认起 23 个 worker，多会话并发跑测试时 node 提交内存会冲到 10GB+ 打满内存；
+  // 这里锁定 worker 数并让空闲 worker 释放内存，代价是全量测试变慢
+  maxWorkers: 4,
+  workerIdleMemoryLimit: '512MB'
 }
