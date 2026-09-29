@@ -424,11 +424,14 @@ describe('ResumeScreenViewProvider', () => {
         { buffer: docxFixture, originalname: '张三-简历.docx', size: docxFixture.length } as never
       )
       expect(res).toMatchObject({ success: true, refresh: true })
-      expect(res.data).toMatchObject({
+      // R-P56：回执结构与 v4 一致，skipped 必须是**文件名字符串数组**而不是计数——
+      // 前端 workbench.tsx 以 Array.isArray(data.skipped) 判空标「跳过」行，下发数字会让
+      // 重复上传的简历被静默标成「已创建」。无命中判重时也要显式钉住空数组，禁止 undefined 蒙过。
+      expect(res.data).toEqual({
         fileName: '张三-简历.docx',
         sourceFileName: '张三-简历.docx',
         created: [{ id: 'c1', status: 'draft' }],
-        skipped: 0
+        skipped: []
       })
       // 描述符四要素来自 store 回执，逐文件携带文件名（不再有整批同名口径）
       expect(uploadService.prepareIntakeDraft.mock.calls[0][2]).toEqual([
@@ -438,6 +441,33 @@ describe('ResumeScreenViewProvider', () => {
       expect(intakeQueue.enqueueParse).toHaveBeenCalledWith(
         expect.objectContaining({ candidateId: 'c1', attemptCount: 0, tenantId: 'tenant-1', organizationId: 'org-1', userId: 'user-1' })
       )
+    })
+
+    it('重复上传命中判重时，回执 skipped 原样下发文件名数组（不是计数、不是哈希）', async () => {
+      // service 侧语义已按文件名数组钉死（T8 评审要求），本用例钉住 provider 不做任何形态转换：
+      // 前端 workbench.tsx 靠 Array.isArray(data.skipped) + length>0 把该行标成「跳过（内容已存在）」，
+      // 一旦下发计数，重复上传的简历会被静默标成「已创建」——用户可见缺陷（R-P56）。
+      uploadService.prepareIntakeDraft.mockImplementationOnce(async () => ({
+        jobId: 'job-1',
+        created: [],
+        skippedAsExisting: ['李四-简历.docx']
+      }))
+      const res = await uploadProvider.executeViewFileAction!(
+        createContext(),
+        RESUME_SCREEN_WORKBENCH_VIEW_KEY,
+        'upload_resume_files',
+        fileRequest,
+        { buffer: docxFixture, originalname: '李四-简历.docx', size: docxFixture.length } as never
+      )
+      expect(res.data).toEqual({
+        fileName: '李四-简历.docx',
+        sourceFileName: '李四-简历.docx',
+        created: [],
+        skipped: ['李四-简历.docx']
+      })
+      // 命中判重时不应再置 parsing / 入队：没有任何新建行可推进
+      expect(uploadService.markCandidateParsing).not.toHaveBeenCalled()
+      expect(intakeQueue.enqueueParse).not.toHaveBeenCalled()
     })
 
     it('内部存储 key 与绝对路径不出现在上传回执里（红线：filePath 不下发浏览器）', async () => {

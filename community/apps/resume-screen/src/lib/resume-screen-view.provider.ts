@@ -507,6 +507,9 @@ export class ResumeScreenViewProvider implements IXpertViewExtensionProvider {
    * @param request 动作请求（parameters 携带当前选中 jobId）
    * @param file 宿主透传的文件（buffer/originalname/mimetype/size）
    * @returns 成功：refresh + created/skipped + 文件名；失败：可读指引文案（不含内部存储 key）
+   *          skipped 与 v4 契约保持一致，是**被跳过文件的文件名数组**而不是计数——
+   *          前端上传弹窗（workbench.tsx）以 `Array.isArray(skipped)` 判空来决定行状态是
+   *          「跳过（内容已存在）」还是「已创建」，下发计数会让重复上传的简历被静默标成已创建。
    */
   async executeViewFileAction(
     context: XpertResolvedViewHostContext,
@@ -600,7 +603,8 @@ export class ResumeScreenViewProvider implements IXpertViewExtensionProvider {
       data: {
         fileName,
         created: result.created.map((c) => ({ id: c.id, status: c.status })),
-        skipped: result.skippedAsExisting.length,
+        // 文件名数组（v4 形态）：前端按 Array.isArray + length 判空标「跳过」行，计数会退化成静默「已创建」
+        skipped: result.skippedAsExisting,
         sourceFileName: fileName
       }
     }
