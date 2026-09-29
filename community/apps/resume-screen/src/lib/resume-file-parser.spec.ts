@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { parseResumeFileContent, ResumeFileParseError, ResumeFileParseReason } from './resume-file-parser'
+import { detectResumeFileKind, parseResumeFileContent, ResumeFileParseError, ResumeFileParseReason } from './resume-file-parser'
 
 const fixture = (name: string) => readFileSync(join(__dirname, '__fixtures__', name))
 
@@ -99,5 +99,26 @@ describe('ResumeFileParseError', () => {
     const e = new ResumeFileParseError('encrypted', '文件已加密')
     expect(reasons).toContain(e.reason)
     expect(e.message).toBe('文件已加密')
+  })
+})
+
+// detectResumeFileKind：落盘存储与文本解析共用的类型判定纯函数（spec §3.1/§3.5）
+describe('detectResumeFileKind', () => {
+  it('按扩展名与魔数一致判定 docx/pdf', () => {
+    expect(detectResumeFileKind(fixture('resume-minimal.docx'), '张三-简历.docx')).toBe('docx')
+    expect(detectResumeFileKind(fixture('resume-minimal.pdf'), '张三-简历.pdf')).toBe('pdf')
+  })
+
+  it('伪装扩展名（pdf 名但内容是 docx 的 PK 头）判为不支持格式', () => {
+    const docx = fixture('resume-minimal.docx')
+    expect(() => detectResumeFileKind(docx, 'fake.pdf')).toThrow(ResumeFileParseError)
+  })
+
+  it('未知扩展名给出「仅支持 .docx / .pdf」指引', () => {
+    expect(() => detectResumeFileKind(Buffer.from('hello'), 'resume.txt')).toThrow(/仅支持/)
+  })
+
+  it('空文件名视为非法（上传通道缺名不可信）', () => {
+    expect(() => detectResumeFileKind(Buffer.from('x'), '')).toThrow(ResumeFileParseError)
   })
 })

@@ -22,25 +22,24 @@ export const RESUME_FILE_MAX_BYTES = 10 * 1024 * 1024
 /** pdf 页数上限（M8' Minor）：简历正常远达不到百页，超限视为畸形文档，逐页抽取前先拦 */
 export const RESUME_FILE_MAX_PDF_PAGES = 100
 
+/** 简历字节支持的唯一两类格式（扩展名 + 魔数双重判定的结果枚举） */
+export type ResumeFileKind = 'docx' | 'pdf'
+
 /**
- * 简历文件 → 纯文本。上传链路唯一文本来源（spec v2.2：sourceText 不再接受粘贴）。
- * 按扩展名初筛 + 魔数复核，防止伪装后缀；解析失败统一抛 ResumeFileParseError，
- * 由调用方（executeViewFileAction）转成队列失败行呈现，不产生候选人行。
- * @param buffer 文件字节（来自视图文件上传通道）
- * @param fileName 原始文件名（用于扩展名判定与指引文案，允许缺省视为非法名）
- * @returns 去首尾空白后的纯文本；抽取为空视为扫描件走异常
+ * 简历字节的唯一「类型判定」入口：扩展名初筛 + 魔数复核，供落盘存储与文本解析共用。
+ * 抽出独立函数是为了让「上传即校验」和「任务期解析」两处判定口径永远一致（spec §3.1/§3.5）。
+ * @param buffer 文件字节
+ * @param fileName 原始文件名；缺省或空串视为非法（上传通道缺名不可信）
+ * @returns 'docx' 或 'pdf'
+ * @throws ResumeFileParseError unsupported_format（扩展名不认识 / 内容与扩展名不符）
  */
-export async function parseResumeFileContent(buffer: Buffer, fileName: string): Promise<string> {
+export function detectResumeFileKind(buffer: Buffer, fileName: string): ResumeFileKind {
   const lower = (fileName || '').toLowerCase()
   const isDocx = lower.endsWith('.docx')
   const isPdf = lower.endsWith('.pdf')
   if (!isDocx && !isPdf) {
     throw new ResumeFileParseError('unsupported_format', '仅支持 .docx / .pdf 文件')
   }
-  if (buffer.length > RESUME_FILE_MAX_BYTES) {
-    throw new ResumeFileParseError('file_too_large', '文件超过 10MB，请压缩或拆分后重新上传')
-  }
-  // 魔数复核：docx 是 zip（PK\x03\x04），pdf 以 %PDF- 开头
   const head = buffer.subarray(0, 5).toString('latin1')
   if (isDocx && !head.startsWith('PK')) {
     throw new ResumeFileParseError('unsupported_format', '文件内容与 .docx 扩展名不符')
@@ -48,7 +47,31 @@ export async function parseResumeFileContent(buffer: Buffer, fileName: string): 
   if (isPdf && !head.startsWith('%PDF-')) {
     throw new ResumeFileParseError('unsupported_format', '文件内容与 .pdf 扩展名不符')
   }
-  const text = isDocx ? await extractDocxText(buffer) : await extractPdfText(buffer)
+  return isDocx ? 'docx' : 'pdf'
+}
+
+/**
+ * 简历文件 → 纯文本。上传链路唯一文本来源（spec v2.2：sourceText 不再接受粘贴）。
+ * 格式判定复用 detectResumeFileKind 的口径（扩展名 + 魔数），本函数只额外承担体积闸；
+ * 体积闸必须先于魔数复核——伪装扩展名的超大文件应报 file_too_large 而非 unsupported_format（重构前即此顺序）。
+ * 解析失败统一抛 ResumeFileParseError，
+ * 由调用方（executeViewFileAction）转成队列失败行呈现，不产生候选人行。
+ * @param buffer 文件字节（来自视图文件上传通道）
+ * @param fileName 原始文件名（用于扩展名判定与指引文案，允许缺省视为非法名）
+ * @returns 去首尾空白后的纯文本；抽取为空视为扫描件走异常
+ */
+export async function parseResumeFileContent(buffer: Buffer, fileName: string): Promise<string> {
+  // 先按扩展名拦截不认识的后缀，再卡体积，保证失败原因与重构前一致
+  const lower = (fileName || '').toLowerCase()
+  if (!lower.endsWith('.docx') && !lower.endsWith('.pdf')) {
+    throw new ResumeFileParseError('unsupported_format', '仅支持 .docx / .pdf 文件')
+  }
+  if (buffer.length > RESUME_FILE_MAX_BYTES) {
+    throw new ResumeFileParseError('file_too_large', '文件超过 10MB，请压缩或拆分后重新上传')
+  }
+  // 到这里扩展名必然合法，detectResumeFileKind 实际只做魔数复核并给出最终 kind
+  const kind = detectResumeFileKind(buffer, fileName)
+  const text = kind === 'docx' ? await extractDocxText(buffer) : await extractPdfText(buffer)
   if (!text.trim()) {
     throw new ResumeFileParseError('no_text_layer', '无法提取文字（可能为扫描件），请转存为 Word 后重新上传')
   }
