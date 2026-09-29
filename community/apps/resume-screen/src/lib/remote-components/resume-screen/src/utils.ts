@@ -344,27 +344,3 @@ export function decodeBase64ToBytes(base64: string): Uint8Array {
   }
   return bytes
 }
-
-/**
- * 为 pdf 预览创建 Blob URL，并返回释放函数
- *
- * @param bytes 文件字节（来源 decodeBase64ToBytes）；须从 0 起、buffer 即内容本身
- *   （decodeBase64ToBytes 产物满足该前置，无 offset 偏移）
- * @param mime Blob 类型（pdf 走 application/pdf 才能命中浏览器原生查看器）
- * @returns url 供 iframe src 使用；release 幂等，重复调用只真正释放一次
- * @exception URL.createObjectURL 抛错时原样上抛（此时没有需要释放的 URL）
- */
-export function createPdfBlobUrl(bytes: Uint8Array, mime: string): { url: string; release: () => void } {
-  // TS 5.7 起 Uint8Array 携带 buffer 泛型（ArrayBufferLike 含 SharedArrayBuffer），BlobPart 只收
-  // ArrayBuffer：按上述前置断言收窄，避免为绕类型多复制一份 10MB 字节
-  const url = URL.createObjectURL(new Blob([bytes.buffer as ArrayBuffer], { type: mime }))
-  let released = false
-  return {
-    url,
-    release: () => {
-      if (released) return
-      released = true
-      URL.revokeObjectURL(url)
-    }
-  }
-}

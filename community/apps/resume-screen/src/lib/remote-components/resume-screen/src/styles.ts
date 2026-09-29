@@ -291,21 +291,32 @@ export const RS_STYLES_CSS = `
     .rs-upload-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding-top: 4px; border-top: 1px solid var(--rs-border-soft); }
     .rs-upload-foot [data-slot="button"] i { margin-right: 6px; font-size: 14px; }
 
-    /* ===== 简历预览（§5.4：docx 富文本正文 / pdf 说明面板共用同一 Dialog 尺寸） ===== */
-    .rs-preview-dialog { width: min(880px, calc(100% - 32px)); height: min(72vh, 720px); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 12px; overflow: hidden; }
+    /* ===== 简历预览（§5.4：docx 富文本正文 / pdf canvas 直渲共用同一 Dialog 尺寸） =====
+       弹窗加大（T22 偏差 9 改写）：pdf 页 fit-width 铺满渲染列，宽是阅读主轴——
+       1100 上限让 1080p 下渲染列 ≈1050px；高度 88vh/900 双上限兼顾 1080p（≈950→900 封顶）
+       与 768 笔记本（≈676），窄容器由 min() 的 calc 分支天然收口 */
+    .rs-preview-dialog { width: min(1100px, calc(100% - 24px)); height: min(88vh, 900px); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 12px; overflow: hidden; }
     .rs-preview-scroll { min-height: 0; }
-    /* 版式对齐真实阅读密度：14px/1.7、正文最长 72ch，超宽视口下不拉成报纸栏 */
+    /* 版式对齐真实阅读密度：14px/1.7、正文最长 72ch，超宽视口下不拉成报纸栏。
+       弹窗加大后仍维持 72ch：加大收益主体是 pdf（页面随容器缩放），docx 是固定 14px
+       文本流，放宽会突破 45–75ch 可读行长红线；居中列 + 两侧留白即「文档页」形态 */
     .rs-preview-doc { max-width: 72ch; margin: 0 auto; padding: 4px 6px 12px; font-size: 14px; line-height: 1.7; color: var(--rs-text); overflow-wrap: anywhere; }
     .rs-preview-doc h1, .rs-preview-doc h2, .rs-preview-doc h3 { font-size: 16px; font-weight: 700; margin: 14px 0 6px; }
     .rs-preview-doc p, .rs-preview-doc li { margin: 0 0 6px; }
     .rs-preview-doc table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 13px; }
     .rs-preview-doc th, .rs-preview-doc td { border: 1px solid var(--rs-border); padding: 5px 7px; text-align: left; vertical-align: top; }
     .rs-preview-doc img { max-width: 100%; height: auto; }
-    /* pdf 分支（T20 E2E 项 11）：blob 父文档内嵌 iframe 被 Chromium PDF 插件门禁禁用，内嵌正片不可达；
-       弹窗内改呈现说明面板，正片由「在新标签页打开」按钮走浏览器原生查看器（T22 偏差 9，控制器裁定） */
-    .rs-preview-pdf-bridge { min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; border: 1px solid var(--rs-border); border-radius: var(--rs-radius); background: var(--rs-bg-soft); color: var(--rs-muted); font-size: 13px; text-align: center; padding: 22px 14px; }
-    .rs-preview-pdf-bridge i { font-size: 34px; color: var(--rs-soft); }
-    .rs-preview-pdf-bridge p { margin: 0; }
+    /* pdf 分支（T22 偏差 9 改写）：pdf.js 弹窗内 canvas 逐页直渲，不再借道新标签页。
+       底色分层：渲染场 --rs-bg-soft 充当「画布外的桌面」，页 canvas 白底（--rs-panel）
+       配既有投影同色系轻影（rgba(31,41,55,…) 与 --rs-text 同源）上浮出页面感；不加边框——
+       canvas 受全局 border-box 约束，边框会挤占位图显示区造成二次缩放。页间距 12px 与
+       弹窗 grid gap 同一节奏档。canvas 由 effect 命令式挂载，不走 React 协调 */
+    .rs-preview-pdf-pages { width: 100%; display: grid; justify-items: center; gap: 12px; padding: 12px; background: var(--rs-bg-soft); }
+    .rs-preview-pdf-canvas-host { width: 100%; display: grid; justify-items: center; gap: 12px; }
+    .rs-preview-pdf-page { display: block; background: var(--rs-panel); box-shadow: 0 1px 4px rgba(31, 41, 55, 0.12); }
+    /* 渲染中占位（失败走 rs-notice-inline 红条，不复用本条）：居中 + A9 loader */
+    .rs-preview-pdf-state { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 160px; color: var(--rs-muted); font-size: 13px; }
+    .rs-preview-pdf-state i { font-size: 18px; }
     .rs-preview-foot { display: flex; justify-content: flex-end; padding-top: 4px; border-top: 1px solid var(--rs-border-soft); }
     .rs-detail-preview { margin-left: auto; }
 

@@ -672,7 +672,7 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
         }}
       />
 
-      {/* 简历预览弹窗（§5.4）：有 preview 状态即挂载，关闭即卸载并触发 Blob URL 释放 */}
+      {/* 简历预览弹窗（§5.4）：有 preview 状态即挂载，关闭即卸载并触发渲染任务清理 */}
       {preview ? (
         <PreviewDialog
           open

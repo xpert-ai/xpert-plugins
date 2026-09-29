@@ -8,7 +8,6 @@
 import {
   UPLOAD_OVERSIZE_HINT,
   candidateSignature,
-  createPdfBlobUrl,
   decodeBase64ToBytes,
   looksLikeRevisionConflict,
   mapUploadFailure,
@@ -211,58 +210,5 @@ describe('decodeBase64ToBytes · pdf 回执解码', () => {
 
   it('非法 base64 抛可读错误，交由弹窗落 notice', () => {
     expect(() => decodeBase64ToBytes('!!!not base64!!!')).toThrow()
-  })
-})
-
-describe('createPdfBlobUrl · 创建与释放必须成对（spec §5.8 泄漏红线）', () => {
-  const created: string[] = []
-  const revoked: string[] = []
-  let originalUrl: typeof globalThis.URL
-
-  beforeEach(() => {
-    created.length = 0
-    revoked.length = 0
-    originalUrl = globalThis.URL
-    // iframe 侧才真有 Blob URL；node 环境按同构接口桩住，断言点在调用次序而非浏览器实现
-    const stub = {
-      createObjectURL: () => {
-        const url = `blob:mock/${created.length}`
-        created.push(url)
-        return url
-      },
-      revokeObjectURL: (url: string) => void revoked.push(url)
-    }
-    globalThis.URL = Object.assign(function URL() {}, stub) as unknown as typeof globalThis.URL
-  })
-  afterEach(() => {
-    globalThis.URL = originalUrl
-  })
-
-  it('创建后不立即释放（pdf 正在被查看），且 release 恰好释放一次', () => {
-    const handle = createPdfBlobUrl(new Uint8Array([1, 2, 3]), 'application/pdf')
-    expect(handle.url).toBe('blob:mock/0')
-    expect(revoked).toEqual([])
-    handle.release()
-    expect(revoked).toEqual(['blob:mock/0'])
-  })
-
-  // effect cleanup 与「关闭弹窗」两条路径都会调 release：必须幂等，否则重复 revoke 掩盖真实泄漏计数
-  it('release 重复调用只释放一次', () => {
-    const handle = createPdfBlobUrl(new Uint8Array([1]), 'application/pdf')
-    handle.release()
-    handle.release()
-    handle.release()
-    expect(revoked).toEqual(['blob:mock/0'])
-  })
-
-  it('创建即抛错时原样上抛，且不产生任何释放调用（没有孤儿 URL 可释放）', () => {
-    globalThis.URL = Object.assign(function URL() {}, {
-      createObjectURL: () => {
-        throw new Error('blob boom')
-      },
-      revokeObjectURL: (url: string) => void revoked.push(url)
-    }) as unknown as typeof globalThis.URL
-    expect(() => createPdfBlobUrl(new Uint8Array([1]), 'application/pdf')).toThrow('blob boom')
-    expect(revoked).toEqual([])
   })
 })
