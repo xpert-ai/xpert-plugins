@@ -17,6 +17,11 @@
 -- 执行：docker exec -i platform-db-1 psql -U postgres -d ocap \
 --         -v ON_ERROR_STOP=1 -f - < backfill-v5.sql
 -- 前置：先 pg_dump 备份这两张表（spec §3.7）。本脚本无 DDL、无 DELETE、不碰 sourceText。
+-- 规模：**只适用于小体量存量回填**（本次 14 行）。闸门 a 用 generate_series 逐字符
+--   扫描，且位于逐行 LATERAL 内，总开销随「全表字符数」线性叠加而对单行呈平方级，
+--   行数上千时就是一条慢查询。执行前先用廉价的 SELECT count(*) FROM
+--   plugin_resume_screen_candidate 确认量级；大表请勿照抄本脚本，改走分批 + LIMIT
+--   化的方案（按 id 区间切片，每批单独事务），不要把它当"标准运维步骤"复用。
 --
 -- 【Postgres 侧两个必须知道的坑（本脚本的写法由此决定）】
 --
@@ -38,13 +43,27 @@
 --   Node 的 .length 是 UTF-16 码元数（BMP 汉字计 1），SQL 侧对应关系为：
 --       octet_length(decoded)  ⇔  Buffer.from(decoded,'utf8').length
 --       length(raw)            ⇔  value.length
---   即判据 c：octet_length(rep) = length(raw)。它是「raw = utf8(真实名字) 被当
---   latin1 读一遍」这一唯一故障形态的充要特征：
+--   即判据 c：octet_length(rep) = length(raw)。对**本库现存的单层 latin1 误读
+--   故障形态**，它是充要特征（充分性可由反证闭合：utf8(B) 按 latin1 读出的序列
+--   必然全为单字节，其字符数恰等于 |B|，故真实故障行必过此闸；反之能同时通过
+--   闸门 a/b/c 的也只有这一种形态）：
 --     · 真中文行：octet_length(decoded)=octet_length(raw) 恒 > length(raw)，不命中
 --       → 不会把正确名字再解一遍（防二次损坏）；
 --     · ASCII 行：decoded = raw，被幂等闸门 d 排除，不改写；
 --     · 含 U+FFFD 的不可逆串：由闸门 b 排除，交人工按权威源处理，禁止猜文件名；
 --     · latin1 两层叠加：解码后字节数仍不等于原值字符数，由闸门 c 排除。
+--
+-- 【判据 c 的适用边界：不是与 JS 逐字同源的判据】
+--   Postgres 的 length() 数的是**字符**（标量码点），JS 的 value.length 数的是
+--   **UTF-16 码元**：一个 BMP 外字符（emoji、扩展区汉字 CJK-B 等）在 JS 侧计 2、
+--   在 SQL 侧计 1。因此对**含非 BMP 字符**的值，判据 c 与 JS 的
+--   Buffer.byteLength === value.length 口径不再一致，两侧可能给出不同结论。
+--   后果方向是「静默跳过」而不是「误伤」：这类真乱码行过不了闸门 c，不进 SET，
+--   数据保持原样，不会被改坏 —— 评审已确认本库数据上不存在误修复路径。
+--   运维处理：若回填后仍怀疑某行是乱码（尤其文件名带 emoji），不要放宽或改写本
+--   闸门，改用显式字节比较单独复核该行 —— 即报告 §9.1 指的路线：直接按
+--   convert_to(raw,'LATIN1') 的 bytea/hex 与 utf8(真实名) 的字节序列比对，
+--   绕开字符数/码元数口径差异，逐行人工确认后定点 UPDATE。
 --
 -- 【验证结论】在同一张表的「修复前副本」（把当前正确值重新走一遍故障链路生成）上，
 --   本谓词恰好命中 11 行、跳过 3 行正确值；在当前已修复数据上命中 0 行且不抛错。
@@ -105,12 +124,38 @@ COMMIT;
 --    Task 通过 TypeORM synchronize 下线）。
 -- ---------------------------------------------------------------------------
 
--- ============================ 验收查询（必须均为 0 行）=======================
+-- ============================ 验收查询（必须均为 0）==========================
 -- 注意：U+FFFD 检测只能用 position(chr(65533) in col)；LIKE '%\ufffd%' 在
 -- standard_conforming_strings 下是假阴性。
+-- spec §4.2 的验收口径有两半：U+FFFD 残留为 0 **且**双重编码残留为 0。前两条查
+-- 前者，第三条查后者，因此单独跑本文件即可自证验收，无需依赖仓库外的扫描脚本。
 
 SELECT id FROM xpert
  WHERE position(chr(65533) in title::text) > 0;
 
 SELECT id FROM plugin_resume_screen_candidate
  WHERE position(chr(65533) in "sourceFileName"::text) > 0;
+
+-- 双重编码残留命中数必须为 0。谓词与上面 UPDATE 的闸门同构（同样用 LATERAL + CASE
+-- 逐行短路，避免已修复的中文行被送进 convert_to 而抛错），所以这条查询本身只读、
+-- 可重复执行，且在未回填的库上会返回真实乱码行数。
+SELECT count(*) AS still_double_encoded
+  FROM plugin_resume_screen_candidate AS c
+ CROSS JOIN LATERAL (VALUES (c."sourceFileName")) AS v(raw)
+ CROSS JOIN LATERAL (
+       SELECT CASE
+              WHEN v.raw IS NOT NULL
+                AND NOT EXISTS (
+                      SELECT 1
+                        FROM generate_series(1, length(v.raw)) AS g(i)
+                       WHERE ascii(substr(v.raw, g.i, 1)) > 255
+                     )
+                AND position(chr(65533) in
+                             convert_from(convert_to(v.raw, 'LATIN1'), 'UTF8')) = 0
+              THEN convert_from(convert_to(v.raw, 'LATIN1'), 'UTF8')
+              ELSE NULL
+            END AS rep
+     ) AS d
+ WHERE d.rep IS NOT NULL
+   AND octet_length(d.rep) = length(v.raw)
+   AND d.rep <> v.raw;
