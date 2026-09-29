@@ -64,7 +64,8 @@ export class TravelItineraryViewProvider implements IXpertViewExtensionProvider 
           type: 'remote_component',
           runtime: 'react',
           protocolVersion: 1,
-          component: { isolation: 'iframe', entry: TRAVEL_REMOTE_ENTRY_KEY }
+          component: { isolation: 'iframe', entry: TRAVEL_REMOTE_ENTRY_KEY },
+          dataSource: { mode: 'platform' }
         },
         dataSource: {
           mode: 'platform',

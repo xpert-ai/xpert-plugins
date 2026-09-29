@@ -69,7 +69,8 @@ export class TravelItineraryMiddleware implements IAgentMiddlewareStrategy<Recor
     const scope = scopeFromContext(context)
     const createPlan = tool(
       async (requirements: z.infer<typeof requirementsSchema>) => {
-        const plan = await this.service.createPlan(scope, requirements)
+        const parsedRequirements = requirementsSchema.parse(requirements) as TravelRequirements
+        const plan = await this.service.createPlan(scope, parsedRequirements)
         return stringify({ success: true, message: '旅行需求已保存，请继续生成行程。', data: plan })
       },
       {
