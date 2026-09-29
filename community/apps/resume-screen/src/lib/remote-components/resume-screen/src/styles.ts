@@ -265,8 +265,9 @@ export const RS_STYLES_CSS = `
     .rs-detail-foot [data-slot="button"] i { margin-right: 6px; font-size: 14px; }
 
     /* ===== 上传弹窗（§5.3：拖拽区 + 逐文件行 + 汇总条 + 双动作 footer，T15） ===== */
-    /* 弹窗定宽 560 上限；行列表自身限高收口，少行时随内容收缩（intake ScrollArea 同款策略，不依赖 1fr 行） */
-    .rs-upload-dialog { width: min(560px, calc(100% - 32px)); max-height: min(80vh, 680px); display: grid; gap: 12px; overflow: hidden; }
+    /* 弹窗定宽 560 上限；行列表自身限高收口，少行时随内容收缩（intake ScrollArea 同款策略，不依赖 1fr 行）。
+       max-width 必须与 width 同式覆写：shadcn DialogContent 自带 sm:max-w-sm（24rem 钳制），不覆写则弹窗塌到 384px（真机实测） */
+    .rs-upload-dialog { width: min(560px, calc(100% - 32px)); max-width: min(560px, calc(100% - 32px)); max-height: min(80vh, 680px); display: grid; gap: 12px; overflow: hidden; }
     .rs-upload-drop { display: grid; justify-items: center; gap: 8px; padding: 18px 14px; border: 1px dashed var(--rs-border); border-radius: var(--rs-radius-lg); background: var(--rs-bg-soft); color: var(--rs-muted); font-size: 13px; text-align: center; transition: border-color var(--rs-motion-base) var(--rs-ease-entry), background-color var(--rs-motion-base) var(--rs-ease-entry); }
     .rs-upload-drop i { font-size: 26px; color: var(--rs-soft); }
     /* 拖拽进入：蓝软底 + 实线，给出「松手就在这里」的确定感（A14 同源色对） */
@@ -294,8 +295,10 @@ export const RS_STYLES_CSS = `
     /* ===== 简历预览（§5.4：docx 富文本正文 / pdf canvas 直渲共用同一 Dialog 尺寸） =====
        弹窗加大（T22 偏差 9 改写）：pdf 页 fit-width 铺满渲染列，宽是阅读主轴——
        1100 上限让 1080p 下渲染列 ≈1050px；高度 88vh/900 双上限兼顾 1080p（≈950→900 封顶）
-       与 768 笔记本（≈676），窄容器由 min() 的 calc 分支天然收口 */
-    .rs-preview-dialog { width: min(1100px, calc(100% - 24px)); height: min(88vh, 900px); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 12px; overflow: hidden; }
+       与 768 笔记本（≈676），窄容器由 min() 的 calc 分支天然收口。
+       max-width 必须与 width 同式覆写：shadcn DialogContent 自带 sm:max-w-sm（24rem 钳制），
+       不覆写则 1100 沦为空谈、弹窗塌到 384px（真机实测，3.2 用户所见「太小」的真实根因） */
+    .rs-preview-dialog { width: min(1100px, calc(100% - 24px)); max-width: min(1100px, calc(100% - 24px)); height: min(88vh, 900px); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 12px; overflow: hidden; }
     .rs-preview-scroll { min-height: 0; }
     /* 版式对齐真实阅读密度：14px/1.7、正文最长 72ch，超宽视口下不拉成报纸栏。
        弹窗加大后仍维持 72ch：加大收益主体是 pdf（页面随容器缩放），docx 是固定 14px
