@@ -1,10 +1,14 @@
 /**
- * 链路 B 解析队列 worker 单元测试（spec v2.2 §7.7）
+ * 链路 B 解析队列 worker 单元测试（spec v2.2 §7.7 + v5 spec §3.5）
  *
- * 全部外部件按 R10 mock：service（内存 stub）、ManagedQueueService（经 intakeQueue stub）、
- * 模型 runtime token provider 链（createScopedApi→getModelProvider→createModelClient→invoke）。
- * 覆盖幂等认领、结构化优先/文本 JSON 容错降级、末次尝试落败+rethrow、provider 未配置、
- * prompt 纯函数与 sweep 抢占/重入，以及 sweep 定时器的构造期挂接（热重载语义）。
+ * 全部外部件按 R10 mock：service（内存 stub，含唯一 fileStore 实例的 read/exists stub）、
+ * ManagedQueueService（经 intakeQueue stub）、模型 runtime token provider 链
+ * （createScopedApi→getModelProvider→createModelClient→invoke）。
+ * v5 关键口径：简历正文只在任务内存里存在——测试用 fixture 字节经 fileStore.read 桩注入，
+ * 断言 prompt 含解析出的文本、行数据里不再有 sourceText。
+ * 覆盖幂等认领、任务期读盘解析、文件缺失/解析失败收敛（不消耗 attempt）、结构化优先/文本 JSON
+ * 容错降级、末次尝试落败+rethrow、provider 未配置、prompt 纯函数与 sweep 抢占/重入，
+ * 以及 sweep 定时器的构造期挂接（热重载语义）。
  */
 // mock SDK：plugin-sdk 全量引入依赖 lodash-es 等 ESM 产物，jest(CommonJS) 无法解析；
 // 被测代码只消费装饰器与注入 token，此处提供行为等价实现（对齐 provider spec 的 mock 方式）
@@ -14,17 +18,32 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN: 'XPERT_AGENT_MIDDLEWARE_RUNTIME'
 }))
 
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
 import { ResumeScreenParseProcessor } from './resume-screen-parse.processor'
 import { buildParsePrompt, extractJsonLoose, normalizeExtracted } from './resume-screen-parse-prompt'
 
 const SCOPE = { tenantId: 'tenant-1', organizationId: 'org-1', userId: 'user-1', assistantId: 'assistant-1' }
 
+const RESUME_BYTES = readFileSync(join(__dirname, '__fixtures__', 'resume-minimal.docx'))
+const SCANNED_PDF_BYTES = readFileSync(join(__dirname, '__fixtures__', 'resume-empty.pdf'))
+
+/** 存储 key 契约形态：`{yyyy-MM-dd UTC}/{sha256 前 16 位}.{ext}`，单段无第二段（resume-file-store.ts:28） */
+const RESUME_KEY = '2026-09-29/0000000000000000.docx'
+
+/**
+ * 解析行工厂：v5 起 getCandidateForParse 只回文件定位三字段，不再回简历正文。
+ * @param overrides 单用例的业务差异（状态/缺 key/扫描件文件名等）
+ */
 function parsingRow(overrides: Record<string, unknown> = {}) {
   return {
     id: 'c-1',
     jobId: 'job-1',
     status: 'parsing',
-    sourceText: '张三 5年经验 React工程师 本科',
+    filePath: RESUME_KEY,
+    fileMime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    sourceFileName: '张三.docx',
     attemptCount: 0,
     humanEditedFields: [],
     scope: SCOPE,
@@ -47,6 +66,7 @@ const extract = {
   riskPoints: ['未写英语能力']
 }
 
+/** service stub：getCandidateForParse 返回给定行，fileStore 复用「全插件唯一实例」的读盘口 */
 function buildService(row: unknown) {
   return {
     getCandidateForParse: jest.fn(async () => row),
@@ -54,7 +74,9 @@ function buildService(row: unknown) {
     markCandidateFailed: jest.fn(async () => undefined),
     findStaleParsingRows: jest.fn(async () => []),
     // claim 新语义：抢占成功返回持久化自增后的新 attemptCount，失败返回 null
-    claimStaleParsing: jest.fn(async () => 1)
+    claimStaleParsing: jest.fn(async () => 1),
+    // 文件字节按 key 现取（v5：文本只在任务内存里，spec §3.5）
+    fileStore: { read: jest.fn(async () => RESUME_BYTES), exists: jest.fn(async () => true) }
   }
 }
 
@@ -97,7 +119,7 @@ describe('ResumeScreenParseProcessor.handle', () => {
     expect(serviceDone.markCandidateFailed).not.toHaveBeenCalled()
   })
 
-  it('structured path: prompts contain full JD and resume, backfills via saveCandidatesFromAgent', async () => {
+  it('structured path: prompts contain full JD and parsed resume, backfills via saveCandidatesFromAgent', async () => {
     const row = parsingRow()
     const structuredInvoke = jest.fn(async () => ({ ...extract }))
     const service = buildService(row)
@@ -105,19 +127,22 @@ describe('ResumeScreenParseProcessor.handle', () => {
     const processor = new ResumeScreenParseProcessor(service as never, { enqueueParse: jest.fn() } as never, runtimeStub(structuredInvoke), { config: { scoreThreshold: 60 } } as never)
     await processor.handle(parseJob(), queueCtx)
 
-    // prompt 必须含 JD 全文与简历原文（spec §7.7：模型只见这两块业务文本）
-    const messages = structuredInvoke.mock.calls[0][0]
-    const content = messages[0].content as string
+    // prompt 必须含 JD 全文与文件解析出的简历正文（fixture 内含「张三」「React」）
+    const content = structuredInvoke.mock.calls[0][0][0].content as string
     expect(content).toContain('精通 React，3 年以上经验，负责中台前端')
-    expect(content).toContain('张三 5年经验 React工程师 本科')
+    expect(content).toContain('张三')
     expect(content).toContain('60')
     expect(structuredInvoke.mock.calls[0][1]).toMatchObject({ signal: expect.anything() })
-    // 回填复用 service：scope 取行自携带，candidates 带行原文 + 抽取字段
+    // 回填锚点 = candidateId（原文不再入库，dedupeKey 反推已失效）
     expect(service.saveCandidatesFromAgent).toHaveBeenCalledWith(
       SCOPE,
       'job-1',
-      [expect.objectContaining({ sourceText: row.sourceText, ...extract })]
+      [expect.objectContaining({ candidateId: 'c-1', ...extract })]
     )
+    // 红线：正文只在任务内存里——回填结构不得带 sourceText
+    const backfilled = service.saveCandidatesFromAgent.mock.calls[0][2][0] as Record<string, unknown>
+    expect(backfilled).not.toHaveProperty('sourceText')
+    expect(service.fileStore.read).toHaveBeenCalledWith(RESUME_KEY)
     expect(service.markCandidateFailed).not.toHaveBeenCalled()
   })
 
@@ -133,7 +158,7 @@ describe('ResumeScreenParseProcessor.handle', () => {
     expect(service.saveCandidatesFromAgent).toHaveBeenCalledWith(
       SCOPE,
       'job-1',
-      [expect.objectContaining({ name: '张三', matchScore: 72 })]
+      [expect.objectContaining({ candidateId: 'c-1', name: '张三', matchScore: 72 })]
     )
   })
 
@@ -174,19 +199,69 @@ describe('ResumeScreenParseProcessor.handle', () => {
     // provider 未配置属于配置类错误：文案含「模型」，让工作台失败行可指引管理员配置
     expect(service.markCandidateFailed).toHaveBeenCalledWith(SCOPE, 'c-1', expect.stringContaining('模型'))
   })
+
+  it('missing filePath marks file_missing without calling the model or rethrowing', async () => {
+    const structuredInvoke = jest.fn()
+    const service = buildService(parsingRow({ filePath: '' }))
+    const processor = new ResumeScreenParseProcessor(service as never, { enqueueParse: jest.fn() } as never, runtimeStub(structuredInvoke))
+    // 不抛错 = BullMQ 不再重试 = 不消耗模型 attempt（spec §3.5）
+    await expect(processor.handle(parseJob(), queueCtx)).resolves.toBeUndefined()
+    expect(service.markCandidateFailed).toHaveBeenCalledWith(SCOPE, 'c-1', 'file_missing')
+    expect(structuredInvoke).not.toHaveBeenCalled()
+    expect(service.saveCandidatesFromAgent).not.toHaveBeenCalled()
+    // 空 key 必须在调用存储前收敛，不让 store 侧 resolveSafe 拿到空路径去拼目录
+    expect(service.fileStore.read).not.toHaveBeenCalled()
+  })
+
+  it('unreadable file on disk marks file_missing; broken resume marks the parser reason verbatim', async () => {
+    const readFail = buildService(parsingRow())
+    readFail.fileStore.read.mockRejectedValueOnce(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }))
+    const p1 = new ResumeScreenParseProcessor(readFail as never, { enqueueParse: jest.fn() } as never, runtimeStub(jest.fn()))
+    await p1.handle(parseJob(), queueCtx)
+    expect(readFail.markCandidateFailed).toHaveBeenCalledWith(SCOPE, 'c-1', 'file_missing')
+
+    // 扫描件无文字层：reason 原值写进 failureReason，供 §6.6 映射表出可执行指引
+    // 判定以「扩展名 + 魔数」为准，故行必须同时给出 .pdf 文件名与 pdf mime
+    const scanned = buildService(parsingRow({ sourceFileName: '扫描件.pdf', fileMime: 'application/pdf' }))
+    scanned.fileStore.read.mockResolvedValueOnce(SCANNED_PDF_BYTES)
+    const p2 = new ResumeScreenParseProcessor(scanned as never, { enqueueParse: jest.fn() } as never, runtimeStub(jest.fn()))
+    await p2.handle(parseJob({ attemptsMade: 0 }), queueCtx)
+    expect(scanned.markCandidateFailed).toHaveBeenCalledWith(SCOPE, 'c-1', 'no_text_layer')
+    expect(scanned.saveCandidatesFromAgent).not.toHaveBeenCalled()
+  })
+
+  it('a row re-enqueued by sweep is claimed and driven forward by this processor', async () => {
+    // sweep 重投的是同一行（DB 仍为 parsing，attemptCount 已被 claimStaleParsing 持久化自增到 4）：
+    // 这条用例把「重投 → worker 重新认领 → 读盘 → 回填」的真实转换钉住，而不是假设上游已覆盖
+    const row = parsingRow({ attemptCount: 4 })
+    const structuredInvoke = jest.fn(async () => ({ ...extract }))
+    const service = buildService(row)
+    const processor = new ResumeScreenParseProcessor(service as never, { enqueueParse: jest.fn() } as never, runtimeStub(structuredInvoke))
+
+    await processor.handle(parseJob({ attemptsMade: 4 }), queueCtx)
+
+    expect(service.getCandidateForParse).toHaveBeenCalledWith('c-1')
+    expect(service.fileStore.read).toHaveBeenCalledWith(RESUME_KEY)
+    expect(service.saveCandidatesFromAgent).toHaveBeenCalledWith(
+      SCOPE,
+      'job-1',
+      [expect.objectContaining({ candidateId: 'c-1', ...extract })]
+    )
+    expect(service.markCandidateFailed).not.toHaveBeenCalled()
+  })
 })
 
 describe('buildParsePrompt / extraction helpers', () => {
   it('prompt protects human-edited fields and treats scoreThreshold as a UI hint only', () => {
-    const base = buildParsePrompt(parsingRow())
+    const base = buildParsePrompt({ jobTitle: '前端工程师', jobJdText: '精通 React', sourceText: '张三 5年经验 React工程师 本科' })
     expect(base).toContain('只输出 JSON')
     expect(base).not.toContain('人工')
 
-    const edited = buildParsePrompt(parsingRow({ humanEditedFields: ['name', 'matchScore'] }))
+    const edited = buildParsePrompt({ sourceText: '张三', humanEditedFields: ['name', 'matchScore'] })
     expect(edited).toContain('name')
     expect(edited).toContain('不要覆盖人工已修正字段')
 
-    const withThreshold = buildParsePrompt(parsingRow(), { scoreThreshold: 80 })
+    const withThreshold = buildParsePrompt({ sourceText: '张三' }, { scoreThreshold: 80 })
     expect(withThreshold).toContain('80')
     // spec 红线：阈值仅界面提示，不得出现自动推进/接受语义
     expect(withThreshold).not.toMatch(/自动(推进|接受|通过)/)
