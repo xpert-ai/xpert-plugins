@@ -57,7 +57,7 @@ export function detectResumeFileKind(buffer: Buffer, fileName: string): ResumeFi
 }
 
 /**
- * 简历文件 → 纯文本。上传链路唯一文本来源（spec v2.2：sourceText 不再接受粘贴）。
+ * 简历文件 → 纯文本。解析任务期内唯一文本来源，不落库（spec v2.2：sourceText 不再接受粘贴）。
  * 格式判定复用 detectResumeFileKind 的口径（扩展名 + 魔数），本函数只额外承担体积闸；
  * 体积闸必须先于魔数复核——伪装扩展名的超大文件应报 file_too_large 而非 unsupported_format（重构前即此顺序）。
  * 解析失败统一抛 ResumeFileParseError，

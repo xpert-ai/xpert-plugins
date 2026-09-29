@@ -10,9 +10,11 @@ import type { ResumeScreenCandidateStatus } from '../types'
 
 // 复合索引一：按租户/组织/助手/状态过滤各评审看板列表
 // 复合索引二：按职位维度查看某 JD 下候选人并按创建时间排序
+// 复合索引三：预览/重新解析时按职位定位同一份文件（fileHash 精确匹配）
 @Entity('plugin_resume_screen_candidate')
 @Index(['tenantId', 'organizationId', 'assistantId', 'status'])
 @Index(['tenantId', 'organizationId', 'jobId', 'status', 'createdAt'])
+@Index(['jobId', 'fileHash'])
 export class ResumeScreenCandidate {
   // 主键由数据库生成 UUID，实体侧声明为可选
   @PrimaryGeneratedColumn('uuid')
@@ -41,7 +43,7 @@ export class ResumeScreenCandidate {
   @Column({ type: 'varchar' })
   jobId?: string
 
-  // 简历原文指纹：批量录入时据此去重（跳过已存在简历），建索引
+  // 简历内容指纹：v5 起 dedupeKey = sha256(jobId|fileHash)，即「同一职位下同一份文件只有一行」
   @Index()
   @Column({ type: 'varchar' })
   dedupeKey?: string
@@ -55,9 +57,22 @@ export class ResumeScreenCandidate {
   @Column({ type: 'varchar', nullable: true })
   sourceFileName?: string
 
-  // 简历原文用 text 存储，作为抽取与追溯依据
-  @Column({ type: 'text' })
-  sourceText?: string
+  // 原始简历文件四列（v5，spec §3.3）：字节落插件 fileStorageDir，库内只存相对 key 与指纹。
+  // 全部 nullable——v5 之前的存量行没有文件，前端据 hasFile=false 禁用预览与重新解析（§6.4）。
+  @Column({ type: 'varchar', length: 512, nullable: true })
+  filePath?: string | null
+
+  // 字节数：上限 10MB（RESUME_FILE_MAX_BYTES），int4 足够，刻意不用 bigint
+  @Column({ type: 'int', nullable: true })
+  fileSize?: number | null
+
+  // 文件内容 sha256（64 位十六进制），dedupeKey 的组成因子，也是重复上传判定依据
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  fileHash?: string | null
+
+  // 落盘时判定的 mime（预览分支与界面文件态展示用）
+  @Column({ type: 'varchar', length: 128, nullable: true })
+  fileMime?: string | null
 
   // 以下为 AI 抽取/人工修正的档案字段，均允许为空（抽取失败不阻断入库）
   @Column({ type: 'varchar', nullable: true })
