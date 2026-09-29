@@ -131,6 +131,16 @@ async function uploadAndStart(target: ResumeScreenService, scope: ResumeScreenSc
   return draft
 }
 
+/**
+ * 取候选人行真实的内部存储 key（filePath）
+ *
+ * 投影红线断言用它拿「这一行到底存了哪个路径」，而不是把 `{yyyy-MM-dd}/{hash}.ext`
+ * 的日期分桶写死在当前日期上——那会随 UTC 跨天变脆。
+ */
+function filePathOf(repository: { store: Array<{ id?: string; filePath?: string | null }> }, candidateId: string) {
+  return repository.store.find((row) => row.id === candidateId)?.filePath as string
+}
+
 describe('ResumeScreenService', () => {
   const scope: ResumeScreenScope = {
     tenantId: 'tenant-1',
@@ -662,23 +672,84 @@ describe('ResumeScreenService', () => {
       expect(data.candidates).toHaveLength(3)
       expect(data.page.total).toBe(3)
     })
+
+    describe('getViewData 文件投影', () => {
+      it('候选行只带派生文件字段，内部路径不出现在视图里（spec §3.6）', async () => {
+        const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+        const draft = await uploadAndStart(service, scope, job.id, ['张三.pdf'])
+        const data = await service.getViewData(scope, { jobId: job.id })
+        // 桩产出的描述符 size=20_480 / mime=application/pdf，fileKind 由 mime 派生
+        expect(data.candidates[0]).toMatchObject({ hasFile: true, fileKind: 'pdf', fileSize: 20_480 })
+        // 红线用该行真实 key 断言（而非某个字面日期）：内部存储路径一旦进视图即泄漏
+        const storedKey = filePathOf(candidateRepository, draft.created[0].id)
+        expect(storedKey).toBeTruthy()
+        expect(JSON.stringify(data.candidates[0])).not.toContain(storedKey)
+        expect(data.candidates[0]).not.toHaveProperty('filePath')
+      })
+
+      // 存量行（v5 前录入）降级：无文件 → hasFile=false，前端据此禁用预览与重试（spec §6.4）
+      it('未保留文件的存量行投影为 hasFile=false 且不报错', async () => {
+        const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+        const draft = await uploadAndStart(service, scope, job.id, ['旧数据'])
+        // 直接改仓库行模拟 v5 前的历史行：状态推进 helper 都有幂等守卫，构造前置态只能显式写列
+        await candidateRepository.update(
+          { id: draft.created[0].id },
+          { filePath: null, fileMime: null, fileSize: null }
+        )
+
+        const data = await service.getViewData(scope, { jobId: job.id })
+        expect(data.candidates[0].hasFile).toBe(false)
+        expect(data.candidates[0].fileKind).toBeUndefined()
+        expect(data.candidates[0].fileSize).toBeUndefined()
+        // 溯源文件名仍在：失败列表还要展示「哪个文件」
+        expect(data.candidates[0].sourceFileName).toBe('旧数据')
+      })
+    })
+  })
+
+  // 预览读文件契约：服务端内部定位三要素，T12 的 preview_candidate action 消费，不经视图下发
+  describe('getResumeFileForPreview', () => {
+    it('返回读盘三要素，跨作用域即返回 null（预览同样受租户隔离）', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const draft = await uploadAndStart(service, scope, job.id, ['张三.pdf'])
+      const candidateId = draft.created[0].id
+
+      const file = await service.getResumeFileForPreview(scope, candidateId)
+      expect(file).toEqual({ filePath: filePathOf(candidateRepository, candidateId), mime: 'application/pdf', fileName: '张三.pdf' })
+
+      // 助手维度不匹配不得区分「不存在」与「无权」：统一 null，不泄露存在性差异
+      const otherScope = { ...scope, assistantId: 'other-assistant' }
+      expect(await service.getResumeFileForPreview(otherScope, candidateId)).toBeNull()
+      expect(await service.getResumeFileForPreview(scope, 'missing-id')).toBeNull()
+    })
+
+    it('没有 filePath 的行返回 null（旧数据，调用方给可读失败）', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const draft = await uploadAndStart(service, scope, job.id, ['旧数据'])
+      await candidateRepository.update({ id: draft.created[0].id }, { filePath: null })
+      expect(await service.getResumeFileForPreview(scope, draft.created[0].id)).toBeNull()
+    })
   })
 
   // 助手只读查询：摘要刻意精简且不携带简历原文，详情按 id 二次查询，控制模型上下文长度
   describe('listCandidatesForAgent / getCandidateDetailForAgent', () => {
-    it('returns compact summaries without sourceText', async () => {
+    it('returns compact summaries without resume text', async () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
       const draft = await uploadAndStart(service, scope, job.id, ['甲'])
       await service.saveCandidatesFromAgent(scope, job.id, [{ candidateId: draft.created[0].id, name: '甲', matchScore: 80 }])
 
       const list = await service.listCandidatesForAgent(scope, { jobId: job.id })
       expect(list).toHaveLength(1)
-      expect(list[0]).not.toHaveProperty('sourceText')
+      // 摘要走白名单映射：内部存储路径不得出现在下发给模型的字段里
+      expect(list[0]).not.toHaveProperty('filePath')
       expect(list[0].name).toBe('甲')
 
       const detail = await service.getCandidateDetailForAgent(scope, list[0].id)
       expect(detail.matchScore).toBe(80)
-      expect(detail).not.toHaveProperty('sourceText')
+      // 详情复用 toCandidateView 投影，同样只有派生文件字段，不含 filePath
+      expect(detail).not.toHaveProperty('filePath')
+      expect(JSON.stringify(detail)).not.toContain(filePathOf(candidateRepository, draft.created[0].id))
+      expect(detail.hasFile).toBe(true)
     })
 
     // S7 审核 F8：工具声明了 page/pageSize，服务层必须透传而不是硬覆盖回第 1 页

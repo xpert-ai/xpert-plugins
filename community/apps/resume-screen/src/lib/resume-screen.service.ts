@@ -688,6 +688,34 @@ export class ResumeScreenService {
   }
 
   /**
+   * 取预览所需的文件定位信息（服务端内部契约）
+   *
+   * 预览与重新解析都要按 scope 校验归属，不能复用 worker 的 getCandidateForParse
+   * （那条路径无请求上下文、靠行自携带字段）。
+   *
+   * 返回值只交给服务端预览渲染层（T10/T12 的 preview_candidate action）读盘用，
+   * 绝不下发给浏览器或模型——filePath 属内部存储 key，视图投影刻意不含它（spec §3.6）。
+   *
+   * @param scope 多租户隔离范围（来自视图动作上下文）
+   * @param candidateId 候选人行 id
+   * @returns filePath（相对存储根的内部 key）+ mime + 展示文件名；行不存在/跨作用域/无文件 → null
+   *          （null 统一覆盖「不存在」与「无权」与「存量行无文件」三种情况，不泄露存在性差异，
+   *          可读失败文案由调用方决定）
+   */
+  async getResumeFileForPreview(
+    scope: ResumeScreenScope,
+    candidateId: string
+  ): Promise<{ filePath: string; mime: string; fileName: string } | null> {
+    const row = await this.candidateRepository.findOne({
+      where: { ...this.scopeWhere(scope), id: candidateId }
+    })
+    if (!row?.filePath) {
+      return null
+    }
+    return { filePath: row.filePath, mime: row.fileMime ?? '', fileName: row.sourceFileName ?? '' }
+  }
+
+  /**
    * sweep 查询：捞 updatedAt 早于阈值的 parsing 滞留行（全局无请求作用域）
    *
    * worker 上下文合法例外——跨租户捞取，但返回行自带原 scope 三元组，
@@ -792,7 +820,7 @@ export class ResumeScreenService {
   }
 
   /**
-   * 助手只读查询：返回候选人紧凑摘要列表（刻意不含简历原文）
+   * 助手只读查询：返回候选人紧凑摘要列表（刻意不含简历正文与文件内部路径）
    *
    * 供 resume_screen_list_candidates 工具使用；复用 getViewData 的排序/过滤口径，
    * 分页透传调用方取值、pageSize 封顶 100 以约束模型上下文长度（S7 审核 F8：
@@ -812,7 +840,7 @@ export class ResumeScreenService {
       page: query.page ?? 1,
       pageSize: Math.min(query.pageSize ?? AGENT_LIST_MAX_PAGE_SIZE, AGENT_LIST_MAX_PAGE_SIZE)
     })
-    // 逐字段白名单映射，确保 sourceText 等大字段永不进入模型上下文
+    // 逐字段白名单映射，确保简历正文与文件路径等大字段永不进入模型上下文
     return data.candidates.map((candidate) => ({
       id: candidate.id,
       name: candidate.name,
@@ -826,23 +854,18 @@ export class ResumeScreenService {
   }
 
   /**
-   * 助手只读查询：返回单个候选人详情（剥离简历原文）
+   * 供 resume_screen_get_candidate_detail 工具使用：按 id 二次查询完整档案
    *
-   * 供 resume_screen_get_candidate_detail 工具使用；sourceText 仅用于幂等对齐，
-   * 对模型无增量价值且占用大量上下文，故在出口剥离。
+   * 复用 toCandidateView 投影——文件字段只保留派生值（fileKind/fileSize/hasFile），
+   * 内部存储路径不外泄，因此无需再做任何字段剥离。
    *
    * @param scope 多租户隔离范围
    * @param candidateId 候选人 id，必须已存在且属于当前作用域
-   * @returns 不含 sourceText 的候选人视图
+   * @returns 候选人视图（含 AI 抽取与评审信息，不含任何文件内部路径）
    * @exception NotFoundException 候选人在作用域内不存在
    */
-  async getCandidateDetailForAgent(
-    scope: ResumeScreenScope,
-    candidateId: string
-  ): Promise<Omit<ResumeScreenCandidateView, 'sourceText'>> {
+  async getCandidateDetailForAgent(scope: ResumeScreenScope, candidateId: string): Promise<ResumeScreenCandidateView> {
     const row = await this.findCandidate(scope, candidateId)
-    const view = toCandidateView(row)
-    const { sourceText: _sourceText, ...detail } = view as ResumeScreenCandidateView & { sourceText?: string }
-    return detail
+    return toCandidateView(row)
   }
 }
