@@ -87,6 +87,8 @@ function toInt(raw: string | undefined, fallback: number, min: number, max: numb
  *
  * 与 toInt 同口径的「永远可启动」兜底：部署侧误传空串不应让插件装载失败，
  * 但也绝不能把简历字节写到 cwd 根，因此空白一律视为未配置。
+ * 静默降级会误导运维（看不出简历到底落在哪个目录），因此「已设置但为空白」这一种
+ * 情形由调用方 readResumeScreenPluginEnvDefaults 补一条 warn；本函数保持纯函数、不直接写日志。
  *
  * @param raw 环境变量原始值（可能为 undefined 或全空白），来源为部署环境注入
  * @param fallback 缺省兜底目录
@@ -105,10 +107,16 @@ function toDir(raw: string | undefined, fallback: string) {
  * @returns maxResumesPerBatch/scoreThreshold/fileStorageDir 三项默认值
  */
 export function readResumeScreenPluginEnvDefaults() {
+  const rawFileStorageDir = process.env['RESUME_SCREEN_FILE_STORAGE_DIR']
+  // 只在「已设置但为空白」时告警：未设置属正常零配置启动，不该制造噪音日志
+  if (rawFileStorageDir !== undefined && rawFileStorageDir.trim().length === 0) {
+    console.warn(`RESUME_SCREEN_FILE_STORAGE_DIR 为空白、已回退默认目录 ${RESUME_SCREEN_DEFAULT_FILE_STORAGE_DIR}`)
+  }
+
   return {
     maxResumesPerBatch: toInt(process.env['RESUME_SCREEN_MAX_RESUMES_PER_BATCH'], 10, 1, 20),
     scoreThreshold: toInt(process.env['RESUME_SCREEN_SCORE_THRESHOLD'], 60, 0, 100),
-    fileStorageDir: toDir(process.env['RESUME_SCREEN_FILE_STORAGE_DIR'], RESUME_SCREEN_DEFAULT_FILE_STORAGE_DIR)
+    fileStorageDir: toDir(rawFileStorageDir, RESUME_SCREEN_DEFAULT_FILE_STORAGE_DIR)
   }
 }
 

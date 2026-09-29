@@ -2,11 +2,11 @@
  * 插件配置模式、环境变量默认值与存储目录解析单元测试
  *
  * 覆盖四类场景：schema 默认值解析、越界批量数与空白存储目录拒绝、
- * 环境变量缺省/非法时回退默认值、合法环境变量正确读取，
+ * 环境变量缺省/非法时回退默认值（含「已设置但为空白」的告警可观测性）、合法环境变量正确读取，
  * 以及 resolveFileStorageDir 把配置目录解析为绝对路径（v5 简历字节落盘根目录）。
  * S7 审核 F2 裁决：`enabled` 无消费语义已从配置面整体移除，用例不再断言该项。
  */
-import { join } from 'node:path'
+import { dirname, isAbsolute, join, resolve } from 'node:path'
 import {
   readResumeScreenPluginEnvDefaults,
   RESUME_SCREEN_DEFAULT_FILE_STORAGE_DIR,
@@ -73,6 +73,31 @@ describe('readResumeScreenPluginEnvDefaults', () => {
       fileStorageDir: RESUME_SCREEN_DEFAULT_FILE_STORAGE_DIR
     })
   })
+
+  // 运维把存储目录误设为空白时仍会回退默认值（零配置可启动的兜底不变），
+  // 但必须留下告警，否则「简历落在哪个目录」在线上无从查证
+  it('存储目录被设为空白时回退默认并告警一次，未设置或合法值都不告警', () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined)
+    try {
+      delete process.env['RESUME_SCREEN_FILE_STORAGE_DIR']
+      expect(readResumeScreenPluginEnvDefaults().fileStorageDir).toBe(RESUME_SCREEN_DEFAULT_FILE_STORAGE_DIR)
+      expect(warnSpy).not.toHaveBeenCalled()
+
+      process.env['RESUME_SCREEN_FILE_STORAGE_DIR'] = ' \t '
+      expect(readResumeScreenPluginEnvDefaults().fileStorageDir).toBe(RESUME_SCREEN_DEFAULT_FILE_STORAGE_DIR)
+      expect(warnSpy).toHaveBeenCalledTimes(1)
+      expect(warnSpy.mock.calls[0][0]).toContain('RESUME_SCREEN_FILE_STORAGE_DIR 为空白、已回退默认目录')
+
+      // 合法值与数值项非法都不属于本告警的范围：只针对「已设置但空白的目录」这一种降级
+      warnSpy.mockClear()
+      process.env['RESUME_SCREEN_FILE_STORAGE_DIR'] = '/srv/rs-resume'
+      process.env['RESUME_SCREEN_MAX_RESUMES_PER_BATCH'] = 'not-a-number'
+      expect(readResumeScreenPluginEnvDefaults().fileStorageDir).toBe('/srv/rs-resume')
+      expect(warnSpy).not.toHaveBeenCalled()
+    } finally {
+      warnSpy.mockRestore()
+    }
+  })
 })
 
 describe('fileStorageDir', () => {
@@ -128,5 +153,44 @@ describe('resolveFileStorageDir', () => {
     const absolute = join(process.cwd(), 'srv', 'resume')
     expect(resolveFileStorageDir(absolute)).toBe(absolute)
     expect(resolveFileStorageDir('  data/resume-screen  ')).toBe(join(process.cwd(), 'data', 'resume-screen'))
+  })
+
+  /**
+   * isAbsolute 短路的负向/透传用例：本分支存在的意义就是「不要把已定锚的路径再喂给 resolve」。
+   *
+   * 两类候选都跑（`/` 根与本机 join 出的绝对路径），但不写只在本机成立的 OS 分支：
+   * 期望全部由 node:path 推导——isAbsolute 为真要求逐字透传、为假要求被定锚，
+   * 于是同一条业务规则在 win32 与 POSIX 上都能表达；改形与否决定负向断言是否生效。
+   */
+  it('isAbsolute 判真的路径必须逐字透传，不被重新定锚（含 / 根与本机绝对路径两类）', () => {
+    let mutatedByResolve = false
+    for (const input of ['/srv/rs-resume', join(process.cwd(), 'srv', 'resume')]) {
+      const reanchored = resolve(process.cwd(), input)
+      if (reanchored !== input) {
+        mutatedByResolve = true
+        // 这条断言绑定「按 isAbsolute 决定」的规则本身：实现退化为无条件 resolve 即红
+        expect(resolveFileStorageDir(input)).not.toBe(reanchored)
+      }
+      expect(resolveFileStorageDir(input)).toBe(isAbsolute(input) ? input : reanchored)
+      expect(resolveFileStorageDir(`  ${input}  `)).toBe(isAbsolute(input) ? input : reanchored)
+    }
+    // 兜底防「空跑」：至少一个候选必须真的会被重新定锚改形，否则上面的负向断言毫无鉴别力
+    expect(mutatedByResolve).toBe(true)
+  })
+
+  // 绝对路径的结果不能受服务端工作目录影响，否则落盘根目录会随启动目录漂移
+  it('绝对路径结果与 process.cwd() 无关，相对路径才跟随 cwd', () => {
+    const originalCwd = process.cwd()
+    const absolute = join(originalCwd, 'srv', 'resume')
+    // 切到一定存在的上层目录：dirname(cwd) 无需依赖 tmpdir 之类额外 import，跨平台都可 chdir
+    const otherCwd = dirname(originalCwd)
+    process.chdir(otherCwd)
+    try {
+      expect(resolveFileStorageDir(absolute)).toBe(absolute)
+      expect(resolveFileStorageDir('data/resume-screen')).toBe(join(otherCwd, 'data', 'resume-screen'))
+    } finally {
+      process.chdir(originalCwd)
+    }
+    expect(process.cwd()).toBe(originalCwd)
   })
 })
