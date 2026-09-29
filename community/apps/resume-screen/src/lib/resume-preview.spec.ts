@@ -7,7 +7,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { renderResumePreview, sanitizePreviewHtml } from './resume-preview'
-import { ResumeFileParseError } from './resume-file-parser'
 
 const fixture = (name: string) => readFileSync(join(__dirname, '__fixtures__', name))
 
@@ -48,9 +47,38 @@ describe('sanitizePreviewHtml', () => {
     expect(clean).toBe('<p>Y</p>')
   })
 
-  it('常规排版标签与属性原样保留（不破坏简历可读性）', () => {
-    const html = '<h1><strong>张三</strong></h1><table><tr><td>经验</td></tr></table><ul><li>React</li></ul><br/>'
+  // 与上一条 href 用例分开的独立钉子：src 侧危险协议此前无任何样本，
+  // 把清洗属性列表里的 src 删掉时 11 条仍全绿——本用例专门拦这类静默削弱。
+  it('src 侧危险协议同样整条丢弃（img/a 的 src 与 xlink:href）', () => {
+    const clean = sanitizePreviewHtml(
+      '<img src="javascript:alert(1)"/><a href="https://ok.example">正常</a><svg><a xlink:href="JavaScript:alert(2)">x</a></svg>'
+    )
+    expect(clean).not.toContain('javascript:alert(1)')
+    expect(clean.toLowerCase()).not.toContain('xlink:href')
+    expect(clean).toContain('https://ok.example')
+  })
+
+  // 属性值字符实体绕过判定：浏览器在属性态解码一次字符引用，所以 &#106;avascript: 是真实 javascript: URL。
+  // 判定层必须先解码再测；标签/事件属性那一层无需解码（HTML 分词先切标签，解码出的 < 不会重排成标签）。
+  it('属性值里的数字实体编码不能绕过危险协议判定', () => {
+    const entityHref = sanitizePreviewHtml('<a href="&#106;avascript:alert(1)">点我</a>')
+    expect(entityHref).not.toContain('&#106;avascript')
+    expect(entityHref).not.toContain('href')
+    const entityHexHref = sanitizePreviewHtml('<a href="&#x6a;avascript&colon;alert(1)">点我</a>')
+    expect(entityHexHref).not.toContain('href')
+    // 反向对照：正文里已转义的尖括号必须仍是死文本，解码只用于判定、绝不写回 HTML
+    const escapedText = sanitizePreviewHtml('<p>&lt;b&gt;加粗写法&lt;/b&gt;</p>')
+    expect(escapedText).toBe('<p>&lt;b&gt;加粗写法&lt;/b&gt;</p>')
+  })
+
+  // 常规属性存活：spec §3.5 保留「常规排版标签与属性」，此前该保证的输入完全不含属性，
+  // 属性白名单被收窄时无人报警；同时钉住 data-* 不被误删（清洗列表曾因包含 data 而误伤合法自定义属性）。
+  it('常规排版属性原样保留（class/title/id/target/data-*）', () => {
+    const html = '<p class="MsoNormal" title="技能栏" id="sec1" data-source="docx" data-row="3">经验</p>'
     expect(sanitizePreviewHtml(html)).toBe(html)
+    // 单独钉 data：清洗属性名列表曾包含 data 项（其唯一"用途"是 <embed data=…>，而该标签已被 DROP_TAGS 整段删除）。
+    // 这条精确相等断言保证「把 data 加回清洗列表」立刻变红，防止将来误把 data- 前缀当危险项。
+    expect(sanitizePreviewHtml('<td data="x">单元格</td>')).toBe('<td data="x">单元格</td>')
   })
 })
 
@@ -73,10 +101,14 @@ describe('renderResumePreview', () => {
     }
   })
 
+  // 断言走类型化 reason：本用例字节头部并非 %PDF-，只有「尺寸闸先于魔数闸」才得到 file_too_large；
+  // 若顺序被颠倒，reason 会漂成 unsupported_format —— 这条钉子就是任务书列出的硬约束。
   it('超过 10MB 的文件在 action 层之前拒绝（尺寸闸与上传同值）', async () => {
     const big = Buffer.alloc(10 * 1024 * 1024 + 1, 1)
     big.write('%PDF-1.7', 0)
-    await expect(renderResumePreview(big, 'application/pdf')).rejects.toBeInstanceOf(ResumeFileParseError)
+    await expect(renderResumePreview(big, 'application/pdf')).rejects.toMatchObject({
+      reason: 'file_too_large'
+    })
   })
 
   // 断言走类型化字段 reason：本仓禁止从展示文案推断机器可读区分（文案属 UI 资产，随时可改）
@@ -86,10 +118,14 @@ describe('renderResumePreview', () => {
     })
   })
 
+  // 断言走类型化 reason：toBeInstanceOf 对四种 reason 全真，删掉 try/catch 之外的分支照样绿；
+  // 这里钉的是 R-P39 的承诺——junk zip 过掉魔数闸后必须由 mammoth 异常折叠成 parse_error。
   it('损坏的 docx 走 parse_error 而不是静默返回空 HTML', async () => {
     const junk = Buffer.concat([Buffer.from([0x50, 0x4b, 0x03, 0x04]), Buffer.from('not-a-real-zip')])
     await expect(
       renderResumePreview(junk, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-    ).rejects.toBeInstanceOf(ResumeFileParseError)
+    ).rejects.toMatchObject({
+      reason: 'parse_error'
+    })
   })
 })
