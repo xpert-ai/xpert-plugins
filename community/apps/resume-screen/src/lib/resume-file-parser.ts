@@ -26,12 +26,18 @@ export const RESUME_FILE_MAX_PDF_PAGES = 100
 export type ResumeFileKind = 'docx' | 'pdf'
 
 /**
- * 简历字节的唯一「类型判定」入口：扩展名初筛 + 魔数复核，供落盘存储与文本解析共用。
- * 抽出独立函数是为了让「上传即校验」和「任务期解析」两处判定口径永远一致（spec §3.1/§3.5）。
- * @param buffer 文件字节
+ * 简历字节的「类型判定」入口：扩展名初筛 + 魔数复核，供落盘存储与文本解析共用同一口径（spec §3.1/§3.5）。
+ *
+ * 职责边界（重要）：本函数只判定格式，**不校验体积**。brief 曾把「超尺寸」列入其抛错条件，但实现刻意不做——
+ * 因为 `parseResumeFileContent` 重构前的失败优先级是「不认识扩展名 → 超尺寸 → 魔数不符」，
+ * 一旦在本函数内加尺寸闸，就必须把它挪到 `parseResumeFileContent` 体积闸之前，
+ * 会让「合法扩展名 + 超大 + 魔数不符」的上传从 file_too_large 漂成 unsupported_format。
+ * 因此尺寸闸由各调用方自行套用 RESUME_FILE_MAX_BYTES：解析侧见 parseResumeFileContent，
+ * 存储侧见 resume-file-store.ts；新增调用方若漏掉这一层，就等于对超大文件放行。
+ * @param buffer 文件字节（只看前 5 字节魔数，长度不影响判定结果）
  * @param fileName 原始文件名；缺省或空串视为非法（上传通道缺名不可信）
  * @returns 'docx' 或 'pdf'
- * @throws ResumeFileParseError unsupported_format（扩展名不认识 / 内容与扩展名不符）
+ * @throws ResumeFileParseError unsupported_format（扩展名不认识 / 内容与扩展名不符）；不会抛 file_too_large
  */
 export function detectResumeFileKind(buffer: Buffer, fileName: string): ResumeFileKind {
   const lower = (fileName || '').toLowerCase()
