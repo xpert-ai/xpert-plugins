@@ -11,6 +11,9 @@ import { LessThan, Repository } from 'typeorm'
 import { createHash } from 'crypto'
 import { RESUME_SCREEN_SWEEP_BATCH_LIMIT } from './constants'
 import { RESUME_SCREEN_PLUGIN_CONTEXT } from './resume-screen-plugin-context'
+import { ResumeFileStore } from './resume-file-store'
+import { RESUME_SCREEN_DEFAULT_FILE_STORAGE_DIR, resolveFileStorageDir } from './resume-screen.config'
+import type { ResumeFileKind } from './resume-file-parser'
 import { ResumeScreenCandidate, ResumeScreenJob } from './entities'
 import type {
   ResumeScreenAgentCandidateSummary,
@@ -19,6 +22,7 @@ import type {
   ResumeScreenCandidatePatch,
   ResumeScreenCandidateView,
   ResumeScreenIntakeDraftResult,
+  ResumeScreenIntakeFile,
   ResumeScreenJobInput,
   ResumeScreenJobView,
   ResumeScreenReviewAction,
@@ -69,9 +73,17 @@ function sha256(value: string) {
   return createHash('sha256').update(value).digest('hex')
 }
 
-// 插件安装上下文里本服务只消费配置段（maxResumesPerBatch 上传限批）；
+// 插件安装上下文里本服务消费的两项配置：批量上限（F2 接线）与简历存储根目录（v5）；
 // 上下文形态对齐 processor 的 ParsePluginContext 取法，声明为可选以兼容 harness/单测缺省
-type ServicePluginContext = { config?: { maxResumesPerBatch?: number } }
+type ServicePluginContext = { config?: { maxResumesPerBatch?: number; fileStorageDir?: string } }
+
+// mime → 预览渲染分支判定：docx 走服务端 HTML，pdf 走 base64 交浏览器原生查看器（spec §3.5）
+// 无 mime（存量行/异常行）返回 undefined，由 hasFile=false 统一走禁用分支
+function toFileKind(mime?: string | null): ResumeFileKind | undefined {
+  if (!mime) return undefined
+  if (mime.includes('pdf')) return 'pdf'
+  return mime.includes('word') ? 'docx' : undefined
+}
 
 // 实体行 → 职位视图：时间统一序列化为 ISO 字符串，隔离实体结构与对外契约
 function toJobView(job: ResumeScreenJob): ResumeScreenJobView {
@@ -106,6 +118,11 @@ function toCandidateView(row: ResumeScreenCandidate): ResumeScreenCandidateView 
     attemptCount: row.attemptCount ?? 0,
     failureReason: row.failureReason ?? undefined,
     sourceFileName: row.sourceFileName || undefined,
+    // 派生值而非原始列：fileKind 决定预览分支，hasFile 决定是否允许预览/重试；
+    // filePath 刻意不外泄
+    fileKind: toFileKind(row.fileMime),
+    fileSize: row.fileSize ?? undefined,
+    hasFile: Boolean(row.filePath),
     reviewedById: row.reviewedById ?? undefined,
     reviewedAt: row.reviewedAt ? new Date(row.reviewedAt).toISOString() : undefined,
     revision: row.revision ?? 1,
@@ -144,6 +161,10 @@ function sortCandidates(candidates: ResumeScreenCandidateView[], query: ResumeSc
 
 @Injectable()
 export class ResumeScreenService {
+  // 简历字节存储：provider 上传落盘、processor 解析读盘、预览渲染读字节的唯一实例。
+  // 懒建目录（ResumeFileStore 只在 put 时 mkdir），构造服务实例不碰磁盘。
+  private readonly resumeFileStore: ResumeFileStore
+
   constructor(
     @InjectRepository(ResumeScreenJob)
     private readonly jobRepository: Repository<ResumeScreenJob>,
@@ -155,7 +176,16 @@ export class ResumeScreenService {
     @Optional()
     @Inject(RESUME_SCREEN_PLUGIN_CONTEXT)
     private readonly pluginContext?: ServicePluginContext
-  ) {}
+  ) {
+    this.resumeFileStore = new ResumeFileStore(
+      resolveFileStorageDir(this.pluginContext?.config?.fileStorageDir ?? RESUME_SCREEN_DEFAULT_FILE_STORAGE_DIR)
+    )
+  }
+
+  /** 简历文件存储（全插件唯一实例，见 §3.1） */
+  get fileStore(): ResumeFileStore {
+    return this.resumeFileStore
+  }
 
   // 单批录入上限：优先取安装上下文配置（S7 审核 F2 接线），缺省或非法值回落到默认 10，
   // 避免未装配配置时放开限制
@@ -257,50 +287,52 @@ export class ResumeScreenService {
   }
 
   /**
-   * 批量录入简历原文，生成 parsing 状态的候选人草稿行
+   * 批量录入已落盘的简历文件，生成 draft 状态的候选人草稿行
    *
-   * 以 `jobId|原文` 的 SHA-256 作为幂等键（dedupeKey）：命中同职位下已存在的
-   * 原文直接跳过并计入 skippedAsExisting，保证重复提交/断点重传不产生重复行；
-   * 不同职位下的同文简历视为不同候选人（dedupeKey 按职位隔离）。
+   * 字节由 provider 交给 ResumeFileStore 落盘，本方法只收描述符（领域层不碰字节）。
+   * 以 `jobId|fileHash` 的 SHA-256 作为幂等键（dedupeKey）：命中同职位下同一份文件内容
+   * 直接跳过并回报文件名，保证重复上传/断点重传不产生重复行；不同职位下的同一份文件
+   * 视为不同候选人（dedupeKey 按职位隔离）。
    *
    * @param scope 多租户隔离范围
    * @param jobId 归属职位 id，必须已存在且属于当前作用域
-   * @param texts 简历原文数组（用户粘贴/上传内容），空文本会被剔除
-   * @param options 可选：sourceFileName 上传通道来源文件名，用于失败行按文件溯源展示
-   * @returns created 为新建的 parsing 行视图，skippedAsExisting 为被幂等跳过的原文摘要
+   * @param files 已落盘文件的描述符集合（key/size/sha256/mime 来自 ResumeFileStore.put，
+   *              sourceFileName 为用户上传时的原始文件名，逐文件携带）
+   * @returns created 为新建的 draft 行视图，skippedAsExisting 为被幂等跳过的**文件名**列表
+   *          （刻意不回报任何内容信息）
    * @exception NotFoundException jobId 在作用域内不存在
-   * @exception BadRequestException 剔除空文本后无有效输入，或单批超过 maxResumesPerBatch 上限
+   * @exception BadRequestException 剔除非法描述符后为空，或单批超过 maxResumesPerBatch 上限
    */
   async prepareIntakeDraft(
     scope: ResumeScreenScope,
     jobId: string,
-    texts: string[],
-    options?: { sourceFileName?: string }
+    files: ResumeScreenIntakeFile[]
   ): Promise<ResumeScreenIntakeDraftResult> {
     // 职位必须存在且属于当前作用域，防止跨租户/跨助手挂载候选人
     const job = await this.jobRepository.findOne({ where: { ...this.scopeWhere(scope), id: jobId } })
     if (!job) {
       throw new NotFoundException('岗位不存在')
     }
-    // 剔除空白输入，避免空文本产生无意义的解析任务
-    const normalized = texts.map((text) => text?.trim()).filter((text): text is string => Boolean(text))
+    // 字节已由 provider 落盘，这里只收描述符；缺 key 或缺 hash 的条目一旦建行就是
+    // 永远读不到内容的死行，必须在建行前剔除（整批全非法才报错）
+    const normalized = files.filter((file) => Boolean(file?.key?.trim()) && Boolean(file?.sha256?.trim()))
     if (normalized.length === 0) {
-      throw new BadRequestException('至少需要一条非空简历文本')
+      throw new BadRequestException('至少需要一份简历文件')
     }
     if (normalized.length > this.maxResumesPerBatch) {
       throw new BadRequestException(`单批最多 ${this.maxResumesPerBatch} 条简历（maxResumesPerBatch 上限）`)
     }
     const created: ResumeScreenCandidateView[] = []
     const skippedAsExisting: string[] = []
-    for (const text of normalized) {
-      // 幂等键 = 职位 id + 原文指纹，按职位隔离去重范围
-      const dedupeKey = sha256(`${jobId}|${text}`)
+    for (const file of normalized) {
+      // 幂等键 = 职位 id + 文件内容指纹：同名不同内容算两份，不同名同内容算一份
+      const dedupeKey = sha256(`${jobId}|${file.sha256}`)
       const existing = await this.candidateRepository.findOne({
         where: { ...this.scopeWhere(scope), jobId, dedupeKey }
       })
       if (existing) {
-        // 只保留原文前 50 字作为跳过摘要，避免结果体携带完整简历原文
-        skippedAsExisting.push(text.slice(0, 50))
+        // 跳过项只回报文件名，不回报任何内容信息
+        skippedAsExisting.push(file.sourceFileName || file.key)
         continue
       }
       const row = await this.candidateRepository.save(
@@ -310,10 +342,13 @@ export class ResumeScreenService {
           createdById: scope.userId ?? null,
           jobId,
           dedupeKey,
-          status: 'parsing',
-          sourceText: text,
-          // 上传通道溯源：粘贴/助手录入不传该字段，保持空
-          sourceFileName: options?.sourceFileName,
+          // 两段式：先 draft，由 provider 入队成功后推进 parsing（spec §3.4）
+          status: 'draft',
+          sourceFileName: file.sourceFileName,
+          filePath: file.key,
+          fileSize: file.size,
+          fileHash: file.sha256,
+          fileMime: file.mime,
           humanEditedFields: [],
           attemptCount: 0,
           revision: 1
@@ -322,6 +357,23 @@ export class ResumeScreenService {
       created.push(toCandidateView(row))
     }
     return { jobId, created, skippedAsExisting }
+  }
+
+  /**
+   * 把草稿行推进到解析中（上传链路入队前后的状态闸门）
+   *
+   * @param scope 多租户隔离范围
+   * @param candidateId 草稿行 id（必须是 prepareIntakeDraft 刚建出的 draft 行）
+   * @returns parsing 态视图；对非 draft 行幂等返回当前视图，不回退状态
+   */
+  async markCandidateParsing(scope: ResumeScreenScope, candidateId: string): Promise<ResumeScreenCandidateView> {
+    const row = await this.findCandidate(scope, candidateId)
+    if (row.status !== 'draft') {
+      // 重复调用（重试/回执竞态）不得把已定稿行拉回 parsing
+      return toCandidateView(row)
+    }
+    const updated = await this.candidateRepository.save({ ...row, status: 'parsing' })
+    return toCandidateView(updated)
   }
 
   /**

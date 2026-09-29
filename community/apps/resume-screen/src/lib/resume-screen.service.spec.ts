@@ -7,10 +7,11 @@
  */
 import { BadRequestException, NotFoundException } from '@nestjs/common'
 import { createHash } from 'crypto'
+import { join } from 'node:path'
 import { FindOperator } from 'typeorm'
 import { ResumeScreenCandidate, ResumeScreenJob } from './entities'
 import { ResumeScreenRevisionConflictError, ResumeScreenService } from './resume-screen.service'
-import type { ResumeScreenScope } from './types'
+import type { ResumeScreenIntakeFile, ResumeScreenScope } from './types'
 
 // 内存时间戳基准：保证模拟 save 写入的 createdAt 单调递增，供 order by createdAt 排序用例使用
 const MOCK_BASE_TIME = 1700000000000
@@ -107,6 +108,29 @@ function sha256(value: string) {
   return createHash('sha256').update(value).digest('hex')
 }
 
+// v5 上传通道的单测等价物：一份文件描述符（sha256 用真实算法算，dedupeKey 断言才可核验）
+function intakeFile(overrides: Partial<ResumeScreenIntakeFile> & { sourceFileName: string }): ResumeScreenIntakeFile {
+  const key = overrides.key ?? `2026-09-29/${sha256(overrides.sourceFileName).slice(0, 16)}.pdf`
+  return {
+    key,
+    size: 20_480,
+    sha256: sha256(overrides.sourceFileName),
+    mime: 'application/pdf',
+    sourceFileName: overrides.sourceFileName,
+    ...overrides
+  }
+}
+
+// prepareIntakeDraft 只建 draft 行，置 parsing + 入队属 provider 层；
+// 单测跳过 provider，用本 helper 复现「已排队」的真实前置态
+async function uploadAndStart(target: ResumeScreenService, scope: ResumeScreenScope, jobId: string, names: string[]) {
+  const draft = await target.prepareIntakeDraft(scope, jobId, names.map((name) => intakeFile({ sourceFileName: name })))
+  for (const row of draft.created) {
+    await target.markCandidateParsing(scope, row.id)
+  }
+  return draft
+}
+
 describe('ResumeScreenService', () => {
   const scope: ResumeScreenScope = {
     tenantId: 'tenant-1',
@@ -174,66 +198,110 @@ describe('ResumeScreenService', () => {
   })
 
   describe('prepareIntakeDraft', () => {
-    it('creates parsing rows with dedupeKey and skips existing texts (AC2.4)', async () => {
+    it('建 draft 行并写文件四列与派生投影（v5：不再接收文本）', async () => {
       const job = await service.createJob(scope, { title: '前端工程师', jdText: 'x'.repeat(30) })
-      const result = await service.prepareIntakeDraft(scope, job.id, ['简历甲', '简历乙'])
-      expect(result.created).toHaveLength(2)
-      expect(result.created[0].status).toBe('parsing')
-      expect(result.skippedAsExisting).toHaveLength(0)
+      const file = intakeFile({ sourceFileName: '张三.pdf' })
+      const result = await service.prepareIntakeDraft(scope, job.id, [file])
 
-      const again = await service.prepareIntakeDraft(scope, job.id, ['简历甲', '简历丙'])
-      expect(again.created).toHaveLength(1)
-      expect(again.skippedAsExisting).toHaveLength(1)
-      expect(candidateRepository.store).toHaveLength(3)
+      expect(result.created).toHaveLength(1)
+      // 两段式建行：入队前只到 draft，避免「parsing 但没有 job」的黑洞窗口（spec §3.4）
+      expect(result.created[0].status).toBe('draft')
+      expect(result.created[0].hasFile).toBe(true)
+      expect(result.created[0].fileKind).toBe('pdf')
+      expect(result.created[0].fileSize).toBe(20_480)
+      expect(result.created[0].sourceFileName).toBe('张三.pdf')
+
+      const row = candidateRepository.store[0]
+      expect(row.filePath).toBe(file.key)
+      expect(row.fileHash).toBe(file.sha256)
+      expect(row.fileMime).toBe('application/pdf')
+      // 幂等键语义迁移：职位 + 文件内容指纹
+      expect(row.dedupeKey).toBe(sha256(`${job.id}|${file.sha256}`))
     })
 
-    it('rejects when jobId missing or batch exceeds maxResumesPerBatch', async () => {
-      await expect(service.prepareIntakeDraft(scope, 'missing-job', ['简历甲'])).rejects.toBeInstanceOf(
-        NotFoundException
-      )
-      const job = await service.createJob(scope, { title: '前端工程师', jdText: 'x'.repeat(30) })
-      await expect(
-        service.prepareIntakeDraft(scope, job.id, Array.from({ length: 11 }, (_, i) => `简历${i}`))
-      ).rejects.toBeInstanceOf(BadRequestException)
+    it('视图绝不下发 filePath（内部路径不进浏览器，spec §3.6）', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const result = await service.prepareIntakeDraft(scope, job.id, [intakeFile({ sourceFileName: 'a.pdf' })])
+      expect(result.created[0]).not.toHaveProperty('filePath')
     })
 
-    // S7 审核 F2 接线：上限取插件安装上下文 config.maxResumesPerBatch，而非恒缺省的 DI 参数
-    it('enforces the configured maxResumesPerBatch from the plugin install context', async () => {
-      const configured = new ResumeScreenService(
-        jobRepository as never,
-        candidateRepository as never,
-        { config: { maxResumesPerBatch: 3 } } as never
-      )
-      const job = await configured.createJob(scope, { title: '前端工程师', jdText: 'x'.repeat(30) })
-      // 恰等于上限放行、超限拒绝，且中文提示回显配置值而不是默认 10
-      const ok = await configured.prepareIntakeDraft(scope, job.id, ['甲', '乙', '丙'])
-      expect(ok.created).toHaveLength(3)
-      await expect(
-        configured.prepareIntakeDraft(scope, job.id, ['丁', '戊', '己', '庚'])
-      ).rejects.toThrow('单批最多 3 条简历')
+    it('同一文件二次上传按 fileHash 跳过，跳过项回报文件名而不是原文（AC2.4）', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const file = intakeFile({ sourceFileName: '张三.pdf' })
+      await service.prepareIntakeDraft(scope, job.id, [file])
+      const again = await service.prepareIntakeDraft(scope, job.id, [
+        // 同一份字节换了文件名再传（浏览器自动加 (1) 后缀）：sha256 必须与首份一致，
+        // 只让 key/文件名不同，才能验证判重走的是内容指纹而不是路径
+        intakeFile({ key: '2026-09-30/other.pdf', sourceFileName: '张三(1).pdf', sha256: file.sha256 })
+      ])
+      // key 不同但 sha256 相同 → 同一份内容，必须判重
+      expect(again.created).toHaveLength(0)
+      expect(again.skippedAsExisting).toEqual(['张三(1).pdf'])
+      expect(candidateRepository.store).toHaveLength(1)
     })
 
-    it('scopes dedupeKey per job (same text, different job → new row)', async () => {
+    it('按职位隔离去重范围（同一文件挂到另一职位 → 新建行）', async () => {
       const jobA = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
       const jobB = await service.createJob(scope, { title: 'B', jdText: 'b'.repeat(30) })
-      await service.prepareIntakeDraft(scope, jobA.id, ['同一份简历'])
-      const result = await service.prepareIntakeDraft(scope, jobB.id, ['同一份简历'])
+      const file = intakeFile({ sourceFileName: '同一份.pdf' })
+      await service.prepareIntakeDraft(scope, jobA.id, [file])
+      const result = await service.prepareIntakeDraft(scope, jobB.id, [file])
       expect(result.created).toHaveLength(1)
     })
 
-    it('persists source file name onto the intake draft row', async () => {
-      const job = await service.createJob(scope, { title: '前端工程师', jdText: 'x'.repeat(30) })
-      const result = await service.prepareIntakeDraft(scope, job.id, ['  简历原文 A  '], { sourceFileName: 'a.docx' })
-      // 上传通道的文件名要能随草稿行落库并在视图带出（工作台失败行溯源用）
-      expect(candidateRepository.store[0].sourceFileName).toBe('a.docx')
-      expect(result.created[0].sourceFileName).toBe('a.docx')
+    it('拒绝空文件列表、未知职位、缺 key/hash 的描述符与超批量上限', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      await expect(service.prepareIntakeDraft(scope, job.id, [])).rejects.toBeInstanceOf(BadRequestException)
+      await expect(service.prepareIntakeDraft(scope, 'missing-job', [intakeFile({ sourceFileName: 'a.pdf' })])).rejects.toBeInstanceOf(
+        NotFoundException
+      )
+      // 缺 key 的条目一旦建行就是永远读不到字节的死行，必须在建行前拒
+      await expect(service.prepareIntakeDraft(scope, job.id, [{ ...intakeFile({ sourceFileName: 'a.pdf' }), key: '  ' }])).rejects.toThrow(
+        /至少需要一份/
+      )
+      await expect(service.prepareIntakeDraft(scope, job.id, [{ ...intakeFile({ sourceFileName: 'a.pdf' }), sha256: '' }])).rejects.toThrow(
+        /至少需要一份/
+      )
+      expect(candidateRepository.store).toHaveLength(0)
+
+      await expect(
+        service.prepareIntakeDraft(
+          scope,
+          job.id,
+          Array.from({ length: 11 }, (_, index) => intakeFile({ sourceFileName: `r${index}.pdf` }))
+        )
+      ).rejects.toThrow('单批最多 10 条简历')
+    })
+
+    // S7 审核 F2 接线保持不变：上限仍取安装上下文配置
+    it('enforces the configured maxResumesPerBatch from the plugin install context', async () => {
+      const configured = new ResumeScreenService(jobRepository as never, candidateRepository as never, {
+        config: { maxResumesPerBatch: 3 }
+      } as never)
+      const job = await configured.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const ok = await configured.prepareIntakeDraft(scope, job.id, ['甲', '乙', '丙'].map((n) => intakeFile({ sourceFileName: `${n}.pdf` })))
+      expect(ok.created).toHaveLength(3)
+      await expect(
+        configured.prepareIntakeDraft(scope, job.id, ['丁', '戊', '己', '庚'].map((n) => intakeFile({ sourceFileName: `${n}.pdf` })))
+      ).rejects.toThrow('单批最多 3 条简历')
+    })
+
+    it('markCandidateParsing 把 draft 行推进到 parsing（上传链路入队前置）', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const draft = await service.prepareIntakeDraft(scope, job.id, [intakeFile({ sourceFileName: 'a.pdf' })])
+      const started = await service.markCandidateParsing(scope, draft.created[0].id)
+      expect(started.status).toBe('parsing')
+      // 非 draft 行不得被回退：重复调用保持幂等，不重复推进 revision
+      const again = await service.markCandidateParsing(scope, draft.created[0].id)
+      expect(again.status).toBe('parsing')
+      expect(again.revision).toBe(1)
     })
   })
 
   describe('saveCandidatesFromAgent', () => {
     it('backfills parsing rows and sets pending_review (AC2.3)', async () => {
       const job = await service.createJob(scope, { title: '前端工程师', jdText: 'x'.repeat(30) })
-      const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+      const draft = await uploadAndStart(service, scope, job.id, ['张三的简历'])
       const rowId = draft.created[0].id
 
       const saved = await service.saveCandidatesFromAgent(scope, job.id, [
@@ -259,7 +327,7 @@ describe('ResumeScreenService', () => {
 
     it('upserts by dedupeKey: same record, no duplicate (AC4.3 retry-safety)', async () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
-      await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+      await uploadAndStart(service, scope, job.id, ['张三的简历'])
       await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: '张三' }])
       await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: '张三', matchScore: 90 }])
       expect(candidateRepository.store).toHaveLength(1)
@@ -269,7 +337,7 @@ describe('ResumeScreenService', () => {
     // 人工修正保护：人工改过的字段在 AI 重跑回填时必须原样保留（AC5.2）
     it('never overwrites human-edited fields (AC5.2)', async () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
-      const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+      const draft = await uploadAndStart(service, scope, job.id, ['张三的简历'])
       const rowId = draft.created[0].id
       await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: '张三' }])
       await service.updateCandidate(scope, rowId, { name: '张三丰' }, 1)
@@ -284,7 +352,7 @@ describe('ResumeScreenService', () => {
     // enabled in Task 10（依赖 markCandidateFailed / retryCandidate）
     it('clears failureReason and keeps attemptCount on success', async () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
-      const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+      const draft = await uploadAndStart(service, scope, job.id, ['张三的简历'])
       const rowId = draft.created[0].id
       await service.markCandidateFailed(scope, rowId, '模型处理超时')
       await service.retryCandidate(scope, rowId)
@@ -300,7 +368,7 @@ describe('ResumeScreenService', () => {
     // 无端顶成「已被他人修改」冲突；人工编辑/处置/重试通道才负责递增
     it('AI backfill leaves revision untouched while human edit still bumps it', async () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
-      const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+      const draft = await uploadAndStart(service, scope, job.id, ['张三的简历'])
       const rowId = draft.created[0].id
       await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: '张三' }])
       expect(candidateRepository.store[0].revision).toBe(1)
@@ -315,7 +383,7 @@ describe('ResumeScreenService', () => {
   describe('markCandidateFailed / retryCandidate', () => {
     it('marks failed with readable reason and increments attemptCount (AC4.1/4.2)', async () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
-      const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+      const draft = await uploadAndStart(service, scope, job.id, ['张三的简历'])
       const rowId = draft.created[0].id
 
       const failed = await service.markCandidateFailed(scope, rowId, 'AI 返回格式不合法')
@@ -332,7 +400,7 @@ describe('ResumeScreenService', () => {
 
     it('retry keeps the same record id, no duplicates (AC4.3)', async () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
-      const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+      const draft = await uploadAndStart(service, scope, job.id, ['张三的简历'])
       const rowId = draft.created[0].id
       await service.markCandidateFailed(scope, rowId, '模型处理超时')
       await service.retryCandidate(scope, rowId)
@@ -344,7 +412,7 @@ describe('ResumeScreenService', () => {
     // S7 审核 F9：人工重试属人工写，必须推进乐观锁版本使并发编辑旧版本号失效
     it('retry bumps revision so a concurrent editor holding the old version loses', async () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
-      const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+      const draft = await uploadAndStart(service, scope, job.id, ['张三的简历'])
       const rowId = draft.created[0].id
       await service.markCandidateFailed(scope, rowId, '模型处理超时')
       const retried = await service.retryCandidate(scope, rowId)
@@ -357,7 +425,7 @@ describe('ResumeScreenService', () => {
 
     it('retry rejects non-retryable statuses (M1: parsing is also retryable)', async () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
-      const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+      const draft = await uploadAndStart(service, scope, job.id, ['张三的简历'])
       const rowId = draft.created[0].id
       // parsing 行可直接重试（模型彻底失败场景，spec 修正项 M1）
       const retrying = await service.retryCandidate(scope, rowId)
@@ -379,7 +447,7 @@ describe('ResumeScreenService', () => {
   describe('updateCandidate', () => {
     it('records humanEditedFields and bumps revision (AC5.1/5.2)', async () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
-      const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+      const draft = await uploadAndStart(service, scope, job.id, ['张三的简历'])
       const rowId = draft.created[0].id
       await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: '张三' }])
 
@@ -392,7 +460,7 @@ describe('ResumeScreenService', () => {
 
     it('rejects stale revision with a readable message and a machine-readable conflict code', async () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
-      const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+      const draft = await uploadAndStart(service, scope, job.id, ['张三的简历'])
       const rowId = draft.created[0].id
       await service.updateCandidate(scope, rowId, { name: '第一次修改' }, 1)
       // 冲突必须是携带 code 的类型化异常：视图层据此回 data.code='revision_conflict'（F1/F5）
@@ -408,7 +476,7 @@ describe('ResumeScreenService', () => {
     // 条件更新的 WHERE revision 失配使 affected=0，必须拒绝而不是拿旧快照盲写覆盖
     it('blocks the write when the revision advanced after the pre-read (conditional update, no blind overwrite)', async () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
-      const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+      const draft = await uploadAndStart(service, scope, job.id, ['张三的简历'])
       const rowId = draft.created[0].id
       // 库内已是版本 2（他人刚提交），但预读 findOne 返回竞态窗口里的旧快照（版本 1）
       await candidateRepository.update({ id: rowId }, { revision: 2 })
@@ -432,7 +500,7 @@ describe('ResumeScreenService', () => {
   describe('reviewCandidate', () => {
     it('accepts / holds / rejects and stamps reviewer (AC3.1/3.2)', async () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
-      const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+      const draft = await uploadAndStart(service, scope, job.id, ['张三的简历'])
       const rowId = draft.created[0].id
       await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: '张三' }])
 
@@ -449,7 +517,7 @@ describe('ResumeScreenService', () => {
 
     it('is idempotent when already in target status (AC3.3)', async () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
-      const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+      const draft = await uploadAndStart(service, scope, job.id, ['张三的简历'])
       const rowId = draft.created[0].id
       await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历' }])
       await service.reviewCandidate(scope, rowId, 'accept', 'user-1')
@@ -461,7 +529,7 @@ describe('ResumeScreenService', () => {
     // 幂等重复处置不写库也就不推进
     it('disposition writes bump revision, repeated same-action stays idempotent', async () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
-      const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+      const draft = await uploadAndStart(service, scope, job.id, ['张三的简历'])
       const rowId = draft.created[0].id
       await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历' }])
       expect(candidateRepository.store[0].revision).toBe(1)
@@ -480,7 +548,7 @@ describe('ResumeScreenService', () => {
 
     it('resets back to pending_review via reset_to_pending', async () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
-      const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'])
+      const draft = await uploadAndStart(service, scope, job.id, ['张三的简历'])
       const rowId = draft.created[0].id
       await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历' }])
       await service.reviewCandidate(scope, rowId, 'accept', 'user-1')
@@ -493,7 +561,7 @@ describe('ResumeScreenService', () => {
   describe('getViewData', () => {
     it('returns jobs, current job, candidates, stats and pagination', async () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
-      await service.prepareIntakeDraft(scope, job.id, ['甲', '乙'])
+      await uploadAndStart(service, scope, job.id, ['甲', '乙'])
       await service.saveCandidatesFromAgent(scope, job.id, [
         { sourceText: '甲', name: '甲', matchScore: 80 },
         { sourceText: '乙', name: '乙', matchScore: 40 }
@@ -521,7 +589,7 @@ describe('ResumeScreenService', () => {
     // 在带 status 的查询上直接抛 ReferenceError → 工作台状态 pill 点击即 500
     it('filters candidates by the requested status when the query carries a status', async () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
-      const draft = await service.prepareIntakeDraft(scope, job.id, ['甲', '乙', '丙'])
+      const draft = await uploadAndStart(service, scope, job.id, ['甲', '乙', '丙'])
       await service.saveCandidatesFromAgent(scope, job.id, [
         { sourceText: '甲', name: '甲' },
         { sourceText: '乙', name: '乙' },
@@ -541,7 +609,7 @@ describe('ResumeScreenService', () => {
 
     it('returns an empty candidate list when no row matches the requested status', async () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
-      await service.prepareIntakeDraft(scope, job.id, ['甲'])
+      await uploadAndStart(service, scope, job.id, ['甲'])
       await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '甲', name: '甲' }])
 
       const data = await service.getViewData(scope, { jobId: job.id, status: 'hold' })
@@ -553,7 +621,7 @@ describe('ResumeScreenService', () => {
 
     it('returns all candidates of the current job when the query has no status', async () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
-      const draft = await service.prepareIntakeDraft(scope, job.id, ['甲', '乙', '丙'])
+      const draft = await uploadAndStart(service, scope, job.id, ['甲', '乙', '丙'])
       await service.saveCandidatesFromAgent(scope, job.id, [
         { sourceText: '甲', name: '甲' },
         { sourceText: '乙', name: '乙' },
@@ -571,7 +639,7 @@ describe('ResumeScreenService', () => {
   describe('listCandidatesForAgent / getCandidateDetailForAgent', () => {
     it('returns compact summaries without sourceText', async () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
-      await service.prepareIntakeDraft(scope, job.id, ['甲'])
+      await uploadAndStart(service, scope, job.id, ['甲'])
       await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '甲', name: '甲', matchScore: 80 }])
 
       const list = await service.listCandidatesForAgent(scope, { jobId: job.id })
@@ -587,7 +655,7 @@ describe('ResumeScreenService', () => {
     // S7 审核 F8：工具声明了 page/pageSize，服务层必须透传而不是硬覆盖回第 1 页
     it('passes the requested page/pageSize through to the list query', async () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
-      const draft = await service.prepareIntakeDraft(scope, job.id, ['甲', '乙', '丙', '丁'])
+      const draft = await uploadAndStart(service, scope, job.id, ['甲', '乙', '丙', '丁'])
       // 默认 createdAt 倒序：丁丙乙甲——第 2 页（size=2）应命中 乙、甲
       const secondPage = await service.listCandidatesForAgent(scope, { jobId: job.id, page: 2, pageSize: 2 })
       expect(secondPage.map((item) => item.id)).toEqual([draft.created[1].id, draft.created[0].id])
@@ -613,7 +681,7 @@ describe('ResumeScreenService', () => {
   describe('parse worker helpers (getCandidateForParse / sweep)', () => {
     it('getCandidateForParse returns row with job text and self-carried scope', async () => {
       const job = await service.createJob(scope, { title: '前端工程师', jdText: 'react 三年经验优先'.repeat(3) })
-      const draft = await service.prepareIntakeDraft(scope, job.id, ['张三的简历'], { sourceFileName: 'a.docx' })
+      const draft = await uploadAndStart(service, scope, job.id, ['张三的简历'])
 
       const row = await service.getCandidateForParse(draft.created[0].id)
       expect(row).toMatchObject({
@@ -635,7 +703,7 @@ describe('ResumeScreenService', () => {
 
     it('findStaleParsingRows returns only parsing rows older than threshold, across scopes', async () => {
       const job = await service.createJob(scope, { title: '前端工程师', jdText: 'x'.repeat(30) })
-      const draft = await service.prepareIntakeDraft(scope, job.id, ['滞留行', '将被标失败的行'])
+      const draft = await uploadAndStart(service, scope, job.id, ['滞留行', '将被标失败的行'])
       await service.markCandidateFailed(scope, draft.created[1].id, '手动标失败')
 
       // MOCK 行的 updatedAt 固定在 2023 基准时间：阈值 0（cutoff=now）应命中全部 parsing 行、排除 failed 行
@@ -650,7 +718,7 @@ describe('ResumeScreenService', () => {
 
     it('claimStaleParsing preempts only stale parsing rows and persists the bumped attempt number', async () => {
       const job = await service.createJob(scope, { title: '前端工程师', jdText: 'x'.repeat(30) })
-      const draft = await service.prepareIntakeDraft(scope, job.id, ['待抢占行'])
+      const draft = await uploadAndStart(service, scope, job.id, ['待抢占行'])
       const candidateId = draft.created[0].id
 
       // 新鲜行保护：updatedAt 不早于 cutoff 的行不得被抢占，attemptCount 保持不变（防误计）
@@ -673,6 +741,24 @@ describe('ResumeScreenService', () => {
       await service.markCandidateFailed(scope, candidateId, '已失败')
       await expect(service.claimStaleParsing(candidateId, new Date(Date.now() + 60_000))).resolves.toBeNull()
       await expect(service.claimStaleParsing('unknown-id', new Date(Date.now() + 60_000))).resolves.toBeNull()
+    })
+  })
+
+  // 存储根目录来自安装上下文配置：provider/processor/预览共用 service 里的同一个 store 实例
+  describe('fileStore wiring', () => {
+    it('未配置时落在默认目录（相对服务端 cwd）', () => {
+      expect(service.fileStore).toBe(service.fileStore)
+      expect(service.fileStore.resolveSafe('2026-09-29/a.pdf')).toBe(
+        join(process.cwd(), 'data', 'resume-screen', '2026-09-29', 'a.pdf')
+      )
+    })
+
+    it('安装上下文 fileStorageDir 生效（绝对路径原样用作根目录）', () => {
+      const absolute = join(process.cwd(), 'srv', 'rs-resume')
+      const configured = new ResumeScreenService(jobRepository as never, candidateRepository as never, {
+        config: { fileStorageDir: absolute }
+      } as never)
+      expect(configured.fileStore.resolveSafe('x/y.pdf')).toBe(join(absolute, 'x', 'y.pdf'))
     })
   })
 })
