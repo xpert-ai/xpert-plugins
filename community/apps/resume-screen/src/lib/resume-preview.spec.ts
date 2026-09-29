@@ -98,6 +98,16 @@ describe('sanitizePreviewHtml', () => {
     // 这条精确相等断言保证「把 data 加回清洗列表」立刻变红，防止将来误把 data- 前缀当危险项。
     expect(sanitizePreviewHtml('<td data="x">单元格</td>')).toBe('<td data="x">单元格</td>')
   })
+
+  // 越界码点实体（> U+10FFFF）：协议判定解码时折叠为空白而不是让消毒整步崩溃；
+  // 折叠结果只用于判定，输出必须保留原始实体文本（解码绝不写回 HTML）
+  it('越界码点的数字实体无害化：属性判定不崩溃且原文实体不被改写', () => {
+    const hexForm = '<a href="https://ok.example/?q=&#x110000;resume">正常</a>'
+    expect(sanitizePreviewHtml(hexForm)).toBe(hexForm)
+    // 十进制溢出形态走同一条守卫：判定安全（解码后是普通 https 链接），实体原样存活
+    const decForm = '<a href="https://ok.example/?id=&#999999999999;x">正常</a>'
+    expect(sanitizePreviewHtml(decForm)).toBe(decForm)
+  })
 })
 
 describe('renderResumePreview', () => {

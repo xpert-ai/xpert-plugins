@@ -100,4 +100,21 @@ describe('ResumeFileStore', () => {
     await expect(store.put({ buffer: oversized, fileName: 'big.pdf', date: FIXED_UTC })).rejects.toThrow()
     expect(await readdir(root)).toEqual([])
   })
+
+  // put 的第一道闸：零字节输入连 sha256/key 都无从谈起，必须在建目录写盘前拒绝，
+  // 否则会上游生成一个空文件占据内容寻址 key，污染幂等探测
+  it('拒绝空内容字节（零字节绝不建 key、不落盘）', async () => {
+    await expect(store.put({ buffer: Buffer.alloc(0), fileName: 'empty.pdf', date: FIXED_UTC })).rejects.toThrow(
+      '简历文件内容为空'
+    )
+    // 根目录仍为空 = 空输入零写入（连日期桶目录都不建）
+    expect(await readdir(root)).toEqual([])
+  })
+
+  // 空 key 的两处防线：resolveSafe 直接拒绝（绝不把根目录本身当读路径回落），
+  // exists 借此把非法 key 归为「不存在」，让幂等探测继续走写入路径由 resolveSafe 兜底拦截
+  it('空 key 在路径解析前即拒绝；exists 对空 key 视为不存在而不抛错', async () => {
+    expect(() => store.resolveSafe('')).toThrow('key 为空')
+    await expect(store.exists('')).resolves.toBe(false)
+  })
 })

@@ -21,7 +21,7 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { ResumeScreenParseProcessor } from './resume-screen-parse.processor'
+import { ResumeScreenParseProcessor, STALE_PARSING_THRESHOLD_MS } from './resume-screen-parse.processor'
 import { buildParsePrompt, extractJsonLoose, normalizeExtracted } from './resume-screen-parse-prompt'
 
 const SCOPE = { tenantId: 'tenant-1', organizationId: 'org-1', userId: 'user-1', assistantId: 'assistant-1' }
@@ -230,6 +230,32 @@ describe('ResumeScreenParseProcessor.handle', () => {
     expect(scanned.saveCandidatesFromAgent).not.toHaveBeenCalled()
   })
 
+  // 模型运行时缺失（@Optional 注入为 undefined）是配置类故障：不消耗模型 attempt，也不允许
+  // 行悬挂在 parsing——末次尝试必须先落可读失败态再抛错交 BullMQ 收尾
+  it('模型运行时缺失按末次尝试落业务失败，失败原因指明运行时未启用', async () => {
+    const service = buildService(parsingRow())
+    const processor = new ResumeScreenParseProcessor(service as never, { enqueueParse: jest.fn() } as never, undefined)
+    await expect(processor.handle(parseJob({ attemptsMade: 3 }), queueCtx)).rejects.toThrow('模型运行时不可用')
+    // 文件已成功读出（失败归因在模型调用而非文件），回填自然不得发生
+    expect(service.fileStore.read).toHaveBeenCalledWith(RESUME_KEY)
+    expect(service.markCandidateFailed).toHaveBeenCalledWith(SCOPE, 'c-1', expect.stringContaining('模型解析失败'))
+    expect(service.saveCandidatesFromAgent).not.toHaveBeenCalled()
+  })
+
+  // 降级路径的二次失败：结构化不可用后，文本输出连宽松 JSON 都抽不出来——
+  // 非末次尝试只重抛交 BullMQ 重试，不提前落业务失败态（与文件类失败的就地收敛区分开）
+  it('降级后模型输出不含任何 JSON 时按瞬时失败重抛（非末次不落业务失败）', async () => {
+    const structuredInvoke = jest.fn(async () => {
+      throw new Error('no function calling')
+    })
+    const textInvoke = jest.fn(async () => ({ content: '抱歉，这一轮我无法给出结构化结果。' }))
+    const service = buildService(parsingRow())
+    const processor = new ResumeScreenParseProcessor(service as never, { enqueueParse: jest.fn() } as never, runtimeStub(structuredInvoke, textInvoke))
+    await expect(processor.handle(parseJob({ attemptsMade: 0 }), queueCtx)).rejects.toThrow('模型返回无法解析为 JSON')
+    expect(service.markCandidateFailed).not.toHaveBeenCalled()
+    expect(service.saveCandidatesFromAgent).not.toHaveBeenCalled()
+  })
+
   it('a row re-enqueued by sweep is claimed and driven forward by this processor', async () => {
     // sweep 重投的是同一行（DB 仍为 parsing，attemptCount 已被 claimStaleParsing 持久化自增到 4）：
     // 这条用例把「重投 → worker 重新认领 → 读盘 → 回填」的真实转换钉住，而不是假设上游已覆盖
@@ -405,6 +431,32 @@ describe('ResumeScreenParseProcessor sweep timer wiring', () => {
       start()
       start()
       expect(jest.getTimerCount()).toBe(1)
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  // 滞留阈值与 UI 的 10 分钟超时提示同源取值：两边各自漂移时，工作台会先于/晚于 sweep 提示，
+  // 用户看到的状态与兜底动作脱节——这里钉死 10 分钟这个契约值
+  it('滞留解析阈值与 UI 超时提示同源（10 分钟）', () => {
+    expect(STALE_PARSING_THRESHOLD_MS).toBe(10 * 60_000)
+  })
+
+  // 常态销毁路径（onModuleDestroy）：interval 必须随实例销毁清掉，否则插件卸载/重建后
+  // 旧定时器继续打兜底查询，形成僵尸轮次；重复销毁也必须幂等不抛错
+  it('onModuleDestroy 清理 sweep 定时器：销毁后不再触发兜底且重复销毁幂等', async () => {
+    jest.useFakeTimers()
+    try {
+      const service = buildService(null)
+      const processor = new ResumeScreenParseProcessor(service as never, { enqueueParse: jest.fn() } as never, runtimeStub(jest.fn()) as never)
+      expect(jest.getTimerCount()).toBe(1)
+      processor.onModuleDestroy()
+      expect(jest.getTimerCount()).toBe(0)
+      // 已清掉的周期到点也不得再跑兜底查询
+      await jest.advanceTimersByTimeAsync(6 * 60_000)
+      expect(service.findStaleParsingRows).not.toHaveBeenCalled()
+      // sweepTimer 为 undefined 时再销毁一次：不得抛错（热重载时序下 destroy 可能被调多次）
+      expect(() => processor.onModuleDestroy()).not.toThrow()
     } finally {
       jest.useRealTimers()
     }

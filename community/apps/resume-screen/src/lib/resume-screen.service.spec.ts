@@ -205,6 +205,14 @@ describe('ResumeScreenService', () => {
       const current = await service.getCurrentJob(scope, undefined)
       expect(current?.id).toBe(job.id)
     })
+
+    // 显式 jobId 走精确查找且带作用域校验：作用域内查无此 id 必须按「岗位不存在」拒绝，
+    // 绝不能静默回落到最新职位（那会把用户界面切到完全无关的岗位上下文）
+    it('getCurrentJob rejects an unknown jobId instead of falling back to the latest job', async () => {
+      await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      await expect(service.getCurrentJob(scope, 'no-such-job')).rejects.toBeInstanceOf(NotFoundException)
+      expect(jobRepository.store).toHaveLength(1)
+    })
   })
 
   describe('prepareIntakeDraft', () => {
@@ -349,6 +357,32 @@ describe('ResumeScreenService', () => {
       expect(candidateRepository.store).toHaveLength(1)
       expect(warn).toHaveBeenCalled()
       warn.mockRestore()
+    })
+
+    // 缺锚点（candidateId 为空/空白）与锚点未命中是两种不同的脏条目：前者连定位都无从谈起，
+    // 必须整条丢弃——绝不允许落回「新建行」，建行只属于上传通道（spec §3.4）
+    it('缺 candidateId 的回填条目整条丢弃且不新建行，同批其余条目照常回填', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const draft = await uploadAndStart(service, scope, job.id, ['在途行'])
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined)
+      const saved = await service.saveCandidatesFromAgent(scope, job.id, [
+        { candidateId: '   ', name: '无锚点条目' },
+        { candidateId: draft.created[0].id, name: '张三' }
+      ])
+      expect(saved).toHaveLength(1)
+      expect(saved[0].name).toBe('张三')
+      expect(candidateRepository.store).toHaveLength(1)
+      expect(warn).toHaveBeenCalled()
+      warn.mockRestore()
+    })
+
+    // 回填锚点 = jobId + candidateId 双重作用域校验：jobId 在作用域内不存在时整批拒绝，
+    // 防止伪造的回填请求把条目挂到任意职位下
+    it('jobId 在作用域内不存在时整批拒绝（岗位不存在）', async () => {
+      await expect(
+        service.saveCandidatesFromAgent(scope, 'missing-job', [{ candidateId: 'c-1', name: '张三' }])
+      ).rejects.toBeInstanceOf(NotFoundException)
+      expect(candidateRepository.store).toHaveLength(0)
     })
 
     it('迟到回执落在 pending_review 行上不覆盖人工待审结果（幂等保护）', async () => {
@@ -533,6 +567,25 @@ describe('ResumeScreenService', () => {
       )
       expect((candidateRepository.store[0] as ResumeScreenCandidate).name).not.toBe('旧窗口修改')
     })
+
+    // 匹配分是看板排序与筛选的核心依据：编辑通道的越界分数必须在入口拒绝，
+    // 且拒绝发生在条件更新之前——不能先改了行再报错
+    it('updateCandidate 拒绝越界 matchScore 且零写入（编辑入口闸）', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const draft = await uploadAndStart(service, scope, job.id, ['张三的简历'])
+      const rowId = draft.created[0].id
+      await expect(service.updateCandidate(scope, rowId, { name: '张三', matchScore: 101 }, 1)).rejects.toThrow(
+        'matchScore 必须是 0-100 的整数'
+      )
+      await expect(service.updateCandidate(scope, rowId, { name: '张三', matchScore: 12.5 }, 1)).rejects.toBeInstanceOf(
+        BadRequestException
+      )
+      // 两次越界提交都不得改行：状态仍是 draft、版本仍是 1、无人工编辑痕迹
+      const row = candidateRepository.store.find((item) => item.id === rowId) as ResumeScreenCandidate
+      expect(row.status).toBe('parsing')
+      expect(row.revision).toBe(1)
+      expect(row.humanEditedFields ?? []).toHaveLength(0)
+    })
   })
 
   // 人工处置动作：accept/hold/reject 终态流转并落评审人，目标态重复操作幂等，撤回退回待评审
@@ -593,6 +646,24 @@ describe('ResumeScreenService', () => {
       await service.reviewCandidate(scope, rowId, 'accept', 'user-1')
       const reset = await service.reviewCandidate(scope, rowId, 'reset_to_pending', 'user-1')
       expect(reset.status).toBe('pending_review')
+    })
+
+    // 作用域查找的兜底防线：候选人在作用域内不存在（跨租户/已被删除）时统一 404，
+    // 评审与标失败两条写路径都必须止步于查行，零写入
+    it('评审与标失败对不存在的候选人统一 404 且不改任何行', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const draft = await uploadAndStart(service, scope, job.id, ['在途行'])
+      const rowId = draft.created[0].id
+      await expect(service.reviewCandidate(scope, 'missing-id', 'accept', 'user-1')).rejects.toBeInstanceOf(
+        NotFoundException
+      )
+      await expect(service.markCandidateFailed(scope, 'missing-id', '人为标失败')).rejects.toBeInstanceOf(
+        NotFoundException
+      )
+      // 真实行不受波及：状态未被标失败，attemptCount 未累加
+      const row = candidateRepository.store.find((item) => item.id === rowId) as ResumeScreenCandidate
+      expect(row.status).toBe('parsing')
+      expect(row.attemptCount).toBe(0)
     })
   })
 
@@ -673,6 +744,47 @@ describe('ResumeScreenService', () => {
       expect(data.page.total).toBe(3)
     })
 
+    // 工作台关键字搜索口径：命中姓名/学历/公司/摘要四字段且大小写不敏感；
+    // 关键字是用户定位候选人的主路径，命中集合漂移会直接漏人
+    it('关键字搜索按姓名/公司/摘要命中过滤且大小写不敏感', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const draft = await uploadAndStart(service, scope, job.id, ['甲', '乙', '丙'])
+      await service.saveCandidatesFromAgent(scope, job.id, [
+        { candidateId: draft.created[0].id, name: '张甲', currentCompany: '星河科技', summary: 'React 老兵' },
+        { candidateId: draft.created[1].id, name: '李乙', currentCompany: '月轮网络', summary: 'Vue 新人' },
+        { candidateId: draft.created[2].id, name: '王丙', currentCompany: '星河影视', summary: '全栈工程师' }
+      ])
+
+      const byCompany = await service.getViewData(scope, { jobId: job.id, search: '星河' })
+      expect(byCompany.candidates.map((candidate) => candidate.name)).toEqual(['王丙', '张甲'])
+      // 大小写不敏感：搜索框输入大写也要命中小写摘要
+      const bySummary = await service.getViewData(scope, { jobId: job.id, search: 'REACT' })
+      expect(bySummary.candidates.map((candidate) => candidate.name)).toEqual(['张甲'])
+      const byName = await service.getViewData(scope, { jobId: job.id, search: '李乙' })
+      expect(byName.candidates.map((candidate) => candidate.name)).toEqual(['李乙'])
+      const noHit = await service.getViewData(scope, { jobId: job.id, search: '不存在的关键字' })
+      expect(noHit.candidates).toHaveLength(0)
+      // 搜索只影响列表，不影响全量统计口径
+      expect(noHit.stats.total).toBe(3)
+    })
+
+    // matchScore 排序契约：未评分行按 -1 参与排序，稳定排在有分记录之后——
+    // 看板「按匹配度排序」时未评分行沉底是产品语义，不能被当成 0 或 NaN 打乱顺序
+    it('sortBy=matchScore 时未评分行稳定排在有分记录之后（升序降序都成立）', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const draft = await uploadAndStart(service, scope, job.id, ['甲', '乙', '丙'])
+      await service.saveCandidatesFromAgent(scope, job.id, [
+        { candidateId: draft.created[0].id, name: '高分甲', matchScore: 80 },
+        { candidateId: draft.created[1].id, name: '低分乙', matchScore: 40 },
+        { candidateId: draft.created[2].id, name: '未评分丙' }
+      ])
+
+      const desc = await service.getViewData(scope, { jobId: job.id, sortBy: 'matchScore' })
+      expect(desc.candidates.map((candidate) => candidate.name)).toEqual(['高分甲', '低分乙', '未评分丙'])
+      const asc = await service.getViewData(scope, { jobId: job.id, sortBy: 'matchScore', sortDir: 'asc' })
+      expect(asc.candidates.map((candidate) => candidate.name)).toEqual(['未评分丙', '低分乙', '高分甲'])
+    })
+
     describe('getViewData 文件投影', () => {
       it('候选行只带派生文件字段，内部路径不出现在视图里（spec §3.6）', async () => {
         const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
@@ -701,10 +813,27 @@ describe('ResumeScreenService', () => {
         expect(data.candidates[0].hasFile).toBe(false)
         expect(data.candidates[0].fileKind).toBeUndefined()
         expect(data.candidates[0].fileSize).toBeUndefined()
-        // 溯源文件名仍在：失败列表还要展示「哪个文件」
-        expect(data.candidates[0].sourceFileName).toBe('旧数据')
-      })
+      // 溯源文件名仍在：失败列表还要展示「哪个文件」
+      expect(data.candidates[0].sourceFileName).toBe('旧数据')
     })
+
+    // fileKind 由 mime 派生并决定预览分支：docx mime 归 'docx'（服务端 HTML 管线），
+    // 不认识的 mime 归 undefined（前端据此禁用预览）——映射漂移会把预览按钮引到错误管线
+    it('fileKind 投影：docx mime 归 docx，未知 mime 归 undefined（hasFile 不受影响）', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const result = await service.prepareIntakeDraft(scope, job.id, [
+        intakeFile({
+          sourceFileName: '李四.docx',
+          mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        }),
+        intakeFile({ sourceFileName: '未知类型.bin', mime: 'application/octet-stream' })
+      ])
+      expect(result.created[0].fileKind).toBe('docx')
+      expect(result.created[1].fileKind).toBeUndefined()
+      // mime 不认识只关预览门，不代表没文件：重试/下载类可用性不受牵连
+      expect(result.created[1].hasFile).toBe(true)
+    })
+  })
   })
 
   // 预览读文件契约：服务端内部定位三要素，T12 的 preview_candidate action 消费，不经视图下发
