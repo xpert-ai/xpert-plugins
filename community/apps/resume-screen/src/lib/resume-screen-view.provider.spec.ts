@@ -443,6 +443,29 @@ describe('ResumeScreenViewProvider', () => {
       )
     })
 
+    it('本通道每次请求只投递一个描述符：批量 multipart 会破坏「首错中断＝唯一行已收敛」语义（Finding 2 守护）', async () => {
+      // 现网前端逐文件串行上传，所以循环恒为 1 次迭代；该不变量必须由断言钉死——
+      // 任何人改成批量 multipart，这条用例先红，逼其重新设计「部分已入队 + 整批 success:false」窗口
+      await uploadProvider.executeViewFileAction!(
+        createContext(),
+        RESUME_SCREEN_WORKBENCH_VIEW_KEY,
+        'upload_resume_files',
+        fileRequest,
+        { buffer: docxFixture, originalname: '张三-简历.docx', size: docxFixture.length } as never
+      )
+      expect(uploadService.prepareIntakeDraft).toHaveBeenCalledTimes(1)
+      const descriptors = uploadService.prepareIntakeDraft.mock.calls[0][2] as Array<Record<string, unknown>>
+      expect(descriptors).toHaveLength(1)
+      // 数组里那一个元素就是本次上传的文件描述符（不是文件名数组、不是整批同名）
+      expect(descriptors[0]).toEqual({
+        key: '2026-09-29/153b80d355c9fe86.docx',
+        size: docxFixture.length,
+        sha256: 'a'.repeat(64),
+        mime: DOCX_MIME,
+        sourceFileName: '张三-简历.docx'
+      })
+    })
+
     it('重复上传命中判重时，回执 skipped 原样下发文件名数组（不是计数、不是哈希）', async () => {
       // service 侧语义已按文件名数组钉死（T8 评审要求），本用例钉住 provider 不做任何形态转换：
       // 前端 workbench.tsx 靠 Array.isArray(data.skipped) + length>0 把该行标成「跳过（内容已存在）」，
@@ -666,7 +689,7 @@ describe('ResumeScreenViewProvider', () => {
       const svc = {
         getViewData: jest.fn(async () => viewData),
         getResumeFileForPreview: jest.fn(async () => file),
-        fileStore: { read: jest.fn(async () => buffer) }
+        fileStore: { read: jest.fn(async () => buffer) as jest.Mock }
       }
       return { svc, provider: new ResumeScreenViewProvider(svc as never, noopIntakeQueue as never) }
     }
@@ -726,6 +749,25 @@ describe('ResumeScreenViewProvider', () => {
       )
       expect(res.success).toBe(false)
       expect(svc.getResumeFileForPreview).not.toHaveBeenCalled()
+    })
+
+    it('读盘失败（ENOENT，文件已被按日期清理）：回执给出「请重新上传」指引而不是无上下文的「操作失败」（Finding 1）', async () => {
+      // 定位三要素齐全但字节已不在磁盘上——ResumeFileStore.read 的 docblock 自己列出的
+      // 两个抛错点之一。判伪点：去掉 preview 分支里只包 read 的 try/catch，本用例会落到
+      // 外层兜底拿到「操作失败」而变红，且只红它一条。
+      const enoent = Object.assign(new Error('ENOENT: no such file or directory'), { code: 'ENOENT' })
+      const { svc, provider } = previewProvider(pdfFixture, {
+        filePath: '2026-09-29/951b13649f7bc2db.pdf', mime: 'application/pdf', fileName: '李四.pdf'
+      })
+      svc.fileStore.read.mockRejectedValueOnce(enoent)
+      const res = await provider.executeViewAction(
+        createContext(), RESUME_SCREEN_WORKBENCH_VIEW_KEY, 'preview_candidate',
+        { input: { candidateId: 'c1' }, targetId: 'c1' } as never
+      )
+      expect(res.success).toBe(false)
+      expect(JSON.stringify(res.message)).toContain('重新上传')
+      // 外层兜底的无上下文文案不得出现在这条真实可达的 IO 失败面上
+      expect(JSON.stringify(res.message)).not.toContain('操作失败')
     })
   })
 })

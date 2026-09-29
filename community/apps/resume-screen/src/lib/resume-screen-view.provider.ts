@@ -429,7 +429,19 @@ export class ResumeScreenViewProvider implements IXpertViewExtensionProvider {
           // 与 §6.4 界面文案同源：旧数据没有字节，只能重新上传
           return failure('Resume file unavailable', '该候选人未保留原始简历文件，无法预览，请重新上传该简历')
         }
-        const buffer = await this.service.fileStore.read(file.filePath)
+        // 只包 read：ENOENT（文件被 §3.1 按日期清理策略删除）与非法 key 是真实可达的
+        // 外部 IO 失败面，落到外层兜底会变成无上下文的「操作失败」，用户拿不到 §6.4
+        // 要求的「请重新上传」指引；renderResumePreview 的文案本身可读，刻意留在
+        // catch 之外由 getActionErrorMessage 原样透传
+        let buffer: Buffer
+        try {
+          buffer = await this.service.fileStore.read(file.filePath)
+        } catch (error) {
+          // 日志只留业务标识与原因，绝不带文件字节或正文（红线：简历内容不进日志）
+          this.logger.warn(`预览读盘失败：candidate=${candidateId} 原因=${getActionErrorMessage(error, '原始简历文件读取失败')}`)
+          // 复用上面 §6.4 同源文案，不新造第二份「重新上传」指引
+          return failure('Resume file unavailable', '该候选人未保留原始简历文件，无法预览，请重新上传该简历')
+        }
         const payload = await renderResumePreview(buffer, file.mime)
         // filePath 只用于服务端读盘，回执里绝不外泄（spec §3.6）；
         // 文件名缺省走中性文案，不把内部主键 UUID 当简历名回显给用户
@@ -510,6 +522,14 @@ export class ResumeScreenViewProvider implements IXpertViewExtensionProvider {
    *          skipped 与 v4 契约保持一致，是**被跳过文件的文件名数组**而不是计数——
    *          前端上传弹窗（workbench.tsx）以 `Array.isArray(skipped)` 判空来决定行状态是
    *          「跳过（内容已存在）」还是「已创建」，下发计数会让重复上传的简历被静默标成已创建。
+   *
+   * 单描述符不变量（Finding 2 裁定）：本文件通道每次请求只携带**一个**简历描述符
+   * （现网前端 workbench.tsx 逐文件串行上传），所以下面对 `result.created` 的循环
+   * 恒为 1 次迭代，「首个入队失败即中断并整批 success:false」等价于「唯一一行已收敛
+   * 为 failed」。若将来改为批量 multipart，这一语义会立刻变成「前 K-1 行已真实入队、
+   * 后续行停在 parsing 未投递，而回执整批 success:false」的部分已入队窗口，必须连同
+   * 此处的中断策略与回执形态一起重新设计。该不变量由 spec 用例「prepareIntakeDraft
+   * 收到长度为 1 的描述符数组」守护：任何人把上传改成批量，那条用例会先红。
    */
   async executeViewFileAction(
     context: XpertResolvedViewHostContext,
