@@ -3400,6 +3400,7 @@
 .ri-close-line:before { content: "\eb99"; }
 .ri-edit-2-line:before { content: "\ec80"; }
 .ri-error-warning-line:before { content: "\eca1"; }
+.ri-external-link-line:before { content: "\ecaf"; }
 .ri-file-add-line:before { content: "\ecc9"; }
 .ri-file-line:before { content: "\eceb"; }
 .ri-file-search-line:before { content: "\ed05"; }
@@ -3415,3 +3416,4 @@
 .ri-timer-line:before { content: "\f215"; }
 .ri-upload-cloud-2-line:before { content: "\f24c"; }
 .ri-upload-cloud-line:before { content: "\f24e"; }
+.ri-file-pdf-2-line:before { content: "\f3c6"; }

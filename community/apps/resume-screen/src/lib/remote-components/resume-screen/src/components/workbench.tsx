@@ -625,6 +625,15 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
           // 抽屉打开时 ↑/↓ 仍可用：焦点被 Radix 陷阱收在抽屉内，键盘事件从这里派发才有效
           onKeyDown={(event: React.KeyboardEvent) => {
             if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
+            // 输入目标豁免（T20 冒烟 D）：编辑态输入框内 ↑/↓ 是文本光标移动语义，
+            // 劫持会吞掉输入焦点并误切选中行——此类目标直接放行原生行为
+            const target = event.target as HTMLElement | null
+            if (
+              target &&
+              (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)
+            ) {
+              return
+            }
             event.preventDefault()
             moveSelection(event.key === 'ArrowDown' ? 1 : -1)
           }}

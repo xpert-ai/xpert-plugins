@@ -79,8 +79,9 @@ export function JobHeader({ jobs, currentJobId, busy, refreshing, jobPulseSeq, x
           <SelectTrigger aria-label="选择岗位">
             <SelectValue placeholder="选择岗位" />
           </SelectTrigger>
-          {/* popper 定位：浮层随触发器对齐、不落宿主滚动容器裁切区（§5.6），8px 碰撞边距 */}
-          <SelectContent position="popper" collisionPadding={8}>
+          {/* popper 定位：浮层随触发器对齐、不落宿主滚动容器裁切区（§5.6），8px 碰撞边距；
+              强制 side=bottom（T20 E2E 项 10 同形态补齐）：避开 blob iframe 内 Radix 碰撞翻转异常 */}
+          <SelectContent position="popper" side="bottom" collisionPadding={8}>
             {jobs.map((job) => (
               <SelectItem key={job.id} value={job.id}>
                 {job.title}
@@ -98,8 +99,9 @@ export function JobHeader({ jobs, currentJobId, busy, refreshing, jobPulseSeq, x
               <i className="ri-more-line" aria-hidden="true" />
             </Button>
           </DropdownMenuTrigger>
-          {/* DropdownMenuContent 无 position prop（R-P77）：仅收碰撞边距 */}
-          <DropdownMenuContent align="end" collisionPadding={8}>
+          {/* DropdownMenuContent 无 position prop（R-P77）；强制 side=bottom（T20 E2E 项 10 同形态
+              补齐，避开 blob iframe 内碰撞翻转异常）+ 仅收碰撞边距 */}
+          <DropdownMenuContent align="end" side="bottom" collisionPadding={8}>
             <DropdownMenuItem disabled={busy} onSelect={() => setCreateOpen(true)}>
               <i className="ri-add-line" aria-hidden="true" />
               新建岗位

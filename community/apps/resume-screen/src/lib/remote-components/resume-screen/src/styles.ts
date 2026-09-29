@@ -19,8 +19,8 @@
  * 其档位与 utils.RS_LAYERS 同名同值（单一真源）；伴生的抽屉遮罩不进那张表，由
  * RS_LAYERS.sheet 派生（见下），使全表数值只有一个出处。
  *
- * 导出为常量而非内联字符串：让 CI 能以静态扫描断言上述两条红线（见 styles.spec.ts），
- * `injectStyles()` 只负责插入 <style>；真机 computed 对比度由 T20 兜底。
+ * 导出为常量而非内联字符串：让 CI 能以静态扫描断言层级/字号/关键前景色对比度等红线（见 styles.spec.ts），
+ * `injectStyles()` 只负责插入 <style>；真机 computed 全量对比度由 T20 实测兜底。
  */
 // utils.ts 只依赖 ./types，反向 import 不成环；层级数值因此只有 RS_LAYERS 一个出处
 import { RS_LAYERS } from './utils'
@@ -46,7 +46,9 @@ export const RS_STYLES_CSS = `
       --muted-foreground: oklch(0.556 0.03 257) !important;    /* ≈#6b7280：白底小字辅助文字 ≥4.5:1 */
       --accent: oklch(0.955 0.02 261) !important;
       --accent-foreground: oklch(0.278 0.04 256.8) !important;
-      --destructive: oklch(0.62 0.22 25) !important;           /* ≈#dc2626 */
+      /* 旧值 oklch(0.62 0.22 25) 实为 #ee343b，白底仅 4.06:1（T20 E2E 项 4 实测）；改为 #dc2626 的
+         精确 oklch（3 位小数回转 rgb(220,38,38)），页脚「淘汰」等红色前景白底对比 4.83:1 ≥4.5 红线 */
+      --destructive: oklch(0.577 0.215 27.325) !important;
       --destructive-foreground: oklch(1 0 0) !important;
       --border: oklch(0.922 0.007 260) !important;             /* ≈#e5e7eb */
       --input: oklch(0.922 0.007 260) !important;
@@ -67,10 +69,11 @@ export const RS_STYLES_CSS = `
       --rs-border-soft: #f0f1f3;
       --rs-hover: #fafafa;
       --rs-active: #f1f5ff;
-      /* 文字三级 */
+      /* 文字三级（soft 曾 #9ca3af，抽屉正文灰标白底实测 2.54:1 不达标：加深到与 muted 同值，
+         白底 4.83:1 过 WCAG 红线；token 保留独立，图标/底色等弱装饰位仍走 soft 档） */
       --rs-text: #1f2937;
       --rs-muted: #6b7280;
-      --rs-soft: #9ca3af;
+      --rs-soft: #6b7280;
       /* 主色：读宿主 token，回退 crm 系蓝 */
       --rs-primary: var(--primary, var(--xui-color-primary, #2563eb));
       --rs-primary-soft: #eff3ff;
@@ -288,7 +291,7 @@ export const RS_STYLES_CSS = `
     .rs-upload-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding-top: 4px; border-top: 1px solid var(--rs-border-soft); }
     .rs-upload-foot [data-slot="button"] i { margin-right: 6px; font-size: 14px; }
 
-    /* ===== 简历预览（§5.4：docx 富文本 / pdf 原生查看器共用同一 Dialog 尺寸） ===== */
+    /* ===== 简历预览（§5.4：docx 富文本正文 / pdf 说明面板共用同一 Dialog 尺寸） ===== */
     .rs-preview-dialog { width: min(880px, calc(100% - 32px)); height: min(72vh, 720px); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 12px; overflow: hidden; }
     .rs-preview-scroll { min-height: 0; }
     /* 版式对齐真实阅读密度：14px/1.7、正文最长 72ch，超宽视口下不拉成报纸栏 */
@@ -298,7 +301,11 @@ export const RS_STYLES_CSS = `
     .rs-preview-doc table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 13px; }
     .rs-preview-doc th, .rs-preview-doc td { border: 1px solid var(--rs-border); padding: 5px 7px; text-align: left; vertical-align: top; }
     .rs-preview-doc img { max-width: 100%; height: auto; }
-    .rs-preview-pdf { width: 100%; height: 100%; min-height: 0; border: 1px solid var(--rs-border); border-radius: var(--rs-radius); background: var(--rs-bg-soft); }
+    /* pdf 分支（T20 E2E 项 11）：blob 父文档内嵌 iframe 被 Chromium PDF 插件门禁禁用，内嵌正片不可达；
+       弹窗内改呈现说明面板，正片由「在新标签页打开」按钮走浏览器原生查看器（T22 偏差 9，控制器裁定） */
+    .rs-preview-pdf-bridge { min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; border: 1px solid var(--rs-border); border-radius: var(--rs-radius); background: var(--rs-bg-soft); color: var(--rs-muted); font-size: 13px; text-align: center; padding: 22px 14px; }
+    .rs-preview-pdf-bridge i { font-size: 34px; color: var(--rs-soft); }
+    .rs-preview-pdf-bridge p { margin: 0; }
     .rs-preview-foot { display: flex; justify-content: flex-end; padding-top: 4px; border-top: 1px solid var(--rs-border-soft); }
     .rs-detail-preview { margin-left: auto; }
 

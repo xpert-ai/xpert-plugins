@@ -139,8 +139,9 @@ export function CandidateList(props: CandidateListProps) {
             <SelectTrigger aria-label="状态筛选" className="rs-status-select">
               <SelectValue />
             </SelectTrigger>
-            {/* popper 定位：浮层随触发器对齐、不落宿主滚动容器裁切区（§5.6），8px 碰撞边距 */}
-            <SelectContent position="popper" collisionPadding={8}>
+            {/* popper 定位：浮层随触发器对齐、不落宿主滚动容器裁切区（§5.6），8px 碰撞边距；
+                强制 side=bottom（T20 E2E 项 10）：blob iframe 内 Radix 碰撞定位曾把浮层翻出视口上方 */}
+            <SelectContent position="popper" side="bottom" collisionPadding={8}>
               {STATUS_OPTIONS.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
@@ -152,7 +153,8 @@ export function CandidateList(props: CandidateListProps) {
           <TooltipProvider delayDuration={300}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" className="rs-toolbar-button" onClick={props.onUploadRequest}>
+                {/* 可访问名显式声明（T20 E2E 项 3）：不依赖 <span> 文本兜底，读屏/测试均直取 aria-label */}
+                <Button variant="outline" size="sm" className="rs-toolbar-button" aria-label="上传简历" onClick={props.onUploadRequest}>
                   <i className="ri-upload-cloud-2-line" aria-hidden="true" />
                   <span className="rs-header-label">上传简历</span>
                 </Button>
@@ -169,7 +171,9 @@ export function CandidateList(props: CandidateListProps) {
                 {sortLabel}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" collisionPadding={8}>
+            {/* 强制 side=bottom（T20 E2E 项 10）：blob iframe 内 Radix 碰撞定位曾把菜单翻到
+                视口外 y=-344（触发器在工具条顶部，上翻无空间），钉死向下展开避开该异常路径 */}
+            <DropdownMenuContent align="end" side="bottom" collisionPadding={8}>
               <DropdownMenuLabel>排序</DropdownMenuLabel>
               <DropdownMenuRadioGroup value={sortValue} onValueChange={props.onSortChange}>
                 {SORT_OPTIONS.map((option) => (

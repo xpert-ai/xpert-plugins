@@ -51,6 +51,41 @@ function stripCssComments(css: string): string {
   return css.replace(/\/\*[\s\S]*?\*\//g, '')
 }
 
+// ===== WCAG 对比度计算（T20 修复轮 1：关键前景色对白底 ≥4.5:1 的静态防回退） =====
+
+/** WCAG 相对亮度：sRGB 线性光三通道（0–1）→ 加权亮度 */
+function relativeLuminance(linear: number[]): number {
+  return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+}
+
+/** 目标色对白底（#ffffff）的对比度；linear 为该色线性光通道 */
+function contrastOnWhite(linear: number[]): number {
+  return 1.05 / (relativeLuminance(linear) + 0.05)
+}
+
+/** hex（#rrggbb）→ 线性光：归一化后做 sRGB 传递函数逆变换 */
+function srgbHexToLinear(hex: string): number[] {
+  const n = parseInt(hex.slice(1), 16)
+  const decode = (u: number) => (u <= 0.04045 ? u / 12.92 : ((u + 0.055) / 1.055) ** 2.4)
+  return [decode(((n >> 16) & 255) / 255), decode(((n >> 8) & 255) / 255), decode((n & 255) / 255)]
+}
+
+/** oklch（CSS Color 4）→ 线性 sRGB 三通道；超出色域通道按 0–1 裁剪（与浏览器同口径） */
+function oklchToLinear(l: number, c: number, hDeg: number): number[] {
+  const h = (hDeg * Math.PI) / 180
+  const a = c * Math.cos(h)
+  const b = c * Math.sin(h)
+  const l_ = (l + 0.3963377774 * a + 0.2158037573 * b) ** 3
+  const m_ = (l - 0.1055613458 * a - 0.0638541728 * b) ** 3
+  const s_ = (l - 0.0894841775 * a - 1.291485548 * b) ** 3
+  const clamp = (x: number) => Math.min(1, Math.max(0, x))
+  return [
+    clamp(4.0767416621 * l_ - 3.3077115913 * m_ + 0.2309699292 * s_),
+    clamp(-1.2684380046 * l_ + 2.6097574011 * m_ - 0.3413193965 * s_),
+    clamp(-0.0041960863 * l_ - 0.7034186147 * m_ + 1.707614701 * s_)
+  ]
+}
+
 describe('RS_STYLES_CSS 浅色钉死', () => {
   it('color-scheme 钉在 light（表单控件/滚动条跟随浅色原生渲染）', () => {
     expect(RS_STYLES_CSS).toMatch(/color-scheme:\s*light\s*!important/)
@@ -62,6 +97,24 @@ describe('RS_STYLES_CSS 浅色钉死', () => {
 
   it('不存在 .dark 覆写块（宿主用 data-theme 属性，.dark 选择器在 iframe 内是死代码）', () => {
     expect(RS_STYLES_CSS).not.toMatch(/\.dark\s*\{/)
+  })
+
+  // T20 修复轮 1（E2E 项 4 防回退）：抽屉正文灰色标签（--rs-soft）与页脚「淘汰」红色前景
+  // （--destructive，经 var(--rs-red) 消费）曾实测 2.54:1 / 4.06:1，低于 WCAG AA 红线 4.5:1。
+  // 本条从样式串取真实声明值计算（而非硬编码 hex），色值一旦回退此处先于真机变红
+  it('抽屉灰标与页脚红前景对白底对比度 ≥4.5:1（WCAG 相对亮度公式，按样式串真实值计算）', () => {
+    const css = stripCssComments(RS_STYLES_CSS)
+
+    // --rs-soft 为 hex 字面值，直接按 sRGB → 线性光 → 亮度计算
+    const softHex = /--rs-soft:\s*(#[0-9a-fA-F]{6})\s*;/.exec(css)?.[1] ?? ''
+    expect(softHex).toMatch(/^#[0-9a-fA-F]{6}$/)
+    expect(contrastOnWhite(srgbHexToLinear(softHex))).toBeGreaterThanOrEqual(4.5)
+
+    // --destructive 为 oklch 取值（抽屉/弹窗红色前景的唯一源头），先转线性 sRGB 再计算
+    const destructive = /--destructive:\s*oklch\((\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)\)/.exec(css)
+    expect(destructive).not.toBeNull()
+    const [lightness, chroma, hue] = destructive!.slice(1).map(Number)
+    expect(contrastOnWhite(oklchToLinear(lightness, chroma, hue))).toBeGreaterThanOrEqual(4.5)
   })
 
   // 字号下限（§5.2）：低于 11px 的正文/标签在浅色小字下不可读，红线级别

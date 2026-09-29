@@ -475,7 +475,9 @@ var XpertResumeScreen = (() => {
       --muted-foreground: oklch(0.556 0.03 257) !important;    /* \u2248#6b7280\uFF1A\u767D\u5E95\u5C0F\u5B57\u8F85\u52A9\u6587\u5B57 \u22654.5:1 */
       --accent: oklch(0.955 0.02 261) !important;
       --accent-foreground: oklch(0.278 0.04 256.8) !important;
-      --destructive: oklch(0.62 0.22 25) !important;           /* \u2248#dc2626 */
+      /* \u65E7\u503C oklch(0.62 0.22 25) \u5B9E\u4E3A #ee343b\uFF0C\u767D\u5E95\u4EC5 4.06:1\uFF08T20 E2E \u9879 4 \u5B9E\u6D4B\uFF09\uFF1B\u6539\u4E3A #dc2626 \u7684
+         \u7CBE\u786E oklch\uFF083 \u4F4D\u5C0F\u6570\u56DE\u8F6C rgb(220,38,38)\uFF09\uFF0C\u9875\u811A\u300C\u6DD8\u6C70\u300D\u7B49\u7EA2\u8272\u524D\u666F\u767D\u5E95\u5BF9\u6BD4 4.83:1 \u22654.5 \u7EA2\u7EBF */
+      --destructive: oklch(0.577 0.215 27.325) !important;
       --destructive-foreground: oklch(1 0 0) !important;
       --border: oklch(0.922 0.007 260) !important;             /* \u2248#e5e7eb */
       --input: oklch(0.922 0.007 260) !important;
@@ -496,10 +498,11 @@ var XpertResumeScreen = (() => {
       --rs-border-soft: #f0f1f3;
       --rs-hover: #fafafa;
       --rs-active: #f1f5ff;
-      /* \u6587\u5B57\u4E09\u7EA7 */
+      /* \u6587\u5B57\u4E09\u7EA7\uFF08soft \u66FE #9ca3af\uFF0C\u62BD\u5C49\u6B63\u6587\u7070\u6807\u767D\u5E95\u5B9E\u6D4B 2.54:1 \u4E0D\u8FBE\u6807\uFF1A\u52A0\u6DF1\u5230\u4E0E muted \u540C\u503C\uFF0C
+         \u767D\u5E95 4.83:1 \u8FC7 WCAG \u7EA2\u7EBF\uFF1Btoken \u4FDD\u7559\u72EC\u7ACB\uFF0C\u56FE\u6807/\u5E95\u8272\u7B49\u5F31\u88C5\u9970\u4F4D\u4ECD\u8D70 soft \u6863\uFF09 */
       --rs-text: #1f2937;
       --rs-muted: #6b7280;
-      --rs-soft: #9ca3af;
+      --rs-soft: #6b7280;
       /* \u4E3B\u8272\uFF1A\u8BFB\u5BBF\u4E3B token\uFF0C\u56DE\u9000 crm \u7CFB\u84DD */
       --rs-primary: var(--primary, var(--xui-color-primary, #2563eb));
       --rs-primary-soft: #eff3ff;
@@ -717,7 +720,7 @@ var XpertResumeScreen = (() => {
     .rs-upload-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding-top: 4px; border-top: 1px solid var(--rs-border-soft); }
     .rs-upload-foot [data-slot="button"] i { margin-right: 6px; font-size: 14px; }
 
-    /* ===== \u7B80\u5386\u9884\u89C8\uFF08\xA75.4\uFF1Adocx \u5BCC\u6587\u672C / pdf \u539F\u751F\u67E5\u770B\u5668\u5171\u7528\u540C\u4E00 Dialog \u5C3A\u5BF8\uFF09 ===== */
+    /* ===== \u7B80\u5386\u9884\u89C8\uFF08\xA75.4\uFF1Adocx \u5BCC\u6587\u672C\u6B63\u6587 / pdf \u8BF4\u660E\u9762\u677F\u5171\u7528\u540C\u4E00 Dialog \u5C3A\u5BF8\uFF09 ===== */
     .rs-preview-dialog { width: min(880px, calc(100% - 32px)); height: min(72vh, 720px); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 12px; overflow: hidden; }
     .rs-preview-scroll { min-height: 0; }
     /* \u7248\u5F0F\u5BF9\u9F50\u771F\u5B9E\u9605\u8BFB\u5BC6\u5EA6\uFF1A14px/1.7\u3001\u6B63\u6587\u6700\u957F 72ch\uFF0C\u8D85\u5BBD\u89C6\u53E3\u4E0B\u4E0D\u62C9\u6210\u62A5\u7EB8\u680F */
@@ -727,7 +730,11 @@ var XpertResumeScreen = (() => {
     .rs-preview-doc table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 13px; }
     .rs-preview-doc th, .rs-preview-doc td { border: 1px solid var(--rs-border); padding: 5px 7px; text-align: left; vertical-align: top; }
     .rs-preview-doc img { max-width: 100%; height: auto; }
-    .rs-preview-pdf { width: 100%; height: 100%; min-height: 0; border: 1px solid var(--rs-border); border-radius: var(--rs-radius); background: var(--rs-bg-soft); }
+    /* pdf \u5206\u652F\uFF08T20 E2E \u9879 11\uFF09\uFF1Ablob \u7236\u6587\u6863\u5185\u5D4C iframe \u88AB Chromium PDF \u63D2\u4EF6\u95E8\u7981\u7981\u7528\uFF0C\u5185\u5D4C\u6B63\u7247\u4E0D\u53EF\u8FBE\uFF1B
+       \u5F39\u7A97\u5185\u6539\u5448\u73B0\u8BF4\u660E\u9762\u677F\uFF0C\u6B63\u7247\u7531\u300C\u5728\u65B0\u6807\u7B7E\u9875\u6253\u5F00\u300D\u6309\u94AE\u8D70\u6D4F\u89C8\u5668\u539F\u751F\u67E5\u770B\u5668\uFF08T22 \u504F\u5DEE 9\uFF0C\u63A7\u5236\u5668\u88C1\u5B9A\uFF09 */
+    .rs-preview-pdf-bridge { min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; border: 1px solid var(--rs-border); border-radius: var(--rs-radius); background: var(--rs-bg-soft); color: var(--rs-muted); font-size: 13px; text-align: center; padding: 22px 14px; }
+    .rs-preview-pdf-bridge i { font-size: 34px; color: var(--rs-soft); }
+    .rs-preview-pdf-bridge p { margin: 0; }
     .rs-preview-foot { display: flex; justify-content: flex-end; padding-top: 4px; border-top: 1px solid var(--rs-border-soft); }
     .rs-detail-preview { margin-left: auto; }
 
@@ -16294,7 +16301,7 @@ Defaulting to \`null\`.`;
           window.setTimeout(() => props.onSearch(searchDraft.trim()), 300);
         }
       }
-    )), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-list-filter" }, /* @__PURE__ */ react_shim_default.createElement(ja, { value: status, onValueChange: (value) => props.onStatusChange(value) }, /* @__PURE__ */ react_shim_default.createElement(Ea, { "aria-label": "\u72B6\u6001\u7B5B\u9009", className: "rs-status-select" }, /* @__PURE__ */ react_shim_default.createElement($a, null)), /* @__PURE__ */ react_shim_default.createElement(Oa, { position: "popper", collisionPadding: 8 }, STATUS_OPTIONS.map((option) => /* @__PURE__ */ react_shim_default.createElement(Ha, { key: option.value, value: option.value }, option.label)))), /* @__PURE__ */ react_shim_default.createElement(Wa, { delayDuration: 300 }, /* @__PURE__ */ react_shim_default.createElement(Be2, null, /* @__PURE__ */ react_shim_default.createElement($e2, { asChild: true }, /* @__PURE__ */ react_shim_default.createElement(C2, { variant: "outline", size: "sm", className: "rs-toolbar-button", onClick: props.onUploadRequest }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-upload-cloud-2-line", "aria-hidden": "true" }), /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-header-label" }, "\u4E0A\u4F20\u7B80\u5386"))), /* @__PURE__ */ react_shim_default.createElement(Ee, { side: "bottom", collisionPadding: 8 }, "\u652F\u6301 .docx / .pdf\uFF0C\u5355\u6587\u4EF6 \u2264 10MB\uFF0C\u53EF\u591A\u9009"))), /* @__PURE__ */ react_shim_default.createElement(ia, null, /* @__PURE__ */ react_shim_default.createElement(sa, { asChild: true }, /* @__PURE__ */ react_shim_default.createElement(C2, { variant: "ghost", size: "sm", className: `rs-toolbar-button${sortActive ? " is-active" : ""}`, title: "\u6392\u5E8F" }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-arrow-up-down-line", "aria-hidden": "true" }), sortLabel)), /* @__PURE__ */ react_shim_default.createElement(la, { align: "end", collisionPadding: 8 }, /* @__PURE__ */ react_shim_default.createElement(ma, null, "\u6392\u5E8F"), /* @__PURE__ */ react_shim_default.createElement(pa, { value: sortValue, onValueChange: props.onSortChange }, SORT_OPTIONS.map((option) => /* @__PURE__ */ react_shim_default.createElement(fa, { key: option.value, value: option.value }, option.label)))))), search ? /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-search-chip" }, /* @__PURE__ */ react_shim_default.createElement(vt2, { variant: "secondary" }, "\u641C\u7D22\u4E2D\u300C", search, "\u300D"), /* @__PURE__ */ react_shim_default.createElement(
+    )), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-list-filter" }, /* @__PURE__ */ react_shim_default.createElement(ja, { value: status, onValueChange: (value) => props.onStatusChange(value) }, /* @__PURE__ */ react_shim_default.createElement(Ea, { "aria-label": "\u72B6\u6001\u7B5B\u9009", className: "rs-status-select" }, /* @__PURE__ */ react_shim_default.createElement($a, null)), /* @__PURE__ */ react_shim_default.createElement(Oa, { position: "popper", side: "bottom", collisionPadding: 8 }, STATUS_OPTIONS.map((option) => /* @__PURE__ */ react_shim_default.createElement(Ha, { key: option.value, value: option.value }, option.label)))), /* @__PURE__ */ react_shim_default.createElement(Wa, { delayDuration: 300 }, /* @__PURE__ */ react_shim_default.createElement(Be2, null, /* @__PURE__ */ react_shim_default.createElement($e2, { asChild: true }, /* @__PURE__ */ react_shim_default.createElement(C2, { variant: "outline", size: "sm", className: "rs-toolbar-button", "aria-label": "\u4E0A\u4F20\u7B80\u5386", onClick: props.onUploadRequest }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-upload-cloud-2-line", "aria-hidden": "true" }), /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-header-label" }, "\u4E0A\u4F20\u7B80\u5386"))), /* @__PURE__ */ react_shim_default.createElement(Ee, { side: "bottom", collisionPadding: 8 }, "\u652F\u6301 .docx / .pdf\uFF0C\u5355\u6587\u4EF6 \u2264 10MB\uFF0C\u53EF\u591A\u9009"))), /* @__PURE__ */ react_shim_default.createElement(ia, null, /* @__PURE__ */ react_shim_default.createElement(sa, { asChild: true }, /* @__PURE__ */ react_shim_default.createElement(C2, { variant: "ghost", size: "sm", className: `rs-toolbar-button${sortActive ? " is-active" : ""}`, title: "\u6392\u5E8F" }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-arrow-up-down-line", "aria-hidden": "true" }), sortLabel)), /* @__PURE__ */ react_shim_default.createElement(la, { align: "end", side: "bottom", collisionPadding: 8 }, /* @__PURE__ */ react_shim_default.createElement(ma, null, "\u6392\u5E8F"), /* @__PURE__ */ react_shim_default.createElement(pa, { value: sortValue, onValueChange: props.onSortChange }, SORT_OPTIONS.map((option) => /* @__PURE__ */ react_shim_default.createElement(fa, { key: option.value, value: option.value }, option.label)))))), search ? /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-search-chip" }, /* @__PURE__ */ react_shim_default.createElement(vt2, { variant: "secondary" }, "\u641C\u7D22\u4E2D\u300C", search, "\u300D"), /* @__PURE__ */ react_shim_default.createElement(
       C2,
       {
         variant: "ghost",
@@ -16681,9 +16688,9 @@ Defaulting to \`null\`.`;
       void node.offsetWidth;
       node.classList.add("rs-pulse-job");
     }, [jobPulseSeq]);
-    return /* @__PURE__ */ react_shim_default.createElement("header", { className: "rs-header" }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-briefcase-line rs-job-icon", "aria-hidden": "true" }), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-job-select", ref: jobSelectRef }, /* @__PURE__ */ react_shim_default.createElement(ja, { value: currentJobId ?? void 0, onValueChange: onSelectJob }, /* @__PURE__ */ react_shim_default.createElement(Ea, { "aria-label": "\u9009\u62E9\u5C97\u4F4D" }, /* @__PURE__ */ react_shim_default.createElement($a, { placeholder: "\u9009\u62E9\u5C97\u4F4D" })), /* @__PURE__ */ react_shim_default.createElement(Oa, { position: "popper", collisionPadding: 8 }, jobs.map((job) => /* @__PURE__ */ react_shim_default.createElement(Ha, { key: job.id, value: job.id }, job.title))))), /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-header-spacer" }), xsMode ? (
+    return /* @__PURE__ */ react_shim_default.createElement("header", { className: "rs-header" }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-briefcase-line rs-job-icon", "aria-hidden": "true" }), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-job-select", ref: jobSelectRef }, /* @__PURE__ */ react_shim_default.createElement(ja, { value: currentJobId ?? void 0, onValueChange: onSelectJob }, /* @__PURE__ */ react_shim_default.createElement(Ea, { "aria-label": "\u9009\u62E9\u5C97\u4F4D" }, /* @__PURE__ */ react_shim_default.createElement($a, { placeholder: "\u9009\u62E9\u5C97\u4F4D" })), /* @__PURE__ */ react_shim_default.createElement(Oa, { position: "popper", side: "bottom", collisionPadding: 8 }, jobs.map((job) => /* @__PURE__ */ react_shim_default.createElement(Ha, { key: job.id, value: job.id }, job.title))))), /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-header-spacer" }), xsMode ? (
       // 超窄容器：新建/刷新收纳进「更多」下拉（蓝图 §4 <560px 断点）
-      /* @__PURE__ */ react_shim_default.createElement(ia, null, /* @__PURE__ */ react_shim_default.createElement(sa, { asChild: true }, /* @__PURE__ */ react_shim_default.createElement(C2, { variant: "ghost", size: "icon", title: "\u66F4\u591A\u64CD\u4F5C", "aria-label": "\u66F4\u591A\u64CD\u4F5C" }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-more-line", "aria-hidden": "true" }))), /* @__PURE__ */ react_shim_default.createElement(la, { align: "end", collisionPadding: 8 }, /* @__PURE__ */ react_shim_default.createElement(ca, { disabled: busy, onSelect: () => setCreateOpen(true) }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-add-line", "aria-hidden": "true" }), "\u65B0\u5EFA\u5C97\u4F4D"), /* @__PURE__ */ react_shim_default.createElement(ca, { disabled: busy || refreshing, onSelect: onRefresh }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-refresh-line", "aria-hidden": "true" }), "\u5237\u65B0")))
+      /* @__PURE__ */ react_shim_default.createElement(ia, null, /* @__PURE__ */ react_shim_default.createElement(sa, { asChild: true }, /* @__PURE__ */ react_shim_default.createElement(C2, { variant: "ghost", size: "icon", title: "\u66F4\u591A\u64CD\u4F5C", "aria-label": "\u66F4\u591A\u64CD\u4F5C" }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-more-line", "aria-hidden": "true" }))), /* @__PURE__ */ react_shim_default.createElement(la, { align: "end", side: "bottom", collisionPadding: 8 }, /* @__PURE__ */ react_shim_default.createElement(ca, { disabled: busy, onSelect: () => setCreateOpen(true) }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-add-line", "aria-hidden": "true" }), "\u65B0\u5EFA\u5C97\u4F4D"), /* @__PURE__ */ react_shim_default.createElement(ca, { disabled: busy || refreshing, onSelect: onRefresh }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-refresh-line", "aria-hidden": "true" }), "\u5237\u65B0")))
     ) : /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-header-actions" }, /* @__PURE__ */ react_shim_default.createElement(C2, { variant: "outline", size: "sm", disabled: busy, onClick: () => setCreateOpen(true) }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-add-line", "aria-hidden": "true" }), /* @__PURE__ */ react_shim_default.createElement("span", { className: "rs-header-label" }, "\u65B0\u5EFA\u5C97\u4F4D")), /* @__PURE__ */ react_shim_default.createElement(C2, { variant: "ghost", size: "icon", title: "\u5237\u65B0", "aria-label": "\u5237\u65B0", disabled: busy || refreshing, onClick: onRefresh }, /* @__PURE__ */ react_shim_default.createElement("i", { className: `ri-refresh-line${refreshing ? " rs-spin" : ""}`, "aria-hidden": "true" }))), /* @__PURE__ */ react_shim_default.createElement(CreateJobDialog, { open: createOpen, onOpenChange: setCreateOpen, onSubmit: onCreateJob }));
   }
   function CreateJobDialog({
@@ -16898,7 +16905,21 @@ Defaulting to \`null\`.`;
     ) : payload.kind === "html" ? (
       // 内容已在服务端 sanitizePreviewHtml 消毒（T10），此处 dangerouslySetInnerHTML 是受控用法
       /* @__PURE__ */ react_shim_default.createElement(Ga, { className: "rs-preview-scroll" }, /* @__PURE__ */ react_shim_default.createElement("article", { className: "rs-preview-doc", dangerouslySetInnerHTML: { __html: payload.html } }))
-    ) : /* @__PURE__ */ react_shim_default.createElement("iframe", { className: "rs-preview-pdf", src: blobUrl, title: `${fileName} \u7B80\u5386\u9884\u89C8` }), /* @__PURE__ */ react_shim_default.createElement("footer", { className: "rs-preview-foot" }, /* @__PURE__ */ react_shim_default.createElement(C2, { variant: "outline", size: "sm", onClick: () => onClose(false) }, "\u5173\u95ED"))));
+    ) : (
+      // 浏览器 PDF 插件门禁（T20 项 11）：弹窗内呈现说明面板，正片引导到新标签页原生查看
+      /* @__PURE__ */ react_shim_default.createElement("div", { className: "rs-preview-pdf-bridge" }, /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-file-pdf-2-line", "aria-hidden": "true" }), /* @__PURE__ */ react_shim_default.createElement("p", null, "\u6D4F\u89C8\u5668\u9650\u5236\uFF1A\u5185\u5D4C\u9884\u89C8\u5728\u65B0\u6807\u7B7E\u9875\u6253\u5F00\u300C", fileName, "\u300D"), /* @__PURE__ */ react_shim_default.createElement(
+        C2,
+        {
+          variant: "outline",
+          size: "sm",
+          title: `\u5728\u65B0\u6807\u7B7E\u9875\u6253\u5F00 ${fileName} \u7684 PDF \u9884\u89C8`,
+          "aria-label": `\u5728\u65B0\u6807\u7B7E\u9875\u6253\u5F00 ${fileName} \u7684 PDF \u9884\u89C8`,
+          onClick: () => window.open(blobUrl, "_blank", "noopener")
+        },
+        /* @__PURE__ */ react_shim_default.createElement("i", { className: "ri-external-link-line", "aria-hidden": "true" }),
+        "\u5728\u65B0\u6807\u7B7E\u9875\u6253\u5F00"
+      ))
+    ), /* @__PURE__ */ react_shim_default.createElement("footer", { className: "rs-preview-foot" }, /* @__PURE__ */ react_shim_default.createElement(C2, { variant: "outline", size: "sm", onClick: () => onClose(false) }, "\u5173\u95ED"))));
   }
 
   // src/lib/remote-components/resume-screen/src/components/workbench.tsx
@@ -17358,6 +17379,10 @@ Defaulting to \`null\`.`;
         "aria-describedby": void 0,
         onKeyDown: (event) => {
           if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+          const target = event.target;
+          if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable)) {
+            return;
+          }
           event.preventDefault();
           moveSelection(event.key === "ArrowDown" ? 1 : -1);
         }
