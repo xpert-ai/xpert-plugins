@@ -70,8 +70,8 @@ interface DetailProps {
 }
 
 /**
- * 详情内容（无容器语义）：宽栏 rs-detail-panel 与 <720px Sheet 抽屉两处复用同一渲染，
- * 保证「详情+处置条」跨区域视觉恒定（§4）。容器骨架由上层（workbench）负责。
+ * 详情内容（无容器语义）：唯一挂载点是 Sheet 详情抽屉（T14 单栏化后详情不再有宽栏常驻形态），
+ * 保证「详情+处置条」视觉恒定（§5.1）。容器骨架由上层（workbench）负责。
  */
 export function DetailContent(props: DetailProps) {
   const { candidate } = props

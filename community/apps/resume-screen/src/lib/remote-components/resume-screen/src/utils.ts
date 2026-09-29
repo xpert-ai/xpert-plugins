@@ -9,11 +9,12 @@ import type {
   ActionResult,
   CandidateView,
   JobView,
-  QueueRow,
   ResumeScreenViewData,
   SortBy,
   SortDir,
-  StatusFilter
+  StatusFilter,
+  UploadRow,
+  UploadStatus
 } from './types'
 
 // 分页大小：与服务端 getViewData 兜底一致（蓝图 §0.3 查询口径）
@@ -183,20 +184,50 @@ export function elapsedLabel(fromIso: string | undefined, now: number): string {
   return minutes < 1 ? '不到 1 分钟' : `${minutes} 分钟`
 }
 
+// reason token → 可执行指引文案（spec §6.4/§6.6）：processor 与 provider 写入的 failureReason
+// 就是这些机器可读原值，命中即翻译；未命中沿用关键字映射，保证旧中文回执通道不回归。
+const UPLOAD_FAILURE_TOKEN_COPY: Record<string, string> = {
+  file_missing: '该候选人未保留原始简历文件，无法重新解析，请重新上传该简历',
+  no_text_layer: '该 PDF 无法提取文字（可能为扫描件），请转存为 Word 后重新上传',
+  encrypted: '文件已加密，请解除密码后重新上传',
+  unsupported_format: '仅支持 .docx / .pdf（≤10MB），请转换格式后重新上传',
+  file_too_large: UPLOAD_OVERSIZE_HINT,
+  parse_error: '文件内容无法解析，请确认文件未损坏后重新上传'
+}
+
 /**
- * 上传失败指引归一（蓝图 §6.6 四类文案映射）
+ * 上传失败指引归一（蓝图 §6.6；失败文案单一真源，弹窗行内指引必须走本函数）
  *
- * 服务端 failureReason 已是可执行中文指引（provider 直接透传中文 message）；
- * 仅对未识别的兜底做关键字映射，保证 UI 文案逐条可读、均指向重新上传。
+ * 三级映射：机器可读 reason token 精确命中（T11 processor 原值）→ 中文关键字兜底
+ * （旧服务端 message 通道）→ 未识别原样透出。空文案按「未知失败」给通用重新上传指引。
  */
 export function mapUploadFailure(message: string): string {
   const text = message.trim()
   if (!text) return '上传失败，请重新上传'
-  if (/加密|password/i.test(text)) return '文件已加密，请解除密码后重新上传'
-  if (/扫描|无文本|无法提取文字/.test(text)) return '该 PDF 无法提取文字（可能为扫描件），请转存为 Word 后重新上传'
-  if (/格式|不支持/.test(text)) return '仅支持 .docx / .pdf（≤10MB），请转换格式后重新上传'
+  const byToken = UPLOAD_FAILURE_TOKEN_COPY[text]
+  if (byToken) return byToken
+  if (/加密|password/i.test(text)) return UPLOAD_FAILURE_TOKEN_COPY.encrypted
+  if (/扫描|无文本|无法提取文字/.test(text)) return UPLOAD_FAILURE_TOKEN_COPY.no_text_layer
+  if (/格式|不支持/.test(text)) return UPLOAD_FAILURE_TOKEN_COPY.unsupported_format
   if (/超过|过大|10MB|size/i.test(text)) return UPLOAD_OVERSIZE_HINT
   return text
+}
+
+/**
+ * 上传弹窗汇总（spec §5.3）
+ *
+ * inFlight = queued + uploading；closable 供 footer「完成」与遮罩关闭共判——
+ * 有在途字节时关闭必须走 AlertDialog 轻确认，防用户误以为已上传。
+ * leaving 行（清除失败记录的 160ms 淡出残影）不参与计数，汇总条数字必须等于用户可见行数。
+ */
+export function summarizeUploadRows(rows: UploadRow[]) {
+  const alive = rows.filter((row) => !row.leaving)
+  const count = (status: UploadStatus) => alive.filter((row) => row.status === status).length
+  const done = count('created')
+  const skipped = count('skipped')
+  const failed = count('failed')
+  const inFlight = count('queued') + count('uploading')
+  return { selected: alive.length, done, skipped, failed, inFlight, closable: inFlight === 0 }
 }
 
 /**
@@ -286,20 +317,6 @@ export function mergeAppendedPage(previous: CandidateView[], appended: Candidate
     if (!merged.some((existing) => existing.id === item.id)) merged.push(item)
   }
   return merged
-}
-
-// 队列聚合计数：把手徽标与聚合条共用（进行中=queued+uploading）
-export function summarizeQueue(rows: QueueRow[]) {
-  const count = (status: QueueRow['status']) => rows.filter((row) => row.status === status).length
-  return {
-    total: rows.length,
-    queued: count('queued'),
-    uploading: count('uploading'),
-    created: count('created'),
-    skipped: count('skipped'),
-    failed: count('failed'),
-    active: count('queued') + count('uploading')
-  }
 }
 
 // 处置后自动滑向下一条待审：从当前索引沿列表顺序找下一 pending_review（蓝图 §3.6 流水线节奏）

@@ -21,7 +21,11 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Skeleton
+  Skeleton,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
 } from '@xpert-ai/plugin-shadcn-ui'
 import { CandidateBadge, statusAccent } from './badges'
 import type { CandidateView, SortBy, SortDir, StatusFilter } from '../types'
@@ -148,6 +152,20 @@ export function CandidateList(props: CandidateListProps) {
               ))}
             </SelectContent>
           </Select>
+          {/* 上传入口：图标+文字常驻工具条（§5.3）；说明走 Tooltip 而不是 title，约束文案可被发现 */}
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="sm" className="rs-toolbar-button" onClick={props.onUploadRequest}>
+                  <i className="ri-upload-cloud-2-line" aria-hidden="true" />
+                  <span className="rs-header-label">上传简历</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" collisionPadding={8}>
+                支持 .docx / .pdf，单文件 ≤ 10MB，可多选
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className={`rs-toolbar-button${sortActive ? ' is-active' : ''}`} title="排序">

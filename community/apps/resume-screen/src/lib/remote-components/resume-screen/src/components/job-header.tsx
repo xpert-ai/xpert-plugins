@@ -1,8 +1,8 @@
 /**
  * 岗位切换区（蓝图 §3.2 / §6.8 / §10 P4，v4 D1 定稿）
  *
- * 左侧岗位 Select（切换即清选中与筛选并重新 requestData）+ 新建岗位表单 Dialog +
- * 当前岗位 JD Popover 摘要 + 刷新按钮。新建走 create_job action，全程不经宿主对话；
+ * 左侧岗位 Select（切换即清选中与筛选并重新 requestData）+ 新建岗位表单 Dialog + 刷新按钮。
+ * 新建走 create_job action，全程不经宿主对话（JD 摘要自 T14 起不再在头部弹层展示，改由详情上下文承载）；
  * 校验口径：标题非空、JD ≥30 字（不足禁用保存），提交期 disabled + 「保存中…」防重。
  */
 import React from '../react-shim'
@@ -18,9 +18,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   Input,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
   Select,
   SelectContent,
   SelectItem,
@@ -30,7 +27,7 @@ import {
 } from '@xpert-ai/plugin-shadcn-ui'
 import type { JobCreateOutcome, JobView } from '../types'
 
-const { useEffect, useMemo, useRef, useState } = React
+const { useEffect, useRef, useState } = React
 
 // JD 最短字数闸：与服务层 createJob/provider 视图层同口径（蓝图 §3.2）
 const MIN_JD_LENGTH = 30
@@ -54,7 +51,6 @@ interface JobHeaderProps {
 
 export function JobHeader({ jobs, currentJobId, busy, refreshing, jobPulseSeq, xsMode, onSelectJob, onCreateJob, onRefresh }: JobHeaderProps) {
   const [createOpen, setCreateOpen] = useState(false)
-  const currentJob = useMemo(() => jobs.find((job) => job.id === currentJobId) ?? null, [jobs, currentJobId])
   const jobSelectRef = useRef<HTMLDivElement | null>(null)
 
   // 列表空态 CTA「新建岗位」跨组件复用本 Dialog：自定义事件打开（焦点陷阱不跨层）
@@ -92,7 +88,6 @@ export function JobHeader({ jobs, currentJobId, busy, refreshing, jobPulseSeq, x
           </SelectContent>
         </Select>
       </div>
-      {currentJob ? <JdPopover job={currentJob} /> : null}
       <span className="rs-header-spacer" />
       {xsMode ? (
         // 超窄容器：新建/刷新收纳进「更多」下拉（蓝图 §4 <560px 断点）
@@ -127,24 +122,6 @@ export function JobHeader({ jobs, currentJobId, busy, refreshing, jobPulseSeq, x
       )}
       <CreateJobDialog open={createOpen} onOpenChange={setCreateOpen} onSubmit={onCreateJob} />
     </header>
-  )
-}
-
-// 岗位 JD 摘要弹层：不占独立栏（蓝图 §3.2）
-function JdPopover({ job }: { job: JobView }) {
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" title="查看岗位描述">
-          <i className="ri-file-text-line" aria-hidden="true" />
-          <span className="rs-header-label">JD</span>
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="rs-jd-popover">
-        <div className="rs-section-title">{job.title} · 职位描述</div>
-        <div className="rs-jd-text">{job.jdText}</div>
-      </PopoverContent>
-    </Popover>
   )
 }
 

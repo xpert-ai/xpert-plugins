@@ -122,17 +122,18 @@ export interface JobCreateOutcome {
   notice?: string
 }
 
-// ===== 上传队列（iframe 前端内存态，蓝图 §3.7/§6.6） =====
+// ===== 上传弹窗逐文件进度行（iframe 前端内存态，蓝图 §5.3/§6.6） =====
 
 // 文件级状态机（v4.2 五态）：排队中 → 上传中（单一进行态：字节传输+服务端校验/解析/落库同一请求往返）
-// → 回执终态 已创建/跳过/失败；队列行为前端内存态，无服务端台账（§0.3/§6.6）
-export type QueueStatus = 'queued' | 'uploading' | 'created' | 'skipped' | 'failed'
+// → 回执终态 已创建/跳过/失败；进度行为前端内存态，无服务端台账（§0.3/§6.6）
+export type UploadStatus = 'queued' | 'uploading' | 'created' | 'skipped' | 'failed'
 
-export interface QueueRow {
+// 上传弹窗内的逐文件进度行（前端内存态，无服务端台账）
+export interface UploadRow {
   // 本地自增 id：乐观行不依赖服务端返回即可稳定渲染
   localId: number
   fileName: string
-  status: QueueStatus
+  status: UploadStatus
   // 失败时展示的服务端可读指引文案（failureReason 映射，§6.6 表）
   failureReason?: string
   // 已创建行的候选人 id：「查看」跳转选中用

@@ -4,19 +4,18 @@
  * 数据流：ready→init→requestData（§8.2 时序）；刷新两柱 = action 回执 refresh:true
  * 触发 silentRefresh + 存在 parsing/上传进行中行时 30s 心跳轮询（链路 B 无 hostEvent
  * 主路径，hostEvent 仅对话旁路）。错误双通道：顶部 notice（role=alert，10s 自动消失）
- * + notify。布局：≥720px 双栏 master-detail；<720px 列表 + Sheet 抽屉；<560px 头部折叠。
+ * + notify。布局：单栏列表独占（§5.1），详情只活在 Sheet 抽屉；<560px 头部折叠。
  */
 import React from '../react-shim'
-import { Button, Sheet, SheetContent, SheetHeader, SheetTitle, Skeleton } from '@xpert-ai/plugin-shadcn-ui'
+import { Button, Sheet, SheetContent, SheetHeader, SheetTitle } from '@xpert-ai/plugin-shadcn-ui'
 import { executeAction, executeFileAction, notify, requestData, setOnLateReceipt } from '../bridge'
 import { CandidateList } from './candidate-list'
 import { DetailContent } from './candidate-detail'
-import { IntakePanel } from './intake-panel'
 import { JobHeader } from './job-header'
-import { StatBar } from './stat-bar'
+import { UploadDialog } from './upload-dialog'
 import type { DispositionKey } from './action-bar'
 import type { SaveOutcome } from './candidate-detail'
-import type { CandidateView, HostContext, JobCreateOutcome, JobView, QueueRow, ResumeScreenCandidatePatchMirror, ResumeScreenViewData, SortBy, SortDir, StatusFilter } from '../types'
+import type { CandidateView, HostContext, JobCreateOutcome, JobView, ResumeScreenCandidatePatchMirror, ResumeScreenViewData, SortBy, SortDir, StatusFilter, UploadRow } from '../types'
 import {
   DOM_ROW_CAP,
   LEAVE_FADE_MS,
@@ -76,17 +75,19 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const [notice, setNotice] = useState('')
-  const [queueRows, setQueueRows] = useState<QueueRow[]>([])
-  const [queueExpanded, setQueueExpanded] = useState(false)
+  const [queueRows, setQueueRows] = useState<UploadRow[]>([])
   const [queueBusy, setQueueBusy] = useState(false)
   const [jobPulseSeq, setJobPulseSeq] = useState(0)
   const [jumpCandidateId, setJumpCandidateId] = useState<string | null>(null)
-  // 空态 CTA「上传简历文件」信号：递增触发录入面板内的文件选择器（§3.4 空态 CTA）
+  // 空态 CTA「上传简历文件」信号：递增触发上传弹窗直接弹出文件选择器（§3.4 空态 CTA）
   const [uploadRequestSeq, setUploadRequestSeq] = useState(0)
+  // 上传弹窗开关：工具条/空态 CTA 的唯一上传入口（§5.3），行态关闭后保留供回看
+  const [uploadOpen, setUploadOpen] = useState(false)
   const [enteringIds, setEnteringIds] = useState<Set<string>>(() => new Set())
   const [nowTick, setNowTick] = useState(() => Date.now())
   const [sheetOpen, setSheetOpen] = useState(false)
-  const [widthMode, setWidthMode] = useState<'wide' | 'narrow' | 'xs'>('wide')
+  // 二态（T14 单栏化）：xs 仅用于头部文案折叠与 Sheet 满宽，详情不再有宽栏常驻形态
+  const [widthMode, setWidthMode] = useState<'default' | 'xs'>('default')
   // 「再等等」抑制解析超时卡 5 分钟（§6.4 纯前端记忆）
   const [timeoutDismiss, setTimeoutDismiss] = useState<Record<string, number>>({})
 
@@ -99,8 +100,6 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
   const removalToken = useRef(0)
   const queueSeq = useRef(0)
   const noticeTimer = useRef<number | null>(null)
-  const widthModeRef = useRef(widthMode)
-  widthModeRef.current = widthMode
 
   // ===== 加载 =====
 
@@ -217,7 +216,7 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
     if (!shell || typeof ResizeObserver === 'undefined') return undefined
     const observer = new ResizeObserver((entries) => {
       const width = entries[0]?.contentRect.width ?? 0
-      setWidthMode(width < 560 ? 'xs' : width < 720 ? 'narrow' : 'wide')
+      setWidthMode(width < 560 ? 'xs' : 'default')
     })
     observer.observe(shell)
     return () => observer.disconnect()
@@ -247,14 +246,13 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
   )
 
   const selected = useMemo(() => liveItems.find((item) => item.id === selectedId) ?? null, [liveItems, selectedId])
-  const hasTimedOutParsing = useMemo(() => liveItems.some((item) => isParsingTimedOut(item, nowTick)), [liveItems, nowTick])
 
   // 行级回调必须引用稳定：CandidateItem memo 以 onSelect/onJumpConsumed 做浅比较，
   // 内联箭头会让每次 workbench 重渲染（心跳 tick/notice/扫描线开关）击穿整列表 memo（§11）
   const handleSelect = useCallback((id: string) => {
     setSelectedId(id)
-    // <720px：点行开 Sheet 抽屉承载详情与处置条（§4）；经 ref 读宽度避免回调身份随宽变化
-    if (widthModeRef.current !== 'wide') setSheetOpen(true)
+    // 单栏布局：点行一律开 Sheet 抽屉承载详情与处置条（§5.1）
+    setSheetOpen(true)
   }, [])
   const consumeJumpHighlight = useCallback(() => setJumpCandidateId(null), [])
 
@@ -269,10 +267,6 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
   function selectJob(jobId: string) {
     // 切换岗位：清空选中与筛选（§3.2，筛选与搜索一并重置）
     changeView({ jobId, status: 'all', search: '' }, { clearSelection: true })
-  }
-
-  function toggleStatusFilter(next: StatusFilter) {
-    changeView({ status: next })
   }
 
   function clearFilters() {
@@ -391,7 +385,7 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
     [silentRefresh]
   )
 
-  // ===== 上传队列（§3.7/§6.6：乐观入队 → 逐文件 executeFileAction → 回执推进行态） =====
+  // ===== 上传编排（§5.3 弹窗行态 + §6.6 失败指引：乐观入队 → 逐文件 executeFileAction → 回执推进行态） =====
 
   const canUpload = useCallback((): boolean => {
     if (viewRef.current.jobId) return true
@@ -401,8 +395,8 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
     return false
   }, [])
 
-  function patchQueueRow(localId: number, patch: Partial<QueueRow>) {
-    // 只 patch 状态字段（浅比较 fileName+status 语义，§11 不整队列重渲）
+  function patchUploadRow(localId: number, patch: Partial<UploadRow>) {
+    // 只 patch 状态字段（浅比较 fileName+status 语义，§11 不整弹窗列表重渲）
     setQueueRows((rows) => rows.map((item) => (item.localId === localId ? { ...item, ...patch } : item)))
   }
 
@@ -413,22 +407,21 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
       setQueueBusy(true)
       // 乐观入队 N 行「排队中」（选择即入队，批量感呈现 §6.6），再逐文件走宿主文件通道
       const rows = files.map((file) => {
-        const row: QueueRow = { localId: ++queueSeq.current, fileName: file.name, status: 'queued', startedAt: Date.now() }
+        const row: UploadRow = { localId: ++queueSeq.current, fileName: file.name, status: 'queued', startedAt: Date.now() }
         setQueueRows((current) => [row, ...current].slice(0, 40))
         return row
       })
-      setQueueExpanded(true)
       try {
         for (let index = 0; index < files.length; index += 1) {
           const file = files[index]
           const row = rows[index]
           // ≤10MB 前端预检（§3.7/D5）：超限直接落失败行并给指引，不占字节通道；服务端仍会复校
           if (file.size > UPLOAD_MAX_BYTES) {
-            patchQueueRow(row.localId, { status: 'failed', failureReason: UPLOAD_OVERSIZE_HINT })
+            patchUploadRow(row.localId, { status: 'failed', failureReason: UPLOAD_OVERSIZE_HINT })
             notify(`${file.name}：${UPLOAD_OVERSIZE_HINT}`, 'error')
             continue
           }
-          patchQueueRow(row.localId, { status: 'uploading' })
+          patchUploadRow(row.localId, { status: 'uploading' })
           try {
             const response = await executeFileAction('upload_resume_files', null, {}, { jobId }, file)
             const result = parseActionResult(response)
@@ -438,21 +431,21 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
             if (!result.success) {
               // 录入前失败：红行 + 可执行重新上传指引（四类原因映射，不产生候选人行 §6.6）
               const reason = mapUploadFailure(resolveText(result.message))
-              patchQueueRow(row.localId, { status: 'failed', failureReason: reason })
+              patchUploadRow(row.localId, { status: 'failed', failureReason: reason })
               notify(`${file.name}：${reason}`, 'error')
               continue
             }
             if (createdList.length > 0) {
-              patchQueueRow(row.localId, { status: 'created', candidateId: createdList[0]?.id })
+              patchUploadRow(row.localId, { status: 'created', candidateId: createdList[0]?.id })
             } else if (skippedList.length > 0) {
-              patchQueueRow(row.localId, { status: 'skipped' })
+              patchUploadRow(row.localId, { status: 'skipped' })
             } else {
               // 回执无 created/skipped 明细：以刷新结果校准，行标记已创建但无跳转目标
-              patchQueueRow(row.localId, { status: 'created' })
+              patchUploadRow(row.localId, { status: 'created' })
             }
           } catch (error) {
             const reason = mapUploadFailure(error instanceof Error ? error.message : '上传失败')
-            patchQueueRow(row.localId, { status: 'failed', failureReason: reason })
+            patchUploadRow(row.localId, { status: 'failed', failureReason: reason })
             notify(`${file.name}：${reason}`, 'error')
           }
         }
@@ -484,7 +477,6 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
 
   const loading = firstLoading || (!data && !loadError)
   const isError = Boolean(loadError) && !data && !firstLoading
-  const stats = data?.stats ?? { total: 0, pendingReview: 0, accepted: 0, hold: 0, rejected: 0, failed: 0, parsing: 0 }
   // 服务端总数优先；兜底用存活行数（淡出残影不计入「已显示/共」）
   const total = data?.page?.total ?? liveItems.length
   const hasFilterActive = view.status !== 'all' || view.search !== ''
@@ -519,8 +511,6 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
         onCreateJob={createJob}
         onRefresh={() => void silentRefresh()}
       />
-
-      <StatBar stats={stats} loading={loading && !data} value={view.status} hasTimedOutParsing={hasTimedOutParsing} onFilterChange={toggleStatusFilter} />
 
       {isError ? (
         // 首载失败：错误卡 + 重试（重新 requestData）；刷新失败只走 notice 不替换整页（§6.1）
@@ -562,9 +552,9 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
               onLoadMore={() => void load('more')}
               onClearFilters={clearFilters}
               onUploadRequest={() => {
-                // 空态 CTA：前置岗位校验后直接弹出文件选择器（§3.4）
+                // 空态 CTA：前置岗位校验后开上传弹窗并直接弹文件选择器（§3.4/§5.3）
                 if (!canUpload()) return
-                setQueueExpanded(true)
+                setUploadOpen(true)
                 setUploadRequestSeq((seq) => seq + 1)
               }}
               onCreateJobRequest={() => {
@@ -573,18 +563,12 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
               }}
             />
           </div>
-          {/* 宽栏详情常驻（§3.1 rs-detail-panel）；窄栏走 Sheet，DOM 不重复渲染 */}
-          {widthMode === 'wide' ? (
-            <aside className="rs-detail-panel">
-              {loading && !selected ? <DetailSkeleton /> : detail}
-            </aside>
-          ) : null}
         </section>
       )}
 
-      {/* <720px 详情抽屉：Sheet side=right 宽 min(400px, 100%-24px)，A11 原生节奏（§4） */}
-      <Sheet open={widthMode !== 'wide' && sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent side="right" className="rs-sheet-content">
+      {/* 详情抽屉：单栏布局下点行/键盘 Enter 均开 Sheet，xs 容器满宽（§4/§5.1） */}
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent side="right" className={`rs-sheet-content${widthMode === 'xs' ? ' is-full' : ''}`}>
           <SheetHeader className="rs-sr-only">
             <SheetTitle>候选人详情</SheetTitle>
           </SheetHeader>
@@ -602,33 +586,22 @@ export function ResumeScreenWorkbench({ context }: { context: HostContext }) {
         </div>
       ) : null}
 
-      <IntakePanel
+      <UploadDialog
+        open={uploadOpen}
         rows={queueRows}
-        now={nowTick}
         busy={queueBusy}
-        expanded={queueExpanded}
         uploadRequestSeq={uploadRequestSeq}
-        onExpandedChange={setQueueExpanded}
-        canUpload={canUpload}
+        onClose={(next) => {
+          setUploadOpen(next)
+          // 关闭后保留行态，供下次打开回看结果；清空只由「清除失败记录」触发
+        }}
         onPickFiles={(files) => void pickFiles(files)}
         onClearFailed={clearFailedRows}
-        onJumpToCandidate={jumpToCandidate}
+        onJumpToCandidate={(id) => {
+          setUploadOpen(false)
+          jumpToCandidate(id)
+        }}
       />
     </main>
-  )
-}
-
-// 首屏详情整块骨架（§6.1：统计条骨架在 StatBar、列表骨架在 CandidateList、详情在此）
-function DetailSkeleton() {
-  return (
-    <div className="rs-detail-skeleton" aria-hidden="true">
-      <Skeleton className="rs-sk-avatar-lg" />
-      <div className="rs-sk-blocks">
-        <Skeleton className="rs-sk-line" />
-        <Skeleton className="rs-sk-line rs-sk-short" />
-        <Skeleton className="rs-sk-line" />
-        <Skeleton className="rs-sk-line rs-sk-mid" />
-      </div>
-    </div>
   )
 }

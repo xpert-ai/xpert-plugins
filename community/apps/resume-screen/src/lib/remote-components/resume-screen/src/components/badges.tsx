@@ -5,7 +5,7 @@
  * 文字自述状态名（不只靠颜色），满足色弱可达性（§6.8）。
  */
 import React from '../react-shim'
-import type { CandidateStatus, QueueStatus } from '../types'
+import type { CandidateStatus, UploadStatus } from '../types'
 
 interface BadgeSpec {
   label: string
@@ -77,13 +77,13 @@ export function statusAccent(status: CandidateStatus, timedOut = false): string 
 }
 
 /**
- * 上传队列文件态徽标（§6.6 表 v4.2 收敛 5 态：排队中灰 / 上传中蓝 loader / 已创建绿 / 跳过(重复)弱色 / 失败红对）
+ * 上传弹窗文件态徽标（§6.6 表 v4.2 收敛 5 态：排队中灰 / 上传中蓝 loader / 已创建绿 / 跳过(重复)弱色 / 失败红对）
  *
  * v4.2：字节传输与服务端校验/解析/落库同属一个请求往返，前端不可区分，「上传中」为唯一进行态；
- * 超 60s 无回执行尾「仍在处理，可稍后查看」提醒由队列行组件呈现，不影响徽标标签。
+ * 超 60s 无回执行尾「仍在处理，可稍后查看」提醒由上传弹窗行组件呈现，不影响徽标标签。
  * 失败徽标取 §8 v2 注「红对」（软底强字），不套候选人「失败」描边变体——文件态与候选人态色对各自独立。
  */
-export function QueueBadge({ status }: { status: QueueStatus }) {
+export function UploadBadge({ status }: { status: UploadStatus }) {
   const spec: BadgeSpec | null =
     status === 'queued'
       ? { label: '排队中', tone: 'tone-neutral' }

@@ -5,8 +5,17 @@
  * 内容未变的行必须复用旧引用（memo 短路的前提）；合并结果中保留行顺序必须等于
  * 服务端最终顺序（淡出行只是过渡性插入，提交后不得留下行跳位）。
  */
-import { candidateSignature, looksLikeRevisionConflict, mergeAppendedPage, mergeRefreshedList, reconcileCandidateItems } from './utils'
-import type { CandidateView } from './types'
+import {
+  UPLOAD_OVERSIZE_HINT,
+  candidateSignature,
+  looksLikeRevisionConflict,
+  mapUploadFailure,
+  mergeAppendedPage,
+  mergeRefreshedList,
+  reconcileCandidateItems,
+  summarizeUploadRows
+} from './utils'
+import type { CandidateView, UploadRow } from './types'
 
 // 构造最小可用候选人行：只填参与展示签名的字段
 function makeCandidate(overrides: Partial<CandidateView> & { id: string }): CandidateView {
@@ -140,5 +149,49 @@ describe('looksLikeRevisionConflict · 冲突判定以回执 code 为先（S7 �
   it('无 code（旧服务端）时回退中文文案正则兜底', () => {
     expect(looksLikeRevisionConflict('记录已被他人修改，请刷新')).toBe(true)
     expect(looksLikeRevisionConflict('matchScore 必须是 0-100 的整数', undefined)).toBe(false)
+  })
+})
+
+// 上传弹窗行工厂：默认字段给最小合法值，三类场景（进行中/全终态/淡出残影）各覆盖一份
+function uploadRow(status: UploadRow['status'], overrides: Partial<UploadRow> = {}): UploadRow {
+  return { localId: 1, fileName: '张三.pdf', status, startedAt: 1_700_000_000_000, ...overrides }
+}
+
+describe('summarizeUploadRows · 弹窗汇总与可关闭判定（spec §5.3）', () => {
+  it('五态各一行：计数正确且有进行中即不可关闭', () => {
+    const rows = [uploadRow('queued'), uploadRow('uploading'), uploadRow('created'), uploadRow('skipped'), uploadRow('failed')]
+    expect(summarizeUploadRows(rows)).toEqual({ selected: 5, done: 1, skipped: 1, failed: 1, inFlight: 2, closable: false })
+  })
+
+  it('全部终态即可关闭；空列表也判可关闭（弹窗不许把自己锁死）', () => {
+    expect(summarizeUploadRows([uploadRow('created'), uploadRow('failed')]).closable).toBe(true)
+    expect(summarizeUploadRows([])).toEqual({ selected: 0, done: 0, skipped: 0, failed: 0, inFlight: 0, closable: true })
+  })
+
+  it('淡出中的失败行（清除记录 160ms 窗口）不参与计数，汇总条不出现幽灵数', () => {
+    const rows = [uploadRow('failed', { leaving: true }), uploadRow('created')]
+    expect(summarizeUploadRows(rows)).toMatchObject({ selected: 1, failed: 0, inFlight: 0, closable: true })
+  })
+})
+
+describe('mapUploadFailure · 服务端 reason token 优先（spec §6.4/§6.6）', () => {
+  it('file_missing 与重试失败文案同源（旧数据未保留文件）', () => {
+    expect(mapUploadFailure('file_missing')).toBe('该候选人未保留原始简历文件，无法重新解析，请重新上传该简历')
+  })
+
+  // token 命中即返回固定指引：processor 的 failureReason 就是这些机器可读原值（T11）
+  it.each([
+    ['no_text_layer', '该 PDF 无法提取文字（可能为扫描件），请转存为 Word 后重新上传'],
+    ['encrypted', '文件已加密，请解除密码后重新上传'],
+    ['unsupported_format', '仅支持 .docx / .pdf（≤10MB），请转换格式后重新上传'],
+    ['file_too_large', UPLOAD_OVERSIZE_HINT],
+    ['parse_error', '文件内容无法解析，请确认文件未损坏后重新上传']
+  ] as const)('%s → 固定可执行指引', (token, copy) => {
+    expect(mapUploadFailure(token)).toBe(copy)
+  })
+
+  it('旧服务端的中文 message 通道不回归：未知 token 原样透出', () => {
+    expect(mapUploadFailure('请先选择岗位再上传简历')).toBe('请先选择岗位再上传简历')
+    expect(mapUploadFailure('')).toBe('上传失败，请重新上传')
   })
 })
