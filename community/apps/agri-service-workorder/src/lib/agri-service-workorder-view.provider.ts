@@ -59,15 +59,22 @@ export class AgriServiceViewProvider implements IXpertViewExtensionProvider {
       return []
     }
     const fixed = slot === AGENT_WORKBENCH_FIXED_SLOT
-    // Keep workbench available whenever the plugin is installed on this assistant.
-    // Requiring AGRI_SERVICE_FEATURE caused HTTP 404 in local Chat workbench hosts.
-    const base = fixed
-      ? {
-          workbench: {
-            fixed: true
+    // Both agent.workbench.main and agent.workbench.fixed use requireFeatureActivation.
+    // resolveProviderManifest walks slots in order and throws NotFound on the first
+    // inactive same-key match — so main must also declare requiredFeatures, otherwise
+    // remote-component/entry 404s even when the fixed manifest is valid.
+    const base = {
+      activation: {
+        requiredFeatures: [AGRI_SERVICE_FEATURE]
+      },
+      ...(fixed
+        ? {
+            workbench: {
+              fixed: true
+            }
           }
-        }
-      : {}
+        : {})
+    }
 
     return [
       {

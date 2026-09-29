@@ -733,10 +733,10 @@
           rows: 4,
           maxLength: 500,
           required: true,
-          helpText: '客户/项目/场所可不填，AI 会优先从服务数据和报修描述中自动匹配。',
-          placeholder: '请直接描述问题，例如：博雅电力总部园区A区3楼办公区中央空调面板显示E4，今天下午不制冷，请尽快维修。'
+          helpText: '农户/项目/地块可不填，AI 会优先从服务数据和农服需求描述中自动匹配。',
+          placeholder: '请直接描述农服需求，例如：东河村三组王大叔水稻约12亩，叶片发黄有褐斑，怀疑稻瘟病，想尽快安排植保喷施。'
         }),
-        h('p', { className: 'sm-field-group-note', key: 'hint-note' }, '农户 / 服务项目 / 地块为可选线索，AI 会优先从服务数据和报修描述中自动识别。'),
+        h('p', { className: 'sm-field-group-note', key: 'hint-note' }, '农户 / 服务项目 / 地块为可选线索，AI 会优先从服务数据和农服需求描述中自动识别。'),
         h('div', { className: 'sm-form-grid sm-form-grid-4', key: 'scope-fields' }, [
           comboField('农户姓名', props.form.customerName, props.catalogSummary.customers, (value) => props.onUpdateForm('customerName', value)),
           comboField('项目名称', props.form.projectName, props.catalogSummary.projects, (value) => props.onUpdateForm('projectName', value)),
@@ -907,7 +907,7 @@
       ['设备型号', order.deviceNo || 'XXZ-80'],
       ['联系人', order.reporterName],
       ['联系方式', order.reporterContact],
-      ['报修时间', formatDate(order.createdAt)]
+      ['建单时间', formatDate(order.createdAt)]
     ])
   }
 
@@ -1247,7 +1247,7 @@
     const itemLocations = unique((items || []).map((item) => item.siteName || item.location))
     return {
       customers: catalogCustomers.length ? catalogCustomers : itemCustomers.length ? itemCustomers : ['王大叔', '东河村合作社', '绿野家庭农场'],
-      projects: catalogProjects.length ? catalogProjects : itemProjects.length ? itemProjects : ['一周', '年度维保', '设备巡检'],
+      projects: catalogProjects.length ? catalogProjects : itemProjects.length ? itemProjects : ['春耕植保', '水稻巡查', '农技咨询'],
       locations: catalogLocations.length ? catalogLocations : itemLocations,
       devices: catalog.devices || [],
       deviceTypes: unique((catalog.deviceTypes || []).map((item) => item.label)),

@@ -20,25 +20,35 @@ PR：https://github.com/xpert-ai/xpert-plugins/pull/681
 
 ## 实际运行截图
 
-以下为本地 Xpert + DeepSeek 真实运行截图（相对路径，随代码提交）。
+以下为本地 Xpert + DeepSeek 真实运行截图（相对路径）。含绑定助手的 **插件工作台视图** 与对话路径。
 
-### 1. 完整需求 → AI 生成待确认工单
+### 1. 工作台全貌（关键页面 / 用户输入 / 工单列表）
 
-用户输入完整农服描述后，工具保存工单 `SM-20260920-7469`（待人工复核），并展示结构化字段。
+`?view=agri_service__workbench`：导入与候选范围、农服需求填报、AI 反馈，以及下方工单列表同屏。
+
+![农服工单工作台全貌](docs/images/workbench-full.png)
+
+### 2. AI 结果与待补充（异常场景）
+
+助手对话中真实调用工具后生成工单 `SM-20260929-0349`，状态「待补充」，含结构字段、初步诊断与需人工确认项。
+
+![对话 AI 结果与待补充](docs/images/workbench-chat-ai-result.png)
+
+### 3. 对话路径补充（早期验证）
+
+完整需求 → 待确认；缺信息 → 待补充并可继续补全：
 
 ![AI 生成待确认工单](docs/images/ai-generated-work-order.png)
-
-### 2. 信息不完整 → 待补充（异常/重试场景）
-
-用户仅输入「有个农户水稻有病，帮我开单」时，生成待补充工单 `SM-20260920-0215`，并列出需补字段，可继续对话补全。
 
 ![信息不完整待补充](docs/images/needs-supplement-retry.png)
 
 ## 架构摘要
 
-参考 `smart-maintenance` 分层，改为农服语义：Agent middleware tools、TypeORM 工单表、Assistant 模板、Workbench 视图（Chat 宿主下工作台点选保存见缺口说明）。
+参考 `smart-maintenance` 分层，改为农服语义：Agent middleware tools、TypeORM 工单表、Assistant 模板、Workbench remote component（`agri_service__workbench`）。
 
-主要工具：`agri_service_save_generated_work_order`、`agri_service_search_work_orders`、`agri_service_get_work_order_detail`、`agri_service_prepare_supplement_draft` 等。
+主要工具：`agri_service_save_generated_work_order`、`agri_service_get_catalog`、`agri_service_search_work_orders`、`agri_service_get_work_order_detail`、`agri_service_prepare_supplement_draft` 等。
+
+打开工作台：`/chat/x/agri-service-workorder-assistant?view=agri_service__workbench`
 
 ## 快速构建
 
