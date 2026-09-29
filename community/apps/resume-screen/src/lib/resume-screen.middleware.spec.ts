@@ -61,6 +61,7 @@ describe('ResumeScreenMiddleware', () => {
     )
   })
 
+  // v5：回填锚点从原文换成草稿行主键（原文不入库，模型侧无法再传文本）
   it('save tool persists via service and returns compact JSON', async () => {
     const service = createService()
     const middleware = new ResumeScreenMiddleware(service as never)
@@ -68,7 +69,7 @@ describe('ResumeScreenMiddleware', () => {
     const saveTool = instance.tools.find((t: { name: string }) => t.name === RESUME_SCREEN_SAVE_TOOL_NAME)
     const raw = await saveTool!.invoke({
       jobId: 'job-1',
-      candidates: [{ sourceText: '张三的简历', name: '张三', matchScore: 86 }]
+      candidates: [{ candidateId: 'c-1', name: '张三', matchScore: 86 }]
     })
     const parsed = JSON.parse(raw)
     expect(parsed.success).toBe(true)
@@ -79,7 +80,7 @@ describe('ResumeScreenMiddleware', () => {
     expect(service.saveCandidatesFromAgent).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: 'tenant-1', assistantId: 'assistant-1' }),
       'job-1',
-      [expect.objectContaining({ sourceText: '张三的简历' })]
+      [expect.objectContaining({ candidateId: 'c-1' })]
     )
   })
 
@@ -91,7 +92,7 @@ describe('ResumeScreenMiddleware', () => {
     const saveTool = instance.tools.find((t: { name: string }) => t.name === RESUME_SCREEN_SAVE_TOOL_NAME)
     const raw = await saveTool!.invoke({
       jobId: 'job-x',
-      candidates: [{ sourceText: '张三的简历' }]
+      candidates: [{ candidateId: 'c-1' }]
     })
     const parsed = JSON.parse(raw)
     // 失败以结构化 JSON 返回给模型自行决策，而不是抛错中断对话

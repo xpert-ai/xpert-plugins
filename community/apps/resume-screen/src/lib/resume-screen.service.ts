@@ -377,18 +377,21 @@ export class ResumeScreenService {
   }
 
   /**
-   * AI 解析结果的唯一写入口：按 dedupeKey 对 parsing 草稿行做回填式 upsert
+   * AI 解析结果的唯一写入口：按草稿行主键 candidateId 回填 parsing/failed 行
    *
-   * 与批量录入共用 `jobId|原文` 指纹作为幂等键，模型重试/重复回调不会产生重复行；
-   * 已被人工修正过的字段（humanEditedFields）永远不被 AI 覆盖。回填成功后行状态
-   * 统一流转到 pending_review 并清空历史失败原因。原文为空的条目直接跳过。
+   * v5 起原文不入库，模型侧无法反推 dedupeKey，锚点整体换成上传通道建出的草稿行 id
+   * （spec §3.4）。缺锚点或锚点未命中的条目只记 warn 后丢弃——既不中断整批，也绝不
+   * 新建行（建行只属于上传通道）；只有 parsing / failed 可写，pending_review 及人工
+   * 处置终态一律跳过，让迟到的重复回执改写不了已交人评审的结果。已被人工修正过的字段
+   * （humanEditedFields）永远不被 AI 覆盖，回填成功后状态统一流转到 pending_review
+   * 并清空历史失败原因。回填属系统写，刻意不推进 revision（S7 审核 F9）。
    *
    * @param scope 多租户隔离范围
    * @param jobId 归属职位 id，必须已存在且属于当前作用域
-   * @param candidates AI 抽取出的候选人集合（sourceText 必填，用于对齐幂等键）
-   * @returns 落库后的候选人视图数组
+   * @param candidates AI 抽取出的候选人集合（candidateId 必填，来自列表工具返回的行 id）
+   * @returns 落库后的候选人视图数组；被跳过的条目不出现在结果里
    * @exception NotFoundException jobId 在作用域内不存在
-   * @exception BadRequestException matchScore 不是 0-100 的整数
+   * @exception BadRequestException matchScore 不是 0-100 的整数（入口闸，整批拒绝）
    */
   async saveCandidatesFromAgent(
     scope: ResumeScreenScope,
@@ -401,22 +404,32 @@ export class ResumeScreenService {
     }
     const results: ResumeScreenCandidateView[] = []
     for (const candidate of candidates) {
-      const sourceText = candidate.sourceText?.trim()
-      // 无原文的条目无法对齐幂等键，直接跳过而不是落一条脏数据
-      if (!sourceText) {
+      const candidateId = candidate.candidateId?.trim()
+      if (!candidateId) {
+        // 缺锚点的条目无从定位行（原文已不入库），记 warn 丢弃而不是抛错中断整批
+        console.warn(`[ResumeScreenService] AI 回填条目缺少 candidateId，已跳过: jobId=${jobId}`)
         continue
       }
-      const dedupeKey = sha256(`${jobId}|${sourceText}`)
       const score = candidate.matchScore
       // 匹配分是看板排序与筛选的核心依据，越界值必须在入口处拒绝
       if (score !== undefined && (!Number.isInteger(score) || score < 0 || score > 100)) {
         throw new BadRequestException('matchScore 必须是 0-100 的整数')
       }
-      let row = await this.candidateRepository.findOne({
-        where: { ...this.scopeWhere(scope), jobId, dedupeKey }
+      const row = await this.candidateRepository.findOne({
+        where: { ...this.scopeWhere(scope), jobId, id: candidateId }
       })
+      if (!row) {
+        console.warn(`[ResumeScreenService] AI 回填锚点未命中任何行，已跳过: jobId=${jobId}, candidateId=${candidateId}`)
+        continue
+      }
+      // 幂等保护：只有等待解析的行可写。pending_review 及人工处置终态一律跳过——
+      // 迟到的重复回执不得改写已交人评审的结果（spec §3.4）
+      if (row.status !== 'parsing' && row.status !== 'failed') {
+        console.warn(`[ResumeScreenService] 行状态不接受 AI 回填，已跳过: candidateId=${candidateId}, status=${row.status}`)
+        continue
+      }
       // 人工修正过的字段受保护：AI 重跑不得覆盖（AC5.2）
-      const humanEdited = new Set(row?.humanEditedFields ?? [])
+      const humanEdited = new Set(row.humanEditedFields ?? [])
       const protectedFields: Array<keyof ResumeScreenCandidateInput> = [
         'name',
         'yearsOfExperience',
@@ -439,34 +452,16 @@ export class ResumeScreenService {
           ;(aiPatch as Record<string, unknown>)[field] = value
         }
       }
-      if (row) {
-        // 已有草稿行（通常是 parsing 中/失败重试）：原地回填并推进状态，不新建行。
-        // 刻意不递增 revision：本方法是 AI/系统写入口，回填不得把人工正在编辑的行顶成
-        // 「已被他人修改」的乐观锁冲突（spec §7.5 硬约束 3：版本推进只归属人工处置/编辑
-        // 通道）；人工编辑保护的语义由 humanEditedFields 承担，与版本号无关
-        row = await this.candidateRepository.save({
-          ...row,
-          ...aiPatch,
-          status: 'pending_review',
-          failureReason: null
-        })
-      } else {
-        row = await this.candidateRepository.save(
-          this.candidateRepository.create({
-            ...this.scopeWhere(scope),
-            conversationId: scope.conversationId ?? null,
-            jobId,
-            dedupeKey,
-            status: 'pending_review',
-            sourceText,
-            humanEditedFields: [],
-            attemptCount: 0,
-            revision: 1,
-            ...aiPatch
-          })
-        )
-      }
-      results.push(toCandidateView(row))
+      // 回填是系统写：原地推进状态，刻意不动 revision（S7 审核 F9）——本方法不得把人工
+      // 正在编辑的行顶成「已被他人修改」冲突，版本推进只归属人工处置/编辑通道（spec §7.5
+      // 硬约束 3）；人工编辑保护的语义由 humanEditedFields 承担，与版本号无关
+      const saved = await this.candidateRepository.save({
+        ...row,
+        ...aiPatch,
+        status: 'pending_review',
+        failureReason: null
+      })
+      results.push(toCandidateView(saved))
     }
     return results
   }
@@ -629,12 +624,18 @@ export class ResumeScreenService {
    * @param candidateId 候选人 id，必须已存在且属于当前作用域
    * @returns 重置为 parsing 态的候选人视图
    * @exception NotFoundException 候选人在作用域内不存在
-   * @exception BadRequestException 当前状态（如 pending_review/终态）不支持重试
+   * @exception BadRequestException 当前状态（如 pending_review/终态）不支持重试，
+   *            或该行没有落盘文件（v5 之前的存量行，只能重新上传）
    */
   async retryCandidate(scope: ResumeScreenScope, candidateId: string): Promise<ResumeScreenCandidateView> {
     const row = await this.findCandidate(scope, candidateId)
     if (row.status !== 'failed' && row.status !== 'parsing') {
       throw new BadRequestException('当前状态不支持重试')
+    }
+    // 存量行（v5 前录入）没有文件字节，重试只会让任务期读到空路径：
+    // 直接给可读失败，指引人工重新上传（spec §6.4 文案同源）
+    if (!row.filePath) {
+      throw new BadRequestException('该候选人未保留原始简历文件，无法重新解析，请重新上传该简历')
     }
     const updated = await this.candidateRepository.save({
       ...row,
@@ -653,6 +654,8 @@ export class ResumeScreenService {
    * 队列 handler 无请求上下文，不能走 scopeWhere 常规读路径；隔离维度靠行自携带
    * 字段重建（含 assistantId——saveCandidatesFromAgent 的作用域校验依赖它），
    * JD 文本按行 jobId 现查，prompt 构造不再回库。
+   * v5 起本行不回简历正文：只给文件定位三字段，字节由 processor 经 fileStore 现读，
+   * 文本仅存在于任务内存（spec §3.5 红线）。
    *
    * @param candidateId 候选人行 id（job payload 唯一业务字段）
    * @returns 解析行视图；行不存在返回 null（幂等认领的判据之一）
@@ -667,7 +670,10 @@ export class ResumeScreenService {
       id: row.id,
       jobId: row.jobId,
       status: row.status,
-      sourceText: row.sourceText ?? '',
+      // 文件定位三字段：processor 用 filePath 读字节、用 sourceFileName 判扩展名
+      filePath: row.filePath ?? '',
+      fileMime: row.fileMime ?? '',
+      sourceFileName: row.sourceFileName ?? '',
       attemptCount: row.attemptCount ?? 0,
       humanEditedFields: row.humanEditedFields ?? [],
       scope: {

@@ -29,9 +29,9 @@ import {
 import { ResumeScreenService } from './resume-screen.service'
 import type { ResumeScreenCandidateInput, ResumeScreenScope } from './types'
 
-// 候选人档案抽取入参：sourceText 必填且要求原文原样传入，作为幂等对齐与追溯依据
+// 候选人档案回填入参：v5 以草稿行主键为锚点（原文不入库，模型侧不再传文本）
 const candidateSchema = z.object({
-  sourceText: z.string().min(1).describe('Original resume text exactly as provided. Required.'),
+  candidateId: z.string().min(1).describe('Existing candidate row id returned by the list tool. Required.'),
   name: z.string().optional().describe('Candidate name extracted from the resume.'),
   yearsOfExperience: z.string().optional().describe('Years of experience, such as 5.'),
   education: z.string().optional().describe('Highest education, such as 本科 / 硕士.'),
@@ -102,7 +102,7 @@ export class ResumeScreenMiddleware implements IAgentMiddlewareStrategy<Record<s
     const saveCandidatesTool = tool(
       async (input: z.infer<typeof saveCandidatesSchema>) => {
         try {
-          // tool() 的 interop 类型推导会把入参字段弱化为可选；运行时 zod 已校验 sourceText 必填，
+          // tool() 的 interop 类型推导会把入参字段弱化为可选；运行时 zod 已校验 candidateId 必填，
           // 这里显式收敛为服务入参类型以通过编译，运行时语义不变
           const candidates = input.candidates as ResumeScreenCandidateInput[]
           const saved = await this.service.saveCandidatesFromAgent(scope, input.jobId, candidates)
@@ -127,7 +127,7 @@ export class ResumeScreenMiddleware implements IAgentMiddlewareStrategy<Record<s
       {
         name: RESUME_SCREEN_SAVE_TOOL_NAME,
         description:
-          'Save extracted candidates for the current job. Call exactly once per resume with the original sourceText. Never invent fields; put missing info in riskPoints.',
+          'Save extracted candidates for the current job. Each item must carry the candidateId returned by the list tool. Never invent fields; put missing fields in riskPoints.',
         schema: saveCandidatesSchema
       }
     )

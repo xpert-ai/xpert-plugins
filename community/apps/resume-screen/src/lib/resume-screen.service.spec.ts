@@ -299,14 +299,14 @@ describe('ResumeScreenService', () => {
   })
 
   describe('saveCandidatesFromAgent', () => {
-    it('backfills parsing rows and sets pending_review (AC2.3)', async () => {
-      const job = await service.createJob(scope, { title: '前端工程师', jdText: 'x'.repeat(30) })
+    it('按 candidateId 回填 parsing 行并推进 pending_review（AC2.3）', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
       const draft = await uploadAndStart(service, scope, job.id, ['张三的简历'])
       const rowId = draft.created[0].id
 
       const saved = await service.saveCandidatesFromAgent(scope, job.id, [
         {
-          sourceText: '张三的简历',
+          candidateId: rowId,
           name: '张三',
           yearsOfExperience: '5',
           education: '本科',
@@ -321,62 +321,84 @@ describe('ResumeScreenService', () => {
       expect(saved).toHaveLength(1)
       expect(saved[0].id).toBe(rowId)
       expect(saved[0].status).toBe('pending_review')
-      expect(saved[0].name).toBe('张三')
       expect(saved[0].matchScore).toBe(86)
+      // 回填不得抹掉文件投影：预览按钮可用性依赖它
+      expect(saved[0].hasFile).toBe(true)
     })
 
-    it('upserts by dedupeKey: same record, no duplicate (AC4.3 retry-safety)', async () => {
+    it('未知 candidateId 只记 warn 丢弃，不中断整批也不建新行（spec §3.4）', async () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
-      await uploadAndStart(service, scope, job.id, ['张三的简历'])
-      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: '张三' }])
-      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: '张三', matchScore: 90 }])
+      const draft = await uploadAndStart(service, scope, job.id, ['在途行'])
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined)
+      const saved = await service.saveCandidatesFromAgent(scope, job.id, [
+        { candidateId: 'not-a-row', name: '幽灵' },
+        { candidateId: draft.created[0].id, name: '张三' }
+      ])
+      expect(saved).toHaveLength(1)
+      expect(saved[0].name).toBe('张三')
       expect(candidateRepository.store).toHaveLength(1)
-      expect(candidateRepository.store[0].matchScore).toBe(90)
+      expect(warn).toHaveBeenCalled()
+      warn.mockRestore()
     })
 
-    // 人工修正保护：人工改过的字段在 AI 重跑回填时必须原样保留（AC5.2）
-    it('never overwrites human-edited fields (AC5.2)', async () => {
+    it('迟到回执落在 pending_review 行上不覆盖人工待审结果（幂等保护）', async () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
       const draft = await uploadAndStart(service, scope, job.id, ['张三的简历'])
       const rowId = draft.created[0].id
-      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: '张三' }])
-      await service.updateCandidate(scope, rowId, { name: '张三丰' }, 1)
-
-      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: 'AI猜的' }])
-
-      const row = candidateRepository.store[0]
-      expect(row.name).toBe('张三丰')
-      expect(row.humanEditedFields).toContain('name')
+      await service.saveCandidatesFromAgent(scope, job.id, [{ candidateId: rowId, name: '张三', matchScore: 86 }])
+      // 同一 candidateId 的重复回执（队列至少一次投递）必须整条跳过
+      const again = await service.saveCandidatesFromAgent(scope, job.id, [{ candidateId: rowId, matchScore: 99 }])
+      expect(again).toHaveLength(0)
+      expect(candidateRepository.store).toHaveLength(1)
+      expect(candidateRepository.store[0].matchScore).toBe(86)
     })
 
-    // enabled in Task 10（依赖 markCandidateFailed / retryCandidate）
-    it('clears failureReason and keeps attemptCount on success', async () => {
+    it('failed 行可被重投回执回填（AC4.3 retry-safety）', async () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
       const draft = await uploadAndStart(service, scope, job.id, ['张三的简历'])
       const rowId = draft.created[0].id
       await service.markCandidateFailed(scope, rowId, '模型处理超时')
       await service.retryCandidate(scope, rowId)
-      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: '张三' }])
-
-      const row = candidateRepository.store[0]
-      expect(row.status).toBe('pending_review')
-      expect(row.failureReason).toBeNull()
-      expect(row.attemptCount).toBe(1)
+      const saved = await service.saveCandidatesFromAgent(scope, job.id, [{ candidateId: rowId, name: '张三' }])
+      expect(saved[0].status).toBe('pending_review')
+      expect(saved[0].failureReason).toBeUndefined()
+      expect(saved[0].attemptCount).toBe(1)
     })
 
-    // S7 审核 F9：AI 回填是系统写，不得推进乐观锁版本——否则心跳期正在编辑的用户会被
-    // 无端顶成「已被他人修改」冲突；人工编辑/处置/重试通道才负责递增
+    // 人工修正保护不变（AC5.2）
+    it('never overwrites human-edited fields (AC5.2)', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const draft = await uploadAndStart(service, scope, job.id, ['张三的简历'])
+      const rowId = draft.created[0].id
+      await service.saveCandidatesFromAgent(scope, job.id, [{ candidateId: rowId, name: '张三' }])
+      // AI 回填属系统写不推进版本，人工编辑仍按版本 1 提交（AC5.1/5.2 口径）
+      await service.updateCandidate(scope, rowId, { name: '张三丰' }, 1)
+      // 待审行不允许「重试」（retry 只收 parsing/failed），重新解析要把行推回解析中：
+      // reset_to_pending 保证语义走人工处置通道，markCandidateParsing 复现 processor 重投
+      await service.reviewCandidate(scope, rowId, 'reset_to_pending', 'user-1')
+      await service.markCandidateParsing(scope, rowId)
+      await service.saveCandidatesFromAgent(scope, job.id, [{ candidateId: rowId, name: 'AI猜的' }])
+      expect(candidateRepository.store[0].name).toBe('张三丰')
+      expect(candidateRepository.store[0].humanEditedFields).toContain('name')
+    })
+
+    // S7 审核 F9：AI 回填是系统写，不推进乐观锁版本
     it('AI backfill leaves revision untouched while human edit still bumps it', async () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
       const draft = await uploadAndStart(service, scope, job.id, ['张三的简历'])
       const rowId = draft.created[0].id
-      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: '张三' }])
+      await service.saveCandidatesFromAgent(scope, job.id, [{ candidateId: rowId, name: '张三' }])
       expect(candidateRepository.store[0].revision).toBe(1)
-      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: '张三', matchScore: 90 }])
-      expect(candidateRepository.store[0].revision).toBe(1)
-
       const edited = await service.updateCandidate(scope, rowId, { name: '张三丰' }, 1)
       expect(edited.revision).toBe(2)
+    })
+
+    it('matchScore 越界仍然整批拒绝（入口闸不变）', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const draft = await uploadAndStart(service, scope, job.id, ['张三的简历'])
+      await expect(
+        service.saveCandidatesFromAgent(scope, job.id, [{ candidateId: draft.created[0].id, matchScore: 101 }])
+      ).rejects.toThrow('matchScore 必须是 0-100 的整数')
     })
   })
 
@@ -404,7 +426,7 @@ describe('ResumeScreenService', () => {
       const rowId = draft.created[0].id
       await service.markCandidateFailed(scope, rowId, '模型处理超时')
       await service.retryCandidate(scope, rowId)
-      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: '张三' }])
+      await service.saveCandidatesFromAgent(scope, job.id, [{ candidateId: rowId, name: '张三' }])
       expect(candidateRepository.store).toHaveLength(1)
       expect(candidateRepository.store[0].id).toBe(rowId)
     })
@@ -427,19 +449,20 @@ describe('ResumeScreenService', () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
       const draft = await uploadAndStart(service, scope, job.id, ['张三的简历'])
       const rowId = draft.created[0].id
-      // parsing 行可直接重试（模型彻底失败场景，spec 修正项 M1）
       const retrying = await service.retryCandidate(scope, rowId)
       expect(retrying.status).toBe('parsing')
+      await service.saveCandidatesFromAgent(scope, job.id, [{ candidateId: rowId, name: '张三' }])
+      await expect(service.retryCandidate(scope, rowId)).rejects.toBeInstanceOf(BadRequestException)
+    })
 
-      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: '张三' }])
-      // pending_review 已是待人工评审状态，重试应被拒绝
-      await expect(service.retryCandidate(scope, rowId)).rejects.toBeInstanceOf(BadRequestException)
-      // accept 终态后重试同样被拒绝（依赖 reviewCandidate 推进终态）
-      await service.reviewCandidate(scope, rowId, 'accept', scope.userId ?? 'user-1')
-      await expect(service.retryCandidate(scope, rowId)).rejects.toBeInstanceOf(BadRequestException)
-      // accept 终态后重试同样被拒绝（依赖 reviewCandidate 推进终态）
-      await service.reviewCandidate(scope, rowId, 'accept', scope.userId ?? 'user-1')
-      await expect(service.retryCandidate(scope, rowId)).rejects.toBeInstanceOf(BadRequestException)
+    // spec §6.4：v5 之前的存量行没有文件，重试必然读不到字节，必须给可读失败而不是排队空转
+    it('retry refuses legacy rows without a stored file with the degradation copy', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const draft = await uploadAndStart(service, scope, job.id, ['旧行'])
+      const rowId = draft.created[0].id
+      await candidateRepository.update({ id: rowId }, { filePath: null, fileHash: null, status: 'failed' })
+      await expect(service.retryCandidate(scope, rowId)).rejects.toThrow('请重新上传该简历')
+      expect(candidateRepository.store.find((row) => row.id === rowId)?.status).toBe('failed')
     })
   })
 
@@ -449,7 +472,7 @@ describe('ResumeScreenService', () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
       const draft = await uploadAndStart(service, scope, job.id, ['张三的简历'])
       const rowId = draft.created[0].id
-      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: '张三' }])
+      await service.saveCandidatesFromAgent(scope, job.id, [{ candidateId: rowId, name: '张三' }])
 
       const updated = await service.updateCandidate(scope, rowId, { name: '张三丰', matchScore: 95 }, 1)
       expect(updated.name).toBe('张三丰')
@@ -502,7 +525,7 @@ describe('ResumeScreenService', () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
       const draft = await uploadAndStart(service, scope, job.id, ['张三的简历'])
       const rowId = draft.created[0].id
-      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历', name: '张三' }])
+      await service.saveCandidatesFromAgent(scope, job.id, [{ candidateId: rowId, name: '张三' }])
 
       const accepted = await service.reviewCandidate(scope, rowId, 'accept', 'user-1')
       expect(accepted.status).toBe('accepted')
@@ -519,7 +542,7 @@ describe('ResumeScreenService', () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
       const draft = await uploadAndStart(service, scope, job.id, ['张三的简历'])
       const rowId = draft.created[0].id
-      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历' }])
+      await service.saveCandidatesFromAgent(scope, job.id, [{ candidateId: rowId }])
       await service.reviewCandidate(scope, rowId, 'accept', 'user-1')
       const again = await service.reviewCandidate(scope, rowId, 'accept', 'user-1')
       expect(again.status).toBe('accepted')
@@ -531,7 +554,7 @@ describe('ResumeScreenService', () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
       const draft = await uploadAndStart(service, scope, job.id, ['张三的简历'])
       const rowId = draft.created[0].id
-      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历' }])
+      await service.saveCandidatesFromAgent(scope, job.id, [{ candidateId: rowId }])
       expect(candidateRepository.store[0].revision).toBe(1)
 
       const accepted = await service.reviewCandidate(scope, rowId, 'accept', 'user-1')
@@ -550,7 +573,7 @@ describe('ResumeScreenService', () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
       const draft = await uploadAndStart(service, scope, job.id, ['张三的简历'])
       const rowId = draft.created[0].id
-      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '张三的简历' }])
+      await service.saveCandidatesFromAgent(scope, job.id, [{ candidateId: rowId }])
       await service.reviewCandidate(scope, rowId, 'accept', 'user-1')
       const reset = await service.reviewCandidate(scope, rowId, 'reset_to_pending', 'user-1')
       expect(reset.status).toBe('pending_review')
@@ -561,10 +584,10 @@ describe('ResumeScreenService', () => {
   describe('getViewData', () => {
     it('returns jobs, current job, candidates, stats and pagination', async () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
-      await uploadAndStart(service, scope, job.id, ['甲', '乙'])
+      const draft = await uploadAndStart(service, scope, job.id, ['甲', '乙'])
       await service.saveCandidatesFromAgent(scope, job.id, [
-        { sourceText: '甲', name: '甲', matchScore: 80 },
-        { sourceText: '乙', name: '乙', matchScore: 40 }
+        { candidateId: draft.created[0].id, name: '甲', matchScore: 80 },
+        { candidateId: draft.created[1].id, name: '乙', matchScore: 40 }
       ])
       await service.reviewCandidate(scope, (candidateRepository.store[0] as ResumeScreenCandidate).id, 'accept', 'user-1')
 
@@ -591,9 +614,9 @@ describe('ResumeScreenService', () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
       const draft = await uploadAndStart(service, scope, job.id, ['甲', '乙', '丙'])
       await service.saveCandidatesFromAgent(scope, job.id, [
-        { sourceText: '甲', name: '甲' },
-        { sourceText: '乙', name: '乙' },
-        { sourceText: '丙', name: '丙' }
+        { candidateId: draft.created[0].id, name: '甲' },
+        { candidateId: draft.created[1].id, name: '乙' },
+        { candidateId: draft.created[2].id, name: '丙' }
       ])
       await service.reviewCandidate(scope, draft.created[0].id, 'accept', 'user-1')
 
@@ -609,8 +632,8 @@ describe('ResumeScreenService', () => {
 
     it('returns an empty candidate list when no row matches the requested status', async () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
-      await uploadAndStart(service, scope, job.id, ['甲'])
-      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '甲', name: '甲' }])
+      const draft = await uploadAndStart(service, scope, job.id, ['甲'])
+      await service.saveCandidatesFromAgent(scope, job.id, [{ candidateId: draft.created[0].id, name: '甲' }])
 
       const data = await service.getViewData(scope, { jobId: job.id, status: 'hold' })
       expect(data.candidates).toHaveLength(0)
@@ -623,9 +646,9 @@ describe('ResumeScreenService', () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
       const draft = await uploadAndStart(service, scope, job.id, ['甲', '乙', '丙'])
       await service.saveCandidatesFromAgent(scope, job.id, [
-        { sourceText: '甲', name: '甲' },
-        { sourceText: '乙', name: '乙' },
-        { sourceText: '丙', name: '丙' }
+        { candidateId: draft.created[0].id, name: '甲' },
+        { candidateId: draft.created[1].id, name: '乙' },
+        { candidateId: draft.created[2].id, name: '丙' }
       ])
       await service.reviewCandidate(scope, draft.created[0].id, 'accept', 'user-1')
 
@@ -639,8 +662,8 @@ describe('ResumeScreenService', () => {
   describe('listCandidatesForAgent / getCandidateDetailForAgent', () => {
     it('returns compact summaries without sourceText', async () => {
       const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
-      await uploadAndStart(service, scope, job.id, ['甲'])
-      await service.saveCandidatesFromAgent(scope, job.id, [{ sourceText: '甲', name: '甲', matchScore: 80 }])
+      const draft = await uploadAndStart(service, scope, job.id, ['甲'])
+      await service.saveCandidatesFromAgent(scope, job.id, [{ candidateId: draft.created[0].id, name: '甲', matchScore: 80 }])
 
       const list = await service.listCandidatesForAgent(scope, { jobId: job.id })
       expect(list).toHaveLength(1)
@@ -679,15 +702,16 @@ describe('ResumeScreenService', () => {
 
   // worker 专用查询：链路 B 处理器按 candidateId 现取全量行 + 跨作用域 sweep 兜底
   describe('parse worker helpers (getCandidateForParse / sweep)', () => {
-    it('getCandidateForParse returns row with job text and self-carried scope', async () => {
+    it('getCandidateForParse returns file locator fields and self-carried scope (no resume text)', async () => {
       const job = await service.createJob(scope, { title: '前端工程师', jdText: 'react 三年经验优先'.repeat(3) })
-      const draft = await uploadAndStart(service, scope, job.id, ['张三的简历'])
-
+      const draft = await uploadAndStart(service, scope, job.id, ['张三.pdf'])
       const row = await service.getCandidateForParse(draft.created[0].id)
       expect(row).toMatchObject({
         jobId: job.id,
         status: 'parsing',
-        sourceText: '张三的简历',
+        filePath: candidateRepository.store[0].filePath,
+        fileMime: 'application/pdf',
+        sourceFileName: '张三.pdf',
         attemptCount: 0,
         humanEditedFields: [],
         jobTitle: '前端工程师',
@@ -695,6 +719,8 @@ describe('ResumeScreenService', () => {
         scope: { tenantId: 'tenant-1', organizationId: 'org-1', userId: 'user-1', assistantId: 'assistant-1' },
         jobJdText: 'react 三年经验优先'.repeat(3)
       })
+      // 红线：解析行不得携带简历正文（文本只在任务内存里，spec §3.5）
+      expect(row).not.toHaveProperty('sourceText')
     })
 
     it('getCandidateForParse returns null for unknown id', async () => {
