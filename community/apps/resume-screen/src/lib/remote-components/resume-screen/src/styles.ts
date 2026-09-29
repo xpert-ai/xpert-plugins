@@ -1,17 +1,54 @@
 /**
- * rs- 设计 token 与组件样式注入（蓝图 §5/§8/§9，crm injectStyles 同款通道）
+ * rs- 设计 token 与组件样式表（蓝图 §5/§8/§9，crm injectStyles 同款通道）
  *
- * 通道：shadcn style.css（app.css 随 iframe 注入）负责组件基础样式；本函数只补
- * 布局/徽标/动画等 rs- 前缀定制，全部选择器以 .rs- 隔离，不覆盖平台主题变量。
- * 值逐项溯源蓝图 §5.1 token 表与 §9 一致性对照表（主基线 crm #ffffff/#e5e7eb/13px/5px/30px）。
+ * 通道：shadcn style.css（app.css 随 iframe 注入）负责组件基础样式；本常量只补
+ * 布局/徽标/动画等 rs- 前缀定制，自定义选择器一律以 .rs- 隔离。
+ *
+ * 主题口径（spec §5.2，本文件立论根）：宿主 bootstrap 把 --xui-color-* 以 inline style
+ * 写在 documentElement，且深色态用 data-theme 属性切换；按 CSS 层叠规则，作者样式表的
+ * !important 声明优先于元素行内声明——因此 iframe 内**只有** `!important` 能钉住主题，
+ * 少一条就出现对比度塌方。深色块在此语境下是死代码（选择器对不上），不得再写 `.dark`。
+ *
+ * 层级口径（spec §5.6）：样式里禁止出现裸 z-index 数字，一律取 --rs-layer-*，
+ * 其档位与 utils.RS_LAYERS 同名同值（单一真源）。
+ *
+ * 导出为常量而非内联字符串：让 CI 能以静态扫描断言上述两条红线（见 styles.spec.ts），
+ * `injectStyles()` 只负责插入 <style>；真机 computed 对比度由 T20 兜底。
  */
-export function injectStyles() {
-  if (document.getElementById('resume-screen-styles')) return
-  const style = document.createElement('style')
-  style.id = 'resume-screen-styles'
-  style.textContent = `
+export const RS_STYLES_CSS = `
     :root {
-      color-scheme: light;
+      /* 浅色钉死：下列 shadcn 语义 token 与 app.css 的 :root 同名，app.css 走 var(--xui-color-*)
+         回落到 OS Canvas/CanvasText，读不到宿主变量时整屏失去配色锚点。取值即本工作台既有设计
+         色板的 oklch 等价（#ffffff/#1f2937/#2563eb/#e5e7eb/…），不新造颜色。 */
+      color-scheme: light !important;
+      --background: oklch(1 0 0) !important;                   /* = #ffffff */
+      --foreground: oklch(0.278 0.04 256.8) !important;        /* = #1f2937：--rs-text 同源 */
+      --card: oklch(1 0 0) !important;
+      --card-foreground: oklch(0.278 0.04 256.8) !important;
+      --popover: oklch(1 0 0) !important;
+      --popover-foreground: oklch(0.278 0.04 256.8) !important;
+      --primary: oklch(0.45 0.2 262) !important;               /* ≈#1d4ed8：白字按压钮对比 ≥7:1 */
+      --primary-foreground: oklch(1 0 0) !important;
+      --secondary: oklch(0.962 0.008 256) !important;
+      --secondary-foreground: oklch(0.278 0.04 256.8) !important;
+      --muted: oklch(0.962 0.008 256) !important;
+      --muted-foreground: oklch(0.556 0.03 257) !important;    /* ≈#6b7280：白底小字辅助文字 ≥4.5:1 */
+      --accent: oklch(0.955 0.02 261) !important;
+      --accent-foreground: oklch(0.278 0.04 256.8) !important;
+      --destructive: oklch(0.62 0.22 25) !important;           /* ≈#dc2626 */
+      --destructive-foreground: oklch(1 0 0) !important;
+      --border: oklch(0.922 0.007 260) !important;             /* ≈#e5e7eb */
+      --input: oklch(0.922 0.007 260) !important;
+      --ring: oklch(0.45 0.2 262) !important;
+      /* 浮层层级（与 utils.RS_LAYERS 同名同值，样式侧唯一取值口；新增层级先去那张表加档） */
+      --rs-layer-inline: 0 !important;                         /* 文档流内的装饰件基线 */
+      --rs-layer-sticky: 10 !important;                        /* 扫描线等行内装饰：不得盖过浮层 */
+      --rs-layer-sheet: 40 !important;                         /* 窄容器抽屉面板 */
+      --rs-layer-sheet-overlay: 39 !important;                 /* 抽屉遮罩：压在 sheet 面板下方，故取 39 */
+      --rs-layer-dialog: 50 !important;
+      --rs-layer-popper: 60 !important;
+      --rs-layer-toast: 70 !important;                         /* notice/告警条：最上层不被任何浮层遮挡 */
+      /* ===== 以下为本组件自有 token（值、顺序、注释照原 :root 原样搬入，勿改） ===== */
       /* 结构（= crm --crm20-*） */
       --rs-panel: #ffffff;
       --rs-bg-soft: #fbfbfc;
@@ -143,9 +180,9 @@ export function injectStyles() {
     /* 「琢」长文本不挤压：收缩压力全部让给姓名（自带 ellipsis），来源角标与状态徽标永不压缩变形 */
     .rs-item-title .rs-badge, .rs-item-title i { flex: 0 0 auto; }
     .rs-item-name { font-size: 13px; font-weight: 650; color: var(--rs-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .rs-item-source { color: var(--rs-soft); font-size: 10px; flex: 0 0 auto; }
+    .rs-item-source { color: var(--rs-soft); font-size: 11px; flex: 0 0 auto; }
     .rs-item-meta { font-size: 12px; color: var(--rs-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .rs-mark { width: 28px; height: 28px; border-radius: var(--rs-radius); color: #fff; font-size: 9px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; background: var(--rs-soft); flex: 0 0 auto; }
+    .rs-mark { width: 28px; height: 28px; border-radius: var(--rs-radius); color: #fff; font-size: 11px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; background: var(--rs-soft); flex: 0 0 auto; }
     .rs-item-score { display: grid; gap: 3px; justify-items: end; width: 46px; }
     /* 匹配分呈现（P2 裁决）：Badge 数字 + Progress 细条；tabular-nums 防刷新跳动 */
     .rs-score-badge { height: 20px; min-width: 40px; justify-content: center; border-radius: var(--rs-radius); background: transparent; color: var(--rs-text); font-size: 13px; font-weight: 750; font-variant-numeric: tabular-nums; padding: 0 2px; }
@@ -245,8 +282,10 @@ export function injectStyles() {
     .rs-intake-handle .rs-chevron { margin-left: auto; transition: transform var(--rs-motion-base) var(--rs-ease-entry); }
     .rs-intake-handle[aria-expanded="true"] .rs-chevron { transform: rotate(180deg); }
     .rs-intake-hint { color: var(--rs-soft); font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    /* 把手计数徽标（进行中/失败）：失败位红强调（§3.7） */
-    .rs-handle-badge { height: 18px; border-radius: var(--rs-radius); font-size: 10px; padding: 0 6px; background: var(--rs-blue-soft); color: var(--rs-blue); font-weight: 650; }
+    /* 把手计数徽标（进行中/失败）：失败位红强调（§3.7）。
+     字号 11px 为一次性抬值（原 10px 违反全站字号下限红线）；本选择器整块将在 T14 随把手一并删除，
+     届时无需回收——扫描规则「全站 <11px 一律红」保持全量严格，不为它开例外。 */
+    .rs-handle-badge { height: 18px; border-radius: var(--rs-radius); font-size: 11px; padding: 0 6px; background: var(--rs-blue-soft); color: var(--rs-blue); font-weight: 650; }
     .rs-handle-badge-fail { background: var(--rs-red-soft); color: var(--rs-red); }
     .rs-intake-collapse { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 200ms var(--rs-ease-exit); }
     .rs-intake-collapse.is-open { grid-template-rows: 1fr; transition: grid-template-rows 200ms var(--rs-ease-entry); }
@@ -270,15 +309,15 @@ export function injectStyles() {
     .rs-queue-guidance { font-size: 12px; color: var(--rs-muted); line-height: 1.6; }
 
     /* ===== notice 条（蓝图 §6.1 通用错误出口；crm .crm20-notice 同构红/琥珀变体） ===== */
-    .rs-notice { position: absolute; left: 12px; right: 12px; top: 92px; z-index: 20; display: flex; align-items: flex-start; gap: 8px; border: 1px solid var(--rs-red); background: var(--rs-red-soft); color: var(--rs-red); padding: 8px 10px; border-radius: var(--rs-radius); font-size: 13px; box-shadow: 0 6px 20px rgba(31, 41, 55, 0.08); animation: rs-notice-in var(--rs-motion-slow) var(--rs-ease-entry); }
+    .rs-notice { position: absolute; left: 12px; right: 12px; top: 92px; z-index: var(--rs-layer-toast); display: flex; align-items: flex-start; gap: 8px; border: 1px solid var(--rs-red); background: var(--rs-red-soft); color: var(--rs-red); padding: 8px 10px; border-radius: var(--rs-radius); font-size: 13px; box-shadow: 0 6px 20px rgba(31, 41, 55, 0.08); animation: rs-notice-in var(--rs-motion-slow) var(--rs-ease-entry); }
     @keyframes rs-notice-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
     .rs-notice.tone-amber { border-color: #f2c94c; background: #fffbeb; color: #7a4d00; }
     .rs-notice button { margin-left: auto; border: 0; background: transparent; color: inherit; cursor: pointer; font-size: 14px; padding: 0 2px; }
     .rs-notice-inline { position: static; margin: 8px 12px 0; }
 
     /* ===== 动画清单（蓝图 §7） ===== */
-    /* A1 增量刷新扫描线（首屏不用，用 Skeleton） */
-    .rs-scanline { position: absolute; top: 0; left: 0; height: 2px; width: 35%; background: var(--rs-primary); z-index: 30; animation: rs-scan 1s ease-in-out infinite; }
+    /* A1 增量刷新扫描线（首屏不用，用 Skeleton）：行内装饰，取 sticky 档，不得盖过任何浮层 */
+    .rs-scanline { position: absolute; top: 0; left: 0; height: 2px; width: 35%; background: var(--rs-primary); z-index: var(--rs-layer-sticky); animation: rs-scan 1s ease-in-out infinite; }
     @keyframes rs-scan { 0% { transform: translateX(-100%); } 50% { transform: translateX(160%); } 100% { transform: translateX(360%); } }
     /* A6 详情内容切换 */
     .rs-detail-anim { animation: rs-detail-in var(--rs-motion-base) var(--rs-ease-entry); }
@@ -330,6 +369,19 @@ export function injectStyles() {
     /* JS 属性降级通道（ResizeObserver 不支持容器查询的环境，与容器查询同效） */
     .rs-shell[data-rs-width="xs"] .rs-header-label { display: none; }
     .rs-shell[data-rs-width="xs"] .rs-fields { grid-template-columns: minmax(0, 1fr); }
-  `
+`
+
+/**
+ * 注入样式表到当前文档（iframe 内的插件文档）
+ *
+ * 只做「插入」：内容一律取 RS_STYLES_CSS 常量，便于 CI 静态扫描红线；
+ * 幂等由 resume-screen-styles id 保证——main.tsx 在模块顶层调用一次，热重载或多实例挂载不重复插入。
+ * 无 DOM 环境（单元测试跑在 node testEnvironment 下）不调用本函数，测试只断言常量字符串。
+ */
+export function injectStyles() {
+  if (document.getElementById('resume-screen-styles')) return
+  const style = document.createElement('style')
+  style.id = 'resume-screen-styles'
+  style.textContent = RS_STYLES_CSS
   document.head.appendChild(style)
 }

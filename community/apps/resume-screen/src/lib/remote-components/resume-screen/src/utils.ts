@@ -33,6 +33,19 @@ export const UPLOAD_MAX_BYTES = 10 * 1024 * 1024
 // 预检超限的行内指引文案（与 §6.6 失败原因映射「文件过大」同一条，避免双处漂移）
 export const UPLOAD_OVERSIZE_HINT = '文件超过 10MB，请精简或拆分后重新上传'
 
+/**
+ * 浮层层级刻度（单一真源，spec §5.6）
+ *
+ * 宿主把主题与若干浮层写在同一文档里，裸 z-index 会随组件增加互相踩；本表 +
+ * CSS 变量 --rs-layer-* 约定「谁的层级归谁」：inline 0 < sticky 10 < sheet-overlay 39
+ * < sheet 40 < dialog 50 < popper 60 < toast 70。样式里禁止再出现数字层级，新增层级必须先来这张表里加档。
+ *
+ * 与 styles.ts 的 --rs-layer-* 声明一一对应（styles.spec.ts 有用例钉死同名同值，防两处漂移）；
+ * sheet-overlay 只存在于 CSS 侧、不进本表——它不是组件的「归属层」而是抽屉面板的伴生遮罩，
+ * 取 39 落在 sheet(40) 之下，保证抽屉关闭动画中遮罩不会反过来盖住面板。
+ */
+export const RS_LAYERS = { inline: 0, sticky: 10, sheet: 40, dialog: 50, popper: 60, toast: 70 } as const
+
 export function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
