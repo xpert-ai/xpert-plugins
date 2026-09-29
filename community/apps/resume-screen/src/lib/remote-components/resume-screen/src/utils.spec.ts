@@ -199,7 +199,7 @@ describe('mapUploadFailure · 服务端 reason token 优先（spec §6.4/§6.6�
 })
 
 describe('decodeBase64ToBytes · pdf 回执解码', () => {
-  it('还原含 +/ 与填充位的字节序列（Blob URL 分支的前提）', () => {
+  it('还原含 +/ 与填充位的字节序列（pdf canvas 直渲分支的解码前提）', () => {
     const bytes = decodeBase64ToBytes(Buffer.from('%PDF-1.7\nÊ½ñ¶\n').toString('base64'))
     expect(Array.from(bytes.slice(0, 8))).toEqual([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37])
   })
