@@ -346,11 +346,12 @@ export const RS_STYLES_CSS = `
     /* A9 进行中 loader（唯一无限动画豁免之一） */
     .rs-spin { animation: rs-rotate 1s linear infinite; display: inline-flex; }
     @keyframes rs-rotate { to { transform: rotate(360deg); } }
-    /* A13 未选岗位蓝圈脉冲一次 */
-    .rs-pulse-job { animation: rs-pulse-once 320ms var(--rs-ease-entry); }
+    /* A13 未选岗位蓝圈脉冲一次（时长取慢档 token，杜绝组件样式写死毫秒——§7 统一口径） */
+    .rs-pulse-job { animation: rs-pulse-once var(--rs-motion-slow) var(--rs-ease-entry); }
     @keyframes rs-pulse-once { 0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.35); } 100% { box-shadow: 0 0 0 8px rgba(37, 99, 235, 0); } }
-    /* A15 队列「查看」跳转行高亮脉冲（#eff3ff→transparent 两次往复） */
-    .rs-jump { animation: rs-jump-pulse 240ms ease-in-out 2; }
+    /* A15 队列「查看」跳转行高亮脉冲（#eff3ff→transparent 两次往复；时长/缓动同取 token，
+       与 --rs-motion-slow×2=480ms 对齐，candidate-list 的 520ms 清除定时器含 40ms 缓冲仍成立） */
+    .rs-jump { animation: rs-jump-pulse var(--rs-motion-slow) var(--rs-ease-entry) 2; }
     @keyframes rs-jump-pulse { from { background-color: var(--rs-primary-soft); } to { background-color: transparent; } }
 
     /* ===== 候选人详情抽屉（§5.5：三段 = 头部/滚动正文/处置条，单栏下是唯一详情载体） ===== */

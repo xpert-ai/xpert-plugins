@@ -193,14 +193,18 @@ function DetailBody({ candidate, timedOut, showTimeoutCard, now, busyKey, onDisp
                 <TooltipContent collisionPadding={8}>{candidate.sourceFileName}</TooltipContent>
               </Tooltip>
             ) : null}
-            {/* 预览入口：无原始文件的存量行禁用并说明原因（§5.4/§6.4），不允许点了才报错 */}
+            {/* 预览入口：无原始文件的存量行禁用并说明原因（§5.4/§6.4），不允许点了才报错。
+                禁用的原生按钮不派发指针事件，TooltipTrigger 直挂它时悬停说明永远开不出来——
+                触发器上移一层 span 承接指针，「禁用原因」才在悬停时可达（§6.8 解释时机） */}
             <span className="rs-detail-preview">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="sm" disabled={!candidate.hasFile} onClick={() => void onPreview(candidate)}>
-                    <i className="ri-file-search-line" aria-hidden="true" />
-                    预览简历
-                  </Button>
+                  <span style={{ display: 'inline-flex' }}>
+                    <Button variant="ghost" size="sm" disabled={!candidate.hasFile} onClick={() => void onPreview(candidate)}>
+                      <i className="ri-file-search-line" aria-hidden="true" />
+                      预览简历
+                    </Button>
+                  </span>
                 </TooltipTrigger>
                 {candidate.hasFile ? null : <TooltipContent collisionPadding={8}>旧数据未保留原始文件，请重新上传简历后预览</TooltipContent>}
               </Tooltip>

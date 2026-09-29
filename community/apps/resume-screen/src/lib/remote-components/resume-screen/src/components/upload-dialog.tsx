@@ -90,7 +90,12 @@ export function UploadDialog({ open, rows, busy, uploadRequestSeq, onClose, onPi
             event.preventDefault()
             setDragging(true)
           }}
-          onDragLeave={() => setDragging(false)}
+          onDragLeave={(event: React.DragEvent) => {
+            // 指针移入区内子元素（图标/文案/按钮）时 dragleave 也会在容器上触发：
+            // relatedTarget 仍在拖拽区内则不灭高亮，防「进入反馈」逐元素闪烁（A14 跟手）
+            if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return
+            setDragging(false)
+          }}
           onDrop={(event: React.DragEvent) => {
             event.preventDefault()
             accept(Array.from(event.dataTransfer.files ?? []))
