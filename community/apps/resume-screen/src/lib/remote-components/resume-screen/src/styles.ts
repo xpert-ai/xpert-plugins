@@ -4,22 +4,33 @@
  * 通道：shadcn style.css（app.css 随 iframe 注入）负责组件基础样式；本常量只补
  * 布局/徽标/动画等 rs- 前缀定制，自定义选择器一律以 .rs- 隔离。
  *
- * 主题口径（spec §5.2，本文件立论根）：宿主 bootstrap 把 --xui-color-* 以 inline style
- * 写在 documentElement，且深色态用 data-theme 属性切换；按 CSS 层叠规则，作者样式表的
- * !important 声明优先于元素行内声明——因此 iframe 内**只有** `!important` 能钉住主题，
- * 少一条就出现对比度塌方。深色块在此语境下是死代码（选择器对不上），不得再写 `.dark`。
+ * 主题口径（spec §5.2，本文件立论根）：真实机理不是「宿主行内覆写了这批裸名」——
+ * 平台侧 remote-component-html 的行内写入走 TOKEN_MAP，其值是 --xui-color-*，与本处的裸
+ * shadcn 语义名不重叠，从未覆写过它们。问题出在另一侧：iframe 内压根没有这批裸名声明，
+ * 宿主 createRemoteTheme() 读的正是裸名（--background/--foreground/…），读不到只能回落 OS
+ * 的 Canvas/CanvasText，整屏失去配色锚点（P2 对比度塌方的根因）。因此收益来自「本表声明了
+ * 裸名」本身；!important 的作用对象是插件自身 app.css 的同名 :root 声明与其 .dark 块
+ * （app.css:3295），而非宿主的行内 --xui-color-*，同时防 TOKEN_MAP 日后扩到裸名。
+ * 唯一确需 !important 的行内对手是 color-scheme——bootstrap 直接写
+ * documentElement.style.colorScheme，非 author !important 压不住。深色块在此语境下是死代码
+ * （选择器对不上），不得再写 `.dark`。
  *
  * 层级口径（spec §5.6）：样式里禁止出现裸 z-index 数字，一律取 --rs-layer-*，
- * 其档位与 utils.RS_LAYERS 同名同值（单一真源）。
+ * 其档位与 utils.RS_LAYERS 同名同值（单一真源）；伴生的抽屉遮罩不进那张表，由
+ * RS_LAYERS.sheet 派生（见下），使全表数值只有一个出处。
  *
  * 导出为常量而非内联字符串：让 CI 能以静态扫描断言上述两条红线（见 styles.spec.ts），
  * `injectStyles()` 只负责插入 <style>；真机 computed 对比度由 T20 兜底。
  */
+// utils.ts 只依赖 ./types，反向 import 不成环；层级数值因此只有 RS_LAYERS 一个出处
+import { RS_LAYERS } from './utils'
+
 export const RS_STYLES_CSS = `
     :root {
-      /* 浅色钉死：下列 shadcn 语义 token 与 app.css 的 :root 同名，app.css 走 var(--xui-color-*)
-         回落到 OS Canvas/CanvasText，读不到宿主变量时整屏失去配色锚点。取值即本工作台既有设计
-         色板的 oklch 等价（#ffffff/#1f2937/#2563eb/#e5e7eb/…），不新造颜色。 */
+      /* 浅色钉死：下列 shadcn 语义 token 与 app.css 的 :root 同名。宿主 createRemoteTheme()
+         按裸名读取，只有本表把它们声明出来它才取到值；!important 压的是 app.css 的同名 :root
+         声明（及其 .dark 块），不是宿主的行内 --xui-color-*。取值即本工作台既有设计色板的
+         oklch 等价（#ffffff/#1f2937/#2563eb/#e5e7eb/…），不新造颜色。 */
       color-scheme: light !important;
       --background: oklch(1 0 0) !important;                   /* = #ffffff */
       --foreground: oklch(0.278 0.04 256.8) !important;        /* = #1f2937：--rs-text 同源 */
@@ -40,14 +51,14 @@ export const RS_STYLES_CSS = `
       --border: oklch(0.922 0.007 260) !important;             /* ≈#e5e7eb */
       --input: oklch(0.922 0.007 260) !important;
       --ring: oklch(0.45 0.2 262) !important;
-      /* 浮层层级（与 utils.RS_LAYERS 同名同值，样式侧唯一取值口；新增层级先去那张表加档） */
-      --rs-layer-inline: 0 !important;                         /* 文档流内的装饰件基线 */
-      --rs-layer-sticky: 10 !important;                        /* 扫描线等行内装饰：不得盖过浮层 */
-      --rs-layer-sheet: 40 !important;                         /* 窄容器抽屉面板 */
-      --rs-layer-sheet-overlay: 39 !important;                 /* 抽屉遮罩：压在 sheet 面板下方，故取 39 */
-      --rs-layer-dialog: 50 !important;
-      --rs-layer-popper: 60 !important;
-      --rs-layer-toast: 70 !important;                         /* notice/告警条：最上层不被任何浮层遮挡 */
+      /* 浮层层级（数值全部取自 utils.RS_LAYERS，样式侧唯一取值口；新增层级先去那张表加档） */
+      --rs-layer-inline: ${RS_LAYERS.inline} !important;       /* 文档流内的装饰件基线 */
+      --rs-layer-sticky: ${RS_LAYERS.sticky} !important;                        /* 扫描线等行内装饰：不得盖过浮层 */
+      --rs-layer-sheet: ${RS_LAYERS.sheet} !important;                         /* 窄容器抽屉面板 */
+      --rs-layer-sheet-overlay: ${RS_LAYERS.sheet - 1} !important;             /* 抽屉遮罩压在 sheet 面板下方，故由 sheet 派生、不独立取数 */
+      --rs-layer-dialog: ${RS_LAYERS.dialog} !important;
+      --rs-layer-popper: ${RS_LAYERS.popper} !important;
+      --rs-layer-toast: ${RS_LAYERS.toast} !important;                         /* notice/告警条：最上层不被任何浮层遮挡 */
       /* ===== 以下为本组件自有 token（值、顺序、注释照原 :root 原样搬入，勿改） ===== */
       /* 结构（= crm --crm20-*） */
       --rs-panel: #ffffff;

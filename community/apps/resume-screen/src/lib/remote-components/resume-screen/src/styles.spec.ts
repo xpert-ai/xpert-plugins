@@ -2,14 +2,18 @@
  * 样式表静态契约测试（spec §5.2 浅色钉死 / §5.6 层级单一真源）
  *
  * 不依赖 DOM：injectStyles 在 iframe 里写 <style>，浏览器外无法跑，但样式串本身是
- * 导出的常量字符串——钉死「宿主 inline 变量只能被 !important 覆写」与「禁止裸 z-index」
+ * 导出的常量字符串——钉死「裸 shadcn 名必须在本表声明出来」与「禁止裸 z-index」
  * 两条红线在 CI 层即可验证，比人眼审阅可靠（真机对比度由 T20 的 computed 检查兜底）。
+ *
+ * 扫描器口径：z-index / font-size 两条红线先剔除 CSS 注释再匹配，且 z-index 走整行匹配，
+ * 避免注释里的数字被当声明读、`z-index :5` 这类畸形写法静默双绿（本文件是 T14–T17 的闸门）。
  */
 import { RS_STYLES_CSS } from './styles'
 import { RS_LAYERS } from './utils'
 
-// shadcn 语义 token 清单：这些变量由宿主 bootstrap 以 inline style 写在 documentElement 上，
-// iframe 内不 !important 就永远吃宿主深色（P2 对比度塌方的根因）
+// shadcn 语义 token 清单：宿主 createRemoteTheme() 按这些裸名读取主题色，iframe 内不声明
+// 就取不到值、只能回落 OS Canvas/CanvasText（P2 对比度塌方的根因）；!important 的对手是
+// app.css 的同名 :root 声明与其 .dark 块，不是宿主的行内 --xui-color-*
 const SHADCN_TOKENS = [
   '--background',
   '--foreground',
@@ -32,12 +36,27 @@ const SHADCN_TOKENS = [
   '--ring'
 ]
 
+// 字号红线口径：root font-size = 16px（宿主未改写），11px 即 0.6875rem；容差只用于吸收浮点表示误差
+const ROOT_FONT_SIZE_PX = 16
+const FONT_MIN_PX = 11
+const FONT_TOLERANCE_PX = 0.001
+
+/**
+ * 剔除 CSS 块注释后的样式串
+ *
+ * 样式串里有「注释内嵌声明」的写法（如 .rs-empty 那行把 animation 写在说明注释里），
+ * 直接全文匹配会把注释中的数字读成真实声明；红线扫描一律先剥注释再取数。
+ */
+function stripCssComments(css: string): string {
+  return css.replace(/\/\*[\s\S]*?\*\//g, '')
+}
+
 describe('RS_STYLES_CSS 浅色钉死', () => {
   it('color-scheme 钉在 light（表单控件/滚动条跟随浅色原生渲染）', () => {
     expect(RS_STYLES_CSS).toMatch(/color-scheme:\s*light\s*!important/)
   })
 
-  it.each(SHADCN_TOKENS)('%s 以 !important 声明（宿主 inline 变量的唯一覆写通道）', (token) => {
+  it.each(SHADCN_TOKENS)('%s 以 !important 声明（压过 app.css 同名 :root 声明，并防 TOKEN_MAP 日后扩到裸名）', (token) => {
     expect(RS_STYLES_CSS).toMatch(new RegExp(`${token}:\\s*[^;]+!important`))
   })
 
@@ -45,25 +64,56 @@ describe('RS_STYLES_CSS 浅色钉死', () => {
     expect(RS_STYLES_CSS).not.toMatch(/\.dark\s*\{/)
   })
 
-  // 字号下限（§5.2）：低于 11px 的正文/标签在浅色小字下不可读，红线级别；rem 取值换算后 ≥13px 不受影响
-  it('全站 font-size 字面值不得小于 11px', () => {
-    const pxSizes = [...RS_STYLES_CSS.matchAll(/font-size:\s*(\d+(?:\.\d+)?)px/g)].map((match) => Number(match[1]))
+  // 字号下限（§5.2）：低于 11px 的正文/标签在浅色小字下不可读，红线级别
+  // 两条通道都要拦：px 字面值，以及 rem 字面值（root font-size = 16px 前提下 11px = 0.6875rem）
+  it('全站 font-size 字面值不得小于 11px（px 与 rem 双通道）', () => {
+    const css = stripCssComments(RS_STYLES_CSS)
+    const pxSizes = [...css.matchAll(/font-size:\s*(\d+(?:\.\d+)?)px/g)].map((match) => Number(match[1]))
     expect(pxSizes.length).toBeGreaterThan(0)
-    expect(pxSizes.filter((size) => size < 11)).toEqual([])
+    expect(pxSizes.filter((size) => size < FONT_MIN_PX)).toEqual([])
+    // rem 通道：font-size: <n>rem 直接折算为 px，防止绕过 px 红线写小 rem
+    const remSizes = [...css.matchAll(/font-size:\s*(\d+(?:\.\d+)?)rem/g)].map((match) => Number(match[1]) * ROOT_FONT_SIZE_PX)
+    expect(remSizes.filter((size) => size < FONT_MIN_PX - FONT_TOLERANCE_PX)).toEqual([])
+  })
+
+  // 字号 token 通道（活路径：[data-slot=...] 用 font-size: var(--rs-font-control)）：
+  // 上一条例子只匹配 font-size: 后的字面值，token 定义改小不会变红——本条补齐下限
+  it('以 var() 消费的字号 token（rem 取值）折算后不得小于 11px', () => {
+    const css = stripCssComments(RS_STYLES_CSS)
+    // 收集被 font-size: var(--x) 实际引用的 token 名，只看「活」的字号通道，不误伤非字号变量
+    const consumed = new Set([...css.matchAll(/font-size:\s*var\((--[\w-]+)\)/g)].map((match) => match[1]))
+    const offenders: string[] = []
+    for (const token of consumed) {
+      const definition = new RegExp(`${token}:\\s*(\\d+(?:\\.\\d+)?)rem`, 'g')
+      for (const match of css.matchAll(definition)) {
+        const px = Number(match[1]) * ROOT_FONT_SIZE_PX
+        if (px < FONT_MIN_PX - FONT_TOLERANCE_PX) offenders.push(`${token}=${match[1]}rem≈${px}px`)
+      }
+    }
+    // 现网确有该通道（--rs-font-control: 0.8125rem ≈13px），取不到样本说明红线被架空
+    expect(consumed.size).toBeGreaterThan(0)
+    expect(offenders).toEqual([])
   })
 })
 
 describe('RS_STYLES_CSS 浮层层级单一真源', () => {
+  // 扫描器口径：剥注释 + 整行匹配。旧写法有双绿绕过——`z-index :5`（冒号前置空格）
+  // 两条正则都匹配不到；`z-index: calc(var(--x) + 1)` 会被 [^;]+ 贪婪放过当「走了变量」。
   it('样式串里没有一处裸 z-index 数字', () => {
-    expect(RS_STYLES_CSS.match(/z-index:\s*-?\d/g)).toBeNull()
+    const css = stripCssComments(RS_STYLES_CSS)
+    // 冒号两侧可有空白、值可含 calc()/负号，只要最终落在数字字面量上就算违规
+    expect(css.match(/z-index\s*:\s*[^;{}]*?-?\d/g)).toBeNull()
   })
 
   it('每个 z-index 都引用 --rs-layer-* 变量', () => {
-    const uses = [...RS_STYLES_CSS.matchAll(/z-index:\s*([^;]+);/g)]
-    expect(uses.length).toBeGreaterThan(0)
-    for (const use of uses) {
-      expect(use[1].trim()).toMatch(/^var\(--rs-layer-[a-z-]+\)$/)
-    }
+    const css = stripCssComments(RS_STYLES_CSS)
+    // 宽松计数：出现 z-index 关键字的声明总数（整行匹配，含畸形写法）
+    const declared = [...css.matchAll(/z-index\s*:[^;{}]*/g)]
+    // 严格计数：唯一合规形态——值恰好是一个 --rs-layer-* 变量引用
+    const compliant = [...css.matchAll(/z-index\s*:\s*var\(--rs-layer-[a-z-]+\)\s*(?=[;{}])/g)]
+    expect(declared.length).toBeGreaterThan(0)
+    // 两数不等说明存在「写了 z-index 但没走 rs-layer 变量」的漏网声明
+    expect(compliant.length).toBe(declared.length)
   })
 
   it('RS_LAYERS 每一项都有同名 CSS 变量落点，且数值严格递增', () => {
@@ -73,7 +123,23 @@ describe('RS_STYLES_CSS 浮层层级单一真源', () => {
     }
     const numbers = entries.map(([, value]) => value)
     expect(numbers).toEqual([...numbers].sort((a, b) => a - b))
-    // 遮罩单独一档：数值 39 落在 sticky(10) 之上、sheet 面板(40)之下（抽屉关闭时不得压住面板）
-    expect(RS_STYLES_CSS).toMatch(/--rs-layer-sheet-overlay:\s*\d+\s*!important/)
+
+    // CSS 侧解析出的全部七档（含伴生遮罩）也必须升序：任一档位被单独改大都会在这里变红，
+    // 而不是只校验 TS 表有序（旧断言对 CSS 侧数字无约束，overlay 写 41 反盖面板照样全绿）
+    const cssLayers = [...stripCssComments(RS_STYLES_CSS).matchAll(/--rs-layer-([a-z-]+):\s*(\d+)\s*!important/g)]
+    expect(cssLayers.length).toBe(entries.length + 1)
+    // 按 RS_LAYERS 的语义升序取 CSS 侧数值比对（伴生遮罩在样式里紧挨 sheet 书写，
+    // 书写次序不代表层级次序），任一档位被单独改大都会在这里变红
+    const cssValueByName = new Map(cssLayers.map((match) => [match[1], Number(match[2])]))
+    const semanticOrder = entries.map(([name]) => cssValueByName.get(name))
+    expect(semanticOrder).toEqual([...entries].map(([, value]) => value))
+    expect(semanticOrder).toEqual([...semanticOrder].sort((a, b) => a - b))
+
+    // 遮罩单独一档：由 sheet 派生（sheet - 1），必须严格落在 sticky 之上、sheet 面板之下
+    // （抽屉关闭动画中不得反过来压住面板），故不独立取数、只做区间断言
+    const overlay = Number(cssLayers.find((match) => match[1] === 'sheet-overlay')?.[2])
+    expect(Number.isFinite(overlay)).toBe(true)
+    expect(overlay).toBeGreaterThan(RS_LAYERS.sticky)
+    expect(overlay).toBeLessThan(RS_LAYERS.sheet)
   })
 })
