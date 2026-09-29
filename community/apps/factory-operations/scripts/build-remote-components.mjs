@@ -36,7 +36,7 @@ const tailwindResult = spawnSync(
     tailwindOutput,
     '--minify'
   ],
-  { cwd: packageRoot, encoding: 'utf8' }
+  { cwd: packageRoot, encoding: 'utf8', shell: true }
 )
 if (tailwindResult.error) throw tailwindResult.error
 if (tailwindResult.status !== 0) {

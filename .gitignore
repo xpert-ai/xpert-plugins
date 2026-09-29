@@ -5,3 +5,7 @@ dist
 coverage
 *.log
 .DS_Store
+
+# 本地操作/验证记录，不进仓库
+/md/
+md/operation/
