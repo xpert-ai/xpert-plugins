@@ -729,6 +729,25 @@ describe('ResumeScreenService', () => {
       await candidateRepository.update({ id: draft.created[0].id }, { filePath: null })
       expect(await service.getResumeFileForPreview(scope, draft.created[0].id)).toBeNull()
     })
+
+    // fail-closed 不变量：mime 缺失不得退化成「mime 为空串的可预览对象」，
+    // 否则下游只能靠空 mime 这个类型与代码都不表达的不成文约定判不可预览
+    it('filePath 有值而 fileMime 缺失的行返回 null（数据不一致按不可预览处理）', async () => {
+      const job = await service.createJob(scope, { title: 'A', jdText: 'a'.repeat(30) })
+      const draft = await uploadAndStart(service, scope, job.id, ['张三.pdf'])
+      const candidateId = draft.created[0].id
+      // 直接写列构造不一致行：有 key 无 mime，正常上传链路不会产生这种状态
+      await candidateRepository.update({ id: candidateId }, { fileMime: null })
+      expect(await service.getResumeFileForPreview(scope, candidateId)).toBeNull()
+
+      // 空串形态同样 null：内存桩与真实库里 null / '' 两种缺省都可能出现
+      await candidateRepository.update({ id: candidateId }, { fileMime: '' })
+      expect(await service.getResumeFileForPreview(scope, candidateId)).toBeNull()
+
+      // hasFile 只看 filePath，故这类行视图仍为可预览；本方法返回 null 属故意降级，不是 bug
+      const data = await service.getViewData(scope, { jobId: job.id })
+      expect(data.candidates[0].hasFile).toBe(true)
+    })
   })
 
   // 助手只读查询：摘要刻意精简且不携带简历原文，详情按 id 二次查询，控制模型上下文长度

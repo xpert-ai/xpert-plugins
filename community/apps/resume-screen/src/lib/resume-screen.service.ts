@@ -701,6 +701,11 @@ export class ResumeScreenService {
    * @returns filePath（相对存储根的内部 key）+ mime + 展示文件名；行不存在/跨作用域/无文件 → null
    *          （null 统一覆盖「不存在」与「无权」与「存量行无文件」三种情况，不泄露存在性差异，
    *          可读失败文案由调用方决定）
+   *
+   *          数据不一致行（有 filePath 但 fileMime 缺失）同样返回 null，**这是故意的、不是 bug**：
+   *          视图投影的 hasFile 只看 filePath，所以这类行会呈现 hasFile=true 而本方法给出 null。
+   *          宁可让这一行按「不可预览」降级，也不把 mime 缺省成空串——后者会让下游只能用
+   *          「空 mime」这个类型与代码都不表达的不成文约定来判不可预览。
    */
   async getResumeFileForPreview(
     scope: ResumeScreenScope,
@@ -709,10 +714,11 @@ export class ResumeScreenService {
     const row = await this.candidateRepository.findOne({
       where: { ...this.scopeWhere(scope), id: candidateId }
     })
-    if (!row?.filePath) {
+    // fail-closed：定位字节与选择渲染分支缺一不可，任一为空（undefined 或空串）都不返回半截契约
+    if (!row?.filePath || !row.fileMime) {
       return null
     }
-    return { filePath: row.filePath, mime: row.fileMime ?? '', fileName: row.sourceFileName ?? '' }
+    return { filePath: row.filePath, mime: row.fileMime, fileName: row.sourceFileName ?? '' }
   }
 
   /**
