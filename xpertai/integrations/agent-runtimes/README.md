@@ -2,7 +2,15 @@
 
 Native Xpert plugin providing `codex`, `pi`, `claude-code`, and `opencode` implementations of `IAgentRuntimeStrategy`. It also supplies the `AgentInvocation` middleware: ordinary tools call the host capability and never own a child graph or a provider process.
 
-Requires the host SDK build containing `AgentRuntimeStrategy` and `AgentInvocationRuntimeCapability` (this source branch). The package remains private until the SDK changes are released and its peer version is updated to that release. The existing SDK semver range alone does not imply that published builds expose these new APIs. Release the host and SDK before this plugin. Installation level is **system**; organization administrators separately grant workspace access through immutable runtime bindings. No default profile or agent process is started on installation.
+Version 0.2.0 requires contracts and plugin-sdk **3.20.0**, including the scoped execution runner capability. Release the host and SDK before this plugin. The package remains private while that release is pending. The workspace's historical lockfile still describes the older published development SDK: regenerate it after 3.20.0 is published and verify a normal frozen install before publishing the plugin. Source-branch verification below builds against fresh host dist without changing that lockfile or relinking a running platform. Installation level is **system**; organization administrators separately grant workspace access through immutable runtime bindings. No default profile or agent process is started on installation.
+
+## Computer execution
+
+Only OpenCode supports the new Computer runner. Configure a profile with `provider: "opencode"`, `executionEnvironment: "computer"`, a version and authorized workspace IDs. Its binding configuration must contain the matching `profileVersion` and `executionEnvironment: { "type": "computer" }`. The host resolves the current conversation, owner, environment, exact tool version, model selection and payer; the plugin cannot supply commands, credential environment variables or service URLs.
+
+The host checkpoints a scoped process receipt before sending the prompt. Inspect/resume follows that receipt and never re-sends an uncertain task. Completion collects a private artifact ZIP and stops the guest supervisor. Cancellation is confirmed only when the host reports the process exited. Human control is coordinated separately from view connections. This adapter advertises no approval, pause or takeover capability.
+
+OpenCode 1.18.33 completed real platform-model tasks, wait/resume and cancellation in the Computer acceptance environment. Codex App Server, Claude Agent SDK and Pi retain their existing non-Computer behavior; they do not gain platform model credentials through this profile. Native Codex/Claude model-protocol tests are separate from this managed adapter's acceptance.
 
 ## Configuration
 

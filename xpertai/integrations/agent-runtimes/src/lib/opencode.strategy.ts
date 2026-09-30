@@ -2,6 +2,8 @@ import { agentPrompt } from './input.js'
 import { Injectable } from '@nestjs/common'
 import {
   AgentRuntimeStrategy,
+  AgentExecutionRunnerCapability,
+  type AgentJson,
   type AgentRuntimeContext,
   type AgentRuntimeHandle,
   type AgentRuntimeObservation,
@@ -39,16 +41,31 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
   async start(request: AgentRuntimeStart, context: AgentRuntimeContext) {
     if (request.previous) return this.inspect(request.previous, context)
     const profile = this.profiles.profile(request, context, 'opencode')
+    let runner: AgentRuntimeHandle['runner']
+    if (profile.executionEnvironment === 'computer') {
+      runner = await context.capabilities.require(AgentExecutionRunnerCapability).start(context.invocationId, async (receipt) => {
+        await context.checkpoint({ status: 'running', handle: { sessionId: 'pending', runId: context.invocationId,
+          runner: receipt, metadata: { profileId: profile.id, profileVersion: profile.version } } })
+      })
+    }
+    const pending: AgentRuntimeHandle = { sessionId: 'pending', runId: context.invocationId, runner }
     const session = Session.parse(
-      await this.http(profile, '/session', 'POST', { title: `Xpert ${context.invocationId}` })
+      await this.http(profile, '/session', 'POST', { title: `Xpert ${context.invocationId}` }, context, pending)
     )
     const handle: AgentRuntimeHandle = {
       sessionId: session.id,
+      ...(runner ? { runner } : {}),
       runId: `msg_${context.invocationId.replaceAll('-', '')}`,
       metadata: { profileId: profile.id, profileVersion: profile.version }
     }
     const observation: AgentRuntimeObservation = { status: 'running', handle }
     await context.checkpoint(observation)
+    if (runner) {
+      await this.http(profile, `/session/${encodeURIComponent(session.id)}/prompt_async`, 'POST', {
+        messageID: handle.runId, parts: [{ type: 'text', text: agentPrompt(request.input) }]
+      }, context, handle)
+      return observation
+    }
     // Session receipt is durable before dispatch. Reconnection only inspects, never re-sends.
     void this.http(profile, `/session/${encodeURIComponent(session.id)}/message`, 'POST', {
       messageID: handle.runId,
@@ -68,22 +85,32 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
 
   async inspect(handle: AgentRuntimeHandle, context: AgentRuntimeContext): Promise<AgentRuntimeObservation> {
     const profile = this.profile(handle, context)
+    if (handle.runner) {
+      const process = await context.capabilities.require(AgentExecutionRunnerCapability).inspect(handle.runner)
+      if (process.state !== 'running' || handle.sessionId === 'pending') return { status: 'unknown', handle }
+    }
     const messages = z
       .array(Message)
-      .parse(await this.http(profile, `/session/${encodeURIComponent(handle.sessionId)}/message`, 'GET'))
+      .parse(await this.http(profile, `/session/${encodeURIComponent(handle.sessionId)}/message`, 'GET', undefined, context, handle))
     const response = messages
       .slice()
       .reverse()
       .find(
         (item) => item.info.role === 'assistant' && item.info.parentID === handle.runId
       )
-    return this.observe(profile, handle, response)
+    const observation = await this.observe(profile, handle, response, context)
+    if (handle.runner && ['succeeded', 'failed'].includes(observation.status)) {
+      const runner = context.capabilities.require(AgentExecutionRunnerCapability)
+      if (observation.result) observation.result.artifacts = await runner.collectArtifacts(handle.runner)
+      await runner.stop(handle.runner)
+    }
+    return observation
   }
 
-  private async observe(profile: RuntimeProfile, handle: AgentRuntimeHandle, message?: z.infer<typeof Message>): Promise<AgentRuntimeObservation> {
+  private async observe(profile: RuntimeProfile, handle: AgentRuntimeHandle, message?: z.infer<typeof Message>, context?: AgentRuntimeContext): Promise<AgentRuntimeObservation> {
     const states = z
       .record(z.object({ type: z.string() }).passthrough())
-      .parse(await this.http(profile, '/session/status', 'GET'))
+      .parse(await this.http(profile, '/session/status', 'GET', undefined, context, handle))
     const state = states[handle.sessionId]?.type
     if (state === 'busy' || state === 'retry') return { status: 'running', handle }
     // A completed assistant message can still be an intermediate tool/compaction step.
@@ -101,6 +128,10 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
 
   async cancel(handle: AgentRuntimeHandle, context: AgentRuntimeContext): Promise<AgentRuntimeObservation> {
     const profile = this.profile(handle, context)
+    if (handle.runner) {
+      const process = await context.capabilities.require(AgentExecutionRunnerCapability).stop(handle.runner)
+      return { status: process.state === 'exited' ? 'cancelled' : process.state === 'unknown' ? 'unknown' : 'cancelling', handle }
+    }
     const acknowledged = z
       .boolean()
       .parse(await this.http(profile, `/session/${encodeURIComponent(handle.sessionId)}/abort`, 'POST', {}))
@@ -128,6 +159,7 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
           status: 'succeeded',
           handle,
           result: {
+            ...(handle.runner ? { data: { workingDirectory: handle.runner.workingDirectory } } : {}),
             text: message.parts
               .filter((part) => part.type === 'text')
               .map((part) => part.text ?? '')
@@ -137,12 +169,17 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
         }
   }
 
-  private async http(profile: RuntimeProfile, path: string, method: string, body?: object): Promise<unknown> {
+  private async http(profile: RuntimeProfile, path: string, method: 'GET' | 'POST', body?: AgentJson, context?: AgentRuntimeContext, handle?: AgentRuntimeHandle): Promise<unknown> {
+    if (profile.executionEnvironment === 'computer') {
+      if (!context || !handle?.runner) throw new Error('Computer runner receipt is unavailable')
+      return context.capabilities.require(AgentExecutionRunnerCapability).request(handle.runner, { method, path, body })
+    }
     if (!profile.serverUrl) throw new Error('OpenCode server URL is required')
     const base = new URL(profile.serverUrl)
     if (!['http:', 'https:'].includes(base.protocol) || base.username || base.password)
       throw new Error('Invalid OpenCode server URL')
     const url = new URL(`${base.pathname.replace(/\/$/, '')}${path}`, base.origin)
+    if (!profile.workspaceRoot) throw new Error('OpenCode workspace root is required')
     url.searchParams.set('directory', profile.workspaceRoot)
     const headers: Record<string, string> = { 'content-type': 'application/json' }
     if (profile.authorizationEnvironmentKey) {

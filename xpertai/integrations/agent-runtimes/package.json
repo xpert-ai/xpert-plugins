@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-agent-runtimes",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -32,16 +32,17 @@
   },
   "xpert": {
     "plugin": {
-      "level": "system"
+      "level": "system",
+      "artifactNamespace": "agent_runtimes"
     }
   },
   "peerDependencies": {
-    "@xpert-ai/plugin-sdk": "^3.18.7",
+    "@xpert-ai/plugin-sdk": "^3.20.0",
     "@nestjs/common": "^11.1.6",
     "@langchain/core": "^0.3.72",
     "zod": "^3.25.67",
     "@anthropic-ai/claude-agent-sdk": "^0.3.278",
-    "@xpert-ai/contracts": "^3.17.0"
+    "@xpert-ai/contracts": "^3.20.0"
   },
   "peerDependenciesMeta": {
     "@anthropic-ai/claude-agent-sdk": {

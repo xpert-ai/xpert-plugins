@@ -101,6 +101,7 @@ export class ProcessRuntime implements OnModuleDestroy {
   }
 
   async directory(profile: RuntimeProfile, context: AgentRuntimeContext) {
+    if (!profile.workspaceRoot) throw new Error('Managed workspace root is required')
     const root = await realpath(profile.workspaceRoot)
     const owner = createHash('sha256').update(JSON.stringify(context.scope)).digest('hex')
     const cwd = resolve(root, owner, context.invocationId)

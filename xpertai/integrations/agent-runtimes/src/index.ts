@@ -6,8 +6,9 @@ const plugin: XpertPlugin<RuntimeConfiguration> = {
   meta: {
     author: 'XpertAI',
     name: '@xpert-ai/plugin-agent-runtimes',
-    version: '0.1.0',
+    version: '0.2.0',
     level: 'system',
+    artifactNamespace: 'agent_runtimes',
     category: 'integration',
     displayName: 'Agent Runtimes',
     description: 'Codex, Pi, Claude Code and OpenCode invocation strategies'
