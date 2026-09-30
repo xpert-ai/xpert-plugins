@@ -39,7 +39,8 @@
   },
   "xpert": {
     "plugin": {
-      "level": "system"
+      "level": "system",
+      "artifactNamespace": "procurement_quote_comparison"
     }
   },
   "dependencies": {

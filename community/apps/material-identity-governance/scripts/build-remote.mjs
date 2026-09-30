@@ -11,7 +11,7 @@ const shims=join(component,'src/shims')
 const aliases={'react':join(shims,'react-shim.ts'),'react-dom':join(shims,'react-dom-shim.ts'),'react-dom/client':join(shims,'react-dom-client-shim.ts'),'react/jsx-runtime':join(shims,'react-jsx-runtime-shim.ts'),'react/jsx-dev-runtime':join(shims,'react-jsx-runtime-shim.ts'),'@xpert-ai/plugin-shadcn-ui':join(shared,'dist/index.js'),'@xpert-ai/plugin-shadcn-ui/theme':join(shared,'dist/theme.js'),'@xpert-ai/plugin-shadcn-ui/style.css':join(shared,'dist/style.css')}
 const temporary=await mkdtemp(join(tmpdir(),'material-identity-css-'))
 const input=join(root,'scripts/tailwind.css'),output=join(temporary,'utilities.css')
-const result=spawnSync('corepack',['pnpm','exec','tailwindcss','-i',input,'-o',output,'--minify'],{cwd:root,encoding:'utf8'})
+const result=spawnSync('corepack',['pnpm','exec','tailwindcss','-i',input,'-o',output,'--minify'],{cwd:root,encoding:'utf8',shell:true})
 if(result.status!==0)throw new Error(result.stderr||'tailwind_failed')
 for (const entry of ['governance-workbench', 'assistant-profile']) {
 const entryDir=join(root,'src/lib/remote-components',entry)

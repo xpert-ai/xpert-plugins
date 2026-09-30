@@ -8,7 +8,7 @@ if(!pkg.files.includes('.xpertai-plugin')||!pkg.files.includes('assets'))throw E
 if(!manifest.assets?.screenshots?.length)throw Error('marketplace_screenshots_not_declared')
 for(const file of manifest.assets.screenshots){
  const path=resolve(root,file)
- if(!path.startsWith(root+'/assets/'))throw Error(`invalid_screenshot_path:${file}`)
+ if(!path.split('\\').join('/').startsWith(root.split('\\').join('/')+'/assets/'))throw Error(`invalid_screenshot_path:${file}`)
  const data=await readFile(path)
  const valid=file.endsWith('.png')?data.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])):
    /\.jpe?g$/.test(file)&&data.subarray(0,3).equals(Buffer.from([255,216,255]))
