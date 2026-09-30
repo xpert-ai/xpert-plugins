@@ -1,3 +1,5 @@
+import { z } from 'zod'
+import { nativeModelTransport, type NativeModelClientFactory, LargeLanguageModel } from '@xpert-ai/plugin-sdk'
 import { Injectable, Logger } from '@nestjs/common'
 import {
   AIModelProviderStrategy,
@@ -11,6 +13,17 @@ import { Anthropic, AnthropicCredentials } from './types.js'
 @AIModelProviderStrategy(Anthropic)
 export class AnthropicProviderStrategy extends ModelProvider {
   override logger = new Logger(AnthropicProviderStrategy.name)
+
+  readonly getNativeModelClient: NativeModelClientFactory = async (protocol, model) => {
+    if (protocol !== 'anthropic_messages' || !this.getProviderModels(AiModelTypeEnum.LLM)
+        .some((entry) => entry.model === model.model && entry.native_protocols?.includes(protocol)))
+      throw new Error('Native model protocol is unavailable')
+    const parsed = z.object({ anthropic_api_key: z.string().min(1), anthropic_api_url: z.string().optional() }).passthrough().parse(model.copilot?.modelProvider?.credentials)
+    const credentials = { anthropic_api_key: parsed.anthropic_api_key, anthropic_api_url: parsed.anthropic_api_url }
+    const manager = this.getModelManager<LargeLanguageModel>(AiModelTypeEnum.LLM)
+    return { protocol, generate: nativeModelTransport({ protocol, baseUrl: this.getBaseUrl(credentials).replace(/\/v1$/, ''), authorization: this.getAuthorization(credentials) }),
+      priceUsage: (usage, context) => manager.priceActualTokenUsage(model.model, usage, context) }
+  }
 
   override async validateProviderCredentials(
     credentials: AnthropicCredentials

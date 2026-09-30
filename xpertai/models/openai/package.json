@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-openai",
-  "version": "0.0.5",
+  "version": "0.1.0",
   "description": "OpenAI GPT-5 model plugin for XpertAI platform using Responses API",
   "author": {
     "name": "XpertAI",
@@ -40,11 +40,11 @@
     "tslib": "^2.3.0"
   },
   "peerDependencies": {
-    "@xpert-ai/plugin-sdk": "^3.7.2",
+    "@xpert-ai/plugin-sdk": "^3.20.0",
     "@nestjs/config": "^4.0.2",
     "chalk": "4.1.2",
     "zod": "3.25.67",
-    "@xpert-ai/contracts": "^3.7.0",
+    "@xpert-ai/contracts": "^3.20.0",
     "@nestjs/common": "^11.1.6",
     "@langchain/core": "^0.3.72",
     "@langchain/openai": "0.6.9",

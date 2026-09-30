@@ -1,3 +1,5 @@
+native_protocols:
+  - anthropic_messages
 model: claude-opus-4-6
 label:
   en_US: claude-opus-4-6

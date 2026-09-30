@@ -1,3 +1,5 @@
+import { z } from 'zod'
+import { nativeModelTransport, type NativeModelClientFactory, LargeLanguageModel } from '@xpert-ai/plugin-sdk'
 import { Injectable, Logger } from '@nestjs/common'
 import {
   AIModelProviderStrategy,
@@ -38,6 +40,17 @@ function shouldRetryWithNextValidationModel(error: unknown): boolean {
 @AIModelProviderStrategy(OpenAIProvider)
 export class OpenAIProviderStrategy extends ModelProvider {
   override logger = new Logger(OpenAIProviderStrategy.name)
+
+  readonly getNativeModelClient: NativeModelClientFactory = async (protocol, model) => {
+    if (protocol !== 'openai_responses' || !this.getProviderModels(AiModelTypeEnum.LLM)
+        .some((entry) => entry.model === model.model && entry.native_protocols?.includes(protocol)))
+      throw new Error('Native model protocol is unavailable')
+    const parsed = z.object({ api_key: z.string().min(1), endpoint_url: z.string().optional() }).passthrough().parse(model.copilot?.modelProvider?.credentials)
+    const credentials = { api_key: parsed.api_key, endpoint_url: parsed.endpoint_url }
+    const manager = this.getModelManager<LargeLanguageModel>(AiModelTypeEnum.LLM)
+    return { protocol, generate: nativeModelTransport({ protocol, baseUrl: this.getBaseUrl(credentials), authorization: this.getAuthorization(credentials) }),
+      priceUsage: (usage, context) => manager.priceActualTokenUsage(model.model, usage, context) }
+  }
 
   getBaseUrl(credentials: OpenAICredentials): string {
     const params = toCredentialKwargs(credentials)

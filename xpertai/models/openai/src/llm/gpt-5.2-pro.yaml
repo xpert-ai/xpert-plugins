@@ -1,3 +1,5 @@
+native_protocols:
+  - openai_responses
 model: gpt-5.2-pro
 label:
   en_US: GPT-5.2 Pro
