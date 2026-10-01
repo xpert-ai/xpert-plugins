@@ -8,7 +8,7 @@ Version 0.2.0 requires contracts and plugin-sdk **3.20.0**, including the scoped
 
 Only OpenCode supports the new Computer runner. Configure a profile with `provider: "opencode"`, `executionEnvironment: "computer"`, a version and authorized workspace IDs. Its binding configuration must contain the matching `profileVersion` and `executionEnvironment: { "type": "computer" }`. The host resolves the current conversation, owner, environment, exact tool version, model selection and payer; the plugin cannot supply commands, credential environment variables or service URLs.
 
-The host checkpoints a scoped process receipt before sending the prompt. Inspect/resume follows that receipt and never re-sends an uncertain task. Completion collects a private artifact ZIP and stops the guest supervisor. Cancellation is confirmed only when the host reports the process exited. Human control is coordinated separately from view connections. This adapter advertises no approval, pause or takeover capability.
+The host checkpoints a scoped process receipt before sending the prompt. Inspect/resume follows that receipt and never re-sends an uncertain task. Completion collects a private artifact ZIP, persists its result through the host checkpoint, then stops the guest supervisor. A failed checkpoint keeps the process available for a later inspection. Cancellation is confirmed only when the host reports the process exited. Human control is coordinated separately from view connections. This adapter advertises no approval, pause or takeover capability.
 
 OpenCode 1.18.33 completed real platform-model tasks, wait/resume and cancellation in the Computer acceptance environment. Codex App Server, Claude Agent SDK and Pi retain their existing non-Computer behavior; they do not gain platform model credentials through this profile. Native Codex/Claude model-protocol tests are separate from this managed adapter's acceptance.
 
@@ -67,7 +67,7 @@ Use the returned binding ID in an `AgentInvocation` middleware configuration:
 
 `wait` checkpoints the parent through the host API. Resume the existing parent run after completion or an interaction; it inspects the existing invocation instead of sending a second prompt. `background` immediately returns an invocation ID. Use the owner's scoped `GET /api/agent-invocations/:id`, `POST /:id/cancel`, or `POST /:id/respond` routes for lifecycle control. The response body is `{ "interactionId": "...", "response": ... }`. Codex decisions are `accept`, `decline`, or `cancel`; Claude approvals are booleans. Parent graph resume payloads use this same shape for approval handling.
 
-This package does not install a background wake-up scheduler or a new approval UI. Completion receipts persist while the parent is paused; the existing host resume route drives continuation. A host job can use the scoped capability to implement a wait policy without putting polling tools in the LLM loop.
+The compatible host maintains a durable wait queue for background runtimes with session recovery. It inspects the pinned adapter, persists terminal results and resumes only the matching parent checkpoint through the existing host route. This continues after an API restart without sending the task again. The plugin does not schedule parent runs or approve unrelated interactions. In-process adapters without session recovery retain explicit continuation and unknown-on-loss behavior.
 
 ## Capabilities and limits
 

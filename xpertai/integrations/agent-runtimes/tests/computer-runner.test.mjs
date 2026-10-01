@@ -51,7 +51,7 @@ test('managed OpenCode checkpoints the runner and session before a single async 
   assert.equal(recovered.result.text, 'implemented')
   assert.equal(recovered.result.data.workingDirectory, f.receipt.workingDirectory)
   assert.deepEqual(recovered.result.artifacts, [{id:'artifact',name:'computer-output.zip',mimeType:'application/zip'}])
-  assert.deepEqual(f.events.slice(-2), ['artifacts', 'stop'])
+  assert.deepEqual(f.events.slice(-3), ['artifacts', 'checkpoint', 'stop'])
   assert.equal(f.events.filter((event) => event === 'reserve').length, 1)
   assert.equal(f.events.filter((event) => event.endsWith('prompt_async')).length, 1)
 })
@@ -70,4 +70,13 @@ test('an incomplete runner checkpoint remains unknown and never re-dispatches', 
   const before = f.events.length
   assert.equal((await f.strategy.start({ ...f.request, previous: pending }, f.context)).status, 'unknown')
   assert.equal(f.events.length, before)
+})
+
+
+test('does not stop the guest when terminal result persistence fails', async () => {
+  const f = setup(), started = await f.strategy.start(f.request, f.context)
+  f.complete()
+  f.context.checkpoint = async () => { throw new Error('database unavailable') }
+  await assert.rejects(f.strategy.inspect(started.handle, f.context), /database unavailable/)
+  assert.equal(f.events.includes('stop'), false)
 })

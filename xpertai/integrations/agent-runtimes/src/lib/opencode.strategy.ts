@@ -35,7 +35,7 @@ const Message = z.object({
 @Injectable()
 @AgentRuntimeStrategy('opencode')
 export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
-  readonly capabilities = { recovery: 'session' as const, interactions: false, cancellation: true, background: true }
+  readonly capabilities = { executionTools: [{ id: 'opencode', versions: ['1.18.33'], environments: ['computer' as const] }], recovery: 'session' as const, interactions: false, cancellation: true, background: true }
   constructor(private readonly profiles: ProcessRuntime) {}
 
   async start(request: AgentRuntimeStart, context: AgentRuntimeContext) {
@@ -102,6 +102,8 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
     if (handle.runner && ['succeeded', 'failed'].includes(observation.status)) {
       const runner = context.capabilities.require(AgentExecutionRunnerCapability)
       if (observation.result) observation.result.artifacts = await runner.collectArtifacts(handle.runner)
+      // Persist results and artifact references before guest shutdown; host cleanup can retry.
+      await context.checkpoint(observation)
       await runner.stop(handle.runner)
     }
     return observation
