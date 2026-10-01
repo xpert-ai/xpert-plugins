@@ -205,6 +205,33 @@ describe('Seedream AIGC tools', () => {
     expect(JSON.stringify(result)).not.toContain('Z2VuZXJhdGVkLWltYWdl')
   })
 
+  it('keeps concurrent same-project generated images immutable even when tool-call IDs repeat', async () => {
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.endsWith('/images/generations')) {
+        const prompt = JSON.parse(String(init?.body)).prompt
+        return jsonResponse({ data: [1, 2].map(index => ({ url: `https://ark.test/generated/${prompt}-${index}.png` })) })
+      }
+      return binaryResponse(Buffer.from(new URL(url).pathname), 'image/png')
+    })
+    const tool = buildSeedreamTools({ credentials, workspaceFiles, fetch: fetchMock,
+      workspaceScope: { catalog: 'projects', scopeId: 'project-1', projectId: 'project-1' } }).find(item => item.name === 'seedream_text_to_image')!
+    const outputs = await Promise.all(['chapter-one', 'chapter-two'].map(prompt => tool.invoke({
+      type: 'tool_call', id: 'same-call-id', name: 'seedream_text_to_image', args: { prompt }
+    })))
+    const stored = new Map((workspaceFiles.uploadBuffer as jest.Mock).mock.calls.map(([input]) => [`${input.folder}/${input.fileName}`, input.buffer]))
+    expect(stored.size).toBe(4)
+    for (const [index, output] of outputs.entries()) {
+      const [, artifact] = normalizeToolResult(output)
+      expect(artifact.files).toHaveLength(2)
+      for (const [imageIndex, file] of artifact.files.entries()) {
+        expect(file.fileName).toMatch(/^seedream-text-to-image-[0-9a-f-]{36}(?:-2)?\.png$/)
+        expect(file.catalog).toBe('projects')
+        expect(file.scopeId).toBe('project-1')
+        expect(stored.get(file.filePath)).toEqual(Buffer.from(`/generated/chapter-${index === 0 ? 'one' : 'two'}-${imageIndex + 1}.png`))
+      }
+    }
+  })
+
   it('reports provider token usage once for a completed image request', async () => {
     const reportUsage = jest.fn()
     fetchMock
