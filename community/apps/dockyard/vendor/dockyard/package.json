@@ -1,0 +1,74 @@
+{
+  "name": "@wieslawsoltes/dockyard",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Independent AvalonDock-style docking components for the web, with a PascalCase JavaScript model API",
+  "main": "./src/index.js",
+  "module": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "import": "./src/index.js"
+    },
+    "./model": {
+      "types": "./src/model.d.ts",
+      "import": "./src/model.js"
+    },
+    "./styles.css": "./src/avalondock.css",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "dist",
+    "docs",
+    "sample/minimal.html",
+    "README.md",
+    "LICENSE",
+    "NOTICE.md"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "test:browser": "python tests/browser.py",
+    "serve": "python -m http.server 8080 --bind 127.0.0.1",
+    "check": "tsc --noEmit --strict --lib es2022,dom --module nodenext --moduleResolution nodenext tests/types.ts",
+    "api": "node scripts/api-surface.mjs",
+    "test:package": "npm run build && node scripts/package-test.mjs",
+    "prepack": "npm run build",
+    "check:all": "npm run build && npm test && npm run check && npm run api"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "sideEffects": [
+    "./src/avalondock.css",
+    "./src/web-component.js",
+    "./src/index.js",
+    "./dist/avalondock.js"
+  ],
+  "devDependencies": {
+    "typescript": "5.8.3"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wieslawsoltes/Dockyard.git"
+  },
+  "homepage": "https://wieslawsoltes.github.io/Dockyard/",
+  "bugs": {
+    "url": "https://github.com/wieslawsoltes/Dockyard/issues"
+  },
+  "keywords": [
+    "docking",
+    "avalondock",
+    "dockyard",
+    "web-components",
+    "layout",
+    "mvvm"
+  ]
+}

@@ -1,3 +1,4 @@
+import { createPostgresWorkbench } from './postgres-workbench.js'
 import { pipeline } from 'node:stream/promises'
 import type { Writable } from 'node:stream'
 import {
@@ -180,6 +181,7 @@ export class PostgresOperationError extends Error {
 }
 
 export class PostgresRunner extends BaseSQLQueryRunner<PostgresAdapterOptions> {
+  getWorkbenchAdapter() { return createPostgresWorkbench(buildClientConfig(this.options), this.options.catalog || 'public') }
   override readonly name: string = 'Postgres'
   override readonly type: string = POSTGRES_TYPE
   override readonly jdbcDriver: string = 'org.postgresql.Driver'

@@ -413,7 +413,26 @@ function capabilityWarning(
     WORKER_UNAVAILABLE: 'No worker is consuming the sandbox-browser execution pool. The OSS base deployment does not deploy one; install a Provider distribution or use the Pro Docker worker overlay.',
     LOCAL_BROWSER_UNAVAILABLE: 'Local export is deprecated; use Sandbox Jobs or install Chromium for development only.'
   }
-  return [detail?.trim(), guidance[reason]].filter(Boolean).join(' ')
+  return [compactCapabilityDetail(detail), guidance[reason]].filter(Boolean).join(' ')
+}
+
+/**
+ * Provider health output is diagnostic evidence, not UI content. Keep the
+ * workbench actionable when a launcher includes a multi-line Node stack.
+ */
+function compactCapabilityDetail(detail?: string): string | undefined {
+  const normalized = detail?.replace(/\s+/g, ' ').trim()
+  if (!normalized) return undefined
+
+  if (normalized.includes('runtime-suite.lock.json')) {
+    return 'Docker Runtime Provider is missing /srv/xpert/runtime-suite.lock.json. Deploy the matching Provider release with its immutable Runtime Suite lock.'
+  }
+  if (normalized.includes('BROWSER_LAUNCH_FAILED') || normalized.includes("Executable doesn't exist")) {
+    return 'Local Browser Runtime cannot start its pinned Chromium. Run "corepack pnpm --filter @xpert-ai/sandbox-runtime install:browser" as the API user, then restart the API.'
+  }
+
+  const firstLine = normalized.split(/(?:\bat\s+|\^\s*Error:)/)[0]?.trim()
+  return firstLine && firstLine.length <= 360 ? firstLine : 'Browser Runtime health check failed. See API logs for the provider diagnostic.'
 }
 
 function resolveLocalChromium(configured?: string) {
@@ -435,9 +454,17 @@ function transformDeckForDashi(spec: PresentationDeckSpec, assets: Map<string, s
       .map((slide) => ({
         id: slide.id,
         layout: slide.layout,
-        props: replaceAssetReferences({ ...slide.props, ...(editorState?.props[slide.id] ?? {}) }, assets)
+        props: replaceAssetReferences(
+          sanitizePresentationSlideProps({ ...slide.props, ...(editorState?.props[slide.id] ?? {}) }),
+          assets
+        )
       }))
   }
+}
+
+/** Studio-only slide metadata is not part of a DashiAI layout's strict prop contract. */
+export function sanitizePresentationSlideProps(props: PresentationJsonObject): PresentationJsonObject {
+  return Object.fromEntries(Object.entries(props).filter(([key]) => !key.startsWith('__studio')))
 }
 
 export function sanitizePresentationEditorText(text: Record<string, string>) {

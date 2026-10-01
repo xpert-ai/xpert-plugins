@@ -4,9 +4,11 @@
   "sourceRoot": "middlewares/markitdown/src",
   "projectType": "library",
   "targets": {
-    "build": {
+    "build-code": {
       "executor": "@nx/js:tsc",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{options.outputPath}"
+      ],
       "options": {
         "outputPath": "middlewares/markitdown/dist",
         "main": "middlewares/markitdown/src/index.ts",
@@ -25,6 +27,19 @@
             "output": "./"
           }
         ]
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        "build-code"
+      ],
+      "outputs": [
+        "{projectRoot}/dist"
+      ],
+      "options": {
+        "command": "node middlewares/markitdown/scripts/build-sandbox-action.mjs",
+        "cwd": "."
       }
     }
   },

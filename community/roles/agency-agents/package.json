@@ -1,0 +1,23 @@
+{
+  "name": "@xpert-ai/community-agency-agents",
+  "version": "0.1.0",
+  "description": "Agency Agents expert templates with ClawXpert middleware, with Chinese-first English fallback.",
+  "author": "XpertAI; Agency Agents contributors",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/xpert-ai/xpert-plugins", "directory": "community/roles/agency-agents" },
+  "xpert": { "plugin": { "level": "organization" } },
+  "main": "./dist/plugin.cjs",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/plugin.cjs" }, "./package.json": "./package.json" },
+  "files": ["dist", ".xpertai-plugin", "licenses", "LICENSE", "README.md", "sources.lock.json", "!**/*.tsbuildinfo"],
+  "scripts": {
+    "build": "node scripts/build-catalog.mjs && tsc -p tsconfig.lib.json",
+    "test": "node --test tests/*.test.cjs",
+    "prepack": "npm run build && npm test",
+    "sync": "node scripts/sync-upstream.mjs"
+  },
+  "dependencies": { "tslib": "^2.3.0", "zod": "3.25.67" },
+  "peerDependencies": { "@nestjs/common": "^11.1.6", "@nestjs/core": "^11.1.6", "@xpert-ai/contracts": "^3.18.3", "@xpert-ai/plugin-sdk": "^3.18.4" },
+  "devDependencies": { "@types/node": "^20.19.9", "@langchain/core": "^0.3.72", "typescript": "^5.9.2", "yaml": "^2.8.0" },
+  "publishConfig": { "access": "public" }
+}

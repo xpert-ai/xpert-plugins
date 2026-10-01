@@ -42,4 +42,9 @@ if (files.some((file) => file.relativePath.startsWith('node_modules/'))) {
 if (files.some((file) => file.relativePath.startsWith('runtime-modules/playwright-core/'))) {
   throw new Error('playwright-core must be supplied by Browser Runtime.')
 }
+for (const packageName of ['react', 'react-dom', 'scheduler']) {
+  if (!files.some((file) => file.relativePath === `runtime-modules/${packageName}/package.json`)) {
+    throw new Error(`Action Bundle runtime dependency is missing: ${packageName}.`)
+  }
+}
 process.stdout.write(`${JSON.stringify({ action: manifest.name, version: manifest.version, files: files.length, bytes, bundleSha256: manifest.bundleSha256 })}\n`)

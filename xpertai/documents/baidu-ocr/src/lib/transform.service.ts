@@ -8,6 +8,8 @@ import type { ChunkMetadata, XpFileSystem } from '@xpert-ai/plugin-sdk'
 import axios from 'axios'
 import { v4 as uuid } from 'uuid'
 import { BaiduCloudParserClient } from './baidu-cloud.client.js'
+import { PaddleOcrSelfHostedClient } from './paddleocr-self-hosted.client.js'
+import { baiduOcrServerType, resolveBaiduParseOptions, validateBaiduIntegration } from './parse-options.js'
 import {
   BAIDU_DOCUMENT_EXTENSIONS,
   BAIDU_MAX_BASE64_BYTES,
@@ -77,10 +79,14 @@ type BatchAssets = {
 
 @Injectable()
 export class BaiduOcrTransformService {
-  constructor(private readonly client: BaiduCloudParserClient) {}
+  constructor(
+    private readonly client: BaiduCloudParserClient,
+    private readonly selfHosted: PaddleOcrSelfHostedClient = new PaddleOcrSelfHostedClient()
+  ) {}
 
   validateIntegration(options: BaiduOcrIntegrationOptions): Promise<void> {
-    return this.client.validate(options)
+    validateBaiduIntegration(options)
+    return baiduOcrServerType(options) === 'self-hosted' ? this.selfHosted.validate(options) : this.client.validate(options)
   }
 
   async transform<TConfig extends BaiduBaseTransformerConfig>(
@@ -94,10 +100,12 @@ export class BaiduOcrTransformService {
     if (!isBaiduOcrIntegration(integration)) {
       throw new BaiduOcrError('A Baidu OCR integration connection is required', { engine })
     }
+    validateBaiduIntegration(integration.options, engine)
+    const resolvedConfig = { ...config, ...resolveBaiduParseOptions(config, integration.options) }
 
     const output: Partial<IKnowledgeDocument<ChunkMetadata>>[] = []
     for (const file of files) {
-      output.push(await this.transformOne(engine, file, integration, fileSystem, config))
+      output.push(await this.transformOne(engine, file, integration, fileSystem, resolvedConfig))
     }
     return output
   }
@@ -110,24 +118,51 @@ export class BaiduOcrTransformService {
     config: BaiduBaseTransformerConfig
   ): Promise<Partial<IKnowledgeDocument<ChunkMetadata>>> {
     const outputFolder = path.posix.join('baidu-ocr', safePathSegment(file.id ?? uuid()), engine)
+    const selfHosted = baiduOcrServerType(integration.options) === 'self-hosted'
+    const service = selfHosted ? 'Self-hosted PaddleOCR-VL' : `Baidu Cloud ${engineLabel(engine)}`
     try {
-      const source = await resolveSource(file, fileSystem, integration.options)
-      if (!BAIDU_DOCUMENT_EXTENSIONS.has(source.extension)) {
-        throw new BaiduOcrError(`Baidu Cloud ${engineLabel(engine)} does not support .${source.extension}`, { engine })
-      }
-      const collection = await parseCloudSource(
-        engine,
-        source,
-        integration.options,
-        requestOptions(engine, config),
-        this.client,
-        config.tempDir
+      const source = await resolveSource(
+        file,
+        fileSystem,
+        selfHosted ? { ...integration.options, uploadMode: 'base64' } : integration.options
       )
+      if (!BAIDU_DOCUMENT_EXTENSIONS.has(source.extension)) {
+        throw new BaiduOcrError(`${service} does not support .${source.extension}`, { engine })
+      }
+      let collection: CloudBatchCollection
+      if (selfHosted) {
+        const result = await this.selfHosted.parse(
+          buildCloudInput(source),
+          integration.options,
+          resolveBaiduParseOptions(config, integration.options)
+        )
+        const pageCount = result.parsed?.pages?.length
+        collection = {
+          fileName: source.fileName,
+          pageCount,
+          sourceSha256: source.buffer ? createHash('sha256').update(source.buffer).digest('hex') : undefined,
+          batches: [{ batchIndex: 0, sourcePageStart: 1, sourcePageEnd: pageCount, uploadMode: 'base64', result }]
+        }
+      } else {
+        collection = await parseCloudSource(
+          engine,
+          source,
+          integration.options,
+          requestOptions(engine, config),
+          this.client,
+          config.tempDir
+        )
+      }
       return engine === 'paddleocr-vl'
-        ? mapPaddleCollection(file, collection, fileSystem, outputFolder, config as BaiduPaddleOcrVlTransformerConfig)
-        : mapUnlimitedCollection(file, collection, fileSystem, outputFolder, config.preserveRawOutput !== false)
+        ? await mapPaddleCollection(file, collection, fileSystem, outputFolder, config as BaiduPaddleOcrVlTransformerConfig)
+        : await mapUnlimitedCollection(file, collection, fileSystem, outputFolder, config.preserveRawOutput !== false)
     } catch (error) {
-      throw documentConversionError(engine, error, `Baidu Cloud ${engineLabel(engine)} document conversion failed`)
+      throw documentConversionError(
+        engine,
+        error,
+        `${service} document conversion failed`,
+        selfHosted ? 'paddleocr-self-hosted' : 'baidu-cloud'
+      )
     }
   }
 }
@@ -324,7 +359,7 @@ async function mapPaddleCollection(
       baiduOcr: trace,
       documentAnalysis: {
         schemaVersion: 1,
-        provider: 'baidu-cloud',
+        provider: collection.batches[0].result.trace.provider ?? 'baidu-cloud',
         engine: 'paddleocr-vl',
         pageCount: collection.pageCount ?? countStructuredPages(collection),
         coordinateSystem: 'page-top-left',
@@ -335,6 +370,25 @@ async function mapPaddleCollection(
       } satisfies BaiduDocumentAnalysisMetadata
     }
   }
+}
+
+function rewritePageImages(page: BaiduPage, images: Map<string, TDocumentAsset>): string {
+  let markdown = page.text?.trim() ?? ''
+  for (const image of page.images ?? []) {
+    if (!image.original_ref || !image.layout_id) continue
+    const asset = images.get(image.layout_id)
+    if (!asset?.url) throw new Error('PaddleOCR-VL image could not be saved to the knowledge workspace')
+    markdown = markdown
+      .split(`](${image.original_ref})`)
+      .join(`](${asset.url})`)
+      .split(`](<${image.original_ref}>)`)
+      .join(`](<${asset.url}>)`)
+      .split(`src="${image.original_ref}"`)
+      .join(`src="${asset.url}"`)
+      .split(`src='${image.original_ref}'`)
+      .join(`src='${asset.url}'`)
+  }
+  return markdown
 }
 
 function mapPaddlePage(
@@ -379,7 +433,7 @@ function mapPaddlePage(
         pageHeight: finiteNumber(page.meta?.page_height)
       }),
       baiduOcr: {
-        provider: 'baidu-cloud',
+        provider: batch.result.trace.provider ?? 'baidu-cloud',
         engine: 'paddleocr-vl',
         taskId: batch.result.trace.taskId,
         logId: batch.result.trace.logId,
@@ -411,7 +465,7 @@ function mapPaddlePage(
   if (!pageChunks.length && page.text?.trim()) {
     pageChunks.push(
       new Document({
-        pageContent: page.text.trim(),
+        pageContent: rewritePageImages(page, assets.images),
         metadata: {
           chunkId: uuid(),
           chunkIndex: 0,
@@ -420,7 +474,7 @@ function mapPaddlePage(
           assets: assets.raw,
           documentLayout: buildFallbackPageLayoutMetadata(page, sourcePage),
           baiduOcr: {
-            provider: 'baidu-cloud',
+            provider: batch.result.trace.provider ?? 'baidu-cloud',
             engine: 'paddleocr-vl',
             taskId: batch.result.trace.taskId,
             logId: batch.result.trace.logId,
@@ -778,6 +832,12 @@ function titleLevel(layout: BaiduLayout): number | undefined {
 }
 
 async function downloadResultImage(url: string): Promise<{ buffer: Buffer; extension: string } | undefined> {
+  const inline = /^data:(image\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=\s]+)$/i.exec(url)
+  if (inline) {
+    const buffer = Buffer.from(inline[2], 'base64')
+    if (!buffer.length || buffer.length > 20 * 1024 * 1024) throw new Error('Invalid or oversized PaddleOCR-VL image')
+    return { buffer, extension: imageExtension(inline[1].toLowerCase(), '') }
+  }
   const parsed = new URL(url)
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return undefined
   const response = await retry(
@@ -893,7 +953,7 @@ function documentTrace(engine: BaiduParserEngine, collection: CloudBatchCollecti
     uploadMode: batch.uploadMode
   }))
   return {
-    provider: 'baidu-cloud',
+    provider: collection.batches[0]?.result.trace.provider ?? 'baidu-cloud',
     engine,
     pageCount: collection.pageCount,
     sourceSha256: collection.sourceSha256,

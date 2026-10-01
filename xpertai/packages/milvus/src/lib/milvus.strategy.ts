@@ -72,6 +72,7 @@ export class MilvusStrategy implements IVectorStoreStrategy<{ collectionName?: s
         }
       ]
     })
+    await vstore.client.connectPromise
     await vstore.assertFilterV2Capabilities()
     await vstore.ensurePartition()
     return vstore
@@ -140,15 +141,24 @@ class MilvusStore extends MilvusVectorStore {
     return super.similaritySearchWithScore(query, k, this.filterString(filter), _callbacks)
   }
 
-  override delete(params: { filter?: string | Record<string, any>; ids?: string[] }) {
+  override async delete(params: { filter?: string | Record<string, any>; ids?: string[] }) {
     const { filter, ids } = params ?? {}
+    const collection = await this.client.hasCollection({ collection_name: this.collectionName })
+    if (collection.status.error_code !== 'Success') {
+      throw new Error(`Unable to check collection before deletion: ${collection.status.reason}`)
+    }
+    if (!collection.value) return
+    const loaded = await this.client.loadCollectionSync({ collection_name: this.collectionName })
+    if (loaded.error_code !== 'Success') {
+      throw new Error(`Unable to load collection before deletion: ${loaded.reason}`)
+    }
     if (ids && ids.length > 0) {
       return super.delete({ ids })
     } else if (filter && typeof filter === 'object') {
       // Convert filter object to string if necessary
       params.filter = this.filterString(filter)
     }
-    return super.delete(params as any)
+    return super.delete({ filter: this.filterString(params.filter), ids })
   }
 
   filterString(filter: string | Record<string, any>): string {

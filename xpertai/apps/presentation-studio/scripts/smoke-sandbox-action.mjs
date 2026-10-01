@@ -34,7 +34,7 @@ try {
       runtimeProfile: 'browser/playwright-1.61/v1',
       sandboxRuntimeVersion: '1.0.0',
       action: 'presentation.export',
-      actionVersion: '1.0.2',
+      actionVersion: '1.0.4',
       payload: { kind, title: `${pageCount}-page Sandbox ${kind.toUpperCase()}`, goal: smokeGoal(pageCount) }
     }))
     const startedAt = Date.now()

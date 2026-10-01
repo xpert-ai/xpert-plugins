@@ -14,7 +14,7 @@ import {
   MarkItDownConfig,
   MarkItDownConfigSchema
 } from './markitdown.types.js'
-import { MarkItDownPluginName } from './types.js'
+import { MARKITDOWN_PACKAGE_NAME } from './types.js'
 import {
   getSkillAssets,
   getSkillDescription,
@@ -54,7 +54,7 @@ export class MarkItDownBootstrapService {
       extras: process.env['MARKITDOWN_EXTRAS'] || 'all'
     }
     const pluginConfig =
-      this.pluginConfigResolver?.resolve<MarkItDownConfig>(MarkItDownPluginName, {
+      this.pluginConfigResolver?.resolve<MarkItDownConfig>(MARKITDOWN_PACKAGE_NAME, {
         defaults
       }) ?? defaults
     const middlewareConfig = MarkItDownConfigSchema.partial().parse(config ?? {})

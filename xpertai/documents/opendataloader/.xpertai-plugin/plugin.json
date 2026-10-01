@@ -1,0 +1,5 @@
+{
+  "name": "@xpert-ai/plugin-opendataloader",
+  "version": "0.0.1",
+  "sandboxActions": "./dist/sandbox-actions/convert/action.json"
+}

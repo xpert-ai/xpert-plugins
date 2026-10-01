@@ -1,0 +1,20 @@
+{
+  "name": "@xpert-ai/plugin-wecom-connector",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "connectors/wecom-connector/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "connectors/wecom-connector/dist",
+        "main": "connectors/wecom-connector/src/index.ts",
+        "rootDir": "connectors/wecom-connector/src",
+        "tsConfig": "connectors/wecom-connector/tsconfig.lib.json",
+        "generatePackageJson": false
+      }
+    }
+  },
+  "tags": []
+}

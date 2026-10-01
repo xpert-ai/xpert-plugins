@@ -1,0 +1,35 @@
+{
+  "name": "@xpert-ai/artifact-tool",
+  "version": "0.1.0",
+  "description": "Local spreadsheet authoring, formula calculation and loss-conscious XLSX editing for Xpert sandboxes",
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xpert-ai/xpert-plugins.git",
+    "directory": "packages/artifact-tool"
+  },
+  "publishConfig": { "access": "public" },
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "typesVersions": { "*": { "xlsx": ["src/xlsx.d.ts"] } },
+  "exports": {
+    ".": "./src/index.mjs",
+    "./xlsx": { "types": "./src/xlsx.d.ts", "default": "./src/xlsx.mjs" }
+  },
+  "bin": { "xpert-artifact": "./src/cli.mjs" },
+  "files": ["src", "README.md", "LICENSE"],
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "release:prepare": "npm test"
+  },
+  "dependencies": {
+    "@univerjs/core": "0.25.1",
+    "@univerjs/engine-formula": "0.25.1",
+    "@univerjs/sheets": "0.25.1",
+    "@univerjs/sheets-formula": "0.25.1",
+    "@xmldom/xmldom": "0.9.12",
+    "excelize-wasm": "0.1.3",
+    "jszip": "3.10.1",
+    "zod": "3.25.67"
+  }
+}

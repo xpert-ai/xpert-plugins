@@ -1,0 +1,5347 @@
+[
+  {
+    "id": "academic--academic-anthropologist",
+    "category": "academic",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "academic/academic-anthropologist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "academic/academic-anthropologist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "academic--academic-geographer",
+    "category": "academic",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "academic/academic-geographer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "academic/academic-geographer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "academic--academic-historian",
+    "category": "academic",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "academic/academic-historian.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "academic/academic-historian.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "academic--academic-narratologist",
+    "category": "academic",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "academic/academic-narratologist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "academic/academic-narratologist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "academic--academic-psychologist",
+    "category": "academic",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "academic/academic-psychologist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "academic/academic-psychologist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "academic--academic-statistician",
+    "category": "academic",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "academic/academic-statistician.md"
+      }
+    ]
+  },
+  {
+    "id": "design--design-brand-guardian",
+    "category": "design",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "design/design-brand-guardian.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "design/design-brand-guardian.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "design--design-image-prompt-engineer",
+    "category": "design",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "design/design-image-prompt-engineer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "design/design-image-prompt-engineer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "design--design-inclusive-visuals-specialist",
+    "category": "design",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "design/design-inclusive-visuals-specialist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "design/design-inclusive-visuals-specialist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "design--design-persona-walkthrough",
+    "category": "design",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "design/design-persona-walkthrough.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "design/design-persona-walkthrough.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "design--design-ui-designer",
+    "category": "design",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "design/design-ui-designer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "design/design-ui-designer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "design--design-ui-finish-gate-reviewer",
+    "category": "design",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "design/design-ui-finish-gate-reviewer.md"
+      }
+    ]
+  },
+  {
+    "id": "design--design-ux-architect",
+    "category": "design",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "design/design-ux-architect.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "design/design-ux-architect.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "design--design-ux-researcher",
+    "category": "design",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "design/design-ux-researcher.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "design/design-ux-researcher.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "design--design-visual-storyteller",
+    "category": "design",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "design/design-visual-storyteller.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "design/design-visual-storyteller.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "design--design-whimsy-injector",
+    "category": "design",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "design/design-whimsy-injector.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "design/design-whimsy-injector.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-ai-data-remediation-engineer",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-ai-data-remediation-engineer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-ai-data-remediation-engineer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-ai-engineer",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-ai-engineer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-ai-engineer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-api-platform-engineer",
+    "category": "engineering",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-api-platform-engineer.md"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-ats-validator-architect",
+    "category": "engineering",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-ats-validator-architect.md"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-autonomous-optimization-architect",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-autonomous-optimization-architect.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-autonomous-optimization-architect.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-backend-architect",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-backend-architect.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-backend-architect.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-china-network-engineer",
+    "category": "engineering",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-china-network-engineer.md"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-cms-developer",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-cms-developer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-cms-developer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-code-reviewer",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-code-reviewer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-code-reviewer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-codebase-onboarding-engineer",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-codebase-onboarding-engineer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-codebase-onboarding-engineer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-data-engineer",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-data-engineer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-data-engineer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-data-visualization-engineer",
+    "category": "engineering",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-data-visualization-engineer.md"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-database-optimizer",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-database-optimizer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-database-optimizer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-database-reliability-engineer",
+    "category": "engineering",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-database-reliability-engineer.md"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-desktop-app-engineer",
+    "category": "engineering",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-desktop-app-engineer.md"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-developer-tooling-engineer",
+    "category": "engineering",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-developer-tooling-engineer.md"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-devops-automator",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-devops-automator.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-devops-automator.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-drupal-performance",
+    "category": "engineering",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-drupal-performance.md"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-drupal-shopping-cart",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-drupal-shopping-cart.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-drupal-shopping-cart.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-email-intelligence-engineer",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-email-intelligence-engineer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-email-intelligence-engineer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-embedded-firmware-engineer",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-embedded-firmware-engineer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-embedded-firmware-engineer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-feishu-integration-developer",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-feishu-integration-developer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-feishu-integration-developer.md",
+        "relation": "localized-adaptation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-filament-optimization-specialist",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-filament-optimization-specialist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-filament-optimization-specialist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-finops-engineer",
+    "category": "engineering",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-finops-engineer.md"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-frontend-developer",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-frontend-developer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-frontend-developer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-gaussdb-expert",
+    "category": "engineering",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-gaussdb-expert.md"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-git-workflow-master",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-git-workflow-master.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-git-workflow-master.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-i18n-engineer",
+    "category": "engineering",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-i18n-engineer.md"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-identity-access-engineer",
+    "category": "engineering",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-identity-access-engineer.md"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-incident-response-commander",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-incident-response-commander.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-incident-response-commander.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-iot-fleet-engineer",
+    "category": "engineering",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-iot-fleet-engineer.md"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-it-service-manager",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-it-service-manager.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-it-service-manager.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-knowledge-graph-engineer",
+    "category": "engineering",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-knowledge-graph-engineer.md"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-llm-post-training-engineer",
+    "category": "engineering",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-llm-post-training-engineer.md"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-minimal-change-engineer",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-minimal-change-engineer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-minimal-change-engineer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-mobile-app-builder",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-mobile-app-builder.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-mobile-app-builder.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-mobile-release-engineer",
+    "category": "engineering",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-mobile-release-engineer.md"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-multi-agent-systems-architect",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-multi-agent-systems-architect.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-multi-agent-systems-architect.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-network-engineer",
+    "category": "engineering",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-network-engineer.md"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-orgscript-engineer",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-orgscript-engineer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-orgscript-engineer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-payments-billing-engineer",
+    "category": "engineering",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-payments-billing-engineer.md"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-pdf-engine-architect",
+    "category": "engineering",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-pdf-engine-architect.md"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-platform-engineer",
+    "category": "engineering",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-platform-engineer.md"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-privacy-engineer",
+    "category": "engineering",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-privacy-engineer.md"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-prompt-engineer",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-prompt-engineer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-prompt-engineer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-rag-pipeline-engineer",
+    "category": "engineering",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-rag-pipeline-engineer.md"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-rapid-prototyper",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-rapid-prototyper.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-rapid-prototyper.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-realtime-collaboration-engineer",
+    "category": "engineering",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-realtime-collaboration-engineer.md"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-rust-refactoring-specialist",
+    "category": "engineering",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-rust-refactoring-specialist.md"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-search-relevance-engineer",
+    "category": "engineering",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-search-relevance-engineer.md"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-section-508-specialist",
+    "category": "engineering",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-section-508-specialist.md"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-senior-developer",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-senior-developer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-senior-developer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-software-architect",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-software-architect.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-software-architect.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-solidity-smart-contract-engineer",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-solidity-smart-contract-engineer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-solidity-smart-contract-engineer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-sre",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-sre.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-sre.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-technical-writer",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-technical-writer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-technical-writer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-universal-document-compiler",
+    "category": "engineering",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-universal-document-compiler.md"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-uswds-developer",
+    "category": "engineering",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-uswds-developer.md"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-video-streaming-engineer",
+    "category": "engineering",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-video-streaming-engineer.md"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-voice-ai-integration-engineer",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-voice-ai-integration-engineer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-voice-ai-integration-engineer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-webassembly-engineer",
+    "category": "engineering",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-webassembly-engineer.md"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-wechat-mini-program-developer",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-wechat-mini-program-developer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-wechat-mini-program-developer.md",
+        "relation": "localized-adaptation"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-wordpress-performance",
+    "category": "engineering",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-wordpress-performance.md"
+      }
+    ]
+  },
+  {
+    "id": "engineering--engineering-wordpress-shopping-cart",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "engineering/engineering-wordpress-shopping-cart.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-wordpress-shopping-cart.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "finance--finance-bookkeeper-controller",
+    "category": "finance",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "finance/finance-bookkeeper-controller.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "finance/finance-bookkeeper-controller.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "finance--finance-financial-analyst",
+    "category": "finance",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "finance/finance-financial-analyst.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "finance/finance-financial-analyst.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "finance--finance-fpa-analyst",
+    "category": "finance",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "finance/finance-fpa-analyst.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "finance/finance-fpa-analyst.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "finance--finance-investment-researcher",
+    "category": "finance",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "finance/finance-investment-researcher.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "finance/finance-investment-researcher.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "finance--finance-tax-strategist",
+    "category": "finance",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "finance/finance-tax-strategist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "finance/finance-tax-strategist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "game-development--blender--blender-addon-engineer",
+    "category": "game-development",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "game-development/blender/blender-addon-engineer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "game-development/blender/blender-addon-engineer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "game-development--economy-designer",
+    "category": "game-development",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "game-development/economy-designer.md"
+      }
+    ]
+  },
+  {
+    "id": "game-development--game-audio-engineer",
+    "category": "game-development",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "game-development/game-audio-engineer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "game-development/game-audio-engineer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "game-development--game-designer",
+    "category": "game-development",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "game-development/game-designer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "game-development/game-designer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "game-development--godot--godot-gameplay-scripter",
+    "category": "game-development",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "game-development/godot/godot-gameplay-scripter.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "game-development/godot/godot-gameplay-scripter.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "game-development--godot--godot-multiplayer-engineer",
+    "category": "game-development",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "game-development/godot/godot-multiplayer-engineer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "game-development/godot/godot-multiplayer-engineer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "game-development--godot--godot-shader-developer",
+    "category": "game-development",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "game-development/godot/godot-shader-developer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "game-development/godot/godot-shader-developer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "game-development--level-designer",
+    "category": "game-development",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "game-development/level-designer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "game-development/level-designer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "game-development--narrative-designer",
+    "category": "game-development",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "game-development/narrative-designer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "game-development/narrative-designer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "game-development--roblox-studio--roblox-avatar-creator",
+    "category": "game-development",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "game-development/roblox-studio/roblox-avatar-creator.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "game-development/roblox-studio/roblox-avatar-creator.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "game-development--roblox-studio--roblox-experience-designer",
+    "category": "game-development",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "game-development/roblox-studio/roblox-experience-designer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "game-development/roblox-studio/roblox-experience-designer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "game-development--roblox-studio--roblox-systems-scripter",
+    "category": "game-development",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "game-development/roblox-studio/roblox-systems-scripter.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "game-development/roblox-studio/roblox-systems-scripter.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "game-development--technical-artist",
+    "category": "game-development",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "game-development/technical-artist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "game-development/technical-artist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "game-development--unity--unity-architect",
+    "category": "game-development",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "game-development/unity/unity-architect.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "game-development/unity/unity-architect.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "game-development--unity--unity-editor-tool-developer",
+    "category": "game-development",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "game-development/unity/unity-editor-tool-developer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "game-development/unity/unity-editor-tool-developer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "game-development--unity--unity-multiplayer-engineer",
+    "category": "game-development",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "game-development/unity/unity-multiplayer-engineer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "game-development/unity/unity-multiplayer-engineer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "game-development--unity--unity-shader-graph-artist",
+    "category": "game-development",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "game-development/unity/unity-shader-graph-artist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "game-development/unity/unity-shader-graph-artist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "game-development--unreal-engine--unreal-multiplayer-architect",
+    "category": "game-development",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "game-development/unreal-engine/unreal-multiplayer-architect.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "game-development/unreal-engine/unreal-multiplayer-architect.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "game-development--unreal-engine--unreal-systems-engineer",
+    "category": "game-development",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "game-development/unreal-engine/unreal-systems-engineer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "game-development/unreal-engine/unreal-systems-engineer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "game-development--unreal-engine--unreal-technical-artist",
+    "category": "game-development",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "game-development/unreal-engine/unreal-technical-artist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "game-development/unreal-engine/unreal-technical-artist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "game-development--unreal-engine--unreal-world-builder",
+    "category": "game-development",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "game-development/unreal-engine/unreal-world-builder.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "game-development/unreal-engine/unreal-world-builder.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "gis--gis-3d-scene-developer",
+    "category": "gis",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "gis/gis-3d-scene-developer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "gis/gis-3d-scene-developer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "gis--gis-analyst",
+    "category": "gis",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "gis/gis-analyst.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "gis/gis-analyst.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "gis--gis-bim-specialist",
+    "category": "gis",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "gis/gis-bim-specialist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "gis/gis-bim-specialist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "gis--gis-cartography-designer",
+    "category": "gis",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "gis/gis-cartography-designer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "gis/gis-cartography-designer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "gis--gis-drone-reality-mapping",
+    "category": "gis",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "gis/gis-drone-reality-mapping.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "gis/gis-drone-reality-mapping.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "gis--gis-geoai-ml-engineer",
+    "category": "gis",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "gis/gis-geoai-ml-engineer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "gis/gis-geoai-ml-engineer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "gis--gis-geoprocessing-specialist",
+    "category": "gis",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "gis/gis-geoprocessing-specialist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "gis/gis-geoprocessing-specialist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "gis--gis-qa-engineer",
+    "category": "gis",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "gis/gis-qa-engineer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "gis/gis-qa-engineer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "gis--gis-solution-engineer",
+    "category": "gis",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "gis/gis-solution-engineer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "gis/gis-solution-engineer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "gis--gis-spatial-data-engineer",
+    "category": "gis",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "gis/gis-spatial-data-engineer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "gis/gis-spatial-data-engineer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "gis--gis-spatial-data-scientist",
+    "category": "gis",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "gis/gis-spatial-data-scientist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "gis/gis-spatial-data-scientist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "gis--gis-technical-consultant",
+    "category": "gis",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "gis/gis-technical-consultant.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "gis/gis-technical-consultant.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "gis--gis-web-gis-developer",
+    "category": "gis",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "gis/gis-web-gis-developer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "gis/gis-web-gis-developer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "healthcare--healthcare-clinical-evidence-agent",
+    "category": "healthcare",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "healthcare/healthcare-clinical-evidence-agent.md"
+      }
+    ]
+  },
+  {
+    "id": "healthcare--healthcare-innovation-strategist",
+    "category": "healthcare",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "healthcare/healthcare-innovation-strategist.md"
+      }
+    ]
+  },
+  {
+    "id": "healthcare--healthcare-sovereign-health-systems-agent",
+    "category": "healthcare",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "healthcare/healthcare-sovereign-health-systems-agent.md"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-aeo-foundations",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-aeo-foundations.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-aeo-foundations.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-agentic-search-optimizer",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-agentic-search-optimizer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-agentic-search-optimizer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-ai-citation-strategist",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-ai-citation-strategist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-ai-citation-strategist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-app-store-optimizer",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-app-store-optimizer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-app-store-optimizer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-baidu-seo-specialist",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-baidu-seo-specialist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-baidu-seo-specialist.md",
+        "relation": "localized-adaptation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-bilibili-content-strategist",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-bilibili-content-strategist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-bilibili-strategist.md",
+        "relation": "localized-adaptation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-book-co-author",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-book-co-author.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-book-co-author.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-carousel-growth-engine",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-carousel-growth-engine.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-carousel-growth-engine.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-china-ecommerce-operator",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-china-ecommerce-operator.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-china-ecommerce-operator.md",
+        "relation": "localized-adaptation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-china-market-localization-strategist",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-china-market-localization-strategist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-china-market-localization-strategist.md",
+        "relation": "localized-adaptation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-content-creator",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-content-creator.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-content-creator.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-cross-border-ecommerce",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-cross-border-ecommerce.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-cross-border-ecommerce.md",
+        "relation": "localized-adaptation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-douyin-strategist",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-douyin-strategist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-douyin-strategist.md",
+        "relation": "localized-adaptation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-email-strategist",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-email-strategist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-email-strategist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-global-podcast-strategist",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-global-podcast-strategist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-global-podcast-strategist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-growth-hacker",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-growth-hacker.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-growth-hacker.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-instagram-curator",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-instagram-curator.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-instagram-curator.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-kuaishou-strategist",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-kuaishou-strategist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-kuaishou-strategist.md",
+        "relation": "localized-adaptation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-linkedin-content-creator",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-linkedin-content-creator.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-linkedin-content-creator.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-livestream-commerce-coach",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-livestream-commerce-coach.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-livestream-commerce-coach.md",
+        "relation": "localized-adaptation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-multi-platform-publisher",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-multi-platform-publisher.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-multi-platform-publisher.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-podcast-strategist",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-podcast-strategist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-podcast-strategist.md",
+        "relation": "localized-adaptation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-pr-communications-manager",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-pr-communications-manager.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-pr-communications-manager.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-private-domain-operator",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-private-domain-operator.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-private-domain-operator.md",
+        "relation": "localized-adaptation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-reddit-community-builder",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-reddit-community-builder.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-reddit-community-builder.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-seo-specialist",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-seo-specialist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-seo-specialist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-short-video-editing-coach",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-short-video-editing-coach.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-short-video-editing-coach.md",
+        "relation": "localized-adaptation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-social-media-strategist",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-social-media-strategist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-social-media-strategist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-tiktok-strategist",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-tiktok-strategist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-tiktok-strategist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-twitter-engager",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-twitter-engager.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-twitter-engager.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-video-optimization-specialist",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-video-optimization-specialist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-video-optimization-specialist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-wechat-official-account",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-wechat-official-account.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-wechat-official-account.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-weibo-strategist",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-weibo-strategist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-weibo-strategist.md",
+        "relation": "localized-adaptation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-x-twitter-intelligence-analyst",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-x-twitter-intelligence-analyst.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-x-twitter-intelligence-analyst.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-xiaohongshu-specialist",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-xiaohongshu-specialist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-xiaohongshu-specialist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "marketing--marketing-zhihu-strategist",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "marketing/marketing-zhihu-strategist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-zhihu-strategist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "paid-media--paid-media-auditor",
+    "category": "paid-media",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "paid-media/paid-media-auditor.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "paid-media/paid-media-auditor.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "paid-media--paid-media-creative-strategist",
+    "category": "paid-media",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "paid-media/paid-media-creative-strategist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "paid-media/paid-media-creative-strategist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "paid-media--paid-media-paid-social-strategist",
+    "category": "paid-media",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "paid-media/paid-media-paid-social-strategist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "paid-media/paid-media-paid-social-strategist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "paid-media--paid-media-ppc-strategist",
+    "category": "paid-media",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "paid-media/paid-media-ppc-strategist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "paid-media/paid-media-ppc-strategist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "paid-media--paid-media-programmatic-buyer",
+    "category": "paid-media",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "paid-media/paid-media-programmatic-buyer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "paid-media/paid-media-programmatic-buyer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "paid-media--paid-media-search-query-analyst",
+    "category": "paid-media",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "paid-media/paid-media-search-query-analyst.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "paid-media/paid-media-search-query-analyst.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "paid-media--paid-media-tracking-specialist",
+    "category": "paid-media",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "paid-media/paid-media-tracking-specialist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "paid-media/paid-media-tracking-specialist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "product--product-behavioral-nudge-engine",
+    "category": "product",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "product/product-behavioral-nudge-engine.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "product/product-behavioral-nudge-engine.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "product--product-feedback-synthesizer",
+    "category": "product",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "product/product-feedback-synthesizer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "product/product-feedback-synthesizer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "product--product-manager",
+    "category": "product",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "product/product-manager.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "product/product-manager.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "product--product-sprint-prioritizer",
+    "category": "product",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "product/product-sprint-prioritizer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "product/product-sprint-prioritizer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "product--product-trend-researcher",
+    "category": "product",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "product/product-trend-researcher.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "product/product-trend-researcher.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "project-management--project-management-experiment-tracker",
+    "category": "project-management",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "project-management/project-management-experiment-tracker.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "project-management/project-management-experiment-tracker.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "project-management--project-management-jira-workflow-steward",
+    "category": "project-management",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "project-management/project-management-jira-workflow-steward.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "project-management/project-management-jira-workflow-steward.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "project-management--project-management-meeting-notes-specialist",
+    "category": "project-management",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "project-management/project-management-meeting-notes-specialist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "project-management/project-management-meeting-notes-specialist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "project-management--project-management-project-shepherd",
+    "category": "project-management",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "project-management/project-management-project-shepherd.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "project-management/project-management-project-shepherd.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "project-management--project-management-studio-operations",
+    "category": "project-management",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "project-management/project-management-studio-operations.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "project-management/project-management-studio-operations.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "project-management--project-management-studio-producer",
+    "category": "project-management",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "project-management/project-management-studio-producer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "project-management/project-management-studio-producer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "project-management--project-manager-senior",
+    "category": "project-management",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "project-management/project-manager-senior.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "project-management/project-manager-senior.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "research--research-synthesist",
+    "category": "research",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "research/research-synthesist.md"
+      }
+    ]
+  },
+  {
+    "id": "sales--sales-account-strategist",
+    "category": "sales",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "sales/sales-account-strategist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "sales/sales-account-strategist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "sales--sales-coach",
+    "category": "sales",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "sales/sales-coach.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "sales/sales-coach.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "sales--sales-deal-strategist",
+    "category": "sales",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "sales/sales-deal-strategist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "sales/sales-deal-strategist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "sales--sales-discovery-coach",
+    "category": "sales",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "sales/sales-discovery-coach.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "sales/sales-discovery-coach.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "sales--sales-engineer",
+    "category": "sales",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "sales/sales-engineer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "sales/sales-engineer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "sales--sales-offer-lead-gen-strategist",
+    "category": "sales",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "sales/sales-offer-lead-gen-strategist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "sales/sales-offer-lead-gen-strategist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "sales--sales-outbound-strategist",
+    "category": "sales",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "sales/sales-outbound-strategist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "sales/sales-outbound-strategist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "sales--sales-pipeline-analyst",
+    "category": "sales",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "sales/sales-pipeline-analyst.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "sales/sales-pipeline-analyst.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "sales--sales-proposal-strategist",
+    "category": "sales",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "sales/sales-proposal-strategist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "sales/sales-proposal-strategist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "security--security-ai-generated-code-auditor",
+    "category": "security",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "security/security-ai-generated-code-auditor.md"
+      }
+    ]
+  },
+  {
+    "id": "security--security-appsec-engineer",
+    "category": "security",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "security/security-appsec-engineer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "security/security-appsec-engineer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "security--security-architect",
+    "category": "security",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "security/security-architect.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "security/security-architect.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "security--security-blockchain-security-auditor",
+    "category": "security",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "security/security-blockchain-security-auditor.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "security/security-blockchain-security-auditor.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "security--security-cloud-security-architect",
+    "category": "security",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "security/security-cloud-security-architect.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "security/security-cloud-security-architect.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "security--security-compliance-auditor",
+    "category": "security",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "security/security-compliance-auditor.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "security/security-compliance-auditor.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "security--security-incident-responder",
+    "category": "security",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "security/security-incident-responder.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "security/security-incident-responder.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "security--security-penetration-tester",
+    "category": "security",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "security/security-penetration-tester.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "security/security-penetration-tester.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "security--security-secrets-credential-engineer",
+    "category": "security",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "security/security-secrets-credential-engineer.md"
+      }
+    ]
+  },
+  {
+    "id": "security--security-senior-secops",
+    "category": "security",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "security/security-senior-secops.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "security/security-senior-secops.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "security--security-threat-detection-engineer",
+    "category": "security",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "security/security-threat-detection-engineer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "security/security-threat-detection-engineer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "security--security-threat-intelligence-analyst",
+    "category": "security",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "security/security-threat-intelligence-analyst.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "security/security-threat-intelligence-analyst.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "spatial-computing--macos-spatial-metal-engineer",
+    "category": "spatial-computing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "spatial-computing/macos-spatial-metal-engineer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "spatial-computing/macos-spatial-metal-engineer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "spatial-computing--terminal-integration-specialist",
+    "category": "spatial-computing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "spatial-computing/terminal-integration-specialist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "spatial-computing/terminal-integration-specialist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "spatial-computing--visionos-spatial-engineer",
+    "category": "spatial-computing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "spatial-computing/visionos-spatial-engineer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "spatial-computing/visionos-spatial-engineer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "spatial-computing--xr-cockpit-interaction-specialist",
+    "category": "spatial-computing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "spatial-computing/xr-cockpit-interaction-specialist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "spatial-computing/xr-cockpit-interaction-specialist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "spatial-computing--xr-immersive-developer",
+    "category": "spatial-computing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "spatial-computing/xr-immersive-developer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "spatial-computing/xr-immersive-developer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "spatial-computing--xr-interface-architect",
+    "category": "spatial-computing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "spatial-computing/xr-interface-architect.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "spatial-computing/xr-interface-architect.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--accounts-payable-agent",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/accounts-payable-agent.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/accounts-payable-agent.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--agentic-identity-trust",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/agentic-identity-trust.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/agentic-identity-trust.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--agents-orchestrator",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/agents-orchestrator.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/agents-orchestrator.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--automation-governance-architect",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/automation-governance-architect.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/automation-governance-architect.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--business-strategist",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/business-strategist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/business-strategist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--change-management-consultant",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/change-management-consultant.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/change-management-consultant.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--chief-financial-officer",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/chief-financial-officer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "company/chief-financial-officer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--corporate-training-designer",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/corporate-training-designer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/corporate-training-designer.md",
+        "relation": "localized-adaptation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--customer-service",
+    "category": "specialized",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/customer-service.md"
+      }
+    ]
+  },
+  {
+    "id": "specialized--customer-success-manager",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/customer-success-manager.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/customer-success-manager.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--data-consolidation-agent",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/data-consolidation-agent.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/data-consolidation-agent.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--data-privacy-officer",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/data-privacy-officer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/data-privacy-officer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--esg-sustainability-officer",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/esg-sustainability-officer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/esg-sustainability-officer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--government-digital-presales-consultant",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/government-digital-presales-consultant.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/government-digital-presales-consultant.md",
+        "relation": "localized-adaptation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--grant-writer",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/grant-writer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/grant-writer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--healthcare-aging-parent-care-companion",
+    "category": "specialized",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/healthcare-aging-parent-care-companion.md"
+      }
+    ]
+  },
+  {
+    "id": "specialized--healthcare-customer-service",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/healthcare-customer-service.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/healthcare-customer-service.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--healthcare-marketing-compliance",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/healthcare-marketing-compliance.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/healthcare-marketing-compliance.md",
+        "relation": "localized-adaptation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--hospitality-guest-services",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/hospitality-guest-services.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/hospitality-guest-services.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--hr-onboarding",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/hr-onboarding.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/hr-onboarding.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--identity-graph-operator",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/identity-graph-operator.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/identity-graph-operator.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--language-translator",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/language-translator.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/language-translator.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--legal-billing-time-tracking",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/legal-billing-time-tracking.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/legal-billing-time-tracking.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--legal-client-intake",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/legal-client-intake.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/legal-client-intake.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--legal-document-review",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/legal-document-review.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/legal-document-review.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--loan-officer-assistant",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/loan-officer-assistant.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/loan-officer-assistant.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--lsp-index-engineer",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/lsp-index-engineer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/lsp-index-engineer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--ma-integration-manager",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/ma-integration-manager.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/ma-integration-manager.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--medical-billing-coding-specialist",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/medical-billing-coding-specialist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/medical-billing-coding-specialist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--operations-manager",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/operations-manager.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/operations-manager.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--organizational-psychologist",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/organizational-psychologist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/organizational-psychologist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--personal-growth-mentor",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/personal-growth-mentor.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/personal-growth-mentor.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--real-estate-buyer-seller",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/real-estate-buyer-seller.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/real-estate-buyer-seller.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--recruitment-specialist",
+    "category": "specialized",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/recruitment-specialist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/recruitment-specialist.md",
+        "relation": "localized-adaptation",
+        "metadataOnly": true,
+        "note": "Reviewed: Chinese metadata with English prompt body; do not advertise a Chinese prompt."
+      }
+    ]
+  },
+  {
+    "id": "specialized--report-distribution-agent",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/report-distribution-agent.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/report-distribution-agent.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--resume-tailor",
+    "category": "specialized",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/resume-tailor.md"
+      }
+    ]
+  },
+  {
+    "id": "specialized--retail-customer-returns",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/retail-customer-returns.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/retail-customer-returns.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--sales-data-extraction-agent",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/sales-data-extraction-agent.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/sales-data-extraction-agent.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--sales-outreach",
+    "category": "specialized",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/sales-outreach.md"
+      }
+    ]
+  },
+  {
+    "id": "specialized--specialized-chief-of-staff",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/specialized-chief-of-staff.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "company/chief-of-staff.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--specialized-civil-engineer",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/specialized-civil-engineer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/specialized-civil-engineer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--specialized-codebase-archaeologist",
+    "category": "specialized",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/specialized-codebase-archaeologist.md"
+      }
+    ]
+  },
+  {
+    "id": "specialized--specialized-cultural-intelligence-strategist",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/specialized-cultural-intelligence-strategist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/specialized-cultural-intelligence-strategist.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--specialized-developer-advocate",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/specialized-developer-advocate.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/specialized-developer-advocate.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--specialized-document-generator",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/specialized-document-generator.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/specialized-document-generator.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--specialized-fedramp-rmf-compliance",
+    "category": "specialized",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/specialized-fedramp-rmf-compliance.md"
+      }
+    ]
+  },
+  {
+    "id": "specialized--specialized-focus-music-architect",
+    "category": "specialized",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/specialized-focus-music-architect.md"
+      }
+    ]
+  },
+  {
+    "id": "specialized--specialized-french-consulting-market",
+    "category": "specialized",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/specialized-french-consulting-market.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/specialized-french-consulting-market.md",
+        "relation": "upstream-translation",
+        "metadataOnly": true,
+        "note": "Reviewed: Chinese metadata with English prompt body; do not advertise a Chinese prompt."
+      }
+    ]
+  },
+  {
+    "id": "specialized--specialized-korean-business-navigator",
+    "category": "specialized",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/specialized-korean-business-navigator.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/specialized-korean-business-navigator.md",
+        "relation": "upstream-translation",
+        "metadataOnly": true,
+        "note": "Reviewed: Chinese metadata with English prompt body; do not advertise a Chinese prompt."
+      }
+    ]
+  },
+  {
+    "id": "specialized--specialized-master-plan-architect",
+    "category": "specialized",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/specialized-master-plan-architect.md"
+      }
+    ]
+  },
+  {
+    "id": "specialized--specialized-mcp-builder",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/specialized-mcp-builder.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/specialized-mcp-builder.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--specialized-model-qa",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/specialized-model-qa.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/specialized-model-qa.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--specialized-pricing-analyst",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/specialized-pricing-analyst.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/specialized-pricing-analyst.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--specialized-salesforce-architect",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/specialized-salesforce-architect.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/specialized-salesforce-architect.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--specialized-strategy-duel-agent",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/specialized-strategy-duel-agent.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/specialized-strategy-duel-agent.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--specialized-workflow-architect",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/specialized-workflow-architect.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/specialized-workflow-architect.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--study-abroad-advisor",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/study-abroad-advisor.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/study-abroad-advisor.md",
+        "relation": "localized-adaptation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--supply-chain-strategist",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/supply-chain-strategist.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "supply-chain/supply-chain-strategist.md",
+        "relation": "localized-adaptation"
+      }
+    ]
+  },
+  {
+    "id": "specialized--zk-steward",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "specialized/zk-steward.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/zk-steward.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "support--support-analytics-reporter",
+    "category": "support",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "support/support-analytics-reporter.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "support/support-analytics-reporter.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "support--support-executive-summary-generator",
+    "category": "support",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "support/support-executive-summary-generator.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "support/support-executive-summary-generator.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "support--support-finance-tracker",
+    "category": "support",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "support/support-finance-tracker.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "support/support-finance-tracker.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "support--support-infrastructure-maintainer",
+    "category": "support",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "support/support-infrastructure-maintainer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "support/support-infrastructure-maintainer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "support--support-legal-compliance-checker",
+    "category": "support",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "support/support-legal-compliance-checker.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "support/support-legal-compliance-checker.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "support--support-support-responder",
+    "category": "support",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "support/support-support-responder.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "support/support-support-responder.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "testing--testing-accessibility-auditor",
+    "category": "testing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "testing/testing-accessibility-auditor.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "testing/testing-accessibility-auditor.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "testing--testing-api-tester",
+    "category": "testing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "testing/testing-api-tester.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "testing/testing-api-tester.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "testing--testing-evidence-collector",
+    "category": "testing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "testing/testing-evidence-collector.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "testing/testing-evidence-collector.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "testing--testing-performance-benchmarker",
+    "category": "testing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "testing/testing-performance-benchmarker.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "testing/testing-performance-benchmarker.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "testing--testing-reality-checker",
+    "category": "testing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "testing/testing-reality-checker.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "testing/testing-reality-checker.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "testing--testing-test-automation-engineer",
+    "category": "testing",
+    "defaultLocale": "en-US",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "testing/testing-test-automation-engineer.md"
+      }
+    ]
+  },
+  {
+    "id": "testing--testing-test-results-analyzer",
+    "category": "testing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "testing/testing-test-results-analyzer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "testing/testing-test-results-analyzer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "testing--testing-tool-evaluator",
+    "category": "testing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "testing/testing-tool-evaluator.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "testing/testing-tool-evaluator.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "testing--testing-workflow-optimizer",
+    "category": "testing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "en-US",
+        "source": "agency-agents",
+        "path": "testing/testing-workflow-optimizer.md"
+      },
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "testing/testing-workflow-optimizer.md",
+        "relation": "upstream-translation"
+      }
+    ]
+  },
+  {
+    "id": "zh--academic--academic-study-planner",
+    "category": "academic",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "academic/academic-study-planner.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--company--chief-executive-officer",
+    "category": "company",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "company/chief-executive-officer.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--company--chief-marketing-officer",
+    "category": "company",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "company/chief-marketing-officer.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--company--chief-operating-officer",
+    "category": "company",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "company/chief-operating-officer.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--company--chief-product-officer",
+    "category": "company",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "company/chief-product-officer.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--company--chief-technology-officer",
+    "category": "company",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "company/chief-technology-officer.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--design--design-video-prompt-engineer",
+    "category": "design",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "design/design-video-prompt-engineer.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--engineering--engineering-dingtalk-integration-developer",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-dingtalk-integration-developer.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--engineering--engineering-embedded-linux-driver-engineer",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-embedded-linux-driver-engineer.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--engineering--engineering-fpga-digital-design-engineer",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-fpga-digital-design-engineer.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--engineering--engineering-iot-solution-architect",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-iot-solution-architect.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--engineering--engineering-mechanical-design-engineer",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-mechanical-design-engineer.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--engineering--engineering-network-engineer-china",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-network-engineer-china.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--engineering--engineering-pc-host-engineer",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-pc-host-engineer.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--engineering--engineering-security-engineer",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-security-engineer.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--finance--finance-financial-forecaster",
+    "category": "finance",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "finance/finance-financial-forecaster.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--finance--finance-fraud-detector",
+    "category": "finance",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "finance/finance-fraud-detector.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--finance--finance-hk-stock-compliance-reviewer",
+    "category": "finance",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "finance/finance-hk-stock-compliance-reviewer.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--finance--finance-invoice-manager",
+    "category": "finance",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "finance/finance-invoice-manager.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--hr--hr-performance-reviewer",
+    "category": "hr",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "hr/hr-performance-reviewer.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--hr--hr-recruiter",
+    "category": "hr",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "hr/hr-recruiter.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--legal--legal-contract-reviewer",
+    "category": "legal",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "legal/legal-contract-reviewer.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--legal--legal-policy-writer",
+    "category": "legal",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "legal/legal-policy-writer.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--marketing--marketing-daily-news-briefing",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-daily-news-briefing.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--marketing--marketing-ecommerce-operator",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-ecommerce-operator.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--marketing--marketing-knowledge-commerce-strategist",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-knowledge-commerce-strategist.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--marketing--marketing-search-growth-orchestrator",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-search-growth-orchestrator.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--marketing--marketing-wechat-operator",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-wechat-operator.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--marketing--marketing-weixin-channels-strategist",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-weixin-channels-strategist.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--marketing--marketing-xiaohongshu-operator",
+    "category": "marketing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "marketing/marketing-xiaohongshu-operator.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--specialized--authenticity-appraiser",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/authenticity-appraiser.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--specialized--gaokao-college-advisor",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/gaokao-college-advisor.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--specialized--livestock-archive-auditor",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/livestock-archive-auditor.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--specialized--prompt-engineer",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/prompt-engineer.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--specialized--specialized-ai-policy-writer",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/specialized-ai-policy-writer.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--specialized--specialized-meeting-assistant",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/specialized-meeting-assistant.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--specialized--specialized-pricing-optimizer",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/specialized-pricing-optimizer.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--specialized--specialized-risk-assessor",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/specialized-risk-assessor.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--specialized--technical-translator-agent",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/technical-translator-agent.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--specialized--travel-planner",
+    "category": "specialized",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "specialized/travel-planner.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--supply-chain--supply-chain-garment-factory-planning-engineer",
+    "category": "supply-chain",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "supply-chain/supply-chain-garment-factory-planning-engineer.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--supply-chain--supply-chain-inventory-forecaster",
+    "category": "supply-chain",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "supply-chain/supply-chain-inventory-forecaster.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--supply-chain--supply-chain-route-optimizer",
+    "category": "supply-chain",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "supply-chain/supply-chain-route-optimizer.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--supply-chain--supply-chain-vendor-evaluator",
+    "category": "supply-chain",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "supply-chain/supply-chain-vendor-evaluator.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--support--support-recruitment-specialist",
+    "category": "support",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "support/support-recruitment-specialist.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--testing--testing-embedded-qa-engineer",
+    "category": "testing",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "testing/testing-embedded-qa-engineer.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  },
+  {
+    "id": "zh--engineering--engineering-threat-detection-engineer",
+    "category": "engineering",
+    "defaultLocale": "zh-Hans",
+    "variants": [
+      {
+        "locale": "zh-Hans",
+        "source": "agency-agents-zh",
+        "path": "engineering/engineering-threat-detection-engineer.md",
+        "relation": "independent-source-role"
+      }
+    ]
+  }
+]

@@ -91,6 +91,7 @@ export {
 } from './lib/xmla.protocol.js'
 export { discoverXmlaOlapMetadata } from './lib/xmla.metadata.js'
 export type {
+  XmlaCatalogDiscoveryMode,
   XmlaOlapCatalogMetadata,
   XmlaOlapCubeMetadata,
   XmlaOlapDimensionMetadata,

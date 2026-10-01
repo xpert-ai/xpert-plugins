@@ -1,3 +1,4 @@
+import { FACTORY_CASE_PROJECT_TYPE } from './factory-project-type.js'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { parse } from 'yaml'
@@ -50,8 +51,8 @@ describe('Factory Operations plugin contracts', () => {
   it('declares one independent Orchestrator and eight single-Agent role Assistant templates', () => {
     const yaml = parse(readFileSync(resolve(root, 'src/factory-operations-assistant.yaml'), 'utf8'))
     expect(yaml.team.options.templateKey).toBe(FACTORY_TEMPLATE_KEY)
-    expect(yaml.team.options.workspaceScope).toEqual({ mode: 'project-required' })
-    expect(yaml.team.version).toBe('4')
+    expect(yaml.team.options.workspaceScope).toEqual({ mode: 'project-required', projectType: FACTORY_CASE_PROJECT_TYPE })
+    expect(yaml.team.version).toBe('5')
     expect(yaml.team.agent.key).toBe(AGENT_KEYS.coordinator)
     expect(yaml.team.features.opener.questions).toEqual([...FACTORY_TEMPLATE_DEFINITION.startPrompts])
 
@@ -80,8 +81,8 @@ describe('Factory Operations plugin contracts', () => {
       expect(contribution?.primaryAgentKey).toBe(definition.agentKey)
       expect(contribution?.startPrompts).toEqual([...definition.startPrompts])
       const roleDsl = parse(contribution?.dslContent ?? '')
-      expect(roleDsl.team.options.workspaceScope).toEqual({ mode: 'project-required' })
-      expect(roleDsl.team.version).toBe('2')
+      expect(roleDsl.team.options.workspaceScope).toEqual({ mode: 'project-required', projectType: FACTORY_CASE_PROJECT_TYPE })
+      expect(roleDsl.team.version).toBe('3')
       const roleAgents = roleDsl.nodes.filter((node: { type: string }) => node.type === 'agent')
       expect(roleAgents).toHaveLength(1)
       expect(roleAgents[0].entity.key).toBe(definition.agentKey)

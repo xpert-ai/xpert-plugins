@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const actions = [
-  { directory: 'cut-render', name: 'cut.render-mp4', version: '1.1.5', runtimeProfile: 'browser/playwright-1.61/v1' },
+  { directory: 'cut-render', name: 'cut.render-mp4', version: '1.1.6', runtimeProfile: 'browser/video-playwright-1.61/v1' },
   { directory: 'cut-transcription-audio', name: 'cut.prepare-transcription-audio', version: '1.0.0', runtimeProfile: 'browser/playwright-1.61/v1' },
   {
     directory: 'cut-transcription-whisper',

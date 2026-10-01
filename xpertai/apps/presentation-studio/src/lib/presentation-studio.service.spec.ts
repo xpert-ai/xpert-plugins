@@ -1,4 +1,7 @@
 import { PresentationStudioService } from './presentation-studio.service.js'
+import { createPresentationYDoc, decodeYDoc, encodeYDoc, materializePresentationYDoc } from './presentation-yjs.js'
+import type { PresentationDeckSpec } from './types.js'
+import * as Y from 'yjs'
 
 const availableExportCapabilities = () => ({
   getExportCapabilities: jest.fn().mockResolvedValue({
@@ -19,6 +22,150 @@ const sharingPolicyConfig = () => ({
 })
 
 describe('PresentationStudioService export versioning', () => {
+  it('creates the requested number of theme shell slides for a Workbench deck', async () => {
+    const layouts = Array.from({ length: 6 }, (_, index) => `theme01_page${String(index + 1).padStart(3, '0')}`)
+    const deckRepository = {
+      create: jest.fn((value) => ({ ...value })),
+      save: jest.fn(async (value) => ({ id: 'deck-shell', updatedAt: new Date(), ...value }))
+    }
+    const logRepository = {
+      create: jest.fn((value) => ({ ...value })),
+      save: jest.fn(async (value) => value)
+    }
+    const catalog = { scaffoldLayouts: jest.fn().mockResolvedValue(layouts) }
+    const config = { get: jest.fn().mockReturnValue({ maxPageCount: 30 }) }
+    const service = new PresentationStudioService(
+      deckRepository as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      logRepository as never,
+      catalog as never,
+      {} as never,
+      config as never
+    )
+
+    const result = await service.createDeck({ xpertId: 'assistant-1' }, {
+      title: 'Quarterly review',
+      goal: 'Explain the quarter',
+      themePack: 'theme01',
+      pageCount: 6,
+      initializeSlides: true
+    })
+
+    const saved = deckRepository.save.mock.calls[0][0]
+    expect(catalog.scaffoldLayouts).toHaveBeenCalledWith({
+      theme: 'theme01', pageCount: 6, seed: 'Quarterly review:Explain the quarter'
+    })
+    expect(saved.deckSpec.slides).toHaveLength(6)
+    expect(saved.deckSpec.slides.map((slide: { layout: string }) => slide.layout)).toEqual(layouts)
+    expect(saved.deckSpec.slides.every((slide: { status: string; props: Record<string, unknown> }) =>
+      slide.status === 'active' && slide.props.__studioShell === true)).toBe(true)
+    expect(saved.editorState.slideOrder).toHaveLength(6)
+    expect(result).toMatchObject({ deckId: 'deck-shell', pageCount: 6, activeSlides: 6 })
+  })
+
+  it('keeps Agent-created decks empty for the existing generation workflow', async () => {
+    const deckRepository = {
+      create: jest.fn((value) => ({ ...value })),
+      save: jest.fn(async (value) => ({ id: 'deck-agent', updatedAt: new Date(), ...value }))
+    }
+    const logRepository = {
+      create: jest.fn((value) => ({ ...value })),
+      save: jest.fn(async (value) => value)
+    }
+    const catalog = { scaffoldLayouts: jest.fn() }
+    const config = { get: jest.fn().mockReturnValue({ maxPageCount: 30 }) }
+    const service = new PresentationStudioService(
+      deckRepository as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      logRepository as never,
+      catalog as never,
+      {} as never,
+      config as never
+    )
+
+    await service.createDeck({ xpertId: 'assistant-1' }, {
+      title: 'Agent deck', goal: 'Generate content', themePack: 'theme01', pageCount: 6
+    })
+
+    expect(deckRepository.save.mock.calls[0][0].deckSpec.slides).toEqual([])
+    expect(catalog.scaffoldLayouts).not.toHaveBeenCalled()
+  })
+
+  it('replaces a Workbench shell slide without increasing the requested page count', async () => {
+    const spec: PresentationDeckSpec = {
+      title: 'Shell deck', goal: 'Fill the placeholders', themePack: 'theme01' as const, pageCount: 3,
+      slides: [
+        { id: 'shell-1', layout: 'theme01_page001', status: 'active' as const, props: { __studioShell: true } },
+        { id: 'shell-2', layout: 'theme01_page002', status: 'active' as const, props: { __studioShell: true } },
+        { id: 'shell-3', layout: 'theme01_page003', status: 'active' as const, props: { __studioShell: true } }
+      ]
+    }
+    const initial = encodeYDoc(createPresentationYDoc(spec))
+    let persisted = {
+      id: 'deck-shell', title: spec.title, goal: spec.goal, themePack: spec.themePack, status: 'draft',
+      revision: 0, currentVersionNumber: 0, deckSpec: spec, editorState: materializePresentationYDoc(createPresentationYDoc(spec)).editorState,
+      yjsStateBase64: initial.stateBase64, yjsStateVectorBase64: initial.stateVectorBase64, yjsUpdateCount: 0
+    }
+    const deckRepository = { findOne: jest.fn(async () => persisted) }
+    const collaboration = {
+      ensureDocument: jest.fn().mockResolvedValue({ id: 'document-1' }),
+      getDocumentState: jest.fn(async () => ({ updateBase64: persisted.yjsStateBase64, sequenceNumber: persisted.revision })),
+      applyUpdate: jest.fn(async ({ updateBase64 }) => {
+        const doc = decodeYDoc(persisted.yjsStateBase64)
+        Y.applyUpdate(doc, Buffer.from(updateBase64, 'base64'))
+        const encoded = encodeYDoc(doc)
+        const materialized = materializePresentationYDoc(doc)
+        persisted = {
+          ...persisted,
+          revision: persisted.revision + 1,
+          deckSpec: materialized.spec,
+          editorState: materialized.editorState,
+          yjsStateBase64: encoded.stateBase64,
+          yjsStateVectorBase64: encoded.stateVectorBase64,
+          yjsUpdateCount: persisted.yjsUpdateCount + 1
+        }
+      })
+    }
+    const runtimeCapabilities = { get: jest.fn().mockReturnValue(collaboration) }
+    const catalog = {
+      requireLayout: jest.fn().mockResolvedValue({}),
+      validateLayoutProps: jest.fn().mockResolvedValue({ warnings: [] })
+    }
+    const logRepository = {
+      create: jest.fn((value) => ({ ...value })),
+      save: jest.fn(async (value) => value)
+    }
+    const service = new PresentationStudioService(
+      deckRepository as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      logRepository as never,
+      catalog as never,
+      {} as never,
+      { get: jest.fn().mockReturnValue({ maxPageCount: 30 }) } as never,
+      undefined,
+      runtimeCapabilities as never
+    )
+
+    const result = await service.addSlide({ xpertId: 'assistant-1' }, {
+      deckId: 'deck-shell',
+      layout: 'theme01_page003',
+      props: { title: 'Authored closing page' }
+    })
+
+    expect(result).toMatchObject({ slideId: 'shell-3', activeSlides: 3, revision: 1 })
+    expect(persisted.deckSpec.slides).toHaveLength(3)
+    expect(persisted.deckSpec.slides.find((slide) => slide.id === 'shell-3')?.props).toEqual({ title: 'Authored closing page' })
+  })
+
   it('loads one idempotent 14-image theme gallery without creating a presentation deck', async () => {
     const deckRepository = {
       find: jest.fn(),
@@ -488,6 +635,113 @@ describe('PresentationStudioService export versioning', () => {
     expect(savedExport).toMatchObject({ versionId: 'working-r42', checksum: 'working-checksum' })
   })
 
+  it.each([
+    {
+      label: 'Agent',
+      deckScope: { workspaceId: 'workspace-1', projectId: null, assistantId: 'assistant-1' },
+      expectedWorkspace: { catalog: 'xperts', scopeId: 'assistant-1' }
+    },
+    {
+      label: 'Project',
+      deckScope: { workspaceId: 'workspace-1', projectId: 'project-1', assistantId: null },
+      expectedWorkspace: { catalog: 'projects', scopeId: 'project-1' }
+    }
+  ])('restores the complete $label scope while processing a queued export', async ({ deckScope, expectedWorkspace }) => {
+    const deck = {
+      id: '97aab7a0-f241-49a8-b52a-88cb6eb84c8e',
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      ...deckScope,
+      title: 'Queued export',
+      themePack: 'theme01'
+    }
+    const item = {
+      id: 'b06d4bbd-9659-4496-b051-300900ab6c0d',
+      tenantId: deck.tenantId,
+      organizationId: deck.organizationId,
+      workspaceId: deck.workspaceId,
+      projectId: deck.projectId,
+      userId: 'user-1',
+      deckId: deck.id,
+      versionId: 'version-1',
+      kind: 'html',
+      status: 'queued',
+      progress: 0,
+      stage: 'queued',
+      checksum: 'version-checksum',
+      fileName: 'queued-export.html'
+    }
+    const version = { id: item.versionId, deckId: deck.id, checksum: item.checksum }
+    const deckRepository = { findOne: jest.fn().mockResolvedValue(deck) }
+    const versionRepository = { findOne: jest.fn().mockResolvedValue(version) }
+    const assetRepository = { find: jest.fn().mockResolvedValue([]) }
+    const exportRepository = {
+      findOne: jest.fn().mockImplementation(async () => item),
+      save: jest.fn(async (value) => value)
+    }
+    const renderer = {
+      renderVersion: jest.fn().mockResolvedValue({ directory: '/tmp/presentation-export' }),
+      exportRendered: jest.fn().mockResolvedValue({
+        buffer: Buffer.from('<html></html>'),
+        mimeType: 'text/html',
+        report: { renderer: 'test' }
+      }),
+      cleanup: jest.fn().mockResolvedValue(undefined)
+    }
+    const workspaceFiles = {
+      uploadBuffer: jest.fn().mockResolvedValue({
+        filePath: 'files/presentation-studio/queued-export.html',
+        workspacePath: '/workspace/queued-export.html',
+        fileUrl: 'https://xpert.test/files/queued-export.html',
+        name: 'queued-export.html',
+        mimeType: 'text/html',
+        size: 13
+      })
+    }
+    const runtimeCapabilities = { get: jest.fn().mockReturnValue(workspaceFiles) }
+    const service = new PresentationStudioService(
+      deckRepository as never,
+      versionRepository as never,
+      {} as never,
+      assetRepository as never,
+      exportRepository as never,
+      {} as never,
+      {} as never,
+      renderer as never,
+      { get: jest.fn().mockReturnValue({ exportBackend: 'local' }) } as never,
+      undefined,
+      runtimeCapabilities as never
+    )
+
+    await service.processExportJob(
+      { exportId: item.id },
+      {
+        pluginName: '@xpert-ai/plugin-presentation-studio',
+        queueName: 'presentation-studio.export',
+        jobName: 'render',
+        scopeKey: 'system:global',
+        tenantId: deck.tenantId,
+        organizationId: deck.organizationId,
+        userId: item.userId
+      }
+    )
+
+    const deckWhere = deckRepository.findOne.mock.calls[0][0].where
+    expect(deckWhere).toEqual(expect.objectContaining({
+      id: deck.id,
+      tenantId: deck.tenantId,
+      organizationId: deck.organizationId,
+      ...(deck.projectId ? { projectId: deck.projectId } : { workspaceId: deck.workspaceId })
+    }))
+    if (deck.projectId) expect(deckWhere).not.toHaveProperty('workspaceId')
+    expect(workspaceFiles.uploadBuffer).toHaveBeenCalledWith(expect.objectContaining(expectedWorkspace))
+    expect(exportRepository.save).toHaveBeenLastCalledWith(expect.objectContaining({
+      status: 'succeeded',
+      stage: 'complete',
+      progress: 100
+    }))
+  })
+
   it('does not create or enqueue a browser export when the OSS runtime worker is unavailable', async () => {
     const deck = { id: '97aab7a0-f241-49a8-b52a-88cb6eb84c8e', revision: 42 }
     const deckRepository = { findOne: jest.fn().mockResolvedValue(deck) }
@@ -782,6 +1036,51 @@ describe('PresentationStudioService export versioning', () => {
       status: 'failed',
       errorMessage: 'Managed queue job was not found before the export completed.'
     }))
+  })
+
+  it('persists the Managed Queue failure reason when reconciling a failed export', async () => {
+    const item = {
+      id: 'b06d4bbd-9659-4496-b051-300900ab6c0d',
+      deckId: '97aab7a0-f241-49a8-b52a-88cb6eb84c8e',
+      versionId: 'working-r42',
+      kind: 'pdf',
+      status: 'queued',
+      jobId: 'presentation-studio-b06d4bbd-9659-4496-b051-300900ab6c0d',
+      progress: 0,
+      stage: 'queued',
+      checksum: 'working-checksum'
+    }
+    const exportRepository = {
+      findOne: jest.fn().mockResolvedValue(item),
+      save: jest.fn(async (value) => value)
+    }
+    const queue = {
+      getJob: jest.fn().mockResolvedValue({
+        state: 'failed',
+        failedReason: 'Presentation deck was not found.',
+        attemptsMade: 3
+      })
+    }
+    const service = new PresentationStudioService(
+      { findOne: jest.fn().mockResolvedValue({ id: item.deckId }) } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      exportRepository as never,
+      {} as never,
+      {} as never,
+      availableExportCapabilities() as never,
+      {} as never,
+      queue as never
+    )
+
+    const result = await service.getExport({}, item.id)
+
+    expect(result).toMatchObject({
+      status: 'failed',
+      stage: 'queue-failed',
+      errorMessage: 'Presentation deck was not found.'
+    })
   })
 
   it('reconciles queue state while loading Workbench deck details', async () => {

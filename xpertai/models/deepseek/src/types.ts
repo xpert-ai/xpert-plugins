@@ -18,11 +18,12 @@ export interface DeepseekCredentials {
 
 export interface DeepseekModelCredentials extends CommonChatModelParameters {
   streaming?: boolean
+  response_format?: 'text' | 'json_object'
 	top_p?: number
 	max_tokens?: number
 	frequency_penalty?: number
 	thinking?: boolean
-	reasoning_effort?: 'high' | 'max'
+	reasoning_effort?: 'low' | 'high' | 'max'
 }
 
 export function toCredentialKwargs(credentials: DeepseekCredentials) {

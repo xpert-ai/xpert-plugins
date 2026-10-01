@@ -1,7 +1,8 @@
 import { isAxiosError } from 'axios'
-import type { BaiduParserEngine } from './types.js'
+import type { BaiduOcrProvider, BaiduParserEngine } from './types.js'
 
 export type BaiduOcrErrorContext = {
+  provider?: BaiduOcrProvider
   engine?: BaiduParserEngine
   status?: number
   code?: string | number
@@ -15,7 +16,7 @@ export type BaiduOcrErrorContext = {
 }
 
 export class BaiduOcrError extends Error {
-  readonly provider = 'baidu-cloud' as const
+  readonly provider: BaiduOcrProvider
   readonly engine?: BaiduParserEngine
   readonly status?: number
   readonly code?: string | number
@@ -30,6 +31,7 @@ export class BaiduOcrError extends Error {
   constructor(message: string, context: BaiduOcrErrorContext = {}) {
     super(message)
     this.name = 'BaiduOcrError'
+    this.provider = context.provider ?? 'baidu-cloud'
     this.engine = context.engine
     this.status = context.status
     this.code = context.code
@@ -70,11 +72,12 @@ export function normalizeBaiduError(
 export function documentConversionError(
   engine: BaiduParserEngine,
   error: unknown,
-  fallbackMessage: string
+  fallbackMessage: string,
+  provider: BaiduOcrProvider = 'baidu-cloud'
 ): BaiduOcrError {
   const normalized = normalizeBaiduError(engine, error, fallbackMessage)
   const details = [
-    'provider=baidu-cloud',
+    `provider=${provider}`,
     `engine=${normalized.engine ?? engine}`,
     normalized.status === undefined ? undefined : `httpStatus=${normalized.status}`,
     normalized.code === undefined ? undefined : `code=${normalized.code}`,
@@ -87,6 +90,7 @@ export function documentConversionError(
       ? `${fallbackMessage}: ${reason} [${details.join(', ')}]`
       : `${fallbackMessage} [${details.join(', ')}]`
   return new BaiduOcrError(message, {
+    provider,
     engine: normalized.engine ?? engine,
     status: normalized.status,
     code: normalized.code,
@@ -108,6 +112,7 @@ function readStructuralError(error: unknown): StructuralError | null {
   }
   return {
     message: error.message,
+    provider: error.provider === 'paddleocr-self-hosted' ? 'paddleocr-self-hosted' : 'baidu-cloud',
     engine: isEngine(error.engine) ? error.engine : undefined,
     status: finiteNumber(error.status),
     code: typeof error.code === 'string' || typeof error.code === 'number' ? error.code : undefined,

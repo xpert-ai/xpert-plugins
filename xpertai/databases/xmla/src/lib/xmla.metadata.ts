@@ -8,6 +8,8 @@ export interface XmlaOlapMetadataRequest {
   includeSapVariables?: boolean
 }
 
+export type XmlaCatalogDiscoveryMode = 'catalogs' | 'cubes'
+
 export interface XmlaOlapMetadataWarning {
   code: string
   message: string
@@ -141,29 +143,43 @@ export type XmlaDiscover = (
 export async function discoverXmlaOlapMetadata(
   discover: XmlaDiscover,
   request: XmlaOlapMetadataRequest,
-  dataSourceInfo?: string
+  dataSourceInfo?: string,
+  catalogDiscovery: XmlaCatalogDiscoveryMode = 'catalogs'
 ): Promise<XmlaOlapMetadata> {
   const warnings: XmlaOlapMetadataWarning[] = []
   const properties = (catalog?: string): XmlaRequestItems => ({
     DataSourceInfo: dataSourceInfo || undefined,
     Catalog: catalog
   })
+  let prefetchedCubeRows: XmlaRow[] | undefined
   const catalogRows = request.catalog
     ? [{ CATALOG_NAME: request.catalog }]
-    : (await discover(XMLA_DISCOVER_REQUEST.catalogs, { properties: properties() })).rows
+    : catalogDiscovery === 'cubes'
+      ? uniqueCatalogRows(
+          (prefetchedCubeRows = (
+            await discover(XMLA_DISCOVER_REQUEST.cubes, { properties: properties() })
+          ).rows)
+        )
+      : (await discover(XMLA_DISCOVER_REQUEST.catalogs, { properties: properties() })).rows
 
   const catalogs = await Promise.all(
     catalogRows.map(async (catalogRow): Promise<XmlaOlapCatalogMetadata> => {
       const catalog = requireXmlaString(catalogRow, 'CATALOG_NAME')
-      const cubeRows = (
-        await discover(XMLA_DISCOVER_REQUEST.cubes, {
-          properties: properties(catalog),
-          restrictions: {
-            CATALOG_NAME: catalog,
-            CUBE_NAME: request.cube
-          }
-        })
-      ).rows
+      const cubeRows = prefetchedCubeRows
+        ? prefetchedCubeRows.filter(
+            (row) =>
+              requireXmlaString(row, 'CATALOG_NAME') === catalog &&
+              (!request.cube || requireXmlaString(row, 'CUBE_NAME') === request.cube)
+          )
+        : (
+            await discover(XMLA_DISCOVER_REQUEST.cubes, {
+              properties: properties(catalog),
+              restrictions: {
+                CATALOG_NAME: catalog,
+                CUBE_NAME: request.cube
+              }
+            })
+          ).rows
       const cubes = await Promise.all(
         uniqueBy(cubeRows, (row) => requireXmlaString(row, 'CUBE_NAME')).map(async (cubeRow) => {
           const cube = cubeFromRow(catalog, cubeRow, dataSourceInfo)
@@ -183,6 +199,17 @@ export async function discoverXmlaOlapMetadata(
   return { catalogs, warnings }
 }
 
+function uniqueCatalogRows(cubeRows: XmlaRow[]): XmlaRow[] {
+  return Array.from(
+    new Map(
+      cubeRows.map((row) => {
+        const catalog = requireXmlaString(row, 'CATALOG_NAME')
+        return [catalog, { CATALOG_NAME: catalog }]
+      })
+    ).values()
+  )
+}
+
 async function discoverCubeMetadata(
   discover: XmlaDiscover,
   cube: XmlaOlapCubeMetadata,
@@ -192,10 +219,10 @@ async function discoverCubeMetadata(
 ): Promise<XmlaOlapCubeMetadata> {
   const restrictions = { CATALOG_NAME: cube.catalog, CUBE_NAME: cube.uniqueName }
   const [dimensions, hierarchies, levels, measures] = await Promise.all([
-    discover(XMLA_DISCOVER_REQUEST.dimensions, { properties, restrictions }),
-    discover(XMLA_DISCOVER_REQUEST.hierarchies, { properties, restrictions }),
-    discover(XMLA_DISCOVER_REQUEST.levels, { properties, restrictions }),
-    discover(XMLA_DISCOVER_REQUEST.measures, { properties, restrictions })
+    requiredRows(discover, XMLA_DISCOVER_REQUEST.dimensions, properties, restrictions, cube),
+    requiredRows(discover, XMLA_DISCOVER_REQUEST.hierarchies, properties, restrictions, cube),
+    requiredRows(discover, XMLA_DISCOVER_REQUEST.levels, properties, restrictions, cube),
+    requiredRows(discover, XMLA_DISCOVER_REQUEST.measures, properties, restrictions, cube)
   ])
   const memberProperties =
     request.includeMemberProperties === false
@@ -223,15 +250,33 @@ async function discoverCubeMetadata(
         )
 
   const propertyMetadata = memberProperties.map(memberPropertyFromRow)
-  const levelMetadata = levels.rows.map((row) => levelFromRow(row, propertyMetadata))
-  const hierarchyMetadata = hierarchies.rows.map((row) => hierarchyFromRow(row, levelMetadata))
+  const levelMetadata = levels.map((row) => levelFromRow(row, propertyMetadata))
+  const hierarchyMetadata = hierarchies.map((row) => hierarchyFromRow(row, levelMetadata))
   return {
     ...cube,
-    dimensions: dimensions.rows
+    dimensions: dimensions
       .filter((row) => !isMeasuresDimension(row))
       .map((row) => dimensionFromRow(row, hierarchyMetadata)),
-    measures: measures.rows.map(measureFromRow),
+    measures: measures.map(measureFromRow),
     variables: variables.map(variableFromRow)
+  }
+}
+
+async function requiredRows(
+  discover: XmlaDiscover,
+  requestType: string,
+  properties: XmlaRequestItems,
+  restrictions: XmlaRequestItems,
+  cube: XmlaOlapCubeMetadata
+): Promise<XmlaRow[]> {
+  try {
+    return (await discover(requestType, { properties, restrictions })).rows
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'unknown provider error'
+    throw new Error(
+      `XMLA ${requestType} metadata discovery failed for cube '${cube.uniqueName}' in catalog '${cube.catalog}': ${message}`,
+      { cause: error }
+    )
   }
 }
 

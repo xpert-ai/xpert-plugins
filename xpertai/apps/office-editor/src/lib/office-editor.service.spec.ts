@@ -4,6 +4,8 @@ import * as Y from 'yjs'
 
 jest.mock('@xpert-ai/plugin-sdk', () => ({
   CollaborationRuntimeCapability: { id: 'platform.collaboration' },
+  WorkspaceFilesRuntimeCapability: { id: 'platform.workspace.files' },
+  WORKSPACE_FILES_SOURCE: 'platform.workspace.files',
   XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN: Symbol('XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN'),
   XPERT_RUNTIME_CAPABILITIES_TOKEN: Symbol('XPERT_RUNTIME_CAPABILITIES_TOKEN'),
   pluginArtifactTableName: (namespace: string, tableKey: string) => `plugin_${namespace}_${tableKey}`
@@ -91,6 +93,42 @@ describe('OfficeEditorService', () => {
     expect(visible.items.map((item: any) => item.id)).toEqual([created.document.id])
   })
 
+  it('keeps workbench list and history payloads free of duplicated collaboration state', async () => {
+    const created = await service.createDocument(testScope(), {
+      documentType: 'presentation',
+      title: 'Large presentation',
+      initialSnapshot: {
+        id: 'deck-1',
+        body: {
+          pageOrder: ['slide-1'],
+          pages: {
+            'slide-1': {
+              id: 'slide-1',
+              pageElements: {
+                image: { src: `data:image/png;base64,${'a'.repeat(20_000)}` }
+              }
+            }
+          }
+        }
+      }
+    })
+
+    const list = await service.getWorkbenchData(testScope(), { page: 1, pageSize: 20 })
+    expect(list.items[0]).toEqual(expect.objectContaining({
+      id: created.document.id,
+      title: 'Large presentation'
+    }))
+    expect(list.items[0]).not.toHaveProperty('yjsStateBase64')
+    expect(list.items[0]).not.toHaveProperty('yjsStateVectorBase64')
+
+    const detail = await service.getWorkbenchData(testScope(), { documentId: created.document.id })
+    expect(detail.currentSnapshot?.snapshot).toEqual(created.snapshot.snapshot)
+    expect(detail.item).not.toHaveProperty('yjsStateBase64')
+    expect(detail.currentSnapshot).not.toHaveProperty('yjsStateBase64')
+    expect(detail.snapshots[0]).not.toHaveProperty('snapshot')
+    expect(detail.snapshots[0]).not.toHaveProperty('yjsStateBase64')
+  })
+
   it('isolates personal Xpert documents by user', async () => {
     await service.createDocument(personalScope('user-1'), {
       documentType: 'document',
@@ -122,6 +160,80 @@ describe('OfficeEditorService', () => {
       resourceId: created.document.id,
       operation: 'read'
     })).resolves.toBe(false)
+  })
+
+  it('requires manage access for collaboration archive/delete operations', async () => {
+    const created = await service.createDocument(testScope(), {
+      documentType: 'document',
+      title: 'Managed collaboration document'
+    })
+
+    await expect(service.authorizeCollaborationDocument({
+      ...testScope(),
+      providerKey: 'office-editor',
+      resourceId: created.document.id,
+      operation: 'write',
+      authorization: { canRead: true, canEdit: true, canManage: false }
+    })).resolves.toBe(true)
+
+    await expect(service.authorizeCollaborationDocument({
+      ...testScope(),
+      providerKey: 'office-editor-document',
+      resourceId: created.document.id,
+      operation: 'manage',
+      authorization: { canRead: true, canEdit: true, canManage: true }
+    })).resolves.toBe(true)
+
+    await expect(service.authorizeCollaborationDocument({
+      ...testScope(),
+      userId: 'user-2',
+      providerKey: 'office-editor-document',
+      resourceId: created.document.id,
+      operation: 'manage',
+      authorization: { canRead: true, canEdit: false, canManage: false }
+    })).resolves.toBe(false)
+
+    await expect(service.authorizeCollaborationDocument({
+      ...testScope(),
+      providerKey: 'office-editor-document',
+      resourceId: created.document.id,
+      operation: 'manage',
+      authorization: { canRead: true, canEdit: true, canManage: false }
+    })).resolves.toBe(false)
+  })
+
+  it('soft-deletes the platform collaboration document before deleting the plugin document', async () => {
+    const collaboration = {
+      ensureDocument: jest.fn().mockResolvedValue({ id: 'collaboration-document-1' }),
+      deleteDocument: jest.fn().mockResolvedValue({ id: 'collaboration-document-1', status: 'deleted' })
+    }
+    const scopedCapabilities = { get: jest.fn(() => collaboration) }
+    const runtimeService = { createScopedApi: jest.fn(() => ({ capabilities: scopedCapabilities })) }
+    service = new OfficeEditorService(
+      documents as never,
+      snapshots as never,
+      updates as never,
+      operations as never,
+      fileVersions as never,
+      undefined,
+      runtimeService as never
+    )
+    const created = await service.createDocument(testScope(), {
+      documentType: 'document',
+      title: 'Delete collaboration document'
+    })
+
+    await service.deleteDocument(testScope(), created.document.id)
+
+    expect(collaboration.ensureDocument).toHaveBeenCalledWith(expect.objectContaining({
+      providerKey: 'office-editor-document',
+      resourceId: created.document.id
+    }))
+    expect(collaboration.deleteDocument).toHaveBeenCalledWith({
+      providerKey: 'office-editor-document',
+      resourceId: created.document.id
+    })
+    expect(await documents.find({ where: { id: created.document.id } })).toHaveLength(0)
   })
 
   it('opens collaboration with runtime capabilities scoped to the current Xpert or Project', async () => {
@@ -173,7 +285,8 @@ describe('OfficeEditorService', () => {
       conversationId: 'conversation-1',
       catalog: 'user-xperts',
       scopeId: 'user-1:assistant-1',
-      isolateByUser: true
+      isolateByUser: true,
+      authorization: { canRead: true, canEdit: true, canManage: true }
     })
     expect(scopedCapabilities.get).toHaveBeenCalledWith({ id: 'platform.collaboration' })
     expect(collaboration.ensureDocument).toHaveBeenCalledWith(expect.objectContaining({
@@ -202,7 +315,8 @@ describe('OfficeEditorService', () => {
       conversationId: 'conversation-1',
       catalog: undefined,
       scopeId: undefined,
-      isolateByUser: undefined
+      isolateByUser: undefined,
+      authorization: { canRead: true, canEdit: true, canManage: true }
     })
   })
 
@@ -379,7 +493,117 @@ describe('OfficeEditorService', () => {
     expect(imported.fileVersion).toEqual(expect.objectContaining({
       documentId: imported.document.id,
       versionNumber: 1,
-      fileName: 'workbook.xlsx'
+      fileName: 'workbook.xlsx',
+      fileAssetId: 'asset-1',
+      workspaceFileReference: expect.objectContaining({
+        source: 'platform.workspace.files',
+        filePath: expect.stringContaining('workspace/file-'),
+        catalog: 'projects',
+        scopeId: 'project-1'
+      })
+    }))
+  })
+
+  it('uses the invocation-scoped workspace capability and rolls back failed XLSX imports', async () => {
+    const scopedCapabilities = {
+      get: jest.fn(() => undefined)
+    }
+    const runtimeService = {
+      createScopedApi: jest.fn(() => ({ capabilities: scopedCapabilities }))
+    }
+    service = new OfficeEditorService(
+      documents as never,
+      snapshots as never,
+      updates as never,
+      operations as never,
+      fileVersions as never,
+      { get: () => undefined } as never,
+      runtimeService as never
+    )
+
+    const buffer = createXlsxBuffer()
+    await expect(service.importDocument(personalScope('user-1'), {
+      importFormat: 'xlsx',
+      documentType: 'spreadsheet',
+      title: 'Failed workbook',
+      fileName: 'failed.xlsx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      fileBase64: buffer.toString('base64')
+    })).rejects.toThrow('Xpert workspace file runtime capability is required for XLSX storage.')
+
+    expect(runtimeService.createScopedApi).toHaveBeenCalledWith(expect.objectContaining({
+      xpertId: 'assistant-1',
+      catalog: 'user-xperts',
+      scopeId: 'assistant-1',
+      isolateByUser: true
+    }))
+    expect(await documents.find({})).toHaveLength(0)
+    expect(await snapshots.find({})).toHaveLength(0)
+  })
+
+  it('does not fall back to the process-global workspace capability when scoped runtime is present', async () => {
+    const scopedCapabilities = {
+      get: jest.fn(() => undefined)
+    }
+    const runtimeService = {
+      createScopedApi: jest.fn(() => ({ capabilities: scopedCapabilities }))
+    }
+    service = new OfficeEditorService(
+      documents as never,
+      snapshots as never,
+      updates as never,
+      operations as never,
+      fileVersions as never,
+      { get: () => workspaceFiles } as never,
+      runtimeService as never
+    )
+
+    const buffer = createXlsxBuffer()
+    await expect(service.importDocument(personalScope('user-1'), {
+      importFormat: 'xlsx',
+      documentType: 'spreadsheet',
+      title: 'Blocked workbook',
+      fileName: 'blocked.xlsx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      fileBase64: buffer.toString('base64')
+    })).rejects.toThrow('Xpert workspace file runtime capability is required for XLSX storage.')
+
+    expect(workspaceFiles.uploads).toHaveLength(0)
+    expect(await documents.find({})).toHaveLength(0)
+    expect(await snapshots.find({})).toHaveLength(0)
+  })
+
+  it('stores XLSX files through the invocation-scoped workspace capability', async () => {
+    const scopedCapabilities = {
+      get: jest.fn(() => workspaceFiles)
+    }
+    const runtimeService = {
+      createScopedApi: jest.fn(() => ({ capabilities: scopedCapabilities }))
+    }
+    service = new OfficeEditorService(
+      documents as never,
+      snapshots as never,
+      updates as never,
+      operations as never,
+      fileVersions as never,
+      { get: () => undefined } as never,
+      runtimeService as never
+    )
+
+    const buffer = createXlsxBuffer()
+    await service.importDocument(personalScope('user-1'), {
+      importFormat: 'xlsx',
+      documentType: 'spreadsheet',
+      title: 'Scoped workbook',
+      fileName: 'scoped.xlsx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      fileBase64: buffer.toString('base64')
+    })
+
+    expect(workspaceFiles.uploads[0]).toEqual(expect.objectContaining({
+      catalog: 'user-xperts',
+      scopeId: 'assistant-1',
+      xpertId: 'assistant-1'
     }))
   })
 
@@ -429,6 +653,7 @@ describe('OfficeEditorService', () => {
     }))
 
     const file = await service.getExcelFile(testScope(), imported.document.id, true)
+    expect(file.fileUrl).toContain('/resolved/')
     const XLSX = requireFromHere('xlsx') as any
     const workbook = XLSX.read(Buffer.from(file.fileBase64, 'base64'), { type: 'buffer', cellFormula: true })
     expect(workbook.Sheets.Data.B2.v).toBe(456)
@@ -573,7 +798,8 @@ function testScope() {
     projectId: 'project-1',
     userId: 'user-1',
     assistantId: 'assistant-1',
-    conversationId: 'conversation-1'
+    conversationId: 'conversation-1',
+    collaborationAccess: 'manage'
   }
 }
 
@@ -775,6 +1001,7 @@ class MemoryRepository<T extends Record<string, any>> {
 class MemoryWorkspaceFiles {
   private readonly files = new Map<string, Buffer>()
   private sequence = 0
+  private assetSequence = 0
   readonly uploads: Array<{
     catalog?: string
     scopeId?: string
@@ -815,6 +1042,43 @@ class MemoryWorkspaceFiles {
     return {
       filePath: input.filePath,
       buffer: Buffer.from(buffer)
+    }
+  }
+
+  async resolveRuntimeReference(input: any) {
+    return {
+      source: 'platform.workspace.files',
+      ...input,
+      workspacePath: input.workspacePath ?? input.filePath,
+      catalog: input.catalog ?? 'projects',
+      scopeId: input.scopeId ?? input.projectId
+    }
+  }
+
+  async understandFile(input: any) {
+    return {
+      id: `asset-${++this.assetSequence}`,
+      fileId: `asset-${this.assetSequence}`,
+      fileAssetId: `asset-${this.assetSequence}`,
+      name: input.originalName,
+      originalName: input.originalName,
+      filePath: input.filePath,
+      workspacePath: input.workspacePath ?? input.filePath,
+      catalog: input.catalog,
+      scopeId: input.scopeId,
+      status: 'ready',
+      parseStatus: 'ready'
+    }
+  }
+
+  async resolveFile(input: any) {
+    return {
+      name: input.filePath.split('/').pop(),
+      filePath: input.filePath,
+      workspacePath: input.workspacePath ?? input.filePath,
+      fileUrl: `https://files.example.test/resolved/${input.filePath}`,
+      catalog: input.catalog,
+      scopeId: input.scopeId
     }
   }
 

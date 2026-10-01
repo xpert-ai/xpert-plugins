@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright-core'
 
 const actionRoot = path.dirname(fileURLToPath(import.meta.url))
-const actionVersion = '1.1.5'
+const actionVersion = '1.1.6'
 const progressLogIntervalMs = 5_000
 const limits = Object.freeze({
   maxWidth: 3840,

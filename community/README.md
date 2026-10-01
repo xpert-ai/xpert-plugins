@@ -26,9 +26,11 @@ pnpm create:package --scope tools --name demo-tool --description "Example tool" 
 ### 工作区
 - 安装依赖：`pnpm install`
 - 构建全部子包：`pnpm build`
-- 构建有 build 脚本的子包：`pnpm -r --if-present build`
+- 构建有 build 脚本的子包：`pnpm -r --workspace-concurrency=1 --if-present run build`
 - 运行测试：`pnpm test`
 - 运行 lint：`pnpm lint`
+
+工作区构建按依赖顺序串行执行，`release:publish` 复用同一构建入口。部分子包的 `build:ui` 会重建共享的 `shadcn-ui` 并清空其 `dist`；并行构建会导致其他子包读取这些产物时出现文件缺失，因此工作区构建需保留 `--workspace-concurrency=1`。
 
 ### 单包本地开发
 将 `<pkg>` 替换为包名（如 `@xpert-ai/plugin-sales-ontology`）或相对路径（如 `./apps/sales-ontology`）。

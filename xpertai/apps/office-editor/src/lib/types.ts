@@ -4,6 +4,12 @@ import type {
   OFFICE_EDITOR_OPERATION_TYPES,
   OFFICE_EDITOR_TOOL_NAMES
 } from './constants.js'
+import type {
+  WorkspaceFileCatalog,
+  WorkspaceFileScope,
+  WorkspaceFilesApi,
+  WorkspacePortableFileReference
+} from '@xpert-ai/plugin-sdk'
 
 export type OfficeDocumentType = (typeof OFFICE_EDITOR_DOCUMENT_TYPES)[number]
 export type OfficeDocumentStatus = 'draft' | 'active' | 'archived'
@@ -15,7 +21,7 @@ export type OfficeOperationSource = 'agent' | 'workbench' | 'system'
 export type OfficeToolName = (typeof OFFICE_EDITOR_TOOL_NAMES)[number]
 export type OfficeImportFormat = (typeof OFFICE_EDITOR_IMPORT_FORMATS)[number]
 export type OfficeFileVersionSource = 'import' | 'agent' | 'workbench' | 'restore'
-export type OfficeWorkspaceCatalog = 'xperts' | 'user-xperts' | 'projects'
+export type OfficeWorkspaceCatalog = WorkspaceFileCatalog
 
 export interface OfficeScope {
   tenantId?: string | null
@@ -26,7 +32,7 @@ export interface OfficeScope {
   assistantId?: string | null
   conversationId?: string | null
   workspaceFiles?: OfficeWorkspaceFileScope | null
-  collaborationAccess?: 'read' | 'write'
+  collaborationAccess?: 'read' | 'write' | 'manage'
 }
 
 export interface OfficeWorkbenchQuery {
@@ -62,51 +68,15 @@ export interface ImportOfficeDocumentInput {
   conversationId?: string | null
 }
 
-export interface OfficeWorkspaceFileScope {
-  tenantId?: string | null
-  userId?: string | null
-  catalog: OfficeWorkspaceCatalog
+/** Required scope used by the Office Editor's explicit workspace operations. */
+export type OfficeWorkspaceFileScope = WorkspaceFileScope & {
+  catalog: WorkspaceFileCatalog
   scopeId: string
-  xpertId?: string | null
-  projectId?: string | null
-  isolateByUser?: boolean | null
 }
 
-export interface OfficeWorkspaceFileRecord {
-  name?: string
-  filePath: string
-  workspacePath?: string
-  fileUrl?: string
-  url?: string
-  mimeType?: string
-  size?: number
-  catalog?: OfficeWorkspaceCatalog
-  scopeId?: string
-}
-
-export interface OfficeWorkspaceFileBuffer extends OfficeWorkspaceFileRecord {
-  buffer: Buffer
-}
-
-export interface OfficeWorkspaceFilesApi {
-  uploadBuffer(input: OfficeWorkspaceFileScope & {
-    buffer: Buffer
-    originalName: string
-    mimeType?: string | null
-    size?: number | null
-    folder?: string | null
-    fileName?: string | null
-    metadata?: Record<string, unknown>
-  }): Promise<OfficeWorkspaceFileRecord>
-
-  readBuffer(input: OfficeWorkspaceFileScope & {
-    filePath: string
-  }): Promise<OfficeWorkspaceFileBuffer>
-
-  deleteFile(input: OfficeWorkspaceFileScope & {
-    filePath: string
-  }): Promise<void>
-}
+/** Compatibility aliases for consumers of the published Office Editor types. */
+export type OfficeWorkspaceFilesApi = WorkspaceFilesApi
+export type OfficeWorkspacePortableFileReference = WorkspacePortableFileReference
 
 export interface OfficeImportConversionResult {
   documentType: OfficeDocumentType
@@ -262,11 +232,3 @@ export type OfficeOperationInput =
     }
 
 export type OfficeCellValue = string | number | boolean | null
-
-export interface OfficeCollabSession {
-  sessionId: string
-  documentId: string
-  scope: OfficeScope
-  userId?: string | null
-  expiresAt: number
-}

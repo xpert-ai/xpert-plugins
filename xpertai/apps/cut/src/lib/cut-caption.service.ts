@@ -223,6 +223,7 @@ export class CutCaptionService {
       assistantId: scope.assistantId ?? null,
       transcriptionMode,
       xpertId: transcriptionMode === 'platform' ? xpertId!.trim() : null,
+      ...(scope.fileScope ? { fileScope: scope.fileScope } : {}),
       modelKey,
       fileReference: asset.fileReference,
       originalName: asset.originalName,

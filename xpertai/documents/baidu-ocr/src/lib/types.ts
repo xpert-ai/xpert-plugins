@@ -3,10 +3,15 @@ import type { ChunkMetadata, TDocumentTransformerConfig } from '@xpert-ai/plugin
 
 export type BaiduParserEngine = 'paddleocr-vl' | 'unlimited-ocr'
 export type BaiduUploadMode = 'auto' | 'base64' | 'url'
+export type BaiduOcrServerType = 'official' | 'self-hosted'
+export type BaiduOcrProvider = 'baidu-cloud' | 'paddleocr-self-hosted'
 
-export type BaiduOcrIntegrationOptions = {
-  apiKey: string
-  secretKey: string
+export type BaiduOcrIntegrationOptions = BaiduPaddleOptions & {
+  /** Missing on historical connections: keep using the original Baidu Cloud API. */
+  serverType?: BaiduOcrServerType
+  apiKey?: string
+  secretKey?: string
+  apiUrl?: string
   uploadMode?: BaiduUploadMode
   pollIntervalSeconds?: number
   taskTimeoutSeconds?: number
@@ -19,13 +24,16 @@ export type BaiduBaseTransformerConfig = TDocumentTransformerConfig & {
   preserveRawOutput?: boolean
 }
 
-export type BaiduPaddleOcrVlTransformerConfig = BaiduBaseTransformerConfig & {
+export type BaiduPaddleOcrVlTransformerConfig = BaiduBaseTransformerConfig & BaiduPaddleOptions
+
+export type BaiduPaddleOptions = {
   analysisChart?: boolean
   mergeTables?: boolean
   relevelTitles?: boolean
   recognizeSeal?: boolean
   returnSpanBoxes?: boolean
   preserveImages?: boolean
+  preserveRawOutput?: boolean
 }
 
 export type BaiduUnlimitedOcrTransformerConfig = BaiduBaseTransformerConfig
@@ -50,6 +58,7 @@ export type BaiduPaddleRequestOptions = {
 export type BaiduParserRequestOptions = BaiduPaddleRequestOptions | Record<string, never>
 
 export type BaiduTaskTrace = {
+  provider?: BaiduOcrProvider
   engine: BaiduParserEngine
   taskId: string
   logId?: string
@@ -92,6 +101,7 @@ export type BaiduImage = {
   layout_id?: string
   position?: number[]
   data_url?: string
+  original_ref?: string
   image_description?: string
   [key: string]: unknown
 }
@@ -132,7 +142,7 @@ export type BaiduBatchTrace = {
 
 /** Lossless provider-specific metadata kept alongside the provider-neutral layout contract. */
 export type BaiduOcrChunkMetadata = {
-  provider: 'baidu-cloud'
+  provider: BaiduOcrProvider
   engine: BaiduParserEngine
   taskId?: string
   logId?: string
@@ -202,7 +212,7 @@ export type BaiduDocumentLayoutMetadata = {
 /** Document-level marker that enables host-side analysis snapshot materialization. */
 export type BaiduDocumentAnalysisMetadata = {
   schemaVersion: 1
-  provider: 'baidu-cloud'
+  provider: BaiduOcrProvider
   engine: BaiduParserEngine
   pageCount?: number
   coordinateSystem: 'page-top-left'

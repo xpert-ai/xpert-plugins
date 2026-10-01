@@ -1,0 +1,41 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "xpert-cut-agent",
+  "description": "Shared Cut editing workflows for Codex and ChatGPT connected to an Xpert Cut MCP service.",
+  "author": {
+    "name": "XpertAI",
+    "url": "https://xpertai.cn"
+  },
+  "homepage": "https://xpertai.cn",
+  "repository": "https://github.com/xpert-ai/xpert-plugins",
+  "license": "AGPL-3.0",
+  "keywords": [
+    "cut",
+    "video",
+    "mcp",
+    "skills"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Xpert Cut Agent Plugin",
+        "shortDescription": "Edit videos through your Xpert Cut MCP",
+        "longDescription": "Use shared Cut workflows for speech edits, captions, verification and exports on a connected Xpert Cut MCP service.",
+        "developerName": "XpertAI",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://xpertai.cn",
+        "defaultPrompt": [
+          "Edit this video using my connected Cut MCP.",
+          "Create captions and export this video.",
+          "Review the proposed cuts before applying them."
+        ],
+        "logo": "./assets/logo.svg",
+        "composerIcon": "./assets/composerIcon.svg"
+      }
+    }
+  }
+}

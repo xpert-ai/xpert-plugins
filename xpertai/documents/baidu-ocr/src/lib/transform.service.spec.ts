@@ -34,6 +34,7 @@ import {
   BAIDU_UNLIMITED_SUBMIT_URL
 } from './constants.js'
 import { BaiduOcrTransformService, baiduTransformTestHelpers } from './transform.service.js'
+import { PaddleOcrSelfHostedClient } from './paddleocr-self-hosted.client.js'
 import type { BaiduOcrIntegration } from './types.js'
 
 const integration: BaiduOcrIntegration = {
@@ -62,6 +63,208 @@ describe('BaiduOcrTransformService', () => {
 
   afterEach(() => {
     jest.useRealTimers()
+  })
+
+  it('applies integration defaults and legacy overrides to the actual official request', async () => {
+    const submit = jest.fn()
+    const service = new BaiduOcrTransformService(
+      clientFor({
+        submitUrl: BAIDU_PADDLE_SUBMIT_URL,
+        queryUrl: BAIDU_PADDLE_QUERY_URL,
+        taskId: 'official',
+        markdown: '# Parsed',
+        parsed: { pages: [{ page_num: 0, text: '# Parsed' }] },
+        onSubmit: submit
+      })
+    )
+    const fileSystem = testFileSystem()
+    await fileSystem.writeFile('input.png', onePixelPng)
+    const promise = service.transform('paddleocr-vl', [{ id: 'official', name: 'input.png', filePath: 'input.png' }], {
+      stage: 'test',
+      recognizeSeal: false,
+      permissions: {
+        fileSystem,
+        integration: {
+          ...integration,
+          options: {
+            ...integration.options,
+            analysisChart: true,
+            recognizeSeal: true,
+            mergeTables: false,
+            preserveRawOutput: false
+          }
+        }
+      }
+    })
+    await jest.advanceTimersByTimeAsync(1_000)
+    await promise
+    expect(submit).toHaveBeenCalledWith(
+      expect.objectContaining({ analysis_chart: 'true', recognize_seal: 'false', merge_tables: 'false' })
+    )
+    await expect(fileSystem.exists('baidu-ocr/official/paddleocr-vl/parse-result.json')).resolves.toBe(false)
+  })
+
+  it.each([true, false])(
+    'routes to self-hosted parsing, persists two pages and respects preserveImages=%s',
+    async (preserveImages) => {
+      const officialRequests = jest.fn(async () => {
+        throw new Error('Must not call Baidu Cloud')
+      })
+      const selfHostedRequests: InternalAxiosRequestConfig[] = []
+      const selfHosted = new PaddleOcrSelfHostedClient(
+        axios.create({
+          adapter: async (config) => {
+            selfHostedRequests.push(config)
+            return response(config, {
+              logId: 'local-parse',
+              errorCode: 0,
+              result: {
+                layoutParsingResults: [
+                  {
+                    prunedResult: { width: 600, height: 800 },
+                    markdown: {
+                      text: '# Page one\n\n![Figure](imgs/chart.png)',
+                      images: { 'imgs/chart.png': onePixelPng.toString('base64') }
+                    }
+                  },
+                  { markdown: { text: '| A | B |\n|---|---|\n| 1 | 2 |' } }
+                ]
+              }
+            })
+          }
+        })
+      )
+      const service = new BaiduOcrTransformService(
+        new BaiduCloudParserClient(axios.create({ adapter: officialRequests })),
+        selfHosted
+      )
+      const fileSystem = testFileSystem()
+      await fileSystem.writeFile('input.png', onePixelPng)
+      const [result] = await service.transform(
+        'paddleocr-vl',
+        [{ id: 'self-hosted', name: 'input.png', filePath: 'input.png' }],
+        {
+          stage: 'test',
+          permissions: {
+            fileSystem,
+            integration: {
+              ...integration,
+              options: {
+                serverType: 'self-hosted',
+                apiUrl: 'http://paddleocr:8080',
+                preserveImages,
+                preserveRawOutput: false,
+                analysisChart: true,
+                recognizeSeal: true
+              }
+            }
+          }
+        }
+      )
+      expect(officialRequests).not.toHaveBeenCalled()
+      expect(selfHostedRequests).toHaveLength(1)
+      expect(JSON.parse(selfHostedRequests[0].data)).toMatchObject({
+        fileType: 1,
+        file: onePixelPng.toString('base64'),
+        useChartRecognition: true,
+        useSealRecognition: true,
+        returnMarkdownImages: preserveImages
+      })
+      expect(result.metadata).toMatchObject({
+        parser: 'baidu-paddleocr-vl',
+        baiduOcr: { provider: 'paddleocr-self-hosted', pageCount: 2 },
+        documentAnalysis: { provider: 'paddleocr-self-hosted', pageCount: 2 }
+      })
+      const imagePath = 'baidu-ocr/self-hosted/paddleocr-vl/images/page-1-image-1.png'
+      const markdown = result.chunks?.[0].pageContent
+      expect(markdown).toContain('# Page one')
+      expect(markdown).toContain('| A | B |\n|---|---|\n| 1 | 2 |')
+      expect(markdown).not.toContain('](imgs/chart.png)')
+      expect(result.chunks?.[0].metadata.markdownSourceMap).toMatchObject({
+        entries: [
+          expect.objectContaining({ pageStart: 1, pageEnd: 1 }),
+          expect.objectContaining({ pageStart: 2, pageEnd: 2 })
+        ]
+      })
+      if (preserveImages) {
+        expect(markdown).toContain(`![Figure](${fileSystem.fullUrl(imagePath)})`)
+        await expect(fileSystem.readFile(imagePath)).resolves.toEqual(onePixelPng)
+      } else {
+        expect(markdown).not.toContain('![Figure]')
+        await expect(fileSystem.exists(imagePath)).resolves.toBe(false)
+      }
+      await expect(fileSystem.exists('baidu-ocr/self-hosted/paddleocr-vl/parse-result.json')).resolves.toBe(false)
+      await expect(fileSystem.exists('baidu-ocr/self-hosted/paddleocr-vl/document.md')).resolves.toBe(true)
+    }
+  )
+
+  it('rejects self-hosted Unlimited-OCR before making a cloud request', async () => {
+    const officialRequests = jest.fn(async () => {
+      throw new Error('Must not call Baidu Cloud')
+    })
+    const service = new BaiduOcrTransformService(
+      new BaiduCloudParserClient(axios.create({ adapter: officialRequests }))
+    )
+    await expect(
+      service.transform('unlimited-ocr', [{ name: 'input.png' }], {
+        stage: 'test',
+        permissions: {
+          fileSystem: testFileSystem(),
+          integration: {
+            ...integration,
+            options: {
+              serverType: 'self-hosted',
+              apiUrl: 'http://paddleocr:8080'
+            }
+          }
+        }
+      })
+    ).rejects.toThrow('only supports the official')
+    expect(officialRequests).not.toHaveBeenCalled()
+  })
+
+  it('reports self-hosted asset failures without claiming the document was parsed successfully', async () => {
+    const selfHosted = new PaddleOcrSelfHostedClient(
+      axios.create({
+        adapter: async (config) =>
+          response(config, {
+            errorCode: 0,
+            result: {
+              layoutParsingResults: [
+                {
+                  markdown: {
+                    text: '# Text\n\n![Image](imgs/figure.png)',
+                    images: { 'imgs/figure.png': onePixelPng.toString('base64') }
+                  }
+                }
+              ]
+            }
+          })
+      })
+    )
+    const fileSystem = testFileSystem()
+    await fileSystem.writeFile('input.png', onePixelPng)
+    jest.spyOn(fileSystem, 'writeFile').mockRejectedValue(new Error('Asset store unavailable'))
+    const service = new BaiduOcrTransformService(new BaiduCloudParserClient(), selfHosted)
+    await expect(
+      service.transform('paddleocr-vl', [{ id: 'broken', name: 'input.png', filePath: 'input.png' }], {
+        stage: 'test',
+        permissions: {
+          fileSystem,
+          integration: {
+            ...integration,
+            options: {
+              serverType: 'self-hosted',
+              apiUrl: 'http://paddleocr:8080',
+              preserveRawOutput: false
+            }
+          }
+        }
+      })
+    ).rejects.toMatchObject({
+      provider: 'paddleocr-self-hosted',
+      message: expect.stringContaining('Asset store unavailable')
+    })
   })
 
   it('merges PaddleOCR-VL layouts into one Markdown document and archives structured analysis', async () => {
@@ -322,6 +525,7 @@ function clientFor(input: {
   taskId: string
   markdown: string
   parsed?: Record<string, unknown>
+  onSubmit?: (body: unknown) => void
 }): BaiduCloudParserClient {
   return new BaiduCloudParserClient(
     axios.create({
@@ -329,8 +533,10 @@ function clientFor(input: {
         if (config.url === BAIDU_TOKEN_URL) {
           return response(config, { access_token: 'token', expires_in: 3600 })
         }
-        if (config.url === input.submitUrl)
+        if (config.url === input.submitUrl) {
+          input.onSubmit?.(Object.fromEntries(new URLSearchParams(config.data)))
           return response(config, { log_id: 'submit-log', result: { task_id: input.taskId } })
+        }
         if (config.url === input.queryUrl) {
           return response(config, {
             log_id: 'query-log',
@@ -351,4 +557,12 @@ function clientFor(input: {
 
 function response(config: InternalAxiosRequestConfig, data: unknown) {
   return { data, status: 200, statusText: 'OK', headers: {}, config }
+}
+
+function testFileSystem() {
+  return new XpFileSystem(
+    { type: 'filesystem', operations: ['read', 'write', 'list'], scope: [] },
+    '/virtual',
+    'https://assets.example/knowledge'
+  )
 }

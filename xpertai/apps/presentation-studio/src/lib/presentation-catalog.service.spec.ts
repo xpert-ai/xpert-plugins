@@ -21,6 +21,14 @@ describe('Presentation catalog', () => {
     expect(inspected.layout).toBe(first)
   })
 
+  it('selects a full unique theme scaffold for a new Workbench deck', async () => {
+    const layouts = await service.scaffoldLayouts({ theme: 'theme01', pageCount: 8, seed: 'Quarterly review' })
+
+    expect(layouts).toHaveLength(8)
+    expect(new Set(layouts).size).toBe(8)
+    expect(layouts.every((layout) => layout.startsWith('theme01_page'))).toBe(true)
+  })
+
   it('exposes strict array-item authoring contracts for inspected layouts', async () => {
     const inspected = await service.inspectLayouts(['theme01_page013'])
 

@@ -1,206 +1,125 @@
-import { PDFiumLibrary } from '@hyzyla/pdfium';
-import { tool } from '@langchain/core/tools';
-import { getCurrentTaskInput } from '@langchain/langgraph';
-import fs from 'fs/promises';
-import path from 'path';
-import { PNG } from 'pngjs';
-import { z } from 'zod';
+import { tool } from '@langchain/core/tools'
+import { getCurrentTaskInput } from '@langchain/langgraph'
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
+import path from 'node:path'
+import { z } from 'zod'
+import { withPdfiumPages } from './converter.js'
 
-function getMimeType(fileName: string): string {
-  const ext = fileName.split('.').pop()?.toLowerCase();
-  switch (ext) {
-    case 'md':
-      return 'text/markdown';
-    case 'png':
-      return 'image/png';
-    case 'txt':
-      return 'text/plain';
-    case 'pdf':
-      return 'application/pdf';
-    default:
-      return 'application/octet-stream';
-  }
+const fileSchema = z.object({
+  fileName: z.string().nullish(),
+  fileUrl: z.string().nullish(),
+  filePath: z.string().nullish()
+})
+type PdfToolArtifact = {
+  fileName: string
+  filePath: string
+  fileUrl?: string
+  mimeType: string
+  page?: number
 }
 
 export function buildPdfToMarkdownTool() {
   return tool(
-    async (input) => {
-      try {
-        const { content, scale } = input;
-        let { file } = input;
-
-        if (!file && !input.fileUrl && !input.filePath && !input.content) {
-          throw new Error('No PDF file provided');
+    async (input, config) => {
+      if (!input.file && !input.fileUrl && !input.filePath && !input.content) throw new Error('No PDF file provided')
+      const fileInput = input.file ?? { fileName: input.fileName, fileUrl: input.fileUrl, filePath: input.filePath }
+      const files = Array.isArray(fileInput) ? fileInput : [fileInput]
+      const state = getCurrentTaskInput()
+      const workspacePath: string = state?.['sys']?.['volume'] ?? '/tmp/xpert'
+      const baseUrl: string | undefined = state?.['sys']?.['workspace_url']
+      const artifacts: PdfToolArtifact[] = []
+      const contents: string[] = []
+      await mkdir(workspacePath, { recursive: true })
+      for (const file of files) {
+        config.signal?.throwIfAborted()
+        let buffer: Buffer
+        let name = file.fileName
+        if (file.fileUrl) {
+          const response = await fetch(file.fileUrl, {
+            signal: config.signal
+              ? AbortSignal.any([config.signal, AbortSignal.timeout(120_000)])
+              : AbortSignal.timeout(120_000)
+          })
+          if (!response.ok) throw new Error(`Failed to download PDF: HTTP ${response.status}`)
+          buffer = Buffer.from(await response.arrayBuffer())
+          name ||= path.basename(new URL(file.fileUrl).pathname)
+        } else if (file.filePath) {
+          buffer = await readFile(file.filePath)
+          name ||= path.basename(file.filePath)
+        } else if (typeof input.content === 'string') {
+          buffer = Buffer.from(input.content, 'base64')
+        } else if (input.content) {
+          buffer = Buffer.from(input.content)
+        } else {
+          throw new Error('Invalid PDF content format')
         }
-        if (!file) {
-          file = {
-            fileName: input.fileName,
-            fileUrl: input.fileUrl,
-            filePath: input.filePath
-          }
-        }
-        const files = Array.isArray(file) ? file : [file];
-
-        // Workspace paths
-        const currentState = getCurrentTaskInput();
-        const workspacePath = currentState?.['sys']?.['volume'] ?? '/tmp/xpert';
-        const baseUrl = currentState?.['sys']?.['workspace_url'];
-
-        let markdown = ''
-        const fileArtifacts: any[] = [];
-        for await (const file of files) {
-          // Load content
-          let pdfBuffer: Buffer;
-          if (file.fileUrl) {
-            const resp = await fetch(file.fileUrl);
-            if (!resp.ok) {
-              throw new Error(
-                `Failed to download PDF from URL: ${resp.statusText}`
-              );
-            }
-            const arrayBuffer = await resp.arrayBuffer();
-            pdfBuffer = Buffer.from(arrayBuffer);
-            if (!file.fileName) {
-              file.fileName = path.basename(new URL(file.fileUrl).pathname);
-            }
-          } else if (file.filePath) {
-            pdfBuffer = await fs.readFile(file.filePath);
-            if (!file.fileName) file.fileName = path.basename(file.filePath);
-          } else if (typeof content === 'string') {
-            // Accept base64 string
-            pdfBuffer = Buffer.from(content, 'base64');
-            if (!file.fileName) file.fileName = 'document.pdf';
-          } else if (content instanceof Uint8Array) {
-            pdfBuffer = Buffer.from(content);
-            if (!file.fileName) file.fileName = 'document.pdf';
-          } else if (Buffer.isBuffer(content)) {
-            pdfBuffer = content;
-            if (!file.fileName) file.fileName = 'document.pdf';
-          } else {
-            throw new Error('Invalid PDF content format');
-          }
-
-          // Basic validation
-          if (!file.fileName?.toLowerCase().endsWith('.pdf')) {
-            // still try to treat as pdf, but append extension for output grouping
-            file.fileName = file.fileName + '.pdf';
-          }
-
-          const groupName = file.fileName.replace(/\.pdf$/i, '') || 'pdf';
-          const outputDir = path.join(workspacePath, groupName);
-          await fs.mkdir(outputDir, { recursive: true });
-
-          // Initialize pdfium
-          const pdfium = await PDFiumLibrary.init();
-          const pdf = await pdfium.loadDocument(pdfBuffer);
-          const pageCount = pdf.getPageCount();
-
-          markdown +=
-            `# PDF Converted to Markdown\\n\\n` +
-            `> Source File: ${file.fileName}\\n\\n` +
-            `> Pages: ${pageCount}\\n\\n`;
-
-          const images: {
-            fileName: string;
-            filePath: string;
-            fileUrl?: string;
-            mimeType: string;
-            page: number;
-          }[] = [];
-
-          const renderScale =
-            typeof scale === 'number' && scale > 0 ? scale : 2.0;
-
-          for (let i = 0; i < pageCount; i++) {
-            const page = pdf.getPage(i);
-            const text = page.getText()?.trim() ?? '';
-            const bmp = await page.render({
-              scale: renderScale,
-              render: 'bitmap',
-            });
-
-            const png = new PNG({
-              width: bmp.width,
-              height: bmp.height,
-            });
-            png.data = Buffer.from(bmp.data);
-            const pngBuffer = PNG.sync.write(png);
-
-            const imgFileName = `page-${i + 1}.png`;
-            const imgFullPath = path.join(outputDir, imgFileName);
-            await fs.writeFile(imgFullPath, pngBuffer);
-
-            markdown += `## Page ${i + 1}\\n\\n`;
-            markdown += `![Page ${i + 1}](${imgFileName})\\n\\n`;
-            if (text.length > 0) {
-              markdown += `### Extracted Text\\n\\n`;
-              // Preserve line breaks
-              markdown += text + '\\n\\n';
-            } else {
-              markdown += `> (No extractable text, maybe scanned page)\\n\\n`;
-            }
-
-            images.push({
-              fileName: path.join(groupName, imgFileName),
-              filePath: imgFullPath,
-              fileUrl: baseUrl
-                ? new URL(groupName + '/' + imgFileName, baseUrl).href
-                : undefined,
-              mimeType: 'image/png',
-              page: i + 1,
-            });
-          }
-
-          pdf.destroy();
-          pdfium.destroy();
-
-          const mdFileName = 'result.md';
-          const mdFullPath = path.join(outputDir, mdFileName);
-          await fs.writeFile(mdFullPath, markdown, 'utf8');
-
-          const markdownInfo = {
-            fileName: path.join(groupName, mdFileName),
-            filePath: mdFullPath,
-            fileUrl: baseUrl
-              ? new URL(groupName + '/' + mdFileName, baseUrl).href
-              : undefined,
-            mimeType: getMimeType(mdFileName),
-          };
-
-          fileArtifacts.push(markdownInfo)
-          fileArtifacts.push(...images);
-        }
-
-        return [
-          markdown,
+        name ||= 'document.pdf'
+        // Atomically allocate persistent outputs independently of filenames and concurrent calls.
+        const outputDir = await mkdtemp(path.join(workspacePath, 'pdf-'))
+        const group = path.basename(outputDir)
+        const imageArtifacts: PdfToolArtifact[] = []
+        const markdown = await withPdfiumPages(
+          buffer,
           {
-            files: fileArtifacts
+            scale: typeof input.scale === 'number' && input.scale > 0 ? input.scale : undefined,
+            signal: config.signal
           },
-        ];
-      } catch (e: any) {
-        throw new Error('Error converting PDF: ' + (e?.message || String(e)));
+          async (pages, directory) => {
+            let content = `# PDF Converted to Markdown\n\n> Source File: ${name}\n\n> Pages: ${pages.length}\n\n`
+            for (const page of pages) {
+              config.signal?.throwIfAborted()
+              const filePath = path.join(outputDir, page.imageName)
+              await writeFile(filePath, await readFile(path.join(directory, page.imageName)))
+              content += `## Page ${page.page}\n\n![Page ${page.page}](${page.imageName})\n\n`
+              content += page.text
+                ? `### Extracted Text\n\n${page.text}\n\n`
+                : '> (No extractable text, maybe scanned page)\n\n'
+              imageArtifacts.push({
+                fileName: path.join(group, page.imageName),
+                filePath,
+                fileUrl: assetUrl(group, page.imageName, baseUrl),
+                mimeType: 'image/png',
+                page: page.page
+              })
+            }
+            return content
+          }
+        )
+        const markdownPath = path.join(outputDir, 'result.md')
+        await writeFile(markdownPath, markdown, 'utf8')
+        artifacts.push(
+          {
+            fileName: path.join(group, 'result.md'),
+            filePath: markdownPath,
+            fileUrl: assetUrl(group, 'result.md', baseUrl),
+            mimeType: 'text/markdown'
+          },
+          ...imageArtifacts
+        )
+        contents.push(markdown)
       }
+      return [contents.join('\n\n'), { files: artifacts }]
     },
     {
       name: 'pdf_to_markdown',
       description:
         'Convert a PDF file into a markdown file with extracted text and rendered page images. Returns markdown and images file list.',
       schema: z.object({
-        file: z.any().optional().nullable().describe('File object or list of File objects'),
-        fileName: z.string().optional().nullable(),
-        filePath: z.string().optional().nullable(),
-        fileUrl: z.string().optional().nullable(),
-        content: z
-          .union([z.string(), z.instanceof(Buffer), z.instanceof(Uint8Array)])
-          .optional()
-          .nullable(),
-        scale: z
-          .number()
-          .optional()
-          .nullable()
-          .describe('Rendering scale for images, default 2.0'),
+        file: z
+          .union([fileSchema, z.array(fileSchema).min(1)])
+          .nullish()
+          .describe('File object or list of File objects'),
+        fileName: z.string().nullish(),
+        filePath: z.string().nullish(),
+        fileUrl: z.string().nullish(),
+        content: z.union([z.string(), z.instanceof(Buffer), z.instanceof(Uint8Array)]).nullish(),
+        scale: z.number().nullish().describe('Rendering scale for images, default 2.0')
       }),
-      responseFormat: 'content_and_artifact',
+      responseFormat: 'content_and_artifact'
     }
-  );
+  )
+}
+
+function assetUrl(group: string, name: string, baseUrl?: string) {
+  return baseUrl ? `${baseUrl.replace(/\/+$/, '')}/${encodeURIComponent(group)}/${encodeURIComponent(name)}` : undefined
 }

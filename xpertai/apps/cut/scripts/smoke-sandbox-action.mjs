@@ -15,10 +15,10 @@ try {
   await writeFile(path.join(inputRoot, 'media', 'tone.wav'), toneWav(1.5))
   const request = {
     contractVersion: '1',
-    runtimeProfile: 'browser/playwright-1.61/v1',
+    runtimeProfile: 'browser/video-playwright-1.61/v1',
     sandboxRuntimeVersion: '1.0.0',
     action: 'cut.render-mp4',
-    actionVersion: '1.1.5',
+    actionVersion: '1.1.6',
     payload: {
       sourceRevision: 7,
       timeoutMs: 120_000,

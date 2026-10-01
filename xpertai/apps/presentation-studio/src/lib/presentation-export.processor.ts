@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common'
-import { PluginJobProcessor, type ManagedQueueJob, type ManagedQueueJobProcessor } from '@xpert-ai/plugin-sdk'
+import {
+  PluginJobProcessor,
+  type ManagedQueueJob,
+  type ManagedQueueJobContext,
+  type ManagedQueueJobProcessor
+} from '@xpert-ai/plugin-sdk'
 import { PRESENTATION_EXPORT_JOB, PRESENTATION_EXPORT_QUEUE, PRESENTATION_STUDIO_PLUGIN_NAME } from './constants.js'
 import { PresentationConfigService } from './presentation-config.service.js'
 import { PresentationStudioService } from './presentation-studio.service.js'
@@ -17,10 +22,10 @@ export class PresentationExportProcessor implements ManagedQueueJobProcessor<Pre
   private readonly waiters: Array<() => void> = []
   constructor(private readonly service: PresentationStudioService, private readonly config: PresentationConfigService) {}
 
-  async handle(job: ManagedQueueJob<PresentationExportJobData>) {
+  async handle(job: ManagedQueueJob<PresentationExportJobData>, context: ManagedQueueJobContext) {
     await this.acquire()
     try {
-      await this.service.processExportJob(job.data)
+      await this.service.processExportJob(job.data, context)
     } finally {
       this.release()
     }

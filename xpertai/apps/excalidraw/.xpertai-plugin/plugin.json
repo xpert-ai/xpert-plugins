@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-excalidraw",
-  "version": "0.9.0",
+  "version": "0.14.2",
   "description": "Collaborative Excalidraw app with Yjs live editing, secure interactive HTML Artifact sharing, DiagramIR templates, quality review, versions, and an editable workbench.",
   "author": "XpertAI",
   "homepage": "https://github.com/xpert-ai/xpert-plugins/tree/main/xpertai/apps/excalidraw",

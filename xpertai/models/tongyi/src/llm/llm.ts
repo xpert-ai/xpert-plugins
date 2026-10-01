@@ -13,6 +13,7 @@ import {
 import { TongyiProviderStrategy } from '../provider.strategy.js'
 
 const TONGYI_EXPLICIT_CACHE_MODELS = new Set([
+  'qwen3.8-flash',
   'qwen3.8-max',
   'qwen3.7-max',
   'qwen3.6-max-preview',
@@ -427,6 +428,19 @@ export class TongyiLargeLanguageModel extends LargeLanguageModel {
     const params = toCredentialKwargs(credentials)
     const modelCredentials = copilotModel.options as TongyiModelCredentials
     const configuration = toTongyiConfigurationWithExtraHeaders(params.configuration, modelCredentials?.extra_headers)
+    let responseFormat: { type: string; json_schema?: object } | undefined
+    if (modelCredentials?.response_format) {
+      responseFormat = { type: modelCredentials.response_format }
+      if (modelCredentials.response_format === 'json_schema') {
+        const schema = typeof modelCredentials.json_schema === 'string'
+          ? JSON.parse(modelCredentials.json_schema)
+          : modelCredentials.json_schema
+        if (!isPlainObject(schema)) {
+          throw new Error('JSON Schema must be an object')
+        }
+        responseFormat.json_schema = schema
+      }
+    }
 
     const model = copilotModel.model
     const supportsSamplingAndReasoningOverrides =
@@ -440,7 +454,7 @@ export class TongyiLargeLanguageModel extends LargeLanguageModel {
         temperature: supportsSamplingAndReasoningOverrides
           ? modelCredentials?.temperature ?? 0
           : undefined,
-        maxTokens: modelCredentials?.max_tokens,
+        maxTokens: modelCredentials?.max_completion_tokens ?? modelCredentials?.max_tokens,
         topP: supportsSamplingAndReasoningOverrides ? modelCredentials?.top_p : undefined,
         frequencyPenalty: supportsSamplingAndReasoningOverrides
           ? modelCredentials?.frequency_penalty
@@ -459,9 +473,7 @@ export class TongyiLargeLanguageModel extends LargeLanguageModel {
               : undefined,
             tool_stream: modelCredentials?.tool_stream,
             enable_search: modelCredentials?.enable_search,
-            response_format: modelCredentials?.response_format
-              ? { type: modelCredentials.response_format }
-              : undefined
+            response_format: responseFormat
           },
           isNil
         ),

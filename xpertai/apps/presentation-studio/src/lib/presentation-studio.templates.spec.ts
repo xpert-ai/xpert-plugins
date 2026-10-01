@@ -51,10 +51,10 @@ describe('Presentation Studio assistant template', () => {
 
   it('declares the workspace prompt workflows used to start presentation tasks', () => {
     const expectedArgsHints: Record<string, string> = {
-      'presentation-create': '{"topic_or_material":"...","audience":"...","page_count":10,"goal":"..."}',
-      'presentation-refine': '{"deck_id":"...","requirements":"..."}',
-      'presentation-export': '{"deck_id":"...","formats":["html","pdf","pptx"]}',
-      'presentation-share': '{"deck_id":"..."}'
+      'presentation-create': '请输入主题或材料、目标受众、页数和演示目标。',
+      'presentation-refine': '请说明要优化哪份演示稿，以及文案、排版或内容上的修改要求。',
+      'presentation-export': '请指定演示稿及导出格式（HTML、PDF 或 PPTX）；不指定演示稿时使用当前演示稿。',
+      'presentation-share': '请指定要分享的演示稿；不填写时使用当前演示稿。'
     }
     expect(presentationStudioPromptWorkflows.map(({ name }) => name)).toEqual([
       'presentation-create',
@@ -75,5 +75,46 @@ describe('Presentation Studio assistant template', () => {
       expect(workflow.template.match(/\{\{\s*([^}]+?)\s*\}\}/g)).toEqual(['{{args}}'])
     }
     expect(presentationStudioPromptWorkflows[3]?.template).toContain('最终回复只返回工具产生的 shareUrl')
+  })
+
+  it('ships valid, editable scenario arguments with every contributed workflow', () => {
+    for (const workflow of presentationStudioPromptWorkflows) {
+      expect(workflow.scenarios.length).toBeGreaterThan(0)
+      expect(workflow.scenarios.length).toBeLessThanOrEqual(20)
+      expect(new Set(workflow.scenarios.map(({ id }) => id)).size).toBe(workflow.scenarios.length)
+
+      for (const scenario of workflow.scenarios) {
+        expect(scenario.id).toMatch(/^[a-z0-9][a-z0-9-]{0,99}$/)
+        expect(scenario.label.trim().length).toBeGreaterThan(0)
+        expect(scenario.label.length).toBeLessThanOrEqual(120)
+        expect(scenario.args.trim().length).toBeGreaterThan(0)
+        expect(scenario.args.length).toBeLessThanOrEqual(20000)
+        expect(scenario.args).not.toContain('{{args}}')
+
+        const draft = workflow.template.replace('{{args}}', () => scenario.args)
+        expect(draft).toContain(scenario.args)
+        expect(draft).not.toContain('{{args}}')
+        expect(draft).toContain('请使用用户输入的语言输出。')
+      }
+    }
+  })
+
+  it('offers presentation-specific scenarios for each operation', () => {
+    const [create, refine, exportWorkflow, share] = presentationStudioPromptWorkflows
+
+    expect(create.scenarios.map(({ label }) => label)).toEqual([
+      '工作汇报 PPT', 'AI 趋势 PPT', '年终总结 PPT', '产品介绍 PPT', '项目复盘 PPT'
+    ])
+    expect(create.scenarios.find(({ id }) => id === 'ai-trends')?.args).toContain('来源和日期')
+    expect(refine.scenarios.map(({ label }) => label)).toEqual(['精简文案', '优化排版', '检查完整性'])
+    for (const format of ['HTML', 'PDF', 'PPTX']) {
+      const scenario = exportWorkflow.scenarios.find(({ label }) => label === `导出 ${format}`)
+      expect(scenario?.args).toContain(`仅导出为 ${format}`)
+    }
+    expect(share.scenarios.map(({ label }) => label)).toEqual(['生成分享链接'])
+    for (const scenario of share.scenarios) {
+      expect(share.template.replace('{{args}}', () => scenario.args))
+        .toContain('最终回复只返回工具产生的 shareUrl')
+    }
   })
 })

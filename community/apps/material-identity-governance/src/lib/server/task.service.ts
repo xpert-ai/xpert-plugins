@@ -158,6 +158,7 @@ export class MaterialTaskService {
         queueJobId: null,
         record: {
           id,
+          organizationId: s.organizationId,
           caseId: e.id,
           nodeKey,
           roleKey: role,
@@ -339,6 +340,7 @@ export class MaterialTaskService {
       clientMessageId: r.operationId,
       prompt: [
         `请执行物料主数据治理任务 ${r.nodeKey}。`,
+        `organizationId=${s.organizationId}`,
         `caseId=${e.id}`,
         `expectedRevision=${r.inputRevision}`,
         `operationId=${r.operationId}`,
@@ -346,6 +348,7 @@ export class MaterialTaskService {
         '先用本角色读取工具获取当前证据，再调用本节点工具一次。不得替他人审批。完成工具写入后结束回复。',
       ].join('\n'),
       humanInput: {
+        organizationId: s.organizationId,
         caseId: e.id,
         nodeKey: r.nodeKey,
         expectedRevision: r.inputRevision,
@@ -353,6 +356,7 @@ export class MaterialTaskService {
       },
       context: {
         materialIdentity: {
+          organizationId: s.organizationId,
           caseId: e.id,
           caseKey: e.caseKey,
           nodeKey: r.nodeKey,
@@ -364,6 +368,7 @@ export class MaterialTaskService {
         operationId: r.operationId,
         subjectId: e.id,
         attributes: {
+          organizationId: s.organizationId,
           nodeKey: r.nodeKey,
           roleKey: r.roleKey,
           inputRevision: r.inputRevision,
@@ -396,7 +401,7 @@ export class MaterialTaskService {
     } catch (error) {
       await this.fail(
         await repo.findOneByOrFail({ id: r.id, ...scoped(s) }),
-        '平台未能启动助理任务；请检查发布状态、主模型和角色绑定。',
+        assistantLaunchFailureSummary(error),
       )
       throw error
     }
@@ -559,4 +564,23 @@ export class MaterialTaskService {
       await this.cases.persistNodes(m, e)
     })
   }
+}
+
+/**
+ * Persist a bounded, user-actionable launch error without exposing a stack,
+ * request payload, credentials, or arbitrary serialized objects.
+ */
+export function assistantLaunchFailureSummary(error: unknown) {
+  const detail =
+    error instanceof Error
+      ? `${error.name}: ${error.message}`
+      : typeof error === 'string'
+        ? error
+        : '未知平台错误'
+  const safeDetail = detail
+    .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 500)
+  return `平台未能启动助理任务：${safeDetail || '未知平台错误'}`
 }

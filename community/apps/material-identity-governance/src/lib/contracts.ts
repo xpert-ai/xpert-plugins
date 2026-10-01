@@ -180,6 +180,7 @@ export interface GovernanceCase {
 }
 export interface ExecutionRecord {
   id: string
+  organizationId: string
   caseId: string
   nodeKey: string
   roleKey: RoleKey

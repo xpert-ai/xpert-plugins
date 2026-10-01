@@ -184,7 +184,8 @@ export class PresentationStudioViewProvider implements IXpertViewExtensionProvid
         const result = await this.service.createDeck(scope, {
           title: requiredInput(request, 'title'), goal: requiredInput(request, 'goal'), audience: stringInput(request, 'audience'),
           owner: stringInput(request, 'owner'), themePack: requiredInput(request, 'themePack') as PresentationThemePack,
-          pageCount: numberInput(request, 'pageCount') ?? 8
+          pageCount: numberInput(request, 'pageCount') ?? 8,
+          initializeSlides: booleanInput(request, 'initializeSlides') ?? false
         })
         return { ...success('Presentation created'), data: result }
       }

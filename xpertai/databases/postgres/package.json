@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-postgres",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "license": "AGPL-3.0",
   "repository": {
     "type": "git",
@@ -33,10 +33,11 @@
   },
   "peerDependencies": {
     "@nestjs/common": "^11.1.6",
-    "@xpert-ai/plugin-sdk": "^3.15.15",
+    "@xpert-ai/plugin-sdk": "^3.18.6",
     "zod": "3.25.67"
   },
   "devDependencies": {
+    "@xpert-ai/plugin-sdk": "3.18.6",
     "@types/pg": "^8.6.2",
     "@types/pg-copy-streams": "^1.2.5"
   }

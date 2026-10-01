@@ -1,0 +1,42 @@
+{
+  "recordedVersion": "0.3.0",
+  "verificationType": "Pre-PR automated checks rerun; runtime and model evidence retained from earlier local receipts",
+  "runtime": {
+    "version": "0.3.0",
+    "commands": [
+      "assistant.composer.append_references"
+    ],
+    "actions": [
+      "save_workspace",
+      "save_buffers",
+      "save_scratchpad"
+    ],
+    "htmlSha256": "4934803c26f57454206a15bc620b4d0cf80d84f44891d3b84748f003d0d8d0a5",
+    "liveHtmlMatchesDist": true,
+    "browserValidation": false
+  },
+  "model": {
+    "fixture": "example.js: function tax(amount) { return amount * 0.2; }",
+    "response": {
+      "role": "ai",
+      "content": "## 解释:example.js 第 1-3 行\n\n```js\nfunction tax(amount) {\n  return amount * 0.2;\n}\n```\n\n**逐行说明**\n\n| 部分 | 含义 |\n| --- | --- |\n| `function tax(amount)` | 声明一个名为 `tax` 的函数,它接收一个参数 `amount`(金额,作为输入) |\n| `return amount * 0.2` | 把传入的 `amount` 乘以 `0.2`,并把该乘积作为函数的返回值 |\n\n**语义概括**\n\n- 这个函数只做一件事:按 **20% 的比例**计算税额。\n- `0.2` 是一个写死的字面量(等价于 20%),没有做四舍五入、取整或单位/货币处理。\n- 函数是纯函数:同样的输入永远得到同样的输出,不读写任何外部状态。\n\n**参数为 100 时的结果**\n\n```\ntax(100)\n= 100 * 0.2\n= 20\n```\n\n- 返回值:**`20`**\n- 类型:JavaScript 中 `0.2` 是浮点数,所以结果是 `number`(显示为 `20`,但内部是浮点值)。\n\n**补充提醒**\n\n- 若 `amount` 不是数字(如字符串),会走类型转换或得到 `NaN`,例如 `tax(\"abc\")` → `NaN`。\n- 若需要金额取整或保留两位小数,当前写法不会处理,需要额外的 `Math.round` / `toFixed` 等逻辑。\n\n需要我帮你改这个函数吗(比如改成可传入税率、或加输入校验/取整)?告诉我你想要的改动目标即可。"
+    },
+    "temporaryTestThreadDeleted": true
+  },
+  "tests": {
+    "plugin": {
+      "upstreamPassed": 56,
+      "pluginPassed": 11
+    },
+    "harnessRecordedVersion": "0.3.0",
+    "hostCloudPassed": 16,
+    "hostServerPassed": 5,
+    "hostServerPreexistingFailures": 2,
+    "harness": {
+      "passed": true,
+      "mocks": true,
+      "distFirst": true,
+      "date": "2026-09-14"
+    }
+  }
+}

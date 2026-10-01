@@ -1,0 +1,36 @@
+{
+  "name": "@xpert-ai/plugin-zsxq-connector",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "connectors/zsxq-connector/src",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "connectors/zsxq-connector/dist",
+        "main": "connectors/zsxq-connector/src/index.ts",
+        "rootDir": "connectors/zsxq-connector/src",
+        "tsConfig": "connectors/zsxq-connector/tsconfig.lib.json",
+        "generatePackageJson": false
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "cwd": "connectors/zsxq-connector",
+        "command": "tsc -p tsconfig.spec.json --noEmit"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "cwd": "connectors/zsxq-connector",
+        "command": "jest --config jest.config.cjs --runInBand"
+      }
+    }
+  }
+}

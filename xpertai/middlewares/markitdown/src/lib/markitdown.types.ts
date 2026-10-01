@@ -8,8 +8,7 @@ export const DEFAULT_MARKITDOWN_STAMP_PATH = '/workspace/.xpert/.markitdown-boot
 export const MARKITDOWN_BOOTSTRAP_SCHEMA_VERSION = 1
 
 /**
- * Plugin-level config schema (organization-wide defaults)
- * Only includes pip index URLs which are typically configured at organization level.
+ * System defaults for the existing agent skill bootstrap, not Knowledge Sandbox Jobs.
  */
 export const MarkItDownPluginConfigSchema = z.object({
   pipIndexUrl: z.string().optional(),
@@ -38,8 +37,7 @@ export const MarkItDownConfigSchema = MarkItDownMiddlewareConfigSchema.merge(Mar
 export type MarkItDownConfig = z.infer<typeof MarkItDownConfigSchema>
 
 /**
- * Plugin-level config form schema (organization-wide defaults)
- * Only includes pip index URLs which are typically configured at organization level.
+ * System defaults for the existing agent skill bootstrap.
  */
 export const MarkItDownPluginConfigFormSchema: JsonSchemaObjectType = {
   type: 'object',
@@ -76,6 +74,7 @@ export const MarkItDownPluginConfigFormSchema: JsonSchemaObjectType = {
 export const MarkItDownMiddlewareConfigFormSchema: JsonSchemaObjectType = {
   type: 'object',
   properties: {
+    ...MarkItDownPluginConfigFormSchema.properties,
     version: {
       type: 'string',
       title: {

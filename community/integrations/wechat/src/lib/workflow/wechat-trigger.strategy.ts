@@ -9,8 +9,6 @@ import {
   type PluginContext,
   RequestContext,
   TWorkflowTriggerParams,
-  WORKSPACE_FILES_SOURCE,
-  type WorkspaceFilesApi,
   WorkflowTriggerStrategy
 } from '@xpert-ai/plugin-sdk'
 import { Repository } from 'typeorm'
@@ -45,6 +43,7 @@ import {
 } from '../types.js'
 import { WechatChannelStrategy } from '../wechat-channel.strategy.js'
 import { WechatClient } from '../wechat.client.js'
+import { resolveWechatWorkspaceFiles } from '../wechat-workspace-files.js'
 import {
   WechatTriggerAggregatePayload,
   WechatTriggerAggregationState,
@@ -64,7 +63,6 @@ const MAX_HISTORY_CONTEXT_LIMIT = 100
 const ATTACHMENT_ONLY_AGGREGATE_INPUT = '[理解附件]'
 const PENDING_FILE_MATERIALIZE_RETRY_DELAYS_MS = [2_000, 5_000, 10_000]
 const MAX_PENDING_FILE_MATERIALIZE_RETRIES = PENDING_FILE_MATERIALIZE_RETRY_DELAYS_MS.length
-const XPERT_RUNTIME_CAPABILITIES_TOKEN = 'XPERT_RUNTIME_CAPABILITIES'
 const SELF_MESSAGE_POLICY_ENUM_LABELS = {
   history_only: { en_US: 'History only', zh_Hans: '只写入历史' },
   ignore: { en_US: 'Ignore', zh_Hans: '忽略' },
@@ -86,10 +84,6 @@ const GROUP_TRIGGER_MODE_ENUM_LABELS = {
 type WechatTenantScope = {
   tenantId?: string | null
   organizationId?: string | null
-}
-
-type RuntimeCapabilityRegistry = {
-  get<T>(key: string): T | undefined
 }
 
 type PendingFileMergeResult = {
@@ -119,7 +113,6 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
   private readonly logger = new Logger(WechatTriggerStrategy.name)
   private readonly callbacks = new Map<string, (payload: any) => void>()
   private _integrationPermissionService: IntegrationPermissionService
-  private _workspaceFiles: WorkspaceFilesApi | null | undefined
 
   readonly meta: TWorkflowTriggerMeta = {
     name: WechatTrigger,
@@ -497,17 +490,6 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       this._integrationPermissionService = this.pluginContext.resolve(INTEGRATION_PERMISSION_SERVICE_TOKEN)
     }
     return this._integrationPermissionService
-  }
-
-  private get workspaceFiles(): WorkspaceFilesApi {
-    if (this._workspaceFiles === undefined) {
-      const registry = this.pluginContext.resolve<RuntimeCapabilityRegistry>(XPERT_RUNTIME_CAPABILITIES_TOKEN)
-      this._workspaceFiles = registry?.get<WorkspaceFilesApi>(WORKSPACE_FILES_SOURCE) ?? null
-    }
-    if (!this._workspaceFiles) {
-      throw new Error('platform.workspace.files capability is not available')
-    }
-    return this._workspaceFiles
   }
 
   async validate(payload: TWorkflowTriggerParams<TWechatTriggerConfig>) {
@@ -1536,7 +1518,16 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       fileKey: downloaded.file.fileKey,
       originalWechatFileName: pending.fileRef.originalName
     }
-    const uploaded = await this.workspaceFiles.uploadBuffer({
+    const workspaceFiles = resolveWechatWorkspaceFiles(this.pluginContext, {
+      tenantId: context.tenantId ?? integration.tenantId,
+      organizationId: context.organizationId ?? integration.organizationId,
+      userId,
+      xpertId: context.xpertId,
+      catalog: 'xperts',
+      scopeId: context.xpertId,
+      isolateByUser: false
+    })
+    const uploaded = await workspaceFiles.uploadBuffer({
       tenantId: context.tenantId ?? integration.tenantId ?? undefined,
       userId,
       catalog: 'xperts',
@@ -1550,7 +1541,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       buffer: downloaded.file.data,
       metadata
     })
-    const understood = await this.workspaceFiles.understandFile({
+    const understood = await workspaceFiles.understandFile({
       tenantId: context.tenantId ?? integration.tenantId ?? undefined,
       userId,
       catalog: 'xperts',
@@ -1632,7 +1623,16 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       senderId: pending.senderId,
       fileKey: result.file.fileKey
     }
-    const uploaded = await this.workspaceFiles.uploadBuffer({
+    const workspaceFiles = resolveWechatWorkspaceFiles(this.pluginContext, {
+      tenantId: context.tenantId ?? integration.tenantId,
+      organizationId: context.organizationId ?? integration.organizationId,
+      userId,
+      xpertId: context.xpertId,
+      catalog: 'xperts',
+      scopeId: context.xpertId,
+      isolateByUser: false
+    })
+    const uploaded = await workspaceFiles.uploadBuffer({
       tenantId: context.tenantId ?? integration.tenantId ?? undefined,
       userId,
       catalog: 'xperts',
@@ -1646,7 +1646,7 @@ export class WechatTriggerStrategy implements IWorkflowTriggerStrategy<TWechatTr
       buffer: result.file.data,
       metadata
     })
-    const understood = await this.workspaceFiles.understandFile({
+    const understood = await workspaceFiles.understandFile({
       tenantId: context.tenantId ?? integration.tenantId ?? undefined,
       userId,
       catalog: 'xperts',

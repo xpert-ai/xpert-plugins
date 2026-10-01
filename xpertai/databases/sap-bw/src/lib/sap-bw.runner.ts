@@ -61,6 +61,10 @@ export class SapBwRunner extends XMLARunner {
     }
   }
 
+  protected override get metadataCatalogDiscovery(): 'catalogs' | 'cubes' {
+    return this.options.catalog_discovery ?? 'catalogs'
+  }
+
   override async getCatalogs(): Promise<IDSSchema[]> {
     if (this.options.catalog_discovery !== 'cubes') {
       return super.getCatalogs()

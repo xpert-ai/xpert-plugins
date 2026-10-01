@@ -1,3 +1,4 @@
+import { createMysqlWorkbench } from './mysql-workbench.js'
 import { Injectable } from '@nestjs/common';
 import {
   AdapterDataSourceStrategy,
@@ -36,12 +37,15 @@ export class DorisDataSourceStrategy extends AdapterDataSourceStrategy {
 export interface DorisAdapterOptions extends MysqlAdapterOptions {
   apiHost?: string;
   apiPort?: number;
+  /** Explicit BE hosts allowed for credential-bearing Stream Load redirects. */
+  streamLoadHosts?: string[];
 }
 
 const DORIS_DEFAULT_PORT = 9030;
 const DORIS_DEFAULT_API_PORT = 8030;
 
 export class DorisRunner extends MySQLRunner<DorisAdapterOptions> {
+  override getWorkbenchAdapter() { return createMysqlWorkbench(this.options, 'doris') }
   override readonly name: string = 'Doris';
   override readonly type: string = DORIS_TYPE;
 
@@ -64,6 +68,7 @@ export class DorisRunner extends MySQLRunner<DorisAdapterOptions> {
         password: { type: 'string', title: 'Password' },
         apiHost: { type: 'string' },
         apiPort: { type: 'number', default: DORIS_DEFAULT_API_PORT },
+        streamLoadHosts: { type: 'array', items: { type: 'string' }, title: 'Allowed Stream Load hosts' },
         version: { type: 'number', default: 0 },
         // 目前 catalog 用于指定数据库，Doris 的 catalog 只支持默认
         catalog: { type: 'string', title: 'Database' },
@@ -98,6 +103,7 @@ export class DorisRunner extends MySQLRunner<DorisAdapterOptions> {
   }
 
   #connection: Connection | null = null;
+  #catalogConnections = new Map<string, Connection>();
   _createConnection(database?: string) {
     const config: any = pick(this.options, [
       'host',
@@ -136,11 +142,10 @@ export class DorisRunner extends MySQLRunner<DorisAdapterOptions> {
   }
 
   getDorisConnection(catalog: string): Connection {
-    if (!this.#connection) {
-      this.#connection = this._createConnection(catalog);
-    }
-
-    return this.#connection;
+    const key = catalog || this.options.catalog || ''
+    let connection = this.#catalogConnections.get(key)
+    if (!connection) { connection = this._createConnection(key || undefined); this.#catalogConnections.set(key, connection) }
+    return connection
   }
 
   async queryDoris(connection: Connection | Pool, statment: string, values?: any) {
@@ -173,7 +178,7 @@ export class DorisRunner extends MySQLRunner<DorisAdapterOptions> {
     const connection = this.getDorisConnection(
       options?.catalog ?? this.options.catalog
     );
-    return await this.queryDoris(connection, query);
+    return await this.queryDoris(connection, query, options?.params);
   }
 
   override async getCatalogs(): Promise<IDSSchema[]> {
@@ -359,6 +364,9 @@ export class DorisRunner extends MySQLRunner<DorisAdapterOptions> {
   }
 
   override async teardown() {
+    for (const connection of this.#catalogConnections.values()) connection.destroy()
+    this.#catalogConnections.clear()
+    await super.teardown()
     if (this.#connection) {
       this.#connection.destroy()
       this.#connection = null

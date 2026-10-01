@@ -30,7 +30,9 @@ export const icon = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none"
 </svg>
 `
 
-export type TMinerUTransformerConfig = TDocumentTransformerConfig & {
+export type TMinerUTransformerConfig = TDocumentTransformerConfig & MinerUParseOptions
+
+export type MinerUParseOptions = {
   isOcr?: boolean
   enableFormula?: boolean
   enableTable?: boolean
@@ -104,7 +106,7 @@ export type MinerUServerType = 'official' | 'self-hosted'
 
 export type MinerUUploadMode = 'auto' | 'file' | 'url'
 
-export type MinerUIntegrationOptions = {
+export type MinerUIntegrationOptions = MinerUParseOptions & {
   apiUrl?: string
   apiKey?: string
   serverType?: MinerUServerType

@@ -38,14 +38,15 @@ describe('Cut native MCP capabilities', () => {
       userId: 'user-1',
       xpertFeatures: null,
       runtime: {}
-    }
+    },
+    { resolveExportFile: jest.fn() }
   )
 
   it('classifies every original Cut operation exactly once', () => {
     expect(definitions.tools).toHaveLength(43)
-    expect(definitions.resourceTemplates).toHaveLength(7)
+    expect(definitions.resourceTemplates).toHaveLength(8)
     expect(
-      new Set([...definitions.tools.map(({ name }) => name), ...definitions.resourceTemplates.map(({ key }) => key)])
+      new Set([...definitions.tools.map(({ name }) => name), ...definitions.resourceTemplates.filter(({ key }) => key !== 'cut_get_export').map(({ key }) => key)])
     ).toEqual(new Set(CUT_MIDDLEWARE_TOOL_NAMES))
   })
 
@@ -57,6 +58,15 @@ describe('Cut native MCP capabilities', () => {
     expect(definitions.tools.find(({ name }) => name === CUT_START_HEADLESS_EXPORT_TOOL_NAME)?.task).toEqual({
       mode: 'optional',
       maxLifetimeMs: 3_600_000
+    })
+  })
+
+  it('permits direct execution of every Cut tool while retaining risk classifications', () => {
+    for (const tool of definitions.tools) {
+      expect(tool).toMatchObject({ defaultApprovalMode: 'allow' })
+    }
+    expect(definitions.tools.find(({ name }) => name === CUT_CANCEL_ANALYSIS_JOB_TOOL_NAME)).toMatchObject({
+      behavior: { risk: 'dangerous' }
     })
   })
 
@@ -114,10 +124,36 @@ describe('Cut native MCP capabilities', () => {
     ).toBe(true)
   })
 
-  it('provides workflow prompts in the requested language', async () => {
+  it('passes pagination as numeric arguments and preserves the exact requested URI', async () => {
+    const getCaptionDraft = jest.fn(async () => ({ captions: [], page: 2, total: 10 }))
+    const capabilities = createCutNativeCapabilityDefinitions(new CutMiddleware(
+      {} as CutService, { getCaptionDraft } as unknown as CutCaptionService,
+      {} as CutMediaIntelligenceService, {} as CutProposalService, {} as CutRenderService
+    ), { tenantId: 'tenant-1', userId: 'user-1', runtime: {}, xpertFeatures: null }, { resolveExportFile: jest.fn() })
+    const draft = capabilities.resourceTemplates.find(({ key }) => key === 'cut_get_caption_draft')!
+    expect(draft.uriTemplate).toContain('{?page,pageSize}')
+    const projectId = '11111111-1111-4111-8111-111111111111'
+    const draftId = '22222222-2222-4222-8222-222222222222'
+    const uri = `cut://projects/${projectId}/caption-drafts/${draftId}?pageSize=5&page=2`
+    const result = await draft.read({ projectId, draftId, page: '2', pageSize: '5' }, {
+      source: 'mcp', tenantId: 'tenant-1', principal: { type: 'user', id: 'user-1', userId: 'user-1' },
+      executionId: 'execution', requestId: 'request', resourceUri: uri, host: {}
+    })
+    expect(result.contents[0]!.uri).toBe(uri)
+    expect(getCaptionDraft).toHaveBeenCalledWith(expect.objectContaining({ userId: 'user-1' }), projectId, draftId, 2, 5)
+  })
+
+  it.each([
+    ['cut_plan_rough_cut', 'Cut speech editing', 'zh-Hans'],
+    ['cut_review_edit_proposal', 'Cut verification', 'en'],
+    ['cut_translate_captions', 'Cut captions', 'zh-Hans'],
+    ['cut_prepare_export', 'Cut export', 'en']
+  ])('provides the packaged workflow for %s in %s (%s)', async (key, heading, language) => {
     expect(definitions.prompts).toHaveLength(4)
-    const prompt = await definitions.prompts[0].get(
-      { projectId: 'ca8cfba3-a8e6-4e97-839d-f4fe6d8203f2', language: 'zh-Hans' },
+    const definition = definitions.prompts.find((item) => item.key === key)
+    if (!definition) throw new Error(`Missing Cut prompt ${key}`)
+    const prompt = await definition.get(
+      { projectId: 'ca8cfba3-a8e6-4e97-839d-f4fe6d8203f2', language, goal: 'Keep the introduction' },
       {
         source: 'mcp',
         tenantId: 'tenant-1',
@@ -132,13 +168,20 @@ describe('Cut native MCP capabilities', () => {
     if (content?.type !== 'text') {
       throw new Error('Expected the Cut workflow prompt to return text content.')
     }
-    expect(content.text).toContain('Cut 项目')
+    expect(content.text).toContain(language === 'zh-Hans' ? 'Cut 项目' : 'For Cut project')
+    expect(content.text).toContain('ca8cfba3-a8e6-4e97-839d-f4fe6d8203f2')
+    expect(content.text).toContain('Keep the introduction')
+    expect(content.text).toContain(`# ${heading}`)
+    expect(content.text).toContain('# Cut basics')
+    expect(content.text).toContain('Reuse existing user approval')
+    expect(content.text).toContain('Platform authorization')
   })
 })
 jest.mock('@xpert-ai/plugin-sdk', () => ({
   AgentMiddlewareStrategy: () => (target: object) => target,
   BuiltinToolset: class BuiltinToolset {},
   DefaultRuntimeCapabilityRegistry: class DefaultRuntimeCapabilityRegistry {
+    get() { return undefined }
     register() {
       return this
     }

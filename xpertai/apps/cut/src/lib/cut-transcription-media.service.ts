@@ -1,3 +1,4 @@
+import { cutFileDestination } from './cut-file-scope.js'
 import { Inject, Injectable, Logger, Optional, ServiceUnavailableException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { createHash } from 'node:crypto'
@@ -10,7 +11,6 @@ import {
   type RuntimeCapabilityRegistry,
   type SandboxJobOutput,
   type SandboxJobsApi,
-  type WorkspaceFileScope,
   type WorkspacePortableFileReference
 } from '@xpert-ai/plugin-sdk'
 import type { FindOptionsWhere, Repository } from 'typeorm'
@@ -113,7 +113,7 @@ export class CutTranscriptionMediaService {
     }
 
     const sourcePath = `media/source.${mediaExtension(asset.originalName, asset.mimeType)}`
-    const destination = transcriptionDestination(scope, input.projectId)
+    const destination = cutFileDestination(scope)
     await report('preparing-audio', 10, input.jobId)
     const stopProgressMonitor = this.startProgressMonitor(sandbox, input.jobId, report)
     const result = await sandbox.run({
@@ -289,25 +289,6 @@ function mediaWhere<T extends MediaScopedEntity>(scope: CutScope, where: Partial
   } as FindOptionsWhere<T>
 }
 
-function transcriptionDestination(scope: CutScope, cutProjectId: string): WorkspaceFileScope {
-  if (scope.projectId) {
-    return {
-      tenantId: scope.tenantId,
-      userId: scope.userId,
-      catalog: 'projects',
-      scopeId: scope.projectId,
-      projectId: scope.projectId
-    }
-  }
-  const scopeId = scope.assistantId ?? cutProjectId
-  return {
-    tenantId: scope.tenantId,
-    userId: scope.userId,
-    catalog: 'xperts',
-    scopeId,
-    xpertId: scopeId
-  }
-}
 
 function mediaExtension(name: string, mimeType: string): string {
   const extension = name.normalize('NFKC').toLowerCase().match(/\.([a-z0-9]{1,8})$/)?.[1]

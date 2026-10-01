@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>Dockyard — AvalonDock Web playground</title>
+  <link rel="stylesheet" href="src/avalondock.css">
+  <link rel="stylesheet" href="sample/sample.css">
+</head>
+<body data-theme="dark">
+  <header class="app-header">
+    <a class="brand" href="#" aria-label="Dockyard home"><span class="brand-mark"><i></i><i></i><i></i></span><strong>Dockyard<span> / </span></strong><span class="brand-description">AvalonDock Web</span></a>
+    <nav class="app-menubar" aria-label="Application menu">
+      <button data-menu="File">File</button><button data-menu="Edit">Edit</button><button data-menu="View">View</button><button data-menu="Layout">Layout</button><button data-menu="Window">Window</button><button data-menu="Help">Help</button>
+    </nav>
+    <button class="command-trigger" id="command-trigger"><span class="search-glyph">⌕</span><span>Search commands</span><kbd>Ctrl K</kbd></button>
+    <span class="version-badge">0.1.0</span><button class="avatar" id="about-button" title="About the component">DK</button>
+  </header>
+  <div class="app-toolbar">
+    <div class="toolbar-context"><span class="workspace-symbol">▦</span><strong>Component playground</strong><span class="slash">/</span><span id="preset-caption">Development</span></div>
+    <span class="toolbar-divider"></span>
+    <label class="preset-label"><span>Workspace</span><select id="preset-select" aria-label="Workspace preset"><option value="development">Development</option><option value="focus">Focus</option><option value="design">Design review</option><option value="debug">Debugging</option></select></label>
+    <button class="tool-button icon-only" id="reset-layout" title="Reset workspace" aria-label="Reset workspace">↺</button>
+    <button class="tool-button icon-only" id="undo-layout" title="Undo layout change" aria-label="Undo layout change">↶</button><button class="tool-button icon-only" id="redo-layout" title="Redo layout change" aria-label="Redo layout change">↷</button>
+    <div class="toolbar-spacer"></div>
+    <label class="theme-label"><span id="theme-symbol">◐</span><select id="theme-select" aria-label="Theme"><option value="dark">Dark</option><option value="light">Light</option><option value="aero">Aero</option><option value="vs2010">VS2010</option><option value="metro">Metro</option><option value="contrast">High contrast</option></select></label>
+    <button class="tool-button" id="export-layout">↓ <span>Export layout</span></button>
+    <button class="primary-button" id="new-document">＋ <span>New document</span></button>
+  </div>
+  <div class="workspace-shell">
+    <aside class="activity-bar" aria-label="Workspace tools">
+      <button class="activity active" data-tool="explorer" title="Explorer" aria-label="Explorer">▱</button><button class="activity" data-tool="search" title="Search files" aria-label="Search files">⌕</button><button class="activity" data-tool="tree" title="Layout tree" aria-label="Layout tree">⌘</button><button class="activity" data-tool="sources" title="Data sources" aria-label="Data sources">◫</button><button class="activity" data-tool="history" title="Layout history" aria-label="Layout history">◴</button>
+      <div class="activity-spacer"></div><button class="activity" id="shortcuts-button" title="Keyboard shortcuts" aria-label="Keyboard shortcuts">⌨</button><button class="activity" data-tool="properties" title="Properties" aria-label="Properties">⚙</button>
+    </aside>
+    <main id="dock" aria-label="Docking manager"></main>
+  </div>
+  <footer class="app-statusbar"><span class="status-ready"><i></i> Ready</span><span class="status-separator"></span><span id="active-status">Overview</span><span class="status-spacer"></span><span class="status-hint">Drag a tab or panel title to rearrange</span><span id="window-count">— windows</span><span class="status-render" id="render-status">Retained DOM</span><button id="status-save" title="Save workspace locally">✓ Saved locally</button></footer>
+  <div class="toast" id="toast" role="status" hidden></div>
+  <input type="file" id="layout-file" accept=".json,.xml,application/json,application/xml,text/xml" hidden>
+  <dialog class="command-dialog" id="command-dialog"><div class="command-input-row"><span>⌕</span><input id="command-input" placeholder="What would you like to do?" aria-label="Search workspace commands" autocomplete="off"><kbd>esc</kbd></div><div id="command-results" class="command-results"></div><footer>Dockyard commands <span>↑↓ navigate · Enter to run</span></footer></dialog>
+  <script type="module" src="sample/sample.js"></script>
+</body>
+</html>

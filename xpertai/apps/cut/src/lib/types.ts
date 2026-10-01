@@ -1,4 +1,4 @@
-import type { WorkspacePortableFileReference, WorkspaceRuntimeFileDescriptor } from '@xpert-ai/plugin-sdk'
+import type { WorkspacePortableFileReference, WorkspaceRuntimeFileDescriptor, WorkspaceFileScope } from '@xpert-ai/plugin-sdk'
 import type { CutExportSettings } from './cut-export-settings.js'
 
 export type CutProjectStatus = 'draft' | 'reviewed' | 'archived' | 'failed'
@@ -58,6 +58,7 @@ export interface CutJsonObject {
 export type CutJsonArray = CutJsonValue[]
 
 export interface CutScope {
+  fileScope?: WorkspaceFileScope
   tenantId: string
   organizationId?: string | null
   workspaceId?: string | null
@@ -68,6 +69,7 @@ export interface CutScope {
 }
 
 export interface CutTranscriptionQueueJobData {
+  fileScope?: WorkspaceFileScope
   jobId: string
   projectId: string
   mediaAssetId: string
@@ -125,6 +127,7 @@ export interface StartCutHeadlessRenderInput {
 }
 
 export interface CutRenderQueueJobData {
+  fileScope?: WorkspaceFileScope
   jobId: string
   projectId: string
   tenantId: string

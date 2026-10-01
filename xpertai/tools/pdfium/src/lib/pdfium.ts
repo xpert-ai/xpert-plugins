@@ -1,10 +1,12 @@
 import chalk from 'chalk'
 import { XpertServerPlugin, IOnPluginBootstrap, IOnPluginDestroy } from '@xpert-ai/plugin-sdk'
 import { PdfiumStrategy } from './strategy.js'
+import { PdfiumTransformerStrategy } from './transformer.strategy.js'
 
 @XpertServerPlugin({
   providers: [
     PdfiumStrategy,
+    PdfiumTransformerStrategy,
   ]
 })
 export class PdfiumModule implements IOnPluginBootstrap, IOnPluginDestroy {

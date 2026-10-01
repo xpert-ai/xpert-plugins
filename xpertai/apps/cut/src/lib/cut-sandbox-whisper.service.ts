@@ -1,3 +1,4 @@
+import { cutFileDestination } from './cut-file-scope.js'
 import { Inject, Injectable, Logger, Optional, ServiceUnavailableException } from '@nestjs/common'
 import { createHash } from 'node:crypto'
 import {
@@ -9,7 +10,6 @@ import {
   type RuntimeCapabilityRegistry,
   type SandboxJobOutput,
   type SandboxJobsApi,
-  type WorkspaceFileScope,
   type WorkspacePortableFileReference
 } from '@xpert-ai/plugin-sdk'
 import {
@@ -80,7 +80,7 @@ export class CutSandboxWhisperService {
   ): Promise<CutSandboxWhisperResult> {
     const sandbox = this.sandboxJobs()
     const sourcePath = `media/source.${mediaExtension(input.originalName, input.mimeType)}`
-    const destination = transcriptionDestination(scope, input.projectId)
+    const destination = cutFileDestination(scope)
     await report('sandbox-starting', 5, input.jobId)
     const stopProgressMonitor = this.startProgressMonitor(sandbox, input.jobId, report)
     const result = await sandbox.run({
@@ -252,25 +252,6 @@ function requireOutput(outputs: SandboxJobOutput[], path: string): SandboxJobOut
   return output
 }
 
-function transcriptionDestination(scope: CutScope, cutProjectId: string): WorkspaceFileScope {
-  if (scope.projectId) {
-    return {
-      tenantId: scope.tenantId,
-      userId: scope.userId,
-      catalog: 'projects',
-      scopeId: scope.projectId,
-      projectId: scope.projectId
-    }
-  }
-  const scopeId = scope.assistantId ?? cutProjectId
-  return {
-    tenantId: scope.tenantId,
-    userId: scope.userId,
-    catalog: 'xperts',
-    scopeId,
-    xpertId: scopeId
-  }
-}
 
 function mediaExtension(name: string, mimeType: string): string {
   const extension = name.normalize('NFKC').toLowerCase().match(/\.([a-z0-9]{1,8})$/)?.[1]

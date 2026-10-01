@@ -1,3 +1,4 @@
+import { FACTORY_CASE_PROJECT_TYPE } from './factory-project-type.js'
 import {
   BadRequestException,
   ForbiddenException,
@@ -43,6 +44,7 @@ export class FactoryCaseProjectService {
     })
     try {
       const project = await requireFactoryProjectProvisioning(this.capabilities).ensure({
+        projectType: FACTORY_CASE_PROJECT_TYPE,
         projectId: entity.workspaceProjectId,
         xpertId: requesterXpertId,
         requesterAgentKey: AGENT_KEYS.coordinator,

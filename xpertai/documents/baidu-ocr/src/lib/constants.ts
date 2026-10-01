@@ -1,8 +1,15 @@
+import { readFileSync } from 'node:fs'
+
+const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as {
+  name: string
+  version: string
+}
+
 export const BAIDU_OCR = 'baidu-ocr' as const
 export const BAIDU_PADDLE_OCR_VL = 'baidu-paddleocr-vl' as const
 export const BAIDU_UNLIMITED_OCR = 'baidu-unlimited-ocr' as const
-export const BAIDU_OCR_PLUGIN_NAME = '@xpert-ai/plugin-baidu-ocr' as const
-export const BAIDU_OCR_PLUGIN_VERSION = '0.2.0' as const
+export const BAIDU_OCR_PLUGIN_NAME = packageJson.name
+export const BAIDU_OCR_PLUGIN_VERSION = packageJson.version
 
 export const BAIDU_TOKEN_URL = 'https://aip.baidubce.com/oauth/2.0/token'
 export const BAIDU_PADDLE_SUBMIT_URL = 'https://aip.baidubce.com/rest/2.0/brain/online/v2/paddle-vl-parser/task'

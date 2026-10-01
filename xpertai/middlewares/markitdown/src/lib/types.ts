@@ -1,4 +1,5 @@
 export const MarkItDownPluginName = 'markitdown'
+export const MARKITDOWN_PACKAGE_NAME = '@xpert-ai/plugin-markitdown'
 
 // Re-export plugin config types from markitdown.types.ts
 export {

@@ -58,6 +58,7 @@ describe('MarkItDownSkillMiddleware', () => {
   it('bootstraps the sandbox in beforeAgent when a backend is available', async () => {
     const backend = { execute: jest.fn() }
     const { middleware, markitdownBootstrapService } = createSubject()
+    if (typeof middleware.beforeAgent !== 'function') throw new Error('Expected a beforeAgent function')
 
     await middleware.beforeAgent?.({} as any, {
       configurable: { sandbox: { backend } }
@@ -68,6 +69,7 @@ describe('MarkItDownSkillMiddleware', () => {
 
   it('skips bootstrap in beforeAgent when no backend is available', async () => {
     const { middleware, markitdownBootstrapService } = createSubject()
+    if (typeof middleware.beforeAgent !== 'function') throw new Error('Expected a beforeAgent function')
 
     await middleware.beforeAgent?.({} as any, {
       configurable: {}

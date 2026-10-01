@@ -21,7 +21,8 @@ export class PdfiumStrategy implements IToolsetStrategy<any> {
       zh_Hans: '将 PDF 文件转换为带有提取文本和页面图像的 Markdown。'
     },
     icon: {
-      svg: icon,
+      type: 'svg' as const,
+      value: icon,
       color: '#ff6600'
     },
     configSchema: {

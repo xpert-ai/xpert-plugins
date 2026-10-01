@@ -1,0 +1,19 @@
+{
+  "name": "@xpert-ai/agent-plugin-presets",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.24.0",
+  "scripts": {
+    "quickstart": "node scripts/quickstart.mjs",
+    "test": "node --test scripts/quickstart.test.mjs",
+    "test:lifecycle": "node ../plugin-dev-harness/agent-plugins.contract.mjs"
+  },
+  "dependencies": {
+    "archiver": "7.0.1",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "jiti": "2.6.1"
+  }
+}

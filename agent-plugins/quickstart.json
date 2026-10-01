@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "plugins": [
+    {
+      "id": "documents",
+      "oauthServers": []
+    },
+    {
+      "id": "pdf",
+      "oauthServers": []
+    },
+    {
+      "id": "presentations",
+      "oauthServers": []
+    },
+    {
+      "id": "spreadsheets",
+      "oauthServers": []
+    },
+    {
+      "id": "exa",
+      "oauthServers": []
+    },
+    {
+      "id": "notion",
+      "oauthServers": []
+    },
+    {
+      "id": "linear",
+      "oauthServers": []
+    },
+    {
+      "id": "supabase",
+      "oauthServers": []
+    },
+    {
+      "id": "sentry",
+      "oauthServers": []
+    },
+    {
+      "id": "canva-cn",
+      "oauthServers": []
+    }
+  ]
+}

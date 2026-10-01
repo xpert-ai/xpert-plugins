@@ -9,8 +9,8 @@ const actions = [
   {
     directory: 'cut-render',
     name: 'cut.render-mp4',
-    version: '1.1.5',
-    runtimeProfile: 'browser/playwright-1.61/v1'
+    version: '1.1.6',
+    runtimeProfile: 'browser/video-playwright-1.61/v1'
   },
   {
     directory: 'cut-transcription-audio',

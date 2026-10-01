@@ -11,6 +11,7 @@ import type { ZodSchema } from 'zod'
 import { CUT_ICON, CUT_TOOLSET_PROVIDER_KEY } from './constants.js'
 import { CutMiddleware } from './cut.middleware.js'
 import { CutNativeToolset } from './cut-native-capabilities.js'
+import { CutService } from './cut.service.js'
 
 @Injectable()
 @ToolsetStrategy(CUT_TOOLSET_PROVIDER_KEY)
@@ -28,12 +29,12 @@ export class CutToolsetStrategy implements IToolsetStrategy<IXpertToolset> {
     configSchema: { type: 'object', properties: {}, required: [] }
   }
 
-  constructor(private readonly middleware: CutMiddleware) {}
+  constructor(private readonly middleware: CutMiddleware, private readonly cut: CutService) {}
 
   async validateConfig(): Promise<void> {}
 
   async create(toolset: IXpertToolset, params?: TBuiltinToolsetParams): Promise<BuiltinToolset> {
-    return new CutNativeToolset(toolset, params, this.middleware)
+    return new CutNativeToolset(toolset, params, this.middleware, this.cut)
   }
 
   createTools(): DynamicStructuredTool<ZodSchema>[] {

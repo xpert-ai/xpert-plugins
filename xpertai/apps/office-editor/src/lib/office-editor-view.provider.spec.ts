@@ -1,4 +1,5 @@
 jest.mock('@xpert-ai/plugin-sdk', () => ({
+  WorkspaceFilesRuntimeCapability: { id: 'platform.workspace.files' },
   pluginArtifactTableName: (namespace: string, tableKey: string) => `plugin_${namespace}_${tableKey}`,
   ViewExtensionProvider: () => (target: unknown) => target,
   renderRemoteReactIframeHtml: jest.fn(() => '<!doctype html><html><body></body></html>')
@@ -140,6 +141,7 @@ describe('OfficeEditorViewProvider', () => {
         input: {
           importFormat: 'xlsx',
           documentType: 'spreadsheet',
+          xpertId: 'attacker-xpert',
           name: 'workbook.xlsx',
           title: 'Workbook'
         }

@@ -28,6 +28,8 @@ import {
   type MinerUPdfBatchPlan
 } from './pdf-batch.js'
 import { MinerUResultParserService } from './result-parser.service.js'
+import { withMinerUTransferError } from './transfer-error.js'
+import { resolveMinerUParseOptions, validateMinerUParseOptions } from './parse-options.js'
 import {
   icon,
   MinerU,
@@ -76,6 +78,9 @@ export class MinerUTransformerStrategy implements IDocumentTransformerStrategy<T
   ]
 
   readonly meta = {
+    providesImageText: true,
+    // Shared first-batch coverage across official and self-hosted adapters.
+    supportedFileTypes: ['pdf', 'png', 'jpg', 'jpeg'],
     name: MinerU,
     label: { en_US: 'MinerU', zh_Hans: 'MinerU' },
     description: {
@@ -84,106 +89,14 @@ export class MinerUTransformerStrategy implements IDocumentTransformerStrategy<T
     },
     icon: { type: 'svg' as const, value: icon, color: '#14b8a6' },
     helpUrl: 'https://mineru.net/apiManage/docs',
-    configSchema: {
-      type: 'object',
-      properties: {
-        isOcr: {
-          type: 'boolean',
-          title: { en_US: 'Enable OCR', zh_Hans: '启用 OCR' },
-          description: {
-            en_US: 'Enable OCR for scanned or image-based PDFs.',
-            zh_Hans: '对扫描件或图像型 PDF 启用 OCR。'
-          },
-          default: true
-        },
-        enableFormula: {
-          type: 'boolean',
-          title: { en_US: 'Enable Formula Recognition', zh_Hans: '启用公式识别' },
-          default: true
-        },
-        enableTable: {
-          type: 'boolean',
-          title: { en_US: 'Enable Table Recognition', zh_Hans: '启用表格识别' },
-          default: true
-        },
-        language: {
-          type: 'string',
-          title: { en_US: 'Document Language', zh_Hans: '文档语言' },
-          description: {
-            en_US: 'OCR language pack documented by MinerU.',
-            zh_Hans: 'MinerU 官方文档定义的 OCR 语言包。'
-          },
-          enum: [
-            'ch',
-            'ch_server',
-            'en',
-            'japan',
-            'korean',
-            'chinese_cht',
-            'ta',
-            'te',
-            'ka',
-            'el',
-            'th',
-            'latin',
-            'arabic',
-            'cyrillic',
-            'east_slavic',
-            'devanagari'
-          ],
-          default: 'ch'
-        },
-        modelVersion: {
-          type: 'string',
-          title: { en_US: 'Model Version', zh_Hans: '模型版本' },
-          description: {
-            en_US: 'MinerU recommends VLM for the Precise Parsing API.',
-            zh_Hans: 'MinerU 精准解析 API 官方推荐使用 VLM。'
-          },
-          enum: ['vlm', 'pipeline'],
-          default: 'vlm'
-        },
-        selfHostedBackend: {
-          type: 'string',
-          title: { en_US: 'Self-hosted Backend', zh_Hans: '自托管后端' },
-          description: {
-            en_US: 'Backend exposed by the current mineru-api/mineru-router service. Pipeline is the broadest compatible default.',
-            zh_Hans: '当前 mineru-api/mineru-router 提供的后端；pipeline 是兼容范围最广的默认值。'
-          },
-          enum: ['pipeline', 'hybrid-engine', 'vlm-engine', 'vlm-http-client', 'hybrid-http-client'],
-          default: 'pipeline'
-        },
-        selfHostedServerUrl: {
-          type: 'string',
-          title: { en_US: 'Self-hosted Model Server URL', zh_Hans: '自托管模型服务地址' },
-          description: {
-            en_US: 'Required only for vlm-http-client or hybrid-http-client backends.',
-            zh_Hans: '仅 vlm-http-client 或 hybrid-http-client 后端需要。'
-          }
-        },
-        parseMethod: {
-          type: 'string',
-          title: { en_US: 'Self-hosted Parse Method', zh_Hans: '自托管解析方式' },
-          enum: ['auto', 'txt', 'ocr'],
-          default: 'auto'
-        },
-        preserveRawOutput: {
-          type: 'boolean',
-          title: { en_US: 'Preserve Raw Output', zh_Hans: '保留原始结果' },
-          description: {
-            en_US: 'Archive MinerU Markdown, JSON and visual assets in the knowledge workspace.',
-            zh_Hans: '将 MinerU 的 Markdown、JSON 和可视化资源归档到知识库工作区。'
-          },
-          default: true
-        }
-      },
-      required: []
-    }
+    configScope: 'integration' as const,
+    configSchema: { type: 'object', properties: {} }
   }
 
   async validateConfig(config: TMinerUTransformerConfig): Promise<void> {
-    const modelVersion = config.modelVersion ?? 'vlm'
-    if (!['vlm', 'pipeline'].includes(modelVersion)) throw new Error(`Unsupported MinerU model: ${modelVersion}`)
+    const integration = config.permissions?.integration as Partial<IIntegration<MinerUIntegrationOptions>> | undefined
+    const client = integration ? new MinerUClient(this.configService, config.permissions) : undefined
+    validateMinerUParseOptions(resolveMinerUParseOptions(config, integration?.options), client?.serverType ?? 'official')
   }
 
   async transformDocuments(
@@ -191,6 +104,9 @@ export class MinerUTransformerStrategy implements IDocumentTransformerStrategy<T
     config: TMinerUTransformerConfig
   ): Promise<Partial<IKnowledgeDocument<ChunkMetadata>>[]> {
     const client = new MinerUClient(this.configService, config.permissions)
+    const integration = config.permissions?.integration as Partial<IIntegration<MinerUIntegrationOptions>> | undefined
+    config = { ...config, ...resolveMinerUParseOptions(config, integration?.options) }
+    validateMinerUParseOptions(config, client.serverType)
     const fileSystem = config.permissions?.fileSystem
     if (!fileSystem) throw new Error('MinerU requires the knowledge-base file-system permission')
 
@@ -384,11 +300,13 @@ async function resolveSource(
     return { fileName, extension, buffer }
   }
   if (!document.fileUrl) throw new Error(`MinerU cannot resolve source bytes for '${fileName}'`)
-  const response = await axios.get<ArrayBuffer>(document.fileUrl, {
-    responseType: 'arraybuffer',
-    timeout: 120_000,
-    maxContentLength: Infinity
-  })
+  const response = await withMinerUTransferError('source download', document.fileUrl, () =>
+    axios.get<ArrayBuffer>(document.fileUrl, {
+      responseType: 'arraybuffer',
+      timeout: 120_000,
+      maxContentLength: Infinity
+    })
+  )
   const buffer = Buffer.from(response.data)
   if (!buffer.length) throw new Error(`MinerU source file is empty: ${fileName}`)
   return { fileName, extension, buffer }

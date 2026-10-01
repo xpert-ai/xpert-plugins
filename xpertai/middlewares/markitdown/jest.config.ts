@@ -12,6 +12,7 @@ export default {
   displayName: '@xpert-ai/plugin-markitdown',
   preset: '../../jest.preset.js',
   testEnvironment: 'node',
+  moduleNameMapper: { '^(\\.{1,2}/.*)\\.js$': '$1' },
   transform: {
     '^.+\\.[tj]s$': ['@swc/jest', swcJestConfig]
   },

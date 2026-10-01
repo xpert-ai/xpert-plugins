@@ -1,0 +1,223 @@
+{
+  "version": 1,
+  "profiles": [
+    {
+      "id": "base",
+      "tools": [
+        "cut_list_tracks",
+        "cut_list_clips",
+        "cut_list_media_assets",
+        "cut_list_project_resources"
+      ],
+      "skills": [
+        "cut-agent-skill",
+        "cut-verification",
+        "cut-speech-editing",
+        "cut-captions",
+        "cut-export"
+      ]
+    },
+    {
+      "id": "project-prepare",
+      "tools": [
+        "cut_create_project",
+        "cut_accept_story_handoff",
+        "cut_import_media"
+      ],
+      "skills": [
+        "cut-agent-skill"
+      ]
+    },
+    {
+      "id": "speech-evidence",
+      "tools": [
+        "cut_start_transcription",
+        "cut_search_media_segments",
+        "cut_list_transcript_segments"
+      ],
+      "skills": [
+        "cut-agent-skill",
+        "cut-speech-editing",
+        "cut-captions"
+      ]
+    },
+    {
+      "id": "timeline-structure",
+      "tools": [
+        "cut_add_clip",
+        "cut_delete_clips",
+        "cut_duplicate_clips",
+        "cut_update_clip_timing",
+        "cut_ripple_delete_ranges",
+        "cut_manage_track"
+      ],
+      "skills": [
+        "cut-agent-skill"
+      ]
+    },
+    {
+      "id": "timeline-visual",
+      "tools": [
+        "cut_update_transform",
+        "cut_update_effects",
+        "cut_update_mask",
+        "cut_update_transition"
+      ],
+      "skills": [
+        "cut-agent-skill"
+      ]
+    },
+    {
+      "id": "timeline-audio",
+      "tools": [
+        "cut_update_audio"
+      ],
+      "skills": [
+        "cut-agent-skill"
+      ]
+    },
+    {
+      "id": "timeline-text",
+      "tools": [
+        "cut_update_text"
+      ],
+      "skills": [
+        "cut-agent-skill"
+      ]
+    },
+    {
+      "id": "project-settings",
+      "tools": [
+        "cut_update_project_settings"
+      ],
+      "skills": [
+        "cut-agent-skill"
+      ]
+    },
+    {
+      "id": "cover",
+      "tools": [
+        "cut_add_cover"
+      ],
+      "skills": [
+        "cut-agent-skill"
+      ]
+    },
+    {
+      "id": "generic-edit",
+      "tools": [
+        "cut_apply_edit",
+        "cut_apply_batch"
+      ],
+      "skills": [
+        "cut-agent-skill"
+      ]
+    },
+    {
+      "id": "proposal-create",
+      "tools": [
+        "cut_create_edit_proposal",
+        "cut_create_speech_cleanup_proposal"
+      ],
+      "skills": [
+        "cut-agent-skill",
+        "cut-speech-editing"
+      ]
+    },
+    {
+      "id": "proposal-manage",
+      "tools": [
+        "cut_update_edit_proposal",
+        "cut_apply_edit_proposal",
+        "cut_reject_edit_proposal"
+      ],
+      "skills": [
+        "cut-agent-skill",
+        "cut-speech-editing"
+      ]
+    },
+    {
+      "id": "proposal-undo",
+      "tools": [
+        "cut_revert_edit_proposal"
+      ],
+      "skills": [
+        "cut-agent-skill",
+        "cut-speech-editing"
+      ]
+    },
+    {
+      "id": "caption-authoring",
+      "tools": [
+        "cut_import_subtitle",
+        "cut_create_caption_draft",
+        "cut_create_translated_caption_draft",
+        "cut_update_caption_draft"
+      ],
+      "skills": [
+        "cut-agent-skill",
+        "cut-captions"
+      ]
+    },
+    {
+      "id": "caption-commit",
+      "tools": [
+        "cut_commit_caption_draft",
+        "cut_commit_caption_drafts"
+      ],
+      "skills": [
+        "cut-agent-skill",
+        "cut-captions"
+      ]
+    },
+    {
+      "id": "export-video",
+      "tools": [
+        "cut_start_headless_export"
+      ],
+      "skills": [
+        "cut-agent-skill",
+        "cut-export"
+      ]
+    },
+    {
+      "id": "export-subtitle",
+      "tools": [
+        "cut_export_subtitle"
+      ],
+      "skills": [
+        "cut-agent-skill",
+        "cut-captions",
+        "cut-export"
+      ]
+    },
+    {
+      "id": "version-finalize",
+      "tools": [
+        "cut_finalize_version"
+      ],
+      "skills": [
+        "cut-agent-skill"
+      ]
+    },
+    {
+      "id": "diagnostics",
+      "tools": [
+        "cut_report_failure"
+      ],
+      "skills": [
+        "cut-agent-skill"
+      ]
+    },
+    {
+      "id": "task-control",
+      "tools": [
+        "cut_cancel_analysis_job"
+      ],
+      "skills": [
+        "cut-agent-skill",
+        "cut-export"
+      ]
+    }
+  ]
+}

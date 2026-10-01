@@ -1,0 +1,179 @@
+{
+  "name": "@xpert-ai/plugin-db-studio",
+  "description": "Governed database workbench and Agent operations",
+  "author": "XpertAI",
+  "license": "AGPL-3.0",
+  "artifactNamespace": "db_studio",
+  "interface": {
+    "displayName": "DB Studio",
+    "shortDescription": "Database workbench with Xpert Agent",
+    "developerName": "XpertAI",
+    "category": "Data & Analytics",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "composerIcon": "./assets/logo.svg",
+    "logo": "./assets/logo.svg",
+    "brandColor": "#146B5C"
+  },
+  "policy": {
+    "installation": "AVAILABLE",
+    "authentication": "ON_FIRST_USE",
+    "pluginSharing": true
+  },
+  "source": {
+    "source": "local",
+    "path": "."
+  },
+  "targetApps": [
+    "data-xpert",
+    "xpert"
+  ],
+  "targetAppMeta": {
+    "data-xpert": {
+      "types": [
+        "business-app",
+        "workbench-view",
+        "assistant-tool"
+      ],
+      "capabilities": [
+        "db-studio-explore",
+        "db-studio-changes",
+        "db-studio-transfer"
+      ],
+      "marketplace": {
+        "contents": [
+          {
+            "type": "app",
+            "name": "db-studio",
+            "displayName": "DB Studio",
+            "description": {
+              "en_US": "Develop and manage databases with an Agent",
+              "zh_Hans": "与智能体一起开发和管理数据库"
+            },
+            "appConfig": {
+              "scope": "organization",
+              "assistantTemplateKey": "db-studio-assistant",
+              "workspace": {
+                "mode": "dedicated",
+                "name": {
+                  "en_US": "DB Studio Workspace",
+                  "zh_Hans": "DB Studio 工作空间"
+                },
+                "sharing": "organization"
+              },
+              "modelRequirements": {
+                "primary": true
+              },
+              "presentation": {
+                "tagline": {
+                  "en_US": "Your database workspace, with an Agent",
+                  "zh_Hans": "数据库工作区，原生智能体协同"
+                },
+                "developer": "XpertAI",
+                "features": [
+                  {
+                    "key": "sql",
+                    "title": {
+                      "en_US": "SQL and objects",
+                      "zh_Hans": "SQL 与对象"
+                    },
+                    "description": {
+                      "en_US": "Query and inspect real metadata",
+                      "zh_Hans": "查询与真实结构元数据"
+                    }
+                  },
+                  {
+                    "key": "governance",
+                    "title": {
+                      "en_US": "Governed execution",
+                      "zh_Hans": "受控执行"
+                    },
+                    "description": {
+                      "en_US": "Frozen plans, scoped policies and durable receipts",
+                      "zh_Hans": "冻结计划、连接策略与执行回执"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    "xpert": {
+      "types": [
+        "business-app",
+        "workbench-view",
+        "assistant-tool"
+      ],
+      "capabilities": [
+        "db-studio-explore",
+        "db-studio-changes",
+        "db-studio-transfer"
+      ],
+      "marketplace": {
+        "contents": [
+          {
+            "type": "app",
+            "name": "db-studio",
+            "displayName": "DB Studio",
+            "description": {
+              "en_US": "Develop and manage databases with an Agent",
+              "zh_Hans": "与智能体一起开发和管理数据库"
+            },
+            "appConfig": {
+              "scope": "organization",
+              "assistantTemplateKey": "db-studio-assistant",
+              "workspace": {
+                "mode": "dedicated",
+                "name": {
+                  "en_US": "DB Studio Workspace",
+                  "zh_Hans": "DB Studio 工作空间"
+                },
+                "sharing": "organization"
+              },
+              "modelRequirements": {
+                "primary": true
+              },
+              "presentation": {
+                "tagline": {
+                  "en_US": "Your database workspace, with an Agent",
+                  "zh_Hans": "数据库工作区，原生智能体协同"
+                },
+                "developer": "XpertAI",
+                "features": [
+                  {
+                    "key": "sql",
+                    "title": {
+                      "en_US": "SQL and objects",
+                      "zh_Hans": "SQL 与对象"
+                    },
+                    "description": {
+                      "en_US": "Query and inspect real metadata",
+                      "zh_Hans": "查询与真实结构元数据"
+                    }
+                  },
+                  {
+                    "key": "governance",
+                    "title": {
+                      "en_US": "Governed execution",
+                      "zh_Hans": "受控执行"
+                    },
+                    "description": {
+                      "en_US": "Frozen plans, scoped policies and durable receipts",
+                      "zh_Hans": "冻结计划、连接策略与执行回执"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "level": "system"
+}
