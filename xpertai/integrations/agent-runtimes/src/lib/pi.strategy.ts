@@ -1,4 +1,5 @@
 import { agentPrompt } from './input.js'
+import { outputDelivery, taskResult } from './task-result.js'
 import { Injectable } from '@nestjs/common'
 import {
   AgentRuntimeStrategy,
@@ -31,6 +32,7 @@ export class PiRuntimeStrategy implements IAgentRuntimeStrategy {
     if (request.previous) return this.inspect(request.previous, context)
     const profile = this.processes.profile(request, context, 'pi')
     const run = await this.processes.launch(profile, context, (run, message) => this.event(run, message))
+    run.delivery = outputDelivery(request.input.delivery)
     try {
       await run.process.request({ type: 'prompt', message: agentPrompt(request.input) })
       return run.observation
@@ -72,7 +74,7 @@ export class PiRuntimeStrategy implements IAgentRuntimeStrategy {
           ? { status: 'cancelled' }
           : run.lastStopReason === 'error'
           ? { status: 'failed' }
-          : { status: 'succeeded', result: { text: run.text } }
+          : { status: 'succeeded', result: taskResult(run.text, run.delivery) }
       )
     } else if (event.type === 'extension_ui_request') {
       this.processes.publish(run, {

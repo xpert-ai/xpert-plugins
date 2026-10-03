@@ -1,4 +1,6 @@
 import { agentPrompt, ApprovalData } from './input.js'
+import { outputDelivery, taskResult } from './task-result.js'
+import type { AgentOutputDelivery } from '@xpert-ai/plugin-sdk'
 import { Injectable, type OnModuleDestroy } from '@nestjs/common'
 import {
   AgentRuntimeStrategy,
@@ -43,6 +45,7 @@ export class ClaudeSdkLoader {
 }
 
 interface ClaudeRun {
+  delivery: AgentOutputDelivery
   context: AgentRuntimeContext
   observation: AgentRuntimeObservation
   abort: AbortController
@@ -76,6 +79,7 @@ export class ClaudeCodeRuntimeStrategy implements IAgentRuntimeStrategy, OnModul
     for (const key of profile.environmentKeys) if (process.env[key]) env[key] = process.env[key]
     if (this.runs.has(context.invocationId)) throw new Error('Claude operation already exists')
     const run: ClaudeRun = {
+      delivery: outputDelivery(request.input.delivery),
       context,
       observation: { status: 'running', handle: { sessionId: context.invocationId, runId: context.invocationId } },
       abort: new AbortController(),
@@ -181,7 +185,7 @@ export class ClaudeCodeRuntimeStrategy implements IAgentRuntimeStrategy, OnModul
             run,
             event.is_error || event.subtype !== 'success'
               ? { status: 'failed' }
-              : { status: 'succeeded', result: { text: event.result ?? '' } }
+              : { status: 'succeeded', result: taskResult(event.result ?? '', run.delivery) }
           )
       }
       if (!['succeeded', 'failed'].includes(run.observation.status))

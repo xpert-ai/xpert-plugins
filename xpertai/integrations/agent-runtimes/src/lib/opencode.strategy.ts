@@ -1,4 +1,5 @@
 import { agentPrompt } from './input.js'
+import { outputDelivery, taskResult } from './task-result.js'
 import { Injectable } from '@nestjs/common'
 import {
   AgentRuntimeStrategy,
@@ -56,7 +57,7 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
       sessionId: session.id,
       ...(runner ? { runner } : {}),
       runId: `msg_${context.invocationId.replaceAll('-', '')}`,
-      metadata: { profileId: profile.id, profileVersion: profile.version }
+      metadata: { profileId: profile.id, profileVersion: profile.version, delivery: outputDelivery(request.input.delivery) }
     }
     const observation: AgentRuntimeObservation = { status: 'running', handle }
     await context.checkpoint(observation)
@@ -101,7 +102,22 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
     const observation = await this.observe(profile, handle, response, context)
     if (handle.runner && ['succeeded', 'failed'].includes(observation.status)) {
       const runner = context.capabilities.require(AgentExecutionRunnerCapability)
-      if (observation.result) observation.result.artifacts = await runner.collectArtifacts(handle.runner)
+      if (observation.result) {
+        const result = observation.result, delivery = outputDelivery(handle.metadata?.delivery)
+        if (delivery.mode !== 'none') {
+          // An explicit caller selection is authoritative even when the model omits a file item.
+          const paths = delivery.paths ?? (result.items ?? []).flatMap((item) => item.type === 'file' ? [item.path] : [])
+          try {
+            if (!paths.length) throw new Error('No declared deliverables')
+            const artifacts = await runner.collectArtifacts(handle.runner, { mode: delivery.mode, paths })
+            if (!artifacts.length) throw new Error('No committed exports')
+            result.artifacts = artifacts
+            result.export = { mode: delivery.mode, status: 'completed' }
+          } catch {
+            result.export = { mode: delivery.mode, status: 'failed', error: 'Requested files could not be exported. Task execution has finished; inspect the workspace.' }
+          }
+        }
+      }
       // Persist results and artifact references before guest shutdown; host cleanup can retry.
       await context.checkpoint(observation)
       await runner.stop(handle.runner)
@@ -161,12 +177,9 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
           status: 'succeeded',
           handle,
           result: {
+            ...taskResult(message.parts.filter((part) => part.type === 'text')
+              .map((part) => part.text ?? '').join('').slice(-2 * 1024 * 1024), outputDelivery(handle.metadata?.delivery)),
             ...(handle.runner ? { data: { workingDirectory: handle.runner.workingDirectory } } : {}),
-            text: message.parts
-              .filter((part) => part.type === 'text')
-              .map((part) => part.text ?? '')
-              .join('')
-              .slice(-2 * 1024 * 1024)
           }
         }
   }

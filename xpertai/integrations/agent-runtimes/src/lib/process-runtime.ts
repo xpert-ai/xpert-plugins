@@ -9,10 +9,12 @@ import type {
   AgentRuntimeObservation,
   AgentRuntimeStart
 } from '@xpert-ai/plugin-sdk'
+import type { AgentOutputDelivery } from '@xpert-ai/plugin-sdk'
 import { RUNTIME_CONFIGURATION, type RuntimeConfiguration, type RuntimeProfile } from './config.js'
 import { JsonlProcess, type WireMessage } from './jsonl-process.js'
 
 export interface ProcessRun {
+  delivery?: AgentOutputDelivery
   profile: RuntimeProfile
   context: AgentRuntimeContext
   observation: AgentRuntimeObservation

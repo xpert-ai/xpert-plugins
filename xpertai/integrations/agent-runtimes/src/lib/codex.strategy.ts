@@ -1,4 +1,5 @@
 import { agentPrompt, ApprovalData } from './input.js'
+import { outputDelivery, taskResult } from './task-result.js'
 import { Injectable } from '@nestjs/common'
 import {
   AgentRuntimeStrategy,
@@ -33,6 +34,7 @@ export class CodexRuntimeStrategy implements IAgentRuntimeStrategy {
     if (request.previous) return this.inspect(request.previous, context)
     const profile = this.processes.profile(request, context, 'codex')
     const run = await this.processes.launch(profile, context, (run, message) => this.event(run, message))
+    run.delivery = outputDelivery(request.input.delivery)
     try {
       await run.process.request({ method: 'initialize', params: { clientInfo: { name: 'xpert', version: '1.0.0' } } })
       run.process.send({ method: 'initialized' })
@@ -103,7 +105,7 @@ export class CodexRuntimeStrategy implements IAgentRuntimeStrategy {
     } else if (message.method === 'turn/completed') {
       const turn = Turn.parse(message.params).turn
       const status = turn.status === 'completed' ? 'succeeded' : turn.status === 'interrupted' ? 'cancelled' : 'failed'
-      this.processes.publish(run, { status, ...(status === 'succeeded' ? { result: { text: run.text } } : {}) })
+      this.processes.publish(run, { status, ...(status === 'succeeded' ? { result: taskResult(run.text, run.delivery) } : {}) })
     } else if (message.id !== undefined && message.method?.endsWith('/requestApproval')) {
       const approval = Approval.safeParse(message.params)
       const details = ApprovalData.safeParse(message.params)
