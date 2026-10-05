@@ -73,6 +73,39 @@ export function getTongyiHttpBaseUrl(credentials: TongyiCredentials): string {
     return isTongyiInternationalEndpointEnabled(credentials) ? TongyiIntlHttpBaseUrl : TongyiDefaultHttpBaseUrl
 }
 
+function parseTongyiWorkspaceApiHost(apiHost?: string): URL | undefined {
+    const normalizedHost = normalizeTongyiApiHost(apiHost)
+    if (!normalizedHost) return undefined
+
+    try {
+        const url = new URL(normalizedHost)
+        // Qwen realtime uses Bailian's workspace endpoint in Beijing or Singapore.
+        const workspaceHost = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.(cn-beijing|ap-southeast-1)\.maas\.aliyuncs\.com$/
+        if (url.protocol !== 'https:' || !workspaceHost.test(url.hostname) ||
+            url.port || url.username || url.password || url.pathname !== '/' || url.search || url.hash) {
+            return undefined
+        }
+        return url
+    } catch {
+        return undefined
+    }
+}
+
+export function isTongyiWorkspaceApiHost(apiHost?: string): boolean {
+    return !!parseTongyiWorkspaceApiHost(apiHost)
+}
+
+export function getTongyiRealtimeUrl(credentials: Pick<TongyiCredentials, 'api_host'>, model: string): string {
+    const url = parseTongyiWorkspaceApiHost(credentials.api_host)
+    if (!url) {
+        throw new Error('Qwen realtime requires api_host to be a Bailian workspace HTTPS host in Beijing or Singapore')
+    }
+    url.protocol = 'wss:'
+    url.pathname = '/api-ws/v1/realtime'
+    url.searchParams.set('model', model)
+    return url.toString()
+}
+
 export function joinTongyiApiUrl(baseUrl: string, path: string): string {
     return `${baseUrl.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`
 }

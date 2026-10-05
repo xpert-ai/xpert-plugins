@@ -1,0 +1,23 @@
+provider: volcengine-speech
+label:
+  en_US: Doubao Realtime Voice
+  zh_Hans: 豆包实时语音
+description:
+  en_US: Seeduplex 3.0 speech-to-speech calls using a Speech API key.
+  zh_Hans: 使用独立语音 API Key 接入豆包 3.0 全双工实时通话。
+icon_small:
+  en_US: icon_s_en.svg
+icon_large:
+  en_US: icon_s_en.svg
+supported_model_types:
+  - realtime
+configurate_methods:
+  - predefined-model
+provider_credential_schema:
+  credential_form_schemas:
+    - variable: speech_api_key
+      label:
+        en_US: Speech API Key
+        zh_Hans: 语音 API Key
+      type: secret-input
+      required: true
