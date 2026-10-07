@@ -13,6 +13,7 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod'
 import { ProcessRuntime } from './process-runtime.js'
+import { appendActivities, openCodeActivities } from './activity.js'
 import type { RuntimeProfile } from './config.js'
 
 const Session = z.object({ id: z.string() })
@@ -23,7 +24,7 @@ const Message = z.object({
       parentID: z.string().optional(),
       finish: z.string().optional(),
       error: z.unknown().optional(),
-      time: z.object({ completed: z.number().optional() }).optional()
+      time: z.object({ created: z.number().optional(), completed: z.number().optional() }).optional()
     })
     .passthrough(),
   parts: z.array(z.object({
@@ -36,7 +37,7 @@ const Message = z.object({
 @Injectable()
 @AgentRuntimeStrategy('opencode')
 export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
-  readonly capabilities = { executionTools: [{ id: 'opencode', versions: ['1.18.33'], environments: ['computer' as const] }], recovery: 'session' as const, interactions: false, cancellation: true, background: true }
+  readonly capabilities = { activity: { version: 1 as const, presentation: 'coding' as const }, executionTools: [{ id: 'opencode', versions: ['1.18.33'], environments: ['computer' as const] }], recovery: 'session' as const, interactions: false, cancellation: true, background: true }
   constructor(private readonly profiles: ProcessRuntime) {}
 
   async start(request: AgentRuntimeStart, context: AgentRuntimeContext) {
@@ -90,9 +91,21 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
       const process = await context.capabilities.require(AgentExecutionRunnerCapability).inspect(handle.runner)
       if (process.state !== 'running' || handle.sessionId === 'pending') return { status: 'unknown', handle }
     }
-    const messages = z
-      .array(Message)
-      .parse(await this.http(profile, `/session/${encodeURIComponent(handle.sessionId)}/message`, 'GET', undefined, context, handle))
+    let messages: z.infer<typeof Message>[]
+    try {
+      messages = z.array(Message).parse(await this.http(profile, `/session/${encodeURIComponent(handle.sessionId)}/message`, 'GET', undefined, context, handle))
+    } catch {
+      await appendActivities(context, [], false, ['source_truncated'])
+      try {
+        // OpenCode exposes limit, but no stable backwards cursor in this pinned
+        // contract. Preserve collected history and read the final receipt without
+        // claiming that the latest message is the entire session transcript.
+        messages = z.array(Message).parse(await this.http(profile, `/session/${encodeURIComponent(handle.sessionId)}/message`, 'GET', undefined, context, handle, 1))
+      } catch {
+        await appendActivities(context, [], false, ['source_lost'])
+        return { status: 'unknown', handle, error: 'OpenCode messages are unavailable or exceed the bounded response size' }
+      }
+    }
     const response = messages
       .slice()
       .reverse()
@@ -100,6 +113,13 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
         (item) => item.info.role === 'assistant' && item.info.parentID === handle.runId
       )
     const observation = await this.observe(profile, handle, response, context)
+    await appendActivities(context, openCodeActivities(messages, handle.runId), ['succeeded', 'failed'].includes(observation.status))
+    const starts = messages.filter((item) => item.info.role === 'assistant' && item.info.parentID === handle.runId)
+      .flatMap((item) => item.info.time?.created !== undefined ? [item.info.time.created] : [])
+    if (starts.length) observation.progress = {
+      source: 'executor', observedAt: new Date().toISOString(), startedAt: new Date(Math.min(...starts)).toISOString(),
+      phase: ['succeeded', 'failed'].includes(observation.status) ? 'completed' : 'working'
+    }
     if (handle.runner && ['succeeded', 'failed'].includes(observation.status)) {
       const runner = context.capabilities.require(AgentExecutionRunnerCapability)
       if (observation.result) {
@@ -184,10 +204,10 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
         }
   }
 
-  private async http(profile: RuntimeProfile, path: string, method: 'GET' | 'POST', body?: AgentJson, context?: AgentRuntimeContext, handle?: AgentRuntimeHandle): Promise<unknown> {
+  private async http(profile: RuntimeProfile, path: string, method: 'GET' | 'POST', body?: AgentJson, context?: AgentRuntimeContext, handle?: AgentRuntimeHandle, limit?: number): Promise<unknown> {
     if (profile.executionEnvironment === 'computer') {
       if (!context || !handle?.runner) throw new Error('Computer runner receipt is unavailable')
-      return context.capabilities.require(AgentExecutionRunnerCapability).request(handle.runner, { method, path, body })
+      return context.capabilities.require(AgentExecutionRunnerCapability).request(handle.runner, { method, path, body, ...(limit ? {query: {limit}} : {}) })
     }
     if (!profile.serverUrl) throw new Error('OpenCode server URL is required')
     const base = new URL(profile.serverUrl)
@@ -196,6 +216,7 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
     const url = new URL(`${base.pathname.replace(/\/$/, '')}${path}`, base.origin)
     if (!profile.workspaceRoot) throw new Error('OpenCode workspace root is required')
     url.searchParams.set('directory', profile.workspaceRoot)
+    if (limit) url.searchParams.set('limit', String(limit))
     const headers: Record<string, string> = { 'content-type': 'application/json' }
     if (profile.authorizationEnvironmentKey) {
       const authorization = process.env[profile.authorizationEnvironmentKey]

@@ -31,6 +31,7 @@ export function taskResult(text: string, delivery: AgentOutputDelivery = { mode:
 export function resultInstructions(delivery: AgentOutputDelivery): string {
   return `Final response protocol: return a single fenced xpert-task-result JSON block, with no text outside it.
 Schema: {"version":1,"summary":"actual overall result in the user's language","items":[...]}
+Task-specific summary requirements are mandatory: include complete source/test code when requested. If the task requires a JSON-encoded structured report in summary, use that JSON string exactly instead of a prose summary. Do not replace required evidence with a claim that files exist.
 Each item needs a unique short id, title and summary. Supported item types:
 - {"type":"analysis","id":"review","title":"...","summary":"..."} for findings or explanations.
 - {"type":"changes","id":"changes","title":"...","summary":"...","files":[{"path":"relative/file.py","change":"created|modified|deleted"}]} for code changes.

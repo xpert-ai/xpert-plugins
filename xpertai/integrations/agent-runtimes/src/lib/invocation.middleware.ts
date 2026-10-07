@@ -9,6 +9,7 @@ import {
   AgentInvocationRuntimeCapability,
   AGENT_TASK_RESULTS_FEATURE,
   agentOutputDeliverySchema,
+  emitResourceCard,
   type AgentInvocation,
   type IAgentMiddlewareStrategy,
   type IAgentMiddlewareContext
@@ -143,6 +144,12 @@ export class AgentInvocationMiddleware implements IAgentMiddlewareStrategy<Optio
               await reportInvocationProgress(config, callId, binding.name, display, changeSummary)
               const target = await api.resolve(binding.id)
               let invocation = await api.start({ target, callId, input: { prompt, delivery } })
+              if (api.getResourceCard && !invocation.request.dispatch?.projectTask) {
+                try {
+                  const card = await api.getResourceCard(invocation.id)
+                  if (card) await emitResourceCard(card, config)
+                } catch { /* A presentation failure cannot undo an accepted invocation. */ }
+              }
               if (binding.mode !== 'background') {
                 if (!api.awaitResult) throw new Error('This host does not support bounded task waiting')
                 invocation = await api.awaitResult(invocation.id, { signal: config.signal, timeoutMs })

@@ -1,16 +1,16 @@
 # Agent Runtimes
 
-Native Xpert plugin providing `codex`, `pi`, `claude-code`, and `opencode` implementations of `IAgentRuntimeStrategy`. It also supplies the `AgentInvocation` middleware: ordinary tools call the host capability and never own a child graph or a provider process.
+Native Xpert plugin providing `codex`, `codex-computer`, `pi`, `claude-code`, and `opencode` implementations of `IAgentRuntimeStrategy`. It also supplies the `AgentInvocation` middleware: ordinary tools call the host capability and never own a child graph or a provider process.
 
 Version 0.2.0 requires contracts and plugin-sdk **3.20.0**, including the scoped execution runner capability. Release the host and SDK before this plugin. The package remains private while that release is pending. The workspace's historical lockfile still describes the older published development SDK: regenerate it after 3.20.0 is published and verify a normal frozen install before publishing the plugin. Source-branch verification below builds against fresh host dist without changing that lockfile or relinking a running platform. Installation level is **system**; organization administrators separately grant workspace access through immutable runtime bindings. No default profile or agent process is started on installation.
 
 ## Computer execution
 
-Only OpenCode supports the new Computer runner. Configure a profile with `provider: "opencode"`, `executionEnvironment: "computer"`, a version and authorized workspace IDs. Its binding configuration must contain the matching `profileVersion` and `executionEnvironment: { "type": "computer" }`. The host resolves the current conversation, owner, environment, exact tool version, model selection and payer; the plugin cannot supply commands, credential environment variables or service URLs.
+OpenCode 1.18.33 and Codex 0.159.2 support the Computer runner. Configure a profile with `provider: "opencode"` or `provider: "codex-computer"`, `executionEnvironment: "computer"`, a version and authorized workspace IDs. Its binding configuration must contain the matching `profileVersion` and `executionEnvironment: { "type": "computer" }`. The host resolves the current conversation, owner, environment, exact tool version, model selection and payer; the plugin cannot supply commands, credential environment variables or service URLs.
 
 The host checkpoints a scoped process receipt before sending the prompt. Inspect/resume follows that receipt and never re-sends an uncertain task. Completion persists typed results and any explicitly requested file exports through the host checkpoint, then stops the guest supervisor. It does not archive the working directory by default. A failed checkpoint keeps the process available for a later inspection. Cancellation is confirmed only when the host reports the process exited. Human control is coordinated separately from view connections. This adapter advertises no approval, pause or takeover capability.
 
-Earlier Computer acceptance covered OpenCode 1.18.33 platform-model tasks, checkpoint wait/resume and cancellation. That historical acceptance does not verify the current Agent-directed polling and resource-card flow; repeat live acceptance with the matching host and plugin build. Codex App Server, Claude Agent SDK and Pi retain their existing non-Computer behavior; they do not gain platform model credentials through this profile. Native Codex/Claude model-protocol tests are separate from this managed adapter's acceptance.
+Earlier Computer acceptance covered OpenCode 1.18.33 platform-model tasks, checkpoint wait/resume and cancellation. That historical acceptance does not verify the current Agent-directed polling and resource-card flow; repeat live acceptance with the matching host and plugin build. The non-Computer Codex App Server, Claude Agent SDK and Pi retain their existing behavior; they do not gain platform model credentials through this profile. Native Codex/Claude model-protocol tests are separate from this managed adapter's acceptance.
 
 ## Configuration
 
@@ -74,6 +74,7 @@ Ordinary new tasks use Agent-directed status queries with a requested wait durat
 | Provider | Execution and recovery | Interactions | Cancellation |
 | --- | --- | --- | --- |
 | Codex | App Server JSONL; process loss becomes unknown, no automatic relaunch | Command/file approval requests; unsupported requests rejected | Pending until turn completion acknowledges interruption |
+| Computer Codex | Managed single-prompt JSONL service; reconnect observes the existing execution, guest loss becomes unknown | Not advertised by this adapter | Host process termination required |
 | Pi | RPC JSONL; wait for agent_settled through retries; process loss becomes unknown | Extension UI unsupported and fails explicitly | Abort request; final receipt required |
 | Claude Code | Agent SDK query; process loss becomes unknown | canUseTool permission callback; AskUserQuestion unsupported and denied | Abort and wait for stream termination |
 | OpenCode | HTTP session/message; recover result by message identity without resend | Not advertised by this adapter | Server abort acknowledgement |
@@ -83,6 +84,8 @@ No adapter promises filesystem rollback, exactly-once remote effects, or restart
 ## Results and resource cards
 
 The adapters request a versioned `xpert-task-result` final JSON envelope. The shared parser validates it against the SDK schema; ordinary text or an invalid envelope remains text. The host has no provider-specific response parsing. Supported items are `analysis` (findings), `changes` (changed paths), `tests` (actual checks and status), and `file` (an explicitly requested deliverable).
+
+Task-specific evidence requirements apply to the envelope's summary as well: complete source/test code must not be replaced by a claim that files exist. A host-requested JSON-encoded review report stays a JSON string in summary and is validated by the Project Task host. OpenCode progress derives from assistant messages matching the submitted message ID; the earliest such message supplies the actual start time. The adapter reports activity without inventing a completion percentage.
 
 Launch tools default to `delivery: { "mode": "none" }`: review, edits and tests return results without exporting files. Use `{ "mode": "files", "paths": ["report.txt"] }` for individual downloads, or `{ "mode": "archive", "paths": ["src/main.py", "result.txt"] }` only when a bundle is requested. An explicit caller path list is authoritative even if the final response omits a file item. If paths cannot be known before execution, omit `paths`; only validated final `file` declarations are selected. Directories are never implicit selections. The Computer collector verifies the persisted delivery policy, rejects path traversal and links, and bounds exports to 32 files, 1 MiB per file and 4 MiB in total. Non-Computer profiles currently report file export as unavailable.
 
@@ -111,3 +114,82 @@ Bindings default to `auto` (historical `wait` remains supported): the host brief
 `completed` includes failed or cancelled tasks, so inspect individual statuses. Other tasks continue after an any-wait. `unavailable` means the result is uncertain; never restart automatically. Required human approvals use the existing interaction path. Use a fresh conversation after updating an Assistant whose old prompt prohibited status polling. Install the compatible host/SDK before this plugin build.
 
 All three tool roles provide localized `metadata.toolName` and `metadata.toolIcon`. Launcher bindings may set a `title` (string or `{en_US, zh_Hans}`) and a font `icon`; the default is provider-neutral delegation. Each tool accepts optional `changeSummary` for a concise activity description. It updates the existing timeline step through `ON_TOOL_MESSAGE`, is excluded from execution requests, and never replaces the tool's actual result or final status.
+
+
+## Computer Codex transport
+
+Computer Codex uses `codex exec --json --skip-git-repo-check -` with host-selected permission arguments. The host supplies the exact executable/version, temporary model configuration, grant and run directory. The managed guest accepts exactly one prompt; its authenticated loopback endpoint retains bounded JSONL events while the supervisor lives. API reconnects inspect this receipt without sending another prompt. It is not a distributed exactly-once execution guarantee: guest loss remains unknown.
+
+Success requires process exit code 0, `turn.completed`, a final public `agent_message`, and no terminal error event. An intermediate success sentence or a partial output is not completion. The final public message uses the existing typed task-result envelope. No private reasoning is displayed. Output is bounded to 2 MiB / 10,000 records; overflow fails the task rather than returning a truncated success.
+
+Computer mode is noninteractive; it does not implement the App Server approval UI, running messages, or session continuation. Cancellation is confirmed only after host process termination. The separate `codex-computer` strategy declares session recovery and no interactions; existing `codex` App Server capabilities are unchanged. Evidence-only independent review remains restricted to Computer OpenCode; Codex implementations can be reviewed there using pinned evidence.
+
+Files are exported only when requested with `delivery`, using the same host collector as OpenCode. Durable result checkpoint precedes guest cleanup. Failed export keeps the execution outcome and reports a separate export failure. Per-invocation directories/configuration and owner/conversation/generation checks isolate operations; the Computer is still shared by its authorized owner, not a separate security sandbox per invocation.
+
+### Qwen Code on Computer
+
+`qwen-computer` is a managed background adapter for Qwen Code **0.24.7**.
+Configure a profile with `provider: "qwen-computer"`,
+`executionEnvironment: "computer"`, a stable `id`/`version` and authorized
+`workspaceIds`. Select a binding to that profile on the Assistant. Commands,
+model endpoints and credentials are resolved by the host, not profile callers.
+The host must provide a compatible Qwen `CliModelProfile.background` transport.
+
+Recovery observes the checkpointed Computer process; it never resubmits stdin.
+Cancellation requires confirmed process exit. Success requires both exit code 0
+and one successful primary Qwen result event, with no terminal error. Earlier
+tool permission denials are retained as diagnostic facts; they do not override a
+successful final result after the CLI recovered. Missing/duplicate/child-only
+results cannot complete the invocation.
+File exports and durable result-before-cleanup use the same implementation as
+Computer Codex. Execution success does not accept a business Project task.
+
+The host selects CLI permission behavior through the existing tenant
+`modelExecutionPolicy.cliPermissions`: default `allow`, optional `restricted`
+overrides by tool ID (`qwen`, `codex`, `opencode`). Qwen `allow` uses YOLO;
+`restricted` keeps file edits and Node shell approval. Noninteractive executions
+cannot request human approval. The effective mode is recorded on new launch
+receipts; Runtime bindings cannot override it. Independent evidence-only review
+retains the existing OpenCode deny-all tool policy.
+
+Qwen/Codex final receipt checks persist bounded, redacted diagnostics in
+`handle.metadata.completion` before stopping the guest. Facts include error code,
+exit code, final event type/subtype and an available denied tool/command. Public
+`invocation.error` carries the concrete reason to the main Agent and execution
+View. Categories distinguish permission denial, CLI error, missing/ambiguous
+final result, invalid protocol, process failure/nonzero exit, missing exit code,
+incomplete activity and unavailable runner. This does not make CLI success a
+business-task acceptance or reinterpret historical generic failures.
+
+Permission/diagnostic verification (2026-10-07): TypeScript build, 62 Runtime
+tests and the dist-first lifecycle harness passed. Host checks covered 128 tests.
+An isolated real Qwen 0.24.7 process against a local model-protocol fixture allowed
+`mkdir` with YOLO and denied it with restricted approvals. The latter still
+emitted a successful final event, confirming why execution receipt success must
+remain separate from business acceptance. No live model-backed project task or
+running platform/plugin deployment was changed by this check.
+
+Earlier acceptance (2026-10-07, before configurable permissions): 47 plugin tests, dist-first lifecycle and the real
+Qwen Code task loop passed. A denied first attempt remained failed/blocked;
+a corrected retry exported a Node.js program and JSON as two immutable artifacts.
+The coordinator automatically resumed, reran the program and independent asserts,
+and accepted the task. Failed history and live execution cards were retained.
+See the host's `docs/plans/2026-10-06-project-tasks-stage5-acceptance.md` for scope
+and limits. Kimi/CodeBuddy are not qualified by this result.
+
+
+### Optional public execution activity
+
+Computer Qwen Code, Computer Codex and OpenCode declare activity version 1 (`presentation: coding`). With a matching host, adapters map allowlisted public text/tool/command/file events into `context.activity`, persist a source checkpoint and flush final activity before recording the result and stopping the runner. No extra Activity Provider registry is required. Hosts without the optional recorder keep the normal execution/result flow.
+
+Qwen/Codex consume the paged Computer JSONL bridge; a source generation change or lost buffer is reported as a gap. Qwen's own long-output preview marker remains explicitly truncated. OpenCode reconciles cumulative parts for the current parent message; a bounded latest-message fallback records a source gap rather than claiming full coverage. Only explicit protocol fields become command/file details. Hidden reasoning is excluded; an unrecognized tool remains a generic tool.
+
+Direct background calls emit one host-owned execution Resource Card. Project dispatch already supplies its execution card, so it does not emit a duplicate. Final non-file summaries live in the independent execution view; delivered file artifacts keep their existing cards.
+
+Protocol and lifecycle verification against local SDK/contracts builds:
+
+```sh
+XPERT_PLATFORM_ROOT=/path/to/xpert-pro node integrations/agent-runtimes/scripts/verify.mjs
+```
+
+The verifier stages built peer packages in a temporary directory, runs public-protocol tests and the dist-first plugin lifecycle harness, then copies the verified dist back. It does not deploy or relink the running platform.

@@ -7,7 +7,7 @@ export function taskResourceCards(task: AgentInvocation): ConversationResourceCa
   if (!isAgentInvocationTerminal(task.status) || !task.result) return []
   const icons = { analysis: '📝', changes: '🛠️', tests: '🧪', file: '📄' }
   const cards: ConversationResourceCard[] = (task.result.items ?? [])
-    .filter((item) => item.type !== 'file')
+    .filter((item) => item.type !== 'file' && !task.activity)
     .map((item) => ({
       resource: { namespace: 'platform', type: `agent-task-${item.type}`, id: `${task.id}:${item.id}` },
       title: item.title,

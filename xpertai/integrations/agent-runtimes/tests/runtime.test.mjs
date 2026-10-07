@@ -165,7 +165,7 @@ test('OpenCode persists before prompt and recovers by message identity without r
       assert.ok(sentReceipt)
       prompts++
       saved = {
-        info: { role: 'assistant', parentID: JSON.parse(body).messageID, finish: 'stop', time: { completed: 1 } },
+        info: { role: 'assistant', parentID: JSON.parse(body).messageID, finish: 'stop', time: { created: 1, completed: 2 } },
         parts: [{ type: 'text', text: 'OpenCode fixture' }]
       }
       value = saved
@@ -190,5 +190,8 @@ test('OpenCode persists before prompt and recovers by message identity without r
     f.context
   )
   assert.equal(recovered.result.text, 'OpenCode fixture')
+  assert.equal(recovered.progress.source, 'executor')
+  assert.equal(recovered.progress.startedAt, new Date(1).toISOString())
+  assert.equal(recovered.progress.phase, 'completed')
   assert.equal(prompts, 1)
 })
