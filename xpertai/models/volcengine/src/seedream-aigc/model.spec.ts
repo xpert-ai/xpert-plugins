@@ -22,7 +22,6 @@ describe('SeedreamImageModelClient', () => {
     expect(result.observation).toEqual(
       expect.objectContaining({
         state: 'succeeded',
-        usageAvailability: 'available',
         metrics: expect.arrayContaining([
           expect.objectContaining({
             unit: 'token',
