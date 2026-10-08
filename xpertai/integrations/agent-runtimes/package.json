@@ -1,0 +1,53 @@
+{
+  "name": "@xpert-ai/plugin-agent-runtimes",
+  "version": "0.2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@xpert-plugins-starter/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "nx": {
+    "name": "agent-runtimes"
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "description": "Governed coding runtimes with Computer support for OpenCode, Codex, Qwen Code, CodeBuddy, Kimi Code and Claude Code.",
+  "license": "AGPL-3.0",
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.lib.json",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "system",
+      "artifactNamespace": "agent_runtimes"
+    }
+  },
+  "peerDependencies": {
+    "@xpert-ai/plugin-sdk": "^3.20.0",
+    "@nestjs/common": "^11.1.6",
+    "@langchain/core": "^0.3.72",
+    "zod": "^3.25.67",
+    "@anthropic-ai/claude-agent-sdk": "^0.3.278",
+    "@xpert-ai/contracts": "^3.20.0"
+  },
+  "peerDependenciesMeta": {
+    "@anthropic-ai/claude-agent-sdk": {
+      "optional": true
+    }
+  },
+  "private": true
+}

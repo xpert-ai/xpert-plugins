@@ -1,3 +1,5 @@
+import { VolcengineSpeechProvider } from './speech/provider.strategy.js';
+import { DoubaoRealtimeModel } from './speech/realtime/model.js';
 import { XpertServerPlugin, IOnPluginBootstrap, IOnPluginDestroy } from '@xpert-ai/plugin-sdk';
 import { ConfigModule } from '@nestjs/config';
 import chalk from 'chalk';
@@ -14,6 +16,8 @@ import { SeedanceVideoJobProcessor } from './seedream-aigc/job.js';
 	imports: [ConfigModule],
 
 	providers: [
+        VolcengineSpeechProvider,
+        DoubaoRealtimeModel,
 		VolcengineProviderStrategy,
 		VolcengineLargeLanguageModel,
 		VolcengineImageGenerationModel,

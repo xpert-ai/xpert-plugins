@@ -2,15 +2,21 @@
  * @jest-config-loader-options {"project":"tsconfig.jest.json"}
  */
 /* eslint-disable */
-import { readFileSync } from 'fs';
-import { dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
-const currentDirectory = dirname(fileURLToPath(import.meta.url));
+// Nx discovers this config from the workspace root; Jest runs from the package.
+// Avoid import.meta because Jest's TypeScript config loader compiles as CommonJS.
+const swcConfigCandidates = [
+  resolve(process.cwd(), 'models/volcengine/.spec.swcrc'),
+  resolve(process.cwd(), '.spec.swcrc'),
+];
+const swcConfigPath = swcConfigCandidates.find((candidate) => existsSync(candidate));
+if (!swcConfigPath) throw new Error('Volcengine Jest SWC config was not found');
 
 // Reading the SWC compilation config for the spec files
 const swcJestConfig = JSON.parse(
-  readFileSync(`${currentDirectory}/.spec.swcrc`, 'utf-8')
+  readFileSync(swcConfigPath, 'utf-8')
 );
 
 // Disable .swcrc look-up by SWC core because we're passing in swcJestConfig ourselves
@@ -28,6 +34,7 @@ export default {
     '/node_modules/(?!(?:\\.pnpm|lodash-es)(?:/|$))',
   ],
   moduleNameMapper: {
+    '^@xpert-ai/chatkit-types$': '<rootDir>/../../test-utils/emptyModule.ts',
     '^lodash-es$': '<rootDir>/../../test-utils/lodashEsMock.ts',
   },
   moduleFileExtensions: ['ts', 'js', 'html'],

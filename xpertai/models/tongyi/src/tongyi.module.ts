@@ -1,3 +1,4 @@
+import { TongyiRealtimeModel } from './realtime/model.js';
 import {
   XpertServerPlugin,
   IOnPluginBootstrap,
@@ -21,6 +22,7 @@ import { TongyiRerankModel } from './rerank/rerank.js';
     TongyiTTSModel,
     TongyiSpeech2TextModel,
     TongyiRerankModel,
+    TongyiRealtimeModel,
   ],
 })
 export class TongyiModule implements IOnPluginBootstrap, IOnPluginDestroy {

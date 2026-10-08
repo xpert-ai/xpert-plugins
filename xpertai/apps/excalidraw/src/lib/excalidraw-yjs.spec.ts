@@ -1,5 +1,5 @@
 import * as Y from 'yjs'
-import { createExcalidrawYDoc, materializeExcalidrawYDoc, writeExcalidrawSceneToYDoc } from './excalidraw-yjs.js'
+import { createExcalidrawYDoc, materializeExcalidrawYDoc, patchExcalidrawCanvasToYDoc, writeExcalidrawSceneToYDoc } from './excalidraw-yjs.js'
 
 const initialScene = {
   elements: [
@@ -12,6 +12,49 @@ const initialScene = {
 }
 
 describe('Excalidraw Yjs schema', () => {
+  it('keeps an Agent addition when the first empty canvas callback arrives after remote sync', () => {
+    const empty = { ...initialScene, elements: [] }
+    const browser = createExcalidrawYDoc(empty)
+    const agent = new Y.Doc()
+    Y.applyUpdate(agent, Y.encodeStateAsUpdate(browser))
+    writeExcalidrawSceneToYDoc(agent, initialScene, 'agent:add')
+    Y.applyUpdate(browser, Y.encodeStateAsUpdate(agent))
+    const before = Y.encodeStateVector(browser)
+
+    patchExcalidrawCanvasToYDoc(browser, empty, empty, 'canvas:late-initialization')
+
+    expect(Y.encodeStateAsUpdate(browser, before)).toHaveLength(2)
+    expect(materializeExcalidrawYDoc(browser).elements).toEqual(initialScene.elements)
+  })
+
+  it('preserves unseen Agent edits and additions while publishing a local edit', () => {
+    const doc = createExcalidrawYDoc(initialScene)
+    const agentScene = { ...initialScene, elements: [initialScene.elements[0],
+      { ...initialScene.elements[1], text: 'Remote' }, { id: 'c', type: 'ellipse', x: 200 }] }
+    writeExcalidrawSceneToYDoc(doc, agentScene, 'agent:edit')
+    patchExcalidrawCanvasToYDoc(doc, initialScene, {
+      ...initialScene, elements: [{ ...initialScene.elements[0], x: 100 }, initialScene.elements[1]]
+    }, 'canvas:edit')
+    expect(materializeExcalidrawYDoc(doc).elements).toEqual([
+      { ...initialScene.elements[0], x: 100 }, agentScene.elements[1], agentScene.elements[2]
+    ])
+  })
+
+  it('allows an intentional deletion after the canvas has observed the element', () => {
+    const doc = createExcalidrawYDoc(initialScene)
+    patchExcalidrawCanvasToYDoc(doc, initialScene, { ...initialScene, elements: [] }, 'canvas:delete')
+    expect(materializeExcalidrawYDoc(doc).elements).toEqual([])
+  })
+
+  it('preserves remote files and source when the local canvas only changes its background', () => {
+    const doc = createExcalidrawYDoc(initialScene)
+    const remote = { ...initialScene, files: { image: { id: 'image' } }, mermaidSource: 'graph LR; A-->B' }
+    writeExcalidrawSceneToYDoc(doc, remote, 'agent:files')
+    patchExcalidrawCanvasToYDoc(doc, initialScene, {
+      ...initialScene, appState: { viewBackgroundColor: '#000000' }
+    }, 'canvas:background')
+    expect(materializeExcalidrawYDoc(doc)).toEqual({ ...remote, appState: { viewBackgroundColor: '#000000' } })
+  })
   it('materializes a stable scene and ignores identical rewrites', () => {
     const doc = createExcalidrawYDoc(initialScene)
     const vector = Y.encodeStateVector(doc)

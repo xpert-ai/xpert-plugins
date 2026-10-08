@@ -229,6 +229,18 @@ describe('LarkTriggerStrategy', () => {
 		expect(await strategy.connectionStatus({ enabled: true, integrationId: 'integration-1' })).toEqual({ connected: true, state: 'connected' })
 	})
 
+	it('reports a healthy remote connection when the local runtime is waiting for the lease', async () => {
+		const { strategy, longConnection } = createStrategy({ connectionMode: 'long_connection' })
+		const config = { enabled: true, integrationId: 'integration-1' }
+		longConnection.connect.mockResolvedValueOnce({ connected: false, state: 'retrying' })
+		longConnection.status.mockResolvedValueOnce({ connected: true, state: 'connected' })
+
+		await expect(strategy.publish({ xpertId: 'xpert-1', config }, jest.fn())).resolves.toBeUndefined()
+		expect(await strategy.connectionStatus(config)).toEqual({ connected: true, state: 'connected' })
+		expect(longConnection.status).toHaveBeenCalledWith('integration-1')
+		expect(longConnection.reconnect).not.toHaveBeenCalled()
+	})
+
 	it('retries an unhealthy runtime on an explicit publish', async () => {
 		const { strategy, longConnection } = createStrategy({ connectionMode: 'long_connection' })
 		longConnection.connect.mockResolvedValueOnce({ connected: false, state: 'unhealthy' })

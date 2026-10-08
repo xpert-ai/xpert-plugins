@@ -225,6 +225,33 @@ importers:
         specifier: ^6.0.5
         version: 6.8.0(supports-color@8.1.1)(typanion@3.14.0)
 
+  ../packages/artifact-tool:
+    dependencies:
+      '@univerjs/core':
+        specifier: 0.25.1
+        version: 0.25.1(react@19.2.7)(rxjs@7.8.2)
+      '@univerjs/engine-formula':
+        specifier: 0.25.1
+        version: 0.25.1(react@19.2.7)(rxjs@7.8.2)
+      '@univerjs/sheets':
+        specifier: 0.25.1
+        version: 0.25.1(react@19.2.7)(rxjs@7.8.2)
+      '@univerjs/sheets-formula':
+        specifier: 0.25.1
+        version: 0.25.1(react@19.2.7)(rxjs@7.8.2)
+      '@xmldom/xmldom':
+        specifier: 0.9.12
+        version: 0.9.12
+      excelize-wasm:
+        specifier: 0.1.3
+        version: 0.1.3
+      jszip:
+        specifier: 3.10.1
+        version: 3.10.1
+      zod:
+        specifier: 3.25.67
+        version: 3.25.67
+
   ../packages/shadcn-ui:
     dependencies:
       class-variance-authority:
@@ -2033,6 +2060,30 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
 
+  integrations/agent-runtimes:
+    dependencies:
+      '@anthropic-ai/claude-agent-sdk':
+        specifier: ^0.3.278
+        version: 0.3.278(@anthropic-ai/sdk@0.127.0(zod@3.25.67))(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(supports-color@8.1.1)(zod@3.25.67))(zod@3.25.67)
+      '@langchain/core':
+        specifier: ^0.3.72
+        version: 0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67))
+      '@nestjs/common':
+        specifier: ^11.1.6
+        version: 11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
+      '@xpert-ai/contracts':
+        specifier: ^3.17.0
+        version: 3.18.5(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(zod@3.25.67)
+      '@xpert-ai/plugin-sdk':
+        specifier: ^3.18.7
+        version: 3.18.7(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(@nestjs/common@11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.1.28)(@nestjs/cqrs@11.0.3(@nestjs/common@11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.1.28)(reflect-metadata@0.2.2)(rxjs@7.8.2))(ajv@8.20.0)(i18next-fs-backend@2.6.0)(i18next@25.6.0(typescript@5.9.3))(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.17.21)(passport-jwt@4.0.1)(rxjs@7.8.2)(supports-color@8.1.1)(ws@8.21.1)(yaml@2.9.0)(zod@3.25.67)
+      tslib:
+        specifier: ^2.3.0
+        version: 2.8.1
+      zod:
+        specifier: ^3.25.67
+        version: 3.25.67
+
   integrations/dify:
     dependencies:
       '@langchain/core':
@@ -2561,7 +2612,7 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
 
-  middlewares/amap-connector:
+  connectors/amap-connector:
     dependencies:
       '@langchain/core':
         specifier: 0.3.72
@@ -2569,6 +2620,9 @@ importers:
       '@nestjs/common':
         specifier: ^11.1.6
         version: 11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
+      '@xpert-ai/connector-runtime':
+        specifier: workspace:^
+        version: link:../../packages/connector-runtime
       '@xpert-ai/contracts':
         specifier: ^3.17.0
         version: 3.17.5(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(zod@3.25.67)
@@ -2582,7 +2636,7 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
 
-  middlewares/baidu-netdisk-connector:
+  connectors/baidu-netdisk-connector:
     dependencies:
       '@langchain/core':
         specifier: 0.3.72
@@ -2590,6 +2644,9 @@ importers:
       '@nestjs/common':
         specifier: ^11.1.6
         version: 11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
+      '@xpert-ai/connector-runtime':
+        specifier: workspace:^
+        version: link:../../packages/connector-runtime
       '@xpert-ai/contracts':
         specifier: ^3.17.0
         version: 3.18.0(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(zod@3.25.67)
@@ -2603,7 +2660,7 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
 
-  middlewares/canva-connector:
+  connectors/canva-connector:
     dependencies:
       '@langchain/core':
         specifier: 0.3.72
@@ -2614,6 +2671,9 @@ importers:
       '@nestjs/common':
         specifier: ^11.1.6
         version: 11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
+      '@xpert-ai/connector-runtime':
+        specifier: workspace:^
+        version: link:../../packages/connector-runtime
       '@xpert-ai/contracts':
         specifier: ^3.17.0
         version: 3.18.0(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(zod@3.25.67)
@@ -2663,7 +2723,7 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
 
-  middlewares/ctrip-wendao-connector:
+  connectors/ctrip-wendao-connector:
     dependencies:
       '@langchain/core':
         specifier: 0.3.72
@@ -2671,6 +2731,9 @@ importers:
       '@nestjs/common':
         specifier: ^11.1.6
         version: 11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
+      '@xpert-ai/connector-runtime':
+        specifier: workspace:^
+        version: link:../../packages/connector-runtime
       '@xpert-ai/contracts':
         specifier: ^3.17.0
         version: 3.17.5(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(zod@3.25.67)
@@ -2696,7 +2759,7 @@ importers:
         specifier: ^2.3.0
         version: 2.8.1
 
-  middlewares/dingtalk-connector:
+  connectors/dingtalk-connector:
     dependencies:
       '@langchain/core':
         specifier: 0.3.72
@@ -2707,6 +2770,9 @@ importers:
       '@nestjs/config':
         specifier: ^4.0.2
         version: 4.0.4(@nestjs/common@11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(rxjs@7.8.2)
+      '@xpert-ai/connector-runtime':
+        specifier: workspace:^
+        version: link:../../packages/connector-runtime
       '@xpert-ai/contracts':
         specifier: ^3.10.0
         version: 3.17.3(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(zod@3.25.67)
@@ -2756,7 +2822,7 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
 
-  middlewares/github-connector:
+  connectors/github-connector:
     dependencies:
       '@langchain/core':
         specifier: 0.3.72
@@ -2764,6 +2830,9 @@ importers:
       '@nestjs/common':
         specifier: ^11.1.6
         version: 11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
+      '@xpert-ai/connector-runtime':
+        specifier: workspace:^
+        version: link:../../packages/connector-runtime
       '@xpert-ai/contracts':
         specifier: ^3.10.0
         version: 3.15.12(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(zod@3.25.67)
@@ -2777,7 +2846,7 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
 
-  middlewares/kdocs-connector:
+  connectors/kdocs-connector:
     dependencies:
       '@langchain/core':
         specifier: 0.3.72
@@ -2788,6 +2857,9 @@ importers:
       '@nestjs/common':
         specifier: ^11.1.6
         version: 11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
+      '@xpert-ai/connector-runtime':
+        specifier: workspace:^
+        version: link:../../packages/connector-runtime
       '@xpert-ai/contracts':
         specifier: ^3.17.0
         version: 3.17.3(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(zod@3.25.67)
@@ -2801,8 +2873,11 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
 
-  middlewares/lark-cli:
+  connectors/lark-cli:
     dependencies:
+      '@xpert-ai/connector-runtime':
+        specifier: workspace:^
+        version: link:../../packages/connector-runtime
       '@xpert-ai/contracts':
         specifier: ^3.8.3
         version: 3.15.12(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(zod@3.25.67)
@@ -2963,7 +3038,7 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
 
-  middlewares/netease-mail-connector:
+  connectors/netease-mail-connector:
     dependencies:
       '@langchain/core':
         specifier: 0.3.72
@@ -2971,6 +3046,9 @@ importers:
       '@nestjs/common':
         specifier: ^11.1.6
         version: 11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
+      '@xpert-ai/connector-runtime':
+        specifier: workspace:^
+        version: link:../../packages/connector-runtime
       '@xpert-ai/contracts':
         specifier: ^3.17.2
         version: 3.17.3(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(zod@3.25.67)
@@ -3000,7 +3078,7 @@ importers:
         specifier: 8.0.1
         version: 8.0.1
 
-  middlewares/notion-connector:
+  connectors/notion-connector:
     dependencies:
       '@langchain/core':
         specifier: 0.3.72
@@ -3011,6 +3089,9 @@ importers:
       '@notionhq/client':
         specifier: ^5.12.0
         version: 5.26.0
+      '@xpert-ai/connector-runtime':
+        specifier: workspace:^
+        version: link:../../packages/connector-runtime
       '@xpert-ai/contracts':
         specifier: ^3.17.0
         version: 3.17.5(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(zod@3.25.67)
@@ -3036,7 +3117,7 @@ importers:
         specifier: ^2.3.0
         version: 2.8.1
 
-  middlewares/qq-mail-connector:
+  connectors/qq-mail-connector:
     dependencies:
       '@langchain/core':
         specifier: 0.3.72
@@ -3047,6 +3128,9 @@ importers:
       '@nestjs/common':
         specifier: ^11.1.6
         version: 11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
+      '@xpert-ai/connector-runtime':
+        specifier: workspace:^
+        version: link:../../packages/connector-runtime
       '@xpert-ai/contracts':
         specifier: ^3.17.0
         version: 3.17.3(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(zod@3.25.67)
@@ -3100,7 +3184,7 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
 
-  middlewares/tencent-map-connector:
+  connectors/tencent-map-connector:
     dependencies:
       '@langchain/core':
         specifier: 0.3.72
@@ -3108,6 +3192,9 @@ importers:
       '@nestjs/common':
         specifier: ^11.1.6
         version: 11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
+      '@xpert-ai/connector-runtime':
+        specifier: workspace:^
+        version: link:../../packages/connector-runtime
       '@xpert-ai/contracts':
         specifier: ^3.17.0
         version: 3.17.5(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(zod@3.25.67)
@@ -3235,7 +3322,7 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
 
-  middlewares/wecom-connector:
+  connectors/wecom-connector:
     dependencies:
       '@langchain/core':
         specifier: 0.3.72
@@ -3243,6 +3330,9 @@ importers:
       '@nestjs/common':
         specifier: ^11.1.6
         version: 11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
+      '@xpert-ai/connector-runtime':
+        specifier: workspace:^
+        version: link:../../packages/connector-runtime
       '@xpert-ai/contracts':
         specifier: ^3.17.2
         version: 3.17.3(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(zod@3.25.67)
@@ -3259,7 +3349,7 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
 
-  middlewares/wps-knowledge-connector:
+  connectors/wps-knowledge-connector:
     dependencies:
       '@langchain/core':
         specifier: 0.3.72
@@ -3267,6 +3357,9 @@ importers:
       '@nestjs/common':
         specifier: ^11.1.6
         version: 11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
+      '@xpert-ai/connector-runtime':
+        specifier: workspace:^
+        version: link:../../packages/connector-runtime
       '@xpert-ai/contracts':
         specifier: ^3.17.0
         version: 3.17.5(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(zod@3.25.67)
@@ -3292,7 +3385,7 @@ importers:
         specifier: ^2.3.0
         version: 2.8.1
 
-  middlewares/zsxq-connector:
+  connectors/zsxq-connector:
     dependencies:
       '@langchain/core':
         specifier: 0.3.72
@@ -3300,6 +3393,9 @@ importers:
       '@nestjs/common':
         specifier: ^11.1.6
         version: 11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
+      '@xpert-ai/connector-runtime':
+        specifier: workspace:^
+        version: link:../../packages/connector-runtime
       '@xpert-ai/contracts':
         specifier: ^3.17.0
         version: 3.18.0(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(zod@3.25.67)
@@ -3919,6 +4015,15 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
 
+  packages/connector-runtime:
+    dependencies:
+      '@xpert-ai/plugin-sdk':
+        specifier: ^3.17.0
+        version: 3.18.7(@a2ui/lit@0.8.3(signal-polyfill@0.2.2))(@langchain/core@0.3.72(@opentelemetry/api@1.9.1)(openai@5.12.2(ws@8.21.1)(zod@3.25.67)))(@nestjs/common@11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.1.28)(@nestjs/cqrs@11.0.3(@nestjs/common@11.1.28(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.1.28)(reflect-metadata@0.2.2)(rxjs@7.8.2))(ajv@8.20.0)(i18next-fs-backend@2.6.0)(i18next@25.6.0(typescript@5.9.3))(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.17.21)(passport-jwt@4.0.1)(rxjs@7.8.2)(supports-color@8.1.1)(ws@8.21.1)(yaml@2.9.0)(zod@3.25.67)
+      tslib:
+        specifier: ^2.3.0
+        version: 2.8.1
+
   packages/design-fonts:
     dependencies:
       tslib:
@@ -4317,6 +4422,67 @@ packages:
 
   '@antfu/install-pkg@1.1.0':
     resolution: {integrity: sha512-MGQsmw10ZyI+EJo45CdSER4zEb+p31LpDAFp2Z3gkSd1yqVZGi0Ebx++YTEMonJy4oChEMLsxZ64j8FH6sSqtQ==}
+
+  '@anthropic-ai/claude-agent-sdk-darwin-arm64@0.3.278':
+    resolution: {integrity: sha512-lwkbWfYucsgiFo6mWF3Dw7ImohlWXEkkh+4e93EpeVPCxwN4IJuLztFkl28qEwY17sZ9SYQw1mRksKauqKccqg==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@anthropic-ai/claude-agent-sdk-darwin-x64@0.3.278':
+    resolution: {integrity: sha512-IYTWl9mVeXe1GnHPkpw04p+fZ23zgTBuxNXv06h7xgjSZ7zhudL05d6NpkY5T13m/zL5b+fyYkXxGciTXVhiUg==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@anthropic-ai/claude-agent-sdk-linux-arm64-musl@0.3.278':
+    resolution: {integrity: sha512-xbNx5TXiAr9REDh7znPnkvR8GoBe8A653hYXaVq+fNNLjXidOIvOhICMyUUrBC+wgZV1FenC46oSPIMH4n+EOQ==}
+    cpu: [arm64]
+    os: [linux]
+    libc: [musl]
+
+  '@anthropic-ai/claude-agent-sdk-linux-arm64@0.3.278':
+    resolution: {integrity: sha512-gt03vjRLsfnT3NyOaCVZFdM6V6p0NNGxhUr6e0Yfd9a28LlIeUtNB/kMtFJDibDtsjVi4Mp+Wj9R7dsXPLOFfw==}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  '@anthropic-ai/claude-agent-sdk-linux-x64-musl@0.3.278':
+    resolution: {integrity: sha512-OJ103bvIglKrp7LLS3Bpiy9ISnFIvUikcg5kJVqovA+uU/ElP96v3kCUli7nUL75TnguSL0PwdAb/rYujycLqQ==}
+    cpu: [x64]
+    os: [linux]
+    libc: [musl]
+
+  '@anthropic-ai/claude-agent-sdk-linux-x64@0.3.278':
+    resolution: {integrity: sha512-xbW4MkKyPMKdWzdA499WnAP9H7p8YlMsQCVEVyz6CemePZPSLwBP9GBeUTnSS57+MievEqj8knckJPVv5I3+yw==}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  '@anthropic-ai/claude-agent-sdk-win32-arm64@0.3.278':
+    resolution: {integrity: sha512-r75c3+Ymw4bn+If8LCoYLaYu5xXH8tWtP1xsd6KNtwda0KjFJA6/wmgicwCi3W+Vcdw6AfoFtYCQ0Sl1YwePwg==}
+    cpu: [arm64]
+    os: [win32]
+
+  '@anthropic-ai/claude-agent-sdk-win32-x64@0.3.278':
+    resolution: {integrity: sha512-+7nMK4AYzeNFdqxYP80v2ialF6t29Z46rXeV6NF77xXc1+kqCm6hwOMFXhJkP8EEEclFatyjdU/Dij5vM5YSNA==}
+    cpu: [x64]
+    os: [win32]
+
+  '@anthropic-ai/claude-agent-sdk@0.3.278':
+    resolution: {integrity: sha512-hXfjyiGraqYul6gq7R7+WmktxJfy9S29Yrx1WK6jQpsYcipf1CYIoYSh22SpGOR3FGiEmeuzXg5U9ncOk19Fww==}
+    engines: {node: '>=18.0.0'}
+    peerDependencies:
+      '@anthropic-ai/sdk': '>=0.93.0'
+      '@modelcontextprotocol/sdk': ^1.29.0
+      zod: ^4.0.0
+
+  '@anthropic-ai/sdk@0.127.0':
+    resolution: {integrity: sha512-OKiVbG9LHCxjn4fBJZJFy/Bz3hqE1RYpwaeSEDNheQnvz0XNKmGT/Lhkz2Sf1a27Ldt3vVv+BkU81I0U/8EpoQ==}
+    hasBin: true
+    peerDependencies:
+      zod: ^3.25.0 || ^4.0.0
+    peerDependenciesMeta:
+      zod:
+        optional: true
 
   '@anthropic-ai/sdk@0.27.3':
     resolution: {integrity: sha512-IjLt0gd3L4jlOfilxVXTifn42FnVffMgDC04RJK1KDZpmkBWLv0XC92MVVmkxrFZNS/7l3xWgP/I3nqtX1sQHw==}
@@ -9065,6 +9231,9 @@ packages:
   '@sqltools/formatter@1.2.5':
     resolution: {integrity: sha512-Uy0+khmZqUrUGm5dmMqVlnvufZRSK0FbYzVgp0UMstm+F5+W2/jnEEQyc9vo1ZR/E5ZI/B1WjjoTqBqwJL6Krw==}
 
+  '@stablelib/base64@1.0.1':
+    resolution: {integrity: sha512-1bnPQqSxSuc3Ii6MhBysoWCg58j97aUjuCSZrGSmDxNqtytIi0k8utUenAwTZN4V5mXXYGsVUI9zeBqy+jBOSQ==}
+
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
 
@@ -9998,6 +10167,11 @@ packages:
     peerDependencies:
       rxjs: '>=7.0.0'
 
+  '@univerjs/core@0.25.1':
+    resolution: {integrity: sha512-0FQjuL1HdPtl8NsU5muT8HNtuA4yMEvbBLgewyqUVQmT5oks89a3jdqxi5/dvHYDRvW7wssVjZitfbL79el3Jg==}
+    peerDependencies:
+      rxjs: '>=7.0.0'
+
   '@univerjs/design@0.25.0':
     resolution: {integrity: sha512-FbV3XJLN+6F5qOtyLNkYZ083kKnPNnADKUkW7badg/gTT3qa7PqAN9czkspbhWyDBpxkMZ+yluWWOwZOYdmwUQ==}
     peerDependencies:
@@ -10025,8 +10199,18 @@ packages:
     peerDependencies:
       rxjs: '>=7.0.0'
 
+  '@univerjs/engine-formula@0.25.1':
+    resolution: {integrity: sha512-ZNx8ndlz7d8zASwoE/pK1csreW553tSxoYJmEgHSAiCHtSYkdk6OiynkFjyDIUCMe56n5pdQo9uHfynMBbOY7A==}
+    peerDependencies:
+      rxjs: '>=7.0.0'
+
   '@univerjs/engine-render@0.25.0':
     resolution: {integrity: sha512-EFJvE8pgh55ZAqXm/28qNSLDlt25koh0Oj3nNLlhiUPgT+Vrta3SAGHAfYtssplu7cLkA5cFvHAcFRYxAH/CTQ==}
+    peerDependencies:
+      rxjs: '>=7.0.0'
+
+  '@univerjs/engine-render@0.25.1':
+    resolution: {integrity: sha512-CDbIjOQTbEwwVe8+l6NEQGxegsbRjVXWJ6Qrm91Z1gzwKzrl9P1mOaDsXGYgbp5ujTJBxOVePPuU2QuS/9iMeA==}
     peerDependencies:
       rxjs: '>=7.0.0'
 
@@ -10039,8 +10223,16 @@ packages:
   '@univerjs/protocol@0.25.0':
     resolution: {integrity: sha512-mVyqQmjA86BbReD3kZ2nYd/bN6mXkasuqlN8RmcQGgzuWDsBacoYrpR3plvaQheW4JVF09XkMx2SSK/2+Nwk/Q==}
 
+  '@univerjs/protocol@0.25.1':
+    resolution: {integrity: sha512-RHkNl/Gm8T5VyrXGj3dnJ4CGgB12/oqP7BVUZ4DcfxezFh1vq/nIHD0fIqL8DZslZV6CGK/sxcNeGn3E/S3Xnw==}
+
   '@univerjs/rpc@0.25.0':
     resolution: {integrity: sha512-BE1XejFNzNYRYUUP+0hZMen0yMlb1Kc8ThGNgS4lYZUiliFcA66wPN1UdgfpPOO0wLB6ysxjy8vqaeOE0b//rw==}
+    peerDependencies:
+      rxjs: '>=7.0.0'
+
+  '@univerjs/rpc@0.25.1':
+    resolution: {integrity: sha512-cwQJ+faKb983QRAGG/hkisASzb3HgjlWm4JMf6w1gVO/oYbLm6ObACu7zVHU+xhw8EKRFN3Kxl6SH0KTqFLOVQ==}
     peerDependencies:
       rxjs: '>=7.0.0'
 
@@ -10052,6 +10244,11 @@ packages:
 
   '@univerjs/sheets-formula@0.25.0':
     resolution: {integrity: sha512-UplwhyUWxgkoN+Gg5DY74bCTns5fzv8hii5UwUpdy91jGcw2fQuRru4QPobxvive7W0WHReU08WYaYDKIxgRhg==}
+    peerDependencies:
+      rxjs: '>=7.0.0'
+
+  '@univerjs/sheets-formula@0.25.1':
+    resolution: {integrity: sha512-5zDcLfzAhO0H1gwYeCY0JYgZIxcKAhA02jS0wXRpOa+dVWs2/zcKy4CjDCbINIsA/aLrICAd9O8Q3VbU/G3rEg==}
     peerDependencies:
       rxjs: '>=7.0.0'
 
@@ -10077,6 +10274,11 @@ packages:
     peerDependencies:
       rxjs: '>=7.0.0'
 
+  '@univerjs/sheets@0.25.1':
+    resolution: {integrity: sha512-VcHtHgCOStJZO4XLstvV6oWHxBwhGCpArKJaEe22EmKNY1lfsibOrvwIjEW/Xpm9Ago9ybTvmuIvByrCd60pew==}
+    peerDependencies:
+      rxjs: '>=7.0.0'
+
   '@univerjs/slides-ui@0.25.0':
     resolution: {integrity: sha512-9sv2CK6mAs0kb0arpmI4YeeiGbJX3ohdPSThNTxFDyCJQgLRzfW1Fm/NFZrffOaEvHTgsdJqQQBI488n3VAiTQ==}
     peerDependencies:
@@ -10093,6 +10295,9 @@ packages:
 
   '@univerjs/themes@0.25.0':
     resolution: {integrity: sha512-1FcxuBsZJlMJEz44bAKGSRPEctRZCvvTIseMMDaDZBpj0BpzPqXAgI+ZJGkRVWk8ieB4f65xKo95z4Tw9CGHBQ==}
+
+  '@univerjs/themes@0.25.1':
+    resolution: {integrity: sha512-21iH3Z3Ai9pRV+l2weuHJu2V8XB3T5Hr8VEPlOyctFbqOJMTNRC5peYJdn7Ra5kMdO+Wa7uWsZf6qurHouswmg==}
 
   '@univerjs/ui@0.25.0':
     resolution: {integrity: sha512-6bbKgrbCaTiDpXY+MP9/NIK3ttqw/fjUGs/z5kKMQbPjwEyd5rHv1MxZJnkGUwZi36Tm1PK+wQX2KFfTPcgrnw==}
@@ -10795,6 +11000,9 @@ packages:
     cpu: [x64]
     os: [win32]
     hasBin: true
+
+  excelize-wasm@0.1.3:
+    resolution: {integrity: sha512-tvJbQFS25mFVnMpK4++djaUW28m1Zvd/+RG2itea+Hx64d8Cq697gRO8uiJtCCdsz4HdtknOgiEJmIZ1p6/oMQ==}
 
   JSONStream@1.3.4:
     resolution: {integrity: sha512-Y7vfi3I5oMOYIr+WxV8NZxDSwcbNgzdKYsTNInmycOq9bUYwGg9ryu57Wg5NLmCjqdFPNUmpMBo3kSJN9tCbXg==}
@@ -12562,6 +12770,9 @@ packages:
 
   fast-safe-stringify@2.1.1:
     resolution: {integrity: sha512-W+KJc2dmILlPplD/H4K9l9LcAHAfPtP6BY84uVLXQ6Evcz9Lcg33Y2z1IVblT6xdY54PXYVHEv+0Wpq8Io6zkA==}
+
+  fast-sha256@1.3.0:
+    resolution: {integrity: sha512-n11RGP/lrWEFI/bWdygLxhI+pVeo1ZYIVwvvPkW7azl/rOy+F3HYRZ2K5zeE9mmkhQppyv9sQFx0JM9UabnpPQ==}
 
   fast-uri@3.1.4:
     resolution: {integrity: sha512-8JnbkQ4juDyvYs4mgFGQqg4yCYtFDtUtmp2QIQq11ZZe5CFQ5wcqm1rqDgAh/QdMySuBnPzMUiJUNZG5N/AiQw==}
@@ -16012,6 +16223,9 @@ packages:
   standard-as-callback@2.1.0:
     resolution: {integrity: sha512-qoRRSyROncaz1z0mvYqIE4lCd9p2R90i6GxW3uZv5ucSu8tU7B5HXUP1gG8pVZsYNVaXjk8ClXHPttLyxAL48A==}
 
+  standardwebhooks@1.1.1:
+    resolution: {integrity: sha512-bCbX9ZEyFkWPsRz7Bl3NuQUJohmwGSev/yhr7vhaGPlc4AfIrspIRa6cPTBuI1ItmrTDJ4d/S2hCsfe4+vQGnQ==}
+
   statuses@2.0.1:
     resolution: {integrity: sha512-RwNA9Z/7PrK06rYLIzFMlaF+l73iwpzsqRIFgbMLbTcLD6cOao82TaWefPXQvB2fOC4AjuYSEndS7N/mTCbkdQ==}
     engines: {node: '>= 0.8'}
@@ -17143,6 +17357,52 @@ snapshots:
     dependencies:
       package-manager-detector: 1.8.0
       tinyexec: 1.2.4
+
+  '@anthropic-ai/claude-agent-sdk-darwin-arm64@0.3.278':
+    optional: true
+
+  '@anthropic-ai/claude-agent-sdk-darwin-x64@0.3.278':
+    optional: true
+
+  '@anthropic-ai/claude-agent-sdk-linux-arm64-musl@0.3.278':
+    optional: true
+
+  '@anthropic-ai/claude-agent-sdk-linux-arm64@0.3.278':
+    optional: true
+
+  '@anthropic-ai/claude-agent-sdk-linux-x64-musl@0.3.278':
+    optional: true
+
+  '@anthropic-ai/claude-agent-sdk-linux-x64@0.3.278':
+    optional: true
+
+  '@anthropic-ai/claude-agent-sdk-win32-arm64@0.3.278':
+    optional: true
+
+  '@anthropic-ai/claude-agent-sdk-win32-x64@0.3.278':
+    optional: true
+
+  '@anthropic-ai/claude-agent-sdk@0.3.278(@anthropic-ai/sdk@0.127.0(zod@3.25.67))(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(supports-color@8.1.1)(zod@3.25.67))(zod@3.25.67)':
+    dependencies:
+      '@anthropic-ai/sdk': 0.127.0(zod@3.25.67)
+      '@modelcontextprotocol/sdk': 1.29.0(@cfworker/json-schema@4.1.1)(supports-color@8.1.1)(zod@3.25.67)
+      zod: 3.25.67
+    optionalDependencies:
+      '@anthropic-ai/claude-agent-sdk-darwin-arm64': 0.3.278
+      '@anthropic-ai/claude-agent-sdk-darwin-x64': 0.3.278
+      '@anthropic-ai/claude-agent-sdk-linux-arm64': 0.3.278
+      '@anthropic-ai/claude-agent-sdk-linux-arm64-musl': 0.3.278
+      '@anthropic-ai/claude-agent-sdk-linux-x64': 0.3.278
+      '@anthropic-ai/claude-agent-sdk-linux-x64-musl': 0.3.278
+      '@anthropic-ai/claude-agent-sdk-win32-arm64': 0.3.278
+      '@anthropic-ai/claude-agent-sdk-win32-x64': 0.3.278
+
+  '@anthropic-ai/sdk@0.127.0(zod@3.25.67)':
+    dependencies:
+      json-schema-to-ts: 3.1.1
+      standardwebhooks: 1.1.1
+    optionalDependencies:
+      zod: 3.25.67
 
   '@anthropic-ai/sdk@0.27.3':
     dependencies:
@@ -22758,6 +23018,8 @@ snapshots:
 
   '@sqltools/formatter@1.2.5': {}
 
+  '@stablelib/base64@1.0.1': {}
+
   '@standard-schema/spec@1.1.0': {}
 
   '@swc-node/core@1.15.0(@swc/core@1.5.29(@swc/helpers@0.5.23))(@swc/types@0.1.27)':
@@ -23783,6 +24045,23 @@ snapshots:
     transitivePeerDependencies:
       - react
 
+  '@univerjs/core@0.25.1(react@19.2.7)(rxjs@7.8.2)':
+    dependencies:
+      '@univerjs/protocol': 0.25.1
+      '@univerjs/themes': 0.25.1
+      '@wendellhu/redi': 1.1.1(react@19.2.7)
+      async-lock: 1.4.1
+      fast-diff: 1.3.0
+      kdbush: 4.1.0
+      lodash-es: 4.18.1
+      nanoid: 5.1.11
+      numfmt: 3.2.6
+      ot-json1: 1.0.2
+      rbush: 4.0.1
+      rxjs: 7.8.2
+    transitivePeerDependencies:
+      - react
+
   '@univerjs/design@0.25.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@radix-ui/react-dialog': 1.1.23(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -23846,11 +24125,33 @@ snapshots:
     transitivePeerDependencies:
       - react
 
+  '@univerjs/engine-formula@0.25.1(react@19.2.7)(rxjs@7.8.2)':
+    dependencies:
+      '@flatten-js/interval-tree': 1.1.3
+      '@univerjs/core': 0.25.1(react@19.2.7)(rxjs@7.8.2)
+      '@univerjs/rpc': 0.25.1(react@19.2.7)(rxjs@7.8.2)
+      decimal.js: 10.6.0
+      rxjs: 7.8.2
+    transitivePeerDependencies:
+      - react
+
   '@univerjs/engine-render@0.25.0(react@18.3.1)(rxjs@7.8.2)':
     dependencies:
       '@floating-ui/dom': 1.8.0
       '@floating-ui/utils': 0.2.12
       '@univerjs/core': 0.25.0(react@18.3.1)(rxjs@7.8.2)
+      cjk-regex: 3.4.0
+      franc-min: 6.2.0
+      opentype.js: 2.0.0
+      rxjs: 7.8.2
+    transitivePeerDependencies:
+      - react
+
+  '@univerjs/engine-render@0.25.1(react@19.2.7)(rxjs@7.8.2)':
+    dependencies:
+      '@floating-ui/dom': 1.8.0
+      '@floating-ui/utils': 0.2.12
+      '@univerjs/core': 0.25.1(react@19.2.7)(rxjs@7.8.2)
       cjk-regex: 3.4.0
       franc-min: 6.2.0
       opentype.js: 2.0.0
@@ -23867,9 +24168,20 @@ snapshots:
     dependencies:
       '@grpc/grpc-js': 1.14.4
 
+  '@univerjs/protocol@0.25.1':
+    dependencies:
+      '@grpc/grpc-js': 1.14.4
+
   '@univerjs/rpc@0.25.0(react@18.3.1)(rxjs@7.8.2)':
     dependencies:
       '@univerjs/core': 0.25.0(react@18.3.1)(rxjs@7.8.2)
+      rxjs: 7.8.2
+    transitivePeerDependencies:
+      - react
+
+  '@univerjs/rpc@0.25.1(react@19.2.7)(rxjs@7.8.2)':
+    dependencies:
+      '@univerjs/core': 0.25.1(react@19.2.7)(rxjs@7.8.2)
       rxjs: 7.8.2
     transitivePeerDependencies:
       - react
@@ -23900,6 +24212,16 @@ snapshots:
       '@univerjs/engine-formula': 0.25.0(react@18.3.1)(rxjs@7.8.2)
       '@univerjs/rpc': 0.25.0(react@18.3.1)(rxjs@7.8.2)
       '@univerjs/sheets': 0.25.0(react@18.3.1)(rxjs@7.8.2)
+      rxjs: 7.8.2
+    transitivePeerDependencies:
+      - react
+
+  '@univerjs/sheets-formula@0.25.1(react@19.2.7)(rxjs@7.8.2)':
+    dependencies:
+      '@univerjs/core': 0.25.1(react@19.2.7)(rxjs@7.8.2)
+      '@univerjs/engine-formula': 0.25.1(react@19.2.7)(rxjs@7.8.2)
+      '@univerjs/rpc': 0.25.1(react@19.2.7)(rxjs@7.8.2)
+      '@univerjs/sheets': 0.25.1(react@19.2.7)(rxjs@7.8.2)
       rxjs: 7.8.2
     transitivePeerDependencies:
       - react
@@ -23962,6 +24284,17 @@ snapshots:
     transitivePeerDependencies:
       - react
 
+  '@univerjs/sheets@0.25.1(react@19.2.7)(rxjs@7.8.2)':
+    dependencies:
+      '@univerjs/core': 0.25.1(react@19.2.7)(rxjs@7.8.2)
+      '@univerjs/engine-formula': 0.25.1(react@19.2.7)(rxjs@7.8.2)
+      '@univerjs/engine-render': 0.25.1(react@19.2.7)(rxjs@7.8.2)
+      '@univerjs/protocol': 0.25.1
+      '@univerjs/rpc': 0.25.1(react@19.2.7)(rxjs@7.8.2)
+      rxjs: 7.8.2
+    transitivePeerDependencies:
+      - react
+
   '@univerjs/slides-ui@0.25.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(rxjs@7.8.2)':
     dependencies:
       '@univerjs/core': 0.25.0(react@18.3.1)(rxjs@7.8.2)
@@ -23996,6 +24329,8 @@ snapshots:
       - rxjs
 
   '@univerjs/themes@0.25.0': {}
+
+  '@univerjs/themes@0.25.1': {}
 
   '@univerjs/ui@0.25.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(rxjs@7.8.2)':
     dependencies:
@@ -24372,6 +24707,10 @@ snapshots:
   '@wendellhu/redi@1.1.1(react@18.3.1)':
     optionalDependencies:
       react: 18.3.1
+
+  '@wendellhu/redi@1.1.1(react@19.2.7)':
+    optionalDependencies:
+      react: 19.2.7
 
   '@xmldom/xmldom@0.8.13': {}
 
@@ -25103,6 +25442,8 @@ snapshots:
 
   '@zsxq/cli-win32-x64@0.5.1':
     optional: true
+
+  excelize-wasm@0.1.3: {}
 
   JSONStream@1.3.4:
     dependencies:
@@ -27190,6 +27531,8 @@ snapshots:
       pako: 2.2.0
 
   fast-safe-stringify@2.1.1: {}
+
+  fast-sha256@1.3.0: {}
 
   fast-uri@3.1.4: {}
 
@@ -31434,6 +31777,11 @@ snapshots:
     optional: true
 
   standard-as-callback@2.1.0: {}
+
+  standardwebhooks@1.1.1:
+    dependencies:
+      '@stablelib/base64': 1.0.1
+      fast-sha256: 1.3.0
 
   statuses@2.0.1: {}
 

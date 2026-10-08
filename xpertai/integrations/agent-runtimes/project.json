@@ -1,0 +1,8 @@
+{
+  "name": "agent-runtimes",
+  "targets": {
+    "build": { "executor": "nx:run-commands", "options": { "command": "tsc -p integrations/agent-runtimes/tsconfig.lib.json" } },
+    "verify": { "executor": "nx:run-commands", "options": { "command": "node integrations/agent-runtimes/scripts/verify.mjs" } },
+    "verify-source": { "executor": "nx:run-commands", "options": { "command": "node integrations/agent-runtimes/scripts/verify.mjs --source-checkout" } }
+  }
+}

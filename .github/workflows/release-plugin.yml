@@ -18,6 +18,7 @@ on:
     paths:
       - "xpertai/**"
       - "community/**"
+      - "packages/artifact-tool/**"
       - ".github/workflows/release-plugin.yml"
 
 concurrency:
@@ -53,6 +54,7 @@ jobs:
           filters: |
             xpertai:
               - "xpertai/**"
+              - "packages/artifact-tool/**"
             community:
               - "community/**"
             presentation_action:
@@ -85,11 +87,15 @@ jobs:
       matrix:
         include:
           - workspace: xpertai
-            pnpm_version: 11.7.0
+            changesets_cwd: xpertai
+            pnpm_version: 11.15.1
             install_command: pnpm -C xpertai install --frozen-lockfile
+            version_command: node scripts/release-version.mjs
           - workspace: community
+            changesets_cwd: .
             pnpm_version: 8.15.8
             install_command: pnpm -C community install --no-frozen-lockfile
+            version_command: pnpm -C community exec changeset version
 
     steps:
       - name: Decide whether to run this workspace
@@ -141,18 +147,16 @@ jobs:
         if: steps.decide.outputs.run == 'true'
         run: ${{ matrix.install_command }}
 
+      - name: Verify artifact-tool release integration
+        if: steps.decide.outputs.run == 'true' && matrix.workspace == 'xpertai'
+        run: node --test xpertai/scripts/artifact-tool-release.test.mjs
+
       - name: Ensure workspace npmrc exists
         if: steps.decide.outputs.run == 'true'
         run: |
           if [ ! -f "${{ matrix.workspace }}/.npmrc" ]; then
             touch "${{ matrix.workspace }}/.npmrc"
           fi
-
-      - name: Point root changeset to workspace changeset
-        if: steps.decide.outputs.run == 'true'
-        run: |
-          rm -rf .changeset
-          ln -s "${{ matrix.workspace }}/.changeset" .changeset
 
       - name: Detect release mode
         if: steps.decide.outputs.run == 'true'
@@ -170,11 +174,12 @@ jobs:
         id: changesets
         uses: changesets/action@v1
         with:
+          cwd: ${{ matrix.changesets_cwd }}
           createGithubReleases: false
           branch: main
           commit: "chore(release): version ${{ matrix.workspace }} packages"
           title: "chore(release): version ${{ matrix.workspace }} packages"
-          version: pnpm -C ${{ matrix.workspace }} exec changeset version
+          version: ${{ matrix.version_command }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -190,7 +195,11 @@ jobs:
           pnpm -C ${{ matrix.workspace }} run release:publish
 
           if git rev-parse --verify HEAD^ >/dev/null 2>&1; then
-            changed_package_files="$(git diff --name-only --diff-filter=ACMRT HEAD^ HEAD -- "${{ matrix.workspace }}" | grep '/package.json$' || true)"
+            package_paths=("${{ matrix.workspace }}")
+            if [ "${{ matrix.workspace }}" = "xpertai" ]; then
+              package_paths+=("packages/artifact-tool")
+            fi
+            changed_package_files="$(git diff --name-only --diff-filter=ACMRT HEAD^ HEAD -- "${package_paths[@]}" | grep '/package.json$' || true)"
             if [ -n "$changed_package_files" ]; then
               {
                 while IFS= read -r package_file; do

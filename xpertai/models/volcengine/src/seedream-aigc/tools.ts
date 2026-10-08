@@ -1365,6 +1365,8 @@ async function uploadImageOutputs(
   if (!data.length) {
     throw new Error('Ark API did not return generated image data')
   }
+  // Each invocation owns its output paths, including concurrent calls and repeated tool-call IDs.
+  const outputPrefix = `${filePrefix}-${randomUUID()}`
   const files: SeedreamArtifactFile[] = []
   for (const [index, item] of data.entries()) {
     let buffer: Buffer
@@ -1378,7 +1380,7 @@ async function uploadImageOutputs(
     } else {
       throw new Error(`Generated image ${index + 1} is missing ${expectedFormat}`)
     }
-    const fileName = createGeneratedFileName(filePrefix, index, mimeType)
+    const fileName = createGeneratedFileName(outputPrefix, index, mimeType)
     files.push(
       await uploadGeneratedAsset({
         workspaceFiles: deps.workspaceFiles,

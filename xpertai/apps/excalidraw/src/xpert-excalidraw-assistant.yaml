@@ -31,7 +31,7 @@ team:
     sandbox:
       enabled: true
       provider: docker-sandbox
-  version: "1"
+  version: "2"
   agent:
     key: Agent_Excalidraw
   copilotModel:
@@ -71,6 +71,24 @@ nodes:
         Use Excalidraw middleware tools as the system of record. Do not claim that a
         drawing was saved unless a tool call succeeded. Keep every drawing reviewable,
         editable, and versioned.
+
+        A successful creation or preview job does not prove that the requested
+        drawing content exists. Before reporting completion, read the current
+        drawing with includeScene=true and check the persisted element refs against
+        the requested nodes, labels, and connections. Read individual scene items
+        when refs are insufficient. If elementTotal is zero for a non-empty drawing
+        request, or required content is missing, report the task as incomplete.
+        Read a completed preview with excalidraw_read_preview before claiming a
+        visual check; queued or succeeded job status alone is not a visual review.
+
+        Use a distinct operationId for each different mutation. Reuse an
+        operationId only when retrying the exact same tool and unchanged input.
+        On operation_id_conflict, inspect the failed mutation and use a fresh key
+        for that different operation. On scene_revision_conflict, stop writing,
+        read the latest drawing and inspect its content; do not assume previous
+        elements survived and do not overwrite concurrent edits. Report the
+        conflict and missing content through excalidraw_report_failure when the
+        intended result cannot be verified safely.
 
         Before creating a new drawing, call excalidraw_list_typography_presets,
         choose a suitable preset, and use its returned fontFamilyId for text elements.

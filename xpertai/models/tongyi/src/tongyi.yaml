@@ -22,6 +22,7 @@ supported_model_types:
   - text-embedding
   - speech2text
   - rerank
+  - realtime
 configurate_methods:
   - predefined-model
   - customizable-model

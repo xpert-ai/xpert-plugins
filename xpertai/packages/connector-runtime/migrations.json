@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "connectors": [
+    { "package": "@xpert-ai/plugin-amap-connector", "directory": "amap-connector", "provider": "amap", "drivers": ["api_key"] },
+    { "package": "@xpert-ai/plugin-tencent-map-connector", "directory": "tencent-map-connector", "provider": "tencent-map", "drivers": ["api_key"] },
+    { "package": "@xpert-ai/plugin-ctrip-wendao-connector", "directory": "ctrip-wendao-connector", "provider": "ctrip-wendao", "drivers": ["api_key"] },
+    { "package": "@xpert-ai/plugin-netease-mail-connector", "directory": "netease-mail-connector", "provider": "netease-mail", "drivers": ["mail_protocol"] },
+    { "package": "@xpert-ai/plugin-github-connector", "directory": "github-connector", "provider": "github", "drivers": ["api_key", "oauth_http", "pkce"] },
+    { "package": "@xpert-ai/plugin-notion-connector", "directory": "notion-connector", "provider": "notion", "drivers": ["oauth2", "oauth_http"] },
+    { "package": "@xpert-ai/plugin-baidu-netdisk-connector", "directory": "baidu-netdisk-connector", "provider": "baidu-netdisk", "drivers": ["oauth2", "oauth_http"] },
+    { "package": "@xpert-ai/plugin-dingtalk-connector", "directory": "dingtalk-connector", "provider": "dingtalk", "drivers": ["oauth_http"] },
+    { "package": "@xpert-ai/plugin-qq-mail-connector", "directory": "qq-mail-connector", "provider": "qq-mail", "drivers": ["mail_protocol", "oauth_http", "pkce"] },
+    { "package": "@xpert-ai/plugin-canva-connector", "directory": "canva-connector", "provider": "canva", "drivers": ["oauth_http", "pkce"] },
+    { "package": "@xpert-ai/plugin-kdocs-connector", "directory": "kdocs-connector", "provider": "kdocs", "drivers": ["polling"] },
+    { "package": "@xpert-ai/plugin-wps-knowledge-connector", "directory": "wps-knowledge-connector", "provider": "wps-knowledge", "drivers": ["polling"] },
+    { "package": "@xpert-ai/plugin-wecom-connector", "directory": "wecom-connector", "provider": "wecom", "drivers": ["polling"] },
+    { "package": "@xpert-ai/plugin-zsxq-connector", "directory": "zsxq-connector", "provider": "zsxq", "drivers": ["polling"] },
+    { "package": "@xpert-ai/plugin-lark-cli", "directory": "lark-cli", "provider": "lark", "drivers": ["legacy_polling", "authorization_url"] }
+  ]
+}

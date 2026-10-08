@@ -7,6 +7,7 @@ vi.mock('@xpert-ai/plugin-sdk', () => ({
 
 import type { FactoryScope } from './domain/types.js'
 import type { FactoryCaseEntity } from './entities/factory-case.entity.js'
+import { FACTORY_CASE_PROJECT_TYPE } from './factory-project-type.js'
 import { FactoryCaseProjectService } from './factory-case-project.service.js'
 
 const scope: FactoryScope = {
@@ -40,6 +41,7 @@ describe('FactoryCaseProjectService', () => {
     const ready = await service.retry(scope, entity.id)
     expect(ready.workspaceProjectSyncStatus).toBe('ready')
     expect(ensure).toHaveBeenCalledTimes(2)
+    expect(ensure.mock.calls[1]?.[0].projectType).toEqual(FACTORY_CASE_PROJECT_TYPE)
     expect(ensure.mock.calls.map(([input]) => input.projectId)).toEqual([
       entity.workspaceProjectId,
       entity.workspaceProjectId

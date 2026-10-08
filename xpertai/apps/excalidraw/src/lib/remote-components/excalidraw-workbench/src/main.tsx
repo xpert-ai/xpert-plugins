@@ -110,7 +110,7 @@ import {
   getSelectedElementIds
 } from './selection-context'
 import { normalizeExcalidrawElementsForPersistence } from '../../../excalidraw-scene.validation'
-import { materializeExcalidrawYDoc, writeExcalidrawSceneToYDoc } from '../../../excalidraw-yjs'
+import { EXCALIDRAW_YJS_SCHEMA_VERSION, materializeExcalidrawYDoc, patchExcalidrawCanvasToYDoc, type ExcalidrawCollaborativeScene } from '../../../excalidraw-yjs'
 import {
   executeAction,
   executeFileAction,
@@ -152,6 +152,7 @@ function App() {
   const [dirty, setDirty] = React.useState(false)
   const [draftRecoveryCount, setDraftRecoveryCount] = React.useState(0)
   const [newTitle, setNewTitle] = React.useState('')
+  const [createDialogOpen, setCreateDialogOpen] = React.useState(false)
   const [changeSummary, setChangeSummary] = React.useState('')
   const [diagramTemplates, setDiagramTemplates] = React.useState<DiagramTemplateSummary[]>([])
   const [selectedTemplateKey, setSelectedTemplateKey] = React.useState('')
@@ -179,6 +180,8 @@ function App() {
   const shareLinkInputRef = React.useRef<HTMLInputElement | null>(null)
   const confirmationResolverRef = React.useRef<((confirmed: boolean) => void) | null>(null)
   const apiRef = React.useRef<any>(null)
+  const canvasDrawingIdRef = React.useRef('')
+  const observedCanvasSceneRef = React.useRef<ExcalidrawCollaborativeScene | null>(null)
   const contextRef = React.useRef<any>(null)
   const detailRef = React.useRef<DetailPayload | null>(null)
   const selectedIdRef = React.useRef('')
@@ -211,6 +214,7 @@ function App() {
   const collaborationPresenceStoreRef = React.useRef<CollaborationPresenceStore | null>(null)
   const collaborationDocRef = React.useRef<Y.Doc | null>(null)
   const collaborationDrawingIdRef = React.useRef('')
+  const collaborationGenerationRef = React.useRef(0)
   const applyingCollaborativeSceneRef = React.useRef(false)
   const lastCollaborativeSignatureRef = React.useRef('')
   const t = createTranslator(context?.locale)
@@ -281,6 +285,7 @@ function App() {
   }
 
   function stopCollaboration() {
+    collaborationGenerationRef.current += 1
     collaborationClientRef.current?.disconnect()
     collaborationClientRef.current = null
     collaborationSocketRef.current = null
@@ -299,11 +304,14 @@ function App() {
   async function startCollaboration(drawingId: string) {
     if (!drawingId || collaborationDrawingIdRef.current === drawingId) return
     stopCollaboration()
+    const generation = collaborationGenerationRef.current
+    collaborationDrawingIdRef.current = drawingId
     setCollaborationState('connecting')
     try {
       const response = await executeAction('open_collaboration', drawingId, { drawingId })
       const actionResult = getResponsePayload(response)
       const opened = (actionResult?.data ?? actionResult) as CollaborationDescriptor
+      if (generation !== collaborationGenerationRef.current || selectedIdRef.current !== drawingId) return
       if (!opened?.connectionUrl || !opened?.sessionId || selectedIdRef.current !== drawingId) {
         throw new Error('Collaboration session was not returned for this drawing.')
       }
@@ -358,6 +366,7 @@ function App() {
         syncIntervalMs: 2_000,
         presenceHeartbeatMs: 5_000,
         onAck: (ack) => {
+          if (collaborationDocRef.current !== doc) return
           setCurrentDetail(detailRef.current ? {
             ...detailRef.current,
             item: { ...detailRef.current.item, revision: ack.sequenceNumber }
@@ -383,12 +392,15 @@ function App() {
       collaborationClientRef.current = client
       client.connect()
     } catch (error) {
+      if (generation !== collaborationGenerationRef.current) return
       if (selectedIdRef.current === drawingId) notify('warning', getErrorMessage(error))
       stopCollaboration()
     }
   }
 
   function applyCollaborativeDocument(doc: Y.Doc) {
+    if (!apiRef.current || canvasDrawingIdRef.current !== selectedIdRef.current) return
+    cancelSceneAnimation()
     const collaborative = materializeExcalidrawYDoc(doc)
     const restored = restoreExcalidrawScenePayload(collaborative, excalidrawThemeRef.current)
     const signature = createSceneSignature(restored.elements, restored.appState, restored.files, collaborative.mermaidSource ?? '')
@@ -417,15 +429,21 @@ function App() {
 
   function publishSceneToCollaboration() {
     const doc = collaborationDocRef.current
-    if (!doc || applyingCollaborativeSceneRef.current || themeSyncRef.current) return
+    const previous = observedCanvasSceneRef.current
+    if (!doc || !previous || !hasLiveCollaborationScene() || applyingCollaborativeSceneRef.current || themeSyncRef.current) return
     const scene = currentSerializableScene()
     const signature = createSceneSignature(scene.elements, scene.appState, scene.files, mermaidSourceRef.current)
     if (signature === lastCollaborativeSignatureRef.current) return
     lastCollaborativeSignatureRef.current = signature
-    writeExcalidrawSceneToYDoc(doc, {
+    patchExcalidrawCanvasToYDoc(doc, previous, {
       ...scene,
       mermaidSource: mermaidSourceRef.current || null
     }, LOCAL_COLLABORATION_ORIGIN)
+  }
+
+  function hasLiveCollaborationScene() {
+    return collaborationDrawingIdRef.current === selectedIdRef.current
+      && collaborationDocRef.current?.getMap('scene').get('schemaVersion') === EXCALIDRAW_YJS_SCHEMA_VERSION
   }
 
   function publishCollaborationPresence(pointer?: { x: number; y: number; visible: boolean } | null) {
@@ -570,6 +588,11 @@ function App() {
   React.useEffect(() => {
     const currentVersion = detail?.currentVersion
     if (!api || !detail?.item) {
+      return
+    }
+    // HTTP metadata can arrive after a newer collaboration update. Never replay its old scene.
+    if (hasLiveCollaborationScene()) {
+      applyCollaborativeDocument(collaborationDocRef.current!)
       return
     }
     const suppressedVersionKey = suppressedDetailSceneVersionRef.current
@@ -750,7 +773,9 @@ function App() {
         }
       }
       if (shouldAnimateScene) {
-        if (selectedPayload?.currentVersion) {
+        if (hasLiveCollaborationScene()) {
+          applyCollaborativeDocument(collaborationDocRef.current!)
+        } else if (selectedPayload?.currentVersion) {
           sceneApplied = await animateApplyVersion(selectedPayload.currentVersion)
         } else if (apiRef.current) {
           applyBlankScene({ clearMermaid: true })
@@ -935,9 +960,11 @@ function App() {
         } else {
           updateMermaidSource('')
         }
-        if (apiRef.current && payload.currentVersion) {
+        if (hasLiveCollaborationScene()) {
+          applyCollaborativeDocument(collaborationDocRef.current!)
+        } else if (apiRef.current && canvasDrawingIdRef.current === drawingId && payload.currentVersion) {
           applyVersion(payload.currentVersion)
-        } else if (apiRef.current) {
+        } else if (apiRef.current && canvasDrawingIdRef.current === drawingId) {
           applyBlankScene({ clearMermaid: true })
         }
       }
@@ -966,6 +993,7 @@ function App() {
       })
       const result = getResponsePayload(response)
       notify('success', resolveMessage(result?.message, contextRef.current?.locale) || t('drawingCreated'))
+      setCreateDialogOpen(false)
       const drawingId = result?.item?.id || result?.data?.item?.id
       const drawingItem = result?.item || result?.data?.item || null
       setNewTitle('')
@@ -2272,6 +2300,24 @@ function App() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <Dialog open={createDialogOpen} onOpenChange={(open: boolean) => {
+        if (!busy) setCreateDialogOpen(open)
+      }}>
+        <DialogContent aria-describedby={undefined}>
+          <DialogHeader><DialogTitle>{t('newDrawing')}</DialogTitle></DialogHeader>
+          <form onSubmit={(event: React.FormEvent) => {
+            event.preventDefault()
+            if (!busy) void createDrawing()
+          }}>
+            <Input value={newTitle} aria-label={t('title')} placeholder={t('title')} disabled={busy}
+              onChange={(event: React.ChangeEvent<HTMLInputElement>) => setNewTitle(event.target.value)} />
+            <div className="mt-4 flex justify-end gap-2">
+              <Button type="button" variant="outline" disabled={busy} onClick={() => setCreateDialogOpen(false)}>{t('cancel')}</Button>
+              <Button type="submit" disabled={busy}>{t('newDrawing')}</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
       <Dialog open={shareDialogOpen} onOpenChange={(open: boolean) => {
         if (!busy) setShareDialogOpen(open)
       }}>
@@ -2460,12 +2506,9 @@ function App() {
       <main className="exw-main">
         <div className="exw-toolbar">
           <div className="exw-toolbar-title">
-            <Input
-              className="exw-title-input"
-              value={newTitle}
-              placeholder={t('title')}
-              onChange={(event: any) => setNewTitle(event.target.value)}
-            />
+            <span className="block truncate font-medium" title={detail?.item?.title || t('untitled')}>
+              {detail?.item?.title || t('untitled')}
+            </span>
           </div>
           <div className="exw-toolbar-actions">
             <DropdownMenu>
@@ -2478,7 +2521,7 @@ function App() {
                 <ChevronDown className="exw-button-icon" aria-hidden="true" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
-                <DropdownMenuItem onSelect={() => void createDrawing()}>
+                <DropdownMenuItem onSelect={() => setCreateDialogOpen(true)}>
                   <Plus className="exw-button-icon" aria-hidden="true" />
                   {t('newDrawingMenu')}
                 </DropdownMenuItem>
@@ -2564,17 +2607,33 @@ function App() {
                 autoFocus={false}
                 isCollaborating={collaborationState !== 'disconnected'}
                 excalidrawAPI={(nextApi: any) => {
+                  if (canvasDrawingIdRef.current !== selectedId) observedCanvasSceneRef.current = null
+                  canvasDrawingIdRef.current = selectedId
                   apiRef.current = nextApi
                   setApi(nextApi)
                 }}
                 onChange={(elements: any[], appState: Record<string, unknown>, files: Record<string, unknown>) => {
+                  if (selectedId !== selectedIdRef.current || canvasDrawingIdRef.current !== selectedId) return
+                  // Excalidraw callbacks from a replaced canvas must never edit the newly selected document.
+                  const liveElements = apiRef.current?.getSceneElementsIncludingDeleted()
+                  if (liveElements && (liveElements.length !== elements.length || liveElements.some((element: unknown, index: number) => element !== elements[index]))) return
+                  const firstCanvasObservation = observedCanvasSceneRef.current === null
                   elementsRef.current = elements || []
                   appStateRef.current = appState || {}
                   filesRef.current = files || {}
                   selectedElementIdsRef.current = getSelectedElementIds(appStateRef.current, selectedElementIdsRef.current)
-                  if (!themeSyncRef.current) {
+                  if (!themeSyncRef.current && !applyingCollaborativeSceneRef.current) {
                     updateDirtyState()
                     publishSceneToCollaboration()
+                  }
+                  observedCanvasSceneRef.current = structuredClone({
+                    ...currentSerializableScene(), mermaidSource: mermaidSourceRef.current || null
+                  })
+                  if (firstCanvasObservation && hasLiveCollaborationScene()) {
+                    const doc = collaborationDocRef.current!
+                    window.queueMicrotask(() => {
+                      if (collaborationDocRef.current === doc && selectedIdRef.current === selectedId) applyCollaborativeDocument(doc)
+                    })
                   }
                   scheduleAssistantSelectionContextSync()
                   publishCollaborationPresence()

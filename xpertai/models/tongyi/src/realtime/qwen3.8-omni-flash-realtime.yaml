@@ -1,0 +1,18 @@
+model: qwen3.8-omni-flash-realtime
+label:
+  en_US: Qwen Omni Realtime
+  zh_Hans: 千问实时语音
+model_type: realtime
+features:
+  - tool-call
+model_properties:
+  mode: chat
+  context_size: 196608
+realtime:
+  defaultVoice: longanlingxin
+  notification: next-turn
+  voices:
+    - id: longanlingxin
+      label: 龙安灵心
+    - id: Tina
+      label: Tina

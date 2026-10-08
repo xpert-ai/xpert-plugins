@@ -6,7 +6,9 @@
   "targets": {
     "build": {
       "executor": "@nx/js:tsc",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{options.outputPath}"
+      ],
       "options": {
         "outputPath": "models/openai/dist",
         "main": "models/openai/src/index.ts",
@@ -25,6 +27,12 @@
             "output": "./_assets"
           }
         ]
+      }
+    },
+    "verify-native": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node scripts/verify-native-provider.mjs openai"
       }
     }
   },

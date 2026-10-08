@@ -1,0 +1,22 @@
+model: 1.2.6.1
+label:
+  en_US: Doubao Realtime Voice 3.0
+  zh_Hans: 豆包实时语音 3.0
+model_type: realtime
+features:
+  - tool-call
+model_properties:
+  mode: chat
+  context_size: 12288
+realtime:
+  defaultVoice: zh_female_vv_uranus_bigtts
+  notification: text
+  voices:
+    - id: zh_female_vv_uranus_bigtts
+      label: Vivi 2.0
+    - id: zh_female_xiaohe_uranus_bigtts
+      label: 小何 2.0
+    - id: zh_male_m191_uranus_bigtts
+      label: 云舟 2.0
+    - id: zh_male_taocheng_uranus_bigtts
+      label: 小天 2.0

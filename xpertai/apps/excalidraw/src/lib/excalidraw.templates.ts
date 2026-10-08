@@ -107,7 +107,7 @@ export const excalidrawTemplates = [
       'Read the current drawing version and adjust the layout and annotations based on my feedback.',
       'Import this Mermaid source only as a draft, then refine it with editable Excalidraw elements.'
     ],
-    releaseNotes: 'Created the Excalidraw Agentic Drawing business assistant.',
+    releaseNotes: 'Verify persisted drawing content and completed previews before reporting success; recover operation-key conflicts and report concurrent revision conflicts without overwriting edits.',
     xpertName: 'Excalidraw Drawing Assistant',
     providerKey: EXCALIDRAW_TEMPLATE_PROVIDER_KEY
   },

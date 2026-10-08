@@ -66,3 +66,6 @@ if (existsSync(srcRoot)) {
 } else {
   // console.info('No src directory found – skipping YAML copy.')
 }
+
+const speechAssets = path.join(srcRoot, 'speech', '_assets')
+if (existsSync(speechAssets)) cpSync(speechAssets, path.join(distRoot, 'speech', '_assets'), { recursive: true })
