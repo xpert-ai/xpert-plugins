@@ -15,6 +15,7 @@ import { toLarkApiErrorMessage } from './utils.js'
 import { LarkCapabilityService } from './lark-capability.service.js'
 import { LarkLongConnectionService } from './lark-long-connection.service.js'
 import { RolesEnum } from './contracts-compat.js'
+import { beginLarkQrAuthorization, pollLarkQrAuthorization, larkQrIdentity } from './lark-qr-authorization.js'
 
 type LarkIntegrationTestResult = {
   webhookUrl?: string
@@ -50,7 +51,11 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
     private readonly longConnectionService: LarkLongConnectionService
   ) {}
 
-  meta: TLarkIntegrationProvider = {
+  readonly beginQrAuthorization = beginLarkQrAuthorization
+  readonly pollQrAuthorization = pollLarkQrAuthorization
+  readonly getQrAuthorizationIdentity = larkQrIdentity
+
+  meta: TLarkIntegrationProvider & { setup: { qrAuthorization: true } } = {
     name: INTEGRATION_LARK,
     label: {
       en_US: 'Lark',
@@ -64,6 +69,7 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
       en_US: 'Integration with Lark (Feishu) platform for messaging and collaboration.',
       zh_Hans: '与飞书平台的集成，用于消息传递和协作。'
     },
+    setup: { qrAuthorization: true },
     webhook: true,
     helpUrl: LARK_APP_CREDENTIALS_HELP_URL,
     helpLabel: LARK_APP_CREDENTIALS_HELP_LABEL,

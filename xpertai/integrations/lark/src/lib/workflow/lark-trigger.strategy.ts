@@ -20,7 +20,8 @@ import { LarkChatDispatchService } from '../handoff/lark-chat-dispatch.service.j
 import { LarkMessageHistoryQueueService } from '../lark-message-history-queue.service.js'
 import { LarkMessageHistoryService } from '../lark-message-history.service.js'
 import { ChatLarkMessage } from '../message.js'
-import { LARK_PLUGIN_CONTEXT } from '../tokens.js'
+import { LARK_PLUGIN_CONTEXT, LARK_LONG_CONNECTION_SERVICE } from '../tokens.js'
+import type { LarkLongConnectionService } from '../lark-long-connection.service.js'
 import type { LarkGroupWindow, LarkInboundFile, TIntegrationLarkOptions } from '../types.js'
 import { iconImage } from '../types.js'
 import { LarkTriggerBindingEntity } from '../entities/lark-trigger-binding.entity.js'
@@ -84,7 +85,10 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 	private _integrationPermissionService: IntegrationPermissionService
 	private _handoffPermissionService: HandoffPermissionService
 
-	readonly meta: TWorkflowTriggerMeta = {
+	readonly meta: TWorkflowTriggerMeta & {
+		quickConnect: { method: 'qr'; integrationProvider: string; configField: string }
+	} = {
+		quickConnect: { method: 'qr', integrationProvider: 'lark', configField: 'integrationId' },
 		name: LarkTrigger,
 		label: {
 			en_US: 'Lark Trigger',
@@ -665,6 +669,18 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 		return items
 	}
 
+	async connectionStatus(config: TLarkTriggerConfig): Promise<{
+		connected: boolean; state: 'disconnected' | 'connecting' | 'connected' | 'failed'
+	}> {
+		if (!config?.enabled || !config.integrationId) return { connected: false, state: 'disconnected' }
+		const runtime = await this.pluginContext.resolve<LarkLongConnectionService>(LARK_LONG_CONNECTION_SERVICE).status(config.integrationId)
+		return {
+			connected: runtime.connected,
+			state: runtime.connected ? 'connected' : runtime.state === 'unhealthy' ? 'failed' :
+				(runtime.state === 'connecting' || runtime.state === 'retrying') ? 'connecting' : 'disconnected'
+		}
+	}
+
 	async publish(
 		payload: TWorkflowTriggerParams<TLarkTriggerConfig>,
 		callback: (payload: any) => void
@@ -694,6 +710,14 @@ export class LarkTriggerStrategy implements IWorkflowTriggerStrategy<TLarkTrigge
 			: null
 		if (this.requiresOwnerOpenId(normalizedConfig) && !ownerOpenId) {
 			throw new Error('Unable to resolve the publisher open_id for "Only Me" Lark trigger scope')
+		}
+
+		if (integration.options?.connectionMode === 'long_connection') {
+			const longConnection = this.pluginContext.resolve<LarkLongConnectionService>(LARK_LONG_CONNECTION_SERVICE)
+			const localRuntime = await longConnection.connect(integrationId)
+			// Another API instance can own the healthy connection while this instance waits for the lease.
+			const runtime = localRuntime.connected ? localRuntime : await longConnection.status(integrationId)
+			if (!runtime.connected) throw new Error('Feishu authorization succeeded, but the message connection could not start. Please retry.')
 		}
 
 		const context = await this.resolveBindingContext(integrationId)

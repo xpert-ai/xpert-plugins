@@ -15,6 +15,22 @@ Lark (Feishu) integration plugin for Xpert AI platform.
 
 This plugin is loaded automatically when placed in the plugins directory.
 
+## QR channel setup
+
+In Bosi, open Assistant → Channels → Add channel → Feishu → Connect with QR code.
+Scan and confirm in Feishu to create/authorize a PersonalAgent app. The plugin uses
+[Feishu's official registration protocol](https://github.com/larksuite/cli/blob/main/internal/auth/app_registration.go)
+and saves the app credentials through the host Integration QR service. Credentials and
+opaque device codes are server-only. The stable app/brand identity lets the host reuse
+an authorized integration within the same tenant and organization.
+
+The trigger declares `quickConnect` and reports actual long-connection status. Authorization
+starts the existing websocket transport, binds the current published Assistant and preserves
+unrelated draft edits. The initial response defaults allow direct messages and group mentions;
+advanced scopes can be edited in Xpert. OAuth pending/backoff, denial and expiry are mapped to
+the host QR lifecycle. The host must support Integration QR setup and trigger quick connections.
+The small structural QR types remain local until those interfaces are released in the npm SDK.
+
 ## Configuration
 
 Configure the Lark integration in the Xpert AI admin panel:

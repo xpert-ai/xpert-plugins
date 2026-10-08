@@ -15,6 +15,7 @@ jest.mock('../lark-channel.strategy.js', () => ({
 }))
 
 import { HANDOFF_PERMISSION_SERVICE_TOKEN, INTEGRATION_PERMISSION_SERVICE_TOKEN } from '@xpert-ai/plugin-sdk'
+import { LARK_LONG_CONNECTION_SERVICE } from '../tokens.js'
 import { LarkTriggerStrategy } from './lark-trigger.strategy.js'
 
 const DEFAULT_TRIGGER_CONFIG = {
@@ -147,8 +148,13 @@ describe('LarkTriggerStrategy', () => {
 				return { affected: 1 }
 			})
 		}
+		const longConnection = {
+			connect: jest.fn().mockResolvedValue({ connected: true, state: 'connected' }),
+			status: jest.fn().mockResolvedValue({ connected: true, state: 'connected' })
+		}
 		const pluginContext = {
 			resolve: jest.fn((token: unknown) => {
+				if (token === LARK_LONG_CONNECTION_SERVICE) return longConnection
 				if (token === INTEGRATION_PERMISSION_SERVICE_TOKEN) {
 					return integrationPermissionService
 				}
@@ -176,6 +182,8 @@ describe('LarkTriggerStrategy', () => {
 		)
 		return {
 			strategy,
+			longConnection,
+			integrationPermissionService,
 			dispatchService,
 			aggregationService,
 			handoffPermissionService,
@@ -185,6 +193,54 @@ describe('LarkTriggerStrategy', () => {
 			persistedBindings
 		}
 	}
+
+	it('activates the QR integration long connection before reporting connected', async () => {
+		const f = createStrategy()
+		f.integrationPermissionService.read.mockResolvedValue({ id: 'integration-1', options: { connectionMode: 'long_connection' } })
+		const config = { ...DEFAULT_TRIGGER_CONFIG, integrationId: 'integration-1' }
+		await f.strategy.publish({ xpertId: 'xpert-1', config }, jest.fn())
+		expect(f.longConnection.connect).toHaveBeenCalledWith('integration-1')
+		expect(await f.strategy.connectionStatus(config)).toEqual({ connected: true, state: 'connected' })
+		expect(f.strategy.meta.quickConnect).toEqual({ method: 'qr', integrationProvider: 'lark', configField: 'integrationId' })
+	})
+
+	it('does not claim a disconnected or unhealthy transport is connected', async () => {
+		const f = createStrategy()
+		const config = { ...DEFAULT_TRIGGER_CONFIG, integrationId: 'integration-1' }
+		f.longConnection.status.mockResolvedValue({ connected: false, state: 'unhealthy' })
+		expect(await f.strategy.connectionStatus(config)).toEqual({ connected: false, state: 'failed' })
+		expect(await f.strategy.connectionStatus({ ...config, enabled: false })).toEqual({ connected: false, state: 'disconnected' })
+	})
+
+	it('publishes when another API instance owns the healthy long connection', async () => {
+		const f = createStrategy()
+		f.integrationPermissionService.read.mockResolvedValue({ id: 'integration-1', options: { connectionMode: 'long_connection' } })
+		f.longConnection.connect.mockResolvedValue({ connected: false, state: 'retrying' })
+		const callback = jest.fn()
+		const config = { ...DEFAULT_TRIGGER_CONFIG, integrationId: 'integration-1' }
+
+		await expect(f.strategy.publish({ xpertId: 'xpert-1', config }, callback)).resolves.toBeUndefined()
+
+		expect(f.longConnection.status).toHaveBeenCalledWith('integration-1')
+		expect(f.bindingRepository.upsert).toHaveBeenCalledTimes(1)
+		expect(f.strategy.callbacks.get('integration-1')).toBe(callback)
+	})
+
+	it.each([false, true])('keeps bindings unchanged when the cluster connection is offline (existing: %s)', async (existing) => {
+		const previous = createBinding({ config: { ...DEFAULT_TRIGGER_CONFIG, historyContextLimit: 5 } })
+		const f = createStrategy({ bindings: existing ? [previous] : [] })
+		f.integrationPermissionService.read.mockResolvedValue({ id: 'integration-1', options: { connectionMode: 'long_connection' } })
+		f.longConnection.connect.mockResolvedValue({ connected: false, state: 'retrying' })
+		f.longConnection.status.mockResolvedValue({ connected: false, state: 'unhealthy' })
+		const config = { ...DEFAULT_TRIGGER_CONFIG, integrationId: 'integration-1' }
+
+		await expect(f.strategy.publish({ xpertId: 'xpert-1', config }, jest.fn())).rejects.toThrow('message connection could not start')
+
+		expect(f.bindingRepository.upsert).not.toHaveBeenCalled()
+		expect(f.messageHistoryQueue.scheduleCleanup).not.toHaveBeenCalled()
+		expect(f.persistedBindings.get('integration-1')).toEqual(existing ? previous : undefined)
+		expect(f.strategy.callbacks.has('integration-1')).toBe(false)
+	})
 
 	function createBinding(overrides: Partial<PersistedBinding> = {}): PersistedBinding {
 		return {
