@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { AgentExecutionRunnerCapability, type AgentRuntimeContext, type AgentRuntimeHandle } from '@xpert-ai/plugin-sdk'
-import { jsonlActivities, appendActivities } from './activity.js'
+import { jsonlActivities, appendActivities, type JsonlActivityProtocol } from './activity.js'
 
 const pageSchema = z.object({
   sourceId: z.string().uuid(),
@@ -22,7 +22,7 @@ function parseCursor(value?: string) {
 export async function collectJsonlActivity(
   context: AgentRuntimeContext,
   handle: AgentRuntimeHandle,
-  provider: 'qwen' | 'codex',
+  provider: JsonlActivityProtocol,
   terminal: boolean
 ) {
   if (!handle.runner) return undefined

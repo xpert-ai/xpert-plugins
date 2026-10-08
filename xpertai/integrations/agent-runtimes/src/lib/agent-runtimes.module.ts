@@ -1,3 +1,6 @@
+import { KimiComputerRuntimeStrategy } from './kimi-computer.strategy.js'
+import { CodeBuddyComputerRuntimeStrategy } from './codebuddy-computer.strategy.js'
+import { ClaudeComputerRuntimeStrategy } from './claude-computer.strategy.js'
 import { AgentInvocationMiddleware } from './invocation.middleware.js'
 import { XpertServerPlugin } from '@xpert-ai/plugin-sdk'
 import { QwenComputerRuntimeStrategy } from './qwen-computer.strategy.js'
@@ -15,6 +18,9 @@ import { ProcessRuntime } from './process-runtime.js'
     CodexRuntimeStrategy,
     CodexComputerRuntimeStrategy,
     QwenComputerRuntimeStrategy,
+    CodeBuddyComputerRuntimeStrategy,
+    ClaudeComputerRuntimeStrategy,
+    KimiComputerRuntimeStrategy,
     PiRuntimeStrategy,
     ClaudeCodeRuntimeStrategy,
     ClaudeSdkLoader,

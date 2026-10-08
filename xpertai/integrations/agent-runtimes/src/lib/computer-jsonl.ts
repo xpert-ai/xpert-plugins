@@ -10,6 +10,7 @@ import { agentPrompt } from './input.js'
 import { outputDelivery, taskResult } from './task-result.js'
 import type { RuntimeProfile } from './config.js'
 import type { ProcessRuntime } from './process-runtime.js'
+import type { JsonlActivityProtocol } from './activity.js'
 import { collectJsonlActivity } from './computer-activity.js'
 import { appendActivities } from './activity.js'
 import { completionFailure, completionMetadata, type CompletionCheck } from './computer-completion.js'
@@ -17,7 +18,7 @@ import { completionFailure, completionMetadata, type CompletionCheck } from './c
 export interface ComputerJsonlAdapter {
   provider: RuntimeProfile['provider']
   toolId: string
-  activityProtocol: 'qwen' | 'codex'
+  activityProtocol: JsonlActivityProtocol
   completion(events: unknown[]): CompletionCheck
 }
 const State = z.object({

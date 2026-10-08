@@ -1,5 +1,7 @@
 // Only public protocol fields cross this boundary. Reasoning/system/config events are never projected.
 import { z } from 'zod'
+import { kimiActivities } from './kimi-protocol.js'
+export type JsonlActivityProtocol = 'qwen' | 'codex' | 'codebuddy' | 'claude' | 'kimi'
 import type { ExecutionActivityItem } from '@xpert-ai/contracts'
 import type { AgentRuntimeContext } from '@xpert-ai/plugin-sdk'
 
@@ -58,10 +60,11 @@ const codex = z
 type Content = ExecutionActivityItem['content']
 
 export function jsonlActivities(
-  provider: 'qwen' | 'codex',
+  provider: JsonlActivityProtocol,
   events: unknown[],
   offset: string
 ): ExecutionActivityItem[] {
+  if (provider === 'kimi') return kimiActivities(events, offset)
   const items: ExecutionActivityItem[] = []
   events.forEach((raw, index) => {
     if (provider === 'codex') {
@@ -131,13 +134,13 @@ export function jsonlActivities(
     event.message?.content.forEach((part, blockIndex) => {
       if (event.type === 'assistant' && part.type === 'text' && part.text)
         items.push({
-          id: `qwen:${event.uuid ?? event.message?.id ?? `${offset}:${index}`}:${blockIndex}`,
+          id: `${provider}:${event.uuid ?? event.message?.id ?? `${offset}:${index}`}:${blockIndex}`,
           content: { kind: 'message', text: limit(part.text)! }
         })
       if (part.type === 'tool_use' && part.id && part.name) {
         const detail = toolDetail(part.name, part.input)
         items.push({
-          id: `qwen:tool:${part.id}`,
+          id: `${provider}:tool:${part.id}`,
           content: {
             kind: 'tool',
             name: part.name,
@@ -157,12 +160,12 @@ export function jsonlActivities(
                 .join('\n') ?? '')
         // Qwen 0.24.7 emits this explicit tool-result trailer when it truncates
         // output upstream. The private CLI scratch path is not a public file link.
-        const upstreamTruncation = /\nOutput too long and was saved to: [^\n]+\.output\s*$/.test(output)
+        const upstreamTruncation = provider === 'qwen' && /\nOutput too long and was saved to: [^\n]+\.output\s*$/.test(output)
         const publicOutput = upstreamTruncation
           ? output.replace(/\nOutput too long and was saved to: [^\n]+\.output\s*$/, '\n[CLI output truncated]')
           : output
         items.push({
-          id: `qwen:tool:${part.tool_use_id}`,
+          id: `${provider}:tool:${part.tool_use_id}`,
           content: {
             kind: 'tool',
             status: part.is_error ? 'failed' : 'succeeded',
@@ -177,7 +180,7 @@ export function jsonlActivities(
 }
 
 function toolDetail(name: string, value?: z.infer<typeof input>): Extract<Content, { kind?: 'tool' }>['detail'] {
-  if (['run_shell_command', 'bash', 'shell'].includes(name) && value?.command)
+  if (['run_shell_command', 'bash', 'shell', 'Bash'].includes(name) && value?.command)
     return {
       type: 'command',
       command: limit(value.command)!,
@@ -185,7 +188,7 @@ function toolDetail(name: string, value?: z.infer<typeof input>): Extract<Conten
       ...(value.workdir ? { cwd: value.workdir } : {})
     }
   const path = value?.file_path ?? value?.filePath
-  if (['write_file', 'edit', 'write'].includes(name) && path)
+  if (['write_file', 'edit', 'write', 'Write', 'Edit'].includes(name) && path)
     return { type: 'file_change', files: [{ path, change: 'reported' }] }
   return undefined
 }

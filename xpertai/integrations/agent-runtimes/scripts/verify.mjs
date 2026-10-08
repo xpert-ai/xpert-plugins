@@ -3,12 +3,15 @@ import { join, resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
+import { createRequire } from 'node:module'
 
 // Verify fresh host SDK builds without relinking a developer's running platform.
 const source = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const workspace = resolve(source, '../..')
 const platform = process.env.XPERT_PLATFORM_ROOT
 if (!platform) throw new Error('Set XPERT_PLATFORM_ROOT to the source platform checkout with SDK/contracts dist built')
+const sourceCheckout = process.argv.includes('--source-checkout')
+if (process.argv.slice(2).some(arg => arg !== '--source-checkout')) throw new Error('Unknown verification option')
 const staging = await mkdtemp(join(tmpdir(), 'xpert-agent-runtimes-'))
 function run(command, args, cwd = staging) {
   const child = spawnSync(command, args, { cwd, stdio: 'inherit', env: process.env })
@@ -33,6 +36,26 @@ async function dependencies(root) {
   }
 }
 try {
+  const { satisfies } = createRequire(join(resolve(platform), 'package.json'))('semver')
+  const manifest = JSON.parse(await readFile(join(source, 'package.json'), 'utf8'))
+  let plannedReleases = []
+  if (sourceCheckout) {
+    const planPath = join(staging, 'release-plan.json')
+    run('corepack', ['pnpm', 'exec', 'changeset', 'status', '--output', planPath], resolve(platform))
+    plannedReleases = JSON.parse(await readFile(planPath, 'utf8')).releases
+  }
+  for (const name of ['contracts', 'plugin-sdk']) {
+    const packageName = `@xpert-ai/${name}`
+    const built = JSON.parse(await readFile(join(resolve(platform), 'packages', name, 'dist/package.json'), 'utf8'))
+    const current = JSON.parse(await readFile(join(resolve(platform), 'packages', name, 'package.json'), 'utf8'))
+    if (built.version !== current.version) throw new Error(`${packageName} build is stale; rebuild the host package`)
+    const required = manifest.peerDependencies[packageName]
+    if (satisfies(built.version, required)) continue
+    const planned = plannedReleases.find(item => item.name === packageName && item.oldVersion === current.version)
+    if (!sourceCheckout || !planned || !satisfies(planned.newVersion, required))
+      throw new Error(`${packageName}@${built.version} does not satisfy ${required}. Release matching host packages first; use --source-checkout only for explicitly unreleased source validation.`)
+    console.log(`${packageName}: source ${current.version}, planned ${planned.newVersion}; source validation only.`)
+  }
   await mkdir(join(staging, 'node_modules'), { recursive: true })
   await dependencies(join(workspace, 'node_modules'))
   await dependencies(join(resolve(platform), 'node_modules'))
@@ -77,7 +100,7 @@ try {
     '@xpert-ai/plugin-agent-runtimes'
   ])
   await cp(join(staging, 'dist'), join(source, 'dist'), { recursive: true })
-  console.log('Agent runtime build, protocol tests and dist-first lifecycle passed. No deployment performed.')
+  console.log(`Agent runtime build, protocol tests and dist-first lifecycle passed. ${sourceCheckout ? 'Unreleased source validation; not release compatibility.' : 'Built host peer versions satisfy the plugin requirements.'} No deployment performed.`)
 } finally {
   await rm(staging, { recursive: true, force: true })
 }

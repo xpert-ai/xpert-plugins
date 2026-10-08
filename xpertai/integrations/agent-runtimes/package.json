@@ -20,7 +20,7 @@
   "dependencies": {
     "tslib": "^2.3.0"
   },
-  "description": "Governed Codex, Pi, Claude Code and OpenCode execution strategies.",
+  "description": "Governed coding runtimes with Computer support for OpenCode, Codex, Qwen Code, CodeBuddy, Kimi Code and Claude Code.",
   "license": "AGPL-3.0",
   "files": [
     "dist",

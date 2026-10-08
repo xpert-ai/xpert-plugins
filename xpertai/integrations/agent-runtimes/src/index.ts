@@ -11,7 +11,7 @@ const plugin: XpertPlugin<RuntimeConfiguration> = {
     artifactNamespace: 'agent_runtimes',
     category: 'integration',
     displayName: 'Agent Runtimes',
-    description: 'Codex, Pi, Claude Code and OpenCode invocation strategies'
+    description: 'Governed coding runtimes with Computer support for OpenCode, Codex, Qwen Code, CodeBuddy, Kimi Code and Claude Code'
   },
   config: { schema: ConfigSchema },
   register(context) {

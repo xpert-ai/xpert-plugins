@@ -175,12 +175,12 @@ a corrected retry exported a Node.js program and JSON as two immutable artifacts
 The coordinator automatically resumed, reran the program and independent asserts,
 and accepted the task. Failed history and live execution cards were retained.
 See the host's `docs/plans/2026-10-06-project-tasks-stage5-acceptance.md` for scope
-and limits. Kimi/CodeBuddy are not qualified by this result.
+and limits. That Qwen-only result does not qualify the later Kimi/CodeBuddy adapters; see their separate acceptance below.
 
 
 ### Optional public execution activity
 
-Computer Qwen Code, Computer Codex and OpenCode declare activity version 1 (`presentation: coding`). With a matching host, adapters map allowlisted public text/tool/command/file events into `context.activity`, persist a source checkpoint and flush final activity before recording the result and stopping the runner. No extra Activity Provider registry is required. Hosts without the optional recorder keep the normal execution/result flow.
+Computer Qwen Code, Codex, CodeBuddy, Kimi Code, Claude Code and OpenCode declare activity version 1 (`presentation: coding`). With a matching host, adapters map allowlisted public text/tool/command/file events into `context.activity`, persist a source checkpoint and flush final activity before recording the result and stopping the runner. No extra Activity Provider registry is required. Hosts without the optional recorder keep the normal execution/result flow.
 
 Qwen/Codex consume the paged Computer JSONL bridge; a source generation change or lost buffer is reported as a gap. Qwen's own long-output preview marker remains explicitly truncated. OpenCode reconciles cumulative parts for the current parent message; a bounded latest-message fallback records a source gap rather than claiming full coverage. Only explicit protocol fields become command/file details. Hidden reasoning is excluded; an unrecognized tool remains a generic tool.
 
@@ -189,7 +189,65 @@ Direct background calls emit one host-owned execution Resource Card. Project dis
 Protocol and lifecycle verification against local SDK/contracts builds:
 
 ```sh
-XPERT_PLATFORM_ROOT=/path/to/xpert-pro node integrations/agent-runtimes/scripts/verify.mjs
+XPERT_PLATFORM_ROOT=/path/to/xpert-pro node integrations/agent-runtimes/scripts/verify.mjs --source-checkout
 ```
 
 The verifier stages built peer packages in a temporary directory, runs public-protocol tests and the dist-first plugin lifecycle harness, then copies the verified dist back. It does not deploy or relink the running platform.
+
+`--source-checkout` explicitly validates unreleased source: the host's Changesets plan must advance both peer packages into the declared ranges, and built manifests must match the source manifests. It does not rewrite peer versions or imply npm availability. The current release target is contracts/plugin-sdk **3.20.0**. Without this option the verifier requires built host versions to satisfy the declared peers and fails before building otherwise. After the host release, run without the option and regenerate the plugin workspace lockfile against the published packages before making this plugin public.
+
+
+### CodeBuddy, Kimi Code and Claude Code on Computer
+
+The following additional providers use the same managed Computer JSONL lifecycle:
+
+| Provider | Tool/version | Background permission modes | Completion receipt |
+| --- | --- | --- | --- |
+| `codebuddy-computer` | CodeBuddy 2.161.1 | `allow`, `restricted` | One successful primary `result` event |
+| `kimi-computer` | Kimi Code 2.1.1 | `allow` only | Final assistant reply, matched tool results and final `session.resume_hint` |
+| `claude-computer` | Claude Code 2.1.63 | `allow`, `restricted` | One successful primary `result` event |
+
+Every successful receipt also requires exit code 0, complete protocol collection
+and no terminal error. CodeBuddy/Claude share the primary-result parser with
+Qwen; recoverable tool failures are retained in Activity. Kimi uses its native
+public-message parser. It does not expose trustworthy tool success/exit-code
+fields, so those tool outcomes remain `unknown`; the overall process result is
+verified independently. Thinking, settings, resume commands and private metadata
+are not projected into the public process stream.
+
+Kimi 2.1.1 is the Node `@moonshot-ai/kimi-code` CLI, not the earlier Python CLI.
+The host's optional `CliModelProfile.background.promptArgument` passes its prompt
+as one literal argv value. Other tools continue to use stdin. No shell expansion,
+PTY, prompt replay or additional Runtime registry is introduced. A private Kimi
+agent restricts tools and removes subagents; the fixed version forces automatic
+approval in prompt mode, so the host rejects `restricted` before creating a
+process. Do not bypass that rejection by changing the requested mode in a binding.
+
+Claude/CodeBuddy use only Bash/Read/Write/Edit/Glob/Grep, an empty MCP configuration
+and disabled ambient settings. Host-selected `allow` uses `bypassPermissions`;
+`restricted` uses `dontAsk` with file tools and `Bash(node:*)`. CLI approval controls
+are not a filesystem sandbox. Existing interactive launch behavior is unchanged.
+These Computer providers have no interactive approval or follow-up message API;
+the separate `claude-code` Agent SDK provider remains unchanged.
+
+Configure each profile with its provider, `executionEnvironment: "computer"`,
+stable `id`/`version` and authorized workspace IDs. Bind and publish it on the
+Assistant exactly like `qwen-computer`. All three support observed-session
+recovery, confirmed cancellation, explicit file export, public Activity and the
+existing execution Resource Card. They do not extend independent evidence review
+beyond the existing OpenCode path. Aider remains interactive-only in Computer;
+installation or text output is not a qualified background completion protocol.
+
+Acceptance on 2026-10-07: **78 protocol tests**, dist-first lifecycle loading,
+**90 host tests** and **11 real Docker supervisor tests** passed. Three real
+model-backed project tasks each dispatched once, exported a Node program and JSON,
+automatically resumed the coordinator, reran actual checks and reached `done` by
+explicit acceptance. Each conversation had two successful runs and one execution
+card; authorized downloads verified all six files. CodeBuddy/Kimi/Claude exposed
+7/5/5 Activity items respectively. This is API/SDK acceptance, not another Desktop
+visual test. Full scoped receipts remain in the host's protected local environment.
+
+Primary protocol references: [CodeBuddy headless mode](https://www.codebuddy.ai/docs/cli/headless),
+[Kimi Code command reference](https://www.kimi.com/code/docs/en/kimi-code-cli/reference/kimi-command.html).
+Fixed installed-version help/source and real execution receipts take precedence
+when current online documentation describes a newer protocol.

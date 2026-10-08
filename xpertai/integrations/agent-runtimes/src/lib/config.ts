@@ -3,7 +3,7 @@ import { z } from 'zod'
 export const ProfileSchema = z
   .object({
     id: z.string().regex(/^[a-zA-Z0-9_-]+$/),
-    provider: z.enum(['codex', 'codex-computer', 'qwen-computer', 'pi', 'claude-code', 'opencode']),
+    provider: z.enum(['codex', 'codex-computer', 'qwen-computer', 'codebuddy-computer', 'claude-computer', 'kimi-computer', 'pi', 'claude-code', 'opencode']),
     version: z.string().min(1),
     workspaceIds: z.array(z.string().uuid()).min(1),
     workspaceRoot: z.string().min(1).optional(),
@@ -19,9 +19,9 @@ export const ProfileSchema = z
   })
   .strict()
   .superRefine((profile, ctx) => {
-    if (profile.executionEnvironment && !['opencode', 'codex-computer', 'qwen-computer'].includes(profile.provider))
+    if (profile.executionEnvironment && !['opencode', 'codex-computer', 'qwen-computer', 'codebuddy-computer', 'claude-computer', 'kimi-computer'].includes(profile.provider))
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Provider does not support managed Computer execution', path: ['executionEnvironment'] })
-    if (['codex-computer', 'qwen-computer'].includes(profile.provider) && profile.executionEnvironment !== 'computer')
+    if (['codex-computer', 'qwen-computer', 'codebuddy-computer', 'claude-computer', 'kimi-computer'].includes(profile.provider) && profile.executionEnvironment !== 'computer')
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'This provider requires the managed Computer environment', path: ['executionEnvironment'] })
     if (!profile.executionEnvironment && !profile.workspaceRoot)
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'A managed workspace root is required', path: ['workspaceRoot'] })
