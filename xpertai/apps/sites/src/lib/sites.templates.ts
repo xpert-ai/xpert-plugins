@@ -886,8 +886,19 @@ export const sitesTemplates: XpertTemplateContribution[] = [
     description: '面向站点创建、候选版本保存、生产发布、访问控制和环境值管理的 data-xpert 助手模板。',
     category: 'Sites',
     type: XpertTypeEnum.Agent,
-    targetApps: ['data-xpert'],
+    targetApps: ['data-xpert', 'xpert'],
     targetAppMeta: {
+      xpert: {
+        types: ['business-assistant'],
+        capabilities: [SITES_FEATURE, SITES_VIEW_KEY],
+        requiredPlugins: [SITES_PLUGIN_NAME],
+        defaultConfig: {
+          assistantKind: 'business-assistant',
+          businessDomain: 'sites',
+          managedBy: 'xpert',
+          viewProvider: SITES_PROVIDER_KEY
+        }
+      },
       'data-xpert': {
         types: ['business-assistant'],
         capabilities: [SITES_FEATURE, SITES_VIEW_KEY],

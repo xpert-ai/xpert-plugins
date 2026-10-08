@@ -1,3 +1,4 @@
+import { appConfig } from './lib/app-config.js'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -87,10 +88,12 @@ const plugin: CanvasXpertPlugin = {
         types: ['workbench-view', 'assistant-tool', 'business-app'],
         capabilities: [CANVAS_FEATURE, CANVAS_WORKBENCH_CAPABILITY, CANVAS_AGENT_CAPABILITY, CANVAS_TEMPLATE_CAPABILITY],
         marketplace: {
+          category: 'creativity',
           contents: [
             {
               type: 'app',
               name: 'canvas',
+              appConfig,
               displayName: 'Canvas',
               description: text(
                 'Use Canvas Assistant to create, review, annotate, share, import, export, and version Agent-managed tldraw canvases.',
@@ -151,6 +154,7 @@ const plugin: CanvasXpertPlugin = {
         types: ['assistant-template', 'skill', 'app', 'xpertai-bundle'],
         capabilities: [CANVAS_FEATURE, CANVAS_WORKBENCH_CAPABILITY, CANVAS_AGENT_CAPABILITY, CANVAS_TEMPLATE_CAPABILITY],
         marketplace: {
+          category: 'creativity',
           contents: [
             {
               type: 'skill',
@@ -177,6 +181,7 @@ const plugin: CanvasXpertPlugin = {
             {
               type: 'app',
               name: 'canvas',
+              appConfig,
               displayName: 'Canvas',
               description: text(
                 'Use Canvas Assistant with Workbench and Agent middleware tools for tldraw canvases.',

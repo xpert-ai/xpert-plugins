@@ -6,7 +6,8 @@
   "scripts": {
     "verify:system-app-metadata": "node ./scripts/verify-system-app-artifact-namespaces.mjs",
     "release:version": "node scripts/release-version.mjs && pnpm install --lockfile-only --no-frozen-lockfile --ignore-scripts",
-    "release:publish": "node ./scripts/release-publish.mjs"
+    "release:publish": "node ./scripts/release-publish.mjs",
+    "verify:app-configs": "node ./scripts/verify-app-configs.mjs"
   },
   "private": true,
   "devDependencies": {
@@ -105,6 +106,13 @@
           "port": 4873,
           "config": ".verdaccio/config.yml",
           "storage": "tmp/local-registry/storage"
+        }
+      },
+      "verify-app-configs": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "node scripts/verify-app-configs.mjs",
+          "cwd": "{workspaceRoot}"
         }
       }
     }

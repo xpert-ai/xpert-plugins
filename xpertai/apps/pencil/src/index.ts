@@ -1,3 +1,4 @@
+import { appConfig } from './lib/app-config.js'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -70,10 +71,12 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
         types: ['workbench-view', 'assistant-tool', 'business-app'],
         capabilities: [PENCIL_FEATURE, PENCIL_WORKBENCH_CAPABILITY, PENCIL_AGENT_CAPABILITY, PENCIL_TEMPLATE_CAPABILITY, PENCIL_ARTIFACT_SHARING_CAPABILITY],
         marketplace: {
+          category: 'creativity',
           contents: [
             {
               type: 'app',
               name: 'pencil',
+              appConfig,
               displayName: 'Pencil',
               description: 'Use Pencil Assistant to create, import, inspect, edit, export, and version Agent-managed design documents.',
               icon: {
@@ -123,6 +126,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
         types: ['assistant-template', 'skill', 'app', 'xpertai-bundle'],
         capabilities: [PENCIL_FEATURE, PENCIL_WORKBENCH_CAPABILITY, PENCIL_AGENT_CAPABILITY, PENCIL_TEMPLATE_CAPABILITY, PENCIL_ARTIFACT_SHARING_CAPABILITY],
         marketplace: {
+          category: 'creativity',
           contents: [
             {
               type: 'skill',
@@ -144,6 +148,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
             {
               type: 'app',
               name: 'pencil',
+              appConfig,
               displayName: 'Pencil',
               description: 'Use Pencil Assistant with Workbench and Agent middleware tools for design documents.',
               operations: pencilMarketplaceOperations

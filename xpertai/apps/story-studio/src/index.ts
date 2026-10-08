@@ -1,3 +1,4 @@
+import { appConfig } from './lib/app-config.js'
 import { z } from 'zod'
 import type { I18nObject } from '@xpert-ai/contracts'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
@@ -103,10 +104,12 @@ const plugin: StoryStudioXpertPlugin = {
         types: ['workbench-view', 'assistant-tool', 'business-app'],
         capabilities,
         marketplace: {
+          category: 'creativity',
           contents: [
             {
               type: 'app',
               name: 'story-studio',
+              appConfig,
               displayName: 'Story Studio',
               description: text(
                 'Plan and review story adaptation and media-production stages.',
@@ -161,6 +164,7 @@ const plugin: StoryStudioXpertPlugin = {
         types: ['assistant-template', 'skill', 'app', 'xpertai-bundle'],
         capabilities,
         marketplace: {
+          category: 'creativity',
           contents: [
             {
               type: 'skill',
@@ -185,6 +189,7 @@ const plugin: StoryStudioXpertPlugin = {
             {
               type: 'app',
               name: 'story-studio',
+              appConfig,
               displayName: 'Story Studio',
               description: text(
                 'Plan and review story adaptation and media-production stages.',

@@ -1,3 +1,4 @@
+import { appConfig } from './lib/app-config.js'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -52,10 +53,12 @@ const plugin: DocxEditorXpertPlugin = {
           DOCX_EDITOR_TEMPLATE_CAPABILITY
         ],
         marketplace: {
+          category: 'productivity',
           contents: [
             {
               type: 'app',
               name: 'docx-editor',
+              appConfig,
               displayName: 'DOCX Editor',
               description: text(
                 'Upload, edit, version, comment, and review .docx files in a Workbench.',
@@ -150,6 +153,7 @@ const plugin: DocxEditorXpertPlugin = {
           DOCX_EDITOR_TEMPLATE_CAPABILITY
         ],
         marketplace: {
+          category: 'productivity',
           contents: [
             {
               type: 'skill',
@@ -173,6 +177,7 @@ const plugin: DocxEditorXpertPlugin = {
             {
               type: 'app',
               name: 'docx-editor',
+              appConfig,
               displayName: 'DOCX Editor',
               description: text(
                 'Workbench and Agent middleware tools for DOCX documents.',

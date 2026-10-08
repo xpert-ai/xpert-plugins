@@ -5,7 +5,13 @@
   "homepage": "https://github.com/xpert-ai/xpert-plugins/tree/main/xpertai/apps/cut",
   "repository": "https://github.com/xpert-ai/xpert-plugins/tree/main/xpertai/apps/cut",
   "license": "AGPL-3.0",
-  "keywords": ["cut", "video", "timeline", "opencut", "agentic-app"],
+  "keywords": [
+    "cut",
+    "video",
+    "timeline",
+    "opencut",
+    "agentic-app"
+  ],
   "skills": "./skills/",
   "toolsets": {
     "cut": {
@@ -26,7 +32,11 @@
     "longDescription": "Import workspace media, edit a revision-safe timeline with Agent tools or Cut Workbench, review evidence-backed proposals, and render MP4 locally or through a bounded Sandbox Job.",
     "developerName": "XpertAI",
     "category": "Productivity",
-    "capabilities": ["Interactive", "Read", "Write"],
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
     "websiteURL": "https://xpertai.cn",
     "privacyPolicyURL": "https://xpertai.cn",
     "termsOfServiceURL": "https://xpertai.cn",
@@ -40,36 +50,253 @@
     "brandColor": "#0EA5E9",
     "screenshots": []
   },
-  "policy": { "installation": "AVAILABLE", "authentication": "ON_FIRST_USE", "pluginSharing": true },
-  "source": { "source": "local", "path": ".", "url": "https://github.com/xpert-ai/xpert-plugins", "sparsePath": "xpertai/apps/cut" },
-  "assets": { "composerIcon": "./assets/composerIcon.svg", "logo": "./assets/logo.svg", "screenshots": [] },
-  "targetApps": ["data-xpert", "xpert"],
+  "policy": {
+    "installation": "AVAILABLE",
+    "authentication": "ON_FIRST_USE",
+    "pluginSharing": true
+  },
+  "source": {
+    "source": "local",
+    "path": ".",
+    "url": "https://github.com/xpert-ai/xpert-plugins",
+    "sparsePath": "xpertai/apps/cut"
+  },
+  "assets": {
+    "composerIcon": "./assets/composerIcon.svg",
+    "logo": "./assets/logo.svg",
+    "screenshots": []
+  },
+  "targetApps": [
+    "data-xpert",
+    "xpert"
+  ],
   "targetAppMeta": {
     "data-xpert": {
-      "types": ["workbench-view", "assistant-tool", "business-app"],
-      "capabilities": ["cut", "cut-workbench", "cut-agent", "cut-assistant-template"]
+      "types": [
+        "workbench-view",
+        "assistant-tool",
+        "business-app"
+      ],
+      "capabilities": [
+        "cut",
+        "cut-workbench",
+        "cut-agent",
+        "cut-assistant-template"
+      ]
     },
     "xpert": {
-      "types": ["assistant-template", "skill", "app", "xpertai-bundle", "mcp"],
-      "capabilities": ["cut", "cut-workbench", "cut-agent", "cut-assistant-template", "cut-mcp"],
+      "types": [
+        "assistant-template",
+        "skill",
+        "app",
+        "xpertai-bundle",
+        "mcp"
+      ],
+      "capabilities": [
+        "cut",
+        "cut-workbench",
+        "cut-agent",
+        "cut-assistant-template",
+        "cut-mcp"
+      ],
       "marketplace": {
         "contents": [
-          {"type": "skill", "name": "cut-agent-skill", "displayName": "Cut Basics", "description": "Project identity, revision-safe edits and content authorization.", "tags": ["skill", "cut", "video"]},
-          {"type": "skill", "name": "cut-speech-editing", "displayName": "Cut Speech Editing", "description": "Evidence-backed speech cleanup and rough cuts.", "tags": ["skill", "cut", "video"]},
-          {"type": "skill", "name": "cut-captions", "displayName": "Cut Captions", "description": "Transcription, correction, translation and synchronized captions.", "tags": ["skill", "cut", "video"]},
-          {"type": "skill", "name": "cut-verification", "displayName": "Cut Verification", "description": "Verify edits, caption alignment and produced media.", "tags": ["skill", "cut", "video"]},
-          {"type": "skill", "name": "cut-export", "displayName": "Cut Export", "description": "Background render jobs and authenticated file delivery.", "tags": ["skill", "cut", "video"]},
-          { "type": "assistant-template", "name": "cut-assistant", "displayName": "Cut Assistant", "description": "Assistant template for video editing.", "metadata": { "app": "cut" } },
-          { "type": "app", "name": "cut", "displayName": "Cut", "description": "Agentic non-linear video editor.", "operations": [
-            { "name": "cut_create_projects", "displayName": "Create Cut projects", "description": "Create scoped versioned video projects.", "access": "write" },
-            { "name": "cut_accept_story_handoff", "displayName": "Accept StoryCutHandoff", "description": "Create a Cut timeline or reviewable proposal from StoryCutHandoff v1.", "access": "write" },
-            { "name": "cut_edit_timelines", "displayName": "Edit Cut timelines", "description": "Import media and edit timelines.", "access": "write" },
-            { "name": "cut_review_export", "displayName": "Review and export", "description": "Review timelines and export MP4 locally or through a bounded Sandbox Job.", "access": "write" }
-          ] },
-          { "type": "view", "name": "cut_workbench", "displayName": "Cut Workbench", "description": "Media, timeline, version, and export Workbench.", "metadata": { "app": "cut" } },
-          { "type": "middleware", "name": "CutMiddleware", "displayName": "Cut Agent Tools", "description": "Scoped Cut editing tools.", "metadata": { "app": "cut" } },
-          { "type": "mcp", "name": "cut", "displayName": "Cut MCP Capabilities", "description": "Host-native Cut tools, resources, tasks, and prompts backed by the same implementation used by Cut agents.", "metadata": { "protocol": "native", "provider": "cut" } }
-        ]
+          {
+            "type": "skill",
+            "name": "cut-agent-skill",
+            "displayName": "Cut Basics",
+            "description": "Project identity, revision-safe edits and content authorization.",
+            "tags": [
+              "skill",
+              "cut",
+              "video"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "cut-speech-editing",
+            "displayName": "Cut Speech Editing",
+            "description": "Evidence-backed speech cleanup and rough cuts.",
+            "tags": [
+              "skill",
+              "cut",
+              "video"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "cut-captions",
+            "displayName": "Cut Captions",
+            "description": "Transcription, correction, translation and synchronized captions.",
+            "tags": [
+              "skill",
+              "cut",
+              "video"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "cut-verification",
+            "displayName": "Cut Verification",
+            "description": "Verify edits, caption alignment and produced media.",
+            "tags": [
+              "skill",
+              "cut",
+              "video"
+            ]
+          },
+          {
+            "type": "skill",
+            "name": "cut-export",
+            "displayName": "Cut Export",
+            "description": "Background render jobs and authenticated file delivery.",
+            "tags": [
+              "skill",
+              "cut",
+              "video"
+            ]
+          },
+          {
+            "type": "assistant-template",
+            "name": "cut-assistant",
+            "displayName": "Cut Assistant",
+            "description": "Assistant template for video editing.",
+            "metadata": {
+              "app": "cut"
+            }
+          },
+          {
+            "type": "app",
+            "name": "cut",
+            "displayName": "Cut",
+            "description": "Agentic non-linear video editor.",
+            "operations": [
+              {
+                "name": "cut_create_projects",
+                "displayName": "Create Cut projects",
+                "description": "Create scoped versioned video projects.",
+                "access": "write"
+              },
+              {
+                "name": "cut_accept_story_handoff",
+                "displayName": "Accept StoryCutHandoff",
+                "description": "Create a Cut timeline or reviewable proposal from StoryCutHandoff v1.",
+                "access": "write"
+              },
+              {
+                "name": "cut_edit_timelines",
+                "displayName": "Edit Cut timelines",
+                "description": "Import media and edit timelines.",
+                "access": "write"
+              },
+              {
+                "name": "cut_review_export",
+                "displayName": "Review and export",
+                "description": "Review timelines and export MP4 locally or through a bounded Sandbox Job.",
+                "access": "write"
+              }
+            ],
+            "appConfig": {
+              "scope": "organization",
+              "assistantTemplateKey": "cut-assistant",
+              "workspace": {
+                "mode": "dedicated",
+                "name": {
+                  "en_US": "Cut Workspace",
+                  "zh_Hans": "Cut 视频剪辑工作空间"
+                },
+                "sharing": "organization"
+              },
+              "modelRequirements": {
+                "primary": true
+              },
+              "presentation": {
+                "tagline": {
+                  "en_US": "Turn media into a reviewed video timeline",
+                  "zh_Hans": "将素材整理成可审阅的视频时间线"
+                },
+                "longDescription": {
+                  "en_US": "Create editing projects, arrange clips, review captions and export video from the shared Assistant and Workbench workflow. Rendering and transcription use their configured runtimes and models.",
+                  "zh_Hans": "创建剪辑项目、编排片段、审阅字幕，并通过助手与工作台导出视频。渲染与转写使用已配置的运行环境和模型。"
+                },
+                "developer": "XpertAI",
+                "features": [
+                  {
+                    "key": "workspace",
+                    "title": {
+                      "en_US": "Timeline and captions",
+                      "zh_Hans": "时间线与字幕"
+                    },
+                    "description": {
+                      "en_US": "Edit clips and caption drafts with revision-aware operations.",
+                      "zh_Hans": "基于版本修改片段与字幕草稿。"
+                    }
+                  }
+                ],
+                "useCases": [
+                  {
+                    "en_US": "Video editing and caption review",
+                    "zh_Hans": "视频剪辑与字幕审阅"
+                  }
+                ],
+                "dataScope": {
+                  "en_US": "Application resources are scoped to the current organization. Workspace access and sharing follow platform permissions.",
+                  "zh_Hans": "应用资源限定在当前组织范围内；工作空间访问与分享遵循平台权限。"
+                },
+                "initializationSummary": {
+                  "en_US": "Create a dedicated workspace and publish the bundled Assistant. Configure any external services separately.",
+                  "zh_Hans": "创建专用工作空间并发布内置助手。所需外部服务需要另行配置。"
+                },
+                "initializationSteps": [
+                  {
+                    "en_US": "Create the application workspace",
+                    "zh_Hans": "创建应用工作空间"
+                  },
+                  {
+                    "en_US": "Install the Assistant template and dependencies",
+                    "zh_Hans": "安装助手模板及依赖"
+                  },
+                  {
+                    "en_US": "Publish the Assistant chat entry",
+                    "zh_Hans": "发布助手对话入口"
+                  }
+                ]
+              },
+              "entry": {
+                "type": "assistant-chat"
+              }
+            }
+          },
+          {
+            "type": "view",
+            "name": "cut_workbench",
+            "displayName": "Cut Workbench",
+            "description": "Media, timeline, version, and export Workbench.",
+            "metadata": {
+              "app": "cut"
+            }
+          },
+          {
+            "type": "middleware",
+            "name": "CutMiddleware",
+            "displayName": "Cut Agent Tools",
+            "description": "Scoped Cut editing tools.",
+            "metadata": {
+              "app": "cut"
+            }
+          },
+          {
+            "type": "mcp",
+            "name": "cut",
+            "displayName": "Cut MCP Capabilities",
+            "description": "Host-native Cut tools, resources, tasks, and prompts backed by the same implementation used by Cut agents.",
+            "metadata": {
+              "protocol": "native",
+              "provider": "cut"
+            }
+          }
+        ],
+        "category": "creativity"
       }
     }
   }

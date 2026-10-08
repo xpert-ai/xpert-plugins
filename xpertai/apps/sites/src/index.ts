@@ -1,3 +1,4 @@
+import { appConfig } from './lib/app-config.js'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -31,16 +32,84 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
     version: packageJson.version,
     artifactNamespace: SITES_ARTIFACT_NAMESPACE,
     level: 'system',
-    targetApps: ['data-xpert'],
+    targetApps: ['data-xpert', 'xpert'],
     targetAppMeta: {
-      'data-xpert': {
+      xpert: {
         types: ['workbench-view', 'assistant-tool', 'business-app', 'site-hosting'],
         capabilities: [SITES_FEATURE, 'sites-workbench', 'sites-builder-assistant-template', 'sites-local-hosting'],
         marketplace: {
+          category: 'developer-tools',
           contents: [
             {
               type: 'app',
               name: 'sites',
+              appConfig,
+              displayName: 'Sites',
+              description:
+                'Create, save, deploy, inspect, and manage access for hosted Sites projects from data-xpert Assistants.',
+              icon: {
+                type: 'svg',
+                value: SITES_ICON,
+                color: '#4f46e5'
+              },
+              operations: [
+                {
+                  name: 'create-sites-projects',
+                  displayName: 'Create Sites projects',
+                  description: 'Create local Sites projects with hosting metadata and storage shape.',
+                  access: 'write'
+                },
+                {
+                  name: 'save-sites-versions',
+                  displayName: 'Save deployable versions',
+                  description: 'Save reviewable deployment candidates before production publish.',
+                  access: 'write'
+                },
+                {
+                  name: 'deploy-sites-versions',
+                  displayName: 'Deploy Sites versions',
+                  description: 'Publish approved saved versions and return user-facing preview URLs plus permission-controlled deployment URLs.',
+                  access: 'admin'
+                }
+              ]
+            },
+            {
+              type: 'view',
+              name: SITES_VIEW_KEY,
+              displayName: 'Sites Workbench',
+              description: 'Workbench view for Sites projects, versions, deployments, access, and environment values.'
+            },
+            {
+              type: 'tool',
+              name: SITES_MIDDLEWARE_NAME,
+              displayName: 'Sites Agent Tools',
+              description:
+                'Assistant middleware tools for project creation, saved versions, deployments, user-facing preview URLs, access control, and hosted environment values.'
+            },
+            {
+              type: 'assistant-template',
+              name: 'sites-builder-assistant',
+              displayName: 'Sites Builder Assistant Template',
+              description: 'Prebuilt assistant template for creating and managing hosted Sites.'
+            }
+          ]
+        },
+        runtime: {
+          middlewareProviders: [SITES_MIDDLEWARE_NAME],
+          viewProviders: [SITES_PROVIDER_KEY],
+          templateProviders: [SITES_TEMPLATE_PROVIDER_KEY]
+        }
+      },
+      'data-xpert': {
+        types: ['workbench-view', 'assistant-tool', 'business-app', 'site-hosting'],
+        capabilities: [SITES_FEATURE, 'sites-workbench', 'sites-builder-assistant-template', 'sites-local-hosting'],
+        marketplace: {
+          category: 'developer-tools',
+          contents: [
+            {
+              type: 'app',
+              name: 'sites',
+              appConfig,
               displayName: 'Sites',
               description:
                 'Create, save, deploy, inspect, and manage access for hosted Sites projects from data-xpert Assistants.',

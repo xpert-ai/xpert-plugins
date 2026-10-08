@@ -1,3 +1,4 @@
+import { appConfig } from './lib/app-config.js'
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -134,8 +135,9 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
         types: ['workbench-view', 'assistant-tool', 'business-app'],
         capabilities,
         marketplace: {
+          category: 'creativity',
           contents: [
-            { type: 'app', name: 'presentation-studio', displayName: 'Presentation Studio', description: 'Generate, edit, collaborate on, and export DashiAI presentations.', icon: { type: 'svg', value: PRESENTATION_ICON, color: '#7c3aed' }, operations: [
+            { type: 'app', name: 'presentation-studio', appConfig, displayName: 'Presentation Studio', description: 'Generate, edit, collaborate on, and export DashiAI presentations.', icon: { type: 'svg', value: PRESENTATION_ICON, color: '#7c3aed' }, operations: [
               { name: 'generate-presentation', displayName: 'Generate presentation', description: 'Create decks from structured content with Agent middleware tools.', access: 'write' },
               { name: 'collaborate-presentation', displayName: 'Collaborate', description: 'Synchronize presentation edits through Yjs rooms.', access: 'write' },
               { name: 'export-presentation', displayName: 'Export presentation', description: 'Export self-contained HTML, PDF, and PPTX files.', access: 'write' }
@@ -150,10 +152,10 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
       xpert: {
         types: ['assistant-template', 'skill', 'app', 'xpertai-bundle'],
         capabilities,
-        marketplace: { contents: [
+        marketplace: { category: 'creativity', contents: [
           { type: 'skill', name: 'presentation-studio', displayName: 'Presentation Studio Skill', description: 'Agent workflow for DashiAI presentation generation and export.', tags: ['presentation', 'pptx', 'dashi', 'yjs'] },
           { type: 'assistant-template', name: PRESENTATION_ASSISTANT_TEMPLATE_KEY, displayName: 'Presentation Studio Assistant', description: 'Assistant template for presentation workflows.' },
-          { type: 'app', name: 'presentation-studio', displayName: 'Presentation Studio', description: 'Presentation Workbench and Agent middleware tools.' }
+          { type: 'app', name: 'presentation-studio', appConfig, displayName: 'Presentation Studio', description: 'Presentation Workbench and Agent middleware tools.' }
         ] }
       }
     },

@@ -1,3 +1,4 @@
+import { appConfig } from './lib/app-config.js'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -47,10 +48,12 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
         types: ['workbench-view', 'assistant-tool', 'business-app'],
         capabilities,
         marketplace: {
+          category: 'productivity',
           contents: [
             {
               type: 'app',
               name: 'office-cli',
+              appConfig,
               displayName: 'OfficeCLI',
               description: 'Visual native DOCX, XLSX, and PPTX automation powered by OfficeCLI.',
               icon: {
@@ -109,6 +112,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
         types: ['assistant-template', 'skill', 'app', 'xpertai-bundle'],
         capabilities,
         marketplace: {
+          category: 'productivity',
           contents: [
             {
               type: 'skill',
@@ -126,6 +130,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
             {
               type: 'app',
               name: 'office-cli',
+              appConfig,
               displayName: 'OfficeCLI',
               description: 'Visual Workbench and Agent tools backed by the full OfficeCLI document engine.'
             }

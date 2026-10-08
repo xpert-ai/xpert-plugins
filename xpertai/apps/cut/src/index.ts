@@ -1,3 +1,4 @@
+import { appConfig } from './lib/app-config.js'
 import { CUT_SKILLS } from './lib/cut-skills.js'
 import { z } from 'zod'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
@@ -40,8 +41,10 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
         types: ['workbench-view', 'assistant-tool', 'business-app'],
         capabilities: [CUT_FEATURE, CUT_WORKBENCH_CAPABILITY, CUT_AGENT_CAPABILITY, CUT_TEMPLATE_CAPABILITY],
         marketplace: {
+          category: 'creativity',
           contents: [
-            { type: 'app', name: 'cut', displayName: 'Cut', description: 'Agentic non-linear video editor with browser and headless MP4 export.', icon: { type: 'svg', value: CUT_ICON, color: '#0ea5e9' }, operations },
+            { type: 'app', name: 'cut',
+              appConfig, displayName: 'Cut', description: 'Agentic non-linear video editor with browser and headless MP4 export.', icon: { type: 'svg', value: CUT_ICON, color: '#0ea5e9' }, operations },
             { type: 'view', name: CUT_WORKBENCH_VIEW_KEY, displayName: 'Cut Workbench', description: 'Media preview, timeline editing, version review, and export.', metadata: { app: 'cut' } },
             { type: 'middleware', name: CUT_MIDDLEWARE_NAME, displayName: 'Cut Agent Tools', description: 'Tools for project, media, timeline, transcription, caption review, version, and failure operations.', metadata: { app: 'cut' } },
             { type: 'assistant-template', name: 'cut-assistant', displayName: 'Cut Assistant Template', description: 'Prebuilt assistant for video editing workflows.', metadata: { app: 'cut' } }
@@ -53,10 +56,12 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
         types: ['assistant-template', 'skill', 'app', 'xpertai-bundle', 'mcp'],
         capabilities: [CUT_FEATURE, CUT_WORKBENCH_CAPABILITY, CUT_AGENT_CAPABILITY, CUT_TEMPLATE_CAPABILITY, CUT_MCP_CAPABILITY],
         marketplace: {
+          category: 'creativity',
           contents: [
             ...CUT_SKILLS.map((skill) => ({ ...skill, tags: [...skill.tags] })),
             { type: 'assistant-template', name: 'cut-assistant', displayName: 'Cut Assistant', description: 'Assistant template for video editing.', metadata: { app: 'cut' } },
-            { type: 'app', name: 'cut', displayName: 'Cut', description: 'Agentic non-linear video editor.', operations },
+            { type: 'app', name: 'cut',
+              appConfig, displayName: 'Cut', description: 'Agentic non-linear video editor.', operations },
             { type: 'view', name: CUT_WORKBENCH_VIEW_KEY, displayName: 'Cut Workbench', description: 'Video editing Workbench.', metadata: { app: 'cut' } },
             { type: 'middleware', name: CUT_MIDDLEWARE_NAME, displayName: 'Cut Agent Tools', description: 'Scoped Cut editing tools.', metadata: { app: 'cut' } },
             { type: 'mcp', name: 'cut', displayName: 'Cut MCP Capabilities', description: 'Host-native Cut tools, resources, tasks, and prompts backed by the same implementation used by Cut agents.', metadata: { protocol: 'native', provider: 'cut' } }
