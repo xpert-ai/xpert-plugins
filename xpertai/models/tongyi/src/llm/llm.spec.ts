@@ -3,6 +3,7 @@ import { calculateLLMUsagePrice } from '@xpert-ai/plugin-sdk'
 import {
   applyTongyiExplicitCache,
   getTongyiPricingContext,
+  resolveQwen38MaxReasoningEffort,
   TongyiLargeLanguageModel,
   toTongyiConfigurationWithExtraHeaders
 } from './llm.js'
@@ -471,6 +472,37 @@ describe('Tongyi Kimi K3 catalog', () => {
     expect(params['reasoning_effort']).toBeUndefined()
     expect(params.max_tokens).toBe(2048)
     expect(params['response_format']).toEqual({ type: 'json_object' })
+  })
+
+  it('sends reasoning_effort none when qwen3.8-max thinking is disabled', () => {
+    const chatModel = manager.getChatModel(
+      createCopilotModel('qwen3.8-max', {
+        enable_thinking: false,
+        reasoning_effort: 'xhigh',
+        thinking_budget: 4096
+      })
+    )
+
+    expect(chatModel.invocationParams()).toEqual(expect.objectContaining({
+      enable_thinking: false,
+      reasoning_effort: 'none'
+    }))
+    expect(chatModel.invocationParams()['thinking_budget']).toBeUndefined()
+    expect(resolveQwen38MaxReasoningEffort('qwen3.8-max-2026-09-02', false, 'medium')).toBe('none')
+  })
+
+  it('keeps the selected qwen3.8-max reasoning effort while thinking stays enabled', () => {
+    const chatModel = manager.getChatModel(
+      createCopilotModel('qwen3.8-max', {
+        enable_thinking: true,
+        reasoning_effort: 'low'
+      })
+    )
+
+    expect(chatModel.invocationParams()).toEqual(expect.objectContaining({
+      enable_thinking: true,
+      reasoning_effort: 'low'
+    }))
   })
 
   it('preserves sampling and thinking overrides for other Tongyi models', () => {
