@@ -37,6 +37,33 @@ This is the source code repository for plugins on the [XpertAI platform](https:/
 
 ## Plugin Release and Registration
 
+### Reproducible dependencies
+
+Each release workspace pins pnpm in its root `package.json` and commits its own
+`pnpm-lock.yaml`. Use the Corepack pnpm shim so commands select that version.
+After changing dependencies, regenerate the lockfile in the owning workspace:
+
+```sh
+pnpm -C xpertai install --lockfile-only --no-frozen-lockfile --ignore-scripts
+# Use -C community for community packages.
+node scripts/check-release-dependencies.mjs
+```
+
+Stage dependency declarations and their lockfile together. Enable the repository
+hooks with `git config core.hooksPath .githooks`. The pre-commit check validates
+the staged Git snapshot, so an unstaged lockfile fix or existing `node_modules`
+cannot hide a broken commit. It rejects dependencies pointing outside the
+repository or at untracked local files. Use published SDK/contracts versions;
+keep experiments against an adjacent platform checkout out of committed manifests.
+
+The `Release Dependencies` workflow runs the same offline frozen-lockfile check,
+installs the locked dependencies, and builds the community plugins on PRs and
+merge-queue results. Configure both `Frozen dependencies (xpertai)`
+and `Frozen dependencies (community)` as required checks in the branch rules to
+prevent bypassing this gate. Release installs also stay frozen; Changesets
+version PRs regenerate the lockfile after updating package versions. This checks
+dependency reproducibility, not plugin build correctness or npm publish access.
+
 ### Release Workflow (Validated)
 
 This repository uses `.github/workflows/release-plugin.yml` to release plugins in each workspace (`xpertai`, `community`) with **Changesets + OIDC trusted publishing**.

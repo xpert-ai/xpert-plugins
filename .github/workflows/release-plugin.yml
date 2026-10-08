@@ -88,14 +88,12 @@ jobs:
         include:
           - workspace: xpertai
             changesets_cwd: xpertai
-            pnpm_version: 11.15.1
             install_command: pnpm -C xpertai install --frozen-lockfile
-            version_command: node scripts/release-version.mjs
+            version_command: pnpm run release:version
           - workspace: community
             changesets_cwd: .
-            pnpm_version: 8.15.8
-            install_command: pnpm -C community install --no-frozen-lockfile
-            version_command: pnpm -C community exec changeset version
+            install_command: pnpm -C community install --frozen-lockfile
+            version_command: pnpm -C community run release:version
 
     steps:
       - name: Decide whether to run this workspace
@@ -137,7 +135,11 @@ jobs:
         if: steps.decide.outputs.run == 'true'
         uses: pnpm/action-setup@v4
         with:
-          version: ${{ matrix.pnpm_version }}
+          package_json_file: ${{ matrix.workspace }}/package.json
+
+      - name: Check release dependencies
+        if: steps.decide.outputs.run == 'true'
+        run: node scripts/check-release-dependencies.mjs --workspace ${{ matrix.workspace }}
 
       - name: Upgrade npm for trusted publishing
         if: steps.decide.outputs.run == 'true'

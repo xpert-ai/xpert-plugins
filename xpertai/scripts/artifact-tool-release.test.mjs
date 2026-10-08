@@ -103,12 +103,16 @@ test('release workflow covers shared-package changes and runs Changesets in its 
   assert.ok(publish.run.includes('package_paths+=("packages/artifact-tool")'));
   const official = workflow.jobs.release.strategy.matrix.include.find((row) => row.workspace === 'xpertai');
   assert.equal(official.changesets_cwd, 'xpertai');
-  assert.equal(official.version_command, 'node scripts/release-version.mjs');
+  assert.equal(official.version_command, 'pnpm run release:version');
+  assert.equal((await json('xpertai/package.json')).scripts['release:version'], 'node scripts/release-version.mjs && pnpm install --lockfile-only --no-frozen-lockfile --ignore-scripts');
   const community = workflow.jobs.release.strategy.matrix.include.find((row) => row.workspace === 'community');
   assert.equal(community.changesets_cwd, '.');
-  assert.equal(community.version_command, 'pnpm -C community exec changeset version');
-  const manager = (await json('xpertai/package.json')).packageManager;
-  assert.equal(official.pnpm_version, manager.split('@')[1].split('+')[0]);
+  assert.equal(community.version_command, 'pnpm -C community run release:version');
+  assert.equal((await json('community/package.json')).scripts['release:version'], 'pnpm exec changeset version && pnpm install --lockfile-only --no-frozen-lockfile --ignore-scripts');
+  for (const row of [official, community]) assert.match(row.install_command, /install --frozen-lockfile$/);
+  const setup = steps.find((step) => step.uses === 'pnpm/action-setup@v4');
+  assert.equal(setup.with.package_json_file, '${{ matrix.workspace }}/package.json');
+  assert.equal(setup.with.version, undefined);
 });
 
 test('npm publication metadata identifies the public package and monorepo path', async () => {

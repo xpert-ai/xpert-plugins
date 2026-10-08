@@ -78,13 +78,14 @@ if (
   throw new Error("Artifact namespace metadata is inconsistent.");
 }
 
-if (
-  packageJson.peerDependencies?.["@xpert-ai/contracts"] !== ">=3.19.0 <4" ||
-  packageJson.peerDependencies?.["@xpert-ai/plugin-sdk"] !== ">=3.19.0 <4" ||
-  packageJson.devDependencies?.["@xpert-ai/contracts"] !== "link:../../../../xpert/packages/contracts/dist" ||
-  packageJson.devDependencies?.["@xpert-ai/plugin-sdk"] !== "link:../../../../xpert/packages/plugin-sdk/dist"
-) {
-  throw new Error("Host-native MCP SDK dependency versions are inconsistent.");
+for (const name of ["@xpert-ai/contracts", "@xpert-ai/plugin-sdk"]) {
+  const buildVersion = packageJson.devDependencies?.[name];
+  // Build against a pinned published version and declare that tested minimum
+  // for the host. Local source links cannot establish release compatibility.
+  if (!/^\d+\.\d+\.\d+$/.test(buildVersion ?? "") ||
+      packageJson.peerDependencies?.[name] !== `^${buildVersion}`) {
+    throw new Error(`${name} must pin a release version and match its peer range.`);
+  }
 }
 
 const xpertTarget = bundleJson.targetAppMeta?.xpert;
