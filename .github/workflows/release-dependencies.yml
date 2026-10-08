@@ -1,0 +1,37 @@
+name: Release Dependencies
+
+on:
+  pull_request:
+  merge_group:
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Frozen dependencies (${{ matrix.workspace }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        workspace: [xpertai, community]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: ${{ matrix.workspace }}/package.json
+      - name: Test dependency guard
+        run: node --test scripts/check-release-dependencies.test.mjs
+      - name: Validate committed dependency inputs
+        run: node scripts/check-release-dependencies.mjs --workspace ${{ matrix.workspace }}
+      - name: Install locked dependencies
+        run: pnpm -C ${{ matrix.workspace }} install --frozen-lockfile
+      - name: Build community plugins
+        if: matrix.workspace == 'community'
+        run: pnpm -C community run build

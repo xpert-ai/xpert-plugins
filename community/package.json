@@ -10,6 +10,7 @@
     "lint": "pnpm -r run lint",
     "check:entity-names": "node ./scripts/check-entity-names.mjs",
     "test": "pnpm run check:entity-names && pnpm -r run test",
+    "release:version": "pnpm exec changeset version && pnpm install --lockfile-only --no-frozen-lockfile --ignore-scripts",
     "release:publish": "pnpm run build && pnpm exec changeset publish"
   },
   "devDependencies": {

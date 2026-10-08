@@ -9,6 +9,8 @@
     "check:app-view-storage": "node scripts/check-app-view-storage.mjs",
     "check:plugin-entity-tables": "node scripts/check-plugin-entity-tables.mjs",
     "test:plugin-entity-tables": "node --test scripts/check-plugin-entity-tables.test.mjs",
+    "check:release-dependencies": "node scripts/check-release-dependencies.mjs",
+    "test:release-dependencies": "node --test scripts/check-release-dependencies.test.mjs",
     "remote-view:preview": "node tools/remote-view-preview/cli.mjs",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

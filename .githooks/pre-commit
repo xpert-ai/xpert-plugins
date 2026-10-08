@@ -2,3 +2,4 @@
 set -eu
 
 node scripts/check-plugin-entity-tables.mjs --staged
+node scripts/check-release-dependencies.mjs --staged
