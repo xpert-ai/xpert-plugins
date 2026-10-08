@@ -43,6 +43,8 @@ Configure these options on the `ViewImageMiddleware` node:
 
 - `compressionPercent`: width/height scaling percentage before attaching images to the model. Defaults to `100`, which keeps the original dimensions. For example, `50` makes width and height 50% of the original dimensions; the final file size in KB/MB may be higher or lower than 50% because it depends on image content and encoding.
 
+For conversation Agent Plugins, an existing Assistant middleware keeps its complete configuration, including the default `compressionPercent` of `100` when omitted. Plugins reuse that middleware without supplementing or overriding its options. If the Assistant has no such middleware, the plugin configuration is used with schema defaults; multiple plugins must have identical effective configurations or the host reports a conflict. No additional metadata is required. Hosts predating this policy retain their existing behavior.
+
 ## Limits
 
 - At most 3 images per tool call
