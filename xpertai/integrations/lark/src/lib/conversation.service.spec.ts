@@ -1931,6 +1931,47 @@ describe('LarkConversationService', () => {
 		expect(onAction).not.toHaveBeenCalled()
 	})
 
+	it('blocks queued messages from historical conversations and legacy fallback after disconnect', async () => {
+		const { service, commandBus, larkTriggerStrategy, larkChannel } = createFixture({
+			boundXpertId: 'trigger-xpert',
+			triggerConfig: { ...DEFAULT_TRIGGER_CONFIG, enabled: false },
+			legacyXpertId: 'legacy-xpert',
+			conversationBindings: [{
+				integrationId: 'integration-1', scopeKey: 'lark:v2:scope:integration-1:p2p:ou_sender_1',
+				userId: 'ou_sender_1', xpertId: 'trigger-xpert', conversationId: 'old-conversation'
+			}]
+		})
+		await expect(service.processMessage({
+			...createChatContext(), senderOpenId: 'ou_sender_1', chatType: 'p2p',
+			message: { message: { content: JSON.stringify({ text: 'after disconnect' }) } }
+		})).resolves.toBeNull()
+		expect(commandBus.execute).not.toHaveBeenCalled()
+		expect(larkTriggerStrategy.handleInboundMessage).not.toHaveBeenCalled()
+		expect(larkChannel.errorMessage).not.toHaveBeenCalled()
+	})
+
+	it('does not queue new inbound messages after disconnect', async () => {
+		const { service, commandBus } = createFixture({
+			boundXpertId: 'trigger-xpert', triggerConfig: { ...DEFAULT_TRIGGER_CONFIG, enabled: false }
+		})
+		const queue = jest.spyOn(service, 'getScopeQueue')
+		await service.handleMessage(createInboundGroupMessage(), createInboundEventContext())
+		expect(queue).not.toHaveBeenCalled()
+		expect(commandBus.execute).not.toHaveBeenCalled()
+	})
+
+	it('blocks old card actions after disconnect even when a historical conversation remains', async () => {
+		const { service, commandBus } = createFixture({
+			boundXpertId: 'trigger-xpert', triggerConfig: { ...DEFAULT_TRIGGER_CONFIG, enabled: false },
+			conversationBindings: [{ integrationId: 'integration-1', chatId: 'chat-1', userId: 'ou-action-1',
+				xpertId: 'trigger-xpert', conversationId: 'old-conversation' }]
+		})
+		const onAction = jest.spyOn(service, 'onAction')
+		await service.handleCardAction({ value: LARK_CONFIRM, userId: 'ou-action-1', chatId: 'chat-1', messageId: 'old-card' }, createInboundEventContext())
+		expect(onAction).not.toHaveBeenCalled()
+		expect(commandBus.execute).not.toHaveBeenCalled()
+	})
+
 	it('processMessage dispatches directly to existing trigger conversation when trigger scope matches', async () => {
 		const { service, larkTriggerStrategy, commandBus, larkChannel } = createFixture({
 			boundXpertId: 'trigger-xpert',

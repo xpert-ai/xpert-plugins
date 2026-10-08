@@ -43,7 +43,7 @@ export const SUPPORTED_TTS_MODELS = [
 ];
 
 export function toCredentialKwargs(credentials: MiniMaxCredentials, model?: string) {
-  const baseURL = credentials.base_url || 'https://api.minimaxi.com';
+  const baseURL = (credentials.base_url?.trim() || 'https://api.minimaxi.com').replace(/\/+$/, '');
   return {
     apiKey: credentials.api_key,
     groupId: credentials.group_id,

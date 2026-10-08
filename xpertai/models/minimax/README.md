@@ -38,7 +38,7 @@ The provider schema in `src/minimax.yaml` backs the form fields you see in the c
 | `group_id` | Required. Your MiniMax Group ID from [platform.minimaxi.com](https://platform.minimaxi.com/user-center/basic-information/interface-key). |
 | `base_url` | Optional. Base URL for API requests (defaults to `https://api.minimaxi.com`). Useful for custom endpoints or proxy configurations. |
 
-During validation, the plugin checks that both `api_key` and `group_id` are provided and validates the base URL format if specified.
+Before creating or updating credentials, the plugin checks required fields and the base URL, then verifies the API key through the authenticated `GET /v1/models` endpoint. This does not run inference or require access to a specific model. Authentication failures, API errors, malformed responses, and requests exceeding the ten-second timeout prevent saving. Custom endpoints must support this API. Group ID presence is checked locally; this endpoint does not verify group membership.
 
 ## Supported Models
 

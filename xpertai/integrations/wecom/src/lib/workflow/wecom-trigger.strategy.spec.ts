@@ -69,6 +69,7 @@ describe('WeComTriggerStrategy', () => {
       })
     }
     const longConnection = {
+      status: jest.fn().mockResolvedValue({ connected: false, state: 'connecting' }),
       connect: jest.fn().mockResolvedValue({
         integrationId: 'integration-1',
         connectionMode: 'long_connection',
@@ -173,6 +174,42 @@ describe('WeComTriggerStrategy', () => {
 
   afterEach(() => {
     jest.restoreAllMocks()
+  })
+
+  it('advertises the shared QR connection capability', () => {
+    const { strategy } = createStrategy()
+    expect(strategy.meta.quickConnect).toEqual({
+      method: 'qr',
+      integrationProvider: 'wecom_long',
+      configField: 'integrationId'
+    })
+  })
+
+  it('reports disabled or unconfigured bindings as disconnected without querying the runtime', async () => {
+    const { strategy, longConnection } = createStrategy()
+    await expect(strategy.connectionStatus({ enabled: false, integrationId: 'integration-1' })).resolves.toEqual({
+      connected: false,
+      state: 'disconnected'
+    })
+    await expect(strategy.connectionStatus({ enabled: true, integrationId: '' })).resolves.toEqual({
+      connected: false,
+      state: 'disconnected'
+    })
+    expect(longConnection.status).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    [{ connected: true, state: 'connected' }, 'connected'],
+    [{ connected: false, state: 'retrying' }, 'connecting'],
+    [{ connected: false, state: 'unhealthy' }, 'failed']
+  ])('reports the runtime connection result %j as %s', async (runtime, state) => {
+    const { strategy, longConnection } = createStrategy()
+    longConnection.status.mockResolvedValue(runtime)
+    await expect(strategy.connectionStatus({ enabled: true, integrationId: 'integration-1' })).resolves.toEqual({
+      connected: runtime.connected,
+      state
+    })
+    expect(longConnection.status).toHaveBeenCalledWith('integration-1')
   })
 
   it('exposes session timeout and summary window defaults in trigger schema', () => {

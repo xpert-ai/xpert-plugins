@@ -142,6 +142,15 @@ describe('DingTalkIntegrationStrategy', () => {
     expect(longConnection.probeConfig).toHaveBeenCalled()
   })
 
+  it('identifies QR accounts by client ID rather than credentials or display names', () => {
+    const { longStrategy } = createFixture()
+    expect(longStrategy.getQrAuthorizationIdentity({ clientId: ' app ', clientSecret: 'first' })).toBe('app')
+    expect(longStrategy.getQrAuthorizationIdentity({ clientId: 'app', clientSecret: 'rotated' })).toBe('app')
+    expect(longStrategy.getQrAuthorizationIdentity({ name: 'app' })).toBeNull()
+    expect(longStrategy.getQrAuthorizationIdentity({ clientId: ' ' })).toBeNull()
+    expect(longStrategy.getQrAuthorizationIdentity(null)).toBeNull()
+  })
+
   it('disconnects dedicated long runtime when switching away from the long provider', async () => {
     const { longStrategy, longConnection } = createFixture()
 

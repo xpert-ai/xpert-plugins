@@ -15,7 +15,9 @@ import { toLarkApiErrorMessage } from './utils.js'
 import { LarkCapabilityService } from './lark-capability.service.js'
 import { LarkLongConnectionService } from './lark-long-connection.service.js'
 import { RolesEnum } from './contracts-compat.js'
-import { beginLarkQrAuthorization, pollLarkQrAuthorization, larkQrIdentity } from './lark-qr-authorization.js'
+import { z } from 'zod'
+import { translate } from './i18n.js'
+import { beginLarkQrAuthorization, pollLarkQrAuthorization, validateLarkQrApp } from './lark-qr-authorization.js'
 
 type LarkIntegrationTestResult = {
   webhookUrl?: string
@@ -51,11 +53,7 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
     private readonly longConnectionService: LarkLongConnectionService
   ) {}
 
-  readonly beginQrAuthorization = beginLarkQrAuthorization
-  readonly pollQrAuthorization = pollLarkQrAuthorization
-  readonly getQrAuthorizationIdentity = larkQrIdentity
-
-  meta: TLarkIntegrationProvider & { setup: { qrAuthorization: true } } = {
+  meta: TLarkIntegrationProvider = {
     name: INTEGRATION_LARK,
     label: {
       en_US: 'Lark',
@@ -198,6 +196,14 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
     return null
   }
 
+  beginQrAuthorization = beginLarkQrAuthorization
+  pollQrAuthorization = pollLarkQrAuthorization
+
+  getQrAuthorizationIdentity(options: unknown): string | null {
+    const parsed = z.object({ appId: z.string().trim().min(1), isLark: z.boolean().optional() }).safeParse(options)
+    return parsed.success ? `${parsed.data.isLark ? 'lark' : 'feishu'}:${parsed.data.appId}` : null
+  }
+
   async onUpdate(previous: IIntegration<TIntegrationLarkOptions>, current: IIntegration<TIntegrationLarkOptions>): Promise<void> {
     const wasLongConnection = this.capabilityService.resolveConnectionMode(previous.options) === 'long_connection'
     const isStillLongConnection =
@@ -274,10 +280,17 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
         throw new Error('Failed to get bot info from Lark API')
       }
 
+      if (config.setupSource === 'qr') {
+        await validateLarkQrApp(tokenData.tenant_access_token)
+      }
+
       const connectionMode = this.capabilityService.resolveConnectionMode(config)
       const apiBaseUrl = process.env.API_BASE_URL
       if (connectionMode === 'long_connection') {
         const probe = await this.longConnectionService.probeConfig(config)
+        if (config.setupSource === 'qr' && !probe.connected) {
+          throw new Error(translate('Qr.ConnectionFailed', { defaultValue: 'Unable to establish the Feishu long connection. Please retry.' }))
+        }
         return {
           mode: connectionMode,
           probe: {
@@ -305,7 +318,7 @@ export class LarkIntegrationStrategy implements IntegrationStrategy<TIntegration
         axiosError?.response?.data?.msg ||
         axiosError?.message ||
         'Unknown error'
-      this.logger.error('Lark connection test failed:', error)
+      this.logger.error(`Lark connection test failed: ${message}`)
       throw new Error(`Lark API connection failed: ${message}`)
     }
   }

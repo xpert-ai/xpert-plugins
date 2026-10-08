@@ -2,15 +2,21 @@
  * @jest-config-loader-options {"project":"tsconfig.jest.json"}
  */
 /* eslint-disable */
-import { readFileSync } from 'fs';
-import { dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
-const configDir = dirname(fileURLToPath(import.meta.url));
+// Nx discovers this config from the workspace root; Jest runs from the package.
+// Avoid import.meta because Jest's TypeScript config loader compiles as CommonJS.
+const swcConfigCandidates = [
+  resolve(process.cwd(), 'models/volcengine/.spec.swcrc'),
+  resolve(process.cwd(), '.spec.swcrc'),
+];
+const swcConfigPath = swcConfigCandidates.find((candidate) => existsSync(candidate));
+if (!swcConfigPath) throw new Error('Volcengine Jest SWC config was not found');
 
 // Reading the SWC compilation config for the spec files
 const swcJestConfig = JSON.parse(
-  readFileSync(`${configDir}/.spec.swcrc`, 'utf-8')
+  readFileSync(swcConfigPath, 'utf-8')
 );
 
 // Disable .swcrc look-up by SWC core because we're passing in swcJestConfig ourselves

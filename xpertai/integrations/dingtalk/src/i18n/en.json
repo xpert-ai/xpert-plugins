@@ -1,4 +1,10 @@
 {
+  "Qr": {
+    "NetworkError": "Unable to reach DingTalk. Please try again.",
+    "Unavailable": "DingTalk QR authorization is unavailable. Please retry or use manual setup.",
+    "InvalidUrl": "DingTalk returned an invalid authorization URL.",
+    "MissingCredentials": "Authorization completed without robot credentials. Please retry."
+  },
   "Error": {
     "CredentialsFailed": "Credentials verification failed",
     "BotPermission": "Maybe the bot capabilities or permissions have not been added",

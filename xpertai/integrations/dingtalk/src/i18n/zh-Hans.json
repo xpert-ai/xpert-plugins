@@ -1,4 +1,10 @@
 {
+  "Qr": {
+    "NetworkError": "暂时无法连接钉钉，请重试。",
+    "Unavailable": "钉钉扫码授权暂不可用，请重试或使用手动配置。",
+    "InvalidUrl": "钉钉返回的授权地址无效。",
+    "MissingCredentials": "授权完成但未返回机器人凭证，请重试。"
+  },
   "Error": {
     "CredentialsFailed": "凭证验证失败",
     "BotPermission": "可能尚未添加机器人能力或权限",

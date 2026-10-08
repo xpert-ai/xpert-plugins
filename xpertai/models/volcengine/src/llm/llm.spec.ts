@@ -40,6 +40,9 @@ jest.mock('lodash-es', () => ({
 }))
 
 import { AiProviderRole } from '@xpert-ai/contracts'
+import { AIMessageChunk } from '@langchain/core/messages'
+import { ChatOpenAI } from '@langchain/openai'
+import { CredentialsValidateFailedError } from '@xpert-ai/plugin-sdk'
 import { VolcengineProviderStrategy } from '../provider.strategy.js'
 import { normalizeVolcengineToolSchema, VolcengineLargeLanguageModel } from './llm.js'
 
@@ -72,6 +75,28 @@ function createCopilotModel(
 
 describe('Volcengine model adapter', () => {
   const llm = new VolcengineLargeLanguageModel(new VolcengineProviderStrategy())
+
+  afterEach(() => jest.restoreAllMocks())
+
+  it('makes a bounded remote request with the supplied key and endpoint', async () => {
+    const invoke = jest.spyOn(ChatOpenAI.prototype, 'invoke').mockResolvedValue(new AIMessageChunk('Hi'))
+    await llm.validateCredentials('doubao-seed-2-0-mini-260215', {
+      ark_api_key: 'test-key', api_endpoint_host: 'https://proxy.example.com/api/v3'
+    })
+    expect(invoke).toHaveBeenCalledTimes(1)
+    expect(invoke.mock.instances[0]).toMatchObject({
+      apiKey: 'test-key',
+      model: 'doubao-seed-2-0-mini-260215',
+      timeout: 10000,
+      modelKwargs: { thinking: { type: 'disabled' } }
+    })
+  })
+
+  it('propagates remote authentication failures', async () => {
+    jest.spyOn(ChatOpenAI.prototype, 'invoke').mockRejectedValue(new Error('401 Invalid API key'))
+    await expect(llm.validateCredentials('doubao-seed-2-0-mini-260215', { ark_api_key: 'invalid-key' }))
+      .rejects.toEqual(new CredentialsValidateFailedError('401 Invalid API key'))
+  })
 
   it('converts the disabled thinking selector to the Ark request body', () => {
     const model = llm.getChatModel(createCopilotModel({ thinking: 'disabled' }))

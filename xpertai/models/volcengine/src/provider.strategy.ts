@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { AIModelProviderStrategy, ModelProvider } from '@xpert-ai/plugin-sdk'
+import { AiModelTypeEnum } from '@xpert-ai/contracts'
+import { AIModelProviderStrategy, CredentialsValidateFailedError, ModelProvider } from '@xpert-ai/plugin-sdk'
 import { Volcengine, VolcengineBaseUrl, VolcengineModelCredentials } from './types.js'
 
 @Injectable()
@@ -8,9 +9,13 @@ export class VolcengineProviderStrategy extends ModelProvider {
   override logger = new Logger(VolcengineProviderStrategy.name)
 
   override async validateProviderCredentials(credentials: VolcengineModelCredentials): Promise<void> {
-    if (!credentials.ark_api_key) {
-      throw new Error('Ark API key is missing')
+    if (!credentials.ark_api_key?.trim()) {
+      throw new CredentialsValidateFailedError('Ark API key is missing')
     }
+    await this.getModelManager(AiModelTypeEnum.LLM).validateCredentials(
+      'doubao-seed-2-0-mini-260215',
+      credentials
+    )
   }
 
   getBaseUrl(credentials: VolcengineModelCredentials): string {

@@ -25,5 +25,17 @@
                 "CredentialsFailed": "Credentials verification failed"
             }
         }
+    },
+    "Qr": {
+        "NetworkError": "Unable to reach Feishu. Please try again.",
+        "Unavailable": "Feishu QR authorization is unavailable. Please retry or use manual setup.",
+        "InvalidUrl": "Feishu returned an invalid authorization URL.",
+        "AppCheckNetworkError": "Unable to reach Feishu to verify the app. Please retry.",
+        "AppCheckApiError": "Feishu app verification failed (HTTP {{status}}, code {{code}}). Please check the app self-management permission and retry.",
+        "AppCheckInvalidResponse": "Feishu returned incomplete or unsupported app information. Please retry.",
+        "AppCheckMissingScopes": "The Feishu app has not granted these app permissions: {{scopes}}. Confirm the permissions and publish the app, then retry.",
+        "AppCheckMessageSubscription": "The Feishu app must subscribe to im.message.receive_v1 using a long connection. Configure event subscriptions and publish the app, then retry.",
+        "AppCheckCardSubscription": "The Feishu app must subscribe to card.action.trigger using a long connection. Configure callbacks and publish the app, then retry.",
+        "ConnectionFailed": "Unable to establish the Feishu long connection. Please retry."
     }
 }
