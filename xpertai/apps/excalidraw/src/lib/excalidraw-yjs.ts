@@ -84,6 +84,43 @@ export function materializeExcalidrawYDoc(doc: Y.Doc): ExcalidrawCollaborativeSc
   }
 }
 
+/** Apply only changes since the last canvas observation, preserving unseen remote edits. */
+export function patchExcalidrawCanvasToYDoc(
+  doc: Y.Doc,
+  previous: ExcalidrawCollaborativeScene,
+  next: ExcalidrawCollaborativeScene,
+  origin: unknown
+) {
+  const current = materializeExcalidrawYDoc(doc)
+  const before = new Map(previous.elements.map((element) => [readId(element), element]))
+  const after = new Map(next.elements.map((element) => [readId(element), element]))
+  const merged = new Map(current.elements.map((element) => [readId(element), element]))
+  for (const [id, element] of after) {
+    if (id && stableStringify(element) !== stableStringify(before.get(id))) merged.set(id, element)
+  }
+  for (const [id, element] of before) {
+    if (!after.has(id) && stableStringify(merged.get(id)) === stableStringify(element)) merged.delete(id)
+  }
+  const reordered = stableStringify([...before.keys()]) !== stableStringify([...after.keys()])
+  const order = reordered ? [...after.keys(), ...merged.keys()] : [...merged.keys()]
+  const ids = [...new Set(order)].filter((id) => id && merged.has(id))
+  const patchRecord = (base: Record<string, unknown>, local: Record<string, unknown>, remote: Record<string, unknown>) => {
+    const result = { ...remote }
+    for (const key of new Set([...Object.keys(base), ...Object.keys(local)])) {
+      if (stableStringify(base[key]) === stableStringify(local[key])) continue
+      if (Object.hasOwn(local, key)) result[key] = local[key]
+      else if (stableStringify(remote[key]) === stableStringify(base[key])) delete result[key]
+    }
+    return result
+  }
+  writeExcalidrawSceneToYDoc(doc, {
+    elements: ids.map((id) => merged.get(id)!),
+    appState: patchRecord(previous.appState, next.appState, current.appState),
+    files: patchRecord(previous.files, next.files, current.files),
+    mermaidSource: previous.mermaidSource === next.mermaidSource ? current.mermaidSource : next.mermaidSource
+  }, origin)
+}
+
 function setJsonString(map: Y.Map<string | number>, key: string, value: unknown) {
   const serialized = stableStringify(value)
   if (map.get(key) !== serialized) map.set(key, serialized)

@@ -423,7 +423,7 @@ export class ExcalidrawService {
   }
 
   async getDrawing(scope: ExcalidrawScope, drawingId: string) {
-    const drawing = await this.requireDrawing(scope, drawingId)
+    const drawing = await this.requireCanonicalDrawing(scope, drawingId)
     const [versions, logs, artifactShare] = await Promise.all([
       this.versionRepository.find({
         where: scopedWhere(drawingChildrenScope(scope), { drawingId }),
