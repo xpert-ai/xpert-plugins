@@ -61,3 +61,61 @@ test('successful publication stays successful', async () => {
   assert.equal(result, 'published');
   assert.deepEqual(errors, []);
 });
+
+// Use the installed CLI's real queues and publish path. The simulated child
+// spans a full publish lifecycle, including prepack's shared-dist writes.
+async function publishBatch({ delegatedAuth = false, failFirst = false } = {}) {
+  const queueStart = source.indexOf('function withResolvers()');
+  const queueEnd = source.indexOf('function jsonParse(', queueStart);
+  const publishStart = source.indexOf('function publish$1(');
+  const publishEnd = source.indexOf('function getReleaseTag(', publishStart);
+  assert.ok(queueStart >= 0 && queueEnd > queueStart && publishEnd > publishStart,
+    'Update the queue regression harness when upgrading Changesets');
+  let active = 0;
+  let peak = 0;
+  const calls = [];
+  const context = {
+    process: { env: {}, stdin: { isTTY: false } },
+    getPublishTool: async () => ({ name: 'pnpm' }),
+    getCorrectRegistry: () => ({ registry: 'https://registry.npmjs.org' }),
+    requiresDelegatedAuth: (state) => delegatedAuth && !state.allowConcurrency,
+    spawn__default: { default: (command, args, options) => {
+      const child = (async () => {
+        assert.equal(command, 'pnpm');
+        assert.equal(args[0], 'publish');
+        active++;
+        peak = Math.max(peak, active);
+        calls.push(options.cwd);
+        await new Promise(setImmediate);
+        active--;
+        const failed = failFirst && options.cwd === '/plugin-0';
+        return { code: failed ? 1 : 0, stdout: '', stderr: failed
+          ? JSON.stringify({ error: { code: 'ELIFECYCLE', message: 'prepack failed' } }) : '' };
+      })();
+      child.on = () => child;
+      return child;
+    } },
+    getLastJsonObjectFromString: (text) => text ? JSON.parse(text) : null,
+    logger: { error() {}, warn() {} }
+  };
+  runInNewContext(source.slice(queueStart, queueEnd) + source.slice(start, end)
+    + source.slice(publishStart, publishEnd), context);
+  if (delegatedAuth) runInNewContext('npmPublishQueue.setConcurrency(1)', context);
+  const state = { allowConcurrency: !delegatedAuth };
+  const results = await Promise.all(Array.from({ length: 4 }, (_, index) =>
+    context.publish$1({ name: `plugin-${index}` }, { cwd: `/plugin-${index}`, tag: 'latest' }, state)));
+  return { peak, calls, results: results.map(({ result }) => result) };
+}
+
+test('publish lifecycles are serialized and a failed prepack stays failed', async () => {
+  const { peak, calls, results } = await publishBatch({ failFirst: true });
+  assert.equal(peak, 1, 'concurrent prepack hooks can delete shared UI build output');
+  assert.deepEqual(calls, ['/plugin-0', '/plugin-1', '/plugin-2', '/plugin-3']);
+  assert.deepEqual(results, ['failed', 'published', 'published', 'published']);
+});
+
+test('delegated authentication does not restore concurrent publish lifecycles', async () => {
+  const { peak, results } = await publishBatch({ delegatedAuth: true });
+  assert.equal(peak, 1);
+  assert.deepEqual(results, ['published', 'published', 'published', 'published']);
+});

@@ -50,6 +50,7 @@ allowBuilds:
   unrs-resolver: true
   vue-demi: true
 
-# Preserve raw npm errors when pnpm returns error.message without error.summary.
+# Serialize publish/prepack hooks that rebuild shared UI output, and preserve raw
+# npm errors when pnpm returns error.message without error.summary.
 patchedDependencies:
   '@changesets/cli@2.31.1': patches/changesets-cli-2.31.1.patch
