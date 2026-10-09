@@ -1,0 +1,11 @@
+export const RFID_PLUGIN_NAME = '@xpert-ai/plugin-rfid-experiment-insight'
+export const RFID_ARTIFACT_NAMESPACE = 'rfid_experiment_insight'
+export const RFID_PROVIDER_KEY = 'rfid_experiment_insight'
+export const RFID_VIEW_KEY = 'workbench'
+export const RFID_REMOTE_ENTRY_KEY = 'rfid_experiment_insight__remote'
+export const RFID_FEATURE = 'rfid_experiment_insight'
+export const RFID_MIDDLEWARE_NAME = 'RfidExperimentInsightMiddleware'
+export const RFID_TEMPLATE_PROVIDER_KEY = 'rfidExperimentInsightTemplates'
+export const RFID_TEMPLATE_KEY = 'rfid-experiment-insight-assistant'
+export const RFID_TEMPLATE_FILE = 'xpert-rfid-experiment-insight-assistant.yaml'
+export const RFID_ICON = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 18V6m0 12h16M8 14l4-5 4 3 4-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="14" r="1.4" fill="currentColor"/><circle cx="12" cy="9" r="1.4" fill="currentColor"/></svg>`

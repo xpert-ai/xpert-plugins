@@ -1,0 +1,2 @@
+experiment_id,distance_m,angle_deg,environment,accuracy,rssi_std
+run_001,1.5,0,Env-1,0.954,2.1
