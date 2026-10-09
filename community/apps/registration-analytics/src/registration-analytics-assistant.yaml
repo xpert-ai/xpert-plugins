@@ -1,0 +1,65 @@
+team:
+  name: registration-analytics-assistant
+  type: agent
+  title: 报名问数助手
+  description: 面向活动报名运营人员的报名数据查询与统计分析助手，支持自然语言问数、常用查询保存。
+  options:
+    templateKey: registration-analytics-assistant
+  agentConfig:
+    recursionLimit: 24
+  version: '1'
+  agent:
+    key: Agent_RegistrationAnalytics
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_RegistrationAnalytics
+    position: { x: 200, y: 100 }
+    entity:
+      key: Agent_RegistrationAnalytics
+      name: registration-analytics-assistant
+      title: 报名问数助手
+      description: 面向活动报名运营人员的报名数据查询与统计分析助手，支持自然语言问数、常用查询保存。
+      prompt: |
+        你是报名问数助手，帮助活动报名运营人员从报名数据中快速获得答案。
+
+        可查询的报名记录字段：
+        - name 报名人姓名
+        - activityId / activityName 活动
+        - phone 手机号
+        - email 邮箱
+        - city 城市
+        - channel 渠道（website 官网 / wechat 微信 / offline 线下 / partner 合作渠道）
+        - registerTime 报名时间
+        - status 状态（confirmed 已确认 / pending 待确认 / cancelled 已取消）
+        - fee 报名费
+
+        工作规则：
+        - 用户询问报名数据时，先把自然语言转成结构化查询条件，再调用 registration_query。
+        - 统计类问题（如"按城市统计"、"各渠道分布"、"人数最多的活动"）必须使用 groupBy 和 aggregates 聚合。
+        - 查询范围类问题（如"本周报名了多少人"）使用 filters 按 registerTime 或 status 过滤。
+        - 用户不确定有哪些活动时，先调用 registration_list_activities。
+        - 用户明确要求保存某个查询时，调用 registration_save_query。
+        - 用户想查看历史查询时，调用 registration_list_saved_queries。
+        - 查询失败或条件不完整时，如实说明原因，并请用户补充或换一种问法，不要编造数据，也不要反复重试同一个失败的查询。
+        - 每个问题最多调用一次 registration_query；拿到结果后立即用中文总结回答并结束，不要再次调用工具。
+        - 给出结论时，用简洁的中文概括关键数字，并提示结果可在"报名问数台"工作台查看。
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+  - type: workflow
+    key: Middleware_RegistrationAnalytics
+    position: { x: 560, y: 100 }
+    entity:
+      type: middleware
+      key: Middleware_RegistrationAnalytics
+      title: 报名问数工具
+      provider: RegistrationMiddleware
+      required: true
+connections:
+  - type: workflow
+    key: Agent_RegistrationAnalytics/Middleware_RegistrationAnalytics
+    from: Agent_RegistrationAnalytics
+    to: Middleware_RegistrationAnalytics

@@ -1,0 +1,87 @@
+{
+  "name": "@community/apps-registration-analytics",
+  "version": "0.1.0",
+  "description": "Registration analytics business app for Xpert: query and analyze registration records with natural-language-driven AI tools and a workbench console.",
+  "license": "AGPL-3.0",
+  "author": {
+    "name": "Hilbertangers",
+    "url": "https://github.com/Hilbertangers"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins",
+    "directory": "community/apps/registration-analytics"
+  },
+  "bugs": {
+    "url": "https://github.com/xpert-ai/xpert-plugins/issues"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "organization"
+    }
+  },
+  "main": "./index.cjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./index.cjs",
+      "default": "./index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "index.cjs",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node scripts/build-remote.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
+    "build:remote": "node scripts/build-remote.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test tests/*.test.mjs",
+    "lint": "echo \"(todo) add lint\""
+  },
+  "dependencies": {
+    "@nestjs/cqrs": "^11.0.3",
+    "ajv": "^8.20.0",
+    "axios": "^1.20.0",
+    "i18next": "^26.4.2",
+    "i18next-fs-backend": "^2.6.8",
+    "json-schema": "^0.4.0",
+    "jsonwebtoken": "^9.0.3",
+    "lodash-es": "^4.18.1",
+    "passport-jwt": "^4.0.1",
+    "rxjs": "^7.8.2",
+    "short-unique-id": "^5.3.2",
+    "tslib": "^2.3.0",
+    "yaml": "^2.9.1"
+  },
+  "peerDependencies": {
+    "@langchain/core": ">=0.3.0",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/typeorm": "^11.0.0",
+    "@xpert-ai/contracts": "^3.10.1",
+    "@xpert-ai/plugin-sdk": "^3.10.1",
+    "typeorm": "^0.3.24",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@langchain/core": "^0.3.72",
+    "@nestjs/common": "11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/typeorm": "11.0.0",
+    "@types/node": "^20.19.9",
+    "@xpert-ai/contracts": "3.18.4",
+    "@xpert-ai/plugin-sdk": "3.18.4",
+    "esbuild": "^0.28.1",
+    "reflect-metadata": "^0.2.2",
+    "typeorm": "0.3.24",
+    "typescript": "^5.9.2",
+    "zod": "3.25.67"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
