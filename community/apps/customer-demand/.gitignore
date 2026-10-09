@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+!.env.example
+.preview/
+test-results/
+*.tmp
+*.tsbuildinfo
+.playwright-cli/
+output/
