@@ -20,7 +20,8 @@ import {
   OFFICE_CLI_MIDDLEWARE_NAME,
   OFFICE_CLI_RENDERING_CAPABILITY,
   OFFICE_CLI_VERSIONING_CAPABILITY,
-  OFFICE_CLI_WORKBENCH_CAPABILITY
+  OFFICE_CLI_WORKBENCH_CAPABILITY,
+  OFFICE_CLI_WORKSPACE_FILES_RUNTIME_CAPABILITY
 } from './constants.js'
 import { OfficeCliService } from './office-cli.service.js'
 import type { OfficeCliCommand, OfficeCliDocumentFormat, OfficeCliScope } from './types.js'
@@ -321,6 +322,7 @@ function scopeFromContext(context: IAgentMiddlewareContext): OfficeCliScope {
     userId: context.userId,
     assistantId: xpertId,
     conversationId: context.conversationId ?? null,
+    runtimeWorkspaceFiles: context.runtime?.capabilities?.get(OFFICE_CLI_WORKSPACE_FILES_RUNTIME_CAPABILITY),
     workspaceFiles: projectId
       ? { catalog: 'projects', scopeId: projectId, projectId, userId: context.userId, isolateByUser: false }
       : xpertId
