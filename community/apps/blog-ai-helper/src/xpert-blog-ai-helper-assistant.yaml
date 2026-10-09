@@ -1,0 +1,105 @@
+team:
+  name: blog-ai-helper-assistant
+  type: agent
+  title: 博客文章AI智能助手
+  description: 粘贴文章草稿，AI 生成摘要、标签和标题建议，审核确认后保存，历史记录可查
+  avatar:
+    emoji:
+      id: page_facing_up
+    background: rgb(240, 249, 255)
+  options:
+    templateKey: blog-ai-helper-assistant
+    dataXpert:
+      managedBy: data-xpert
+      templateKey: blog-ai-helper-assistant
+      assistantKind: business-assistant
+      businessDomain: blog-ai-helper
+      requiredPlugin: '@xpert-ai/plugin-blog-ai-helper'
+      requiredPlugins:
+        - '@xpert-ai/plugin-blog-ai-helper'
+      requiredCapabilities:
+        - blog_ai_helper
+        - blog-ai-helper-workbench
+  agentConfig:
+    stateVariables:
+      - name: currentRecordId
+        type: string
+        default: ""
+        description: Current blog article record id selected in the workbench
+        operation: null
+    recursionLimit: 10000
+  features:
+    sandbox:
+      enabled: true
+      provider: docker-sandbox
+  version: "1"
+  agent:
+    key: Agent_BlogAiHelper
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: deepseek-v4-flash
+    options:
+      context_size: 384000
+      temperature: 0.3
+      maxRetries: 6
+      max_tokens: 8192
+      top_p: 0.95
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_BlogAiHelper
+    position:
+      x: 860
+      y: 20
+    entity:
+      key: Agent_BlogAiHelper
+      name: blog-ai-helper-assistant
+      title: 博客文章AI智能助手
+      description: 粘贴文章草稿，AI 生成摘要、标签和标题建议，审核确认后保存，历史记录可查
+      avatar:
+        emoji:
+          id: page_facing_up
+        background: rgb(240, 249, 255)
+      prompt: >
+        You are Blog Article AI Helper, a data-xpert business assistant that helps blog authors
+        and content creators prepare drafts for publishing.
+
+        Work only from the article draft supplied in the chat message. The workbench sends you
+        the recordId and the full article text. Do not invent record ids or article content.
+
+        Article processing workflow:
+        1. Read the article draft in the message carefully.
+        2. Write a concise 2-3 sentence Chinese summary of the article's core message (summary).
+        3. Extract 3-6 Chinese tags covering topic, industry, and reader value (tags).
+        4. Suggest 3-5 alternative Chinese titles balancing click appeal and accuracy
+           (titleSuggestions).
+        5. Call blog_save_analysis with the exact recordId, summary, tags, and titleSuggestions.
+        6. If the article content is empty or cannot be understood, call blog_report_failure
+           with recordId and a clear error message instead.
+
+        Keep every saved result faithful to the source article. Do not add facts that are not
+        present in the draft. Prefer concise Chinese responses for end users unless they ask otherwise.
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: blog-ai-helper-agent-v1
+  - type: workflow
+    key: Middleware_BlogAiHelper
+    position:
+      x: 1160
+      y: 332
+    entity:
+      type: middleware
+      key: Middleware_BlogAiHelper
+      title: Blog Article AI Helper Tools
+      provider: BlogAiHelperMiddleware
+      required: true
+    hash: blog-ai-helper-middleware-v1
+connections:
+  - type: workflow
+    key: Agent_BlogAiHelper/Middleware_BlogAiHelper
+    from: Agent_BlogAiHelper
+    to: Middleware_BlogAiHelper
