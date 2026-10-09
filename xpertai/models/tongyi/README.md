@@ -41,7 +41,7 @@ Example workflows include:
 - **Service call review:** recording → transcription → issue classification and follow-up draft.
 - **Spoken briefings:** report text → concise briefing → synthesized speech.
 
-The transcription adapter accepts audio file URLs that the provider can access. The text-to-speech adapter delivers output in streaming mode.
+The Paraformer transcription adapter accepts audio file URLs that the provider can access. `qwen3-asr-flash` also accepts a bounded Base64 audio data URI through an `input_audio` message, avoiding the need to expose local recording files through public URLs. The text-to-speech adapter delivers output in streaming mode.
 
 ### Realtime voice assistants
 
@@ -58,7 +58,7 @@ The current realtime adapter targets `qwen3.8-omni-flash-realtime`. It requires 
 | Visual understanding | Qwen VL models | Image questions, charts, screenshots, and document images |
 | Text embeddings | `text-embedding-v3`, `text-embedding-v4` | Semantic retrieval and knowledge indexing |
 | Reranking | `gte-rerank-v2`, `qwen3-rerank` | Relevance ordering for retrieved passages |
-| Speech recognition | `paraformer-v1`, `paraformer-v2` | Transcription of recorded audio |
+| Speech recognition | `paraformer-v1`, `paraformer-v2`, `qwen3-asr-flash` | Transcription of recorded audio; Qwen supports inline Base64 |
 | Speech synthesis | `qwen3-tts-flash` | Spoken answers, narration, and briefings |
 | Realtime conversation | `qwen3.8-omni-flash-realtime` | Live voice interaction with tool support |
 
@@ -79,6 +79,12 @@ The plugin includes predefined models and supports custom model configuration. I
 | **Use International Endpoint** (`use_international_endpoint`) | When API Host is empty, selects the plugin's international DashScope endpoint instead of its default China endpoint. |
 
 Use credentials for the region and workspace that serve your chosen model. Alibaba Cloud documents the regional API key requirements in its [API key guide](https://www.alibabacloud.com/help/en/model-studio/get-api-key).
+
+### Qwen recorded speech setup
+
+Choose `qwen3-asr-flash` as a `speech2text` model using your existing Tongyi credentials and compatible API Host. Supply one `input_audio` content block with `input_audio.data` set to `data:audio/wav;base64,...`; the legacy `{ url: "https://..." }` input is also accepted and forwarded to the provider. The adapter never reads local paths or fetches audio URLs itself. It rejects non-HTTPS URLs, malformed input and encoded payloads above 10 MB (10,000,000 bytes). The catalog conservatively limits raw file uploads to 7 MB to leave room for Base64 expansion. See [Alibaba Cloud's Qwen ASR reference](https://help.aliyun.com/zh/model-studio/qwen-asr-api-reference) for supported formats and provider duration limits.
+
+This adapter returns the completed transcript, supports cancellation and a 120-second request deadline, and preserves provider-reported usage when present without inventing missing counts or pricing. It does not provide speaker identification, word timestamps or streaming transcription. Verify source audio and transcript quality before relying on a generated summary.
 
 ### Realtime setup
 

@@ -6,7 +6,8 @@ import { AiModelTypeEnum, ICopilotModel } from '@xpert-ai/contracts'
 import { Injectable } from '@nestjs/common'
 import { SpeechToTextModel, TChatModelOptions } from '@xpert-ai/plugin-sdk'
 import { TongyiProviderStrategy } from '../provider.strategy.js'
-import { getTongyiHttpBaseUrl, joinTongyiApiUrl, TongyiCredentials, TongyiDefaultHttpBaseUrl } from '../types.js'
+import { getTongyiCompatibleBaseUrl, getTongyiHttpBaseUrl, joinTongyiApiUrl, TongyiCredentials, TongyiDefaultHttpBaseUrl } from '../types.js'
+import { QwenAsrChatModel } from './qwen-asr.js'
 
 @Injectable()
 export class TongyiSpeech2TextModel extends SpeechToTextModel {
@@ -20,6 +21,13 @@ export class TongyiSpeech2TextModel extends SpeechToTextModel {
 
 	override getChatModel(copilotModel: ICopilotModel, options?: TChatModelOptions): BaseChatModel {
 		const credentials = copilotModel.copilot.modelProvider.credentials as TongyiCredentials
+		if (copilotModel.model === 'qwen3-asr-flash') {
+			return new QwenAsrChatModel({
+				apiKey: credentials.dashscope_api_key,
+				model: copilotModel.model,
+				baseUrl: getTongyiCompatibleBaseUrl(credentials)
+			})
+		}
 		return new Speech2TextChatModel({
 			apiKey: credentials.dashscope_api_key,
 			model: copilotModel.model,
