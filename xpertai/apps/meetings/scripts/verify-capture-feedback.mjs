@@ -22,6 +22,9 @@ try {
       "unsupported",
       "unsupported-state",
       "permission-denied",
+      "audio_signing_missing",
+      "audio_permission_check_failed",
+      "system_audio_permission_denied",
       "host-error",
       "supported",
     ]) {
@@ -53,6 +56,14 @@ try {
             }
             if (message.commandKey === "desktop.audio.capture.start") {
               startRequests++;
+              if (
+                [
+                  "audio_signing_missing",
+                  "audio_permission_check_failed",
+                  "system_audio_permission_denied",
+                ].includes(mode)
+              )
+                return { result: { success: false, code: mode } };
               if (mode === "permission-denied")
                 return {
                   result: { success: false, code: "audio_permission_denied" },
@@ -135,6 +146,18 @@ try {
                 ? zh
                   ? /隐私与安全性/
                   : /Privacy & Security/
+                : mode === "audio_signing_missing"
+                ? zh
+                  ? /签名权限/
+                  : /signing permission/
+                : mode === "audio_permission_check_failed"
+                ? zh
+                  ? /无法检查麦克风权限/
+                  : /could not be verified/
+                : mode === "system_audio_permission_denied"
+                ? zh
+                  ? /屏幕与系统音频录制/
+                  : /Screen & System Audio Recording/
                 : zh
                 ? /无法连接录音功能/
                 : /Could not connect to the recording feature/

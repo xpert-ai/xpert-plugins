@@ -183,7 +183,14 @@ const en = {
     "The account or workspace changed. Reopen Meetings in the current workspace.",
   upload_pending:
     "Some audio is waiting to upload. Keep Desktop open or retry when your connection returns.",
-  blocked: "Recording is unavailable in this environment.",
+  audio_signing_missing:
+    "This Desktop installation is missing its microphone signing permission. Install an updated, correctly signed version.",
+  audio_permission_check_failed:
+    "Microphone access could not be verified. Restart Desktop or install the latest version and try again.",
+  system_audio_permission_denied:
+    "Allow Desktop in macOS System Settings → Privacy & Security → Screen & System Audio Recording, then restart Desktop and try again.",
+  blocked:
+    "The recording request was blocked by the host. Reopen Meetings in the latest Desktop and try again.",
   emptySearch: "No meetings match this search.",
   noteConflict: "Keep a copy of your draft before refreshing.",
   actionText: "Follow-up",
@@ -347,7 +354,14 @@ const zh: Record<keyof typeof en, string> = {
   recording_active: "已有一场会议正在录音，请先结束该录音。",
   scope_changed: "账号或工作空间已切换，请在当前空间重新打开 Meetings。",
   upload_pending: "部分音频等待上传，请保持 Desktop 打开，或网络恢复后重试。",
-  blocked: "当前环境无法录音。",
+  audio_signing_missing:
+    "当前 Desktop 安装包缺少麦克风签名权限，请安装已修复签名的新版 App。",
+  audio_permission_check_failed:
+    "无法检查麦克风权限，请重启 Desktop 或安装最新版后重试。",
+  system_audio_permission_denied:
+    "请在 macOS「系统设置 → 隐私与安全性 → 屏幕与系统音频录制」中允许 Desktop 访问，然后重启 Desktop 再试。",
+  blocked:
+    "录音请求被宿主拦截，请在最新版 Desktop 中重新打开 Meetings 后重试。",
   emptySearch: "没有找到匹配的会议。",
   noteConflict: "刷新前，请先复制保留你的草稿。",
   actionText: "后续事项",
