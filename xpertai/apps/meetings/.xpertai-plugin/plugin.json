@@ -1,0 +1,13 @@
+{
+  "name": "@xpert-ai/plugin-meetings",
+  "version": "0.1.0",
+  "description": "Private file-backed meeting notes for Xpert Desktop",
+  "author": "XpertAI",
+  "license": "AGPL-3.0",
+  "artifactNamespace": "meetings",
+  "skills": "./skills/",
+  "targetApps": ["xpert", "data-xpert"],
+  "targetAppMeta": {
+    "xpert": { "types": ["business-app", "workbench-view", "assistant-template", "assistant-tool", "skill"], "capabilities": ["meetings.notes"], "marketplace": { "contents": [{ "type": "skill", "name": "meeting-recall", "displayName": "Meeting recall", "description": "Review commitments and prepare one-on-ones using private meeting evidence." }] } }
+  }
+}

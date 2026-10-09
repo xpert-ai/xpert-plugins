@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "lib": ["ES2022", "DOM"],
+    "paths": {
+      "@xpert-ai/plugin-shadcn-ui": [
+        "../../../packages/shadcn-ui/src/index.ts"
+      ],
+      "@xpert-ai/plugin-shadcn-ui/theme": [
+        "../../../packages/shadcn-ui/src/theme.ts"
+      ]
+    }
+  },
+  "include": [
+    "remote-components/meetings/src/**/*.ts",
+    "remote-components/meetings/src/**/*.tsx"
+  ]
+}
