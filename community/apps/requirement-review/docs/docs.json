@@ -1,0 +1,1 @@
+{"$schema":"https://mintlify.com/docs.json","theme":"mint","name":"ReqTrace","colors":{"primary":"#2563eb"},"navigation":{"tabs":[{"tab":"ReqTrace","groups":[{"group":"使用与实现","pages":["workflow","setup","verification"]}]}]}}

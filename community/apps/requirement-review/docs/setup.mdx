@@ -1,0 +1,22 @@
+---
+title: '安装和本地开发'
+description: '构建、安装、助手初始化与运行边界'
+---
+
+在 community 工作区使用 pnpm 8.15.8，构建同仓库共享 UI 后构建本插件：
+
+```bash
+corepack pnpm install --filter @community/apps-requirement-review... --filter @xpert-ai/plugin-shadcn-ui...
+corepack pnpm --filter @xpert-ai/plugin-shadcn-ui build
+corepack pnpm --filter @community/apps-requirement-review typecheck
+corepack pnpm --filter @community/apps-requirement-review build
+corepack pnpm --filter @community/apps-requirement-review verify:dist
+```
+
+插件声明 system 级别与 reqtrace 命名空间，需在 Default 租户安装。开发环境允许配置 PLUGIN_WORKSPACE_ROOTS 后，通过已登录的插件管理页选择本地工作区安装。安装提示需要重启时，重启 API 并重新打开页面。
+
+导入插件提供的“ReqTrace 需求评审助手”模板，选择可用模型并发布。模板不包含 API Key，也不绑定具体组织或模型配置 ID。当前本地平台使用已配置的 DeepSeek Flash，无需额外模型服务或 Windows 不支持的 nsjail 沙箱。
+
+创建模板实例与安装插件属于两个步骤；插件安装成功不会自动创建助手。已有模板助手升级应使用模板更新流程保留助手身份。
+
+本插件只使用平台数据与操作桥，不在 iframe 构造宿主 URL、保存认证数据或直接连接 API。运行时 TypeORM、Nest 和 SDK 由宿主提供，UI 已打包进生成产物。
