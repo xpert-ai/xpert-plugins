@@ -32,6 +32,9 @@ jobs:
         run: node scripts/check-release-dependencies.mjs --workspace ${{ matrix.workspace }}
       - name: Install locked dependencies
         run: pnpm -C ${{ matrix.workspace }} install --frozen-lockfile
+      - name: Test Changesets publish lifecycles
+        if: matrix.workspace == 'xpertai'
+        run: node --test xpertai/scripts/changesets-publish-error.test.mjs
       - name: Build community plugins
         if: matrix.workspace == 'community'
         run: pnpm -C community run build

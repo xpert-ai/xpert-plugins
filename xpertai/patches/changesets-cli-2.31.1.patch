@@ -1,6 +1,15 @@
 --- a/dist/changesets-cli.cjs.js
 +++ b/dist/changesets-cli.cjs.js
-@@ -877,7 +877,7 @@
+@@ -704,5 +704,7 @@
+ const NPM_REQUEST_CONCURRENCY_LIMIT = 40;
+-const NPM_PUBLISH_CONCURRENCY_LIMIT = 10;
++// prepack hooks rebuild and clear shared workspace UI output. Keep the whole
++// publish lifecycle serial, including after delegated authentication succeeds.
++const NPM_PUBLISH_CONCURRENCY_LIMIT = 1;
+ const NPM_REGISTRY = "https://registry.npmjs.org";
+ const YARN_REGISTRY = "https://registry.yarnpkg.com";
+ const npmRequestQueue = createPromiseQueue(NPM_REQUEST_CONCURRENCY_LIMIT);
+@@ -877,7 +879,7 @@
  // we check `npm info` before publishing but `npm info` can return stale data at times
  // so we need to gracefully handle this situation
  function isAlreadyPublishedError(output) {
