@@ -1,0 +1,11 @@
+export const RELNOTE_PLUGIN_NAME = '@xpert-ai/plugin-release-note-review'
+export const RELNOTE_MIDDLEWARE_NAME = 'RelnoteMiddleware'
+export const RELNOTE_PROVIDER_KEY = 'relnote'
+export const RELNOTE_REMOTE_ENTRY_KEY = 'relnote-workbench'
+export const RELNOTE_TEMPLATE_PROVIDER_KEY = 'relnoteTemplates'
+export const RELNOTE_TEMPLATE_KEY = 'relnote-review-assistant'
+export const RELNOTE_FEATURE = 'relnote-core'
+export const RELNOTE_VIEW_KEY = 'relnote_release_review_workbench'
+export const AGENT_WORKBENCH_MAIN_SLOT = 'agent.workbench.main'
+export const AGENT_WORKBENCH_FIXED_SLOT = 'agent.workbench.fixed'
+export const RELNOTE_TOOL_NAMES = ['relnote_get_draft', 'relnote_save_note', 'relnote_list_releases'] as const
