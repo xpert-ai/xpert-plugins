@@ -1,0 +1,24 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "figma",
+  "version": "1.0.0",
+  "description": "Read authorized Figma files through the official remote MCP server. Writes stay limited to changes the user requested.",
+  "author": {
+    "name": "Xpert AI"
+  },
+  "homepage": "https://developers.figma.com/docs/figma-mcp-server/",
+  "extensions": {
+    "xpertai": {
+      "version": 1,
+      "interface": {
+        "displayName": "Figma",
+        "icon": "https://static.figma.com/app/icon/1/favicon.png"
+      },
+      "connectors": {
+        "figma": {
+          "type": "mcp_oauth"
+        }
+      }
+    }
+  }
+}

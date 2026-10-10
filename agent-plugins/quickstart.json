@@ -26,6 +26,22 @@
       "oauthServers": []
     },
     {
+      "id": "github",
+      "oauthServers": []
+    },
+    {
+      "id": "slack",
+      "oauthServers": []
+    },
+    {
+      "id": "figma",
+      "oauthServers": []
+    },
+    {
+      "id": "google-drive",
+      "oauthServers": []
+    },
+    {
       "id": "linear",
       "oauthServers": []
     },

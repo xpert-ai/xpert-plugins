@@ -1,0 +1,21 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "google-drive": {
+      "type": "streamable-http",
+      "url": "https://drivemcp.googleapis.com/mcp/v1"
+    },
+    "google-docs": {
+      "type": "streamable-http",
+      "url": "https://docsmcp.googleapis.com/mcp/v1"
+    },
+    "google-sheets": {
+      "type": "streamable-http",
+      "url": "https://sheetsmcp.googleapis.com/mcp/v1"
+    },
+    "google-slides": {
+      "type": "streamable-http",
+      "url": "https://slidesmcp.googleapis.com/mcp/v1"
+    }
+  }
+}

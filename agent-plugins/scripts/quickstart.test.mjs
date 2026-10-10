@@ -290,6 +290,51 @@ test("explicit replacement creates a new binding without mutating the pinned old
   assert.deepEqual(previous, before);
 });
 
+test("round 1 packages use streamable HTTP and Connector OAuth without embedded secrets", async () => {
+  const expected = {
+    github: ["github"],
+    slack: ["slack"],
+    figma: ["figma"],
+    "google-drive": ["google-drive", "google-docs", "google-sheets", "google-slides"],
+  };
+  const plugins = await loadQuickstartPlugins();
+  for (const [id, servers] of Object.entries(expected)) {
+    const plugin = plugins.find((item) => item.id === id);
+    assert.ok(plugin);
+    assert.equal(plugin.version, "1.0.0");
+    assert.deepEqual(Object.keys(plugin.connectorServers).sort(), [...servers].sort());
+    const root = new URL(`../${id}/`, import.meta.url);
+    const mcp = JSON.parse(await readFile(new URL("mcp.json", root), "utf8"));
+    const manifest = JSON.parse(await readFile(new URL("plugin.json", root), "utf8"));
+    const packed = JSON.stringify({ mcp, manifest });
+    assert.equal(manifest.author.name, "Xpert AI");
+    assert.doesNotMatch(packed, /client_secret|client_id|11843774967|oauth_resource/);
+    for (const server of servers) {
+      assert.deepEqual(plugin.connectorServers[server], { type: "mcp_oauth" });
+      assert.equal(mcp.mcpServers[server].type, "streamable-http");
+      assert.match(mcp.mcpServers[server].url, /^https:\/\//);
+    }
+    assert.deepEqual(plugin.oauthServers, []);
+    const zip = await packQuickstartPlugin(plugin);
+    assert.ok(zip.length > 0);
+  }
+  const notionRoot = new URL("../notion/", import.meta.url);
+  const notion = JSON.parse(await readFile(new URL("plugin.json", notionRoot), "utf8"));
+  assert.equal(notion.version, "1.2.0");
+  assert.deepEqual(notion.extensions.xpertai.connectors, { notion: { type: "mcp_oauth" } });
+  for (const name of [
+    "notion-knowledge-capture",
+    "notion-meeting-intelligence",
+    "notion-research-documentation",
+    "notion-spec-to-implementation",
+    "notion-workspace",
+  ]) {
+    const skill = await readFile(new URL(`skills/${name}/SKILL.md`, notionRoot), "utf8");
+    assert.match(skill, new RegExp(`name: ${name}`));
+    assert.doesNotMatch(skill, /Notion:|bundled Notion app|client_secret|11843774967/);
+  }
+});
+
 test("document presets require explicit presentation with the paths-only host tool", async () => {
   for (const id of ["documents", "pdf", "presentations", "spreadsheets"]) {
     const root = new URL(`../${id}/`, import.meta.url);

@@ -13,14 +13,20 @@ contain no npm entrypoint, server module, installation script or credential.
 | `presentations` | Editable PPTX generation, conservative text edits and slide review | Interactive sandbox, Presentations runtime and image-capable model |
 | `spreadsheets` | Native XLSX, formulas, charts/tables, conservative cell edits and page review | Interactive sandbox, Spreadsheets runtime and image-capable model |
 | `exa`      | Public web search and page reading           | Anonymous starter quota                                               |
-| `notion`   | Workspace search/read and requested updates  | Workspace Connector OAuth                                              |
+| `notion`   | Workspace search, capture, research, and spec-to-task workflows | Workspace Connector OAuth                                     |
+| `github`   | Repositories, issues, and pull requests      | Workspace Connector OAuth; own GitHub OAuth App                        |
+| `slack`    | Channels, canvases, and files the user can access | Workspace Connector OAuth; own Slack app                          |
+| `figma`    | Authorized Figma file reads and requested writes | Workspace Connector OAuth; Figma catalog and Developer Terms     |
+| `google-drive` | Drive, Docs, Sheets, and Slides          | Workspace Connector OAuth; Google preview program and web client       |
 | `linear`   | Issues, projects and team workflows          | Workspace Connector OAuth                                              |
 | `supabase` | Database/project inspection                  | Workspace Connector OAuth; MCP endpoint forces read-only mode          |
 | `sentry`   | Errors, issues and diagnostics               | Workspace Connector OAuth                                              |
 | `canva-cn` | Design operations exposed by Canva China MCP | Existing shared `canva` Connector and configured System Integration |
 
-These are minimal, independently authored presets, not copies of the complete
-OpenAI plugin workflows. See [provenance and exact differences](docs/UPSTREAM.md).
+These are Xpert Agent Plugins packages. Notion 1.2.0 ports four upstream Skills
+with rewritten tool names. GitHub, Slack, Figma, and Google Drive are new
+packages and do not copy OpenAI client secrets or `.app.json`. Google Drive
+complements the local document packages. See [provenance and exact differences](docs/UPSTREAM.md).
 
 Documents is a Skill package without an MCP server or OAuth connection. Prepare
 its desktop or PRO sandbox dependencies using [Documents setup](documents/README.md),
@@ -59,11 +65,13 @@ plugin. Existing imported packages retain their previous descriptor until replac
 use the quickstart installer's `--replace` for an existing workspace resource.
 See each package's `assets/README.md` for icon provenance.
 
-Canva China, Linear, Sentry and Supabase also bundle icons copied unchanged from
-their corresponding Codex plugins in `openai/plugins`. Each package embeds its
-PNG or SVG bytes in `interface.icon`; its `assets/README.md` records the upstream
-commit, selected asset and SHA-256. Their 1.0.1 packages add display icons without
-changing Connector configuration. Exa and Notion retain their existing image URLs.
+Canva China, Linear, Sentry, Supabase, GitHub, Slack, and Google Drive also bundle
+icons copied unchanged from their corresponding Codex plugins in `openai/plugins`.
+Each package embeds its PNG or SVG bytes in `interface.icon`; its `assets/README.md`
+records the upstream commit, selected asset, and SHA-256. Linear, Sentry, Supabase,
+and Canva China 1.0.1 packages add display icons without changing Connector
+configuration. Exa and Notion retain their existing image URLs. Figma uses the
+public favicon URL and does not bundle upstream Figma materials.
 
 ## Final deliverables
 
@@ -87,7 +95,7 @@ corepack pnpm quickstart --install \
   --api-url http://localhost:3333 \
   --org-id "$XPERT_ORG_ID" \
   --workspace-id "$XPERT_WORKSPACE_ID" \
-  notion linear supabase sentry
+  notion github slack figma google-drive linear supabase sentry
 ```
 
 `XPERT_PLATFORM_ROOT` is the source checkout with dependencies installed. The
@@ -117,7 +125,7 @@ System Integration and create a **shared** workspace binding for provider
 
 ```sh
 corepack pnpm quickstart --pack --output-dir /tmp/xpert-agent-plugins \
-  documents pdf presentations spreadsheets exa notion linear supabase sentry canva-cn
+  documents pdf presentations spreadsheets exa notion github slack figma google-drive linear supabase sentry canva-cn
 ```
 
 Upload a ZIP through **Settings > Plugins > Agent Plugins**, choose the workspace
@@ -191,3 +199,17 @@ Provider documentation: [Exa](https://exa.ai/docs/get-started/exa-mcp),
 The workspace-only authorization policy supersedes the historical personal-account
 verification above. The local Connector harness now checks shared connections; it
 does not migrate personal tokens or authorize third-party accounts.
+
+Checked on 2026-10-10 for Round 1 structure only:
+
+- `github`, `slack`, `figma`, and `google-drive` were added, and Notion moved to
+  1.2.0 with the four ported skills. Unit packaging tests cover the manifests.
+- Live third-party consent was not completed. GitHub, Slack, Figma, and Notion
+  `tools/list` still require a user token. Google Drive, Docs, Sheets, and Slides
+  returned public tool lists. OAuth discovery notes are in each package README
+  and [UPSTREAM.md](docs/UPSTREAM.md).
+
+Provider documentation added in this round: [GitHub MCP](https://github.com/github/github-mcp-server),
+[Slack MCP](https://docs.slack.dev/ai/slack-mcp-server/),
+[Figma MCP](https://developers.figma.com/docs/figma-mcp-server/),
+[Google Workspace](https://developers.google.com/workspace).
