@@ -13,14 +13,14 @@ contain no npm entrypoint, server module, installation script or credential.
 | `presentations` | Editable PPTX generation, conservative text edits and slide review | Interactive sandbox, Presentations runtime and image-capable model |
 | `spreadsheets` | Native XLSX, formulas, charts/tables, conservative cell edits and page review | Interactive sandbox, Spreadsheets runtime and image-capable model |
 | `exa`      | Public web search and page reading           | Anonymous starter quota                                               |
-| `notion`   | Workspace search/read and requested updates  | Workspace Connector OAuth                                              |
+| `notion`   | Workspace search, capture, research, and spec-to-task workflows | Workspace Connector OAuth                                     |
 | `linear`   | Issues, projects and team workflows          | Workspace Connector OAuth                                              |
 | `supabase` | Database/project inspection                  | Workspace Connector OAuth; MCP endpoint forces read-only mode          |
 | `sentry`   | Errors, issues and diagnostics               | Workspace Connector OAuth                                              |
 | `canva-cn` | Design operations exposed by Canva China MCP | Existing shared `canva` Connector and configured System Integration |
 
-These are minimal, independently authored presets, not copies of the complete
-OpenAI plugin workflows. See [provenance and exact differences](docs/UPSTREAM.md).
+Notion 1.2.0 ports four upstream Skills with rewritten tool names. The other
+presets in this catalog stay as they are. See [provenance and exact differences](docs/UPSTREAM.md).
 
 Documents is a Skill package without an MCP server or OAuth connection. Prepare
 its desktop or PRO sandbox dependencies using [Documents setup](documents/README.md),
@@ -187,6 +187,11 @@ Provider documentation: [Exa](https://exa.ai/docs/get-started/exa-mcp),
 [Linear](https://linear.app/docs/mcp),
 [Supabase](https://supabase.com/docs/guides/ai-tools/mcp),
 [Sentry](https://mcp.sentry.dev/).
+
+Checked on 2026-10-10 for the Notion 1.2.0 skill port. `corepack pnpm test`
+covers packaging and the rewritten skill text. Live Notion consent and private
+page calls were not run. Publish a new binding; do not silently replace
+conversations pinned to 1.1.0. See [Notion 可用性测试说明](notion/README.md).
 
 The workspace-only authorization policy supersedes the historical personal-account
 verification above. The local Connector harness now checks shared connections; it
