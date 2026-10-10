@@ -1,0 +1,24 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "asana",
+  "version": "1.0.0",
+  "description": "Search and work with tasks, projects, and portfolios in the Asana workspace the connected user can access, using Asana's official remote MCP server.",
+  "author": {
+    "name": "Xpert AI"
+  },
+  "homepage": "https://developers.asana.com/docs/using-asanas-mcp-server",
+  "extensions": {
+    "xpertai": {
+      "version": 1,
+      "interface": {
+        "displayName": "Asana",
+        "icon": "https://d3ki9tyy5l5ruj.cloudfront.net/obj/df5bcec7e9873dddebdd1328901c287f0f069750/asana-logo-favicon@3x.png"
+      },
+      "connectors": {
+        "asana": {
+          "type": "mcp_oauth"
+        }
+      }
+    }
+  }
+}
