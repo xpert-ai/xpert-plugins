@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-tongyi",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Tongyi (通义千问) AI model plugin for XpertAI platform",
   "author": {
     "name": "XpertAI",

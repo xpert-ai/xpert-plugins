@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-meetings",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Private file-backed meeting notes for Xpert Desktop",
   "type": "module",
   "main": "dist/index.js",
