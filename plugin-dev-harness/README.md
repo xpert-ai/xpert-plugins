@@ -67,6 +67,7 @@ extractor/parser, compares content digests, resolves Skills/MCP and Connector de
 bindings, then cleans up temporary files. It does not execute bundled code or
 contact third-party services. It does not replace live authorization/tool-call
 acceptance; provider-specific outcomes are recorded in `agent-plugins/README.md`.
+Platform UI smoke is [agent-plugins/docs/SMOKE_ENV.md](../agent-plugins/docs/SMOKE_ENV.md).
 
 ### Native plugins
 

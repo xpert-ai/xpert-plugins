@@ -21,6 +21,8 @@ contain no npm entrypoint, server module, installation script or credential.
 
 These are minimal, independently authored presets, not copies of the complete
 OpenAI plugin workflows. See [provenance and exact differences](docs/UPSTREAM.md).
+UI smoke on the compose stack is [SMOKE_ENV.md](docs/SMOKE_ENV.md); the case
+list is [UI_SMOKE_CHECKLIST.md](docs/UI_SMOKE_CHECKLIST.md).
 
 Documents is a Skill package without an MCP server or OAuth connection. Prepare
 its desktop or PRO sandbox dependencies using [Documents setup](documents/README.md),
@@ -158,7 +160,8 @@ The lifecycle harness packages and extracts each real ZIP through the production
 extractor/parser and checks content digests, Skills, MCP and Connector bindings.
 See [live Connector harness](../plugin-dev-harness/README.md) for the disposable
 local OAuth/MCP integration test. It uses an already-published test Assistant and
-disables its temporary resources afterwards.
+disables its temporary resources afterwards. Page smoke of import and publish
+uses the compose UI in [SMOKE_ENV.md](docs/SMOKE_ENV.md), not port 3333.
 
 Verified locally on 2026-09-21:
 

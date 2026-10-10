@@ -236,3 +236,9 @@ Xpert's portable interface supports a single `icon` string. The manifests embed
 the PNG bytes as data URLs, because the host passes this value directly to the
 resource catalog without resolving relative package asset paths. Codex's separate
 `composerIcon` and `logo` fields are not added to the Xpert extension.
+
+## Related documents
+
+This file is provenance only. To smoke packages in the platform UI, use the
+compose stage in [SMOKE_ENV.md](SMOKE_ENV.md) and the case list in
+[UI_SMOKE_CHECKLIST.md](UI_SMOKE_CHECKLIST.md).
