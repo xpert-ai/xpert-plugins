@@ -301,7 +301,11 @@ test("notion 1.2.0 keeps Connector OAuth and ports four skills without OpenAI al
   assert.equal(mcp.mcpServers.notion.type, "streamable-http");
   assert.equal(mcp.mcpServers.notion.url, "https://mcp.notion.com/mcp");
   assert.doesNotMatch(JSON.stringify({ mcp, manifest }), /client_secret|oauth_resource|11843774967/);
-  assert.match(await readFile(new URL("README.md", root), "utf8"), /可用性测试说明/);
+  const readme = await readFile(new URL("README.md", root), "utf8");
+  assert.match(readme, /可用性测试说明/);
+  assert.match(readme, /Minimum OAuth scope: `default`/);
+  assert.match(readme, /explicit user\s+request and host approval/);
+  assert.match(readme, /metadata\.short-description/);
   for (const name of [
     "notion-knowledge-capture",
     "notion-meeting-intelligence",

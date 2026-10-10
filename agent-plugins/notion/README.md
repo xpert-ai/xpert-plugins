@@ -10,10 +10,18 @@ Each user opens the plugin details, connects Notion, and grants access to their
 workspace. No shared credential or pre-registered OAuth app is bundled.
 
 Try: "Use Notion to search for the project roadmap and summarize it with links."
-The server can also expose write tools; user permissions and Xpert tool approval
-still apply. Tool names and availability come from the live server. This host
-uses hosted names such as `notion-search` and `notion-fetch`, not the OpenAI
-client aliases `search` and `fetch`.
+Minimum OAuth scope: `default`. Checked on 2026-10-10, `scopes_supported` on the
+protected-resource document contains only `default`. Tool names and availability
+come from the live server. This host uses hosted names such as `notion-search`
+and `notion-fetch`, not the OpenAI client aliases `search` and `fetch`.
+
+Write tools, including `notion-create-pages`, `notion-update-page`,
+`notion-create-database`, and `notion-create-comment`, require an explicit user
+request and host approval.
+
+Ported skills keep upstream `metadata.short-description`. The host skill parser
+keeps `name` and `description` and ignores other frontmatter keys. Pack and the
+production parser lifecycle accept that field.
 
 Skills:
 

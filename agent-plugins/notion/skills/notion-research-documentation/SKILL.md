@@ -7,7 +7,7 @@ metadata:
 
 # Research & Documentation
 
-Ported from [`openai/plugins` commit `1dc195897af4161d039b80d8471ec0a10c9bbc89`](https://github.com/openai/plugins/tree/1dc195897af4161d039b80d8471ec0a10c9bbc89/plugins/notion/skills). Notion Labs' MIT notice is in `LICENSE.txt`. Tool names are the hosted Notion MCP names. This host does not use the OpenAI client aliases `search` and `fetch`. `agents/openai.yaml` was not copied.
+Ported from [`openai/plugins` commit `1dc195897af4161d039b80d8471ec0a10c9bbc89`](https://github.com/openai/plugins/tree/1dc195897af4161d039b80d8471ec0a10c9bbc89/plugins/notion/skills). Notion Labs' MIT notice is in `LICENSE.txt`. Tool names are the hosted Notion MCP names. This host does not use the OpenAI client aliases `search` and `fetch`. `agents/openai.yaml` was not copied. Write tools require an explicit user request and host approval.
 
 
 Pull relevant Notion pages, synthesize findings, and publish clear briefs or reports (with citations and links to sources).
