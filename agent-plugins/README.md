@@ -13,14 +13,44 @@ contain no npm entrypoint, server module, installation script or credential.
 | `presentations` | Editable PPTX generation, conservative text edits and slide review | Interactive sandbox, Presentations runtime and image-capable model |
 | `spreadsheets` | Native XLSX, formulas, charts/tables, conservative cell edits and page review | Interactive sandbox, Spreadsheets runtime and image-capable model |
 | `exa`      | Public web search and page reading           | Anonymous starter quota                                               |
+| `asana`    | Tasks, projects, and portfolios the user can access | Workspace Connector OAuth; scope `default` |
 | `notion`   | Workspace search, capture, research, and spec-to-task workflows | Workspace Connector OAuth                                     |
+| `slack`    | Channels, canvases, and files the user can access | Workspace Connector OAuth; own Slack app                          |
+| `google-drive` | Drive, Docs, Sheets, and Slides          | Workspace Connector OAuth; Google preview program and web client       |
+| `github`   | Repositories, issues, and pull requests      | Workspace Connector OAuth; own GitHub OAuth App                        |
+| `figma`    | Internal-only Figma file reads and requested writes | Workspace Connector OAuth; Figma catalog and Developer Terms  |
+| `monday`   | Boards, items, and docs the user can access | Workspace Connector OAuth; minimum scope TBD |
 | `linear`   | Issues, projects and team workflows          | Workspace Connector OAuth                                              |
+| `atlassian` | Jira, Confluence, and other Atlassian cloud data the user can access | Workspace Connector OAuth; minimum scope is the v2 protected-resource list |
 | `supabase` | Database/project inspection                  | Workspace Connector OAuth; MCP endpoint forces read-only mode          |
+| `stripe`   | Stripe account reads and requested API writes | Workspace Connector OAuth; scope `mcp` |
 | `sentry`   | Errors, issues and diagnostics               | Workspace Connector OAuth                                              |
+| `clickup`  | Tasks, docs, and workspace hierarchy the user can access | Workspace Connector OAuth; scopes `read` and `write` |
 | `canva-cn` | Design operations exposed by Canva China MCP | Existing shared `canva` Connector and configured System Integration |
+| `canva`    | Global Canva designs the connected user can access | Workspace Connector OAuth key `canva-global`; does not replace `canva-cn` |
 
 Notion 1.2.0 ports four upstream Skills with rewritten tool names. The other
 presets in this catalog stay as they are. See [provenance and exact differences](docs/UPSTREAM.md).
+
+Slack is a new package for the official remote MCP server. It does not copy the OpenAI-registered Slack client id or `.app.json`. See [provenance and exact differences](docs/UPSTREAM.md).
+
+Google Drive is a new package for Google's remote Docs, Sheets, and Slides MCP servers. It complements the local `documents`, `pdf`, `presentations`, and `spreadsheets` packages and does not replace them. No upstream client secret is copied. See [provenance and exact differences](docs/UPSTREAM.md).
+
+GitHub is a new package for the official remote MCP server. It does not copy an OpenAI client secret or `.app.json`. See [provenance and exact differences](docs/UPSTREAM.md).
+
+Figma is an internal-only package for the official remote MCP server. It is not a Marketplace release. Upstream Figma skill files are not copied. See [provenance and exact differences](docs/UPSTREAM.md).
+
+`monday` is a new package for `https://mcp.monday.com/mcp`. It does not embed an OAuth client id, client secret, or token, and it does not use the deprecated SSE URL.
+
+`stripe` is a new package for `https://mcp.stripe.com`. It does not embed an OAuth client id, client secret, token, or API key.
+
+`clickup` is a new package for `https://mcp.clickup.com/mcp`. It does not embed an OAuth client id, client secret, or token.
+
+`canva` is a new package for global Canva at `https://mcp.canva.com/mcp`. Its Connector and MCP server key is `canva-global`. It does not embed an OAuth client id, client secret, or token, and it does not modify or replace `canva-cn`.
+
+`asana` is a new package for `https://mcp.asana.com/v2/mcp`. It does not embed an OAuth client id, client secret, or token, and it does not use the deprecated `/sse` URL.
+
+`atlassian` is a new package for `https://mcp.atlassian.com/v2/mcp`. It does not embed an OAuth client id, client secret, or token.
 
 Documents is a Skill package without an MCP server or OAuth connection. Prepare
 its desktop or PRO sandbox dependencies using [Documents setup](documents/README.md),
@@ -59,7 +89,7 @@ plugin. Existing imported packages retain their previous descriptor until replac
 use the quickstart installer's `--replace` for an existing workspace resource.
 See each package's `assets/README.md` for icon provenance.
 
-Canva China, Linear, Sentry and Supabase also bundle icons copied unchanged from
+Canva China, Linear, Sentry, Supabase, Slack, Google Drive, GitHub, ClickUp, and Atlassian also bundle icons copied unchanged from
 their corresponding Codex plugins in `openai/plugins`. Each package embeds its
 PNG or SVG bytes in `interface.icon`; its `assets/README.md` records the upstream
 commit, selected asset and SHA-256. Their 1.0.1 packages add display icons without
@@ -87,7 +117,7 @@ corepack pnpm quickstart --install \
   --api-url http://localhost:3333 \
   --org-id "$XPERT_ORG_ID" \
   --workspace-id "$XPERT_WORKSPACE_ID" \
-  notion linear supabase sentry
+  asana notion slack google-drive github figma monday linear atlassian supabase stripe sentry clickup canva
 ```
 
 `XPERT_PLATFORM_ROOT` is the source checkout with dependencies installed. The
@@ -117,7 +147,7 @@ System Integration and create a **shared** workspace binding for provider
 
 ```sh
 corepack pnpm quickstart --pack --output-dir /tmp/xpert-agent-plugins \
-  documents pdf presentations spreadsheets exa notion linear supabase sentry canva-cn
+  documents pdf presentations spreadsheets exa asana notion slack google-drive github figma monday linear atlassian supabase stripe sentry clickup canva-cn canva
 ```
 
 Upload a ZIP through **Settings > Plugins > Agent Plugins**, choose the workspace
@@ -192,6 +222,86 @@ Checked on 2026-10-10 for the Notion 1.2.0 skill port. `corepack pnpm test`
 covers packaging and the rewritten skill text. Live Notion consent and private
 page calls were not run. Publish a new binding; do not silently replace
 conversations pinned to 1.1.0. See [Notion 可用性测试说明](notion/README.md).
+
+Checked on 2026-10-10 for the Slack package structure only. `corepack pnpm test`
+covers the manifest, Connector declaration, and ZIP allowlist. Live Slack consent
+was not run. See [Slack 可用性测试说明](slack/README.md).
+
+Provider documentation added for this package: [Slack MCP](https://docs.slack.dev/ai/slack-mcp-server/).
+
+Checked on 2026-10-10 for the Google Drive package. Unauthenticated `tools/list`
+succeeded for the four MCP endpoints. `corepack pnpm test` covers the manifest,
+Connector declarations, and ZIP allowlist. Authenticated reads and writes were
+not run. See [Google Drive 可用性测试说明](google-drive/README.md).
+
+Provider documentation added for this package: [Google Workspace](https://developers.google.com/workspace).
+
+Checked on 2026-10-10 for the GitHub package structure only. `corepack pnpm test`
+covers the manifest, Connector declaration, and ZIP allowlist. Live GitHub consent
+and private repository calls were not run. See [GitHub 可用性测试说明](github/README.md).
+
+Provider documentation added for this package: [GitHub MCP](https://github.com/github/github-mcp-server).
+
+Checked on 2026-10-10 for the Figma package structure only. `corepack pnpm test`
+covers the manifest, Connector declaration, and ZIP allowlist. Live Figma consent
+was not run. See [Figma 可用性测试说明](figma/README.md).
+
+Provider documentation added for this package: [Figma MCP](https://developers.figma.com/docs/figma-mcp-server/).
+
+Checked on 2026-10-10. `corepack pnpm test`
+covers the manifest, Connector declaration, and ZIP allowlist. Live monday.com consent
+was not run. On 2026-10-10, `corepack pnpm test:lifecycle --platform-root "$XPERT_PLATFORM_ROOT"`
+passed with the host checkout containing `packages/server-ai/src/agent-plugin/agent-plugin-parser.ts`
+(Node v22.14.0, pnpm 10.24.0). This package's result was `PASS monday: distributed ZIP, production parser, digest, Skills and MCP binding`.
+See [monday.com usability test](monday/README.md).
+
+Provider documentation added for this package: [monday.com Platform MCP](https://developer.monday.com/api-reference/docs/mondaycom-mcp).
+
+Checked on 2026-10-10. `corepack pnpm test`
+covers the manifest, Connector declaration, and ZIP allowlist. Live Stripe consent
+was not run. On 2026-10-10, `corepack pnpm test:lifecycle --platform-root "$XPERT_PLATFORM_ROOT"`
+passed with the host checkout containing `packages/server-ai/src/agent-plugin/agent-plugin-parser.ts`
+(Node v22.14.0, pnpm 10.24.0). This package's result was `PASS stripe: distributed ZIP, production parser, digest, Skills and MCP binding`.
+See [Stripe usability test](stripe/README.md).
+
+Provider documentation added for this package: [Stripe MCP](https://docs.stripe.com/mcp).
+
+Checked on 2026-10-10. `corepack pnpm test`
+covers the manifest, Connector declaration, and ZIP allowlist. Live ClickUp consent
+was not run. On 2026-10-10, `corepack pnpm test:lifecycle --platform-root "$XPERT_PLATFORM_ROOT"`
+passed with the host checkout containing `packages/server-ai/src/agent-plugin/agent-plugin-parser.ts`
+(Node v22.14.0, pnpm 10.24.0). This package's result was `PASS clickup: distributed ZIP, production parser, digest, Skills and MCP binding`.
+See [ClickUp usability test](clickup/README.md).
+
+Provider documentation added for this package: [ClickUp MCP](https://developer.clickup.com/docs/connect-an-ai-assistant-to-clickups-mcp-server).
+
+Checked on 2026-10-10. `corepack pnpm test`
+covers the manifest, Connector declaration, and ZIP allowlist. Live Canva consent
+was not run. On 2026-10-10, `corepack pnpm test:lifecycle --platform-root "$XPERT_PLATFORM_ROOT"`
+passed with the host checkout containing `packages/server-ai/src/agent-plugin/agent-plugin-parser.ts`
+(Node v22.14.0, pnpm 10.24.0). This package's result was `PASS canva: distributed ZIP, production parser, digest, Skills and MCP binding`.
+`canva-cn` is unchanged and still uses its existing Connector with provider `canva`. See [Canva usability test](canva/README.md).
+
+Provider documentation added for this package: [Canva MCP](https://www.canva.dev/docs/mcp/).
+
+Checked on 2026-10-10. `corepack pnpm test`
+covers the manifest, Connector declaration, and ZIP allowlist. Live Asana consent
+was not run. On 2026-10-10, `corepack pnpm test:lifecycle --platform-root "$XPERT_PLATFORM_ROOT"`
+passed with the host checkout containing `packages/server-ai/src/agent-plugin/agent-plugin-parser.ts`
+(Node v22.14.0, pnpm 10.24.0). This package's result was `PASS asana: distributed ZIP, production parser, digest, Skills and MCP binding`.
+See [Asana usability test](asana/README.md).
+
+Provider documentation added for this package: [Asana MCP](https://developers.asana.com/docs/using-asanas-mcp-server).
+
+Checked on 2026-10-10. `corepack pnpm test`
+covers the manifest, Connector declaration, and ZIP allowlist. Live Atlassian consent
+was not run. On 2026-10-10, `corepack pnpm test:lifecycle --platform-root "$XPERT_PLATFORM_ROOT"`
+passed with the host checkout containing `packages/server-ai/src/agent-plugin/agent-plugin-parser.ts`
+(Node v22.14.0, pnpm 10.24.0). This package's result was `PASS atlassian: distributed ZIP, production parser, digest, Skills and MCP binding`.
+Protected-resource metadata for `https://mcp.atlassian.com/v2/mcp` was published. Minimum OAuth scope is that document's full `scopes_supported` list.
+See [Atlassian usability test](atlassian/README.md).
+
+Provider documentation added for this package: [Atlassian remote MCP](https://support.atlassian.com/atlassian-rovo-mcp-server/docs/getting-started-with-the-atlassian-remote-mcp-server/).
 
 The workspace-only authorization policy supersedes the historical personal-account
 verification above. The local Connector harness now checks shared connections; it
