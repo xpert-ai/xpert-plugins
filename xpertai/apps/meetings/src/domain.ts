@@ -149,6 +149,7 @@ export const meetingSchema = z
       .default({ notes: null, summary: null }),
     liveTranscription: liveTranscriptionSchema,
     assistant: assistantSchema,
+    tracks: z.array(trackSchema).min(1).max(2).optional(),
     capture: z.enum(["created", "recording", "stopped", "interrupted"]),
     stopReason: z.string().max(80).nullable(),
     processing: z.enum([
@@ -193,6 +194,7 @@ export const createSchema = z
   .object({
     id: idSchema,
     sessionId: idSchema,
+    tracks: z.array(trackSchema).min(1).max(2).optional(),
     title: z.string().trim().min(1).max(200),
   })
   .strict();

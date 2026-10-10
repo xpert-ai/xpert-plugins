@@ -19,15 +19,21 @@ function validate(node: JSONContent, depth = 0): void {
     throw new MeetingError("document_unsafe_link");
   node.content?.forEach((child) => validate(child, depth + 1));
 }
+/** Empty notes (including older persisted Yjs seeds) need a valid ProseMirror block. */
+function withEmptyParagraph(json: JSONContent): JSONContent {
+  return json.type === "doc" && !json.content?.length
+    ? { ...json, content: [{ type: "paragraph" }] }
+    : json;
+}
 export function documentFromMarkdown(text: string): Y.Doc {
-  const json = markdown.parse(text);
+  const json = withEmptyParagraph(markdown.parse(text));
   validate(json);
   // Construct nodes through their owning schema: the host and Yjs adapter may
   // resolve different compatible ProseMirror versions in a plugin workspace.
   return prosemirrorToYDoc(schema.nodeFromJSON(json), "body");
 }
 export function documentMarkdown(doc: Y.Doc): string {
-  const json = yDocToProsemirrorJSON(doc, "body");
+  const json = withEmptyParagraph(yDocToProsemirrorJSON(doc, "body"));
   validate(json);
   schema.nodeFromJSON(json).check();
   const result = markdown.serialize(json);

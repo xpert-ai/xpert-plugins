@@ -1,5 +1,11 @@
 const en = {
   viewTitle: "Meetings",
+  summaryComplete: "Final minutes saved",
+  documentUnavailable:
+    "The editor could not connect. Saved content is shown below; retry to edit.",
+  retryConnection: "Reconnect editor",
+  workspacePending: "Meeting files need synchronization.",
+  request_failed: "The host could not complete the request. Please retry.",
   collaboration_unavailable: "The collaboration service is unavailable.",
   followTranscript: "Follow latest text",
   liveRetrying: "Retrying transcription",
@@ -39,7 +45,7 @@ const en = {
   assistantWorking: "Assistant is summarizing",
   phaseComplete: "Completed stage summaries",
   silenceHelp:
-    "Both sources quiet for {seconds}s → stage summary in Assistant. Final minutes follow when recording ends.",
+    "All selected sources quiet for {seconds}s → stage summary in Assistant. Final minutes follow when recording ends.",
   assistantFailed:
     "A stage summary failed. Final minutes will still use the full transcript.",
   captureHelp:
@@ -76,6 +82,14 @@ const en = {
   consent: "Let everyone know before recording.",
   sources: "Microphone + system audio",
   sourcesHelp: "Captures your voice and the call audio. No meeting bot joins.",
+  browserSources: "Microphone + optional shared tab audio",
+  browserSourcesHelp: "Choose microphone only or also share audio from a browser tab in the next step.",
+  browserHelp: "Requires HTTPS or localhost and browser permission. Keep the page open until uploads finish.",
+  browserCaptureHelp: "Audio is transcribed during recording. Pending uploads are held in page memory; do not close or reload until they finish.",
+  sharedAudio: "Shared tab audio",
+  cancelled: "Recording setup was cancelled.",
+  capture_busy: "Finish the current recording and pending uploads before starting another.",
+  scope_changed: "Recording stopped because the account or organization changed. Return to the original scope to upload remaining audio.",
   desktopHelp: "Recording requires Xpert Desktop on macOS 15 or later.",
   recording: "Recording",
   starting: "Preparing audio",
@@ -146,10 +160,10 @@ const en = {
   user_activation_required:
     "Recording must start from your click. Click Start recording again.",
   unsupported:
-    "Recording is unavailable in this environment. Open this meeting in the latest Xpert Desktop on macOS 15 or later. You can still view and edit meetings in your browser.",
+    "Recording is unavailable here. Use a browser with audio capture over HTTPS or localhost, or Xpert Desktop on macOS 15 or later.",
   checkingCapture: "Checking recording availability…",
   capture_unavailable:
-    "Could not connect to the recording feature. Open Meetings in the latest Xpert Desktop and reopen the view to retry. Your saved meetings are still available.",
+    "Could not connect to recording. Reopen the meeting page after checking your connection and browser support. Saved meetings remain available.",
   forbidden:
     "This workspace does not allow this operation. Check the Assistant's plugin permissions or contact your administrator.",
   audio_permission_denied:
@@ -179,10 +193,8 @@ const en = {
   voice_active: "End the voice call before starting a meeting recording.",
   recording_active:
     "A meeting is already recording. Finish it before starting another.",
-  scope_changed:
-    "The account or workspace changed. Reopen Meetings in the current workspace.",
   upload_pending:
-    "Some audio is waiting to upload. Keep Desktop open or retry when your connection returns.",
+    "Some audio is waiting to upload. Keep the recording page open or retry when your connection returns.",
   audio_signing_missing:
     "This Desktop installation is missing its microphone signing permission. Install an updated, correctly signed version.",
   audio_permission_check_failed:
@@ -200,6 +212,12 @@ const en = {
 } as const;
 const zh: Record<keyof typeof en, string> = {
   viewTitle: "会议记录",
+  summaryComplete: "最终纪要已保存",
+  documentUnavailable:
+    "编辑器暂时无法连接，下方显示已保存内容，请重试连接后编辑。",
+  retryConnection: "重新连接编辑器",
+  workspacePending: "会议文件待同步。",
+  request_failed: "宿主未能完成请求，请重试。",
   collaboration_unavailable: "协同编辑服务暂不可用。",
   followTranscript: "跟随最新内容",
   liveRetrying: "正在重试转写",
@@ -230,10 +248,10 @@ const zh: Record<keyof typeof en, string> = {
   speech_to_text_model_missing: "录音前，请为此助手配置语音转写模型。",
   minutes: "分钟",
   openAssistant: "打开会议对话",
-  assistantWorking: "Assistant 正在总结",
+  assistantWorking: "助手正在总结",
   phaseComplete: "已完成阶段总结",
   silenceHelp:
-    "两路音频共同静音 {seconds} 秒后，由 Assistant 做阶段总结；结束后生成最终纪要。",
+    "所选音源静音 {seconds} 秒后，由助手做阶段总结；结束后生成最终纪要。",
   assistantFailed: "部分阶段总结未完成，最终纪要仍会使用完整转写。",
   captureHelp:
     "音频加密保存在本机并随网络上传，录音中持续转写，结束后生成会议摘要。",
@@ -242,19 +260,19 @@ const zh: Record<keyof typeof en, string> = {
   library: "会议记录",
   search: "搜索会议、笔记和转写内容",
   recent: "最近会议",
-  private: "会议文件按 Assistant 工作区权限访问",
-  workspaceFolder: "Assistant 工作区目录",
+  private: "会议文件按助手工作区权限访问",
+  workspaceFolder: "助手工作区目录",
   workspaceFailed: "工作区文件待同步，会议内容已保留。",
   workspaceRetry: "同步文件",
   workspace_file_conflict:
     "工作区文件已被单独修改，请先另存或移走该版本，再重新同步。",
   workspace_sync_failed: "工作区文件同步失败，会议内容已保留，请重试。",
   workspace_scope_missing:
-    "宿主未提供 Assistant 工作区，请更新宿主后重新打开 Meetings。",
-  workspace_scope_changed: "Assistant 工作区范围已变更，请恢复原范围后再同步。",
+    "宿主未提供助手工作区，请更新宿主后重新打开会议记录。",
+  workspace_scope_changed: "助手工作区范围已变更，请恢复原范围后再同步。",
   workspace_unavailable: "平台工作区文件服务暂不可用。",
   assistant_workspace_required:
-    "请在 Assistant 工作区中打开 Meetings，以保存会议文件。",
+    "请在助手工作区中打开会议记录，以保存会议文件。",
   empty: "从一场对话开始",
   emptyHelp: "记录讨论，把笔记、决策和后续事项放在一起。",
   title: "会议名称",
@@ -265,6 +283,14 @@ const zh: Record<keyof typeof en, string> = {
   consent: "录音前，请告知所有参会者。",
   sources: "麦克风 + 系统音频",
   sourcesHelp: "同时记录你的声音和通话声音，无需机器人入会。",
+  browserSources: "麦克风 + 可选共享标签页音频",
+  browserSourcesHelp: "下一步可选择仅麦克风，或同时共享浏览器标签页音频。",
+  browserHelp: "需要 HTTPS 或 localhost，并允许浏览器访问音频。上传完成前请保持页面打开。",
+  browserCaptureHelp: "录音中持续转写。待上传的音频暂存于本页面内存中，上传完成前请勿关闭或刷新页面。",
+  sharedAudio: "共享标签页音频",
+  cancelled: "已取消录音准备。",
+  capture_busy: "请先结束当前录音并完成待上传片段，再开始新录音。",
+  scope_changed: "账号或组织已切换，录音已停止。请回到原范围上传剩余音频。",
   desktopHelp: "录音需要 macOS 15 或更高版本的 Xpert Desktop。",
   recording: "正在录音",
   starting: "正在准备音频",
@@ -285,7 +311,7 @@ const zh: Record<keyof typeof en, string> = {
   notesPlaceholder:
     "记下你关注的内容。个人笔记会独立保存，不会被 AI 摘要覆盖。",
   during: "专注讨论，随手记下重点",
-  duringHelp: "在这里记录想法。结束后，Meetings 会整理转写、决策和后续事项。",
+  duringHelp: "在这里记录想法。结束后，会议记录会整理转写、决策和后续事项。",
   summary: "会议摘要",
   transcript: "转写记录",
   overview: "会议概览",
@@ -330,30 +356,28 @@ const zh: Record<keyof typeof en, string> = {
     "录音需要 macOS 15 或更高版本的 Xpert Desktop，请在桌面端打开会议后录音。浏览器中仍可查看和编辑会议记录。",
   user_activation_required: "录音需要由你亲自点击启动，请再次点击“开始录音”。",
   unsupported:
-    "当前环境不支持录音。请在 macOS 15 或更高版本的最新版 Xpert Desktop 中打开会议。浏览器中仍可查看和编辑会议记录。",
+    "当前环境不支持录音。请使用支持音频录制的浏览器，通过 HTTPS 或 localhost 打开，或使用 macOS 15 及以上版本的 Xpert Desktop。",
   checkingCapture: "正在检查录音功能…",
   capture_unavailable:
-    "无法连接录音功能。请在最新版 Xpert Desktop 中重新打开会议页面后重试，已保存的会议仍可访问。",
-  forbidden:
-    "当前工作区不允许此操作。请检查 Assistant 的插件授权，或联系管理员。",
+    "无法连接录音功能。请检查网络与浏览器支持情况后重新打开会议页面，已保存的会议仍可访问。",
+  forbidden: "当前工作区不允许此操作。请检查助手的插件授权，或联系管理员。",
   audio_permission_denied:
     "尚未获得音频权限。请在 macOS「系统设置 → 隐私与安全性」中，允许 Xpert Desktop 访问「麦克风」和「屏幕与系统音频录制」，然后重试；若系统提示，请重新打开 Desktop。",
   audio_source_missing: "未采集到完整音频，已有笔记已保留，请重新开始录音。",
   audio_conversion_failed: "音频转换失败，录音已停止，已有笔记已保留。",
-  assistant_scheduling_failed: "Assistant 调度失败，请重试处理。",
-  assistant_result_missing: "Assistant 未保存有效总结，请重试处理。",
-  assistant_failed: "Assistant 处理失败，可打开会议对话查看。",
-  assistant_dispatch_failed: "Assistant 启动失败，请检查已发布模型后重试。",
-  assistant_timeout: "Assistant 处理超时，请检查会议对话后重试。",
-  assistant_runtime_unavailable: "当前平台版本不支持后台 Assistant 任务。",
-  summary_model_missing: "请为 Meetings Assistant 配置主模型并发布。",
+  assistant_scheduling_failed: "助手调度失败，请重试处理。",
+  assistant_result_missing: "助手未保存有效总结，请重试处理。",
+  assistant_failed: "助手处理失败，可打开会议对话查看。",
+  assistant_dispatch_failed: "助手启动失败，请检查已发布模型后重试。",
+  assistant_timeout: "助手处理超时，请检查会议对话后重试。",
+  assistant_runtime_unavailable: "当前平台版本不支持后台助手任务。",
+  summary_model_missing: "请为会议助手配置主模型并发布。",
   processing_failed: "处理失败，笔记和已完成的转写仍保留，可以重试。",
   device_lost: "音频设备已断开，已录制部分会保存。",
   disk_error: "无法在本地保存录音，录音已停止。",
   voice_active: "请先结束语音通话，再开始会议录音。",
   recording_active: "已有一场会议正在录音，请先结束该录音。",
-  scope_changed: "账号或工作空间已切换，请在当前空间重新打开 Meetings。",
-  upload_pending: "部分音频等待上传，请保持 Desktop 打开，或网络恢复后重试。",
+  upload_pending: "部分音频等待上传，请保持录音页面打开，或网络恢复后重试。",
   audio_signing_missing:
     "当前 Desktop 安装包缺少麦克风签名权限，请安装已修复签名的新版 App。",
   audio_permission_check_failed:
@@ -361,7 +385,7 @@ const zh: Record<keyof typeof en, string> = {
   system_audio_permission_denied:
     "请在 macOS「系统设置 → 隐私与安全性 → 屏幕与系统音频录制」中允许 Desktop 访问，然后重启 Desktop 再试。",
   blocked:
-    "录音请求被宿主拦截，请在最新版 Desktop 中重新打开 Meetings 后重试。",
+    "录音请求被宿主拦截，请在最新版 Desktop 中重新打开会议记录后重试。",
   emptySearch: "没有找到匹配的会议。",
   noteConflict: "刷新前，请先复制保留你的草稿。",
   actionText: "后续事项",

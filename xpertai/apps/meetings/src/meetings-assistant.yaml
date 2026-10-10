@@ -2,13 +2,16 @@ team:
   name: meetings-assistant
   type: agent
   title: 会议助手
+  avatar:
+    # Resolved from the shared brand asset by the template contribution.
+    url: MEETINGS_LOGO_URL
   description: 记录讨论，回顾决策与后续事项
   options:
     templateKey: meetings-assistant
   agentConfig:
     recursionLimit: 24
   workspaceDataScope: user
-  version: "3"
+  version: "4"
   agent:
     key: Agent_Meetings
   knowledgebases: []

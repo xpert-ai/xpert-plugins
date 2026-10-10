@@ -126,6 +126,13 @@ test("migration is idempotent, scoped, blocks legacy writes and projects newest 
     );
     assert.equal(await readFile(path, "utf8"), after.notes);
     assert.equal((await stat(path)).mode & 0o777, 0o600);
+    await rm(path);
+    await f.documents.project(scope, f.input.id, "notes", id, 10, encoded(doc));
+    assert.equal(
+      await readFile(path, "utf8"),
+      after.notes,
+      "same-sequence projection repairs a missing file"
+    );
     assert.match(
       (await f.service.export(scope, f.input.id)).content,
       /Human edited/
@@ -167,4 +174,23 @@ test("two Tiptap clients converge for concurrent same-paragraph edits and reconn
   initial.destroy();
   a.destroy();
   b.destroy();
+});
+
+
+test("empty notes and legacy empty Yjs seeds project without rejecting the document session", async () => {
+  for (const source of ["", "  ", "\n"]) {
+    const doc = documentFromMarkdown(source);
+    assert.equal(doc.getXmlFragment("body").length, 1);
+    assert.equal(documentMarkdown(doc).trim(), "");
+    doc.destroy();
+  }
+  const legacy = new Y.Doc();
+  assert.equal(documentMarkdown(legacy), "");
+  const f = await fixture();
+  try {
+    await f.documents.project(scope, f.input.id, "notes", randomUUID(), 1, encoded(legacy));
+    const meeting = await f.documents.store.read(scope, f.input.id);
+    assert.equal(meeting.notes, "");
+    assert.ok(meeting.documents.notes);
+  } finally { legacy.destroy(); await f.dispose(); }
 });

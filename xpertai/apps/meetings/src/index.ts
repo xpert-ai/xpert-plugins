@@ -8,6 +8,7 @@ import { MeetingsView } from "./view.js";
 import { MeetingsMiddleware } from "./middleware.js";
 import { MeetingDocuments, MeetingDocumentProvider } from "./documents.js";
 import { appContribution, templates } from "./templates.js";
+import { meetingsIcon } from "./branding.js";
 
 @XpertServerPlugin({
   providers: [
@@ -28,6 +29,7 @@ const plugin: XpertPlugin<z.input<typeof configSchema>> = {
     level: "system",
     artifactNamespace: "meetings",
     displayName: "Meetings",
+    icon: meetingsIcon,
     description: "Private file-backed meeting notes for Xpert Desktop",
     category: "middleware",
     targetApps: ["xpert", "data-xpert"],

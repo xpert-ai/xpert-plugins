@@ -168,11 +168,11 @@ test("legacy migration, interrupted synchronization and deleted files recover wi
       notes: "# 保留的笔记",
     });
     f.fail(true);
-    let migrated = await f.service.get(scope, old.id);
+    let migrated = await f.store.reconcile(scope, old.id);
     assert.equal(migrated.workspace?.status, "failed");
     assert.equal(migrated.notes, "# 保留的笔记");
     f.fail(false);
-    migrated = await f.service.get(scope, old.id);
+    migrated = await f.store.reconcile(scope, old.id);
     assert.equal(migrated.workspace?.status, "ready");
     const path = `${migrated.workspace!.folder}/notes.md`;
     assert.equal(f.files.get(path)!.toString(), migrated.notes);
@@ -209,7 +209,7 @@ test("pre-Tiptap JSON-only summaries migrate without losing their history", asyn
     const record = await legacyStore.read(scope, m.id);
     record.summaryMarkdown = "";
     await atomicWrite(join(directory, "meeting.json"), JSON.stringify(record));
-    const migrated = await f.service.get(scope, m.id);
+    const migrated = await f.store.reconcile(scope, m.id);
     assert.equal(migrated.workspace?.status, "ready");
     assert.match(migrated.summaryMarkdown, /Original summary/);
     assert.equal(
@@ -296,6 +296,62 @@ test("final summary, transcript and AI history are files; human edits update the
     await f.service.remove(scope, m.id);
     assert.deepEqual([...f.files.keys()], [extra]);
     await assert.rejects(f.service.get(scope, m.id), /meeting_not_found/);
+  } finally {
+    await f.dispose();
+  }
+});
+
+test("detail and library reads remain available while workspace synchronization is pending", async () => {
+  const f = await fixture();
+  try {
+    const m = await f.create();
+    let release!: () => void;
+    let started!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const entered = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const store = new FileStore(f.root, {
+      async sync() {
+        started();
+        await waiting;
+      },
+    });
+    const service = new Meetings(store, async () => {});
+    const write = store.update(scope, m.id, (record) => {
+      record.transcript = [
+        {
+          id: "microphone-0",
+          track: "microphone",
+          startMs: 0,
+          endMs: 5000,
+          text: "Live transcript",
+          final: false,
+          activity: [],
+        },
+      ];
+    });
+    await entered;
+    try {
+      const result = await Promise.race([
+        Promise.all([service.get(scope, m.id), service.list(scope)]),
+        new Promise<never>((_, reject) => {
+          const timer = setTimeout(
+            () => reject(new Error("reads blocked on workspace sync")),
+            500
+          );
+          timer.unref();
+        }),
+      ]);
+      assert.equal(result[0].transcript[0].text, "Live transcript");
+      assert.equal(result[0].workspace?.status, "pending");
+      assert.equal(result[1].items.length, 1);
+    } finally {
+      release();
+      await write;
+    }
   } finally {
     await f.dispose();
   }

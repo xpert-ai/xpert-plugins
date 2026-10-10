@@ -5,6 +5,10 @@
   "author": "XpertAI",
   "license": "AGPL-3.0",
   "artifactNamespace": "meetings",
+  "assets": {
+    "logo": "./assets/brand/meetings-icon-v1.png",
+    "screenshots": ["./assets/brand/meetings-overview-zh-v1.png"]
+  },
   "skills": "./skills/",
   "targetApps": ["xpert", "data-xpert"],
   "targetAppMeta": {

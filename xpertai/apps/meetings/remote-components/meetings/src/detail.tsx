@@ -1,8 +1,17 @@
+import { captureCommand } from "./capture";
 import React, { useEffect, useRef, useState } from "react";
 import { z } from "zod/v3";
 import {
   Button,
   Input,
+  Checkbox,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
   Dialog,
   DialogContent,
   DialogHeader,
@@ -34,7 +43,6 @@ import { DocumentEditor } from "./document-editor";
 import type { DocumentHandle } from "./use-document";
 import { Waveform } from "./waveform";
 
-const button = "h-auto px-5 py-2.5";
 export function Detail({
   meeting,
   viewKey,
@@ -111,7 +119,9 @@ export function Detail({
   useEffect(() => {
     if (!autoOpenAssistant || !meeting.assistant.threadId) return;
     assistantOpened();
-    void openAssistant().catch((e) => setError(errorText(e, t)));
+    void openAssistant().catch((e) => {
+      if (!(e instanceof Error && e.message === "scope_changed")) setError(errorText(e, t));
+    });
   }, [autoOpenAssistant, meeting.assistant.threadId]);
   const phaseCount = meeting.assistant.operations.filter(
     (o) => o.kind === "phase" && o.status === "ready"
@@ -130,7 +140,6 @@ export function Detail({
       <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-5">
         <Button
           variant="ghost"
-          className={button}
           onClick={() =>
             void perform(async () => {
               if (await flush()) onDeleted();
@@ -143,15 +152,15 @@ export function Detail({
         {meeting.processing === "ready" && (
           <div className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2 text-xs text-muted-foreground">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={includeTranscript}
-                onChange={(event) => setIncludeTranscript(event.target.checked)}
+                onCheckedChange={(checked) =>
+                  setIncludeTranscript(checked === true)
+                }
               />
               {t("includeTranscript")}
             </label>
             <Button
-              className={button}
               disabled={busy}
               onClick={() =>
                 void perform(async () => {
@@ -185,40 +194,47 @@ export function Detail({
           </div>
         )}
       </div>
-      {meeting.workspace && (
-        <div
-          className="mx-6 mb-5 flex flex-wrap items-center gap-3 border-b border-border pb-4 text-sm"
-          role="status"
-        >
-          <div className="min-w-0 flex-1">
-            <p className="text-muted-foreground">{t("workspaceFolder")}</p>
-            <p className="mt-1 break-all font-mono text-xs">
-              {meeting.workspace.folder ?? "meetings/"}
+      <div
+        className="mx-6 mb-5 flex flex-wrap items-center gap-3 border-b border-border pb-4 text-sm"
+        role="status"
+      >
+        <div className="min-w-0 flex-1">
+          <p className="text-muted-foreground">{t("workspaceFolder")}</p>
+          <p className="mt-1 break-all font-mono text-xs">
+            {meeting.workspace?.folder ?? "meetings/"}
+          </p>
+          {meeting.workspace?.status !== "ready" && (
+            <p
+              className={`mt-2 ${
+                meeting.workspace?.status === "failed"
+                  ? "text-destructive"
+                  : "text-muted-foreground"
+              }`}
+            >
+              {meeting.workspace?.errorCode
+                ? errorText(new Error(meeting.workspace?.errorCode), t)
+                : t(
+                    meeting.workspace?.status === "failed"
+                      ? "workspaceFailed"
+                      : "workspacePending"
+                  )}
             </p>
-            {meeting.workspace.status !== "ready" && (
-              <p className="mt-2 text-destructive">
-                {meeting.workspace.errorCode
-                  ? errorText(new Error(meeting.workspace.errorCode), t)
-                  : t("workspaceFailed")}
-              </p>
-            )}
-          </div>
-          <Button
-            variant="outline"
-            className={button}
-            disabled={busy}
-            onClick={() =>
-              void perform(async () => {
-                if (!(await flush())) return;
-                await action("workspace.sync", { meetingId: meeting.id });
-                await refresh();
-              })
-            }
-          >
-            {t("workspaceRetry")}
-          </Button>
+          )}
         </div>
-      )}
+        <Button
+          variant="outline"
+          disabled={busy}
+          onClick={() =>
+            void perform(async () => {
+              if (!(await flush())) return;
+              await action("workspace.sync", { meetingId: meeting.id });
+              await refresh();
+            })
+          }
+        >
+          {t("workspaceRetry")}
+        </Button>
+      </div>
       {meeting.assistant.conversationId && (
         <section
           className="mx-6 mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-muted/30 px-5 py-4"
@@ -236,6 +252,8 @@ export function Detail({
             <p>
               {assistantWorking
                 ? t("assistantWorking")
+                : meeting.processing === "ready"
+                ? t("summaryComplete")
                 : `${t("phaseComplete")} · ${phaseCount}`}
             </p>
             {meeting.assistant.operations.some(
@@ -248,7 +266,6 @@ export function Detail({
           </div>
           <Button
             variant="outline"
-            className={button}
             disabled={busy || !meeting.assistant.threadId}
             onClick={() => void perform(openAssistant)}
           >
@@ -268,13 +285,12 @@ export function Detail({
               {time(capture.elapsedMs)}
             </span>
             <Button
-              className="h-auto px-7 py-3"
               disabled={busy}
               onClick={() =>
                 void perform(async () => {
-                  await command("desktop.audio.capture.stop", {
+                  await captureCommand("stop", {
                     captureId: capture.captureId,
-                  });
+                  }, capture.runtime);
                   await flush();
                   await refresh();
                 })
@@ -285,7 +301,7 @@ export function Detail({
             </Button>
           </div>
           <div className="grid gap-5 sm:grid-cols-2">
-            {(["microphone", "system"] as const).map((track) => (
+            {(capture.tracks ?? ["microphone", "system"] as const).map((track) => (
               <div
                 className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/60 px-4 py-2"
                 key={track}
@@ -296,18 +312,18 @@ export function Detail({
                   <Monitor className="shrink-0 text-violet-500" size={18} />
                 )}
                 <span className="shrink-0 text-sm text-muted-foreground">
-                  {t(track)}
+                  {t(track === "system" && capture.runtime === "browser" ? "sharedAudio" : track)}
                 </span>
                 <Waveform
                   level={capture[track]}
-                  label={t(track)}
+                  label={t(track === "system" && capture.runtime === "browser" ? "sharedAudio" : track)}
                   system={track === "system"}
                 />
               </div>
             ))}
           </div>
           <p className="text-xs leading-6 text-muted-foreground">
-            {t("captureHelp")}{" "}
+            {t(capture.runtime === "browser" ? "browserCaptureHelp" : "captureHelp")}{" "}
             {t("silenceHelp").replace(
               "{seconds}",
               String(meeting.assistant.silenceSeconds)
@@ -315,7 +331,7 @@ export function Detail({
           </p>
         </section>
       )}
-      <h1 className="mx-6 mb-3 break-words text-3xl font-semibold tracking-tight">
+      <h1 className="mx-6 mb-3 break-words text-2xl font-semibold tracking-tight">
         {meeting.title}
       </h1>
       <div className="mx-6 mb-6 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
@@ -325,12 +341,12 @@ export function Detail({
         </span>
         <span className="flex items-center gap-2">
           <Clock3 size={14} />
-          {time(active ? capture.elapsedMs : meeting.durationMs)}
+          {time(active || localPending ? capture.elapsedMs : meeting.durationMs)}
         </span>
         <Status meeting={meeting} capture={capture} t={t} />
         <div className="ml-auto flex gap-1">
           <Button
-            className="h-auto px-3 py-2"
+            size="icon"
             variant="ghost"
             aria-label={t("rename")}
             onClick={() => {
@@ -341,7 +357,7 @@ export function Detail({
             <Pencil size={16} />
           </Button>
           <Button
-            className="h-auto px-3 py-2"
+            size="icon"
             variant="ghost"
             aria-label={t("delete")}
             disabled={active || localPending}
@@ -369,14 +385,13 @@ export function Detail({
           </span>
           {capture.status === "pending" && (
             <Button
-              className={button}
               variant="outline"
               disabled={busy}
               onClick={() =>
                 void perform(async () => {
-                  await command("desktop.audio.capture.retry", {
+                  await captureCommand("retry", {
                     captureId: capture.captureId,
-                  });
+                  }, capture.runtime);
                   await refresh();
                 })
               }
@@ -386,222 +401,237 @@ export function Detail({
           )}
         </div>
       )}
-      <nav
-        className="flex gap-5 border-b border-border px-6"
-        aria-label="Meetings"
+      <Tabs
+        value={tab}
+        onValueChange={(value) => setTab(value as typeof tab)}
+        className="min-w-0 flex-col gap-0"
       >
-        {(["summary", "notes", "transcript"] as const).map((key) => (
-          <button
-            key={key}
-            className={`border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-              tab === key
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-            aria-current={tab === key ? "page" : undefined}
-            onClick={() => setTab(key)}
-          >
-            {t(key)}
-          </button>
-        ))}
-      </nav>
-      <div
-        className={`grid gap-5 p-6 ${
-          active && tab !== "transcript" ? "xl:grid-cols-2" : ""
-        }`}
-      >
-        {active && tab !== "transcript" && (
-          <section className="min-w-0 rounded-xl border border-border bg-card">
-            <header className="flex flex-wrap items-center gap-2 border-b border-border px-5 py-4">
-              <Radio className="text-primary" size={18} />
-              <h2 className="mr-auto font-semibold">{t("liveTranscript")}</h2>
-              <span className="text-xs text-muted-foreground" role="status">
-                {t(
-                  meeting.liveTranscription.status === "retrying"
-                    ? "liveRetrying"
-                    : meeting.liveTranscription.status === "transcribing"
-                    ? "transcribing"
-                    : "listening"
-                )}
-              </span>
-            </header>
-            <div
-              ref={liveScroll}
-              className="max-h-96 min-h-48 space-y-5 overflow-y-auto p-5"
-              aria-live="polite"
-              aria-relevant="additions text"
-            >
-              {live.map((segment) => (
-                <article key={segment.id}>
-                  <div className="mb-1 flex gap-2 text-xs text-muted-foreground">
-                    <time>{time(segment.startMs)}</time>
-                    <span>{t(segment.track)}</span>
-                  </div>
-                  <p className="whitespace-pre-wrap text-sm leading-7">
-                    {segment.text}
+        <TabsList
+          variant="line"
+          className="meeting-tabs w-full justify-start border-b border-border px-6"
+          aria-label={t("viewTitle")}
+        >
+          {(["summary", "notes", "transcript"] as const).map((key) => (
+            <TabsTrigger key={key} value={key}>
+              {t(key)}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        <div
+          className={`grid min-w-0 gap-5 p-6 ${
+            active && tab !== "transcript" ? "xl:grid-cols-2" : ""
+          }`}
+        >
+          {active && tab !== "transcript" && (
+            <section className="min-w-0 rounded-xl border border-border bg-card">
+              <header className="flex flex-wrap items-center gap-2 border-b border-border px-5 py-4">
+                <Radio className="text-primary" size={18} />
+                <h2 className="mr-auto font-semibold">{t("liveTranscript")}</h2>
+                <span className="text-xs text-muted-foreground" role="status">
+                  {t(
+                    meeting.liveTranscription.status === "retrying"
+                      ? "liveRetrying"
+                      : meeting.liveTranscription.status === "transcribing"
+                      ? "transcribing"
+                      : "listening"
+                  )}
+                </span>
+              </header>
+              <div
+                ref={liveScroll}
+                className="max-h-96 min-h-48 space-y-5 overflow-y-auto p-5"
+                aria-live="polite"
+                aria-relevant="additions text"
+              >
+                {live.map((segment) => (
+                  <article key={segment.id}>
+                    <div className="mb-1 flex gap-2 text-xs text-muted-foreground">
+                      <time>{time(segment.startMs)}</time>
+                      <span>{t(segment.track)}</span>
+                    </div>
+                    <p className="whitespace-pre-wrap text-sm leading-7">
+                      {segment.text}
+                    </p>
+                  </article>
+                ))}
+                {!live.length && (
+                  <p className="text-sm leading-7 text-muted-foreground">
+                    {t("liveWaiting")}
                   </p>
-                </article>
-              ))}
-              {!live.length && (
-                <p className="text-sm leading-7 text-muted-foreground">
-                  {t("liveWaiting")}
-                </p>
-              )}
-            </div>
-            <label className="flex items-center gap-2 border-t border-border px-5 py-3 text-xs text-muted-foreground">
-              <input
-                type="checkbox"
-                checked={follow}
-                onChange={(event) => setFollow(event.target.checked)}
-              />
-              {t("followTranscript")}
-            </label>
-          </section>
-        )}
-        <div className={tab === "notes" ? "min-w-0" : "hidden"}>
-          <DocumentEditor
-            ref={notes}
-            meetingId={meeting.id}
-            kind="notes"
-            t={t}
-          />
-        </div>
-        {meeting.summary && (
-          <div className={tab === "summary" ? "min-w-0 space-y-4" : "hidden"}>
+                )}
+              </div>
+              <label className="flex items-center gap-2 border-t border-border px-5 py-3 text-xs text-muted-foreground">
+                <Checkbox
+                  checked={follow}
+                  onCheckedChange={(checked) => setFollow(checked === true)}
+                />
+                {t("followTranscript")}
+              </label>
+            </section>
+          )}
+          <TabsContent
+            value="notes"
+            forceMount
+            className="min-w-0 data-[state=inactive]:hidden"
+          >
             <DocumentEditor
-              ref={summary}
+              ref={notes}
               meetingId={meeting.id}
-              kind="summary"
+              kind="notes"
+              savedMarkdown={meeting.notes}
               t={t}
             />
-            <p className="text-xs leading-6 text-muted-foreground">
-              {t("summaryEditable")}
-            </p>
-            <details className="rounded-lg border border-border px-5 py-3">
-              <summary className="cursor-pointer text-sm text-muted-foreground">
-                {t("original")} · {t("source")}
-              </summary>
-              {[...meeting.summary.decisions, ...meeting.summary.actions].map(
-                (item, index) => (
-                  <blockquote
-                    key={index}
-                    className="my-4 border-l-2 border-primary/30 pl-4 text-sm leading-7"
-                  >
-                    <span className="text-xs text-muted-foreground">
-                      {item.evidence.segmentId}
-                    </span>
-                    <p>{item.evidence.quote}</p>
-                  </blockquote>
-                )
-              )}
-            </details>
-          </div>
-        )}
-        {tab === "summary" && !meeting.summary && (
-          <div className="flex min-h-64 flex-col items-center justify-center gap-4 rounded-xl bg-muted/40 p-6 text-center">
-            {processing ? (
-              <LoaderCircle
-                className="animate-spin motion-reduce:animate-none"
-                size={28}
-              />
-            ) : (
-              <FileText size={28} />
-            )}
-            <h2 className="text-lg font-medium">
-              {t(
-                processing
-                  ? (meeting.processing as
-                      | "queued"
-                      | "transcribing"
-                      | "summarizing")
-                  : active
-                  ? "during"
-                  : meeting.processing === "failed"
-                  ? "failed"
-                  : "created"
-              )}
-            </h2>
-            <p className="text-sm leading-7 text-muted-foreground">
-              {meeting.errorCode
-                ? errorText(new Error(meeting.errorCode), t)
-                : t(active ? "duringHelp" : "processHelp")}
-            </p>
-            {meeting.processing === "failed" && (
-              <Button
-                className={button}
-                variant="outline"
-                disabled={busy}
-                onClick={() =>
-                  void perform(async () => {
-                    await action("retry", { meetingId: meeting.id });
-                    await refresh();
-                  })
+          </TabsContent>
+          {meeting.summary && (
+            <TabsContent
+              value="summary"
+              forceMount
+              className="min-w-0 space-y-4 data-[state=inactive]:hidden"
+            >
+              <DocumentEditor
+                ref={summary}
+                meetingId={meeting.id}
+                kind="summary"
+                savedMarkdown={
+                  meeting.summaryMarkdown || meeting.summary.overview
                 }
-              >
-                {t("retry")}
-              </Button>
-            )}
-          </div>
-        )}
-        {tab === "transcript" && (
-          <section className="space-y-6">
-            <div className="relative">
-              <Search
-                className="absolute left-3 top-3 text-muted-foreground"
-                size={16}
+                t={t}
               />
-              <Input
-                className="h-10 pl-10"
-                aria-label={t("transcript")}
-                placeholder={t("search")}
-                value={search}
-                onChange={(event) => {
-                  setSearch(event.target.value);
-                  setLimit(40);
-                }}
-              />
-            </div>
-            {active && (
-              <p className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Radio size={14} />
-                {t("liveTranscript")} · {t("liveWaiting")}
+              <p className="text-xs leading-6 text-muted-foreground">
+                {t("summaryEditable")}
               </p>
-            )}
-            {segments.slice(0, limit).map((segment) => (
-              <article
-                className="flex gap-5 border-b border-border pb-5"
-                key={segment.id}
-              >
-                <time className="pt-1 font-mono text-xs text-muted-foreground">
-                  {time(segment.startMs)}
-                </time>
-                <div>
-                  <strong className="text-sm">{t(segment.track)}</strong>
-                  <p className="mt-2 whitespace-pre-wrap leading-8">
-                    {segment.text}
-                  </p>
-                </div>
-              </article>
-            ))}
-            {!segments.length && (
-              <p className="text-sm text-muted-foreground">
-                {t(active ? "liveWaiting" : "noTranscript")}
+              <Collapsible className="rounded-lg border border-border px-5 py-3">
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" className="text-muted-foreground">
+                    {t("original")} · {t("source")}
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  {[
+                    ...meeting.summary.decisions,
+                    ...meeting.summary.actions,
+                  ].map((item, index) => (
+                    <blockquote
+                      key={index}
+                      className="my-4 border-l-2 border-primary/30 pl-4 text-sm leading-7"
+                    >
+                      <span className="text-xs text-muted-foreground">
+                        {item.evidence.segmentId}
+                      </span>
+                      <p>{item.evidence.quote}</p>
+                    </blockquote>
+                  ))}
+                </CollapsibleContent>
+              </Collapsible>
+            </TabsContent>
+          )}
+          {tab === "summary" && !meeting.summary && (
+            <TabsContent
+              value="summary"
+              className="flex min-h-64 flex-col items-center justify-center gap-4 rounded-xl bg-muted/40 p-6 text-center"
+            >
+              {processing ? (
+                <LoaderCircle
+                  className="animate-spin motion-reduce:animate-none"
+                  size={28}
+                />
+              ) : (
+                <FileText size={28} />
+              )}
+              <h2 className="text-lg font-medium">
+                {t(
+                  processing
+                    ? (meeting.processing as
+                        | "queued"
+                        | "transcribing"
+                        | "summarizing")
+                    : active
+                    ? "during"
+                    : meeting.processing === "failed"
+                    ? "failed"
+                    : "created"
+                )}
+              </h2>
+              <p className="text-sm leading-7 text-muted-foreground">
+                {meeting.errorCode
+                  ? errorText(new Error(meeting.errorCode), t)
+                  : t(active ? "duringHelp" : "processHelp")}
               </p>
-            )}
-            {segments.length > limit && (
-              <Button
-                className={button}
-                variant="outline"
-                onClick={() => setLimit(limit + 40)}
-              >
-                {t("next")}
-              </Button>
-            )}
-          </section>
-        )}
-      </div>
+              {meeting.processing === "failed" && (
+                <Button
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() =>
+                    void perform(async () => {
+                      await action("retry", { meetingId: meeting.id });
+                      await refresh();
+                    })
+                  }
+                >
+                  {t("retry")}
+                </Button>
+              )}
+            </TabsContent>
+          )}
+          {tab === "transcript" && (
+            <TabsContent value="transcript" className="space-y-6">
+              <div className="relative">
+                <Search
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  size={16}
+                />
+                <Input
+                  className="pl-10"
+                  aria-label={t("transcript")}
+                  placeholder={t("search")}
+                  value={search}
+                  onChange={(event) => {
+                    setSearch(event.target.value);
+                    setLimit(40);
+                  }}
+                />
+              </div>
+              {active && (
+                <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Radio size={14} />
+                  {t("liveTranscript")} · {t("liveWaiting")}
+                </p>
+              )}
+              {segments.slice(0, limit).map((segment) => (
+                <article
+                  className="flex gap-5 border-b border-border pb-5"
+                  key={segment.id}
+                >
+                  <time className="pt-1 font-mono text-xs text-muted-foreground">
+                    {time(segment.startMs)}
+                  </time>
+                  <div>
+                    <strong className="text-sm">{t(segment.track)}</strong>
+                    <p className="mt-2 whitespace-pre-wrap leading-8">
+                      {segment.text}
+                    </p>
+                  </div>
+                </article>
+              ))}
+              {!segments.length && (
+                <p className="text-sm text-muted-foreground">
+                  {t(active ? "liveWaiting" : "noTranscript")}
+                </p>
+              )}
+              {segments.length > limit && (
+                <Button variant="outline" onClick={() => setLimit(limit + 40)}>
+                  {t("next")}
+                </Button>
+              )}
+            </TabsContent>
+          )}
+        </div>
+      </Tabs>
       <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
-        <DialogContent className="border-border bg-background text-foreground">
+        <DialogContent
+          showCloseButton={false}
+          className="border-border bg-background text-foreground"
+        >
           <DialogHeader>
             <DialogTitle>{t("rename")}</DialogTitle>
             <DialogDescription>{t("title")}</DialogDescription>
@@ -612,15 +642,10 @@ export function Detail({
             onChange={(event) => setName(event.target.value)}
           />
           <DialogFooter>
-            <Button
-              className={button}
-              variant="ghost"
-              onClick={() => setRenameOpen(false)}
-            >
+            <Button variant="ghost" onClick={() => setRenameOpen(false)}>
               {t("cancel")}
             </Button>
             <Button
-              className={button}
               disabled={busy || !name.trim()}
               onClick={() =>
                 void perform(async () => {
@@ -640,21 +665,19 @@ export function Detail({
         </DialogContent>
       </Dialog>
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent className="border-border bg-background text-foreground">
+        <DialogContent
+          showCloseButton={false}
+          className="border-border bg-background text-foreground"
+        >
           <DialogHeader>
             <DialogTitle>{t("deleteTitle")}</DialogTitle>
             <DialogDescription>{t("deleteHelp")}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button
-              className={button}
-              variant="ghost"
-              onClick={() => setDeleteOpen(false)}
-            >
+            <Button variant="ghost" onClick={() => setDeleteOpen(false)}>
               {t("cancel")}
             </Button>
             <Button
-              className={button}
               variant="destructive"
               disabled={busy}
               onClick={() =>

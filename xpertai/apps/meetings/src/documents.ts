@@ -198,6 +198,23 @@ export class MeetingDocuments {
       if (previous && previous.id !== documentId)
         throw new MeetingError("document_mismatch");
       if (previous && previous.sequence > sequence) return;
+      if (previous?.sequence === sequence) {
+        // Avoid expensive workspace writes for an unchanged session snapshot,
+        // while still repairing a missing/corrupt local Markdown projection.
+        try {
+          if ((await readFile(join(dir, `${kind}.md`), "utf8")) === text)
+            return;
+        } catch (error) {
+          if (
+            !(
+              error instanceof Error &&
+              "code" in error &&
+              error.code === "ENOENT"
+            )
+          )
+            throw error;
+        }
+      }
       await atomicWrite(join(dir, `${kind}.md`), text);
       if (kind === "notes" && m.notes !== text) {
         m.notes = text;

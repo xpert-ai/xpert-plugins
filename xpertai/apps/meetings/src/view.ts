@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,6 +19,7 @@ import {
   type XpertViewFileActionFile,
 } from "@xpert-ai/plugin-sdk";
 import { MeetingsBackend } from "./backend.js";
+import { meetingsIcon } from "./branding.js";
 import {
   documentKindSchema,
   FEATURE,
@@ -60,7 +61,10 @@ export function scopeFromView(c: XpertResolvedViewHostContext) {
     workspaceCatalog: files?.catalog,
   });
 }
+const logger = new Logger("MeetingsView");
 function failure(error: unknown): XpertViewActionResult {
+  if (!(error instanceof MeetingError) && !(error instanceof z.ZodError))
+    logger.error(error instanceof Error ? error.stack : "Unexpected Meetings action failure");
   return {
     success: false,
     refresh: false,
@@ -92,6 +96,7 @@ export class MeetingsView implements IXpertViewExtensionProvider {
       {
         key: VIEW,
         title: text("Meetings", "会议记录"),
+        icon: meetingsIcon,
         hostType: "agent",
         slot,
         order: 30,
@@ -105,6 +110,7 @@ export class MeetingsView implements IXpertViewExtensionProvider {
                 menu: {
                   enabled: true,
                   label: text("Meetings", "会议记录"),
+                  icon: meetingsIcon,
                   order: 30,
                 },
               },

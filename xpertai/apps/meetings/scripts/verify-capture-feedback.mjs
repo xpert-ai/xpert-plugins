@@ -35,12 +35,35 @@ try {
         hostContext: { ...fixture.hostContext, locale },
         async handleRequest(message, context) {
           if (message.type === "invokeClientCommand") {
+            if (
+              message.commandKey === "browser.audio.capture.state" &&
+              ["unsupported", "unsupported-state"].includes(mode)
+            )
+              return {
+                type: "clientCommandResult",
+                result: {
+                  success: true,
+                  data: {
+                    runtime: "browser",
+                    supported: false,
+                    status: "idle",
+                    elapsedMs: 0,
+                    microphone: 0,
+                    system: 0,
+                    pendingCount: 0,
+                  },
+                },
+              };
             if (message.commandKey === "desktop.audio.capture.state") {
               stateRequests++;
               if (mode === "unsupported")
-                return { result: { success: false, code: "unsupported" } };
+                return {
+                  type: "clientCommandResult",
+                  result: { success: false, code: "unsupported" },
+                };
               if (mode === "unsupported-state")
                 return {
+                  type: "clientCommandResult",
                   result: {
                     success: true,
                     data: {
@@ -63,9 +86,13 @@ try {
                   "system_audio_permission_denied",
                 ].includes(mode)
               )
-                return { result: { success: false, code: mode } };
+                return {
+                  type: "clientCommandResult",
+                  result: { success: false, code: mode },
+                };
               if (mode === "permission-denied")
                 return {
+                  type: "clientCommandResult",
                   result: { success: false, code: "audio_permission_denied" },
                 };
               if (mode === "host-error")
@@ -98,14 +125,14 @@ try {
             .getByText(
               zh
                 ? /当前环境不支持录音/
-                : /Recording is unavailable in this environment/
+                : /Recording is unavailable here/
             )
             .waitFor();
           assert.match(
             await hint.innerText(),
             zh
-              ? /浏览器中仍可查看和编辑/
-              : /view and edit meetings in your browser/
+              ? /支持音频录制的浏览器，通过 HTTPS 或 localhost/
+              : /browser with audio capture over HTTPS or localhost/
           );
           assert.equal(await start.isDisabled(), true);
           await setTimeout(450);
@@ -160,7 +187,7 @@ try {
                   : /Screen & System Audio Recording/
                 : zh
                 ? /无法连接录音功能/
-                : /Could not connect to the recording feature/
+                : /Could not connect to recording/
             );
             assert.equal(await name.inputValue(), "Capture feedback fixture");
             assert.equal(

@@ -1,5 +1,5 @@
 import { z } from "zod/v3";
-import { installShadcnThemeVars } from "@xpert-ai/plugin-shadcn-ui";
+import { applyTheme } from "./theme";
 import { captureCommands } from "../../../src/capture-contract";
 
 const channel = "xpertai.remote_component";
@@ -8,7 +8,10 @@ const initSchema = z
     instanceId: z.string(),
     scopeRevision: z.number().optional(),
     locale: z.string().optional(),
-    manifest: z.object({ key: z.string() }).passthrough(),
+    manifest: z.object({
+      key: z.string(),
+      icon: z.object({ type: z.string(), value: z.string().optional() }).passthrough().optional(),
+    }).passthrough(),
     initialQuery: z
       .object({ selectionId: z.string().optional() })
       .passthrough()
@@ -32,6 +35,7 @@ const pending = new Map<
     resolve: (value: unknown) => void;
     reject: (error: Error) => void;
     timer: ReturnType<typeof setTimeout>;
+    responseType: string;
   }
 >();
 export function connect(onInit: (host: Host) => void) {
@@ -48,6 +52,7 @@ export function connect(onInit: (host: Host) => void) {
         data: z.unknown(),
         result: z.unknown(),
         message: z.string().optional(),
+        code: z.string().optional(),
       })
       .passthrough()
       .safeParse(event.data);
@@ -68,27 +73,7 @@ export function connect(onInit: (host: Host) => void) {
         pending.clear();
       }
       host = init.data;
-      document.documentElement.lang = host.locale ?? "zh-Hans";
-      document.documentElement.dataset.theme = host.theme?.mode ?? "light";
-      for (const [key, value] of Object.entries(
-        host.theme?.cssVars ?? host.theme?.tokens ?? {}
-      )) {
-        const variable = key.startsWith("--xui-")
-          ? key
-          : key === "fontFamily"
-          ? "--xui-font-family"
-          : key === "radius"
-          ? "--xui-radius-md"
-          : key.startsWith("color")
-          ? `--xui-${key.replace(
-              /[A-Z]/g,
-              (letter) => `-${letter.toLowerCase()}`
-            )}`
-          : undefined;
-        if (variable)
-          document.documentElement.style.setProperty(variable, value);
-      }
-      installShadcnThemeVars();
+      applyTheme(host);
       onInit(host);
       post("resize", { height: window.innerHeight, viewportBound: true });
       return;
@@ -96,14 +81,25 @@ export function connect(onInit: (host: Host) => void) {
     if (
       !host ||
       message.instanceId !== host.instanceId ||
-      message.scopeRevision !== host.scopeRevision
+      (message.scopeRevision !== host.scopeRevision &&
+        !(message.type === "error" && message.scopeRevision === undefined))
     )
       return;
     const item = message.requestId ? pending.get(message.requestId) : undefined;
+    // Host error envelopes can omit the revision. A unique pending request id
+    // still binds them to this scope; changing scope rejects and clears the map.
     if (!item || !message.requestId) return;
+    if (message.type !== "error" && message.type !== item.responseType) return;
     pending.delete(message.requestId);
     clearTimeout(item.timer);
-    if (message.type === "error") item.reject(new Error("request_failed"));
+    if (message.type === "error")
+      item.reject(
+        new Error(
+          message.code === "context_changed"
+            ? "scope_changed"
+            : message.code ?? "request_failed"
+        )
+      );
     else item.resolve(message.data ?? message.result);
   };
   window.addEventListener("message", handler);
@@ -130,15 +126,25 @@ function post(type: string, payload: Record<string, unknown> = {}) {
     "*"
   );
 }
-function request(type: string, payload: Record<string, unknown>) {
+function request(type: string, payload: Record<string, unknown>, timeoutMs = 30000) {
   if (!host) return Promise.reject(new Error("host_unavailable"));
   const requestId = `meetings-${++counter}`;
   return new Promise<unknown>((resolve, reject) => {
     const timer = setTimeout(() => {
       pending.delete(requestId);
       reject(new Error("request_timeout"));
-    }, 30000);
-    pending.set(requestId, { resolve, reject, timer });
+    }, timeoutMs);
+    pending.set(requestId, {
+      resolve,
+      reject,
+      timer,
+      responseType:
+        type === "requestData"
+          ? "data"
+          : type === "executeAction"
+          ? "actionResult"
+          : "clientCommandResult",
+    });
     post(type, { requestId, ...payload });
   });
 }
@@ -168,7 +174,7 @@ export async function command(key: string, payload: Record<string, unknown>) {
   const isCapture = captureCommands.some((commandKey) => commandKey === key);
   try {
     const result = actionResult.parse(
-      await request("invokeClientCommand", { commandKey: key, payload })
+      await request("invokeClientCommand", { commandKey: key, payload }, key === "browser.audio.capture.start" ? 180000 : 30000)
     );
     if (!result.success)
       throw new Error(

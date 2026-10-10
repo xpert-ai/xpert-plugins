@@ -43,6 +43,7 @@ export function useDocument(meetingId: string, kind: DocumentKind) {
     [error, setError] = useState(false);
   const [presence, setPresence] =
     useState<CollaborationPresenceStoreSnapshot>();
+  const retryRef = useRef<() => void>(() => {});
   const flushRef = useRef<() => Promise<boolean>>(async () => false);
   useEffect(() => {
     let disposed = false,
@@ -157,6 +158,7 @@ export function useDocument(meetingId: string, kind: DocumentKind) {
           }
         });
         client.connect();
+        setError(false);
         setReady(true);
         setPresence(store.snapshot());
         renewal = setTimeout(
@@ -180,6 +182,10 @@ export function useDocument(meetingId: string, kind: DocumentKind) {
       } finally {
         connecting = false;
       }
+    };
+    retryRef.current = () => {
+      clearTimeout(renewal);
+      void connect();
     };
     void connect();
     const guard = (event: BeforeUnloadEvent) => {
@@ -207,5 +213,6 @@ export function useDocument(meetingId: string, kind: DocumentKind) {
     connection,
     presence,
     flush: () => flushRef.current(),
+    retry: () => retryRef.current(),
   };
 }

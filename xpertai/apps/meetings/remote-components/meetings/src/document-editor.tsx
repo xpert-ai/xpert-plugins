@@ -25,8 +25,8 @@ import type { T } from "./ui-common";
 
 export const DocumentEditor = forwardRef<
   DocumentHandle,
-  { meetingId: string; kind: DocumentKind; t: T }
->(function DocumentEditor({ meetingId, kind, t }, ref) {
+  { meetingId: string; kind: DocumentKind; savedMarkdown: string; t: T }
+>(function DocumentEditor({ meetingId, kind, savedMarkdown, t }, ref) {
   const document = useDocument(meetingId, kind);
   if (!document.ready)
     return (
@@ -34,7 +34,20 @@ export const DocumentEditor = forwardRef<
         className="rounded-xl border border-border p-6 text-sm text-muted-foreground"
         role="status"
       >
-        {t(document.error ? "documentOffline" : "connecting")}
+        <p>{t(document.error ? "documentUnavailable" : "connecting")}</p>
+        {document.error && (
+          <Button variant="outline" className="mt-3" onClick={document.retry}>
+            {t("retryConnection")}
+          </Button>
+        )}
+        {savedMarkdown && (
+          <div
+            className="mt-4 whitespace-pre-wrap break-words leading-relaxed"
+            aria-label={t(kind)}
+          >
+            {savedMarkdown}
+          </div>
+        )}
       </div>
     );
   return <EditorSurface ref={ref} document={document} kind={kind} t={t} />;
@@ -202,11 +215,7 @@ const EditorSurface = forwardRef<
       {(document.error || document.connection === "disconnected") && (
         <div role="alert" className="mx-4 mt-4 rounded-lg bg-muted p-4 text-sm">
           <p>{t("documentOffline")}</p>
-          <Button
-            className="mt-2 h-auto px-4 py-2"
-            variant="outline"
-            onClick={download}
-          >
+          <Button className="mt-2" variant="outline" onClick={download}>
             <Download size={14} />
             {t("downloadDraft")}
           </Button>
@@ -221,7 +230,8 @@ const EditorSurface = forwardRef<
           <Button
             key={item.key}
             variant="ghost"
-            className={`h-auto px-3 py-2 ${
+            size="icon-sm"
+            className={`${
               item.active
                 ? "bg-accent text-accent-foreground"
                 : "text-muted-foreground"

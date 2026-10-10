@@ -440,3 +440,9 @@ test("exhausted supervision closes pending attempts and rejects late final write
     await f.dispose();
   }
 });
+
+test("microphone-only browser recordings use their selected source as the silence clock", () => {
+  const microphone = silentAfterSpeech().filter((s) => s.track === "microphone");
+  assert.deepEqual(silentBoundaries(microphone, 10000, ["microphone"]), [15000]);
+  assert.deepEqual(silentBoundaries(microphone, 10000), []);
+});

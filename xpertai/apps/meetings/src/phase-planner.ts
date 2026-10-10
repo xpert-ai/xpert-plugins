@@ -3,10 +3,11 @@ import type { Meeting } from "./domain.js";
 /** The slowest contiguous source is the clock: missing uploads/ASR are never silence. */
 export function silentBoundaries(
   segments: Meeting["transcript"],
-  silenceMs: number
+  silenceMs: number,
+  tracks: NonNullable<Meeting["tracks"]> = ["microphone", "system"]
 ) {
   let watermark = Infinity;
-  for (const track of ["microphone", "system"] as const) {
+  for (const track of tracks) {
     let end = 0;
     for (const s of segments
       .filter((s) => s.track === track)

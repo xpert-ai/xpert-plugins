@@ -86,6 +86,7 @@ export class Meetings {
           operations: [],
         },
         liveTranscription: { status: "listening", errorCode: null },
+        tracks: input.tracks ?? ["microphone", "system"],
         capture: "created",
         stopReason: null,
         processing: "not_started",
@@ -150,8 +151,6 @@ export class Meetings {
             .includes(search))
     );
     const visible = records.slice((page - 1) * pageSize, page * pageSize);
-    for (const meeting of visible)
-      await this.store.reconcile(scope, meeting.id);
     return {
       items: visible.map((m) => ({
         id: m.id,
@@ -170,7 +169,7 @@ export class Meetings {
     };
   }
   async get(scope: Scope, id: string) {
-    const meeting = await this.store.reconcile(scope, id);
+    const meeting = await this.store.read(scope, id);
     if (meeting.deleted) throw new MeetingError("meeting_not_found");
     return publicMeeting(meeting);
   }

@@ -6,6 +6,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
+    "assets",
     "dist",
     "skills",
     "scripts/live-smoke.mjs",
@@ -34,7 +35,8 @@
     "preview": "node ../../../tools/remote-view-preview/cli.mjs --config remote-components/meetings/preview.config.mjs --port 4417",
     "verify:desktop": "node scripts/verify-desktop-capture.mjs",
     "prepack": "node scripts/build.mjs --check",
-    "verify:capture-feedback": "node scripts/verify-capture-feedback.mjs"
+    "verify:capture-feedback": "node scripts/verify-capture-feedback.mjs",
+    "verify:view": "node scripts/verify-meeting-view.mjs"
   },
   "xpert": {
     "plugin": {

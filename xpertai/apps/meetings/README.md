@@ -1,6 +1,6 @@
 # Meetings
 
-A meeting notes app in the right-hand plugin View of Xpert Desktop. It provides a meeting library, dual-track recording, personal notes, and minutes backed by transcript evidence. Desktop and ChatKit provide the conversation pane and Assistant navigation.
+A meeting notes app in the right-hand plugin View of Xpert Desktop and the web Workbench. It provides a meeting library, dual-track recording, personal notes, and minutes backed by transcript evidence. Desktop and ChatKit provide the conversation pane and Assistant navigation.
 
 ## File storage
 
@@ -55,7 +55,7 @@ The server deletes audio after minutes are successfully generated. Failed audio 
 
 ## Installation and integration
 
-Requirements: Xpert SDK/contracts 3.19+, working Managed Queue and `platform.collaboration` capabilities, and authorized language and speech-to-text models in the business organization. Recording requires macOS 15+, Desktop with the native audio bridge, and ChatKit UI with the generic client-command bridge. Workspace synchronization requires the platform's `VolumeSubtreeClient` to preserve `ENOENT` for missing files; localized error text must not determine file existence.
+Requirements: Xpert SDK/contracts 3.19+, working Managed Queue and `platform.collaboration` capabilities, and authorized language and speech-to-text models in the business organization. Native recording requires macOS 15+ and Desktop with the native audio bridge. Browser recording requires the platform browser audio-capture host, HTTPS/localhost, Web Audio/AudioWorklet and microphone permission. Both use ChatKit UI’s generic client-command bridge. Workspace synchronization requires the platform's `VolumeSubtreeClient` to preserve `ENOENT` for missing files; localized error text must not determine file existence.
 
 Deliver the corresponding changes across all three repositories. Installing this plugin alone on an older Desktop does not add native recording support.
 
@@ -102,7 +102,11 @@ Configuration example with placeholders only:
 
 ## Recording availability and permissions
 
-Recording is available only in Xpert Desktop on macOS 15 or later. In a browser or a host without the audio-capture capability, the recording dialog explains how to open a supported Desktop and disables Start recording. Existing meetings remain available for viewing and editing.
+Browser recording supports microphone-only or microphone plus optional shared tab audio. A top-level platform dialog acquires browser permissions from a direct user click; the sandboxed plugin iframe never owns microphone access. Shared audio requires choosing an audio-capable source and enabling audio sharing. A video-only share is rejected with a retry message; video frames are never uploaded. The View explicitly declares `browser.audio.capture.start/stop/state/retry` alongside native commands.
+
+Both runtimes deliver independently decodable 24 kHz mono PCM16 WAV chunks, roughly every five seconds, through the same authorized View callbacks. The selected tracks are persisted with the meeting; microphone-only sessions do not wait for a missing system track when planning stage summaries. Native Desktop remains the preferred runtime when its capture capability is available.
+
+Browser pending audio stays in page memory, with ordered idempotent retries and a 24 MiB backlog limit. Keep the page open until upload completes: a reload, tab close or browser crash loses unacknowledged buffers. Navigation within the host preserves an active recording. Leaving the page warns while recording/uploading; account or organization changes stop capture and block further delivery until the original scope returns. Device loss stops capture and releases all tracks. Browser support does not provide Desktop’s encrypted disk cache or crash recovery.
 
 If Desktop reports `audio_permission_denied`, the dialog directs users to macOS System Settings → Privacy & Security to allow Microphone and Screen & System Audio Recording for Xpert Desktop. The meeting title is preserved so users can retry. A transport failure gets a separate connection message, rather than being classified as an OS permission denial. All messages support Chinese and English.
 

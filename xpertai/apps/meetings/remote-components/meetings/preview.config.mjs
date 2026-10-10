@@ -88,7 +88,7 @@ const records = [
   meeting("客户需求沟通", "00000000-0000-4000-8000-000000000003"),
 ];
 records[2].createdAt = "2026-10-07T07:00:00.000Z";
-export default {
+const preview = {
   title: "Meetings · 合成数据预览",
   workspaceRoot: root,
   instanceId: "meetings-preview",
@@ -167,6 +167,13 @@ export default {
       return { data: { items, total: items.length, page: 1 } };
     }
     if (message.type === "executeAction") {
+      if (message.actionKey === "document.session")
+        return {
+          result: {
+            success: false,
+            data: { code: "collaboration_unavailable" },
+          },
+        };
       let result = {};
       if (message.actionKey === "notes") {
         if (current.notesRevision !== input.expectedRevision)
@@ -244,5 +251,21 @@ export default {
       };
     }
     return { result: { success: false, code: "unsupported" } };
+  },
+};
+
+export default {
+  ...preview,
+  async handleRequest(message, context) {
+    return {
+      type:
+        message.type === "requestData"
+          ? "data"
+          : message.type === "executeAction"
+          ? "actionResult"
+          : "clientCommandResult",
+      scopeRevision: message.scopeRevision,
+      ...(await preview.handleRequest(message, context)),
+    };
   },
 };

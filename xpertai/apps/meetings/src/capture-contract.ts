@@ -8,6 +8,10 @@ export const captureCommands = [
   "desktop.audio.capture.stop",
   "desktop.audio.capture.state",
   "desktop.audio.capture.retry",
+  "browser.audio.capture.start",
+  "browser.audio.capture.stop",
+  "browser.audio.capture.state",
+  "browser.audio.capture.retry",
 ] as const;
 export const captureContextSchema = z
   .object({
@@ -29,8 +33,8 @@ export const captureEventSchema = z
         createdAt: z.number().int().nonnegative().max(8640000000000000),
         tracks: z
           .array(trackSchema)
-          .length(2)
-          .refine((tracks) => new Set(tracks).size === 2),
+          .min(1).max(2)
+          .refine((tracks) => new Set(tracks).size === tracks.length),
       })
       .strict(),
     eventEnvelope
@@ -74,6 +78,8 @@ export const captureChunkSchema = envelope
 export type CaptureEvent = z.infer<typeof captureEventSchema>;
 export type CaptureChunk = z.infer<typeof captureChunkSchema>;
 export const captureStateSchema = z.object({
+  runtime: z.enum(["desktop", "browser"]).optional(),
+  tracks: z.array(trackSchema).optional(),
   supported: z.boolean(),
   status: z.enum(["idle", "starting", "recording", "uploading", "pending"]),
   captureId: idSchema.optional(),

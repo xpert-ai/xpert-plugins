@@ -232,3 +232,16 @@ test("acknowledged retries cannot resurrect a deleted meeting or permit a new ca
   );
   assert.equal((await f.meetings.list(scope)).total, 0);
 });
+
+test("browser microphone-only delivery persists the selected track and finishes without system chunks", async (t) => {
+  const f = await fixture(t);
+  await f.delivery.event(scope, { ...f.created, tracks: ["microphone"] });
+  await f.delivery.event(scope, f.started);
+  await f.delivery.chunk(scope, f.chunk("microphone"), f.bytes);
+  await f.delivery.event(scope, { ...f.stopped, chunks: { microphone: 1, system: 0 } });
+  const meeting = await f.store.read(scope, f.meetingId);
+  assert.deepEqual(meeting.tracks, ["microphone"]);
+  assert.equal(meeting.capture, "stopped");
+  assert.deepEqual(meeting.expectedChunks, { microphone: 1, system: 0 });
+  assert.equal(f.queued.length, 1);
+});

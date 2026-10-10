@@ -12,7 +12,6 @@ import {
   DialogFooter,
 } from "@xpert-ai/plugin-shadcn-ui";
 import {
-  ArrowLeft,
   ArrowRight,
   Search,
   Mic,
@@ -39,6 +38,8 @@ import {
 import { Detail } from "./detail";
 import { captureStartPayload } from "../../../src/capture-contract";
 
+import { captureCommand, captureStatus, resetCaptureRuntime } from "./capture";
+
 function App() {
   const [host, setHost] = useState<Host | null>(null),
     [capture, setCapture] = useState<Capture>(idle);
@@ -49,6 +50,7 @@ function App() {
   const [search, setSearch] = useState(""),
     [page, setPage] = useState(1),
     [loading, setLoading] = useState(true);
+  const [queryError, setQueryError] = useState<string>();
   const [error, setError] = useState<string>(),
     [busy, setBusy] = useState(false),
     [createOpen, setCreateOpen] = useState(false),
@@ -56,6 +58,7 @@ function App() {
   const [followMeeting, setFollowMeeting] = useState<string>();
   const captureMeetings = useRef(new Map<string, string>());
   const captureLookup = useRef({ id: "", at: 0 });
+  const refreshFlight = useRef<{ key: string; promise: Promise<void> }>();
   const queryGeneration = useRef(0),
     hostScope = useRef(""),
     hostSelection = useRef<string | undefined>(),
@@ -71,16 +74,21 @@ function App() {
         const scope = `${context.instanceId}:${context.scopeRevision}`;
         const changedScope = hostScope.current !== scope;
         if (changedScope) {
+          resetCaptureRuntime();
           hostScope.current = scope;
+          queryGeneration.current++;
           setMeeting(undefined);
           captureMeetings.current.clear();
           captureUnavailableScope.current = "";
           setCapture(idle);
           setError(undefined);
+          setQueryError(undefined);
         }
         setHost(context);
         const selection = context.initialQuery?.selectionId;
         if (changedScope || hostSelection.current !== selection) {
+          queryGeneration.current++;
+          setMeeting(undefined);
           hostSelection.current = selection;
           setSelected(selection);
         }
@@ -88,30 +96,56 @@ function App() {
     []
   );
   const refresh = useCallback(
-    async (quiet = false) => {
+    async (quiet = false, fresh = false): Promise<void> => {
       if (!host) return;
-      const generation = ++queryGeneration.current;
-      if (!quiet) setLoading(true);
-      try {
-        const response = await data(
-          selected ? { selectionId: selected } : { search, page, pageSize: 20 }
-        );
-        if (generation !== queryGeneration.current) return;
-        if (selected)
-          setMeeting(
-            z.object({ meta: z.object({ detail: dto }) }).parse(response).meta
-              .detail
+      const generation = queryGeneration.current;
+      const key = JSON.stringify([
+        host.instanceId,
+        host.scopeRevision,
+        selected,
+        search,
+        page,
+        generation,
+      ]);
+      if (refreshFlight.current?.key === key) {
+        await refreshFlight.current.promise;
+        if (fresh && generation === queryGeneration.current)
+          return refresh(quiet);
+        return;
+      }
+      const promise = (async () => {
+        if (!quiet) setLoading(true);
+        try {
+          const response = await data(
+            selected
+              ? { selectionId: selected }
+              : { search, page, pageSize: 20 }
           );
-        else {
-          const result = listSchema.parse(response);
-          setItems(result.items);
-          setTotal(result.total);
+          if (generation !== queryGeneration.current) return;
+          setQueryError(undefined);
+          if (selected)
+            setMeeting(
+              z.object({ meta: z.object({ detail: dto }) }).parse(response).meta
+                .detail
+            );
+          else {
+            const result = listSchema.parse(response);
+            setItems(result.items);
+            setTotal(result.total);
+          }
+        } catch (e) {
+          if (generation === queryGeneration.current)
+            setQueryError(errorText(e, translator(host.locale)));
+        } finally {
+          if (generation === queryGeneration.current) setLoading(false);
         }
-      } catch (e) {
-        if (generation === queryGeneration.current)
-          setError(errorText(e, translator(host.locale)));
+      })();
+      refreshFlight.current = { key, promise };
+      try {
+        await promise;
       } finally {
-        if (generation === queryGeneration.current) setLoading(false);
+        if (refreshFlight.current?.promise === promise)
+          refreshFlight.current = undefined;
       }
     },
     [
@@ -140,7 +174,7 @@ function App() {
       running = true;
       try {
         const result = captureSchema.parse(
-          await command("desktop.audio.capture.state", {})
+          await captureStatus()
         );
         if (!current) return;
         if (!result.supported) {
@@ -187,10 +221,10 @@ function App() {
         ) {
           captureUnavailableScope.current = scope;
         }
-        setCapture({
-          ...idle,
+        setCapture((previous) => ({
+          ...previous,
           errorCode: e instanceof Error ? e.message : "capture_unavailable",
-        });
+        }));
       } finally {
         running = false;
       }
@@ -202,21 +236,27 @@ function App() {
       clearInterval(timer);
     };
   }, [host?.instanceId, host?.scopeRevision, selected]);
+  const assistantPending = meeting?.assistant.operations.some((operation) =>
+    ["queued", "running"].includes(operation.status)
+  );
   useEffect(() => {
     if (
       !meeting ||
       (!["queued", "transcribing", "summarizing"].includes(
         meeting.processing
       ) &&
-        meeting.capture !== "recording")
+        meeting.capture !== "recording" &&
+        !assistantPending)
     )
       return;
     const timer = setInterval(() => void refresh(true), 1500);
     return () => clearInterval(timer);
-  }, [meeting?.processing, meeting?.capture, refresh]);
+  }, [meeting?.processing, meeting?.capture, assistantPending, refresh]);
   const navigate = (id?: string) => {
+    queryGeneration.current++;
     if (id !== capture.meetingId) setFollowMeeting(undefined);
     setError(undefined);
+    setQueryError(undefined);
     setSelected(id);
     setMeeting(undefined);
     // Host query owns selection across tab activation; the page never stores account data in browser storage.
@@ -229,12 +269,13 @@ function App() {
   };
   const perform = async (fn: () => Promise<void>) => {
     if (busy) return;
+    const scope = hostScope.current;
     setBusy(true);
     setError(undefined);
     try {
       await fn();
     } catch (e) {
-      setError(errorText(e, t));
+      if (scope === hostScope.current) setError(errorText(e, t));
     } finally {
       setBusy(false);
     }
@@ -244,9 +285,10 @@ function App() {
       const meetingId = crypto.randomUUID();
       const scope = hostScope.current;
       const state = captureSchema.parse(
-        await command(
-          "desktop.audio.capture.start",
-          captureStartPayload(meetingId, title.trim() || t("untitled"))
+        await captureCommand(
+          "start",
+          captureStartPayload(meetingId, title.trim() || t("untitled")),
+          capture.runtime
         )
       );
       if (scope !== hostScope.current) return;
@@ -265,25 +307,16 @@ function App() {
       {!selected && (
         <header className="flex flex-wrap items-center justify-between gap-4 px-6 py-7 [&_h1]:flex [&_h1]:items-center [&_h1]:gap-3 [&_h1]:text-3xl [&_h1]:font-semibold [&_p]:mt-2 [&_p]:text-sm [&_p]:text-muted-foreground">
           <div>
-            {selected && (
-              <button
-                className="flex items-center gap-2 px-4 py-2 text-muted-foreground"
-                onClick={() => navigate()}
-                aria-label={t("back")}
-              >
-                <ArrowLeft size={17} />
-                {t("library")}
-              </button>
-            )}
             <h1>
-              <CalendarDays size={31} />
+              {host?.manifest.icon?.type === "image" && host.manifest.icon.value ? (
+                <img src={host.manifest.icon.value} alt="" className="size-9 shrink-0 rounded-lg object-contain" />
+              ) : <CalendarDays className="size-9" />}
               {viewTitle}
             </h1>
             {!selected && <p>{t("subtitle")}</p>}
           </div>
           {!selected && (
             <Button
-              className="h-auto px-6 py-3"
               onClick={() => setCreateOpen(true)}
               disabled={
                 busy ||
@@ -297,16 +330,29 @@ function App() {
           )}
         </header>
       )}
-      {error && !createOpen && (
+      {(error || queryError) && !createOpen && (
         <div
           className="mx-6 mb-5 flex items-center gap-3 rounded-xl bg-destructive/10 px-5 py-4 text-sm text-destructive [&_span]:flex-1"
           role="alert"
         >
           <CircleAlert size={17} />
-          <span>{error}</span>
-          <button aria-label={t("cancel")} onClick={() => setError(undefined)}>
+          <span>{error || queryError}</span>
+          {queryError && (
+            <Button variant="outline" onClick={() => void refresh(true, true)}>
+              {t("refresh")}
+            </Button>
+          )}
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            aria-label={t("cancel")}
+            onClick={() => {
+              setError(undefined);
+              setQueryError(undefined);
+            }}
+          >
             <X size={16} />
-          </button>
+          </Button>
         </div>
       )}
       {capture.errorCode && !createOpen && (
@@ -321,15 +367,16 @@ function App() {
       {!selected && (
         <div className="flex-1 px-6 pb-6">
           {capture.captureId && capture.status !== "idle" && (
-            <button
-              className="mb-5 flex w-full items-center gap-3 rounded-xl border border-primary/30 bg-primary/10 px-5 py-4 text-left [&_strong]:ml-auto"
+            <Button
+              variant="outline"
+              className="meeting-row mb-5 flex w-full items-center gap-3 rounded-xl border border-primary/30 bg-primary/10 px-5 py-4 text-left [&_strong]:ml-auto"
               onClick={() =>
                 capture.meetingId
                   ? navigate(capture.meetingId)
                   : void perform(async () => {
-                      await command("desktop.audio.capture.retry", {
+                      await captureCommand("retry", {
                         captureId: capture.captureId,
-                      });
+                      }, capture.runtime);
                     })
               }
             >
@@ -343,9 +390,9 @@ function App() {
               )}{" "}
               <strong>{time(capture.elapsedMs)}</strong>
               <ArrowRight size={16} />
-            </button>
+            </Button>
           )}
-          <div className="relative mb-5 [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:z-10 [&>svg]:text-muted-foreground [&_input]:h-12 [&_input]:pl-11 [&_input]:bg-muted/40">
+          <div className="relative mb-5 [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-1/2 [&>svg]:-translate-y-1/2 [&>svg]:z-10 [&>svg]:text-muted-foreground [&_input]:pl-11 [&_input]:bg-muted/40">
             <Search size={17} />
             <Input
               aria-label={t("search")}
@@ -397,8 +444,9 @@ function App() {
                       }).format(new Date(item.createdAt))}
                     </h2>
                   )}
-                  <button
-                    className="flex w-full items-center gap-4 rounded-lg px-2 py-5 text-left transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
+                  <Button
+                    variant="ghost"
+                    className="meeting-row flex w-full items-center gap-4 rounded-lg px-2 py-5 text-left transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
                     key={item.id}
                     onClick={() => navigate(item.id)}
                   >
@@ -425,13 +473,13 @@ function App() {
                       size={15}
                       className="hidden shrink-0 text-muted-foreground sm:block"
                     />
-                  </button>
+                  </Button>
                 </React.Fragment>
               ))}
             </div>
           )}
           {total > 20 && (
-            <div className="mt-6 flex items-center justify-center gap-4 text-sm [&_button]:h-auto [&_button]:px-5 [&_button]:py-2.5">
+            <div className="mt-6 flex items-center justify-center gap-4 text-sm">
               <Button
                 variant="ghost"
                 disabled={page === 1}
@@ -470,7 +518,7 @@ function App() {
             locale={host?.locale}
             busy={busy}
             perform={perform}
-            refresh={() => refresh(true)}
+            refresh={() => refresh(true, true)}
             onDeleted={() => navigate()}
             setError={setError}
           />
@@ -483,7 +531,7 @@ function App() {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent
           showCloseButton={false}
-          className="border-border bg-background text-foreground [&_label]:space-y-2 [&_label]:text-sm [&_input]:mt-2 [&_button]:h-auto [&_button]:px-5 [&_button]:py-2.5"
+          className="border-border bg-background text-foreground [&_label]:space-y-2 [&_label]:text-sm [&_input]:mt-2"
         >
           <DialogHeader>
             <DialogTitle>{t("readyTitle")}</DialogTitle>
@@ -503,12 +551,12 @@ function App() {
             <Mic size={18} />
             <Monitor size={18} />
             <div>
-              <strong>{t("sources")}</strong>
-              <p>{t("sourcesHelp")}</p>
+              <strong>{t(capture.runtime === "browser" ? "browserSources" : "sources")}</strong>
+              <p>{t(capture.runtime === "browser" ? "browserSourcesHelp" : "sourcesHelp")}</p>
             </div>
           </div>
           <p className="text-sm leading-6 text-muted-foreground">
-            {t("desktopHelp")}
+            {t(capture.runtime === "browser" ? "browserHelp" : "desktopHelp")}
           </p>
           {!capture.supported && (
             <p
@@ -534,11 +582,7 @@ function App() {
             <Button variant="ghost" onClick={() => setCreateOpen(false)}>
               {t("cancel")}
             </Button>
-            <Button
-              className="h-auto px-6 py-3"
-              disabled={busy || !capture.supported}
-              onClick={start}
-            >
+            <Button disabled={busy || !capture.supported} onClick={start}>
               {busy ? (
                 <LoaderCircle
                   className="animate-spin motion-reduce:animate-none"

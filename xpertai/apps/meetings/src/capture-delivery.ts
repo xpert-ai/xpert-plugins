@@ -104,6 +104,7 @@ export class CaptureDelivery {
               id: binding.meetingId,
               sessionId: input.captureId,
               title: input.context.title,
+              tracks: input.tracks,
             });
             break;
           case "started":

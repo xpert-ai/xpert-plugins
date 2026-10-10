@@ -5,12 +5,15 @@ import {
 } from "@xpert-ai/contracts";
 import { readFileSync } from "node:fs";
 import { FEATURE, PLUGIN, PROVIDER } from "./domain.js";
+import { meetingsIcon, meetingsScreenshots } from "./branding.js";
 export const TEMPLATE = "meetings-assistant";
 export const templates: XpertTemplateContribution[] = [
   {
     key: TEMPLATE,
     name: "Meetings Assistant",
     title: "会议助手",
+    avatar: { url: meetingsIcon.value },
+    icon: meetingsIcon,
     description: "记录会议，回顾决策与后续事项。",
     category: "Productivity",
     type: XpertTypeEnum.Agent,
@@ -26,14 +29,14 @@ export const templates: XpertTemplateContribution[] = [
     dslContent: readFileSync(
       new URL("./meetings-assistant.yaml", import.meta.url),
       "utf8"
-    ),
+    ).replace("MEETINGS_LOGO_URL", JSON.stringify(meetingsIcon.value)),
     startPrompts: [
       "今天的会议里，我承诺了哪些事情？",
       "帮我准备下一次一对一会议。",
       "查找最近关于项目排期的决定。",
     ],
     releaseNotes:
-      "模板 v3：静音分段提交 Assistant、同一会话持续追问、最终 Markdown 纪要。",
+      "模板 v4：统一 Meetings 品牌头像；保留阶段总结、持续追问与最终 Markdown 纪要。",
     providerKey: "meetings.templates",
     order: 30,
     default: false,
@@ -48,7 +51,8 @@ export const appContribution: PluginMarketplaceContribution = {
     "Private meeting notes in Xpert Desktop.",
     "在 Desktop 记录会议，整理笔记与后续事项。"
   ),
-  icon: { type: "font", value: "ri-calendar-check-line" },
+  icon: meetingsIcon,
+  color: "#f59e0b",
   appConfig: {
     scope: "organization",
     assistantTemplateKey: TEMPLATE,
@@ -66,6 +70,7 @@ export const appContribution: PluginMarketplaceContribution = {
         "专注讨论，留下重点。"
       ),
       developer: "XpertAI",
+      screenshots: meetingsScreenshots,
       features: [
         {
           key: "capture",
