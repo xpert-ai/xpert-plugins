@@ -244,3 +244,205 @@ Xpert's portable interface supports a single `icon` string. The manifests embed
 the PNG bytes as data URLs, because the host passes this value directly to the
 resource catalog without resolving relative package asset paths. Codex's separate
 `composerIcon` and `logo` fields are not added to the Xpert extension.
+
+## Slack package (2026-10-10)
+
+`slack` 1.0.0 is an independently authored package. Upstream `plugins/slack` at
+commit `1dc195897af4161d039b80d8471ec0a10c9bbc89` is version 0.1.7, MIT, and has
+no Skill. Its `.mcp.json` embeds an OpenAI client id. This package does not copy
+that client id, `.app.json`, or a client secret.
+
+| Upstream | This package |
+| --- | --- |
+| `.codex-plugin/plugin.json` | Root `plugin.json`, author Xpert AI |
+| `https://mcp.slack.com/mcp` with `type: "http"` | `mcp.json` key `slack`, `type: "streamable-http"`, same URL |
+| Embedded OAuth client | `extensions.xpertai.connectors.slack.type` is `mcp_oauth` |
+| No Skill | Original `skills/slack-workspace` |
+
+Slack's token endpoint advertises `client_secret_post` only and has no
+registration endpoint. The discovered resource is `https://mcp.slack.com`; the
+MCP URL keeps `/mcp`. Display icon `assets/slack-small.svg` is copied unchanged.
+
+## Google Drive package (2026-10-10)
+
+`google-drive` 1.0.0 is an independently authored package. It is complementary
+to the local document packages. Upstream `plugins/google-drive` at commit
+`1dc195897af4161d039b80d8471ec0a10c9bbc89` is version 0.1.15, MIT. Its
+`.mcp.json` contains placeholder client credentials and broad scopes, and its
+Skills are Codex host scripts. None of that is copied.
+
+This package declares four `streamable-http` servers and four `mcp_oauth`
+connectors:
+
+| Server key | URL |
+| --- | --- |
+| `google-drive` | `https://drivemcp.googleapis.com/mcp/v1` |
+| `google-docs` | `https://docsmcp.googleapis.com/mcp/v1` |
+| `google-sheets` | `https://sheetsmcp.googleapis.com/mcp/v1` |
+| `google-slides` | `https://slidesmcp.googleapis.com/mcp/v1` |
+
+Google does not advertise dynamic client registration. Token auth is
+`client_secret_post` or `client_secret_basic`. Protected-resource metadata
+advertises broad scopes, including full `drive`; administrators should choose
+the narrower product scopes in the Connector form. `mcp.json` cannot pin scopes.
+Display icon `assets/google-drive.svg` is copied unchanged.
+
+## GitHub package (2026-10-10)
+
+`github` 1.0.0 is an independently authored package. Upstream `plugins/github` at
+commit `1dc195897af4161d039b80d8471ec0a10c9bbc89` is version 0.1.11, MIT, and has
+no Skill. Its `.mcp.json` uses `type: "http"` and `bearer_token_env_var`. This
+package does not copy that file, `.app.json`, or any client secret.
+
+| Upstream | This package |
+| --- | --- |
+| `.codex-plugin/plugin.json` | Root `plugin.json`, author Xpert AI |
+| `https://api.githubcopilot.com/mcp/` with `type: "http"` | `mcp.json` key `github`, `type: "streamable-http"`, same URL |
+| PAT environment variable | `extensions.xpertai.connectors.github.type` is `mcp_oauth` |
+| No Skill | Original `skills/github-workspace` |
+
+GitHub does not advertise dynamic client registration. The discovered OAuth
+resource has no trailing slash; the official MCP URL keeps one. A workspace
+administrator must supply their own GitHub OAuth App or GitHub App in the
+Connector form. Display icon `assets/github-small.svg` is copied unchanged;
+see `assets/README.md`.
+
+## Figma package (2026-10-10)
+
+`figma` 1.0.0 is an independently authored package. Upstream `plugins/figma` at
+commit `1dc195897af4161d039b80d8471ec0a10c9bbc89` is version 2.0.20 and declares
+`LicenseRef-Figma-Developer-Terms`. Those skill files, scripts, plugin API
+definitions, and brand assets are not copied. The Developer Terms
+(https://www.figma.com/legal/developer-terms/, effective 2026-05-05) govern that
+material, and the MCP server is Beta.
+
+| Upstream | This package |
+| --- | --- |
+| `.codex-plugin/plugin.json` | Root `plugin.json`, author Xpert AI |
+| `https://mcp.figma.com/mcp` with `type: "http"` and `oauth_resource` | `mcp.json` key `figma`, `type: "streamable-http"`, no `oauth_resource` |
+| Upstream OAuth client material | `extensions.xpertai.connectors.figma.type` is `mcp_oauth` |
+| Figma-hosted skills | Original `skills/figma-workspace` only |
+
+The discovered resource matches the MCP URL. Scope advertised on 2026-10-10 is
+`mcp:connect`. Registration exists, but token auth methods are confidential
+(`client_secret_basic` and `client_secret_post`). Figma's catalog may still
+reject this client. The icon is the public favicon URL, not a bundled asset.
+`extensions.xpertai.interface.description` starts with `Internal only` so the
+Agent Plugins list shows that label. This package is not a Marketplace release.
+
+## monday.com package (2026-10-10)
+
+`monday` 1.0.0 is an independently authored package. The Codex package
+`plugins/monday-com` at commit `1dc195897af4161d039b80d8471ec0a10c9bbc89` is version 2.0.0 and has no Skill.
+Its manifest does not declare a license, so brand files are not copied. Its
+`.mcp.json` uses server key `monday-com`, `type: "http"`, and
+`https://mcp.monday.com/mcp`. This package does not copy `.app.json` or a client secret.
+
+| Upstream | This package |
+| --- | --- |
+| `.codex-plugin/plugin.json` name `monday-com` | Root `plugin.json` name `monday`, author Xpert AI |
+| Server key `monday-com`, `type: "http"` | `mcp.json` key `monday`, `type: "streamable-http"`, same URL |
+| No portable Connector field | `extensions.xpertai.connectors.monday.type` is `mcp_oauth` |
+| No Skill | Original `skills/monday-workspace` |
+
+Protected-resource metadata for `https://mcp.monday.com/mcp` does not advertise
+scopes. Minimum OAuth scope is TBD. The deprecated SSE URL is not used. The
+icon is a public monday.com PNG URL.
+
+## Stripe package (2026-10-10)
+
+`stripe` 1.0.0 is an independently authored package. The Codex package
+`plugins/stripe` at commit `1dc195897af4161d039b80d8471ec0a10c9bbc89` is version 7.0.0 and includes upstream
+skills. Its manifest does not declare a license, so those skills and
+`assets/logo.png` are not copied. Its `.mcp.json` uses `type: "http"` and
+`https://mcp.stripe.com`. This package does not copy `.app.json` or an API key.
+
+| Upstream | This package |
+| --- | --- |
+| `.codex-plugin/plugin.json` | Root `plugin.json`, author Xpert AI |
+| `https://mcp.stripe.com` with `type: "http"` | `mcp.json` key `stripe`, `type: "streamable-http"`, same URL |
+| No portable Connector field | `extensions.xpertai.connectors.stripe.type` is `mcp_oauth` |
+| Upstream skills | Not copied. Original `skills/stripe-workspace` |
+
+Protected-resource metadata advertises scope `mcp`. The authorization server
+advertises dynamic registration and public-client auth method `none`. The icon
+is the public Stripe favicon URL.
+
+## ClickUp package (2026-10-10)
+
+`clickup` 1.0.0 is an independently authored package. The Codex package
+`plugins/clickup` at commit `1dc195897af4161d039b80d8471ec0a10c9bbc89` is version 1.0.3, declares MIT, and has
+no Skill. Its `.mcp.json` uses `type: "http"` and `https://mcp.clickup.com/mcp`.
+This package does not copy `.app.json` or a client secret.
+
+| Upstream | This package |
+| --- | --- |
+| `.codex-plugin/plugin.json` | Root `plugin.json`, author Xpert AI |
+| `https://mcp.clickup.com/mcp` with `type: "http"` | `mcp.json` key `clickup`, `type: "streamable-http"`, same URL |
+| No portable Connector field | `extensions.xpertai.connectors.clickup.type` is `mcp_oauth` |
+| No Skill | Original `skills/clickup-workspace` |
+
+Protected-resource metadata advertises scopes `read` and `write`. The
+authorization server advertises public-client auth method `none` and does not
+list `refresh_token`. Display icon `assets/composer-icon.png` is copied unchanged.
+
+## Global Canva package (2026-10-10)
+
+`canva` 1.0.0 is a new package for `https://mcp.canva.com/mcp`. It does not
+modify, replace, or rename [`canva-cn`](../canva-cn/plugin.json). Canva China
+keeps provider `canva`, resource `https://mcp.canva.cn`, and server key
+`canva-cn`.
+
+The Codex package `plugins/canva` at commit `1dc195897af4161d039b80d8471ec0a10c9bbc89` is version 14.0.0 and
+includes upstream skills. Its manifest does not declare a license, so those
+skills and brand files are not copied. Its `.mcp.json` uses `type: "http"` and
+`https://mcp.canva.com/mcp`. This package does not copy `.app.json` or a client secret.
+
+| Upstream or neighbor | This package |
+| --- | --- |
+| Codex `.mcp.json` `type: "http"` | `mcp.json` key `canva-global`, `type: "streamable-http"`, same global URL |
+| Codex skills | Not copied. Original `skills/canva-workspace` |
+| `canva-cn` existing Connector, provider `canva` | Unchanged. This package uses `extensions.xpertai.connectors["canva-global"].type` = `mcp_oauth` |
+
+Protected-resource metadata for `/mcp` advertises the scope list recorded in
+the package README. The icon is the public Canva favicon URL.
+
+## Asana package (2026-10-10)
+
+`asana` 1.0.0 is an independently authored package. The inspected Codex tree at
+commit `1dc195897af4161d039b80d8471ec0a10c9bbc89` has no `plugins/asana` directory. No OpenAI Skill, `.mcp.json`,
+or `.app.json` is copied.
+
+| Source | This package |
+| --- | --- |
+| Asana V2 endpoint `https://mcp.asana.com/v2/mcp` | `mcp.json` key `asana`, `type: "streamable-http"`, same URL |
+| Deprecated example `https://mcp.asana.com/sse` | Not used |
+| OAuth client owned by the workspace | `extensions.xpertai.connectors.asana.type` is `mcp_oauth`; no client id or secret |
+| Asana tools reference | Original `skills/asana-workspace`; live schemas win |
+
+The v2 protected-resource document advertises scope `default` and authorization
+server `https://app.asana.com`. That server does not advertise dynamic client
+registration. A different origin document names resource `https://mcp.asana.com`
+and is not substituted. The icon is a public Asana favicon URL.
+
+## Atlassian package (2026-10-10)
+
+`atlassian` 1.0.0 is an independently authored package. The Codex package
+`plugins/atlassian-rovo` at commit `1dc195897af4161d039b80d8471ec0a10c9bbc89` is version 1.0.6, declares MIT,
+and has no Skill. Its `.mcp.json` uses `type: "http"` and
+`https://mcp.atlassian.com/v1/mcp/authv2`. This package does not copy `.app.json`
+or a client secret.
+
+| Upstream | This package |
+| --- | --- |
+| `.codex-plugin/plugin.json` | Root `plugin.json`, author Xpert AI, display name Atlassian |
+| `https://mcp.atlassian.com/v1/mcp/authv2` with `type: "http"` | `mcp.json` key `atlassian`, `type: "streamable-http"`, URL `https://mcp.atlassian.com/v2/mcp` |
+| No portable Connector field | `extensions.xpertai.connectors.atlassian.type` is `mcp_oauth` |
+| No Skill | Original `skills/atlassian-workspace` |
+
+Protected-resource metadata for `https://mcp.atlassian.com/v2/mcp` was published on
+2026-10-10 at `https://mcp.atlassian.com/.well-known/oauth-protected-resource/v2/mcp`.
+Minimum OAuth scope is that document's full `scopes_supported` list. The document
+does not name a smaller subset. The authv2 URL and the v1 MCP URL publish different
+resources and are not used. Display icon `assets/app-icon.png` is copied unchanged
+from the MIT composer icon.
