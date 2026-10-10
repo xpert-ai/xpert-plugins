@@ -5,6 +5,8 @@ description: Search, read and make requested updates to the user's connected Not
 
 # Notion workspace
 
+Use this skill for general search, read, and requested writes. Specialized workflows live in `notion-knowledge-capture`, `notion-meeting-intelligence`, `notion-research-documentation`, and `notion-spec-to-implementation`.
+
 Use the Notion tools enabled in this conversation and their live input schemas.
 Do not assume Codex-specific tool names or that all Notion tools are available.
 

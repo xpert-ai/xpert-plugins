@@ -290,6 +290,32 @@ test("explicit replacement creates a new binding without mutating the pinned old
   assert.deepEqual(previous, before);
 });
 
+test("notion 1.2.0 keeps Connector OAuth and ports four skills without OpenAI aliases", async () => {
+  const plugin = (await loadQuickstartPlugins()).find((item) => item.id === "notion");
+  assert.ok(plugin);
+  assert.equal(plugin.version, "1.2.0");
+  assert.deepEqual(plugin.connectorServers, { notion: { type: "mcp_oauth" } });
+  const root = new URL("../notion/", import.meta.url);
+  const manifest = JSON.parse(await readFile(new URL("plugin.json", root), "utf8"));
+  const mcp = JSON.parse(await readFile(new URL("mcp.json", root), "utf8"));
+  assert.equal(mcp.mcpServers.notion.type, "streamable-http");
+  assert.equal(mcp.mcpServers.notion.url, "https://mcp.notion.com/mcp");
+  assert.doesNotMatch(JSON.stringify({ mcp, manifest }), /client_secret|oauth_resource|11843774967/);
+  assert.match(await readFile(new URL("README.md", root), "utf8"), /可用性测试说明/);
+  for (const name of [
+    "notion-knowledge-capture",
+    "notion-meeting-intelligence",
+    "notion-research-documentation",
+    "notion-spec-to-implementation",
+    "notion-workspace",
+  ]) {
+    const skill = await readFile(new URL(`skills/${name}/SKILL.md`, root), "utf8");
+    assert.match(skill, new RegExp(`name: ${name}`));
+    assert.doesNotMatch(skill, /Notion:|bundled Notion app|client_secret|11843774967/);
+  }
+  assert.ok((await packQuickstartPlugin(plugin)).length > 0);
+});
+
 test("document presets require explicit presentation with the paths-only host tool", async () => {
   for (const id of ["documents", "pdf", "presentations", "spreadsheets"]) {
     const root = new URL(`../${id}/`, import.meta.url);
