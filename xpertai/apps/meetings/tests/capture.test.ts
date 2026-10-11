@@ -206,11 +206,27 @@ test("startup failure with zero chunks settles without claiming a running record
   const meeting = await f.meetings.get(scope, f.meetingId);
   assert.equal(meeting.capture, "interrupted");
   assert.equal(meeting.processing, "failed");
+  assert.equal(meeting.errorCode, "audio_permission_denied");
   await assert.rejects(
     f.delivery.event(scope, f.started),
     /capture_event_order/
   );
 });
+
+for (const errorCode of ["audio_start_timeout", "audio_input_timeout", "system_audio_permission_denied"]) {
+  test(`capture settlement preserves ${errorCode} across retries`, async (t) => {
+    const f = await fixture(t);
+    await f.delivery.event(scope, f.created);
+    const stopped = { ...f.stopped, durationMs: 0, chunks: { microphone: 0, system: 0 }, reason: "device_lost" as const, errorCode };
+    await f.delivery.event(scope, stopped);
+    assert.equal((await f.delivery.event(scope, stopped)).reused, true);
+    const saved = await f.store.read(scope, f.meetingId);
+    assert.equal(saved.capture, "interrupted");
+    assert.equal(saved.processing, "failed");
+    assert.equal(saved.errorCode, errorCode);
+    assert.equal(f.queued.length, 0);
+  });
+}
 
 test("acknowledged retries cannot resurrect a deleted meeting or permit a new capture binding", async (t) => {
   const f = await fixture(t);

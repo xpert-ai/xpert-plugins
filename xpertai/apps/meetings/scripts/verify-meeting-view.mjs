@@ -261,9 +261,11 @@ try {
     summaryMarkdown: "最终纪要正文已保存",
   });
   preview.state.records[0].assistant.operations[0].status = "ready";
+  await frame.getByRole("button", { name: "会议信息", exact: true }).click();
   await frame
     .getByText("最终纪要已保存", { exact: true })
     .waitFor({ timeout: 9000 });
+  await frame.locator('[data-slot="popover-content"]').press("Escape");
   await frame.getByRole("tab", { name: "会议摘要", exact: true }).click();
   await frame.getByText("最终纪要正文已保存", { exact: true }).waitFor();
   const summaryTab = frame.getByRole("tab", { name: "会议摘要", exact: true });

@@ -9,9 +9,10 @@ team:
   options:
     templateKey: meetings-assistant
   agentConfig:
-    recursionLimit: 24
+    # Middleware graph steps count too; a four-tool summary can exceed 24 steps.
+    recursionLimit: 64
   workspaceDataScope: user
-  version: "4"
+  version: "5"
   agent:
     key: Agent_Meetings
   knowledgebases: []

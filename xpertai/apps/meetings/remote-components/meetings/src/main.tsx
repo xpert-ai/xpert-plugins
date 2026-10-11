@@ -16,8 +16,8 @@ import {
   Search,
   Mic,
   Monitor,
-  FileText,
   CalendarDays,
+  RefreshCw,
   LoaderCircle,
   CircleAlert,
   X,
@@ -32,10 +32,10 @@ import {
   captureSchema,
   idle,
   time,
-  Status,
   type Capture,
 } from "./ui-common";
 import { Detail } from "./detail";
+import { MeetingList, MeetingPagination } from "./meeting-list";
 import { captureStartPayload } from "../../../src/capture-contract";
 
 import { captureCommand, captureStatus, resetCaptureRuntime } from "./capture";
@@ -44,11 +44,13 @@ function App() {
   const [host, setHost] = useState<Host | null>(null),
     [capture, setCapture] = useState<Capture>(idle);
   const [items, setItems] = useState<z.infer<typeof itemSchema>[]>([]),
-    [total, setTotal] = useState(0);
+    [total, setTotal] = useState(0),
+    [listLoaded, setListLoaded] = useState(false);
   const [selected, setSelected] = useState<string>(),
     [meeting, setMeeting] = useState<MeetingDto>();
   const [search, setSearch] = useState(""),
     [page, setPage] = useState(1),
+    [pageSize, setPageSize] = useState(20),
     [loading, setLoading] = useState(true);
   const [queryError, setQueryError] = useState<string>();
   const [error, setError] = useState<string>(),
@@ -62,6 +64,7 @@ function App() {
   const queryGeneration = useRef(0),
     hostScope = useRef(""),
     hostSelection = useRef<string | undefined>(),
+    hostListQuery = useRef(""),
     captureUnavailableScope = useRef("");
   const t = translator(host?.locale);
   const viewTitle = t("viewTitle");
@@ -78,11 +81,25 @@ function App() {
           hostScope.current = scope;
           queryGeneration.current++;
           setMeeting(undefined);
+          setItems([]);
+          setTotal(0);
+          setListLoaded(false);
+          setLoading(true);
           captureMeetings.current.clear();
           captureUnavailableScope.current = "";
           setCapture(idle);
           setError(undefined);
           setQueryError(undefined);
+        }
+        const parameters = context.initialQuery?.parameters;
+        const list = { listPage: parameters?.listPage ?? 1, listPageSize: parameters?.listPageSize ?? 20, listSearch: parameters?.listSearch ?? "" };
+        const listKey = JSON.stringify(list);
+        if (changedScope || hostListQuery.current !== listKey) {
+          hostListQuery.current = listKey;
+          queryGeneration.current++;
+          setPage(list.listPage);
+          setPageSize(list.listPageSize);
+          setSearch(list.listSearch);
         }
         setHost(context);
         const selection = context.initialQuery?.selectionId;
@@ -105,6 +122,7 @@ function App() {
         selected,
         search,
         page,
+        pageSize,
         generation,
       ]);
       if (refreshFlight.current?.key === key) {
@@ -119,7 +137,7 @@ function App() {
           const response = await data(
             selected
               ? { selectionId: selected }
-              : { search, page, pageSize: 20 }
+              : { search, page, pageSize }
           );
           if (generation !== queryGeneration.current) return;
           setQueryError(undefined);
@@ -130,8 +148,15 @@ function App() {
             );
           else {
             const result = listSchema.parse(response);
+            const lastPage = Math.max(1, Math.ceil(result.total / (result.pageSize ?? pageSize)));
+            if (page > lastPage) {
+              queryGeneration.current++;
+              setPage(lastPage);
+              return;
+            }
             setItems(result.items);
             setTotal(result.total);
+            setListLoaded(true);
           }
         } catch (e) {
           if (generation === queryGeneration.current)
@@ -155,6 +180,7 @@ function App() {
       selected,
       search,
       page,
+      pageSize,
     ]
   );
   useEffect(() => {
@@ -245,18 +271,34 @@ function App() {
       (!["queued", "transcribing", "summarizing"].includes(
         meeting.processing
       ) &&
-        meeting.capture !== "recording" &&
+        !["created", "recording"].includes(meeting.capture) &&
         !assistantPending)
     )
       return;
     const timer = setInterval(() => void refresh(true), 1500);
     return () => clearInterval(timer);
   }, [meeting?.processing, meeting?.capture, assistantPending, refresh]);
+  const listParameters = { listPage: page, listPageSize: pageSize, listSearch: search };
+  useEffect(() => {
+    if (!host || selected) return;
+    const parameters = { listPage: page, listPageSize: pageSize, listSearch: search };
+    const key = JSON.stringify(parameters);
+    if (key === hostListQuery.current) return;
+    const timer = setTimeout(() => {
+      hostListQuery.current = key;
+      void command("workbench.navigation.open", {
+        target: "workbench.view", viewKey: host.manifest.key, parameters,
+      }).catch(e => setError(errorText(e, t)));
+    }, 180);
+    return () => clearTimeout(timer);
+  }, [host?.instanceId, host?.scopeRevision, selected, page, pageSize, search]);
   const navigate = (id?: string) => {
     queryGeneration.current++;
     if (id !== capture.meetingId) setFollowMeeting(undefined);
     setError(undefined);
     setQueryError(undefined);
+    hostSelection.current = id;
+    hostListQuery.current = JSON.stringify(listParameters);
     setSelected(id);
     setMeeting(undefined);
     // Host query owns selection across tab activation; the page never stores account data in browser storage.
@@ -265,7 +307,8 @@ function App() {
         target: "workbench.view",
         viewKey: host.manifest.key,
         ...(id ? { selectionId: id } : {}),
-      }).catch(() => {});
+        parameters: listParameters,
+      }).catch(e => setError(errorText(e, t)));
   };
   const perform = async (fn: () => Promise<void>) => {
     if (busy) return;
@@ -303,19 +346,22 @@ function App() {
       }
     });
   return (
-    <main className="flex min-h-screen flex-col bg-background font-sans text-base text-foreground">
+    <main className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background font-sans text-base text-foreground">
       {!selected && (
-        <header className="flex flex-wrap items-center justify-between gap-4 px-6 py-7 [&_h1]:flex [&_h1]:items-center [&_h1]:gap-3 [&_h1]:text-3xl [&_h1]:font-semibold [&_p]:mt-2 [&_p]:text-sm [&_p]:text-muted-foreground">
+        <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-6 [&_h1]:flex [&_h1]:items-center [&_h1]:gap-2 [&_h1]:text-xl [&_h1]:font-semibold">
           <div>
             <h1>
               {host?.manifest.icon?.type === "image" && host.manifest.icon.value ? (
-                <img src={host.manifest.icon.value} alt="" className="size-9 shrink-0 rounded-lg object-contain" />
-              ) : <CalendarDays className="size-9" />}
+                <img src={host.manifest.icon.value} alt="" className="size-7 shrink-0 rounded-lg object-contain" />
+              ) : <CalendarDays className="size-7" />}
               {viewTitle}
             </h1>
-            {!selected && <p>{t("subtitle")}</p>}
           </div>
-          {!selected && (
+          <div className="flex items-center gap-2">
+            <Button size="icon-sm" variant="ghost" aria-label={t("refresh")} disabled={loading}
+              onClick={() => void refresh(false, true)}>
+              <RefreshCw size={16} className={loading ? "animate-spin motion-reduce:animate-none" : undefined} />
+            </Button>
             <Button
               onClick={() => setCreateOpen(true)}
               disabled={
@@ -327,7 +373,7 @@ function App() {
               <Mic size={16} />
               {t("newMeeting")}
             </Button>
-          )}
+          </div>
         </header>
       )}
       {(error || queryError) && !createOpen && (
@@ -365,7 +411,8 @@ function App() {
         </div>
       )}
       {!selected && (
-        <div className="flex-1 px-6 pb-6">
+        <div className="flex min-h-0 flex-1 flex-col">
+        <div className="shrink-0 px-4 pt-3 sm:px-6">
           {capture.captureId && capture.status !== "idle" && (
             <Button
               variant="outline"
@@ -392,28 +439,30 @@ function App() {
               <ArrowRight size={16} />
             </Button>
           )}
-          <div className="relative mb-5 [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-1/2 [&>svg]:-translate-y-1/2 [&>svg]:z-10 [&>svg]:text-muted-foreground [&_input]:pl-11 [&_input]:bg-muted/40">
+          <div className="relative mb-3 [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-1/2 [&>svg]:-translate-y-1/2 [&>svg]:z-10 [&>svg]:text-muted-foreground [&_input]:pl-11 [&_input]:bg-muted/40">
             <Search size={17} />
             <Input
               aria-label={t("search")}
               placeholder={t("search")}
               value={search}
+              maxLength={200}
               onChange={(event) => {
+                queryGeneration.current++;
                 setSearch(event.target.value);
                 setPage(1);
               }}
             />
           </div>
-          <p className="mb-8 flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="size-1.5 rounded-full bg-muted-foreground/40" />
-            {t("private")}
-          </p>
-          {loading ? (
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 sm:px-6" aria-busy={loading}>
+          {!listLoaded ? (
             <div className="flex min-h-64 flex-col items-center justify-center gap-4 p-6 text-center text-muted-foreground [&_h3]:text-lg [&_h3]:font-medium [&_h3]:text-foreground [&_p]:text-sm">
               <LoaderCircle className="animate-spin motion-reduce:animate-none" />
               <p>{t("loading")}</p>
             </div>
-          ) : items.length === 0 ? (
+          ) : <>
+            <MeetingList key={hostScope.current} items={items} locale={host?.locale} capture={capture} t={t} onSelect={navigate} />
+            {items.length === 0 && (
             <div className="flex min-h-64 flex-col items-center justify-center gap-4 p-6 text-center text-muted-foreground [&_h3]:text-lg [&_h3]:font-medium [&_h3]:text-foreground [&_p]:text-sm">
               <span className="rounded-2xl bg-primary/10 p-5 text-primary">
                 <Mic size={28} />
@@ -429,80 +478,12 @@ function App() {
                 </>
               )}
             </div>
-          ) : (
-            <div className="divide-y divide-border">
-              {items.map((item, index) => (
-                <React.Fragment key={item.id}>
-                  {(index === 0 ||
-                    new Date(items[index - 1].createdAt).toDateString() !==
-                      new Date(item.createdAt).toDateString()) && (
-                    <h2 className="border-0 pt-7 pb-3 text-lg font-semibold first:pt-0">
-                      {new Intl.DateTimeFormat(host?.locale ?? "zh-Hans", {
-                        month: "long",
-                        day: "numeric",
-                        weekday: "long",
-                      }).format(new Date(item.createdAt))}
-                    </h2>
-                  )}
-                  <Button
-                    variant="ghost"
-                    className="meeting-row flex w-full items-center gap-4 rounded-lg px-2 py-5 text-left transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
-                    key={item.id}
-                    onClick={() => navigate(item.id)}
-                  >
-                    <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-muted">
-                      <FileText size={21} />
-                    </span>
-                    <span className="min-w-0 flex-1 [&_strong]:block [&_strong]:truncate [&_strong]:text-base [&_strong]:font-semibold">
-                      <strong>{item.title}</strong>
-                      {item.preview && (
-                        <span className="mt-1 block truncate text-sm text-muted-foreground">
-                          {item.preview}
-                        </span>
-                      )}
-                    </span>
-                    <span className="hidden whitespace-nowrap text-xs text-muted-foreground lg:block">
-                      {new Intl.DateTimeFormat(host?.locale ?? "zh-Hans", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      }).format(new Date(item.createdAt))}{" "}
-                      · {Math.round(item.durationMs / 60000)} {t("minutes")}
-                    </span>
-                    <Status meeting={item} capture={capture} t={t} />
-                    <ArrowRight
-                      size={15}
-                      className="hidden shrink-0 text-muted-foreground sm:block"
-                    />
-                  </Button>
-                </React.Fragment>
-              ))}
-            </div>
-          )}
-          {total > 20 && (
-            <div className="mt-6 flex items-center justify-center gap-4 text-sm">
-              <Button
-                variant="ghost"
-                disabled={page === 1}
-                onClick={() => setPage(page - 1)}
-              >
-                {t("previous")}
-              </Button>
-              <span>
-                {page} / {Math.ceil(total / 20)}
-              </span>
-              <Button
-                variant="ghost"
-                disabled={page * 20 >= total}
-                onClick={() => setPage(page + 1)}
-              >
-                {t("next")}
-              </Button>
-            </div>
-          )}
-          <footer className="mt-10 flex items-center justify-center gap-2 text-xs text-muted-foreground">
-            <span className="size-1.5 rounded-full bg-muted-foreground/40" />
-            {t("private")}
-          </footer>
+            )}
+          </>}
+        </div>
+        <MeetingPagination page={page} pageSize={pageSize} total={total} loading={loading} t={t}
+          onPage={(next) => { queryGeneration.current++; setPage(next); }}
+          onPageSize={(size) => { queryGeneration.current++; setPageSize(size); setPage(1); }} />
         </div>
       )}
       {selected &&

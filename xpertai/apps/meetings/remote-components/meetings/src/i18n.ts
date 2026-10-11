@@ -39,7 +39,11 @@ const en = {
   audio_expired:
     "The recording retention period has expired. Your notes and transcript checkpoints remain available.",
   speech_to_text_model_missing:
-    "Configure a speech-to-text model on this Assistant before recording.",
+    "No speech-to-text model is configured. Ask an administrator to configure one for Meetings or this Assistant, then retry processing. Saved audio and notes are preserved.",
+  speech_to_text_copilot_not_found:
+    "The configured speech-to-text model is unavailable. Ask an administrator to check the model configuration, then retry processing.",
+  speech_to_text_transcription_empty:
+    "The speech-to-text model returned no text. Check the recording and model configuration, then retry processing.",
   minutes: "min",
   openAssistant: "Open meeting conversation",
   assistantWorking: "Assistant is summarizing",
@@ -59,7 +63,15 @@ const en = {
   workspaceFolder: "Assistant workspace folder",
   workspaceFailed:
     "Workspace files need synchronization. Meeting content is retained.",
-  workspaceRetry: "Sync files",
+  meetingInfo: "Meeting information",
+  moreActions: "More actions",
+  workspaceSynced: "Workspace files are up to date",
+  workspaceSyncHelp: "Minutes, notes and transcripts sync automatically to the Assistant workspace. Resync if files are missing or out of date.",
+  workspaceRetry: "Resync files",
+  pagination: "Meeting pages",
+  pageSize: "Per page",
+  totalMeetings: "{total} meetings",
+  pageNumber: "Page {page} of {pages}",
   workspace_file_conflict:
     "A workspace file was edited separately. Preserve or move that version before synchronizing again.",
   workspace_sync_failed:
@@ -90,6 +102,7 @@ const en = {
   cancelled: "Recording setup was cancelled.",
   capture_busy: "Finish the current recording and pending uploads before starting another.",
   scope_changed: "Recording stopped because the account or organization changed. Return to the original scope to upload remaining audio.",
+  context_changed: "The conversation context is updating. Please retry shortly.",
   desktopHelp: "Recording requires Xpert Desktop on macOS 15 or later.",
   recording: "Recording",
   starting: "Preparing audio",
@@ -188,6 +201,8 @@ const en = {
   processing_failed:
     "Processing failed. Your notes and transcript checkpoints are preserved.",
   device_lost: "An audio device disconnected. The captured portion is saved.",
+  audio_start_timeout: "Audio devices took too long to start. Check your audio devices and try a new recording.",
+  audio_input_timeout: "Audio input stopped arriving. Check your microphone and system audio, then start a new recording. Saved audio and notes are preserved.",
   disk_error:
     "The recording could not be saved locally. Recording has stopped.",
   voice_active: "End the voice call before starting a meeting recording.",
@@ -245,7 +260,9 @@ const zh: Record<keyof typeof en, string> = {
   secure_storage_unavailable: "安全存储不可用，请解锁钥匙串后重试。",
   cache_corrupt: "无法读取本地录音缓存，请保留文件并联系支持。",
   audio_expired: "录音已超过保留期限，笔记和已完成的转写仍可查看。",
-  speech_to_text_model_missing: "录音前，请为此助手配置语音转写模型。",
+  speech_to_text_model_missing: "尚未配置语音转写模型。请管理员为 Meetings 或此助手配置模型后重试处理，已保存的音频和笔记会保留。",
+  speech_to_text_copilot_not_found: "配置的语音转写模型不可用，请管理员检查模型配置后重试处理。",
+  speech_to_text_transcription_empty: "语音转写模型未返回文字，请检查录音和模型配置后重试处理。",
   minutes: "分钟",
   openAssistant: "打开会议对话",
   assistantWorking: "助手正在总结",
@@ -263,7 +280,15 @@ const zh: Record<keyof typeof en, string> = {
   private: "会议文件按助手工作区权限访问",
   workspaceFolder: "助手工作区目录",
   workspaceFailed: "工作区文件待同步，会议内容已保留。",
-  workspaceRetry: "同步文件",
+  meetingInfo: "会议信息",
+  moreActions: "更多操作",
+  workspaceSynced: "工作区文件已同步",
+  workspaceSyncHelp: "纪要、笔记和转写会自动同步到助手工作区，供助手读取。文件缺失或未更新时，可手动重新同步。",
+  workspaceRetry: "重新同步文件",
+  pagination: "会议列表分页",
+  pageSize: "每页条数",
+  totalMeetings: "共 {total} 条",
+  pageNumber: "第 {page} / {pages} 页",
   workspace_file_conflict:
     "工作区文件已被单独修改，请先另存或移走该版本，再重新同步。",
   workspace_sync_failed: "工作区文件同步失败，会议内容已保留，请重试。",
@@ -291,6 +316,7 @@ const zh: Record<keyof typeof en, string> = {
   cancelled: "已取消录音准备。",
   capture_busy: "请先结束当前录音并完成待上传片段，再开始新录音。",
   scope_changed: "账号或组织已切换，录音已停止。请回到原范围上传剩余音频。",
+  context_changed: "对话上下文正在更新，请稍后重试。",
   desktopHelp: "录音需要 macOS 15 或更高版本的 Xpert Desktop。",
   recording: "正在录音",
   starting: "正在准备音频",
@@ -374,6 +400,8 @@ const zh: Record<keyof typeof en, string> = {
   summary_model_missing: "请为会议助手配置主模型并发布。",
   processing_failed: "处理失败，笔记和已完成的转写仍保留，可以重试。",
   device_lost: "音频设备已断开，已录制部分会保存。",
+  audio_start_timeout: "音频设备启动超时，请检查音频设备后重新开始录音。",
+  audio_input_timeout: "未能持续收到音频，请检查麦克风和系统音频后重新开始录音。已保存的音频和笔记会保留。",
   disk_error: "无法在本地保存录音，录音已停止。",
   voice_active: "请先结束语音通话，再开始会议录音。",
   recording_active: "已有一场会议正在录音，请先结束该录音。",

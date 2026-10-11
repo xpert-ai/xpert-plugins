@@ -210,6 +210,7 @@ export const finishSchema = z
     meetingId: idSchema,
     sessionId: idSchema,
     durationMs: z.number().min(0).max(14400000),
+    errorCode: z.string().max(120).nullable().optional(),
     reason: z.enum([
       "user",
       "sleep",

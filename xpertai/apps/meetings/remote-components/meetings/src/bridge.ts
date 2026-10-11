@@ -3,17 +3,33 @@ import { applyTheme } from "./theme";
 import { captureCommands } from "../../../src/capture-contract";
 
 const channel = "xpertai.remote_component";
+const runtimeScopeSchema = z.object({
+  projectId: z.string().nullable(),
+  conversationId: z.string().nullable(),
+});
+const contextEventSchema = z.object({
+  type: z.literal("view.context.changed"),
+  data: z.object({ revision: z.number().int().nonnegative(), runtimeScope: runtimeScopeSchema }),
+});
 const initSchema = z
   .object({
     instanceId: z.string(),
     scopeRevision: z.number().optional(),
+    runtimeScope: runtimeScopeSchema.optional(),
     locale: z.string().optional(),
     manifest: z.object({
       key: z.string(),
       icon: z.object({ type: z.string(), value: z.string().optional() }).passthrough().optional(),
     }).passthrough(),
     initialQuery: z
-      .object({ selectionId: z.string().optional() })
+      .object({
+        selectionId: z.string().optional(),
+        parameters: z.object({
+          listPage: z.number().int().positive().catch(1),
+          listPageSize: z.union([z.literal(10), z.literal(20), z.literal(50)]).catch(20),
+          listSearch: z.string().max(200).catch(""),
+        }).passthrough().optional(),
+      })
       .passthrough()
       .optional(),
     theme: z
@@ -38,6 +54,13 @@ const pending = new Map<
     responseType: string;
   }
 >();
+function rejectPending(code: string) {
+  for (const item of pending.values()) {
+    clearTimeout(item.timer);
+    item.reject(new Error(code));
+  }
+  pending.clear();
+}
 export function connect(onInit: (host: Host) => void) {
   const handler = (event: MessageEvent<unknown>) => {
     if (event.source !== window.parent) return;
@@ -53,6 +76,7 @@ export function connect(onInit: (host: Host) => void) {
         result: z.unknown(),
         message: z.string().optional(),
         code: z.string().optional(),
+        event: z.unknown(),
       })
       .passthrough()
       .safeParse(event.data);
@@ -66,16 +90,23 @@ export function connect(onInit: (host: Host) => void) {
         (host.instanceId !== init.data.instanceId ||
           host.scopeRevision !== init.data.scopeRevision)
       ) {
-        for (const item of pending.values()) {
-          clearTimeout(item.timer);
-          item.reject(new Error("scope_changed"));
-        }
-        pending.clear();
+        rejectPending("context_changed");
       }
       host = init.data;
       applyTheme(host);
       onInit(host);
       post("resize", { height: window.innerHeight, viewportBound: true });
+      return;
+    }
+    // Retained Views receive a context event instead of another init when the
+    // host opens a conversation. Adopt its revision before sending more requests.
+    if (message.type === "hostEvent" && host && message.instanceId === host.instanceId) {
+      const context = contextEventSchema.safeParse(message.event);
+      if (context.success && context.data.data.revision > (host.scopeRevision ?? -1)) {
+        rejectPending("context_changed");
+        host = { ...host, scopeRevision: context.data.data.revision, runtimeScope: context.data.data.runtimeScope };
+        onInit(host);
+      }
       return;
     }
     if (
@@ -95,9 +126,7 @@ export function connect(onInit: (host: Host) => void) {
     if (message.type === "error")
       item.reject(
         new Error(
-          message.code === "context_changed"
-            ? "scope_changed"
-            : message.code ?? "request_failed"
+          message.code ?? "request_failed"
         )
       );
     else item.resolve(message.data ?? message.result);

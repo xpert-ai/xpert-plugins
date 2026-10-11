@@ -18,30 +18,26 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
 } from "@xpert-ai/plugin-shadcn-ui";
 import {
-  ArrowLeft,
   Mic,
   Monitor,
   Square,
-  Download,
-  Trash2,
-  CalendarDays,
-  Clock3,
   LoaderCircle,
-  Pencil,
   Radio,
   Search,
   FileText,
-  MessagesSquare,
 } from "lucide-react";
 import type { MeetingDto } from "../../../src/domain";
 import { action, command } from "./bridge";
 import { errorText } from "./i18n";
-import { time, date, Status, type Capture, type T } from "./ui-common";
+import { time, type Capture, type T } from "./ui-common";
 import { DocumentEditor } from "./document-editor";
 import type { DocumentHandle } from "./use-document";
 import { Waveform } from "./waveform";
+import { MeetingHeader } from "./meeting-header";
 
 export function Detail({
   meeting,
@@ -75,8 +71,7 @@ export function Detail({
   );
   const [deleteOpen, setDeleteOpen] = useState(false),
     [renameOpen, setRenameOpen] = useState(false);
-  const [name, setName] = useState(meeting.title),
-    [includeTranscript, setIncludeTranscript] = useState(false);
+  const [name, setName] = useState(meeting.title);
   const [search, setSearch] = useState(""),
     [limit, setLimit] = useState(40),
     [follow, setFollow] = useState(true);
@@ -120,15 +115,9 @@ export function Detail({
     if (!autoOpenAssistant || !meeting.assistant.threadId) return;
     assistantOpened();
     void openAssistant().catch((e) => {
-      if (!(e instanceof Error && e.message === "scope_changed")) setError(errorText(e, t));
+      if (!(e instanceof Error && e.message === "context_changed")) setError(errorText(e, t));
     });
   }, [autoOpenAssistant, meeting.assistant.threadId]);
-  const phaseCount = meeting.assistant.operations.filter(
-    (o) => o.kind === "phase" && o.status === "ready"
-  ).length;
-  const assistantWorking = meeting.assistant.operations.some(
-    (o) => o.status === "queued" || o.status === "running"
-  );
   const segments = meeting.transcript.filter(
     (segment) =>
       segment.text &&
@@ -137,143 +126,31 @@ export function Detail({
   const live = meeting.transcript.filter((segment) => segment.text).slice(-8);
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-5">
-        <Button
-          variant="ghost"
-          onClick={() =>
-            void perform(async () => {
-              if (await flush()) onDeleted();
-            })
-          }
-        >
-          <ArrowLeft size={16} />
-          {t("library")}
-        </Button>
-        {meeting.processing === "ready" && (
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Checkbox
-                checked={includeTranscript}
-                onCheckedChange={(checked) =>
-                  setIncludeTranscript(checked === true)
-                }
-              />
-              {t("includeTranscript")}
-            </label>
-            <Button
-              disabled={busy}
-              onClick={() =>
-                void perform(async () => {
-                  if (!(await flush())) return;
-                  const exported = z
-                    .object({
-                      fileName: z.string(),
-                      content: z.string(),
-                      mimeType: z.string(),
-                    })
-                    .parse(
-                      await action("export", {
-                        meetingId: meeting.id,
-                        includeTranscript,
-                      })
-                    );
-                  const url = URL.createObjectURL(
-                      new Blob([exported.content], { type: exported.mimeType })
-                    ),
-                    link = document.createElement("a");
-                  link.href = url;
-                  link.download = exported.fileName;
-                  link.click();
-                  setTimeout(() => URL.revokeObjectURL(url), 1000);
-                })
-              }
-            >
-              <Download size={15} />
-              {t("export")}
-            </Button>
-          </div>
-        )}
-      </div>
-      <div
-        className="mx-6 mb-5 flex flex-wrap items-center gap-3 border-b border-border pb-4 text-sm"
-        role="status"
-      >
-        <div className="min-w-0 flex-1">
-          <p className="text-muted-foreground">{t("workspaceFolder")}</p>
-          <p className="mt-1 break-all font-mono text-xs">
-            {meeting.workspace?.folder ?? "meetings/"}
-          </p>
-          {meeting.workspace?.status !== "ready" && (
-            <p
-              className={`mt-2 ${
-                meeting.workspace?.status === "failed"
-                  ? "text-destructive"
-                  : "text-muted-foreground"
-              }`}
-            >
-              {meeting.workspace?.errorCode
-                ? errorText(new Error(meeting.workspace?.errorCode), t)
-                : t(
-                    meeting.workspace?.status === "failed"
-                      ? "workspaceFailed"
-                      : "workspacePending"
-                  )}
-            </p>
-          )}
-        </div>
-        <Button
-          variant="outline"
-          disabled={busy}
-          onClick={() =>
-            void perform(async () => {
-              if (!(await flush())) return;
-              await action("workspace.sync", { meetingId: meeting.id });
-              await refresh();
-            })
-          }
-        >
-          {t("workspaceRetry")}
-        </Button>
-      </div>
-      {meeting.assistant.conversationId && (
-        <section
-          className="mx-6 mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-muted/30 px-5 py-4"
-          aria-live="polite"
-        >
-          {assistantWorking ? (
-            <LoaderCircle
-              size={17}
-              className="animate-spin motion-reduce:animate-none text-primary"
-            />
-          ) : (
-            <MessagesSquare size={17} className="text-primary" />
-          )}
-          <div className="mr-auto text-sm">
-            <p>
-              {assistantWorking
-                ? t("assistantWorking")
-                : meeting.processing === "ready"
-                ? t("summaryComplete")
-                : `${t("phaseComplete")} · ${phaseCount}`}
-            </p>
-            {meeting.assistant.operations.some(
-              (o) => o.kind === "phase" && o.status === "failed"
-            ) && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                {t("assistantFailed")}
-              </p>
-            )}
-          </div>
-          <Button
-            variant="outline"
-            disabled={busy || !meeting.assistant.threadId}
-            onClick={() => void perform(openAssistant)}
-          >
-            <MessagesSquare size={16} />
-            {t("openAssistant")}
-          </Button>
-        </section>
-      )}
+      <MeetingHeader
+        meeting={meeting} capture={capture} t={t} locale={locale} busy={busy}
+        elapsedMs={active || localPending ? capture.elapsedMs : meeting.durationMs}
+        canDelete={!active && !localPending}
+        onBack={() => void perform(async () => { if (await flush()) onDeleted(); })}
+        onRename={() => { setName(meeting.title); setRenameOpen(true); }}
+        onDelete={() => setDeleteOpen(true)}
+        onOpenAssistant={() => void perform(openAssistant)}
+        onSync={() => void perform(async () => {
+          if (!(await flush())) return;
+          await action("workspace.sync", { meetingId: meeting.id });
+          await refresh();
+        })}
+        onExport={(includeTranscript) => void perform(async () => {
+          if (!(await flush())) return;
+          const exported = z.object({ fileName: z.string(), content: z.string(), mimeType: z.string() })
+            .parse(await action("export", { meetingId: meeting.id, includeTranscript }));
+          const url = URL.createObjectURL(new Blob([exported.content], { type: exported.mimeType }));
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = exported.fileName;
+          link.click();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        })}
+      />
       {active && (
         <section className="mx-6 mb-6 space-y-5 rounded-2xl border border-primary/15 bg-primary/5 p-5 sm:p-6">
           <div className="flex flex-wrap items-center gap-4">
@@ -331,42 +208,26 @@ export function Detail({
           </p>
         </section>
       )}
-      <h1 className="mx-6 mb-3 break-words text-2xl font-semibold tracking-tight">
-        {meeting.title}
-      </h1>
-      <div className="mx-6 mb-6 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-        <span className="flex items-center gap-2">
-          <CalendarDays size={14} />
-          {date(meeting.createdAt, locale)}
-        </span>
-        <span className="flex items-center gap-2">
-          <Clock3 size={14} />
-          {time(active || localPending ? capture.elapsedMs : meeting.durationMs)}
-        </span>
-        <Status meeting={meeting} capture={capture} t={t} />
-        <div className="ml-auto flex gap-1">
-          <Button
-            size="icon"
-            variant="ghost"
-            aria-label={t("rename")}
-            onClick={() => {
-              setName(meeting.title);
-              setRenameOpen(true);
-            }}
-          >
-            <Pencil size={16} />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            aria-label={t("delete")}
-            disabled={active || localPending}
-            onClick={() => setDeleteOpen(true)}
-          >
-            <Trash2 size={16} />
-          </Button>
+      {(meeting.capture === "interrupted" || meeting.processing === "failed") && !active && (
+        <div className="mx-6 mb-4 flex flex-wrap items-center gap-3 rounded-xl bg-destructive/10 px-5 py-4 text-sm text-destructive" role="alert">
+          <span className="mr-auto">{errorText(new Error(meeting.errorCode ?? "processing_failed"), t)}</span>
+          {meeting.processing === "failed" && (
+            <Button
+              variant="outline"
+              disabled={busy || localPending}
+              onClick={() =>
+                void perform(async () => {
+                  if (!(await flush())) return;
+                  await action("retry", { meetingId: meeting.id });
+                  await refresh();
+                })
+              }
+            >
+              {t("retry")}
+            </Button>
+          )}
         </div>
-      </div>
+      )}
       {localPending && (
         <div
           className="mx-6 mb-4 flex items-center gap-3 rounded-xl bg-muted px-5 py-4 text-sm"
@@ -404,7 +265,7 @@ export function Detail({
       <Tabs
         value={tab}
         onValueChange={(value) => setTab(value as typeof tab)}
-        className="min-w-0 flex-col gap-0"
+        className="min-h-0 min-w-0 flex-1 flex-col gap-0 overflow-hidden"
       >
         <TabsList
           variant="line"
@@ -418,7 +279,7 @@ export function Detail({
           ))}
         </TabsList>
         <div
-          className={`grid min-w-0 gap-5 p-6 ${
+          className={`grid min-h-0 min-w-0 gap-5 overflow-y-auto p-4 sm:p-6 ${
             active && tab !== "transcript" ? "xl:grid-cols-2" : ""
           }`}
         >
@@ -557,20 +418,6 @@ export function Detail({
                   ? errorText(new Error(meeting.errorCode), t)
                   : t(active ? "duringHelp" : "processHelp")}
               </p>
-              {meeting.processing === "failed" && (
-                <Button
-                  variant="outline"
-                  disabled={busy}
-                  onClick={() =>
-                    void perform(async () => {
-                      await action("retry", { meetingId: meeting.id });
-                      await refresh();
-                    })
-                  }
-                >
-                  {t("retry")}
-                </Button>
-              )}
             </TabsContent>
           )}
           {tab === "transcript" && (
@@ -664,36 +511,36 @@ export function Detail({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent
-          showCloseButton={false}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent
           className="border-border bg-background text-foreground"
         >
-          <DialogHeader>
-            <DialogTitle>{t("deleteTitle")}</DialogTitle>
-            <DialogDescription>{t("deleteHelp")}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setDeleteOpen(false)}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("deleteTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("deleteHelp")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>
               {t("cancel")}
-            </Button>
-            <Button
+            </AlertDialogCancel>
+            <AlertDialogAction
               variant="destructive"
               disabled={busy}
-              onClick={() =>
+              onClick={(event) => {
+                event.preventDefault();
                 void perform(async () => {
                   if (!(await flush())) return;
                   await action("delete", { meetingId: meeting.id });
                   setDeleteOpen(false);
                   onDeleted();
-                })
-              }
+                });
+              }}
             >
               {t("delete")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

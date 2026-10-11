@@ -290,7 +290,7 @@ export class Meetings {
             : "interrupted";
         m.processing =
           input.chunks.microphone && input.chunks.system ? "queued" : "failed";
-        m.errorCode = m.processing === "failed" ? "audio_source_missing" : null;
+        m.errorCode = input.errorCode ?? (m.processing === "failed" ? "audio_source_missing" : null);
       }
     );
     if (m.processing === "queued") await this.enqueue(scope, m.id);

@@ -127,6 +127,7 @@ export class CaptureDelivery {
               durationMs: input.durationMs,
               chunks: input.chunks,
               reason: input.reason,
+              errorCode: input.errorCode,
             });
             break;
         }
