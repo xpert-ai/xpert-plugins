@@ -32,7 +32,9 @@ export async function startRemoteViewPreview(config, options = {}) {
   const hostHtml = renderHostHtml({
     title: config.title,
     instanceId: config.instanceId,
-    hostContext: config.hostContext
+    hostContext: config.hostContext,
+    sandbox: config.component.sandbox,
+    viewportBound: config.component.viewportBound === true
   })
   const server = createServer(async (request, response) => {
     try {
@@ -84,7 +86,7 @@ export async function startRemoteViewPreview(config, options = {}) {
   }
 }
 
-function renderHostHtml({ title, instanceId, hostContext }) {
+function renderHostHtml({ title, instanceId, hostContext, sandbox, viewportBound }) {
   const init = {
     channel: CHANNEL,
     protocolVersion: PROTOCOL_VERSION,
@@ -100,11 +102,11 @@ function renderHostHtml({ title, instanceId, hostContext }) {
     <title>${escapeHtml(title)}</title>
     <style>
       html, body { margin: 0; min-height: 100%; background: #f4f2ed; }
-      #remote-view { display: block; width: 100%; min-height: 900px; border: 0; }
+      #remote-view { display: block; width: 100%; ${viewportBound ? 'height: 100vh' : 'min-height: 900px'}; border: 0; }
     </style>
   </head>
   <body>
-    <iframe id="remote-view" title="${escapeHtml(title)}" src="/__xpert/component"></iframe>
+    <iframe id="remote-view" title="${escapeHtml(title)}" src="/__xpert/component"${typeof sandbox === 'string' ? ` sandbox="${escapeHtml(sandbox)}"` : ''}></iframe>
     <script>
       (() => {
         const channel = ${JSON.stringify(CHANNEL)}
@@ -113,17 +115,23 @@ function renderHostHtml({ title, instanceId, hostContext }) {
         const init = ${safeJson(init)}
         const frame = document.getElementById('remote-view')
         window.XpertRemoteViewPreview = {
+          updateContext(patch) {
+            Object.assign(init, patch)
+            frame.contentWindow.postMessage(init, '*')
+          },
           emitHostEvent(event) {
             frame.contentWindow.postMessage({
               channel,
               protocolVersion: version,
               instanceId,
               type: 'hostEvent',
+              event,
               payload: event
             }, '*')
           }
         }
         window.addEventListener('message', async (event) => {
+          if (event.source !== frame.contentWindow) return
           const message = event.data
           if (!message || message.channel !== channel || message.protocolVersion !== version) return
           if (message.type === 'ready') {
@@ -131,7 +139,7 @@ function renderHostHtml({ title, instanceId, hostContext }) {
             return
           }
           if (message.type === 'resize' && Number.isFinite(message.height)) {
-            frame.style.height = Math.max(720, message.height) + 'px'
+            if (!${viewportBound}) frame.style.height = Math.max(720, message.height) + 'px'
             return
           }
           if (message.type === 'notify') {
@@ -190,7 +198,7 @@ function send(response, status, contentType, body) {
   response.writeHead(status, {
     'content-type': contentType,
     'cache-control': 'no-store',
-    'content-security-policy': "default-src 'self' 'unsafe-inline'; frame-src 'self'; connect-src 'self'"
+    'content-security-policy': "default-src 'self' 'unsafe-inline'; frame-src 'self'; connect-src 'self'; img-src 'self' data:"
   })
   response.end(body)
 }

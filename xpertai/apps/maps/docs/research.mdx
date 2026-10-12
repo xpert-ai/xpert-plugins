@@ -1,0 +1,23 @@
+---
+title: 调查与资料来源
+description: Codex 地图体验参考、官方示例和国内供应商取舍。
+---
+
+公开资料可验证的参考是 OpenAI 官方 Pizzaz 地图示例，不能将它断言为 Codex 内置“地图”插件的完整源码。该示例展示 Mapbox 地图、地点标记、底部卡片、全屏列表和详情；示例地点为静态数据，部分按钮是占位实现。
+
+本插件实现同类核心交互，增加高德/腾讯真实查询适配器；不复用示例 token、不复制静态地点为真实数据、不依赖旧版 window.webplus/window.oai bridge。
+
+## 官方参考
+
+- [OpenAI 插件示例](https://developers.openai.com/plugins/build/examples)
+- [OpenAI Apps SDK 示例仓库](https://github.com/openai/openai-apps-sdk-examples/tree/18cc38e78a968712c357bacdc3c79fead5bfc6b4)
+- [高德静态地图](https://lbs.amap.com/api/webservice/guide/api/staticmaps)
+- [高德 JS API 安全密钥与代理](https://lbs.amap.com/api/javascript-api-v2/guide/abc/prepare)
+- [腾讯静态地图 V2](https://lbs.qq.com/service/staticV2/staticGuide/staticDoc)
+- [腾讯 GL Key 代理](https://lbs.qq.com/webApi/javascriptGL/glGuide/glKeyDelegate)
+
+## 为什么采用静态底图
+
+现有 ChatKit 的 MCP App 沙箱不允许任意 Worker，也不会把服务端凭据交给 iframe。高德 JS API 使用不同的浏览器 Key 与安全码，腾讯 GL 也有代理配置要求。采用官方 Web Service 静态图可复用当前连接器、保持凭据仅在服务端，并避免为了地图放宽通用宿主 CSP。
+
+此取舍不影响供应商解耦，但图片刷新不是连续瓦片加载。后续如需官方矢量 SDK，应作为独立渲染后端验证。

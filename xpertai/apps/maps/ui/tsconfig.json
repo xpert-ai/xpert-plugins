@@ -1,0 +1,1 @@
+{"extends":"../mcp-apps/tsconfig.json","include":["**/*.ts","**/*.tsx"]}
