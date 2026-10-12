@@ -36,10 +36,12 @@
       "Add comments to risky clauses",
       "Suggest tracked changes in this document"
     ],
-    "composerIcon": "./assets/composerIcon.svg",
-    "logo": "./assets/logo.svg",
+    "composerIcon": "./assets/branding/icon-v2.svg",
+    "logo": "./assets/branding/icon-v2.svg",
     "brandColor": "#2563EB",
-    "screenshots": []
+    "screenshots": [
+      "./assets/branding/cover-v1.webp"
+    ]
   },
   "policy": {
     "installation": "AVAILABLE",
@@ -53,9 +55,11 @@
     "sparsePath": "xpertai/apps/docx-editor"
   },
   "assets": {
-    "composerIcon": "./assets/composerIcon.svg",
-    "logo": "./assets/logo.svg",
-    "screenshots": []
+    "composerIcon": "./assets/branding/icon-v2.svg",
+    "logo": "./assets/branding/icon-v2.svg",
+    "screenshots": [
+      "./assets/branding/cover-v1.webp"
+    ]
   },
   "targetApps": [
     "data-xpert",
@@ -109,6 +113,9 @@
               "zh_Hans": "用于 DOCX 文档的工作台和 Agent 中间件工具。"
             }
           }
+        ],
+        "screenshots": [
+          "./assets/branding/cover-v1.webp"
         ]
       }
     },
@@ -123,7 +130,12 @@
         "docx-editor-workbench",
         "docx-editor-agent-review",
         "docx-editor-assistant-template"
-      ]
+      ],
+      "marketplace": {
+        "screenshots": [
+          "./assets/branding/cover-v1.webp"
+        ]
+      }
     }
   }
 }

@@ -1,3 +1,4 @@
+import { APP_COVER } from './lib/constants.js'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -7,7 +8,6 @@ import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import {
   LUCIDCHART_AGENT_DRAWING_CAPABILITY,
   LUCIDCHART_ARTIFACT_SHARING_CAPABILITY,
-  LUCIDCHART_ARTIFACT_NAMESPACE,
   LUCIDCHART_FEATURE,
   LUCIDCHART_ICON,
   LUCIDCHART_MIDDLEWARE_NAME,
@@ -26,6 +26,12 @@ const moduleDir = dirname(fileURLToPath(import.meta.url))
 const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 'utf8')) as {
   name: string
   version: string
+  xpert: {
+    plugin: {
+      level: NonNullable<XpertPlugin['meta']['level']>
+      artifactNamespace: string
+    }
+  }
 }
 
 const ConfigSchema = z.object({})
@@ -39,8 +45,8 @@ const plugin: LucidchartXpertPlugin = {
   meta: {
     name: packageJson.name,
     version: packageJson.version,
-    artifactNamespace: LUCIDCHART_ARTIFACT_NAMESPACE,
-    level: 'system',
+    artifactNamespace: packageJson.xpert.plugin.artifactNamespace,
+    level: packageJson.xpert.plugin.level,
     targetApps: ['data-xpert', 'xpert'],
     targetAppMeta: {
       'data-xpert': {
@@ -53,6 +59,7 @@ const plugin: LucidchartXpertPlugin = {
           LUCIDCHART_TEMPLATE_CAPABILITY
         ],
         marketplace: {
+          screenshots: [APP_COVER],
           contents: [
             {
               type: 'app',
@@ -151,6 +158,7 @@ const plugin: LucidchartXpertPlugin = {
           LUCIDCHART_TEMPLATE_CAPABILITY
         ],
         marketplace: {
+          screenshots: [APP_COVER],
           contents: [
             {
               type: 'skill',

@@ -30,6 +30,8 @@
   },
   "files": [
     "dist",
+    ".xpertai-plugin",
+    "assets",
     "README.md",
     "README_zh-hans.md",
     "!**/*.tsbuildinfo"

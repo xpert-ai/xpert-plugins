@@ -1,3 +1,4 @@
+import { APP_COVER } from './lib/constants.js'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -5,7 +6,6 @@ import { z } from 'zod'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import { SitesPluginConfigFormSchema, SitesPluginConfigSchema, readSitesPluginEnvDefaults } from './lib/sites.config.js'
 import {
-  SITES_ARTIFACT_NAMESPACE,
   SITES_FEATURE,
   SITES_ICON,
   SITES_MIDDLEWARE_NAME,
@@ -21,6 +21,12 @@ const moduleDir = dirname(fileURLToPath(import.meta.url))
 const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 'utf8')) as {
   name: string
   version: string
+  xpert: {
+    plugin: {
+      level: NonNullable<XpertPlugin['meta']['level']>
+      artifactNamespace: string
+    }
+  }
 }
 
 const ConfigSchema = SitesPluginConfigSchema
@@ -29,14 +35,15 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   meta: {
     name: packageJson.name,
     version: packageJson.version,
-    artifactNamespace: SITES_ARTIFACT_NAMESPACE,
-    level: 'system',
+    artifactNamespace: packageJson.xpert.plugin.artifactNamespace,
+    level: packageJson.xpert.plugin.level,
     targetApps: ['data-xpert'],
     targetAppMeta: {
       'data-xpert': {
         types: ['workbench-view', 'assistant-tool', 'business-app', 'site-hosting'],
         capabilities: [SITES_FEATURE, 'sites-workbench', 'sites-builder-assistant-template', 'sites-local-hosting'],
         marketplace: {
+          screenshots: [APP_COVER],
           contents: [
             {
               type: 'app',

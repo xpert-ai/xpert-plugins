@@ -1,0 +1,60 @@
+{
+  "name": "@xpert-ai/plugin-sites",
+  "description": "Sites app plugin for creating, saving, deploying, and inspecting hosted sites from data-xpert Assistants.",
+  "author": "XpertAI",
+  "license": "AGPL-3.0",
+  "level": "system",
+  "artifactNamespace": "sites",
+  "interface": {
+    "displayName": "Sites",
+    "shortDescription": "Create, review, and publish websites with an Agent",
+    "developerName": "XpertAI",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "brandColor": "#4F46E5",
+    "logo": "./assets/branding/icon-v2.svg",
+    "composerIcon": "./assets/branding/icon-v2.svg",
+    "screenshots": [
+      "./assets/branding/cover-v1.webp"
+    ]
+  },
+  "source": {
+    "source": "local",
+    "path": "."
+  },
+  "targetApps": [
+    "data-xpert"
+  ],
+  "targetAppMeta": {
+    "data-xpert": {
+      "types": [
+        "workbench-view",
+        "assistant-tool",
+        "business-app",
+        "site-hosting"
+      ],
+      "capabilities": [
+        "sites-core",
+        "sites-workbench",
+        "sites-builder-assistant-template",
+        "sites-local-hosting"
+      ],
+      "marketplace": {
+        "screenshots": [
+          "./assets/branding/cover-v1.webp"
+        ]
+      }
+    }
+  },
+  "assets": {
+    "logo": "./assets/branding/icon-v2.svg",
+    "composerIcon": "./assets/branding/icon-v2.svg",
+    "screenshots": [
+      "./assets/branding/cover-v1.webp"
+    ]
+  }
+}

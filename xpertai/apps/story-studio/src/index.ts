@@ -1,10 +1,10 @@
+import { APP_COVER } from './lib/constants.js'
 import { z } from 'zod'
 import type { I18nObject } from '@xpert-ai/contracts'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import { STORY_STUDIO_PACKAGE_METADATA } from './package-metadata.js'
 import {
   STORY_STUDIO_AGENT_CAPABILITY,
-  STORY_STUDIO_ARTIFACT_NAMESPACE,
   STORY_STUDIO_FEATURE,
   STORY_STUDIO_ICON,
   STORY_STUDIO_MIDDLEWARE_NAME,
@@ -95,14 +95,15 @@ const plugin: StoryStudioXpertPlugin = {
   meta: {
     name: STORY_STUDIO_PACKAGE_METADATA.name,
     version: STORY_STUDIO_PACKAGE_METADATA.version,
-    artifactNamespace: STORY_STUDIO_ARTIFACT_NAMESPACE,
-    level: 'system',
+    artifactNamespace: STORY_STUDIO_PACKAGE_METADATA.xpert.plugin.artifactNamespace,
+    level: STORY_STUDIO_PACKAGE_METADATA.xpert.plugin.level,
     targetApps: ['data-xpert', 'xpert'],
     targetAppMeta: {
       'data-xpert': {
         types: ['workbench-view', 'assistant-tool', 'business-app'],
         capabilities,
         marketplace: {
+          screenshots: [APP_COVER],
           contents: [
             {
               type: 'app',
@@ -161,6 +162,7 @@ const plugin: StoryStudioXpertPlugin = {
         types: ['assistant-template', 'skill', 'app', 'xpertai-bundle'],
         capabilities,
         marketplace: {
+          screenshots: [APP_COVER],
           contents: [
             {
               type: 'skill',

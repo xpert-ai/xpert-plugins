@@ -40,14 +40,7 @@ export const DRAWIO_MIDDLEWARE_TOOL_NAMES = [
   DRAWIO_REPORT_FAILURE_TOOL_NAME
 ] as const
 
-export const DRAWIO_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
-  <rect width="256" height="256" rx="40" fill="#F8FAFC"/>
-  <rect x="42" y="48" width="172" height="132" rx="20" fill="#FFFFFF" stroke="#F59E0B" stroke-width="10"/>
-  <rect x="72" y="84" width="46" height="34" rx="8" fill="#FEF3C7" stroke="#92400E" stroke-width="7"/>
-  <rect x="144" y="84" width="46" height="34" rx="8" fill="#DBEAFE" stroke="#1D4ED8" stroke-width="7"/>
-  <rect x="108" y="136" width="46" height="34" rx="8" fill="#DCFCE7" stroke="#15803D" stroke-width="7"/>
-  <path d="M118 101H144" stroke="#0F172A" stroke-width="7" stroke-linecap="round"/>
-  <path d="M158 118L138 136" stroke="#0F172A" stroke-width="7" stroke-linecap="round"/>
-  <path d="M96 118L116 136" stroke="#0F172A" stroke-width="7" stroke-linecap="round"/>
-  <path d="M76 206C99 188 126 184 154 195C170 201 187 198 202 184" stroke="#F59E0B" stroke-width="10" stroke-linecap="round"/>
-</svg>`
+export const DRAWIO_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="256" height="256" fill="none" stroke="#B76A07" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="draw.io"><path d="M16 14v5M7 22v-3h18v3" stroke="#6D4C24"/><path d="m16 3 7 6-7 6-7-6Z" fill="#F7C76C"/><rect x="3" y="22" width="8" height="7" rx="2"/><rect x="21" y="22" width="8" height="7" rx="2"/></svg>`
+
+/** First marketplace screenshot; declared in the bundle manifest for host asset resolution. */
+export const APP_COVER = './assets/branding/cover-v1.webp'

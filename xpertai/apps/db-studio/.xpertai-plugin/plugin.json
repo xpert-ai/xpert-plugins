@@ -14,9 +14,12 @@
       "Read",
       "Write"
     ],
-    "composerIcon": "./assets/logo.svg",
-    "logo": "./assets/logo.svg",
-    "brandColor": "#146B5C"
+    "composerIcon": "./assets/branding/icon-v2.svg",
+    "logo": "./assets/branding/icon-v2.svg",
+    "brandColor": "#146B5C",
+    "screenshots": [
+      "./assets/branding/cover-v1.webp"
+    ]
   },
   "policy": {
     "installation": "AVAILABLE",
@@ -96,10 +99,16 @@
                       "zh_Hans": "冻结计划、连接策略与执行回执"
                     }
                   }
+                ],
+                "screenshots": [
+                  "./assets/branding/cover-v1.webp"
                 ]
               }
             }
           }
+        ],
+        "screenshots": [
+          "./assets/branding/cover-v1.webp"
         ]
       }
     },
@@ -167,13 +176,26 @@
                       "zh_Hans": "冻结计划、连接策略与执行回执"
                     }
                   }
+                ],
+                "screenshots": [
+                  "./assets/branding/cover-v1.webp"
                 ]
               }
             }
           }
+        ],
+        "screenshots": [
+          "./assets/branding/cover-v1.webp"
         ]
       }
     }
   },
-  "level": "system"
+  "level": "system",
+  "assets": {
+    "logo": "./assets/branding/icon-v2.svg",
+    "composerIcon": "./assets/branding/icon-v2.svg",
+    "screenshots": [
+      "./assets/branding/cover-v1.webp"
+    ]
+  }
 }

@@ -1,3 +1,4 @@
+import { APP_COVER } from './lib/constants.js'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -9,7 +10,15 @@ import { dbStudioPromptWorkflows } from './lib/prompt-workflows.js'
 import { DbStudioPlugin } from './lib/plugin.js'
 import { STUDIO_CONFIG, FEATURES, ICON, MIDDLEWARE, PLUGIN, PROVIDER, TEMPLATE, VIEW, text } from './lib/constants.js'
 const root = dirname(fileURLToPath(import.meta.url))
-const packageJson = JSON.parse(readFileSync(join(root, '../package.json'), 'utf8')) as { version: string }
+const packageJson = JSON.parse(readFileSync(join(root, '../package.json'), 'utf8')) as {
+  version: string
+  xpert: {
+    plugin: {
+      level: NonNullable<XpertPlugin['meta']['level']>
+      artifactNamespace: string
+    }
+  }
+}
 export const templates: XpertTemplateContribution[] = [
   {
     key: TEMPLATE,
@@ -51,8 +60,8 @@ const plugin: XpertPlugin<z.input<typeof ConfigSchema>> = {
   meta: {
     name: PLUGIN,
     version: packageJson.version,
-    artifactNamespace: 'db_studio',
-    level: 'system',
+    artifactNamespace: packageJson.xpert.plugin.artifactNamespace,
+    level: packageJson.xpert.plugin.level,
     category: 'middleware',
     displayName: 'DB Studio',
     description: 'Database workbench with governed Xpert Agent operations.',
@@ -61,7 +70,7 @@ const plugin: XpertPlugin<z.input<typeof ConfigSchema>> = {
     keywords: ['database', 'doris', 'mysql', 'postgresql', 'agentic-app'],
     targetApps: ['data-xpert', 'xpert'],
     targetAppMeta: {
-      xpert: { marketplace: { contents: [{ type: 'app', name: 'db-studio', displayName: 'DB Studio', appConfig }] } },
+      xpert: { marketplace: { screenshots: [APP_COVER], contents: [{ type: 'app', name: 'db-studio', displayName: 'DB Studio', appConfig }] } },
       'data-xpert': {
         types: ['business-app', 'workbench-view', 'assistant-tool'],
         capabilities: Object.values(FEATURES),
@@ -71,6 +80,7 @@ const plugin: XpertPlugin<z.input<typeof ConfigSchema>> = {
           templateProviders: [PROVIDER],
         },
         marketplace: {
+          screenshots: [APP_COVER],
           contents: [
             {
               type: 'app',

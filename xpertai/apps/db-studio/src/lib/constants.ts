@@ -14,7 +14,7 @@ export const MIDDLEWARE = {
   transfer: 'DbStudioTransferMiddleware',
 } as const
 export const ICON =
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 4 16 4 16 0V5M4 12c0 4 16 4 16 0"/></svg>'
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="256" height="256" fill="none" stroke="#146B5C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="DB Studio"><ellipse cx="16" cy="7" rx="11" ry="4"/><path d="M5 7v17c0 5.3 22 5.3 22 0V7M5 15c0 5.3 22 5.3 22 0"/><circle cx="23" cy="24" r="2" fill="#C88C3B" stroke="none"/></svg>`
 export const text = (en_US: string, zh_Hans: string) => ({ en_US, zh_Hans })
 export const READ_TOOLS = [
   'db_studio_connections',
@@ -30,3 +30,6 @@ export const CHANGE_TOOLS = ['db_studio_plan_change', 'db_studio_execute_plan', 
 export const TRANSFER_TOOLS = ['db_studio_plan_import', 'db_studio_export_page']
 
 export const STUDIO_CONFIG='db_studio.config'
+
+/** First marketplace screenshot; declared in the bundle manifest for host asset resolution. */
+export const APP_COVER = './assets/branding/cover-v1.webp'

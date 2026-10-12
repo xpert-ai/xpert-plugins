@@ -1,3 +1,4 @@
+import { APP_COVER } from './lib/constants.js'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -57,6 +58,7 @@ const plugin: DocxEditorXpertPlugin = {
           DOCX_EDITOR_TEMPLATE_CAPABILITY
         ],
         marketplace: {
+          screenshots: [APP_COVER],
           contents: [
             {
               type: 'app',
@@ -155,6 +157,7 @@ const plugin: DocxEditorXpertPlugin = {
           DOCX_EDITOR_TEMPLATE_CAPABILITY
         ],
         marketplace: {
+          screenshots: [APP_COVER],
           contents: [
             {
               type: 'skill',

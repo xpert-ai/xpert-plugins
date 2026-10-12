@@ -1,3 +1,4 @@
+import { APP_COVER } from './lib/constants.js'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -6,7 +7,6 @@ import type { I18nObject } from '@xpert-ai/contracts'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import {
   CANVAS_AGENT_CAPABILITY,
-  CANVAS_ARTIFACT_NAMESPACE,
   CANVAS_FEATURE,
   CANVAS_ICON,
   CANVAS_MIDDLEWARE_NAME,
@@ -25,6 +25,12 @@ const moduleDir = dirname(fileURLToPath(import.meta.url))
 const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 'utf8')) as {
   name: string
   version: string
+  xpert: {
+    plugin: {
+      level: NonNullable<XpertPlugin['meta']['level']>
+      artifactNamespace: string
+    }
+  }
 }
 
 const ConfigSchema = z.object({
@@ -79,14 +85,15 @@ const plugin: CanvasXpertPlugin = {
   meta: {
     name: packageJson.name,
     version: packageJson.version,
-    level: 'system',
-    artifactNamespace: CANVAS_ARTIFACT_NAMESPACE,
+    level: packageJson.xpert.plugin.level,
+    artifactNamespace: packageJson.xpert.plugin.artifactNamespace,
     targetApps: ['data-xpert', 'xpert'],
     targetAppMeta: {
       'data-xpert': {
         types: ['workbench-view', 'assistant-tool', 'business-app'],
         capabilities: [CANVAS_FEATURE, CANVAS_WORKBENCH_CAPABILITY, CANVAS_AGENT_CAPABILITY, CANVAS_TEMPLATE_CAPABILITY],
         marketplace: {
+          screenshots: [APP_COVER],
           contents: [
             {
               type: 'app',
@@ -151,6 +158,7 @@ const plugin: CanvasXpertPlugin = {
         types: ['assistant-template', 'skill', 'app', 'xpertai-bundle'],
         capabilities: [CANVAS_FEATURE, CANVAS_WORKBENCH_CAPABILITY, CANVAS_AGENT_CAPABILITY, CANVAS_TEMPLATE_CAPABILITY],
         marketplace: {
+          screenshots: [APP_COVER],
           contents: [
             {
               type: 'skill',

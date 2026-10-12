@@ -1,10 +1,10 @@
+import { APP_COVER } from './lib/constants.js'
 import { CUT_SKILLS } from './lib/cut-skills.js'
 import { z } from 'zod'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import { CUT_PACKAGE_METADATA } from './package-metadata.js'
 import {
   CUT_AGENT_CAPABILITY,
-  CUT_ARTIFACT_NAMESPACE,
   CUT_FEATURE,
   CUT_ICON,
   CUT_MCP_CAPABILITY,
@@ -32,14 +32,15 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   meta: {
     name: CUT_PACKAGE_METADATA.name,
     version: CUT_PACKAGE_METADATA.version,
-    artifactNamespace: CUT_ARTIFACT_NAMESPACE,
-    level: 'system',
+    artifactNamespace: CUT_PACKAGE_METADATA.xpert.plugin.artifactNamespace,
+    level: CUT_PACKAGE_METADATA.xpert.plugin.level,
     targetApps: ['data-xpert', 'xpert'],
     targetAppMeta: {
       'data-xpert': {
         types: ['workbench-view', 'assistant-tool', 'business-app'],
         capabilities: [CUT_FEATURE, CUT_WORKBENCH_CAPABILITY, CUT_AGENT_CAPABILITY, CUT_TEMPLATE_CAPABILITY],
         marketplace: {
+          screenshots: [APP_COVER],
           contents: [
             { type: 'app', name: 'cut', displayName: 'Cut', description: 'Agentic non-linear video editor with browser and headless MP4 export.', icon: { type: 'svg', value: CUT_ICON, color: '#0ea5e9' }, operations },
             { type: 'view', name: CUT_WORKBENCH_VIEW_KEY, displayName: 'Cut Workbench', description: 'Media preview, timeline editing, version review, and export.', metadata: { app: 'cut' } },
@@ -53,6 +54,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
         types: ['assistant-template', 'skill', 'app', 'xpertai-bundle', 'mcp'],
         capabilities: [CUT_FEATURE, CUT_WORKBENCH_CAPABILITY, CUT_AGENT_CAPABILITY, CUT_TEMPLATE_CAPABILITY, CUT_MCP_CAPABILITY],
         marketplace: {
+          screenshots: [APP_COVER],
           contents: [
             ...CUT_SKILLS.map((skill) => ({ ...skill, tags: [...skill.tags] })),
             { type: 'assistant-template', name: 'cut-assistant', displayName: 'Cut Assistant', description: 'Assistant template for video editing.', metadata: { app: 'cut' } },

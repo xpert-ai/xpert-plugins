@@ -32,10 +32,12 @@
       "Move the selected project into planning after I approve the brief.",
       "Build a three-shot production plan and prepare selected videos for Cut."
     ],
-    "composerIcon": "./assets/composerIcon.svg",
-    "logo": "./assets/logo.svg",
+    "composerIcon": "./assets/branding/icon-v2.svg",
+    "logo": "./assets/branding/icon-v2.svg",
     "brandColor": "#7C3AED",
-    "screenshots": []
+    "screenshots": [
+      "./assets/branding/cover-v1.webp"
+    ]
   },
   "policy": {
     "installation": "AVAILABLE",
@@ -49,9 +51,11 @@
     "sparsePath": "xpertai/apps/story-studio"
   },
   "assets": {
-    "composerIcon": "./assets/composerIcon.svg",
-    "logo": "./assets/logo.svg",
-    "screenshots": []
+    "composerIcon": "./assets/branding/icon-v2.svg",
+    "logo": "./assets/branding/icon-v2.svg",
+    "screenshots": [
+      "./assets/branding/cover-v1.webp"
+    ]
   },
   "targetApps": ["data-xpert", "xpert"],
   "targetAppMeta": {
@@ -151,6 +155,9 @@
             },
             "metadata": { "app": "story-studio" }
           }
+        ],
+        "screenshots": [
+          "./assets/branding/cover-v1.webp"
         ]
       },
       "runtime": {
@@ -265,6 +272,9 @@
             },
             "metadata": { "app": "story-studio" }
           }
+        ],
+        "screenshots": [
+          "./assets/branding/cover-v1.webp"
         ]
       }
     }

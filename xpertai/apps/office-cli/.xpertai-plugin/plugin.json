@@ -37,10 +37,12 @@
       "Inspect and fix formatting issues in this Office file",
       "Open the OfficeCLI Workbench and edit the selected element"
     ],
-    "composerIcon": "./assets/composerIcon.svg",
-    "logo": "./assets/logo.svg",
+    "composerIcon": "./assets/branding/icon-v2.svg",
+    "logo": "./assets/branding/icon-v2.svg",
     "brandColor": "#E5484D",
-    "screenshots": []
+    "screenshots": [
+      "./assets/branding/cover-v1.webp"
+    ]
   },
   "policy": {
     "installation": "AVAILABLE",
@@ -54,9 +56,11 @@
     "sparsePath": "xpertai/apps/office-cli"
   },
   "assets": {
-    "composerIcon": "./assets/composerIcon.svg",
-    "logo": "./assets/logo.svg",
-    "screenshots": []
+    "composerIcon": "./assets/branding/icon-v2.svg",
+    "logo": "./assets/branding/icon-v2.svg",
+    "screenshots": [
+      "./assets/branding/cover-v1.webp"
+    ]
   },
   "targetApps": [
     "data-xpert",
@@ -76,7 +80,12 @@
         "office-cli-agent-editing",
         "office-cli-native-rendering",
         "office-cli-file-versioning"
-      ]
+      ],
+      "marketplace": {
+        "screenshots": [
+          "./assets/branding/cover-v1.webp"
+        ]
+      }
     },
     "data-xpert": {
       "types": [
@@ -90,7 +99,12 @@
         "office-cli-agent-editing",
         "office-cli-native-rendering",
         "office-cli-file-versioning"
-      ]
+      ],
+      "marketplace": {
+        "screenshots": [
+          "./assets/branding/cover-v1.webp"
+        ]
+      }
     }
   }
 }

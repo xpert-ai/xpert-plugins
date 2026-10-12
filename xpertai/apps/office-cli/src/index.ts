@@ -1,3 +1,4 @@
+import { APP_COVER } from './lib/constants.js'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -5,7 +6,6 @@ import { z } from 'zod'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import {
   OFFICE_CLI_AGENT_CAPABILITY,
-  OFFICE_CLI_ARTIFACT_NAMESPACE,
   OFFICE_CLI_ASSISTANT_TEMPLATE_KEY,
   OFFICE_CLI_FEATURE,
   OFFICE_CLI_ICON,
@@ -25,6 +25,12 @@ const moduleDir = dirname(fileURLToPath(import.meta.url))
 const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 'utf8')) as {
   name: string
   version: string
+  xpert: {
+    plugin: {
+      level: NonNullable<XpertPlugin['meta']['level']>
+      artifactNamespace: string
+    }
+  }
 }
 const ConfigSchema = z.object({})
 const capabilities = [
@@ -39,14 +45,15 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   meta: {
     name: packageJson.name || OFFICE_CLI_PLUGIN_NAME,
     version: packageJson.version,
-    artifactNamespace: OFFICE_CLI_ARTIFACT_NAMESPACE,
-    level: 'system',
+    artifactNamespace: packageJson.xpert.plugin.artifactNamespace,
+    level: packageJson.xpert.plugin.level,
     targetApps: ['data-xpert', 'xpert'],
     targetAppMeta: {
       'data-xpert': {
         types: ['workbench-view', 'assistant-tool', 'business-app'],
         capabilities,
         marketplace: {
+          screenshots: [APP_COVER],
           contents: [
             {
               type: 'app',
@@ -109,6 +116,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
         types: ['assistant-template', 'skill', 'app', 'xpertai-bundle'],
         capabilities,
         marketplace: {
+          screenshots: [APP_COVER],
           contents: [
             {
               type: 'skill',

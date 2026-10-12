@@ -94,11 +94,7 @@ export const DOCX_EDITOR_LIVE_ONLY_TOOL_NAMES = [
   'docx_scroll'
 ] as const
 
-export const DOCX_EDITOR_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="DOCX Editor">
-  <rect x="14" y="6" width="34" height="52" rx="6" fill="#2563eb"/>
-  <path d="M40 6v14h8" fill="#93c5fd"/>
-  <rect x="20" y="25" width="22" height="3" rx="1.5" fill="#fff"/>
-  <rect x="20" y="33" width="18" height="3" rx="1.5" fill="#dbeafe"/>
-  <rect x="20" y="41" width="22" height="3" rx="1.5" fill="#bfdbfe"/>
-  <path d="M48 20 40 6v10a4 4 0 0 0 4 4h4z" fill="#60a5fa"/>
-</svg>`
+export const DOCX_EDITOR_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="256" height="256" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="DOCX Editor"><path d="M24 13V9l-6-5H7v24h11M18 4v6h6M11 15h6M11 20h3"/><path d="m18 23 7-7 3 3-7 7-4 1Z" stroke="#D76646" fill="#FFF1E9"/></svg>`
+
+/** First marketplace screenshot; declared in the bundle manifest for host asset resolution. */
+export const APP_COVER = './assets/branding/cover-v1.webp'

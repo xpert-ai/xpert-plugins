@@ -64,10 +64,7 @@ export const OFFICE_EDITOR_TOOL_NAMES = [
   'office_report_failure'
 ] as const
 
-export const OFFICE_EDITOR_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Office Editor">
-  <rect x="8" y="10" width="48" height="44" rx="8" fill="#0f766e"/>
-  <rect x="16" y="18" width="14" height="12" rx="2" fill="#ccfbf1"/>
-  <rect x="34" y="18" width="14" height="12" rx="2" fill="#99f6e4"/>
-  <rect x="16" y="34" width="32" height="4" rx="2" fill="#f0fdfa"/>
-  <rect x="16" y="43" width="24" height="4" rx="2" fill="#5eead4"/>
-</svg>`
+export const OFFICE_EDITOR_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="256" height="256" fill="none" stroke="#0F766E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Office Editor"><rect x="4" y="4" width="24" height="24" rx="3"/><path d="M4 12h24M4 20h24M12 12v16M20 12v16"/><path d="M5 5h22v6H5Z" fill="#33A38E" stroke="none"/><path d="M13 13h6v6h-6Z" fill="#DDB56C" stroke="none"/></svg>`
+
+/** First marketplace screenshot; declared in the bundle manifest for host asset resolution. */
+export const APP_COVER = './assets/branding/cover-v1.webp'

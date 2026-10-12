@@ -25,10 +25,12 @@
       "Import this .fig file into Pencil and summarize the pages.",
       "Export the current Pencil document as SVG."
     ],
-    "composerIcon": "./assets/composerIcon.svg",
-    "logo": "./assets/logo.svg",
+    "composerIcon": "./assets/branding/icon-v2.svg",
+    "logo": "./assets/branding/icon-v2.svg",
     "brandColor": "#0F172A",
-    "screenshots": []
+    "screenshots": [
+      "./assets/branding/cover-v1.webp"
+    ]
   },
   "policy": {
     "installation": "AVAILABLE",
@@ -42,15 +44,27 @@
     "sparsePath": "xpertai/apps/pencil"
   },
   "assets": {
-    "composerIcon": "./assets/composerIcon.svg",
-    "logo": "./assets/logo.svg",
-    "screenshots": []
+    "composerIcon": "./assets/branding/icon-v2.svg",
+    "logo": "./assets/branding/icon-v2.svg",
+    "screenshots": [
+      "./assets/branding/cover-v1.webp"
+    ]
   },
   "targetApps": ["data-xpert", "xpert"],
   "targetAppMeta": {
     "data-xpert": {
       "types": ["workbench-view", "assistant-tool", "business-app"],
-      "capabilities": ["pencil", "pencil-workbench", "agent-design", "pencil-assistant-template"]
+      "capabilities": [
+        "pencil",
+        "pencil-workbench",
+        "agent-design",
+        "pencil-assistant-template"
+      ],
+      "marketplace": {
+        "screenshots": [
+          "./assets/branding/cover-v1.webp"
+        ]
+      }
     },
     "xpert": {
       "types": ["assistant-template", "skill", "app", "xpertai-bundle"],
@@ -97,6 +111,9 @@
               "app": "pencil"
             }
           }
+        ],
+        "screenshots": [
+          "./assets/branding/cover-v1.webp"
         ]
       }
     }

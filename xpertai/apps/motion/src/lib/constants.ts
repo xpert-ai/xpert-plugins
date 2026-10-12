@@ -48,11 +48,7 @@ export const MOTION_MIDDLEWARE_TOOL_NAMES = [
   MOTION_REPORT_FAILURE_TOOL_NAME
 ] as const
 
-export const MOTION_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
-  <rect width="256" height="256" rx="40" fill="#F8FAFC"/>
-  <path d="M58 154C75 103 111 80 151 93C179 102 192 129 178 153C162 181 118 186 96 158" stroke="#111827" stroke-width="12" stroke-linecap="round"/>
-  <path d="M64 171C92 204 151 208 188 169" stroke="#2563EB" stroke-width="12" stroke-linecap="round"/>
-  <circle cx="153" cy="93" r="13" fill="#7C3AED"/>
-  <circle cx="96" cy="158" r="11" fill="#14B8A6"/>
-  <path d="M174 64L191 81L218 48" stroke="#F59E0B" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>`
+export const MOTION_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="256" height="256" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Motion"><path d="M3 20c7-19 15 11 26-9M3 25c7-19 15 11 26-9"/><path d="m22 3 5 4-5 4-5-4Z" fill="#8B5CF6" stroke="none"/></svg>`
+
+/** First marketplace screenshot; declared in the bundle manifest for host asset resolution. */
+export const APP_COVER = './assets/branding/cover-v1.webp'
