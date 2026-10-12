@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-sites",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "description": "Sites app plugin for creating, saving, deploying, and inspecting hosted sites from data-xpert Assistants.",
   "author": {
     "name": "XpertAI",
@@ -36,9 +36,11 @@
   ],
   "scripts": {
     "build:fonts": "pnpm --filter @xpert-ai/design-fonts build",
-    "build": "pnpm run build:fonts && tsc -p tsconfig.lib.json && node ../../scripts/vendor-design-fonts.mjs && node scripts/copy-assets.mjs",
+    "build": "pnpm run build:fonts && tsc -p tsconfig.lib.json && node ../../scripts/vendor-design-fonts.mjs && node scripts/copy-assets.mjs && node scripts/build-remote.mjs",
     "lint": "echo \"(todo) add lint\"",
-    "test": "rm -rf .artifacts/sites-spec && tsc -p tsconfig.spec.json && node .artifacts/sites-spec/lib/sites-artifacts.spec.js && rm -rf .artifacts/sites-spec"
+    "test": "rm -rf .artifacts/sites-spec && tsc -p tsconfig.spec.json && node .artifacts/sites-spec/lib/sites-artifacts.spec.js && node --test tests/*.test.mjs && rm -rf .artifacts/sites-spec",
+    "verify:dist": "node scripts/build-remote.mjs --check",
+    "typecheck": "tsc -p tsconfig.lib.json --noEmit && tsc -p tsconfig.remote.json"
   },
   "xpert": {
     "plugin": {
@@ -47,6 +49,8 @@
     }
   },
   "dependencies": {
+    "esbuild": "0.28.1",
+    "parse5": "7.3.0",
     "tslib": "^2.3.0"
   },
   "peerDependencies": {
@@ -54,8 +58,8 @@
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "@nestjs/typeorm": "^11.0.0",
-    "@xpert-ai/contracts": "^3.15.10",
-    "@xpert-ai/plugin-sdk": "^3.15.10",
+    "@xpert-ai/contracts": "^3.19.0",
+    "@xpert-ai/plugin-sdk": "^3.19.0",
     "react": ">=18",
     "react-dom": ">=18",
     "typeorm": "^0.3.24",
@@ -67,13 +71,22 @@
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "@nestjs/typeorm": "^11.0.0",
+    "@tailwindcss/cli": "4.3.2",
     "@types/node": "^20.19.9",
-    "@xpert-ai/contracts": "3.15.10",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@xpert-ai/contracts": "3.19.0",
     "@xpert-ai/design-fonts": "workspace:*",
-    "@xpert-ai/plugin-sdk": "3.15.10",
+    "@xpert-ai/plugin-sdk": "3.19.0",
+    "@xpert-ai/plugin-shadcn-ui": "workspace:*",
+    "esbuild": "0.28.1",
+    "jsdom": "25.0.1",
+    "lucide-react": "1.24.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "reflect-metadata": "^0.2.2",
+    "tailwindcss": "4.3.2",
+    "tsx": "4.20.6",
     "typeorm": "^0.3.24",
     "typescript": "^5.9.2",
     "yaml": "^2.8.1",

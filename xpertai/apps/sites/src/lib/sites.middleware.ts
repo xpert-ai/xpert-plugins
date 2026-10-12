@@ -11,7 +11,7 @@ import {
   RequestContext
 } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod/v3'
-import { SITES_FEATURE, SITES_ICON, SITES_MIDDLEWARE_NAME } from './constants.js'
+import { SITES_FEATURE, SITES_ICON, SITES_MIDDLEWARE_NAME, SITES_MIDDLEWARE_TOOL_NAMES } from './constants.js'
 import { SitesService } from './sites.service.js'
 import type {
   CreateSitesProjectInput,
@@ -26,7 +26,7 @@ import type {
 } from './types.js'
 
 const accessModeSchema = z.enum(['admins_only', 'workspace_all', 'custom', 'public_link'])
-const storageShapeSchema = z.enum(['static', 'd1', 'r2', 'd1_r2', 'workspace_auth', 'external_auth'])
+const storageShapeSchema = z.literal('static')
 
 const createProjectSchema = z.object({
   name: z.string().min(1).describe('Human-readable Sites project name.'),
@@ -38,7 +38,7 @@ const createProjectSchema = z.object({
   d1Binding: z.string().nullable().optional(),
   r2Binding: z.string().nullable().optional(),
   authMode: z.enum(['none', 'workspace', 'external']).optional(),
-  sourcePath: z.string().optional().describe('Sandbox source directory for the site, such as /workspace/sites/my-site.'),
+  sourcePath: z.string().optional().describe('Sandbox source directory for the site, such as sites/my-site relative to the current sandbox working directory.'),
   prompt: z.string().optional().describe('Original user request for the site.')
 })
 
@@ -75,7 +75,7 @@ const revokeArtifactLinkSchema = z.object({
 })
 
 const inspectProjectSchema = z.object({
-  projectId: z.string().min(1)
+  projectId: z.string().min(1).optional().describe('Omit to inspect the project selected in the Sites panel.')
 })
 
 const listProjectsSchema = z.object({
@@ -131,6 +131,8 @@ export class SitesMiddleware implements IAgentMiddlewareStrategy<Record<string, 
     }
   }
 
+  getToolNames() { return [...SITES_MIDDLEWARE_TOOL_NAMES] }
+
   createMiddleware(_options: Record<string, never>, context: IAgentMiddlewareContext): PromiseOrValue<AgentMiddleware> {
     const scope = scopeFromContext(context)
 
@@ -168,7 +170,7 @@ export class SitesMiddleware implements IAgentMiddlewareStrategy<Record<string, 
 
     const saveVersionTool = tool(
       async (input: z.infer<typeof saveVersionSchema>, config) => {
-        const version = await this.service.saveVersion(input as SaveSitesVersionInput, scope, sourceReadOptionsFromConfig(config))
+        const version = await this.service.saveVersion({ ...input, projectId: input.projectId ?? selectedProject(config) } as SaveSitesVersionInput, scope, sourceReadOptionsFromConfig(config))
         return stringify({
           message:
             'Sites version was saved as a reviewable deployment candidate. Inspect it before calling sites_deploy_version.',
@@ -296,8 +298,10 @@ export class SitesMiddleware implements IAgentMiddlewareStrategy<Record<string, 
     )
 
     const inspectProjectTool = tool(
-      async (input: z.infer<typeof inspectProjectSchema>) => {
-        const detail = await this.service.inspectProject(scope, input.projectId)
+      async (input: z.infer<typeof inspectProjectSchema>, config) => {
+        const projectId = input.projectId ?? selectedProject(config)
+        if (!projectId) throw new Error('Select a site in the Sites panel or provide projectId.')
+        const detail = await this.service.inspectProject(scope, projectId)
         return stringify({
           message: 'Sites project details were loaded.',
           ...detail
@@ -363,8 +367,10 @@ export class SitesMiddleware implements IAgentMiddlewareStrategy<Record<string, 
     )
 
     const checkDeploymentStatusTool = tool(
-      async (input: z.infer<typeof inspectProjectSchema>) => {
-        const detail = await this.service.inspectProject(scope, input.projectId)
+      async (input: z.infer<typeof inspectProjectSchema>, config) => {
+        const projectId = input.projectId ?? selectedProject(config)
+        if (!projectId) throw new Error('Select a site in the Sites panel or provide projectId.')
+        const detail = await this.service.inspectProject(scope, projectId)
         const deployment = detail.deployments[0]
         return stringify({
           message: deployment ? 'Latest Sites deployment status was loaded.' : 'No Sites deployment exists for this project.',
@@ -422,4 +428,8 @@ function sourceReadOptionsFromConfig(config: unknown): SitesSourceReadOptions {
     sandboxBackend,
     workingDirectory: sandboxBackend?.workingDirectory || sandbox?.workingDirectory
   }
+}
+
+function selectedProject(config: unknown): string | undefined {
+  return z.object({ configurable: z.object({ context: z.object({ sites: z.object({ projectId: z.string().uuid() }) }).optional() }).optional() }).parse(config ?? {}).configurable?.context?.sites?.projectId
 }

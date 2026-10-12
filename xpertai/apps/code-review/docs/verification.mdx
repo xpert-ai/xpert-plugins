@@ -1,0 +1,11 @@
+---
+title: "Validation and limitations"
+---
+
+Run Nx typecheck, test and build for `@xpert-ai/plugin-code-review`, then `verify:dist`. Build the repository-local Shadcn package first. Run `plugin-dev-harness` against the plugin package directory to resolve the same Nest and TypeORM dependencies as the package.
+
+Focused tests cover scoped access, immutable source binding, completion execution binding, invalid anchors, stale head rejection and uncertain external submission. Browser acceptance must use the installed top-level host, including nested iframe actions, reload state, dialogs and theme variables.
+
+Public repositories work without GitHub credentials, subject to GitHub API limits. Private inbox and posting require a connected account with repository access. Automated acceptance never posts a review to a real repository. This release reviews GitHub PRs; local working-tree diffs and other hosting providers are not included.
+
+Automatic-review acceptance is documented in [Automatic PR review](automation). Host raw-body capture has focused tests. A valid unconfigured deployment must show App setup required and reject anonymous unsigned webhooks. A local fixture passing is not evidence of real GitHub installation, webhook delivery, or bot publication.

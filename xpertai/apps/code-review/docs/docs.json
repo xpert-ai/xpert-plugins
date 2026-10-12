@@ -1,0 +1,26 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Code Review",
+  "colors": {
+    "primary": "#2563eb"
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Guide",
+        "groups": [
+          {
+            "group": "Code Review",
+            "pages": [
+              "index",
+              "automation",
+              "architecture",
+              "verification"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

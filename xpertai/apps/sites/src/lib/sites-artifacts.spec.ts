@@ -11,6 +11,9 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import { SitesDeployment, SitesEnvironmentVariable, SitesProject, SitesVersion } from './entities/index.js'
 import { SitesService } from './sites.service.js'
+import { buildPreviewHtml } from './sites-bundle.js'
+import { encryptEnvironment } from './sites-secrets.js'
+import { randomBytes } from 'node:crypto'
 import type { SitesScope } from './types.js'
 
 type TestEntity = { id?: string; createdAt?: Date; updatedAt?: Date }
@@ -118,6 +121,7 @@ function createFixture() {
       tenantId: scope.tenantId,
       organizationId: scope.organizationId,
       assistantId: scope.assistantId,
+      createdById: scope.userId,
       projectId: 'project-id',
       versionNumber: 1,
       status: 'saved',
@@ -137,6 +141,11 @@ function createFixture() {
   }
   let versionNumber = 0
   const artifacts: ArtifactsApi = {
+    async findArtifactBySource() { throw new Error('not used') },
+    async listArtifactVersions() { throw new Error('not used') },
+    async getArtifactShare() { throw new Error('not used') },
+    async ensureArtifactShare() { throw new Error('not used') },
+    async revokeArtifactShare() { throw new Error('not used') },
     async createArtifact(input) {
       calls.createArtifact.push([input])
       return {
@@ -159,6 +168,7 @@ function createFixture() {
         mimeType: input.mimeType
       }
     },
+    async ensureArtifactVersion(input) { return { version: await this.createArtifactVersion(input), outcome: 'created' } },
     async createArtifactLink(input) {
       calls.createArtifactLink.push([input])
       return artifactLink({ accessMode: input.access.mode })
@@ -208,6 +218,12 @@ function createFixture() {
         }
       }
     },
+    async getUnderstandingStatus() { throw new Error('not used') },
+    async retryUnderstanding() { throw new Error('not used') },
+    async validateUnderstandingReferences() { throw new Error('not used') },
+    async listUnderstandingChunks() { throw new Error('not used') },
+    async searchUnderstandingChunks() { throw new Error('not used') },
+    async resolveFile() { throw new Error('not used') },
     async uploadBuffer() { throw new Error('not used') },
     async understandFile() { throw new Error('not used') },
     async readBuffer() { throw new Error('not used') },
@@ -226,20 +242,26 @@ function createFixture() {
     capabilities
   )
 
-  return { service, calls, repositories: { projects: projectRepository, deployments: deploymentRepository } }
+  Object.assign(projectRepository, { manager: { transaction: async (fn: (m: { getRepository: (entity: unknown) => unknown }) => Promise<unknown>) => fn({ getRepository: entity => entity === SitesProject ? projectRepository : versionRepository }) } })
+  return { service, calls, repositories: { projects: projectRepository, versions: versionRepository, deployments: deploymentRepository } }
 }
 
 export async function assertSitesArtifactsBehavior() {
   const fixture = createFixture()
+  await assert.rejects(fixture.service.inspectProject({ ...scope, userId: 'someone-else' }, 'project-id'), /not found/)
+  await assert.rejects(fixture.service.createProject({ name: 'Unsupported', storageShape: 'd1' }, scope), /Only static/)
   const first = await fixture.service.deployVersion({ projectId: 'project-id', versionId: 'version-id' }, scope)
 
+  const restored = await fixture.service.restoreVersion(scope, 'project-id', 'version-id')
+  assert.equal(restored.versionNumber, 2)
+  assert.equal(fixture.repositories.projects.items[0].currentDeploymentId, first.id)
   assert.equal(first.artifactId, 'artifact-1')
   assert.equal(first.artifactVersionId, 'artifact-version-1')
   assert.equal(first.artifactLinkId, 'artifact-link-1')
   assert.match(first.deploymentUrl ?? '', /\/artifacts\/share\/[23456789A-HJ-NP-Za-km-z]{12}$/)
   assert.equal(fixture.calls.createArtifact[0][0].source.resourceType, 'sites_project')
   assert.equal(fixture.calls.createArtifact[0][0].source.resourceId, 'project-id')
-  assert.equal(fixture.calls.createArtifactLink[0][0].versionMode, 'latest')
+  assert.equal(fixture.calls.createArtifactLink[0][0].versionMode, 'version')
 
   const second = await fixture.service.deployVersion({ projectId: 'project-id', versionId: 'version-id' }, scope)
   assert.equal(second.artifactId, 'artifact-1')
@@ -264,6 +286,14 @@ export async function assertSitesArtifactsBehavior() {
   assert.equal(published.accessMode, 'public_link')
   assert.equal(fixture.calls.updateArtifactLinkAccess.at(-1)?.[1].access?.userConfirmedPublicLink, true)
 
+  const html = await buildPreviewHtml([{ path: 'index.html', content: '<html><head><style>.hero{background:url(./pixel.png)}</style><link rel=stylesheet href="/style.css"></head><body><img src="pixel.png"><script src="./app.js"></script></body></html>' }, { path: 'app.js', content: 'document.body.dataset.ready = \"yes\"' }, { path: 'style.css', content: 'body { color: red }' }, { path: 'pixel.png', content: 'aGVsbG8=', encoding: 'base64' }])
+  assert.match(html, /data:image\/png;base64,aGVsbG8=/)
+  assert.match(html, /color: red/)
+  assert.doesNotMatch(html, /src=\"\.\/app.js/)
+  await assert.rejects(buildPreviewHtml([{ path: 'index.html', content: '<script src="https://evil.example/a.js"></script>' }]), /external|remote|Remote|External/)
+  assert.throws(() => encryptEnvironment('secret', undefined, scope, 'p', 'TOKEN'), /Configure/)
+  const encrypted = encryptEnvironment('secret', randomBytes(32).toString('hex'), scope, 'p', 'TOKEN')
+  assert.ok(!encrypted.includes('secret'))
   const revoked = await fixture.service.revokeArtifactLink({ deploymentId: second.id ?? '' }, scope)
   assert.equal(revoked.deployment.artifactLinkId, null)
   assert.equal(revoked.deployment.deploymentUrl, '')

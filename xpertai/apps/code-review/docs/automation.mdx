@@ -1,0 +1,44 @@
+---
+title: "Automatic PR review"
+description: "Connect GitHub, try a PR, and enable repository-specific review rules"
+---
+
+## Setup
+
+1. Install `@xpert-ai/plugin-github-connector` in the application's organization. In **Repositories → Connect GitHub**, use the host-owned OAuth or token dialog. OAuth needs the administrator's GitHub integration Client ID and Client Secret. The current host uses a workspace-shared connection; limit it to the repositories needed.
+2. Create a GitHub App with repository permissions **Contents: Read** and **Pull requests: Read & write**, and subscribe to **Pull request** events. Checks are optional evidence; missing access is shown as a coverage warning.
+3. In the system Code Review plugin configuration, set `githubApp.appId`, `slug`, `privateKey` (complete PEM), `webhookSecret` (32+ characters), and `publicBaseUrl` (public HTTPS API origin). Set the same secret in GitHub and use `https://YOUR-API-DOMAIN/api/code_review/github/webhook`. Secrets never pass through the remote review view.
+4. Install the App on selected repositories. Add `owner/repository` in the plugin. The connected account must have repository write/admin permission; the server verifies the installation and permissions.
+5. Open **Configure rules**, enter an existing open PR number and run a trial. Trials consume model usage and save results privately, with no publication action. Enable automation after checking the result.
+
+The host must retain signed JSON bytes as `request.rawBody`, register the plugin's Managed Queue processor, and expose the `workspace.connector.connect` client command. These host changes are included in the accompanying worktree. GitHub cannot deliver events to localhost; local acceptance does not establish external webhook connectivity.
+
+## Rules and publication
+
+Defaults: automation paused; draft delivery; opened/reopened, ready-for-review and new-commit events enabled; drafts and bots excluded; common lockfiles ignored; all base branches; 20 model review attempts per repository per UTC day, including trials. Base branch names are exact matches; ignore paths support `*`, `**` and `?`.
+
+Push events wait at least 30 seconds. A fresh GitHub read rejects obsolete commits, closed PRs and drafts before starting and before publishing. Results use immutable head/base evidence and validated diff anchors. Daily quota reservations and review identities are persisted before dispatch.
+
+**Save draft** requires a separate confirmation in the inbox. **Automatic comments** posts a summary and only P0/P1 inline findings with GitHub's `COMMENT` event. It never approves, requests changes or merges PRs. Both modes use the installation identity, limited to the selected repository. Changing rules invalidates pending attempts from the previous policy revision. Review metadata and findings remain private to the configuring user, tenant, organization and Assistant.
+
+The configuring account, Assistant and model access must remain valid for unattended runs. App installation access and a working webhook are also required. The system allows one automation configuration per App installation/repository to prevent overlapping bots posting duplicate reviews.
+
+## Recovery
+
+The inbox shows trigger, commit, policy revision, progress, result and actionable failure reason. Failed, skipped, cancelled and superseded attempts can be retried; a retry creates a new record against the current head and policy. Retries still consume the daily quota. Trial retries remain private.
+
+Duplicate webhook deliveries and duplicate queue workers share database-protected operation keys. Durable Managed Queue supervision is re-armed on bootstrap. Platform task IDs are persisted before dispatch and reconciled; task completion without the result finalizer is a failure.
+
+If an external POST might have succeeded but its response is lost, publication becomes **Check GitHub**. The plugin will not repeat that POST or offer a blind retry. Open the PR to reconcile the result. GitHub App credential revocation, unavailable models or missing repository permissions remain visible failures; the plugin never falls back to another tenant's credentials.
+
+## Local acceptance
+
+Run the ordinary Nx checks and lifecycle harness. The opt-in PostgreSQL acceptance script uses a new disposable schema in the existing development database and removes only that schema afterward:
+
+```sh
+XPERT_TEST_PLATFORM_ROOT=/path/to/xpert \
+XPERT_TEST_ENV_FILE=/path/to/xpert/.env \
+node apps/code-review/scripts/automation-acceptance.mjs
+```
+
+It uses fixture GitHub/model/queue transports, real plugin services, and real PostgreSQL transactions. It tests deduplication, ownership, current-head checks, confirmation, P0/P1 filtering, ambiguous publication, quotas, pause, retry, trials and bootstrap recovery. It does not authorize a real GitHub account or post to a real PR. Browser acceptance and a real model review are separate checks.
