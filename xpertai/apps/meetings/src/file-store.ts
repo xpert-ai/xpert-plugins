@@ -1,18 +1,17 @@
-// The atomic manifest owns meeting metadata/transcript checkpoints. After migration,
+// The atomic manifest owns meeting metadata/transcript checkpoints. After initialization,
 // platform Yjs owns document content; the manifest and Markdown are repairable projections.
-// All writers use the same shared POSIX volume and lock before testing revisions.
+// The host authorizes the Assistant workspace and serializes writers before revision checks.
+import { createHash } from "node:crypto";
 import {
   mkdir,
   readFile,
-  rename,
-  open,
   readdir,
-  rm,
-  lstat,
-} from "node:fs/promises";
-import { resolve, join } from "node:path";
-import { createHash, randomUUID } from "node:crypto";
-import lockfile from "proper-lockfile";
+  join,
+  atomicWrite,
+  type StoragePath,
+  type WorkspaceStorage,
+} from "./workspace-storage.js";
+export { atomicWrite } from "./workspace-storage.js";
 import {
   meetingSchema,
   scopeSchema,
@@ -25,105 +24,73 @@ import {
 
 export const sha256 = (bytes: string | Buffer) =>
   createHash("sha256").update(bytes).digest("hex");
-export async function atomicWrite(path: string, bytes: string | Buffer) {
-  const temporary = `${path}.${randomUUID()}.tmp`;
-  const file = await open(temporary, "wx", 0o600);
-  try {
-    try {
-      await file.writeFile(bytes);
-      await file.sync();
-    } finally {
-      await file.close();
-    }
-    await rename(temporary, path);
-  } finally {
-    await rm(temporary, { force: true });
-  }
-}
 function isMissing(error: unknown) {
   return error instanceof Error && "code" in error && error.code === "ENOENT";
 }
 
 export class FileStore {
-  readonly root: string;
   constructor(
-    root: string,
+    readonly storage: (scope: Scope) => WorkspaceStorage,
     readonly projection?: {
-      sync(meeting: Meeting, directory: string, force?: boolean): Promise<void>;
+      sync(
+        meeting: Meeting,
+        directory: StoragePath,
+        force?: boolean
+      ): Promise<void>;
     }
-  ) {
-    this.root = resolve(root);
-  }
-  ownerPath(scope: Scope) {
+  ) {}
+  ownerPath(scope: Scope): StoragePath {
     scopeSchema.parse(scope);
-    return join(
-      this.root,
-      sha256(
-        JSON.stringify([scope.tenantId, scope.organizationId, scope.userId])
-      )
-    );
+    return { storage: this.storage(scope), path: "records" };
   }
   directory(scope: Scope, id: string) {
     return join(this.ownerPath(scope), idSchema.parse(id));
   }
   async prepare(scope: Scope, id: string) {
     const directory = this.directory(scope, id);
-    await mkdir(directory, { recursive: true, mode: 0o700 });
-    if (
-      (await lstat(directory)).isSymbolicLink() ||
-      (await lstat(this.ownerPath(scope))).isSymbolicLink()
-    )
-      throw new MeetingError("unsafe_storage");
+    await mkdir(directory);
     return directory;
   }
   async locked<T>(
     scope: Scope,
     id: string,
-    action: (directory: string) => Promise<T>
+    action: (directory: StoragePath) => Promise<T>
   ): Promise<T> {
-    const directory = await this.prepare(scope, id);
-    return this.lockDirectory(directory, action);
+    const directory = this.directory(scope, id);
+    return directory.storage.withLock(directory.path, async () => {
+      await mkdir(directory);
+      return action(directory);
+    });
   }
-  captureDirectory(scope: Scope, captureId: string) {
-    return join(
-      this.ownerPath(scope),
-      "captures",
-      sha256(scope.assistantId),
-      idSchema.parse(captureId)
-    );
+  captureDirectory(scope: Scope, captureId: string): StoragePath {
+    scopeSchema.parse(scope);
+    return {
+      storage: this.storage(scope),
+      path: `captures/${idSchema.parse(captureId)}`,
+    };
   }
   async lockedCapture<T>(
     scope: Scope,
     captureId: string,
-    action: (directory: string) => Promise<T>
+    action: (directory: StoragePath) => Promise<T>
   ) {
     const directory = this.captureDirectory(scope, captureId);
-    await mkdir(directory, { recursive: true, mode: 0o700 });
-    if ((await lstat(directory)).isSymbolicLink())
-      throw new MeetingError("unsafe_storage");
-    return this.lockDirectory(directory, action);
-  }
-  private async lockDirectory<T>(
-    directory: string,
-    action: (directory: string) => Promise<T>
-  ): Promise<T> {
-    let compromised = false;
-    const release = await lockfile.lock(directory, {
-      realpath: false,
-      stale: 120000,
-      update: 10000,
-      retries: { retries: 12, minTimeout: 20, maxTimeout: 500 },
-      onCompromised: () => {
-        compromised = true;
-      },
+    return directory.storage.withLock(directory.path, async () => {
+      await mkdir(directory);
+      return action(directory);
     });
-    try {
-      const result = await action(directory);
-      if (compromised) throw new MeetingError("storage_lock_lost");
-      return result;
-    } finally {
-      await release();
-    }
+  }
+  withProcessingLock<T>(
+    scope: Scope,
+    id: string,
+    kind: "processing" | "assistant",
+    action: () => Promise<T>,
+    waitMs = 0
+  ) {
+    const directory = this.directory(scope, id);
+    return directory.storage.withLock(`${directory.path}/${kind}`, action, {
+      waitMs,
+    });
   }
   async read(
     scope: Scope,
@@ -161,7 +128,7 @@ export class FileStore {
       throw new MeetingError("workspace_scope_changed");
     return parsed.data;
   }
-  async save(directory: string, meeting: Meeting, force = false) {
+  async save(directory: StoragePath, meeting: Meeting, force = false) {
     if (this.projection)
       meeting.workspace = {
         folder: meeting.workspace?.folder ?? null,
@@ -207,7 +174,7 @@ export class FileStore {
   async update(
     scope: Scope,
     id: string,
-    change: (meeting: Meeting, directory: string) => void | Promise<void>
+    change: (meeting: Meeting, directory: StoragePath) => void | Promise<void>
   ) {
     return this.locked(scope, id, async (directory) => {
       const meeting = await this.read(scope, id);

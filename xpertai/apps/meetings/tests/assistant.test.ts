@@ -2,14 +2,15 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join } from "./storage-fixture.js";
 import { randomUUID } from "node:crypto";
 import type {
   AgentMiddlewareAssistantTaskApi,
   AgentMiddlewareAssistantTaskInput,
   AgentMiddlewareAssistantTaskResult,
 } from "@xpert-ai/plugin-sdk";
-import { FileStore, sha256 } from "../src/file-store.js";
+import { sha256 } from "../src/file-store.js";
+import { TestFileStore as FileStore } from "./storage-fixture.js";
 import { Meetings } from "../src/meetings.js";
 import { AssistantWorkflow } from "../src/assistant-workflow.js";
 import { silentBoundaries } from "../src/phase-planner.js";

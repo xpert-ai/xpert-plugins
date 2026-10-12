@@ -1,7 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, rm, readFile, stat } from "node:fs/promises";
-import { join } from "node:path";
+import { join, fixtureStorage } from "./storage-fixture.js";
+import { WorkspaceFilesRuntimeCapability } from "@xpert-ai/plugin-sdk";
+import { DefaultRuntimeCapabilityRegistry } from "@xpert-ai/plugin-sdk";
 import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
 import * as Y from "yjs";
@@ -30,10 +32,24 @@ const scope: Scope = {
 };
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "meetings-docs-"));
-  const config = configSchema.parse({ dataDirectory: root });
-  const documents = new MeetingDocuments({ config } as PluginContext<
-    typeof config
-  >);
+  const config = configSchema.parse({});
+  const documents = new MeetingDocuments({
+    config,
+    resolve: () => ({
+      createScopedApi: (binding: { tenantId: string; organizationId: string; userId: string; xpertId: string }) => ({
+        capabilities: new DefaultRuntimeCapabilityRegistry([
+          [
+            WorkspaceFilesRuntimeCapability,
+            { appData: (options: { pluginName: string; requireUserIsolation: boolean }) => {
+                assert.equal(options.pluginName, "@xpert-ai/plugin-meetings");
+                assert.equal(options.requireUserIsolation, true);
+                return fixtureStorage(root, { ...binding, assistantId: binding.xpertId });
+              } },
+          ],
+        ]),
+      }),
+    }),
+  } as unknown as PluginContext<typeof config>);
   const service = new Meetings(documents.store, async () => {});
   const input = {
     id: randomUUID(),
@@ -60,6 +76,26 @@ async function fixture() {
 }
 const encoded = (doc: Y.Doc) =>
   Buffer.from(Y.encodeStateAsUpdate(doc)).toString("base64");
+test("fails closed without host workspace storage instead of creating local data", async () => {
+  const config = configSchema.parse({});
+  const documents = new MeetingDocuments({
+    config,
+    resolve: () => ({
+      createScopedApi: () => ({
+        capabilities: new DefaultRuntimeCapabilityRegistry(),
+      }),
+    }),
+  } as unknown as PluginContext<typeof config>);
+  const service = new Meetings(documents.store, async () => {});
+  await assert.rejects(
+    service.create(scope, {
+      id: randomUUID(),
+      sessionId: randomUUID(),
+      title: "Unavailable",
+    }),
+    { code: "workspace_storage_unavailable" }
+  );
+});
 test("Markdown and Tiptap Yjs documents preserve structured content, reject unsafe links", () => {
   const source =
     "# Heading\n\nA **bold** and *italic* note.\n\n- one\n- two\n\n> quoted\n\n[link](https://example.com)";
@@ -176,7 +212,6 @@ test("two Tiptap clients converge for concurrent same-paragraph edits and reconn
   b.destroy();
 });
 
-
 test("empty notes and legacy empty Yjs seeds project without rejecting the document session", async () => {
   for (const source of ["", "  ", "\n"]) {
     const doc = documentFromMarkdown(source);
@@ -188,9 +223,19 @@ test("empty notes and legacy empty Yjs seeds project without rejecting the docum
   assert.equal(documentMarkdown(legacy), "");
   const f = await fixture();
   try {
-    await f.documents.project(scope, f.input.id, "notes", randomUUID(), 1, encoded(legacy));
+    await f.documents.project(
+      scope,
+      f.input.id,
+      "notes",
+      randomUUID(),
+      1,
+      encoded(legacy)
+    );
     const meeting = await f.documents.store.read(scope, f.input.id);
     assert.equal(meeting.notes, "");
     assert.ok(meeting.documents.notes);
-  } finally { legacy.destroy(); await f.dispose(); }
+  } finally {
+    legacy.destroy();
+    await f.dispose();
+  }
 });

@@ -75,3 +75,9 @@ This version does not implement invitations, cross-account sharing, or audiovisu
 ## UI regression verification
 
 Run `nx run @xpert-ai/plugin-meetings:verify:view` after building. It exercises the built iframe with 2.2-second detail responses, final summary refresh, versioned init plus unversioned error replies, saved-content fallback/reconnect, keyboard tabs, shadcn checkboxes, Chinese labels, and light/dark density changes at narrow widths. `MEETINGS_VERIFY_OUTPUT_DIR` optionally saves screenshots. This synthetic test does not establish live ASR, collaboration service connectivity, or hardware capture.
+
+## Assistant workspace persistence
+
+All recording state uses `WorkspaceFilesRuntimeCapability.appData()` in the owning published Assistant's user-isolated workspace. The host revalidates runtime Assistant access and the current tenant/organization/user for file operations and queued retries. Shared Assistant and Project scopes fail closed; generic Files cannot access `.apps`, and NsJail Runner protocol 3 masks it from shell execution. Local Shell is trusted development execution without OS isolation.
+
+The `.apps/meetings/records/` tree contains authoritative meeting manifests, audio and task checkpoints. `.apps/meetings/captures/` holds durable delivery bindings. User-facing Markdown remains under `meetings/`. Per-meeting, capture, transcription and supervision locks are stored independently from removable records and shared across processes. Atomic writes prevent readers observing partial manifests. The plugin never resolves physical volume paths, and there is no independent directory setting or old-data migration.

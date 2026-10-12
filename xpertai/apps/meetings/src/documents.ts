@@ -10,10 +10,10 @@ import {
   type ICollaborationDocumentProvider,
   type PluginContext,
 } from "@xpert-ai/plugin-sdk";
-import { mkdir, readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, readFile, join } from "./workspace-storage.js";
 import * as Y from "yjs";
 import {
+  PLUGIN,
   CONTEXT,
   documentKindSchema,
   idSchema,
@@ -25,6 +25,7 @@ import {
 import type { Config } from "./config.js";
 import { FileStore, atomicWrite } from "./file-store.js";
 import { MeetingWorkspaceFiles } from "./workspace-files.js";
+import type { WorkspaceFilesWithAppData } from "./workspace-storage.js";
 import {
   documentFromMarkdown,
   documentMarkdown,
@@ -60,7 +61,23 @@ export class MeetingDocuments {
     @Inject(CONTEXT) private readonly context: PluginContext<Config>
   ) {
     this.store = new FileStore(
-      context.config.dataDirectory,
+      (scope) => {
+        const runtime = context
+          .resolve<AgentMiddlewareRuntimeServiceApi>(
+            XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN
+          )
+          .createScopedApi({
+            tenantId: scope.tenantId,
+            organizationId: scope.organizationId,
+            userId: scope.userId,
+            xpertId: scope.assistantId,
+          });
+        const files: WorkspaceFilesWithAppData | undefined = runtime.capabilities?.get(
+          WorkspaceFilesRuntimeCapability
+        );
+        if (!files?.appData) throw new MeetingError("workspace_storage_unavailable");
+        return files.appData({ pluginName: PLUGIN, requireUserIsolation: true });
+      },
       new MeetingWorkspaceFiles((scope) => {
         const api = context
           .resolve<AgentMiddlewareRuntimeServiceApi>(

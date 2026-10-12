@@ -1,7 +1,6 @@
 import { z } from "zod/v3";
 export const configSchema = z
   .object({
-    dataDirectory: z.string().min(1).default("data/plugins/meetings"),
     // Accepted for existing installations; summaries now use the published Assistant model.
     summaryCopilotId: z.string().optional(),
     summaryModel: z.string().optional(),
