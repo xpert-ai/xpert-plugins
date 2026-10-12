@@ -18,7 +18,8 @@ export const itemSchema = dto
 export const listSchema = z.object({
   items: z.array(itemSchema),
   total: z.number(),
-  page: z.number().optional(),
+  page: z.number().int().positive().optional(),
+  pageSize: z.number().int().positive().optional(),
 });
 export { captureStateSchema as captureSchema } from "../../../src/capture-contract";
 import { captureStateSchema } from "../../../src/capture-contract";

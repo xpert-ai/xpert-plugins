@@ -164,7 +164,8 @@ const preview = {
             preview: summary?.overview ?? "",
           })
         );
-      return { data: { items, total: items.length, page: 1 } };
+      const page = query.page ?? 1, pageSize = query.pageSize ?? 20;
+      return { data: { items: items.slice((page - 1) * pageSize, page * pageSize), total: items.length, page, pageSize } };
     }
     if (message.type === "executeAction") {
       if (message.actionKey === "document.session")

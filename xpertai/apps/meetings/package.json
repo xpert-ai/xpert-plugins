@@ -36,7 +36,11 @@
     "verify:desktop": "node scripts/verify-desktop-capture.mjs",
     "prepack": "node scripts/build.mjs --check",
     "verify:capture-feedback": "node scripts/verify-capture-feedback.mjs",
-    "verify:view": "node scripts/verify-meeting-view.mjs"
+    "verify:view": "node scripts/verify-meeting-view.mjs",
+    "verify:capture-settlement": "node scripts/verify-capture-settlement.mjs",
+    "verify:context-change": "node scripts/verify-context-change.mjs",
+    "verify:layout-pagination": "node scripts/verify-layout-pagination.mjs",
+    "verify:list-refresh": "node scripts/verify-list-refresh.mjs"
   },
   "xpert": {
     "plugin": {

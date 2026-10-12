@@ -165,6 +165,9 @@ export class MeetingsView implements IXpertViewExtensionProvider {
           },
         ],
         parameters: [
+          { key: "listPage", type: "number", label: text("List page", "列表页码") },
+          { key: "listPageSize", type: "number", label: text("Page size", "每页条数") },
+          { key: "listSearch", type: "string", label: text("List search", "列表搜索") },
           { key: "tab", type: "string", label: text("Tab", "页签") },
           { key: "captureId", type: "string", label: text("Capture", "录音") },
         ],

@@ -93,6 +93,22 @@ async function fixture() {
 }
 const code = (expected: string) => (error: unknown) =>
   error instanceof Error && error.message === expected;
+
+test("meeting list paginates scoped search results without returning full records", async () => {
+  const f = await fixture();
+  try {
+    for (let i = 0; i < 24; i++)
+      await f.service.create(scope, { id: randomUUID(), sessionId: randomUUID(), title: `Pagination review ${i}` });
+    const first = await f.service.list(scope, { page: 1, pageSize: 10, search: "Pagination review" });
+    const second = await f.service.list(scope, { page: 2, pageSize: 10, search: "Pagination review" });
+    const last = await f.service.list(scope, { page: 3, pageSize: 10, search: "Pagination review" });
+    assert.deepEqual([first.total, first.page, first.pageSize, first.items.length, second.items.length, last.items.length], [24, 1, 10, 10, 10, 4]);
+    assert.equal(new Set([...first.items, ...second.items, ...last.items].map(item => item.id)).size, 24);
+    assert.ok(first.items.every(item => !("transcript" in item) && !("notes" in item)));
+    assert.equal((await f.service.list({ ...scope, userId: "bob" }, { pageSize: 10, search: "Pagination review" })).total, 0);
+    assert.equal((await f.service.list(scope, { search: "no matching title" })).total, 0);
+  } finally { await f.dispose(); }
+});
 const summary: Summary = {
   overview: "Ship the draft.",
   decisions: [
@@ -201,6 +217,38 @@ test("chunk retries are idempotent; tampering, missing chunks and sealed appends
       ),
       code("checksum_mismatch")
     );
+  } finally {
+    await f.dispose();
+  }
+});
+test("host speech configuration errors remain actionable and audio survives for retry", async () => {
+  const f = await fixture();
+  try {
+    await f.upload("microphone");
+    await f.upload("system");
+    let failure: string | null = "speech_to_text_model_missing";
+    const worker = new Processing(f.store, {
+      transcribe: async () => {
+        if (failure) throw new Error(failure);
+        return "Ship the draft";
+      },
+      summarize: async () => summary,
+    });
+    await assert.rejects(worker.live(scope, f.input.id), code(failure));
+    assert.equal((await f.service.get(scope, f.input.id)).liveTranscription.errorCode, failure);
+    await f.finish();
+    for (const value of ["speech_to_text_model_missing", "speech_to_text_copilot_not_found", "speech_to_text_transcription_empty", "private provider response"]) {
+      failure = value;
+      await assert.rejects(worker.run(scope, f.input.id), code(value));
+      const record = await f.service.get(scope, f.input.id);
+      assert.equal(record.processing, "failed");
+      assert.equal(record.errorCode, value === "private provider response" ? "processing_failed" : value);
+      assert.ok((await stat(join(f.store.directory(scope, f.input.id), "audio"))).isDirectory());
+    }
+    failure = null;
+    await f.service.retry(scope, f.input.id);
+    await worker.run(scope, f.input.id);
+    assert.equal((await f.service.get(scope, f.input.id)).processing, "ready");
   } finally {
     await f.dispose();
   }

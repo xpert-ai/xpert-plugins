@@ -5,6 +5,20 @@ import { FileStore } from "./file-store.js";
 import { Transcription, type TranscriptionEngine } from "./transcription.js";
 import { MeetingError, type Meeting, type Scope } from "./domain.js";
 
+// Stable codes returned by the host SpeechToTextService. Never persist arbitrary
+// provider messages: they can contain request details or credentials.
+const speechErrors = new Set([
+  "speech_to_text_model_missing",
+  "speech_to_text_copilot_not_found",
+  "speech_to_text_transcription_empty",
+]);
+function processingErrorCode(error: unknown, fallback: string) {
+  if (error instanceof MeetingError) return error.code;
+  return error instanceof Error && speechErrors.has(error.message)
+    ? error.message
+    : fallback;
+}
+
 export interface SummaryWorkflow {
   live(input: Meeting): Promise<void>;
   finish(input: Meeting, liveTranscript: Meeting["transcript"]): Promise<void>;
@@ -47,7 +61,7 @@ export class Processing {
         await this.store.update(scope, id, (m) => {
           m.liveTranscription = {
             status: "retrying",
-            errorCode: "live_transcription_failed",
+            errorCode: processingErrorCode(error, "live_transcription_failed"),
           };
         });
       } catch {
@@ -110,8 +124,7 @@ export class Processing {
         await this.store.update(scope, id, (m) => {
           if (m.processing !== "ready") {
             m.processing = "failed";
-            m.errorCode =
-              error instanceof MeetingError ? error.code : "processing_failed";
+            m.errorCode = processingErrorCode(error, "processing_failed");
           }
         });
       } catch {
