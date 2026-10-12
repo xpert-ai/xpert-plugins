@@ -7,7 +7,6 @@ import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import {
   DOCX_EDITOR_AGENT_REVIEW_CAPABILITY,
   DOCX_EDITOR_ARTIFACT_SHARING_CAPABILITY,
-  DOCX_EDITOR_ARTIFACT_NAMESPACE,
   DOCX_EDITOR_FEATURE,
   DOCX_EDITOR_ICON,
   DOCX_EDITOR_MIDDLEWARE_NAME,
@@ -25,6 +24,12 @@ const moduleDir = dirname(fileURLToPath(import.meta.url))
 const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 'utf8')) as {
   name: string
   version: string
+  xpert: {
+    plugin: {
+      level: NonNullable<XpertPlugin['meta']['level']>
+      artifactNamespace: string
+    }
+  }
 }
 
 const ConfigSchema = z.object({})
@@ -38,8 +43,8 @@ const plugin: DocxEditorXpertPlugin = {
   meta: {
     name: packageJson.name || DOCX_EDITOR_PLUGIN_NAME,
     version: packageJson.version,
-    artifactNamespace: DOCX_EDITOR_ARTIFACT_NAMESPACE,
-    level: 'system',
+    artifactNamespace: packageJson.xpert.plugin.artifactNamespace,
+    level: packageJson.xpert.plugin.level,
     targetApps: ['data-xpert', 'xpert'],
     targetAppMeta: {
       'data-xpert': {

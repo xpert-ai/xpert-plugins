@@ -29,6 +29,7 @@
     }
   },
   "files": [
+    "migrations",
     "dist",
     ".xpertai-plugin",
     "assets",
@@ -37,6 +38,7 @@
     "!**/*.tsbuildinfo"
   ],
   "scripts": {
+    "test:migration": "node --test scripts/test-uuid-migration.mjs",
     "build:ui": "pnpm --filter @xpert-ai/plugin-shadcn-ui build",
     "build": "pnpm run build:ui && node scripts/build-remote-components.mjs && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
     "lint": "echo \"(todo) add lint\"",
