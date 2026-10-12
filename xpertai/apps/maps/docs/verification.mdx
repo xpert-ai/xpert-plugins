@@ -1,0 +1,59 @@
+---
+title: 测试与验收
+description: 区分自动化模拟验收、插件生命周期和真实供应商验收。
+---
+
+## 自动化检查
+
+```sh
+# xpertai/
+corepack pnpm exec nx build @xpert-ai/plugin-maps
+corepack pnpm exec nx test @xpert-ai/plugin-maps
+corepack pnpm exec nx run @xpert-ai/plugin-maps:typecheck
+corepack pnpm exec nx run @xpert-ai/plugin-maps:test-browser
+```
+
+浏览器验收需要本地 Chromium。使用构建后的 React 资源、仓库 Remote View Preview Host 的不透明来源 iframe，以及真实 MCP App bridge 与模拟工具服务，验证标记/卡片、搜索、详情、路线、平移缩放、托盘、主题、中文/英文与窄屏。测试还覆盖反复初始化、查询切换、取消后的过期响应、会话清空和引用仅追加到草稿。宿主拥有分栏与展开功能；预览测试不能证明真实 Xpert 的页面集成已经通过。
+
+主题检查需同时覆盖两种入口：使用不同于默认值的主色、边框、字体、字号与圆角，检查 `--xui-color-border`、`--border`、`--input`、`--ring` 和实际控件 computed style。切换深浅主题、紧凑密度及撤销 token 后，应保留查询/选点并清除旧样式。安装到 Xpert 后再次检查真实 iframe 的语义变量，不能仅凭截图判断主题桥接成功。
+
+从仓库根目录执行 dist-first 插件生命周期检查：
+
+```sh
+cd plugin-dev-harness
+corepack pnpm@10.24.0 --config.manage-package-manager-versions=false install --ignore-workspace --frozen-lockfile
+cd ..
+corepack pnpm -C plugin-dev-harness build
+node plugin-dev-harness/dist/index.js --workspace ./xpertai --plugin @xpert-ai/plugin-maps
+```
+
+仓库现有 harness 的 packageManager 字段为 pnpm 8，但锁文件格式为 9；上面的独立安装命令使用兼容的 pnpm 10，不改写锁文件。
+
+`verify:dist` 校验 UI 重建结果与源码/产物摘要，并验证文档导航。必须对实际 npm tarball 再检查入口、地图 HTML、文档和声明文件。
+
+## Xpert 安装与模拟验收
+
+以下检查使用正常插件安装、模板创建与 Assistant 发布流程。模拟验收不需要供应商 Key；只有 Agent 对话工具验收需要已配置的模型。
+
+1. 启动配套宿主，安装本次构建的 tarball；若安装结果要求重启，重启后确认 Maps 中间件、View Provider 和两个模板均可发现。
+2. 从 **地图助手 · 模拟演示** 创建并发布 Assistant，确认右侧 Workbench 的地图标签只承载插件内容区。
+3. 在普通 Assistant 中搜索地点，验证工具完成后右侧视图更新；如部署使用 Project，再验证 Project 内的打开事件和重复打开参数恢复。
+4. 通过视图完成搜索、地点详情、驾车/步行路线、拖动缩放与引用。引用应追加到当前草稿，保持已有文字且不自动发送。
+5. 切换会话后不显示上一会话的地点、查询或地图；窄容器、宿主深浅主题与语言切换不丢失当前合法状态。
+6. 在同一 Assistant 上使用 Update from Template，再发布并复测；确认 Assistant 身份保持不变，插件升级不需要重复创建助手。
+
+真实模式的 Workbench 与 MCP App 后续交互要求地图连接器在已发布 Assistant 图中连接并启用。当前恢复逻辑仅保留原始授权与当前图授权的交集；仅在某次对话中临时选择、但未连接到图中的连接器，不属于本轮持续交互支持范围。撤销图连接或替换原来固定的连接器绑定后，旧 App 应拒绝继续使用该授权。
+
+安装记录、构建成功和 Preview 浏览器报告不能替代上述宿主检查。验收记录应分别注明服务地址、安装版本、是否重启、使用的模板和通过的交互步骤；不得记录登录密码、Token 或地图 Key。
+
+## 真实验收待办
+
+模拟数据不能证明真实服务可用。每个部署配置自己的供应商连接器后，需要验证：
+
+1. 两家供应商 POI、详情、路线和静态图片的真实响应与账号权限。
+2. 在具体中心、缩放、视口尺寸下检查 GCJ-02 标记与道路像素对齐。
+3. 图片 Logo/审图号可见，额度、响应时延与产品使用条款满足部署要求。
+4. 已通过上面的宿主模拟验收后，将地图中间件切换为 live，再通过真实对话与右侧视图核验相同行为。
+5. 连接器撤销、另一个组织/用户的 App 访问和历史结果重放仍由宿主拒绝。
+
+构建、生命周期、模拟浏览器通过都不等于已安装到运行中的 Xpert，或已通过真实供应商验收。

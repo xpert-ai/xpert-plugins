@@ -356,6 +356,9 @@
     },
     {
       "path": "./apps/code-review"
+    },
+    {
+      "path": "./apps/maps"
     }
   ]
 }

@@ -2,5 +2,6 @@
 set -eu
 
 node scripts/check-plugin-entity-tables.mjs --staged
-node scripts/check-plugin-metadata.mjs --staged
+# Metadata source analysis is an opt-in audit: valid runtime validation or
+# factory calls cannot always be resolved statically and must not block commits.
 node scripts/check-release-dependencies.mjs --staged

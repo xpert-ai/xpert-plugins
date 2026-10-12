@@ -1,0 +1,61 @@
+---
+title: 架构与供应商扩展
+description: 插件边界、地图 DTO、凭据安全和可替换适配器。
+---
+
+## 调用链
+
+Agent 工具与 Workbench 共用 `createMapsSession` → 当前作用域 ConnectorRuntimeCapability → MapProvider → 官方 API。
+
+Workbench 的四个动作（maps.search / maps.detail / maps.route / maps.render）由插件 View Provider 实现。每次请求都经宿主 `ViewMiddlewareRuntimeCapability` 重新核验用户、Assistant 访问权限、发布图中的唯一地图中间件及其 Feature，并从同一图恢复连接器授权。运行时对象、连接器 ID、配置与密钥不序列化给 iframe。浏览器不能传入 provider / mode / connectorId 来覆盖可信配置。
+
+入口工具只向模型返回摘要，完整几何放在 artifact；App 专用回调返回完整 MCP 结果。工具结果携带 structuredContent → 宿主原生 MCP App → 插件内地图视图。App 交互通过标准 `@modelcontextprotocol/ext-apps` bridge 调用允许的工具，不能访问任意 URL 或供应商密钥。
+
+## 工具
+
+| 工具 | 可见性 | 输入与行为 |
+| --- | --- | --- |
+| maps_search | model、app | 关键词与城市或明确中心点；有界分页，最多 20 个地点 |
+| maps_detail | model、app | 精确地点 ID；返回规范化详情 |
+| maps_route | model、app | 明确的 GCJ-02 起终点，驾车或步行，返回供应商真实路线几何 |
+| maps_search_view / maps_detail_view / maps_route_view | app | 与入口共享业务函数，返回 UI 所需 DTO，避免将路线几何送入模型上下文 |
+| maps_render | app | 中心、缩放、尺寸；返回有界图片数据 |
+
+供应商与 live/demo 模式只来自可信中间件配置，不允许模型或 App 临时覆盖。所有 DTO 明确带有 kind、provider、mode、coordinateSystem，不能通过名称或文本猜测结果类型。
+
+## 两层替换边界
+
+服务层的 MapProvider 定义 search、detail、route、render。高德与腾讯实现各自参数顺序、签名、错误解析和路线解码，UI 只依赖规范化 DTO。新增供应商时扩展明确的 provider 枚举、工厂映射与连接器映射，并加入同等契约测试。
+
+地图视口独立使用 Web Mercator 投影。当前渲染路径使用官方静态图，不使用未公开的瓦片 URL；以后可在视图层引入官方 SDK，但必须单独解决凭据代理、CSP、Worker 与授权问题，不能把服务端 Key 返回给 iframe。
+
+## 界面与宿主边界
+
+插件只占右侧 Workbench 标签下的内容区。搜索栏、地图和固定高度结果托盘使用共享 shadcn/ui、Tailwind 4 与宿主语义主题；结果列数跟随容器宽度变化。宿主拥有左侧聊天、标签、关闭、分栏与展开。地点引用使用唯一声明的 `assistant.composer.append_references`，不发送聊天、不替换草稿。
+
+Workbench Remote View 与 MCP App 共用同一 React 业务组件，只替换 typed transport。所有 React 运行资源随包分发，不依赖外部 CDN 或部署机器的开发依赖；iframe 不使用 Web Storage。对话作用域切换时取消旧请求并清空上一会话的地图状态。
+
+两个入口使用本仓库的 `@xpert-ai/plugin-shadcn-ui` 与 Tailwind CSS 4，通过同一主题适配器继承宿主样式：
+
+- Remote View 将 `theme.tokens` 的公开字段映射为 `--xui-*`，再调用共享 `installShadcnThemeVars`。
+- MCP App 优先使用 `styles.variables` 中的标准样式；公开的 `--mcp-app-*` 补充弹层、输入框等扩展语义。
+- 背景、文本、边框、焦点、主色、字体、根字号、圆角和可用的密度均来自宿主；只有缺失值使用组件库默认样式。地图选中态和路线使用主题主色，供应商底图保留原始配色与标识。
+- 重复初始化和动态主题更新只调整样式，不清空地图状态。替换主题时移除失效的插件主题变量；MCP 局部通知保留 SDK 合并后的其他上下文，字体样式可更新或撤销。
+
+普通输入、选择器、按钮与标签控件消费宿主的 `controlHeight`、`buttonHeight`、`buttonHeightSm`、`fontSizeControl` 和 `fontSizeButton`，布局的 rem 尺寸跟随 `densityRootFontSize`。地图标记和缩放控件保留至少 44px 的触控目标。
+
+主题继承以即时宿主实际传入的字段为准。MCP 标准当前没有密度字段；插件不根据颜色或字号猜测密度，也不读取宿主私有 DOM/CSS。MCP 缺少的 shadcn 语义优先由当前标准主题推导，例如 input 使用当前 border，避免初次注入的兼容变量在主题切换后残留旧色。两种协议可能传入不同的圆角尺度，插件按各自的值渲染。
+
+主题通知不会清空插件状态；宿主重新创建 iframe 是另一个生命周期边界，临时状态的恢复取决于宿主传回的初始化参数。
+
+代码插件同时携带 `.xpertai-plugin/plugin.json` 根清单，供宿主定位 MCP App HTML 所属的已安装插件目录。清单名称、版本和 artifactNamespace 与 npm 包保持一致，并纳入分发校验；Workbench 入口可加载并不代表 MCP App 根目录已经满足此约定。
+
+## 边界与限制
+
+- 所有坐标明确为 GCJ-02，不接受混用 WGS84/BD09 的隐式假设。
+- 统一底图约束：缩放 4–17，宽高 50–1024 像素，scale=1。供应商可能有更窄的地区范围。
+- 静态图片刷新有网络时延与调用额度成本；拖动结束后防抖请求并丢弃旧响应。
+- 路线只支持驾车、步行；不能用起终点直线冒充导航路线。
+- 真实返回解析、超时、响应大小与图片格式都在服务端校验；仅使用固定供应商 HTTPS origin，不跟随重定向。
+- 没有跨用户缓存、数据库持久化、外部 stdio 服务或自定义地图 REST 路由。
+- Map Apps 回调只保留原始授权标识，且与当前 Assistant 图中有效授权取交集；不会把整个组织的连接器授权给 iframe。

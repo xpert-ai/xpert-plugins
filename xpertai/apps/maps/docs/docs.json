@@ -1,0 +1,42 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Xpert Maps",
+  "colors": {
+    "primary": "#047857",
+    "light": "#10B981",
+    "dark": "#065F46"
+  },
+  "favicon": "/favicon.svg",
+  "navigation": {
+    "groups": [
+      {
+        "group": "地图插件",
+        "pages": [
+          "index",
+          "quickstart",
+          "architecture",
+          "verification",
+          "research"
+        ]
+      }
+    ]
+  },
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "Xpert",
+        "href": "https://xpertai.cn"
+      }
+    ]
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/xpert-ai/xpert-plugins"
+    }
+  }
+}
