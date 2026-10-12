@@ -15,6 +15,8 @@ import {
 } from './lib/constants.js'
 import { SitesPlugin } from './lib/sites.plugin.js'
 import { sitesTemplates } from './lib/sites.templates.js'
+import { sitesApp } from './lib/sites-app.js'
+import { SITES_CONFIG } from './lib/sites-secrets.js'
 
 const moduleDir = dirname(fileURLToPath(import.meta.url))
 
@@ -37,8 +39,14 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
     version: packageJson.version,
     artifactNamespace: packageJson.xpert.plugin.artifactNamespace,
     level: packageJson.xpert.plugin.level,
-    targetApps: ['data-xpert'],
+    targetApps: ['xpert', 'data-xpert'],
     targetAppMeta: {
+      xpert: {
+        types: ['business-app', 'workbench-view', 'assistant-tool', 'site-hosting'],
+        capabilities: [SITES_FEATURE],
+        marketplace: { screenshots: [APP_COVER], contents: [sitesApp] },
+        runtime: { middlewareProviders: [SITES_MIDDLEWARE_NAME], viewProviders: [SITES_PROVIDER_KEY], templateProviders: [SITES_TEMPLATE_PROVIDER_KEY] }
+      },
       'data-xpert': {
         types: ['workbench-view', 'assistant-tool', 'business-app', 'site-hosting'],
         capabilities: [SITES_FEATURE, 'sites-workbench', 'sites-builder-assistant-template', 'sites-local-hosting'],
@@ -124,7 +132,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   templates: sitesTemplates,
   register(ctx) {
     ctx.logger.log('register sites plugin')
-    return { module: SitesPlugin, global: true }
+    return { module: SitesPlugin, global: true, providers: [{ provide: SITES_CONFIG, useValue: ConfigSchema.parse(ctx.config) }] }
   },
   async onStart(ctx) {
     ctx.logger.log('sites plugin started')

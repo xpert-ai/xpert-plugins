@@ -15,6 +15,7 @@ export interface SitesScope {
 export interface SitesSourceFile {
   path: string
   content: string
+  encoding?: 'utf8' | 'base64'
   language?: string
   role?: 'entry' | 'style' | 'script' | 'asset' | 'config'
 }

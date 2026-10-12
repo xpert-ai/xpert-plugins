@@ -1,0 +1,13 @@
+---
+title: "Architecture"
+---
+
+The plugin owns Review, Repository, Run and Delivery entities, GitHub user/App adapters, a signed webhook controller, Managed Queue processor, middleware, templates and iframe view. Xpert owns authentication, model credentials, task execution, connector credentials and the conversation shell.
+
+Records are isolated by tenant, organization, user and Assistant. Revision checks serialize changes. Source reads use immutable base/head hashes; inline findings must point into a real diff hunk. Missing diff/check evidence remains visible as coverage warnings. Completion is bound to the dispatched execution and head hash. PR text and code are untrusted evidence.
+
+Host bridge messages validate source window, instance, protocol and scope revision. The selected review is supplied through `assistant.context.set`; tools re-authorize this context rather than trusting iframe data. No browser storage is required.
+
+The right panel contains the PR inbox, summary, file diffs, findings and checks. The existing host chat remains the only composer.
+
+The unattended pipeline maps verified installation/repository IDs to a stored tenant scope; it never accepts tenant headers on the public webhook. PostgreSQL row locks serialize policy changes, quota reservations and processing across workers. Queue payloads contain identifiers only. Review dispatch identity is committed before calling the platform, and publication uses a separate server policy guard rather than fabricated human confirmation.

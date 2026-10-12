@@ -1,0 +1,14 @@
+---
+title: "Code Review"
+description: "Commit-bound pull request review inside the Xpert workbench"
+---
+
+Install `@xpert-ai/plugin-code-review` at the package-declared system level through the host installer. Initialize Code Review in the application catalog; the host creates a dedicated organization workspace and an Assistant using the existing primary model.
+
+Open a public GitHub PR URL, or connect GitHub in the current workspace for private repositories. Source credentials stay in the host connector.
+
+Review the diff in the right-hand plugin view. Mark files as viewed, start a background review, inspect findings and checks, and continue a finding in the existing left-hand chat. The UI is built with repository-owned Shadcn UI and Tailwind CSS and uses the host theme.
+
+For repository-triggered reviews, follow [Automatic PR review](automation). The inbox separates pending confirmation, published results, skipped events and failures.
+
+Manual AI findings are private drafts. Submission requires an explicit confirmation with the selected findings, review event, summary and exact commit. A changed head must be refreshed and reviewed again. An uncertain network result freezes resubmission; check GitHub before taking another action.

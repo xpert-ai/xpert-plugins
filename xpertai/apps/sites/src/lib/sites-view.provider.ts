@@ -1,577 +1,77 @@
-import { Injectable } from '@nestjs/common'
-import { readFile } from 'fs/promises'
-import { createRequire } from 'module'
-import { dirname, extname, join } from 'path'
-import { fileURLToPath } from 'url'
-import {
-  I18nObject,
-  JsonSchemaObjectType,
-  XpertExtensionViewManifest,
-  XpertRemoteComponentEntry,
-  XpertRemoteComponentViewSchema,
-  XpertResolvedViewHostContext,
-  XpertViewActionRequest,
-  XpertViewActionResult,
-  XpertViewDataResult,
-  XpertViewQuery,
-  XpertViewScalar,
-  type IconDefinition
-} from '@xpert-ai/contracts'
-import { IXpertViewExtensionProvider, renderRemoteReactIframeHtml, ViewExtensionProvider } from '@xpert-ai/plugin-sdk'
-import {
-  ASSISTANT_CHAT_SEND_MESSAGE_COMMAND,
-  AGENT_WORKBENCH_FIXED_SLOT,
-  AGENT_WORKBENCH_MAIN_SLOT,
-  SITES_FEATURE,
-  SITES_ICON,
-  SITES_MIDDLEWARE_TOOL_NAMES,
-  SITES_PLUGIN_NAME,
-  SITES_PROVIDER_KEY,
-  SITES_REMOTE_ENTRY_KEY,
-  SITES_VIEW_KEY,
-  WORKBENCH_BROWSER_OPEN_CLIENT_COMMAND
-} from './constants.js'
+import { Injectable, Logger } from '@nestjs/common'
+import { readFile } from 'node:fs/promises'
+import { z } from 'zod/v3'
+import { ASSISTANT_CHAT_SEND_MESSAGE_COMMAND, ASSISTANT_CONTEXT_SET_COMMAND, WORKBENCH_NAVIGATION_OPEN_COMMAND,
+  type XpertExtensionViewManifest, type XpertRemoteComponentViewSchema, type XpertResolvedViewHostContext, type XpertViewActionRequest, type XpertViewActionResult, type XpertViewQuery } from '@xpert-ai/contracts'
+import { type IXpertViewExtensionProvider, renderRemoteReactIframeHtml, ViewExtensionProvider } from '@xpert-ai/plugin-sdk'
+import { SITES_FEATURE, SITES_ICON, SITES_MIDDLEWARE_TOOL_NAMES, SITES_PLUGIN_NAME, SITES_PROVIDER_KEY, SITES_REMOTE_ENTRY_KEY, SITES_VIEW_KEY } from './constants.js'
 import { SitesService } from './sites.service.js'
-import { siteTemplateGalleryItems } from './sites.templates.js'
-import type { SitesAccessMode, SitesScope, SitesStorageShape } from './types.js'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
-const requireFromHere = createRequire(__filename)
-const text = (en_US: string, zh_Hans: string): I18nObject => ({ en_US, zh_Hans })
-const SITES_VIEW_ICON = {
-  type: 'svg',
-  value: SITES_ICON,
-  alt: 'Sites'
-} satisfies IconDefinition
-const TEMPLATE_PREVIEW_IMAGE_FILES: Record<string, string[]> = {
-  onboardingHub: ['sites-onboarding-hub.png', 'onboarding-hub.jpg', 'onboarding-hub.jpeg', 'onboarding-hub.png', 'onboarding-hub.webp'],
-  enablementHub: ['sites-enablement-hub.png', 'enablement-hub.jpg', 'enablement-hub.jpeg', 'enablement-hub.png', 'enablement-hub.webp'],
-  pulseDashboard: ['sites-pulse-dashboard.png', 'pulse-dashboard.jpg', 'pulse-dashboard.jpeg', 'pulse-dashboard.png', 'pulse-dashboard.webp'],
-  sparkboard: ['sites-idea-intake.jpg', 'sparkboard.jpg', 'sparkboard.jpeg', 'sparkboard.png', 'sparkboard.webp'],
-  launchCal: ['sites-launch-cal.jpg', 'launch-cal.jpg', 'launch-cal.jpeg', 'launch-cal.png', 'launch-cal.webp'],
-  eventPlanningHub: ['sites-event-planning-hub.jpg', 'event-planning-hub.jpg', 'event-planning-hub.jpeg', 'event-planning-hub.png', 'event-planning-hub.webp']
-}
-const TEMPLATE_PREVIEW_IMAGE_MIME: Record<string, string> = {
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.png': 'image/png',
-  '.webp': 'image/webp'
-}
-
-const createSiteInputSchema = {
-  type: 'object',
-  properties: {
-    name: { type: 'string', title: text('Name', '名称') },
-    sourcePath: { type: 'string', title: text('Source Path', '源码目录') },
-    prompt: { type: 'string', title: text('Prompt', '提示词') },
-    storageShape: { type: 'string', title: text('Storage', '存储形态') },
-    accessMode: { type: 'string', title: text('Access', '访问权限'), enum: ['admins_only', 'workspace_all', 'custom', 'public_link'] }
-  },
-  required: ['name', 'sourcePath']
-} satisfies JsonSchemaObjectType
-
-const saveVersionInputSchema = {
-  type: 'object',
-  properties: {
-    projectId: { type: 'string', title: text('Project', '项目') },
-    sourcePath: { type: 'string', title: text('Source Path', '源码目录') },
-    prompt: { type: 'string', title: text('Prompt', '提示词') },
-    title: { type: 'string', title: text('Version Title', '版本标题') }
-  }
-} satisfies JsonSchemaObjectType
-
-const deployVersionInputSchema = {
-  type: 'object',
-  properties: {
-    projectId: { type: 'string', title: text('Project', '项目') },
-    versionId: { type: 'string', title: text('Version', '版本') },
-    accessMode: { type: 'string', title: text('Access', '访问权限'), enum: ['admins_only', 'workspace_all', 'custom', 'public_link'] }
-  }
-} satisfies JsonSchemaObjectType
-
-const changeAccessInputSchema = {
-  type: 'object',
-  properties: {
-    accessMode: { type: 'string', title: text('Access', '访问权限'), enum: ['admins_only', 'workspace_all', 'custom', 'public_link'] },
-    customAudience: { type: 'array', title: text('Custom Audience', '自定义受众') }
-  },
-  required: ['accessMode']
-} satisfies JsonSchemaObjectType
-
-const publishArtifactLinkInputSchema = {
-  type: 'object',
-  properties: {
-    deploymentId: { type: 'string', title: text('Deployment', '发布记录') },
-    expiresAt: { type: 'string', title: text('Expires At', '过期时间') },
-    userConfirmedPublicLink: { type: 'boolean', title: text('Confirm Public Link', '确认公开链接') }
-  },
-  required: ['deploymentId', 'userConfirmedPublicLink']
-} satisfies JsonSchemaObjectType
-
-const revokeArtifactLinkInputSchema = {
-  type: 'object',
-  properties: {
-    deploymentId: { type: 'string', title: text('Deployment', '发布记录') }
-  },
-  required: ['deploymentId']
-} satisfies JsonSchemaObjectType
-
-const envInputSchema = {
-  type: 'object',
-  properties: {
-    key: { type: 'string', title: text('Key', '键') },
-    value: { type: 'string', title: text('Value', '值') },
-    secret: { type: 'boolean', title: text('Secret', '密钥') },
-    description: { type: 'string', title: text('Description', '描述') }
-  },
-  required: ['key']
-} satisfies JsonSchemaObjectType
+import type { SitesScope } from './types.js'
+const text = (en_US: string, zh_Hans: string) => ({ en_US, zh_Hans })
+const access = z.enum(['admins_only', 'workspace_all', 'custom', 'public_link'])
+const project = z.object({ projectId: z.string().uuid() }).strict()
+const deploy = project.extend({ versionId: z.string().uuid(), accessMode: access, confirmed: z.literal(true), customAudience: z.array(z.string().uuid()).max(100).optional(), userConfirmedPublicLink: z.boolean().optional() })
+const logger = new Logger('SitesView')
+const scope = (c: XpertResolvedViewHostContext): SitesScope => ({ tenantId: c.tenantId, organizationId: c.organizationId, userId: c.userId, assistantId: c.hostId })
 
 @Injectable()
 @ViewExtensionProvider(SITES_PROVIDER_KEY)
 export class SitesViewProvider implements IXpertViewExtensionProvider {
   constructor(private readonly service: SitesService) {}
-
-  supports(context: XpertResolvedViewHostContext) {
-    return context.hostType === 'agent'
+  supports(c: XpertResolvedViewHostContext) { return c.hostType === 'agent' }
+  getViewManifests(_c: XpertResolvedViewHostContext, slot: string): XpertExtensionViewManifest[] {
+    if (!['agent.workbench.fixed', 'agent.workbench.main'].includes(slot)) return []
+    const icon = { type: 'svg' as const, value: SITES_ICON }
+    return [{ key: SITES_VIEW_KEY, title: text('Sites', '站点'), icon, hostType: 'agent', slot, order: 40,
+      activation: { requiredFeatures: [SITES_FEATURE] }, source: { provider: SITES_PROVIDER_KEY, plugin: SITES_PLUGIN_NAME }, refreshable: true,
+      ...(slot === 'agent.workbench.fixed' ? { workbench: { fixed: true, menu: { enabled: true, label: text('Sites', '站点'), icon, order: 40 } } } : {}),
+      view: { type: 'remote_component', runtime: 'react', protocolVersion: 1, component: { isolation: 'iframe', entry: SITES_REMOTE_ENTRY_KEY }, dataSource: { mode: 'platform' } },
+      dataSource: { mode: 'platform', querySchema: { supportsPagination: true, supportsSearch: true, supportsSelection: true, supportsParameters: true, defaultPageSize: 6 }, cache: { enabled: false } },
+      clientCommands: [ASSISTANT_CHAT_SEND_MESSAGE_COMMAND, ASSISTANT_CONTEXT_SET_COMMAND, WORKBENCH_NAVIGATION_OPEN_COMMAND].map(key => ({ key })),
+      hostEvents: { subscriptions: [{ key: 'sites-tool-completed', event: 'assistant.tool.completed', filter: { sources: ['chatkit'], toolNames: [...SITES_MIDDLEWARE_TOOL_NAMES] }, action: { type: 'forward', debounceMs: 500 } }] },
+      parameters: [{ key: 'projectId', type: 'string', label: text('Project', '项目') }, { key: 'tab', type: 'string', label: text('Tab', '标签页') }],
+      actions: ['create_site', 'deploy_version', 'restore_version', 'change_access', 'publish_artifact_link', 'revoke_artifact_link', 'upsert_env', 'remove_env', 'archive_project'].map(key => ({ key, label: text(key, key), actionType: 'invoke' as const })) }]
   }
-
-  getViewManifests(_context: XpertResolvedViewHostContext, slot: string): XpertExtensionViewManifest[] {
-    if (slot !== AGENT_WORKBENCH_MAIN_SLOT && slot !== AGENT_WORKBENCH_FIXED_SLOT) {
-      return []
-    }
-
-    const fixed = slot === AGENT_WORKBENCH_FIXED_SLOT
-    return [
-      {
-        key: SITES_VIEW_KEY,
-        title: text('Sites', '站点'),
-        description: text('Create, save, deploy, and inspect hosted Sites projects.', '创建、保存、发布和查看托管站点项目。'),
-        icon: SITES_VIEW_ICON,
-        hostType: 'agent',
-        slot,
-        order: fixed ? 40 : 30,
-        refreshable: true,
-        activation: {
-          requiredFeatures: [SITES_FEATURE]
-        },
-        ...(fixed
-          ? {
-              workbench: {
-                fixed: true,
-                menu: {
-                  enabled: true,
-                  label: text('Sites', '站点'),
-                  order: 40,
-                  icon: SITES_VIEW_ICON
-                }
-              }
-            }
-          : {}),
-        source: {
-          provider: SITES_PROVIDER_KEY,
-          plugin: SITES_PLUGIN_NAME
-        },
-        parameters: [
-          {
-            key: 'projectId',
-            label: text('Project', '项目'),
-            type: 'string'
-          }
-        ],
-        view: {
-          type: 'remote_component',
-          runtime: 'react',
-          protocolVersion: 1,
-          component: {
-            isolation: 'iframe',
-            entry: SITES_REMOTE_ENTRY_KEY
-          },
-          dataSource: {
-            mode: 'platform'
-          }
-        },
-        dataSource: {
-          mode: 'platform',
-          querySchema: {
-            supportsPagination: true,
-            supportsSearch: true,
-            supportsSelection: true,
-            supportsParameters: true,
-            defaultPageSize: 30
-          },
-          cache: {
-            enabled: false
-          }
-        },
-        hostEvents: {
-          subscriptions: [
-            {
-              key: 'sites-tool-completed',
-              event: 'assistant.tool.completed',
-              filter: {
-                sources: ['chatkit'],
-                toolNames: [...SITES_MIDDLEWARE_TOOL_NAMES]
-              },
-              action: {
-                type: 'forward',
-                debounceMs: 1000
-              }
-            }
-          ]
-        },
-        clientCommands: [
-          {
-            key: WORKBENCH_BROWSER_OPEN_CLIENT_COMMAND,
-            label: text('Open Site Preview', '打开站点预览'),
-            description: text(
-              'Open the generated Sites deployment in the Workbench browser tab.',
-              '在 Workbench 浏览器标签页中打开生成的 Sites 发布页面。'
-            )
-          },
-          {
-            key: ASSISTANT_CHAT_SEND_MESSAGE_COMMAND,
-            label: text('Send Prompt to Assistant', '发送提示词给助手'),
-            description: text(
-              'Send a selected Sites template prompt to the current Assistant ChatKit.',
-              '将选中的 Sites 模板提示词发送给当前 Assistant ChatKit。'
-            )
-          }
-        ],
-        actions: [
-          {
-            key: 'refresh',
-            label: text('Refresh', '刷新'),
-            icon: 'ri-refresh-line',
-            placement: 'toolbar',
-            actionType: 'refresh'
-          },
-          {
-            key: 'create_site',
-            label: text('Create Site', '创建站点'),
-            icon: 'ri-add-line',
-            placement: 'toolbar',
-            actionType: 'invoke',
-            inputSchema: createSiteInputSchema
-          },
-          {
-            key: 'save_version',
-            label: text('Save Version', '保存版本'),
-            icon: 'ri-save-3-line',
-            placement: 'toolbar',
-            actionType: 'invoke',
-            inputSchema: saveVersionInputSchema
-          },
-          {
-            key: 'deploy_version',
-            label: text('Deploy', '发布'),
-            icon: 'ri-rocket-line',
-            placement: 'toolbar',
-            actionType: 'invoke',
-            inputSchema: deployVersionInputSchema
-          },
-          {
-            key: 'change_access',
-            label: text('Access', '访问权限'),
-            icon: 'ri-lock-line',
-            placement: 'toolbar',
-            actionType: 'invoke',
-            inputSchema: changeAccessInputSchema
-          },
-          {
-            key: 'publish_artifact_link',
-            label: text('Publish Link', '公开链接'),
-            icon: 'ri-share-line',
-            placement: 'row',
-            actionType: 'invoke',
-            inputSchema: publishArtifactLinkInputSchema
-          },
-          {
-            key: 'revoke_artifact_link',
-            label: text('Revoke Link', '撤销链接'),
-            icon: 'ri-link-unlink-m',
-            placement: 'row',
-            actionType: 'invoke',
-            inputSchema: revokeArtifactLinkInputSchema
-          },
-          {
-            key: 'upsert_env',
-            label: text('Save Env', '保存环境值'),
-            icon: 'ri-key-2-line',
-            placement: 'toolbar',
-            actionType: 'invoke',
-            inputSchema: envInputSchema
-          },
-          {
-            key: 'remove_env',
-            label: text('Remove Env', '移除环境值'),
-            icon: 'ri-delete-bin-line',
-            placement: 'row',
-            actionType: 'invoke',
-            inputSchema: envInputSchema
-          },
-          {
-            key: 'archive_project',
-            label: text('Archive', '归档'),
-            icon: 'ri-archive-line',
-            placement: 'row',
-            actionType: 'invoke'
-          }
-        ]
-      }
-    ]
+  async getRemoteComponentEntry(_c: XpertResolvedViewHostContext, key: string, component: XpertRemoteComponentViewSchema['component']) {
+    if (key !== SITES_VIEW_KEY || component.entry !== SITES_REMOTE_ENTRY_KEY) throw new Error('view_not_found')
+    const [appScript, appCss] = await Promise.all(['app.js', 'app.css'].map(file => readFile(new URL('./remote-components/sites-workbench/' + file, import.meta.url), 'utf8')))
+    return { html: renderRemoteReactIframeHtml({ title: 'Sites', reactUmd: '', reactDomUmd: '', appScript, appCss }), contentType: 'text/html; charset=utf-8' as const }
   }
-
-  async getRemoteComponentEntry(
-    _context: XpertResolvedViewHostContext,
-    viewKey: string,
-    component: XpertRemoteComponentViewSchema['component']
-  ): Promise<XpertRemoteComponentEntry> {
-    if (viewKey !== SITES_VIEW_KEY || component.entry !== SITES_REMOTE_ENTRY_KEY) {
-      return {
-        html: '<!doctype html><html><body>Unsupported remote component entry.</body></html>',
-        contentType: 'text/html; charset=utf-8'
-      }
-    }
-    const appScript = await readFile(join(__dirname, 'remote-components', SITES_REMOTE_ENTRY_KEY, 'app.js'), 'utf8')
-    const react = await readPackageFile('react', 'umd/react.production.min.js')
-    const reactDom = await readPackageFile('react-dom', 'umd/react-dom.production.min.js')
-    const templatePreviews = await readTemplatePreviewImages()
-    const templatePreviewScript = `globalThis.__XPERT_SITES_TEMPLATE_PREVIEWS__ = ${JSON.stringify(templatePreviews)};\n`
-    const templatePromptScript = `globalThis.__XPERT_SITES_TEMPLATE_PROMPTS__ = ${JSON.stringify(siteTemplateGalleryItems)};\n`
-    return {
-      html: renderRemoteReactIframeHtml({
-        title: 'Sites',
-        lang: 'zh-Hans',
-        reactUmd: react,
-        reactDomUmd: reactDom,
-        appScript: `${templatePreviewScript}${templatePromptScript}${appScript}`
-      }),
-      contentType: 'text/html; charset=utf-8'
-    }
-  }
-
-  async getViewData(
-    context: XpertResolvedViewHostContext,
-    viewKey: string,
-    query: XpertViewQuery
-  ): Promise<XpertViewDataResult> {
-    if (viewKey !== SITES_VIEW_KEY) {
-      return {}
-    }
-    return this.service.getViewData(scopeFromContext(context), {
-      projectId: getStringParameter(query.parameters, 'projectId'),
-      search: query.search,
-      limit: query.pageSize
+  async getViewData(c: XpertResolvedViewHostContext, key: string, query: XpertViewQuery) {
+    if (key !== SITES_VIEW_KEY) throw new Error('view_not_found')
+    const input = z.object({ projectId: z.string().uuid().optional(), versionId: z.string().uuid().optional(), preview: z.boolean().optional(), page: z.number().int().min(1).max(1000), limit: z.number().int().min(1).max(30), search: z.string().max(200).optional() }).parse({
+      projectId: query.selectionId ?? query.parameters?.projectId, versionId: query.parameters?.versionId, preview: query.parameters?.preview,
+      page: query.page ?? 1, limit: query.pageSize ?? 6, search: query.search
     })
+    return this.service.getViewData(scope(c), input)
   }
-
-  async executeViewAction(
-    context: XpertResolvedViewHostContext,
-    viewKey: string,
-    actionKey: string,
-    request: XpertViewActionRequest
-  ): Promise<XpertViewActionResult> {
-    if (viewKey !== SITES_VIEW_KEY) {
-      return failure('Unsupported view', '不支持的视图')
-    }
-
+  async executeViewAction(c: XpertResolvedViewHostContext, key: string, action: string, request: XpertViewActionRequest): Promise<XpertViewActionResult> {
     try {
-      const scope = scopeFromContext(context)
-      if (actionKey === 'refresh') {
-        return success('Sites refreshed', 'Sites 已刷新')
-      }
-      if (actionKey === 'create_site') {
-        const input = request.input ?? {}
-        const data = await this.service.createProject(
-          {
-            name: getStringInput(input, 'name') ?? 'Untitled Site',
-            prompt: getStringInput(input, 'prompt'),
-            storageShape: getStringInput(input, 'storageShape') as SitesStorageShape,
-            audience: getStringInput(input, 'accessMode') as SitesAccessMode,
-            sourcePath: getStringInput(input, 'sourcePath')
-          },
-          scope
-        )
-        return {
-          ...success('Site project created. Use the Sites assistant to save a version from its sandbox sourcePath.', '站点项目已创建。请通过 Sites 助手从沙箱源码目录保存版本。'),
-          data: { project: data, projectId: data.id }
+      if (key !== SITES_VIEW_KEY) throw new Error('view_not_found')
+      const s = scope(c), input = request.input
+      let result: object
+      switch (action) {
+        case 'create_site': {
+          const v = z.object({ name: z.string().trim().min(1).max(100), prompt: z.string().max(8000).optional() }).strict().parse(input)
+          const p = await this.service.createProject({ name: v.name!, prompt: v.prompt, storageShape: 'static' }, s)
+          result = { projectId: p.id }; break
         }
+        case 'deploy_version': result = await this.service.deployVersion(deploy.parse(input), s); break
+        case 'restore_version': { const v = project.extend({ versionId: z.string().uuid() }).parse(input); result = await this.service.restoreVersion(s, v.projectId, v.versionId); break }
+        case 'change_access': { const v = project.extend({ accessMode: access, customAudience: z.array(z.string().uuid()).max(100).optional(), userConfirmedPublicLink: z.boolean().optional(), confirmed: z.literal(true) }).parse(input); await this.service.setAccess(s, v.projectId, v.accessMode, v.customAudience, v.userConfirmedPublicLink); result = { projectId: v.projectId }; break }
+        case 'publish_artifact_link': { const v = z.object({ deploymentId: z.string().uuid(), userConfirmedPublicLink: z.literal(true), expiresAt: z.string().datetime().optional() }).strict().parse(input); result = await this.service.publishArtifactLink({ deploymentId: v.deploymentId!, userConfirmedPublicLink: v.userConfirmedPublicLink, expiresAt: v.expiresAt }, s); break }
+        case 'revoke_artifact_link': { const v = z.object({ deploymentId: z.string().uuid(), confirmed: z.literal(true) }).strict().parse(input); result = await this.service.revokeArtifactLink({ deploymentId: v.deploymentId! }, s); break }
+        case 'upsert_env': { const v = project.extend({ key: z.string().regex(/^[A-Z_][A-Z0-9_]*$/).max(100), value: z.string().max(10000).optional(), secret: z.boolean(), description: z.string().max(500).optional() }).parse(input); result = await this.service.upsertEnvironmentValue(s, { ...v, projectId: v.projectId!, key: v.key! }); break }
+        case 'remove_env': { const v = project.extend({ key: z.string().min(1), confirmed: z.literal(true) }).parse(input); result = await this.service.removeEnvironmentValue(s, v.projectId, v.key); break }
+        case 'archive_project': { const v = project.parse(input); await this.service.archiveProject(s, v.projectId); result = { projectId: v.projectId }; break }
+        default: throw new Error('unknown_action')
       }
-      if (actionKey === 'save_version') {
-        return failure(
-          'Save versions from the Sites assistant after writing source files with SandboxFile tools.',
-          '请在 Sites 助手中使用 SandboxFile 工具写入源码后保存版本。'
-        )
-      }
-      if (actionKey === 'deploy_version') {
-        const input = request.input ?? {}
-        const accessMode = getStringInput(input, 'accessMode') as SitesAccessMode
-        const data = await this.service.deployVersion(
-          {
-            projectId: getStringInput(input, 'projectId') ?? getStringParameter(request.parameters, 'projectId') ?? request.targetId,
-            versionId: getStringInput(input, 'versionId'),
-            accessMode,
-            userConfirmedPublicLink: accessMode === 'public_link'
-          },
-          scope
-        )
-        const event = await this.service.buildDeploymentPreviewEvent({ deployment: data })
-        return {
-          ...success('Version deployed', '版本已发布'),
-          data: event ? { ...data, event } : data
-        }
-      }
-      if (actionKey === 'change_access') {
-        const input = request.input ?? {}
-        const accessMode = getStringInput(input, 'accessMode') as SitesAccessMode
-        const data = await this.service.setAccess(
-          scope,
-          getStringParameter(request.parameters, 'projectId') ?? request.targetId ?? getStringInput(input, 'projectId') ?? '',
-          accessMode,
-          readStringArrayInput(input, 'customAudience'),
-          accessMode === 'public_link'
-        )
-        return { ...success('Access updated', '访问权限已更新'), data }
-      }
-      if (actionKey === 'publish_artifact_link') {
-        const input = request.input ?? {}
-        const deploymentId = getStringInput(input, 'deploymentId') ?? request.targetId ?? ''
-        const data = await this.service.publishArtifactLink(
-          {
-            deploymentId,
-            expiresAt: getStringInput(input, 'expiresAt'),
-            userConfirmedPublicLink: true
-          },
-          scope
-        )
-        const event = await this.service.buildDeploymentPreviewEvent({ deployment: data })
-        return {
-          ...success('Artifact link published', 'Artifact 链接已公开'),
-          data: event ? { ...data, event } : data
-        }
-      }
-      if (actionKey === 'revoke_artifact_link') {
-        const input = request.input ?? {}
-        const data = await this.service.revokeArtifactLink(
-          { deploymentId: getStringInput(input, 'deploymentId') ?? request.targetId ?? '' },
-          scope
-        )
-        return { ...success('Artifact link revoked', 'Artifact 链接已撤销'), data }
-      }
-      if (actionKey === 'upsert_env') {
-        const input = request.input ?? {}
-        const data = await this.service.upsertEnvironmentValue(scope, {
-          projectId: getStringParameter(request.parameters, 'projectId') ?? request.targetId ?? getStringInput(input, 'projectId') ?? '',
-          key: getStringInput(input, 'key') ?? '',
-          value: getStringInput(input, 'value'),
-          secret: getBooleanInput(input, 'secret'),
-          description: getStringInput(input, 'description')
-        })
-        return { ...success('Environment value saved', '环境值已保存'), data }
-      }
-      if (actionKey === 'remove_env') {
-        const input = request.input ?? {}
-        const data = await this.service.removeEnvironmentValue(
-          scope,
-          getStringParameter(request.parameters, 'projectId') ?? getStringInput(input, 'projectId') ?? '',
-          request.targetId ?? getStringInput(input, 'key') ?? ''
-        )
-        return { ...success('Environment value removed', '环境值已移除'), data }
-      }
-      if (actionKey === 'archive_project') {
-        const data = await this.service.archiveProject(scope, request.targetId ?? getStringParameter(request.parameters, 'projectId') ?? '')
-        return { ...success('Project archived', '项目已归档'), data }
-      }
-      return failure('Unsupported action', '不支持的操作')
+      // Return only business receipts, never persistence scope or credential fields.
+      if (action === 'deploy_version') result = { deployed: true }
+      return { success: true, data: result, refresh: true }
     } catch (error) {
-      const message = error instanceof Error && error.message ? error.message : 'Sites action failed'
-      return {
-        success: false,
-        message: text(message, message)
-      }
+      logger.warn(error instanceof Error ? error.name : 'SitesActionError')
+      return { success: false, refresh: false, data: { code: error instanceof z.ZodError ? 'invalid_input' : 'operation_failed' } }
     }
   }
-}
-
-function scopeFromContext(context: XpertResolvedViewHostContext): SitesScope {
-  return {
-    tenantId: context.tenantId,
-    organizationId: context.organizationId,
-    userId: context.userId,
-    assistantId: context.hostId
-  }
-}
-
-function getStringParameter(parameters: Record<string, XpertViewScalar | XpertViewScalar[]> | undefined, key: string) {
-  const value = parameters?.[key]
-  const normalized = Array.isArray(value) ? value[0] : value
-  return typeof normalized === 'string' && normalized.trim() ? normalized.trim() : undefined
-}
-
-function getStringInput(input: Record<string, unknown> | null | undefined, key: string) {
-  const value = input?.[key]
-  return typeof value === 'string' && value.trim() ? value.trim() : undefined
-}
-
-function getBooleanInput(input: Record<string, unknown> | null | undefined, key: string) {
-  const value = input?.[key]
-  return typeof value === 'boolean' ? value : undefined
-}
-
-function readStringArrayInput(input: Record<string, unknown> | null | undefined, key: string) {
-  const value = input?.[key]
-  if (Array.isArray(value)) {
-    return value.map((item) => (typeof item === 'string' ? item.trim() : '')).filter(Boolean)
-  }
-  if (typeof value === 'string' && value.trim()) {
-    return value
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean)
-  }
-  return undefined
-}
-
-function success(en_US: string, zh_Hans: string): XpertViewActionResult {
-  return {
-    success: true,
-    message: text(en_US, zh_Hans),
-    refresh: true
-  }
-}
-
-function failure(en_US: string, zh_Hans: string): XpertViewActionResult {
-  return {
-    success: false,
-    message: text(en_US, zh_Hans)
-  }
-}
-
-function readPackageFile(packageName: string, relativePath: string) {
-  const packageRoot = dirname(requireFromHere.resolve(`${packageName}/package.json`))
-  return readFile(join(packageRoot, relativePath), 'utf8')
-}
-
-async function readTemplatePreviewImages() {
-  const baseDir = join(__dirname, 'remote-components', SITES_REMOTE_ENTRY_KEY, 'assets', 'templates')
-  const images: Record<string, string> = {}
-
-  for (const [key, fileNames] of Object.entries(TEMPLATE_PREVIEW_IMAGE_FILES)) {
-    for (const fileName of fileNames) {
-      try {
-        const buffer = await readFile(join(baseDir, fileName))
-        const mimeType = TEMPLATE_PREVIEW_IMAGE_MIME[extname(fileName).toLowerCase()]
-        if (mimeType) {
-          images[key] = `data:${mimeType};base64,${buffer.toString('base64')}`
-          break
-        }
-      } catch {
-        continue
-      }
-    }
-  }
-
-  return images
 }
