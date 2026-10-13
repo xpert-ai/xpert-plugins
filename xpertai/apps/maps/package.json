@@ -45,7 +45,8 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.lib.json && node scripts/build-mcp-app.mjs && node scripts/verify-dist.mjs --record && node scripts/verify-dist.mjs",
+    "build:ui": "pnpm --filter @xpert-ai/plugin-shadcn-ui build",
+    "build": "pnpm run build:ui && tsc -p tsconfig.lib.json && node scripts/build-mcp-app.mjs && node scripts/verify-dist.mjs --record && node scripts/verify-dist.mjs",
     "test": "node --test tests/*.test.mjs",
     "typecheck": "tsc -p tsconfig.lib.json --noEmit --tsBuildInfoFile dist/typecheck.tsbuildinfo && tsc -p mcp-apps/tsconfig.json",
     "verify:dist": "node scripts/build-mcp-app.mjs --check && node scripts/verify-dist.mjs",
