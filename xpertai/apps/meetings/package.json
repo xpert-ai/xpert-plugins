@@ -46,6 +46,11 @@
   "xpert": {
     "plugin": {
       "level": "system",
+      "runtimePolicy": {
+        "install": "hot",
+        "update": "restart",
+        "uninstall": "restart"
+      },
       "artifactNamespace": "meetings"
     }
   },

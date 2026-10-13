@@ -158,3 +158,7 @@ corepack pnpm exec nx run @xpert-ai/plugin-meetings:verify:capture-feedback
 ```
 
 This does not replace signed-app permission checks, real model calls, long recordings, or offline-recovery acceptance.
+
+## Runtime lifecycle
+
+First installation supports hot loading: the host registers Meetings providers and strategies without restarting the API. Upgrades and uninstall require a restart so existing document sessions and background processors can drain safely. The package declares this separately from its system scope in `xpert.plugin.runtimePolicy`.
