@@ -1,5 +1,11 @@
 # @xpert-ai/plugin-xirang
 
+## 0.2.3
+
+### Patch Changes
+
+- d791efc: Discover account-visible models through the Xirang models endpoint, seed configuration from the built-in catalog, and apply saved limits to LLM, embedding, and rerank clients. Preserve endpoint mappings internally while removing the endpoint ID override from the model form.
+
 ## 0.2.2
 
 ### Patch Changes
