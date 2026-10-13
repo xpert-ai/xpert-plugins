@@ -35,6 +35,14 @@ jobs:
       - name: Test Changesets publish lifecycles
         if: matrix.workspace == 'xpertai'
         run: node --test xpertai/scripts/changesets-publish-error.test.mjs
+      - name: Test release versioning
+        if: matrix.workspace == 'xpertai'
+        run: node --test xpertai/scripts/artifact-tool-release.test.mjs
+      - name: Build and verify Maps from a clean checkout
+        if: matrix.workspace == 'xpertai'
+        run: |
+          pnpm -C xpertai exec nx build @xpert-ai/plugin-maps
+          pnpm -C xpertai exec nx run-many -t test,typecheck,verify:dist -p @xpert-ai/plugin-maps --parallel=1
       - name: Build community plugins
         if: matrix.workspace == 'community'
         run: pnpm -C community run build
