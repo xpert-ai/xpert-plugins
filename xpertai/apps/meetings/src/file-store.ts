@@ -17,7 +17,7 @@ import {
   scopeSchema,
   idSchema,
   MeetingError,
-  sameOwner,
+  sameAssistant,
   type Meeting,
   type Scope,
 } from "./domain.js";
@@ -33,6 +33,7 @@ export class FileStore {
     readonly storage: (scope: Scope) => WorkspaceStorage,
     readonly projection?: {
       sync(
+        scope: Scope,
         meeting: Meeting,
         directory: StoragePath,
         force?: boolean
@@ -116,7 +117,7 @@ export class FileStore {
     const parsed = meetingSchema.safeParse(value);
     if (!parsed.success) throw new MeetingError("storage_corrupt");
     if (
-      !sameOwner(parsed.data.scope, scope) ||
+      !sameAssistant(parsed.data.scope, scope) ||
       (parsed.data.deleted && !includeDeleted)
     )
       throw new MeetingError("meeting_not_found");
@@ -128,7 +129,12 @@ export class FileStore {
       throw new MeetingError("workspace_scope_changed");
     return parsed.data;
   }
-  async save(directory: StoragePath, meeting: Meeting, force = false) {
+  async save(
+    scope: Scope,
+    directory: StoragePath,
+    meeting: Meeting,
+    force = false
+  ) {
     if (this.projection)
       meeting.workspace = {
         folder: meeting.workspace?.folder ?? null,
@@ -141,7 +147,7 @@ export class FileStore {
     );
     if (this.projection) {
       try {
-        await this.projection.sync(meeting, directory, force);
+        await this.projection.sync(scope, meeting, directory, force);
         meeting.workspace!.status = "ready";
       } catch (error) {
         meeting.workspace!.status = "failed";
@@ -167,7 +173,7 @@ export class FileStore {
         meeting.scope.workspaceCatalog !== scope.workspaceCatalog
       )
         throw new MeetingError("workspace_scope_changed");
-      await this.save(directory, meeting, force);
+      await this.save(scope, directory, meeting, force);
       return meeting;
     });
   }
@@ -181,7 +187,7 @@ export class FileStore {
       await change(meeting, directory);
       meeting.revision += 1;
       meeting.updatedAt = new Date().toISOString();
-      await this.save(directory, meeting);
+      await this.save(scope, directory, meeting);
       return meeting;
     });
   }

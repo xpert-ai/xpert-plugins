@@ -29,7 +29,7 @@ try {
         await page.goto(preview.url);
         const frame = page.frameLocator("#remote-view");
         await frame.getByRole("heading", { name: record.title, exact: true }).waitFor();
-        await frame.getByRole("tab", { name: locale === "zh-Hans" ? "个人笔记" : "Personal notes", exact: true }).click();
+        await frame.getByRole("tab", { name: locale === "zh-Hans" ? "会议笔记" : "Meeting notes", exact: true }).click();
         Object.assign(preview.state.records[0], {
           capture: capture === "stopped" ? "stopped" : "interrupted", processing: "failed",
           errorCode: capture === "stopped" ? "speech_to_text_model_missing" : "audio_input_timeout",

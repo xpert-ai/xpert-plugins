@@ -17,7 +17,7 @@ const scope: Scope = {
   organizationId: "org",
   userId: "owner",
   assistantId: "assistant",
-  workspaceCatalog: "user-xperts",
+  workspaceCatalog: "xperts",
 };
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "meetings-workspace-"));
@@ -38,12 +38,12 @@ async function fixture() {
         name: input.originalName!,
         filePath: path,
         workspacePath: path,
-        catalog: "user-xperts",
+        catalog: "xperts",
         reference: {
           source: "platform.workspace.files",
           filePath: path,
           workspacePath: path,
-          catalog: "user-xperts",
+          catalog: "xperts",
           scopeId: scope.assistantId,
         },
       };
@@ -58,7 +58,7 @@ async function fixture() {
         name: input,
         filePath: input,
         workspacePath: input,
-        catalog: "user-xperts",
+        catalog: "xperts",
         buffer,
         reference: {
           source: "platform.workspace.files",
@@ -127,7 +127,7 @@ test("meetings get stable separate Assistant folders; retries/rename do not dupl
       f.destinations.every(
         (s) =>
           s.assistantId === scope.assistantId &&
-          s.workspaceCatalog === "user-xperts"
+          s.workspaceCatalog === "xperts"
       )
     );
     const metadata = f.files
@@ -140,8 +140,29 @@ test("meetings get stable separate Assistant folders; retries/rename do not dupl
       f.service.get({ ...scope, assistantId: "other" }, first.id),
       /meeting_not_found/
     );
+    assert.equal(
+      (await f.service.get({ ...scope, userId: "other" }, first.id)).id,
+      first.id
+    );
+    const member = { ...scope, userId: "other" };
+    await f.service.notes(member, {
+      meetingId: first.id,
+      expectedRevision: 0,
+      notes: "Shared edit",
+    });
+    assert.equal((await f.service.get(scope, first.id)).notes, "Shared edit");
+    assert.equal(f.destinations.at(-1)?.userId, member.userId);
+    assert.equal(
+      (await f.store.read(member, first.id)).scope.userId,
+      scope.userId
+    );
+    assert.match(
+      (await f.service.export(member, first.id)).content,
+      /Shared edit/
+    );
+    await f.service.remove(member, first.id);
     await assert.rejects(
-      f.service.get({ ...scope, userId: "other" }, first.id),
+      f.service.get(scope, first.id),
       /meeting_not_found/
     );
     assert.equal(
@@ -180,10 +201,6 @@ test("legacy migration, interrupted synchronization and deleted files recover wi
     f.files.delete(path);
     await f.store.reconcile(scope, old.id, true);
     assert.equal(f.files.get(path)!.toString(), migrated.notes);
-    await assert.rejects(
-      f.service.get({ ...scope, workspaceCatalog: "xperts" }, old.id),
-      /workspace_scope_changed/
-    );
   } finally {
     await f.dispose();
   }

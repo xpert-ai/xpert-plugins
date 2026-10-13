@@ -36,15 +36,28 @@ async function fixture() {
   const documents = new MeetingDocuments({
     config,
     resolve: () => ({
-      createScopedApi: (binding: { tenantId: string; organizationId: string; userId: string; xpertId: string }) => ({
+      createScopedApi: (binding: {
+        tenantId: string;
+        organizationId: string;
+        userId: string;
+        xpertId: string;
+      }) => ({
         capabilities: new DefaultRuntimeCapabilityRegistry([
           [
             WorkspaceFilesRuntimeCapability,
-            { appData: (options: { pluginName: string; requireUserIsolation: boolean }) => {
+            {
+              appData: (options: {
+                pluginName: string;
+                requireUserIsolation?: boolean;
+              }) => {
                 assert.equal(options.pluginName, "@xpert-ai/plugin-meetings");
-                assert.equal(options.requireUserIsolation, true);
-                return fixtureStorage(root, { ...binding, assistantId: binding.xpertId });
-              } },
+                assert.equal(options.requireUserIsolation, undefined);
+                return fixtureStorage(root, {
+                  ...binding,
+                  assistantId: binding.xpertId,
+                });
+              },
+            },
           ],
         ]),
       }),
@@ -118,10 +131,14 @@ test("migration is idempotent, scoped, blocks legacy writes and projects newest 
       notes: "# Private\n\nOriginal.",
     });
     assert.equal(await f.provider.authorize(f.context), true);
+    assert.equal(
+      await f.provider.authorize({ ...f.context, userId: "bob" }),
+      true
+    );
     for (const patch of [
       { tenantId: "other" },
       { organizationId: "other" },
-      { userId: "bob" },
+      { xpertId: "other" },
       { resourceId: `${f.input.id}:unknown` },
     ])
       assert.equal(
@@ -140,7 +157,7 @@ test("migration is idempotent, scoped, blocks legacy writes and projects newest 
     );
     const id = randomUUID(),
       doc = documentFromMarkdown("# Human edited\n\n**Shared** draft.");
-    await f.documents.project(scope, f.input.id, "notes", id, 10, encoded(doc));
+    await f.documents.project({ ...scope, userId: "bob" }, f.input.id, "notes", id, 10, encoded(doc));
     await f.documents.project(
       scope,
       f.input.id,
@@ -150,7 +167,7 @@ test("migration is idempotent, scoped, blocks legacy writes and projects newest 
       initial.stateBase64
     );
     const before = await f.documents.store.read(scope, f.input.id);
-    await f.documents.project(scope, f.input.id, "notes", id, 10, encoded(doc));
+    await f.documents.project({ ...scope, userId: "bob" }, f.input.id, "notes", id, 10, encoded(doc));
     const after = await f.documents.store.read(scope, f.input.id);
     assert.equal(before.notesRevision, after.notesRevision);
     assert.equal(before.revision, after.revision);
@@ -163,7 +180,7 @@ test("migration is idempotent, scoped, blocks legacy writes and projects newest 
     assert.equal(await readFile(path, "utf8"), after.notes);
     assert.equal((await stat(path)).mode & 0o777, 0o600);
     await rm(path);
-    await f.documents.project(scope, f.input.id, "notes", id, 10, encoded(doc));
+    await f.documents.project({ ...scope, userId: "bob" }, f.input.id, "notes", id, 10, encoded(doc));
     assert.equal(
       await readFile(path, "utf8"),
       after.notes,

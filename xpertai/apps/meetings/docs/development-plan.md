@@ -2,11 +2,11 @@
 
 The implementation includes waveforms, Tailwind styling, transcription during recording, Tiptap, and platform collaboration. See [live transcription and collaboration](realtime-collaboration.md) for details.
 
-The first release targets the right-hand plugin View in macOS Desktop, reusing the host's ChatKit conversation and Assistant navigation. Its three screens are the meeting library, recording with personal notes, and minutes with transcript evidence. Continuous transcription feeds silence-triggered stage summaries and final minutes, with follow-up questions in the same Assistant conversation. Verification receipts stay outside source control; release gates are listed below.
+The first release targets the right-hand plugin View in macOS Desktop, reusing the host's ChatKit conversation and Assistant navigation. Its three screens are the meeting library, recording with meeting notes, and minutes with transcript evidence. Continuous transcription feeds silence-triggered stage summaries and final minutes, with follow-up questions in the same Assistant conversation. Verification receipts stay outside source control; release gates are listed below.
 
 ## Scope
 
-P0 includes manual dual-track capture, persistent recording state and source activity, independently saved personal notes, live transcription, post-meeting refinement and minutes, traceable decisions and suggested actions, paginated search, Markdown export, retries/recovery, private access, English/Chinese localization, and theme support.
+P0 includes manual dual-track capture, persistent recording state and source activity, independently saved meeting notes, live transcription, post-meeting refinement and minutes, traceable decisions and suggested actions, paginated search, Markdown export, retries/recovery, Assistant-scoped access, English/Chinese localization, and theme support.
 
 Calendar integration, cross-account sharing, multi-user calls, automatic sending, and external task execution are P1. Simulated results must not stand in for production capabilities.
 
@@ -19,7 +19,7 @@ Meetings adds no business tables. The server uses an administrator-configured pe
 ```text
 server-data/meetings/<scope-hash>/<meeting-id>/
   meeting.json              # Metadata, transcript checkpoints, document sequences, capture/processing/deletion state
-  notes.md                  # Personal notes Markdown projection
+  notes.md                  # Meeting notes Markdown projection
   summary.md                # Editable summary Markdown projection
   documents/<kind>.initial.json # Idempotent migration seed
   audio/<track>/<seq>.wav    # Temporary audio
@@ -49,7 +49,7 @@ Capture commands are `desktop.audio.capture.start`, `desktop.audio.capture.stop`
 
 View queries provide paginated lists and selected meeting details with a bounded transcript. Agent transcript queries paginate independently. Actions handle meeting creation through capture events, notes, title/action edits, processing retries, deletion, and export. Desktop uploads and finalizes through the same authorized View boundary. Views, tools, and background tasks share the file-backed domain services.
 
-Capture, upload, transcription, and minutes have distinct states. `recording` requires successful native capture. Track loss, sleep, exit, and errors stop capture with a recorded reason. Personal notes and summaries are independent Yjs documents. The platform merges concurrent edits, and files project a specific sequence. Legacy revision-based overwrite APIs reject writes after migration. Stale tasks and tasks for deleted or incorrectly scoped meetings cannot commit output.
+Capture, upload, transcription, and minutes have distinct states. `recording` requires successful native capture. Track loss, sleep, exit, and errors stop capture with a recorded reason. Meeting notes and summaries are independent Yjs documents. The platform merges concurrent edits, and files project a specific sequence. Legacy revision-based overwrite APIs reject writes after migration. Stale tasks and tasks for deleted or incorrectly scoped meetings cannot commit output.
 
 ## Capture and model approach
 

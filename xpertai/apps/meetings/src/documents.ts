@@ -34,7 +34,7 @@ import {
 
 export const DOCUMENT_PROVIDER = "meetings.document";
 /** Resource authorization is independent of the transport and document engine.
- * Future meeting members must be resolved here; personal notes remain owner-only. */
+ * All users authorized for this Assistant share its meeting documents. */
 export interface MeetingDocumentAccess {
   require(scope: Scope, id: string, kind: DocumentKind): Promise<void>;
 }
@@ -50,6 +50,7 @@ export function documentResource(context: CollaborationProviderContext) {
       organizationId: context.organizationId,
       userId: context.userId,
       assistantId: context.xpertId,
+      workspaceCatalog: "xperts",
     }),
   };
 }
@@ -76,7 +77,7 @@ export class MeetingDocuments {
           WorkspaceFilesRuntimeCapability
         );
         if (!files?.appData) throw new MeetingError("workspace_storage_unavailable");
-        return files.appData({ pluginName: PLUGIN, requireUserIsolation: true });
+        return files.appData({ pluginName: PLUGIN });
       },
       new MeetingWorkspaceFiles((scope) => {
         const api = context
@@ -88,9 +89,9 @@ export class MeetingDocuments {
             organizationId: scope.organizationId,
             userId: scope.userId,
             xpertId: scope.assistantId,
-            catalog: scope.workspaceCatalog,
+            catalog: "xperts",
             scopeId: scope.assistantId,
-            isolateByUser: scope.workspaceCatalog === "user-xperts",
+            isolateByUser: false,
           })
           .capabilities?.get(WorkspaceFilesRuntimeCapability);
         if (!api) throw new MeetingError("workspace_unavailable");
@@ -243,7 +244,7 @@ export class MeetingDocuments {
         m.updatedAt = new Date().toISOString();
       }
       m.documents[kind] = { id: documentId, sequence };
-      await this.store.save(dir, m);
+      await this.store.save(scope, dir, m);
     });
   }
 }

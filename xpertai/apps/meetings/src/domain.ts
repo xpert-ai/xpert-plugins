@@ -14,7 +14,7 @@ export const scopeSchema = z
     userId: z.string().min(1).max(200),
     assistantId: z.string().min(1).max(200),
     // Supplied by the host's authorized workspace scope, never by a tool input.
-    workspaceCatalog: z.enum(["xperts", "user-xperts"]).optional(),
+    workspaceCatalog: z.literal("xperts").optional(),
   })
   .strict();
 export type Scope = z.infer<typeof scopeSchema>;
@@ -31,6 +31,8 @@ export const operationSchema = z
     kind: z.enum(["phase", "final"]),
     status: z.enum(["queued", "running", "ready", "failed"]),
     executionId: idSchema,
+    userId: z.string().min(1),
+    conversationId: idSchema,
     createdAt: z.string().datetime(),
     startedAt: z.string().datetime().nullable(),
     settled: z.boolean(),
@@ -42,6 +44,7 @@ export const operationSchema = z
 export const assistantSchema = z
   .object({
     conversationId: idSchema.nullable(),
+    userId: z.string().nullable(),
     threadId: z.string().nullable(),
     submittedUntilMs: z.number().nonnegative(),
     silenceSeconds: z.number().min(1).max(300),
@@ -49,6 +52,7 @@ export const assistantSchema = z
   })
   .default({
     conversationId: null,
+    userId: null,
     threadId: null,
     submittedUntilMs: 0,
     silenceSeconds: 10,
@@ -122,6 +126,7 @@ export const meetingSchema = z
   .object({
     schemaVersion: z.literal(1),
     id: idSchema,
+    // The recorder is audit/capture identity, never the ACL or the current request actor.
     scope: scopeSchema,
     sessionId: idSchema,
     title: z.string().min(1).max(200),
@@ -271,16 +276,40 @@ export class MeetingError extends Error {
     };
   }
 }
-export function publicMeeting(m: Meeting) {
-  const { scope: _scope, deleted: _deleted, ...data } = m;
-  return data;
+export const meetingDtoSchema = meetingSchema
+  .omit({ scope: true, deleted: true })
+  .extend({
+    assistant: assistantSchema
+      .removeDefault()
+      .omit({ userId: true })
+      .extend({
+        operations: z.array(
+          operationSchema.omit({ userId: true, conversationId: true })
+        ),
+      }),
+  });
+export type MeetingDto = z.infer<typeof meetingDtoSchema>;
+export function publicMeeting(m: Meeting, actor: Scope): MeetingDto {
+  const { scope: _scope, deleted: _deleted, assistant, ...data } = m;
+  const { userId, operations, ...task } = assistant;
+  return {
+    ...data,
+    assistant: {
+      ...task,
+      // Conversation ACLs remain user-bound even when meeting documents are shared.
+      conversationId: userId === actor.userId ? task.conversationId : null,
+      threadId: userId === actor.userId ? task.threadId : null,
+      operations: operations.map(
+        ({ userId: _actor, conversationId: _conversation, ...operation }) =>
+          operation
+      ),
+    },
+  };
 }
-export type MeetingDto = ReturnType<typeof publicMeeting>;
-export function sameOwner(a: Scope, b: Scope) {
+export function sameAssistant(a: Scope, b: Scope) {
   return (
     a.tenantId === b.tenantId &&
     a.organizationId === b.organizationId &&
-    a.userId === b.userId &&
     a.assistantId === b.assistantId
   );
 }

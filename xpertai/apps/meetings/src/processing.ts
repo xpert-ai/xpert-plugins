@@ -18,8 +18,12 @@ function processingErrorCode(error: unknown, fallback: string) {
 }
 
 export interface SummaryWorkflow {
-  live(input: Meeting): Promise<void>;
-  finish(input: Meeting, liveTranscript: Meeting["transcript"]): Promise<void>;
+  live(scope: Scope, input: Meeting): Promise<void>;
+  finish(
+    scope: Scope,
+    input: Meeting,
+    liveTranscript: Meeting["transcript"]
+  ): Promise<void>;
 }
 export class Processing {
   constructor(
@@ -43,7 +47,7 @@ export class Processing {
           this.models,
           this.thresholdDb
         ).available(scope, id, null);
-        await this.workflow.live(await this.store.read(scope, id));
+        await this.workflow.live(scope, await this.store.read(scope, id));
         await this.store.update(scope, id, (m) => {
           m.liveTranscription = { status: "listening", errorCode: null };
         });
@@ -115,7 +119,7 @@ export class Processing {
             250000
           )
             throw new MeetingError("summary_input_too_large");
-          await this.workflow.finish(input, liveTranscript);
+          await this.workflow.finish(scope, input, liveTranscript);
         } catch (error) {
           try {
             await this.store.update(scope, id, (m) => {

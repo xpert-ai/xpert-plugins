@@ -1,8 +1,8 @@
 import React from "react";
 import { z } from "zod/v3";
-import { meetingSchema, type MeetingDto } from "../../../src/domain";
+import { meetingDtoSchema, type MeetingDto } from "../../../src/domain";
 import type { Key } from "./i18n";
-export const dto = meetingSchema.omit({ scope: true, deleted: true });
+export const dto = meetingDtoSchema;
 export const itemSchema = dto
   .pick({
     id: true,

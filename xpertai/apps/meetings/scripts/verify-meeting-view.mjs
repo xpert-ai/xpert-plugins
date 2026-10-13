@@ -18,7 +18,7 @@ Object.assign(record, {
   summary: null,
   summaryVersion: 0,
   notesInputRevision: null,
-  notes: "已保存的个人笔记",
+  notes: "已保存的会议笔记",
   endedAt: null,
   workspace: { folder: "meetings/preview", status: "ready", errorCode: null },
   assistant: {
@@ -144,7 +144,7 @@ try {
     .getByRole("heading", { name: record.title, exact: true })
     .waitFor();
   await frame.getByText(/编辑器暂时无法连接/).waitFor({ timeout: 4000 });
-  await frame.getByText("已保存的个人笔记", { exact: true }).waitFor();
+  await frame.getByText("已保存的会议笔记", { exact: true }).waitFor();
   await frame
     .getByRole("button", { name: "重新连接编辑器", exact: true })
     .click();
@@ -279,11 +279,11 @@ try {
   await summaryTab.press("ArrowRight");
   await frame
     .locator('[role="tab"][aria-selected="true"]')
-    .filter({ hasText: "个人笔记" })
+    .filter({ hasText: "会议笔记" })
     .waitFor();
   assert.equal(
     await frame
-      .getByRole("tab", { name: "个人笔记", exact: true })
+      .getByRole("tab", { name: "会议笔记", exact: true })
       .getAttribute("aria-selected"),
     "true"
   );

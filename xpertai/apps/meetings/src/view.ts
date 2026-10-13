@@ -51,32 +51,18 @@ const editSchema = z
   .strict();
 export function scopeFromView(c: XpertResolvedViewHostContext) {
   const files = c.runtimeScope?.workspaceFiles;
-  if (files && (files.catalog === "projects" || files.scopeId !== c.hostId))
+  if (files && (files.catalog !== "xperts" || files.scopeId !== c.hostId))
     throw new MeetingError("assistant_workspace_required");
   return scopeSchema.parse({
     tenantId: c.tenantId,
     organizationId: c.organizationId,
     userId: c.userId,
     assistantId: c.hostId,
-    workspaceCatalog: files?.catalog,
+    workspaceCatalog: "xperts",
   });
 }
 const logger = new Logger("MeetingsView");
 function failure(error: unknown): XpertViewActionResult {
-  if (
-    error instanceof Error &&
-    "getResponse" in error &&
-    typeof error.getResponse === "function"
-  ) {
-    const response: unknown = error.getResponse();
-    if (
-      response &&
-      typeof response === "object" &&
-      "code" in response &&
-      response.code === "assistant_user_workspace_required"
-    )
-      return { success: false, refresh: false, data: { code: response.code } };
-  }
   if (!(error instanceof MeetingError) && !(error instanceof z.ZodError))
     logger.error(
       error instanceof Error
