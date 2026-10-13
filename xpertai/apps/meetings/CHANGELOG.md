@@ -1,5 +1,15 @@
 # @xpert-ai/plugin-meetings
 
+## 0.3.0
+
+### Minor Changes
+
+- 850f975: Store meeting manifests, audio, capture receipts and processing checkpoints in the owning Assistant's user-isolated workspace through WorkspaceFilesRuntimeCapability.appData(). Remove the independent dataDirectory setting and use host-managed cross-instance locks and atomic writes. Require a host with WorkspaceFilesRuntimeCapability.appData(); old plugin-directory data is not migrated. Return explicit missing-meeting and workspace-configuration errors.
+
+### Patch Changes
+
+- 850f975: Read runtime version, plugin level, and artifact namespace from package.json so released packages report the metadata expected by rolling API restarts.
+
 ## 0.2.1
 
 ### Patch Changes
