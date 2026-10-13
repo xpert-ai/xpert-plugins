@@ -1,4 +1,4 @@
-import { AiProviderRole } from '@xpert-ai/contracts'
+import { AiProviderRole, AiModelTypeEnum, defaultModelConfiguration } from '@xpert-ai/contracts'
 import { getModelContextSize } from '@xpert-ai/plugin-sdk'
 import { XirangProviderStrategy } from '../provider.strategy.js'
 import { XirangLargeLanguageModel } from './llm.js'
@@ -100,5 +100,19 @@ describe('Xirang LLM request configuration', () => {
     )
     expect(manager.getParameterRules('custom-model', { app_key: 'key' }).map((rule) => rule.name))
       .toContain('enable_thinking')
+  })
+
+  it('uses edited imported limits and capabilities over the catalog and bounds requested output', () => {
+    const modelProperties = { model_configuration: {
+      ...defaultModelConfiguration(AiModelTypeEnum.LLM), contextSize: 32768,
+      maxOutputTokens: 4096, defaultMaxTokens: 1024, maxConcurrency: 2
+    } }
+    const chat = manager.getChatModel(createCopilotModel('qwen3.8-flash'), { modelProperties })
+    expect(getModelContextSize(chat)).toBe(32768)
+    expect(chat.metadata.profile).toMatchObject({ maxOutputTokens: 4096, toolCalling: false })
+    expect(chat.invocationParams().max_tokens).toBe(1024)
+    expect(chat.caller.maxConcurrency).toBe(2)
+    expect(manager.getChatModel(createCopilotModel('qwen3.8-flash', { max_tokens: 8192 }), { modelProperties })
+      .invocationParams().max_tokens).toBe(4096)
   })
 })

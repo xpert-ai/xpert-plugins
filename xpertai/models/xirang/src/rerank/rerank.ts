@@ -1,5 +1,6 @@
 import { Document } from '@langchain/core/documents'
-import { AiModelTypeEnum, type ICopilotModel } from '@xpert-ai/contracts'
+import { AiModelTypeEnum, type ICopilotModel, readModelConfiguration } from '@xpert-ai/contracts'
+import { AsyncCaller } from '@langchain/core/utils/async_caller'
 import { Injectable } from '@nestjs/common'
 import { getErrorMessage, type IRerank, RerankModel, type RerankResult, type TChatModelOptions } from '@xpert-ai/plugin-sdk'
 import { XirangProviderStrategy } from '../provider.strategy.js'
@@ -7,9 +8,17 @@ import { getXirangBaseUrl, type XirangModelCredentials } from '../types.js'
 import { buildRerankBody, extractRerankResults, getRerankModelId, getRerankRequest, mapRerankResults, type XirangRerankPayload } from './protocol.js'
 
 class XirangReranker implements IRerank {
-  constructor(private readonly credentials: XirangModelCredentials, private readonly model: string) {}
+  private readonly caller: AsyncCaller
+
+  constructor(private readonly credentials: XirangModelCredentials, private readonly model: string) {
+    this.caller = new AsyncCaller({ maxConcurrency: readModelConfiguration(credentials)?.maxConcurrency, maxRetries: 0 })
+  }
 
   async rerank(docs: Document<Record<string, unknown>>[], query: string, options: { topN?: number; scoreThreshold?: number; model?: string }): Promise<RerankResult[]> {
+    return this.caller.call(() => this.request(docs, query, options))
+  }
+
+  private async request(docs: Document<Record<string, unknown>>[], query: string, options: { topN?: number; scoreThreshold?: number; model?: string }): Promise<RerankResult[]> {
     if (docs.length === 0) return []
     const model = getRerankModelId(options.model || this.model, this.credentials)
     const request = getRerankRequest(this.credentials, options.model || this.model)
