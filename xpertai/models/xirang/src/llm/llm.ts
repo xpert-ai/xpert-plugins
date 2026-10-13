@@ -7,7 +7,8 @@ import {
   type ICopilotModel,
   ModelFeature,
   ModelPropertyKey,
-  ParameterType
+  ParameterType,
+  readModelConfiguration
 } from '@xpert-ai/contracts'
 import { Injectable } from '@nestjs/common'
 import {
@@ -90,6 +91,13 @@ export class XirangLargeLanguageModel extends LargeLanguageModel {
     const modelConfig = this.getModelSchema(copilotModel.model)?.modelConfig as XirangPredefinedModelConfig | undefined
     const params = toCredentialKwargs(credentials, copilotModel.model, modelConfig)
     const modelOptions = copilotModel.options ?? {}
+    const configuration = readModelConfiguration(credentials)
+    const llmConfiguration = configuration?.modelType === AiModelTypeEnum.LLM ? configuration : undefined
+    const requestedMaxTokens = Number(modelOptions.max_tokens)
+    const maxTokens = llmConfiguration
+      ? Math.min(Number.isSafeInteger(requestedMaxTokens) && requestedMaxTokens > 0
+        ? requestedMaxTokens : llmConfiguration.defaultMaxTokens, llmConfiguration.maxOutputTokens)
+      : modelOptions.max_tokens
     const runtimeThinking = modelOptions.enable_thinking
     if (runtimeThinking !== undefined) {
       const enabled =
@@ -106,7 +114,8 @@ export class XirangLargeLanguageModel extends LargeLanguageModel {
       ...params,
       streaming: modelOptions.streaming ?? true,
       temperature: modelOptions.temperature ?? 0.2,
-      maxTokens: modelOptions.max_tokens,
+      maxTokens,
+      maxConcurrency: llmConfiguration?.maxConcurrency,
       topP: modelOptions.top_p,
       frequencyPenalty: modelOptions.frequency_penalty,
       presencePenalty: modelOptions.presence_penalty,
