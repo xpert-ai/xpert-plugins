@@ -1,4 +1,5 @@
 import { APP_COVER } from './lib/constants.js'
+import { appConfig } from './lib/app-config.js'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -54,10 +55,12 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
         ],
         marketplace: {
           screenshots: [APP_COVER],
+          category: 'productivity',
           contents: [
             {
               type: 'app',
               name: 'office-editor',
+              appConfig,
               displayName: 'Office Editor',
               description: 'Automatically edit versioned XLSX files and collaborate on Univer-native Office documents.',
               icon: {
@@ -123,6 +126,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
         ],
         marketplace: {
           screenshots: [APP_COVER],
+          category: 'productivity',
           contents: [
             {
               type: 'skill',
@@ -140,6 +144,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
             {
               type: 'app',
               name: 'office-editor',
+              appConfig,
               displayName: 'Office Editor',
               description: 'Workbench and Agent middleware tools for Univer-native Office documents.'
             }

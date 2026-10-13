@@ -1,4 +1,5 @@
 import { APP_COVER } from './lib/constants.js'
+import { appConfig } from './lib/app-config.js'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -60,10 +61,12 @@ const plugin: LucidchartXpertPlugin = {
         ],
         marketplace: {
           screenshots: [APP_COVER],
+          category: 'creativity',
           contents: [
             {
               type: 'app',
               name: 'lucidchart',
+              appConfig,
               displayName: 'Lucidchart',
               description: text(
                 'Create, version, review, import, export, and register Agent-generated Lucidchart Standard Import drafts.',
@@ -159,6 +162,7 @@ const plugin: LucidchartXpertPlugin = {
         ],
         marketplace: {
           screenshots: [APP_COVER],
+          category: 'creativity',
           contents: [
             {
               type: 'skill',
@@ -182,6 +186,7 @@ const plugin: LucidchartXpertPlugin = {
             {
               type: 'app',
               name: 'lucidchart',
+              appConfig,
               displayName: 'Lucidchart',
               description: text(
                 'Workbench and Agent middleware tools for Lucidchart drafts.',

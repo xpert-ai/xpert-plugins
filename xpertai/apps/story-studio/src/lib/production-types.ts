@@ -1,3 +1,5 @@
+import type { WorkspaceFileCatalog } from '@xpert-ai/plugin-sdk'
+
 export type StoryJsonPrimitive = string | number | boolean | null
 export type StoryJsonValue =
   | StoryJsonPrimitive
@@ -13,7 +15,7 @@ export interface StoryPortableFileReference extends StoryJsonObject {
   source: 'platform.workspace.files'
   filePath: string
   workspacePath: string
-  catalog?: 'projects' | 'users' | 'knowledges' | 'skills' | 'xperts' | null
+  catalog?: WorkspaceFileCatalog | null
   scopeId?: string | null
   tenantId?: string | null
   userId?: string | null

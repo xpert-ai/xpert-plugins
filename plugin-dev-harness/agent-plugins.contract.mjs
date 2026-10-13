@@ -51,7 +51,7 @@ try {
       const plugin = await parseAgentPlugin(root);
       assert.deepEqual(plugin.diagnostics, []);
       assert.equal(plugin.name, entry.id);
-      assert.equal(plugin.skills.length, 1);
+      assert.ok(plugin.skills.length >= 1);
       const source = await parseAgentPlugin(entry.root);
       assert.deepEqual(plugin.servers, source.servers);
       assert.deepEqual(plugin.skills, source.skills);

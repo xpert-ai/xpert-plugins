@@ -1,0 +1,24 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "canva",
+  "version": "1.0.0",
+  "description": "Search and work with designs in the connected user's global Canva account, using Canva's official remote MCP server. This package does not replace canva-cn.",
+  "author": {
+    "name": "Xpert AI"
+  },
+  "homepage": "https://www.canva.dev/docs/mcp/",
+  "extensions": {
+    "xpertai": {
+      "version": 1,
+      "interface": {
+        "displayName": "Canva",
+        "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAMAAAANIilAAAACplBMVEUYucH///8XucEAtLwAtb0WucAAs7wAtr4WucH9/v4lu8IjusIVucAiusIgusEAt78cusH8/v7+//8ZucEfusEbusEmu8IaucEAs7sdusEku8IhusEkusIeusEAuL/+/v4At74iusH3/PwbucH+/v8AuMAnu8L7/v4Atr0NuMCa2Nz9//9xy9AZusG34uWN1NgIuMD7/f74/P10zNH6/f38/f7r9/iN09fJ6esUucAAsroHuMCW19vZ8PHM6uyc2dzu+Pmx4ON3zdLn9fbK6uzh8/SF0db2+/wDuMAou8KU1toAsrtXxMppyc6k29+J0tf5/f07vsXB5uiC0NWM09gSucHc8PKO09dzy9Gu3+JTw8ptys9ryc+85Oe+5ejN6u2u3uFlyM71+/tcxczt+PlSw8ksvMNwy9DZ7/GB0NWy4OOK09ec2NweusI5vsWk3N+j29+O1NiO09i04eRbxcvm9fYAsLnA5ujc8fKV1tqH0tbl9Pbd8fLC5unG6OpGwcfx+fqq3eFDwMduytAAtL18ztN5zdMwvcTX7/CH0dar3uFYxctzzNGG0da44+Xj9PUuvMNgx81myM6F0dV1zNEGuMBxzNHI6esiu8IPucB6zdLl9fbe8vNjx80uvMTT7e86vsXP6+3L6uxVxMq64+b4/PzW7vCe2d2m3OAqu8J+z9Sp3eDs+Pgru8JQw8nw+frV7u9Jwcjl9PX7/f1gxsxZxcsOuMDH6Os1vcROwsny+vun3OAju8IzvcSZ19zq9/fU7u97ztPk9PVexsxvytBWw8lhx83p9vfX7/EtvcSc2d33+/zK6esmu8Om3N/i8/TV7vATucDt9/ja8PE+v8aX19vS7e7x+vq44uUOucBIwchyzNGZ19t4zdJYxMogu8IMuMAXucCuNVsPAAAD+ElEQVR4Xu2WY9crSRSFexfajv3axrVtj23btm3btm3bxD+ZVDprZu47STr9/e6VlaV+1qmz66CkKdomwrmqck6k6FJJIauXZbhqVJyk8vkio7JMlZnJQiSaSFaKyfo+502ffv7OnemiITWP84TRo+x6+RVjALD33L79WS7VLG3a7fIlM/oF6XklAKcsovEmadPoZHPaAM2bhNBkCRimtkSaYp0Vu5URaMDyeccsGYU2CezILNIUm5gHaII9YT+FsV32Rccott/ueTeU5nZxZA9oPjR0H0UV1zaOPwjwgQGaVUNYkkj17B6wo2+tbs3GJDvWeSA8H33pLjMssiHPF4E6gENWr0yUP4/Z9GBoJRyRToZEVvNsr25ogIad0q0JVZRLTt4TWgcOTXfxhizJ9N40Fx6glQ0asdVKHrGe0+EB42E586TcJ07swz+AJispErvl7AWYwNLDRhq7zW3n8GnBoTfR1mpRWHRVmcVmapAwt45ECejA2LHM4FIVPhrAIyzTuD5J3LnyOBHYw2msEAtY4vZmFp54kjIzpESIQU8GAF8U4z+HJO0rWAvlbsg9pdqVGwKrTx2c/W//q25cMtobxxW+nnGmSLmEs+TArkBEShDBhtzTRYCwq/+cc3W+9WAJE8nLQ8E9Lb7AiavRJl7C7LwwgJcomRiJBKu2s7FaIReLHogknmXvjAm/gGE5ySPCOr1UtKIPLKJ6RFjV5csqLQFvLTPUyPAOAbzhKmbVhAkJh7uvrhmZSK5L6sPXBDCurZUzkeLX9cZJXcOuF4YB2FLLbZJRbhxU6sTmefZcG0qV8SXr/8tZzbKbb7n1NsWuSatx5/bFQZHc4UhTu4hbLXcuAO5SYqmaVsYyyt0BvPwexeBTtnWO3ov7cL9jttfpqvQDlZxLeFDOk61Y9aH0w4CGVbS1jt2WsqZN0Boe3djy35vm0mPy409gAk8WezOk7iSZAQ+CHpLFxA9EzFxefuppPIMNz7IsrzvD2DjgV37rZ62MEyFJKnQ56YFp8HzMl3XSYMkpL1RDd2+e1Zm3crlWK+ekX1zYD8/DJkVyBVw365dertL+K6/KTFF6KH3t9TcAT8Obg0Vbbdwcy1Cl8fa6d9e89/6yoQ+AklfChx+1GA13LInZ9OOA7hArq+2TieBVA3z6maKbYYMsw+b40DQg+AM0gXqfO07WDO1qt0AHvhCI2FmapnkagC/X0q9ygg2jExZNrvsaQj4q+mZ9kVmZpgYTIXpR/va773+AUNvSH8d/kk296eejGTcc6vz8y5Zfh3/7/Q/K/tRdM8I4k2zrL4XK6TRVZsetAon26CVSytaTXUndcmMCjSqicpPzEDKKtulvWKiUSkGAQkcAAAAASUVORK5CYII="
+      },
+      "connectors": {
+        "canva-global": {
+          "type": "mcp_oauth"
+        }
+      }
+    }
+  }
+}

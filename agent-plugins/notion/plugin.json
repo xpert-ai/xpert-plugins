@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "notion",
-  "version": "1.1.0",
-  "description": "Search and work with your authorized Notion content using the official remote MCP server. Each user connects their own Notion account.",
+  "version": "1.2.0",
+  "description": "Search, capture, research, and turn specs into tasks in an authorized Notion workspace using the official remote MCP server. Each user connects their own Notion account.",
   "author": {
     "name": "Xpert AI"
   },

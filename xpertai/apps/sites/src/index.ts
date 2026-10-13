@@ -44,18 +44,20 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
       xpert: {
         types: ['business-app', 'workbench-view', 'assistant-tool', 'site-hosting'],
         capabilities: [SITES_FEATURE],
-        marketplace: { screenshots: [APP_COVER], contents: [sitesApp] },
+        marketplace: { category: 'developer-tools', screenshots: [APP_COVER], contents: [sitesApp] },
         runtime: { middlewareProviders: [SITES_MIDDLEWARE_NAME], viewProviders: [SITES_PROVIDER_KEY], templateProviders: [SITES_TEMPLATE_PROVIDER_KEY] }
       },
       'data-xpert': {
         types: ['workbench-view', 'assistant-tool', 'business-app', 'site-hosting'],
         capabilities: [SITES_FEATURE, 'sites-workbench', 'sites-builder-assistant-template', 'sites-local-hosting'],
         marketplace: {
+          category: 'developer-tools',
           screenshots: [APP_COVER],
           contents: [
             {
               type: 'app',
               name: 'sites',
+              appConfig: sitesApp.appConfig,
               displayName: 'Sites',
               description:
                 'Create, save, deploy, inspect, and manage access for hosted Sites projects from data-xpert Assistants.',

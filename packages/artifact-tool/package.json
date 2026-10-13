@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/artifact-tool",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Local spreadsheet authoring, formula calculation and loss-conscious XLSX editing for Xpert sandboxes",
   "license": "AGPL-3.0-only",
   "repository": {
@@ -8,16 +8,35 @@
     "url": "git+https://github.com/xpert-ai/xpert-plugins.git",
     "directory": "packages/artifact-tool"
   },
-  "publishConfig": { "access": "public" },
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
-  "engines": { "node": ">=22" },
-  "typesVersions": { "*": { "xlsx": ["src/xlsx.d.ts"] } },
+  "engines": {
+    "node": ">=22"
+  },
+  "typesVersions": {
+    "*": {
+      "xlsx": [
+        "src/xlsx.d.ts"
+      ]
+    }
+  },
   "exports": {
     ".": "./src/index.mjs",
-    "./xlsx": { "types": "./src/xlsx.d.ts", "default": "./src/xlsx.mjs" }
+    "./xlsx": {
+      "types": "./src/xlsx.d.ts",
+      "default": "./src/xlsx.mjs"
+    }
   },
-  "bin": { "xpert-artifact": "./src/cli.mjs" },
-  "files": ["src", "README.md", "LICENSE"],
+  "bin": {
+    "xpert-artifact": "./src/cli.mjs"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "test": "node --test test/*.test.mjs",
     "release:prepare": "npm test"

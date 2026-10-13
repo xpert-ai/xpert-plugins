@@ -1,4 +1,5 @@
 import { APP_COVER } from './lib/constants.js'
+import { appConfig } from './lib/app-config.js'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -60,10 +61,12 @@ const plugin: DrawioXpertPlugin = {
         ],
         marketplace: {
           screenshots: [APP_COVER],
+          category: 'creativity',
           contents: [
             {
               type: 'app',
               name: 'drawio',
+              appConfig,
               displayName: 'draw.io',
               description: text(
                 'Create, update, version, review, import, export, and convert Agent-generated draw.io diagrams.',
@@ -159,6 +162,7 @@ const plugin: DrawioXpertPlugin = {
         ],
         marketplace: {
           screenshots: [APP_COVER],
+          category: 'creativity',
           contents: [
             {
               type: 'skill',
@@ -182,6 +186,7 @@ const plugin: DrawioXpertPlugin = {
             {
               type: 'app',
               name: 'drawio',
+              appConfig,
               displayName: 'draw.io',
               description: text(
                 'Workbench and Agent middleware tools for draw.io diagrams.',

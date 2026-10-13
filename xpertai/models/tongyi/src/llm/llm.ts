@@ -72,6 +72,24 @@ const TONGYI_CN_EXPLICIT_CACHE_PRICED_MODELS = new Set([
 const TONGYI_EXPLICIT_CACHE_CONTROL = { type: 'ephemeral' } as const
 // Kimi K3 only accepts the provider defaults for sampling and reasoning controls.
 const TONGYI_FIXED_SAMPLING_AND_REASONING_MODELS = new Set(['kimi-k3'])
+const QWEN38_MAX_MODEL_ID = 'qwen3.8-max'
+
+export function isQwen38MaxReasoningModel(model: string): boolean {
+  return model === QWEN38_MAX_MODEL_ID || model.startsWith(`${QWEN38_MAX_MODEL_ID}-`)
+}
+
+// DashScope rejects qwen3.8-max when thinking is off unless reasoning_effort is none.
+export function resolveQwen38MaxReasoningEffort(
+  model: string,
+  enableThinking: boolean | undefined,
+  reasoningEffort: TongyiModelCredentials['reasoning_effort']
+): TongyiModelCredentials['reasoning_effort'] | undefined {
+  if (!isQwen38MaxReasoningModel(model) || enableThinking !== false) {
+    return reasoningEffort
+  }
+  return 'none'
+}
+
 const TONGYI_EXTRA_HEADER_RESERVED_NAMES = new Set([
   'authorization',
   'content-type',
@@ -467,11 +485,15 @@ export class TongyiLargeLanguageModel extends LargeLanguageModel {
             enable_thinking: supportsSamplingAndReasoningOverrides
               ? modelCredentials?.enable_thinking
               : undefined,
-            thinking_budget: supportsSamplingAndReasoningOverrides
+            thinking_budget: supportsSamplingAndReasoningOverrides && !isQwen38MaxReasoningModel(model)
               ? modelCredentials?.thinking_budget
               : undefined,
             reasoning_effort: supportsSamplingAndReasoningOverrides
-              ? modelCredentials?.reasoning_effort
+              ? resolveQwen38MaxReasoningEffort(
+                  model,
+                  modelCredentials?.enable_thinking,
+                  modelCredentials?.reasoning_effort
+                )
               : undefined,
             tool_stream: modelCredentials?.tool_stream,
             enable_search: modelCredentials?.enable_search,

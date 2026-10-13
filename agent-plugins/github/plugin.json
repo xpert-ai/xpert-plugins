@@ -1,0 +1,24 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "github",
+  "version": "1.0.0",
+  "description": "Search and work with repositories, issues, and pull requests the connected GitHub account can access, using GitHub's official remote MCP server.",
+  "author": {
+    "name": "Xpert AI"
+  },
+  "homepage": "https://github.com/github/github-mcp-server",
+  "extensions": {
+    "xpertai": {
+      "version": 1,
+      "interface": {
+        "displayName": "GitHub",
+        "icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgZmlsbD0iY3VycmVudENvbG9yIiB2aWV3Qm94PSIwIDAgMTYgMTYiPgogIDxwYXRoIGZpbGw9ImN1cnJlbnRDb2xvciIgZD0iTTggMS4zYTYuNjY1IDYuNjY1IDAgMCAxIDUuNDEzIDEwLjU2IDYuNjc3IDYuNjc3IDAgMCAxLTMuMjg4IDIuNDMyYy0uMzMzLjA2Ny0uNDU4LS4xNDItLjQ1OC0uMzE2IDAtLjIyNi4wMDgtLjk0Mi4wMDgtMS44MzQgMC0uNjI1LS4yMDgtMS4wMjUtLjQ1LTEuMjMzIDEuNDgzLS4xNjcgMy4wNDItLjczNCAzLjA0Mi0zLjI5MmEyLjU4IDIuNTggMCAwIDAtLjY4NC0xLjc5MmMuMDY3LS4xNjYuMy0uODUtLjA2Ni0xLjc2NiAwIDAtLjU1OS0uMTg0LTEuODM0LjY4M2E2LjE4NiA2LjE4NiAwIDAgMC0xLjY2Ni0uMjI1Yy0uNTY3IDAtMS4xMzQuMDc1LTEuNjY3LjIyNS0xLjI3NS0uODU4LTEuODMzLS42ODMtMS44MzMtLjY4My0uMzY3LjkxNi0uMTM0IDEuNi0uMDY3IDEuNzY2YTIuNTk0IDIuNTk0IDAgMCAwLS42ODMgMS43OTJjMCAyLjU1IDEuNTUgMy4xMjUgMy4wMzMgMy4yOTItLjE5Mi4xNjYtLjM2Ny40NTgtLjQyNS44OTEtLjM4My4xNzUtMS4zNDIuNDU5LTEuOTQyLS41NS0uMTI1LS4yLS41LS42OTEtMS4wMjUtLjY4My0uNTU4LjAwOC0uMjI1LjMxNy4wMDkuNDQyLjI4My4xNTguNjA4Ljc1LjY4My45NDEuMTMzLjM3Ni41NjcgMS4wOTIgMi4yNDIuNzg0IDAgLjU1OC4wMDggMS4wODMuMDA4IDEuMjQyIDAgLjE3NC0uMTI1LjM3NC0uNDU4LjMxNmE2LjY2MiA2LjY2MiAwIDAgMS00LjU1OS02LjMyNUE2LjY2NSA2LjY2NSAwIDAgMSA4IDEuM1oiLz4KPC9zdmc+Cg=="
+      },
+      "connectors": {
+        "github": {
+          "type": "mcp_oauth"
+        }
+      }
+    }
+  }
+}

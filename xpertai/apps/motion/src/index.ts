@@ -1,4 +1,5 @@
 import { APP_COVER } from './lib/constants.js'
+import { appConfig } from './lib/app-config.js'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -81,10 +82,12 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
         ],
         marketplace: {
           screenshots: [APP_COVER],
+          category: 'creativity',
           contents: [
             {
               type: 'app',
               name: 'motion',
+              appConfig,
               displayName: 'Motion',
               description:
                 'Use Motion Assistant to generate animated HTML and native HyperFrames launch videos with production rendering.',
@@ -142,6 +145,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
         ],
         marketplace: {
           screenshots: [APP_COVER],
+          category: 'creativity',
           contents: [
             {
               type: 'skill',
@@ -163,6 +167,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
             {
               type: 'app',
               name: 'motion',
+              appConfig,
               displayName: 'Motion',
               description: 'Use Motion Assistant with Workbench and Agent tools for animated HTML and HyperFrames launch videos.',
               operations: motionMarketplaceOperations

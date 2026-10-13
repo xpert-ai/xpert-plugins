@@ -1,0 +1,33 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "google-drive",
+  "version": "1.0.0",
+  "description": "Read and update Google Drive, Docs, Sheets, and Slides the connected account can access. Complements the local documents, pdf, presentations, and spreadsheets packages.",
+  "author": {
+    "name": "Xpert AI"
+  },
+  "homepage": "https://developers.google.com/workspace",
+  "extensions": {
+    "xpertai": {
+      "version": 1,
+      "interface": {
+        "displayName": "Google Drive",
+        "icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiB2aWV3Qm94PSIwIDAgMTkyIDE5MiIgZmlsbD0ibm9uZSI+PG1hc2sgaWQ9Imdvb2dsZS1kcml2ZS0yMDI2LWEiIHdpZHRoPSIxNjgiIGhlaWdodD0iMTU0IiB4PSIxMiIgeT0iMTgiIG1hc2tVbml0cz0idXNlclNwYWNlT25Vc2UiIHN0eWxlPSJtYXNrLXR5cGU6YWxwaGEiPjxwYXRoIGZpbGw9IiNiNDMzMzMiIGQ9Ik02My4wOSAzN2MxNC42MjYtMjUuMzMzIDUxLjE5My0yNS4zMzQgNjUuODE5IDBsNDUuMDMzIDc4YzE0LjYyNiAyNS4zMzQtMy42NTcgNTcuMDAxLTMyLjkxIDU3LjAwMUg1MC45NjdjLTI5LjI1MyAwLTQ3LjUzNi0zMS42NjctMzIuOTEtNTcuMDAxeiIvPjwvbWFzaz48ZyBtYXNrPSJ1cmwoI2dvb2dsZS1kcml2ZS0yMDI2LWEpIj48cGF0aCBmaWxsPSJ1cmwoI2dvb2dsZS1kcml2ZS0yMDI2LWIpIiBkPSJNMjA2LjkwNSAxNzIuMDJoLTkxLjg4OGwtMTkuMDE1LTMyLjkzNCA0NS45NDQtNzkuNTc4eiIvPjxwYXRoIGZpbGw9InVybCgjZ29vZ2xlLWRyaXZlLTIwMjYtYykiIGQ9Ik0tMTQuOTE5IDE3Mi4wMDYgNTAuMDQgNTkuNDk0di4wMDJMMzEuMDMyIDkyLjQyMmgzOC4wMkwxMTUgMTcyLjAwNGwtMTI5LjkxOC4wMDF6Ii8+PHBhdGggZmlsbD0idXJsKCNnb29nbGUtZHJpdmUtMjAyNi1kKSIgZD0iTTk2LjAwNy0yMC4wODUgMTQxLjk1NCA1OS41bC0xOS4wMTEgMzIuOTI4SDMxLjA0OHoiLz48L2c+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnb29nbGUtZHJpdmUtMjAyNi1iIiB4MT0iMTkzLjYiIHgyPSIxMDMuMDkiIHkxPSIxNjUuNiIgeTI9IjExMS4yMSIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIG9mZnNldD0iLjA5IiBzdG9wLWNvbG9yPSIjZmZlOTIxIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjZmVjNzAwIi8+PC9saW5lYXJHcmFkaWVudD48bGluZWFyR3JhZGllbnQgaWQ9Imdvb2dsZS1kcml2ZS0yMDI2LWMiIHgxPSIxMTQuNCIgeDI9IjE1LjUzIiB5MT0iMTgxLjYxIiB5Mj0iMTIxLjgiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBvZmZzZXQ9Ii4xNSIgc3RvcC1jb2xvcj0iI2E5YThmZiIvPjxzdG9wIG9mZnNldD0iLjMzIiBzdG9wLWNvbG9yPSIjNmQ5N2ZmIi8+PHN0b3Agb2Zmc2V0PSIuNDgiIHN0b3AtY29sb3I9IiMzMTg2ZmYiLz48L2xpbmVhckdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iZ29vZ2xlLWRyaXZlLTIwMjYtZCIgeDE9IjEyOC44OCIgeDI9IjI4LjciIHkxPSIzNy44OCIgeTI9Ijg0LjY0IiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIuNTUiIHN0b3AtY29sb3I9IiMwZWJjNWYiLz48c3RvcCBvZmZzZXQ9Ii44NSIgc3RvcC1jb2xvcj0iIzc4YzlmZiIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjwvc3ZnPgo="
+      },
+      "connectors": {
+        "google-drive": {
+          "type": "mcp_oauth"
+        },
+        "google-docs": {
+          "type": "mcp_oauth"
+        },
+        "google-sheets": {
+          "type": "mcp_oauth"
+        },
+        "google-slides": {
+          "type": "mcp_oauth"
+        }
+      }
+    }
+  }
+}

@@ -1,4 +1,5 @@
 import { APP_COVER } from './lib/constants.js'
+import { appConfig } from './lib/app-config.js'
 import { z } from 'zod'
 import type { I18nObject } from '@xpert-ai/contracts'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
@@ -104,10 +105,12 @@ const plugin: StoryStudioXpertPlugin = {
         capabilities,
         marketplace: {
           screenshots: [APP_COVER],
+          category: 'creativity',
           contents: [
             {
               type: 'app',
               name: 'story-studio',
+              appConfig,
               displayName: 'Story Studio',
               description: text(
                 'Plan and review story adaptation and media-production stages.',
@@ -163,6 +166,7 @@ const plugin: StoryStudioXpertPlugin = {
         capabilities,
         marketplace: {
           screenshots: [APP_COVER],
+          category: 'creativity',
           contents: [
             {
               type: 'skill',
@@ -187,6 +191,7 @@ const plugin: StoryStudioXpertPlugin = {
             {
               type: 'app',
               name: 'story-studio',
+              appConfig,
               displayName: 'Story Studio',
               description: text(
                 'Plan and review story adaptation and media-production stages.',

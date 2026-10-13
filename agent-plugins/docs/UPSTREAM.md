@@ -5,10 +5,11 @@ Compared on 2026-09-21 against
 This is a source comparison, not a claim that every item in the Codex directory
 has public source in that repository.
 
-**All current presets are independently authored Xpert packages.**
-They are not copies of OpenAI's packages, and Notion's four upstream workflows
-have not been ported. The original relocation preserved package bytes. The subsequent Connector upgrade
-publishes new bindings and retains the old conversation versions.
+**Presets other than the four Notion workflows are independently authored Xpert packages.**
+They are not copies of OpenAI's packages. Notion 1.2.0 ports those four upstream
+Skills under `notion/skills/` from the pinned commit, with tool names and connection
+copy rewritten. The original relocation preserved package bytes. Publishing a new
+package version creates a new binding and retains older conversation pins.
 
 ## Can an OpenAI package be used directly?
 
@@ -25,21 +26,24 @@ or tool compatibility. See [OpenAI packaging documentation](https://developers.o
 
 ## Notion: exact differences
 
-Upstream package version is **0.1.7**. Our version **1.1.0** is an independent preset
-version, not an upgrade of OpenAI's package.
+Upstream package version is **0.1.7**. Our version **1.2.0** is this repository's
+preset version, not an upgrade number of OpenAI's package. 1.1.0 was the minimal
+Connector preset. 1.2.0 adds the four ported Skills and does not change the
+Connector. Publish a new binding for 1.2.0. Existing conversations keep the
+version they pinned. `--replace` migrates the workspace binding only.
 
 | Upstream file/content                                                                                                                                                         | Current Xpert file/content                                                                  | What differs and why                                                                                                                                                                                                                                                                                              |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`plugins/notion/.codex-plugin/plugin.json`](https://github.com/openai/plugins/blob/1dc195897af4161d039b80d8471ec0a10c9bbc89/plugins/notion/.codex-plugin/plugin.json)        | [`notion/plugin.json`](../notion/plugin.json)                                               | Newly authored root 1.0.0 manifest; author is Xpert AI; description and version describe this smaller preset. No Nest module or npm entrypoint                                                                                                                                                                    |
-| Top-level `interface`, local `assets/` paths and OpenAI display metadata                                                                                                      | `extensions["xpertai"].interface`                                                        | Only display name and icon are projected. Icon uses a URL to upstream `notion-small.svg`; no upstream asset file is bundled. Categories, screenshots, brand colors and default prompts are not mapped                                                                                                             |
+| Top-level `interface`, local `assets/` paths and OpenAI display metadata                                                                                                      | `extensions["xpertai"].interface`                                                        | Only display name and icon are projected. Plugin icon remains a URL to upstream `notion-small.svg`. Ported skills include their original skill assets and MIT LICENSE.txt. Categories, screenshots, brand colors and default prompts are not mapped                                                                                                             |
 | [`plugins/notion/.mcp.json`](https://github.com/openai/plugins/blob/1dc195897af4161d039b80d8471ec0a10c9bbc89/plugins/notion/.mcp.json) with `type: "http"`                    | [`notion/mcp.json`](../notion/mcp.json) with schema and `type: "streamable-http"`           | File name and transport discriminator follow Agent Plugins 1.0.0. Server key `notion` and URL `https://mcp.notion.com/mcp` are unchanged                                                                                                                                                                          |
 | MCP `oauth_resource: "https://mcp.notion.com"`                                                                                                                                | Connector dependency in [`notion/plugin.json`](../notion/plugin.json)                       | Portable schema does not contain `oauth_resource`; Connector discovery/client registration supplies the authorization flow; the discovered resource is validated and retained for exchange/refresh. Discovery passed, but user consent/private page calls have not been verified; full auth parity is not claimed |
 | [`.app.json`](https://github.com/openai/plugins/blob/1dc195897af4161d039b80d8471ec0a10c9bbc89/plugins/notion/.app.json) with an OpenAI registered app ID                      | Not copied                                                                                  | An OpenAI app ID is not an Xpert connector or credential. Xpert connects directly to Notion's public MCP endpoint                                                                                                                                                                                                 |
-| [`skills/notion-knowledge-capture`](https://github.com/openai/plugins/tree/1dc195897af4161d039b80d8471ec0a10c9bbc89/plugins/notion/skills/notion-knowledge-capture)           | Not copied                                                                                  | Structured knowledge-capture workflow, references and examples are absent                                                                                                                                                                                                                                         |
-| [`skills/notion-meeting-intelligence`](https://github.com/openai/plugins/tree/1dc195897af4161d039b80d8471ec0a10c9bbc89/plugins/notion/skills/notion-meeting-intelligence)     | Not copied                                                                                  | Meeting-preparation workflow, references and examples are absent                                                                                                                                                                                                                                                  |
-| [`skills/notion-research-documentation`](https://github.com/openai/plugins/tree/1dc195897af4161d039b80d8471ec0a10c9bbc89/plugins/notion/skills/notion-research-documentation) | Not copied                                                                                  | Research/report workflow, templates and examples are absent                                                                                                                                                                                                                                                       |
-| [`skills/notion-spec-to-implementation`](https://github.com/openai/plugins/tree/1dc195897af4161d039b80d8471ec0a10c9bbc89/plugins/notion/skills/notion-spec-to-implementation) | Not copied                                                                                  | Specification-to-task workflow, references and examples are absent                                                                                                                                                                                                                                                |
-| Upstream Skills' literal `Notion:search`, `Notion:fetch`, app-connection instructions and schema assumptions                                                                  | New [`notion/skills/notion-workspace/SKILL.md`](../notion/skills/notion-workspace/SKILL.md) | A single generic search/read/requested-write Skill follows live tool schemas and Xpert's connection UI. It is not a line-for-line rewrite of the four upstream Skills                                                                                                                                             |
+| [`skills/notion-knowledge-capture`](https://github.com/openai/plugins/tree/1dc195897af4161d039b80d8471ec0a10c9bbc89/plugins/notion/skills/notion-knowledge-capture)           | [`notion/skills/notion-knowledge-capture`](../notion/skills/notion-knowledge-capture) | Whole skill directory except `agents/openai.yaml`. Hosted tool names replace `Notion:` aliases. Connector wording replaces the bundled-app connection block. MIT `LICENSE.txt` kept |
+| [`skills/notion-meeting-intelligence`](https://github.com/openai/plugins/tree/1dc195897af4161d039b80d8471ec0a10c9bbc89/plugins/notion/skills/notion-meeting-intelligence)     | [`notion/skills/notion-meeting-intelligence`](../notion/skills/notion-meeting-intelligence) | Same port rules as knowledge capture |
+| [`skills/notion-research-documentation`](https://github.com/openai/plugins/tree/1dc195897af4161d039b80d8471ec0a10c9bbc89/plugins/notion/skills/notion-research-documentation) | [`notion/skills/notion-research-documentation`](../notion/skills/notion-research-documentation) | Same port rules as knowledge capture |
+| [`skills/notion-spec-to-implementation`](https://github.com/openai/plugins/tree/1dc195897af4161d039b80d8471ec0a10c9bbc89/plugins/notion/skills/notion-spec-to-implementation) | [`notion/skills/notion-spec-to-implementation`](../notion/skills/notion-spec-to-implementation) | Same port rules as knowledge capture |
+| Upstream Skills' literal `Notion:search`, `Notion:fetch`, app-connection instructions and schema assumptions                                                                  | Rewritten tool names plus [`notion/skills/notion-workspace/SKILL.md`](../notion/skills/notion-workspace/SKILL.md) | Hosted names are `notion-search` and `notion-fetch`. This host is not a ChatGPT client, so the unprefixed aliases are not used. `notion-workspace` remains the general skill |
 | Upstream `agents/openai.yaml`, `plugin.lock.json`, marketplace entries                                                                                                        | Not copied                                                                                  | OpenAI-specific discovery/runtime metadata is not required by this standard package                                                                                                                                                                                                                               |
 
 ## Exa: exact provenance
@@ -63,35 +67,39 @@ Source: [Exa's official MCP documentation](https://exa.ai/docs/get-started/exa-m
 Live Xpert execution reached `web_search_exa`, but the provider returned free-tier
 rate limiting. This is not evidence of successful search results or Codex feature parity.
 
-## Future reuse of upstream Notion Skills
+## Notion Skills port (2026-10-10)
 
-Prefer a pinned upstream snapshot plus a small, reviewable patch when porting the
-four workflows. Keep such work under this repository, for example
-`agent-plugins/notion-upstream/`, without silently replacing the current preset.
+The four workflows now live under `notion/skills/`, not a separate
+`notion-upstream/` tree. `notion-workspace` stays. Version **1.2.0** must be
+published as a new binding. Conversations pinned to 1.1.0 keep that version.
 
-1. Pin the upstream commit and retain each copied file's license/attribution.
-2. Preserve all Skill-relative references, examples and required assets. Copying
-   only the four `SKILL.md` files leaves their referenced material unavailable.
-3. Add the portable manifest/MCP files and document the exact field conversions.
-4. Replace host-specific connection instructions and reconcile tool names and
-   schemas against the authenticated Notion MCP tools. Do not assume stripping
-   `Notion:` is enough.
-5. Review the packaging allowlist for required reference/license/assets files;
-   the packer permits reviewed Skill assets and rejects hidden files, caches and symlinks.
-6. Test each workflow, OAuth consent/revocation and requested-write approval, then
-   publish a new binding. Existing conversations must retain their pinned versions.
+Completed against commit `1dc195897af4161d039b80d8471ec0a10c9bbc89`:
 
-This upstream workflow port is not part of the current minimal implementation.
+1. Each copied file keeps Notion Labs' MIT `LICENSE.txt`.
+2. References, examples, evaluations, and image assets were copied with the skill.
+   `agents/openai.yaml` was not copied.
+3. The existing root `plugin.json` and `mcp.json` stay. Transport remains
+   `streamable-http`. No `oauth_resource` field was added.
+4. `Notion:<tool>` was rewritten to the hosted Notion MCP name. `Notion:search`
+   and `Notion:fetch` became `notion-search` and `notion-fetch`, matching
+   [Notion's supported tools](https://developers.notion.com/guides/mcp/mcp-supported-tools).
+   Connection copy now points at the workspace Connector and does not ask for tokens.
+5. Skill markdown, JSON, text, PNG, and SVG files are inside the packer allowlist.
+
+Authenticated Notion consent, private-page calls, and end-to-end workflow runs
+were not executed in this change. Live tool schemas still win if Notion renames
+a tool. See [Notion 可用性测试说明](../notion/README.md).
 
 ## Connector upgrade and additional providers
 
-No OpenAI Skill or executable source was copied for these additions. Each package
-has one original minimal Skill which follows the authenticated server's live tool
-schemas. This implements provider connectivity, not parity with every Codex workflow.
+Notion's four workflows are the upstream Skill text copied in this change, and
+that copy is rewritten as described above. Other packages in this catalog keep
+their existing presets. This implements provider connectivity, not parity with
+every Codex workflow.
 
 | Package        | Endpoint / changes                                                                                                                           | Host dependency                                                 |
 | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| Notion 1.1.0   | Keeps `https://mcp.notion.com/mcp`; adds `xpertai.connectors.notion` with `type: mcp_oauth`; removes legacy installer OAuth selection     | Generic workspace OAuth Connector                                |
+| Notion 1.2.0   | Keeps `https://mcp.notion.com/mcp` and `xpertai.connectors.notion` with `type: mcp_oauth`; adds the four ported Skills                        | Generic workspace OAuth Connector. Publish a new binding        |
 | Linear 1.0.0   | New standard manifest, `https://mcp.linear.app/mcp`, original issue/project Skill                                                            | Generic workspace OAuth Connector                                |
 | Supabase 1.0.0 | New standard manifest, `https://mcp.supabase.com/mcp?read_only=true`, original read-only Skill; query explicitly limits the provider's tools | Generic workspace OAuth Connector; path-based metadata discovery |
 | Sentry 1.0.0   | New standard manifest, `https://mcp.sentry.dev/mcp`, original diagnostics Skill                                                              | Generic workspace OAuth Connector                                |
@@ -236,3 +244,205 @@ Xpert's portable interface supports a single `icon` string. The manifests embed
 the PNG bytes as data URLs, because the host passes this value directly to the
 resource catalog without resolving relative package asset paths. Codex's separate
 `composerIcon` and `logo` fields are not added to the Xpert extension.
+
+## Slack package (2026-10-10)
+
+`slack` 1.0.0 is an independently authored package. Upstream `plugins/slack` at
+commit `1dc195897af4161d039b80d8471ec0a10c9bbc89` is version 0.1.7, MIT, and has
+no Skill. Its `.mcp.json` embeds an OpenAI client id. This package does not copy
+that client id, `.app.json`, or a client secret.
+
+| Upstream | This package |
+| --- | --- |
+| `.codex-plugin/plugin.json` | Root `plugin.json`, author Xpert AI |
+| `https://mcp.slack.com/mcp` with `type: "http"` | `mcp.json` key `slack`, `type: "streamable-http"`, same URL |
+| Embedded OAuth client | `extensions.xpertai.connectors.slack.type` is `mcp_oauth` |
+| No Skill | Original `skills/slack-workspace` |
+
+Slack's token endpoint advertises `client_secret_post` only and has no
+registration endpoint. The discovered resource is `https://mcp.slack.com`; the
+MCP URL keeps `/mcp`. Display icon `assets/slack-small.svg` is copied unchanged.
+
+## Google Drive package (2026-10-10)
+
+`google-drive` 1.0.0 is an independently authored package. It is complementary
+to the local document packages. Upstream `plugins/google-drive` at commit
+`1dc195897af4161d039b80d8471ec0a10c9bbc89` is version 0.1.15, MIT. Its
+`.mcp.json` contains placeholder client credentials and broad scopes, and its
+Skills are Codex host scripts. None of that is copied.
+
+This package declares four `streamable-http` servers and four `mcp_oauth`
+connectors:
+
+| Server key | URL |
+| --- | --- |
+| `google-drive` | `https://drivemcp.googleapis.com/mcp/v1` |
+| `google-docs` | `https://docsmcp.googleapis.com/mcp/v1` |
+| `google-sheets` | `https://sheetsmcp.googleapis.com/mcp/v1` |
+| `google-slides` | `https://slidesmcp.googleapis.com/mcp/v1` |
+
+Google does not advertise dynamic client registration. Token auth is
+`client_secret_post` or `client_secret_basic`. Protected-resource metadata
+advertises broad scopes, including full `drive`; administrators should choose
+the narrower product scopes in the Connector form. `mcp.json` cannot pin scopes.
+Display icon `assets/google-drive.svg` is copied unchanged.
+
+## GitHub package (2026-10-10)
+
+`github` 1.0.0 is an independently authored package. Upstream `plugins/github` at
+commit `1dc195897af4161d039b80d8471ec0a10c9bbc89` is version 0.1.11, MIT, and has
+no Skill. Its `.mcp.json` uses `type: "http"` and `bearer_token_env_var`. This
+package does not copy that file, `.app.json`, or any client secret.
+
+| Upstream | This package |
+| --- | --- |
+| `.codex-plugin/plugin.json` | Root `plugin.json`, author Xpert AI |
+| `https://api.githubcopilot.com/mcp/` with `type: "http"` | `mcp.json` key `github`, `type: "streamable-http"`, same URL |
+| PAT environment variable | `extensions.xpertai.connectors.github.type` is `mcp_oauth` |
+| No Skill | Original `skills/github-workspace` |
+
+GitHub does not advertise dynamic client registration. The discovered OAuth
+resource has no trailing slash; the official MCP URL keeps one. A workspace
+administrator must supply their own GitHub OAuth App or GitHub App in the
+Connector form. Display icon `assets/github-small.svg` is copied unchanged;
+see `assets/README.md`.
+
+## Figma package (2026-10-10)
+
+`figma` 1.0.0 is an independently authored package. Upstream `plugins/figma` at
+commit `1dc195897af4161d039b80d8471ec0a10c9bbc89` is version 2.0.20 and declares
+`LicenseRef-Figma-Developer-Terms`. Those skill files, scripts, plugin API
+definitions, and brand assets are not copied. The Developer Terms
+(https://www.figma.com/legal/developer-terms/, effective 2026-05-05) govern that
+material, and the MCP server is Beta.
+
+| Upstream | This package |
+| --- | --- |
+| `.codex-plugin/plugin.json` | Root `plugin.json`, author Xpert AI |
+| `https://mcp.figma.com/mcp` with `type: "http"` and `oauth_resource` | `mcp.json` key `figma`, `type: "streamable-http"`, no `oauth_resource` |
+| Upstream OAuth client material | `extensions.xpertai.connectors.figma.type` is `mcp_oauth` |
+| Figma-hosted skills | Original `skills/figma-workspace` only |
+
+The discovered resource matches the MCP URL. Scope advertised on 2026-10-10 is
+`mcp:connect`. Registration exists, but token auth methods are confidential
+(`client_secret_basic` and `client_secret_post`). Figma's catalog may still
+reject this client. The icon is the public favicon URL, not a bundled asset.
+`extensions.xpertai.interface.description` starts with `Internal only` so the
+Agent Plugins list shows that label. This package is not a Marketplace release.
+
+## monday.com package (2026-10-10)
+
+`monday` 1.0.0 is an independently authored package. The Codex package
+`plugins/monday-com` at commit `1dc195897af4161d039b80d8471ec0a10c9bbc89` is version 2.0.0 and has no Skill.
+Its manifest does not declare a license, so brand files are not copied. Its
+`.mcp.json` uses server key `monday-com`, `type: "http"`, and
+`https://mcp.monday.com/mcp`. This package does not copy `.app.json` or a client secret.
+
+| Upstream | This package |
+| --- | --- |
+| `.codex-plugin/plugin.json` name `monday-com` | Root `plugin.json` name `monday`, author Xpert AI |
+| Server key `monday-com`, `type: "http"` | `mcp.json` key `monday`, `type: "streamable-http"`, same URL |
+| No portable Connector field | `extensions.xpertai.connectors.monday.type` is `mcp_oauth` |
+| No Skill | Original `skills/monday-workspace` |
+
+Protected-resource metadata for `https://mcp.monday.com/mcp` does not advertise
+scopes. Minimum OAuth scope is TBD. The deprecated SSE URL is not used. The
+icon is a public monday.com PNG URL.
+
+## Stripe package (2026-10-10)
+
+`stripe` 1.0.0 is an independently authored package. The Codex package
+`plugins/stripe` at commit `1dc195897af4161d039b80d8471ec0a10c9bbc89` is version 7.0.0 and includes upstream
+skills. Its manifest does not declare a license, so those skills and
+`assets/logo.png` are not copied. Its `.mcp.json` uses `type: "http"` and
+`https://mcp.stripe.com`. This package does not copy `.app.json` or an API key.
+
+| Upstream | This package |
+| --- | --- |
+| `.codex-plugin/plugin.json` | Root `plugin.json`, author Xpert AI |
+| `https://mcp.stripe.com` with `type: "http"` | `mcp.json` key `stripe`, `type: "streamable-http"`, same URL |
+| No portable Connector field | `extensions.xpertai.connectors.stripe.type` is `mcp_oauth` |
+| Upstream skills | Not copied. Original `skills/stripe-workspace` |
+
+Protected-resource metadata advertises scope `mcp`. The authorization server
+advertises dynamic registration and public-client auth method `none`. The icon
+is the public Stripe favicon URL.
+
+## ClickUp package (2026-10-10)
+
+`clickup` 1.0.0 is an independently authored package. The Codex package
+`plugins/clickup` at commit `1dc195897af4161d039b80d8471ec0a10c9bbc89` is version 1.0.3, declares MIT, and has
+no Skill. Its `.mcp.json` uses `type: "http"` and `https://mcp.clickup.com/mcp`.
+This package does not copy `.app.json` or a client secret.
+
+| Upstream | This package |
+| --- | --- |
+| `.codex-plugin/plugin.json` | Root `plugin.json`, author Xpert AI |
+| `https://mcp.clickup.com/mcp` with `type: "http"` | `mcp.json` key `clickup`, `type: "streamable-http"`, same URL |
+| No portable Connector field | `extensions.xpertai.connectors.clickup.type` is `mcp_oauth` |
+| No Skill | Original `skills/clickup-workspace` |
+
+Protected-resource metadata advertises scopes `read` and `write`. The
+authorization server advertises public-client auth method `none` and does not
+list `refresh_token`. Display icon `assets/composer-icon.png` is copied unchanged.
+
+## Global Canva package (2026-10-10)
+
+`canva` 1.0.0 is a new package for `https://mcp.canva.com/mcp`. It does not
+modify, replace, or rename [`canva-cn`](../canva-cn/plugin.json). Canva China
+keeps provider `canva`, resource `https://mcp.canva.cn`, and server key
+`canva-cn`.
+
+The Codex package `plugins/canva` at commit `1dc195897af4161d039b80d8471ec0a10c9bbc89` is version 14.0.0 and
+includes upstream skills. Its manifest does not declare a license, so those
+skills and brand files are not copied. Its `.mcp.json` uses `type: "http"` and
+`https://mcp.canva.com/mcp`. This package does not copy `.app.json` or a client secret.
+
+| Upstream or neighbor | This package |
+| --- | --- |
+| Codex `.mcp.json` `type: "http"` | `mcp.json` key `canva-global`, `type: "streamable-http"`, same global URL |
+| Codex skills | Not copied. Original `skills/canva-workspace` |
+| `canva-cn` existing Connector, provider `canva` | Unchanged. This package uses `extensions.xpertai.connectors["canva-global"].type` = `mcp_oauth` |
+
+Protected-resource metadata for `/mcp` advertises the scope list recorded in
+the package README. The icon is the public Canva favicon URL.
+
+## Asana package (2026-10-10)
+
+`asana` 1.0.0 is an independently authored package. The inspected Codex tree at
+commit `1dc195897af4161d039b80d8471ec0a10c9bbc89` has no `plugins/asana` directory. No OpenAI Skill, `.mcp.json`,
+or `.app.json` is copied.
+
+| Source | This package |
+| --- | --- |
+| Asana V2 endpoint `https://mcp.asana.com/v2/mcp` | `mcp.json` key `asana`, `type: "streamable-http"`, same URL |
+| Deprecated example `https://mcp.asana.com/sse` | Not used |
+| OAuth client owned by the workspace | `extensions.xpertai.connectors.asana.type` is `mcp_oauth`; no client id or secret |
+| Asana tools reference | Original `skills/asana-workspace`; live schemas win |
+
+The v2 protected-resource document advertises scope `default` and authorization
+server `https://app.asana.com`. That server does not advertise dynamic client
+registration. A different origin document names resource `https://mcp.asana.com`
+and is not substituted. The icon is a public Asana favicon URL.
+
+## Atlassian package (2026-10-10)
+
+`atlassian` 1.0.0 is an independently authored package. The Codex package
+`plugins/atlassian-rovo` at commit `1dc195897af4161d039b80d8471ec0a10c9bbc89` is version 1.0.6, declares MIT,
+and has no Skill. Its `.mcp.json` uses `type: "http"` and
+`https://mcp.atlassian.com/v1/mcp/authv2`. This package does not copy `.app.json`
+or a client secret.
+
+| Upstream | This package |
+| --- | --- |
+| `.codex-plugin/plugin.json` | Root `plugin.json`, author Xpert AI, display name Atlassian |
+| `https://mcp.atlassian.com/v1/mcp/authv2` with `type: "http"` | `mcp.json` key `atlassian`, `type: "streamable-http"`, URL `https://mcp.atlassian.com/v2/mcp` |
+| No portable Connector field | `extensions.xpertai.connectors.atlassian.type` is `mcp_oauth` |
+| No Skill | Original `skills/atlassian-workspace` |
+
+Protected-resource metadata for `https://mcp.atlassian.com/v2/mcp` was published on
+2026-10-10 at `https://mcp.atlassian.com/.well-known/oauth-protected-resource/v2/mcp`.
+Minimum OAuth scope is that document's full `scopes_supported` list. The document
+does not name a smaller subset. The authv2 URL and the v1 MCP URL publish different
+resources and are not used. Display icon `assets/app-icon.png` is copied unchanged
+from the MIT composer icon.

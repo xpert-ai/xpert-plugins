@@ -888,6 +888,17 @@ export const sitesTemplates: XpertTemplateContribution[] = [
     type: XpertTypeEnum.Agent,
     targetApps: ['xpert', 'data-xpert'],
     targetAppMeta: {
+      xpert: {
+        types: ['business-assistant'],
+        capabilities: [SITES_FEATURE, SITES_VIEW_KEY],
+        requiredPlugins: [SITES_PLUGIN_NAME],
+        defaultConfig: {
+          assistantKind: 'business-assistant',
+          businessDomain: 'sites',
+          managedBy: 'xpert',
+          viewProvider: SITES_PROVIDER_KEY
+        }
+      },
       'data-xpert': {
         types: ['business-assistant'],
         capabilities: [SITES_FEATURE, SITES_VIEW_KEY],

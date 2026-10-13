@@ -22,7 +22,31 @@
       "oauthServers": []
     },
     {
+      "id": "asana",
+      "oauthServers": []
+    },
+    {
       "id": "notion",
+      "oauthServers": []
+    },
+    {
+      "id": "slack",
+      "oauthServers": []
+    },
+    {
+      "id": "google-drive",
+      "oauthServers": []
+    },
+    {
+      "id": "github",
+      "oauthServers": []
+    },
+    {
+      "id": "figma",
+      "oauthServers": []
+    },
+    {
+      "id": "monday",
       "oauthServers": []
     },
     {
@@ -30,7 +54,15 @@
       "oauthServers": []
     },
     {
+      "id": "atlassian",
+      "oauthServers": []
+    },
+    {
       "id": "supabase",
+      "oauthServers": []
+    },
+    {
+      "id": "stripe",
       "oauthServers": []
     },
     {
@@ -38,7 +70,15 @@
       "oauthServers": []
     },
     {
+      "id": "clickup",
+      "oauthServers": []
+    },
+    {
       "id": "canva-cn",
+      "oauthServers": []
+    },
+    {
+      "id": "canva",
       "oauthServers": []
     }
   ]
