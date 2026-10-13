@@ -32,7 +32,7 @@ Ask the Sites Assistant to create or revise a site in natural language. It can:
 - publish or revoke an Artifact link;
 - report deployment status and actionable failures.
 
-The Workbench gives you a product view of projects, versions, deployments, access, environment values, and previews. You can review a version before it becomes the active deployment instead of publishing every Agent change immediately.
+The Shadcn UI + Tailwind Workbench occupies the right panel beneath host tabs and provides projects, previews, versions and publishing settings. Generation and revision requests use the existing conversation on the left. You can review a version before it becomes the active deployment instead of publishing every Agent change immediately.
 
 ## Start from proven templates
 
@@ -58,7 +58,7 @@ Sites separates editing, saving, and publishing:
 
 Creating or editing files does not silently replace a published site. Save a new version, inspect it, and deploy it when it is ready.
 
-Artifact links can follow the latest deployment content or remain tied to a controlled published result, depending on the product flow. The platform manages link identity, authorization, expiration, revocation, and access auditing.
+Each deployment link is pinned to the explicitly published immutable version; saving or restoring a draft does not move it. The platform manages link identity, authorization, expiration, revocation, and access auditing.
 
 ## Access and sharing
 
@@ -66,9 +66,9 @@ Choose who can open a deployment:
 
 | Access | Use |
 | --- | --- |
-| **Admins only** | Private administration and early review. |
+| **Only me** | Owner-only preview and early review. |
 | **Workspace** | Internal sites for members of the current workspace. |
-| **Custom audience** | A limited set of approved people or groups. |
+| **Custom audience** | Explicitly selected user IDs. |
 | **Public link** | Anyone on the web who has the link. |
 
 Public publishing always requires explicit confirmation. Sites does not construct public URLs, store public tokens, or expose a plugin-specific hosting endpoint. Xpert Artifacts generates and authorizes the final link.
@@ -78,7 +78,7 @@ Revoking a link immediately removes that public access path without deleting the
 ## Typical workflow
 
 1. Describe the site's purpose, audience, content, and preferred visual direction.
-2. Let the Assistant create source files in `/workspace/sites/<slug>/`.
+2. Let the Assistant create source files in `sites/<slug>/` relative to the active sandbox working directory.
 3. Review the project in the Sites Workbench and request revisions.
 4. Save an immutable version when the content is ready for review.
 5. Deploy the approved version with the appropriate access mode.
@@ -89,7 +89,7 @@ Revoking a link immediately removes that public access path without deleting the
 
 Site source remains in the Xpert workspace. Deployment output is stored through Workspace Files and referenced by an immutable Artifact version.
 
-The Workbench can manage environment-value metadata for a project and masks values marked as secret. Static published pages must not embed platform credentials or private environment values. Use environment records as deployment configuration metadata, not as a way to expose secrets to browser JavaScript.
+Environment configuration remains a middleware capability; it is not shown in the static-site Workbench. Secret values are encrypted using the configured `environmentEncryptionKey` and are never returned to the view. Static published pages must not embed platform credentials or private environment values. Use environment records as deployment configuration metadata, not as a way to expose secrets to browser JavaScript.
 
 ## Best for
 
@@ -105,7 +105,7 @@ The Workbench can manage environment-value metadata for a project and masks valu
 Sites currently publishes static, self-contained web content: a root `index.html` with optional CSS, JavaScript, and packaged assets.
 
 - Server routes, databases, workers, and arbitrary backend runtimes are not part of the current deployment model.
-- Browser interactions can use client-side JavaScript and `localStorage` when appropriate.
+- Client-side JavaScript runs in an opaque-origin sandbox without browser storage or network API access. Use in-memory state for local interactions.
 - Connectors are used only when they are available to the Assistant and authorized by the user.
 - Custom domains and multi-route dynamic application hosting are not part of the current version.
 - Public deployment shares the generated site only; the originating conversation and workspace remain private.
@@ -113,3 +113,11 @@ Sites currently publishes static, self-contained web content: a root `index.html
 ## Powered by Xpert platform capabilities
 
 Sites uses Workspace Files for portable deployment content and Xpert Artifacts for immutable versions, secure preview, governed links, expiration, revocation, and access logs. The result is a publishing workflow that stays connected to the Agent and Workbench without giving the generated page access to platform credentials.
+
+## Development and acceptance
+
+Build the repository-local `@xpert-ai/plugin-shadcn-ui` package, then run Nx `typecheck`, `build`, and `test` for `@xpert-ai/plugin-sites`. `verify:dist` checks generated remote-component freshness. Run `plugin-dev-harness` with this package directory as its workspace.
+
+The Workbench sends selection and tab state through the declared `workbench.navigation.open` command. Embedded ChatKit needs host navigation persistence support to restore them after a browser reload. Completed tool events refresh metadata, with visible-view polling as a fallback; unchanged preview documents are retained.
+
+Acceptance covers creation through the existing Assistant and model, saved preview, device sizing, private publication, restoring a new draft while retaining the published version, and reloading the selected tab. External GitHub posting is unrelated to this plugin.

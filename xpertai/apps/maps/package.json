@@ -1,0 +1,84 @@
+{
+  "name": "@xpert-ai/plugin-maps",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@xpert-plugins-starter/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    ".xpertai-plugin",
+    "dist",
+    "docs",
+    "README.md",
+    "!**/*.tsbuildinfo"
+  ],
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "description": "Interactive maps for Xpert with replaceable AMap and Tencent providers.",
+  "license": "AGPL-3.0",
+  "author": {
+    "name": "XpertAI",
+    "url": "https://xpertai.cn"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins.git",
+    "directory": "xpertai/apps/maps"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "organization",
+      "artifactNamespace": "maps"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.lib.json && node scripts/build-mcp-app.mjs && node scripts/verify-dist.mjs --record && node scripts/verify-dist.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "typecheck": "tsc -p tsconfig.lib.json --noEmit --tsBuildInfoFile dist/typecheck.tsbuildinfo && tsc -p mcp-apps/tsconfig.json",
+    "verify:dist": "node scripts/build-mcp-app.mjs --check && node scripts/verify-dist.mjs",
+    "prepack": "npm run build",
+    "test:browser": "node scripts/browser-smoke.mjs"
+  },
+  "peerDependencies": {
+    "@langchain/core": "0.3.72",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@xpert-ai/contracts": "^3.21.1",
+    "@xpert-ai/plugin-sdk": "^3.22.0",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@langchain/core": "0.3.72",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@xpert-ai/contracts": "3.21.1",
+    "@xpert-ai/plugin-sdk": "3.22.0",
+    "zod": "3.25.67",
+    "@modelcontextprotocol/ext-apps": "1.7.5",
+    "esbuild": "^0.27.0",
+    "typescript": "~5.9.2",
+    "@types/node": "20.19.9",
+    "puppeteer": "25.3.0",
+    "@xpert-ai/plugin-shadcn-ui": "workspace:*",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "tailwindcss": "4.3.2",
+    "@tailwindcss/cli": "4.3.2",
+    "lucide-react": "1.24.0"
+  }
+}

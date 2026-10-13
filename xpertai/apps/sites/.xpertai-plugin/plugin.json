@@ -1,0 +1,253 @@
+{
+  "name": "@xpert-ai/plugin-sites",
+  "description": "Sites app plugin for creating, saving, deploying, and inspecting hosted sites from data-xpert Assistants.",
+  "author": "XpertAI",
+  "license": "AGPL-3.0",
+  "level": "system",
+  "artifactNamespace": "sites",
+  "interface": {
+    "displayName": "Sites",
+    "shortDescription": "Create, review, and publish websites with an Agent",
+    "developerName": "XpertAI",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "brandColor": "#4F46E5",
+    "logo": "./assets/branding/icon-v2.svg",
+    "composerIcon": "./assets/branding/icon-v2.svg",
+    "screenshots": [
+      "./assets/branding/cover-v1.webp"
+    ]
+  },
+  "source": {
+    "source": "local",
+    "path": "."
+  },
+  "targetApps": [
+    "xpert",
+    "data-xpert"
+  ],
+  "targetAppMeta": {
+    "xpert": {
+      "types": [
+        "business-app",
+        "workbench-view",
+        "assistant-tool",
+        "site-hosting"
+      ],
+      "capabilities": [
+        "sites-core"
+      ],
+      "marketplace": {
+        "screenshots": [
+          "./assets/branding/cover-v1.webp"
+        ],
+        "category": "developer-tools",
+        "contents": [
+          {
+            "type": "app",
+            "name": "sites",
+            "displayName": {
+              "en_US": "Sites",
+              "zh_Hans": "站点"
+            },
+            "icon": {
+              "type": "svg",
+              "value": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 32 32\" width=\"256\" height=\"256\" fill=\"none\" stroke=\"#4F46E5\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" role=\"img\" aria-label=\"Sites\"><path d=\"M26 18v9H4V5h13M4 11h13\"/><path d=\"M9 8h.01M13 8h.01\"/><path d=\"M20 4h9v9M29 4 17 16\" stroke=\"#8185DC\"/><path d=\"M9 18h4M9 23h11\"/></svg>"
+            },
+            "description": {
+              "en_US": "Build, preview and publish static sites from your Assistant.",
+              "zh_Hans": "通过助手创建、预览和发布静态站点。"
+            },
+            "appConfig": {
+              "scope": "organization",
+              "assistantTemplateKey": "sites-builder-assistant",
+              "workspace": {
+                "mode": "dedicated",
+                "name": {
+                  "en_US": "Sites",
+                  "zh_Hans": "站点工作空间"
+                },
+                "sharing": "organization"
+              },
+              "knowledgebases": [],
+              "modelRequirements": {
+                "primary": true
+              },
+              "entry": {
+                "type": "assistant-chat"
+              },
+              "presentation": {
+                "developer": "XpertAI",
+                "tagline": {
+                  "en_US": "An idea becomes a working site.",
+                  "zh_Hans": "让想法成为可以打开的站点。"
+                },
+                "features": [
+                  {
+                    "key": "build",
+                    "title": {
+                      "en_US": "Create and iterate",
+                      "zh_Hans": "创建与迭代"
+                    },
+                    "description": {
+                      "en_US": "Build HTML, CSS and JavaScript in the sandbox, with local modules, images and fonts.",
+                      "zh_Hans": "在沙箱编写 HTML、CSS 和 JavaScript，支持本地模块、图片与字体。"
+                    }
+                  },
+                  {
+                    "key": "versions",
+                    "title": {
+                      "en_US": "Versions and rollback",
+                      "zh_Hans": "版本与回滚"
+                    },
+                    "description": {
+                      "en_US": "Save immutable candidates and redeploy a previous version.",
+                      "zh_Hans": "保存不可变的候选版本，也可以重新发布历史版本。"
+                    }
+                  },
+                  {
+                    "key": "share",
+                    "title": {
+                      "en_US": "Controlled publishing",
+                      "zh_Hans": "控制发布权限"
+                    },
+                    "description": {
+                      "en_US": "Publish an isolated artifact with private, workspace or confirmed public access.",
+                      "zh_Hans": "发布隔离的站点产物，可设为私有、工作空间可见，或确认后公开。"
+                    }
+                  }
+                ],
+                "dataScope": {
+                  "en_US": "Projects are private to each user and Assistant. Published HTML runs in an isolated browser sandbox without network API access.",
+                  "zh_Hans": "项目按用户和助手隔离。发布的 HTML 在隔离浏览器沙箱运行，不能访问网络 API。"
+                },
+                "initializationSummary": {
+                  "en_US": "Creates a workspace and Sites Assistant. Uses your selected model and the host sandbox. Server-side storage and authentication require a separate hosting adapter.",
+                  "zh_Hans": "创建工作空间和站点助手，使用选择的模型及平台沙箱。服务端存储和认证需要独立托管适配器。"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "data-xpert": {
+      "types": [
+        "workbench-view",
+        "assistant-tool",
+        "business-app",
+        "site-hosting"
+      ],
+      "capabilities": [
+        "sites-core",
+        "sites-workbench",
+        "sites-builder-assistant-template",
+        "sites-local-hosting"
+      ],
+      "marketplace": {
+        "screenshots": [
+          "./assets/branding/cover-v1.webp"
+        ],
+        "category": "developer-tools",
+        "contents": [
+          {
+            "type": "app",
+            "name": "sites",
+            "displayName": {
+              "en_US": "Sites",
+              "zh_Hans": "站点"
+            },
+            "icon": {
+              "type": "svg",
+              "value": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 32 32\" width=\"256\" height=\"256\" fill=\"none\" stroke=\"#4F46E5\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" role=\"img\" aria-label=\"Sites\"><path d=\"M26 18v9H4V5h13M4 11h13\"/><path d=\"M9 8h.01M13 8h.01\"/><path d=\"M20 4h9v9M29 4 17 16\" stroke=\"#8185DC\"/><path d=\"M9 18h4M9 23h11\"/></svg>"
+            },
+            "description": {
+              "en_US": "Build, preview and publish static sites from your Assistant.",
+              "zh_Hans": "通过助手创建、预览和发布静态站点。"
+            },
+            "appConfig": {
+              "scope": "organization",
+              "assistantTemplateKey": "sites-builder-assistant",
+              "workspace": {
+                "mode": "dedicated",
+                "name": {
+                  "en_US": "Sites",
+                  "zh_Hans": "站点工作空间"
+                },
+                "sharing": "organization"
+              },
+              "knowledgebases": [],
+              "modelRequirements": {
+                "primary": true
+              },
+              "entry": {
+                "type": "assistant-chat"
+              },
+              "presentation": {
+                "developer": "XpertAI",
+                "tagline": {
+                  "en_US": "An idea becomes a working site.",
+                  "zh_Hans": "让想法成为可以打开的站点。"
+                },
+                "features": [
+                  {
+                    "key": "build",
+                    "title": {
+                      "en_US": "Create and iterate",
+                      "zh_Hans": "创建与迭代"
+                    },
+                    "description": {
+                      "en_US": "Build HTML, CSS and JavaScript in the sandbox, with local modules, images and fonts.",
+                      "zh_Hans": "在沙箱编写 HTML、CSS 和 JavaScript，支持本地模块、图片与字体。"
+                    }
+                  },
+                  {
+                    "key": "versions",
+                    "title": {
+                      "en_US": "Versions and rollback",
+                      "zh_Hans": "版本与回滚"
+                    },
+                    "description": {
+                      "en_US": "Save immutable candidates and redeploy a previous version.",
+                      "zh_Hans": "保存不可变的候选版本，也可以重新发布历史版本。"
+                    }
+                  },
+                  {
+                    "key": "share",
+                    "title": {
+                      "en_US": "Controlled publishing",
+                      "zh_Hans": "控制发布权限"
+                    },
+                    "description": {
+                      "en_US": "Publish an isolated artifact with private, workspace or confirmed public access.",
+                      "zh_Hans": "发布隔离的站点产物，可设为私有、工作空间可见，或确认后公开。"
+                    }
+                  }
+                ],
+                "dataScope": {
+                  "en_US": "Projects are private to each user and Assistant. Published HTML runs in an isolated browser sandbox without network API access.",
+                  "zh_Hans": "项目按用户和助手隔离。发布的 HTML 在隔离浏览器沙箱运行，不能访问网络 API。"
+                },
+                "initializationSummary": {
+                  "en_US": "Creates a workspace and Sites Assistant. Uses your selected model and the host sandbox. Server-side storage and authentication require a separate hosting adapter.",
+                  "zh_Hans": "创建工作空间和站点助手，使用选择的模型及平台沙箱。服务端存储和认证需要独立托管适配器。"
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "assets": {
+    "logo": "./assets/branding/icon-v2.svg",
+    "composerIcon": "./assets/branding/icon-v2.svg",
+    "screenshots": [
+      "./assets/branding/cover-v1.webp"
+    ]
+  }
+}

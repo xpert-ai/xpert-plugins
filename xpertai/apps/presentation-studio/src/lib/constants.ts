@@ -93,8 +93,11 @@ export const AGENT_WORKBENCH_FIXED_SLOT = 'agent.workbench.fixed'
 export const AGENT_WORKBENCH_MAIN_SLOT = 'agent.workbench.main'
 export const PROJECT_DETAIL_SECTIONS_SLOT = 'detail.sections'
 
-export const PRESENTATION_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Presentation Studio"><rect x="7" y="9" width="50" height="38" rx="7" fill="#7c3aed"/><rect x="14" y="16" width="22" height="5" rx="2.5" fill="#ede9fe"/><rect x="14" y="26" width="14" height="3" rx="1.5" fill="#c4b5fd"/><rect x="39" y="17" width="11" height="17" rx="3" fill="#a78bfa"/><path d="M32 47v8M23 55h18" stroke="#7c3aed" stroke-width="4" stroke-linecap="round"/></svg>`
+export const PRESENTATION_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="256" height="256" fill="none" stroke="#7C3AED" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Presentation Studio"><rect x="3" y="4" width="26" height="20" rx="3"/><path d="M16 24v5M10 29h12"/><path d="M9 18v-4M16 18v-7M23 18V8" stroke="#9B71E8" stroke-width="3"/></svg>`
 
 export function presentationStudioTable(key: string) {
   return pluginArtifactTableName(PRESENTATION_STUDIO_ARTIFACT_NAMESPACE, key)
 }
+
+/** First marketplace screenshot; declared in the bundle manifest for host asset resolution. */
+export const APP_COVER = './assets/branding/cover-v1.webp'

@@ -1,3 +1,4 @@
+import { APP_COVER } from './constants.js'
 import type { PluginMarketplaceAppConfig } from '@xpert-ai/contracts'
 export const appConfig: PluginMarketplaceAppConfig = {
   scope: 'organization',
@@ -14,6 +15,7 @@ export const appConfig: PluginMarketplaceAppConfig = {
     primary: true,
   },
   presentation: {
+    screenshots: [APP_COVER],
     tagline: {
       en_US: 'Your database workspace, with an Agent',
       zh_Hans: '数据库工作区，原生智能体协同',

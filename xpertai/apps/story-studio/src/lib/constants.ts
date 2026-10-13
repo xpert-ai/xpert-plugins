@@ -129,12 +129,7 @@ export const STORY_STUDIO_MUTATION_TOOL_NAMES = [
   STORY_RECORD_CUT_HANDOFF_TOOL_NAME
 ] as const
 
-export const STORY_STUDIO_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
-  <rect x="24" y="24" width="208" height="208" rx="40" fill="#F5F3FF"/>
-  <path d="M62 72C62 62.059 70.059 54 80 54H176C185.941 54 194 62.059 194 72V184C194 193.941 185.941 202 176 202H80C70.059 202 62 193.941 62 184V72Z" fill="#FFFFFF" stroke="#7C3AED" stroke-width="12"/>
-  <path d="M92 90H164" stroke="#312E81" stroke-width="12" stroke-linecap="round"/>
-  <path d="M92 122H142" stroke="#8B5CF6" stroke-width="10" stroke-linecap="round"/>
-  <path d="M92 154H124" stroke="#A78BFA" stroke-width="10" stroke-linecap="round"/>
-  <path d="M151 139L182 157L151 175V139Z" fill="#F97316"/>
-  <path d="M84 54V202" stroke="#DDD6FE" stroke-width="6"/>
-</svg>`
+export const STORY_STUDIO_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="256" height="256" fill="none" stroke="#7C3AED" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Story Studio"><path d="M16 8C12 5 7 5 3 6v20c5-1 9 0 13 2 4-2 8-3 13-2V6c-5-1-9 0-13 2ZM16 8v20M7 12h5M7 17h5"/><path d="m21 12 6 4-6 4Z" fill="#D88A3D" stroke="none"/></svg>`
+
+/** First marketplace screenshot; declared in the bundle manifest for host asset resolution. */
+export const APP_COVER = './assets/branding/cover-v1.webp'

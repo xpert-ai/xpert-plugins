@@ -233,6 +233,43 @@ export class MeetingError extends Error {
   constructor(public readonly code: string) {
     super(code);
   }
+  getStatus() {
+    if (
+      ["meeting_not_found", "capture_not_found", "view_not_found"].includes(
+        this.code
+      )
+    )
+      return 404;
+    if (
+      [
+        "assistant_status_unavailable",
+        "assistant_runtime_unavailable",
+        "collaboration_unavailable",
+        "workspace_storage_unavailable",
+        "workspace_unavailable",
+      ].includes(this.code)
+    )
+      return 503;
+    if (
+      [
+        "capture_conflict",
+        "capture_event_conflict",
+        "chunk_conflict",
+        "idempotency_conflict",
+        "revision_conflict",
+        "workspace_file_conflict",
+      ].includes(this.code)
+    )
+      return 409;
+    return this.code === "storage_corrupt" ? 500 : 400;
+  }
+  getResponse() {
+    return {
+      statusCode: this.getStatus(),
+      code: this.code,
+      message: this.code,
+    };
+  }
 }
 export function publicMeeting(m: Meeting) {
   const { scope: _scope, deleted: _deleted, ...data } = m;

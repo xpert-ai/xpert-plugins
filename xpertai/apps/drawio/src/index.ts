@@ -1,3 +1,4 @@
+import { APP_COVER } from './lib/constants.js'
 import { appConfig } from './lib/app-config.js'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -8,7 +9,6 @@ import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import {
   DRAWIO_AGENT_DRAWING_CAPABILITY,
   DRAWIO_ARTIFACT_SHARING_CAPABILITY,
-  DRAWIO_ARTIFACT_NAMESPACE,
   DRAWIO_FEATURE,
   DRAWIO_ICON,
   DRAWIO_MIDDLEWARE_NAME,
@@ -27,6 +27,12 @@ const moduleDir = dirname(fileURLToPath(import.meta.url))
 const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 'utf8')) as {
   name: string
   version: string
+  xpert: {
+    plugin: {
+      level: NonNullable<XpertPlugin['meta']['level']>
+      artifactNamespace: string
+    }
+  }
 }
 
 const ConfigSchema = z.object({})
@@ -40,8 +46,8 @@ const plugin: DrawioXpertPlugin = {
   meta: {
     name: packageJson.name,
     version: packageJson.version,
-    artifactNamespace: DRAWIO_ARTIFACT_NAMESPACE,
-    level: 'system',
+    artifactNamespace: packageJson.xpert.plugin.artifactNamespace,
+    level: packageJson.xpert.plugin.level,
     targetApps: ['data-xpert', 'xpert'],
     targetAppMeta: {
       'data-xpert': {
@@ -54,6 +60,7 @@ const plugin: DrawioXpertPlugin = {
           DRAWIO_TEMPLATE_CAPABILITY
         ],
         marketplace: {
+          screenshots: [APP_COVER],
           category: 'creativity',
           contents: [
             {
@@ -154,6 +161,7 @@ const plugin: DrawioXpertPlugin = {
           DRAWIO_TEMPLATE_CAPABILITY
         ],
         marketplace: {
+          screenshots: [APP_COVER],
           category: 'creativity',
           contents: [
             {

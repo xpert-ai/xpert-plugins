@@ -72,7 +72,7 @@ export function officeCliTable(key: string) {
   return pluginArtifactTableName(OFFICE_CLI_ARTIFACT_NAMESPACE, key)
 }
 
-export const OFFICE_CLI_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="OfficeCLI"><rect x="6" y="6" width="52" height="52" rx="14" fill="#e5484d"/><path d="M18 18h20l8 8v20H18z" fill="#fff" opacity=".96"/><path d="M38 18v10h10" fill="none" stroke="#e5484d" stroke-width="3"/><path d="M24 34h16M24 40h12" stroke="#e5484d" stroke-width="3" stroke-linecap="round"/></svg>`
+export const OFFICE_CLI_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="256" height="256" fill="none" stroke="#E5484D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="OfficeCLI"><path d="M19 4H6v24h20V11ZM19 4v7h7"/><path d="m10 16 4 3-4 3M18 22h4" stroke="#B52D39"/></svg>`
 
 export const OFFICE_CLI_MIME_TYPES = {
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -114,3 +114,6 @@ export const OFFICE_CLI_RELEASE_ASSETS = {
     sha256: '0926428513e15f2d1c6eb726a07b141f7f31d60360226daa7526e518213d3578'
   }
 } as const
+
+/** First marketplace screenshot; declared in the bundle manifest for host asset resolution. */
+export const APP_COVER = './assets/branding/cover-v1.webp'

@@ -2,9 +2,10 @@ import { test, type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, rm, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join } from "./storage-fixture.js";
 import { randomUUID } from "node:crypto";
-import { FileStore, sha256 } from "../src/file-store.js";
+import { sha256 } from "../src/file-store.js";
+import { TestFileStore as FileStore } from "./storage-fixture.js";
 import { Meetings } from "../src/meetings.js";
 import { CaptureDelivery } from "../src/capture-delivery.js";
 import {

@@ -18,16 +18,16 @@ meetings/<creation-date-title-meeting-uuid>/
   history/summary-1.json
 ```
 
-A meeting keeps its initially assigned folder when renamed. Meetings with the same title have different UUIDs. Files are written through the host-authorized Workspace Files capability; the host selects the `xperts` or `user-xperts` catalog and applies Assistant workspace permissions. Each meeting belongs to the Assistant that created it. Other Assistants do not automatically move or read its records.
+A meeting keeps its initially assigned folder when renamed. Meetings with the same title have different UUIDs. Files are written through the host-authorized Workspace Files capability into the Assistant's `user-xperts` volume with the current user's permissions. Each meeting belongs to the Assistant that created it. Other Assistants do not automatically move or read its records.
 
-Existing meetings are backfilled idempotently when their original Assistant loads the library or details. Background tasks and Tiptap projections keep the files updated. Synchronization failures preserve content and expose a retry action. Separately edited workspace files are not silently overwritten. Collaborative editing takes place in Meetings' Tiptap editor; the generic file editor does not currently synchronize changes back into Yjs.
+Background tasks and Tiptap projections keep the files updated. Synchronization failures preserve content and expose a retry action. Separately edited workspace files are not silently overwritten. Collaborative editing takes place in Meetings' Tiptap editor; the generic file editor does not currently synchronize changes back into Yjs.
 
-The private plugin directory below holds recording buffers, internal state, recovery copies, and synchronization receipts. It is not mounted wholesale into the Files View. Migration preserves existing files. `workspace-files.json` records the stable folder and per-file checksums so synchronization can resume after failures or restarts.
+Recording buffers, internal state, recovery copies, and synchronization receipts live in `.apps/meetings/` in the **same Assistant workspace volume**. The platform resolves the tenant, current user and published Assistant, checks access on every operation, and owns physical paths. The application has no independent storage-directory setting or local-filesystem fallback. `workspace-files.json` records the stable visible folder and per-file checksums so synchronization can resume after failures or restarts. No data is imported from the previous plugin directory.
 
 **Meetings adds no business database tables.** It reuses the platform's plugin registry, Assistants, workspaces, Managed Queue, and Collaboration capabilities. Business content is stored in files. Yjs state and updates use the platform's existing collaboration storage, without plugin-specific tables or a separate WebSocket service.
 
 ```text
-<dataDirectory>/<sha256(tenant, organization, user)>/<meeting-uuid>/
+<Assistant workspace>/.apps/meetings/records/<meeting-uuid>/
   meeting.json                 # Metadata, transcript checkpoints, document sequences, deletion tombstone
   notes.md                     # Markdown projection of Tiptap personal notes
   summary.md                   # Markdown projection of the editable summary
@@ -42,12 +42,11 @@ The private plugin directory below holds recording buffers, internal state, reco
   assistant/<operation>.input.json # Immutable stage or final input snapshot
   assistant/<operation>.output.json # Structured stage or final result
   assistant/<operation>.md      # Stage history, not official minutes
-  processing/                  # Queue processing lock target
 ```
 
-Directories use mode `0700` and files use `0600`. File locks protect read-modify-write operations; temporary files are fsynced and atomically replaced. Paths are derived only from trusted request scope. APIs do not accept owner or filesystem path fields. Records are isolated by user and organization and checked against their owning Assistant. On first open, a document migrates to platform Yjs. Its Markdown is then written only through CRDT projection, and the legacy overwrite-style notes API rejects further writes. Background processing does not overwrite personal notes or collaboratively edited summaries.
+Files use mode `0600`. The host storage capability serializes read-modify-write operations with renewable shared-filesystem locks and fsyncs temporary files before atomic replacement. Lock targets live under `.apps/meetings/.locks/`, outside removable meeting folders; a lost lock rejects subsequent operations. Capture bindings live under `.apps/meetings/captures/`. Paths are derived only from trusted request scope. APIs do not accept owner or filesystem path fields. Records are isolated by user and organization and checked against their owning Assistant. On first open, a document migrates to platform Yjs. Its Markdown is then written only through CRDT projection, and the legacy overwrite-style notes API rejects further writes. Background processing does not overwrite personal notes or collaboratively edited summaries.
 
-The server directory requires a persistent volume. Multiple workers must share a filesystem that supports POSIX file locking and atomic rename. Do not use public/static directories, ephemeral container layers, or object-storage mounts. Back up the entire directory. The initial search implementation scans meeting records and is intended for personal meeting collections; it has no separate full-text index.
+The Assistant workspace Volume must be persistent and shared by every API/worker instance, as for other Assistant files. Its filesystem must support atomic mkdir and rename; do not use an object-storage FUSE mount. Storage layout is configured once by the platform Volume backend, never in Meetings. Meetings requires `workspaceDataScope: user` (already set by its template). Shared Assistant and Project workspaces are rejected before any recording data is written. This prevents the generic Files API and sandbox from exposing personal recordings to other users; a hidden directory alone is not an authorization boundary. The initial search implementation scans meeting records and is intended for personal meeting collections; it has no separate full-text index.
 
 Desktop caches audio under Electron's `userData/audio-capture`. Chunks and manifests use AES-256-GCM encryption, with random keys wrapped by the operating system's `safeStorage`. The cache is scoped to API, tenant, organization, user, Assistant, and View. Unacknowledged chunks remain on disk; successful completion acknowledgement clears the cache. After a crash, Retry upload resends persisted chunks. Pending local uploads do not expire automatically.
 
@@ -55,7 +54,7 @@ The server deletes audio after minutes are successfully generated. Failed audio 
 
 ## Installation and integration
 
-Requirements: Xpert SDK/contracts 3.19+, working Managed Queue and `platform.collaboration` capabilities, and authorized language and speech-to-text models in the business organization. Native recording requires macOS 15+ and Desktop with the native audio bridge. Browser recording requires the platform browser audio-capture host, HTTPS/localhost, Web Audio/AudioWorklet and microphone permission. Both use ChatKit UI’s generic client-command bridge. Workspace synchronization requires the platform's `VolumeSubtreeClient` to preserve `ENOENT` for missing files; localized error text must not determine file existence.
+Requirements: the host release providing `WorkspaceFilesRuntimeCapability.appData()` and NsJail Runner protocol 3 for protected shell access, Xpert SDK/contracts 3.19+, working Managed Queue and `platform.collaboration` capabilities, and authorized language and speech-to-text models in the business organization. Native recording requires macOS 15+ and Desktop with the native audio bridge. Browser recording requires the platform browser audio-capture host, HTTPS/localhost, Web Audio/AudioWorklet and microphone permission. Both use ChatKit UI’s generic client-command bridge. Workspace synchronization requires the platform's `VolumeSubtreeClient` to preserve `ENOENT` for missing files; localized error text must not determine file existence.
 
 Deliver the corresponding changes across all three repositories. Installing this plugin alone on an older Desktop does not add native recording support.
 
@@ -66,13 +65,15 @@ corepack pnpm exec nx run @xpert-ai/plugin-meetings:build
 corepack pnpm exec nx run @xpert-ai/plugin-meetings:typecheck
 corepack pnpm exec nx run @xpert-ai/plugin-meetings:test
 corepack pnpm exec nx run @xpert-ai/plugin-meetings:verify:dist
+# Against the matching local host checkout; no deployment or model calls:
+corepack pnpm --dir apps/meetings run verify:workspace-storage --platform-root "$XPERT_PLATFORM_ROOT"
 
 # From the xpert-plugins root, after installing and building the harness as documented
 node plugin-dev-harness/dist/index.js --workspace ./xpertai/apps/meetings --plugin @xpert-ai/plugin-meetings
 ```
 
 1. Authenticate normally through the platform's `tools/scripts/local-plugin-cli.mjs` and use `createRequestHeaders`. The plugin declares `level=system`; install it at **tenant scope** in the Default tenant.
-2. Set `dataDirectory` to a private persistent directory and `silenceSeconds` to the stage-summary silence interval, defaulting to 10 seconds. Summaries use the published Meetings Assistant's primary model. Legacy `summaryCopilotId` and `summaryModel` settings are accepted for compatibility but are not used for model calls.
+2. Keep the Assistant workspace user-isolated and verify its platform Volume is shared across API/worker instances. Remove the obsolete `dataDirectory` key from saved plugin configuration when upgrading; the schema no longer accepts it. There is no old-directory migration. Set `silenceSeconds` to the stage-summary silence interval, defaulting to 10 seconds. Summaries use the published Meetings Assistant's primary model. Legacy `summaryCopilotId` and `summaryModel` settings are accepted for compatibility but are not used for model calls.
 3. After restarting, verify the plugin's actual `loadStatus=loaded`. Switch to the business **organization scope** to initialize the Meetings marketplace app. Initialization creates a dedicated workspace and Assistant.
 4. Select a primary model with tool calling and an available `speech2text` model, then publish the Assistant. For an existing instance, update it from the template in Studio, confirm its local model settings, and publish it in place, preserving its Assistant ID and slug. The Workbench View is activated by the `meetings.notes` feature contributed by the `meetings.tools` middleware.
 5. Build the corresponding `chatkit-js/packages/chatkit-ui` and use that build for Desktop's ChatKit URL. During development, run `corepack pnpm dev:ui -- --port 5174 --strictPort` in the chosen checkout and use `http://localhost:5174`. Preserve other running instances.
@@ -89,7 +90,6 @@ Configuration example with placeholders only:
 
 ```json
 {
-  "dataDirectory": "/private/persistent/meetings",
   "silenceSeconds": 10,
   "silenceThresholdDb": -50,
   "inlineTranscription": {

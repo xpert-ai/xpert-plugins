@@ -1,5 +1,4 @@
-import { mkdir, readFile, rm, access } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, readFile, rm, access, join } from "./workspace-storage.js";
 import { z } from "zod/v3";
 import { FileStore, atomicWrite, sha256 } from "./file-store.js";
 import { summaryMarkdown } from "./document-markdown.js";

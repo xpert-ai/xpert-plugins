@@ -1,3 +1,4 @@
+import { APP_COVER } from './lib/constants.js'
 import { appConfig } from './lib/app-config.js'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -6,7 +7,6 @@ import { z } from 'zod'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import {
   PENCIL_AGENT_CAPABILITY,
-  PENCIL_ARTIFACT_NAMESPACE,
   PENCIL_ARTIFACT_SHARING_CAPABILITY,
   PENCIL_FEATURE,
   PENCIL_ICON,
@@ -26,6 +26,12 @@ const moduleDir = dirname(fileURLToPath(import.meta.url))
 const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 'utf8')) as {
   name: string
   version: string
+  xpert: {
+    plugin: {
+      level: NonNullable<XpertPlugin['meta']['level']>
+      artifactNamespace: string
+    }
+  }
 }
 
 const ConfigSchema = z.object({})
@@ -63,14 +69,15 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   meta: {
     name: packageJson.name,
     version: packageJson.version,
-    artifactNamespace: PENCIL_ARTIFACT_NAMESPACE,
-    level: 'system',
+    artifactNamespace: packageJson.xpert.plugin.artifactNamespace,
+    level: packageJson.xpert.plugin.level,
     targetApps: ['data-xpert', 'xpert'],
     targetAppMeta: {
       'data-xpert': {
         types: ['workbench-view', 'assistant-tool', 'business-app'],
         capabilities: [PENCIL_FEATURE, PENCIL_WORKBENCH_CAPABILITY, PENCIL_AGENT_CAPABILITY, PENCIL_TEMPLATE_CAPABILITY, PENCIL_ARTIFACT_SHARING_CAPABILITY],
         marketplace: {
+          screenshots: [APP_COVER],
           category: 'creativity',
           contents: [
             {
@@ -126,6 +133,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
         types: ['assistant-template', 'skill', 'app', 'xpertai-bundle'],
         capabilities: [PENCIL_FEATURE, PENCIL_WORKBENCH_CAPABILITY, PENCIL_AGENT_CAPABILITY, PENCIL_TEMPLATE_CAPABILITY, PENCIL_ARTIFACT_SHARING_CAPABILITY],
         marketplace: {
+          screenshots: [APP_COVER],
           category: 'creativity',
           contents: [
             {

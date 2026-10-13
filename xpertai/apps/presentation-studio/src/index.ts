@@ -1,3 +1,4 @@
+import { APP_COVER } from './lib/constants.js'
 import { appConfig } from './lib/app-config.js'
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
@@ -30,7 +31,6 @@ import {
   PRESENTATION_PROVIDER_KEY,
   PRESENTATION_SANDBOX_ACTION,
   PRESENTATION_SANDBOX_ACTION_VERSION,
-  PRESENTATION_STUDIO_ARTIFACT_NAMESPACE,
   PRESENTATION_TEMPLATE_CAPABILITY,
   PRESENTATION_TEMPLATE_PROVIDER_KEY,
   PRESENTATION_THEME_PACKS,
@@ -47,6 +47,12 @@ const requireFromPlugin = createRequire(import.meta.url)
 const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 'utf8')) as {
   name: string
   version: string
+  xpert: {
+    plugin: {
+      level: NonNullable<XpertPlugin['meta']['level']>
+      artifactNamespace: string
+    }
+  }
   dependencies?: Record<string, string>
 }
 const ConfigSchema = z.object({
@@ -127,14 +133,15 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   meta: {
     name: packageJson.name || PRESENTATION_PLUGIN_NAME,
     version: packageJson.version,
-    artifactNamespace: PRESENTATION_STUDIO_ARTIFACT_NAMESPACE,
-    level: 'system',
+    artifactNamespace: packageJson.xpert.plugin.artifactNamespace,
+    level: packageJson.xpert.plugin.level,
     targetApps: ['data-xpert', 'xpert'],
     targetAppMeta: {
       'data-xpert': {
         types: ['workbench-view', 'assistant-tool', 'business-app'],
         capabilities,
         marketplace: {
+          screenshots: [APP_COVER],
           category: 'creativity',
           contents: [
             { type: 'app', name: 'presentation-studio', appConfig, displayName: 'Presentation Studio', description: 'Generate, edit, collaborate on, and export DashiAI presentations.', icon: { type: 'svg', value: PRESENTATION_ICON, color: '#7c3aed' }, operations: [
@@ -152,7 +159,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
       xpert: {
         types: ['assistant-template', 'skill', 'app', 'xpertai-bundle'],
         capabilities,
-        marketplace: { category: 'creativity', contents: [
+        marketplace: { screenshots: [APP_COVER], category: 'creativity', contents: [
           { type: 'skill', name: 'presentation-studio', displayName: 'Presentation Studio Skill', description: 'Agent workflow for DashiAI presentation generation and export.', tags: ['presentation', 'pptx', 'dashi', 'yjs'] },
           { type: 'assistant-template', name: PRESENTATION_ASSISTANT_TEMPLATE_KEY, displayName: 'Presentation Studio Assistant', description: 'Assistant template for presentation workflows.' },
           { type: 'app', name: 'presentation-studio', appConfig, displayName: 'Presentation Studio', description: 'Presentation Workbench and Agent middleware tools.' }

@@ -1,5 +1,4 @@
-import { readdir, readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { readdir, readFile, join } from "./workspace-storage.js";
 import { pcmFromWav, wav, audioActivity } from "./audio.js";
 import { FileStore, sha256, atomicWrite } from "./file-store.js";
 import {

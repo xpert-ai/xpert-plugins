@@ -1,14 +1,20 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { execFileSync } from 'node:child_process'
+import { join, relative } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { inspectPluginMetadata } from '../../scripts/check-plugin-metadata.mjs'
 
 const workspaceRoot = new URL('../', import.meta.url)
 const appsRoot = new URL('./apps/', workspaceRoot)
 const namespacePattern = /^[a-z][a-z0-9_]*$/
 const failures = []
 let systemAppCount = 0
+const repositoryRoot = fileURLToPath(new URL('../../', import.meta.url))
+const files = new Set(execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], {
+  cwd: repositoryRoot, encoding: 'utf8'
+}).split('\0').filter(Boolean))
 
 const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'))
-const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 for (const appName of readdirSync(appsRoot).sort()) {
   const appDir = join(appsRoot.pathname, appName)
@@ -30,18 +36,13 @@ for (const appName of readdirSync(appsRoot).sort()) {
   systemAppCount += 1
   const packageNamespace = packageJson.xpert?.plugin?.artifactNamespace
   const legacyTopLevelNamespace = packageJson.artifactNamespace
-  const runtimeDeclaration = indexSource.match(/\bartifactNamespace:\s*([A-Z][A-Z0-9_]*|['"][^'"]+['"])/)?.[1]
   let runtimeNamespace
-
-  if (runtimeDeclaration?.startsWith("'") || runtimeDeclaration?.startsWith('"')) {
-    runtimeNamespace = runtimeDeclaration.slice(1, -1)
-  } else if (runtimeDeclaration) {
-    const constantsPath = join(appDir, 'src/lib/constants.ts')
-    const constantsSource = existsSync(constantsPath) ? readFileSync(constantsPath, 'utf8') : ''
-    runtimeNamespace = constantsSource.match(
-      new RegExp(`export\\s+const\\s+${escapeRegExp(runtimeDeclaration)}\\s*=\\s*['"]([^'"]+)['"]`)
-    )?.[1]
-  }
+  try {
+    runtimeNamespace = inspectPluginMetadata({
+      packageFile: relative(repositoryRoot, packagePath), files,
+      read: (file) => readFileSync(join(repositoryRoot, file), 'utf8')
+    }).fields.artifactNamespace?.value
+  } catch (error) { failures.push(error.message) }
 
   const manifestPath = join(appDir, '.xpertai-plugin/plugin.json')
   const values = { runtimeNamespace }

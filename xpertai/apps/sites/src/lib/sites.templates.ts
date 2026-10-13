@@ -34,23 +34,23 @@ export type SiteTemplateGalleryItem = {
   type: SiteTemplateI18nText
 }
 
-const staticSiteWorkflowEn = `Use the available sandbox file tools to create files under the specified /workspace/sites/<slug>/ directory.
+const staticSiteWorkflowEn = `Use the available sandbox file tools to create files under sites/<slug>/ relative to the current sandbox working directory.
 
-Create a static site only: a root index.html plus optional styles.css and app.js. Do not create package.json, Vite, React, Next.js, Drizzle, D1 migrations, Cloudflare Worker code, or a full project scaffold.
+Published static previews are opaque sandbox documents: localStorage, network APIs and server-side storage are unavailable. Use in-memory state or an explicit user download for export. Create a static site only: a root index.html plus optional styles.css and app.js. Do not create package.json, Vite, React, Next.js, Drizzle, D1 migrations, Cloudflare Worker code, or a full project scaffold.
 
-After the files exist, call the Sites tools in this order: sites_create_project with the same sourcePath, sites_save_version, then sites_deploy_version or sites_create_and_deploy. Deploy with access mode workspace_all unless the user asks otherwise.`
+After the files exist, call the Sites tools in this order: sites_create_project with the same sourcePath, sites_save_version, then ask the user to review it in the Sites panel. Publish only after an explicit request, using admins_only unless the user selects another audience.`
 
-const staticSiteWorkflowZh = `使用可用的沙箱文件工具，在指定的 /workspace/sites/<slug>/ 目录下创建文件。
+const staticSiteWorkflowZh = `使用可用的沙箱文件工具，在沙箱工作目录下的相对目录 sites/<slug>/ 中创建文件，不要假定 /workspace 存在。
 
-只创建静态站点：根目录 index.html，以及可选的 styles.css 和 app.js。不要创建 package.json、Vite、React、Next.js、Drizzle、D1 migration、Cloudflare Worker 代码，也不要生成完整项目脚手架。
+发布预览是隔离沙箱文档，不能使用 localStorage、网络 API 或服务端存储；交互状态保存在内存中，导出需显式下载。只创建静态站点：根目录 index.html，以及可选的 styles.css 和 app.js。不要创建 package.json、Vite、React、Next.js、Drizzle、D1 migration、Cloudflare Worker 代码，也不要生成完整项目脚手架。
 
-文件创建完成后，按顺序调用 Sites 工具：使用相同 sourcePath 调用 sites_create_project，然后调用 sites_save_version，最后调用 sites_deploy_version 或 sites_create_and_deploy。除非用户另有要求，发布访问权限使用 workspace_all。`
+文件创建完成后，按顺序调用 Sites 工具：使用相同 sourcePath 调用 sites_create_project，然后调用 sites_save_version，请用户在站点面板中审阅。仅在用户明确要求后发布，除非用户选择其他范围，否则使用 admins_only。`
 
 const prompt = (en_US: string, zh_Hans: string): SiteTemplateGalleryItem['prompt'] => ({ en_US, zh_Hans })
 const text = (en_US: string, zh_Hans: string): SiteTemplateI18nText => ({ en_US, zh_Hans })
 const commonMeta = {
   builtWith: text('Sites in XpertAI', 'XpertAI Sites'),
-  model: 'GPT-5.5',
+  model: text('Selected Assistant model', '助手所选模型'),
   techStack: text('Static HTML/CSS/JS', '静态 HTML/CSS/JS'),
   type: text('App', '应用')
 } satisfies Pick<SiteTemplateGalleryItem, 'builtWith' | 'model' | 'techStack' | 'type'>
@@ -65,16 +65,16 @@ export const siteTemplateGalleryItems: SiteTemplateGalleryItem[] = [
 
 ${staticSiteWorkflowEn}
 
-Use sourcePath /workspace/sites/onboarding-hub.
+Use sourcePath sites/onboarding-hub.
 
 Important adaptation for this Sites Assistant:
 - Do not call or mention @notion, @google-drive, @slack, or any connector that is not available in this assistant.
 - Do not build D1, R2, upload APIs, workers, migrations, backend routes, or a full app framework.
 - If the user provides real onboarding docs, channel names, links, or source notes in chat, base the content on those sources.
 - If no real source material is provided, create realistic seeded example content and make the source links clearly editable internal placeholders such as #source-security-guide. Do not claim that placeholder content was discovered from real company systems.
-- Keep all persistence client-side with localStorage.
+- Use in-memory state for this isolated static preview; do not claim data persists after reload.
 
-Use the product name "Onboarding Hub" in the header. Personalize the greeting as "Welcome, <first name>" using a small client-side helper that reads a seeded user profile from localStorage or a window.__XPERT_USER__ object when present. Do not show a week/date chip, role-specific badges, or personalization labels.
+Use the product name "Onboarding Hub" in the header. Personalize the greeting as "Welcome, <first name>" using a small client-side helper that reads a seeded user profile from session memory or a window.__XPERT_USER__ object when present. Do not show a week/date chip, role-specific badges, or personalization labels.
 
 Design a calm employee-facing dashboard with clear next steps and low cognitive load. Use a bento-box layout:
 - Current progress in the upper-left card. This is the only card with an eyebrow label.
@@ -90,7 +90,7 @@ Each checklist item should show:
 - Due date
 - Link to its source document, internal page, slide deck, or thread placeholder
 
-Do not show owners or DRIs in the checklist. Save checkbox changes to localStorage immediately and restore them after reload.
+Do not show owners or DRIs in the checklist. Keep checkbox changes in memory for this session.
 
 Create a Suggested meetings card with relevant first-week sessions, introductions, manager meetings, buddy meetings, or new-joiner sessions. Do not show individual "+" buttons beside meetings. Include one "Plan my first week" action pinned to the bottom of the card.
 
@@ -102,7 +102,7 @@ Create a full-width Resource library below the progress, meetings, and checklist
 - Product knowledge
 - Engineering setup
 
-Omit empty categories. Each resource should have a source link and a bookmark control backed by localStorage.
+Omit empty categories. Each resource should have a source link and a bookmark control backed by session memory.
 
 The lower row should include:
 - Your documents
@@ -111,29 +111,29 @@ The lower row should include:
 
 Populate Helpful Slack channels with seeded generally useful onboarding, announcement, support, employee-question, and culture channels unless the user provided real channel names. Include role-specific channels only when clearly appropriate.
 
-The notes card should stretch to the full height of the row and include a tall textarea. Save notes and manager overrides to localStorage.
+The notes card should stretch to the full height of the row and include a tall textarea. Save notes and manager overrides to session memory.
 
 Support static upload-state demos for:
 - Profile picture: PNG or JPG, up to 5 MB
 - Signed employee handbook: PDF, up to 10 MB
 
-Validate file type and size in the browser, store only file metadata and preview state in localStorage, and allow users to replace or remove uploaded files. Do not attempt to store file bytes in R2 in this static template.
+Validate file type and size in the browser, store only file metadata and preview state in session memory, and allow users to replace or remove uploaded files. Do not attempt to store file bytes in R2 in this static template.
 
 Use restrained, readable UI with warm neutral surfaces, deep ink typography, and a few host-friendly accent colors.`,
       `构建一个面向新员工的内部站点，名称为 "Onboarding Hub"。
 
 ${staticSiteWorkflowZh}
 
-使用 sourcePath /workspace/sites/onboarding-hub。
+使用 sourcePath sites/onboarding-hub。
 
 适配当前 Sites Assistant 的重要要求：
 - 不要调用或提到 @notion、@google-drive、@slack，除非这些连接器明确可用。
 - 不要构建 D1、R2、上传 API、Worker、migration、后端路由或完整应用框架。
 - 如果用户在对话里提供了真实入职文档、频道名称、链接或来源说明，就基于这些资料生成内容。
 - 如果没有真实资料，创建真实感的预置示例内容，并把来源链接写成清晰可替换的内部占位链接，例如 #source-security-guide。不要声称占位内容来自真实公司系统。
-- 所有持久化都使用客户端 localStorage。
+- 所有持久化都使用客户端 session memory。
 
-在页头使用产品名 "Onboarding Hub"。问候语使用 "Welcome, <first name>"，通过一个客户端 helper 从 localStorage 里的 seeded user profile 或存在时的 window.__XPERT_USER__ 对象读取名字。不要显示周次/日期 chip、角色专属 badge 或个性化说明标签。
+在页头使用产品名 "Onboarding Hub"。问候语使用 "Welcome, <first name>"，通过一个客户端 helper 从 session memory 里的 seeded user profile 或存在时的 window.__XPERT_USER__ 对象读取名字。不要显示周次/日期 chip、角色专属 badge 或个性化说明标签。
 
 设计成一个平静、低认知负担、下一步清晰的员工看板。使用 bento-box 布局：
 - Current progress 位于左上卡片，并且只有这张卡片带 eyebrow label。
@@ -149,7 +149,7 @@ ${staticSiteWorkflowZh}
 - 截止日期
 - 指向来源文档、内部页面、slide deck 或 thread 占位链接的链接
 
-不要在 checklist 中展示 owner 或 DRI。checkbox 变更要立即保存到 localStorage，并在刷新后恢复。
+不要在 checklist 中展示 owner 或 DRI。checkbox 变更要立即保存到 session memory，并在刷新后恢复。
 
 创建 Suggested meetings 卡片，包含首周课程、介绍会议、manager meeting、buddy meeting 或 new-joiner session 等合适内容。不要在每个会议旁边显示单独的 "+" 按钮。在卡片底部固定一个 "Plan my first week" 操作。
 
@@ -161,7 +161,7 @@ ${staticSiteWorkflowZh}
 - Product knowledge
 - Engineering setup
 
-省略空类别。每个资源都要有来源链接，并提供 localStorage 支持的 bookmark 控件。
+省略空类别。每个资源都要有来源链接，并提供 session memory 支持的 bookmark 控件。
 
 底部一行包含：
 - Your documents
@@ -170,13 +170,13 @@ ${staticSiteWorkflowZh}
 
 Helpful Slack channels 使用预置的通用入职、公告、支持、员工问答和文化频道，除非用户提供了真实频道名称。只有在明确适合当前用户时才加入角色专属频道。
 
-Notes for your manager 卡片要拉伸到该行完整高度，并包含较高的 textarea。notes 和 manager overrides 都保存到 localStorage。
+Notes for your manager 卡片要拉伸到该行完整高度，并包含较高的 textarea。notes 和 manager overrides 都保存到 session memory。
 
 支持静态上传状态演示：
 - Profile picture: PNG 或 JPG，最大 5 MB
 - Signed employee handbook: PDF，最大 10 MB
 
-在浏览器中校验文件类型和大小，只把文件 metadata 和预览状态保存到 localStorage，并允许替换或移除文件。这个静态模板不要尝试把文件 bytes 存到 R2。
+在浏览器中校验文件类型和大小，只把文件 metadata 和预览状态保存到 session memory，并允许替换或移除文件。这个静态模板不要尝试把文件 bytes 存到 R2。
 
 使用克制、易读的界面：温暖中性色表面、深色文字和少量适合宿主主题的强调色。`
     )
@@ -190,14 +190,14 @@ Notes for your manager 卡片要拉伸到该行完整高度，并包含较高的
 
 ${staticSiteWorkflowEn}
 
-Use sourcePath /workspace/sites/enablement-hub.
+Use sourcePath sites/enablement-hub.
 
 Important adaptation for this Sites Assistant:
 - Do not call or mention @google-drive, @notion, @slack, or any connector that is not available in this assistant.
 - Do not build D1, backend APIs, migrations, workers, or a full app framework.
 - If the user provides real training decks, documents, recordings, playbooks, announcements, recommended learning links, official academy links, documentation, or developer-site URLs in chat, use those sources.
 - If no real source material is provided, create realistic seeded example resources and make their source links clearly editable placeholders such as #source-drive-product-demo. Do not claim placeholder content was discovered from real company systems.
-- Store the catalog and bookmark state in static JavaScript/localStorage for this template.
+- Store the catalog and bookmark state in static JavaScript/session memory for this template.
 
 The app should list training resources, demos, playbooks, important links, recordings, and relevant announcement-style updates. Also include useful official academy, documentation, and developer-site resources when the user provides them; otherwise include clearly labeled seeded examples.
 
@@ -213,13 +213,13 @@ Build a dynamic resources grid that updates immediately when users search or cha
 
 Add bookmarks:
 - Each resource card should have a selectable bookmark control.
-- Save bookmarks per employee in localStorage.
+- Save bookmarks per employee in session memory.
 - Add a "My learning" tab in the top navigation.
 - Populate "My learning" with the employee's bookmarked resources.
 - Bookmarks must persist after reloads in this static version.
 - Show a helpful empty state when no resources have been saved.
 
-Use a workspace-authenticated identity demo. In the top navigation, show a compact circular avatar containing only the uppercase first letter of the employee's email alias. For example, jamie.smith@company.com should display J. Read the email from window.__XPERT_USER__, localStorage, or seeded fallback data.
+Use a workspace-authenticated identity demo. In the top navigation, show a compact circular avatar containing only the uppercase first letter of the employee's email alias. For example, jamie.smith@company.com should display J. Read the email from window.__XPERT_USER__, session memory, or seeded fallback data.
 
 Design the app as a modern, airy internal hub with:
 - A clean top navigation with "Discover" and "My learning"
@@ -233,14 +233,14 @@ Keep the design polished and responsive. Include self-check notes in the generat
 
 ${staticSiteWorkflowZh}
 
-使用 sourcePath /workspace/sites/enablement-hub。
+使用 sourcePath sites/enablement-hub。
 
 适配当前 Sites Assistant 的重要要求：
 - 不要调用或提到 @google-drive、@notion、@slack，除非这些连接器明确可用。
 - 不要构建 D1、后端 API、migration、Worker 或完整应用框架。
 - 如果用户在对话里提供了真实培训 deck、文档、录屏、playbook、公告、推荐学习链接、官方 academy、文档站或开发者站点 URL，就使用这些来源。
 - 如果没有真实资料，创建真实感的预置示例资源，并把来源链接写成清晰可替换的占位链接，例如 #source-drive-product-demo。不要声称占位内容来自真实公司系统。
-- 这个模板中 catalog 和 bookmark 状态都使用静态 JavaScript/localStorage 保存。
+- 这个模板中 catalog 和 bookmark 状态都使用静态 JavaScript/session memory 保存。
 
 应用应列出培训资源、demo、playbook、重要链接、录屏和相关公告式更新。用户提供官方 academy、文档或开发者站点资源时也要纳入；否则使用清晰标记的 seeded 示例。
 
@@ -256,13 +256,13 @@ ${staticSiteWorkflowZh}
 
 添加 bookmarks：
 - 每张资源卡都应有可选中的 bookmark 控件。
-- 按员工把 bookmarks 保存到 localStorage。
+- 按员工把 bookmarks 保存到 session memory。
 - 顶部导航增加 "My learning" tab。
 - "My learning" 展示该员工收藏的资源。
 - 这个静态版本中 bookmarks 刷新后必须保持。
 - 没有收藏资源时展示有帮助的空状态。
 
-实现一个 workspace-authenticated identity 演示。顶部导航显示紧凑圆形头像，头像中只包含员工邮箱 alias 的大写首字母。例如 jamie.smith@company.com 显示 J。邮箱从 window.__XPERT_USER__、localStorage 或 seeded fallback 数据读取。
+实现一个 workspace-authenticated identity 演示。顶部导航显示紧凑圆形头像，头像中只包含员工邮箱 alias 的大写首字母。例如 jamie.smith@company.com 显示 J。邮箱从 window.__XPERT_USER__、session memory 或 seeded fallback 数据读取。
 
 设计成现代、通透的内部 hub，包含：
 - 干净的顶部导航，含 "Discover" 和 "My learning"
@@ -283,14 +283,14 @@ ${staticSiteWorkflowZh}
 
 ${staticSiteWorkflowEn}
 
-Use sourcePath /workspace/sites/company-pulse.
+Use sourcePath sites/company-pulse.
 
 Important adaptation for this Sites Assistant:
 - Do not call or mention @kepler, @slack, @spreadsheets, or any connector that is not available in this assistant.
 - Do not build D1, warehouse queries, backend APIs, migrations, workers, or a full app framework.
 - If the user provides real metric definitions, saved query links, tables, spreadsheet targets, Slack channels, or discussion notes in chat, use those sources.
 - If no real metric source material is provided, create realistic seeded metric snapshots for each timing window and make saved query/table/channel links clearly editable placeholders. Do not claim placeholder metrics were queried from real company systems.
-- Store dashboard configuration, selected filters, annotations, and cached metric snapshots in localStorage for this static template.
+- Store dashboard configuration, selected filters, annotations, and cached metric snapshots in session memory for this static template.
 
 Main layout:
 - Do not add a top navigation bar.
@@ -327,7 +327,7 @@ Metric lineage drawer:
 
 Data and caching behavior for the static version:
 - Represent cached metric snapshots for each supported timing window in JavaScript data.
-- On load, seed only missing localStorage timing-window caches. Do not overwrite a previously refreshed cached snapshot.
+- On load, seed only missing session memory timing-window caches. Do not overwrite a previously refreshed cached snapshot.
 - Show loading, stale, partial-data, and permission-denied states contextually on metrics and inside the lineage drawer, without adding a large warning banner.
 
 Quality bar:
@@ -338,14 +338,14 @@ Quality bar:
 
 ${staticSiteWorkflowZh}
 
-使用 sourcePath /workspace/sites/company-pulse。
+使用 sourcePath sites/company-pulse。
 
 适配当前 Sites Assistant 的重要要求：
 - 不要调用或提到 @kepler、@slack、@spreadsheets，除非这些连接器明确可用。
 - 不要构建 D1、warehouse query、后端 API、migration、Worker 或完整应用框架。
 - 如果用户在对话里提供了真实指标定义、saved query 链接、数据表、spreadsheet target、Slack 频道或讨论摘要，就使用这些来源。
 - 如果没有真实指标来源资料，为每个 timing window 创建真实感的预置 metric snapshot，并把 saved query/table/channel 链接写成清晰可替换的占位链接。不要声称占位指标来自真实公司系统查询。
-- 这个静态模板中 dashboard configuration、selected filters、annotations 和 cached metric snapshots 都保存到 localStorage。
+- 这个静态模板中 dashboard configuration、selected filters、annotations 和 cached metric snapshots 都保存到 session memory。
 
 主布局：
 - 不要添加顶部导航栏。
@@ -382,7 +382,7 @@ Metric lineage drawer：
 
 静态版本的数据和缓存行为：
 - 在 JavaScript 数据中表示每个 supported timing window 的 cached metric snapshot。
-- 页面加载时只 seed 缺失的 localStorage timing-window caches。不要覆盖之前已刷新的 cached snapshot。
+- 页面加载时只 seed 缺失的 session memory timing-window caches。不要覆盖之前已刷新的 cached snapshot。
 - 在指标和 lineage drawer 内上下文式展示 loading、stale、partial-data 和 permission-denied 状态，不要添加大型 warning banner。
 
 质量要求：
@@ -400,15 +400,15 @@ Metric lineage drawer：
 
 ${staticSiteWorkflowEn}
 
-Use sourcePath /workspace/sites/sparkboard.
+Use sourcePath sites/sparkboard.
 
 Important adaptation for this Sites Assistant:
 - Do not build Cloudflare D1, Drizzle schemas, migrations, Worker routes, a Vinext starter, backend APIs, or a full app framework.
 - Do not create .openai/hosting.json, db/schema.ts, migration files, package.json, or TypeScript build artifacts for this static template.
 - Use a static single-page app with index.html plus optional styles.css and app.js.
-- Represent authenticated workspace identity with a client-side demo helper that reads window.__XPERT_USER__, localStorage, or seeded fallback data.
-- Store ideas, votes, comments, status history, leaderboard snapshots, filters, and current user state in localStorage.
-- Enforce duplicate vote prevention in localStorage by idea id and user email for this static version. Do not claim server-side enforcement.
+- Represent authenticated workspace identity with a client-side demo helper that reads window.__XPERT_USER__, session memory, or seeded fallback data.
+- Store ideas, votes, comments, status history, leaderboard snapshots, filters, and current user state in session memory.
+- Enforce duplicate vote prevention in session memory by idea id and user email for this static version. Do not claim server-side enforcement.
 - Include realistic seeded example ideas so the initial experience feels complete and can be visually reviewed immediately.
 
 Employees should be able to:
@@ -493,15 +493,15 @@ After validation, save and deploy through Sites hosting with access mode workspa
 
 ${staticSiteWorkflowZh}
 
-使用 sourcePath /workspace/sites/sparkboard。
+使用 sourcePath sites/sparkboard。
 
 适配当前 Sites Assistant 的重要要求：
 - 不要构建 Cloudflare D1、Drizzle schema、migration、Worker route、Vinext starter、后端 API 或完整应用框架。
 - 这个静态模板不要创建 .openai/hosting.json、db/schema.ts、migration 文件、package.json 或 TypeScript build 产物。
 - 使用静态单页应用：index.html，以及可选的 styles.css 和 app.js。
-- 使用客户端 demo helper 表示 authenticated workspace identity，从 window.__XPERT_USER__、localStorage 或 seeded fallback 数据读取用户。
-- ideas、votes、comments、status history、leaderboard snapshots、filters 和当前用户状态都保存到 localStorage。
-- 这个静态版本通过 idea id + user email 在 localStorage 中防止重复投票。不要声称服务端强制。
+- 使用客户端 demo helper 表示 authenticated workspace identity，从 window.__XPERT_USER__、session memory 或 seeded fallback 数据读取用户。
+- ideas、votes、comments、status history、leaderboard snapshots、filters 和当前用户状态都保存到 session memory。
+- 这个静态版本通过 idea id + user email 在 session memory 中防止重复投票。不要声称服务端强制。
 - 包含真实感的预置示例 ideas，让初始体验完整并可立即视觉评审。
 
 员工应能够：
@@ -593,14 +593,14 @@ ${staticSiteWorkflowZh}
 
 ${staticSiteWorkflowEn}
 
-Use sourcePath /workspace/sites/launch-cal.
+Use sourcePath sites/launch-cal.
 
 Important adaptation for this Sites Assistant:
 - Do not call or mention Slack, Google Drive, Notion, Google Calendar, or any connector that is not available in this assistant.
 - Do not build D1, backend APIs, refresh jobs, migrations, workers, or a full app framework.
 - If the user provides real launch records, source links, docs, owners, calendar dates, or context in chat, use those sources.
 - If live source ingestion or real context is not available, create realistic representative launch records that demonstrate the intended workflow. Mark source links as editable placeholders such as #source-calendar-launch-review.
-- Store launch records, normalized source references, filters, current month, and checklist completion state in static JavaScript/localStorage for this template.
+- Store launch records, normalized source references, filters, current month, and checklist completion state in static JavaScript/session memory for this template.
 
 The primary experience should be a polished monthly calendar view, not a generic dashboard. Group launch items by target date and show each item as a compact colored block. Use distinct accent colors for each product area. Each calendar block should surface the launch type, title, owner initials, status, and dependency-risk indicator.
 
@@ -639,19 +639,19 @@ Design direction:
 - Avoid unnecessary dashboard cards or decorative chrome
 - Make the first viewport feel immediately useful and visually polished
 
-Persist checklist updates in localStorage. Keep the normalized source-reference data model suitable for future refresh jobs. Build, validate, save, and deploy through Sites hosting with access mode workspace_all unless the user asks for a narrower access mode.`,
+Persist checklist updates in session memory. Keep the normalized source-reference data model suitable for future refresh jobs. Build, validate, save, and deploy through Sites hosting with access mode workspace_all unless the user asks for a narrower access mode.`,
       `构建并发布一个内部工作区应用，名称为 "Launch Cal"。
 
 ${staticSiteWorkflowZh}
 
-使用 sourcePath /workspace/sites/launch-cal。
+使用 sourcePath sites/launch-cal。
 
 适配当前 Sites Assistant 的重要要求：
 - 不要调用或提到 Slack、Google Drive、Notion、Google Calendar，除非这些连接器明确可用。
 - 不要构建 D1、后端 API、refresh job、migration、Worker 或完整应用框架。
 - 如果用户在对话里提供了真实发布记录、来源链接、文档、负责人、日历日期或上下文，就使用这些来源。
 - 如果没有 live source ingestion 或真实上下文，创建真实感的代表性 launch records，用来演示目标工作流。来源链接使用清晰可编辑的占位链接，例如 #source-calendar-launch-review。
-- 这个模板中 launch records、normalized source references、filters、current month 和 checklist completion state 都使用静态 JavaScript/localStorage 保存。
+- 这个模板中 launch records、normalized source references、filters、current month 和 checklist completion state 都使用静态 JavaScript/session memory 保存。
 
 主要体验应是精致的月历视图，而不是通用 dashboard。按 target date 分组 launch items，并把每个 item 显示为紧凑彩色块。每个 product area 使用不同强调色。每个 calendar block 应展示 launch type、title、owner initials、status 和 dependency-risk indicator。
 
@@ -690,7 +690,7 @@ ${staticSiteWorkflowZh}
 - 避免不必要的 dashboard cards 或 decorative chrome
 - 首屏要立即有用，并且视觉上足够精致
 
-checklist 更新保存到 localStorage。normalized source-reference 数据模型要适合未来 refresh jobs。构建、验证后通过 Sites hosting 保存并发布，除非用户要求更窄访问范围，否则 access mode 使用 workspace_all。`
+checklist 更新保存到 session memory。normalized source-reference 数据模型要适合未来 refresh jobs。构建、验证后通过 Sites hosting 保存并发布，除非用户要求更窄访问范围，否则 access mode 使用 workspace_all。`
     )
   },
   {
@@ -702,15 +702,15 @@ checklist 更新保存到 localStorage。normalized source-reference 数据模�
 
 ${staticSiteWorkflowEn}
 
-Use sourcePath /workspace/sites/event-planning-hub.
+Use sourcePath sites/event-planning-hub.
 
 Important adaptation for this Sites Assistant:
 - Do not call or mention Google Calendar, Slack, Google Drive, Notion, or any connector that is not available in this assistant.
 - Do not build D1, R2, backend APIs, server-side permission enforcement, migrations, workers, or a full app framework.
 - If the user provides real planned dates, planning channels, Drive links, Notion policies, approval guidance, playbooks, or event context in chat, use those sources.
 - If connected sources or real context are not available, use realistic seeded examples and keep source references configurable with clear placeholder links. Do not expose or invent unrelated/sensitive workspace content.
-- Store event records, intake status, approvals, template metadata, tasks, task status, policy checklist progress, resource links, comments, and current user identity in static JavaScript/localStorage for this template.
-- Demonstrate owner-only accept/reject behavior in the interface and localStorage state, but do not claim server-side enforcement in this static version.
+- Store event records, intake status, approvals, template metadata, tasks, task status, policy checklist progress, resource links, comments, and current user identity in static JavaScript/session memory for this template.
+- Demonstrate owner-only accept/reject behavior in the interface and session memory state, but do not claim server-side enforcement in this static version.
 - Do not implement R2 uploads. Store configurable Drive-style references instead of duplicating files.
 
 Build an event intake workflow available to all workspace users. The intake form should include:
@@ -730,7 +730,7 @@ Build an event intake workflow available to all workspace users. The intake form
 Permissions demo:
 - Any workspace user can submit an intake request.
 - Only the assigned event owner can accept or reject the request in the UI.
-- Use the current user email demo from window.__XPERT_USER__, localStorage, or seeded fallback data to decide whether owner actions are enabled.
+- Use the current user email demo from window.__XPERT_USER__, session memory, or seeded fallback data to decide whether owner actions are enabled.
 
 Create separate views for:
 - Overview dashboard
@@ -780,15 +780,15 @@ Before saving and deploying:
 
 ${staticSiteWorkflowZh}
 
-使用 sourcePath /workspace/sites/event-planning-hub。
+使用 sourcePath sites/event-planning-hub。
 
 适配当前 Sites Assistant 的重要要求：
 - 不要调用或提到 Google Calendar、Slack、Google Drive、Notion，除非这些连接器明确可用。
 - 不要构建 D1、R2、后端 API、服务端权限强制、migration、Worker 或完整应用框架。
 - 如果用户在对话里提供了真实计划日期、规划频道、Drive 链接、Notion policy、审批指南、playbook 或活动上下文，就使用这些来源。
 - 如果没有 connected sources 或真实上下文，使用真实感 seeded examples，并保留可配置的来源引用和清晰占位链接。不要暴露或编造无关/敏感工作区内容。
-- 这个模板中 event records、intake status、approvals、template metadata、tasks、task status、policy checklist progress、resource links、comments 和 current user identity 都使用静态 JavaScript/localStorage 保存。
-- 在界面和 localStorage 状态中演示 owner-only accept/reject 行为，但这个静态版本不要声称服务端强制。
+- 这个模板中 event records、intake status、approvals、template metadata、tasks、task status、policy checklist progress、resource links、comments 和 current user identity 都使用静态 JavaScript/session memory 保存。
+- 在界面和 session memory 状态中演示 owner-only accept/reject 行为，但这个静态版本不要声称服务端强制。
 - 不实现 R2 上传。使用可配置的 Drive-style references，不复制文件。
 
 构建面向所有 workspace users 的 event intake workflow。Intake form 应包含：
@@ -808,7 +808,7 @@ ${staticSiteWorkflowZh}
 权限演示：
 - 任意 workspace user 都可以提交 intake request。
 - 只有 assigned event owner 可以在 UI 中 accept 或 reject request。
-- 当前用户 email demo 从 window.__XPERT_USER__、localStorage 或 seeded fallback 数据读取，并据此启用或禁用 owner actions。
+- 当前用户 email demo 从 window.__XPERT_USER__、session memory 或 seeded fallback 数据读取，并据此启用或禁用 owner actions。
 
 创建独立视图：
 - Overview dashboard
@@ -886,7 +886,7 @@ export const sitesTemplates: XpertTemplateContribution[] = [
     description: '面向站点创建、候选版本保存、生产发布、访问控制和环境值管理的 data-xpert 助手模板。',
     category: 'Sites',
     type: XpertTypeEnum.Agent,
-    targetApps: ['data-xpert', 'xpert'],
+    targetApps: ['xpert', 'data-xpert'],
     targetAppMeta: {
       xpert: {
         types: ['business-assistant'],
@@ -916,7 +916,7 @@ export const sitesTemplates: XpertTemplateContribution[] = [
     default: false,
     startPrompts: [
       '请创建一个项目请求看板站点，先保存版本，再发布给管理员查看。',
-      '请把这个站点改成需要保存用户进度的版本，并使用 D1 存储形态。',
+      '请把这个站点改版，保存新版本并预览，再决定是否发布。',
       '请列出最近发布的 Sites 项目并检查生产 URL。'
     ],
     releaseNotes: '创建 Sites 站点构建助手。',

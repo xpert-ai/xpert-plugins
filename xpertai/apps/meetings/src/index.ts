@@ -1,4 +1,5 @@
 import "reflect-metadata";
+import { readFileSync } from "node:fs";
 import { z } from "zod/v3";
 import { XpertServerPlugin, type XpertPlugin } from "@xpert-ai/plugin-sdk";
 import { configSchema, type Config } from "./config.js";
@@ -9,6 +10,15 @@ import { MeetingsMiddleware } from "./middleware.js";
 import { MeetingDocuments, MeetingDocumentProvider } from "./documents.js";
 import { appContribution, templates } from "./templates.js";
 import { meetingsIcon } from "./branding.js";
+
+const packageJson = JSON.parse(
+  readFileSync(new URL("../package.json", import.meta.url), "utf8")
+) as {
+  version: string;
+  xpert: {
+    plugin: Required<Pick<XpertPlugin["meta"], "level" | "artifactNamespace">>;
+  };
+};
 
 @XpertServerPlugin({
   providers: [
@@ -24,10 +34,10 @@ export class MeetingsPlugin {}
 const plugin: XpertPlugin<z.input<typeof configSchema>> = {
   meta: {
     name: PLUGIN,
-    version: "0.1.0",
+    version: packageJson.version,
     author: "XpertAI",
-    level: "system",
-    artifactNamespace: "meetings",
+    level: packageJson.xpert.plugin.level,
+    artifactNamespace: packageJson.xpert.plugin.artifactNamespace,
     displayName: "Meetings",
     icon: meetingsIcon,
     description: "Private file-backed meeting notes for Xpert Desktop",

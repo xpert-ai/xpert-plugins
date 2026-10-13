@@ -35,10 +35,12 @@
       "Turn this flow into a Lucidchart draft",
       "Register this Lucid document link for review"
     ],
-    "composerIcon": "./assets/composerIcon.svg",
-    "logo": "./assets/logo.svg",
+    "composerIcon": "./assets/branding/icon-v2.svg",
+    "logo": "./assets/branding/icon-v2.svg",
     "brandColor": "#2563EB",
-    "screenshots": []
+    "screenshots": [
+      "./assets/branding/cover-v1.webp"
+    ]
   },
   "policy": {
     "installation": "AVAILABLE",
@@ -52,9 +54,11 @@
     "sparsePath": "community/apps/lucidchart"
   },
   "assets": {
-    "composerIcon": "./assets/composerIcon.svg",
-    "logo": "./assets/logo.svg",
-    "screenshots": []
+    "composerIcon": "./assets/branding/icon-v2.svg",
+    "logo": "./assets/branding/icon-v2.svg",
+    "screenshots": [
+      "./assets/branding/cover-v1.webp"
+    ]
   },
   "targetApps": [
     "data-xpert",
@@ -179,7 +183,10 @@
             }
           }
         ],
-        "category": "creativity"
+        "category": "creativity",
+        "screenshots": [
+          "./assets/branding/cover-v1.webp"
+        ]
       }
     },
     "data-xpert": {
@@ -193,7 +200,12 @@
         "lucidchart-workbench",
         "lucidchart-agent-drawing",
         "lucidchart-assistant-template"
-      ]
+      ],
+      "marketplace": {
+        "screenshots": [
+          "./assets/branding/cover-v1.webp"
+        ]
+      }
     }
   }
 }

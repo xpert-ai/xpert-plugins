@@ -81,6 +81,10 @@ const en = {
   workspace_scope_changed:
     "The Assistant workspace scope changed. Restore the original scope before synchronizing.",
   workspace_unavailable: "The platform workspace file service is unavailable.",
+  workspace_storage_unavailable: "The platform does not support Assistant workspace storage yet. Update the platform before using Meetings.",
+  assistant_user_workspace_required: "Meetings requires a user-isolated Assistant workspace. Select user isolation in the Assistant settings and publish it.",
+  meeting_not_found: "This meeting is not available in your current Assistant workspace.",
+  capture_not_found: "This recording session is not available in your current Assistant workspace.",
   assistant_workspace_required:
     "Open Meetings in the Assistant workspace to save meeting files.",
   empty: "Your meeting notes start here",
@@ -296,6 +300,10 @@ const zh: Record<keyof typeof en, string> = {
     "宿主未提供助手工作区，请更新宿主后重新打开会议记录。",
   workspace_scope_changed: "助手工作区范围已变更，请恢复原范围后再同步。",
   workspace_unavailable: "平台工作区文件服务暂不可用。",
+  workspace_storage_unavailable: "平台尚未支持助手工作空间存储，请先升级平台再使用 Meetings。",
+  assistant_user_workspace_required: "Meetings 需要按用户隔离的助手工作空间。请在助手设置中选择用户隔离并发布。",
+  meeting_not_found: "当前助手工作空间中没有可访问的此会议。",
+  capture_not_found: "当前助手工作空间中没有可访问的此录音会话。",
   assistant_workspace_required:
     "请在助手工作区中打开会议记录，以保存会议文件。",
   empty: "从一场对话开始",

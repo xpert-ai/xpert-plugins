@@ -1,0 +1,62 @@
+---
+title: 安装与配置
+description: 从构建产物安装地图插件并启用真实或模拟数据。
+---
+
+## 前置条件
+
+- 配套 Xpert develop 构建产物，包含 `ViewMiddlewareRuntimeCapability`。单独安装已发布的 SDK 3.21.0 还不具备这个新能力；先构建配套宿主 SDK，再在本地依赖层链接，不提交绝对路径依赖。
+- 真实地图交互需要本变更附带的通用修复：MCP App 回调恢复并重新验证连接器授权。仅有 3.21.0 npm 包不代表宿主已包含该修复。
+- ChatKit 已支持原生 MCP App，无需修改前端。
+
+## 构建和安装
+
+在 xpert-plugins 的 `xpertai` 目录运行：
+
+```sh
+corepack pnpm install --frozen-lockfile
+corepack pnpm --filter @xpert-ai/plugin-shadcn-ui build
+corepack pnpm exec nx build @xpert-ai/plugin-maps
+corepack pnpm exec nx test @xpert-ai/plugin-maps
+```
+
+在已经就绪的 Xpert 源码目录，通过平台提供的正常登录凭据安装：
+
+```sh
+corepack pnpm plugin:deploy:local   --plugin-dir /absolute/path/to/xpert-plugins/xpertai/apps/maps   --scope organization --org-id "$XPERT_ORG_ID"
+```
+
+插件声明为组织级，无全局路由或数据库实体。尊重部署结果中的 `restartRequired`；安装记录存在不代表插件已经运行。不要在聊天或源码中粘贴 Key、密码、Token。
+
+## 启用模拟验收
+
+首次安装可从 **地图助手 · 模拟演示** 模板创建并发布 Assistant。模板默认高德、显式 demo 模式；无需地图 Key 即可直接操作右侧地图搜索、详情和路线。模型对话仍需配置可用的模型。
+
+已有 Assistant 也可添加 **地图** 中间件（provider: `maps:explorer`）：
+
+```json
+{"provider":"amap","mode":"demo"}
+```
+
+保存并发布测试 Assistant。示例请求：`请在杭州搜索咖啡馆，并在地图中显示。` 演示固定使用杭州附近的虚构街区、合成底图和模拟距离 / 时长，不能用于导航。所有模拟结果必须显示“模拟数据”。切换供应商仅修改中间件的 `provider` 为 `tencent`。
+
+升级已安装的模板 Assistant 时，在 Assistant Settings 中使用 Update from Template，审核后发布，保持原 Assistant 身份；不要重复创建。
+
+## 启用真实数据
+
+1. 安装对应的 `@xpert-ai/plugin-amap-connector` 或 `@xpert-ai/plugin-tencent-map-connector`。
+2. 在工作空间中配置该供应商的 **Web Service Key**，按供应商设置添加签名私钥。浏览器 JS SDK Key 不能代替 Web Service Key。
+3. 将该连接器加入 Assistant 并启用。插件读取的是当前调用范围的连接器能力；仅仅创建一个连接器不授予 Assistant 使用权限。
+4. 将地图中间件设为 `{"provider":"amap","mode":"live"}`。如同一供应商存在多个绑定，可填写确切的 `connectorId`。
+5. 保存、发布并重新运行。测试搜索、详情、拖动缩放、路线以及撤销连接器后的拒绝行为。
+
+供应商静态地图、POI 和路线服务必须已开通且有额度。供应商返回的 Logo 与审图信息保留在底图上，勿裁切或覆盖。
+
+## 故障排查
+
+- 缺少连接器：检查当前工作空间、Assistant 连接器节点和使用授权。
+- 首次搜索成功而后续操作失败：检查宿主是否包含回调授权修复，或连接器是否已撤销。
+- 不显示 App：检查插件的 dist/mcp-apps/map/index.html 已打包、SDK 版本、ChatKit 与宿主资源权限。
+- 不显示工作台：检查发布图已连接地图中间件、宿主存在 View middleware runtime 能力，以及 dist/lib/remote-components/maps-workbench 的 JS、CSS 与 React 资源完整。
+- 底图错误：检查供应商服务权限、额度、支持地区与返回的安全错误码。插件不会静默替换为模拟数据。
+- 旧历史结果无法交互：旧快照缺少原始授权范围时按拒绝处理，请重新运行搜索。

@@ -50,12 +50,7 @@ export const CANVAS_MIDDLEWARE_TOOL_NAMES = [
   CANVAS_REVOKE_ARTIFACT_LINK_TOOL_NAME
 ] as const
 
-export const CANVAS_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
-  <rect width="256" height="256" rx="40" fill="#F8FAFC"/>
-  <path d="M52 72C52 60.9543 60.9543 52 72 52H184C195.046 52 204 60.9543 204 72V184C204 195.046 195.046 204 184 204H72C60.9543 204 52 195.046 52 184V72Z" fill="#FFFFFF" stroke="#0F766E" stroke-width="10"/>
-  <path d="M82 96H132" stroke="#0F172A" stroke-width="10" stroke-linecap="round"/>
-  <path d="M82 126H112" stroke="#64748B" stroke-width="8" stroke-linecap="round"/>
-  <path d="M82 160C109 133 139 130 174 151" stroke="#0F766E" stroke-width="10" stroke-linecap="round"/>
-  <circle cx="178" cy="154" r="11" fill="#14B8A6"/>
-  <path d="M150 86L180 116L150 146" stroke="#2563EB" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>`
+export const CANVAS_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="256" height="256" fill="none" stroke="#0F766E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Canvas"><path d="M5 11V6h5M22 6h5v5M27 22v5h-5M10 27H5v-5"/><rect x="10" y="10" width="9" height="9" rx="2"/><path d="m20 16 6 6-6 6-6-6Z" fill="#EBA879" stroke="none"/></svg>`
+
+/** First marketplace screenshot; declared in the bundle manifest for host asset resolution. */
+export const APP_COVER = './assets/branding/cover-v1.webp'

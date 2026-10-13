@@ -37,10 +37,12 @@
       "Create AI image slots on a canvas for these product concepts.",
       "Insert this generated image into the selected Canvas image holder."
     ],
-    "composerIcon": "./assets/composerIcon.svg",
-    "logo": "./assets/logo.svg",
+    "composerIcon": "./assets/branding/icon-v2.svg",
+    "logo": "./assets/branding/icon-v2.svg",
     "brandColor": "#0F766E",
-    "screenshots": []
+    "screenshots": [
+      "./assets/branding/cover-v1.webp"
+    ]
   },
   "policy": {
     "installation": "AVAILABLE",
@@ -54,9 +56,11 @@
     "sparsePath": "xpertai/apps/canvas"
   },
   "assets": {
-    "composerIcon": "./assets/composerIcon.svg",
-    "logo": "./assets/logo.svg",
-    "screenshots": []
+    "composerIcon": "./assets/branding/icon-v2.svg",
+    "logo": "./assets/branding/icon-v2.svg",
+    "screenshots": [
+      "./assets/branding/cover-v1.webp"
+    ]
   },
   "targetApps": [
     "data-xpert",
@@ -248,7 +252,10 @@
             }
           }
         ],
-        "category": "creativity"
+        "category": "creativity",
+        "screenshots": [
+          "./assets/branding/cover-v1.webp"
+        ]
       }
     },
     "data-xpert": {
@@ -262,7 +269,12 @@
         "canvas-workbench",
         "agent-canvas",
         "canvas-assistant-template"
-      ]
+      ],
+      "marketplace": {
+        "screenshots": [
+          "./assets/branding/cover-v1.webp"
+        ]
+      }
     }
   }
 }

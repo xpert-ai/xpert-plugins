@@ -1,75 +1,19 @@
 import type { PluginMarketplaceAppConfig } from '@xpert-ai/contracts'
 
+const text = (en_US: string, zh_Hans: string) => ({ en_US, zh_Hans })
+
 export const appConfig = {
-  scope: 'organization',
-  assistantTemplateKey: 'sites-builder-assistant',
-  workspace: {
-    mode: 'dedicated',
-    name: {
-      en_US: 'Sites Workspace',
-      zh_Hans: 'Sites 站点工作空间'
-    },
-    sharing: 'organization'
-  },
-  modelRequirements: {
-    primary: true
-  },
-  presentation: {
-    tagline: {
-      en_US: 'Build and manage hosted websites',
-      zh_Hans: '构建和管理托管网站'
-    },
-    longDescription: {
-      en_US:
-        'Create site projects, save candidate versions, inspect previews and manage deployments and access with the configured hosting backend.',
-      zh_Hans: '创建站点项目、保存候选版本、检查预览，并使用已配置的托管后端管理发布与访问权限。'
-    },
-    developer: 'XpertAI',
-    features: [
-      {
-        key: 'workspace',
-        title: {
-          en_US: 'Versions and hosting',
-          zh_Hans: '版本与托管'
-        },
-        description: {
-          en_US: 'Review saved versions before publishing and manage site access.',
-          zh_Hans: '发布前审阅保存的版本，并管理站点访问权限。'
-        }
-      }
-    ],
-    useCases: [
-      {
-        en_US: 'Portals, dashboards and project sites',
-        zh_Hans: '门户、看板与项目网站'
-      }
-    ],
-    dataScope: {
-      en_US:
-        'Application resources are scoped to the current organization. Workspace access and sharing follow platform permissions.',
-      zh_Hans: '应用资源限定在当前组织范围内；工作空间访问与分享遵循平台权限。'
-    },
-    initializationSummary: {
-      en_US:
-        'Create a dedicated workspace and publish the bundled Assistant. Configure any external services separately.',
-      zh_Hans: '创建专用工作空间并发布内置助手。所需外部服务需要另行配置。'
-    },
-    initializationSteps: [
-      {
-        en_US: 'Create the application workspace',
-        zh_Hans: '创建应用工作空间'
-      },
-      {
-        en_US: 'Install the Assistant template and dependencies',
-        zh_Hans: '安装助手模板及依赖'
-      },
-      {
-        en_US: 'Publish the Assistant chat entry',
-        zh_Hans: '发布助手对话入口'
-      }
-    ]
-  },
-  entry: {
-    type: 'assistant-chat'
-  }
-} satisfies PluginMarketplaceAppConfig
+    scope: 'organization', assistantTemplateKey: 'sites-builder-assistant',
+    workspace: { mode: 'dedicated', name: text('Sites', '站点工作空间'), sharing: 'organization' }, knowledgebases: [],
+    modelRequirements: { primary: true }, entry: { type: 'assistant-chat' },
+    presentation: {
+      developer: 'XpertAI', tagline: text('An idea becomes a working site.', '让想法成为可以打开的站点。'),
+      features: [
+        { key: 'build', title: text('Create and iterate', '创建与迭代'), description: text('Build HTML, CSS and JavaScript in the sandbox, with local modules, images and fonts.', '在沙箱编写 HTML、CSS 和 JavaScript，支持本地模块、图片与字体。') },
+        { key: 'versions', title: text('Versions and rollback', '版本与回滚'), description: text('Save immutable candidates and redeploy a previous version.', '保存不可变的候选版本，也可以重新发布历史版本。') },
+        { key: 'share', title: text('Controlled publishing', '控制发布权限'), description: text('Publish an isolated artifact with private, workspace or confirmed public access.', '发布隔离的站点产物，可设为私有、工作空间可见，或确认后公开。') }
+      ],
+      dataScope: text('Projects are private to each user and Assistant. Published HTML runs in an isolated browser sandbox without network API access.', '项目按用户和助手隔离。发布的 HTML 在隔离浏览器沙箱运行，不能访问网络 API。'),
+      initializationSummary: text('Creates a workspace and Sites Assistant. Uses your selected model and the host sandbox. Server-side storage and authentication require a separate hosting adapter.', '创建工作空间和站点助手，使用选择的模型及平台沙箱。服务端存储和认证需要独立托管适配器。')
+    }
+  } satisfies PluginMarketplaceAppConfig

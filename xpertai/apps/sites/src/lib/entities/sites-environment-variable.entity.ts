@@ -32,6 +32,9 @@ export class SitesEnvironmentVariable {
   @Column({ type: 'text', nullable: true })
   value?: string
 
+  @Column({ type: 'varchar', nullable: true })
+  valueEncoding?: 'aes-256-gcm-v1' | 'plain'
+
   @Column({ type: 'boolean', default: false })
   secret?: boolean
 

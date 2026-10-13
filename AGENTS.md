@@ -2,6 +2,8 @@
 
 - After developing or modifying any plugin, validate it by following `plugin-dev-harness/README.md` and run the plugin lifecycle test through `plugin-dev-harness` before considering the work complete.
 
+- Keep native plugin runtime metadata aligned with the plugin's own `package.json`; prefer deriving `meta.version`, `meta.level`, and `meta.artifactNamespace` from `version`, `xpert.plugin.level`, and `xpert.plugin.artifactNamespace` to prevent release drift. Source-provenance analysis is an opt-in audit, not a pre-commit gate: valid runtime validators or factory calls may be outside the static checker's supported syntax. Do not rewrite valid plugin code solely to satisfy that checker. Run `node scripts/check-plugin-metadata.mjs --package <plugin-directory>` for one working-tree plugin, `--all` for declared native plugins, or `--staged` for the Git index. The checker supports JSON imports, `createRequire`, and `JSON.parse(readFileSync(...))`, including imported constants, without executing plugin code. Verify unresolved metadata through the built plugin's lifecycle test. `.githooks/pre-commit` enforces entity table names and staged dependency/lockfile consistency.
+
 - Never guess types, categories, or payload meaning from names, display text, localized copy, sample data, or incidental field combinations. Logic that depends on machine-readable distinctions must use explicit typed fields defined in shared contracts, such as discriminated unions or a stable `type`.
 - If the required discriminator or type is missing, do not invent one locally and do not hard-code heuristic detection. Add the type to the shared contract first, or pause and confirm the new type before implementing downstream filtering, routing, rendering, or business logic.
 

@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "application": "Office Editor",
+  "brandColor": "#0F766E",
+  "cover": {
+    "file": "cover-v1.webp",
+    "width": 1600,
+    "height": 900,
+    "opaque": true,
+    "safeArea": {
+      "top": "5%",
+      "sides": "5%",
+      "bottom": "30%"
+    },
+    "generator": "OpenAI built-in image_gen",
+    "prompt": "Use case: stylized-concept. Asset type: premium enterprise application marketplace cover. Generate one opaque full-bleed landscape image, 16:9 aspect ratio, target 1600 x 900. Style: sophisticated art-directed 3D editorial still life, matte ceramic, fine paper and subtle brushed metal, believable tactile materials, architectural studio lighting, calm and confident, suitable for a professional creative software suite. Composition: all important objects occupy the upper 65% and middle of the frame, at least 8% margin at top and sides, generous but intentional negative space; bottom 30% is quiet continuous background reserved for a UI overlay. Fill every edge of the image with the scene. Soft directional light from upper left, restrained shadows and gentle depth, fine grain. No text, no lettering, no numerals, no logos, no watermark, no controls, no surrounding browser or card frame, no borders, no padding, no collage, no split panels, no mock device. Do not render any title or footer. Subject: An ivory spreadsheet board in gentle perspective with carefully spaced emerald grid cells, one raised jade bar chart, two overlapping smaller ivory document panels. Collaborative office editing and structured business work. Palette: deep blue-green background, brand accent #0F766E, warm ivory, with the small complementary accents described above. Composition must remain recognizable at 320 x 180."
+  },
+  "icon": {
+    "svg": "icon-v2.svg",
+    "png": "icon-v2.png",
+    "style": "Transparent square, two-color geometric SVG with rounded strokes; a separate light host tile supplies the background.",
+    "source": "src/lib/constants.ts"
+  }
+}

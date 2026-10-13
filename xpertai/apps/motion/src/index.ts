@@ -1,3 +1,4 @@
+import { APP_COVER } from './lib/constants.js'
 import { appConfig } from './lib/app-config.js'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -6,7 +7,6 @@ import { z } from 'zod'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import {
   MOTION_AGENT_CAPABILITY,
-  MOTION_ARTIFACT_NAMESPACE,
   MOTION_FEATURE,
   MOTION_ICON,
   MOTION_LIBRARY_CAPABILITY,
@@ -26,6 +26,12 @@ const moduleDir = dirname(fileURLToPath(import.meta.url))
 const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 'utf8')) as {
   name: string
   version: string
+  xpert: {
+    plugin: {
+      level: NonNullable<XpertPlugin['meta']['level']>
+      artifactNamespace: string
+    }
+  }
 }
 
 const ConfigSchema = z.object({})
@@ -61,8 +67,8 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   meta: {
     name: packageJson.name,
     version: packageJson.version,
-    artifactNamespace: MOTION_ARTIFACT_NAMESPACE,
-    level: 'system',
+    artifactNamespace: packageJson.xpert.plugin.artifactNamespace,
+    level: packageJson.xpert.plugin.level,
     targetApps: ['data-xpert', 'xpert'],
     targetAppMeta: {
       'data-xpert': {
@@ -75,6 +81,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
           MOTION_TEMPLATE_CAPABILITY
         ],
         marketplace: {
+          screenshots: [APP_COVER],
           category: 'creativity',
           contents: [
             {
@@ -137,6 +144,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
           MOTION_TEMPLATE_CAPABILITY
         ],
         marketplace: {
+          screenshots: [APP_COVER],
           category: 'creativity',
           contents: [
             {

@@ -37,10 +37,12 @@
       "Turn this launch announcement into a short kinetic video.",
       "Search Motion recipes and propose a tasteful animation direction."
     ],
-    "composerIcon": "./assets/composerIcon.svg",
-    "logo": "./assets/logo.svg",
+    "composerIcon": "./assets/branding/icon-v2.svg",
+    "logo": "./assets/branding/icon-v2.svg",
     "brandColor": "#2563EB",
-    "screenshots": []
+    "screenshots": [
+      "./assets/branding/cover-v1.webp"
+    ]
   },
   "policy": {
     "installation": "AVAILABLE",
@@ -54,9 +56,11 @@
     "sparsePath": "xpertai/apps/motion"
   },
   "assets": {
-    "composerIcon": "./assets/composerIcon.svg",
-    "logo": "./assets/logo.svg",
-    "screenshots": []
+    "composerIcon": "./assets/branding/icon-v2.svg",
+    "logo": "./assets/branding/icon-v2.svg",
+    "screenshots": [
+      "./assets/branding/cover-v1.webp"
+    ]
   },
   "targetApps": [
     "data-xpert",
@@ -222,7 +226,10 @@
             }
           }
         ],
-        "category": "creativity"
+        "category": "creativity",
+        "screenshots": [
+          "./assets/branding/cover-v1.webp"
+        ]
       }
     },
     "data-xpert": {
@@ -237,7 +244,12 @@
         "agent-motion",
         "motion-library",
         "motion-assistant-template"
-      ]
+      ],
+      "marketplace": {
+        "screenshots": [
+          "./assets/branding/cover-v1.webp"
+        ]
+      }
     }
   }
 }

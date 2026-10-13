@@ -45,10 +45,12 @@
       "Import this media and make a rough cut.",
       "Split and trim the selected clip."
     ],
-    "composerIcon": "./assets/composerIcon.svg",
-    "logo": "./assets/logo.svg",
+    "composerIcon": "./assets/branding/icon-v2.svg",
+    "logo": "./assets/branding/icon-v2.svg",
     "brandColor": "#0EA5E9",
-    "screenshots": []
+    "screenshots": [
+      "./assets/branding/cover-v1.webp"
+    ]
   },
   "policy": {
     "installation": "AVAILABLE",
@@ -62,9 +64,11 @@
     "sparsePath": "xpertai/apps/cut"
   },
   "assets": {
-    "composerIcon": "./assets/composerIcon.svg",
-    "logo": "./assets/logo.svg",
-    "screenshots": []
+    "composerIcon": "./assets/branding/icon-v2.svg",
+    "logo": "./assets/branding/icon-v2.svg",
+    "screenshots": [
+      "./assets/branding/cover-v1.webp"
+    ]
   },
   "targetApps": [
     "data-xpert",
@@ -82,7 +86,12 @@
         "cut-workbench",
         "cut-agent",
         "cut-assistant-template"
-      ]
+      ],
+      "marketplace": {
+        "screenshots": [
+          "./assets/branding/cover-v1.webp"
+        ]
+      }
     },
     "xpert": {
       "types": [
@@ -296,7 +305,10 @@
             }
           }
         ],
-        "category": "creativity"
+        "category": "creativity",
+        "screenshots": [
+          "./assets/branding/cover-v1.webp"
+        ]
       }
     }
   }

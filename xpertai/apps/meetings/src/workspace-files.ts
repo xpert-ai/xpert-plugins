@@ -1,5 +1,4 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { readFile, join, type StoragePath } from "./workspace-storage.js";
 import { z } from "zod/v3";
 import type { WorkspaceFilesApi } from "@xpert-ai/plugin-sdk";
 import { atomicWrite, sha256 } from "./file-store.js";
@@ -56,7 +55,7 @@ function timestamp(ms: number) {
 export class MeetingWorkspaceFiles {
   constructor(readonly api: (scope: Scope) => Files) {}
 
-  async sync(meeting: Meeting, directory: string, force = false) {
+  async sync(meeting: Meeting, directory: StoragePath, force = false) {
     const receiptPath = join(directory, "workspace-files.json");
     let receipt: z.infer<typeof receiptSchema>;
     try {
@@ -151,7 +150,7 @@ export class MeetingWorkspaceFiles {
 
   private async outputs(
     m: Meeting,
-    directory: string
+    directory: StoragePath
   ): Promise<Map<string, string>> {
     // Pre-Tiptap records only persisted the structured summary. Never replace an
     // initialized collaboration document, including an intentionally empty one.

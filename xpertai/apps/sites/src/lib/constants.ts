@@ -28,4 +28,7 @@ export const SITES_MIDDLEWARE_TOOL_NAMES = [
 ]
 
 export const SITES_ICON =
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 8h18"/><path d="M7 6h.01"/><path d="M10 6h.01"/><path d="M8 13h8"/><path d="M8 16h5"/></svg>'
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="256" height="256" fill="none" stroke="#4F46E5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Sites"><path d="M26 18v9H4V5h13M4 11h13"/><path d="M9 8h.01M13 8h.01"/><path d="M20 4h9v9M29 4 17 16" stroke="#8185DC"/><path d="M9 18h4M9 23h11"/></svg>`
+
+/** First marketplace screenshot; declared in the bundle manifest for host asset resolution. */
+export const APP_COVER = './assets/branding/cover-v1.webp'

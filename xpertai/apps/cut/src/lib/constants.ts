@@ -135,4 +135,7 @@ export const CUT_AGENT_WORKBENCH_FIXED_SLOT = 'agent.workbench.fixed'
 export const CUT_ASSISTANT_CONTEXT_SET_COMMAND = 'assistant.context.set'
 export const CUT_ASSISTANT_CHAT_SEND_MESSAGE_COMMAND = 'assistant.chat.send_message'
 
-export const CUT_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none"><rect width="256" height="256" rx="48" fill="#0B1020"/><path d="M51 76h154M51 180h154" stroke="#7DD3FC" stroke-width="14" stroke-linecap="round"/><path d="M84 48v160M172 48v160" stroke="#F8FAFC" stroke-width="14" stroke-linecap="round"/><path d="m106 103 48 25-48 25v-50Z" fill="#FB7185"/></svg>`
+export const CUT_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="256" height="256" fill="none" stroke="#0EA5E9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Cut"><rect x="4" y="7" width="24" height="18" rx="3"/><path d="M9 7v18M23 7v18M4 12h5M4 20h5M23 12h5M23 20h5"/><path d="m13 12 7 4-7 4Z" fill="#F07678" stroke="none"/></svg>`
+
+/** First marketplace screenshot; declared in the bundle manifest for host asset resolution. */
+export const APP_COVER = './assets/branding/cover-v1.webp'

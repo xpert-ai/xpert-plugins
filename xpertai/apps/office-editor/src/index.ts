@@ -1,3 +1,4 @@
+import { APP_COVER } from './lib/constants.js'
 import { appConfig } from './lib/app-config.js'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -6,7 +7,6 @@ import { z } from 'zod'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import {
   OFFICE_EDITOR_AGENT_REVIEW_CAPABILITY,
-  OFFICE_EDITOR_ARTIFACT_NAMESPACE,
   OFFICE_EDITOR_ASSISTANT_TEMPLATE_KEY,
   OFFICE_EDITOR_COLLABORATION_CAPABILITY,
   OFFICE_EDITOR_FEATURE,
@@ -26,6 +26,12 @@ const moduleDir = dirname(fileURLToPath(import.meta.url))
 const packageJson = JSON.parse(readFileSync(join(moduleDir, '../package.json'), 'utf8')) as {
   name: string
   version: string
+  xpert: {
+    plugin: {
+      level: NonNullable<XpertPlugin['meta']['level']>
+      artifactNamespace: string
+    }
+  }
 }
 
 const ConfigSchema = z.object({})
@@ -34,8 +40,8 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   meta: {
     name: packageJson.name || OFFICE_EDITOR_PLUGIN_NAME,
     version: packageJson.version,
-    artifactNamespace: OFFICE_EDITOR_ARTIFACT_NAMESPACE,
-    level: 'system',
+    artifactNamespace: packageJson.xpert.plugin.artifactNamespace,
+    level: packageJson.xpert.plugin.level,
     targetApps: ['data-xpert', 'xpert'],
     targetAppMeta: {
       'data-xpert': {
@@ -48,6 +54,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
           OFFICE_EDITOR_COLLABORATION_CAPABILITY
         ],
         marketplace: {
+          screenshots: [APP_COVER],
           category: 'productivity',
           contents: [
             {
@@ -118,6 +125,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
           OFFICE_EDITOR_COLLABORATION_CAPABILITY
         ],
         marketplace: {
+          screenshots: [APP_COVER],
           category: 'productivity',
           contents: [
             {

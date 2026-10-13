@@ -353,6 +353,12 @@
     },
     {
       "path": "./integrations/agent-runtimes"
+    },
+    {
+      "path": "./apps/code-review"
+    },
+    {
+      "path": "./apps/maps"
     }
   ]
 }

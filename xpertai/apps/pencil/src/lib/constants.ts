@@ -138,12 +138,7 @@ export const PENCIL_SELECTED_CORE_TOOL_NAMES = [
 
 export const PENCIL_CORE_TOOL_PREFIX = 'pencil_'
 
-export const PENCIL_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
-  <rect width="256" height="256" rx="40" fill="#F8FAFC"/>
-  <path d="M64 188L84 98C87 84 99 74 113 74H184C191 74 196 81 194 88L174 178C171 192 159 202 145 202H74C67 202 62 195 64 188Z" fill="#FFFFFF" stroke="#2563EB" stroke-width="10"/>
-  <path d="M105 126H160" stroke="#0F172A" stroke-width="10" stroke-linecap="round"/>
-  <path d="M98 154H144" stroke="#64748B" stroke-width="8" stroke-linecap="round"/>
-  <path d="M70 190L96 176L84 164L70 190Z" fill="#F59E0B" stroke="#0F172A" stroke-width="6" stroke-linejoin="round"/>
-  <path d="M85 165L169 81" stroke="#F59E0B" stroke-width="12" stroke-linecap="round"/>
-  <path d="M166 78L178 66C184 60 193 60 199 66C205 72 205 81 199 87L187 99" stroke="#0F172A" stroke-width="10" stroke-linecap="round"/>
-</svg>`
+export const PENCIL_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="256" height="256" fill="none" stroke="#0F172A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Pencil"><path d="m8 19 15-15 5 5-15 15-8 3Z"/><path d="m20 7 5 5M8 19l5 5"/><path d="M4 12V4h8" stroke="#D55D3C"/><path d="m5 27 3-8 5 5Z" fill="#D55D3C" stroke="none"/></svg>`
+
+/** First marketplace screenshot; declared in the bundle manifest for host asset resolution. */
+export const APP_COVER = './assets/branding/cover-v1.webp'

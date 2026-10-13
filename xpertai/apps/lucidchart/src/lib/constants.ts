@@ -44,13 +44,7 @@ export const LUCIDCHART_MIDDLEWARE_TOOL_NAMES = [
   LUCIDCHART_REPORT_FAILURE_TOOL_NAME
 ] as const
 
-export const LUCIDCHART_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
-  <rect width="256" height="256" rx="40" fill="#F8FAFC"/>
-  <rect x="44" y="52" width="168" height="124" rx="18" fill="#FFFFFF" stroke="#2563EB" stroke-width="9"/>
-  <path d="M76 92H132" stroke="#0F172A" stroke-width="10" stroke-linecap="round"/>
-  <path d="M76 124H112" stroke="#64748B" stroke-width="8" stroke-linecap="round"/>
-  <path d="M154 86L184 116L154 146" stroke="#14B8A6" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M74 202C96 178 124 172 158 185C170 190 184 190 196 180" stroke="#2563EB" stroke-width="10" stroke-linecap="round"/>
-  <circle cx="68" cy="202" r="10" fill="#14B8A6"/>
-  <circle cx="202" cy="178" r="10" fill="#14B8A6"/>
-</svg>`
+export const LUCIDCHART_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="256" height="256" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Lucidchart"><path d="M10 16h6V8h6M16 16v8h6"/><rect x="3" y="12" width="8" height="8" rx="2"/><rect x="22" y="3" width="7" height="8" rx="2"/><path d="m25 20 5 5-5 5-5-5Z" fill="#F0B65C" stroke="none"/></svg>`
+
+/** First marketplace screenshot; declared in the bundle manifest for host asset resolution. */
+export const APP_COVER = './assets/branding/cover-v1.webp'

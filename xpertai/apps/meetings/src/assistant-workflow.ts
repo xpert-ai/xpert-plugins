@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile } from "node:fs/promises";
-import { join } from "node:path";
-import lockfile from "proper-lockfile";
+import {
+  mkdir,
+  readFile,
+  join,
+  type StoragePath,
+} from "./workspace-storage.js";
 import type { AgentMiddlewareAssistantTaskApi } from "@xpert-ai/plugin-sdk";
 import { z } from "zod/v3";
 import { FileStore, atomicWrite, sha256 } from "./file-store.js";
@@ -89,7 +92,7 @@ export class AssistantWorkflow {
 
   private async append(
     m: Meeting,
-    dir: string,
+    dir: StoragePath,
     kind: Operation["kind"],
     transcript: Meeting["transcript"],
     quoted: Meeting["transcript"],
@@ -157,14 +160,7 @@ export class AssistantWorkflow {
       throw e;
     }
     if (!pending(m)) return;
-    const lockdir = join(this.store.directory(scope, id), "assistant");
-    await mkdir(lockdir, { recursive: true, mode: 0o700 });
-    const release = await lockfile.lock(lockdir, {
-      stale: 120000,
-      update: 10000,
-      retries: 0,
-    });
-    try {
+    await this.store.withProcessingLock(scope, id, "assistant", async () => {
       m = await this.store.read(scope, id);
       const op = pending(m);
       if (!op) return;
@@ -231,9 +227,7 @@ export class AssistantWorkflow {
           await this.dispatch(m, op, api);
         }
       }
-    } finally {
-      await release();
-    }
+    });
     if (pending(await this.store.read(scope, id)))
       await this.enqueue(scope, id, 2000);
   }

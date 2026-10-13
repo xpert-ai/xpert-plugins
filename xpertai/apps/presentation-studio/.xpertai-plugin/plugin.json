@@ -37,10 +37,12 @@
       "Generate an editable PPTX",
       "Review and export the current deck"
     ],
-    "composerIcon": "./assets/composerIcon.svg",
-    "logo": "./assets/logo.svg",
+    "composerIcon": "./assets/branding/icon-v2.svg",
+    "logo": "./assets/branding/icon-v2.svg",
     "brandColor": "#7C3AED",
-    "screenshots": []
+    "screenshots": [
+      "./assets/branding/cover-v1.webp"
+    ]
   },
   "policy": {
     "installation": "AVAILABLE",
@@ -54,9 +56,11 @@
     "sparsePath": "xpertai/apps/presentation-studio"
   },
   "assets": {
-    "composerIcon": "./assets/composerIcon.svg",
-    "logo": "./assets/logo.svg",
-    "screenshots": []
+    "composerIcon": "./assets/branding/icon-v2.svg",
+    "logo": "./assets/branding/icon-v2.svg",
+    "screenshots": [
+      "./assets/branding/cover-v1.webp"
+    ]
   },
   "targetApps": [
     "data-xpert",
@@ -157,6 +161,9 @@
               }
             }
           }
+        ],
+        "screenshots": [
+          "./assets/branding/cover-v1.webp"
         ]
       }
     },
@@ -173,7 +180,12 @@
         "presentation-collaboration",
         "presentation-export",
         "presentation-assistant-template"
-      ]
+      ],
+      "marketplace": {
+        "screenshots": [
+          "./assets/branding/cover-v1.webp"
+        ]
+      }
     }
   }
 }

@@ -1,5 +1,4 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { readFile, join } from "./workspace-storage.js";
 import { z } from "zod/v3";
 import { atomicWrite, sha256 } from "./file-store.js";
 import { idSchema, MeetingError, type Scope } from "./domain.js";
