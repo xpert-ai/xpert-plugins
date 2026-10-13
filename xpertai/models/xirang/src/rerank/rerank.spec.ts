@@ -1,4 +1,37 @@
 import { buildRerankBody, extractRerankResults, getRerankModelId, getRerankRequest, mapRerankResults } from './protocol.js'
+import { Document } from '@langchain/core/documents'
+import { AiModelTypeEnum, defaultModelConfiguration } from '@xpert-ai/contracts'
+import { XirangProviderStrategy } from '../provider.strategy.js'
+import { XirangRerankModel } from './rerank.js'
+
+describe('imported Rerank concurrency', () => {
+  afterEach(() => jest.restoreAllMocks())
+
+  it('limits concurrent requests on the same configured client', async () => {
+    let started: () => void
+    const firstStarted = new Promise<void>((resolve) => { started = resolve })
+    let finish: (value: Response) => void
+    const firstResponse = new Promise<Response>((resolve) => { finish = resolve })
+    const payload = () => new Response(JSON.stringify({ results: [{ index: 0, relevance_score: 0.9 }] }))
+    const fetchMock = jest.spyOn(global, 'fetch')
+      .mockImplementationOnce(() => { started(); return firstResponse })
+      .mockImplementation(async () => payload())
+    const manager = new XirangRerankModel(new XirangProviderStrategy())
+    const reranker = await manager.getReranker({ model: 'custom-rerank', copilot: { modelProvider: { credentials: { app_key: 'key' } } } }, {
+      modelProperties: { endpoint_model_name: 'exact-id', model_configuration: defaultModelConfiguration(AiModelTypeEnum.RERANK) }
+    })
+    const docs = [new Document({ pageContent: 'document' })]
+    const first = reranker.rerank(docs, 'query', { topN: 1 })
+    await firstStarted
+    const second = reranker.rerank(docs, 'query', { topN: 1 })
+    await Promise.resolve()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    finish(payload())
+    await Promise.all([first, second])
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(JSON.parse(String(fetchMock.mock.calls[1][1].body)).model).toBe('exact-id')
+  })
+})
 
 describe('Xirang Rerank protocol selection', () => {
   it('selects the BGE official route and model ID automatically', () => {

@@ -170,7 +170,37 @@ test("capture rejects remapping, conflicting event IDs, premature chunks and for
       f.delivery.event(foreign, f.started),
       /capture_not_found/
     );
+    await assert.rejects(
+      f.delivery.chunk(foreign, f.chunk("microphone"), f.bytes),
+      /capture_not_found/
+    );
   }
+  const member = { ...scope, userId: "bob" };
+  assert.equal((await f.meetings.get(member, f.meetingId)).id, f.meetingId);
+  await assert.rejects(
+    f.delivery.event(member, f.created),
+    /capture_not_found/
+  );
+  await assert.rejects(
+    f.delivery.event(member, f.stopped),
+    /capture_not_found/
+  );
+  await assert.rejects(
+    f.meetings.start(member, f.meetingId, f.captureId),
+    /session_mismatch/
+  );
+  await assert.rejects(
+    f.meetings.upload(
+      member,
+      {
+        ...f.chunk("microphone"),
+        meetingId: f.meetingId,
+        sessionId: f.captureId,
+      },
+      f.bytes
+    ),
+    /session_mismatch/
+  );
 });
 
 test("failed final enqueue is retried without sealing a permanently unacknowledged event", async (t) => {

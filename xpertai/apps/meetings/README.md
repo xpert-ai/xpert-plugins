@@ -1,6 +1,6 @@
 # Meetings
 
-A meeting notes app in the right-hand plugin View of Xpert Desktop and the web Workbench. It provides a meeting library, dual-track recording, personal notes, and minutes backed by transcript evidence. Desktop and ChatKit provide the conversation pane and Assistant navigation.
+A meeting notes app in the right-hand plugin View of Xpert Desktop and the web Workbench. It provides a meeting library, dual-track recording, meeting notes, and minutes backed by transcript evidence. Desktop and ChatKit provide the conversation pane and Assistant navigation.
 
 ## File storage
 
@@ -9,7 +9,7 @@ User-facing files live at the **Assistant workspace root**, outside `sessions/`:
 ```text
 meetings/<creation-date-title-meeting-uuid>/
   summary.md                 # Final minutes; Tiptap edits update this same file
-  notes.md                   # Personal notes in Markdown
+  notes.md                   # Meeting notes in Markdown
   transcript.md              # Readable transcript with timestamps and audio tracks
   transcript.json            # Structured transcript
   meeting.json               # Title, dates, and status; no internal scope or task identifiers
@@ -18,7 +18,7 @@ meetings/<creation-date-title-meeting-uuid>/
   history/summary-1.json
 ```
 
-A meeting keeps its initially assigned folder when renamed. Meetings with the same title have different UUIDs. Files are written through the host-authorized Workspace Files capability into the Assistant's `user-xperts` volume with the current user's permissions. Each meeting belongs to the Assistant that created it. Other Assistants do not automatically move or read its records.
+A meeting keeps its initially assigned folder when renamed. Meetings with the same title have different UUIDs. Files are written through the host-authorized Workspace Files capability into the Assistant's shared `xperts` volume with the current user's permissions. Each meeting belongs to the Assistant that created it. Other Assistants do not automatically move or read its records.
 
 Background tasks and Tiptap projections keep the files updated. Synchronization failures preserve content and expose a retry action. Separately edited workspace files are not silently overwritten. Collaborative editing takes place in Meetings' Tiptap editor; the generic file editor does not currently synchronize changes back into Yjs.
 
@@ -29,7 +29,7 @@ Recording buffers, internal state, recovery copies, and synchronization receipts
 ```text
 <Assistant workspace>/.apps/meetings/records/<meeting-uuid>/
   meeting.json                 # Metadata, transcript checkpoints, document sequences, deletion tombstone
-  notes.md                     # Markdown projection of Tiptap personal notes
+  notes.md                     # Markdown projection of Tiptap meeting notes
   summary.md                   # Markdown projection of the editable summary
   documents/<kind>.initial.json # Idempotent migration seed; the platform persists subsequent CRDT state
   audio/microphone/<seq>.wav    # Audio awaiting processing
@@ -44,9 +44,9 @@ Recording buffers, internal state, recovery copies, and synchronization receipts
   assistant/<operation>.md      # Stage history, not official minutes
 ```
 
-Files use mode `0600`. The host storage capability serializes read-modify-write operations with renewable shared-filesystem locks and fsyncs temporary files before atomic replacement. Lock targets live under `.apps/meetings/.locks/`, outside removable meeting folders; a lost lock rejects subsequent operations. Capture bindings live under `.apps/meetings/captures/`. Paths are derived only from trusted request scope. APIs do not accept owner or filesystem path fields. Records are isolated by user and organization and checked against their owning Assistant. On first open, a document migrates to platform Yjs. Its Markdown is then written only through CRDT projection, and the legacy overwrite-style notes API rejects further writes. Background processing does not overwrite personal notes or collaboratively edited summaries.
+Files use mode `0600`. The host storage capability serializes read-modify-write operations with renewable shared-filesystem locks and fsyncs temporary files before atomic replacement. Lock targets live under `.apps/meetings/.locks/`, outside removable meeting folders; a lost lock rejects subsequent operations. Capture bindings live under `.apps/meetings/captures/` and validate the recording user. Paths are derived only from trusted request scope. APIs do not accept owner or filesystem path fields. Records are isolated by tenant, organization and Assistant. Every authorized Assistant user can list, read, edit, export and delete them. Capture bindings remain owned by the recording user. On first open, a document migrates to platform Yjs. Its Markdown is then written only through CRDT projection, and the legacy overwrite-style notes API rejects further writes. Background processing does not overwrite meeting notes or collaboratively edited summaries.
 
-The Assistant workspace Volume must be persistent and shared by every API/worker instance, as for other Assistant files. Its filesystem must support atomic mkdir and rename; do not use an object-storage FUSE mount. Storage layout is configured once by the platform Volume backend, never in Meetings. Meetings requires `workspaceDataScope: user` (already set by its template). Shared Assistant and Project workspaces are rejected before any recording data is written. This prevents the generic Files API and sandbox from exposing personal recordings to other users; a hidden directory alone is not an authorization boundary. The initial search implementation scans meeting records and is intended for personal meeting collections; it has no separate full-text index.
+The Assistant workspace Volume must be persistent and shared by every API/worker instance, as for other Assistant files. Its filesystem must support atomic mkdir and rename; do not use an object-storage FUSE mount. Storage layout is configured once by the platform Volume backend, never in Meetings. Meetings uses `workspaceDataScope: shared`, as declared by its template. The Assistant is the data boundary; use separate Assistants when records must be separate. Project workspaces are not used. Generic Files and sandbox access follow the same Assistant permissions, while `.apps` remains protected internal application storage. The initial search scans the Assistant’s meeting records without a separate full-text index.
 
 Desktop caches audio under Electron's `userData/audio-capture`. Chunks and manifests use AES-256-GCM encryption, with random keys wrapped by the operating system's `safeStorage`. The cache is scoped to API, tenant, organization, user, Assistant, and View. Unacknowledged chunks remain on disk; successful completion acknowledgement clears the cache. After a crash, Retry upload resends persisted chunks. Pending local uploads do not expire automatically.
 
@@ -73,7 +73,7 @@ node plugin-dev-harness/dist/index.js --workspace ./xpertai/apps/meetings --plug
 ```
 
 1. Authenticate normally through the platform's `tools/scripts/local-plugin-cli.mjs` and use `createRequestHeaders`. The plugin declares `level=system`; install it at **tenant scope** in the Default tenant.
-2. Keep the Assistant workspace user-isolated and verify its platform Volume is shared across API/worker instances. Remove the obsolete `dataDirectory` key from saved plugin configuration when upgrading; the schema no longer accepts it. There is no old-directory migration. Set `silenceSeconds` to the stage-summary silence interval, defaulting to 10 seconds. Summaries use the published Meetings Assistant's primary model. Legacy `summaryCopilotId` and `summaryModel` settings are accepted for compatibility but are not used for model calls.
+2. Keep the Assistant workspace shared and verify its platform Volume is shared across API/worker instances. Remove the obsolete `dataDirectory` key from saved plugin configuration when upgrading; the schema no longer accepts it. There is no old-directory migration. Set `silenceSeconds` to the stage-summary silence interval, defaulting to 10 seconds. Summaries use the published Meetings Assistant's primary model. Legacy `summaryCopilotId` and `summaryModel` settings are accepted for compatibility but are not used for model calls.
 3. After restarting, verify the plugin's actual `loadStatus=loaded`. Switch to the business **organization scope** to initialize the Meetings marketplace app. Initialization creates a dedicated workspace and Assistant.
 4. Select a primary model with tool calling and an available `speech2text` model, then publish the Assistant. For an existing instance, update it from the template in Studio, confirm its local model settings, and publish it in place, preserving its Assistant ID and slug. The Workbench View is activated by the `meetings.notes` feature contributed by the `meetings.tools` middleware.
 5. Build the corresponding `chatkit-js/packages/chatkit-ui` and use that build for Desktop's ChatKit URL. During development, run `corepack pnpm dev:ui -- --port 5174 --strictPort` in the chosen checkout and use `http://localhost:5174`. Preserve other running instances.
@@ -119,9 +119,9 @@ If Desktop reports `audio_permission_denied`, the dialog directs users to macOS 
 - Microphone and system audio are independent tracks, not inferred speaker identities. During recording, transcription processes approximately 5-second chunks. After recording, up to 12 adjacent chunks, normally about 60 seconds, are combined for contextual refinement. Live text is a draft. Stage summaries cite live text; final minutes cite the refined full transcript. Timestamps identify segments, not individual words.
 - Summary quotations must be exact substrings of existing transcript segments. Unspecified owners and dates remain null. Human edits to suggested actions may go beyond the original AI extraction; evidence remains available for comparison.
 - Recording lasts at most 4 hours and cannot be paused. Track loss, sleep, exit, scope changes, and disk errors stop capture.
-- Personal notes and summaries use Tiptap and Yjs with headings, emphasis, lists, quotations, undo/redo, and presence. Changes are batched after 300 ms and marked saved only after platform acknowledgement. Unacknowledged edits stay in memory and are retried; users can download a Markdown draft before leaving. Document save failures do not block stopping a recording. Unacknowledged input may be lost if the app is forcibly terminated.
+- Meeting notes and summaries use Tiptap and Yjs with headings, emphasis, lists, quotations, undo/redo, and presence. Changes are batched after 300 ms and marked saved only after platform acknowledgement. Unacknowledged edits stay in memory and are retried; users can download a Markdown draft before leaving. Document save failures do not block stopping a recording. Unacknowledged input may be lost if the app is forcibly terminated.
 - The library is paginated. Details contain a bounded full transcript, displayed in groups of 40 segments; Agent transcript queries use server-side pagination.
-- There is no calendar dependency. Calendar integration, meeting-member authorization, multi-user calls, and external action execution are future work. Current Meetings APIs and collaborative documents are accessible only to the meeting owner; multiple windows of the same account can synchronize. Projected files follow existing Assistant workspace permissions, which the plugin does not modify.
+- There is no calendar dependency. Calendar integration, meeting-member authorization, multi-user calls, and external action execution are future work. Meetings APIs and collaborative documents are accessible to all users authorized for the owning Assistant; different members can synchronize edits. Projected files follow existing Assistant workspace permissions, which the plugin does not modify.
 
 ## Preview and integration scripts
 
@@ -145,7 +145,7 @@ See [live transcription and collaboration](docs/realtime-collaboration.md) for a
 
 The plugin registers View callbacks through `delivery.eventAction` and `delivery.chunkAction`, passing the meeting ID and title as opaque `delivery.context`. Desktop owns audio capture and reliable delivery; Meetings business rules remain in the plugin. Trusted activation is carried by top-level `userActivated` on the ChatKit command envelope and cannot be forged through the plugin payload.
 
-The host generates `captureId`. The plugin maps it to a meeting and persists association and event receipts at `captures/<assistant-hash>/<captureId>/binding.json` under the private user directory. Reopening a View resolves the association by `captureId`. Delivery is at least once; stable `eventId`, chunk sequence, and checksum prevent duplicate effects. A failed queue write does not acknowledge the stopped event, and retries never reopen devices. Startup failure can deliver a zero-chunk stopped event without a preceding started event. Deletion tombstones prevent late delivery from resurrecting records.
+The host generates `captureId`. The plugin maps it to a meeting and persists association and event receipts at `captures/<assistant-hash>/<captureId>/binding.json` under the Assistant’s protected application directory. Reopening a View resolves the association by `captureId`. Delivery is at least once; stable `eventId`, chunk sequence, and checksum prevent duplicate effects. A failed queue write does not acknowledge the stopped event, and retries never reopen devices. Startup failure can deliver a zero-chunk stopped event without a preceding started event. Deletion tombstones prevent late delivery from resurrecting records.
 
 The plugin boundary validates the public v1 wire contract with strict schemas. Contract verification uses the actual Desktop controller/delivery implementation, synthetic native events, and temporary directories without opening a microphone or contacting a live API:
 
@@ -158,3 +158,7 @@ corepack pnpm exec nx run @xpert-ai/plugin-meetings:verify:capture-feedback
 ```
 
 This does not replace signed-app permission checks, real model calls, long recordings, or offline-recovery acceptance.
+
+## Runtime lifecycle
+
+First installation supports hot loading: the host registers Meetings providers and strategies without restarting the API. Upgrades and uninstall require a restart so existing document sessions and background processors can drain safely. The package declares this separately from its system scope in `xpert.plugin.runtimePolicy`.

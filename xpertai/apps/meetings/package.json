@@ -1,7 +1,7 @@
 {
   "name": "@xpert-ai/plugin-meetings",
   "version": "0.3.0",
-  "description": "Private file-backed meeting notes for Xpert Desktop",
+  "description": "Assistant-shared file-backed meeting notes for Xpert Desktop",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -46,6 +46,11 @@
   "xpert": {
     "plugin": {
       "level": "system",
+      "runtimePolicy": {
+        "install": "hot",
+        "update": "restart",
+        "uninstall": "restart"
+      },
       "artifactNamespace": "meetings"
     }
   },

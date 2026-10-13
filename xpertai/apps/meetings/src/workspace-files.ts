@@ -17,7 +17,7 @@ type Files = Pick<
 const receiptSchema = z
   .object({
     folder: z.string(),
-    catalog: z.enum(["xperts", "user-xperts"]),
+    catalog: z.literal("xperts"),
     hashes: z.record(z.string().regex(/^[a-f0-9]{64}$/)),
   })
   .strict();
@@ -55,7 +55,12 @@ function timestamp(ms: number) {
 export class MeetingWorkspaceFiles {
   constructor(readonly api: (scope: Scope) => Files) {}
 
-  async sync(meeting: Meeting, directory: StoragePath, force = false) {
+  async sync(
+    scope: Scope,
+    meeting: Meeting,
+    directory: StoragePath,
+    force = false
+  ) {
     const receiptPath = join(directory, "workspace-files.json");
     let receipt: z.infer<typeof receiptSchema>;
     try {
@@ -84,7 +89,7 @@ export class MeetingWorkspaceFiles {
     )
       throw new MeetingError("workspace_scope_changed");
     meeting.workspace!.folder = receipt.folder;
-    const files = this.api(meeting.scope);
+    const files = this.api(scope);
     if (meeting.deleted) {
       for (const path of Object.keys(receipt.hashes)) {
         this.checkPath(receipt.folder, path);

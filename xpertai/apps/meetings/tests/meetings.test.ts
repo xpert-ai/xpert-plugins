@@ -23,13 +23,13 @@ class Processing extends BaseProcessing {
   ) {
     super(store, models, {
       live: async () => {},
-      finish: async (input) => {
+      finish: async (scope, input) => {
         await saveSummary(
           store,
-          input.scope,
+          scope,
           input.id,
           input,
-          await models.summarize(input.scope, input)
+          await models.summarize(scope, input)
         );
       },
     });
@@ -106,7 +106,7 @@ test("meeting list paginates scoped search results without returning full record
     assert.deepEqual([first.total, first.page, first.pageSize, first.items.length, second.items.length, last.items.length], [24, 1, 10, 10, 10, 4]);
     assert.equal(new Set([...first.items, ...second.items, ...last.items].map(item => item.id)).size, 24);
     assert.ok(first.items.every(item => !("transcript" in item) && !("notes" in item)));
-    assert.equal((await f.service.list({ ...scope, userId: "bob" }, { pageSize: 10, search: "Pagination review" })).total, 0);
+    assert.equal((await f.service.list({ ...scope, userId: "bob" }, { pageSize: 10, search: "Pagination review" })).total, 24);
     assert.equal((await f.service.list(scope, { search: "no matching title" })).total, 0);
   } finally { await f.dispose(); }
 });
@@ -130,7 +130,7 @@ const summary: Summary = {
   questions: [],
 };
 
-test("persists private notes across restart, rejects other owners and path traversal", async () => {
+test("shares notes across users and restart, rejects other Assistants and path traversal", async () => {
   const f = await fixture();
   try {
     await f.service.notes(scope, {
@@ -147,8 +147,12 @@ test("persists private notes across restart, rejects other owners and path trave
         .mode & 0o777,
       0o600
     );
+    assert.equal(
+      (await f.service.get({ ...scope, userId: "bob" }, f.input.id)).notes,
+      "Private draft"
+    );
     await assert.rejects(
-      f.service.get({ ...scope, userId: "bob" }, f.input.id),
+      f.service.get({ ...scope, assistantId: "other" }, f.input.id),
       code("meeting_not_found")
     );
     await assert.rejects(
@@ -156,17 +160,17 @@ test("persists private notes across restart, rejects other owners and path trave
       code("meeting_not_found")
     );
     assert.throws(() => f.store.directory(scope, "../../other"));
-    assert.equal((await f.service.list({ ...scope, userId: "bob" })).total, 0);
+    assert.equal((await f.service.list({ ...scope, userId: "bob" })).total, 1);
   } finally {
     await f.dispose();
   }
 });
-test("one concurrent writer wins the notes revision, background metadata does not cause a false conflict", async () => {
+test("one concurrent member wins the notes revision, background metadata does not cause a false conflict", async () => {
   const f = await fixture();
   try {
     const results = await Promise.allSettled(
       ["A", "B"].map((notes) =>
-        f.service.notes(scope, {
+        f.service.notes({ ...scope, userId: notes }, {
           meetingId: f.input.id,
           expectedRevision: 0,
           notes,
@@ -369,7 +373,7 @@ test("corrupt files are reported and expired failed audio is removed without del
     const record = await f.store.read(scope, f.input.id);
     record.updatedAt = "2000-01-01T00:00:00.000Z";
     record.notes = "Keep this";
-    await f.store.save(f.store.directory(scope, f.input.id), record);
+    await f.store.save(scope, f.store.directory(scope, f.input.id), record);
     await f.service.list(scope);
     assert.equal(
       (await f.service.get(scope, f.input.id)).errorCode,
