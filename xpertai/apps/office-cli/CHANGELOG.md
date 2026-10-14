@@ -1,5 +1,11 @@
 # @xpert-ai/plugin-office-cli
 
+## 0.3.0
+
+### Minor Changes
+
+- 88c1f06: Publish refreshed application cover images and SVG/PNG icons, including bundled branding assets and marketplace screenshot metadata.
+
 ## 0.2.3
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-presentation-studio",
-  "version": "0.1.0",
+  "version": "0.8.0",
   "description": "Agentic DashiAI presentation studio with Yjs collaboration and HTML/PDF/PPTX export.",
   "author": "XpertAI",
   "homepage": "https://github.com/xpert-ai/xpert-plugins/tree/main/xpertai/apps/presentation-studio",

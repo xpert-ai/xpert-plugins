@@ -1,5 +1,11 @@
 # @xpert-ai/plugin-cut
 
+## 0.6.0
+
+### Minor Changes
+
+- 88c1f06: Publish refreshed application cover images and SVG/PNG icons, including bundled branding assets and marketplace screenshot metadata.
+
 ## 0.5.6
 
 ### Patch Changes

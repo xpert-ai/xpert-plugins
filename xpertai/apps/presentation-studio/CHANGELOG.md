@@ -1,5 +1,11 @@
 # @xpert-ai/plugin-presentation-studio
 
+## 0.8.0
+
+### Minor Changes
+
+- 88c1f06: Publish refreshed application cover images and SVG/PNG icons, including bundled branding assets and marketplace screenshot metadata.
+
 ## 0.7.5
 
 ### Patch Changes
