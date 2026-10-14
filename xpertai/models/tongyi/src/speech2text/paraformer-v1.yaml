@@ -7,3 +7,4 @@ pricing:
   input: "0.00024"
   unit: "0.00001"
   currency: RMB
+deprecated: true

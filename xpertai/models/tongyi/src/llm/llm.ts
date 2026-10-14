@@ -8,7 +8,8 @@ import {
   isTongyiInternationalEndpointEnabled,
   toCredentialKwargs,
   TongyiCredentials,
-  TongyiModelCredentials
+  TongyiModelCredentials,
+  TongyiTranslationOptions
 } from '../types.js'
 import { TongyiProviderStrategy } from '../provider.strategy.js'
 
@@ -73,6 +74,28 @@ const TONGYI_EXPLICIT_CACHE_CONTROL = { type: 'ephemeral' } as const
 // Kimi K3 only accepts the provider defaults for sampling and reasoning controls.
 const TONGYI_FIXED_SAMPLING_AND_REASONING_MODELS = new Set(['kimi-k3'])
 const QWEN38_MAX_MODEL_ID = 'qwen3.8-max'
+
+export function buildTongyiTranslationOptions(
+  credentials?: Pick<TongyiModelCredentials, 'source_lang' | 'target_lang' | 'domains'>
+): TongyiTranslationOptions | undefined {
+  const sourceLang = credentials?.source_lang
+  const targetLang = credentials?.target_lang
+  const domains = credentials?.domains
+  if (!sourceLang && !targetLang && !domains) {
+    return undefined
+  }
+  const options: TongyiTranslationOptions = {}
+  if (sourceLang) {
+    options.source_lang = sourceLang
+  }
+  if (targetLang) {
+    options.target_lang = targetLang
+  }
+  if (domains) {
+    options.domains = domains
+  }
+  return options
+}
 
 export function isQwen38MaxReasoningModel(model: string): boolean {
   return model === QWEN38_MAX_MODEL_ID || model.startsWith(`${QWEN38_MAX_MODEL_ID}-`)
@@ -497,7 +520,8 @@ export class TongyiLargeLanguageModel extends LargeLanguageModel {
               : undefined,
             tool_stream: modelCredentials?.tool_stream,
             enable_search: modelCredentials?.enable_search,
-            response_format: responseFormat
+            response_format: responseFormat,
+            translation_options: buildTongyiTranslationOptions(modelCredentials)
           },
           isNil
         ),

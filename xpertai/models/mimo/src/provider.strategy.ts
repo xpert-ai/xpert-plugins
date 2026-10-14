@@ -7,6 +7,7 @@ import {
 } from '@xpert-ai/plugin-sdk';
 import {
   Mimo,
+  MimoCredentialValidationModel,
   type MimoCredentials,
   getMimoBaseUrl,
 } from './types.js';
@@ -29,7 +30,7 @@ export class MimoProviderStrategy extends ModelProvider {
   ): Promise<void> {
     try {
       await this.getModelManager(AiModelTypeEnum.LLM).validateCredentials(
-        'mimo-v2.5',
+        MimoCredentialValidationModel,
         credentials
       );
     } catch (error) {

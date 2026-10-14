@@ -1,7 +1,7 @@
 import { AiModelTypeEnum } from '@xpert-ai/contracts'
 import { Injectable, Logger } from '@nestjs/common'
 import { AIModelProviderStrategy, CredentialsValidateFailedError, ModelProvider } from '@xpert-ai/plugin-sdk'
-import { isTongyiWorkspaceApiHost, TongyiCredentials, TongyiModelProvider, toCredentialKwargs } from './types.js'
+import { isTongyiWorkspaceApiHost, TongyiCredentialValidationModel, TongyiCredentials, TongyiModelProvider, toCredentialKwargs } from './types.js'
 
 @Injectable()
 @AIModelProviderStrategy(TongyiModelProvider)
@@ -19,14 +19,15 @@ export class TongyiProviderStrategy extends ModelProvider {
 
   async validateProviderCredentials(credentials: TongyiCredentials): Promise<void> {
     try {
-      // Workspace endpoints have their own model catalog and may not grant access to qwen-turbo.
+      // Workspace endpoints have their own model catalog and may not grant access to qwen3.8-flash.
       // Authentication itself is checked by the realtime WebSocket handshake.
       if (isTongyiWorkspaceApiHost(credentials.api_host)) {
         await this.getModelManager(AiModelTypeEnum.REALTIME).validateCredentials('qwen3.8-omni-flash-realtime', credentials)
         return
       }
+      // qwen-turbo was retired on 2026-10-10. qwen3.8-flash is available in Beijing and Singapore.
       const modelInstance = this.getModelManager(AiModelTypeEnum.LLM)
-      await modelInstance.validateCredentials('qwen-turbo', credentials)
+      await modelInstance.validateCredentials(TongyiCredentialValidationModel, credentials)
     } catch (ex: any) {
       if (ex instanceof CredentialsValidateFailedError) {
         throw ex

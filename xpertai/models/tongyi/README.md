@@ -58,7 +58,7 @@ The current realtime adapter targets `qwen3.8-omni-flash-realtime`. It requires 
 | Visual understanding | Qwen VL models | Image questions, charts, screenshots, and document images |
 | Text embeddings | `text-embedding-v3`, `text-embedding-v4` | Semantic retrieval and knowledge indexing |
 | Reranking | `gte-rerank-v2`, `qwen3-rerank` | Relevance ordering for retrieved passages |
-| Speech recognition | `paraformer-v1`, `paraformer-v2`, `qwen3-asr-flash` | Transcription of recorded audio; Qwen supports inline Base64 |
+| Speech recognition | `paraformer-v2`, `qwen3-asr-flash` | Transcription of recorded audio; Qwen supports inline Base64. `paraformer-realtime-v1` remains only as a deprecated saved-config schema. |
 | Speech synthesis | `qwen3-tts-flash` | Spoken answers, narration, and briefings |
 | Realtime conversation | `qwen3.8-omni-flash-realtime` | Live voice interaction with tool support |
 
@@ -91,6 +91,14 @@ This adapter returns the completed transcript, supports cancellation and a 120-s
 Set **API Host** to your actual Model Studio workspace host in Beijing or Singapore, such as `YOUR_WORKSPACE.cn-beijing.maas.aliyuncs.com` or `YOUR_WORKSPACE.ap-southeast-1.maas.aliyuncs.com`. Replace `YOUR_WORKSPACE` with the value supplied by Model Studio, then select `qwen3.8-omni-flash-realtime` in a realtime-enabled Xpert AI experience.
 
 The international endpoint switch by itself does not configure realtime access. The current realtime adapter specifically accepts workspace hosts in these two regions.
+
+## 模型目录（2026-10-14）
+
+`qwen-turbo` 已于 2026-10-10 下线。非工作空间凭证校验改为调用北京和新加坡都可用的 `qwen3.8-flash`。工作空间地址仍通过 `qwen3.8-omni-flash-realtime` 的 WebSocket 握手校验。
+
+上游本次删除的旧模型，在本插件中改为 `deprecated: true`，而不是从目录里删掉。模型选择器不能再新选这些模型，已经保存的助手和工作流仍能解析原来的模型参数与价格。更新插件不会改写已保存的模型 ID。请改用当前模型，机器翻译使用新的 `qwen-mt-flash`（北京标价为每百万 tokens 输入 0.7 元、输出 1.95 元，上下文 16384）。`qwen-mt-turbo` 保留为已弃用模型。
+
+本仓库目录里还有上游这次差异没有删除的模型，包括 `qwen3.8-27b`、`qwen3.6-35b-a3b`、`kimi-k3`、`ZHIPU/GLM-5.3` 和 `ZHIPU/GLM-5.3-Flash`，以及嵌入、重排、语音合成和实时模型。这些模型保持原状。
 
 ## Model controls
 
