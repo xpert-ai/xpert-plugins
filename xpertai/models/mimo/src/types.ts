@@ -3,6 +3,8 @@ import type { CommonChatModelParameters } from '@xpert-ai/plugin-sdk';
 
 export const Mimo = 'mimo';
 export const MimoBaseUrl = 'https://api.xiaomimimo.com/v1';
+export const MimoCredentialValidationModel = 'mimo-v2.6-flash';
+export const MimoCredentialProbeMaxCompletionTokens = 5;
 
 export interface MimoCredentials {
   api_key: string;
@@ -15,6 +17,7 @@ export interface MimoModelCredentials
   top_p?: number;
   thinking?: 'enabled' | 'disabled';
   response_format?: 'text' | 'json_object';
+  max_completion_tokens?: number;
   streaming?: boolean;
 }
 

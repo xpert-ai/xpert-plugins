@@ -26,7 +26,7 @@ describe('Speech2TextChatModel', () => {
 
 		const chatModel = new Speech2TextChatModel({
 			apiKey: 'test-key',
-			model: 'paraformer-realtime-v1'
+			model: 'paraformer-realtime-v2'
 		})
 
 		const result = await (chatModel as any)._generate(
@@ -36,7 +36,7 @@ describe('Speech2TextChatModel', () => {
 
 		const request = JSON.parse((fetchMock.mock.calls[0][1]?.body as string) ?? '{}')
 		expect(request).toMatchObject({
-			model: 'paraformer-realtime-v1',
+			model: 'paraformer-realtime-v2',
 			input: { file_urls: ['https://example.com/audio.wav'] }
 		})
 		expect(result.generations[0].text).toBe('hello')

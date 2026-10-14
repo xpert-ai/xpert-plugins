@@ -161,11 +161,11 @@ describe('applyTongyiExplicitCache', () => {
 
   it('does not change other models', () => {
     const request = {
-      model: 'qwen-turbo',
+      model: 'qwen-long',
       messages: [{ role: 'system', content: 'Long stable system prompt' }]
     }
 
-    expect(applyTongyiExplicitCache(request, { model: 'qwen-turbo' })).toBe(request)
+    expect(applyTongyiExplicitCache(request, { model: 'qwen-long' })).toBe(request)
   })
 
   it('does not add duplicate cache control', () => {
@@ -602,5 +602,31 @@ describe('toTongyiConfigurationWithExtraHeaders', () => {
     expect(() =>
       toTongyiConfigurationWithExtraHeaders({}, '{"Authorization":"Bearer other"}')
     ).toThrow("Extra header 'Authorization' is reserved")
+  })
+})
+
+describe('Tongyi translation options', () => {
+  const manager = new TongyiLargeLanguageModel(new TongyiProviderStrategy())
+
+  it('forwards qwen-mt-flash source, target, and domain hints', () => {
+    const model = manager.getChatModel(createCopilotModel('qwen-mt-flash', {
+      source_lang: 'English',
+      target_lang: 'Chinese',
+      domains: 'Technical documentation'
+    }))
+
+    expect(model.modelKwargs).toEqual(expect.objectContaining({
+      translation_options: {
+        source_lang: 'English',
+        target_lang: 'Chinese',
+        domains: 'Technical documentation'
+      }
+    }))
+  })
+
+  it('omits translation options when the model does not set them', () => {
+    const model = manager.getChatModel(createCopilotModel('qwen3.8-flash'))
+
+    expect(model.modelKwargs).not.toHaveProperty('translation_options')
   })
 })
