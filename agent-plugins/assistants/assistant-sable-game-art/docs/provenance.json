@@ -1,0 +1,30 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/sable-game-art",
+    "name": "Game Art Director",
+    "creator": "Danny Limanseta",
+    "categories": [
+      "Design"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 6,
+    "routineCount": 2,
+    "integrations": [
+      "figma",
+      "notion-workspace",
+      "slack",
+      "linear"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "design",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/site-audit",
+    "name": "Site Audit",
+    "creator": "Shimecki",
+    "categories": [
+      "Marketing"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 0,
+    "routineCount": 2,
+    "integrations": []
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "marketing",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

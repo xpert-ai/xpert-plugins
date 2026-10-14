@@ -1,0 +1,36 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/event-request-desk",
+    "name": "Event Request Desk",
+    "creator": "Emma Weyrauch",
+    "categories": [
+      "From Grok Bot Team",
+      "Operations"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 8,
+    "routineCount": 3,
+    "integrations": [
+      "slack",
+      "notion-workspace",
+      "linear",
+      "figma",
+      "hex",
+      "Gmail",
+      "Google Calendar",
+      "Google Drive",
+      "Google Sheets"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "operations",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

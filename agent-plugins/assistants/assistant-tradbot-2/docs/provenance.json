@@ -1,0 +1,28 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/tradbot-2",
+    "name": "Tradbot",
+    "creator": "Claire Vo",
+    "categories": [],
+    "checkedAt": "2026-10-14",
+    "skillCount": 3,
+    "routineCount": 5,
+    "integrations": [
+      "Gmail",
+      "Google Calendar",
+      "Slack"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "personal",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending",
+    "classificationNote": "源页面没有业务类别；此分类为 Xpert 编辑整理。"
+  }
+}

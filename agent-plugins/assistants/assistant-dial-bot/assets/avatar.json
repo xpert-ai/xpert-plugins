@@ -1,0 +1,12 @@
+{
+  "id": "dial-bot",
+  "generator": "OpenAI imagegen",
+  "generatedAt": "2026-10-14",
+  "style": "Enterprise cartoon portrait; navy wardrobe; cream background",
+  "prompt": "Create ONE square avatar for an enterprise assistant template library. Original high-quality friendly 3D cartoon human, softly sculpted animated-feature aesthetic, warm cream seamless background, soft studio lighting, navy-and-cream corporate wardrobe with restrained accent colors. Chest-up portrait, face centered and large, eye contact, relaxed confident smile. Hair fully within frame, shoulders end at lower edge, minimal tiny work prop only at lower edge if specified. Match the polished Office Ops avatar series: natural human proportions with slightly enlarged expressive eyes, gentle shadows, clean smooth materials, no circle or frame baked in. No text, no letters, no logos, no watermark. A fictional person, not the actual creator of the referenced software. Role: dial bot assistant. A fictional woman, about 40, warm tan skin, dark wavy shoulder-length hair. Navy business jacket with muted cobalt shirt or blouse. Small closed portfolio visible only at bottom edge. Unique friendly facial features; chest-up with generous space above hair. Square composition.",
+  "sourceAsset": "exec-1ef34c0a-52ba-46f6-b1b8-42ef43737285.png",
+  "packagedSize": 256,
+  "sha256": "fb842627f3880534b5e5527c3dd1fb57b7d1b9d64950a5486cdf1e4cee18bfff",
+  "fictionalPerson": true,
+  "upstreamImageCopied": false
+}

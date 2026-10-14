@@ -1,0 +1,3 @@
+interface:
+  display_name: "产品支持回复助理 · 结果复核"
+  short_description: "检索产品资料并起草客户问题回复，记录需要升级的事项。"

@@ -1,0 +1,3 @@
+interface:
+  display_name: "代码质量巡检员 · 结果复核"
+  short_description: "分区域检查代码库，形成可审核的小范围修复建议与补丁。"

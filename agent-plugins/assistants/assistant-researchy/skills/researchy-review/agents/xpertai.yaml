@@ -1,0 +1,3 @@
+interface:
+  display_name: "事实核查研究员 · 结果复核"
+  short_description: "利用可用检索工具核实问题，输出带时间和来源的结论。"

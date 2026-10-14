@@ -1,0 +1,26 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/last30days",
+    "name": "last30days",
+    "creator": "Matt Van Horn",
+    "categories": [
+      "Product",
+      "Marketing"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 1,
+    "routineCount": 0,
+    "integrations": []
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "product",
+    "skillCount": 3,
+    "routineCount": 0,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

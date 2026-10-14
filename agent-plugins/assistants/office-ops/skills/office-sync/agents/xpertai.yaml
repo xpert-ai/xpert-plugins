@@ -1,0 +1,3 @@
+interface:
+  display_name: office-sync
+  short_description: Prepare and run scoped, approved external synchronization using available connectors.

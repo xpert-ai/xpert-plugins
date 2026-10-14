@@ -1,0 +1,30 @@
+---
+title: Workflows and verification
+description: Local workflows, approval boundaries and supplier acceptance.
+---
+
+## Local workflows
+
+1. Getting started reads the five ledgers and writes `office/reports/getting-started.md` before saving completion.
+2. Shipment ledger upserts by supplied id, preserves unrelated rows and reports actual status.
+3. Facilities digest groups unresolved issues by severity and records missing owners.
+4. Shipment follow-up drafts messages without sending them.
+5. Celebrations uses month/day only, excludes opt-outs and looks ahead fourteen days.
+6. New-hire checklists preserve completed tasks and do not purchase or provision access.
+7. Sync reconciles a requested destination and records successful receipts. Without a connection it writes an explicit unsynced plan.
+
+## External services
+
+Notion, Slack, Linear, Google Sheets, Gmail and Calendar remain separate supplier acceptance items (08b–g). This package does not ship credentials or advertise an unverified connector. Add a supported, authorized connector to the installed Assistant before using its actual tools. Any external tool not explicitly allowed requires runtime approval. Refusal produces no successful sync receipt.
+
+## Background work
+
+Weekday shipment status, Monday facilities digest and Friday celebrations look-ahead use the user's chosen IANA timezone. Installation and upgrades never enable them. Review the first result before enabling a schedule. Server execution can continue after Web/Desktop is closed.
+
+## Verification
+
+Run `corepack pnpm build`, `corepack pnpm test`, `corepack pnpm verify:dist`, then the repository plugin lifecycle harness against this package. Deploy as an organization plugin with the platform CLI. Verify the loaded template, install into an isolated workspace and publish it. Test duplicate shipment input, unassigned facilities, opt-outs at year boundaries, preservation of completed new-hire steps, disconnected sync, approval rejection, and repeated sync receipts.
+
+## Versioning
+
+Package version is independent from the DSL manifest version. Keep skill keys stable. Initial ledger files use create-only policy. Changes to an existing routine's behavior require a new key; it remains paused. Never publish local account identifiers or business data as template content.

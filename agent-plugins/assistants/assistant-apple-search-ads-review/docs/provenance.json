@@ -1,0 +1,34 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/apple-search-ads-review",
+    "name": "Apple Search Ads Review",
+    "creator": "Chris Everett",
+    "categories": [
+      "From Grok Bot Team",
+      "Marketing"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 7,
+    "routineCount": 2,
+    "integrations": [
+      "slack",
+      "notion-workspace",
+      "hex",
+      "Databricks SQL",
+      "linear",
+      "Gmail",
+      "Google Sheets"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "marketing",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

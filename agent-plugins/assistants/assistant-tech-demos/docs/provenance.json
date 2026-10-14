@@ -1,0 +1,28 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/tech-demos",
+    "name": "Tech Demos",
+    "creator": "Matt Palmer",
+    "categories": [
+      "From Grok Bot Team",
+      "Personal"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 1,
+    "routineCount": 1,
+    "integrations": [
+      "X"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "personal",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

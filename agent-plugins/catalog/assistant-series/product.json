@@ -1,0 +1,228 @@
+[
+  {
+    "id": "competitor-watching",
+    "package": "assistant-competitor-watching",
+    "category": "product",
+    "title": "竞品变化观察员",
+    "description": "跟踪指定竞品页面的真实变化，生成价格和产品差异简报。",
+    "inputs": "页面清单、历史快照、关注主题",
+    "deliverable": "变化日志与竞品对照表",
+    "procedure": [
+      "记录抓取时间和可访问状态",
+      "对比正文中的实际差异",
+      "按业务影响排序并保留前后证据"
+    ],
+    "boundary": "页面不可访问不等于产品下线",
+    "profile": "research",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/competitor-watching",
+      "name": "Competitor Watch",
+      "creator": "Shimecki",
+      "categories": [
+        "Product"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 5,
+      "routineCount": 2,
+      "integrations": [
+        "slack",
+        "notion-workspace",
+        "linear"
+      ]
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "last30days",
+    "package": "assistant-last30days",
+    "category": "product",
+    "title": "近期议题研究员",
+    "description": "汇总指定主题近一个月的公开讨论与资料，区分趋势和零散观点。",
+    "inputs": "主题、截止日期、来源范围",
+    "deliverable": "带日期的议题研究报告",
+    "procedure": [
+      "固定时间窗口与检索词",
+      "对不同平台证据去重",
+      "比较共识、分歧和样本偏差"
+    ],
+    "boundary": "不自动安装未经审查的第三方脚本",
+    "profile": "research",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/last30days",
+      "name": "last30days",
+      "creator": "Matt Van Horn",
+      "categories": [
+        "Product",
+        "Marketing"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 1,
+      "routineCount": 0,
+      "integrations": []
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "pm-bot",
+    "package": "assistant-pm-bot",
+    "category": "product",
+    "title": "产品需求顾问",
+    "description": "将目标整理为有边界、可验收的产品需求与范围决策。",
+    "inputs": "用户问题、现有流程、限制和业务目标",
+    "deliverable": "需求说明与验收条件",
+    "procedure": [
+      "明确目标用户和成功指标",
+      "列出本次范围及排除项",
+      "用可验证例子描述验收和未决问题"
+    ],
+    "boundary": "没有批准的需求不作为已承诺开发范围",
+    "profile": "planning",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/pm-bot",
+      "name": "PM bot",
+      "creator": "Ulysses Ng",
+      "categories": [
+        "Product"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 3,
+      "routineCount": 1,
+      "integrations": []
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "product-idea-stress-test",
+    "package": "assistant-product-idea-stress-test",
+    "category": "product",
+    "title": "产品假设研究员",
+    "description": "检验产品想法的关键前提，设计成本可控的下一步实验。",
+    "inputs": "产品想法、目标客户、已有证据",
+    "deliverable": "假设风险表与实验计划",
+    "procedure": [
+      "区分问题需求与解决方案假设",
+      "寻找支持和反对证据",
+      "为最高风险前提设定通过阈值"
+    ],
+    "boundary": "不能把少量正面反馈当作市场验证完成",
+    "profile": "research",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/product-idea-stress-test",
+      "name": "Product Idea Stress Test",
+      "creator": "Hiten Shah",
+      "categories": [
+        "Product"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 3,
+      "routineCount": 0,
+      "integrations": []
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "proto-bot",
+    "package": "assistant-proto-bot",
+    "category": "product",
+    "title": "产品原型工程师",
+    "description": "把明确的产品想法转成可运行原型和可审核的代码改动。",
+    "inputs": "授权仓库、设计意图、测试环境",
+    "deliverable": "原型、演示路径与验证记录",
+    "procedure": [
+      "先确认最小用户路径",
+      "实现可运行的交互",
+      "截取实际效果并记录构建与测试结果"
+    ],
+    "boundary": "不自动合并、公开部署或分享用户数据",
+    "profile": "coding",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/proto-bot",
+      "name": "Proto Bot",
+      "creator": "Shub Gaur",
+      "categories": [
+        "From Grok Bot Team",
+        "Product"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 9,
+      "routineCount": 2,
+      "integrations": [
+        "Figma",
+        "Slack",
+        "X"
+      ]
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "stalk-bot",
+    "package": "assistant-stalk-bot",
+    "category": "product",
+    "title": "竞品体验研究员",
+    "description": "研究竞品公开信息与获准测试流程，记录变化和定位差异。",
+    "inputs": "竞品范围、研究账号授权、历史观察",
+    "deliverable": "竞品体验报告与变化台账",
+    "procedure": [
+      "区分公开阅读与需注册操作",
+      "执行获准体验路径并记录证据",
+      "比较功能和定位变化"
+    ],
+    "boundary": "注册、订阅和对外联系必须另行获准",
+    "profile": "research",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/stalk-bot",
+      "name": "Stalk Bot",
+      "creator": "Shub Gaur",
+      "categories": [
+        "From Grok Bot Team",
+        "Product"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 19,
+      "routineCount": 3,
+      "integrations": [
+        "AgentMail",
+        "X",
+        "Gmail",
+        "Slack",
+        "Salesforce",
+        "Google Sheets"
+      ]
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "startup-qa-bot",
+    "package": "assistant-startup-qa-bot",
+    "category": "product",
+    "title": "产品日常巡检员",
+    "description": "用获准测试数据检查关键用户路径，记录新增、回退与故障。",
+    "inputs": "测试部署、专用测试账号、关键路径",
+    "deliverable": "巡检报告和缺陷证据",
+    "procedure": [
+      "确认测试身份与隔离数据",
+      "执行关键路径并比较上次结果",
+      "给出复现步骤和影响范围"
+    ],
+    "boundary": "不接触生产数据，不代过验证码",
+    "profile": "coding",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/startup-qa-bot",
+      "name": "Startup QA Bot",
+      "creator": "Shub Gaur",
+      "categories": [
+        "From Grok Bot Team",
+        "Product"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 5,
+      "routineCount": 1,
+      "integrations": [
+        "AgentMail",
+        "GitHub",
+        "Linear"
+      ]
+    },
+    "status": "repository-adaptation"
+  }
+]

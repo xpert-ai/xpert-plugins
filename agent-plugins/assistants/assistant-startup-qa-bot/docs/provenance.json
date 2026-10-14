@@ -1,0 +1,30 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/startup-qa-bot",
+    "name": "Startup QA Bot",
+    "creator": "Shub Gaur",
+    "categories": [
+      "From Grok Bot Team",
+      "Product"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 5,
+    "routineCount": 1,
+    "integrations": [
+      "AgentMail",
+      "GitHub",
+      "Linear"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "product",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

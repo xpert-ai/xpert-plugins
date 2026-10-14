@@ -1,0 +1,25 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/seed-a91e4c",
+    "name": "SWE",
+    "creator": "Cursor",
+    "categories": [
+      "Engineering"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 0,
+    "routineCount": 0,
+    "integrations": []
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "engineering",
+    "skillCount": 3,
+    "routineCount": 0,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

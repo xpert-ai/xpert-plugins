@@ -1,0 +1,25 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/alfred",
+    "name": "Alfred",
+    "creator": "Robin Delta",
+    "categories": [
+      "Operations"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 6,
+    "routineCount": 3,
+    "integrations": []
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "operations",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

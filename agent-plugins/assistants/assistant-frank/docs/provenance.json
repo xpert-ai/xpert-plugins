@@ -1,0 +1,32 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/frank",
+    "name": "Executive Assistant",
+    "creator": "Natasha Kuo",
+    "categories": [
+      "From Grok Bot Team",
+      "Operations"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 0,
+    "routineCount": 4,
+    "integrations": [
+      "Google Calendar",
+      "Gmail",
+      "Slack",
+      "Notion",
+      "Google Sheets"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "operations",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

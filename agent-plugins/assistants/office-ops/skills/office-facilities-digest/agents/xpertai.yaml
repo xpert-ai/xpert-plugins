@@ -1,0 +1,3 @@
+interface:
+  display_name: office-facilities-digest
+  short_description: Record facilities issues and produce an evidence-based digest.

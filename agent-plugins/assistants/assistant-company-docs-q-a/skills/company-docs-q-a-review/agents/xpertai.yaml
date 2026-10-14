@@ -1,0 +1,3 @@
+interface:
+  display_name: "企业知识问答助理 · 结果复核"
+  short_description: "从获准访问的产品文档和知识资料回答问题并列出证据。"
