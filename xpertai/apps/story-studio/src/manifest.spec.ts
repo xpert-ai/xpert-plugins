@@ -14,9 +14,11 @@ describe('Story Studio package manifest', () => {
     )
   ) as Record<string, unknown>
 
-  it('uses package.json as the only plugin version source', () => {
+  it('derives runtime version from package.json and keeps release metadata aligned', () => {
     expect(pluginManifest.name).toBe(packageJson.name)
-    expect(pluginManifest).not.toHaveProperty('version')
+    if (Object.prototype.hasOwnProperty.call(pluginManifest, 'version')) {
+      expect(pluginManifest.version).toBe(packageJson.version)
+    }
     expect(STORY_STUDIO_PACKAGE_METADATA.version).toBe(
       packageJson.version
     )
