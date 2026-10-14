@@ -1,0 +1,30 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/proto-bot",
+    "name": "Proto Bot",
+    "creator": "Shub Gaur",
+    "categories": [
+      "From Grok Bot Team",
+      "Product"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 9,
+    "routineCount": 2,
+    "integrations": [
+      "Figma",
+      "Slack",
+      "X"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "product",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

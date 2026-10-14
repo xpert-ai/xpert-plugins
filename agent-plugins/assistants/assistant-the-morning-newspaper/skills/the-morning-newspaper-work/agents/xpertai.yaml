@@ -1,0 +1,3 @@
+interface:
+  display_name: "私人晨报编辑 · 业务执行"
+  short_description: "把用户授权的信息整理为便于阅读的个性化晨报。"

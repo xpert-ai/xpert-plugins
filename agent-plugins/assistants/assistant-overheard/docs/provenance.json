@@ -1,0 +1,27 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/overheard",
+    "name": "Overheard",
+    "creator": "Lenny Rachitsky",
+    "categories": [],
+    "checkedAt": "2026-10-14",
+    "skillCount": 2,
+    "routineCount": 1,
+    "integrations": [
+      "X",
+      "Slack"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "marketing",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending",
+    "classificationNote": "源页面没有业务类别；此分类为 Xpert 编辑整理。"
+  }
+}

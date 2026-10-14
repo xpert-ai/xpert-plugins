@@ -2,7 +2,14 @@
 
 // Standard resource packages use /agent-plugins, never the native module installer.
 // Authentication and organization headers stay in the platform's shared CLI helper.
-import { readFile, readdir, mkdir, writeFile, lstat } from "node:fs/promises";
+import {
+  readFile,
+  readdir,
+  mkdir,
+  writeFile,
+  lstat,
+  realpath,
+} from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
@@ -10,19 +17,34 @@ import archiver from "archiver";
 import { z } from "zod";
 
 const packageRoot = fileURLToPath(new URL("../", import.meta.url));
-const catalogSchema = z
+export const catalogSchema = z
   .object({
     version: z.literal(1),
     plugins: z.array(
       z
         .object({
           id: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+          path: z
+            .string()
+            .max(300)
+            .regex(/^[a-z0-9][a-z0-9-]*(?:\/[a-z0-9][a-z0-9-]*)*$/)
+            .optional(),
           oauthServers: z.array(z.string()).default([]),
         })
         .strict(),
     ),
   })
-  .strict();
+  .strict()
+  .refine(
+    (catalog) =>
+      new Set(catalog.plugins.map((entry) => entry.id)).size ===
+      catalog.plugins.length,
+  )
+  .refine(
+    (catalog) =>
+      new Set(catalog.plugins.map((entry) => entry.path ?? entry.id)).size ===
+      catalog.plugins.length,
+  );
 
 export async function loadQuickstartPlugins() {
   const catalog = catalogSchema.parse(
@@ -30,16 +52,20 @@ export async function loadQuickstartPlugins() {
   );
   return Promise.all(
     catalog.plugins.map(async (entry) => {
-      const root = join(packageRoot, entry.id);
+      const root = await realpath(join(packageRoot, entry.path ?? entry.id));
+      if (!root.startsWith((await realpath(packageRoot)) + "/"))
+        throw new Error(`Package path escapes catalog root: ${entry.id}`);
       const manifest = JSON.parse(
         await readFile(join(root, "plugin.json"), "utf8"),
       );
+      const displayName = manifest.extensions?.xpertai?.interface?.displayName;
       return {
         ...entry,
         root,
         title:
-          manifest.extensions?.["xpertai"]?.interface?.displayName ||
-          manifest.name,
+          (typeof displayName === "string"
+            ? displayName
+            : displayName?.en_US) || manifest.name,
         description: manifest.description,
         version: manifest.version,
         connectorServers: manifest.extensions?.["xpertai"]?.connectors || {},
@@ -56,23 +82,41 @@ export async function packQuickstartPlugin(plugin) {
       (a, b) => a.name.localeCompare(b.name),
     )) {
       const name = prefix + item.name;
-      const resource = /^(skills|assets|docs)(\/|$)/.test(name);
-      const safe = !name.split('/').some((part) => part.startsWith('.') || ['node_modules', '__pycache__'].includes(part));
-      if (
-        item.isDirectory() &&
-        resource && safe
-      ) {
+      const resource = /^(skills|assets|docs|templates)(\/|$)/.test(name);
+      const safe = !name
+        .split("/")
+        .some(
+          (part) =>
+            part.startsWith(".") ||
+            ["node_modules", "__pycache__"].includes(part),
+        );
+      if (item.isDirectory() && resource && safe) {
         await collect(join(directory, item.name), name + "/");
       } else if (
         item.isFile() &&
         safe &&
-        (["plugin.json", "mcp.json", "README.md", "LICENSE", "LICENSE.txt"].includes(name) ||
-          (resource && /\.(md|mdx|py|mjs|txt|json|yaml|yml|png|jpg|jpeg|svg|webp)$/.test(name)))
+        ([
+          "plugin.json",
+          "mcp.json",
+          "README.md",
+          "LICENSE",
+          "LICENSE.txt",
+        ].includes(name) ||
+          (resource &&
+            /\.(md|mdx|py|mjs|txt|json|yaml|yml|png|jpg|jpeg|svg|webp|css|ico)$/.test(
+              name,
+            )))
       ) {
         const info = await lstat(join(directory, item.name));
         bytes += info.size;
-        if (!info.isFile() || files.length >= 10000 || bytes > 100 * 1024 * 1024)
-          throw new Error(`Invalid or oversized quickstart package entry: ${name}`);
+        if (
+          !info.isFile() ||
+          files.length >= 10000 ||
+          bytes > 100 * 1024 * 1024
+        )
+          throw new Error(
+            `Invalid or oversized quickstart package entry: ${name}`,
+          );
         files.push({
           name,
           content: await readFile(join(directory, item.name)),
@@ -140,7 +184,14 @@ export async function installQuickstartPlugin(
     plugin.id + ".zip",
   );
   const pkg = await api("/zip", "POST", form);
-  if (pkg.descriptor.diagnostics.length || !(pkg.descriptor.servers.length || pkg.descriptor.skills?.length)) {
+  if (
+    pkg.descriptor.diagnostics.length ||
+    !(
+      pkg.descriptor.servers.length ||
+      pkg.descriptor.skills?.length ||
+      pkg.descriptor.templates?.length
+    )
+  ) {
     throw new Error(
       `${plugin.id}: import has component diagnostics; review it before publishing.`,
     );

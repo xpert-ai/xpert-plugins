@@ -1,0 +1,3 @@
+interface:
+  display_name: "采购比价助理 · 结果复核"
+  short_description: "比较真实到手成本、配送条件与退换限制，维护可选关注清单。"

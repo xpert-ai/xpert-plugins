@@ -1,0 +1,25 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/credit-card-max",
+    "name": "Credit Card Max",
+    "creator": "Trevin Chow",
+    "categories": [
+      "Personal"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 2,
+    "routineCount": 3,
+    "integrations": []
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "personal",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

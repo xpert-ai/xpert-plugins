@@ -1,0 +1,30 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/market-researcher",
+    "name": "Market Researcher",
+    "creator": "Josh Kim",
+    "categories": [
+      "Marketing"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 10,
+    "routineCount": 2,
+    "integrations": [
+      "X",
+      "Google Sheets",
+      "Google Drive",
+      "Slack"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "marketing",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

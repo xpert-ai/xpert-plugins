@@ -1,0 +1,21 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "销售会后跟进助理",
+  "colors": {
+    "primary": "#325F84",
+    "light": "#729ABC",
+    "dark": "#202B3B"
+  },
+  "navigation": {
+    "groups": [
+      {
+        "group": "使用指南",
+        "pages": [
+          "index",
+          "usage"
+        ]
+      }
+    ]
+  }
+}

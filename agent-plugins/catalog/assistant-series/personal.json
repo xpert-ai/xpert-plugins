@@ -1,0 +1,453 @@
+[
+  {
+    "id": "chief-health",
+    "package": "assistant-chief-health",
+    "category": "personal",
+    "title": "健康习惯助理",
+    "description": "记录训练与生活习惯，在实际完成情况基础上调整下一次计划。",
+    "inputs": "用户目标、实际训练记录、可选设备导出",
+    "deliverable": "习惯日志与下一次训练建议",
+    "procedure": [
+      "先核对今天实际完成情况",
+      "比较计划和负荷变化",
+      "给出可选择的轻量下一步并记录反馈"
+    ],
+    "boundary": "不诊断、不处方，不根据缺失数据推测健康指标",
+    "profile": "planning",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/chief-health",
+      "name": "Chief Health Officer",
+      "creator": "AJAC",
+      "categories": [
+        "Personal"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 0,
+      "routineCount": 2,
+      "integrations": []
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "credit-card-max",
+    "package": "assistant-credit-card-max",
+    "category": "personal",
+    "title": "信用卡权益助理",
+    "description": "依据已核实的卡片规则比较消费回报，整理权益到期提醒。",
+    "inputs": "用户提供的卡片类型、权益规则、消费类别",
+    "deliverable": "用卡比较与权益台账",
+    "procedure": [
+      "核对规则有效期和适用条件",
+      "计算同一消费的可得收益并列出限制",
+      "记录已使用与即将到期权益"
+    ],
+    "boundary": "不收集完整卡号，不申请信用产品或执行支付",
+    "profile": "analysis",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/credit-card-max",
+      "name": "Credit Card Max",
+      "creator": "Trevin Chow",
+      "categories": [
+        "Personal"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 2,
+      "routineCount": 3,
+      "integrations": []
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "deal-hunting",
+    "package": "assistant-deal-hunting",
+    "category": "personal",
+    "title": "采购比价助理",
+    "description": "比较真实到手成本、配送条件与退换限制，维护可选关注清单。",
+    "inputs": "商品规格、地区、预算、可信零售商",
+    "deliverable": "价格比较与购买检查表",
+    "procedure": [
+      "确认同款规格",
+      "核算价格、运费与已知税费",
+      "记录报价时间、库存状态和不确定费用"
+    ],
+    "boundary": "不自动下单或将优惠信息视为长期有效",
+    "profile": "research",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/deal-hunting",
+      "name": "Deal Hunting",
+      "creator": "Shimecki",
+      "categories": [
+        "Personal"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 0,
+      "routineCount": 2,
+      "integrations": []
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "dial-bot",
+    "package": "assistant-dial-bot",
+    "category": "personal",
+    "title": "电话事务助理",
+    "description": "准备经用户批准的外呼任务，并通过已授权电话服务记录结果。",
+    "inputs": "明确收件方、通话目的、可披露信息、授权电话连接",
+    "deliverable": "外呼脚本与通话回执",
+    "procedure": [
+      "确认号码和身份披露方式",
+      "预览脚本并请求本次授权",
+      "调用真实服务后根据返回结果记录完成状态"
+    ],
+    "boundary": "无电话连接时只交付脚本，不声称已拨号",
+    "profile": "connector",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/dial-bot",
+      "name": "dial bot",
+      "creator": "Matt Palmer",
+      "categories": [
+        "From Grok Bot Team",
+        "Personal"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 1,
+      "routineCount": 0,
+      "integrations": []
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "flora",
+    "package": "assistant-flora",
+    "category": "personal",
+    "title": "植物养护助理",
+    "description": "维护私人的植物档案与养护记录，整理下一次检查事项。",
+    "inputs": "植物照片、品种信息、环境和既有养护记录",
+    "deliverable": "植物档案与养护日程",
+    "procedure": [
+      "确认识别置信度",
+      "记录光照、浇水和实际观察",
+      "按变化提出可复核的养护建议"
+    ],
+    "boundary": "不把模糊照片识别结果当作确定诊断",
+    "profile": "planning",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/flora",
+      "name": "Flora: Plant Care Log",
+      "creator": "Rich Silver",
+      "categories": [
+        "Personal"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 4,
+      "routineCount": 0,
+      "integrations": []
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "home-robots",
+    "package": "assistant-home-robots",
+    "category": "personal",
+    "title": "家庭设备助理",
+    "description": "管理已授权家庭机器人的状态查询和用户明确要求的控制任务。",
+    "inputs": "设备名称、官方连接、目标动作与区域",
+    "deliverable": "设备状态与操作回执",
+    "procedure": [
+      "核对设备及支持的官方指令",
+      "确认影响区域与现场条件",
+      "执行授权动作后读取真实状态"
+    ],
+    "boundary": "缺少设备连接或现场条件不明时不执行控制",
+    "profile": "connector",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/home-robots",
+      "name": "Home robots",
+      "creator": "Sawyer Merritt",
+      "categories": [
+        "Personal"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 7,
+      "routineCount": 0,
+      "integrations": []
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "import-bot",
+    "package": "assistant-import-bot",
+    "category": "personal",
+    "title": "助手配置迁移顾问",
+    "description": "把用户提供的旧工具配置整理为 Xpert 助手迁移包。",
+    "inputs": "明确授权的配置导出、技能文件和目标范围",
+    "deliverable": "迁移清单、脱敏配置与导入说明",
+    "procedure": [
+      "清点来源格式与依赖",
+      "移除令牌及实例标识",
+      "转换兼容字段并列出无法迁移的能力"
+    ],
+    "boundary": "不读取浏览器凭据，不修改旧系统，不迁移私密会话到公开模板",
+    "profile": "coding",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/import-bot",
+      "name": "Import Bot",
+      "creator": "Shub Gaur",
+      "categories": [
+        "From Grok Bot Team",
+        "Personal"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 20,
+      "routineCount": 0,
+      "integrations": []
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "love",
+    "package": "assistant-love",
+    "category": "personal",
+    "title": "亲密关系事务助理",
+    "description": "帮助用户安排约会、纪念日和礼物研究，把决定留给本人。",
+    "inputs": "用户自愿提供的偏好、日期和预算",
+    "deliverable": "约会方案与提醒清单",
+    "procedure": [
+      "核对双方已明确表达的偏好",
+      "比较时间和预算可行性",
+      "准备可选择的安排与所需确认"
+    ],
+    "boundary": "不替用户作感情判断，不自动预订、购买或联系他人",
+    "profile": "planning",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/love",
+      "name": "Love ❤️",
+      "creator": "Danny Buck",
+      "categories": [
+        "Personal"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 0,
+      "routineCount": 3,
+      "integrations": [
+        "Google Calendar"
+      ]
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "nyc-parent",
+    "package": "assistant-nyc-parent",
+    "category": "personal",
+    "title": "家庭事务协调员",
+    "description": "整理学校、活动与家庭日程，为家长提供清晰的下一步。",
+    "inputs": "家长提供的通知、日程、地区与家庭规则",
+    "deliverable": "家庭事务表与冲突清单",
+    "procedure": [
+      "提取真实截止日期和行动要求",
+      "核对接送与活动冲突",
+      "生成供家长选择的处理方案"
+    ],
+    "boundary": "保护儿童资料，不对外发送信息或自动付款",
+    "profile": "planning",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/nyc-parent",
+      "name": "NYC Parent",
+      "creator": "Dennison",
+      "categories": [
+        "Personal"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 0,
+      "routineCount": 0,
+      "integrations": []
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "pfp-bot",
+    "package": "assistant-pfp-bot",
+    "category": "personal",
+    "title": "卡通头像设计师",
+    "description": "根据用户授权照片提炼外观特征，设计适合小尺寸显示的头像。",
+    "inputs": "授权图片、人物偏好、用途与风格",
+    "deliverable": "头像图像与导出规格",
+    "procedure": [
+      "确认可使用的照片与特征",
+      "通过真实图像工具生成原创图像",
+      "检查小尺寸可读性与圆角裁切"
+    ],
+    "boundary": "无图像工具时输出设计说明，不假装已生成图片",
+    "profile": "design",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/pfp-bot",
+      "name": "Pfp Bot",
+      "creator": "Shub Gaur",
+      "categories": [
+        "From Grok Bot Team",
+        "Personal"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 8,
+      "routineCount": 0,
+      "integrations": [
+        "X"
+      ]
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "skippy",
+    "package": "assistant-skippy",
+    "category": "personal",
+    "title": "街道清扫查询助理",
+    "description": "根据公开城市规则核查指定路段清扫时间与需现场确认的信息。",
+    "inputs": "准确地址、路侧、日期和官方资料",
+    "deliverable": "路段时间查询与核对提示",
+    "procedure": [
+      "确认城市和道路方向",
+      "查明规则生效日期及例外",
+      "列出下一次时间和证据"
+    ],
+    "boundary": "不能据此保证停车合法，现场标志优先",
+    "profile": "research",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/skippy",
+      "name": "skippy",
+      "creator": "Matt Palmer",
+      "categories": [
+        "From Grok Bot Team",
+        "Personal"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 1,
+      "routineCount": 0,
+      "integrations": []
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "tech-demos",
+    "package": "assistant-tech-demos",
+    "category": "personal",
+    "title": "技术演示制作员",
+    "description": "将公开技术线索转换成小型可运行演示与验证记录。",
+    "inputs": "候选技术、授权仓库、演示目标",
+    "deliverable": "演示代码与使用说明",
+    "procedure": [
+      "核对官方文档和许可",
+      "设计最小可见功能",
+      "在隔离环境构建并记录运行结果"
+    ],
+    "boundary": "未经允许不安装来源不明的软件或公开发布",
+    "profile": "coding",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/tech-demos",
+      "name": "Tech Demos",
+      "creator": "Matt Palmer",
+      "categories": [
+        "From Grok Bot Team",
+        "Personal"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 1,
+      "routineCount": 1,
+      "integrations": [
+        "X"
+      ]
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "the-morning-newspaper",
+    "package": "assistant-the-morning-newspaper",
+    "category": "personal",
+    "title": "私人晨报编辑",
+    "description": "把用户授权的信息整理为便于阅读的个性化晨报。",
+    "inputs": "关注主题、可提供的邮件与日历摘要、版面偏好",
+    "deliverable": "晨报文档与来源索引",
+    "procedure": [
+      "提取今天相关事项和新信息",
+      "区分私人日程与公开新闻",
+      "按重要性排版并检查日期"
+    ],
+    "boundary": "打印和对外分享必须有明确授权",
+    "profile": "writing",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/the-morning-newspaper",
+      "name": "The Morning Newspaper",
+      "creator": "Karen X. Cheng",
+      "categories": [
+        "Personal"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 1,
+      "routineCount": 0,
+      "integrations": []
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "tradbot-2",
+    "package": "assistant-tradbot-2",
+    "category": "personal",
+    "title": "家庭日程助理",
+    "description": "整理家庭邮件与日程中的待办、接送冲突和需回复事项。",
+    "inputs": "家长授权提供的邮件、日程、家庭规则",
+    "deliverable": "家庭简报与回复草稿",
+    "procedure": [
+      "提取截止日期和地点",
+      "检查接送与活动重叠",
+      "分开列出需决定、需回复和可忽略事项"
+    ],
+    "boundary": "不自动付款、发送消息或分享儿童信息",
+    "profile": "planning",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/tradbot-2",
+      "name": "Tradbot",
+      "creator": "Claire Vo",
+      "categories": [],
+      "checkedAt": "2026-10-14",
+      "skillCount": 3,
+      "routineCount": 5,
+      "integrations": [
+        "Gmail",
+        "Google Calendar",
+        "Slack"
+      ]
+    },
+    "status": "repository-adaptation",
+    "classificationNote": "源页面没有业务类别；此分类为 Xpert 编辑整理。"
+  },
+  {
+    "id": "webby",
+    "package": "assistant-webby",
+    "category": "personal",
+    "title": "个人站点助理",
+    "description": "整理个人站点内容和更新计划，准备文章、页面与通讯草稿。",
+    "inputs": "授权站点仓库、写作材料、发布规则",
+    "deliverable": "站点更新提案与内容草稿",
+    "procedure": [
+      "明确内容唯一来源",
+      "保留原稿并创建审阅版本",
+      "检查链接、样式和日期后交付"
+    ],
+    "boundary": "不自动发送通讯或覆盖在线页面",
+    "profile": "coding",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/webby",
+      "name": "Webby",
+      "creator": "Farzad",
+      "categories": [
+        "Personal"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 1,
+      "routineCount": 6,
+      "integrations": [
+        "X"
+      ]
+    },
+    "status": "repository-adaptation"
+  }
+]

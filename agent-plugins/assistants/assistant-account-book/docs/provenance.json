@@ -1,0 +1,38 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/account-book",
+    "name": "Account Research Desk",
+    "creator": "Anoop Baliga",
+    "categories": [
+      "From Grok Bot Team",
+      "Sales"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 11,
+    "routineCount": 3,
+    "integrations": [
+      "slack",
+      "notion-workspace",
+      "linear",
+      "hex",
+      "Databricks SQL",
+      "Gmail",
+      "Google Calendar",
+      "Granola",
+      "Google Drive",
+      "Google Sheets",
+      "Salesforce"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "sales",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

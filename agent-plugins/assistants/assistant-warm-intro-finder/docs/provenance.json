@@ -1,0 +1,33 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/warm-intro-finder",
+    "name": "GTM Connections",
+    "creator": "Brian Joseph",
+    "categories": [
+      "From Grok Bot Team",
+      "Sales"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 3,
+    "routineCount": 1,
+    "integrations": [
+      "Gmail",
+      "Google Calendar",
+      "Salesforce",
+      "Notion",
+      "Google Sheets",
+      "Slack"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "sales",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

@@ -1,0 +1,3 @@
+interface:
+  display_name: "会议演示稿助理 · 结果复核"
+  short_description: "把会议记录整理为符合指定版式的回顾演示稿和行动清单。"

@@ -1,0 +1,12 @@
+{
+  "id": "customer-question-drafter",
+  "generator": "OpenAI imagegen",
+  "generatedAt": "2026-10-14",
+  "style": "Enterprise cartoon portrait; navy wardrobe; cream background",
+  "prompt": "Create ONE square avatar for an enterprise assistant template library. Original high-quality friendly 3D cartoon human, softly sculpted animated-feature aesthetic, warm cream seamless background, soft studio lighting, navy-and-cream corporate wardrobe with restrained accent colors. Chest-up portrait, face centered and large, eye contact, relaxed confident smile. Hair fully within frame, shoulders end at lower edge, minimal tiny work prop only at lower edge if specified. Match the polished Office Ops avatar series: natural human proportions with slightly enlarged expressive eyes, gentle shadows, clean smooth materials, no circle or frame baked in. No text, no letters, no logos, no watermark. A fictional person, not the actual creator of the referenced software. Role: Product Support Inbox Assistant assistant. A fictional man, about 40, East Asian appearance, neatly side-parted black hair. Navy business jacket with muted cobalt shirt or blouse. Thin understated round glasses. Unique friendly facial features; chest-up with generous space above hair. Square composition.",
+  "sourceAsset": "exec-479bd9f1-dbfc-4cd5-86c5-cabb854ba825.png",
+  "packagedSize": 256,
+  "sha256": "69e63e77fe5a36957e1fb2a3cb6342253eb8d3d1bea778c11d70a9dc036fd615",
+  "fictionalPerson": true,
+  "upstreamImageCopied": false
+}

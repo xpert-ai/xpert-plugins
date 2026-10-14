@@ -1,0 +1,3 @@
+interface:
+  display_name: "线索管道助理 · 结果复核"
+  short_description: "清理线索数据，按明确标准评分、分配建议并识别停滞事项。"

@@ -1,0 +1,29 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/video-editor",
+    "name": "Video Editor",
+    "creator": "Ethan Ng",
+    "categories": [
+      "From Grok Bot Team",
+      "Marketing"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 5,
+    "routineCount": 0,
+    "integrations": [
+      "Remotion",
+      "Google Drive"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "marketing",
+    "skillCount": 3,
+    "routineCount": 0,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

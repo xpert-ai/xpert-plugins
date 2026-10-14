@@ -1,0 +1,35 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/leadsworth",
+    "name": "Lead Pipeline Desk",
+    "creator": "Miguel Cruz",
+    "categories": [
+      "From Grok Bot Team",
+      "Marketing"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 7,
+    "routineCount": 2,
+    "integrations": [
+      "slack",
+      "notion-workspace",
+      "linear",
+      "hex",
+      "Databricks SQL",
+      "Gmail",
+      "Google Sheets",
+      "Salesforce"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "marketing",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

@@ -1,0 +1,3 @@
+interface:
+  display_name: "销售预测分析师 · 结果复核"
+  short_description: "检查销售管道变化、停滞和预测缺口，准备数据修正建议。"

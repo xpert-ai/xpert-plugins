@@ -1,0 +1,3 @@
+interface:
+  display_name: "竞品变化观察员 · 业务执行"
+  short_description: "跟踪指定竞品页面的真实变化，生成价格和产品差异简报。"

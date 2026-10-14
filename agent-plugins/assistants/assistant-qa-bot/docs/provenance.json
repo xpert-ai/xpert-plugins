@@ -1,0 +1,27 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/qa-bot",
+    "name": "QA bot",
+    "creator": "Ulysses Ng",
+    "categories": [
+      "Engineering"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 3,
+    "routineCount": 1,
+    "integrations": [
+      "Vercel"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "engineering",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

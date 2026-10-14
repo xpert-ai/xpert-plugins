@@ -1,0 +1,29 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/projects-manager",
+    "name": "Projects Manager",
+    "creator": "Eric Zakariasson",
+    "categories": [
+      "From Grok Bot Team",
+      "Engineering"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 1,
+    "routineCount": 0,
+    "integrations": [
+      "Notion",
+      "Slack"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "engineering",
+    "skillCount": 3,
+    "routineCount": 0,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

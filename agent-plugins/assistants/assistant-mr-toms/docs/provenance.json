@@ -1,0 +1,36 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/mr-toms",
+    "name": "Recruiting Coordinator",
+    "creator": "Tommy Hansen",
+    "categories": [
+      "From Grok Bot Team",
+      "Recruiting & People"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 8,
+    "routineCount": 7,
+    "integrations": [
+      "slack",
+      "notion-workspace",
+      "linear",
+      "figma",
+      "Gmail",
+      "Google Calendar",
+      "Granola",
+      "Google Sheets",
+      "Ashby"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "recruiting-people",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}
