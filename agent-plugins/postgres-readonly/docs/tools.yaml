@@ -1,7 +1,8 @@
 # 只读 PostgreSQL 工具集。由单独部署的 MCP Toolbox 加载，不要放进插件包的运行入口。
 # 连接参数来自进程环境或 Infisical 注入，不要把密码写进本文件。
 # 启动示例：
-#   toolbox serve --address 127.0.0.1 --port 5000 --config tools.yaml
+#   toolbox --address 127.0.0.1 --port 5000 --config tools.yaml
+# v1.14.0 的 `toolbox serve` 子命令不接受 --config。HTTP 服务由根命令启动。
 kind: source
 name: readonly-postgres
 type: postgres

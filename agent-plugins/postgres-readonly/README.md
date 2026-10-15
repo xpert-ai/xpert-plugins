@@ -22,12 +22,14 @@
 - [docs/tools.yaml](docs/tools.yaml)：只定义 `list_schemas`、`list_tables`、`describe_table`、`execute_readonly_sql`、`sample_rows`。
 - [docs/readonly-setup.sql.txt](docs/readonly-setup.sql.txt)：创建只读角色和两个守卫函数。在目标库执行一次，不是插件迁移。
 
-Toolbox 只监听内网。示例命令把地址固定在回环接口：
+Toolbox 1.14.0 的 `toolbox serve` 子命令不读取 `--config`。HTTP 服务由根命令启动，并把监听地址固定在回环接口：
 
 ```sh
 export READONLY_POSTGRES_PASSWORD  # 来自 Infisical，不写进 shell 历史文件
-toolbox serve --address 127.0.0.1 --port 5000 --config docs/tools.yaml
+toolbox --address 127.0.0.1 --port 5000 --config docs/tools.yaml
 ```
+
+v1.14.0 默认 `--allowed-hosts` 和 `--allowed-origins` 都是 `*`。内网部署应改成实际主机名，避免任意来源访问。
 
 数据库准备：
 
@@ -52,7 +54,7 @@ Toolbox 自己的 MCP 传输认证是 JWT Bearer（`authService` 且 `mcpEnabled
 1. 角色 `xpert_readonly` 只有 `CONNECT`、schema `USAGE` 和表的 `SELECT`。没有 `INSERT`、`UPDATE`、`DELETE`、`TRUNCATE` 和 `CREATE`。
 2. `ALTER ROLE ... SET default_transaction_read_only = on`。连接参数再次加上 `-c default_transaction_read_only=on`。普通 PostgreSQL 源没有 Cloud SQL 那种 `readOnly: true` 协议锁，所以权限和角色默认值是实际边界。
 3. `statement_timeout` 为 15 秒。每次 `execute_readonly_sql` 还会在当前事务内重新设为 15 秒，避免连接池里残留 `SET statement_timeout = 0`。
-4. `execute_readonly_sql` 只执行一条语句，并且必须以 `SELECT`、`WITH` 或 `EXPLAIN` 开头。分号、空字节和超过 100000 字节的文本会被拒绝。返回在第 500 行后停止。
+4. `execute_readonly_sql` 只执行一条语句，并且必须以 `SELECT`、`WITH` 或 `EXPLAIN` 开头。语句中的分号和超过 100000 字节的文本会被拒绝。PostgreSQL 的 `text` 本身不接受空字节。返回在第 500 行后停止。
 5. `WITH ... DELETE` 这种看起来像查询的写入仍然会因为没有删除权限而失败。
 6. 不使用 Toolbox 的 `postgres-execute-sql`。那个工具会原样执行任意 SQL。
 7. 连接串和密码留在 Infisical 或 Toolbox 环境中。MCP 服务只监听内网，不暴露到公网。

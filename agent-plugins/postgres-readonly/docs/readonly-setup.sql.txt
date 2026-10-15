@@ -50,9 +50,6 @@ BEGIN
   IF octet_length(query) > 100000 THEN
     RAISE EXCEPTION 'query exceeds 100000 bytes';
   END IF;
-  IF position(chr(0) IN query) > 0 THEN
-    RAISE EXCEPTION 'query contains a null byte';
-  END IF;
   normalized := btrim(query);
   IF right(normalized, 1) = ';' THEN
     normalized := btrim(left(normalized, char_length(normalized) - 1));
