@@ -57,6 +57,8 @@ try {
       assert.deepEqual(plugin.skills, source.skills);
       assert.deepEqual(plugin.extension, source.extension);
       assert.deepEqual(plugin.templates, source.templates);
+      if (entry.path?.startsWith("assistants/"))
+        assert.equal(plugin.extension?.role, "assistant");
       assert.ok(plugin.skills.length + plugin.servers.length + (plugin.templates?.length || 0) > 0);
       assert.equal(
         await portablePackageDigest(root),

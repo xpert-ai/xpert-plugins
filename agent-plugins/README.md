@@ -8,6 +8,24 @@ contain no npm entrypoint, server module, installation script or credential.
 
 ## Assistant templates
 
+`extensions.xpertai.role` is an optional package-level value: `capability`,
+`assistant`, or `subagent`. Only `assistant` is hidden from ChatKit's plugin
+candidate menu; omitted roles preserve existing visibility. All roles may supply
+templates, and template marketplace entries continue to be selected by valid
+`templates` declarations, not by role. There is no template-level role field.
+
+The bundled Assistant template packages declare `role: "assistant"`. Their skills
+remain available to template installation and existing conversations. The role is
+discovery metadata: it does not grant access, publish an Assistant, turn a template
+into a callable subagent, or revoke a pinned conversation resource.
+
+Upgrade the host parser before importing these manifests: older strict extension
+parsers do not recognize `role`. ChatKit uses the default resource catalog for
+candidate menus and `purpose=selection` for restoring existing selections; deploy
+the host API before the updated ChatKit. Changing source manifests does not update
+already imported packages: import the updated packages through the normal lifecycle,
+preserving old package digests and conversation references.
+
 [企业 Assistant 模板系列](catalog/assistant-series/README.md)：按 Grok 市场公开列表整理的 90 个角色、8 个分类与独立办公人物头像。全部位于 `assistants/` 子目录，通过 `quickstart.json` 的显式 `path` 安装，包名保持稳定。包含 89 个原创功能适配包和已有 Office Ops；功能边界、来源与验证范围见各包说明。
 
 Use `extensions.xpertai.version: 2` and declare `templates: [{ "key": "desk", "path": "templates/desk.json", "category": "operations" }]`

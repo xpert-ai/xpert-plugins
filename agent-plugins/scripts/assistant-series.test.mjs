@@ -40,6 +40,7 @@ test("all template and plugin avatars use their own packaged 256px PNG; identiti
     const dsl = await readJson(
       join(dir, manifest.extensions.xpertai.templates[0].path),
     );
+    assert.equal(manifest.extensions.xpertai.role, "assistant", role.id);
     const expected = `data:image/png;base64,${png.toString("base64")}`;
     assert.equal(manifest.extensions.xpertai.interface.icon, expected, role.id);
     assert.equal(dsl.team.avatar.url, expected, role.id);
