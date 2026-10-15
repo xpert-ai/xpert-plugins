@@ -818,6 +818,78 @@ test("document presets require explicit presentation with the paths-only host to
   }
 });
 
+test("postgres-readonly is a streamable HTTP client without packaged secrets", async () => {
+  const plugin = (await loadQuickstartPlugins()).find(
+    (item) => item.id === "postgres-readonly",
+  );
+  assert.ok(plugin);
+  assert.equal(plugin.version, "1.0.0");
+  assert.deepEqual(plugin.connectorServers, {});
+  assert.deepEqual(plugin.oauthServers, []);
+  const root = new URL("../postgres-readonly/", import.meta.url);
+  const manifest = JSON.parse(
+    await readFile(new URL("plugin.json", root), "utf8"),
+  );
+  const mcp = JSON.parse(await readFile(new URL("mcp.json", root), "utf8"));
+  const tools = await readFile(new URL("docs/tools.yaml", root), "utf8");
+  const setup = await readFile(
+    new URL("docs/readonly-setup.sql.txt", root),
+    "utf8",
+  );
+  const readme = await readFile(new URL("README.md", root), "utf8");
+  const skill = await readFile(
+    new URL("skills/postgres-readonly/SKILL.md", root),
+    "utf8",
+  );
+  assert.equal(manifest.author.name, "Xpert AI");
+  assert.equal(manifest.extensions.xpertai.connectors, undefined);
+  assert.equal(mcp.mcpServers["postgres-readonly"].type, "streamable-http");
+  assert.equal(
+    mcp.mcpServers["postgres-readonly"].url,
+    "http://toolbox.internal:5000/mcp/postgres_readonly",
+  );
+  assert.equal(mcp.mcpServers["postgres-readonly"].headers, undefined);
+  assert.doesNotMatch(
+    JSON.stringify({ manifest, mcp }) + tools + setup + readme + skill,
+    /client_secret|client_id|postgres:\/\/|password:\s*['\"][^$]/i,
+  );
+  assert.match(tools, /\$\{READONLY_POSTGRES_PASSWORD\}/);
+  assert.deepEqual(
+    [...tools.matchAll(/^name: (\S+)/gm)].map((match) => match[1]),
+    [
+      "readonly-postgres",
+      "list_schemas",
+      "list_tables",
+      "describe_table",
+      "execute_readonly_sql",
+      "sample_rows",
+      "postgres_readonly",
+    ],
+  );
+  assert.deepEqual(
+    [...tools.matchAll(/^type: (\S+)/gm)].map((match) => match[1]),
+    [
+      "postgres",
+      "postgres-sql",
+      "postgres-sql",
+      "postgres-sql",
+      "postgres-sql",
+      "postgres-sql",
+    ],
+  );
+  assert.doesNotMatch(tools, /postgres-execute-sql|templateParameters/);
+  assert.match(setup, /default_transaction_read_only = on/);
+  assert.match(setup, /statement_timeout = '15s'/);
+  assert.match(setup, /row_limit constant integer := 500/);
+  assert.match(readme, /Infisical/);
+  assert.match(readme, /内网/);
+  assert.match(readme, /mcp_oauth/);
+  assert.match(readme, /500/);
+  assert.match(skill, /name: postgres-readonly/);
+  assert.match(skill, /execute_readonly_sql/);
+  assert.ok((await packQuickstartPlugin(plugin)).length > 0);
+});
+
 test("catalog resolves explicit nested paths while preserving flat packages", async () => {
   const plugins = await loadQuickstartPlugins();
   assert.equal(

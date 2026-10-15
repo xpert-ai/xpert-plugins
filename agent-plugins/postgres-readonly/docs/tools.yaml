@@ -1,0 +1,164 @@
+# 只读 PostgreSQL 工具集。由单独部署的 MCP Toolbox 加载，不要放进插件包的运行入口。
+# 连接参数来自进程环境或 Infisical 注入，不要把密码写进本文件。
+# 启动示例：
+#   toolbox serve --address 127.0.0.1 --port 5000 --config tools.yaml
+kind: source
+name: readonly-postgres
+type: postgres
+host: ${READONLY_POSTGRES_HOST:127.0.0.1}
+port: ${READONLY_POSTGRES_PORT:5432}
+database: ${READONLY_POSTGRES_DATABASE:pagila}
+user: ${READONLY_POSTGRES_USER:xpert_readonly}
+password: ${READONLY_POSTGRES_PASSWORD}
+connectTimeout: 5
+queryParams:
+  options: "-c default_transaction_read_only=on -c statement_timeout=15s"
+---
+kind: tool
+name: list_schemas
+type: postgres-sql
+source: readonly-postgres
+description: 列出当前只读角色有 USAGE 权限的非系统 schema。
+statement: |
+  SELECT n.nspname AS schema_name
+  FROM pg_catalog.pg_namespace AS n
+  WHERE n.nspname <> 'information_schema'
+    AND n.nspname <> 'pg_catalog'
+    AND n.nspname <> 'readonly_mcp'
+    AND n.nspname NOT LIKE 'pg_toast%'
+    AND n.nspname NOT LIKE 'pg_temp_%'
+    AND has_schema_privilege(n.oid, 'USAGE')
+  ORDER BY n.nspname
+---
+kind: tool
+name: list_tables
+type: postgres-sql
+source: readonly-postgres
+description: 列出一个 schema 里当前角色可以 SELECT 的表、分区表、视图和物化视图。
+parameters:
+  - name: schema_name
+    type: string
+    description: 来自 list_schemas 的 schema 名称。
+statement: |
+  SELECT n.nspname AS schema_name,
+         c.relname AS table_name,
+         CASE c.relkind
+           WHEN 'r' THEN 'table'
+           WHEN 'p' THEN 'partitioned_table'
+           WHEN 'v' THEN 'view'
+           WHEN 'm' THEN 'materialized_view'
+           ELSE c.relkind::text
+         END AS relation_kind,
+         pg_catalog.obj_description(c.oid, 'pg_class') AS comment
+  FROM pg_catalog.pg_class AS c
+  JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace
+  WHERE n.nspname = $1
+    AND c.relkind IN ('r', 'p', 'v', 'm')
+    AND has_table_privilege(c.oid, 'SELECT')
+  ORDER BY c.relname
+---
+kind: tool
+name: describe_table
+type: postgres-sql
+source: readonly-postgres
+description: 返回一张表的列名、类型、是否可空、默认值、列注释、主键、索引和表注释。
+parameters:
+  - name: schema_name
+    type: string
+    description: schema 名称。
+  - name: table_name
+    type: string
+    description: 表、视图或物化视图名称。
+statement: |
+  SELECT jsonb_build_object(
+    'schemaName', n.nspname,
+    'tableName', c.relname,
+    'relationKind', CASE c.relkind
+      WHEN 'r' THEN 'table'
+      WHEN 'p' THEN 'partitioned_table'
+      WHEN 'v' THEN 'view'
+      WHEN 'm' THEN 'materialized_view'
+      ELSE c.relkind::text
+    END,
+    'comment', pg_catalog.obj_description(c.oid, 'pg_class'),
+    'columns', (
+      SELECT coalesce(jsonb_agg(jsonb_build_object(
+        'name', a.attname,
+        'type', pg_catalog.format_type(a.atttypid, a.atttypmod),
+        'nullable', NOT a.attnotnull,
+        'default', pg_catalog.pg_get_expr(d.adbin, d.adrelid),
+        'comment', pg_catalog.col_description(c.oid, a.attnum)
+      ) ORDER BY a.attnum), '[]'::jsonb)
+      FROM pg_catalog.pg_attribute AS a
+      LEFT JOIN pg_catalog.pg_attrdef AS d
+        ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+      WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
+    ),
+    'primaryKey', (
+      SELECT coalesce(jsonb_agg(pa.attname ORDER BY key.ordinality), '[]'::jsonb)
+      FROM pg_catalog.pg_index AS i
+      CROSS JOIN LATERAL unnest(i.indkey) WITH ORDINALITY AS key(attnum, ordinality)
+      JOIN pg_catalog.pg_attribute AS pa
+        ON pa.attrelid = c.oid AND pa.attnum = key.attnum
+      WHERE i.indrelid = c.oid AND i.indisprimary AND key.attnum > 0
+    ),
+    'indexes', (
+      SELECT coalesce(jsonb_agg(jsonb_build_object(
+        'name', ic.relname,
+        'isPrimary', ix.indisprimary,
+        'isUnique', ix.indisunique,
+        'definition', pg_catalog.pg_get_indexdef(ix.indexrelid)
+      ) ORDER BY ic.relname), '[]'::jsonb)
+      FROM pg_catalog.pg_index AS ix
+      JOIN pg_catalog.pg_class AS ic ON ic.oid = ix.indexrelid
+      WHERE ix.indrelid = c.oid
+    )
+  ) AS description
+  FROM pg_catalog.pg_class AS c
+  JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace
+  WHERE n.nspname = $1
+    AND c.relname = $2
+    AND c.relkind IN ('r', 'p', 'v', 'm')
+---
+kind: tool
+name: execute_readonly_sql
+type: postgres-sql
+source: readonly-postgres
+description: |
+  执行一条只读 SQL。只允许单个 SELECT、WITH 或 EXPLAIN。
+  写操作、DDL 和多条语句会被拒绝。最多返回 500 行，语句超时 15 秒。
+  调用前数据库必须已安装 readonly_mcp.execute_readonly_sql。
+parameters:
+  - name: sql
+    type: string
+    description: 一条 SELECT、WITH 或 EXPLAIN。不要附带第二条语句。
+statement: SELECT readonly_mcp.execute_readonly_sql($1) AS result
+---
+kind: tool
+name: sample_rows
+type: postgres-sql
+source: readonly-postgres
+description: 从一个表读取最多 500 行样例。不接受 SQL 文本。
+parameters:
+  - name: schema_name
+    type: string
+    description: schema 名称。
+  - name: table_name
+    type: string
+    description: 表名。
+  - name: row_limit
+    type: integer
+    description: 期望行数，实际钳制在 1 到 500。省略时为 20。
+    default: 20
+    minValue: 1
+    maxValue: 500
+statement: SELECT readonly_mcp.sample_rows($1, $2, $3) AS result
+---
+kind: toolset
+name: postgres_readonly
+tools:
+  - list_schemas
+  - list_tables
+  - describe_table
+  - execute_readonly_sql
+  - sample_rows
