@@ -1,5 +1,5 @@
--- 在目标库上以超级用户执行一次。这是数据库侧准备，不是插件迁移。
--- 密码不要写进本文件：
+-- Run once on the target database as a superuser. This prepares the database. It is not a plugin migration.
+-- Do not write the password into this file:
 --   psql -d pagila -v readonly_password="$READONLY_POSTGRES_PASSWORD" -f docs/readonly-setup.sql.txt
 \set ON_ERROR_STOP on
 

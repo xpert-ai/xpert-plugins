@@ -882,7 +882,7 @@ test("postgres-readonly is a streamable HTTP client without packaged secrets", a
   assert.match(setup, /statement_timeout = '15s'/);
   assert.match(setup, /row_limit constant integer := 500/);
   assert.match(readme, /Infisical/);
-  assert.match(readme, /内网/);
+  assert.match(readme, /internal network/);
   assert.match(readme, /mcp_oauth/);
   assert.match(readme, /500/);
   assert.match(skill, /name: postgres-readonly/);

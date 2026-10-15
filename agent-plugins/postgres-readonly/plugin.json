@@ -12,12 +12,10 @@
       "version": 1,
       "interface": {
         "displayName": {
-          "en_US": "PostgreSQL (read-only)",
-          "zh_Hans": "PostgreSQL（只读）"
+          "en_US": "PostgreSQL (read-only)"
         },
         "description": {
-          "en_US": "Inspect an internal read-only PostgreSQL database through MCP Toolbox.",
-          "zh_Hans": "通过 MCP Toolbox 查看内网只读 PostgreSQL。"
+          "en_US": "Inspect an internal read-only PostgreSQL database through MCP Toolbox."
         }
       }
     }

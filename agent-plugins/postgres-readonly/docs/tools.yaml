@@ -1,8 +1,8 @@
-# 只读 PostgreSQL 工具集。由单独部署的 MCP Toolbox 加载，不要放进插件包的运行入口。
-# 连接参数来自进程环境或 Infisical 注入，不要把密码写进本文件。
-# 启动示例：
+# Read-only PostgreSQL toolset. Load it with a separately deployed MCP Toolbox. Do not ship it as a plugin runtime entry.
+# Connection settings come from the process environment or Infisical. Do not write the password into this file.
+# Start example:
 #   toolbox --address 127.0.0.1 --port 5000 --config tools.yaml
-# v1.14.0 的 `toolbox serve` 子命令不接受 --config。HTTP 服务由根命令启动。
+# The v1.14.0 `toolbox serve` subcommand does not accept --config. The root command starts the HTTP server.
 kind: source
 name: readonly-postgres
 type: postgres
@@ -19,7 +19,7 @@ kind: tool
 name: list_schemas
 type: postgres-sql
 source: readonly-postgres
-description: 列出当前只读角色有 USAGE 权限的非系统 schema。
+description: List non-system schemas where the current read-only role has USAGE.
 statement: |
   SELECT n.nspname AS schema_name
   FROM pg_catalog.pg_namespace AS n
@@ -35,11 +35,11 @@ kind: tool
 name: list_tables
 type: postgres-sql
 source: readonly-postgres
-description: 列出一个 schema 里当前角色可以 SELECT 的表、分区表、视图和物化视图。
+description: List tables, partitioned tables, views, and materialized views in one schema that the current role can SELECT.
 parameters:
   - name: schema_name
     type: string
-    description: 来自 list_schemas 的 schema 名称。
+    description: Schema name from list_schemas.
 statement: |
   SELECT n.nspname AS schema_name,
          c.relname AS table_name,
@@ -62,14 +62,14 @@ kind: tool
 name: describe_table
 type: postgres-sql
 source: readonly-postgres
-description: 返回一张表的列名、类型、是否可空、默认值、列注释、主键、索引和表注释。
+description: Return column names, types, nullability, defaults, column comments, the primary key, indexes, and the table comment.
 parameters:
   - name: schema_name
     type: string
-    description: schema 名称。
+    description: Schema name.
   - name: table_name
     type: string
-    description: 表、视图或物化视图名称。
+    description: Table, view, or materialized view name.
 statement: |
   SELECT jsonb_build_object(
     'schemaName', n.nspname,
@@ -126,30 +126,30 @@ name: execute_readonly_sql
 type: postgres-sql
 source: readonly-postgres
 description: |
-  执行一条只读 SQL。只允许单个 SELECT、WITH 或 EXPLAIN。
-  写操作、DDL 和多条语句会被拒绝。最多返回 500 行，语句超时 15 秒。
-  调用前数据库必须已安装 readonly_mcp.execute_readonly_sql。
+  Run one read-only SQL statement. Only a single SELECT, WITH, or EXPLAIN is allowed.
+  Writes, DDL, and multiple statements are rejected. At most 500 rows are returned, and the statement times out after 15 seconds.
+  readonly_mcp.execute_readonly_sql must already be installed before this tool is called.
 parameters:
   - name: sql
     type: string
-    description: 一条 SELECT、WITH 或 EXPLAIN。不要附带第二条语句。
+    description: One SELECT, WITH, or EXPLAIN. Do not append a second statement.
 statement: SELECT readonly_mcp.execute_readonly_sql($1) AS result
 ---
 kind: tool
 name: sample_rows
 type: postgres-sql
 source: readonly-postgres
-description: 从一个表读取最多 500 行样例。不接受 SQL 文本。
+description: Read up to 500 sample rows from one table. SQL text is not accepted.
 parameters:
   - name: schema_name
     type: string
-    description: schema 名称。
+    description: Schema name.
   - name: table_name
     type: string
-    description: 表名。
+    description: Table name.
   - name: row_limit
     type: integer
-    description: 期望行数，实际钳制在 1 到 500。省略时为 20。
+    description: Requested row count, clamped from 1 to 500. Defaults to 20 when omitted.
     default: 20
     minValue: 1
     maxValue: 500
