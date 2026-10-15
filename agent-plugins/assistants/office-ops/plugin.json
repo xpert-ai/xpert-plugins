@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "office-ops",
-  "version": "1.1.4",
-  "description": "Office operations Assistant template with seven playbooks, durable ledgers and paused routines.",
+  "version": "1.2.0",
+  "description": "Office operations skills, ChatKit commands and an optional Assistant template with durable ledgers and paused routines.",
   "author": {
     "name": "Xpert AI"
   },
@@ -10,7 +10,7 @@
   "extensions": {
     "xpertai": {
       "version": 2,
-      "role": "assistant",
+      "role": "capability",
       "interface": {
         "displayName": {
           "en_US": "Office Ops",
@@ -42,7 +42,145 @@
             }
           }
         }
-      ]
+      ],
+      "commands": {
+        "office-getting-started": {
+          "label": {
+            "en_US": "Office overview",
+            "zh_Hans": "办公概览"
+          },
+          "description": "检查办公台账、偏好和待办缺口",
+          "argsHint": "提供语言、时区和办公室"
+        },
+        "office-shipment-ledger": {
+          "label": {
+            "en_US": "Shipments",
+            "zh_Hans": "物流台账"
+          },
+          "subcommands": {
+            "import": {
+              "label": {
+                "en_US": "Import records",
+                "zh_Hans": "导入记录"
+              },
+              "description": "按 ID 合并物流记录，保留其他记录和未提供的字段",
+              "argsHint": "提供 id、物料说明、状态，可附承运商与预计日期"
+            },
+            "summary": {
+              "label": {
+                "en_US": "Status summary",
+                "zh_Hans": "状态汇总"
+              },
+              "description": "只读汇总物流状态、逾期项目和信息缺口",
+              "argsHint": "可指定记录 ID、参考日期和时区"
+            }
+          }
+        },
+        "office-facilities-digest": {
+          "label": {
+            "en_US": "Facilities",
+            "zh_Hans": "办公设施"
+          },
+          "subcommands": {
+            "record": {
+              "label": {
+                "en_US": "Record issue",
+                "zh_Hans": "登记问题"
+              },
+              "description": "登记或更新设施问题，不自动创建外部工单",
+              "argsHint": "提供 id、地点、问题、严重程度和状态"
+            },
+            "digest": {
+              "label": {
+                "en_US": "Issue digest",
+                "zh_Hans": "问题摘要"
+              },
+              "description": "按紧急程度整理未解决问题与责任人",
+              "argsHint": "可指定参考日期和问题 ID"
+            }
+          }
+        },
+        "office-shipment-follow-up": {
+          "label": {
+            "en_US": "Draft shipment follow-up",
+            "zh_Hans": "物流跟进草稿"
+          },
+          "description": "为延误或丢失物流生成跟进草稿，不发送",
+          "argsHint": "提供物流记录 ID，可附收件人与期望语气"
+        },
+        "office-celebrations": {
+          "label": {
+            "en_US": "Celebrations",
+            "zh_Hans": "团队庆祝"
+          },
+          "subcommands": {
+            "record": {
+              "label": {
+                "en_US": "Record event",
+                "zh_Hans": "登记事项"
+              },
+              "description": "登记生日或入职纪念日，仅保存月日并尊重退出提醒设置",
+              "argsHint": "提供 id、姓名、月日、类型和 optOut"
+            },
+            "upcoming": {
+              "label": {
+                "en_US": "Next 14 days",
+                "zh_Hans": "未来十四天"
+              },
+              "description": "查看未来十四天已允许提醒的事项，不发送通知",
+              "argsHint": "提供参考日期和 IANA 时区"
+            }
+          }
+        },
+        "office-new-hire": {
+          "label": {
+            "en_US": "Onboarding",
+            "zh_Hans": "新人入职"
+          },
+          "subcommands": {
+            "checklist": {
+              "label": {
+                "en_US": "Prepare checklist",
+                "zh_Hans": "准备清单"
+              },
+              "description": "准备工位、设备、权限和欢迎事项的申请清单",
+              "argsHint": "提供 id、姓名、入职日期、地点"
+            },
+            "update": {
+              "label": {
+                "en_US": "Update progress",
+                "zh_Hans": "更新进度"
+              },
+              "description": "更新有证据支持的步骤，保留已完成事项",
+              "argsHint": "提供新人 ID、步骤 key、状态及完成依据"
+            }
+          }
+        },
+        "office-sync": {
+          "label": {
+            "en_US": "External sync",
+            "zh_Hans": "外部同步"
+          },
+          "subcommands": {
+            "plan": {
+              "label": {
+                "en_US": "Prepare plan",
+                "zh_Hans": "准备方案"
+              },
+              "description": "只准备同步方案，列出目标、记录和缺失连接",
+              "argsHint": "提供台账、记录 ID 和目标系统"
+            },
+            "status": {
+              "label": {
+                "en_US": "Receipt status",
+                "zh_Hans": "查看回执"
+              },
+              "description": "只读查看既有同步回执，不重试外部写入",
+              "argsHint": "可指定记录 ID、目标或操作 ID"
+            }
+          }
+        }
+      }
     }
   },
   "keywords": [

@@ -396,11 +396,12 @@ export async function buildSeries() {
       await readFile(join(dir, "plugin.json"), "utf8"),
     );
     const presentation = presentations.get(role.id);
-    manifest.version = "1.1.4";
+    // Hand-maintained packages own their released version and capability role.
+    manifest.version ??= "1.1.4";
     manifest.extensions.xpertai.interface.displayName = presentation.title;
     manifest.extensions.xpertai.interface.description =
       presentation.description;
-    manifest.extensions.xpertai.role = "assistant";
+    manifest.extensions.xpertai.role ??= "assistant";
     manifest.extensions.xpertai.templates[0].presentation = presentation;
     await write(join(dir, "plugin.json"), json(manifest));
     const path = join(dir, manifest.extensions.xpertai.templates[0].path);
