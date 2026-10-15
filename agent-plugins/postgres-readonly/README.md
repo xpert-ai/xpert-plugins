@@ -88,3 +88,5 @@ corepack pnpm test
 `corepack pnpm test:lifecycle --platform-root "$XPERT_PLATFORM_ROOT"` 需要已安装依赖的 Xpert 主机检出。本包没有 Nest `register`，生命周期检查走 Agent Plugin 的打包、解析和 MCP 绑定，不启动数据库。
 
 没有 Xpert 主机时，用 MCP 客户端直接连接 `http://127.0.0.1:5000/mcp/postgres_readonly`，完成列表、表结构和一条 `SELECT`，并确认 `UPDATE`、`DROP`、超时和 500 行上限。这不能代替 Xpert 对话里的真实加载。
+
+2026-10-15 的 Pagila `master` 使用 `uuidv7()` 和 `transaction_timeout`，PostgreSQL 16 无法导入。同一天的验收使用 tag `pagila-v3.1.0`。
