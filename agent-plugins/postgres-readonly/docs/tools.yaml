@@ -1,0 +1,165 @@
+# Read-only PostgreSQL toolset. Load it with a separately deployed MCP Toolbox. Do not ship it as a plugin runtime entry.
+# Connection settings come from the process environment or Infisical. Do not write the password into this file.
+# Start example:
+#   toolbox --address 127.0.0.1 --port 5000 --config tools.yaml
+# The v1.14.0 `toolbox serve` subcommand does not accept --config. The root command starts the HTTP server.
+kind: source
+name: readonly-postgres
+type: postgres
+host: ${READONLY_POSTGRES_HOST:127.0.0.1}
+port: ${READONLY_POSTGRES_PORT:5432}
+database: ${READONLY_POSTGRES_DATABASE:pagila}
+user: ${READONLY_POSTGRES_USER:xpert_readonly}
+password: ${READONLY_POSTGRES_PASSWORD}
+connectTimeout: 5
+queryParams:
+  options: "-c default_transaction_read_only=on -c statement_timeout=15s"
+---
+kind: tool
+name: list_schemas
+type: postgres-sql
+source: readonly-postgres
+description: List non-system schemas where the current read-only role has USAGE.
+statement: |
+  SELECT n.nspname AS schema_name
+  FROM pg_catalog.pg_namespace AS n
+  WHERE n.nspname <> 'information_schema'
+    AND n.nspname <> 'pg_catalog'
+    AND n.nspname <> 'readonly_mcp'
+    AND n.nspname NOT LIKE 'pg_toast%'
+    AND n.nspname NOT LIKE 'pg_temp_%'
+    AND has_schema_privilege(n.oid, 'USAGE')
+  ORDER BY n.nspname
+---
+kind: tool
+name: list_tables
+type: postgres-sql
+source: readonly-postgres
+description: List tables, partitioned tables, views, and materialized views in one schema that the current role can SELECT.
+parameters:
+  - name: schema_name
+    type: string
+    description: Schema name from list_schemas.
+statement: |
+  SELECT n.nspname AS schema_name,
+         c.relname AS table_name,
+         CASE c.relkind
+           WHEN 'r' THEN 'table'
+           WHEN 'p' THEN 'partitioned_table'
+           WHEN 'v' THEN 'view'
+           WHEN 'm' THEN 'materialized_view'
+           ELSE c.relkind::text
+         END AS relation_kind,
+         pg_catalog.obj_description(c.oid, 'pg_class') AS comment
+  FROM pg_catalog.pg_class AS c
+  JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace
+  WHERE n.nspname = $1
+    AND c.relkind IN ('r', 'p', 'v', 'm')
+    AND has_table_privilege(c.oid, 'SELECT')
+  ORDER BY c.relname
+---
+kind: tool
+name: describe_table
+type: postgres-sql
+source: readonly-postgres
+description: Return column names, types, nullability, defaults, column comments, the primary key, indexes, and the table comment.
+parameters:
+  - name: schema_name
+    type: string
+    description: Schema name.
+  - name: table_name
+    type: string
+    description: Table, view, or materialized view name.
+statement: |
+  SELECT jsonb_build_object(
+    'schemaName', n.nspname,
+    'tableName', c.relname,
+    'relationKind', CASE c.relkind
+      WHEN 'r' THEN 'table'
+      WHEN 'p' THEN 'partitioned_table'
+      WHEN 'v' THEN 'view'
+      WHEN 'm' THEN 'materialized_view'
+      ELSE c.relkind::text
+    END,
+    'comment', pg_catalog.obj_description(c.oid, 'pg_class'),
+    'columns', (
+      SELECT coalesce(jsonb_agg(jsonb_build_object(
+        'name', a.attname,
+        'type', pg_catalog.format_type(a.atttypid, a.atttypmod),
+        'nullable', NOT a.attnotnull,
+        'default', pg_catalog.pg_get_expr(d.adbin, d.adrelid),
+        'comment', pg_catalog.col_description(c.oid, a.attnum)
+      ) ORDER BY a.attnum), '[]'::jsonb)
+      FROM pg_catalog.pg_attribute AS a
+      LEFT JOIN pg_catalog.pg_attrdef AS d
+        ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+      WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
+    ),
+    'primaryKey', (
+      SELECT coalesce(jsonb_agg(pa.attname ORDER BY key.ordinality), '[]'::jsonb)
+      FROM pg_catalog.pg_index AS i
+      CROSS JOIN LATERAL unnest(i.indkey) WITH ORDINALITY AS key(attnum, ordinality)
+      JOIN pg_catalog.pg_attribute AS pa
+        ON pa.attrelid = c.oid AND pa.attnum = key.attnum
+      WHERE i.indrelid = c.oid AND i.indisprimary AND key.attnum > 0
+    ),
+    'indexes', (
+      SELECT coalesce(jsonb_agg(jsonb_build_object(
+        'name', ic.relname,
+        'isPrimary', ix.indisprimary,
+        'isUnique', ix.indisunique,
+        'definition', pg_catalog.pg_get_indexdef(ix.indexrelid)
+      ) ORDER BY ic.relname), '[]'::jsonb)
+      FROM pg_catalog.pg_index AS ix
+      JOIN pg_catalog.pg_class AS ic ON ic.oid = ix.indexrelid
+      WHERE ix.indrelid = c.oid
+    )
+  ) AS description
+  FROM pg_catalog.pg_class AS c
+  JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace
+  WHERE n.nspname = $1
+    AND c.relname = $2
+    AND c.relkind IN ('r', 'p', 'v', 'm')
+---
+kind: tool
+name: execute_readonly_sql
+type: postgres-sql
+source: readonly-postgres
+description: |
+  Run one read-only SQL statement. Only a single SELECT, WITH, or EXPLAIN is allowed.
+  Writes, DDL, and multiple statements are rejected. At most 500 rows are returned, and the statement times out after 15 seconds.
+  readonly_mcp.execute_readonly_sql must already be installed before this tool is called.
+parameters:
+  - name: sql
+    type: string
+    description: One SELECT, WITH, or EXPLAIN. Do not append a second statement.
+statement: SELECT readonly_mcp.execute_readonly_sql($1) AS result
+---
+kind: tool
+name: sample_rows
+type: postgres-sql
+source: readonly-postgres
+description: Read up to 500 sample rows from one table. SQL text is not accepted.
+parameters:
+  - name: schema_name
+    type: string
+    description: Schema name.
+  - name: table_name
+    type: string
+    description: Table name.
+  - name: row_limit
+    type: integer
+    description: Requested row count, clamped from 1 to 500. Defaults to 20 when omitted.
+    default: 20
+    minValue: 1
+    maxValue: 500
+statement: SELECT readonly_mcp.sample_rows($1, $2, $3) AS result
+---
+kind: toolset
+name: postgres_readonly
+tools:
+  - list_schemas
+  - list_tables
+  - describe_table
+  - execute_readonly_sql
+  - sample_rows

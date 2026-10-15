@@ -73,6 +73,7 @@ needs a new server provider, controller, database entity or other executable ser
 | `linear`   | Issues, projects and team workflows          | Workspace Connector OAuth                                              |
 | `atlassian` | Jira, Confluence, and other Atlassian cloud data the user can access | Workspace Connector OAuth; minimum scope is the v2 protected-resource list |
 | `supabase` | Database/project inspection                  | Workspace Connector OAuth; MCP endpoint forces read-only mode          |
+| `postgres-readonly` | Read-only PostgreSQL through a separate MCP Toolbox server | No packaged credential. Internal network; static keys stay in Infisical or the Toolbox process |
 | `stripe`   | Stripe account reads and requested API writes | Workspace Connector OAuth; scope `mcp` |
 | `sentry`   | Errors, issues and diagnostics               | Workspace Connector OAuth                                              |
 | `clickup`  | Tasks, docs, and workspace hierarchy the user can access | Workspace Connector OAuth; scopes `read` and `write` |
@@ -167,7 +168,7 @@ corepack pnpm quickstart --install \
   --api-url http://localhost:3333 \
   --org-id "$XPERT_ORG_ID" \
   --workspace-id "$XPERT_WORKSPACE_ID" \
-  asana notion slack google-drive github figma monday linear atlassian supabase stripe sentry clickup canva
+  asana notion slack google-drive github figma monday linear atlassian supabase postgres-readonly stripe sentry clickup canva
 ```
 
 `XPERT_PLATFORM_ROOT` is the source checkout with dependencies installed. The
@@ -197,7 +198,7 @@ System Integration and create a **shared** workspace binding for provider
 
 ```sh
 corepack pnpm quickstart --pack --output-dir /tmp/xpert-agent-plugins \
-  documents pdf presentations spreadsheets exa asana notion slack google-drive github figma monday linear atlassian supabase stripe sentry clickup canva-cn canva
+  documents pdf presentations spreadsheets exa asana notion slack google-drive github figma monday linear atlassian supabase postgres-readonly stripe sentry clickup canva-cn canva
 ```
 
 Upload a ZIP through **Settings > Plugins > Agent Plugins**, choose the workspace
