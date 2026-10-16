@@ -43,14 +43,16 @@ export function createPostgresWorkbench(config: ClientConfig, schema = 'public')
         if (options.signal?.aborted) { abort(); return }
         options.signal?.addEventListener('abort', abort, { once: true })
         const queryConfig: QueryArrayConfig = { text: sql, values: parameters, rowMode: 'array' }
-        const query = new Query(queryConfig)
+        // pg installs a callback when query_timeout is enabled, suppressing error events.
+        const onError = (error: Error & { code?: string }) => fail(error.code && /^[A-Z0-9_]+$/.test(error.code) ? error.code : 'database_execution_failed')
+        const query = new Query(queryConfig, (error) => { if (error) onError(error) })
         query.on('row', (row: unknown[]) => {
           const values = row.map((value): DatabaseValue => value == null ? null : typeof value === 'boolean' || typeof value === 'number' || typeof value === 'string' ? value : JSON.stringify(value))
           bytes += Buffer.byteLength(JSON.stringify(values))
           if (bytes > 8 * 1024 * 1024) { fail('result_byte_limit_exceeded'); return }
           if (rows.length < options.maxRows) rows.push(values); else truncated = true
         })
-        query.on('error', (error: Error & { code?: string }) => fail(error.code && /^[A-Z0-9_]+$/.test(error.code) ? error.code : 'database_execution_failed'))
+        query.on('error', onError)
         query.on('end', (result: { fields: FieldDef[]; rowCount: number | null }) => { if (settled) return; settled = true; cleanup(); resolve({ columns: columns(result.fields), rows, affectedRows: result.fields.length ? undefined : result.rowCount ?? 0, durationMs: Date.now() - began, hasMore: truncated, truncated, outcome: 'succeeded', diagnostics: [] }) })
         client.query(query)
       })
