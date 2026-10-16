@@ -1,0 +1,28 @@
+# Graph fragment, not a complete importable Assistant DSL.
+# Merge into the Assistant's nodes/connections and retain its model/workspace settings.
+nodes:
+  - key: dashboard-agent
+    type: agent
+    entity:
+      key: dashboard-agent
+      name: Dashboard
+      prompt: >-
+        Discover authorized business data and generate verified live dashboards.
+        Ask for clarification when the requested metric is unsupported.
+      options:
+        middlewares:
+          order: [live-dashboard-tools]
+  - key: live-dashboard-tools
+    type: workflow
+    entity:
+      key: live-dashboard-tools
+      type: middleware
+      provider: LiveDashboard
+      title: Live Dashboard
+      required: true
+      options: {}
+connections:
+  - key: dashboard-tools
+    type: workflow
+    from: dashboard-agent
+    to: live-dashboard-tools

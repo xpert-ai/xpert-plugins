@@ -1,0 +1,7 @@
+@import 'tailwindcss';
+@import '@xpert-ai/plugin-shadcn-ui/style.css';
+@source './**/*.{ts,tsx}';
+html,body,#root { width:100%; height:100%; margin:0; min-width:0; min-height:0; overflow:hidden; }
+.dashboard-shell { display:flex; flex-direction:column; width:100%; height:100%; min-width:0; min-height:0; overflow:hidden; background:var(--background); color:var(--foreground); }
+.canvas-panel { flex:1; min-width:0; min-height:0; overflow:hidden; }
+.editor-panel { display:flex; flex-direction:column; gap:12px; flex:1; min-width:0; min-height:0; overflow:hidden; }

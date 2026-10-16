@@ -1,0 +1,35 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "maple",
+  "name": "Live Dashboard",
+  "colors": {
+    "primary": "#0f766e",
+    "light": "#14b8a6",
+    "dark": "#115e59"
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "文档",
+        "groups": [
+          {
+            "group": "接入与验证",
+            "pages": [
+              "index",
+              "html-mode",
+              "verification"
+            ]
+          },
+          {
+            "group": "历史验收",
+            "pages": [
+              "acceptance",
+              "agent-acceptance",
+              "html-acceptance"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

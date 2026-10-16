@@ -451,6 +451,63 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
 
+  apps/live-dashboard:
+    devDependencies:
+      '@langchain/core':
+        specifier: 0.3.72
+        version: 0.3.72
+      '@nestjs/common':
+        specifier: ^11.1.6
+        version: 11.1.13(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/core':
+        specifier: ^11.1.6
+        version: 11.1.13(@nestjs/common@11.1.13)(@nestjs/websockets@11.2.5)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@tailwindcss/vite':
+        specifier: ^4.3.2
+        version: 4.3.3(vite@7.3.6)
+      '@types/node':
+        specifier: ^20.19.9
+        version: 20.19.43
+      '@types/react':
+        specifier: ^18.3.24
+        version: 18.3.31
+      '@types/react-dom':
+        specifier: ^18.3.7
+        version: 18.3.7(@types/react@18.3.31)
+      '@xpert-ai/community-data-analytics':
+        specifier: workspace:^
+        version: link:../../roles/data-analytics
+      '@xpert-ai/contracts':
+        specifier: ^3.21.0
+        version: 3.21.3(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(zod@3.25.67)
+      '@xpert-ai/plugin-sdk':
+        specifier: ^3.21.0
+        version: 3.22.2(@a2ui/lit@0.8.3)(@langchain/core@0.3.72)(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@26.4.2)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.0)(zod@3.25.67)
+      '@xpert-ai/plugin-shadcn-ui':
+        specifier: workspace:*
+        version: link:../../../packages/shadcn-ui
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.1
+        version: 18.3.1(react@18.3.1)
+      reflect-metadata:
+        specifier: ^0.2.2
+        version: 0.2.2
+      tailwindcss:
+        specifier: ^4.3.2
+        version: 4.3.3
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.2
+      vite:
+        specifier: ^7.3.0
+        version: 7.3.6(@types/node@20.19.43)
+      zod:
+        specifier: 3.25.67
+        version: 3.25.67
+
   apps/material-identity-governance:
     dependencies:
       '@tailwindcss/cli':
