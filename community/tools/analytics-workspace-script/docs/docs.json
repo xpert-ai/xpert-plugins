@@ -1,0 +1,27 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "maple",
+  "name": "Workspace Script Analytics",
+  "colors": {
+    "primary": "#0f766e",
+    "light": "#14b8a6",
+    "dark": "#115e59"
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "文档",
+        "groups": [
+          {
+            "group": "脚本数据集",
+            "pages": [
+              "index",
+              "verification",
+              "acceptance"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

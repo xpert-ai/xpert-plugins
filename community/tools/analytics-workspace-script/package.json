@@ -1,0 +1,56 @@
+{
+  "name": "@xpert-ai/plugin-analytics-workspace-script",
+  "version": "0.1.0",
+  "description": "Workspace Python/JavaScript analytics provider over governed Sandbox Jobs",
+  "main": "./index.cjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./index.cjs",
+      "default": "./index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "index.cjs",
+    "README.md",
+    "docs",
+    ".xpertai-plugin",
+    "examples"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/build-action.mjs",
+    "verify:dist": "node scripts/build-action.mjs --verify",
+    "test": "pnpm run build && node --test tests/*.test.cjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "license": "AGPL-3.0",
+  "private": true,
+  "xpert": {
+    "plugin": {
+      "level": "system",
+      "artifactNamespace": "workspace_script"
+    }
+  },
+  "peerDependencies": {
+    "@xpert-ai/plugin-sdk": "^3.21.0",
+    "@xpert-ai/contracts": "^3.21.0",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "zod": "3.25.67",
+    "@langchain/core": ">=0.3.0"
+  },
+  "devDependencies": {
+    "@xpert-ai/plugin-sdk": "^3.21.0",
+    "@xpert-ai/contracts": "^3.21.0",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "zod": "3.25.67",
+    "typescript": "^5.9.2",
+    "@types/node": "^20.19.9",
+    "reflect-metadata": "^0.2.2",
+    "@langchain/core": "0.3.72"
+  }
+}
