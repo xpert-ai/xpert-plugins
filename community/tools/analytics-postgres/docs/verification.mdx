@@ -1,0 +1,56 @@
+---
+title: "Build and verification"
+description: "Verify package loading separately from live PostgreSQL and dashboard acceptance."
+---
+
+## Host prerequisites
+
+Use a host SDK/contracts build that exports AnalyticsProvider, AnalyticsQueryProvider,
+DataSourceRuntimeCapability and the Dataset/Binding contracts. The source checkout
+currently provides these additions; a compatible npm version range alone does not prove
+that a released SDK contains them. Align published minimum versions before release.
+
+The system plugin is installed with tenant scope in the Default tenant. Install the
+PostgreSQL database plugin too, and configure a platform-managed PostgreSQL source.
+Use normal authenticated installation and current-viewer source permissions.
+Database-principal privileges remain authoritative.
+
+## Local checks
+
+From the community workspace:
+
+```sh
+corepack pnpm --dir tools/analytics-postgres test
+corepack pnpm --dir tools/analytics-postgres typecheck
+```
+
+Tests cover positional values, actor/connection scope, discovery, explicit OID conversion,
+unknown input rejection, duplicate columns, incomplete results, cancellation propagation,
+partial totals and adapter cleanup. A lifecycle run through `plugin-dev-harness` verifies
+packaged loading and Nest injection using host capability mocks; it does not query a database.
+
+## Optional real PostgreSQL test
+
+Inject standard `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD` and `PGDATABASE` variables
+through your approved local environment. Set `XPERT_POSTGRES_ADAPTER_MODULE` to the built
+PostgreSQL plugin's `dist/lib/postgres-workbench.js`, then rerun the tests. Do not commit
+credentials. Without that variable, the real database test explicitly skips.
+
+The fixture uses inline rows and checks Dataset normalization, filters, injection-like
+parameter values, partial results and rejected writes. The write attempt must be rejected
+by the read-only adapter before execution. It also checks SQLSTATE errors return promptly
+and a subsequent query succeeds.
+
+## Product acceptance
+
+Separately verify a real Agent-generated dashboard, declared filter controls, refresh,
+save/reopen and rejection of undeclared frontend queries in the intended host environment.
+These UI/SSO checks are not established by unit tests, packaging or lifecycle loading.
+
+## Troubleshooting
+
+- `POSTGRES_ENGINE_REQUIRED`: select a PostgreSQL source.
+- `POSTGRES_PARAMETER_ORDER_INVALID`: align resolved parameters with `parameterOrder`.
+- `POSTGRES_PARAMETER_TYPE_REQUIRED`: cast nullable placeholders, such as `$1::text`.
+- `POSTGRES_DUPLICATE_COLUMNS`: provide unique SQL output aliases.
+- `POSTGRES_QUERY_INCOMPLETE`: inspect the driver's pending/unknown outcome before retrying.
