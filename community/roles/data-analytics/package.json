@@ -27,6 +27,11 @@
       "types": "./dist/index.d.ts",
       "require": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./renderer": {
+      "types": "./mcp/renderer.d.cts",
+      "require": "./mcp/renderer.cjs",
+      "default": "./mcp/renderer.cjs"
     }
   },
   "files": [
@@ -44,7 +49,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.lib.json",
     "lint": "echo \"(todo) add lint\"",
-    "test": "tsc -p tsconfig.spec.json --noEmit"
+    "test": "node --test test/renderer.test.cjs && tsc -p test/tsconfig.json && tsc -p tsconfig.spec.json --noEmit"
   },
   "dependencies": {
     "tslib": "^2.3.0"

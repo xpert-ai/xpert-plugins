@@ -1,8 +1,15 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { z } from 'zod'
 import { XpertTypeEnum, type I18nObject } from '@xpert-ai/contracts'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import { PLUGIN_NAME, pluginIcon } from './lib/constants'
 import { XpertAIDataAnalyticsPluginModule } from './lib/role-plugin.module'
+
+const packageMetadata: {
+  version: string
+  xpert: { plugin: Pick<XpertPlugin['meta'], 'level'> }
+} = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8'))
 
 const ConfigSchema = z.object({})
 const text = (en_US: string, zh_Hans: string): I18nObject => ({ en_US, zh_Hans })
@@ -141,8 +148,8 @@ const roleDraft = {
 const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   meta: {
     name: PLUGIN_NAME,
-    version: "0.1.34",
-    level: 'organization',
+    version: packageMetadata.version,
+    level: packageMetadata.xpert.plugin.level,
     category: "tools",
     icon: {
       type: 'svg',

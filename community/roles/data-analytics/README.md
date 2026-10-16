@@ -58,3 +58,30 @@ The published plugin does not require users to install Node.js dependencies. For
 ```sh
 npm ci
 ```
+
+## Reuse the renderer from another plugin
+
+The Node-only `@xpert-ai/community-data-analytics/renderer` entry loads the packaged
+HTML without starting the Data Analytics plugin, NestJS or its MCP stdio server:
+
+```javascript
+const { readWidgetHtmlAsset, hostedArtifactHtml } = require('@xpert-ai/community-data-analytics/renderer')
+
+const template = readWidgetHtmlAsset('datascience-artifact-widget.html')
+const html = hostedArtifactHtml(template, validatedPayload)
+```
+
+`readWidgetHtmlAsset` accepts the artifact, chart and table widget names listed in
+`DATA_ANALYTICS_WIDGET_ASSETS` and returns the original decompressed bytes.
+`hostedArtifactHtml` embeds an already validated, JSON-serializable Data Analytics
+payload into a trusted template and sets the existing read-only hosting UI flags.
+It does not sanitize arbitrary HTML or enforce data permissions.
+
+The consuming plugin owns Dataset-to-renderer translation, authorized queries,
+iframe isolation, filtering, refresh and Artifact persistence. Build tools can copy
+the original renderer into their own distributable without importing MCP server
+internals. Agent-authored HTML uses the separate platform Artifact document host.
+
+Run `corepack pnpm test` in this package for byte-preservation, MCP compatibility,
+script-embedding and public-type checks. Build the package with `corepack pnpm build`
+and run its dist-first lifecycle through `plugin-dev-harness` before release.
