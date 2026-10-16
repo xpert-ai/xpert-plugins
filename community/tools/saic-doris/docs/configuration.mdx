@@ -1,0 +1,66 @@
+---
+title: 连接配置
+description: 每个智能体中间件或 MCP 工具集独立选择平台或手填连接
+---
+
+安装两个配套插件后，按使用场景配置连接：
+
+- **从模板创建专家**：打开 **创建专家 → 智能体 → 模板**，搜索 `SAIC` 并选择 **SAIC 供应链配置助手**。选择目标工作空间和名称，点击 **安装并发布**。随后打开助手编辑器，确认支持工具调用的模型，配置 **SAIC Doris** 中间件连接并重新发布。模板已预置对话触发器、中间件、供应链操作说明与起始问题。
+- **平台数字专家**：在智能体节点的**中间件**中添加 **SAIC Doris**，直接配置该中间件。保存后，数字专家可调用全部 24 个工具，无需发布 MCP 服务。
+- **WorkBuddy 等外部客户端**：在 **MCP 管理** 中选中已有服务，打开 **配置连接** 页签。页面回显该服务绑定的连接，修改后保存即可，不需要重新选择提供程序或填写 WorkBuddy 地址。旧宿主的管理接口见 [MCP 发布与接入](/mcp)。
+
+中间件与 MCP 配置页签提供相同的连接表单；MCP 管理接口接受同一配置对象。两者配置独立，不会互相覆盖或借用凭据。明确选择 `mode`，不在插件全局配置或工具调用参数中填写连接。缺失配置、权限不足或连接失效时明确报错，不自动切换模式。以下示例适用于两种入口。
+
+模板不预填连接模式、数据源 ID、主机、密码或固定模型；宿主可沿用当前组织默认模型。安装成功后仍需配置连接。它只维护六张配置表，不会自动建表、采集网页、发送邮件或启动定时任务。插件升级只更新模板目录，不自动覆盖已创建专家的配置。
+
+模板还预置上下文压缩、循环保护、模型重试和工具消息修复，参考 ClawXpert 的运行保护组合。模板无需沙箱，不预置待办事项、网页检索、文件、图片和技能中间件。辅助能力依赖宿主可用的对应 Provider；不可用时应明确报告限制，不通过脚本直连数据库。旧模板创建的专家需要手动移除待办事项和网页检索中间件（若启用了沙箱，还需关闭沙箱并移除文件、图片和技能中间件），或从新模板创建。
+
+普通工具提供商目录保留 SAIC Doris。旧工具授权弹窗不完整支持数据源动态下拉、条件显示和原生 MCP 工具展示，不作为本文的 MCP 连接配置入口。数字专家使用中间件表单；MCP 连接在当前服务的 **配置连接** 页签中编辑。无需独立的“配置工具集连接”弹窗。
+
+## 平台 Doris 数据源
+
+在专家编辑器中选中 **SAIC Doris** 中间件，把 **连接方式** 设为 **平台 Doris 数据源**，从 **Doris 数据源** 下拉框选择已经配置好的数据源，保存并重新发布专家。平台保管原有账号密码，无需在中间件中重复填写。随后让助手调用 `ping`，核对返回的 `db` 是否为预期数据库。
+
+```json
+{
+  "mode": "platform",
+  "dataSourceId": "REPLACE_WITH_AUTHORIZED_DATASOURCE_ID",
+  "streamLoadEnabled": true,
+  "streamLoadMinRows": 500,
+  "streamLoadChunkSize": 50000
+}
+```
+
+数据源下拉框从 `/api/saic-doris/datasources` 读取当前身份有权访问的列表，仅保留显式 `engine === 'doris'` 的记录。数据源改名不影响引擎识别。调用时重新检查租户、组织、身份、数据源权限与连接配置。撤销权限或修改源配置后，后续调用不会复用旧连接。
+
+FE HTTP 主机、端口、TLS 和允许重定向的 BE 主机由 Doris 数据源的 `apiHost`、`apiPort`、`use_ssl`、`streamLoadHosts` 配置。平台模式不把这些凭据或选项复制到 MCP 参数中。
+
+## 手填连接
+
+```json
+{
+  "mode": "manual",
+  "host": "doris.example.invalid",
+  "port": 9030,
+  "username": "saic_config_user",
+  "password": "REPLACE_IN_SECRET_INPUT",
+  "database": "saic_fixture",
+  "feHost": "doris-fe.example.invalid",
+  "fePort": 8030,
+  "streamLoadHosts": ["doris-be.example.invalid"],
+  "useSsl": false,
+  "streamLoadEnabled": true,
+  "streamLoadMinRows": 500,
+  "streamLoadChunkSize": 50000
+}
+```
+
+密码通过平台密码控件输入；数据库账号没有密码时可留空，插件按空密码连接，不修改数据库认证方式。示例使用保留域名和占位值。SQL 端口默认 `9030`；FE HTTP 默认 `8030`；`feHost` 留空时使用 SQL 主机。`sslCa` 可填写 SQL TLS CA 的 PEM 内容。`useSsl` 同时选择 SQL TLS 和 FE HTTPS；HTTP 信任根使用 Node 系统信任配置。
+
+`streamLoadHosts` 填精确主机名或 IP，不填协议、路径和端口，不支持通配符。初始 FE 主机自动允许，其他 BE 主机需显式配置。重定向仅允许相同协议、相同导入路径、允许列表内主机，最多四跳；Location 中的用户名和密码不会覆盖配置凭据。
+
+## 批量导入
+
+默认达到 500 行尝试 Stream Load，低于阈值走参数化 INSERT。单工具调用最多 500 行；高级分块大小默认 50000、允许 1–50000，因此默认一次调用最多一个块。可降低阈值或分块大小。
+
+`Success` 和 `Publish Timeout` 按原业务规则接受；有过滤行、失败或未确认结果时回退 SQL 全行 INSERT。客户端取消不回退。关闭 Stream Load 可设置 `streamLoadEnabled: false`。超时回退可能重复覆盖同一 UNIQUE KEY，见[兼容边界](/compatibility)。

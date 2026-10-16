@@ -1,0 +1,65 @@
+---
+title: 工具契约
+description: 24 个工具的参数、默认值与业务返回
+---
+
+连接配置不属于任何工具的参数。参数无默认值表示必填；带默认值的参数可省略，null 表示原接口的 None。返回键以源码中的 outputSchema 为准，业务错误保持 error 对象。
+
+## 读取工具
+
+| 工具 | 输入参数 | 返回字段 / 上限 |
+| --- | --- | --- |
+| `ping` | 无 | rowCount, truncated, data（db/usr/mcp_build） |
+| `get_server_time` | 无 | rowCount, truncated, data（current_dt/current_date_val/current_time_val/current_unix_ts）；1 |
+| `list_config_tables` | 无 | rowCount, truncated, data（TABLE_NAME/TABLE_COMMENT/TABLE_ROWS） |
+| `describe_config_table` | `table_name: str` | table, columns, create_statement；列上限 200 |
+| `show_buckets` | `table_name: str` | table, distribution_key, buckets_in_ddl, tablet_count, size, note；可选 create_table_error |
+| `get_tasks` | `include_inactive: bool = false` | rowCount, truncated, data；100 |
+| `get_tasks_changed_spec` | 无 | rowCount, data（含 expected_hash）；只检查前 100 个启用任务 |
+| `get_tasks_needing_onboarding` | 无 | rowCount, truncated, data；100 |
+| `get_part_dict` | 无 | rowCount, truncated, data；5000 |
+| `get_owners` | 无 | rowCount, truncated, data；500 |
+| `get_ship_rules` | 无 | rowCount, truncated, data；100 |
+| `check_dict_issues` | `part_numbers: list` | checked, missing_in_dict, blank_hsac, blank_name, blank_owner, owners_missing_email；前 3000 个非空输入 |
+| `get_run_log` | `run_date: str = null`<br />`task_code: str = null`<br />`limit: int = 50` | rowCount, truncated, data；limit 最大 200 |
+| `get_agent_runs` | `status: str = null`<br />`limit: int = 20` | rowCount, truncated, data；limit 最大 100 |
+| `query_config` | `sql: str` | rowCount, truncated, data；500 |
+
+## 写入工具
+
+所有写工具均为非幂等标注，默认审批模式为 allow。管理员策略可覆盖。批量 upsert 单次最多 500 行。
+
+| 工具 | 输入参数 | 返回字段 |
+| --- | --- | --- |
+| `upsert_part_refs` | `rows: list` | table, rows, affected, note；Stream Load 额外 mode=stream |
+| `upsert_owners` | `rows: list` | table, rows, affected, note；Stream Load 额外 mode=stream |
+| `upsert_ship_rules` | `rows: list` | table, rows, affected, note；Stream Load 额外 mode=stream |
+| `create_task` | `task_seq: int`<br />`task_code: str`<br />`task_name: str`<br />`site_code: str`<br />`spec_text: str`<br />`url: str = null`<br />`freq: str = "daily"`<br />`output_pattern: str = null`<br />`enters_matrix: bool = true` | seq_no, task_code, affected, spec_hash, agent_status |
+| `update_task` | `task_seq: int`<br />`spec_text: str = null`<br />`url: str = null`<br />`freq: str = null`<br />`task_name: str = null`<br />`output_pattern: str = null`<br />`enters_matrix: bool = null`<br />`active: bool = null`<br />`new_task_code: str = null` | table, affected, mode |
+| `set_task_agent_state` | `task_seq: int`<br />`status: str`<br />`question: str = null`<br />`answer: str = null`<br />`session_id: str = null`<br />`parse_result_json: str = null` | table, affected, mode, seq_no, status；记录不存在时 error, seq_no, status |
+| `insert_run_log` | `run_date: str`<br />`task_seq: int`<br />`status: str`<br />`task_code: str = null`<br />`output_file: str = null`<br />`row_count: int = null`<br />`byte_count: int = null`<br />`factory_check: str = null`<br />`error_msg: str = null` | affected, run_date, task_seq |
+| `insert_agent_run` | `run_id: str`<br />`triggered_by: str`<br />`task_seqs: str = null`<br />`status: str = "running"`<br />`kind: str = null`<br />`thread_id: str = null`<br />`principal_user: str = null`<br />`summary: str = null`<br />`task_codes: str = null` | affected, run_id |
+| `update_agent_run` | `run_id: str`<br />`status: str = null`<br />`result_json: str = null`<br />`mark_finished: bool = false`<br />`summary: str = null`<br />`thread_id: str = null` | table, affected, mode |
+
+## 行字段与主键
+
+通过 describe_config_table 获取当前数据库列类型。以下为写入校验必填列；所有可选列、最大字符长度与类型见插件 `src/lib/tables.ts` 中 COLSPEC。未知列拒绝。
+
+| 表 | 主键 | 必填列 |
+| --- | --- | --- |
+| sc_part_cross_ref | customer_part_no | customer_part_no |
+| sc_owner | owner_name | owner_name, email |
+| sc_ship_rule | factory_code, source_tag | factory_code, source_tag, offset_days |
+| sc_task | seq_no | seq_no, task_code, task_name, site_code, spec_text |
+| sc_run_log | run_date, task_seq | run_date, task_seq |
+| sc_agent_run | run_id | run_id, triggered_by |
+
+任务/Agent 状态集合：`idle`、`queued`、`running`、`need_info`、`done`、`failed`。insert_run_log 与 insert_agent_run 保留原始状态写入行为，不额外套用更新接口的状态枚举校验。
+
+## Schema 资源
+
+`schema://saic/config-tables` 返回 JSON 数组，每项包含 TABLE_NAME、TABLE_COMMENT、columns。通过固定 information_schema 查询限定当前数据库及六张表，上限 50。资源没有调用参数，不缓存跨连接结果。
+
+## 错误约定
+
+空数组、未知列、缺必填列、批量超限、无更新字段、重复任务主键/标签、缺失记录或无效状态返回原业务 error 对象。数据库执行、权限和配置异常属于执行错误。安全拒绝及边界差异见[兼容说明](/compatibility)。
