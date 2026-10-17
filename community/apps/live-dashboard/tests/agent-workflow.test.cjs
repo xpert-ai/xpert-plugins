@@ -1,5 +1,6 @@
 const { test } = require('node:test')
 const assert = require('node:assert/strict')
+const { randomUUID } = require('node:crypto')
 const { DashboardMiddleware } = require('../dist/lib/middleware.js')
 const example = require('../examples/postgres-sales.json')
 const context = { xpertId: 'assistant', tenantId: 'tenant', organizationId: 'org', userId: 'viewer' }
@@ -10,7 +11,12 @@ function draft() {
 }
 function setup(options = {}) {
   const calls = []; let denied = false
+  const saved = { artifactId: randomUUID(), versionId: randomUUID(), versionNumber: 1, manifest: structuredClone(example) }
   const service = {
+    async list() { return [{ artifactId: saved.artifactId, versionId: saved.versionId, title: saved.manifest.title }] },
+    async open(scope, artifactId, versionId) { if (denied) throw new Error('REVOKED'); if (artifactId !== saved.artifactId || versionId && versionId !== saved.versionId) throw new Error('ACCESS_DENIED'); calls.push(['open', scope, artifactId, versionId]); return structuredClone(saved) },
+    async history(scope, artifactId) { await this.open(scope, artifactId); return [{ artifactId, versionId: saved.versionId, versionNumber: 1 }] },
+    async update(scope, artifactId, versionId, changes) { await this.open(scope, artifactId); calls.push(['update', scope, artifactId, versionId, changes]); return { artifactId, draftRevision: 1, status: "draft" } },
     async sources() { return [] },
     async discover(scope, input) { calls.push(['discover', scope, input]); return { items: [], queryContract: { operation: 'query', contractVersion: 1 } } },
     async preview(scope, input) { if (denied) throw new Error('REVOKED'); calls.push(['preview', scope, input]); return { rows: Array.from({ length: 25 }, (_, i) => ({ n: i })), completeness: { returnedRows: 25, truncated: false } } },
@@ -22,8 +28,8 @@ function setup(options = {}) {
     async readRuntimeBuffer(path) { if (!files.has(path)) throw new Error('WORKSPACE_FILE_NOT_FOUND'); return { buffer: files.get(path) } }
   }) } } }
   const strategy = new DashboardMiddleware(service), middleware = strategy.createMiddleware(options, runtimeContext)
-  const invoke = (name, input) => middleware.tools.find(t => t.name === name).invoke(input)
-  return { middleware, calls, files, invoke, revoke: () => { denied = true }, another: () => strategy.createMiddleware({}, context) }
+  const invoke = (name, input, config) => middleware.tools.find(t => t.name === name).invoke(input, config)
+  return { middleware, service, calls, files, saved, invoke, revoke: () => { denied = true }, another: () => strategy.createMiddleware({}, context) }
 }
 test('Agent saves only run-local preview receipts, canonical defaults and discovered operations', async () => {
   const s = setup(), { input, binding } = draft()
@@ -66,7 +72,9 @@ test('Agent HTML workflow requires a real Workspace file and exact preview evide
   assert.deepEqual(manifest.presentation, { type: 'html', html })
   assert.deepEqual(manifest.charts, []); assert.equal(manifest.bindings.length, 1)
   s.files.set(args.path, Buffer.from(html.replace('Custom', 'Another')))
-  await s.invoke('dashboard_create_html', args)
+  await assert.rejects(s.invoke('dashboard_create_html', args), /ALREADY_CREATED/)
+  assert.equal(s.calls.filter(c => c[0] === 'save').length, 1)
+  await s.invoke('dashboard_create_html', { ...args, title: 'A distinct dashboard' })
   assert.notEqual(s.calls.filter(c => c[0] === 'save').at(-1)[2].id, manifest.id)
 })
 test('model JSON text boundary rejects non-objects and uses a bounded tool budget', async () => {
@@ -113,9 +121,189 @@ test('failed preview gives no save evidence; guidance preserves existing system 
   await assert.rejects(s.invoke('dashboard_create', input), /PREVIEW_REQUIRED/)
   let content
   await s.middleware.wrapModelCall({ systemMessage: { content: 'Existing system instructions' } }, async r => { content = r.systemMessage.content })
-  assert.match(JSON.stringify(content), /Existing system instructions/); assert.match(JSON.stringify(content), /Never invent fields/)
+  assert.match(JSON.stringify(content), /Existing system instructions/); assert.match(JSON.stringify(content), /Do not invent business data/)
 })
 
+test('nullable dimension filters cannot save until real non-default rows pass explicit expectations', async () => {
+  const s = setup(), { input, binding } = draft()
+  binding.parameters[0].defaultValue = null; binding.parameters[0].allowedValues = [null, 'east', 'west']
+  input.controls[0].defaultValue = null; input.controls[0].allowedValues = [null, 'east', 'west']
+  const rows = [{ region: 'east', amount: 10 }, { region: 'west', amount: 20 }]
+  s.service.preview = async () => ({ rows, completeness: { returnedRows: 2, truncated: false } })
+  await s.invoke('dashboard_discover', { dataSourceId: binding.dataSourceId, providerId: binding.providerId })
+  const preview = JSON.parse(await s.invoke('dashboard_preview', { binding }))
+  input.previewIds = [preview.previewId]
+  const check = { previewId: preview.previewId, controls: { region: 'east' }, expectations: [{ fieldId: 'region', oneOf: ['east'] }] }
+  await assert.rejects(s.invoke('dashboard_create', input), /FILTER_TEST_REQUIRED/)
+  await assert.rejects(s.invoke('dashboard_test_filter', check), /FILTER_TEST_FAILED/)
+  await assert.rejects(s.invoke('dashboard_create', input), /FILTER_TEST_REQUIRED/)
+  assert.equal(s.calls.filter(c => c[0] === 'save').length, 0)
+  s.service.preview = async () => ({ rows: [], completeness: { truncated: false } })
+  await assert.rejects(s.invoke('dashboard_test_filter', check), /INCONCLUSIVE/)
+  s.service.preview = async () => ({ rows: [rows[0]], completeness: { returnedRows: 1, truncated: false } })
+  assert.equal(JSON.parse(await s.invoke('dashboard_test_filter', { ...check, controls: JSON.stringify(check.controls), expectations: JSON.stringify(check.expectations) })).passed, true)
+  await s.invoke('dashboard_create', input)
+  await assert.rejects(s.invoke('dashboard_test_filter', { ...check, previewId: 'invented' }), /PREVIEW_REQUIRED/)
+  await assert.rejects(s.invoke('dashboard_test_filter', { ...check, controls: { injected: 'east' } }), /UNKNOWN_CONTROL/)
+  const changed = { ...binding, payloadJson: '{"sql":"SELECT changed"}' }
+  const changedPreview = JSON.parse(await s.invoke('dashboard_preview', { binding: changed }))
+  await assert.rejects(s.invoke('dashboard_create', { ...input, previewIds: [changedPreview.previewId] }), /FILTER_TEST_REQUIRED/)
+})
+
+test('editing reads the selected immutable version, preserves bindings and returns the same Artifact', async () => {
+  const s = setup(), html = '<html><body>' + 'a'.repeat(17000) + '</body></html>'
+  const dependencies = [{ id: 'echarts', version: '5.5.0', format: 'classic-script', global: 'echarts', sha256: 'a'.repeat(64) }]
+  s.saved.manifest = { ...s.saved.manifest, charts: [], tables: [], presentation: { type: 'html', html, dependencies } }
+  await assert.rejects(s.invoke('dashboard_open', {}), /TARGET_REQUIRED/)
+  const selected = { schemaVersion: 1, artifactId: s.saved.artifactId, versionId: s.saved.versionId }
+  const opened = JSON.parse(await s.invoke('dashboard_open', {}, { context: { executionId: 'current-execution' }, configurable: { context: { live_dashboard: selected } } }))
+  assert.equal(opened.versionId, selected.versionId)
+  assert.equal(opened.presentation.html, undefined)
+  assert.deepEqual(opened.presentation.dependencies, dependencies)
+  const first = JSON.parse(await s.invoke('dashboard_read_html', { editId: opened.editId }))
+  const rest = JSON.parse(await s.invoke('dashboard_read_html', { editId: opened.editId, offset: first.nextOffset }))
+  assert.equal(first.html + rest.html, html); assert.equal(rest.nextOffset, null)
+  s.files.set(opened.htmlPath, Buffer.from(html.replace('body>', 'body class="light">')))
+  const receipt = JSON.parse(await s.invoke('dashboard_update', { editId: opened.editId, expectedRevision: opened.expectedRevision, expectedCurrentVersionId: opened.expectedCurrentVersionId, htmlPath: opened.htmlPath, title: 'Changed style' })).dashboard
+  assert.equal(receipt.artifactId, selected.artifactId); assert.equal(receipt.draftRevision, 1)
+  const call = s.calls.find(c => c[0] === 'update')
+  assert.equal(call[2], selected.artifactId); assert.equal(call[3], 0)
+  assert.deepEqual(call[4].bindings, example.bindings); assert.equal(call[4].id, undefined)
+  assert.deepEqual(call[4].presentation.dependencies, dependencies)
+  assert.equal(s.calls.filter(c => c[0] === 'save').length, 0)
+  assert.equal(JSON.parse(await s.invoke('dashboard_history', { artifactId: selected.artifactId })).versions.length, 1)
+  assert.equal(JSON.parse(await s.another().tools.find(t => t.name === 'dashboard_update').invoke({ editId: opened.editId, expectedRevision: opened.expectedRevision, expectedCurrentVersionId: opened.expectedCurrentVersionId, title: 'Other run' })).dashboard.artifactId, selected.artifactId)
+  s.revoke()
+  await assert.rejects(s.invoke('dashboard_read_html', { editId: opened.editId }), /REVOKED/)
+  await assert.rejects(s.invoke('dashboard_update', { editId: opened.editId, expectedRevision: opened.expectedRevision, expectedCurrentVersionId: opened.expectedCurrentVersionId, title: 'Denied' }), /REVOKED/)
+})
+
+test('library discovery returns pins only and explicit edits select the packaged version', async () => {
+  const s = setup()
+  const catalog = JSON.parse(await s.invoke('dashboard_libraries', {}))
+  assert.equal(JSON.stringify(catalog).includes('"source"'), false)
+  const opened = JSON.parse(await s.invoke('dashboard_open', { artifactId: s.saved.artifactId }))
+  s.files.set('dashboards/library.html', Buffer.from('<html><body>Library</body></html>'))
+  await s.invoke('dashboard_update', { editId: opened.editId, expectedRevision: opened.expectedRevision, expectedCurrentVersionId: opened.expectedCurrentVersionId, htmlPath: 'dashboards/library.html', libraries: ['echarts'] })
+  const dependencies = s.calls.find(c => c[0] === 'update')[4].presentation.dependencies
+  assert.equal(dependencies.length, 1)
+  assert.equal(dependencies[0].id, 'echarts')
+  assert.equal(dependencies[0].version, '5.6.0')
+  assert.match(dependencies[0].sha256, /^[a-f0-9]{64}$/)
+  await assert.rejects(s.invoke('dashboard_update', { editId: opened.editId, expectedRevision: opened.expectedRevision, expectedCurrentVersionId: opened.expectedCurrentVersionId, libraries: ['https://untrusted.invalid/script.js'] }))
+})
+
+test('data updates require fresh complete preview receipts and never accept identity or raw bindings', async () => {
+  const s = setup(), opened = JSON.parse(await s.invoke('dashboard_open', { artifactId: s.saved.artifactId }))
+  await assert.rejects(s.invoke('dashboard_update', { editId: opened.editId, expectedRevision: opened.expectedRevision, expectedCurrentVersionId: opened.expectedCurrentVersionId, previewIds: ['invented'] }), /PREVIEW_REQUIRED/)
+  const { updateToolSchema } = require('../dist/lib/editing.js')
+  for (const extras of [{ id: randomUUID() }, { artifactId: randomUUID() }, { versionId: randomUUID() }, { bindings: example.bindings }, { expectedVersionId: randomUUID() }])
+    assert.equal(updateToolSchema.safeParse({ editId: opened.editId, expectedRevision: opened.expectedRevision, expectedCurrentVersionId: opened.expectedCurrentVersionId, ...extras }).success, false)
+  const changed = { ...structuredClone(example.bindings[0]), payload: { sql: 'SELECT region, amount FROM changed' } }
+  await s.invoke('dashboard_discover', { dataSourceId: changed.dataSourceId, providerId: changed.providerId })
+  const preview = JSON.parse(await s.invoke('dashboard_preview_binding', { bindingJson: JSON.stringify(changed) }))
+  await s.invoke('dashboard_update', { editId: opened.editId, expectedRevision: opened.expectedRevision, expectedCurrentVersionId: opened.expectedCurrentVersionId, previewIds: JSON.stringify([preview.previewId]) })
+  assert.deepEqual(s.calls.find(c => c[0] === 'update')[4].bindings, [changed])
+  const restricted = setup({ allowedFinalProviders: ['workspace_script.query'] })
+  const edit = JSON.parse(await restricted.invoke('dashboard_open', { artifactId: restricted.saved.artifactId }))
+  await assert.rejects(restricted.invoke('dashboard_update', { editId: edit.editId, expectedRevision: edit.expectedRevision, expectedCurrentVersionId: edit.expectedCurrentVersionId, title: 'Style' }), /PROVIDER_REQUIRED/)
+})
+
+test('sandbox mutations require a receipt for the same file and exact bytes', async () => {
+  const { ToolMessage } = require('@langchain/core/messages')
+  const { workspaceFileMutationMetadata } = require('@xpert-ai/plugin-sdk')
+  const { createHash } = require('node:crypto')
+  const s = setup(); s.saved.manifest.presentation = { type: 'html', html: '<html><body>Initial</body></html>' }
+  const opened = JSON.parse(await s.invoke('dashboard_open', { artifactId: s.saved.artifactId }))
+  const call = (name, args, content, status = 'success', metadata) => s.middleware.wrapToolCall({ toolCall: { name, args, id: 'call' }, tool: { metadata } },
+    async () => new ToolMessage({ content, name, tool_call_id: 'call', status }))
+  const path = opened.htmlPath
+  s.files.set(path, Buffer.from('<html><body>Changed</body></html>'))
+  await call('sandbox_edit_file', { file_path: path }, '{}', 'success', workspaceFileMutationMetadata)
+  const pending = async expected => s.middleware.wrapModelCall({ tools: [] }, async request => assert.equal(request.toolChoice, expected ? 'required' : undefined))
+  await pending(true)
+  await call('dashboard_update', {}, 'DRAFT_CONFLICT', 'error'); await pending(true)
+  const output = { dashboard: { artifactId: s.saved.artifactId, draftRevision: 3, status: 'draft' },
+    sourceFile: { path, sha256: createHash('sha256').update(s.files.get(path)).digest('hex') } }
+  await call('dashboard_update', {}, JSON.stringify({ ...output, dashboard: { ...output.dashboard, artifactId: randomUUID() } })); await pending(true)
+  await call('dashboard_update', {}, JSON.stringify({ ...output, sourceFile: { ...output.sourceFile, path: 'unrelated.html' } })); await pending(true)
+  await call('dashboard_update', {}, JSON.stringify({ ...output, sourceFile: { ...output.sourceFile, sha256: '0'.repeat(64) } })); await pending(true)
+  await call('dashboard_update', {}, JSON.stringify(output)); await pending(false)
+  await call('sandbox_append_file', { file_path: path }, '{}', 'success', workspaceFileMutationMetadata)
+  await assert.rejects(s.middleware.wrapModelCall({ tools: [] }, async () => ({ tool_calls: [] })), /SAVE_NOT_CONFIRMED/)
+})
+
+test('opening prepares independent copies and only explicit update saves the draft', async () => {
+  const s = setup(); const html = '<html><body>Saved page</body></html>'
+  s.saved.manifest.presentation = { type: 'html', html }
+  const first = JSON.parse(await s.invoke('dashboard_open', { artifactId: s.saved.artifactId }))
+  assert.equal(s.files.get(first.htmlPath).toString(), html)
+  s.files.set(first.htmlPath, Buffer.from(html.replace('Saved', 'Unsaved')))
+  const second = JSON.parse(await s.invoke('dashboard_open', { artifactId: s.saved.artifactId }))
+  assert.notEqual(first.htmlPath, second.htmlPath)
+  assert.equal(s.files.get(first.htmlPath).toString(), html.replace('Saved', 'Unsaved'))
+  assert.equal(s.files.get(second.htmlPath).toString(), html)
+  assert.equal(s.calls.filter(c => c[0] === 'update').length, 0)
+  const history = JSON.parse(await s.invoke('dashboard_open', { artifactId: s.saved.artifactId, versionId: s.saved.versionId }))
+  assert.equal(history.htmlPath, undefined)
+  assert.equal(s.middleware.tools.some(t => t.name === 'dashboard_write_html'), true)
+  const receipt = JSON.parse(await s.invoke('dashboard_update', { editId: first.editId, expectedRevision: first.expectedRevision,
+    expectedCurrentVersionId: first.expectedCurrentVersionId, htmlPath: first.htmlPath, title: 'Saved changes' }))
+  assert.equal(receipt.dashboard.artifactId, s.saved.artifactId)
+  assert.equal(receipt.sourceFile.path, first.htmlPath)
+  assert.match(receipt.sourceFile.sha256, /^[a-f0-9]{64}$/)
+})
+
+test('a concurrent file edit remains pending after an earlier save receipt', async () => {
+  const { dashboardSaveEvidence } = require('../dist/lib/save-evidence.js')
+  const { createHash } = require('node:crypto')
+  const path = 'dashboards/current.html', artifactId = randomUUID(), buffer = Buffer.from('saved bytes')
+  let releaseRead
+  const evidence = dashboardSaveEvidence(() => ({ readRuntimeBuffer: () => new Promise(resolve => { releaseRead = () => resolve({ buffer }) }) }))
+  evidence.opened(path, artifactId); evidence.write(path)
+  const receipt = { dashboard: { artifactId, status: 'draft', draftRevision: 2 }, sourceFile: { path, sha256: createHash('sha256').update(buffer).digest('hex') } }
+  const saving = evidence.accept(evidence.beginSave(), JSON.stringify(receipt))
+  evidence.write(path); releaseRead(); await saving
+  assert.equal(evidence.pending, true)
+  assert.deepEqual(evidence.pendingPaths, [path])
+  const resaving = evidence.accept(evidence.beginSave(), JSON.stringify(receipt))
+  releaseRead(); await resaving
+  assert.equal(evidence.pending, false)
+})
+
+test('HTML paths reject nameless, ambiguous and escaping paths before writing or saving', () => {
+  const { htmlPathSchema } = require('../dist/lib/agent.schema.js')
+  for (const path of ['  .html', '.html', 'dashboards/.html', '/workspace/page.html', '../page.html', 'a/../page.html', 'a//page.html', 'page.html '])
+    assert.equal(htmlPathSchema.safeParse(path).success, false, path)
+  for (const path of ['dashboards/sales.html', 'dashboards/销售.html']) assert.equal(htmlPathSchema.parse(path), path)
+})
+
+test('Agent saves require explicit control defaults before browser preflight', () => {
+  const { createHtmlToolSchema } = require('../dist/lib/agent.schema.js')
+  const base = { title: 'Sales', path: 'dashboards/sales.html', previewIds: ['verified'],
+    controls: [{ controlId: 'region', type: 'string', label: 'Region' }] }
+  const invalid = createHtmlToolSchema.safeParse(base)
+  assert.equal(invalid.success, false)
+  assert.ok(invalid.error.issues.some(issue => issue.path.includes('controls')))
+  assert.equal(createHtmlToolSchema.safeParse({ ...base, controls: [{ ...base.controls[0], defaultValue: null }] }).success, true)
+})
+
+
+test('repeated creation retries advance the cached draft revision for the same Artifact', async () => {
+  const s = setup(), { input, binding } = draft(), artifactId = randomUUID(), expectations = []
+  s.service.save = async (_scope, _manifest, expectedVersionId, expectedRevision = 0) => {
+    expectations.push({ expectedVersionId, expectedRevision })
+    assert.equal(expectedRevision, expectations.length - 1)
+    return { artifactId, draftRevision: expectations.length, baseVersionId: null, status: 'draft' }
+  }
+  await s.invoke('dashboard_discover', { dataSourceId: binding.dataSourceId, providerId: binding.providerId })
+  input.previewIds = [JSON.parse(await s.invoke('dashboard_preview', { binding })).previewId]
+  for (let revision = 1; revision <= 3; revision++) {
+    const result = JSON.parse(await s.invoke('dashboard_create', input)).dashboard
+    assert.equal(result.artifactId, artifactId); assert.equal(result.draftRevision, revision)
+  }
+  assert.deepEqual(expectations.map(item => item.expectedVersionId), [null, null, null])
+})
 
 test('Agent discovers frontend pins and saves only explicitly requested libraries', async () => {
   const s = setup(), { input, binding } = draft()

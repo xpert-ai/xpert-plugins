@@ -6,7 +6,7 @@ import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { once } from 'node:events'
 const require = createRequire(`${process.argv[2]}/package.json`)
-const { chromium } = require('playwright')
+const { chromium } = require('playwright-core')
 const server = spawn(process.execPath, [fileURLToPath(new URL('./workbench-host.cjs', import.meta.url))], {
   env: { ...process.env, PORT: '0' }, stdio: ['ignore', 'pipe', 'pipe']
 })
@@ -41,10 +41,10 @@ try {
   await renderer.getByRole('cell', { name: 'east', exact: true }).waitFor()
   await renderer.getByRole('cell', { name: 'west', exact: true }).waitFor()
   let stored = await state()
-  assert.equal(stored.versions, 1)
+  assert.equal(stored.versions, 0)
   assert.deepEqual(stored.storedManifests, [example])
-  const first = stored.artifacts[0].currentVersion
   const artifactId = stored.artifacts[0].id
+  assert.deepEqual(stored.selection, { schemaVersion: 1, artifactId, draftRevision: 1 })
 
   await view.getByLabel('区域', { exact: true }).click()
   await view.getByRole('option', { name: 'west', exact: true }).click()
@@ -53,23 +53,40 @@ try {
   assert.equal(await renderer.getByRole('cell', { name: 'east', exact: true }).count(), 0)
   assert.equal((await state()).parameters.at(-1).region, 'west')
   const beforeRefresh = (await state()).queries
+  const refreshed = page.waitForResponse(response => response.url() === `${url}/rpc` && response.request().postDataJSON()?.actionKey === 'query')
   await view.getByRole('button', { name: '刷新', exact: true }).click()
+  await refreshed
   await renderer.getByRole('cell', { name: 'west', exact: true }).waitFor()
   assert.equal((await state()).queries, beforeRefresh + 1)
 
-  await view.getByRole('button', { name: '编辑定义', exact: true }).click()
+  await view.getByRole('button', { name: '发布草稿', exact: true }).click()
+  await view.getByRole('button', { name: '取消', exact: true }).click()
+  assert.equal((await state()).versions, 0)
+  await view.getByRole('button', { name: '发布草稿', exact: true }).click()
+  await view.getByRole('button', { name: '确认发布', exact: true }).click()
+  await view.getByRole('combobox', { name: '版本历史', exact: true }).filter({ hasText: '版本 1' }).waitFor()
+  const first = (await state()).artifacts[0].currentVersion
+  await view.getByRole('button', { name: '编辑工作草稿', exact: true }).click()
   await view.getByLabel('看板定义', { exact: true }).fill(JSON.stringify({ ...example, title: 'Newer edit' }))
   await view.getByRole('button', { name: '保存', exact: true }).click()
   await view.frameLocator('iframe[title="Newer edit"]').getByRole('cell', { name: 'east', exact: true }).waitFor()
-  assert.equal((await state()).versions, 2)
-
-  const opened = page.waitForRequest(request => request.url() === `${url}/rpc` && request.postDataJSON()?.query?.parameters?.versionId === first.id)
-  await page.evaluate(({ artifactId, versionId }) => send({ type: 'hostEvent', event: {
-    type: 'assistant.tool.completed', toolName: 'dashboard_create', data: { output: { dashboard: { artifactId, versionId } } }
-  } }), { artifactId, versionId: first.id })
-  await opened
+  assert.equal((await state()).versions, 1, 'Editing only changes the draft')
+  await view.getByRole('combobox', { name: '版本历史', exact: true }).click()
+  await view.getByRole('option', { name: '版本 1', exact: true }).click()
   await renderer.getByRole('cell', { name: 'east', exact: true }).waitFor()
-  assert.equal((await state()).versions, 2, 'Opening a receipt must not create a version')
+  assert.equal((await state()).selection.versionId, first.id)
+  const opened = page.waitForRequest(request => request.url() === `${url}/rpc` && request.postDataJSON()?.query?.parameters?.artifactId === artifactId)
+  await page.evaluate(({ artifactId }) => send({ type: 'hostEvent', event: {
+    type: 'assistant.tool.completed', toolName: 'dashboard_update', data: { output: { dashboard: { artifactId, draftRevision: 2, status: 'draft' } } }
+  } }), { artifactId })
+  await opened
+  await view.frameLocator('iframe[title="Newer edit"]').getByRole('cell', { name: 'east', exact: true }).waitFor()
+  assert.equal((await state()).selection.draftRevision, 2)
+  assert.equal((await state()).versions, 1, 'Opening a draft receipt must not publish')
+  await view.getByRole('button', { name: '发布草稿', exact: true }).click()
+  await view.getByRole('button', { name: '确认发布', exact: true }).click()
+  await view.getByRole('combobox', { name: '版本历史', exact: true }).filter({ hasText: '版本 2' }).waitFor()
+  assert.equal((await state()).versions, 2)
   const frame = page.frames().find(frame => frame.url() === `${url}/view`)
   assert.deepEqual(await frame.evaluate(() => ['localStorage', 'sessionStorage'].map(name => {
     try { void window[name]; return 'accessible' } catch (error) { return error.name }
@@ -82,7 +99,7 @@ try {
   assert.equal((await state()).versions, 2)
   if (process.argv[3]) await page.screenshot({ path: process.argv[3], fullPage: true })
   assert.deepEqual(errors, [])
-  console.log(JSON.stringify({ passed: ['save', 'filter', 'fresh query', 'receipt version pinning', 'opaque origin', 'reopen current version'] }))
+  console.log(JSON.stringify({ passed: ['draft save', 'cancel publication', 'confirmed publication', 'filter', 'fresh query', 'draft receipt preview', 'version history', 'Assistant selection', 'update receipt', 'opaque origin', 'reopen current version'] }))
 } catch (error) {
   // This host contains synthetic data only. Keep failure evidence for the exact production bundle.
   if (page) {

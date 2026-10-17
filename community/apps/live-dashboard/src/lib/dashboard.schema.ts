@@ -58,8 +58,12 @@ export const dashboardSchema = z.object({
  * native query payloads stay opaque here and belong to their provider. Saved versions contain no rows.
  */
 export type DashboardManifest = z.output<typeof dashboardSchema>
+/** Updates never choose identity or source scope; those come from the authorized saved version. */
+export const dashboardChangesSchema = dashboardSchema.innerType().pick({ title: true, bindings: true,
+  controls: true, charts: true, tables: true, presentation: true }).partial().strict()
+export type DashboardChanges = z.output<typeof dashboardChangesSchema>
 export const controlsSchema = z.record(z.union([z.string().max(4000), z.number().finite(), z.boolean(), z.null()]))
-export const saveSchema = z.object({ manifest: dashboardSchema, expectedVersionId: z.string().uuid().nullable() }).strict()
-export const querySchema = z.object({ artifactId: z.string().uuid(), versionId: z.string().uuid(), controls: controlsSchema.default({}) }).strict()
+export const saveSchema = z.object({ manifest: dashboardSchema, expectedVersionId: z.string().uuid().nullable(), expectedRevision: z.number().int().nonnegative().default(0) }).strict()
+export const querySchema = z.object({ artifactId: z.string().uuid(), versionId: z.string().uuid().optional(), draftRevision: z.number().int().positive().optional(), controls: controlsSchema.default({}) }).strict()
 /** Generated pages select a saved Binding by ID. Query text, provider and source overrides are rejected. */
 export const queryBindingSchema = querySchema.extend({ bindingId: id }).strict()

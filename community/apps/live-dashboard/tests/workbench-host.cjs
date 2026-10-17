@@ -8,8 +8,8 @@ const { DashboardViewProvider } = require('../dist/lib/view.provider.js')
 const { normalizeAnalyticsResult, resolveAnalyticsParameters } = require('@xpert-ai/plugin-sdk/analytics')
 const sourceId = '22222222-2222-4222-8222-222222222222'
 const scope = { tenantId: 'tenant', organizationId: 'organization', userId: 'viewer', hostType: 'agent', hostId: 'assistant', slots: [] }
-const artifacts = new Map(), files = new Map(), versions = new Map()
-const receipts = { queries: 0, parameters: [], saves: 0 }
+const artifacts = new Map(), files = new Map(), versions = new Map(), drafts = new Map()
+const receipts = { queries: 0, parameters: [], saves: 0, selection: null }
 const manifest = require('../examples/postgres-sales.json')
 const source = { id: sourceId, name: 'Acceptance sales', type: 'pg', providers: [] }
 const capabilities = {
@@ -27,6 +27,25 @@ const capabilities = {
   'platform.workspace.files': {
     async uploadBuffer(input) { const filePath = `${input.folder}/${input.fileName}`; files.set(filePath, Buffer.from(input.buffer)); return { filePath, workspacePath: `/workspace/${filePath}` } },
     async readBuffer(reference) { return { buffer: files.get(reference.filePath) } }
+  },
+  'platform.artifact-drafts': {
+    async list(ids) { return [...drafts.values()].filter(draft => ids.includes(draft.artifactId)) },
+    async get(id) { return drafts.get(id) ?? null },
+    async save(input) {
+      const artifact = artifacts.get(input.artifactId), previous = drafts.get(artifact.id)
+      if ((previous?.revision ?? 0) !== input.expectedRevision || (artifact.currentVersionId ?? null) !== input.expectedCurrentVersionId) throw Error('DRAFT_CONFLICT')
+      const draft = { ...input, id: previous?.id ?? randomUUID(), revision: input.expectedRevision + 1, baseVersionId: input.expectedCurrentVersionId,
+        publishedRevision: previous?.publishedRevision ?? null, publishedVersionId: previous?.publishedVersionId ?? null }
+      drafts.set(artifact.id, draft); receipts.saves++
+      return draft
+    },
+    async publish(input) {
+      const draft = drafts.get(input.artifactId)
+      if (draft.revision !== input.expectedRevision) throw Error('DRAFT_CONFLICT')
+      const { version } = await capabilities['platform.artifacts'].ensureArtifactVersion({ ...draft, ...input, idempotencyKey: `draft:${draft.revision}` })
+      draft.baseVersionId = version.id; draft.publishedRevision = draft.revision; draft.publishedVersionId = version.id
+      return version
+    }
   },
   'platform.artifacts': {
     async listArtifacts() { return { items: [...artifacts.values()], total: artifacts.size, page: 1, pageSize: 100 } },
@@ -53,7 +72,7 @@ const frame=document.getElementById('view');const instanceId='acceptance-host';
 function send(message){frame.contentWindow.postMessage({channel:'xpertai.remote_component',protocolVersion:1,instanceId,...message},'*')}
 window.addEventListener('message',async event=>{if(event.source!==frame.contentWindow||event.origin!=='null'||event.data.channel!=='xpertai.remote_component')return;const message=event.data;
 if(message.type==='ready'){send({type:'init',locale:'zh-Hans',theme:{mode:'light',density:'default',tokens:{}},manifest:{},payload:{}});return}
-if(message.instanceId!==instanceId||!['requestData','executeAction'].includes(message.type))return;
+if(message.instanceId!==instanceId||!['requestData','executeAction','invokeClientCommand'].includes(message.type))return;
 try{const response=await fetch('/rpc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(message)});const data=await response.json();if(!response.ok)throw new Error(data.message);send({type:message.type==='requestData'?'data':'actionResult',requestId:message.requestId,data})}catch(error){send({type:'error',requestId:message.requestId,message:error.message})}})
 </script></body></html>`
 const server = http.createServer(async (request, response) => {
@@ -68,6 +87,11 @@ const server = http.createServer(async (request, response) => {
       const chunks = []; let size = 0
       for await (const chunk of request) { size += chunk.length; if (size > 600000) throw new Error('Too large'); chunks.push(chunk) }
       const message = JSON.parse(Buffer.concat(chunks).toString())
+      if (message.type === 'invokeClientCommand') {
+        if (message.commandKey !== 'assistant.context.set' || message.payload.key !== 'live_dashboard') throw Error('Unsupported command')
+        receipts.selection = message.payload.context
+        response.end(JSON.stringify({ success: true })); return
+      }
       const result = message.type === 'requestData' ? await provider.getViewData(scope, 'live-dashboard', message.query) : await provider.executeViewAction(scope, 'live-dashboard', message.actionKey, { input: message.input })
       response.end(JSON.stringify(result)); return
     }

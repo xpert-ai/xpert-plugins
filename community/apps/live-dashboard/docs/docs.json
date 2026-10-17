@@ -18,6 +18,11 @@
               "index",
               "html-mode",
               "frontend-libraries",
+              "frontend-libraries-acceptance",
+              "drafts",
+              "drafts-acceptance",
+              "editing",
+              "evolution-acceptance",
               "verification"
             ]
           },

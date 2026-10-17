@@ -1,6 +1,7 @@
 export async function validateDocument(input, browser, hostPath) {
 const errors = [], addError = value => { const message = String(value).slice(0, 300); if (errors.length < 16 && !errors.includes(message)) errors.push(message) }
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } })
+  try {
   const page = await context.newPage()
   await page.route('**/*', route => route.abort('blockedbyclient'))
   page.on('pageerror', error => addError(error.message))
@@ -14,8 +15,14 @@ const errors = [], addError = value => { const message = String(value).slice(0, 
       html: input.html, context: input.context, dependencies: input.dependencies ?? [],
       query: async request => {
         window.validation.requestedBindings.push(request.bindingId)
-        if (!input.datasets[request.bindingId]) throw Error('DOCUMENT_BINDING_DENIED')
-        if (Object.keys(request.controls).length !== Object.keys(input.context.defaults).length || Object.entries(input.context.defaults).some(([key, value]) => request.controls[key] !== value)) throw Error('DOCUMENT_INITIAL_CONTROLS_MISMATCH')
+        if (!input.datasets[request.bindingId]) {
+          window.validation.errors.push('DOCUMENT_BINDING_DENIED')
+          throw Error('DOCUMENT_BINDING_DENIED')
+        }
+        if (Object.keys(request.controls).length !== Object.keys(input.context.defaults).length || Object.entries(input.context.defaults).some(([key, value]) => request.controls[key] !== value)) {
+          window.validation.errors.push('DOCUMENT_INITIAL_CONTROLS_MISMATCH: initial query controls must match saved controls.defaultValue, including null')
+          throw Error('DOCUMENT_INITIAL_CONTROLS_MISMATCH')
+        }
         return input.datasets[request.bindingId]
       }, onError: code => window.validation.errors.push(code)
     })
@@ -28,6 +35,6 @@ const errors = [], addError = value => { const message = String(value).slice(0, 
   const renderedTextLength = frame ? (await frame.locator('body').innerText()).trim().length : 0
   if (!renderedTextLength) addError('DOCUMENT_EMPTY_PAGE')
   if (!state.requestedBindings.length) addError('DOCUMENT_INITIAL_QUERY_MISSING')
-  await context.close()
   return { ok: !errors.length, errors, requestedBindings: [...new Set(state.requestedBindings)], renderedTextLength }
+  } finally { await context.close() }
 }

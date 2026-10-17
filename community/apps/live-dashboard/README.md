@@ -21,7 +21,12 @@ The platform owns Dataset/Binding validation, source authorization and dispatch.
 
 ## One-sentence Agent workflow
 
-Tools are `dashboard_list_sources`, `dashboard_discover`, `dashboard_preview`, `dashboard_preview_binding`, `dashboard_create`, `dashboard_write_html` and `dashboard_create_html`. The canonical preview tool accepts complete `bindingJson` returned by an adapter registration tool. Both preview tools use the same discovery and receipt checks. The middleware adds business-semantic guidance while preserving the host system message. It requires discovery and a successful preview of the exact binding/defaults before creation via run-local `previewId` receipts; save revalidates current source access. Evidence is local to the run and actor, and repeated creation of the same manifest rechecks authorization before reusing its Artifact.
+For existing dashboards, use `dashboard_list`, `dashboard_open`, `dashboard_read_html`, `dashboard_history` and `dashboard_update`.
+The Workbench supplies its selected Artifact/version through the platform context command. Open returns the stable Artifact ID and current draft revision;
+update preserves identity and omitted fields, requires fresh preview receipts for replacement bindings, and uses the existing validation/CAS path.
+Successful update receipts open the saved working draft; only human publication creates a formal version. See [continuous editing](docs/editing.mdx).
+
+Tools are `dashboard_list_sources`, `dashboard_discover`, `dashboard_preview`, `dashboard_preview_binding`, `dashboard_create`, `dashboard_open`, `dashboard_update` and `dashboard_create_html`. File authoring can use the platform SandboxFile middleware or the retained dashboard_write_html tool; file writes alone do not save a draft. The canonical preview tool accepts complete `bindingJson` returned by an adapter registration tool. Both preview tools use the same discovery and receipt checks. The middleware adds business-semantic guidance while preserving the host system message. It requires discovery and a successful preview of the exact binding/defaults before creation via run-local `previewId` receipts; save revalidates current source access. Evidence is local to the run and actor, and repeated creation of the same manifest rechecks authorization before reusing its Artifact.
 
 Specialized Assistants may configure `allowedFinalProviders` on the middleware, for example `["workspace_script.query"]`. Upstream discovery and preview still work with other providers, but Agent save rejects final bindings outside this list. Omit it for the existing unrestricted provider workflow. This is an Agent workflow policy, not a substitute for the server's source/Artifact authorization.
 
@@ -84,3 +89,5 @@ Eight bindings, 24 controls, 20 charts/tables each, 100 listed dashboards per ho
 ## Documentation
 
 See [integration and architecture](docs/index.mdx), [build and verification](docs/verification.mdx), and the dated historical acceptance records linked there. The package includes the examples. Source-side `scripts/build-action.mjs --verify-package <extracted-package>` verifies the actual packed HTML validation Action.
+
+Draft autosave and human publication: [workflow and architecture](docs/drafts.mdx), [SSO acceptance (2026-10-17)](docs/drafts-acceptance.mdx).

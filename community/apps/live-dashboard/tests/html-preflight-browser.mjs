@@ -15,6 +15,8 @@ try {
   assert.equal(good.ok, true); assert.deepEqual(good.requestedBindings, ['sales'])
   const missing = await validateDocument({ ...input, html: html("try{await live.query('totals',{})}catch{}") }, browser, hostPath)
   assert.equal(missing.ok, false); assert(missing.errors.includes('DOCUMENT_BINDING_DENIED'))
+  const mismatch = await validateDocument({ ...input, context: { ...input.context, defaults: {} }, html: html("await live.query('sales',{region:null});") }, browser, hostPath)
+  assert.equal(mismatch.ok, false); assert(mismatch.errors.some(error => error.includes('DOCUMENT_INITIAL_CONTROLS_MISMATCH')))
   const render = await validateDocument({ ...input, html: html("live.subscribe('sales',()=>{const row=null;document.querySelector('output').textContent=row.amount});await live.query('sales',{});") }, browser, hostPath)
   assert.equal(render.ok, false); assert(render.errors.some(x=>x.includes('null')))
   const libraries = JSON.parse(await readFile(new URL('../dist/libraries/catalog.json', import.meta.url)))
@@ -29,5 +31,5 @@ try {
   assert.equal(missingLibrary.ok, false); assert(missingLibrary.errors.some(error=>error.includes('echarts')))
   const scene = await validateDocument({ ...input, dependencies: [three], html: html("const scene=new THREE.Scene();scene.add(new THREE.Mesh(new THREE.BoxGeometry(),new THREE.MeshBasicMaterial()));if(scene.children.length!==1)throw Error('THREE_NOT_READY');live.subscribe('sales',d=>document.querySelector('output').textContent=d.rows[0].amount);live.query('sales',{region:null});") }, browser, hostPath)
   assert.equal(scene.ok, true, JSON.stringify(scene.errors))
-  console.log(JSON.stringify({ passed: ['real Dataset render', 'caught undeclared Binding blocks save', 'render callback exception blocks save', 'packaged ECharts renders SVG', 'missing library blocks save', 'packaged Three.js scene'] }))
+  console.log(JSON.stringify({ passed: ['real Dataset render', 'caught undeclared Binding blocks save', 'actionable control default mismatch', 'render callback exception blocks save', 'packaged ECharts renders SVG', 'missing library blocks save', 'packaged Three.js scene'] }))
 } finally { await browser.close() }

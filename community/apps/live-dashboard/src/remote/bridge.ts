@@ -1,6 +1,6 @@
 import { z } from 'zod/v3'
 import { installShadcnThemeVars } from '@xpert-ai/plugin-shadcn-ui/theme'
-import { createdDashboard } from '../lib/dashboard-receipt'
+import { createdDashboard, DASHBOARD_MUTATION_TOOLS } from '../lib/dashboard-receipt'
 
 const envelope = z.object({ channel: z.literal('xpertai.remote_component'), protocolVersion: z.literal(1),
   type: z.string(), instanceId: z.string().optional(), requestId: z.string().optional(), locale: z.string().optional(),
@@ -13,7 +13,7 @@ let sequence = 0
 const pending = new Map<string, { resolve: (value: unknown) => void; reject: (error: Error) => void; timer: number }>()
 function post(type: string, body: object = {}) { window.parent.postMessage({ channel: 'xpertai.remote_component', protocolVersion: 1, instanceId, type, ...body }, '*') }
 /** Pass both immutable identities; opening only the Artifact could select a newer concurrent edit. */
-export function startBridge(onReady: (locale: string) => void, onCreated: (artifactId: string, versionId: string) => void) {
+export function startBridge(onReady: (locale: string) => void, onCreated: (artifactId: string) => void) {
   let lastCreatedVersion: string | undefined
   const listener = (event: MessageEvent<unknown>) => {
     if (event.source !== window.parent) return
@@ -31,11 +31,11 @@ export function startBridge(onReady: (locale: string) => void, onCreated: (artif
       onReady(message.locale ?? 'en-US'); return
     }
     if (!instanceId || message.instanceId !== instanceId) return
-    if (message.type === 'hostEvent' && message.event?.type === 'assistant.tool.completed' && ['dashboard_create', 'dashboard_create_html'].includes(message.event.toolName ?? '')) {
+    if (message.type === 'hostEvent' && message.event?.type === 'assistant.tool.completed' && DASHBOARD_MUTATION_TOOLS.includes(message.event.toolName ?? '')) {
       const receipt = createdDashboard(message.event.data?.output)
-      if (receipt && receipt.versionId !== lastCreatedVersion) {
-        lastCreatedVersion = receipt.versionId
-        onCreated(receipt.artifactId, receipt.versionId)
+      if (receipt && `${receipt.artifactId}:${receipt.draftRevision}` !== lastCreatedVersion) {
+        lastCreatedVersion = `${receipt.artifactId}:${receipt.draftRevision}`
+        onCreated(receipt.artifactId)
       }
       return
     }
@@ -48,11 +48,15 @@ export function startBridge(onReady: (locale: string) => void, onCreated: (artif
   window.addEventListener('message', listener); post('ready')
   return () => { window.removeEventListener('message', listener); for (const request of pending.values()) { clearTimeout(request.timer); request.reject(new Error('View closed')) }; pending.clear() }
 }
-export function requestHost(type: 'requestData' | 'executeAction', body: object): Promise<unknown> {
+export function requestHost(type: 'requestData' | 'executeAction' | 'invokeClientCommand', body: object): Promise<unknown> {
   if (!instanceId) return Promise.reject(new Error('View is not connected'))
   const requestId = `dashboard-${++sequence}`
   return new Promise((resolve, reject) => {
     const timer = window.setTimeout(() => { pending.delete(requestId); reject(new Error('Request timed out')) }, 270000)
     pending.set(requestId, { resolve, reject, timer }); post(type, { requestId, ...body })
   })
+}
+export function selectDashboard(target: { artifactId: string; versionId?: string; draftRevision?: number } | null) {
+  return requestHost('invokeClientCommand', { commandKey: 'assistant.context.set',
+    payload: { key: 'live_dashboard', ...(target ? { context: { schemaVersion: 1, ...target } } : { clear: true }) } })
 }

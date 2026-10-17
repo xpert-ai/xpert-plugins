@@ -7,8 +7,8 @@ const example = require('../examples/postgres-sales.json')
 
 function setup() {
   const context = { tenantId: 'tenant', organizationId: 'org', userId: 'owner', hostType: 'agent', hostId: 'assistant' }
-  const files = new Map(), artifacts = new Map(), versions = []
-  const calls = { queries: [], denied: false, rejectFilter: false, invalidHtml: false }
+  const files = new Map(), artifacts = new Map(), versions = [], drafts = new Map()
+  const calls = { queries: [], denied: false, rejectFilter: false, invalidHtml: false, failUpload: false }
   const capabilities = {
     'platform.datasource.analytics': {
       async query(actor, input) {
@@ -24,13 +24,36 @@ function setup() {
     },
     'platform.workspace.files': {
       async uploadBuffer(input) {
+        if (calls.failUpload) throw Error('UPLOAD_FAILED')
         assert.equal(input.mimeType, 'application/json', 'must use a platform-supported Artifact MIME type')
         const filePath = input.folder + '/' + input.fileName
         files.set(filePath, Buffer.from(input.buffer)); return { filePath }
       },
       async readBuffer(ref) { return { buffer: files.get(ref.filePath) } }
     },
+    'platform.artifact-drafts': {
+      async list(ids) { return [...drafts.values()].filter(draft => ids.includes(draft.artifactId)) },
+      async get(id) { return drafts.get(id) ?? null },
+      async save(input) {
+        const a = artifacts.get(input.artifactId), previous = drafts.get(a.id)
+        if ((previous?.revision ?? 0) !== input.expectedRevision || (a.currentVersionId ?? null) !== input.expectedCurrentVersionId) throw Error('DRAFT_CONFLICT')
+        const draft = { ...input, id: previous?.id ?? randomUUID(), revision: input.expectedRevision + 1, baseVersionId: input.expectedCurrentVersionId,
+          publishedRevision: previous?.publishedRevision ?? null, publishedVersionId: previous?.publishedVersionId ?? null }
+        drafts.set(a.id, draft); return draft
+      },
+      async publish(input) {
+        const draft = drafts.get(input.artifactId), a = artifacts.get(input.artifactId)
+        if (draft.revision !== input.expectedRevision) throw Error('DRAFT_CONFLICT')
+        if (draft.publishedRevision === draft.revision) return versions.find(v => v.id === draft.publishedVersionId)
+        assert.equal(a.currentVersionId ?? null, input.expectedCurrentVersionId)
+        const version = { ...draft, id: randomUUID(), versionNumber: versions.length + 1 }
+        versions.push(version); a.currentVersion = version; a.currentVersionId = version.id
+        draft.publishedRevision = draft.revision; draft.publishedVersionId = version.id; draft.baseVersionId = version.id
+        return version
+      }
+    },
     'platform.artifacts': {
+      async listArtifacts() { return { items: [...artifacts.values()] } },
       async findArtifactBySource(source) { return [...artifacts.values()].find(a => a.resourceId === source.resourceId) },
       async createArtifact(input) { const a = { id: randomUUID(), ...input.source, ...input.scope, title: input.title }; artifacts.set(a.id, a); return a },
       async getArtifact(id) { return artifacts.get(id) },
@@ -46,99 +69,122 @@ function setup() {
       }
     }
   }
-  return { context, files, artifacts, versions, calls, service: new DashboardService({ require: key => capabilities[key.id] }, { async validate(_context, manifest) { if (manifest.presentation && calls.invalidHtml) throw Error('DASHBOARD_HTML_PREFLIGHT_FAILED'); return manifest.presentation ? { status: 'passed', jobId: 'test-job', requestedBindings: manifest.bindings.map(b => b.id) } : null } }) }
+  return { context, files, artifacts, versions, drafts, calls, service: new DashboardService({ require: key => capabilities[key.id] }, { async validate(_context, manifest) { if (manifest.presentation && calls.invalidHtml) throw Error('DASHBOARD_HTML_PREFLIGHT_FAILED'); return manifest.presentation ? { status: 'passed', jobId: 'test-job', requestedBindings: manifest.bindings.map(b => b.id) } : null } }) }
 }
 
-test('save stores only a definition; reload/filter/refresh re-query with distinct executions', async () => {
-  const s = setup(); const saved = await s.service.save(s.context, example, null)
-  assert.deepEqual(JSON.parse([...s.files.values()][0]), example)
-  assert.equal(s.versions.length, 1)
-  const reload = await s.service.open(s.context, saved.artifactId)
-  assert.deepEqual(reload.manifest, example)
-  const first = await s.service.query(s.context, saved.artifactId, saved.versionId, { region: 'west' })
-  const refreshed = await s.service.query(s.context, saved.artifactId, saved.versionId, { region: 'west' })
-  assert.deepEqual(first.datasets[0].rows, [{ region: 'west', amount: 80 }])
-  assert.deepEqual(first.datasets[0].rows, refreshed.datasets[0].rows)
-  assert.notEqual(first.datasets[0].provenance.executionId, refreshed.datasets[0].provenance.executionId)
-  assert.equal(s.calls.queries.length, 4)
-})
-
-test('stale saves fail before source queries; idempotent retry still checks current source access', async () => {
-  const s = setup(); const saved = await s.service.save(s.context, example, null)
-  const edit = { ...example, title: 'Changed' }
-  await assert.rejects(s.service.save(s.context, edit, null), /VERSION_CONFLICT/)
-  assert.equal(s.calls.queries.length, 2)
-  const retry = await s.service.save(s.context, example, null)
-  assert.equal(retry.versionId, saved.versionId)
-  s.calls.denied = true
-  await assert.rejects(s.service.save(s.context, example, saved.versionId), /REVOKED/)
-  await assert.rejects(s.service.query(s.context, saved.artifactId, saved.versionId, {}), /REVOKED/)
-  assert.equal(s.versions.length, 1)
-})
-
-test('View opens the receipt version even when another edit is already current', async () => {
-  const { DashboardViewProvider } = require('../dist/lib/view.provider.js')
+test('persistent drafts reopen, filter and refresh without creating formal versions', async () => {
   const s = setup(), first = await s.service.save(s.context, example, null)
-  await s.service.save(s.context, { ...example, title: 'Newer edit' }, first.versionId)
-  s.service.list = async () => []
-  s.service.sources = async () => []
-  const view = new DashboardViewProvider(s.service)
-  const pinned = await view.getViewData(s.context, 'live-dashboard', { parameters: { artifactId: first.artifactId, versionId: first.versionId } })
-  assert.equal(pinned.meta.saved.versionId, first.versionId)
-  assert.equal(pinned.meta.saved.manifest.title, example.title)
-  const current = await view.getViewData(s.context, 'live-dashboard', { parameters: { artifactId: first.artifactId } })
-  assert.equal(current.meta.saved.manifest.title, 'Newer edit')
-  await assert.rejects(view.getViewData(s.context, 'live-dashboard', { parameters: { versionId: first.versionId } }), /version requires an Artifact/)
+  assert.equal(first.status, 'draft'); assert.equal(first.draftRevision, 1); assert.equal(first.versionNumber, undefined)
+  assert.equal(s.versions.length, 0)
+  const reopened = await s.service.open(s.context, first.artifactId)
+  assert.deepEqual(reopened.manifest, example); assert.equal(reopened.isDraft, true)
+  const a = await s.service.query(s.context, first.artifactId, undefined, { region: 'west' }, 1)
+  const b = await s.service.query(s.context, first.artifactId, undefined, { region: 'west' }, 1)
+  assert.deepEqual(a.datasets[0].rows, [{ region: 'west', amount: 80 }])
+  assert.notEqual(a.datasets[0].provenance.executionId, b.datasets[0].provenance.executionId)
+  const next = await s.service.update(s.context, first.artifactId, 1, { title: 'Revised' }, null)
+  assert.equal(next.artifactId, first.artifactId); assert.equal(next.draftRevision, 2)
+  assert.equal(s.versions.length, 0)
+  await assert.rejects(s.service.update(s.context, first.artifactId, 1, { title: 'Stale' }, null), /CONFLICT/)
+  await assert.rejects(s.service.query(s.context, first.artifactId, undefined, {}, 1), /CONFLICT/)
 })
 
-test('a default-only query cannot authorize saving a broken interactive filter', async () => {
-  const s = setup(); s.calls.rejectFilter = true
-  await assert.rejects(s.service.preview(s.context, { binding: example.bindings[0], controls: { region: 'all' } }), /FILTER_PREVIEW_FAILED/)
-  await assert.rejects(s.service.save(s.context, example, null), /FILTER_PREVIEW_FAILED/)
-  assert.equal(s.artifacts.size, 0); assert.equal(s.files.size, 0)
+test('human publication freezes reviewed bytes and preserves history during later edits', async () => {
+  const s = setup(), first = await s.service.save(s.context, example, null)
+  const v1 = await s.service.publish(s.context, first.artifactId, 1, null)
+  assert.equal(v1.versionNumber, 1)
+  assert.deepEqual(await s.service.publish(s.context, first.artifactId, 1, null), v1)
+  assert.equal(s.versions.length, 1)
+  const next = await s.service.update(s.context, first.artifactId, 1, { title: 'Second draft' }, v1.versionId)
+  assert.equal(s.versions.length, 1)
+  assert.equal((await s.service.open(s.context, first.artifactId, v1.versionId)).manifest.title, example.title)
+  const v2 = await s.service.publish(s.context, first.artifactId, next.draftRevision, v1.versionId)
+  assert.equal(v2.versionNumber, 2)
+  assert.equal((await s.service.history(s.context, first.artifactId)).length, 2)
 })
 
-test('host and owner isolation precede file reads; modified Workspace bytes cannot impersonate a saved version', async () => {
-  const s = setup(); const saved = await s.service.save(s.context, example, null)
-  for (const override of [{ userId: 'other' }, { organizationId: 'other' }, { hostId: 'other' }])
-    await assert.rejects(s.service.open({ ...s.context, ...override }, saved.artifactId), /ACCESS_DENIED/)
-  s.files.set([...s.files.keys()][0], Buffer.from(JSON.stringify({ ...example, title: 'Tampered' })))
-  await assert.rejects(s.service.open(s.context, saved.artifactId), /VERSION_CONTENT_CHANGED/)
-})
-
-test('HTML bytes and bindings are one immutable version; query endpoint cannot accept a replacement binding', async () => {
+test('draft library bytes remain pinned and content/ownership/query boundaries remain enforced', async () => {
+  const { libraryLocks } = require('../dist/lib/document-libraries.js')
   const { DashboardViewProvider } = require('../dist/lib/view.provider.js')
-  const s = setup(), html = '<html><body><main>Live</main><script>window.xpertLiveArtifact.ready()</script></body></html>'
-  const manifest = { ...example, charts: [], tables: [], presentation: { type: 'html', html } }
-  const saved = await s.service.save(s.context, manifest, null)
+  const s = setup(), locks = await libraryLocks(['echarts'])
+  const manifest = { ...example, charts: [], tables: [], presentation: { type: 'html', html: '<html><body>Chart</body></html>', dependencies: locks } }
+  const first = await s.service.save(s.context, manifest, null)
+  const before = await s.service.openDocument(s.context, first.artifactId)
+  const second = await s.service.update(s.context, first.artifactId, 1, { title: 'Changed' }, null)
+  assert.deepEqual((await s.service.openDocument(s.context, first.artifactId)).dependencies, before.dependencies)
+  assert.equal('dependencies' in await s.service.open(s.context, first.artifactId), false)
   const view = new DashboardViewProvider(s.service)
-  const input = { artifactId: saved.artifactId, versionId: saved.versionId, bindingId: manifest.bindings[0].id, controls: { region: 'west' } }
-  const response = await view.executeViewAction(s.context, 'live-dashboard', 'query-binding', { input })
-  assert.deepEqual(response.data.rows, [{ region: 'west', amount: 80 }])
-  assert.equal((await s.service.open(s.context, saved.artifactId)).manifest.presentation.html, html)
-  const count = s.calls.queries.length
-  for (const extras of [{ binding: example.bindings[0] }, { providerId: 'foreign' }, { payload: { sql: 'SELECT secret' } }, { dataSourceId: randomUUID() }])
-    await assert.rejects(view.executeViewAction(s.context, 'live-dashboard', 'query-binding', { input: { ...input, ...extras } }), error => error.getStatus() === 400 && /INVALID_QUERY/.test(error.message))
-  await assert.rejects(view.executeViewAction(s.context, 'live-dashboard', 'query-binding', { input: { ...input, bindingId: 'undeclared' } }), /BINDING_DENIED/)
-  await assert.rejects(view.executeViewAction(s.context, 'live-dashboard', 'query-binding', { input: { ...input, controls: { sql: 'SELECT secret' } } }), /UNKNOWN_CONTROL/)
-  await assert.rejects(view.executeViewAction({ ...s.context, userId: 'stranger' }, 'live-dashboard', 'query-binding', { input }), /ACCESS_DENIED/)
-  assert.equal(s.calls.queries.length, count)
-  const updated = await s.service.save(s.context, { ...manifest, presentation: { type: 'html', html: html.replace('Live', 'Changed') } }, saved.versionId)
-  assert.notEqual(updated.versionId, saved.versionId)
-  assert.equal((await s.service.open(s.context, saved.artifactId, saved.versionId)).manifest.presentation.html, html)
+  const input = { artifactId: first.artifactId, draftRevision: second.draftRevision, bindingId: manifest.bindings[0].id, controls: { region: 'west' } }
+  assert.deepEqual((await view.executeViewAction(s.context, 'live-dashboard', 'query-binding', { input })).data.rows, [{ region: 'west', amount: 80 }])
+  for (const extra of [{ binding: example.bindings[0] }, { payload: { sql: 'select secret' } }, { providerId: 'other' }, { dataSourceId: randomUUID() }])
+    await assert.rejects(view.executeViewAction(s.context, 'live-dashboard', 'query-binding', { input: { ...input, ...extra } }), /INVALID_QUERY/)
+  await assert.rejects(view.executeViewAction(s.context, 'live-dashboard', 'query-binding', { input: { ...input, bindingId: 'unknown' } }), /BINDING_DENIED/)
+  await assert.rejects(view.executeViewAction(s.context, 'live-dashboard', 'query-binding', { input: { ...input, controls: { sql: 'select secret' } } }), /UNKNOWN_CONTROL/)
+  await assert.rejects(view.executeViewAction(s.context, 'live-dashboard', 'publish', { input: { artifactId: first.artifactId, expectedRevision: 2, expectedCurrentVersionId: null } }))
+  for (const extra of [{ userId: 'other' }, { organizationId: 'other' }, { hostId: 'other' }])
+    await assert.rejects(s.service.open({ ...s.context, ...extra }, first.artifactId), /ACCESS_DENIED/)
   s.calls.denied = true
+  await assert.rejects(s.service.update(s.context, first.artifactId, 2, { title: 'Denied' }, null), /REVOKED/)
   await assert.rejects(view.executeViewAction(s.context, 'live-dashboard', 'query-binding', { input }), /REVOKED/)
+  await assert.rejects(s.service.publish(s.context, first.artifactId, 2, null), /REVOKED/)
+  s.calls.denied = false
+  for (const key of s.files.keys()) s.files.set(key, Buffer.from('tampered'))
+  await assert.rejects(s.service.open(s.context, first.artifactId), /CONTENT_CHANGED/)
 })
 
- test('HTML preflight failure never creates or changes an Artifact', async () => {
-  const s = setup(), manifest = { ...example, charts: [], tables: [], presentation: { type: 'html', html: '<html><body>Broken</body></html>' } };
-  s.calls.invalidHtml = true;
-  await assert.rejects(s.service.save(s.context, manifest, null), /PREFLIGHT_FAILED/);
-  assert.equal(s.artifacts.size, 0); assert.equal(s.files.size, 0); assert.equal(s.versions.length, 0);
+test('failed data/filter/HTML preflight never commits a draft', async () => {
+  const s = setup(); s.calls.rejectFilter = true
+  await assert.rejects(s.service.save(s.context, example, null), /FILTER_PREVIEW_FAILED/)
+  assert.equal(s.artifacts.size, 0)
+  s.calls.rejectFilter = false; s.calls.invalidHtml = true
+  await assert.rejects(s.service.save(s.context, { ...example, charts: [], tables: [], presentation: { type: 'html', html: '<html><body>broken</body></html>' } }, null), /PREFLIGHT_FAILED/)
+  assert.equal(s.artifacts.size, 0)
 })
 
 
-test('saved library bytes reach preflight and View while Agent reads receive locks only', async () => {
+test('retry initializes the same empty Artifact after the first file upload fails', async () => {
+  const s = setup(); s.calls.failUpload = true
+  await assert.rejects(s.service.save(s.context, example, null), /UPLOAD_FAILED/)
+  assert.equal(s.artifacts.size, 1); assert.equal(s.versions.length, 0)
+  const artifactId = [...s.artifacts.keys()][0]
+  s.calls.failUpload = false
+  const receipt = await s.service.save(s.context, example, null)
+  assert.equal(receipt.artifactId, artifactId); assert.equal(receipt.draftRevision, 1)
+  assert.equal(s.artifacts.size, 1)
+  assert.deepEqual((await s.service.open(s.context, artifactId)).manifest, example)
+})
+
+
+test('draft titles are listed without mutating the published Artifact title', async () => {
+  const s = setup(), first = await s.service.save(s.context, example, null)
+  await s.service.update(s.context, first.artifactId, 1, { title: 'Working title' }, null)
+  assert.equal((await s.service.list(s.context))[0].title, 'Working title')
+  assert.equal(s.artifacts.get(first.artifactId).title, example.title)
+  assert.equal(s.versions.length, 0)
+})
+
+test('first edit of a legacy formal version creates a draft on the same Artifact', async () => {
+  const s = setup(), first = await s.service.save(s.context, example, null)
+  const v1 = await s.service.publish(s.context, first.artifactId, 1, null)
+  s.drafts.delete(first.artifactId)
+  const edited = await s.service.update(s.context, first.artifactId, 0, { title: 'First draft' }, v1.versionId)
+  assert.equal(edited.artifactId, first.artifactId); assert.equal(edited.draftRevision, 1)
+  assert.equal(s.versions.length, 1)
+  assert.equal((await s.service.open(s.context, first.artifactId, v1.versionId)).manifest.title, example.title)
+  assert.equal((await s.service.open(s.context, first.artifactId)).manifest.title, 'First draft')
+})
+
+test('publication rejects a revision changed after confirmation and edits reject a published base change', async () => {
+  const s = setup(), first = await s.service.save(s.context, example, null)
+  await s.service.update(s.context, first.artifactId, 1, { title: 'Newer' }, null)
+  await assert.rejects(s.service.publish(s.context, first.artifactId, 1, null), /CONFLICT/)
+  assert.equal(s.versions.length, 0)
+  await s.service.publish(s.context, first.artifactId, 2, null)
+  await assert.rejects(s.service.update(s.context, first.artifactId, 2, { title: 'Stale base' }, null), /CONFLICT/)
+  assert.equal(s.versions.length, 1)
+})
+
+test('library bytes reach preflight and View and remain pinned in formal history', async () => {
   const { libraryLocks } = require('../dist/lib/document-libraries.js')
   const { DashboardViewProvider } = require('../dist/lib/view.provider.js')
   const s = setup(), locks = await libraryLocks(['echarts'])
@@ -146,15 +192,17 @@ test('saved library bytes reach preflight and View while Agent reads receive loc
   s.service.htmlValidation = { async validate(_context, _manifest, _preview, dependencies) { validated = dependencies } }
   const manifest = { ...example, charts: [], tables: [], presentation: { type: 'html', html: '<html><body>Chart</body></html>', dependencies: locks } }
   const first = await s.service.save(s.context, manifest, null)
-  const opened = await s.service.openDocument(s.context, first.artifactId, first.versionId)
+  const opened = await s.service.openDocument(s.context, first.artifactId)
   assert.deepEqual(opened.dependencies, validated)
   assert.equal(opened.dependencies[0].id, 'echarts')
   assert.equal('dependencies' in await s.service.open(s.context, first.artifactId), false)
-  s.service.list = async () => []; s.service.sources = async () => []
+  s.service.sources = async () => []
   const view = new DashboardViewProvider(s.service)
-  const result = await view.getViewData(s.context, 'live-dashboard', { parameters: { artifactId: first.artifactId, versionId: first.versionId } })
+  const result = await view.getViewData(s.context, 'live-dashboard', { parameters: { artifactId: first.artifactId } })
   assert.deepEqual(result.meta.saved.dependencies, opened.dependencies)
-  const second = await s.service.save(s.context, { ...manifest, title: 'Changed' }, first.versionId)
-  assert.deepEqual((await s.service.openDocument(s.context, first.artifactId, second.versionId)).dependencies, opened.dependencies)
-  assert.equal((await s.service.open(s.context, first.artifactId, first.versionId)).manifest.title, manifest.title)
+  const v1 = await s.service.publish(s.context, first.artifactId, 1, null)
+  await s.service.update(s.context, first.artifactId, 1, { title: 'Changed' }, v1.versionId)
+  assert.deepEqual((await s.service.openDocument(s.context, first.artifactId)).dependencies, opened.dependencies)
+  assert.deepEqual((await s.service.openDocument(s.context, first.artifactId, v1.versionId)).dependencies, opened.dependencies)
+  assert.equal((await s.service.open(s.context, first.artifactId, v1.versionId)).manifest.title, manifest.title)
 })

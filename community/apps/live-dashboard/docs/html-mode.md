@@ -10,8 +10,8 @@ title: "HTML 模式协议"
 
 ```text
 Agent → 发现/预览 → previewId
-      → dashboard_write_html → 授权 Workspace 文件
-      → dashboard_create_html → 隔离浏览器预检 → HTML + Controls + Bindings → 同一 ArtifactVersion
+      → dashboard_write_html / SandboxFile → 授权 Workspace 文件
+      → dashboard_create_html → 隔离浏览器预检 → HTML + Controls + Bindings → 同一 Artifact 工作草稿 → 人工确认 → ArtifactVersion
 
 HTML iframe → 专属 MessagePort → Live Dashboard View → query-binding
            → 服务端读取保存的版本 → 当前用户权限 → Analytics Runtime → Dataset
@@ -31,15 +31,15 @@ HTML iframe → 专属 MessagePort → Live Dashboard View → query-binding
 { "presentation": { "type": "html", "html": "<html>…</html>" }, "charts": [], "tables": [] }
 ```
 
-HTML 字节、数据 Binding 和 Controls 处于同一内容哈希和版本中。工作区原文件后续编辑不会改变已保存页面。现有 expectedVersionId / CAS、当前用户及 host 归属检查继续适用。
+HTML 字节、数据 Binding 和 Controls 处于同一内容哈希和版本中。工作区原文件后续编辑不会改变已保存页面。草稿修订号与正式版本基准的 CAS、当前用户及 host 归属检查继续适用。
 
 使用打包图库时，`presentation.dependencies` 保存精确版本与 SHA-256，外层 `xpert.live-dashboard.package/v1` 同时保存实际库源码。无依赖的旧定义仍可读取；详见[固定前端图库](frontend-libraries.mdx)。
 
-`query-binding` View Action 严格接受 `{artifactId, versionId, bindingId, controls}`。服务端打开对应版本并从中取 Binding。额外的 `binding`、`payload`、`providerId`、`dataSourceId` 均被拒绝。未知 Binding、未知控件、非法值、其他用户/host/组织、已撤销来源权限均不能执行查询。HTML 只能向消息桥提交 bindingId 和 controls；Artifact ID/版本由宿主持有。
+`query-binding` View Action 严格接受 `{artifactId, versionId?, draftRevision?, bindingId, controls}`。宿主选择草稿修订或正式版本，服务端打开对应已保存定义并从中取 Binding。额外的 `binding`、`payload`、`providerId`、`dataSourceId` 均被拒绝。未知 Binding、未知控件、非法值、其他用户/host/组织、已撤销来源权限均不能执行查询。HTML 只能向消息桥提交 bindingId 和 controls；Artifact ID/版本由宿主持有。
 
 ## Agent 与浏览器
 
-HTML 模式复用标准看板的 discovery/preview 证据，不允许通过编写 HTML 绕开预览或最终 Provider 策略。`dashboard_write_html` 写文件，`dashboard_create_html` 读取真实文件、验证格式及大小并保存。所有文件访问通过平台 WorkspaceFiles 能力。保存前由 `HtmlDashboardValidation` 检查 Browser Action 与后台执行池健康，将真实默认查询结果和 HTML 放入私有临时文件；队列只携带验证任务 ID。插件 Action 在平台 Browser Runtime 中执行相同的页面宿主，禁用网络，检测初始查询、未声明 Binding、脚本异常和空页面。失败结果返回 Agent，当轮修复后可重试，Artifact 创建发生在校验通过之后。标准 JSON 看板不经过此步骤。
+HTML 模式复用标准看板的 discovery/preview 证据，不允许通过编写 HTML 绕开预览或最终 Provider 策略。`dashboard_write_html` 或平台 SandboxFile 只编辑文件；已有看板通过 `dashboard_update` 保存草稿，新看板的 `dashboard_create_html` 读取真实文件、验证格式及大小并保存。所有文件访问通过平台 WorkspaceFiles 能力。保存前由 `HtmlDashboardValidation` 检查 Browser Action 与后台执行池健康，将真实默认查询结果和 HTML 放入私有临时文件；队列只携带验证任务 ID。插件 Action 在平台 Browser Runtime 中执行相同的页面宿主，禁用网络，检测初始查询、未声明 Binding、脚本异常和空页面。失败结果返回 Agent，当轮修复后可重试，Artifact 创建发生在校验通过之后。标准 JSON 看板不经过此步骤。
 
 验证任务在 `sandbox-browser` 池执行，使用平台资源限制、超时、取消和销毁。短期任务引用与小型报告存于插件独立 Redis 键（5 分钟 TTL），HTML/数据不进入队列；输入/输出临时文件在完成后删除。保存版本的 metadata 保留 Sandbox Job ID 和已请求 Binding ID。真实数据权限仍由保存/查询时的 Analytics Runtime 重新检查。
 

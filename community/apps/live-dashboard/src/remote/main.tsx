@@ -1,9 +1,9 @@
 import * as React from 'react'
 import { createRoot } from 'react-dom/client'
 import { z } from 'zod/v3'
-import { Button, Input, Textarea, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, RefreshCw, Save, Plus } from '@xpert-ai/plugin-shadcn-ui'
+import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, Button, Input, Textarea, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, RefreshCw, Save, Plus } from '@xpert-ai/plugin-shadcn-ui'
 import { dashboardSchema, type DashboardManifest } from '../lib/dashboard.schema'
-import { startBridge, requestHost } from './bridge'
+import { startBridge, requestHost, selectDashboard } from './bridge'
 import { messages } from './i18n'
 import './style.css'
 import { HtmlDashboard, type HtmlDashboardHandle } from './html-dashboard'
@@ -12,9 +12,9 @@ import { installArtifactDocumentFramePolicy, artifactDocumentDependencyAssets } 
 installArtifactDocumentFramePolicy(document)
 
 declare global { interface Window { __ANALYTICS_RENDERER_HTML__: string } }
-const summarySchema = z.object({ artifactId: z.string(), versionId: z.string().nullish(), versionNumber: z.number().optional(), title: z.string().nullish(), updatedAt: z.string().optional() })
+const summarySchema = z.object({ artifactId: z.string(), versionId: z.string().nullish(), versionNumber: z.number().optional(), title: z.string().nullish(), updatedAt: z.string().optional(), draftRevision: z.number().optional(), isDraft: z.boolean().optional(), baseVersionId: z.string().nullish() })
 const savedSchema = summarySchema.extend({ manifest: dashboardSchema, dependencies: artifactDocumentDependencyAssets.optional() })
-const listSchema = z.object({ meta: z.object({ dashboards: z.array(summarySchema), sources: z.array(z.object({ id: z.string(), name: z.string(), type: z.string() })), saved: savedSchema.optional() }) })
+const listSchema = z.object({ meta: z.object({ dashboards: z.array(summarySchema), sources: z.array(z.object({ id: z.string(), name: z.string(), type: z.string() })), saved: savedSchema.optional(), versions: z.array(summarySchema).optional() }) })
 const actionSchema = z.object({ success: z.literal(true), data: z.unknown() })
 const queryResultSchema = z.object({ payload: z.unknown(), datasets: z.array(z.object({ completeness: z.object({ truncated: z.boolean() }), freshness: z.object({ sourceFetchedAt: z.string() }) })) })
 type Summary = z.infer<typeof summarySchema>
@@ -26,12 +26,14 @@ function App() {
   const [list, setList] = React.useState<Summary[]>([])
   const [sources, setSources] = React.useState<z.infer<typeof listSchema>['meta']['sources']>([])
   const [saved, setSaved] = React.useState<Saved | null>(null)
+  const [versions, setVersions] = React.useState<Summary[]>([])
   const [controls, setControls] = React.useState<Record<string, ControlValue>>({})
   const [html, setHtml] = React.useState('')
   const [busy, setBusy] = React.useState(true)
   const [error, setError] = React.useState('')
   const [status, setStatus] = React.useState('')
   const [editor, setEditor] = React.useState<string | null>(null)
+  const [confirmPublish, setConfirmPublish] = React.useState<Saved | null>(null)
   const [partial, setPartial] = React.useState(false)
   const requestSequence = React.useRef(0), operationSequence = React.useRef(0)
   const htmlDashboard = React.useRef<HtmlDashboardHandle>(null)
@@ -43,21 +45,23 @@ function App() {
   }
   async function query(target: Saved, values: Record<string, ControlValue>) {
     const sequence = ++requestSequence.current
-    if (!target.versionId) throw new Error('Missing saved version')
+    if (!target.versionId && !target.draftRevision) throw new Error('Missing saved definition')
     setHtml(''); setStatus(''); setPartial(false)
-    const result = queryResultSchema.parse(actionSchema.parse(await requestHost('executeAction', { actionKey: 'query', input: { artifactId: target.artifactId, versionId: target.versionId, controls: values } })).data)
+    const result = queryResultSchema.parse(actionSchema.parse(await requestHost('executeAction', { actionKey: 'query', input: { artifactId: target.artifactId, versionId: target.versionId ?? undefined, ...(target.isDraft ? { draftRevision: target.draftRevision } : {}), controls: values } })).data)
     if (sequence !== requestSequence.current) return
     setHtml(rendererHtml(result.payload)); setPartial(result.datasets.some((dataset) => dataset.completeness.truncated))
     setStatus(result.datasets.map((dataset) => dataset.freshness.sourceFetchedAt).sort()[0] ?? '')
   }
   async function open(artifactId: string, versionId?: string) {
     const sequence = ++requestSequence.current
-    setHtml(''); setSaved(null); setEditor(null)
-    const target = (await load(artifactId, versionId)).saved
+    setHtml(''); setSaved(null); setEditor(null); setVersions([])
+    const result = await load(artifactId, versionId), target = result.saved
     if (sequence !== requestSequence.current) return
-    if (!target) throw new Error('Dashboard is unavailable')
+    if (!target || !target.versionId && !target.draftRevision) throw new Error('Dashboard is unavailable')
     const defaults = Object.fromEntries(target.manifest.controls.filter((control) => control.defaultValue !== undefined).map((control) => [control.controlId, control.defaultValue ?? null]))
-    setSaved(target); setControls(defaults); setStatus(''); setPartial(false)
+    setSaved(target); setVersions(result.versions ?? []); setControls(defaults); setStatus(''); setPartial(false)
+    await selectDashboard({ artifactId: target.artifactId, versionId: target.versionId ?? undefined, draftRevision: target.draftRevision })
+    if (sequence !== requestSequence.current) return
     if (!target.manifest.presentation) await query(target, defaults)
   }
   async function run(work: () => Promise<void>) {
@@ -70,13 +74,21 @@ function App() {
     const latest = [...result.dashboards].sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))[0]
     if (latest) await open(latest.artifactId)
   }
-  React.useEffect(() => startBridge((locale) => { setMessages(messages(locale)); void run(async () => { await load() }) },
-    (artifactId, versionId) => { void run(() => open(artifactId, versionId)) }), [])
+  React.useEffect(() => startBridge((locale) => { setMessages(messages(locale)); void run(async () => { await openLatest() }) },
+    (artifactId) => { void run(() => open(artifactId)) }), [])
 
   async function save() {
     const manifest = dashboardSchema.parse(JSON.parse(editor ?? ''))
     const expectedVersionId = saved?.manifest.id === manifest.id ? saved.versionId ?? null : null
-    const result = summarySchema.parse(actionSchema.parse(await requestHost('executeAction', { actionKey: 'save', input: { manifest, expectedVersionId } })).data)
+    const result = summarySchema.parse(actionSchema.parse(await requestHost('executeAction', { actionKey: 'save', input: { manifest, expectedVersionId, expectedRevision: saved?.manifest.id === manifest.id ? saved.draftRevision ?? 0 : 0 } })).data)
+    await open(result.artifactId)
+  }
+  async function publish() {
+    if (!confirmPublish?.draftRevision) return
+    const result = summarySchema.parse(actionSchema.parse(await requestHost('executeAction', { actionKey: 'publish', input: {
+      artifactId: confirmPublish.artifactId, expectedRevision: confirmPublish.draftRevision, expectedCurrentVersionId: confirmPublish.baseVersionId ?? confirmPublish.versionId ?? null, confirmed: true
+    } })).data)
+    setConfirmPublish(null)
     await open(result.artifactId, result.versionId ?? undefined)
   }
   return <main className="dashboard-shell">
@@ -87,10 +99,22 @@ function App() {
         <SelectContent>{list.map((item) => <SelectItem key={item.artifactId} value={item.artifactId}>{item.title ?? item.artifactId}</SelectItem>)}</SelectContent>
       </Select>
       <div className="flex-1"/>
-      {saved && <Button variant="outline" disabled={busy} onClick={() => setEditor(JSON.stringify(saved.manifest, null, 2))}>{t.edit}</Button>}
+      {saved?.isDraft && <Button disabled={busy} onClick={() => setConfirmPublish(saved)}><Save/>{t.publish}</Button>}
+      {saved && <Button variant="outline" disabled={busy} onClick={() => void run(async () => {
+        const result = await load(saved.artifactId)
+        if (!result.saved) throw new Error(t.error)
+        setSaved(result.saved); setVersions(result.versions ?? []); setEditor(JSON.stringify(result.saved.manifest, null, 2))
+      })}>{t.edit}</Button>}
       <Button variant="outline" disabled={busy} onClick={() => setEditor('')}><Plus/>{t.import}</Button>
       <Button disabled={busy} onClick={() => { if (saved?.manifest.presentation) { setError(''); htmlDashboard.current?.refresh() } else void run(async () => { if (saved) { await load(); await query(saved, controls) } else await openLatest() }) }}><RefreshCw/>{t.refresh}</Button>
     </header>
+    <AlertDialog open={!!confirmPublish} onOpenChange={open => { if (!open && !busy) setConfirmPublish(null) }}>
+      <AlertDialogContent><AlertDialogTitle>{t.publish}</AlertDialogTitle>
+        <AlertDialogDescription>{t.confirmPublish} {confirmPublish?.manifest.title} · r{confirmPublish?.draftRevision}</AlertDialogDescription>
+        <AlertDialogFooter><AlertDialogCancel disabled={busy}>{t.cancel}</AlertDialogCancel>
+          <Button disabled={busy} onClick={() => void run(publish)}>{t.confirm}</Button></AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     {error && <div role="alert" className="border-b px-4 py-3 text-destructive">{error}</div>}
     {editor !== null ? <section className="editor-panel p-4">
       <label className="text-sm font-medium" htmlFor="definition">{t.definition}</label>
@@ -101,13 +125,19 @@ function App() {
       {saved && <section className="flex flex-wrap items-end gap-3 border-b px-4 py-3">
         {!saved.manifest.presentation && saved.manifest.controls.map((control) => <Filter key={control.controlId} control={control} value={controls[control.controlId] ?? null} disabled={busy} onChange={(value) => setControls((current) => ({ ...current, [control.controlId]: value }))}/>)}
         {!saved.manifest.presentation && !!saved.manifest.controls.length && <Button type="button" variant="outline" disabled={busy} onClick={() => void run(() => query(saved, controls))}>{t.apply}</Button>}
-        <span className="ml-auto text-xs text-muted-foreground">{t.version} {saved.versionNumber} {status && `· ${new Date(status).toLocaleString(document.documentElement.lang)}`}</span>
+        <div className="ml-auto flex items-center gap-3">
+          <Select value={saved.isDraft ? 'draft' : saved.versionId ?? 'draft'} onValueChange={(id) => void run(() => open(saved.artifactId, id === 'draft' ? undefined : id))} disabled={busy}>
+            <SelectTrigger className="w-36" aria-label={t.history}><SelectValue placeholder={t.history}/></SelectTrigger>
+            <SelectContent><SelectItem value="draft">{t.draft}{saved.isDraft ? ` · r${saved.draftRevision}` : ''}</SelectItem>{versions.filter(item => item.versionId).map(item => <SelectItem key={item.versionId} value={item.versionId!}>{t.version} {item.versionNumber}</SelectItem>)}</SelectContent>
+          </Select>
+          {status && <span className="text-xs text-muted-foreground">{new Date(status).toLocaleString(document.documentElement.lang)}</span>}
+        </div>
       </section>}
       {partial && <p role="status" className="px-4 py-2 text-sm">{t.partial}</p>}
       <section className="canvas-panel" aria-busy={busy}>
         {busy && <p role="status" className="p-6 text-muted-foreground">{t.loading}</p>}
         {!busy && !html && !saved?.manifest.presentation && !error && <p className="p-6 text-muted-foreground">{t.empty}</p>}
-        {saved?.manifest.presentation && saved.versionId && <HtmlDashboard ref={htmlDashboard} artifactId={saved.artifactId} versionId={saved.versionId}
+        {saved?.manifest.presentation && <HtmlDashboard ref={htmlDashboard} artifactId={saved.artifactId} versionId={saved.versionId ?? undefined} draftRevision={saved.isDraft ? saved.draftRevision : undefined}
           manifest={saved.manifest} dependencies={saved.dependencies ?? []} onBusy={setBusy} onError={setError} onResult={result => { setError(''); setPartial(result.partial); setStatus(result.fetchedAt) }}/ >}
         {html && <iframe title={saved?.manifest.title ?? t.title} sandbox="allow-scripts" srcDoc={html} className="h-full w-full border-0"/>}
       </section>

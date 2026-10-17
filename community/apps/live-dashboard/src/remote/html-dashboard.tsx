@@ -13,7 +13,8 @@ const resultSchema = z.object({ success: z.literal(true), data: z.object({
 export interface HtmlDashboardHandle { refresh(): void }
 interface Props {
   artifactId: string
-  versionId: string
+  versionId?: string
+  draftRevision?: number
   manifest: DashboardManifest
   dependencies: ArtifactDocumentDependencyAsset[]
   onBusy(value: boolean): void
@@ -40,13 +41,13 @@ export const HtmlDashboard = React.forwardRef<HtmlDashboardHandle, Props>(functi
         defaults: Object.fromEntries(manifest.controls.filter(control => control.defaultValue !== undefined).map(control => [control.controlId, control.defaultValue ?? null])),
         locale: document.documentElement.lang || 'en-US', theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light' },
       query: async input => resultSchema.parse(await requestHost('executeAction', { actionKey: 'query-binding',
-        input: { artifactId: props.artifactId, versionId: props.versionId, bindingId: input.bindingId, controls: input.controls } })).data,
+        input: { artifactId: props.artifactId, versionId: props.versionId, draftRevision: props.draftRevision, bindingId: input.bindingId, controls: input.controls } })).data,
       onBusy: busy => callbacks.current.onBusy(busy),
       onError: code => callbacks.current.onError(code),
       onResult: result => callbacks.current.onResult({ partial: result.completeness.truncated, fetchedAt: result.freshness.sourceFetchedAt })
     })
     host.current = mounted
     return () => { mounted.dispose(); host.current = null }
-  }, [props.artifactId, props.versionId])
+  }, [props.artifactId, props.versionId, props.draftRevision])
   return <iframe ref={iframe} title={props.manifest.title} sandbox="allow-scripts" className="h-full w-full border-0"/>
 })

@@ -8,7 +8,8 @@ description: "ECharts、Three.js 的受控注入、版本快照和 Binding 边�
 调用 `dashboard_libraries` 读取可用库的精确版本、全局名称、摘要和能力说明。
 当前打包 ECharts 5.6.0（`window.echarts`）与 Three.js 0.185.1（`window.THREE`）。
 创建 HTML 看板时传入 `libraries: ["echarts"]`；不使用库时省略。
-重新保存已有定义时，保留原 `presentation.dependencies` 即可沿用原依赖快照。
+已有看板先 `dashboard_open`，读取原 HTML，再 `dashboard_update`。
+修改工具省略 `libraries` 会保留原依赖；显式传入完整列表表示增加、移除或升级依赖。
 库在作者代码执行前已加载，不要写 CDN 标签、ES module import 或复制库源码。
 
 ```javascript

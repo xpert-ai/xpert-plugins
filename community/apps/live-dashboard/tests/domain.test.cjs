@@ -41,7 +41,7 @@ test('rejects misleading charts that omit a grouping dimension instead of aggreg
 test('opens the exact saved dashboard receipt, ignoring start, failure and unrelated file results', () => {
   for (const value of [undefined, null, '', 'invalid', { status: 'running' }, { error: 'failed' }, { artifactId: manifest.id }])
     assert.equal(createdDashboard(value), null)
-  const dashboard = { artifactId: manifest.id, versionId: '33333333-3333-4333-8333-333333333333' }
+  const dashboard = { artifactId: manifest.id, draftRevision: 1, status: 'draft' }
   assert.deepEqual(createdDashboard({ dashboard }), dashboard)
   assert.deepEqual(createdDashboard(JSON.stringify({ dashboard })), dashboard)
 })

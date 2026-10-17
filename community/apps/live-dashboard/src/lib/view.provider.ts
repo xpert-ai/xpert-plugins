@@ -3,9 +3,11 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { z } from 'zod/v3'
 import type { XpertExtensionViewManifest, XpertResolvedViewHostContext, XpertViewActionRequest, XpertViewQuery } from '@xpert-ai/contracts'
+import { ASSISTANT_CONTEXT_SET_COMMAND } from '@xpert-ai/contracts'
 import { ViewExtensionProvider, renderRemoteReactIframeHtml, type IXpertViewExtensionProvider } from '@xpert-ai/plugin-sdk'
 import { DashboardService, PLUGIN_NAME } from './dashboard.service'
 import { querySchema, queryBindingSchema, saveSchema } from './dashboard.schema'
+import { DASHBOARD_MUTATION_TOOLS } from './dashboard-receipt'
 
 export const VIEW_KEY = 'live-dashboard'
 export const VIEW_PROVIDER = 'live-dashboard'
@@ -24,9 +26,11 @@ export class DashboardViewProvider implements IXpertViewExtensionProvider {
       workbench: { fixed: true, menu: { enabled: true, label: text('Live dashboards', '实时看板'), order: 35 } },
       view: { type: 'remote_component', runtime: 'react', protocolVersion: 1, component: { isolation: 'iframe', entry: VIEW_KEY }, dataSource: { mode: 'platform' } },
       dataSource: { mode: 'platform', querySchema: { supportsParameters: true }, cache: { enabled: false } },
+      clientCommands: [{ key: ASSISTANT_CONTEXT_SET_COMMAND, label: text('Select dashboard for Assistant', '设置助理当前看板') }],
       hostEvents: { subscriptions: [{ key: 'dashboard-created', event: 'assistant.tool.completed',
-        filter: { toolNames: ['dashboard_create', 'dashboard_create_html'] }, action: { type: 'forward', debounceMs: 0 } }] },
+        filter: { toolNames: DASHBOARD_MUTATION_TOOLS }, action: { type: 'forward', debounceMs: 0 } }] },
       actions: [
+        { key: 'publish', label: text('Publish draft', '发布草稿'), actionType: 'invoke', placement: 'toolbar', inputSchema: { type: 'object', properties: {}, additionalProperties: true } },
         { key: 'save', label: text('Save', '保存'), actionType: 'invoke', placement: 'toolbar', inputSchema: { type: 'object', properties: {}, additionalProperties: true } },
         { key: 'query', label: text('Refresh', '刷新'), actionType: 'invoke', placement: 'toolbar', inputSchema: { type: 'object', properties: {}, additionalProperties: true } },
         { key: 'query-binding', label: text('Query binding', '查询绑定'), actionType: 'invoke', placement: 'toolbar', inputSchema: { type: 'object', properties: {}, additionalProperties: true } }
@@ -43,23 +47,31 @@ export class DashboardViewProvider implements IXpertViewExtensionProvider {
     const params = z.object({ artifactId: z.string().uuid().optional(), versionId: z.string().uuid().optional() }).strict()
       .refine(value => !value.versionId || !!value.artifactId, 'A version requires an Artifact').parse(query.parameters ?? {})
     return { meta: { dashboards: await this.service.list(context), sources: await this.service.sources(context),
-      ...(params.artifactId ? { saved: await this.service.openDocument(context, params.artifactId, params.versionId) } : {}) } }
+      ...(params.artifactId ? { saved: await this.service.openDocument(context, params.artifactId, params.versionId),
+        versions: await this.service.history(context, params.artifactId) } : {}) } }
   }
   async executeViewAction(context: XpertResolvedViewHostContext, viewKey: string, action: string, request: XpertViewActionRequest) {
     assertView(viewKey)
+    if (action === 'publish') {
+      const parsed = z.object({ artifactId: z.string().uuid(), expectedRevision: z.number().int().positive(),
+        expectedCurrentVersionId: z.string().uuid().nullable(), confirmed: z.literal(true) }).strict().safeParse(request.input)
+      if (!parsed.success) throw new BadRequestException('DASHBOARD_PUBLICATION_CONFIRMATION_REQUIRED')
+      const input = parsed.data
+      return { success: true, data: await this.service.publish(context, input.artifactId, input.expectedRevision, input.expectedCurrentVersionId), refresh: false }
+    }
     if (action === 'save') {
       const input = saveSchema.parse(request.input)
-      return { success: true, data: await this.service.save(context, input.manifest, input.expectedVersionId), refresh: false }
+      return { success: true, data: await this.service.save(context, input.manifest, input.expectedVersionId, input.expectedRevision), refresh: false }
     }
     if (action === 'query') {
       const input = querySchema.parse(request.input)
-      return { success: true, data: await this.service.query(context, input.artifactId, input.versionId, input.controls), refresh: false }
+      return { success: true, data: await this.service.query(context, input.artifactId, input.versionId, input.controls, input.draftRevision), refresh: false }
     }
     if (action === 'query-binding') {
       const parsed = queryBindingSchema.safeParse(request.input)
       if (!parsed.success) throw new BadRequestException('DASHBOARD_INVALID_QUERY')
       const input = parsed.data
-      return { success: true, data: await this.service.queryBinding(context, input.artifactId, input.versionId, input.bindingId, input.controls), refresh: false }
+      return { success: true, data: await this.service.queryBinding(context, input.artifactId, input.versionId, input.bindingId, input.controls, input.draftRevision), refresh: false }
     }
     throw new BadRequestException('DASHBOARD_ACTION_UNSUPPORTED')
   }
