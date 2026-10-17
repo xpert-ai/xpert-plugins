@@ -1,0 +1,130 @@
+---
+title: "Local acceptance — 2026-10-17"
+description: "Real MySQL and Doris, Agent generation, SSO and browser checks."
+---
+
+## Scope and ownership
+
+This iteration adds `mysql.sql` and `doris.sql` through the analytics-mysql plugin.
+The existing MySQL database plugin provides both native adapters. Provider IDs and
+registrations are independent even though the two implementations share one package.
+They can be separated later without changing saved Bindings.
+
+The platform continues to own DataSource credentials, current-viewer authorization,
+Dataset/Binding normalization, Artifacts and iframe isolation. The provider owns native
+discovery/query interpretation. The dashboard plugin owns authoring, controls, HTML and
+save-receipt checks. No new platform engine switch, renderer or credential store was added.
+
+## Test environment
+
+Local xpert-pro source runtime, data-xpert with normal browser SSO, and isolated MySQL 8.4
+and Apache Doris 4.1.3 containers. The normal platform data-source API registered two
+sources using SELECT-only principals. No browser token extraction or database auth bypass
+was used. Test accounts, source IDs, private receipts and credentials are outside this package.
+
+The fixture in `tests/fixture.sql` has nine orders. The requested metric is paid amount
+minus refunds, for paid orders in July–September 2026, grouped by month and region, in CNY.
+Cancelled and out-of-quarter rows must be excluded:
+
+| Region | July | August | September | Q3 |
+| --- | ---: | ---: | ---: | ---: |
+| east | 1,000 | 1,500 | 1,000 | 3,500 |
+| west | 800 | 900 | 500 | 2,200 |
+| All | 1,800 | 2,400 | 1,500 | 5,700 |
+
+## Automated validation
+
+- Provider: 10 unit tests, TypeScript build/typecheck, and actual MySQL/Doris integration tests.
+- Driver: 15 tests, including close-before-handshake and connection-error regressions.
+- Dashboard: 39 tests, including optional null filters, exact source selection, successful save receipts,
+  refused/partial/concurrent Workspace writes and unchanged Binding protection.
+- All three affected plugins passed dist-first lifecycle loading. Metadata and dashboard
+  generated-asset checks passed; the provider tarball contains its entrypoint, dist and docs.
+
+The live host discovers databases/tables/comments, previews typed Datasets and rejects
+unauthenticated analytics access. Query tests include repeated positional parameters,
+injection-like text as data, precision, partial results, empty results and denied writes.
+
+## Agent and browser procedure
+
+Use a single business request naming the source, Q3 net sales, region filter, manual refresh
+and a ten-second refresh interval. MySQL requests a platinum-blue page with a top KPI,
+left trend and right details; Doris requests a black-gold page with vertically arranged
+trend/details. The Agent must discover the metric from table comments, preview real rows,
+verify a non-default filter, write HTML with SandboxFile, and obtain a draft save receipt.
+
+Check the persisted Artifact independently of the chat reply in both xpert-pro and the
+data-xpert SSO Workbench:
+
+1. All/east/west must produce 5,700 / 3,500 / 2,200 in ECharts series, KPI and detail totals.
+2. With west selected, insert one temporary paid Q3 order worth 100 through the separate
+   fixture administrator. Wait for the page timer: the total must become 2,300 while both
+   the filter selection and an injected DOM marker remain unchanged (no iframe reload).
+3. Delete that exact temporary row in a `finally` cleanup path. Manual refresh returns
+   2,200. Reload/reopen the saved draft and confirm the declared default gives 5,700.
+4. Deny an undeclared Binding, direct network fetch and parent DOM access inside the iframe.
+   Deny an extra raw-SQL payload submitted to the server's query-binding action.
+
+This verifies polling refresh; it does not claim database change-stream push delivery.
+
+## Final browser results
+
+| Scenario | xpert-pro | data-xpert SSO |
+| --- | --- | --- |
+| New MySQL platinum-blue HTML/ECharts draft, generated from one business sentence | Passed | Passed |
+| New Doris black-gold HTML/ECharts draft, generated from one business sentence | Passed | Passed |
+| All/east/west chart, KPI and detail totals | Passed | Passed |
+| Source mutation observed by ten-second polling, retaining filter and DOM | Passed | Passed |
+| Manual refresh and saved-draft reopen | Passed | Passed |
+| Undeclared Binding, raw SQL, network and parent DOM denial | Passed | Passed |
+
+The final MySQL generation used the installed skill, discovered the correct source, verified
+a non-default filter and obtained a successful draft receipt without follow-up guidance.
+It encountered two create-only file conflicts, selected a new file and still completed
+successfully; these refused writes no longer caused a false unsaved-change error.
+
+A separate existing MySQL Artifact was repaired through Agent follow-up requests. The
+first repair corrected series/filter handling; a second corrected a timer variable's scope.
+After these guided repairs, its draft advanced from revision 1 to 3 with the same Artifact
+ID, exact Bindings and ECharts dependency locks. Both Workbenches passed the same browser
+checks for that edited draft. These repairs are recorded separately from the fresh
+one-sentence generation. No formal version was published automatically.
+
+All temporary source mutations were removed. Each database retained its original nine
+fixture rows with zero refresh-test rows. Screenshots, execution receipts and browser
+assertion output were retained locally, outside the repository.
+
+## Failures found and repaired
+
+1. Creating a native MySQL connection before SQL validation allowed early rejection/close
+   to race the asynchronous handshake. The driver now creates its connection lazily and
+   handles connection errors through the pending query.
+2. The dashboard schema rejected optional null defaults when a parameter's scalar allowlist
+   contained only real regions. It now follows platform parameter semantics: `required`
+   controls nullability; non-null values still obey the allowlist.
+3. SandboxFile can refuse a write with a domain error while the tool transport reports
+   success. Recording every attempt as an unsaved edit caused an erroneous final failure
+   after a different file was successfully saved. The dashboard now compares bytes around
+   the operation; no-op writes do not create pending changes, and partial/concurrent writes
+   remain guarded. No tool-name or error-text inference was added.
+4. Generated ECharts code replaced series with data-only objects and duplicated the SDK's
+   select handling. The HTML skill now explicitly requires complete replacement series
+   and `live.refresh` for timers/buttons, preserving the SDK's typed filter values.
+5. A fresh model run combined parts of two listed source UUIDs and then repeatedly changed
+   discovery arguments. Discovery now rejects a pair absent from its run-local authorized
+   list with exact available choices and instructions to refresh/copy the IDs. It neither
+   guesses a replacement source nor bypasses the host's access revalidation. That failed
+   run was stopped rather than accepted as a different-source dashboard.
+
+## Verification limits
+
+These are local source-runtime results. Published SDK/contracts versions must expose the
+Analytics APIs before an npm-only release; the existing peer range alone is insufficient.
+Only MySQL and Doris's internal catalog are covered. MariaDB, RDS MySQL, StarRocks and Doris
+external catalogs are not advertised. The Doris driver does not expose a read-only
+transaction, so database SELECT-only privileges remain mandatory.
+
+Browser query success alone does not prove every chart or every sentence in an Agent reply
+is correct. An early Doris reply misstated the total as 6,700 despite correct query rows and
+the saved page showing 5,700. The skill now requires an executed calculation or verified
+aggregate for numeric prose; initial failed runs are not counted as passing acceptance.

@@ -174,7 +174,7 @@ test('failed preview gives no save evidence; guidance preserves existing system 
 
 test('nullable dimension filters cannot save until real non-default rows pass explicit expectations', async () => {
   const s = setup(), { input, binding } = draft()
-  binding.parameters[0].defaultValue = null; binding.parameters[0].allowedValues = [null, 'east', 'west']
+  binding.parameters[0].required = false; binding.parameters[0].defaultValue = null; binding.parameters[0].allowedValues = ['east', 'west']
   input.controls[0].defaultValue = null; input.controls[0].allowedValues = [null, 'east', 'west']
   const rows = [{ region: 'east', amount: 10 }, { region: 'west', amount: 20 }]
   s.service.preview = async () => ({ rows, completeness: { returnedRows: 2, truncated: false } })

@@ -38,6 +38,23 @@ test('rejects misleading charts that omit a grouping dimension instead of aggreg
   grouped.charts[0].color = 'region'
   assert.equal(dashboardSchema.safeParse(grouped).success, true)
 })
+test('optional null controls match platform parameter resolution without weakening required or scalar restrictions', () => {
+  const { resolveAnalyticsParameters } = require('@xpert-ai/plugin-sdk/analytics')
+  const candidate = structuredClone(manifest)
+  const parameter = { name: 'region', controlId: 'region', type: 'string', required: false, defaultValue: null, allowedValues: ['east', 'west'] }
+  candidate.bindings[0].parameters = [parameter]
+  candidate.controls = [{ controlId: 'region', type: 'string', label: 'Region', defaultValue: null, allowedValues: [null, 'east', 'west'] }]
+  assert.equal(dashboardSchema.safeParse(candidate).success, true)
+  assert.deepEqual(resolveAnalyticsParameters(candidate.bindings[0], {}), { region: null })
+  candidate.controls[0].allowedValues.push('unknown')
+  assert.equal(dashboardSchema.safeParse(candidate).success, false)
+  candidate.controls[0].allowedValues.pop()
+  parameter.required = true
+  assert.equal(dashboardSchema.safeParse(candidate).success, false)
+  assert.throws(() => resolveAnalyticsParameters(candidate.bindings[0], {}), /REQUIRED/)
+  parameter.allowedValues.push(null)
+  assert.equal(dashboardSchema.safeParse(candidate).success, false)
+})
 test('opens the exact saved dashboard receipt, ignoring start, failure and unrelated file results', () => {
   for (const value of [undefined, null, '', 'invalid', { status: 'running' }, { error: 'failed' }, { artifactId: manifest.id }])
     assert.equal(createdDashboard(value), null)

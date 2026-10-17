@@ -40,3 +40,4 @@ range alone is not proof those APIs have been published. See [verification](docs
 for real-engine tests, lifecycle, packaging and the source SDK release prerequisite.
 
 See [architecture and query contract](docs/index.mdx).
+See the [local acceptance record](docs/acceptance.mdx) for tested scope and release limits.
