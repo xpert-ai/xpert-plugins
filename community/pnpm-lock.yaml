@@ -486,6 +486,9 @@ importers:
       '@xpert-ai/plugin-shadcn-ui':
         specifier: workspace:*
         version: link:../../../packages/shadcn-ui
+      echarts:
+        specifier: 5.6.0
+        version: 5.6.0
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -498,6 +501,9 @@ importers:
       tailwindcss:
         specifier: ^4.3.2
         version: 4.3.3
+      three:
+        specifier: 0.185.1
+        version: 0.185.1
       typescript:
         specifier: ^5.9.2
         version: 5.9.2
@@ -7647,7 +7653,6 @@ packages:
     dependencies:
       tslib: 2.3.0
       zrender: 5.6.1
-    dev: false
 
   /ee-first@1.1.1:
     resolution: {integrity: sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==}
@@ -12682,4 +12687,3 @@ packages:
     resolution: {integrity: sha512-OFXkDJKcrlx5su2XbzJvj/34Q3m6PvyCZkVPHGYpcCJ52ek4U/ymZyfuV1nKE23AyBJ51E/6Yr0mhZ7xGTO4ag==}
     dependencies:
       tslib: 2.3.0
-    dev: false

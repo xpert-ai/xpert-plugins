@@ -3,6 +3,7 @@ import type { AnalyticsDiscoveryResult } from '@xpert-ai/contracts'
 import { analyticsBindingObjectSchema, analyticsBindingSchema, analyticsOptionsSchema } from '@xpert-ai/plugin-sdk/analytics'
 import { dashboardSchema } from './dashboard.schema'
 import { jsonEncodedSchema } from '@xpert-ai/plugin-sdk'
+import { libraryRequestsSchema } from './document-libraries'
 
 // LLM tool schemas cannot reliably express recursive JSON unions. Only this model boundary uses JSON text.
 const objectJson = z.string().min(2).max(64000).describe('A JSON object encoded as text. Use the exact provider-owned contract from discovery. No Markdown fences.')
@@ -20,7 +21,8 @@ export const createToolSchema = dashboardSchema.innerType().omit({ schema: true,
   previewIds: jsonEncodedSchema(z.array(z.string().min(1)).min(1).max(8).describe('Exact previewId receipts from successful dashboard_preview calls. Do not repeat bindings.'))
 }).strict()
 export const htmlPathSchema = z.string().min(1).max(300).regex(/\.html$/i).describe('HTML path in the current authorized file workspace, for example dashboards/sales.html')
-export const createHtmlToolSchema = createToolSchema.omit({ charts: true, tables: true }).extend({ path: htmlPathSchema }).strict()
+export const createHtmlToolSchema = createToolSchema.omit({ charts: true, tables: true }).extend({ path: htmlPathSchema,
+  libraries: libraryRequestsSchema.optional().describe('Bundled library IDs from dashboard_libraries. Omit for native SVG/Canvas/DOM; use ["echarts"] for ECharts or ["three"] for Three.js.') }).strict()
 export function parseObjectJson(text: string) {
   try { return analyticsOptionsSchema.parse(JSON.parse(text)) } catch { throw new Error('DASHBOARD_INVALID_JSON: supply a JSON object encoded as text, matching the returned provider contract') }
 }

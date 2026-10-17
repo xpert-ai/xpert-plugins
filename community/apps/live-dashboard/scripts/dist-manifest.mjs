@@ -15,7 +15,8 @@ async function fingerprint(root) {
   const input = [...await files(join(root, 'src')), ...await files(join(root, 'scripts')), join(root, 'package.json'), join(root, 'tsconfig.remote.json')].sort()
   const sources = Object.fromEntries(await Promise.all(input.map(async (path) => [relative(root, path), digest(await readFile(path))])))
   const outputs = Object.fromEntries(await Promise.all(['app.js', 'app.css', 'renderer.html'].map(async (name) => [name, digest(await readFile(join(root, 'dist/remote', name)))])))
-  return { sources, outputs, rendererSource: digest(readWidgetHtmlAsset('datascience-artifact-widget.html')),
+  const libraries = Object.fromEntries(await Promise.all((await files(join(root, 'dist/libraries'))).sort().map(async path => [relative(root, path), digest(await readFile(path))])))
+  return { sources, outputs, libraries, rendererSource: digest(readWidgetHtmlAsset('datascience-artifact-widget.html')),
     artifactDocumentSource: digest(await readFile(require.resolve('@xpert-ai/plugin-sdk/artifact-document'))) }
 }
 export async function writeDistManifest(root) {

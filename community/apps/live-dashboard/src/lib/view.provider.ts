@@ -43,7 +43,7 @@ export class DashboardViewProvider implements IXpertViewExtensionProvider {
     const params = z.object({ artifactId: z.string().uuid().optional(), versionId: z.string().uuid().optional() }).strict()
       .refine(value => !value.versionId || !!value.artifactId, 'A version requires an Artifact').parse(query.parameters ?? {})
     return { meta: { dashboards: await this.service.list(context), sources: await this.service.sources(context),
-      ...(params.artifactId ? { saved: await this.service.open(context, params.artifactId, params.versionId) } : {}) } }
+      ...(params.artifactId ? { saved: await this.service.openDocument(context, params.artifactId, params.versionId) } : {}) } }
   }
   async executeViewAction(context: XpertResolvedViewHostContext, viewKey: string, action: string, request: XpertViewActionRequest) {
     assertView(viewKey)

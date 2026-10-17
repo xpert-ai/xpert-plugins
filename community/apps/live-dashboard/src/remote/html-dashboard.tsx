@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { z } from 'zod/v3'
-import { mountArtifactDocument } from '@xpert-ai/plugin-sdk/artifact-document'
+import { mountArtifactDocument, verifyArtifactDocumentDependencies, type ArtifactDocumentDependencyAsset } from '@xpert-ai/plugin-sdk/artifact-document'
 import type { DashboardManifest } from '../lib/dashboard.schema'
 import { requestHost } from './bridge'
 
@@ -15,6 +15,7 @@ interface Props {
   artifactId: string
   versionId: string
   manifest: DashboardManifest
+  dependencies: ArtifactDocumentDependencyAsset[]
   onBusy(value: boolean): void
   onError(code: string): void
   onResult(result: { partial: boolean; fetchedAt: string }): void
@@ -29,8 +30,12 @@ export const HtmlDashboard = React.forwardRef<HtmlDashboardHandle, Props>(functi
     const frame = iframe.current
     if (!frame || !props.manifest.presentation) return
     const manifest = props.manifest
+    let dependencies: ArtifactDocumentDependencyAsset[]
+    try { dependencies = verifyArtifactDocumentDependencies(props.dependencies, manifest.presentation?.dependencies ?? []) }
+    catch { callbacks.current.onError('DOCUMENT_DEPENDENCY_INTEGRITY_FAILED'); callbacks.current.onBusy(false); return }
     const mounted = mountArtifactDocument<z.infer<typeof resultSchema>['data']>(frame, {
       html: props.manifest.presentation.html,
+      dependencies,
       context: { bindingIds: manifest.bindings.map(binding => binding.id),
         defaults: Object.fromEntries(manifest.controls.filter(control => control.defaultValue !== undefined).map(control => [control.controlId, control.defaultValue ?? null])),
         locale: document.documentElement.lang || 'en-US', theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light' },

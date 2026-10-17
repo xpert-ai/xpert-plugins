@@ -4,8 +4,9 @@ import { createHash, randomUUID } from 'node:crypto'
 import { z } from 'zod/v3'
 import type { AnalyticsBinding, AnalyticsDiscoveryResult, AnalyticsValue, TAgentMiddlewareMeta, XpertResolvedViewHostContext } from '@xpert-ai/contracts'
 import { AgentMiddlewareStrategy, RequestContext, WorkspaceFilesRuntimeCapability, analyticsBindingSchema, type AgentMiddleware, type IAgentMiddlewareStrategy, type IAgentMiddlewareContext } from '@xpert-ai/plugin-sdk'
-import { artifactDocumentHtml } from '@xpert-ai/plugin-sdk/artifact-document'
+import { artifactDocumentHtml, type ArtifactDocumentDependencyLock } from '@xpert-ai/plugin-sdk/artifact-document'
 import { discoverToolSchema, previewToolSchema, createToolSchema, createHtmlToolSchema, htmlPathSchema, fromAgentBinding, parseObjectJson } from './agent.schema'
+import { libraryLocks } from './document-libraries'
 import { HTML_DASHBOARD_GUIDANCE } from './html-guidance'
 import { DashboardService } from './dashboard.service'
 import { dashboardSchema, type DashboardManifest } from './dashboard.schema'
@@ -56,7 +57,7 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
         return JSON.stringify({ ...dataset, previewId, bindingJson: JSON.stringify(binding), rows, preview: { displayedRows: rows.length,
           omittedRows: dataset.rows.length - rows.length, note: 'Display sample only; completeness describes the full bounded query. Verify business semantics before create.' } })
     }
-    const save = async (input: z.infer<typeof createToolSchema>, html?: string) => {
+    const save = async (input: z.infer<typeof createToolSchema>, html?: string, dependencies: ArtifactDocumentDependencyLock[] = []) => {
       const { previewIds, ...definition } = input
       const bindings = previewIds.map(id => {
         const binding = previews.get(id)
@@ -67,10 +68,10 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
       if (allowedProviders && bindings.some(binding => !allowedProviders.includes(binding.providerId)))
         throw new Error(`DASHBOARD_PROVIDER_REQUIRED: final bindings must use ${allowedProviders.join(', ')}`)
       const manifest = dashboardSchema.parse({ ...definition, bindings, schema: 'xpert.live-dashboard/v1', id: randomUUID(),
-        ...(html ? { presentation: { type: 'html', html } } : {}) })
+        ...(html ? { presentation: { type: 'html', html, ...(dependencies.length ? { dependencies } : {}) } } : {}) })
       const controls = Object.fromEntries(manifest.controls.filter(item => item.defaultValue !== undefined).map(item => [item.controlId, item.defaultValue ?? null]))
       for (const binding of manifest.bindings) if (!previews.has(previewKey(binding, controls))) throw new Error('DASHBOARD_PREVIEW_REQUIRED: preview the exact binding and default controls before saving')
-      const key = hash({ input, html })
+      const key = hash({ input, html, dependencies })
       const previous = created.get(key)
       if (previous) return dashboardReceipt(await this.service.save(scope, previous.manifest, previous.receipt.versionId))
       const result = await this.service.save(scope, manifest, null)
@@ -85,6 +86,12 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
         { type: 'text', text: DASHBOARD_GUIDANCE + '\n' + HTML_DASHBOARD_GUIDANCE + (options.allowedFinalProviders ? `\nThis Assistant requires every saved dashboard binding to use one of these providers: ${options.allowedFinalProviders.join(', ')}. Other providers may be previewed only as upstream inputs. Do not save a direct-source substitute.` : '') + (exhausted ? '\nThe dashboard tool budget is exhausted. Stop calls; report only saved receipts or explain the concrete blocker truthfully.' : '') }
       ] }) })
     }, tools: [
+      tool(async () => JSON.stringify({ libraries: await libraryLocks(['echarts', 'three']),
+        usage: { echarts: 'window.echarts: init(element, null, {renderer:"svg"}) then setOption. Canvas is also available. Use ResizeObserver to resize, reuse the instance on filter/refresh.',
+          three: 'window.THREE: bundled core including WebGLRenderer. Requires WebGL2; catch unavailable GPU contexts and show a clear fallback. External textures/models, loaders/addons, WebGPU and workers are not bundled.' },
+        lifecycle: 'Pass libraries IDs to dashboard_create_html. Actual version and bytes are pinned on save. No CDN, imports or network access.' }),
+      { name: 'dashboard_libraries', description: 'Discover packaged frontend libraries and exact versions available to HTML dashboards. Read before using ECharts/Three.js. Returns metadata, never library source.',
+        schema: z.object({}).strict(), verboseParsingErrors: true, metadata: { toolName: { en_US: 'Discover dashboard libraries', zh_Hans: '查看看板前端图库' } } }),
       tool(async () => JSON.stringify(await this.service.sources(scope)), {
         name: 'dashboard_list_sources', description: 'List authorized analytics sources and versioned providers. Start here; IDs must come from this list.',
         schema: z.object({}).strict(), verboseParsingErrors: true, metadata: { toolName: { en_US: 'List analytics sources', zh_Hans: '发现分析数据源' } }
@@ -125,8 +132,8 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
         const file = await files.readRuntimeBuffer(input.path)
         if (file.buffer.byteLength > 300000) throw new Error('DASHBOARD_HTML_TOO_LARGE')
         const html = artifactDocumentHtml.parse(new TextDecoder('utf-8', { fatal: true }).decode(file.buffer))
-        const { path, ...definition } = input
-        return save({ ...definition, charts: [], tables: [] }, html)
+        const { path, libraries, ...definition } = input
+        return save({ ...definition, charts: [], tables: [] }, html, await libraryLocks(libraries ?? []))
       }, { name: 'dashboard_create_html', description: 'Save custom HTML from a Workspace path together with run-local preview receipts and controls in one immutable Artifact version. Requires real data preview; does not accept query payloads or cached rows.',
         schema: createHtmlToolSchema, verboseParsingErrors: true,
         metadata: { toolName: { en_US: 'Save HTML dashboard', zh_Hans: '保存自由样式看板' } } })

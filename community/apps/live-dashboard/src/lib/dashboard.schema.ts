@@ -1,12 +1,12 @@
 import { z } from 'zod/v3'
 import { analyticsBindingSchema } from '@xpert-ai/plugin-sdk/analytics'
-import { artifactDocumentHtml } from '@xpert-ai/plugin-sdk/artifact-document'
+import { artifactDocumentHtml, artifactDocumentDependencyLocks } from '@xpert-ai/plugin-sdk/artifact-document'
 
 const id = z.string().regex(/^[A-Za-z][A-Za-z0-9_.-]{0,79}$/)
 export const dashboardSchema = z.object({
   schema: z.literal('xpert.live-dashboard/v1'), id: z.string().uuid(), title: z.string().min(1).max(160),
   bindings: z.array(analyticsBindingSchema).min(1).max(8),
-  presentation: z.object({ type: z.literal('html'), html: artifactDocumentHtml }).strict().optional(),
+  presentation: z.object({ type: z.literal('html'), html: artifactDocumentHtml, dependencies: artifactDocumentDependencyLocks.optional() }).strict().optional(),
   controls: z.array(z.object({ controlId: id, type: z.enum(['string', 'number', 'boolean', 'date']),
     defaultValue: z.union([z.string(), z.number(), z.boolean(), z.null()]).optional(),
     allowedValues: z.array(z.union([z.string(), z.number(), z.boolean(), z.null()])).max(200).optional(),

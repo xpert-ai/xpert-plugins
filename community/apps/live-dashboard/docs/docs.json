@@ -17,6 +17,7 @@
             "pages": [
               "index",
               "html-mode",
+              "frontend-libraries",
               "verification"
             ]
           },

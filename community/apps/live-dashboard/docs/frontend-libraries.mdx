@@ -1,0 +1,56 @@
+---
+title: "固定前端图库"
+description: "ECharts、Three.js 的受控注入、版本快照和 Binding 边界。"
+---
+
+## Agent 使用方式
+
+调用 `dashboard_libraries` 读取可用库的精确版本、全局名称、摘要和能力说明。
+当前打包 ECharts 5.6.0（`window.echarts`）与 Three.js 0.185.1（`window.THREE`）。
+创建 HTML 看板时传入 `libraries: ["echarts"]`；不使用库时省略。
+重新保存已有定义时，保留原 `presentation.dependencies` 即可沿用原依赖快照。
+库在作者代码执行前已加载，不要写 CDN 标签、ES module import 或复制库源码。
+
+```javascript
+const chart = echarts.init(document.querySelector('#chart'), null, { renderer: 'svg' })
+const live = window.xpertLiveArtifact
+live.subscribe('sales', dataset => {
+  chart.setOption({
+    xAxis: { type: 'category', data: dataset.rows.map(row => row.month) },
+    yAxis: { type: 'value' },
+    series: [{ type: 'bar', data: dataset.rows.map(row => Number(row.net_sales)) }]
+  }, { notMerge: true })
+})
+new ResizeObserver(() => chart.resize()).observe(document.querySelector('#chart'))
+live.query('sales', { region: null }).catch(showError)
+```
+
+示例中的字段、粒度、Binding 和控件必须替换为实际预览结果；元素需有非零尺寸。
+复用图表实例，通过订阅更新筛选和刷新结果，不要反复初始化。
+ECharts 支持 Canvas/SVG；见 [官方引入说明](https://echarts.apache.org/handbook/en/basics/import/)。
+
+Three.js 提供核心库、Scene、Geometry、Material 与 WebGLRenderer。
+WebGLRenderer 需要浏览器提供 WebGL2，必须处理 GPU 不可用并释放资源。
+未打包 addons/loaders、外部模型/纹理、WebGPU 或 worker；
+参见 [Three.js WebGLRenderer](https://threejs.org/docs/pages/WebGLRenderer)。
+
+## 分层与历史版本
+
+平台 SDK 负责通用依赖锁、SHA-256 校验、代码大小限制和隔离注入。
+本插件负责允许列表、打包、许可证、Agent 工具和看板版本语义，数据源插件无需感知图库。
+
+带图库的保存文件采用 `xpert.live-dashboard.package/v1`：`manifest` 存 HTML、Binding 和依赖锁，
+`dependencies` 存库的实际代码。它们共享一个不可变 Artifact Version 和文件摘要。
+旧的无图库 JSON 定义继续兼容。Agent 读取工具只返回依赖元数据，避免把库源码塞进上下文。
+历史版本从自身快照读取库，不依赖当前插件仍保留相同版本；修改默认继承该快照。
+包最大 9 MB；HTML 仍限制为 300 KB，库代码单包 4 MB、合计 8 MB。
+
+生成预检与实际 View 使用同一 SDK、相同 HTML 和同一份库源码。
+未知库、缺失的依赖锁或被篡改的源码会被拒绝，运行时异常会阻止保存。
+包中附带 ECharts 的 LICENSE/NOTICE 和 Three.js LICENSE。
+
+## 查询权限
+
+图库只处理已返回的 Dataset。页面仍只能通过 `xpertLiveArtifact` 指定已保存的 Binding ID 和控件值。
+库注入不会开放 CDN、网络请求、Provider 覆盖、SQL、宿主存储或其他 View Actions。
+服务端继续按当前用户授权查询，旧版本不能恢复已撤销的数据访问权限。

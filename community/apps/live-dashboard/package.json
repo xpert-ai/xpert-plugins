@@ -21,8 +21,8 @@
     ".xpertai-plugin"
   ],
   "scripts": {
-    "verify:dist": "node scripts/verify-dist.mjs && node scripts/build-action.mjs --verify",
-    "build": "tsc -p tsconfig.json && tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote.mjs && node scripts/build-action.mjs",
+    "verify:dist": "node scripts/verify-dist.mjs && node scripts/build-action.mjs --verify && node scripts/build-libraries.mjs --verify",
+    "build": "node scripts/build-libraries.mjs && tsc -p tsconfig.json && tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote.mjs && node scripts/build-action.mjs",
     "test": "pnpm run build && node --test tests/*.test.cjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
@@ -43,6 +43,8 @@
     "@langchain/core": ">=0.3.0"
   },
   "devDependencies": {
+    "echarts": "5.6.0",
+    "three": "0.185.1",
     "@xpert-ai/plugin-sdk": "^3.21.0",
     "@xpert-ai/contracts": "^3.21.0",
     "@nestjs/common": "^11.1.6",

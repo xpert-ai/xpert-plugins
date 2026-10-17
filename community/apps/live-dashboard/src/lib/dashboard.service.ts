@@ -8,6 +8,8 @@ import {
 import { dashboardSchema, type DashboardManifest } from './dashboard.schema'
 import { toDataAnalyticsPayload } from './renderer'
 import { HtmlDashboardValidation } from './html-validation'
+import { resolveLibraryAssets } from './document-libraries'
+import { decodeDashboardPackage, encodeDashboardPackage, MAX_DASHBOARD_PACKAGE_BYTES } from './document-package'
 
 export const PLUGIN_NAME = '@xpert-ai/plugin-live-dashboard'
 const RESOURCE_TYPE = 'live-dashboard'
@@ -35,8 +37,10 @@ export class DashboardService {
     const source = { pluginName: PLUGIN_NAME, resourceType: RESOURCE_TYPE, resourceId: `${hostPrefix(context)}${parsed.id}` }
     const existing = await artifacts.findArtifactBySource(source)
     if (existing && existing.userId !== scopedActor.userId) throw new ForbiddenException('DASHBOARD_ACCESS_DENIED')
-    const buffer = Buffer.from(JSON.stringify(parsed))
-    if (buffer.byteLength > 600_000) throw new BadRequestException('DASHBOARD_MANIFEST_TOO_LARGE')
+    const previous = existing?.currentVersionId ? await this.openDocument(context, existing.id) : null
+    const dependencies = await resolveLibraryAssets(parsed.presentation?.dependencies ?? [], previous?.dependencies)
+    const buffer = encodeDashboardPackage(parsed, dependencies)
+    if (buffer.byteLength > MAX_DASHBOARD_PACKAGE_BYTES) throw new BadRequestException('DASHBOARD_MANIFEST_TOO_LARGE')
     const digest = createHash('sha256').update(buffer).digest('hex')
     if ((existing?.currentVersionId ?? null) !== expectedVersionId && existing?.currentVersion?.sha256 !== digest) throw new ConflictException('DASHBOARD_VERSION_CONFLICT')
     // Recheck current data access even for an idempotent retry; the platform enforces the final CAS under a row lock.
@@ -44,7 +48,7 @@ export class DashboardService {
     if (!parsed.presentation) toDataAnalyticsPayload(parsed, preview)
     for (const binding of parsed.bindings) await this.probeControls(context, binding,
       Object.fromEntries(parsed.controls.filter((control) => control.defaultValue !== undefined).map((control) => [control.controlId, control.defaultValue ?? null])))
-    const htmlValidation = await this.htmlValidation.validate(context, parsed, preview)
+    const htmlValidation = await this.htmlValidation.validate(context, parsed, preview, dependencies)
     const artifact = existing ?? await artifacts.createArtifact({ source, kind: 'file', title: parsed.title,
       scope: { ...scopedActor, ...(context.hostType === 'project' ? { projectId: context.hostId } : { xpertId: context.hostId }) } })
     const files = this.runtime.require(WorkspaceFilesRuntimeCapability)
@@ -57,6 +61,11 @@ export class DashboardService {
     return { artifactId: artifact.id, versionId: result.version.id, versionNumber: result.version.versionNumber, title: parsed.title }
   }
   async open(context: XpertResolvedViewHostContext, artifactId: string, versionId?: string) {
+    const { dependencies, ...saved } = await this.openDocument(context, artifactId, versionId)
+    return saved
+  }
+  /** Trusted View transport only. Agent read tools receive locks, never megabytes of library code. */
+  async openDocument(context: XpertResolvedViewHostContext, artifactId: string, versionId?: string) {
     actor(context)
     const artifacts = this.runtime.require(ArtifactsRuntimeCapability)
     const artifact = await artifacts.getArtifact(artifactId)
@@ -64,11 +73,11 @@ export class DashboardService {
     const version = versionId ? (await artifacts.listArtifactVersions({ artifactId, status: 'active' })).find((item) => item.id === versionId) : artifact.currentVersion
     if (!version?.workspaceFileRef || version.mimeType !== MIME_TYPE) throw new BadRequestException('DASHBOARD_VERSION_UNAVAILABLE')
     const file = await this.runtime.require(WorkspaceFilesRuntimeCapability).readBuffer(version.workspaceFileRef)
-    if (file.buffer.byteLength > 600_000) throw new BadRequestException('DASHBOARD_MANIFEST_TOO_LARGE')
+    if (file.buffer.byteLength > MAX_DASHBOARD_PACKAGE_BYTES) throw new BadRequestException('DASHBOARD_MANIFEST_TOO_LARGE')
     if (!version.sha256 || createHash('sha256').update(file.buffer).digest('hex') !== version.sha256)
       throw new BadRequestException('DASHBOARD_VERSION_CONTENT_CHANGED')
-    const manifest = dashboardSchema.parse(JSON.parse(file.buffer.toString('utf8')))
-    return { ...summary(artifact, version), manifest }
+    const { manifest, dependencies } = decodeDashboardPackage(file.buffer)
+    return { ...summary(artifact, version), manifest, dependencies }
   }
   async query(context: XpertResolvedViewHostContext, artifactId: string, versionId: string, controls: Record<string, AnalyticsValue>) {
     const saved = await this.open(context, artifactId, versionId)

@@ -7,6 +7,7 @@ import { MANAGED_QUEUE_SERVICE_TOKEN, PluginJobProcessor, SandboxJobsRuntimeCapa
   XPERT_RUNTIME_CAPABILITIES_TOKEN, type ManagedQueueJob, type ManagedQueueJobContext, type ManagedQueueService,
   type RuntimeCapabilityRegistry } from '@xpert-ai/plugin-sdk'
 import type { DashboardManifest } from './dashboard.schema'
+import { verifyArtifactDocumentDependencies, type ArtifactDocumentDependencyAsset } from '@xpert-ai/plugin-sdk/artifact-document'
 
 const PLUGIN = '@xpert-ai/plugin-live-dashboard', ACTION = 'live_dashboard.validate-html', POOL = 'sandbox-browser'
 const reportSchema = z.object({ ok: z.boolean(), errors: z.array(z.string().max(300)).max(16),
@@ -23,7 +24,7 @@ export class HtmlDashboardValidation {
   constructor(@Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtime: RuntimeCapabilityRegistry,
     @Inject(MANAGED_QUEUE_SERVICE_TOKEN) private readonly queue: ManagedQueueService) {}
 
-  async validate(context: XpertResolvedViewHostContext, manifest: DashboardManifest, datasets: AnalyticalDataset[]) {
+  async validate(context: XpertResolvedViewHostContext, manifest: DashboardManifest, datasets: AnalyticalDataset[], dependencies: ArtifactDocumentDependencyAsset[] = []) {
     if (!manifest.presentation) return null
     if (!context.tenantId || !context.organizationId || !context.userId) throw new BadRequestException('DASHBOARD_ACCESS_DENIED')
     const files = this.runtime.require(WorkspaceFilesRuntimeCapability), jobs = this.runtime.require(SandboxJobsRuntimeCapability)
@@ -32,6 +33,7 @@ export class HtmlDashboardValidation {
     if (!health.available || !pool.available) throw new BadRequestException(`DASHBOARD_HTML_VALIDATION_UNAVAILABLE: ${health.reason ?? pool.warning ?? 'Browser Runtime unavailable'}`)
     const jobId = randomUUID(), scope = { tenantId: context.tenantId, userId: context.userId, catalog: 'users' as const }
     const buffer = Buffer.from(JSON.stringify({ html: manifest.presentation.html,
+      dependencies: verifyArtifactDocumentDependencies(dependencies, manifest.presentation.dependencies ?? []),
       context: { bindingIds: manifest.bindings.map(binding => binding.id), defaults: Object.fromEntries(manifest.controls.filter(control => control.defaultValue !== undefined).map(control => [control.controlId, control.defaultValue ?? null])), theme: 'light', locale: 'en' },
       datasets: Object.fromEntries(manifest.bindings.map(binding => [binding.id, datasets.find(dataset => dataset.datasetId === binding.output.datasetId)])) }))
     const stored = await files.uploadBuffer({ ...scope, buffer, originalName: 'document.json', fileName: 'document.json', folder: `live-dashboard-validation/${jobId}`, mimeType: 'application/json' })

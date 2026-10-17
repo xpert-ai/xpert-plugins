@@ -136,3 +136,25 @@ test('HTML bytes and bindings are one immutable version; query endpoint cannot a
   await assert.rejects(s.service.save(s.context, manifest, null), /PREFLIGHT_FAILED/);
   assert.equal(s.artifacts.size, 0); assert.equal(s.files.size, 0); assert.equal(s.versions.length, 0);
 })
+
+
+test('saved library bytes reach preflight and View while Agent reads receive locks only', async () => {
+  const { libraryLocks } = require('../dist/lib/document-libraries.js')
+  const { DashboardViewProvider } = require('../dist/lib/view.provider.js')
+  const s = setup(), locks = await libraryLocks(['echarts'])
+  let validated
+  s.service.htmlValidation = { async validate(_context, _manifest, _preview, dependencies) { validated = dependencies } }
+  const manifest = { ...example, charts: [], tables: [], presentation: { type: 'html', html: '<html><body>Chart</body></html>', dependencies: locks } }
+  const first = await s.service.save(s.context, manifest, null)
+  const opened = await s.service.openDocument(s.context, first.artifactId, first.versionId)
+  assert.deepEqual(opened.dependencies, validated)
+  assert.equal(opened.dependencies[0].id, 'echarts')
+  assert.equal('dependencies' in await s.service.open(s.context, first.artifactId), false)
+  s.service.list = async () => []; s.service.sources = async () => []
+  const view = new DashboardViewProvider(s.service)
+  const result = await view.getViewData(s.context, 'live-dashboard', { parameters: { artifactId: first.artifactId, versionId: first.versionId } })
+  assert.deepEqual(result.meta.saved.dependencies, opened.dependencies)
+  const second = await s.service.save(s.context, { ...manifest, title: 'Changed' }, first.versionId)
+  assert.deepEqual((await s.service.openDocument(s.context, first.artifactId, second.versionId)).dependencies, opened.dependencies)
+  assert.equal((await s.service.open(s.context, first.artifactId, first.versionId)).manifest.title, manifest.title)
+})

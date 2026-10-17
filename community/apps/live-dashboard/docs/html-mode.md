@@ -33,6 +33,8 @@ HTML iframe → 专属 MessagePort → Live Dashboard View → query-binding
 
 HTML 字节、数据 Binding 和 Controls 处于同一内容哈希和版本中。工作区原文件后续编辑不会改变已保存页面。现有 expectedVersionId / CAS、当前用户及 host 归属检查继续适用。
 
+使用打包图库时，`presentation.dependencies` 保存精确版本与 SHA-256，外层 `xpert.live-dashboard.package/v1` 同时保存实际库源码。无依赖的旧定义仍可读取；详见[固定前端图库](frontend-libraries.mdx)。
+
 `query-binding` View Action 严格接受 `{artifactId, versionId, bindingId, controls}`。服务端打开对应版本并从中取 Binding。额外的 `binding`、`payload`、`providerId`、`dataSourceId` 均被拒绝。未知 Binding、未知控件、非法值、其他用户/host/组织、已撤销来源权限均不能执行查询。HTML 只能向消息桥提交 bindingId 和 controls；Artifact ID/版本由宿主持有。
 
 ## Agent 与浏览器
@@ -65,8 +67,8 @@ await live.query('sales', { region: null })
 
 ## 当前范围
 
-- 单文件 HTML（300 KB）、定义总计 600 KB；8 个 Binding、24 个控件。
-- 提供内联原生绘图；第三方图表库可由插件以后通过受控打包提供，当前不开放任意 CDN。
+- 单文件 HTML（300 KB）、含依赖的版本包最大 9 MB；8 个 Binding、24 个控件。
+- 支持原生绘图与插件打包的 ECharts、Three.js 核心库；不开放任意 CDN。
 - 刷新为查询最新来源，未提供服务端推送/定时轮询。
 - Artifact 当前仍为 owner-only；没有扩大分享权限。
 - 保存预检覆盖初始渲染与查询协议；不证明任意图表业务口径、延迟执行分支或所有交互都正确，仍需真实浏览器验收。

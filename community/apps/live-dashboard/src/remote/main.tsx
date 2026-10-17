@@ -7,13 +7,13 @@ import { startBridge, requestHost } from './bridge'
 import { messages } from './i18n'
 import './style.css'
 import { HtmlDashboard, type HtmlDashboardHandle } from './html-dashboard'
-import { installArtifactDocumentFramePolicy } from '@xpert-ai/plugin-sdk/artifact-document'
+import { installArtifactDocumentFramePolicy, artifactDocumentDependencyAssets } from '@xpert-ai/plugin-sdk/artifact-document'
 
 installArtifactDocumentFramePolicy(document)
 
 declare global { interface Window { __ANALYTICS_RENDERER_HTML__: string } }
 const summarySchema = z.object({ artifactId: z.string(), versionId: z.string().nullish(), versionNumber: z.number().optional(), title: z.string().nullish(), updatedAt: z.string().optional() })
-const savedSchema = summarySchema.extend({ manifest: dashboardSchema })
+const savedSchema = summarySchema.extend({ manifest: dashboardSchema, dependencies: artifactDocumentDependencyAssets.optional() })
 const listSchema = z.object({ meta: z.object({ dashboards: z.array(summarySchema), sources: z.array(z.object({ id: z.string(), name: z.string(), type: z.string() })), saved: savedSchema.optional() }) })
 const actionSchema = z.object({ success: z.literal(true), data: z.unknown() })
 const queryResultSchema = z.object({ payload: z.unknown(), datasets: z.array(z.object({ completeness: z.object({ truncated: z.boolean() }), freshness: z.object({ sourceFetchedAt: z.string() }) })) })
@@ -108,7 +108,7 @@ function App() {
         {busy && <p role="status" className="p-6 text-muted-foreground">{t.loading}</p>}
         {!busy && !html && !saved?.manifest.presentation && !error && <p className="p-6 text-muted-foreground">{t.empty}</p>}
         {saved?.manifest.presentation && saved.versionId && <HtmlDashboard ref={htmlDashboard} artifactId={saved.artifactId} versionId={saved.versionId}
-          manifest={saved.manifest} onBusy={setBusy} onError={setError} onResult={result => { setError(''); setPartial(result.partial); setStatus(result.fetchedAt) }}/ >}
+          manifest={saved.manifest} dependencies={saved.dependencies ?? []} onBusy={setBusy} onError={setError} onResult={result => { setError(''); setPartial(result.partial); setStatus(result.fetchedAt) }}/ >}
         {html && <iframe title={saved?.manifest.title ?? t.title} sandbox="allow-scripts" srcDoc={html} className="h-full w-full border-0"/>}
       </section>
     </>}

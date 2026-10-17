@@ -115,3 +115,23 @@ test('failed preview gives no save evidence; guidance preserves existing system 
   await s.middleware.wrapModelCall({ systemMessage: { content: 'Existing system instructions' } }, async r => { content = r.systemMessage.content })
   assert.match(JSON.stringify(content), /Existing system instructions/); assert.match(JSON.stringify(content), /Never invent fields/)
 })
+
+
+test('Agent discovers frontend pins and saves only explicitly requested libraries', async () => {
+  const s = setup(), { input, binding } = draft()
+  const catalog = JSON.parse(await s.invoke('dashboard_libraries', {}))
+  assert.deepEqual(catalog.libraries.map(item => item.id), ['echarts', 'three'])
+  assert(catalog.libraries.every(item => !Object.hasOwn(item, 'source')))
+  await s.invoke('dashboard_discover', { dataSourceId: binding.dataSourceId, providerId: binding.providerId })
+  const preview = JSON.parse(await s.invoke('dashboard_preview', { binding }))
+  const { charts, tables, ...definition } = input
+  const path = 'dashboards/chart.html'
+  s.files.set(path, Buffer.from('<html><body>Chart</body></html>'))
+  const args = { ...definition, previewIds: [preview.previewId], path, libraries: ['echarts'] }
+  await s.invoke('dashboard_create_html', args)
+  const manifest = s.calls.filter(call => call[0] === 'save').at(-1)[2]
+  assert.deepEqual(manifest.presentation.dependencies, [catalog.libraries[0]])
+  await assert.rejects(s.invoke('dashboard_create_html', { ...args, libraries: ['https://cdn.example/echarts.js'] }))
+  await assert.rejects(s.invoke('dashboard_create_html', { ...args, libraries: ['echarts', 'echarts'] }))
+  assert.equal(s.calls.filter(call => call[0] === 'save').length, 1)
+})

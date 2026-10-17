@@ -11,7 +11,7 @@ const errors = [], addError = value => { const message = String(value).slice(0, 
     window.validation = { errors: [], requestedBindings: [] }
     DocumentHost.installArtifactDocumentFramePolicy(document)
     window.documentHost = DocumentHost.mountArtifactDocument(document.querySelector('iframe'), {
-      html: input.html, context: input.context,
+      html: input.html, context: input.context, dependencies: input.dependencies ?? [],
       query: async request => {
         window.validation.requestedBindings.push(request.bindingId)
         if (!input.datasets[request.bindingId]) throw Error('DOCUMENT_BINDING_DENIED')
