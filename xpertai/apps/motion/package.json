@@ -46,7 +46,7 @@
     "test:e2e": "node scripts/verify-workbench-e2e.mjs",
     "typecheck": "pnpm run build:ui && tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check",
     "demo:product-intro": "node scripts/render-product-intro-demo.mjs",
-    "prepack": "pnpm run build:ui && npm run build && node scripts/verify-package-output.mjs"
+    "prepack": "pnpm run build:ui && npm run build && node scripts/verify-package-output.mjs && node ../../scripts/verify-app-configs.mjs motion"
   },
   "xpert": {
     "plugin": {
