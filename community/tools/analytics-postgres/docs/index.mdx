@@ -1,0 +1,72 @@
+---
+title: "PostgreSQL analytics provider"
+description: "Connect scoped PostgreSQL queries to the shared Dataset/Binding runtime."
+---
+
+## Boundaries
+
+The platform owns authentication, source access, parameter validation, execution limits,
+Dataset normalization and Artifact persistence. This plugin registers `postgres.sql`
+with operation `query`, contract version `1`, for source types `pg` and `postgres`.
+The PostgreSQL database plugin owns the driver, read-only execution and cancellation.
+The provider obtains that adapter through `DataSourceRuntimeCapability`; it never stores
+credentials or accepts a different actor from the Binding payload.
+
+The provider ID is the stable key used by existing Binding documents. Package ownership
+uses the explicit `analytics_postgres` artifact namespace. Changing the provider ID
+requires migration of saved Bindings.
+
+## Discover before querying
+
+Send `{}` or `{ "kind": "catalog" }` to list the first 20 objects. Use `search`, `page`
+and `location` to refine the catalog. Follow `nextRequest` and each item's
+`inspectRequest` instead of guessing object identities.
+
+```json
+{
+  "kind": "catalog",
+  "location": { "database": "warehouse", "schema": "reporting" },
+  "search": "orders",
+  "page": 1
+}
+```
+
+Inspection returns column types, comments, keys and a bounded definition. Both catalog
+and inspection open the explicitly requested database/schema with the current actor.
+Business meaning must be verified from metadata and authorized previews; names alone
+do not prove metric or time semantics.
+
+## Bind filters and output fields
+
+The following object is the provider-specific `Binding.payload`:
+
+```json
+{
+  "sql": "SELECT region, SUM(amount)::double precision AS amount FROM sales WHERE $1::text IS NULL OR region = $1::text GROUP BY region",
+  "parameterOrder": ["region"],
+  "location": { "database": "warehouse", "schema": "reporting" }
+}
+```
+
+Declare `region` as a nullable string parameter in the enclosing Binding.
+`parameterOrder` maps resolved names to `$1`, `$2`, and subsequent positions.
+Values remain separate from SQL, including quotes and injection-like strings.
+Cast nullable placeholders explicitly so PostgreSQL can determine their types.
+
+Map aliases to stable output fields: `region` is a string dimension and `amount` is a
+float64 measure. The provider uses PostgreSQL OIDs together with declared logical types;
+it does not infer types from cell content. Keep decimal and int64 values as exact strings.
+A timestamp must carry a timezone; date fields use `YYYY-MM-DD`.
+Duplicate aliases and incomplete query outcomes fail rather than producing ambiguous data.
+
+## Render, filter and refresh
+
+The provider returns native columns, rows, completeness and source-fetch time. The host
+projects those values into the declared Dataset. Data Analytics views and free HTML/JS
+Artifacts consume the same Dataset through their host Binding bridge; neither renderer
+needs SQL or direct database access. Filtering changes declared parameter values;
+refreshing executes the Binding again. This provider adds no result cache.
+
+Either `hasMore` or transport truncation marks the result as partial, with unknown total
+and `page` scope. Only an untruncated result reports an exact total for the full query.
+Source-fetch time records this execution, not a guarantee of business-data freshness.

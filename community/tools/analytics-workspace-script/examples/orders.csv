@@ -1,0 +1,10 @@
+order_id,ordered_at,region,status,paid_amount_cny,refund_amount_cny
+ld-01,2026-07-05,华东,paid,1200,200
+ld-02,2026-07-06,华西,paid,800,0
+ld-03,2026-07-10,华东,cancelled,9999,0
+ld-04,2026-08-01,华东,paid,2000,500
+ld-05,2026-08-12,华西,paid,1000,100
+ld-06,2026-09-05,华东,paid,1000,0
+ld-07,2026-09-09,华西,paid,600,100
+ld-08,2026-06-30,华东,paid,8888,0
+ld-09,2026-10-01,华西,paid,7777,0

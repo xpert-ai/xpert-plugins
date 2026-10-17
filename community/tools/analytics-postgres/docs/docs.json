@@ -1,0 +1,26 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "maple",
+  "name": "PostgreSQL Analytics",
+  "colors": {
+    "primary": "#336791",
+    "light": "#5B9BD5",
+    "dark": "#244B6B"
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Provider",
+            "pages": [
+              "index",
+              "verification"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

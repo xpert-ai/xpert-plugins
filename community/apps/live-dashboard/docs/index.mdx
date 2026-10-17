@@ -1,0 +1,47 @@
+---
+title: "Live Dashboard"
+description: "使用统一 Dataset/Binding，在标准图表或 HTML 页面中展示实时数据。"
+---
+
+## 分层与责任
+
+| 层 | 责任 |
+| --- | --- |
+| Xpert 平台 | 当前用户授权、Dataset/Binding 协议、数据源插件分发、Artifacts 草稿与版本、Workspace Files、Sandbox Jobs、HTML 文档隔离 |
+| 数据源插件 | PostgreSQL、本体资源或 Workspace 脚本的发现、原生查询和结果适配 |
+| Live Dashboard 插件 | 看板定义、控件与图表绑定、Agent 工具、保存前验证、Workbench 视图 |
+
+看板插件不解析 SQL 或本体查询语法。数据源 Provider 只需返回统一 Dataset；
+标准模式与 HTML 模式共享同一 Binding，不要求来源实现页面接口。
+
+## 接入
+
+使用包含新增协议的本地 SDK/contracts 构建产物，安装来源插件及本插件。
+将 `LiveDashboard` middleware 连接到 Assistant；专用看板助理应使用必需连接，
+使工具与对应 Feature 门控视图同时可用。参考包内 `examples/assistant-middleware.yaml`。
+
+Agent 按“发现来源 → 检查业务语义 → 预览真实数据 → 保存”工作。
+创建工具仅接受本次运行的成功预览回执，并在保存时重新查询验证。
+无法从数据确认指标口径时需要业务澄清，结构校验不证明业务结论。
+
+## 两种展示方式
+
+- 标准模式：用 `charts` / `tables` 映射 Dataset 字段，复用 Data Analytics renderer。
+- HTML 模式：Agent 在授权 Workspace 编写 HTML/CSS/JS，保存时将页面和 Binding 纳入同一工作草稿，人工确认后形成不可变正式版本。
+
+HTML 页面通过 `window.xpertLiveArtifact.query(bindingId, controls)` 请求数据。
+后端只读取保存版本中的 Binding，拒绝查询体、Provider 或数据源替换。
+完整 API 见 [HTML 模式协议](html-mode)。
+
+## 保存与刷新
+
+保存的是定义与 HTML，不是查询结果。草稿采用内容摘要、修订号与正式版本基准的 CAS 防止覆盖；
+成功草稿回执驱动预览，人工确认发布才生成正式版本。
+每次筛选或手动刷新都重新授权和查询；这里的实时刷新不包含自动推送或定时调度。
+
+打开看板后可让 Agent 持续修改同一作品。页面样式修改保留 Binding，数据修改需要新的预览回执；
+自动保存保留 Artifact ID 并增加草稿修订号。Workbench 支持选择历史版本，详见[持续修改与版本历史](editing)。
+
+HTML 保存前需要可用 Browser Runtime 和 `sandbox-browser` 队列。
+初始页面预检失败会阻止保存；标准模式不依赖浏览器任务。
+预检不穷举全部交互、延迟分支或筛选组合。
