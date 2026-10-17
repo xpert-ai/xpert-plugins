@@ -36,8 +36,8 @@
     }
   },
   "peerDependencies": {
-    "@xpert-ai/plugin-sdk": "^3.21.0",
-    "@xpert-ai/contracts": "^3.21.0",
+    "@xpert-ai/plugin-sdk": "^3.23.1",
+    "@xpert-ai/contracts": "^3.23.0",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "zod": "3.25.67",
@@ -46,8 +46,8 @@
   "devDependencies": {
     "echarts": "5.6.0",
     "three": "0.185.1",
-    "@xpert-ai/plugin-sdk": "^3.21.0",
-    "@xpert-ai/contracts": "^3.21.0",
+    "@xpert-ai/plugin-sdk": "^3.23.1",
+    "@xpert-ai/contracts": "^3.23.0",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "zod": "3.25.67",
