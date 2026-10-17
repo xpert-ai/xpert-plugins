@@ -106,9 +106,9 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
         const name = request.toolCall.name
         const args = request.toolCall.args
         const path = workspaceFileMutationPath(request.tool && 'metadata' in request.tool ? request.tool.metadata : undefined, args)
-        if (path && (evidence.has(path) || previews.size > 0 && htmlPathSchema.safeParse(path).success)) evidence.write(path)
         const save = DASHBOARD_MUTATION_TOOLS.includes(name) ? evidence.beginSave() : undefined
-        const result = await handler(request)
+        const result = path && (evidence.has(path) || previews.size > 0 && htmlPathSchema.safeParse(path).success)
+          ? await evidence.trackWrite(path, async () => handler(request)) : await handler(request)
         if (save && 'content' in result && (!('status' in result) || result.status !== 'error')) await evidence.accept(save, result.content)
         return result
       }, wrapModelCall: async (request, handler) => {

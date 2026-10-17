@@ -216,7 +216,10 @@ test('sandbox mutations require a receipt for the same file and exact bytes', as
   const s = setup(); s.saved.manifest.presentation = { type: 'html', html: '<html><body>Initial</body></html>' }
   const opened = JSON.parse(await s.invoke('dashboard_open', { artifactId: s.saved.artifactId }))
   const call = (name, args, content, status = 'success', metadata) => s.middleware.wrapToolCall({ toolCall: { name, args, id: 'call' }, tool: { metadata } },
-    async () => new ToolMessage({ content, name, tool_call_id: 'call', status }))
+    async () => {
+      if (metadata) s.files.set(args.file_path, Buffer.concat([s.files.get(args.file_path), Buffer.from(' ')]))
+      return new ToolMessage({ content, name, tool_call_id: 'call', status })
+    })
   const path = opened.htmlPath
   s.files.set(path, Buffer.from('<html><body>Changed</body></html>'))
   await call('sandbox_edit_file', { file_path: path }, '{}', 'success', workspaceFileMutationMetadata)
@@ -268,6 +271,75 @@ test('a concurrent file edit remains pending after an earlier save receipt', asy
   assert.deepEqual(evidence.pendingPaths, [path])
   const resaving = evidence.accept(evidence.beginSave(), JSON.stringify(receipt))
   releaseRead(); await resaving
+  assert.equal(evidence.pending, false)
+})
+
+test('refused file writes do not require saves; real, earlier and concurrent changes remain pending', async () => {
+  const { dashboardSaveEvidence } = require('../dist/lib/save-evidence.js')
+  let buffer = Buffer.from('existing')
+  const evidence = dashboardSaveEvidence(() => ({ readRuntimeBuffer: async () => ({ buffer }) }))
+  const path = 'dashboards/existing.html'
+  const refused = { status: 'success', content: JSON.stringify({ error: 'already exists' }) }
+  assert.equal(await evidence.trackWrite(path, async () => refused), refused)
+  assert.equal(evidence.pending, false)
+  await assert.rejects(evidence.trackWrite(path, async () => { throw new Error('refused') }), /refused/)
+  assert.equal(evidence.pending, false)
+  await evidence.trackWrite(path, async () => { buffer = Buffer.from('changed') })
+  assert.equal(evidence.pending, true)
+  await evidence.trackWrite(path, async () => refused)
+  assert.equal(evidence.pending, true)
+  await evidence.trackWrite(path, async () => { evidence.write(path); return refused })
+  assert.equal(evidence.pending, true)
+  const partial = dashboardSaveEvidence(() => ({ readRuntimeBuffer: async () => ({ buffer }) }))
+  await assert.rejects(partial.trackWrite(path, async () => { buffer = Buffer.from('partial change'); throw new Error('failed after write') }), /failed after write/)
+  assert.equal(partial.pending, true)
+})
+
+test('a receipt during a write never confirms later bytes, including a partial failed write', async () => {
+  const { dashboardSaveEvidence } = require('../dist/lib/save-evidence.js')
+  const { createHash } = require('node:crypto')
+  for (const fails of [false, true]) {
+    let buffer = Buffer.from('saved bytes')
+    const path = 'dashboards/current.html', artifactId = randomUUID()
+    const evidence = dashboardSaveEvidence(() => ({ readRuntimeBuffer: async () => ({ buffer }) }))
+    const receipt = () => ({ dashboard: { artifactId, status: 'draft', draftRevision: 2 },
+      sourceFile: { path, sha256: createHash('sha256').update(buffer).digest('hex') } })
+    evidence.opened(path, artifactId)
+    const writing = evidence.trackWrite(path, async () => {
+      await evidence.accept(evidence.beginSave(), receipt())
+      assert.equal(evidence.pending, true)
+      buffer = Buffer.from('later unsaved bytes')
+      if (fails) throw new Error('failed after write')
+    })
+    if (fails) await assert.rejects(writing, /failed after write/)
+    else await writing
+    assert.equal(evidence.pending, true)
+    assert.deepEqual(evidence.pendingPaths, [path])
+    await evidence.accept(evidence.beginSave(), receipt())
+    assert.equal(evidence.pending, false)
+  }
+})
+
+test('finishing one overlapping writer does not let a receipt confirm an unfinished writer', async () => {
+  const { dashboardSaveEvidence } = require('../dist/lib/save-evidence.js')
+  const { createHash } = require('node:crypto')
+  let buffer = Buffer.from('initial'), release, started
+  const gate = new Promise(resolve => { release = resolve })
+  const ready = new Promise(resolve => { started = resolve })
+  const path = 'dashboards/current.html', artifactId = randomUUID()
+  const evidence = dashboardSaveEvidence(() => ({ readRuntimeBuffer: async () => ({ buffer }) }))
+  const receipt = () => ({ dashboard: { artifactId, status: 'draft', draftRevision: 2 },
+    sourceFile: { path, sha256: createHash('sha256').update(buffer).digest('hex') } })
+  evidence.opened(path, artifactId)
+  const writing = evidence.trackWrite(path, async () => { started(); await gate; buffer = Buffer.from('last write') })
+  await ready
+  try {
+    await evidence.trackWrite(path, async () => { buffer = Buffer.from('first completed write') })
+    await evidence.accept(evidence.beginSave(), receipt())
+    assert.equal(evidence.pending, true)
+  } finally { release(); await writing }
+  assert.equal(evidence.pending, true)
+  await evidence.accept(evidence.beginSave(), receipt())
   assert.equal(evidence.pending, false)
 })
 
