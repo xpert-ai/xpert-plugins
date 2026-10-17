@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { z } from 'zod/v3'
+import type { ArtifactPresentationOpenRequest } from '@xpert-ai/contracts'
 import { Button, Input, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@xpert-ai/plugin-shadcn-ui'
 import { requestHost } from './bridge'
@@ -67,7 +68,15 @@ export function ShareDialog({ artifactId, versionId, versions, t, onClose }: Pro
             // Synchronous user gesture in the sandbox; the URL remains selectable if copying is denied.
             setCopied(document.execCommand('copy'))
           }}>{copied ? t.copied : t.copyLink}</Button>
-          <a className="inline-flex items-center px-2 text-sm underline" href={link.url} target="_blank" rel="noopener noreferrer">{t.openShared}</a></div>
+          <Button variant="outline" onClick={async () => {
+            if (!link.url) return
+            setError('')
+            try {
+              z.object({ success: z.literal(true) }).parse(await requestHost('invokeClientCommand', {
+                commandKey: 'artifact.presentation.open', payload: { url: link.url } satisfies ArtifactPresentationOpenRequest
+              }))
+            } catch { setError(t.error) }
+          }}>{t.openShared}</Button></div>
         </div>}
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       </div>
