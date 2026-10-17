@@ -15,6 +15,7 @@
   "extensions": {
     "xpertai": {
       "version": 2,
+      "role": "assistant",
       "interface": {
         "displayName": {
           "en_US": "Customer Value Review Advisor",

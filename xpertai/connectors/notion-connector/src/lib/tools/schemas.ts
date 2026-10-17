@@ -1,4 +1,5 @@
 import { z } from 'zod/v3'
+import { jsonEncodedSchema } from '@xpert-ai/plugin-sdk'
 import {
   NOTION_MAX_BLOCK_DEPTH,
   NOTION_MAX_BLOCKS,
@@ -87,14 +88,7 @@ const queryFilter = z.discriminatedUnion('type', [
     .strict()
 ])
 
-const compatibleQueryFilter = z.preprocess((value) => {
-  if (typeof value !== 'string' || value.length > MAX_STRINGIFIED_FILTER_LENGTH) return value
-  try {
-    return JSON.parse(value) as unknown
-  } catch {
-    return value
-  }
-}, queryFilter)
+const compatibleQueryFilter = jsonEncodedSchema(queryFilter, { maxChars: MAX_STRINGIFIED_FILTER_LENGTH })
 
 const querySort = z
   .object({

@@ -1,0 +1,118 @@
+{
+  "schema": "xpert.live-dashboard/v1",
+  "id": "33333333-3333-4333-8333-333333333333",
+  "title": "本体区域销售",
+  "controls": [
+    {
+      "controlId": "region",
+      "label": "区域",
+      "type": "string",
+      "defaultValue": "west",
+      "allowedValues": [
+        "",
+        "east",
+        "west"
+      ]
+    }
+  ],
+  "bindings": [
+    {
+      "schemaVersion": 1,
+      "id": "sales",
+      "dataSourceId": "22222222-2222-4222-8222-222222222222",
+      "providerId": "data-xpert.ontology",
+      "operation": "action",
+      "contractVersion": 1,
+      "payload": {
+        "resourceId": "datax-semantic-model-<published-model-id>",
+        "actionTypeCode": "sql.query_cube_slice",
+        "target": {
+          "entityTypeCode": "semantic_cube",
+          "entityRef": "<published-model-id>::Sales"
+        },
+        "params": {
+          "dimensions": [
+            "Region"
+          ],
+          "measures": [
+            "Amount"
+          ],
+          "filters": [
+            {
+              "field": "Region",
+              "op": "contains",
+              "value": ""
+            }
+          ],
+          "limit": 100
+        },
+        "parameterPaths": {
+          "region": [
+            "filters",
+            "0",
+            "value"
+          ]
+        }
+      },
+      "parameters": [
+        {
+          "name": "region",
+          "controlId": "region",
+          "type": "string",
+          "required": true,
+          "defaultValue": "west",
+          "allowedValues": [
+            "",
+            "east",
+            "west"
+          ]
+        }
+      ],
+      "output": {
+        "datasetId": "sales",
+        "grain": [
+          "region"
+        ],
+        "fields": [
+          {
+            "id": "region",
+            "sourceField": "Region",
+            "label": "区域",
+            "logicalType": "string",
+            "role": "dimension",
+            "nullable": false
+          },
+          {
+            "id": "amount",
+            "sourceField": "Amount",
+            "label": "销售额",
+            "logicalType": "float64",
+            "role": "measure",
+            "nullable": false
+          }
+        ]
+      }
+    }
+  ],
+  "charts": [
+    {
+      "id": "sales",
+      "title": "区域销售额",
+      "type": "bar",
+      "datasetId": "sales",
+      "x": "region",
+      "y": "amount"
+    }
+  ],
+  "tables": [
+    {
+      "id": "details",
+      "title": "销售明细",
+      "datasetId": "sales",
+      "fields": [
+        "region",
+        "amount"
+      ]
+    }
+  ]
+}

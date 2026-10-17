@@ -21,3 +21,19 @@
 Git 导入子目录为 `agent-plugins/assistants/office-ops`。与系列其余模板一致，本包包含 `plugin.json`、`templates/`、`skills/`、`assets/icon.png`、`assets/avatar.json` 和 `docs/provenance.json`。包名 `office-ops`、模板 key `office-ops` 与主智能体 key `office-primary` 保持稳定，目录迁移不会创建第二套 Office Ops 身份。7 个业务技能、3 个默认暂停任务及台账保持原有能力。
 
 来源归属见 [docs/provenance.json](docs/provenance.json)，头像记录见 [assets/avatar.json](assets/avatar.json)。生成器维护系列目录与路径，不改写本包的业务配置。
+
+## ChatKit commands
+
+从 1.2.0 起，包级 `role` 为 `capability`，提供 7 组 commands、12 个快捷入口。导入并选中 Office Ops 后，空白会话展示描述性命令标签；开始对话后使用输入框 `/` 搜索名称或技能 key。选择子命令会插入普通技能标签和 `/subcommand` 文本，不会自动发送。模板仍可在智能体模板市场安装。
+
+| 显示名称 | 技能 key | 子命令 |
+| --- | --- | --- |
+| 办公概览 | `office-getting-started` | 无 |
+| 物流台账 | `office-shipment-ledger` | `/import` 导入记录；`/summary` 状态汇总 |
+| 办公设施 | `office-facilities-digest` | `/record` 登记问题；`/digest` 问题摘要 |
+| 物流跟进草稿 | `office-shipment-follow-up` | 无 |
+| 团队庆祝 | `office-celebrations` | `/record` 登记事项；`/upcoming` 未来十四天 |
+| 新人入职 | `office-new-hire` | `/checklist` 准备清单；`/update` 更新进度 |
+| 外部同步 | `office-sync` | `/plan` 准备方案；`/status` 查看回执 |
+
+`extensions.xpertai.commands` 只含展示元数据，业务操作由各技能的 `SKILL.md` 解释。作为能力包选择时使用当前 Assistant 已授权的工具；不会自动初始化模板文件、保存 Assistant 偏好或启用周期任务。需要写文件的命令依赖当前 Assistant 的沙箱文件工具。`/summary` 支持对明确提供的数据做不落盘预览。`/plan` 只生成同步方案，`/status` 只查询回执，均不执行外部写入。

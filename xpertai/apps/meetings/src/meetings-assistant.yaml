@@ -11,8 +11,11 @@ team:
   agentConfig:
     # Middleware graph steps count too; a four-tool summary can exceed 24 steps.
     recursionLimit: 64
+  features:
+    speechToText:
+      enabled: true
   workspaceDataScope: shared
-  version: "6"
+  version: "7"
   agent:
     key: Agent_Meetings
   knowledgebases: []
