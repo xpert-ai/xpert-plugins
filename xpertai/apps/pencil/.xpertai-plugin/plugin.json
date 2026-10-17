@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-pencil",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Pencil Agentic App plugin for design documents, reviewable versions, imports, exports, and an editable Workbench.",
   "author": "XpertAI",
   "homepage": "https://github.com/xpert-ai/xpert-plugins/tree/main/xpertai/apps/pencil",
