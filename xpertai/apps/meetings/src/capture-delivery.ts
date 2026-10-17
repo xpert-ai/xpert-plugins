@@ -14,6 +14,7 @@ const bindingSchema = z
   .object({
     version: z.literal(1),
     captureId: idSchema,
+    userId: z.string().min(1),
     meetingId: idSchema,
     contextHash: z.string().regex(/^[a-f0-9]{64}$/),
     receipts: z
@@ -36,6 +37,8 @@ export class CaptureDelivery {
       const binding = bindingSchema.parse(
         JSON.parse(await readFile(join(directory, "binding.json"), "utf8"))
       );
+      if (binding.userId !== scope.userId)
+        throw new MeetingError("capture_not_found");
       if (binding.captureId !== captureId)
         throw new MeetingError("capture_conflict");
       return binding;
@@ -75,6 +78,7 @@ export class CaptureDelivery {
           binding = {
             version: 1,
             captureId: input.captureId,
+            userId: scope.userId,
             meetingId: input.context.meetingId,
             contextHash: sha256(JSON.stringify(input.context)),
             receipts: {},

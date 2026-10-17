@@ -1,0 +1,12 @@
+{
+  "id": "marketing-project-manager",
+  "generator": "OpenAI imagegen",
+  "generatedAt": "2026-10-14",
+  "style": "Enterprise cartoon portrait; navy wardrobe; cream background",
+  "prompt": "Create ONE square avatar for an enterprise assistant template library. Original high-quality friendly 3D cartoon human, softly sculpted animated-feature aesthetic, warm cream seamless background, soft studio lighting, navy-and-cream corporate wardrobe with restrained accent colors. Chest-up portrait, face centered and large, eye contact, relaxed confident smile. Hair fully within frame, shoulders end at lower edge, minimal tiny work prop only at lower edge if specified. Match the polished Office Ops avatar series: natural human proportions with slightly enlarged expressive eyes, gentle shadows, clean smooth materials, no circle or frame baked in. No text, no letters, no logos, no watermark. A fictional person, not the actual creator of the referenced software. Role: Project Manager assistant. A fictional man, about 35, medium tan skin, dark swept-back hair. Navy business jacket with muted plum shirt or blouse. Unique friendly facial features; chest-up with generous space above hair. Square composition.",
+  "sourceAsset": "exec-86f9b031-74b8-4ba5-9cf3-97848869662d.png",
+  "packagedSize": 256,
+  "sha256": "0392d7a2c79a2e1f21f564d08f58840ce7ff9f9167043dbe0befe308b72e8c80",
+  "fictionalPerson": true,
+  "upstreamImageCopied": false
+}

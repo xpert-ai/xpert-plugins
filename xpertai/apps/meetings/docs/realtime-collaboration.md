@@ -1,6 +1,6 @@
 # Live transcription and collaborative editing
 
-Meetings owns waveform rendering, transcription, editable documents, and meeting workflows. Native capture and the ChatKit command bridge provide generic host capabilities. This document describes the plugin implementation and the boundaries for future shared meetings.
+Meetings owns waveform rendering, transcription, editable documents, and meeting workflows. Native capture and the ChatKit command bridge provide generic host capabilities. This document describes the plugin implementation and the boundaries for shared Assistant records and future multi-source meetings.
 
 ## Implementation and acceptance plan
 
@@ -39,7 +39,7 @@ Stopped event -> wait for current chunk -> refine adjacent audio -> validate exa
 
 ## Documents, files, and versions
 
-Personal notes and summaries are separate `DocumentKind` values using Tiptap StarterKit, Markdown, and Collaboration. Documents use ProseMirror schema v1 in `Y.XmlFragment('body')`.
+Meeting notes and summaries are separate `DocumentKind` values using Tiptap StarterKit, Markdown, and Collaboration. Documents use ProseMirror schema v1 in `Y.XmlFragment('body')`.
 
 | Content | Authoritative source | File projection or history |
 | --- | --- | --- |
@@ -55,22 +55,17 @@ The browser receives a short-lived, single-document session, without platform to
 
 Saving, summary input preparation, and export use complete Yjs state and repair Markdown projections. Projection accepts only the same or a later sequence for the same document; unchanged, already materialized state avoids redundant Workspace Files writes. Exports include a content hash and document sequence. AI history records the input notes revision/sequence and content hash.
 
-AI never overwrites personal notes or replaces a summary document already bound for human editing. Regenerated output becomes a separate version. If the initial collaboration connection fails, the view displays the saved Markdown snapshot and a reconnect control. This snapshot is read-only. Offline, unacknowledged edits cannot appear saved. Users can download a Markdown draft; returning to the library or exporting waits for acknowledgement. Forcibly terminating the app may lose the last unacknowledged in-memory edits.
+AI never overwrites meeting notes or replaces a summary document already bound for human editing. Regenerated output becomes a separate version. If the initial collaboration connection fails, the view displays the saved Markdown snapshot and a reconnect control. This snapshot is read-only. Offline, unacknowledged edits cannot appear saved. Users can download a Markdown draft; returning to the library or exporting waits for acknowledgement. Forcibly terminating the app may lose the last unacknowledged in-memory edits.
 
-## Future multi-user meeting boundaries
+## Shared Assistant access and recording ownership
 
-Current access remains private: multiple windows of the same user in the same organization may edit together. Presence counts deduplicate the platform's opaque actor identity and separately show other active windows. Collaboration UI does not grant another account access.
+All users authorized for the published Assistant share its meeting library, notes, summaries and collaborative documents. The host rechecks access for every storage operation. Different Assistants, tenants and organizations remain separate; no meeting-membership layer is required. Use separate Assistants for separate records.
 
-Extend these boundaries rather than replacing the editor:
+Recording control and chunk delivery stay bound to the user who started the capture. Other members may read or edit the meeting, but cannot impersonate its capture session. Device-local caches retain their existing user and Assistant bindings.
 
-1. Expand `MeetingDocumentAccess` into a resource policy with read/write/manage permissions. Persist and validate meeting members, invitations, and roles separately. Personal notes remain personal; shared summaries use meeting-member authorization.
-2. Introduce distinct `MeetingRoom`, `Participant`, and `AudioSource` domain contracts. Bind each upload stream to an authorized member, device source, source sequence, and timeline. Derive identity on the server rather than trusting client-supplied user IDs.
-3. Separate room lifecycle from local capture sessions. Join, leave, reconnect, host-ended meetings, and a single device stopping are different events. The current single-device finalization that seals the whole recording cannot represent all of them.
-4. Transcription consumes audio events with stable `sourceId` values. Participant attribution comes from authorized sources; acoustic speaker identification remains separate. Do not infer identity from microphone versus system tracks.
-5. Keep document synchronization on platform Collaboration. A separate adapter owns multi-user media transport and meeting-join protocols; document WebSockets must not carry audio.
-6. Before release, verify member permission matrices, session invalidation after revocation, personal-note isolation, multi-source clock alignment, offline reconnects, propagation across two nodes, and long multi-user sessions under load.
+File projections and processing retries run under the current authorized actor, never the recorder's saved identity. Summary tasks retain an explicit initiating user and conversation; retrying a failed summary as another member starts that member's own task conversation while writing the same shared meeting. Task execution IDs and initiating-user checks protect result submission. Members do not receive links to another member's private task conversation.
 
-This version does not implement invitations, cross-account sharing, or audiovisual meeting rooms. Document access interfaces, separate document kinds, a transcription-engine interface, and platform collaboration adapters provide extension points without coupling those future capabilities to the recording UI.
+This version does not implement multi-device audiovisual rooms or participant audio transport. Those would need separate room, participant and audio-source contracts; platform Collaboration continues to own document synchronization.
 
 ## UI regression verification
 
@@ -78,6 +73,6 @@ Run `nx run @xpert-ai/plugin-meetings:verify:view` after building. It exercises 
 
 ## Assistant workspace persistence
 
-All recording state uses `WorkspaceFilesRuntimeCapability.appData()` in the owning published Assistant's user-isolated workspace. The host revalidates runtime Assistant access and the current tenant/organization/user for file operations and queued retries. Shared Assistant and Project scopes fail closed; generic Files cannot access `.apps`, and NsJail Runner protocol 3 masks it from shell execution. Local Shell is trusted development execution without OS isolation.
+All recording state uses `WorkspaceFilesRuntimeCapability.appData()` in the owning published Assistant's shared workspace. The host revalidates runtime Assistant access and the current tenant/organization/user for file operations and queued retries. Project scopes fail closed; generic Files cannot access `.apps`, and NsJail Runner protocol 3 masks it from shell execution. Local Shell is trusted development execution without OS isolation.
 
 The `.apps/meetings/records/` tree contains authoritative meeting manifests, audio and task checkpoints. `.apps/meetings/captures/` holds durable delivery bindings. User-facing Markdown remains under `meetings/`. Per-meeting, capture, transcription and supervision locks are stored independently from removable records and shared across processes. Atomic writes prevent readers observing partial manifests. The plugin never resolves physical volume paths, and there is no independent directory setting or old-data migration.

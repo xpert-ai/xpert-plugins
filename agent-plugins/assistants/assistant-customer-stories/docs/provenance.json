@@ -1,0 +1,33 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/customer-stories",
+    "name": "Customer Proof Desk",
+    "creator": "Anoop Baliga",
+    "categories": [
+      "Sales"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 11,
+    "routineCount": 2,
+    "integrations": [
+      "notion-workspace",
+      "slack",
+      "linear",
+      "figma",
+      "hex",
+      "Gmail",
+      "Granola"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "sales",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

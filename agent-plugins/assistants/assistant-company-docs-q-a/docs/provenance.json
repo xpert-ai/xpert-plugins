@@ -1,0 +1,29 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/company-docs-q-a",
+    "name": "Company Docs Q&A",
+    "creator": "Anoop Baliga",
+    "categories": [
+      "From Grok Bot Team",
+      "Sales"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 0,
+    "routineCount": 0,
+    "integrations": [
+      "Slack",
+      "Notion"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "sales",
+    "skillCount": 3,
+    "routineCount": 0,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

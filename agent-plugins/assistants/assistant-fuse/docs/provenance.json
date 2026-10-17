@@ -1,0 +1,36 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/fuse",
+    "name": "Ad Spend Watch",
+    "creator": "Miguel Cruz",
+    "categories": [
+      "From Grok Bot Team",
+      "Marketing"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 9,
+    "routineCount": 3,
+    "integrations": [
+      "slack",
+      "notion-workspace",
+      "linear",
+      "hex",
+      "datadog",
+      "sentry",
+      "figma",
+      "Gmail",
+      "Google Sheets"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "marketing",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

@@ -49,8 +49,8 @@
     "tslib": "^2.3.0"
   },
   "peerDependencies": {
-    "@xpert-ai/plugin-sdk": "^3.17.2",
-    "@xpert-ai/contracts": "^3.17.2",
+    "@xpert-ai/plugin-sdk": "^3.22.1",
+    "@xpert-ai/contracts": "^3.21.2",
     "@nestjs/common": "^11.1.6",
     "@nestjs/config": "^4.0.2",
     "@langchain/core": "^0.3.72",

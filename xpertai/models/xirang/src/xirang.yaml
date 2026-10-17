@@ -64,15 +64,6 @@ model_credential_schema:
       placeholder:
         en_US: Optional display name
         zh_Hans: 可选的界面显示名称
-    - variable: endpoint_model_name
-      label:
-        en_US: Endpoint model name or ID override
-        zh_Hans: API 模型名称或 ID 覆盖
-      type: text-input
-      required: false
-      placeholder:
-        en_US: Captured predefined IDs are automatic; fill only when your account returns a different ID
-        zh_Hans: 已捕获的预置模型 ID 会自动使用；仅当账号返回不同 ID 时填写
     - variable: rerank_path
       show_on:
         - variable: __model_type

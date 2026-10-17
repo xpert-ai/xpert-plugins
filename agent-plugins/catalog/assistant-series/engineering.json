@@ -1,0 +1,279 @@
+[
+  {
+    "id": "dr-eggbot-v2",
+    "package": "assistant-dr-eggbot-v2",
+    "category": "engineering",
+    "title": "智能体设计师",
+    "description": "把单一业务职责转换成可导入的 Assistant 设计与验收方案。",
+    "inputs": "业务目标、使用者、输入输出、权限边界",
+    "deliverable": "助手设计包与测试用例",
+    "procedure": [
+      "收敛职责和禁止事项",
+      "声明模型、技能与连接依赖",
+      "生成当前 Xpert 合同支持的 DSL 并验证引用"
+    ],
+    "boundary": "不调用不存在的其他平台建 Bot 工具",
+    "profile": "coding",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/dr-eggbot-v2",
+      "name": "dr eggbot",
+      "creator": "Lauren Tan",
+      "categories": [
+        "From Grok Bot Team"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 4,
+      "routineCount": 2,
+      "integrations": [
+        "pstack"
+      ]
+    },
+    "status": "repository-adaptation",
+    "classificationNote": "源页面没有业务类别；此分类为 Xpert 编辑整理。"
+  },
+  {
+    "id": "engineer-bot",
+    "package": "assistant-engineer-bot",
+    "category": "engineering",
+    "title": "工程交付监督员",
+    "description": "整理开发事项并跟踪分工、构建和评审状态，准备合并决策材料。",
+    "inputs": "获准仓库、需求、任务看板、验证命令",
+    "deliverable": "交付看板与合并建议",
+    "procedure": [
+      "明确独立任务及验收条件",
+      "使用已提供的执行能力落实任务",
+      "核对提交、测试和阻塞状态"
+    ],
+    "boundary": "无云 Agent 连接时使用本地授权能力或报告待接入",
+    "profile": "coding",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/engineer-bot",
+      "name": "Lingxi's Engineer Bot",
+      "creator": "Lingxi Li",
+      "categories": [
+        "From Grok Bot Team",
+        "Engineering"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 1,
+      "routineCount": 0,
+      "integrations": [
+        "Notion"
+      ]
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "engineering-lead",
+    "package": "assistant-engineering-lead",
+    "category": "engineering",
+    "title": "工程负责人助理",
+    "description": "拆解工程目标，跟踪 CI、评审和阻塞，输出精简交付摘要。",
+    "inputs": "项目目标、代码仓库、CI 与评审记录",
+    "deliverable": "工程执行计划与交付摘要",
+    "procedure": [
+      "按依赖顺序拆分改动",
+      "核对失败验证与负责事项",
+      "向用户呈现可审核改动和剩余风险"
+    ],
+    "boundary": "不以任务已分配代替代码已完成",
+    "profile": "coding",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/engineering-lead",
+      "name": "Engineering Lead",
+      "creator": "Lauren Tan",
+      "categories": [
+        "Engineering"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 5,
+      "routineCount": 0,
+      "integrations": []
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "nightly-audit-engineer",
+    "package": "assistant-nightly-audit-engineer",
+    "category": "engineering",
+    "title": "代码质量巡检员",
+    "description": "分区域检查代码库，形成可审核的小范围修复建议与补丁。",
+    "inputs": "授权仓库、审查范围、测试命令、运行时间",
+    "deliverable": "巡检报告与独立补丁",
+    "procedure": [
+      "先确认基线与已有改动",
+      "选择有证据的问题并做最小修复",
+      "运行适当验证并记录无法验证项"
+    ],
+    "boundary": "不自动合并或批量格式化无关代码",
+    "profile": "coding",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/nightly-audit-engineer",
+      "name": "Nightly Audit Engineer",
+      "creator": "Lingxi Li",
+      "categories": [
+        "From Grok Bot Team",
+        "Engineering"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 0,
+      "routineCount": 1,
+      "integrations": []
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "projects-manager",
+    "package": "assistant-projects-manager",
+    "category": "engineering",
+    "title": "团队项目协调员",
+    "description": "维护项目目标、任务状态和人工责任边界，推动团队交付。",
+    "inputs": "项目清单、成员职责、任务记录",
+    "deliverable": "项目台账与协作计划",
+    "procedure": [
+      "给每个项目明确完成条件",
+      "拆解依赖和交接",
+      "检查实际产出并汇总阻塞"
+    ],
+    "boundary": "不把任务指派视为执行完成，不假定助手已连接",
+    "profile": "coordination",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/projects-manager",
+      "name": "Projects Manager",
+      "creator": "Eric Zakariasson",
+      "categories": [
+        "From Grok Bot Team",
+        "Engineering"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 1,
+      "routineCount": 0,
+      "integrations": [
+        "Notion",
+        "Slack"
+      ]
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "qa-bot",
+    "package": "assistant-qa-bot",
+    "category": "engineering",
+    "title": "发布验收测试员",
+    "description": "依据验收清单检查测试部署，给出可复现的问题和发布判断依据。",
+    "inputs": "测试地址、授权账号、验收标准",
+    "deliverable": "验收报告与缺陷复现步骤",
+    "procedure": [
+      "确认环境与数据范围",
+      "逐项执行真实操作",
+      "保留截图、前置条件和实际结果"
+    ],
+    "boundary": "未执行项标为未验证，不能当作通过",
+    "profile": "coding",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/qa-bot",
+      "name": "QA bot",
+      "creator": "Ulysses Ng",
+      "categories": [
+        "Engineering"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 3,
+      "routineCount": 1,
+      "integrations": [
+        "Vercel"
+      ]
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "researchy",
+    "package": "assistant-researchy",
+    "category": "engineering",
+    "title": "事实核查研究员",
+    "description": "利用可用检索工具核实问题，输出带时间和来源的结论。",
+    "inputs": "研究问题、时间范围、可信来源要求",
+    "deliverable": "研究结论与证据索引",
+    "procedure": [
+      "拆解可验证主张",
+      "优先读取一手资料",
+      "比较矛盾证据并标明不确定性"
+    ],
+    "boundary": "无联网工具时明确仅能分析已提供资料",
+    "profile": "research",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/researchy",
+      "name": "Researchy",
+      "creator": "Farzad",
+      "categories": [
+        "Engineering"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 1,
+      "routineCount": 0,
+      "integrations": []
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "seed-a91e4c",
+    "package": "assistant-seed-a91e4c",
+    "category": "engineering",
+    "title": "软件开发工程师",
+    "description": "处理授权代码库的实现、缺陷诊断与测试，交付可审核改动。",
+    "inputs": "仓库、明确任务、环境与验证方式",
+    "deliverable": "代码改动和验证说明",
+    "procedure": [
+      "检查项目规则及已有改动",
+      "以最小必要修改完成目标",
+      "运行相关验证并解释结果"
+    ],
+    "boundary": "保留用户改动，不自行发布或合并",
+    "profile": "coding",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/seed-a91e4c",
+      "name": "SWE",
+      "creator": "Cursor",
+      "categories": [
+        "Engineering"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 0,
+      "routineCount": 0,
+      "integrations": []
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "tinkabot",
+    "package": "assistant-tinkabot",
+    "category": "engineering",
+    "title": "API 插件工程师",
+    "description": "将有文档的 API 设计成标准 Agent Plugin 的工具与技能包。",
+    "inputs": "官方 API 文档、认证方式、目标操作",
+    "deliverable": "插件结构、工具规格与验证计划",
+    "procedure": [
+      "先核对数据模型和错误响应",
+      "只暴露必要端点",
+      "实现后验证输入、认证绑定与实际结果"
+    ],
+    "boundary": "不把密钥写入可分发插件，不冒称官方集成",
+    "profile": "coding",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/tinkabot",
+      "name": "tinkabot",
+      "creator": "Lauren Tan",
+      "categories": [
+        "From Grok Bot Team",
+        "Engineering"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 3,
+      "routineCount": 0,
+      "integrations": [
+        "pstack"
+      ]
+    },
+    "status": "repository-adaptation"
+  }
+]

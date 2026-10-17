@@ -1,0 +1,31 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/prospector",
+    "name": "GTM Prospecting",
+    "creator": "Caro Scalercio",
+    "categories": [
+      "From Grok Bot Team",
+      "Sales"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 3,
+    "routineCount": 1,
+    "integrations": [
+      "Gmail",
+      "Google Sheets",
+      "Notion",
+      "Salesforce"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "sales",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

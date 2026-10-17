@@ -1,0 +1,3 @@
+interface:
+  display_name: "助手配置迁移顾问 · 业务执行"
+  short_description: "把用户提供的旧工具配置整理为 Xpert 助手迁移包。"

@@ -1,0 +1,27 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/love",
+    "name": "Love ❤️",
+    "creator": "Danny Buck",
+    "categories": [
+      "Personal"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 0,
+    "routineCount": 3,
+    "integrations": [
+      "Google Calendar"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "personal",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

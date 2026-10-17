@@ -1,0 +1,36 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/echo",
+    "name": "Meeting Recap Deck",
+    "creator": "Krista Letz",
+    "categories": [
+      "From Grok Bot Team",
+      "Sales"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 8,
+    "routineCount": 2,
+    "integrations": [
+      "figma",
+      "Google Slides",
+      "notion-workspace",
+      "slack",
+      "linear",
+      "Gmail",
+      "Google Calendar",
+      "Granola",
+      "Gong"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "sales",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

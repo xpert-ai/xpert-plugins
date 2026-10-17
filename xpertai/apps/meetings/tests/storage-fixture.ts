@@ -19,7 +19,6 @@ export function fixtureStorage(root: string, scope: Scope): WorkspaceStorage {
       JSON.stringify([
         scope.tenantId,
         scope.organizationId,
-        scope.userId,
         scope.assistantId,
       ])
     )

@@ -40,7 +40,7 @@ const plugin: XpertPlugin<z.input<typeof configSchema>> = {
     artifactNamespace: packageJson.xpert.plugin.artifactNamespace,
     displayName: "Meetings",
     icon: meetingsIcon,
-    description: "Private file-backed meeting notes for Xpert Desktop",
+    description: "Assistant-shared file-backed meeting notes for Xpert Desktop",
     category: "middleware",
     targetApps: ["xpert", "data-xpert"],
     targetAppMeta: {
@@ -66,7 +66,7 @@ const plugin: XpertPlugin<z.input<typeof configSchema>> = {
               type: "middleware",
               name: "meetings.tools",
               displayName: "Meetings tools",
-              description: "Search private meetings and review follow-ups.",
+              description: "Search this Assistant’s meetings and review follow-ups.",
             },
           ],
         },

@@ -1,0 +1,31 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/marketing-project-manager",
+    "name": "Project Manager",
+    "creator": "Josh Kim",
+    "categories": [
+      "Marketing"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 7,
+    "routineCount": 2,
+    "integrations": [
+      "Linear",
+      "Notion",
+      "Slack",
+      "Google Drive",
+      "Google Calendar"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "marketing",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

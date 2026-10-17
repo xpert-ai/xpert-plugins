@@ -6,7 +6,7 @@
 2. When microphone and system audio are both quiet for at least `silenceSeconds` (10 seconds by default), and new nonempty transcript text is available, that text is sent as a Markdown blockquote to the meeting's dedicated Meetings Assistant conversation.
 3. The Assistant displays a stage summary. The View shows the completed-stage count and an Open meeting conversation action. A recording started on the current page automatically opens its first task conversation while preserving the plugin View. Navigating away from the meeting disables automatic return.
 4. The user can ask follow-up questions in the same conversation. Plugin tasks run sequentially and wait while the conversation is processing a human message.
-5. After recording ends, uploads finish and the transcript is refined. The unsent final segment is submitted in the same conversation. The final task reads the entire refined transcript and personal notes, combining previous stage results into overall minutes. Original evidence takes precedence over stage interpretations.
+5. After recording ends, uploads finish and the transcript is refined. The unsent final segment is submitted in the same conversation. The final task reads the entire refined transcript and meeting notes, combining previous stage results into overall minutes. Original evidence takes precedence over stage interpretations.
 6. A successful final submission writes `summary.md` and `summaries/<version>.md` for Tiptap display, editing, and export. Stage results remain history and are not presented as official minutes.
 
 ## Silence semantics and latency
@@ -37,7 +37,7 @@ A successful stage does not complete the meeting, and a successful platform exec
 
 Quoted transcript text is untrusted meeting data, not executable instructions. Current meetings are isolated by tenant, organization, and user. Future shared access must extend scope resolution and document authorization centrally, not merely frontend visibility. Meetings adds no business tables and reuses existing conversation, execution, queue, and collaboration storage.
 
-Once a collaborative summary document exists, regenerated AI versions are stored in history without overwriting the document being edited. Personal notes remain independent.
+Once a collaborative summary document exists, regenerated AI versions are stored in history without overwriting the document being edited. Meeting notes remain independent.
 
 User-facing files live at the Assistant workspace root under `meetings/<date-title-meeting-uuid>/`, outside `sessions/`. Final `summary.md`, `notes.md`, transcripts, stage summaries, and AI history share one stable folder. Tiptap/Yjs remains authoritative for collaborative documents; workspace Markdown and private recovery copies are rebuildable projections.
 

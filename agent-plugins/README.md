@@ -3,11 +3,79 @@
 These Xpert-authored Agent Plugins 1.0.0 packages provide sandbox document workflows
 and connections to providers' official MCP endpoints. They use standard `plugin.json`,
 Skills and optional `mcp.json`, with the versioned `xpertai` extension for
-middleware and Connector dependencies. Package directories
+middleware, Connector dependencies and Assistant templates. Package directories
 contain no npm entrypoint, server module, installation script or credential.
+
+## Assistant templates
+
+`extensions.xpertai.role` is an optional package-level value: `capability`,
+`assistant`, or `subagent`. Only `assistant` is hidden from ChatKit's plugin
+candidate menu; omitted roles preserve existing visibility. All roles may supply
+templates, and template marketplace entries continue to be selected by valid
+`templates` declarations, not by role. There is no template-level role field.
+
+The bundled Assistant template packages declare `role: "assistant"`. Their skills
+remain available to template installation and existing conversations. The role is
+discovery metadata: it does not grant access, publish an Assistant, turn a template
+into a callable subagent, or revoke a pinned conversation resource.
+
+Upgrade the host parser before importing these manifests: older strict extension
+parsers do not recognize `role`. ChatKit uses the default resource catalog for
+candidate menus and `purpose=selection` for restoring existing selections; deploy
+the host API before the updated ChatKit. Changing source manifests does not update
+already imported packages: import the updated packages through the normal lifecycle,
+preserving old package digests and conversation references.
+
+[企业 Assistant 模板系列](catalog/assistant-series/README.md)：按 Grok 市场公开列表整理的 90 个角色、8 个分类与独立办公人物头像。全部位于 `assistants/` 子目录，通过 `quickstart.json` 的显式 `path` 安装，包名保持稳定。包含 89 个原创功能适配包和已有 Office Ops；功能边界、来源与验证范围见各包说明。
+
+Use `extensions.xpertai.version: 2` and declare `templates: [{ "key": "desk", "path": "templates/desk.json", "category": "operations" }]`
+in `plugin.json`. This is a versioned Xpert extension; the Agent Plugins schema remains 1.0.0.
+The optional `category` is a stable template category identifier. Web and Desktop merge categories from installed templates; omission keeps the existing `assistant` category.
+Each entry can also declare `presentation: { title, description, pluginDisplayName }`.
+These fields accept a plain string or `{ "en_US": "English copy", "zh_Hans": "中文文案", "zh_Hant": "繁體文案" }`.
+The host selects the request language, falls back to English, and falls back to DSL/package metadata when presentation fields are omitted.
+Display localization does not rewrite the Assistant DSL, skill bodies, dependency digest or template identity.
+Plugin administration and conversation plugin catalogs also localize
+`extensions.xpertai.interface.displayName` and `interface.description` using the same
+string-or-I18nText contract. Keep the standard top-level `name` and `description`
+as strings for Agent Plugins compatibility. Category values remain stable machine
+keys translated by Web/Desktop, rather than localized identifiers. Administrator
+binding titles are explicit overrides and are not translated automatically.
+
+```json
+{
+  "interface": {
+    "displayName": { "en_US": "Product Requirements Advisor", "zh_Hans": "产品需求顾问" },
+    "description": { "en_US": "Turn goals into testable requirements.", "zh_Hans": "将目标整理为可验收的产品需求。" }
+  }
+}
+```
+
+The 90 packages ship English and Simplified Chinese catalog copy. Other locales
+use the shared host fallback (Chinese variants can use Simplified Chinese; other
+languages use English). Skill bodies, agent instructions, seed memories and
+runtime onboarding text remain in the authored language. A UI language switch
+refreshes catalog metadata without editing those runtime definitions or existing
+Assistant instances. Package upgrades have new digests; locale selection itself
+does not change the digest or reference identity.
+
+The series stores English display copy in `catalog/assistant-series/locales/en.json`; Chinese copy remains in the category source files.
+
+Each referenced JSON or YAML file contains a complete Assistant DSL with `template.schemaVersion: 2`.
+Declare the Assistant's capabilities, initial files, onboarding, routines and policies in that DSL.
+Skill and MCP dependencies use `source: { "kind": "agent-plugin", "name": "package-name" }`
+with `componentKey` and optional `targetAgentKey`. Imports pin the package digest and validate paths and contents.
+The host exposes these entries through the same template catalog and installation workflow as Native Xpert Plugin templates.
+
+Distribute the directory as a ZIP or Git source and import it through Agent Plugins. Copying files alone
+does not bypass scope, dependency or authorization checks. Updating a package does not silently migrate existing
+Assistants: choose the target template source, review differences, save a draft and publish it explicitly.
+Use [Office Ops](assistants/office-ops/README.md) as the file-only example. Develop a Native Xpert Plugin when the product
+needs a new server provider, controller, database entity or other executable server extension.
 
 | Package    | Capabilities                                 | Authorization                                                         |
 | ---------- | -------------------------------------------- | --------------------------------------------------------------------- |
+| `office-ops` | Assistant template, seven office skills, persistent ledgers and paused routines | Authorized model and server sandbox; external providers configured separately |
 | `documents` | DOCX creation, comments, revisions and page review | Interactive sandbox, Documents runtime and image-capable model |
 | `pdf` | PDF creation, extraction, page operations, forms and visual review | Interactive sandbox, PDF runtime and image-capable model |
 | `presentations` | Editable PPTX generation, conservative text edits and slide review | Interactive sandbox, Presentations runtime and image-capable model |

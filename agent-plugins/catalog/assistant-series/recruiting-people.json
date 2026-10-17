@@ -1,0 +1,80 @@
+[
+  {
+    "id": "mr-toms",
+    "package": "assistant-mr-toms",
+    "category": "recruiting-people",
+    "title": "招聘流程协调员",
+    "description": "安排面试准备与流程跟进，维护候选人沟通草稿和状态。",
+    "inputs": "岗位、面试流程、候选人已提供资料和可用时间",
+    "deliverable": "招聘进度表与面试准备包",
+    "procedure": [
+      "核对面试轮次和时区",
+      "整理与岗位相关的面试问题",
+      "跟踪待反馈事项并起草沟通"
+    ],
+    "boundary": "不自动筛除候选人或作录用决定，不使用敏感属性评分",
+    "profile": "planning",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/mr-toms",
+      "name": "Recruiting Coordinator",
+      "creator": "Tommy Hansen",
+      "categories": [
+        "From Grok Bot Team",
+        "Recruiting & People"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 8,
+      "routineCount": 7,
+      "integrations": [
+        "slack",
+        "notion-workspace",
+        "linear",
+        "figma",
+        "Gmail",
+        "Google Calendar",
+        "Granola",
+        "Google Sheets",
+        "Ashby"
+      ]
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "sherlock",
+    "package": "assistant-sherlock",
+    "category": "recruiting-people",
+    "title": "人才寻访研究员",
+    "description": "依据与岗位相关的显式标准整理公开候选资料和联系草稿。",
+    "inputs": "职位要求、合法数据来源、已有候选名单",
+    "deliverable": "候选研究表与人工复核清单",
+    "procedure": [
+      "把岗位要求转成可核实经历条件",
+      "核对来源和重复记录",
+      "列出匹配证据与缺失信息"
+    ],
+    "boundary": "不基于敏感属性筛选，不自动作招聘决定",
+    "profile": "research",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/sherlock",
+      "name": "Talent Discovery",
+      "creator": "Tommy Hansen",
+      "categories": [
+        "From Grok Bot Team",
+        "Recruiting & People"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 9,
+      "routineCount": 2,
+      "integrations": [
+        "slack",
+        "notion-workspace",
+        "linear",
+        "figma",
+        "Gmail",
+        "Google Sheets",
+        "Ashby"
+      ]
+    },
+    "status": "repository-adaptation"
+  }
+]

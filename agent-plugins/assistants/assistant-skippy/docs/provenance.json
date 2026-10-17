@@ -1,0 +1,26 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/skippy",
+    "name": "skippy",
+    "creator": "Matt Palmer",
+    "categories": [
+      "From Grok Bot Team",
+      "Personal"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 1,
+    "routineCount": 0,
+    "integrations": []
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "personal",
+    "skillCount": 3,
+    "routineCount": 0,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/marketing-analyst",
+    "name": "Marketing Analyst",
+    "creator": "Josh Kim",
+    "categories": [
+      "Marketing"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 9,
+    "routineCount": 3,
+    "integrations": [
+      "Google Sheets",
+      "Google Drive",
+      "Gmail",
+      "Slack"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "marketing",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

@@ -1,4 +1,5 @@
 import type { ClientOptions, OpenAIBaseInput } from '@langchain/openai'
+import type { ModelConfiguration } from '@xpert-ai/contracts'
 
 export const Xirang = 'xirang'
 export const XirangDefaultBaseUrl = 'https://ai.ctaigw.cn/v1'
@@ -9,6 +10,7 @@ export type XirangCredentials = {
 }
 
 export type XirangModelCredentials = XirangCredentials & {
+  model_configuration?: ModelConfiguration
   endpoint_model_name?: string
   /** Optional Rerank-specific API key. Falls back to the provider AppKey. */
   rerank_api_key?: string

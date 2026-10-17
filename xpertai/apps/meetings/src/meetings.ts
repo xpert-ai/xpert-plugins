@@ -52,9 +52,13 @@ export class Meetings {
     return this.store.locked(scope, input.id, async (directory) => {
       try {
         const found = await this.store.read(scope, input.id, true);
-        if (found.deleted || found.sessionId !== input.sessionId)
+        if (
+          found.deleted ||
+          found.sessionId !== input.sessionId ||
+          found.scope.userId !== scope.userId
+        )
           throw new MeetingError("idempotency_conflict");
-        return publicMeeting(found);
+        return publicMeeting(found, scope);
       } catch (error) {
         if (
           !(error instanceof MeetingError && error.code === "meeting_not_found")
@@ -79,6 +83,7 @@ export class Meetings {
         documents: { notes: null, summary: null },
         assistant: {
           conversationId: null,
+          userId: null,
           threadId: null,
           submittedUntilMs: 0,
           silenceSeconds: this.silenceSeconds,
@@ -98,8 +103,8 @@ export class Meetings {
         notesInputRevision: null,
         deleted: false,
       };
-      await this.store.save(directory, meeting);
-      return publicMeeting(meeting);
+      await this.store.save(scope, directory, meeting);
+      return publicMeeting(meeting, scope);
     });
   }
   async start(
@@ -110,6 +115,7 @@ export class Meetings {
   ) {
     const record = await this.store.update(scope, id, (m) => {
       if (
+        m.scope.userId !== scope.userId ||
         m.sessionId !== sessionId ||
         !["created", "recording"].includes(m.capture)
       )
@@ -170,7 +176,7 @@ export class Meetings {
   async get(scope: Scope, id: string) {
     const meeting = await this.store.read(scope, id);
     if (meeting.deleted) throw new MeetingError("meeting_not_found");
-    return publicMeeting(meeting);
+    return publicMeeting(meeting, scope);
   }
   async notes(scope: Scope, input: z.infer<typeof notesSchema>) {
     const m = await this.store.update(
@@ -210,7 +216,10 @@ export class Meetings {
       chunk.meetingId,
       async (directory) => {
         const meeting = await this.store.read(scope, chunk.meetingId);
-        if (meeting.sessionId !== chunk.sessionId)
+        if (
+          meeting.scope.userId !== scope.userId ||
+          meeting.sessionId !== chunk.sessionId
+        )
           throw new MeetingError("session_mismatch");
         const path = join(directory, "audio", chunk.track);
         await mkdir(path, { recursive: true, mode: 0o700 });
@@ -260,7 +269,7 @@ export class Meetings {
       scope,
       input.meetingId,
       async (m, directory) => {
-        if (m.sessionId !== input.sessionId)
+        if (m.scope.userId !== scope.userId || m.sessionId !== input.sessionId)
           throw new MeetingError("session_mismatch");
         if (m.expectedChunks) {
           if (
@@ -351,7 +360,7 @@ export class Meetings {
       m.title = "Deleted meeting";
       m.revision++;
       m.updatedAt = new Date().toISOString();
-      await this.store.save(directory, m); // Tombstone precedes cleanup and is never removed.
+      await this.store.save(scope, directory, m); // Tombstone precedes cleanup and is never removed.
       if (m.workspace?.status === "failed")
         throw new MeetingError(
           m.workspace.errorCode ?? "workspace_sync_failed"
@@ -377,7 +386,7 @@ export class Meetings {
       "",
       m.createdAt,
       "",
-      "## Personal notes",
+      "## Meeting notes",
       "",
       m.notes,
     ];

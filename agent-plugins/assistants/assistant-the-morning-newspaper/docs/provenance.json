@@ -1,0 +1,25 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/the-morning-newspaper",
+    "name": "The Morning Newspaper",
+    "creator": "Karen X. Cheng",
+    "categories": [
+      "Personal"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 1,
+    "routineCount": 0,
+    "integrations": []
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "personal",
+    "skillCount": 3,
+    "routineCount": 0,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

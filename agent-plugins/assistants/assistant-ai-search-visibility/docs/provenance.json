@@ -1,0 +1,33 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/ai-search-visibility",
+    "name": "AI Search Visibility",
+    "creator": "Adam Tanguay",
+    "categories": [
+      "From Grok Bot Team",
+      "Marketing"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 8,
+    "routineCount": 2,
+    "integrations": [
+      "slack",
+      "notion-workspace",
+      "linear",
+      "hex",
+      "Profound",
+      "Google Sheets"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "marketing",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

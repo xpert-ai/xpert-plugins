@@ -1,0 +1,3 @@
+interface:
+  display_name: "设计交付工程师 · 结果复核"
+  short_description: "把设计稿转成实现规格，检查组件、令牌与交互定义的一致性。"

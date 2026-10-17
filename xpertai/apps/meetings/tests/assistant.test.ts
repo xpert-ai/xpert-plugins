@@ -54,7 +54,8 @@ async function fixture() {
   });
   const starts: AgentMiddlewareAssistantTaskInput[] = [],
     statuses = new Map<string, AgentMiddlewareAssistantTaskResult>(),
-    queued: number[] = [];
+    queued: number[] = [],
+    actors: string[] = [];
   let busy = false,
     failOnce = false;
   const api: AgentMiddlewareAssistantTaskApi = {
@@ -82,7 +83,10 @@ async function fixture() {
   };
   const workflow = new AssistantWorkflow(
     store,
-    () => api,
+    (actor) => {
+      actors.push(actor.userId);
+      return api;
+    },
     async (_scope, _id, delay) => {
       queued.push(delay ?? 0);
     }
@@ -95,6 +99,7 @@ async function fixture() {
     starts,
     statuses,
     workflow,
+    actors,
     queued,
     setBusy: (b: boolean) => {
       busy = b;
@@ -120,6 +125,92 @@ const simple = {
   actions: [],
   questions: [],
 };
+
+test("another member retries a summary under their own task identity and shares the result", async () => {
+  const f = await fixture();
+  try {
+    const other = { ...scope, userId: "other-member" };
+    const live = [
+      segment("microphone", 0, "Shared decision"),
+      segment("system", 0),
+    ];
+    await f.store.update(scope, f.id, (m) => {
+      m.transcript = live;
+      m.durationMs = 5000;
+    });
+    await f.workflow.finish(scope, await f.store.read(scope, f.id), live);
+    await f.workflow.tick(scope, f.id);
+    const original = await f.store.read(scope, f.id);
+    await f.workflow.failSupervision(scope, f.id);
+    await f.workflow.finish(other, await f.store.read(other, f.id), live);
+    await f.workflow.tick(other, f.id);
+    const retried = await f.store.read(other, f.id);
+    assert.equal(f.actors.at(-1), other.userId);
+    assert.notEqual(
+      retried.assistant.conversationId,
+      original.assistant.conversationId
+    );
+    assert.equal(retried.scope.userId, scope.userId);
+    await assert.rejects(
+      f.workflow.submit(scope, config(retried, 1), simple),
+      /summary_operation_mismatch/
+    );
+    await f.workflow.submit(other, config(retried, 1), simple);
+    assert.equal(
+      (await f.service.get(scope, f.id)).summary?.overview,
+      simple.overview
+    );
+    assert.equal(
+      (await f.service.get(scope, f.id)).assistant.conversationId,
+      null
+    );
+    assert.equal(
+      (await f.service.get(other, f.id)).assistant.conversationId,
+      retried.assistant.conversationId
+    );
+  } finally {
+    await f.dispose();
+  }
+});
+
+test("a previous member's task cannot replace the current member's conversation link", async () => {
+  const f = await fixture();
+  try {
+    const other = { ...scope, userId: "other-member" };
+    const live = silentAfterSpeech();
+    await f.store.update(scope, f.id, (m) => {
+      m.transcript = live;
+      m.durationMs = 15000;
+    });
+    await f.workflow.live(scope, await f.store.read(scope, f.id));
+    await f.workflow.finish(other, await f.store.read(other, f.id), live);
+    await f.workflow.tick(other, f.id);
+    const final = f.starts[0];
+    f.statuses.set(final.executionId!, {
+      status: "running",
+      threadId: "other-member-thread",
+    });
+    await f.workflow.tick(other, f.id);
+    await f.workflow.tick(scope, f.id);
+    assert.equal(
+      (await f.service.get(other, f.id)).assistant.threadId,
+      "other-member-thread"
+    );
+    const phase = f.starts[1];
+    f.statuses.set(phase.executionId!, {
+      status: "running",
+      threadId: "previous-member-thread",
+    });
+    await f.workflow.tick(scope, f.id);
+    assert.equal(
+      (await f.service.get(other, f.id)).assistant.threadId,
+      "other-member-thread"
+    );
+    assert.equal((await f.service.get(scope, f.id)).assistant.threadId, null);
+  } finally {
+    await f.dispose();
+  }
+});
 
 test("silence uses both contiguous audio timelines, configurable duration and conservative legacy checkpoints", () => {
   assert.deepEqual(silentBoundaries(silentAfterSpeech(), 10000), [15000]);
@@ -203,8 +294,8 @@ test("phase dispatch is durable and deduplicated; quotes are preserved; final us
     await f.store.update(scope, f.id, (m) => {
       m.transcript = silentAfterSpeech();
     });
-    await f.workflow.live(await f.store.read(scope, f.id));
-    await f.workflow.live(await f.store.read(scope, f.id));
+    await f.workflow.live(scope, await f.store.read(scope, f.id));
+    await f.workflow.live(scope, await f.store.read(scope, f.id));
     let m = await f.store.read(scope, f.id);
     assert.equal(m.assistant.operations.length, 1);
     await f.workflow.tick(scope, f.id);
@@ -239,7 +330,7 @@ test("phase dispatch is durable and deduplicated; quotes are preserved; final us
       }),
       async () => {}
     );
-    await restarted.live(await f.store.read(scope, f.id));
+    await restarted.live(scope, await f.store.read(scope, f.id));
     m = await f.store.read(scope, f.id);
     assert.equal(m.assistant.operations.length, 1);
     const live = [
@@ -254,8 +345,8 @@ test("phase dispatch is durable and deduplicated; quotes are preserved; final us
       m.processing = "summarizing";
     });
     m = await f.store.read(scope, f.id);
-    await f.workflow.finish(m, live);
-    await f.workflow.finish(m, live);
+    await f.workflow.finish(scope, m, live);
+    await f.workflow.finish(scope, m, live);
     m = await f.store.read(scope, f.id);
     assert.equal(m.assistant.operations.length, 2);
     await f.workflow.tick(scope, f.id);
@@ -313,13 +404,13 @@ test("phase dispatch is durable and deduplicated; quotes are preserved; final us
   }
 });
 
-test("waits for human chat; dispatch retry reuses operation identity; wrong execution and other owner cannot finalize", async () => {
+test("waits for human chat; dispatch retry reuses operation identity; wrong execution and another actor cannot finalize a task", async () => {
   const f = await fixture();
   try {
     await f.store.update(scope, f.id, (m) => {
       m.transcript = silentAfterSpeech();
     });
-    await f.workflow.live(await f.store.read(scope, f.id));
+    await f.workflow.live(scope, await f.store.read(scope, f.id));
     f.setBusy(true);
     await f.workflow.tick(scope, f.id);
     assert.equal(f.starts.length, 0);
@@ -341,7 +432,7 @@ test("waits for human chat; dispatch retry reuses operation identity; wrong exec
     );
     await assert.rejects(
       f.workflow.submit({ ...scope, userId: "other" }, config(m, 0), simple),
-      /meeting_not_found/
+      /summary_operation_mismatch/
     );
     await f.service.remove(scope, f.id);
     await assert.rejects(
@@ -364,7 +455,7 @@ test("missing domain result fails explicitly; retry retains final tail and uses 
       m.expectedChunks = { microphone: 1, system: 1 };
       m.processing = "summarizing";
     });
-    await f.workflow.finish(await f.store.read(scope, f.id), live);
+    await f.workflow.finish(scope, await f.store.read(scope, f.id), live);
     await f.workflow.tick(scope, f.id);
     let m = await f.store.read(scope, f.id);
     f.statuses.set(m.assistant.operations[0].executionId, {
@@ -373,7 +464,7 @@ test("missing domain result fails explicitly; retry retains final tail and uses 
     await f.workflow.tick(scope, f.id);
     m = await f.store.read(scope, f.id);
     assert.equal(m.errorCode, "assistant_result_missing");
-    await f.workflow.finish(m, live);
+    await f.workflow.finish(scope, m, live);
     await f.workflow.tick(scope, f.id);
     assert.equal(f.starts.length, 2);
     assert.equal(f.starts[0].conversationId, f.starts[1].conversationId);
@@ -390,7 +481,7 @@ test("unknown platform outcome remains recoverable without duplicate identity or
     await f.store.update(scope, f.id, (m) => {
       m.transcript = silentAfterSpeech();
     });
-    await f.workflow.live(await f.store.read(scope, f.id));
+    await f.workflow.live(scope, await f.store.read(scope, f.id));
     const starts: AgentMiddlewareAssistantTaskInput[] = [];
     const workflow = new AssistantWorkflow(
       f.store,
@@ -425,7 +516,7 @@ test("exhausted supervision closes pending attempts and rejects late final write
       m.durationMs = 5000;
       m.expectedChunks = { microphone: 1, system: 1 };
     });
-    await f.workflow.finish(await f.store.read(scope, f.id), live);
+    await f.workflow.finish(scope, await f.store.read(scope, f.id), live);
     await f.workflow.tick(scope, f.id);
     await f.workflow.failSupervision(scope, f.id);
     const m = await f.store.read(scope, f.id);

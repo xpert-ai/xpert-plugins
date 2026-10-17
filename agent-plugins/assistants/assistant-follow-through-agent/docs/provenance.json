@@ -1,0 +1,34 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/follow-through-agent",
+    "name": "GTM Loop Closer",
+    "creator": "Jon Grigull",
+    "categories": [
+      "From Grok Bot Team",
+      "Sales"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 5,
+    "routineCount": 1,
+    "integrations": [
+      "Salesforce",
+      "Gmail",
+      "Google Calendar",
+      "Slack",
+      "Granola",
+      "Notion",
+      "Google Sheets"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "sales",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "id": "webby",
+  "generator": "OpenAI imagegen",
+  "generatedAt": "2026-10-14",
+  "style": "Enterprise cartoon portrait; navy wardrobe; cream background",
+  "prompt": "Create ONE square avatar for an enterprise assistant template library. Original high-quality friendly 3D cartoon human, softly sculpted animated-feature aesthetic, warm cream seamless background, soft studio lighting, navy-and-cream corporate wardrobe with restrained accent colors. Chest-up portrait, face centered and large, eye contact, relaxed confident smile. Hair fully within frame, shoulders end at lower edge, minimal tiny work prop only at lower edge if specified. Match the polished Office Ops avatar series: natural human proportions with slightly enlarged expressive eyes, gentle shadows, clean smooth materials, no circle or frame baked in. No text, no letters, no logos, no watermark. A fictional person, not the actual creator of the referenced software. Role: Webby assistant. A fictional man, about 50, medium brown skin, short black curls. Navy business jacket with forest green shirt or blouse. Unique friendly facial features; chest-up with generous space above hair. Square composition.",
+  "sourceAsset": "exec-492a6d13-8cfc-4002-b8b9-301d076009ab.png",
+  "packagedSize": 256,
+  "sha256": "ed98bb33aa2f3e64c0d38f32c3f7f5284ff3dc46e88c8e84ae19775ff022d79d",
+  "fictionalPerson": true,
+  "upstreamImageCopied": false
+}

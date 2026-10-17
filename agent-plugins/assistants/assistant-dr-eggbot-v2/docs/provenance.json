@@ -1,0 +1,28 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/dr-eggbot-v2",
+    "name": "dr eggbot",
+    "creator": "Lauren Tan",
+    "categories": [
+      "From Grok Bot Team"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 4,
+    "routineCount": 2,
+    "integrations": [
+      "pstack"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "engineering",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending",
+    "classificationNote": "源页面没有业务类别；此分类为 Xpert 编辑整理。"
+  }
+}

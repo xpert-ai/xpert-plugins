@@ -44,7 +44,7 @@ const scope = {
   organizationId: "org",
   userId: "alice",
   assistantId: "assistant",
-  workspaceCatalog: "user-xperts",
+  workspaceCatalog: "xperts",
 };
 RequestContext.currentTenantId = () => scope.tenantId;
 RequestContext.getOrganizationId = () => scope.organizationId;
@@ -59,7 +59,6 @@ const replica = () => {
         JSON.stringify([
           actor.tenantId,
           actor.organizationId,
-          actor.userId,
           actor.assistantId,
         ])
       )
@@ -67,7 +66,7 @@ const replica = () => {
     const volume = new VolumeHandle(
       {
         tenantId: actor.tenantId,
-        catalog: "user-xperts",
+        catalog: "xperts",
         userId: actor.userId,
         xpertId: actor.assistantId,
       },
@@ -83,7 +82,7 @@ const replica = () => {
       { execute: async () => artifactNamespace }
     );
     return host.createScopedApi({ ...actor, xpertId: actor.assistantId }).appData({
-      pluginName: "@xpert-ai/plugin-meetings", requireUserIsolation: true
+      pluginName: "@xpert-ai/plugin-meetings",
     });
   });
   const meetings = new Meetings(store, async (_scope, id) => {
@@ -157,7 +156,7 @@ try {
     { transcribe: async () => "Synthetic meeting text" },
     {
       live: async () => {},
-      finish: async (input) =>
+      finish: async (_actor, input) =>
         saveSummary(b.store, scope, id, input, {
           overview: "Synthetic summary",
           decisions: [],
@@ -172,8 +171,19 @@ try {
   assert.equal(result.processing, "ready");
   assert.equal(result.transcript.length, 2);
   assert.ok(jobs.length >= 3);
+  scope.userId = "bob";
+  assert.equal((await restarted.meetings.get(scope, id)).id, id);
+  await restarted.meetings.edit(scope, {
+    meetingId: id,
+    expectedRevision: result.revision,
+    title: "Shared meeting",
+  });
+  assert.equal((await a.meetings.get(scope, id)).title, "Shared meeting");
+  await assert.rejects(
+    restarted.delivery.lookup(scope, captureId),
+    /capture_not_found/
+  );
   for (const patch of [
-    { userId: "bob" },
     { organizationId: "other" },
     { tenantId: "other" },
     { assistantId: "other" },
@@ -184,7 +194,7 @@ try {
     );
   }
   console.log(
-    "PASS: create/start on separate replicas, one notes revision winner, idempotent concurrent chunks, finalization on another replica, restart persistence, scope isolation."
+    "PASS: create/start on separate replicas, one notes revision winner, idempotent concurrent chunks, finalization on another replica, restart persistence, shared cross-user access, capture ownership and Assistant scope isolation."
   );
 } finally {
   unregister();

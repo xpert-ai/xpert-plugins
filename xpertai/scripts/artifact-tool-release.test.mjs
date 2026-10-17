@@ -29,7 +29,8 @@ test('version PR includes the shared package version and changelog without chang
   const root = await mkdtemp(join(tmpdir(), 'artifact-changesets-'));
   try {
     for (const path of ['package.json', 'pnpm-workspace.yaml', 'xpertai/package.json',
-      'xpertai/pnpm-workspace.yaml', 'xpertai/.changeset/config.json', 'packages/artifact-tool/package.json']) {
+      'xpertai/pnpm-workspace.yaml', 'xpertai/.changeset/config.json', 'packages/artifact-tool/package.json',
+      'xpertai/apps/maps/package.json', 'xpertai/apps/maps/.xpertai-plugin/plugin.json']) {
       await mkdir(dirname(join(root, path)), { recursive: true });
       await writeFile(join(root, path), await text(path));
     }
@@ -37,7 +38,7 @@ test('version PR includes the shared package version and changelog without chang
     const manifest = await json('packages/artifact-tool/package.json');
     await writeFile(manifestPath, JSON.stringify({ ...manifest, version: '1.2.3' }, null, 2));
     await writeFile(join(root, 'xpertai/.changeset/release-test.md'),
-      `---\n"${artifactName}": patch\n---\n\nVerify the shared package release.\n`);
+      `---\n"${artifactName}": patch\n"@xpert-ai/plugin-maps": patch\n---\n\nVerify the shared package release.\n`);
     await symlink(join(repo, 'xpertai/node_modules'), join(root, 'xpertai/node_modules'), 'dir');
     await writeFile(join(root, '.gitignore'), 'node_modules/\n');
     const git = (args) => {
@@ -55,6 +56,11 @@ test('version PR includes the shared package version and changelog without chang
     });
     assert.equal(result.status, 0, result.stderr + result.stdout);
     assert.equal(JSON.parse(await readFile(manifestPath, 'utf8')).version, '1.2.4');
+    const maps = JSON.parse(await readFile(join(root, 'xpertai/apps/maps/package.json'), 'utf8'));
+    const bundle = JSON.parse(await readFile(join(root, 'xpertai/apps/maps/.xpertai-plugin/plugin.json'), 'utf8'));
+    const originalBundle = await json('xpertai/apps/maps/.xpertai-plugin/plugin.json');
+    assert.notEqual(maps.version, originalBundle.version);
+    assert.deepEqual(bundle, { ...originalBundle, version: maps.version });
     const changelog = await readFile(join(root, 'packages/artifact-tool/CHANGELOG.md'), 'utf8');
     assert.match(changelog, /## 1\.2\.4/);
     assert.match(changelog, /Verify the shared package release/);
@@ -62,7 +68,8 @@ test('version PR includes the shared package version and changelog without chang
     git(['-C', 'xpertai', 'add', '.']);
     assert.deepEqual(git(['diff', '--cached', '--name-only']).trim().split('\n'), [
       'packages/artifact-tool/CHANGELOG.md', 'packages/artifact-tool/package.json',
-      'xpertai/.changeset/release-test.md'
+      'xpertai/.changeset/release-test.md', 'xpertai/apps/maps/.xpertai-plugin/plugin.json',
+      'xpertai/apps/maps/CHANGELOG.md', 'xpertai/apps/maps/package.json'
     ]);
     await assert.rejects(readFile(join(root, 'xpertai/.changeset/release-test.md')), { code: 'ENOENT' });
     await assert.rejects(readFile(join(root, '.changeset')), { code: 'ENOENT' });

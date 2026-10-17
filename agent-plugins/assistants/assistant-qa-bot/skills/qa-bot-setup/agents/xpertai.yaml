@@ -1,0 +1,3 @@
+interface:
+  display_name: "发布验收测试员 · 首次使用"
+  short_description: "依据验收清单检查测试部署，给出可复现的问题和发布判断依据。"

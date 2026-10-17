@@ -1,0 +1,3 @@
+interface:
+  display_name: "信用卡权益助理 · 首次使用"
+  short_description: "依据已核实的卡片规则比较消费回报，整理权益到期提醒。"

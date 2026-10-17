@@ -1,0 +1,25 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/deal-hunting",
+    "name": "Deal Hunting",
+    "creator": "Shimecki",
+    "categories": [
+      "Personal"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 0,
+    "routineCount": 2,
+    "integrations": []
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "personal",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

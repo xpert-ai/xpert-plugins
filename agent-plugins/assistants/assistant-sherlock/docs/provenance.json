@@ -1,0 +1,34 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/sherlock",
+    "name": "Talent Discovery",
+    "creator": "Tommy Hansen",
+    "categories": [
+      "From Grok Bot Team",
+      "Recruiting & People"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 9,
+    "routineCount": 2,
+    "integrations": [
+      "slack",
+      "notion-workspace",
+      "linear",
+      "figma",
+      "Gmail",
+      "Google Sheets",
+      "Ashby"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "recruiting-people",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}
