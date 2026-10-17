@@ -44,6 +44,7 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
     }
     // Evidence belongs to this run and actor, never a process-wide cache of business data.
     const discovered = new Map<string, AnalyticsDiscoveryResult['queryContract']>(), previews = new Map<string, AnalyticsBinding>()
+    let listedSources: Awaited<ReturnType<DashboardService['sources']>> | undefined
     const filterEvidence = createFilterEvidence(this.service, scope, previews)
     const created = new Map<string, { manifest: DashboardManifest; receipt: Awaited<ReturnType<DashboardService['save']>> }>()
     const preview = async (binding: AnalyticsBinding) => {
@@ -129,11 +130,16 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
       { name: 'dashboard_libraries', description: 'Discover packaged frontend libraries and exact versions available to HTML dashboards. Read before using ECharts/Three.js. Returns metadata, never library source.',
         schema: z.object({}).strict(), verboseParsingErrors: true, metadata: { toolName: { en_US: 'Discover dashboard libraries', zh_Hans: '查看看板前端图库' } } }),
       ...createEditingTools(this.service, scope, context, resolvePreviews, validateFinal, (path, artifactId) => evidence.opened(path, artifactId)),
-      tool(async () => JSON.stringify(await this.service.sources(scope)), {
+      tool(async () => {
+        listedSources = await this.service.sources(scope)
+        return JSON.stringify(listedSources)
+      }, {
         name: 'dashboard_list_sources', description: 'List authorized analytics sources and versioned providers. Start here; IDs must come from this list.',
         schema: z.object({}).strict(), verboseParsingErrors: true, metadata: { toolName: { en_US: 'List analytics sources', zh_Hans: '发现分析数据源' } }
       }),
       tool(async (input: z.infer<typeof discoverToolSchema>) => {
+        if (listedSources && !listedSources.some(source => source.id === input.dataSourceId && source.providers.some(provider => provider.id === input.providerId)))
+          throw new Error(`DASHBOARD_SOURCE_SELECTION_INVALID: copy an exact dataSourceId/providerId pair from dashboard_list_sources; do not invent or combine IDs. Known pairs: ${JSON.stringify(listedSources.map(source => ({ dataSourceId: source.id, name: source.name, providerIds: source.providers.map(provider => provider.id) })))}. Refresh the list if the source changed. Initial requestJson is "{}"; then follow inspectRequest/nextRequest.`)
         const parsed = { dataSourceId: input.dataSourceId, providerId: input.providerId, request: parseObjectJson(input.requestJson) }
         const result = await this.service.discover(scope, parsed)
         discovered.set(`${parsed.dataSourceId}/${parsed.providerId}`, result.queryContract)

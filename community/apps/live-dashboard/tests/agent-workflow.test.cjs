@@ -18,7 +18,7 @@ function setup(options = {}) {
     async history(scope, artifactId) { await this.open(scope, artifactId); return [{ artifactId, versionId: saved.versionId, versionNumber: 1 }] },
     async update(scope, artifactId, versionId, changes) { await this.open(scope, artifactId); calls.push(['update', scope, artifactId, versionId, changes]); return { artifactId, draftRevision: 1, status: "draft" } },
     async sources() { return [] },
-    async discover(scope, input) { calls.push(['discover', scope, input]); return { items: [], queryContract: { operation: 'query', contractVersion: 1 } } },
+    async discover(scope, input) { if (denied) throw new Error('REVOKED'); calls.push(['discover', scope, input]); return { items: [], queryContract: { operation: 'query', contractVersion: 1 } } },
     async preview(scope, input) { if (denied) throw new Error('REVOKED'); calls.push(['preview', scope, input]); return { rows: Array.from({ length: 25 }, (_, i) => ({ n: i })), completeness: { returnedRows: 25, truncated: false } } },
     async save(scope, manifest) { if (denied) throw new Error('REVOKED'); calls.push(['save', scope, manifest]); return { artifactId: 'saved', versionId: 'version' } }
   }
@@ -101,6 +101,54 @@ test('registered canonical bindings use the same discovery and preview receipt g
     charts: JSON.stringify(input.charts), tables: JSON.stringify(input.tables), previewIds: JSON.stringify(input.previewIds) })).dashboard.artifactId, 'saved')
   s.revoke()
   await assert.rejects(s.invoke('dashboard_preview_binding', args), /REVOKED/)
+})
+
+test('mistyped source/provider pairs receive exact listed choices without querying or guessing', async () => {
+  const s = setup(), { binding } = draft()
+  const other = { id: randomUUID(), name: 'Other source', providers: [{ id: 'other.query' }] }
+  s.service.sources = async () => [{ id: binding.dataSourceId, name: 'Exact source', providers: [{ id: binding.providerId }] }, other]
+  await s.invoke('dashboard_list_sources', {})
+  for (const wrong of [{ dataSourceId: randomUUID(), providerId: binding.providerId }, { dataSourceId: binding.dataSourceId, providerId: 'invented' },
+    { dataSourceId: binding.dataSourceId, providerId: other.providers[0].id }, { dataSourceId: other.id, providerId: binding.providerId }])
+    await assert.rejects(s.invoke('dashboard_discover', wrong), error => /SOURCE_SELECTION_INVALID/.test(error.message) &&
+      error.message.includes(binding.dataSourceId) && error.message.includes(binding.providerId) && /Refresh the list/.test(error.message))
+  assert.equal(s.calls.length, 0)
+  const request = { kind: 'inspect', datasetId: 'sales' }
+  await s.invoke('dashboard_discover', { dataSourceId: binding.dataSourceId, providerId: binding.providerId, requestJson: JSON.stringify(request) })
+  assert.deepEqual(s.calls, [['discover', { tenantId: context.tenantId, organizationId: context.organizationId,
+    userId: context.userId, hostType: 'agent', hostId: context.xpertId, slots: [] },
+    { dataSourceId: binding.dataSourceId, providerId: binding.providerId, request }]])
+})
+
+test('source selection follows refreshed lists including empty results and stays local to each run', async () => {
+  const s = setup(), { binding } = draft()
+  const first = { dataSourceId: binding.dataSourceId, providerId: binding.providerId }
+  const next = { dataSourceId: randomUUID(), providerId: 'other.query' }
+  let sources = [{ id: first.dataSourceId, providers: [{ id: first.providerId }] }]
+  s.service.sources = async () => sources
+  await s.invoke('dashboard_list_sources', {})
+  await assert.rejects(s.invoke('dashboard_discover', next), /SOURCE_SELECTION_INVALID/)
+  sources = [{ id: next.dataSourceId, providers: [{ id: next.providerId }] }]
+  await s.invoke('dashboard_list_sources', {})
+  await assert.rejects(s.invoke('dashboard_discover', first), /SOURCE_SELECTION_INVALID/)
+  await s.invoke('dashboard_discover', next)
+  sources = []
+  await s.invoke('dashboard_list_sources', {})
+  await assert.rejects(s.invoke('dashboard_discover', next), /SOURCE_SELECTION_INVALID/)
+  // A new run can still delegate an explicit selection to the host before listing sources.
+  await s.another().tools.find(t => t.name === 'dashboard_discover').invoke(first)
+  assert.deepEqual(s.calls.map(call => call[2].dataSourceId), [next.dataSourceId, first.dataSourceId])
+  await assert.rejects(s.invoke('dashboard_discover', first), /SOURCE_SELECTION_INVALID/)
+})
+
+test('listed source selections still require current host access and denied discovery creates no preview evidence', async () => {
+  const s = setup(), { binding } = draft()
+  s.service.sources = async () => [{ id: binding.dataSourceId, providers: [{ id: binding.providerId }] }]
+  await s.invoke('dashboard_list_sources', {})
+  s.revoke()
+  await assert.rejects(s.invoke('dashboard_discover', { dataSourceId: binding.dataSourceId, providerId: binding.providerId }), /REVOKED/)
+  await assert.rejects(s.invoke('dashboard_preview', { binding }), /DISCOVER_REQUIRED/)
+  assert.equal(s.calls.length, 0)
 })
 test('Assistant final-provider policy allows upstream preview but rejects saving a substitute', async () => {
   const s = setup({ allowedFinalProviders: ['workspace_script.query'] }), { input } = draft()
