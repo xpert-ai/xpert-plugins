@@ -1,10 +1,11 @@
 import { z } from 'zod/v3'
 import { installShadcnThemeVars } from '@xpert-ai/plugin-shadcn-ui/theme'
+import { DASHBOARD_VIEW_KEY } from '../lib/dashboard-navigation'
 import { createdDashboard, DASHBOARD_MUTATION_TOOLS } from '../lib/dashboard-receipt'
 
 const envelope = z.object({ channel: z.literal('xpertai.remote_component'), protocolVersion: z.literal(1),
   type: z.string(), instanceId: z.string().optional(), requestId: z.string().optional(), locale: z.string().optional(),
-  data: z.unknown(), result: z.unknown(), message: z.string().optional(),
+  initialQuery: z.unknown(), data: z.unknown(), result: z.unknown(), message: z.string().optional(),
   event: z.object({ type: z.string(), toolName: z.string().optional(), data: z.object({ output: z.unknown() }).optional() }).optional(),
   theme: z.object({ mode: z.string().optional(), density: z.enum(['default', 'compact']).optional(), tokens: z.record(z.union([z.string(), z.number()])).optional() }).optional()
 })
@@ -12,8 +13,8 @@ let instanceId: string | undefined
 let sequence = 0
 const pending = new Map<string, { resolve: (value: unknown) => void; reject: (error: Error) => void; timer: number }>()
 function post(type: string, body: object = {}) { window.parent.postMessage({ channel: 'xpertai.remote_component', protocolVersion: 1, instanceId, type, ...body }, '*') }
-/** Pass both immutable identities; opening only the Artifact could select a newer concurrent edit. */
-export function startBridge(onReady: (locale: string) => void, onCreated: (artifactId: string) => void) {
+/** Public navigation is reflected in every init; tool receipts separately invalidate saved content. */
+export function startBridge(onReady: (locale: string, initialQuery: unknown) => void, onCreated: (artifactId: string) => void) {
   let lastCreatedVersion: string | undefined
   const listener = (event: MessageEvent<unknown>) => {
     if (event.source !== window.parent) return
@@ -28,7 +29,7 @@ export function startBridge(onReady: (locale: string) => void, onCreated: (artif
         document.documentElement.style.setProperty(property, String(value))
       }
       installShadcnThemeVars({ density: message.theme?.density })
-      onReady(message.locale ?? 'en-US'); return
+      onReady(message.locale ?? 'en-US', message.initialQuery); return
     }
     if (!instanceId || message.instanceId !== instanceId) return
     if (message.type === 'hostEvent' && message.event?.type === 'assistant.tool.completed' && DASHBOARD_MUTATION_TOOLS.includes(message.event.toolName ?? '')) {
@@ -59,4 +60,10 @@ export function requestHost(type: 'requestData' | 'executeAction' | 'invokeClien
 export function selectDashboard(target: { artifactId: string; versionId?: string; draftRevision?: number } | null) {
   return requestHost('invokeClientCommand', { commandKey: 'assistant.context.set',
     payload: { key: 'live_dashboard', ...(target ? { context: { schemaVersion: 1, ...target } } : { clear: true }) } })
+}
+
+export function navigateDashboard(artifactId: string, versionId?: string) {
+  return requestHost('invokeClientCommand', { commandKey: 'workbench.navigation.open', payload: {
+    target: 'workbench.view', viewKey: DASHBOARD_VIEW_KEY, selectionId: artifactId, parameters: versionId ? { versionId } : {}
+  } })
 }

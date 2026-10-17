@@ -1,12 +1,13 @@
 import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable } from '@nestjs/common'
 import { createHash } from 'node:crypto'
-import type { AnalyticalDataset, AnalyticsValue, AnalyticsDiscoveryRequest, AnalyticsQueryRequest, XpertResolvedViewHostContext } from '@xpert-ai/contracts'
+import type { AnalyticsValue, AnalyticsDiscoveryRequest, AnalyticsQueryRequest, XpertResolvedViewHostContext } from '@xpert-ai/contracts'
 import {
   AnalyticsRuntimeCapability, ArtifactDraftsRuntimeCapability, ArtifactsRuntimeCapability, WorkspaceFilesRuntimeCapability, XPERT_RUNTIME_CAPABILITIES_TOKEN,
   type RuntimeCapabilityRegistry, type ArtifactRecord, type ArtifactVersionRecord
 } from '@xpert-ai/plugin-sdk'
 import { dashboardSchema, dashboardChangesSchema, type DashboardManifest, type DashboardChanges } from './dashboard.schema'
 import { toDataAnalyticsPayload } from './renderer'
+import { queryDashboard, queryDashboardBinding } from './dashboard-queries'
 import { HtmlDashboardValidation } from './html-validation'
 import { resolveLibraryAssets } from './document-libraries'
 import { decodeDashboardPackage, encodeDashboardPackage, MAX_DASHBOARD_PACKAGE_BYTES } from './document-package'
@@ -116,21 +117,10 @@ export class DashboardService {
   }
   async queryBinding(context: XpertResolvedViewHostContext, artifactId: string, versionId: string | undefined, bindingId: string, input: Record<string, AnalyticsValue>, draftRevision?: number) {
     const saved = await this.open(context, artifactId, versionId, draftRevision)
-    const binding = saved.manifest.bindings.find(item => item.id === bindingId)
-    if (!binding) throw new ForbiddenException('DASHBOARD_BINDING_DENIED')
-    const controls = validateControls(saved.manifest, input)
-    const selected = Object.fromEntries(Object.entries(controls).filter(([id]) => binding.parameters.some(parameter => parameter.controlId === id)))
-    return this.runtime.require(AnalyticsRuntimeCapability).query(actor(context), { binding, controls: selected })
+    return queryDashboardBinding(this.runtime, actor(context), saved.manifest, bindingId, input)
   }
-  private async execute(context: XpertResolvedViewHostContext, manifest: DashboardManifest, input: Record<string, AnalyticsValue>) {
-    const controls = validateControls(manifest, input)
-    const datasets: AnalyticalDataset[] = []
-    for (const binding of manifest.bindings) {
-      const selected = Object.fromEntries(Object.entries(controls).filter(([id]) => binding.parameters.some((parameter) => parameter.controlId === id)))
-      datasets.push(await this.runtime.require(AnalyticsRuntimeCapability).query(actor(context), { binding, controls: selected }))
-    }
-    if (Buffer.byteLength(JSON.stringify(datasets)) > 3_000_000) throw new BadRequestException('DASHBOARD_RESULT_TOO_LARGE')
-    return datasets
+  private execute(context: XpertResolvedViewHostContext, manifest: DashboardManifest, input: Record<string, AnalyticsValue>) {
+    return queryDashboard(this.runtime, actor(context), manifest, input)
   }
   private async probeControls(context: XpertResolvedViewHostContext, binding: AnalyticsQueryRequest['binding'], input: Record<string, AnalyticsValue>) {
     const controls = Object.fromEntries(binding.parameters.map((parameter) => [parameter.controlId,
@@ -151,18 +141,6 @@ export class DashboardService {
       }
     }
   }
-}
-function validateControls(manifest: DashboardManifest, input: Record<string, AnalyticsValue>) {
-  if (Object.keys(input).some(id => !manifest.controls.some(control => control.controlId === id))) throw new BadRequestException('DASHBOARD_UNKNOWN_CONTROL')
-  const values = { ...Object.fromEntries(manifest.controls.filter(control => control.defaultValue !== undefined).map(control => [control.controlId, control.defaultValue ?? null])), ...input }
-  for (const control of manifest.controls) {
-    const value = values[control.controlId]
-    if (value === undefined) continue
-    if (control.allowedValues && !control.allowedValues.includes(value)) throw new BadRequestException('DASHBOARD_CONTROL_VALUE_DENIED')
-    if (value !== null && (control.type === 'number' ? typeof value !== 'number' || !Number.isFinite(value) : control.type === 'boolean' ? typeof value !== 'boolean' : typeof value !== 'string'))
-      throw new BadRequestException('DASHBOARD_CONTROL_TYPE_INVALID')
-  }
-  return values
 }
 function actor(context: XpertResolvedViewHostContext) {
   if (!context.tenantId || !context.organizationId || !context.userId || !['agent', 'project'].includes(context.hostType)) throw new ForbiddenException('DASHBOARD_ACCESS_DENIED')

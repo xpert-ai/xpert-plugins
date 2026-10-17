@@ -16,11 +16,11 @@ function setup(options = {}) {
     async list() { return [{ artifactId: saved.artifactId, versionId: saved.versionId, title: saved.manifest.title }] },
     async open(scope, artifactId, versionId) { if (denied) throw new Error('REVOKED'); if (artifactId !== saved.artifactId || versionId && versionId !== saved.versionId) throw new Error('ACCESS_DENIED'); calls.push(['open', scope, artifactId, versionId]); return structuredClone(saved) },
     async history(scope, artifactId) { await this.open(scope, artifactId); return [{ artifactId, versionId: saved.versionId, versionNumber: 1 }] },
-    async update(scope, artifactId, versionId, changes) { await this.open(scope, artifactId); calls.push(['update', scope, artifactId, versionId, changes]); return { artifactId, draftRevision: 1, status: "draft" } },
+    async update(scope, artifactId, versionId, changes) { await this.open(scope, artifactId); calls.push(['update', scope, artifactId, versionId, changes]); return { artifactId, draftRevision: 1, status: "draft", title: changes.title ?? saved.manifest.title } },
     async sources() { return [] },
     async discover(scope, input) { if (denied) throw new Error('REVOKED'); calls.push(['discover', scope, input]); return { items: [], queryContract: { operation: 'query', contractVersion: 1 } } },
     async preview(scope, input) { if (denied) throw new Error('REVOKED'); calls.push(['preview', scope, input]); return { rows: Array.from({ length: 25 }, (_, i) => ({ n: i })), completeness: { returnedRows: 25, truncated: false } } },
-    async save(scope, manifest) { if (denied) throw new Error('REVOKED'); calls.push(['save', scope, manifest]); return { artifactId: 'saved', versionId: 'version' } }
+    async save(scope, manifest) { if (denied) throw new Error('REVOKED'); calls.push(['save', scope, manifest]); return { artifactId: 'saved', draftRevision: 1, status: 'draft', title: manifest.title } }
   }
   const files = new Map()
   const runtimeContext = { ...context, runtime: { capabilities: { require: () => ({
@@ -442,4 +442,43 @@ test('Agent discovers frontend pins and saves only explicitly requested librarie
   await assert.rejects(s.invoke('dashboard_create_html', { ...args, libraries: ['https://cdn.example/echarts.js'] }))
   await assert.rejects(s.invoke('dashboard_create_html', { ...args, libraries: ['echarts', 'echarts'] }))
   assert.equal(s.calls.filter(call => call[0] === 'save').length, 1)
+})
+
+test('create, HTML create, open and update emit only authorized committed cards via the active tool callbacks', async () => {
+  const s = setup(), cards = [], config = { callbacks: [{ name: 'card-capture', handleCustomEvent(_name, data) { if (data.type === 'resource_card') cards.push(data) } }] }
+  const { input, binding } = draft()
+  await assert.rejects(s.invoke('dashboard_create', input, config), /PREVIEW_REQUIRED/)
+  assert.equal(cards.length, 0)
+  await s.invoke('dashboard_discover', { dataSourceId: binding.dataSourceId, providerId: binding.providerId })
+  input.previewIds = [JSON.parse(await s.invoke('dashboard_preview', { binding })).previewId]
+  await s.invoke('dashboard_create', input, config)
+  assert.equal(cards.length, 1); assert.equal(cards[0].data.title, input.title)
+  await s.invoke('dashboard_create', input, config)
+  assert.equal(cards.length, 2); assert.equal(cards[0].id, cards[1].id)
+  const { charts, tables, ...definition } = input
+  s.files.set('dashboards/card.html', Buffer.from('<html><body>Card</body></html>'))
+  await s.invoke('dashboard_create_html', { ...definition, title: 'HTML card', path: 'dashboards/card.html' }, config)
+  assert.equal(cards.at(-1).data.title, 'HTML card')
+  const opened = JSON.parse(await s.invoke('dashboard_open', { artifactId: s.saved.artifactId }, config))
+  assert.equal(cards.at(-1).data.open.selectionId, s.saved.artifactId)
+  await s.invoke('dashboard_update', { editId: opened.editId, expectedRevision: opened.expectedRevision, expectedCurrentVersionId: opened.expectedCurrentVersionId, title: 'Updated card' }, config)
+  assert.equal(cards.at(-1).data.title, 'Updated card'); assert.match(cards.at(-1).data.description, /Draft r1/)
+  assert.equal(cards.at(-1).id, cards.at(-2).id)
+  const count = cards.length
+  s.revoke()
+  await assert.rejects(s.invoke('dashboard_open', { artifactId: s.saved.artifactId }, config), /REVOKED/)
+  await assert.rejects(s.invoke('dashboard_create', input, config), /REVOKED/)
+  await assert.rejects(s.invoke('dashboard_update', { editId: opened.editId, expectedRevision: 0, expectedCurrentVersionId: opened.expectedCurrentVersionId }, config), /REVOKED/)
+  assert.equal(cards.length, count)
+})
+
+test('standard dashboard edits explain definition-only saves and missing HTML paths cannot emit successful cards', async () => {
+  const s = setup()
+  const opened = JSON.parse(await s.invoke('dashboard_open', { artifactId: s.saved.artifactId }))
+  assert.equal(opened.presentation.type, 'standard')
+  assert.equal(opened.htmlPath, undefined)
+  assert.match(opened.next, /rename requires only title/)
+  await assert.rejects(s.invoke('dashboard_update', { editId: opened.editId, expectedRevision: 0,
+    expectedCurrentVersionId: opened.expectedCurrentVersionId, htmlPath: 'dashboards/invented.html' }), /standard dashboard.*omit htmlPath and libraries/)
+  assert.equal(s.calls.filter(c => c[0] === 'update').length, 0)
 })

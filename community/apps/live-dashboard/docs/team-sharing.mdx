@@ -1,0 +1,44 @@
+---
+title: 团队分享与独立看板页
+description: 分享已发布版本，保持数据访问权限、草稿和编辑边界
+---
+
+## 使用流程
+
+在 Workbench 选择看板，点击「团队分享」。已有正式版本时，可选择跟随最新正式版本或固定一个历史版本，再开启分享、复制链接。链接进入平台独立页；未登录用户先登录，再返回原页面。
+
+独立页默认只显示右上角半透明操作按钮，悬停临时展开，点击保持展开；可通过收起按钮或 Escape 关闭。标题、正式版本、刷新时间与刷新操作位于浮层内，标准图表的筛选控件也在其中，展开不会挤占画布高度。
+
+组织成员可以查看、筛选和刷新。修改、草稿预览、发布和分享管理仍由创建者通过 Workbench 完成。独立页不显示这些操作，也不接受对应后端指令。分享不会创建正式版本；只有草稿的看板必须先人工发布。
+
+更改版本模式或固定目标会替换链接并使原链接失效。相同配置重复开启复用链接。撤销立即影响后续访问和查询；已经显示在浏览器中的数据无法追溯收回。
+
+## 平台与插件分工
+
+| 平台通用能力 | 看板插件能力 |
+| --- | --- |
+| ArtifactLink、组织成员 ACL、链接撤销与正式版本解析 | 分享弹窗及发布前置、数据来源诊断 |
+| ArtifactPresentationProvider 注册与作用域选择 | 解析看板版本包，校验内容摘要和来源身份 |
+| 登录回跳、独立路由、隔离 iframe 和只读操作传输 | 标准 Data Analytics 和 HTML/ECharts 渲染 |
+| 每次请求前后重新校验访问权与版本 | 从已保存定义解析 Binding、筛选参数校验 |
+| Dataset 查询、来源认证与当前访问者授权 | `query` / `query-binding` 操作，不接受原生查询覆盖 |
+
+无新增分享业务表，也没有复制看板或创建另一个 Artifact。版本包携带 HTML 和固定图库依赖；标准与 HTML 模式复用原有渲染器。展示容器不认识看板、SQL 或本体语法。
+
+## 权限与刷新
+
+分享只授予正式定义的读取权。PostgreSQL/MySQL/Doris 继续使用平台受控查询，data-xpert 继续使用访问者的授权和本体策略；不会使用创建者身份代查。组织成员缺少数据源权限时仍查询失败。
+
+来源插件可在 Provider descriptor 的 `sharing` 声明 `owner_only` 及原因码。Workspace 脚本当前依赖私有定义、脚本和文件 Artifact，因此会阻止开启团队分享。后续应先提供这些依赖的显式协作授权，不能在看板层绕过文件 ACL。
+
+独立页只接受已发布的 Artifact/version 目标。刷新仅重查已声明 Binding；前端不能提交 SQL、替换 provider/dataSource、读取草稿或调用发布。HTML 与前端依赖运行在无网络的隔离环境中。
+
+跟随最新版本的链接在重新打开时读取当前正式版本；若页面打开后发布了新版本，旧目标查询会返回冲突，提示重新打开，避免旧 HTML 与新 Binding 混用。筛选值属于当前页面状态，刷新保留，重开恢复定义默认值。刷新仍是主动查询或定义中已配置的轮询，不是服务端推送。
+
+## 接口
+
+平台：`GET /api/artifacts/shared-links/:slug/presentation` 读取正式展示描述；`POST .../presentation/query` 使用 `{target: {artifactId, versionId}, operation, input}` 查询。两者需要平台登录，响应不缓存。
+
+插件 Workbench actions：`share-status`、`share`、`revoke-share`。仅通过受权 View Host 调用，服务再次检查 Artifact 创建者和 host。团队分享使用 `shareKey: team-readonly`、`organization_all`、禁下载和严格 HTML 规则，URL 由平台生成。
+
+本期没有聊天消息嵌入、匿名访问、团队编辑或 Workspace 私有依赖自动共享。

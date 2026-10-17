@@ -89,7 +89,7 @@ Run the repository plugin harness before authenticated `plugin:deploy:local`. Sy
 
 ## MVP boundaries
 
-Eight bindings, 24 controls, 20 charts/tables each, 100 listed dashboards per host. Queries execute sequentially with individual deadlines. No scheduler, cross-source joins, public sharing, shared result cache, visual query builder, chart-detail MCP resource or custom Artifact-gallery viewer. Artifacts remain downloadable definitions; the Workbench provides live rendering.
+Eight bindings, 24 controls, 20 charts/tables each, 100 listed dashboards per host. Queries execute sequentially with individual deadlines. No scheduler, cross-source joins, public sharing, shared result cache, visual query builder, chart-detail MCP resource or custom Artifact-gallery viewer. The Workbench provides authoring and preview. Authenticated team links open a standalone read-only page backed by the same renderers; drafts and management remain creator-only.
 
 ## Documentation
 
@@ -98,3 +98,11 @@ See [integration and architecture](docs/index.mdx), [build and verification](doc
 Draft autosave and human publication: [workflow and architecture](docs/drafts.mdx), [SSO acceptance (2026-10-17)](docs/drafts-acceptance.mdx).
 
 Agent 工作流程见随插件发布的 [live-dashboard 技能](skills/live-dashboard/SKILL.md) 和 [文件编辑说明](docs/file-authoring.mdx)。HTML 编辑需要平台 SandboxFile 与 skillsMiddleware。
+
+## Team sharing
+
+The Share action publishes a link to an already published dashboard: follow the latest formal version or pin one version. It never publishes a draft. Team members sign in and query as themselves; sharing the definition does not grant data-source, ontology or Workspace access. The creator can revoke the link. Workspace-script dashboards with private script/file dependencies are currently blocked with a diagnostic.
+
+See [team sharing and standalone pages](docs/team-sharing.mdx) and [local acceptance](docs/team-sharing-acceptance.mdx). This feature needs a host exposing the Artifact Presentation registry, API and page; it cannot be installed on an older SDK alone.
+
+Chat messages use the platform resource-card protocol after a successful create, update or open. The card opens the exact dashboard in Workbench; no dashboard renderer or queries are embedded in messages. See [chat resource cards](docs/chat-resource-cards.mdx).

@@ -8,6 +8,7 @@ import { createToolSchema, htmlPathSchema } from './agent.schema'
 import { dashboardSchema, type DashboardManifest } from './dashboard.schema'
 import { DashboardService } from './dashboard.service'
 import { libraryRequestsSchema, libraryLocks } from './document-libraries'
+import { emitDashboardCard } from './resource-card'
 
 export const dashboardSelectionSchema = z.object({ schemaVersion: z.literal(1), artifactId: z.string().uuid(), versionId: z.string().uuid().optional(), draftRevision: z.number().int().positive().optional() }).strict()
 export const dashboardContextSchema = z.object({ live_dashboard: dashboardSelectionSchema.nullable().optional() })
@@ -19,7 +20,7 @@ export const updateToolSchema = createToolSchema.partial().extend({ editId: z.st
 const readHtmlSchema = z.object({ editId: z.string().uuid(), versionId: z.string().uuid().optional().describe('Only for historical inspection; copy readVersionId from dashboard_open.'), offset: z.number().int().min(0).max(300000).default(0),
   length: z.number().int().min(1).max(24000).default(16000) }).strict()
 
-export const EDITING_GUIDANCE = `For existing dashboards, call dashboard_open first. It prepares a unique editable HTML copy and returns htmlPath, stable editId, expectedRevision and expectedCurrentVersionId. Read with sandbox_read_file; edit with sandbox_edit_file/multi_edit_file (sandbox_write_file is create-only). Complete each batch by calling dashboard_update with the exact htmlPath and read revisions, automatically without human confirmation. Files are not dashboard saves. Preserve Binding semantics and dependency locks unless requested. On conflict retain the editing file, open the latest draft and reconcile; never silently overwrite. Historical versions are read-only references. All Agent saves are drafts; only the Workbench human publish action creates formal versions. Read the live-dashboard skill for the complete workflow.`
+export const EDITING_GUIDANCE = `For existing dashboards, call dashboard_open first and inspect presentation.type. For standard dashboards, update definition fields directly: a rename needs only title, editId, expectedRevision and expectedCurrentVersionId. No HTML file exists; omit htmlPath and libraries. For HTML dashboards only, open prepares a unique editing copy at htmlPath. Read with sandbox_read_file; edit with sandbox_edit_file/multi_edit_file (sandbox_write_file is create-only), then call dashboard_update with that exact htmlPath and read revisions. Save each batch automatically without human confirmation. Files are not dashboard saves. Preserve Binding semantics and dependency locks unless requested. On conflict retain the editing file, open the latest draft and reconcile; never silently overwrite. Historical versions are read-only references. All Agent saves are drafts; only the Workbench human publish action creates formal versions. Read the live-dashboard skill for the complete workflow.`
 
 /** Run-local read receipts carry planning versions; authorization and CAS remain in the domain service. */
 export function createEditingTools(service: DashboardService, scope: XpertResolvedViewHostContext, context: IAgentMiddlewareContext,
@@ -52,9 +53,12 @@ export function createEditingTools(service: DashboardService, scope: XpertResolv
         await files.writeRuntimeBuffer({ path: htmlPath, buffer: Buffer.from(presentation.html), originalName: 'dashboard.html', mimeType: 'text/html' })
         onOpen(htmlPath, editId)
       }
-      return JSON.stringify({ editId, expectedCurrentVersionId: saved.baseVersionId ?? saved.versionId ?? null, ...(resolved.versionId ? { readVersionId: resolved.versionId } : {}), expectedRevision: saved.draftRevision ?? 0, state: saved.isDraft ? 'draft' : 'published', artifactId: saved.artifactId, versionId: saved.versionId, versionNumber: saved.versionNumber,
+      const resourceCard = await emitDashboardCard(scope, { artifactId: saved.artifactId, title: saved.manifest.title,
+        ...(saved.isDraft && saved.draftRevision ? { state: 'draft', revision: saved.draftRevision } as const
+          : { state: 'published', versionNumber: saved.versionNumber ?? 0, versionId: resolved.versionId } as const) }, config)
+      return JSON.stringify({ resourceCard, editId, expectedCurrentVersionId: saved.baseVersionId ?? saved.versionId ?? null, ...(resolved.versionId ? { readVersionId: resolved.versionId } : {}), expectedRevision: saved.draftRevision ?? 0, state: saved.isDraft ? 'draft' : 'published', artifactId: saved.artifactId, versionId: saved.versionId, versionNumber: saved.versionNumber,
         ...definition, presentation: presentation ? { type: 'html', characters: presentation.html.length, dependencies: presentation.dependencies ?? [] } : { type: 'standard' },
-        ...(htmlPath ? { htmlPath, next: 'A private editing copy is ready. Read it with sandbox_read_file, edit with sandbox_edit_file/multi_edit_file, then save using dashboard_update with this htmlPath and the returned revisions. File edits alone do not save the dashboard.' } : {}) })
+        ...(htmlPath ? { htmlPath, next: 'A private editing copy is ready. Read it with sandbox_read_file, edit with sandbox_edit_file/multi_edit_file, then save using dashboard_update with this htmlPath and the returned revisions. File edits alone do not save the dashboard.' } : !presentation ? { next: 'Standard dashboard: update definition fields directly. A rename requires only title plus editId, expectedRevision and expectedCurrentVersionId. No HTML editing file exists; omit htmlPath and libraries unless intentionally converting to HTML.' } : {}) })
     }, { name: 'dashboard_open', description: 'Read one authorized saved dashboard and obtain its stable editId and current draft revision. For a current HTML dashboard also prepares a unique Workspace editing copy without changing the Artifact. Historical versions remain read-only. Omit artifactId only for the selected Workbench dashboard.',
       schema: targetSchema, verboseParsingErrors: true, metadata: { toolName: { en_US: 'Read dashboard for editing', zh_Hans: '读取看板以继续修改' } } }),
     tool(async (input: z.infer<typeof readHtmlSchema>) => {
@@ -72,7 +76,7 @@ export function createEditingTools(service: DashboardService, scope: XpertResolv
       return JSON.stringify({ artifactId: resolved.artifactId, versions: await service.history(scope, resolved.artifactId) })
     }, { name: 'dashboard_history', description: 'List immutable versions of an authorized dashboard. Open a returned version to inspect it; history does not change the current version.',
       schema: targetSchema.omit({ versionId: true }), verboseParsingErrors: true, metadata: { toolName: { en_US: 'Read dashboard history', zh_Hans: '查看看板版本历史' } } }),
-    tool(async (input: z.infer<typeof updateToolSchema>) => {
+    tool(async (input: z.infer<typeof updateToolSchema>, config) => {
       const saved = await service.open(scope, input.editId)
       const { editId, expectedRevision, expectedCurrentVersionId, htmlPath, previewIds, libraries, ...changes } = input
       const bindings = previewIds ? resolvePreviews(previewIds) : saved.manifest.bindings
@@ -82,7 +86,7 @@ export function createEditingTools(service: DashboardService, scope: XpertResolv
         const files = context.runtime?.capabilities?.require(WorkspaceFilesRuntimeCapability)
         if (!files) throw new Error('DASHBOARD_WORKSPACE_REQUIRED')
         const file = await files.readRuntimeBuffer(htmlPath).catch(() => {
-          throw new Error(`DASHBOARD_HTML_FILE_NOT_FOUND: received ${JSON.stringify(htmlPath)}. Use the complete htmlPath returned by dashboard_open or a file created with sandbox_write_file. A suffix such as .html is not a file path.`)
+          throw new Error(`DASHBOARD_HTML_FILE_NOT_FOUND: ${!saved.manifest.presentation ? 'This is a standard dashboard. For title/chart/table changes omit htmlPath and libraries; update definition fields directly. ' : ''}received ${JSON.stringify(htmlPath)}. Use the complete htmlPath returned by dashboard_open or a file created with sandbox_write_file. A suffix such as .html is not a file path.`)
         })
         sourceFile = { path: htmlPath, sha256: createHash('sha256').update(file.buffer).digest('hex') }
         if (file.buffer.byteLength > 300000) throw new Error('DASHBOARD_HTML_TOO_LARGE')
@@ -97,7 +101,8 @@ export function createEditingTools(service: DashboardService, scope: XpertResolv
       validateFinal(manifest, previewIds !== undefined)
       const { schema, id, ...update } = manifest
       const result = await service.update(scope, editId, expectedRevision, update, expectedCurrentVersionId)
-      return JSON.stringify({ dashboard: result, ...(sourceFile ? { sourceFile } : {}) })
+      const resourceCard = await emitDashboardCard(scope, { ...result, state: 'draft', revision: result.draftRevision }, config)
+      return JSON.stringify({ dashboard: result, resourceCard, ...(sourceFile ? { sourceFile } : {}) })
     }, { name: 'dashboard_update', description: 'Update the opened dashboard in place, preserving its Artifact ID and version history. Supply stable editId and expectedRevision from dashboard_open, plus only changed fields. Saves a persistent draft; does not publish. htmlPath replaces the page; omitted previewIds preserves bindings, while supplied previewIds replaces the complete set with successful fresh previews. Conflicting edits fail instead of overwriting.',
       schema: updateToolSchema, verboseParsingErrors: true, metadata: { toolName: { en_US: 'Save dashboard changes', zh_Hans: '保存看板修改' } } })
   ]

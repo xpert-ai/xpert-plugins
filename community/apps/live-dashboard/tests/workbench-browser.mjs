@@ -124,6 +124,27 @@ try {
   await view.getByRole('button', { name: '确认发布', exact: true }).click()
   await view.getByRole('combobox', { name: '版本历史', exact: true }).filter({ hasText: '版本 2' }).waitFor()
   assert.equal((await state()).versions, 2)
+  await view.getByRole('button', { name: '团队分享', exact: true }).click()
+  const dialog = view.getByRole('dialog')
+  await dialog.getByRole('button', { name: '开启分享', exact: true }).click()
+  const shareUrl = await dialog.getByLabel('分享链接', { exact: true }).inputValue()
+  assert.ok(shareUrl.startsWith('https://platform.test/artifacts/view/'))
+  await dialog.getByRole('button', { name: '复制链接', exact: true }).click()
+  await dialog.getByRole('button', { name: '已复制', exact: true }).waitFor()
+  await dialog.getByRole('combobox', { name: '版本策略', exact: true }).click()
+  await view.getByRole('option', { name: '固定正式版本', exact: true }).click()
+  await dialog.getByRole('combobox', { name: '版本', exact: true }).click()
+  await view.getByRole('option', { name: '版本 1', exact: true }).click()
+  await dialog.getByRole('button', { name: '更新分享', exact: true }).click()
+  await dialog.getByRole('button', { name: '取消', exact: true }).click()
+  await view.getByRole('button', { name: '团队分享', exact: true }).click()
+  await dialog.getByRole('combobox', { name: '版本策略', exact: true }).filter({ hasText: '固定正式版本' }).waitFor()
+  await dialog.getByRole('combobox', { name: '版本', exact: true }).filter({ hasText: '版本 1' }).waitFor()
+  assert.notEqual(await dialog.getByLabel('分享链接', { exact: true }).inputValue(), shareUrl)
+  await dialog.getByRole('button', { name: '撤销链接', exact: true }).click()
+  await dialog.getByRole('button', { name: '开启分享', exact: true }).waitFor()
+  assert.equal(await dialog.getByLabel('分享链接', { exact: true }).count(), 0)
+  await dialog.getByRole('button', { name: '取消', exact: true }).click()
   const frame = page.frames().find(frame => frame.url() === `${url}/view`)
   assert.deepEqual(await frame.evaluate(() => ['localStorage', 'sessionStorage'].map(name => {
     try { void window[name]; return 'accessible' } catch (error) { return error.name }
@@ -153,9 +174,85 @@ try {
   await view.frameLocator('iframe[title="Newer edit"]').getByRole('cell', { name: 'east', exact: true }).waitFor()
   assert.equal((await state()).versions, 2)
   assert.equal((await state()).selection.artifactId, artifactId)
+  // A card's public query must select its Artifact, even while another dashboard is mounted.
+  await page.evaluate(({ secondId }) => send({ type: 'init', locale: 'zh-Hans', initialQuery: { selectionId: secondId } }), { secondId })
+  await view.frameLocator(`iframe[title="${another.title}"]`).getByRole('cell', { name: 'east', exact: true }).waitFor()
+  assert.equal((await state()).selection.artifactId, secondId)
+  const beforeEcho = (await state()).queries
+  await view.getByRole('button', { name: '编辑工作草稿', exact: true }).click()
+  await view.getByLabel('看板定义', { exact: true }).fill('unsaved local editing')
+  await page.evaluate(({ secondId }) => send({ type: 'init', locale: 'zh-Hans', initialQuery: { selectionId: secondId, page: 1 } }), { secondId })
+  assert.equal(await view.getByLabel('看板定义', { exact: true }).inputValue(), 'unsaved local editing')
+  assert.equal((await state()).queries, beforeEcho)
+  await page.evaluate(({ artifactId, versionId }) => send({ type: 'init', locale: 'zh-Hans', initialQuery: { selectionId: artifactId, parameters: { versionId } } }), { artifactId, versionId: first.id })
+  await renderer.getByRole('cell', { name: 'east', exact: true }).waitFor()
+  assert.equal((await state()).selection.artifactId, artifactId)
+  assert.equal((await state()).selection.versionId, first.id)
+  // Card navigation must dismiss actions that belong to the previous Artifact.
+  await view.getByRole('button', { name: '团队分享', exact: true }).click()
+  await dialog.waitFor()
+  await page.evaluate(({ secondId }) => send({ type: 'init', locale: 'zh-Hans', initialQuery: { selectionId: secondId } }), { secondId })
+  await view.frameLocator(`iframe[title="${another.title}"]`).getByRole('cell', { name: 'east', exact: true }).waitFor()
+  await dialog.waitFor({ state: 'hidden' })
+  await view.getByRole('button', { name: '发布草稿', exact: true }).click()
+  await view.getByRole('alertdialog').waitFor()
+  await page.evaluate(({ artifactId }) => send({ type: 'init', locale: 'zh-Hans', initialQuery: { selectionId: artifactId } }), { artifactId })
+  await view.frameLocator('iframe[title="Newer edit"]').getByRole('cell', { name: 'east', exact: true }).waitFor()
+  await view.getByRole('alertdialog').waitFor({ state: 'hidden' })
+  assert.equal((await state()).versions, 2, 'Navigation must never confirm publication')
+  // A delayed default listing must not override a more recent resource-card selection.
+  const activeFrame = page.frames().find(frame => frame.url() === `${url}/view`)
+  let releaseList, listRequestId, listingReady, listingDelivered
+  const listGate = new Promise(resolve => { releaseList = resolve })
+  const heldListing = new Promise(resolve => { listingReady = resolve })
+  const deliveredListing = new Promise(resolve => { listingDelivered = resolve })
+  const holdDefaultListing = async route => {
+    const message = route.request().postDataJSON()
+    if (message.type !== 'requestData' || message.query?.parameters?.artifactId) return route.continue()
+    const response = await route.fetch(), body = await response.json()
+    listRequestId = message.requestId
+    // Choose a known different default using the real fixture's authorized Artifact summary.
+    body.meta.dashboards = body.meta.dashboards.filter(item => item.artifactId === artifactId)
+    listingReady()
+    await listGate
+    await route.fulfill({ response, json: body })
+    listingDelivered()
+  }
+  await page.route(`${url}/rpc`, holdDefaultListing)
+  try {
+    await page.evaluate(() => send({ type: 'init', locale: 'zh-Hans', initialQuery: {} }))
+    await heldListing
+    await page.evaluate(({ secondId }) => send({ type: 'init', locale: 'zh-Hans', initialQuery: { selectionId: secondId } }), { secondId })
+    await view.frameLocator(`iframe[title="${another.title}"]`).getByRole('cell', { name: 'east', exact: true }).waitFor()
+    await page.evaluate(() => {
+      window.navigationReads = []
+      window.addEventListener('message', event => {
+        if (event.source === frame.contentWindow && event.data.type === 'requestData') window.navigationReads.push(event.data.query)
+      })
+    })
+    await activeFrame.evaluate(requestId => {
+      window.delayedListingSettled = new Promise(resolve => {
+        const listener = event => {
+          if (event.source !== window.parent || event.data.type !== 'data' || event.data.requestId !== requestId) return
+          window.removeEventListener('message', listener)
+          requestAnimationFrame(() => requestAnimationFrame(resolve))
+        }
+        window.addEventListener('message', listener)
+      })
+    }, listRequestId)
+    releaseList()
+    await activeFrame.evaluate(() => window.delayedListingSettled)
+    assert.deepEqual(await page.evaluate(() => window.navigationReads), [], 'Stale default response must not open another Artifact')
+    assert.equal((await state()).selection.artifactId, secondId)
+    await view.frameLocator(`iframe[title="${another.title}"]`).getByRole('cell', { name: 'east', exact: true }).waitFor()
+  } finally {
+    releaseList()
+    await deliveredListing
+    await page.unroute(`${url}/rpc`, holdDefaultListing)
+  }
   if (process.argv[3]) await page.screenshot({ path: process.argv[3], fullPage: true })
   assert.deepEqual(errors, [])
-  console.log(JSON.stringify({ passed: ['draft save', 'cancel publication', 'confirmed publication', 'filter', 'fresh query', 'draft receipt preview', 'version history', 'Assistant selection', 'update receipt', 'opaque origin', 'search and keyboard selection', 'compact responsive header', 'loading without layout shift', 'reopen current version'] }))
+  console.log(JSON.stringify({ passed: ['draft save', 'cancel publication', 'confirmed publication', 'filter', 'fresh query', 'draft receipt preview', 'version history', 'Assistant selection', 'update receipt', 'opaque origin', 'search and keyboard selection', 'compact responsive header', 'loading without layout shift', 'reopen current version', 'team share enable/copy/pin/reopen/revoke', 'resource card selection', 'historical version selection', 'idempotent init preserves local editing', 'navigation dismisses old share/publication dialogs', 'stale default listing cannot replace card selection'] }))
 } catch (error) {
   // This host contains synthetic data only. Keep failure evidence for the exact production bundle.
   if (page) {
