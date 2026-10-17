@@ -20,6 +20,8 @@
   },
   "description": "Version-aware pull request review and findings workspace for Xpert",
   "files": [
+    "assets",
+    ".xpertai-plugin",
     "dist",
     "README.md",
     "docs"
