@@ -19,6 +19,11 @@
     "tslib": "^2.3.0"
   },
   "description": "Version-aware pull request review and findings workspace for Xpert",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xpert-ai/xpert-plugins.git",
+    "directory": "xpertai/apps/code-review"
+  },
   "files": [
     "assets",
     ".xpertai-plugin",
