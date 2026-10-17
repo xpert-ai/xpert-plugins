@@ -36,16 +36,16 @@
     }
   },
   "peerDependencies": {
-    "@xpert-ai/plugin-sdk": "^3.21.0",
-    "@xpert-ai/contracts": "^3.21.0",
+    "@xpert-ai/plugin-sdk": "^3.23.1",
+    "@xpert-ai/contracts": "^3.23.0",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "zod": "3.25.67",
     "@langchain/core": ">=0.3.0"
   },
   "devDependencies": {
-    "@xpert-ai/plugin-sdk": "^3.21.0",
-    "@xpert-ai/contracts": "^3.21.0",
+    "@xpert-ai/plugin-sdk": "^3.23.1",
+    "@xpert-ai/contracts": "^3.23.0",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "zod": "3.25.67",

@@ -19,6 +19,7 @@ async function digest(paths) {
 }
 const source = await digest([
   ...await files(join(root, 'src')), ...await files(join(root, 'mcp-apps')), ...await files(join(root, 'ui')),
+  ...await files(join(root, 'assets')),
   join(root, 'package.json'), join(root, '.xpertai-plugin/plugin.json'), join(root, 'tsconfig.lib.json'), join(root, 'scripts/build-mcp-app.mjs')
 ])
 const output = await digest((await files(join(root, 'dist'))).filter(path => /\.(js|css|html|d\.ts)$/.test(path)))
