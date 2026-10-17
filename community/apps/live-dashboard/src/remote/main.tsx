@@ -1,12 +1,13 @@
 import * as React from 'react'
 import { createRoot } from 'react-dom/client'
 import { z } from 'zod/v3'
-import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, Button, Input, Textarea, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, RefreshCw, Save, Plus } from '@xpert-ai/plugin-shadcn-ui'
+import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, Button, Input, Textarea, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, RefreshCw, Save, Plus, FileJson } from '@xpert-ai/plugin-shadcn-ui'
 import { dashboardSchema, type DashboardManifest } from '../lib/dashboard.schema'
 import { startBridge, requestHost, selectDashboard } from './bridge'
 import { messages } from './i18n'
 import './style.css'
 import { HtmlDashboard, type HtmlDashboardHandle } from './html-dashboard'
+import { DashboardPicker } from './dashboard-picker'
 import { installArtifactDocumentFramePolicy, artifactDocumentDependencyAssets } from '@xpert-ai/plugin-sdk/artifact-document'
 
 installArtifactDocumentFramePolicy(document)
@@ -92,21 +93,32 @@ function App() {
     await open(result.artifactId, result.versionId ?? undefined)
   }
   return <main className="dashboard-shell">
-    <header className="flex flex-wrap items-center gap-3 border-b px-4 py-3">
-      <h1 className="text-base font-semibold">{t.title}</h1>
-      <Select value={saved?.artifactId ?? ''} onValueChange={(id) => void run(() => open(id))} disabled={busy}>
-        <SelectTrigger className="w-60" aria-label={t.select}><SelectValue placeholder={t.select}/></SelectTrigger>
-        <SelectContent>{list.map((item) => <SelectItem key={item.artifactId} value={item.artifactId}>{item.title ?? item.artifactId}</SelectItem>)}</SelectContent>
-      </Select>
-      <div className="flex-1"/>
-      {saved?.isDraft && <Button disabled={busy} onClick={() => setConfirmPublish(saved)}><Save/>{t.publish}</Button>}
-      {saved && <Button variant="outline" disabled={busy} onClick={() => void run(async () => {
-        const result = await load(saved.artifactId)
-        if (!result.saved) throw new Error(t.error)
-        setSaved(result.saved); setVersions(result.versions ?? []); setEditor(JSON.stringify(result.saved.manifest, null, 2))
-      })}>{t.edit}</Button>}
-      <Button variant="outline" disabled={busy} onClick={() => setEditor('')}><Plus/>{t.import}</Button>
-      <Button disabled={busy} onClick={() => { if (saved?.manifest.presentation) { setError(''); htmlDashboard.current?.refresh() } else void run(async () => { if (saved) { await load(); await query(saved, controls) } else await openLatest() }) }}><RefreshCw/>{t.refresh}</Button>
+    <header className="dashboard-toolbar border-b">
+      <h1 className="toolbar-title text-base font-semibold">{t.title}</h1>
+      <DashboardPicker items={list} value={saved?.artifactId ?? ''} disabled={busy} label={t.select}
+        searchLabel={t.search} emptyLabel={t.noResults} onChange={(id) => void run(() => open(id))}/>
+      <span className="toolbar-loading text-muted-foreground" role="status" title={busy ? t.loading : undefined}>
+        {busy && <><RefreshCw className="size-4 motion-safe:animate-spin" aria-hidden="true"/><span className="sr-only">{t.loading}</span></>}
+      </span>
+      {saved && <Select value={saved.isDraft ? 'draft' : saved.versionId ?? 'draft'} onValueChange={(id) => void run(() => open(saved.artifactId, id === 'draft' ? undefined : id))} disabled={busy}>
+        <SelectTrigger className="toolbar-version" aria-label={t.history}><SelectValue placeholder={t.history}/></SelectTrigger>
+        <SelectContent><SelectItem value="draft">{t.draft}{saved.isDraft ? ` · r${saved.draftRevision}` : ''}</SelectItem>{versions.filter(item => item.versionId).map(item => <SelectItem key={item.versionId} value={item.versionId!}>{t.version} {item.versionNumber}</SelectItem>)}</SelectContent>
+      </Select>}
+      {saved && status && <time className="toolbar-updated text-xs text-muted-foreground" dateTime={status}
+        title={`${t.refreshed}: ${new Date(status).toLocaleString(document.documentElement.lang)}`}>
+        <span className="toolbar-full-date">{new Date(status).toLocaleString(document.documentElement.lang)}</span>
+        <span className="toolbar-short-date">{new Date(status).toLocaleTimeString(document.documentElement.lang)}</span>
+      </time>}
+      <div className="toolbar-actions">
+        {saved?.isDraft && <Button disabled={busy} onClick={() => setConfirmPublish(saved)} aria-label={t.publish} title={t.publish}><Save/><span>{t.publish}</span></Button>}
+        {saved && <Button variant="outline" disabled={busy} aria-label={t.edit} title={t.edit} onClick={() => void run(async () => {
+          const result = await load(saved.artifactId)
+          if (!result.saved) throw new Error(t.error)
+          setSaved(result.saved); setVersions(result.versions ?? []); setEditor(JSON.stringify(result.saved.manifest, null, 2))
+        })}><FileJson/><span>{t.edit}</span></Button>}
+        <Button variant="outline" disabled={busy} aria-label={t.import} title={t.import} onClick={() => setEditor('')}><Plus/><span>{t.import}</span></Button>
+        <Button disabled={busy} aria-label={t.refresh} title={t.refresh} onClick={() => { if (saved?.manifest.presentation) { setError(''); htmlDashboard.current?.refresh() } else void run(async () => { if (saved) { await load(); await query(saved, controls) } else await openLatest() }) }}><RefreshCw/><span>{t.refresh}</span></Button>
+      </div>
     </header>
     <AlertDialog open={!!confirmPublish} onOpenChange={open => { if (!open && !busy) setConfirmPublish(null) }}>
       <AlertDialogContent><AlertDialogTitle>{t.publish}</AlertDialogTitle>
@@ -122,20 +134,12 @@ function App() {
       <details className="text-xs"><summary>{t.sources}</summary><pre className="max-h-32 overflow-auto">{JSON.stringify(sources, null, 2)}</pre></details>
       <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setEditor(null)} disabled={busy}>{t.cancel}</Button><Button onClick={() => void run(save)} disabled={busy || !editor.trim()}><Save/>{t.save}</Button></div>
     </section> : <>
-      {saved && <section className="flex flex-wrap items-end gap-3 border-b px-4 py-3">
-        {!saved.manifest.presentation && saved.manifest.controls.map((control) => <Filter key={control.controlId} control={control} value={controls[control.controlId] ?? null} disabled={busy} onChange={(value) => setControls((current) => ({ ...current, [control.controlId]: value }))}/>)}
-        {!saved.manifest.presentation && !!saved.manifest.controls.length && <Button type="button" variant="outline" disabled={busy} onClick={() => void run(() => query(saved, controls))}>{t.apply}</Button>}
-        <div className="ml-auto flex items-center gap-3">
-          <Select value={saved.isDraft ? 'draft' : saved.versionId ?? 'draft'} onValueChange={(id) => void run(() => open(saved.artifactId, id === 'draft' ? undefined : id))} disabled={busy}>
-            <SelectTrigger className="w-36" aria-label={t.history}><SelectValue placeholder={t.history}/></SelectTrigger>
-            <SelectContent><SelectItem value="draft">{t.draft}{saved.isDraft ? ` · r${saved.draftRevision}` : ''}</SelectItem>{versions.filter(item => item.versionId).map(item => <SelectItem key={item.versionId} value={item.versionId!}>{t.version} {item.versionNumber}</SelectItem>)}</SelectContent>
-          </Select>
-          {status && <span className="text-xs text-muted-foreground">{new Date(status).toLocaleString(document.documentElement.lang)}</span>}
-        </div>
+      {saved && !saved.manifest.presentation && !!saved.manifest.controls.length && <section className="flex flex-wrap items-end gap-3 border-b px-4 py-3">
+        {saved.manifest.controls.map((control) => <Filter key={control.controlId} control={control} value={controls[control.controlId] ?? null} disabled={busy} onChange={(value) => setControls((current) => ({ ...current, [control.controlId]: value }))}/>)}
+        <Button type="button" variant="outline" disabled={busy} onClick={() => void run(() => query(saved, controls))}>{t.apply}</Button>
       </section>}
       {partial && <p role="status" className="px-4 py-2 text-sm">{t.partial}</p>}
       <section className="canvas-panel" aria-busy={busy}>
-        {busy && <p role="status" className="p-6 text-muted-foreground">{t.loading}</p>}
         {!busy && !html && !saved?.manifest.presentation && !error && <p className="p-6 text-muted-foreground">{t.empty}</p>}
         {saved?.manifest.presentation && <HtmlDashboard ref={htmlDashboard} artifactId={saved.artifactId} versionId={saved.versionId ?? undefined} draftRevision={saved.isDraft ? saved.draftRevision : undefined}
           manifest={saved.manifest} dependencies={saved.dependencies ?? []} onBusy={setBusy} onError={setError} onResult={result => { setError(''); setPartial(result.partial); setStatus(result.fetchedAt) }}/ >}

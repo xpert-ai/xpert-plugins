@@ -33,7 +33,11 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
   readonly meta: TAgentMiddlewareMeta = {
     name: 'LiveDashboard', label: { en_US: 'Live dashboards', zh_Hans: '实时看板' },
     description: { en_US: 'Discover, preview, create and update governed live dashboards.', zh_Hans: '发现业务数据、验证查询并持续修改实时看板。' },
-    icon: { type: 'font', value: 'ri-bar-chart-box-line' }, features: [FEATURE], configSchema: { type: 'object', properties: {
+    // Tools inherit this self-contained icon through the platform middleware metadata.
+    icon: {
+      type: 'svg',
+      value: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M7 16v-4m5 4V7m5 9v-6"/></svg>'
+    }, features: [FEATURE], configSchema: { type: 'object', properties: {
       allowedFinalProviders: { type: 'array', items: { type: 'string' }, title: { en_US: 'Allowed final dashboard providers', zh_Hans: '最终看板允许的 Provider' },
         description: { en_US: 'Optional provider IDs required for saved Agent dashboards. Upstream previews remain available.', zh_Hans: '可选的最终看板 Provider ID 列表，不限制上游来源预览。' } }
     }, additionalProperties: false }

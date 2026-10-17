@@ -46,6 +46,23 @@ try {
   const artifactId = stored.artifacts[0].id
   assert.deepEqual(stored.selection, { schemaVersion: 1, artifactId, draftRevision: 1 })
 
+  // All draft actions must remain on one row and reachable at narrow Workbench widths.
+  for (const width of [1280, 960, 800, 600, 420, 375, 320]) {
+    await page.setViewportSize({ width, height: 900 })
+    const layout = await view.locator('.dashboard-toolbar').evaluate(async toolbar => {
+      void toolbar.offsetWidth
+      await Promise.allSettled(toolbar.getAnimations({ subtree: true }).map(animation => animation.finished))
+      const bounds = toolbar.getBoundingClientRect()
+      const controls = [...toolbar.querySelectorAll('button')].map(button => button.getBoundingClientRect()).filter(rect => rect.width)
+      return { width: innerWidth, height: bounds.height, right: Math.max(...controls.map(rect => rect.right)),
+        left: Math.min(...controls.map(rect => rect.left)), rows: new Set(controls.map(rect => Math.round(rect.top))).size }
+    })
+    assert.equal(layout.rows, 1, `Toolbar must stay on one row at ${width}px`)
+    assert.ok(layout.height <= 54, `Toolbar must stay compact at ${width}px`)
+    assert.ok(layout.left >= 0 && layout.right <= layout.width, `Toolbar buttons clipped at ${width}px: ${JSON.stringify(layout)}`)
+  }
+  await page.setViewportSize({ width: 1280, height: 900 })
+
   await view.getByLabel('区域', { exact: true }).click()
   await view.getByRole('option', { name: 'west', exact: true }).click()
   await view.getByRole('button', { name: '应用筛选', exact: true }).click()
@@ -54,8 +71,28 @@ try {
   assert.equal((await state()).parameters.at(-1).region, 'west')
   const beforeRefresh = (await state()).queries
   const refreshed = page.waitForResponse(response => response.url() === `${url}/rpc` && response.request().postDataJSON()?.actionKey === 'query')
-  await view.getByRole('button', { name: '刷新', exact: true }).click()
-  await refreshed
+  await view.locator('.canvas-panel[aria-busy="false"]').waitFor()
+  const canvasBefore = await view.locator('.canvas-panel').boundingBox()
+  const toolbarBefore = await view.locator('.dashboard-toolbar').boundingBox()
+  let releaseQuery
+  const queryGate = new Promise(resolve => { releaseQuery = resolve })
+  const holdQuery = async route => {
+    if (route.request().postDataJSON()?.actionKey === 'query') await queryGate
+    await route.continue()
+  }
+  await page.route(`${url}/rpc`, holdQuery)
+  try {
+    await view.getByRole('button', { name: '刷新', exact: true }).click()
+    await view.locator('.dashboard-toolbar').getByRole('status').filter({ hasText: '加载中…' }).waitFor()
+    assert.equal(await view.locator('.canvas-panel').getByRole('status').count(), 0)
+    assert.equal(await view.locator('.canvas-panel').getAttribute('aria-busy'), 'true')
+    assert.deepEqual(await view.locator('.canvas-panel').boundingBox(), canvasBefore, 'Loading must not move or shrink the canvas')
+    assert.deepEqual(await view.locator('.dashboard-toolbar').boundingBox(), toolbarBefore, 'Loading must not resize the header')
+  } finally {
+    releaseQuery()
+    await refreshed
+    await page.unroute(`${url}/rpc`, holdQuery)
+  }
   await renderer.getByRole('cell', { name: 'west', exact: true }).waitFor()
   assert.equal((await state()).queries, beforeRefresh + 1)
 
@@ -92,14 +129,33 @@ try {
     try { void window[name]; return 'accessible' } catch (error) { return error.name }
   })), ['SecurityError', 'SecurityError'])
 
+  const another = { ...example, id: '33333333-3333-4333-8333-333333333333', title: '另一份区域销售' }
+  await view.getByRole('button', { name: '导入定义', exact: true }).click()
+  await view.getByLabel('看板定义', { exact: true }).fill(JSON.stringify(another))
+  await view.getByRole('button', { name: '保存', exact: true }).click()
+  await view.frameLocator(`iframe[title="${another.title}"]`).getByRole('cell', { name: 'east', exact: true }).waitFor()
+  const secondId = (await state()).selection.artifactId
+  assert.notEqual(secondId, artifactId)
   await page.reload()
   await view.getByRole('combobox', { name: '选择看板', exact: true }).click()
-  await view.getByRole('option', { name: 'Newer edit', exact: true }).click()
+  const search = view.getByRole('combobox', { name: '搜索看板…', exact: true })
+  await search.fill('no-matching-dashboard')
+  await view.getByText('未找到匹配的看板。', { exact: true }).waitFor()
+  assert.equal(await view.getByRole('option').count(), 0)
+  await search.fill('另一份')
+  await search.press('Enter')
+  await view.frameLocator(`iframe[title="${another.title}"]`).getByRole('cell', { name: 'east', exact: true }).waitFor()
+  assert.equal((await state()).selection.artifactId, secondId)
+  await view.getByRole('combobox', { name: '选择看板', exact: true }).click()
+  await search.fill('newer')
+  await view.getByRole('option', { name: 'Newer edit', exact: true }).waitFor()
+  await search.press('Enter')
   await view.frameLocator('iframe[title="Newer edit"]').getByRole('cell', { name: 'east', exact: true }).waitFor()
   assert.equal((await state()).versions, 2)
+  assert.equal((await state()).selection.artifactId, artifactId)
   if (process.argv[3]) await page.screenshot({ path: process.argv[3], fullPage: true })
   assert.deepEqual(errors, [])
-  console.log(JSON.stringify({ passed: ['draft save', 'cancel publication', 'confirmed publication', 'filter', 'fresh query', 'draft receipt preview', 'version history', 'Assistant selection', 'update receipt', 'opaque origin', 'reopen current version'] }))
+  console.log(JSON.stringify({ passed: ['draft save', 'cancel publication', 'confirmed publication', 'filter', 'fresh query', 'draft receipt preview', 'version history', 'Assistant selection', 'update receipt', 'opaque origin', 'search and keyboard selection', 'compact responsive header', 'loading without layout shift', 'reopen current version'] }))
 } catch (error) {
   // This host contains synthetic data only. Keep failure evidence for the exact production bundle.
   if (page) {
