@@ -55,7 +55,7 @@
     "test:catalog": "pnpm run verify:vendor:deep && tsx scripts/validate-catalog-render.jsx",
     "test:catalog:browser": "pnpm run verify:vendor:deep && tsx scripts/validate-catalog-render.jsx --browser",
     "test:export-matrix": "pnpm run verify:vendor:deep && tsx scripts/validate-export-matrix.jsx && node scripts/verify-vendor.mjs --deep",
-    "prepack": "pnpm run build:ui && npm run build"
+    "prepack": "pnpm run build:ui && npm run build && node ../../scripts/verify-app-configs.mjs presentation-studio"
   },
   "xpert": {
     "plugin": {

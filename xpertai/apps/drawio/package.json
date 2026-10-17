@@ -42,7 +42,7 @@
     "lint": "echo \"(todo) add lint\"",
     "test": "pnpm run build:ui && node --loader ts-node/esm --test src/lib/drawio.templates.spec.ts src/lib/drawio-artifact-viewer.spec.ts src/lib/drawio-xml.validation.spec.ts src/lib/drawio-spec.builder.spec.ts && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
     "typecheck": "pnpm run build:ui && tsc -p tsconfig.spec.json --noEmit && node scripts/build-remote-components.mjs --check",
-    "prepack": "pnpm run build:ui && npm run build && node scripts/verify-package-output.mjs"
+    "prepack": "pnpm run build:ui && npm run build && node scripts/verify-package-output.mjs && node ../../scripts/verify-app-configs.mjs drawio"
   },
   "xpert": {
     "plugin": {
