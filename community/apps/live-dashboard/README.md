@@ -17,6 +17,11 @@ Dashboard definition → Workspace Files → immutable Artifact version
 
 The platform owns Dataset/Binding validation, source authorization and dispatch. This plugin owns dashboard schemas/UI and renderer translation; source plugins are independently replaceable. Its browser has no credentials, PostgreSQL driver or ontology client.
 
+Supported source adapters include PostgreSQL (`postgres.sql`), MySQL (`mysql.sql`), Apache Doris (`doris.sql`),
+data-xpert ontology (`data-xpert.ontology`) and Workspace scripts (`workspace_script.query`). MySQL/Doris
+use the [analytics-mysql plugin](../../tools/analytics-mysql/README.md) with the existing MySQL database driver;
+their query syntax and wire types stay outside the dashboard plugin. Install source providers separately.
+
 `LiveDashboard` middleware exposes source discovery and dashboard creation tools, and activates `live_dashboard`. The view appears in the enabled Assistant Workbench/project detail host using existing View Host messages, not an alternate unscoped API.
 
 ## One-sentence Agent workflow

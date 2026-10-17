@@ -1,0 +1,7 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "maple",
+  "name": "MySQL & Doris Analytics",
+  "colors": {"primary":"#00758F","light":"#139BB5","dark":"#00576A"},
+  "navigation": {"tabs":[{"tab":"Documentation","groups":[{"group":"Providers","pages":["index","verification"]}]}]}
+}
