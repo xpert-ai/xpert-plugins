@@ -1,5 +1,11 @@
 # @xpert-ai/plugin-code-review
 
+## 0.1.2
+
+### Patch Changes
+
+- eba0b4b: Declare the plugin's GitHub repository and monorepo directory so npm can validate the package against GitHub Actions provenance during publication.
+
 ## 0.1.1
 
 ### Patch Changes
