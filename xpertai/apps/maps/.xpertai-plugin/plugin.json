@@ -2,5 +2,133 @@
   "name": "@xpert-ai/plugin-maps",
   "version": "0.1.1",
   "description": "Interactive maps for Xpert with replaceable AMap and Tencent providers.",
-  "artifactNamespace": "maps"
+  "artifactNamespace": "maps",
+  "assets": {
+    "screenshots": [
+      "./assets/brand/maps-overview-zh-v1.png"
+    ]
+  },
+  "targetApps": [
+    "xpert"
+  ],
+  "targetAppMeta": {
+    "xpert": {
+      "types": [
+        "business-app",
+        "assistant-template",
+        "workbench-view",
+        "assistant-tool"
+      ],
+      "capabilities": [
+        "maps:explorer"
+      ],
+      "marketplace": {
+        "contents": [
+          {
+            "type": "app",
+            "name": "maps",
+            "displayName": {
+              "en_US": "Maps",
+              "zh_Hans": "地图"
+            },
+            "description": {
+              "en_US": "Search places, explore nearby results and plan routes in your Assistant's Workbench.",
+              "zh_Hans": "在助手工作台搜索地点、探索周边并规划路线。"
+            },
+            "icon": {
+              "type": "svg",
+              "value": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\"><path d=\"m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3zM9 3v15m6-12v15\"/><circle cx=\"15\" cy=\"9\" r=\"2\"/></svg>"
+            },
+            "color": "#087F65",
+            "appConfig": {
+              "scope": "organization",
+              "assistantTemplateKey": "maps-assistant",
+              "workspace": {
+                "mode": "dedicated",
+                "name": {
+                  "en_US": "Maps Workspace",
+                  "zh_Hans": "地图工作空间"
+                },
+                "sharing": "organization"
+              },
+              "knowledgebases": [],
+              "modelRequirements": {
+                "primary": true
+              },
+              "entry": {
+                "type": "assistant-chat"
+              },
+              "presentation": {
+                "tagline": {
+                  "en_US": "Find your place. Plan your route.",
+                  "zh_Hans": "找到地点，规划路线。"
+                },
+                "developer": "XpertAI",
+                "screenshots": [
+                  "./assets/brand/maps-overview-zh-v1.png"
+                ],
+                "features": [
+                  {
+                    "key": "places",
+                    "title": {
+                      "en_US": "Place and nearby search",
+                      "zh_Hans": "地点与周边搜索"
+                    },
+                    "description": {
+                      "en_US": "Find places by city or map area, with linked map markers and result cards.",
+                      "zh_Hans": "按城市或地图区域搜索地点，地图标记与结果卡片联动展示。"
+                    }
+                  },
+                  {
+                    "key": "details",
+                    "title": {
+                      "en_US": "Place details and references",
+                      "zh_Hans": "地点详情与对话引用"
+                    },
+                    "description": {
+                      "en_US": "Inspect provider-supplied place details and add a place reference to your draft message.",
+                      "zh_Hans": "查看地图服务提供的地点详情，将地点引用添加到对话草稿。"
+                    }
+                  },
+                  {
+                    "key": "routes",
+                    "title": {
+                      "en_US": "Walking and driving routes",
+                      "zh_Hans": "步行与驾车路线"
+                    },
+                    "description": {
+                      "en_US": "Plan a route between selected places and inspect its path, distance and duration.",
+                      "zh_Hans": "在所选地点之间规划路线，查看路径、距离和预计时长。"
+                    }
+                  }
+                ],
+                "dataScope": {
+                  "en_US": "Map requests use the current Assistant's authorized workspace Connector. Queries and route coordinates are sent to the selected map provider; credentials remain on the server.",
+                  "zh_Hans": "地图请求使用当前助手已授权的工作空间连接器。查询与路线坐标发送至所选地图服务，凭据保留在服务端。"
+                },
+                "initializationSummary": {
+                  "en_US": "Create a dedicated workspace and publish the live Maps Assistant. Before using real maps, connect and authorize AMap or Tencent Maps in the workspace.",
+                  "zh_Hans": "创建专用工作空间并发布正式地图助手。使用真实地图前，请在工作空间连接并授权高德地图或腾讯地图。"
+                },
+                "initializationSteps": [
+                  {
+                    "en_US": "Create the Maps workspace",
+                    "zh_Hans": "创建地图工作空间"
+                  },
+                  {
+                    "en_US": "Install the live Maps Assistant template",
+                    "zh_Hans": "安装正式地图助手模板"
+                  },
+                  {
+                    "en_US": "Publish the Assistant chat entry",
+                    "zh_Hans": "发布助手对话入口"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
 }
