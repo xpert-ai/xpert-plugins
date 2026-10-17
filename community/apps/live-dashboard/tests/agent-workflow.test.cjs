@@ -63,7 +63,7 @@ test('Agent HTML workflow requires a real Workspace file and exact preview evide
   const args = { ...definition, path: 'dashboards/custom.html' }
   await assert.rejects(s.invoke('dashboard_create_html', args), /FILE_NOT_FOUND/)
   const html = '<html><body><main>Custom</main><script>window.xpertLiveArtifact.ready()</script></body></html>'
-  await s.invoke('dashboard_write_html', { path: args.path, html })
+  s.files.set(args.path, Buffer.from(html))
   await assert.rejects(s.invoke('dashboard_create_html', args), /PREVIEW_REQUIRED/)
   await s.invoke('dashboard_discover', { dataSourceId: binding.dataSourceId, providerId: binding.providerId })
   args.previewIds = [JSON.parse(await s.invoke('dashboard_preview', { binding })).previewId]
@@ -246,7 +246,7 @@ test('opening prepares independent copies and only explicit update saves the dra
   assert.equal(s.calls.filter(c => c[0] === 'update').length, 0)
   const history = JSON.parse(await s.invoke('dashboard_open', { artifactId: s.saved.artifactId, versionId: s.saved.versionId }))
   assert.equal(history.htmlPath, undefined)
-  assert.equal(s.middleware.tools.some(t => t.name === 'dashboard_write_html'), true)
+  assert.equal(s.middleware.tools.some(t => t.name === 'dashboard_write_html'), false)
   const receipt = JSON.parse(await s.invoke('dashboard_update', { editId: first.editId, expectedRevision: first.expectedRevision,
     expectedCurrentVersionId: first.expectedCurrentVersionId, htmlPath: first.htmlPath, title: 'Saved changes' }))
   assert.equal(receipt.dashboard.artifactId, s.saved.artifactId)

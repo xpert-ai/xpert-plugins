@@ -1,0 +1,62 @@
+---
+title: 统一文件流程验收
+---
+
+## 2026-10-17 验收范围
+
+本次验证移除插件重复文件工具后，Agent 通过平台 SandboxFile 编写脚本和页面，再分别注册 Dataset、保存看板草稿。流程配置见[文件编辑与 Agent 技能](./file-authoring)。插件技能随包分发，通过平台资源安装接口安装到测试 Assistant 的 Workspace，并在已发布 Agent 的 `skillsMiddleware` 中选择。
+
+运行环境为本地 xpert-pro 与 data-xpert SSO，使用已配置的真实 Qwen 模型和默认 Docker 沙箱。代码改动同步到 xpert-pro；插件完成构建、部署及进程重启后再执行验收。凭据、会话信息、原始回执和截图仅保留在本地验收记录中。
+
+## 实际执行结果
+
+| 场景 | 结果 |
+| --- | --- |
+| PostgreSQL 经 Python 处理 | Agent 用 `sandbox_write_file` 创建脚本，成功调用 `workspace_dataset_register`，通过真实预览得到按月份、区域汇总的六行结果；最终 Provider 为 `workspace_script.query`。 |
+| 一句话生成 | 对已注册的 Python Dataset 发出自然语言请求。Agent 实际读取技能及参考资料，使用 `sandbox_write_file` 编写 HTML，调用 `dashboard_create_html` 保存 ECharts 看板为工作草稿修订 1。 |
+| 跨轮修改 | 要求修改标题、配色及筛选后的趋势系列。Agent 调用 `dashboard_open`，用 `sandbox_read_file` 读取独立编辑副本，用 `sandbox_multi_edit_file` 局部修改，然后成功保存页面和标题，最终草稿修订为 3。 |
+| 身份与保存回执 | 保持同一个 Artifact 和草稿 ID；页面保存回执的文件 SHA-256 与后端实际保存的 HTML 一致；没有创建正式版本。 |
+| 数据与依赖 | 修改前后的 Bindings、controls 和依赖快照完全一致；运行的 ECharts 版本为 5.6.0。 |
+| 两端筛选 | xpert-pro 与 data-xpert 页面均验证全部区域 5,700 元、华东 3,500 元、华西 2,200 元；趋势图系列及数据与所选区域一致。 |
+| 两端刷新及重开 | Header 刷新实际发起 Binding 后端查询，保留当前过滤值和 HTML DOM；整页重开加载最新标题及草稿，按已保存默认值显示全部区域。正常加载无查询错误。 |
+| 查询边界 | HTML 查询未声明 Binding、直接访问父页面和自行发起网络请求均被拒绝；后端拒绝附带任意 SQL payload 的 Binding 查询。 |
+
+本次没有发布上述测试草稿；人工确认发布的回归由 Workbench 浏览器用例覆盖，历史人工发布验收见原有记录。
+
+## 发现与处理
+
+- 可选中间件未启用会导致文件工具不在 Agent 的运行工具集中。部署指引明确将此流程依赖的中间件设为 `required`，并使用实际机器标识 `skillsMiddleware`。
+- 默认沙箱 Provider 在获取沙箱时才确定。平台现按实际 Provider 重新解析工作区映射，使通用文件工具与插件 WorkspaceFiles 使用一致路径；不绕过路径和 Volume 授权。
+- 初次模型生成省略了筛选默认值。Agent 创建接口现要求显式 `defaultValue`，包含表示全部的 `null`；页面预检返回明确的初始筛选不匹配原因。旧存储格式保持兼容。
+- 首个生成页面在过滤后仍保留 ECharts 旧系列。真实交互验收发现后，通过同一 Artifact 的后续编辑修复；技能已补充系列替换规则及完整筛选验证步骤。
+- 上游 SQL 预览曾误拒绝合法的带括号 WHERE 表达式，模型调整等价写法后通过。该既有 SQL 校验行为未在本次改动中调整。
+
+验收分别证明了真实脚本注册、基于已注册 Dataset 的一句话生成，以及后续修改和两端交互。最初的 PostgreSQL → Python → HTML 单轮尝试未完整通过，因此本记录不将它计为端到端单轮成功，也不将提示词指导视为任意生成页面的正确性保证。
+
+## 自动化验证
+
+- 平台共享文件协议 2 项、SandboxFile 4 项、Agent 调用与默认 Provider 映射 17 项测试通过。
+- Live Dashboard 29 项、Workspace Script Dataset 18 项测试通过，共计 70 项。
+- 页面预检浏览器 7 项、Workbench 浏览器 12 项通过；覆盖 ECharts/Three.js、声明式查询、草稿、发布确认、筛选、刷新和重开。
+- 两个插件构建、产物校验和 dist-first 生命周期检查通过；技能格式校验及打包内容检查通过。
+
+这些自动化检查与上面的实际模型、已部署浏览器验收分开计数，避免将模拟覆盖误写为真实环境验收。
+
+## 2026-10-17 补验：完整单轮与两端闭环
+
+在上述修复已部署、技能已安装的环境中，新开会话，直接要求从 PostgreSQL 原始销售订单出发，经 Python 按月份和区域计算第三季度净销售额，生成浅色蓝金 ECharts HTML 看板，包含区域筛选和刷新。没有向 Agent 提供预制脚本、HTML、已注册 Dataset 或预期金额，也没有在生成过程中补充纠正指令。
+
+单轮执行成功，19 次工具调用全部成功：5 次实际技能/参考资料读取，完成业务发现、原始数据预览、Python 文件写入、新 Dataset 注册、脚本结果预览、筛选测试、HTML 文件写入和草稿保存。最终 Binding 为 `workspace_script.query`，代码通过声明的上游 PostgreSQL Binding 实时读取订单并使用 Decimal 聚合，没有嵌入静态业务数据。保存回执的 SHA-256 与后端实际保存的 HTML 一致。
+
+| 补验项目 | 实际结果 |
+| --- | --- |
+| 独立金额核算 | 直接查询测试源得到六行月度/区域汇总，总额 5,700 元，华东 3,500 元，华西 2,200 元；与 Agent 预览、页面 KPI 和 ECharts 系列一致。 |
+| 初次生成即可筛选 | 两端分别切换全部、华东、华西并刷新，图表只包含当前区域系列；首次生成使用 `notMerge: true`，没有旧系列残留。 |
+| 输入数据实际变化 | 临时加入一条 100 元的华西测试订单，两端刷新后均显示 2,300 元；删除测试订单后恢复 2,200 元。当前过滤值和 HTML DOM 保持不变。测试行已清理。 |
+| 从 data-xpert 继续修改 | 在 SSO 页面要求修改当前看板名称及墨绿色强调色。Agent 通过 `dashboard_open` → `sandbox_read_file` → `sandbox_multi_edit_file` → `dashboard_update` 保存页面和标题，最终为草稿修订 3。7 次工具调用全部成功。 |
+| 编辑保护 | 修改保持相同 Artifact 和草稿 ID；Bindings、controls、依赖快照未变；文件回执散列与最终保存内容一致；Agent 编辑期间正式版本数保持为零。 |
+| 修改后两端回归 | 重新验证全部/华东/华西金额、ECharts 系列、Header 刷新与整页重开，均通过。 |
+| UI 发布确认 | 针对此次新建的验收看板，点击发布后取消，正式版本仍为零；再次点击并确认发布，产生且仅产生正式版本 1。正式版本的页面、数据声明和依赖快照与已保存草稿完全相同。两端重开可见版本 1。 |
+| Binding 边界 | 初稿及修改稿均验证未声明 Binding、访问父页面、直接网络请求被拒绝；后端拒绝额外的原始 SQL payload。 |
+
+这次补验已覆盖首轮未完成的 PostgreSQL → Python → HTML 单轮流程。发布步骤由浏览器验收操作显式点击确认，Agent 本身只保存草稿。以上结论对应本次真实执行，不表示任意模型、数据源或页面均可免验收。

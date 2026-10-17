@@ -3,5 +3,6 @@
   "version": "0.1.0",
   "level": "system",
   "artifactNamespace": "workspace_script",
-  "sandboxActions": "./dist/sandbox-actions/action.json"
+  "sandboxActions": "./dist/sandbox-actions/action.json",
+  "skills": "./skills"
 }

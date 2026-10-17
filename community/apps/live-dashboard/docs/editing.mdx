@@ -55,3 +55,9 @@ HTML 页面仍然只通过 `query(bindingId, controls)` 取数。增加编辑工
 数据源插件保持原来的 Dataset/Binding 接口，无需实现页面编辑或版本接口。
 
 完整生命周期与平台职责见[草稿与正式版本](drafts)，本次实际验证见[草稿验收](drafts-acceptance)。
+
+## SandboxFile 编辑流程
+
+读取插件随附的 `live-dashboard` 技能后，Agent 使用 `dashboard_open` 返回的独立 HTML 副本：先 `sandbox_read_file`，再 `sandbox_edit_file` / `sandbox_multi_edit_file`。修改文件不会自动保存 Artifact。每批完成后调用 `dashboard_update`，同时传入 `editId`、`expectedRevision`、`expectedCurrentVersionId`、`htmlPath` 和需要改变的标题等字段。保存通过 HTML/数据预检后返回草稿回执并更新 Workbench。冲突时保留文件，重新打开最新状态进行合并。
+
+历史版本只读，不准备编辑副本。新建 HTML 使用 `sandbox_write_file({file_path,content})` 后调用 `dashboard_create_html`。`sandbox_write_file` 仅创建新文件；已有文件使用编辑工具。脚本数据处理使用同一套平台文件工具，然后由脚本插件注册 Dataset。

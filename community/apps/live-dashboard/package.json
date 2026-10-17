@@ -18,7 +18,8 @@
     "README.md",
     "docs",
     "examples",
-    ".xpertai-plugin"
+    ".xpertai-plugin",
+    "skills"
   ],
   "scripts": {
     "verify:dist": "node scripts/verify-dist.mjs && node scripts/build-action.mjs --verify && node scripts/build-libraries.mjs --verify",

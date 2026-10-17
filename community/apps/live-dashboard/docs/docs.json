@@ -22,6 +22,8 @@
               "drafts",
               "drafts-acceptance",
               "editing",
+              "file-authoring",
+              "file-authoring-acceptance",
               "evolution-acceptance",
               "verification"
             ]

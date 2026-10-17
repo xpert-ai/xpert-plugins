@@ -12,7 +12,7 @@ async function files(directory) {
   return (await Promise.all(entries.map((entry) => entry.isDirectory() ? files(join(directory, entry.name)) : [join(directory, entry.name)]))).flat()
 }
 async function fingerprint(root) {
-  const input = [...await files(join(root, 'src')), ...await files(join(root, 'scripts')), join(root, 'package.json'), join(root, 'tsconfig.remote.json')].sort()
+  const input = [...await files(join(root, 'src')), ...await files(join(root, 'scripts')), ...await files(join(root, 'skills')), join(root, '.xpertai-plugin/plugin.json'), join(root, 'package.json'), join(root, 'tsconfig.remote.json')].sort()
   const sources = Object.fromEntries(await Promise.all(input.map(async (path) => [relative(root, path), digest(await readFile(path))])))
   const outputs = Object.fromEntries(await Promise.all(['app.js', 'app.css', 'renderer.html'].map(async (name) => [name, digest(await readFile(join(root, 'dist/remote', name)))])))
   const libraries = Object.fromEntries(await Promise.all((await files(join(root, 'dist/libraries'))).sort().map(async path => [relative(root, path), digest(await readFile(path))])))

@@ -18,7 +18,8 @@
     "README.md",
     "docs",
     ".xpertai-plugin",
-    "examples"
+    "examples",
+    "skills"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json && node scripts/build-action.mjs",

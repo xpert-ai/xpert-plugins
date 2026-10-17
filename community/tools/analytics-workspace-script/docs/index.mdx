@@ -15,10 +15,10 @@ Runtime Provider 提供。插件不接受 Agent 传入 command、image、environ
 
 ## Agent 编写与注册
 
-启用 `WorkspaceScriptDataset` middleware 后，Agent 使用三个工具：
+同时连接 `WorkspaceScriptDataset`、`SandboxFile` 和 `skillsMiddleware` 并启用 Sandbox 后，Agent 使用以下工具：
 
-- `workspace_dataset_read_file`：读取真实文件的有界样本。
-- `workspace_dataset_write_file`：将代码写入当前授权的文件工作区。
+- `sandbox_read_file`：读取真实文件的有界样本。
+- `sandbox_write_file`：将代码写入当前授权的文件工作区。
 - `workspace_dataset_register`：保存脚本、文件/来源别名、参数和输出定义，返回完整 Binding。
 
 先发现和预览真实来源；注册时每个上游 Binding 使用默认参数进行预检。
@@ -57,3 +57,5 @@ Runtime Provider 提供。插件不接受 Agent 传入 command、image、environ
 总查询期限 30 秒。刷新是重新执行查询，不包含轮询或订阅。
 
 查看仓库 README 的语言示例与注册参数，以及下面的验证说明和历史验收记录。
+
+文件编写使用平台 SandboxFile（`file_path`、`content`），不再由脚本插件提供。安装并通过 `read_skill_file` 读取随插件发布的 `workspace-script-dataset` 技能。Sandbox 必须启用；注册代码、输入输出契约与执行仍由本插件负责。

@@ -18,7 +18,7 @@ node scripts/build-action.mjs --verify # 在本插件目录执行
 ## Agent 工作流
 
 1. 发现真实数据源，或读取用户指定的 Workspace 文件及业务口径。
-2. `workspace_dataset_write_file` 写入 `async query(ctx)` 脚本。
+2. `sandbox_write_file` 写入 `async query(ctx)` 脚本。
 3. `workspace_dataset_register` 先用默认参数预检每个来源 Binding，再注册脚本、别名、参数和输出字段，返回版本化定义与完整 `bindingJson`。
 4. `dashboard_discover` 检查返回的定义版本，`dashboard_preview_binding` 原样接受 `bindingJson` 并验证实际结果。
 5. `dashboard_create` 使用本轮 preview receipt 保存看板。图表只引用 Dataset 字段 ID。
@@ -78,3 +78,5 @@ Python 使用标准库，精确金额建议 `Decimal` 后输出字符串。JavaS
 - “实时刷新”指点击刷新或筛选后重新读取来源，不包含自动轮询、推送订阅或调度器。
 
 详见 [架构与协议](docs/index.mdx)、[构建验证](docs/verification.mdx) 和 [历史验收记录](docs/acceptance.md)。
+
+文件编写使用平台 SandboxFile（`file_path`、`content`），不再由脚本插件提供。安装并通过 `read_skill_file` 读取随插件发布的 `workspace-script-dataset` 技能。Sandbox 必须启用；注册代码、输入输出契约与执行仍由本插件负责。

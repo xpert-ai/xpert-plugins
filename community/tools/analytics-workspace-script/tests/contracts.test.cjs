@@ -52,7 +52,6 @@ test('provider propagates upstream truncation, re-executes on refresh and record
   assert.equal(queryCalls[0][2].deadlineAt, context.deadlineAt); assert.deepEqual(queryCalls[0][2].ancestry, context.ancestry)
 })
 
-
 test('CSV adapter handles quoted newlines, commas, escaped quotes and UTF-8 BOM', async () => {
   const { parseCsv } = await import('../sandbox-actions/csv.mjs')
   assert.deepEqual(parseCsv('\ufeffregion,note\r\n华东,"a,b\nline ""two"""\r\n'), [{ region: '华东', note: 'a,b\nline "two"' }])
@@ -105,7 +104,6 @@ test('language diagnostics explain contract errors without echoing script output
   assert.match(scriptFailureHint(`ModuleNotFoundError: ${secret}`), /ctx.csv.parse/)
   for (const message of [secret, `KeyError: '${secret}'`, `SyntaxError: ${secret}`]) assert.equal(scriptFailureHint(message).includes(secret), false)
 })
-
 
 test('registration retains the host Dataset field count bounds', () => {
   const field = { id: 'amount', sourceField: 'amount', label: 'Amount', logicalType: 'decimal', nullable: false, role: 'measure' }
@@ -216,4 +214,12 @@ test('missing or corrupt outputs cannot create successful execution evidence', a
   const corrupt = executionFixture({ badHash: true })
   await assert.rejects(corrupt.provider.execute(corrupt.binding, {}, corrupt.context), /OUTPUT_CHANGED/)
   assert.equal(corrupt.state.deleted, 1); assert.equal(corrupt.state.audits, 0)
+})
+
+test('script middleware exposes domain registration only; file tools belong to SandboxFile', () => {
+  const { WorkspaceScriptMiddleware } = require('../dist/lib/middleware.js')
+  const middleware = new WorkspaceScriptMiddleware({}).createMiddleware({}, {
+    tenantId: 'tenant', organizationId: 'org', userId: 'user', xpertId: 'assistant', runtime: { capabilities: { require: () => ({}) } }
+  })
+  assert.deepEqual(middleware.tools.map(t => t.name), ['workspace_dataset_register'])
 })
