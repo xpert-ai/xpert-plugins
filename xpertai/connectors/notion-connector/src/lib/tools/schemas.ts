@@ -88,8 +88,6 @@ const queryFilter = z.discriminatedUnion('type', [
     .strict()
 ])
 
-const compatibleQueryFilter = jsonEncodedSchema(queryFilter, { maxChars: MAX_STRINGIFIED_FILTER_LENGTH })
-
 const querySort = z
   .object({
     property: identifier,
@@ -100,7 +98,7 @@ const querySort = z
 export const queryNotionDataSourceSchema = z
   .object({
     data_source_id: identifier,
-    filter: compatibleQueryFilter.optional(),
+    filter: jsonEncodedSchema(queryFilter, { maxChars: MAX_STRINGIFIED_FILTER_LENGTH }).optional(),
     sorts: z.array(querySort).max(3).optional(),
     start_cursor: cursor,
     page_size: z.number().int().min(1).max(NOTION_MAX_PAGE_SIZE).default(20),

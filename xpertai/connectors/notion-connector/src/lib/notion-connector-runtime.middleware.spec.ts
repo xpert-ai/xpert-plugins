@@ -8,10 +8,12 @@ import { NotionConnectorRuntimeMiddleware } from './notion-connector-runtime.mid
 import { NotionApiClient } from './notion-api.client.js'
 
 jest.mock('@xpert-ai/plugin-sdk', () => ({
+  jsonEncodedSchema: jest.requireActual('@xpert-ai/plugin-sdk').jsonEncodedSchema,
   AgentMiddlewareStrategy: () => (target: object) => target,
   ConnectorRuntimeCapability: { id: 'platform.connector' }
 }))
 jest.mock('@langchain/core/tools', () => ({
+  ...jest.requireActual('@langchain/core/tools'),
   tool: (
     handler: (input: unknown) => Promise<unknown>,
     config: { schema: { parse(value: unknown): unknown }; name: string; description: string }

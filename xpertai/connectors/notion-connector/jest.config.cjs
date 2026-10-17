@@ -10,6 +10,8 @@ module.exports = {
   preset: '../../jest.preset.js',
   testEnvironment: 'node',
   transform: { '^.+\\.[tj]s$': ['@swc/jest', swcJestConfig] },
+  // Exercise the published SDK helper, including its ESM dependencies, instead of mocking the decoder.
+  transformIgnorePatterns: ['node_modules/(?!\\.pnpm/|lodash-es/|@xpert-ai/chatkit-types/)'],
   moduleNameMapper: { '^(\\.{1,2}/.*)\\.js$': '$1' },
   moduleFileExtensions: ['ts', 'js'],
   coverageDirectory: 'test-output/jest/coverage'
