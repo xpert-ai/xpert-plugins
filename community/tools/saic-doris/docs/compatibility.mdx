@@ -1,0 +1,47 @@
+---
+title: 兼容行为与安全修正
+description: 保留原业务语义，明确列出迁移边界
+---
+
+## 保留行为
+
+- `ping` 中 `mcp_build` 保持 `v5.3-bool-default`，虽然源文件同时包含后续版本注释。
+- `get_run_log(task_code)` 实际把该字符串转换为整数并过滤 `task_seq`，不改为按业务标签过滤。
+- `owners_missing_email` 检查未出现在启用负责人列表中的姓名，不检查已存在负责人的空邮箱。
+- 批量写入先校验必填列，再读取旧行并合并。`upsert_owners` 更新仍需提供 email，不能依赖旧记录补必填项。
+- 可选列传 null 表示不覆盖；未提供的列保留旧值。全行写入时仍缺失的布尔列补 true，显式 false 保留；其他缺失列使用数据库 NULL。
+- `sc_ship_rule` 使用 factory_code/source_tag 复合主键，`sc_run_log` 使用 run_date/task_seq 复合主键。任务主键为 seq_no；task_code 是可改名的业务标签，不级联修改历史日志。
+- `update_task` 修改需求或 URL 后重新计算 SHA-256 前 16 位，并将 agent_status 设为 queued。哈希输入为 Python strip 后的需求、换行、strip 后的 URL。
+- done/failed 需要 intent、before_hash、after_hash、gate、promoted、files_changed。非空对象 gate 要求 verify 且 golden_pivot/verify_only 至少一个为真；空 gate 对象的原有放行行为保留。
+- need_info 增加 agent_attempts，并按原来的 `%序号%` LIKE 在 task_seqs/task_codes 中寻找最新 running 记录；存在 thread_id 时才覆盖 active_thread_id。
+- 数据库时间 NOW() 在连接内缓存 30 秒；读取失败时按上海时区回退。本插件每次调用释放连接，缓存不跨工具集。
+- 读后合并、分块 INSERT 和 Stream Load 回退不承诺跨语句事务或并发覆盖保护。调用者同时修改相同主键仍可能发生覆盖。
+
+## 安全修正
+
+- 原正则 SQL 白名单替换为语句分析和表引用解析。阻断逗号连接、子查询、UNION、跨库限定名及自由 information_schema 查询绕过。固定结构工具仅查询当前数据库的六张允许表。
+- 自由 SHOW 限定到六张表的列、索引和分桶。禁止自由 SHOW GRANTS/TABLES；建表语句通过 describe_config_table 获取。
+- 阻断多语句、危险函数、外部连接表函数、写 SQL、可执行注释和查询提示。不能可靠解析的语法拒绝执行；自由 WITH 中别名也必须通过白名单，不扩展原脚本的 CTE 支持。
+- 原错误对象结构保留；SQL 安全拒绝文案更准确。驱动仅暴露错误码，避免 SQL、连接密码出现在返回错误中。
+- Stream Load 只向配置允许的主机转发凭据，禁止协议或导入路径改变。HTTP 请求不会使用环境代理转发数据库凭据。
+- 驱动参数化查询检测 NO_BACKSLASH_ESCAPES；该模式不支持时明确报错。客户端取消和超时销毁本次物理连接。
+
+## 类型与传输边界
+
+- JSON 参数采用明确的字符串、整数、布尔和数组类型；不依赖 Python 框架对错误类型的隐式转换。额外参数拒绝。整数写入不接受超过 JavaScript 安全整数范围的值。
+- 批量行的字符串转换保留 Python 容器表示、布尔真值集合、字符长度截断与 strip 规则。畸形非对象行返回行校验错误；原脚本个别路径可能直接抛类型异常。
+- 数据库 BIGINT 超出安全整数范围以及 DECIMAL 保持字符串，避免精度丢失；不会冒充精确的 JavaScript number。
+- 复用驱动的 JSON Stream Load，原脚本为 TSV。NULL/布尔保持类型，字符串中的制表符、换行、回车仍按原规则替换为空格。字面量 `\N` 保留为字符串，避免 TSV 将其意外变成 NULL。SQL 回退保留原字符串。
+- 驱动返回明确导入状态，不自行重试；SAIC 业务层保留原 Success/Publish Timeout 判定与回退。Success 缺少计数字段视为不可信回执并回退，不推测成功计数。Publish Timeout 保留已返回的计数；缺失时按原脚本用批次大小。
+- Stream Load 未确认或出现过滤行后，原逻辑会重放整批 UNIQUE KEY 覆盖写入；不能把它视为 exactly-once。共享驱动及 DB Studio 仍看到 pending/unknown，其他调用方没有被改为自动回退。
+- 查询通过内部 COUNT 和有界读取还原原 rowCount/truncated/返回上限，未增加外部分页参数。两次查询不是一致性快照；并发修改时计数可能与取数时点不同。单次结果保留驱动 8 MiB 限制；SHOW 元数据超过 50000 行明确拒绝而不伪造总数。
+
+## 版本与实现范围
+
+插件依赖已发布的 SDK `^3.21.0`，保留默认 Toolset 注册。包内 `.xpertai-plugin/plugin.json` 声明 `saic-doris` 原生工具集组件，与运行时 Provider 的组件键一致；中间件、模板和 MCP 继续共用业务方法。不新增 SDK 契约，也不要求 `registerToolset` 或 `createMcpToolset()` 补丁。
+
+宿主原生初始化和连接配置扩展已撤回；连接通过原有工具集管理接口保存并发现能力，已有连接、Publication、URL 和密钥保留。旧界面配置限制见 [MCP 发布与接入](/mcp)。宿主仅保留 MCP 用户角色权限加载、编辑器工具发现/测试传递组织 ID 两项独立 bug 修复：前者影响外部 MCP 的平台数据源模式，后者影响编辑器内单工具测试。
+
+Doris 专用适配器独立于 MySQL/StarRocks；INSERT VALUES 不再受到 UPDATE/DDL 的版本门槛误拦截。其他写操作保留原版本校验；不支持跨语句事务。
+
+开发参考：[xpert-skills 原生 MCP 指引](https://github.com/xpert-ai/xpert-skills/blob/85267a94b6174c893b66229d292e0a5d49892d78/skills/development-technical/xpert-plugin-development/references/host-native-mcp-capabilities.md)。

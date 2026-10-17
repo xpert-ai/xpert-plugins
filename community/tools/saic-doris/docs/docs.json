@@ -1,0 +1,29 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "almond",
+  "name": "SAIC Doris",
+  "description": "SAIC Doris 配置表工具、双连接模式与 Xpert 原生 MCP 接入说明。",
+  "colors": {
+    "primary": "#166E3F",
+    "light": "#26BD6C",
+    "dark": "#166E3F"
+  },
+  "icons": {
+    "library": "lucide"
+  },
+  "navigation": {
+    "groups": [
+      {
+        "group": "使用指南",
+        "pages": [
+          "index",
+          "configuration",
+          "mcp",
+          "contracts",
+          "compatibility",
+          "verification"
+        ]
+      }
+    ]
+  }
+}

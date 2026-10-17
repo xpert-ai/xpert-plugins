@@ -1,0 +1,276 @@
+{
+  "build": "v5.3-bool-default",
+  "tools": [
+    {
+      "name": "ping",
+      "parameters": [],
+      "required": 0,
+      "defaults": []
+    },
+    {
+      "name": "get_server_time",
+      "parameters": [],
+      "required": 0,
+      "defaults": []
+    },
+    {
+      "name": "list_config_tables",
+      "parameters": [],
+      "required": 0,
+      "defaults": []
+    },
+    {
+      "name": "describe_config_table",
+      "parameters": [
+        "table_name"
+      ],
+      "required": 1,
+      "defaults": []
+    },
+    {
+      "name": "show_buckets",
+      "parameters": [
+        "table_name"
+      ],
+      "required": 1,
+      "defaults": []
+    },
+    {
+      "name": "get_tasks",
+      "parameters": [
+        "include_inactive"
+      ],
+      "required": 0,
+      "defaults": [
+        false
+      ]
+    },
+    {
+      "name": "get_tasks_changed_spec",
+      "parameters": [],
+      "required": 0,
+      "defaults": []
+    },
+    {
+      "name": "get_tasks_needing_onboarding",
+      "parameters": [],
+      "required": 0,
+      "defaults": []
+    },
+    {
+      "name": "get_part_dict",
+      "parameters": [],
+      "required": 0,
+      "defaults": []
+    },
+    {
+      "name": "get_owners",
+      "parameters": [],
+      "required": 0,
+      "defaults": []
+    },
+    {
+      "name": "get_ship_rules",
+      "parameters": [],
+      "required": 0,
+      "defaults": []
+    },
+    {
+      "name": "check_dict_issues",
+      "parameters": [
+        "part_numbers"
+      ],
+      "required": 1,
+      "defaults": []
+    },
+    {
+      "name": "get_run_log",
+      "parameters": [
+        "run_date",
+        "task_code",
+        "limit"
+      ],
+      "required": 0,
+      "defaults": [
+        null,
+        null,
+        50
+      ]
+    },
+    {
+      "name": "get_agent_runs",
+      "parameters": [
+        "status",
+        "limit"
+      ],
+      "required": 0,
+      "defaults": [
+        null,
+        20
+      ]
+    },
+    {
+      "name": "query_config",
+      "parameters": [
+        "sql"
+      ],
+      "required": 1,
+      "defaults": []
+    },
+    {
+      "name": "upsert_part_refs",
+      "parameters": [
+        "rows"
+      ],
+      "required": 1,
+      "defaults": []
+    },
+    {
+      "name": "upsert_owners",
+      "parameters": [
+        "rows"
+      ],
+      "required": 1,
+      "defaults": []
+    },
+    {
+      "name": "upsert_ship_rules",
+      "parameters": [
+        "rows"
+      ],
+      "required": 1,
+      "defaults": []
+    },
+    {
+      "name": "create_task",
+      "parameters": [
+        "task_seq",
+        "task_code",
+        "task_name",
+        "site_code",
+        "spec_text",
+        "url",
+        "freq",
+        "output_pattern",
+        "enters_matrix"
+      ],
+      "required": 5,
+      "defaults": [
+        null,
+        "daily",
+        null,
+        true
+      ]
+    },
+    {
+      "name": "update_task",
+      "parameters": [
+        "task_seq",
+        "spec_text",
+        "url",
+        "freq",
+        "task_name",
+        "output_pattern",
+        "enters_matrix",
+        "active",
+        "new_task_code"
+      ],
+      "required": 1,
+      "defaults": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "name": "set_task_agent_state",
+      "parameters": [
+        "task_seq",
+        "status",
+        "question",
+        "answer",
+        "session_id",
+        "parse_result_json"
+      ],
+      "required": 2,
+      "defaults": [
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "name": "insert_run_log",
+      "parameters": [
+        "run_date",
+        "task_seq",
+        "status",
+        "task_code",
+        "output_file",
+        "row_count",
+        "byte_count",
+        "factory_check",
+        "error_msg"
+      ],
+      "required": 3,
+      "defaults": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "name": "insert_agent_run",
+      "parameters": [
+        "run_id",
+        "triggered_by",
+        "task_seqs",
+        "status",
+        "kind",
+        "thread_id",
+        "principal_user",
+        "summary",
+        "task_codes"
+      ],
+      "required": 2,
+      "defaults": [
+        null,
+        "running",
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "name": "update_agent_run",
+      "parameters": [
+        "run_id",
+        "status",
+        "result_json",
+        "mark_finished",
+        "summary",
+        "thread_id"
+      ],
+      "required": 1,
+      "defaults": [
+        null,
+        null,
+        false,
+        null,
+        null
+      ]
+    }
+  ],
+  "resource": "schema://saic/config-tables"
+}

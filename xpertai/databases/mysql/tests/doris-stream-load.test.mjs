@@ -83,3 +83,17 @@ test('FE redirect URL credentials cannot override the configured credentials', a
   assert.equal(backend.requests.length, 1)
   assert.equal(backend.requests[0].headers.authorization, `Basic ${Buffer.from('test-user:test-password').toString('base64')}`)
 })
+
+test('308 redirects preserve the payload, but redirect chains stop after four hops', async (context) => {
+  const backend = await endpoint(context, () => ({ body: success }))
+  const frontend = await endpoint(context, () => ({ status: 308, headers: { location: `http://127.0.0.1:${backend.port}/api/analytics/orders/_stream_load` } }))
+  assert.equal((await createDorisStreamLoad(options(frontend.port))(input)).outcome,'succeeded')
+  assert.equal(backend.requests[0].body,frontend.requests[0].body)
+  const loop = await endpoint(context, () => ({ status: 307, headers: { location: '/api/analytics/orders/_stream_load' } }))
+  assert.equal((await createDorisStreamLoad(options(loop.port))(input)).outcome,'unknown')
+  assert.equal(loop.requests.length,5)
+})
+test('Publish Timeout retains filter/load evidence for caller-specific policy', () => {
+  const receipt = parseStreamLoadReceipt({ Status:'Publish Timeout', NumberLoadedRows:499, NumberFilteredRows:1 },'fixture')
+  assert.equal(receipt.outcome,'pending');assert.equal(receipt.loadedRows,499);assert.equal(receipt.filteredRows,1)
+})

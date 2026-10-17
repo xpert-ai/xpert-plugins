@@ -11,7 +11,7 @@ function wire(mode = "STRICT_TRANS_TABLES", okFields = false) {
     calls.push(config);
     const events = new EventEmitter();
     queueMicrotask(() => {
-      const rows = config.sql.includes("@@session.sql_mode") ? [[mode]] : config.sql.includes("@@version_comment") ? [["doris-3.0.8"]] : config.sql.includes("version()") ? [["8.0.36"]] : config.sql.includes("_db_studio_page") ? [["9007199254740993", "0.12345678901234567890"]] : [];
+      const rows = config.sql.includes("@@session.sql_mode") ? [[mode]] : config.sql.includes("@@version_comment") ? [["doris-3.0.8"]] : config.sql.includes("version()") ? [["8.0.36"]] : config.sql.includes("SELECT ? AS duplicate, ? AS duplicate") ? [["9007199254740993", "0.12345678901234567890"]] : [];
       try {
         if (rows.length) {
           events.emit("fields", rows[0].map(() => ({ name: "duplicate", type: 246 })));
@@ -53,7 +53,7 @@ for (const engine of ["mysql", "doris"]) test(`${engine} wire preserves duplicat
   const result = await adapter.query({ database: "analytics", mode: "read", sql: "SELECT ? AS duplicate, ? AS duplicate", parameters: ["x'\\attack", "0.12345678901234567890"] });
   assert.deepEqual(result.rows, [["9007199254740993", "0.12345678901234567890"]]);
   assert.deepEqual(result.columns.map((c) => c.id), ["c0", "c1"]);
-  const call = mock.calls.find((c) => c.sql.includes("_db_studio_page"));
+  const call = mock.calls.find((c) => c.sql.includes("SELECT ? AS duplicate, ? AS duplicate"));
   assert.deepEqual(call?.values, ["x'\\attack", "0.12345678901234567890"]);
   await adapter.close();
   assert.equal(mock.state.closed, 1);
@@ -61,7 +61,7 @@ for (const engine of ["mysql", "doris"]) test(`${engine} wire preserves duplicat
 test("text-protocol parameters fail closed in NO_BACKSLASH_ESCAPES mode", async () => {
   const mock = wire("NO_BACKSLASH_ESCAPES"), adapter = createMysqlWorkbench(mockOptions, "mysql", mock.driver);
   await assert.rejects(() => adapter.query({ mode: "read", sql: "SELECT ?", parameters: ["quoted'value"] }), /sql_mode_unsupported/);
-  assert.equal(mock.calls.filter((c) => c.sql.includes("_db_studio_page")).length, 0);
+  assert.equal(mock.calls.filter((c) => c.sql.includes("SELECT ? AS duplicate, ? AS duplicate")).length, 0);
   await adapter.close();
 });
 test("driver timeout destroys only its own physical connection", async () => {

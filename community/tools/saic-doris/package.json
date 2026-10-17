@@ -1,0 +1,71 @@
+{
+  "name": "@xpert-ai/plugin-saic-doris",
+  "version": "0.1.0",
+  "description": "SAIC Doris configuration tools and host-native MCP provider",
+  "type": "module",
+  "main": "./dist/bundle.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/bundle.js",
+      "default": "./dist/bundle.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    ".xpertai-plugin",
+    "docs",
+    "README.md",
+    "!**/*.tsbuildinfo"
+  ],
+  "scripts": {
+    "build": "pnpm --filter @xpert-ai/plugin-mysql build && tsc -p tsconfig.json && esbuild dist/index.js --bundle --platform=node --format=esm --target=node22 --outfile=dist/bundle.js --external:@xpert-ai/contracts --external:@xpert-ai/plugin-sdk --external:@nestjs/common --external:@nestjs/core --external:zod --external:node-sql-parser --external:mysql --external:mysql2 --external:axios && node scripts/verify-dist.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test tests/*.test.mjs",
+    "prepack": "pnpm build"
+  },
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins",
+    "directory": "community/tools/saic-doris"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "tenant",
+      "artifactNamespace": "saic_doris"
+    }
+  },
+  "dependencies": {
+    "mysql": "^2.18.1",
+    "mysql2": "^3.15.3",
+    "node-sql-parser": "^5.3.13"
+  },
+  "peerDependencies": {
+    "@xpert-ai/plugin-mysql": "^0.1.0",
+    "axios": "1.12.2",
+    "@xpert-ai/plugin-sdk": "^3.21.0",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "zod": "3.25.67",
+    "@xpert-ai/contracts": "^3.21.0"
+  },
+  "devDependencies": {
+    "@xpert-ai/plugin-mysql": "workspace:^",
+    "esbuild": "0.27.7",
+    "@xpert-ai/plugin-sdk": "3.21.0",
+    "@nestjs/common": "11.1.13",
+    "@nestjs/core": "11.1.13",
+    "zod": "3.25.67",
+    "@types/node": "^22.17.0",
+    "typescript": "^5.9.2",
+    "reflect-metadata": "^0.2.2",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@xpert-ai/contracts": "3.21.0"
+  }
+}

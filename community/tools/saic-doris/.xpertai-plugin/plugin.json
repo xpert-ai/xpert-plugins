@@ -1,0 +1,14 @@
+{
+  "name": "@xpert-ai/plugin-saic-doris",
+  "description": "SAIC supply-chain configuration middleware, assistant template and host-native MCP tools.",
+  "author": "XpertAI",
+  "license": "AGPL-3.0",
+  "artifactNamespace": "saic_doris",
+  "toolsets": {
+    "saic-doris": {
+      "provider": "saic_doris",
+      "name": "SAIC Doris MCP",
+      "description": "24 supply-chain configuration tools and the config-table schema resource."
+    }
+  }
+}
