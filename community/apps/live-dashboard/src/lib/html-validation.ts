@@ -35,6 +35,7 @@ export class HtmlDashboardValidation {
     const buffer = Buffer.from(JSON.stringify({ html: manifest.presentation.html,
       dependencies: verifyArtifactDocumentDependencies(dependencies, manifest.presentation.dependencies ?? []),
       context: { bindingIds: manifest.bindings.map(binding => binding.id), defaults: Object.fromEntries(manifest.controls.filter(control => control.defaultValue !== undefined).map(control => [control.controlId, control.defaultValue ?? null])), theme: 'light', locale: 'en' },
+      parameters: Object.fromEntries(manifest.bindings.map(binding => [binding.id, binding.parameters])),
       datasets: Object.fromEntries(manifest.bindings.map(binding => [binding.id, datasets.find(dataset => dataset.datasetId === binding.output.datasetId)])) }))
     const stored = await files.uploadBuffer({ ...scope, buffer, originalName: 'document.json', fileName: 'document.json', folder: `live-dashboard-validation/${jobId}`, mimeType: 'application/json' })
     const reference = { source: 'platform.workspace.files' as const, ...scope, filePath: stored.filePath, workspacePath: stored.workspacePath }

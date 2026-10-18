@@ -10,6 +10,14 @@ const browser = await chromium.launch({ headless: true, channel: 'chrome' })
 const hostPath = fileURLToPath(new URL('../dist/sandbox-actions/bundle/host.js', import.meta.url))
 const input = { context: { bindingIds: ['sales'], defaults: { region: null }, theme: 'light', locale: 'en' }, datasets: { sales: { rows: [{ amount: '120' }] } } }
 const html = script => `<html><body><output>Loading</output><script>(async()=>{const live=window.xpertLiveArtifact;${script}})()</script></body></html>`
+const parameterCases = [
+  { name: 'optional null bypasses scalar enum', parameter: { type: 'string', required: false, allowedValues: ['East'] }, defaults: { value: null }, ok: true },
+  { name: 'missing control uses Binding default', parameter: { type: 'number', required: true, defaultValue: 7, allowedValues: [3, 7, 14] }, defaults: {}, ok: true },
+  { name: 'missing optional enum resolves to null', parameter: { type: 'string', required: false, allowedValues: ['East'] }, defaults: {}, ok: true },
+  { name: 'required control cannot be null', parameter: { type: 'number', required: true, allowedValues: [7] }, defaults: { value: null }, ok: false },
+  { name: 'invalid calendar date rejected', parameter: { type: 'date' }, defaults: { value: '2026-02-30' }, ok: false },
+  { name: 'valid leap date accepted', parameter: { type: 'date' }, defaults: { value: '2028-02-29' }, ok: true }
+]
 try {
   const good = await validateDocument({ ...input, html: html("live.subscribe('sales',d=>document.querySelector('output').textContent=d.rows[0].amount);await live.query('sales',{region:null});") }, browser, hostPath)
   assert.equal(good.ok, true); assert.deepEqual(good.requestedBindings, ['sales'])
@@ -19,6 +27,32 @@ try {
   assert.equal(mismatch.ok, false); assert(mismatch.errors.some(error => error.includes('DOCUMENT_INITIAL_CONTROLS_MISMATCH')))
   const render = await validateDocument({ ...input, html: html("live.subscribe('sales',()=>{const row=null;document.querySelector('output').textContent=row.amount});await live.query('sales',{});") }, browser, hostPath)
   assert.equal(render.ok, false); assert(render.errors.some(x=>x.includes('null')))
+  const enumInput = { context: { ...input.context, defaults: { days: 7 } },
+    parameters: { sales: [{ controlId: 'days', type: 'number', required: true, defaultValue: 7, allowedValues: [3, 7, 14] }] },
+    datasets: { sales: { rows: [{ date: '2026-10-18', amount: '120' }] } } }
+  const selectHtml = script => `<html><body><label>Days<select id="days"></select></label><output>Weather</output><script>(async()=>{const live=xpertLiveArtifact;const select=document.getElementById('days');${script}})()</script></body></html>`
+  const enumSelect = await validateDocument({ ...enumInput, html: selectHtml("[3,7,14].forEach(value=>select.add(new Option(String(value),String(value))));select.value='7';select.onchange=()=>live.query('sales',{days:Number(select.value)});await live.query('sales',{days:7});") }, browser, hostPath)
+  assert.equal(enumSelect.ok, true, JSON.stringify(enumSelect.errors))
+  const wrongSelect = await validateDocument({ ...enumInput, html: selectHtml("live.bindSelect(select,{bindingId:'sales',controlId:'days',fieldId:'date'});await live.query('sales',{days:7});") }, browser, hostPath)
+  assert.equal(wrongSelect.ok, false); assert(wrongSelect.errors.some(error => error.includes('DOCUMENT_CONTROL_VALUE_INVALID')))
+  const stringNumber = await validateDocument({ ...enumInput, html: selectHtml("[3,7,14].forEach(value=>select.add(new Option(String(value),String(value))));select.value='7';select.onchange=()=>live.query('sales',{days:select.value});await live.query('sales',{days:7});") }, browser, hostPath)
+  assert.equal(stringNumber.ok, false); assert(stringNumber.errors.some(error => error.includes('DOCUMENT_CONTROL_VALUE_INVALID')))
+  const multiBinding = await validateDocument({ ...enumInput,
+    context: { ...enumInput.context, bindingIds: ['sales', 'totals'], defaults: { days: 7, region: null } },
+    parameters: { ...enumInput.parameters, totals: [{ controlId: 'region', type: 'string', required: false, defaultValue: null }] },
+    datasets: { ...enumInput.datasets, totals: { rows: [{ total: '120' }] } },
+    html: html("await live.query('sales',{});await live.query('totals',{});") }, browser, hostPath)
+  assert.equal(multiBinding.ok, true, JSON.stringify(multiBinding.errors))
+  for (const entry of parameterCases) {
+    const result = await validateDocument({ ...input, context: { ...input.context, defaults: entry.defaults },
+      parameters: { sales: [{ controlId: 'value', ...entry.parameter }] }, html: html("await live.query('sales',{});") }, browser, hostPath)
+    assert.equal(result.ok, entry.ok, `${entry.name}: ${JSON.stringify(result.errors)}`)
+    if (!entry.ok) assert(result.errors.some(error => error.includes('DOCUMENT_CONTROL_VALUE_INVALID')), entry.name)
+  }
+  const disabledOptions = await validateDocument({ ...enumInput, html: selectHtml("select.innerHTML='<option value=7>7</option><optgroup disabled label=Unavailable><option value=99>99</option></optgroup><option value=14>14</option>';select.onchange=()=>live.query('sales',{days:Number(select.value)});await live.query('sales',{});") }, browser, hostPath)
+  assert.equal(disabledOptions.ok, true, JSON.stringify(disabledOptions.errors))
+  const emptySelect = await validateDocument({ ...enumInput, html: selectHtml("await live.query('sales',{});") }, browser, hostPath)
+  assert.equal(emptySelect.ok, true, JSON.stringify(emptySelect.errors))
   const libraries = JSON.parse(await readFile(new URL('../dist/libraries/catalog.json', import.meta.url)))
   const echarts = libraries.find(item => item.id === 'echarts'), three = libraries.find(item => item.id === 'three')
   const chartHtml = `<html><body><output>Loading</output><div id="chart" style="width:600px;height:300px"></div><script>
@@ -31,5 +65,5 @@ try {
   assert.equal(missingLibrary.ok, false); assert(missingLibrary.errors.some(error=>error.includes('echarts')))
   const scene = await validateDocument({ ...input, dependencies: [three], html: html("const scene=new THREE.Scene();scene.add(new THREE.Mesh(new THREE.BoxGeometry(),new THREE.MeshBasicMaterial()));if(scene.children.length!==1)throw Error('THREE_NOT_READY');live.subscribe('sales',d=>document.querySelector('output').textContent=d.rows[0].amount);live.query('sales',{region:null});") }, browser, hostPath)
   assert.equal(scene.ok, true, JSON.stringify(scene.errors))
-  console.log(JSON.stringify({ passed: ['real Dataset render', 'caught undeclared Binding blocks save', 'actionable control default mismatch', 'render callback exception blocks save', 'packaged ECharts renders SVG', 'missing library blocks save', 'packaged Three.js scene'] }))
+  console.log(JSON.stringify({ passed: ['real Dataset render', 'caught undeclared Binding blocks save', 'actionable control default mismatch', 'render callback exception blocks save', 'typed enum selects', 'Dataset options cannot replace enum values', 'numeric select must preserve number type', 'page-wide controls with multiple Bindings', ...parameterCases.map(entry => entry.name), 'disabled optgroup options skipped', 'empty select does not trigger restore', 'packaged ECharts renders SVG', 'missing library blocks save', 'packaged Three.js scene'] }))
 } finally { await browser.close() }

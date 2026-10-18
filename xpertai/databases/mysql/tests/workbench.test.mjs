@@ -1,8 +1,34 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { EventEmitter } from "node:events";
+import { createServer } from "node:net";
 import { createMysqlWorkbench } from "../dist/lib/mysql-workbench.js";
 const mockOptions = { host: "mock.invalid", port: 3306, username: "mock", password: "mock", catalog: "analytics" };
+test('rejected reads and immediate close do not start a network handshake', async () => {
+  let connections = 0;
+  const server = createServer((socket) => { connections++; socket.destroy(); });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    for (const engine of ['mysql', 'doris']) {
+      const adapter = createMysqlWorkbench({ ...mockOptions, host: '127.0.0.1', port: server.address().port }, engine);
+      await assert.rejects(adapter.query({ mode: 'read', sql: 'DELETE FROM orders' }), /read_only_violation/);
+      await adapter.close();
+    }
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    assert.equal(connections, 0);
+  } finally { await new Promise((resolve) => server.close(resolve)); }
+});
+test('a connection failure during handshake rejects the query without an uncaught event', async () => {
+  const server = createServer((socket) => socket.destroy());
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    for (const engine of ['mysql', 'doris']) {
+      const adapter = createMysqlWorkbench({ ...mockOptions, host: '127.0.0.1', port: server.address().port }, engine);
+      try { await assert.rejects(adapter.query({ mode: 'read', sql: 'SELECT 1', timeoutMs: 1000 })); }
+      finally { await adapter.close(); }
+    }
+  } finally { await new Promise((resolve) => server.close(resolve)); }
+});
 function wire(mode = "STRICT_TRANS_TABLES", okFields = false) {
   const calls = [], state = { closed: 0 };
   const driver = { destroy: () => {
@@ -11,7 +37,7 @@ function wire(mode = "STRICT_TRANS_TABLES", okFields = false) {
     calls.push(config);
     const events = new EventEmitter();
     queueMicrotask(() => {
-      const rows = config.sql.includes("@@session.sql_mode") ? [[mode]] : config.sql.includes("@@version_comment") ? [["doris-3.0.8"]] : config.sql.includes("version()") ? [["8.0.36"]] : config.sql.includes("_db_studio_page") ? [["9007199254740993", "0.12345678901234567890"]] : [];
+      const rows = config.sql.includes("@@session.sql_mode") ? [[mode]] : config.sql.includes("@@version_comment") ? [["doris-3.0.8"]] : config.sql.includes("version()") ? [["8.0.36"]] : config.sql.includes("SELECT ? AS duplicate") ? [["9007199254740993", "0.12345678901234567890"]] : [];
       try {
         if (rows.length) {
           events.emit("fields", rows[0].map(() => ({ name: "duplicate", type: 246 })));
@@ -53,7 +79,7 @@ for (const engine of ["mysql", "doris"]) test(`${engine} wire preserves duplicat
   const result = await adapter.query({ database: "analytics", mode: "read", sql: "SELECT ? AS duplicate, ? AS duplicate", parameters: ["x'\\attack", "0.12345678901234567890"] });
   assert.deepEqual(result.rows, [["9007199254740993", "0.12345678901234567890"]]);
   assert.deepEqual(result.columns.map((c) => c.id), ["c0", "c1"]);
-  const call = mock.calls.find((c) => c.sql.includes("_db_studio_page"));
+  const call = mock.calls.find((c) => c.sql.includes("SELECT ? AS duplicate"));
   assert.deepEqual(call?.values, ["x'\\attack", "0.12345678901234567890"]);
   await adapter.close();
   assert.equal(mock.state.closed, 1);

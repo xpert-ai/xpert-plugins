@@ -1,0 +1,63 @@
+---
+title: "Configuration and boundaries"
+description: "Connection references, approved tools and explicit JSON-to-Dataset mapping."
+---
+
+Create a platform DataSource with these server-side options:
+
+| Field | Meaning |
+| --- | --- |
+| `workspaceId`, `toolsetId`, `serverName` | Exact existing platform MCP connection scope |
+| `datasets[].id`, `revision` | Stable configured dataset identity and definition revision |
+| `toolName`, `readOnly: true` | Approved native tool name and administrator read-only declaration |
+| `name`, `description` | Authored business meaning, including metric formula and scope |
+| `result.format` | `structured` or explicitly opted-in `text_json` |
+| `result.rowsPath` | Property/index segments leading to the rows array |
+| `result.columns` | Stable key, relative row path, label, description, logical type, role, nullability and optional unit/semantic reference |
+| `result.scope` | `full_query_result` only when the tool actually returns a complete result; otherwise `page` |
+| `truncatedPath`, `totalPath`, `dataAsOfPath` | Optional explicit metadata selectors; never inferred from field names |
+
+The packaged `examples/data-source-options.json` and `examples/tool-result.json` show a
+matching configuration and result. Names and IDs are illustrative, not a working connection.
+
+## Results
+
+`structured` reads only `structuredContent`. `text_json` requires exactly one text block
+containing a complete JSON document. Markdown fences, prose, images and Resource links are
+not parsed as datasets; the adapter never fetches linked resources. When the tool advertises
+an output schema, the platform requires matching structured content before projection.
+
+Paths are arrays of exact property names or array indices, not JSONPath expressions or code.
+Missing fields fail, including nullable fields whose keys are absent. Nullability permits
+explicit null. Nested objects/arrays are not cells; configure scalar selectors or prepare
+data upstream. Decimal values must already be exact strings. Int64 accepts exact strings or
+safe integer JSON numbers; unsafe integers are rejected. Dates and timestamps require the
+canonical Dataset encodings, including timezone information for timestamps.
+
+The first adapter performs one tool call per query. It does not automatically follow business
+pagination or MCP Resource subscriptions. Mark paged results as `page`, and configure their
+total/truncation fields. `tools/list` protocol pagination is handled separately by the platform.
+The normal 1,000-row/30-second Analytics limits apply, together with a 2.5 MB raw tool-result
+limit and 2 MB normalized Dataset limit. Row limiting never produces a full-result claim.
+
+## Permission and execution boundaries
+
+The source and MCP connection must belong to the current tenant/organization. The viewer
+must have workspace read access; a grant to run an unrelated Assistant does not open the
+workspace's tool catalog. Existing static headers, OAuth and Connector authentication stay
+with the platform MCP runtime, which receives the current viewer identity.
+
+Only currently enabled, model-visible tools advertising `readOnlyHint: true` can be used.
+Explicitly destructive and task-required tools are excluded. The approved dataset catalog
+narrows that list further. An annotation alone cannot prove read-only behavior; this follows
+the [MCP tool annotation trust boundary](https://modelcontextprotocol.io/specification/2025-06-18/server/tools).
+Administrators must approve safe tool semantics and upstream permissions.
+
+Input is checked against the live MCP schema without coercion. Tool errors, invalid outputs,
+interactive requests, changed connection definitions and expired budgets fail. Each operation
+closes its runtime, including cancellation and late initialization. Existing transport support
+is reused; this batch's real protocol test covers HTTP. It does not certify every external
+OAuth provider, SSE endpoint or stdio deployment.
+
+Bindings cannot override tool names, connection IDs, URLs, credentials, mappings or actor
+scope. The generated page still submits only a saved Binding ID and declared controls.

@@ -16,11 +16,11 @@ function setup(options = {}) {
     async list() { return [{ artifactId: saved.artifactId, versionId: saved.versionId, title: saved.manifest.title }] },
     async open(scope, artifactId, versionId) { if (denied) throw new Error('REVOKED'); if (artifactId !== saved.artifactId || versionId && versionId !== saved.versionId) throw new Error('ACCESS_DENIED'); calls.push(['open', scope, artifactId, versionId]); return structuredClone(saved) },
     async history(scope, artifactId) { await this.open(scope, artifactId); return [{ artifactId, versionId: saved.versionId, versionNumber: 1 }] },
-    async update(scope, artifactId, versionId, changes) { await this.open(scope, artifactId); calls.push(['update', scope, artifactId, versionId, changes]); return { artifactId, draftRevision: 1, status: "draft" } },
+    async update(scope, artifactId, versionId, changes) { await this.open(scope, artifactId); calls.push(['update', scope, artifactId, versionId, changes]); return { artifactId, draftRevision: 1, status: "draft", title: changes.title ?? saved.manifest.title } },
     async sources() { return [] },
-    async discover(scope, input) { calls.push(['discover', scope, input]); return { items: [], queryContract: { operation: 'query', contractVersion: 1 } } },
+    async discover(scope, input) { if (denied) throw new Error('REVOKED'); calls.push(['discover', scope, input]); return { items: [], queryContract: { operation: 'query', contractVersion: 1 } } },
     async preview(scope, input) { if (denied) throw new Error('REVOKED'); calls.push(['preview', scope, input]); return { rows: Array.from({ length: 25 }, (_, i) => ({ n: i })), completeness: { returnedRows: 25, truncated: false } } },
-    async save(scope, manifest) { if (denied) throw new Error('REVOKED'); calls.push(['save', scope, manifest]); return { artifactId: 'saved', versionId: 'version' } }
+    async save(scope, manifest) { if (denied) throw new Error('REVOKED'); calls.push(['save', scope, manifest]); return { artifactId: 'saved', draftRevision: 1, status: 'draft', title: manifest.title } }
   }
   const files = new Map()
   const runtimeContext = { ...context, runtime: { capabilities: { require: () => ({
@@ -102,6 +102,54 @@ test('registered canonical bindings use the same discovery and preview receipt g
   s.revoke()
   await assert.rejects(s.invoke('dashboard_preview_binding', args), /REVOKED/)
 })
+
+test('mistyped source/provider pairs receive exact listed choices without querying or guessing', async () => {
+  const s = setup(), { binding } = draft()
+  const other = { id: randomUUID(), name: 'Other source', providers: [{ id: 'other.query' }] }
+  s.service.sources = async () => [{ id: binding.dataSourceId, name: 'Exact source', providers: [{ id: binding.providerId }] }, other]
+  await s.invoke('dashboard_list_sources', {})
+  for (const wrong of [{ dataSourceId: randomUUID(), providerId: binding.providerId }, { dataSourceId: binding.dataSourceId, providerId: 'invented' },
+    { dataSourceId: binding.dataSourceId, providerId: other.providers[0].id }, { dataSourceId: other.id, providerId: binding.providerId }])
+    await assert.rejects(s.invoke('dashboard_discover', wrong), error => /SOURCE_SELECTION_INVALID/.test(error.message) &&
+      error.message.includes(binding.dataSourceId) && error.message.includes(binding.providerId) && /Refresh the list/.test(error.message))
+  assert.equal(s.calls.length, 0)
+  const request = { kind: 'inspect', datasetId: 'sales' }
+  await s.invoke('dashboard_discover', { dataSourceId: binding.dataSourceId, providerId: binding.providerId, requestJson: JSON.stringify(request) })
+  assert.deepEqual(s.calls, [['discover', { tenantId: context.tenantId, organizationId: context.organizationId,
+    userId: context.userId, hostType: 'agent', hostId: context.xpertId, slots: [] },
+    { dataSourceId: binding.dataSourceId, providerId: binding.providerId, request }]])
+})
+
+test('source selection follows refreshed lists including empty results and stays local to each run', async () => {
+  const s = setup(), { binding } = draft()
+  const first = { dataSourceId: binding.dataSourceId, providerId: binding.providerId }
+  const next = { dataSourceId: randomUUID(), providerId: 'other.query' }
+  let sources = [{ id: first.dataSourceId, providers: [{ id: first.providerId }] }]
+  s.service.sources = async () => sources
+  await s.invoke('dashboard_list_sources', {})
+  await assert.rejects(s.invoke('dashboard_discover', next), /SOURCE_SELECTION_INVALID/)
+  sources = [{ id: next.dataSourceId, providers: [{ id: next.providerId }] }]
+  await s.invoke('dashboard_list_sources', {})
+  await assert.rejects(s.invoke('dashboard_discover', first), /SOURCE_SELECTION_INVALID/)
+  await s.invoke('dashboard_discover', next)
+  sources = []
+  await s.invoke('dashboard_list_sources', {})
+  await assert.rejects(s.invoke('dashboard_discover', next), /SOURCE_SELECTION_INVALID/)
+  // A new run can still delegate an explicit selection to the host before listing sources.
+  await s.another().tools.find(t => t.name === 'dashboard_discover').invoke(first)
+  assert.deepEqual(s.calls.map(call => call[2].dataSourceId), [next.dataSourceId, first.dataSourceId])
+  await assert.rejects(s.invoke('dashboard_discover', first), /SOURCE_SELECTION_INVALID/)
+})
+
+test('listed source selections still require current host access and denied discovery creates no preview evidence', async () => {
+  const s = setup(), { binding } = draft()
+  s.service.sources = async () => [{ id: binding.dataSourceId, providers: [{ id: binding.providerId }] }]
+  await s.invoke('dashboard_list_sources', {})
+  s.revoke()
+  await assert.rejects(s.invoke('dashboard_discover', { dataSourceId: binding.dataSourceId, providerId: binding.providerId }), /REVOKED/)
+  await assert.rejects(s.invoke('dashboard_preview', { binding }), /DISCOVER_REQUIRED/)
+  assert.equal(s.calls.length, 0)
+})
 test('Assistant final-provider policy allows upstream preview but rejects saving a substitute', async () => {
   const s = setup({ allowedFinalProviders: ['workspace_script.query'] }), { input } = draft()
   const upstream = structuredClone(example.bindings[0])
@@ -126,7 +174,7 @@ test('failed preview gives no save evidence; guidance preserves existing system 
 
 test('nullable dimension filters cannot save until real non-default rows pass explicit expectations', async () => {
   const s = setup(), { input, binding } = draft()
-  binding.parameters[0].defaultValue = null; binding.parameters[0].allowedValues = [null, 'east', 'west']
+  binding.parameters[0].required = false; binding.parameters[0].defaultValue = null; binding.parameters[0].allowedValues = ['east', 'west']
   input.controls[0].defaultValue = null; input.controls[0].allowedValues = [null, 'east', 'west']
   const rows = [{ region: 'east', amount: 10 }, { region: 'west', amount: 20 }]
   s.service.preview = async () => ({ rows, completeness: { returnedRows: 2, truncated: false } })
@@ -216,7 +264,10 @@ test('sandbox mutations require a receipt for the same file and exact bytes', as
   const s = setup(); s.saved.manifest.presentation = { type: 'html', html: '<html><body>Initial</body></html>' }
   const opened = JSON.parse(await s.invoke('dashboard_open', { artifactId: s.saved.artifactId }))
   const call = (name, args, content, status = 'success', metadata) => s.middleware.wrapToolCall({ toolCall: { name, args, id: 'call' }, tool: { metadata } },
-    async () => new ToolMessage({ content, name, tool_call_id: 'call', status }))
+    async () => {
+      if (metadata) s.files.set(args.file_path, Buffer.concat([s.files.get(args.file_path), Buffer.from(' ')]))
+      return new ToolMessage({ content, name, tool_call_id: 'call', status })
+    })
   const path = opened.htmlPath
   s.files.set(path, Buffer.from('<html><body>Changed</body></html>'))
   await call('sandbox_edit_file', { file_path: path }, '{}', 'success', workspaceFileMutationMetadata)
@@ -271,6 +322,75 @@ test('a concurrent file edit remains pending after an earlier save receipt', asy
   assert.equal(evidence.pending, false)
 })
 
+test('refused file writes do not require saves; real, earlier and concurrent changes remain pending', async () => {
+  const { dashboardSaveEvidence } = require('../dist/lib/save-evidence.js')
+  let buffer = Buffer.from('existing')
+  const evidence = dashboardSaveEvidence(() => ({ readRuntimeBuffer: async () => ({ buffer }) }))
+  const path = 'dashboards/existing.html'
+  const refused = { status: 'success', content: JSON.stringify({ error: 'already exists' }) }
+  assert.equal(await evidence.trackWrite(path, async () => refused), refused)
+  assert.equal(evidence.pending, false)
+  await assert.rejects(evidence.trackWrite(path, async () => { throw new Error('refused') }), /refused/)
+  assert.equal(evidence.pending, false)
+  await evidence.trackWrite(path, async () => { buffer = Buffer.from('changed') })
+  assert.equal(evidence.pending, true)
+  await evidence.trackWrite(path, async () => refused)
+  assert.equal(evidence.pending, true)
+  await evidence.trackWrite(path, async () => { evidence.write(path); return refused })
+  assert.equal(evidence.pending, true)
+  const partial = dashboardSaveEvidence(() => ({ readRuntimeBuffer: async () => ({ buffer }) }))
+  await assert.rejects(partial.trackWrite(path, async () => { buffer = Buffer.from('partial change'); throw new Error('failed after write') }), /failed after write/)
+  assert.equal(partial.pending, true)
+})
+
+test('a receipt during a write never confirms later bytes, including a partial failed write', async () => {
+  const { dashboardSaveEvidence } = require('../dist/lib/save-evidence.js')
+  const { createHash } = require('node:crypto')
+  for (const fails of [false, true]) {
+    let buffer = Buffer.from('saved bytes')
+    const path = 'dashboards/current.html', artifactId = randomUUID()
+    const evidence = dashboardSaveEvidence(() => ({ readRuntimeBuffer: async () => ({ buffer }) }))
+    const receipt = () => ({ dashboard: { artifactId, status: 'draft', draftRevision: 2 },
+      sourceFile: { path, sha256: createHash('sha256').update(buffer).digest('hex') } })
+    evidence.opened(path, artifactId)
+    const writing = evidence.trackWrite(path, async () => {
+      await evidence.accept(evidence.beginSave(), receipt())
+      assert.equal(evidence.pending, true)
+      buffer = Buffer.from('later unsaved bytes')
+      if (fails) throw new Error('failed after write')
+    })
+    if (fails) await assert.rejects(writing, /failed after write/)
+    else await writing
+    assert.equal(evidence.pending, true)
+    assert.deepEqual(evidence.pendingPaths, [path])
+    await evidence.accept(evidence.beginSave(), receipt())
+    assert.equal(evidence.pending, false)
+  }
+})
+
+test('finishing one overlapping writer does not let a receipt confirm an unfinished writer', async () => {
+  const { dashboardSaveEvidence } = require('../dist/lib/save-evidence.js')
+  const { createHash } = require('node:crypto')
+  let buffer = Buffer.from('initial'), release, started
+  const gate = new Promise(resolve => { release = resolve })
+  const ready = new Promise(resolve => { started = resolve })
+  const path = 'dashboards/current.html', artifactId = randomUUID()
+  const evidence = dashboardSaveEvidence(() => ({ readRuntimeBuffer: async () => ({ buffer }) }))
+  const receipt = () => ({ dashboard: { artifactId, status: 'draft', draftRevision: 2 },
+    sourceFile: { path, sha256: createHash('sha256').update(buffer).digest('hex') } })
+  evidence.opened(path, artifactId)
+  const writing = evidence.trackWrite(path, async () => { started(); await gate; buffer = Buffer.from('last write') })
+  await ready
+  try {
+    await evidence.trackWrite(path, async () => { buffer = Buffer.from('first completed write') })
+    await evidence.accept(evidence.beginSave(), receipt())
+    assert.equal(evidence.pending, true)
+  } finally { release(); await writing }
+  assert.equal(evidence.pending, true)
+  await evidence.accept(evidence.beginSave(), receipt())
+  assert.equal(evidence.pending, false)
+})
+
 test('HTML paths reject nameless, ambiguous and escaping paths before writing or saving', () => {
   const { htmlPathSchema } = require('../dist/lib/agent.schema.js')
   for (const path of ['  .html', '.html', 'dashboards/.html', '/workspace/page.html', '../page.html', 'a/../page.html', 'a//page.html', 'page.html '])
@@ -322,4 +442,43 @@ test('Agent discovers frontend pins and saves only explicitly requested librarie
   await assert.rejects(s.invoke('dashboard_create_html', { ...args, libraries: ['https://cdn.example/echarts.js'] }))
   await assert.rejects(s.invoke('dashboard_create_html', { ...args, libraries: ['echarts', 'echarts'] }))
   assert.equal(s.calls.filter(call => call[0] === 'save').length, 1)
+})
+
+test('create, HTML create, open and update emit only authorized committed cards via the active tool callbacks', async () => {
+  const s = setup(), cards = [], config = { callbacks: [{ name: 'card-capture', handleCustomEvent(_name, data) { if (data.type === 'resource_card') cards.push(data) } }] }
+  const { input, binding } = draft()
+  await assert.rejects(s.invoke('dashboard_create', input, config), /PREVIEW_REQUIRED/)
+  assert.equal(cards.length, 0)
+  await s.invoke('dashboard_discover', { dataSourceId: binding.dataSourceId, providerId: binding.providerId })
+  input.previewIds = [JSON.parse(await s.invoke('dashboard_preview', { binding })).previewId]
+  await s.invoke('dashboard_create', input, config)
+  assert.equal(cards.length, 1); assert.equal(cards[0].data.title, input.title)
+  await s.invoke('dashboard_create', input, config)
+  assert.equal(cards.length, 2); assert.equal(cards[0].id, cards[1].id)
+  const { charts, tables, ...definition } = input
+  s.files.set('dashboards/card.html', Buffer.from('<html><body>Card</body></html>'))
+  await s.invoke('dashboard_create_html', { ...definition, title: 'HTML card', path: 'dashboards/card.html' }, config)
+  assert.equal(cards.at(-1).data.title, 'HTML card')
+  const opened = JSON.parse(await s.invoke('dashboard_open', { artifactId: s.saved.artifactId }, config))
+  assert.equal(cards.at(-1).data.open.selectionId, s.saved.artifactId)
+  await s.invoke('dashboard_update', { editId: opened.editId, expectedRevision: opened.expectedRevision, expectedCurrentVersionId: opened.expectedCurrentVersionId, title: 'Updated card' }, config)
+  assert.equal(cards.at(-1).data.title, 'Updated card'); assert.match(cards.at(-1).data.description, /Draft r1/)
+  assert.equal(cards.at(-1).id, cards.at(-2).id)
+  const count = cards.length
+  s.revoke()
+  await assert.rejects(s.invoke('dashboard_open', { artifactId: s.saved.artifactId }, config), /REVOKED/)
+  await assert.rejects(s.invoke('dashboard_create', input, config), /REVOKED/)
+  await assert.rejects(s.invoke('dashboard_update', { editId: opened.editId, expectedRevision: 0, expectedCurrentVersionId: opened.expectedCurrentVersionId }, config), /REVOKED/)
+  assert.equal(cards.length, count)
+})
+
+test('standard dashboard edits explain definition-only saves and missing HTML paths cannot emit successful cards', async () => {
+  const s = setup()
+  const opened = JSON.parse(await s.invoke('dashboard_open', { artifactId: s.saved.artifactId }))
+  assert.equal(opened.presentation.type, 'standard')
+  assert.equal(opened.htmlPath, undefined)
+  assert.match(opened.next, /rename requires only title/)
+  await assert.rejects(s.invoke('dashboard_update', { editId: opened.editId, expectedRevision: 0,
+    expectedCurrentVersionId: opened.expectedCurrentVersionId, htmlPath: 'dashboards/invented.html' }), /standard dashboard.*omit htmlPath and libraries/)
+  assert.equal(s.calls.filter(c => c[0] === 'update').length, 0)
 })

@@ -1,18 +1,22 @@
 import * as React from 'react'
 import { createRoot } from 'react-dom/client'
 import { z } from 'zod/v3'
-import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, Button, Input, Textarea, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, RefreshCw, Save, Plus, FileJson } from '@xpert-ai/plugin-shadcn-ui'
+import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, Button, Input, Textarea, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, RefreshCw, Save, Plus, FileJson, Send } from '@xpert-ai/plugin-shadcn-ui'
 import { dashboardSchema, type DashboardManifest } from '../lib/dashboard.schema'
-import { startBridge, requestHost, selectDashboard } from './bridge'
+import { startBridge, requestHost, selectDashboard, navigateDashboard } from './bridge'
 import { messages } from './i18n'
+import { dashboardNavigationSchema, dashboardNavigationKey } from '../lib/dashboard-navigation'
 import './style.css'
 import { HtmlDashboard, type HtmlDashboardHandle } from './html-dashboard'
 import { DashboardPicker } from './dashboard-picker'
+import { ShareDialog } from './share-dialog'
+import { ViewerControls } from './viewer-controls'
 import { installArtifactDocumentFramePolicy, artifactDocumentDependencyAssets } from '@xpert-ai/plugin-sdk/artifact-document'
 
 installArtifactDocumentFramePolicy(document)
 
-declare global { interface Window { __ANALYTICS_RENDERER_HTML__: string } }
+declare global { interface Window { __ANALYTICS_RENDERER_HTML__: string; __DASHBOARD_READ_ONLY__?: boolean } }
+const readOnly = window.__DASHBOARD_READ_ONLY__ === true
 const summarySchema = z.object({ artifactId: z.string(), versionId: z.string().nullish(), versionNumber: z.number().optional(), title: z.string().nullish(), updatedAt: z.string().optional(), draftRevision: z.number().optional(), isDraft: z.boolean().optional(), baseVersionId: z.string().nullish() })
 const savedSchema = summarySchema.extend({ manifest: dashboardSchema, dependencies: artifactDocumentDependencyAssets.optional() })
 const listSchema = z.object({ meta: z.object({ dashboards: z.array(summarySchema), sources: z.array(z.object({ id: z.string(), name: z.string(), type: z.string() })), saved: savedSchema.optional(), versions: z.array(summarySchema).optional() }) })
@@ -36,12 +40,19 @@ function App() {
   const [editor, setEditor] = React.useState<string | null>(null)
   const [confirmPublish, setConfirmPublish] = React.useState<Saved | null>(null)
   const [partial, setPartial] = React.useState(false)
+  const [sharing, setSharing] = React.useState(false)
   const requestSequence = React.useRef(0), operationSequence = React.useRef(0)
+  const navigationKey = React.useRef<string>()
   const htmlDashboard = React.useRef<HtmlDashboardHandle>(null)
 
+  function clearDocument() {
+    setHtml(''); setSaved(null); setEditor(null); setVersions([])
+    setSharing(false); setConfirmPublish(null)
+  }
   async function load(artifactId?: string, versionId?: string) {
+    const sequence = requestSequence.current
     const result = listSchema.parse(await requestHost('requestData', { query: { parameters: artifactId ? { artifactId, ...(versionId ? { versionId } : {}) } : {} } })).meta
-    setList(result.dashboards); setSources(result.sources)
+    if (sequence === requestSequence.current) { setList(result.dashboards); setSources(result.sources) }
     return result
   }
   async function query(target: Saved, values: Record<string, ControlValue>) {
@@ -53,15 +64,20 @@ function App() {
     setHtml(rendererHtml(result.payload)); setPartial(result.datasets.some((dataset) => dataset.completeness.truncated))
     setStatus(result.datasets.map((dataset) => dataset.freshness.sourceFetchedAt).sort()[0] ?? '')
   }
-  async function open(artifactId: string, versionId?: string) {
+  async function open(artifactId: string, versionId?: string, reflectNavigation = true) {
     const sequence = ++requestSequence.current
-    setHtml(''); setSaved(null); setEditor(null); setVersions([])
+    clearDocument()
     const result = await load(artifactId, versionId), target = result.saved
     if (sequence !== requestSequence.current) return
     if (!target || !target.versionId && !target.draftRevision) throw new Error('Dashboard is unavailable')
     const defaults = Object.fromEntries(target.manifest.controls.filter((control) => control.defaultValue !== undefined).map((control) => [control.controlId, control.defaultValue ?? null]))
     setSaved(target); setVersions(result.versions ?? []); setControls(defaults); setStatus(''); setPartial(false)
-    await selectDashboard({ artifactId: target.artifactId, versionId: target.versionId ?? undefined, draftRevision: target.draftRevision })
+    if (!readOnly && reflectNavigation) {
+      navigationKey.current = dashboardNavigationKey({ artifactId, versionId })
+      await navigateDashboard(artifactId, versionId)
+      if (sequence !== requestSequence.current) return
+    }
+    if (!readOnly) await selectDashboard({ artifactId: target.artifactId, versionId: target.versionId ?? undefined, draftRevision: target.draftRevision })
     if (sequence !== requestSequence.current) return
     if (!target.manifest.presentation) await query(target, defaults)
   }
@@ -71,11 +87,26 @@ function App() {
     try { await work() } catch (error) { if (operation === operationSequence.current) setError(error instanceof Error ? error.message : t.error) } finally { if (operation === operationSequence.current) setBusy(false) }
   }
   async function openLatest() {
+    const sequence = ++requestSequence.current
+    clearDocument()
     const result = await load()
+    if (sequence !== requestSequence.current) return
     const latest = [...result.dashboards].sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))[0]
-    if (latest) await open(latest.artifactId)
+    if (latest) await open(latest.artifactId, undefined, false)
   }
-  React.useEffect(() => startBridge((locale) => { setMessages(messages(locale)); void run(async () => { await openLatest() }) },
+  React.useEffect(() => startBridge((locale, query) => {
+    setMessages(messages(locale))
+    const parsed = dashboardNavigationSchema.safeParse(query ?? {})
+    if (!parsed.success) {
+      ++requestSequence.current; navigationKey.current = undefined; clearDocument()
+      void run(async () => { throw new Error('DASHBOARD_NAVIGATION_INVALID') })
+      return
+    }
+    const target = parsed.data, key = dashboardNavigationKey(target)
+    if (key === navigationKey.current) return
+    navigationKey.current = key
+    void run(() => target.artifactId ? open(target.artifactId, target.versionId, false) : openLatest())
+  },
     (artifactId) => { void run(() => open(artifactId)) }), [])
 
   async function save() {
@@ -92,15 +123,15 @@ function App() {
     setConfirmPublish(null)
     await open(result.artifactId, result.versionId ?? undefined)
   }
-  return <main className="dashboard-shell">
-    <header className="dashboard-toolbar border-b">
-      <h1 className="toolbar-title text-base font-semibold">{t.title}</h1>
-      <DashboardPicker items={list} value={saved?.artifactId ?? ''} disabled={busy} label={t.select}
-        searchLabel={t.search} emptyLabel={t.noResults} onChange={(id) => void run(() => open(id))}/>
+  const toolbar = <header className="dashboard-toolbar border-b">
+      <h1 className="toolbar-title text-base font-semibold">{readOnly ? saved?.title ?? t.title : t.title}</h1>
+      {!readOnly && <DashboardPicker items={list} value={saved?.artifactId ?? ''} disabled={busy} label={t.select}
+        searchLabel={t.search} emptyLabel={t.noResults} onChange={(id) => void run(() => open(id))}/>}
+      {readOnly && saved && <span className="text-xs text-muted-foreground">{t.teamReadOnly} · {t.version} {saved.versionNumber}</span>}
       <span className="toolbar-loading text-muted-foreground" role="status" title={busy ? t.loading : undefined}>
         {busy && <><RefreshCw className="size-4 motion-safe:animate-spin" aria-hidden="true"/><span className="sr-only">{t.loading}</span></>}
       </span>
-      {saved && <Select value={saved.isDraft ? 'draft' : saved.versionId ?? 'draft'} onValueChange={(id) => void run(() => open(saved.artifactId, id === 'draft' ? undefined : id))} disabled={busy}>
+      {!readOnly && saved && <Select value={saved.isDraft ? 'draft' : saved.versionId ?? 'draft'} onValueChange={(id) => void run(() => open(saved.artifactId, id === 'draft' ? undefined : id))} disabled={busy}>
         <SelectTrigger className="toolbar-version" aria-label={t.history}><SelectValue placeholder={t.history}/></SelectTrigger>
         <SelectContent><SelectItem value="draft">{t.draft}{saved.isDraft ? ` · r${saved.draftRevision}` : ''}</SelectItem>{versions.filter(item => item.versionId).map(item => <SelectItem key={item.versionId} value={item.versionId!}>{t.version} {item.versionNumber}</SelectItem>)}</SelectContent>
       </Select>}
@@ -110,16 +141,24 @@ function App() {
         <span className="toolbar-short-date">{new Date(status).toLocaleTimeString(document.documentElement.lang)}</span>
       </time>}
       <div className="toolbar-actions">
-        {saved?.isDraft && <Button disabled={busy} onClick={() => setConfirmPublish(saved)} aria-label={t.publish} title={t.publish}><Save/><span>{t.publish}</span></Button>}
-        {saved && <Button variant="outline" disabled={busy} aria-label={t.edit} title={t.edit} onClick={() => void run(async () => {
+        {!readOnly && saved?.isDraft && <Button disabled={busy} onClick={() => setConfirmPublish(saved)} aria-label={t.publish} title={t.publish}><Save/><span>{t.publish}</span></Button>}
+        {!readOnly && saved && <Button variant="outline" disabled={busy} aria-label={t.edit} title={t.edit} onClick={() => void run(async () => {
           const result = await load(saved.artifactId)
           if (!result.saved) throw new Error(t.error)
           setSaved(result.saved); setVersions(result.versions ?? []); setEditor(JSON.stringify(result.saved.manifest, null, 2))
         })}><FileJson/><span>{t.edit}</span></Button>}
-        <Button variant="outline" disabled={busy} aria-label={t.import} title={t.import} onClick={() => setEditor('')}><Plus/><span>{t.import}</span></Button>
+        {!readOnly && <Button variant="outline" disabled={busy} aria-label={t.import} title={t.import} onClick={() => setEditor('')}><Plus/><span>{t.import}</span></Button>}
+        {!readOnly && saved && <Button variant="outline" onClick={() => setSharing(true)} disabled={busy} aria-label={t.share} title={t.share}><Send/><span>{t.share}</span></Button>}
         <Button disabled={busy} aria-label={t.refresh} title={t.refresh} onClick={() => { if (saved?.manifest.presentation) { setError(''); htmlDashboard.current?.refresh() } else void run(async () => { if (saved) { await load(); await query(saved, controls) } else await openLatest() }) }}><RefreshCw/><span>{t.refresh}</span></Button>
       </div>
     </header>
+  const filters = saved && !saved.manifest.presentation && !!saved.manifest.controls.length && <section className="flex flex-wrap items-end gap-3 border-b px-4 py-3">
+    {saved.manifest.controls.map((control) => <Filter key={control.controlId} control={control} value={controls[control.controlId] ?? null} disabled={busy} onChange={(value) => setControls((current) => ({ ...current, [control.controlId]: value }))}/>)}
+    <Button type="button" variant="outline" disabled={busy} onClick={() => void run(() => query(saved, controls))}>{t.apply}</Button>
+  </section>
+  return <main className="dashboard-shell" data-read-only={readOnly || undefined}>
+    {readOnly ? <ViewerControls busy={busy} t={t}>{toolbar}{filters}</ViewerControls> : toolbar}
+    {!readOnly && sharing && saved && <ShareDialog artifactId={saved.artifactId} versionId={saved.versionId ?? undefined} versions={versions} t={t} onClose={() => setSharing(false)}/>}
     <AlertDialog open={!!confirmPublish} onOpenChange={open => { if (!open && !busy) setConfirmPublish(null) }}>
       <AlertDialogContent><AlertDialogTitle>{t.publish}</AlertDialogTitle>
         <AlertDialogDescription>{t.confirmPublish} {confirmPublish?.manifest.title} · r{confirmPublish?.draftRevision}</AlertDialogDescription>
@@ -134,10 +173,7 @@ function App() {
       <details className="text-xs"><summary>{t.sources}</summary><pre className="max-h-32 overflow-auto">{JSON.stringify(sources, null, 2)}</pre></details>
       <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setEditor(null)} disabled={busy}>{t.cancel}</Button><Button onClick={() => void run(save)} disabled={busy || !editor.trim()}><Save/>{t.save}</Button></div>
     </section> : <>
-      {saved && !saved.manifest.presentation && !!saved.manifest.controls.length && <section className="flex flex-wrap items-end gap-3 border-b px-4 py-3">
-        {saved.manifest.controls.map((control) => <Filter key={control.controlId} control={control} value={controls[control.controlId] ?? null} disabled={busy} onChange={(value) => setControls((current) => ({ ...current, [control.controlId]: value }))}/>)}
-        <Button type="button" variant="outline" disabled={busy} onClick={() => void run(() => query(saved, controls))}>{t.apply}</Button>
-      </section>}
+      {!readOnly && filters}
       {partial && <p role="status" className="px-4 py-2 text-sm">{t.partial}</p>}
       <section className="canvas-panel" aria-busy={busy}>
         {!busy && !html && !saved?.manifest.presentation && !error && <p className="p-6 text-muted-foreground">{t.empty}</p>}

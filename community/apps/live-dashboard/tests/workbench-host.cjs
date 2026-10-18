@@ -5,13 +5,15 @@ const path = require('node:path')
 const { randomUUID, createHash } = require('node:crypto')
 const { DashboardService } = require('../dist/lib/dashboard.service.js')
 const { DashboardViewProvider } = require('../dist/lib/view.provider.js')
+const { DashboardSharingService } = require('../dist/lib/sharing.service.js')
 const { normalizeAnalyticsResult, resolveAnalyticsParameters } = require('@xpert-ai/plugin-sdk/analytics')
 const sourceId = '22222222-2222-4222-8222-222222222222'
 const scope = { tenantId: 'tenant', organizationId: 'organization', userId: 'viewer', hostType: 'agent', hostId: 'assistant', slots: [] }
 const artifacts = new Map(), files = new Map(), versions = new Map(), drafts = new Map()
+const links = new Map()
 const receipts = { queries: 0, parameters: [], saves: 0, selection: null }
 const manifest = require('../examples/postgres-sales.json')
-const source = { id: sourceId, name: 'Acceptance sales', type: 'pg', providers: [] }
+const source = { id: sourceId, name: 'Acceptance sales', type: 'pg', providers: [{ id: manifest.bindings[0].providerId }] }
 const capabilities = {
   'platform.datasource.analytics': {
     async list() { return [source] },
@@ -48,6 +50,14 @@ const capabilities = {
     }
   },
   'platform.artifacts': {
+    async getArtifactShare({ artifactId }) { return links.get(artifactId) ?? null },
+    async ensureArtifactShare(input) {
+      const previous = links.get(input.artifactId)
+      if (previous?.status === 'active' && previous.versionMode === input.versionMode && previous.artifactVersionId === input.artifactVersionId) return { link: previous }
+      const link = { ...input, status: 'active', presentationUrl: `https://platform.test/artifacts/view/${randomUUID()}` }
+      links.set(input.artifactId, link); return { link }
+    },
+    async revokeArtifactShare({ artifactId }) { const link = links.get(artifactId); if (link) link.status = 'revoked' },
     async listArtifacts() { return { items: [...artifacts.values()], total: artifacts.size, page: 1, pageSize: 100 } },
     async findArtifactBySource(input) { return [...artifacts.values()].find((artifact) => artifact.resourceId === input.resourceId) ?? null },
     async createArtifact(input) { const artifact = { id: randomUUID(), ...input.source, ...input.scope, title: input.title, kind: input.kind, status: 'active' }; artifacts.set(artifact.id, artifact); return artifact },
@@ -66,14 +76,14 @@ const capabilities = {
 }
 const runtime = { require(key) { const api = capabilities[key.id]; if (!api) throw new Error(`Missing capability ${key.id}`); return api } }
 const service = new DashboardService(runtime, { async validate(_context, manifest) { if (manifest.presentation) throw Error('HTML validation requires the real Sandbox Jobs host'); return null } })
-const provider = new DashboardViewProvider(service)
+const provider = new DashboardViewProvider(service, new DashboardSharingService(service, runtime))
 const host = `<!doctype html><html><head><meta charset="utf-8"><title>Live Dashboard acceptance host</title><style>html,body,iframe{margin:0;width:100%;height:100%;border:0}</style></head><body><iframe id="view" title="Dashboard workbench" src="/view" sandbox="allow-scripts"></iframe><script>
 const frame=document.getElementById('view');const instanceId='acceptance-host';
 function send(message){frame.contentWindow.postMessage({channel:'xpertai.remote_component',protocolVersion:1,instanceId,...message},'*')}
 window.addEventListener('message',async event=>{if(event.source!==frame.contentWindow||event.origin!=='null'||event.data.channel!=='xpertai.remote_component')return;const message=event.data;
 if(message.type==='ready'){send({type:'init',locale:'zh-Hans',theme:{mode:'light',density:'default',tokens:{}},manifest:{},payload:{}});return}
 if(message.instanceId!==instanceId||!['requestData','executeAction','invokeClientCommand'].includes(message.type))return;
-try{const response=await fetch('/rpc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(message)});const data=await response.json();if(!response.ok)throw new Error(data.message);send({type:message.type==='requestData'?'data':'actionResult',requestId:message.requestId,data})}catch(error){send({type:'error',requestId:message.requestId,message:error.message})}})
+try{const response=await fetch('/rpc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(message)});const data=await response.json();if(message.commandKey==='workbench.navigation.open')send({type:'init',locale:'zh-Hans',initialQuery:{selectionId:message.payload.selectionId,parameters:message.payload.parameters}});if(!response.ok)throw new Error(data.message);send({type:message.type==='requestData'?'data':'actionResult',requestId:message.requestId,data})}catch(error){send({type:'error',requestId:message.requestId,message:error.message})}})
 </script></body></html>`
 const server = http.createServer(async (request, response) => {
   try {
@@ -88,6 +98,7 @@ const server = http.createServer(async (request, response) => {
       for await (const chunk of request) { size += chunk.length; if (size > 600000) throw new Error('Too large'); chunks.push(chunk) }
       const message = JSON.parse(Buffer.concat(chunks).toString())
       if (message.type === 'invokeClientCommand') {
+        if (message.commandKey === 'workbench.navigation.open') { response.end(JSON.stringify({ success: true })); return }
         if (message.commandKey !== 'assistant.context.set' || message.payload.key !== 'live_dashboard') throw Error('Unsupported command')
         receipts.selection = message.payload.context
         response.end(JSON.stringify({ success: true })); return

@@ -35,10 +35,10 @@ Read [data-validation.md](references/data-validation.md) when creating a dashboa
 ## Continue editing the same dashboard
 
 1. Call `dashboard_open({})` for the selected Workbench dashboard, or provide an exact Artifact ID from `dashboard_list`. Do not choose the most recent dashboard by guesswork or create a replacement Artifact.
-2. For a current HTML dashboard, the result includes a new `htmlPath` editing copy of the latest saved draft, plus `editId`, `expectedRevision` and `expectedCurrentVersionId`. Read this copy with SandboxFile before editing. Each open prepares a separate copy, preserving any uncommitted earlier files.
-3. Apply requested changes with SandboxFile edits. Preserve data semantics, controls, query/subscription lifecycle and library locks unless the request changes them.
-4. Automatically call `dashboard_update({"editId":"<returned ID>","expectedRevision":<returned revision>,"expectedCurrentVersionId":<returned UUID or null>,"htmlPath":"<editing file>","title":"<new title if requested>"})`. Omit unchanged fields. Updating the visible heading does not rename the saved dashboard; pass `title` as well when renaming.
-5. Check the saved draft receipt and its `sourceFile` path/hash. For another batch, reopen the latest draft and use its new revisions. If the save fails, repair the file and retry; do not claim success. If a revision conflict occurs, keep the edited file, open/read the latest state and reconcile before saving.
+2. Inspect `presentation.type`. For a standard dashboard, update definition fields directly; a rename needs only `title`, `editId`, `expectedRevision` and `expectedCurrentVersionId`. No HTML file exists: omit `htmlPath` and `libraries`. For a current HTML dashboard, the result includes a new `htmlPath` editing copy of the latest saved draft, plus `editId`, `expectedRevision` and `expectedCurrentVersionId`. Read this copy with SandboxFile before editing. Each open prepares a separate copy, preserving any uncommitted earlier files.
+3. For HTML pages, apply requested changes with SandboxFile edits. Preserve data semantics, controls, query/subscription lifecycle and library locks unless the request changes them.
+4. Automatically call `dashboard_update({"editId":"<returned ID>","expectedRevision":<returned revision>,"expectedCurrentVersionId":<returned UUID or null>,"title":"<new title if requested>"})` with the changed definition fields. When saving edited HTML, also supply the exact `htmlPath` of the editing file. Omit unchanged fields. Updating the visible heading does not rename the saved dashboard; pass `title` as well when renaming.
+5. Check the saved draft receipt; for HTML file updates also check its `sourceFile` path/hash. For another batch, reopen the latest draft and use its new revisions. If the save fails, correct the definition or editing file and retry; do not claim success. If a revision conflict occurs, keep the edited file, open/read the latest state and reconcile before saving.
 6. Historical `versionId` reads do not prepare an editable copy. Use `dashboard_read_html` to inspect historical source, then open the current draft to apply an intentional change.
 
 ## Save, preview and human publication
@@ -46,6 +46,12 @@ Read [data-validation.md](references/data-validation.md) when creating a dashboa
 Agent saves are automatic working-draft saves; do not ask the user to confirm each edit. They preserve Artifact identity and published history. Only human confirmation in Workbench publishes a formal version. Never invent a v-number or equate file creation with a saved dashboard.
 
 A successful save performs HTML/data validation and preserves the declaration-only Binding query boundary. On a failed save, the editing file remains available for correction while the last valid dashboard stays unchanged. Report the actual blocker when you cannot obtain a saved receipt.
+
+## Show a dashboard in chat
+
+Successful `dashboard_create`, `dashboard_create_html`, `dashboard_update` and `dashboard_open` calls emit a platform resource card automatically. Use `dashboard_list` to find an existing dashboard, then `dashboard_open` with its exact Artifact ID to present it. Do not invent Markdown links, emit raw HTML, or call `present_files` to represent the dashboard.
+
+The card is a compact receipt with an Open button. It opens the registered Workbench view and exact Artifact. Draft cards open the latest saved content; an explicitly requested historical `versionId` stays pinned. The message snapshot is not proof of a later save or publication. Refer to the tool receipt when describing the result; do not claim a card was delivered if the host reports a presentation failure.
 
 ## Verify the result
 

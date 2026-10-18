@@ -1,0 +1,42 @@
+---
+title: "Verification"
+description: "Source-level, protocol and plugin lifecycle checks, with explicit limits."
+---
+
+## Local feature verification
+
+The platform tests cover exact tenant/organization/workspace scoping, current-viewer identity,
+connection denial, enabled-tool selection, input/output schemas, contract drift, error results,
+interactive requests, revocation, cancellation and late connection cleanup. A real loopback
+HTTP MCP fixture exercises the existing platform client, discovery, filtered queries, changing
+upstream data and tool disablement without mocking `fetch`. It covers both the platform's
+modern HTTP discovery path and its existing SDK's `2025-03-26` Streamable HTTP path, using
+structured content and JSON text respectively. It does not claim that the existing legacy
+SDK supports every newer protocol version.
+
+Plugin tests cover catalog discovery/inspection, typed and nested result mapping, exact decimal
+values, empty results, row limits, explicit partial results, parameter paths, rejected overrides,
+filtered refresh and serialization/reopening of the same Binding. The latter verifies portable
+Binding behavior; it is not an Artifact persistence or browser reopening test.
+
+```sh
+# In the community workspace
+corepack pnpm --filter @xpert-ai/plugin-analytics-mcp test
+
+# In the plugin repository, after building
+node plugin-dev-harness/dist/index.js --workspace ./community --plugin @xpert-ai/plugin-analytics-mcp
+```
+
+During source development these checks use the matching locally built platform SDK containing
+`McpClientRuntimeCapability`. The normal dependency lock remains on published versions;
+source-build success does not prove that this newly added export is already on npm. Update the
+host and publish/consume the matching SDK before distributing this private plugin.
+
+## Deployment acceptance still required
+
+This batch does not claim xpert-pro/data-xpert SSO, a real external MCP OAuth login, Agent
+one-sentence generation or browser save/reopen acceptance. For that stage, use an existing
+authorized test MCP connection and a published Assistant, install the matching host/plugin,
+create a DataSource with approved metadata, then generate, filter, refresh, save and reopen
+both a standard and an HTML dashboard. Disable the MCP tool and revoke workspace access to
+confirm denial. Preserve the existing Binding boundary tests.

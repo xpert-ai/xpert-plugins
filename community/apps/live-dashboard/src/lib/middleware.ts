@@ -1,5 +1,6 @@
 import { SystemMessage } from '@langchain/core/messages'
 import { tool } from '@langchain/core/tools'
+import type { RunnableConfig } from '@langchain/core/runnables'
 import { createHash, randomUUID } from 'node:crypto'
 import { z } from 'zod/v3'
 import type { AnalyticsBinding, AnalyticsDiscoveryResult, AnalyticsValue, TAgentMiddlewareMeta, XpertResolvedViewHostContext } from '@xpert-ai/contracts'
@@ -15,10 +16,12 @@ import { createEditingTools, dashboardContextSchema, EDITING_GUIDANCE } from './
 import { DASHBOARD_MUTATION_TOOLS } from './dashboard-receipt'
 import { createFilterEvidence } from './filter-evidence'
 import { dashboardSaveEvidence } from './save-evidence'
+import { emitDashboardCard } from './resource-card'
+import { dashboardIcon } from './dashboard-icon'
 
 const middlewareOptionsSchema = z.object({ allowedFinalProviders: z.array(z.string().min(1)).min(1).max(20).optional() }).strict()
 
-export const DASHBOARD_GUIDANCE = `For creating or editing live dashboards, first read the installed live-dashboard skill using read_skill_file and follow only the references relevant to the task. Use SandboxFile tools for all source-file authoring; HTML alone is not a saved dashboard. Business definitions, real data previews and nullable-filter tests are required before saving new or changed Bindings. Do not invent business data or substitute a different metric without agreement. Report completion only from a successful dashboard_create/dashboard_create_html/dashboard_update draft receipt. Human publication is separate.`
+export const DASHBOARD_GUIDANCE = `For creating or editing live dashboards, first read the installed live-dashboard skill using read_skill_file and follow only the references relevant to the task. Use SandboxFile tools for all source-file authoring; HTML alone is not a saved dashboard. Business definitions, real data previews and nullable-filter tests are required before saving new or changed Bindings. Do not invent business data or substitute a different metric without agreement. Report completion only from a successful dashboard_create/dashboard_create_html/dashboard_update draft receipt. Human publication is separate. Successful create, update and open tools emit a chat resource card automatically; resourceCard.status reports emission. Its Open button selects the exact dashboard in Workbench. Never fabricate a link, call present_files for dashboard HTML, or output card JSON as text. If card delivery is unavailable, report the saved receipt and use the Workbench picker.`
 
 @AgentMiddlewareStrategy('LiveDashboard')
 export class DashboardMiddleware implements IAgentMiddlewareStrategy {
@@ -26,10 +29,7 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
     name: 'LiveDashboard', label: { en_US: 'Live dashboards', zh_Hans: '实时看板' },
     description: { en_US: 'Discover, preview, create and update governed live dashboards.', zh_Hans: '发现业务数据、验证查询并持续修改实时看板。' },
     // Tools inherit this self-contained icon through the platform middleware metadata.
-    icon: {
-      type: 'svg',
-      value: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M7 16v-4m5 4V7m5 9v-6"/></svg>'
-    }, features: [FEATURE], configSchema: { type: 'object', properties: {
+    icon: dashboardIcon, features: [FEATURE], configSchema: { type: 'object', properties: {
       allowedFinalProviders: { type: 'array', items: { type: 'string' }, title: { en_US: 'Allowed final dashboard providers', zh_Hans: '最终看板允许的 Provider' },
         description: { en_US: 'Optional provider IDs required for saved Agent dashboards. Upstream previews remain available.', zh_Hans: '可选的最终看板 Provider ID 列表，不限制上游来源预览。' } }
     }, additionalProperties: false }
@@ -44,6 +44,7 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
     }
     // Evidence belongs to this run and actor, never a process-wide cache of business data.
     const discovered = new Map<string, AnalyticsDiscoveryResult['queryContract']>(), previews = new Map<string, AnalyticsBinding>()
+    let listedSources: Awaited<ReturnType<DashboardService['sources']>> | undefined
     const filterEvidence = createFilterEvidence(this.service, scope, previews)
     const created = new Map<string, { manifest: DashboardManifest; receipt: Awaited<ReturnType<DashboardService['save']>> }>()
     const preview = async (binding: AnalyticsBinding) => {
@@ -76,7 +77,7 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
         }
       }
     }
-    const save = async (input: z.infer<typeof createToolSchema>, html?: string, dependencies: ArtifactDocumentDependencyLock[] = []) => {
+    const save = async (input: z.infer<typeof createToolSchema>, config?: RunnableConfig, html?: string, dependencies: ArtifactDocumentDependencyLock[] = []) => {
       const { previewIds, ...definition } = input
       const bindings = resolvePreviews(previewIds)
       const manifest = dashboardSchema.parse({ ...definition, bindings, schema: 'xpert.live-dashboard/v1', id: randomUUID(),
@@ -87,13 +88,15 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
       if (previous) {
         const receipt = await this.service.save(scope, previous.manifest, previous.receipt.baseVersionId, previous.receipt.draftRevision)
         created.set(key, { manifest: previous.manifest, receipt })
-        return dashboardReceipt(receipt)
+        const resourceCard = await emitDashboardCard(scope, { ...receipt, state: 'draft', revision: receipt.draftRevision }, config)
+        return JSON.stringify({ dashboard: receipt, resourceCard })
       }
       const sameTitle = [...created.values()].find(item => item.manifest.title === manifest.title)
       if (sameTitle) throw new Error(`DASHBOARD_ALREADY_CREATED: this run already saved this dashboard. Use dashboard_open with artifactId ${sameTitle.receipt.artifactId}, then dashboard_update with fresh previewIds for data changes; preserve the Artifact instead of creating another one.`)
       const result = await this.service.save(scope, manifest, null)
       created.set(key, { manifest, receipt: result })
-      return dashboardReceipt(result)
+      const resourceCard = await emitDashboardCard(scope, { ...result, state: 'draft', revision: result.draftRevision }, config)
+      return JSON.stringify({ dashboard: result, resourceCard })
     }
     const evidence = dashboardSaveEvidence(() => {
       const files = context.runtime?.capabilities?.require(WorkspaceFilesRuntimeCapability)
@@ -106,9 +109,9 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
         const name = request.toolCall.name
         const args = request.toolCall.args
         const path = workspaceFileMutationPath(request.tool && 'metadata' in request.tool ? request.tool.metadata : undefined, args)
-        if (path && (evidence.has(path) || previews.size > 0 && htmlPathSchema.safeParse(path).success)) evidence.write(path)
         const save = DASHBOARD_MUTATION_TOOLS.includes(name) ? evidence.beginSave() : undefined
-        const result = await handler(request)
+        const result = path && (evidence.has(path) || previews.size > 0 && htmlPathSchema.safeParse(path).success)
+          ? await evidence.trackWrite(path, async () => handler(request)) : await handler(request)
         if (save && 'content' in result && (!('status' in result) || result.status !== 'error')) await evidence.accept(save, result.content)
         return result
       }, wrapModelCall: async (request, handler) => {
@@ -129,11 +132,16 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
       { name: 'dashboard_libraries', description: 'Discover packaged frontend libraries and exact versions available to HTML dashboards. Read before using ECharts/Three.js. Returns metadata, never library source.',
         schema: z.object({}).strict(), verboseParsingErrors: true, metadata: { toolName: { en_US: 'Discover dashboard libraries', zh_Hans: '查看看板前端图库' } } }),
       ...createEditingTools(this.service, scope, context, resolvePreviews, validateFinal, (path, artifactId) => evidence.opened(path, artifactId)),
-      tool(async () => JSON.stringify(await this.service.sources(scope)), {
+      tool(async () => {
+        listedSources = await this.service.sources(scope)
+        return JSON.stringify(listedSources)
+      }, {
         name: 'dashboard_list_sources', description: 'List authorized analytics sources and versioned providers. Start here; IDs must come from this list.',
         schema: z.object({}).strict(), verboseParsingErrors: true, metadata: { toolName: { en_US: 'List analytics sources', zh_Hans: '发现分析数据源' } }
       }),
       tool(async (input: z.infer<typeof discoverToolSchema>) => {
+        if (listedSources && !listedSources.some(source => source.id === input.dataSourceId && source.providers.some(provider => provider.id === input.providerId)))
+          throw new Error(`DASHBOARD_SOURCE_SELECTION_INVALID: copy an exact dataSourceId/providerId pair from dashboard_list_sources; do not invent or combine IDs. Known pairs: ${JSON.stringify(listedSources.map(source => ({ dataSourceId: source.id, name: source.name, providerIds: source.providers.map(provider => provider.id) })))}. Refresh the list if the source changed. Initial requestJson is "{}"; then follow inspectRequest/nextRequest.`)
         const parsed = { dataSourceId: input.dataSourceId, providerId: input.providerId, request: parseObjectJson(input.requestJson) }
         const result = await this.service.discover(scope, parsed)
         discovered.set(`${parsed.dataSourceId}/${parsed.providerId}`, result.queryContract)
@@ -152,28 +160,23 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
         schema: z.object({ bindingJson: z.string().min(2).max(200000) }).strict(), verboseParsingErrors: true,
         metadata: { toolName: { en_US: 'Verify registered dataset', zh_Hans: '验证已注册数据集' } }
       }),
-      tool(async (input: z.infer<typeof createToolSchema>) => save(input), { name: 'dashboard_create', description: 'Save a standard chart/table dashboard from previewId receipts. For custom HTML use dashboard_create_html. Fields and defaults must match previewed parameters. Returns a saved Artifact receipt after current access/data revalidation.',
+      tool(async (input: z.infer<typeof createToolSchema>, config) => save(input, config), { name: 'dashboard_create', description: 'Save a standard chart/table dashboard from previewId receipts. For custom HTML use dashboard_create_html. Fields and defaults must match previewed parameters. Returns a saved Artifact receipt after current access/data revalidation.',
         schema: createToolSchema, verboseParsingErrors: true,
         metadata: { toolName: { en_US: 'Save live dashboard', zh_Hans: '生成并保存实时看板' } } }),
-      tool(async (input: z.infer<typeof createHtmlToolSchema>) => {
+      tool(async (input: z.infer<typeof createHtmlToolSchema>, config) => {
         const files = context.runtime?.capabilities?.require(WorkspaceFilesRuntimeCapability)
         if (!files) throw new Error('DASHBOARD_WORKSPACE_REQUIRED')
         const file = await files.readRuntimeBuffer(input.path)
         if (file.buffer.byteLength > 300000) throw new Error('DASHBOARD_HTML_TOO_LARGE')
         const html = artifactDocumentHtml.parse(new TextDecoder('utf-8', { fatal: true }).decode(file.buffer))
         const { path, libraries, ...definition } = input
-        const result = JSON.parse(await save({ ...definition, charts: [], tables: [] }, html, await libraryLocks(libraries ?? [])))
+        const result = JSON.parse(await save({ ...definition, charts: [], tables: [] }, config, html, await libraryLocks(libraries ?? [])))
         return JSON.stringify({ ...result, sourceFile: { path, sha256: createHash('sha256').update(file.buffer).digest('hex') } })
       }, { name: 'dashboard_create_html', description: 'Save custom HTML from a Workspace path together with run-local preview receipts and controls in one persistent draft (human publication is separate). Requires real data preview; does not accept query payloads or cached rows.',
         schema: createHtmlToolSchema, verboseParsingErrors: true,
         metadata: { toolName: { en_US: 'Save HTML dashboard', zh_Hans: '保存自由样式看板' } } })
     ] }
   }
-}
-// This is a managed dashboard definition, not a generated file to open in a text editor.
-// Keep its Artifact receipt under the domain key; the View handles presentation.
-function dashboardReceipt(saved: Awaited<ReturnType<DashboardService['save']>>) {
-  return JSON.stringify({ dashboard: saved })
 }
 function previewKey(binding: AnalyticsBinding, controls: Record<string, AnalyticsValue>) {
   return hash({ binding, controls: Object.fromEntries(binding.parameters.map((parameter) => [parameter.controlId, Object.hasOwn(controls, parameter.controlId) ? controls[parameter.controlId] : parameter.defaultValue ?? null])) })

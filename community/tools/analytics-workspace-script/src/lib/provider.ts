@@ -12,6 +12,7 @@ import { scriptFailureHint } from './diagnostics'
 export class WorkspaceScriptProvider implements AnalyticsQueryProvider {
   readonly descriptor: AnalyticsProviderDescriptor = {
     id: PROVIDER, name: 'Workspace Python / JavaScript', dataSourceTypes: ['workspace-script'],
+    sharing: { mode: 'owner_only', reasonCode: 'WORKSPACE_SCRIPT_PRIVATE_DEPENDENCIES' },
     operations: [{ name: 'query', contractVersion: 1, readOnly: true }],
     connectionType: { type: 'workspace-script', name: 'Workspace scripts', configuration: { type: 'object', properties: {}, additionalProperties: false } }
   }

@@ -25,6 +25,7 @@ test('HTML validation uses isolated job with real datasets and removes temporary
   assert.equal(result.status, 'passed'); assert.equal(s.calls[0].action, 'live_dashboard.validate-html')
   assert.equal(s.calls[0].scope.userId, 'owner'); assert.equal(s.calls[0].files[0].reference.catalog, 'users')
   assert.deepEqual(s.content().datasets[manifest.bindings[0].id], dataset)
+  assert.deepEqual(s.content().parameters[manifest.bindings[0].id], manifest.bindings[0].parameters)
   assert.deepEqual([...new Set(s.removed)], ['private-report', 'private-input'])
 })
 test('HTML runtime errors return actionable failure and clean up without saving', async () => {

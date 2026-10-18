@@ -36,7 +36,8 @@ export const dashboardSchema = z.object({
     for (const parameter of parameters) {
       if (parameter.defaultValue !== undefined && control.defaultValue !== undefined && parameter.defaultValue !== control.defaultValue)
         ctx.addIssue({ code: 'custom', message: 'Control and parameter defaults disagree' })
-      if (parameter.allowedValues && values.some((value) => !parameter.allowedValues?.includes(value)))
+      // Match platform resolveAnalyticsParameters: null is governed by required, not the scalar allowlist.
+      if (values.some((value) => value === null ? parameter.required : parameter.allowedValues && !parameter.allowedValues.includes(value)))
         ctx.addIssue({ code: 'custom', message: 'Control values conflict with parameter restrictions' })
     }
   }
