@@ -1,0 +1,12 @@
+---
+title: 'Verification'
+description: 'Contract checks and local application acceptance.'
+---
+
+The package test suite uses actual CSV, JSON and XLSX bytes and the shipped Worker entrypoint. It checks exact sums, filtering, source replacement, saved Binding reuse, discovery redaction, output contracts, revocation before/after processing, Project/private ownership, invalid paths, cancellation, schema drift, formulas, ZIP expansion, forged ZIP sizes and streaming/stored ZIP compatibility.
+
+Run the plugin lifecycle harness after building. A successful mock lifecycle test establishes loadability, not live file authorization or Agent behavior.
+
+For local application acceptance, configure equivalent CSV/JSON/XLSX datasets in a published test Assistant's Workspace. Generate a dashboard through a real Chat request, compare totals with known fixture values, change a filter, update the source through the Files API and refresh. Close/reopen the resource card and reload the host page. Verify the same Artifact and saved Binding, with newly fetched source data.
+
+Revoke the viewer's source/file access and verify discovery and saved queries fail; restore it and retry. Test unknown Bindings, undeclared controls, payload/file overrides, direct browser fetch and parent DOM access. Keep environment-specific receipts outside the repository. Local acceptance does not constitute a formal release verification.
