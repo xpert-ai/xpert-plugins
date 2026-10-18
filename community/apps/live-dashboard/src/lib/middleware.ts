@@ -21,7 +21,7 @@ import { dashboardIcon } from './dashboard-icon'
 
 const middlewareOptionsSchema = z.object({ allowedFinalProviders: z.array(z.string().min(1)).min(1).max(20).optional() }).strict()
 
-export const DASHBOARD_GUIDANCE = `For creating or editing live dashboards, first read the installed live-dashboard skill using read_skill_file and follow only the references relevant to the task. Use SandboxFile tools for all source-file authoring; HTML alone is not a saved dashboard. Business definitions, real data previews and nullable-filter tests are required before saving new or changed Bindings. Do not invent business data or substitute a different metric without agreement. Report completion only from a successful dashboard_create/dashboard_create_html/dashboard_update draft receipt. Human publication is separate. Successful create, update and open tools emit a chat resource card automatically; resourceCard.status reports emission. Its Open button selects the exact dashboard in Workbench. Never fabricate a link, call present_files for dashboard HTML, or output card JSON as text. If card delivery is unavailable, report the saved receipt and use the Workbench picker.`
+export const DASHBOARD_GUIDANCE = `For a new dashboard, call dashboard_list_sources before searching raw files, reading old scripts or creating transformations. Named governed sources may already provide the required query; inspect their provider contracts first. File-backed sources do not imply that a script must be written. For creating or editing live dashboards, first read the installed live-dashboard skill using read_skill_file and follow only the references relevant to the task. Use SandboxFile tools for all source-file authoring; HTML alone is not a saved dashboard. Business definitions, real data previews and nullable-filter tests are required before saving new or changed Bindings. Do not invent business data or substitute a different metric without agreement. Report completion only from a successful dashboard_create/dashboard_create_html/dashboard_update draft receipt. Human publication is separate. Successful create, update and open tools emit a chat resource card automatically; resourceCard.status reports emission. Its Open button selects the exact dashboard in Workbench. Never fabricate a link, call present_files for dashboard HTML, or output card JSON as text. If card delivery is unavailable, report the saved receipt and use the Workbench picker.`
 
 @AgentMiddlewareStrategy('LiveDashboard')
 export class DashboardMiddleware implements IAgentMiddlewareStrategy {
@@ -78,12 +78,12 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
       }
     }
     const save = async (input: z.infer<typeof createToolSchema>, config?: RunnableConfig, html?: string, dependencies: ArtifactDocumentDependencyLock[] = []) => {
-      const { previewIds, ...definition } = input
+      const { previewIds, supersedesPaths, ...definition } = input
       const bindings = resolvePreviews(previewIds)
       const manifest = dashboardSchema.parse({ ...definition, bindings, schema: 'xpert.live-dashboard/v1', id: randomUUID(),
         ...(html ? { presentation: { type: 'html', html, ...(dependencies.length ? { dependencies } : {}) } } : {}) })
       validateFinal(manifest, true)
-      const key = hash({ input, html, dependencies })
+      const key = hash({ input: { ...definition, previewIds }, html, dependencies })
       const previous = created.get(key)
       if (previous) {
         const receipt = await this.service.save(scope, previous.manifest, previous.receipt.baseVersionId, previous.receipt.draftRevision)
@@ -109,7 +109,9 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
         const name = request.toolCall.name
         const args = request.toolCall.args
         const path = workspaceFileMutationPath(request.tool && 'metadata' in request.tool ? request.tool.metadata : undefined, args)
-        const save = DASHBOARD_MUTATION_TOOLS.includes(name) ? evidence.beginSave() : undefined
+        const creation = name === 'dashboard_create_html' ? createHtmlToolSchema.safeParse(args)
+          : name === 'dashboard_create' ? createToolSchema.safeParse(args) : undefined
+        const save = DASHBOARD_MUTATION_TOOLS.includes(name) ? evidence.beginSave(creation?.success ? creation.data.supersedesPaths : undefined, name === 'dashboard_create' ? 'draft' : 'source') : undefined
         const result = path && (evidence.has(path) || previews.size > 0 && htmlPathSchema.safeParse(path).success)
           ? await evidence.trackWrite(path, async () => handler(request)) : await handler(request)
         if (save && 'content' in result && (!('status' in result) || result.status !== 'error')) await evidence.accept(save, result.content)
@@ -119,7 +121,7 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
       if (exhausted && evidence.pending) throw new Error('DASHBOARD_SAVE_NOT_CONFIRMED: no successful draft save receipt; Workspace changes have not been saved to the dashboard.')
       const result = await handler({ ...request, ...(evidence.pending ? { toolChoice: 'required' as const } : {}), ...(exhausted ? { tools: [] } : {}), systemMessage: new SystemMessage({ content: [
         ...(typeof request.systemMessage?.content === 'string' ? [{ type: 'text' as const, text: request.systemMessage.content }] : request.systemMessage?.content ?? []),
-        { type: 'text', text: DASHBOARD_GUIDANCE + '\n' + HTML_DASHBOARD_GUIDANCE + '\n' + EDITING_GUIDANCE + (evidence.pending ? `\nDashboard changes are pending without a matching draft save receipt. Unsaved files: ${JSON.stringify(evidence.pendingPaths)}. Continue reading/repairing and call dashboard_create_html or dashboard_update with the exact file path; do not finish or claim it was saved.` : '') + (options.allowedFinalProviders ? `\nThis Assistant requires every saved dashboard binding to use one of these providers: ${options.allowedFinalProviders.join(', ')}. Other providers may be previewed only as upstream inputs. Do not save a direct-source substitute.` : '') + (exhausted ? '\nThe dashboard tool budget is exhausted. Stop calls; report only saved receipts or explain the concrete blocker truthfully.' : '') }
+        { type: 'text', text: DASHBOARD_GUIDANCE + '\n' + HTML_DASHBOARD_GUIDANCE + '\n' + EDITING_GUIDANCE + (evidence.pending ? `\nDashboard changes are pending without a matching draft save receipt. Unsaved files: ${JSON.stringify(evidence.pendingPaths)}. Continue reading/repairing and call dashboard_create_html or dashboard_update with the exact file path; do not finish or claim it was saved. When abandoning earlier unsaved HTML creation candidates, explicitly pass their exact paths as supersedesPaths to dashboard_create or dashboard_create_html, matching the requested presentation mode. If a standard dashboard is already saved, repeat dashboard_create with the same definition/previewIds and supersedesPaths; do not create an unwanted HTML dashboard. This only abandons those candidates after a successful save; it never discards another Artifact editing copy.` : '') + (options.allowedFinalProviders ? `\nThis Assistant requires every saved dashboard binding to use one of these providers: ${options.allowedFinalProviders.join(', ')}. Other providers may be previewed only as upstream inputs. Do not save a direct-source substitute.` : '') + (exhausted ? '\nThe dashboard tool budget is exhausted. Stop calls; report only saved receipts or explain the concrete blocker truthfully.' : '') }
       ] }) })
       if (evidence.pending && result && !result.tool_calls?.length) throw new Error('DASHBOARD_SAVE_NOT_CONFIRMED: the model stopped without a successful draft save receipt.')
       return result
@@ -164,12 +166,13 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
         schema: createToolSchema, verboseParsingErrors: true,
         metadata: { toolName: { en_US: 'Save live dashboard', zh_Hans: '生成并保存实时看板' } } }),
       tool(async (input: z.infer<typeof createHtmlToolSchema>, config) => {
+        if (input.supersedesPaths?.includes(input.path)) throw new Error('DASHBOARD_SUPERSEDE_INVALID: the saved path cannot supersede itself')
         const files = context.runtime?.capabilities?.require(WorkspaceFilesRuntimeCapability)
         if (!files) throw new Error('DASHBOARD_WORKSPACE_REQUIRED')
         const file = await files.readRuntimeBuffer(input.path)
         if (file.buffer.byteLength > 300000) throw new Error('DASHBOARD_HTML_TOO_LARGE')
         const html = artifactDocumentHtml.parse(new TextDecoder('utf-8', { fatal: true }).decode(file.buffer))
-        const { path, libraries, ...definition } = input
+        const { path, libraries, supersedesPaths, ...definition } = input
         const result = JSON.parse(await save({ ...definition, charts: [], tables: [] }, config, html, await libraryLocks(libraries ?? [])))
         return JSON.stringify({ ...result, sourceFile: { path, sha256: createHash('sha256').update(file.buffer).digest('hex') } })
       }, { name: 'dashboard_create_html', description: 'Save custom HTML from a Workspace path together with run-local preview receipts and controls in one persistent draft (human publication is separate). Requires real data preview; does not accept query payloads or cached rows.',

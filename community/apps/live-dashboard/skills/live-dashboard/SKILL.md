@@ -20,14 +20,14 @@ Read [data-validation.md](references/data-validation.md) when creating a dashboa
 - Create a new file with `sandbox_write_file({"file_path":"dashboards/sales.html","content":"<!doctype html>..."})`.
 - Read an existing file with `sandbox_read_file({"file_path":"..."})`.
 - Change existing text with `sandbox_edit_file({"file_path":"...","old_string":"exact old text","new_string":"replacement"})`; use `sandbox_multi_edit_file` for multiple changes.
-- `sandbox_write_file` does not overwrite existing files. Use edits or create a new named file. For a long new document, append subsequent complete segments with `sandbox_append_file` before saving the dashboard.
+- `sandbox_write_file` does not overwrite existing files. Repair the current candidate with edits. If replacing an unsaved creation candidate with a new named file, include the earlier exact path in `supersedesPaths` on `dashboard_create_html` (or `dashboard_create` when choosing standard charts instead); only a successful save abandons that candidate, and files remain in Workspace. Do not abandon editing copies from `dashboard_open`. For a long new document, append subsequent complete segments with `sandbox_append_file` before saving the dashboard.
 - Paths are relative to the current sandbox working directory. Use a real filename (`dashboards/sales.html`), never `.html`, whitespace-only names, absolute paths or guessed host paths. Copy returned paths exactly.
 - The file content key is `content`, not `html`. The removed `dashboard_write_html` and `workspace_dataset_write_file` tools must not be used.
 
 ## Create a new dashboard
 
-1. Discover the authorized source and business schema. Validate the metric, period, grain, units and filters through real preview results; follow the data-validation reference.
-2. For HTML mode, read the HTML runtime reference and call `dashboard_libraries` before using ECharts or Three.js. Write a complete HTML page using SandboxFile.
+1. Call `dashboard_list_sources` before searching raw files, reading old scripts or creating transformations. For a named governed source, inspect that source/provider contract first; file-backed sources do not automatically require a script. Discover the authorized source and business schema. Validate the metric, period, grain, units and filters through real preview results; follow the data-validation reference.
+2. For HTML mode, read the HTML runtime reference and call `dashboard_libraries` before using ECharts or Three.js. Write a complete HTML page using SandboxFile. First declare `const live = window.xpertLiveArtifact` inside the page script; `live` is not a host global. Then register `live.subscribe(bindingId, renderDataset)`, await `live.ready()`, then call `live.query(bindingId, typedControls)`. There is no `window.subscribe` or `window.__datasets`. Shared filters must query every affected Binding, not just call `bindSelect` for the first one.
 3. Call `dashboard_create_html` with `title`, the relative `path`, verified `previewIds`, matching `controls` and the complete required `libraries` list. Standard charts instead use `dashboard_create`.
 4. Correct validation errors and retry the domain save. A file write, screenshot or `present_files` receipt does not save a live dashboard. Do not present the HTML as a static deliverable.
 5. Check the returned `dashboard.artifactId`, `dashboard.status: "draft"` and `dashboard.draftRevision`. The successful domain receipt opens/refreshes the Workbench preview.

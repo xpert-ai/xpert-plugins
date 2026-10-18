@@ -2,11 +2,19 @@ import { createHash } from 'node:crypto'
 import { createMutationEvidence, type WorkspaceFilesApi } from '@xpert-ai/plugin-sdk'
 import { createdDashboard, savedDashboardSource } from './dashboard-receipt'
 
+type SaveAttempt = { token: number; generations: Map<string, number>; supersedesPaths?: string[]; confirmation?: 'source' | 'draft' }
+
 /** A domain receipt covers only the exact edited file bytes consumed by that save. */
 export function dashboardSaveEvidence(files: () => WorkspaceFilesApi) {
   const saves = createMutationEvidence<NonNullable<ReturnType<typeof createdDashboard>>>()
   const edits = new Map<string, { artifactId?: string; generation: number; pending: boolean }>()
   const activeWrites = new Map<string, number>()
+  const abandonCandidates = (save: SaveAttempt, savedPath?: string) => {
+    for (const path of save.supersedesPaths ?? []) {
+      const candidate = edits.get(path)
+      if (path !== savedPath && candidate && !candidate.artifactId && !activeWrites.has(path) && candidate.generation === save.generations.get(path)) candidate.pending = false
+    }
+  }
   const fingerprint = async (path: string) => {
     try { return createHash('sha256').update((await files().readRuntimeBuffer(path)).buffer).digest('hex') }
     catch { return undefined } // An unreadable file cannot establish that a mutation was a no-op.
@@ -40,20 +48,34 @@ export function dashboardSaveEvidence(files: () => WorkspaceFilesApi) {
         else activeWrites.delete(path)
       }
     },
-    beginSave() {
-      return { token: saves.begin(), generations: new Map([...edits].map(([path, edit]) => [path, edit.generation])) }
+    beginSave(supersedesPaths: string[] = [], confirmation: 'source' | 'draft' = 'source') {
+      for (const path of supersedesPaths) {
+        const edit = edits.get(path)
+        if (!edit?.pending || edit.artifactId || activeWrites.has(path)) throw new Error('DASHBOARD_SUPERSEDE_INVALID: only idle, unsaved creation candidates from this run may be abandoned')
+      }
+      return { token: saves.begin(), generations: new Map([...edits].map(([path, edit]) => [path, edit.generation])), supersedesPaths, confirmation }
     },
-    async accept(save: { token: number; generations: Map<string, number> }, output: unknown) {
+    async accept(save: SaveAttempt, output: unknown) {
       const receipt = createdDashboard(output)
       if (!receipt) return
       saves.accept(save.token, receipt)
       const source = savedDashboardSource(output)
-      if (!source) return
+      if (!source) {
+        // A standard dashboard has no HTML source; its domain receipt can explicitly
+        // abandon creation prototypes without claiming those files were persisted.
+        if (save.confirmation === 'draft') abandonCandidates(save)
+        return
+      }
       const edit = edits.get(source.path)
       if (!edit || activeWrites.has(source.path) || save.generations.get(source.path) !== edit.generation || edit.artifactId && edit.artifactId !== receipt.artifactId) return
       const current = await files().readRuntimeBuffer(source.path)
-      if (!activeWrites.has(source.path) && edits.get(source.path) === edit && createHash('sha256').update(current.buffer).digest('hex') === source.sha256)
+      if (!activeWrites.has(source.path) && edits.get(source.path) === edit && createHash('sha256').update(current.buffer).digest('hex') === source.sha256) {
         edit.pending = false
+        edit.artifactId = receipt.artifactId
+        // Explicit replacement applies only after exact-byte confirmation. Do not infer intent
+        // from names/titles, delete files, or clear edits made concurrently with this save.
+        abandonCandidates(save, source.path)
+      }
     },
     get pending() { return saves.pending || activeWrites.size > 0 || [...edits.values()].some(edit => edit.pending) },
     get pendingPaths() { return [...new Set([...activeWrites.keys(), ...[...edits].filter(([, edit]) => edit.pending).map(([path]) => path)])] }

@@ -43,6 +43,24 @@ try {
     datasets: { ...enumInput.datasets, totals: { rows: [{ total: '120' }] } },
     html: html("await live.query('sales',{});await live.query('totals',{});") }, browser, hostPath)
   assert.equal(multiBinding.ok, true, JSON.stringify(multiBinding.errors))
+  const sharedInput = { ...input,
+    context: { ...input.context, bindingIds: ['sales', 'totals'] },
+    parameters: Object.fromEntries(['sales', 'totals'].map(id => [id, [{ controlId: 'region', type: 'string', required: false, defaultValue: null }]])),
+    datasets: { sales: { rows: [{ region: 'East', amount: '120' }] }, totals: { rows: [{ region: 'East', total: '120' }] } }
+  }
+  const sharedHtml = script => `<html><body><label>Region<select id="region"></select></label><output>Sales</output><script>(async()=>{const live=xpertLiveArtifact;const select=document.getElementById('region');${script}})()</script></body></html>`
+  const stalePanel = await validateDocument({ ...sharedInput, html: sharedHtml("live.bindSelect(select,{bindingId:'sales',controlId:'region',fieldId:'region'});await live.query('sales',{});await live.query('totals',{});") }, browser, hostPath)
+  assert.equal(stalePanel.ok, false)
+  assert(stalePanel.errors.some(error => error.includes('DOCUMENT_SHARED_CONTROL_NOT_PROPAGATED') && error.includes('totals')))
+  const sharedSelect = await validateDocument({ ...sharedInput, html: sharedHtml("[null,'East'].forEach(v=>select.add(new Option(v??'All',JSON.stringify(v))));select.onchange=()=>Promise.all(['sales','totals'].map(id=>live.query(id,{region:JSON.parse(select.value)})));await live.query('sales',{});await live.query('totals',{});") }, browser, hostPath)
+  assert.equal(sharedSelect.ok, true, JSON.stringify(sharedSelect.errors))
+  const delayedPanel = await validateDocument({ ...sharedInput, html: sharedHtml("[null,'East'].forEach(v=>select.add(new Option(v??'All',JSON.stringify(v))));select.onchange=async()=>{const region=JSON.parse(select.value);await live.query('sales',{region});await new Promise(resolve=>setTimeout(resolve,300));await live.query('totals',{region});};await live.query('sales',{});await live.query('totals',{});") }, browser, hostPath)
+  assert.equal(delayedPanel.ok, true, JSON.stringify(delayedPanel.errors))
+  const independentSelect = await validateDocument({ ...sharedInput,
+    context: { ...sharedInput.context, defaults: { region: null, otherRegion: null } },
+    parameters: { ...sharedInput.parameters, totals: [{ controlId: 'otherRegion', type: 'string', required: false, defaultValue: null }] },
+    html: sharedHtml("live.bindSelect(select,{bindingId:'sales',controlId:'region',fieldId:'region'});await live.query('sales',{});await live.query('totals',{});") }, browser, hostPath)
+  assert.equal(independentSelect.ok, true, JSON.stringify(independentSelect.errors))
   for (const entry of parameterCases) {
     const result = await validateDocument({ ...input, context: { ...input.context, defaults: entry.defaults },
       parameters: { sales: [{ controlId: 'value', ...entry.parameter }] }, html: html("await live.query('sales',{});") }, browser, hostPath)
@@ -65,5 +83,5 @@ try {
   assert.equal(missingLibrary.ok, false); assert(missingLibrary.errors.some(error=>error.includes('echarts')))
   const scene = await validateDocument({ ...input, dependencies: [three], html: html("const scene=new THREE.Scene();scene.add(new THREE.Mesh(new THREE.BoxGeometry(),new THREE.MeshBasicMaterial()));if(scene.children.length!==1)throw Error('THREE_NOT_READY');live.subscribe('sales',d=>document.querySelector('output').textContent=d.rows[0].amount);live.query('sales',{region:null});") }, browser, hostPath)
   assert.equal(scene.ok, true, JSON.stringify(scene.errors))
-  console.log(JSON.stringify({ passed: ['real Dataset render', 'caught undeclared Binding blocks save', 'actionable control default mismatch', 'render callback exception blocks save', 'typed enum selects', 'Dataset options cannot replace enum values', 'numeric select must preserve number type', 'page-wide controls with multiple Bindings', ...parameterCases.map(entry => entry.name), 'disabled optgroup options skipped', 'empty select does not trigger restore', 'packaged ECharts renders SVG', 'missing library blocks save', 'packaged Three.js scene'] }))
+  console.log(JSON.stringify({ passed: ['real Dataset render', 'caught undeclared Binding blocks save', 'actionable control default mismatch', 'render callback exception blocks save', 'typed enum selects', 'Dataset options cannot replace enum values', 'numeric select must preserve number type', 'page-wide controls with multiple Bindings', 'shared filter cannot leave stale panels', 'shared filter fans out to every Binding', 'shared filter waits for delayed panels', 'independent filters use distinct IDs', ...parameterCases.map(entry => entry.name), 'disabled optgroup options skipped', 'empty select does not trigger restore', 'packaged ECharts renders SVG', 'missing library blocks save', 'packaged Three.js scene'] }))
 } finally { await browser.close() }

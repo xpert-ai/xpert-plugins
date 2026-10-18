@@ -482,3 +482,92 @@ test('standard dashboard edits explain definition-only saves and missing HTML pa
     expectedCurrentVersionId: opened.expectedCurrentVersionId, htmlPath: 'dashboards/invented.html' }), /standard dashboard.*omit htmlPath and libraries/)
   assert.equal(s.calls.filter(c => c[0] === 'update').length, 0)
 })
+
+test('a saved replacement only abandons explicitly named unsaved creation candidates', async () => {
+  const { dashboardSaveEvidence } = require('../dist/lib/save-evidence.js')
+  const { createHash } = require('node:crypto')
+  const paths = ['dashboards/first.html', 'dashboards/second.html', 'dashboards/final.html', 'dashboards/other.html']
+  const buffers = new Map(paths.map(path => [path, Buffer.from(path)]))
+  const evidence = dashboardSaveEvidence(() => ({ readRuntimeBuffer: async path => ({ buffer: buffers.get(path) }) }))
+  paths.forEach(path => evidence.write(path))
+  const output = { dashboard: { artifactId: randomUUID(), status: 'draft', draftRevision: 1 },
+    sourceFile: { path: paths[2], sha256: createHash('sha256').update(buffers.get(paths[2])).digest('hex') } }
+  const failed = evidence.beginSave(paths.slice(0, 2))
+  await evidence.accept(failed, 'PREFLIGHT_FAILED')
+  assert.deepEqual(evidence.pendingPaths, paths)
+  await evidence.accept(evidence.beginSave(paths.slice(0, 2)), output)
+  assert.deepEqual(evidence.pendingPaths, [paths[3]], 'unrelated candidates are still pending')
+  evidence.write(paths[2])
+  assert.throws(() => evidence.beginSave([paths[2]]), /SUPERSEDE_INVALID/, 'a saved Artifact file is never an abandonable candidate')
+  assert.throws(() => evidence.beginSave(['untracked.html']), /SUPERSEDE_INVALID/)
+})
+
+test('replacement receipts cannot abandon changed, active or opened Artifact files', async () => {
+  const { dashboardSaveEvidence } = require('../dist/lib/save-evidence.js')
+  const { createHash } = require('node:crypto')
+  const old = 'dashboards/candidate.html', current = 'dashboards/final.html', opened = 'dashboards/opened.html'
+  const buffer = Buffer.from('bytes')
+  const evidence = dashboardSaveEvidence(() => ({ readRuntimeBuffer: async () => ({ buffer }) }))
+  evidence.write(old); evidence.write(current); evidence.opened(opened, randomUUID()); evidence.write(opened)
+  assert.throws(() => evidence.beginSave([opened]), /SUPERSEDE_INVALID/)
+  const receipt = { dashboard: { artifactId: randomUUID(), status: 'draft', draftRevision: 1 }, sourceFile: { path: current, sha256: createHash('sha256').update(buffer).digest('hex') } }
+  const snapshot = evidence.beginSave([old]); evidence.write(old)
+  await evidence.accept(snapshot, receipt)
+  assert.deepEqual(evidence.pendingPaths, [old, opened])
+  await evidence.trackWrite(old, async () => {
+    assert.throws(() => evidence.beginSave([old]), /SUPERSEDE_INVALID/)
+  })
+})
+
+test('replacement requires a matching source digest before any candidate can be abandoned', async () => {
+  const { dashboardSaveEvidence } = require('../dist/lib/save-evidence.js')
+  const old = 'dashboards/candidate.html', current = 'dashboards/final.html'
+  const evidence = dashboardSaveEvidence(() => ({ readRuntimeBuffer: async () => ({ buffer: Buffer.from('new bytes') }) }))
+  evidence.write(old); evidence.write(current)
+  await evidence.accept(evidence.beginSave([old]), { dashboard: { artifactId: randomUUID(), status: 'draft', draftRevision: 1 }, sourceFile: { path: current, sha256: '0'.repeat(64) } })
+  assert.deepEqual(evidence.pendingPaths, [old, current])
+})
+
+test('HTML creation forwards explicit candidate replacements to the save guard without weakening unrelated edits', async () => {
+  const { ToolMessage } = require('@langchain/core/messages')
+  const { workspaceFileMutationMetadata } = require('@xpert-ai/plugin-sdk')
+  const s = setup(), { input, binding } = draft(), artifactId = randomUUID()
+  s.service.save = async (_, manifest) => { s.calls.push(['save', manifest]); return { artifactId, status: 'draft', draftRevision: 1, title: manifest.title } }
+  await s.invoke('dashboard_discover', { dataSourceId: binding.dataSourceId, providerId: binding.providerId })
+  const preview = JSON.parse(await s.invoke('dashboard_preview', { binding }))
+  const paths = ['dashboards/old.html', 'dashboards/final.html']
+  for (const path of paths) await s.middleware.wrapToolCall({ toolCall: { name: 'sandbox_write_file', args: { file_path: path }, id: path }, tool: { metadata: workspaceFileMutationMetadata } }, async () => {
+    s.files.set(path, Buffer.from('<html><body>' + path + '</body></html>'))
+    return new ToolMessage({ content: '{}', tool_call_id: path })
+  })
+  const args = { title: 'Replacement', path: paths[1], supersedesPaths: [paths[0]], previewIds: [preview.previewId], controls: input.controls }
+  await assert.rejects(s.invoke('dashboard_create_html', { ...args, supersedesPaths: [paths[1]] }), /SUPERSEDE_INVALID/)
+  assert.equal(s.calls.filter(c => c[0] === 'save').length, 0)
+  const saved = await s.middleware.wrapToolCall({ toolCall: { name: 'dashboard_create_html', args, id: 'save' } }, async () => new ToolMessage({ tool_call_id: 'save', content: await s.invoke('dashboard_create_html', args) }))
+  assert.equal(JSON.parse(saved.content).dashboard.artifactId, artifactId)
+  const manifest = s.calls.find(c => c[0] === 'save')[1]
+  assert.equal(manifest.presentation.html, s.files.get(paths[1]).toString())
+  assert.equal(manifest.supersedesPaths, undefined)
+  await s.middleware.wrapModelCall({ tools: [] }, async request => { assert.equal(request.toolChoice, undefined); return { tool_calls: [] } })
+  assert.equal(s.files.size, 2, 'abandoned candidates remain files, not additional saved dashboards')
+})
+
+test('switching to standard charts can explicitly abandon an HTML prototype using the same saved Artifact', async () => {
+  const { ToolMessage } = require('@langchain/core/messages')
+  const { workspaceFileMutationMetadata } = require('@xpert-ai/plugin-sdk')
+  const s = setup(), { input, binding } = draft(), artifactId = randomUUID(), path = 'dashboards/prototype.html'
+  s.service.save = async (_, manifest) => { s.calls.push(['save', manifest]); return { artifactId, draftRevision: 1, status: 'draft', title: manifest.title } }
+  await s.invoke('dashboard_discover', { dataSourceId: binding.dataSourceId, providerId: binding.providerId })
+  input.previewIds = [JSON.parse(await s.invoke('dashboard_preview', { binding })).previewId]
+  await s.middleware.wrapToolCall({ toolCall: { name: 'sandbox_write_file', args: { file_path: path }, id: 'write' }, tool: { metadata: workspaceFileMutationMetadata } }, async () => {
+    s.files.set(path, Buffer.from('<html><body>Unused prototype</body></html>'))
+    return new ToolMessage({ content: '{}', tool_call_id: 'write' })
+  })
+  const save = args => s.middleware.wrapToolCall({ toolCall: { name: 'dashboard_create', args, id: 'save' } }, async () => new ToolMessage({ tool_call_id: 'save', content: await s.invoke('dashboard_create', args) }))
+  const first = await save(input)
+  await s.middleware.wrapModelCall({ tools: [] }, async r => { assert.equal(r.toolChoice, 'required') })
+  const final = await save({ ...input, supersedesPaths: [path] })
+  assert.equal(JSON.parse(first.content).dashboard.artifactId, JSON.parse(final.content).dashboard.artifactId)
+  await s.middleware.wrapModelCall({ tools: [] }, async r => { assert.equal(r.toolChoice, undefined); return { tool_calls: [] } })
+  assert(s.files.has(path)); assert(s.calls.filter(c => c[0] === 'save').every(c => !c[1].presentation && !c[1].supersedesPaths))
+})

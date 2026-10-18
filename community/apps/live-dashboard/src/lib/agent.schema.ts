@@ -19,6 +19,7 @@ export const agentBindingSchema = analyticsBindingObjectSchema.omit({ payload: t
 }).strict()
 export const previewToolSchema = z.object({ binding: agentBindingSchema }).strict()
 export const createToolSchema = dashboardSchema.innerType().omit({ schema: true, id: true, bindings: true, presentation: true }).extend({
+  supersedesPaths: z.array(workspaceRelativeFilePathSchema).max(16).optional().describe('Explicitly abandon earlier unsaved HTML creation candidates after this dashboard saves successfully. Copy exact pending paths; never include an Artifact editing copy. Files are not deleted or claimed as saved. Also use when choosing a standard dashboard instead of an HTML prototype.'),
   controls: jsonEncodedSchema(agentControlsSchema),
   charts: jsonEncodedSchema(dashboardSchema.innerType().shape.charts),
   tables: jsonEncodedSchema(dashboardSchema.innerType().shape.tables),

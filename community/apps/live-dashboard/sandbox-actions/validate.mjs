@@ -9,7 +9,7 @@ const errors = [], addError = value => { const message = String(value).slice(0, 
   await page.setContent('<!doctype html><html><head></head><body><iframe style="width:100%;height:850px"></iframe></body></html>')
   await page.addScriptTag({ path: hostPath })
   await page.evaluate(input => {
-    window.validation = { errors: [], requestedBindings: [] }
+    window.validation = { errors: [], requestedBindings: [], controlsByBinding: {} }
     const initialized = new Set()
     DocumentHost.installArtifactDocumentFramePolicy(document)
     window.documentHost = DocumentHost.mountArtifactDocument(document.querySelector('iframe'), {
@@ -42,6 +42,7 @@ const errors = [], addError = value => { const message = String(value).slice(0, 
           throw Error('DOCUMENT_CONTROL_VALUE_INVALID')
         }
         initialized.add(request.bindingId)
+        window.validation.controlsByBinding[request.bindingId] = { ...request.controls }
         return input.datasets[request.bindingId]
       }, onError: code => window.validation.errors.push(code)
     })
@@ -60,11 +61,32 @@ const errors = [], addError = value => { const message = String(value).slice(0, 
       const values = await select.locator('option').evaluateAll(options => options.filter(option => !option.matches(':disabled')).map(option => option.value))
       const alternatives = [...new Set(values)].filter(value => value !== original).slice(0, 3)
       if (!alternatives.length) continue
-      for (const value of alternatives) {
-        await select.selectOption(value, { timeout: 1000 }).catch(() => addError('DOCUMENT_SELECT_INTERACTION_FAILED'))
-        await page.waitForTimeout(75)
+      for (const value of [...alternatives, original]) {
+        const before = await page.evaluate(() => window.validation.controlsByBinding)
+        await select.selectOption(value, { timeout: 1000 }).catch(() => addError(value === original ? 'DOCUMENT_SELECT_RESTORE_FAILED' : 'DOCUMENT_SELECT_INTERACTION_FAILED'))
+        await page.waitForTimeout(150)
+        // Allow asynchronous panel handlers to propagate a shared value before reporting a stale panel.
+        await page.waitForFunction(({ before, parameters }) => {
+          const after = window.validation.controlsByBinding
+          return Object.entries(after).every(([bindingId, controls]) => (parameters[bindingId] ?? []).every(parameter => {
+            const key = parameter.controlId, selected = controls[key]
+            return selected === before[bindingId]?.[key] || Object.entries(parameters).every(([id, entries]) =>
+              !entries.some(entry => entry.controlId === key) || after[id]?.[key] === selected)
+          }))
+        }, { before, parameters: input.parameters }, { timeout: 1000 }).catch(() => {})
+        const after = await page.evaluate(() => window.validation.controlsByBinding)
+        // A shared control ID denotes one page-wide value. Independent filters need distinct IDs.
+        for (const [bindingId, controls] of Object.entries(after)) {
+          for (const parameter of input.parameters[bindingId] ?? []) {
+            const key = parameter.controlId, selected = controls[key]
+            if (selected === before[bindingId]?.[key]) continue
+            const missing = Object.entries(input.parameters).filter(([id, parameters]) =>
+              parameters.some(parameter => parameter.controlId === key) && after[id]?.[key] !== selected
+            ).map(([id]) => id)
+            if (missing.length) addError(`DOCUMENT_SHARED_CONTROL_NOT_PROPAGATED: ${key} must query affected Bindings: ${missing.join(', ')}. bindSelect updates one Binding; use a custom select to query every affected Binding.`)
+          }
+        }
       }
-      await select.selectOption(original, { timeout: 1000 }).catch(() => addError('DOCUMENT_SELECT_RESTORE_FAILED'))
     }
     await page.waitForTimeout(150)
   }
