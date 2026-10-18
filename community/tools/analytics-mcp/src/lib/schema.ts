@@ -1,6 +1,7 @@
 import { z } from 'zod/v3'
 import { zodToJsonSchema } from 'zod-to-json-schema'
 import type { JSONValue } from '@xpert-ai/contracts'
+import { BadRequestException } from '@nestjs/common'
 
 const forbidden = new Set(['__proto__', 'prototype', 'constructor'])
 export const key = z.string().regex(/^[A-Za-z][A-Za-z0-9_.-]{0,79}$/).refine((value) => !forbidden.has(value))
@@ -69,7 +70,12 @@ export function bindArguments(payload: McpPayload, values: Record<string, string
     throw new Error('MCP_DATASET_PARAMETER_MAPPING_INVALID')
   const result = structuredClone(payload.arguments)
   for (const [name, segments] of Object.entries(paths)) {
-    const existing = readPath(result, segments)
+    let existing: unknown
+    try { existing = readPath(result, segments) } catch {
+      // The host preserves explicit HTTP errors; never expose MCP responses or argument values.
+      throw new BadRequestException({ code: 'MCP_DATASET_PARAMETER_PATH_INVALID',
+        message: 'MCP_DATASET_PARAMETER_PATH_INVALID: parameterPaths are relative to arguments. For arguments:{limit:7}, use parameterPaths:{limit:["limit"]}, not ["arguments","limit"]. Keep the target field present with its literal default in arguments.' })
+    }
     if (existing !== null && typeof existing === 'object') throw new Error('MCP_DATASET_PARAMETER_NOT_SCALAR')
     const parent = readPath(result, segments.slice(0, -1))
     if (!parent || typeof parent !== 'object') throw new Error('MCP_DATASET_PATH_INVALID')

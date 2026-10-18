@@ -116,6 +116,28 @@ test('parameter paths reject missing, duplicate, overlapping, object and prototy
   assert.equal({}.polluted, undefined); assert.equal(f.calls.length, 0)
 })
 
+test('invalid argument paths return an actionable safe error without invoking MCP or widening selectors', async () => {
+  const f = fixture()
+  for (const payload of [
+    { ...binding.payload, parameterPaths: { region: ['arguments', 'filter', 'region'] } },
+    { ...binding.payload, arguments: { filter: {} } }
+  ]) await assert.rejects(f.provider.execute({ ...binding, payload }, { region: 'private-value' }, f.context), error => {
+    assert.equal(error.getStatus(), 400)
+    const response = error.getResponse()
+    assert.equal(response.code, 'MCP_DATASET_PARAMETER_PATH_INVALID')
+    assert.match(response.message, /relative to arguments/)
+    assert.match(response.message, /literal default/)
+    assert.equal(response.message.includes('private-value'), false)
+    return true
+  })
+  assert.equal(f.calls.length, 0)
+  // An actual MCP field named "arguments" is legitimate; do not infer paths from names.
+  const nested = payloadSchema.parse({ ...binding.payload, arguments: { arguments: { region: null } },
+    parameterPaths: { region: ['arguments', 'region'] } })
+  assert.equal(bindArguments(nested, { region: 'East' }).arguments.region, 'East')
+  assert.equal(nested.arguments.arguments.region, null)
+})
+
 test('structured JSON and text JSON are explicit alternatives, never extracted from prose or resource links', async () => {
   const f = fixture(), content = { data: { rows: sourceRows }, total: 2, truncated: false }
   f.api.tools.call = async () => ({ text: [JSON.stringify(content)] })
