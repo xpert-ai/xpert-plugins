@@ -278,6 +278,20 @@ export const messages = {
 } as const
 
 const codes: Record<string, [string, string]> = {
+  unsupported: ['This client does not support this operation. Update the client or continue in the web app.', '当前客户端尚不支持此操作，请升级客户端或在 Web 端继续。'],
+  command_unavailable: ['This operation is unavailable in this client. Update the client or continue in the web app.', '当前客户端无法执行此操作，请升级客户端或在 Web 端继续。'],
+  connector_not_installed: ['Ask an administrator to install the GitHub Connector plugin before connecting.', '请管理员安装 GitHub Connector 插件后再连接账号。'],
+  workspace_management_required: ['Ask a workspace administrator to configure the GitHub connection.', '需要工作空间管理权限，请联系管理员配置 GitHub 连接。'],
+  forbidden: ['You do not have permission to perform this operation. Contact your workspace administrator.', '当前账号无权执行此操作，请联系工作空间管理员。'],
+  authentication_required: ['Your session expired. Sign in again before connecting.', '登录已失效，请重新登录后连接。'],
+  invalid_payload: ['The connection request is invalid. Update the client and plugin before retrying.', '连接请求格式不正确，请更新客户端和插件后重试。'],
+  context_changed: ['The assistant or workspace changed. Reopen this view before trying again.', '助手或工作空间已切换，请重新打开此视图后操作。'],
+  stale_context: ['The assistant or workspace changed. Reopen this view before trying again.', '助手或工作空间已切换，请重新打开此视图后操作。'],
+  connection_in_progress: ['Another connection is in progress. Complete or cancel it first.', '另一个连接正在进行中，请先完成或取消。'],
+  connection_navigation_failed: ['Could not open the authorization page. Check your browser and try again.', '无法打开授权页面，请检查浏览器后重试。'],
+  connection_timeout: ['Connection timed out. Check authorization in the web app, then try again.', '连接等待超时，请在 Web 端检查授权结果后重新连接。'],
+  request_timeout: ['The request timed out. Check the connection or authorization status before retrying.', '请求等待超时，请检查网络或授权状态后重试。'],
+  connection_failed: ['Connection failed. Check your network and any error on the authorization page before retrying.', '连接失败，请检查网络及授权页面中的错误提示后重试。'],
   github_auth_required: ['Connect GitHub in this workspace to continue.', '请在此工作空间连接 GitHub 后继续。'],
   stale_revision: ['The PR has new commits. Refresh and review again.', 'PR 已有新提交，请刷新后重新审查。'],
   revision_conflict: ['This review changed. Reload and try again.', '审查记录已变化，请刷新后重试。'],

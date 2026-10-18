@@ -202,7 +202,8 @@ export async function action(key: string, input: Record<string, unknown>) {
   return result.data;
 }
 export async function command(commandKey: string, payload: Record<string, unknown>) {
-  const result = actionResult.parse(await request('invokeClientCommand', { commandKey, payload }, commandKey === 'workspace.connector.connect' ? 300000 : 30000));
+  // The host allows ten minutes for browser authorization; keep the response pending until that attempt expires.
+  const result = actionResult.parse(await request('invokeClientCommand', { commandKey, payload }, commandKey === 'workspace.connector.connect' ? 660000 : 30000));
   if (!result.success) throw new Error(result.code ?? 'command_unavailable');
   return result.data;
 }
