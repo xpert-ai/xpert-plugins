@@ -1,0 +1,83 @@
+{
+  "workspaceId": "00000000-0000-4000-8000-000000000001",
+  "toolsetId": "00000000-0000-4000-8000-000000000002",
+  "datasets": [
+    {
+      "id": "q3_sales",
+      "revision": "v1",
+      "name": "Q3 区域净销售额",
+      "description": "2026 年第三季度已支付订单，净销售额=实付金额-退款金额（人民币元），按 month+region 唯一分组；region 空字符串表示全部，可选华东、华西。",
+      "operationId": "query_net_sales",
+      "readOnly": true,
+      "defaultArguments": {
+        "query": {
+          "region": ""
+        }
+      },
+      "pagination": {
+        "type": "offset",
+        "pageSize": 2,
+        "maxPages": 10,
+        "offset": {
+          "in": "query",
+          "name": "offset"
+        },
+        "limit": {
+          "in": "query",
+          "name": "limit"
+        },
+        "hasMorePath": [
+          "hasMore"
+        ]
+      },
+      "result": {
+        "rowsPath": [
+          "rows"
+        ],
+        "columns": [
+          {
+            "key": "month",
+            "path": [
+              "month"
+            ],
+            "label": "月份",
+            "description": "2026 年第三季度销售月份（YYYY-MM）",
+            "logicalType": "string",
+            "nullable": false,
+            "role": "time"
+          },
+          {
+            "key": "region",
+            "path": [
+              "region"
+            ],
+            "label": "区域",
+            "description": "销售区域，华东或华西",
+            "logicalType": "string",
+            "nullable": false,
+            "role": "dimension"
+          },
+          {
+            "key": "net_sales",
+            "path": [
+              "net"
+            ],
+            "label": "净销售额",
+            "description": "已支付订单实付金额减退款金额，人民币元，精确小数字符串；完整数据可求和",
+            "logicalType": "decimal",
+            "nullable": false,
+            "role": "measure",
+            "unit": "CNY"
+          }
+        ],
+        "scope": "full_query_result",
+        "totalPath": [
+          "total"
+        ],
+        "dataAsOfPath": [
+          "asOf"
+        ]
+      }
+    }
+  ]
+}

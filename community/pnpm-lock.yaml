@@ -1211,6 +1211,37 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
 
+  tools/analytics-rest:
+    dependencies:
+      zod-to-json-schema:
+        specifier: 3.25.2
+        version: 3.25.2(zod@3.25.67)
+    devDependencies:
+      '@nestjs/common':
+        specifier: ^11.1.6
+        version: 11.1.13(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/core':
+        specifier: ^11.1.6
+        version: 11.1.13(@nestjs/common@11.1.13)(@nestjs/websockets@11.2.5)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@types/node':
+        specifier: ^20.19.9
+        version: 20.19.43
+      '@xpert-ai/contracts':
+        specifier: ^3.23.0
+        version: 3.23.0(@a2ui/lit@0.8.3)(@langchain/core@1.2.12)(zod@3.25.67)
+      '@xpert-ai/plugin-sdk':
+        specifier: ^3.23.1
+        version: 3.23.1(@a2ui/lit@0.8.3)(@langchain/core@1.2.12)(@nestjs/common@11.1.13)(@nestjs/core@11.1.13)(@nestjs/cqrs@11.0.3)(ajv@8.20.0)(i18next-fs-backend@2.6.8)(i18next@26.4.2)(json-schema@0.4.0)(jsonwebtoken@9.0.3)(lodash-es@4.18.1)(passport-jwt@4.0.1)(rxjs@7.8.2)(yaml@2.9.0)(zod@3.25.67)
+      reflect-metadata:
+        specifier: ^0.2.2
+        version: 0.2.2
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.2
+      zod:
+        specifier: 3.25.67
+        version: 3.25.67
+
   tools/analytics-workspace-script:
     devDependencies:
       '@langchain/core':
