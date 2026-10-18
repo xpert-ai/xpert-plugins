@@ -1,0 +1,77 @@
+{
+  "workspaceId": "00000000-0000-4000-8000-000000000001",
+  "toolsetId": "00000000-0000-4000-8000-000000000002",
+  "serverName": "openmeteo",
+  "datasets": [
+    {
+      "id": "daily_weather",
+      "revision": "v1",
+      "name": "Daily weather forecast",
+      "description": "Open-Meteo model forecast, not observed historical weather. Use daily_variables [temperature_2m_max, temperature_2m_min, precipitation_sum], timezone Asia/Shanghai, and forecast_days 1–16. Shanghai coordinates: latitude 31.23, longitude 121.47. Do not request hourly/current variables with this daily mapping. Days are numeric query parameters, not values from the date column. Refresh requests new forecasts but values need not change on every request.",
+      "toolName": "openmeteo_get_forecast",
+      "readOnly": true,
+      "result": {
+        "format": "structured",
+        "rowsPath": [
+          "daily"
+        ],
+        "columns": [
+          {
+            "key": "date",
+            "path": [
+              "time"
+            ],
+            "label": "Date",
+            "description": "Local date in the requested timezone.",
+            "logicalType": "date",
+            "nullable": false,
+            "role": "time"
+          },
+          {
+            "key": "max_temp",
+            "path": [
+              "temperature_2m_max"
+            ],
+            "label": "Maximum temperature",
+            "description": "Daily model forecast maximum, not an observation.",
+            "logicalType": "float64",
+            "nullable": true,
+            "role": "measure",
+            "unit": "celsius"
+          },
+          {
+            "key": "min_temp",
+            "path": [
+              "temperature_2m_min"
+            ],
+            "label": "Minimum temperature",
+            "description": "Daily model forecast minimum, not an observation.",
+            "logicalType": "float64",
+            "nullable": true,
+            "role": "measure",
+            "unit": "celsius"
+          },
+          {
+            "key": "precipitation",
+            "path": [
+              "precipitation_sum"
+            ],
+            "label": "Precipitation",
+            "description": "Daily model forecast precipitation sum.",
+            "logicalType": "float64",
+            "nullable": true,
+            "role": "measure",
+            "unit": "mm"
+          }
+        ],
+        "scope": "full_query_result",
+        "totalPath": [
+          "record_count"
+        ],
+        "truncatedPath": [
+          "truncated"
+        ]
+      }
+    }
+  ]
+}
