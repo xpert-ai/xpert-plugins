@@ -128,7 +128,14 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
     }, tools: [
       filterEvidence.tool,
       tool(async () => JSON.stringify({ libraries: await libraryLocks(['echarts', 'three']),
-        usage: { echarts: 'window.echarts: init(element, null, {renderer:"svg"}) then setOption. Canvas is also available. Use ResizeObserver to resize, reuse the instance on filter/refresh.',
+        pageRuntime: {
+          global: 'window.xpertLiveArtifact',
+          bindingIds: [...new Set([...previews.values()].map(binding => binding.id))],
+          startup: 'const live = window.xpertLiveArtifact; live.subscribe(bindingId, renderDataset); await live.ready(); await live.query(bindingId, typedControls); Use an async function, with the exact binding IDs from saved previews.',
+          refresh: 'live.refresh(bindingId) requires a Binding ID. live.refresh() without an ID is invalid. For a page refresh button or timer, call Promise.all(bindingIds.map(id => live.refresh(id))). Each subscription redraws its KPI, chart and details.',
+          filters: 'Mark native data selects with data-dashboard-control="<exact controlId>". Mark purely visual selects with data-dashboard-presentation instead. Changing a data select must call live.query for every affected Binding, not only filter cached rows in JS. bindSelect updates one Binding only. Read references/html-lifecycle.md before writing the page.'
+        },
+        usage: { echarts: 'window.echarts: init(element, null, {renderer:"svg"}) then setOption(completeOption, {notMerge:true}). Canvas is also available. Derive active series/legend dimensions from each received Dataset, including filtered results; never retain excluded groups as zero-valued series. Aggregate repeated categories using all grain dimensions, clear empty results, and redraw KPI, chart and details together in subscribe. Use ResizeObserver to resize and reuse the instance on filter/refresh.',
           three: 'window.THREE: bundled core including WebGLRenderer. Requires WebGL2; catch unavailable GPU contexts and show a clear fallback. External textures/models, loaders/addons, WebGPU and workers are not bundled.' },
         lifecycle: 'Pass libraries IDs to dashboard_create_html or dashboard_update. Actual version and bytes are pinned on save; omitted libraries on update preserves saved locks. No CDN, imports or network access.' }),
       { name: 'dashboard_libraries', description: 'Discover packaged frontend libraries and exact versions available to HTML dashboards. Read before using ECharts/Three.js. Returns metadata, never library source.',
@@ -158,7 +165,7 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
       }, { name: 'dashboard_preview', description: 'Run one read-only binding using parameters[].defaultValue. Returns validated Dataset fields, first 20 rows, full query completeness and audit. Required before create; changes to binding/defaults require another preview.',
         schema: previewToolSchema, verboseParsingErrors: true, metadata: { toolName: { en_US: 'Verify dashboard data', zh_Hans: '预览并验证看板数据' } } }),
       tool(async ({ bindingJson }: { bindingJson: string }) => preview(analyticsBindingSchema.parse(JSON.parse(bindingJson))), {
-        name: 'dashboard_preview_binding', description: 'Preview a complete canonical AnalyticsBinding returned by another tool. Pass its bindingJson verbatim. Do not convert it to the simplified dashboard_preview input. Discovery of the source is still required. Returns the same previewId receipt for dashboard_create.',
+        name: 'dashboard_preview_binding', description: 'Preview a complete canonical AnalyticsBinding returned by another tool. Serialize the complete canonical Binding (for example discovery items[].metadata.binding), including parameters[].controlId. bindingPayload is only the payload, not a Binding. If adding a parameter, include name, controlId, type, required and defaultValue. Do not convert it to the simplified dashboard_preview input. Discovery of the source is still required. Returns the same previewId receipt for dashboard_create.',
         schema: z.object({ bindingJson: z.string().min(2).max(200000) }).strict(), verboseParsingErrors: true,
         metadata: { toolName: { en_US: 'Verify registered dataset', zh_Hans: '验证已注册数据集' } }
       }),

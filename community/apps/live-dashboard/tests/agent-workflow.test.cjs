@@ -103,6 +103,17 @@ test('registered canonical bindings use the same discovery and preview receipt g
   await assert.rejects(s.invoke('dashboard_preview_binding', args), /REVOKED/)
 })
 
+test('library discovery includes the current preview Binding IDs and exact page lifecycle', async () => {
+  const s = setup(), { binding } = draft()
+  await s.invoke('dashboard_discover', { dataSourceId: binding.dataSourceId, providerId: binding.providerId })
+  const preview = JSON.parse(await s.invoke('dashboard_preview', { binding }))
+  const result = JSON.parse(await s.invoke('dashboard_libraries', {}))
+  assert.deepEqual(result.pageRuntime.bindingIds, [JSON.parse(preview.bindingJson).id])
+  assert.match(result.pageRuntime.refresh, /requires a Binding ID/)
+  assert.equal(result.pageRuntime.global, 'window.xpertLiveArtifact')
+  assert.deepEqual(JSON.parse(await s.another().tools.find(t => t.name === 'dashboard_libraries').invoke({})).pageRuntime.bindingIds, [])
+})
+
 test('mistyped source/provider pairs receive exact listed choices without querying or guessing', async () => {
   const s = setup(), { binding } = draft()
   const other = { id: randomUUID(), name: 'Other source', providers: [{ id: 'other.query' }] }

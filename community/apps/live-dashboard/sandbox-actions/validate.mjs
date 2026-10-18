@@ -49,6 +49,12 @@ const errors = [], addError = value => { const message = String(value).slice(0, 
   }, input)
   await page.waitForFunction(() => window.validation.requestedBindings.length || window.validation.errors.length, null, { timeout: 8000 }).catch(() => addError('DOCUMENT_INITIAL_QUERY_MISSING'))
   await page.waitForTimeout(500)
+  await page.waitForFunction(ids => ids.every(id => window.validation.requestedBindings.includes(id)),
+    input.context.bindingIds, { timeout: 2000 }).catch(() => {})
+  const initiallyRequested = await page.evaluate(() => window.validation.requestedBindings)
+  for (const id of input.context.bindingIds) {
+    if (!initiallyRequested.includes(id)) addError(`DOCUMENT_INITIAL_BINDING_MISSING: ${id}. Subscribe and query every saved Binding on initial load.`)
+  }
   const frame = page.frames().find(frame => frame !== page.mainFrame())
   // Exercise bounded native selects against the saved parameter contract; data remains the real default preview.
   // This detects invalid filter wiring, not the upstream effect of a filter or arbitrary custom controls.
@@ -61,10 +67,25 @@ const errors = [], addError = value => { const message = String(value).slice(0, 
       const values = await select.locator('option').evaluateAll(options => options.filter(option => !option.matches(':disabled')).map(option => option.value))
       const alternatives = [...new Set(values)].filter(value => value !== original).slice(0, 3)
       if (!alternatives.length) continue
+      const controlId = await select.getAttribute('data-dashboard-control')
+      const presentationOnly = await select.getAttribute('data-dashboard-presentation') !== null
+      const declared = Object.values(input.parameters).flat()
+      if (controlId && (presentationOnly || !declared.some(parameter => parameter.controlId === controlId))) {
+        addError('DOCUMENT_SELECT_BINDING_INVALID: data-dashboard-control must name a declared control and cannot also be presentation-only')
+        continue
+      }
+      if (!controlId && !presentationOnly && declared.length) {
+        addError('DOCUMENT_SELECT_BINDING_REQUIRED: mark a data select with data-dashboard-control="<controlId>"; mark a purely visual selector with data-dashboard-presentation. Do not guess from labels.')
+        continue
+      }
       for (const value of [...alternatives, original]) {
         const before = await page.evaluate(() => window.validation.controlsByBinding)
         await select.selectOption(value, { timeout: 1000 }).catch(() => addError(value === original ? 'DOCUMENT_SELECT_RESTORE_FAILED' : 'DOCUMENT_SELECT_INTERACTION_FAILED'))
         await page.waitForTimeout(150)
+        if (controlId) await page.waitForFunction(({ before, controlId, parameters }) =>
+          Object.entries(window.validation.controlsByBinding).some(([id, controls]) =>
+            parameters[id]?.some(parameter => parameter.controlId === controlId) && controls[controlId] !== before[id]?.[controlId]),
+        { before, controlId, parameters: input.parameters }, { timeout: 1000 }).catch(() => addError(`DOCUMENT_CONTROL_QUERY_MISSING: ${controlId} changed in the page without querying its Binding. Call live.query for every affected Binding; local row filtering is not a data refresh.`))
         // Allow asynchronous panel handlers to propagate a shared value before reporting a stale panel.
         await page.waitForFunction(({ before, parameters }) => {
           const after = window.validation.controlsByBinding
@@ -90,6 +111,21 @@ const errors = [], addError = value => { const message = String(value).slice(0, 
     }
     await page.waitForTimeout(150)
   }
+  // Page buttons are untrusted executable UI too. Exercise a bounded set inside
+  // the isolated preview; do not guess which button is refresh from its label.
+  if (frame) {
+    const buttons = frame.locator('button')
+    for (let index = 0; index < Math.min(await buttons.count(), 12); index++) {
+      const button = buttons.nth(index)
+      if (!(await button.isVisible()) || !(await button.isEnabled())) continue
+      await button.click({ timeout: 1000 }).catch(() => addError('DOCUMENT_BUTTON_INTERACTION_FAILED'))
+      await page.waitForTimeout(200)
+    }
+  }
+  // Exercise the same refresh event as the Workbench. A renderer that fails on its
+  // second Dataset must not pass merely because the first query painted a page.
+  await page.evaluate(() => window.documentHost.refresh())
+  await page.waitForTimeout(300)
   const state = await page.evaluate(() => window.validation)
   state.errors.forEach(addError)
   const renderedTextLength = frame ? (await frame.locator('body').innerText()).trim().length : 0

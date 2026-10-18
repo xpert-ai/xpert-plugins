@@ -3,7 +3,17 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { readFile } from 'node:fs/promises'
 import assert from 'node:assert/strict'
-import { validateDocument } from '../sandbox-actions/validate.mjs'
+import { validateDocument as runValidation } from '../sandbox-actions/validate.mjs'
+let scenario = 0
+async function validateDocument(...args) {
+  const current = ++scenario
+  let timer
+  try {
+    return await Promise.race([runValidation(...args), new Promise((_, reject) => {
+      timer = setTimeout(() => reject(Error(`Preflight scenario ${current} timed out`)), 45000)
+    })])
+  } finally { clearTimeout(timer) }
+}
 const require = createRequire(`${process.argv[2]}/package.json`)
 const { chromium } = require('playwright')
 const browser = await chromium.launch({ headless: true, channel: 'chrome' })
@@ -30,7 +40,7 @@ try {
   const enumInput = { context: { ...input.context, defaults: { days: 7 } },
     parameters: { sales: [{ controlId: 'days', type: 'number', required: true, defaultValue: 7, allowedValues: [3, 7, 14] }] },
     datasets: { sales: { rows: [{ date: '2026-10-18', amount: '120' }] } } }
-  const selectHtml = script => `<html><body><label>Days<select id="days"></select></label><output>Weather</output><script>(async()=>{const live=xpertLiveArtifact;const select=document.getElementById('days');${script}})()</script></body></html>`
+  const selectHtml = script => `<html><body><label>Days<select id="days" data-dashboard-control="days"></select></label><output>Weather</output><script>(async()=>{const live=xpertLiveArtifact;const select=document.getElementById('days');${script}})()</script></body></html>`
   const enumSelect = await validateDocument({ ...enumInput, html: selectHtml("[3,7,14].forEach(value=>select.add(new Option(String(value),String(value))));select.value='7';select.onchange=()=>live.query('sales',{days:Number(select.value)});await live.query('sales',{days:7});") }, browser, hostPath)
   assert.equal(enumSelect.ok, true, JSON.stringify(enumSelect.errors))
   const wrongSelect = await validateDocument({ ...enumInput, html: selectHtml("live.bindSelect(select,{bindingId:'sales',controlId:'days',fieldId:'date'});await live.query('sales',{days:7});") }, browser, hostPath)
@@ -43,12 +53,44 @@ try {
     datasets: { ...enumInput.datasets, totals: { rows: [{ total: '120' }] } },
     html: html("await live.query('sales',{});await live.query('totals',{});") }, browser, hostPath)
   assert.equal(multiBinding.ok, true, JSON.stringify(multiBinding.errors))
+  const omittedPanel = await validateDocument({ ...enumInput,
+    context: { ...enumInput.context, bindingIds: ['sales', 'totals'] },
+    datasets: { ...enumInput.datasets, totals: { rows: [{ total: '120' }] } },
+    html: html("await live.query('sales',{});") }, browser, hostPath)
+  assert.equal(omittedPanel.ok, false)
+  assert(omittedPanel.errors.some(error => error.includes('DOCUMENT_INITIAL_BINDING_MISSING: totals')))
+  const delayedInitial = await validateDocument({ ...enumInput,
+    context: { ...enumInput.context, bindingIds: ['sales', 'totals'] },
+    parameters: { ...enumInput.parameters, totals: [] },
+    datasets: { ...enumInput.datasets, totals: { rows: [{ total: '120' }] } },
+    html: html("await live.query('sales',{});await new Promise(resolve=>setTimeout(resolve,700));await live.query('totals',{});") }, browser, hostPath)
+  assert.equal(delayedInitial.ok, true, JSON.stringify(delayedInitial.errors))
+  const refreshFailure = await validateDocument({ ...input,
+    html: html("let renders=0;live.subscribe('sales',()=>{if(++renders>1)throw Error('BROKEN_REFRESH_RENDER');document.querySelector('output').textContent='Sales';});await live.query('sales',{});") }, browser, hostPath)
+  assert.equal(refreshFailure.ok, false)
+  assert(refreshFailure.errors.some(error => error.includes('BROKEN_REFRESH_RENDER')))
+  const pageButton = script => `<html><body><button id="refresh">Refresh</button><output>Sales</output><script>(async()=>{const live=xpertLiveArtifact;live.subscribe('sales',d=>document.querySelector('output').textContent=d.rows[0].amount);await live.query('sales',{});document.getElementById('refresh').onclick=()=>{${script}};})()</script></body></html>`
+  const missingRefreshId = await validateDocument({ ...input, html: pageButton('live.refresh();') }, browser, hostPath)
+  assert.equal(missingRefreshId.ok, false)
+  assert(missingRefreshId.errors.some(error => error.includes('DOCUMENT_BINDING_DENIED')))
+  const validPageRefresh = await validateDocument({ ...input, html: pageButton("live.refresh('sales');") }, browser, hostPath)
+  assert.equal(validPageRefresh.ok, true, JSON.stringify(validPageRefresh.errors))
   const sharedInput = { ...input,
     context: { ...input.context, bindingIds: ['sales', 'totals'] },
     parameters: Object.fromEntries(['sales', 'totals'].map(id => [id, [{ controlId: 'region', type: 'string', required: false, defaultValue: null }]])),
     datasets: { sales: { rows: [{ region: 'East', amount: '120' }] }, totals: { rows: [{ region: 'East', total: '120' }] } }
   }
-  const sharedHtml = script => `<html><body><label>Region<select id="region"></select></label><output>Sales</output><script>(async()=>{const live=xpertLiveArtifact;const select=document.getElementById('region');${script}})()</script></body></html>`
+  const sharedHtml = script => `<html><body><label>Region<select id="region" data-dashboard-control="region"></select></label><output>Sales</output><script>(async()=>{const live=xpertLiveArtifact;const select=document.getElementById('region');${script}})()</script></body></html>`
+  const localOnly = await validateDocument({ ...sharedInput, html: sharedHtml("[null,'East'].forEach(v=>select.add(new Option(v??'All',JSON.stringify(v))));select.onchange=()=>{document.querySelector('output').textContent=select.value;};await live.query('sales',{});await live.query('totals',{});") }, browser, hostPath)
+  assert.equal(localOnly.ok, false)
+  assert(localOnly.errors.some(error => error.includes('DOCUMENT_CONTROL_QUERY_MISSING')))
+  const unmarkedSelect = await validateDocument({ ...sharedInput,
+    html: sharedHtml("[null,'East'].forEach(v=>select.add(new Option(v??'All',JSON.stringify(v))));await live.query('sales',{});await live.query('totals',{});").replace('data-dashboard-control="region"', '') }, browser, hostPath)
+  assert.equal(unmarkedSelect.ok, false)
+  assert(unmarkedSelect.errors.some(error => error.includes('DOCUMENT_SELECT_BINDING_REQUIRED')))
+  const presentationSelect = await validateDocument({ ...sharedInput,
+    html: sharedHtml("['bar','line'].forEach(v=>select.add(new Option(v,v)));select.onchange=()=>{document.querySelector('output').textContent=select.value;};await live.query('sales',{});await live.query('totals',{});").replace('data-dashboard-control="region"', 'data-dashboard-presentation') }, browser, hostPath)
+  assert.equal(presentationSelect.ok, true, JSON.stringify(presentationSelect.errors))
   const stalePanel = await validateDocument({ ...sharedInput, html: sharedHtml("live.bindSelect(select,{bindingId:'sales',controlId:'region',fieldId:'region'});await live.query('sales',{});await live.query('totals',{});") }, browser, hostPath)
   assert.equal(stalePanel.ok, false)
   assert(stalePanel.errors.some(error => error.includes('DOCUMENT_SHARED_CONTROL_NOT_PROPAGATED') && error.includes('totals')))
@@ -61,6 +103,11 @@ try {
     parameters: { ...sharedInput.parameters, totals: [{ controlId: 'otherRegion', type: 'string', required: false, defaultValue: null }] },
     html: sharedHtml("live.bindSelect(select,{bindingId:'sales',controlId:'region',fieldId:'region'});await live.query('sales',{});await live.query('totals',{});") }, browser, hostPath)
   assert.equal(independentSelect.ok, true, JSON.stringify(independentSelect.errors))
+  const unrelatedBinding = await validateDocument({ ...sharedInput,
+    parameters: { ...sharedInput.parameters, totals: [] },
+    html: sharedHtml("[null,'East'].forEach(v=>select.add(new Option(v??'All',JSON.stringify(v))));select.onchange=()=>live.query('totals',{region:JSON.parse(select.value)});await live.query('sales',{});await live.query('totals',{});") }, browser, hostPath)
+  assert.equal(unrelatedBinding.ok, false)
+  assert(unrelatedBinding.errors.some(error => error.includes('DOCUMENT_CONTROL_QUERY_MISSING')))
   for (const entry of parameterCases) {
     const result = await validateDocument({ ...input, context: { ...input.context, defaults: entry.defaults },
       parameters: { sales: [{ controlId: 'value', ...entry.parameter }] }, html: html("await live.query('sales',{});") }, browser, hostPath)
@@ -73,6 +120,15 @@ try {
   assert.equal(emptySelect.ok, true, JSON.stringify(emptySelect.errors))
   const libraries = JSON.parse(await readFile(new URL('../dist/libraries/catalog.json', import.meta.url)))
   const echarts = libraries.find(item => item.id === 'echarts'), three = libraries.find(item => item.id === 'three')
+  const lifecycle = await readFile(new URL('../skills/live-dashboard/references/html-lifecycle.md', import.meta.url), 'utf8')
+  const starter = lifecycle.match(/```html\n([\s\S]+?)\n```/)[1].replace('REPLACE_BINDING_ID', 'sales')
+  const unfinished = await validateDocument({ ...input, html: starter, dependencies: [echarts] }, browser, hostPath)
+  assert.equal(unfinished.ok, false)
+  assert(unfinished.errors.some(error => error.includes('Implement render')))
+  const implemented = starter.replace("throw new Error('Implement render(entry, state, dataset) using verified fields');",
+    "state.status.textContent=String(dataset.rows.length);state.chart.setOption({animation:false,xAxis:{type:'category',data:['Sales']},yAxis:{type:'value'},series:[{type:'bar',data:[Number(dataset.rows[0].amount)]}]},{notMerge:true});")
+  const lifecycleResult = await validateDocument({ ...input, html: implemented, dependencies: [echarts] }, browser, hostPath)
+  assert.equal(lifecycleResult.ok, true, JSON.stringify(lifecycleResult.errors))
   const chartHtml = `<html><body><output>Loading</output><div id="chart" style="width:600px;height:300px"></div><script>
     const chart=echarts.init(document.getElementById('chart'),null,{renderer:'svg'});
     const live=xpertLiveArtifact;live.subscribe('sales',d=>{chart.setOption({animation:false,xAxis:{type:'category',data:['Sales']},yAxis:{type:'value'},series:[{type:'bar',data:[Number(d.rows[0].amount)]}]});
@@ -83,5 +139,5 @@ try {
   assert.equal(missingLibrary.ok, false); assert(missingLibrary.errors.some(error=>error.includes('echarts')))
   const scene = await validateDocument({ ...input, dependencies: [three], html: html("const scene=new THREE.Scene();scene.add(new THREE.Mesh(new THREE.BoxGeometry(),new THREE.MeshBasicMaterial()));if(scene.children.length!==1)throw Error('THREE_NOT_READY');live.subscribe('sales',d=>document.querySelector('output').textContent=d.rows[0].amount);live.query('sales',{region:null});") }, browser, hostPath)
   assert.equal(scene.ok, true, JSON.stringify(scene.errors))
-  console.log(JSON.stringify({ passed: ['real Dataset render', 'caught undeclared Binding blocks save', 'actionable control default mismatch', 'render callback exception blocks save', 'typed enum selects', 'Dataset options cannot replace enum values', 'numeric select must preserve number type', 'page-wide controls with multiple Bindings', 'shared filter cannot leave stale panels', 'shared filter fans out to every Binding', 'shared filter waits for delayed panels', 'independent filters use distinct IDs', ...parameterCases.map(entry => entry.name), 'disabled optgroup options skipped', 'empty select does not trigger restore', 'packaged ECharts renders SVG', 'missing library blocks save', 'packaged Three.js scene'] }))
+  console.log(JSON.stringify({ passed: ['real Dataset render', 'caught undeclared Binding blocks save', 'actionable control default mismatch', 'render callback exception blocks save', 'typed enum selects', 'Dataset options cannot replace enum values', 'numeric select must preserve number type', 'page-wide controls with multiple Bindings', 'every declared Binding initially queried', 'delayed initial panel supported', 'unfinished skill example blocks save', 'implemented skill lifecycle runs', 'refresh renderer failures block save', 'button refresh requires Binding ID', 'page refresh button runs', 'data select cannot only filter cached rows', 'native select intent must be explicit', 'presentation selects need no data query', 'shared filter cannot leave stale panels', 'shared filter fans out to every Binding', 'shared filter waits for delayed panels', 'independent filters use distinct IDs', 'filter must query a Binding that declares its control', ...parameterCases.map(entry => entry.name), 'disabled optgroup options skipped', 'empty select does not trigger restore', 'packaged ECharts renders SVG', 'missing library blocks save', 'packaged Three.js scene'] }))
 } finally { await browser.close() }
