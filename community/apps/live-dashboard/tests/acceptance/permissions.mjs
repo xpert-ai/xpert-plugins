@@ -2,6 +2,12 @@ import { config, api, load, save } from "./context.mjs";
 import { randomUUID, randomBytes } from "node:crypto";
 import assert from "node:assert/strict";
 const report = { checks: [], cleanup: [] };
+// Validate prerequisites before creating any temporary authorization entities.
+const documents = new Map(await Promise.all(config.cases.map(async (item) => {
+  const document = await load(`${item.format}-edit2/document.json`);
+  assert(document.manifest?.bindings?.length, `${item.format}: missing saved Binding`);
+  return [item.format, document];
+})));
 try {
   await save(
     `permissions.previous-${Date.now()}.json`,
@@ -94,7 +100,7 @@ try {
     return { status: response.status, body: await response.json() };
   };
   for (const item of config.cases) {
-    const document = await load(`${item.format}-edit2/document.json`),
+    const document = documents.get(item.format),
       binding = document.manifest.bindings[0];
     const query = () =>
       call("/data-source/analytics/query", {

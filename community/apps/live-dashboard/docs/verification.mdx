@@ -84,3 +84,8 @@ Binding、依赖锁和保存字节；`boundary.mjs` 和 `permissions.mjs` 分别
 和正式发布兼容性是不同结论；本流程不执行正式发布验证。
 
 本轮真实结果、失败样本与结论范围见 [2026-10-19 生成重试与持续编辑回归](./retry-regression-acceptance)。
+
+固定运行代码、构建字节与逐轮模型身份的后续回归，见
+[2026-10-19 固定构建与多模型回归](./fixed-build-multimodel-acceptance)。
+`build.mjs` 在运行前记录外部不可覆盖清单，`models.mjs` 核对实际根执行的模型和参数；
+工具首次成功、业务首次通过、额外修复轮次与模型不可用分别记录。

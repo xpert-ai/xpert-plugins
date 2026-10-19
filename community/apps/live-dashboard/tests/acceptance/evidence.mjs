@@ -117,6 +117,20 @@ export function assertSavedDocumentEvidence(state, receipt, document) {
     source.sha256, "Saved HTML differs from the successful source receipt");
 }
 
+export function assertCreatedDashboardEvidence(state, receipt) {
+  const all = messages(state);
+  const creationIds = new Map(all.flatMap((message) => message.tool_calls ?? [])
+    .filter((call) => ["dashboard_create", "dashboard_create_html"].includes(call.name))
+    .map((call) => [call.id, call.name]));
+  assert(all.some((message) => {
+    if (!message.tool_call_id || creationIds.get(message.tool_call_id) !== message.name || message.status === "error" || typeof message.content !== "string") return false;
+    try {
+      const value = JSON.parse(message.content);
+      return value.dashboard?.artifactId === receipt.dashboard.artifactId && value.dashboard.draftRevision > 0;
+    } catch { return false; }
+  }), "Generation must create a new Artifact; updating a historical dashboard is not creation");
+}
+
 /** Read-only refresh checks are useful diagnostics, but not source-mutation acceptance. */
 export function assertUiAcceptance(ui) {
   assert(ui.passed && ui.sourcesRestored, "UI or source restoration failed");
@@ -127,4 +141,34 @@ export function assertUiAcceptance(ui) {
   ], "Incomplete source-mutation UI sequence");
   for (const key of ["unknownBinding", "unknownControl", "parentDOM", "directFetch"])
     assert.equal(ui.boundary?.[key], true, `Missing frame boundary check: ${key}`);
+}
+
+/** Model-picker labels are not execution evidence; use persisted root metadata. */
+export function assertModelEvidence(execution, expected) {
+  assert.equal(execution.threadId, expected.threadId, "Execution belongs to another conversation");
+  assert.equal(execution.parentId, null, "Expected a root execution");
+  assert.equal(execution.status, "success", "Model execution did not succeed");
+  assert.equal(execution.metadata?.primaryModelId, expected.id, "Unexpected executed model ID");
+  const model = execution.metadata?.primaryModelSnapshot;
+  assert.equal(model?.model, expected.name, "Unexpected executed model name");
+  assert.equal(model?.copilotId, expected.copilotId, "Unexpected model connection");
+  assert.deepEqual(model?.options, expected.options, "Model options changed within the baseline");
+}
+
+/** A round may fail both data and visual checks; count it once, by round name. */
+export function summarizeBusinessEvidence(cases, rounds, repairs, visualFindings) {
+  const dataFailures = new Set(repairs.map((repair) => repair.format));
+  const failures = new Set([...dataFailures, ...visualFindings.map((finding) => finding.round)]);
+  const initialFailures = cases.filter((item) => failures.has(item.format)).length;
+  return {
+    initialGeneration: {
+      cases: cases.length,
+      dataInteractionFirstPass: cases.length - dataFailures.size,
+      businessFirstPass: cases.length - initialFailures,
+      requiredBusinessRepair: initialFailures,
+    },
+    dataAcceptedRounds: rounds.length,
+    acceptedRounds: rounds.filter((round) => !failures.has(round.name)).length,
+    businessFailedAttempts: failures.size,
+  };
 }

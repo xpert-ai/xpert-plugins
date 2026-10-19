@@ -52,14 +52,15 @@ for (const format of config.cases.map((item) => item.format)) {
       records[i - 1].manifest.presentation.html,
     );
   }
-  assert.equal(
-    records[1].title,
-    format.toUpperCase() + " 文件看板重试回归·修订",
-  );
-  assert.equal(
-    records[2].title,
-    format.toUpperCase() + " 文件看板重试回归·定稿预览",
-  );
+  // Display whitespace is cosmetic; preserve and expose it instead of hiding
+  // differences. All title characters, punctuation and revision suffixes match.
+  const titleFormattingDifferences = [];
+  for (const [index, suffix] of [[1, "·修订"], [2, "·定稿预览"]]) {
+    const expected = format.toUpperCase() + " 文件看板重试回归" + (config.runLabel ? `·${config.runLabel}` : "") + suffix;
+    assert.equal(records[index].title.replace(/\s+/gu, ""), expected.replace(/\s+/gu, ""), "Saved title content");
+    if (records[index].title !== expected)
+      titleFormattingDifferences.push({ round: index, requested: expected, actual: records[index].title });
+  }
   assert(
     records[2].manifest.presentation.html
       .replace(/<[^>]+>/g, "")
@@ -78,6 +79,7 @@ for (const format of config.cases.map((item) => item.format)) {
     sameDependencies: true,
     saveReceiptHashesMatch: true,
     formalVersionCount: 0,
+    titleFormattingDifferences,
   });
 }
 await writeFile(

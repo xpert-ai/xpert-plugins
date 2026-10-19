@@ -1,7 +1,9 @@
 import { config, load, save, download } from "./context.mjs";
 import { createHash } from "node:crypto";
-import { assertUiAcceptance } from "./evidence.mjs";
+import { assertUiAcceptance, summarizeBusinessEvidence } from "./evidence.mjs";
 import assert from "node:assert/strict";
+import { verifyBuild } from "./build-evidence.mjs";
+const buildSha256 = await verifyBuild(config);
 const repairs = [],
   reports = [],
   evolution = await load("evolution.json"),
@@ -69,19 +71,55 @@ for (const item of config.cases) {
   );
 }
 const rounds = reports.flatMap((report) => report.rounds);
+const visualFindings = [];
+for (const item of config.cases) {
+  assert.equal((await load(`${item.format}-edit2/visual-review.json`)).passed, true,
+    "Final page requires screenshot review, not only numeric assertions");
+  const names = [item.format, ...(item.repairPrompt ? [`${item.format}-repair`] : []),
+    `${item.format}-edit1`, `${item.format}-edit2`];
+  for (const [index, name] of names.entries()) {
+    let visual;
+    try { visual = await load(`${name}/visual-review.json`); }
+    catch (error) { if (error.code !== "ENOENT") throw error; }
+    if (visual?.passed === false) {
+      assert(names.slice(index + 1).includes(visual.followUpRound), "Unresolved visual finding");
+      const resolved = await load(`${visual.followUpRound}/visual-review.json`);
+      assert.equal(resolved.passed, true, "Visual finding was not reviewed after repair");
+      const originalUi = await load(`${name}/ui-acceptance.json`);
+      const resolvedUi = await load(`${visual.followUpRound}/ui-acceptance.json`);
+      assertUiAcceptance(resolvedUi);
+      assert.equal(resolvedUi.artifactId, originalUi.artifactId, "Visual repair changed Artifact");
+      assert(resolvedUi.draftRevision > originalUi.draftRevision, "Visual repair did not save a later revision");
+      visualFindings.push({ format: item.format, round: name, issue: visual.issue, resolvedIn: visual.followUpRound });
+    }
+  }
+}
+const business = summarizeBusinessEvidence(config.cases, rounds, repairs, visualFindings);
+const models = config.model ? await load("models.json") : undefined;
+if (models) {
+  assert(models.passed, "Missing execution model verification");
+  assert.deepEqual(models.expected, config.model, "Model baseline changed");
+  assert.equal(models.rounds.length, rounds.length + repairs.length, "Incomplete model execution evidence");
+}
 const result = {
   passed: true,
   completedAt: new Date().toISOString(),
   scope: "local_application_regression",
   formalReleaseVerification: false,
+  ...(buildSha256 ? { buildSha256 } : {}),
+  ...(models ? { model: models.expected, modelVerifiedRounds: models.rounds.length } : {}),
   formats: reports,
   repairs,
+  visualFindings,
+  initialGeneration: business.initialGeneration,
   totals: {
     modelRounds: rounds.length + repairs.length,
-    acceptedRounds: rounds.length,
-    firstPass: rounds.filter((round) => round.classification === "first_pass")
+    dataAcceptedRounds: business.dataAcceptedRounds,
+    acceptedRounds: business.acceptedRounds,
+    businessFailedAttempts: business.businessFailedAttempts,
+    toolFirstPass: rounds.filter((round) => round.classification === "first_pass")
       .length,
-    recovered: rounds.filter((round) => round.classification === "recovered")
+    toolRecovered: rounds.filter((round) => round.classification === "recovered")
       .length,
     toolErrors:
       rounds.reduce((sum, round) => sum + round.toolErrors, 0) +

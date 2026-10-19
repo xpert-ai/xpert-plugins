@@ -1,6 +1,8 @@
 import { config, api, login, load, save } from "./context.mjs";
-import { messages, receipts, toolEvidence } from "./evidence.mjs";
+import { messages, receipts, toolEvidence, assertCreatedDashboardEvidence } from "./evidence.mjs";
 import assert from "node:assert/strict";
+import { verifyBuild } from "./build-evidence.mjs";
+await verifyBuild(config);
 const format = process.argv[3],
   mode = process.argv[4] ?? "create";
 const item = config.cases.find((item) => item.format === format);
@@ -17,12 +19,12 @@ const name = mode === "create" ? format : `${format}-${mode}`,
           ? `${format}-repair`
           : format
         : `${format}-edit1`;
-const title = `${format.toUpperCase()} 文件看板重试回归`;
+const title = `${format.toUpperCase()} 文件看板重试回归${config.runLabel ? `·${config.runLabel}` : ""}`;
 const prompts = {
   repair: item.repairPrompt,
-  create: `请使用“${item.sourceName}”生成并保存${item.style ?? "白金与金属蓝"}风格的 HTML/ECharts 看板“${title}”，按来源已配置的指标口径，展示 2026 年第三季度按月和区域汇总的净销售额。顶部总额、左侧趋势、右侧明细，支持全部/华东/华西筛选和手动刷新，刷新时读取源文件最新内容。`,
+  create: `请使用“${item.sourceName}”新建并保存${item.style ?? "白金与金属蓝"}风格的 HTML/ECharts 看板“${title}”，按来源已配置的指标口径，展示 2026 年第三季度按月和区域汇总的净销售额。顶部总额、左侧趋势、右侧明细，支持全部/华东/华西筛选和手动刷新，刷新时读取源文件最新内容。`,
   edit1: `把当前看板改成深蓝与金色，标题改为“${title}·修订”，趋势放在上方、明细放在下方；保持指标口径和数据来源，保留区域筛选与刷新，筛选后只显示所选区域的图表系列，保存到同一看板草稿。`,
-  edit2: `继续修改当前看板，增加说明“金额单位：人民币元；按文件业务口径统计”，标题改为“${title}·定稿预览”；保留指标口径、图表、明细、筛选和刷新，自动保存同一个草稿。`,
+  edit2: `继续修改当前看板，增加说明“金额单位：人民币元；按文件业务口径统计”，标题改为“${title}·定稿预览”；保留指标口径、图表、明细、筛选和刷新，自动保存同一个草稿。${item.edit2Extra ?? ""}`,
 };
 assert(
   typeof prompts[mode] === "string" && prompts[mode].length,
@@ -52,12 +54,22 @@ if (!generation) {
           exact: true,
         })
         .last()
-        .click();
+        .click({ timeout: 60000 });
       await chat
         .frameLocator('iframe[title="实时看板"]')
         .getByRole("combobox", { name: "选择看板", exact: true })
         .waitFor();
       await p.waitForTimeout(1000);
+    }
+    // A saved API preference can differ from the composer's explicit selection.
+    // Select through the same visible control as a user before every prompt.
+    if (config.model) {
+      const catalog = await api(`/ai/assistants/${config.assistantId}/models`);
+      const model = catalog.models.find((item) => item.id === config.model.id);
+      assert(model && !model.disabled, "Expected model is not available");
+      await chat.getByRole("button", { name: /^模型: / }).click();
+      await chat.getByRole("menuitemradio").filter({ hasText: model.label }).click();
+      await chat.getByRole("button", { name: `模型: ${model.label}`, exact: true }).waitFor();
     }
     await chat.getByRole("textbox").fill(prompts[mode]);
     await chat.getByRole("button", { name: "发送消息", exact: true }).click();
@@ -111,6 +123,8 @@ try {
         (latest.dashboard.artifactId === previous.dashboard.artifactId &&
           latest.dashboard.draftRevision > previous.dashboard.draftRevision));
     if (saved && conversation.status === "idle") {
+      await verifyBuild(config);
+      if (mode === "create") assertCreatedDashboardEvidence(state, latest);
       const selected = await api(
         `/view-hosts/agent/${config.assistantId}/views/live-dashboard__live-dashboard/data?parameters=` +
           encodeURIComponent(
@@ -156,6 +170,11 @@ try {
   }
   throw new Error("Generation deadline exceeded");
 } catch (error) {
+  const state = await load(`${name}/agent-state.json`).catch(() => null);
+  if (state) await save(`${name}/tool-evidence.json`, {
+    ...toolEvidence(state, generation.priorIds), classification: "failed",
+    completedAt: new Date().toISOString(),
+  });
   await save(`${name}/failure.json`, {
     classification: "failed",
     error: error.message,

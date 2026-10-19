@@ -67,12 +67,14 @@ const observations = [],
   };
 const persist = () =>
   writeFile(caseRoot + "/ui-acceptance.json", JSON.stringify(receipt, null, 2));
+const requestStarts = new WeakMap();
+p.on("request", (request) => requestStarts.set(request, Date.now()));
 p.on("response", async (r) => {
   if (r.url().includes("/actions/query-binding"))
     try {
       const input = r.request().postDataJSON()?.input;
       if (input?.artifactId === saved.artifactId)
-        observations.push({ status: r.status(), input, body: await r.json() });
+        observations.push({ startedAt: requestStarts.get(r.request()), status: r.status(), input, body: await r.json() });
     } catch {}
 });
 async function snapshot() {
@@ -86,11 +88,15 @@ async function snapshot() {
               .replace(/CNY|¥|￥|元/g, "")
               .trim(),
           );
-        const rows = [
+        const tableRows = [
           ...document
             .querySelector(c.tableSelector ?? "#" + c.table)
             .querySelectorAll("tr"),
-        ]
+        ];
+        const summaryRows = c.summaryRowSelector
+          ? tableRows.filter((r) => r.matches(c.summaryRowSelector))
+          : [];
+        const rows = tableRows.filter((r) => !summaryRows.includes(r))
           .map((r) =>
             [...r.querySelectorAll("td")].map((td) => td.textContent.trim()),
           )
@@ -98,12 +104,25 @@ async function snapshot() {
         const chart = window.echarts.getInstanceByDom(
           document.querySelector(c.chartSelector ?? "#" + c.chart),
         );
+        const host = chart?.getDom();
+        const hostRect = host?.getBoundingClientRect();
+        const graphics = host ? [...host.querySelectorAll("svg,canvas")] : [];
         return {
           format: c.format,
+          ...(c.chartFitsContainer ? { chartFitsContainer: graphics.length > 0 && graphics.every((graphic) => {
+            const rect = graphic.getBoundingClientRect();
+            return rect.width > 0 && rect.height > 0 && rect.left >= hostRect.left - 2 && rect.top >= hostRect.top - 2 &&
+              rect.right <= hostRect.right + 2 && rect.bottom <= hostRect.bottom + 2;
+          }) } : {}),
+          ...(c.staleLoadingSelector ? { staleLoadingCount: [...document.querySelectorAll(c.staleLoadingSelector)].filter((node) => {
+            const rect = node.getBoundingClientRect();
+            return rect.width > 0 && rect.height > 0 && getComputedStyle(node).visibility !== "hidden";
+          }).length } : {}),
           total: number(
             document.querySelector(c.kpiSelector ?? "#" + c.kpi).textContent,
           ),
           rows,
+          summaryTotals: summaryRows.map((r) => number(r.querySelector("td:last-child").textContent)),
           months: chart?.getOption()?.xAxis?.[0]?.data,
           tableSum: rows.reduce((n, r) => n + number(r.at(-1)), 0),
           series:
@@ -140,7 +159,11 @@ function assertSnapshot(s, profile, region, total, stage) {
   const groups = region ? [region] : ["华东", "华西"];
   const months = ["2026-07", "2026-08", "2026-09"];
   assert.equal(s.total, total, stage + " KPI");
+  if (profile.chartFitsContainer) assert.equal(s.chartFitsContainer, true, stage + " chart overflows container");
+  if (profile.staleLoadingSelector) assert.equal(s.staleLoadingCount, 0, stage + " stale loading placeholder");
   assert.equal(s.tableSum, total, stage + " table total");
+  if (profile.summaryRowSelector)
+    assert.deepEqual(s.summaryTotals, [total], stage + " table summary total");
   const expectedRows = months.flatMap((month, index) =>
     groups.flatMap((group) =>
       profile.tableGrain === "orders" && group === "华东" && index === 0
@@ -230,20 +253,31 @@ async function check(stage, region, totals) {
   console.log(JSON.stringify({ case: name, stage, totals }));
 }
 async function act(stage, action, region, totals) {
-  const before = observations.length;
+  const startedAt = Date.now();
+  const controlId = config[0].controlId ?? "region";
+  const isFilterChange = ["east", "west", "all"].includes(stage);
+  const affected = document.manifest.bindings.filter((binding) =>
+    !isFilterChange || binding.parameters?.some((p) => p.controlId === controlId),
+  );
+  assert(affected.length, stage + " has no affected declared Binding");
+  const matches = (call, binding) =>
+    call.startedAt >= startedAt && call.status === 201 &&
+    call.input.bindingId === binding.id &&
+    (!binding.parameters?.some((p) => p.controlId === controlId) ||
+      call.input.controls?.[controlId] === region);
   await action();
   await check(stage, region, totals);
   for (
     let i = 0;
-    i < 100 && observations.length < before + document.manifest.bindings.length;
+    i < 100 && !affected.every((binding) => observations.some((call) => matches(call, binding)));
     i++
   )
     await p.waitForTimeout(100);
-  const calls = observations.slice(before);
-  for (const binding of document.manifest.bindings)
+  const calls = observations.filter((call) => call.startedAt >= startedAt);
+  for (const binding of affected)
     assert(
-      calls.some((c) => c.input.bindingId === binding.id),
-      stage + " did not query " + binding.id,
+      calls.some((call) => matches(call, binding)),
+      stage + " did not successfully query " + binding.id + " with the selected controls",
     );
   assert(
     calls.every((c) => c.status === 201),
@@ -437,6 +471,8 @@ try {
   receipt.sourcesRestored = !restoreErrors.length;
   receipt.restoreErrors = restoreErrors;
   await persist();
+  // Detach streaming Chat connections before closing the browser transport.
+  await p.goto("about:blank", { timeout: 5000 }).catch(() => {});
   await b.close();
   assert.equal(
     restoreErrors.length,

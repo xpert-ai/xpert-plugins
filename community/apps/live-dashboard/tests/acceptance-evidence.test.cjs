@@ -54,3 +54,47 @@ test('complete UI acceptance requires source mutation and every boundary check',
   assert.throws(() => assertUiAcceptance({ ...ui, sourcesRestored: false }), /restoration failed/)
   assert.throws(() => assertUiAcceptance({ ...ui, documentPreserved: false }), /page instance/)
 })
+
+test('multi-model baseline rejects picker-only evidence, wrong models and changed tuning', async () => {
+  const { assertModelEvidence } = await import('./acceptance/evidence.mjs')
+  const expected = { threadId: 'thread', id: 'model-id', name: 'model-name', copilotId: 'connection', options: { temperature: 0.1 } }
+  const execution = { threadId: 'thread', parentId: null, status: 'success', metadata: {
+    primaryModelId: expected.id, primaryModelSnapshot: { model: expected.name, copilotId: expected.copilotId, options: expected.options }
+  } }
+  assert.doesNotThrow(() => assertModelEvidence(execution, expected))
+  assert.throws(() => assertModelEvidence({ ...execution, metadata: undefined }, expected), /model ID/)
+  assert.throws(() => assertModelEvidence({ ...execution, threadId: 'other' }, expected), /another conversation/)
+  assert.throws(() => assertModelEvidence({ ...execution, parentId: 'parent' }, expected), /root execution/)
+  assert.throws(() => assertModelEvidence({ ...execution, status: 'error' }, expected), /did not succeed/)
+  assert.throws(() => assertModelEvidence(execution, { ...expected, name: 'fallback' }), /model name/)
+  assert.throws(() => assertModelEvidence(execution, { ...expected, options: { temperature: 1 } }), /options changed/)
+})
+
+test('new generation cannot pass with an update of a historical Artifact', async () => {
+  const { assertCreatedDashboardEvidence } = await import('./acceptance/evidence.mjs')
+  const receipt = { dashboard: { artifactId: 'new', draftRevision: 1 } }
+  const state = (name, result = receipt) => ({ messages: [
+    { id: 'call', content: '', tool_calls: [{ id: 'save', name }] },
+    { id: 'reply', name, tool_call_id: 'save', content: JSON.stringify(result) }
+  ] })
+  assert.doesNotThrow(() => assertCreatedDashboardEvidence(state('dashboard_create_html'), receipt))
+  assert.throws(() => assertCreatedDashboardEvidence(state('dashboard_update'), receipt), /create a new Artifact/)
+  assert.throws(() => assertCreatedDashboardEvidence(state('dashboard_create_html', { dashboard: { artifactId: 'other', draftRevision: 1 } }), receipt), /create a new Artifact/)
+})
+
+test('business counts deduplicate data and visual failures and include repair-round findings', async () => {
+  const { summarizeBusinessEvidence } = await import('./acceptance/evidence.mjs')
+  const cases = [{ format: 'csv' }, { format: 'json' }, { format: 'xlsx' }]
+  const rounds = cases.flatMap(({ format }) => [format === 'json' ? 'json-repair' : format, `${format}-edit1`, `${format}-edit2`].map(name => ({ name })))
+  const repairs = [{ format: 'json' }]
+  const initialVisual = [{ format: 'json', round: 'json' }]
+  assert.deepEqual(summarizeBusinessEvidence(cases, rounds, repairs, initialVisual), {
+    initialGeneration: { cases: 3, dataInteractionFirstPass: 2, businessFirstPass: 2, requiredBusinessRepair: 1 },
+    dataAcceptedRounds: 9, acceptedRounds: 9, businessFailedAttempts: 1
+  })
+  assert.deepEqual(summarizeBusinessEvidence(cases, rounds, repairs, [...initialVisual,
+    { format: 'json', round: 'json-repair' }, { format: 'csv', round: 'csv' }]), {
+    initialGeneration: { cases: 3, dataInteractionFirstPass: 2, businessFirstPass: 1, requiredBusinessRepair: 2 },
+    dataAcceptedRounds: 9, acceptedRounds: 7, businessFailedAttempts: 3
+  })
+})

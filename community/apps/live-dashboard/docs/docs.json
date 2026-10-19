@@ -30,6 +30,7 @@
               "file-datasets-acceptance",
               "evolution-acceptance",
               "retry-regression-acceptance",
+              "fixed-build-multimodel-acceptance",
               "verification"
             ]
           },
