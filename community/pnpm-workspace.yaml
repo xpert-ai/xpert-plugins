@@ -9,4 +9,3 @@ packages:
   - models/*
   - packages/*
   - roles/*
-  - ../xpertai/databases/mysql

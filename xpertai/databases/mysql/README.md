@@ -114,7 +114,7 @@ This project follows the [AGPL-3.0 License](../../../LICENSE) located at the rep
 
 ## Doris workbench connection factory
 
-The paired SAIC release adds the public `@xpert-ai/plugin-mysql/doris` entrypoint:
+The plugin provides the public `@xpert-ai/plugin-mysql/doris` entrypoint:
 
 ```ts
 import { createDorisConnection, type DorisAdapterOptions } from '@xpert-ai/plugin-mysql/doris'
@@ -124,7 +124,7 @@ if (!password) throw new Error('DORIS_PASSWORD is required')
 const options: DorisAdapterOptions = {
   host: 'doris.example.invalid', port: 9030,
   username: 'config_user', password,
-  catalog: 'saic_fixture', apiPort: 8030,
+  catalog: 'analytics', apiPort: 8030,
   streamLoadHosts: ['doris-be.example.invalid']
 }
 const adapter = createDorisConnection(options)
@@ -139,4 +139,4 @@ The adapter implements the existing `DatabaseWorkbenchAdapter` contract, uses th
 
 Stream Load retains explicit succeeded/pending/unknown receipts and available row counts. Redirects preserve credentials only for the configured FE host or `streamLoadHosts`, same protocol and import path, at most four hops. The shared driver never retries unknown or pending imports itself; callers own their business-specific policy. Existing 8 MiB request/result limits remain in effect.
 
-Requires SDK `^3.21.0`. Build and release with the SAIC package using the paired community changeset; the previous 0.1.0 package has no public Doris factory. See [SAIC configuration and compatibility](../../../community/tools/saic-doris/README.md).
+Requires SDK `^3.21.0`. Build and release this package from the `xpertai` workspace using its MySQL changeset. The previous 0.1.0 package has no public Doris factory.
