@@ -36,6 +36,9 @@ Assistant 启用 Sandbox，并连接 `SandboxFile`、`skillsMiddleware` 和 `Liv
 
 ## 减少可避免的重试
 
+- 新建独立看板使用未占用的文件路径；同名历史文件或 Artifact 不是转去编辑旧看板的授权。
+- 打开和读取只准备未修改副本，`editingFile.hasUnsavedChanges` 初始为 `false`。成功保存回执已经确认持久化，不能为验证上一次保存而再次提交未修改的副本。
+
 - Provider payload 在调用前按发现契约检查，字段格式错误应先修复，不能重复提交相同值。SDK 校验不代替授权与实际预览。
 - 预览的 `validation.checks` 提前列出需要执行的非默认筛选测试；建议参数来自实际样例，不能把建议当成测试成功。
 - 打开的 HTML 副本已存在，沿用 `editingFile.read` 读取，再使用编辑工具。批量编辑按顺序保存，失败后读取当前内容并只补剩余变更。
