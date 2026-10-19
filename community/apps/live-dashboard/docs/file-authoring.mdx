@@ -33,3 +33,14 @@ Assistant 启用 Sandbox，并连接 `SandboxFile`、`skillsMiddleware` 和 `Liv
 自动化验证覆盖异常参数、编辑副本不覆盖、明确保存、错误回执隔离和现有查询边界。部署验收需要额外验证 Agent 实际读取技能、调用沙箱文件工具、创建/修改看板及重开；仅构建或模拟测试不能代替运行环境验收。
 
 2026-10-17 的真实模型与 xpert-pro / data-xpert SSO 验收结果见[统一文件流程验收](./file-authoring-acceptance)。
+
+## 减少可避免的重试
+
+- Provider payload 在调用前按发现契约检查，字段格式错误应先修复，不能重复提交相同值。SDK 校验不代替授权与实际预览。
+- 预览的 `validation.checks` 提前列出需要执行的非默认筛选测试；建议参数来自实际样例，不能把建议当成测试成功。
+- 打开的 HTML 副本已存在，沿用 `editingFile.read` 读取，再使用编辑工具。批量编辑按顺序保存，失败后读取当前内容并只补剩余变更。
+- 沿用 `saveArguments` 的 Artifact ID、修订号和正式基准；无正式版本时使用 JSON `null`，不是字符串 `None`。标题和页面在同一次更新提交，修复错误参数时保留所有请求的变更。
+
+可复用的真实回归命令和独立数据口径位于 `tests/acceptance/README.md`。流程保留失败样本、工具错误、保存回执和源文件恢复证据，不要求所有模型都零重试。
+
+`dashboard_update` 的 Agent 工具要求显式 `title`；未改名时复制当前标题，改名与 HTML 修改应在同一次保存中提交。该约束属于看板编排，平台部分更新接口继续保持通用语义。

@@ -29,6 +29,7 @@
               "file-authoring-acceptance",
               "file-datasets-acceptance",
               "evolution-acceptance",
+              "retry-regression-acceptance",
               "verification"
             ]
           },
