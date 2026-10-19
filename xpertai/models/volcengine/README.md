@@ -40,7 +40,11 @@ The configuration form is defined by `volcengine.yaml`, covering common Ark mode
 | `ark_api_key` | Required. API key from the Volcengine Ark console. |
 | `api_endpoint_host` | Optional. API base URL, defaulting to `https://ark.cn-beijing.volces.com/api/v3`. |
 
-Before creating or updating credentials, the plugin calls `doubao-seed-2-0-mini-260215` with a minimal prompt, thinking disabled, and a five-token output limit. The key must have access to this model. Authentication errors, unavailable models, and requests exceeding the ten-second timeout prevent saving; failed requests are not retried.
+Credential verification requires a host that supports the provider's `credentialValidation` policy. Select a text model you can access, or enter its custom Endpoint ID, in the credential dialog. The host tests that exact target before saving, with a minimal prompt, thinking disabled, a five-token output limit, a ten-second timeout and no retries. No model is selected automatically. The target is used only for validation; it does not change the Assistant's model or get stored with the API key.
+
+Ark's documented [ListFoundationModels](https://docs.volcengine.com/docs/ark/list-foundation-models-api?lang=zh) and [ListModelActivations](https://docs.volcengine.com/docs/ark/list-model-activations-api?lang=zh) APIs require Access Key authentication. As of 2026-10-19 there is no documented model-list API for ordinary Ark API keys, so this plugin does not advertise `discoverModels` or assume OpenAI's `/models` endpoint is available. The model picker shows reference metadata, not proof of key permissions. Listing support in other providers is handled by the host's existing `discoverModels` contract.
+
+Deploy the host's credential-validation update before this plugin. Older hosts only run the plugin's local field checks and cannot perform the selected-model validation.
 
 ## Development & Debugging
 
