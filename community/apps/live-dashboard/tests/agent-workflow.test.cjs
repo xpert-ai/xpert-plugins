@@ -611,7 +611,7 @@ test('an HTML edit receipt explicitly identifies an existing file and saves titl
   assert.equal(opened.saveArguments.title, s.saved.manifest.title)
   assert.equal(opened.saveArguments.expectedCurrentVersionId, opened.expectedCurrentVersionId)
   await assert.rejects(s.invoke('dashboard_update', { ...opened.saveArguments, expectedCurrentVersionId: 'None' }), /JSON null/)
-  assert.deepEqual(opened.editingFile, { path: opened.htmlPath, exists: true, writeMode: 'edit_existing',
+  assert.deepEqual(opened.editingFile, { path: opened.htmlPath, exists: true, hasUnsavedChanges: false, writeMode: 'edit_existing',
     read: { tool: 'sandbox_read_file', arguments: { file_path: opened.htmlPath } } })
   const { title, ...withoutTitle } = opened.saveArguments
   await assert.rejects(s.invoke('dashboard_update', withoutTitle), /title/)

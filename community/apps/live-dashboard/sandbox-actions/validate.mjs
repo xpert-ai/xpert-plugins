@@ -66,7 +66,6 @@ const errors = [], addError = value => { const message = String(value).slice(0, 
       const original = await select.inputValue()
       const values = await select.locator('option').evaluateAll(options => options.filter(option => !option.matches(':disabled')).map(option => option.value))
       const alternatives = [...new Set(values)].filter(value => value !== original).slice(0, 3)
-      if (!alternatives.length) continue
       const controlId = await select.getAttribute('data-dashboard-control')
       const presentationOnly = await select.getAttribute('data-dashboard-presentation') !== null
       const declared = Object.values(input.parameters).flat()
@@ -78,6 +77,11 @@ const errors = [], addError = value => { const message = String(value).slice(0, 
         addError('DOCUMENT_SELECT_BINDING_REQUIRED: mark a data select with data-dashboard-control="<controlId>"; mark a purely visual selector with data-dashboard-presentation. Do not guess from labels.')
         continue
       }
+      if (controlId && !values.length) {
+        addError(`DOCUMENT_SELECT_OPTIONS_MISSING: ${controlId} has no enabled options. Populate the data select from verified values before interaction, or disable it when no choices are available.`)
+        continue
+      }
+      if (!alternatives.length) continue
       for (const value of [...alternatives, original]) {
         const before = await page.evaluate(() => window.validation.controlsByBinding)
         await select.selectOption(value, { timeout: 1000 }).catch(() => addError(value === original ? 'DOCUMENT_SELECT_RESTORE_FAILED' : 'DOCUMENT_SELECT_INTERACTION_FAILED'))

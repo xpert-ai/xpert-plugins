@@ -9,6 +9,9 @@ Use the platform SandboxFile tools to author source files. Use the dashboard too
 
 ## Avoid preventable retries
 
+- New independent dashboards use an unused source-file path. Inspect the target directory when needed; do not overwrite an existing candidate or switch to editing a historical Artifact merely because its title or filename matches.
+- A successful save receipt already confirms persistence. Opening or reading the saved dashboard only prepares an unchanged copy; it does not require another save. Update only for an actual requested change or an observed defect. Never save an unchanged copy merely to verify that the previous save worked.
+
 - After preview, execute every `validation.checks[].suggestedCall` before writing HTML. These suggestions use observed rows; only a successful `dashboard_test_filter` is evidence. If no value is suggested, inspect the source for a real value. A changed Binding needs fresh evidence.
 - `dashboard_open.editingFile.exists` means the editing copy already exists. Read `editingFile.read`, then use `sandbox_edit_file` or a small `sandbox_multi_edit_file` batch; do not call the create-only `sandbox_write_file` on that path.
 - Batch edits are sequential, not atomic. On failure, read the current file, inspect reported progress, and apply only changes still missing. Do not replay completed edits or use ambiguous short CSS fragments.
@@ -65,4 +68,4 @@ The card is a compact receipt with an Open button. It opens the registered Workb
 
 ## Verify the result
 
-Confirm the requested layout/title, change a real filter, refresh the data and verify that charts and totals update through `subscribe`. Reopen the saved draft and confirm the same Artifact and revision. Report data limitations and partial results explicitly. A syntactically valid page alone does not prove correct business metrics.
+Confirm the requested layout/title, change a real filter, refresh the data and verify that charts and totals update through `subscribe`. If reopening to inspect, confirm the same Artifact and revision without calling update on an unchanged copy. Report data limitations and partial results explicitly. A syntactically valid page alone does not prove correct business metrics.
