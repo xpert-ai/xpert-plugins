@@ -18,7 +18,7 @@ function setup(options = {}) {
     async history(scope, artifactId) { await this.open(scope, artifactId); return [{ artifactId, versionId: saved.versionId, versionNumber: 1 }] },
     async update(scope, artifactId, versionId, changes) { await this.open(scope, artifactId); calls.push(['update', scope, artifactId, versionId, changes]); return { artifactId, draftRevision: 1, status: "draft", title: changes.title ?? saved.manifest.title } },
     async sources() { return [] },
-    async discover(scope, input) { if (denied) throw new Error('REVOKED'); calls.push(['discover', scope, input]); return { items: [], queryContract: { operation: 'query', contractVersion: 1 } } },
+    async discover(scope, input) { if (denied) throw new Error('REVOKED'); calls.push(['discover', scope, input]); return { items: [], queryContract: { operation: 'query', contractVersion: 1, payloadSchema: {} } } },
     async preview(scope, input) { if (denied) throw new Error('REVOKED'); calls.push(['preview', scope, input]); return { rows: Array.from({ length: 25 }, (_, i) => ({ n: i })), completeness: { returnedRows: 25, truncated: false } } },
     async save(scope, manifest) { if (denied) throw new Error('REVOKED'); calls.push(['save', scope, manifest]); return { artifactId: 'saved', draftRevision: 1, status: 'draft', title: manifest.title } }
   }
@@ -243,25 +243,25 @@ test('library discovery returns pins only and explicit edits select the packaged
   assert.equal(JSON.stringify(catalog).includes('"source"'), false)
   const opened = JSON.parse(await s.invoke('dashboard_open', { artifactId: s.saved.artifactId }))
   s.files.set('dashboards/library.html', Buffer.from('<html><body>Library</body></html>'))
-  await s.invoke('dashboard_update', { editId: opened.editId, expectedRevision: opened.expectedRevision, expectedCurrentVersionId: opened.expectedCurrentVersionId, htmlPath: 'dashboards/library.html', libraries: ['echarts'] })
+  await s.invoke('dashboard_update', { editId: opened.editId, expectedRevision: opened.expectedRevision, expectedCurrentVersionId: opened.expectedCurrentVersionId, title: s.saved.manifest.title, htmlPath: 'dashboards/library.html', libraries: ['echarts'] })
   const dependencies = s.calls.find(c => c[0] === 'update')[4].presentation.dependencies
   assert.equal(dependencies.length, 1)
   assert.equal(dependencies[0].id, 'echarts')
   assert.equal(dependencies[0].version, '5.6.0')
   assert.match(dependencies[0].sha256, /^[a-f0-9]{64}$/)
-  await assert.rejects(s.invoke('dashboard_update', { editId: opened.editId, expectedRevision: opened.expectedRevision, expectedCurrentVersionId: opened.expectedCurrentVersionId, libraries: ['https://untrusted.invalid/script.js'] }))
+  await assert.rejects(s.invoke('dashboard_update', { editId: opened.editId, expectedRevision: opened.expectedRevision, expectedCurrentVersionId: opened.expectedCurrentVersionId, title: s.saved.manifest.title, libraries: ['https://untrusted.invalid/script.js'] }))
 })
 
 test('data updates require fresh complete preview receipts and never accept identity or raw bindings', async () => {
   const s = setup(), opened = JSON.parse(await s.invoke('dashboard_open', { artifactId: s.saved.artifactId }))
-  await assert.rejects(s.invoke('dashboard_update', { editId: opened.editId, expectedRevision: opened.expectedRevision, expectedCurrentVersionId: opened.expectedCurrentVersionId, previewIds: ['invented'] }), /PREVIEW_REQUIRED/)
+  await assert.rejects(s.invoke('dashboard_update', { editId: opened.editId, expectedRevision: opened.expectedRevision, expectedCurrentVersionId: opened.expectedCurrentVersionId, title: s.saved.manifest.title, previewIds: ['invented'] }), /PREVIEW_REQUIRED/)
   const { updateToolSchema } = require('../dist/lib/editing.js')
   for (const extras of [{ id: randomUUID() }, { artifactId: randomUUID() }, { versionId: randomUUID() }, { bindings: example.bindings }, { expectedVersionId: randomUUID() }])
-    assert.equal(updateToolSchema.safeParse({ editId: opened.editId, expectedRevision: opened.expectedRevision, expectedCurrentVersionId: opened.expectedCurrentVersionId, ...extras }).success, false)
+    assert.equal(updateToolSchema.safeParse({ editId: opened.editId, expectedRevision: opened.expectedRevision, expectedCurrentVersionId: opened.expectedCurrentVersionId, title: s.saved.manifest.title, ...extras }).success, false)
   const changed = { ...structuredClone(example.bindings[0]), payload: { sql: 'SELECT region, amount FROM changed' } }
   await s.invoke('dashboard_discover', { dataSourceId: changed.dataSourceId, providerId: changed.providerId })
   const preview = JSON.parse(await s.invoke('dashboard_preview_binding', { bindingJson: JSON.stringify(changed) }))
-  await s.invoke('dashboard_update', { editId: opened.editId, expectedRevision: opened.expectedRevision, expectedCurrentVersionId: opened.expectedCurrentVersionId, previewIds: JSON.stringify([preview.previewId]) })
+  await s.invoke('dashboard_update', { editId: opened.editId, expectedRevision: opened.expectedRevision, expectedCurrentVersionId: opened.expectedCurrentVersionId, title: s.saved.manifest.title, previewIds: JSON.stringify([preview.previewId]) })
   assert.deepEqual(s.calls.find(c => c[0] === 'update')[4].bindings, [changed])
   const restricted = setup({ allowedFinalProviders: ['workspace_script.query'] })
   const edit = JSON.parse(await restricted.invoke('dashboard_open', { artifactId: restricted.saved.artifactId }))
@@ -479,7 +479,7 @@ test('create, HTML create, open and update emit only authorized committed cards 
   s.revoke()
   await assert.rejects(s.invoke('dashboard_open', { artifactId: s.saved.artifactId }, config), /REVOKED/)
   await assert.rejects(s.invoke('dashboard_create', input, config), /REVOKED/)
-  await assert.rejects(s.invoke('dashboard_update', { editId: opened.editId, expectedRevision: 0, expectedCurrentVersionId: opened.expectedCurrentVersionId }, config), /REVOKED/)
+  await assert.rejects(s.invoke('dashboard_update', { editId: opened.editId, expectedRevision: 0, expectedCurrentVersionId: opened.expectedCurrentVersionId, title: s.saved.manifest.title }, config), /REVOKED/)
   assert.equal(cards.length, count)
 })
 
@@ -490,7 +490,7 @@ test('standard dashboard edits explain definition-only saves and missing HTML pa
   assert.equal(opened.htmlPath, undefined)
   assert.match(opened.next, /rename requires only title/)
   await assert.rejects(s.invoke('dashboard_update', { editId: opened.editId, expectedRevision: 0,
-    expectedCurrentVersionId: opened.expectedCurrentVersionId, htmlPath: 'dashboards/invented.html' }), /standard dashboard.*omit htmlPath and libraries/)
+    expectedCurrentVersionId: opened.expectedCurrentVersionId, title: s.saved.manifest.title, htmlPath: 'dashboards/invented.html' }), /standard dashboard.*omit htmlPath and libraries/)
   assert.equal(s.calls.filter(c => c[0] === 'update').length, 0)
 })
 
@@ -581,4 +581,60 @@ test('switching to standard charts can explicitly abandon an HTML prototype usin
   assert.equal(JSON.parse(first.content).dashboard.artifactId, JSON.parse(final.content).dashboard.artifactId)
   await s.middleware.wrapModelCall({ tools: [] }, async r => { assert.equal(r.toolChoice, undefined); return { tool_calls: [] } })
   assert(s.files.has(path)); assert(s.calls.filter(c => c[0] === 'save').every(c => !c[1].presentation && !c[1].supersedesPaths))
+})
+
+test('preview surfaces actionable checks before authoring; checks still require real execution', async () => {
+  const s = setup(), { input, binding } = draft()
+  binding.parameters[0].defaultValue = null; binding.parameters[0].required = false; binding.parameters[0].allowedValues = ['east', 'west']
+  input.controls[0].defaultValue = null; input.controls[0].allowedValues = [null, 'east', 'west']
+  s.service.preview = async (_, query) => ({ rows: [{ region: query.controls.region ?? 'east' }], completeness: { truncated: false } })
+  await s.invoke('dashboard_discover', { dataSourceId: binding.dataSourceId, providerId: binding.providerId })
+  const p = JSON.parse(await s.invoke('dashboard_preview', { binding }))
+  assert.equal(p.validation.status, 'filter_tests_required')
+  const call = p.validation.checks[0].suggestedCall
+  assert.deepEqual(call.arguments.controls, { region: 'east' })
+  input.previewIds = [p.previewId]
+  await assert.rejects(s.invoke('dashboard_create', input), /FILTER_TEST_REQUIRED/)
+  const verified = JSON.parse(await s.invoke(call.tool, call.arguments))
+  assert.deepEqual(verified.remainingControls, [])
+  assert.equal(JSON.parse(await s.invoke('dashboard_preview', { binding })).validation.status, 'filter_tests_complete')
+  await s.invoke('dashboard_create', input)
+  // Editing a Binding changes its receipt; prior checks must not carry over.
+  binding.payloadJson = JSON.stringify({ sql: 'SELECT changed' })
+  const changed = JSON.parse(await s.invoke('dashboard_preview', { binding }))
+  assert.equal(changed.validation.status, 'filter_tests_required')
+})
+test('an HTML edit receipt explicitly identifies an existing file and saves title with HTML', async () => {
+  const s = setup()
+  s.saved.manifest.presentation = { type: 'html', html: '<html><body>Old</body></html>' }
+  const opened = JSON.parse(await s.invoke('dashboard_open', { artifactId: s.saved.artifactId }))
+  assert.equal(opened.saveArguments.title, s.saved.manifest.title)
+  assert.equal(opened.saveArguments.expectedCurrentVersionId, opened.expectedCurrentVersionId)
+  await assert.rejects(s.invoke('dashboard_update', { ...opened.saveArguments, expectedCurrentVersionId: 'None' }), /JSON null/)
+  assert.deepEqual(opened.editingFile, { path: opened.htmlPath, exists: true, writeMode: 'edit_existing',
+    read: { tool: 'sandbox_read_file', arguments: { file_path: opened.htmlPath } } })
+  const { title, ...withoutTitle } = opened.saveArguments
+  await assert.rejects(s.invoke('dashboard_update', withoutTitle), /title/)
+  assert.equal(s.calls.filter(call => call[0] === 'update').length, 0)
+  s.files.set(opened.htmlPath, Buffer.from('<html><body>New</body></html>'))
+  const result = JSON.parse(await s.invoke('dashboard_update', { editId: opened.editId, expectedRevision: opened.expectedRevision,
+    expectedCurrentVersionId: opened.expectedCurrentVersionId, title: 'New title', htmlPath: opened.htmlPath }))
+  assert.equal(result.dashboard.title, 'New title')
+  const updates = s.calls.filter(call => call[0] === 'update')
+  assert.equal(updates.length, 1)
+  assert.equal(updates[0][4].presentation.html, '<html><body>New</body></html>')
+  assert.deepEqual(updates[0][4].bindings, s.saved.manifest.bindings)
+})
+
+test('invalid provider payloads fail with field feedback before executing previews', async () => {
+  const s = setup(), { binding } = draft()
+  s.service.discover = async () => ({ items: [], queryContract: { operation: 'query', contractVersion: 1,
+    payloadSchema: { type: 'object', properties: { contractHash: { type: 'string', pattern: '^[a-f0-9]{64}$' } }, required: ['contractHash'] } } })
+  await s.invoke('dashboard_discover', { dataSourceId: binding.dataSourceId, providerId: binding.providerId })
+  binding.payloadJson = JSON.stringify({ contractHash: 'missing-characters' })
+  await assert.rejects(s.invoke('dashboard_preview', { binding }), /\/contractHash \(pattern\)/)
+  assert.equal(s.calls.filter(call => call[0] === 'preview').length, 0)
+  binding.payloadJson = JSON.stringify({ contractHash: 'a'.repeat(64) })
+  await s.invoke('dashboard_preview', { binding })
+  assert.equal(s.calls.filter(call => call[0] === 'preview').length, 1)
 })

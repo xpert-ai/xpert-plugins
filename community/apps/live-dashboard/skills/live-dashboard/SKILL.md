@@ -7,6 +7,16 @@ description: Create and continuously edit saved live dashboards, including free-
 
 Use the platform SandboxFile tools to author source files. Use the dashboard tools to validate and save the business document. This skill belongs to the Live Dashboard plugin; data-source-specific query formats remain owned by each provider.
 
+## Avoid preventable retries
+
+- After preview, execute every `validation.checks[].suggestedCall` before writing HTML. These suggestions use observed rows; only a successful `dashboard_test_filter` is evidence. If no value is suggested, inspect the source for a real value. A changed Binding needs fresh evidence.
+- `dashboard_open.editingFile.exists` means the editing copy already exists. Read `editingFile.read`, then use `sandbox_edit_file` or a small `sandbox_multi_edit_file` batch; do not call the create-only `sandbox_write_file` on that path.
+- Batch edits are sequential, not atomic. On failure, read the current file, inspect reported progress, and apply only changes still missing. Do not replay completed edits or use ambiguous short CSS fragments.
+- Copy `dashboard_open.saveArguments` as the save envelope. `expectedCurrentVersionId` is the returned UUID or actual JSON `null`, never the string `None` or `null`. When repairing an invalid argument, keep every requested change in the corrected call, including the new title.
+- `dashboard_update.title` is required: use the requested new name or copy the current name if unchanged. The platform partial-update API stays unchanged; this is the Agent authoring contract.
+- For a rename plus visual change, update the HTML heading and pass the new `title` together with `htmlPath` in one `dashboard_update`. Use the returned revision for further saves. Do not make a second metadata-only save just to catch up with the heading.
+- Stop only with a successful draft receipt matching the intended file bytes and title. Never turn a tool error into a claim of success.
+
 ## Prerequisites
 
 The Assistant needs LiveDashboard, SandboxFile and skillsMiddleware; Sandbox must be enabled. For Python/JavaScript data preparation it also needs WorkspaceScriptDataset and its `workspace-script-dataset` skill. If a required tool is absent, report that exact missing capability; do not invent an equivalent tool name.

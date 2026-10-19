@@ -4,7 +4,7 @@ import type { RunnableConfig } from '@langchain/core/runnables'
 import { createHash, randomUUID } from 'node:crypto'
 import { z } from 'zod/v3'
 import type { AnalyticsBinding, AnalyticsDiscoveryResult, AnalyticsValue, TAgentMiddlewareMeta, XpertResolvedViewHostContext } from '@xpert-ai/contracts'
-import { AgentMiddlewareStrategy, RequestContext, workspaceFileMutationPath, WorkspaceFilesRuntimeCapability, analyticsBindingSchema, type AgentMiddleware, type IAgentMiddlewareStrategy, type IAgentMiddlewareContext } from '@xpert-ai/plugin-sdk'
+import { AgentMiddlewareStrategy, RequestContext, validateAnalyticsPayload, workspaceFileMutationPath, WorkspaceFilesRuntimeCapability, analyticsBindingSchema, type AgentMiddleware, type IAgentMiddlewareStrategy, type IAgentMiddlewareContext } from '@xpert-ai/plugin-sdk'
 import { artifactDocumentHtml, type ArtifactDocumentDependencyLock } from '@xpert-ai/plugin-sdk/artifact-document'
 import { libraryLocks } from './document-libraries'
 import { discoverToolSchema, previewToolSchema, createToolSchema, createHtmlToolSchema, htmlPathSchema, fromAgentBinding, parseObjectJson } from './agent.schema'
@@ -21,7 +21,7 @@ import { dashboardIcon } from './dashboard-icon'
 
 const middlewareOptionsSchema = z.object({ allowedFinalProviders: z.array(z.string().min(1)).min(1).max(20).optional() }).strict()
 
-export const DASHBOARD_GUIDANCE = `For a new dashboard, call dashboard_list_sources before searching raw files, reading old scripts or creating transformations. Named governed sources may already provide the required query; inspect their provider contracts first. File-backed sources do not imply that a script must be written. For creating or editing live dashboards, first read the installed live-dashboard skill using read_skill_file and follow only the references relevant to the task. Use SandboxFile tools for all source-file authoring; HTML alone is not a saved dashboard. Business definitions, real data previews and nullable-filter tests are required before saving new or changed Bindings. Do not invent business data or substitute a different metric without agreement. Report completion only from a successful dashboard_create/dashboard_create_html/dashboard_update draft receipt. Human publication is separate. Successful create, update and open tools emit a chat resource card automatically; resourceCard.status reports emission. Its Open button selects the exact dashboard in Workbench. Never fabricate a link, call present_files for dashboard HTML, or output card JSON as text. If card delivery is unavailable, report the saved receipt and use the Workbench picker.`
+export const DASHBOARD_GUIDANCE = `For a new dashboard, call dashboard_list_sources before searching raw files, reading old scripts or creating transformations. Named governed sources may already provide the required query; inspect their provider contracts first. File-backed sources do not imply that a script must be written. For creating or editing live dashboards, first read the installed live-dashboard skill using read_skill_file and follow only the references relevant to the task. Use SandboxFile tools for all source-file authoring; HTML alone is not a saved dashboard. Follow preview.validation.checks immediately before authoring HTML; each suggestedCall must actually succeed. Business definitions, real data previews and nullable-filter tests are required before saving new or changed Bindings. Do not invent business data or substitute a different metric without agreement. Report completion only from a successful dashboard_create/dashboard_create_html/dashboard_update draft receipt. Human publication is separate. Successful create, update and open tools emit a chat resource card automatically; resourceCard.status reports emission. Its Open button selects the exact dashboard in Workbench. Never fabricate a link, call present_files for dashboard HTML, or output card JSON as text. If card delivery is unavailable, report the saved receipt and use the Workbench picker.`
 
 @AgentMiddlewareStrategy('LiveDashboard')
 export class DashboardMiddleware implements IAgentMiddlewareStrategy {
@@ -48,7 +48,9 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
     const filterEvidence = createFilterEvidence(this.service, scope, previews)
     const created = new Map<string, { manifest: DashboardManifest; receipt: Awaited<ReturnType<DashboardService['save']>> }>()
     const preview = async (binding: AnalyticsBinding) => {
-      if (!discovered.has(`${binding.dataSourceId}/${binding.providerId}`)) throw new Error('DASHBOARD_DISCOVER_REQUIRED')
+      const contract = discovered.get(`${binding.dataSourceId}/${binding.providerId}`)
+      if (!contract) throw new Error('DASHBOARD_DISCOVER_REQUIRED')
+      validateAnalyticsPayload(binding.payload, contract.payloadSchema)
         const controls = Object.fromEntries(binding.parameters.map((parameter) => [parameter.controlId, parameter.defaultValue ?? null]))
         const dataset = await this.service.preview(scope, { binding, controls })
         const previewId = previewKey(binding, controls)
@@ -56,7 +58,7 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
         previews.set(previewId, binding)
         const rows = dataset.rows.slice(0, 20)
         while (Buffer.byteLength(JSON.stringify(rows)) > 32000) rows.pop()
-        return JSON.stringify({ ...dataset, previewId, bindingJson: JSON.stringify(binding), rows, preview: { displayedRows: rows.length,
+        return JSON.stringify({ ...dataset, previewId, bindingJson: JSON.stringify(binding), rows, validation: filterEvidence.requirements(binding, previewId, rows), preview: { displayedRows: rows.length,
           omittedRows: dataset.rows.length - rows.length, note: 'Display sample only; completeness describes the full bounded query. Verify business semantics before create.' } })
     }
     const resolvePreviews = (previewIds: string[]) => previewIds.map(id => {
