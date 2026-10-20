@@ -1,3 +1,4 @@
+import type { ReviewRef } from '../../../src/domain'
 import { ManualInbox } from './manual-inbox'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { z } from 'zod/v3'
@@ -17,7 +18,7 @@ type Overview = z.infer<typeof overviewSchema>['meta']
 type Repo = z.infer<typeof repositorySchema>
 type Run = z.infer<typeof runSchema>
 type Props = { host: Host | null; busy: boolean; onOpen: (url: string, access: 'public' | 'connected') => void; onSelect: (id: string) => void;
-  saved: { id: string; ref: { owner: string; repository: string; number: number }; status: string }[]; error: string }
+  saved: { id: string; ref: ReviewRef; status: string }[]; error: string }
 const statusNames: Record<Run['status'], [string, string]> = {
   queued: ['待审查', 'Queued'], running: ['审查中', 'Reviewing'], awaiting_confirmation: ['待确认', 'Needs confirmation'], publishing: ['发布中', 'Publishing'], published: ['已发布', 'Published'], failed: ['失败', 'Failed'], skipped: ['已跳过', 'Skipped'], superseded: ['已有新提交', 'Superseded'], cancelled: ['已取消', 'Cancelled'], publication_unknown: ['需要核对 GitHub', 'Check GitHub']
 }

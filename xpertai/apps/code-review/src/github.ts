@@ -30,6 +30,27 @@ export class GitHub {
     return { items: data.items.map(p => ({ number: p.number, title: p.title, url: p.html_url, author: p.user.login })), total: data.total_count, page, pageSize: 20 }
   }
   async head(ref: PullRef) { return pull.parse(await this.request(`${this.path(ref)}/pulls/${ref.number}`)).head.sha }
+  async checks(ref: PullRef, sha: string) {
+    shaSchema.parse(sha)
+    const data = z.object({ check_runs: z.array(check), total_count: z.number() })
+      .parse(await this.request(`${this.path(ref)}/commits/${sha}/check-runs?per_page=100`))
+    return { truncated: data.total_count > data.check_runs.length,
+      checks: data.check_runs.map(c => ({ id: c.id, name: c.name, status: c.status, conclusion: c.conclusion, url: c.html_url })) }
+  }
+  async identity() { return String(z.object({ id: z.number().int().positive().safe() }).parse(await this.request('/user')).id) }
+  async findReview(ref: PullRef, sha: string, marker: string, expected: { authorId: string; body: string }) {
+    const schema = z.array(z.object({ id: z.number().int().positive(), commit_id: shaSchema, body: z.string().nullable(), html_url: z.string().url(), state: z.string(),
+      user: z.object({ id: z.number().int().positive().safe() }) }))
+    for (let page = 1; page <= 10; page++) {
+      const reviews = schema.parse(await this.request(`${this.path(ref)}/pulls/${ref.number}/reviews?per_page=100&page=${page}`))
+      const matches = reviews.filter(review => review.commit_id === sha && review.body?.includes(marker) && review.state === 'COMMENTED' &&
+        String(review.user.id) === expected.authorId && review.body.trim() === expected.body.trim())
+      if (matches.length > 1) throw new ReviewError('delivery_receipt_ambiguous')
+      if (matches[0]) return matches[0]
+      if (reviews.length < 100) return null
+    }
+    throw new ReviewError('delivery_lookup_truncated')
+  }
   async state(ref: PullRef) {
     return z.object({ state: z.string(), draft: z.boolean(), head: z.object({ sha: shaSchema }),
       base: z.object({ ref: z.string() }), user: z.object({ type: z.string() }) })

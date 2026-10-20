@@ -10,7 +10,7 @@ import { FEATURE, MIDDLEWARE, scopeSchema, resultSchema } from './domain.js'
 @AgentMiddlewareStrategy(MIDDLEWARE)
 export class ReviewMiddleware implements IAgentMiddlewareStrategy<Record<string, never>> {
   constructor(private readonly reviews: Reviews) {}
-  meta: TAgentMiddlewareMeta = { name: MIDDLEWARE, label: { en_US: 'Code review', zh_Hans: '代码审查' }, features: [FEATURE], configSchema: { type: 'object', properties: {} } }
+  meta: TAgentMiddlewareMeta = { name: MIDDLEWARE, label: { en_US: 'Code review', zh_Hans: '代码审查' }, features: [FEATURE, 'project.tasks'], configSchema: { type: 'object', properties: {} } }
   getToolNames() { return ['code_review_context', 'code_review_file', 'code_review_source', 'code_review_complete'] }
   createMiddleware(_options: Record<string, never>, c: IAgentMiddlewareContext): AgentMiddleware {
     const scope = () => scopeSchema.parse({ tenantId: c.tenantId, organizationId: c.organizationId, userId: c.userId, assistantId: c.xpertId, workspaceId: c.workspaceId })

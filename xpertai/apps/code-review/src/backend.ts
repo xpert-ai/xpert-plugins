@@ -5,14 +5,17 @@ import { randomUUID } from 'node:crypto'
 import { z } from 'zod/v3'
 import {
   AssistantTaskRuntimeCapability, ConnectorRuntimeCapability, XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN,
-  type PluginContext, type AgentMiddlewareRuntimeServiceApi
+  XPERT_RUNTIME_CAPABILITIES_TOKEN, type RuntimeCapabilityRegistry, type PluginContext, type AgentMiddlewareRuntimeServiceApi
 } from '@xpert-ai/plugin-sdk'
 import { Review } from './entity.js'
+import { localGitImportSchema, localGitSourcesSchema, type LocalGitImport } from './local-git.js'
+import { digest } from './pipeline/contract.js'
 import { GitHub } from './github.js'
 import { Repositories } from './repositories.js'
 import type { ReviewRun, ReviewRepository } from './automation-entities.js'
 import { ignoredPath } from './automation-domain.js'
-import { ReviewError, parsePullUrl, resultSchema, validateFindings, idSchema, type Scope } from './domain.js'
+import { ReviewError, parsePullUrl, resultSchema, validateFindings, idSchema, reviewLabel, type Scope } from './domain.js'
+import { assertPipelineReviewAccess, assertPipelineReviewVersion } from './pipeline/access.js'
 
 export const CONTEXT = 'CODE_REVIEW_CONTEXT'
 const runSchema = z.object({ configurable: z.object({ executionId: idSchema, rootExecutionId: idSchema.optional(),
@@ -28,7 +31,8 @@ const owner = (s: Scope) => ({ tenantId: s.tenantId, organizationId: s.organizat
 @Injectable()
 export class Reviews {
   constructor(@InjectRepository(Review) private readonly records: Repository<Review>,
-    @Inject(CONTEXT) private readonly context: PluginContext, private readonly repositories: Repositories) {}
+    @Inject(CONTEXT) private readonly context: PluginContext, private readonly repositories: Repositories,
+    @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly capabilities: RuntimeCapabilityRegistry) {}
   private runtime(s: Scope) {
     return this.context.resolve<AgentMiddlewareRuntimeServiceApi>(XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN)
       .createScopedApi({ ...owner(s), xpertId: s.assistantId, workspaceId: s.workspaceId, connectorProviders: ['github'] })
@@ -73,10 +77,15 @@ export class Reviews {
   async get(s: Scope, id: string) {
     const record = await this.records.findOneBy({ ...owner(s), id })
     if (!record) throw new ReviewError('review_not_found')
+    await assertPipelineReviewAccess(this.records.manager, this.capabilities, s, record)
     return record
   }
   private async update(s: Scope, r: Review, patch: Partial<Review>) {
-    const result = await this.records.update({ ...owner(s), id: r.id, revision: r.revision }, { ...patch, revision: r.revision + 1 })
+    const write = async (repository: Repository<Review>) => repository.update({ ...owner(s), id: r.id, revision: r.revision }, { ...patch, revision: r.revision + 1 })
+    const result = r.pipelineOperationId ? await this.records.manager.transaction(async manager => {
+      await assertPipelineReviewVersion(manager, s, r)
+      return write(manager.getRepository(Review))
+    }) : await write(this.records)
     if (result.affected !== 1) throw new ReviewError('revision_conflict')
     return this.get(s, r.id)
   }
@@ -88,8 +97,28 @@ export class Reviews {
     const snapshot = await (await this.github(s, access)).snapshot(ref)
     return this.records.save(this.records.create({ ...owner(s), ref, access, snapshot, status: 'ready', findings: [], viewed: [], summary: '', instructions: '' }))
   }
+  async importLocal(s: Scope, raw: LocalGitImport) {
+    const value = localGitImportSchema.parse(raw)
+    const bundleDigest = digest({ ...value, requestId: null })
+    const existing = await this.records.findOneBy({ id: value.requestId })
+    if (existing) {
+      const owned = await this.get(s, existing.id)
+      if (owned.ref.provider !== 'local_git' || owned.ref.bundleDigest !== bundleDigest) throw new ReviewError('local_import_conflict')
+      return owned
+    }
+    await this.records.createQueryBuilder().insert().values({ ...owner(s), id: value.requestId,
+      ref: { provider: 'local_git', repository: value.repository, bundleDigest }, localSources: value.sources,
+      snapshot: { title: value.title, body: null, url: '', state: 'snapshot', author: '', baseSha: value.baseSha, headSha: value.headSha,
+        files: value.files, comments: [], checks: [], warnings: ['local_git_snapshot_no_remote_checks'], fetchedAt: new Date().toISOString() },
+      access: 'public', status: 'ready', findings: [], viewed: [], summary: '', instructions: value.instructions }).orIgnore().execute()
+    const saved = await this.get(s, value.requestId)
+    if (saved.ref.provider !== 'local_git' || saved.ref.bundleDigest !== bundleDigest) throw new ReviewError('local_import_conflict')
+    return saved
+  }
   async refresh(s: Scope, id: string, revision: number) {
     const r = await this.get(s, id); this.expected(r, revision)
+    if (r.ref.provider === 'local_git') throw new ReviewError('local_snapshot_immutable')
+    if (r.pipelineOperationId) throw new ReviewError('pipeline_managed_review')
     if (r.automationRunId) throw new ReviewError('automation_managed_review')
     if (active.has(r.status)) throw new ReviewError('review_busy')
     const snapshot = await (await this.recordGithub(s, r)).snapshot(r.ref)
@@ -104,14 +133,15 @@ export class Reviews {
   }
   async start(s: Scope, id: string, revision: number, instructions: string, automaticRunId?: string) {
     let r = await this.get(s, id); this.expected(r, revision)
+    if (r.pipelineProjectId) throw new ReviewError('pipeline_managed_review')
     if (r.automationRunId && r.automationRunId !== automaticRunId) throw new ReviewError('automation_managed_review')
     if (active.has(r.status)) throw new ReviewError('review_busy')
     const api = this.tasks(s)
-    if (await (await this.recordGithub(s, r)).head(r.ref) !== r.snapshot.headSha) throw new ReviewError('stale_revision')
+    if (r.ref.provider === 'github' && await (await this.recordGithub(s, r)).head(r.ref) !== r.snapshot.headSha) throw new ReviewError('stale_revision')
     r = await this.update(s, r, { status: 'running', executionId: randomUUID(), conversationId: randomUUID(), taskId: null, threadId: null, instructions, summary: '', findings: [], errorCode: null })
     try {
       const receipt = await api.startTask({ xpertId: s.assistantId, executionId: r.executionId!, conversationId: r.conversationId!, clientMessageId: r.executionId!,
-        prompt: `请审查 ${r.ref.owner}/${r.ref.repository} #${r.ref.number}（${r.snapshot.headSha.slice(0, 12)}），检查变更引入的实际缺陷并保存审查结果。${instructions ? '\n关注点：' + instructions : ''}`,
+        prompt: `请审查 ${reviewLabel(r.ref)}（${r.snapshot.headSha.slice(0, 12)}），检查变更引入的实际缺陷并保存审查结果。${instructions ? '\n关注点：' + instructions : ''}`,
         context: { codeReview: { reviewId: r.id, headSha: r.snapshot.headSha } } })
       await this.update(s, await this.get(s, id), { taskId: receipt.taskId ?? null, threadId: receipt.threadId ?? null,
         executionId: receipt.executionId ?? r.executionId, conversationId: receipt.conversationId ?? r.conversationId })
@@ -123,6 +153,7 @@ export class Reviews {
   }
   async reconcile(s: Scope, id: string) {
     let r = await this.get(s, id)
+    if (r.pipelineProjectId) return r
     if (r.status !== 'running' || !r.executionId) return r
     const status = await this.tasks(s).getTaskStatus?.({ xpertId: s.assistantId, executionId: r.executionId, conversationId: r.conversationId ?? undefined, taskId: r.taskId ?? undefined, threadId: r.threadId ?? undefined })
     // Read again: the completion tool may have changed the state during the host lookup.
@@ -135,6 +166,7 @@ export class Reviews {
   }
   async cancel(s: Scope, id: string, revision: number) {
     const r = await this.get(s, id); this.expected(r, revision)
+    if (r.pipelineProjectId) throw new ReviewError('pipeline_managed_review')
     if (r.status !== 'running') throw new ReviewError('review_not_running')
     const api = this.tasks(s)
     if (!api.cancelTask) throw new ReviewError('cancellation_unavailable')
@@ -169,7 +201,16 @@ export class Reviews {
   }
   async source(s: Scope, config: unknown, path: string, side: 'base' | 'head', offset: number, limit: number) {
     const r = await this.readRecord(s, config), sha = side === 'base' ? r.snapshot.baseSha : r.snapshot.headSha
-    const content = await (await this.recordGithub(s, r)).source(r.ref, sha, path), lines = content.split('\n')
+    let content: string
+    if (r.ref.provider === 'local_git') {
+      const rootId = r.pipelineRootReviewId || r.id
+      const root = await this.records.createQueryBuilder('review').addSelect('review.localSources')
+        .where({ id: rootId, tenantId: s.tenantId, organizationId: s.organizationId, userId: s.userId }).getOneOrFail()
+      const source = localGitSourcesSchema.parse(root.localSources).find(file => file.path === path)
+      if (!source || source[side] === null) throw new ReviewError('local_source_unavailable')
+      content = source[side]!
+    } else content = await (await this.recordGithub(s, r)).source(r.ref, sha, path)
+    const lines = content.split('\n')
     return { path, sha, offset, total: lines.length, content: lines.slice(offset, offset + limit).map((line, i) => `${offset + i + 1}: ${line}`).join('\n') }
   }
   async readRecord(s: Scope, config: unknown) {
@@ -182,6 +223,8 @@ export class Reviews {
   }
   async submit(s: Scope, input: z.infer<typeof submitSchema>) {
     const v = submitSchema.parse(input), r = await this.get(s, v.id); this.expected(r, v.revision)
+    if (r.ref.provider !== 'github') throw new ReviewError('local_review_has_no_remote_delivery')
+    if (r.pipelineProjectId) throw new ReviewError('pipeline_managed_review')
     if (r.status !== 'reviewed' || r.snapshot.headSha !== v.headSha) throw new ReviewError('review_not_submittable')
     if (r.automationRunId) throw new ReviewError('automation_managed_review')
     const selected = [...new Set(v.findings)].map(i => { const f = r.findings[i]; if (!f) throw new ReviewError('invalid_finding'); return f })
@@ -205,6 +248,7 @@ export class Reviews {
     const r = await this.get(p, run.reviewId)
     if (r.automationRunId !== run.id || r.automationPolicyId !== p.id || r.snapshot.headSha !== run.headSha || r.status !== 'reviewed')
       throw new ReviewError('review_not_submittable')
+    if (r.ref.provider !== 'github') throw new ReviewError('local_review_has_no_remote_delivery')
     const github = await this.recordGithub(p, r), current = await github.state(r.ref)
     if (current.head.sha !== run.headSha || current.state !== 'open' || current.draft) throw new ReviewError('stale_revision')
     const findings = r.findings.filter(f => f.priority === 'P0' || f.priority === 'P1')

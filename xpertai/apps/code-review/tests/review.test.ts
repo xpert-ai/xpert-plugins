@@ -7,7 +7,7 @@ import { Reviews, submitSchema } from '../src/backend.js'
 import { Review } from '../src/entity.js'
 import type { Repositories } from '../src/repositories.js'
 import type { Repository } from 'typeorm'
-import type { PluginContext } from '@xpert-ai/plugin-sdk'
+import { DefaultRuntimeCapabilityRegistry, type PluginContext } from '@xpert-ai/plugin-sdk'
 const id = randomUUID(), executionId = randomUUID(), sha = 'a'.repeat(40)
 const scope: Scope = { tenantId: 't', organizationId: 'o', userId: 'u', assistantId: 'a' }
 const snapshot: Snapshot = { title: 'Fixture', body: '', url: 'https://github.com/a/b/pull/1', state: 'open', author: 'tester', baseSha: 'b'.repeat(40), headSha: sha, fetchedAt: new Date().toISOString(), comments: [], checks: [], warnings: [], files: [{ filename: 'app.ts', status: 'modified', additions: 1, deletions: 1, patch: '@@ -2,2 +2,2 @@\n-old\n+new\n context' }] }
@@ -16,7 +16,7 @@ function fixture(status: Review['status'] = 'reviewed') {
   let row = Object.assign(new Review(), { ...scope, id, executionId, snapshot, revision: 1, status, findings: [finding], ref: parsePullUrl(snapshot.url), viewed: [], summary: 'A finding', access: 'public' as const })
   const repository = { findOneBy: async (where: Record<string, unknown>) => Object.entries(where).every(([k,v]) => Reflect.get(row,k) === v) ? structuredClone(row) : null,
     update: async (where: Record<string, unknown>, patch: Partial<Review>) => { if (!Object.entries(where).every(([k,v]) => Reflect.get(row,k) === v)) return { affected: 0 }; row = Object.assign(row, patch); return { affected: 1 } } } as unknown as Repository<Review>
-  const service = new Reviews(repository, {} as PluginContext, {} as Repositories)
+  const service = new Reviews(repository, {} as PluginContext, {} as Repositories, new DefaultRuntimeCapabilityRegistry())
   return { service, read: () => row }
 }
 test('PR URL is pinned to HTTPS GitHub and forbids credential forwarding', () => {
