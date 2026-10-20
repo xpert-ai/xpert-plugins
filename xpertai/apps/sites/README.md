@@ -89,6 +89,8 @@ Revoking a link immediately removes that public access path without deleting the
 
 Site source remains in the Xpert workspace. Deployment output is stored through Workspace Files and referenced by an immutable Artifact version.
 
+Deployment files follow the Assistant's configured workspace data scope: `shared` uses its shared volume, while `user` uses the authenticated user's isolated volume. The host resolves and authorizes that scope; Sites preserves the returned file reference. Deployment link access is configured separately.
+
 Environment configuration remains a middleware capability; it is not shown in the static-site Workbench. Secret values are encrypted using the configured `environmentEncryptionKey` and are never returned to the view. Static published pages must not embed platform credentials or private environment values. Use environment records as deployment configuration metadata, not as a way to expose secrets to browser JavaScript.
 
 ## Best for
