@@ -1,0 +1,36 @@
+Create a new DB Studio application marketplace cover in the same visual family as the provided Meetings reference. The first reference is STYLE AND COMPOSITION ONLY: reproduce its warm, bright, premium product-marketing aesthetic, real Chinese typography and believable white workbench panel. Do not copy Meetings branding or its meeting content. The second reference is the actual DB Studio icon; reproduce that simple forest-green outlined database cylinder and small amber dot faithfully.
+
+Output: one opaque, full-bleed 16:9 landscape raster, target 1600 x 900. No external frame, rounded image corners, browser chrome, watermark, padded border or mock laptop. The scene must fill every edge.
+Art direction: softly lit ivory studio desktop, natural daylight from upper left, subtle sage reflections and restrained warm gold accents. Calm, polished enterprise software product photography, exceptionally clean typography, tactile paper and soft shadows. Main brand color #146B5C, accent #C88C3B, near-black type, creamy white background. Avoid dark sci-fi, neon, giant 3D database stacks or decorative abstract networks.
+
+Composition:
+- Left 41%: brand and clear Chinese message, substantial negative space.
+- Right 54%: a large white DB Studio workbench panel, almost frontal with very slight perspective and refined soft shadow, inspired by the Meetings reference.
+- Place all essential text and recognizable UI in the upper 65% of the image, at least 6% away from top and side edges. Bottom 30% must remain quiet continuous ivory desk/background, reserved for the host app's translucent title overlay; no important text there. The workbench's blank lower edge may extend down to 78%.
+- The brand and main headline must remain easily readable at 384 x 216 thumbnail size.
+
+Exact left-side text:
+Brand line at x 7%, y 13%: the DB Studio icon followed by "DB Studio", bold contemporary sans serif, near black.
+Large two-line headline at x 7%, y 31%:
+"读懂数据，"
+"掌控变更。"
+First line near black. Second line forest green #146B5C. Clean, heavy Simplified Chinese sans serif, confident generous line spacing.
+Small supporting line at x 7%, y 60%, muted gray:
+"结构探索 · SQL 查询 · 变更复核"
+
+Right workbench:
+White panel from about x 46%, y 10%, width 48%, height 66%.
+Header: "数据库工作台"; small pill "只读查询"; very small label "界面示意" at the upper right.
+A thin left sidebar labeled "数据结构" shows a simple expandable schema tree: "demo", then "products", "orders". This is a fictional example.
+Main area: active tab "SQL 查询". Monospaced SQL with restrained forest green syntax:
+SELECT name, stock
+FROM products
+LIMIT 50;
+Below the editor, a tidy results table. Label "查询结果". Two columns "name" and "stock", three rows:
+"示例产品 A" | "32"
+"示例产品 B" | "18"
+"示例产品 C" | "64"
+UI is clean, plausible and subordinate to the main headline. Do not add fabricated performance metrics, certifications, dashboards, people, credentials, real server addresses or customer data.
+A small tasteful notebook edge in the lower left and gentle sage plant blur at the far outer edge are optional, but keep the bottom third uncluttered.
+
+Priority: excellent layout and crisp headline, faithful DB Studio icon, quiet bottom safe area, same polished bright product-cover aesthetic as Meetings. All text must be exactly spelled as specified.
