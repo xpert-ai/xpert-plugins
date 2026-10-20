@@ -4,6 +4,8 @@ DB Studio 是一个 system 级 Xpert 插件。宿主负责凭据解析、连接�
 
 数据记录以 `tenantId`、`organizationId`、`workspaceId`、`userId` 复合范围隔离。查询结果保存 24 小时并在读取和导出时检查期限。写入先冻结 SQL、目标、参数、策略版本和规范 JSON 摘要；审批或预授权失效后不能执行。执行失联返回 `unknown`，系统不会自动重放。取消通过关闭本次独立物理连接完成，不发送会话终止 SQL。
 
+Workbench 的 CSV/JSON 导出在重新校验源权限和结果有效期后，直接返回 `name/content/hasMore/exportedRows` 供界面下载。导出不依赖 Assistant 的 shared/user 文件策略，不再写入 Workspace 文件或返回额外的 `file` 字段；用户隔离的 transfer 回执仅保存导出元数据，不额外持久化结果内容。已有导出记录及文件保持原样。
+
 Doris 使用 MySQL 协议兼容驱动，但版本能力按 `@@version_comment` 判断；无法确认真实版本时关闭写入和导入。Doris Stream Load 使用稳定 operation label、大小限制、过滤行回执和重定向主机白名单。MySQL 与 PostgreSQL 的手动事务绑定到同一物理连接，并受时限、并发数和策略版本约束。
 
 工作台布局和交互参考 LibreDB Studio 0.16.0（提交 `9a66cd9ada53c05eb759f58aefce194ea833bb35`）。本插件没有运行时引用 LibreDB 源码；仅借鉴其工作区、结果网格、图表、透视和关系浏览的交互思路。LibreDB 以 MIT License 发布，版权归 LibreDB 项目及其贡献者所有。
