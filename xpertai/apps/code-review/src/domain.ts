@@ -1,4 +1,5 @@
 import { z } from 'zod/v3'
+import type { ConnectorRuntimeScope } from '@xpert-ai/plugin-sdk'
 
 export const PLUGIN = '@xpert-ai/plugin-code-review'
 export const NAMESPACE = 'code_review'
@@ -10,7 +11,10 @@ export const scopeSchema = z.object({
   tenantId: z.string().min(1), organizationId: z.string().min(1), userId: z.string().min(1),
   assistantId: z.string().min(1), workspaceId: z.string().nullish()
 })
-export type Scope = z.infer<typeof scopeSchema>
+export type Scope = z.infer<typeof scopeSchema> & {
+  /** Trusted host context only; never parsed from a View action or model input. */
+  runtime?: Pick<ConnectorRuntimeScope, 'viewHost' | 'conversationId' | 'executionId' | 'projectId'>
+}
 export const idSchema = z.string().uuid()
 export const shaSchema = z.string().regex(/^[a-f0-9]{40}$/)
 export const refSchema = z.object({

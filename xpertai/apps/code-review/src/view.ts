@@ -7,7 +7,8 @@ import { localGitImportSchema } from './local-git.js'
 import { Reviews, submitSchema } from './backend.js'
 import { Automation } from './automation.js'
 import { repositoryInput, savePolicySchema, runStatusSchema } from './automation-domain.js'
-import { FEATURE, PROVIDER, PLUGIN, VIEW, idSchema, ReviewError, scopeSchema } from './domain.js'
+import { FEATURE, PROVIDER, PLUGIN, VIEW, idSchema, ReviewError } from './domain.js'
+import { viewScope as scope } from './runtime-scope.js'
 import { ASSISTANT_CONTEXT_SET_COMMAND, ASSISTANT_CHAT_SEND_MESSAGE_COMMAND, WORKBENCH_NAVIGATION_OPEN_COMMAND } from '@xpert-ai/contracts'
 import type { Review } from './entity.js'
 import { ReviewPipelineService } from './pipeline/service.js'
@@ -17,7 +18,6 @@ export const icon = { type: 'svg' as const, value: '<svg xmlns="http://www.w3.or
 const text = (en_US: string, zh_Hans: string) => ({ en_US, zh_Hans })
 const selection = z.object({ id: idSchema, revision: z.number().int().positive() }).strict()
 const logger = new Logger('CodeReviewView')
-const scope = (c: XpertResolvedViewHostContext) => scopeSchema.parse({ tenantId: c.tenantId, organizationId: c.organizationId, userId: c.userId, assistantId: c.hostId, workspaceId: c.workspaceId })
 
 @Injectable()
 @ViewExtensionProvider(PROVIDER)

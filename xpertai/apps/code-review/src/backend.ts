@@ -16,6 +16,7 @@ import type { ReviewRun, ReviewRepository } from './automation-entities.js'
 import { ignoredPath } from './automation-domain.js'
 import { ReviewError, parsePullUrl, resultSchema, validateFindings, idSchema, reviewLabel, type Scope } from './domain.js'
 import { assertPipelineReviewAccess, assertPipelineReviewVersion } from './pipeline/access.js'
+import { reviewRuntimeScope } from './runtime-scope.js'
 
 export const CONTEXT = 'CODE_REVIEW_CONTEXT'
 const runSchema = z.object({ configurable: z.object({ executionId: idSchema, rootExecutionId: idSchema.optional(),
@@ -35,7 +36,7 @@ export class Reviews {
     @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly capabilities: RuntimeCapabilityRegistry) {}
   private runtime(s: Scope) {
     return this.context.resolve<AgentMiddlewareRuntimeServiceApi>(XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN)
-      .createScopedApi({ ...owner(s), xpertId: s.assistantId, workspaceId: s.workspaceId, connectorProviders: ['github'] })
+      .createScopedApi(reviewRuntimeScope(s))
   }
   private tasks(s: Scope) {
     const api = this.runtime(s).capabilities?.get(AssistantTaskRuntimeCapability)
