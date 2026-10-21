@@ -29,17 +29,19 @@ export class Repositories {
   }
   async save(s: Scope, id: string, revision: number, input: PolicySettings) {
     const settings = policySettingsSchema.parse(input), existing = await this.get(s, id)
+    let binding = { githubIntegrationId: existing.githubIntegrationId, githubAppId: existing.githubAppId }
     // Revalidate GitHub authority before expanding unattended access. Pausing remains available when disconnected.
     if (settings.enabled) {
       const identity = await this.app.inspect(s, existing.owner, existing.repository)
       if (identity.installationId !== existing.installationId || identity.repositoryId !== existing.repositoryId) throw new ReviewError('installation_changed')
+      binding = { githubIntegrationId: identity.githubIntegrationId, githubAppId: identity.githubAppId }
     }
-    const result = await this.records.update({ ...repositoryScope(s), id, revision }, { settings, revision: revision + 1, confirmedAt: new Date(), errorCode: null })
+    const result = await this.records.update({ ...repositoryScope(s), id, revision }, { ...binding, settings, revision: revision + 1, confirmedAt: new Date(), errorCode: null })
     if (result.affected !== 1) throw new ReviewError('revision_conflict')
     return this.get(s, id)
   }
   async github(s: Scope, id: string) {
     const p = await this.get(s, id)
-    return this.app.installation(p.installationId, p.repositoryId)
+    return this.app.installation(p.installationId, p.repositoryId, s, p)
   }
 }

@@ -230,6 +230,7 @@ describe('GitHubConnectorStrategy', () => {
     })
     expect(credential.data).toEqual({
       integrationId: 'tenant-integration',
+      oauthClientId: 'tenant-client',
       accessToken: 'access-1',
       tokenType: 'bearer',
       refreshToken: 'refresh-1'
@@ -244,6 +245,7 @@ describe('GitHubConnectorStrategy', () => {
     })
     expect(refreshed.data).toEqual({
       integrationId: 'tenant-integration',
+      oauthClientId: 'tenant-client',
       accessToken: 'access-2',
       tokenType: 'bearer',
       refreshToken: 'refresh-2'
@@ -258,11 +260,26 @@ describe('GitHubConnectorStrategy', () => {
     })
     expect(runtime).toEqual({
       accessToken: 'access-2',
+      integrationId: 'tenant-integration',
+      oauthClientId: 'tenant-client',
       tokenType: 'bearer',
       resource: 'https://api.githubcopilot.com/mcp/'
     })
     expect(JSON.stringify(runtime)).not.toContain('tenant-secret')
     expect(JSON.stringify(runtime)).not.toContain('refresh-2')
+  })
+
+  it('rejects application changes during OAuth callback or refresh before contacting GitHub', async () => {
+    const current = createStrategy([githubIntegration('app', null, 'replacement-client', 'fixture-secret')])
+    const fetchSpy = jest.spyOn(global, 'fetch')
+    await expect(current.exchangeAuthorizationCode({
+      authMethodId: 'github-app-oauth', metadata: { integrationId: 'app', oauthClientId: 'original-client', codeVerifier: 'verifier' },
+      code: 'code', redirectUri: 'https://xpert.test/callback'
+    })).rejects.toThrow('GitHub application changed')
+    await expect(current.refreshConnectionCredential({ authMethodId: 'github-app-oauth',
+      credential: { data: { integrationId: 'app', oauthClientId: 'original-client', refreshToken: 'fixture' } }
+    })).rejects.toThrow('GitHub application changed')
+    expect(fetchSpy).not.toHaveBeenCalled()
   })
 
   it('uses the persisted callback scope for an exact app lookup without inherited-request fallback', async () => {
@@ -352,6 +369,7 @@ describe('GitHubConnectorStrategy', () => {
       expect.objectContaining({
         data: {
           integrationId: 'tenant-integration',
+          oauthClientId: 'tenant-client',
           accessToken: 'access-migrated',
           tokenType: 'bearer',
           refreshToken: 'refresh-migrated'

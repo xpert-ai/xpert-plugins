@@ -5,6 +5,8 @@ import { idSchema, shaSchema, ReviewError } from './domain.js'
 export const QUEUE = 'code_review.automation'
 export const CONTEXT = 'CODE_REVIEW_CONTEXT'
 export const configSchema = z.object({
+  githubIntegrationId: z.string().uuid().optional(),
+  /** @deprecated Migration-only input. New configurations reference a system integration. */
   githubApp: z.object({
     appId: z.string().regex(/^\d+$/),
     slug: z.string().regex(/^[a-z0-9][a-z0-9-]*$/),
@@ -14,7 +16,9 @@ export const configSchema = z.object({
       .pipe(z.string().min(32).optional()),
     publicBaseUrl: z.string().url()
   }).strict().optional()
-}).strict()
+}).strict().transform(({ githubIntegrationId, githubApp }) =>
+  // The configuration editor may retain hidden legacy fields. Selecting a reference removes their persisted copy.
+  githubIntegrationId ? { githubIntegrationId } : githubApp ? { githubApp } : {})
 export type Config = z.input<typeof configSchema>
 
 export { policySettingsSchema, defaultPolicy, runStatusSchema } from './automation-contract.js'

@@ -2,7 +2,7 @@
 // XPERT_TEST_PLATFORM_ROOT and XPERT_TEST_ENV_FILE point to the existing local host runtime.
 import 'reflect-metadata'
 import assert from 'node:assert/strict'
-import { randomUUID, createHmac } from 'node:crypto'
+import { randomUUID, createHmac, generateKeyPairSync } from 'node:crypto'
 import { createRequire } from 'node:module'
 import { readFile } from 'node:fs/promises'
 import { DataSource } from 'typeorm'
@@ -17,16 +17,19 @@ import { defaultPolicy, QUEUE } from '../dist/automation-domain.js'
 import { PLUGIN } from '../dist/domain.js'
 import { SYSTEM_GLOBAL_SCOPE, AssistantTaskRuntimeCapability, ConnectorRuntimeCapability } from '@xpert-ai/plugin-sdk'
 
-if (!process.env.XPERT_TEST_PLATFORM_ROOT || !process.env.XPERT_TEST_ENV_FILE) throw new Error('Explicit local test host and env file required')
-const requireHost = createRequire(process.env.XPERT_TEST_PLATFORM_ROOT + '/package.json')
-const env = requireHost('dotenv').parse(await readFile(process.env.XPERT_TEST_ENV_FILE))
+const url = process.env.XPERT_PIPELINE_TEST_DATABASE_URL
+if (url && !/^\/xpert_pipeline_test_[a-z0-9_]+$/.test(new URL(url).pathname)) throw new Error('Dedicated test database required')
+if (!url && (!process.env.XPERT_TEST_PLATFORM_ROOT || !process.env.XPERT_TEST_ENV_FILE)) throw new Error('Explicit test database or local host and env file required')
+const requireHost = createRequire(process.env.XPERT_TEST_PLATFORM_ROOT ? process.env.XPERT_TEST_PLATFORM_ROOT + '/package.json' : import.meta.url)
+const env = url ? {} : requireHost('dotenv').parse(await readFile(process.env.XPERT_TEST_ENV_FILE))
 const pg = requireHost('pg')
 const schema = 'review_test_' + randomUUID().replaceAll('-', '')
-const options = { host: env.DB_HOST || 'localhost', port: Number(env.DB_PORT || 5432), database: env.DB_NAME, user: env.DB_USER, password: env.DB_PASS }
+const options = url ? { connectionString: url } : { host: env.DB_HOST || 'localhost', port: Number(env.DB_PORT || 5432), database: env.DB_NAME, user: env.DB_USER, password: env.DB_PASS }
 const admin = new pg.Client(options)
 await admin.connect()
 await admin.query(`CREATE SCHEMA "${schema}"`)
-const db = new DataSource({ type: 'postgres', driver: pg, ...options, username: options.user, schema,
+const db = new DataSource({ type: 'postgres', driver: pg, ...options, ...(url ? { url } : { username: options.user }), schema,
+  extra: { options: `-c search_path=${schema},public` },
   entities: [Review, ReviewRepository, ReviewRun, ReviewDelivery], synchronize: true, logging: false })
 const tenantId = randomUUID(), organizationId = randomUUID(), assistantId = randomUUID(), userId = randomUUID(), workspaceId = randomUUID()
 const scope = { tenantId, organizationId, assistantId, userId, workspaceId }
@@ -35,8 +38,12 @@ const states = new Map(), posts = [], dispatches = [], jobs = [], failures = new
 const sha = n => n.toString(16).padStart(40, '0')
 const pull = n => ({ title: `Fixture PR ${n}`, body: 'untrusted PR text', html_url: `https://github.com/fixture/repo/pull/${n}`, state: 'open', draft: false,
   user: { login: 'fixture', type: 'User' }, head: { sha: sha(n) }, base: { sha: sha(0), ref: 'develop' }, changed_files: 1, number: n })
-const github = new GitHub('local-fixture-only', async (url, init) => {
+const originalFetch = globalThis.fetch
+globalThis.fetch = async (url, init = {}) => {
   const path = new URL(url).pathname
+  if (path === '/user') return Response.json({ login: 'fixture' })
+  if (path === '/repos/fixture/repo/installation') return Response.json({ id: 888, permissions: { contents: 'read', pull_requests: 'write' } })
+  if (path === '/app/installations/888/access_tokens') return Response.json({ token: 'installation-fixture' })
   if (path === '/repos/fixture/repo') return Response.json({ id: 777, name: 'repo', owner: { login: 'fixture' }, permissions: { push: true } })
   const n = Number(path.match(/\/(?:pulls|issues)\/(\d+)/)?.[1])
   const pr = states.get(n)
@@ -50,29 +57,42 @@ const github = new GitHub('local-fixture-only', async (url, init) => {
   if (path.endsWith('/check-runs')) return Response.json({ check_runs: [], total_count: 0 })
   if (pr) return Response.json(pr)
   throw new Error('Unexpected fixture route: ' + path)
-})
+}
 const tasks = { startTask: async v => { dispatches.push(v); return { executionId: v.executionId, conversationId: v.conversationId, taskId: randomUUID(), threadId: randomUUID() } },
   getTaskStatus: async () => ({ status: 'running' }), cancelTask: async () => ({ cancelled: true }) }
-const pluginContext = { config: { githubApp: { appId: '42', slug: 'fixture', privateKey: 'unused-fixture', webhookSecret: secret, publicBaseUrl: 'https://fixture.invalid' } },
-  resolve: token => token === 'MANAGED_QUEUE_SERVICE' ? { enqueue: async v => { jobs.push(v); return { jobId: v.jobId } } } :
-    { createScopedApi: () => ({ capabilities: { get: cap => cap === AssistantTaskRuntimeCapability ? tasks : cap === ConnectorRuntimeCapability ?
-      { getConnectorCredential: async () => ({ credentials: { accessToken: 'fixture' } }), getConnector: () => { throw new Error('legacy API must not be used') } } : undefined } }) } }
-// Resolve by the real queue token without relying on its string representation.
-const { MANAGED_QUEUE_SERVICE_TOKEN } = await import('@xpert-ai/plugin-sdk')
-const runtimeResolve = pluginContext.resolve
-pluginContext.resolve = token => token === MANAGED_QUEUE_SERVICE_TOKEN ? { enqueue: async v => { jobs.push(v); return { jobId: v.jobId } } } : runtimeResolve(token)
-class FixtureApp extends GitHubApp {
-  async inspect() { return { installationId: '888', repositoryId: '777', owner: 'fixture', repository: 'repo' } }
-  async installation() { return github }
-}
+const { MANAGED_QUEUE_SERVICE_TOKEN, INTEGRATION_PERMISSION_SERVICE_TOKEN } = await import('@xpert-ai/plugin-sdk')
+const integrationId = randomUUID()
+const application = { id: integrationId, tenantId, organizationId: null, provider: 'github', name: 'Fixture App', options: {
+  appId: '42', appSlug: 'fixture', clientId: 'fixture-client', clientSecret: 'fixture-client-secret', webhookSecret: secret,
+  privateKey: generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey.export({ format: 'pem', type: 'pkcs8' }).toString()
+} }
+let integrationAvailable = true
+const pluginContext = { tenantId: null, scopeKey: SYSTEM_GLOBAL_SCOPE, config: { githubIntegrationId: integrationId }, resolve: token => {
+  if (token === MANAGED_QUEUE_SERVICE_TOKEN) return { enqueue: async v => { jobs.push(v); return { jobId: v.jobId } } }
+  if (token === INTEGRATION_PERMISSION_SERVICE_TOKEN) return { readConfiguration: async id => {
+    assert.equal(id, integrationId)
+    return integrationAvailable ? application : null
+  } }
+  return { createScopedApi: () => ({ capabilities: { get: cap => cap === AssistantTaskRuntimeCapability ? tasks : cap === ConnectorRuntimeCapability ?
+    { getConnectorCredential: async () => ({ authMethodId: 'github-app-oauth', credentials: { accessToken: 'fixture', integrationId, oauthClientId: 'fixture-client' } }),
+      getConnector: () => { throw new Error('legacy API must not be used') } } : undefined } }) }
+} }
 let passed = 0
 const ok = label => { passed++; console.log('PASS ' + label) }
 try {
   await db.initialize()
-  const repositories = new Repositories(db.getRepository(ReviewRepository), new FixtureApp(pluginContext))
+  const migration = await readFile(new URL('../migrations/20261021-github-system-integration.sql', import.meta.url), 'utf8')
+  // Exercise upgrades from old and already-synchronized schemas; neither may guess an App identity.
+  await db.query('ALTER TABLE plugin_code_review_repository DROP COLUMN "githubIntegrationId", DROP COLUMN "githubAppId"')
+  await db.query(migration); await db.query(migration)
+  ok('repository App-binding migration is idempotent on existing installations')
+  const repositories = new Repositories(db.getRepository(ReviewRepository), new GitHubApp(pluginContext))
   const reviews = new Reviews(db.getRepository(Review), pluginContext, repositories)
   const automation = new Automation(db.getRepository(ReviewRun), db.getRepository(ReviewDelivery), repositories, reviews, pluginContext)
   let policy = await repositories.add(scope, 'fixture', 'repo')
+  assert.equal(policy.githubIntegrationId, integrationId); assert.equal(policy.githubAppId, '42')
+  await assert.rejects(repositories.add({ ...scope, organizationId: randomUUID(), userId: randomUUID(), assistantId: randomUUID() }, 'fixture', 'repo'), /repository_already_configured/)
+  ok('one owner per installation and repository across organizations')
   const ctx = { pluginName: PLUGIN, queueName: QUEUE, jobName: 'supervise', scopeKey: SYSTEM_GLOBAL_SCOPE, tenantId, organizationId, userId }
   const receive = async (n, action = 'opened', deliveryId = randomUUID()) => {
     if (!states.has(n)) states.set(n, pull(n))
@@ -88,6 +108,26 @@ try {
         { title: 'Serious regression', body: 'Concrete fixture evidence', priority: 'P1', path: 'app.ts', side: 'RIGHT', line: 1 },
         { title: 'Normal regression', body: 'Concrete fixture evidence', priority: 'P2', path: 'app.ts', side: 'RIGHT', line: 1 }] })
   }
+  const ping = Buffer.from('{"zen":"fixture"}')
+  const sign = key => 'sha256=' + createHmac('sha256', key).update(ping).digest('hex')
+  assert.deepEqual(await automation.receive(ping, sign(secret), randomUUID(), 'ping'), { accepted: true, ignored: true })
+  await assert.rejects(automation.receive(ping, sign('wrong'), randomUUID(), 'ping'), /invalid_webhook_signature/)
+  application.options.webhookSecret = 'rotated-fixture-secret'.repeat(2)
+  await assert.rejects(automation.receive(ping, sign(secret), randomUUID(), 'ping'), /invalid_webhook_signature/)
+  await automation.receive(ping, sign(application.options.webhookSecret), randomUUID(), 'ping')
+  application.options.webhookSecret = secret
+  integrationAvailable = false
+  await assert.rejects(automation.receive(ping, sign(secret), randomUUID(), 'ping'), /github_integration_unavailable/)
+  integrationAvailable = true
+  application.options.appId = '43'
+  await assert.rejects(receive(1), /github_repository_revalidation_required/)
+  await assert.rejects(repositories.github(scope, policy.id), /github_repository_revalidation_required/)
+  application.options.appId = '42'
+  const pinned = { githubIntegrationId: policy.githubIntegrationId, githubAppId: policy.githubAppId }
+  await repositories.records.update(policy.id, { githubIntegrationId: null, githubAppId: null })
+  await assert.rejects(receive(1), /github_repository_revalidation_required/)
+  await repositories.records.update(policy.id, pinned)
+  ok('fresh system integration lookup, webhook secret rotation and App switch guards')
   await receive(1); await tick(); assert.equal((await runFor(1)).status, 'skipped'); assert.equal(dispatches.length, 0); ok('disabled automation does not dispatch')
   policy = await repositories.save(scope, policy.id, policy.revision, { ...defaultPolicy, enabled: true })
   const delivery = randomUUID(); await Promise.all([receive(2, 'opened', delivery), receive(2, 'opened', delivery), receive(2)])
@@ -188,6 +228,7 @@ try {
   ok('waiting drafts rotate fairly without dispatching or publishing again')
   console.log(JSON.stringify({ passed, isolatedSchema: true, externalGitHub: false, modelTransport: 'fixture', dispatches: dispatches.length, posts: posts.length }))
 } finally {
+  globalThis.fetch = originalFetch
   if (db.isInitialized) await db.destroy()
   await admin.query(`DROP SCHEMA "${schema}" CASCADE`)
   await admin.end()

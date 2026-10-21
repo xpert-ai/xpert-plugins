@@ -5,13 +5,14 @@ description: "Connect GitHub, try a PR, and enable repository-specific review ru
 
 ## Setup
 
-1. Install `@xpert-ai/plugin-github-connector` in the application's organization. In **Repositories → Connect GitHub**, use the host-owned OAuth or token dialog. OAuth needs the administrator's GitHub integration Client ID and Client Secret. The current host uses a workspace-shared connection; limit it to the repositories needed.
-2. Create a GitHub App with repository permissions **Contents: Read** and **Pull requests: Read & write**, and subscribe to **Pull request** events. Checks are optional evidence; missing access is shown as a coverage warning.
-3. In the system Code Review plugin configuration, set `githubApp.appId`, `slug`, `privateKey` (complete PEM), and `publicBaseUrl` (public HTTPS API origin). `webhookSecret` is optional when saving: omitted, null, empty or whitespace-only values are treated as unset. For webhook-triggered reviews, configure the same secret of at least 32 characters in GitHub and Xpert, and use `https://YOUR-API-DOMAIN/api/code_review/github/webhook`. Without a secret, webhook deliveries are rejected; manual reviews and trials remain available subject to their normal requirements. Secrets never pass through the remote review view.
-4. Install the App on selected repositories. Add `owner/repository` in the plugin. The connected account must have repository write/admin permission; the server verifies the installation and permissions.
-5. Open **Configure rules**, enter an existing open PR number and run a trial. Trials consume model usage and save results privately, with no publication action. Enable automation after checking the result.
+1. Install `@xpert-ai/plugin-github-connector` in the application's organization. Upgrade the platform to support scoped plugin integration resolution and the pinned Connector authorization dialog.
+2. Create a GitHub App with **Contents: Read**, **Pull requests: Read & write**, and **Pull request** events. Configure OAuth callback `https://YOUR-API-DOMAIN/api/connector/oauth/callback` and webhook `https://YOUR-API-DOMAIN/api/code_review/github/webhook`.
+3. In **Settings → System Integration**, create a tenant-level `github` integration in the system plugin's Default tenant. Set `appId`, `appSlug`, `clientId`, `clientSecret`, `privateKey` (complete PEM), and the matching `webhookSecret`. The secret may be omitted during setup; webhook acceptance requires at least 32 characters. Set the public API origin in the host's `API_BASE_URL`.
+4. In **Plugins → Code Review → Configuration**, select that integration (`githubIntegrationId`). All App credentials are maintained in System Integration. The plugin will not read organization-scoped or other-tenant integration credentials.
+5. In **Repositories → Connect GitHub**, authorize through the required integration. Existing shared connections using a different integration, PAT, or an older credential without OAuth application provenance must be disconnected in workspace connector settings and reauthorized. Install the same App on selected repositories. The connected account must have write/admin permission; it need not own the organization where the App is installed.
+6. Add `owner/repository`, run a trial, then enable and save rules. For existing repositories migrated from inline configuration, save enabled rules again to confirm the integration/App binding. The migration and release order are documented in the [README](https://github.com/xpert-ai/xpert-plugins/tree/main/xpertai/apps/code-review#upgrade-from-inline-github-app-configuration).
 
-The host must retain signed JSON bytes as `request.rawBody`, register the plugin's Managed Queue processor, and expose the `workspace.connector.connect` client command. These host changes are included in the accompanying worktree. GitHub cannot deliver events to localhost; local acceptance does not establish external webhook connectivity.
+The host must retain signed JSON bytes as `request.rawBody`, register the Managed Queue processor, and expose the `workspace.connector.connect` command with integration selection. Secrets never pass through the review view. GitHub cannot deliver events to localhost; local acceptance does not establish external webhook connectivity.
 
 ## Rules and publication
 
@@ -33,12 +34,11 @@ If an external POST might have succeeded but its response is lost, publication b
 
 ## Local acceptance
 
-Run the ordinary Nx checks and lifecycle harness. The opt-in PostgreSQL acceptance script uses a new disposable schema in the existing development database and removes only that schema afterward:
+Run the ordinary Nx checks and lifecycle harness. The opt-in PostgreSQL acceptance script creates a disposable schema and removes it afterward. Prefer a dedicated database whose name starts with `xpert_pipeline_test_`:
 
 ```sh
-XPERT_TEST_PLATFORM_ROOT=/path/to/xpert \
-XPERT_TEST_ENV_FILE=/path/to/xpert/.env \
+XPERT_PIPELINE_TEST_DATABASE_URL=postgresql://localhost/xpert_pipeline_test_review \
 node apps/code-review/scripts/automation-acceptance.mjs
 ```
 
-It uses fixture GitHub/model/queue transports, real plugin services, and real PostgreSQL transactions. It tests deduplication, ownership, current-head checks, confirmation, P0/P1 filtering, ambiguous publication, quotas, pause, retry, trials and bootstrap recovery. It does not authorize a real GitHub account or post to a real PR. Browser acceptance and a real model review are separate checks.
+It uses fixture GitHub/model/queue transports, real plugin services, and real PostgreSQL transactions. It tests integration scoping, secret rotation, changed-App rejection, migration, deduplication, single ownership, current-head checks, confirmation, P0/P1 filtering, ambiguous publication, quotas, pause, retry, trials and bootstrap recovery. It does not authorize a real GitHub account or post to a real PR. Browser acceptance and a real model review are separate checks.

@@ -93,6 +93,7 @@ const plugin: XpertPlugin<Config> = {
     }
   },
   config: { schema: configSchema, formSchema: configForm },
+  permissions: [{ type: 'integration', service: 'github', operations: ['read'] }],
   templates,
   register(context) {
     return { module: CodeReviewPlugin, global: true, providers: [{ provide: CONTEXT, useValue: context }] }

@@ -15,6 +15,8 @@ export class ReviewRepository {
   @Column({ type: 'varchar' }) userId!: string
   @Column({ type: 'varchar' }) installationId!: string
   @Column({ type: 'varchar' }) repositoryId!: string
+  @Column({ type: 'uuid', nullable: true }) githubIntegrationId!: string | null
+  @Column({ type: 'varchar', nullable: true }) githubAppId!: string | null
   @Column({ type: 'varchar' }) owner!: string
   @Column({ type: 'varchar' }) repository!: string
   @Column({ type: 'jsonb' }) settings!: PolicySettings
