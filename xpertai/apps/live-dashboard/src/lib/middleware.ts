@@ -19,7 +19,7 @@ import { dashboardSaveEvidence } from './save-evidence'
 import { emitDashboardCard } from './resource-card'
 import { dashboardIcon } from './dashboard-icon'
 
-const middlewareOptionsSchema = z.object({ allowedFinalProviders: z.array(z.string().min(1)).min(1).max(20).optional() }).strict()
+const middlewareOptionsSchema = z.object({ allowedFinalProviders: z.array(z.string().min(1)).min(1).max(20).optional() }).strict().default({})
 
 export const DASHBOARD_GUIDANCE = `For a new independent dashboard, use a new unused HTML file path. An existing filename or matching title is not authorization to edit another Artifact; do not switch from creation to dashboard_open/update because a file already exists. For a new dashboard, call dashboard_list_sources before searching raw files, reading old scripts or creating transformations. Named governed sources may already provide the required query; inspect their provider contracts first. File-backed sources do not imply that a script must be written. For creating or editing live dashboards, first read the installed live-dashboard skill using read_skill_file and follow only the references relevant to the task. Use SandboxFile tools for all source-file authoring; HTML alone is not a saved dashboard. Follow preview.validation.checks immediately before authoring HTML; each suggestedCall must actually succeed. Business definitions, real data previews and nullable-filter tests are required before saving new or changed Bindings. Do not invent business data or substitute a different metric without agreement. Report completion only from a successful dashboard_create/dashboard_create_html/dashboard_update draft receipt. Human publication is separate. Successful create, update and open tools emit a chat resource card automatically; resourceCard.status reports emission. Its Open button selects the exact dashboard in Workbench. Never fabricate a link, call present_files for dashboard HTML, or output card JSON as text. If card delivery is unavailable, report the saved receipt and use the Workbench picker.`
 
@@ -35,7 +35,7 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
     }, additionalProperties: false }
   }
   constructor(private readonly service: DashboardService) {}
-  createMiddleware(_options: object, context: IAgentMiddlewareContext): AgentMiddleware {
+  createMiddleware(_options: unknown, context: IAgentMiddlewareContext): AgentMiddleware {
     const options = middlewareOptionsSchema.parse(_options)
     if (!context.xpertId) throw new Error('DASHBOARD_ASSISTANT_REQUIRED')
     const scope: XpertResolvedViewHostContext = {
