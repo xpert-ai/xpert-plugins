@@ -1,4 +1,4 @@
-model: paraformer-realtime-v2
+model: paraformer-v2
 model_type: speech2text
 model_properties:
   file_upload_limit: 100
