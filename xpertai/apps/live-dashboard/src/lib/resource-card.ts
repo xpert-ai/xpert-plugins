@@ -16,7 +16,7 @@ export function dashboardResourceCard(scope: XpertResolvedViewHostContext, saved
     resource: { namespace: 'live_dashboard', type: 'live-dashboard', id: saved.artifactId, artifactId: saved.artifactId },
     title: saved.title,
     description: saved.state === 'draft' ? `Dashboard · Draft r${saved.revision}` : `Dashboard · v${saved.versionNumber}`,
-    icon: dashboardIcon,
+    icon: { type: dashboardIcon.type, value: dashboardIcon.value },
     open: {
       ...dashboardNavigationTarget(scope), selectionId: saved.artifactId,
       ...(saved.state === 'published' && saved.versionId ? { parameters: { versionId: saved.versionId } } : {})

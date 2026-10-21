@@ -9,6 +9,7 @@ import { DashboardSharingService, shareInput } from './sharing.service'
 import { querySchema, queryBindingSchema, saveSchema } from './dashboard.schema'
 import { DASHBOARD_MUTATION_TOOLS } from './dashboard-receipt'
 import { dashboardNavigationSchema, dashboardNavigationTarget } from './dashboard-navigation'
+import { dashboardIcon } from './dashboard-icon'
 
 export const VIEW_KEY = 'live-dashboard'
 export const VIEW_PROVIDER = 'live-dashboard'
@@ -22,9 +23,9 @@ export class DashboardViewProvider implements IXpertViewExtensionProvider {
   getViewManifests(context: XpertResolvedViewHostContext, slot: string): XpertExtensionViewManifest[] {
     if (!(context.hostType === 'agent' && slot === 'agent.workbench' || context.hostType === 'project' && slot === 'detail.sections')) return []
     return [{ key: VIEW_KEY, title: text('Live dashboards', '实时看板'), hostType: context.hostType, slot, order: 35,
-      icon: { type: 'font', value: 'ri-bar-chart-box-line' }, refreshable: true, activation: { requiredFeatures: [FEATURE] },
+      icon: dashboardIcon, refreshable: true, activation: { requiredFeatures: [FEATURE] },
       source: { provider: VIEW_PROVIDER, plugin: PLUGIN_NAME },
-      workbench: { fixed: true, menu: { enabled: true, label: text('Live dashboards', '实时看板'), order: 35 } },
+      workbench: { fixed: true, menu: { enabled: true, label: text('Live dashboards', '实时看板'), icon: dashboardIcon, order: 35 } },
       view: { type: 'remote_component', runtime: 'react', protocolVersion: 1, component: { isolation: 'iframe', entry: VIEW_KEY }, dataSource: { mode: 'platform' } },
       dataSource: { mode: 'platform', querySchema: { supportsSelection: true, supportsParameters: true }, cache: { enabled: false } },
       clientCommands: [{ key: ASSISTANT_CONTEXT_SET_COMMAND, label: text('Select dashboard for Assistant', '设置助理当前看板') },
