@@ -1,5 +1,11 @@
 # @xpert-ai/plugin-meetings
 
+## 0.4.1
+
+### Patch Changes
+
+- 07067bf: Continue meeting transcription when a fragment or contextual batch returns no text, while preserving configuration and provider errors. Keep audio when the whole recording has no transcript, and reprocess empty checkpoints on explicit retry.
+
 ## 0.4.0
 
 ### Minor Changes
