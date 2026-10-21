@@ -4,41 +4,32 @@ import type { AnalyticsBinding, AnalyticsProviderDescriptor, AnalyticsValue, Ana
 import { AnalyticsProvider, AnalyticsRuntimeCapability, ArtifactsRuntimeCapability, SandboxJobsRuntimeCapability,
   WorkspaceFilesRuntimeCapability, XPERT_RUNTIME_CAPABILITIES_TOKEN, normalizeAnalyticsResult, isSandboxJobRuntimeError,
   type AnalyticsQueryProvider, type AnalyticsProviderContext, type AnalyticsProviderResult, type RuntimeCapabilityRegistry } from '@xpert-ai/plugin-sdk'
-import { PLUGIN, PROVIDER, discoverySchema, payloadSchema, resultSchema, invocationSchema } from './schema'
+import { PLUGIN, PROVIDER, emptyDiscoverySchema, resultSchema, invocationSchema } from './schema'
 import { ScriptDefinitions, digest } from './definitions'
 import { scriptFailureHint } from './diagnostics'
 
 @AnalyticsProvider(PROVIDER)
 export class WorkspaceScriptProvider implements AnalyticsQueryProvider {
   readonly descriptor: AnalyticsProviderDescriptor = {
-    id: PROVIDER, name: 'Workspace Python / JavaScript', dataSourceTypes: ['workspace-script'],
+    id: PROVIDER, name: 'Workspace Python / JavaScript', sourceKinds: ['artifact'],
     sharing: { mode: 'owner_only', reasonCode: 'WORKSPACE_SCRIPT_PRIVATE_DEPENDENCIES' },
-    operations: [{ name: 'query', contractVersion: 1, readOnly: true }],
-    connectionType: { type: 'workspace-script', name: 'Workspace scripts', configuration: { type: 'object', properties: {}, additionalProperties: false } }
+    operations: [{ name: 'query', contractVersion: 1, readOnly: true }]
   }
   constructor(@Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtime: RuntimeCapabilityRegistry, private readonly definitions: ScriptDefinitions) {}
+  readonly configuration = { kind: 'artifact' as const, pluginName: PLUGIN, resourceType: 'definition', registrationTool: 'workspace_dataset_register' }
   async discover(request: JSONValue, context: AnalyticsProviderContext): Promise<AnalyticsDiscoveryResult> {
-    const parsed = discoverySchema.parse(request)
-    const items: AnalyticsDiscoveryResult['items'] = []
-    let nextRequest: JSONValue | undefined
-    if ('artifactId' in parsed) {
-      const definition = await this.definitions.open(context.actor, parsed.artifactId, parsed.versionId)
-      items.push({ id: parsed.artifactId, name: definition.title, kind: 'dataset', metadata: JSON.parse(JSON.stringify({
-        binding: this.definitions.binding(context.dataSourceId, parsed.artifactId, parsed.versionId, definition) })) })
-    } else {
-      const records = await this.runtime.require(ArtifactsRuntimeCapability).listArtifacts({ pluginName: PLUGIN, resourceType: 'definition', status: 'active', page: parsed.page, pageSize: 50 })
-      for (const item of records.items.filter(item => item.tenantId === context.actor.tenantId && item.userId === context.actor.userId && item.organizationId === context.actor.organizationId))
-        if (item.currentVersionId) items.push({ id: item.id, name: item.title ?? 'Workspace dataset', kind: 'dataset',
-          inspectRequest: { artifactId: item.id, versionId: item.currentVersionId }, metadata: {} })
-      if (records.page * records.pageSize < records.total) nextRequest = { page: records.page + 1 }
-    }
-    return { schemaVersion: 1, items, ...(nextRequest ? { nextRequest } : {}), queryContract: { operation: 'query', contractVersion: 1,
-      payloadSchema: { type: 'object', properties: { artifactId: { type: 'string' }, versionId: { type: 'string' } }, required: ['artifactId', 'versionId'], additionalProperties: false },
-      instructions: 'Use workspace_dataset_register to create a script definition. Follow nextRequest even when a page has no visible definitions. Inspect its exact Artifact/version to get the binding. Copy parameters/output exactly. The payload contains only artifactId/versionId. Every query executes the Workspace script again with current inputs. Python/JavaScript scripts return columns/rows; platform validates Dataset fields/grain. Do not invent input data.' } }
+    emptyDiscoverySchema.parse(request)
+    if (context.source.kind !== 'artifact') throw new Error('WORKSPACE_SCRIPT_SOURCE_UNAVAILABLE')
+    const { artifactId, versionId } = context.source
+    const definition = await this.definitions.open(context.actor, artifactId, versionId)
+    return { items: [{ id: artifactId, name: definition.title, kind: 'dataset', metadata: { binding: JSON.parse(JSON.stringify(this.definitions.binding(artifactId, versionId, definition))) } }],
+      queryContract: { operation: 'query', contractVersion: 1, payloadSchema: { type: 'object', properties: {}, additionalProperties: false }, instructions: 'Copy the canonical Binding. The exact script definition is pinned by source.artifactId/versionId. Parameters and output must match the registered definition.' } }
   }
   async execute(binding: AnalyticsBinding, parameters: Record<string, AnalyticsValue>, context: AnalyticsProviderContext): Promise<AnalyticsProviderResult> {
     context.signal.throwIfAborted()
-    const payload = payloadSchema.parse(binding.payload), definition = await this.definitions.open(context.actor, payload.artifactId, payload.versionId)
+    emptyDiscoverySchema.parse(binding.payload)
+    if (context.source.kind !== 'artifact') throw new Error('WORKSPACE_SCRIPT_SOURCE_UNAVAILABLE')
+    const payload = context.source, definition = await this.definitions.open(context.actor, payload.artifactId, payload.versionId)
     if (JSON.stringify(definition.output) !== JSON.stringify(binding.output) || JSON.stringify(definition.parameters) !== JSON.stringify(binding.parameters))
       throw new BadRequestException('WORKSPACE_SCRIPT_BINDING_CHANGED: copy the registered output and parameters exactly')
     if (definition.sources.some(source => source.binding.providerId === PROVIDER)) throw new Error('WORKSPACE_SCRIPT_RECURSION_DENIED')

@@ -45,3 +45,17 @@ HTML 页面通过 `window.xpertLiveArtifact.query(bindingId, controls)` 请求�
 HTML 保存前需要可用 Browser Runtime 和 `sandbox-browser` 队列。
 初始页面预检失败会阻止保存；标准模式不依赖浏览器任务。
 预检不穷举全部交互、延迟分支或筛选组合。
+
+## Real upstream chat acceptance
+
+The paired platform change for xpert-ai/xpert-plugins#762 includes a read-only
+`tools/scripts/verify-analytics-chat-dashboards.mjs` acceptance checker. Run it after
+actual ChatKit authoring and explicit dashboard publication. It correlates successful
+Agent definition registration and Artifact saves, checks the executed model, and
+queries pinned published versions with multiple filters and fresh executions.
+
+The 2026-10-21 local acceptance used GitHub REST issue states (five rows per state)
+and Microsoft Learn MCP topics (ten search snippets per topic). The viewer now
+accepts canonical Definition/Artifact references instead of requiring DataSource
+fields. Filter probes also retain sanitized Analytics diagnostics so the Agent can
+repair a mistaken unique grain without dropping repeated document snippets.

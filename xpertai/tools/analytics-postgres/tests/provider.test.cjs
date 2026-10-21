@@ -7,7 +7,7 @@ test('PostgreSQL delegates positional parameters to the host read-only adapter a
     query: async (input, abortSignal) => { query = input; signal = abortSignal; return { outcome: 'succeeded', columns: [{ name: 'amount', dataType: '701' }], rows: [['12.5']], truncated: false, hasMore: false } },
     close: async () => { closed = true }
   } } }) })
-  const context = { actor: { userId: 'viewer', tenantId: 'tenant', organizationId: 'org' }, dataSourceId: 'source', maxRows: 100, timeoutMs: 1000, signal: new AbortController().signal }
+  const context = { actor: { userId: 'viewer', tenantId: 'tenant', organizationId: 'org' }, source: { kind: 'data-source', dataSourceId: 'source' }, maxRows: 100, timeoutMs: 1000, signal: new AbortController().signal }
   const result = await provider.execute({ payload: { sql: 'SELECT amount FROM sales WHERE region = $1', parameterOrder: ['region'] }, output: { fields: [{ sourceField: 'amount', logicalType: 'float64' }] } },
     { region: "x'; DROP TABLE sales;--" }, context)
   assert.deepEqual(opened.actor, context.actor); assert.equal(opened.dataSourceId, 'source')
@@ -31,7 +31,7 @@ test('discovery is paged at the adapter and returns comments/keys without guessi
     describe: async () => ({ object, columns: [{ name: 'net_amount', dataType: 'numeric', nullable: false, comment: 'Paid amount minus refund, CNY' }], keys: [], definition: '', diagnostics: [] }),
     close: async () => { closed++ }
   }) }) })
-  const context = { actor: {}, dataSourceId: 'source' }
+  const context = { actor: {}, source: { kind: 'data-source', dataSourceId: 'source' } }
   const page = await provider.discover({}, context)
   assert.equal(input.pageSize, 20); assert.equal(page.nextRequest.page, 2)
   const detail = await provider.discover(page.items[0].inspectRequest, context)
@@ -42,7 +42,7 @@ test('discovery is paged at the adapter and returns comments/keys without guessi
 
 // Resource/error paths are part of the adapter contract, not renderer behavior.
 const binding = { payload: { sql: 'SELECT amount', parameterOrder: [] }, output: { fields: [] } }
-const context = { actor: {}, dataSourceId: 'source', maxRows: 10, timeoutMs: 1000, signal: new AbortController().signal }
+const context = { actor: {}, source: { kind: 'data-source', dataSourceId: 'source' }, maxRows: 10, timeoutMs: 1000, signal: new AbortController().signal }
 function fixture(overrides = {}) {
   const state = { opened: [], closed: 0 }
   const provider = new PostgresAnalyticsProvider({ require: () => ({ open: async scope => {

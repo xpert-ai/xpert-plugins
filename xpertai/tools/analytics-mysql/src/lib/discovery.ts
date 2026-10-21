@@ -29,7 +29,7 @@ export async function discoverMysql(request: MysqlDiscoveryRequest, adapter: Dat
   if (request.kind === 'databases') {
     const locations = await adapter.locations()
     const offset = (request.page - 1) * 20
-    return { schemaVersion: 1, queryContract: contract,
+    return { queryContract: contract,
       items: locations.slice(offset, offset + 20).flatMap((location) => location.database ? [{
         id: location.database, name: location.database, kind: 'collection' as const,
         inspectRequest: { kind: 'catalog', location: { database: location.database } },
@@ -39,14 +39,14 @@ export async function discoverMysql(request: MysqlDiscoveryRequest, adapter: Dat
   }
   if (request.kind === 'catalog') {
     const page = await adapter.objects({ ...request.location, search: request.search, page: request.page, pageSize: 20 })
-    return { schemaVersion: 1, queryContract: contract,
+    return { queryContract: contract,
       items: page.items.map((object) => ({ id: JSON.stringify(object), name: object.name, kind: 'dataset',
         inspectRequest: { kind: 'inspect', object: { name: object.name, kind: object.kind, database: object.database ?? request.location.database } },
         metadata: { objectKind: object.kind } })),
       ...(page.hasMore ? { nextRequest: { ...request, page: request.page + 1 } } : {}) }
   }
   const detail = await adapter.describe(request.object)
-  return { schemaVersion: 1, queryContract: contract, items: [{ id: JSON.stringify(request.object), name: request.object.name, kind: 'dataset',
+  return { queryContract: contract, items: [{ id: JSON.stringify(request.object), name: request.object.name, kind: 'dataset',
     metadata: { object: { ...detail.object }, columns: detail.columns.map((column) => ({ name: column.name, dataType: column.dataType,
       nullable: column.nullable ?? true, ...(column.comment ? { description: column.comment } : {}) })),
       keys: detail.keys.map((key) => ({ name: key.name, kind: key.kind, columns: key.columns,

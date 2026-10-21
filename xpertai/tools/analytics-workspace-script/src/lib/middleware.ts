@@ -9,7 +9,6 @@ import { registrationSchema, PROVIDER } from './schema'
 
 const registrationObject = registrationSchema.innerType()
 const registerToolSchema = registrationSchema.innerType().omit({ sources: true }).extend({
-  dataSourceId: z.string().uuid(),
   files: jsonEncodedSchema(registrationObject.shape.files), parameters: jsonEncodedSchema(registrationObject.shape.parameters), output: jsonEncodedSchema(registrationObject.shape.output),
   sources: jsonEncodedSchema(z.array(z.object({ alias: z.string().regex(/^[A-Za-z][A-Za-z0-9_]{0,39}$/), bindingJson: z.string().min(2).max(64000) }).strict()).max(4).default([]))
 }).strict()
@@ -34,9 +33,7 @@ export class WorkspaceScriptMiddleware implements IAgentMiddlewareStrategy {
       systemMessage: new SystemMessage({ content: [...(typeof request.systemMessage?.content === 'string' ? [{ type: 'text' as const, text: request.systemMessage.content }] : request.systemMessage?.content ?? []), { type: 'text', text: SCRIPT_GUIDANCE }] }) }),
       tools: [
         tool(async (args: z.infer<typeof registerToolSchema>) => {
-          const { dataSourceId, ...definition } = args
-          const sources = await capabilities.require(AnalyticsRuntimeCapability).list(actor)
-          if (!sources.some(source => source.id === dataSourceId && source.providers.some(provider => provider.id === PROVIDER))) throw new Error('WORKSPACE_SCRIPT_SOURCE_UNAVAILABLE')
+          const definition = args
           const input = registrationSchema.parse({ ...definition, sources: definition.sources.map(source => {
             try { return { alias: source.alias, binding: analyticsBindingSchema.parse(JSON.parse(source.bindingJson)) } }
             catch (error) { throw new Error(`WORKSPACE_SCRIPT_SOURCE_BINDING_INVALID: bindingJson must encode exactly one full AnalyticsBinding object, including each parameter controlId. Remove trailing text/extra braces. ${error instanceof Error ? error.message.slice(0, 500) : ''}`) }
@@ -50,8 +47,9 @@ export class WorkspaceScriptMiddleware implements IAgentMiddlewareStrategy {
           }
           const saved = await this.definitions.register(actor, files, input)
           return JSON.stringify({ scriptDefinition: { artifactId: saved.artifactId, versionId: saved.versionId },
-            bindingJson: JSON.stringify(this.definitions.binding(dataSourceId, saved.artifactId, saved.versionId, saved.definition)),
-            discoveryRequest: { artifactId: saved.artifactId, versionId: saved.versionId } })
+            bindingJson: JSON.stringify(this.definitions.binding(saved.artifactId, saved.versionId, saved.definition)),
+            source: { kind: 'artifact', artifactId: saved.artifactId, versionId: saved.versionId },
+            discoveryRequest: { source: { kind: 'artifact', artifactId: saved.artifactId, versionId: saved.versionId }, providerId: PROVIDER, requestJson: '{}' } })
         }, { name: 'workspace_dataset_register', description: 'Save a versioned script definition from an existing Workspace code file, declared aliases, parameters and output contract. Returns binding and discoveryRequest for dashboard_discover/preview/create.',
           schema: registerToolSchema, verboseParsingErrors: true, metadata: { toolName: { en_US: 'Register script dataset', zh_Hans: '注册脚本数据集' } } })
       ] }

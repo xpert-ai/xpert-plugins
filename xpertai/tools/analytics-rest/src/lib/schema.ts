@@ -47,7 +47,7 @@ export const datasetSchema = z.object({
 /** A separate approved catalog; connection credentials and server URLs remain platform-owned. */
 export const optionsSchema = z.object({
   workspaceId: z.string().uuid(), toolsetId: z.string().uuid(),
-  datasets: z.array(datasetSchema).min(1).max(100)
+  datasets: z.array(datasetSchema).length(1)
 }).strict().refine((options) => new Set(options.datasets.map((item) => item.id)).size === options.datasets.length, 'Duplicate dataset ID')
 export const payloadSchema = z.object({
   datasetId: key, revision: key, operationContractHash: z.string().regex(/^[a-f0-9]{64}$/),

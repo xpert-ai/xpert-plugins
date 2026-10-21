@@ -1,3 +1,4 @@
+import { createAuthoring } from './authoring'
 import { Inject } from '@nestjs/common'
 import type { AnalyticsBinding, AnalyticsDiscoveryResult, AnalyticsProviderDescriptor, AnalyticsValue, JSONValue } from '@xpert-ai/contracts'
 import { AnalyticsProvider, RestClientRuntimeCapability, XPERT_RUNTIME_CAPABILITIES_TOKEN,
@@ -13,10 +14,12 @@ const queryContract: AnalyticsDiscoveryResult['queryContract'] = {
 @AnalyticsProvider('rest.json')
 export class RestAnalyticsProvider implements AnalyticsQueryProvider {
   readonly descriptor: AnalyticsProviderDescriptor = {
-    id: 'rest.json', name: 'REST/JSON', dataSourceTypes: ['rest-json'],
-    operations: [{ name: 'query', contractVersion: 1, readOnly: true }],
-    connectionType: { type: 'rest-json', name: 'REST/JSON', configuration: jsonSchema(optionsSchema) }
+    id: 'rest.json', name: 'REST/JSON', sourceKinds: ['definition'],
+    operations: [{ name: 'query', contractVersion: 1, readOnly: true }]
   }
+  readonly authoring = createAuthoring(() => this.runtime.require(RestClientRuntimeCapability))
+  readonly configuration = { kind: 'definition' as const, connection: 'rest-toolset' as const, schema: jsonSchema(optionsSchema) }
+  validateConfiguration(options: Record<string, JSONValue>) { return optionsSchema.parse(options) }
   constructor(@Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtime: RuntimeCapabilityRegistry) {}
 
   private connection(context: AnalyticsProviderContext) {
@@ -41,7 +44,7 @@ export class RestAnalyticsProvider implements AnalyticsQueryProvider {
     if (input.datasetId && !available.length) throw new Error('REST_DATASET_UNAVAILABLE')
     const start = (input.page - 1) * 20
     return {
-      schemaVersion: 1, queryContract,
+       queryContract,
       items: available.slice(start, start + 20).map(({ dataset, operation }) => ({
         id: dataset.id, name: dataset.name, kind: 'dataset', description: dataset.description,
         inspectRequest: { datasetId: dataset.id },

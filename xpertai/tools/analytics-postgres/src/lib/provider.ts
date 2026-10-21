@@ -18,7 +18,7 @@ export const postgresPayloadSchema = z.object({
 @AnalyticsProvider('postgres.sql')
 export class PostgresAnalyticsProvider implements AnalyticsQueryProvider {
   readonly descriptor: AnalyticsProviderDescriptor = {
-    id: 'postgres.sql', name: 'PostgreSQL', dataSourceTypes: ['pg', 'postgres'],
+    id: 'postgres.sql', name: 'PostgreSQL', sourceKinds: ['data-source'], dataSourceTypes: ['pg', 'postgres'],
     operations: [{ name: 'query', contractVersion: 1, readOnly: true }]
   }
   constructor(@Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtime: RuntimeCapabilityRegistry) {}
@@ -26,7 +26,7 @@ export class PostgresAnalyticsProvider implements AnalyticsQueryProvider {
     const parsed = parsePostgresDiscoveryRequest(request)
     const location = parsed.kind === 'catalog' ? parsed.location : parsed.object
     const adapter = await this.runtime.require(DataSourceRuntimeCapability).open({
-      actor: context.actor, dataSourceId: context.dataSourceId,
+      actor: context.actor, dataSourceId: dataSourceId(context),
       location: { database: location.database, schema: location.schema }
     })
     try {
@@ -39,7 +39,7 @@ export class PostgresAnalyticsProvider implements AnalyticsQueryProvider {
     if (payload.parameterOrder.some((name) => !Object.prototype.hasOwnProperty.call(parameters, name)) ||
       Object.keys(parameters).some((name) => !payload.parameterOrder.includes(name))) throw new Error('POSTGRES_PARAMETER_ORDER_INVALID')
     const adapter = await this.runtime.require(DataSourceRuntimeCapability).open({
-      actor: context.actor, dataSourceId: context.dataSourceId, location: payload.location
+      actor: context.actor, dataSourceId: dataSourceId(context), location: payload.location
     })
     try {
       if (adapter.engine !== 'postgres') throw new Error('POSTGRES_ENGINE_REQUIRED')
@@ -82,4 +82,9 @@ export function normalizePostgresCell(value: AnalyticsValue, oid: string, logica
     return new Date(milliseconds).toISOString()
   }
   return logicalType === 'int64' && typeof value === 'number' && Number.isSafeInteger(value) ? String(value) : value
+}
+
+function dataSourceId(context: AnalyticsProviderContext) {
+  if (context.source.kind !== 'data-source') throw new Error('ANALYTICS_SOURCE_UNAVAILABLE')
+  return context.source.dataSourceId
 }

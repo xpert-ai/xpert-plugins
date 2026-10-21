@@ -32,11 +32,12 @@
     }
   },
   "peerDependencies": {
-    "@xpert-ai/plugin-sdk": "^3.25.0",
-    "@xpert-ai/contracts": "^3.25.0",
+    "@xpert-ai/plugin-sdk": "^3.26.1",
+    "@xpert-ai/contracts": "^3.26.1",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
-    "zod": "3.25.67"
+    "zod": "3.25.67",
+    "@nestjs/cqrs": "^11.0.3"
   },
   "devDependencies": {
     "@xpert-ai/plugin-sdk": "3.25.0",
@@ -46,7 +47,8 @@
     "zod": "3.25.67",
     "typescript": "^5.9.2",
     "@types/node": "^20.19.9",
-    "reflect-metadata": "^0.2.2"
+    "reflect-metadata": "^0.2.2",
+    "@nestjs/cqrs": "^11.0.3"
   },
   "repository": {
     "type": "git",

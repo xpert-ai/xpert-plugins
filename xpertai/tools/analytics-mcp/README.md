@@ -1,16 +1,15 @@
 # MCP analytics provider
 
-`@xpert-ai/plugin-analytics-mcp` registers `mcp.tool` for platform DataSources of type
-`mcp-tools`. It reuses an existing platform MCP toolset and the current viewer's connection
+The Live Dashboard Agent generates this provider’s Definition through `analytics_definition_connections` → `analytics_definition_inspect` → `analytics_definition_register`. Existing toolset/Integration credentials stay in their original configuration entries. Settings → Analytics is for viewing, correction and version management; users do not fill internal IDs. See [the authoring guide](../../../../docs/analytics-providers.md#automatic-definition-generation).
+`@xpert-ai/plugin-analytics-mcp` registers `mcp.tool` for platform Analytics Definitions. It reuses an existing platform MCP toolset and the current viewer's connection
 authentication. It does not create another MCP client or store MCP URLs/tokens.
 
 The platform must expose `McpClientRuntimeCapability` (`platform.mcp.client`).
 The adapter uses `client.tools.list/call`; the host currently enforces read-only calls.
-Development dependencies pin published SDK/contracts 3.25.0, which contain this interface.
+This source change requires the paired canonical Analytics Contracts/SDK release; see the repository Analytics release guide.
 The host must also implement the corresponding runtime capability.
 
 1. Configure an MCP connection in an authoring workspace and verify its tools normally.
-2. Install this system plugin. Add a platform `mcp-tools` DataSource using
    [the configuration example](examples/data-source-options.json).
 3. Replace the example workspace/toolset IDs and exact server/tool names with the existing
    connection. Approve only genuinely read-only tools and author the metric/field mapping.

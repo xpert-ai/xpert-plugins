@@ -1,3 +1,4 @@
+import { fileAuthoring } from './authoring'
 import { BadRequestException, ForbiddenException, HttpException, Inject } from '@nestjs/common'
 import { createHash } from 'node:crypto'
 import type { AnalyticsBinding, AnalyticsDiscoveryResult, AnalyticsProviderDescriptor, AnalyticsValue, JSONValue } from '@xpert-ai/contracts'
@@ -16,10 +17,12 @@ const queryContract: AnalyticsDiscoveryResult['queryContract'] = { operation: 'q
 @AnalyticsProvider(PROVIDER)
 export class FileAnalyticsProvider implements AnalyticsQueryProvider {
   readonly descriptor: AnalyticsProviderDescriptor = {
-    id: PROVIDER, name: 'Workspace files (CSV / JSON / XLSX)', dataSourceTypes: ['workspace-files'],
-    operations: [{ name: 'query', contractVersion: 1, readOnly: true }],
-    connectionType: { type: 'workspace-files', name: 'Workspace files', configuration: jsonSchema(optionsSchema) }
+    id: PROVIDER, name: 'Workspace files (CSV / JSON / XLSX)', sourceKinds: ['definition'],
+    operations: [{ name: 'query', contractVersion: 1, readOnly: true }]
   }
+  readonly authoring = fileAuthoring
+  readonly configuration = { kind: 'definition' as const, connection: 'workspace-files' as const, schema: jsonSchema(optionsSchema) }
+  validateConfiguration(options: Record<string, JSONValue>) { return optionsSchema.parse(options) }
   constructor(@Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtime: RuntimeCapabilityRegistry) {}
 
   private check(context: AnalyticsProviderContext) {
@@ -72,7 +75,7 @@ export class FileAnalyticsProvider implements AnalyticsQueryProvider {
           const read = await this.read(definition, context)
           const preview = await queryWorker(read.buffer, definition, payload, {}, 5, context.signal, context.deadlineAt)
           await this.file(definition, context)
-          const binding: AnalyticsBinding = { schemaVersion: 1, id: definition.id, dataSourceId: context.dataSourceId,
+          const binding: AnalyticsBinding = { source: context.source, id: definition.id,
             providerId: PROVIDER, operation: 'query', contractVersion: 1, payload: JSON.parse(JSON.stringify(payload)), parameters: [],
             output: { datasetId: definition.id, grain: [], fields: definition.columns.map(({ key, path, description, nullValues, ...field }) => ({ ...field, id: key, sourceField: key })) } }
           const previewFits = Buffer.byteLength(JSON.stringify(preview.rows)) <= 32000
@@ -86,7 +89,7 @@ export class FileAnalyticsProvider implements AnalyticsQueryProvider {
         }
         items.push({ id: definition.id, name: definition.name, description: definition.description, kind: 'dataset', inspectRequest: { datasetId: definition.id }, metadata })
       }
-      return { schemaVersion: 1, queryContract, items,
+      return { queryContract, items,
         ...(!input.datasetId && input.page * 20 < datasets.length ? { nextRequest: { page: input.page + 1 } } : {}) }
     })
   }

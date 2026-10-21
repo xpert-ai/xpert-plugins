@@ -1,6 +1,6 @@
 const { test } = require('node:test')
 const assert = require('node:assert/strict')
-const { bindParameters, dataXpertPayloadSchema, DataXpertAnalyticsProvider } = require('../dist/lib/provider.js')
+const { bindParameters, dataXpertPayloadSchema, DataXpertAnalyticsClient } = require('../dist/lib/client.js')
 const { normalizeAnalyticsResult } = require('@xpert-ai/plugin-sdk/analytics')
 const http = require('node:http')
 test('structured parameters replace an entire declared value without interpreting query text', () => {
@@ -30,7 +30,7 @@ test('HTTP adapter uses current viewer token and maps an ontology effect to stab
   })
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
   try {
-    const provider = new DataXpertAnalyticsProvider({ require: () => ({ createScopedApi(input) { assert.deepEqual(input, actor); return { getToken: async ({ audience }) => { requestedAudience = audience; return { token: 'test-viewer-token' } } } } }) })
+    const provider = new DataXpertAnalyticsClient({ require: () => ({ createScopedApi(input) { assert.deepEqual(input, actor); return { getToken: async ({ audience }) => { requestedAudience = audience; return { token: 'test-viewer-token' } } } } }) })
     const binding = { id: 'sales', providerId: 'data-xpert.ontology', payload: { resourceId: 'resource', actionTypeCode: 'sql.query_cube_slice', target: { entityId: 'entity' }, params: { filter: 'all' }, parameterPaths: { region: ['filter'] } },
       output: { datasetId: 'sales', grain: ['region'], fields: [
         { id: 'region', sourceField: 'Region', semanticRef: 'sales.region', logicalType: 'string', nullable: false, role: 'dimension' },
@@ -67,7 +67,7 @@ test('discovery uses the same actor channel and exposes native contract without 
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
   try {
     const actor = { userId: 'viewer', tenantId: 'tenant', organizationId: 'org' }
-    const provider = new DataXpertAnalyticsProvider({ require: () => ({ createScopedApi(input) { assert.deepEqual(input, actor); return { getToken: async () => ({ token: 'viewer' }) } } }) })
+    const provider = new DataXpertAnalyticsClient({ require: () => ({ createScopedApi(input) { assert.deepEqual(input, actor); return { getToken: async () => ({ token: 'viewer' }) } } }) })
     const result = await provider.discover({}, { actor, signal: new AbortController().signal, options: {
       baseUrl: `http://127.0.0.1:${server.address().port}/api`, audience: 'test', assistantCode: 'assistant',
       assistantXpertId: '11111111-1111-4111-8111-111111111111', workspaceId: '22222222-2222-4222-8222-222222222222'
@@ -92,7 +92,7 @@ async function fixture(t, respond, tokenHandler) {
   })
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
   t.after(async () => { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)) })
-  const provider = new DataXpertAnalyticsProvider({ require: () => ({ createScopedApi(input) {
+  const provider = new DataXpertAnalyticsClient({ require: () => ({ createScopedApi(input) {
     assert.deepEqual(input, actor)
     return { getToken: async () => { state.tokens++; return tokenHandler ? tokenHandler() : { token: 'viewer' } } }
   } }) })

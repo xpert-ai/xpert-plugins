@@ -25,7 +25,7 @@ HTML iframe → 专属 MessagePort → Live Dashboard View → query-binding
 
 ## 插件协议
 
-保存格式沿用 `xpert.live-dashboard/v1`，向后兼容可选字段：
+保存格式为 `xpert.live-dashboard`，包含可选的 HTML 展示字段：
 
 ```json
 { "presentation": { "type": "html", "html": "<html>…</html>" }, "charts": [], "tables": [] }
@@ -33,7 +33,7 @@ HTML iframe → 专属 MessagePort → Live Dashboard View → query-binding
 
 HTML 字节、数据 Binding 和 Controls 处于同一内容哈希和版本中。工作区原文件后续编辑不会改变已保存页面。草稿修订号与正式版本基准的 CAS、当前用户及 host 归属检查继续适用。
 
-使用打包图库时，`presentation.dependencies` 保存精确版本与 SHA-256，外层 `xpert.live-dashboard.package/v1` 同时保存实际库源码。无依赖的旧定义仍可读取；详见[固定前端图库](frontend-libraries.mdx)。
+使用打包图库时，`presentation.dependencies` 保存精确版本与 SHA-256，外层 `xpert.live-dashboard.package` 同时保存实际库源码。未声明图库依赖时无需库资源；详见[固定前端图库](frontend-libraries.mdx)。
 
 `query-binding` View Action 严格接受 `{artifactId, versionId?, draftRevision?, bindingId, controls}`。宿主选择草稿修订或正式版本，服务端打开对应已保存定义并从中取 Binding。额外的 `binding`、`payload`、`providerId`、`dataSourceId` 均被拒绝。未知 Binding、未知控件、非法值、其他用户/host/组织、已撤销来源权限均不能执行查询。HTML 只能向消息桥提交 bindingId 和 controls；Artifact ID/版本由宿主持有。
 

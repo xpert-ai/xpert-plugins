@@ -13,7 +13,7 @@ const definition = { id: 'sales', revision: 'v1', name: 'Sales', description: 'N
   pagination: { type: 'offset', pageSize: 1, maxPages: 5, offset: { in: 'query', name: 'offset' }, limit: { in: 'query', name: 'limit' }, hasMorePath: ['hasMore'] },
   result: { rowsPath: ['data', 'rows'], columns, scope: 'full_query_result', totalPath: ['total'] } }
 const options = { workspaceId: '00000000-0000-4000-8000-000000000001', toolsetId: '00000000-0000-4000-8000-000000000002', datasets: [definition] }
-const binding = { schemaVersion: 1, id: 'sales', dataSourceId: '00000000-0000-4000-8000-000000000003', providerId: 'rest.json', operation: 'query', contractVersion: 1,
+const binding = { id: 'sales', source: { kind: 'definition', definitionId: '00000000-0000-4000-8000-000000000003', versionId: '00000000-0000-4000-8000-000000000004' }, providerId: 'rest.json', operation: 'query', contractVersion: 1,
   payload: { datasetId: 'sales', revision: 'v1', operationContractHash: hash, arguments: { query: { region: '', offset: 0, limit: 1 } }, parameterPaths: { region: ['query', 'region'] } },
   parameters: [{ name: 'region', controlId: 'region', type: 'string', required: false }],
   output: { datasetId: 'net_sales', grain: ['region'], fields: columns.map(({ path, key, description, ...field }) => ({ ...field, id: key, sourceField: key })) } }
@@ -33,7 +33,7 @@ function fixture() {
     }
   } }
   const provider = new RestAnalyticsProvider({ has: () => true, require: c => { assert.equal(c.id, 'platform.rest.client'); return api } })
-  const context = { actor: { tenantId: 'tenant', organizationId: 'org', userId: 'viewer' }, dataSourceId: binding.dataSourceId,
+  const context = { actor: { tenantId: 'tenant', organizationId: 'org', userId: 'viewer' }, source: binding.source,
     options: structuredClone(options), signal: new AbortController().signal, maxRows: 1000, timeoutMs: 10000, deadlineAt: Date.now() + 10000, executionId: 'test', ancestry: ['rest.json'] }
   return { provider, api, calls, state, context }
 }
@@ -160,4 +160,28 @@ test('JSON-body filters and pagination stay provider-owned for approved read-onl
   assert.deepEqual(result.rows, [{ region: 'East', amount: source[0].net }])
   assert.deepEqual(seen[0].arguments, { body: { filter: { region: 'East' }, offset: 0, limit: 1 } })
   assert.equal(b.payload.arguments.body.filter.region, '')
+})
+
+test('configuration entry publishes exactly one governed dataset with the same runtime defaults', () => {
+  const f = fixture(), options = f.context.options
+  assert.deepEqual(f.provider.descriptor.sourceKinds, ['definition'])
+  assert.equal(f.provider.descriptor.dataSourceTypes, undefined)
+  assert.equal(f.provider.configuration.kind, 'definition')
+  assert.deepEqual(f.provider.validateConfiguration(options), optionsSchema.parse(options))
+  assert.throws(() => f.provider.validateConfiguration({ ...options, datasets: [] }))
+  assert.throws(() => f.provider.validateConfiguration({ ...options, datasets: [...options.datasets, { ...options.datasets[0], id: 'other' }] }))
+})
+test('Agent authoring supplies scope, validates live result mapping and rejects injected or removed operations', async () => {
+  const f = fixture(), authoring = f.provider.authoring
+  const context = { actor: f.context.actor, workspaceId: options.workspaceId, connection: { kind: 'rest-toolset', toolsetId: options.toolsetId }, signal: f.context.signal, deadlineAt: Date.now() + 10000 }
+  const { id, revision, readOnly, ...input } = definition
+  assert.equal((await authoring.inspect({}, context)).operations[0].operationId, definition.operationId)
+  const generated = await authoring.prepare(input, context)
+  assert.equal(generated.workspaceId, context.workspaceId)
+  assert.equal(generated.datasets[0].id, 'dataset')
+  assert(f.calls.length > 0)
+  await assert.rejects(authoring.prepare({ ...input, workspaceId: options.workspaceId }, context))
+  await assert.rejects(authoring.prepare({ ...input, result: { ...input.result, rowsPath: ['missing'] } }, context))
+  f.state.available = false
+  await assert.rejects(authoring.prepare(input, context), /UNAVAILABLE/)
 })

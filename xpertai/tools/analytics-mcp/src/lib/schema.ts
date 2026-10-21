@@ -17,6 +17,7 @@ export const columnSchema = z.object({
 export const datasetSchema = z.object({
   id: key, revision: key, name: z.string().min(1).max(160), description: z.string().min(1).max(4000),
   toolName: z.string().min(1).max(256), readOnly: z.literal(true),
+  defaultArguments: z.record(json).default({}),
   result: z.object({
     format: z.enum(['structured', 'text_json']), rowsPath: path, columns: z.array(columnSchema).min(1).max(80),
     scope: z.enum(['full_query_result', 'page']), truncatedPath: path.min(1).optional(),
@@ -34,7 +35,7 @@ export const datasetSchema = z.object({
 /** A separate approved catalog; connection credentials and server URLs remain platform-owned. */
 export const optionsSchema = z.object({
   workspaceId: z.string().uuid(), toolsetId: z.string().uuid(), serverName: z.string().min(1).max(160),
-  datasets: z.array(datasetSchema).min(1).max(100)
+  datasets: z.array(datasetSchema).length(1)
 }).strict().refine((options) => new Set(options.datasets.map((item) => item.id)).size === options.datasets.length, 'Duplicate dataset ID')
 export const payloadSchema = z.object({
   datasetId: key, revision: key, toolContractHash: z.string().regex(/^[a-f0-9]{64}$/),

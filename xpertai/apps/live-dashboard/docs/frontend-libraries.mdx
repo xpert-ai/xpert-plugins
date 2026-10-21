@@ -40,7 +40,7 @@ WebGLRenderer 需要浏览器提供 WebGL2，必须处理 GPU 不可用并释放
 平台 SDK 负责通用依赖锁、SHA-256 校验、代码大小限制和隔离注入。
 本插件负责允许列表、打包、许可证、Agent 工具和看板版本语义，数据源插件无需感知图库。
 
-带图库的保存文件采用 `xpert.live-dashboard.package/v1`：`manifest` 存 HTML、Binding 和依赖锁，
+带图库的保存文件采用 `xpert.live-dashboard.package`：`manifest` 存 HTML、Binding 和依赖锁，
 `dependencies` 存库的实际代码。它们共享一个不可变 Artifact Version 和文件摘要。
 旧的无图库 JSON 定义继续兼容。Agent 读取工具只返回依赖元数据，避免把库源码塞进上下文。
 历史版本从自身快照读取库，不依赖当前插件仍保留相同版本；修改默认继承该快照。

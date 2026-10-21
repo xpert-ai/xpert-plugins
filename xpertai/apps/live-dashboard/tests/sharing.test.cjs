@@ -7,17 +7,17 @@ const { encodeDashboardPackage } = require('../dist/lib/document-package.js')
 const { normalizeAnalyticsResult, resolveAnalyticsParameters } = require('@xpert-ai/plugin-sdk/analytics')
 const example = require('../examples/postgres-sales.json')
 
-function fixture() {
+function fixture(manifest = example) {
   const queries = [], links = [], versions = [{ artifactId: randomUUID(), versionId: randomUUID(), versionNumber: 1, current: true, title: 'Published' }]
   const artifactId = versions[0].artifactId, versionId = versions[0].versionId
-  const content = encodeDashboardPackage(example, [])
+  const content = encodeDashboardPackage(manifest, [])
   const context = { actor: { userId: 'teammate', tenantId: 'tenant', organizationId: 'team' },
     artifact: { id: artifactId, userId: 'creator', tenantId: 'tenant', organizationId: 'team', xpertId: 'assistant',
-      pluginName: '@xpert-ai/plugin-live-dashboard', resourceType: 'live-dashboard', resourceId: `agent/assistant/${example.id}` },
+      pluginName: '@xpert-ai/plugin-live-dashboard', resourceType: 'live-dashboard', resourceId: `agent/assistant/${manifest.id}` },
     version: { id: versionId, artifactId, versionNumber: 1, mimeType: 'application/json', sha256: createHash('sha256').update(content).digest('hex'), title: 'Published' }, content }
-  const source = { id: example.bindings[0].dataSourceId, providers: [{ id: example.bindings[0].providerId }] }
+  const source = { source: manifest.bindings[0].source, providers: [{ id: manifest.bindings[0].providerId }] }
   const capabilities = {
-    'platform.datasource.analytics': { async query(actor, input) {
+    'platform.analytics': { async query(actor, input) {
       queries.push({ actor, input })
       const { region } = resolveAnalyticsParameters(input.binding, input.controls)
       const rows = [{ region: 'east', amount: 120 }, { region: 'west', amount: 80 }].filter(row => region === 'all' || row.region === region)
@@ -38,7 +38,7 @@ function fixture() {
   const runtime = { require(key) { return capabilities[key.id] } }
   const dashboards = {
     async history(actor, id) { assert.equal(actor.userId, 'creator'); assert.equal(id, artifactId); return versions },
-    async open(actor, id, version) { assert.equal(version, versionId); return { manifest: example } },
+    async open(actor, id, version) { assert.equal(version, versionId); return { manifest } },
     async sources() { return [source] }
   }
   return { context, artifactId, versionId, source, versions, queries, links,
@@ -118,4 +118,28 @@ test('blocks unpublished and private provider dependencies without widening file
   assert.equal((await f.sharing.inspect(f.owner, f.artifactId)).issues[0].code, 'DASHBOARD_PUBLISH_BEFORE_SHARING')
   await assert.rejects(f.sharing.share({ userId: 'teammate' }, { artifactId: f.artifactId, versionMode: 'latest' }))
   assert.equal(f.links.length, 0)
+})
+
+for (const source of [{ kind: 'definition', definitionId: randomUUID(), versionId: randomUUID() }, { kind: 'artifact', artifactId: randomUUID(), versionId: randomUUID() }]) {
+  test(`published ${source.kind} bindings retain exact resource versions for the current viewer`, async () => {
+    const manifest = structuredClone(example); manifest.bindings[0].source = source
+    const f = fixture(manifest), target = { artifactId: f.artifactId, versionId: f.versionId }
+    await f.viewer.query(f.context, { target, operation: 'query-binding', input: { ...target, bindingId: manifest.bindings[0].id, controls: { region: 'west' } } })
+    assert.deepEqual(f.queries[0].input.binding.source, source)
+    assert.equal(f.queries[0].actor.userId, 'teammate')
+  })
+}
+
+test('sharing policies apply to a pinned resource even after its latest version advances', () => {
+  const { dashboardSharingIssues } = require('../dist/lib/dashboard-sharing.js')
+  const manifest = structuredClone(example)
+  const source = { kind: 'definition', definitionId: randomUUID(), versionId: randomUUID() }
+  manifest.bindings[0].source = source
+  const provider = { id: manifest.bindings[0].providerId }
+  const sources = [{ source: { ...source, versionId: randomUUID() }, providers: [provider] }]
+  assert.deepEqual(dashboardSharingIssues(manifest, sources), [])
+  provider.sharing = { mode: 'owner_only', reasonCode: 'PRIVATE' }
+  assert.equal(dashboardSharingIssues(manifest, sources)[0].code, 'PRIVATE')
+  sources[0].source.definitionId = randomUUID()
+  assert.equal(dashboardSharingIssues(manifest, sources)[0].code, 'DASHBOARD_SOURCE_UNAVAILABLE')
 })

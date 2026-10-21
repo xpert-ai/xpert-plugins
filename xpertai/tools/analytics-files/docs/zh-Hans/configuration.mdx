@@ -3,7 +3,7 @@ title: '配置与查询'
 description: '受控文件目录、字段口径和声明式查询。'
 ---
 
-安装插件后创建类型为 `workspace-files` 的平台数据源，按包内 `examples/sales.json` 配置 `datasets`。示例 Assistant ID 需要替换为有权访问的已发布 Assistant；通过平台 Files 上传源文件。路径为 Volume 内相对路径，不能使用本机绝对路径。
+安装插件后在「设置 → 分析定义 → Workspace files」创建 Definition，每个定义配置一个数据集，按包内 `examples/sales.json` 配置 `datasets`。示例 Assistant ID 需要替换为有权访问的已发布 Assistant；通过平台 Files 上传源文件。路径为 Volume 内相对路径，不能使用本机绝对路径。
 
 每个数据集包含 `id/revision/name/description/file/reader/columns`。`file.catalog` 支持共享 Assistant `xperts`、用户隔离 Assistant `user-xperts`、用户文件 `users` 和项目 `projects`。用户目录必须匹配当前访问者；项目需要有效成员权限，Assistant 文件检查准确的已发布 Assistant 授权。租户和组织由平台提供。
 

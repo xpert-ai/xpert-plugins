@@ -3,23 +3,21 @@ import { createRoot } from 'react-dom/client'
 import { z } from 'zod/v3'
 import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, Button, Input, Textarea, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, RefreshCw, Save, Plus, FileJson, Send } from '@xpert-ai/plugin-shadcn-ui'
 import { dashboardSchema, type DashboardManifest } from '../lib/dashboard.schema'
+import { dashboardSummarySchema as summarySchema, dashboardSavedSchema as savedSchema, dashboardViewDataSchema as listSchema } from '../lib/dashboard-view.schema'
 import { startBridge, requestHost, selectDashboard, navigateDashboard } from './bridge'
 import { messages } from './i18n'
-import { dashboardNavigationSchema, dashboardNavigationKey, dashboardNavigationTargetSchema } from '../lib/dashboard-navigation'
+import { dashboardNavigationSchema, dashboardNavigationKey } from '../lib/dashboard-navigation'
 import './style.css'
 import { HtmlDashboard, type HtmlDashboardHandle } from './html-dashboard'
 import { DashboardPicker } from './dashboard-picker'
 import { ShareDialog } from './share-dialog'
 import { ViewerControls } from './viewer-controls'
-import { installArtifactDocumentFramePolicy, artifactDocumentDependencyAssets } from '@xpert-ai/plugin-sdk/artifact-document'
+import { installArtifactDocumentFramePolicy } from '@xpert-ai/plugin-sdk/artifact-document'
 
 installArtifactDocumentFramePolicy(document)
 
 declare global { interface Window { __ANALYTICS_RENDERER_HTML__: string; __DASHBOARD_READ_ONLY__?: boolean } }
 const readOnly = window.__DASHBOARD_READ_ONLY__ === true
-const summarySchema = z.object({ artifactId: z.string(), versionId: z.string().nullish(), versionNumber: z.number().optional(), title: z.string().nullish(), updatedAt: z.string().optional(), draftRevision: z.number().optional(), isDraft: z.boolean().optional(), baseVersionId: z.string().nullish() })
-const savedSchema = summarySchema.extend({ manifest: dashboardSchema, dependencies: artifactDocumentDependencyAssets.optional() })
-const listSchema = z.object({ meta: z.object({ navigationTarget: dashboardNavigationTargetSchema.optional(), dashboards: z.array(summarySchema), sources: z.array(z.object({ id: z.string(), name: z.string(), type: z.string() })), saved: savedSchema.optional(), versions: z.array(summarySchema).optional() }) })
 const actionSchema = z.object({ success: z.literal(true), data: z.unknown() })
 const queryResultSchema = z.object({ payload: z.unknown(), datasets: z.array(z.object({ completeness: z.object({ truncated: z.boolean() }), freshness: z.object({ sourceFetchedAt: z.string() }) })) })
 type Summary = z.infer<typeof summarySchema>

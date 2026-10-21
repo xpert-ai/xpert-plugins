@@ -42,8 +42,8 @@ test('provider propagates upstream truncation, re-executes on refresh and record
     [sdk.ArtifactsRuntimeCapability, { createArtifact: async () => ({ id: 'audit' }), ensureArtifactVersion: async input => { evidence.push(input); return {} } }]
   ])
   const provider = new WorkspaceScriptProvider({ require: key => capabilities.get(key) }, { open: async () => definition, store: async (_actor, buffer) => ({ filePath: 'snapshot', size: buffer.length }) })
-  const binding = { id: 'binding', providerId: 'workspace_script.query', payload: { artifactId: 'd1234567-1234-4234-8234-123456789012', versionId: 'e1234567-1234-4234-8234-123456789012' }, output: definition.output, parameters: [] }
-  const context = { actor: {}, executionId: 'one', deadlineAt: Date.now() + 30000, ancestry: ['workspace_script.query'], maxRows: 1000, signal: new AbortController().signal }
+  const binding = { id: 'binding', providerId: 'workspace_script.query', payload: {}, source: { kind: 'artifact', artifactId: 'd1234567-1234-4234-8234-123456789012', versionId: 'e1234567-1234-4234-8234-123456789012' }, output: definition.output, parameters: [] }
+  const context = { source: binding.source, actor: {}, executionId: 'one', deadlineAt: Date.now() + 30000, ancestry: ['workspace_script.query'], maxRows: 1000, signal: new AbortController().signal }
   const first = await provider.execute(binding, {}, context)
   await provider.execute(binding, {}, { ...context, executionId: 'two' })
   assert.equal(first.completeness.truncated, true); assert.equal(first.completeness.scope, 'page'); assert.equal(first.completeness.totalRows, undefined)
@@ -78,21 +78,21 @@ test('registration rejects invalid source bindings before saving definitions or 
   const middleware = new WorkspaceScriptMiddleware(definitions).createMiddleware({}, {
     tenantId: id, organizationId: id, userId: id, xpertId: id, runtime: { capabilities: { require: key => capabilities.get(key) } }
   })
-  const binding = { schemaVersion: 1, id: 'upstream', dataSourceId: id, providerId: 'source.query', operation: 'query', contractVersion: 1,
+  const binding = { id: 'upstream', source: { kind: 'definition', definitionId: id, versionId: id }, providerId: 'source.query', operation: 'query', contractVersion: 1,
     payload: {}, parameters: [{ name: 'region', controlId: 'region', type: 'string', required: false, defaultValue: null }], output }
   await assert.rejects(middleware.tools.find(tool => tool.name === 'workspace_dataset_register').invoke({
-    dataSourceId: id, title: 'Sales', path: 'script.py', language: 'python', sources: [{ alias: 'sales', bindingJson: JSON.stringify(binding) }], parameters: [], output
+    title: 'Sales', path: 'script.py', language: 'python', sources: [{ alias: 'sales', bindingJson: JSON.stringify(binding) }], parameters: [], output
   }), /SOURCE_PREFLIGHT_FAILED.*NATIVE_PARAMETER_PATH_INVALID/)
   assert.equal(saved, false)
   assert.deepEqual(query.request.controls, { region: null })
   assert.equal(query.actor.userId, id)
   await assert.rejects(middleware.tools.find(tool => tool.name === 'workspace_dataset_register').invoke({
-    dataSourceId: id, title: 'Sales', path: 'script.py', language: 'python',
+    title: 'Sales', path: 'script.py', language: 'python',
     sources: JSON.stringify([{ alias: 'sales', bindingJson: JSON.stringify(binding) }]), parameters: '[]', output: JSON.stringify(output)
   }), /SOURCE_PREFLIGHT_FAILED.*NATIVE_PARAMETER_PATH_INVALID/)
   assert.equal(saved, false)
   await assert.rejects(middleware.tools.find(tool => tool.name === 'workspace_dataset_register').invoke({
-    dataSourceId: id, title: 'Sales', path: 'script.py', language: 'python', sources: '[]', parameters: '[]', output: JSON.stringify({ ...output, injected: true })
+    title: 'Sales', path: 'script.py', language: 'python', sources: '[]', parameters: '[]', output: JSON.stringify({ ...output, injected: true })
   }))
   assert.equal(saved, false)
 })
@@ -112,22 +112,12 @@ test('registration retains the host Dataset field count bounds', () => {
     assert.equal(registrationSchema.safeParse({ ...input, output: { ...input.output, fields } }).success, false)
 })
 
-test('discovery paginates filtered Artifact pages and rejects incomplete version references', async () => {
-  const actor = { tenantId: 'tenant', organizationId: 'org', userId: 'viewer' }
-  const seen = []
-  const provider = new WorkspaceScriptProvider({ require: () => ({ listArtifacts: async input => {
-    seen.push(input)
-    return { page: input.page, pageSize: 50, total: 51, items: input.page === 1 ? [{ ...actor, userId: 'other' }] : [
-      { ...actor, id: 'definition', title: 'Saved dataset', currentVersionId: 'version' }
-    ] }
-  } }) }, {})
-  const first = await provider.discover({}, { actor })
-  assert.deepEqual(first.items, []); assert.deepEqual(first.nextRequest, { page: 2 })
-  const second = await provider.discover(first.nextRequest, { actor })
-  assert.equal(second.items[0].id, 'definition'); assert.equal(second.nextRequest, undefined)
-  for (const request of [{ artifactId: 'd1234567-1234-4234-8234-123456789012' }, { versionId: 'd1234567-1234-4234-8234-123456789012' }])
-    await assert.rejects(provider.discover(request, { actor }))
-  assert.equal(seen.length, 2)
+test('discovery only opens the exact source Artifact version and rejects request overrides', async () => {
+  const source = { kind: 'artifact', artifactId: 'definition', versionId: 'version' }, calls = []
+  const provider = new WorkspaceScriptProvider({}, { open: async (...args) => { calls.push(args); return { title: 'Saved' } }, binding: () => ({ source }) })
+  const result = await provider.discover({}, { actor: { userId: 'viewer' }, source })
+  assert.deepEqual(calls, [[{ userId: 'viewer' }, 'definition', 'version']]); assert.deepEqual(result.items[0].metadata.binding.source, source)
+  await assert.rejects(provider.discover({ artifactId: 'other' }, { actor: {}, source }))
 })
 
 function executionFixture(overrides = {}) {
@@ -159,8 +149,8 @@ function executionFixture(overrides = {}) {
     return { filePath: 'snapshot' }
   } }
   const provider = new WorkspaceScriptProvider({ require: key => capabilities.get(key) }, definitions)
-  const binding = { id: 'binding', providerId: 'workspace_script.query', payload: { artifactId: 'd1234567-1234-4234-8234-123456789012', versionId: 'e1234567-1234-4234-8234-123456789012' }, output: definition.output, parameters: [] }
-  const context = { actor: {}, executionId: 'run', deadlineAt: Date.now() + 30000, ancestry: ['workspace_script.query'], maxRows: 1000, signal: new AbortController().signal }
+  const binding = { id: 'binding', providerId: 'workspace_script.query', payload: {}, source: { kind: 'artifact', artifactId: 'd1234567-1234-4234-8234-123456789012', versionId: 'e1234567-1234-4234-8234-123456789012' }, output: definition.output, parameters: [] }
+  const context = { source: binding.source, actor: {}, executionId: 'run', deadlineAt: Date.now() + 30000, ancestry: ['workspace_script.query'], maxRows: 1000, signal: new AbortController().signal }
   return { definition, state, provider, binding, context }
 }
 test('file aliases cache bytes within a run, but reauthorize each access and record input hashes', async () => {

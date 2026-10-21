@@ -139,11 +139,9 @@ export class DashboardService {
       const samples = [...(alternative !== undefined ? [alternative] : []),
         ...(current !== null && parameter.allowedValues?.includes(null) ? [null] : [])]
       for (const value of samples) {
-        try {
-          await this.runtime.require(AnalyticsRuntimeCapability).query(actor(context), { binding, controls: { ...controls, [parameter.controlId]: value } })
-        } catch {
-          throw new BadRequestException(`DASHBOARD_FILTER_PREVIEW_FAILED: ${parameter.controlId}; a declared non-default filter failed. Inspect the native parameter type and operator before retrying.`)
-        }
+        // Analytics already redacts provider failures. Preserve its actionable validation
+        // errors: a duplicate grain is not a malformed filter and needs a different repair.
+        await this.runtime.require(AnalyticsRuntimeCapability).query(actor(context), { binding, controls: { ...controls, [parameter.controlId]: value } })
       }
     }
   }

@@ -237,3 +237,7 @@ to inspect the saved value without supplying it in the prompt and produce an
 edited copy. Download the UI output and independently verify formulas, caches,
 charts, tables, hidden sheets and unchanged package parts. An API-only test is
 not a replacement. Keep account, conversation and workspace IDs in private receipts.
+
+### Canonical Analytics source verification
+
+For the paired platform/provider implementation of #762, follow [Analytics configuration and release](../docs/analytics-providers.md). Run `node plugin-dev-harness/verify-analytics.mjs --platform-root "$XPERT_PLATFORM_ROOT"` against the built companion platform SDK. The script restores its temporary dependency links; it does not publish or deploy. Public dependency verification remains a separate release gate.

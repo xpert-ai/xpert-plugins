@@ -49,7 +49,7 @@ The creation tool returns `{ dashboard: { artifactId, versionId, versionNumber, 
 
 ## Save, filter, refresh
 
-`xpert.live-dashboard/v1` contains id/title/bindings/controls/charts/tables and optional `presentation: { type: "html", html }`. Charts reference stable Dataset field IDs. Controls map to typed binding parameters. Filter and refresh execute the saved server-side definition for the current viewer.
+`xpert.live-dashboard` contains id/title/bindings/controls/charts/tables and optional `presentation: { type: "html", html }`. Charts reference stable Dataset field IDs. Controls map to typed binding parameters. Filter and refresh execute the saved server-side definition for the current viewer.
 
 Save validates and queries all bindings before writing immutable JSON. `expectedVersionId` (null for new) and platform Artifact row-lock compare-and-set prevent lost updates. Content hashes support retries. Saved files contain definitions, not result rows.
 

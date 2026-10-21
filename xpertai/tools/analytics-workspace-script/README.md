@@ -4,14 +4,14 @@
 
 ## 安装与启用
 
-需要包含 Analytics Runtime、Sandbox Job invocation、`compute/node-python/v1` 的平台版本，以及满足 `readOnlyWorkspace` 等隔离要求的 Runtime Provider。开发依赖固定使用已发布的 SDK/contracts 3.25.0，构建无需本地平台链接。
+需要包含 Analytics Runtime、Sandbox Job invocation、`compute/node-python/v1` 的平台版本，以及满足 `readOnlyWorkspace` 等隔离要求的 Runtime Provider。本次接口变更需要配套平台的 canonical Analytics Contracts/SDK；发布前的源码验证方式见仓库 Analytics 发布说明。
 
 ```sh
 corepack pnpm exec nx run @xpert-ai/plugin-analytics-workspace-script:test
 node scripts/build-action.mjs --verify # 在本插件目录执行
 ```
 
-使用平台 `plugin:deploy:local` 安装，scope 为 tenant，插件 level 为 system。重启要求以部署回执为准。同步数据源类型后新建 `workspace-script` 数据源。在发布的 Assistant 中同时启用 `WorkspaceScriptDataset` 和 `LiveDashboard` middleware，并给当前用户配置真实来源及 file workspace 权限。
+使用平台 `plugin:deploy:local` 安装，scope 为 tenant，插件 level 为 system。重启要求以部署回执为准。「设置 → 分析定义 → Workspace Script」展示注册入口和已注册 Artifact；无需创建 DataSource。在发布的 Assistant 中同时启用 `WorkspaceScriptDataset` 和 `LiveDashboard` middleware，并给当前用户配置真实来源及 file workspace 权限。
 
 本地 Pro 使用 `xpert-sandbox-compute:local`。生产需要按 Sandbox Runtime Suite 的发布流程构建、发布 compute 镜像并添加不可变 digest Binding；本次没有发布生产镜像。
 

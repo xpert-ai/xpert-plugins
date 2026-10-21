@@ -18,7 +18,7 @@ function fixture() {
   const state = { buffer: Buffer.from('\uFEFF区域,净额\r\n华东,9007199254740993.12\r\n华西,0.10\r\n华西,0.20\r\n'), access: true, reads: 0, checks: 0, revokeAfterRead: false }
   const options = optionsSchema.parse({ datasets: [{ id: 'sales', revision: 'v1', name: 'Sales', description: 'Net paid sales in CNY',
     file: { catalog: 'xperts', xpertId: uuid(1), filePath: 'sales.csv' }, reader: { format: 'csv' }, columns }] })
-  const context = { actor: { tenantId: uuid(2), organizationId: uuid(3), userId: uuid(4) }, dataSourceId: uuid(5), options,
+  const context = { actor: { tenantId: uuid(2), organizationId: uuid(3), userId: uuid(4) }, source: { kind: 'definition', definitionId: uuid(5), versionId: uuid(6) }, options,
     signal: new AbortController().signal, deadlineAt: Date.now() + 30000, timeoutMs: 30000, maxRows: 1000, executionId: 'query1', ancestry: ['file.table'] }
   const files = { resolveFile: async ref => { state.checks++; if (!state.access) throw new ForbiddenException('revoked'); return { size: state.buffer.length, catalog: ref.catalog } },
     readBuffer: async ref => { assert.equal(ref.userId, context.actor.userId); assert.equal(ref.tenantId, context.actor.tenantId); state.reads++; if (state.revokeAfterRead) state.access = false; return { buffer: state.buffer } } }
@@ -29,7 +29,7 @@ function fixture() {
   } })
   const query = payloadSchema.parse({ datasetId: 'sales', revision: 'v1', contractHash: contractHash(options.datasets[0]), select: ['region', 'amount'],
     filters: [{ column: 'region', operator: 'eq', value: { type: 'parameter', name: 'region' }, skipWhenNull: true }] })
-  const binding = { schemaVersion: 1, id: 'sales', dataSourceId: uuid(5), providerId: 'file.table', operation: 'query', contractVersion: 1, payload: query,
+  const binding = { id: 'sales', source: { kind: 'definition', definitionId: uuid(5), versionId: uuid(6) }, providerId: 'file.table', operation: 'query', contractVersion: 1, payload: query,
     parameters: [{ name: 'region', controlId: 'region', type: 'string', required: false, defaultValue: null }],
     output: { datasetId: 'sales', grain: [], fields: columns.map(({ key, path, description, ...field }) => ({ ...field, id: key, sourceField: key })) } }
   return { state, options, context, files, provider, query, binding, definition: options.datasets[0] }
@@ -202,4 +202,32 @@ test('XLSX accepts streaming ZIP entries with data descriptors and stored ZIP en
   archive.end()
   for (const bytes of [Buffer.concat(chunks), Buffer.from(zipSync(entries, { level: 0 }))])
     assert.deepEqual(await readRows(bytes, f.definition), [{ region: 'East', amount: '1' }])
+})
+
+test('configuration entry publishes exactly one governed dataset with the same runtime defaults', () => {
+  const f = fixture(), options = f.context.options
+  assert.deepEqual(f.provider.descriptor.sourceKinds, ['definition'])
+  assert.equal(f.provider.descriptor.dataSourceTypes, undefined)
+  assert.equal(f.provider.configuration.kind, 'definition')
+  assert.deepEqual(f.provider.validateConfiguration(options), optionsSchema.parse(options))
+  assert.throws(() => f.provider.validateConfiguration({ ...options, datasets: [] }))
+  assert.throws(() => f.provider.validateConfiguration({ ...options, datasets: [...options.datasets, { ...options.datasets[0], id: 'other' }] }))
+})
+test('Agent file registration resolves runtime paths and validates real mappings without model-supplied scope', async () => {
+  const f = fixture()
+  const files = { ...f.files, resolveRuntimeReference: async path => {
+    assert.equal(path, '/workspace/sales.csv')
+    return { ...f.definition.file, ...f.context.actor, source: 'platform.workspace.files' }
+  } }
+  const context = { ...f.context, files, connection: { kind: 'workspace-files' } }
+  const { id, revision, file, ...mapping } = f.definition
+  const input = { ...mapping, path: '/workspace/sales.csv' }
+  assert.equal((await f.provider.authoring.inspect({ path: input.path }, context)).size, f.state.buffer.length)
+  const generated = await f.provider.authoring.prepare(input, context)
+  assert.deepEqual(generated.datasets[0].file, f.definition.file)
+  assert.equal(generated.datasets[0].id, 'dataset')
+  await assert.rejects(f.provider.authoring.prepare({ ...input, file }, context))
+  await assert.rejects(f.provider.authoring.prepare({ ...input, columns: [{ ...columns[0], path: ['missing'] }] }, context))
+  f.state.revokeAfterRead = true
+  await assert.rejects(f.provider.authoring.prepare(input, context), /revoked/)
 })
