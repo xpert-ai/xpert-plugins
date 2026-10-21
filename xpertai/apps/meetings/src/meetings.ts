@@ -305,12 +305,17 @@ export class Meetings {
     return { id: m.id, processing: m.processing };
   }
   async retry(scope: Scope, id: string) {
-    await this.store.update(scope, id, (m) => {
+    await this.store.update(scope, id, async (m, directory) => {
       if (m.errorCode === "audio_expired")
         throw new MeetingError("audio_expired");
       if (!m.expectedChunks?.microphone || !m.expectedChunks.system)
         throw new MeetingError("audio_source_missing");
       if (m.processing === "ready") throw new MeetingError("already_ready");
+      if (m.errorCode === "transcript_empty" && !m.transcript.some((s) => s.text)) {
+        // An explicit retry after a model change must not reuse wholly empty checkpoints.
+        m.transcript = [];
+        await atomicWrite(join(directory, "transcript.json"), "[]");
+      }
       m.processing = "queued";
       m.errorCode = null;
     });
