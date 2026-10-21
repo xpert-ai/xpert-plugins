@@ -1,5 +1,11 @@
 # @xpert-ai/plugin-github-connector
 
+## 0.2.3
+
+### Patch Changes
+
+- f1b700d: Require published SDK and Contracts 3.26.1 and pin development builds to the same release. Use the canonical Analytics, integration permission, Connector scope and connection command contracts instead of local SDK type extensions or platform dependency overlays. Preserve authorization checks for optional host capabilities and existing configuration migration behavior.
+
 ## 0.2.2
 
 ### Patch Changes

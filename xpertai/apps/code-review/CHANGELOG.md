@@ -1,5 +1,12 @@
 # @xpert-ai/plugin-code-review
 
+## 0.3.2
+
+### Patch Changes
+
+- ab498ed: Preserve Project runtime scope when pipeline operations access a saved review. Add authorized Workbench entry resolution for GitHub and local review subjects, allowing Project pipelines to open the exact review inside the current Assistant while rechecking Project and actor access.
+- f1b700d: Require published SDK and Contracts 3.26.1 and pin development builds to the same release. Use the canonical Analytics, integration permission, Connector scope and connection command contracts instead of local SDK type extensions or platform dependency overlays. Preserve authorization checks for optional host capabilities and existing configuration migration behavior.
+
 ## 0.3.1
 
 ### Patch Changes
