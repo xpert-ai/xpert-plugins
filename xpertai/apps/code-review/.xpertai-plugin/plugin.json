@@ -1,6 +1,9 @@
 {
   "name": "@xpert-ai/plugin-code-review",
   "assets": {
-    "screenshots": ["./assets/brand/code-review-overview-zh-v1.png"]
-  }
+    "screenshots": [
+      "./assets/brand/code-review-overview-zh-v1.png"
+    ]
+  },
+  "version": "0.1.2"
 }

@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "github",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Search and work with repositories, issues, and pull requests the connected GitHub account can access, using GitHub's official remote MCP server.",
   "author": {
     "name": "Xpert AI"
@@ -16,7 +16,9 @@
       },
       "connectors": {
         "github": {
-          "type": "mcp_oauth"
+          "type": "existing",
+          "provider": "github",
+          "resource": "https://api.githubcopilot.com/mcp/"
         }
       }
     }

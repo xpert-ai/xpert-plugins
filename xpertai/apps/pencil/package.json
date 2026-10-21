@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-pencil",
-  "version": "0.4.7",
+  "version": "0.5.1",
   "description": "Pencil Agentic App plugin for agent-managed design documents, reviewable versions, imports, exports, and an editable Workbench.",
   "author": {
     "name": "XpertAI",
@@ -44,7 +44,7 @@
     "lint": "echo \"(todo) add lint\"",
     "test": "pnpm run build:ui && jest --config jest.config.ts && tsc -p tsconfig.spec.json --noEmit && vue-tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check",
     "typecheck": "pnpm run build:ui && tsc -p tsconfig.spec.json --noEmit && vue-tsc -p tsconfig.remote.json --noEmit && node scripts/build-remote-components.mjs --check",
-    "prepack": "node scripts/prepack.mjs"
+    "prepack": "node scripts/prepack.mjs && node ../../scripts/verify-app-configs.mjs pencil"
   },
   "xpert": {
     "plugin": {

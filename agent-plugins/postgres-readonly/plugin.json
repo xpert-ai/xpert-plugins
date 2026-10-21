@@ -1,0 +1,23 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "postgres-readonly",
+  "version": "1.0.0",
+  "description": "Read schemas, table structure, and single SELECT, WITH, or EXPLAIN statements through a separately deployed read-only PostgreSQL MCP server.",
+  "author": {
+    "name": "Xpert AI"
+  },
+  "homepage": "https://mcp-toolbox.dev",
+  "extensions": {
+    "xpertai": {
+      "version": 1,
+      "interface": {
+        "displayName": {
+          "en_US": "PostgreSQL (read-only)"
+        },
+        "description": {
+          "en_US": "Inspect an internal read-only PostgreSQL database through MCP Toolbox."
+        }
+      }
+    }
+  }
+}

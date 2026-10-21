@@ -11,6 +11,7 @@ import {
 } from '@xpert-ai/plugin-sdk';
 import { MimoProviderStrategy } from '../provider.strategy.js';
 import {
+  MimoCredentialProbeMaxCompletionTokens,
   type MimoModelCredentials,
   toCredentialKwargs,
 } from '../types.js';
@@ -33,8 +34,11 @@ export class MimoLargeLanguageModel extends LargeLanguageModel {
       const chatModel = new ChatOAICompatReasoningModel({
         ...params,
         temperature: 0,
-        maxTokens: 5,
-        modelKwargs: buildMimoModelKwargs(credentials),
+        modelKwargs: buildMimoModelKwargs({
+          ...credentials,
+          thinking: 'disabled',
+          max_completion_tokens: MimoCredentialProbeMaxCompletionTokens,
+        }),
       });
       await chatModel.invoke([{ role: 'human', content: 'Hi' }]);
     } catch (error) {
@@ -52,6 +56,7 @@ export class MimoLargeLanguageModel extends LargeLanguageModel {
       options?.modelProperties
     ) as MimoModelCredentials;
     const modelOptions = copilotModel.options ?? {};
+    const maxCompletionTokens = modelOptions['max_completion_tokens'];
     const runtimeCredentials: MimoModelCredentials = {
       ...credentials,
       thinking:
@@ -60,6 +65,10 @@ export class MimoLargeLanguageModel extends LargeLanguageModel {
       response_format:
         (modelOptions['response_format'] as MimoModelCredentials['response_format']) ??
         credentials.response_format,
+      max_completion_tokens:
+        typeof maxCompletionTokens === 'number'
+          ? maxCompletionTokens
+          : credentials.max_completion_tokens,
     };
     const params = toCredentialKwargs(runtimeCredentials, copilotModel.model);
     const fields: ChatOpenAIFields = {

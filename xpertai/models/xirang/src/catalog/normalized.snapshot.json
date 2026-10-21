@@ -42,7 +42,7 @@
     "unknown_capabilities": "not-declared-until-explicitly-verified"
   },
   "counts": {
-    "llm": 109,
+    "llm": 110,
     "text-embedding": 3,
     "multimodal-embedding": 1,
     "rerank": 4,
@@ -51,6 +51,14 @@
     "speech2text": 3
   },
   "active_models": [
+    {
+      "name": "deepseek-v4.1-flash",
+      "model_id": "1ced5b0e15694a6e8982ed884ee6fbf6",
+      "model_type": "llm",
+      "context_size": 1000000,
+      "max_output_tokens": 384000,
+      "spec_source": "deepseek"
+    },
     {
       "name": "glm-5.3",
       "model_id": "e8e2511658054053a7e56e950d80f0e4",

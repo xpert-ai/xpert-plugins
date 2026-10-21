@@ -59,3 +59,4 @@ pricing:
   output: "0"
   unit: "1"
   currency: USD
+deprecated: true

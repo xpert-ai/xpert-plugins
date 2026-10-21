@@ -111,3 +111,32 @@ TypeScript build artifacts are emitted to `packages/mysql/dist`. Run tests again
 ## License
 
 This project follows the [AGPL-3.0 License](../../../LICENSE) located at the repository root.
+
+## Doris workbench connection factory
+
+The plugin provides the public `@xpert-ai/plugin-mysql/doris` entrypoint:
+
+```ts
+import { createDorisConnection, type DorisAdapterOptions } from '@xpert-ai/plugin-mysql/doris'
+
+const password = process.env.DORIS_PASSWORD
+if (!password) throw new Error('DORIS_PASSWORD is required')
+const options: DorisAdapterOptions = {
+  host: 'doris.example.invalid', port: 9030,
+  username: 'config_user', password,
+  catalog: 'analytics', apiPort: 8030,
+  streamLoadHosts: ['doris-be.example.invalid']
+}
+const adapter = createDorisConnection(options)
+try {
+  await adapter.query({ mode: 'read', sql: 'SELECT NOW()', limit: 1 })
+} finally {
+  await adapter.close()
+}
+```
+
+The adapter implements the existing `DatabaseWorkbenchAdapter` contract, uses the same transport as the platform Doris runner, permits at most 50000 query rows and supports Doris metadata/time functions. It sets a bounded server `query_timeout` for reads and retains client cancellation. `INSERT ... VALUES` is available independently of UPDATE/DDL version gates; other writes keep the SDK checks. It does not promise cross-statement transactions. MySQL and StarRocks continue using their existing generic adapter.
+
+Stream Load retains explicit succeeded/pending/unknown receipts and available row counts. Redirects preserve credentials only for the configured FE host or `streamLoadHosts`, same protocol and import path, at most four hops. The shared driver never retries unknown or pending imports itself; callers own their business-specific policy. Existing 8 MiB request/result limits remain in effect.
+
+Requires SDK `^3.21.0`. Build and release this package from the `xpertai` workspace using its MySQL changeset. The previous 0.1.0 package has no public Doris factory.

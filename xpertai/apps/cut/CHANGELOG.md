@@ -1,5 +1,17 @@
 # @xpert-ai/plugin-cut
 
+## 0.6.1
+
+### Patch Changes
+
+- 4c0a7c6: Publish application covers using the platform's marketplace screenshot inheritance. Keep App overrides optional, synchronize portable manifest versions, and verify runtime/manifest screenshot metadata and bundled image assets before publishing.
+
+## 0.6.0
+
+### Minor Changes
+
+- 88c1f06: Publish refreshed application cover images and SVG/PNG icons, including bundled branding assets and marketplace screenshot metadata.
+
 ## 0.5.6
 
 ### Patch Changes

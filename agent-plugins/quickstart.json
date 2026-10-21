@@ -62,6 +62,10 @@
       "oauthServers": []
     },
     {
+      "id": "postgres-readonly",
+      "oauthServers": []
+    },
+    {
       "id": "stripe",
       "oauthServers": []
     },

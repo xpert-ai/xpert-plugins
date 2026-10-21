@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-mysql",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "AGPL-3.0",
   "repository": {
     "type": "git",
@@ -20,6 +20,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./doris": {
+      "types": "./dist/doris.d.ts",
+      "import": "./dist/doris.js",
+      "default": "./dist/doris.js"
     }
   },
   "files": [
@@ -33,17 +38,19 @@
   },
   "peerDependencies": {
     "zod": "3.25.67",
-    "@xpert-ai/plugin-sdk": "^3.18.6",
+    "@xpert-ai/plugin-sdk": "^3.21.0",
     "@nestjs/common": "^11.1.6",
     "axios": "1.12.2",
     "lodash-es": "4.17.21",
     "chalk": "4.1.2"
   },
   "devDependencies": {
-    "@xpert-ai/plugin-sdk": "3.18.6",
+    "@xpert-ai/plugin-sdk": "3.21.0",
     "@types/mysql": "^2.15.27"
   },
   "scripts": {
-    "test:workbench": "node --test tests/*.test.mjs"
+    "test:workbench": "node --test tests/*.test.mjs",
+    "build": "tsc -p tsconfig.lib.json",
+    "typecheck": "tsc -p tsconfig.lib.json --noEmit"
   }
 }

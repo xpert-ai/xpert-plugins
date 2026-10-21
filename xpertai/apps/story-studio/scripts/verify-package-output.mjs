@@ -39,9 +39,14 @@ const pluginManifest = JSON.parse(
 if (pluginManifest.name !== packageJson.name) {
   throw new Error('Story Studio package and plugin manifest names must match.')
 }
-if (Object.hasOwn(pluginManifest, 'version')) {
+// Release versioning copies package.json's version into the bundle manifest.
+// Older source manifests may omit it, but a declared version must stay in sync.
+if (
+  Object.hasOwn(pluginManifest, 'version') &&
+  pluginManifest.version !== packageJson.version
+) {
   throw new Error(
-    'Story Studio plugin manifest must not duplicate package.json version.'
+    'Story Studio plugin manifest version must match package.json version.'
   )
 }
 if (

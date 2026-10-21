@@ -1,0 +1,133 @@
+-- Run once on the target database as a superuser. This prepares the database. It is not a plugin migration.
+-- Do not write the password into this file:
+--   psql -d pagila -v readonly_password="$READONLY_POSTGRES_PASSWORD" -f docs/readonly-setup.sql.txt
+\set ON_ERROR_STOP on
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'xpert_readonly') THEN
+    CREATE ROLE xpert_readonly LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT;
+  END IF;
+END
+$$;
+
+ALTER ROLE xpert_readonly NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT;
+ALTER ROLE xpert_readonly PASSWORD :'readonly_password';
+ALTER ROLE xpert_readonly SET default_transaction_read_only = on;
+ALTER ROLE xpert_readonly SET statement_timeout = '15s';
+ALTER ROLE xpert_readonly SET idle_in_transaction_session_timeout = '15s';
+
+REVOKE ALL ON DATABASE pagila FROM PUBLIC;
+GRANT CONNECT ON DATABASE pagila TO xpert_readonly;
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+GRANT USAGE ON SCHEMA public TO xpert_readonly;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO xpert_readonly;
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON ALL TABLES IN SCHEMA public FROM xpert_readonly;
+
+CREATE SCHEMA IF NOT EXISTS readonly_mcp;
+REVOKE ALL ON SCHEMA readonly_mcp FROM PUBLIC;
+GRANT USAGE ON SCHEMA readonly_mcp TO xpert_readonly;
+
+CREATE OR REPLACE FUNCTION readonly_mcp.execute_readonly_sql(query text)
+RETURNS jsonb
+LANGUAGE plpgsql
+VOLATILE
+SECURITY INVOKER
+SET search_path = pg_catalog, public
+AS $function$
+DECLARE
+  normalized text;
+  body text;
+  row_limit constant integer := 500;
+  rows jsonb := '[]'::jsonb;
+  row_count integer := 0;
+  truncated boolean := false;
+  rec record;
+BEGIN
+  IF query IS NULL OR btrim(query) = '' THEN
+    RAISE EXCEPTION 'query is required';
+  END IF;
+  IF octet_length(query) > 100000 THEN
+    RAISE EXCEPTION 'query exceeds 100000 bytes';
+  END IF;
+  normalized := btrim(query);
+  IF right(normalized, 1) = ';' THEN
+    normalized := btrim(left(normalized, char_length(normalized) - 1));
+  END IF;
+  IF position(';' IN normalized) > 0 THEN
+    RAISE EXCEPTION 'only a single statement is allowed';
+  END IF;
+  body := regexp_replace(normalized, '/\*(?:.|\n)*?\*/', '', 'g');
+  body := regexp_replace(body, '--[^\n]*', '', 'g');
+  body := btrim(body);
+  IF body = '' OR body !~* '^(select|with|explain)\y' THEN
+    RAISE EXCEPTION 'only SELECT, WITH, or EXPLAIN is allowed';
+  END IF;
+  PERFORM set_config('statement_timeout', '15s', true);
+  PERFORM set_config('default_transaction_read_only', 'on', true);
+  FOR rec IN EXECUTE normalized LOOP
+    row_count := row_count + 1;
+    IF row_count <= row_limit THEN
+      rows := rows || jsonb_build_array(to_jsonb(rec));
+    ELSE
+      truncated := true;
+      EXIT;
+    END IF;
+  END LOOP;
+  RETURN jsonb_build_object(
+    'rows', rows,
+    'rowCount', least(row_count, row_limit),
+    'truncated', truncated,
+    'rowLimit', row_limit
+  );
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION readonly_mcp.sample_rows(
+  schema_name text,
+  table_name text,
+  row_limit integer
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+VOLATILE
+SECURITY INVOKER
+SET search_path = pg_catalog
+AS $function$
+DECLARE
+  limit_value integer;
+  relation regclass;
+  payload jsonb;
+BEGIN
+  IF schema_name IS NULL OR table_name IS NULL OR btrim(schema_name) = '' OR btrim(table_name) = '' THEN
+    RAISE EXCEPTION 'schema_name and table_name are required';
+  END IF;
+  IF schema_name IN ('pg_catalog', 'information_schema', 'readonly_mcp') THEN
+    RAISE EXCEPTION 'sampling system schemas is not allowed';
+  END IF;
+  limit_value := least(greatest(coalesce(row_limit, 20), 1), 500);
+  relation := to_regclass(format('%I.%I', schema_name, table_name));
+  IF relation IS NULL THEN
+    RAISE EXCEPTION 'relation not found';
+  END IF;
+  IF NOT has_table_privilege(relation, 'SELECT') THEN
+    RAISE EXCEPTION 'SELECT is not granted';
+  END IF;
+  PERFORM set_config('statement_timeout', '15s', true);
+  EXECUTE format(
+    'SELECT coalesce(jsonb_agg(to_jsonb(sampled)), ''[]''::jsonb) FROM (SELECT * FROM %s LIMIT %s) sampled',
+    relation::text,
+    limit_value
+  ) INTO payload;
+  RETURN jsonb_build_object(
+    'rows', payload,
+    'rowCount', jsonb_array_length(payload),
+    'rowLimit', 500
+  );
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION readonly_mcp.execute_readonly_sql(text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION readonly_mcp.sample_rows(text, text, integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION readonly_mcp.execute_readonly_sql(text) TO xpert_readonly;
+GRANT EXECUTE ON FUNCTION readonly_mcp.sample_rows(text, text, integer) TO xpert_readonly;
