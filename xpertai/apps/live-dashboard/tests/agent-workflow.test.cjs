@@ -6,7 +6,7 @@ const example = require('../examples/postgres-sales.json')
 const context = { xpertId: 'assistant', tenantId: 'tenant', organizationId: 'org', userId: 'viewer' }
 function draft() {
   const { id, schema, bindings, ...input } = structuredClone(example)
-  const { id: bindingId, schemaVersion, operation, contractVersion, payload, parameters, ...binding } = bindings[0]
+  const { id: bindingId, operation, contractVersion, payload, parameters, ...binding } = bindings[0]
   return { input: { ...input, previewIds: ['missing'] }, binding: { ...binding, payloadJson: JSON.stringify(payload), parameters: parameters.map(({ controlId, ...p }) => p) } }
 }
 function setup(options) {
@@ -73,12 +73,12 @@ test('Agent saves only run-local preview receipts, canonical defaults and discov
   const s = setup(), { input, binding } = draft()
   await assert.rejects(s.invoke('dashboard_create', input), /PREVIEW_REQUIRED/)
   await assert.rejects(s.invoke('dashboard_preview', { binding }), /DISCOVER_REQUIRED/)
-  await s.invoke('dashboard_discover', { dataSourceId: binding.dataSourceId, providerId: binding.providerId, requestJson: '{}' })
+  await s.invoke('dashboard_discover', { source: binding.source, providerId: binding.providerId, requestJson: '{}' })
   const preview = JSON.parse(await s.invoke('dashboard_preview', { binding }))
   assert.equal(preview.rows.length, 20); assert.equal(preview.preview.omittedRows, 5); assert.equal(preview.completeness.returnedRows, 25)
   input.previewIds = [preview.previewId]
   const executed = s.calls.find(c => c[0] === 'preview')[2]
-  assert.equal(executed.binding.operation, 'query'); assert.equal(executed.binding.schemaVersion, 1)
+  assert.equal(executed.binding.operation, 'query'); assert.deepEqual(executed.binding.source, binding.source)
   assert.deepEqual(JSON.parse(preview.bindingJson), executed.binding)
   assert.equal(executed.binding.parameters[0].controlId, binding.parameters[0].name)
   assert.deepEqual(executed.controls, { region: 'all' })
@@ -103,7 +103,7 @@ test('Agent HTML workflow requires a real Workspace file and exact preview evide
   const html = '<html><body><main>Custom</main><script>window.xpertLiveArtifact.ready()</script></body></html>'
   s.files.set(args.path, Buffer.from(html))
   await assert.rejects(s.invoke('dashboard_create_html', args), /PREVIEW_REQUIRED/)
-  await s.invoke('dashboard_discover', { dataSourceId: binding.dataSourceId, providerId: binding.providerId })
+  await s.invoke('dashboard_discover', { source: binding.source, providerId: binding.providerId })
   args.previewIds = [JSON.parse(await s.invoke('dashboard_preview', { binding })).previewId]
   assert.equal(JSON.parse(await s.invoke('dashboard_create_html', args)).dashboard.artifactId, 'saved')
   const manifest = s.calls.filter(c => c[0] === 'save').at(-1)[2]
@@ -131,7 +131,7 @@ test('registered canonical bindings use the same discovery and preview receipt g
   const s = setup(), { input } = draft(), binding = structuredClone(example.bindings[0])
   const args = { bindingJson: JSON.stringify(binding) }
   await assert.rejects(s.invoke('dashboard_preview_binding', args), /DISCOVER_REQUIRED/)
-  await s.invoke('dashboard_discover', { dataSourceId: binding.dataSourceId, providerId: binding.providerId })
+  await s.invoke('dashboard_discover', { source: binding.source, providerId: binding.providerId })
   const result = JSON.parse(await s.invoke('dashboard_preview_binding', args))
   assert.deepEqual(s.calls.find(c => c[0] === 'preview')[2].binding, binding)
   input.previewIds = [result.previewId]
@@ -143,7 +143,7 @@ test('registered canonical bindings use the same discovery and preview receipt g
 
 test('library discovery includes the current preview Binding IDs and exact page lifecycle', async () => {
   const s = setup(), { binding } = draft()
-  await s.invoke('dashboard_discover', { dataSourceId: binding.dataSourceId, providerId: binding.providerId })
+  await s.invoke('dashboard_discover', { source: binding.source, providerId: binding.providerId })
   const preview = JSON.parse(await s.invoke('dashboard_preview', { binding }))
   const result = JSON.parse(await s.invoke('dashboard_libraries', {}))
   assert.deepEqual(result.pageRuntime.bindingIds, [JSON.parse(preview.bindingJson).id])
@@ -154,30 +154,30 @@ test('library discovery includes the current preview Binding IDs and exact page 
 
 test('mistyped source/provider pairs receive exact listed choices without querying or guessing', async () => {
   const s = setup(), { binding } = draft()
-  const other = { id: randomUUID(), name: 'Other source', providers: [{ id: 'other.query' }] }
-  s.service.sources = async () => [{ id: binding.dataSourceId, name: 'Exact source', providers: [{ id: binding.providerId }] }, other]
+  const other = { source: { kind: 'data-source', dataSourceId: randomUUID() }, name: 'Other source', providers: [{ id: 'other.query' }] }
+  s.service.sources = async () => [{ source: binding.source, name: 'Exact source', providers: [{ id: binding.providerId }] }, other]
   await s.invoke('dashboard_list_sources', {})
-  for (const wrong of [{ dataSourceId: randomUUID(), providerId: binding.providerId }, { dataSourceId: binding.dataSourceId, providerId: 'invented' },
-    { dataSourceId: binding.dataSourceId, providerId: other.providers[0].id }, { dataSourceId: other.id, providerId: binding.providerId }])
+  for (const wrong of [{ source: { kind: 'data-source', dataSourceId: randomUUID() }, providerId: binding.providerId }, { source: binding.source, providerId: 'invented' },
+    { source: binding.source, providerId: other.providers[0].id }, { source: other.source, providerId: binding.providerId }])
     await assert.rejects(s.invoke('dashboard_discover', wrong), error => /SOURCE_SELECTION_INVALID/.test(error.message) &&
-      error.message.includes(binding.dataSourceId) && error.message.includes(binding.providerId) && /Refresh the list/.test(error.message))
+      error.message.includes(binding.source.dataSourceId) && error.message.includes(binding.providerId) && /Refresh the list/.test(error.message))
   assert.equal(s.calls.length, 0)
   const request = { kind: 'inspect', datasetId: 'sales' }
-  await s.invoke('dashboard_discover', { dataSourceId: binding.dataSourceId, providerId: binding.providerId, requestJson: JSON.stringify(request) })
+  await s.invoke('dashboard_discover', { source: binding.source, providerId: binding.providerId, requestJson: JSON.stringify(request) })
   assert.deepEqual(s.calls, [['discover', { tenantId: context.tenantId, organizationId: context.organizationId,
     userId: context.userId, hostType: 'agent', hostId: context.xpertId, slots: [] },
-    { dataSourceId: binding.dataSourceId, providerId: binding.providerId, request }]])
+    { source: binding.source, providerId: binding.providerId, request }]])
 })
 
 test('source selection follows refreshed lists including empty results and stays local to each run', async () => {
   const s = setup(), { binding } = draft()
-  const first = { dataSourceId: binding.dataSourceId, providerId: binding.providerId }
-  const next = { dataSourceId: randomUUID(), providerId: 'other.query' }
-  let sources = [{ id: first.dataSourceId, providers: [{ id: first.providerId }] }]
+  const first = { source: binding.source, providerId: binding.providerId }
+  const next = { source: { kind: 'data-source', dataSourceId: randomUUID() }, providerId: 'other.query' }
+  let sources = [{ source: first.source, providers: [{ id: first.providerId }] }]
   s.service.sources = async () => sources
   await s.invoke('dashboard_list_sources', {})
   await assert.rejects(s.invoke('dashboard_discover', next), /SOURCE_SELECTION_INVALID/)
-  sources = [{ id: next.dataSourceId, providers: [{ id: next.providerId }] }]
+  sources = [{ source: next.source, providers: [{ id: next.providerId }] }]
   await s.invoke('dashboard_list_sources', {})
   await assert.rejects(s.invoke('dashboard_discover', first), /SOURCE_SELECTION_INVALID/)
   await s.invoke('dashboard_discover', next)
@@ -186,34 +186,34 @@ test('source selection follows refreshed lists including empty results and stays
   await assert.rejects(s.invoke('dashboard_discover', next), /SOURCE_SELECTION_INVALID/)
   // A new run can still delegate an explicit selection to the host before listing sources.
   await s.another().tools.find(t => t.name === 'dashboard_discover').invoke(first)
-  assert.deepEqual(s.calls.map(call => call[2].dataSourceId), [next.dataSourceId, first.dataSourceId])
+  assert.deepEqual(s.calls.map(call => call[2].source), [next.source, first.source])
   await assert.rejects(s.invoke('dashboard_discover', first), /SOURCE_SELECTION_INVALID/)
 })
 
 test('listed source selections still require current host access and denied discovery creates no preview evidence', async () => {
   const s = setup(), { binding } = draft()
-  s.service.sources = async () => [{ id: binding.dataSourceId, providers: [{ id: binding.providerId }] }]
+  s.service.sources = async () => [{ source: binding.source, providers: [{ id: binding.providerId }] }]
   await s.invoke('dashboard_list_sources', {})
   s.revoke()
-  await assert.rejects(s.invoke('dashboard_discover', { dataSourceId: binding.dataSourceId, providerId: binding.providerId }), /REVOKED/)
+  await assert.rejects(s.invoke('dashboard_discover', { source: binding.source, providerId: binding.providerId }), /REVOKED/)
   await assert.rejects(s.invoke('dashboard_preview', { binding }), /DISCOVER_REQUIRED/)
   assert.equal(s.calls.length, 0)
 })
 test('Assistant final-provider policy allows upstream preview but rejects saving a substitute', async () => {
   const s = setup({ allowedFinalProviders: ['workspace_script.query'] }), { input } = draft()
   const upstream = structuredClone(example.bindings[0])
-  await s.invoke('dashboard_discover', { dataSourceId: upstream.dataSourceId, providerId: upstream.providerId })
+  await s.invoke('dashboard_discover', { source: upstream.source, providerId: upstream.providerId })
   const upstreamPreview = JSON.parse(await s.invoke('dashboard_preview_binding', { bindingJson: JSON.stringify(upstream) }))
   await assert.rejects(s.invoke('dashboard_create', { ...input, previewIds: [upstreamPreview.previewId] }), /PROVIDER_REQUIRED/)
   assert.equal(s.calls.filter(c => c[0] === 'save').length, 0)
   const script = { ...upstream, providerId: 'workspace_script.query' }
-  await s.invoke('dashboard_discover', { dataSourceId: script.dataSourceId, providerId: script.providerId })
+  await s.invoke('dashboard_discover', { source: script.source, providerId: script.providerId })
   const preview = JSON.parse(await s.invoke('dashboard_preview_binding', { bindingJson: JSON.stringify(script) }))
   assert.equal(JSON.parse(await s.invoke('dashboard_create', { ...input, previewIds: [preview.previewId] })).dashboard.artifactId, 'saved')
 })
 test('failed preview gives no save evidence; guidance preserves existing system content', async () => {
   const s = setup(), { input, binding } = draft()
-  await s.invoke('dashboard_discover', { dataSourceId: binding.dataSourceId, providerId: binding.providerId })
+  await s.invoke('dashboard_discover', { source: binding.source, providerId: binding.providerId })
   s.revoke(); await assert.rejects(s.invoke('dashboard_preview', { binding }), /REVOKED/)
   await assert.rejects(s.invoke('dashboard_create', input), /PREVIEW_REQUIRED/)
   let content
@@ -227,7 +227,7 @@ test('nullable dimension filters cannot save until real non-default rows pass ex
   input.controls[0].defaultValue = null; input.controls[0].allowedValues = [null, 'east', 'west']
   const rows = [{ region: 'east', amount: 10 }, { region: 'west', amount: 20 }]
   s.service.preview = async () => ({ rows, completeness: { returnedRows: 2, truncated: false } })
-  await s.invoke('dashboard_discover', { dataSourceId: binding.dataSourceId, providerId: binding.providerId })
+  await s.invoke('dashboard_discover', { source: binding.source, providerId: binding.providerId })
   const preview = JSON.parse(await s.invoke('dashboard_preview', { binding }))
   input.previewIds = [preview.previewId]
   const check = { previewId: preview.previewId, controls: { region: 'east' }, expectations: [{ fieldId: 'region', oneOf: ['east'] }] }
@@ -297,7 +297,7 @@ test('data updates require fresh complete preview receipts and never accept iden
   for (const extras of [{ id: randomUUID() }, { artifactId: randomUUID() }, { versionId: randomUUID() }, { bindings: example.bindings }, { expectedVersionId: randomUUID() }])
     assert.equal(updateToolSchema.safeParse({ editId: opened.editId, expectedRevision: opened.expectedRevision, expectedCurrentVersionId: opened.expectedCurrentVersionId, title: s.saved.manifest.title, ...extras }).success, false)
   const changed = { ...structuredClone(example.bindings[0]), payload: { sql: 'SELECT region, amount FROM changed' } }
-  await s.invoke('dashboard_discover', { dataSourceId: changed.dataSourceId, providerId: changed.providerId })
+  await s.invoke('dashboard_discover', { source: changed.source, providerId: changed.providerId })
   const preview = JSON.parse(await s.invoke('dashboard_preview_binding', { bindingJson: JSON.stringify(changed) }))
   await s.invoke('dashboard_update', { editId: opened.editId, expectedRevision: opened.expectedRevision, expectedCurrentVersionId: opened.expectedCurrentVersionId, title: s.saved.manifest.title, previewIds: JSON.stringify([preview.previewId]) })
   assert.deepEqual(s.calls.find(c => c[0] === 'update')[4].bindings, [changed])
@@ -465,7 +465,7 @@ test('repeated creation retries advance the cached draft revision for the same A
     assert.equal(expectedRevision, expectations.length - 1)
     return { artifactId, draftRevision: expectations.length, baseVersionId: null, status: 'draft' }
   }
-  await s.invoke('dashboard_discover', { dataSourceId: binding.dataSourceId, providerId: binding.providerId })
+  await s.invoke('dashboard_discover', { source: binding.source, providerId: binding.providerId })
   input.previewIds = [JSON.parse(await s.invoke('dashboard_preview', { binding })).previewId]
   for (let revision = 1; revision <= 3; revision++) {
     const result = JSON.parse(await s.invoke('dashboard_create', input)).dashboard
@@ -479,7 +479,7 @@ test('Agent discovers frontend pins and saves only explicitly requested librarie
   const catalog = JSON.parse(await s.invoke('dashboard_libraries', {}))
   assert.deepEqual(catalog.libraries.map(item => item.id), ['echarts', 'three'])
   assert(catalog.libraries.every(item => !Object.hasOwn(item, 'source')))
-  await s.invoke('dashboard_discover', { dataSourceId: binding.dataSourceId, providerId: binding.providerId })
+  await s.invoke('dashboard_discover', { source: binding.source, providerId: binding.providerId })
   const preview = JSON.parse(await s.invoke('dashboard_preview', { binding }))
   const { charts, tables, ...definition } = input
   const path = 'dashboards/chart.html'
@@ -498,7 +498,7 @@ test('create, HTML create, open and update emit only authorized committed cards 
   const { input, binding } = draft()
   await assert.rejects(s.invoke('dashboard_create', input, config), /PREVIEW_REQUIRED/)
   assert.equal(cards.length, 0)
-  await s.invoke('dashboard_discover', { dataSourceId: binding.dataSourceId, providerId: binding.providerId })
+  await s.invoke('dashboard_discover', { source: binding.source, providerId: binding.providerId })
   input.previewIds = [JSON.parse(await s.invoke('dashboard_preview', { binding })).previewId]
   await s.invoke('dashboard_create', input, config)
   assert.equal(cards.length, 1); assert.equal(cards[0].data.title, input.title)
@@ -582,7 +582,7 @@ test('HTML creation forwards explicit candidate replacements to the save guard w
   const { workspaceFileMutationMetadata } = require('@xpert-ai/plugin-sdk')
   const s = setup(), { input, binding } = draft(), artifactId = randomUUID()
   s.service.save = async (_, manifest) => { s.calls.push(['save', manifest]); return { artifactId, status: 'draft', draftRevision: 1, title: manifest.title } }
-  await s.invoke('dashboard_discover', { dataSourceId: binding.dataSourceId, providerId: binding.providerId })
+  await s.invoke('dashboard_discover', { source: binding.source, providerId: binding.providerId })
   const preview = JSON.parse(await s.invoke('dashboard_preview', { binding }))
   const paths = ['dashboards/old.html', 'dashboards/final.html']
   for (const path of paths) await s.middleware.wrapToolCall({ toolCall: { name: 'sandbox_write_file', args: { file_path: path }, id: path }, tool: { metadata: workspaceFileMutationMetadata } }, async () => {
@@ -606,7 +606,7 @@ test('switching to standard charts can explicitly abandon an HTML prototype usin
   const { workspaceFileMutationMetadata } = require('@xpert-ai/plugin-sdk')
   const s = setup(), { input, binding } = draft(), artifactId = randomUUID(), path = 'dashboards/prototype.html'
   s.service.save = async (_, manifest) => { s.calls.push(['save', manifest]); return { artifactId, draftRevision: 1, status: 'draft', title: manifest.title } }
-  await s.invoke('dashboard_discover', { dataSourceId: binding.dataSourceId, providerId: binding.providerId })
+  await s.invoke('dashboard_discover', { source: binding.source, providerId: binding.providerId })
   input.previewIds = [JSON.parse(await s.invoke('dashboard_preview', { binding })).previewId]
   await s.middleware.wrapToolCall({ toolCall: { name: 'sandbox_write_file', args: { file_path: path }, id: 'write' }, tool: { metadata: workspaceFileMutationMetadata } }, async () => {
     s.files.set(path, Buffer.from('<html><body>Unused prototype</body></html>'))
@@ -626,7 +626,7 @@ test('preview surfaces actionable checks before authoring; checks still require 
   binding.parameters[0].defaultValue = null; binding.parameters[0].required = false; binding.parameters[0].allowedValues = ['east', 'west']
   input.controls[0].defaultValue = null; input.controls[0].allowedValues = [null, 'east', 'west']
   s.service.preview = async (_, query) => ({ rows: [{ region: query.controls.region ?? 'east' }], completeness: { truncated: false } })
-  await s.invoke('dashboard_discover', { dataSourceId: binding.dataSourceId, providerId: binding.providerId })
+  await s.invoke('dashboard_discover', { source: binding.source, providerId: binding.providerId })
   const p = JSON.parse(await s.invoke('dashboard_preview', { binding }))
   assert.equal(p.validation.status, 'filter_tests_required')
   const call = p.validation.checks[0].suggestedCall
@@ -668,7 +668,7 @@ test('invalid provider payloads fail with field feedback before executing previe
   const s = setup(), { binding } = draft()
   s.service.discover = async () => ({ items: [], queryContract: { operation: 'query', contractVersion: 1,
     payloadSchema: { type: 'object', properties: { contractHash: { type: 'string', pattern: '^[a-f0-9]{64}$' } }, required: ['contractHash'] } } })
-  await s.invoke('dashboard_discover', { dataSourceId: binding.dataSourceId, providerId: binding.providerId })
+  await s.invoke('dashboard_discover', { source: binding.source, providerId: binding.providerId })
   binding.payloadJson = JSON.stringify({ contractHash: 'missing-characters' })
   await assert.rejects(s.invoke('dashboard_preview', { binding }), /\/contractHash \(pattern\)/)
   assert.equal(s.calls.filter(call => call[0] === 'preview').length, 0)
@@ -676,3 +676,17 @@ test('invalid provider payloads fail with field feedback before executing previe
   await s.invoke('dashboard_preview', { binding })
   assert.equal(s.calls.filter(call => call[0] === 'preview').length, 1)
 })
+
+for (const source of [{ kind: 'definition', definitionId: randomUUID(), versionId: randomUUID() }, { kind: 'artifact', artifactId: randomUUID(), versionId: randomUUID() }]) {
+  test(`historical ${source.kind} versions remain discoverable without reusing another version's preview contract`, async () => {
+    const s = setup(), { binding } = draft(); binding.source = source
+    const latest = { ...source, versionId: randomUUID() }
+    s.service.sources = async () => [{ source: latest, providers: [{ id: binding.providerId }] }]
+    await s.invoke('dashboard_list_sources', {})
+    await s.invoke('dashboard_discover', { source, providerId: binding.providerId })
+    assert.deepEqual(s.calls.at(-1)[2].source, source)
+    await s.invoke('dashboard_preview', { binding })
+    await assert.rejects(s.invoke('dashboard_preview', { binding: { ...binding, source: latest } }), /DISCOVER_REQUIRED/)
+    s.revoke(); await assert.rejects(s.invoke('dashboard_discover', { source, providerId: binding.providerId }), /REVOKED/)
+  })
+}

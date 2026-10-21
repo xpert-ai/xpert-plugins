@@ -5,7 +5,7 @@ description: "让 Python/JavaScript 通过受控文件与来源别名生成统�
 
 ## 分层职责
 
-平台提供 Dataset/Binding、身份与数据源权限、Workspace 文件 ACL、Artifacts、
+平台提供 Dataset/Binding、当前用户身份与资源权限、Workspace 文件 ACL、Artifacts、
 Sandbox Jobs 和具名 invocation 通道。插件保存脚本定义、语言入口、CSV 解析器、
 文件/来源别名和执行证据。PostgreSQL、本体及其他来源的查询格式仍由各来源插件解释。
 
@@ -46,8 +46,7 @@ Runtime Provider 提供。插件不接受 Agent 传入 command、image、environ
 两者均保留原始工作区引用用于授权复验，私有代码副本不会扩大访问权限。
 定义归创建用户所有，分享看板不自动共享输入或脚本权限。
 
-发现接口接受 `{}` 或 `{ "page": 2 }` 列表请求，必须跟随 `nextRequest`；
-检查一个定义必须同时提供 `artifactId` 和 `versionId`。保存的看板引用明确版本。
+设置页展示注册工具和当前可访问的脚本 Artifact。发现入口使用 `source:{kind:"artifact",artifactId,versionId}`、`providerId:"workspace_script.query"` 和空请求 `{}`；查询 payload 也为空，身份只保存在 source。注册工具返回可直接传给 `dashboard_discover` 的 `discoveryRequest`。保存的看板引用明确 ArtifactVersion。
 
 ## 当前约束
 

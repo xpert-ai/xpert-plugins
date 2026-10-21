@@ -1,8 +1,8 @@
 # File Analytics
 
+The Live Dashboard Agent generates this provider’s Definition through `analytics_definition_connections` → `analytics_definition_inspect` → `analytics_definition_register`. Existing toolset/Integration credentials stay in their original configuration entries. Settings → Analytics is for viewing, correction and version management; users do not fill internal IDs. See [the authoring guide](../../../../docs/analytics-providers.md#automatic-definition-generation).
 `@xpert-ai/plugin-analytics-files` provides `file.table`: declarative CSV, JSON and XLSX queries over platform-authorized Workspace files. Standard charts and HTML dashboards consume the same Dataset/Binding results.
 
-Administrators configure a `workspace-files` data source with approved file references, explicit format/read options, column types and business descriptions. Agent discovery returns the exact query contract and a bounded real preview; no new Agent middleware is required. File parsing, aggregation and format dependencies remain in this plugin. The platform owns file permissions, data-source authorization and Artifact lifecycle.
 
 - [Overview](docs/index.mdx) / [中文概览](docs/zh-Hans/index.mdx)
 - [Configuration and query contract](docs/configuration.mdx) / [中文配置](docs/zh-Hans/configuration.mdx)

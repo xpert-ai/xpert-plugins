@@ -1,3 +1,6 @@
+import { createDefinitionTools, DEFINITION_GUIDANCE } from './definition-tools'
+import { sameAnalyticsResource } from './analytics-source'
+import { analyticsSourceKey } from '@xpert-ai/plugin-sdk/analytics'
 import { SystemMessage } from '@langchain/core/messages'
 import { tool } from '@langchain/core/tools'
 import type { RunnableConfig } from '@langchain/core/runnables'
@@ -48,7 +51,7 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
     const filterEvidence = createFilterEvidence(this.service, scope, previews)
     const created = new Map<string, { manifest: DashboardManifest; receipt: Awaited<ReturnType<DashboardService['save']>> }>()
     const preview = async (binding: AnalyticsBinding) => {
-      const contract = discovered.get(`${binding.dataSourceId}/${binding.providerId}`)
+      const contract = discovered.get(`${analyticsSourceKey(binding.source)}/${binding.providerId}`)
       if (!contract) throw new Error('DASHBOARD_DISCOVER_REQUIRED')
       validateAnalyticsPayload(binding.payload, contract.payloadSchema)
         const controls = Object.fromEntries(binding.parameters.map((parameter) => [parameter.controlId, parameter.defaultValue ?? null]))
@@ -82,7 +85,7 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
     const save = async (input: z.infer<typeof createToolSchema>, config?: RunnableConfig, html?: string, dependencies: ArtifactDocumentDependencyLock[] = []) => {
       const { previewIds, supersedesPaths, ...definition } = input
       const bindings = resolvePreviews(previewIds)
-      const manifest = dashboardSchema.parse({ ...definition, bindings, schema: 'xpert.live-dashboard/v1', id: randomUUID(),
+      const manifest = dashboardSchema.parse({ ...definition, bindings, schema: 'xpert.live-dashboard', id: randomUUID(),
         ...(html ? { presentation: { type: 'html', html, ...(dependencies.length ? { dependencies } : {}) } } : {}) })
       validateFinal(manifest, true)
       const key = hash({ input: { ...definition, previewIds }, html, dependencies })
@@ -123,12 +126,13 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
       if (exhausted && evidence.pending) throw new Error('DASHBOARD_SAVE_NOT_CONFIRMED: no successful draft save receipt; Workspace changes have not been saved to the dashboard.')
       const result = await handler({ ...request, ...(evidence.pending ? { toolChoice: 'required' as const } : {}), ...(exhausted ? { tools: [] } : {}), systemMessage: new SystemMessage({ content: [
         ...(typeof request.systemMessage?.content === 'string' ? [{ type: 'text' as const, text: request.systemMessage.content }] : request.systemMessage?.content ?? []),
-        { type: 'text', text: DASHBOARD_GUIDANCE + '\n' + HTML_DASHBOARD_GUIDANCE + '\n' + EDITING_GUIDANCE + (evidence.pending ? `\nDashboard changes are pending without a matching draft save receipt. Unsaved files: ${JSON.stringify(evidence.pendingPaths)}. Continue reading/repairing and call dashboard_create_html or dashboard_update with the exact file path; do not finish or claim it was saved. When abandoning earlier unsaved HTML creation candidates, explicitly pass their exact paths as supersedesPaths to dashboard_create or dashboard_create_html, matching the requested presentation mode. If a standard dashboard is already saved, repeat dashboard_create with the same definition/previewIds and supersedesPaths; do not create an unwanted HTML dashboard. This only abandons those candidates after a successful save; it never discards another Artifact editing copy.` : '') + (options.allowedFinalProviders ? `\nThis Assistant requires every saved dashboard binding to use one of these providers: ${options.allowedFinalProviders.join(', ')}. Other providers may be previewed only as upstream inputs. Do not save a direct-source substitute.` : '') + (exhausted ? '\nThe dashboard tool budget is exhausted. Stop calls; report only saved receipts or explain the concrete blocker truthfully.' : '') }
+        { type: 'text', text: DASHBOARD_GUIDANCE + '\n' + DEFINITION_GUIDANCE + '\n' + HTML_DASHBOARD_GUIDANCE + '\n' + EDITING_GUIDANCE + (evidence.pending ? `\nDashboard changes are pending without a matching draft save receipt. Unsaved files: ${JSON.stringify(evidence.pendingPaths)}. Continue reading/repairing and call dashboard_create_html or dashboard_update with the exact file path; do not finish or claim it was saved. When abandoning earlier unsaved HTML creation candidates, explicitly pass their exact paths as supersedesPaths to dashboard_create or dashboard_create_html, matching the requested presentation mode. If a standard dashboard is already saved, repeat dashboard_create with the same definition/previewIds and supersedesPaths; do not create an unwanted HTML dashboard. This only abandons those candidates after a successful save; it never discards another Artifact editing copy.` : '') + (options.allowedFinalProviders ? `\nThis Assistant requires every saved dashboard binding to use one of these providers: ${options.allowedFinalProviders.join(', ')}. Other providers may be previewed only as upstream inputs. Do not save a direct-source substitute.` : '') + (exhausted ? '\nThe dashboard tool budget is exhausted. Stop calls; report only saved receipts or explain the concrete blocker truthfully.' : '') }
       ] }) })
       if (evidence.pending && result && !result.tool_calls?.length) throw new Error('DASHBOARD_SAVE_NOT_CONFIRMED: the model stopped without a successful draft save receipt.')
       return result
     }, tools: [
       filterEvidence.tool,
+      ...createDefinitionTools(context, () => { listedSources = undefined }),
       tool(async () => JSON.stringify({ libraries: await libraryLocks(['echarts', 'three']),
         pageRuntime: {
           global: 'window.xpertLiveArtifact',
@@ -151,16 +155,16 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
         schema: z.object({}).strict(), verboseParsingErrors: true, metadata: { toolName: { en_US: 'List analytics sources', zh_Hans: '发现分析数据源' } }
       }),
       tool(async (input: z.infer<typeof discoverToolSchema>) => {
-        if (listedSources && !listedSources.some(source => source.id === input.dataSourceId && source.providers.some(provider => provider.id === input.providerId)))
-          throw new Error(`DASHBOARD_SOURCE_SELECTION_INVALID: copy an exact dataSourceId/providerId pair from dashboard_list_sources; do not invent or combine IDs. Known pairs: ${JSON.stringify(listedSources.map(source => ({ dataSourceId: source.id, name: source.name, providerIds: source.providers.map(provider => provider.id) })))}. Refresh the list if the source changed. Initial requestJson is "{}"; then follow inspectRequest/nextRequest.`)
-        const parsed = { dataSourceId: input.dataSourceId, providerId: input.providerId, request: parseObjectJson(input.requestJson) }
+        if (listedSources && !listedSources.some(source => sameAnalyticsResource(source.source, input.source) && source.providers.some(provider => provider.id === input.providerId)))
+          throw new Error(`DASHBOARD_SOURCE_SELECTION_INVALID: copy an exact source/providerId pair from dashboard_list_sources; do not invent or combine IDs. Known pairs: ${JSON.stringify(listedSources.map(source => ({ source: source.source, name: source.name, providerIds: source.providers.map(provider => provider.id) })))}. Refresh the list if the source changed. Initial requestJson is "{}"; then follow inspectRequest/nextRequest.`)
+        const parsed = { source: input.source, providerId: input.providerId, request: parseObjectJson(input.requestJson) }
         const result = await this.service.discover(scope, parsed)
-        discovered.set(`${parsed.dataSourceId}/${parsed.providerId}`, result.queryContract)
+        discovered.set(`${analyticsSourceKey(parsed.source)}/${parsed.providerId}`, result.queryContract)
         return JSON.stringify(result)
       }, { name: 'dashboard_discover', description: 'Discover provider-owned business metadata. Start requestJson="{}" then serialize inspectRequest/nextRequest. Inspect dataset fields, comments, measures and native query format before preview.',
         schema: discoverToolSchema, verboseParsingErrors: true, metadata: { toolName: { en_US: 'Inspect business data', zh_Hans: '理解业务数据与指标' } } }),
       tool(async (input: z.infer<typeof previewToolSchema>) => {
-        const contract = discovered.get(`${input.binding.dataSourceId}/${input.binding.providerId}`)
+        const contract = discovered.get(`${analyticsSourceKey(input.binding.source)}/${input.binding.providerId}`)
         if (!contract) throw new Error('DASHBOARD_DISCOVER_REQUIRED: discover the source before preview')
         const binding = fromAgentBinding(input.binding, contract)
         return preview(binding)

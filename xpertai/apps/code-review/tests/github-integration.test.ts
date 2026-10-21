@@ -63,7 +63,7 @@ test('system callbacks use only the host configuration capability and preserve r
   assert.equal(f.reads.length, 3)
 })
 
-test('older hosts without configuration reads fail closed without using legacy runtime reads', async () => {
+test('hosts without the optional configuration-read capability fail closed without using legacy runtime reads', async () => {
   let legacyReads = 0
   const context = { config: { githubIntegrationId: integrationId }, resolve: () => ({
     read: async () => { legacyReads++; return null }

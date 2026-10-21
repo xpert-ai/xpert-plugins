@@ -18,7 +18,7 @@ const manifest = require('../examples/postgres-sales.json')
 const source = { id: sourceId, name: 'Acceptance sales', type: 'pg', providers: [{ id: manifest.bindings[0].providerId },
   { id: 'private-provider', sharing: { mode: 'owner_only', reasonCode: 'WORKSPACE_SCRIPT_PRIVATE_DEPENDENCIES' } }] }
 const capabilities = {
-  'platform.datasource.analytics': {
+  'platform.analytics': {
     async list() { return [source] },
     async query(actor, request) {
       if (actor.userId !== scope.userId) throw new Error('Forbidden')

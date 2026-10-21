@@ -13,7 +13,7 @@ const columns = [
 const definition = { id: 'sales', revision: 'v1', name: 'Sales', description: 'Net paid sales in CNY', toolName: 'sales_query', readOnly: true,
   result: { format: 'structured', rowsPath: ['data', 'rows'], columns, scope: 'full_query_result', totalPath: ['total'], truncatedPath: ['truncated'] } }
 const options = { ...ids, serverName: 'business', datasets: [definition] }
-const binding = { schemaVersion: 1, id: 'sales', dataSourceId: '00000000-0000-4000-8000-000000000003', providerId: 'mcp.tool', operation: 'query', contractVersion: 1,
+const binding = { id: 'sales', source: { kind: 'definition', definitionId: '00000000-0000-4000-8000-000000000003', versionId: '00000000-0000-4000-8000-000000000004' }, providerId: 'mcp.tool', operation: 'query', contractVersion: 1,
   payload: { datasetId: 'sales', revision: 'v1', toolContractHash: hash, arguments: { filter: { region: null } }, parameterPaths: { region: ['filter', 'region'] } },
   parameters: [{ name: 'region', controlId: 'region', type: 'string', required: false }],
   output: { datasetId: 'net_sales', grain: ['region'], fields: columns.map(({ path, key, description, ...field }) => ({ ...field, id: key, sourceField: key })) } }
@@ -33,7 +33,7 @@ function fixture() {
     }
   } }
   const provider = new McpAnalyticsProvider({ has: () => true, require: (capability) => { assert.equal(capability.id, 'platform.mcp.client'); return api } })
-  const context = { actor: { tenantId: 'tenant', organizationId: 'org', userId: 'viewer' }, dataSourceId: binding.dataSourceId,
+  const context = { actor: { tenantId: 'tenant', organizationId: 'org', userId: 'viewer' }, source: binding.source,
     options: structuredClone(options), signal: new AbortController().signal, maxRows: 1000, timeoutMs: 1000, deadlineAt: Date.now() + 1000, executionId: 'execution', ancestry: ['mcp.tool'] }
   return { provider, api, calls, discoveries, state, context }
 }
@@ -171,4 +171,28 @@ test('revoked tool access, cancellation and expired parent budget never return a
   const during = new AbortController()
   f.api.tools.call = async () => { during.abort(); return { structuredContent: { data: { rows: [] }, total: 0, truncated: false }, text: [] } }
   await assert.rejects(f.provider.execute(binding, { region: null }, { ...f.context, signal: during.signal }))
+})
+
+test('configuration entry publishes exactly one governed dataset with the same runtime defaults', () => {
+  const f = fixture(), options = f.context.options
+  assert.deepEqual(f.provider.descriptor.sourceKinds, ['definition'])
+  assert.equal(f.provider.descriptor.dataSourceTypes, undefined)
+  assert.equal(f.provider.configuration.kind, 'definition')
+  assert.deepEqual(f.provider.validateConfiguration(options), optionsSchema.parse(options))
+  assert.throws(() => f.provider.validateConfiguration({ ...options, datasets: [] }))
+  assert.throws(() => f.provider.validateConfiguration({ ...options, datasets: [...options.datasets, { ...options.datasets[0], id: 'other' }] }))
+})
+test('Agent authoring keeps approved tool defaults and refuses removed tools, invalid mappings and scope injection', async () => {
+  const f = fixture(), context = { actor: f.context.actor, workspaceId: ids.workspaceId, connection: { kind: 'mcp-toolset', toolsetId: ids.toolsetId, serverName: 'business' }, signal: f.context.signal, deadlineAt: Date.now() + 10000 }
+  const { id, revision, readOnly, ...mapping } = definition
+  const input = { ...mapping, defaultArguments: binding.payload.arguments }
+  assert.equal((await f.provider.authoring.inspect({}, context)).operations[0].name, definition.toolName)
+  const generated = await f.provider.authoring.prepare(input, context)
+  const detail = await f.provider.discover({ datasetId: 'dataset' }, { ...f.context, options: generated })
+  assert.deepEqual(detail.items[0].metadata.bindingPayload.arguments, input.defaultArguments)
+  assert.equal(f.calls[0].scope.serverName, 'business')
+  await assert.rejects(f.provider.authoring.prepare({ ...input, serverName: 'other' }, context))
+  await assert.rejects(f.provider.authoring.prepare({ ...input, result: { ...input.result, rowsPath: ['missing'] } }, context))
+  f.state.available = false
+  await assert.rejects(f.provider.authoring.prepare(input, context), /UNAVAILABLE/)
 })

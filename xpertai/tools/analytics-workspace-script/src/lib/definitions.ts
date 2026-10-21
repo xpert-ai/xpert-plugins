@@ -14,7 +14,7 @@ export class ScriptDefinitions {
     const code = await files.readRuntimeBuffer(input.path)
     if (!code.buffer.length || code.buffer.length > 64000) throw new Error('WORKSPACE_SCRIPT_SIZE_INVALID')
     const snapshot = await this.store(actor, code.buffer, input.language === 'python' ? 'script.py' : 'script.mjs')
-    const definition: Definition = definitionSchema.parse({ schema: 'xpert.analytics-script/v1',
+    const definition: Definition = definitionSchema.parse({ schema: 'xpert.analytics-script',
       title: input.title, language: input.language, mode: input.mode,
       authorization: code.reference, script: input.mode === 'pinned' ? snapshot : code.reference,
       scriptSha256: digest(code.buffer), files: await Promise.all(input.files.map(async file => ({ alias: file.alias,
@@ -49,8 +49,8 @@ export class ScriptDefinitions {
       originalName: name, fileName: name, folder: `workspace-script/${digest(buffer)}`, mimeType: 'application/octet-stream' })
     return { source: 'platform.workspace.files', ...scope, filePath: file.filePath, workspacePath: file.workspacePath }
   }
-  binding(dataSourceId: string, artifactId: string, versionId: string, definition: Definition) {
-    return analyticsBindingSchema.parse({ schemaVersion: 1, id: definition.output.datasetId, dataSourceId, providerId: PROVIDER,
-      operation: 'query', contractVersion: 1, payload: { artifactId, versionId }, parameters: definition.parameters, output: definition.output })
+  binding(artifactId: string, versionId: string, definition: Definition) {
+    return analyticsBindingSchema.parse({ source: { kind: 'artifact', artifactId, versionId }, id: definition.output.datasetId,
+      providerId: PROVIDER, operation: 'query', contractVersion: 1, payload: {}, parameters: definition.parameters, output: definition.output })
   }
 }

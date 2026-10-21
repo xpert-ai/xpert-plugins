@@ -4,7 +4,7 @@ const { MysqlAnalyticsProvider, DorisAnalyticsProvider } = require('../dist/lib/
 const { bindMysqlParameters, normalizeMysqlCell } = require('../dist/lib/query')
 const { normalizeAnalyticsResult } = require('@xpert-ai/plugin-sdk/analytics')
 
-const context = () => ({ actor: { userId: 'viewer', tenantId: 'tenant', organizationId: 'org' }, dataSourceId: 'source', maxRows: 10,
+const context = () => ({ actor: { userId: 'viewer', tenantId: 'tenant', organizationId: 'org' }, source: { kind: 'data-source', dataSourceId: 'source' }, maxRows: 10,
   timeoutMs: 1000, deadlineAt: Date.now() + 1000, signal: new AbortController().signal })
 const binding = { id: 'sales', providerId: 'mysql.sql', payload: { sql: 'SELECT region,amount FROM sales WHERE (? IS NULL OR region = ?)', parameterOrder: ['region', 'region'], location: { database: 'sales' } },
   output: { datasetId: 'sales', grain: ['region'], fields: [

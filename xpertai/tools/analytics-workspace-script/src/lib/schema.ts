@@ -28,22 +28,18 @@ export const registrationSchema = z.object({
   if (value.sources.some(s => s.binding.providerId === PROVIDER)) context.addIssue({ code: 'custom', message: 'Recursive script sources are not supported' })
 })
 /** Versioned plugin definition. Authorization retains the original workspace reference even for pinned code. */
-export const definitionSchema = z.object({ schema: z.literal('xpert.analytics-script/v1'), title: z.string(),
+export const definitionSchema = z.object({ schema: z.literal('xpert.analytics-script'), title: z.string(),
   runtime: z.object({ action: z.literal(ACTION), actionVersion: z.literal(ACTION_VERSION) }).default({ action: ACTION, actionVersion: ACTION_VERSION }),
   language: z.enum(['python', 'javascript']), mode: z.enum(['pinned', 'current']),
   authorization: reference, script: reference, scriptSha256: z.string().regex(/^[a-f0-9]{64}$/),
   files: z.array(z.object({ alias, reference })), sources: z.array(z.object({ alias, binding: analyticsBindingSchema })),
   parameters: analyticsBindingObjectSchema.shape.parameters, output: outputSchema
 }).strict()
-export const payloadSchema = z.object({ artifactId: z.string().uuid(), versionId: z.string().uuid() }).strict()
-/** Listing and exact-version inspection are distinct; a partial version reference must fail. */
-export const discoverySchema = z.union([
-  z.object({ page: z.number().int().min(1).max(1000000).default(1) }).strict(),
-  payloadSchema
-])
 export const scalar = z.union([z.string().max(4000), z.number().finite(), z.boolean(), z.null()])
 /** Scripts return cells only. The host issues provenance, freshness and completeness from observed inputs. */
 export const resultSchema = z.object({ columns: z.array(z.object({ key: z.string().min(1).max(256) }).strict()).max(80),
   rows: z.array(z.record(scalar)).max(1000) }).strict()
 export const invocationSchema = z.object({ alias, controls: z.record(scalar).default({}) }).strict()
 export type Definition = z.infer<typeof definitionSchema>
+
+export const emptyDiscoverySchema = z.object({}).strict()

@@ -7,8 +7,7 @@ description: "Adapt governed ontology Actions to Xpert Dataset/Binding without c
 
 Xpert owns the shared Dataset/Binding protocol, current actor, source configuration,
 parameter validation, execution budget and Artifact persistence. This system plugin registers
-`data-xpert.ontology`, operation `action`, contract version `1`, and the `data-xpert`
-DataSource type. It converts declared scalar parameters into native Action arguments and
+`data-xpert.ontology`, operation `action`, contract version `1`, a Definition configuration entry and the `analytics-data-xpert` Integration strategy. It converts declared scalar parameters into native Action arguments and
 maps canonical rows, completeness and audit receipts back to the shared Dataset path.
 
 Data-xpert owns published resource discovery, ontology adapter metadata, Action input
@@ -20,8 +19,7 @@ The provider ID is a stable Binding reference; package ownership uses the
 
 ## Server configuration and identity
 
-Configure `baseUrl` (including `/api`), `audience`, `assistantCode`, `assistantXpertId`
-and `workspaceId` on the platform DataSource. The Assistant and workspace must already
+Create a **data-xpert Analytics** Integration with `baseUrl` (including `/api`) and `audience`. In **Settings → Analytics**, publish a Definition with `integrationId`, `assistantCode`, `assistantXpertId` and `workspaceId`. The Integration is resolved in the current tenant/organization before and after each request. The Assistant and workspace must already
 have the intended published resources and viewer policy in data-xpert.
 
 The provider gets a short-lived token through

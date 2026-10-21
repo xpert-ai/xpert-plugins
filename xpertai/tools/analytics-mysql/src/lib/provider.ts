@@ -15,7 +15,7 @@ abstract class MysqlProtocolProvider implements AnalyticsQueryProvider {
 
   private async withAdapter<T>(context: AnalyticsProviderContext, location: DatabaseLocation | undefined, run: (adapter: DatabaseWorkbenchAdapter) => Promise<T>): Promise<T> {
     context.signal.throwIfAborted()
-    const adapter = await this.runtime.require(DataSourceRuntimeCapability).open({ actor: context.actor, dataSourceId: context.dataSourceId, location })
+    const adapter = await this.runtime.require(DataSourceRuntimeCapability).open({ actor: context.actor, dataSourceId: dataSourceId(context), location })
     const abort = () => { void adapter.close().catch(() => undefined) }
     context.signal.addEventListener('abort', abort, { once: true })
     try {
@@ -63,12 +63,17 @@ abstract class MysqlProtocolProvider implements AnalyticsQueryProvider {
 
 @AnalyticsProvider('mysql.sql')
 export class MysqlAnalyticsProvider extends MysqlProtocolProvider {
-  readonly descriptor: AnalyticsProviderDescriptor = { id: 'mysql.sql', name: 'MySQL', dataSourceTypes: ['mysql'], operations: [{ name: 'query', contractVersion: 1, readOnly: true }] }
+  readonly descriptor: AnalyticsProviderDescriptor = { id: 'mysql.sql', name: 'MySQL', sourceKinds: ['data-source'], dataSourceTypes: ['mysql'], operations: [{ name: 'query', contractVersion: 1, readOnly: true }] }
   constructor(@Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) runtime: RuntimeCapabilityRegistry) { super(runtime, 'mysql') }
 }
 
 @AnalyticsProvider('doris.sql')
 export class DorisAnalyticsProvider extends MysqlProtocolProvider {
-  readonly descriptor: AnalyticsProviderDescriptor = { id: 'doris.sql', name: 'Apache Doris', dataSourceTypes: ['doris'], operations: [{ name: 'query', contractVersion: 1, readOnly: true }] }
+  readonly descriptor: AnalyticsProviderDescriptor = { id: 'doris.sql', name: 'Apache Doris', sourceKinds: ['data-source'], dataSourceTypes: ['doris'], operations: [{ name: 'query', contractVersion: 1, readOnly: true }] }
   constructor(@Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) runtime: RuntimeCapabilityRegistry) { super(runtime, 'doris') }
+}
+
+function dataSourceId(context: AnalyticsProviderContext) {
+  if (context.source.kind !== 'data-source') throw new Error('ANALYTICS_SOURCE_UNAVAILABLE')
+  return context.source.dataSourceId
 }

@@ -7,7 +7,7 @@ import { ProjectAccessRuntimeCapability, ProjectPipelineCommandsRuntimeCapabilit
 import type { ProjectPipelineEvidenceRef, ProjectPipelineJsonValue, ProjectPipelineSubjectVersion } from '@xpert-ai/contracts'
 import { Review } from '../entity.js'
 import { Reviews } from '../backend.js'
-import { ReviewError, scopeSchema, reviewLabel, type Scope } from '../domain.js'
+import { ReviewError, scopeSchema, reviewLabel, PROVIDER, VIEW, type Scope } from '../domain.js'
 import { ReviewPipelineBinding, ReviewPipelineEvidence } from './entity.js'
 import { pipelineOwner, sourceVersion } from './access.js'
 import { attachPipelineSchema, digest, evidenceId, pipelineFindingsSchema, pipelineSnapshotSchema, pipelineParametersSchema, refs, type ReviewPipelineEvidenceContent } from './contract.js'
@@ -74,9 +74,13 @@ export class ReviewPipelineService {
     await this.capabilities.require(ProjectAccessRuntimeCapability).assertEdit(context)
     const binding = await this.bindings.findOneBy({ ...pipelineOwner(context), id: z.string().uuid().parse(id) })
     if (!binding) throw new ReviewError('pipeline_binding_unavailable')
-    const scope = scopeSchema.parse(binding)
+    const scope: Scope = { ...scopeSchema.parse(binding), runtime: { projectId: context.projectId } }
     const record = await this.reviews.get(scope, binding.id)
     return { binding, record, scope }
+  }
+  async entry(context: ProjectPipelineContext, objectKey: string) {
+    const { record, binding } = await this.root(context, objectKey)
+    return { xpertId: binding.assistantId, viewKey: `${PROVIDER}__${VIEW}`, selectionId: record.id }
   }
   async subject(context: ProjectPipelineContext, objectKey: string): Promise<ProjectPipelineSubjectVersion> {
     const { record, scope } = await this.root(context, objectKey)

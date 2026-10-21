@@ -14,7 +14,6 @@ export default {
   transform: {
     '^.+\\.[tj]s$': ['@swc/jest', swcJestConfig]
   },
-  transformIgnorePatterns: ['/node_modules/(?!(lodash-es)/)'],
   moduleNameMapper: {
     '^lodash-es$': '<rootDir>/../../test-utils/lodashEsMock.ts',
     '^@xpert-ai/chatkit-types$': '<rootDir>/../../test-utils/emptyModule.ts',

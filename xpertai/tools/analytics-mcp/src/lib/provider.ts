@@ -1,3 +1,4 @@
+import { createAuthoring } from './authoring'
 import { Inject } from '@nestjs/common'
 import type { AnalyticsBinding, AnalyticsDiscoveryResult, AnalyticsProviderDescriptor, AnalyticsValue, JSONValue } from '@xpert-ai/contracts'
 import { AnalyticsProvider, McpClientRuntimeCapability, XPERT_RUNTIME_CAPABILITIES_TOKEN,
@@ -13,10 +14,12 @@ const queryContract: AnalyticsDiscoveryResult['queryContract'] = {
 @AnalyticsProvider('mcp.tool')
 export class McpAnalyticsProvider implements AnalyticsQueryProvider {
   readonly descriptor: AnalyticsProviderDescriptor = {
-    id: 'mcp.tool', name: 'MCP Tools', dataSourceTypes: ['mcp-tools'],
-    operations: [{ name: 'query', contractVersion: 1, readOnly: true }],
-    connectionType: { type: 'mcp-tools', name: 'MCP Tools', configuration: jsonSchema(optionsSchema) }
+    id: 'mcp.tool', name: 'MCP Tools', sourceKinds: ['definition'],
+    operations: [{ name: 'query', contractVersion: 1, readOnly: true }]
   }
+  readonly authoring = createAuthoring(() => this.runtime.require(McpClientRuntimeCapability))
+  readonly configuration = { kind: 'definition' as const, connection: 'mcp-toolset' as const, schema: jsonSchema(optionsSchema) }
+  validateConfiguration(options: Record<string, JSONValue>) { return optionsSchema.parse(options) }
   constructor(@Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtime: RuntimeCapabilityRegistry) {}
 
   private connection(context: AnalyticsProviderContext) {
@@ -25,7 +28,7 @@ export class McpAnalyticsProvider implements AnalyticsQueryProvider {
     const options = optionsSchema.parse(context.options)
     const scope = { actor: context.actor, workspaceId: options.workspaceId, toolsetId: options.toolsetId,
       serverName: options.serverName, signal: context.signal, deadlineAt: context.deadlineAt }
-    if (!McpClientRuntimeCapability || !this.runtime.has(McpClientRuntimeCapability))
+    if (!this.runtime.has(McpClientRuntimeCapability))
       throw new Error('MCP_DATASET_HOST_UPDATE_REQUIRED')
     return { options, scope, api: this.runtime.require(McpClientRuntimeCapability) }
   }
@@ -41,7 +44,7 @@ export class McpAnalyticsProvider implements AnalyticsQueryProvider {
     if (input.datasetId && !available.length) throw new Error('MCP_DATASET_UNAVAILABLE')
     const start = (input.page - 1) * 20
     return {
-      schemaVersion: 1, queryContract,
+       queryContract,
       items: available.slice(start, start + 20).map(({ dataset, tool }) => ({
         id: dataset.id, name: dataset.name, kind: 'dataset', description: dataset.description,
         inspectRequest: { datasetId: dataset.id },
@@ -49,7 +52,7 @@ export class McpAnalyticsProvider implements AnalyticsQueryProvider {
           inputSchema: tool.inputSchema, ...(tool.outputSchema ? { outputSchema: tool.outputSchema } : {}),
           ...(tool.description ? { toolDescription: tool.description } : {}),
           columns: dataset.result.columns.map(({ path, ...column }) => column), resultScope: dataset.result.scope,
-          bindingPayload: { datasetId: dataset.id, revision: dataset.revision, toolContractHash: tool.contractHash, arguments: {}, parameterPaths: {} }
+          bindingPayload: { datasetId: dataset.id, revision: dataset.revision, toolContractHash: tool.contractHash, arguments: dataset.defaultArguments, parameterPaths: {} }
         }
       })),
       ...(start + 20 < available.length ? { nextRequest: { page: input.page + 1 } } : {})

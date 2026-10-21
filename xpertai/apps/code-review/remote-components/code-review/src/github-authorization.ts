@@ -1,4 +1,5 @@
 import { command } from './bridge'
+import type { WorkspaceConnectorConnectPayload } from '@xpert-ai/contracts'
 
 const errors = new Map([
   ['connector_auth_method_unavailable', 'github_oauth_unavailable'],
@@ -13,7 +14,7 @@ export async function connectGitHubAccount(integrationId?: string | null, invoke
     return await invoke('workspace.connector.connect', {
       provider: 'github',
       ...(integrationId ? { authMethodId: 'github-app-oauth', integrationId } : {})
-    })
+    } satisfies WorkspaceConnectorConnectPayload)
   } catch (error) {
     const code = error instanceof Error ? errors.get(error.message) : undefined
     if (code) throw new Error(code)

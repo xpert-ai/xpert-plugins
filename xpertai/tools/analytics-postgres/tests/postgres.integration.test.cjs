@@ -8,7 +8,7 @@ const { normalizeAnalyticsResult } = require('@xpert-ai/plugin-sdk/analytics')
 test('real PostgreSQL: typed Dataset, bound filter, truncation and read-only execution', { skip: !process.env.XPERT_POSTGRES_ADAPTER_MODULE }, async () => {
   const { createPostgresWorkbench } = await import(pathToFileURL(process.env.XPERT_POSTGRES_ADAPTER_MODULE).href)
   const provider = new PostgresAnalyticsProvider({ require: () => ({ open: async () => createPostgresWorkbench({}) }) })
-  const context = { actor: {}, dataSourceId: 'integration', maxRows: 2, timeoutMs: 10000, signal: new AbortController().signal }
+  const context = { actor: {}, source: { kind: 'data-source', dataSourceId: 'integration' }, maxRows: 2, timeoutMs: 10000, signal: new AbortController().signal }
   const binding = { id: 'sales', providerId: 'postgres.sql', payload: { sql: "SELECT region, amount::double precision AS amount FROM (SELECT 'east' AS region,120 AS amount UNION ALL SELECT 'west',80) AS sales WHERE $1 = 'all' OR region = $1 ORDER BY region", parameterOrder: ['region'] },
     output: { datasetId: 'sales', grain: ['region'], fields: [
       { id: 'region', sourceField: 'region', label: 'Region', logicalType: 'string', nullable: false, role: 'dimension' },

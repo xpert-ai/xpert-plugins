@@ -33,7 +33,7 @@ export function outputColumns(definition: FileDataset, query: FileQuery): Column
   return columns
 }
 
-export function validateOutput(binding: AnalyticsBinding, columns: Column[]) {
+export function validateOutput(binding: Pick<AnalyticsBinding, 'output'>, columns: Column[]) {
   for (const field of binding.output.fields) {
     const column = columns.find(c => c.key === field.sourceField)
     if (!column || field.semanticRef || field.logicalType !== column.logicalType || field.nullable !== column.nullable || field.unit !== column.unit)

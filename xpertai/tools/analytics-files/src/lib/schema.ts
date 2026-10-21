@@ -42,7 +42,7 @@ export const datasetSchema = z.object({
   if (Buffer.byteLength(JSON.stringify(dataset)) > 48000)
     ctx.addIssue({ code: 'custom', message: 'Dataset exceeds discovery metadata budget' })
 })
-export const optionsSchema = z.object({ datasets: z.array(datasetSchema).min(1).max(100) }).strict()
+export const optionsSchema = z.object({ datasets: z.array(datasetSchema).length(1) }).strict()
   .refine(value => new Set(value.datasets.map(d => d.id)).size === value.datasets.length, 'Duplicate dataset ID')
 const operand = z.discriminatedUnion('type', [
   z.object({ type: z.literal('literal'), value: scalar }).strict(),

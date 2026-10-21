@@ -9,16 +9,16 @@ const example = require('../examples/postgres-sales.json')
 function setup() {
   const context = { tenantId: 'tenant', organizationId: 'org', userId: 'owner', hostType: 'agent', hostId: 'assistant' }
   const files = new Map(), artifacts = new Map(), versions = [], drafts = new Map(), links = new Map()
-  const sources = [{ id: example.bindings[0].dataSourceId, providers: [{ id: example.bindings[0].providerId }] }]
+  const sources = [{ source: example.bindings[0].source, providers: [{ id: example.bindings[0].providerId }] }]
   const calls = { queries: [], denied: false, rejectFilter: false, invalidHtml: false, failUpload: false }
   const capabilities = {
-    'platform.datasource.analytics': {
+    'platform.analytics': {
       async list() { await calls.onSources?.(); return sources },
       async query(actor, input) {
         calls.queries.push({ actor, input })
         if (calls.denied) throw new Error('SOURCE_ACCESS_REVOKED')
         const { region } = resolveAnalyticsParameters(input.binding, input.controls)
-        if (calls.rejectFilter && region !== 'all') throw new Error('NATIVE_FILTER_TYPE_INVALID')
+        if (calls.rejectFilter && region !== 'all') throw (calls.filterError ?? new Error('NATIVE_FILTER_TYPE_INVALID'))
         const rows = [{ region: 'east', amount: 120 }, { region: 'west', amount: 80 }].filter(row => region === 'all' || row.region === region)
         return normalizeAnalyticsResult(input.binding, { columns: [{ key: 'region' }, { key: 'amount' }], rows,
           sourceFetchedAt: new Date().toISOString(), completeness: { returnedRows: rows.length, totalRows: rows.length,
@@ -224,13 +224,23 @@ test('draft library bytes remain pinned and content/ownership/query boundaries r
 
 test('failed data/filter/HTML preflight never commits a draft', async () => {
   const s = setup(); s.calls.rejectFilter = true
-  await assert.rejects(s.service.save(s.context, example, null), /FILTER_PREVIEW_FAILED/)
+  await assert.rejects(s.service.save(s.context, example, null), /NATIVE_FILTER_TYPE_INVALID/)
   assert.equal(s.artifacts.size, 0)
   s.calls.rejectFilter = false; s.calls.invalidHtml = true
   await assert.rejects(s.service.save(s.context, { ...example, charts: [], tables: [], presentation: { type: 'html', html: '<html><body>broken</body></html>' } }, null), /PREFLIGHT_FAILED/)
   assert.equal(s.artifacts.size, 0)
 })
 
+
+test('non-default filter probes preserve the host validation error for Agent repair', async () => {
+  const s = setup()
+  s.calls.rejectFilter = true
+  s.calls.filterError = new Error('Returned rows repeat the declared grain. Use an empty grain for an unaggregated table.')
+  await assert.rejects(s.service.preview(s.context, { binding: example.bindings[0], controls: { region: 'all' } }),
+    error => error === s.calls.filterError)
+  await assert.rejects(s.service.save(s.context, example, null), error => error === s.calls.filterError)
+  assert.equal(s.artifacts.size, 0)
+})
 
 test('retry initializes the same empty Artifact after the first file upload fails', async () => {
   const s = setup(); s.calls.failUpload = true

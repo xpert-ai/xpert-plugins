@@ -1,8 +1,10 @@
 # data-xpert analytics provider
 
+The Live Dashboard Agent generates this provider’s Definition through `analytics_definition_connections` → `analytics_definition_inspect` → `analytics_definition_register`. Existing toolset/Integration credentials stay in their original configuration entries. Settings → Analytics is for viewing, correction and version management; users do not fill internal IDs. See [the authoring guide](../../../../docs/analytics-providers.md#automatic-definition-generation).
+Configure API URL and audience in Settings → Integrations → data-xpert Analytics. The Agent selects this integration from the authorized catalog.
+
 System plugin `@xpert-ai/plugin-analytics-data-xpert`; provider `data-xpert.ontology`, operation `action`, version 1.
 
-Contributes the data-xpert DataSource type through DataSourceType sync. Server configuration: baseUrl (including /api), audience, assistantCode, assistantXpertId, workspaceId. No database runner is required. Platform code has no ontology dependency.
 
 ```json
 {"resourceId":"datax-semantic-model-<published-model-id>","actionTypeCode":"sql.query_cube_slice","target":{"entityTypeCode":"semantic_cube","entityRef":"<published-model-id>::Sales"},"params":{"dimensions":["Region"],"measures":["Amount"],"filters":[{"field":"Region","op":"contains","value":"west"}],"limit":100},"parameterPaths":{"region":["filters","0","value"]}}

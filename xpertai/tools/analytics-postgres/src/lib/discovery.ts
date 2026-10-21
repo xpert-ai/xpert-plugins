@@ -26,14 +26,14 @@ const queryContract: AnalyticsDiscoveryResult['queryContract'] = {
 export async function discoverPostgres(request: PostgresDiscoveryRequest, adapter: DatabaseWorkbenchAdapter): Promise<AnalyticsDiscoveryResult> {
   if (request.kind === 'catalog') {
     const page = await adapter.objects({ ...request.location, search: request.search, page: request.page, pageSize: 20 })
-    return { schemaVersion: 1, queryContract,
+    return { queryContract,
       items: page.items.map((object) => ({ id: JSON.stringify(object), name: `${object.schema ?? 'public'}.${object.name}`, kind: 'dataset',
         inspectRequest: { kind: 'inspect', object: { name: object.name, kind: object.kind, schema: object.schema ?? 'public', ...(object.database ? { database: object.database } : {}) } },
         metadata: { objectKind: object.kind } })),
       ...(page.hasMore ? { nextRequest: { ...request, page: request.page + 1 } } : {}) }
   }
   const detail = await adapter.describe(request.object)
-  return { schemaVersion: 1, queryContract, items: [{ id: JSON.stringify(request.object), name: request.object.name, kind: 'dataset',
+  return { queryContract, items: [{ id: JSON.stringify(request.object), name: request.object.name, kind: 'dataset',
     metadata: { object: { ...detail.object }, columns: detail.columns.map((column) => ({ name: column.name, dataType: column.dataType,
       nullable: column.nullable ?? true, ...(column.comment ? { description: column.comment } : {}) })),
       keys: detail.keys.map((key) => ({ name: key.name, kind: key.kind, columns: key.columns,

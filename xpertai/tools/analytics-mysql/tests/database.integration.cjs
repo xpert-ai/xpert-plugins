@@ -13,7 +13,7 @@ test('real MySQL and Doris: discovery, exact cells, nullable filters, injection-
   for (const source of config.sources) await t.test(source.engine, async () => {
     const Provider = source.engine === 'mysql' ? MysqlAnalyticsProvider : DorisAnalyticsProvider
     const provider = new Provider({ require: () => ({ open: async ({ location }) => createMysqlWorkbench({ ...source.options, ...(location?.database ? { catalog: location.database } : {}) }, source.engine) }) })
-    const context = () => ({ actor: {}, dataSourceId: 'test', maxRows: 100, timeoutMs: 10000, deadlineAt: Date.now() + 10000, signal: new AbortController().signal })
+    const context = () => ({ actor: {}, source: { kind: 'data-source', dataSourceId: 'test' }, maxRows: 100, timeoutMs: 10000, deadlineAt: Date.now() + 10000, signal: new AbortController().signal })
     const binding = { id: 'monthly_sales', providerId: `${source.engine}.sql`, payload: {
       location: { database: 'analytics_acceptance' }, parameterOrder: ['region', 'region'],
       sql: "SELECT DATE_FORMAT(ordered_at, '%Y-%m') AS month,region,SUM(paid_amount-refund_amount) AS net,COUNT(*) AS orders FROM orders WHERE status='paid' AND ordered_at>='2026-07-01' AND ordered_at<'2026-10-01' AND (? IS NULL OR region=?) GROUP BY DATE_FORMAT(ordered_at, '%Y-%m'),region ORDER BY month,region"

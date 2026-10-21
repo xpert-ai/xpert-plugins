@@ -3,8 +3,8 @@ const assert = require('node:assert/strict')
 const { dashboardSchema } = require('../dist/lib/dashboard.schema.js')
 const { toDataAnalyticsPayload } = require('../dist/lib/renderer.js')
 const { createdDashboard } = require('../dist/lib/dashboard-receipt.js')
-const manifest = { schema: 'xpert.live-dashboard/v1', id: '11111111-1111-4111-8111-111111111111', title: 'Sales', controls: [],
-  bindings: [{ schemaVersion: 1, id: 'sales', dataSourceId: '22222222-2222-4222-8222-222222222222', providerId: 'test', operation: 'query', contractVersion: 1, payload: {}, parameters: [],
+const manifest = { schema: 'xpert.live-dashboard', id: '11111111-1111-4111-8111-111111111111', title: 'Sales', controls: [],
+  bindings: [{ id: 'sales', source: { kind: 'data-source', dataSourceId: '22222222-2222-4222-8222-222222222222' }, providerId: 'test', operation: 'query', contractVersion: 1, payload: {}, parameters: [],
     output: { datasetId: 'sales', grain: ['region'], fields: [
       { id: 'region', sourceField: 'region', label: 'Region', logicalType: 'string', nullable: false, role: 'dimension' },
       { id: 'sales', sourceField: 'sales', label: 'Sales', logicalType: 'decimal', nullable: false, role: 'measure' }

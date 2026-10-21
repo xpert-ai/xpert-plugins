@@ -35,7 +35,7 @@ The shared driver does not expose a Doris read-only transaction. MySQL additiona
 a read-only transaction. MariaDB, RDS MySQL and StarRocks are not advertised by this package.
 
 From `xpertai`, run `corepack pnpm exec nx run @xpert-ai/plugin-analytics-mysql:test` and `typecheck`.
-Development dependencies pin published SDK/contracts 3.25.0. See [verification](docs/verification.mdx)
+Development dependencies pin published SDK/contracts 3.26.1. See [verification](docs/verification.mdx)
 for real-engine tests, lifecycle, packaging and host runtime requirements.
 
 See [architecture and query contract](docs/index.mdx).

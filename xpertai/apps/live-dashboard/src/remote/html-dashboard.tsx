@@ -5,7 +5,7 @@ import type { DashboardManifest } from '../lib/dashboard.schema'
 import { requestHost } from './bridge'
 
 const resultSchema = z.object({ success: z.literal(true), data: z.object({
-  schema: z.literal('xpert.analytics.dataset/v1'), datasetId: z.string(),
+  schema: z.literal('xpert.analytics.dataset'), datasetId: z.string(),
   fields: z.array(z.object({ id: z.string() }).passthrough()), rows: z.array(z.record(z.union([z.string(), z.number(), z.boolean(), z.null()]))),
   completeness: z.object({ truncated: z.boolean() }).passthrough(),
   freshness: z.object({ sourceFetchedAt: z.string() }).passthrough(), provenance: z.object({ executionId: z.string() }).passthrough()

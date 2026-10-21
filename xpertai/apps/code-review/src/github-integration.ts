@@ -1,4 +1,3 @@
-import type { IIntegration } from '@xpert-ai/contracts'
 import { INTEGRATION_PERMISSION_SERVICE_TOKEN, type IntegrationPermissionService, type PluginContext } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod/v3'
 import { configSchema } from './automation-domain.js'
@@ -19,12 +18,10 @@ export function assertGitHubRepositoryApplication(config: GitHubApplication, bin
     throw new ReviewError('github_repository_revalidation_required')
 }
 
-// Compatibility with the published SDK until the optional host capability is released.
-type ConfigurationReader = IntegrationPermissionService & { readConfiguration?: (id: string) => Promise<IIntegration | null> }
 export async function resolveGitHubApplication(context: PluginContext): Promise<GitHubApplication | undefined> {
   const config = configSchema.parse(context.config ?? {})
   if (!config.githubIntegrationId) return config.githubApp
-  const reader = context.resolve<ConfigurationReader>(INTEGRATION_PERMISSION_SERVICE_TOKEN)
+  const reader = context.resolve<IntegrationPermissionService>(INTEGRATION_PERMISSION_SERVICE_TOKEN)
   if (!reader.readConfiguration) throw new ReviewError('github_integration_unavailable')
   const integration = await reader.readConfiguration(config.githubIntegrationId)
   if (!integration || integration.id !== config.githubIntegrationId || integration.provider !== 'github')
