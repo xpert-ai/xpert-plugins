@@ -1,0 +1,25 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "REST/JSON Analytics",
+  "colors": {
+    "primary": "#2563eb"
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "REST datasets",
+            "pages": [
+              "index",
+              "configuration",
+              "verification"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

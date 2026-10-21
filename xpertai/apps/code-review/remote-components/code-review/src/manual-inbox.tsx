@@ -1,9 +1,10 @@
+import { reviewRefSchema, reviewLabel } from '../../../src/domain'
 import React, { useEffect, useState } from 'react'
 import { z } from 'zod/v3'
 import { Button, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@xpert-ai/plugin-shadcn-ui'
 import { data, type Host } from './bridge'
 import { errorMessage } from './i18n'
-const recent = z.object({ items: z.array(z.object({ id: z.string(), ref: z.object({ owner: z.string(), repository: z.string(), number: z.number() }) })), total: z.number() })
+const recent = z.object({ items: z.array(z.object({ id: z.string(), ref: reviewRefSchema })), total: z.number() })
 const remote = z.object({ items: z.array(z.object({ url: z.string(), title: z.string(), number: z.number(), author: z.string() })), total: z.number() })
 export function ManualInbox({ host, onSelect, onOpen }: { host: Host | null; onSelect: (id: string) => void; onOpen: (url: string, access: 'connected') => void }) {
   const [filter, setFilter] = useState('recent'), [page, setPage] = useState(1), [total, setTotal] = useState(0)
@@ -17,7 +18,7 @@ export function ManualInbox({ host, onSelect, onOpen }: { host: Host | null; onS
       if (!active) return
       if (filter === 'recent') {
         const result = recent.parse(value); setTotal(result.total)
-        setItems(result.items.map(r => ({ id: r.id, title: `${r.ref.owner}/${r.ref.repository} #${r.ref.number}`, subtitle: '' })))
+        setItems(result.items.map(r => ({ id: r.id, title: reviewLabel(r.ref), subtitle: '' })))
       } else {
         const result = remote.parse(value); setTotal(result.total)
         setItems(result.items.map(r => ({ url: r.url, title: `#${r.number} ${r.title}`, subtitle: r.author })))

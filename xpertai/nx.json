@@ -145,7 +145,15 @@
       "@xpert-ai/plugin-jieba",
       "@xpert-ai/connector-runtime",
       "@xpert-ai/plugin-meetings",
-      "@xpert-ai/plugin-maps"
+      "@xpert-ai/plugin-maps",
+      "@xpert-ai/plugin-live-dashboard",
+      "@xpert-ai/plugin-analytics-data-xpert",
+      "@xpert-ai/plugin-analytics-files",
+      "@xpert-ai/plugin-analytics-mcp",
+      "@xpert-ai/plugin-analytics-mysql",
+      "@xpert-ai/plugin-analytics-postgres",
+      "@xpert-ai/plugin-analytics-rest",
+      "@xpert-ai/plugin-analytics-workspace-script"
     ],
     "version": {
       "preVersionCommand": "npx nx run-many -t build && npx nx run-many -t prepack"

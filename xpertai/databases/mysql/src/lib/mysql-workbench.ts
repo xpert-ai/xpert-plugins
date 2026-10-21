@@ -29,21 +29,30 @@ export function createMysqlTransport(options: MysqlAdapterOptions, engine: 'mysq
     connectTimeout: 15000,
     ...(options.use_ssl ? { ssl: { ca: options.ssl_cacert, cert: options.ssl_cert, key: options.ssl_key, rejectUnauthorized: true } } : {})
   }
-  const driver = testDriver ?? (engine === 'doris' ? (() => {
+  let closed = false
+  let driver = testDriver
+  let failConnection: ((code: string) => void) | undefined
+  const connectionError = (error: { code?: string }) => {
+    if (failConnection) failConnection(error.code && /^[A-Z_0-9]+$/.test(error.code) ? error.code : 'database_connection_failed')
+    else { closed = true; driver?.destroy() }
+  }
+  // Validation can reject a query before any I/O. Do not start a handshake that close() races to destroy.
+  const getDriver = () => driver ??= (engine === 'doris' ? (() => {
     const mysqlConnection: typeof import('mysql').createConnection = require('mysql').createConnection
     const connection = mysqlConnection({...config, flags:'-LOCAL_FILES'} as ConnectionConfig)
+    connection.on('error', connectionError)
     return { query:(query:QueryConfig):QueryEvents=>connection.query(query),destroy:()=>connection.destroy() }
   })() : (() => {
     const mysql2Connection: typeof import('mysql2').createConnection = require('mysql2').createConnection
     const connection = mysql2Connection({...config,flags:['-LOCAL_FILES']})
+    connection.on('error', connectionError)
     return { query:(query:QueryConfig):QueryEvents=>connection.query(query),destroy:()=>connection.destroy() }
   })())
-  let closed = false
   let parameterMode: Promise<void> | undefined
   // Both drivers implement the documented query event and typeCast interfaces.
-  const start = (query: QueryConfig): QueryEvents => driver.query(query)
+  const start = (query: QueryConfig): QueryEvents => getDriver().query(query)
   const transport: WorkbenchTransport = {
-    async close() { if (!closed) { closed = true; driver.destroy() } },
+    async close() { if (!closed) { closed = true; driver?.destroy() } },
     async execute(sql, parameters, queryOptions) {
       if (parameters.length) {
         parameterMode ??= transport.execute('SELECT @@session.sql_mode AS sql_mode', [], { timeoutMs: 15000, maxRows: 1 }).then((result) => {
@@ -56,8 +65,9 @@ export function createMysqlTransport(options: MysqlAdapterOptions, engine: 'mysq
       return new Promise<DatabaseResult>((resolve, reject) => {
         const began = Date.now(), rows: DatabaseValue[][] = []
         let columns: DatabaseColumn[] = [], current: DatabaseValue[] = [], affectedRows: number | undefined, truncated = false, bytes = 0, settled = false
-        const cleanup = () => { clearTimeout(timer); queryOptions.signal?.removeEventListener('abort', abort) }
-        const fail = (code: string, destroy = true) => { if (settled) return; settled = true; cleanup(); if (destroy) { closed = true; driver.destroy() }; reject(new Error(code)) }
+        const cleanup = () => { clearTimeout(timer); queryOptions.signal?.removeEventListener('abort', abort); failConnection = undefined }
+        const fail = (code: string, destroy = true) => { if (settled) return; settled = true; cleanup(); if (destroy) { closed = true; driver?.destroy() }; reject(new Error(code)) }
+        failConnection = fail
         const abort = () => fail('execution_cancelled_outcome_unconfirmed')
         const timer = setTimeout(() => fail('execution_timeout_outcome_unconfirmed'), queryOptions.timeoutMs)
         if (queryOptions.signal?.aborted) { abort(); return }

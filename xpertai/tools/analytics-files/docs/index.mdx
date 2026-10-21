@@ -1,0 +1,14 @@
+---
+title: 'Declarative file analytics'
+description: 'CSV, JSON and XLSX datasets backed by platform WorkspaceFiles.'
+---
+
+`file.table` lets Agents discover approved files and use declarative selection, filtering, grouping, aggregation and sorting. Administrators declare the file catalog, field types and business semantics. The platform owns file access and Dataset/Binding; this plugin owns parsers and query semantics. Existing chart and HTML/JS dashboard renderers need no source-specific changes.
+
+Refresh rereads the current file and records its content digest. Artifact versions preserve the query, not a historical copy of business data. Compatible file replacement is immediately visible; missing fields, incompatible types and changed source contracts fail closed.
+
+Inputs are limited to 8 MB and 50,000 rows. Output follows platform row limits (currently 1,000) and 2 MB. Oversized input fails rather than producing misleading totals. Output truncation remains explicit. Parsing and aggregation use a cancellable Worker under the host deadline.
+
+XLSX is limited to 40 MB expanded ZIP contents, 2,000 entries and 200 columns. Before workbook parsing, the plugin checks declared ZIP sizes and counts actual decompressed bytes in bounded chunks; inconsistent sizes fail closed. Macros, external-workbook content, hidden sheets and merged data cells are rejected. Formula cells are rejected by default. Explicit cached mode reads only existing results: it never recalculates formulas or guarantees cache freshness.
+
+[Configuration](/configuration) · [Verification](/verification)

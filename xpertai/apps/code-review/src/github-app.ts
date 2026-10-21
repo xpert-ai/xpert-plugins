@@ -5,6 +5,7 @@ import { ConnectorRuntimeCapability, XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN, type 
 import { configSchema, CONTEXT } from './automation-domain.js'
 import { GitHub } from './github.js'
 import { ReviewError, type Scope } from './domain.js'
+import { reviewRuntimeScope } from './runtime-scope.js'
 
 const repositorySchema = z.object({ id: z.number().int().positive(), name: z.string(), owner: z.object({ login: z.string() }),
   permissions: z.object({ admin: z.boolean().optional(), push: z.boolean().optional() }).optional() })
@@ -20,7 +21,7 @@ export class GitHubApp {
   }
   async connected(s: Scope) {
     const runtime = this.context.resolve<AgentMiddlewareRuntimeServiceApi>(XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN)
-      .createScopedApi({ ...s, xpertId: s.assistantId, connectorProviders: ['github'] })
+      .createScopedApi(reviewRuntimeScope(s))
     const api = runtime.capabilities?.get(ConnectorRuntimeCapability)
     if (!api?.getConnectorCredential) throw new ReviewError('github_auth_required')
     try {

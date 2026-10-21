@@ -1,8 +1,34 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { EventEmitter } from "node:events";
+import { createServer } from "node:net";
 import { createMysqlWorkbench } from "../dist/lib/mysql-workbench.js";
 const mockOptions = { host: "mock.invalid", port: 3306, username: "mock", password: "mock", catalog: "analytics" };
+test('rejected reads and immediate close do not start a network handshake', async () => {
+  let connections = 0;
+  const server = createServer((socket) => { connections++; socket.destroy(); });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    for (const engine of ['mysql', 'doris']) {
+      const adapter = createMysqlWorkbench({ ...mockOptions, host: '127.0.0.1', port: server.address().port }, engine);
+      await assert.rejects(adapter.query({ mode: 'read', sql: 'DELETE FROM orders' }), /read_only_violation/);
+      await adapter.close();
+    }
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    assert.equal(connections, 0);
+  } finally { await new Promise((resolve) => server.close(resolve)); }
+});
+test('a connection failure during handshake rejects the query without an uncaught event', async () => {
+  const server = createServer((socket) => socket.destroy());
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    for (const engine of ['mysql', 'doris']) {
+      const adapter = createMysqlWorkbench({ ...mockOptions, host: '127.0.0.1', port: server.address().port }, engine);
+      try { await assert.rejects(adapter.query({ mode: 'read', sql: 'SELECT 1', timeoutMs: 1000 })); }
+      finally { await adapter.close(); }
+    }
+  } finally { await new Promise((resolve) => server.close(resolve)); }
+});
 function wire(mode = "STRICT_TRANS_TABLES", okFields = false) {
   const calls = [], state = { closed: 0 };
   const driver = { destroy: () => {

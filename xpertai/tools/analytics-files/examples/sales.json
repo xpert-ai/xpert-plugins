@@ -1,0 +1,56 @@
+{
+  "datasets": [
+    {
+      "id": "q3_sales",
+      "revision": "v1",
+      "name": "Q3 文件销售订单",
+      "description": "2026 年第三季度已支付订单净销售额=实付金额-退款金额，人民币元。每行是一笔订单，按 month+region 聚合后唯一。区域筛选 null 表示全部。",
+      "file": {
+        "catalog": "xperts",
+        "xpertId": "00000000-0000-4000-8000-000000000001",
+        "filePath": "sales.csv"
+      },
+      "reader": {
+        "format": "csv",
+        "delimiter": ",",
+        "headerRow": 1
+      },
+      "columns": [
+        {
+          "key": "month",
+          "path": [
+            "month"
+          ],
+          "label": "月份",
+          "description": "2026 年第三季度月份，YYYY-MM",
+          "logicalType": "string",
+          "nullable": false,
+          "role": "time"
+        },
+        {
+          "key": "region",
+          "path": [
+            "region"
+          ],
+          "label": "区域",
+          "description": "销售区域：华东、华西",
+          "logicalType": "string",
+          "nullable": false,
+          "role": "dimension"
+        },
+        {
+          "key": "net_sales",
+          "path": [
+            "net_sales"
+          ],
+          "label": "净销售额",
+          "description": "已支付订单实付金额减退款金额，人民币元；原始订单行可按月和区域求和",
+          "logicalType": "decimal",
+          "nullable": false,
+          "role": "measure",
+          "unit": "CNY"
+        }
+      ]
+    }
+  ]
+}

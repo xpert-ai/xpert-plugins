@@ -15,6 +15,11 @@ import { Reviews, CONTEXT } from './backend.js'
 import { ReviewView, icon } from './view.js'
 import { ReviewMiddleware } from './middleware.js'
 import { templates, appContribution } from './templates.js'
+import { ReviewPipelineBinding, ReviewPipelineEvidence, ReviewPipelineDelivery } from './pipeline/entity.js'
+import { ReviewPipelineContribution } from './pipeline/configuration.js'
+import { ReviewPipelineService } from './pipeline/service.js'
+import { ReviewPipelineOperations } from './pipeline/operations.js'
+import { reviewPipelineAdapters } from './pipeline/adapters.js'
 const packageJson = createRequire(import.meta.url)('../package.json') as {
   version: string
   xpert: {
@@ -24,21 +29,73 @@ const packageJson = createRequire(import.meta.url)('../package.json') as {
     }
   }
 }
-const entities = [Review, ReviewRepository, ReviewRun, ReviewDelivery]
-@XpertServerPlugin({ imports: [TypeOrmModule.forFeature(entities)], entities, controllers: [GitHubWebhook],
-  providers: [Reviews, ReviewView, ReviewMiddleware, GitHubApp, Repositories, Automation, AutomationProcessor] })
+const entities = [
+  Review,
+  ReviewRepository,
+  ReviewRun,
+  ReviewDelivery,
+  ReviewPipelineBinding,
+  ReviewPipelineEvidence,
+  ReviewPipelineDelivery
+]
+@XpertServerPlugin({
+  imports: [TypeOrmModule.forFeature(entities)],
+  entities,
+  controllers: [GitHubWebhook],
+  providers: [
+    Reviews,
+    ReviewView,
+    ReviewMiddleware,
+    GitHubApp,
+    Repositories,
+    Automation,
+    AutomationProcessor,
+    ReviewPipelineContribution,
+    ReviewPipelineService,
+    ReviewPipelineOperations,
+    ...reviewPipelineAdapters
+  ]
+})
 export class CodeReviewPlugin {
   constructor(private readonly automation: Automation) {}
-  async onPluginBootstrap() { await this.automation.recover() }
+  async onPluginBootstrap() {
+    await this.automation.recover()
+  }
 }
 const plugin: XpertPlugin<Config> = {
-  meta: { name: PLUGIN, version: packageJson.version, level: packageJson.xpert.plugin.level, artifactNamespace: packageJson.xpert.plugin.artifactNamespace, author: 'XpertAI',
-    displayName: 'Code Review', description: 'Version-aware pull request review with private drafts and confirmed GitHub submission.', icon, category: 'middleware',
-    targetApps: ['xpert', 'data-xpert'], targetAppMeta: {
-      xpert: { types: ['business-app', 'workbench-view', 'assistant-tool'], capabilities: [FEATURE], runtime: { middlewareProviders: [MIDDLEWARE], viewProviders: [PROVIDER], templateProviders: ['code_review.templates'] }, marketplace: { contents: [appContribution] } },
-      'data-xpert': { types: ['workbench-view', 'assistant-tool'], capabilities: [FEATURE], runtime: { middlewareProviders: [MIDDLEWARE], viewProviders: [PROVIDER] } }
+  meta: {
+    name: PLUGIN,
+    version: packageJson.version,
+    level: packageJson.xpert.plugin.level,
+    artifactNamespace: packageJson.xpert.plugin.artifactNamespace,
+    author: 'XpertAI',
+    displayName: 'Code Review',
+    description: 'Version-aware pull request review with private drafts and confirmed GitHub submission.',
+    icon,
+    category: 'middleware',
+    targetApps: ['xpert', 'data-xpert'],
+    targetAppMeta: {
+      xpert: {
+        types: ['business-app', 'workbench-view', 'assistant-tool'],
+        capabilities: [FEATURE],
+        runtime: {
+          middlewareProviders: [MIDDLEWARE],
+          viewProviders: [PROVIDER],
+          templateProviders: ['code_review.templates']
+        },
+        marketplace: { contents: [appContribution] }
+      },
+      'data-xpert': {
+        types: ['workbench-view', 'assistant-tool'],
+        capabilities: [FEATURE],
+        runtime: { middlewareProviders: [MIDDLEWARE], viewProviders: [PROVIDER] }
+      }
     }
-  }, config: { schema: configSchema, formSchema: configForm }, templates,
-  register(context) { return { module: CodeReviewPlugin, global: true, providers: [{ provide: CONTEXT, useValue: context }] } }
+  },
+  config: { schema: configSchema, formSchema: configForm },
+  templates,
+  register(context) {
+    return { module: CodeReviewPlugin, global: true, providers: [{ provide: CONTEXT, useValue: context }] }
+  }
 }
 export default plugin

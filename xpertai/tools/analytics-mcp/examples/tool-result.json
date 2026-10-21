@@ -1,0 +1,19 @@
+{
+  "content": [],
+  "structuredContent": {
+    "data": {
+      "rows": [
+        {
+          "region": "East",
+          "net": "1200.00"
+        },
+        {
+          "region": "West",
+          "net": "900.00"
+        }
+      ]
+    },
+    "total": 2,
+    "truncated": false
+  }
+}

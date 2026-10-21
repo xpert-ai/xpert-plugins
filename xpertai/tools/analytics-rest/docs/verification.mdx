@@ -1,0 +1,10 @@
+---
+title: 'Verification'
+description: 'Provider tests, runtime boundaries and application acceptance.'
+---
+
+Run `corepack pnpm exec nx test @xpert-ai/plugin-analytics-rest` with the matching SDK. Tests cover discovery, exact decimal projection, offset/cursor traversal, empty results, limits, explicit partial results, typed filter paths, immutable Bindings, revoke/abort behavior, pagination controls and malformed source output. Platform tests separately exercise authentication, HTTP transport, redirects, JSON/byte bounds, contract changes and access checks around I/O.
+
+For application acceptance, install the plugin in the intended platform instance, create an authenticated OpenAPI test connection and a `rest-json` data source through normal APIs, then ask the Agent in Chat to generate and save an ECharts dashboard. Verify actual rows and chart values after filter changes and source-data changes, fresh refresh execution IDs, Artifact ID/revision on close/reopen and full page reload.
+
+Disable the saved operation and verify that discovery and saved queries fail, then restore it. Verify undeclared Bindings and injected URL/header parameters fail; browser fetch and parent DOM access remain blocked by the HTML Artifact sandbox. Local fixtures establish deterministic behavior, not certification of every third-party API's semantics.

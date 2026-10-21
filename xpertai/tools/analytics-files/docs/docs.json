@@ -1,0 +1,38 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "File Analytics",
+  "colors": {
+    "primary": "#2563EB"
+  },
+  "navigation": {
+    "languages": [
+      {
+        "language": "en",
+        "groups": [
+          {
+            "group": "File Analytics",
+            "pages": [
+              "index",
+              "configuration",
+              "verification"
+            ]
+          }
+        ]
+      },
+      {
+        "language": "cn",
+        "groups": [
+          {
+            "group": "文件分析",
+            "pages": [
+              "zh-Hans/index",
+              "zh-Hans/configuration",
+              "zh-Hans/verification"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

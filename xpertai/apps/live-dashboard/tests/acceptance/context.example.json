@@ -1,0 +1,33 @@
+{
+  "platformRoot": "/absolute/path/to/xpert-pro",
+  "outputDir": "/private/dashboard-regression/run-unique-id",
+  "apiUrl": "http://localhost:3001",
+  "webUrl": "http://localhost:4201",
+  "orgId": "<organization-uuid>",
+  "orgName": "<organization-name>",
+  "assistantId": "<assistant-uuid>",
+  "assistantSlug": "<assistant-slug>",
+  "usernameKeychainService": "<username-keychain-service>",
+  "passwordKeychainService": "<password-keychain-service>",
+  "cases": [
+    {
+      "format": "csv",
+      "sourceName": "<CSV-source-name>",
+      "dataSourceId": "<source-uuid>",
+      "filePath": "regression/sales.csv"
+    },
+    {
+      "format": "json",
+      "sourceName": "<JSON-source-name>",
+      "dataSourceId": "<source-uuid>",
+      "filePath": "regression/sales.json"
+    },
+    {
+      "format": "xlsx",
+      "sourceName": "<XLSX-source-name>",
+      "dataSourceId": "<source-uuid>",
+      "filePath": "regression/sales.xlsx"
+    }
+  ],
+  "cleanupRoleName": "VIEWER"
+}
