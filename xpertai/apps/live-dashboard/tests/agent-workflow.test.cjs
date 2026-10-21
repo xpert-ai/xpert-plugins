@@ -9,7 +9,7 @@ function draft() {
   const { id: bindingId, schemaVersion, operation, contractVersion, payload, parameters, ...binding } = bindings[0]
   return { input: { ...input, previewIds: ['missing'] }, binding: { ...binding, payloadJson: JSON.stringify(payload), parameters: parameters.map(({ controlId, ...p }) => p) } }
 }
-function setup(options = {}) {
+function setup(options) {
   const calls = []; let denied = false
   const saved = { artifactId: randomUUID(), versionId: randomUUID(), versionNumber: 1, manifest: structuredClone(example) }
   const service = {
@@ -31,6 +31,44 @@ function setup(options = {}) {
   const invoke = (name, input, config) => middleware.tools.find(t => t.name === name).invoke(input, config)
   return { middleware, service, calls, files, saved, invoke, revoke: () => { denied = true }, another: () => strategy.createMiddleware({}, context) }
 }
+for (const [label, options] of [
+  ['omitted options from a legacy host', undefined],
+  ['explicit empty options', {}],
+  ['valid provider policy', { allowedFinalProviders: ['workspace_script.query'] }]
+]) {
+  test(`middleware initializes and discovers sources with ${label}`, async () => {
+    const s = setup(options)
+    let calls = 0
+    s.service.sources = async () => { calls++; return [] }
+    await s.invoke('dashboard_list_sources', {})
+    assert.equal(calls, 1)
+  })
+}
+
+for (const [label, options, code, path] of [
+  ['null', null, 'invalid_type', []],
+  ['string', '', 'invalid_type', []],
+  ['boolean', false, 'invalid_type', []],
+  ['number', 0, 'invalid_type', []],
+  ['array', [], 'invalid_type', []],
+  ['null provider list', { allowedFinalProviders: null }, 'invalid_type', ['allowedFinalProviders']],
+  ['non-array provider list', { allowedFinalProviders: 'workspace_script.query' }, 'invalid_type', ['allowedFinalProviders']],
+  ['empty provider list', { allowedFinalProviders: [] }, 'too_small', ['allowedFinalProviders']],
+  ['empty provider ID', { allowedFinalProviders: [''] }, 'too_small', ['allowedFinalProviders', 0]],
+  ['non-string provider ID', { allowedFinalProviders: [42] }, 'invalid_type', ['allowedFinalProviders', 0]],
+  ['oversized provider list', { allowedFinalProviders: Array(21).fill('workspace_script.query') }, 'too_big', ['allowedFinalProviders']],
+  ['unknown option', { unexpected: true }, 'unrecognized_keys', []]
+]) {
+  test(`middleware rejects ${label} instead of applying defaults`, () => {
+    assert.throws(() => setup(options), error => {
+      assert.equal(error.name, 'ZodError')
+      assert.equal(error.issues[0].code, code)
+      assert.deepEqual(error.issues[0].path, path)
+      return true
+    })
+  })
+}
+
 test('Agent saves only run-local preview receipts, canonical defaults and discovered operations', async () => {
   const s = setup(), { input, binding } = draft()
   await assert.rejects(s.invoke('dashboard_create', input), /PREVIEW_REQUIRED/)
