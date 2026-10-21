@@ -5,7 +5,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescripti
 import { dashboardSchema, type DashboardManifest } from '../lib/dashboard.schema'
 import { startBridge, requestHost, selectDashboard, navigateDashboard } from './bridge'
 import { messages } from './i18n'
-import { dashboardNavigationSchema, dashboardNavigationKey } from '../lib/dashboard-navigation'
+import { dashboardNavigationSchema, dashboardNavigationKey, dashboardNavigationTargetSchema } from '../lib/dashboard-navigation'
 import './style.css'
 import { HtmlDashboard, type HtmlDashboardHandle } from './html-dashboard'
 import { DashboardPicker } from './dashboard-picker'
@@ -19,7 +19,7 @@ declare global { interface Window { __ANALYTICS_RENDERER_HTML__: string; __DASHB
 const readOnly = window.__DASHBOARD_READ_ONLY__ === true
 const summarySchema = z.object({ artifactId: z.string(), versionId: z.string().nullish(), versionNumber: z.number().optional(), title: z.string().nullish(), updatedAt: z.string().optional(), draftRevision: z.number().optional(), isDraft: z.boolean().optional(), baseVersionId: z.string().nullish() })
 const savedSchema = summarySchema.extend({ manifest: dashboardSchema, dependencies: artifactDocumentDependencyAssets.optional() })
-const listSchema = z.object({ meta: z.object({ dashboards: z.array(summarySchema), sources: z.array(z.object({ id: z.string(), name: z.string(), type: z.string() })), saved: savedSchema.optional(), versions: z.array(summarySchema).optional() }) })
+const listSchema = z.object({ meta: z.object({ navigationTarget: dashboardNavigationTargetSchema.optional(), dashboards: z.array(summarySchema), sources: z.array(z.object({ id: z.string(), name: z.string(), type: z.string() })), saved: savedSchema.optional(), versions: z.array(summarySchema).optional() }) })
 const actionSchema = z.object({ success: z.literal(true), data: z.unknown() })
 const queryResultSchema = z.object({ payload: z.unknown(), datasets: z.array(z.object({ completeness: z.object({ truncated: z.boolean() }), freshness: z.object({ sourceFetchedAt: z.string() }) })) })
 type Summary = z.infer<typeof summarySchema>
@@ -74,7 +74,7 @@ function App() {
     setSaved(target); setVersions(result.versions ?? []); setControls(defaults); setStatus(''); setPartial(false)
     if (!readOnly && reflectNavigation) {
       navigationKey.current = dashboardNavigationKey({ artifactId, versionId })
-      await navigateDashboard(artifactId, versionId)
+      await navigateDashboard(result.navigationTarget, artifactId, versionId)
       if (sequence !== requestSequence.current) return
     }
     if (!readOnly) await selectDashboard({ artifactId: target.artifactId, versionId: target.versionId ?? undefined, draftRevision: target.draftRevision })
@@ -119,7 +119,13 @@ function App() {
     if (!confirmPublish?.draftRevision) return
     const result = summarySchema.parse(actionSchema.parse(await requestHost('executeAction', { actionKey: 'publish', input: {
       artifactId: confirmPublish.artifactId, expectedRevision: confirmPublish.draftRevision, expectedCurrentVersionId: confirmPublish.baseVersionId ?? confirmPublish.versionId ?? null, confirmed: true
-    } })).data)
+    } }).catch(error => {
+      if (error instanceof Error && error.message === 'DASHBOARD_PUBLISH_SHARE_BLOCKED') {
+        setConfirmPublish(null)
+        throw new Error(t.publishShareBlocked)
+      }
+      throw error
+    })).data)
     setConfirmPublish(null)
     await open(result.artifactId, result.versionId ?? undefined)
   }

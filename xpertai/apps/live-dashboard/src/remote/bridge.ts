@@ -1,6 +1,7 @@
 import { z } from 'zod/v3'
 import { installShadcnThemeVars } from '@xpert-ai/plugin-shadcn-ui/theme'
-import { DASHBOARD_VIEW_KEY } from '../lib/dashboard-navigation'
+import { dashboardNavigationTargetSchema, type DashboardNavigationTarget } from '../lib/dashboard-navigation'
+import type { WorkbenchNavigationOpenPayload } from '@xpert-ai/contracts'
 import { createdDashboard, DASHBOARD_MUTATION_TOOLS } from '../lib/dashboard-receipt'
 
 const envelope = z.object({ channel: z.literal('xpertai.remote_component'), protocolVersion: z.literal(1),
@@ -62,8 +63,8 @@ export function selectDashboard(target: { artifactId: string; versionId?: string
     payload: { key: 'live_dashboard', ...(target ? { context: { schemaVersion: 1, ...target } } : { clear: true }) } })
 }
 
-export function navigateDashboard(artifactId: string, versionId?: string) {
+export function navigateDashboard(target: DashboardNavigationTarget | undefined, artifactId: string, versionId?: string) {
   return requestHost('invokeClientCommand', { commandKey: 'workbench.navigation.open', payload: {
-    target: 'workbench.view', viewKey: DASHBOARD_VIEW_KEY, selectionId: artifactId, parameters: versionId ? { versionId } : {}
-  } })
+    ...dashboardNavigationTargetSchema.parse(target), selectionId: artifactId, parameters: versionId ? { versionId } : {}
+  } satisfies WorkbenchNavigationOpenPayload })
 }

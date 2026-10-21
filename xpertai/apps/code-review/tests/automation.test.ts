@@ -1,10 +1,31 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { createHmac } from 'node:crypto'
-import { verifyWebhook, triggerDecision, ignoredPath, defaultPolicy, pullEventSchema, savePolicySchema } from '../src/automation-domain.js'
+import { configSchema, verifyWebhook, triggerDecision, ignoredPath, defaultPolicy, pullEventSchema, savePolicySchema } from '../src/automation-domain.js'
 const secret = 'local-fixture-only'.repeat(3)
 const raw = Buffer.from('{ "fixture": true }')
 const signature = 'sha256=' + createHmac('sha256', secret).update(raw).digest('hex')
+const githubApp = { appId: '42', slug: 'review-fixture', privateKey: 'unused-fixture', publicBaseUrl: 'https://fixture.invalid' }
+test('GitHub App configuration accepts an omitted or empty webhook secret', () => {
+  assert.equal(configSchema.parse({ githubApp }).githubApp?.webhookSecret, undefined)
+  for (const webhookSecret of [undefined, null, '', ' \t\n', ' '.repeat(32)]) {
+    const config = configSchema.parse({ githubApp: { ...githubApp, webhookSecret } })
+    assert.deepEqual(config.githubApp, { ...githubApp, webhookSecret: undefined })
+  }
+})
+test('configured webhook secrets retain exact bytes and require at least 32 characters', () => {
+  for (const webhookSecret of ['x'.repeat(32), secret, ` ${secret} `])
+    assert.equal(configSchema.parse({ githubApp: { ...githubApp, webhookSecret } }).githubApp?.webhookSecret, webhookSecret)
+  for (const webhookSecret of ['x', 'x'.repeat(31), 42, false, {}])
+    assert.equal(configSchema.safeParse({ githubApp: { ...githubApp, webhookSecret } }).success, false)
+})
+test('saving without a webhook secret does not accept signed or unsigned webhook deliveries', () => {
+  for (const webhookSecret of [undefined, '']) {
+    const config = configSchema.parse({ githubApp: { ...githubApp, webhookSecret } })
+    for (const sig of [undefined, signature])
+      assert.throws(() => verifyWebhook(raw, sig, config.githubApp?.webhookSecret), /invalid_webhook_signature/)
+  }
+})
 test('webhooks authenticate exact bytes and reject tampering, absent raw body and oversized input', () => {
   verifyWebhook(raw, signature, secret)
   for (const [body, sig, key] of [[Buffer.from('{"fixture":true}'), signature, secret], [raw, signature, 'wrong'], [undefined, signature, secret], [raw, 'sha256=xyz', secret], [Buffer.alloc(2 * 1024 * 1024 + 1), signature, secret]] as const)

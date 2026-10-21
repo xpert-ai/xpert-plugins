@@ -31,6 +31,14 @@ try {
   const errors = []
   page.on('pageerror', error => errors.push(error.message))
   const state = async () => (await fetch(`${url}/state`)).json()
+  const assertNavigation = async (artifactId, versionId) => {
+    const stored = await state()
+    assert.deepEqual(stored.navigation.at(-1), {
+      target: stored.hostType === 'project' ? 'assistant.project' : 'workbench.view',
+      ...(stored.hostType === 'project' ? { projectId: stored.hostId } : {}),
+      viewKey: 'live-dashboard__live-dashboard', selectionId: artifactId, parameters: versionId ? { versionId } : {}
+    })
+  }
   const example = JSON.parse(await readFile(new URL('../examples/postgres-sales.json', import.meta.url)))
   await page.goto(url)
   const view = page.frameLocator('#view')
@@ -44,6 +52,7 @@ try {
   assert.equal(stored.versions, 0)
   assert.deepEqual(stored.storedManifests, [example])
   const artifactId = stored.artifacts[0].id
+  await assertNavigation(artifactId)
   assert.deepEqual(stored.selection, { schemaVersion: 1, artifactId, draftRevision: 1 })
 
   // All draft actions must remain on one row and reachable at narrow Workbench widths.
@@ -112,6 +121,7 @@ try {
   await view.getByRole('option', { name: '版本 1', exact: true }).click()
   await renderer.getByRole('cell', { name: 'east', exact: true }).waitFor()
   assert.equal((await state()).selection.versionId, first.id)
+  await assertNavigation(artifactId, first.id)
   const opened = page.waitForRequest(request => request.url() === `${url}/rpc` && request.postDataJSON()?.query?.parameters?.artifactId === artifactId)
   await page.evaluate(({ artifactId }) => send({ type: 'hostEvent', event: {
     type: 'assistant.tool.completed', toolName: 'dashboard_update', data: { output: { dashboard: { artifactId, draftRevision: 2, status: 'draft' } } }
@@ -119,6 +129,7 @@ try {
   await opened
   await view.frameLocator('iframe[title="Newer edit"]').getByRole('cell', { name: 'east', exact: true }).waitFor()
   assert.equal((await state()).selection.draftRevision, 2)
+  await assertNavigation(artifactId)
   assert.equal((await state()).versions, 1, 'Opening a draft receipt must not publish')
   await view.getByRole('button', { name: '发布草稿', exact: true }).click()
   await view.getByRole('button', { name: '确认发布', exact: true }).click()
@@ -167,6 +178,7 @@ try {
   await search.press('Enter')
   await view.frameLocator(`iframe[title="${another.title}"]`).getByRole('cell', { name: 'east', exact: true }).waitFor()
   assert.equal((await state()).selection.artifactId, secondId)
+  await assertNavigation(secondId)
   await view.getByRole('combobox', { name: '选择看板', exact: true }).click()
   await search.fill('newer')
   await view.getByRole('option', { name: 'Newer edit', exact: true }).waitFor()
@@ -250,6 +262,35 @@ try {
     await deliveredListing
     await page.unroute(`${url}/rpc`, holdDefaultListing)
   }
+  // Publishing a private dependency must explain recovery and keep the current team link usable.
+  await page.evaluate(({ artifactId }) => send({ type: 'init', locale: 'zh-Hans', initialQuery: { selectionId: artifactId } }), { artifactId })
+  await view.frameLocator('iframe[title="Newer edit"]').getByRole('cell', { name: 'east', exact: true }).waitFor()
+  await view.getByRole('button', { name: '团队分享', exact: true }).click()
+  await dialog.getByRole('button', { name: '开启分享', exact: true }).click()
+  await dialog.getByLabel('分享链接', { exact: true }).waitFor()
+  const sharedState = await state()
+  await dialog.getByRole('button', { name: '取消', exact: true }).click()
+  const privateDraft = { ...example, title: 'Newer edit', bindings: [...example.bindings, {
+    ...example.bindings[0], id: 'private-sales', providerId: 'private-provider', output: { ...example.bindings[0].output, datasetId: 'private-sales' }
+  }] }
+  await view.getByRole('button', { name: '编辑工作草稿', exact: true }).click()
+  await view.getByLabel('看板定义', { exact: true }).fill(JSON.stringify(privateDraft))
+  await view.getByRole('button', { name: '保存', exact: true }).click()
+  await view.getByRole('button', { name: '发布草稿', exact: true }).click()
+  await view.getByRole('button', { name: '确认发布', exact: true }).click()
+  await view.getByRole('alert').filter({ hasText: '请移除这些数据绑定，或先撤销分享再发布' }).waitFor()
+  await view.getByRole('alertdialog').waitFor({ state: 'hidden' })
+  const blocked = await state()
+  assert.equal(blocked.versions, sharedState.versions)
+  assert.deepEqual(blocked.links, sharedState.links)
+  assert.equal(blocked.artifacts.find(item => item.id === artifactId).currentVersionId, sharedState.artifacts.find(item => item.id === artifactId).currentVersionId)
+  await view.getByRole('button', { name: '编辑工作草稿', exact: true }).click()
+  await view.getByLabel('看板定义', { exact: true }).fill(JSON.stringify({ ...example, title: 'Newer edit' }))
+  await view.getByRole('button', { name: '保存', exact: true }).click()
+  await view.getByRole('button', { name: '发布草稿', exact: true }).click()
+  await view.getByRole('button', { name: '确认发布', exact: true }).click()
+  await view.getByRole('combobox', { name: '版本历史', exact: true }).filter({ hasText: '版本 3' }).waitFor()
+  assert.deepEqual((await state()).links, sharedState.links)
   if (process.argv[3]) await page.screenshot({ path: process.argv[3], fullPage: true })
   assert.deepEqual(errors, [])
   console.log(JSON.stringify({ passed: ['draft save', 'cancel publication', 'confirmed publication', 'filter', 'fresh query', 'draft receipt preview', 'version history', 'Assistant selection', 'update receipt', 'opaque origin', 'search and keyboard selection', 'compact responsive header', 'loading without layout shift', 'reopen current version', 'team share enable/copy/pin/reopen/revoke', 'resource card selection', 'historical version selection', 'idempotent init preserves local editing', 'navigation dismisses old share/publication dialogs', 'stale default listing cannot replace card selection'] }))

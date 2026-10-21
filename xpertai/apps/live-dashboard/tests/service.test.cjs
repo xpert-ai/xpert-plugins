@@ -2,15 +2,18 @@ const { test } = require('node:test')
 const assert = require('node:assert/strict')
 const { randomUUID } = require('node:crypto')
 const { DashboardService } = require('../dist/lib/dashboard.service.js')
+const { DashboardSharingService } = require('../dist/lib/sharing.service.js')
 const { normalizeAnalyticsResult, resolveAnalyticsParameters } = require('@xpert-ai/plugin-sdk/analytics')
 const example = require('../examples/postgres-sales.json')
 
 function setup() {
   const context = { tenantId: 'tenant', organizationId: 'org', userId: 'owner', hostType: 'agent', hostId: 'assistant' }
-  const files = new Map(), artifacts = new Map(), versions = [], drafts = new Map()
+  const files = new Map(), artifacts = new Map(), versions = [], drafts = new Map(), links = new Map()
+  const sources = [{ id: example.bindings[0].dataSourceId, providers: [{ id: example.bindings[0].providerId }] }]
   const calls = { queries: [], denied: false, rejectFilter: false, invalidHtml: false, failUpload: false }
   const capabilities = {
     'platform.datasource.analytics': {
+      async list() { await calls.onSources?.(); return sources },
       async query(actor, input) {
         calls.queries.push({ actor, input })
         if (calls.denied) throw new Error('SOURCE_ACCESS_REVOKED')
@@ -45,7 +48,7 @@ function setup() {
         const draft = drafts.get(input.artifactId), a = artifacts.get(input.artifactId)
         if (draft.revision !== input.expectedRevision) throw Error('DRAFT_CONFLICT')
         if (draft.publishedRevision === draft.revision) return versions.find(v => v.id === draft.publishedVersionId)
-        assert.equal(a.currentVersionId ?? null, input.expectedCurrentVersionId)
+        if ((a.currentVersionId ?? null) !== input.expectedCurrentVersionId) throw Error('VERSION_CONFLICT')
         const version = { ...draft, id: randomUUID(), versionNumber: versions.length + 1 }
         versions.push(version); a.currentVersion = version; a.currentVersionId = version.id
         draft.publishedRevision = draft.revision; draft.publishedVersionId = version.id; draft.baseVersionId = version.id
@@ -53,6 +56,12 @@ function setup() {
       }
     },
     'platform.artifacts': {
+      async getArtifactShare({ artifactId, shareKey }) { assert.equal(shareKey, 'team-readonly'); return links.get(artifactId) ?? null },
+      async ensureArtifactShare(input) {
+        const link = { ...input, status: 'active', presentationUrl: `https://platform.test/artifacts/view/${randomUUID()}` }
+        links.set(input.artifactId, link); return { link }
+      },
+      async revokeArtifactShare({ artifactId }) { links.get(artifactId).status = 'revoked' },
       async listArtifacts() { return { items: [...artifacts.values()] } },
       async findArtifactBySource(source) { return [...artifacts.values()].find(a => a.resourceId === source.resourceId) },
       async createArtifact(input) { const a = { id: randomUUID(), ...input.source, ...input.scope, title: input.title }; artifacts.set(a.id, a); return a },
@@ -69,8 +78,89 @@ function setup() {
       }
     }
   }
-  return { context, files, artifacts, versions, drafts, calls, service: new DashboardService({ require: key => capabilities[key.id] }, { async validate(_context, manifest) { if (manifest.presentation && calls.invalidHtml) throw Error('DASHBOARD_HTML_PREFLIGHT_FAILED'); return manifest.presentation ? { status: 'passed', jobId: 'test-job', requestedBindings: manifest.bindings.map(b => b.id) } : null } }) }
+  const runtime = { require: key => capabilities[key.id] }
+  const service = new DashboardService(runtime, { async validate(_context, manifest) { if (manifest.presentation && calls.invalidHtml) throw Error('DASHBOARD_HTML_PREFLIGHT_FAILED'); return manifest.presentation ? { status: 'passed', jobId: 'test-job', requestedBindings: manifest.bindings.map(b => b.id) } : null } })
+  return { context, files, artifacts, versions, drafts, links, sources, calls, service, sharing: new DashboardSharingService(service, runtime) }
 }
+
+async function sharePublished(s, versionMode = 'latest') {
+  const draft = await s.service.save(s.context, example, null)
+  const published = await s.service.publish(s.context, draft.artifactId, draft.draftRevision, null)
+  await s.sharing.share(s.context, { artifactId: draft.artifactId, versionMode, ...(versionMode === 'version' ? { versionId: published.versionId } : {}) })
+  return published
+}
+
+test('publishing a private binding into a latest share preserves the published version, draft and link until revoked', async () => {
+  const s = setup(), v1 = await sharePublished(s), { artifactId } = v1
+  s.sources[0].providers.push({ id: 'private-provider', sharing: { mode: 'owner_only', reasonCode: 'WORKSPACE_SCRIPT_PRIVATE_DEPENDENCIES' } })
+  const bindings = [...example.bindings, { ...example.bindings[0], id: 'private-sales', providerId: 'private-provider',
+    output: { ...example.bindings[0].output, datasetId: 'private-sales' } }]
+  const next = await s.service.update(s.context, artifactId, 1, { bindings }, v1.versionId)
+  const originalLink = structuredClone(s.links.get(artifactId)), originalDraft = structuredClone(s.drafts.get(artifactId))
+  await assert.rejects(s.service.publish(s.context, artifactId, next.draftRevision, v1.versionId), error => {
+    assert.equal(error.message, 'DASHBOARD_PUBLISH_SHARE_BLOCKED')
+    assert.deepEqual(error.getResponse().issues, [{ code: 'WORKSPACE_SCRIPT_PRIVATE_DEPENDENCIES', bindingId: 'private-sales' }])
+    return true
+  })
+  assert.equal(s.versions.length, 1)
+  assert.equal(s.artifacts.get(artifactId).currentVersionId, v1.versionId)
+  assert.deepEqual(s.links.get(artifactId), originalLink)
+  assert.deepEqual(s.drafts.get(artifactId), originalDraft)
+  assert.deepEqual((await s.service.open(s.context, artifactId, v1.versionId)).manifest.bindings, example.bindings)
+  await s.sharing.revoke(s.context, artifactId)
+  assert.equal((await s.service.publish(s.context, artifactId, next.draftRevision, v1.versionId)).versionNumber, 2)
+  assert.equal(s.links.get(artifactId).status, 'revoked')
+})
+
+test('latest-share publication rechecks provider availability and permits a compatible draft without changing the link', async () => {
+  const s = setup(), v1 = await sharePublished(s), { artifactId } = v1
+  const next = await s.service.update(s.context, artifactId, 1, { title: 'Shared update' }, v1.versionId)
+  const source = s.sources.pop(), link = structuredClone(s.links.get(artifactId))
+  await assert.rejects(s.service.publish(s.context, artifactId, next.draftRevision, v1.versionId), error => {
+    assert.deepEqual(error.getResponse().issues, [{ code: 'DASHBOARD_SOURCE_UNAVAILABLE', bindingId: example.bindings[0].id }]); return true
+  })
+  s.sources.push({ ...source, providers: [] })
+  await assert.rejects(s.service.publish(s.context, artifactId, next.draftRevision, v1.versionId), /DASHBOARD_PUBLISH_SHARE_BLOCKED/)
+  s.sources[0] = source
+  source.providers[0].sharing = { mode: 'owner_only' }
+  await assert.rejects(s.service.publish(s.context, artifactId, next.draftRevision, v1.versionId), error => {
+    assert.equal(error.getResponse().issues[0].code, 'DASHBOARD_PRIVATE_DEPENDENCY'); return true
+  })
+  source.providers[0].sharing = { mode: 'viewer_permissions' }
+  const v2 = await s.service.publish(s.context, artifactId, next.draftRevision, v1.versionId)
+  assert.equal(v2.versionNumber, 2)
+  assert.equal(s.artifacts.get(artifactId).currentVersionId, v2.versionId)
+  assert.deepEqual(s.links.get(artifactId), link)
+})
+
+test('fixed, expired and absent shares do not restrict publication of private drafts', async (t) => {
+  for (const mode of ['version', 'expired', 'absent']) await t.test(mode, async () => {
+    const s = setup(), v1 = await sharePublished(s, mode === 'version' ? mode : 'latest'), { artifactId } = v1
+    if (mode === 'expired') s.links.get(artifactId).expiresAt = new Date(0).toISOString()
+    if (mode === 'absent') s.links.delete(artifactId)
+    const link = structuredClone(s.links.get(artifactId))
+    const next = await s.service.update(s.context, artifactId, 1, { title: 'Private draft' }, v1.versionId)
+    s.sources[0].providers[0].sharing = { mode: 'owner_only' }
+    const v2 = await s.service.publish(s.context, artifactId, next.draftRevision, v1.versionId)
+    assert.equal(v2.versionNumber, 2)
+    assert.deepEqual(s.links.get(artifactId), link)
+    if (mode === 'version') assert.equal(link.artifactVersionId, v1.versionId)
+  })
+})
+
+test('share validation retains the platform revision and current-version checks when state changes during validation', async (t) => {
+  for (const conflict of ['draft', 'version']) await t.test(conflict, async () => {
+    const s = setup(), v1 = await sharePublished(s), { artifactId } = v1
+    const next = await s.service.update(s.context, artifactId, 1, { title: 'Reviewed draft' }, v1.versionId)
+    s.calls.onSources = async () => {
+      s.calls.onSources = undefined
+      if (conflict === 'draft') await s.service.update(s.context, artifactId, next.draftRevision, { title: 'Concurrent edit' }, v1.versionId)
+      else s.artifacts.get(artifactId).currentVersionId = randomUUID()
+    }
+    await assert.rejects(s.service.publish(s.context, artifactId, next.draftRevision, v1.versionId), /CONFLICT/)
+    assert.equal(s.versions.length, 1)
+  })
+})
 
 test('persistent drafts reopen, filter and refresh without creating formal versions', async () => {
   const s = setup(), first = await s.service.save(s.context, example, null)

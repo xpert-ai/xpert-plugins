@@ -8,12 +8,15 @@ const { DashboardViewProvider } = require('../dist/lib/view.provider.js')
 const { DashboardSharingService } = require('../dist/lib/sharing.service.js')
 const { normalizeAnalyticsResult, resolveAnalyticsParameters } = require('@xpert-ai/plugin-sdk/analytics')
 const sourceId = '22222222-2222-4222-8222-222222222222'
-const scope = { tenantId: 'tenant', organizationId: 'organization', userId: 'viewer', hostType: 'agent', hostId: 'assistant', slots: [] }
+const hostType = process.env.DASHBOARD_HOST_TYPE ?? 'agent'
+if (!['agent', 'project'].includes(hostType)) throw Error('Unsupported fixture host')
+const scope = { tenantId: 'tenant', organizationId: 'organization', userId: 'viewer', hostType, hostId: randomUUID(), slots: [] }
 const artifacts = new Map(), files = new Map(), versions = new Map(), drafts = new Map()
 const links = new Map()
-const receipts = { queries: 0, parameters: [], saves: 0, selection: null }
+const receipts = { queries: 0, parameters: [], saves: 0, selection: null, navigation: [], hostType, hostId: scope.hostId }
 const manifest = require('../examples/postgres-sales.json')
-const source = { id: sourceId, name: 'Acceptance sales', type: 'pg', providers: [{ id: manifest.bindings[0].providerId }] }
+const source = { id: sourceId, name: 'Acceptance sales', type: 'pg', providers: [{ id: manifest.bindings[0].providerId },
+  { id: 'private-provider', sharing: { mode: 'owner_only', reasonCode: 'WORKSPACE_SCRIPT_PRIVATE_DEPENDENCIES' } }] }
 const capabilities = {
   'platform.datasource.analytics': {
     async list() { return [source] },
@@ -92,13 +95,19 @@ const server = http.createServer(async (request, response) => {
     if (request.url === '/view') { response.setHeader('Content-Type', 'text/html'); response.end((await provider.getRemoteComponentEntry()).html); return }
     response.setHeader('Content-Type', 'application/json')
     if (request.url === '/manifest') { response.end(JSON.stringify(manifest)); return }
-    if (request.url === '/state') { response.end(JSON.stringify({ ...receipts, artifacts: [...artifacts.values()], versions: versions.size, storedManifests: [...files.values()].map((buffer) => JSON.parse(buffer.toString())) })); return }
+    if (request.url === '/state') { response.end(JSON.stringify({ ...receipts, links: [...links.values()], artifacts: [...artifacts.values()], versions: versions.size, storedManifests: [...files.values()].map((buffer) => JSON.parse(buffer.toString())) })); return }
     if (request.url === '/rpc' && request.method === 'POST') {
       const chunks = []; let size = 0
       for await (const chunk of request) { size += chunk.length; if (size > 600000) throw new Error('Too large'); chunks.push(chunk) }
       const message = JSON.parse(Buffer.concat(chunks).toString())
       if (message.type === 'invokeClientCommand') {
-        if (message.commandKey === 'workbench.navigation.open') { response.end(JSON.stringify({ success: true })); return }
+        if (message.commandKey === 'workbench.navigation.open') {
+          const target = message.payload
+          if (target.target !== (hostType === 'project' ? 'assistant.project' : 'workbench.view') ||
+            (hostType === 'project' ? target.projectId !== scope.hostId : target.projectId !== undefined)) throw Error('Wrong dashboard navigation host')
+          receipts.navigation.push(target)
+          response.end(JSON.stringify({ success: true })); return
+        }
         if (message.commandKey !== 'assistant.context.set' || message.payload.key !== 'live_dashboard') throw Error('Unsupported command')
         receipts.selection = message.payload.context
         response.end(JSON.stringify({ success: true })); return
