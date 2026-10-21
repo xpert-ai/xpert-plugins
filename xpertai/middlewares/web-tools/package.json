@@ -36,11 +36,11 @@
   "peerDependencies": {
     "zod": "3.25.67",
     "@xpert-ai/chatkit-types": "^0.0.12",
-    "@xpert-ai/plugin-sdk": "^3.7.2",
+    "@xpert-ai/plugin-sdk": "^3.26.1",
     "chalk": "4.1.2",
     "@langchain/core": "0.3.72",
     "@nestjs/common": "^11.1.6",
-    "@xpert-ai/contracts": "^3.8.0",
+    "@xpert-ai/contracts": "^3.26.1",
     "@modelcontextprotocol/sdk": "^1.17.5",
     "cheerio": "^1.0.0-rc.12",
     "turndown": "^7.2.0"
