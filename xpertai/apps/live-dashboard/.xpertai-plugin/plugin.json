@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-live-dashboard",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "level": "system",
   "artifactNamespace": "live_dashboard",
   "sandboxActions": "./dist/sandbox-actions/action.json",
