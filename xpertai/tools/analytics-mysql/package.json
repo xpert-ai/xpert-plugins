@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-analytics-mysql",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MySQL and Apache Doris analytics query providers",
   "main": "./index.cjs",
   "types": "./dist/index.d.ts",

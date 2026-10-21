@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-analytics-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Read-only MCP analytics provider using platform-managed connections",
   "main": "./index.cjs",
   "types": "./dist/index.d.ts",
