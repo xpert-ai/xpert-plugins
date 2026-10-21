@@ -579,12 +579,10 @@ export class SitesService {
     const organizationId = optionalString(scope.organizationId)
     const userId = optionalString(scope.userId)
     const fileName = `${slugify(project.slug ?? project.name ?? 'site')}-${version.versionNumber ?? 'version'}-${deployment.id}.html`
+    // The host authorizes the Assistant and resolves its shared or user-isolated volume.
     const workspaceScope = scope.assistantId
       ? {
-          catalog: 'xperts' as const,
-          scopeId: scope.assistantId,
-          xpertId: scope.assistantId,
-          isolateByUser: true
+          xpertId: scope.assistantId
         }
       : {
           catalog: 'users' as const,
@@ -592,6 +590,7 @@ export class SitesService {
         }
     const written = await workspaceFiles.writeRuntimeBuffer({
       tenantId,
+      organizationId,
       userId,
       ...workspaceScope,
       folder: 'sites/deployments',

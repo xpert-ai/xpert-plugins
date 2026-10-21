@@ -17,6 +17,8 @@
 
 环境变量仍可经中间件管理，静态页面不注入密钥。秘密值需要配置 `environmentEncryptionKey` 后加密存储，视图不返回秘密内容。
 
+发布文件遵循助手配置的文件作用域：`shared` 使用共享文件区，`user` 使用当前登录用户的隔离文件区。宿主负责解析作用域和权限校验，Sites 保留宿主返回的文件引用；发布链接的访问权限单独配置。
+
 ## 开发与验收
 
 先构建仓库本地 `@xpert-ai/plugin-shadcn-ui`，再运行插件的 Nx typecheck、build、test 和 verify:dist。生命周期验证使用 plugin-dev-harness，workspace 指向本插件目录。安装后必须在真实宿主验证：创建、模型生成、预览、确认发布、恢复草稿、权限和刷新恢复。

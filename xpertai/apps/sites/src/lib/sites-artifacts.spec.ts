@@ -77,7 +77,7 @@ function asRepository<T extends TestEntity>(repository: ReturnType<typeof create
   return repository as unknown as Repository<T>
 }
 
-const scope: SitesScope = {
+export const scope: SitesScope = {
   tenantId: 'tenant-id',
   organizationId: 'organization-id',
   userId: 'user-id',
@@ -102,7 +102,7 @@ function artifactLink(overrides: Partial<ArtifactLinkRecord> = {}): ArtifactLink
   }
 }
 
-function createFixture() {
+export function createFixture(writeRuntimeBuffer?: WorkspaceFilesApi['writeRuntimeBuffer']) {
   const projectRepository = createRepository<SitesProject>([
     {
       id: 'project-id',
@@ -199,6 +199,7 @@ function createFixture() {
   }
   const workspaceFiles: WorkspaceFilesApi = {
     async writeRuntimeBuffer(input) {
+      if (writeRuntimeBuffer) return writeRuntimeBuffer(input)
       return {
         name: input.fileName ?? input.originalName ?? 'site.html',
         filePath: `sites/deployments/${input.fileName ?? 'site.html'}`,
