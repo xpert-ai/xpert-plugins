@@ -240,4 +240,4 @@ not a replacement. Keep account, conversation and workspace IDs in private recei
 
 ### Canonical Analytics source verification
 
-For the paired platform/provider implementation of #762, follow [Analytics configuration and release](../docs/analytics-providers.md). Run `node plugin-dev-harness/verify-analytics.mjs --platform-root "$XPERT_PLATFORM_ROOT"` against the built companion platform SDK. The script restores its temporary dependency links; it does not publish or deploy. Public dependency verification remains a separate release gate.
+Follow [Analytics configuration and release](../docs/analytics-providers.md). After frozen dependency installation, run `node plugin-dev-harness/verify-analytics.mjs` against the published SDK/Contracts pinned in the lockfile. The script verifies all eight plugins without replacing dependency links; it does not publish or deploy.

@@ -15,24 +15,20 @@ The five native Providers register no DataSource Type. Plugin installation is sy
 
 A Binding uses one source reference: `{kind:"data-source",dataSourceId}`, `{kind:"definition",definitionId,versionId}` or `{kind:"artifact",artifactId,versionId}`. Source IDs are UUIDs. Never place source identity in payload. Publishing appends a version; existing canonical Bindings remain pinned until explicitly edited. Archiving a Definition prevents its versions from executing. Live Dashboard preview receipts, saved documents, HTML rendering and sharing use the same source identity.
 
-## Paired release and verification
+## Published dependencies and verification
 
-This PR depends on the platform implementation following xpert-ai/xpert#1198 and references xpert-ai/xpert-plugins#762. Both the platform and these eight plugins request patch releases. Host peers currently target `^3.26.1`, the next patch after the published Contracts/SDK 3.26.0. This is a planned minimum for the paired release, not a claim that it is already published or compatible; verify the actual release containing the canonical Analytics API and adjust this minimum before releasing the plugins.
-
-Until the matching Contracts/SDK patch is published, the plugin PR remains a draft. The existing public 3.25.0 **development dependency lock is only an installable bootstrap**, not a compatible build dependency. Use the companion platform checkout to verify source changes:
+The eight plugins require published `@xpert-ai/contracts` and `@xpert-ai/plugin-sdk` 3.26.1 or newer, which provide the canonical Analytics API. Their development dependencies are pinned to 3.26.1 in the workspace lockfile. No companion platform checkout or temporary dependency links are required.
 
 ```sh
-# Install dependencies in both repositories with their pinned Corepack pnpm.
-# First build the companion platform SDK (this also builds Contracts).
-cd "$XPERT_PLATFORM_ROOT"
-NX_DAEMON=false corepack pnpm exec nx build plugin-sdk
-# From this plugin repository:
-node plugin-dev-harness/verify-analytics.mjs --platform-root "$XPERT_PLATFORM_ROOT"
+# From this plugin repository, install the public dependencies with the pinned pnpm.
+corepack pnpm -C xpertai install --frozen-lockfile
+corepack pnpm -C plugin-dev-harness --ignore-workspace install --frozen-lockfile --ignore-scripts
+node plugin-dev-harness/verify-analytics.mjs
 ```
 
-The verifier temporarily links only the eight changed plugins, the harness and workspace resolution roots to the built companion SDK/Contracts and its NestJS peers (one DI container), disables Nx cache restoration, builds generated assets, runs contracts and dist-first lifecycle loading, verifies generated outputs and inspects packed metadata. It restores dependency links afterwards. It performs no deployment, npm publication or account access.
+The verifier checks installed SDK/Contracts versions and module locations, builds and tests the eight plugins through Nx, runs dist-first lifecycle loading, verifies generated outputs and inspects packed metadata. Builds run serially because consumers regenerate shared UI output. It does not replace installed dependencies, deploy plugins or publish packages.
 
-Release gate: publish the platform Contracts/SDK patch containing this API first, align the eight host peer minimums and development pins with that actual public release and update the lockfile, then rerun clean frozen installation, builds, tests, lifecycle and package verification **without overlays** before releasing these plugins. Source integration success does not prove public npm reproducibility. Optional database-driver tests require their documented database fixture; lifecycle mocks do not establish live SSO, upstream API, Docker script execution or browser acceptance. Historical acceptance records describe their original releases only.
+Optional database-driver tests require their documented database fixture; lifecycle mocks do not establish live SSO, upstream API, Docker script execution or browser acceptance. Historical acceptance records describe their original releases only.
 
 ## Automatic definition generation
 

@@ -28,7 +28,7 @@ export class RestAnalyticsProvider implements AnalyticsQueryProvider {
     const options = optionsSchema.parse(context.options)
     const scope = { actor: context.actor, workspaceId: options.workspaceId, toolsetId: options.toolsetId,
       signal: context.signal, deadlineAt: context.deadlineAt }
-    if (!RestClientRuntimeCapability || !this.runtime.has(RestClientRuntimeCapability))
+    if (!this.runtime.has(RestClientRuntimeCapability))
       throw new Error('REST_DATASET_HOST_UPDATE_REQUIRED')
     return { options, scope, api: this.runtime.require(RestClientRuntimeCapability) }
   }

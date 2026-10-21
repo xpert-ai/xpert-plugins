@@ -14,6 +14,7 @@ import {
   type ConnectorMultiAuthDefinition,
   type ConnectorMultiAuthStrategy,
   type ConnectorProfile,
+  type ConnectorProviderScope,
   type ConnectorRuntimeCredentialResolveInput
 } from '@xpert-ai/plugin-sdk'
 import { GITHUB_CONNECTOR_PLUGIN_CONTEXT } from './tokens.js'
@@ -41,29 +42,22 @@ const GITHUB_APP_CONFIGURATION = {
   }
 }
 
-// Additive host contracts keep this provider loadable on earlier SDK releases.
-type PersistedConnectorScope = { tenantId: string; organizationId: string | null }
-type ScopedInput<T> = T & { scope?: PersistedConnectorScope }
-type ConnectorIntegrationReader = IntegrationPermissionService & {
-  readForConnector?(id: string, provider: string, scope: PersistedConnectorScope): Promise<IIntegration | null>
-}
-
 @Injectable()
 @ConnectorStrategyKey(GITHUB_CONNECTOR_PROVIDER)
 export class GitHubConnectorStrategy implements ConnectorMultiAuthStrategy {
-  private _integrationPermissionService?: ConnectorIntegrationReader
+  private _integrationPermissionService?: IntegrationPermissionService
 
   constructor(
     @Inject(GITHUB_CONNECTOR_PLUGIN_CONTEXT)
     private readonly pluginContext: PluginContext
   ) {}
 
-  private get integrationPermissionService(): ConnectorIntegrationReader {
+  private get integrationPermissionService(): IntegrationPermissionService {
     this._integrationPermissionService ??= this.pluginContext.resolve(INTEGRATION_PERMISSION_SERVICE_TOKEN)
     return this._integrationPermissionService
   }
 
-  readonly definition: ConnectorMultiAuthDefinition & { mcpOAuthResources: string[] } = {
+  readonly definition: ConnectorMultiAuthDefinition = {
     mcpOAuthResources: ['https://api.githubcopilot.com/mcp/'],
     provider: GITHUB_CONNECTOR_PROVIDER,
     label: {
@@ -136,7 +130,7 @@ export class GitHubConnectorStrategy implements ConnectorMultiAuthStrategy {
     ]
   }
 
-  async connect(input: ScopedInput<ConnectorConnectInput>): Promise<ConnectorConnectResult> {
+  async connect(input: ConnectorConnectInput): Promise<ConnectorConnectResult> {
     if (input.authMethodId === 'pat') {
       return createCredentialDriver({
         kind: 'api_key', authMethodId: 'pat',
@@ -166,7 +160,7 @@ export class GitHubConnectorStrategy implements ConnectorMultiAuthStrategy {
     }
   }
 
-  async exchangeAuthorizationCode(input: ScopedInput<ConnectorAuthorizationCodeInput>): Promise<ConnectorCredential> {
+  async exchangeAuthorizationCode(input: ConnectorAuthorizationCodeInput): Promise<ConnectorCredential> {
     requireGitHubOAuthMethod(input.authMethodId)
     const integrationId = readString(input.metadata?.integrationId)
     const app = integrationId
@@ -185,7 +179,7 @@ export class GitHubConnectorStrategy implements ConnectorMultiAuthStrategy {
     return toOAuthCredential(app, token, toGitHubProfile(user))
   }
 
-  async refreshConnectionCredential(input: ScopedInput<ConnectorCredentialRefreshInput>): Promise<ConnectorCredential> {
+  async refreshConnectionCredential(input: ConnectorCredentialRefreshInput): Promise<ConnectorCredential> {
     requireGitHubOAuthMethod(input.authMethodId)
     const integrationId = readString(input.credential.data.integrationId)
     const app = integrationId
@@ -223,7 +217,7 @@ export class GitHubConnectorStrategy implements ConnectorMultiAuthStrategy {
     }
   }
 
-  private async resolveGitHubApp(integrationId?: string, scope?: PersistedConnectorScope): Promise<ResolvedGitHubApp> {
+  private async resolveGitHubApp(integrationId?: string, scope?: ConnectorProviderScope): Promise<ResolvedGitHubApp> {
     if (integrationId && scope) {
       if (!this.integrationPermissionService.readForConnector)
         throw new Error('The host does not support scoped connector application lookup')

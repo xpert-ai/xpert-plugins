@@ -115,8 +115,8 @@ For rollback, pause automatic reviews first, retain the additive database column
 ## Build and test
 
 Code Review requires published `@xpert-ai/contracts` and `@xpert-ai/plugin-sdk`
-3.25.0 or newer for the Project Pipeline API. Reference mode additionally requires the platform changes described above (the host configuration-read capability and pinned integration connect flow). Development dependencies are pinned
-to 3.25.0 in the workspace lockfile. No adjacent platform checkout or local SDK
+3.26.1 or newer for the Project Pipeline API, host configuration reads and pinned integration connect contracts. Deploy the matching platform and GitHub Connector for reference mode. Development dependencies are pinned
+to 3.26.1 in the workspace lockfile. No adjacent platform checkout or local SDK
 link is required.
 
 From the repository's `xpertai/` directory:
@@ -124,8 +124,11 @@ From the repository's `xpertai/` directory:
 ```sh
 corepack pnpm install --frozen-lockfile
 corepack pnpm exec nx build @xpert-ai/plugin-code-review
+corepack pnpm --filter @xpert-ai/plugin-shadcn-ui build
 corepack pnpm exec nx run-many -t typecheck,test,verify:dist -p @xpert-ai/plugin-code-review --parallel=1
 ```
+
+The authorization tests import the shared UI bridge, so its workspace package must be built before testing in a clean checkout.
 
 Set `XPERT_PIPELINE_TEST_DATABASE_URL` to a dedicated PostgreSQL test database
 whose name starts with `xpert_pipeline_test_` to run persistence, scope enforcement,

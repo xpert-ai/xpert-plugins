@@ -75,7 +75,7 @@ The renderer runs in a script-only sandbox with no-network CSP. A small in-memor
 
 ## Build and validation
 
-Use the xpertai workspace's declared Corepack/pnpm. Development dependencies pin published SDK/contracts 3.25.0 and the Data Analytics renderer 0.1.35; no local platform or community links are required.
+Use the xpertai workspace's declared Corepack/pnpm. Development dependencies pin published SDK/contracts 3.26.1 and the Data Analytics renderer 0.1.35; no local platform or community links are required.
 
 ```sh
 corepack pnpm install --frozen-lockfile
