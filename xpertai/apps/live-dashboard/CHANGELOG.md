@@ -1,5 +1,11 @@
 # @xpert-ai/plugin-live-dashboard
 
+## 0.1.3
+
+### Patch Changes
+
+- b025616: Allow LiveDashboard to initialize when legacy hosts omit optional middleware configuration, while retaining strict validation of explicit invalid options and provider lists.
+
 ## 0.1.2
 
 ### Patch Changes
