@@ -2,7 +2,7 @@ import { Logger } from '@nestjs/common'
 import type { RunnableConfig } from '@langchain/core/runnables'
 import type { ConversationResourceCard, XpertResolvedViewHostContext } from '@xpert-ai/contracts'
 import { emitResourceCard } from '@xpert-ai/plugin-sdk'
-import { DASHBOARD_VIEW_KEY } from './dashboard-navigation'
+import { dashboardNavigationTarget } from './dashboard-navigation'
 import { dashboardIcon } from './dashboard-icon'
 
 type DashboardCard = { artifactId: string; title: string } & (
@@ -18,8 +18,7 @@ export function dashboardResourceCard(scope: XpertResolvedViewHostContext, saved
     description: saved.state === 'draft' ? `Dashboard · Draft r${saved.revision}` : `Dashboard · v${saved.versionNumber}`,
     icon: dashboardIcon,
     open: {
-      ...(scope.hostType === 'project' ? { target: 'assistant.project', projectId: scope.hostId } as const : { target: 'workbench.view' } as const),
-      viewKey: DASHBOARD_VIEW_KEY, selectionId: saved.artifactId,
+      ...dashboardNavigationTarget(scope), selectionId: saved.artifactId,
       ...(saved.state === 'published' && saved.versionId ? { parameters: { versionId: saved.versionId } } : {})
     }
   }

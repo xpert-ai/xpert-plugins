@@ -8,7 +8,7 @@ import { dashboardRemoteEntry } from './remote-entry'
 import { DashboardSharingService, shareInput } from './sharing.service'
 import { querySchema, queryBindingSchema, saveSchema } from './dashboard.schema'
 import { DASHBOARD_MUTATION_TOOLS } from './dashboard-receipt'
-import { dashboardNavigationSchema } from './dashboard-navigation'
+import { dashboardNavigationSchema, dashboardNavigationTarget } from './dashboard-navigation'
 
 export const VIEW_KEY = 'live-dashboard'
 export const VIEW_PROVIDER = 'live-dashboard'
@@ -44,7 +44,7 @@ export class DashboardViewProvider implements IXpertViewExtensionProvider {
   async getViewData(context: XpertResolvedViewHostContext, viewKey: string, query: XpertViewQuery) {
     assertView(viewKey)
     const params = dashboardNavigationSchema.parse(query)
-    return { meta: { dashboards: await this.service.list(context), sources: await this.service.sources(context),
+    return { meta: { navigationTarget: dashboardNavigationTarget(context), dashboards: await this.service.list(context), sources: await this.service.sources(context),
       ...(params.artifactId ? { saved: await this.service.openDocument(context, params.artifactId, params.versionId),
         versions: await this.service.history(context, params.artifactId) } : {}) } }
   }

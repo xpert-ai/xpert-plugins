@@ -11,6 +11,7 @@ import { queryDashboard, queryDashboardBinding } from './dashboard-queries'
 import { HtmlDashboardValidation } from './html-validation'
 import { resolveLibraryAssets } from './document-libraries'
 import { decodeDashboardPackage, encodeDashboardPackage, MAX_DASHBOARD_PACKAGE_BYTES } from './document-package'
+import { DASHBOARD_SHARE_KEY, dashboardSharingIssues } from './dashboard-sharing'
 
 export const PLUGIN_NAME = '@xpert-ai/plugin-live-dashboard'
 const RESOURCE_TYPE = 'live-dashboard'
@@ -105,6 +106,11 @@ export class DashboardService {
   }
   async publish(context: XpertResolvedViewHostContext, artifactId: string, expectedRevision: number, expectedCurrentVersionId: string | null) {
     const saved = await this.open(context, artifactId, undefined, expectedRevision)
+    const share = await this.runtime.require(ArtifactsRuntimeCapability).getArtifactShare({ artifactId, shareKey: DASHBOARD_SHARE_KEY })
+    if (share?.status === 'active' && share.versionMode === 'latest' && (!share.expiresAt || new Date(share.expiresAt).getTime() > Date.now())) {
+      const issues = dashboardSharingIssues(saved.manifest, await this.sources(context))
+      if (issues.length) throw new BadRequestException({ message: 'DASHBOARD_PUBLISH_SHARE_BLOCKED', code: 'DASHBOARD_PUBLISH_SHARE_BLOCKED', issues })
+    }
     // Revalidate current source access and bindings before publishing the exact reviewed bytes.
     await this.execute(context, saved.manifest, {})
     const version = await this.runtime.require(ArtifactDraftsRuntimeCapability).publish({ artifactId, expectedRevision, expectedCurrentVersionId })
