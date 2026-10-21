@@ -29,7 +29,7 @@ In your GitHub account or organization, open **Settings → Developer settings �
    https://api.example.com/api/code_review/github/webhook
    ```
 
-   Replace the example domain with your public API domain. Create a random **Webhook secret** of at least 32 characters and enter the same value in GitHub and the Xpert plugin configuration. To generate a 64-character secret locally:
+   Replace the example domain with your public API domain. For webhook-triggered reviews, create a random **Webhook secret** of at least 32 characters and enter the same value in GitHub and the Xpert plugin configuration. You can leave the secret empty to save the plugin configuration while preparing the integration, but webhook deliveries will be rejected until a secret is configured. To generate a 64-character secret locally:
 
    ```sh
    openssl rand -hex 32
@@ -47,10 +47,12 @@ Open **Plugins → Code Review → Configuration**, expand **GitHub App for auto
 | App ID | `githubApp.appId` | The numeric App ID from the GitHub App settings page. Do not use the Client ID or Installation ID. |
 | App slug | `githubApp.slug` | Copy the last segment of the App's public URL. For `https://github.com/apps/example-review-bot`, enter `example-review-bot`. Only lowercase letters, digits and hyphens are accepted, with a letter or digit first. Do not enter a display name containing uppercase letters, spaces or periods. |
 | Private key (PEM) | `githubApp.privateKey` | Paste the complete contents of the downloaded `.pem` file, including `-----BEGIN RSA PRIVATE KEY-----` and its matching end line. Enter the file contents, not its path or a Client Secret. |
-| Webhook secret (32+ characters) | `githubApp.webhookSecret` | The exact same secret configured in the GitHub App, at least 32 characters long. |
+| Webhook secret (optional) | `githubApp.webhookSecret` | May be omitted or left blank when saving. For webhook-triggered reviews, enter the exact same secret configured in the GitHub App, at least 32 characters long. |
 | Public API origin | `githubApp.publicBaseUrl` | Your public HTTPS API origin, such as `https://api.example.com`, without `/api` or the webhook path. |
 
-**Required fields:** The current form may label fields as optional, but the backend only allows omitting the entire `githubApp` object. Once that object is configured, all five fields are required. See [`configSchema`](src/automation-domain.ts) for the validation rules. Enter the private key and webhook secret only in the corresponding configuration fields; do not commit them to the repository.
+**Required fields:** You can omit the entire `githubApp` object. Once configured, App ID, App slug, Private key and Public API origin are required. Webhook secret is optional; omitted, null, empty or whitespace-only values are treated as unset. A nonblank secret must contain at least 32 characters and is preserved exactly as entered. See [`configSchema`](src/automation-domain.ts) for the validation rules. Enter the private key and webhook secret only in the corresponding configuration fields; do not commit them to the repository.
+
+Saving without a webhook secret does not enable unsigned deliveries: webhook requests are rejected until a matching secret is configured in GitHub and Xpert. Manual reviews and trials remain available subject to their normal account, App and model requirements.
 
 Use `https://api.example.com` for Xpert's **Public API origin** and `https://api.example.com/api/code_review/github/webhook` for GitHub's **Webhook URL**.
 
@@ -69,7 +71,7 @@ By default, automation is paused and delivery requires confirmation. Once enable
 
 - Check the GitHub App's webhook delivery history to confirm that requests reach the configured URL. The plugin returns HTTP `202` for valid deliveries. This confirms webhook handling, not completion of the model review or comment publication.
 - In Code Review, check the repository's **Last event** timestamp and inbox records, then inspect the trial or event-triggered review result. New-commit events wait at least 30 seconds to combine consecutive pushes.
-- If the configuration cannot be saved, check the actual lowercase slug, complete PEM contents, secret length and missing fields. For signature errors, verify that both webhook secrets match and that the host retains `request.rawBody` for signature verification.
+- If the configuration cannot be saved, check the actual lowercase slug, complete PEM contents, missing required fields and secret length if a secret is provided. For signature errors, configure matching webhook secrets in GitHub and Xpert and verify that the host retains `request.rawBody` for signature verification.
 - If a repository cannot be added, check the GitHub account connection, the user's write/admin permission, the App's repository access and its permissions separately. If events arrive without a review, check whether rules are enabled, branch filters, draft or bot-authored PR status, daily quota, and Assistant and model availability.
 
 See [Automatic PR review](docs/automation.mdx) for publication behavior, queue requirements and failure recovery.

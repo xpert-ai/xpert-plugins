@@ -9,11 +9,13 @@ export const configSchema = z.object({
     appId: z.string().regex(/^\d+$/),
     slug: z.string().regex(/^[a-z0-9][a-z0-9-]*$/),
     privateKey: z.string().min(1),
-    webhookSecret: z.string().min(32),
+    webhookSecret: z.string().nullish()
+      .transform(value => value?.trim() ? value : undefined)
+      .pipe(z.string().min(32).optional()),
     publicBaseUrl: z.string().url()
   }).strict().optional()
 }).strict()
-export type Config = z.infer<typeof configSchema>
+export type Config = z.input<typeof configSchema>
 
 export { policySettingsSchema, defaultPolicy, runStatusSchema } from './automation-contract.js'
 export type { PolicySettings, RunStatus } from './automation-contract.js'
