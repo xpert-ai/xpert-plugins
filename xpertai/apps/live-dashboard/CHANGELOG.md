@@ -1,5 +1,18 @@
 # @xpert-ai/plugin-live-dashboard
 
+## 0.1.4
+
+### Patch Changes
+
+- 3afcd71: Use canonical Analytics sources: database connections, immutable Definitions and script Artifacts. Move the five native Providers out of DataSource Types, expose their configuration entries and update Live Dashboard authoring, rendering and sharing. Requires published platform Contracts/SDK 3.26.1 containing the canonical Analytics API; no historical Binding decoder or migration is included.
+
+  Generate Files/REST/MCP/data-xpert Definitions through the Live Dashboard Agent using authorized input discovery, actual-data validation and immutable registration receipts.
+
+  Fix dashboard viewer parsing of canonical Definition and Artifact source references so Agent-generated drafts can be opened, filtered and published.
+
+- f9633aa: Fix missing live dashboard Workbench icons by using a self-contained SVG identity icon for tabs and menus. Reuse the same design for middleware tools and resource cards without depending on host icon fonts.
+- f1b700d: Require published SDK and Contracts 3.26.1 and pin development builds to the same release. Use the canonical Analytics, integration permission, Connector scope and connection command contracts instead of local SDK type extensions or platform dependency overlays. Preserve authorization checks for optional host capabilities and existing configuration migration behavior.
+
 ## 0.1.3
 
 ### Patch Changes
