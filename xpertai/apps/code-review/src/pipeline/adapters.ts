@@ -27,6 +27,7 @@ export class LocalReviewSubjectAdapter {
     return subject
   }
   checkCurrent(c: ProjectPipelineContext, version: ProjectPipelineSubjectVersion) { return this.service.current(c, version) }
+  resolveEntry(c: ProjectPipelineContext, objectKey: string) { return this.service.entry(c, objectKey) }
 }
 @Injectable() @Adapter('operation', refs.archive)
 export class ReviewArchiveAdapter {
@@ -41,6 +42,7 @@ export class ReviewSubjectAdapter {
   constructor(private readonly service: ReviewPipelineService) {}
   resolve(c: ProjectPipelineContext, key: string) { return this.service.subject(c, key) }
   checkCurrent(c: ProjectPipelineContext, version: ProjectPipelineSubjectVersion) { return this.service.current(c, version) }
+  resolveEntry(c: ProjectPipelineContext, objectKey: string) { return this.service.entry(c, objectKey) }
 }
 @Injectable() @Adapter('evidence', refs.evidence)
 export class ReviewEvidenceAdapter {

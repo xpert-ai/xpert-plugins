@@ -134,6 +134,20 @@ for (const layout of ['empty', 'orm-precreated'] as const) test(`Code Review pip
   })
   await service.attach(s, { id: root.id, revision: root.revision, projectId, requestId: randomUUID(),
     assistants: { correctness: randomUUID(), security: randomUUID(), verifier: randomUUID() }, parameters })
+  const pipelineRoot = await service.root({ projectId, actor }, root.id)
+  assert.deepEqual(pipelineRoot.scope.runtime, { projectId })
+  assert.equal(pipelineRoot.scope.userId, actor.userId)
+  assert.equal(pipelineRoot.scope.assistantId, s.assistantId)
+  await t.test('opens only the authorized review in its registered Workbench view', async () => {
+    assert.deepEqual(await service.entry({ projectId, actor }, root.id), {
+      xpertId: s.assistantId, viewKey: 'code_review.provider__code_review.workspace', selectionId: root.id
+    })
+    await assert.rejects(service.entry({ projectId: randomUUID(), actor }, root.id))
+    await assert.rejects(service.entry({ projectId, actor: { ...actor, userId: randomUUID() } }, root.id))
+    permitted = false
+    await assert.rejects(service.entry({ projectId, actor }, root.id), /project_access_revoked/)
+    permitted = true
+  })
   const subject = await service.subject({ projectId, actor }, root.id)
   const work = { instanceId: randomUUID(), runId: randomUUID(), roundId: randomUUID(), nodeInstanceId: randomUUID(), operationId: randomUUID(),
     inputDigest: digest([subject]), generation: 1 }
