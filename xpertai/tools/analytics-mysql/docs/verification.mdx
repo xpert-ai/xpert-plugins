@@ -1,0 +1,69 @@
+---
+title: "Verification and compatibility"
+description: "Separate provider, real-database, lifecycle and application acceptance."
+---
+
+## Build prerequisites
+
+Development dependencies pin published SDK/contracts 3.25.0, which export AnalyticsProvider,
+AnalyticsQueryProvider, AnalyticsDiscoveryResult and DataSourceRuntimeCapability. No local
+platform links are required. The host must provide the corresponding runtime capabilities.
+
+From the xpertai workspace:
+
+```sh
+corepack pnpm exec nx run @xpert-ai/plugin-analytics-mysql:test
+corepack pnpm exec nx run @xpert-ai/plugin-analytics-mysql:typecheck
+```
+
+From the plugin repository:
+
+```sh
+node scripts/check-plugin-metadata.mjs --package xpertai/tools/analytics-mysql
+node plugin-dev-harness/dist/index.js --workspace ./xpertai --plugin @xpert-ai/plugin-analytics-mysql
+node plugin-dev-harness/dist/index.js --workspace ./xpertai --plugin @xpert-ai/plugin-mysql
+```
+
+Unit tests cover both explicit engines, current-viewer scoping, paged discovery, comments
+and table models, repeated nullable filters, injection-like values, ambiguous placeholders,
+precision, timezone handling, partial/empty results, errors, cancellation and cleanup.
+Driver regression tests cover early close without a handshake, exact wire values and timeout.
+Inspect the actual packed artifact for `dist`, entrypoint and docs before deployment.
+
+## Real engines
+
+The opt-in `tests/database.integration.cjs` reads the path in
+`XPERT_MYSQL_ANALYTICS_TEST_CONFIG`. Keep this private JSON file outside the repository:
+
+```json
+{
+  "adapterModule":"/absolute/path/to/built/mysql/dist/lib/mysql-workbench.js",
+  "sources":[
+    {"engine":"mysql","options":{"host":"localhost","port":3306,"username":"readonly","password":"SECRET","catalog":"analytics_acceptance"}},
+    {"engine":"doris","options":{"host":"localhost","port":9030,"username":"readonly","password":"SECRET","catalog":"analytics_acceptance"}}
+  ]
+}
+```
+
+Use isolated test databases and SELECT-only principals. The `orders` fixture has
+`order_id`, `ordered_at`, `region`, `status`, `paid_amount`, `refund_amount`; amounts are
+DECIMAL(20,2), with CNY in the column comments. Doris uses DUPLICATE KEY with single-replica
+local test settings. The nine rows are documented in `tests/fixture.sql`; create the table
+using that engine's DDL, then insert those rows. Administrative fixture writes are separate
+from the read-only provider. The test itself performs no fixture mutations.
+
+```sh
+XPERT_MYSQL_ANALYTICS_TEST_CONFIG=/private/test-config.json corepack pnpm exec nx run @xpert-ai/plugin-analytics-mysql:test:integration
+```
+
+Without the variable the real-engine test explicitly skips. With it, assertions verify
+discovery, net sales 5,700 CNY, west 2,200 CNY, ignored cancelled/out-of-quarter orders,
+nullable filtering, injection-as-data, partial/empty results, exact decimal/int64 and denied
+writes. Real database checks are separate from Agent/browser/SSO acceptance.
+
+## Local deployment
+
+Deploy both packages through the host's authenticated local deployment command at their
+declared scope. The source plugin directories must be allowlisted. Honor restart receipts
+and verify `mysql.sql` / `doris.sql` through the live analytics source API after restart.
+Source capabilities appear only when both the driver and analytics provider are running.
