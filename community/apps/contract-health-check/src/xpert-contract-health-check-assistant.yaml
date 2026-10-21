@@ -1,0 +1,110 @@
+team:
+  name: contract-health-check-assistant
+  type: agent
+  title: 合同智能体检助手
+  description: 面向合同要素抽取、风险审查、条款改写和体检报告摘要的业务助手
+  avatar:
+    emoji:
+      id: shield_check
+    background: rgb(219, 234, 254)
+  options:
+    templateKey: contract-health-check-assistant
+    dataXpert:
+      managedBy: data-xpert
+      templateKey: contract-health-check-assistant
+      assistantKind: business-assistant
+      businessDomain: contract-health-check
+      requiredPlugin: '@xpert-ai/plugin-contract-health-check'
+      requiredPlugins:
+        - '@xpert-ai/plugin-contract-health-check'
+      requiredCapabilities:
+        - contract_health_check
+        - contract-health-check-workbench
+  agentConfig:
+    stateVariables:
+      - name: currentReviewId
+        type: string
+        default: ""
+        description: Current contract review id selected in the workbench
+        operation: null
+    recursionLimit: 10000
+  features:
+    sandbox:
+      enabled: true
+      provider: docker-sandbox
+  version: "1"
+  agent:
+    key: Agent_ContractHealthCheck
+  copilotModel:
+    referencedId: null
+    modelType: llm
+    model: qwen3.6-plus
+    options:
+      context_size: 1000000
+      temperature: 0.2
+      maxRetries: 6
+      max_tokens: 8192
+      top_p: 0.95
+  knowledgebases: []
+  toolsets: []
+  tags: []
+nodes:
+  - type: agent
+    key: Agent_ContractHealthCheck
+    position:
+      x: 860
+      y: 20
+    entity:
+      key: Agent_ContractHealthCheck
+      name: contract-health-check-assistant
+      title: 合同智能体检助手
+      description: 面向合同要素抽取、风险审查、条款改写和体检报告摘要的业务助手
+      avatar:
+        emoji:
+          id: shield_check
+        background: rgb(219, 234, 254)
+      prompt: >
+        你是「合同智能体检」业务助手，服务没有专职法务的中小企业，帮助他们在签署前
+        完成一次结构化、可确认、可保存的合同风险体检。
+
+        你只能基于工作台消息、用户输入和工具结果中提供的合同文本工作。不要编造主体名称、
+        金额、付款条件、违约金比例或任何证据。若缺少 reviewId 或合同正文，请提示用户
+        先在「合同智能体检」工作台新建体检记录并粘贴合同正文。
+
+        体检流程（按顺序执行）：
+        1. 抽取：识别合同主体、金额、付款条款、交付与验收、违约责任、争议管辖、保密、
+           知识产权、解除终止等要素，调用 contract_save_extraction 保存，必须带上 reviewId。
+        2. 审查：对照中小企业常见合同风险清单（付款账期与逾期责任、违约责任是否对等、
+           争议管辖是否不利、验收标准是否模糊、知识产权归属、保密义务、单方解除权等），
+           逐项给出 level（high/medium/low）、clauseRef、title、issue、basis，
+           调用 contract_save_risk_items 保存。
+        3. 改写：对 high/medium 风险给出可直接替换的条款表述，保留原商业意图，
+           调用 contract_save_suggestions 保存，并用 riskTitle 关联对应风险。
+        4. 摘要：给出总体风险评分（0-100，分数越低风险越高）与一页式摘要，
+           调用 contract_save_summary 保存。
+
+        若某个环节无法完成（模型失败、信息不足），调用 contract_report_failure 说明
+        reviewId、stage 和原因，不要伪造结果。摘要环节失败不应阻塞风险与建议的呈现。
+
+        输出使用简洁中文，引用条款位置作为依据，并明确标注需要人工确认或补充的信息。
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+    hash: contract-health-check-agent-v1
+  - type: workflow
+    key: Middleware_ContractHealthCheck
+    position:
+      x: 1160
+      y: 332
+    entity:
+      type: middleware
+      key: Middleware_ContractHealthCheck
+      title: Contract Health Check Tools
+      provider: ContractHealthCheckMiddleware
+      required: true
+    hash: contract-health-check-middleware-v1
+connections:
+  - type: workflow
+    key: Agent_ContractHealthCheck/Middleware_ContractHealthCheck
+    from: Agent_ContractHealthCheck
+    to: Middleware_ContractHealthCheck
