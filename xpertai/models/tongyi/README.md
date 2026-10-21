@@ -86,6 +86,18 @@ Choose `qwen3-asr-flash` as a `speech2text` model using your existing Tongyi cre
 
 This adapter returns the completed transcript, supports cancellation and a 120-second request deadline, and preserves provider-reported usage when present without inventing missing counts or pricing. It does not provide speaker identification, word timestamps or streaming transcription. Verify source audio and transcript quality before relying on a generated summary.
 
+### 修复已保存的 Paraformer 文件转写配置
+
+旧版 `paraformer-v2.yaml` 将模型 ID 错写为 `paraformer-realtime-v2`，导致文件转写请求使用实时模型。修正后的目录使用 `paraformer-v2`；插件不转换旧模型 ID，也不自动修改已保存的 Assistant。
+
+1. 更新并加载修正后的 Tongyi 插件，确认语音转文字模型列表中出现 `paraformer-v2`。
+2. 在原组织、原工作空间打开现有 Meetings Assistant 的 Studio，进入「功能 → 语音转文字 → 设置」，选择原 Tongyi 提供商下的 `paraformer-v2`。对应配置为 `features.speechToText.copilotModel.model`；保留正确的提供商绑定及其他配置。
+3. 保存并重新发布该 Assistant。转写服务读取已发布版本，仅保存草稿或更新插件目录不会修复运行中的配置。若已有其他未发布修改，发布前一并审核。
+4. 回到 Meetings，打开失败会议并点击「重试处理」。此操作重新排队，使用同一 Assistant 的当前已发布语音模型及保留的音频；已完成的转写检查点会复用。它与「重试上传」不同，后者只补传桌面缓存。
+5. 确认会议出现转写和纪要并完成处理。对其他误存该模型 ID 的 Assistant 重复配置和发布步骤。音频已过期或被删除的会议无法靠修改模型恢复。
+
+保留原 Assistant 和会议，不需要重建应用、手工修改会议状态或清理任务队列。
+
 ### Realtime setup
 
 Set **API Host** to your actual Model Studio workspace host in Beijing or Singapore, such as `YOUR_WORKSPACE.cn-beijing.maas.aliyuncs.com` or `YOUR_WORKSPACE.ap-southeast-1.maas.aliyuncs.com`. Replace `YOUR_WORKSPACE` with the value supplied by Model Studio, then select `qwen3.8-omni-flash-realtime` in a realtime-enabled Xpert AI experience.

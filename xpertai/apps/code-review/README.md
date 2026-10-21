@@ -15,7 +15,7 @@ Automatic reviews require three steps: an administrator configures the GitHub Ap
 - Install `@xpert-ai/plugin-github-connector` in the application's organization to connect users' GitHub accounts. Select the plugin installation scope separately from the application's organization and workspace scope.
 - Provide a public HTTPS API origin, such as `https://api.example.com`, that GitHub can reach. Route the webhook path below to the Xpert backend. GitHub cannot deliver events directly to `localhost`.
 
-For manual viewing and AI review of public PRs, you can omit the entire `githubApp` configuration. Private repository access and manual GitHub review submission still require a GitHub connection in the current workspace.
+For manual viewing and AI review of public PRs, you can leave the plugin configuration empty. Private repository access and manual GitHub review submission still require a GitHub connection in the current workspace.
 
 ### 2. Set up the GitHub App
 
@@ -29,7 +29,7 @@ In your GitHub account or organization, open **Settings → Developer settings �
    https://api.example.com/api/code_review/github/webhook
    ```
 
-   Replace the example domain with your public API domain. For webhook-triggered reviews, create a random **Webhook secret** of at least 32 characters and enter the same value in GitHub and the Xpert plugin configuration. You can leave the secret empty to save the plugin configuration while preparing the integration, but webhook deliveries will be rejected until a secret is configured. To generate a 64-character secret locally:
+   Replace the example domain with your public API domain. For webhook-triggered reviews, create a random **Webhook secret** of at least 32 characters and enter the same value in GitHub and the GitHub system integration. You can leave the secret empty to save the integration while preparing setup, but webhook deliveries will be rejected until a secret is configured. To generate a 64-character secret locally:
 
    ```sh
    openssl rand -hex 32
@@ -38,27 +38,36 @@ In your GitHub account or organization, open **Settings → Developer settings �
 4. Under **Repository permissions**, set **Contents: Read-only** and **Pull requests: Read & write**. Under **Subscribe to events**, select **Pull request**.
 5. Use **Install App** to install the App on the target account or organization and grant access to the repositories you want to review.
 
-### 3. Configure the Xpert plugin
+### 3. Configure one GitHub system integration
 
-Open **Plugins → Code Review → Configuration**, expand **GitHub App for automatic reviews**, and fill in the following fields:
+Open **Settings → System Integration** at **tenant scope** in the Default tenant where the system plugin is installed. Create or edit a `github` integration for this App:
 
-| Field | Configuration key | Value |
-| --- | --- | --- |
-| App ID | `githubApp.appId` | The numeric App ID from the GitHub App settings page. Do not use the Client ID or Installation ID. |
-| App slug | `githubApp.slug` | Copy the last segment of the App's public URL. For `https://github.com/apps/example-review-bot`, enter `example-review-bot`. Only lowercase letters, digits and hyphens are accepted, with a letter or digit first. Do not enter a display name containing uppercase letters, spaces or periods. |
-| Private key (PEM) | `githubApp.privateKey` | Paste the complete contents of the downloaded `.pem` file, including `-----BEGIN RSA PRIVATE KEY-----` and its matching end line. Enter the file contents, not its path or a Client Secret. |
-| Webhook secret (optional) | `githubApp.webhookSecret` | May be omitted or left blank when saving. For webhook-triggered reviews, enter the exact same secret configured in the GitHub App, at least 32 characters long. |
-| Public API origin | `githubApp.publicBaseUrl` | Your public HTTPS API origin, such as `https://api.example.com`, without `/api` or the webhook path. |
+| Integration option | Value |
+| --- | --- |
+| `appName` | A display name for the App. |
+| `appSlug` | The lowercase URL identifier from `https://github.com/apps/<slug>`, not the display name. |
+| `appId` | The numeric GitHub App ID, not the Client ID or Installation ID. |
+| `clientId` / `clientSecret` | The same App's OAuth Client ID and Client Secret. |
+| `privateKey` | The complete PEM contents, including the BEGIN/END lines; not a file path. |
+| `webhookSecret` | The same secret configured in GitHub, at least 32 characters. Optional while preparing setup; required to accept webhook events. |
 
-**Required fields:** You can omit the entire `githubApp` object. Once configured, App ID, App slug, Private key and Public API origin are required. Webhook secret is optional; omitted, null, empty or whitespace-only values are treated as unset. A nonblank secret must contain at least 32 characters and is preserved exactly as entered. See [`configSchema`](src/automation-domain.ts) for the validation rules. Enter the private key and webhook secret only in the corresponding configuration fields; do not commit them to the repository.
+Configure the App's **User authorization callback URL** as `https://api.example.com/api/connector/oauth/callback` and its **Webhook URL** as `https://api.example.com/api/code_review/github/webhook`. Set the host's `API_BASE_URL` to the public API origin. OAuth authorization and App installation are different grants for this one App.
 
-Saving without a webhook secret does not enable unsigned deliveries: webhook requests are rejected until a matching secret is configured in GitHub and Xpert. Manual reviews and trials remain available subject to their normal account, App and model requirements.
+Then open **Plugins → Code Review → Configuration** and select that **GitHub system integration**. The plugin stores only this reference:
 
-Use `https://api.example.com` for Xpert's **Public API origin** and `https://api.example.com/api/code_review/github/webhook` for GitHub's **Webhook URL**.
+```json
+{
+  "githubIntegrationId": "00000000-0000-4000-8000-000000000001"
+}
+```
+
+Replace the example UUID with the integration selected in the UI. All organizations using this system plugin must belong to its installation tenant; organization-scoped and other-tenant integrations are not eligible. An unavailable or incomplete selected integration stops automatic reviews; the plugin never searches for a replacement.
+
+The integration may be saved without a webhook secret, but signed and unsigned webhook deliveries are both rejected until a secret is configured. Blank secret fields on an existing integration preserve the saved value; enter a new value to rotate it. Credentials are resolved again for each operation, so key/secret rotations do not require copying them into the plugin. Never commit credentials to source control.
 
 ### 4. Connect repositories and enable rules
 
-1. In Code Review, open **Connect repositories** and click **Connect GitHub**. Complete the platform's OAuth or token dialog. OAuth requires an administrator to configure the GitHub integration's Client ID and Client Secret; these belong to the account connection settings, not the App private key field above. The current connection is shared within the workspace.
+1. In Code Review, open **Connect repositories** and click **Connect GitHub**. Complete the platform's OAuth dialog, which is pinned to the selected system integration. Automatic repository setup requires GitHub App OAuth from that integration. PATs remain available for manual connector use. The current connection is shared within the workspace.
 2. Confirm that the connected account has write or admin permission on the target repository and that the GitHub App is installed with access to it. The account connection verifies the user's repository permissions; the App installation receives events and publishes reviews. Both are required.
 3. Enter `owner/repository`, click **Add repository**, and open **Configure rules**.
 4. Enter the number of an existing open, non-draft PR and click **Try review (no publishing)**. Trials consume model usage and save results privately without publishing to GitHub.
@@ -71,15 +80,42 @@ By default, automation is paused and delivery requires confirmation. Once enable
 
 - Check the GitHub App's webhook delivery history to confirm that requests reach the configured URL. The plugin returns HTTP `202` for valid deliveries. This confirms webhook handling, not completion of the model review or comment publication.
 - In Code Review, check the repository's **Last event** timestamp and inbox records, then inspect the trial or event-triggered review result. New-commit events wait at least 30 seconds to combine consecutive pushes.
-- If the configuration cannot be saved, check the actual lowercase slug, complete PEM contents, missing required fields and secret length if a secret is provided. For signature errors, configure matching webhook secrets in GitHub and Xpert and verify that the host retains `request.rawBody` for signature verification.
+- If setup fails, check the integration reference, its App ID, lowercase slug, complete PEM, OAuth credentials and secret length. An existing connection with another integration, a PAT, or no recorded OAuth application identity must be disconnected in workspace connector settings and reauthorized using **Connect GitHub**. This shared connection is never silently replaced. For signature errors, configure matching webhook secrets in GitHub and Xpert and verify that the host retains `request.rawBody` for signature verification.
 - If a repository cannot be added, check the GitHub account connection, the user's write/admin permission, the App's repository access and its permissions separately. If events arrive without a review, check whether rules are enabled, branch filters, draft or bot-authored PR status, daily quota, and Assistant and model availability.
 
 See [Automatic PR review](docs/automation.mdx) for publication behavior, queue requirements and failure recovery.
 
+Code Review resolves the configured integration through the built-in
+`INTEGRATION_PERMISSION_SERVICE_TOKEN` and `IntegrationPermissionService.readConfiguration(id)`.
+The host checks the plugin's declared access and configuration tenant/organization scope.
+Code Review validates the returned GitHub identity and retains its review execution scope
+checks. Webhook payloads never select the configuration scope. No plugin-specific CQRS
+query is required.
+
+The **Connect GitHub** action requests the generic `workspace.connector.connect`
+command with `provider: 'github'`, `authMethodId: 'github-app-oauth'`, and the configured
+`integrationId`. The platform validates the Connector's declared capabilities and
+pins the authorized method and integration in its dialog. GitHub-specific method
+selection and error guidance belong to this plugin; the host supports the same
+constraints for other Connectors, including API key methods. An active or pending
+shared connection with different credentials must be resolved explicitly in the
+workspace Connector settings.
+
+## Upgrade from inline GitHub App configuration
+
+1. Upgrade the platform (host configuration-read capability, system integration schema and host connection dialog), then GitHub Connector and Code Review. The new reference mode requires these host capabilities; upgrading only the plugins is insufficient.
+2. Before starting the upgraded plugin against an existing database, apply [`20261021-github-system-integration.sql`](migrations/20261021-github-system-integration.sql), or let the host synchronize the two nullable repository columns. The migration is idempotent and does not backfill an identity.
+3. Copy the legacy App values into the intended GitHub system integration, including the OAuth credentials for that **same App**. Select it in Code Review configuration. Saving the selection removes the legacy `githubApp` copy. Legacy configuration remains supported only until a reference is selected; an invalid reference never falls back to it.
+4. Reauthorize the shared Connector if prompted. The connector records the integration and OAuth Client ID from the actual authorization. Changing the integration's Client ID invalidates that proof even if its integration ID stays the same.
+5. Open each existing repository's rules and save with automation enabled to revalidate its installation and pin the integration and App ID. Pending runs from the previous policy revision are cancelled; trial/retry creates a run using the current binding. Changing App identity requires revalidation; switching to a different installation requires an explicit ownership migration.
+6. Redeliver a GitHub event and inspect the review inbox. The webhook endpoint and one-owner-per-installation/repository rule remain unchanged. Rotate webhook secrets in GitHub and System Integration together; events signed with the previous secret are rejected.
+
+For rollback, pause automatic reviews first, retain the additive database columns, and restore a compatible plugin configuration and Connector authorization. No automated migration or rollback copies secrets between tenants.
+
 ## Build and test
 
 Code Review requires published `@xpert-ai/contracts` and `@xpert-ai/plugin-sdk`
-3.25.0 or newer for the Project Pipeline API. Development dependencies are pinned
+3.25.0 or newer for the Project Pipeline API. Reference mode additionally requires the platform changes described above (the host configuration-read capability and pinned integration connect flow). Development dependencies are pinned
 to 3.25.0 in the workspace lockfile. No adjacent platform checkout or local SDK
 link is required.
 
@@ -97,4 +133,16 @@ and delivery tests. Without it, those tests are skipped. Tests create isolated
 schemas and remove them on completion. Verify the built plugin's lifecycle
 locally by following [`plugin-dev-harness`](../../../plugin-dev-harness/README.md).
 
+Run `node apps/code-review/scripts/automation-acceptance.mjs` with the same dedicated database URL for signed webhook ingestion, real App/Connector resolution, single-owner routing and publication checks against fixture GitHub/model transports.
+
 Install with the platform `plugin:deploy:local` command. Initialize the application from the catalog with an existing model. Public PR reads need no connector; private repositories and GitHub submission require the scoped GitHub connector.
+
+### Host configuration-read capability
+
+Integration references require the host's `integration.readConfiguration(id)` capability.
+The host binds it to the plugin installation scope, checks declared integration access
+and resolves system configuration in the Default tenant. Code Review supplies only the
+Integration ID and does not require configuration-tenant metadata in `PluginContext`.
+Upgrade the host before this plugin. If the capability is unavailable, configuration
+references fail closed; they never fall back to the legacy `read(id)` lookup. Legacy
+inline App configuration remains supported during migration.

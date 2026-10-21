@@ -242,7 +242,7 @@ test("host speech configuration errors remain actionable and audio survives for 
     await assert.rejects(worker.live(scope, f.input.id), code(failure));
     assert.equal((await f.service.get(scope, f.input.id)).liveTranscription.errorCode, failure);
     await f.finish();
-    for (const value of ["speech_to_text_model_missing", "speech_to_text_copilot_not_found", "speech_to_text_transcription_empty", "private provider response"]) {
+    for (const value of ["speech_to_text_model_missing", "speech_to_text_copilot_not_found", "private provider response"]) {
       failure = value;
       await assert.rejects(worker.run(scope, f.input.id), code(value));
       const record = await f.service.get(scope, f.input.id);

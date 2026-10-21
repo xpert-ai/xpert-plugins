@@ -162,7 +162,7 @@ export class GitHubConnectorStrategy implements ConnectorMultiAuthStrategy {
     return {
       status: 'pending',
       authorizationUrl: authorizationUrl.toString(),
-      metadata: { codeVerifier, integrationId: app.integrationId }
+      metadata: { codeVerifier, integrationId: app.integrationId, oauthClientId: app.clientId }
     }
   }
 
@@ -173,6 +173,7 @@ export class GitHubConnectorStrategy implements ConnectorMultiAuthStrategy {
       ? await this.resolveGitHubApp(integrationId, input.scope)
       : readLegacyApp(input.values) ?? (await this.resolveGitHubApp())
     const codeVerifier = requireString(input.metadata?.codeVerifier, 'GitHub OAuth PKCE verifier is missing')
+    assertOriginalApplication(readString(input.metadata?.oauthClientId), app)
     const token = await requestGitHubToken({
       client_id: app.clientId,
       client_secret: app.clientSecret,
@@ -191,6 +192,7 @@ export class GitHubConnectorStrategy implements ConnectorMultiAuthStrategy {
       ? await this.resolveGitHubApp(integrationId, input.scope)
       : readLegacyApp(input.credential.data) ?? (await this.resolveGitHubApp())
     const refreshToken = requireString(input.credential.data.refreshToken, 'GitHub refresh token is missing')
+    assertOriginalApplication(readString(input.credential.data.oauthClientId), app)
     const token = await requestGitHubToken({
       client_id: app.clientId,
       client_secret: app.clientSecret,
@@ -213,6 +215,9 @@ export class GitHubConnectorStrategy implements ConnectorMultiAuthStrategy {
     }
     return {
       accessToken: requireString(input.credential.data.accessToken, 'GitHub connector access token is missing'),
+      ...(input.authMethodId === 'github-app-oauth' && readString(input.credential.data.integrationId)
+        ? { integrationId: readString(input.credential.data.integrationId),
+          ...(readString(input.credential.data.oauthClientId) ? { oauthClientId: readString(input.credential.data.oauthClientId) } : {}) } : {}),
       tokenType: requireString(input.credential.data.tokenType, 'GitHub connector token type is missing'),
       resource: 'https://api.githubcopilot.com/mcp/'
     }
@@ -376,7 +381,7 @@ function toOAuthCredential(
   return {
     data: {
       ...(app.integrationId
-        ? { integrationId: app.integrationId }
+        ? { integrationId: app.integrationId, oauthClientId: app.clientId }
         : { clientId: app.clientId, clientSecret: app.clientSecret }),
       accessToken: token.accessToken,
       tokenType: token.tokenType,
@@ -386,6 +391,10 @@ function toOAuthCredential(
     refreshExpiresAt: toExpiresAt(token.refreshTokenExpiresIn),
     profile
   }
+}
+
+function assertOriginalApplication(clientId: string | undefined, app: ResolvedGitHubApp) {
+  if (clientId && clientId !== app.clientId) throw new Error('GitHub application changed; reconnect the workspace connector')
 }
 
 function requireGitHubOAuthMethod(authMethodId: string) {

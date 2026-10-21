@@ -9,6 +9,7 @@ import { CONTEXT, QUEUE, pullEventSchema, triggerDecision, verifyWebhook, type R
 import { PLUGIN, ReviewError, idSchema, parsePullUrl, type Scope } from './domain.js'
 import { Reviews } from './backend.js'
 import { Repositories } from './repositories.js'
+import { assertGitHubRepositoryApplication } from './github-integration.js'
 
 const pending: RunStatus[] = ['queued', 'running', 'publishing', 'awaiting_confirmation']
 const logger = new Logger('CodeReviewAutomation')
@@ -39,10 +40,11 @@ export class Automation {
       where: { tenantId: s.tenantId, organizationId: s.organizationId, assistantId: s.assistantId, repositoryPolicyId: In(repositories.map(p => p.id)), ...(status ? { status } : {}) },
       order: { createdAt: 'DESC' }, take: 20, skip: (page - 1) * 20
     }) : [[], 0]
-    return { repositories, runs, total, page, app: this.repositories.app.status(), workspaceId: s.workspaceId }
+    return { repositories, runs, total, page, app: await this.repositories.app.status(s), workspaceId: s.workspaceId }
   }
   async receive(raw: Buffer | undefined, signature: string | undefined, deliveryId: string, event: string) {
-    verifyWebhook(raw, signature, this.repositories.app.config()?.webhookSecret)
+    const application = await this.repositories.app.config()
+    verifyWebhook(raw, signature, application?.webhookSecret)
     if (!/^[\w-]{1,100}$/.test(deliveryId) || !/^[a-z_]{1,80}$/.test(event)) throw new ReviewError('invalid_webhook_headers')
     const bytes = raw! // verified above
     const digest = createHash('sha256').update(bytes).digest('hex')
@@ -50,9 +52,11 @@ export class Automation {
     const payload = pullEventSchema.parse(JSON.parse(bytes.toString('utf8')))
     const p = await this.repositories.records.findOneBy({ installationId: String(payload.installation.id), repositoryId: String(payload.repository.id) })
     if (!p) return { accepted: true, ignored: true }
+    if (application?.tenantId && application.tenantId !== p.tenantId) throw new ReviewError('github_integration_unavailable')
     await this.runs.manager.transaction(async manager => {
       // Serialize policy changes, webhook deduplication and daily quota claims across API processes.
       const locked = await manager.findOneOrFail(ReviewRepository, { where: { id: p.id }, lock: { mode: 'pessimistic_write' } })
+      assertGitHubRepositoryApplication(application!, locked)
       const previous = await manager.findOneBy(ReviewDelivery, { deliveryId })
       if (previous) {
         if (previous.digest !== digest) throw new ReviewError('delivery_payload_mismatch')

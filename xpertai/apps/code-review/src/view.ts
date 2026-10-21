@@ -45,6 +45,7 @@ export class ReviewView implements IXpertViewExtensionProvider {
   async getViewData(c: XpertResolvedViewHostContext, viewKey: string, q: XpertViewQuery) {
     if (viewKey !== VIEW) throw new ReviewError('view_not_found')
     const s = scope(c), page = z.number().int().min(1).max(50).parse(q.page ?? 1)
+    if (q.parameters?.githubConnection) return { items: [], meta: { connection: await this.automation.repositories.app.connection(s) } }
     if (q.parameters?.automation) return { items: [], meta: await this.automation.overview(s, page, q.parameters.status ? runStatusSchema.parse(q.parameters.status) : undefined) }
     if (q.selectionId) return { items: [], meta: { detail: reviewDto(await this.reviews.reconcile(s, idSchema.parse(q.selectionId))) } }
     if (q.parameters?.inbox) return (await this.reviews.github(s, 'connected')).inbox(z.enum(['requested', 'authored']).parse(q.parameters.inbox), page)
