@@ -9,4 +9,6 @@
 "@xpert-ai/plugin-analytics-workspace-script": patch
 ---
 
-Enable public npm distribution for Live Dashboard and the analytics providers with repository metadata for trusted publishing. Require published SDK/contracts 3.25.0 and pin development dependencies to that version so clean builds resolve the runtime capabilities used by the plugins, including the MCP client API. Move the packages into the xpertai workspace and consume the published Data Analytics renderer without cross-workspace links.
+Publish the first patch release of Live Dashboard and the analytics providers through the GitHub Actions `release-plugin.yml` trusted publisher after the manual npm 0.1.0 bootstrap release.
+
+Ship the packages from the xpertai workspace with repository metadata for trusted publishing, published SDK/contracts 3.25.0, and the published Data Analytics renderer. Clean builds resolve the required runtime capabilities without local platform or cross-workspace links.
