@@ -1,15 +1,16 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
+import { Brackets, In, Repository } from 'typeorm'
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod/v3'
 import {
-  AssistantTaskRuntimeCapability, ConnectorRuntimeCapability, XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN,
+  ProjectAccessRuntimeCapability, AssistantTaskRuntimeCapability, ConnectorRuntimeCapability, XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN,
   XPERT_RUNTIME_CAPABILITIES_TOKEN, type RuntimeCapabilityRegistry, type PluginContext, type AgentMiddlewareRuntimeServiceApi
 } from '@xpert-ai/plugin-sdk'
+import { ReviewPipelineBinding } from './pipeline/entity.js'
 import { Review } from './entity.js'
 import { localGitImportSchema, localGitSourcesSchema, type LocalGitImport } from './local-git.js'
-import { digest } from './pipeline/contract.js'
+import { digest, reviewAgentContextSchema } from './pipeline/contract.js'
 import { GitHub } from './github.js'
 import { Repositories } from './repositories.js'
 import type { ReviewRun, ReviewRepository } from './automation-entities.js'
@@ -54,8 +55,13 @@ export class Reviews {
     }
     catch { throw new ReviewError('github_auth_required') }
   }
-  private recordGithub(s: Scope, r: Review) {
-    return r.automationPolicyId ? this.repositories.github(s, r.automationPolicyId) : this.github(s, r.access)
+  async recordGithub(s: Scope, r: Review) {
+    if (r.pipelineRootReviewId) {
+      const binding = await this.records.manager.findOneByOrFail(ReviewPipelineBinding, { id: r.pipelineRootReviewId })
+      const root = await this.records.findOneByOrFail({ id: binding.currentReviewId ?? binding.id, tenantId: s.tenantId, organizationId: s.organizationId, userId: r.userId })
+      return root.automationPolicyId ? this.repositories.github({ ...s, userId: root.userId, assistantId: root.assistantId }, root.automationPolicyId) : this.github({ ...s, userId: root.userId, assistantId: root.assistantId, workspaceId: binding.workspaceId }, root.access)
+    }
+    return r.automationPolicyId ? this.repositories.github({ ...s, userId: r.userId }, r.automationPolicyId) : this.github(s, r.access)
   }
   async prepareAutomatic(p: ReviewRepository, run: ReviewRun) {
     const existing = await this.records.findOneBy({ ...owner(p), automationRunId: run.id })
@@ -70,13 +76,37 @@ export class Reviews {
     return this.records.save(this.records.create({ ...owner(p), ref, snapshot, access: 'connected', status: 'ready',
       automationPolicyId: p.id, automationRunId: run.id, findings: [], viewed: [], summary: '', instructions: run.settings.instructions }))
   }
+  async guidance(s: Scope, id: string, revision: number, instructions: string) {
+    const r = await this.get(s, id)
+    if (r.pipelineProjectId) {
+      if (r.instructions !== instructions) throw new ReviewError('pipeline_managed_review')
+      return r
+    }
+    this.expected(r, revision)
+    if (r.status !== 'ready' || r.automationRunId) throw new ReviewError('review_not_attachable')
+    return r.instructions === instructions ? r : this.update(s, r, { instructions })
+  }
   async list(s: Scope, page = 1) {
-    const [items, total] = await this.records.findAndCount({ where: owner(s), order: { pinned: 'DESC', updatedAt: 'DESC' }, take: 20, skip: (page - 1) * 20,
+    const projectIds = this.capabilities ? (await this.capabilities.require(ProjectAccessRuntimeCapability).listReadable({ actor: { tenantId: s.tenantId, organizationId: s.organizationId, userId: s.userId } })).map(p => p.projectId) : []
+    const [items, total] = await this.records.findAndCount({ where: [owner(s), ...(projectIds.length ? [{ tenantId: s.tenantId, organizationId: s.organizationId, assistantId: s.assistantId, projectShared: true, pipelineProjectId: In(projectIds) }] : [])], order: { pinned: 'DESC', updatedAt: 'DESC' }, take: 20, skip: (page - 1) * 20,
       select: ['id', 'ref', 'status', 'pinned', 'revision', 'updatedAt', 'summary'] })
     return { items, total, page, pageSize: 20 }
   }
+  /** The workbench uses the same ownership / project visibility boundary as list(). */
+  async visibleQuery(s: Scope) {
+    const projectIds = (await this.capabilities.require(ProjectAccessRuntimeCapability).listReadable({ actor: {
+      tenantId: s.tenantId, organizationId: s.organizationId, userId: s.userId
+    } })).map(p => p.projectId)
+    return this.records.createQueryBuilder('review')
+      .where('review."tenantId" = :tenantId AND review."organizationId" = :organizationId AND review."assistantId" = :assistantId', s)
+      .andWhere(new Brackets(q => {
+        q.where('review."userId" = :userId', s)
+        if (projectIds.length) q.orWhere('review."projectShared" = true AND review."pipelineProjectId" IN (:...projectIds)', { projectIds })
+      }))
+  }
   async get(s: Scope, id: string) {
-    const record = await this.records.findOneBy({ ...owner(s), id })
+    const record = await this.records.findOneBy({ tenantId: s.tenantId, organizationId: s.organizationId, assistantId: s.assistantId, id })
+    if (record && record.userId !== s.userId && (!record.projectShared || !record.pipelineProjectId)) throw new ReviewError('review_not_found')
     if (!record) throw new ReviewError('review_not_found')
     await assertPipelineReviewAccess(this.records.manager, this.capabilities, s, record)
     return record
@@ -119,7 +149,7 @@ export class Reviews {
   async refresh(s: Scope, id: string, revision: number) {
     const r = await this.get(s, id); this.expected(r, revision)
     if (r.ref.provider === 'local_git') throw new ReviewError('local_snapshot_immutable')
-    if (r.pipelineOperationId) throw new ReviewError('pipeline_managed_review')
+    if (r.pipelineProjectId) throw new ReviewError('pipeline_managed_review')
     if (r.automationRunId) throw new ReviewError('automation_managed_review')
     if (active.has(r.status)) throw new ReviewError('review_busy')
     const snapshot = await (await this.recordGithub(s, r)).snapshot(r.ref)
@@ -183,9 +213,21 @@ export class Reviews {
   }
   async evidence(s: Scope, config: unknown) {
     const r = await this.readRecord(s, config)
-    return { id: r.id, headSha: r.snapshot.headSha, baseSha: r.snapshot.baseSha, title: r.snapshot.title, body: r.snapshot.body,
+    const context = r.pipelineContext ? reviewAgentContextSchema.parse(r.pipelineContext) : null
+    return { role: context?.pass ?? null, candidateCount: context?.candidates.reduce((count, item) => count + item.findings.length, 0) ?? 0,
+      id: r.id, headSha: r.snapshot.headSha, baseSha: r.snapshot.baseSha, title: r.snapshot.title, body: r.snapshot.body,
       warnings: r.snapshot.warnings, instructions: r.instructions, checks: r.snapshot.checks, summary: r.summary, findings: r.findings,
       files: r.snapshot.files.map(({ patch, ...f }) => ({ ...f, hasDiff: !!patch })), comments: r.snapshot.comments }
+  }
+  async candidates(s: Scope, config: unknown, offset: number, limit: number) {
+    const r = await this.readRecord(s, config)
+    if (!r.pipelineContext) throw new ReviewError('review_candidates_unavailable')
+    const context = reviewAgentContextSchema.parse(r.pipelineContext)
+    if (context.pass !== 'verify') throw new ReviewError('review_candidates_unavailable')
+    const candidates = context.candidates.flatMap(item => item.findings.map(finding => ({ pass: item.pass, reviewId: item.reviewId, finding })))
+    return { headSha: r.snapshot.headSha, offset, total: candidates.length,
+      reports: context.candidates.map(({ pass, summary }) => ({ pass, summary })),
+      candidates: candidates.slice(offset, offset + limit), next: offset + limit < candidates.length ? offset + limit : null }
   }
   async file(s: Scope, config: unknown, path: string, offset: number, limit: number) {
     const r = await this.readRecord(s, config)

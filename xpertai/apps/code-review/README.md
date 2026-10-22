@@ -4,6 +4,20 @@ Installable Xpert app for GitHub PR review in the right-hand Workbench panel. Bu
 
 See [automatic PR review setup](docs/automation.mdx), [setup and usage](docs/index.mdx), [architecture](docs/architecture.mdx), and [validation](docs/verification.mdx).
 
+## Project type
+
+Create a **Code Review Project** before configuring a review pipeline. Its stable identity is `applicationKey: @xpert-ai/plugin-code-review:code-review`, `projectTypeKey: review`. New Code Review Assistants declare this default project type. PR, lightweight PR and local Git pipeline templates explicitly target this type; they are unavailable in BOM and general projects.
+
+The platform and plugin must be upgraded together to the pipeline contract with required `template.projectTypes`. There is no migration or fallback for old project classifications or saved configurations: create a new Code Review Project and save a new pipeline configuration. Template discovery, configuration saving and pipeline startup validate the project's persisted type on the server.
+
+## Review workbench
+
+The compact toolbar opens GitHub PRs and local Git imports from **New review**. Navigation, the PR queue, and the selected review occupy independently scrolling panes. The navigation and queue can be collapsed for narrow Workbench panels.
+
+The queue combines authorized manual reviews and webhook runs into one row per GitHub PR. Agent child reviews are excluded; **Run history** exposes the authorized root records and their fixed commit versions. Search, repository/status filters, selection and detail tabs are retained through Workbench navigation parameters. An event that was skipped remains inspectable even when no review snapshot exists.
+
+**Open review pipeline** and **Open approval** navigate inside the host Workbench with the saved Project, pipeline instance and round identifiers. Approval and publication remain governed by the existing pipeline. Repository access rules and historical private-run boundaries are unchanged.
+
 ## Configure automatic reviews
 
 Automatic reviews require three steps: an administrator configures the GitHub App, a user connects their GitHub account and grants repository access, and the user enables repository review rules in Code Review. Saving the plugin configuration alone does not enable automatic reviews.
@@ -146,3 +160,7 @@ Integration ID and does not require configuration-tenant metadata in `PluginCont
 Upgrade the host before this plugin. If the capability is unavailable, configuration
 references fail closed; they never fall back to the legacy `read(id)` lookup. Legacy
 inline App configuration remains supported during migration.
+
+## Repository pipeline routing
+
+Repository automation requires an explicit Project and review pipeline. Manual startup and repository rules select a compatible template and its Assistants directly; they save the immutable Project configuration on submission. Reusing an existing configuration is optional. See [setup, templates and migration](docs/automation.mdx). Apply `migrations/20261022-repository-pipelines.sql` before loading this release with external schema management. Historical private reviews are not automatically shared or published.
