@@ -36,7 +36,7 @@ async function fixture() {
         enqueue: async (input: ManagedQueueEnqueueInput) => {
           if (unavailable) throw new Error("queue_unavailable");
           assert.ok(input.jobId);
-          scheduled.set(input.jobId, input);
+          if (!scheduled.has(input.jobId)) scheduled.set(input.jobId, input);
           return { jobId: input.jobId };
         },
       };
@@ -95,15 +95,33 @@ for (const mode of ["live", "final"] as const) {
       assert.equal(wakeup.organizationId, scope.organizationId);
       assert.equal(wakeup.userId, scope.userId);
       assert.equal(wakeup.scopeKey, SYSTEM_GLOBAL_SCOPE);
-      assert.ok(wakeup.delayMs! > 895000 && wakeup.delayMs! <= 900000);
+      assert.ok(wakeup.delayMs! > 897000 && wakeup.delayMs! <= 902000);
       assert.equal(wakeup.attempts, 8);
       assert.deepEqual((await f.store.read(scope, f.id)).processingClaim, orphan);
 
+      // Queue/worker clock skew can deliver a wakeup while its claim is live.
+      // The active ID is retained by the queue, so enqueueing itself is a no-op.
+      const early = { ...f.delivery(mode), id: wakeup.jobId };
+      await f.processor.handle(early, context);
+      await f.processor.handle(early, context);
+      assert.equal(f.scheduled.size, 2, "an early active wakeup creates one distinct successor");
+      const successor = [...f.scheduled.values()][1];
+      assert.notEqual(successor.jobId, wakeup.jobId);
+      await f.processor.handle({ ...early, id: successor.jobId }, context);
+      assert.equal(f.scheduled.size, 3, "successors cannot deduplicate against an active or completed predecessor");
+
       const renewed = { ...orphan, expiresAt: orphan.expiresAt + 60000 };
       await f.store.update(scope, f.id, m => { m.processingClaim = renewed; });
-      await f.processor.handle(f.delivery(mode, 0), context);
-      assert.equal(f.scheduled.size, 2, "renewal leaves a new durable expiry wakeup");
+      await assert.rejects(f.processor.handle(f.delivery(mode, 0), context), { code: "processing_busy" });
+      assert.equal(f.scheduled.size, 4, "renewal leaves a new durable expiry wakeup");
       assert.deepEqual((await f.store.read(scope, f.id)).processingClaim, renewed);
+
+      // Short contention must retain the existing retry cadence, not wait 15 minutes.
+      await f.store.update(scope, f.id, m => { m.processingClaim = null; });
+      if (mode === "live") {
+        await f.processor.handle(f.delivery(mode, 1), context);
+        assert.equal((await f.store.read(scope, f.id)).liveTranscription.status, "listening");
+      }
 
       // Process death leaves the persisted claim behind without running finally.
       await f.store.update(scope, f.id, m => { m.processingClaim = { ...renewed, expiresAt: Date.now() - 1 }; });
@@ -114,7 +132,7 @@ for (const mode of ["live", "final"] as const) {
         assert.equal(completed.processing, "ready");
         assert.equal(completed.summary?.overview, "Recovered summary");
       } else assert.equal(completed.liveTranscription.status, "listening");
-      assert.equal(f.scheduled.size, 2, "recovery stops deferring once the claim expires");
+      assert.equal(f.scheduled.size, 4, "recovery stops deferring once the claim expires");
     } finally { await f.dispose(); }
   });
 }

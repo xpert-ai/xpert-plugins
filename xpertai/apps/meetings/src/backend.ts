@@ -33,6 +33,7 @@ import { CaptureDelivery } from "./capture-delivery.js";
 import { Processing } from "./processing.js";
 import { AssistantWorkflow } from "./assistant-workflow.js";
 import { MeetingDocuments } from "./documents.js";
+import { sha256 } from "./file-store.js";
 
 export const jobSchema = z
   .object({
@@ -154,20 +155,29 @@ export class MeetingsBackend {
       context.config.silenceThresholdDb
     );
   }
-  async deferProcessing(scope: Scope, meetingId: string, mode: "live" | "final") {
+  async deferProcessing(
+    scope: Scope,
+    meetingId: string,
+    mode: "live" | "final",
+    activeJobId?: string
+  ) {
     const meeting = await this.meetings.store.read(scope, meetingId);
     if (meeting.processing === "ready") return;
     const claim = meeting.processingClaim;
+    const wakeupId = claim
+      ? `meeting-${meetingId}-${mode}-${claim.id}-${claim.expiresAt}`
+      : undefined;
     // A busy delivery must leave a durable wakeup, even on its last attempt.
     // The wakeup rechecks ownership normally; a renewed claim is never stolen.
     await this.enqueue(
       scope,
       meetingId,
       mode,
-      Math.max(2000, (claim?.expiresAt ?? 0) - Date.now()),
-      claim
-        ? `meeting-${meetingId}-${mode}-${claim.id}-${claim.expiresAt}`
-        : undefined
+      Math.max(2000, (claim?.expiresAt ?? 0) - Date.now() + 2000),
+      // An early wakeup cannot enqueue itself: queues deduplicate active IDs.
+      wakeupId && activeJobId?.startsWith(wakeupId)
+        ? `${wakeupId}-${sha256(activeJobId)}`
+        : wakeupId
     );
   }
   private async enqueue(
@@ -231,8 +241,11 @@ export class MeetingsProcessor {
         error instanceof MeetingError &&
         error.code === "processing_busy"
       ) {
-        await this.backend.deferProcessing(data.scope, data.meetingId, data.mode);
-        return;
+        await this.backend.deferProcessing(data.scope, data.meetingId, data.mode, job.id);
+        // Keep normal short-contention retries responsive. Only acknowledge an
+        // exhausted delivery once the expiry wakeup has been durably scheduled.
+        if (job.attemptsMade + 1 >= Number(job.opts?.attempts ?? 1)) return;
+        throw error;
       }
       if (
         data.mode === "assistant" &&
