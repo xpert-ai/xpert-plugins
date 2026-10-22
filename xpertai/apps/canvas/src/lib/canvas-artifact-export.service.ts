@@ -59,12 +59,7 @@ export type RequestCanvasArtifactExportInput = {
 
 export type CanvasArtifactExportJobData = { exportId: string }
 
-/** Compatibility extension until every installed Plugin SDK exposes queue ownership fields. */
-export type CanvasArtifactExportJobContext = ManagedQueueJobContext & {
-  tenantId?: string | null
-  organizationId?: string | null
-  userId?: string | null
-}
+export type CanvasArtifactExportJobContext = ManagedQueueJobContext
 
 export type CanvasArtifactExportCapabilities = {
   available: boolean

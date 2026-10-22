@@ -10,7 +10,7 @@ describe('Cut standalone export resource', () => {
   const resolveFile = jest.fn()
   const resolveExportFile = jest.fn()
   const files: WorkspaceFilesApi = {
-    scope, resolveFile, uploadBuffer: jest.fn(), understandFile: jest.fn(), getUnderstandingStatus: jest.fn(),
+    scope, appData: jest.fn(), resolveFile, uploadBuffer: jest.fn(), understandFile: jest.fn(), getUnderstandingStatus: jest.fn(),
     retryUnderstanding: jest.fn(), validateUnderstandingReferences: jest.fn(), listUnderstandingChunks: jest.fn(),
     searchUnderstandingChunks: jest.fn(), readBuffer: jest.fn(), deleteFile: jest.fn(),
     resolveRuntimeReference: jest.fn(), readRuntimeBuffer: jest.fn(), writeRuntimeBuffer: jest.fn()

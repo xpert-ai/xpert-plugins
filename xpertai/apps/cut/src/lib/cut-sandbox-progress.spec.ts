@@ -1,15 +1,15 @@
 import type { SandboxJobSnapshot } from '@xpert-ai/plugin-sdk'
 import { cutTaskProgress, cutTaskStage, readCutSandboxProgress } from './cut-sandbox-progress.js'
 
-describe('Cut Sandbox progress compatibility', () => {
+describe('Cut Sandbox progress', () => {
   it('maps Action progress into the render portion of a Cut task', () => {
     expect(cutTaskProgress(0)).toBe(20)
     expect(cutTaskProgress(0.5)).toBe(55)
     expect(cutTaskProgress(1)).toBe(90)
   })
 
-  it('reads a structured progress snapshot without depending on the new SDK at compile time', () => {
-    const snapshot: SandboxJobSnapshot & { progress: { progress: number; stage: string; current: number; total: number } } = {
+  it('reads a structured progress snapshot using the SDK contract', () => {
+    const snapshot: SandboxJobSnapshot = {
       id: 'job-1',
       runtimeProfile: 'browser/test',
       sandboxRuntimeVersion: '1',

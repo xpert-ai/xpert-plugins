@@ -43,8 +43,6 @@ export const templates: XpertTemplateContribution[] = [
   },
 ];
 const label = (en_US: string, zh_Hans: string) => ({ en_US, zh_Hans });
-// Kept structurally compatible with the SDK release preceding speech-model setup.
-const modelRequirements = { primary: true, speechToText: true };
 export const appContribution: PluginMarketplaceContribution = {
   type: "app",
   name: "meetings",
@@ -64,7 +62,7 @@ export const appContribution: PluginMarketplaceContribution = {
       sharing: "organization",
     },
     knowledgebases: [],
-    modelRequirements,
+    modelRequirements: { primary: true, speechToText: true },
     entry: { type: "assistant-chat" },
     presentation: {
       tagline: label(
