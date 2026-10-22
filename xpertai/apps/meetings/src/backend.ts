@@ -154,11 +154,28 @@ export class MeetingsBackend {
       context.config.silenceThresholdDb
     );
   }
+  async deferProcessing(scope: Scope, meetingId: string, mode: "live" | "final") {
+    const meeting = await this.meetings.store.read(scope, meetingId);
+    if (meeting.processing === "ready") return;
+    const claim = meeting.processingClaim;
+    // A busy delivery must leave a durable wakeup, even on its last attempt.
+    // The wakeup rechecks ownership normally; a renewed claim is never stolen.
+    await this.enqueue(
+      scope,
+      meetingId,
+      mode,
+      Math.max(2000, (claim?.expiresAt ?? 0) - Date.now()),
+      claim
+        ? `meeting-${meetingId}-${mode}-${claim.id}-${claim.expiresAt}`
+        : undefined
+    );
+  }
   private async enqueue(
     scope: Scope,
     meetingId: string,
     mode: "live" | "final" | "assistant",
-    delayMs = 0
+    delayMs = 0,
+    jobId?: string
   ) {
     const now = Date.now();
     // Coalesce watchers into future time buckets: uploads must not create multiplying poll loops.
@@ -175,9 +192,9 @@ export class MeetingsBackend {
         userId: scope.userId,
         scopeKey: SYSTEM_GLOBAL_SCOPE,
         jobId:
-          mode === "assistant"
+          jobId ?? (mode === "assistant"
             ? `meeting-${meetingId}-assistant-${due}`
-            : `meeting-${meetingId}-${randomUUID()}`,
+            : `meeting-${meetingId}-${randomUUID()}`),
         attempts: 8,
         backoffMs: { type: "exponential", delay: 1000 },
         delayMs: mode === "assistant" ? due - now : delayMs,
@@ -209,6 +226,14 @@ export class MeetingsProcessor {
         await this.backend.assistant.tick(data.scope, data.meetingId);
       else await this.backend.processing.run(data.scope, data.meetingId);
     } catch (error) {
+      if (
+        data.mode !== "assistant" &&
+        error instanceof MeetingError &&
+        error.code === "processing_busy"
+      ) {
+        await this.backend.deferProcessing(data.scope, data.meetingId, data.mode);
+        return;
+      }
       if (
         data.mode === "assistant" &&
         job.attemptsMade + 1 >= Number(job.opts?.attempts ?? 1)
