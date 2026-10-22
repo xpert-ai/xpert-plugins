@@ -4,6 +4,7 @@ import type { AxiosRequestConfig, AxiosResponse } from 'axios'
 import { DBProtocolEnum, DBSyntaxEnum } from '@xpert-ai/plugin-sdk'
 import type {
   DBQueryRunner,
+  IDataSourceCapabilityQuery as DataSourceCapabilityQuery,
   HttpAdapterOptions,
   IColumnDef,
   IDSSchema,
@@ -31,16 +32,7 @@ export const XMLA_TYPE = 'xmla'
 export const XMLA_METADATA_CAPABILITY = 'xmla.metadata'
 export const XMLA_METADATA_DISCOVER_OPERATION = 'discover'
 
-/**
- * Generic host query shape, kept local for compatibility with older SDKs.
- * @deprecated Use IDataSourceCapabilityQuery from @xpert-ai/plugin-sdk once the
- * plugin's minimum host SDK version exports that canonical contract.
- */
-export interface DataSourceCapabilityQuery {
-  capability: string
-  operation: string
-  payload?: unknown
-}
+export type { IDataSourceCapabilityQuery as DataSourceCapabilityQuery } from '@xpert-ai/plugin-sdk'
 
 const SOAP_HEADERS = {
   Accept: 'text/xml, application/xml, application/soap+xml',

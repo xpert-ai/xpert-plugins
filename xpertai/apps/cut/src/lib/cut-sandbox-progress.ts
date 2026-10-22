@@ -1,20 +1,7 @@
-import type { SandboxJobSnapshot } from '@xpert-ai/plugin-sdk'
+import type { SandboxJobSnapshot, SandboxJobProgress } from '@xpert-ai/plugin-sdk'
 
-type CompatibleSandboxJobProgress = {
-  progress: number
-  stage?: string
-  current?: number
-  total?: number
-  updatedAt?: Date | string | null
-}
-
-type CompatibleSandboxJobSnapshot = SandboxJobSnapshot & {
-  progress?: CompatibleSandboxJobProgress | null
-}
-
-/** Compatibility reader until the minimum published Plugin SDK includes Sandbox Job progress. */
-export function readCutSandboxProgress(snapshot: SandboxJobSnapshot | null): CompatibleSandboxJobProgress | null {
-  const value = (snapshot as CompatibleSandboxJobSnapshot | null)?.progress
+export function readCutSandboxProgress(snapshot: SandboxJobSnapshot | null): SandboxJobProgress | null {
+  const value = snapshot?.progress
   if (!value || !Number.isFinite(value.progress) || value.progress < 0 || value.progress > 1) return null
   const current = nonNegativeInteger(value.current)
   const total = nonNegativeInteger(value.total)

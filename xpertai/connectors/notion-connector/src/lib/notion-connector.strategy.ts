@@ -6,7 +6,6 @@ import {
   ConnectorStrategyKey,
   INTEGRATION_PERMISSION_SERVICE_TOKEN,
   type ConnectorAuthorizationCodeInput,
-  type ConnectorAppCredentialField,
   type ConnectorConnectInput,
   type ConnectorConnectResult,
   type ConnectorCredential,
@@ -46,13 +45,6 @@ type PendingOAuthMetadata = {
   redirectUri: string
 }
 
-type IntegrationCredentialField = Omit<ConnectorAppCredentialField, 'type'> & { type: 'integration'; provider: string }
-
-// Older published SDK declarations do not yet include the integration form field.
-function integrationCredentialField(field: IntegrationCredentialField) {
-  return field as unknown as ConnectorAppCredentialField
-}
-
 @Injectable()
 @ConnectorStrategyKey(NOTION_CONNECTOR_PROVIDER)
 export class NotionConnectorStrategy implements ConnectorMultiAuthStrategy {
@@ -77,21 +69,13 @@ export class NotionConnectorStrategy implements ConnectorMultiAuthStrategy {
         type: 'oauth2',
         label: { en_US: 'Notion Public OAuth', zh_Hans: 'Notion Public OAuth' },
         appCredentials: {
-          fields: [
-            {
-              ...integrationCredentialField({
-                name: 'integrationId',
-                type: 'integration',
-                provider: NOTION_SYSTEM_INTEGRATION_PROVIDER,
-                required: true,
-                label: { en_US: 'Notion system integration', zh_Hans: 'Notion 系统集成' },
-                description: {
-                  en_US: 'Select the system integration containing the Public OAuth client ID and secret.',
-                  zh_Hans: '选择包含 Public OAuth Client ID 和 Client Secret 的系统集成。'
-                }
-              })
-            }
-          ],
+          integration: {
+            provider: NOTION_SYSTEM_INTEGRATION_PROVIDER,
+            fields: [
+              { name: 'clientId', label: 'Client ID', required: true },
+              { name: 'clientSecret', label: 'Client Secret', required: true, secret: true }
+            ]
+          },
           help: {
             label: { en_US: 'Configure Notion system integration', zh_Hans: '配置 Notion 系统集成' },
             url: '/settings/integration'
