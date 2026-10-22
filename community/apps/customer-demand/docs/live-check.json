@@ -1,0 +1,11 @@
+{
+  "testedAt": "2026-09-22T11:24:43.250Z",
+  "environment": "local service + SQL.js, NOT installed Xpert",
+  "syntheticData": true,
+  "model": "jev-1.13.0",
+  "category": "miniapp",
+  "nextStep": "discovery",
+  "inputTokens": 1043,
+  "outputTokens": 196,
+  "finalStatus": "confirmed"
+}
