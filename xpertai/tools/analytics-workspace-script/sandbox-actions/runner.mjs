@@ -13,4 +13,9 @@ const child = spawn(language === 'python' ? 'python3' : 'node', language === 'py
   : [join(dirname(fileURLToPath(import.meta.url)), 'javascript.mjs')],
   { cwd: '/tmp', env: { PATH: '/usr/local/bin:/usr/bin:/bin', HOME: '/tmp/home', PYTHONDONTWRITEBYTECODE: '1' }, stdio: ['ignore', 'inherit', 'inherit'] })
 const code = await new Promise((resolve, reject) => { child.once('error', reject); child.once('exit', resolve) })
-if (code !== 0) process.exit(1)
+if (code !== 0) {
+  // The interpreter started; a script failure is invalid Action input, not a
+  // provider startup failure. Keep stderr for the provider's bounded diagnostics.
+  if (typeof code === 'number') console.error('EXPORT_INPUT_INVALID: Workspace script execution failed.')
+  process.exit(1)
+}

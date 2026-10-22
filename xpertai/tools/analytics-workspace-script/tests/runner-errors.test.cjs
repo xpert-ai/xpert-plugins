@@ -1,0 +1,26 @@
+const { test } = require('node:test')
+const assert = require('node:assert/strict')
+const fs = require('node:fs/promises')
+const path = require('node:path')
+const os = require('node:os')
+const { spawnSync } = require('node:child_process')
+
+test('a started script reports input failure instead of runtime startup failure', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'workspace-runner-error-'))
+  t.after(() => fs.rm(root, { recursive: true, force: true }))
+  await fs.copyFile(path.join(__dirname, '../dist/sandbox-actions/bundle/runner.mjs'), path.join(root, 'runner.mjs'))
+  const request = path.join(root, 'job.json')
+  await fs.writeFile(request, JSON.stringify({ payload: { language: 'python' } }))
+  const execute = () => spawnSync(process.execPath, [path.join(root, 'runner.mjs'), '--request', request, '--output', root], { encoding: 'utf8' })
+  for (const script of ['raise SyntaxError("invalid script")', 'raise SystemExit(7)']) {
+    await fs.writeFile(path.join(root, 'python.py'), script)
+    const result = execute()
+    assert.equal(result.status, 1)
+    assert.match(result.stderr, /EXPORT_INPUT_INVALID: Workspace script execution failed/)
+    assert.doesNotMatch(result.stderr, /SANDBOX_START_FAILED/)
+  }
+  await fs.writeFile(path.join(root, 'python.py'), 'raise SystemExit(0)')
+  const success = execute()
+  assert.equal(success.status, 0)
+  assert.equal(success.stderr, '')
+})
