@@ -1,7 +1,11 @@
 import { z } from 'zod/v3'
+import type { XpertProjectTypeRef } from '@xpert-ai/contracts'
 import type { ConnectorRuntimeScope } from '@xpert-ai/plugin-sdk'
 
 export const PLUGIN = '@xpert-ai/plugin-code-review'
+export const REVIEW_PROJECT_TYPE: XpertProjectTypeRef = {
+  applicationKey: `${PLUGIN}:code-review`, projectTypeKey: 'review'
+}
 export const NAMESPACE = 'code_review'
 export const FEATURE = 'code_review.core'
 export const PROVIDER = 'code_review.provider'

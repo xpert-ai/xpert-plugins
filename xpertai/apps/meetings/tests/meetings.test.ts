@@ -558,3 +558,53 @@ test("final transcription refines short live fragments with context and preserve
     await f.dispose();
   }
 });
+
+test("transcription runs outside workspace locks and a replaced processing claim fences late checkpoints", async () => {
+  const f = await fixture();
+  try {
+    await f.upload("microphone");
+    await f.upload("system");
+    await f.finish();
+    let resume: () => void = () => {},
+      reached: () => void = () => {};
+    const gate = new Promise<void>((r) => {
+      resume = r;
+    });
+    const entered = new Promise<void>((r) => {
+      reached = r;
+    });
+    const worker = new Processing(f.store, {
+      transcribe: async () => {
+        await f.store.withProcessingLock(
+          scope,
+          f.input.id,
+          "processing",
+          async () => {}
+        );
+        reached();
+        await gate;
+        return "stale transcription";
+      },
+      summarize: async () => summary,
+    });
+    const failed = assert.rejects(
+      worker.run(scope, f.input.id),
+      /processing_claim_lost/
+    );
+    await entered;
+    await assert.rejects(worker.run(scope, f.input.id), /processing_busy/);
+    const successor = randomUUID();
+    await f.store.update(scope, f.input.id, (m) => {
+      m.processingClaim = { id: successor, expiresAt: Date.now() + 60000 };
+      m.processing = "summarizing";
+    });
+    resume();
+    await failed;
+    const current = await f.store.read(scope, f.input.id);
+    assert.equal(current.transcript.length, 0);
+    assert.equal(current.processing, "summarizing");
+    assert.equal(current.processingClaim?.id, successor);
+  } finally {
+    await f.dispose();
+  }
+});

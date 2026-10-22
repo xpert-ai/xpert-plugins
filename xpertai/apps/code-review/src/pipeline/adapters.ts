@@ -57,6 +57,13 @@ export class ReviewPreparationAdapter {
   execute(c: ProjectPipelineOperationContext) { return this.service.prepare(c) }
   inspect(c: ProjectPipelineOperationContext) { return this.service.prepare(c) }
 }
+@Injectable() @Adapter('assistant_operation', refs.review)
+export class ReviewSingleAdapter {
+  readonly kind = 'assistant_operation'; readonly ref = refs.review
+  constructor(private readonly service: ReviewPipelineService) {}
+  prepare(c: ProjectPipelineAssistantContext) { return this.service.prepareAssistant(c, 'review') }
+  collect(c: ProjectPipelineAssistantContext) { return this.service.collect(c, 'review') }
+}
 @Injectable() @Adapter('assistant_operation', refs.correctness)
 export class ReviewCorrectnessAdapter {
   readonly kind = 'assistant_operation'; readonly ref = refs.correctness
@@ -115,5 +122,5 @@ export class ReviewConfirmationAdapter {
   inspect(c: ProjectPipelineOperationContext) { return this.operations.confirmed(c) }
 }
 export const reviewPipelineAdapters = [ReviewSnapshotSchema, ReviewFindingsSchema, ReviewChecksSchema, ReviewDeliverySchema,
-  ReviewLocalDeliverySchema, LocalReviewSubjectAdapter, ReviewArchiveAdapter, ReviewSubjectAdapter, ReviewEvidenceAdapter, ReviewPreparationAdapter, ReviewCorrectnessAdapter, ReviewSecurityAdapter,
+  ReviewLocalDeliverySchema, LocalReviewSubjectAdapter, ReviewArchiveAdapter, ReviewSubjectAdapter, ReviewEvidenceAdapter, ReviewPreparationAdapter, ReviewSingleAdapter, ReviewCorrectnessAdapter, ReviewSecurityAdapter,
   ReviewVerificationAdapter, ReviewChecksAdapter, ReviewReadinessAdapter, ReviewApprovalAdapter, ReviewPublishAdapter, ReviewConfirmationAdapter]

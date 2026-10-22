@@ -48,6 +48,8 @@ export class ReviewRun {
   @Column({ type: 'jsonb' }) settings!: PolicySettings
   @Column({ type: 'timestamptz' }) notBefore!: Date
   @Column({ type: 'uuid', nullable: true }) reviewId!: string | null
+  @Column({ type: 'uuid', nullable: true }) pipelineInstanceId!: string | null
+  @Column({ type: 'uuid', nullable: true }) pipelineRoundId!: string | null
   @Column({ type: 'varchar', nullable: true }) jobId!: string | null
   @Column({ type: 'varchar', nullable: true }) publicationUrl!: string | null
   @Column({ type: 'timestamptz', nullable: true }) finishedAt!: Date | null

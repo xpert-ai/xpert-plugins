@@ -8,7 +8,7 @@ const comment = z.object({ id: z.number(), body: z.string(), html_url: z.string(
 const check = z.object({ id: z.number(), name: z.string(), status: z.string(), conclusion: z.string().nullable(), html_url: z.string().nullable() })
 const issue = z.object({ number: z.number(), title: z.string(), html_url: z.string(), state: z.string(), user: person })
 export class GitHub {
-  constructor(private readonly token?: string, private readonly transport: typeof fetch = fetch) {}
+  constructor(private readonly token?: string, private readonly transport: typeof fetch = fetch, private readonly botLogin?: string) {}
   async request(path: string, body?: object): Promise<unknown> {
     if (!path.startsWith('/') || path.startsWith('//')) throw new ReviewError('invalid_github_path')
     const response = await this.transport(`https://api.github.com${path}`, {
@@ -37,7 +37,7 @@ export class GitHub {
     return { truncated: data.total_count > data.check_runs.length,
       checks: data.check_runs.map(c => ({ id: c.id, name: c.name, status: c.status, conclusion: c.conclusion, url: c.html_url })) }
   }
-  async identity() { return String(z.object({ id: z.number().int().positive().safe() }).parse(await this.request('/user')).id) }
+  async identity() { return String(z.object({ id: z.number().int().positive().safe() }).parse(await this.request(this.botLogin ? `/users/${encodeURIComponent(this.botLogin)}` : '/user')).id) }
   async findReview(ref: PullRef, sha: string, marker: string, expected: { authorId: string; body: string }) {
     const schema = z.array(z.object({ id: z.number().int().positive(), commit_id: shaSchema, body: z.string().nullable(), html_url: z.string().url(), state: z.string(),
       user: z.object({ id: z.number().int().positive().safe() }) }))

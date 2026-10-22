@@ -8,6 +8,8 @@ import { checkProjectPipelineConfiguration, configureProjectPipelineFromForm, ty
 import { DefaultRuntimeCapabilityRegistry, ProjectAccessRuntimeCapability, ProjectPipelineCommandsRuntimeCapability,
   ProjectPipelineEvidenceRuntimeCapability, ProjectPipelineCatalogRuntimeCapability, projectPipelineContributionSchema,
   type ProjectPipelineOperationContext, type ProjectPipelineAssistantContext, type PluginContext } from '@xpert-ai/plugin-sdk'
+import { ReviewRun } from '../src/automation-entities.js'
+import { defaultPolicy } from '../src/automation-contract.js'
 import { Review } from '../src/entity.js'
 import { Reviews } from '../src/backend.js'
 import { GitHub } from '../src/github.js'
@@ -16,7 +18,7 @@ import { parsePullUrl, type Snapshot, type Scope } from '../src/domain.js'
 import { ReviewPipelineService } from '../src/pipeline/service.js'
 import { ReviewPipelineOperations } from '../src/pipeline/operations.js'
 import { ReviewPipelineBinding, ReviewPipelineEvidence, ReviewPipelineDelivery } from '../src/pipeline/entity.js'
-import { reviewPipelineConfiguration, reviewPipelineDescriptors, reviewPipelineConfigurationForm, ReviewPipelineContribution } from '../src/pipeline/configuration.js'
+import { lightweightReviewPipelineConfiguration, reviewPipelineConfiguration, reviewPipelineDescriptors, reviewPipelineConfigurationForm, ReviewPipelineContribution } from '../src/pipeline/configuration.js'
 import { digest, refs } from '../src/pipeline/contract.js'
 
 test('Code Review declares a portable parallel pipeline with complete registered ports', () => {
@@ -35,23 +37,34 @@ test('Code Review exposes typed public configuration without allowing a topology
     assistants, parameters: { ...parameters, blockingPriorities: [] } }))
 })
 
+test('lightweight review is a valid platform pipeline with one Agent and the same human gate', () => {
+  const c = lightweightReviewPipelineConfiguration(randomUUID())
+  assert.deepEqual(checkProjectPipelineConfiguration(c, [...reviewPipelineDescriptors,
+    { kind: 'completion', ref: 'platform.output-validated@1' }, { kind: 'schema', ref: 'platform.human-decision@1' }]).issues, [])
+  assert.equal(Object.values(c.binding.executorBindings ?? {}).filter(binding => binding.kind === 'assistant').length, 1)
+  assert.equal(c.template.executionAuthority, 'platform')
+  assert(c.template.nodes.some(node => node.kind === 'human_gate'))
+})
 const url = process.env.XPERT_PIPELINE_TEST_DATABASE_URL
 if (url && !/^\/xpert_pipeline_test_[a-z0-9_]+$/.test(new URL(url).pathname)) throw new Error('Dedicated pipeline test database required')
 for (const layout of ['empty', 'orm-precreated'] as const) test(`Code Review pipeline persistence and governed plugin operations (${layout})`, { skip: !url }, async t => {
   const schema = `code_review_pipeline_${randomUUID().replaceAll('-', '')}`
-  const db = new DataSource({ type: 'postgres', url, schema, entities: [Review, ReviewPipelineBinding, ReviewPipelineEvidence, ReviewPipelineDelivery],
+  const db = new DataSource({ type: 'postgres', url, schema, entities: [ReviewRun, Review, ReviewPipelineBinding, ReviewPipelineEvidence, ReviewPipelineDelivery],
     uuidExtension: 'pgcrypto', extra: { options: `-c search_path=${schema},public` } })
   await db.initialize()
   t.after(async () => { await db.query(`DROP SCHEMA "${schema}" CASCADE`); await db.destroy() })
   await db.query(`CREATE SCHEMA "${schema}"`)
   const query = db.createQueryRunner()
   await query.createTable(Table.create(db.getMetadata(Review), db.driver))
+  await query.createTable(Table.create(db.getMetadata(ReviewRun), db.driver))
   if (layout === 'orm-precreated') for (const entity of [ReviewPipelineBinding, ReviewPipelineEvidence, ReviewPipelineDelivery]) {
     await query.createTable(Table.create(db.getMetadata(entity), db.driver))
   }
   await query.release()
   const sql = readFileSync(new URL('../migrations/20261018-project-pipeline.sql', import.meta.url), 'utf8')
   await db.query(sql); await db.query(sql)
+  // New binding columns must also be added to pre-existing schemas.
+  await db.query('ALTER TABLE plugin_code_review_pipeline_binding ADD COLUMN IF NOT EXISTS "sourceKey" varchar, ADD COLUMN IF NOT EXISTS "savedBindingId" uuid, ADD COLUMN IF NOT EXISTS "currentReviewId" uuid')
   await t.test('migration restores and validates scope and delivery constraints on both layouts', async () => {
     const constraints = await db.query("SELECT count(*)::int AS count FROM pg_constraint WHERE connamespace = to_regnamespace($1) AND conname LIKE 'code_review_pipeline_%' AND convalidated", [schema])
     assert.equal(constraints[0].count, 6)
@@ -138,12 +151,17 @@ for (const layout of ['empty', 'orm-precreated'] as const) test(`Code Review pip
   assert.deepEqual(pipelineRoot.scope.runtime, { projectId })
   assert.equal(pipelineRoot.scope.userId, actor.userId)
   assert.equal(pipelineRoot.scope.assistantId, s.assistantId)
+  await t.test('attached root snapshots cannot be overwritten by refresh', async () => {
+    await assert.rejects(reviews.refresh(s, root.id, root.revision), /pipeline_managed_review/)
+    assert.deepEqual((await reviews.get(s, root.id)).snapshot, snapshot)
+  })
   await t.test('opens only the authorized review in its registered Workbench view', async () => {
     assert.deepEqual(await service.entry({ projectId, actor }, root.id), {
       xpertId: s.assistantId, viewKey: 'code_review.provider__code_review.workspace', selectionId: root.id
     })
     await assert.rejects(service.entry({ projectId: randomUUID(), actor }, root.id))
-    await assert.rejects(service.entry({ projectId, actor: { ...actor, userId: randomUUID() } }, root.id))
+    // Explicitly attached reviews are shared with authorized Project members.
+    assert.equal((await service.entry({ projectId, actor: { ...actor, userId: randomUUID() } }, root.id)).selectionId, root.id)
     permitted = false
     await assert.rejects(service.entry({ projectId, actor }, root.id), /project_access_revoked/)
     permitted = true
@@ -168,7 +186,7 @@ for (const layout of ['empty', 'orm-precreated'] as const) test(`Code Review pip
       const input = await service.prepareAssistant(c, pass)
       assert.equal(input.context.codeReview.headSha, head)
       const scope = { ...s, assistantId: c.executor.xpertId }
-      await reviews.complete(scope, { configurable: { executionId: c.executor.executionId, context: input.context } }, { summary: `${pass} verified`, findings: [] })
+      await reviews.complete(scope, { configurable: { executionId: c.executor.executionId, context: input.context } }, { summary: `${pass} verified`, findings: [{ title: `${pass} candidate`, body: 'Candidate evidence to be independently checked', priority: 'P2', path: 'app.ts', side: 'RIGHT', line: 2 }] })
       outputs.push((await service.collect(c, pass)).findings)
     }
     assert.notEqual(outputs[0].objectKey, outputs[1].objectKey)
@@ -179,6 +197,18 @@ for (const layout of ['empty', 'orm-precreated'] as const) test(`Code Review pip
       checks: { kind: 'evidence', value: checkRef } }))
     const input = await service.prepareAssistant(c, 'verify')
     assert.equal(input.context.codeReview.candidates.length, 2)
+    // The model sees tool results, not the hidden runtime context object.
+    const config = { configurable: { context: { codeReview: { reviewId: c.work.operationId, headSha: head } } } }
+    const verifierScope = { ...s, assistantId: c.executor.xpertId }
+    const exposed = await reviews.evidence(verifierScope, config)
+    assert.equal(exposed.role, 'verify')
+    const candidates = await reviews.candidates(verifierScope, config, 0, 1)
+    assert.equal(candidates.total, 2)
+    assert.equal(candidates.candidates.length, 1)
+    assert.equal(candidates.next, 1)
+    assert.equal((await reviews.candidates(verifierScope, config, 1, 1)).next, null)
+    await assert.rejects(reviews.candidates(verifierScope, { configurable: { context: { codeReview: { reviewId: c.work.operationId, headSha: 'f'.repeat(40) } } } }, 0, 1), /stale_revision/)
+
     await reviews.complete({ ...s, assistantId: c.executor.xpertId }, { configurable: { executionId: c.executor.executionId, context: input.context } },
       { summary: 'Both review passes independently verified', findings: [] })
     verified = (await service.collect(c, 'verify')).findings
@@ -204,6 +234,16 @@ for (const layout of ['empty', 'orm-precreated'] as const) test(`Code Review pip
     const decision = await operations.readiness(step({ findings: { kind: 'evidence', value: verified }, checks: { kind: 'evidence', value: failed.outputs.checks } }))
     assert.ok(decision.status === 'decided' && decision.outcome === 'rework')
     checks[0].conclusion = 'success'
+  })
+  await t.test('trial cannot approve or publish through the Project gate', async () => {
+    const run = await db.getRepository(ReviewRun).save({ tenantId: s.tenantId, organizationId: s.organizationId, assistantId: s.assistantId,
+      repositoryPolicyId: randomUUID(), operationKey: randomUUID(), number: 1, headSha: head, title: 'Trial', trigger: 'trial',
+      status: 'running', policyRevision: 1, settings: defaultPolicy, notBefore: new Date() })
+    await db.getRepository(Review).update(root.id, { automationRunId: run.id })
+    await assert.rejects(operations.authorize(context, 'project-managers', 'accepted'), /trial_cannot_publish/)
+    await assert.rejects(operations.publish(context, true), /trial_cannot_publish/)
+    assert.equal(posts, 0)
+    await db.getRepository(Review).update(root.id, { automationRunId: null })
   })
   await t.test('persists delivery before POST and resolves uncertain delivery by lookup without publishing twice', async () => {
     const decision = { kind: 'human', outcome: 'accepted', actorId: actor.userId, inputDigest: work.inputDigest, generation: 1 }
