@@ -26,7 +26,7 @@ export function createAuthoring(api: () => RestClientRuntimeApi): AnalyticsDefin
     async prepare(original, context) {
       const input = definitionSchema.parse(original)
       const options = optionsSchema.parse({ workspaceId: context.workspaceId, toolsetId: scope(context).toolsetId,
-        
+
         datasets: [{ ...input, id: 'dataset', revision: 'initial', readOnly: true }] })
       const dataset = options.datasets[0]
       const operations = await api().operations.list(scope(context))

@@ -28,7 +28,7 @@ export class McpAnalyticsProvider implements AnalyticsQueryProvider {
     const options = optionsSchema.parse(context.options)
     const scope = { actor: context.actor, workspaceId: options.workspaceId, toolsetId: options.toolsetId,
       serverName: options.serverName, signal: context.signal, deadlineAt: context.deadlineAt }
-    if (!McpClientRuntimeCapability || !this.runtime.has(McpClientRuntimeCapability))
+    if (!this.runtime.has(McpClientRuntimeCapability))
       throw new Error('MCP_DATASET_HOST_UPDATE_REQUIRED')
     return { options, scope, api: this.runtime.require(McpClientRuntimeCapability) }
   }
