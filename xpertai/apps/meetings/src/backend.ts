@@ -223,7 +223,10 @@ export class MeetingsProcessor {
       ) {
         await this.backend.meetings.store
           .update(data.scope, data.meetingId, (m) => {
-            if (m.processing === "queued") {
+            if (
+              m.processing === "queued" &&
+              (!m.processingClaim || m.processingClaim.expiresAt <= Date.now())
+            ) {
               m.processing = "failed";
               m.errorCode = "processing_failed";
             }

@@ -538,3 +538,170 @@ test("microphone-only browser recordings use their selected source as the silenc
   assert.deepEqual(silentBoundaries(microphone, 10000, ["microphone"]), [15000]);
   assert.deepEqual(silentBoundaries(microphone, 10000), []);
 });
+
+async function finalAttempt(f: Awaited<ReturnType<typeof fixture>>) {
+  await f.store.update(scope, f.id, (m) => {
+    m.transcript = [segment("microphone", 0, "Original decision")];
+    m.processing = "summarizing";
+  });
+  const m = await f.store.read(scope, f.id);
+  await f.workflow.finish(scope, m, m.transcript);
+  await f.workflow.tick(scope, f.id);
+  return f.store.read(scope, f.id);
+}
+
+for (const field of [
+  "notes",
+  "transcript",
+  "summary",
+  "notes-document",
+  "summary-document",
+  "title",
+] as const) {
+  test(`commit detects concurrent ${field} changes inside the manifest lock`, async () => {
+    const f = await fixture();
+    try {
+      const m = await finalAttempt(f);
+      const update = f.store.update.bind(f.store);
+      let resume: () => void = () => {},
+        reached: () => void = () => {};
+      const gate = new Promise<void>((r) => {
+        resume = r;
+      });
+      const entered = new Promise<void>((r) => {
+        reached = r;
+      });
+      let intercept = true;
+      f.store.update = async (...args: Parameters<FileStore["update"]>) => {
+        if (intercept) {
+          intercept = false;
+          reached();
+          await gate;
+        }
+        return update(...args);
+      };
+      const submission = assert.rejects(
+        f.workflow.submit(scope, config(m, 0), simple),
+        /summary_input_conflict/
+      );
+      await entered;
+      await update(scope, f.id, (current) => {
+        if (field === "notes") {
+          current.notes = "new notes";
+          current.notesRevision++;
+        }
+        if (field === "transcript")
+          current.transcript[0].text = "Corrected decision";
+        if (field === "summary") {
+          current.summaryVersion++;
+          current.summary = { ...simple, overview: "New result" };
+        }
+        if (field === "notes-document")
+          current.documents.notes = { id: randomUUID(), sequence: 1 };
+        if (field === "summary-document")
+          current.documents.summary = { id: randomUUID(), sequence: 1 };
+        if (field === "title") current.title = "New title";
+      });
+      resume();
+      await submission;
+      const current = await f.store.read(scope, f.id);
+      assert.equal(current.summaryVersion, field === "summary" ? 1 : 0);
+      await assert.rejects(
+        stat(
+          join(
+            f.store.directory(scope, f.id),
+            "assistant",
+            `${m.assistant.operations[0].id}.output.json`
+          )
+        )
+      );
+    } finally {
+      await f.dispose();
+    }
+  });
+}
+
+test("cancelled task paused before commit cannot overwrite its replacement result", async () => {
+  const f = await fixture();
+  try {
+    const old = await finalAttempt(f);
+    const update = f.store.update.bind(f.store);
+    let resume: () => void = () => {},
+      reached: () => void = () => {};
+    const gate = new Promise<void>((r) => {
+      resume = r;
+    });
+    const entered = new Promise<void>((r) => {
+      reached = r;
+    });
+    let intercept = true;
+    f.store.update = async (...args: Parameters<FileStore["update"]>) => {
+      if (intercept) {
+        intercept = false;
+        reached();
+        await gate;
+      }
+      return update(...args);
+    };
+    const rejected = assert.rejects(
+      f.workflow.submit(scope, config(old, 0), simple),
+      /summary_operation_closed/
+    );
+    await entered;
+    await f.workflow.failSupervision(scope, f.id);
+    await f.workflow.finish(
+      scope,
+      await f.store.read(scope, f.id),
+      old.transcript
+    );
+    await f.workflow.tick(scope, f.id);
+    const fresh = await f.store.read(scope, f.id);
+    await f.workflow.submit(scope, config(fresh, 1), {
+      ...simple,
+      overview: "Replacement result",
+    });
+    resume();
+    await rejected;
+    const saved = await f.store.read(scope, f.id);
+    assert.equal(saved.summaryVersion, 1);
+    assert.equal(saved.summary?.overview, "Replacement result");
+  } finally {
+    await f.dispose();
+  }
+});
+
+test("unrelated manifest updates do not conflict, and Assistant dispatch holds no scheduling lock", async () => {
+  const f = await fixture();
+  try {
+    const api: AgentMiddlewareAssistantTaskApi = {
+      getTaskStatus: async () => null,
+      startTask: async () => {
+        await f.store.withProcessingLock(
+          scope,
+          f.id,
+          "assistant",
+          async () => {}
+        );
+        return { status: "running" };
+      },
+    };
+    const workflow = new AssistantWorkflow(
+      f.store,
+      () => api,
+      async () => {}
+    );
+    await f.store.update(scope, f.id, (m) => {
+      m.transcript = [segment("microphone", 0, "decision")];
+    });
+    let m = await f.store.read(scope, f.id);
+    await workflow.finish(scope, m, m.transcript);
+    await workflow.tick(scope, f.id);
+    m = await f.store.update(scope, f.id, (m) => {
+      m.liveTranscription.status = "complete";
+    });
+    await workflow.submit(scope, config(m, 0), simple);
+    assert.equal((await f.store.read(scope, f.id)).summaryVersion, 1);
+  } finally {
+    await f.dispose();
+  }
+});
