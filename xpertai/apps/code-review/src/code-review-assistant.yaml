@@ -3,7 +3,13 @@ team:
   type: agent
   title: 代码审查
   description: 审查 Pull Request 并核实问题依据
-  options: { templateKey: code-review-assistant }
+  options:
+    templateKey: code-review-assistant
+    workspaceScope:
+      mode: project-preferred
+      projectType:
+        applicationKey: '@xpert-ai/plugin-code-review:code-review'
+        projectTypeKey: review
   agentConfig: { recursionLimit: 600 }
   workspaceDataScope: user
   version: "2"

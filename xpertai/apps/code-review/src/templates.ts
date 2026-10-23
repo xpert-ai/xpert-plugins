@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { XpertTypeEnum, type PluginMarketplaceContribution } from '@xpert-ai/contracts'
 import type { XpertTemplateContribution } from '@xpert-ai/plugin-sdk'
-import { FEATURE, PLUGIN, PROVIDER } from './domain.js'
+import { FEATURE, PLUGIN, PROVIDER, REVIEW_PROJECT_TYPE } from './domain.js'
 import { icon } from './view.js'
 const label = (en_US: string, zh_Hans: string) => ({ en_US, zh_Hans })
 export const templates: XpertTemplateContribution[] = [{
@@ -13,6 +13,8 @@ export const templates: XpertTemplateContribution[] = [{
 }]
 export const appContribution: PluginMarketplaceContribution = {
   type: 'app', name: 'code-review', displayName: label('Code Review', '代码审查'), icon,
+  projectTypes: [{ key: REVIEW_PROJECT_TYPE.projectTypeKey, title: label('Code Review Project', '代码审查项目'), icon,
+    binding: { kind: 'project' } }],
   description: label('Review pull requests with commit-bound evidence.', '对照提交版本审查代码，在确认后提交到 GitHub。'),
   appConfig: { scope: 'organization', assistantTemplateKey: 'code-review-assistant', workspace: { mode: 'dedicated', name: label('Code Review', '代码审查工作空间'), sharing: 'organization' }, knowledgebases: [], modelRequirements: { primary: true }, entry: { type: 'assistant-chat' },
     presentation: { tagline: label('Read the change. Verify the finding.', '读懂变更，核实问题。'), developer: 'XpertAI', screenshots: ['./assets/brand/code-review-overview-zh-v1.png'], features: [

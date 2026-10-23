@@ -1,5 +1,11 @@
 # @xpert-ai/plugin-code-review
 
+## 0.3.3
+
+### Patch Changes
+
+- e692449: Declare the Code Review Project type consistently in pipeline templates, the App contribution and the Assistant workspace defaults. Require Contracts and Plugin SDK 3.26.2 so production startup validates against the published project-type contract.
+
 ## 0.3.2
 
 ### Patch Changes
