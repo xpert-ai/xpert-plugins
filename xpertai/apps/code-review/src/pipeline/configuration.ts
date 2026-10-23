@@ -2,11 +2,13 @@ import { Injectable } from '@nestjs/common'
 import { projectPipelineConfigurationSchema, projectPipelineConfigurationFormSchema, type ProjectPipelineExtensionDescriptor } from '@xpert-ai/contracts'
 import { ProjectPipelineContributor } from '@xpert-ai/plugin-sdk'
 import { refs } from './contract.js'
+import { REVIEW_PROJECT_TYPE } from '../domain.js'
 
 export function reviewPipelineConfiguration(assistants = { correctness: 'select-correctness', security: 'select-security', verifier: 'select-verifier' },
   parameters = { requireChecks: true, requiredChecks: [] as string[], blockingPriorities: ['P0', 'P1'] }) {
   return projectPipelineConfigurationSchema.parse({ schemaVersion: 1,
     template: { key: 'code-review.pull-request', version: '1.0.0', title: 'Code Review', executionAuthority: 'platform',
+      projectTypes: [REVIEW_PROJECT_TYPE],
       subjectResolverRef: refs.subject, topology: { source: 'definition' },
       roles: [{ key: 'system', allowedKinds: ['service'] }, { key: 'reviewer', allowedKinds: ['assistant'] },
         { key: 'verifier', allowedKinds: ['assistant'] }, { key: 'owner', allowedKinds: ['human'] }],
