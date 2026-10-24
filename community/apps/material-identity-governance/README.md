@@ -49,6 +49,8 @@ Mock 图纸由程序生成 SVG 和结构化标注。当前没有通用扫描件 
 
 ## Assistant Profile 资料卡
 
+项目流水线使用平台派发与原生轮次，业务服务继续负责结果验收和人工审批。发布前提、执行状态与跳转规则见[项目流水线](docs/project-pipelines.mdx)。
+
 八位助理分别提供活动与待办视图，共 16 个 `agent.profile.tabs` 扩展。协调者与治理专员支持受项目管理权限保护的人工快捷审批。详见 [资料卡使用说明](docs/assistant-profile.mdx)。
 
 `@xpert-ai/contracts@3.18.2` 已提供 `AGENT_PROFILE_TABS_SLOT`、`XpertAssistantProfile` 与可信 Assistant 版本族上下文。运行宿主也需要支持这些契约及 SDK 项目访问能力。

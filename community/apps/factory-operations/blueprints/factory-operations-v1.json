@@ -16,7 +16,10 @@
     "revisionField": "case-revision",
     "templateKeyField": "flow-template-key",
     "templateVersionField": "flow-template-version",
-    "scopeFields": ["tenant-id", "organization-id"],
+    "scopeFields": [
+      "tenant-id",
+      "organization-id"
+    ],
     "lifecycleStatuses": [
       "investigating",
       "awaiting-approval",
@@ -28,18 +31,23 @@
     ]
   },
   "delivery": {
-    "surfaces": ["assistant", "backend", "workbench"],
+    "surfaces": [
+      "assistant",
+      "backend",
+      "workbench"
+    ],
     "assistantTopology": "both",
     "assistantParticipants": {
       "roleMode": "independent_assistants",
-      "orchestratorDelegation": "external_xperts",
-      "externalXpertConnections": "direct_required"
+      "orchestratorDelegation": "platform_pipeline",
+      "externalXpertConnections": "role_discovery_only"
     },
     "pipelineWorkbench": {
       "mode": "required",
       "overviewViewKey": "factory-operations-center",
       "dashboardViewKey": "factory-operations-dashboard"
-    }
+    },
+    "executionAuthority": "platform"
   },
   "projectionContract": {
     "dashboardProject": "factory-dashboard-project",
@@ -62,7 +70,10 @@
     "navigationClientCommand": "workbench.navigation.open",
     "navigationTarget": "assistant.conversation",
     "visibleLimit": 10,
-    "presentationTargets": ["assistant_card", "task_card"]
+    "presentationTargets": [
+      "assistant_card",
+      "task_card"
+    ]
   },
   "viewExperience": {
     "componentLibrary": "shadcn-ui-local-cli",
@@ -110,7 +121,9 @@
       "kind": "business",
       "writeAuthority": true,
       "assistantTemplateKey": "factory-anomaly-triage-assistant",
-      "middlewareBindings": ["factory-event-triage"]
+      "middlewareBindings": [
+        "factory-event-triage"
+      ]
     },
     {
       "key": "equipment-diagnostics-specialist",
@@ -118,7 +131,9 @@
       "kind": "business",
       "writeAuthority": true,
       "assistantTemplateKey": "factory-equipment-diagnostics-assistant",
-      "middlewareBindings": ["factory-equipment-diagnostics"]
+      "middlewareBindings": [
+        "factory-equipment-diagnostics"
+      ]
     },
     {
       "key": "quality-risk-specialist",
@@ -126,7 +141,9 @@
       "kind": "business",
       "writeAuthority": true,
       "assistantTemplateKey": "factory-quality-risk-assistant",
-      "middlewareBindings": ["factory-quality-risk"]
+      "middlewareBindings": [
+        "factory-quality-risk"
+      ]
     },
     {
       "key": "production-impact-specialist",
@@ -134,7 +151,9 @@
       "kind": "business",
       "writeAuthority": true,
       "assistantTemplateKey": "factory-production-impact-assistant",
-      "middlewareBindings": ["factory-production-impact"]
+      "middlewareBindings": [
+        "factory-production-impact"
+      ]
     },
     {
       "key": "resource-readiness-specialist",
@@ -142,7 +161,9 @@
       "kind": "business",
       "writeAuthority": true,
       "assistantTemplateKey": "factory-resource-readiness-assistant",
-      "middlewareBindings": ["factory-resource-readiness"]
+      "middlewareBindings": [
+        "factory-resource-readiness"
+      ]
     },
     {
       "key": "recovery-planning-specialist",
@@ -150,7 +171,9 @@
       "kind": "business",
       "writeAuthority": true,
       "assistantTemplateKey": "factory-recovery-planning-assistant",
-      "middlewareBindings": ["factory-recovery-planning"]
+      "middlewareBindings": [
+        "factory-recovery-planning"
+      ]
     },
     {
       "key": "operations-approval-advisor",
@@ -180,7 +203,9 @@
       "kind": "business",
       "writeAuthority": true,
       "assistantTemplateKey": "factory-recovery-verification-assistant",
-      "middlewareBindings": ["factory-recovery-validation"]
+      "middlewareBindings": [
+        "factory-recovery-validation"
+      ]
     }
   ],
   "lanes": [
@@ -234,13 +259,41 @@
     }
   ],
   "stages": [
-    { "key": "detection", "title": "Detection", "order": 10 },
-    { "key": "triage", "title": "Triage", "order": 20 },
-    { "key": "parallel-analysis", "title": "Parallel Analysis", "order": 30 },
-    { "key": "recovery-planning", "title": "Recovery Planning", "order": 40 },
-    { "key": "human-decision", "title": "Human Decision", "order": 50 },
-    { "key": "governed-execution", "title": "Governed Execution", "order": 60 },
-    { "key": "verification", "title": "Verification and Outcome", "order": 70 }
+    {
+      "key": "detection",
+      "title": "Detection",
+      "order": 10
+    },
+    {
+      "key": "triage",
+      "title": "Triage",
+      "order": 20
+    },
+    {
+      "key": "parallel-analysis",
+      "title": "Parallel Analysis",
+      "order": 30
+    },
+    {
+      "key": "recovery-planning",
+      "title": "Recovery Planning",
+      "order": 40
+    },
+    {
+      "key": "human-decision",
+      "title": "Human Decision",
+      "order": 50
+    },
+    {
+      "key": "governed-execution",
+      "title": "Governed Execution",
+      "order": 60
+    },
+    {
+      "key": "verification",
+      "title": "Verification and Outcome",
+      "order": 70
+    }
   ],
   "artifacts": [
     {
@@ -302,83 +355,140 @@
     {
       "key": "factory-case-coordination",
       "ownerRoleKey": "operations-coordinator",
-      "featureKeys": ["factory-case-coordination", "factory-operations-workbench"],
+      "featureKeys": [
+        "factory-case-coordination",
+        "factory-operations-workbench"
+      ],
       "tools": [
-        { "name": "factory_cases_search", "mode": "read" },
-        { "name": "factory_case_get_summary", "mode": "read" },
-        { "name": "factory_case_get_progress", "mode": "read" }
+        {
+          "name": "factory_cases_search",
+          "mode": "read"
+        },
+        {
+          "name": "factory_case_get_summary",
+          "mode": "read"
+        },
+        {
+          "name": "factory_case_get_progress",
+          "mode": "read"
+        }
       ]
     },
     {
       "key": "factory-operations-monitoring",
       "ownerRoleKey": "operations-manager",
-      "featureKeys": ["factory-operations-management-dashboard"],
+      "featureKeys": [
+        "factory-operations-management-dashboard"
+      ],
       "tools": [
-        { "name": "factory_operations_dashboard_get", "mode": "read" }
+        {
+          "name": "factory_operations_dashboard_get",
+          "mode": "read"
+        }
       ]
     },
     {
       "key": "factory-event-triage",
       "ownerRoleKey": "anomaly-triage-specialist",
-      "featureKeys": ["factory-event-triage"],
+      "featureKeys": [
+        "factory-event-triage"
+      ],
       "tools": [
-        { "name": "factory_event_triage_record", "mode": "write" }
+        {
+          "name": "factory_event_triage_record",
+          "mode": "write"
+        }
       ]
     },
     {
       "key": "factory-equipment-diagnostics",
       "ownerRoleKey": "equipment-diagnostics-specialist",
-      "featureKeys": ["factory-equipment-diagnostics"],
+      "featureKeys": [
+        "factory-equipment-diagnostics"
+      ],
       "tools": [
-        { "name": "factory_equipment_diagnosis_record", "mode": "write" }
+        {
+          "name": "factory_equipment_diagnosis_record",
+          "mode": "write"
+        }
       ]
     },
     {
       "key": "factory-quality-risk",
       "ownerRoleKey": "quality-risk-specialist",
-      "featureKeys": ["factory-quality-risk"],
+      "featureKeys": [
+        "factory-quality-risk"
+      ],
       "tools": [
-        { "name": "factory_quality_impact_record", "mode": "write" }
+        {
+          "name": "factory_quality_impact_record",
+          "mode": "write"
+        }
       ]
     },
     {
       "key": "factory-production-impact",
       "ownerRoleKey": "production-impact-specialist",
-      "featureKeys": ["factory-production-impact"],
+      "featureKeys": [
+        "factory-production-impact"
+      ],
       "tools": [
-        { "name": "factory_production_impact_record", "mode": "write" }
+        {
+          "name": "factory_production_impact_record",
+          "mode": "write"
+        }
       ]
     },
     {
       "key": "factory-resource-readiness",
       "ownerRoleKey": "resource-readiness-specialist",
-      "featureKeys": ["factory-resource-readiness"],
+      "featureKeys": [
+        "factory-resource-readiness"
+      ],
       "tools": [
-        { "name": "factory_resource_readiness_record", "mode": "write" }
+        {
+          "name": "factory_resource_readiness_record",
+          "mode": "write"
+        }
       ]
     },
     {
       "key": "factory-recovery-planning",
       "ownerRoleKey": "recovery-planning-specialist",
-      "featureKeys": ["factory-recovery-planning"],
+      "featureKeys": [
+        "factory-recovery-planning"
+      ],
       "tools": [
-        { "name": "factory_recovery_plan_generate", "mode": "decision_support" }
+        {
+          "name": "factory_recovery_plan_generate",
+          "mode": "decision_support"
+        }
       ]
     },
     {
       "key": "factory-recovery-execution",
       "ownerRoleKey": "operations-coordinator",
-      "featureKeys": ["factory-recovery-execution"],
+      "featureKeys": [
+        "factory-recovery-execution"
+      ],
       "tools": [
-        { "name": "factory_execution_status_get", "mode": "read" }
+        {
+          "name": "factory_execution_status_get",
+          "mode": "read"
+        }
       ]
     },
     {
       "key": "factory-recovery-validation",
       "ownerRoleKey": "recovery-verification-specialist",
-      "featureKeys": ["factory-recovery-validation"],
+      "featureKeys": [
+        "factory-recovery-validation"
+      ],
       "tools": [
-        { "name": "factory_recovery_verification_record", "mode": "write" }
+        {
+          "name": "factory_recovery_verification_record",
+          "mode": "write"
+        }
       ]
     }
   ],
@@ -396,19 +506,13 @@
         "case-refresh",
         "case-filter-blocked",
         "case-zoom",
-        "case-process-next",
         "node-open",
-        "node-start",
-        "dispatch_assistant_task",
-        "cancel_assistant_task",
         "retry_case_project",
         "create_demo_incident",
         "approve_recovery_plan",
         "reject_recovery_plan",
-        "execute_recovery_plan",
-        "retry_recovery_action",
-        "verify_recovery",
-        "blocker-resolve"
+        "blocker-resolve",
+        "start_pipeline"
       ],
       "clientCommandKeys": [
         "workbench.navigation.open"
@@ -424,13 +528,10 @@
       ],
       "actionKeys": [
         "human-task-complete",
-        "dispatch_assistant_task",
-        "cancel_assistant_task",
         "retry_case_project",
         "approve_recovery_plan",
         "reject_recovery_plan",
-        "execute_recovery_plan",
-        "verify_recovery"
+        "start_pipeline"
       ],
       "clientCommandKeys": [
         "workbench.navigation.open"
@@ -440,31 +541,48 @@
       "key": "factory-operations-dashboard",
       "title": "Factory Operations Management Dashboard",
       "kind": "operations_dashboard",
-      "featureKeys": ["factory-operations-management-dashboard"],
-      "actionKeys": ["case-refresh"],
-      "clientCommandKeys": ["workbench.navigation.open"]
+      "featureKeys": [
+        "factory-operations-management-dashboard"
+      ],
+      "actionKeys": [
+        "case-refresh"
+      ],
+      "clientCommandKeys": [
+        "workbench.navigation.open"
+      ]
     }
   ],
   "routeFacts": [
     {
       "key": "execution-authority",
       "sourceArtifactKey": "recovery-plan",
-      "values": ["auto-safe", "approval-required"]
+      "values": [
+        "approval-required"
+      ]
     },
     {
       "key": "execution-outcome",
       "sourceArtifactKey": "execution-batch",
-      "values": ["complete", "partial-failure"]
+      "values": [
+        "complete",
+        "partial-failure"
+      ]
     },
     {
       "key": "approval-outcome",
       "sourceArtifactKey": "recovery-plan",
-      "values": ["approved", "rejected"]
+      "values": [
+        "approved",
+        "rejected"
+      ]
     },
     {
       "key": "recovery-outcome",
       "sourceArtifactKey": "recovery-verification",
-      "values": ["recovered", "needs-intervention"]
+      "values": [
+        "recovered",
+        "needs-intervention"
+      ]
     }
   ],
   "nodes": [
@@ -480,9 +598,16 @@
         "artifactKey": "anomaly-event",
         "predicate": "status == open && severity in [high, critical]"
       },
-      "execution": { "mode": "system", "toolNames": [] },
-      "requiredFeatureKeys": ["factory-event-triage"],
-      "allowedActionKeys": ["create_demo_incident"],
+      "execution": {
+        "mode": "system",
+        "toolNames": []
+      },
+      "requiredFeatureKeys": [
+        "factory-event-triage"
+      ],
+      "allowedActionKeys": [
+        "create_demo_incident"
+      ],
       "risk": "low",
       "humanGate": "none"
     },
@@ -501,10 +626,17 @@
       },
       "execution": {
         "mode": "assistant_task",
-        "toolNames": ["factory_event_triage_record"]
+        "toolNames": [
+          "factory_event_triage_record"
+        ]
       },
-      "requiredFeatureKeys": ["factory-event-triage"],
-      "allowedActionKeys": ["node-open", "node-start"],
+      "requiredFeatureKeys": [
+        "factory-event-triage"
+      ],
+      "allowedActionKeys": [
+        "node-open",
+        "node-start"
+      ],
       "risk": "medium",
       "humanGate": "none"
     },
@@ -523,10 +655,17 @@
       },
       "execution": {
         "mode": "assistant_task",
-        "toolNames": ["factory_equipment_diagnosis_record"]
+        "toolNames": [
+          "factory_equipment_diagnosis_record"
+        ]
       },
-      "requiredFeatureKeys": ["factory-equipment-diagnostics"],
-      "allowedActionKeys": ["node-open", "node-start"],
+      "requiredFeatureKeys": [
+        "factory-equipment-diagnostics"
+      ],
+      "allowedActionKeys": [
+        "node-open",
+        "node-start"
+      ],
       "risk": "medium",
       "humanGate": "review"
     },
@@ -545,10 +684,17 @@
       },
       "execution": {
         "mode": "assistant_task",
-        "toolNames": ["factory_quality_impact_record"]
+        "toolNames": [
+          "factory_quality_impact_record"
+        ]
       },
-      "requiredFeatureKeys": ["factory-quality-risk"],
-      "allowedActionKeys": ["node-open", "node-start"],
+      "requiredFeatureKeys": [
+        "factory-quality-risk"
+      ],
+      "allowedActionKeys": [
+        "node-open",
+        "node-start"
+      ],
       "risk": "high",
       "humanGate": "review"
     },
@@ -567,10 +713,17 @@
       },
       "execution": {
         "mode": "assistant_task",
-        "toolNames": ["factory_production_impact_record"]
+        "toolNames": [
+          "factory_production_impact_record"
+        ]
       },
-      "requiredFeatureKeys": ["factory-production-impact"],
-      "allowedActionKeys": ["node-open", "node-start"],
+      "requiredFeatureKeys": [
+        "factory-production-impact"
+      ],
+      "allowedActionKeys": [
+        "node-open",
+        "node-start"
+      ],
       "risk": "medium",
       "humanGate": "review"
     },
@@ -589,10 +742,17 @@
       },
       "execution": {
         "mode": "assistant_task",
-        "toolNames": ["factory_resource_readiness_record"]
+        "toolNames": [
+          "factory_resource_readiness_record"
+        ]
       },
-      "requiredFeatureKeys": ["factory-resource-readiness"],
-      "allowedActionKeys": ["node-open", "node-start"],
+      "requiredFeatureKeys": [
+        "factory-resource-readiness"
+      ],
+      "allowedActionKeys": [
+        "node-open",
+        "node-start"
+      ],
       "risk": "medium",
       "humanGate": "review"
     },
@@ -611,10 +771,17 @@
       },
       "execution": {
         "mode": "assistant_task",
-        "toolNames": ["factory_recovery_plan_generate"]
+        "toolNames": [
+          "factory_recovery_plan_generate"
+        ]
       },
-      "requiredFeatureKeys": ["factory-recovery-planning"],
-      "allowedActionKeys": ["node-open", "node-start"],
+      "requiredFeatureKeys": [
+        "factory-recovery-planning"
+      ],
+      "allowedActionKeys": [
+        "node-open",
+        "node-start"
+      ],
       "risk": "high",
       "humanGate": "review"
     },
@@ -637,8 +804,13 @@
         "artifactKey": "recovery-plan",
         "predicate": "approvalStatus in [approved, rejected] && approvalRevision == revision"
       },
-      "execution": { "mode": "human", "toolNames": [] },
-      "requiredFeatureKeys": ["factory-operations-workbench"],
+      "execution": {
+        "mode": "human",
+        "toolNames": []
+      },
+      "requiredFeatureKeys": [
+        "factory-operations-workbench"
+      ],
       "allowedActionKeys": [
         "node-open",
         "human-task-complete",
@@ -667,8 +839,13 @@
         "artifactKey": "execution-batch",
         "predicate": "status in [completed, partial_failure] && confirmationCount == actionCount"
       },
-      "execution": { "mode": "system", "toolNames": [] },
-      "requiredFeatureKeys": ["factory-recovery-execution"],
+      "execution": {
+        "mode": "system",
+        "toolNames": []
+      },
+      "requiredFeatureKeys": [
+        "factory-recovery-execution"
+      ],
       "allowedActionKeys": [
         "node-open",
         "execute_recovery_plan",
@@ -699,10 +876,18 @@
       },
       "execution": {
         "mode": "assistant_task",
-        "toolNames": ["factory_recovery_verification_record"]
+        "toolNames": [
+          "factory_recovery_verification_record"
+        ]
       },
-      "requiredFeatureKeys": ["factory-recovery-validation"],
-      "allowedActionKeys": ["node-open", "node-start", "verify_recovery"],
+      "requiredFeatureKeys": [
+        "factory-recovery-validation"
+      ],
+      "allowedActionKeys": [
+        "node-open",
+        "node-start",
+        "verify_recovery"
+      ],
       "risk": "high",
       "humanGate": "review"
     },
@@ -727,58 +912,113 @@
     }
   ],
   "edges": [
-    { "from": "detect-anomaly", "to": "triage-event" },
-    { "from": "triage-event", "to": "diagnose-equipment" },
-    { "from": "triage-event", "to": "assess-quality-impact" },
-    { "from": "triage-event", "to": "assess-production-impact" },
-    { "from": "triage-event", "to": "check-resource-readiness" },
-    { "from": "diagnose-equipment", "to": "generate-recovery-plan" },
-    { "from": "assess-quality-impact", "to": "generate-recovery-plan" },
-    { "from": "assess-production-impact", "to": "generate-recovery-plan" },
-    { "from": "check-resource-readiness", "to": "generate-recovery-plan" },
-    { "from": "generate-recovery-plan", "to": "route-execution-authority" },
     {
-      "from": "route-execution-authority",
-      "to": "execute-recovery-plan",
-      "condition": { "factKey": "execution-authority", "value": "auto-safe" }
+      "from": "detect-anomaly",
+      "to": "triage-event"
+    },
+    {
+      "from": "triage-event",
+      "to": "diagnose-equipment"
+    },
+    {
+      "from": "triage-event",
+      "to": "assess-quality-impact"
+    },
+    {
+      "from": "triage-event",
+      "to": "assess-production-impact"
+    },
+    {
+      "from": "triage-event",
+      "to": "check-resource-readiness"
+    },
+    {
+      "from": "diagnose-equipment",
+      "to": "generate-recovery-plan"
+    },
+    {
+      "from": "assess-quality-impact",
+      "to": "generate-recovery-plan"
+    },
+    {
+      "from": "assess-production-impact",
+      "to": "generate-recovery-plan"
+    },
+    {
+      "from": "check-resource-readiness",
+      "to": "generate-recovery-plan"
+    },
+    {
+      "from": "generate-recovery-plan",
+      "to": "route-execution-authority"
     },
     {
       "from": "route-execution-authority",
       "to": "approve-recovery-plan",
-      "condition": { "factKey": "execution-authority", "value": "approval-required" }
+      "condition": {
+        "factKey": "execution-authority",
+        "value": "approval-required"
+      }
     },
-    { "from": "approve-recovery-plan", "to": "route-approval-outcome" },
+    {
+      "from": "approve-recovery-plan",
+      "to": "route-approval-outcome"
+    },
     {
       "from": "route-approval-outcome",
       "to": "execute-recovery-plan",
-      "condition": { "factKey": "approval-outcome", "value": "approved" }
+      "condition": {
+        "factKey": "approval-outcome",
+        "value": "approved"
+      }
     },
     {
       "from": "route-approval-outcome",
       "to": "human-intervention-required",
-      "condition": { "factKey": "approval-outcome", "value": "rejected" }
+      "condition": {
+        "factKey": "approval-outcome",
+        "value": "rejected"
+      }
     },
-    { "from": "execute-recovery-plan", "to": "route-execution-outcome" },
+    {
+      "from": "execute-recovery-plan",
+      "to": "route-execution-outcome"
+    },
     {
       "from": "route-execution-outcome",
       "to": "verify-recovery",
-      "condition": { "factKey": "execution-outcome", "value": "complete" }
+      "condition": {
+        "factKey": "execution-outcome",
+        "value": "complete"
+      }
     },
     {
       "from": "route-execution-outcome",
       "to": "human-intervention-required",
-      "condition": { "factKey": "execution-outcome", "value": "partial-failure" }
+      "condition": {
+        "factKey": "execution-outcome",
+        "value": "partial-failure"
+      }
     },
-    { "from": "verify-recovery", "to": "route-recovery-outcome" },
+    {
+      "from": "verify-recovery",
+      "to": "route-recovery-outcome"
+    },
     {
       "from": "route-recovery-outcome",
       "to": "production-recovered",
-      "condition": { "factKey": "recovery-outcome", "value": "recovered" }
+      "condition": {
+        "factKey": "recovery-outcome",
+        "value": "recovered"
+      }
     },
     {
       "from": "route-recovery-outcome",
       "to": "human-intervention-required",
-      "condition": { "factKey": "recovery-outcome", "value": "needs-intervention" }
+      "condition": {
+        "factKey": "recovery-outcome",
+        "value": "needs-intervention"
+      }
     }
   ]
 }

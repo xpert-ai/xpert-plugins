@@ -9,7 +9,7 @@ description: 角色能力、数据持久化和治理边界
 
 | 角色 | 独立主 Agent | 业务职责 | 写入节点 |
 | --- | --- | --- | --- |
-| 治理协调者 | Agent_coordinator | 读取、授权下一段流水线 | dispatch_next |
+| 治理协调者 | Agent_coordinator | 读取、启动项目流水线 | start_pipeline |
 | 数据采集专员 | Agent_intake | 封存来源证据 | collect-evidence |
 | 研发图纸工程师 | Agent_engineering | 验证发布图纸与结构化标注 | extract-drawing |
 | 物料标准化工程师 | Agent_standardization | 单位归一和身份硬核验 | normalize-material / match-identity |
@@ -18,7 +18,7 @@ description: 角色能力、数据持久化和治理边界
 | 主数据治理专员 | Agent_governance | 提交当前证据的治理建议 | propose-governance |
 | 系统发布与监控专员 | Agent_publisher | 发布已经人工批准的方案 | publish-records |
 
-每个角色都有独立 Assistant 模板、主 Agent、固定角色 Middleware 和专属读取工具。业务工具仅由对应 Middleware 暴露。协调者通过七条直接且 required 的 External Xpert 连线调度；不使用一个多 Agent Assistant 冒充八位独立角色。
+每个角色都有独立 Assistant 模板、主 Agent、固定角色 Middleware 和专属读取工具。业务工具仅由对应 Middleware 暴露。七条直接且 required 的 External Xpert 连线用于明确角色安装绑定，平台流水线负责派发；不使用一个多 Agent Assistant 冒充八位独立角色。
 
 三个视图共享 `material_identity_workbench` 功能开关：ECharts 管理监控、案例泳道、证据与审批工作区。工具能力仍由角色开关独立控制。审批入口只接受有案例 Project 管理权的人类用户。
 
@@ -28,7 +28,7 @@ description: 角色能力、数据持久化和治理边界
 
 版本变更使用事务与行锁；创建阶段使用操作范围的 advisory lock。请求不得携带调用者自行指定的租户、组织或角色。工具必须处于真实平台 execution 上下文，并核对案例 Project 和已分配 Assistant 身份。
 
-流水线蓝图持久化版本为 1。Managed Queue 负责启动和监督任务，通过公开 AssistantTaskRuntime 能力调用独立 External Assistant。业务工具提交成果与平台执行完成分别验证。业务成果写入成功并且模型任务结束成功，执行圆点才成为成功状态。重试保留旧尝试，以新记录关联同一案例和节点。
+原生流水线模板版本为 1.0.0。平台统一负责 DAG、任务派发、并行、重试、取消、人工关口与历史轮次；插件不另建队列或轮询调度器。业务工具提交成果与平台执行完成分别验证。插件按平台准备的 work identity 接收业务成果，平台校验执行完成与不可变证据后才推进节点；视图执行状态直接读取平台记录。重试保留旧尝试，以新记录关联同一案例和节点。
 
 来源快照采用对象键排序后的 canonical JSON SHA-256，数组顺序和值仍参与校验。这样数据库 JSONB 的字段重排不会被误认为证据变更。研发 SVG 文件有独立内容哈希，结构化标注与属性证据逐项核验。
 

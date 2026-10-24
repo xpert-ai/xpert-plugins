@@ -12,13 +12,13 @@ const requireFromPlatform = createRequire(resolve(platformRoot, 'package.json'))
 const { chromium } = requireFromPlatform('playwright')
 
 test('renders and operates the dedicated Factory Case task workspace', async (context) => {
+  const focus = { pipelineInstanceId: '20000000-0000-4000-8000-000000000070', pipelineRoundId: '30000000-0000-4000-8000-000000000070', pipelineNodeId: '40000000-0000-4000-8000-000000000070' }
   const preview = await startRemoteViewPreview(
-    { ...previewConfig, state: structuredClone(previewConfig.state), logStartup: false, logErrors: false },
+    { ...previewConfig, hostContext: { ...previewConfig.hostContext, initialQuery: { ...previewConfig.hostContext.initialQuery, parameters: { ...previewConfig.hostContext.initialQuery.parameters, ...focus } } }, state: structuredClone(previewConfig.state), logStartup: false, logErrors: false },
     { port: 0 }
   )
-  context.after(() => preview.close())
   const browser = await chromium.launch({ headless: true })
-  context.after(() => browser.close())
+  context.after(async () => { await browser.close(); await preview.close() })
   const page = await browser.newPage({ viewport: { width: 1600, height: 1050 }, locale: 'zh-CN', colorScheme: 'light' })
   const pageErrors = []
   const consoleErrors = []
@@ -31,13 +31,23 @@ test('renders and operates the dedicated Factory Case task workspace', async (co
   await assertVisible(frame.getByRole('heading', { name: '验证设备、质量与生产恢复' }))
   assert.equal(await frame.locator('.fcw-owner .foc-avatar-glyph').textContent(), '✅')
   await assertRoundedSquareAvatar(frame.locator('.fcw-owner .foc-assistant-avatar'))
-  await assertVisible(frame.getByRole('button', { name: '验证恢复' }))
-  await frame.getByRole('button', { name: '验证恢复' }).click()
-  await waitFor(() => preview.state.actions.at(-1)?.actionKey === 'verify_recovery')
-  await assertVisible(frame.getByText('主轴振动恢复至 2.1 mm/s', { exact: true }))
+  await assertVisible(frame.getByRole('button', { name: '启动 / 打开项目流水线' }))
+  await frame.getByRole('button', { name: '启动 / 打开项目流水线' }).click()
+  await waitFor(() => preview.state.actions.at(-1)?.actionKey === 'start_pipeline')
+  await waitFor(() => preview.state.navigation?.viewKey === 'platform.project-tasks__timeline')
+  assert.equal(preview.state.navigation.target, 'assistant.project')
+  assert.equal(preview.state.navigation.parameters.initialTab, 'pipeline')
+  assert.equal(preview.state.navigation.parameters.pipelineRoundId, undefined)
+  assert.equal(preview.state.actions.some((action) => action.actionKey === 'verify_recovery'), false)
+
+  await frame.getByRole('button', { name: '项目流水线', exact: true }).click()
+  await waitFor(() => preview.state.navigation?.parameters?.pipelineRoundId === focus.pipelineRoundId)
+  assert.equal(preview.state.navigation.projectId, '10000000-0000-4000-8000-000000000070')
+  for (const [key, value] of Object.entries(focus)) assert.equal(preview.state.navigation.parameters[key], value)
 
   await frame.getByRole('button', { name: /返回流水线/ }).click()
-  await waitFor(() => preview.state.navigation?.target === 'workbench.view')
+  await waitFor(() => preview.state.navigation?.viewKey === 'factory-operations-center')
+  for (const [key, value] of Object.entries(focus)) assert.equal(preview.state.navigation.parameters[key], value)
   assert.equal(preview.state.navigation.viewKey, 'factory-operations-center')
   assert.equal(preview.state.navigation.selectionId, '00000000-0000-4000-8000-000000000070')
 

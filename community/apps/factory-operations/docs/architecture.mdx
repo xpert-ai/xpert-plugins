@@ -5,7 +5,7 @@ description: "角色拓扑、领域工件、并发控制和人类治理"
 
 ## 多 Agent 拓扑
 
-协调 Agent 只拥有 Case 与执行状态的只读能力。八个独立角色 Assistant 通过 direct、required External Xpert 连接加入 Orchestrator，其中七个专业 Agent 各拥有一个写入中间件；生产运营审批顾问只读，不替代具名用户审批。
+协调 Agent 只拥有 Case 与执行状态的只读能力。八个独立角色 Assistant 通过 direct、required External Xpert 连接声明安装绑定，其中七个专业 Agent 各拥有一个写入中间件；生产运营审批顾问只读，不替代具名用户审批。
 
 ```text
 Factory Coordinator
@@ -34,13 +34,15 @@ Project owner 是 Case 创建者。其他用户必须先成为 Project 成员。
 
 - `FactoryArtifactEntity`：带工件修订、证据、置信度和 Agent 身份的不可变投影。
 - `FactoryAuditEntity`：带操作指纹、前后修订、用户可见变更摘要和紧凑回执的审计记录。
-- `FactoryExecutionRecordEntity`：不可变任务尝试，保存 Queue job、Project、Assistant Task、会话、线程、运行和实际 executor 元数据。
+- `FactoryExecutionRecordEntity`：业务执行接收记录，固定平台 work identity、Project、轮次、节点与实际 executor；运行状态由平台查询返回。
 
 所有查询和写入都强制使用认证上下文中的 `tenantId` 与 `organizationId`。模型输入不接受租户或组织标识。
 
-## Assistant Task 执行边界
+## 平台执行边界
 
-Remote View 调用 `dispatch_assistant_task`，先写执行尝试，再写入平台 Managed Queue `factory_ops.assistant-tasks`。Processor 重新读取 Case，检查组织范围、Project `ready`、成员权限、节点状态、修订和幂等键，然后调用目标角色 Assistant Task，并强制使用 Case 的 `workspaceProjectId`。角色 Middleware finalizer 必须以同一 `operationId` 更新该尝试；平台任务成功但未 finalizer 时，Case 不推进。
+Remote View 调用 `start_pipeline` 配置并启动原生项目流水线。平台负责 DAG、并行分支、队列、重试、取消和历史轮次。Project ensure 返回精确的模板键、Agent 键与 Assistant ID 映射；连接只用于发现绑定，协调者不自行派发角色任务。
+
+插件 `prepare` 固定输入版本与执行身份，角色 Middleware finalizer 必须匹配该准备记录；`collect` 只接受已经持久化的业务成果并生成不可变证据。缺少 finalizer、取消、执行身份错误或来源版本过期均不能推进业务。恢复方案经平台人工关口批准并落账后，平台才允许执行与验证。
 
 ## 人类审批闸门
 

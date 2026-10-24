@@ -52,7 +52,7 @@ describe('Factory Operations plugin contracts', () => {
     const yaml = parse(readFileSync(resolve(root, 'src/factory-operations-assistant.yaml'), 'utf8'))
     expect(yaml.team.options.templateKey).toBe(FACTORY_TEMPLATE_KEY)
     expect(yaml.team.options.workspaceScope).toEqual({ mode: 'project-required', projectType: FACTORY_CASE_PROJECT_TYPE })
-    expect(yaml.team.version).toBe('5')
+    expect(yaml.team.version).toBe('6')
     expect(yaml.team.agent.key).toBe(AGENT_KEYS.coordinator)
     expect(yaml.team.features.opener.questions).toEqual([...FACTORY_TEMPLATE_DEFINITION.startPrompts])
 
@@ -61,7 +61,7 @@ describe('Factory Operations plugin contracts', () => {
     expect(agents[0].entity.leaderKey).toBeNull()
 
     const coordinator = agents.find((node: { entity: { key: string } }) => node.entity.key === AGENT_KEYS.coordinator)
-    expect(coordinator.entity.prompt).toContain('independently installed Assistant')
+    expect(coordinator.entity.prompt).toContain('Project pipeline')
 
     const middlewareNodes = yaml.nodes.filter((node: { entity?: { type?: string } }) => node.entity?.type === 'middleware')
     expect(middlewareNodes.map((node: { entity: { provider: string } }) => node.entity.provider).sort()).toEqual([

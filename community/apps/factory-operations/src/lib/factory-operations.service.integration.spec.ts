@@ -1,3 +1,6 @@
+import { FactoryPipelineEvidence } from './pipeline/entity.js'
+import { FACTORY_ROLE_ASSISTANTS } from './factory-assistant-definitions.js'
+import { FACTORY_PLUGIN_NAME } from './constants.js'
 import { FactoryApprovalPolicy } from './factory-approval-policy.service.js'
 import { randomUUID } from 'node:crypto'
 import { DataType, newDb } from 'pg-mem'
@@ -8,6 +11,7 @@ vi.mock('@xpert-ai/plugin-sdk', () => ({
   pluginArtifactTableName: (namespace: string, tableKey: string) =>
     `plugin_${namespace}_${tableKey}`,
   XPERT_RUNTIME_CAPABILITIES_TOKEN: 'XPERT_RUNTIME_CAPABILITIES',
+  ProjectProvisioningRuntimeCapability: 'platform.project.provisioning',
   MANAGED_QUEUE_SERVICE_TOKEN: 'XPERT_MANAGED_QUEUE_SERVICE',
   ViewExtensionProvider:
     () =>
@@ -26,27 +30,20 @@ import {
 import { FactoryOperationsService } from './factory-operations.service.js'
 import { FactoryCaseProjectService } from './factory-case-project.service.js'
 import { FactoryOperationsViewProvider } from './factory-view.provider.js'
-import {
-  FactoryAssistantTaskService,
-  type FactoryAssistantTaskQueuePayload
-} from './factory-assistant-task.service.js'
 
 const scope: FactoryScope = {
   tenantId: 'tenant-a',
   organizationId: 'factory-east',
   workspaceId: 'workspace-a',
   userId: 'operations-owner',
-  assistantId: 'factory-assistant',
+  assistantId: '10000000-0000-4000-8000-000000000001',
   actorType: 'user'
 }
 
 describe('FactoryOperationsService persistence boundary', () => {
   let dataSource: DataSource
   let service: FactoryOperationsService
-  let assistantTasks: FactoryAssistantTaskService
   let caseProjects: FactoryCaseProjectService
-  let queuedPayload: FactoryAssistantTaskQueuePayload | null
-  let queuedEnvelopeScopeKey: string | null
 
   beforeEach(async () => {
     const memory = newDb({ autoCreateForeignKeyIndices: true })
@@ -79,7 +76,7 @@ describe('FactoryOperationsService persistence boundary', () => {
     })
     dataSource = await memory.adapters.createTypeormDataSource({
       type: 'postgres',
-      entities: [
+      entities: [FactoryPipelineEvidence,
         FactoryCaseEntity,
         FactoryArtifactEntity,
         FactoryAuditEntity,
@@ -92,7 +89,8 @@ describe('FactoryOperationsService persistence boundary', () => {
       require: () => ({
         ensure: vi.fn(async (input: { projectId: string; xpertId: string }) => ({
           projectId: input.projectId,
-          xpertIds: [input.xpertId],
+          xpertIds: [input.xpertId, ...FACTORY_ROLE_ASSISTANTS.map(r => r.key)],
+          assistantBindings: FACTORY_ROLE_ASSISTANTS.map(r => ({ pluginName: FACTORY_PLUGIN_NAME, templateKey: r.key, agentKey: r.agentKey, xpertId: r.key })),
           operation: 'created' as const
         }))
       })
@@ -104,7 +102,7 @@ describe('FactoryOperationsService persistence boundary', () => {
     const policy = new FactoryApprovalPolicy({
       register() { return this }, has() { return false }, get() { return undefined }, require() { throw new Error('Not configured in this persistence test') }
     })
-    vi.spyOn(policy, 'assertContinuationStep').mockResolvedValue(undefined)
+    vi.spyOn(policy, 'assertManagedOperation').mockResolvedValue(undefined)
     vi.spyOn(policy, 'assertHumanApprover').mockResolvedValue({ projectId: 'project', role: 'owner', canManage: true, archived: false })
     service = new FactoryOperationsService(
       dataSource.getRepository(FactoryCaseEntity),
@@ -113,53 +111,7 @@ describe('FactoryOperationsService persistence boundary', () => {
       dataSource.getRepository(FactoryExecutionRecordEntity),
       caseProjects,
       { mode: 'simulation', debug: false },
-      policy
-    )
-    queuedPayload = null
-    queuedEnvelopeScopeKey = null
-    assistantTasks = new FactoryAssistantTaskService(
-      dataSource.getRepository(FactoryCaseEntity),
-      dataSource.getRepository(FactoryExecutionRecordEntity),
-      {
-        enqueue: vi.fn(
-          async (input: {
-            payload: FactoryAssistantTaskQueuePayload
-            jobId: string
-            scopeKey: string
-          }) => {
-            queuedPayload = input.payload
-            queuedEnvelopeScopeKey = input.scopeKey
-            return { jobId: input.jobId }
-          }
-        ),
-        cancel: vi.fn(async (input: { jobId: string }) => ({
-          success: true,
-          jobId: input.jobId,
-          state: 'waiting'
-        })),
-        getJob: vi.fn(async () => ({ state: 'waiting' }))
-      } as never,
-      {
-        require: () => ({
-          startTask: vi.fn(async () => ({
-            status: 'running' as const,
-            taskId: 'task-1',
-            conversationId: 'conversation-1',
-            threadId: 'thread-1',
-            executionId: 'execution-1',
-            executorXpertId: 'role-assistant-1',
-            executorAgentKey: 'Agent_AnomalyTriage',
-            executorAssistantTemplateKey: 'factory-anomaly-triage-assistant',
-            executorAssistantTitle: '工厂异常研判助手',
-            executorPublishedVersion: '2'
-          })),
-          getTaskStatus: vi.fn(async () => ({ status: 'succeeded' as const })),
-          cancelTask: vi.fn(async () => ({
-            canceledExecutionIds: ['execution-1']
-          }))
-        })
-      } as never,
-      { scopeKey: 'global' }
+      policy, projectCapabilities as never
     )
   })
 
@@ -306,7 +258,7 @@ describe('FactoryOperationsService persistence boundary', () => {
       )
     ).toBeNull()
 
-    const provider = new FactoryOperationsViewProvider(service, caseProjects, assistantTasks)
+    const provider = new FactoryOperationsViewProvider(service, caseProjects, {} as never, {} as never)
     const data = await provider.getViewData(
       viewContext(second.summary.workspace.projectId),
       'factory-operations-center',
@@ -347,185 +299,6 @@ describe('FactoryOperationsService persistence boundary', () => {
     })
   })
 
-  it('queues a Project-bound Assistant Task and advances only through its matching finalizer', async () => {
-    const created = await service.createDemoIncident(scope, {
-      operationId: 'integration:task:create',
-      changeSummary: 'Created a Project-bound task case'
-    })
-    const operationId = 'integration:task:triage:r1'
-    const dispatched = await assistantTasks.dispatch(scope, {
-      caseId: created.summary.id,
-      nodeKey: 'triage-event',
-      baseRevision: created.summary.revision,
-      operationId
-    })
-    expect(dispatched.executionRecord.workspaceProjectId).toBe(created.summary.workspace.projectId)
-    expect(queuedPayload).toMatchObject({
-      caseId: created.summary.id,
-      nodeKey: 'triage-event',
-      expectedRevision: 1,
-      operationId
-    })
-    expect(queuedEnvelopeScopeKey).toBe('global')
-    if (!queuedPayload) throw new Error('Expected a queued Assistant Task payload.')
-    await assistantTasks.process(queuedPayload)
-
-    const beforeFinalizer = await dataSource
-      .getRepository(FactoryExecutionRecordEntity)
-      .findOneByOrFail({
-        operationId
-      })
-    expect(beforeFinalizer.status).toBe('running')
-    expect((await service.getCaseSummary(scope, { caseId: created.summary.id })).revision).toBe(1)
-
-    const facts = created.summary.analysisFacts.triage
-    await service.recordTriage(
-      {
-        ...scope,
-        actorType: 'agent',
-        projectId: created.summary.workspace.projectId,
-        conversationId: 'conversation-1',
-        threadId: 'thread-1',
-        executionId: 'execution-1',
-        agentKey: 'Agent_AnomalyTriage'
-      },
-      {
-        caseId: created.summary.id,
-        baseRevision: 1,
-        operationId,
-        changeSummary: 'Recorded triage through the Assistant Task finalizer',
-        severity: facts.severity,
-        summary: facts.summary,
-        confidence: facts.confidence,
-        evidence: facts.evidence
-      }
-    )
-
-    const finalized = await dataSource.getRepository(FactoryExecutionRecordEntity).findOneByOrFail({
-      operationId
-    })
-    expect(finalized.status).toBe('succeeded')
-    expect(finalized.outputRevision).toBe(2)
-    expect(finalized.workspaceProjectId).toBe(created.summary.workspace.projectId)
-  })
-
-  it('does not advance the Case when the platform task succeeds without a business finalizer', async () => {
-    const created = await service.createDemoIncident(scope, {
-      operationId: 'integration:missing-finalizer:create',
-      changeSummary: 'Created missing-finalizer Case'
-    })
-    const operationId = 'integration:missing-finalizer:triage:r1'
-    await assistantTasks.dispatch(scope, {
-      caseId: created.summary.id,
-      nodeKey: 'triage-event',
-      baseRevision: 1,
-      operationId
-    })
-    if (!queuedPayload) throw new Error('Expected a queued Assistant Task payload.')
-    await assistantTasks.process(queuedPayload)
-    await assistantTasks.reconcile(scope, created.summary.id)
-
-    const record = await dataSource
-      .getRepository(FactoryExecutionRecordEntity)
-      .findOneByOrFail({ operationId })
-    expect(record.status).toBe('interrupted')
-    expect((await service.getCaseSummary(scope, { caseId: created.summary.id })).revision).toBe(1)
-  })
-
-  it('cancels a queued attempt through Managed Queue without starting an Assistant Task', async () => {
-    const created = await service.createDemoIncident(scope, {
-      operationId: 'integration:cancel:create',
-      changeSummary: 'Created cancellation Case'
-    })
-    const dispatched = await assistantTasks.dispatch(scope, {
-      caseId: created.summary.id,
-      nodeKey: 'triage-event',
-      baseRevision: 1,
-      operationId: 'integration:cancel:triage:r1'
-    })
-    const cancelled = await assistantTasks.cancel(scope, dispatched.executionRecord.id)
-    expect(cancelled.status).toBe('cancelled')
-  })
-
-  it('deduplicates the same operation and rejects stale revisions before enqueue', async () => {
-    const created = await service.createDemoIncident(scope, {
-      operationId: 'integration:dedupe:create',
-      changeSummary: 'Created task idempotency Case'
-    })
-    const input = {
-      caseId: created.summary.id,
-      nodeKey: 'triage-event',
-      baseRevision: 1,
-      operationId: 'integration:dedupe:triage:r1'
-    }
-    expect((await assistantTasks.dispatch(scope, input)).duplicate).toBe(false)
-    expect((await assistantTasks.dispatch(scope, input)).duplicate).toBe(true)
-    expect(
-      await dataSource.getRepository(FactoryExecutionRecordEntity).countBy({
-        operationId: input.operationId
-      })
-    ).toBe(1)
-
-    await expect(
-      assistantTasks.dispatch(scope, {
-        ...input,
-        operationId: 'integration:dedupe:triage:stale',
-        baseRevision: 99
-      })
-    ).rejects.toMatchObject({
-      response: { errorCode: 'factory_revision_conflict' }
-    })
-  })
-
-  it('keeps non-terminal Queue failures recoverable and records terminal exhaustion', async () => {
-    const created = await service.createDemoIncident(scope, {
-      operationId: 'integration:queue-retry:create',
-      changeSummary: 'Created queue recovery Case'
-    })
-    const operationId = 'integration:queue-retry:triage:r1'
-    await assistantTasks.dispatch(scope, {
-      caseId: created.summary.id,
-      nodeKey: 'triage-event',
-      baseRevision: 1,
-      operationId
-    })
-    if (!queuedPayload) throw new Error('Expected a queued Assistant Task payload.')
-
-    await assistantTasks.recordQueueFailure(queuedPayload, new Error('temporary failure'), false)
-    expect(
-      (
-        await dataSource
-          .getRepository(FactoryExecutionRecordEntity)
-          .findOneByOrFail({ operationId })
-      ).status
-    ).toBe('queued')
-    await assistantTasks.recordQueueFailure(queuedPayload, new Error('terminal failure'), true)
-    expect(
-      (
-        await dataSource
-          .getRepository(FactoryExecutionRecordEntity)
-          .findOneByOrFail({ operationId })
-      ).status
-    ).toBe('failed')
-  })
-
-  it('cancels an already started Assistant Task through the platform capability', async () => {
-    const created = await service.createDemoIncident(scope, {
-      operationId: 'integration:started-cancel:create',
-      changeSummary: 'Created started task cancellation Case'
-    })
-    const dispatched = await assistantTasks.dispatch(scope, {
-      caseId: created.summary.id,
-      nodeKey: 'triage-event',
-      baseRevision: 1,
-      operationId: 'integration:started-cancel:triage:r1'
-    })
-    if (!queuedPayload) throw new Error('Expected a queued Assistant Task payload.')
-    await assistantTasks.process(queuedPayload)
-    expect((await assistantTasks.cancel(scope, dispatched.executionRecord.id)).status).toBe(
-      'cancelled'
-    )
-  })
 })
 
 function viewContext(projectId: string): XpertResolvedViewHostContext {
@@ -535,7 +308,7 @@ function viewContext(projectId: string): XpertResolvedViewHostContext {
     workspaceId: scope.workspaceId,
     userId: scope.userId ?? 'operations-owner',
     hostType: 'agent',
-    hostId: scope.assistantId ?? 'factory-assistant',
+    hostId: scope.assistantId ?? '10000000-0000-4000-8000-000000000001',
     slots: [],
     runtimeScope: {
       projectId,

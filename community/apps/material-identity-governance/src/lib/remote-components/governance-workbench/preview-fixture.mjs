@@ -1123,7 +1123,7 @@ async function handleRequest(message, { state }) {
       state.cases[index] = applyDomainStep(c, node.key, node.laneKey, time);
       state.records.push({ id: `preview-record-${state.records.length + 1}`, caseId: c.id, nodeKey: node.key, roleKey: node.laneKey, attempt: 1, sequence: state.records.length + 1, status: "succeeded", taskId: "preview-task", conversationId: "preview-conversation", threadId: "preview-thread", executionId: "preview-execution", inputRevision: c.revision, outputRevision: state.cases[index].revision, startedAt: time, finishedAt: time, safeSummary: "\u4EA4\u4E92\u539F\u578B\u6267\u884C\u6837\u4F8B\uFF0C\u4EC5\u7528\u4E8E\u68C0\u9A8C\u5E03\u5C40\u4E0E\u5BFC\u822A\u534F\u8BAE\u3002", supersededById: null });
     }
-    return { result: { success: true, code: "accepted", caseId: c.id, revision: state.cases[index].revision } };
+    return { result: { success: true, code: "accepted", caseId: c.id, revision: state.cases[index].revision, ...(message.actionKey === "start_pipeline" ? { projectId: c.id.replace(/^0000/, "1000"), pipelineInstanceId: c.id.replace(/^0000/, "2000") } : {}) } };
   }
   throw new Error("Unsupported preview operation");
 }

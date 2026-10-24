@@ -1,3 +1,4 @@
+import { pipelineFocus, projectPipelineNavigation } from './pipeline-navigation'
 import * as React from 'react'
 import { createRoot } from 'react-dom/client'
 import {
@@ -88,7 +89,7 @@ function App() {
           const nextKey = JSON.stringify(value.initialQuery ?? {})
           if (nextKey !== initialQueryKey.current) {
             initialQueryKey.current = nextKey
-            query.current = { ...query.current, ...value.initialQuery }
+            query.current = { page: 1, pageSize: 20, ...value.initialQuery }
           }
           document.documentElement.lang = normalizeLocale(value.locale)
           void reload.current()
@@ -132,8 +133,13 @@ function App() {
             }),
         ...input,
       })
-      if (r.caseId) query.current.selectionId = r.caseId
+      if (r.caseId && r.caseId !== query.current.selectionId) {
+        query.current = { page: 1, pageSize: 20, selectionId: r.caseId }
+      }
       await load()
+      if (key === 'start_pipeline' && r.projectId && r.pipelineInstanceId) {
+        await navigate(projectPipelineNavigation(r.projectId, { pipelineInstanceId: r.pipelineInstanceId }))
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'action_failed')
       throw e
@@ -147,7 +153,8 @@ function App() {
         target: 'workbench.view',
         viewKey: viewKey[surface],
         selectionId: id,
-        parameters: { surface, ...(nodeKey ? { nodeKey } : {}) },
+        parameters: { surface, ...(nodeKey ? { nodeKey } : {}),
+          ...(id === data?.selectedCase?.id ? pipelineFocus(query.current.parameters) : {}) },
       })
       await load()
     } catch (e) {
@@ -162,10 +169,14 @@ function App() {
         error={error}
         busy={busy}
         onReload={() => void load()}
+        onProjectPipeline={() => {
+          if (!data?.projectId) return
+          void navigate(projectPipelineNavigation(data.projectId, pipelineFocus(query.current.parameters))).catch(e => setError(e instanceof Error ? e.message : 'navigation_failed'))
+        }}
         onAction={action}
         onOpen={open}
         onSelect={(id) => {
-          query.current.selectionId = id
+          query.current = { page: 1, pageSize: 20, selectionId: id }
           void load()
         }}
         onError={(e) => setError(e.message)}
@@ -178,6 +189,7 @@ interface ScreenProps {
   loading: boolean
   error: string
   busy: boolean
+  onProjectPipeline: () => void
   onReload: () => void
   onAction: (key: string, input?: Partial<ActionInput>) => Promise<void>
   onOpen: (surface: Surface, id?: string, nodeKey?: string) => Promise<void>
@@ -190,6 +202,7 @@ function Screen({
   error,
   busy,
   onReload,
+  onProjectPipeline,
   onAction,
   onOpen,
   onSelect,
@@ -203,6 +216,9 @@ function Screen({
   const current = data?.selectedCase,
     flow = data?.flow,
     surface = data?.surface ?? 'dashboard'
+  React.useEffect(() => {
+    if (data?.selectedNodeKey) setNode(data.flow?.nodes.find(n => n.key === data.selectedNodeKey) ?? null)
+  }, [data?.selectedCase?.id, data?.selectedNodeKey])
   const doAction = (key: string, input?: Partial<ActionInput>) => {
     void onAction(key, input).catch(() => {})
   }
@@ -227,9 +243,10 @@ function Screen({
           busy={busy}
           onSelect={onSelect}
           onReload={onReload}
+          onProjectPipeline={onProjectPipeline}
           onCreate={() => setCreate(true)}
           onWorkspace={() => void onOpen('workspace', current?.id)}
-          onCoordinate={() => doAction('coordinate_next')}
+          onCoordinate={() => doAction('start_pipeline')}
         />
       ) : (
         <header className="app-header">
@@ -242,6 +259,8 @@ function Screen({
             <Badge variant="outline">{t('mock')}</Badge>
           </div>
           <div className="header-actions">
+            {data?.projectId && <Button variant="outline" onClick={onProjectPipeline}
+              disabled={data.projectStatus !== 'ready'}>{t('projectPipeline')}</Button>}
             <Button
               variant="ghost"
               size="icon"
@@ -490,14 +509,14 @@ function Screen({
                 </Button>
                 {node.executionMode === 'assistant_task' && (
                   <Button
-                    disabled={busy || !node.executable}
+                    disabled={busy || data?.projectStatus !== 'ready'}
                     onClick={() => {
-                      doAction('run_node', { nodeKey: node.key })
+                      onProjectPipeline()
                       setNode(null)
                     }}
                   >
                     <Play size={14} />
-                    {t('run')}
+                    {t('projectPipeline')}
                   </Button>
                 )}
               </DialogFooter>

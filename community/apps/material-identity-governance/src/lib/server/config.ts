@@ -5,4 +5,5 @@ export const ConfigSchema = z
 export const RUNTIME_SCOPE = Symbol('MATERIAL_IDENTITY_RUNTIME_SCOPE')
 export interface InstallationScope {
   scopeKey: string
+  tenantId?: string | null
 }

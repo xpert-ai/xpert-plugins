@@ -1,3 +1,5 @@
+import type { ProjectPipelineWorkContext } from '@xpert-ai/contracts'
+import { MATERIAL_PROJECT_TYPE } from './project-type.provider.js'
 import {
   BadRequestException,
   ConflictException,
@@ -11,6 +13,7 @@ import { DataSource, EntityManager, In } from 'typeorm'
 import { randomUUID, createHash } from 'node:crypto'
 import {
   ProjectAccessRuntimeCapability,
+  ProjectPipelinesRuntimeCapability,
   ProjectProvisioningRuntimeCapability,
   AssistantTaskRuntimeCapability,
   XPERT_RUNTIME_CAPABILITIES_TOKEN,
@@ -192,7 +195,9 @@ export class MaterialCaseService {
           projectId: randomUUID(),
           projectStatus: 'pending',
           assignedAssistantIds: [],
-          autoRun: false,
+          pipelineBindingId: null,
+          pipelineInstanceId: null,
+          roleAssistants: {},
           criticalConflict: false,
           exposure: snapshot.materials.reduce(
             (v, x) => v + x.quantity * x.unitCost,
@@ -201,6 +206,7 @@ export class MaterialCaseService {
         })
       await m.save(entity)
       await this.persistNodes(m, entity)
+
       const result = {
         success: true,
         code: 'case_created',
@@ -229,6 +235,7 @@ export class MaterialCaseService {
       const result = await this.scopedCapabilities(s)
         .require(ProjectProvisioningRuntimeCapability)
         .ensure({
+          projectType: MATERIAL_PROJECT_TYPE,
           projectId: e.projectId,
           xpertId: e.coordinatorId,
           requesterAgentKey: roleDefinition('coordinator').agentKey,
@@ -247,6 +254,11 @@ export class MaterialCaseService {
         .update(e.id, {
           projectStatus: 'ready',
           assignedAssistantIds: result.xpertIds,
+          roleAssistants: Object.fromEntries(ROLES.filter(r => r.key !== 'coordinator').map(role => {
+            const binding = result.assistantBindings.find(b => b.pluginName === PLUGIN_NAME && b.templateKey === role.templateKey && b.agentKey === role.agentKey)
+            if (!binding || !result.xpertIds.includes(binding.xpertId)) throw new ConflictException('role_not_in_project')
+            return [role.key, binding.xpertId]
+          })),
         })
     } catch (error) {
       await this.db
@@ -262,7 +274,7 @@ export class MaterialCaseService {
     return this.requireCase(s, id)
   }
   async records(s: RuntimeScope, id: string) {
-    await this.requireCase(s, id)
+    const entity = await this.requireCase(s, id)
     const rows = await this.db
       .getRepository(MaterialExecutionEntity)
       .find({
@@ -270,7 +282,22 @@ export class MaterialCaseService {
         order: { createdAt: 'ASC' },
         take: 200,
       })
-    return rows.map((e) => e.record)
+    return this.presentExecutions(s, rows, new Map([[id, entity.projectId]]))
+  }
+  /** Read the exact native round, without copying runtime lifecycle state into business rows. */
+  async presentExecutions(s: RuntimeScope, rows: MaterialExecutionEntity[], projects: Map<string, string>) {
+    const graphs = new Map<string, Promise<import('@xpert-ai/contracts').ProjectPipelineGraph>>()
+    const api = rows.length ? this.capabilities.require(ProjectPipelinesRuntimeCapability) : null
+    return Promise.all(rows.map(async row => {
+      const key = row.pipelineWork.roundId
+      if (!graphs.has(key)) graphs.set(key, api!.graph({ actor: { tenantId: s.tenantId!, organizationId: s.organizationId, userId: s.userId! }, projectId: projects.get(row.caseId)! },
+        row.pipelineWork.instanceId, { roundId: key }))
+      const graph = await graphs.get(key)!
+      const execution = graph.tasks.executions.find(e => e.agentExecutionId === row.record.executionId)
+      return { ...row.record, status: execution?.status ?? (graph.runState === 'cancelled' || graph.round.state === 'superseded' ? 'cancelled' as const : 'interrupted' as const),
+        threadId: execution?.threadId ?? row.record.threadId,
+        finishedAt: execution?.completedAt ? new Date(execution.completedAt).toISOString() : row.record.finishedAt }
+    }))
   }
   async profiles(s: RuntimeScope, coordinatorId: string): Promise<Profiles> {
     const api = this.scopedCapabilities(s).require(
@@ -385,67 +412,14 @@ export class MaterialCaseService {
           caseId: e.id,
           operationId: input.operationId,
         })
-      if (execution) {
-        if (
-          execution.roleKey !== role ||
-          execution.nodeKey !== nodeKey ||
-          execution.inputRevision !== input.expectedRevision ||
-          (execution.executorId && execution.executorId !== s.assistantId) ||
-          ['failed', 'cancelled', 'interrupted'].includes(execution.status)
-        )
-          throw new ConflictException('execution_identity_mismatch')
-        execution.record = {
-          ...execution.record,
-          conversationId: s.conversationId ?? execution.record.conversationId,
-          threadId: s.threadId ?? execution.record.threadId,
-          executionId: s.executionId ?? execution.record.executionId,
-          outputRevision: next.revision,
-          safeSummary: artifact.summary.slice(0, 1000),
-        }
-      } else {
-        const attempt =
-          (await m
-            .getRepository(MaterialExecutionEntity)
-            .countBy({ ...scoped(s), caseId: e.id, nodeKey })) + 1
-        const id = randomUUID()
-        execution = m
-          .getRepository(MaterialExecutionEntity)
-          .create({
-            ...scoped(s),
-            scopeKey: scopeKey(s),
-            id,
-            caseId: e.id,
-            operationId: input.operationId,
-            nodeKey,
-            roleKey: role,
-            attempt,
-            inputRevision: input.expectedRevision,
-            status: 'running',
-            requestedBy: s.userId,
-            executorId: s.assistantId,
-            executorVersion: null,
-            queueJobId: null,
-            record: {
-              id,
-              caseId: e.id,
-              nodeKey,
-              roleKey: role,
-              attempt,
-              sequence: attempt,
-              status: 'running',
-              taskId: null,
-              conversationId: s.conversationId ?? null,
-              threadId: s.threadId ?? null,
-              executionId: s.executionId ?? null,
-              inputRevision: input.expectedRevision,
-              outputRevision: next.revision,
-              startedAt: new Date().toISOString(),
-              finishedAt: null,
-              safeSummary: artifact.summary.slice(0, 1000),
-              supersededById: null,
-            },
-          })
-      }
+      if (!execution || execution.roleKey !== role || execution.nodeKey !== nodeKey ||
+        execution.inputRevision !== input.expectedRevision || execution.executorId !== s.assistantId ||
+        execution.record.executionId !== s.executionId || execution.record.conversationId !== s.conversationId ||
+        execution.status !== 'running') throw new ConflictException('execution_identity_mismatch')
+      await this.assertManagedWork(s, e, execution.pipelineWork)
+      execution.status = 'succeeded'
+      execution.record = { ...execution.record, status: 'succeeded', threadId: s.threadId ?? null,
+        outputRevision: next.revision, safeSummary: artifact.summary.slice(0, 1000), finishedAt: new Date().toISOString() }
       await m.save(execution)
       const result = {
         success: true,
@@ -463,6 +437,7 @@ export class MaterialCaseService {
         nodeKey,
         e.id,
       )
+
       return result
     })
   }
@@ -475,12 +450,14 @@ export class MaterialCaseService {
       decision: 'approved' | 'rejected'
       reason: string
     },
+    work: ProjectPipelineWorkContext,
   ): Promise<ActionReceipt> {
     return this.db.transaction(async (m) => {
       const e = await this.requireCase(s, input.caseId, m, true)
       await this.assertManage(s, e)
       const prior = await this.duplicate(m, s, input.operationId, input)
       if (prior) return prior
+      await this.assertManagedWork(s, e, work)
       assertRevision(e, input.expectedRevision)
       if (e.status !== 'review_required' || !e.snapshot.proposal)
         throw new ConflictException('proposal_not_ready')
@@ -495,7 +472,6 @@ export class MaterialCaseService {
       next.status = input.decision
       next.revision++
       next.updatedAt = new Date().toISOString()
-      e.autoRun = false
       await this.saveSnapshot(m, e, next)
       const result = {
         success: true,
@@ -512,8 +488,15 @@ export class MaterialCaseService {
         'decide_proposal',
         e.id,
       )
+
       return result
     })
+  }
+  async assertManagedWork(s: RuntimeScope, e: MaterialCaseEntity, work: ProjectPipelineWorkContext) {
+    const graph = await this.capabilities.require(ProjectPipelinesRuntimeCapability).graph({ actor: s, projectId: e.projectId }, work.instanceId)
+    if (graph.runId !== work.runId || graph.roundId !== work.roundId || graph.round.generation !== work.generation ||
+      graph.round.inputDigest !== work.inputDigest || graph.round.state !== 'active' || !['active', 'waiting'].includes(graph.runState))
+      throw new ConflictException('platform_operation_superseded')
   }
   async saveSnapshot(
     m: EntityManager,

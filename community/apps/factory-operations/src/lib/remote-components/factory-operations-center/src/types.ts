@@ -193,7 +193,6 @@ export interface ExecutionRecord {
   outputRevision: number | null
   safeSummary: string
   workspaceProjectId: string
-  queueJobId: string | null
   assistantTaskId: string | null
   conversationId: string | null
   threadId: string | null

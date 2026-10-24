@@ -28,22 +28,20 @@ Agent middleware 中的每个写工具通过 Xpert `ON_TOOL_MESSAGE` 发送运�
 | `factory_external_adapters_unconfigured` | 外部模式没有生产系统适配器 | 配置真实适配器，或明确切换回仿真环境 |
 | `factory_execution_incomplete` | 执行确认不完整 | 检查失败动作并转人工干预，不得伪造确认 |
 
-## Queue 恢复与取消
+## 项目流水线恢复与取消
 
-Managed Queue 使用 `factory_ops.assistant-tasks`。排队任务通过 Queue job 取消；已经启动的任务通过宿主 Assistant Task cancel 取消。重试会创建新的执行 attempt，旧 attempt 保持不可变。平台状态未知时保留可恢复状态，不推断 Case 已完成。
+任务由平台原生项目流水线派发与监督。失败重试、取消、超时和历史轮次都在项目流水线页处理；插件不维护第二套 Queue 或续跑 Worker。重试生成新的平台执行尝试，历史尝试保持可查。平台状态未知时不推断业务已完成。
 
-## v0.4.0 重置与回滚
+排查时关联 Case、流水线实例、轮次、节点、operation 和实际 Agent execution。业务 finalizer 只有匹配平台准备的执行身份与输入版本才会接受结果；模型任务完成不能代替业务成果。
 
-v0.4.0 不兼容旧 Factory Operations 业务数据。升级必须先停止 API，只读列出全部 `plugin_factory_ops_*` 表及行数，再用审核过的显式表名清空这些插件自有 Case、执行、审计、制品和投影表。禁止删除宿主 Assistant、会话、用户或 Xpert Project 表。完整顺序见 [v0.4.0 部署清单](/deployment-v040)。
+## 人工审批与恢复
 
-完成 v0.4.0 重置后不能通过回退代码恢复旧插件业务数据。代码回滚与数据恢复必须使用发布前数据库备份并作为独立受控变更执行。
+Profile 和业务 Workbench 的审批都提交到同一个平台人工关口。批准后平台调度审批落账、受控执行和恢复验证；拒绝后进入人工处理。权限撤销、方案变化或外部适配器缺失时先处理原因，再通过项目流水线重试，不能沿用过期审批。
 
-## Profile 续跑运维
+模拟模式只生成模拟确认。外部模式缺少真实适配器时明确失败，不自动降级。
 
-`plugin_factory_ops_continuation` 保存审批用户、Case 协调者、审批/方案/预期修订、步骤幂等键、验证记录、租约、代次与下一次调度时间。插件启动执行带 advisory lock 和版本账本的增量迁移，保留既有 Case、审计、执行与 Project 数据。不要删除续跑表作为“重试”手段。
+## 数据与发布
 
-后台每 5 秒补偿待入队意图。处理器采用 90 秒租约，验证期间延迟检查，基础设施失败最多 5 次；验证超过 30 分钟进入人工处理。排查时关联 continuation ID、Case ID、验证 execution record、Assistant Task 和业务 finalizer；不能仅凭队列完成或模型回答判断恢复成功。
+新执行接收记录使用 `plugin_factory_ops_pipeline_acceptance`，保留原业务数据和历史记录。上线前备份并检查新增列与表；本次接入不要求清空既有 Case、Project 或用户数据。宿主 SDK 与插件需协调发布，见[项目流水线](/product/features/project-pipelines)。
 
-权限撤销、方案变化、协调者缺失与外部适配器缺失均需先修复原因，再由有权限用户选择“重试续跑”。需要更新审批版本的方案不能沿用旧审批。原 Workbench 的审批动作继续保持仅审批语义。
-
-多个本地 checkout 共用 Redis 时，为各 API 配置不同的 `MANAGED_QUEUE_PREFIX`，防止另一个版本的 Worker 消费任务。一个生产环境的副本应使用同一前缀。
+多个本地 checkout 共用 Redis 时，为各 API 配置不同的 `MANAGED_QUEUE_PREFIX`，避免其他版本的 Worker 消费当前任务。生产副本使用同一前缀。

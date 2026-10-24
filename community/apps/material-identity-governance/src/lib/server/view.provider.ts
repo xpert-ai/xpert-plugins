@@ -29,7 +29,7 @@ import { ROLES, WORKBENCH_FEATURE, toolName } from '../roles.js'
 import { projectFlow } from '../flow-projector.js'
 import type { WorkbenchData, Surface } from '../contracts.js'
 import { MaterialCaseService } from './case.service.js'
-import { MaterialTaskService } from './task.service.js'
+import { MaterialPipelineService } from '../pipeline/service.js'
 import { viewScope } from './scope.js'
 import { actionSchema } from './schemas.js'
 const AGENT_WORKBENCH_FIXED_SLOT = 'agent.workbench.fixed',
@@ -44,8 +44,7 @@ const isCoordinatorHost = (context: XpertResolvedViewHostContext) =>
   z.object({ agent: z.object({ key: z.literal('Agent_coordinator') }) }).safeParse(context.hostSnapshot).success
 const actions = [
   'create_case',
-  'coordinate_next',
-  'run_node',
+  'start_pipeline',
   'decide_proposal',
   'retry_project',
 ] as const
@@ -63,7 +62,7 @@ const surfaceFor = (key: string) =>
 export class MaterialViewProvider implements IXpertViewExtensionProvider {
   constructor(
     private readonly cases: MaterialCaseService,
-    private readonly tasks: MaterialTaskService,
+    private readonly pipelines: MaterialPipelineService,
   ) {}
   supports(c: XpertResolvedViewHostContext) {
     return c.hostType === 'agent'
@@ -133,7 +132,7 @@ export class MaterialViewProvider implements IXpertViewExtensionProvider {
             filter: {
               sources: ['chatkit'],
               toolNames: ROLES.flatMap((r) => r.nodeKeys.map(toolName)).concat(
-                'material_identity_dispatch_next',
+                'material_identity_start_pipeline',
               ),
             },
             action: { type: 'forward', debounceMs: 400 },
@@ -146,8 +145,7 @@ export class MaterialViewProvider implements IXpertViewExtensionProvider {
           key,
           {
             create_case: '创建案例',
-            coordinate_next: '协调治理',
-            run_node: '执行角色任务',
+            start_pipeline: '启动项目流水线',
             decide_proposal: '提交审批',
             retry_project: '重试项目同步',
           }[key],
@@ -227,6 +225,8 @@ export class MaterialViewProvider implements IXpertViewExtensionProvider {
       canCreate: isCoordinatorHost(c),
       simulation: true,
       projectStatus: e?.projectStatus ?? null,
+      projectId: e?.projectId,
+      selectedNodeKey: typeof query.parameters?.nodeKey === 'string' ? query.parameters.nodeKey : undefined,
       coordinatorExecutions: records.filter((r) => r.roleKey === 'coordinator'),
     }
   }
@@ -243,7 +243,7 @@ export class MaterialViewProvider implements IXpertViewExtensionProvider {
       // The UI never chooses tenant, organization, actor or Assistant identities.
       const input = actionSchema.parse({
         ...z.record(z.unknown()).parse(request.input),
-        action: actionKey === 'coordinate_next' ? 'coordinate' : actionKey,
+        action: actionKey,
       })
       let receipt
       switch (input.action) {
@@ -251,14 +251,11 @@ export class MaterialViewProvider implements IXpertViewExtensionProvider {
           if (!isCoordinatorHost(c)) throw new ForbiddenException('coordinator_entry_required')
           receipt = await this.cases.create(s, input)
           break
-        case 'coordinate':
-          receipt = await this.tasks.start(s, input, true)
-          break
-        case 'run_node':
-          receipt = await this.tasks.start(s, input, false)
+        case 'start_pipeline':
+          receipt = await this.pipelines.start(s, input)
           break
         case 'decide_proposal':
-          receipt = await this.cases.decide(s, input)
+          receipt = await this.pipelines.decide(s, input)
           break
         case 'retry_project': {
           const e = await this.cases.ensureProject(s, input.caseId)

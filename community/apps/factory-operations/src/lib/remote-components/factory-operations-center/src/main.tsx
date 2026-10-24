@@ -1,3 +1,4 @@
+import { pipelineFocus, projectPipelineNavigation, startedPipelineFocus } from '../../pipeline-navigation'
 import * as React from 'react'
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -40,7 +41,6 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [selectedNodeKey, setSelectedNodeKey] = useState<string | null>(null)
   const [approvalOpen, setApprovalOpen] = useState(false)
-  const [chooserOpen, setChooserOpen] = useState(false)
   const [blockedOnly, setBlockedOnly] = useState(false)
   const [zoom, setZoom] = useState(100)
   const [selectedLaneKey, setSelectedLaneKey] = useState<string | null>(null)
@@ -147,19 +147,18 @@ function App() {
     }
   }
 
-  async function dispatchNode(node: PipelineNode) {
+  async function startPipeline() {
     if (!current) return
-    setBusy(`dispatch:${node.key}`)
+    setBusy('pipeline')
     setError(null)
     try {
-      requireSuccess(await executeAction('dispatch_assistant_task', current.id, {
+      const receipt = requireSuccess(await executeAction('start_pipeline', current.id, {
         caseId: current.id,
-        nodeKey: node.key,
         baseRevision: current.revision,
-        operationId: operation(`assistant-task:${node.key}:r${current.revision}`)
+        operationId: operation('start-pipeline')
       }))
+      requireSuccess(await invokeClientCommand(WORKBENCH_NAVIGATION_OPEN_COMMAND, projectPipelineNavigation(current.workspace.projectId, startedPipelineFocus(receipt))))
       notify('success', t.assistantSent)
-      setChooserOpen(false)
       await load(current.id, undefined, true)
     } catch (reason) {
       const message = messageOf(reason, t.requestFailed)
@@ -168,19 +167,6 @@ function App() {
     } finally {
       setBusy(null)
     }
-  }
-
-  function processNext() {
-    if (!projection) return
-    const candidates = projection.nodes.filter((node) => projection.executableNodeKeys.includes(node.key))
-    if (candidates.length === 1 && candidates[0]) processCandidate(candidates[0])
-    else if (candidates.length > 1) setChooserOpen(true)
-  }
-
-  function processCandidate(node: PipelineNode) {
-    setChooserOpen(false)
-    if (node.executionMode === 'assistant_task') void dispatchNode(node)
-    else setSelectedNodeKey(node.key)
   }
 
   async function openNode(node: PipelineNode) {
@@ -193,7 +179,7 @@ function App() {
           target: WORKBENCH_VIEW_TARGET,
           viewKey: node.workspaceKey,
           selectionId: current.id,
-          parameters: { caseId: current.id, nodeKey: node.key }
+          parameters: { caseId: current.id, nodeKey: node.key, ...pipelineFocus(context) }
         }))
         if (
           current.workspace.status === 'ready' &&
@@ -248,7 +234,6 @@ function App() {
 
   if (!context) return <main className="foc-shell foc-loading"><span className="foc-spinner" />{t.loading}</main>
 
-  const executableCount = projection?.executableNodeKeys.length ?? 0
   return (
     <main className="foc-shell">
       <header className="foc-header">
@@ -337,8 +322,8 @@ function App() {
               <div><span>{t.progress}</span><strong>{current.progress.percent}%</strong></div>
               <Progress value={current.progress.percent} />
             </div>
-            <Button onClick={processNext} disabled={Boolean(busy) || executableCount === 0 || !current.workspace.canLaunchTasks}>
-              <Send aria-hidden="true" /> {t.processNext}{executableCount > 1 ? ` (${executableCount})` : ''}
+            <Button onClick={() => void startPipeline()} disabled={Boolean(busy) || !current.workspace.canLaunchTasks}>
+              <Send aria-hidden="true" /> {t.processNext}
             </Button>
           </section>
 
@@ -350,6 +335,10 @@ function App() {
               <span><i className="is-pending" />{t.pending} {projection.summary.pending}</span>
             </div>
             <div className="foc-toolbar-actions">
+              <Button variant="outline" size="sm" disabled={current.workspace.status !== 'ready'} onClick={() => {
+                void invokeClientCommand(WORKBENCH_NAVIGATION_OPEN_COMMAND, projectPipelineNavigation(current.workspace.projectId, pipelineFocus(context)))
+                  .then(requireSuccess).catch(reason => setError(messageOf(reason, t.requestFailed)))
+              }}>{t.projectPipeline}</Button>
               <Button variant={blockedOnly ? 'default' : 'outline'} size="sm" onClick={() => setBlockedOnly((value) => !value)}>{t.blockedOnly}</Button>
               <div className="foc-zoom-control"><span>{t.zoom}</span><Select value={String(zoom)} onValueChange={(value) => setZoom(Number(value))}><SelectTrigger className="foc-zoom-trigger"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="80">80%</SelectItem><SelectItem value="100">100%</SelectItem><SelectItem value="120">120%</SelectItem></SelectContent></Select></div>
             </div>
@@ -363,14 +352,14 @@ function App() {
 
       <NodeWorkspace node={selectedNode} current={current} locale={locale} busy={Boolean(busy)} open={Boolean(selectedNode)}
         onOpenChange={(open) => { if (!open) setSelectedNodeKey(null) }}
-        onDispatch={(node) => void dispatchNode(node)} onOpenExecution={(record) => void openExecution(record)}
+        onDispatch={() => void startPipeline()} onOpenExecution={(record) => void openExecution(record)}
         onApprove={() => setApprovalOpen(true)}
         onReject={() => current && void runAction('reject_recovery_plan', {
           ...mutationInput(current, 'reject-plan', 'Human rejected recovery plan'),
           reason: '当前方案未满足生产运营负责人的审批条件，转人工处置。'
         })}
-        onExecute={() => current && void runAction('execute_recovery_plan', mutationInput(current, 'execute-plan', 'Executed approved recovery plan B'))}
-        onVerify={() => current && void runAction('verify_recovery', mutationInput(current, 'verify-recovery', 'Verified equipment quality and production recovery'))} />
+
+         />
 
       <AlertDialog open={approvalOpen} onOpenChange={setApprovalOpen}>
         <AlertDialogContent>
@@ -379,17 +368,6 @@ function App() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={chooserOpen} onOpenChange={setChooserOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>{t.chooseNextTitle}</AlertDialogTitle><AlertDialogDescription>{t.chooseNextBody}</AlertDialogDescription></AlertDialogHeader>
-          <div className="foc-chooser">
-            {projection?.nodes.filter((node) => projection.executableNodeKeys.includes(node.key)).map((node) => (
-              <Button key={node.key} variant="outline" onClick={() => processCandidate(node)}><span>{node.title}</span><small>{roleLabel(node.accountableRoleKey)}</small></Button>
-            ))}
-          </div>
-          <AlertDialogFooter><AlertDialogCancel>{t.cancel}</AlertDialogCancel></AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
       {busy && <div className="foc-busy" role="status"><span className="foc-spinner" />{busy}</div>}
     </main>
   )
@@ -542,11 +520,10 @@ function TaskCard({ node, locale, style, onSelect, onOpenExecution }: {
   )
 }
 
-function NodeWorkspace({ node, current, locale, busy, open, onOpenChange, onDispatch, onOpenExecution, onApprove, onReject, onExecute, onVerify }: {
+function NodeWorkspace({ node, current, locale, busy, open, onOpenChange, onDispatch, onOpenExecution, onApprove, onReject }: {
   node: PipelineNode | null; current: FactoryCase | null; locale: SupportedLocale; busy: boolean; open: boolean
   onOpenChange: (open: boolean) => void; onDispatch: (node: PipelineNode) => void
   onOpenExecution: (record: ExecutionRecord) => void; onApprove: () => void; onReject: () => void
-  onExecute: () => void; onVerify: () => void
 }) {
   const t = TEXT[locale]
   const allow = new Set(current?.allowedActions ?? [])
@@ -561,8 +538,6 @@ function NodeWorkspace({ node, current, locale, busy, open, onOpenChange, onDisp
             {node.executionMode === 'assistant_task' && node.status !== 'completed' && <Button onClick={() => onDispatch(node)} disabled={busy}><Send aria-hidden="true" />{t.dispatchAgent}</Button>}
             {allow.has('approve_recovery_plan') && node.key === 'approve-recovery-plan' && <Button onClick={onApprove} disabled={busy}>{t.approve}</Button>}
             {allow.has('reject_recovery_plan') && node.key === 'approve-recovery-plan' && <Button variant="outline" onClick={onReject} disabled={busy}>{t.reject}</Button>}
-            {allow.has('execute_recovery_plan') && node.key === 'execute-recovery-plan' && <Button onClick={onExecute} disabled={busy}><Play aria-hidden="true" />{t.execute}</Button>}
-            {allow.has('verify_recovery') && node.key === 'verify-recovery' && <Button onClick={onVerify} disabled={busy}><Check aria-hidden="true" />{t.verify}</Button>}
             {node.authorizedActions.length === 0 && <p>{t.noAuthorizedActions}</p>}
           </div></section>
           <section className="foc-sheet-section"><h3>{t.executionHistory}</h3><div className="foc-history">
@@ -635,7 +610,7 @@ function resolvedLaneKey(node: PipelineNode, projection: FactoryPipelineProjecti
   return projection.lanes[0]?.key ?? ''
 }
 function mutationInput(current: FactoryCase, action: string, changeSummary: string): RemoteObject { return { caseId: current.id, baseRevision: current.revision, operationId: operation(action), changeSummary } }
-function operation(action: string) { return `factory-ui-${action}-${Date.now()}-${crypto.randomUUID().slice(0, 8)}` }
+function operation(_action: string) { return crypto.randomUUID() }
 function finiteNumber(value: RemoteValue, fallback: number) { return typeof value === 'number' && Number.isFinite(value) ? value : fallback }
 function readInitial(context: HostContext, key: string) { const parameters = context.initialQuery?.parameters; return isObject(parameters) && typeof parameters[key] === 'string' ? parameters[key] as string : undefined }
 function messageOf(reason: unknown, fallback: string) { return reason instanceof Error && reason.message ? reason.message : fallback }

@@ -1,3 +1,4 @@
+import type { ProjectPipelineWorkContext } from '@xpert-ai/contracts'
 import {
   Column,
   CreateDateColumn,
@@ -9,7 +10,7 @@ import {
 import type { FactoryAgentExecutionStatus } from '../domain/types.js'
 import { factoryTable } from '../artifact-namespace.js'
 
-@Entity(factoryTable('execution_record'))
+@Entity(factoryTable('pipeline_acceptance'))
 @Index(['scopeKey', 'operationId'], { unique: true })
 @Index(['tenantId', 'organizationId', 'caseId', 'nodeKey', 'sequence'], {
   unique: true
@@ -67,8 +68,8 @@ export class FactoryExecutionRecordEntity {
   @Column({ type: 'varchar', length: 500 })
   safeSummary!: string
 
-  @Column({ type: 'varchar', nullable: true })
-  queueJobId?: string | null
+  @Column({ type: 'jsonb' })
+  pipelineWork!: ProjectPipelineWorkContext
 
   @Column({ type: 'varchar' })
   requesterXpertId!: string

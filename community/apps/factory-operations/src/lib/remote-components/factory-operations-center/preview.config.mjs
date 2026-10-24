@@ -94,20 +94,20 @@ export default {
     if (message.type === 'executeAction') {
       const expected = {
         create_demo_incident: -1,
-        dispatch_assistant_task: 0,
+        start_pipeline: 0,
         approve_recovery_plan: 1,
         reject_recovery_plan: 1,
         execute_recovery_plan: 2,
         verify_recovery: 3
       }[message.actionKey]
       if (expected === undefined) throw new Error(`Unsupported preview action '${message.actionKey}'.`)
-      if (state.stage !== expected) {
+      if (state.stage !== expected && !(message.actionKey === 'start_pipeline' && state.stage >= 0)) {
         return { result: { success: false, message: { en_US: 'Preview stage conflict', zh_Hans: '预览阶段冲突' } } }
       }
       state.actions.push({ actionKey: message.actionKey, input: structuredClone(message.input) })
-      if (message.actionKey === 'dispatch_assistant_task') {
+      if (message.actionKey === 'start_pipeline') {
         state.assistantTasks.push(structuredClone(message.input))
-        state.stage = 1
+        if (state.stage === 0) state.stage = 1
       } else if (message.actionKey === 'reject_recovery_plan') state.stage = 5
       else state.stage += 1
       const current = factoryCase(state.stage)
@@ -116,6 +116,7 @@ export default {
           success: true,
           refresh: true,
           data: {
+            ...(message.actionKey === 'start_pipeline' ? { instanceId: '20000000-0000-4000-8000-000000000070', projectId } : {}),
             caseId,
             revision: current.revision,
             status: current.status,

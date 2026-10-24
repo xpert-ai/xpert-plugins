@@ -4,7 +4,7 @@ import workbench, { platformRoot } from '../factory-operations-center/preview.co
 export { platformRoot }
 const root = dirname(fileURLToPath(import.meta.url))
 
-// UI fixtures only. Durable continuation and authorization are tested against PostgreSQL.
+// UI fixtures only. Native pipeline acceptance and authorization are tested against PostgreSQL.
 export default {
   ...workbench,
   title: 'Assistant Profile · Factory Operations',
@@ -16,8 +16,8 @@ export default {
     if (message.type === 'requestData') {
       const fixture = await workbench.handleRequest(message, { state })
       const item = { ...fixture.data.selectedCase, title: fixture.data.selectedCase.event.title, updatedAt: '2026-09-03T09:00:00.000Z',
-        continuation: null, bindingNeedsRepair: false,
-        allowedActions: state.stage === 1 ? ['approve_and_continue', 'reject_recovery_plan'] : [] }
+        pipelineInstanceId: null, bindingNeedsRepair: false,
+        allowedActions: state.stage === 1 ? ['approve_recovery_plan', 'reject_recovery_plan'] : [] }
       return { data: { items: [item], item: message.query?.selectionId ? item : null,
         total: 1, page: 1, pageSize: 10, simulation: true } }
     }
@@ -29,7 +29,7 @@ export default {
       state.actions.push({ actionKey: message.actionKey, input: structuredClone(message.input) })
       if (state.failNextAction) { state.failNextAction = false; throw new Error('Temporary connection failure') }
       state.stage = message.actionKey === 'reject_recovery_plan' ? 5 : 2
-      return { result: { success: true, refresh: true, data: { continuation: { id: 'preview-only', status: 'pending' } } } }
+      return { result: { success: true, refresh: true, data: { accepted: true } } }
     }
     throw new Error(`Unexpected request: ${message.type}`)
   }

@@ -50,9 +50,9 @@ team:
       enabled: true
       message: ''
       questions:
-        - 请研判当前 M-07 严重异常，并并行协调设备、质量、生产和资源 Assistants。
+        - 请读取当前 M-07 严重异常的证据，并说明项目流水线的启动条件。
         - 请读取这个工厂事件的最新进度，说明阻塞项和下一步。
-        - 方案 B 已经批准，请检查执行确认并完成恢复验证。
+        - 方案 B 已经批准，请查看项目流水线的执行确认和恢复验证结果。
     suggestion:
       enabled: true
       prompt: 基于当前 Factory Case 的服务端投影，建议不超过三个可执行或需要人工决策的问题。
@@ -65,7 +65,7 @@ team:
     title:
       enabled: true
       instruction: 生成包含 Factory Case、设备或恢复阶段的简短标题。
-  version: '5'
+  version: '6'
   agent:
     key: Agent_FactoryCoordinator
   copilotModel:
@@ -88,41 +88,19 @@ nodes:
       key: Agent_FactoryCoordinator
       name: factory-operations-coordinator
       title: 工厂异常恢复编排 Agent
-      description: 只负责读取持久化 Case、选择下一节点并委派给独立角色 Assistants。
+      description: 读取持久化 Case、解释证据和阻塞；项目流水线负责派发独立角色 Assistants。
       prompt: |
-        You are the Factory Operations Orchestrator. Every AI lane owner is an
-        independently installed Assistant connected to you as one direct,
-        required External Xpert. Never perform a specialist role yourself and
-        never treat an embedded child Agent as an acceptable substitute.
-
-        Before any delegation, call factory_case_get_summary for the exact
-        caseId. The returned revision and structured Case are authoritative.
-        Delegate only the server-projected executable node and pass these
-        correctness-critical parameters to the matching External Assistant:
-        - caseId: exact Factory Case UUID
-        - baseRevision: exact current persisted revision
-        - operationId: fac-<case-fragment>-<domain>-r<revision>
-        - caseContext: bounded JSON containing the current Case projection
-        - input: one bounded role task and its completion predicate
-
-        Role routing:
-        - triage-event -> 工厂异常研判助手
-        - diagnose-equipment -> 设备故障诊断助手
-        - assess-quality-impact -> 质量风险评估助手
-        - assess-production-impact -> 生产影响分析助手
-        - check-resource-readiness -> 维修资源就绪助手
-        - generate-recovery-plan -> 恢复方案规划助手
-        - approve/execute recovery -> 生产运营审批顾问 for read-only review;
-          the human must use the Workbench approval control
-        - verify-recovery -> 生产恢复验证助手
-
-        Equipment, quality, production, and resource analysis may be delegated
-        in parallel after triage. Re-read the Case after every persisted receipt.
-        Never approve, reject, execute, or fabricate an external confirmation.
-        If a required External Assistant is missing, unpublished, incompatible,
-        or fails, report the exact blocker and stop that branch. Distinguish
-        simulation receipts from external-system confirmations. Match the
-        user's language and cite Case revision, evidence, decision, and next step.
+        You are the Factory Operations Coordinator. Read the persisted Case and
+        explain its evidence, current business status and pending human decision.
+        The platform Project pipeline owns the DAG, specialist dispatch, retries,
+        cancellation, rounds and execution records. Do not call External Assistants
+        or choose/advance the next node yourself. Direct the user to Start Project
+        Pipeline in the Case workbench and to the Project pipeline for recovery.
+        Role Assistants submit only the platform-assigned operation and are accepted
+        only through their scoped business finalizers. Human approval remains bound
+        to the exact plan revision. Never approve, reject, execute recovery actions,
+        or fabricate a confirmation. Distinguish simulation receipts from real
+        external-system confirmations; cite the Case revision and source evidence.
       promptTemplates: null
       parameters: null
       outputVariables: null

@@ -1,3 +1,4 @@
+import { MaterialPipelineService } from '../pipeline/service.js'
 import { ForbiddenException, Injectable } from '@nestjs/common'
 import type { XpertResolvedViewHostContext, XpertViewQuery } from '@xpert-ai/contracts'
 import { In } from 'typeorm'
@@ -19,7 +20,7 @@ export function profileScope(context: XpertResolvedViewHostContext): RuntimeScop
 }
 @Injectable()
 export class MaterialProfileService {
-  constructor(private readonly cases: MaterialCaseService) {}
+  constructor(private readonly cases: MaterialCaseService, private readonly pipelines: MaterialPipelineService) {}
   async readable(context: XpertResolvedViewHostContext) {
     const scope = profileScope(context), access = await this.cases.readableProjects(scope)
     const projectIds = access.map(item => item.projectId)
@@ -53,8 +54,9 @@ export class MaterialProfileService {
       .andWhere('r.caseId IN (:...caseIds)', { caseIds: all.map(e => e.id) })
       .andWhere('r.executorId IN (:...assistantIds) AND r.roleKey = :role', { assistantIds: scope.assistantVersionIds, role: tab.role })
       .distinctOn(['r.caseId']).orderBy('r.caseId').addOrderBy('r.createdAt', 'DESC').addOrderBy('r.id', 'DESC').getMany() : []
+    const runtimeRecords = await this.cases.presentExecutions(scope, records, new Map(all.map(e => [e.id, e.projectId])))
     const projected = all.map((e): MaterialProfileCase => {
-      const caseNodes = nodes.filter(n => n.caseId === e.id), record = records.find(r => r.caseId === e.id)?.record
+      const caseNodes = nodes.filter(n => n.caseId === e.id), record = runtimeRecords.find(r => r.caseId === e.id)
       const tasks = caseNodes.filter(n => (tab.role === 'coordinator' || n.roleKey === tab.role) && FLOW_DEFINITION.nodes.some(node => node.key === n.nodeKey && node.kind === 'task'))
       const canManage = access.some(p => p.projectId === e.projectId && p.canManage && !p.archived)
       return { id: e.id, caseKey: e.caseKey, title: e.title, kind: e.kind, status: e.status, revision: e.revision, updatedAt: e.updatedAt.toISOString(),
@@ -75,6 +77,6 @@ export class MaterialProfileService {
     if (!tab || (tab.role !== 'coordinator' && tab.role !== 'governance')) throw new ForbiddenException('profile_action_forbidden')
     const { scope, builder } = await this.readable(context)
     if (!await builder.andWhere('c.id = :caseId', { caseId: input.caseId }).getOne()) throw new ForbiddenException('profile_case_forbidden')
-    return this.cases.decide(scope, input)
+    return this.pipelines.decide(scope, input)
   }
 }

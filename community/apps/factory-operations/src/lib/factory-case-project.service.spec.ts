@@ -1,7 +1,10 @@
+import { FACTORY_ROLE_ASSISTANTS } from './factory-assistant-definitions.js'
+import { FACTORY_PLUGIN_NAME } from './constants.js'
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('@xpert-ai/plugin-sdk', () => ({
   pluginArtifactTableName: (namespace: string, tableKey: string) => `plugin_${namespace}_${tableKey}`,
+  ProjectProvisioningRuntimeCapability: 'platform.project.provisioning',
   XPERT_RUNTIME_CAPABILITIES_TOKEN: 'XPERT_RUNTIME_CAPABILITIES'
 }))
 
@@ -25,7 +28,8 @@ describe('FactoryCaseProjectService', () => {
       .mockRejectedValueOnce(new Error('assistant_binding_missing'))
       .mockResolvedValueOnce({
         projectId: entity.workspaceProjectId,
-        xpertIds: ['orchestrator-1'],
+        xpertIds: ['orchestrator-1', ...FACTORY_ROLE_ASSISTANTS.map(r => r.key)],
+        assistantBindings: FACTORY_ROLE_ASSISTANTS.map(r => ({ pluginName: FACTORY_PLUGIN_NAME, templateKey: r.key, agentKey: r.agentKey, xpertId: r.key })),
         operation: 'created'
       })
     const repository = buildRepository(entity)

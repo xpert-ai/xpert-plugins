@@ -1,3 +1,4 @@
+import { ProjectPipelinesRuntimeCapability, XPERT_RUNTIME_CAPABILITIES_TOKEN, type RuntimeCapabilityRegistry } from '@xpert-ai/plugin-sdk'
 import { FactoryApprovalPolicy } from './factory-approval-policy.service.js'
 import { duplicateMutation,writeAudit,requireCase,writeSucceededExecution,writeFailedExecutionSafely,kpi,buildRecoveryTrend,executionFailureSummary,toExecutionRecordSummary,countLaneStatus,isNumber,average,sum,currentRevision,caseWhere,executionWhere,scopeColumns,scopeKey,actorId,requireCreator,validateScope,revisionConflict,operationFingerprint,assertFingerprint,anomalyEvidence,compactDate } from './factory-operations.persistence.js'
 import {
@@ -79,7 +80,8 @@ export class FactoryOperationsService {
     private readonly caseProjects: FactoryCaseProjectService,
     @Inject(FACTORY_CONFIG)
     private readonly config: FactoryConfig,
-    private readonly approvalPolicy: FactoryApprovalPolicy
+    private readonly approvalPolicy: FactoryApprovalPolicy,
+    @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly capabilities: RuntimeCapabilityRegistry
   ) {}
 
   get runtimeMode() {
@@ -185,6 +187,7 @@ export class FactoryOperationsService {
         changeSummary: input.changeSummary,
         receipt
       })
+
       return { entity, receipt }
     })
     const entity =
@@ -258,7 +261,7 @@ export class FactoryOperationsService {
       order: { startedAt: 'DESC', sequence: 'DESC' },
       take: 200
     })
-    return projectFactoryPipeline(entity.snapshot, records.map(toExecutionRecordSummary))
+    return projectFactoryPipeline(entity.snapshot, await this.presentExecutions(scope, records))
   }
 
   async listExecutionRecords(
@@ -284,11 +287,28 @@ export class FactoryOperationsService {
       take: pageSize
     })
     return {
-      items: records.map(toExecutionRecordSummary),
+      items: await this.presentExecutions(scope, records),
       total,
       page,
       pageSize
     }
+  }
+
+  /** Runtime status belongs to the platform; the database row only records business acceptance. */
+  async presentExecutions(scope: FactoryScope, rows: FactoryExecutionRecordEntity[]) {
+    const graphs = new Map<string, Promise<import('@xpert-ai/contracts').ProjectPipelineGraph>>()
+    const api = rows.length ? this.capabilities.require(ProjectPipelinesRuntimeCapability) : null
+    return Promise.all(rows.map(async row => {
+      const key = row.pipelineWork.roundId
+      if (!graphs.has(key)) graphs.set(key, api!.graph({ actor: { tenantId: scope.tenantId!, organizationId: scope.organizationId, userId: scope.userId! }, projectId: row.workspaceProjectId },
+        row.pipelineWork.instanceId, { roundId: key }))
+      const graph = await graphs.get(key)!
+      const execution = graph.tasks.executions.find(e => e.agentExecutionId === row.executionId)
+      return { ...toExecutionRecordSummary(row),
+        status: execution?.status ?? (graph.runState === 'cancelled' || graph.round.state === 'superseded' ? 'cancelled' as const : 'interrupted' as const),
+        threadId: execution?.threadId ?? row.threadId ?? null,
+        finishedAt: execution?.completedAt ? new Date(execution.completedAt).toISOString() : row.finishedAt?.toISOString() ?? null }
+    }))
   }
 
   async getManagementDashboard(scope: FactoryScope): Promise<FactoryManagementDashboard> {
@@ -310,7 +330,7 @@ export class FactoryOperationsService {
     const summaries = entities.map((entity) =>
       projectFactoryCase(entity.snapshot, projectFactoryWorkspace(entity))
     )
-    const records = recordEntities.map(toExecutionRecordSummary)
+    const records = await this.presentExecutions(scope, recordEntities)
     const projections = entities.map((entity) =>
       projectFactoryPipeline(
         entity.snapshot,
@@ -543,14 +563,14 @@ export class FactoryOperationsService {
     }))
   }
 
-  async approveRecoveryPlan(scope: FactoryScope, input: ApproveRecoveryPlanInput, afterMutation?: (manager: EntityManager, entity: FactoryCaseEntity, next: FactoryCaseState) => Promise<void>) {
+  async approveRecoveryPlan(scope: FactoryScope, input: ApproveRecoveryPlanInput) {
     await this.approvalPolicy.assertHumanApprover(scope, await this.requireCase(scope, input.caseId))
-    return this.mutate(scope, input, afterMutation ? 'recovery_plan_approved_and_continue' : 'recovery_plan_approved', () => ({
+    return this.mutate(scope, input, 'recovery_plan_approved', () => ({
       type: 'approve_plan',
       actorId: actorId(scope),
       at: new Date().toISOString(),
       reason: input.reason
-    }), undefined, afterMutation)
+    }))
   }
 
   async rejectRecoveryPlan(scope: FactoryScope, input: RejectRecoveryPlanInput) {
@@ -704,8 +724,7 @@ export class FactoryOperationsService {
     },
     eventType: string,
     commandFactory: () => FactoryCommand,
-    safeParallelKind?: FactoryFindingKind,
-    afterMutation?: (manager: EntityManager, entity: FactoryCaseEntity, next: FactoryCaseState) => Promise<void>
+    safeParallelKind?: FactoryFindingKind
   ): Promise<FactoryMutationResult> {
     validateScope(scope)
     const fingerprint = operationFingerprint(eventType, input)
@@ -733,9 +752,7 @@ export class FactoryOperationsService {
           if (eventType.startsWith('recovery_plan_approved') || eventType === 'recovery_plan_rejected') {
             await this.approvalPolicy.assertHumanApprover(scope, entity)
           }
-          if (eventType === 'recovery_plan_executed' || eventType === 'recovery_verified') {
-            await this.approvalPolicy.assertContinuationStep(manager, scope, entity, input.operationId, eventType === 'recovery_plan_executed' ? 'execute' : 'verify')
-          }
+          await this.approvalPolicy.assertManagedOperation(manager, scope, entity, input.operationId)
           const command = commandFactory()
           const previousRevision = entity.revision
           const next = applyFactoryCommand(entity.snapshot, command)
@@ -799,7 +816,7 @@ export class FactoryOperationsService {
             outputRevision: next.revision,
             safeSummary: input.changeSummary
           })
-          await afterMutation?.(manager, entity, next)
+
           return {
             receipt,
             summary: projectFactoryCase(next, projectFactoryWorkspace(entity))

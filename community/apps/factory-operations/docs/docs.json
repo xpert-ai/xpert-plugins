@@ -24,6 +24,7 @@
         "pages": [
           "product/index",
           "product/features/independent-assistants",
+          "product/features/project-pipelines",
           "product/processes/factory-anomaly-recovery",
           "product/views/multi-agent-swimlane",
           "product/views/factory-case-workspace",

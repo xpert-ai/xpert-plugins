@@ -2,10 +2,11 @@ import 'reflect-metadata'
 import { readFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { ForbiddenException } from '@nestjs/common'
-import { DefaultRuntimeCapabilityRegistry, ProjectAccessRuntimeCapability } from '@xpert-ai/plugin-sdk'
+import { DefaultRuntimeCapabilityRegistry, ProjectAccessRuntimeCapability, ProjectPipelinesRuntimeCapability, ProjectPipelineCommandsRuntimeCapability } from '@xpert-ai/plugin-sdk'
 import type { XpertResolvedViewHostContext } from '@xpert-ai/contracts'
 import { DataSource } from 'typeorm'
 import { beforeAll, afterAll, beforeEach, describe, it, expect } from 'vitest'
+import { MaterialPipelineService } from '../pipeline/service.js'
 import { MaterialCaseService } from './case.service.js'
 import { MaterialProfileService, profileScope } from './profile.service.js'
 import { MaterialProfileProvider } from './profile.provider.js'
@@ -58,7 +59,9 @@ describe.skipIf(!envFile)('Material Profile PostgreSQL access and human decision
       async assertEdit({ actor }) { const access = (await this.listReadable({ actor }))[0]; if (!access || access.role === 'member') throw new ForbiddenException(); return access },
     })
     cases = new MaterialCaseService(db, registry, { createScopedApi: () => { throw new Error('No model runtime in PostgreSQL approval tests') } })
-    profiles = new MaterialProfileService(cases)
+    registry.register(ProjectPipelinesRuntimeCapability, { graph: async () => ({ attentions: [{ id: randomUUID(), kind: 'human', state: 'open', inputDigest: 'a'.repeat(64), generation: 1, revision: 1 }] }) } as never)
+    registry.register(ProjectPipelineCommandsRuntimeCapability, { decide: async () => ({ accepted: true }) } as never)
+    profiles = new MaterialProfileService(cases, new MaterialPipelineService(cases))
   }, 30000)
   afterAll(async () => { await db?.destroy(); if (admin?.isInitialized) { await admin.query(`DROP SCHEMA "${schema}" CASCADE`); await admin.destroy() } })
   beforeEach(async () => {
@@ -66,7 +69,7 @@ describe.skipIf(!envFile)('Material Profile PostgreSQL access and human decision
     caseId = randomUUID()
     let snapshot = createDemoCase('duplicate_codes', caseId)
     for (let i = 0; i < 8; i++) { const node = projectFlow(snapshot).nodes.find(node => node.executable && node.executionMode === 'assistant_task'); if (!node) break; snapshot = applyDomainStep(snapshot, node.key, node.laneKey) }
-    const e = db.getRepository(MaterialCaseEntity).create({ id: caseId, tenantId: 'tenant-a', organizationId: 'org-a', scopeKey: 'tenant-a:org-a', caseKey: snapshot.caseKey, title: snapshot.title, kind: snapshot.kind, status: snapshot.status, revision: snapshot.revision, snapshot, projectId, projectStatus: 'ready', assignedAssistantIds: ['governance-a-published', 'coordinator-a'], coordinatorId: 'coordinator-a', createdById: 'owner', autoRun: false, criticalConflict: false, exposure: 100 })
+    const e = db.getRepository(MaterialCaseEntity).create({ id: caseId, tenantId: 'tenant-a', organizationId: 'org-a', scopeKey: 'tenant-a:org-a', caseKey: snapshot.caseKey, title: snapshot.title, kind: snapshot.kind, status: snapshot.status, revision: snapshot.revision, snapshot, projectId, projectStatus: 'ready', assignedAssistantIds: ['governance-a-published', 'coordinator-a'], coordinatorId: 'coordinator-a', createdById: 'owner', pipelineInstanceId: randomUUID(), criticalConflict: false, exposure: 100 })
     await db.getRepository(MaterialCaseEntity).save(e)
   })
   it('filters exact instances, version families, tenant, organization and readable projects before totals and detail', async () => {
@@ -86,28 +89,17 @@ describe.skipIf(!envFile)('Material Profile PostgreSQL access and human decision
     }
     expect(await db.getRepository(MaterialMutationEntity).count()).toBe(0)
   })
-  it('rejects stale revisions and role actions; records approval once with unchanged retry payload', async () => {
+  it('submits only an exact human gate decision; business approval is materialized by the platform service step', async () => {
     const input = { caseId, expectedRevision: 8, operationId: randomUUID(), decision: 'approved' as const, reason: 'Reviewed exact evidence and proposal' }
     await expect(profiles.decide(context(), tab('governance'), { ...input, expectedRevision: 7 })).rejects.toThrow()
     await expect(profiles.decide(context(), tab('quality'), input)).rejects.toThrow()
-    const receipt = await profiles.decide(context(), tab('governance'), input)
-    expect(await profiles.decide(context(), tab('governance'), input)).toEqual(receipt)
-    expect(await db.getRepository(MaterialMutationEntity).count()).toBe(1)
-    const entity = await db.getRepository(MaterialCaseEntity).findOneByOrFail({ id: caseId })
-    expect(entity.snapshot.approval?.actor).toBe('owner')
-    expect(entity.status).toBe('approved')
-    expect(entity.autoRun).toBe(false)
-    expect((await profiles.getData(context(), tab('governance', 'attention'), {})).total).toBe(0)
+    await profiles.decide(context(), tab('governance'), input)
+    expect(await db.getRepository(MaterialMutationEntity).count()).toBe(0)
+    expect((await db.getRepository(MaterialCaseEntity).findOneByOrFail({ id: caseId })).status).toBe('review_required')
   })
-  it('rejects lost instance assignment inside the locked approval transaction', async () => {
-    const scope = profileScope(context())
+  it('rejects lost instance assignment and undeclared actions', async () => {
     await db.getRepository(MaterialCaseEntity).update(caseId, { assignedAssistantIds: ['governance-b'] })
-    await expect(cases.decide(scope, { caseId, expectedRevision: 8, operationId: randomUUID(), decision: 'approved', reason: 'No longer assigned' })).rejects.toThrow('profile_case_forbidden')
-  })
-  it('persists rejection without publication and rejects undeclared actions', async () => {
-    await profiles.decide(context(), tab('governance'), { caseId, expectedRevision: 8, operationId: randomUUID(), decision: 'rejected', reason: 'Need more source evidence' })
-    const entity = await db.getRepository(MaterialCaseEntity).findOneByOrFail({ id: caseId })
-    expect(entity.status).toBe('rejected'); expect(entity.snapshot.publications).toHaveLength(0)
+    await expect(profiles.decide(context(), tab('governance'), { caseId, expectedRevision: 8, operationId: randomUUID(), decision: 'approved', reason: 'No longer assigned' })).rejects.toThrow()
     const provider = new MaterialProfileProvider(profiles)
     expect((await provider.executeViewAction(context(), tab('governance'), 'publish_records', {})).success).toBe(false)
   })

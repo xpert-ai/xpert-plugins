@@ -12,8 +12,9 @@ const requireFromPlatform = createRequire(resolve(platformRoot, 'package.json'))
 const { chromium } = requireFromPlatform('playwright')
 
 test('operates the server-projected swimlane pipeline through built Remote View assets', async (context) => {
+  const focus = { pipelineInstanceId: '20000000-0000-4000-8000-000000000070', pipelineRoundId: '30000000-0000-4000-8000-000000000070' }
   const preview = await startRemoteViewPreview(
-    { ...previewConfig, state: structuredClone(previewConfig.state), logStartup: false, logErrors: false },
+    { ...previewConfig, hostContext: { ...previewConfig.hostContext, initialQuery: { parameters: focus } }, state: structuredClone(previewConfig.state), logStartup: false, logErrors: false },
     { port: 0 }
   )
   context.after(() => preview.close())
@@ -51,16 +52,21 @@ test('operates the server-projected swimlane pipeline through built Remote View 
   assert.match(await frame.locator('[data-lane-row="event-intake"]').getAttribute('class'), /is-selected/)
   await assertVisible(frame.getByText('确认异常真实性', { exact: true }))
 
-  await frame.getByRole('button', { name: '推进下一任务' }).click()
+  await frame.getByRole('button', { name: '启动 / 打开项目流水线' }).click()
   await waitFor(() => preview.state.assistantTasks.length === 1)
-  assert.equal(preview.state.actions.at(-1).actionKey, 'dispatch_assistant_task')
-  assert.equal(preview.state.assistantTasks[0].nodeKey, 'triage-event')
+  assert.equal(preview.state.actions.at(-1).actionKey, 'start_pipeline')
   assert.equal(preview.state.assistantTasks[0].baseRevision, 1)
   assert.ok(preview.state.assistantTasks[0].operationId)
+  await waitFor(() => preview.state.navigation?.viewKey === 'platform.project-tasks__timeline')
+  assert.equal(preview.state.navigation.target, 'assistant.project')
+  assert.equal(preview.state.navigation.parameters.pipelineRoundId, undefined)
+  await frame.getByRole('button', { name: '项目流水线', exact: true }).click()
+  await waitFor(() => preview.state.navigation?.parameters?.pipelineRoundId === focus.pipelineRoundId)
+  assert.equal(preview.state.navigation.parameters.initialTab, 'pipeline')
   await frame.getByRole('button', { name: '刷新' }).click()
   await assertVisible(frame.getByText('等待审批', { exact: true }))
 
-  await frame.getByRole('button', { name: '推进下一任务' }).click()
+  await frame.getByText('生产运营负责人审批', { exact: true }).click()
   await assertVisible(frame.getByRole('heading', { name: '生产运营负责人审批' }))
   await frame.getByRole('button', { name: '批准方案 B' }).click()
   await assertVisible(frame.getByRole('heading', { name: '授权执行恢复方案 B？' }))
@@ -70,24 +76,19 @@ test('operates the server-projected swimlane pipeline through built Remote View 
   await frame.getByRole('button', { name: 'Close' }).click()
   await assertVisible(frame.getByText('已批准', { exact: true }))
 
-  await frame.getByRole('button', { name: '推进下一任务' }).click()
-  await assertVisible(frame.getByRole('heading', { name: '执行已批准恢复方案' }))
-  await frame.getByRole('button', { name: '执行已批准方案' }).click()
-  await waitFor(() => preview.state.actions.at(-1)?.actionKey === 'execute_recovery_plan')
-  assert.equal(preview.state.actions.at(-1).actionKey, 'execute_recovery_plan')
-  await frame.getByRole('button', { name: 'Close' }).click()
-  await frame.getByRole('heading', { name: '执行已批准恢复方案' }).waitFor({ state: 'hidden' })
+  preview.state.stage = 3 // Fixture: native platform executes the approved service step.
+  await frame.getByRole('button', { name: '刷新' }).click()
   await assertVisible(frame.getByText('验证中', { exact: true }))
 
   await frame.getByText('验证设备、质量与生产恢复', { exact: true }).click()
-  await waitFor(() => preview.state.navigations.some((item) => item.target === 'assistant.project'))
+  await waitFor(() => preview.state.navigation?.viewKey === 'factory-case-workspace')
   const viewNavigation = preview.state.navigations.findLast((item) => item.target === 'workbench.view')
   const projectNavigation = preview.state.navigations.findLast((item) => item.target === 'assistant.project')
   assert.equal(viewNavigation.viewKey, 'factory-case-workspace')
   assert.equal(viewNavigation.selectionId, '00000000-0000-4000-8000-000000000070')
   assert.equal(viewNavigation.parameters.nodeKey, 'verify-recovery')
   assert.equal(projectNavigation.projectId, '10000000-0000-4000-8000-000000000070')
-  assert.ok(preview.state.navigations.indexOf(viewNavigation) < preview.state.navigations.indexOf(projectNavigation))
+  for (const [key, value] of Object.entries(focus)) assert.equal(viewNavigation.parameters[key], value)
 
   preview.state.navigation = null
   await frame.locator('.foc-execution-dot').first().click()

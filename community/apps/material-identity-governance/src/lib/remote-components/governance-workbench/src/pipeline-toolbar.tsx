@@ -18,6 +18,7 @@ export function PipelineToolbar({
   busy,
   onSelect,
   onReload,
+  onProjectPipeline,
   onCreate,
   onWorkspace,
   onCoordinate,
@@ -26,6 +27,7 @@ export function PipelineToolbar({
   busy: boolean
   onSelect: (id: string) => void
   onReload: () => void
+  onProjectPipeline: () => void
   onCreate: () => void
   onWorkspace: () => void
   onCoordinate: () => void
@@ -85,6 +87,8 @@ export function PipelineToolbar({
         </ContextDisclosure>
       </div>
       <div className="pipeline-actions">
+        {data?.projectId && <Button variant="outline" size="sm" onClick={onProjectPipeline}
+          disabled={data.projectStatus !== 'ready'}>{t('projectPipeline')}</Button>}
         <Button
           variant="ghost"
           size="icon"

@@ -22,7 +22,7 @@ import {
   FACTORY_VIEW_PROVIDER_KEY,
   FACTORY_WORKBENCH_FEATURE
 } from './lib/constants.js'
-import { FACTORY_CONFIG, FACTORY_RUNTIME_SCOPE, FactoryConfigSchema } from './lib/config.js'
+import { FACTORY_CONFIG, FactoryConfigSchema } from './lib/config.js'
 import { FactoryOperationsPlugin } from './lib/factory-operations.plugin.js'
 import { factoryOperationsTemplates } from './lib/factory-templates.js'
 
@@ -42,8 +42,8 @@ const plugin: XpertPlugin<z.infer<typeof FactoryConfigSchema>> = {
   meta: {
     name: FACTORY_PACKAGE_METADATA.name,
     version: FACTORY_PACKAGE_METADATA.version,
-    level: FACTORY_PLUGIN_LEVEL,
-    artifactNamespace: FACTORY_ARTIFACT_NAMESPACE,
+    level: FACTORY_PACKAGE_METADATA.xpert.plugin.level,
+    artifactNamespace: FACTORY_PACKAGE_METADATA.xpert.plugin.artifactNamespace,
     category: 'middleware',
     displayName: 'Factory Intelligent Operations and Anomaly Recovery Center',
     description:
@@ -226,14 +226,8 @@ const plugin: XpertPlugin<z.infer<typeof FactoryConfigSchema>> = {
     return {
       module: FactoryOperationsPlugin,
       global: true,
-      providers: [
-        { provide: FACTORY_CONFIG, useValue: ctx.config },
-        {
-          provide: FACTORY_RUNTIME_SCOPE,
-          useValue: { scopeKey: ctx.scopeKey ?? 'global' }
-        }
-      ],
-      exports: [FACTORY_CONFIG, FACTORY_RUNTIME_SCOPE]
+      providers: [{ provide: FACTORY_CONFIG, useValue: ctx.config }],
+      exports: [FACTORY_CONFIG]
     }
   }
 }

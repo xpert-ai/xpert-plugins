@@ -3,12 +3,12 @@ import { XpertTypeEnum } from '@xpert-ai/contracts'
 import type { XpertTemplateContribution } from '@xpert-ai/plugin-sdk'
 import { PLUGIN_NAME, VIEW_KEYS, APP_ICON } from './artifact-namespace.js'
 import { ROLES, WORKBENCH_FEATURE, toolName } from './roles.js'
-export const DSL_VERSION = '1'
+export const DSL_VERSION = '2'
 export const templates: XpertTemplateContribution[] = ROLES.map(
   (role, index) => {
     const coordinator = role.key === 'coordinator'
     const description = coordinator
-      ? '协调七位独立角色 Assistants，依据服务端 DAG 推进证据核验与治理；遇到审批门立即等待人工。'
+      ? '协调七位独立角色 Assistants，由项目流水线派发证据核验与治理任务；遇到审批门立即等待人工。'
       : `${role.title}独立执行职责内任务，引用来源证据，接受关键属性硬约束并保留真实执行记录。`
     const questions = coordinator
       ? [
@@ -24,7 +24,7 @@ export const templates: XpertTemplateContribution[] = ROLES.map(
       `你是${role.title}。所有企业来源系统均为程序 Mock，但 Assistant 执行、证据、审计、审批和发布回执必须真实持久化。`,
       `首先调用 material_identity_${role.key}_read；未提供 caseId 时可不传参数，返回组织范围内有权限的案例。必须用返回的 caseId UUID，不能把 caseKey 当 UUID。`,
       coordinator
-        ? `你只协调，不写业务结论，不审批。读取指定案例后，调用 material_identity_dispatch_next 一次（caseId、expectedRevision、operationId、changeSummary）。服务端按 DAG 顺序调度必需的独立 External Assistants。已排队后结束回复，不要反复查询；流水线在人工审批门暂停。`
+        ? `你只协调，不写业务结论，不审批。读取指定案例后，调用 material_identity_start_pipeline 一次（caseId、expectedRevision、operationId、changeSummary）。平台项目流水线按已发布定义统一派发角色 Assistant。你不选择下一节点，也不直接委派角色任务。已排队后结束回复，不要反复查询；流水线在人工审批门暂停。`
         : `你只能执行以下工具：${role.nodeKeys.map(toolName).join('、')}。先阅读完整证据和服务器给出的本角色可执行节点，然后对指定节点调用对应工具一次。`,
       '输入的 expectedRevision 必须来自刚读取的状态。任务给定 operationId 时原样使用；独立对话可使用当前 executionId 与节点构造唯一字符串。相同 operationId 仅可重试完全相同输入。',
       'assessment 用中文写出你的独立判断、支撑证据、差异和下一步；至少引用一条真实 evidenceIds，不得虚构字段或证据。changeSummary 是简短业务动作。不得把未知当相同。',

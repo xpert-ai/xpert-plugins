@@ -1,3 +1,4 @@
+import { MATERIAL_PACKAGE_METADATA } from './package-metadata.js'
 import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
 import type { PluginMarketplaceContribution } from '@xpert-ai/contracts'
 import { z } from 'zod'
@@ -12,6 +13,7 @@ import { templates } from './lib/assistant-templates.js'
 import { ROLES, WORKBENCH_FEATURE } from './lib/roles.js'
 import { ConfigSchema, RUNTIME_SCOPE } from './lib/server/config.js'
 import { MaterialGovernancePlugin } from './lib/server/plugin.module.js'
+import { MATERIAL_PROJECT_PROVIDER } from './lib/server/project-type.provider.js'
 const text = (en_US: string, zh_Hans: string) => ({ en_US, zh_Hans })
 const app: PluginMarketplaceContribution = {
   type: 'app',
@@ -24,6 +26,8 @@ const app: PluginMarketplaceContribution = {
   icon: APP_ICON,
   color: '#2457A7',
   tags: ['manufacturing', 'master-data', 'multi-agent'],
+  projectTypes: [{ key: 'case', title: text('Material Governance Case', '物料治理案例'),
+    binding: { kind: 'entity', providerKey: MATERIAL_PROJECT_PROVIDER } }],
   appConfig: {
     ...{
       assistantSuite: {
@@ -117,10 +121,10 @@ const app: PluginMarketplaceContribution = {
 const capabilities = [...ROLES.map((r) => r.feature), WORKBENCH_FEATURE]
 const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
   meta: {
-    name: PLUGIN_NAME,
-    version: PLUGIN_VERSION,
-    level: 'tenant',
-    artifactNamespace: ARTIFACT_NAMESPACE,
+    name: MATERIAL_PACKAGE_METADATA.name,
+    version: MATERIAL_PACKAGE_METADATA.version,
+    level: MATERIAL_PACKAGE_METADATA.xpert.plugin.level,
+    artifactNamespace: MATERIAL_PACKAGE_METADATA.xpert.plugin.artifactNamespace,
     category: 'middleware',
     displayName: '物料主数据智能治理',
     description:
@@ -153,7 +157,7 @@ const plugin: XpertPlugin<z.infer<typeof ConfigSchema>> = {
       providers: [
         {
           provide: RUNTIME_SCOPE,
-          useValue: { scopeKey: ctx.scopeKey ?? 'global' },
+          useValue: { scopeKey: ctx.scopeKey ?? 'global', tenantId: ctx.tenantId },
         },
       ],
       exports: [RUNTIME_SCOPE],

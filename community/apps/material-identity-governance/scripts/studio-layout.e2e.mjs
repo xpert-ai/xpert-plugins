@@ -16,8 +16,14 @@ const { expect } = requireFromHost('@playwright/test')
 const screenshotDir = process.env.WORKBENCH_E2E_SCREENSHOT_DIR
 
 test('Studio keeps the canvas bounded while selection, disclosure and execution navigation remain usable', async () => {
+  const focus = { pipelineInstanceId: '20000000-0000-4000-8000-000000000102', pipelineRoundId: '30000000-0000-4000-8000-000000000102', pipelineNodeId: '40000000-0000-4000-8000-000000000102' }
   const preview = await startRemoteViewPreview(
-    { ...config, state: { ...config.state, surface: 'pipeline' } },
+    { ...config, hostContext: { ...config.hostContext, initialQuery: { ...config.hostContext.initialQuery, parameters: focus } },
+      handleRequest: async (message, context) => {
+        const result = await config.handleRequest(message, context)
+        if (message.type === 'requestData' && result.data) Object.assign(result.data, { projectStatus: 'ready', projectId: context.state.selectionId.replace(/^0000/, '1000') })
+        return result
+      }, state: { ...config.state, surface: 'pipeline' } },
     { port: 0 },
   )
   const browser = await chromium.launch({ headless: true })
@@ -39,6 +45,11 @@ test('Studio keeps the canvas bounded while selection, disclosure and execution 
     }
     await open()
     const frame = page.frameLocator('#remote-view')
+    await frame.getByRole('button', { name: '项目流水线', exact: true }).click()
+    await expect.poll(() => preview.state.navigation.at(-1)?.target).toBe('assistant.project')
+    for (const [key, value] of Object.entries(focus)) assert.equal(preview.state.navigation.at(-1).parameters[key], value)
+    assert.equal(preview.state.navigation.at(-1).viewKey, 'platform.project-tasks__timeline')
+    assert.equal(preview.state.navigation.at(-1).parameters.initialTab, 'pipeline')
     const canvas = frame.getByRole('region', { name: '案例协同流水线' })
     const measurements = []
     for (const size of [
@@ -79,7 +90,7 @@ test('Studio keeps the canvas bounded while selection, disclosure and execution 
       assert.equal(layout.overflow, 'auto')
       assert.ok(
         await frame
-          .getByRole('button', { name: '协调者推进下一步', exact: true })
+          .getByRole('button', { name: '启动 / 打开项目流水线', exact: true })
           .isVisible(),
       )
       measurements.push({
@@ -112,7 +123,7 @@ test('Studio keeps the canvas bounded while selection, disclosure and execution 
     await expect(frame.locator('.blocker-banner')).toBeVisible()
     assert.equal(
       await frame
-        .getByRole('button', { name: '协调者推进下一步', exact: true })
+        .getByRole('button', { name: '启动 / 打开项目流水线', exact: true })
         .isEnabled(),
       false,
     )
@@ -121,10 +132,16 @@ test('Studio keeps the canvas bounded while selection, disclosure and execution 
     await expect
       .poll(() => preview.state.selectionId)
       .toBe('00000000-0000-4000-8000-000000000103')
+    await frame.getByRole('button', { name: '项目流水线', exact: true }).click()
+    await expect.poll(() => preview.state.navigation.at(-1)?.projectId).toBe('10000000-0000-4000-8000-000000000103')
+    assert.equal(preview.state.navigation.at(-1).parameters.pipelineRoundId, undefined)
+    assert.equal(Object.hasOwn(preview.state.navigation.at(-1).parameters, 'pipelineRoundId'), false)
     await frame
-      .getByRole('button', { name: '协调者推进下一步', exact: true })
+      .getByRole('button', { name: '启动 / 打开项目流水线', exact: true })
       .click()
     await expect.poll(() => preview.state.records.length).toBe(1)
+    await expect.poll(() => preview.state.navigation.at(-1)?.parameters?.pipelineInstanceId).toBe('20000000-0000-4000-8000-000000000103')
+    assert.equal(preview.state.navigation.at(-1).parameters.pipelineRoundId, undefined)
     const record = preview.state.records[0]
     await frame
       .getByTestId(`execution-${record.nodeKey}-${record.id}`)
