@@ -7,6 +7,15 @@
 - Never guess types, categories, or payload meaning from names, display text, localized copy, sample data, or incidental field combinations. Logic that depends on machine-readable distinctions must use explicit typed fields defined in shared contracts, such as discriminated unions or a stable `type`.
 - If the required discriminator or type is missing, do not invent one locally and do not hard-code heuristic detection. Add the type to the shared contract first, or pause and confirm the new type before implementing downstream filtering, routing, rendering, or business logic.
 
+## Calling Platform Capabilities from Plugins
+
+- Decide whether to expose a Runtime Capability by its consumers: APIs consumed by external plugins use Capabilities; platform-only services and factories use NestJS constructor injection and explicit module `imports`/`exports`. Internal reuse or decoupling alone does not justify registering a Capability or exporting host-only helpers from the plugin SDK.
+- Default to not adding SDK `Capability` APIs. Introduce one only for a concrete external plugin requirement that existing public APIs or typed execution/View context cannot satisfy; identify the consumer and the missing operation. Reuse existing interfaces and context fields first. Do not add Capability APIs, factory interfaces or registry entries merely for architectural symmetry, abstraction or hypothetical future consumers.
+- Do not call platform functionality by importing SDK CQRS Command/Query classes and dispatching them through a plugin CommandBus/QueryBus. Plugins and the host may load separate SDK or `@nestjs/cqrs` copies, so constructor identity, handler metadata and bus instances are not a reliable integration boundary.
+- Use the typed Runtime Capability APIs supplied by the host registry, addressed by stable string capability IDs. Call the resolved API methods directly; do not import private platform services or depend on `instanceof`/class identity across package copies.
+- For identity-scoped features, a platform-internal NestJS service or factory binds trusted execution/View scope and plugins consume the bound Runtime API. Scope binding alone does not justify a separate Factory Capability; keep host-only factories internal. Do not construct a broader scope from tool input or substitute the installation owner for the acting user. Installation context does not grant resource access.
+- Platform-internal CQRS may remain behind the capability implementation; it is not the SDK/plugin calling protocol. Verify cross-copy registry lookup and invocation isolation when modifying a platform integration.
+
 ## Local Xpert Plugin Installation
 
 - For community plugin work, keep platform connection settings in `community/.env`, using `community/env.example` as the template. Before installing or reinstalling a plugin into a local Xpert backend, source that file instead of discovering organization IDs, tenant IDs, or tokens from the database.

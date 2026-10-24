@@ -16,7 +16,7 @@ export const appContribution: PluginMarketplaceContribution = {
   projectTypes: [{ key: REVIEW_PROJECT_TYPE.projectTypeKey, title: label('Code Review Project', '代码审查项目'), icon,
     binding: { kind: 'project' } }],
   description: label('Review pull requests with commit-bound evidence.', '对照提交版本审查代码，在确认后提交到 GitHub。'),
-  appConfig: { scope: 'organization', assistantTemplateKey: 'code-review-assistant', workspace: { mode: 'dedicated', name: label('Code Review', '代码审查工作空间'), sharing: 'organization' }, knowledgebases: [], modelRequirements: { primary: true }, entry: { type: 'assistant-chat' },
+  appConfig: { scope: ['organization', 'personal'], assistantTemplateKey: 'code-review-assistant', workspace: { mode: 'dedicated', name: label('Code Review', '代码审查工作空间'), sharing: 'organization' }, knowledgebases: [], modelRequirements: { primary: true }, entry: { type: 'assistant-chat' },
     presentation: { tagline: label('Read the change. Verify the finding.', '读懂变更，核实问题。'), developer: 'XpertAI', screenshots: ['./assets/brand/code-review-overview-zh-v1.png'], features: [
       { key: 'inbox', title: label('Pull request inbox', 'PR 收件箱'), description: label('Open a public URL, or use your connected GitHub account for requested and authored pull requests.', '输入公开 PR 地址，或通过已连接的 GitHub 查看待审查和自己创建的 PR。') },
       { key: 'review', title: label('Evidence-based review', '带依据的审查'), description: label('Browse diffs, checks and model findings tied to an immutable commit.', '浏览文件差异、检查结果与固定提交版本上的模型发现。') },

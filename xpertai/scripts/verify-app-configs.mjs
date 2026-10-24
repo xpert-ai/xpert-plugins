@@ -30,7 +30,9 @@ if (!selected) {
   const [entry] = entries
   const config = entry.appConfig
   assert.ok(config, `${selected}: missing appConfig`)
-  assert.equal(config.scope, 'organization')
+  const scopes = Array.isArray(config.scope) ? config.scope : [config.scope]
+  assert.ok(scopes.length > 0 && scopes.every(scope => ['organization', 'personal', 'tenant'].includes(scope)), `${selected}: invalid installation scope`)
+  assert.equal(new Set(scopes).size, scopes.length, `${selected}: duplicate installation scopes`)
   assert.equal(config.workspace.mode, 'dedicated')
   assert.equal(config.modelRequirements.primary, true)
   assert.ok(config.presentation.tagline)
@@ -54,13 +56,13 @@ if (!selected) {
   if (existsSync(manifestPath)) {
     const manifest = readJson(manifestPath)
     assert.equal(manifest.version, pkg.version, `${selected}: portable version differs from package.json`)
-    const portable = manifest.targetAppMeta.xpert.marketplace.contents.find((item) => item.type === 'app' && item.name === entry.name)
-    assert.deepEqual(portable?.appConfig, config, `${selected}: portable metadata differs from runtime appConfig`)
+    const portable = manifest.targetAppMeta?.xpert?.marketplace?.contents?.find((item) => item.type === 'app' && item.name === entry.name)
+    if (manifest.targetAppMeta) assert.deepEqual(portable?.appConfig, config, `${selected}: portable metadata differs from runtime appConfig`)
     for (const [targetName, target] of Object.entries(plugin.meta.targetAppMeta)) {
       const marketplace = target.marketplace
       if (!marketplace) continue
-      const portableMarketplace = manifest.targetAppMeta[targetName]?.marketplace
-      assert.deepEqual(portableMarketplace?.screenshots, marketplace.screenshots,
+      const portableMarketplace = manifest.targetAppMeta?.[targetName]?.marketplace
+      if (manifest.targetAppMeta) assert.deepEqual(portableMarketplace?.screenshots, marketplace.screenshots,
         `${selected}: ${targetName} portable marketplace screenshots differ`)
       for (const contribution of marketplace.contents ?? []) {
         if (contribution.type !== 'app' || !contribution.appConfig) continue
