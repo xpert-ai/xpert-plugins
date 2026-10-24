@@ -1,3 +1,4 @@
+import { target, supervisedReceipt, exitEvidence } from './completion-fixture.mjs'
 import 'reflect-metadata'
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -31,7 +32,7 @@ for (const [tool, Strategy, events] of [
         })
       )
     )
-    const receipt = { tool: { id: tool }, workingDirectory: '/workspace/project' }
+    const receipt = supervisedReceipt({ tool: { id: tool }, workingDirectory: '/workspace/project' })
     const calls = []
     let output = { state: 'exited', exitCode: 0, events }
     const runner = {
@@ -47,7 +48,7 @@ for (const [tool, Strategy, events] of [
       inspect: async () => ({ state: 'running' }),
       stop: async () => {
         calls.push('stop')
-        return { state: 'exited' }
+        return { state: 'exited', completion: exitEvidence(receipt) }
       },
       collectArtifacts: async () => {
         calls.push('export')
@@ -55,6 +56,7 @@ for (const [tool, Strategy, events] of [
       }
     }
     const context = {
+      executionTarget: target,
       scope: { workspaceId },
       invocationId: 'invocation',
       capabilities: { require: () => runner },

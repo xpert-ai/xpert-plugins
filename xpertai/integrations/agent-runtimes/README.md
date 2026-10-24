@@ -18,17 +18,19 @@ Use a versioned profile for each administered execution environment. The followi
 
 ```json
 {
-  "profiles": [{
-    "id": "codex-review",
-    "version": "1",
-    "provider": "codex",
-    "workspaceIds": ["<authorized-workspace-uuid>"],
-    "workspaceRoot": "/srv/xpert/agent-workspaces",
-    "command": "/usr/local/bin/codex",
-    "args": ["app-server"],
-    "environmentKeys": ["OPENAI_API_KEY"],
-    "timeoutMs": 600000
-  }]
+  "profiles": [
+    {
+      "id": "codex-review",
+      "version": "1",
+      "provider": "codex",
+      "workspaceIds": ["<authorized-workspace-uuid>"],
+      "workspaceRoot": "/srv/xpert/agent-workspaces",
+      "command": "/usr/local/bin/codex",
+      "args": ["app-server"],
+      "environmentKeys": ["OPENAI_API_KEY"],
+      "timeoutMs": 600000
+    }
+  ]
 }
 ```
 
@@ -56,12 +58,14 @@ Use the returned binding ID in an `AgentInvocation` middleware configuration:
 
 ```json
 {
-  "bindings": [{
-    "id": "<binding-uuid>",
-    "name": "review_code",
-    "description": "Ask the approved coding agent to review the supplied task.",
-    "mode": "auto"
-  }]
+  "bindings": [
+    {
+      "id": "<binding-uuid>",
+      "name": "review_code",
+      "description": "Ask the approved coding agent to review the supplied task.",
+      "mode": "auto"
+    }
+  ]
 }
 ```
 
@@ -71,13 +75,13 @@ Ordinary new tasks use Agent-directed status queries with a requested wait durat
 
 ## Capabilities and limits
 
-| Provider | Execution and recovery | Interactions | Cancellation |
-| --- | --- | --- | --- |
-| Codex | App Server JSONL; process loss becomes unknown, no automatic relaunch | Command/file approval requests; unsupported requests rejected | Pending until turn completion acknowledges interruption |
-| Computer Codex | Managed single-prompt JSONL service; reconnect observes the existing execution, guest loss becomes unknown | Not advertised by this adapter | Host process termination required |
-| Pi | RPC JSONL; wait for agent_settled through retries; process loss becomes unknown | Extension UI unsupported and fails explicitly | Abort request; final receipt required |
-| Claude Code | Agent SDK query; process loss becomes unknown | canUseTool permission callback; AskUserQuestion unsupported and denied | Abort and wait for stream termination |
-| OpenCode | HTTP session/message; recover result by message identity without resend | Not advertised by this adapter | Server abort acknowledgement |
+| Provider       | Execution and recovery                                                                                     | Interactions                                                           | Cancellation                                            |
+| -------------- | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------- |
+| Codex          | App Server JSONL; process loss becomes unknown, no automatic relaunch                                      | Command/file approval requests; unsupported requests rejected          | Pending until turn completion acknowledges interruption |
+| Computer Codex | Managed single-prompt JSONL service; reconnect observes the existing execution, guest loss becomes unknown | Not advertised by this adapter                                         | Host process termination required                       |
+| Pi             | RPC JSONL; wait for agent_settled through retries; process loss becomes unknown                            | Extension UI unsupported and fails explicitly                          | Abort request; final receipt required                   |
+| Claude Code    | Agent SDK query; process loss becomes unknown                                                              | canUseTool permission callback; AskUserQuestion unsupported and denied | Abort and wait for stream termination                   |
+| OpenCode       | HTTP session/message; recover result by message identity without resend                                    | Not advertised by this adapter                                         | Server abort acknowledgement                            |
 
 No adapter promises filesystem rollback, exactly-once remote effects, or restart recovery for an in-process runner. Explicit file references require a future materialization adapter and currently fail before launch. These are provider capability limits, not hidden fallbacks. Local runtime profiles should use trusted managed workers; a process manager here is not a distributed runner service.
 
@@ -114,7 +118,6 @@ Bindings default to `auto` (historical `wait` remains supported): the host brief
 `completed` includes failed or cancelled tasks, so inspect individual statuses. Other tasks continue after an any-wait. `unavailable` means the result is uncertain; never restart automatically. Required human approvals use the existing interaction path. Use a fresh conversation after updating an Assistant whose old prompt prohibited status polling. Install the compatible host/SDK before this plugin build.
 
 All three tool roles provide localized `metadata.toolName` and `metadata.toolIcon`. Launcher bindings may set a `title` (string or `{en_US, zh_Hans}`) and a font `icon`; the default is provider-neutral delegation. Each tool accepts optional `changeSummary` for a concise activity description. It updates the existing timeline step through `ON_TOOL_MESSAGE`, is excluded from execution requests, and never replaces the tool's actual result or final status.
-
 
 ## Computer Codex transport
 
@@ -177,7 +180,6 @@ and accepted the task. Failed history and live execution cards were retained.
 See the host's `docs/plans/2026-10-06-project-tasks-stage5-acceptance.md` for scope
 and limits. That Qwen-only result does not qualify the later Kimi/CodeBuddy adapters; see their separate acceptance below.
 
-
 ### Optional public execution activity
 
 Computer Qwen Code, Codex, CodeBuddy, Kimi Code, Claude Code and OpenCode declare activity version 1 (`presentation: coding`). With a matching host, adapters map allowlisted public text/tool/command/file events into `context.activity`, persist a source checkpoint and flush final activity before recording the result and stopping the runner. No extra Activity Provider registry is required. Hosts without the optional recorder keep the normal execution/result flow.
@@ -196,16 +198,15 @@ The verifier stages built peer packages in a temporary directory, runs public-pr
 
 `--source-checkout` explicitly validates unreleased source: the host's Changesets plan must advance both peer packages into the declared ranges, and built manifests must match the source manifests. It does not rewrite peer versions or imply npm availability. The current release target is contracts/plugin-sdk **3.20.0**. Without this option the verifier requires built host versions to satisfy the declared peers and fails before building otherwise. After the host release, run without the option and regenerate the plugin workspace lockfile against the published packages before making this plugin public.
 
-
 ### CodeBuddy, Kimi Code and Claude Code on Computer
 
 The following additional providers use the same managed Computer JSONL lifecycle:
 
-| Provider | Tool/version | Background permission modes | Completion receipt |
-| --- | --- | --- | --- |
-| `codebuddy-computer` | CodeBuddy 2.161.1 | `allow`, `restricted` | One successful primary `result` event |
-| `kimi-computer` | Kimi Code 2.1.1 | `allow` only | Final assistant reply, matched tool results and final `session.resume_hint` |
-| `claude-computer` | Claude Code 2.1.63 | `allow`, `restricted` | One successful primary `result` event |
+| Provider             | Tool/version       | Background permission modes | Completion receipt                                                          |
+| -------------------- | ------------------ | --------------------------- | --------------------------------------------------------------------------- |
+| `codebuddy-computer` | CodeBuddy 2.161.1  | `allow`, `restricted`       | One successful primary `result` event                                       |
+| `kimi-computer`      | Kimi Code 2.1.1    | `allow` only                | Final assistant reply, matched tool results and final `session.resume_hint` |
+| `claude-computer`    | Claude Code 2.1.63 | `allow`, `restricted`       | One successful primary `result` event                                       |
 
 Every successful receipt also requires exit code 0, complete protocol collection
 and no terminal error. CodeBuddy/Claude share the primary-result parser with
@@ -251,3 +252,23 @@ Primary protocol references: [CodeBuddy headless mode](https://www.codebuddy.ai/
 [Kimi Code command reference](https://www.kimi.com/code/docs/en/kimi-code-cli/reference/kimi-command.html).
 Fixed installed-version help/source and real execution receipts take precedence
 when current online documentation describes a newer protocol.
+
+## Original-host control and descendant completion (phase 3.2)
+
+This unreleased change requires the coordinated host/SDK `completionEvidence: 2` contract. Local Codex, Pi and Claude executions are bound to the original host boot and execution generation. A different API replica persists cancellation; the original host reconciles it. A missing host or ambiguous receipt never authorizes another start. Business results are saved before process cleanup; failed final persistence retains the original receipt for another observation attempt.
+
+Local process profiles now require Python 3. The Linux supervisor adopts orphaned descendants, including children that leave the original process group, and reports completion only after reaping the entire owned family. Claude uses the installed SDK's `spawnClaudeCodeProcess` hook. Platforms without this supervision capability, including the current macOS fallback, can stop the known process group but return `unknown` without descendant evidence. Use a verified Linux/Computer path when confirmed termination is required.
+
+Computer adapters require a new runner receipt with `supervision: 1` and matching invocation/process/environment-instance evidence. Legacy `exited` replies remain unconfirmed. Persisted business outcomes survive cleanup and are consumed on recovery without another prompt. Remote OpenCode creates one session per invocation; legacy, mismatched-generation or reused sessions are not aborted. Its `abort=true` and idle responses do not certify remote background-tool exit, so this remote mode does not claim strong completion support.
+
+Pause drains already admitted turns and their required synchronous dependencies; it does not send cancellation or suspend a process in the middle of a tool. The host owns pause/resume admission and independent/shared task boundaries.
+
+Run source validation from the `xpertai` workspace root with fresh platform dist:
+
+```sh
+XPERT_PLATFORM_ROOT=/path/to/xpert \
+XPERT_RUNTIME_GUEST_TEST_IMAGE=node:22-bookworm \
+NX_DAEMON=false corepack pnpm exec nx run agent-runtimes:verify-source
+```
+
+The optional guest image runs the process protocol fixtures and installed Claude SDK transport in a disposable network-isolated Linux container. It does not invoke real model services or establish full provider CLI acceptance. The normal verifier also loads and unloads the built plugin through `plugin-dev-harness`. No publishing, installation into a running platform, or deployment is performed.

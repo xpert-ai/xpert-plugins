@@ -25,7 +25,15 @@ const Message = z.object({
 @Injectable()
 @AgentRuntimeStrategy('pi')
 export class PiRuntimeStrategy implements IAgentRuntimeStrategy {
-  readonly capabilities = { recovery: 'none' as const, interactions: false, cancellation: true, background: true }
+  readonly capabilities = {
+    hostAffinity: 1 as const,
+    completionEvidence: 2 as const,
+    idempotentCancellation: true,
+    recovery: 'none' as const,
+    interactions: false,
+    cancellation: true,
+    background: true
+  }
   constructor(private readonly processes: ProcessRuntime) {}
 
   async start(request: AgentRuntimeStart, context: AgentRuntimeContext) {
@@ -48,10 +56,15 @@ export class PiRuntimeStrategy implements IAgentRuntimeStrategy {
 
   async cancel(handle: AgentRuntimeHandle, context: AgentRuntimeContext) {
     const run = this.processes.find(handle, context)
-    if (!run) return this.inspect(handle, context)
+    if (!run || run.exited) return this.inspect(handle, context)
+    if (run.cancellationRequested) return run.observation
     run.cancellationRequested = true
     this.processes.publish(run, { status: 'cancelling' })
-    await run.process.request({ type: 'abort' })
+    try {
+      await run.process.request({ type: 'abort' })
+    } finally {
+      run.process.stop()
+    }
     return run.observation
   }
 

@@ -30,6 +30,7 @@ async function fixture(t, provider, extra = {}) {
   const processes = new ProcessRuntime(ConfigSchema.parse({ profiles: [profile] }))
   const snapshots = []
   const context = {
+    executionTarget: { version: 1, kind: 'host', hostId: randomUUID(), generation: randomUUID() },
     invocationId: randomUUID(),
     scope: {
       tenantId: 'tenant',
@@ -77,7 +78,14 @@ test('Codex persists thread/turn receipts and handles a bidirectional approval',
   assert.equal(waiting.interaction.data.command, 'fixture')
   assert.ok(f.snapshots.find((s) => s.handle?.sessionId === 'thread-fixture'))
   await strategy.respond(waiting.handle, '91', 'accept', f.context)
-  const done = await until(() => f.snapshots.find((s) => s.status === 'succeeded'))
+  const done = await until(() =>
+    f.snapshots.find(
+      (s) =>
+        s.status === (process.platform === 'linux' ? 'succeeded' : 'unknown') &&
+        s.result &&
+        (process.platform !== 'linux' || s.controlEvidence)
+    )
+  )
   assert.equal(done.result.text, 'approved result 中文')
   assert.equal(done.handle.runId, 'turn-fixture')
 })
@@ -89,14 +97,27 @@ test('Codex cancellation remains pending until turn/completed', async (t) => {
   await until(() => f.snapshots.find((s) => s.status === 'waiting'))
   const pending = await strategy.cancel(receipt.handle, f.context)
   assert.equal(pending.status, 'cancelling')
-  await until(() => f.snapshots.find((s) => s.status === 'cancelled'))
+  await until(() =>
+    f.snapshots.find(
+      (s) =>
+        s.status === (process.platform === 'linux' ? 'cancelled' : 'unknown') &&
+        (process.platform !== 'linux' || s.controlEvidence)
+    )
+  )
 })
 
 test('Pi waits for agent_settled through automatic retry', async (t) => {
   const f = await fixture(t, 'pi')
   const strategy = new PiRuntimeStrategy(f.processes)
   await strategy.start(f.request, f.context)
-  const done = await until(() => f.snapshots.find((s) => s.status === 'succeeded'))
+  const done = await until(() =>
+    f.snapshots.find(
+      (s) =>
+        s.status === (process.platform === 'linux' ? 'succeeded' : 'unknown') &&
+        s.result &&
+        (process.platform !== 'linux' || s.controlEvidence)
+    )
+  )
   assert.equal(done.result.text, 'retry completed 中文')
   assert.equal(
     f.snapshots.some((s) => s.status === 'failed'),
@@ -146,7 +167,7 @@ test('Claude SDK permissions use host interactions and completion receipts', asy
   assert.equal(settings.permissionMode, 'default')
   assert.deepEqual(settings.settingSources, [])
   await strategy.respond(waiting.handle, waiting.interaction.id, true, f.context)
-  const done = await until(() => f.snapshots.find((s) => s.status === 'succeeded'))
+  const done = await until(() => f.snapshots.find((s) => s.status === 'unknown' && s.result))
   assert.equal(done.result.text, 'Claude fixture')
 })
 
@@ -165,7 +186,12 @@ test('OpenCode persists before prompt and recovers by message identity without r
       assert.ok(sentReceipt)
       prompts++
       saved = {
-        info: { role: 'assistant', parentID: JSON.parse(body).messageID, finish: 'stop', time: { created: 1, completed: 2 } },
+        info: {
+          role: 'assistant',
+          parentID: JSON.parse(body).messageID,
+          finish: 'stop',
+          time: { created: 1, completed: 2 }
+        },
         parts: [{ type: 'text', text: 'OpenCode fixture' }]
       }
       value = saved
@@ -194,4 +220,48 @@ test('OpenCode persists before prompt and recovers by message identity without r
   assert.equal(recovered.progress.startedAt, new Date(1).toISOString())
   assert.equal(recovered.progress.phase, 'completed')
   assert.equal(prompts, 1)
+})
+
+test('a stale host/turn cannot cancel a new process; JSONB property order does not change ownership', async (t) => {
+  const f = await fixture(t, 'codex'),
+    strategy = new CodexRuntimeStrategy(f.processes)
+  const started = await strategy.start(f.request, f.context)
+  await until(() => f.snapshots.find((s) => s.status === 'waiting'))
+  await assert.rejects(
+    strategy.cancel(started.handle, {
+      ...f.context,
+      executionTarget: { ...f.context.executionTarget, generation: randomUUID() }
+    }),
+    /scope mismatch/
+  )
+  await assert.rejects(strategy.cancel({ ...started.handle, runId: 'old-turn' }, f.context), /scope mismatch/)
+  const reordered = {
+    ...f.context,
+    scope: Object.fromEntries(Object.entries(f.context.scope).reverse()),
+    executionTarget: Object.fromEntries(Object.entries(f.context.executionTarget).reverse())
+  }
+  assert.equal((await strategy.cancel(started.handle, reordered)).status, 'cancelling')
+})
+
+test('a lost final checkpoint retains the exited original process receipt for compensation', async (t) => {
+  const f = await fixture(t, 'codex'),
+    strategy = new CodexRuntimeStrategy(f.processes)
+  let failFinal = true
+  const save = f.context.checkpoint
+  f.context.checkpoint = async (value) => {
+    if (failFinal && value.result && (value.controlEvidence || value.status === 'unknown'))
+      throw Error('database unavailable')
+    await save(value)
+  }
+  await strategy.start(f.request, f.context)
+  const waiting = await until(() => f.snapshots.find((s) => s.status === 'waiting'))
+  await strategy.respond(waiting.handle, '91', 'accept', f.context)
+  await until(() => f.processes.runs.get(f.context.invocationId)?.exited)
+  const run = f.processes.runs.get(f.context.invocationId)
+  await run.writes
+  assert.equal(f.processes.runs.has(f.context.invocationId), true)
+  failFinal = false
+  const recovered = await strategy.inspect(waiting.handle, f.context)
+  assert.equal(recovered.result.text, 'approved result 中文')
+  assert.equal(f.processes.runs.has(f.context.invocationId), false)
 })

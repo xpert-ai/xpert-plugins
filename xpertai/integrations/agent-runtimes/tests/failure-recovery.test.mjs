@@ -26,14 +26,32 @@ async function until(check) {
 test('stdin failure rejects pending requests and reaps a child that ignores SIGTERM before notifying close', async (t) => {
   let pid
   let closed = 0
-  const transport = new JsonlProcess({
-    command: process.execPath,
-    args: ['-e', `process.on('SIGTERM',()=>{});require('fs').closeSync(0);process.stdout.write(JSON.stringify({type:'ready',pid:process.pid})+'\\n');setInterval(()=>{},1000)`],
-    environmentKeys: []
-  }, tmpdir(), (message) => { pid = message.pid }, () => { closed++ })
+  const transport = new JsonlProcess(
+    {
+      command: process.execPath,
+      args: [
+        '-e',
+        `process.on('SIGTERM',()=>{});require('fs').closeSync(0);process.stdout.write(JSON.stringify({type:'ready',pid:process.pid})+'\\n');setInterval(()=>{},1000)`
+      ],
+      environmentKeys: []
+    },
+    tmpdir(),
+    (message) => {
+      pid = message.pid
+    },
+    () => {
+      closed++
+    }
+  )
   t.after(() => {
     transport.stop()
-    if (pid) { try { process.kill(pid, 'SIGKILL') } catch (error) { if (error.code !== 'ESRCH') throw error } }
+    if (pid) {
+      try {
+        process.kill(pid, 'SIGKILL')
+      } catch (error) {
+        if (error.code !== 'ESRCH') throw error
+      }
+    }
   })
   await until(() => pid)
   await assert.rejects(transport.request({ type: 'prompt' }), /disconnected/)
@@ -48,8 +66,14 @@ test('stdin failure rejects pending requests and reaps a child that ignores SIGT
 
 test('a spawn failure rejects requests and reports close once', async () => {
   let closed = 0
-  const transport = new JsonlProcess({ command: join(tmpdir(), randomUUID(), 'missing'), args: [], environmentKeys: [] },
-    tmpdir(), () => {}, () => { closed++ })
+  const transport = new JsonlProcess(
+    { command: join(tmpdir(), randomUUID(), 'missing'), args: [], environmentKeys: [] },
+    tmpdir(),
+    () => {},
+    () => {
+      closed++
+    }
+  )
   await assert.rejects(transport.request({ type: 'prompt' }), /disconnected/)
   await until(() => closed)
   assert.equal(closed, 1)
@@ -65,10 +89,22 @@ test('OpenCode waits through completed tool steps, retries and newer incomplete 
     for await (const chunk of req) body += chunk
     const path = new URL(req.url, 'http://localhost').pathname
     let value
-    if (path === '/session/status') { statusReads++; value = state ? { session: { type: state } } : {} }
-    else if (path === '/session') value = { id: 'session' }
+    if (path === '/session/status') {
+      statusReads++
+      value = state ? { session: { type: state } } : {}
+    } else if (path === '/session') value = { id: 'session' }
     else if (req.method === 'POST') {
-      messages = [{ info: { role: 'assistant', parentID: JSON.parse(body).messageID, finish: 'tool-calls', time: { completed: 1 } }, parts: [{ type: 'tool' }] }]
+      messages = [
+        {
+          info: {
+            role: 'assistant',
+            parentID: JSON.parse(body).messageID,
+            finish: 'tool-calls',
+            time: { completed: 1 }
+          },
+          parts: [{ type: 'tool' }]
+        }
+      ]
       value = messages[0]
     } else value = messages
     res.writeHead(200, { 'content-type': 'application/json' })
@@ -76,12 +112,31 @@ test('OpenCode waits through completed tool steps, retries and newer incomplete 
   })
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
   t.after(() => new Promise((resolve) => server.close(resolve)))
-  const profiles = new ProcessRuntime(ConfigSchema.parse({ profiles: [{ id: 'oc', provider: 'opencode', version: '1',
-    workspaceIds: [workspaceId], workspaceRoot: tmpdir(), serverUrl: `http://127.0.0.1:${server.address().port}` }] }))
+  const profiles = new ProcessRuntime(
+    ConfigSchema.parse({
+      profiles: [
+        {
+          id: 'oc',
+          provider: 'opencode',
+          version: '1',
+          workspaceIds: [workspaceId],
+          workspaceRoot: tmpdir(),
+          serverUrl: `http://127.0.0.1:${server.address().port}`
+        }
+      ]
+    })
+  )
   const snapshots = []
-  const context = { invocationId: randomUUID(), scope: { workspaceId }, checkpoint: async (s) => snapshots.push(structuredClone(s)) }
+  const context = {
+    invocationId: randomUUID(),
+    scope: { workspaceId },
+    checkpoint: async (s) => snapshots.push(structuredClone(s))
+  }
   const strategy = new OpenCodeRuntimeStrategy(profiles)
-  const started = await strategy.start({ target: { reference: 'oc', configuration: { profileVersion: '1' } }, input: { prompt: 'fixture' } }, context)
+  const started = await strategy.start(
+    { target: { reference: 'oc', configuration: { profileVersion: '1' } }, input: { prompt: 'fixture' } },
+    context
+  )
   await until(() => snapshots.length === 2)
   assert.equal(snapshots[1].status, 'running', 'the POST response must use the same completion rules as recovery')
   assert.ok(statusReads > 0)
@@ -109,19 +164,45 @@ test('OpenCode waits through completed tool steps, retries and newer incomplete 
 test('Claude synchronous startup failure aborts partial execution and clears pending approvals, timers and run state', async (t) => {
   const root = await mkdtemp(join(tmpdir(), 'claude-startup-fixture-'))
   t.after(() => rm(root, { recursive: true, force: true }))
-  const profiles = new ProcessRuntime(ConfigSchema.parse({ profiles: [{ id: 'c', provider: 'claude-code', version: '1',
-    workspaceIds: [workspaceId], workspaceRoot: root, timeoutMs: 1000 }] }))
+  const profiles = new ProcessRuntime(
+    ConfigSchema.parse({
+      profiles: [
+        {
+          id: 'c',
+          provider: 'claude-code',
+          version: '1',
+          workspaceIds: [workspaceId],
+          workspaceRoot: root,
+          timeoutMs: 1000
+        }
+      ]
+    })
+  )
   let abort
   let permission
-  const strategy = new ClaudeCodeRuntimeStrategy(profiles, { load: async () => ({ query: ({ options }) => {
-    abort = options.abortController
-    permission = options.canUseTool('Read', { path: 'fixture.txt' })
-    throw new Error('SDK startup failure')
-  } }) })
+  const strategy = new ClaudeCodeRuntimeStrategy(profiles, {
+    load: async () => ({
+      query: ({ options }) => {
+        abort = options.abortController
+        permission = options.canUseTool('Read', { path: 'fixture.txt' })
+        throw new Error('SDK startup failure')
+      }
+    })
+  })
   t.after(() => strategy.onModuleDestroy())
   const snapshots = []
-  const context = { invocationId: randomUUID(), scope: { workspaceId }, checkpoint: async (s) => snapshots.push(structuredClone(s)) }
-  await assert.rejects(strategy.start({ target: { reference: 'c', configuration: { profileVersion: '1' } }, input: { prompt: 'fixture' } }, context), /SDK startup failure/)
+  const context = {
+    invocationId: randomUUID(),
+    scope: { workspaceId },
+    checkpoint: async (s) => snapshots.push(structuredClone(s))
+  }
+  await assert.rejects(
+    strategy.start(
+      { target: { reference: 'c', configuration: { profileVersion: '1' } }, input: { prompt: 'fixture' } },
+      context
+    ),
+    /SDK startup failure/
+  )
   assert.equal(abort.signal.aborted, true)
   assert.equal((await permission).behavior, 'deny')
   const observation = await strategy.inspect({ runId: context.invocationId }, context)
@@ -132,4 +213,69 @@ test('Claude synchronous startup failure aborts partial execution and clears pen
   const count = snapshots.length
   await pause(1100)
   assert.equal(snapshots.length, count, 'a failed launch must not retain its timeout callback')
+})
+
+test('remote OpenCode abort acceptance cannot prove tool exit, and stale or shared sessions are not aborted', async (t) => {
+  let aborts = 0,
+    foreignTurn = false
+  const invocationId = randomUUID(),
+    generation = randomUUID(),
+    runId = `msg_${invocationId.replaceAll('-', '')}`
+  const server = createServer((req, res) => {
+    const value =
+      req.method === 'POST'
+        ? (++aborts, true)
+        : [{ info: { role: 'user', id: foreignTurn ? 'new-turn' : runId }, parts: [] }]
+    res.writeHead(200, { 'content-type': 'application/json' })
+    res.end(JSON.stringify(value))
+  })
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+  t.after(() => new Promise((resolve) => server.close(resolve)))
+  const profiles = new ProcessRuntime(
+    ConfigSchema.parse({
+      profiles: [
+        {
+          id: 'remote',
+          provider: 'opencode',
+          version: '1',
+          workspaceIds: [workspaceId],
+          workspaceRoot: tmpdir(),
+          serverUrl: `http://127.0.0.1:${server.address().port}`
+        }
+      ]
+    })
+  )
+  const strategy = new OpenCodeRuntimeStrategy(profiles)
+  const context = {
+    invocationId,
+    scope: { workspaceId },
+    executionTarget: { version: 1, kind: 'provider', generation }
+  }
+  const handle = {
+    sessionId: 'exclusive-session',
+    runId,
+    metadata: { profileId: 'remote', profileVersion: '1', exclusiveSession: true, executionGeneration: generation }
+  }
+  assert.equal((await strategy.cancel(handle, context)).status, 'cancelling')
+  assert.equal(aborts, 1)
+  const accepted = await strategy.cancel(handle, context)
+  assert.equal(accepted.controlEvidence, undefined)
+  assert.equal(aborts, 2)
+  assert.equal(
+    (
+      await strategy.cancel(handle, {
+        ...context,
+        executionTarget: { ...context.executionTarget, generation: randomUUID() }
+      })
+    ).status,
+    'unknown'
+  )
+  assert.equal(
+    (await strategy.cancel({ ...handle, metadata: { ...handle.metadata, exclusiveSession: false } }, context)).status,
+    'unknown'
+  )
+  foreignTurn = true
+  assert.equal((await strategy.cancel(handle, context)).status, 'unknown')
+  assert.equal(aborts, 2)
+  assert.equal(server.listening, true)
 })

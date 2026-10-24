@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from 'node:util'
+import { executionRuntimeTargetsEqual } from '@xpert-ai/contracts'
 import { agentPrompt } from './input.js'
 import { Inject, Injectable, type OnModuleDestroy } from '@nestjs/common'
 import { mkdir, realpath } from 'node:fs/promises'
@@ -11,6 +13,7 @@ import type {
 } from '@xpert-ai/plugin-sdk'
 import type { AgentOutputDelivery } from '@xpert-ai/plugin-sdk'
 import { RUNTIME_CONFIGURATION, type RuntimeConfiguration, type RuntimeProfile } from './config.js'
+import { runtimeCompletion } from './runtime-completion.js'
 import { JsonlProcess, type WireMessage } from './jsonl-process.js'
 
 export interface ProcessRun {
@@ -22,9 +25,14 @@ export interface ProcessRun {
   text: string
   lastStopReason?: string
   cancellationRequested: boolean
+  boundTurn?: boolean
+  pendingCompletion?: WireMessage
   pendingRequestId?: string | number
   timer: NodeJS.Timeout
   writes: Promise<void>
+  resultObservation?: AgentRuntimeObservation
+  exited?: boolean
+  persisted?: boolean
 }
 
 @Injectable()
@@ -77,11 +85,22 @@ export class ProcessRuntime implements OnModuleDestroy {
         profile,
         cwd,
         (message) => onMessage(run, message),
-        () => {
-          if (!terminal(run.observation))
-            this.publish(run, { status: run.cancellationRequested ? 'cancelled' : 'unknown' })
+        (proof) => {
+          run.exited = true
+          const final = run.resultObservation ?? {
+            status: run.cancellationRequested ? ('cancelled' as const) : ('unknown' as const)
+          }
+          this.publish(run, {
+            ...final,
+            ...(proof && terminal(final) && run.observation.handle
+              ? { controlEvidence: runtimeCompletion(context, run.observation.handle, final.status, 'supervisor-exit') }
+              : {}),
+            ...(!proof ? { status: 'unknown' as const } : {})
+          })
           clearTimeout(run.timer)
-          void run.writes.finally(() => this.runs.delete(context.invocationId))
+          void run.writes.finally(() => {
+            if (run.persisted) this.runs.delete(context.invocationId)
+          })
         }
       )
     }
@@ -115,11 +134,14 @@ export class ProcessRuntime implements OnModuleDestroy {
   }
 
   find(handle: AgentRuntimeHandle, context: AgentRuntimeContext) {
-    const run = this.runs.get(handle.metadata?.operationId?.toString() ?? context.invocationId)
+    const run = this.runs.get(context.invocationId)
     if (
       run &&
       (run.context.invocationId !== context.invocationId ||
-        JSON.stringify(run.context.scope) !== JSON.stringify(context.scope))
+        !isDeepStrictEqual(run.context.scope, context.scope) ||
+        !executionRuntimeTargetsEqual(run.context.executionTarget, context.executionTarget) ||
+        run.observation.handle?.sessionId !== handle.sessionId ||
+        run.observation.handle?.runId !== handle.runId)
     ) {
       throw new Error('Agent run scope mismatch')
     }
@@ -128,6 +150,10 @@ export class ProcessRuntime implements OnModuleDestroy {
 
   async inspect(handle: AgentRuntimeHandle, context: AgentRuntimeContext): Promise<AgentRuntimeObservation> {
     const run = this.find(handle, context)
+    if (run?.exited) {
+      await context.checkpoint(run.observation)
+      this.runs.delete(context.invocationId)
+    }
     return run
       ? run.observation
       : { status: 'unknown', handle, error: 'Runner is unavailable; do not replay this operation' }
@@ -135,11 +161,24 @@ export class ProcessRuntime implements OnModuleDestroy {
 
   publish(run: ProcessRun, observation: AgentRuntimeObservation) {
     if (terminal(run.observation)) return
+    if (terminal(observation) && !run.exited) {
+      run.resultObservation ??= observation
+      run.observation = { ...run.observation, ...(observation.result ? { result: observation.result } : {}) }
+      // Persist the business result before cleanup. The host's v2 gate keeps it unconfirmed.
+      const snapshot = structuredClone({ ...run.observation, ...observation })
+      run.writes = run.writes.then(() => run.context.checkpoint(snapshot)).catch(() => undefined)
+      void run.writes.finally(() => run.process.stop())
+      return
+    }
     run.observation = { ...run.observation, ...observation }
     const snapshot = structuredClone(run.observation)
     run.writes = run.writes
       .then(() => run.context.checkpoint(snapshot))
+      .then(() => {
+        run.persisted = true
+      })
       .catch(() => {
+        run.persisted = false
         // A failed durable receipt must not allow an unobserved runner to keep mutating files.
         run.process.stop()
       })

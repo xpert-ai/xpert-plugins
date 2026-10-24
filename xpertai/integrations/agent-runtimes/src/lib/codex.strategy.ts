@@ -27,7 +27,15 @@ const Approval = z.object({
 @Injectable()
 @AgentRuntimeStrategy('codex')
 export class CodexRuntimeStrategy implements IAgentRuntimeStrategy {
-  readonly capabilities = { recovery: 'none' as const, interactions: true, cancellation: true, background: true }
+  readonly capabilities = {
+    hostAffinity: 1 as const,
+    completionEvidence: 2 as const,
+    idempotentCancellation: true,
+    recovery: 'none' as const,
+    interactions: true,
+    cancellation: true,
+    background: true
+  }
   constructor(private readonly processes: ProcessRuntime) {}
 
   async start(request: AgentRuntimeStart, context: AgentRuntimeContext) {
@@ -65,6 +73,11 @@ export class CodexRuntimeStrategy implements IAgentRuntimeStrategy {
         ).result
       ).turn
       if (run.observation.handle) run.observation.handle.runId = turn.id
+      run.boundTurn = true
+      if (run.pendingCompletion) {
+        this.event(run, run.pendingCompletion)
+        run.pendingCompletion = undefined
+      }
       await context.checkpoint(run.observation)
       return run.observation
     } catch (error) {
@@ -79,13 +92,18 @@ export class CodexRuntimeStrategy implements IAgentRuntimeStrategy {
 
   async cancel(handle: AgentRuntimeHandle, context: AgentRuntimeContext) {
     const run = this.processes.find(handle, context)
-    if (!run) return this.inspect(handle, context)
+    if (!run || run.exited) return this.inspect(handle, context)
+    if (run.cancellationRequested) return run.observation
     run.cancellationRequested = true
     this.processes.publish(run, { status: 'cancelling' })
-    await run.process.request({
-      method: 'turn/interrupt',
-      params: { threadId: handle.sessionId, turnId: handle.runId }
-    })
+    try {
+      await run.process.request({
+        method: 'turn/interrupt',
+        params: { threadId: handle.sessionId, turnId: handle.runId }
+      })
+    } finally {
+      run.process.stop()
+    }
     return run.observation
   }
 
@@ -103,9 +121,17 @@ export class CodexRuntimeStrategy implements IAgentRuntimeStrategy {
     if (message.method === 'item/agentMessage/delta') {
       run.text = (run.text + Delta.parse(message.params).delta).slice(-2 * 1024 * 1024)
     } else if (message.method === 'turn/completed') {
+      if (!run.boundTurn) {
+        run.pendingCompletion = message
+        return
+      }
       const turn = Turn.parse(message.params).turn
+      if (turn.id !== run.observation.handle?.runId) return
       const status = turn.status === 'completed' ? 'succeeded' : turn.status === 'interrupted' ? 'cancelled' : 'failed'
-      this.processes.publish(run, { status, ...(status === 'succeeded' ? { result: taskResult(run.text, run.delivery) } : {}) })
+      this.processes.publish(run, {
+        status,
+        ...(status === 'succeeded' ? { result: taskResult(run.text, run.delivery) } : {})
+      })
     } else if (message.id !== undefined && message.method?.endsWith('/requestApproval')) {
       const approval = Approval.safeParse(message.params)
       const details = ApprovalData.safeParse(message.params)

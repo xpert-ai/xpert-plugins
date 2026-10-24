@@ -11,7 +11,7 @@ const workspace = resolve(source, '../..')
 const platform = process.env.XPERT_PLATFORM_ROOT
 if (!platform) throw new Error('Set XPERT_PLATFORM_ROOT to the source platform checkout with SDK/contracts dist built')
 const sourceCheckout = process.argv.includes('--source-checkout')
-if (process.argv.slice(2).some(arg => arg !== '--source-checkout')) throw new Error('Unknown verification option')
+if (process.argv.slice(2).some((arg) => arg !== '--source-checkout')) throw new Error('Unknown verification option')
 const staging = await mkdtemp(join(tmpdir(), 'xpert-agent-runtimes-'))
 function run(command, args, cwd = staging) {
   const child = spawnSync(command, args, { cwd, stdio: 'inherit', env: process.env })
@@ -51,12 +51,15 @@ try {
     if (built.version !== current.version) throw new Error(`${packageName} build is stale; rebuild the host package`)
     const required = manifest.peerDependencies[packageName]
     if (satisfies(built.version, required)) continue
-    const planned = plannedReleases.find(item => item.name === packageName && item.oldVersion === current.version)
+    const planned = plannedReleases.find((item) => item.name === packageName && item.oldVersion === current.version)
     if (!sourceCheckout || !planned || !satisfies(planned.newVersion, required))
-      throw new Error(`${packageName}@${built.version} does not satisfy ${required}. Release matching host packages first; use --source-checkout only for explicitly unreleased source validation.`)
+      throw new Error(
+        `${packageName}@${built.version} does not satisfy ${required}. Release matching host packages first; use --source-checkout only for explicitly unreleased source validation.`
+      )
     console.log(`${packageName}: source ${current.version}, planned ${planned.newVersion}; source validation only.`)
   }
   await mkdir(join(staging, 'node_modules'), { recursive: true })
+  await dependencies(join(source, 'node_modules'))
   await dependencies(join(workspace, 'node_modules'))
   await dependencies(join(resolve(platform), 'node_modules'))
   for (const name of ['contracts', 'plugin-sdk'])
@@ -91,6 +94,33 @@ try {
       .filter((file) => file.endsWith('.test.mjs'))
       .map((file) => `tests/${file}`)
   ])
+  if (process.env.XPERT_RUNTIME_GUEST_TEST_IMAGE) {
+    run('docker', [
+      'run',
+      '--rm',
+      '--network',
+      'none',
+      '--pids-limit',
+      '128',
+      '--memory',
+      '512m',
+      '-v',
+      `${workspace}:${workspace}:ro`,
+      '-v',
+      `${resolve(platform)}:${resolve(platform)}:ro`,
+      '-v',
+      `${staging}:${staging}:ro`,
+      '-w',
+      staging,
+      process.env.XPERT_RUNTIME_GUEST_TEST_IMAGE,
+      'node',
+      '--test',
+      '--test-concurrency=1',
+      'tests/runtime.test.mjs',
+      'tests/failure-recovery.test.mjs',
+      'tests/claude-sdk-control.test.mjs'
+    ])
+  }
   await symlink(staging, join(staging, 'node_modules/@xpert-ai/plugin-agent-runtimes'))
   run(process.execPath, [
     resolve(workspace, '../plugin-dev-harness/dist/index.js'),
@@ -100,7 +130,13 @@ try {
     '@xpert-ai/plugin-agent-runtimes'
   ])
   await cp(join(staging, 'dist'), join(source, 'dist'), { recursive: true })
-  console.log(`Agent runtime build, protocol tests and dist-first lifecycle passed. ${sourceCheckout ? 'Unreleased source validation; not release compatibility.' : 'Built host peer versions satisfy the plugin requirements.'} No deployment performed.`)
+  console.log(
+    `Agent runtime build, protocol tests and dist-first lifecycle passed. ${
+      sourceCheckout
+        ? 'Unreleased source validation; not release compatibility.'
+        : 'Built host peer versions satisfy the plugin requirements.'
+    } No deployment performed.`
+  )
 } finally {
   await rm(staging, { recursive: true, force: true })
 }

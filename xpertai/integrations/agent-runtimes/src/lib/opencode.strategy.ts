@@ -1,3 +1,4 @@
+import { runnerCompletion } from './runtime-completion.js'
 import { agentPrompt } from './input.js'
 import { outputDelivery, taskResult } from './task-result.js'
 import { Injectable } from '@nestjs/common'
@@ -21,23 +22,37 @@ const Message = z.object({
   info: z
     .object({
       role: z.string(),
+      id: z.string().optional(),
       parentID: z.string().optional(),
       finish: z.string().optional(),
       error: z.unknown().optional(),
       time: z.object({ created: z.number().optional(), completed: z.number().optional() }).optional()
     })
     .passthrough(),
-  parts: z.array(z.object({
-    type: z.string(),
-    text: z.string().optional(),
-    metadata: z.object({ providerExecuted: z.boolean().optional() }).passthrough().optional()
-  }).passthrough())
+  parts: z.array(
+    z
+      .object({
+        type: z.string(),
+        text: z.string().optional(),
+        metadata: z.object({ providerExecuted: z.boolean().optional() }).passthrough().optional()
+      })
+      .passthrough()
+  )
 })
 
 @Injectable()
 @AgentRuntimeStrategy('opencode')
 export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
-  readonly capabilities = { activity: { version: 1 as const, presentation: 'coding' as const }, executionTools: [{ id: 'opencode', versions: ['1.18.33'], environments: ['computer' as const] }], recovery: 'session' as const, interactions: false, cancellation: true, background: true }
+  readonly capabilities = {
+    completionEvidence: 2 as const,
+    idempotentCancellation: true,
+    activity: { version: 1 as const, presentation: 'coding' as const },
+    executionTools: [{ id: 'opencode', versions: ['1.18.33'], environments: ['computer' as const] }],
+    recovery: 'session' as const,
+    interactions: false,
+    cancellation: true,
+    background: true
+  }
   constructor(private readonly profiles: ProcessRuntime) {}
 
   async start(request: AgentRuntimeStart, context: AgentRuntimeContext) {
@@ -45,10 +60,19 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
     const profile = this.profiles.profile(request, context, 'opencode')
     let runner: AgentRuntimeHandle['runner']
     if (profile.executionEnvironment === 'computer') {
-      runner = await context.capabilities.require(AgentExecutionRunnerCapability).start(context.invocationId, async (receipt) => {
-        await context.checkpoint({ status: 'running', handle: { sessionId: 'pending', runId: context.invocationId,
-          runner: receipt, metadata: { profileId: profile.id, profileVersion: profile.version } } })
-      })
+      runner = await context.capabilities
+        .require(AgentExecutionRunnerCapability)
+        .start(context.invocationId, async (receipt) => {
+          await context.checkpoint({
+            status: 'running',
+            handle: {
+              sessionId: 'pending',
+              runId: context.invocationId,
+              runner: receipt,
+              metadata: { profileId: profile.id, profileVersion: profile.version }
+            }
+          })
+        })
     }
     const pending: AgentRuntimeHandle = { sessionId: 'pending', runId: context.invocationId, runner }
     const session = Session.parse(
@@ -58,14 +82,28 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
       sessionId: session.id,
       ...(runner ? { runner } : {}),
       runId: `msg_${context.invocationId.replaceAll('-', '')}`,
-      metadata: { profileId: profile.id, profileVersion: profile.version, delivery: outputDelivery(request.input.delivery) }
+      metadata: {
+        profileId: profile.id,
+        profileVersion: profile.version,
+        exclusiveSession: true,
+        executionGeneration: context.executionTarget?.generation ?? null,
+        delivery: outputDelivery(request.input.delivery)
+      }
     }
     const observation: AgentRuntimeObservation = { status: 'running', handle }
     await context.checkpoint(observation)
     if (runner) {
-      await this.http(profile, `/session/${encodeURIComponent(session.id)}/prompt_async`, 'POST', {
-        messageID: handle.runId, parts: [{ type: 'text', text: agentPrompt(request.input) }]
-      }, context, handle)
+      await this.http(
+        profile,
+        `/session/${encodeURIComponent(session.id)}/prompt_async`,
+        'POST',
+        {
+          messageID: handle.runId,
+          parts: [{ type: 'text', text: agentPrompt(request.input) }]
+        },
+        context,
+        handle
+      )
       return observation
     }
     // Session receipt is durable before dispatch. Reconnection only inspects, never re-sends.
@@ -88,45 +126,91 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
   async inspect(handle: AgentRuntimeHandle, context: AgentRuntimeContext): Promise<AgentRuntimeObservation> {
     const profile = this.profile(handle, context)
     if (handle.runner) {
-      const process = await context.capabilities.require(AgentExecutionRunnerCapability).inspect(handle.runner)
+      const runner = context.capabilities.require(AgentExecutionRunnerCapability)
+      if (context.settlement) {
+        const stopped = await runner.stop(handle.runner)
+        const controlEvidence = runnerCompletion(context, handle, context.settlement.status, stopped.completion)
+        return {
+          ...context.settlement,
+          handle,
+          status: controlEvidence ? context.settlement.status : 'unknown',
+          controlEvidence
+        }
+      }
+      const process = await runner.inspect(handle.runner)
       if (process.state !== 'running' || handle.sessionId === 'pending') return { status: 'unknown', handle }
     }
     let messages: z.infer<typeof Message>[]
     try {
-      messages = z.array(Message).parse(await this.http(profile, `/session/${encodeURIComponent(handle.sessionId)}/message`, 'GET', undefined, context, handle))
+      messages = z
+        .array(Message)
+        .parse(
+          await this.http(
+            profile,
+            `/session/${encodeURIComponent(handle.sessionId)}/message`,
+            'GET',
+            undefined,
+            context,
+            handle
+          )
+        )
     } catch {
       await appendActivities(context, [], false, ['source_truncated'])
       try {
         // OpenCode exposes limit, but no stable backwards cursor in this pinned
         // contract. Preserve collected history and read the final receipt without
         // claiming that the latest message is the entire session transcript.
-        messages = z.array(Message).parse(await this.http(profile, `/session/${encodeURIComponent(handle.sessionId)}/message`, 'GET', undefined, context, handle, 1))
+        messages = z
+          .array(Message)
+          .parse(
+            await this.http(
+              profile,
+              `/session/${encodeURIComponent(handle.sessionId)}/message`,
+              'GET',
+              undefined,
+              context,
+              handle,
+              1
+            )
+          )
       } catch {
         await appendActivities(context, [], false, ['source_lost'])
-        return { status: 'unknown', handle, error: 'OpenCode messages are unavailable or exceed the bounded response size' }
+        return {
+          status: 'unknown',
+          handle,
+          error: 'OpenCode messages are unavailable or exceed the bounded response size'
+        }
       }
     }
     const response = messages
       .slice()
       .reverse()
-      .find(
-        (item) => item.info.role === 'assistant' && item.info.parentID === handle.runId
-      )
+      .find((item) => item.info.role === 'assistant' && item.info.parentID === handle.runId)
     const observation = await this.observe(profile, handle, response, context)
-    await appendActivities(context, openCodeActivities(messages, handle.runId), ['succeeded', 'failed'].includes(observation.status))
-    const starts = messages.filter((item) => item.info.role === 'assistant' && item.info.parentID === handle.runId)
-      .flatMap((item) => item.info.time?.created !== undefined ? [item.info.time.created] : [])
-    if (starts.length) observation.progress = {
-      source: 'executor', observedAt: new Date().toISOString(), startedAt: new Date(Math.min(...starts)).toISOString(),
-      phase: ['succeeded', 'failed'].includes(observation.status) ? 'completed' : 'working'
-    }
+    await appendActivities(
+      context,
+      openCodeActivities(messages, handle.runId),
+      ['succeeded', 'failed'].includes(observation.status)
+    )
+    const starts = messages
+      .filter((item) => item.info.role === 'assistant' && item.info.parentID === handle.runId)
+      .flatMap((item) => (item.info.time?.created !== undefined ? [item.info.time.created] : []))
+    if (starts.length)
+      observation.progress = {
+        source: 'executor',
+        observedAt: new Date().toISOString(),
+        startedAt: new Date(Math.min(...starts)).toISOString(),
+        phase: ['succeeded', 'failed'].includes(observation.status) ? 'completed' : 'working'
+      }
     if (handle.runner && ['succeeded', 'failed'].includes(observation.status)) {
       const runner = context.capabilities.require(AgentExecutionRunnerCapability)
       if (observation.result) {
-        const result = observation.result, delivery = outputDelivery(handle.metadata?.delivery)
+        const result = observation.result,
+          delivery = outputDelivery(handle.metadata?.delivery)
         if (delivery.mode !== 'none') {
           // An explicit caller selection is authoritative even when the model omits a file item.
-          const paths = delivery.paths ?? (result.items ?? []).flatMap((item) => item.type === 'file' ? [item.path] : [])
+          const paths =
+            delivery.paths ?? (result.items ?? []).flatMap((item) => (item.type === 'file' ? [item.path] : []))
           try {
             if (!paths.length) throw new Error('No declared deliverables')
             const artifacts = await runner.collectArtifacts(handle.runner, { mode: delivery.mode, paths })
@@ -134,18 +218,29 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
             result.artifacts = artifacts
             result.export = { mode: delivery.mode, status: 'completed' }
           } catch {
-            result.export = { mode: delivery.mode, status: 'failed', error: 'Requested files could not be exported. Task execution has finished; inspect the workspace.' }
+            result.export = {
+              mode: delivery.mode,
+              status: 'failed',
+              error: 'Requested files could not be exported. Task execution has finished; inspect the workspace.'
+            }
           }
         }
       }
       // Persist results and artifact references before guest shutdown; host cleanup can retry.
       await context.checkpoint(observation)
-      await runner.stop(handle.runner)
+      const stopped = await runner.stop(handle.runner)
+      observation.controlEvidence = runnerCompletion(context, handle, observation.status, stopped.completion)
+      if (!observation.controlEvidence) observation.status = 'unknown'
     }
     return observation
   }
 
-  private async observe(profile: RuntimeProfile, handle: AgentRuntimeHandle, message?: z.infer<typeof Message>, context?: AgentRuntimeContext): Promise<AgentRuntimeObservation> {
+  private async observe(
+    profile: RuntimeProfile,
+    handle: AgentRuntimeHandle,
+    message?: z.infer<typeof Message>,
+    context?: AgentRuntimeContext
+  ): Promise<AgentRuntimeObservation> {
     const states = z
       .record(z.object({ type: z.string() }).passthrough())
       .parse(await this.http(profile, '/session/status', 'GET', undefined, context, handle))
@@ -153,11 +248,18 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
     if (state === 'busy' || state === 'retry') return { status: 'running', handle }
     // A completed assistant message can still be an intermediate tool/compaction step.
     // Inspect only the latest matching message, and require both idle and a final receipt.
-    if ((!state || state === 'idle') && message?.info.role === 'assistant' &&
-        message.info.parentID === handle.runId && message.info.time?.completed !== undefined) {
+    if (
+      (!state || state === 'idle') &&
+      message?.info.role === 'assistant' &&
+      message.info.parentID === handle.runId &&
+      message.info.time?.completed !== undefined
+    ) {
       if (message.info.error) return this.result(handle, message)
-      if (message.info.finish && !['tool-calls', 'unknown'].includes(message.info.finish) &&
-          !message.parts.some((part) => part.type === 'tool' && !part.metadata?.providerExecuted)) {
+      if (
+        message.info.finish &&
+        !['tool-calls', 'unknown'].includes(message.info.finish) &&
+        !message.parts.some((part) => part.type === 'tool' && !part.metadata?.providerExecuted)
+      ) {
         return this.result(handle, message)
       }
     }
@@ -168,12 +270,37 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
     const profile = this.profile(handle, context)
     if (handle.runner) {
       const process = await context.capabilities.require(AgentExecutionRunnerCapability).stop(handle.runner)
-      return { status: process.state === 'exited' ? 'cancelled' : process.state === 'unknown' ? 'unknown' : 'cancelling', handle }
+      const outcome = context.settlement?.status ?? 'cancelled'
+      const controlEvidence = runnerCompletion(context, handle, outcome, process.completion)
+      return {
+        ...context.settlement,
+        status: controlEvidence ? outcome : process.state === 'stopping' ? 'cancelling' : 'unknown',
+        handle,
+        controlEvidence
+      }
     }
-    const acknowledged = z
-      .boolean()
-      .parse(await this.http(profile, `/session/${encodeURIComponent(handle.sessionId)}/abort`, 'POST', {}))
-    return { status: acknowledged ? 'cancelled' : 'cancelling', handle }
+    // This adapter creates one exclusive session per invocation; legacy or reused sessions are never cancelled.
+    if (
+      !context.executionTarget ||
+      handle.metadata?.exclusiveSession !== true ||
+      handle.metadata.executionGeneration !== context.executionTarget.generation ||
+      handle.runId !== `msg_${context.invocationId.replaceAll('-', '')}`
+    )
+      return { status: 'unknown', handle }
+    const messages = z
+      .array(Message)
+      .parse(await this.http(profile, `/session/${encodeURIComponent(handle.sessionId)}/message`, 'GET'))
+    if (
+      messages.some(
+        (message) =>
+          (message.info.role === 'user' && message.info.id !== handle.runId) ||
+          (message.info.role === 'assistant' && message.info.parentID !== handle.runId)
+      )
+    )
+      return { status: 'unknown', handle }
+    z.boolean().parse(await this.http(profile, `/session/${encodeURIComponent(handle.sessionId)}/abort`, 'POST', {}))
+    // The session-level acknowledgement does not prove tool/descendant exit.
+    return { status: 'cancelling', handle }
   }
 
   private profile(handle: AgentRuntimeHandle, context: AgentRuntimeContext) {
@@ -197,17 +324,33 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
           status: 'succeeded',
           handle,
           result: {
-            ...taskResult(message.parts.filter((part) => part.type === 'text')
-              .map((part) => part.text ?? '').join('').slice(-2 * 1024 * 1024), outputDelivery(handle.metadata?.delivery)),
-            ...(handle.runner ? { data: { workingDirectory: handle.runner.workingDirectory } } : {}),
+            ...taskResult(
+              message.parts
+                .filter((part) => part.type === 'text')
+                .map((part) => part.text ?? '')
+                .join('')
+                .slice(-2 * 1024 * 1024),
+              outputDelivery(handle.metadata?.delivery)
+            ),
+            ...(handle.runner ? { data: { workingDirectory: handle.runner.workingDirectory } } : {})
           }
         }
   }
 
-  private async http(profile: RuntimeProfile, path: string, method: 'GET' | 'POST', body?: AgentJson, context?: AgentRuntimeContext, handle?: AgentRuntimeHandle, limit?: number): Promise<unknown> {
+  private async http(
+    profile: RuntimeProfile,
+    path: string,
+    method: 'GET' | 'POST',
+    body?: AgentJson,
+    context?: AgentRuntimeContext,
+    handle?: AgentRuntimeHandle,
+    limit?: number
+  ): Promise<unknown> {
     if (profile.executionEnvironment === 'computer') {
       if (!context || !handle?.runner) throw new Error('Computer runner receipt is unavailable')
-      return context.capabilities.require(AgentExecutionRunnerCapability).request(handle.runner, { method, path, body, ...(limit ? {query: {limit}} : {}) })
+      return context.capabilities
+        .require(AgentExecutionRunnerCapability)
+        .request(handle.runner, { method, path, body, ...(limit ? { query: { limit } } : {}) })
     }
     if (!profile.serverUrl) throw new Error('OpenCode server URL is required')
     const base = new URL(profile.serverUrl)
