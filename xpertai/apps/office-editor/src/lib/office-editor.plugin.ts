@@ -1,3 +1,6 @@
+import { OfficeFileService } from './office-file.service.js'
+import { OfficeFileView } from './office-file-view.provider.js'
+import { OfficeSpreadsheetFormat } from './spreadsheet-format.provider.js'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import type { IOnPluginBootstrap, IOnPluginDestroy } from '@xpert-ai/plugin-sdk'
 import { XpertServerPlugin } from '@xpert-ai/plugin-sdk'
@@ -25,6 +28,9 @@ export const OFFICE_EDITOR_ENTITIES = [
   imports: [TypeOrmModule.forFeature(OFFICE_EDITOR_ENTITIES)],
   entities: OFFICE_EDITOR_ENTITIES,
   providers: [
+    OfficeSpreadsheetFormat,
+    OfficeFileService,
+    OfficeFileView,
     OfficeEditorService,
     OfficeEditorMiddleware,
     OfficeEditorViewProvider,

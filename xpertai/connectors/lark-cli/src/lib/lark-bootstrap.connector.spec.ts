@@ -79,6 +79,9 @@ describe('LarkBootstrapService connector mode', () => {
 
     await service.syncConnectorCredential(backend as ConnectorCredentialBackend, {
       connectorId: 'connector-1',
+      bindingId: 'binding-1',
+      scope: { type: 'workspace', workspaceId: 'workspace-1' },
+      authorizationMode: 'shared',
       workspaceId: 'workspace-1',
       provider: 'lark',
       appId: 'cli_app_id',
@@ -109,6 +112,9 @@ describe('LarkBootstrapService connector mode', () => {
 
     await service.syncConnectorCredential(backend as ConnectorCredentialBackend, {
       connectorId: 'connector-1',
+      bindingId: 'binding-1',
+      scope: { type: 'workspace', workspaceId: 'workspace-1' },
+      authorizationMode: 'shared',
       workspaceId: 'workspace-1',
       provider: 'lark',
       appId: 'cli_app_id',
@@ -129,6 +135,9 @@ describe('LarkBootstrapService connector mode', () => {
 
     await service.syncConnectorCredential(backend as ConnectorCredentialBackend, {
       connectorId: 'connector-1',
+      bindingId: 'binding-1',
+      scope: { type: 'workspace', workspaceId: 'workspace-1' },
+      authorizationMode: 'shared',
       workspaceId: 'workspace-1',
       provider: 'lark',
       appId: 'cli_app_id',

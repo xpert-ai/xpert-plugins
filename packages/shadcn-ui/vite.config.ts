@@ -12,7 +12,8 @@ export default defineConfig({
     lib: {
       entry: {
         index: fileURLToPath(new URL('./src/build.ts', import.meta.url)),
-        theme: fileURLToPath(new URL('./src/theme.ts', import.meta.url))
+        theme: fileURLToPath(new URL('./src/theme.ts', import.meta.url)),
+        i18n: fileURLToPath(new URL('./src/i18n.tsx', import.meta.url))
       },
       formats: ['es'],
       fileName: (_format, entryName) => `${entryName}.js`,
@@ -21,6 +22,7 @@ export default defineConfig({
     rollupOptions: {
       external: [
         'react',
+        'i18next',
         'react-dom',
         'react/jsx-runtime',
         'radix-ui',

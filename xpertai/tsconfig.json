@@ -359,6 +359,12 @@
     },
     {
       "path": "./apps/maps"
+    },
+    {
+      "path": "./apps/spaces"
+    },
+    {
+      "path": "./apps/markdown-editor"
     }
   ]
 }

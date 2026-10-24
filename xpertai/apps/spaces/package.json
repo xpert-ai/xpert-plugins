@@ -1,0 +1,81 @@
+{
+  "name": "@xpert-ai/plugin-spaces",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "docs",
+    "migrations",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "corepack pnpm run build:ui && node scripts/build.mjs && tsc -p tsconfig.json && node scripts/build.mjs --check",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.remote.json",
+    "test": "tsx --test tests/*.test.ts",
+    "verify:dist": "node scripts/build.mjs --check",
+    "prepack": "npm run verify:dist",
+    "test:live": "node scripts/project-live-acceptance.mjs",
+    "build:ui": "corepack pnpm --filter @xpert-ai/plugin-shadcn-ui build"
+  },
+  "dependencies": {
+    "tslib": "^2.8.1",
+    "yjs": "13.6.31"
+  },
+  "description": "Assistant collaboration capability with a shadcn/Tailwind Workbench Remote View",
+  "xpert": {
+    "plugin": {
+      "level": "system",
+      "artifactNamespace": "spaces",
+      "runtimePolicy": {
+        "install": "restart",
+        "update": "restart",
+        "uninstall": "restart"
+      }
+    }
+  },
+  "peerDependencies": {
+    "@langchain/core": ">=0.3.0",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/typeorm": "^11.0.0",
+    "@xpert-ai/contracts": "^3.21.0",
+    "@xpert-ai/plugin-sdk": "^3.21.0",
+    "typeorm": "^0.3.24",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@langchain/core": "0.3.72",
+    "@nestjs/common": "11.1.6",
+    "@nestjs/core": "11.1.6",
+    "@nestjs/typeorm": "^11.0.0",
+    "@tailwindcss/cli": "4.3.2",
+    "@types/node": "^22.13.0",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@xpert-ai/contracts": "3.21.0",
+    "@xpert-ai/plugin-sdk": "3.21.0",
+    "@xpert-ai/plugin-shadcn-ui": "workspace:*",
+    "esbuild": "0.28.1",
+    "playwright-core": "^1.55.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-markdown": "10.1.0",
+    "reflect-metadata": "0.2.2",
+    "socket.io-client": "4.8.1",
+    "tailwindcss": "4.3.2",
+    "tsx": "4.20.6",
+    "typeorm": "^0.3.24",
+    "typescript": "5.9.3",
+    "zod": "3.25.67"
+  }
+}

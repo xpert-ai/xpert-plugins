@@ -1,0 +1,49 @@
+---
+title: "架构和验证"
+description: "Project 存储与成员权限、插件资源和协作能力边界"
+---
+
+## 平台与插件边界
+
+协作空间使用内置 Project Type `platform / space`。Project 管理成员、角色、归档、多 Assistant 绑定和文件工作区；Spaces 插件提供资源树、来源信息、知识库启用入口及 Remote View。
+
+Space 必须绑定 Project，`(tenantId, organizationId, projectId)` 唯一索引保证并发初始化只有一个扩展记录。`SpaceItem.spaceId` 仅关联插件内部的 Space 记录，不是文件存储身份。模块按全新功能开发，不提供独立 Space 卷、Assistant 私有 Space 或旧空间迁移入口。
+
+平台提供 `platform.project.access`、`platform.project.files`、`platform.content.resources`、`platform.content.documents`、协作、知识库及 Artifact 能力。每次资源访问重新检查 Project 成员权限；通过 Assistant 打开时还检查 Assistant 与项目的绑定以及 `spaces` 能力。具有 Assistant 权限本身不授予项目内容权限。
+
+Remote View 使用共享 shadcn/ui 组件、Tailwind 和宿主主题变量。Markdown 由独立 Tiptap 插件编辑；通用审阅与 AI 交互属于 Assistant。当前选择可以传给聊天作为上下文，但不授予权限。
+
+## 文件引用与权威状态
+
+所有空间文件位于 `/project/<projectId>`。正文和附件使用可见的项目相对路径，版本快照使用同一项目下的 `.space-history/<itemId>/<versionId>/<name>`。平台通用文件协议使用 `catalog: 'projects'`、`projectId` 和 `scopeId: projectId`，不包含 `spaceId`。
+
+页面在创建或发现时直接注册 `markdown.tiptap` 平台文档；打开页面只读取已注册文档。没有 Spaces 自有的协作模型、修订/评论/提案表或 `importLegacy` 路径。只读成员发现的新 Markdown 先作为项目文件展示，编辑成员可将其注册为协作文档。
+
+Markdown 文件是可交换内容，平台协作文档维护编辑状态和提交一致性；Space 的正文缓存、哈希和同步状态属于派生信息。写入或投影失败不得回退为仅更新数据库正文。来自其他 Assistant 的项目文件也可以在空间发现。
+
+Artifact 以 `pluginName + resourceType + resourceId` 标识来源，`authorizationProviderKey: "spaces"` 对已有 `resourceId` 附加资源授权，`workspaceFileRef` 定位 Project 中的文件。创建时通过 `scope: { projectId, userId: null }` 显式使用项目共享归属，保留真实操作人用于授权和审计。Provider 不决定归属或列表可见性；列表对当前用户授权后分页，下载同时检查项目权限、资源权限和链接策略。移除独立 Space 卷不移除资源授权、路径校验和项目文件的写保护。
+
+## Runtime 能力边界
+
+- 执行身份共用 `RuntimeActor`；组织内内容要求 `OrganizationRuntimeActor`。`AssistantMiddlewareAccess.assertAccess` 使用显式 `scope`：独立 Assistant 检查发布目录访问权，项目内使用检查当前项目成员及 Assistant 绑定，不额外要求目录或创作工作区可见性；两者均检查有效组织成员和 `provider + requiredFeature`，并与平台 View Middleware Runtime 共用解析规则。
+- View 的组件加载、数据、动作、文件传输与工具调用在入口重新检查能力；空项目状态也需独立 Assistant 授权。身份和项目范围来自可信宿主上下文，不可由 iframe 或工具参数指定。资源授权及协作广播保留项目和操作权限，不逐文档检查功能开关；移除中间件不改变已有文件的项目归属。不存在跨调用授权缓存。
+- `ContentResources.authorize` 负责资源授权，`identities` 子接口提供当前组织身份。Provider 按需组合 `references`、`pages`、`publication`、`locations`，没有对应扩展即可省略。平台文档输入的 `resourceId` 与扩展输入的 `sourceResourceId` 明确区分；子页面创建返回 `documentId`。
+- `ContentEditors`（`platform.content.editors`）负责通用编辑器发现、资源解析与带版本校验的文件读写；平台协议不包含表格、单元格或具体格式的修改指令。
+- `ProjectKnowledge.ensureBinding`（`platform.project.knowledge`）按 projectId 建立一个内置知识库，以平台 `platform.project` 资源策略继承项目权限；Space 表只缓存知识库 ID。已有知识库服务仍要求匹配 actor 的请求/任务上下文。
+- `ProjectFiles` 是显式项目身份的门面；与 `WorkspaceFiles` 共用 Volume 文件读写、路径约束和写入锁，提交前重新检查托管文档写保护。CAS 哈希防止版本覆盖。
+
+## 权限与验证
+
+项目 owner/manager 管理资源，owner/manager/editor 编辑内容，member 只读；归档项目只读。实时会话及后台任务重新校验当前权限。跨项目引用不能通过传入目标项目身份绕过源项目的权限。
+
+交付需联合部署配套平台、SDK 和插件。使用最新实体初始化；本次代码收敛不操作已有开发数据库，不提供历史独立 Space 的升级脚本。
+
+自动化回归覆盖 Project 文件引用重放、跨项目拒绝、只读和撤权拒绝写入、Assistant 解绑，以及正文和版本快照使用相同项目身份。插件还需通过构建、类型检查、元数据检查和 lifecycle harness。浏览器、双用户协作和真实模型验收需要单独执行，不能以单元测试或构建成功代替。
+
+## 编辑器职责边界
+
+- 平台：统一资源引用、Project 与 Assistant 绑定授权、编辑器注册及 Workbench 路由。注册区分文本协作模型与文件编辑器；Markdown 继续使用文本/Yjs 协作管线。
+- Spaces：目录、创建和导入文件、资源权限及版本快照。`editor.describe` 描述当前资源位置；`editor.files` 处理不透明字节与版本，不解析表格。保存时检查资源版本、磁盘哈希和当前权限。
+- Office：XLSX 创建、校验、单元格读取与修改、序列化，以及独立的 `office.files__office.file` Remote View。文件编辑模式按版本保存，冲突时阻止覆盖，不自动合并并发修改；与原生 Office 快照/Yjs 模式分别处理。
+
+Spaces 通过 `workbench.content.resolve({ resourceId, providerKey: 'spaces' })` 解析资源，将返回的 navigation（包括 contentProvider 参数）原样交给当前 Workbench 打开。Spaces 不包含表格编辑 UI。新文档格式通过注册编辑器和独立视图扩展，不需要向平台增加专用格式 RuntimeCapability。

@@ -34,3 +34,9 @@ pnpm -C xpertai/apps/office-editor build
 pnpm -C plugin-dev-harness build
 npx -y node@20 plugin-dev-harness/dist/index.js --workspace ./xpertai/apps/office-editor --plugin @xpert-ai/plugin-office-editor --verbose
 ```
+
+### Project file editor integration
+
+`OfficeSpreadsheetFormat` registers `office.xlsx` with the generic `ContentEditorRegistry`. It owns XLSX parsing, validation, grid operations and serialization. `OfficeFileView` provides an independent `office.files__office.file` Remote View, using shadcn components, host theme variables and English/Chinese catalogs.
+
+The platform routes authorized resource references and opaque versioned bytes through `platform.content.editors`; it does not expose spreadsheet-specific types. Spaces owns the library and file snapshots, not the editor. File mode preserves formulas without recalculation and uses compare-and-swap saves, not live CRDT merging. The existing native Office document engine remains separate.

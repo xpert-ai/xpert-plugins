@@ -1,7 +1,10 @@
 {
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
   "namedInputs": {
-    "default": ["{projectRoot}/**/*", "sharedGlobals"],
+    "default": [
+      "{projectRoot}/**/*",
+      "sharedGlobals"
+    ],
     "production": [
       "default",
       "!{projectRoot}/**/?(*.)+(spec|test).[jt]s?(x)?(.snap)",
@@ -27,7 +30,11 @@
           "buildDepsName": "build-deps",
           "watchDepsName": "watch-deps"
         }
-      }
+      },
+      "exclude": [
+        "apps/spaces/*",
+        "apps/markdown-editor/*"
+      ]
     },
     {
       "plugin": "@nx/jest/plugin",
@@ -39,6 +46,18 @@
       "plugin": "@nx/eslint/plugin",
       "options": {
         "targetName": "lint"
+      }
+    },
+    {
+      "plugin": "@nx/js/typescript",
+      "include": [
+        "apps/spaces/*",
+        "apps/markdown-editor/*"
+      ],
+      "options": {
+        "typecheck": {
+          "targetName": "typecheck"
+        }
       }
     }
   ],
@@ -145,7 +164,9 @@
       "@xpert-ai/plugin-jieba",
       "@xpert-ai/connector-runtime",
       "@xpert-ai/plugin-meetings",
-      "@xpert-ai/plugin-maps"
+      "@xpert-ai/plugin-maps",
+      "@xpert-ai/plugin-spaces",
+      "@xpert-ai/plugin-markdown-editor"
     ],
     "version": {
       "preVersionCommand": "npx nx run-many -t build && npx nx run-many -t prepack"
@@ -154,11 +175,18 @@
   "targetDefaults": {
     "@nx/js:tsc": {
       "cache": true,
-      "dependsOn": ["^build"],
-      "inputs": ["production", "^production"]
+      "dependsOn": [
+        "^build"
+      ],
+      "inputs": [
+        "production",
+        "^production"
+      ]
     },
     "test": {
-      "dependsOn": ["^build"]
+      "dependsOn": [
+        "^build"
+      ]
     }
   }
 }
