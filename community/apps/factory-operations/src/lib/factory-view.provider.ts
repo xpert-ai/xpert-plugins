@@ -36,8 +36,6 @@ import {
   FACTORY_MANAGEMENT_DASHBOARD_FEATURE,
   FACTORY_MUTATION_TOOL_NAMES,
   FACTORY_PLUGIN_NAME,
-  FACTORY_REMOTE_ENTRY_KEY,
-  FACTORY_VIEW_KEY,
   FACTORY_VIEW_PROVIDER_KEY,
   FACTORY_WORKBENCH_FEATURE
 } from './constants.js'
@@ -106,9 +104,9 @@ export class FactoryOperationsViewProvider implements IXpertViewExtensionProvide
     }
     const fixed = slot === AGENT_WORKBENCH_FIXED_SLOT
     if (fixed) {
-      return [pipelineManifest(slot, true), workspaceManifest(slot), dashboardManifest(slot)]
+      return [workspaceManifest(slot, true), dashboardManifest(slot)]
     }
-    return [pipelineManifest(slot, false), workspaceManifest(slot), dashboardManifest(slot, false)]
+    return [workspaceManifest(slot), dashboardManifest(slot, false)]
   }
 
   async getRemoteComponentEntry(
@@ -118,7 +116,6 @@ export class FactoryOperationsViewProvider implements IXpertViewExtensionProvide
   ): Promise<XpertRemoteComponentEntry> {
     const supported =
       (isFactoryProfileView(viewKey) && component.entry === FACTORY_PROFILE_ENTRY) ||
-      (viewKey === FACTORY_VIEW_KEY && component.entry === FACTORY_REMOTE_ENTRY_KEY) ||
       (viewKey === FACTORY_CASE_WORKSPACE_VIEW_KEY &&
         component.entry === FACTORY_CASE_WORKSPACE_REMOTE_ENTRY_KEY) ||
       (viewKey === FACTORY_DASHBOARD_VIEW_KEY &&
@@ -144,7 +141,7 @@ export class FactoryOperationsViewProvider implements IXpertViewExtensionProvide
             ? 'Factory Operations Management Dashboard'
             : viewKey === FACTORY_CASE_WORKSPACE_VIEW_KEY
               ? 'Factory Case Workspace'
-              : 'Factory Recovery Pipeline',
+              : 'Factory Assistant Profile',
         lang: normalizeHtmlLang(context.locale),
         reactUmd,
         reactDomUmd,
@@ -164,7 +161,7 @@ export class FactoryOperationsViewProvider implements IXpertViewExtensionProvide
     if (viewKey === FACTORY_DASHBOARD_VIEW_KEY) {
       return this.service.getManagementDashboard(scopeFromContext(context))
     }
-    if (viewKey !== FACTORY_VIEW_KEY && viewKey !== FACTORY_CASE_WORKSPACE_VIEW_KEY) return {}
+    if (viewKey !== FACTORY_CASE_WORKSPACE_VIEW_KEY) return {}
     const scope = scopeFromContext(context)
     const cases = await this.service.listCases(scope, {
       page: query.page,
@@ -219,7 +216,7 @@ export class FactoryOperationsViewProvider implements IXpertViewExtensionProvide
     if (isFactoryProfileView(viewKey)) {
       try { return await this.profiles.execute(context, actionKey, request) } catch (error) { return actionFailure(error) }
     }
-    if (viewKey !== FACTORY_VIEW_KEY && viewKey !== FACTORY_CASE_WORKSPACE_VIEW_KEY) {
+    if (viewKey !== FACTORY_CASE_WORKSPACE_VIEW_KEY) {
       return failure('Unsupported Factory Operations View.')
     }
     const scope = scopeFromContext(context)
@@ -265,46 +262,7 @@ export class FactoryOperationsViewProvider implements IXpertViewExtensionProvide
   }
 }
 
-function pipelineManifest(slot: string, fixed: boolean): XpertExtensionViewManifest {
-  return {
-    key: FACTORY_VIEW_KEY,
-    title: text('Factory Recovery Pipeline', '多 Agent 异常恢复流水线'),
-    description: text(
-      'Operate persisted Factory Cases through a server-projected multi-role DAG.',
-      '通过服务端投影的多角色 DAG 推进持久化 Factory Case。'
-    ),
-    icon: FACTORY_ICON,
-    hostType: 'agent',
-    slot,
-    order: 20,
-    refreshable: true,
-    activation: { requiredFeatures: [FACTORY_WORKBENCH_FEATURE] },
-    ...(fixed
-      ? {
-          workbench: {
-            fixed: true,
-            menu: {
-              enabled: true,
-              label: text('Recovery pipeline', '异常恢复流水线'),
-              order: 20,
-              icon: FACTORY_ICON
-            }
-          }
-        }
-      : {}),
-    source: {
-      provider: FACTORY_VIEW_PROVIDER_KEY,
-      plugin: FACTORY_PLUGIN_NAME
-    },
-    view: remoteView(FACTORY_REMOTE_ENTRY_KEY),
-    dataSource: workbenchDataSource(),
-    hostEvents: mutationHostEvents('factory-pipeline-tool-completed'),
-    clientCommands: commonClientCommands(),
-    actions: factoryActions()
-  }
-}
-
-function workspaceManifest(slot: string): XpertExtensionViewManifest {
+function workspaceManifest(slot: string, fixed = false): XpertExtensionViewManifest {
   return {
     key: FACTORY_CASE_WORKSPACE_VIEW_KEY,
     title: text('Factory Case Workspace', 'Factory Case 任务工作区'),
@@ -322,6 +280,7 @@ function workspaceManifest(slot: string): XpertExtensionViewManifest {
       provider: FACTORY_VIEW_PROVIDER_KEY,
       plugin: FACTORY_PLUGIN_NAME
     },
+    ...(fixed ? { workbench: { fixed: true, menu: { enabled: true, label: text('Case workspace', '业务工作台'), order: 20, icon: FACTORY_ICON } } } : {}),
     view: remoteView(FACTORY_CASE_WORKSPACE_REMOTE_ENTRY_KEY),
     dataSource: workbenchDataSource(),
     hostEvents: mutationHostEvents('factory-workspace-tool-completed'),

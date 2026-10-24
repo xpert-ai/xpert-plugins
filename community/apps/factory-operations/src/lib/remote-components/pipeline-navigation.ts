@@ -1,6 +1,6 @@
 import type { WorkbenchNavigationOpenPayload } from '@xpert-ai/contracts'
-import { isObject, unwrap } from './factory-operations-center/src/runtime'
-import type { HostContext, RemoteValue } from './factory-operations-center/src/types'
+import { isObject, unwrap } from './shared/runtime'
+import type { HostContext, RemoteValue } from './shared/types'
 
 type PipelineFocus = Partial<Record<'pipelineInstanceId' | 'pipelineRoundId' | 'pipelineNodeId', string>>
 

@@ -63,7 +63,7 @@ const app: PluginMarketplaceContribution = {
         '通过七位独立业务角色 Assistants 与协调者协同完成证据采集、图纸标注提取、规范化、身份核验、质量审计、影响评估、人工审批及受控发布。外部业务系统使用程序 Mock。',
       ),
       developer: 'XpertAI',
-      screenshots: ['./assets/dashboard.jpg', './assets/pipeline.jpg'],
+      screenshots: ['./assets/dashboard.jpg'],
       features: [
         {
           key: 'identity',

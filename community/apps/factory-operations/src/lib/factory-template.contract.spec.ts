@@ -159,8 +159,8 @@ describe('Factory Operations plugin contracts', () => {
     const view = manifest.targetAppMeta['data-xpert'].marketplace.contents.find(
       (item: { type: string; name: string }) => item.type === 'view' && item.name === FACTORY_CASE_WORKSPACE_VIEW_KEY
     )
-    expect(view?.metadata).toMatchObject({ app: 'factory-operations', supportingView: true })
-    expect(providerSource).toMatch(/if \(fixed\)[\s\S]*workspaceManifest\(slot\)[\s\S]*dashboardManifest\(slot\)/)
+    expect(view?.metadata).toMatchObject({ app: 'factory-operations', supportingView: false })
+    expect(providerSource).toMatch(/if \(fixed\)[\s\S]*workspaceManifest\(slot, true\)[\s\S]*dashboardManifest\(slot\)/)
     expect(providerSource).toContain(`view: remoteView(${FACTORY_CASE_WORKSPACE_REMOTE_ENTRY_KEY === 'factory-case-workspace' ? 'FACTORY_CASE_WORKSPACE_REMOTE_ENTRY_KEY' : 'unexpected'})`)
   })
 })

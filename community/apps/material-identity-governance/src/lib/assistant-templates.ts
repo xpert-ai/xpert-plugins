@@ -48,7 +48,7 @@ export const templates: XpertTemplateContribution[] = ROLES.map(
             initialLayout: 'workbench-maximized',
             defaultViewKey: coordinator
               ? VIEW_KEYS.dashboard
-              : VIEW_KEYS.pipeline,
+              : VIEW_KEYS.workspace,
           },
           dataXpert: {
             managedBy: 'data-xpert',

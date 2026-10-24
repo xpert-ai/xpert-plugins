@@ -18,7 +18,6 @@ import {
   FACTORY_PLUGIN_NAME,
   FACTORY_TEMPLATE_PROVIDER_KEY,
   FACTORY_TOOLSET_PROVIDER_KEY,
-  FACTORY_VIEW_KEY,
   FACTORY_VIEW_PROVIDER_KEY,
   FACTORY_WORKBENCH_FEATURE
 } from './lib/constants.js'
@@ -133,8 +132,8 @@ const plugin: XpertPlugin<z.infer<typeof FactoryConfigSchema>> = {
                     '看清风险，协同恢复，验证结果。'
                   ),
                   longDescription: text(
-                    'A governed factory anomaly recovery application with independent role Assistants, a human approval gate, an operational swimlane, and an ECharts management dashboard.',
-                    '包含独立角色 Assistants、人工审批门、运营泳道和 ECharts 管理监控面板的受控工厂异常恢复应用。'
+                    'A governed factory anomaly recovery application with independent role Assistants, a human approval gate, native Project Pipelines, and an ECharts management dashboard.',
+                    '包含独立角色 Assistants、人工审批门、项目任务流水线和 ECharts 管理监控面板的受控工厂异常恢复应用。'
                   ),
                   developer: 'XpertAI',
                   screenshots: ['./assets/screenshot-01.jpg'],

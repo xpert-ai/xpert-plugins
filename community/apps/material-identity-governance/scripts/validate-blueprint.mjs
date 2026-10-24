@@ -3,7 +3,7 @@ import {resolve} from 'node:path'
 const root=resolve(import.meta.dirname,'..'),b=JSON.parse(await readFile(resolve(root,'blueprints/pipeline.v1.json'),'utf8'))
 const nodes=new Map(b.nodes.map(n=>[n.key,n])),roles=new Set(b.roles.map(r=>r.key))
 if(nodes.size!==b.nodes.length||roles.size!==8)throw Error('Duplicate nodes or missing role definitions')
-if(b.views.filter(v=>v.kind==='operations_dashboard').length!==1||b.views.filter(v=>v.kind==='pipeline_overview').length!==1)throw Error('Exactly one dashboard and pipeline are required')
+if(b.views.filter(v=>v.kind==='operations_dashboard').length!==1||b.delivery.pipelineWorkbench.overviewViewKey!=='platform.project-tasks__timeline')throw Error('Dashboard and native Project pipeline are required')
 for(const edge of b.edges)if(!nodes.has(edge.from)||!nodes.has(edge.to))throw Error('Invalid edge')
 for(const node of b.nodes)if(node.kind==='task'&&!roles.has(node.accountableRoleKey??node.laneKey))throw Error('Missing accountable role')
 const visited=new Set(),active=new Set()

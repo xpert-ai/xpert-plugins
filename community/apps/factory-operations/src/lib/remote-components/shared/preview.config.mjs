@@ -11,13 +11,13 @@ const projectId = '10000000-0000-4000-8000-000000000070'
 export { platformRoot }
 
 export default {
-  title: 'Factory Operations Center · Remote View Preview',
-  frameTitle: 'Factory Operations Center',
+  title: 'Factory Case Workspace · Remote View Preview',
+  frameTitle: 'Factory Case Workspace',
   workspaceRoot: platformRoot,
   instanceId: 'factory-operations-preview',
-  component: { root: componentRoot, runtime: 'react', title: 'Factory Operations Center' },
+  component: { root: resolve(componentRoot, '../factory-case-workspace'), runtime: 'react', title: 'Factory Case Workspace' },
   hostContext: {
-    manifest: { key: 'factory-operations-center' },
+    manifest: { key: 'factory-case-workspace' },
     payload: {},
     initialQuery: { page: 1, pageSize: 20, parameters: {} },
     locale: 'zh-Hans',

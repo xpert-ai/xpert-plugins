@@ -17,7 +17,7 @@ team:
         projectTypeKey: case
     workbench:
       initialLayout: workbench-maximized
-      defaultViewKey: factory_ops__factory-operations-center
+      defaultViewKey: factory_ops__factory-case-workspace
     dataXpert:
       managedBy: data-xpert
       templateKey: factory-operations-autopilot

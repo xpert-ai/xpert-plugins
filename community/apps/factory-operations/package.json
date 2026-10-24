@@ -41,7 +41,7 @@
     "build": "node scripts/clean-build-output.mjs && pnpm run generate:remote && tsc -p tsconfig.lib.json && pnpm run build:mcp-apps && pnpm run copy:assets && pnpm run verify:dist",
     "typecheck": "tsc -p tsconfig.lib.json --noEmit && tsc -p tsconfig.remote.json --noEmit",
     "test": "vitest run",
-    "test:e2e": "node --test --test-concurrency=1 src/lib/remote-components/factory-operations-center/workbench.e2e.mjs src/lib/remote-components/factory-case-workspace/workspace.e2e.mjs src/lib/remote-components/factory-operations-dashboard/dashboard.e2e.mjs src/lib/remote-components/factory-assistant-profile/profile.e2e.mjs",
+    "test:e2e": "node --test --test-concurrency=1 src/lib/remote-components/factory-case-workspace/workspace.e2e.mjs src/lib/remote-components/factory-operations-dashboard/dashboard.e2e.mjs src/lib/remote-components/factory-assistant-profile/profile.e2e.mjs",
     "verify:blueprint": "node scripts/validate-blueprint.mjs",
     "verify:dist": "node scripts/build-remote-components.mjs --check && node scripts/verify-dist.mjs",
     "check": "pnpm run verify:blueprint && pnpm run typecheck && pnpm run test && pnpm run build",

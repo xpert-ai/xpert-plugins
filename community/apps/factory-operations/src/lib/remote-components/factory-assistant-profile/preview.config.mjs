@@ -1,6 +1,6 @@
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import workbench, { platformRoot } from '../factory-operations-center/preview.config.mjs'
+import workbench, { platformRoot } from '../shared/preview.config.mjs'
 export { platformRoot }
 const root = dirname(fileURLToPath(import.meta.url))
 

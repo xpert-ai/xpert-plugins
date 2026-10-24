@@ -45,11 +45,7 @@ test('renders and operates the dedicated Factory Case task workspace', async (co
   assert.equal(preview.state.navigation.projectId, '10000000-0000-4000-8000-000000000070')
   for (const [key, value] of Object.entries(focus)) assert.equal(preview.state.navigation.parameters[key], value)
 
-  await frame.getByRole('button', { name: /返回流水线/ }).click()
-  await waitFor(() => preview.state.navigation?.viewKey === 'factory-operations-center')
-  for (const [key, value] of Object.entries(focus)) assert.equal(preview.state.navigation.parameters[key], value)
-  assert.equal(preview.state.navigation.viewKey, 'factory-operations-center')
-  assert.equal(preview.state.navigation.selectionId, '00000000-0000-4000-8000-000000000070')
+  assert.equal(await frame.getByRole('button', { name: /返回流水线/ }).count(), 0)
 
   assert.equal(pageErrors.length, 0, pageErrors.join('\n'))
   assert.equal(consoleErrors.length, 0, consoleErrors.join('\n'))
@@ -77,3 +73,23 @@ async function waitFor(predicate, timeoutMs = 10_000) {
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 25))
   }
 }
+
+
+test('creates a simulation Case from the business workspace without a plugin pipeline View', async (context) => {
+  const preview = await startRemoteViewPreview({ ...previewConfig,
+    hostContext: { ...previewConfig.hostContext, initialQuery: { page: 1, pageSize: 20 } },
+    state: { ...structuredClone(previewConfig.state), stage: -1 }, logStartup: false, logErrors: false
+  }, { port: 0 })
+  const browser = await chromium.launch({ headless: true })
+  context.after(async () => { await browser.close(); await preview.close() })
+  const page = await browser.newPage({ viewport: { width: 1280, height: 800 } })
+  await page.goto(preview.url)
+  const frame = page.frameLocator('#remote-view')
+  await frame.getByRole('button', { name: '创建 M-07 仿真案例', exact: true }).click()
+  await waitFor(() => preview.state.actions.at(-1)?.actionKey === 'create_demo_incident')
+  await assertVisible(frame.locator('.fcw-case-strip strong').filter({ hasText: 'FAC-260831-M07' }))
+  await assertVisible(frame.getByRole('combobox', { name: '业务任务' }))
+  await frame.getByRole('button', { name: '项目流水线', exact: true }).click()
+  await waitFor(() => preview.state.navigation?.viewKey === 'platform.project-tasks__timeline')
+  assert.equal(preview.state.navigation.parameters.initialTab, 'pipeline')
+})

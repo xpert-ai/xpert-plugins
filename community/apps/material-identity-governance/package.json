@@ -2,7 +2,7 @@
   "name": "@xpert-ai/plugin-material-identity-governance",
   "version": "0.1.0",
   "private": true,
-  "description": "汽车零部件物料身份和主数据治理 Agentic App",
+  "description": "\u6c7d\u8f66\u96f6\u90e8\u4ef6\u7269\u6599\u8eab\u4efd\u548c\u4e3b\u6570\u636e\u6cbb\u7406 Agentic App",
   "author": "XpertAI",
   "license": "AGPL-3.0",
   "repository": {
@@ -36,11 +36,11 @@
     "build": "pnpm generate:remote && tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs && pnpm verify:dist",
     "typecheck": "tsc -p tsconfig.lib.json --noEmit && tsc -p tsconfig.remote.json --noEmit",
     "test": "vitest run",
-    "test:studio": "node --test scripts/studio-layout.e2e.mjs",
     "verify:dist": "node scripts/build-remote.mjs --check && node scripts/copy-assets.mjs --check",
     "verify:blueprint": "node scripts/validate-blueprint.mjs",
     "prepack": "pnpm build",
-    "test:profile": "node --test scripts/profile-card.e2e.mjs"
+    "test:profile": "node --test scripts/profile-card.e2e.mjs",
+    "test:e2e": "node --test scripts/project-navigation.e2e.mjs scripts/profile-card.e2e.mjs"
   },
   "xpert": {
     "plugin": {

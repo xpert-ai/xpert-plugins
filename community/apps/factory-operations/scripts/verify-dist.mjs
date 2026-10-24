@@ -16,8 +16,6 @@ const required = [
   "dist/lib/factory-mcp-apps.d.ts",
   "dist/mcp-apps/dashboard/index.html",
   "dist/mcp-apps/case-summary/index.html",
-  "dist/lib/remote-components/factory-operations-center/app.js",
-  "dist/lib/remote-components/factory-operations-center/app.css",
   "dist/lib/remote-components/factory-case-workspace/app.js",
   "dist/lib/remote-components/factory-case-workspace/app.css",
   "dist/lib/remote-components/factory-operations-dashboard/app.js",

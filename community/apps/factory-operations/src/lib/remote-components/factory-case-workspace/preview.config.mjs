@@ -1,6 +1,6 @@
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import pipelinePreview, { platformRoot } from '../factory-operations-center/preview.config.mjs'
+import pipelinePreview, { platformRoot } from '../shared/preview.config.mjs'
 
 const componentRoot = dirname(fileURLToPath(import.meta.url))
 

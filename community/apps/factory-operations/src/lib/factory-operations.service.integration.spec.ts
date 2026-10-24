@@ -259,9 +259,13 @@ describe('FactoryOperationsService persistence boundary', () => {
     ).toBeNull()
 
     const provider = new FactoryOperationsViewProvider(service, caseProjects, {} as never, {} as never)
+    for (const slot of ['agent.workbench.fixed', 'agent.workbench.main']) {
+      expect(provider.getViewManifests(viewContext(second.summary.workspace.projectId), slot).map(view => view.key))
+        .toEqual(['factory-case-workspace', 'factory-operations-dashboard'])
+    }
     const data = await provider.getViewData(
       viewContext(second.summary.workspace.projectId),
-      'factory-operations-center',
+      'factory-case-workspace',
       {
         page: 1,
         pageSize: 1,
@@ -284,7 +288,7 @@ describe('FactoryOperationsService persistence boundary', () => {
     const unrelatedProjectId = '99999999-9999-4999-8999-999999999999'
     const unrelated = await provider.getViewData(
       viewContext(unrelatedProjectId),
-      'factory-operations-center',
+      'factory-case-workspace',
       {
         page: 1,
         pageSize: 1,

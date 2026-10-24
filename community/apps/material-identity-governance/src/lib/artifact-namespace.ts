@@ -4,7 +4,6 @@ export const ARTIFACT_NAMESPACE = 'material_identity'
 export const artifactKey = (key: string) => `${ARTIFACT_NAMESPACE}_${key}`
 export const VIEW_KEYS = {
   dashboard: artifactKey('operations_dashboard'),
-  pipeline: artifactKey('pipeline_overview'),
   workspace: artifactKey('case_workspace'),
 } as const
 

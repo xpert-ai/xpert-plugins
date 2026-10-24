@@ -11,7 +11,7 @@ import { FactoryOperationsService } from '../factory-operations.service.js'
 import { FactoryCaseEntity, FactoryExecutionRecordEntity } from '../entities/index.js'
 import type { FactoryScope } from '../domain/types.js'
 import { FACTORY_ROLE_ASSISTANTS } from '../factory-assistant-definitions.js'
-import { FACTORY_VIEW_KEY, FACTORY_VIEW_PROVIDER_KEY } from '../constants.js'
+import { FACTORY_CASE_WORKSPACE_VIEW_KEY, FACTORY_VIEW_PROVIDER_KEY } from '../constants.js'
 import { projectFactoryCase } from '../domain/flow.js'
 import { projectFactoryWorkspace } from '../factory-case-workspace.js'
 import { caseWhere, executionWhere, scopeKey } from '../factory-operations.persistence.js'
@@ -57,7 +57,7 @@ export class FactoryPipelineService {
   async entry(c: ProjectPipelineContext, id: string) {
     const e = await this.root(c, id)
     if (!e.coordinatorXpertId) throw new ConflictException('coordinator_required')
-    return { xpertId: e.coordinatorXpertId, viewKey: `${FACTORY_VIEW_PROVIDER_KEY}__${FACTORY_VIEW_KEY}`, selectionId: e.id,
+    return { xpertId: e.coordinatorXpertId, viewKey: `${FACTORY_VIEW_PROVIDER_KEY}__${FACTORY_CASE_WORKSPACE_VIEW_KEY}`, selectionId: e.id,
       parameters: { caseId: e.id } }
   }
   async start(s: FactoryScope, input: { caseId: string; baseRevision: number; operationId: string }) {

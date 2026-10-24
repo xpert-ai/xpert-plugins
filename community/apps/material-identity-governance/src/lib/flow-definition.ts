@@ -45,8 +45,9 @@ export const FLOW_DEFINITION = {
     },
     "pipelineWorkbench": {
       "mode": "required",
-      "overviewViewKey": "material_identity_pipeline_overview",
-      "dashboardViewKey": "material_identity_operations_dashboard"
+      "overviewViewKey": "platform.project-tasks__timeline",
+      "dashboardViewKey": "material_identity_operations_dashboard",
+      "initialTab": "pipeline"
     },
     "executionAuthority": "platform"
   },
@@ -81,14 +82,6 @@ export const FLOW_DEFINITION = {
     "dashboard": {
       "chartLibrary": "echarts",
       "layout": "management_monitoring"
-    },
-    "swimlane": {
-      "assistantAvatarSource": "platform_assistant",
-      "assistantExecutionMarkerPlacement": "assistant_card_bottom_right",
-      "nodeExecutionMarkerPlacement": "task_card_bottom_right",
-      "logicNodeShape": "diamond",
-      "dragPan": true,
-      "laneSelection": true
     }
   },
   "features": [
@@ -475,25 +468,6 @@ export const FLOW_DEFINITION = {
       "actionKeys": [
         "create_case",
         "start_pipeline",
-        "start_pipeline",
-        "decide_proposal",
-        "retry_project"
-      ],
-      "clientCommandKeys": [
-        "workbench.navigation.open"
-      ]
-    },
-    {
-      "key": "material_identity_pipeline_overview",
-      "title": "案例协同流水线",
-      "kind": "pipeline_overview",
-      "featureKeys": [
-        "material_identity_workbench"
-      ],
-      "actionKeys": [
-        "create_case",
-        "start_pipeline",
-        "start_pipeline",
         "decide_proposal",
         "retry_project"
       ],
@@ -510,7 +484,6 @@ export const FLOW_DEFINITION = {
       ],
       "actionKeys": [
         "create_case",
-        "start_pipeline",
         "start_pipeline",
         "decide_proposal",
         "retry_project"

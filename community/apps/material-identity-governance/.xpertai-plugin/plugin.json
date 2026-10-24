@@ -8,6 +8,6 @@
   "artifactNamespace": "material_identity",
   "targetApps": ["data-xpert", "xpert"],
   "assets": {
-    "screenshots": ["./assets/dashboard.jpg", "./assets/pipeline.jpg"]
+    "screenshots": ["./assets/dashboard.jpg"]
   }
 }

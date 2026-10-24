@@ -44,8 +44,9 @@
     },
     "pipelineWorkbench": {
       "mode": "required",
-      "overviewViewKey": "factory-operations-center",
-      "dashboardViewKey": "factory-operations-dashboard"
+      "overviewViewKey": "platform.project-tasks__timeline",
+      "dashboardViewKey": "factory-operations-dashboard",
+      "initialTab": "pipeline"
     },
     "executionAuthority": "platform"
   },
@@ -80,14 +81,6 @@
     "dashboard": {
       "chartLibrary": "echarts",
       "layout": "management_monitoring"
-    },
-    "swimlane": {
-      "assistantAvatarSource": "platform_assistant",
-      "assistantExecutionMarkerPlacement": "assistant_card_bottom_right",
-      "nodeExecutionMarkerPlacement": "task_card_bottom_right",
-      "logicNodeShape": "diamond",
-      "dragPan": true,
-      "laneSelection": true
     }
   },
   "features": [
@@ -493,31 +486,6 @@
     }
   ],
   "views": [
-    {
-      "key": "factory-operations-center",
-      "title": "Factory Recovery Pipeline",
-      "kind": "pipeline_overview",
-      "featureKeys": [
-        "factory-operations-workbench",
-        "factory-case-coordination"
-      ],
-      "actionKeys": [
-        "case-create",
-        "case-refresh",
-        "case-filter-blocked",
-        "case-zoom",
-        "node-open",
-        "retry_case_project",
-        "create_demo_incident",
-        "approve_recovery_plan",
-        "reject_recovery_plan",
-        "blocker-resolve",
-        "start_pipeline"
-      ],
-      "clientCommandKeys": [
-        "workbench.navigation.open"
-      ]
-    },
     {
       "key": "factory-case-workspace",
       "title": "Factory Case Workspace",

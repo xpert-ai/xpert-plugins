@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Avatar, AvatarFallback, AvatarImage } from '../../../ui/index'
+import { Avatar, AvatarFallback, AvatarImage } from '../../ui/index'
 import type { PipelineLane } from './types'
 
 const h: typeof React.createElement = React.createElement

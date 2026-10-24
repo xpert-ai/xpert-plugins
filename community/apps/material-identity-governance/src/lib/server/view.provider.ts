@@ -50,7 +50,6 @@ const actions = [
 ] as const
 const titles: Record<Surface, { en_US: string; zh_Hans: string }> = {
   dashboard: text('Material governance dashboard', '物料治理管理监控'),
-  pipeline: text('Material governance pipeline', '多部门治理流水线'),
   workspace: text('Governance case workspace', '证据与治理审批'),
 }
 const surfaceFor = (key: string) =>

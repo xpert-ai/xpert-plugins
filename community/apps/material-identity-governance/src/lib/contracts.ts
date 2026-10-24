@@ -276,7 +276,7 @@ export interface CaseListItem {
   revision: number
   updatedAt: string
 }
-export type Surface = 'dashboard' | 'pipeline' | 'workspace'
+export type Surface = 'dashboard' | 'workspace'
 export interface WorkbenchData {
   surface: Surface
   table: {

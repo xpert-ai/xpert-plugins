@@ -92,8 +92,8 @@
                   "zh_Hans": "看清风险，协同恢复，验证结果。"
                 },
                 "longDescription": {
-                  "en_US": "A governed factory anomaly recovery application with independent role Assistants, a human approval gate, an operational swimlane, and an ECharts management dashboard.",
-                  "zh_Hans": "包含独立角色 Assistants、人工审批门、运营泳道和 ECharts 管理监控面板的受控工厂异常恢复应用。"
+                  "en_US": "A governed factory anomaly recovery application with independent role Assistants, a human approval gate, native Project Pipelines, and an ECharts management dashboard.",
+                  "zh_Hans": "包含独立角色 Assistants、人工审批门、项目任务流水线和 ECharts 管理监控面板的受控工厂异常恢复应用。"
                 },
                 "developer": "XpertAI",
                 "screenshots": ["./assets/screenshot-01.jpg"],
@@ -203,23 +203,13 @@
           },
           {
             "type": "view",
-            "name": "factory-operations-center",
-            "displayName": "Factory Operations Workbench",
-            "description": {
-              "en_US": "Review anomaly state, Agent findings, human decisions, confirmations, and evidence.",
-              "zh_Hans": "审阅异常状态、Agent 研判、人类决策、执行确认和证据。"
-            },
-            "metadata": { "app": "factory-operations" }
-          },
-          {
-            "type": "view",
             "name": "factory-case-workspace",
             "displayName": "Factory Case Task Workspace",
             "description": {
               "en_US": "Operate one authorized Factory Case task with focused evidence and execution history.",
               "zh_Hans": "在聚焦的证据与执行记录上下文中处理单个 Factory Case 授权任务。"
             },
-            "metadata": { "app": "factory-operations", "supportingView": true }
+            "metadata": { "app": "factory-operations", "supportingView": false }
           },
           {
             "type": "view",

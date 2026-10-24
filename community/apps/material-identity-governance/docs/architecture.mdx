@@ -20,7 +20,7 @@ description: 角色能力、数据持久化和治理边界
 
 每个角色都有独立 Assistant 模板、主 Agent、固定角色 Middleware 和专属读取工具。业务工具仅由对应 Middleware 暴露。七条直接且 required 的 External Xpert 连线用于明确角色安装绑定，平台流水线负责派发；不使用一个多 Agent Assistant 冒充八位独立角色。
 
-三个视图共享 `material_identity_workbench` 功能开关：ECharts 管理监控、案例泳道、证据与审批工作区。工具能力仍由角色开关独立控制。审批入口只接受有案例 Project 管理权的人类用户。
+两个业务视图共享 `material_identity_workbench` 功能开关：ECharts 管理监控、证据与审批工作区。流水线使用平台 `project.tasks` Remote View。工具能力仍由角色开关独立控制。审批入口只接受有案例 Project 管理权的人类用户。
 
 ## 数据和执行
 
