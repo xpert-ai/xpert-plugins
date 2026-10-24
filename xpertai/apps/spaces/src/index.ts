@@ -20,10 +20,11 @@ import { SpaceKnowledge } from './knowledge.js'
 import { SpaceContent } from './content.js'
 import { SpaceReferences } from './references.js'
 import { SpaceSubpages } from './subpages.js'
+import { SpacesCapabilityProvider } from './capability.js'
 
 @XpertServerPlugin({
   imports: [TypeOrmModule.forFeature(entities)], entities,
-  providers: [SpaceImports, SpaceReferences, SpaceSubpages, SpaceContent, SpaceAccess, SpaceKnowledge, SpaceDocuments, SpacesResourceProvider, SpacesService, SpacePages, SpaceAi, SpaceFiles, SpaceEditors, SpaceArtifacts, SpacesMiddleware, SpacesView]
+  providers: [SpacesCapabilityProvider, SpaceImports, SpaceReferences, SpaceSubpages, SpaceContent, SpaceAccess, SpaceKnowledge, SpaceDocuments, SpacesResourceProvider, SpacesService, SpacePages, SpaceAi, SpaceFiles, SpaceEditors, SpaceArtifacts, SpacesMiddleware, SpacesView]
 })
 export class SpacesPlugin {}
 

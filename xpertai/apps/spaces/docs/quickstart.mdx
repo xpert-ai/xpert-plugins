@@ -3,8 +3,8 @@ title: "快速开始"
 description: "给 Assistant 配置能力，然后在 Workbench 使用空间"
 ---
 
-1. 部署配套平台和 SDK，再安装 `@xpert-ai/plugin-spaces`。插件含实体与服务，需要按部署回执完成 API 重启；描述符存在不代表已加载。
-2. 在 Assistant Studio 为主 Agent 添加并连接 `spaces` 中间件。保留主 Agent 已有的规划和上下文压缩能力。
+1. 部署配套平台和 SDK，再安装 `@xpert-ai/plugin-spaces` 和 `@xpert-ai/plugin-markdown-editor`。插件含实体与服务，需要按部署回执完成 API 重启；描述符存在不代表已加载。
+2. 创建 Assistant 时，在“Assistant 能力”中勾选“协作空间”，并选择支持工具调用的授权模型。已有 Assistant 可在“设置 → 能力”中启用；Studio 中仍可手动连接 `spaces` 中间件。开关默认关闭，自动配置主 Agent 的空间工具和使用说明，并保留已有能力。
 3. 发布 Assistant，创建类型为“协作空间”的 Project，将 Assistant 绑定到该项目，并通过 Project 成员管理授权协作者。
 4. 在 Assistant 聊天工作台选择该 Project，再从 Views 打开“协作空间”。首次打开时初始化该 Project 的 Space 扩展记录。创建页面、文件夹或导入文档后，在对应编辑器中协作。
 5. 使用 Assistant 聊天调用空间工具，读取、生成或提出文档修改。通用审阅和 AI 交互由 Assistant 承载。
@@ -13,3 +13,5 @@ description: "给 Assistant 配置能力，然后在 Workbench 使用空间"
 同一个 Project 绑定的多个 Assistant 共享文件和协作内容。Project 成员权限决定可读、可编辑或可管理；Assistant 的个人文件隔离设置不改变 Project 文件归属。撤销项目权限或解除 Assistant 绑定后，相应访问失效。
 
 平台和 SDK 必须包含配套能力。所有空间必须绑定 Project；不创建独立 Space 文件卷，不提供旧空间迁移入口。模型和连接密钥沿用平台配置，不进入插件或浏览器。
+
+快捷开关来自插件注册的 Assistant Capability Provider，平台不硬编码 Spaces。启用能力只组合 Assistant 配置，不自动创建 Project、复制文件或扩大成员权限。通过能力开关添加的配置可在设置中关闭；Studio 原有配置按平台规则保留，已被手动修改的托管配置会提示冲突。

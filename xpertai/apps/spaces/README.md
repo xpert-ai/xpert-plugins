@@ -1,6 +1,6 @@
 # Xpert Spaces
 
-An **Assistant capability**, delivered by `@xpert-ai/plugin-spaces`. Connect its `spaces` middleware to an Assistant's primary Agent and publish. Its members then open **协作空间** in **Workbench → Views** and share documents, files and Artifacts. The remote view uses React, the repository's shared shadcn/Radix components, and Tailwind CSS.
+An **Assistant capability**, delivered by `@xpert-ai/plugin-spaces`. When creating an Assistant, enable **Collaborative space** under Assistant capabilities, then publish. Existing Assistants can enable it in **Settings → Capabilities**; Studio can still connect the `spaces` middleware manually. Its members then open **协作空间** in **Workbench → Views** and share documents, files and Artifacts. The remote view uses React, the repository's shared shadcn/Radix components, and Tailwind CSS.
 
 - Project membership and roles govern shared content. Entry points also verify the Assistant binding and published Spaces capability; resource access and broadcasts recheck the current Project permissions.
 - One idempotently provisioned Space metadata record per Project. Multiple bound Assistants share the same Project files; an Assistant's personal file isolation setting does not create a private copy of the Project.
