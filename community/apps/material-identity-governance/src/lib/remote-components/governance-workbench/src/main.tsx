@@ -45,6 +45,7 @@ import {
 import { Dashboard } from './dashboard'
 import { Workspace } from './workspace'
 import { Status } from './ui'
+import { MATERIAL_IDENTITY_LOGO_URL } from '../../../branding'
 const viewKey: Record<Surface, string> = {
   dashboard: 'material_identity_operations_dashboard',
   workspace: 'material_identity_case_workspace',
@@ -220,7 +221,7 @@ function Screen({
     <main className="governance-app">
         <header className="app-header">
           <div className="app-heading">
-            <Layers3 className="text-primary" size={25} />
+            <img src={MATERIAL_IDENTITY_LOGO_URL} alt="" width={32} height={32} className="shrink-0" />
             <div>
               <p className="eyebrow">{t('app')}</p>
               <h1>{t(surface)}</h1>

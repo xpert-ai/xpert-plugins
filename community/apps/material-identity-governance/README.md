@@ -2,7 +2,11 @@
 
 汽车零部件制造企业的一物多码、一码多物和研发新增防重治理 App。包含八位独立 Xpert Assistants、七条直接 required External Xpert 连线、真实任务记录、人工审批以及程序化 Mock MDM 和 ERP 发布。
 
-三个工作台视图：治理监控、案例协同流水线、证据与治理审批。生产 TSX 同时用于原型预览和插件远程组件；使用共享 shadcn UI、宿主题色、ECharts 和官方 Workbench bridge。
+插件提供治理监控、证据与治理审批两个业务视图；流水线统一使用项目任务中的原生功能。生产 TSX 同时用于原型预览和插件远程组件；使用共享 shadcn UI、宿主题色、ECharts 和官方 Workbench bridge。
+
+市场展示与初始化配置集中在 `src/app-config.ts`，在 Xpert 和 DataXpert 共用。封面 `assets/brand/material-identity-governance-cover-zh-v1.png` 作为 `presentation.screenshots` 首图，并声明在便携清单的 `assets.screenshots` 中。图片标注界面示意与外部系统 Mock；生成方式和提示词记录在同目录的 `cover-generation.json`。构建会核对清单与运行时配置、图片格式及大小。初始化继续创建组织共享工作空间，安装七位角色助理并发布协调者。
+
+品牌图标以蓝色物料立方体和中空身份核心为标识，原始 SVG 定义在 `src/lib/branding.ts`，构建输出到 `assets/brand/material-identity-icon.svg`。App、插件、视图、模板、工具提供方和中间件共用 `APP_ICON`；工具执行行通过平台继承中间件图标。协调者使用品牌头像，七位专业角色保留各自头像。既有助手需原地更新模板并发布，才会更新其已保存的头像。
 
 ## 依赖和兼容范围
 
@@ -34,9 +38,9 @@ corepack pnpm plugin:deploy:local --plugin-dir /path/to/xpert-plugins/community/
 1. 在 DataXpert 插件详情中安装本 App，点击初始化应用。组织应配置可用主模型；本演示不要求向量模型和视觉模型。
 2. 预检和初始化完成后，打开物料主数据智能治理。套件会逐一发布七位角色，再建立协调者的直接 External Xpert 连接。
 3. 新建汽车零部件治理案例，选择三种场景之一。每个案例会建立自己的 Project 和助理分配。
-4. 点击协调者推进下一步；也可在就绪任务卡内单独启动某个角色，或从该角色自己的 Assistant 入口提供案例 UUID 执行。
+4. 打开项目任务的流水线，由平台派发就绪节点；在流水线中查看任务状态、执行记录和历史轮次。
 5. 查看来源记录、逐属性候选比对、发布图纸和业务影响。流水线在人工审批门暂停。
-6. 有 Project 管理权限的用户填写审批意见。批准后再推进发布，查看 Mock MDM 与 ERP 确认回执。
+6. 有 Project 管理权限的用户填写审批意见。批准后由平台继续派发发布任务，查看 Mock MDM 与 ERP 确认回执。
 7. 点击执行圆点打开那一次平台执行规划记录，再查看对应会话中的真实工具输入、结果或异常。
 
 ## 验证范围

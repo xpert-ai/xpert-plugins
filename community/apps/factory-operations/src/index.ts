@@ -1,4 +1,4 @@
-import { FACTORY_CASE_PROJECT_PROVIDER } from './lib/factory-project-type.js'
+import { factoryOperationsApp } from './app-config.js'
 import { FACTORY_PROFILE_FEATURE } from './lib/factory-profile.views.js'
 import { z } from 'zod'
 import type { I18nObject } from '@xpert-ai/contracts'
@@ -11,7 +11,6 @@ import {
   FACTORY_INSIGHTS_MCP_CAPABILITY,
   FACTORY_INSIGHTS_TOOLSET_PROVIDER_KEY,
   FACTORY_MANAGEMENT_DASHBOARD_FEATURE,
-  FACTORY_MANAGER_TEMPLATE_KEY,
   FACTORY_MCP_CAPABILITY,
   FACTORY_MIDDLEWARE,
   FACTORY_PLUGIN_LEVEL,
@@ -57,11 +56,7 @@ const plugin: XpertPlugin<z.infer<typeof FactoryConfigSchema>> = {
         marketplace: {
           contents: [
             {
-              type: 'app',
-              name: 'factory-operations',
-              displayName: 'Factory Operations Center',
-              description: text('Coordinate governed factory anomaly recovery.', '协同完成受控的工厂异常恢复。'),
-              icon: FACTORY_ICON,
+              ...factoryOperationsApp,
               operations: [
                 {
                   name: 'investigate-anomalies',
@@ -100,91 +95,7 @@ const plugin: XpertPlugin<z.infer<typeof FactoryConfigSchema>> = {
         requiredPlugins: [FACTORY_PLUGIN_NAME],
         marketplace: {
           contents: [
-            ({
-              type: 'app',
-              name: 'factory-operations',
-              displayName: text('Factory Intelligent Operations Center', '工厂智能运营与异常恢复中心'),
-              description: text(
-                'Initialize the management entry for the independent-Assistant factory recovery suite.',
-                '初始化独立 Assistant 工厂异常恢复套件的管理入口。'
-              ),
-              icon: FACTORY_ICON,
-              color: '#0F766E',
-              tags: ['business-operations', 'factory', 'multi-agent'],
-              projectTypes: [{ key: 'case', title: text('Factory Case', '工厂 Case'),
-                binding: { kind: 'entity', providerKey: FACTORY_CASE_PROJECT_PROVIDER } }],
-              appConfig: {
-                scope: 'organization' as const,
-                assistantTemplateKey: FACTORY_MANAGER_TEMPLATE_KEY,
-                workspace: {
-                  mode: 'dedicated',
-                  name: text('Factory Intelligent Operations', '工厂智能运营与异常恢复'),
-                  description: text(
-                    'Organization-shared workspace for factory recovery monitoring and the independent Assistant suite.',
-                    '用于工厂异常恢复监控与独立 Assistant 套件的组织共享工作空间。'
-                  ),
-                  sharing: 'organization'
-                },
-                modelRequirements: { primary: true },
-                presentation: {
-                  tagline: text(
-                    'See the risk. Coordinate the recovery. Prove the result.',
-                    '看清风险，协同恢复，验证结果。'
-                  ),
-                  longDescription: text(
-                    'A governed factory anomaly recovery application with independent role Assistants, a human approval gate, native Project Pipelines, and an ECharts management dashboard.',
-                    '包含独立角色 Assistants、人工审批门、项目任务流水线和 ECharts 管理监控面板的受控工厂异常恢复应用。'
-                  ),
-                  developer: 'XpertAI',
-                  screenshots: ['./assets/screenshot-01.jpg'],
-                  features: [
-                    {
-                      key: 'independent-role-assistants',
-                      title: text('Independent role Assistants', '独立角色 Assistants'),
-                      description: text(
-                        'Eight lane owners are installed independently and connected to one Orchestrator through direct required External Xperts.',
-                        '八个泳道责任角色独立安装，并通过必需的 External Xpert 直连到一个 Orchestrator。'
-                      )
-                    },
-                    {
-                      key: 'governed-recovery-pipeline',
-                      title: text('Governed recovery pipeline', '受控异常恢复流水线'),
-                      description: text(
-                        'Revision-bound evidence, human approval, execution confirmations, and recovery verification remain auditable.',
-                        '修订绑定证据、人工审批、执行确认与恢复验证全程可审计。'
-                      )
-                    },
-                    {
-                      key: 'management-monitoring',
-                      title: text('Management monitoring', '管理监控'),
-                      description: text(
-                        'ECharts trends and lane bottlenecks drill down to the exact Factory Case.',
-                        'ECharts 趋势与泳道瓶颈可下钻到精确 Factory Case。'
-                      )
-                    }
-                  ],
-                  useCases: [
-                    text('Severe equipment anomaly recovery', '严重设备异常恢复'),
-                    text('Cross-role evidence reconciliation', '跨角色证据会诊'),
-                    text('Recovery throughput and blocker monitoring', '恢复吞吐与阻塞监控')
-                  ],
-                  dataScope: text(
-                    'All application resources are scoped to the current organization.',
-                    '所有应用资源限定在当前组织范围内。'
-                  ),
-                  initializationSummary: text(
-                    'Creates one organization-shared workspace and publishes the read-only management Assistant. Provision the operational role suite with the versioned assistant:suite:init profile.',
-                    '创建一个组织共享工作空间并发布只读管理 Assistant；运营角色套件使用版本化 assistant:suite:init 配置进行部署。'
-                  ),
-                  initializationSteps: [
-                    text('Verify an enabled primary model.', '检查可用的主模型。'),
-                    text('Create the dedicated organization workspace.', '创建专用组织工作空间。'),
-                    text('Install and publish the management Assistant.', '安装并发布管理 Assistant。')
-                  ]
-                },
-                entry: { type: 'assistant-chat' }
-              }
-            }),
+            factoryOperationsApp,
             {
               type: 'mcp',
               name: 'factory-operations',

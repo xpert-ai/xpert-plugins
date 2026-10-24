@@ -5,8 +5,8 @@ import { ProjectTypeProvider, type IProjectTypeProvider, type ProjectTypeContext
 import { MaterialCaseEntity } from './entities.js'
 import { VIEW_KEYS, artifactKey } from '../artifact-namespace.js'
 
-export const MATERIAL_PROJECT_PROVIDER = artifactKey('case_project')
-export { MATERIAL_PROJECT_TYPE } from './project-type.js'
+import { MATERIAL_PROJECT_PROVIDER } from './project-type.js'
+export { MATERIAL_PROJECT_TYPE, MATERIAL_PROJECT_PROVIDER } from './project-type.js'
 
 @Injectable()
 @ProjectTypeProvider(MATERIAL_PROJECT_PROVIDER)

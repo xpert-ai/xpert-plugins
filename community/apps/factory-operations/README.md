@@ -19,6 +19,10 @@ MCP never exposes plan approval, rejection, or execution. Those actions remain i
 
 ## Local validation
 
+市场展示与初始化配置集中在 `src/app-config.ts`，在 Xpert 和 DataXpert 共用。封面为 `assets/brand/factory-operations-cover-zh-v1.png`，作为 `presentation.screenshots` 首图，并声明在便携清单的 `assets.screenshots` 中。图片明确标注界面示意与仿真场景；生成方式和提示词记录在同目录的 `cover-generation.json`。构建会核对清单与运行时配置、图片格式及大小。
+
+初始化保持现有边界：创建组织共享工作空间并发布只读管理助理；运营角色套件仍由管理员单独部署，业务审批由授权用户完成。
+
 ```bash
 corepack pnpm install
 corepack pnpm check

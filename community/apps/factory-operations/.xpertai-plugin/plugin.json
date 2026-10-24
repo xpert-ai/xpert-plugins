@@ -4,7 +4,13 @@
   "description": "Independent-Assistant factory anomaly investigation, recovery approval, execution, verification, and management monitoring.",
   "author": "XpertAI",
   "license": "AGPL-3.0",
-  "keywords": ["factory-operations", "anomaly-recovery", "multi-agent", "production", "agentic-app"],
+  "keywords": [
+    "factory-operations",
+    "anomaly-recovery",
+    "multi-agent",
+    "production",
+    "agentic-app"
+  ],
   "level": "tenant",
   "artifactNamespace": "factory_ops",
   "interface": {
@@ -13,7 +19,11 @@
     "longDescription": "Coordinate evidence-backed equipment, quality, production, and resource analysis; compare deterministic recovery plans; require revision-bound human approval; capture execution confirmations; and verify production recovery.",
     "developerName": "XpertAI",
     "category": "Operations",
-    "capabilities": ["Interactive", "Read", "Write"],
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
     "websiteURL": "https://xpertai.cn",
     "privacyPolicyURL": "https://xpertai.cn",
     "termsOfServiceURL": "https://xpertai.cn",
@@ -25,7 +35,9 @@
     "composerIcon": "./assets/composerIcon.svg",
     "logo": "./assets/logo.svg",
     "brandColor": "#0F766E",
-    "screenshots": ["./assets/screenshot-01.jpg"]
+    "screenshots": [
+      "./assets/brand/factory-operations-cover-zh-v1.png"
+    ]
   },
   "policy": {
     "installation": "AVAILABLE",
@@ -39,12 +51,21 @@
   "assets": {
     "composerIcon": "./assets/composerIcon.svg",
     "logo": "./assets/logo.svg",
-    "screenshots": ["./assets/screenshot-01.jpg"]
+    "screenshots": [
+      "./assets/brand/factory-operations-cover-zh-v1.png"
+    ]
   },
-  "targetApps": ["data-xpert", "xpert"],
+  "targetApps": [
+    "data-xpert",
+    "xpert"
+  ],
   "targetAppMeta": {
     "data-xpert": {
-      "types": ["workbench-view", "assistant-tool", "business-app"],
+      "types": [
+        "workbench-view",
+        "assistant-tool",
+        "business-app"
+      ],
       "capabilities": [
         "factory-case-coordination",
         "factory-operations-monitoring",
@@ -65,10 +86,13 @@
           {
             "type": "app",
             "name": "factory-operations",
-            "displayName": "Factory Operations Center",
+            "displayName": {
+              "en_US": "Factory Intelligent Operations Center",
+              "zh_Hans": "工厂智能运营与异常恢复中心"
+            },
             "description": {
-              "en_US": "Initialize the management entry for the independent-Assistant factory recovery suite.",
-              "zh_Hans": "初始化独立 Assistant 工厂异常恢复套件的管理入口。"
+              "en_US": "Investigate anomalies, review recovery plans, and track production recovery with evidence.",
+              "zh_Hans": "协同研判生产异常、审批恢复方案，并追踪恢复结果与证据。"
             },
             "appConfig": {
               "scope": "organization",
@@ -85,28 +109,33 @@
                 },
                 "sharing": "organization"
               },
-              "modelRequirements": { "primary": true },
+              "knowledgebases": [],
+              "modelRequirements": {
+                "primary": true
+              },
               "presentation": {
                 "tagline": {
                   "en_US": "See the risk. Coordinate the recovery. Prove the result.",
                   "zh_Hans": "看清风险，协同恢复，验证结果。"
                 },
                 "longDescription": {
-                  "en_US": "A governed factory anomaly recovery application with independent role Assistants, a human approval gate, native Project Pipelines, and an ECharts management dashboard.",
-                  "zh_Hans": "包含独立角色 Assistants、人工审批门、项目任务流水线和 ECharts 管理监控面板的受控工厂异常恢复应用。"
+                  "en_US": "Bring equipment, quality, production and resource evidence into one recovery process. Project Pipelines track execution and history; people approve revision-bound plans. The default environment uses simulated equipment and execution confirmations.",
+                  "zh_Hans": "汇集设备、质量、生产与资源证据，通过项目任务流水线追踪执行和历史轮次，由人工审批当前修订的恢复方案。默认使用设备与执行确认的仿真环境。"
                 },
                 "developer": "XpertAI",
-                "screenshots": ["./assets/screenshot-01.jpg"],
+                "screenshots": [
+                  "./assets/brand/factory-operations-cover-zh-v1.png"
+                ],
                 "features": [
                   {
                     "key": "independent-role-assistants",
                     "title": {
-                      "en_US": "Independent role Assistants",
-                      "zh_Hans": "独立角色 Assistants"
+                      "en_US": "Specialist collaboration",
+                      "zh_Hans": "专业角色协作"
                     },
                     "description": {
-                      "en_US": "Eight lane owners are installed independently and connected through direct required External Xperts.",
-                      "zh_Hans": "八个泳道责任角色独立安装，并通过必需的 External Xpert 直连完成编排。"
+                      "en_US": "Eight specialist Assistants coordinate anomaly triage, diagnostics, impact analysis, planning and verification.",
+                      "zh_Hans": "八位专业助理分工完成异常研判、设备诊断、影响分析、方案规划与恢复验证。"
                     }
                   },
                   {
@@ -116,8 +145,8 @@
                       "zh_Hans": "受控异常恢复流水线"
                     },
                     "description": {
-                      "en_US": "Revision-bound evidence, human approval, execution confirmations, and recovery verification remain auditable.",
-                      "zh_Hans": "修订绑定证据、人工审批、执行确认与恢复验证全程可审计。"
+                      "en_US": "Follow execution records and historical rounds in Project Tasks. Approval is bound to the current plan revision.",
+                      "zh_Hans": "在项目任务中查看执行记录与历史轮次；人工审批绑定当前方案修订。"
                     }
                   },
                   {
@@ -127,8 +156,8 @@
                       "zh_Hans": "管理监控"
                     },
                     "description": {
-                      "en_US": "ECharts trends and lane bottlenecks drill down to the exact Factory Case.",
-                      "zh_Hans": "ECharts 趋势与泳道瓶颈可下钻到精确 Factory Case。"
+                      "en_US": "Inspect recovery trends, blocked work and evidence for each Factory Case.",
+                      "zh_Hans": "查看恢复趋势、受阻任务，并下钻到具体 Factory Case 的业务证据。"
                     }
                   }
                 ],
@@ -147,12 +176,12 @@
                   }
                 ],
                 "dataScope": {
-                  "en_US": "All application resources are scoped to the current organization.",
-                  "zh_Hans": "所有应用资源限定在当前组织范围内。"
+                  "en_US": "Application data stays within the current organization; case work follows Project access controls. The default simulation does not operate production equipment.",
+                  "zh_Hans": "应用数据限定在当前组织内，案例操作遵循项目访问权限；默认仿真不操作生产设备。"
                 },
                 "initializationSummary": {
-                  "en_US": "Creates one organization-shared workspace and publishes the read-only management Assistant. Provision the operational role suite with assistant:suite:init.",
-                  "zh_Hans": "创建组织共享工作空间并发布只读管理 Assistant；运营角色套件通过 assistant:suite:init 部署。"
+                  "en_US": "Create a shared workspace and publish the read-only management Assistant. An administrator deploys the operational role suite separately before starting case pipelines.",
+                  "zh_Hans": "创建组织共享工作空间并发布只读管理助理。开展案例流水线前，需由管理员另行部署运营角色套件。"
                 },
                 "initializationSteps": [
                   {
@@ -169,7 +198,9 @@
                   }
                 ]
               },
-              "entry": { "type": "assistant-chat" }
+              "entry": {
+                "type": "assistant-chat"
+              }
             },
             "operations": [
               {
@@ -199,6 +230,30 @@
                 },
                 "access": "read"
               }
+            ],
+            "icon": {
+              "type": "svg",
+              "value": "\n<svg viewBox=\"0 0 256 256\" xmlns=\"http://www.w3.org/2000/svg\" aria-hidden=\"true\">\n  <rect x=\"24\" y=\"24\" width=\"208\" height=\"208\" rx=\"40\" fill=\"#E7F8F1\"/>\n  <path d=\"M58 184V94l44 24V92l44 24V72h34v112H58Z\" fill=\"#0F766E\"/>\n  <path d=\"M78 145h20v18H78zm40 0h20v18h-20zm40 0h20v18h-20z\" fill=\"#ECFDF5\"/>\n  <circle cx=\"184\" cy=\"72\" r=\"30\" fill=\"#FEF3C7\" stroke=\"#D97706\" stroke-width=\"12\"/>\n  <path d=\"M184 55v20m0 12v2\" stroke=\"#92400E\" stroke-width=\"10\" stroke-linecap=\"round\"/>\n</svg>",
+              "alt": "Factory operations center"
+            },
+            "color": "#0F766E",
+            "tags": [
+              "business-operations",
+              "factory",
+              "multi-agent"
+            ],
+            "projectTypes": [
+              {
+                "key": "case",
+                "title": {
+                  "en_US": "Factory Case",
+                  "zh_Hans": "工厂 Case"
+                },
+                "binding": {
+                  "kind": "entity",
+                  "providerKey": "factory_ops_case_project"
+                }
+              }
             ]
           },
           {
@@ -209,7 +264,10 @@
               "en_US": "Operate one authorized Factory Case task with focused evidence and execution history.",
               "zh_Hans": "在聚焦的证据与执行记录上下文中处理单个 Factory Case 授权任务。"
             },
-            "metadata": { "app": "factory-operations", "supportingView": false }
+            "metadata": {
+              "app": "factory-operations",
+              "supportingView": false
+            }
           },
           {
             "type": "view",
@@ -219,7 +277,9 @@
               "en_US": "Monitor organization-level recovery risk, throughput, blockers, and Agent execution health.",
               "zh_Hans": "监控组织级恢复风险、吞吐、阻塞和智能体执行健康度。"
             },
-            "metadata": { "app": "factory-operations" }
+            "metadata": {
+              "app": "factory-operations"
+            }
           },
           {
             "type": "assistant-template",
@@ -229,7 +289,9 @@
               "en_US": "Independent Orchestrator template for governed anomaly recovery.",
               "zh_Hans": "面向受控异常恢复的独立 Orchestrator 模板。"
             },
-            "metadata": { "app": "factory-operations" }
+            "metadata": {
+              "app": "factory-operations"
+            }
           },
           {
             "type": "assistant-template",
@@ -239,7 +301,9 @@
               "en_US": "Read-only management Assistant with an organization-scoped dashboard.",
               "zh_Hans": "带组织级管理面板的只读工厂运营管理助手。"
             },
-            "metadata": { "app": "factory-operations" }
+            "metadata": {
+              "app": "factory-operations"
+            }
           },
           {
             "type": "middleware",
@@ -249,7 +313,9 @@
               "en_US": "Read-only Case state and progress tools.",
               "zh_Hans": "只读的事件状态与进度工具。"
             },
-            "metadata": { "app": "factory-operations" }
+            "metadata": {
+              "app": "factory-operations"
+            }
           },
           {
             "type": "middleware",
@@ -259,7 +325,9 @@
               "en_US": "Read-only organization-scoped dashboard metrics.",
               "zh_Hans": "只读的组织级运营监控指标。"
             },
-            "metadata": { "app": "factory-operations" }
+            "metadata": {
+              "app": "factory-operations"
+            }
           }
         ]
       },
@@ -276,12 +344,21 @@
           "FactoryRecoveryExecutionMiddleware",
           "FactoryRecoveryVerificationMiddleware"
         ],
-        "viewProviders": ["factory_ops"],
-        "templateProviders": ["factoryOperationsTemplates"]
+        "viewProviders": [
+          "factory_ops"
+        ],
+        "templateProviders": [
+          "factoryOperationsTemplates"
+        ]
       }
     },
     "xpert": {
-      "types": ["assistant-template", "app", "xpertai-bundle", "mcp"],
+      "types": [
+        "assistant-template",
+        "app",
+        "xpertai-bundle",
+        "mcp"
+      ],
       "capabilities": [
         "factory-case-coordination",
         "factory-operations-monitoring",
@@ -309,7 +386,9 @@
               "en_US": "Governed multi-Agent factory anomaly recovery.",
               "zh_Hans": "受控的多 Agent 工厂异常恢复。"
             },
-            "metadata": { "app": "factory-operations" }
+            "metadata": {
+              "app": "factory-operations"
+            }
           },
           {
             "type": "assistant-template",
@@ -319,15 +398,20 @@
               "en_US": "Read-only organization-level factory operations monitoring.",
               "zh_Hans": "只读的组织级工厂运营管理监控。"
             },
-            "metadata": { "app": "factory-operations" }
+            "metadata": {
+              "app": "factory-operations"
+            }
           },
           {
             "type": "app",
             "name": "factory-operations",
-            "displayName": "Factory Operations Center",
+            "displayName": {
+              "en_US": "Factory Intelligent Operations Center",
+              "zh_Hans": "工厂智能运营与异常恢复中心"
+            },
             "description": {
-              "en_US": "Coordinate governed factory anomaly recovery.",
-              "zh_Hans": "协同完成受控的工厂异常恢复。"
+              "en_US": "Investigate anomalies, review recovery plans, and track production recovery with evidence.",
+              "zh_Hans": "协同研判生产异常、审批恢复方案，并追踪恢复结果与证据。"
             },
             "operations": [
               {
@@ -339,7 +423,139 @@
                 },
                 "access": "read"
               }
-            ]
+            ],
+            "icon": {
+              "type": "svg",
+              "value": "\n<svg viewBox=\"0 0 256 256\" xmlns=\"http://www.w3.org/2000/svg\" aria-hidden=\"true\">\n  <rect x=\"24\" y=\"24\" width=\"208\" height=\"208\" rx=\"40\" fill=\"#E7F8F1\"/>\n  <path d=\"M58 184V94l44 24V92l44 24V72h34v112H58Z\" fill=\"#0F766E\"/>\n  <path d=\"M78 145h20v18H78zm40 0h20v18h-20zm40 0h20v18h-20z\" fill=\"#ECFDF5\"/>\n  <circle cx=\"184\" cy=\"72\" r=\"30\" fill=\"#FEF3C7\" stroke=\"#D97706\" stroke-width=\"12\"/>\n  <path d=\"M184 55v20m0 12v2\" stroke=\"#92400E\" stroke-width=\"10\" stroke-linecap=\"round\"/>\n</svg>",
+              "alt": "Factory operations center"
+            },
+            "color": "#0F766E",
+            "tags": [
+              "business-operations",
+              "factory",
+              "multi-agent"
+            ],
+            "projectTypes": [
+              {
+                "key": "case",
+                "title": {
+                  "en_US": "Factory Case",
+                  "zh_Hans": "工厂 Case"
+                },
+                "binding": {
+                  "kind": "entity",
+                  "providerKey": "factory_ops_case_project"
+                }
+              }
+            ],
+            "appConfig": {
+              "scope": "organization",
+              "assistantTemplateKey": "factory-operations-manager",
+              "workspace": {
+                "mode": "dedicated",
+                "name": {
+                  "en_US": "Factory Intelligent Operations",
+                  "zh_Hans": "工厂智能运营与异常恢复"
+                },
+                "description": {
+                  "en_US": "Organization-shared workspace for factory recovery monitoring and the independent Assistant suite.",
+                  "zh_Hans": "用于工厂异常恢复监控与独立 Assistant 套件的组织共享工作空间。"
+                },
+                "sharing": "organization"
+              },
+              "knowledgebases": [],
+              "modelRequirements": {
+                "primary": true
+              },
+              "presentation": {
+                "tagline": {
+                  "en_US": "See the risk. Coordinate the recovery. Prove the result.",
+                  "zh_Hans": "看清风险，协同恢复，验证结果。"
+                },
+                "longDescription": {
+                  "en_US": "Bring equipment, quality, production and resource evidence into one recovery process. Project Pipelines track execution and history; people approve revision-bound plans. The default environment uses simulated equipment and execution confirmations.",
+                  "zh_Hans": "汇集设备、质量、生产与资源证据，通过项目任务流水线追踪执行和历史轮次，由人工审批当前修订的恢复方案。默认使用设备与执行确认的仿真环境。"
+                },
+                "developer": "XpertAI",
+                "screenshots": [
+                  "./assets/brand/factory-operations-cover-zh-v1.png"
+                ],
+                "features": [
+                  {
+                    "key": "independent-role-assistants",
+                    "title": {
+                      "en_US": "Specialist collaboration",
+                      "zh_Hans": "专业角色协作"
+                    },
+                    "description": {
+                      "en_US": "Eight specialist Assistants coordinate anomaly triage, diagnostics, impact analysis, planning and verification.",
+                      "zh_Hans": "八位专业助理分工完成异常研判、设备诊断、影响分析、方案规划与恢复验证。"
+                    }
+                  },
+                  {
+                    "key": "governed-recovery-pipeline",
+                    "title": {
+                      "en_US": "Governed recovery pipeline",
+                      "zh_Hans": "受控异常恢复流水线"
+                    },
+                    "description": {
+                      "en_US": "Follow execution records and historical rounds in Project Tasks. Approval is bound to the current plan revision.",
+                      "zh_Hans": "在项目任务中查看执行记录与历史轮次；人工审批绑定当前方案修订。"
+                    }
+                  },
+                  {
+                    "key": "management-monitoring",
+                    "title": {
+                      "en_US": "Management monitoring",
+                      "zh_Hans": "管理监控"
+                    },
+                    "description": {
+                      "en_US": "Inspect recovery trends, blocked work and evidence for each Factory Case.",
+                      "zh_Hans": "查看恢复趋势、受阻任务，并下钻到具体 Factory Case 的业务证据。"
+                    }
+                  }
+                ],
+                "useCases": [
+                  {
+                    "en_US": "Severe equipment anomaly recovery",
+                    "zh_Hans": "严重设备异常恢复"
+                  },
+                  {
+                    "en_US": "Cross-role evidence reconciliation",
+                    "zh_Hans": "跨角色证据会诊"
+                  },
+                  {
+                    "en_US": "Recovery throughput and blocker monitoring",
+                    "zh_Hans": "恢复吞吐与阻塞监控"
+                  }
+                ],
+                "dataScope": {
+                  "en_US": "Application data stays within the current organization; case work follows Project access controls. The default simulation does not operate production equipment.",
+                  "zh_Hans": "应用数据限定在当前组织内，案例操作遵循项目访问权限；默认仿真不操作生产设备。"
+                },
+                "initializationSummary": {
+                  "en_US": "Create a shared workspace and publish the read-only management Assistant. An administrator deploys the operational role suite separately before starting case pipelines.",
+                  "zh_Hans": "创建组织共享工作空间并发布只读管理助理。开展案例流水线前，需由管理员另行部署运营角色套件。"
+                },
+                "initializationSteps": [
+                  {
+                    "en_US": "Verify an enabled primary model.",
+                    "zh_Hans": "检查可用的主模型。"
+                  },
+                  {
+                    "en_US": "Create the dedicated organization workspace.",
+                    "zh_Hans": "创建专用组织工作空间。"
+                  },
+                  {
+                    "en_US": "Install and publish the management Assistant.",
+                    "zh_Hans": "安装并发布管理 Assistant。"
+                  }
+                ]
+              },
+              "entry": {
+                "type": "assistant-chat"
+              }
+            }
           },
           {
             "type": "mcp",
@@ -352,7 +568,10 @@
               "en_US": "Host-native, organization-scoped Factory Case recovery mutation tools backed by the Agent middleware implementation.",
               "zh_Hans": "宿主原生、组织级、由 Agent Middleware 实现支撑的 Factory Case 恢复写入工具。"
             },
-            "metadata": { "protocol": "native", "provider": "factory_ops" }
+            "metadata": {
+              "protocol": "native",
+              "provider": "factory_ops"
+            }
           },
           {
             "type": "mcp",

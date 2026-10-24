@@ -102,7 +102,7 @@ describe('Factory Operations plugin contracts', () => {
   it('publishes an organization-scoped appConfig for the management Assistant', () => {
     const manifest = JSON.parse(readFileSync(resolve(root, '.xpertai-plugin/plugin.json'), 'utf8'))
     const app = manifest.targetAppMeta['data-xpert'].marketplace.contents.find((item: { type: string; name: string }) => item.type === 'app' && item.name === 'factory-operations')
-    const screenshots = ['./assets/screenshot-01.jpg']
+    const screenshots = ['./assets/brand/factory-operations-cover-zh-v1.png']
     expect(app.appConfig.scope).toBe('organization')
     expect(app.appConfig.assistantTemplateKey).toBe(FACTORY_MANAGER_TEMPLATE_KEY)
     expect(app.appConfig.workspace).toMatchObject({ mode: 'dedicated', sharing: 'organization' })
