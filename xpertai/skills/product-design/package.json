@@ -53,15 +53,15 @@
   "peerDependencies": {
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
-    "@xpert-ai/contracts": "^3.10.1",
-    "@xpert-ai/plugin-sdk": "^3.10.1"
+    "@xpert-ai/contracts": "^3.26.1",
+    "@xpert-ai/plugin-sdk": "^3.26.1"
   },
   "devDependencies": {
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "@types/node": "^20.19.9",
-    "@xpert-ai/contracts": "3.10.1",
-    "@xpert-ai/plugin-sdk": "3.10.1",
+    "@xpert-ai/contracts": "3.26.1",
+    "@xpert-ai/plugin-sdk": "3.26.1",
     "typescript": "^5.9.2"
   },
   "publishConfig": {

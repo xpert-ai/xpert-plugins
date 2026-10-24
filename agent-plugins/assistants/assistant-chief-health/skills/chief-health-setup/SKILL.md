@@ -1,0 +1,20 @@
+---
+name: chief-health-setup
+description: "首次使用健康习惯助理时整理输入、偏好和首个可验收结果。"
+---
+
+# 健康习惯助理 · 首次使用
+
+1. 读取已保存的 Assistant 偏好和本地台账。已有有效偏好直接复用。
+2. 收集用户目标、实际训练记录、可选设备导出，记录用户已提供的事实；将关键缺失项单独列出，不填造示例数据。
+3. 将任务目标、输入位置、交付物“习惯日志与下一次训练建议”和验收条件写入 assistants/chief-health/brief.md。
+4. 用 save_assistant_preferences 保存已确认的 language 和 timezone，不猜测时区。不要把业务资料塞入偏好。
+5. 信息足够时立即读取 chief-health-work 并完成首个结果；不足时交付含明确缺失项的准备清单。写入 assistants/chief-health/reports/getting-started.md，说明当前实际输入数量和下一步。
+
+## 文件与执行约定
+
+工作目录为 assistants/chief-health。先读取 brief.md、work-items.json、evidence.json 和相关历史报告。sandbox_write_file 只用于新路径；已有文件先读取再用 sandbox_edit_file 精确替换，保留无关事项与已完成状态。写入后读回确认，不通过另建 .tmp/.new/.bak 文件规避失败。台账中每条记录必须有稳定 id，重跑按 id 更新而不重复追加。不得保存密码、令牌或其他凭据。
+
+只使用当前运行时实际提供的工具，不臆造工具、账号、授权、实时查询或外部执行结果。来源网站的集成列表仅用于兼容性说明，不表示已安装或已授权。默认交付本地文件或草稿；发送、发布、购买、删除、修改外部系统前必须通过平台审批。工具报错或返回含错误字段时不能报告成功；外部写入超时先查询状态，避免重复执行。
+
+不诊断、不处方，不根据缺失数据推测健康指标。

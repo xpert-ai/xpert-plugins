@@ -19,6 +19,19 @@ export class Transcription {
     readonly engine: TranscriptionEngine,
     readonly thresholdDb = -50
   ) {}
+  private async transcribe(scope: Scope, audio: Buffer): Promise<string> {
+    try {
+      return (await this.engine.transcribe(scope, audio)).trim();
+    } catch (error) {
+      // Sound activity can be noise. Only the host's explicit no-text result is a completed empty segment.
+      if (
+        error instanceof Error &&
+        error.message === "speech_to_text_transcription_empty"
+      )
+        return "";
+      throw error;
+    }
+  }
   async available(
     scope: Scope,
     id: string,
@@ -92,7 +105,7 @@ export class Transcription {
           this.thresholdDb
         );
         const text = activity.length
-          ? (await this.engine.transcribe(meeting.scope, bytes)).trim()
+          ? await this.transcribe(meeting.scope, bytes)
           : "";
         if (text.length > 20000)
           throw new MeetingError("transcription_response_invalid");
@@ -184,9 +197,7 @@ export class Transcription {
           await this.store.read(scope, id);
           const combined = Buffer.concat(pcm);
           text = audioActivity(combined, first.startMs, this.thresholdDb).length
-            ? (
-                await this.engine.transcribe(meeting.scope, wav(combined))
-              ).trim()
+            ? await this.transcribe(meeting.scope, wav(combined))
             : "";
         }
         if (text.length > 20000)

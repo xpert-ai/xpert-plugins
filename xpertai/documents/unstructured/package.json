@@ -33,10 +33,10 @@
   },
   "peerDependencies": {
     "@langchain/core": "^0.3.72",
-    "@xpert-ai/contracts": "^3.6.0",
+    "@xpert-ai/contracts": "^3.26.1",
     "@nestjs/config": "^4.0.2",
     "@nestjs/common": "^11.1.6",
-    "@xpert-ai/plugin-sdk": "^3.6.0",
+    "@xpert-ai/plugin-sdk": "^3.26.1",
     "chalk": "^4.1.2",
     "lodash-es": "^4.17.21",
     "zod": "^3.25.67"

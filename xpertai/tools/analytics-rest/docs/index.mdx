@@ -1,0 +1,12 @@
+---
+title: 'REST/JSON analytics'
+description: 'Use existing OpenAPI connections as governed dashboard datasets.'
+---
+
+Install the matching platform REST runtime and this system plugin. Create an OpenAPI toolset in a workspace using the platform's existing connection and credential settings. Open Settings → Analytics → REST/JSON and create a Definition with the workspace/toolset IDs and exactly one approved dataset.
+
+The platform owns connection access, credentials, endpoint selection, contract validation and HTTP transport. This plugin owns dataset semantics, JSON projection and pagination. Live Dashboard discovers `rest.json` like any other provider; standard charts and HTML Artifacts consume the same Dataset/Binding contract. No renderer or dashboard-specific HTTP proxy is added.
+
+A viewer needs both data-source access and read access to the toolset's workspace. Every page request revalidates access and the saved operation contract. A saved Artifact does not grant connection access. Errors and revoked access fail closed.
+
+See [configuration](/configuration) for the catalog and [verification](/verification) for acceptance checks.

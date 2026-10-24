@@ -1,0 +1,24 @@
+---
+title: 'Verification'
+description: 'Contract checks and local application acceptance.'
+---
+
+The package test suite uses actual CSV, JSON and XLSX bytes and the shipped Worker entrypoint. It checks exact sums, filtering, source replacement, saved Binding reuse, discovery redaction, output contracts, revocation before/after processing, Project/private ownership, invalid paths, cancellation, schema drift, formulas, ZIP expansion, forged ZIP sizes and streaming/stored ZIP compatibility.
+
+Run the plugin lifecycle harness after building. A successful mock lifecycle test establishes loadability, not live file authorization or Agent behavior.
+
+For local application acceptance, configure equivalent CSV/JSON/XLSX datasets in a published test Assistant's Workspace. Generate a dashboard through a real Chat request, compare totals with known fixture values, change a filter, update the source through the Files API and refresh. Close/reopen the resource card and reload the host page. Verify the same Artifact and saved Binding, with newly fetched source data.
+
+Revoke the viewer's source/file access and verify discovery and saved queries fail; restore it and retry. Test unknown Bindings, undeclared controls, payload/file overrides, direct browser fetch and parent DOM access. Keep environment-specific receipts outside the repository. Local acceptance does not constitute a formal release verification.
+
+## 2026-10-18 local acceptance
+
+A real configured model generated separate HTML/ECharts dashboards from CSV, JSON and XLSX through one Chat request per source in xpert-pro. No prewritten HTML or scripts were supplied. All three saved drafts passed UI checks for KPI, chart series, detail rows, region filtering, toolbar refresh, page refresh, resource-card reopening and browser-reload restoration.
+
+The independent fixture has seven input rows and six month/region groups: total 5,700 CNY, East 3,500 and West 2,200. Changing the first source amount by 100/200/300 CNY for CSV/JSON/XLSX produced filtered East totals of 3,600/3,700/3,800 after refresh. Selection and the mounted document were preserved; source files were restored afterwards.
+
+With the same viewer JWT, revoking Assistant file access or DATA_SOURCE_VIEW denied both discovery and query on all three formats; restoring access allowed the next request. The viewer had no inherited workspace membership during this test. Temporary test grants were removed. Saved dashboard queries rejected undeclared Bindings and file, reader, provider, payload or control overrides; the document could not fetch the backend directly or read its parent DOM.
+
+These results cover the local xpert-pro environment, not a new data-xpert SSO run or formal release verification. The 20 source-adapter tests passed separately. Real model generation can require tool-error recovery; a saved receipt is necessary, and page review must still validate business semantics.
+
+A new three-source dashboard also passed shared-filter and source-update UI checks. A separate dashboard retained its Artifact, draft, Bindings, controls and library locks across two edit requests (observed revisions r1 → r3 → r5); the final draft passed the same refresh/reopen checks. The Live Dashboard plugin records both failed initial trials and the successful retries in `docs/file-datasets-acceptance.mdx`.

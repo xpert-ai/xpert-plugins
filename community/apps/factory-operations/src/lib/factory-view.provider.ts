@@ -36,15 +36,13 @@ import {
   FACTORY_MANAGEMENT_DASHBOARD_FEATURE,
   FACTORY_MUTATION_TOOL_NAMES,
   FACTORY_PLUGIN_NAME,
-  FACTORY_REMOTE_ENTRY_KEY,
-  FACTORY_VIEW_KEY,
   FACTORY_VIEW_PROVIDER_KEY,
   FACTORY_WORKBENCH_FEATURE
 } from './constants.js'
 import type { FactoryPipelineProjection, FactoryScope } from './domain/types.js'
 import { FactoryOperationsService } from './factory-operations.service.js'
 import { FactoryCaseProjectService } from './factory-case-project.service.js'
-import { FactoryAssistantTaskService } from './factory-assistant-task.service.js'
+import { FactoryPipelineService } from './pipeline/service.js'
 import {
   approveRecoveryPlanSchema,
   createDemoIncidentSchema,
@@ -85,7 +83,7 @@ export class FactoryOperationsViewProvider implements IXpertViewExtensionProvide
   constructor(
     private readonly service: FactoryOperationsService,
     private readonly caseProjects: FactoryCaseProjectService,
-    private readonly assistantTasks: FactoryAssistantTaskService,
+    private readonly pipelines: FactoryPipelineService,
     private readonly profiles: FactoryProfileService
   ) {}
 
@@ -106,9 +104,9 @@ export class FactoryOperationsViewProvider implements IXpertViewExtensionProvide
     }
     const fixed = slot === AGENT_WORKBENCH_FIXED_SLOT
     if (fixed) {
-      return [pipelineManifest(slot, true), workspaceManifest(slot), dashboardManifest(slot)]
+      return [workspaceManifest(slot, true), dashboardManifest(slot)]
     }
-    return [pipelineManifest(slot, false), workspaceManifest(slot), dashboardManifest(slot, false)]
+    return [workspaceManifest(slot), dashboardManifest(slot, false)]
   }
 
   async getRemoteComponentEntry(
@@ -118,7 +116,6 @@ export class FactoryOperationsViewProvider implements IXpertViewExtensionProvide
   ): Promise<XpertRemoteComponentEntry> {
     const supported =
       (isFactoryProfileView(viewKey) && component.entry === FACTORY_PROFILE_ENTRY) ||
-      (viewKey === FACTORY_VIEW_KEY && component.entry === FACTORY_REMOTE_ENTRY_KEY) ||
       (viewKey === FACTORY_CASE_WORKSPACE_VIEW_KEY &&
         component.entry === FACTORY_CASE_WORKSPACE_REMOTE_ENTRY_KEY) ||
       (viewKey === FACTORY_DASHBOARD_VIEW_KEY &&
@@ -144,7 +141,7 @@ export class FactoryOperationsViewProvider implements IXpertViewExtensionProvide
             ? 'Factory Operations Management Dashboard'
             : viewKey === FACTORY_CASE_WORKSPACE_VIEW_KEY
               ? 'Factory Case Workspace'
-              : 'Factory Recovery Pipeline',
+              : 'Factory Assistant Profile',
         lang: normalizeHtmlLang(context.locale),
         reactUmd,
         reactDomUmd,
@@ -164,7 +161,7 @@ export class FactoryOperationsViewProvider implements IXpertViewExtensionProvide
     if (viewKey === FACTORY_DASHBOARD_VIEW_KEY) {
       return this.service.getManagementDashboard(scopeFromContext(context))
     }
-    if (viewKey !== FACTORY_VIEW_KEY && viewKey !== FACTORY_CASE_WORKSPACE_VIEW_KEY) return {}
+    if (viewKey !== FACTORY_CASE_WORKSPACE_VIEW_KEY) return {}
     const scope = scopeFromContext(context)
     const cases = await this.service.listCases(scope, {
       page: query.page,
@@ -183,7 +180,6 @@ export class FactoryOperationsViewProvider implements IXpertViewExtensionProvide
         : null
     const selectedCase = runtimeProjectId ? runtimeCase : (requestedCase ?? cases.items[0] ?? null)
     const selectedId = selectedCase?.id
-    if (selectedId) await this.assistantTasks.reconcile(scope, selectedId)
     const projection = selectedId
       ? withPlatformAssistantBindings(
           await this.service.getCaseProjection(scope, { caseId: selectedId }),
@@ -220,7 +216,7 @@ export class FactoryOperationsViewProvider implements IXpertViewExtensionProvide
     if (isFactoryProfileView(viewKey)) {
       try { return await this.profiles.execute(context, actionKey, request) } catch (error) { return actionFailure(error) }
     }
-    if (viewKey !== FACTORY_VIEW_KEY && viewKey !== FACTORY_CASE_WORKSPACE_VIEW_KEY) {
+    if (viewKey !== FACTORY_CASE_WORKSPACE_VIEW_KEY) {
       return failure('Unsupported Factory Operations View.')
     }
     const scope = scopeFromContext(context)
@@ -230,29 +226,10 @@ export class FactoryOperationsViewProvider implements IXpertViewExtensionProvide
         const result = await this.service.createDemoIncident(scope, input)
         return actionSuccess('M-07 incident loaded', 'M-07 异常已载入', result)
       }
-      if (actionKey === 'dispatch_assistant_task') {
-        const input = dispatchAssistantTaskSchema.parse(request.input)
-        const result = await this.assistantTasks.dispatch(scope, input)
-        return {
-          success: true,
-          message: text('Assistant Task queued', 'Assistant Task 已排队'),
-          data: {
-            executionRecordId: result.executionRecord.id,
-            status: result.executionRecord.status,
-            duplicate: result.duplicate
-          },
-          refresh: true
-        }
-      }
-      if (actionKey === 'cancel_assistant_task') {
-        const input = cancelAssistantTaskSchema.parse(request.input)
-        const result = await this.assistantTasks.cancel(scope, input.executionRecordId)
-        return {
-          success: true,
-          message: text('Assistant Task cancelled', 'Assistant Task 已取消'),
-          data: { executionRecordId: result.id, status: result.status },
-          refresh: true
-        }
+      if (actionKey === 'start_pipeline') {
+        const input = startPipelineSchema.parse(request.input)
+        const result = await this.pipelines.start(scope, input)
+        return { success: true, message: text('Pipeline started', '项目流水线已启动'), data: result, refresh: true }
       }
       if (actionKey === 'retry_case_project') {
         const input = retryCaseProjectSchema.parse(request.input)
@@ -270,23 +247,13 @@ export class FactoryOperationsViewProvider implements IXpertViewExtensionProvide
       }
       if (actionKey === 'approve_recovery_plan') {
         const input = approveRecoveryPlanSchema.parse(request.input)
-        const result = await this.service.approveRecoveryPlan(scope, input)
-        return actionSuccess('Plan B approved', '方案 B 已批准', result)
+        const result = await this.pipelines.decide(scope, input, 'approved')
+        return { success: true, data: result, refresh: true }
       }
       if (actionKey === 'reject_recovery_plan') {
         const input = rejectRecoveryPlanSchema.parse(request.input)
-        const result = await this.service.rejectRecoveryPlan(scope, input)
-        return actionSuccess('Recovery plan rejected', '恢复方案已拒绝', result)
-      }
-      if (actionKey === 'execute_recovery_plan') {
-        const input = executeRecoveryPlanSchema.parse(request.input)
-        const result = await this.service.executeRecoveryPlan(scope, input)
-        return actionSuccess('Recovery actions confirmed', '恢复动作已确认', result)
-      }
-      if (actionKey === 'verify_recovery') {
-        const input = verifyRecoverySchema.parse(request.input)
-        const result = await this.service.verifyRecovery(scope, input)
-        return actionSuccess('Production recovery verified', '生产恢复已验证', result)
+        const result = await this.pipelines.decide(scope, input, 'rejected')
+        return { success: true, data: result, refresh: true }
       }
       return failure(`Unsupported Factory Operations action '${actionKey}'.`)
     } catch (error) {
@@ -295,46 +262,7 @@ export class FactoryOperationsViewProvider implements IXpertViewExtensionProvide
   }
 }
 
-function pipelineManifest(slot: string, fixed: boolean): XpertExtensionViewManifest {
-  return {
-    key: FACTORY_VIEW_KEY,
-    title: text('Factory Recovery Pipeline', '多 Agent 异常恢复流水线'),
-    description: text(
-      'Operate persisted Factory Cases through a server-projected multi-role DAG.',
-      '通过服务端投影的多角色 DAG 推进持久化 Factory Case。'
-    ),
-    icon: FACTORY_ICON,
-    hostType: 'agent',
-    slot,
-    order: 20,
-    refreshable: true,
-    activation: { requiredFeatures: [FACTORY_WORKBENCH_FEATURE] },
-    ...(fixed
-      ? {
-          workbench: {
-            fixed: true,
-            menu: {
-              enabled: true,
-              label: text('Recovery pipeline', '异常恢复流水线'),
-              order: 20,
-              icon: FACTORY_ICON
-            }
-          }
-        }
-      : {}),
-    source: {
-      provider: FACTORY_VIEW_PROVIDER_KEY,
-      plugin: FACTORY_PLUGIN_NAME
-    },
-    view: remoteView(FACTORY_REMOTE_ENTRY_KEY),
-    dataSource: workbenchDataSource(),
-    hostEvents: mutationHostEvents('factory-pipeline-tool-completed'),
-    clientCommands: commonClientCommands(),
-    actions: factoryActions()
-  }
-}
-
-function workspaceManifest(slot: string): XpertExtensionViewManifest {
+function workspaceManifest(slot: string, fixed = false): XpertExtensionViewManifest {
   return {
     key: FACTORY_CASE_WORKSPACE_VIEW_KEY,
     title: text('Factory Case Workspace', 'Factory Case 任务工作区'),
@@ -352,6 +280,7 @@ function workspaceManifest(slot: string): XpertExtensionViewManifest {
       provider: FACTORY_VIEW_PROVIDER_KEY,
       plugin: FACTORY_PLUGIN_NAME
     },
+    ...(fixed ? { workbench: { fixed: true, menu: { enabled: true, label: text('Case workspace', '业务工作台'), order: 20, icon: FACTORY_ICON } } } : {}),
     view: remoteView(FACTORY_CASE_WORKSPACE_REMOTE_ENTRY_KEY),
     dataSource: workbenchDataSource(),
     hostEvents: mutationHostEvents('factory-workspace-tool-completed'),
@@ -487,15 +416,9 @@ function factoryActions(): NonNullable<XpertExtensionViewManifest['actions']> {
       actionType: 'invoke'
     },
     {
-      key: 'dispatch_assistant_task',
+      key: 'start_pipeline',
       label: text('Dispatch Assistant Task', '派发 Assistant Task'),
       icon: 'ri-send-plane-line',
-      actionType: 'invoke'
-    },
-    {
-      key: 'cancel_assistant_task',
-      label: text('Cancel Assistant Task', '取消 Assistant Task'),
-      icon: 'ri-stop-circle-line',
       actionType: 'invoke'
     },
     {
@@ -516,18 +439,6 @@ function factoryActions(): NonNullable<XpertExtensionViewManifest['actions']> {
       icon: 'ri-close-circle-line',
       actionType: 'invoke'
     },
-    {
-      key: 'execute_recovery_plan',
-      label: text('Execute approved plan', '执行已批准方案'),
-      icon: 'ri-play-circle-line',
-      actionType: 'invoke'
-    },
-    {
-      key: 'verify_recovery',
-      label: text('Verify recovery', '验证恢复'),
-      icon: 'ri-shield-check-line',
-      actionType: 'invoke'
-    }
   ]
 }
 
@@ -608,15 +519,10 @@ function readParameter(parameters: XpertViewQuery['parameters'], key: string) {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined
 }
 
-const dispatchAssistantTaskSchema = z.object({
+const startPipelineSchema = z.object({
   caseId: z.string().uuid(),
-  nodeKey: z.string().trim().min(1).max(100),
   baseRevision: z.number().int().positive(),
   operationId: z.string().trim().min(1).max(128)
-})
-
-const cancelAssistantTaskSchema = z.object({
-  executionRecordId: z.string().uuid()
 })
 
 const retryCaseProjectSchema = z.object({

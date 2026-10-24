@@ -36,13 +36,15 @@ export const templates: XpertTemplateContribution[] = [
       "查找最近关于项目排期的决定。",
     ],
     releaseNotes:
-      "模板 v6：会议记录和协作文档按助手共享，录音会话保留发起人绑定。",
+      "模板 v7：启用会议应用前选择语音转写模型，会议记录继续按助手共享。",
     providerKey: "meetings.templates",
     order: 30,
     default: false,
   },
 ];
 const label = (en_US: string, zh_Hans: string) => ({ en_US, zh_Hans });
+// Kept structurally compatible with the SDK release preceding speech-model setup.
+const modelRequirements = { primary: true, speechToText: true };
 export const appContribution: PluginMarketplaceContribution = {
   type: "app",
   name: "meetings",
@@ -62,7 +64,7 @@ export const appContribution: PluginMarketplaceContribution = {
       sharing: "organization",
     },
     knowledgebases: [],
-    modelRequirements: { primary: true },
+    modelRequirements,
     entry: { type: "assistant-chat" },
     presentation: {
       tagline: label(
@@ -102,8 +104,8 @@ export const appContribution: PluginMarketplaceContribution = {
         "会议内容由有权使用当前助手的成员共享，保存在助手的共享文件空间中；需要独立记录时使用独立助手。"
       ),
       initializationSummary: label(
-        "Creates a workspace and Assistant. Configure speech-to-text on the Assistant and the primary chat model on the Assistant before recording.",
-        "创建工作空间和会议助手。录音前需为助手配置语音转写模型，并配置助手的主对话模型。"
+        "Select a speech-to-text model to create and publish the workspace and Assistant.",
+        "选择语音转写模型，创建工作空间并发布会议助手。"
       ),
     },
   },

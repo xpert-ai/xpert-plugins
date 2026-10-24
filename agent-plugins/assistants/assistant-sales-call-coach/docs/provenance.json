@@ -1,0 +1,32 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/sales-call-coach",
+    "name": "Sales Call Coach",
+    "creator": "Daniel Brill",
+    "categories": [
+      "From Grok Bot Team",
+      "Sales"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 8,
+    "routineCount": 2,
+    "integrations": [
+      "notion-workspace",
+      "slack",
+      "linear",
+      "Gong",
+      "Google Calendar"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "sales",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

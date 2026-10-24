@@ -1,3 +1,5 @@
+import { MaterialPipelineEvidence } from '../pipeline/entity.js'
+import type { ProjectPipelineWorkContext } from '@xpert-ai/contracts'
 import {
   Column,
   Entity,
@@ -43,11 +45,13 @@ export class MaterialCaseEntity extends ScopedEntity {
     | 'ready'
     | 'failed'
   @Column({ type: 'jsonb', default: [] }) assignedAssistantIds!: string[]
-  @Column({ type: 'boolean', default: false }) autoRun!: boolean
+  @Column({ type: 'uuid', nullable: true }) pipelineBindingId!: string | null
+  @Column({ type: 'uuid', nullable: true }) pipelineInstanceId!: string | null
+  @Column({ type: 'jsonb', default: {} }) roleAssistants!: Record<string, string>
   @Column({ type: 'boolean', default: false }) criticalConflict!: boolean
   @Column({ type: 'double precision', default: 0 }) exposure!: number
 }
-@Entity(pluginArtifactTableName(ARTIFACT_NAMESPACE, 'execution'))
+@Entity(pluginArtifactTableName(ARTIFACT_NAMESPACE, 'pipeline_acceptance'))
 @Index(['scopeKey', 'operationId'], { unique: true })
 @Index(['scopeKey', 'caseId', 'nodeKey', 'attempt'], { unique: true })
 @Index(['tenantId', 'organizationId', 'status'])
@@ -61,7 +65,7 @@ export class MaterialExecutionEntity extends ScopedEntity {
   @Column({ type: 'varchar' }) status!: ExecutionRecord['status']
   @Column({ type: 'jsonb' }) record!: ExecutionRecord
   @Column({ type: 'varchar' }) requestedBy!: string
-  @Column({ type: 'varchar', nullable: true }) queueJobId!: string | null
+  @Column({ type: 'jsonb' }) pipelineWork!: ProjectPipelineWorkContext
   @Column({ type: 'varchar', nullable: true }) executorId!: string | null
   @Column({ type: 'varchar', nullable: true }) executorVersion!: string | null
 }
@@ -114,6 +118,7 @@ export class MaterialAliasEntity extends ScopedEntity {
   @Column({ type: 'uuid' }) approvedCaseId!: string
 }
 export const MATERIAL_ENTITIES = [
+  MaterialPipelineEvidence,
   MaterialCaseEntity,
   MaterialExecutionEntity,
   MaterialNodeEntity,

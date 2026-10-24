@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-mimo",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Xiaomi MiMo model plugin for the XpertAI platform",
   "author": {
     "name": "XpertAI",
@@ -39,10 +39,10 @@
   },
   "peerDependencies": {
     "@langchain/openai": "0.6.9",
-    "@xpert-ai/contracts": "^3.6.1",
+    "@xpert-ai/contracts": "^3.26.1",
     "@nestjs/common": "^11.1.6",
     "@nestjs/config": "^4.0.2",
-    "@xpert-ai/plugin-sdk": "^3.6.1",
+    "@xpert-ai/plugin-sdk": "^3.26.1",
     "zod": "3.25.67"
   }
 }

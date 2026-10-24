@@ -1,6 +1,11 @@
 import { z } from 'zod/v3'
+import type { XpertProjectTypeRef } from '@xpert-ai/contracts'
+import type { ConnectorRuntimeScope } from '@xpert-ai/plugin-sdk'
 
 export const PLUGIN = '@xpert-ai/plugin-code-review'
+export const REVIEW_PROJECT_TYPE: XpertProjectTypeRef = {
+  applicationKey: `${PLUGIN}:code-review`, projectTypeKey: 'review'
+}
 export const NAMESPACE = 'code_review'
 export const FEATURE = 'code_review.core'
 export const PROVIDER = 'code_review.provider'
@@ -10,7 +15,10 @@ export const scopeSchema = z.object({
   tenantId: z.string().min(1), organizationId: z.string().min(1), userId: z.string().min(1),
   assistantId: z.string().min(1), workspaceId: z.string().nullish()
 })
-export type Scope = z.infer<typeof scopeSchema>
+export type Scope = z.infer<typeof scopeSchema> & {
+  /** Trusted host context only; never parsed from a View action or model input. */
+  runtime?: Pick<ConnectorRuntimeScope, 'viewHost' | 'conversationId' | 'executionId' | 'projectId'>
+}
 export const idSchema = z.string().uuid()
 export const shaSchema = z.string().regex(/^[a-f0-9]{40}$/)
 export const refSchema = z.object({
@@ -18,6 +26,13 @@ export const refSchema = z.object({
   repository: z.string().regex(/^[\w.-]+$/), number: z.number().int().positive()
 }).strict()
 export type PullRef = z.infer<typeof refSchema>
+export const localGitRefSchema = z.object({ provider: z.literal('local_git'), repository: z.string().trim().min(1).max(200),
+  bundleDigest: z.string().regex(/^[a-f0-9]{64}$/) }).strict()
+export const reviewRefSchema = z.discriminatedUnion('provider', [refSchema, localGitRefSchema])
+export type ReviewRef = z.output<typeof reviewRefSchema>
+export function reviewLabel(ref: ReviewRef) {
+  return ref.provider === 'github' ? `${ref.owner}/${ref.repository} #${ref.number}` : ref.repository
+}
 export const findingSchema = z.object({
   title: z.string().min(1).max(200), body: z.string().min(1).max(6000),
   priority: z.enum(['P0', 'P1', 'P2', 'P3']), path: z.string().min(1).max(1000),

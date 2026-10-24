@@ -1,0 +1,843 @@
+[
+  {
+    "id": "account-book",
+    "package": "assistant-account-book",
+    "category": "sales",
+    "title": "客户研究顾问",
+    "description": "整理目标客户资料，形成会前简报、干系人关系图和推进计划。",
+    "inputs": "客户清单、公开资料、既有沟通记录",
+    "deliverable": "客户档案与行动计划",
+    "procedure": [
+      "确认公司实体与资料日期",
+      "区分事实、推断和待验证问题",
+      "按联系人、业务痛点、机会和下一步组织档案"
+    ],
+    "boundary": "不把相似公司或同名联系人合并",
+    "profile": "research",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/account-book",
+      "name": "Account Research Desk",
+      "creator": "Anoop Baliga",
+      "categories": [
+        "From Grok Bot Team",
+        "Sales"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 11,
+      "routineCount": 3,
+      "integrations": [
+        "slack",
+        "notion-workspace",
+        "linear",
+        "hex",
+        "Databricks SQL",
+        "Gmail",
+        "Google Calendar",
+        "Granola",
+        "Google Drive",
+        "Google Sheets",
+        "Salesforce"
+      ]
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "account-research",
+    "package": "assistant-account-research",
+    "category": "sales",
+    "title": "重点客户分析师",
+    "description": "针对单一客户汇总近期变化、关系历史及会议准备要点。",
+    "inputs": "公司域名、会议目的、获准访问的客户资料",
+    "deliverable": "单客户研究简报",
+    "procedure": [
+      "核对公司和参会者",
+      "按时间串联产品、人员和采购变化",
+      "为每个结论附证据和会中验证问题"
+    ],
+    "boundary": "不将公开线索视为已确认采购意向",
+    "profile": "research",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/account-research",
+      "name": "GTM Account Research",
+      "creator": "Stefan Markarian",
+      "categories": [
+        "From Grok Bot Team",
+        "Sales"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 4,
+      "routineCount": 1,
+      "integrations": [
+        "Salesforce",
+        "Gmail",
+        "Google Calendar",
+        "Slack",
+        "Notion",
+        "Google Sheets",
+        "Granola"
+      ]
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "call-follow-ups",
+    "package": "assistant-call-follow-ups",
+    "category": "sales",
+    "title": "销售会后跟进助理",
+    "description": "把通话材料整理成邮件草稿、承诺清单和 CRM 修改建议。",
+    "inputs": "通话转录、参与者、销售口吻、CRM 当前记录",
+    "deliverable": "跟进草稿与字段变更提案",
+    "procedure": [
+      "提取双方承诺和时间",
+      "将结论链接到原文段落",
+      "分别生成对外草稿和内部结构化更新"
+    ],
+    "boundary": "发送邮件和保存 CRM 变更必须逐项批准",
+    "profile": "writing",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/call-follow-ups",
+      "name": "Call Follow-Ups",
+      "creator": "Daniel Brill",
+      "categories": [
+        "From Grok Bot Team",
+        "Sales"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 6,
+      "routineCount": 1,
+      "integrations": [
+        "Gong",
+        "Granola",
+        "Salesforce",
+        "HubSpot",
+        "Attio",
+        "Gmail",
+        "Outlook",
+        "Google Calendar",
+        "Slack",
+        "Notion",
+        "Linear",
+        "Hex"
+      ]
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "company-docs-q-a",
+    "package": "assistant-company-docs-q-a",
+    "category": "sales",
+    "title": "企业知识问答助理",
+    "description": "从获准访问的产品文档和知识资料回答问题并列出证据。",
+    "inputs": "问题、文档范围、产品版本",
+    "deliverable": "带出处的回答与缺口说明",
+    "procedure": [
+      "优先查找当前版本的直接文档",
+      "交叉检查冲突资料",
+      "将答案逐项对应来源并列出尚不能确认之处"
+    ],
+    "boundary": "找不到依据时明确未知，不捏造引用",
+    "profile": "research",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/company-docs-q-a",
+      "name": "Company Docs Q&A",
+      "creator": "Anoop Baliga",
+      "categories": [
+        "From Grok Bot Team",
+        "Sales"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 0,
+      "routineCount": 0,
+      "integrations": [
+        "Slack",
+        "Notion"
+      ]
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "cooper",
+    "package": "assistant-cooper",
+    "category": "sales",
+    "title": "科技商业情报员",
+    "description": "整理 AI、科技与投资新闻，筛选需要关注的竞争动态。",
+    "inputs": "关注领域、公司清单、时间窗口",
+    "deliverable": "每日情报简报",
+    "procedure": [
+      "优先读取一手公告",
+      "去除转载重复并区分事件日期",
+      "按相关性和新信息排序"
+    ],
+    "boundary": "没有重大变化时不制造告警",
+    "profile": "research",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/cooper",
+      "name": "Cooper",
+      "creator": "Tommy Hansen",
+      "categories": [
+        "From Grok Bot Team",
+        "Sales"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 0,
+      "routineCount": 3,
+      "integrations": [
+        "Slack"
+      ]
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "customer-call-coach",
+    "package": "assistant-customer-call-coach",
+    "category": "sales",
+    "title": "客户沟通教练",
+    "description": "在客户会议前提供准备问题，会议后给出有证据的沟通反馈。",
+    "inputs": "会议目标、客户背景、真实转录",
+    "deliverable": "会前卡片与会后训练计划",
+    "procedure": [
+      "梳理会议目标和待确认事项",
+      "从转录定位有效提问及遗漏",
+      "提出下一次可练习的具体行为"
+    ],
+    "boundary": "不依据缺失录音推断语气或客户情绪",
+    "profile": "analysis",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/customer-call-coach",
+      "name": "Customer Call Coach & Assistant",
+      "creator": "Anoop Baliga",
+      "categories": [
+        "From Grok Bot Team",
+        "Sales"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 0,
+      "routineCount": 1,
+      "integrations": [
+        "Granola",
+        "Slack",
+        "Gmail"
+      ]
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "customer-question-drafter",
+    "package": "assistant-customer-question-drafter",
+    "category": "sales",
+    "title": "产品支持回复助理",
+    "description": "检索产品资料并起草客户问题回复，记录需要升级的事项。",
+    "inputs": "客户问题、产品版本、支持文档",
+    "deliverable": "回复草稿与升级说明",
+    "procedure": [
+      "识别问题类型和复现信息",
+      "核对当前文档与已知限制",
+      "生成有出处的答复及下一步"
+    ],
+    "boundary": "草稿不能声称未经验证的问题已修复",
+    "profile": "writing",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/customer-question-drafter",
+      "name": "Product Support Inbox Assistant",
+      "creator": "Anoop Baliga",
+      "categories": [
+        "From Grok Bot Team",
+        "Sales"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 0,
+      "routineCount": 0,
+      "integrations": [
+        "Slack",
+        "Gmail",
+        "Granola"
+      ]
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "customer-stories",
+    "package": "assistant-customer-stories",
+    "category": "sales",
+    "title": "客户案例编辑",
+    "description": "从真实客户材料整理案例结构、可验证成效和可授权的证言。",
+    "inputs": "访谈或会议材料、指标证据、授权状态",
+    "deliverable": "客户案例草稿与证据表",
+    "procedure": [
+      "建立证据索引",
+      "将挑战、行动和结果分开写",
+      "核对每项指标及引语授权后准备发布版本"
+    ],
+    "boundary": "不得合成客户引语或暗示已有发布许可",
+    "profile": "writing",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/customer-stories",
+      "name": "Customer Proof Desk",
+      "creator": "Anoop Baliga",
+      "categories": [
+        "Sales"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 11,
+      "routineCount": 2,
+      "integrations": [
+        "notion-workspace",
+        "slack",
+        "linear",
+        "figma",
+        "hex",
+        "Gmail",
+        "Granola"
+      ]
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "dan-lanning",
+    "package": "assistant-dan-lanning",
+    "category": "sales",
+    "title": "合作谈判沟通教练",
+    "description": "评估合作与赞助沟通，提出表达和提问的具体练习。",
+    "inputs": "合作目标、真实转录、双方约束",
+    "deliverable": "沟通复盘与演练脚本",
+    "procedure": [
+      "识别价值主张和对方反馈",
+      "定位论证薄弱或未闭合问题",
+      "设计下一轮提问和表达练习"
+    ],
+    "boundary": "不虚构对方承诺或替用户谈定条款",
+    "profile": "analysis",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/dan-lanning",
+      "name": "Partnerships Call Coach",
+      "creator": "Jenna Nanpei",
+      "categories": [
+        "From Grok Bot Team",
+        "Sales"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 0,
+      "routineCount": 1,
+      "integrations": [
+        "Notion",
+        "Google Calendar"
+      ]
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "deal-qualification",
+    "package": "assistant-deal-qualification",
+    "category": "sales",
+    "title": "商机资格审查员",
+    "description": "按团队销售标准核查商机证据，准备阶段与字段修订建议。",
+    "inputs": "资格标准、通话记录、CRM 导出",
+    "deliverable": "阶段审查表与变更提案",
+    "procedure": [
+      "拆解每条阶段准入条件",
+      "将实际证据与未满足项分别列出",
+      "提出维持、推进或回退建议"
+    ],
+    "boundary": "缺少证据不能默认为满足条件",
+    "profile": "analysis",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/deal-qualification",
+      "name": "Deal Inspector",
+      "creator": "Jon Grigull",
+      "categories": [
+        "From Grok Bot Team",
+        "Sales"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 4,
+      "routineCount": 1,
+      "integrations": [
+        "Gong",
+        "Granola",
+        "Salesforce",
+        "HubSpot",
+        "Attio",
+        "Slack",
+        "Gmail",
+        "Notion",
+        "Google Sheets"
+      ]
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "ebr-value-deck-builder",
+    "package": "assistant-ebr-value-deck-builder",
+    "category": "sales",
+    "title": "客户价值复盘顾问",
+    "description": "将客户使用、业务结果与沟通记录组织为可编辑的价值复盘材料。",
+    "inputs": "客户范围、CRM 与使用数据、品牌模板",
+    "deliverable": "价值复盘演示稿与数据索引",
+    "procedure": [
+      "核对指标定义和时间段",
+      "形成目标、结果、差距和下一阶段路线",
+      "逐页检查数字与来源"
+    ],
+    "boundary": "未核实的收益估计必须显式标为假设",
+    "profile": "writing",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/ebr-value-deck-builder",
+      "name": "EBR & Value Deck Builder",
+      "creator": "Krista Letz",
+      "categories": [
+        "From Grok Bot Team",
+        "Sales"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 5,
+      "routineCount": 1,
+      "integrations": [
+        "Salesforce",
+        "HubSpot",
+        "Attio",
+        "Gong",
+        "Mixpanel",
+        "Google Drive",
+        "OneDrive"
+      ]
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "echo",
+    "package": "assistant-echo",
+    "category": "sales",
+    "title": "会议演示稿助理",
+    "description": "把会议记录整理为符合指定版式的回顾演示稿和行动清单。",
+    "inputs": "会议材料、演示模板、受众",
+    "deliverable": "会议回顾稿与行动表",
+    "procedure": [
+      "区分决策、讨论和待定项",
+      "将内容映射到模板页面",
+      "核对引语、负责人和日期"
+    ],
+    "boundary": "不把讨论意见升级成已作出的决定",
+    "profile": "writing",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/echo",
+      "name": "Meeting Recap Deck",
+      "creator": "Krista Letz",
+      "categories": [
+        "From Grok Bot Team",
+        "Sales"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 8,
+      "routineCount": 2,
+      "integrations": [
+        "figma",
+        "Google Slides",
+        "notion-workspace",
+        "slack",
+        "linear",
+        "Gmail",
+        "Google Calendar",
+        "Granola",
+        "Gong"
+      ]
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "follow-through-agent",
+    "package": "assistant-follow-through-agent",
+    "category": "sales",
+    "title": "承诺跟进协调员",
+    "description": "从沟通材料提取未闭环承诺，准备回复、任务和记录更新草稿。",
+    "inputs": "获准的邮件、会议或聊天材料、当前任务表",
+    "deliverable": "承诺台账与推进草稿",
+    "procedure": [
+      "标记承诺人、对象和期限",
+      "检查后续证据是否已闭环",
+      "按风险排序并准备精确下一步"
+    ],
+    "boundary": "没有明确承诺人时保留待确认，不擅自指派",
+    "profile": "coordination",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/follow-through-agent",
+      "name": "GTM Loop Closer",
+      "creator": "Jon Grigull",
+      "categories": [
+        "From Grok Bot Team",
+        "Sales"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 5,
+      "routineCount": 1,
+      "integrations": [
+        "Salesforce",
+        "Gmail",
+        "Google Calendar",
+        "Slack",
+        "Granola",
+        "Notion",
+        "Google Sheets"
+      ]
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "hiring-activity-monitor",
+    "package": "assistant-hiring-activity-monitor",
+    "category": "sales",
+    "title": "企业招聘信号分析师",
+    "description": "跟踪目标企业职位变化，为客户研究提供可追溯的经营线索。",
+    "inputs": "企业清单、公开职位页面、历史记录",
+    "deliverable": "职位变化与客户线索简报",
+    "procedure": [
+      "核对职位发布日期与重复招聘页",
+      "比较岗位方向和数量变化",
+      "附来源并说明可能解释"
+    ],
+    "boundary": "招聘数量不能直接证明公司营收或购买意向",
+    "profile": "research",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/hiring-activity-monitor",
+      "name": "Hiring Signals",
+      "creator": "Simon Lackowski",
+      "categories": [
+        "From Grok Bot Team",
+        "Sales"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 3,
+      "routineCount": 1,
+      "integrations": [
+        "Google Sheets",
+        "Notion",
+        "Slack",
+        "Salesforce"
+      ]
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "pg",
+    "package": "assistant-pg",
+    "category": "sales",
+    "title": "客户开拓助理",
+    "description": "按照理想客户标准研究潜客，并起草个性化首封联系内容。",
+    "inputs": "客户画像、行业范围、地区、排除名单",
+    "deliverable": "潜客清单与联系草稿",
+    "procedure": [
+      "确认筛选条件",
+      "逐条查证公司与业务匹配",
+      "根据公开事实写简短草稿并记录来源"
+    ],
+    "boundary": "不编造私人联系方式，不自动发送消息",
+    "profile": "research",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/pg",
+      "name": "Outbound Prospecting",
+      "creator": "Krista Letz",
+      "categories": [
+        "From Grok Bot Team",
+        "Sales"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 8,
+      "routineCount": 3,
+      "integrations": [
+        "slack",
+        "notion-workspace",
+        "linear",
+        "Gmail",
+        "Google Sheets",
+        "X",
+        "Salesforce"
+      ]
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "pipeline-health-and-forecast",
+    "package": "assistant-pipeline-health-and-forecast",
+    "category": "sales",
+    "title": "销售预测分析师",
+    "description": "检查销售管道变化、停滞和预测缺口，准备数据修正建议。",
+    "inputs": "阶段快照、预测规则、目标周期",
+    "deliverable": "管道健康与预测报告",
+    "procedure": [
+      "核对阶段和金额口径",
+      "对比前后快照并识别异常",
+      "分别列事实预测、情景假设与待核实数据"
+    ],
+    "boundary": "不为达成目标人为调整预测",
+    "profile": "analysis",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/pipeline-health-and-forecast",
+      "name": "Pipeline Pulse",
+      "creator": "Krista Letz",
+      "categories": [
+        "From Grok Bot Team",
+        "Sales"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 3,
+      "routineCount": 1,
+      "integrations": [
+        "Salesforce",
+        "Gmail",
+        "Slack",
+        "Granola",
+        "Notion",
+        "Google Sheets"
+      ]
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "pitch-deck-coach",
+    "package": "assistant-pitch-deck-coach",
+    "category": "sales",
+    "title": "融资演示教练",
+    "description": "检查演示材料的故事、证据和页面信息，帮助作者完善说服力。",
+    "inputs": "演示稿、受众、目标及可用证据",
+    "deliverable": "逐页反馈与改稿路线",
+    "procedure": [
+      "明确核心论点",
+      "检查问题、方案、市场与商业证据之间的联系",
+      "区分必须修正和可选美化"
+    ],
+    "boundary": "不编造市场规模、营收或投资人反馈",
+    "profile": "design",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/pitch-deck-coach",
+      "name": "Pitch Deck Coach",
+      "creator": "Hiten Shah",
+      "categories": [
+        "Sales"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 4,
+      "routineCount": 0,
+      "integrations": []
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "prospector",
+    "package": "assistant-prospector",
+    "category": "sales",
+    "title": "潜客研究专员",
+    "description": "建立有业务背景的目标名单，核对既有关系并准备首次沟通。",
+    "inputs": "理想客户标准、排除名单、已有客户记录",
+    "deliverable": "去重潜客表与联系草稿",
+    "procedure": [
+      "按显式标准查找候选",
+      "检查现有客户及历史接触",
+      "写明匹配证据与沟通切入点"
+    ],
+    "boundary": "不绕过网站访问控制获取联系人资料",
+    "profile": "research",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/prospector",
+      "name": "GTM Prospecting",
+      "creator": "Caro Scalercio",
+      "categories": [
+        "From Grok Bot Team",
+        "Sales"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 3,
+      "routineCount": 1,
+      "integrations": [
+        "Gmail",
+        "Google Sheets",
+        "Notion",
+        "Salesforce"
+      ]
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "sales-call-coach",
+    "package": "assistant-sales-call-coach",
+    "category": "sales",
+    "title": "销售对话教练",
+    "description": "根据真实对话评估发现需求、处理异议和约定下一步的表现。",
+    "inputs": "通话转录、销售阶段、团队评分标准",
+    "deliverable": "评分卡与专项练习",
+    "procedure": [
+      "按标准定位证据段落",
+      "识别未问清的问题和无依据主张",
+      "给出可操作的下一次练习"
+    ],
+    "boundary": "不虚构成交概率或对方心理状态",
+    "profile": "analysis",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/sales-call-coach",
+      "name": "Sales Call Coach",
+      "creator": "Daniel Brill",
+      "categories": [
+        "From Grok Bot Team",
+        "Sales"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 8,
+      "routineCount": 2,
+      "integrations": [
+        "notion-workspace",
+        "slack",
+        "linear",
+        "Gong",
+        "Google Calendar"
+      ]
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "sell-bot",
+    "package": "assistant-sell-bot",
+    "category": "sales",
+    "title": "客户旅程助理",
+    "description": "整合客户触达、会议、方案和后续服务的准备工作。",
+    "inputs": "客户资料、阶段目标、获准沟通记录",
+    "deliverable": "客户推进档案与行动草稿",
+    "procedure": [
+      "确认当前阶段及负责人",
+      "汇总未闭环事项",
+      "分别准备联系、方案或服务回应并检查证据"
+    ],
+    "boundary": "每次发送、签约或账务操作均需独立授权",
+    "profile": "coordination",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/sell-bot",
+      "name": "Sell Bot",
+      "creator": "Shub Gaur",
+      "categories": [
+        "From Grok Bot Team",
+        "Sales"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 11,
+      "routineCount": 10,
+      "integrations": [
+        "Gmail",
+        "Google Calendar",
+        "Granola",
+        "Google Sheets",
+        "Slack",
+        "X"
+      ]
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "sequencer",
+    "package": "assistant-sequencer",
+    "category": "sales",
+    "title": "外联节奏助理",
+    "description": "维护联系顺序和回复状态，准备按客户语境调整的外联草稿。",
+    "inputs": "获准名单、品牌语气、联系历史、停止规则",
+    "deliverable": "序列台账与待发送草稿",
+    "procedure": [
+      "核对联系人状态和排除要求",
+      "选择下一步时点及内容",
+      "检测回复或退订后停止后续草拟"
+    ],
+    "boundary": "不自动发送，不重复联系已退订对象",
+    "profile": "coordination",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/sequencer",
+      "name": "Sequencer",
+      "creator": "Simon Lackowski",
+      "categories": [
+        "Sales"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 9,
+      "routineCount": 4,
+      "integrations": [
+        "Gmail",
+        "Google Sheets",
+        "Salesforce",
+        "Google Calendar",
+        "Slack"
+      ]
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "signal-prospector",
+    "package": "assistant-signal-prospector",
+    "category": "sales",
+    "title": "客户意向信号分析师",
+    "description": "从授权客户与使用数据中识别值得人工跟进的变化。",
+    "inputs": "CRM、产品事件、信号定义与排除规则",
+    "deliverable": "信号队列与跟进草稿",
+    "procedure": [
+      "核对事件时间及账户归属",
+      "按明确条件计算信号",
+      "解释排序依据和可能误报"
+    ],
+    "boundary": "不能把任意活跃行为等同购买意向",
+    "profile": "analysis",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/signal-prospector",
+      "name": "Signal Prospector",
+      "creator": "Krista Letz",
+      "categories": [
+        "From Grok Bot Team",
+        "Sales"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 5,
+      "routineCount": 1,
+      "integrations": [
+        "Salesforce",
+        "HubSpot",
+        "Attio",
+        "Mixpanel",
+        "X",
+        "Hunter",
+        "Clay",
+        "Gmail",
+        "Slack"
+      ]
+    },
+    "status": "repository-adaptation"
+  },
+  {
+    "id": "warm-intro-finder",
+    "package": "assistant-warm-intro-finder",
+    "category": "sales",
+    "title": "商务引荐研究员",
+    "description": "从授权关系记录寻找可信的引荐路径，并准备礼貌的请求草稿。",
+    "inputs": "目标企业、获准关系记录、联系限制",
+    "deliverable": "引荐路径表与请求草稿",
+    "procedure": [
+      "核对共同联系的事实来源",
+      "按关系新鲜度和相关性比较路径",
+      "明确请托内容及收件方"
+    ],
+    "boundary": "不猜测私人关系，不自动联络中间人",
+    "profile": "research",
+    "source": {
+      "url": "https://x.ai/bot/marketplace/bots/warm-intro-finder",
+      "name": "GTM Connections",
+      "creator": "Brian Joseph",
+      "categories": [
+        "From Grok Bot Team",
+        "Sales"
+      ],
+      "checkedAt": "2026-10-14",
+      "skillCount": 3,
+      "routineCount": 1,
+      "integrations": [
+        "Gmail",
+        "Google Calendar",
+        "Salesforce",
+        "Notion",
+        "Google Sheets",
+        "Slack"
+      ]
+    },
+    "status": "repository-adaptation"
+  }
+]

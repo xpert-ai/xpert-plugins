@@ -44,6 +44,8 @@ const en = {
     "The configured speech-to-text model is unavailable. Ask an administrator to check the model configuration, then retry processing.",
   speech_to_text_transcription_empty:
     "The speech-to-text model returned no text. Check the recording and model configuration, then retry processing.",
+  transcript_empty:
+    "No speech was recognized in the recording. Saved audio is retained. Check the recording and speech model settings, then retry processing.",
   minutes: "min",
   openAssistant: "Open meeting conversation",
   assistantWorking: "Assistant is summarizing",
@@ -266,6 +268,7 @@ const zh: Record<keyof typeof en, string> = {
   speech_to_text_model_missing: "尚未配置语音转写模型。请管理员为 Meetings 或此助手配置模型后重试处理，已保存的音频和笔记会保留。",
   speech_to_text_copilot_not_found: "配置的语音转写模型不可用，请管理员检查模型配置后重试处理。",
   speech_to_text_transcription_empty: "语音转写模型未返回文字，请检查录音和模型配置后重试处理。",
+  transcript_empty: "整段录音未识别到文字，录音已保留。请检查录音内容和语音模型配置后重试处理。",
   minutes: "分钟",
   openAssistant: "打开会议对话",
   assistantWorking: "助手正在总结",

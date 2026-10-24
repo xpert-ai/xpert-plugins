@@ -1,0 +1,38 @@
+---
+title: '配置与查询'
+description: '受控文件目录、字段口径和声明式查询。'
+---
+
+安装插件后在「设置 → 分析定义 → Workspace files」创建 Definition，每个定义配置一个数据集，按包内 `examples/sales.json` 配置 `datasets`。示例 Assistant ID 需要替换为有权访问的已发布 Assistant；通过平台 Files 上传源文件。路径为 Volume 内相对路径，不能使用本机绝对路径。
+
+每个数据集包含 `id/revision/name/description/file/reader/columns`。`file.catalog` 支持共享 Assistant `xperts`、用户隔离 Assistant `user-xperts`、用户文件 `users` 和项目 `projects`。用户目录必须匹配当前访问者；项目需要有效成员权限，Assistant 文件检查准确的已发布 Assistant 授权。租户和组织由平台提供。
+
+`reader.format` 显式选择 `csv/json/xlsx`，不按文件名猜测。CSV 支持 UTF-8/BOM、逗号/分号/Tab 分隔、引号和换行；用 `headerRow` 指定表头。JSON 用 `rowsPath` 选择对象数组。XLSX 用 `sheet/headerRow/formulaPolicy` 选择工作表和公式策略，首期读取工作表的数据行，不支持任意单元格范围。
+
+字段声明 `key/path/label/description/logicalType/nullable/role`，可选 `unit/nullValues`。CSV/XLSX 的 `path` 只有一个精确表头名称；JSON 使用逐层属性路径。字段缺失、重复表头、类型变化会失败。JSON 的 decimal 使用字符串；Excel 高精度数值建议保存为文本，普通数值单元格保留 Excel 已存精度。空字符串不自动变成零或 null。
+
+发现返回完整的 `metadata.binding`，可直接复制后调整查询；`bindingPayload` 仅为其中的 payload，不能作为完整 Binding 传入工具。原始行不声明唯一粒度（`grain: []`），分组后可用分组输出字段 ID 声明粒度。
+
+发现同时提供受限的真实预览。查询仅允许：
+
+- `select`：输出字段。
+- `filters`：AND 条件，操作符为 eq/ne/gt/gte/lt/lte/contains。
+- `groupBy/aggregates`：分组与 sum/count/min/max，聚合别名不能与来源字段重名。
+- `orderBy`：按选中的输出字段排序。
+
+区域筛选例子：
+
+```json
+{
+  "column": "region",
+  "operator": "eq",
+  "value": { "type": "parameter", "name": "region" },
+  "skipWhenNull": true
+}
+```
+
+对应 Binding 参数设为可选，默认 null 表示全部；空字符串仍是实际筛选值。int64 求和返回 decimal，sum/min/max 可空，count 为非空 int64 且不继承单位。全局空集求和为 null，计数为零。输出类型、可空性和单位必须与契约一致。
+
+Agent 使用现有看板来源发现、数据集发现和 Binding 预览工具，按照返回的原生契约操作，再用 Live Dashboard 技能保存页面。复杂清洗、联表和其他运算继续使用 Workspace 脚本。查询和控件均不能替换文件位置、读取范围、解析器或用户身份。
+
+修改数据源定义后，即使未修改 revision，契约摘要也会失效；重新发现并预览后才能保存新 Binding。

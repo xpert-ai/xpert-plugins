@@ -197,5 +197,6 @@
     "screenshots": [
       "./assets/branding/cover-v1.webp"
     ]
-  }
+  },
+  "version": "0.2.2"
 }

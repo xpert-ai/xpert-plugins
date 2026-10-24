@@ -2,6 +2,16 @@
 
 Interactive maps in Xpert conversations: place search, nearby search, linked markers and cards, place details, driving/walking routes, pan/zoom, fit all, and fullscreen. AMap is the default; Tencent is interchangeable behind a typed provider interface.
 
+## Marketplace cover and setup
+
+The Maps app entry links to the live `maps-assistant` template. Catalog setup creates a dedicated organization workspace and publishes that Assistant using an available primary model. Connect and authorize AMap or Tencent Maps in the workspace before using real maps. The separate demo template remains available for explicit simulated previews.
+
+The first `appConfig.presentation.screenshots` entry is the [Chinese cover](assets/brand/maps-overview-zh-v1.png), declared in `.xpertai-plugin/plugin.json` and included in the published package. The opaque 1600 × 900 image follows the Meetings composition: brand and headline on the left, an illustrative map on the right, 5% top/side margins, and a quiet bottom 30% for the host's information overlay. The map and places are fictional. Generated with the built-in imagegen tool using the [saved prompt](assets/brand/maps-overview-zh-v1.prompt.txt).
+
+Run `pnpm exec nx run @xpert-ai/plugin-maps:verify:app-config` from `xpertai/` after building to verify the live template link, runtime/portable metadata agreement and declared screenshot. Cover assets are included in the distribution freshness check.
+
+## Workbench
+
 地图显示在 Xpert 右侧 Workbench：紧凑搜索栏、主地图和底部结果 / 详情 / 路线托盘。界面使用当前仓库的 shadcn/ui + Tailwind 4，宿主管理对话、分栏、标签和展开；插件不重复创建应用外壳。原生 MCP App 复用同一 React 组件。供应商 Key 仅由服务端读取，静态地图在停止拖动或缩放后刷新。
 
 Both entries share a host-first theme adapter: Remote View tokens and standard MCP App styles map to shadcn semantic colors, typography, radius and density. Standard MCP colors also supply derived shadcn roles before legacy `--mcp-app-*` fallbacks, so dynamic updates cannot leave inputs using an old injected border. Form controls consume host height and font-size tokens; rem-based layout follows the host root size, while map markers and zoom controls retain a 44px minimum target. MCP has no density field and follows the typography and radius values actually provided. Theme notifications retain map state and remove withdrawn overrides; host-driven iframe replacement is a separate lifecycle boundary.

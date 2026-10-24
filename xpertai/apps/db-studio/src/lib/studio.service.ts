@@ -6,7 +6,6 @@ import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialE
 import { RolesEnum, PermissionsEnum } from '@xpert-ai/contracts'
 import {
   RequestContext,
-  WorkspaceFilesRuntimeCapability,
   XPERT_RUNTIME_CAPABILITIES_TOKEN,
   type RuntimeCapabilityRegistry,
 } from '@xpert-ai/plugin-sdk'
@@ -334,22 +333,7 @@ export class StudioService implements OnModuleDestroy {
     if (!result) throw new Error('result_unavailable')
     const content = exportResult(result, format),
       name = `query-${id}.${format}`
-    const file = await this.runtime
-      .require(WorkspaceFilesRuntimeCapability)
-      .uploadBuffer({
-        tenantId: scope.tenantId,
-        organizationId: scope.organizationId,
-        userId: scope.userId,
-        catalog: 'user-xperts',
-        scopeId: scope.xpertId,
-        xpertId: scope.xpertId,
-        isolateByUser: true,
-        buffer: Buffer.from(content),
-        originalName: name,
-        fileName: name,
-        folder: 'files/db-studio/exports',
-        mimeType: format === 'csv' ? 'text/csv' : 'application/json',
-      })
+    // Workbench downloads the response directly; a workspace copy would change the result's privacy boundary.
     await this.records.save(
       this.records.create({
         ...scopeWhere(scope),
@@ -358,11 +342,11 @@ export class StudioService implements OnModuleDestroy {
         dataSourceId: record.dataSourceId,
         status: 'succeeded',
         title: name,
-        payload: { operation: 'export', executionId: id, file, exportedRows: result.rows.length },
+        payload: { operation: 'export', executionId: id, exportedRows: result.rows.length },
         revision: 1,
       })
     )
-    return { file, name, content, hasMore: result.hasMore, exportedRows: result.rows.length }
+    return { name, content, hasMore: result.hasMore, exportedRows: result.rows.length }
   }
   /** Remove expired row payloads while retaining the execution audit record. */
   async purgeExpiredResults(scope: StudioScope, now = Date.now()) {

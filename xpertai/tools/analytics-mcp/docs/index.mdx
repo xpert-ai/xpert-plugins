@@ -1,0 +1,65 @@
+---
+title: "MCP datasets"
+description: "Use approved tools from existing platform MCP connections in live dashboards."
+---
+
+MCP is a separate provider type from REST/JSON. Its tools have protocol-level discovery,
+input/output schemas, authentication and structured results. This adapter translates those
+results to Dataset; it does not translate all MCP calls into SQL or let page JavaScript call tools.
+
+## Responsibilities
+
+| Layer | Owns |
+| --- | --- |
+| Platform | Existing connection and OAuth/Connector resolution, current-viewer authorization, enabled-tool filtering, schema validation, cancellation and connection cleanup |
+| MCP analytics plugin | Approved dataset/tool catalog, metric descriptions, argument/parameter paths, result field projection and completeness |
+| Live Dashboard plugin | Preview, page/chart rendering, saved Bindings, filters, refresh and Artifact lifecycle |
+
+The reusable platform capability is `McpClientRuntimeApi` (`platform.mcp.client`).
+Its `tools.list/call` API enforces the host's read-only policy. Business-field mappings
+and renderer behavior remain outside this API. The analytics provider is `mcp.tool`,
+operation `query`, contract version `1`, and a native Analytics Definition configuration entry.
+
+## Discovery and query
+
+Start discovery with `{}`. List pages contain 20 approved datasets; follow `nextRequest`.
+Inspect the selected dataset with its exact `inspectRequest`. Inspection returns live MCP
+`inputSchema`, optional `outputSchema`, a `toolContractHash`, configured columns and business
+descriptions. Unavailable or disabled tools do not appear. Metadata does not include the
+connection configuration or credentials.
+
+```json
+{
+  "datasetId": "sales",
+  "revision": "v1",
+  "toolContractHash": "COPY_THE_64_CHARACTER_HASH_FROM_DISCOVERY",
+  "arguments": { "filter": { "region": null } },
+  "parameterPaths": { "region": ["filter", "region"] }
+}
+```
+
+This is the provider-owned `Binding.payload`. `region` in `parameterPaths` names a Binding
+parameter; the path is relative to `arguments`. Declare its scalar type, control ID and
+null/default rules in the normal Binding. Native MCP schema rules still apply: null is not
+automatically removed or converted. String interpolation into SQL or other query languages
+is not performed. Each mapped path must already exist and hold a scalar. Every supplied
+Binding parameter must be mapped; duplicate paths and prototype traversal are rejected.
+
+Use `output.fields[].sourceField` matching configured column keys. Stable Dataset field IDs
+are independent of native JSON keys and chart labels. Standard Data Analytics charts and
+free HTML/ECharts dashboards consume the same resulting Dataset.
+
+## Continuing a saved dashboard
+
+Each query reloads the saved MCP connection and checks current workspace access and enabled
+tools. The adapter neither caches data nor impersonates the dashboard owner. Filtered
+refresh retains the declared controls. Reopening uses the saved payload and contract hash;
+if a Tool Schema/behavior hint or configured dataset revision changes, query again only
+after rediscovery, preview and an explicit Binding update.
+
+The hash pins the advertised contract, not the remote server's code or business semantics.
+Publish a new dataset revision when the configured metric/mapping changes. A saved Artifact
+does not freeze external data or grant future access to a revoked connection.
+
+See [configuration](configuration) for result selectors and [verification](verification)
+for the actual acceptance scope.

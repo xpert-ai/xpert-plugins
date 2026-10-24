@@ -7,6 +7,7 @@ import { dirname, join } from 'path';
 const moduleDir = dirname(fileURLToPath(import.meta.url));
 
 export const TongyiModelProvider = 'tongyi'
+export const TongyiCredentialValidationModel = 'qwen3.8-flash'
 export const TongyiDefaultBaseUrl = 'https://dashscope.aliyuncs.com/compatible-mode/v1'
 export const TongyiIntlBaseUrl = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1'
 export const TongyiDefaultHttpBaseUrl = 'https://dashscope.aliyuncs.com/api/v1'
@@ -34,6 +35,15 @@ export interface TongyiModelCredentials extends CommonChatModelParameters {
     response_format?: 'text' | 'json_object' | 'json_schema'
     json_schema?: string | object
     extra_headers?: string
+    source_lang?: string
+    target_lang?: string
+    domains?: string
+}
+
+export interface TongyiTranslationOptions {
+    source_lang?: string
+    target_lang?: string
+    domains?: string
 }
 
 export interface TongyiTextEmbeddingModelOptions {

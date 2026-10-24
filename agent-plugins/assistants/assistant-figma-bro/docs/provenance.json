@@ -1,0 +1,31 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/figma-bro",
+    "name": "figma bro",
+    "creator": "John Bai",
+    "categories": [
+      "From Grok Bot Team",
+      "Design"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 8,
+    "routineCount": 2,
+    "integrations": [
+      "figma",
+      "notion-workspace",
+      "linear",
+      "slack"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "design",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

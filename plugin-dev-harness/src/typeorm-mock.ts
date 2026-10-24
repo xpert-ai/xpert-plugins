@@ -81,13 +81,14 @@ function createRuntimeRequire(workspaceRoot: string, pluginName: string) {
   const workspacePackageJson = path.join(workspaceRoot, 'package.json');
   const requireFromWorkspace = createRequire(workspacePackageJson);
 
-  try {
-    requireFromWorkspace.resolve('typeorm');
-    return requireFromWorkspace;
-  } catch {
-    const packageJsonPath = findPackageJsonByName(workspaceRoot, pluginName);
-    return packageJsonPath ? createRequire(packageJsonPath) : requireFromWorkspace;
+  // pnpm may install a different TypeORM identity for the plugin's driver peers.
+  // Its Nest repository factory must receive that exact DataSource token.
+  const packageJsonPath = findPackageJsonByName(workspaceRoot, pluginName);
+  if (packageJsonPath) {
+    const requireFromPlugin = createRequire(packageJsonPath);
+    try { requireFromPlugin.resolve('typeorm'); return requireFromPlugin; } catch { /* Try workspace fallback. */ }
   }
+  return requireFromWorkspace;
 }
 
 function loadTypeOrmRuntimeFromWorkspace(

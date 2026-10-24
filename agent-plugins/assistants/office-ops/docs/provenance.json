@@ -1,0 +1,38 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/office-ops-desk",
+    "name": "Office Ops Desk",
+    "creator": "Erika Cabrera",
+    "categories": [
+      "From Grok Bot Team",
+      "Operations"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 7,
+    "routineCount": 3,
+    "integrations": [
+      "slack",
+      "notion-workspace",
+      "linear",
+      "Gmail",
+      "Google Calendar",
+      "Google Sheets"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "existing-functional-adaptation",
+    "upstreamImagesCopied": false,
+    "category": "operations",
+    "skillCount": 7,
+    "routineCount": 3,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "local-web-desktop-verified",
+    "supplierAcceptance": "08b-g-pending",
+    "preservedIdentity": {
+      "package": "office-ops",
+      "templateKey": "office-ops",
+      "primaryAgentKey": "office-primary"
+    }
+  }
+}

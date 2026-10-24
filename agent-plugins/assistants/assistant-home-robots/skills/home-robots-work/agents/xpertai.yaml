@@ -1,0 +1,3 @@
+interface:
+  display_name: "家庭设备助理 · 业务执行"
+  short_description: "管理已授权家庭机器人的状态查询和用户明确要求的控制任务。"

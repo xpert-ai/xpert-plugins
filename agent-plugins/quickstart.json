@@ -62,6 +62,10 @@
       "oauthServers": []
     },
     {
+      "id": "postgres-readonly",
+      "oauthServers": []
+    },
+    {
       "id": "stripe",
       "oauthServers": []
     },
@@ -80,6 +84,456 @@
     {
       "id": "canva",
       "oauthServers": []
+    },
+    {
+      "id": "office-ops",
+      "oauthServers": [],
+      "path": "assistants/office-ops"
+    },
+    {
+      "id": "assistant-dr-eggbot-v2",
+      "oauthServers": [],
+      "path": "assistants/assistant-dr-eggbot-v2"
+    },
+    {
+      "id": "assistant-engineer-bot",
+      "oauthServers": [],
+      "path": "assistants/assistant-engineer-bot"
+    },
+    {
+      "id": "assistant-engineering-lead",
+      "oauthServers": [],
+      "path": "assistants/assistant-engineering-lead"
+    },
+    {
+      "id": "assistant-nightly-audit-engineer",
+      "oauthServers": [],
+      "path": "assistants/assistant-nightly-audit-engineer"
+    },
+    {
+      "id": "assistant-projects-manager",
+      "oauthServers": [],
+      "path": "assistants/assistant-projects-manager"
+    },
+    {
+      "id": "assistant-qa-bot",
+      "oauthServers": [],
+      "path": "assistants/assistant-qa-bot"
+    },
+    {
+      "id": "assistant-researchy",
+      "oauthServers": [],
+      "path": "assistants/assistant-researchy"
+    },
+    {
+      "id": "assistant-seed-a91e4c",
+      "oauthServers": [],
+      "path": "assistants/assistant-seed-a91e4c"
+    },
+    {
+      "id": "assistant-tinkabot",
+      "oauthServers": [],
+      "path": "assistants/assistant-tinkabot"
+    },
+    {
+      "id": "assistant-account-book",
+      "oauthServers": [],
+      "path": "assistants/assistant-account-book"
+    },
+    {
+      "id": "assistant-account-research",
+      "oauthServers": [],
+      "path": "assistants/assistant-account-research"
+    },
+    {
+      "id": "assistant-call-follow-ups",
+      "oauthServers": [],
+      "path": "assistants/assistant-call-follow-ups"
+    },
+    {
+      "id": "assistant-company-docs-q-a",
+      "oauthServers": [],
+      "path": "assistants/assistant-company-docs-q-a"
+    },
+    {
+      "id": "assistant-cooper",
+      "oauthServers": [],
+      "path": "assistants/assistant-cooper"
+    },
+    {
+      "id": "assistant-customer-call-coach",
+      "oauthServers": [],
+      "path": "assistants/assistant-customer-call-coach"
+    },
+    {
+      "id": "assistant-customer-question-drafter",
+      "oauthServers": [],
+      "path": "assistants/assistant-customer-question-drafter"
+    },
+    {
+      "id": "assistant-customer-stories",
+      "oauthServers": [],
+      "path": "assistants/assistant-customer-stories"
+    },
+    {
+      "id": "assistant-dan-lanning",
+      "oauthServers": [],
+      "path": "assistants/assistant-dan-lanning"
+    },
+    {
+      "id": "assistant-deal-qualification",
+      "oauthServers": [],
+      "path": "assistants/assistant-deal-qualification"
+    },
+    {
+      "id": "assistant-ebr-value-deck-builder",
+      "oauthServers": [],
+      "path": "assistants/assistant-ebr-value-deck-builder"
+    },
+    {
+      "id": "assistant-echo",
+      "oauthServers": [],
+      "path": "assistants/assistant-echo"
+    },
+    {
+      "id": "assistant-follow-through-agent",
+      "oauthServers": [],
+      "path": "assistants/assistant-follow-through-agent"
+    },
+    {
+      "id": "assistant-hiring-activity-monitor",
+      "oauthServers": [],
+      "path": "assistants/assistant-hiring-activity-monitor"
+    },
+    {
+      "id": "assistant-pg",
+      "oauthServers": [],
+      "path": "assistants/assistant-pg"
+    },
+    {
+      "id": "assistant-pipeline-health-and-forecast",
+      "oauthServers": [],
+      "path": "assistants/assistant-pipeline-health-and-forecast"
+    },
+    {
+      "id": "assistant-pitch-deck-coach",
+      "oauthServers": [],
+      "path": "assistants/assistant-pitch-deck-coach"
+    },
+    {
+      "id": "assistant-prospector",
+      "oauthServers": [],
+      "path": "assistants/assistant-prospector"
+    },
+    {
+      "id": "assistant-sales-call-coach",
+      "oauthServers": [],
+      "path": "assistants/assistant-sales-call-coach"
+    },
+    {
+      "id": "assistant-sell-bot",
+      "oauthServers": [],
+      "path": "assistants/assistant-sell-bot"
+    },
+    {
+      "id": "assistant-sequencer",
+      "oauthServers": [],
+      "path": "assistants/assistant-sequencer"
+    },
+    {
+      "id": "assistant-signal-prospector",
+      "oauthServers": [],
+      "path": "assistants/assistant-signal-prospector"
+    },
+    {
+      "id": "assistant-warm-intro-finder",
+      "oauthServers": [],
+      "path": "assistants/assistant-warm-intro-finder"
+    },
+    {
+      "id": "assistant-ai-search-visibility",
+      "oauthServers": [],
+      "path": "assistants/assistant-ai-search-visibility"
+    },
+    {
+      "id": "assistant-apple-search-ads-review",
+      "oauthServers": [],
+      "path": "assistants/assistant-apple-search-ads-review"
+    },
+    {
+      "id": "assistant-best-video-editor",
+      "oauthServers": [],
+      "path": "assistants/assistant-best-video-editor"
+    },
+    {
+      "id": "assistant-clip-bot",
+      "oauthServers": [],
+      "path": "assistants/assistant-clip-bot"
+    },
+    {
+      "id": "assistant-distro-bot",
+      "oauthServers": [],
+      "path": "assistants/assistant-distro-bot"
+    },
+    {
+      "id": "assistant-event-producer",
+      "oauthServers": [],
+      "path": "assistants/assistant-event-producer"
+    },
+    {
+      "id": "assistant-fuse",
+      "oauthServers": [],
+      "path": "assistants/assistant-fuse"
+    },
+    {
+      "id": "assistant-human-copywriter",
+      "oauthServers": [],
+      "path": "assistants/assistant-human-copywriter"
+    },
+    {
+      "id": "assistant-image-gen-bot",
+      "oauthServers": [],
+      "path": "assistants/assistant-image-gen-bot"
+    },
+    {
+      "id": "assistant-leadsworth",
+      "oauthServers": [],
+      "path": "assistants/assistant-leadsworth"
+    },
+    {
+      "id": "assistant-luma-pages",
+      "oauthServers": [],
+      "path": "assistants/assistant-luma-pages"
+    },
+    {
+      "id": "assistant-market-researcher",
+      "oauthServers": [],
+      "path": "assistants/assistant-market-researcher"
+    },
+    {
+      "id": "assistant-marketing-analyst",
+      "oauthServers": [],
+      "path": "assistants/assistant-marketing-analyst"
+    },
+    {
+      "id": "assistant-marketing-project-manager",
+      "oauthServers": [],
+      "path": "assistants/assistant-marketing-project-manager"
+    },
+    {
+      "id": "assistant-overheard",
+      "oauthServers": [],
+      "path": "assistants/assistant-overheard"
+    },
+    {
+      "id": "assistant-performance-marketer",
+      "oauthServers": [],
+      "path": "assistants/assistant-performance-marketer"
+    },
+    {
+      "id": "assistant-product-marketer",
+      "oauthServers": [],
+      "path": "assistants/assistant-product-marketer"
+    },
+    {
+      "id": "assistant-seo-aeo-desk",
+      "oauthServers": [],
+      "path": "assistants/assistant-seo-aeo-desk"
+    },
+    {
+      "id": "assistant-site-audit",
+      "oauthServers": [],
+      "path": "assistants/assistant-site-audit"
+    },
+    {
+      "id": "assistant-tally",
+      "oauthServers": [],
+      "path": "assistants/assistant-tally"
+    },
+    {
+      "id": "assistant-video-editor",
+      "oauthServers": [],
+      "path": "assistants/assistant-video-editor"
+    },
+    {
+      "id": "assistant-website-ops",
+      "oauthServers": [],
+      "path": "assistants/assistant-website-ops"
+    },
+    {
+      "id": "assistant-writing-bot",
+      "oauthServers": [],
+      "path": "assistants/assistant-writing-bot"
+    },
+    {
+      "id": "assistant-wtd",
+      "oauthServers": [],
+      "path": "assistants/assistant-wtd"
+    },
+    {
+      "id": "assistant-x-brief",
+      "oauthServers": [],
+      "path": "assistants/assistant-x-brief"
+    },
+    {
+      "id": "assistant-critiquito",
+      "oauthServers": [],
+      "path": "assistants/assistant-critiquito"
+    },
+    {
+      "id": "assistant-figma-bro",
+      "oauthServers": [],
+      "path": "assistants/assistant-figma-bro"
+    },
+    {
+      "id": "assistant-imogen",
+      "oauthServers": [],
+      "path": "assistants/assistant-imogen"
+    },
+    {
+      "id": "assistant-sable-game-art",
+      "oauthServers": [],
+      "path": "assistants/assistant-sable-game-art"
+    },
+    {
+      "id": "assistant-chief-health",
+      "oauthServers": [],
+      "path": "assistants/assistant-chief-health"
+    },
+    {
+      "id": "assistant-credit-card-max",
+      "oauthServers": [],
+      "path": "assistants/assistant-credit-card-max"
+    },
+    {
+      "id": "assistant-deal-hunting",
+      "oauthServers": [],
+      "path": "assistants/assistant-deal-hunting"
+    },
+    {
+      "id": "assistant-dial-bot",
+      "oauthServers": [],
+      "path": "assistants/assistant-dial-bot"
+    },
+    {
+      "id": "assistant-flora",
+      "oauthServers": [],
+      "path": "assistants/assistant-flora"
+    },
+    {
+      "id": "assistant-home-robots",
+      "oauthServers": [],
+      "path": "assistants/assistant-home-robots"
+    },
+    {
+      "id": "assistant-import-bot",
+      "oauthServers": [],
+      "path": "assistants/assistant-import-bot"
+    },
+    {
+      "id": "assistant-love",
+      "oauthServers": [],
+      "path": "assistants/assistant-love"
+    },
+    {
+      "id": "assistant-nyc-parent",
+      "oauthServers": [],
+      "path": "assistants/assistant-nyc-parent"
+    },
+    {
+      "id": "assistant-pfp-bot",
+      "oauthServers": [],
+      "path": "assistants/assistant-pfp-bot"
+    },
+    {
+      "id": "assistant-skippy",
+      "oauthServers": [],
+      "path": "assistants/assistant-skippy"
+    },
+    {
+      "id": "assistant-tech-demos",
+      "oauthServers": [],
+      "path": "assistants/assistant-tech-demos"
+    },
+    {
+      "id": "assistant-the-morning-newspaper",
+      "oauthServers": [],
+      "path": "assistants/assistant-the-morning-newspaper"
+    },
+    {
+      "id": "assistant-tradbot-2",
+      "oauthServers": [],
+      "path": "assistants/assistant-tradbot-2"
+    },
+    {
+      "id": "assistant-webby",
+      "oauthServers": [],
+      "path": "assistants/assistant-webby"
+    },
+    {
+      "id": "assistant-mr-toms",
+      "oauthServers": [],
+      "path": "assistants/assistant-mr-toms"
+    },
+    {
+      "id": "assistant-sherlock",
+      "oauthServers": [],
+      "path": "assistants/assistant-sherlock"
+    },
+    {
+      "id": "assistant-competitor-watching",
+      "oauthServers": [],
+      "path": "assistants/assistant-competitor-watching"
+    },
+    {
+      "id": "assistant-last30days",
+      "oauthServers": [],
+      "path": "assistants/assistant-last30days"
+    },
+    {
+      "id": "assistant-pm-bot",
+      "oauthServers": [],
+      "path": "assistants/assistant-pm-bot"
+    },
+    {
+      "id": "assistant-product-idea-stress-test",
+      "oauthServers": [],
+      "path": "assistants/assistant-product-idea-stress-test"
+    },
+    {
+      "id": "assistant-proto-bot",
+      "oauthServers": [],
+      "path": "assistants/assistant-proto-bot"
+    },
+    {
+      "id": "assistant-stalk-bot",
+      "oauthServers": [],
+      "path": "assistants/assistant-stalk-bot"
+    },
+    {
+      "id": "assistant-startup-qa-bot",
+      "oauthServers": [],
+      "path": "assistants/assistant-startup-qa-bot"
+    },
+    {
+      "id": "assistant-alfred",
+      "oauthServers": [],
+      "path": "assistants/assistant-alfred"
+    },
+    {
+      "id": "assistant-event-request-desk",
+      "oauthServers": [],
+      "path": "assistants/assistant-event-request-desk"
+    },
+    {
+      "id": "assistant-frank",
+      "oauthServers": [],
+      "path": "assistants/assistant-frank"
+    },
+    {
+      "id": "assistant-haggle-bot",
+      "oauthServers": [],
+      "path": "assistants/assistant-haggle-bot"
     }
   ]
 }

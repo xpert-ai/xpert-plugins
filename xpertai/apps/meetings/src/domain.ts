@@ -157,6 +157,10 @@ export const meetingSchema = z
     tracks: z.array(trackSchema).min(1).max(2).optional(),
     capture: z.enum(["created", "recording", "stopped", "interrupted"]),
     stopReason: z.string().max(80).nullable(),
+    processingClaim: z
+      .object({ id: idSchema, expiresAt: z.number() })
+      .nullable()
+      .optional(),
     processing: z.enum([
       "not_started",
       "queued",

@@ -1,0 +1,42 @@
+---
+title: 'Configuration and queries'
+description: 'Approved files, explicit column semantics and declarative queries.'
+---
+
+Open Settings → Analytics → Workspace files and create a Definition with exactly one dataset. Configure `datasets` using the packaged `examples/sales.json` catalog. Replace the example Assistant ID with a published Assistant you can access. Upload the file through the platform Files UI/API. Paths are Volume-relative, never local host paths.
+
+Each dataset has `id`, `revision`, `name`, `description`, `file`, `reader` and `columns`.
+
+| File catalog | Required scope | Authorization |
+| --- | --- | --- |
+| `xperts` | `xpertId` | Current viewer's exact published Assistant grant; shared volume |
+| `user-xperts` | `xpertId`, `userId` | Exact Assistant grant and matching current user |
+| `users` | `userId` | Matching current user |
+| `projects` | `projectId` | Current human Project membership; archived Projects denied |
+
+Tenant and organization come from the platform execution, never Binding parameters. Discovery and every query reauthorize the file. Changing source options invalidates the inspected contract even if the administrator forgets to increase `revision`.
+
+Reader formats are explicit:
+
+- CSV: `format: "csv"`, delimiter `,`, `;` or tab, and a one-based `headerRow`. UTF-8/BOM, quoted fields and embedded newlines are supported. Duplicate or missing headers fail.
+- JSON: `format: "json"` and `rowsPath`, an array of own-property segments selecting an object array. Each column's `path` selects a scalar within a row. No JSONPath evaluation or external references.
+- XLSX: `format: "xlsx"`, exact visible `sheet`, one-based `headerRow`, and `formulaPolicy: "reject" | "cached"`. CSV/XLSX column paths contain one exact header. The selected sheet's data rows are read; cell-range selection is not implemented.
+
+Columns declare stable `key`, `path`, `label`, `description`, `logicalType`, `nullable`, `role`, optional `unit` and explicit `nullValues`. Missing fields fail even when nullable. JSON decimal values must be strings; CSV decimal strings are parsed exactly. Excel numeric cells retain Excel's stored numeric precision: use text cells for high-precision identifiers/decimals. Empty strings are not silently zero/null. Date strings use ISO dates; timestamp strings require a timezone. Excel date cells use the workbook's date system through ExcelJS.
+
+Discovery supplies a complete `metadata.binding` to copy, plus `bindingPayload` containing dataset identity, revision, contract hash and selected fields. `bindingPayload` alone is not a Binding. Raw rows declare no uniqueness (`grain: []`); after grouping, use the grouping output field IDs as grain. Queries support AND filters (`eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `contains`), `groupBy`, aggregates (`sum`, `count`, `min`, `max`) and `orderBy`. No SQL, JavaScript, URL or file reference is accepted in the payload.
+
+```json
+{
+  "column": "region",
+  "operator": "eq",
+  "value": { "type": "parameter", "name": "region" },
+  "skipWhenNull": true
+}
+```
+
+Declare the matching Binding parameter as optional with `defaultValue: null` to represent all regions. Empty string remains an actual filter value. Controls cannot add fields or change files.
+
+Aggregates need new aliases distinct from source keys, for example `{ "key": "total", "operation": "sum", "column": "net_sales" }`. `select` then contains only grouping and aggregate keys. `sum` on int64 returns decimal; `sum/min/max` are nullable, while `count` is a non-null int64 without a unit. Empty global sums return null, counts zero. Copy output types, nullability and units exactly; preview before saving.
+
+The Agent uses the existing `dashboard_sources`, `dashboard_discover`, and `dashboard_preview_binding` tools. Follow the inspected provider instructions and the Live Dashboard skill for creating/saving the page. Use Workspace scripts for joins, custom transformations or computations outside this contract.

@@ -5,6 +5,7 @@ import plugin, { NOTION_ICON, NOTION_PLUGIN_LEVEL } from './index.js'
 import { NotionIntegrationStrategy } from './lib/notion-integration.strategy.js'
 
 jest.mock('@xpert-ai/plugin-sdk', () => ({
+  jsonEncodedSchema: jest.requireActual('@xpert-ai/plugin-sdk').jsonEncodedSchema,
   XpertServerPlugin: () => (target: object) => target,
   AgentMiddlewareStrategy: () => (target: object) => target,
   ConnectorStrategyKey: () => (target: object) => target,

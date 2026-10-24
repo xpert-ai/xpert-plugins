@@ -14,6 +14,7 @@ import {
   type ConnectorMultiAuthDefinition,
   type ConnectorMultiAuthStrategy,
   type ConnectorProfile,
+  type ConnectorProviderScope,
   type ConnectorRuntimeCredentialResolveInput
 } from '@xpert-ai/plugin-sdk'
 import { GITHUB_CONNECTOR_PLUGIN_CONTEXT } from './tokens.js'
@@ -26,6 +27,20 @@ const GITHUB_ACCESS_TOKEN_URL = 'https://github.com/login/oauth/access_token'
 const GITHUB_API_URL = 'https://api.github.com'
 const GITHUB_INTEGRATION_REQUIRED_MESSAGE =
   'Configure a GitHub system integration at tenant or organization scope before connecting.'
+
+const GITHUB_APP_CONFIGURATION = {
+  integration: {
+    provider: GITHUB_CONNECTOR_PROVIDER,
+    fields: [
+      { name: 'clientId', label: 'Client ID', required: true },
+      { name: 'clientSecret', label: 'Client Secret', required: true, secret: true }
+    ]
+  },
+  help: {
+    label: { en_US: 'Configure GitHub system integration', zh_Hans: '配置 GitHub 系统集成' },
+    url: '/settings/integration'
+  }
+}
 
 @Injectable()
 @ConnectorStrategyKey(GITHUB_CONNECTOR_PROVIDER)
@@ -43,6 +58,7 @@ export class GitHubConnectorStrategy implements ConnectorMultiAuthStrategy {
   }
 
   readonly definition: ConnectorMultiAuthDefinition = {
+    mcpOAuthResources: ['https://api.githubcopilot.com/mcp/'],
     provider: GITHUB_CONNECTOR_PROVIDER,
     label: {
       en_US: 'GitHub',
@@ -64,15 +80,7 @@ export class GitHubConnectorStrategy implements ConnectorMultiAuthStrategy {
           en_US: 'GitHub App OAuth',
           zh_Hans: 'GitHub 应用 OAuth'
         },
-        appCredentials: {
-          help: {
-            label: {
-              en_US: 'Configure GitHub system integration',
-              zh_Hans: '配置 GitHub 系统集成'
-            },
-            url: '/settings/integration'
-          }
-        }
+        appCredentials: GITHUB_APP_CONFIGURATION
       },
       {
         id: 'pat',
@@ -136,7 +144,7 @@ export class GitHubConnectorStrategy implements ConnectorMultiAuthStrategy {
     }
 
     requireGitHubOAuthMethod(input.authMethodId)
-    const app = await this.resolveGitHubApp()
+    const app = await this.resolveGitHubApp(readString(input.values?.integrationId), input.scope)
     const { codeVerifier, codeChallenge } = createPkce()
     const authorizationUrl = new URL(GITHUB_AUTHORIZE_URL)
     authorizationUrl.searchParams.set('client_id', app.clientId)
@@ -148,15 +156,18 @@ export class GitHubConnectorStrategy implements ConnectorMultiAuthStrategy {
     return {
       status: 'pending',
       authorizationUrl: authorizationUrl.toString(),
-      metadata: { codeVerifier, integrationId: app.integrationId }
+      metadata: { codeVerifier, integrationId: app.integrationId, oauthClientId: app.clientId }
     }
   }
 
   async exchangeAuthorizationCode(input: ConnectorAuthorizationCodeInput): Promise<ConnectorCredential> {
     requireGitHubOAuthMethod(input.authMethodId)
     const integrationId = readString(input.metadata?.integrationId)
-    const app = await this.resolveGitHubApp(integrationId)
+    const app = integrationId
+      ? await this.resolveGitHubApp(integrationId, input.scope)
+      : readLegacyApp(input.values) ?? (await this.resolveGitHubApp())
     const codeVerifier = requireString(input.metadata?.codeVerifier, 'GitHub OAuth PKCE verifier is missing')
+    assertOriginalApplication(readString(input.metadata?.oauthClientId), app)
     const token = await requestGitHubToken({
       client_id: app.clientId,
       client_secret: app.clientSecret,
@@ -171,8 +182,11 @@ export class GitHubConnectorStrategy implements ConnectorMultiAuthStrategy {
   async refreshConnectionCredential(input: ConnectorCredentialRefreshInput): Promise<ConnectorCredential> {
     requireGitHubOAuthMethod(input.authMethodId)
     const integrationId = readString(input.credential.data.integrationId)
-    const app = await this.resolveGitHubApp(integrationId)
+    const app = integrationId
+      ? await this.resolveGitHubApp(integrationId, input.scope)
+      : readLegacyApp(input.credential.data) ?? (await this.resolveGitHubApp())
     const refreshToken = requireString(input.credential.data.refreshToken, 'GitHub refresh token is missing')
+    assertOriginalApplication(readString(input.credential.data.oauthClientId), app)
     const token = await requestGitHubToken({
       client_id: app.clientId,
       client_secret: app.clientSecret,
@@ -195,11 +209,29 @@ export class GitHubConnectorStrategy implements ConnectorMultiAuthStrategy {
     }
     return {
       accessToken: requireString(input.credential.data.accessToken, 'GitHub connector access token is missing'),
-      tokenType: requireString(input.credential.data.tokenType, 'GitHub connector token type is missing')
+      ...(input.authMethodId === 'github-app-oauth' && readString(input.credential.data.integrationId)
+        ? { integrationId: readString(input.credential.data.integrationId),
+          ...(readString(input.credential.data.oauthClientId) ? { oauthClientId: readString(input.credential.data.oauthClientId) } : {}) } : {}),
+      tokenType: requireString(input.credential.data.tokenType, 'GitHub connector token type is missing'),
+      resource: 'https://api.githubcopilot.com/mcp/'
     }
   }
 
-  private async resolveGitHubApp(integrationId?: string): Promise<ResolvedGitHubApp> {
+  private async resolveGitHubApp(integrationId?: string, scope?: ConnectorProviderScope): Promise<ResolvedGitHubApp> {
+    if (integrationId && scope) {
+      if (!this.integrationPermissionService.readForConnector)
+        throw new Error('The host does not support scoped connector application lookup')
+      const integration = await this.integrationPermissionService.readForConnector(
+        integrationId,
+        GITHUB_CONNECTOR_PROVIDER,
+        scope
+      )
+      const clientId = readString(integration?.options?.clientId)
+      const clientSecret = readString(integration?.options?.clientSecret)
+      if (!integration || integration.provider !== GITHUB_CONNECTOR_PROVIDER || !clientId || !clientSecret)
+        throw new Error(GITHUB_INTEGRATION_REQUIRED_MESSAGE)
+      return { integrationId, clientId, clientSecret }
+    }
     const findAllWithInheritance = this.integrationPermissionService.findAllWithInheritance
     if (!findAllWithInheritance) {
       throw new Error('The host does not support inherited system integration lookup')
@@ -240,8 +272,14 @@ type GitHubAppCredentials = {
   clientSecret: string
 }
 
-type ResolvedGitHubApp = GitHubAppCredentials & {
-  integrationId: string
+type ResolvedGitHubApp = GitHubAppCredentials & { integrationId?: string }
+
+// Older encrypted credentials/sessions held the application directly. Never
+// refresh their tokens with an unrelated application's client credentials.
+function readLegacyApp(values?: { [key: string]: unknown }): ResolvedGitHubApp | undefined {
+  const clientId = readString(values?.clientId)
+  const clientSecret = readString(values?.clientSecret)
+  return clientId && clientSecret ? { clientId, clientSecret } : undefined
 }
 
 type GitHubIntegration = IIntegration<{
@@ -336,7 +374,9 @@ function toOAuthCredential(
 ): ConnectorCredential {
   return {
     data: {
-      integrationId: app.integrationId,
+      ...(app.integrationId
+        ? { integrationId: app.integrationId, oauthClientId: app.clientId }
+        : { clientId: app.clientId, clientSecret: app.clientSecret }),
       accessToken: token.accessToken,
       tokenType: token.tokenType,
       ...(token.refreshToken ? { refreshToken: token.refreshToken } : {})
@@ -345,6 +385,10 @@ function toOAuthCredential(
     refreshExpiresAt: toExpiresAt(token.refreshTokenExpiresIn),
     profile
   }
+}
+
+function assertOriginalApplication(clientId: string | undefined, app: ResolvedGitHubApp) {
+  if (clientId && clientId !== app.clientId) throw new Error('GitHub application changed; reconnect the workspace connector')
 }
 
 function requireGitHubOAuthMethod(authMethodId: string) {

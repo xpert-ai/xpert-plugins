@@ -1,3 +1,4 @@
+import { pipelineFocus, projectPipelineNavigation } from './pipeline-navigation'
 import * as React from 'react'
 import { createRoot } from 'react-dom/client'
 import {
@@ -20,7 +21,6 @@ import {
 import {
   RefreshCw,
   Plus,
-  Play,
   ArrowLeft,
   Layers3,
   AlertCircle,
@@ -32,7 +32,6 @@ import type {
   ViewQuery,
   ActionInput,
   CaseKind,
-  FlowNode,
   Surface,
 } from '../../../contracts'
 import { I18nContext, createI18n, normalizeLocale, useI18n } from './i18n'
@@ -44,13 +43,11 @@ import {
   type HostInit,
 } from './bridge'
 import { Dashboard } from './dashboard'
-import { Swimlane } from './swimlane'
-import { PipelineToolbar } from './pipeline-toolbar'
 import { Workspace } from './workspace'
-import { ExecutionMarkers, Status } from './ui'
+import { Status } from './ui'
+import { MATERIAL_IDENTITY_LOGO_URL } from '../../../branding'
 const viewKey: Record<Surface, string> = {
   dashboard: 'material_identity_operations_dashboard',
-  pipeline: 'material_identity_pipeline_overview',
   workspace: 'material_identity_case_workspace',
 }
 function App() {
@@ -88,7 +85,7 @@ function App() {
           const nextKey = JSON.stringify(value.initialQuery ?? {})
           if (nextKey !== initialQueryKey.current) {
             initialQueryKey.current = nextKey
-            query.current = { ...query.current, ...value.initialQuery }
+            query.current = { page: 1, pageSize: 20, ...value.initialQuery }
           }
           document.documentElement.lang = normalizeLocale(value.locale)
           void reload.current()
@@ -132,8 +129,13 @@ function App() {
             }),
         ...input,
       })
-      if (r.caseId) query.current.selectionId = r.caseId
+      if (r.caseId && r.caseId !== query.current.selectionId) {
+        query.current = { page: 1, pageSize: 20, selectionId: r.caseId }
+      }
       await load()
+      if (key === 'start_pipeline' && r.projectId && r.pipelineInstanceId) {
+        await navigate(projectPipelineNavigation(r.projectId, { pipelineInstanceId: r.pipelineInstanceId }))
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'action_failed')
       throw e
@@ -147,7 +149,8 @@ function App() {
         target: 'workbench.view',
         viewKey: viewKey[surface],
         selectionId: id,
-        parameters: { surface, ...(nodeKey ? { nodeKey } : {}) },
+        parameters: { surface, ...(nodeKey ? { nodeKey } : {}),
+          ...(id === data?.selectedCase?.id ? pipelineFocus(query.current.parameters) : {}) },
       })
       await load()
     } catch (e) {
@@ -162,13 +165,16 @@ function App() {
         error={error}
         busy={busy}
         onReload={() => void load()}
+        onProjectPipeline={() => {
+          if (!data?.projectId) return
+          void navigate(projectPipelineNavigation(data.projectId, pipelineFocus(query.current.parameters))).catch(e => setError(e instanceof Error ? e.message : 'navigation_failed'))
+        }}
         onAction={action}
         onOpen={open}
         onSelect={(id) => {
-          query.current.selectionId = id
+          query.current = { page: 1, pageSize: 20, selectionId: id }
           void load()
         }}
-        onError={(e) => setError(e.message)}
       />
     </I18nContext.Provider>
   )
@@ -178,11 +184,11 @@ interface ScreenProps {
   loading: boolean
   error: string
   busy: boolean
+  onProjectPipeline: () => void
   onReload: () => void
   onAction: (key: string, input?: Partial<ActionInput>) => Promise<void>
   onOpen: (surface: Surface, id?: string, nodeKey?: string) => Promise<void>
   onSelect: (id: string) => void
-  onError: (error: Error) => void
 }
 function Screen({
   data,
@@ -190,25 +196,19 @@ function Screen({
   error,
   busy,
   onReload,
+  onProjectPipeline,
   onAction,
   onOpen,
   onSelect,
-  onError,
 }: ScreenProps) {
   const { t } = useI18n()
   const [create, setCreate] = React.useState(false),
     [kind, setKind] = React.useState<CaseKind>('duplicate_codes'),
-    [title, setTitle] = React.useState(''),
-    [node, setNode] = React.useState<FlowNode | null>(null)
+    [title, setTitle] = React.useState('')
   const current = data?.selectedCase,
-    flow = data?.flow,
     surface = data?.surface ?? 'dashboard'
   const doAction = (key: string, input?: Partial<ActionInput>) => {
     void onAction(key, input).catch(() => {})
-  }
-  const openNode = (n: FlowNode) => {
-    if (n.openMode === 'view') void onOpen('workspace', current?.id, n.key)
-    else setNode(n)
   }
   const createCase = async () => {
     try {
@@ -218,23 +218,10 @@ function Screen({
     } catch {}
   }
   return (
-    <main
-      className={`governance-app ${surface === 'pipeline' ? 'pipeline-studio' : ''}`}
-    >
-      {surface === 'pipeline' ? (
-        <PipelineToolbar
-          data={data}
-          busy={busy}
-          onSelect={onSelect}
-          onReload={onReload}
-          onCreate={() => setCreate(true)}
-          onWorkspace={() => void onOpen('workspace', current?.id)}
-          onCoordinate={() => doAction('coordinate_next')}
-        />
-      ) : (
+    <main className="governance-app">
         <header className="app-header">
           <div className="app-heading">
-            <Layers3 className="text-primary" size={25} />
+            <img src={MATERIAL_IDENTITY_LOGO_URL} alt="" width={32} height={32} className="shrink-0" />
             <div>
               <p className="eyebrow">{t('app')}</p>
               <h1>{t(surface)}</h1>
@@ -242,6 +229,9 @@ function Screen({
             <Badge variant="outline">{t('mock')}</Badge>
           </div>
           <div className="header-actions">
+            {surface === 'workspace' && current && <Button disabled={busy || data?.projectStatus !== 'ready' || data?.canManage === false} onClick={() => doAction('start_pipeline')}>{t('process')}</Button>}
+            {data?.projectId && <Button variant="outline" onClick={onProjectPipeline}
+              disabled={data.projectStatus !== 'ready'}>{t('projectPipeline')}</Button>}
             <Button
               variant="ghost"
               size="icon"
@@ -254,7 +244,7 @@ function Screen({
             {surface === 'workspace' ? (
               <Button
                 variant="outline"
-                onClick={() => void onOpen('pipeline', current?.id)}
+                onClick={() => void onOpen('dashboard')}
               >
                 <ArrowLeft size={15} />
                 {t('back')}
@@ -272,10 +262,7 @@ function Screen({
             )}
           </div>
         </header>
-      )}
-      <div
-        className={`governance-content ${surface === 'pipeline' ? 'pipeline-content' : ''}`}
-      >
+      <div className="governance-content">
         {error && (
           <div role="alert" className="error-banner">
             <AlertCircle size={17} />
@@ -353,51 +340,16 @@ function Screen({
             ) : surface === 'dashboard' ? (
               <Dashboard
                 data={data}
-                onOpen={(id) => void onOpen('pipeline', id)}
+                onOpen={(id) => void onOpen('workspace', id)}
               />
-            ) : current && flow ? (
-              <>
-                {surface === 'pipeline' ? (
-                  <>
-                    {flow.blocker && (
-                      <div className="blocker-banner">
-                        <ShieldIcon />
-                        <span>{flow.blocker}</span>
-                        {current.status === 'review_required' && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => void onOpen('workspace', current.id)}
-                          >
-                            {t('decision')}
-                          </Button>
-                        )}
-                      </div>
-                    )}
-                    <Swimlane
-                      flow={flow}
-                      onNode={openNode}
-                      onError={onError}
-                      coordinatorExecutions={data.coordinatorExecutions ?? []}
-                    />
-                  </>
-                ) : (
-                  <Workspace
-                    current={current}
-                    canApprove={data.canApprove}
-                    busy={busy}
-                    onAction={onAction}
-                  />
-                )}
-              </>
+            ) : current ? (
+              <Workspace current={current} canApprove={data.canApprove} busy={busy} onAction={onAction} />
             ) : (
               <div className="empty-state">{t('noSelection')}</div>
             )}
           </>
         )}
-        {surface !== 'pipeline' && (
-          <footer className="app-footer">{t('systemNotice')}</footer>
-        )}
+        <footer className="app-footer">{t('systemNotice')}</footer>
       </div>
       <Dialog open={create} onOpenChange={setCreate}>
         <DialogContent>
@@ -453,63 +405,8 @@ function Screen({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <Dialog
-        open={node !== null}
-        onOpenChange={(open) => {
-          if (!open) setNode(null)
-        }}
-      >
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{node?.title}</DialogTitle>
-            <DialogDescription>
-              {node?.summary || t('noArtifact')}
-            </DialogDescription>
-          </DialogHeader>
-          {node && (
-            <>
-              <div className="flex items-center justify-between">
-                <Status value={node.status} />
-                <ExecutionMarkers records={node.executions} onError={onError} />
-              </div>
-              <div className="node-evidence">
-                {current?.artifacts
-                  .filter((a) => a.key === node.artifactKey)
-                  .map((a) => (
-                    <p key={a.key}>{a.summary}</p>
-                  ))}
-              </div>
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    void onOpen('workspace', current?.id, node.key)
-                  }
-                >
-                  {t('fullWorkspace')}
-                </Button>
-                {node.executionMode === 'assistant_task' && (
-                  <Button
-                    disabled={busy || !node.executable}
-                    onClick={() => {
-                      doAction('run_node', { nodeKey: node.key })
-                      setNode(null)
-                    }}
-                  >
-                    <Play size={14} />
-                    {t('run')}
-                  </Button>
-                )}
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
     </main>
   )
-}
-function ShieldIcon() {
-  return <AlertCircle size={17} />
 }
 const root = document.getElementById('root')
 if (root) createRoot(root).render(<App />)

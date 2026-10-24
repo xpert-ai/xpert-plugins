@@ -7,7 +7,7 @@ import {
 import { APP_ICON, artifactKey } from '../artifact-namespace.js'
 import { ROLES, WORKBENCH_FEATURE, toolName } from '../roles.js'
 import { MaterialCaseService } from './case.service.js'
-import { MaterialTaskService } from './task.service.js'
+import { MaterialPipelineService } from '../pipeline/service.js'
 import { toolScope } from './scope.js'
 import { PROFILE_FEATURE } from './profile.views.js'
 import { toolEvents } from './tool-events.js'
@@ -22,7 +22,7 @@ import {
 } from './schemas.js'
 import { readResultSchema } from './read-result.schema.js'
 const mutationNames = ROLES.flatMap((r) => r.nodeKeys.map(toolName)).concat(
-  'material_identity_dispatch_next',
+  'material_identity_start_pipeline',
 )
 @XpertToolProvider({
   provider: artifactKey('tools'),
@@ -42,7 +42,7 @@ const mutationNames = ROLES.flatMap((r) => r.nodeKeys.map(toolName)).concat(
         zh_Hans: `${r.title}的独立业务能力`,
       },
       icon: APP_ICON,
-      features: [r.feature, WORKBENCH_FEATURE, PROFILE_FEATURE],
+      features: [r.feature, WORKBENCH_FEATURE, PROFILE_FEATURE, 'project.tasks'],
       configSchema: { type: 'object', properties: {}, required: [] },
     },
   })),
@@ -50,7 +50,7 @@ const mutationNames = ROLES.flatMap((r) => r.nodeKeys.map(toolName)).concat(
 export class MaterialGovernanceTools implements XpertToolProviderInstance {
   constructor(
     private readonly cases: MaterialCaseService,
-    private readonly tasks: MaterialTaskService,
+    private readonly tasks: MaterialPipelineService,
   ) {}
   @XpertTool({
     name: 'material_identity_coordinator_read',
@@ -110,8 +110,6 @@ export class MaterialGovernanceTools implements XpertToolProviderInstance {
       'collect-evidence',
       input,
     )
-    if (result.recordId)
-      await this.tasks.superviseStandalone(scope, input.caseId, result.recordId)
     return result
   }
 
@@ -157,8 +155,6 @@ export class MaterialGovernanceTools implements XpertToolProviderInstance {
       'extract-drawing',
       input,
     )
-    if (result.recordId)
-      await this.tasks.superviseStandalone(scope, input.caseId, result.recordId)
     return result
   }
 
@@ -204,8 +200,6 @@ export class MaterialGovernanceTools implements XpertToolProviderInstance {
       'normalize-material',
       input,
     )
-    if (result.recordId)
-      await this.tasks.superviseStandalone(scope, input.caseId, result.recordId)
     return result
   }
 
@@ -232,8 +226,6 @@ export class MaterialGovernanceTools implements XpertToolProviderInstance {
       'match-identity',
       input,
     )
-    if (result.recordId)
-      await this.tasks.superviseStandalone(scope, input.caseId, result.recordId)
     return result
   }
 
@@ -279,8 +271,6 @@ export class MaterialGovernanceTools implements XpertToolProviderInstance {
       'audit-conflicts',
       input,
     )
-    if (result.recordId)
-      await this.tasks.superviseStandalone(scope, input.caseId, result.recordId)
     return result
   }
 
@@ -323,8 +313,6 @@ export class MaterialGovernanceTools implements XpertToolProviderInstance {
       'assess-impact',
       input,
     )
-    if (result.recordId)
-      await this.tasks.superviseStandalone(scope, input.caseId, result.recordId)
     return result
   }
 
@@ -370,8 +358,6 @@ export class MaterialGovernanceTools implements XpertToolProviderInstance {
       'propose-governance',
       input,
     )
-    if (result.recordId)
-      await this.tasks.superviseStandalone(scope, input.caseId, result.recordId)
     return result
   }
 
@@ -417,16 +403,14 @@ export class MaterialGovernanceTools implements XpertToolProviderInstance {
       'publish-records',
       input,
     )
-    if (result.recordId)
-      await this.tasks.superviseStandalone(scope, input.caseId, result.recordId)
     return result
   }
 
   @XpertTool({
-    name: 'material_identity_dispatch_next',
-    title: '协调下一阶段',
+    name: 'material_identity_start_pipeline',
+    title: '启动项目流水线',
     description:
-      'Coordinator only: authorize the deterministic DAG to dispatch independent required role Assistants. Stops at human approval. Call once then end the response.',
+      'Coordinator only: start the platform-managed Project pipeline for this exact case. The platform owns all node dispatch, retries and cancellation. Stops at human approval. Call once then end the response.',
     inputSchema: dispatchSchema,
     outputSchema: receiptSchema,
     middleware: 'material_identity_coordinator',
@@ -434,8 +418,10 @@ export class MaterialGovernanceTools implements XpertToolProviderInstance {
       toolName: { en_US: 'Coordinate pipeline', zh_Hans: '协调治理流水线' },
     },
   })
-  dispatch_next(input: DispatchInput, context: XpertBusinessToolContext) {
-    return this.tasks.dispatchNext(toolScope(context), input)
+  start_pipeline(input: DispatchInput, context: XpertBusinessToolContext) {
+    const scope = toolScope(context)
+    this.cases.assertRole(scope, 'coordinator')
+    return this.tasks.start({ ...scope, actorType: 'user' }, input)
   }
   getMiddlewareExtensions(provider: string) {
     return { wrapToolCall: toolEvents(mutationNames, provider) }

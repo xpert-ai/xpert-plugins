@@ -4,45 +4,33 @@ jest.mock('@xpert-ai/plugin-sdk', () => ({
   AIModelProviderStrategy: () => () => undefined,
   CredentialsValidateFailedError: class extends Error {},
   ModelProvider: class {
-    getModelManager() {
-      return { validateCredentials }
-    }
+    getModelManager() { return { validateCredentials } }
   }
 }))
 
+import { AiModelTypeEnum } from '@xpert-ai/contracts'
 import { CredentialsValidateFailedError } from '@xpert-ai/plugin-sdk'
 import { VolcengineProviderStrategy } from './provider.strategy.js'
 
 describe('Volcengine provider credential validation', () => {
   const provider = new VolcengineProviderStrategy()
-
   beforeEach(() => validateCredentials.mockReset())
 
   it.each([undefined, '', '   '])('rejects a missing or blank key: %p', async (ark_api_key) => {
-    await expect(provider.validateProviderCredentials({ ark_api_key })).rejects.toBeInstanceOf(
-      CredentialsValidateFailedError
-    )
+    await expect(provider.validateProviderCredentials({ ark_api_key })).rejects.toBeInstanceOf(CredentialsValidateFailedError)
     expect(validateCredentials).not.toHaveBeenCalled()
   })
 
-  it('waits for remote validation and forwards the configured endpoint', async () => {
-    const credentials = { ark_api_key: 'test-key', api_endpoint_host: 'https://proxy.example.com/api/v3' }
-    let complete: () => void = () => undefined
-    validateCredentials.mockImplementation(() => new Promise<void>((resolve) => { complete = resolve }))
-    let validated = false
-    const pending = provider.validateProviderCredentials(credentials).then(() => { validated = true })
-
-    await Promise.resolve()
-    expect(validated).toBe(false)
-    expect(validateCredentials).toHaveBeenCalledWith('doubao-seed-2-0-mini-260215', credentials)
-    complete()
-    await pending
-    expect(validated).toBe(true)
+  it('requires the host to test a user-selected model, never a fixed model or undocumented list API', async () => {
+    expect(provider.credentialValidation).toEqual({ mode: 'model', modelTypes: [AiModelTypeEnum.LLM] })
+    expect('discoverModels' in provider).toBe(false)
+    await provider.validateProviderCredentials({ ark_api_key: 'test-key', api_endpoint_host: 'https://proxy.example/api/v3' })
+    expect(validateCredentials).not.toHaveBeenCalled()
   })
 
-  it.each(['Invalid API key', 'Forbidden', 'Request timed out'])('rejects failed validation: %s', async (message) => {
-    const error = new CredentialsValidateFailedError(message)
-    validateCredentials.mockRejectedValue(error)
-    await expect(provider.validateProviderCredentials({ ark_api_key: 'invalid-key' })).rejects.toBe(error)
+  it.each(['bad-url', 'ftp://example.com', 'https://user:password@example.com'])('rejects an invalid endpoint: %s', async (api_endpoint_host) => {
+    await expect(provider.validateProviderCredentials({ ark_api_key: 'test-key', api_endpoint_host }))
+      .rejects.toBeInstanceOf(CredentialsValidateFailedError)
+    expect(validateCredentials).not.toHaveBeenCalled()
   })
 })

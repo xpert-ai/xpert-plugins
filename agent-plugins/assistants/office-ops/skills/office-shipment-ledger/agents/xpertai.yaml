@@ -1,0 +1,3 @@
+interface:
+  display_name: office-shipment-ledger
+  short_description: Merge pasted shipments into a persistent ledger and report current status.

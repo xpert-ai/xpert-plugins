@@ -1,0 +1,3 @@
+interface:
+  display_name: "产品日常巡检员 · 首次使用"
+  short_description: "用获准测试数据检查关键用户路径，记录新增、回退与故障。"

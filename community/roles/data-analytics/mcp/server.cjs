@@ -1,12 +1,13 @@
 "use strict";
 
+const { readWidgetHtmlAsset, hostedArtifactHtml } = require("./renderer.cjs");
+
 const fs = require("node:fs");
 const crypto = require("node:crypto");
 const os = require("node:os");
 const path = require("node:path");
 const readline = require("node:readline");
 const childProcess = require("node:child_process");
-const zlib = require("node:zlib");
 
 const SERVER_NAME = "datascience-widgets";
 const PLUGIN_ROOT = path.resolve(__dirname, "..");
@@ -926,23 +927,6 @@ function resourceText(uri) {
   throw new Error(`unknown Data Analytics widget resource: ${uri}`);
 }
 
-function readWidgetHtmlAsset(fileName) {
-  const assetDir = path.join(PLUGIN_ROOT, "assets");
-  const prefix = `${fileName}.gz.b64.part`;
-  const chunks = fs
-    .readdirSync(assetDir)
-    .filter((name) => name.startsWith(prefix))
-    .sort();
-  if (!chunks.length) {
-    throw new Error(`missing widget asset chunks for ${fileName}; run npm run build from plugins/datascience`);
-  }
-
-  const encoded = chunks
-    .map((name) => fs.readFileSync(path.join(assetDir, name), "utf8").trim())
-    .join("");
-  return zlib.gunzipSync(Buffer.from(encoded, "base64")).toString("utf8");
-}
-
 function knownResourceUri(uri) {
   return Boolean(canonicalWidgetUri(uri));
 }
@@ -1671,38 +1655,6 @@ function validatedArtifactPayload(payload) {
 
 function artifactId(payload) {
   return crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
-}
-
-function safeHtmlJson(value) {
-  return JSON.stringify(value).replace(/</g, "\\u003c").replace(/>/g, "\\u003e");
-}
-
-function hostedArtifactHtml(html, payload) {
-  const hosting = {
-    mode: "site_creator",
-    readOnly: true,
-    controls: {
-      edit: false,
-      exportHostedLink: false,
-      hostedLink: false,
-    },
-  };
-  const script = [
-    "<script>",
-    `window.__DATASCIENCE_ARTIFACT_HOSTING__=${safeHtmlJson(hosting)};`,
-    "window.xpertai=Object.assign({},window.xpertai,{",
-    `toolOutput:${safeHtmlJson(payload)},`,
-    `toolResponseMetadata:${safeHtmlJson(payload)},`,
-    'availableDisplayModes:["inline","fullscreen"],',
-    'displayMode:"fullscreen",',
-    'hostContext:{availableDisplayModes:["inline","fullscreen"],displayMode:"fullscreen"}',
-    "});",
-    "</script>",
-  ].join("");
-  if (/<head(\s[^>]*)?>/i.test(html)) {
-    return html.replace(/<head(\s[^>]*)?>/i, (match) => `${match}\n${script}`);
-  }
-  return `${script}\n${html}`;
 }
 
 function inlineSourceText(source) {

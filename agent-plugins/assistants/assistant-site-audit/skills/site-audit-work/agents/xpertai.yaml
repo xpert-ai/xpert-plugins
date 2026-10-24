@@ -1,0 +1,3 @@
+interface:
+  display_name: "网站质量审查员 · 业务执行"
+  short_description: "检查页面内容、搜索结构、性能及无障碍问题，形成修复顺序。"

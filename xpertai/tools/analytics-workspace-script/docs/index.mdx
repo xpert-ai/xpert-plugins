@@ -1,0 +1,60 @@
+---
+title: "Workspace 脚本数据源"
+description: "让 Python/JavaScript 通过受控文件与来源别名生成统一 Dataset。"
+---
+
+## 分层职责
+
+平台提供 Dataset/Binding、当前用户身份与资源权限、Workspace 文件 ACL、Artifacts、
+Sandbox Jobs 和具名 invocation 通道。插件保存脚本定义、语言入口、CSV 解析器、
+文件/来源别名和执行证据。PostgreSQL、本体及其他来源的查询格式仍由各来源插件解释。
+
+`workspace_script.query` 是 Provider，`workspace_script.execute` 是 Sandbox Action。
+Action 声明 `compute/node-python/v1` 运行协议；镜像、容器引擎和隔离实现由平台的
+Runtime Provider 提供。插件不接受 Agent 传入 command、image、environment 或宿主路径。
+
+## Agent 编写与注册
+
+同时连接 `WorkspaceScriptDataset`、`SandboxFile` 和 `skillsMiddleware` 并启用 Sandbox 后，Agent 使用以下工具：
+
+- `sandbox_read_file`：读取真实文件的有界样本。
+- `sandbox_write_file`：将代码写入当前授权的文件工作区。
+- `workspace_dataset_register`：保存脚本、文件/来源别名、参数和输出定义，返回完整 Binding。
+
+先发现和预览真实来源；注册时每个上游 Binding 使用默认参数进行预检。
+保存定义后仍需预览并生成看板。Live Dashboard 可消费返回的 `bindingJson`；
+其他消费者也可以使用相同的标准 Binding，无需导入脚本实现。
+
+## 执行时的数据访问
+
+脚本实现 `async query(ctx)`；Python 使用 `async def query(ctx)`，JavaScript 使用命名导出。
+`ctx.files.read(alias)` 返回 UTF-8 文本及输入证据，`ctx.sources.query(alias, controls)`
+返回上游标准 Dataset，`ctx.dataset(rows)` 生成候选输出。
+
+容器通过 stdout 请求具名调用，宿主验证声明的操作和别名、重新验证权限，再调用平台 API。
+结果通过只读任务目录返回。脚本没有数据库凭据或可转移的 Actor Token。
+语言入口只是调用协议，真正的隔离依赖满足只读输入、无网络、非 root 和资源限制的 Runtime Provider。
+
+一次执行中同一文件别名缓存字节，但每次访问仍重新授权；下次刷新重新读取。
+上游查询共享父任务的期限与取消信号，来源分页/截断会传递到最终 Dataset。
+脚本不能签发来源时间、完整性或审计信息。跨来源读取不构成事务快照。
+
+## 保存和重开
+
+定义和执行证据复用 Artifact/ArtifactVersion，没有新增业务表。
+`pinned` 固定代码快照；`current` 每次读取原始代码并为本次任务创建快照。
+两者均保留原始工作区引用用于授权复验，私有代码副本不会扩大访问权限。
+定义归创建用户所有，分享看板不自动共享输入或脚本权限。
+
+设置页展示注册工具和当前可访问的脚本 Artifact。发现入口使用 `source:{kind:"artifact",artifactId,versionId}`、`providerId:"workspace_script.query"` 和空请求 `{}`；查询 payload 也为空，身份只保存在 source。注册工具返回可直接传给 `dashboard_discover` 的 `discoveryRequest`。保存的看板引用明确 ArtifactVersion。
+
+## 当前约束
+
+单文件脚本、标准库、UTF-8 输入；不安装 pandas/npm 包，不读取任意宿主文件。
+每个脚本 64 KB，最多 8 个文件别名和 4 个来源别名，每文件 1 MB。
+执行最多 16 次调用、8 MB 调用数据、4,000 行累计来源输入，输出最多 1,000 行和 2 MB。
+总查询期限 30 秒。刷新是重新执行查询，不包含轮询或订阅。
+
+查看仓库 README 的语言示例与注册参数，以及下面的验证说明和历史验收记录。
+
+文件编写使用平台 SandboxFile（`file_path`、`content`），不再由脚本插件提供。安装并通过 `read_skill_file` 读取随插件发布的 `workspace-script-dataset` 技能。Sandbox 必须启用；注册代码、输入输出契约与执行仍由本插件负责。

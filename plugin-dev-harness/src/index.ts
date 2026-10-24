@@ -580,10 +580,14 @@ async function loadPluginFromWorkspace(
 }
 
 function extractPluginExport(moduleExports: unknown): unknown {
-  if (isPlainObject(moduleExports) && 'default' in moduleExports) {
-    return (moduleExports as { default: unknown }).default;
+  // Native ESM import of tsc CommonJS wraps exports.default in a second default.
+  let candidate = moduleExports;
+  for (let depth = 0; depth < 3; depth++) {
+    if (isHarnessPlugin(candidate)) return candidate;
+    if (!candidate || typeof candidate !== 'object' || !('default' in candidate)) break;
+    candidate = candidate.default;
   }
-  return moduleExports;
+  return candidate;
 }
 
 function isHarnessPlugin(value: unknown): value is HarnessPlugin {

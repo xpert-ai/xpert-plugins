@@ -4,6 +4,11 @@
   "models": [
     {
       "group": "体验中心",
+      "model_id": "1ced5b0e15694a6e8982ed884ee6fbf6",
+      "name": "deepseek-v4.1-flash"
+    },
+    {
+      "group": "体验中心",
       "model_id": "e8e2511658054053a7e56e950d80f0e4",
       "name": "glm-5.3"
     },

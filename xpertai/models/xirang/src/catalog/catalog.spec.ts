@@ -23,7 +23,7 @@ describe('generated Xirang catalog', () => {
 
   it('keeps the synchronized runtime counts and unsupported model audit list', () => {
     expect(normalized.counts).toEqual({
-      llm: 109,
+      llm: 110,
       'text-embedding': 3,
       'multimodal-embedding': 1,
       rerank: 4,
@@ -31,13 +31,13 @@ describe('generated Xirang catalog', () => {
       video: 32,
       speech2text: 3
     })
-    expect(activeModels).toHaveLength(124)
+    expect(activeModels).toHaveLength(125)
     expect(normalized.unsupported_models).toHaveLength(45)
     expect((normalized.unsupported_video_models as unknown[]).length).toBe(32)
   })
 
   it('generates all four runtime model directories', () => {
-    const expected = { llm: 109, 'text-embedding': 3, rerank: 4, image: 8 }
+    const expected = { llm: 110, 'text-embedding': 3, rerank: 4, image: 8 }
     for (const [directory, count] of Object.entries(expected)) {
       expect(
         readdirSync(join(root, '..', directory)).filter((file) => file.endsWith('.yaml') && !file.startsWith('_'))
@@ -133,6 +133,7 @@ describe('generated Xirang catalog', () => {
     ['Doubao-Seed-1.8', ['vision', 'video']],
     ['GLM4.6V', ['vision', 'video']],
     ['glm-5.3-flash', ['vision', 'video']],
+    ['deepseek-v4.1-flash', ['vision']],
     ['deepseek-v4-flash-vision-exp-0817', ['vision']],
     ['Qwen3-14B', ['agent-thought']],
     ['Qwen3-Omni-Flash', ['vision', 'video', 'agent-thought']],
@@ -241,7 +242,7 @@ describe('generated Xirang catalog', () => {
     )
     const files = readdirSync(join(root, '..', 'llm')).filter((file) => file.endsWith('.yaml') && !file.startsWith('_'))
 
-    expect(files).toHaveLength(109)
+    expect(files).toHaveLength(110)
     for (const file of files) {
       const schema = readJson(join(root, '..', 'llm', file))
       const specification = expected.get(String(schema.model))
@@ -260,6 +261,7 @@ describe('generated Xirang catalog', () => {
     ['qwen3.8-flash', 1000000, 131072],
     ['qwen3.7-max', 1000000, 131072],
     ['Qwen3.5-122B-A10B', 32768, 8192],
+    ['deepseek-v4.1-flash', 1000000, 384000],
     ['deepseek-v4-flash-vision-exp-0817', 1000000, 384000],
     ['glm-5.3-flash', 1000000, 131072],
     ['deepseek-v4-pro-0813', 1000000, 384000],
@@ -309,7 +311,7 @@ describe('generated Xirang catalog', () => {
           yamlPricingCount += 1
       }
     }
-    expect(yamlPricingCount).toBe(124)
+    expect(yamlPricingCount).toBe(125)
 
     const glmFile = readdirSync(join(root, '..', 'llm')).find((file) => {
       if (!file.endsWith('.yaml') || file.startsWith('_')) return false
@@ -398,6 +400,60 @@ describe('generated Xirang catalog', () => {
           ])
         )
       }
+    }
+  })
+
+  it('publishes official DeepSeek V4.1 Flash peak and off-peak prices', () => {
+    const file = readdirSync(join(root, '..', 'llm')).find((candidate) => {
+      if (!candidate.endsWith('.yaml') || candidate.startsWith('_')) return false
+      return readJson(join(root, '..', 'llm', candidate)).model === 'deepseek-v4.1-flash'
+    })
+    expect(file).toBeDefined()
+    const schema = readJson(join(root, '..', 'llm', file as string))
+    const pricing = schema.pricing as Record<string, unknown>
+    const rules = pricing.rules as Array<Record<string, unknown>>
+    const byWindow = (startTime?: string): Array<Record<string, unknown>> =>
+      rules.filter((rule) => {
+        const window = rule.daily_time_window as Record<string, unknown> | undefined
+        return window?.start_time === startTime || (!window && startTime === undefined)
+      })
+    expect(schema.modelConfig).toEqual({ endpoint_model_name: '1ced5b0e15694a6e8982ed884ee6fbf6' })
+    expect(schema.features).toEqual([
+      'tool-call',
+      'multi-tool-call',
+      'stream-tool-call',
+      'structured-output',
+      'agent-thought',
+      'vision'
+    ])
+    expect(pricing).toMatchObject({
+      input: '1',
+      output: '4',
+      currency: 'CNY',
+      source_url: 'https://api-docs.deepseek.com/zh-cn/quick_start/pricing'
+    })
+    expect(byWindow(undefined)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ component: 'input', unit_price: 1 }),
+        expect.objectContaining({ component: 'cache_read_input', unit_price: 0.02 }),
+        expect.objectContaining({ component: 'output', unit_price: 4 })
+      ])
+    )
+    for (const [startTime, endTime] of [
+      ['09:00', '12:00'],
+      ['14:00', '18:00']
+    ] as const) {
+      expect(byWindow(startTime)).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            component: 'input',
+            unit_price: 2,
+            daily_time_window: { time_zone: 'Asia/Shanghai', start_time: startTime, end_time: endTime }
+          }),
+          expect.objectContaining({ component: 'cache_read_input', unit_price: 0.04 }),
+          expect.objectContaining({ component: 'output', unit_price: 8 })
+        ])
+      )
     }
   })
 

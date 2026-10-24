@@ -8,7 +8,6 @@ import { build, transform } from 'esbuild'
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)))
 const componentNames = [
-  'factory-operations-center',
   'factory-case-workspace',
   'factory-operations-dashboard',
   'factory-assistant-profile'
@@ -18,8 +17,7 @@ const sharedSourceDir = join(
   'src',
   'lib',
   'remote-components',
-  'factory-operations-center',
-  'src'
+  'shared'
 )
 
 const tailwindTempDir = await mkdtemp(join(tmpdir(), 'factory-ops-tailwind-'))

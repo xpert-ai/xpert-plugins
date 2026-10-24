@@ -237,3 +237,7 @@ to inspect the saved value without supplying it in the prompt and produce an
 edited copy. Download the UI output and independently verify formulas, caches,
 charts, tables, hidden sheets and unchanged package parts. An API-only test is
 not a replacement. Keep account, conversation and workspace IDs in private receipts.
+
+### Canonical Analytics source verification
+
+Follow [Analytics configuration and release](../docs/analytics-providers.md). After frozen dependency installation, run `node plugin-dev-harness/verify-analytics.mjs` against the published SDK/Contracts pinned in the lockfile. The script verifies all eight plugins without replacing dependency links; it does not publish or deploy.

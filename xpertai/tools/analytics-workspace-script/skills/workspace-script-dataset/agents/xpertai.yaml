@@ -1,0 +1,21 @@
+interface:
+  display_name: "Workspace 脚本数据集"
+  short_description: "编写脚本、注册统一 Dataset 并接入看板"
+runtime:
+  required_tools:
+    - kind: agent-middleware-tool
+      provider: skillsMiddleware
+      name: read_skill_file
+      required: true
+    - kind: agent-middleware-tool
+      provider: SandboxFile
+      name: sandbox_write_file
+      required: true
+    - kind: agent-middleware-tool
+      provider: SandboxFile
+      name: sandbox_read_file
+      required: true
+    - kind: agent-middleware-tool
+      provider: SandboxFile
+      name: sandbox_edit_file
+      required: true

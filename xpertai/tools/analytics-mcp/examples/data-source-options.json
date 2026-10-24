@@ -1,0 +1,54 @@
+{
+  "workspaceId": "00000000-0000-4000-8000-000000000001",
+  "toolsetId": "00000000-0000-4000-8000-000000000002",
+  "serverName": "business",
+  "datasets": [
+    {
+      "id": "sales",
+      "revision": "v1",
+      "name": "Net sales",
+      "description": "Paid order amounts less refunds, grouped by sales region, in CNY.",
+      "toolName": "sales_query",
+      "readOnly": true,
+      "result": {
+        "format": "structured",
+        "rowsPath": [
+          "data",
+          "rows"
+        ],
+        "columns": [
+          {
+            "key": "region",
+            "path": [
+              "region"
+            ],
+            "label": "Region",
+            "description": "Sales region",
+            "logicalType": "string",
+            "nullable": false,
+            "role": "dimension"
+          },
+          {
+            "key": "net",
+            "path": [
+              "net"
+            ],
+            "label": "Net sales",
+            "description": "Paid orders less refunds",
+            "logicalType": "decimal",
+            "nullable": false,
+            "role": "measure",
+            "unit": "CNY"
+          }
+        ],
+        "scope": "full_query_result",
+        "totalPath": [
+          "total"
+        ],
+        "truncatedPath": [
+          "truncated"
+        ]
+      }
+    }
+  ]
+}

@@ -1,5 +1,11 @@
+import { assertProcessingClaim } from "./processing-claim.js";
 import { mkdir, rm, readFile, join } from "./workspace-storage.js";
 import { FileStore, atomicWrite, sha256 } from "./file-store.js";
+import {
+  assertSummaryCommit,
+  summaryInputVersion,
+  type SummarySnapshot,
+} from "./assistant-snapshot.js";
 import { summaryMarkdown } from "./document-markdown.js";
 import {
   summarySchema,
@@ -35,15 +41,19 @@ export async function saveSummary(
   id: string,
   input: Meeting,
   value: Summary,
-  operationId?: string
+  commit?: {
+    operation: Meeting["assistant"]["operations"][number];
+    snapshot: SummarySnapshot;
+  }
 ) {
   const summary = summarySchema.parse(value);
   validateSummary(input, summary);
   await store.update(scope, id, async (m, dir) => {
-    const operation = operationId
-      ? m.assistant.operations.find((o) => o.id === operationId)
+    if (!commit) assertProcessingClaim(m, input);
+    const operation = commit
+      ? assertSummaryCommit(m, scope, commit.operation, commit.snapshot)
       : undefined;
-    if (operationId && (!operation || operation.kind !== "final"))
+    if (operation && operation.kind !== "final")
       throw new MeetingError("summary_operation_mismatch");
     if (operation?.status === "ready") {
       const prior = await readFile(
@@ -54,6 +64,12 @@ export async function saveSummary(
         throw new MeetingError("summary_already_submitted");
       return;
     }
+    if (
+      !commit &&
+      summaryInputVersion(m, m.transcript) !==
+        summaryInputVersion(input, input.transcript)
+    )
+      throw new MeetingError("summary_input_conflict");
     if (operation?.status === "failed")
       throw new MeetingError("summary_operation_closed");
     if (operation) {

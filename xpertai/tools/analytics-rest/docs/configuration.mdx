@@ -1,0 +1,36 @@
+---
+title: 'Configuration and query contract'
+description: 'Approved operations, JSON fields, typed filters and bounded pagination.'
+---
+
+## Existing platform connection
+
+Use an enabled API-category `openapi` toolset. GET operations are supported. A POST operation must explicitly declare `x-xpert-read-only: true` in its persisted OpenAPI operation and use an optional `application/json` request body. This declaration is an administrator assertion, not proof of remote behavior. Write methods, header/cookie parameters, unsupported serializers and GET bodies are unavailable.
+
+Authentication reuses the toolset's `auth_type: none` or `api_key` settings. The existing API-key header can use a bearer/basic prefix; Basic expects the platform's preencoded value. No credentials appear in Bindings. Query-string secrets, OAuth refresh flows and arbitrary browser authentication are not exposed by this adapter.
+
+## Dataset catalog
+
+In Settings → Analytics → REST/JSON, set `workspaceId`, `toolsetId`, and exactly one entry in `datasets` on the Definition. Each dataset defines:
+
+- `id`, `revision`, `name`, `description`, approved `operationId` and `readOnly: true`.
+- `defaultArguments` grouped by `query`, `path` and `body`; include business defaults the Agent can copy.
+- `result.rowsPath` and typed `columns` with stable keys, scalar paths, labels, business descriptions, roles and units.
+- Explicit `result.scope`, optional `totalPath`, `truncatedPath` and `dataAsOfPath`.
+- An explicit pagination policy.
+
+See the packaged `examples/sales.json`. Revise the dataset revision when its business contract or mapping changes. Discovery hides raw result paths and connection credentials while exposing the input schema, column semantics and a ready Binding payload.
+
+## Binding
+
+Copy `datasetId`, `revision`, `operationContractHash` and `arguments` from inspection. Map each declared control to an existing scalar argument, for example `parameterPaths: { region: ["query", "region"] }` for `arguments: { query: { region: "" } }`. Paths are relative to arguments. The operation schema defines whether empty strings or null mean all rows; the adapter does not invent this convention.
+
+Only declared controls are mutable at runtime. Binding payloads reject endpoint, method, headers, credential, toolset, result selector and policy overrides. Column `sourceField` uses the catalog key, not a JSONPath expression. Decimal values must be exact strings; int64 accepts exact strings or safe integers. Missing or mismatched fields fail instead of inventing values.
+
+## Pagination and completeness
+
+`pagination.type` is `none`, `offset` or `cursor`. Offset uses explicit `offset`/`limit` parameter locations and `hasMorePath`. Cursor uses explicit `cursor`/`limit` locations, `initialCursor` and nullable `nextCursorPath`. Parameter locations are flat fields in `query` or `body`. Offset starts at zero and advances by returned rows; APIs requiring page numbers or different offset semantics need another policy. The provider never follows next-page URLs.
+
+Page size is 1–500; each query has at most 10 pages, the platform row limit and its parent deadline. Pagination fields cannot be controls or caller overrides. Repeated cursors, non-progressing pages, malformed flags, inconsistent totals and changed `dataAsOf` across pages fail. If page/row limits prevent exhaustion, results carry `scope: page` and `truncated: true`. Only exhausted results explicitly configured as `full_query_result` can establish complete totals. Sources without snapshot markers may change between pages; use a snapshot-capable operation for consistent financial totals.
+
+A host request is bounded to 30 seconds, 64,000 input bytes and 2,500,000 response bytes. Redirects, non-JSON and non-2xx responses fail. Cancellation propagates across all pages. Refresh performs new calls with the saved Binding and current viewer identity.

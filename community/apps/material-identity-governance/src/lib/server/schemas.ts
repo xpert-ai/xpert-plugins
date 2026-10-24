@@ -48,17 +48,8 @@ export const actionSchema = z.discriminatedUnion('action', [
     .strict(),
   z
     .object({
-      action: z.literal('coordinate'),
+      action: z.literal('start_pipeline'),
       caseId,
-      expectedRevision,
-      operationId,
-    })
-    .strict(),
-  z
-    .object({
-      action: z.literal('run_node'),
-      caseId,
-      nodeKey: z.string().min(1).max(100),
       expectedRevision,
       operationId,
     })

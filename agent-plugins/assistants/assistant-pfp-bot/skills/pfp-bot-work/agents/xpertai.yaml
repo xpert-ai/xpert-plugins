@@ -1,0 +1,3 @@
+interface:
+  display_name: "卡通头像设计师 · 业务执行"
+  short_description: "根据用户授权照片提炼外观特征，设计适合小尺寸显示的头像。"

@@ -1,0 +1,3 @@
+interface:
+  display_name: "电话事务助理 · 业务执行"
+  short_description: "准备经用户批准的外呼任务，并通过已授权电话服务记录结果。"

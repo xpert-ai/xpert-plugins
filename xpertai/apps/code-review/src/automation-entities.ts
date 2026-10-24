@@ -15,6 +15,8 @@ export class ReviewRepository {
   @Column({ type: 'varchar' }) userId!: string
   @Column({ type: 'varchar' }) installationId!: string
   @Column({ type: 'varchar' }) repositoryId!: string
+  @Column({ type: 'uuid', nullable: true }) githubIntegrationId!: string | null
+  @Column({ type: 'varchar', nullable: true }) githubAppId!: string | null
   @Column({ type: 'varchar' }) owner!: string
   @Column({ type: 'varchar' }) repository!: string
   @Column({ type: 'jsonb' }) settings!: PolicySettings
@@ -46,6 +48,8 @@ export class ReviewRun {
   @Column({ type: 'jsonb' }) settings!: PolicySettings
   @Column({ type: 'timestamptz' }) notBefore!: Date
   @Column({ type: 'uuid', nullable: true }) reviewId!: string | null
+  @Column({ type: 'uuid', nullable: true }) pipelineInstanceId!: string | null
+  @Column({ type: 'uuid', nullable: true }) pipelineRoundId!: string | null
   @Column({ type: 'varchar', nullable: true }) jobId!: string | null
   @Column({ type: 'varchar', nullable: true }) publicationUrl!: string | null
   @Column({ type: 'timestamptz', nullable: true }) finishedAt!: Date | null

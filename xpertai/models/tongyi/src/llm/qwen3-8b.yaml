@@ -131,3 +131,4 @@ pricing:
       unit_size: 1000000
       mode: thinking
       region: cn
+deprecated: true

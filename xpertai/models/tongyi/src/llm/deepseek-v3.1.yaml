@@ -93,3 +93,4 @@ pricing:
   unit: "0.001"
   currency: RMB
 
+deprecated: true

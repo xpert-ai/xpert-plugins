@@ -74,3 +74,6 @@ export { MySQLPlugin } from './lib/mysql.module.js'
 export { MySQLDataSourceStrategy } from './lib/mysql.strategy.js'
 
 export default plugin
+
+export { createDorisConnection, DorisWorkbenchAdapter } from './doris.js'
+export type { DorisAdapterOptions } from './doris.js'

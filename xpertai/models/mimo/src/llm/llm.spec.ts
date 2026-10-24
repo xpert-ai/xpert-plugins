@@ -38,7 +38,7 @@ function createCopilotModel(
   options: Record<string, unknown>
 ): Parameters<MimoLargeLanguageModel['getChatModel']>[0] {
   return {
-    model: 'mimo-v2.5',
+    model: 'mimo-v2.6-flash',
     options,
     copilot: {
       role: AiProviderRole.Primary,
@@ -107,12 +107,32 @@ describe('Xiaomi MiMo model adapter', () => {
         response_format: { type: 'json_object' },
       })
     );
+    expect(model.invocationParams()).not.toHaveProperty('max_tokens');
     expect(errorCallback).toHaveBeenCalledWith(
       expect.objectContaining({
         apiKey: '[REDACTED]',
-        model: 'mimo-v2.5',
+        model: 'mimo-v2.6-flash',
       }),
       expect.anything()
     );
+  });
+
+  it('sends max_completion_tokens and keeps thinking disabled unless enabled', () => {
+    const llm = new MimoLargeLanguageModel(
+      {} as ConstructorParameters<typeof MimoLargeLanguageModel>[0]
+    );
+    const model = llm.getChatModel(
+      createCopilotModel({
+        max_completion_tokens: 1024,
+        thinking: 'disabled',
+      })
+    );
+    expect(model.invocationParams()).toEqual(
+      expect.objectContaining({
+        max_completion_tokens: 1024,
+        thinking: { type: 'disabled' },
+      })
+    );
+    expect(model.clientConfig).not.toHaveProperty('maxTokens');
   });
 });

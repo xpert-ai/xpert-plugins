@@ -1,0 +1,49 @@
+---
+title: 文件编辑与 Agent 技能
+---
+
+## 配置
+
+Assistant 启用 Sandbox，并连接 `SandboxFile`、`skillsMiddleware` 和 `LiveDashboard`。从 Live Dashboard 插件将 `live-dashboard` 技能安装到 Assistant 所在 Workspace，再在该 Agent 的 `skillsMiddleware` 中选择此技能；脚本数据处理同时连接 `WorkspaceScriptDataset` 并安装、选择其 `workspace-script-dataset` 技能。技能通过平台 `read_skill_file` 按需读取，不需要将整份文档粘贴到系统提示中。
+
+通过 API 配置时，调用 `POST /plugin/:name/resources/install-workspace`，请求体使用 `{"workspaceId":"<授权的 Workspace ID>","components":[{"componentType":"skill","componentKey":"live-dashboard"}]}`（脚本插件使用 `workspace-script-dataset`）。将返回安装记录的 `runtimeId` 加入 `skillsMiddleware.options.skills`，连接到同一 Agent，保存并发布 Assistant 草稿。当前平台的 `install-xpert` 仅处理 Hook，不能用于安装技能。无需修改数据库或复制文件到猜测的沙箱路径。
+
+该流程所依赖的中间件节点应设置 `entity.required: true`，尤其是 `SandboxFile`；否则可选插件未在当前会话启用时，Agent 无法调用其工具。技能中间件的机器标识是小写开头的 `skillsMiddleware`，不能用类名 `SkillsMiddleware`。发布后用新会话检查技能读取和文件工具的实际执行记录。
+
+两个原有写文件工具 `dashboard_write_html`、`workspace_dataset_write_file` 已移除；脚本文件读取同样由 `sandbox_read_file` 提供。已有 Assistant 需更新工具连接和技能安装；既有看板 Artifact 与正式版本无需迁移。
+
+## 职责
+
+平台 SandboxFile 提供创建、读取、局部修改、多处修改和追加。文件路径使用当前工作目录下的相对路径，创建工具参数为 `file_path`、`content`；创建不覆盖已有文件。平台校验字符串内容、未知字段、路径段和工作区边界，并声明通用文件修改元数据供插件识别修改意图。
+
+平台在获取沙箱后按实际 Provider 重新解析工作区映射，因此使用默认沙箱配置时，SandboxFile 与插件 WorkspaceFiles 也共享相同的目录语义。该处理复用已注册的 Provider Mapper，不写死容器或主机路径，不放宽 Volume 权限检查。
+
+脚本插件只负责注册、固定代码、输入输出契约和受控执行。看板插件负责数据及页面预检、草稿 CAS、Binding、依赖快照和发布。`present_files` 是文件交付能力，不能替代看板保存。
+
+## 看板编辑
+
+`dashboard_open` 对当前 HTML 准备一个新的可编辑副本，返回 `htmlPath` 和并发基准。副本使用独立路径，不覆盖其他未保存文件。Agent 读取并编辑后自动调用 `dashboard_update`；新建页面则使用 `dashboard_create_html`。完整保存成功后 Workbench 刷新并能重新打开草稿；正式发布仍由人工确认。
+
+看板文件名必须包含有效名称，拒绝 `.html`、前后空白和越界路径。保存回执包含 `sourceFile.path/sha256`，只有匹配 Artifact、文件内容和修改代次的回执才能解除该文件的待保存状态。保存其他看板、保存其他文件或在保存期间再次修改文件，都不能把未保存的修改标记为已保存。
+
+新建页面预检失败时，优先编辑原候选文件。若 Agent 明确改用另一份 HTML，可以在 `dashboard_create_html.supersedesPaths` 列出要放弃的旧候选路径；改用标准图表时由 `dashboard_create.supersedesPaths` 声明。只有新看板保存成功（HTML 还需实际文件摘要一致）时，才解除这些候选的待保存要求；文件仍保留在 Workspace，不能声称它们也被保存为看板。此参数只接受本轮未绑定 Artifact 且没有正在写入的候选，拒绝 `dashboard_open` 的编辑副本；保存期间产生的新修改也不会被清除。系统不根据文件名或标题猜测替代关系。
+
+## 验证
+
+自动化验证覆盖异常参数、编辑副本不覆盖、明确保存、错误回执隔离和现有查询边界。部署验收需要额外验证 Agent 实际读取技能、调用沙箱文件工具、创建/修改看板及重开；仅构建或模拟测试不能代替运行环境验收。
+
+2026-10-17 的真实模型与 xpert-pro / data-xpert SSO 验收结果见[统一文件流程验收](./file-authoring-acceptance)。
+
+## 减少可避免的重试
+
+- 新建独立看板使用未占用的文件路径；同名历史文件或 Artifact 不是转去编辑旧看板的授权。
+- 打开和读取只准备未修改副本，`editingFile.hasUnsavedChanges` 初始为 `false`。成功保存回执已经确认持久化，不能为验证上一次保存而再次提交未修改的副本。
+
+- Provider payload 在调用前按发现契约检查，字段格式错误应先修复，不能重复提交相同值。SDK 校验不代替授权与实际预览。
+- 预览的 `validation.checks` 提前列出需要执行的非默认筛选测试；建议参数来自实际样例，不能把建议当成测试成功。
+- 打开的 HTML 副本已存在，沿用 `editingFile.read` 读取，再使用编辑工具。批量编辑按顺序保存，失败后读取当前内容并只补剩余变更。
+- 沿用 `saveArguments` 的 Artifact ID、修订号和正式基准；无正式版本时使用 JSON `null`，不是字符串 `None`。标题和页面在同一次更新提交，修复错误参数时保留所有请求的变更。
+
+可复用的真实回归命令和独立数据口径位于 `tests/acceptance/README.md`。流程保留失败样本、工具错误、保存回执和源文件恢复证据，不要求所有模型都零重试。
+
+`dashboard_update` 的 Agent 工具要求显式 `title`；未改名时复制当前标题，改名与 HTML 修改应在同一次保存中提交。该约束属于看板编排，平台部分更新接口继续保持通用语义。

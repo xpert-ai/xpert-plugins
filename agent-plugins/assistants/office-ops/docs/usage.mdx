@@ -1,0 +1,46 @@
+---
+title: Workflows and verification
+description: Local workflows, approval boundaries and supplier acceptance.
+---
+
+## Local workflows
+
+1. Getting started reads the five ledgers and writes `office/reports/getting-started.md` before saving completion.
+2. Shipment ledger upserts by supplied id, preserves unrelated rows and reports actual status.
+3. Facilities digest groups unresolved issues by severity and records missing owners.
+4. Shipment follow-up drafts messages without sending them.
+5. Celebrations uses month/day only, excludes opt-outs and looks ahead fourteen days.
+6. New-hire checklists preserve completed tasks and do not purchase or provision access.
+7. Sync reconciles a requested destination and records successful receipts. Without a connection it writes an explicit unsynced plan.
+
+## External services
+
+Notion, Slack, Linear, Google Sheets, Gmail and Calendar remain separate supplier acceptance items (08b–g). This package does not ship credentials or advertise an unverified connector. Add a supported, authorized connector to the installed Assistant before using its actual tools. Any external tool not explicitly allowed requires runtime approval. Refusal produces no successful sync receipt.
+
+## Background work
+
+Weekday shipment status, Monday facilities digest and Friday celebrations look-ahead use the user's chosen IANA timezone. Installation and upgrades never enable them. Review the first result before enabling a schedule. Server execution can continue after Web/Desktop is closed.
+
+## Verification
+
+From `agent-plugins`, run `corepack pnpm test` and `corepack pnpm test:lifecycle --platform-root /path/to/xpert`. Import the portable ZIP through the authenticated Agent Plugins API in the intended organization. Verify the loaded template, install into an isolated workspace and publish it. Test duplicate shipment input, unassigned facilities, opt-outs at year boundaries, preservation of completed new-hire steps, disconnected sync, approval rejection, and repeated sync receipts.
+
+## Versioning
+
+Keep the package and DSL manifest release versions aligned. Keep skill keys stable. Initial ledger files use create-only policy. Changes to an existing routine's behavior require a new key; it remains paused. Never publish local account identifiers or business data as template content.
+
+## ChatKit commands
+
+Version 1.2.0 uses package role `capability`. Select Office Ops in the conversation plugin menu. New conversations show descriptive command tags; ongoing conversations expose the same commands through `/`. Selecting a subcommand inserts its ordinary skill chip followed by editable slash text. It never sends automatically. The Assistant template remains available in the template market.
+
+| Skill | Commands |
+| --- | --- |
+| `office-getting-started` | Office overview |
+| `office-shipment-ledger` | `/import`, `/summary` |
+| `office-facilities-digest` | `/record`, `/digest` |
+| `office-shipment-follow-up` | Draft shipment follow-up |
+| `office-celebrations` | `/record`, `/upcoming` |
+| `office-new-hire` | `/checklist`, `/update` |
+| `office-sync` | `/plan`, `/status` |
+
+Command metadata contains labels and hints only; each `SKILL.md` owns its operations. Selecting the package does not seed template files, change Assistant preferences, or enable routines. File operations require the current Assistant's authorized sandbox tools. Missing files and tools remain explicit diagnostics. A supplied-data `/summary` preview does not change a ledger. Sync `/plan` and `/status` never perform external writes.

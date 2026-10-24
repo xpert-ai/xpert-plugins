@@ -1,0 +1,30 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/website-ops",
+    "name": "Website Ops",
+    "creator": "Josh Kim",
+    "categories": [
+      "Marketing"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 8,
+    "routineCount": 1,
+    "integrations": [
+      "GitHub",
+      "Google Drive",
+      "Slack",
+      "Figma"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "marketing",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

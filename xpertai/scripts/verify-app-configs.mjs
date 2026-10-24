@@ -1,7 +1,7 @@
 import 'reflect-metadata'
 import assert from 'node:assert/strict'
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs'
+import { dirname, extname, isAbsolute, join, relative, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { spawnSync } from 'node:child_process'
 
@@ -23,13 +23,16 @@ if (!selected) {
   const root = join(appsRoot, selected)
   const pkg = readJson(join(root, 'package.json'))
   const { default: plugin } = await import(pathToFileURL(join(root, pkg.main)).href)
+  assert.equal(plugin.meta.version, pkg.version, `${selected}: runtime version differs from package.json`)
   assert.ok(plugin.meta.targetApps.includes('xpert'), `${selected}: missing Xpert target`)
   const entries = plugin.meta.targetAppMeta.xpert.marketplace.contents.filter((item) => item.type === 'app')
   assert.equal(entries.length, 1, `${selected}: expected one application entry`)
   const [entry] = entries
   const config = entry.appConfig
   assert.ok(config, `${selected}: missing appConfig`)
-  assert.equal(config.scope, 'organization')
+  const scopes = Array.isArray(config.scope) ? config.scope : [config.scope]
+  assert.ok(scopes.length > 0 && scopes.every(scope => ['organization', 'personal', 'tenant'].includes(scope)), `${selected}: invalid installation scope`)
+  assert.equal(new Set(scopes).size, scopes.length, `${selected}: duplicate installation scopes`)
   assert.equal(config.workspace.mode, 'dedicated')
   assert.equal(config.modelRequirements.primary, true)
   assert.ok(config.presentation.tagline)
@@ -52,12 +55,33 @@ if (!selected) {
   const manifestPath = join(root, '.xpertai-plugin/plugin.json')
   if (existsSync(manifestPath)) {
     const manifest = readJson(manifestPath)
-    const portable = manifest.targetAppMeta.xpert.marketplace.contents.find((item) => item.type === 'app' && item.name === entry.name)
-    assert.deepEqual(portable?.appConfig, config, `${selected}: portable metadata differs from runtime appConfig`)
-    for (const screenshot of config.presentation.screenshots ?? []) {
-      if (!screenshot.startsWith('./')) continue
-      assert.ok(manifest.assets.screenshots.includes(screenshot), `${selected}: undeclared screenshot`)
-      assert.ok(existsSync(join(root, screenshot)), `${selected}: missing screenshot asset`)
+    assert.equal(manifest.version, pkg.version, `${selected}: portable version differs from package.json`)
+    const portable = manifest.targetAppMeta?.xpert?.marketplace?.contents?.find((item) => item.type === 'app' && item.name === entry.name)
+    if (manifest.targetAppMeta) assert.deepEqual(portable?.appConfig, config, `${selected}: portable metadata differs from runtime appConfig`)
+    for (const [targetName, target] of Object.entries(plugin.meta.targetAppMeta)) {
+      const marketplace = target.marketplace
+      if (!marketplace) continue
+      const portableMarketplace = manifest.targetAppMeta?.[targetName]?.marketplace
+      if (manifest.targetAppMeta) assert.deepEqual(portableMarketplace?.screenshots, marketplace.screenshots,
+        `${selected}: ${targetName} portable marketplace screenshots differ`)
+      for (const contribution of marketplace.contents ?? []) {
+        if (contribution.type !== 'app' || !contribution.appConfig) continue
+        const screenshots = contribution.appConfig.presentation?.screenshots ?? marketplace.screenshots ?? []
+        for (const screenshot of screenshots) {
+          if (/^(?:data:|https?:\/\/|\/)/i.test(screenshot)) continue
+          const assetPath = resolve(root, screenshot)
+          assert.ok(manifest.assets?.screenshots?.some((asset) => resolve(root, asset) === assetPath),
+            `${selected}: undeclared screenshot ${screenshot}`)
+          assert.ok(existsSync(assetPath), `${selected}: missing screenshot asset ${screenshot}`)
+          const localPath = relative(realpathSync(root), realpathSync(assetPath))
+          assert.ok(localPath && !localPath.startsWith('..') && !isAbsolute(localPath), `${selected}: screenshot escapes bundle`)
+          assert.ok(['.gif', '.jpeg', '.jpg', '.png', '.svg', '.webp'].includes(extname(assetPath).toLowerCase()),
+            `${selected}: unsupported screenshot format`)
+          const stat = statSync(assetPath)
+          assert.ok(stat.isFile() && stat.size > 0 && stat.size <= 5 * 1024 * 1024,
+            `${selected}: screenshot must be a nonempty file within 5 MiB`)
+        }
+      }
     }
   }
   console.log(`${selected}: App -> ${config.assistantTemplateKey} verified`)

@@ -1,11 +1,12 @@
+import { projectPipelineNavigation } from '../../pipeline-navigation'
 import * as React from 'react'
 import { Badge, Button, ChevronRight, RotateCcw, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../ui/index'
 import type { EChartsCoreOption } from 'echarts/core'
 import { createRoot } from 'react-dom/client'
-import { resolveLocale, type SupportedLocale } from '../../factory-operations-center/src/i18n'
-import { invokeClientCommand, isObject, notify, reportResize, requestData, requireSuccess, startBridge, unwrap } from '../../factory-operations-center/src/runtime'
-import type { ExecutionRecord, FactoryCase, FactoryDashboardData, HostContext, RemoteObject, RemoteValue } from '../../factory-operations-center/src/types'
-import { installShadcnThemeVars } from '../../factory-operations-center/src/theme'
+import { resolveLocale, type SupportedLocale } from '../../shared/i18n'
+import { invokeClientCommand, isObject, notify, reportResize, requestData, requireSuccess, startBridge, unwrap } from '../../shared/runtime'
+import type { ExecutionRecord, FactoryCase, FactoryDashboardData, HostContext, RemoteObject, RemoteValue } from '../../shared/types'
+import { installShadcnThemeVars } from '../../shared/theme'
 import { EChart } from './echart'
 import './styles.css'
 
@@ -13,7 +14,7 @@ const h: typeof React.createElement = React.createElement
 const WORKBENCH_NAVIGATION_OPEN_COMMAND = 'workbench.navigation.open'
 const WORKBENCH_ASSISTANT_CONVERSATION_TARGET = 'assistant.conversation'
 const WORKBENCH_VIEW_TARGET = 'workbench.view'
-const OPERATIONS_VIEW_KEY = 'factory-operations-center'
+const OPERATIONS_VIEW_KEY = 'factory-case-workspace'
 const { useCallback, useEffect, useMemo, useState } = React
 
 installShadcnThemeVars({ density: 'compact' })
@@ -72,7 +73,9 @@ function App() {
     finally { setBusy(false) }
   }
   function openCase(item: FactoryCase) {
-    return navigate({ target: WORKBENCH_VIEW_TARGET, viewKey: OPERATIONS_VIEW_KEY, selectionId: item.id, parameters: { caseId: item.id } })
+    return item.workspace.status === 'ready'
+      ? navigate(projectPipelineNavigation(item.workspace.projectId, {}))
+      : navigate({ target: WORKBENCH_VIEW_TARGET, viewKey: OPERATIONS_VIEW_KEY, selectionId: item.id, parameters: { caseId: item.id } })
   }
   function openExecution(record: ExecutionRecord) {
     if (!record.conversationId) return Promise.resolve()

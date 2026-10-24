@@ -1,0 +1,29 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/competitor-watching",
+    "name": "Competitor Watch",
+    "creator": "Shimecki",
+    "categories": [
+      "Product"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 5,
+    "routineCount": 2,
+    "integrations": [
+      "slack",
+      "notion-workspace",
+      "linear"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "product",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

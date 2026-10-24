@@ -48,7 +48,7 @@
   "peerDependencies": {
     "@nestjs/common": "^11.1.6",
     "@xpert-ai/plugin-xmla": "0.0.3",
-    "@xpert-ai/plugin-sdk": "^3.15.15",
+    "@xpert-ai/plugin-sdk": "^3.26.1",
     "zod": "3.25.67"
   },
   "nx": {

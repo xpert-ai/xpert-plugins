@@ -1,0 +1,60 @@
+---
+title: 对话中的看板资源卡片
+description: 复用平台消息卡片与 Workbench 导航，展示可重开的看板回执
+---
+
+## 使用方式
+
+Agent 成功执行 `dashboard_create`、`dashboard_create_html`、`dashboard_update` 或 `dashboard_open` 后，消息列表自动显示一张资源卡片，包含看板名称、图标、草稿修订号或正式版本号及“打开”按钮。
+
+点击“打开”进入现有 Workbench 实时看板视图并选中对应 Artifact。消息内不运行看板，不复制 HTML、SQL、Dataset 行数据或凭据。标准图表与 HTML/JS 看板共用同一种卡片。
+
+- 草稿卡片是该轮保存状态的快照，点击后读取当前保存内容。
+- 显式读取历史 `versionId` 时，卡片固定打开该正式版本。
+- 同一条回复多次处理同一个 Artifact，平台更新同一张卡片；其他回复保留各自快照。
+- 重开对话恢复已保存卡片。加载消息本身不会自动打开看板。
+- 卡片不授予新的访问权限。点击后仍须通过当前主机、用户和 Artifact 的权限检查。
+
+## 职责与协议
+
+平台负责 `emitResourceCard`、消息/执行绑定、持久化、去重、通用卡片渲染和导航。插件只生成 `live_dashboard / live-dashboard` 资源引用及看板展示快照；不新增消息 API、卡片 Provider 或专用聊天渲染器。
+
+Agent 主机使用 `workbench.view`；Project 主机使用 `assistant.project` 和平台 Project ID。目标 View 为 `live-dashboard__live-dashboard`，`selectionId` 为 Artifact ID，历史版本使用 `parameters.versionId`。
+
+View 用同一个类型校验器解析 `initialQuery` 和后端查询，拒绝不合法 ID、相互冲突的目标及没有 Artifact 的版本参数。重复 `init` 不重复加载，不丢弃本地编辑。手动选择、保存和工具完成后的导航通过公开 `workbench.navigation.open` 同步，避免后续卡片点击仍指向旧选择。
+
+工具只在授权读取或持久化成功后发出卡片。`resourceCard.status` 为 `emitted` 或 `unavailable`，独立于业务保存回执；展示失败不重试创建或回滚已保存内容。Agent 使用安装的 `live-dashboard` 技能，不需要另外调用 `present_files` 或构造链接。
+
+## 验证范围
+
+插件测试覆盖标准/HTML 创建、打开、修改的真实工具回调；失败操作不发卡片；稳定身份、Project 路由、历史版本及拒绝越权/非法目标。生产前端包的 Workbench 测试覆盖卡片切换目标、历史版本、重复初始化保留编辑，并回归筛选、刷新、保存重开与团队分享。
+
+资源卡片默认在 ChatKit 自己的 Workbench 中打开插件 View，复用现有 `workbench.navigation.open`、View 注册及历史恢复能力，无需新增导航模式选项。ChatKit 解析当前授权会话的卡片与可用 View，传递 `selectionId` 和 `parameters`；插件通过 `initialQuery` 读取指定看板。平台继续负责 View 和 Artifact API 的权限检查，跨 Project 等导航仍使用既有平台协议。
+
+## 首轮本地验收记录（2026-10-17，导航方案已调整）
+
+在 `xpert-pro` 的 `http://localhost:4201`、现有已登录测试会话中，使用实际模型完成以下验收：
+
+- 创建 PostgreSQL 标准图表看板，消息持久化一张草稿 r1 卡片；打开进入现有左侧 Workbench，选中正确 Artifact，不再额外打开 ChatKit 内部抽屉。
+- Agent 读取后修改标题，保存同一 Artifact 的草稿 r2。该回复只保留一张更新后的卡片；Bindings、控件、图表及表格定义保持一致，未创建正式版本。
+- 点击旧回复的 r1 快照可以打开当前 r2 草稿；刷新整个页面后，消息卡片、目标选择及图表恢复正常。
+- 标准渲染器显示 6 行区域/月度数据；筛选华东返回 3 行、合计 3500，刷新重新查询并更新取数时间。
+- 已有 ECharts HTML 看板经 `dashboard_open` 发出卡片，点击和重开正确定位该看板。
+
+验收中修正了标准看板编辑说明误导 Agent 使用 HTML 文件的问题；旧失败会话已触发 LoopGuard，未绕过保护，修复后以新会话完成真实修改验收。初次渲染需等待 Data Analytics 子框架完成加载，单看查询完成标记不足以证明页面已显示。
+
+自动检查：插件 53 项测试、生命周期和生产包 Workbench 浏览器测试通过；平台导航相关 119 项测试通过；ChatKit 命令、资源卡片导航与恢复相关 57 项测试及类型检查通过。
+
+以上首轮验收使用了本地构建的宿主接管导航方案。产品方向明确优先使用 ChatKit 自己的 Workbench 后，已撤回 `viewNavigation: 'host'` 及对应平台配置，取消该批提交；资源卡片与插件目标解析协议保留。该功能不再依赖新发版的导航选项。
+
+### ChatKit 原生 Workbench 复核（2026-10-17）
+
+撤回宿主接管逻辑并恢复原 ChatKit 安装包后，在 xpert-pro 关闭原生 View，再点击 ECharts 看板卡片：ChatKit 内部打开“实时看板”标签，查询准确携带该卡片的 Artifact ID；刷新页面后原生标签及同一看板恢复。平台左侧既有 View 未被卡片替换。该复核确认现有 ChatKit 已具备卡片打开插件 View 的能力，插件只需正确消费导航参数。
+
+当前原生导航、Project 导航及历史恢复相关 82 项测试通过，xpert-pro Cloud 类型检查通过。原 ChatKit 接管导航的 7 个文件已撤回，暂存区为空；本次不需要为导航新增 ChatKit 配置或发布版本。
+
+### 分批审核回归（2026-10-17）
+
+补齐卡片切换的请求过期保护：默认列表的迟到响应不能覆盖后来选择的 Artifact，切换目标同时关闭原看板的分享和发布弹窗，防止操作对象混淆。重复相同目标的初始化仍保留本地编辑。技能中的标准看板更新示例不再要求 HTML 文件路径。
+
+本轮 Live Dashboard 54 项测试、Workspace Script 18 项测试、两个插件的生命周期与生产前端 Workbench 浏览器回归通过；新增覆盖来源身份/内容摘要校验、迟到响应和弹窗清理。构建及资源一致性检查使用本地平台配套 SDK；本轮未重新部署或重复真实 Agent/SSO 验收，以上历史记录保留各自验证范围。

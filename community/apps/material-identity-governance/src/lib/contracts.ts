@@ -276,7 +276,7 @@ export interface CaseListItem {
   revision: number
   updatedAt: string
 }
-export type Surface = 'dashboard' | 'pipeline' | 'workspace'
+export type Surface = 'dashboard' | 'workspace'
 export interface WorkbenchData {
   surface: Surface
   table: {
@@ -292,6 +292,8 @@ export interface WorkbenchData {
   canApprove: boolean
   canCreate?: boolean
   simulation: true
+  projectId?: string
+  selectedNodeKey?: string
   projectStatus?: 'pending' | 'ready' | 'failed' | null
   coordinatorExecutions?: ExecutionRecord[]
 }
@@ -306,6 +308,8 @@ export interface ActionInput {
   reason?: string
 }
 export interface ActionReceipt {
+  projectId?: string
+  pipelineInstanceId?: string
   success: boolean
   code: string
   caseId?: string
@@ -318,5 +322,5 @@ export interface ViewQuery {
   page?: number
   pageSize?: number
   search?: string
-  parameters?: { surface?: Surface; status?: string; nodeKey?: string }
+  parameters?: { surface?: Surface; status?: string; nodeKey?: string; pipelineInstanceId?: string; pipelineRoundId?: string; pipelineNodeId?: string }
 }

@@ -156,7 +156,7 @@ function fixture(fail = false, engine:'doris'|'mysql'|'postgres'='doris') {
     runtime,
     access as unknown as StudioAccess
   )
-  return { service, records, policy, counters, authorization }
+  return { service, records, policy, counters, authorization, result }
 }
 const change = (): ChangeInput => ({
   dataSourceId: 'source',
@@ -404,6 +404,68 @@ test('generic record reads expire result rows without first listing history', as
   assert.equal(records.rows.get(execution.id)?.payload.result, undefined)
   await assert.rejects(() => service.page(scope, execution.id), /result_expired/)
   await assert.rejects(() => service.export(scope, execution.id, 'json'), /result_expired/)
+})
+for (const format of ['csv', 'json'] as const) {
+  test(`${format} exports download authorized rows without Assistant workspace storage`, async () => {
+    // No Workspace Files capability: downloading a result must not write an Assistant file.
+    const { service, records, result } = fixture()
+    result.columns = [{ id: 'value', name: 'value', dataType: 'text' }]
+    result.rows = [['private, "value"'], ['=1+1']]
+    result.hasMore = true
+    const execution = await service.read(scope, { dataSourceId: 'source', sql: 'SELECT value' })
+
+    const exported = await service.export(scope, execution.executionId, format)
+
+    assert.equal(exported.name, `query-${execution.executionId}.${format}`)
+    assert.equal(exported.exportedRows, 2)
+    assert.equal(exported.hasMore, true)
+    assert.equal('file' in exported, false)
+    if (format === 'json') {
+      assert.deepEqual(JSON.parse(exported.content), {
+        columns: ['value'],
+        columnMetadata: [{ id: 'value', name: 'value', dataType: 'text' }],
+        rows: result.rows,
+      })
+    } else {
+      assert.equal(exported.content, '"value"\r\n"private, ""value"""\r\n"\'=1+1"')
+    }
+    const transfers = await service.list(scope, 'transfer')
+    assert.equal(transfers.length, 1)
+    const transfer = await service.record(scope, transfers[0].id)
+    assert.equal(transfer.status, 'succeeded')
+    assert.equal(transfer.userId, scope.userId)
+    assert.equal(transfer.xpertId, scope.xpertId)
+    assert.deepEqual(transfer.payload, {
+      operation: 'export', executionId: execution.executionId, exportedRows: 2,
+    })
+    assert.equal(records.rows.size, 2)
+  })
+}
+for (const field of ['tenantId', 'organizationId', 'workspaceId', 'userId'] as const) {
+  test(`exports reject a different ${field} before creating a transfer receipt`, async () => {
+    const { service, records } = fixture()
+    const execution = await service.read(scope, { dataSourceId: 'source', sql: 'SELECT 1' })
+    await assert.rejects(
+      () => service.export({ ...scope, [field]: 'other' }, execution.executionId, 'json'),
+      /record_not_found/
+    )
+    assert.equal(records.rows.size, 1)
+  })
+}
+test('exports recheck source access and reject revoked access without a receipt', async () => {
+  const { service, records, authorization } = fixture()
+  const execution = await service.read(scope, { dataSourceId: 'source', sql: 'SELECT 1' })
+  authorization.allowed = false
+  await assert.rejects(() => service.export(scope, execution.executionId, 'csv'), /workspace_connection_denied/)
+  assert.equal(records.rows.size, 1)
+})
+test('exports do not return download content when recording the transfer fails', async () => {
+  const { service, records } = fixture()
+  const execution = await service.read(scope, { dataSourceId: 'source', sql: 'SELECT 1' })
+  const failed = new Error('transfer_receipt_failed')
+  records.save = async () => { throw failed }
+  await assert.rejects(() => service.export(scope, execution.executionId, 'json'), error => error === failed)
+  assert.equal(records.rows.size, 1)
 })
 test('expiration cleanup reaches later batches and preserves current results and other scopes', async () => {
   const { service, records } = fixture()

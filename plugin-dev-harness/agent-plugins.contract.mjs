@@ -23,7 +23,7 @@ const platform = resolve(platformRoot);
 const presets = fileURLToPath(new URL("../agent-plugins/", import.meta.url));
 const require = createRequire(join(presets, "package.json"));
 const { createJiti } = require("jiti");
-const jiti = createJiti(import.meta.url, { fsCache: false });
+const jiti = createJiti(import.meta.url, { fsCache: false, alias: { '@xpert-ai/contracts': join(platform, 'packages/contracts/src/index.ts') } });
 const hostSource = join(platform, "packages/server-ai/src/agent-plugin");
 const { parseAgentPlugin } = await jiti.import(
   join(hostSource, "agent-plugin-parser.ts"),
@@ -51,12 +51,15 @@ try {
       const plugin = await parseAgentPlugin(root);
       assert.deepEqual(plugin.diagnostics, []);
       assert.equal(plugin.name, entry.id);
-      assert.ok(plugin.skills.length >= 1);
+      assert.ok(plugin.skills.length + (plugin.templates?.length || 0) >= 1);
       const source = await parseAgentPlugin(entry.root);
       assert.deepEqual(plugin.servers, source.servers);
       assert.deepEqual(plugin.skills, source.skills);
       assert.deepEqual(plugin.extension, source.extension);
-      assert.ok(plugin.skills.length + plugin.servers.length > 0);
+      assert.deepEqual(plugin.templates, source.templates);
+      // Package role is explicit metadata; an Assistant template may also ship capabilities.
+      assert.equal(plugin.extension?.role, source.extension?.role);
+      assert.ok(plugin.skills.length + plugin.servers.length + (plugin.templates?.length || 0) > 0);
       assert.equal(
         await portablePackageDigest(root),
         await portablePackageDigest(entry.root),
@@ -77,7 +80,7 @@ try {
         );
       }
       console.log(
-        `PASS ${entry.id}: distributed ZIP, production parser, digest, Skills and MCP binding`,
+        `PASS ${entry.id}: distributed ZIP, production parser, digest, Skills, Assistant Templates and MCP binding`,
       );
     } finally {
       await rm(root, { recursive: true, force: true });

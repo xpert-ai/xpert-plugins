@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-xirang",
-  "version": "0.2.1",
+  "version": "0.2.4",
   "description": "Tianyi Cloud Xirang model provider plugin for XpertAI",
   "xpert": {
     "plugin": {
@@ -49,8 +49,8 @@
     "tslib": "^2.3.0"
   },
   "peerDependencies": {
-    "@xpert-ai/plugin-sdk": "^3.17.2",
-    "@xpert-ai/contracts": "^3.17.2",
+    "@xpert-ai/plugin-sdk": "^3.22.1",
+    "@xpert-ai/contracts": "^3.21.2",
     "@nestjs/common": "^11.1.6",
     "@nestjs/config": "^4.0.2",
     "@langchain/core": "^0.3.72",

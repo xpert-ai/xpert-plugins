@@ -1,0 +1,8 @@
+{
+  "name": "@xpert-ai/plugin-analytics-workspace-script",
+  "version": "0.1.1",
+  "level": "system",
+  "artifactNamespace": "workspace_script",
+  "sandboxActions": "./dist/sandbox-actions/action.json",
+  "skills": "./skills"
+}

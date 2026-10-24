@@ -1,44 +1,68 @@
 ---
 title: "Automatic PR review"
-description: "Connect GitHub, try a PR, and enable repository-specific review rules"
+description: "Bind a repository to a Project pipeline and share one review and approval lifecycle"
 ---
 
-## Setup
+## Relationships
 
-1. Install `@xpert-ai/plugin-github-connector` in the application's organization. In **Repositories → Connect GitHub**, use the host-owned OAuth or token dialog. OAuth needs the administrator's GitHub integration Client ID and Client Secret. The current host uses a workspace-shared connection; limit it to the repositories needed.
-2. Create a GitHub App with repository permissions **Contents: Read** and **Pull requests: Read & write**, and subscribe to **Pull request** events. Checks are optional evidence; missing access is shown as a coverage warning.
-3. In the system Code Review plugin configuration, set `githubApp.appId`, `slug`, `privateKey` (complete PEM), `webhookSecret` (32+ characters), and `publicBaseUrl` (public HTTPS API origin). Set the same secret in GitHub and use `https://YOUR-API-DOMAIN/api/code_review/github/webhook`. Secrets never pass through the remote review view.
-4. Install the App on selected repositories. Add `owner/repository` in the plugin. The connected account must have repository write/admin permission; the server verifies the installation and permissions.
-5. Open **Configure rules**, enter an existing open PR number and run a trial. Trials consume model usage and save results privately, with no publication action. Enable automation after checking the result.
+A **Project** owns review governance, evidence and pipeline configurations. A Project can have multiple repositories and saved configurations. A repository has one default automation binding per GitHub App installation: **repository → Project → saved pipeline configuration**. This prevents multiple automatic reviewers from independently posting to the same PR.
 
-The host must retain signed JSON bytes as `request.rawBody`, register the plugin's Managed Queue processor, and expose the `workspace.connector.connect` client command. These host changes are included in the accompanying worktree. GitHub cannot deliver events to localhost; local acceptance does not establish external webhook connectivity.
+The plugin supplies versioned templates. A saved Project configuration selects executor Assistants and CI/priority policy. Each PR has a pipeline instance for that configuration; a new immutable source snapshot creates a new round. Changing the configuration creates a separate instance. Historical snapshots, decisions and execution records remain available.
 
-## Rules and publication
+| Template | Agent work | Delivery |
+| --- | --- | --- |
+| `code-review.pull-request@1.0.0` | Correctness and security in parallel, then independent verification | Project manager confirmation, GitHub COMMENT |
+| `code-review.pull-request-light@1.0.0` | One reviewer, alongside CI | The same Project manager confirmation and GitHub delivery |
+| `code-review.local-git@1.0.0` | Parallel review and verification of an imported local snapshot | Confirmed results retained in the Project |
 
-Defaults: automation paused; draft delivery; opened/reopened, ready-for-review and new-commit events enabled; drafts and bots excluded; common lockfiles ignored; all base branches; 20 model review attempts per repository per UTC day, including trials. Base branch names are exact matches; ignore paths support `*`, `**` and `?`.
+Lightweight review is a platform pipeline. It does not use a separate direct-Agent scheduler.
 
-Push events wait at least 30 seconds. A fresh GitHub read rejects obsolete commits, closed PRs and drafts before starting and before publishing. Results use immutable head/base evidence and validated diff anchors. Daily quota reservations and review identities are persisted before dispatch.
+## Setup in Bosi
 
-**Save draft** requires a separate confirmation in the inbox. **Automatic comments** posts a summary and only P0/P1 inline findings with GitHub's `COMMENT` event. It never approves, requests changes or merges PRs. Both modes use the installation identity, limited to the selected repository. Changing rules invalidates pending attempts from the previous policy revision. Review metadata and findings remain private to the configuring user, tenant, organization and Assistant.
+1. Install Code Review and the GitHub Connector. In **Settings → System Integration**, configure a tenant-level `github` integration in the Default tenant. Supply App ID, App slug, OAuth client ID/secret, PEM private key and a webhook secret of at least 32 characters. Select this integration in the Code Review plugin configuration.
+2. Grant the GitHub App **Contents: Read** and **Pull requests: Read & write**; subscribe to **Pull request** events. Configure OAuth callback `https://YOUR-API-DOMAIN/api/connector/oauth/callback` and webhook `https://YOUR-API-DOMAIN/api/code_review/github/webhook`. Install the App on the selected repositories. GitHub cannot reach localhost directly.
+3. Select a **Code Review Project** in Bosi. You do not need to save a configuration in Project Tasks first.
+4. In **Code Review → Repositories**, connect GitHub using the selected integration, add `owner/repository`, and configure its rules. The authorizing GitHub account must have write/admin permission. In **Project review pipeline**, choose an available standard or lightweight template, select published Assistants for its roles and expand **Review parameters** to set CI/priority requirements. **Reuse saved configuration** is optional.
+5. Save the binding with automation paused first. Saving a Project binding explicitly makes subsequent review evidence visible to authorized Project editors; it does not migrate old private reviews.
+6. Enter a PR number and run **Try review (no publishing)**. Open its pipeline from the inbox, inspect Agent executions and the human gate. Trial runs cannot publish, including through the Project gate.
+7. After validating the results, enable automatic review. A matching webhook starts the saved template/Assistant/parameter binding. To review a manually opened PR, click **Start review** and choose a template directly in the dialog. Standard PR review has three Agent roles; lightweight PR review has one. Local Git reviews offer the local Git template.
 
-The configuring account, Assistant and model access must remain valid for unattended runs. App installation access and a working webhook are also required. The system allows one automation configuration per App installation/repository to prevent overlapping bots posting duplicate reviews.
+Choosing or cancelling a template does not save it. **Start review** and **Save rules** first create an immutable configuration in the current Project, then use its binding to start the review or update the repository rule. Retrying the same submission reuses that configuration. Existing repository bindings remain selected until explicitly changed. Configuration and dispatch still enforce Project type, management access, eligible Assistants and human publication approval; choosing a template does not bypass those checks.
 
-## Recovery
+The configuration owner is the persisted automation actor. Their Project management, executor/model access and GitHub App integration must remain valid. A GitHub installation grants repository access; it does not grant Project or Assistant access. No environment-variable bypass is used.
 
-The inbox shows trigger, commit, policy revision, progress, result and actionable failure reason. Failed, skipped, cancelled and superseded attempts can be retried; a retry creates a new record against the current head and policy. Retries still consume the daily quota. Trial retries remain private.
+## Trigger and approval behavior
 
-Duplicate webhook deliveries and duplicate queue workers share database-protected operation keys. Durable Managed Queue supervision is re-armed on bootstrap. Platform task IDs are persisted before dispatch and reconciled; task completion without the result finalizer is a failure.
+Defaults: automation paused, opened/reopened, ready-for-review and new-commit events enabled; drafts and bots excluded; common lockfiles ignored; all base branches; 20 review attempts per repository per UTC day including trials. Branch names match exactly; ignore patterns support `*`, `**` and `?`.
 
-If an external POST might have succeeded but its response is lost, publication becomes **Check GitHub**. The plugin will not repeat that POST or offer a blind retry. Open the PR to reconcile the result. GitHub App credential revocation, unavailable models or missing repository permissions remain visible failures; the plugin never falls back to another tenant's credentials.
+Push events wait at least 30 seconds. Signed webhook deliveries and worker retries share durable operation keys. The plugin persists its pipeline command identity before dispatch. A lost response is retried with the same command, rather than creating another Agent task. A new SHA replaces the active round according to the template's round policy; old snapshots are not overwritten. The template currently permits three rounds before requiring attention.
 
-## Local acceptance
+All new reviews use platform dispatch. An unbound or unavailable configuration is an explicit setup error. There is no fallback to standalone Agent review. Manual startup and webhook startup use the same service and supported template validation.
 
-Run the ordinary Nx checks and lifecycle harness. The opt-in PostgreSQL acceptance script uses a new disposable schema in the existing development database and removes only that schema afterward:
+The inbox displays the platform instance and round. **Open review pipeline** navigates within Workbench to that instance. Human publication approval is recorded only by the Project pipeline. The inbox no longer has a second publication confirmation. The publish operation revalidates the exact subject, verified findings, decision digest and approver's current Project management access before posting GitHub `COMMENT`; it never merges or approves the PR.
+
+Repository automation uses the repository-restricted GitHub App installation for reading source, checking CI and publishing. A manually opened PR uses its selected GitHub connection. Source authorization is retained for delegated Agent tools.
+
+## Agent context
+
+Each Agent receives an isolated execution tied to the immutable snapshot and platform operation ID. `code_review_context({})` resolves the PR from that binding; the model does not choose arbitrary PR IDs. It exposes the role and candidate count as well as snapshot metadata.
+
+Correctness and security Agents save independent findings. The verification node persists both reports as its input context. Its prompt requires `code_review_candidates` to read all pages, then independently validate the candidates against `code_review_file` and `code_review_source`. This tool returns stored, version-checked findings; it does not rely on hidden runtime fields being visible to the model. All source and candidate text is untrusted evidence.
+
+## Upgrade and recovery
+
+Apply `20261018-project-pipeline.sql`, `20261021-github-system-integration.sql`, then `20261022-repository-pipelines.sql` before starting the new API when schema synchronization is external. The last migration is additive and idempotent. It does not attach existing repositories, change private review visibility, select Assistants, or publish historical drafts.
+
+Old unbound rules require an explicit Project binding before new dispatch. Existing private results remain readable; automated drafts cannot publish from the inbox. Historical standalone manual drafts retain their explicit submission action, while newly started reviews use the Project gate. Pausing rules or changing a policy revision stops pending old-policy work. Ambiguous external publication remains inspect-only; no blind POST replay is allowed.
+
+Use the Project pipeline to inspect blocked nodes and retry confirmed technical failures. The repository inbox retains trigger, commit, policy revision, platform instance/round and reason. A new current-head attempt is subject to the same binding, access checks and quota.
+
+## Local verification
+
+Run package typecheck, tests, build, `verify:dist`, metadata validation and the plugin lifecycle harness. With a dedicated PostgreSQL database named `xpert_pipeline_test_*`, run the package tests and:
 
 ```sh
-XPERT_TEST_PLATFORM_ROOT=/path/to/xpert \
-XPERT_TEST_ENV_FILE=/path/to/xpert/.env \
-node apps/code-review/scripts/automation-acceptance.mjs
+node scripts/automation-acceptance.mjs
 ```
 
-It uses fixture GitHub/model/queue transports, real plugin services, and real PostgreSQL transactions. It tests deduplication, ownership, current-head checks, confirmation, P0/P1 filtering, ambiguous publication, quotas, pause, retry, trials and bootstrap recovery. It does not authorize a real GitHub account or post to a real PR. Browser acceptance and a real model review are separate checks.
+Set `XPERT_PIPELINE_TEST_DATABASE_URL` through a local secret-safe environment. The acceptance script uses real plugin services and PostgreSQL transactions with fixture GitHub, queue and platform command transports. It checks signature/integration guards, additive migration, missing binding, duplicate events, lost receipts, zero direct-Agent dispatch, new-SHA rounds, authorization revocation, shared approval navigation, quota and pause behavior. Tests also cover immutable evidence, verifier candidate pagination and inspect-only delivery recovery. Fixture acceptance does not prove public webhook reachability, a real model review or GitHub publication.

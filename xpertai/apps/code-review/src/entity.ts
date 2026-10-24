@@ -1,6 +1,6 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn, CreateDateColumn } from 'typeorm'
 import { pluginArtifactTableName } from '@xpert-ai/plugin-sdk'
-import { NAMESPACE, type PullRef, type Snapshot, type Finding } from './domain.js'
+import { NAMESPACE, type ReviewRef, type Snapshot, type Finding } from './domain.js'
 
 @Entity(pluginArtifactTableName(NAMESPACE, 'review'))
 @Index(['tenantId', 'organizationId', 'userId', 'assistantId'])
@@ -11,10 +11,19 @@ export class Review {
   @Column({ type: 'varchar' }) userId!: string
   @Column({ type: 'varchar' }) assistantId!: string
   @Column({ type: 'uuid', nullable: true }) automationPolicyId!: string | null
+  @Column({ type: 'boolean', default: false }) projectShared!: boolean
+  @Column({ type: 'uuid', nullable: true }) pipelineProjectId!: string | null
+  @Column({ type: 'uuid', nullable: true }) pipelineRootReviewId!: string | null
+  @Index({ unique: true })
+  @Column({ type: 'uuid', nullable: true }) pipelineOperationId!: string | null
+  @Column({ type: 'jsonb', nullable: true }) pipelineDispatch!: { kind: 'start' } | { kind: 'next'; instanceId: string } | null
+  @Column({ type: 'jsonb', nullable: true }) pipelineContext!: import('./pipeline/contract.js').ReviewAgentContext | null
+  @Column({ type: 'jsonb', nullable: true }) pipelineInput!: import('@xpert-ai/contracts').ProjectPipelineWorkContext | null
   @Index({ unique: true })
   @Column({ type: 'uuid', nullable: true }) automationRunId!: string | null
-  @Column({ type: 'jsonb' }) ref!: PullRef
+  @Column({ type: 'jsonb' }) ref!: ReviewRef
   @Column({ type: 'jsonb' }) snapshot!: Snapshot
+  @Column({ type: 'jsonb', nullable: true, select: false }) localSources!: import('./local-git.js').LocalGitSources | null
   @Column({ type: 'varchar', default: 'public' }) access!: 'public' | 'connected'
   @Column({ type: 'varchar', default: 'ready' }) status!: 'ready' | 'running' | 'reviewed' | 'failed' | 'cancelled' | 'submitting' | 'submitted' | 'submission_unknown'
   @Column({ type: 'boolean', default: false }) pinned!: boolean

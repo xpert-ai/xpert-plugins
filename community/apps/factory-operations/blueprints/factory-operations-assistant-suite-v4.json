@@ -3,7 +3,7 @@
   "key": "factory-operations-independent-assistants-v4",
   "plugin": {
     "name": "@xpert-ai/plugin-factory-operations",
-    "version": "0.4.0"
+    "version": "0.5.0"
   },
   "roles": [
     {

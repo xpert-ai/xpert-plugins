@@ -4,6 +4,14 @@
 
 The plugin is system level and uses the stable artifact namespace `db_studio`. Every persisted record is scoped by tenant, organization, workspace, and user. Read operations are bounded by row, byte, and time limits. Mutations are represented as frozen plans and require the current policy plus human approval unless an explicit policy allows the action. The `readOnlyTest` plugin option (or `DB_STUDIO_READ_ONLY_TEST=1`) disables all mutation paths for read-only acceptance testing.
 
+CSV/JSON exports download the authorized query result directly in the Workbench, with source permissions and result expiry checked on every export. They work with both shared and user-isolated Assistants without creating a workspace file. The user-scoped export receipt contains metadata only; existing export records and files are retained.
+
+## Marketplace cover
+
+The marketplace cover is `assets/branding/cover-v1.webp`, an opaque 1600 × 900 image shared by the runtime app configuration and portable plugin manifest. It follows the Meetings cover series: a bright ivory background, DB Studio's green database icon, the headline “读懂数据，掌控变更。” and an illustrative SQL workbench with fictional data. The bottom 30% stays quiet for the host's app information overlay.
+
+The generation prompt is saved in `assets/branding/cover-v1.prompt.txt`; `assets/branding/design-spec.json` records the dimensions and safe area. The existing cover path and separate app icon remain unchanged.
+
 ## Development
 
 Build and test from the `xpertai` workspace:

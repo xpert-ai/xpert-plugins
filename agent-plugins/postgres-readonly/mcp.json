@@ -1,0 +1,9 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "postgres-readonly": {
+      "type": "streamable-http",
+      "url": "http://toolbox.internal:5000/mcp/postgres_readonly"
+    }
+  }
+}

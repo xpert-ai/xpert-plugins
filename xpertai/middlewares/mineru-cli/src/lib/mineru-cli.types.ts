@@ -1,5 +1,4 @@
 import { JsonSchemaObjectType } from '@xpert-ai/contracts'
-import type { ISchemaSecretField } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod'
 
 export const MINERU_CLI_SKILL_MIDDLEWARE_NAME = 'MinerUCLISkill'
@@ -32,13 +31,9 @@ export const MinerUCliConfigFormSchema: JsonSchemaObjectType = {
         en_US: 'Optional MinerU token securely provisioned inside the sandbox for the MinerU CLI script.',
         zh_Hans: '可选的 MinerU token，会安全下发到 sandbox 中供 MinerU CLI 脚本读取。'
       },
-      'x-ui': <ISchemaSecretField>{
+      'x-ui': {
         component: 'secretInput',
-        label: 'API Token',
-        placeholder: 'MinerU API Token',
         revealable: true,
-        maskSymbol: '*',
-        persist: true,
         span: 2
       }
     }

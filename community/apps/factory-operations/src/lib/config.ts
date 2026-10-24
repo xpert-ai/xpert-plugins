@@ -10,10 +10,3 @@ export const FactoryConfigSchema = zod
 
 export type FactoryConfig = z.infer<typeof FactoryConfigSchema>
 export const FACTORY_CONFIG = Symbol('FACTORY_CONFIG')
-
-export interface FactoryRuntimeScope {
-  scopeKey: string
-}
-
-/** Plugin installation scope used to route Managed Queue jobs to this plugin runtime. */
-export const FACTORY_RUNTIME_SCOPE = Symbol('FACTORY_RUNTIME_SCOPE')

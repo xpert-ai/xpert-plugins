@@ -1,0 +1,3 @@
+interface:
+  display_name: "街道清扫查询助理 · 结果复核"
+  short_description: "根据公开城市规则核查指定路段清扫时间与需现场确认的信息。"

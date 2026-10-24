@@ -1,4 +1,5 @@
 import { z } from 'zod/v3'
+import { jsonEncodedSchema } from '@xpert-ai/plugin-sdk'
 import {
   NOTION_MAX_BLOCK_DEPTH,
   NOTION_MAX_BLOCKS,
@@ -87,15 +88,6 @@ const queryFilter = z.discriminatedUnion('type', [
     .strict()
 ])
 
-const compatibleQueryFilter = z.preprocess((value) => {
-  if (typeof value !== 'string' || value.length > MAX_STRINGIFIED_FILTER_LENGTH) return value
-  try {
-    return JSON.parse(value) as unknown
-  } catch {
-    return value
-  }
-}, queryFilter)
-
 const querySort = z
   .object({
     property: identifier,
@@ -106,7 +98,7 @@ const querySort = z
 export const queryNotionDataSourceSchema = z
   .object({
     data_source_id: identifier,
-    filter: compatibleQueryFilter.optional(),
+    filter: jsonEncodedSchema(queryFilter, { maxChars: MAX_STRINGIFIED_FILTER_LENGTH }).optional(),
     sorts: z.array(querySort).max(3).optional(),
     start_cursor: cursor,
     page_size: z.number().int().min(1).max(NOTION_MAX_PAGE_SIZE).default(20),

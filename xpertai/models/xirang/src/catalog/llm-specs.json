@@ -10,6 +10,7 @@
   "groups": [
     {
       "models": [
+        "deepseek-v4.1-flash",
         "deepseek-v4-flash-0731-new",
         "deepseek-v4-flash-0817（正式版）",
         "deepseek-v4-pro-0817（正式版）",

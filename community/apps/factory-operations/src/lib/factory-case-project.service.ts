@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import {
-  XPERT_RUNTIME_CAPABILITIES_TOKEN,
+  XPERT_RUNTIME_CAPABILITIES_TOKEN, ProjectProvisioningRuntimeCapability,
   type RuntimeCapabilityRegistry
 } from '@xpert-ai/plugin-sdk'
 import { IsNull, type Repository } from 'typeorm'
@@ -19,7 +19,6 @@ import type { FactoryScope } from './domain/types.js'
 import { FactoryCaseEntity } from './entities/factory-case.entity.js'
 import { FACTORY_ROLE_ASSISTANTS } from './factory-assistant-definitions.js'
 import { projectFactoryWorkspace } from './factory-case-workspace.js'
-import { requireFactoryProjectProvisioning } from './factory-runtime-capabilities.js'
 
 @Injectable()
 export class FactoryCaseProjectService {
@@ -43,7 +42,7 @@ export class FactoryCaseProjectService {
       workspaceProjectErrorSummary: null
     })
     try {
-      const project = await requireFactoryProjectProvisioning(this.capabilities).ensure({
+      const project = await this.capabilities.require(ProjectProvisioningRuntimeCapability).ensure({
         projectType: FACTORY_CASE_PROJECT_TYPE,
         projectId: entity.workspaceProjectId,
         xpertId: requesterXpertId,
@@ -59,6 +58,11 @@ export class FactoryCaseProjectService {
       await this.cases.update(entity.id, {
         coordinatorXpertId: requesterXpertId,
         assignedAssistantIds: [...new Set(project.xpertIds)],
+        roleAssistants: Object.fromEntries(FACTORY_ROLE_ASSISTANTS.map(role => {
+          const binding = project.assistantBindings.find(b => b.pluginName === FACTORY_PLUGIN_NAME && b.templateKey === role.key && b.agentKey === role.agentKey)
+          if (!binding || !project.xpertIds.includes(binding.xpertId)) throw new BadRequestException('role_not_in_project')
+          return [role.roleKey, binding.xpertId]
+        })),
         workspaceProjectSyncStatus: 'ready',
         workspaceProjectSyncedAt: new Date(),
         workspaceProjectErrorCode: null,

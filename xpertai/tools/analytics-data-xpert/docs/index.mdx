@@ -1,0 +1,98 @@
+---
+title: "data-xpert analytics provider"
+description: "Adapt governed ontology Actions to Xpert Dataset/Binding without coupling the platform to native query languages."
+---
+
+## Responsibilities
+
+Xpert owns the shared Dataset/Binding protocol, current actor, source configuration,
+parameter validation, execution budget and Artifact persistence. This system plugin registers
+`data-xpert.ontology`, operation `action`, contract version `1`, a Definition configuration entry and the `analytics-data-xpert` Integration strategy. It converts declared scalar parameters into native Action arguments and
+maps canonical rows, completeness and audit receipts back to the shared Dataset path.
+
+Data-xpert owns published resource discovery, ontology adapter metadata, Action input
+schemas, Assistant/resource access, explicit viewer policy and registered read-only execution.
+No database runner or ontology-specific branch is added to the Xpert platform.
+
+The provider ID is a stable Binding reference; package ownership uses the
+`analytics_data_xpert` artifact namespace. Changing the ID requires saved-Binding migration.
+
+## Server configuration and identity
+
+Create a **data-xpert Analytics** Integration with `baseUrl` (including `/api`) and `audience`. In **Settings → Analytics**, publish a Definition with `integrationId`, `assistantCode`, `assistantXpertId` and `workspaceId`. The Integration is resolved in the current tenant/organization before and after each request. The Assistant and workspace must already
+have the intended published resources and viewer policy in data-xpert.
+
+The provider gets a short-lived token through
+`ActorTokenRuntimeFactoryCapability.createScopedApi(context.actor)`. Every request sends
+that token and the current actor's `organization-id` header. Neither the Agent's Binding nor
+the HTML iframe supplies a token, actor, API URL or Assistant scope.
+
+Only HTTP(S) base URLs without embedded credentials, query or fragment are accepted.
+Redirects are rejected. The host abort signal propagates through fetch and response streaming;
+a cancellation before or during token acquisition prevents a subsequent HTTP call.
+
+## Discovery across ontology adapters
+
+Start with `{}` or `{ "kind": "resources" }`. Follow each `inspectRequest` from resources
+to entities and then Actions. Follow `nextRequest` even if authorization filtered the entire
+page. Entity results are limited to 20 matches; narrow `query` or `entityTypeCode` as needed.
+
+Entity metadata carries this adapter-owned envelope:
+
+```json
+{
+  "definition": {
+    "adapterId": "sap_odata_api",
+    "contractVersion": 1,
+    "metadata": { "properties": [], "keys": [], "queryCapabilities": {} },
+    "instructions": ["Use the published property definitions and Action inputSchema."]
+  }
+}
+```
+
+The provider preserves this envelope, canonical targets, snapshot/version/partition fields,
+and each Action's `inputSchema` and `inputHint`. Semantic Model metadata may contain an
+`analysisContract`; OData metadata has different fields. The plugin does not translate either
+into the other's language or infer an adapter from labels.
+
+A new ontology adapter can use this path when data-xpert registers its discovery metadata
+and permits its read-only Actions with canonical effects. Registration, published resource
+access and explicit viewer policy are all required. A resource type alone is insufficient.
+
+## Binding and filters
+
+The payload selects exact discovered `resourceId`, `actionTypeCode`, canonical `target`,
+native `params` and `parameterPaths`. The target must contain `entityId` or `entityRef`.
+Use discovered `entityTypeCode` with external references when supplied.
+
+For an Action whose input schema defines the following filter, a mapping looks like this:
+
+```json
+{
+  "params": { "filters": [{ "field": "Region", "op": "eq", "value": null }] },
+  "parameterPaths": { "region": ["filters", "0", "value"] }
+}
+```
+
+This is a parameter-mapping example, not a universal ontology filter format. Use the selected
+Action's actual input schema. Paths are relative to `params`, unique, and must identify an
+existing scalar. Array segments use canonical zero-based indices. Missing/extra mappings,
+prototype keys and replacing an entire object/array are rejected. Parameters are cloned and
+replaced as whole values; the provider never interpolates query text.
+
+Each adapter defines its own null semantics, operators, supported time fields and aggregation
+limits. Verify business meaning and time axes with published metadata and authorized previews.
+Map returned column keys or explicit semantic references to Dataset field IDs.
+
+## Rendering and freshness
+
+Data-xpert's query endpoint supplies canonical rows for `rows`, `series` and `entity` effects.
+The provider carries those rows, source-fetch time, upstream execution ID and audit reference
+into the platform normalizer. Truncated results use page scope and unknown total accuracy.
+The reported count must not be interpreted as a verified full business aggregate.
+
+Structured Data Analytics views and free HTML/JS Artifacts consume the same Dataset through
+the host's declared Binding bridge. They do not call data-xpert directly. Filtering resolves
+new declared parameters; refreshing performs another request. Responses must declare
+`fromCache: false`, meaning the data-xpert Action result cache was bypassed. Upstream source
+caches and business-data freshness are separate concerns.

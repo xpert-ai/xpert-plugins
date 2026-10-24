@@ -1,0 +1,64 @@
+---
+title: "MySQL and Doris datasets"
+description: "Adapt existing scoped database connections to the shared Dataset/Binding protocol."
+---
+
+## Boundaries
+
+The platform owns source identity, viewer authorization, credentials, execution budgets,
+Binding validation, Dataset normalization and Artifact drafts/publication. The existing
+MySQL database plugin owns connections, transport, read-only SQL policy and metadata queries.
+This plugin owns `mysql.sql` and `doris.sql`, their payload schemas, discovery guidance and
+typed result conversion. The two decorated providers are registered separately, share only
+MySQL wire handling, and reject a mismatched adapter engine. No renderer depends on either ID.
+
+They ship in one installable package because both use the existing MySQL driver package.
+Provider IDs are stable persisted references and can move to separate packages later without
+changing saved Bindings, provided each ID has exactly one registered implementation.
+
+## Discovery
+
+Start with `{}` or `{"kind":"databases"}`. Results contain explicit `collection` items
+with a catalog `inspectRequest`. Database navigation is paged in groups of 20 within the
+Workbench adapter's bounded database inventory (at most 1,000 locations).
+
+```json
+{"kind":"catalog","location":{"database":"analytics"},"search":"orders","page":1}
+```
+
+Table/view pages are fetched by the driver, 20 objects at a time. Follow the returned
+`nextRequest` and inspect the chosen object. Inspection reports native types, nullability,
+column comments, keys, definition and diagnostics. Doris additionally reports its explicit
+UNIQUE/DUPLICATE/AGGREGATE table model; do not infer aggregation semantics from table names.
+The query contract is included on every page so an Agent need not know SQL dialect rules
+in the platform prompt. Inspect business definitions, units and dates before previewing.
+
+## Binding payload
+
+The payload permits only `sql`, `parameterOrder` and optional `location.database`.
+It does not accept credentials, actor, source ID, engine, tenant or external catalog overrides.
+Parameter values come from platform-resolved Binding controls. Repeat names for repeated
+positional placeholders: `(? IS NULL OR region=?)` needs `["region","region"]`.
+
+Both supported drivers use text-protocol escaping. Reject missing/extra parameters,
+placeholder count mismatches, `??` identifiers, and parameterized SQL containing `?` inside
+quotes/comments. Never interpolate control text. The driver rejects unsafe SQL, multiple
+statements and unsupported escape modes; MySQL also starts a read-only transaction.
+Doris database privileges remain the authority for read-only execution. External catalogs,
+file/network functions and user-authored routines are outside this provider.
+
+## Dataset encoding
+
+- DECIMAL and BIGINT use exact strings; SUM(decimal) and COUNT retain that encoding.
+- Declared float64 fields convert only eligible native integer/float wire types. Use an
+  explicit DOUBLE cast when approximate decimal/bigint conversion is intended.
+- A declared boolean converts TINYINT 0/1 only. BIT remains binary and needs an explicit SQL cast.
+- DATE uses `YYYY-MM-DD`. DATETIME/TIMESTAMP do not carry an offset on the wire; use a string
+  label or explicitly format a known timezone. The adapter never invents UTC.
+- Duplicate aliases, malformed row shape and pending/unknown outcomes fail. Empty results
+  still declare columns. Either `hasMore` or driver truncation marks a partial result,
+  omits an exact total and prevents pretending that a page is a full result.
+
+The same Binding works with standard Data Analytics charts, HTML/ECharts Artifacts and
+declared upstream inputs of Workspace Script datasets. Saving, filtering, refresh and
+reopening remain source-independent. The browser cannot supply raw SQL or replace a Binding.

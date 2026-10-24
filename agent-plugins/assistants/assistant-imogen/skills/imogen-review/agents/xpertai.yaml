@@ -1,0 +1,3 @@
+interface:
+  display_name: "图像无障碍描述员 · 结果复核"
+  short_description: "为图片提供与使用语境一致的简洁替代文本。"

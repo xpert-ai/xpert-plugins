@@ -1,0 +1,3 @@
+interface:
+  display_name: office-shipment-follow-up
+  short_description: Draft follow-up messages for delayed shipments without sending them.

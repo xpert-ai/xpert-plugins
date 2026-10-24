@@ -10,7 +10,10 @@ module.exports = {
   transform: {
     '^.+\\.[tj]s$': ['@swc/jest', swcJestConfig]
   },
-  transformIgnorePatterns: ['/node_modules/(?!(lodash-es)/)'],
+  // contracts imports the ESM-only ChatKit package; handle pnpm's real paths too.
+  transformIgnorePatterns: [
+    '/node_modules/(?!((?:\\.pnpm/[^/]+/node_modules/)?(?:lodash-es|@xpert-ai/chatkit-types))(?:/|$))'
+  ],
   moduleNameMapper: {
     '^lodash-es$': '<rootDir>/../../test-utils/lodashEsMock.ts'
   },

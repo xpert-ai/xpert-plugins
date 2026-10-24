@@ -1,0 +1,27 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/webby",
+    "name": "Webby",
+    "creator": "Farzad",
+    "categories": [
+      "Personal"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 1,
+    "routineCount": 6,
+    "integrations": [
+      "X"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "personal",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

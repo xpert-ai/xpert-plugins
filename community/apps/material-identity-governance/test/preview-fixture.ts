@@ -96,13 +96,15 @@ export async function handleRequest(
         canManage: true,
         canApprove: true,
         simulation: true,
+        projectStatus: 'ready',
+        projectId: current?.id.replace(/^0000/, '1000'),
       },
     }
   }
   if (message.type === 'invokeClientCommand') {
     state.navigation.push(message.payload ?? {})
     if (message.payload?.target === 'workbench.view') {
-      state.surface = message.payload.parameters?.surface ?? 'pipeline'
+      state.surface = message.payload.parameters?.surface ?? 'workspace'
       if (message.payload.selectionId)
         state.selectionId = message.payload.selectionId
     }
@@ -126,6 +128,11 @@ export async function handleRequest(
     if (!c) return { result: { success: false, code: 'case_not_found' } }
     if (c.revision !== input.expectedRevision)
       return { result: { success: false, code: 'stale_revision' } }
+    if (message.actionKey === 'start_pipeline') {
+      return { result: { success: true, code: 'started', caseId: c.id,
+        projectId: c.id.replace(/^0000/, '1000'),
+        pipelineInstanceId: c.id.replace(/^0000/, '2000') } }
+    }
     if (message.actionKey === 'decide_proposal') {
       if (!c.proposal || !input.reason?.trim())
         return { result: { success: false, code: 'reason_required' } }

@@ -1,0 +1,12 @@
+{
+  "id": "seo-aeo-desk",
+  "generator": "OpenAI imagegen",
+  "generatedAt": "2026-10-14",
+  "style": "Enterprise cartoon portrait; navy wardrobe; cream background",
+  "prompt": "Create ONE square avatar for an enterprise assistant template library. Original high-quality friendly 3D cartoon human, softly sculpted animated-feature aesthetic, warm cream seamless background, soft studio lighting, navy-and-cream corporate wardrobe with restrained accent colors. Chest-up portrait, face centered and large, eye contact, relaxed confident smile. Hair fully within frame, shoulders end at lower edge, minimal tiny work prop only at lower edge if specified. Match the polished Office Ops avatar series: natural human proportions with slightly enlarged expressive eyes, gentle shadows, clean smooth materials, no circle or frame baked in. No text, no letters, no logos, no watermark. A fictional person, not the actual creator of the referenced software. Role: SEO & AEO Desk assistant. A fictional woman, about 30, fair skin, short silver pixie hair. Navy business jacket with dusty terracotta shirt or blouse. Unique friendly facial features; chest-up with generous space above hair. Square composition.",
+  "sourceAsset": "exec-bce872de-3d31-4ae0-8230-b7407665aaee.png",
+  "packagedSize": 256,
+  "sha256": "81574d363367cd75efa1ba3c6052d510b635b860c1c005e96e8032565fe96da3",
+  "fictionalPerson": true,
+  "upstreamImageCopied": false
+}

@@ -12,7 +12,7 @@ interface CastField { type: string; string(): string | null; buffer(): Buffer | 
 interface QueryEvents {
   on(event: 'fields', callback: (fields: WireField[] | undefined) => void): this
   on(event: 'result', callback: (packet: unknown) => void): this
-  on(event: 'error', callback: (error: { code?: string }) => void): this
+  on(event: 'error', callback: (error: { code?: string; fatal?: boolean }) => void): this
   on(event: 'end', callback: () => void): this
 }
 export interface QueryConfig { sql: string; values: DatabaseValue[]; timeout: number; typeCast: (field: CastField) => DatabaseValue }
@@ -21,7 +21,7 @@ const scalar = (field: CastField): DatabaseValue => ['BIT', 'GEOMETRY'].includes
 export interface MysqlWireDriver {query(query:QueryConfig):QueryEvents;destroy():void}
 
 /** Collect cells during decoding, before object rows can overwrite duplicate column names. */
-export function createMysqlWorkbench(options: MysqlAdapterOptions, engine: 'mysql' | 'doris', testDriver?:MysqlWireDriver) {
+export function createMysqlTransport(options: MysqlAdapterOptions, engine: 'mysql' | 'doris', testDriver?:MysqlWireDriver, preserveServerErrors = false): WorkbenchTransport {
   const config: Omit<ConnectionOptions,'flags'> = {
     host: options.host, port: options.port || (engine === 'doris' ? 9030 : 3306), user: options.username,
     password: options.password, database: options.catalog, charset: 'UTF8MB4_GENERAL_CI',
@@ -29,21 +29,30 @@ export function createMysqlWorkbench(options: MysqlAdapterOptions, engine: 'mysq
     connectTimeout: 15000,
     ...(options.use_ssl ? { ssl: { ca: options.ssl_cacert, cert: options.ssl_cert, key: options.ssl_key, rejectUnauthorized: true } } : {})
   }
-  const driver = testDriver ?? (engine === 'doris' ? (() => {
+  let closed = false
+  let driver = testDriver
+  let failConnection: ((code: string) => void) | undefined
+  const connectionError = (error: { code?: string }) => {
+    if (failConnection) failConnection(error.code && /^[A-Z_0-9]+$/.test(error.code) ? error.code : 'database_connection_failed')
+    else { closed = true; driver?.destroy() }
+  }
+  // Validation can reject a query before any I/O. Do not start a handshake that close() races to destroy.
+  const getDriver = () => driver ??= (engine === 'doris' ? (() => {
     const mysqlConnection: typeof import('mysql').createConnection = require('mysql').createConnection
     const connection = mysqlConnection({...config, flags:'-LOCAL_FILES'} as ConnectionConfig)
+    connection.on('error', connectionError)
     return { query:(query:QueryConfig):QueryEvents=>connection.query(query),destroy:()=>connection.destroy() }
   })() : (() => {
     const mysql2Connection: typeof import('mysql2').createConnection = require('mysql2').createConnection
     const connection = mysql2Connection({...config,flags:['-LOCAL_FILES']})
+    connection.on('error', connectionError)
     return { query:(query:QueryConfig):QueryEvents=>connection.query(query),destroy:()=>connection.destroy() }
   })())
-  let closed = false
   let parameterMode: Promise<void> | undefined
   // Both drivers implement the documented query event and typeCast interfaces.
-  const start = (query: QueryConfig): QueryEvents => driver.query(query)
+  const start = (query: QueryConfig): QueryEvents => getDriver().query(query)
   const transport: WorkbenchTransport = {
-    async close() { if (!closed) { closed = true; driver.destroy() } },
+    async close() { if (!closed) { closed = true; driver?.destroy() } },
     async execute(sql, parameters, queryOptions) {
       if (parameters.length) {
         parameterMode ??= transport.execute('SELECT @@session.sql_mode AS sql_mode', [], { timeoutMs: 15000, maxRows: 1 }).then((result) => {
@@ -56,13 +65,16 @@ export function createMysqlWorkbench(options: MysqlAdapterOptions, engine: 'mysq
       return new Promise<DatabaseResult>((resolve, reject) => {
         const began = Date.now(), rows: DatabaseValue[][] = []
         let columns: DatabaseColumn[] = [], current: DatabaseValue[] = [], affectedRows: number | undefined, truncated = false, bytes = 0, settled = false
-        const cleanup = () => { clearTimeout(timer); queryOptions.signal?.removeEventListener('abort', abort) }
-        const fail = (code: string) => { if (settled) return; settled = true; cleanup(); closed = true; driver.destroy(); reject(new Error(code)) }
+        const cleanup = () => { clearTimeout(timer); queryOptions.signal?.removeEventListener('abort', abort); failConnection = undefined }
+        const fail = (code: string, destroy = true) => { if (settled) return; settled = true; cleanup(); if (destroy) { closed = true; driver?.destroy() }; reject(new Error(code)) }
+        failConnection = fail
         const abort = () => fail('execution_cancelled_outcome_unconfirmed')
         const timer = setTimeout(() => fail('execution_timeout_outcome_unconfirmed'), queryOptions.timeoutMs)
         if (queryOptions.signal?.aborted) { abort(); return }
         queryOptions.signal?.addEventListener('abort', abort, { once: true })
-        const query = start({ sql, values: parameters, timeout: queryOptions.timeoutMs, typeCast: (field) => { const value = scalar(field); current.push(value); return value } })
+        let query: QueryEvents
+        try { query = start({ sql, values: parameters, timeout: queryOptions.timeoutMs, typeCast: (field) => { const value = scalar(field); current.push(value); return value } }) }
+        catch { fail('database_execution_failed'); return }
         query.on('fields', (fields) => { columns = (fields ?? []).map((field, i) => ({ id: `c${i}`, name: field.name, dataType: String(field.columnType ?? field.type ?? ''), sourceColumn: field.orgName, sourceTable: field.table })) })
         query.on('result', (packet: unknown) => {
           if (columns.length) {
@@ -73,11 +85,15 @@ export function createMysqlWorkbench(options: MysqlAdapterOptions, engine: 'mysq
           } else if (packet && typeof packet === 'object' && 'affectedRows' in packet && typeof packet.affectedRows === 'number') affectedRows = packet.affectedRows
         })
         // Driver errors can contain SQL and credentials. Only the code crosses this boundary.
-        query.on('error', (error: { code?: string }) => fail(error.code && /^[A-Z_0-9]+$/.test(error.code) ? error.code : 'database_execution_failed'))
+        query.on('error', (error: { code?: string; fatal?: boolean }) => fail(error.code && /^[A-Z_0-9]+$/.test(error.code) ? error.code : 'database_execution_failed', !(preserveServerErrors && error.fatal !== true && /^ER_/.test(error.code ?? ''))))
         query.on('end', () => { if (settled) return; settled = true; cleanup(); resolve({ columns, rows, affectedRows, durationMs: Date.now() - began, hasMore: truncated, truncated, outcome: 'succeeded', diagnostics: [] }) })
       })
     },
     ...(engine === 'doris' ? { importRows: createDorisStreamLoad(options) } : {})
   }
-  return new SqlDatabaseWorkbenchAdapter(engine, transport, { database: options.catalog, ...(engine === 'doris' ? { engineCatalog: 'internal' } : {}) })
+  return transport
+}
+
+export function createMysqlWorkbench(options: MysqlAdapterOptions, engine: 'mysql' | 'doris', testDriver?:MysqlWireDriver) {
+  return new SqlDatabaseWorkbenchAdapter(engine, createMysqlTransport(options, engine, testDriver), { database: options.catalog, ...(engine === 'doris' ? { engineCatalog: 'internal' } : {}) })
 }

@@ -1,0 +1,34 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/haggle-bot",
+    "name": "Haggle Bot",
+    "creator": "Daniel Gartshein",
+    "categories": [
+      "From Grok Bot Team"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 6,
+    "routineCount": 2,
+    "integrations": [
+      "Ramp",
+      "Google Sheets",
+      "Gmail",
+      "Slack",
+      "Notion",
+      "Google Drive",
+      "Granola"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "operations",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending",
+    "classificationNote": "源页面没有业务类别；此分类为 Xpert 编辑整理。"
+  }
+}

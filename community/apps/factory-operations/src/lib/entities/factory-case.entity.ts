@@ -63,6 +63,10 @@ export class FactoryCaseEntity {
   @Column({ type: 'jsonb', default: () => "'[]'::jsonb" })
   assignedAssistantIds!: string[]
 
+  @Column({ type: 'uuid', nullable: true }) pipelineBindingId!: string | null
+  @Column({ type: 'uuid', nullable: true }) pipelineInstanceId!: string | null
+  @Column({ type: 'jsonb', default: {} }) roleAssistants!: Record<string, string>
+
   @Column({ type: 'varchar', length: 100 })
   currentStage!: string
 

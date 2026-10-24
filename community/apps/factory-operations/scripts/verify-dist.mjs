@@ -1,6 +1,8 @@
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { isDeepStrictEqual } from "node:util";
+import { factoryOperationsApp } from "../dist/app-config.js";
 
 const required = [
   "dist/lib/remote-components/factory-assistant-profile/app.js",
@@ -16,8 +18,6 @@ const required = [
   "dist/lib/factory-mcp-apps.d.ts",
   "dist/mcp-apps/dashboard/index.html",
   "dist/mcp-apps/case-summary/index.html",
-  "dist/lib/remote-components/factory-operations-center/app.js",
-  "dist/lib/remote-components/factory-operations-center/app.css",
   "dist/lib/remote-components/factory-case-workspace/app.js",
   "dist/lib/remote-components/factory-case-workspace/app.css",
   "dist/lib/remote-components/factory-operations-dashboard/app.js",
@@ -147,7 +147,7 @@ for (const [name, html] of [
   }
 }
 
-const expectedScreenshots = ["./assets/screenshot-01.jpg"];
+const expectedScreenshots = factoryOperationsApp.appConfig.presentation.screenshots;
 const appContribution = bundleJson.targetAppMeta?.[
   "data-xpert"
 ]?.marketplace?.contents?.find(
@@ -162,11 +162,20 @@ for (const [label, screenshots] of [
     throw new Error(`Plugin ${label} screenshots are inconsistent.`);
   }
 }
-if (
-  !existsSync(resolve(expectedScreenshots[0])) ||
-  !builtIndex.includes(expectedScreenshots[0])
-) {
-  throw new Error(
-    "Application screenshot is missing or stale in the runtime build."
+for (const target of ["xpert", "data-xpert"]) {
+  const app = bundleJson.targetAppMeta?.[target]?.marketplace?.contents?.find(
+    (item) => item.type === "app" && item.name === factoryOperationsApp.name
   );
+  for (const [key, value] of Object.entries(factoryOperationsApp)) {
+    if (!isDeepStrictEqual(app?.[key], value)) {
+      throw new Error(`Application ${target}.${key} differs from the runtime declaration.`);
+    }
+  }
+}
+for (const file of expectedScreenshots) {
+  if (!resolve(file).startsWith(resolve("assets") + "/")) throw new Error("Invalid cover path.");
+  const bytes = await readFile(resolve(file));
+  if (bytes.length > 5 * 1024 * 1024 || !bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) {
+    throw new Error(`Invalid or oversized PNG cover: ${file}`);
+  }
 }

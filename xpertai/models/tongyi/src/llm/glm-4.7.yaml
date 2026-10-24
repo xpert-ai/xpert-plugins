@@ -102,3 +102,4 @@ pricing:
     - input: '0.004'
       output: '0.016'
       max_tokens: 166000
+deprecated: true

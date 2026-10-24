@@ -446,3 +446,16 @@ Minimum OAuth scope is that document's full `scopes_supported` list. The documen
 does not name a smaller subset. The authv2 URL and the v1 MCP URL publish different
 resources and are not used. Display icon `assets/app-icon.png` is copied unchanged
 from the MIT composer icon.
+
+## PostgreSQL read-only package (2026-10-15)
+
+`postgres-readonly` 1.0.0 is an independently authored package. It is not an OpenAI
+plugin, and it does not replace `xpertai` database source plugins. No Toolbox
+binary, SQL driver, npm entry, connection string, or access key is copied into the
+package.
+
+| Source | This package |
+| --- | --- |
+| MCP Toolbox Streamable HTTP `http://host:5000/mcp` | `mcp.json` key `postgres-readonly`, `type: "streamable-http"`, URL `http://toolbox.internal:5000/mcp/postgres_readonly` |
+| Toolbox `postgres-execute-sql` | Not used. `docs/tools.yaml` defines only the five read-only `postgres-sql` tools |
+| Agent Plugin connector types `mcp_oauth` and `existing` | Neither is declared. A static header cannot carry a secret, and Toolbox static keys are not an OAuth connector |

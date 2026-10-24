@@ -1,0 +1,20 @@
+---
+name: account-book-setup
+description: "首次使用客户研究顾问时整理输入、偏好和首个可验收结果。"
+---
+
+# 客户研究顾问 · 首次使用
+
+1. 读取已保存的 Assistant 偏好和本地台账。已有有效偏好直接复用。
+2. 收集客户清单、公开资料、既有沟通记录，记录用户已提供的事实；将关键缺失项单独列出，不填造示例数据。
+3. 将任务目标、输入位置、交付物“客户档案与行动计划”和验收条件写入 assistants/account-book/brief.md。
+4. 用 save_assistant_preferences 保存已确认的 language 和 timezone，不猜测时区。不要把业务资料塞入偏好。
+5. 信息足够时立即读取 account-book-work 并完成首个结果；不足时交付含明确缺失项的准备清单。写入 assistants/account-book/reports/getting-started.md，说明当前实际输入数量和下一步。
+
+## 文件与执行约定
+
+工作目录为 assistants/account-book。先读取 brief.md、work-items.json、evidence.json 和相关历史报告。sandbox_write_file 只用于新路径；已有文件先读取再用 sandbox_edit_file 精确替换，保留无关事项与已完成状态。写入后读回确认，不通过另建 .tmp/.new/.bak 文件规避失败。台账中每条记录必须有稳定 id，重跑按 id 更新而不重复追加。不得保存密码、令牌或其他凭据。
+
+只使用当前运行时实际提供的工具，不臆造工具、账号、授权、实时查询或外部执行结果。来源网站的集成列表仅用于兼容性说明，不表示已安装或已授权。默认交付本地文件或草稿；发送、发布、购买、删除、修改外部系统前必须通过平台审批。工具报错或返回含错误字段时不能报告成功；外部写入超时先查询状态，避免重复执行。
+
+不把相似公司或同名联系人合并。

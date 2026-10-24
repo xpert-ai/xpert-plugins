@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-code-review",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -19,10 +19,19 @@
     "tslib": "^2.3.0"
   },
   "description": "Version-aware pull request review and findings workspace for Xpert",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xpert-ai/xpert-plugins.git",
+    "directory": "xpertai/apps/code-review"
+  },
   "files": [
+    "assets",
+    ".xpertai-plugin",
     "dist",
     "README.md",
-    "docs"
+    "docs",
+    "migrations/*.sql",
+    "scripts/export-local-review.mjs"
   ],
   "xpert": {
     "plugin": {
@@ -39,25 +48,27 @@
   "peerDependencies": {
     "@langchain/core": "^0.3.72",
     "@nestjs/common": "^11.1.6",
-    "@xpert-ai/contracts": "^3.19.0",
-    "@xpert-ai/plugin-sdk": "^3.19.0",
-    "zod": "3.25.67",
     "@nestjs/typeorm": "^11.0.0",
-    "typeorm": "^0.3.24"
+    "@xpert-ai/contracts": "^3.26.1",
+    "@xpert-ai/plugin-sdk": "^3.26.1",
+    "typeorm": "^0.3.24",
+    "zod": "3.25.67"
   },
   "devDependencies": {
     "@langchain/core": "0.3.72",
     "@nestjs/common": "11.1.6",
     "@nestjs/core": "11.1.6",
+    "@nestjs/typeorm": "^11.0.0",
     "@tailwindcss/cli": "4.3.2",
     "@types/node": "^22.13.0",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
-    "@xpert-ai/contracts": "3.19.0",
-    "@xpert-ai/plugin-sdk": "3.19.0",
+    "@xpert-ai/contracts": "3.26.1",
+    "@xpert-ai/plugin-sdk": "3.26.1",
     "@xpert-ai/plugin-shadcn-ui": "workspace:*",
     "esbuild": "0.28.1",
     "lucide-react": "1.24.0",
+    "pg": "8.18.0",
     "playwright-core": "1.61.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
@@ -65,10 +76,9 @@
     "socket.io-client": "4.8.1",
     "tailwindcss": "4.3.2",
     "tsx": "4.20.6",
-    "typescript": "5.9.3",
-    "zod": "3.25.67",
-    "@nestjs/typeorm": "^11.0.0",
     "typeorm": "^0.3.24",
-    "yaml": "^2.8.1"
+    "typescript": "5.9.3",
+    "yaml": "^2.8.1",
+    "zod": "3.25.67"
   }
 }

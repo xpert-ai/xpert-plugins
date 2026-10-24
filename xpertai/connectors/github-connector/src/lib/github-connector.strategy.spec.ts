@@ -139,6 +139,34 @@ describe('GitHubConnectorStrategy', () => {
     expect(JSON.stringify(result.metadata)).not.toContain('tenant-secret')
   })
 
+  it('uses the explicitly selected integration instead of the first inherited integration', async () => {
+    const selected = createStrategy([
+      githubIntegration('tenant-integration', null, 'tenant-client', 'tenant-secret'),
+      githubIntegration('selected-integration', 'organization-1', 'selected-client', 'selected-secret')
+    ])
+    const result = await selected.connect({
+      authMethodId: 'github-app-oauth',
+      values: { integrationId: 'selected-integration' },
+      redirectUri: 'https://xpert.test/api/connector/oauth/callback',
+      state: 'state'
+    })
+    if (result.status !== 'pending') throw new Error('Expected OAuth authorization')
+    expect(new URL(result.authorizationUrl).searchParams.get('client_id')).toBe('selected-client')
+    expect(result.metadata?.integrationId).toBe('selected-integration')
+  })
+
+  it('does not fall back when an explicitly selected integration has been removed', async () => {
+    const selected = createStrategy([githubIntegration('other', null, 'other-client', 'other-secret')])
+    await expect(
+      selected.connect({
+        authMethodId: 'github-app-oauth',
+        values: { integrationId: 'removed' },
+        redirectUri: 'https://xpert.test/callback',
+        state: 'state'
+      })
+    ).rejects.toThrow()
+  })
+
   it('falls back to an organization GitHub integration', async () => {
     const oauthStrategy = createStrategy([
       githubIntegration('organization-integration', 'organization-1', 'organization-client', 'organization-secret')
@@ -202,6 +230,7 @@ describe('GitHubConnectorStrategy', () => {
     })
     expect(credential.data).toEqual({
       integrationId: 'tenant-integration',
+      oauthClientId: 'tenant-client',
       accessToken: 'access-1',
       tokenType: 'bearer',
       refreshToken: 'refresh-1'
@@ -216,6 +245,7 @@ describe('GitHubConnectorStrategy', () => {
     })
     expect(refreshed.data).toEqual({
       integrationId: 'tenant-integration',
+      oauthClientId: 'tenant-client',
       accessToken: 'access-2',
       tokenType: 'bearer',
       refreshToken: 'refresh-2'
@@ -228,9 +258,88 @@ describe('GitHubConnectorStrategy', () => {
       authMethodId: 'github-app-oauth',
       credential: refreshed
     })
-    expect(runtime).toEqual({ accessToken: 'access-2', tokenType: 'bearer' })
+    expect(runtime).toEqual({
+      accessToken: 'access-2',
+      integrationId: 'tenant-integration',
+      oauthClientId: 'tenant-client',
+      tokenType: 'bearer',
+      resource: 'https://api.githubcopilot.com/mcp/'
+    })
     expect(JSON.stringify(runtime)).not.toContain('tenant-secret')
     expect(JSON.stringify(runtime)).not.toContain('refresh-2')
+  })
+
+  it('rejects application changes during OAuth callback or refresh before contacting GitHub', async () => {
+    const current = createStrategy([githubIntegration('app', null, 'replacement-client', 'fixture-secret')])
+    const fetchSpy = jest.spyOn(global, 'fetch')
+    await expect(current.exchangeAuthorizationCode({
+      authMethodId: 'github-app-oauth', metadata: { integrationId: 'app', oauthClientId: 'original-client', codeVerifier: 'verifier' },
+      code: 'code', redirectUri: 'https://xpert.test/callback'
+    })).rejects.toThrow('GitHub application changed')
+    await expect(current.refreshConnectionCredential({ authMethodId: 'github-app-oauth',
+      credential: { data: { integrationId: 'app', oauthClientId: 'original-client', refreshToken: 'fixture' } }
+    })).rejects.toThrow('GitHub application changed')
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('uses the persisted callback scope for an exact app lookup without inherited-request fallback', async () => {
+    const readForConnector = jest
+      .fn()
+      .mockResolvedValue(githubIntegration('app', null, 'callback-client', 'callback-secret'))
+    const findAllWithInheritance = jest.fn()
+    const scoped = new GitHubConnectorStrategy({
+      resolve: () => ({ readForConnector, findAllWithInheritance })
+    } as never)
+    jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(jsonResponse({ access_token: 'token', token_type: 'bearer' }))
+      .mockResolvedValueOnce(jsonResponse(githubUser()))
+    await scoped.exchangeAuthorizationCode({
+      authMethodId: 'github-app-oauth',
+      scope: { tenantId: 'original-tenant', organizationId: null },
+      metadata: { integrationId: 'app', codeVerifier: 'verifier' },
+      code: 'code',
+      redirectUri: 'https://xpert.test/callback'
+    })
+    expect(readForConnector).toHaveBeenCalledWith('app', 'github', {
+      tenantId: 'original-tenant',
+      organizationId: null
+    })
+    expect(findAllWithInheritance).not.toHaveBeenCalled()
+  })
+
+  it('limits MCP credentials to the official GitHub MCP resource while retaining CLI token fields', () => {
+    const runtime = strategy.resolveRuntimeCredential({
+      authMethodId: 'pat',
+      credential: { data: { accessToken: 'pat', tokenType: 'bearer' } }
+    })
+    expect(runtime).toEqual({ accessToken: 'pat', tokenType: 'bearer', resource: 'https://api.githubcopilot.com/mcp/' })
+  })
+
+  it('refreshes inline legacy credentials using their original application instead of another integration', async () => {
+    const current = createStrategy([githubIntegration('other', null, 'other-client', 'other-secret')])
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(jsonResponse({ access_token: 'renewed', token_type: 'bearer' }))
+    const refreshed = await current.refreshConnectionCredential({
+      authMethodId: 'github-app-oauth',
+      credential: {
+        data: {
+          clientId: 'original-client',
+          clientSecret: 'original-secret',
+          accessToken: 'old',
+          refreshToken: 'refresh',
+          tokenType: 'bearer'
+        }
+      }
+    })
+    expect(fetchSpy.mock.calls[0]?.[1]?.body?.toString()).toContain('client_id=original-client')
+    expect(refreshed.data).toMatchObject({
+      clientId: 'original-client',
+      clientSecret: 'original-secret',
+      accessToken: 'renewed'
+    })
+    expect(refreshed.data.integrationId).toBeUndefined()
   })
 
   it('migrates a legacy OAuth credential to the selected system integration during refresh', async () => {
@@ -260,6 +369,7 @@ describe('GitHubConnectorStrategy', () => {
       expect.objectContaining({
         data: {
           integrationId: 'tenant-integration',
+          oauthClientId: 'tenant-client',
           accessToken: 'access-migrated',
           tokenType: 'bearer',
           refreshToken: 'refresh-migrated'
@@ -284,12 +394,7 @@ function createStrategy(integrations: Array<Record<string, unknown>>) {
   return new GitHubConnectorStrategy(pluginContext as never)
 }
 
-function githubIntegration(
-  id: string,
-  organizationId: string | null,
-  clientId: string,
-  clientSecret: string
-) {
+function githubIntegration(id: string, organizationId: string | null, clientId: string, clientSecret: string) {
   return {
     id,
     provider: 'github',

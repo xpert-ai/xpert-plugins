@@ -1,0 +1,63 @@
+---
+title: "持续修改与版本历史"
+description: "Agent 在同一 Artifact 上修改页面或数据配置，保留不可变版本与并发保护。"
+---
+
+## 使用流程
+
+在 Workbench 打开看板后，可直接要求 Assistant“把这个看板改成浅色，保留数据口径”。
+视图通过平台 `assistant.context.set` 发布 `live_dashboard` 上下文，包含协议版本、Artifact ID，以及当前草稿修订号或正式版本 ID。
+这些标识仅用于定位；后端仍检查当前用户、组织和 Assistant／Project 归属。
+
+Agent 的编辑流程如下：
+
+1. `dashboard_open` 读取当前选中或明确指定的看板，获得稳定的 `editId`（Artifact ID）、`expectedRevision` 和 `expectedCurrentVersionId`。
+2. HTML 看板通过 `sandbox_read_file` 读取 `dashboard_open` 准备的 `htmlPath` 副本，再使用 `sandbox_edit_file` / `sandbox_multi_edit_file` 修改；随后显式调用 `dashboard_update` 校验并保存工作草稿。
+3. 其他字段或路径通过 `dashboard_update` 保存，传入稳定 `editId`、读取时的两个并发基准以及实际修改字段。Agent 始终保存草稿，人工确认后才发布正式版本。
+
+未选中看板时，Agent 使用 `dashboard_list` 查找并明确目标，不根据最近更新时间猜测。
+`dashboard_history` 返回可读版本，Workbench 的“版本历史”也可打开指定版本。
+读取、打开和筛选不会创建新版本。
+
+## 页面修改与数据修改
+
+更新工具只允许修改标题、控件、标准图表／表格、HTML 路径及预览回执。
+Artifact ID、定义 ID和原始 Binding 不能由变更字段覆盖；两个预期值只用于并发校验。
+
+- 只改样式时省略 `previewIds`，后端保留原 Binding；未提供的其他字段也保持原值。
+- 修改来源、指标或查询时，重新发现并预览数据，提交完整目标 Binding 集合的成功 `previewIds`，同时调整匹配的控件和页面字段。
+- 所有保存，包括样式修改和重复请求，都重新验证当前数据访问、声明筛选和 HTML 初始页面。
+
+Agent 新建或更换 Binding 时，若控件默认值为 `null`、且同名输出字段是维度，必须先用
+`dashboard_test_filter` 验证一个实际存在的非空选项。例如 `controls: {region: "华东"}`
+配合 `expectations: [{fieldId: "region", oneOf: ["华东"]}]`，检查返回行没有混入其他区域。
+空结果、截断结果、失败检查或旧 Binding 的检查不能取得保存凭证。
+此检查不推断任意业务口径；范围、搜索、不同名字段等语义仍需按来源契约单独验证。
+
+HTML 页面仍然只通过 `query(bindingId, controls)` 取数。增加编辑工具不会让页面获得原始查询、身份或宿主操作权限。
+
+## 版本与冲突
+
+`editId` 是稳定的 Artifact ID，可以跨轮使用。每轮应先读取最新工作草稿，保存时同时检查草稿修订号和正式版本基准。
+其他编辑或发布已经改变基准时，旧修改返回冲突，要求重新读取和处理差异，不自动覆盖或另建作品。
+自动保存不会创建正式版本；人工发布相同修订的重试不会产生重复正式版本。
+同一次 Agent 运行再次创建同名看板、但内容不同时，会要求改用 `dashboard_open` 和
+`dashboard_update`；避免自动纠错在保存后另建一个同名作品。
+
+更新成功的工具回执携带 Artifact、草稿修订号和 `status: draft`，Workbench 打开草稿预览并同步 Assistant 上下文。发布确认会冻结被确认的修订，期间发生变化则拒绝发布。
+旧版本保留原 HTML、控件和 Binding；打开旧版本仍会查询当前有权访问的最新来源数据。
+版本历史保存的是看板定义，不是历史查询结果快照。
+
+## 分层边界
+
+平台继续负责 Workspace Files、Artifacts 版本与授权、上下文消息桥和 HTML 隔离。
+看板选择上下文、编辑工具、数据预览回执及展示规则归 Live Dashboard 插件所有。
+数据源插件保持原来的 Dataset/Binding 接口，无需实现页面编辑或版本接口。
+
+完整生命周期与平台职责见[草稿与正式版本](drafts)，本次实际验证见[草稿验收](drafts-acceptance)。
+
+## SandboxFile 编辑流程
+
+读取插件随附的 `live-dashboard` 技能后，Agent 使用 `dashboard_open` 返回的独立 HTML 副本：先 `sandbox_read_file`，再 `sandbox_edit_file` / `sandbox_multi_edit_file`。修改文件不会自动保存 Artifact。每批完成后调用 `dashboard_update`，同时传入 `editId`、`expectedRevision`、`expectedCurrentVersionId`、`htmlPath` 和需要改变的标题等字段。保存通过 HTML/数据预检后返回草稿回执并更新 Workbench。冲突时保留文件，重新打开最新状态进行合并。
+
+历史版本只读，不准备编辑副本。新建 HTML 使用 `sandbox_write_file({file_path,content})` 后调用 `dashboard_create_html`。`sandbox_write_file` 仅创建新文件；已有文件使用编辑工具。脚本数据处理使用同一套平台文件工具，然后由脚本插件注册 Dataset。

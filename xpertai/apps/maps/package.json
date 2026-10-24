@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-maps",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -16,6 +16,7 @@
   },
   "files": [
     ".xpertai-plugin",
+    "assets",
     "dist",
     "docs",
     "README.md",
@@ -50,6 +51,7 @@
     "test": "node --test tests/*.test.mjs",
     "typecheck": "tsc -p tsconfig.lib.json --noEmit --tsBuildInfoFile dist/typecheck.tsbuildinfo && tsc -p mcp-apps/tsconfig.json",
     "verify:dist": "node scripts/build-mcp-app.mjs --check && node scripts/verify-dist.mjs",
+    "verify:app-config": "node ../../scripts/verify-app-configs.mjs maps",
     "prepack": "npm run build",
     "test:browser": "node scripts/browser-smoke.mjs"
   },

@@ -1,0 +1,31 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/critiquito",
+    "name": "Critiquito: Design Critique",
+    "creator": "Manuel Muñoz Solera",
+    "categories": [
+      "From Grok Bot Team",
+      "Design"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 7,
+    "routineCount": 1,
+    "integrations": [
+      "figma",
+      "slack",
+      "notion-workspace",
+      "linear"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "design",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

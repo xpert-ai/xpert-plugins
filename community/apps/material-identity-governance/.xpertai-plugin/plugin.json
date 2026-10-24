@@ -6,8 +6,475 @@
   "license": "AGPL-3.0",
   "level": "tenant",
   "artifactNamespace": "material_identity",
-  "targetApps": ["data-xpert", "xpert"],
+  "targetApps": [
+    "data-xpert",
+    "xpert"
+  ],
   "assets": {
-    "screenshots": ["./assets/dashboard.jpg", "./assets/pipeline.jpg"]
+    "screenshots": [
+      "./assets/brand/material-identity-governance-cover-zh-v1.png"
+    ],
+    "logo": "./assets/brand/material-identity-icon.svg",
+    "composerIcon": "./assets/brand/material-identity-icon.svg"
+  },
+  "targetAppMeta": {
+    "data-xpert": {
+      "types": [
+        "business-app",
+        "assistant-template",
+        "workbench-view"
+      ],
+      "marketplace": {
+        "contents": [
+          {
+            "type": "app",
+            "name": "material-identity-governance",
+            "displayName": {
+              "en_US": "Material Identity Governance",
+              "zh_Hans": "物料主数据智能治理"
+            },
+            "description": {
+              "en_US": "Govern duplicate codes, conflicting identities and duplicate engineering requests.",
+              "zh_Hans": "治理一物多码、一码多物与研发重复建码。"
+            },
+            "icon": {
+              "type": "svg",
+              "value": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" fill=\"none\"><rect width=\"64\" height=\"64\" rx=\"15\" fill=\"#2457A7\"/><path fill=\"#FFF\" fill-rule=\"evenodd\" d=\"M32 10 51 21 32 32 13 21 32 10Zm0 8-5.2 3L32 24l5.2-3L32 18Z\" clip-rule=\"evenodd\"/><path d=\"m13 27 15 8.7V54l-15-8.7V27Z\" fill=\"#FFF\"/><path d=\"m36 35.7 15-8.7v18.3L36 54V35.7Z\" fill=\"#8DD8F8\"/></svg>",
+              "alt": "Material Identity Governance"
+            },
+            "color": "#2457A7",
+            "tags": [
+              "manufacturing",
+              "master-data",
+              "multi-agent"
+            ],
+            "projectTypes": [
+              {
+                "key": "case",
+                "title": {
+                  "en_US": "Material Governance Case",
+                  "zh_Hans": "物料治理案例"
+                },
+                "binding": {
+                  "kind": "entity",
+                  "providerKey": "material_identity_case_project"
+                }
+              }
+            ],
+            "appConfig": {
+              "assistantSuite": {
+                "version": "1",
+                "coordinatorAgentKey": "Agent_coordinator",
+                "roles": [
+                  {
+                    "key": "intake",
+                    "templateKey": "material-identity-intake",
+                    "primaryAgentKey": "Agent_intake",
+                    "title": {
+                      "en_US": "intake",
+                      "zh_Hans": "数据采集专员"
+                    }
+                  },
+                  {
+                    "key": "engineering",
+                    "templateKey": "material-identity-engineering",
+                    "primaryAgentKey": "Agent_engineering",
+                    "title": {
+                      "en_US": "engineering",
+                      "zh_Hans": "研发图纸工程师"
+                    }
+                  },
+                  {
+                    "key": "standardization",
+                    "templateKey": "material-identity-standardization",
+                    "primaryAgentKey": "Agent_standardization",
+                    "title": {
+                      "en_US": "standardization",
+                      "zh_Hans": "物料标准化工程师"
+                    }
+                  },
+                  {
+                    "key": "quality",
+                    "templateKey": "material-identity-quality",
+                    "primaryAgentKey": "Agent_quality",
+                    "title": {
+                      "en_US": "quality",
+                      "zh_Hans": "质量冲突审计员"
+                    }
+                  },
+                  {
+                    "key": "impact",
+                    "templateKey": "material-identity-impact",
+                    "primaryAgentKey": "Agent_impact",
+                    "title": {
+                      "en_US": "impact",
+                      "zh_Hans": "供应链影响分析师"
+                    }
+                  },
+                  {
+                    "key": "governance",
+                    "templateKey": "material-identity-governance",
+                    "primaryAgentKey": "Agent_governance",
+                    "title": {
+                      "en_US": "governance",
+                      "zh_Hans": "主数据治理专员"
+                    }
+                  },
+                  {
+                    "key": "publisher",
+                    "templateKey": "material-identity-publisher",
+                    "primaryAgentKey": "Agent_publisher",
+                    "title": {
+                      "en_US": "publisher",
+                      "zh_Hans": "系统发布与监控专员"
+                    }
+                  }
+                ]
+              },
+              "scope": "organization",
+              "assistantTemplateKey": "material-identity-coordinator",
+              "workspace": {
+                "mode": "dedicated",
+                "name": {
+                  "en_US": "Material Identity Governance",
+                  "zh_Hans": "物料主数据智能治理"
+                },
+                "description": {
+                  "en_US": "Shared workspace for seven roles and their coordinator.",
+                  "zh_Hans": "七位业务角色及治理协调者的组织共享工作空间。"
+                },
+                "sharing": "organization"
+              },
+              "knowledgebases": [],
+              "modelRequirements": {
+                "primary": true
+              },
+              "presentation": {
+                "tagline": {
+                  "en_US": "One canonical identity. Evidence for every decision.",
+                  "zh_Hans": "统一物料身份，让每次治理有据可查。"
+                },
+                "longDescription": {
+                  "en_US": "Seven specialist Assistants and a coordinator reconcile source records, drawing attributes and business impact. Review evidence and approve a specific proposal revision, then follow execution and historical rounds in Project Tasks. External enterprise systems use Mock adapters.",
+                  "zh_Hans": "七位业务助理与协调者汇集来源记录、图纸属性及业务影响，人工核对证据并审批指定修订的治理方案，在项目任务中追踪执行与历史轮次。外部业务系统使用 Mock 适配器。"
+                },
+                "developer": "XpertAI",
+                "screenshots": [
+                  "./assets/brand/material-identity-governance-cover-zh-v1.png"
+                ],
+                "features": [
+                  {
+                    "key": "identity",
+                    "title": {
+                      "en_US": "Canonical material identity",
+                      "zh_Hans": "全局物料身份"
+                    },
+                    "description": {
+                      "en_US": "Keep legitimate plant aliases while separating incompatible specifications.",
+                      "zh_Hans": "保留合法工厂别名，按关键属性区分不同规格。"
+                    }
+                  },
+                  {
+                    "key": "roles",
+                    "title": {
+                      "en_US": "Independent role Assistants",
+                      "zh_Hans": "独立角色协作"
+                    },
+                    "description": {
+                      "en_US": "Seven role Assistants and one coordinator with explicit capabilities.",
+                      "zh_Hans": "七位业务助理与一位协调者分工完成采集、图纸核验、标准化、审计、影响评估和发布。"
+                    }
+                  },
+                  {
+                    "key": "audit",
+                    "title": {
+                      "en_US": "Evidence and governed execution",
+                      "zh_Hans": "证据与受控执行"
+                    },
+                    "description": {
+                      "en_US": "Inspect execution records and historical rounds in Project Tasks. Human approval is bound to a proposal revision.",
+                      "zh_Hans": "在项目任务中查看执行记录与历史轮次，人工审批绑定方案修订。"
+                    }
+                  }
+                ],
+                "useCases": [
+                  {
+                    "en_US": "Cross-plant bearing aliases",
+                    "zh_Hans": "轴承跨厂编码归一"
+                  },
+                  {
+                    "en_US": "Battery bracket code collision",
+                    "zh_Hans": "电池托架同码异物拆分"
+                  },
+                  {
+                    "en_US": "Engineering drawing duplicate prevention",
+                    "zh_Hans": "研发图纸识别与重复建码拦截"
+                  }
+                ],
+                "dataScope": {
+                  "en_US": "Data is limited to the current organization and authorized case Projects. External MDM and ERP publishing is simulated with Mock adapters.",
+                  "zh_Hans": "数据限定在当前组织及用户有权访问的案例项目内；向外部 MDM、ERP 的发布使用 Mock 模拟。"
+                },
+                "initializationSummary": {
+                  "en_US": "Create an organization workspace and install the governed Assistant suite.",
+                  "zh_Hans": "创建组织工作空间，安装并发布治理助理套件。"
+                },
+                "initializationSteps": [
+                  {
+                    "en_US": "Verify the organization primary model.",
+                    "zh_Hans": "检查组织主模型。"
+                  },
+                  {
+                    "en_US": "Create a shared workspace and install seven role Assistants.",
+                    "zh_Hans": "创建共享工作空间并安装七位业务助理。"
+                  },
+                  {
+                    "en_US": "Connect the role Assistants and publish the coordinator.",
+                    "zh_Hans": "关联业务助理并发布治理协调者。"
+                  }
+                ]
+              },
+              "entry": {
+                "type": "assistant-chat"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "xpert": {
+      "types": [
+        "business-app",
+        "assistant-template",
+        "workbench-view"
+      ],
+      "marketplace": {
+        "contents": [
+          {
+            "type": "app",
+            "name": "material-identity-governance",
+            "displayName": {
+              "en_US": "Material Identity Governance",
+              "zh_Hans": "物料主数据智能治理"
+            },
+            "description": {
+              "en_US": "Govern duplicate codes, conflicting identities and duplicate engineering requests.",
+              "zh_Hans": "治理一物多码、一码多物与研发重复建码。"
+            },
+            "icon": {
+              "type": "svg",
+              "value": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" fill=\"none\"><rect width=\"64\" height=\"64\" rx=\"15\" fill=\"#2457A7\"/><path fill=\"#FFF\" fill-rule=\"evenodd\" d=\"M32 10 51 21 32 32 13 21 32 10Zm0 8-5.2 3L32 24l5.2-3L32 18Z\" clip-rule=\"evenodd\"/><path d=\"m13 27 15 8.7V54l-15-8.7V27Z\" fill=\"#FFF\"/><path d=\"m36 35.7 15-8.7v18.3L36 54V35.7Z\" fill=\"#8DD8F8\"/></svg>",
+              "alt": "Material Identity Governance"
+            },
+            "color": "#2457A7",
+            "tags": [
+              "manufacturing",
+              "master-data",
+              "multi-agent"
+            ],
+            "projectTypes": [
+              {
+                "key": "case",
+                "title": {
+                  "en_US": "Material Governance Case",
+                  "zh_Hans": "物料治理案例"
+                },
+                "binding": {
+                  "kind": "entity",
+                  "providerKey": "material_identity_case_project"
+                }
+              }
+            ],
+            "appConfig": {
+              "assistantSuite": {
+                "version": "1",
+                "coordinatorAgentKey": "Agent_coordinator",
+                "roles": [
+                  {
+                    "key": "intake",
+                    "templateKey": "material-identity-intake",
+                    "primaryAgentKey": "Agent_intake",
+                    "title": {
+                      "en_US": "intake",
+                      "zh_Hans": "数据采集专员"
+                    }
+                  },
+                  {
+                    "key": "engineering",
+                    "templateKey": "material-identity-engineering",
+                    "primaryAgentKey": "Agent_engineering",
+                    "title": {
+                      "en_US": "engineering",
+                      "zh_Hans": "研发图纸工程师"
+                    }
+                  },
+                  {
+                    "key": "standardization",
+                    "templateKey": "material-identity-standardization",
+                    "primaryAgentKey": "Agent_standardization",
+                    "title": {
+                      "en_US": "standardization",
+                      "zh_Hans": "物料标准化工程师"
+                    }
+                  },
+                  {
+                    "key": "quality",
+                    "templateKey": "material-identity-quality",
+                    "primaryAgentKey": "Agent_quality",
+                    "title": {
+                      "en_US": "quality",
+                      "zh_Hans": "质量冲突审计员"
+                    }
+                  },
+                  {
+                    "key": "impact",
+                    "templateKey": "material-identity-impact",
+                    "primaryAgentKey": "Agent_impact",
+                    "title": {
+                      "en_US": "impact",
+                      "zh_Hans": "供应链影响分析师"
+                    }
+                  },
+                  {
+                    "key": "governance",
+                    "templateKey": "material-identity-governance",
+                    "primaryAgentKey": "Agent_governance",
+                    "title": {
+                      "en_US": "governance",
+                      "zh_Hans": "主数据治理专员"
+                    }
+                  },
+                  {
+                    "key": "publisher",
+                    "templateKey": "material-identity-publisher",
+                    "primaryAgentKey": "Agent_publisher",
+                    "title": {
+                      "en_US": "publisher",
+                      "zh_Hans": "系统发布与监控专员"
+                    }
+                  }
+                ]
+              },
+              "scope": "organization",
+              "assistantTemplateKey": "material-identity-coordinator",
+              "workspace": {
+                "mode": "dedicated",
+                "name": {
+                  "en_US": "Material Identity Governance",
+                  "zh_Hans": "物料主数据智能治理"
+                },
+                "description": {
+                  "en_US": "Shared workspace for seven roles and their coordinator.",
+                  "zh_Hans": "七位业务角色及治理协调者的组织共享工作空间。"
+                },
+                "sharing": "organization"
+              },
+              "knowledgebases": [],
+              "modelRequirements": {
+                "primary": true
+              },
+              "presentation": {
+                "tagline": {
+                  "en_US": "One canonical identity. Evidence for every decision.",
+                  "zh_Hans": "统一物料身份，让每次治理有据可查。"
+                },
+                "longDescription": {
+                  "en_US": "Seven specialist Assistants and a coordinator reconcile source records, drawing attributes and business impact. Review evidence and approve a specific proposal revision, then follow execution and historical rounds in Project Tasks. External enterprise systems use Mock adapters.",
+                  "zh_Hans": "七位业务助理与协调者汇集来源记录、图纸属性及业务影响，人工核对证据并审批指定修订的治理方案，在项目任务中追踪执行与历史轮次。外部业务系统使用 Mock 适配器。"
+                },
+                "developer": "XpertAI",
+                "screenshots": [
+                  "./assets/brand/material-identity-governance-cover-zh-v1.png"
+                ],
+                "features": [
+                  {
+                    "key": "identity",
+                    "title": {
+                      "en_US": "Canonical material identity",
+                      "zh_Hans": "全局物料身份"
+                    },
+                    "description": {
+                      "en_US": "Keep legitimate plant aliases while separating incompatible specifications.",
+                      "zh_Hans": "保留合法工厂别名，按关键属性区分不同规格。"
+                    }
+                  },
+                  {
+                    "key": "roles",
+                    "title": {
+                      "en_US": "Independent role Assistants",
+                      "zh_Hans": "独立角色协作"
+                    },
+                    "description": {
+                      "en_US": "Seven role Assistants and one coordinator with explicit capabilities.",
+                      "zh_Hans": "七位业务助理与一位协调者分工完成采集、图纸核验、标准化、审计、影响评估和发布。"
+                    }
+                  },
+                  {
+                    "key": "audit",
+                    "title": {
+                      "en_US": "Evidence and governed execution",
+                      "zh_Hans": "证据与受控执行"
+                    },
+                    "description": {
+                      "en_US": "Inspect execution records and historical rounds in Project Tasks. Human approval is bound to a proposal revision.",
+                      "zh_Hans": "在项目任务中查看执行记录与历史轮次，人工审批绑定方案修订。"
+                    }
+                  }
+                ],
+                "useCases": [
+                  {
+                    "en_US": "Cross-plant bearing aliases",
+                    "zh_Hans": "轴承跨厂编码归一"
+                  },
+                  {
+                    "en_US": "Battery bracket code collision",
+                    "zh_Hans": "电池托架同码异物拆分"
+                  },
+                  {
+                    "en_US": "Engineering drawing duplicate prevention",
+                    "zh_Hans": "研发图纸识别与重复建码拦截"
+                  }
+                ],
+                "dataScope": {
+                  "en_US": "Data is limited to the current organization and authorized case Projects. External MDM and ERP publishing is simulated with Mock adapters.",
+                  "zh_Hans": "数据限定在当前组织及用户有权访问的案例项目内；向外部 MDM、ERP 的发布使用 Mock 模拟。"
+                },
+                "initializationSummary": {
+                  "en_US": "Create an organization workspace and install the governed Assistant suite.",
+                  "zh_Hans": "创建组织工作空间，安装并发布治理助理套件。"
+                },
+                "initializationSteps": [
+                  {
+                    "en_US": "Verify the organization primary model.",
+                    "zh_Hans": "检查组织主模型。"
+                  },
+                  {
+                    "en_US": "Create a shared workspace and install seven role Assistants.",
+                    "zh_Hans": "创建共享工作空间并安装七位业务助理。"
+                  },
+                  {
+                    "en_US": "Connect the role Assistants and publish the coordinator.",
+                    "zh_Hans": "关联业务助理并发布治理协调者。"
+                  }
+                ]
+              },
+              "entry": {
+                "type": "assistant-chat"
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "interface": {
+    "displayName": "物料主数据智能治理",
+    "shortDescription": "统一物料身份，让每次治理有据可查。",
+    "composerIcon": "./assets/brand/material-identity-icon.svg",
+    "logo": "./assets/brand/material-identity-icon.svg",
+    "brandColor": "#2457A7",
+    "screenshots": [
+      "./assets/brand/material-identity-governance-cover-zh-v1.png"
+    ]
   }
 }

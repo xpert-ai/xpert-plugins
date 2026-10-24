@@ -1,0 +1,39 @@
+{
+  "source": {
+    "url": "https://x.ai/bot/marketplace/bots/call-follow-ups",
+    "name": "Call Follow-Ups",
+    "creator": "Daniel Brill",
+    "categories": [
+      "From Grok Bot Team",
+      "Sales"
+    ],
+    "checkedAt": "2026-10-14",
+    "skillCount": 6,
+    "routineCount": 1,
+    "integrations": [
+      "Gong",
+      "Granola",
+      "Salesforce",
+      "HubSpot",
+      "Attio",
+      "Gmail",
+      "Outlook",
+      "Google Calendar",
+      "Slack",
+      "Notion",
+      "Linear",
+      "Hex"
+    ]
+  },
+  "adaptation": {
+    "author": "Xpert AI",
+    "method": "original-functional-adaptation",
+    "upstreamTextCopied": false,
+    "upstreamImagesCopied": false,
+    "category": "sales",
+    "skillCount": 3,
+    "routineCount": 1,
+    "externalIntegrationsBundled": [],
+    "businessRuntimeAcceptance": "pending"
+  }
+}

@@ -40,14 +40,16 @@ export const FLOW_DEFINITION = {
     "assistantTopology": "both",
     "assistantParticipants": {
       "roleMode": "independent_assistants",
-      "orchestratorDelegation": "external_xperts",
-      "externalXpertConnections": "direct_required"
+      "orchestratorDelegation": "platform_pipeline",
+      "externalXpertConnections": "role_discovery_only"
     },
     "pipelineWorkbench": {
       "mode": "required",
-      "overviewViewKey": "material_identity_pipeline_overview",
-      "dashboardViewKey": "material_identity_operations_dashboard"
-    }
+      "overviewViewKey": "platform.project-tasks__timeline",
+      "dashboardViewKey": "material_identity_operations_dashboard",
+      "initialTab": "pipeline"
+    },
+    "executionAuthority": "platform"
   },
   "projectionContract": {
     "dashboardProject": "pipeline-dashboard-project",
@@ -80,14 +82,6 @@ export const FLOW_DEFINITION = {
     "dashboard": {
       "chartLibrary": "echarts",
       "layout": "management_monitoring"
-    },
-    "swimlane": {
-      "assistantAvatarSource": "platform_assistant",
-      "assistantExecutionMarkerPlacement": "assistant_card_bottom_right",
-      "nodeExecutionMarkerPlacement": "task_card_bottom_right",
-      "logicNodeShape": "diamond",
-      "dragPan": true,
-      "laneSelection": true
     }
   },
   "features": [
@@ -334,7 +328,7 @@ export const FLOW_DEFINITION = {
           "mode": "read"
         },
         {
-          "name": "material_identity_dispatch_next",
+          "name": "material_identity_start_pipeline",
           "mode": "decision_support"
         }
       ]
@@ -473,26 +467,7 @@ export const FLOW_DEFINITION = {
       ],
       "actionKeys": [
         "create_case",
-        "coordinate_next",
-        "run_node",
-        "decide_proposal",
-        "retry_project"
-      ],
-      "clientCommandKeys": [
-        "workbench.navigation.open"
-      ]
-    },
-    {
-      "key": "material_identity_pipeline_overview",
-      "title": "案例协同流水线",
-      "kind": "pipeline_overview",
-      "featureKeys": [
-        "material_identity_workbench"
-      ],
-      "actionKeys": [
-        "create_case",
-        "coordinate_next",
-        "run_node",
+        "start_pipeline",
         "decide_proposal",
         "retry_project"
       ],
@@ -509,8 +484,7 @@ export const FLOW_DEFINITION = {
       ],
       "actionKeys": [
         "create_case",
-        "coordinate_next",
-        "run_node",
+        "start_pipeline",
         "decide_proposal",
         "retry_project"
       ],
@@ -552,7 +526,7 @@ export const FLOW_DEFINITION = {
         "material_identity_intake"
       ],
       "allowedActionKeys": [
-        "run_node"
+        "start_pipeline"
       ],
       "risk": "medium",
       "humanGate": "none"
@@ -579,7 +553,7 @@ export const FLOW_DEFINITION = {
         "material_identity_engineering"
       ],
       "allowedActionKeys": [
-        "run_node"
+        "start_pipeline"
       ],
       "risk": "medium",
       "humanGate": "none"
@@ -606,7 +580,7 @@ export const FLOW_DEFINITION = {
         "material_identity_standardization"
       ],
       "allowedActionKeys": [
-        "run_node"
+        "start_pipeline"
       ],
       "risk": "medium",
       "humanGate": "none"
@@ -633,7 +607,7 @@ export const FLOW_DEFINITION = {
         "material_identity_standardization"
       ],
       "allowedActionKeys": [
-        "run_node"
+        "start_pipeline"
       ],
       "risk": "medium",
       "humanGate": "none"
@@ -660,7 +634,7 @@ export const FLOW_DEFINITION = {
         "material_identity_quality"
       ],
       "allowedActionKeys": [
-        "run_node"
+        "start_pipeline"
       ],
       "risk": "medium",
       "humanGate": "none"
@@ -687,7 +661,7 @@ export const FLOW_DEFINITION = {
         "material_identity_impact"
       ],
       "allowedActionKeys": [
-        "run_node"
+        "start_pipeline"
       ],
       "risk": "medium",
       "humanGate": "none"
@@ -714,7 +688,7 @@ export const FLOW_DEFINITION = {
         "material_identity_governance"
       ],
       "allowedActionKeys": [
-        "run_node"
+        "start_pipeline"
       ],
       "risk": "medium",
       "humanGate": "none",
@@ -768,7 +742,7 @@ export const FLOW_DEFINITION = {
         "material_identity_publisher"
       ],
       "allowedActionKeys": [
-        "run_node"
+        "start_pipeline"
       ],
       "risk": "high",
       "humanGate": "external_confirmation"

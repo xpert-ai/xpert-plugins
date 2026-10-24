@@ -1,0 +1,35 @@
+---
+title: 草稿与正式版本
+---
+
+## 使用方式
+
+Agent 的创建和修改现在保存为工作草稿。同一个 Artifact 跨多轮保留身份；每次保存增加 `draftRevision`，Workbench 根据成功回执打开草稿预览。关闭页面或重启平台后可重新打开。
+
+修改现有 HTML 时，Agent 先调用 `dashboard_open`，获得独立编辑副本的 `htmlPath` 和当前修订信息，再使用平台 SandboxFile 读取及编辑。每批修改完成后，Agent 自动调用 `dashboard_update` 保存工作草稿，无需人工确认。文件编辑本身不保存看板；只有带有 `status: draft`、`artifactId`、`draftRevision` 的领域回执证明草稿已保存。HTML 保存还返回实际消费文件的 `sourceFile.path/sha256`，用于核对保存内容。打开新的编辑副本不会覆盖此前未保存的文件。
+
+Workbench 的版本菜单区分工作草稿和正式版本。点击“发布草稿”后显示确认对话框，确认的修订才会形成新的正式版本。取消没有写入副作用。正式版本保持不可变，后续 Agent 修改继续保存到草稿。生成页面的筛选和刷新只重新查询数据，不会保存或发布版本。
+
+## 平台与插件的职责
+
+平台提供 `platform.artifact-drafts`：草稿持久化、Workspace 文件校验、批量元数据读取、并发检查和发布事务。新增 `artifact_draft` 表，每个 Artifact 一个当前草稿；`revision`、`baseVersionId`、`publishedRevision`、`publishedVersionId` 与内容引用分别记录编辑和发布状态。发布事务与其他 Artifact 版本写入共用 Artifact 行锁，并记录确认用户和时间。
+
+平台 SDK 的 `createMutationEvidence` 提供通用的待保存操作与提交回执跟踪。插件决定哪些工具属于看板修改、什么回执表示成功；没有保存回执时必须继续工具调用，无法保存时报告失败。Workspace 文件写成功不会被当作看板保存成功。
+
+看板插件负责 Dataset/Binding、HTML 包和依赖快照、数据及浏览器预检、工具说明、草稿预览和发布确认界面。Agent 没有发布工具。
+
+## 并发和查询边界
+
+`dashboard_open` 返回稳定 Artifact ID，以及 `expectedRevision` 和 `expectedCurrentVersionId`。修改以读取时的两个值为基准，不接受自动覆盖；发生冲突需重新读取并合并。自动保存也保留这两个基准。
+
+确认对话框冻结用户正在确认的修订。期间草稿变化会导致发布冲突，不会悄悄发布另一份内容。重复发布同一个已确认修订不会产生多余版本。
+
+页面查询只发送 Artifact 身份、草稿修订号或正式版本 ID、Binding ID 和声明过的筛选值。后端读取已保存的定义并重新检查当前访问权。原始 SQL、数据源替换、任意 Binding 或新增筛选字段仍被拒绝；HTML 沙箱仍禁止直接网络请求和父页面访问。
+
+## 兼容性和范围
+
+历史正式版本无需转换，仍可查看。第一次编辑建立工作草稿，已有 Artifact ID 保持不变。前端图库版本与字节仍随看板内容固定。
+
+当前保存的是最新工作草稿，草稿修订号用于并发控制；可浏览历史的是人工发布的正式版本。草稿修订历史、多人协同分支和自动合并不在本次范围内。
+
+使用外部数据库迁移的部署须先执行平台的 `artifacts/drafts/migrations/20261017-artifact-drafts.sql`，并使用包含新 runtime capability 的平台 SDK 与服务端。

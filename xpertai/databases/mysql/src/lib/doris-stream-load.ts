@@ -9,7 +9,7 @@ export function parseStreamLoadReceipt(body: unknown, label: string): DatabaseIm
   const count = (key: string) => { const result = Number(value[key]); if (!Number.isSafeInteger(result) || result < 0) throw new Error('invalid_stream_load_count'); return result }
   const status = value.Status, existing = value.ExistingJobStatus
   if (status === 'Success') return { outcome: 'succeeded', label, loadedRows: count('NumberLoadedRows'), filteredRows: count('NumberFilteredRows'), diagnostics: count('NumberFilteredRows') ? ['filtered_rows_reported'] : [] }
-  if (status === 'Publish Timeout') return { outcome: 'pending', label, diagnostics: ['committed_awaiting_visibility_do_not_replay'] }
+  if (status === 'Publish Timeout') return { outcome: 'pending', label, ...(value.NumberLoadedRows !== undefined ? { loadedRows: count('NumberLoadedRows') } : {}), ...(value.NumberFilteredRows !== undefined ? { filteredRows: count('NumberFilteredRows') } : {}), diagnostics: ['committed_awaiting_visibility_do_not_replay'] }
   if (status === 'Label Already Exists') return { outcome: existing === 'FINISHED' ? 'succeeded' : existing === 'RUNNING' ? 'pending' : 'unknown', label, diagnostics: ['duplicate_label_no_replay', 'original_row_counts_unavailable'] }
   return { outcome: 'unknown', label, diagnostics: ['stream_load_not_confirmed', typeof status === 'string' ? status.slice(0, 80) : 'missing_status'] }
 }
@@ -38,15 +38,18 @@ export function createDorisStreamLoad(options: DorisAdapterOptions) {
     })
     try {
       let response = await request(url)
-      if (response.status === 307) {
+      let current = url
+      for (let hop = 0; response.status === 307 || response.status === 308; hop++) {
+        if (hop === 4) throw new Error('stream_load_redirect_limit')
         const location = response.headers.location
         if (typeof location !== 'string' || !location) throw new Error('stream_load_redirect_missing')
-        const target = new URL(location, url)
+        const target = new URL(location, current)
         if (target.protocol !== url.protocol || !allow.has(target.hostname) || target.pathname !== url.pathname) throw new Error('stream_load_redirect_denied')
         // Doris FE may echo credentials in Location. Ignore URL credentials and
         // keep the configured Authorization header for the allowlisted BE host.
         target.username = ''
         target.password = ''
+        current = target
         response = await request(target)
       }
       if (response.status < 200 || response.status >= 300) return { outcome: 'unknown', label, diagnostics: [`http_${response.status}`, 'verify_label_before_retry'] }
