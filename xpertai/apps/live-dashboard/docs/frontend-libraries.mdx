@@ -10,7 +10,7 @@ description: "ECharts、Three.js 的受控注入、版本快照和 Binding 边�
 创建 HTML 看板时传入 `libraries: ["echarts"]`；不使用库时省略。
 已有看板先 `dashboard_open`，读取原 HTML，再 `dashboard_update`。
 修改工具省略 `libraries` 会保留原依赖；显式传入完整列表表示增加、移除或升级依赖。
-库在作者代码执行前已加载，不要写 CDN 标签、ES module import 或复制库源码。
+打包库在作者代码执行前已加载，不要重复加载相同库或复制库源码。在线依赖可使用 script/link 标签，来源须在 dashboard_libraries.online 的对应资源类型白名单内；Tailwind CDN 可使用 https://cdn.tailwindcss.com/3.4.17。在线资源不填写到 libraries 数组中。
 
 ```javascript
 const chart = echarts.init(document.querySelector('#chart'), null, { renderer: 'svg' })
@@ -53,5 +53,5 @@ WebGLRenderer 需要浏览器提供 WebGL2，必须处理 GPU 不可用并释放
 ## 查询权限
 
 图库只处理已返回的 Dataset。页面仍只能通过 `xpertLiveArtifact` 指定已保存的 Binding ID 和控件值。
-库注入不会开放 CDN、网络请求、Provider 覆盖、SQL、宿主存储或其他 View Actions。
+在线脚本、样式和字体使用独立的 HTTPS CDN 白名单，预检和实际页面规则一致。在线资源必须在保存和查看时可访问，内容不会随 Artifact 冻结。数据网络请求、Provider 覆盖、SQL、宿主存储或其他 View Actions 仍不开放。
 服务端继续按当前用户授权查询，旧版本不能恢复已撤销的数据访问权限。
