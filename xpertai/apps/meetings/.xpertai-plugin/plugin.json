@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-meetings",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Private file-backed meeting notes for Xpert Desktop",
   "author": "XpertAI",
   "license": "AGPL-3.0",

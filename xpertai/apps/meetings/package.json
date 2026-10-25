@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-meetings",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Assistant-shared file-backed meeting notes for Xpert Desktop",
   "type": "module",
   "main": "dist/index.js",
