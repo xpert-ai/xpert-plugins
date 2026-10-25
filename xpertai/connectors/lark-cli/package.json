@@ -38,8 +38,12 @@
     "@xpert-ai/connector-runtime": "workspace:^"
   },
   "peerDependencies": {
-    "@xpert-ai/contracts": "^3.26.1",
+    "@xpert-ai/contracts": "^3.27.0",
     "axios": "1.12.2",
-    "@xpert-ai/plugin-sdk": "^3.26.1"
+    "@xpert-ai/plugin-sdk": "^3.27.0"
+  },
+  "devDependencies": {
+    "@xpert-ai/contracts": "3.27.0",
+    "@xpert-ai/plugin-sdk": "3.27.0"
   }
 }
