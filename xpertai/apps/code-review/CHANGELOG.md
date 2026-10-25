@@ -1,5 +1,16 @@
 # @xpert-ai/plugin-code-review
 
+## 0.4.0
+
+### Minor Changes
+
+- 578b922: Bind repository automation to saved Project review pipelines and use the same platform dispatch for manual and webhook starts. Add a lightweight single-reviewer template, preserve PR snapshots across rounds, and navigate the inbox to the authoritative Project approval. Expose persisted upstream findings to verification tools and preserve GitHub App authorization in delegated pipeline work. Existing private records remain private; unbound legacy automation requires explicit configuration. Apply the additive repository-pipelines migration before deployment when schema synchronization is external.
+
+### Patch Changes
+
+- 578b922: Allow manual reviews and repository rules to select a compatible review template and configure its Assistants and parameters inline, without first saving a configuration in Project Tasks. Preserve optional reuse of saved configurations, immutable bindings, permission checks and human publication approval.
+- 578b922: Unify Code Review into a compact list/detail workbench with PR grouping, version history, search and filtering, collapsible panes, and contextual in-app pipeline navigation. Add a resizable PR list with keyboard controls, width presets and responsive bounds. Preserve review visibility boundaries and surface run failure reasons alongside snapshots.
+
 ## 0.3.3
 
 ### Patch Changes

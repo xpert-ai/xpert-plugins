@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-shadcn-ui",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Root shared shadcn/Radix React UI primitives for Xpert plugin remote component views.",
   "author": {
