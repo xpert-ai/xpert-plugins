@@ -113,7 +113,10 @@
               "zh_Hans": "用于 DOCX 文档的工作台和 Agent 中间件工具。"
             },
             "appConfig": {
-              "scope": "organization",
+              "scope": [
+                "organization",
+                "personal"
+              ],
               "assistantTemplateKey": "docx-editor-assistant",
               "workspace": {
                 "mode": "dedicated",

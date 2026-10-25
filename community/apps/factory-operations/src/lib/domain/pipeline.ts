@@ -91,7 +91,6 @@ const V1_EDGES: PipelineEdgeDefinition[] = [
   edge('assess-production-impact', 'generate-recovery-plan'),
   edge('check-resource-readiness', 'generate-recovery-plan'),
   edge('generate-recovery-plan', 'route-execution-authority'),
-  edge('route-execution-authority', 'execute-recovery-plan', 'execution-authority', 'auto-safe'),
   edge('route-execution-authority', 'approve-recovery-plan', 'execution-authority', 'approval-required'),
   edge('approve-recovery-plan', 'execute-recovery-plan'),
   edge('execute-recovery-plan', 'route-execution-outcome'),

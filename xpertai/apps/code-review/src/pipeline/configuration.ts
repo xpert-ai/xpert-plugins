@@ -75,6 +75,29 @@ export function localReviewPipelineConfiguration(assistants?: Parameters<typeof 
     edge.to === 'confirmed' ? { ...edge, to: 'done' } : edge)
   return projectPipelineConfigurationSchema.parse(config)
 }
+/** A single reviewer still uses the platform coordinator, CI and the same human approval. */
+export function lightweightReviewPipelineConfiguration(reviewer = 'select-reviewer',
+  parameters?: Parameters<typeof reviewPipelineConfiguration>[1]) {
+  const config = reviewPipelineConfiguration({ correctness: reviewer, security: reviewer, verifier: reviewer }, parameters)
+  if (config.template.executionAuthority !== 'platform') throw new Error('Managed review template required')
+  config.template.key = 'code-review.pull-request-light'
+  config.template.title = 'Code Review · 轻量审查'
+  config.binding.templateRef = 'code-review.pull-request-light@1.0.0'
+  config.template.roles = config.template.roles.filter(role => role.key !== 'verifier')
+  config.template.lanes = config.template.lanes.filter(lane => lane.key !== 'verify').map(lane =>
+    lane.key === 'review' ? { ...lane, label: '代码审查' } : lane)
+  config.template.nodes = config.template.nodes.filter(node => !['security', 'verify'].includes(node.key)).map(node => {
+    if (node.key === 'correctness' && node.kind === 'work') return { ...node, operationRef: refs.review }
+    if (node.inputBindings?.findings?.from === 'node_output') return { ...node, inputBindings: {
+      ...node.inputBindings, findings: { from: 'node_output' as const, nodeKey: 'correctness', port: 'findings' } } }
+    return node
+  })
+  config.template.edges = config.template.edges.filter(edge => !['security', 'verify'].includes(edge.from) && !['security', 'verify'].includes(edge.to))
+  config.template.edges.push({ from: 'join', to: 'route' })
+  delete config.binding.executorBindings?.security
+  delete config.binding.executorBindings?.verifier
+  return projectPipelineConfigurationSchema.parse(config)
+}
 const one = (schemaRef: string) => ({ schemaRef, cardinality: 'one' as const })
 export const reviewPipelineDescriptors: ProjectPipelineExtensionDescriptor[] = [
   ...[refs.snapshot, refs.findings, refs.checks, refs.delivery, refs.localDelivery].map(ref => ({ kind: 'schema' as const, ref })),
@@ -82,7 +105,7 @@ export const reviewPipelineDescriptors: ProjectPipelineExtensionDescriptor[] = [
   { kind: 'operation', ref: refs.archive, effects: 'isolated_write', idempotency: 'keyed_receipt', requiredCapabilities: [], inputs: {
     approval: one('platform.human-decision@1'), findings: one(refs.findings) }, outputs: { receipt: refs.localDelivery } },
   { kind: 'operation', ref: refs.prepare, effects: 'isolated_write', idempotency: 'keyed_receipt', requiredCapabilities: [], inputs: { subject: one(refs.snapshot) }, outputs: { snapshot: refs.snapshot } },
-  ...[refs.correctness, refs.security].map(ref => ({ kind: 'operation' as const, ref, effects: 'isolated_write' as const,
+  ...[refs.review, refs.correctness, refs.security].map(ref => ({ kind: 'operation' as const, ref, effects: 'isolated_write' as const,
     idempotency: 'keyed_receipt' as const, retry: 'after_confirmed_failure' as const, requiredCapabilities: [], inputs: { snapshot: one(refs.snapshot) }, outputs: { findings: refs.findings } })),
   { kind: 'operation', ref: refs.verify, effects: 'isolated_write', idempotency: 'keyed_receipt', retry: 'after_confirmed_failure', requiredCapabilities: [], inputs: {
     snapshot: one(refs.snapshot), candidates: { schemaRef: refs.findings, cardinality: 'collection' }, checks: one(refs.checks) }, outputs: { findings: refs.findings } },
@@ -114,9 +137,11 @@ export const reviewPipelineConfigurationForm = projectPipelineConfigurationFormS
 @ProjectPipelineContributor('code-review')
 export class ReviewPipelineContribution {
   readonly key = 'code-review'
-  readonly configurations = [reviewPipelineConfiguration(), localReviewPipelineConfiguration()]
+  readonly configurations = [reviewPipelineConfiguration(), lightweightReviewPipelineConfiguration(), localReviewPipelineConfiguration()]
   readonly descriptors = reviewPipelineDescriptors
   readonly forms = [reviewPipelineConfigurationForm, projectPipelineConfigurationFormSchema.parse({ ...reviewPipelineConfigurationForm,
+    templateRef: 'code-review.pull-request-light@1.0.0', assistantSlots: [reviewPipelineConfigurationForm.assistantSlots[0]],
+    description: { en_US: 'One reviewer and CI, followed by human approval before publishing.', zh_Hans: '单个智能体完成审查，结合 CI 检查，经人工确认后发布。' } }), projectPipelineConfigurationFormSchema.parse({ ...reviewPipelineConfigurationForm,
     templateRef: 'code-review.local-git@1.0.0', description: { en_US: 'Review an immutable local Git snapshot and retain approved findings in this Project.',
       zh_Hans: '审查固定版本的本地 Git 快照，经人工确认后将结果保存在当前 Project。' } })]
 }

@@ -1,0 +1,39 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Xpert Spaces",
+  "colors": {
+    "primary": "#16A34A",
+    "light": "#07C983",
+    "dark": "#15803D"
+  },
+  "navigation": {
+    "groups": [
+      {
+        "group": "协作空间",
+        "pages": [
+          "index",
+          "quickstart",
+          "architecture",
+          "insert-menu-plan",
+          "math-subpages",
+          "collaboration",
+          "page-resources-and-connectors",
+          "feishu-document-import"
+        ]
+      }
+    ]
+  },
+  "contextual": {
+    "options": [
+      "copy",
+      "view",
+      "chatgpt",
+      "claude",
+      "perplexity",
+      "mcp",
+      "cursor",
+      "vscode"
+    ]
+  }
+}

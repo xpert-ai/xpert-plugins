@@ -589,7 +589,7 @@ function middlewareMeta(
       zh_Hans: `${zh_Hans}，用于受控的工厂异常恢复。`,
     },
     icon: FACTORY_ICON,
-    features: [...new Set([...features, FACTORY_PROFILE_FEATURE])],
+    features: [...new Set([...features, FACTORY_PROFILE_FEATURE, 'project.tasks'])],
     configSchema: { type: "object", properties: {}, required: [] },
   };
 }

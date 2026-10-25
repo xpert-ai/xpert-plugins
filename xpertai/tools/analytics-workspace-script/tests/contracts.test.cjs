@@ -124,7 +124,7 @@ function executionFixture(overrides = {}) {
   const sdk = require('@xpert-ai/plugin-sdk'), { createHash } = require('node:crypto')
   const hash = value => createHash('sha256').update(value).digest('hex')
   const definition = { title: 'File dataset', runtime: { action: 'workspace_script.execute', actionVersion: '1.0.0' },
-    language: 'javascript', mode: 'pinned', script: { filePath: 'script' }, scriptSha256: hash('code'),
+    language: overrides.language ?? 'javascript', mode: 'pinned', script: { filePath: 'script' }, scriptSha256: hash('code'),
     output: { datasetId: 'sales', fields: [{ id: 'amount', sourceField: 'amount', label: 'Amount', logicalType: 'float64', nullable: false, role: 'measure' }], grain: [] },
     parameters: [], files: [{ alias: 'orders', reference: { filePath: 'orders' } }], sources: [] }
   const output = Buffer.from(JSON.stringify({ columns: [{ key: 'amount' }], rows: [{ amount: 10 }] }))
@@ -212,4 +212,37 @@ test('script middleware exposes domain registration only; file tools belong to S
     tenantId: 'tenant', organizationId: 'org', userId: 'user', xpertId: 'assistant', runtime: { capabilities: { require: () => ({}) } }
   })
   assert.deepEqual(middleware.tools.map(t => t.name), ['workspace_dataset_register'])
+})
+
+for (const language of ['python', 'javascript']) {
+  for (const code of ['SANDBOX_ACTION_UNAVAILABLE', 'SANDBOX_ACTION_INVALID', 'SANDBOX_PROFILE_UNAVAILABLE',
+    'SANDBOX_RUNTIME_UNAVAILABLE', 'SANDBOX_VERSION_MISMATCH', 'SANDBOX_START_FAILED', 'SANDBOX_CAPACITY_UNAVAILABLE', 'EXPORT_INPUT_INVALID']) {
+    test(`${language} preserves ${code} for the Analytics safety boundary`, async () => {
+      const { SandboxJobRuntimeError } = require('@xpert-ai/plugin-sdk')
+      const error = new SandboxJobRuntimeError(code, 'private runtime detail', false)
+      const f = executionFixture({ language, run: async () => { throw error } })
+      await assert.rejects(f.provider.execute(f.binding, {}, f.context), actual => actual === error)
+      assert.equal(f.state.audits, 0)
+      assert.equal(f.state.fileReads, 0)
+    })
+  }
+}
+
+test('script errors still receive language diagnostics without private output', async () => {
+  const { SandboxJobRuntimeError } = require('@xpert-ai/plugin-sdk')
+  const f = executionFixture({ run: async () => { throw new SandboxJobRuntimeError('EXPORT_OUTPUT_INVALID', 'SyntaxError: private-value', false) } })
+  await assert.rejects(f.provider.execute(f.binding, {}, f.context), error => {
+    const response = error.getResponse()
+    assert.equal(response.code, 'WORKSPACE_SCRIPT_EXECUTION_FAILED')
+    assert.match(response.message, /Fix the syntax/)
+    assert.equal(response.message.includes('private-value'), false)
+    return true
+  })
+})
+
+test('missing script libraries remain typed for the host safety boundary', async () => {
+  const { SandboxJobRuntimeError } = require('@xpert-ai/plugin-sdk')
+  const original = new SandboxJobRuntimeError('EXPORT_INPUT_INVALID', "ModuleNotFoundError: No module named 'private-library'", false)
+  const f = executionFixture({ run: async () => { throw original } })
+  await assert.rejects(f.provider.execute(f.binding, {}, f.context), error => error === original)
 })

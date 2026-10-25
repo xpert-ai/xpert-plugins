@@ -1,3 +1,4 @@
+import { assertProcessingClaim } from "./processing-claim.js";
 import { randomUUID } from "node:crypto";
 import {
   mkdir,
@@ -22,6 +23,8 @@ import {
   submissionSchema,
   type SummarySnapshot,
   type SummarySubmission,
+  assertSummaryCommit,
+  summaryInputVersion,
 } from "./assistant-snapshot.js";
 import { saveSummary, validateSummary } from "./summary-store.js";
 import { summaryMarkdown } from "./document-markdown.js";
@@ -55,6 +58,7 @@ export class AssistantWorkflow {
 
   async live(scope: Scope, input: Meeting) {
     await this.store.update(scope, input.id, async (m, dir) => {
+      assertProcessingClaim(m, input);
       if (m.expectedChunks) return;
       for (const end of silentBoundaries(
         m.transcript,
@@ -81,6 +85,7 @@ export class AssistantWorkflow {
     liveTranscript: Meeting["transcript"]
   ) {
     await this.store.update(scope, input.id, async (m, dir) => {
+      assertProcessingClaim(m, input);
       const last = m.assistant.operations
         .filter((o) => o.kind === "final")
         .at(-1);
@@ -91,7 +96,13 @@ export class AssistantWorkflow {
             (s) => s.endMs > m.assistant.submittedUntilMs && s.text.trim()
           );
       await this.append(
-        scope, m, dir, "final", input.transcript, tail, m.durationMs
+        scope,
+        m,
+        dir,
+        "final",
+        m.transcript,
+        tail,
+        m.durationMs
       );
     });
     await this.enqueue(scope, input.id);
@@ -150,6 +161,7 @@ export class AssistantWorkflow {
       notes: m.notes,
       notesRevision: m.notesRevision,
       notesDocumentSequence: m.documents.notes?.sequence ?? null,
+      inputVersion: summaryInputVersion(m, transcript),
       transcript,
       quoted,
       prompt,
@@ -176,6 +188,13 @@ export class AssistantWorkflow {
       throw e;
     }
     if (!pending(m, scope.userId)) return;
+    let dispatch:
+      | {
+          meeting: Meeting;
+          operation: Operation;
+          api: AgentMiddlewareAssistantTaskApi;
+        }
+      | undefined;
     await this.store.withProcessingLock(scope, id, "assistant", async () => {
       m = await this.store.read(scope, id);
       const op = pending(m, scope.userId);
@@ -228,7 +247,7 @@ export class AssistantWorkflow {
           });
         } else if (!receipt || receipt.status === "unknown") {
           // If dispatch never reached the host, replay the identical operation, not a new message.
-          await this.dispatch(scope, m, op, api);
+          dispatch = { meeting: m, operation: op, api };
         }
       } else {
         const chat = await api.getTaskStatus({
@@ -241,10 +260,18 @@ export class AssistantWorkflow {
             current.status = "running";
             current.startedAt = new Date().toISOString();
           });
-          await this.dispatch(scope, m, op, api);
+          dispatch = { meeting: m, operation: op, api };
         }
       }
     });
+    // The immutable operation identity makes concurrent/replayed delivery idempotent at the host.
+    if (dispatch)
+      await this.dispatch(
+        scope,
+        dispatch.meeting,
+        dispatch.operation,
+        dispatch.api
+      );
     if (pending(await this.store.read(scope, id), scope.userId))
       await this.enqueue(scope, id, 2000);
   }
@@ -284,6 +311,17 @@ export class AssistantWorkflow {
     op: Operation,
     api: AgentMiddlewareAssistantTaskApi
   ) {
+    const current = await this.store.read(scope, m.id);
+    const active = current.assistant.operations.find((o) => o.id === op.id);
+    if (
+      !active ||
+      active.settled ||
+      active.status === "failed" ||
+      active.status === "ready"
+    )
+      return;
+    if (active.executionId !== op.executionId || active.userId !== scope.userId)
+      throw new MeetingError("summary_operation_mismatch");
     const input = await this.snapshot(scope, m.id, op.id);
     let receipt;
     try {
@@ -332,6 +370,7 @@ export class AssistantWorkflow {
     if (receipt.status === "failed" || receipt.status === "interrupted") {
       await this.store.update(scope, m.id, (current) => {
         const task = current.assistant.operations.find((o) => o.id === op.id)!;
+        if (task.settled || task.status === "ready") return;
         task.status = "failed";
         task.settled = true;
         task.errorCode = "assistant_dispatch_failed";
@@ -446,12 +485,6 @@ export class AssistantWorkflow {
     validateSummary(input, result);
     const output = JSON.stringify(result),
       dir = join(this.store.directory(scope, m.id), "assistant");
-    if (op.status === "ready") {
-      const prior = await readFile(join(dir, `${op.id}.output.json`), "utf8");
-      if (sha256(prior) !== sha256(output))
-        throw new MeetingError("summary_already_submitted");
-      return this.submissionReceipt(scope, m.id, op);
-    }
     // The finalizer rechecks the active operation inside the manifest lock.
     if (op.kind === "final") {
       await saveSummary(
@@ -460,6 +493,8 @@ export class AssistantWorkflow {
         m.id,
         {
           ...m,
+          title: input.title,
+          createdAt: input.date,
           notes: input.notes,
           notesRevision: input.notesRevision,
           transcript: input.transcript,
@@ -475,13 +510,11 @@ export class AssistantWorkflow {
           },
         },
         result,
-        op.id
+        { operation: op, snapshot: input }
       );
     } else
       await this.store.update(scope, m.id, async (current) => {
-        const active = current.assistant.operations.find((o) => o.id === op.id);
-        if (!active || active.status === "failed")
-          throw new MeetingError("summary_operation_closed");
+        const active = assertSummaryCommit(current, scope, op, input);
         if (active.status === "ready") {
           if (
             sha256(

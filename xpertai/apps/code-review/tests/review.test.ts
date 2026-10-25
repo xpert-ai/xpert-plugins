@@ -1,3 +1,4 @@
+import { GitHub } from '../src/github.js'
 import 'reflect-metadata'
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
@@ -54,4 +55,14 @@ test('uncertain external submission is frozen against duplicate retries', async 
   await assert.rejects(f.service.submit(scope, { ...input, revision: f.read().revision }), /review_not_submittable/)
   await assert.rejects(f.service.mark(scope, id, f.read().revision, { pinned: true }), /review_busy/)
   assert.equal(writes, 1)
+})
+
+
+test('GitHub App publication resolves its bot identity without a personal /user endpoint', async () => {
+  const paths: string[] = []
+  const github = new GitHub('fixture-installation', async url => {
+    paths.push(String(url)); return Response.json({ id: 42 })
+  }, 'review-app[bot]')
+  assert.equal(await github.identity(), '42')
+  assert.deepEqual(paths, ['https://api.github.com/users/review-app%5Bbot%5D'])
 })

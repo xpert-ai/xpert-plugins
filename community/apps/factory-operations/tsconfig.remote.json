@@ -9,8 +9,8 @@
     "baseUrl": "."
   },
   "include": [
-    "src/lib/remote-components/factory-operations-center/src/**/*.ts",
-    "src/lib/remote-components/factory-operations-center/src/**/*.tsx",
+    "src/lib/remote-components/shared/**/*.ts",
+    "src/lib/remote-components/shared/**/*.tsx",
     "src/lib/remote-components/factory-case-workspace/src/**/*.ts",
     "src/lib/remote-components/factory-case-workspace/src/**/*.tsx",
     "src/lib/remote-components/factory-operations-dashboard/src/**/*.ts",

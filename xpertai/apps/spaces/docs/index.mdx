@@ -1,0 +1,12 @@
+---
+title: "Assistant 协作空间"
+description: "通过插件给 Assistant 添加共享文档和成果空间"
+---
+
+给 Assistant 的主 Agent 配置 `spaces` 能力并发布后，成员即可在 Workbench 的 Views 中打开协作空间。空间中的页面、文件、评论、AI 修改提案和固定版本成果长期保存，独立于单次聊天。
+
+空间基于类型为“协作空间”的 Project，成员和角色由 Project 统一管理。同项目的多个已绑定 Assistant 共享文件与协作内容；仅拥有 Assistant 权限不会自动获得项目访问权限。
+
+平台提供身份、Assistant 权限与能力校验、协作、文件和 Artifact 基础服务。Spaces 插件提供文档树和资源视图，界面使用 React、shadcn/ui 和 Tailwind。Markdown、Office 等编辑器通过独立 Provider 扩展，通用审阅与 AI 交互属于 Assistant。
+
+开始使用请见 [快速开始](/quickstart)，边界与验收请见 [架构和验证](/architecture)。

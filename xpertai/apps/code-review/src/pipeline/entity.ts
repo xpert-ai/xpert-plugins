@@ -5,6 +5,7 @@ import { NAMESPACE } from '../domain.js'
 
 @Entity(pluginArtifactTableName(NAMESPACE, 'pipeline_binding'))
 @Index(['tenantId', 'organizationId', 'projectId', 'userId'])
+@Index('code_review_pipeline_subject', ['tenantId', 'organizationId', 'projectId', 'sourceKey', 'savedBindingId'], { unique: true })
 @Unique('code_review_pipeline_binding_identity', ['id', 'tenantId', 'organizationId', 'projectId', 'userId'])
 export class ReviewPipelineBinding {
   @PrimaryColumn({ type: 'uuid' }) id!: string
@@ -14,6 +15,9 @@ export class ReviewPipelineBinding {
   @Column({ type: 'uuid' }) projectId!: string
   @Column({ type: 'varchar' }) assistantId!: string
   @Column({ type: 'varchar' }) workspaceId!: string
+  @Column({ type: 'varchar', nullable: true }) sourceKey!: string | null
+  @Column({ type: 'uuid', nullable: true }) savedBindingId!: string | null
+  @Column({ type: 'uuid', nullable: true }) currentReviewId!: string | null
   @Column({ type: 'uuid', nullable: true }) instanceId!: string | null
   @CreateDateColumn({ type: 'timestamptz' }) createdAt!: Date
 }

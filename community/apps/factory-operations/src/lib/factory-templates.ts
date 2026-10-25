@@ -25,15 +25,15 @@ const moduleDir = dirname(fileURLToPath(import.meta.url))
 export const FACTORY_TEMPLATE_DEFINITION = {
   key: FACTORY_TEMPLATE_KEY,
   title: '工厂异常恢复编排助手',
-  description: '通过必需的 External Xpert 直连编排独立角色 Assistants，推进异常研判、审批、受控执行与恢复验证。',
+  description: '读取工厂异常证据与状态；项目流水线统一派发独立角色 Assistants，推进研判、审批、受控执行与恢复验证。',
   avatar: {
     emoji: { id: 'factory', unified: '1f3ed' },
     background: 'rgb(231, 248, 241)'
   },
   startPrompts: [
-    '请研判当前 M-07 严重异常，并并行协调设备、质量、生产和资源 Assistants。',
+    '请读取当前 M-07 严重异常的证据，并说明项目流水线的启动条件。',
     '请读取这个工厂事件的最新进度，说明阻塞项和下一步。',
-    '方案 B 已经批准，请检查执行确认并完成恢复验证。'
+    '方案 B 已经批准，请查看项目流水线的执行确认和恢复验证结果。'
   ]
 } as const
 
@@ -91,7 +91,7 @@ export const factoryOperationsTemplates: XpertTemplateContribution[] = [
     order: 20,
     default: false,
     startPrompts: [...FACTORY_TEMPLATE_DEFINITION.startPrompts],
-    releaseNotes: 'Requires a Case Project and dispatches portable External Assistant Tasks through the managed queue.',
+    releaseNotes: 'Uses native Project pipelines for role dispatch, human approval, execution, and verification.',
     xpertName: FACTORY_TEMPLATE_DEFINITION.title,
     providerKey: FACTORY_TEMPLATE_PROVIDER_KEY,
     primaryAgentKey: AGENT_KEYS.coordinator

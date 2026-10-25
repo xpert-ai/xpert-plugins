@@ -1,3 +1,4 @@
+import type { WorkbenchNavigationOpenPayload } from '@xpert-ai/contracts'
 import { installShadcnThemeVars } from '@xpert-ai/plugin-shadcn-ui/theme'
 import type {
   ActionInput,
@@ -34,22 +35,13 @@ interface HostMessage extends HostInit, Response {
   requestId?: string
   event?: { data?: { output?: { caseId?: string } } }
 }
-interface CommandPayload {
-  target: string
-  viewKey?: string
-  selectionId?: string
-  parameters?: { surface?: string; nodeKey?: string }
-  conversationId?: string
-  threadId?: string
-  executionId?: string
-}
 type RequestBody = {
   query?: ViewQuery
   actionKey?: string
   targetId?: string
   input?: ActionInput
   commandKey?: string
-  payload?: CommandPayload
+  payload?: WorkbenchNavigationOpenPayload
 }
 const CHANNEL = 'xpertai.remote_component'
 let instanceId: string | null = null
@@ -179,7 +171,7 @@ export async function executeAction(actionKey: string, input: ActionInput) {
     )
   return receipt.data ?? receipt
 }
-export async function navigate(payload: CommandPayload) {
+export async function navigate(payload: WorkbenchNavigationOpenPayload) {
   const r = await request('invokeClientCommand', {
     commandKey: 'workbench.navigation.open',
     payload,

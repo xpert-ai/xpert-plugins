@@ -25,5 +25,5 @@ export function applyTheme(host: Host) {
     root.style.setProperty(name, value);
     properties.add(name);
   }
-  installShadcnThemeVars();
+  installShadcnThemeVars({ density: host.theme?.density === 'compact' ? 'compact' : 'default' });
 }

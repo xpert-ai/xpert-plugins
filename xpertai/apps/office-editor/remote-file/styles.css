@@ -1,0 +1,8 @@
+/* Layout only. Shared shadcn primitives keep their native styles and host theme tokens. */
+html:root { font-size: var(--xui-font-size, 14px); --spacing: calc(var(--xui-density-root-font-size, var(--xui-font-size, 14px)) / 4); }
+body { margin: 0; background: var(--background); color: var(--foreground); font-family: var(--font-sans); }
+.office-file { padding: calc(4 * var(--spacing)); }
+.office-file h1 { font-size: 1.25rem; font-weight: 600; }
+.toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: calc(2 * var(--spacing)); margin-block: calc(3 * var(--spacing)); }
+.muted { color: var(--muted-foreground); margin-block: calc(2 * var(--spacing)); }
+.grid-scroll { overflow: auto; }

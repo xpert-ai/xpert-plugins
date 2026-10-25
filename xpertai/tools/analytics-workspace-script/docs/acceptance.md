@@ -5,6 +5,8 @@ description: "2026-10-16 原始工作流的实际验收记录；提交审核不�
 
 # Workspace 脚本数据源验收
 
+2026-10-22 的开源 NsJail 真实模型与浏览器验收见 [开源版本地验收记录](./oss-nsjail-acceptance.md)。下文保留原始历史记录。
+
 > 以下为此前实现阶段的验收记录。本批提交审核仅重跑本地自动化与打包检查，未重新执行真实模型、Docker 或 SSO 场景。
 
 日期：2026-10-16。环境：本地 Xpert 源码、同步后的 xpert-pro、data-xpert，真实 Docker compute Runtime、PostgreSQL 与已配置的 Tongyi qwen3.6-plus。模型、数据库和 SSO 凭据均沿用授权的本地配置，不进入代码或文档。

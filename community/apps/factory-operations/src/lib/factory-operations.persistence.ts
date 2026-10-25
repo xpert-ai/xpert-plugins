@@ -118,7 +118,9 @@ export async function writeSucceededExecution(
   const existing = await repository.findOne({
     where: executionWhere(scope, { operationId: input.operationId })
   })
-  if (!existing || existing.caseId !== input.caseId) return
+  if (!existing || existing.caseId !== input.caseId || existing.status !== 'running' || existing.agentKey !== scope.agentKey ||
+    existing.executorXpertId !== scope.assistantId || existing.executionId !== scope.executionId || existing.conversationId !== scope.conversationId)
+    throw new ConflictException('factory_execution_identity_mismatch')
   if (input.workspaceProjectId && existing.workspaceProjectId !== input.workspaceProjectId) {
     throw new ConflictException({
       errorCode: 'factory_execution_project_mismatch',
@@ -164,7 +166,9 @@ export async function writeFailedExecutionSafely(
       const existing = await repository.findOne({
         where: executionWhere(scope, { operationId: input.operationId })
       })
-      if (!existing || existing.caseId !== input.caseId) return
+      if (!existing || existing.caseId !== input.caseId || existing.status !== 'running' || existing.agentKey !== scope.agentKey ||
+    existing.executorXpertId !== scope.assistantId || existing.executionId !== scope.executionId || existing.conversationId !== scope.conversationId)
+    throw new ConflictException('factory_execution_identity_mismatch')
       const now = new Date()
       await repository.update(existing.id, {
         agentKey: scope.agentKey ?? descriptor.agentKey,
@@ -308,7 +312,6 @@ export function toExecutionRecordSummary(
     outputRevision: entity.outputRevision ?? null,
     safeSummary: entity.safeSummary,
     workspaceProjectId: entity.workspaceProjectId,
-    queueJobId: entity.queueJobId ?? null,
     assistantTaskId: entity.assistantTaskId ?? null,
     conversationId: entity.conversationId ?? null,
     threadId: entity.threadId ?? null,

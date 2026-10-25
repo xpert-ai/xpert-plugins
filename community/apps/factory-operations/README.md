@@ -2,7 +2,7 @@
 
 `@xpert-ai/plugin-factory-operations` is an Xpert Agentic App for investigating factory anomalies, reconciling specialist findings, approving a recovery plan, executing governed simulator actions, and verifying production recovery. Version 0.4 gives every Factory Case a unique Xpert Project, runs the Orchestrator and eight independent role Assistants in that Project workspace, provides an ECharts management dashboard, and exposes an organization-scoped `appConfig` management entry.
 
-The first vertical slice implements the M-07 grinding-center failure scenario. It includes a versioned pipeline, tenant-scoped persistence, bounded Agent middleware tools, an independent Assistant suite, a multi-Agent swimlane Remote View, and a read-only management dashboard.
+The first vertical slice implements the M-07 grinding-center failure scenario. It includes a versioned pipeline, tenant-scoped persistence, bounded Agent middleware tools, an independent Assistant suite, a native Project Pipelines, and a read-only management dashboard.
 
 ## Host-native MCP capabilities
 
@@ -19,6 +19,10 @@ MCP never exposes plan approval, rejection, or execution. Those actions remain i
 
 ## Local validation
 
+市场展示与初始化配置集中在 `src/app-config.ts`，在 Xpert 和 DataXpert 共用。封面为 `assets/brand/factory-operations-cover-zh-v1.png`，作为 `presentation.screenshots` 首图，并声明在便携清单的 `assets.screenshots` 中。图片明确标注界面示意与仿真场景；生成方式和提示词记录在同目录的 `cover-generation.json`。构建会核对清单与运行时配置、图片格式及大小。
+
+初始化保持现有边界：创建组织共享工作空间并发布只读管理助理；运营角色套件仍由管理员单独部署，业务审批由授权用户完成。
+
 ```bash
 corepack pnpm install
 corepack pnpm check
@@ -28,8 +32,10 @@ Detailed architecture, configuration, and operations guidance lives under [`docs
 
 ## Assistant Profile（0.5.0）
 
-新增“最近案件”“待处理”资料卡 tabs，以及 owner / manager 的“批准并继续”。审批后由持久化续跑服务派发真实验证 Assistant Task；模拟执行保持明确标记，外部适配器缺失时阻塞。参见 [资料卡使用说明](docs/product/views/assistant-profile.mdx) 和 [验收清单](docs/acceptance.mdx)。此版本需要包含 Assistant Profile contracts 与 `platform.project.access` runtime capability 的配套 Xpert 平台。
+新增“最近案件”“待处理”资料卡 tabs，以及 owner / manager 的“批准并继续”。审批提交到平台人工门禁后，由平台流水线继续派发验证 Assistant；模拟执行保持明确标记，外部适配器缺失时阻塞。参见 [资料卡使用说明](docs/product/views/assistant-profile.mdx) 和 [验收清单](docs/acceptance.mdx)。此版本需要包含 Assistant Profile contracts 与 `platform.project.access` runtime capability 的配套 Xpert 平台。
 
 ## Application Project types
 
-Cases keep a one-to-one `workspaceProjectId` and provision a classified `case` Project. Requires the matching host Project type endpoints and `@xpert-ai/contracts` / `@xpert-ai/plugin-sdk` 3.20.0 or newer within major version 3. Apply the host schema migration followed by this package's `migrations/20260920-project-types.sql` in one maintenance transaction before starting the new version. Update and publish installed Assistant templates to activate their default Project type. Builds use the published SDK and contracts packages; an adjacent platform source checkout is not required.
+Project Pipelines uses platform-managed execution: the host owns dispatch, retries, cancellation and rounds; this App owns business acceptance, evidence and human approval rules. See [项目流水线](docs/product/features/project-pipelines.mdx) for release prerequisites and verification.
+
+Cases keep a one-to-one `workspaceProjectId` and provision a classified `case` Project. Requires the matching host Project type endpoints and `@xpert-ai/contracts` / `@xpert-ai/plugin-sdk` 3.20.0 or newer within major version 3. Apply the host schema migration followed by this package's `migrations/20260920-project-types.sql` in one maintenance transaction before starting the new version. Update and publish installed Assistant templates to activate their default Project type. The new pipeline integration requires the coordinated SDK release described above.

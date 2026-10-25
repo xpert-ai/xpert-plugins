@@ -84,6 +84,8 @@ export class WorkspaceScriptProvider implements AnalyticsQueryProvider {
           return JSON.parse(JSON.stringify(dataset))
         } } }).catch((error: unknown) => {
           if (!isSandboxJobRuntimeError(error)) throw error
+          // Preserve typed failures with platform-owned, safe Analytics diagnostics.
+          if (PLATFORM_SANDBOX_ERRORS.has(error.code)) throw error
           const hint = scriptFailureHint(error.message)
           const contracts = definition.sources.map(source => ({ alias: source.alias,
             controls: source.binding.parameters.map(parameter => parameter.controlId),
@@ -114,3 +116,9 @@ export class WorkspaceScriptProvider implements AnalyticsQueryProvider {
     return { ...providerResult, auditRef: audit.id }
   }
 }
+
+const PLATFORM_SANDBOX_ERRORS = new Set([
+  'SANDBOX_ACTION_UNAVAILABLE', 'SANDBOX_ACTION_INVALID', 'SANDBOX_PROFILE_UNAVAILABLE',
+  'SANDBOX_RUNTIME_UNAVAILABLE', 'SANDBOX_VERSION_MISMATCH', 'SANDBOX_START_FAILED',
+  'SANDBOX_CAPACITY_UNAVAILABLE', 'EXPORT_INPUT_INVALID'
+])

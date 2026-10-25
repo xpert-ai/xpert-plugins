@@ -12,11 +12,14 @@ import { XpertServerPlugin, type XpertPlugin } from '@xpert-ai/plugin-sdk'
 import { PLUGIN, FEATURE, PROVIDER, MIDDLEWARE } from './domain.js'
 import { Review } from './entity.js'
 import { Reviews, CONTEXT } from './backend.js'
+import { ReviewWorkbench } from './workbench.js'
 import { ReviewView, icon } from './view.js'
 import { ReviewMiddleware } from './middleware.js'
 import { templates, appContribution } from './templates.js'
 import { ReviewPipelineBinding, ReviewPipelineEvidence, ReviewPipelineDelivery } from './pipeline/entity.js'
 import { ReviewPipelineContribution } from './pipeline/configuration.js'
+import { ReviewPipelineCatalog } from './pipeline/catalog.js'
+import { ReviewPipelineAutomation } from './pipeline/automation.js'
 import { ReviewPipelineService } from './pipeline/service.js'
 import { ReviewPipelineOperations } from './pipeline/operations.js'
 import { reviewPipelineAdapters } from './pipeline/adapters.js'
@@ -45,6 +48,7 @@ const entities = [
   providers: [
     Reviews,
     ReviewView,
+    ReviewWorkbench,
     ReviewMiddleware,
     GitHubApp,
     Repositories,
@@ -52,6 +56,8 @@ const entities = [
     AutomationProcessor,
     ReviewPipelineContribution,
     ReviewPipelineService,
+    ReviewPipelineCatalog,
+    ReviewPipelineAutomation,
     ReviewPipelineOperations,
     ...reviewPipelineAdapters
   ]

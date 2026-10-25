@@ -1,3 +1,4 @@
+import { LarkDocumentSource } from './lark-documents.js'
 import { pollBeforeDeadline, authorizationUrl } from '@xpert-ai/connector-runtime'
 import { Buffer } from 'node:buffer'
 import { gzipSync } from 'node:zlib'
@@ -163,6 +164,7 @@ const LARK_CLI_CONNECTOR_DEFAULT_USER_SCOPES = [
 @Injectable()
 @ConnectorStrategyKey(LARK_CONNECTOR_PROVIDER)
 export class LarkConnectorStrategy implements ConnectorStrategy {
+  readonly documents = new LarkDocumentSource()
   private readonly logger = new Logger(LarkConnectorStrategy.name)
 
   readonly definition: ConnectorDefinition = {

@@ -1,3 +1,4 @@
+import { withProcessingClaim } from "./processing-claim.js";
 import { rm, join } from "./workspace-storage.js";
 import { FileStore } from "./file-store.js";
 import { Transcription, type TranscriptionEngine } from "./transcription.js";
@@ -36,24 +37,24 @@ export class Processing {
   async live(scope: Scope, id: string) {
     const initial = await this.store.read(scope, id);
     if (initial.expectedChunks || initial.processing === "ready") return;
-    return this.store.withProcessingLock(scope, id, "processing", async () => {
+    return withProcessingClaim(this.store, scope, id, async (store) => {
       try {
-        if ((await this.store.read(scope, id)).expectedChunks) return;
-        await this.store.update(scope, id, (m) => {
+        if ((await store.read(scope, id)).expectedChunks) return;
+        await store.update(scope, id, (m) => {
           m.liveTranscription = { status: "transcribing", errorCode: null };
         });
-        await new Transcription(
-          this.store,
-          this.models,
-          this.thresholdDb
-        ).available(scope, id, null);
-        await this.workflow.live(scope, await this.store.read(scope, id));
-        await this.store.update(scope, id, (m) => {
+        await new Transcription(store, this.models, this.thresholdDb).available(
+          scope,
+          id,
+          null
+        );
+        await this.workflow.live(scope, await store.read(scope, id));
+        await store.update(scope, id, (m) => {
           m.liveTranscription = { status: "listening", errorCode: null };
         });
       } catch (error) {
         try {
-          await this.store.update(scope, id, (m) => {
+          await store.update(scope, id, (m) => {
             m.liveTranscription = {
               status: "retrying",
               errorCode: processingErrorCode(
@@ -72,69 +73,64 @@ export class Processing {
   async run(scope: Scope, id: string) {
     const directory = this.store.directory(scope, id);
     await this.store.read(scope, id);
-    return this.store.withProcessingLock(
-      scope,
-      id,
-      "processing",
-      async () => {
-        try {
-          let m = await this.store.read(scope, id);
-          if (m.processing === "ready") {
-            await rm(join(directory, "audio"), {
-              recursive: true,
-              force: true,
-            });
-            return;
-          }
-          if (!m.expectedChunks?.microphone || !m.expectedChunks.system)
-            throw new MeetingError("audio_source_missing");
-          const expectedChunks = m.expectedChunks;
-          // Drain original live-sized checkpoints before context refinement so the unsent tail is exact.
-          await new Transcription(
-            this.store,
-            this.models,
-            this.thresholdDb
-          ).available(scope, id, null, true);
-          const liveTranscript = (await this.store.read(scope, id)).transcript;
-          await this.store.update(scope, id, (m) => {
-            m.processing = "transcribing";
-            m.errorCode = null;
+    return withProcessingClaim(this.store, scope, id, async (store) => {
+      try {
+        let m = await store.read(scope, id);
+        if (m.processing === "ready") {
+          await rm(join(directory, "audio"), {
+            recursive: true,
+            force: true,
           });
-          await new Transcription(
-            this.store,
-            this.models,
-            this.thresholdDb
-          ).available(scope, id, expectedChunks);
-          await this.documents?.sync(scope, id);
-          const input = await this.store.update(scope, id, (m) => {
-            m.processing = "summarizing";
-            m.transcript.sort(
-              (a, b) => a.startMs - b.startMs || a.track.localeCompare(b.track)
-            );
-          });
-          if (!input.transcript.some((s) => s.text))
-            throw new MeetingError("transcript_empty");
-          if (
-            JSON.stringify(input.transcript).length + input.notes.length >
-            250000
-          )
-            throw new MeetingError("summary_input_too_large");
-          await this.workflow.finish(scope, input, liveTranscript);
-        } catch (error) {
-          try {
-            await this.store.update(scope, id, (m) => {
-              if (m.processing !== "ready") {
-                m.processing = "failed";
-                m.errorCode = processingErrorCode(error, "processing_failed");
-              }
-            });
-          } catch {
-            /* A deletion keeps its tombstone; never recreate it. */
-          }
-          throw error;
+          return;
         }
-      },
-      130000
-    );
+        if (!m.expectedChunks?.microphone || !m.expectedChunks.system)
+          throw new MeetingError("audio_source_missing");
+        const expectedChunks = m.expectedChunks;
+        // Drain original live-sized checkpoints before context refinement so the unsent tail is exact.
+        await new Transcription(store, this.models, this.thresholdDb).available(
+          scope,
+          id,
+          null,
+          true
+        );
+        const liveTranscript = (await store.read(scope, id)).transcript;
+        await store.update(scope, id, (m) => {
+          m.processing = "transcribing";
+          m.errorCode = null;
+        });
+        await new Transcription(store, this.models, this.thresholdDb).available(
+          scope,
+          id,
+          expectedChunks
+        );
+        await this.documents?.sync(scope, id);
+        const input = await store.update(scope, id, (m) => {
+          m.processing = "summarizing";
+          m.transcript.sort(
+            (a, b) => a.startMs - b.startMs || a.track.localeCompare(b.track)
+          );
+        });
+        if (!input.transcript.some((s) => s.text))
+          throw new MeetingError("transcript_empty");
+        if (
+          JSON.stringify(input.transcript).length + input.notes.length >
+          250000
+        )
+          throw new MeetingError("summary_input_too_large");
+        await this.workflow.finish(scope, input, liveTranscript);
+      } catch (error) {
+        try {
+          await store.update(scope, id, (m) => {
+            if (m.processing !== "ready") {
+              m.processing = "failed";
+              m.errorCode = processingErrorCode(error, "processing_failed");
+            }
+          });
+        } catch {
+          /* A deletion keeps its tombstone; never recreate it. */
+        }
+        throw error;
+      }
+    });
   }
 }

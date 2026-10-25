@@ -92,6 +92,6 @@ export class GitHubApp {
     assertGitHubRepositoryApplication(config, binding)
     const response = z.object({ token: z.string().min(1) }).parse(await new GitHub(this.jwt(config))
       .request(`/app/installations/${installationId}/access_tokens`, { repository_ids: [Number(repositoryId)], permissions: { contents: 'read', pull_requests: 'write' } }))
-    return new GitHub(response.token)
+    return new GitHub(response.token, fetch, `${config.slug}[bot]`)
   }
 }

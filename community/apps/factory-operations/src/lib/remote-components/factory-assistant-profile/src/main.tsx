@@ -1,16 +1,17 @@
+import { projectPipelineNavigation } from '../../pipeline-navigation'
 import React, { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { ArrowLeft, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, Badge, Button, Progress } from '../../../ui'
-import { executeAction, invokeClientCommand, isObject, requestData, requireSuccess, startBridge, unwrap } from '../../factory-operations-center/src/runtime'
-import { installShadcnThemeVars } from '../../factory-operations-center/src/theme'
+import { executeAction, invokeClientCommand, isObject, requestData, requireSuccess, startBridge, unwrap } from '../../shared/runtime'
+import { installShadcnThemeVars } from '../../shared/theme'
 import type { FactoryProfileCase, FactoryProfileData } from '../../../factory-profile.service'
 import { profileText, reasonText } from './i18n'
 import './styles.css'
 
 installShadcnThemeVars({ density: 'compact' })
 
-type Decision = { case: FactoryProfileCase; action: 'approve_and_continue' | 'reject_recovery_plan'; operationId: string }
+type Decision = { case: FactoryProfileCase; action: 'approve_recovery_plan' | 'reject_recovery_plan'; operationId: string }
 function App() {
   const [locale, setLocale] = useState('en-US')
   const [ready, setReady] = useState(false)
@@ -78,9 +79,9 @@ function App() {
 
   function openDecision(item: FactoryProfileCase, action: Decision['action']) {
     submittedReason.current = null
-    setReason(action === 'approve_and_continue' ? text.approvalReason : '')
+    setReason(action === 'approve_recovery_plan' ? text.approvalReason : '')
     setActionError(null)
-    setDecision({ case: item, action, operationId: `profile-${crypto.randomUUID()}` })
+    setDecision({ case: item, action, operationId: crypto.randomUUID() })
   }
   async function submit() {
     if (!decision || submitting || reason.trim().length < 8) return
@@ -90,29 +91,23 @@ function App() {
     try {
       requireSuccess(await executeAction(decision.action, decision.case.id, {
         caseId: decision.case.id, baseRevision: decision.case.revision, operationId: decision.operationId,
-        reason: submittedReason.current, changeSummary: decision.action === 'approve_and_continue' ? 'Approve recovery and continue in the background.' : 'Reject the proposed recovery plan.'
+        reason: submittedReason.current, changeSummary: decision.action === 'approve_recovery_plan' ? 'Approve recovery and continue in the background.' : 'Reject the proposed recovery plan.'
       }))
       setDecision(null)
       setRefresh((value) => value + 1)
     } catch (error) { setActionError(error instanceof Error ? error.message : text.decisionFailed) }
     finally { setSubmitting(false) }
   }
-  async function retryContinuation(item: FactoryProfileCase) {
-    if (!item.continuation || submitting) return
-    setSubmitting(true)
-    setActionError(null)
+  async function openPipeline(item: FactoryProfileCase) {
     try {
-      requireSuccess(await executeAction('retry_continuation', item.id, { caseId: item.id, continuationId: item.continuation.id, baseRevision: item.revision }))
-      setRefresh((value) => value + 1)
+      requireSuccess(await invokeClientCommand('workbench.navigation.open', projectPipelineNavigation(item.workspace.projectId,
+        item.pipelineInstanceId ? { pipelineInstanceId: item.pipelineInstanceId } : {})))
     } catch (error) { setActionError(error instanceof Error ? error.message : text.decisionFailed) }
-    finally { setSubmitting(false) }
   }
   const evidence = current ? [current.triage, ...Object.values(current.findings), current.verification].flatMap((artifact) => artifact?.evidence ?? []) : []
-  const handling = current ? current.allowedActions.some((action) => action === 'approve_and_continue' || action === 'reject_recovery_plan')
+  const handling = current ? current.allowedActions.some((action) => action === 'approve_recovery_plan' || action === 'reject_recovery_plan')
     ? text.handleApproval
-    : current.allowedActions.includes('retry_continuation')
-      ? text.handleRetry
-      : current.status === 'awaiting_approval' || (current.continuation && ['blocked', 'failed'].includes(current.continuation.status))
+    : current.status === 'awaiting_approval'
         ? text.handleOwner
         : text.handleWorkbench
     : null
@@ -130,8 +125,6 @@ function App() {
           <p className="mt-1 text-xs text-muted-foreground">{current.event.deviceName} · {text.statuses[current.status]} · {text.revision} {current.revision}</p></div>
         <Progress className="h-1.5" value={current.progress.percent} aria-label={text.statuses[current.status]} />
         {current.bindingNeedsRepair && <p className="text-xs leading-5 text-muted-foreground">{text.binding}</p>}
-        {current.continuation && <div className="space-y-0.5 border-l-2 border-primary pl-2.5 text-xs leading-5"><p>{text[current.continuation.status]}</p>
-          {current.continuation.reasonCode && <p className="text-muted-foreground">{reasonText(current.continuation.reasonCode, text)}</p>}</div>}
         <p className="text-xs leading-5"><span className="text-muted-foreground">{text.nextAction} · </span>{current.nextAction}</p>
         {attention && handling && <section className="space-y-0.5 border-l-2 border-border pl-2.5"><h4 className="text-xs font-medium">{text.handling}</h4><p className="text-xs leading-5 text-muted-foreground">{handling}</p></section>}
         {current.plan && <section><h4 className="mb-1 text-xs font-medium">{text.plan} · {text.planRevision} {current.plan.artifactRevision}</h4>
@@ -140,9 +133,9 @@ function App() {
         {current.execution && <section><h4 className="mb-1 text-xs font-medium">{text.execution} · {current.execution.actions.filter((action) => action.status === 'confirmed').length}/{current.execution.actions.length}</h4>
           <p className="text-xs text-muted-foreground">{data.simulation ? text.simulationDetail : text.externalDetail}</p></section>}
         <div className="flex flex-wrap gap-1.5">
-          {current.allowedActions.includes('approve_and_continue') && <Button size="sm" onClick={() => openDecision(current, 'approve_and_continue')}>{text.approve}</Button>}
+          {current.allowedActions.includes('approve_recovery_plan') && <Button size="sm" onClick={() => openDecision(current, 'approve_recovery_plan')}>{text.approve}</Button>}
           {current.allowedActions.includes('reject_recovery_plan') && <Button variant="outline" size="sm" onClick={() => openDecision(current, 'reject_recovery_plan')}>{text.reject}</Button>}
-          {current.allowedActions.includes('retry_continuation') && <Button variant="outline" size="sm" disabled={submitting} onClick={() => void retryContinuation(current)}>{text.resume}</Button>}
+          {current.pipelineInstanceId && <Button variant="outline" size="sm" onClick={() => void openPipeline(current)}>{text.projectPipeline}</Button>}
         </div>
         {actionError && <p role="alert" className="text-sm text-destructive">{actionError}</p>}
       </div> : data.items.length ? <>
@@ -150,7 +143,6 @@ function App() {
           <div className="flex items-center gap-1.5"><span className="text-xs font-medium text-muted-foreground">{item.caseKey}</span><Badge className="px-1.5 py-0 text-[11px] leading-5" variant={item.event.severity === 'critical' ? 'destructive' : 'secondary'}>{text.severity[item.event.severity]}</Badge><span className="ml-auto text-xs text-muted-foreground">{text.statuses[item.status]}</span></div>
           <p className="line-clamp-2 text-sm font-medium">{item.title}</p><p className="truncate text-xs text-muted-foreground">{item.event.deviceName} · {item.progress.percent}%</p>
           <p className="line-clamp-2 text-xs text-muted-foreground">{text.latest} · {item.timeline.at(-1)?.title ?? item.nextAction}</p>
-          {item.continuation?.reasonCode && <p className="text-xs text-destructive">{reasonText(item.continuation.reasonCode, text)}</p>}
         </button></li>)}</ul>
         <nav aria-label={text.recent} className="flex items-center justify-between border-t px-3 py-1.5"><Button variant="ghost" size="icon-sm" aria-label={text.previous} disabled={page <= 1 || loading} onClick={() => setPage((value) => value - 1)}><ChevronLeft className="size-4" /></Button><span className="text-xs text-muted-foreground">{page} / {Math.max(1, Math.ceil(data.total / data.pageSize))}</span><Button variant="ghost" size="icon-sm" aria-label={text.next} disabled={page * data.pageSize >= data.total || loading} onClick={() => setPage((value) => value + 1)}><ChevronRight className="size-4" /></Button></nav>
       </> : <div className="space-y-1.5 px-4 py-7 text-center"><p className="text-sm font-medium">{text.empty}</p><p className="text-xs leading-5 text-muted-foreground">{text.emptyDetail}</p></div>}

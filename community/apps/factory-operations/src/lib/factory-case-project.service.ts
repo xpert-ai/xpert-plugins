@@ -7,7 +7,8 @@ import {
 } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import {
-  XPERT_RUNTIME_CAPABILITIES_TOKEN,
+  AssistantTaskRuntimeCapability,
+  XPERT_RUNTIME_CAPABILITIES_TOKEN, ProjectProvisioningRuntimeCapability,
   type RuntimeCapabilityRegistry
 } from '@xpert-ai/plugin-sdk'
 import { IsNull, type Repository } from 'typeorm'
@@ -19,7 +20,6 @@ import type { FactoryScope } from './domain/types.js'
 import { FactoryCaseEntity } from './entities/factory-case.entity.js'
 import { FACTORY_ROLE_ASSISTANTS } from './factory-assistant-definitions.js'
 import { projectFactoryWorkspace } from './factory-case-workspace.js'
-import { requireFactoryProjectProvisioning } from './factory-runtime-capabilities.js'
 
 @Injectable()
 export class FactoryCaseProjectService {
@@ -43,7 +43,7 @@ export class FactoryCaseProjectService {
       workspaceProjectErrorSummary: null
     })
     try {
-      const project = await requireFactoryProjectProvisioning(this.capabilities).ensure({
+      const project = await this.capabilities.require(ProjectProvisioningRuntimeCapability).ensure({
         projectType: FACTORY_CASE_PROJECT_TYPE,
         projectId: entity.workspaceProjectId,
         xpertId: requesterXpertId,
@@ -56,9 +56,31 @@ export class FactoryCaseProjectService {
         name: `${entity.caseKey} · ${entity.snapshot.event.title}`.slice(0, 240),
         status: 'active'
       })
+      const assistants = this.capabilities.require(AssistantTaskRuntimeCapability)
+      if (!assistants.resolvePublishedAgent || !assistants.assertExternalAssistantBinding) {
+        throw new BadRequestException('assistant_binding_resolution_unavailable')
+      }
+      const roleAssistants: Record<string, string> = {}
+      for (const role of FACTORY_ROLE_ASSISTANTS) {
+        const expectation = {
+          pluginName: FACTORY_PLUGIN_NAME,
+          templateKey: role.key,
+          agentKey: role.agentKey
+        }
+        const target = await assistants.resolvePublishedAgent({ requesterXpertId, expectation })
+        await assistants.assertExternalAssistantBinding({
+          requesterXpertId,
+          requesterAgentKey: AGENT_KEYS.coordinator,
+          executorXpertId: target.xpertId,
+          expectation
+        })
+        if (!project.xpertIds.includes(target.xpertId)) throw new BadRequestException('role_not_in_project')
+        roleAssistants[role.roleKey] = target.xpertId
+      }
       await this.cases.update(entity.id, {
         coordinatorXpertId: requesterXpertId,
         assignedAssistantIds: [...new Set(project.xpertIds)],
+        roleAssistants,
         workspaceProjectSyncStatus: 'ready',
         workspaceProjectSyncedAt: new Date(),
         workspaceProjectErrorCode: null,
