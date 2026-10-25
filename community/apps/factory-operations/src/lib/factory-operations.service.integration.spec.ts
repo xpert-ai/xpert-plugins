@@ -1,6 +1,5 @@
 import { FactoryPipelineEvidence } from './pipeline/entity.js'
 import { FACTORY_ROLE_ASSISTANTS } from './factory-assistant-definitions.js'
-import { FACTORY_PLUGIN_NAME } from './constants.js'
 import { FactoryApprovalPolicy } from './factory-approval-policy.service.js'
 import { randomUUID } from 'node:crypto'
 import { DataType, newDb } from 'pg-mem'
@@ -11,6 +10,7 @@ vi.mock('@xpert-ai/plugin-sdk', () => ({
   pluginArtifactTableName: (namespace: string, tableKey: string) =>
     `plugin_${namespace}_${tableKey}`,
   XPERT_RUNTIME_CAPABILITIES_TOKEN: 'XPERT_RUNTIME_CAPABILITIES',
+  AssistantTaskRuntimeCapability: 'assistant-task',
   ProjectProvisioningRuntimeCapability: 'platform.project.provisioning',
   MANAGED_QUEUE_SERVICE_TOKEN: 'XPERT_MANAGED_QUEUE_SERVICE',
   ViewExtensionProvider:
@@ -87,10 +87,11 @@ describe('FactoryOperationsService persistence boundary', () => {
     await dataSource.initialize()
     const projectCapabilities = {
       require: () => ({
+        resolvePublishedAgent: vi.fn(async ({ expectation }) => ({ xpertId: expectation.templateKey })),
+        assertExternalAssistantBinding: vi.fn(async () => ({})),
         ensure: vi.fn(async (input: { projectId: string; xpertId: string }) => ({
           projectId: input.projectId,
           xpertIds: [input.xpertId, ...FACTORY_ROLE_ASSISTANTS.map(r => r.key)],
-          assistantBindings: FACTORY_ROLE_ASSISTANTS.map(r => ({ pluginName: FACTORY_PLUGIN_NAME, templateKey: r.key, agentKey: r.agentKey, xpertId: r.key })),
           operation: 'created' as const
         }))
       })

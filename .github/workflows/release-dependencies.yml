@@ -46,3 +46,6 @@ jobs:
       - name: Build community plugins
         if: matrix.workspace == 'community'
         run: pnpm -C community run build
+      - name: Test community Project role synchronization
+        if: matrix.workspace == 'community'
+        run: pnpm -C community --filter @xpert-ai/plugin-factory-operations --filter @xpert-ai/plugin-material-identity-governance test
