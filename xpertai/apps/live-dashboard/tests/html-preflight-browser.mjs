@@ -14,9 +14,9 @@ async function validateDocument(...args) {
     })])
   } finally { clearTimeout(timer) }
 }
-const require = createRequire(`${process.argv[2]}/package.json`)
-const { chromium } = require('playwright')
-const browser = await chromium.launch({ headless: true, channel: 'chrome' })
+const require = createRequire(`${process.argv[2]}/packages/sandbox-runtime/images/browser/runtime/runner-host.mjs`)
+const { chromium } = require('playwright-core')
+const browser = await chromium.launch({ headless: true })
 const hostPath = fileURLToPath(new URL('../dist/sandbox-actions/bundle/host.js', import.meta.url))
 const input = { context: { bindingIds: ['sales'], defaults: { region: null }, theme: 'light', locale: 'en' }, datasets: { sales: { rows: [{ amount: '120' }] } } }
 const html = script => `<html><body><output>Loading</output><script>(async()=>{const live=window.xpertLiveArtifact;${script}})()</script></body></html>`

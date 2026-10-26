@@ -249,16 +249,29 @@ export class MaterialCaseService {
           name: `${e.caseKey} · ${e.title}`,
           status: 'active',
         })
+      const assistants = this.scopedCapabilities(s).require(AssistantTaskRuntimeCapability)
+      if (!assistants.resolvePublishedAgent || !assistants.assertExternalAssistantBinding) {
+        throw new ConflictException('assistant_binding_resolution_unavailable')
+      }
+      const roleAssistants: Record<string, string> = {}
+      for (const role of ROLES.filter(r => r.key !== 'coordinator')) {
+        const expectation = { pluginName: PLUGIN_NAME, templateKey: role.templateKey, agentKey: role.agentKey }
+        const target = await assistants.resolvePublishedAgent({ requesterXpertId: e.coordinatorId, expectation })
+        await assistants.assertExternalAssistantBinding({
+          requesterXpertId: e.coordinatorId,
+          requesterAgentKey: roleDefinition('coordinator').agentKey,
+          executorXpertId: target.xpertId,
+          expectation
+        })
+        if (!result.xpertIds.includes(target.xpertId)) throw new ConflictException('role_not_in_project')
+        roleAssistants[role.key] = target.xpertId
+      }
       await this.db
         .getRepository(MaterialCaseEntity)
         .update(e.id, {
           projectStatus: 'ready',
           assignedAssistantIds: result.xpertIds,
-          roleAssistants: Object.fromEntries(ROLES.filter(r => r.key !== 'coordinator').map(role => {
-            const binding = result.assistantBindings.find(b => b.pluginName === PLUGIN_NAME && b.templateKey === role.templateKey && b.agentKey === role.agentKey)
-            if (!binding || !result.xpertIds.includes(binding.xpertId)) throw new ConflictException('role_not_in_project')
-            return [role.key, binding.xpertId]
-          })),
+          roleAssistants,
         })
     } catch (error) {
       await this.db

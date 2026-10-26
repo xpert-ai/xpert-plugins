@@ -37,7 +37,9 @@ node tests/html-preflight-browser.mjs /absolute/path/to/platform
 node tests/workbench-browser.mjs /absolute/path/to/platform /private/screenshot.png
 ```
 
-开发依赖固定使用已发布的 SDK/contracts 3.26.1，构建无需本地平台链接。
+开发依赖固定使用已发布的 SDK/contracts 3.27.0，构建无需本地平台链接或 SDK 补丁。
+升级 SDK 后须重新构建页面和 HTML 预检资源，运行 `verify:dist`，并用
+`tests/html-online-browser.mjs` 验证真实 CDN 加载、样式、刷新及离线失败诊断。
 分批提交审核在临时快照构建和测试，不覆盖运行中的 dist，也不重新部署或重跑 SSO。
 
 真实验收使用 `verify-installed-dashboard.mjs` / `verify-installed-html.mjs`，

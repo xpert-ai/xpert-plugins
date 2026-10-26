@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import {
+  AssistantTaskRuntimeCapability,
   XPERT_RUNTIME_CAPABILITIES_TOKEN, ProjectProvisioningRuntimeCapability,
   type RuntimeCapabilityRegistry
 } from '@xpert-ai/plugin-sdk'
@@ -55,14 +56,31 @@ export class FactoryCaseProjectService {
         name: `${entity.caseKey} · ${entity.snapshot.event.title}`.slice(0, 240),
         status: 'active'
       })
+      const assistants = this.capabilities.require(AssistantTaskRuntimeCapability)
+      if (!assistants.resolvePublishedAgent || !assistants.assertExternalAssistantBinding) {
+        throw new BadRequestException('assistant_binding_resolution_unavailable')
+      }
+      const roleAssistants: Record<string, string> = {}
+      for (const role of FACTORY_ROLE_ASSISTANTS) {
+        const expectation = {
+          pluginName: FACTORY_PLUGIN_NAME,
+          templateKey: role.key,
+          agentKey: role.agentKey
+        }
+        const target = await assistants.resolvePublishedAgent({ requesterXpertId, expectation })
+        await assistants.assertExternalAssistantBinding({
+          requesterXpertId,
+          requesterAgentKey: AGENT_KEYS.coordinator,
+          executorXpertId: target.xpertId,
+          expectation
+        })
+        if (!project.xpertIds.includes(target.xpertId)) throw new BadRequestException('role_not_in_project')
+        roleAssistants[role.roleKey] = target.xpertId
+      }
       await this.cases.update(entity.id, {
         coordinatorXpertId: requesterXpertId,
         assignedAssistantIds: [...new Set(project.xpertIds)],
-        roleAssistants: Object.fromEntries(FACTORY_ROLE_ASSISTANTS.map(role => {
-          const binding = project.assistantBindings.find(b => b.pluginName === FACTORY_PLUGIN_NAME && b.templateKey === role.key && b.agentKey === role.agentKey)
-          if (!binding || !project.xpertIds.includes(binding.xpertId)) throw new BadRequestException('role_not_in_project')
-          return [role.roleKey, binding.xpertId]
-        })),
+        roleAssistants,
         workspaceProjectSyncStatus: 'ready',
         workspaceProjectSyncedAt: new Date(),
         workspaceProjectErrorCode: null,

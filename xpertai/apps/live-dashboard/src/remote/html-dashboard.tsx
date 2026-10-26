@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { z } from 'zod/v3'
-import { mountArtifactDocument, verifyArtifactDocumentDependencies, type ArtifactDocumentDependencyAsset } from '@xpert-ai/plugin-sdk/artifact-document'
+import { verifyArtifactDocumentDependencies, type ArtifactDocumentDependencyAsset } from '@xpert-ai/plugin-sdk/artifact-document'
+import { mountDashboardDocument } from '../lib/document-host'
 import type { DashboardManifest } from '../lib/dashboard.schema'
 import { requestHost } from './bridge'
 
@@ -23,7 +24,7 @@ interface Props {
 }
 export const HtmlDashboard = React.forwardRef<HtmlDashboardHandle, Props>(function HtmlDashboard(props, ref) {
   const iframe = React.useRef<HTMLIFrameElement>(null)
-  const host = React.useRef<ReturnType<typeof mountArtifactDocument> | null>(null)
+  const host = React.useRef<ReturnType<typeof mountDashboardDocument> | null>(null)
   const callbacks = React.useRef(props)
   callbacks.current = props
   React.useImperativeHandle(ref, () => ({ refresh() { host.current?.refresh() } }), [])
@@ -34,7 +35,7 @@ export const HtmlDashboard = React.forwardRef<HtmlDashboardHandle, Props>(functi
     let dependencies: ArtifactDocumentDependencyAsset[]
     try { dependencies = verifyArtifactDocumentDependencies(props.dependencies, manifest.presentation?.dependencies ?? []) }
     catch { callbacks.current.onError('DOCUMENT_DEPENDENCY_INTEGRITY_FAILED'); callbacks.current.onBusy(false); return }
-    const mounted = mountArtifactDocument<z.infer<typeof resultSchema>['data']>(frame, {
+    const mounted = mountDashboardDocument<z.infer<typeof resultSchema>['data']>(frame, {
       html: props.manifest.presentation.html,
       dependencies,
       context: { bindingIds: manifest.bindings.map(binding => binding.id),

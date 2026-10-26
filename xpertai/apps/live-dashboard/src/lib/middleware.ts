@@ -1,7 +1,7 @@
 import { createDefinitionTools, DEFINITION_GUIDANCE } from './definition-tools'
 import { sameAnalyticsResource } from './analytics-source'
 import { analyticsSourceKey } from '@xpert-ai/plugin-sdk/analytics'
-import { SystemMessage } from '@langchain/core/messages'
+import { AIMessage, SystemMessage } from '@langchain/core/messages'
 import { tool } from '@langchain/core/tools'
 import type { RunnableConfig } from '@langchain/core/runnables'
 import { createHash, randomUUID } from 'node:crypto'
@@ -10,6 +10,7 @@ import type { AnalyticsBinding, AnalyticsDiscoveryResult, AnalyticsValue, TAgent
 import { AgentMiddlewareStrategy, RequestContext, validateAnalyticsPayload, workspaceFileMutationPath, WorkspaceFilesRuntimeCapability, analyticsBindingSchema, type AgentMiddleware, type IAgentMiddlewareStrategy, type IAgentMiddlewareContext } from '@xpert-ai/plugin-sdk'
 import { artifactDocumentHtml, type ArtifactDocumentDependencyLock } from '@xpert-ai/plugin-sdk/artifact-document'
 import { libraryLocks } from './document-libraries'
+import { DASHBOARD_NETWORK_POLICY } from './document-network'
 import { discoverToolSchema, previewToolSchema, createToolSchema, createHtmlToolSchema, htmlPathSchema, fromAgentBinding, parseObjectJson } from './agent.schema'
 import { HTML_DASHBOARD_GUIDANCE } from './html-guidance'
 import { DashboardService } from './dashboard.service'
@@ -21,6 +22,7 @@ import { createFilterEvidence } from './filter-evidence'
 import { dashboardSaveEvidence } from './save-evidence'
 import { emitDashboardCard } from './resource-card'
 import { dashboardIcon } from './dashboard-icon'
+import { createPreviewRetryGuard } from './preview-retry'
 
 const middlewareOptionsSchema = z.object({ allowedFinalProviders: z.array(z.string().min(1)).min(1).max(20).optional() }).strict().default({})
 
@@ -47,12 +49,36 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
     }
     // Evidence belongs to this run and actor, never a process-wide cache of business data.
     const discovered = new Map<string, AnalyticsDiscoveryResult['queryContract']>(), previews = new Map<string, AnalyticsBinding>()
+    const discovering = new Map<string, Promise<AnalyticsDiscoveryResult['queryContract']>>()
     let listedSources: Awaited<ReturnType<DashboardService['sources']>> | undefined
+    const assertSourceSelection = (input: Pick<AnalyticsBinding, 'source' | 'providerId'>) => {
+      if (listedSources && !listedSources.some(source => sameAnalyticsResource(source.source, input.source) && source.providers.some(provider => provider.id === input.providerId)))
+        throw new Error(`DASHBOARD_SOURCE_SELECTION_INVALID: copy an exact source/providerId pair from dashboard_list_sources; do not invent or combine IDs. Known pairs: ${JSON.stringify(listedSources.map(source => ({ source: source.source, name: source.name, providerIds: source.providers.map(provider => provider.id) })))}. Refresh the list if the source changed. Initial requestJson is "{}"; then follow inspectRequest/nextRequest.`)
+    }
+    const discover = async (input: Parameters<DashboardService['discover']>[1]) => {
+      assertSourceSelection(input)
+      const result = await this.service.discover(scope, input)
+      discovered.set(`${analyticsSourceKey(input.source)}/${input.providerId}`, result.queryContract)
+      return result
+    }
+    const ensureContract = async (input: Pick<AnalyticsBinding, 'source' | 'providerId'>) => {
+      assertSourceSelection(input)
+      const key = `${analyticsSourceKey(input.source)}/${input.providerId}`
+      const cached = discovered.get(key)
+      if (cached) return cached
+      // Parallel previews share discovery, but failures are retryable and never become evidence.
+      let pending = discovering.get(key)
+      if (!pending) {
+        pending = discover({ source: input.source, providerId: input.providerId, request: {} })
+          .then(result => result.queryContract).finally(() => discovering.delete(key))
+        discovering.set(key, pending)
+      }
+      return pending
+    }
     const filterEvidence = createFilterEvidence(this.service, scope, previews)
     const created = new Map<string, { manifest: DashboardManifest; receipt: Awaited<ReturnType<DashboardService['save']>> }>()
     const preview = async (binding: AnalyticsBinding) => {
-      const contract = discovered.get(`${analyticsSourceKey(binding.source)}/${binding.providerId}`)
-      if (!contract) throw new Error('DASHBOARD_DISCOVER_REQUIRED')
+      const contract = await ensureContract(binding)
       validateAnalyticsPayload(binding.payload, contract.payloadSchema)
         const controls = Object.fromEntries(binding.parameters.map((parameter) => [parameter.controlId, parameter.defaultValue ?? null]))
         const dataset = await this.service.preview(scope, { binding, controls })
@@ -108,6 +134,7 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
       if (!files) throw new Error('DASHBOARD_WORKSPACE_REQUIRED')
       return files
     })
+    const previewRetries = createPreviewRetryGuard()
     let modelCalls = 0
     return { name: 'LiveDashboard', contextSchema: dashboardContextSchema,
       wrapToolCall: async (request, handler) => {
@@ -118,10 +145,19 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
           : name === 'dashboard_create' ? createToolSchema.safeParse(args) : undefined
         const save = DASHBOARD_MUTATION_TOOLS.includes(name) ? evidence.beginSave(creation?.success ? creation.data.supersedesPaths : undefined, name === 'dashboard_create' ? 'draft' : 'source') : undefined
         const result = path && (evidence.has(path) || previews.size > 0 && htmlPathSchema.safeParse(path).success)
-          ? await evidence.trackWrite(path, async () => handler(request)) : await handler(request)
+          ? await evidence.trackWrite(path, async () => handler(request)) : await previewRetries.run(request, handler)
         if (save && 'content' in result && (!('status' in result) || result.status !== 'error')) await evidence.accept(save, result.content)
         return result
       }, wrapModelCall: async (request, handler) => {
+      if (previewRetries.exhausted) {
+        const summary = previewRetries.summary + (evidence.pending ? ` Unsaved Workspace files: ${JSON.stringify(evidence.pendingPaths)}.` : '')
+        const result = await handler({ ...request, tools: [], toolChoice: 'none', systemMessage: new SystemMessage({ content: [
+          ...(typeof request.systemMessage?.content === 'string' ? [{ type: 'text' as const, text: request.systemMessage.content }] : request.systemMessage?.content ?? []),
+          { type: 'text', text: summary }
+        ] }) })
+        // A noncompliant model must not restart the failed loop even after tools were removed.
+        return result?.tool_calls?.length ? new AIMessage(summary) : result
+      }
       const exhausted = ++modelCalls > 24
       if (exhausted && evidence.pending) throw new Error('DASHBOARD_SAVE_NOT_CONFIRMED: no successful draft save receipt; Workspace changes have not been saved to the dashboard.')
       const result = await handler({ ...request, ...(evidence.pending ? { toolChoice: 'required' as const } : {}), ...(exhausted ? { tools: [] } : {}), systemMessage: new SystemMessage({ content: [
@@ -134,6 +170,8 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
       filterEvidence.tool,
       ...createDefinitionTools(context, () => { listedSources = undefined }),
       tool(async () => JSON.stringify({ libraries: await libraryLocks(['echarts', 'three']),
+        online: { ...DASHBOARD_NETWORK_POLICY,
+          usage: 'HTML may load scripts, stylesheets and fonts directly from these exact HTTPS origins. Use script src and link rel="stylesheet"; pin exact versions where available. Tailwind CDN https://cdn.tailwindcss.com is supported. Online resources require connectivity when saving and viewing; loading failures fail preflight. Keep all business data queries on window.xpertLiveArtifact; fetch/XHR, external images, workers, iframes and eval remain unavailable. Online resources do not belong in the packaged libraries array.' },
         pageRuntime: {
           global: 'window.xpertLiveArtifact',
           bindingIds: [...new Set([...previews.values()].map(binding => binding.id))],
@@ -143,8 +181,8 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
         },
         usage: { echarts: 'window.echarts: init(element, null, {renderer:"svg"}) then setOption(completeOption, {notMerge:true}). Canvas is also available. Derive active series/legend dimensions from each received Dataset, including filtered results; never retain excluded groups as zero-valued series. Aggregate repeated categories using all grain dimensions, clear empty results, and redraw KPI, chart and details together in subscribe. Use ResizeObserver to resize and reuse the instance on filter/refresh.',
           three: 'window.THREE: bundled core including WebGLRenderer. Requires WebGL2; catch unavailable GPU contexts and show a clear fallback. External textures/models, loaders/addons, WebGPU and workers are not bundled.' },
-        lifecycle: 'Pass libraries IDs to dashboard_create_html or dashboard_update. Actual version and bytes are pinned on save; omitted libraries on update preserves saved locks. No CDN, imports or network access.' }),
-      { name: 'dashboard_libraries', description: 'Discover packaged frontend libraries and exact versions available to HTML dashboards. Read before using ECharts/Three.js. Returns metadata, never library source.',
+        lifecycle: 'Pass packaged library IDs to dashboard_create_html or dashboard_update. Actual version and bytes are pinned on save; omitted libraries on update preserves saved locks. Online resources are listed separately under online, are not pinned in the Artifact, and must load successfully when saving and viewing.' }),
+      { name: 'dashboard_libraries', description: 'Discover packaged frontend libraries, exact versions and allowed HTTPS origins for online scripts, stylesheets and fonts. Read before using Tailwind CDN or ECharts/Three.js. Returns metadata, never library source.',
         schema: z.object({}).strict(), verboseParsingErrors: true, metadata: { toolName: { en_US: 'Discover dashboard libraries', zh_Hans: '查看看板前端图库' } } }),
       ...createEditingTools(this.service, scope, context, resolvePreviews, validateFinal, (path, artifactId) => evidence.opened(path, artifactId)),
       tool(async () => {
@@ -155,23 +193,18 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
         schema: z.object({}).strict(), verboseParsingErrors: true, metadata: { toolName: { en_US: 'List analytics sources', zh_Hans: '发现分析数据源' } }
       }),
       tool(async (input: z.infer<typeof discoverToolSchema>) => {
-        if (listedSources && !listedSources.some(source => sameAnalyticsResource(source.source, input.source) && source.providers.some(provider => provider.id === input.providerId)))
-          throw new Error(`DASHBOARD_SOURCE_SELECTION_INVALID: copy an exact source/providerId pair from dashboard_list_sources; do not invent or combine IDs. Known pairs: ${JSON.stringify(listedSources.map(source => ({ source: source.source, name: source.name, providerIds: source.providers.map(provider => provider.id) })))}. Refresh the list if the source changed. Initial requestJson is "{}"; then follow inspectRequest/nextRequest.`)
         const parsed = { source: input.source, providerId: input.providerId, request: parseObjectJson(input.requestJson) }
-        const result = await this.service.discover(scope, parsed)
-        discovered.set(`${analyticsSourceKey(parsed.source)}/${parsed.providerId}`, result.queryContract)
-        return JSON.stringify(result)
+        return JSON.stringify(await discover(parsed))
       }, { name: 'dashboard_discover', description: 'Discover provider-owned business metadata. Start requestJson="{}" then serialize inspectRequest/nextRequest. Inspect dataset fields, comments, measures and native query format before preview.',
         schema: discoverToolSchema, verboseParsingErrors: true, metadata: { toolName: { en_US: 'Inspect business data', zh_Hans: '理解业务数据与指标' } } }),
       tool(async (input: z.infer<typeof previewToolSchema>) => {
-        const contract = discovered.get(`${analyticsSourceKey(input.binding.source)}/${input.binding.providerId}`)
-        if (!contract) throw new Error('DASHBOARD_DISCOVER_REQUIRED: discover the source before preview')
+        const contract = await ensureContract(input.binding)
         const binding = fromAgentBinding(input.binding, contract)
         return preview(binding)
-      }, { name: 'dashboard_preview', description: 'Run one read-only binding using parameters[].defaultValue. Returns validated Dataset fields, first 20 rows, full query completeness and audit. Required before create; changes to binding/defaults require another preview.',
+      }, { name: 'dashboard_preview', description: 'Run one read-only binding using parameters[].defaultValue. Automatically discovers the source/provider query contract when absent in this run; use dashboard_discover to inspect business metadata or repair invalid queries. Returns validated Dataset fields, first 20 rows, full query completeness and audit. Required before create; changes to binding/defaults require another preview.',
         schema: previewToolSchema, verboseParsingErrors: true, metadata: { toolName: { en_US: 'Verify dashboard data', zh_Hans: '预览并验证看板数据' } } }),
       tool(async ({ bindingJson }: { bindingJson: string }) => preview(analyticsBindingSchema.parse(JSON.parse(bindingJson))), {
-        name: 'dashboard_preview_binding', description: 'Preview a complete canonical AnalyticsBinding returned by another tool. Serialize the complete canonical Binding (for example discovery items[].metadata.binding), including parameters[].controlId. bindingPayload is only the payload, not a Binding. If adding a parameter, include name, controlId, type, required and defaultValue. Do not convert it to the simplified dashboard_preview input. Discovery of the source is still required. Returns the same previewId receipt for dashboard_create.',
+        name: 'dashboard_preview_binding', description: 'Preview a complete canonical AnalyticsBinding returned by another tool. Serialize the complete canonical Binding (for example discovery items[].metadata.binding), including parameters[].controlId. bindingPayload is only the payload, not a Binding. If adding a parameter, include name, controlId, type, required and defaultValue. Do not convert it to the simplified dashboard_preview input. Automatically discovers the source/provider query contract when absent in this run; use dashboard_discover for business metadata. Returns the same previewId receipt for dashboard_create.',
         schema: z.object({ bindingJson: z.string().min(2).max(200000) }).strict(), verboseParsingErrors: true,
         metadata: { toolName: { en_US: 'Verify registered dataset', zh_Hans: '验证已注册数据集' } }
       }),

@@ -39,7 +39,7 @@ HTML 字节、数据 Binding 和 Controls 处于同一内容哈希和版本中�
 
 ## Agent 与浏览器
 
-HTML 模式复用标准看板的 discovery/preview 证据，不允许通过编写 HTML 绕开预览或最终 Provider 策略。`sandbox_write_file` / `sandbox_edit_file` 只编辑文件；已有看板通过 `dashboard_update` 保存草稿，新看板的 `dashboard_create_html` 读取真实文件、验证格式及大小并保存。所有文件访问通过平台 WorkspaceFiles 能力。保存前由 `HtmlDashboardValidation` 检查 Browser Action 与后台执行池健康，将真实默认查询结果和 HTML 放入私有临时文件；队列只携带验证任务 ID。插件 Action 在平台 Browser Runtime 中执行相同的页面宿主，禁用网络，检测初始查询、未声明 Binding、脚本异常和空页面。失败结果返回 Agent，当轮修复后可重试，Artifact 创建发生在校验通过之后。标准 JSON 看板不经过此步骤。
+HTML 模式复用标准看板的 discovery/preview 证据，不允许通过编写 HTML 绕开预览或最终 Provider 策略。`sandbox_write_file` / `sandbox_edit_file` 只编辑文件；已有看板通过 `dashboard_update` 保存草稿，新看板的 `dashboard_create_html` 读取真实文件、验证格式及大小并保存。所有文件访问通过平台 WorkspaceFiles 能力。保存前由 `HtmlDashboardValidation` 检查 Browser Action 与后台执行池健康，将真实默认查询结果和 HTML 放入私有临时文件；队列只携带验证任务 ID。插件 Action 在平台 Browser Runtime 中执行相同的页面宿主，使用同一 HTTPS CDN 资源白名单，检测初始查询、未声明 Binding、脚本异常和空页面。失败结果返回 Agent，当轮修复后可重试，Artifact 创建发生在校验通过之后。标准 JSON 看板不经过此步骤。
 
 验证任务在 `sandbox-browser` 池执行，使用平台资源限制、超时、取消和销毁。短期任务引用与小型报告存于插件独立 Redis 键（5 分钟 TTL），HTML/数据不进入队列；输入/输出临时文件在完成后删除。保存版本的 metadata 保留 Sandbox Job ID 和已请求 Binding ID。真实数据权限仍由保存/查询时的 Analytics Runtime 重新检查。
 
@@ -55,7 +55,7 @@ await live.ready()
 await live.query('sales', { region: null })
 ```
 
-页面可以使用任意内联 HTML/CSS/JS、DOM/SVG/Canvas。字段、精度、粒度、单位和完整性来自 Dataset；业务事实不能硬编码在页面里。外部 CDN、fetch/WebSocket、eval、宿主 DOM、Web Storage、嵌套 iframe 和自导航不开放。宿主的查询权限检查独立于前端限制。
+页面可以使用任意内联 HTML/CSS/JS、DOM/SVG/Canvas。字段、精度、粒度、单位和完整性来自 Dataset；业务事实不能硬编码在页面里。允许的在线脚本、样式和字体来源见 dashboard_libraries.online，包括 Tailwind CDN。fetch/WebSocket、外部图片、eval、宿主 DOM、Web Storage、嵌套 iframe 和自导航仍不开放。在线资源加载失败会阻止保存；建议固定版本，在线资源内容不纳入 Artifact 的不可变快照。宿主的查询权限检查独立于前端限制。
 
 页面滤镜触发带控件值的新查询；宿主刷新沿用各 Binding 最近的值，订阅重绘并保留页面状态。同一 Binding 的过期响应不覆盖新响应。保存重开使用固定页面版本并执行最新数据查询。
 
@@ -68,7 +68,7 @@ await live.query('sales', { region: null })
 ## 当前范围
 
 - 单文件 HTML（300 KB）、含依赖的版本包最大 9 MB；8 个 Binding、24 个控件。
-- 支持原生绘图与插件打包的 ECharts、Three.js 核心库；不开放任意 CDN。
+- 支持原生绘图与插件打包的 ECharts、Three.js 核心库；在线资源仅允许声明的 HTTPS CDN。
 - 刷新为查询最新来源，未提供服务端推送/定时轮询。
 - Artifact 当前仍为 owner-only；没有扩大分享权限。
 - 保存预检覆盖初始渲染与查询协议；不证明任意图表业务口径、延迟执行分支或所有交互都正确，仍需真实浏览器验收。

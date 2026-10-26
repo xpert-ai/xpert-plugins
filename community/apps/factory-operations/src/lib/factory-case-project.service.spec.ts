@@ -1,9 +1,11 @@
 import { FACTORY_ROLE_ASSISTANTS } from './factory-assistant-definitions.js'
-import { FACTORY_PLUGIN_NAME } from './constants.js'
+import { AGENT_KEYS, FACTORY_PLUGIN_NAME } from './constants.js'
+import type { ProjectEnsureResult } from '@xpert-ai/plugin-sdk'
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('@xpert-ai/plugin-sdk', () => ({
   pluginArtifactTableName: (namespace: string, tableKey: string) => `plugin_${namespace}_${tableKey}`,
+  AssistantTaskRuntimeCapability: 'assistant-task',
   ProjectProvisioningRuntimeCapability: 'platform.project.provisioning',
   XPERT_RUNTIME_CAPABILITIES_TOKEN: 'XPERT_RUNTIME_CAPABILITIES'
 }))
@@ -29,13 +31,15 @@ describe('FactoryCaseProjectService', () => {
       .mockResolvedValueOnce({
         projectId: entity.workspaceProjectId,
         xpertIds: ['orchestrator-1', ...FACTORY_ROLE_ASSISTANTS.map(r => r.key)],
-        assistantBindings: FACTORY_ROLE_ASSISTANTS.map(r => ({ pluginName: FACTORY_PLUGIN_NAME, templateKey: r.key, agentKey: r.agentKey, xpertId: r.key })),
         operation: 'created'
-      })
+      } satisfies ProjectEnsureResult)
     const repository = buildRepository(entity)
     const service = new FactoryCaseProjectService(
       repository as never,
-      { require: () => ({ ensure }) } as never
+      { require: () => ({ ensure,
+        resolvePublishedAgent: vi.fn(async ({ expectation }) => ({ xpertId: expectation.templateKey })),
+        assertExternalAssistantBinding: vi.fn(async () => ({}))
+      }) } as never
     )
 
     const failed = await service.synchronize(scope, entity)
@@ -44,6 +48,7 @@ describe('FactoryCaseProjectService', () => {
 
     const ready = await service.retry(scope, entity.id)
     expect(ready.workspaceProjectSyncStatus).toBe('ready')
+    expect(ready.roleAssistants).toEqual(Object.fromEntries(FACTORY_ROLE_ASSISTANTS.map(role => [role.roleKey, role.key])))
     expect(ensure).toHaveBeenCalledTimes(2)
     expect(ensure.mock.calls[1]?.[0].projectType).toEqual(FACTORY_CASE_PROJECT_TYPE)
     expect(ensure.mock.calls.map(([input]) => input.projectId)).toEqual([
@@ -51,6 +56,39 @@ describe('FactoryCaseProjectService', () => {
       entity.workspaceProjectId
     ])
     expect(ensure.mock.calls[1]?.[0].externalAssistantExpectations).toHaveLength(8)
+  })
+
+  it.each(['missing', 'ambiguous', 'not-bound', 'not-in-project', 'unsupported'])('rejects %s role resolution without marking the Project ready', async (failure) => {
+    const entity = buildCase()
+    const project: ProjectEnsureResult = { projectId: entity.workspaceProjectId, xpertIds: ['orchestrator-1'], operation: 'updated' }
+    const resolvePublishedAgent = vi.fn(async () => {
+      if (failure === 'missing' || failure === 'ambiguous') throw new Error(`assistant_binding_${failure}`)
+      return { xpertId: 'unassigned-role', workspaceId: 'workspace-1', agentKey: 'role' }
+    })
+    const assertExternalAssistantBinding = vi.fn(async () => {
+      if (failure === 'not-bound') throw new Error('assistant_binding_missing')
+      return {}
+    })
+    const repository = buildRepository(entity)
+    const service = new FactoryCaseProjectService(repository as never, { require: () => ({
+      ensure: vi.fn(async () => project),
+      resolvePublishedAgent: failure === 'unsupported' ? undefined : resolvePublishedAgent,
+      assertExternalAssistantBinding
+    }) } as never)
+
+    await service.synchronize(scope, entity)
+    expect(entity.workspaceProjectSyncStatus).toBe('failed')
+    expect(repository.update.mock.calls.some(([, patch]) => patch.workspaceProjectSyncStatus === 'ready')).toBe(false)
+    expect(entity.roleAssistants).toBeUndefined()
+    if (failure === 'not-bound' || failure === 'not-in-project') {
+      const role = FACTORY_ROLE_ASSISTANTS[0]!
+      expect(assertExternalAssistantBinding).toHaveBeenCalledWith({
+        requesterXpertId: scope.assistantId,
+        requesterAgentKey: AGENT_KEYS.coordinator,
+        executorXpertId: 'unassigned-role',
+        expectation: { pluginName: FACTORY_PLUGIN_NAME, templateKey: role.key, agentKey: role.agentKey }
+      })
+    }
   })
 
   it('allows only the original Case creator to retry Project synchronization', async () => {
