@@ -35,7 +35,7 @@ function fixture() {
   const content = new SpaceContent(access as never, runtime as never)
   return { documents, content, item, space, events, access, contentApi }
 }
-test('new pages register the platform model after file creation, with no legacy room', async () => {
+test('pages register the platform document model after file creation', async () => {
   const f = fixture()
   await f.documents.initialize(actor, f.space, f.item, Buffer.from('# Page'))
   assert.deepEqual(f.events, ['write', 'register'])

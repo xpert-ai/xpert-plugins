@@ -21,14 +21,14 @@ export class DashboardViewProvider implements IXpertViewExtensionProvider {
   constructor(private readonly service: DashboardService, private readonly sharing: DashboardSharingService) {}
   supports(context: XpertResolvedViewHostContext) { return context.hostType === 'agent' || context.hostType === 'project' }
   getViewManifests(context: XpertResolvedViewHostContext, slot: string): XpertExtensionViewManifest[] {
-    if (!(context.hostType === 'agent' && slot === 'agent.workbench' || context.hostType === 'project' && slot === 'detail.sections')) return []
+    if (!(context.hostType === 'agent' && ['agent.workbench', 'agent.workbench.fixed', 'agent.workbench.main'].includes(slot) || context.hostType === 'project' && slot === 'detail.sections')) return []
     return [{ key: VIEW_KEY, title: text('Live dashboards', '实时看板'), hostType: context.hostType, slot, order: 35,
-      icon: dashboardIcon, refreshable: true, activation: { requiredFeatures: [FEATURE] },
+      icon: dashboardIcon, refreshable: true, activation: { projectResource: true, requiredFeatures: [FEATURE] },
       source: { provider: VIEW_PROVIDER, plugin: PLUGIN_NAME },
-      workbench: { fixed: true, menu: { enabled: true, label: text('Live dashboards', '实时看板'), icon: dashboardIcon, order: 35 } },
+      workbench: { fixed: true, openMode: 'on-demand', menu: { enabled: true, label: text('Live dashboards', '实时看板'), icon: dashboardIcon, order: 35 } },
       view: { type: 'remote_component', runtime: 'react', protocolVersion: 1, component: { isolation: 'iframe', entry: VIEW_KEY }, dataSource: { mode: 'platform' } },
       dataSource: { mode: 'platform', querySchema: { supportsSelection: true, supportsParameters: true }, cache: { enabled: false } },
-      clientCommands: [{ key: ASSISTANT_CONTEXT_SET_COMMAND, label: text('Select dashboard for Assistant', '设置助理当前看板') },
+      clientCommands: [{ key: 'workbench.content.status' }, { key: 'workbench.content.resolve' }, { key: ASSISTANT_CONTEXT_SET_COMMAND, label: text('Select dashboard for Assistant', '设置助理当前看板') },
         { key: ARTIFACT_PRESENTATION_OPEN_COMMAND, label: text('Open shared page', '打开独立页面') },
         { key: WORKBENCH_NAVIGATION_OPEN_COMMAND, label: text('Open dashboard', '打开看板') }],
       hostEvents: { subscriptions: [{ key: 'dashboard-created', event: 'assistant.tool.completed',

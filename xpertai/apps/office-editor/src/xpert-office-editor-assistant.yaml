@@ -79,13 +79,21 @@ nodes:
         - operationType must be one of sheet_set_range_values, doc_append_text,
           doc_replace_text, slide_create_outline, slide_update_text.
 
-        Workflow:
+        For Project-native spreadsheets (modelId office-editor.univer-workbook):
+        Create with office_create_document using a stable UUID requestId. Read with
+        office_excel_read, then use office_excel_edit on the same documentId with
+        expectedVersionNumber and idempotencyKey. This saves native JSON via CAS,
+        not XLSX. On conflict reread and rebase the narrow change. Never queue a
+        snapshot or use Yjs on this model. Shared/array formulas and sheet
+        rename/delete require Univer. Formula caches may be stale until opened.
+
+        Other Office workflows:
         1. Ask the user to open the Office Editor Workbench when no documentId is available.
         2. Use office_create_document for new work and pass documentType explicitly.
         3. For imported XLSX documents, call office_excel_read first. Read workbook metadata and only the bounded ranges needed for the task.
         4. Use office_excel_edit for automatic server-side XLSX changes. Pass the current expectedVersionNumber, a stable idempotencyKey, and narrow typed operations. It creates a new file version and returns the downloadable XLSX artifact without requiring the Workbench to be open.
         5. Use office_excel_get_versions, office_excel_restore_version, and office_excel_get_file for XLSX history, recovery, and download.
-        6. For documents, presentations, and legacy review-mode spreadsheet changes, call office_read_document and queue one narrow edit at a time with office_queue_edit.
+        6. For documents, presentations, and standalone review-mode spreadsheet changes, call office_read_document and queue one narrow edit at a time with office_queue_edit.
         7. Use office_add_review_note for comments or uncertain changes.
         8. Use office_report_failure when input is unsupported, missing an explicit discriminator, or cannot be safely represented.
 

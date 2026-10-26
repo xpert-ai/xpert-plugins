@@ -1,12 +1,13 @@
 import { BadRequestException, ConflictException, Inject, Injectable } from '@nestjs/common'
 import {
-  ContentDocumentsRuntimeCapability, ProjectFilesRuntimeCapability, XPERT_RUNTIME_CAPABILITIES_TOKEN,
+  ContentDocumentsRuntimeCapability, ContentResourcesRuntimeCapability, ProjectFilesRuntimeCapability, XPERT_RUNTIME_CAPABILITIES_TOKEN,
   type RuntimeCapabilityRegistry
 } from '@xpert-ai/plugin-sdk'
 import { createHash, randomUUID } from 'node:crypto'
 import { SpaceAccess } from './access.js'
 import { Space, SpaceItem } from './entities.js'
 import { denied, scoped, type SpaceActor } from './domain.js'
+import { contentCoverage, coveredByContent, type ContentPathCoverage } from './content-coverage.js'
 
 export const contentHash = (buffer: Buffer) => createHash('sha256').update(buffer).digest('hex')
 export const safeName = (name: string) => name.replace(/[\\/\u0000-\u001f]/gu, '_').replace(/^\.+/u, '_').slice(0, 180) || 'Untitled'
@@ -23,6 +24,22 @@ export class SpaceDocuments {
   scope(actor: SpaceActor, space: Space) {
     if (!space.projectId) throw denied()
     return { actor, projectId: space.projectId }
+  }
+  async resourceCoverage(actor: SpaceActor, space: Space) {
+    const catalog = this.runtime.require(ContentResourcesRuntimeCapability).catalog
+    const coverage: ContentPathCoverage[] = []
+    for (const deleted of [false, true]) {
+      let offset = 0
+      for (;;) {
+        const page = await catalog.list({ ...this.scope(actor, space), assistantId: actor.assistantId,
+          excludedProviderKeys: ['spaces'], deleted, offset, limit: 100 })
+        coverage.push(...contentCoverage(page.items))
+        if (!page.hasMore) break
+        offset += page.items.length
+        if (!page.items.length) throw new Error('spaces.invalid_catalog_page')
+      }
+    }
+    return coverage
   }
   async path(actor: SpaceActor, item: SpaceItem) {
     const parent = item.parentId ? await this.access.items.findOneByOrFail({ ...scoped(actor), id: item.parentId }) : null
@@ -78,14 +95,14 @@ export class SpaceDocuments {
     }
   }
   /** Discover files created by other Assistants without importing hidden version/trash storage. */
-  async discover(actor: SpaceActor, space: Space, canWrite: boolean) {
+  async discover(actor: SpaceActor, space: Space, canWrite: boolean, coverage: ContentPathCoverage[] = []) {
     if (!space.projectId) throw denied()
     const files = await this.api().list({ ...this.scope(actor, space), depth: 12 })
     const existing = await this.access.items.findBy({ ...scoped(actor), spaceId: space.id })
     if (existing.some((item) => item.syncError === 'spaces.location_pending')) return
     const byPath = new Map(existing.filter((item) => item.filePath && !item.deleted).map((item) => [item.filePath!, item]))
     for (const file of files.sort((a, b) => a.path.split('/').length - b.path.split('/').length)) {
-      if (isInternalSpacePath(file.path)) continue
+      if (isInternalSpacePath(file.path) || coveredByContent(file.path, coverage)) continue
       const known = byPath.get(file.path)
       if (known) {
         // Resume a first registration interrupted after inserting the navigation row.

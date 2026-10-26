@@ -31,3 +31,18 @@ export async function queryDashboard(runtime: RuntimeCapabilityRegistry, actor: 
   if (Buffer.byteLength(JSON.stringify(datasets)) > 3_000_000) throw new BadRequestException('DASHBOARD_RESULT_TOO_LARGE')
   return datasets
 }
+
+/** Read-only rendering can show independent successful bindings. Saving/publishing still
+ * uses queryDashboard and requires every binding to validate. Never return native error
+ * details, which may contain private source configuration or query text. */
+export async function queryDashboardPartial(runtime: RuntimeCapabilityRegistry, actor: DataSourceActor, manifest: DashboardManifest, input: Record<string, AnalyticsValue>) {
+  validateControls(manifest, input)
+  const datasets: AnalyticalDataset[] = []
+  const failures: Array<{ bindingId: string; datasetId: string; reason: 'unavailable' }> = []
+  for (const binding of manifest.bindings) {
+    try { datasets.push(await queryDashboardBinding(runtime, actor, manifest, binding.id, input)) }
+    catch { failures.push({ bindingId: binding.id, datasetId: binding.output.datasetId, reason: 'unavailable' }) }
+  }
+  if (Buffer.byteLength(JSON.stringify(datasets)) > 3_000_000) throw new BadRequestException('DASHBOARD_RESULT_TOO_LARGE')
+  return { datasets, failures }
+}

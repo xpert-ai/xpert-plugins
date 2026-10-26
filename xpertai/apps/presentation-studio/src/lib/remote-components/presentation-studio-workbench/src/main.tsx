@@ -1,4 +1,7 @@
+import { SourceSyncBadge } from './source-sync-badge'
 import * as React from 'react'
+import { serverContainsDocument } from './save-state'
+import { observeDeckTitle } from './collaboration-metadata'
 import { createRoot } from 'react-dom/client'
 import {
   DndContext,
@@ -105,7 +108,9 @@ import './styles.css'
 import { createUuid } from './browser-crypto'
 import { debug, setDebugDefault } from './debug-logger'
 import { translator } from './i18n'
-import { executeAction, executeFileAction, invokeClientCommand, isObject, notify, payload, reportResize, requestData, requestFileAccess, startRemoteBridge } from './runtime'
+import { RemoteI18nProvider } from '@xpert-ai/plugin-shadcn-ui/i18n'
+import { SourceTransfer } from './source-transfer'
+import { executeAction, executeFileAction, invokeClientCommand, isObject, notify, payload, reportResize, requestData, requestFileAccess, startRemoteBridge, onPrepareClose } from './runtime'
 import { unwrapRemoteResponse } from './response-data'
 import { installDashiRuntimeBridge, loadNativeThemeRuntime, type LoadedNativeRuntime } from './native-runtime'
 import { NativeSlideSurface } from './native-slide-surface'
@@ -230,11 +235,28 @@ function App() {
   const collaborationClientRef = React.useRef<CollaborationClient | null>(null)
   const presenceStoreRef = React.useRef<CollaborationPresenceStore | null>(null)
   const docRef = React.useRef<Y.Doc | null>(null)
+  const metadataCleanupRef = React.useRef<(() => void) | null>(null)
   const undoRef = React.useRef<Y.UndoManager | null>(null)
   const selectedRef = React.useRef<string | null>(null)
   const decksRef = React.useRef<DeckSummary[]>([])
   const detailRef = React.useRef<DeckDetail | null>(null)
   const hostEventRef = React.useRef<(event: JsonObject) => void>(() => undefined)
+  const dirtyRef = React.useRef(false)
+  const openEpochRef = React.useRef(0)
+  const contextRef = React.useRef(context)
+  contextRef.current = context
+  const reportDirty = React.useCallback((dirty: boolean) => {
+    dirtyRef.current = dirty
+    if (selectedRef.current) void invokeClientCommand('workbench.content.status', { resourceId: selectedRef.current, dirty, title: detailRef.current?.item.title ?? '' }).catch(() => undefined)
+  }, [])
+  React.useEffect(() => onPrepareClose(async resourceId => {
+    if (resourceId !== selectedRef.current || !dirtyRef.current) return true
+    collaborationClientRef.current?.flush()
+    socketRef.current?.emit('sync-request', {})
+    const deadline = Date.now() + 6000
+    while (dirtyRef.current && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 50))
+    return !dirtyRef.current
+  }), [])
   const localUpdateCountRef = React.useRef(0)
   const awarenessRef = React.useRef<AwarenessPatch>({ protocolVersion: 2, mode: 'edit' })
   const requestedTextFieldsRef = React.useRef(new Set<string>())
@@ -278,6 +300,8 @@ function App() {
     socketRef.current = null
     undoRef.current?.destroy()
     undoRef.current = null
+    metadataCleanupRef.current?.()
+    metadataCleanupRef.current = null
     docRef.current?.destroy()
     docRef.current = null
     setDoc(null)
@@ -292,7 +316,7 @@ function App() {
   const updateRevisionFromAck = React.useCallback((message: JsonObject) => {
     const revision = typeof message.sequenceNumber === 'number' ? message.sequenceNumber : message.revision
     if (typeof revision !== 'number') return
-    setDetail((current) => current ? { ...current, item: { ...current.item, revision } } : current)
+    setDetail((current) => current && revision > current.item.revision ? { ...current, item: { ...current.item, revision } } : current)
   }, [])
 
   /** Bind the Deck's Y.Doc to the platform transport and hydrate state through the initial sync. */
@@ -333,9 +357,25 @@ function App() {
     const onUpdate = (update: Uint8Array, origin: object | string | null) => {
       setDocRevision((value) => value + 1)
       setTextRevision((value) => value + 1)
-      if (origin === LOCAL_ORIGIN || origin === undo) localUpdateCountRef.current += 1
+      if (origin === LOCAL_ORIGIN || origin === undo) { localUpdateCountRef.current += 1; reportDirty(true) }
     }
     nextDoc.on('update', onUpdate)
+    metadataCleanupRef.current = observeDeckTitle(nextDoc, title => {
+      if (docRef.current !== nextDoc || selectedRef.current !== opened.item.deckId) return
+      const current = detailRef.current
+      if (current?.item.deckId === opened.item.deckId) {
+        detailRef.current = { ...current, item: { ...current.item, title } }
+        setDetail(value => value?.item.deckId === opened.item.deckId ? { ...value, item: { ...value.item, title } } : value)
+      }
+      setDecks(items => items.map(item => item.deckId === opened.item.deckId ? { ...item, title } : item))
+      // Update this resource's host tab without clearing pending local edits.
+      reportDirty(dirtyRef.current)
+    })
+    socket.on('sync', (message: JsonObject) => {
+      updateRevisionFromAck(message)
+      if (typeof message.updateBase64 === 'string' && dirtyRef.current && serverContainsDocument(nextDoc, message.updateBase64)) reportDirty(false)
+    })
+    socket.on('update', updateRevisionFromAck)
     socket.on('connect_error', (caught: Error) => {
       setCollabState('disconnected')
       setError(`Presentation collaboration connection failed: ${caught.message}`)
@@ -353,7 +393,7 @@ function App() {
       batchMs: 40,
       syncIntervalMs: 2_000,
       presenceHeartbeatMs: 5_000,
-      onAck: (message) => updateRevisionFromAck(message),
+      onAck: (message) => { updateRevisionFromAck(message); socket.emit('sync-request', {}) },
       onPresence: (message) => presenceStore.upsert(message),
       onPresenceSnapshot: (items, metadata) => presenceStore.replace(items, metadata.selfClientId),
       onPresenceRemove: (clientId) => presenceStore.remove(clientId),
@@ -366,9 +406,24 @@ function App() {
     collaborationClientRef.current = collaborationClient
     collaborationClient.connect()
     debug.info('collaboration-connecting', { origin: new URL(collaborationUrl).origin, namespace: opened.collab.namespace })
-  }, [stopCollaboration, updateRevisionFromAck])
+  }, [stopCollaboration, updateRevisionFromAck, reportDirty])
 
   const openDeck = React.useCallback(async (deckId: string) => {
+    const query = contextRef.current.initialQuery
+    // A catalog tab owns one resource. Switching documents asks the host to open
+    // another tab, preserving this document's collaboration and unsaved state.
+    if (isObject(query?.parameters) && query.parameters.contentId && query.selectionId !== deckId) {
+      try {
+        const response = await invokeClientCommand('workbench.content.resolve', { providerKey: 'presentation-studio.content', resourceId: deckId })
+        const result = response.result ?? response.data
+        if (!isObject(result) || result.success !== true || !isObject(result.navigation)) throw new Error('CONTENT_EDITOR_UNAVAILABLE')
+        await invokeClientCommand('workbench.navigation.open', result.navigation)
+      } catch (caught) { setError(messageOf(caught)); notify('error', messageOf(caught)) }
+      return
+    }
+    if (dirtyRef.current && selectedRef.current !== deckId) return
+    const epoch = ++openEpochRef.current
+    const scope = contextRef.current.scopeRevision
     setWorkspaceMode('deck')
     setBusy(true)
     setRuntimeBusy(true)
@@ -377,9 +432,13 @@ function App() {
       const opened = actionData<OpenDeckPayload>(await executeAction('open_deck', deckId, { deckId }))
       const runtime = actionData<NativeThemeRuntimePayload>(await executeAction('load_theme_runtime', deckId, { deckId }))
       const loadedRuntime = await loadNativeThemeRuntime(runtime)
+      if (epoch !== openEpochRef.current || scope !== contextRef.current.scopeRevision) return
       const nextDetail: DeckDetail = { item: opened.item, versions: opened.versions ?? [], exports: opened.exports ?? [], assets: opened.assets ?? [], exportCapabilities: opened.exportCapabilities, sharePolicy: opened.sharePolicy }
+      selectedRef.current = deckId
+      detailRef.current = nextDetail
       setSelectedId(deckId)
       setDetail(nextDetail)
+      reportDirty(false)
       knownServerSlideIdsRef.current = new Set(deckDetailSlideIds(nextDetail))
       pendingActiveSlideIdRef.current = null
       setActiveSlideId(null)
@@ -390,9 +449,11 @@ function App() {
       startCollaboration(opened)
       debug.info('deck-opened', { deckId, themePack: runtime.themePack })
     } catch (caught) {
+      if (epoch !== openEpochRef.current || scope !== contextRef.current.scopeRevision) return
       setError(messageOf(caught))
       notify('error', messageOf(caught))
     } finally {
+      if (epoch !== openEpochRef.current || scope !== contextRef.current.scopeRevision) return
       setBusy(false)
       setRuntimeBusy(false)
     }
@@ -472,6 +533,12 @@ function App() {
 
   React.useEffect(() => {
     if (!ready) return
+    const requested = context.initialQuery?.selectionId
+    if (typeof requested === 'string' && requested) {
+      if (requested !== selectedRef.current) void openDeck(requested)
+      void loadDecks().catch((caught) => setError(messageOf(caught)))
+      return
+    }
     if (autoOpenAttemptedRef.current) {
       void loadDecks().catch((caught) => setError(messageOf(caught)))
       return
@@ -483,7 +550,7 @@ function App() {
         void openDeck(items[0].deckId)
       })
       .catch((caught) => setError(messageOf(caught)))
-  }, [ready, loadDecks, openDeck])
+  }, [ready, context.initialQuery?.selectionId, context.scopeRevision, loadDecks, openDeck])
 
   React.useEffect(() => () => stopCollaboration(), [stopCollaboration])
 
@@ -960,7 +1027,7 @@ function App() {
 
   if (!ready) return <div className="ps-loading">Presentation Studio</div>
 
-  return <div className="ps-studio" data-theme-mode={context.theme?.mode === 'dark' ? 'dark' : 'light'}>
+  return <RemoteI18nProvider i18n={t.i18n}><div className="ps-studio" data-theme-mode={context.theme?.mode === 'dark' ? 'dark' : 'light'}>
     <header className="ps-topbar">
       <div className="ps-topbar-leading">
         {workspaceMode === 'deck' ? <Button variant="ghost" size="icon" title={leftCollapsed ? t('showDeckPanel') : t('hideDeckPanel')} onClick={() => setLeftCollapsed((value) => !value)}>
@@ -981,6 +1048,7 @@ function App() {
             <Image />
             <span>{t('themePreviews')}</span>
           </Button>
+          {workspaceMode === 'deck' && detail && <SourceSyncBadge deckId={detail.item.deckId} t={t} />}
           {workspaceMode === 'deck' ? <Badge
             className="ps-connection-status"
             variant={collabState === 'connected' || collabState === 'connecting' ? 'outline' : 'secondary'}
@@ -1010,6 +1078,9 @@ function App() {
           </DropdownMenuContent>
         </DropdownMenu>
         <Button variant="outline" disabled={!activeSlide} onClick={() => void startPresenting()}><Play />{t('play')}</Button>
+        {detail && isObject(context.initialQuery?.parameters) && context.initialQuery.parameters.contentId && <SourceTransfer
+          deckId={detail.item.deckId} revision={detail.item.revision} disabled={busy || dirtyRef.current} t={t}
+          onRecovered={async id => { await loadDecks(); await openDeck(id) }} />}
         <ExportSharePopover
           item={latestHtmlExport}
           onShare={shareExport}
@@ -1140,7 +1211,7 @@ function App() {
       <NativeSlideSurface slideId={activeSlide.id} layout={activeSlide.layout} props={resolveAssetObject(activeProps, assetPreviews)} index={activeIndex} total={visibleSlides.length} runtime={nativeRuntime} doc={doc} localOrigin={LOCAL_ORIGIN} textRevision={textRevision} presences={[]} onTextFieldsDiscovered={NOOP_FIELDS} onSelectionChange={NOOP_SELECTION} onPointerChange={NOOP_POINTER} onElementMove={NOOP_ELEMENT_MOVE} onAssetSlot={NOOP} onContentEdit={NOOP} />
       <div className="ps-present-controls"><Button variant="secondary" size="icon" onClick={() => navigateSlide(-1)}><ChevronLeft /></Button><span>{activeIndex + 1} / {visibleSlides.length}</span><Button variant="secondary" size="icon" onClick={() => navigateSlide(1)}><ChevronRight /></Button><Button variant="secondary" onClick={() => { setPresenting(false); void document.exitFullscreen?.() }}>{t('exit')}</Button></div>
     </div> : null}
-  </div>
+  </div></RemoteI18nProvider>
 }
 
 function ThemePreviewGallery(props: {
@@ -1374,6 +1445,7 @@ function agentStatusText(status: CollaboratorAvatarActor['status'], t: ReturnTyp
 }
 
 function agentOperationText(actor: CollaboratorAvatarActor, t: ReturnType<typeof translator>) {
+  if (actor.toolName === 'presentation_rename_deck') return t('opRenameDeck')
   return actor.toolName === 'presentation_create_deck' ? t('opCreateDeck')
     : actor.toolName === 'presentation_search_decks' ? t('opSearchDecks')
       : actor.toolName === 'presentation_get_deck' ? t('opGetDeck')

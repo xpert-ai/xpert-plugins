@@ -1,3 +1,5 @@
+import { OfficeWorkbookService, workbookScope } from './workbooks/service.js'
+import { WORKBOOK_MODEL } from './workbooks/model.js'
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { randomUUID, createHash } from 'node:crypto'
@@ -119,7 +121,8 @@ export class OfficeEditorService {
     private readonly runtimeCapabilities?: AgentMiddlewareRuntimeCapabilityRegistry,
     @Optional()
     @Inject(XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN)
-    private readonly runtimeService?: AgentMiddlewareRuntimeServiceApi
+    private readonly runtimeService?: AgentMiddlewareRuntimeServiceApi,
+    @Optional() private readonly workbooks?: OfficeWorkbookService
   ) {}
 
   async createDocument(scope: OfficeScope, input: CreateOfficeDocumentInput) {
@@ -167,6 +170,16 @@ export class OfficeEditorService {
       yjsStateVectorBase64: encodeStateVectorBase64(correctedYjsStateBase64),
       changeSummary: normalizeOptional(input.changeSummary) ?? 'Initial Office document snapshot.'
     })
+  }
+
+  /** Assistant-created Project spreadsheets use the same resource writer as Spaces.
+   * The original document/presentation and explicit import flows remain separate. */
+  async createForAssistant(scope: OfficeScope, input: CreateOfficeDocumentInput, requestId?: string) {
+    if (input.documentType === 'spreadsheet' && scope.projectId) {
+      if (!requestId) throw new BadRequestException('office.request_required')
+      return this.workbooks!.create(workbookScope(scope), requestId, input.title)
+    }
+    return this.createDocument(scope, input)
   }
 
   async importDocument(scope: OfficeScope, input: ImportOfficeDocumentInput) {
@@ -285,6 +298,7 @@ export class OfficeEditorService {
 
   async readExcel(scope: OfficeScope, input: ReadExcelWorkbookInput) {
     const document = await this.requireSpreadsheet(scope, input.documentId)
+    if (document.contentModel === WORKBOOK_MODEL.modelId) return this.workbooks!.readRange(workbookScope(scope), input.documentId, input.sheetName, input.range)
     const version = await this.requireCurrentExcelVersion(scope, document)
     const file = await this.readExcelVersionBuffer(scope, version)
     return {
@@ -301,6 +315,12 @@ export class OfficeEditorService {
 
   async editExcel(scope: OfficeScope, input: EditExcelWorkbookInput) {
     const document = await this.requireSpreadsheet(scope, input.documentId)
+    if (document.contentModel === WORKBOOK_MODEL.modelId) {
+      if (!Number.isSafeInteger(input.expectedVersionNumber) || !input.idempotencyKey) throw new BadRequestException('office.version_and_request_required')
+      const result = await this.workbooks!.edit(workbookScope(scope), input.documentId, String(input.expectedVersionNumber), input.operations, input.idempotencyKey)
+      return { documentId: result.documentId, versionNumber: Number(result.revision), title: result.title, modelId: WORKBOOK_MODEL.modelId,
+        editProtocol: WORKBOOK_MODEL.editProtocol, sourcePath: result.sourcePath, catalogPending: result.catalogPending, file: undefined }
+    }
     const idempotencyKey = normalizeOptional(input.idempotencyKey)
     if (idempotencyKey) {
       const existing = await this.operationRepository.findOne({
@@ -439,6 +459,7 @@ export class OfficeEditorService {
 
   async restoreExcelVersion(scope: OfficeScope, input: RestoreExcelVersionInput) {
     const document = await this.requireSpreadsheet(scope, input.documentId)
+    assertOriginalOfficeProtocol(document)
     const expectedVersionNumber = normalizeExpectedVersion(input.expectedVersionNumber)
     if (
       expectedVersionNumber !== undefined &&
@@ -547,6 +568,7 @@ export class OfficeEditorService {
 
   async saveSnapshot(scope: OfficeScope, input: SaveOfficeSnapshotInput) {
     let document = await this.requireDocument(scope, input.documentId)
+    assertOriginalOfficeProtocol(document)
     const previousFileState = {
       fileName: document.fileName,
       mimeType: document.mimeType,
@@ -628,6 +650,7 @@ export class OfficeEditorService {
 
   async syncYjsState(scope: OfficeScope, input: SyncOfficeYjsStateInput) {
     const document = await this.requireDocument(scope, input.documentId)
+    assertOriginalOfficeProtocol(document)
     const updateBuffer = normalizeOptional(input.updateBase64) ? parseBase64(input.updateBase64, 'Yjs update') : null
     const fullStateBuffer = normalizeOptional(input.fullStateBase64) ? parseBase64(input.fullStateBase64, 'Yjs state') : null
     const updateHash = updateBuffer ? checksum(updateBuffer) : null
@@ -708,6 +731,7 @@ export class OfficeEditorService {
 
   async queueOperation(scope: OfficeScope, input: QueueOfficeOperationInput) {
     const document = await this.requireDocument(scope, input.documentId)
+    assertOriginalOfficeProtocol(document)
     validateOperationType(input.operationType)
     validateOperationInput(input.operationType, input.input)
 
@@ -729,6 +753,7 @@ export class OfficeEditorService {
 
   async addReviewNote(scope: OfficeScope, input: AddOfficeReviewNoteInput) {
     const document = await this.requireDocument(scope, input.documentId)
+    assertOriginalOfficeProtocol(document)
     return this.operationRepository.save(
       this.operationRepository.create({
         ...scopedCreate(scope),
@@ -778,10 +803,10 @@ export class OfficeEditorService {
     if (!operation) {
       throw new NotFoundException('Office Editor operation was not found.')
     }
-    await this.requireDocument(
+    assertOriginalOfficeProtocol(await this.requireDocument(
       scope,
       requireEntityId(operation.documentId, 'Office Editor operation document id is required.')
-    )
+    ))
     return this.operationRepository.save({
       ...operation,
       status: input.status,
@@ -791,7 +816,7 @@ export class OfficeEditorService {
   }
 
   async deleteDocument(scope: OfficeScope, documentId: string) {
-    await this.requireDocument(scope, documentId)
+    assertOriginalOfficeProtocol(await this.requireDocument(scope, documentId))
     const collaboration = this.optionalCollaboration(scope)
     if (collaboration) {
       try {
@@ -873,7 +898,7 @@ export class OfficeEditorService {
     }
   }
 
-  async getWorkbenchData(scope: OfficeScope, query: OfficeWorkbenchQuery) {
+  async getWorkbenchData(scope: OfficeScope, query: OfficeWorkbenchQuery, includeResources = false) {
     if (query.documentId) {
       return this.getDocumentDetail(scope, query.documentId)
     }
@@ -881,6 +906,8 @@ export class OfficeEditorService {
     const page = Math.max(1, query.page ?? 1)
     const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 20))
     const where = scopedDocumentWhere(scope, {})
+    if (includeResources && scope.projectId) await this.workbooks!.access(workbookScope(scope))
+    else where.contentModel = IsNull()
     if (query.documentType) {
       where.documentType = requireDocumentType(query.documentType)
     }
@@ -889,6 +916,7 @@ export class OfficeEditorService {
       select: {
         id: true,
         documentType: true,
+        contentModel: true,
         title: true,
         description: true,
         status: true,
@@ -938,7 +966,7 @@ export class OfficeEditorService {
   }
 
   async createCollabSession(scope: OfficeScope, documentId: string) {
-    await this.requireDocument(scope, documentId)
+    assertOriginalOfficeProtocol(await this.requireDocument(scope, documentId))
     const collaboration = this.collaboration(scope)
     const document = await collaboration.ensureDocument({
       providerKey: OFFICE_EDITOR_COLLABORATION_PROVIDER_KEY,
@@ -956,7 +984,7 @@ export class OfficeEditorService {
     const document = await this.documentRepository.findOne({
       where: scopedDocumentWhere(scope, { id: context.resourceId })
     })
-    if (!document || !canAccessCollaborationDocument(document, scope.userId)) return false
+    if (!document || document.contentModel === WORKBOOK_MODEL.modelId || !canAccessCollaborationDocument(document, scope.userId)) return false
     // Materialization is an internal platform lifecycle operation. All user-facing
     // operations use the host-resolved authorization carried by the scoped runtime.
     if (context.operation === 'materialize') {
@@ -981,6 +1009,7 @@ export class OfficeEditorService {
   async initializeCollaborationDocument(context: CollaborationProviderContext) {
     const scope = collaborationScope(context)
     const document = await this.requireDocument(scope, context.resourceId)
+    assertOriginalOfficeProtocol(document)
     if (!canAccessCollaborationDocument(document, scope.userId)) {
       throw new NotFoundException('Office document was not found.')
     }
@@ -1001,7 +1030,7 @@ export class OfficeEditorService {
         where: scopedDocumentWhere(scope, { id: event.resourceId }),
         lock: { mode: 'pessimistic_write' }
       })
-      if (!document || !canAccessCollaborationDocument(document, scope.userId)) {
+      if (!document || document.contentModel === WORKBOOK_MODEL.modelId || !canAccessCollaborationDocument(document, scope.userId)) {
         throw new NotFoundException('Office document was not found during collaboration materialization.')
       }
       if ((document.collaborationSequence ?? 0) >= event.sequenceNumber) return
@@ -1103,6 +1132,10 @@ export class OfficeEditorService {
     if (!document) {
       throw new NotFoundException('Office Editor document was not found.')
     }
+    if (document.contentModel === WORKBOOK_MODEL.modelId) {
+      if (!this.workbooks) throw new BadRequestException('office.workbook_unavailable')
+      await this.workbooks.require(workbookScope(scope), documentId)
+    }
     return document
   }
 
@@ -1115,6 +1148,7 @@ export class OfficeEditorService {
   }
 
   private async requireCurrentExcelVersion(scope: OfficeScope, document: OfficeDocument) {
+    assertOriginalOfficeProtocol(document)
     if (!document.id || !document.currentFileVersionId) {
       throw new BadRequestException('Spreadsheet has no XLSX file version. Import an XLSX file before using Excel automation.')
     }
@@ -1748,6 +1782,7 @@ function toDocumentSummary(document: OfficeDocument) {
   return {
     id: document.id,
     documentType: document.documentType,
+    ...(document.contentModel === WORKBOOK_MODEL.modelId ? { ...WORKBOOK_MODEL, collaboration: 'versioned' } : {}),
     title: document.title,
     description: document.description,
     status: document.status,
@@ -1934,4 +1969,8 @@ function summarizePresentationSnapshot(snapshot: unknown) {
     .map((slide: any, index) => `Slide ${index + 1}: ${slide?.title ?? slide?.id ?? ''}`)
     .join('\n')
     .slice(0, 10000)
+}
+
+function assertOriginalOfficeProtocol(document: OfficeDocument) {
+  if (document.contentModel === WORKBOOK_MODEL.modelId) throw new BadRequestException('office.use_versioned_workbook_editor')
 }

@@ -5,6 +5,7 @@ const channel = 'xpertai.remote_component'
 const envelope = z.object({ channel: z.literal(channel), protocolVersion: z.literal(1), type: z.string(),
   instanceId: z.string().optional(), scopeRevision: z.number().optional(), requestId: z.string().optional(),
   data: z.unknown(), result: z.unknown(), message: z.string().optional(), code: z.string().optional(),
+  event: z.object({ type: z.string(), data: z.object({ revision: z.number().int().nonnegative().optional() }).optional() }).optional(),
   locale: z.string().optional(), theme: z.object({ mode: z.enum(['light', 'dark']).optional(), tokens: z.record(z.string()).optional() }).optional() }).passthrough()
 let host: { instanceId?: string; scopeRevision?: number } | null = null
 let next = 0
@@ -14,18 +15,31 @@ function post(type: string, payload: object = {}) {
 }
 export function connect(ready: (query: unknown) => void) {
   let lastQuery: string | undefined
+  let initialQuery: unknown
+  let initialized = false, readyAttempts = 0
+  let readyTimer: ReturnType<typeof setTimeout> | undefined
+  const announceReady = () => {
+    if (initialized) return
+    post('ready')
+    if (++readyAttempts < 60) readyTimer = setTimeout(announceReady, 1000)
+  }
+  const cancelPending = () => {
+    for (const request of pending.values()) { clearTimeout(request.timer); request.reject(new DOMException(t('bridge.contextChanged'), 'AbortError')) }
+    pending.clear()
+  }
   const receive = (event: MessageEvent<unknown>) => {
     if (event.source !== window.parent) return
     const checked = envelope.safeParse(event.data)
     if (!checked.success) return
     const message = checked.data
     if (message.type === 'init') {
+      if (!message.instanceId) return
+      initialized = true; clearTimeout(readyTimer)
       // Language-only init messages update text without reloading data or collaborative editor state.
       i18n.setLocale(message.locale)
       const changed = !host || message.instanceId !== host.instanceId || message.scopeRevision !== host.scopeRevision
       if (changed) {
-        for (const request of pending.values()) { clearTimeout(request.timer); request.reject(new DOMException(t('bridge.contextChanged'), 'AbortError')) }
-        pending.clear()
+        cancelPending()
         host = { instanceId: message.instanceId, scopeRevision: message.scopeRevision }
       }
       const tokens = message.theme?.tokens ?? {}
@@ -39,8 +53,19 @@ export function connect(ready: (query: unknown) => void) {
       for (const [key, property] of Object.entries(mapping)) if (tokens[key]) document.documentElement.style.setProperty(property, tokens[key])
       document.documentElement.style.colorScheme = message.theme?.mode ?? 'light'
       const query = JSON.stringify(message.initialQuery)
+      initialQuery = message.initialQuery
       if (changed || query !== lastQuery) { lastQuery = query; ready(message.initialQuery) }
       post('resize', { height: window.innerHeight, viewportBound: true }); return
+    }
+    // ChatKit updates a retained iframe's conversation scope without replacing
+    // its init configuration. Cancel old reads and reload in the new scope;
+    // never replay writes or wait for responses the host has already aborted.
+    if (host && message.instanceId === host.instanceId && message.type === 'hostEvent' && message.event?.type === 'view.context.changed') {
+      const revision = message.event.data?.revision
+      if (revision !== undefined && revision > (host.scopeRevision ?? -1)) {
+        cancelPending(); host = { ...host, scopeRevision: revision }; ready(initialQuery)
+      }
+      return
     }
     if (message.instanceId !== host?.instanceId || (message.scopeRevision !== host?.scopeRevision && message.type !== 'error') || !message.requestId) return
     const request = pending.get(message.requestId)
@@ -49,8 +74,9 @@ export function connect(ready: (query: unknown) => void) {
     if (message.type === 'error') request.reject(new Error(message.message ?? message.code ?? t('bridge.requestFailed')))
     else request.resolve(message.data ?? message.result)
   }
-  window.addEventListener('message', receive); post('ready')
+  window.addEventListener('message', receive); announceReady()
   return () => {
+    initialized = true; clearTimeout(readyTimer)
     window.removeEventListener('message', receive)
     for (const request of pending.values()) { clearTimeout(request.timer); request.reject(i18n.error('bridge.closed')) }
     pending.clear(); host = null
@@ -90,14 +116,14 @@ export async function download(fileKey: string) {
 
 export const setAssistantContext = (payload: object) => request('invokeClientCommand', { commandKey: 'assistant.context.set', payload })
 
-export async function openDocument(resourceId: string, providerKey?: string) {
+export async function openDocument(resourceId: string, providerKey?: string, editorKey?: string) {
   // Resolution is platform-owned; navigation is consumed by the nearest Workbench.
   // Never hard-code an editor key or fall back to the legacy host-owned content.open.
   const scope = host
-  const resolved = await clientCommand('workbench.content.resolve', { resourceId, ...(providerKey ? { providerKey } : {}) })
+  const resolved = await clientCommand('workbench.content.resolve', { resourceId, ...(providerKey ? { providerKey } : {}), ...(editorKey ? { editorKey } : {}) })
   if (scope !== host) throw new DOMException(t('bridge.contextChanged'), 'AbortError')
   const { navigation } = z.object({ navigation: z.object({ target: z.literal('workbench.view'),
-    viewKey: z.string().min(1), selectionId: z.literal(resourceId), parameters: z.record(z.unknown()).optional() }) }).parse(resolved)
+    viewKey: z.string().min(1), selectionId: providerKey === 'platform.content.catalog' ? z.string().min(1) : z.literal(resourceId), parameters: z.record(z.unknown()).optional() }) }).parse(resolved)
   return clientCommand('workbench.navigation.open', navigation)
 }
 async function clientCommand(commandKey: string, payload: object) {
@@ -106,3 +132,5 @@ async function clientCommand(commandKey: string, payload: object) {
   if (!result.success) throw new Error(result.message ?? result.code ?? t('bridge.editorUnavailable'))
   return value
 }
+
+export const askAssistant = (text: string, clientMessageId: string) => clientCommand('assistant.chat.send_message', { text, clientMessageId })

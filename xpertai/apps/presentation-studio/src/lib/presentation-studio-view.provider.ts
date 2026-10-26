@@ -69,8 +69,8 @@ export class PresentationStudioViewProvider implements IXpertViewExtensionProvid
       slot,
       order: 43,
       refreshable: true,
-      activation: { requiredFeatures: [PRESENTATION_FEATURE] },
-      ...(fixed ? { workbench: { fixed: true, menu: { enabled: true, label: text('Presentation Studio', '演示文稿'), order: 43, icon: VIEW_ICON_COMPAT } } } : {}),
+      activation: { projectResource: true, requiredFeatures: [PRESENTATION_FEATURE] },
+      ...(fixed ? { workbench: { fixed: true, openMode: 'on-demand', menu: { enabled: true, label: text('Presentation Studio', '演示文稿'), order: 43, icon: VIEW_ICON_COMPAT } } } : {}),
       source: { provider: PRESENTATION_PROVIDER_KEY, plugin: PRESENTATION_PLUGIN_NAME },
       fileAccess: { purposes: ['preview'] },
       view: {
@@ -93,13 +93,14 @@ export class PresentationStudioViewProvider implements IXpertViewExtensionProvid
           action: { type: 'refresh-and-forward', debounceMs: 250 }
         }]
       },
-      clientCommands: [{
+      clientCommands: [{ key: 'workbench.content.status' }, { key: 'workbench.content.resolve' }, { key: 'workbench.navigation.open' }, {
         key: ASSISTANT_CONTEXT_SET_COMMAND,
         label: text('Set Assistant Context', '设置 Assistant 上下文')
       }],
       actions: [
         { key: 'refresh', label: text('Refresh', '刷新'), icon: 'ri-refresh-line', placement: 'toolbar', actionType: 'refresh', requiredHostAccess: 'read' },
         { key: 'create_deck', label: text('New deck', '新建演示稿'), icon: 'ri-add-line', placement: 'toolbar', actionType: 'invoke', requiredHostAccess: 'edit' },
+        { key: 'source_status', label: text('Source synchronization', '源文件同步'), actionType: 'invoke', requiredHostAccess: 'read' },
         { key: 'open_deck', label: text('Open deck', '打开演示稿'), actionType: 'invoke', requiredHostAccess: 'read' },
         { key: 'load_theme_previews', label: text('Load theme previews', '加载 PPT 主题预览'), actionType: 'invoke', requiredHostAccess: 'read' },
         { key: 'load_theme_runtime', label: text('Load theme runtime', '加载主题运行时'), actionType: 'invoke', requiredHostAccess: 'read' },
@@ -116,6 +117,8 @@ export class PresentationStudioViewProvider implements IXpertViewExtensionProvid
         { key: 'revoke_deck_html_share', label: text('Revoke HTML share', '撤销 HTML 分享'), icon: 'ri-link-unlink', actionType: 'invoke', requiredHostAccess: 'manage' },
         { key: 'cancel_export', label: text('Cancel export', '取消导出'), actionType: 'invoke', requiredHostAccess: 'edit' },
         { key: 'delete_export', label: text('Delete export', '删除导出'), actionType: 'invoke', requiredHostAccess: 'manage' },
+        { key: 'export_source', label: text('Download source backup', '下载源文件备份'), actionType: 'invoke', requiredHostAccess: 'read' },
+        { key: 'import_source', label: text('Recover source as a new deck', '从源文件恢复新演示稿'), actionType: 'invoke', transport: 'file', requiredHostAccess: 'edit' },
         { key: 'upload_asset', label: text('Upload media', '上传媒体'), icon: 'ri-upload-cloud-2-line', placement: 'toolbar', actionType: 'invoke', transport: 'file', requiredHostAccess: 'edit' }
       ]
     } satisfies XpertExtensionViewManifest
@@ -189,6 +192,7 @@ export class PresentationStudioViewProvider implements IXpertViewExtensionProvid
         })
         return { ...success('Presentation created'), data: result }
       }
+      if (actionKey === 'source_status') return { ...success('Source status', false), data: (await this.service.getDeck(scope, deckId(request), false)).item.sourceSync ?? null }
       if (actionKey === 'open_deck') {
         return { ...success('Presentation opened', false), data: await this.service.openDeck(scope, deckId(request)) }
       }
@@ -229,6 +233,7 @@ export class PresentationStudioViewProvider implements IXpertViewExtensionProvid
           })
         }
       }
+      if (actionKey === 'export_source') return { ...success('Source backup ready'), data: await this.service.exportSource(scope, deckId(request), requiredNumberInput(request, 'expectedRevision')) }
       if (actionKey === 'rename_deck') {
         const result = await this.service.renameDeck(scope, deckId(request), requiredInput(request, 'title'), requiredNumberInput(request, 'expectedRevision'))
         return { ...success('Presentation renamed'), data: result }
@@ -303,8 +308,9 @@ export class PresentationStudioViewProvider implements IXpertViewExtensionProvid
     request: XpertViewActionRequest,
     file: XpertViewFileActionFile
   ): Promise<XpertViewActionResult> {
-    if (viewKey !== PRESENTATION_VIEW_KEY || actionKey !== 'upload_asset') return failure('Unsupported file action')
+    if (viewKey !== PRESENTATION_VIEW_KEY || !['upload_asset', 'import_source'].includes(actionKey)) return failure('Unsupported file action')
     try {
+      if (actionKey === 'import_source') return { ...success('Source recovered'), data: await this.service.importSource(scopeFromContext(context), requiredInput(request, 'requestId'), file.buffer) }
       const result = await this.service.uploadAsset(scopeFromContext(context), {
         deckId: deckId(request), role: stringInput(request, 'role') ?? 'media', slideId: stringInput(request, 'slideId'),
         fileName: file.originalname || 'asset', mimeType: file.mimetype

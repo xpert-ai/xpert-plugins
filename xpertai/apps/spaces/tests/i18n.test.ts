@@ -9,8 +9,28 @@ import vm from 'node:vm'
 import { createRemoteI18n, normalizeViewLocale, RemoteI18nProvider, useUiText } from '@xpert-ai/plugin-shadcn-ui/i18n'
 import en from '../remote/locales/en.json'
 import zh from '../remote/locales/zh-Hans.json'
+import type { I18nObject } from '@xpert-ai/contracts'
+import { implementationSchema, useCatalogLabel } from '../remote/catalog'
+import { i18n as catalogI18n } from '../remote/i18n'
 
 const parameters = (message: string) => [...message.matchAll(/{{\s*([\w.]+)\s*}}/g)].map(match => match[1]).sort()
+test('content metadata accepts I18nObject translations and uses the shared English fallback', () => {
+  const title: I18nObject = { en_US: 'Slides', zh_Hans: '幻灯片', zh_Hant: '投影片' }
+  const parsed = implementationSchema.parse({ typeId: 'xpert.presentation', providerKey: 'slides',
+    implementationKey: 'slides', title, implementationTitle: { en_US: 'Presentation Studio' } })
+  assert.deepEqual(parsed.title, title)
+  const Label = ({ value }: { value: I18nObject }) => createElement('span', null, useCatalogLabel()(value))
+  const initialLocale = catalogI18n.getLocale()
+  try {
+    catalogI18n.setLocale('zh-Hans')
+    assert.equal(renderToStaticMarkup(createElement(Label, { value: parsed.title })), '<span>幻灯片</span>')
+    assert.equal(renderToStaticMarkup(createElement(Label, { value: parsed.implementationTitle })), '<span>Presentation Studio</span>')
+    catalogI18n.setLocale('en-US')
+    assert.equal(renderToStaticMarkup(createElement(Label, { value: parsed.title })), '<span>Slides</span>')
+  } finally { catalogI18n.setLocale(initialLocale) }
+  assert.equal(implementationSchema.safeParse({ ...parsed, title: { zh_Hans: '幻灯片' } }).success, false)
+})
+
 test('view catalogs have complete keys and matching named parameters; no inline UI copy', () => {
   assert.deepEqual(Object.keys(en).sort(), Object.keys(zh).sort())
   for (const key of Object.keys(en) as Array<keyof typeof en>) {
@@ -84,4 +104,15 @@ test('a trusted locale-only init updates text without reloading data or cancelli
   receive?.({ source: parent, data: { channel: 'xpertai.remote_component', protocolVersion: 1, instanceId: 'view', scopeRevision: 1, type: 'actionResult', requestId: request.requestId, result: { success: true, data: 'preserved' } } })
   assert.equal(await pending, 'preserved')
   vm.runInContext('disconnect()', context)
+})
+
+test('catalog actions interpolate resource names and optional Traditional Chinese catalogs stay isolated', () => {
+  const view = createRemoteI18n({ en, 'zh-Hans': zh }, 'zh-Hans')
+  assert.equal(view.t('catalog.create', { type: '幻灯片' }), '新建幻灯片')
+  assert.ok(view.t('catalog.recycleDescription', { title: '验收文档' }).includes('验收文档'))
+  view.setLocale('en'); assert.equal(view.t('catalog.create', { type: 'Slides' }), 'Create Slides')
+  view.setLocale('zh-TW'); assert.equal(view.getLocale(), 'zh-Hans')
+  const traditional = createRemoteI18n({ en: { label: 'File' }, 'zh-Hans': { label: '文件' }, 'zh-Hant': { label: '檔案' } }, 'zh-TW')
+  assert.equal(traditional.t('label'), '檔案'); assert.equal(traditional.ui('close'), '關閉')
+  assert.equal(view.getLocale(), 'zh-Hans')
 })

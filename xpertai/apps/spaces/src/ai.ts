@@ -10,7 +10,7 @@ import { SpacesService } from './spaces.js'
 import { id } from './domain.js'
 import { SpaceKnowledge } from './knowledge.js'
 
-type Source = { itemId: string; title: string; sequence: number; blockId: string; text: string; filePath?: string; hash?: string }
+type Source = { contentId?: string; anchor?: { kind: string; id: string }; itemId: string; title: string; sequence: number; blockId: string; text: string; filePath?: string; hash?: string }
 const citationKey = (value: string) => {
   const hex = createHash('sha256').update(value).digest('hex')
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`
@@ -79,7 +79,7 @@ export class SpaceAi {
     const accessible = new Set(tree.items.map((item) => item.id))
     const pageItems = new Set(results.map((source) => source.itemId))
     for (const match of indexed) {
-      if (!accessible.has(match.itemId) || pageItems.has(match.itemId)) continue
+      if ((!('contentId' in match) && !accessible.has(match.itemId)) || pageItems.has(match.itemId)) continue
       results.push({ ...match, sequence: 0, blockId: citationKey(`${match.itemId}:${match.hash}:${match.text}`), text: match.text.slice(0, 6000) })
     }
     return results.slice(0, 20)
@@ -101,7 +101,7 @@ export class SpaceAi {
     // Revalidate all model inputs after generation, including sources it omitted from citations.
     for (const source of sources) {
       if (source.hash) {
-        if (!(await this.knowledge.verify(actor, source.itemId, source.hash))) throw new ConflictException('spaces.sources_changed')
+        if (!(await this.knowledge.verify(actor, source.itemId, source.hash, source.contentId))) throw new ConflictException('spaces.sources_changed')
       } else {
         const current = await this.pages.read(actor, source.itemId)
         if (current.sequence !== source.sequence || current.externalChange) throw new ConflictException('spaces.sources_changed')

@@ -1,10 +1,15 @@
+import { mutateSiteCatalog, siteCatalogRevision } from './sites-catalog-lifecycle.js'
+import { readProjectSiteSource, initializeProjectSiteSource, stageProjectSiteRestore } from './sites-project-source.js'
+import { buildSitesDeploymentPreviewEvent, buildArtifactLinkAccess, artifactLinkPresentation, assertPublicLinkConfirmed, normalizeRequiredString, optionalString, slugify, normalizeStringArray, normalizeEnvironmentKey, digest, buildHostingConfig, summarizeProjects } from './sites-utils.js'
+export { buildSitesDeploymentPreviewEvent } from './sites-utils.js'
+import { assertSitesProject, sitesWhere } from './sites-project-access.js'
 import { serializeProject, serializeVersion, serializeDeployment, serializeEnvironmentValue } from './sites-serialization.js'
 import { buildPreviewHtml } from './sites-bundle.js'
 import { encryptEnvironment, SITES_CONFIG } from './sites-secrets.js'
 import type { SitesPluginConfig } from './sites.config.js'
 import { readSandboxSourceFiles, sanitizeSourceFiles } from './sites-source.js'
 import { createHash, randomUUID } from 'crypto'
-import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common'
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository, ILike } from 'typeorm'
 import {
@@ -54,6 +59,7 @@ export class SitesService {
   ) {}
 
   async createProject(input: CreateSitesProjectInput, scope: SitesScope) {
+    await assertSitesProject(this.runtimeCapabilities, scope, 'write')
     const name = normalizeRequiredString(input.name, 'name')
     const slug = await this.allocateSlug(scope, input.slug ?? name)
     const storageShape = input.storageShape ?? 'static'
@@ -82,6 +88,10 @@ export class SitesService {
     )
 
     const projectId = project.id ?? randomUUID()
+    if (scope.hostProjectId) {
+      project.sourcePath = await initializeProjectSiteSource(this.runtimeCapabilities, scope, projectId)
+      await this.projectRepository.save(project)
+    }
     if (!project.hostingConfig?.project_id && project.id) {
       project.hostingConfig = {
         ...project.hostingConfig,
@@ -97,19 +107,23 @@ export class SitesService {
   }
 
   async saveVersion(input: SaveSitesVersionInput, scope: SitesScope, sourceOptions?: SitesSourceReadOptions) {
+    await assertSitesProject(this.runtimeCapabilities, scope, 'write')
     const project = await this.resolveProjectForVersion(input, scope)
     if (input.sourceCommit && !/^[a-f0-9]{40,64}$/i.test(input.sourceCommit)) throw new BadRequestException('sourceCommit must be a verified Git commit hash')
-    const source = await readSandboxSourceFiles(input.sourcePath ?? project.sourcePath, sourceOptions)
-    const files = sanitizeSourceFiles(source.files)
-    const previewHtml = await buildPreviewHtml(files)
-    const artifactDigest = digest(JSON.stringify({ files, previewHtml }))
-    const status = previewHtml.trim() ? 'saved' : 'build_failed'
 
     return this.projectRepository.manager.transaction(async manager => {
     const projects = manager.getRepository(SitesProject), versions = manager.getRepository(SitesVersion)
     const locked = await projects.findOne({ where: this.scopedWhere(scope, { id: project.id }), lock: { mode: 'pessimistic_write' } })
     if (!locked) throw new NotFoundException('Sites project not found')
+    if (locked.status === 'archived') throw new BadRequestException('SITES_ARCHIVED')
     const latest = await versions.findOne({ where: this.scopedWhere(scope, { projectId: project.id }), order: { versionNumber: 'DESC' } })
+    if (scope.hostProjectId && (input.expectedVersionId === undefined || (latest?.id ?? null) !== input.expectedVersionId)) throw new ConflictException('SITES_VERSION_CONFLICT')
+    const source = scope.hostProjectId ? await readProjectSiteSource(this.runtimeCapabilities, scope, project.id!, locked.sourcePath) : await readSandboxSourceFiles(input.sourcePath ?? project.sourcePath, sourceOptions)
+    const files = sanitizeSourceFiles(source.files)
+    const previewHtml = await buildPreviewHtml(files)
+    const artifactDigest = digest(JSON.stringify({ files, previewHtml }))
+    const status = previewHtml.trim() ? 'saved' : 'build_failed'
+
     const versionNumber = (latest?.versionNumber ?? 0) + 1
     const version = await versions.save(
       versions.create({
@@ -143,13 +157,15 @@ export class SitesService {
   }
 
   async deployVersion(input: DeploySitesVersionInput, scope: SitesScope) {
+    await assertSitesProject(this.runtimeCapabilities, scope, 'manage')
     if (!input.projectId && !input.versionId) {
       throw new BadRequestException('projectId or versionId is required')
     }
     const version = input.versionId
       ? await this.resolveVersion(scope, input.versionId)
       : await this.findLatestVersion(scope, input.projectId)
-    const project = await this.resolveProject(scope, input.projectId ?? version.projectId)
+    const resolved = await this.resolveProject(scope, input.projectId ?? version.projectId)
+    return this.withActiveProject(scope, resolved.id!, async (project, projects) => {
     if (version.projectId !== project.id) {
       throw new BadRequestException('Version does not belong to the selected Sites project')
     }
@@ -187,7 +203,7 @@ export class SitesService {
       input.userConfirmedPublicLink
     )
 
-    await this.projectRepository.save({
+    await projects.save({
       ...project,
       status: 'deployed',
       audience: accessMode,
@@ -202,6 +218,7 @@ export class SitesService {
       await this.deploymentRepository.save({ ...deployment, status: 'failed', errorMessage: 'Deployment failed. Check the runtime and deployment history before retrying.' })
       throw error
     }
+    })
   }
 
   async createAndDeploy(
@@ -209,6 +226,7 @@ export class SitesService {
     scope: SitesScope,
     sourceOptions?: SitesSourceReadOptions
   ) {
+    await assertSitesProject(this.runtimeCapabilities, scope, 'manage')
     const project =
       input.projectId || input.slug
         ? await this.resolveProjectForVersion(input, scope)
@@ -236,6 +254,7 @@ export class SitesService {
         description: input.description,
         sourcePath: input.sourcePath ?? project.sourcePath,
         sourceCommit: input.sourceCommit,
+        expectedVersionId: input.expectedVersionId,
         storageShape: input.storageShape
       },
       scope,
@@ -255,6 +274,7 @@ export class SitesService {
   }
 
   async listProjects(scope: SitesScope, input: { search?: string; limit?: number } = {}) {
+    await assertSitesProject(this.runtimeCapabilities, scope, 'read')
     const projects = await this.projectRepository.find({
       where: this.scopedWhere(scope),
       order: { updatedAt: 'DESC' },
@@ -279,6 +299,7 @@ export class SitesService {
   }
 
   async inspectProject(scope: SitesScope, projectId?: string) {
+    await assertSitesProject(this.runtimeCapabilities, scope, 'read')
     const project = await this.resolveProject(scope, projectId)
     const [versions, deployments, environmentValues] = await Promise.all([
       this.versionRepository.find({
@@ -306,6 +327,7 @@ export class SitesService {
   }
 
   async getViewData(scope: SitesScope, input: { projectId?: string; search?: string; limit?: number; page?: number; versionId?: string; preview?: boolean } = {}) {
+    await assertSitesProject(this.runtimeCapabilities, scope, 'read')
     if (input.preview && input.projectId) {
       const project = await this.resolveProject(scope, input.projectId)
       const version = input.versionId ? await this.resolveVersion(scope, input.versionId) : await this.versionRepository.findOne({ where: this.scopedWhere(scope, { projectId: project.id }), order: { versionNumber: 'DESC' } })
@@ -327,7 +349,8 @@ export class SitesService {
     return { items, total, page, pageSize, meta: detail ?? { project: null, versions: [], deployments: [], environmentValues: [] } }
   }
 
-  async restoreVersion(scope: SitesScope, projectId: string, versionId: string) {
+  async restoreVersion(scope: SitesScope, projectId: string, versionId: string, expectedVersionId?: string | null) {
+    await assertSitesProject(this.runtimeCapabilities, scope, 'write')
     const source = await this.resolveVersion(scope, versionId)
     if (source.projectId !== projectId) throw new BadRequestException('Version does not belong to project')
     return this.projectRepository.manager.transaction(async manager => {
@@ -335,8 +358,13 @@ export class SitesService {
       const project = await projects.findOne({ where: this.scopedWhere(scope, { id: projectId }), lock: { mode: 'pessimistic_write' } })
       if (!project) throw new NotFoundException('Sites project not found')
       const latest = await versions.findOne({ where: this.scopedWhere(scope, { projectId }), order: { versionNumber: 'DESC' } })
+      if (project.status === 'archived') throw new BadRequestException('SITES_ARCHIVED')
+      if (scope.hostProjectId && (expectedVersionId === undefined || (latest?.id ?? null) !== expectedVersionId)) throw new ConflictException('SITES_VERSION_CONFLICT')
+      const sourcePath = scope.hostProjectId
+        ? await stageProjectSiteRestore(this.runtimeCapabilities, scope, projectId, sanitizeSourceFiles(source.files))
+        : project.sourcePath
       const copy = await versions.save(versions.create({ ...this.scopeCreate(scope), projectId, versionNumber: (latest?.versionNumber ?? 0) + 1, title: 'Restore v' + source.versionNumber, status: 'saved', files: source.files, previewHtml: source.previewHtml, artifactDigest: source.artifactDigest, storageShape: source.storageShape, buildLogs: 'Restored saved source; live deployment unchanged.' }))
-      await projects.save({ ...project, status: 'version_saved' })
+      await projects.save({ ...project, sourcePath, status: 'version_saved' })
       return serializeVersion(copy)
     })
   }
@@ -348,8 +376,9 @@ export class SitesService {
     customAudience?: string[],
     userConfirmedPublicLink?: boolean
   ) {
+    await assertSitesProject(this.runtimeCapabilities, scope, 'manage')
     assertPublicLinkConfirmed(accessMode, userConfirmedPublicLink)
-    const project = await this.resolveProject(scope, projectId)
+    return this.withActiveProject(scope, projectId, async (project, projects) => {
     const normalizedAudience = normalizeStringArray(customAudience)
     let updatedDeployment: SitesDeployment | null = null
     if (project.currentDeploymentId) {
@@ -370,15 +399,17 @@ export class SitesService {
         })
       }
     }
-    return this.projectRepository.save({
+    return projects.save({
       ...project,
       audience: accessMode,
       customAudience: normalizedAudience ?? project.customAudience,
       currentDeploymentUrl: updatedDeployment?.deploymentUrl ?? project.currentDeploymentUrl
     })
+    })
   }
 
   async upsertEnvironmentValue(scope: SitesScope, input: SitesEnvironmentValueInput) {
+    await assertSitesProject(this.runtimeCapabilities, scope, 'manage')
     const project = await this.resolveProject(scope, input.projectId)
     const key = normalizeEnvironmentKey(input.key)
     const existing = await this.environmentRepository.findOne({
@@ -408,6 +439,7 @@ export class SitesService {
   }
 
   async removeEnvironmentValue(scope: SitesScope, projectId: string, key: string) {
+    await assertSitesProject(this.runtimeCapabilities, scope, 'manage')
     const project = await this.resolveProject(scope, projectId)
     const normalizedKey = normalizeEnvironmentKey(key)
     await this.environmentRepository.delete(this.scopedWhere(scope, { projectId: project.id, key: normalizedKey }))
@@ -415,8 +447,10 @@ export class SitesService {
   }
 
   async publishArtifactLink(input: PublishSitesArtifactLinkInput, scope: SitesScope) {
+    await assertSitesProject(this.runtimeCapabilities, scope, 'manage')
     assertPublicLinkConfirmed('public_link', input.userConfirmedPublicLink)
     const deployment = await this.resolveDeployment(scope, input.deploymentId)
+    return this.withActiveProject(scope, deployment.projectId!, async (project, projects) => {
     const updated = await this.updateDeploymentArtifactLink(
       deployment,
       'public_link',
@@ -425,16 +459,17 @@ export class SitesService {
       input.expiresAt
     )
     await this.deploymentRepository.save({ ...updated, accessMode: 'public_link' })
-    const project = await this.resolveProject(scope, deployment.projectId)
-    await this.projectRepository.save({
+    await projects.save({
       ...project,
       audience: 'public_link',
       currentDeploymentUrl: updated.deploymentUrl
     })
     return serializeDeployment({ ...updated, accessMode: 'public_link' })
+    })
   }
 
   async revokeArtifactLink(input: RevokeSitesArtifactLinkInput, scope: SitesScope) {
+    await assertSitesProject(this.runtimeCapabilities, scope, 'manage')
     const deployment = await this.resolveDeployment(scope, input.deploymentId)
     const artifactLinkId = normalizeRequiredString(deployment.artifactLinkId ?? undefined, 'artifactLinkId')
     const revoked = await this.requireArtifacts().revokeArtifactLink(artifactLinkId)
@@ -459,7 +494,13 @@ export class SitesService {
   }
 
   async archiveProject(scope: SitesScope, projectId: string) {
+    await assertSitesProject(this.runtimeCapabilities, scope, 'manage')
     const project = await this.resolveProject(scope, projectId)
+    if (scope.hostProjectId && this.runtimeCapabilities) {
+      const source = await readProjectSiteSource(this.runtimeCapabilities, scope, projectId, project.sourcePath)
+      await mutateSiteCatalog(this.runtimeCapabilities, this.projectRepository, scope, projectId, siteCatalogRevision(project, source), { action: 'trash' })
+      return this.resolveProject(scope, projectId)
+    }
     if (project.currentDeploymentId) {
       const deployment = await this.deploymentRepository.findOne({
         where: this.scopedWhere(scope, { id: project.currentDeploymentId })
@@ -474,6 +515,15 @@ export class SitesService {
     })
   }
 
+
+  private async withActiveProject<T>(scope: SitesScope, id: string, work: (project: SitesProject, projects: Repository<SitesProject>) => Promise<T>): Promise<T> {
+    return this.projectRepository.manager.transaction(async manager => {
+      const projects = manager.getRepository(SitesProject)
+      const project = await projects.findOneOrFail({ where: this.scopedWhere(scope, { id }), lock: { mode: 'pessimistic_write' } })
+      if (project.status === 'archived') throw new BadRequestException('SITES_ARCHIVED')
+      return work(project, projects)
+    })
+  }
 
   private async resolveProjectForVersion(input: SaveSitesVersionInput, scope: SitesScope) {
     if (input.projectId) {
@@ -579,7 +629,7 @@ export class SitesService {
     const organizationId = optionalString(scope.organizationId)
     const userId = optionalString(scope.userId)
     const fileName = `${slugify(project.slug ?? project.name ?? 'site')}-${version.versionNumber ?? 'version'}-${deployment.id}.html`
-    const workspaceScope = scope.assistantId
+    const workspaceScope = scope.hostProjectId ? { catalog: 'projects' as const, scopeId: scope.hostProjectId, projectId: scope.hostProjectId } : scope.assistantId
       ? {
           catalog: 'xperts' as const,
           scopeId: scope.assistantId,
@@ -611,8 +661,9 @@ export class SitesService {
       scope: {
         tenantId,
         organizationId,
-        userId,
-        xpertId: scope.assistantId
+        userId: scope.hostProjectId ? null : userId,
+        projectId: scope.hostProjectId,
+        xpertId: scope.hostProjectId ? undefined : scope.assistantId
       },
       source: {
         pluginName: SITES_PLUGIN_NAME,
@@ -745,13 +796,7 @@ export class SitesService {
   }
 
   private scopedWhere(scope: SitesScope, extra: Record<string, unknown> = {}) {
-    return {
-      tenantId: normalizeRequiredString(scope.tenantId, 'tenantId'),
-      organizationId: normalizeRequiredString(scope.organizationId ?? undefined, 'organizationId'),
-      assistantId: normalizeRequiredString(scope.assistantId, 'assistantId'),
-      createdById: normalizeRequiredString(scope.userId, 'userId'),
-      ...extra
-    }
+    return { ...sitesWhere(scope), ...extra }
   }
 
   async buildDeploymentPreviewEvent(input: { deployment: SitesDeployment; project?: SitesProject; version?: SitesVersion }) {
@@ -786,195 +831,10 @@ export class SitesService {
       tenantId: normalizeRequiredString(scope.tenantId, 'tenantId'),
       organizationId: normalizeRequiredString(scope.organizationId ?? undefined, 'organizationId'),
       createdById: normalizeRequiredString(scope.userId, 'userId'),
-      assistantId: normalizeRequiredString(scope.assistantId, 'assistantId'),
+      hostProjectId: scope.hostProjectId,
+      assistantId: scope.hostProjectId ? scope.assistantId : normalizeRequiredString(scope.assistantId, 'assistantId'),
       conversationId: scope.conversationId ?? undefined
     }
   }
 
-}
-
-type SitesDeploymentPreviewEventInput = {
-  project?: { id?: string; slug?: string }
-  version?: { id?: string; versionNumber?: number }
-  deployment?: {
-    id?: string
-    projectId?: string
-    versionId?: string
-    deploymentUrl?: string
-    status?: string
-    accessMode?: string
-  }
-  url?: string
-  displayUrl?: string
-  deploymentUrl?: string
-  projectId?: string
-  versionId?: string
-  deploymentId?: string
-  slug?: string
-  versionNumber?: number
-  status?: string
-  accessMode?: string
-}
-
-export function buildSitesDeploymentPreviewEvent(
-  input: SitesDeploymentPreviewEventInput
-): WorkbenchBrowserPreviewEvent | null {
-  const url =
-    optionalString(input.url) ??
-    optionalString(input.displayUrl) ??
-    optionalString(input.deploymentUrl) ??
-    optionalString(input.deployment?.deploymentUrl)
-  if (!url) {
-    return null
-  }
-
-  const projectId = optionalString(input.projectId) ?? optionalString(input.deployment?.projectId) ?? optionalString(input.project?.id)
-  const versionId = optionalString(input.versionId) ?? optionalString(input.deployment?.versionId) ?? optionalString(input.version?.id)
-  const deploymentId = optionalString(input.deploymentId) ?? optionalString(input.deployment?.id)
-  const slug = optionalString(input.slug) ?? optionalString(input.project?.slug)
-  const versionNumber =
-    typeof input.versionNumber === 'number'
-      ? input.versionNumber
-      : typeof input.version?.versionNumber === 'number'
-        ? input.version.versionNumber
-        : undefined
-  const status = optionalString(input.status) ?? optionalString(input.deployment?.status)
-  const accessMode = optionalString(input.accessMode) ?? optionalString(input.deployment?.accessMode)
-
-  return {
-    type: WORKBENCH_BROWSER_PREVIEW_EVENT_TYPE,
-    source: SITES_PLUGIN_NAME,
-    url,
-    displayUrl: optionalString(input.displayUrl) ?? url,
-    ...(projectId ? { projectId } : {}),
-    ...(versionId ? { versionId } : {}),
-    ...(deploymentId ? { deploymentId } : {}),
-    ...(slug ? { slug } : {}),
-    ...(versionNumber ? { versionNumber } : {}),
-    ...(status ? { status: status as WorkbenchBrowserPreviewEvent['status'] } : {}),
-    ...(accessMode ? { accessMode: accessMode as WorkbenchBrowserPreviewEvent['accessMode'] } : {})
-  }
-}
-
-function buildArtifactLinkAccess(
-  accessMode?: SitesAccessMode,
-  customAudience?: string[],
-  userConfirmedPublicLink?: boolean,
-  expiresAt?: string | Date | null
-): ArtifactLinkAccessInput {
-  return {
-    mode: mapSitesArtifactAccessMode(accessMode),
-    customPrincipals: accessMode === 'custom' ? normalizeStringArray(customAudience) : undefined,
-    userConfirmedPublicLink: accessMode === 'public_link' ? userConfirmedPublicLink === true : undefined,
-    expiresAt: normalizeArtifactLinkExpiresAt(expiresAt)
-  }
-}
-
-function artifactLinkPresentation() {
-  return {
-    disposition: 'inline' as const,
-    allowDownload: false,
-    safeHtmlProfile: 'interactive' as const
-  }
-}
-
-function mapSitesArtifactAccessMode(accessMode?: SitesAccessMode): ArtifactLinkAccessInput['mode'] {
-  if (accessMode === 'workspace_all') return 'workspace_all'
-  if (accessMode === 'custom') return 'custom_principals'
-  if (accessMode === 'public_link') return 'public_link'
-  return 'owner_only'
-}
-
-function assertPublicLinkConfirmed(accessMode?: SitesAccessMode, userConfirmedPublicLink?: boolean) {
-  if (accessMode === 'public_link' && userConfirmedPublicLink !== true) {
-    throw new BadRequestException('Creating a public Artifact link requires explicit user confirmation')
-  }
-}
-
-function normalizeRequiredString(value: string | undefined, field: string) {
-  const normalized = value?.trim()
-  if (!normalized) {
-    throw new BadRequestException(`${field} is required`)
-  }
-  return normalized
-}
-
-function optionalString(value: unknown) {
-  return typeof value === 'string' && value.trim() ? value.trim() : undefined
-}
-
-function slugify(value: string) {
-  const normalized = value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-  return normalized || `site-${randomUUID().slice(0, 8)}`
-}
-
-function normalizeStringArray(value: unknown) {
-  if (!Array.isArray(value)) {
-    return undefined
-  }
-  const items = value.map((item) => (typeof item === 'string' ? item.trim() : '')).filter(Boolean)
-  return items.length ? Array.from(new Set(items)) : undefined
-}
-
-function normalizeEnvironmentKey(value: string) {
-  const key = value.trim().toUpperCase().replace(/[^A-Z0-9_]/g, '_')
-  if (!key) {
-    throw new BadRequestException('Environment key is required')
-  }
-  return key
-}
-
-function normalizeArtifactLinkExpiresAt(value?: string | Date | null) {
-  if (value === null || value === undefined) return null
-  const expiresAt = value instanceof Date ? value : new Date(value)
-  if (Number.isNaN(expiresAt.getTime())) {
-    throw new BadRequestException('expiresAt must be a valid date')
-  }
-  if (expiresAt.getTime() <= Date.now()) {
-    throw new BadRequestException('expiresAt must be in the future')
-  }
-  return expiresAt
-}
-
-function digest(value: string) {
-  return createHash('sha256').update(value).digest('hex')
-}
-
-function inferStorageShape(input: CreateSitesProjectInput): SitesStorageShape {
-  if (input.storageShape) return input.storageShape
-  if (input.d1Binding && input.r2Binding) return 'd1_r2'
-  if (input.d1Binding) return 'd1'
-  if (input.r2Binding) return 'r2'
-  if (input.authMode === 'workspace') return 'workspace_auth'
-  if (input.authMode === 'external') return 'external_auth'
-  return 'static'
-}
-
-function buildHostingConfig(input: {
-  projectId?: string
-  storageShape: SitesStorageShape
-  d1Binding?: string | null
-  r2Binding?: string | null
-  authMode?: 'none' | 'workspace' | 'external'
-}): SitesHostingConfig {
-  return {
-    project_id: input.projectId,
-    d1: input.d1Binding ?? (input.storageShape === 'd1' || input.storageShape === 'd1_r2' ? 'DB' : null),
-    r2: input.r2Binding ?? (input.storageShape === 'r2' || input.storageShape === 'd1_r2' ? 'BUCKET' : null),
-    auth: input.authMode ?? (input.storageShape === 'workspace_auth' ? 'workspace' : input.storageShape === 'external_auth' ? 'external' : 'none')
-  }
-}
-
-
-function summarizeProjects(projects: SerializedSitesProject[]) {
-  return {
-    total: projects.length,
-    deployed: projects.filter((project) => project.status === 'deployed').length,
-    saved: projects.filter((project) => project.status === 'version_saved').length,
-    draft: projects.filter((project) => project.status === 'draft').length
-  }
 }

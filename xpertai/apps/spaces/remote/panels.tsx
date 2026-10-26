@@ -1,4 +1,5 @@
-import { t, useLocale, useMessage } from './i18n'
+import { t, useLocale, useMessage, type MessageKey } from './i18n'
+import { ContentSearch } from './content-search'
 import { Label } from '@xpert-ai/plugin-shadcn-ui'
 import React, { useCallback, useEffect, useState } from 'react'
 import { z } from 'zod/v3'
@@ -56,6 +57,10 @@ const knowledgeSchema = z.object({ knowledgebaseId: z.string().nullable(), items
   itemId: z.string(), title: z.string(), status: z.string(), error: z.string().nullable(),
   document: z.object({ status: z.string().nullable().optional() }).nullable()
 })) })
+const knowledgeStatusKeys: Record<string, MessageKey> = {
+  pending: 'knowledge.pending', processing: 'knowledge.processing', ready: 'knowledge.ready', failed: 'knowledge.failed'
+}
+const knowledgeStatus = (status: string) => t(knowledgeStatusKeys[status] ?? 'knowledge.pending')
 export function KnowledgePanel({ root, canWrite, canManage, run, busy }: Work & { root: Item; canWrite: boolean; canManage: boolean }) {
   useLocale()
   const [knowledge, setKnowledge] = useState<z.infer<typeof knowledgeSchema> | null>(null), [error, setError] = useMessage('')
@@ -63,7 +68,8 @@ export function KnowledgePanel({ root, canWrite, canManage, run, busy }: Work & 
   useEffect(() => { void refresh().catch((error) => setError(errorText(error))) }, [refresh])
   return <><p className="muted">{t('knowledge.description')}</p>{error && <p role="alert">{error}</p>}
     {!knowledge?.knowledgebaseId ? <Button disabled={!canManage || busy} onClick={() => void run(async () => { await action('knowledge.enable', { spaceId: root.id }); await refresh() })}>{t('knowledge.enable')}</Button> : <><p>{t('knowledge.linked')}</p><Button variant="outline" disabled={!canWrite || busy} onClick={() => void run(async () => { await action('knowledge.refresh', { spaceId: root.id }); await refresh() })}><RefreshCw />{t('knowledge.sync')}</Button><Button variant="ghost" onClick={() => void run(refresh)}>{t('knowledge.refresh')}</Button></>}
-    {knowledge?.items.map((item) => <div className="index-item" key={item.itemId}><strong>{item.title}</strong><small>{item.document?.status ?? item.status}</small>{item.error && <p role="status">{item.error}</p>}</div>)}
+    {knowledge?.knowledgebaseId && <ContentSearch spaceId={root.id} run={run} busy={busy} />}
+    {knowledge?.items.map((item) => <div className="index-item" key={item.itemId}><strong>{item.title}</strong><small>{knowledgeStatus(item.status)}</small>{item.error && <p role="status">{t('knowledge.failureNote')}</p>}</div>)}
   </>
 }
 export function AskDialog({ root, run, busy, onClose, onOpen }: Work & { root: Item; onClose: () => void; onOpen: (id: string) => void }) {

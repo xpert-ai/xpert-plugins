@@ -9,7 +9,9 @@ import { Space, SpaceItem } from './entities.js'
 import { SpaceAccess } from './access.js'
 import { denied, id, kindSchema, scoped, title } from './domain.js'
 import { isInternalSpacePath, SpaceDocuments } from './documents.js'
+import { coveredByContent } from './content-coverage.js'
 import { SpaceKnowledge } from './knowledge.js'
+import { assertFolderHasNoResources } from './resource-folders.js'
 
 export const createItemSchema = z.object({ spaceId: id, parentId: id.nullable().default(null), title,
   kind: kindSchema, artifactId: id.optional(), artifactVersionId: id.optional(), content: z.string().max(100000).optional() }).strict()
@@ -40,9 +42,10 @@ export class SpacesService {
   async tree(actor: SpaceActor, resourceId: string, trash = false) {
     const principal = await this.access.principal(actor)
     const root = await this.access.resolve(principal, resourceId, trash ? 'manage' : 'read')
+    const coverage = await this.documents.resourceCoverage(actor, root.space)
     if (!trash) await this.spaces.manager.transaction(async (manager) => {
       await manager.getRepository(Space).findOneOrFail({ where: { ...scoped(actor), id: root.space.id }, lock: { mode: 'pessimistic_write' } })
-      await this.documents.discover(actor, root.space, root.canWrite)
+      await this.documents.discover(actor, root.space, root.canWrite, coverage)
     })
     const all = await this.access.items.find({ where: { ...scoped(actor), spaceId: root.space.id }, order: { createdAt: 'ASC' } })
     const items: Array<SpaceItem & { role: string }> = []
@@ -57,7 +60,7 @@ export class SpacesService {
     }
     for (const item of all) {
       if (!descendants.has(item.id) || item.deleted !== trash ||
-        (!trash && item.filePath && isInternalSpacePath(item.filePath))) continue
+        (!trash && item.filePath && (isInternalSpacePath(item.filePath) || coveredByContent(item.filePath, coverage)))) continue
       try {
         const result = await this.access.resolve(principal, item.id, 'read', trash)
         items.push({ ...item, role: result.role, parentId: item.id === resourceId ? null : item.parentId })
@@ -117,6 +120,7 @@ export class SpacesService {
       await this.access.resource(actor, input.itemId, input.deleted !== undefined ? 'manage' : 'write', input.deleted === false)
       const repo = manager.getRepository(SpaceItem)
       const item = await repo.findOneByOrFail({ ...scoped(actor), id: input.itemId })
+      if (input.deleted === true) await assertFolderHasNoResources(manager, actor, item)
       const previousPath = item.filePath
       if (item.version !== input.expectedVersion) throw new ConflictException('spaces.version_conflict')
       if (input.parentId !== undefined) {

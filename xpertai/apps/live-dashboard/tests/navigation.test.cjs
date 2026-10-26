@@ -28,6 +28,20 @@ function transport() {
   return { api, messages, receive, complete }
 }
 
+test('refresh visibility follows scoped Workbench visibility, ignoring other frames and stale messages', t => {
+  const { api, receive } = transport()
+  t.after(api.startBridge(() => {}, () => {}))
+  receive({ type: 'init', scopeRevision: 2, visible: false })
+  assert.equal(api.isViewVisible(), false)
+  receive({ type: 'visibility', scopeRevision: 1, visible: true })
+  receive({ type: 'visibility', instanceId: 'other-host', scopeRevision: 2, visible: true })
+  assert.equal(api.isViewVisible(), false)
+  receive({ type: 'visibility', scopeRevision: 2, visible: true })
+  assert.equal(api.isViewVisible(), true)
+  receive({ type: 'visibility', scopeRevision: 2, visible: false })
+  assert.equal(api.isViewVisible(), false)
+})
+
 for (const hostType of ['agent', 'project']) test(`${hostType} dashboard navigation retains the authorized host for selections, versions and tool receipts`, async t => {
   const scope = { hostType, hostId: randomUUID(), tenantId: 'tenant', organizationId: 'org', userId: 'owner', slots: [] }
   const provider = new DashboardViewProvider({ list: async () => [], sources: async () => [] })
@@ -51,7 +65,26 @@ for (const hostType of ['agent', 'project']) test(`${hostType} dashboard navigat
   assert.deepEqual(messages.at(-1).payload, { ...expected, selectionId: artifactId, parameters: {} })
   complete(); await opening
   const before = messages.length
-  assert.throws(() => api.navigateDashboard(undefined, artifactId))
-  assert.throws(() => api.navigateDashboard({ target: 'assistant.project', viewKey: DASHBOARD_VIEW_KEY }, artifactId))
+  await assert.rejects(api.navigateDashboard(undefined, artifactId))
+  await assert.rejects(api.navigateDashboard({ target: 'assistant.project', viewKey: DASHBOARD_VIEW_KEY }, artifactId))
   assert.equal(messages.length, before, 'missing host context must not silently navigate outside the project')
+})
+
+
+test('catalog navigation preserves the stable tab across version selections and rejects stale scope replies', async t => {
+  const { api, messages, receive, complete } = transport()
+  t.after(api.startBridge(() => {}, () => {}))
+  const artifactId = randomUUID(), contentId = randomUUID()
+  receive({ type: 'init', scopeRevision: 1, initialQuery: { selectionId: artifactId, parameters: { contentId, contentProvider: 'live-dashboard.content', contentTitle: 'Team dashboard' } } })
+  const opening = api.navigateDashboard({ target: 'workbench.view', viewKey: DASHBOARD_VIEW_KEY }, artifactId, randomUUID())
+  assert.equal(messages.at(-1).payload.parameters.contentId, contentId)
+  const id = messages.at(-1).requestId
+  let settled = false; opening.then(() => { settled = true })
+  receive({ type: 'actionResult', requestId: id, scopeRevision: 0, data: { success: true } })
+  await Promise.resolve(); assert.equal(settled, false)
+  receive({ type: 'actionResult', requestId: id, scopeRevision: 1, data: { success: true } }); await opening
+  const stop = api.onPrepareClose(() => false)
+  receive({ type: 'editorEvent', kind: 'prepareClose', resourceId: artifactId, requestId: 'close', scopeRevision: 1 })
+  assert.equal(messages.at(-1).ready, false)
+  stop()
 })

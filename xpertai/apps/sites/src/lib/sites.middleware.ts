@@ -51,6 +51,7 @@ const saveVersionSchema = z.object({
   description: z.string().optional(),
   sourcePath: z.string().optional().describe('Sandbox source directory to snapshot. Omit only when the project already has sourcePath.'),
   sourceCommit: z.string().optional(),
+  expectedVersionId: z.string().uuid().nullable().optional().describe('For Project-owned sites, the latest inspected version ID, or null for the first version'),
   storageShape: storageShapeSchema.optional()
 })
 
@@ -412,6 +413,7 @@ function scopeFromContext(context: IAgentMiddlewareContext): SitesScope {
     userId: context.userId ?? RequestContext.currentUserId(),
     organizationId: context.organizationId === undefined ? RequestContext.getOrganizationId() : context.organizationId,
     assistantId: context.xpertId,
+    hostProjectId: context.projectId ?? undefined,
     conversationId: context.conversationId
   }
 }

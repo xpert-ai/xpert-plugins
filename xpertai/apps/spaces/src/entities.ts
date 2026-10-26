@@ -68,4 +68,25 @@ export class SpaceFileVersion extends ScopedEntity {
   @Column({ type: 'uuid', nullable: true }) revisionId!: string | null
   @Column({ type: 'varchar', length: 64 }) sha256!: string
 }
-export const entities = [Space, SpaceItem, SpaceFileVersion]
+/** Organizational placement only. Native resources keep one authoritative provider and
+ * stable project bundle; moving a library entry never duplicates business content. */
+@Entity('plugin_spaces_resource_placement')
+@Index('IDX_space_resource_placement', ['tenantId', 'organizationId', 'spaceId', 'contentId'], { unique: true })
+export class SpaceResourcePlacement extends ScopedEntity {
+  @Column({ type: 'uuid' }) spaceId!: string
+  @Column({ type: 'uuid' }) contentId!: string
+  @Column({ type: 'uuid', nullable: true }) parentId!: string | null
+  @Column({ type: 'int', default: 1 }) version!: number
+}
+/** Disposable revision-bound knowledge state, never a source body or permission cache. */
+@Entity('plugin_spaces_content_index')
+@Index('IDX_space_content_index', ['tenantId', 'organizationId', 'spaceId', 'contentId'], { unique: true })
+export class SpaceContentIndex extends ScopedEntity {
+  @Column({ type: 'uuid' }) spaceId!: string
+  @Column({ type: 'uuid' }) contentId!: string
+  @Column({ type: 'varchar', length: 256, nullable: true }) revision!: string | null
+  @Column({ type: 'int', nullable: true }) bindingRevision!: number | null
+  @Column({ type: 'varchar', length: 24, default: 'pending' }) status!: 'pending' | 'processing' | 'ready' | 'failed'
+  @Column({ type: 'jsonb', default: () => "'[]'::jsonb" }) documents!: Array<{ id: string; anchor: { kind: string; id: string } }>
+}
+export const entities = [Space, SpaceItem, SpaceFileVersion, SpaceResourcePlacement, SpaceContentIndex]

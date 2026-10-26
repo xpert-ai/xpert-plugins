@@ -37,6 +37,7 @@ function fixture(manifest = example) {
   }
   const runtime = { require(key) { return capabilities[key.id] } }
   const dashboards = {
+    async authorizeProject() {},
     async history(actor, id) { assert.equal(actor.userId, 'creator'); assert.equal(id, artifactId); return versions },
     async open(actor, id, version) { assert.equal(version, versionId); return { manifest } },
     async sources() { return [source] }

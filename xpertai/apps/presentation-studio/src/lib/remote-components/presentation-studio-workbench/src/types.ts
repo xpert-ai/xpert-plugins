@@ -151,6 +151,8 @@ export interface PresenceState extends Omit<ICollaborationPresence, 'pageId' | '
 }
 
 export interface RemoteContext {
+  initialQuery?: JsonObject
+  scopeRevision?: number
   locale?: string
   theme?: JsonObject
   debug?: { enabled?: boolean; production?: boolean }

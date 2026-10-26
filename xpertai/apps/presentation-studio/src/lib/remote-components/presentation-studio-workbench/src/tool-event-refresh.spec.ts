@@ -1,6 +1,10 @@
 import { normalizePresentationToolEvent } from './tool-event-refresh'
 
 describe('Presentation Studio tool event refresh', () => {
+  it('refreshes the targeted deck after metadata rename', () => {
+    expect(normalizePresentationToolEvent({ toolName: 'presentation_rename_deck', data: { output: { deckId: 'deck-1', revision: 8 } } }))
+      .toMatchObject({ toolName: 'presentation_rename_deck', deckId: 'deck-1' })
+  })
   it('normalizes Remote Component host-event wrappers and component output', () => {
     expect(normalizePresentationToolEvent({
       type: 'hostEvent',

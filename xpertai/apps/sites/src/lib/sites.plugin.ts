@@ -1,3 +1,5 @@
+import { SitesCapability } from './content-capability.js'
+import { SitesContentProvider, SitesContentEditor } from './sites-content.provider.js'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import type { IOnPluginBootstrap, IOnPluginDestroy } from '@xpert-ai/plugin-sdk'
 import { XpertServerPlugin } from '@xpert-ai/plugin-sdk'
@@ -11,7 +13,7 @@ const SITES_ENTITIES = [SitesProject, SitesVersion, SitesDeployment, SitesEnviro
 @XpertServerPlugin({
   imports: [TypeOrmModule.forFeature(SITES_ENTITIES)],
   entities: SITES_ENTITIES,
-  providers: [SitesService, SitesMiddleware, SitesViewProvider],
+  providers: [SitesCapability, SitesContentProvider, SitesContentEditor, SitesService, SitesMiddleware, SitesViewProvider],
   exports: [SitesService]
 })
 export class SitesPlugin implements IOnPluginBootstrap, IOnPluginDestroy {

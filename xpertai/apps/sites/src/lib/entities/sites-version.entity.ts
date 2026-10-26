@@ -16,6 +16,9 @@ export class SitesVersion {
   @Column({ type: 'varchar', nullable: true })
   organizationId?: string
 
+  /** Platform Project ownership. Null retains legacy personal/Assistant scope. */
+  @Index() @Column({ type: 'uuid', nullable: true, update: false }) hostProjectId?: string
+
   @Column({ type: 'varchar', nullable: true })
   createdById?: string
 

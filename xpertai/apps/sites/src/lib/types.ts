@@ -5,6 +5,7 @@ export type SitesDeploymentStatus = 'pending' | 'deployed' | 'failed'
 export type SitesStorageShape = 'static' | 'd1' | 'r2' | 'd1_r2' | 'workspace_auth' | 'external_auth'
 
 export interface SitesScope {
+  hostProjectId?: string
   tenantId?: string
   organizationId?: string | null
   userId?: string
@@ -66,6 +67,7 @@ export interface CreateSitesProjectInput {
 }
 
 export interface SaveSitesVersionInput {
+  expectedVersionId?: string | null
   projectId?: string
   slug?: string
   name?: string
@@ -118,6 +120,7 @@ export interface WorkbenchBrowserPreviewEvent {
 }
 
 export interface SerializedSitesProject {
+  hostProjectId?: string
   id?: string
   name?: string
   slug?: string
