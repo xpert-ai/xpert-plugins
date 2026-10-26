@@ -104,18 +104,20 @@ function parameterRules(modelType, llmSpec) {
     const rules = [
       {
         name: 'temperature',
-        use_template: 'temperature',
+        type: 'float',
         label: { zh_Hans: '温度', en_US: 'Temperature' },
-        default: 0.2,
+        required: false,
+        precision: 2,
         min: 0,
         max: 2
       },
-      { name: 'top_p', use_template: 'top_p', label: { zh_Hans: 'Top P', en_US: 'Top P' }, default: 1, min: 0, max: 1 },
+      { name: 'top_p', type: 'float', label: { zh_Hans: 'Top P', en_US: 'Top P' }, required: false, precision: 2, min: 0, max: 1 },
       {
         name: 'max_tokens',
-        use_template: 'max_tokens',
+        type: 'int',
         label: { zh_Hans: '最大输出 Token', en_US: 'Max output tokens' },
-        default: llmSpec.default_max_tokens,
+        required: false,
+        precision: 0,
         min: 1,
         max: llmSpec.max_output_tokens
       }
@@ -134,8 +136,7 @@ function parameterRules(modelType, llmSpec) {
         name: 'enable_thinking',
         type: 'boolean',
         label: { zh_Hans: '思考模式', en_US: 'Thinking mode' },
-        required: false,
-        default: false
+        required: false
       })
     }
     return rules

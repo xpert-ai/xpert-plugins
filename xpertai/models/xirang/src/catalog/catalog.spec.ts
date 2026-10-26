@@ -252,8 +252,12 @@ describe('generated Xirang catalog', () => {
       expect(specification).toBeDefined()
       expect((schema.model_properties as Record<string, unknown>).context_size).toBe(specification?.context_size)
       expect(maxTokens?.max).toBe(specification?.max_output_tokens)
-      expect(Number(maxTokens?.default)).toBeGreaterThan(0)
-      expect(Number(maxTokens?.default)).toBeLessThanOrEqual(Number(maxTokens?.max))
+      for (const rule of schema.parameter_rules as Array<Record<string, unknown>>) {
+        expect(rule.default).toBeUndefined()
+        expect(rule.use_template).toBeUndefined()
+        expect(rule.required).toBe(false)
+        expect(rule.type).toBeDefined()
+      }
     }
   })
 
