@@ -3,6 +3,7 @@ import { join, resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 
 // Verify fresh host SDK builds without relinking a developer's running platform.
@@ -11,7 +12,7 @@ const workspace = resolve(source, '../..')
 const platform = process.env.XPERT_PLATFORM_ROOT
 if (!platform) throw new Error('Set XPERT_PLATFORM_ROOT to the source platform checkout with SDK/contracts dist built')
 const sourceCheckout = process.argv.includes('--source-checkout')
-if (process.argv.slice(2).some(arg => arg !== '--source-checkout')) throw new Error('Unknown verification option')
+if (process.argv.slice(2).some((arg) => arg !== '--source-checkout')) throw new Error('Unknown verification option')
 const staging = await mkdtemp(join(tmpdir(), 'xpert-agent-runtimes-'))
 function run(command, args, cwd = staging) {
   const child = spawnSync(command, args, { cwd, stdio: 'inherit', env: process.env })
@@ -51,14 +52,20 @@ try {
     if (built.version !== current.version) throw new Error(`${packageName} build is stale; rebuild the host package`)
     const required = manifest.peerDependencies[packageName]
     if (satisfies(built.version, required)) continue
-    const planned = plannedReleases.find(item => item.name === packageName && item.oldVersion === current.version)
+    const planned = plannedReleases.find((item) => item.name === packageName && item.oldVersion === current.version)
     if (!sourceCheckout || !planned || !satisfies(planned.newVersion, required))
-      throw new Error(`${packageName}@${built.version} does not satisfy ${required}. Release matching host packages first; use --source-checkout only for explicitly unreleased source validation.`)
+      throw new Error(
+        `${packageName}@${built.version} does not satisfy ${required}. Release matching host packages first; use --source-checkout only for explicitly unreleased source validation.`
+      )
     console.log(`${packageName}: source ${current.version}, planned ${planned.newVersion}; source validation only.`)
   }
   await mkdir(join(staging, 'node_modules'), { recursive: true })
   await dependencies(join(workspace, 'node_modules'))
   await dependencies(join(resolve(platform), 'node_modules'))
+  // Host contracts re-export ChatKit helpers; use their matching dependency, not the plugin workspace's older copy.
+  const chatkit = join(staging, 'node_modules/@xpert-ai/chatkit-types')
+  await rm(chatkit, { recursive: true, force: true })
+  await symlink(join(resolve(platform), 'node_modules/@xpert-ai/chatkit-types'), chatkit)
   for (const name of ['contracts', 'plugin-sdk'])
     await cp(join(resolve(platform), 'packages', name, 'dist'), join(staging, 'node_modules/@xpert-ai', name), {
       recursive: true
@@ -91,16 +98,82 @@ try {
       .filter((file) => file.endsWith('.test.mjs'))
       .map((file) => `tests/${file}`)
   ])
-  await symlink(staging, join(staging, 'node_modules/@xpert-ai/plugin-agent-runtimes'))
-  run(process.execPath, [
-    resolve(workspace, '../plugin-dev-harness/dist/index.js'),
-    '--workspace',
-    staging,
-    '--plugin',
-    '@xpert-ai/plugin-agent-runtimes'
-  ])
-  await cp(join(staging, 'dist'), join(source, 'dist'), { recursive: true })
-  console.log(`Agent runtime build, protocol tests and dist-first lifecycle passed. ${sourceCheckout ? 'Unreleased source validation; not release compatibility.' : 'Built host peer versions satisfy the plugin requirements.'} No deployment performed.`)
+  // Exercise precisely what production installs: a packed archive with no TypeScript source fallback.
+  const packedDir = join(staging, 'packed')
+  const extracted = join(staging, 'installed', 'package')
+  await mkdir(packedDir, { recursive: true })
+  await mkdir(dirname(extracted), { recursive: true })
+  run('npm', ['pack', '--ignore-scripts', '--pack-destination', packedDir])
+  const archiveName = (await readdir(packedDir)).find((file) => file.endsWith('.tgz'))
+  if (!archiveName) throw new Error('No distributable archive was produced')
+  const archive = join(packedDir, archiveName)
+  run('tar', ['-xzf', archive, '-C', dirname(extracted)])
+  const retired = ['config']
+  const requiredAdapters = ['process-runtime', 'jsonl-process', 'codex.strategy', 'pi.strategy', 'claude.strategy']
+  const builtFiles = await readdir(join(extracted, 'dist/lib'))
+  if (requiredAdapters.some((name) => !builtFiles.includes(name + '.js'))) throw new Error('A supported runtime adapter is missing from the package')
+  if (builtFiles.some((file) => retired.some((name) => file.startsWith(name + '.'))))
+    throw new Error('Legacy configuration schema leaked into the package')
+  if ((await readdir(extracted)).includes('src')) throw new Error('Production package must load without source files')
+  await symlink(join(staging, 'node_modules'), join(extracted, 'node_modules'))
+  await symlink(extracted, join(staging, 'node_modules/@xpert-ai/plugin-agent-runtimes'))
+  await cp(join(staging, 'tests'), join(extracted, 'tests'), { recursive: true })
+  process.env.NODE_ENV = 'production'
+  run(
+    process.execPath,
+    [
+      '--test',
+      ...(await readdir(join(extracted, 'tests')))
+        .filter((file) => file.endsWith('.test.mjs'))
+        .map((file) => `tests/${file}`)
+    ],
+    extracted
+  )
+  run(
+    process.execPath,
+    [
+      resolve(workspace, '../plugin-dev-harness/dist/index.js'),
+      '--workspace',
+      extracted,
+      '--plugin',
+      '@xpert-ai/plugin-agent-runtimes',
+      '--no-mocks'
+    ],
+    extracted
+  )
+  if (process.env.XPERT_RUNTIME_ARTIFACT_DIR) {
+    const output = resolve(process.env.XPERT_RUNTIME_ARTIFACT_DIR)
+    await mkdir(output, { recursive: true })
+    await cp(archive, join(output, archiveName))
+    await writeFile(
+      join(output, 'package-verification.json'),
+      JSON.stringify(
+        {
+          archive: archiveName,
+          sha256: createHash('sha256')
+            .update(await readFile(archive))
+            .digest('hex'),
+          node: process.version,
+          environment: 'production',
+          sourceCheckout,
+          sourceFallback: false,
+          legacyConfiguration: false,
+          retainedDirectAdapters: requiredAdapters,
+          lifecycleMocks: false,
+          externalComputerAndModel: 'simulated in protocol tests',
+          publicRegistryRelease: false
+        },
+        null,
+        2
+      ) + '\n'
+    )
+  }
+  // Remove only generated local output after the new package has passed every check.
+  await rm(join(source, 'dist'), { recursive: true, force: true })
+  await cp(join(extracted, 'dist'), join(source, 'dist'), { recursive: true })
+  console.log(
+    `Packed production runtime tests and dist-only lifecycle passed. ${sourceCheckout ? 'Unreleased source validation; not release compatibility.' : 'Built host peer versions satisfy the plugin requirements.'} No deployment performed.`
+  )
 } finally {
   await rm(staging, { recursive: true, force: true })
 }

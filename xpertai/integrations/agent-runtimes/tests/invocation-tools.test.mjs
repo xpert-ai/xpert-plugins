@@ -1,13 +1,15 @@
+import { managedOptions } from './managed-fixture.mjs'
 import 'reflect-metadata'
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { AgentInvocationMiddleware } from '../dist/lib/invocation.middleware.js'
 const id = '11111111-1111-4111-a111-111111111111'
 const task = { id, status: 'running', scope: { secret: 'not-for-model' }, request: { configuration: 'private' } }
-function fixture(mode = 'background') {
+function fixture() {
   const calls = []
   const api = {
-    resolve: async () => ({ bindingId: id }),
+    listManaged: async () => managedOptions,
+    resolveManaged: async () => ({ bindingId: id }),
     start: async () => task,
     awaitResult: async (...args) => {
       calls.push(['await', ...args])
@@ -21,21 +23,21 @@ function fixture(mode = 'background') {
     }
   }
   const middleware = new AgentInvocationMiddleware().createMiddleware(
-    { bindings: [{ id, name: 'code_task', description: 'Delegate work', mode }] },
+    {},
     { runtime: { capabilities: { require: () => api } } }
   )
   return { calls, tools: middleware.tools, api }
 }
 const config = { configurable: { tool_call_id: 'host-call' } }
-test('background delegation exposes lifecycle tools without leaking ownership or configuration', async () => {
+test('automatic delegation exposes lifecycle tools without leaking ownership or configuration', async () => {
   const f = fixture()
   assert.deepEqual(
     f.tools.map((t) => t.name),
-    ['code_task', 'task_status', 'task_cancel']
+    ['delegate_task', 'task_status', 'task_cancel']
   )
   const started = JSON.parse(await f.tools[0].invoke({ prompt: 'work' }, config))
   assert.equal(started.invocationId, id)
-  assert.equal(f.calls.length, 0)
+  assert.equal(f.calls.length, 1)
   const status = JSON.parse(await f.tools[1].invoke({ taskIds: [id], timeoutMs: 0 }, config)).tasks[0]
   assert.equal(status.taskId, id)
   assert.equal(status.scope, undefined)
@@ -76,7 +78,7 @@ test('an incompatible host is rejected before resolving or starting a child task
   let starts = 0,
     resolutions = 0
   f.api.awaitResult = undefined
-  f.api.resolve = async () => {
+  f.api.resolveManaged = async () => {
     resolutions++
     return { bindingId: id }
   }
@@ -140,23 +142,6 @@ test('all lifecycle tools carry localized display metadata and optional change s
     assert.ok(t.metadata.toolIcon.value)
     assert.ok(t.schema.shape.changeSummary)
   }
-  const custom = new AgentInvocationMiddleware().createMiddleware(
-    {
-      bindings: [
-        {
-          id,
-          name: 'render_task',
-          description: 'Render',
-          title: { en_US: 'Render video', zh_Hans: '渲染视频' },
-          icon: { type: 'font', value: 'ri-film-line' },
-          mode: 'background'
-        }
-      ]
-    },
-    { runtime: { capabilities: { require: () => f.api } } }
-  )
-  assert.equal(custom.tools[0].metadata.toolName.zh_Hans, '渲染视频')
-  assert.equal(custom.tools[0].metadata.toolIcon.value, 'ri-film-line')
 })
 test('changeSummary updates the existing step and never enters a task execution request', async () => {
   const f = fixture()

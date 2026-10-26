@@ -1,3 +1,4 @@
+import type { AgentRuntimeDeploymentSpec, AgentInvocationScope } from '@xpert-ai/plugin-sdk'
 import { agentPrompt, ApprovalData } from './input.js'
 import { outputDelivery, taskResult } from './task-result.js'
 import type { AgentOutputDelivery } from '@xpert-ai/plugin-sdk'
@@ -66,22 +67,46 @@ const Event = z
 @Injectable()
 @AgentRuntimeStrategy('claude-code')
 export class ClaudeCodeRuntimeStrategy implements IAgentRuntimeStrategy, OnModuleDestroy {
+  get managedProfiles() {
+    return this.profiles.managedProfiles('claude-code')
+  }
+  async resolveManagedDeployment(
+    reference: string,
+    _scope: Readonly<AgentInvocationScope>
+  ): Promise<AgentRuntimeDeploymentSpec | undefined> {
+    if (!this.managedProfiles.some((profile) => profile.reference === reference)) return undefined
+    return { type: 'sdk', environment: { LANG: 'C.UTF-8' }, timeoutMs: 600000 }
+  }
   readonly capabilities = { recovery: 'none' as const, interactions: true, cancellation: true, background: true }
   private readonly runs = new Map<string, ClaudeRun>()
   constructor(private readonly profiles: ProcessRuntime, private readonly sdk: ClaudeSdkLoader) {}
 
   async start(request: AgentRuntimeStart, context: AgentRuntimeContext) {
     if (request.previous) return this.inspect(request.previous, context)
-    const profile = this.profiles.profile(request, context, 'claude-code')
+    const profile = await this.profiles.profile(request, context, 'claude-code')
     const sdk = await this.sdk.load()
     const cwd = await this.profiles.directory(profile, context)
-    const env: NodeJS.ProcessEnv = { PATH: process.env.PATH }
-    for (const key of profile.environmentKeys) if (process.env[key]) env[key] = process.env[key]
+    if (profile.type !== 'sdk') throw new Error('Claude SDK deployment is required')
+    const env = profile.environment
     if (this.runs.has(context.invocationId)) throw new Error('Claude operation already exists')
     const run: ClaudeRun = {
       delivery: outputDelivery(request.input.delivery),
       context,
-      observation: { status: 'running', handle: { sessionId: context.invocationId, runId: context.invocationId } },
+      observation: {
+        status: 'running',
+        handle: {
+          sessionId: context.invocationId,
+          runId: context.invocationId,
+          metadata: {
+            provider: 'claude-code',
+            profileId: profile.id,
+            profileVersion: profile.version,
+            workspaceId: context.scope.workspaceId,
+            managedRuntime: { type: 'builtin', version: profile.version },
+            deploymentRevision: profile.revision
+          }
+        }
+      },
       abort: new AbortController(),
       writes: Promise.resolve(),
       timer: setTimeout(() => {
@@ -108,7 +133,10 @@ export class ClaudeCodeRuntimeStrategy implements IAgentRuntimeStrategy, OnModul
                 return
               }
               const details = ApprovalData.safeParse(input)
-              if (!details.success) { resolve({ behavior: 'deny', message: 'Tool input cannot be reviewed' }); return }
+              if (!details.success) {
+                resolve({ behavior: 'deny', message: 'Tool input cannot be reviewed' })
+                return
+              }
               const id = randomUUID()
               run.permission = { id, input, resolve }
               this.publish(run, {
@@ -124,7 +152,11 @@ export class ClaudeCodeRuntimeStrategy implements IAgentRuntimeStrategy, OnModul
       run.permission?.resolve({ behavior: 'deny', message: 'Runtime failed to start' })
       run.permission = undefined
       run.abort.abort()
-      this.publish(run, { status: 'unknown', interaction: undefined, error: 'Claude launch outcome is uncertain; do not replay' })
+      this.publish(run, {
+        status: 'unknown',
+        interaction: undefined,
+        error: 'Claude launch outcome is uncertain; do not replay'
+      })
       await run.writes
       this.runs.delete(context.invocationId)
       throw error
@@ -164,6 +196,7 @@ export class ClaudeCodeRuntimeStrategy implements IAgentRuntimeStrategy, OnModul
   }
 
   private find(handle: AgentRuntimeHandle, context: AgentRuntimeContext) {
+    this.profiles.assertReceipt(handle, context, 'claude-code')
     const run = this.runs.get(handle.runId)
     if (run && JSON.stringify(run.context.scope) !== JSON.stringify(context.scope))
       throw new Error('Claude run scope mismatch')

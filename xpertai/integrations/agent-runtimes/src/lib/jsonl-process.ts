@@ -1,6 +1,6 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { z } from 'zod'
-import type { RuntimeProfile } from './config.js'
+import type { ProcessProfile } from './process-runtime.js'
 
 export const WireMessage = z
   .object({
@@ -30,15 +30,13 @@ export class JsonlProcess {
   private killTimer?: NodeJS.Timeout
 
   constructor(
-    profile: RuntimeProfile,
+    profile: ProcessProfile,
     cwd: string,
     private readonly onMessage: (message: WireMessage) => void,
     private readonly onClose: () => void
   ) {
-    if (!profile.command) throw new Error('An administrator-managed runner command is required')
-    const env: NodeJS.ProcessEnv = { PATH: process.env.PATH, LANG: 'C.UTF-8' }
-    for (const key of profile.environmentKeys) if (process.env[key]) env[key] = process.env[key]
-    this.child = spawn(profile.command, profile.args, { cwd, env, shell: false, stdio: 'pipe' })
+    if (profile.type !== 'process') throw new Error('A managed process deployment is required')
+    this.child = spawn(profile.command, profile.args, { cwd, env: profile.environment, shell: false, stdio: 'pipe' })
     this.child.stdout.setEncoding('utf8')
     this.child.stdout.on('data', (chunk: string) => this.read(chunk))
     this.child.stdin.on('error', () => this.stop())

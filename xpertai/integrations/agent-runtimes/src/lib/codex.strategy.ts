@@ -1,3 +1,4 @@
+import type { AgentRuntimeDeploymentSpec, AgentInvocationScope } from '@xpert-ai/plugin-sdk'
 import { agentPrompt, ApprovalData } from './input.js'
 import { outputDelivery, taskResult } from './task-result.js'
 import { Injectable } from '@nestjs/common'
@@ -27,12 +28,28 @@ const Approval = z.object({
 @Injectable()
 @AgentRuntimeStrategy('codex')
 export class CodexRuntimeStrategy implements IAgentRuntimeStrategy {
+  get managedProfiles() {
+    return this.processes.managedProfiles('codex')
+  }
+  async resolveManagedDeployment(
+    reference: string,
+    _scope: Readonly<AgentInvocationScope>
+  ): Promise<AgentRuntimeDeploymentSpec | undefined> {
+    if (!this.managedProfiles.some((profile) => profile.reference === reference)) return undefined
+    return {
+      type: 'process',
+      command: 'codex',
+      args: ['app-server'],
+      environment: { LANG: 'C.UTF-8' },
+      timeoutMs: 600000
+    }
+  }
   readonly capabilities = { recovery: 'none' as const, interactions: true, cancellation: true, background: true }
   constructor(private readonly processes: ProcessRuntime) {}
 
   async start(request: AgentRuntimeStart, context: AgentRuntimeContext) {
     if (request.previous) return this.inspect(request.previous, context)
-    const profile = this.processes.profile(request, context, 'codex')
+    const profile = await this.processes.profile(request, context, 'codex')
     const run = await this.processes.launch(profile, context, (run, message) => this.event(run, message))
     run.delivery = outputDelivery(request.input.delivery)
     try {
@@ -50,7 +67,7 @@ export class CodexRuntimeStrategy implements IAgentRuntimeStrategy {
       run.observation.handle = {
         sessionId: thread.id,
         runId: context.invocationId,
-        metadata: { operationId: context.invocationId }
+        metadata: { ...run.observation.handle?.metadata, operationId: context.invocationId }
       }
       await context.checkpoint(run.observation)
       const turn = Turn.parse(
@@ -105,7 +122,10 @@ export class CodexRuntimeStrategy implements IAgentRuntimeStrategy {
     } else if (message.method === 'turn/completed') {
       const turn = Turn.parse(message.params).turn
       const status = turn.status === 'completed' ? 'succeeded' : turn.status === 'interrupted' ? 'cancelled' : 'failed'
-      this.processes.publish(run, { status, ...(status === 'succeeded' ? { result: taskResult(run.text, run.delivery) } : {}) })
+      this.processes.publish(run, {
+        status,
+        ...(status === 'succeeded' ? { result: taskResult(run.text, run.delivery) } : {})
+      })
     } else if (message.id !== undefined && message.method?.endsWith('/requestApproval')) {
       const approval = Approval.safeParse(message.params)
       const details = ApprovalData.safeParse(message.params)

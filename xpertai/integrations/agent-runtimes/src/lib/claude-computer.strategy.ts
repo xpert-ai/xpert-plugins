@@ -7,7 +7,7 @@ import {
   type AgentRuntimeStart,
   type IAgentRuntimeStrategy
 } from '@xpert-ai/plugin-sdk'
-import { ProcessRuntime } from './process-runtime.js'
+import { RuntimeProfiles } from './managed-profiles.js'
 import {
   inspectComputerJsonl,
   requireComputerProfile,
@@ -27,6 +27,9 @@ const adapter: ComputerJsonlAdapter = {
 @Injectable()
 @AgentRuntimeStrategy('claude-computer')
 export class ClaudeComputerRuntimeStrategy implements IAgentRuntimeStrategy {
+  get managedProfiles() {
+    return this.profiles.managedProfiles('claude-computer')
+  }
   readonly capabilities = {
     activity: { version: 1 as const, presentation: 'coding' as const },
     executionTools: [{ id: 'claude', versions: ['2.1.63'], environments: ['computer' as const] }],
@@ -35,7 +38,7 @@ export class ClaudeComputerRuntimeStrategy implements IAgentRuntimeStrategy {
     cancellation: true,
     background: true
   }
-  constructor(private readonly profiles: ProcessRuntime) {}
+  constructor(private readonly profiles: RuntimeProfiles) {}
   start(request: AgentRuntimeStart, context: AgentRuntimeContext) {
     if (request.previous) return this.inspect(request.previous, context)
     return startComputerJsonl(request, context, this.profiles.profile(request, context, 'claude-computer'))
@@ -52,8 +55,8 @@ export class ClaudeComputerRuntimeStrategy implements IAgentRuntimeStrategy {
         result.state === 'exited'
           ? ('cancelled' as const)
           : result.state === 'unknown'
-          ? ('unknown' as const)
-          : ('cancelling' as const),
+            ? ('unknown' as const)
+            : ('cancelling' as const),
       handle
     }
   }

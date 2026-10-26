@@ -7,7 +7,7 @@ import {
   type AgentRuntimeStart,
   type IAgentRuntimeStrategy
 } from '@xpert-ai/plugin-sdk'
-import { ProcessRuntime } from './process-runtime.js'
+import { RuntimeProfiles } from './managed-profiles.js'
 import {
   inspectComputerJsonl,
   requireComputerProfile,
@@ -27,6 +27,9 @@ const adapter: ComputerJsonlAdapter = {
 @Injectable()
 @AgentRuntimeStrategy('kimi-computer')
 export class KimiComputerRuntimeStrategy implements IAgentRuntimeStrategy {
+  get managedProfiles() {
+    return this.profiles.managedProfiles('kimi-computer')
+  }
   readonly capabilities = {
     activity: { version: 1 as const, presentation: 'coding' as const },
     executionTools: [{ id: 'kimi', versions: ['2.1.1'], environments: ['computer' as const] }],
@@ -35,7 +38,7 @@ export class KimiComputerRuntimeStrategy implements IAgentRuntimeStrategy {
     cancellation: true,
     background: true
   }
-  constructor(private readonly profiles: ProcessRuntime) {}
+  constructor(private readonly profiles: RuntimeProfiles) {}
   start(request: AgentRuntimeStart, context: AgentRuntimeContext) {
     if (request.previous) return this.inspect(request.previous, context)
     return startComputerJsonl(request, context, this.profiles.profile(request, context, 'kimi-computer'))
@@ -52,8 +55,8 @@ export class KimiComputerRuntimeStrategy implements IAgentRuntimeStrategy {
         result.state === 'exited'
           ? ('cancelled' as const)
           : result.state === 'unknown'
-          ? ('unknown' as const)
-          : ('cancelling' as const),
+            ? ('unknown' as const)
+            : ('cancelling' as const),
       handle
     }
   }

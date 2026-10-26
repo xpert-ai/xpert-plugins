@@ -1,21 +1,31 @@
 import { Injectable } from '@nestjs/common'
 import {
-  AgentExecutionRunnerCapability, AgentRuntimeStrategy,
-  type AgentRuntimeContext, type AgentRuntimeHandle, type AgentRuntimeStart, type IAgentRuntimeStrategy
+  AgentExecutionRunnerCapability,
+  AgentRuntimeStrategy,
+  type AgentRuntimeContext,
+  type AgentRuntimeHandle,
+  type AgentRuntimeStart,
+  type IAgentRuntimeStrategy
 } from '@xpert-ai/plugin-sdk'
-import { ProcessRuntime } from './process-runtime.js'
+import { RuntimeProfiles } from './managed-profiles.js'
 import { startComputerCodex, inspectComputerCodex, requireComputerProfile } from './codex-computer.js'
 
 /** Computer exec is a separate capability surface from the interactive App Server adapter. */
 @Injectable()
 @AgentRuntimeStrategy('codex-computer')
 export class CodexComputerRuntimeStrategy implements IAgentRuntimeStrategy {
+  get managedProfiles() {
+    return this.profiles.managedProfiles('codex-computer')
+  }
   readonly capabilities = {
     activity: { version: 1 as const, presentation: 'coding' as const },
     executionTools: [{ id: 'codex', versions: ['0.159.2'], environments: ['computer' as const] }],
-    recovery: 'session' as const, interactions: false, cancellation: true, background: true
+    recovery: 'session' as const,
+    interactions: false,
+    cancellation: true,
+    background: true
   }
-  constructor(private readonly profiles: ProcessRuntime) {}
+  constructor(private readonly profiles: RuntimeProfiles) {}
   start(request: AgentRuntimeStart, context: AgentRuntimeContext) {
     if (request.previous) return this.inspect(request.previous, context)
     return startComputerCodex(request, context, this.profiles.profile(request, context, 'codex-computer'))
@@ -27,6 +37,14 @@ export class CodexComputerRuntimeStrategy implements IAgentRuntimeStrategy {
     requireComputerProfile(handle, context, this.profiles)
     if (!handle.runner) throw new Error('Codex Computer receipt is unavailable')
     const result = await context.capabilities.require(AgentExecutionRunnerCapability).stop(handle.runner)
-    return { status: result.state === 'exited' ? 'cancelled' as const : result.state === 'unknown' ? 'unknown' as const : 'cancelling' as const, handle }
+    return {
+      status:
+        result.state === 'exited'
+          ? ('cancelled' as const)
+          : result.state === 'unknown'
+            ? ('unknown' as const)
+            : ('cancelling' as const),
+      handle
+    }
   }
 }
