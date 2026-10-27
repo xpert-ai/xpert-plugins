@@ -22,13 +22,13 @@ export function factoryProfileManifests(): XpertExtensionViewManifest[] {
       component: { isolation: 'iframe', entry: FACTORY_PROFILE_ENTRY } },
     dataSource: { mode: 'platform', cache: { enabled: false }, querySchema: { supportsPagination: true, defaultPageSize: 10, supportsSelection: true } },
     clientCommands: [
+      { key: 'workbench.navigation.open', description: text('Open the Project pipeline.', '打开项目流水线。') },
       { key: 'assistant.profile.interaction', description: text('Keep the profile open during a decision.', '决策期间保持资料卡打开。') },
       { key: 'assistant.profile.close', description: text('Close this profile and restore focus.', '关闭资料卡并恢复焦点。') }
     ],
     actions: [
-      { key: 'approve_and_continue', label: text('Approve and continue', '批准并继续'), actionType: 'invoke', placement: 'row', requiredHostAccess: 'read' },
+      { key: 'approve_recovery_plan', label: text('Approve and continue', '批准并继续'), actionType: 'invoke', placement: 'row', requiredHostAccess: 'read' },
       { key: 'reject_recovery_plan', label: text('Reject', '拒绝'), actionType: 'invoke', placement: 'row', requiredHostAccess: 'read' },
-      { key: 'retry_continuation', label: text('Retry continuation', '重试续跑'), actionType: 'invoke', placement: 'row', requiredHostAccess: 'read' }
     ]
   }))
 }

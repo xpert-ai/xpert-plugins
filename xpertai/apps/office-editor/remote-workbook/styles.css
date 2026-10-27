@@ -1,0 +1,30 @@
+/* Layout only; all control surfaces and sizing come from shadcn host tokens. */
+html:root { font-size: var(--xui-font-size, 14px); --spacing: calc(var(--xui-density-root-font-size, var(--xui-font-size, 14px)) / 4); }
+html, body, #root { height: 100%; margin: 0; }
+body { background: var(--background); color: var(--foreground); font-family: var(--font-sans); }
+.workbook-shell { display: flex; flex-direction: column; height: 100%; min-width: 0; overflow: hidden; }
+/* The iframe base makes controls inherit their font. Set the whole bar's
+ * typography from shared theme tokens so title, tabs and actions agree. */
+.workbook-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, max-content) minmax(0, 1fr); flex-shrink: 0; align-items: center; column-gap: var(--spacing); min-height: calc(9 * var(--spacing)); padding-inline: calc(2 * var(--spacing)); font-family: var(--font-sans); color: var(--foreground); font-size: var(--text-sm); line-height: var(--text-sm--line-height); font-weight: var(--font-weight-medium); }
+.workbook-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workbook-actions { display: flex; flex-shrink: 0; align-items: center; gap: var(--spacing); }
+.workbook-details { display: grid; gap: calc(2 * var(--spacing)); }
+.workbook-details p { margin: 0; }
+.workbook-detail-title { overflow-wrap: anywhere; }
+.workbook-detail-badges { display: flex; flex-wrap: wrap; gap: var(--spacing); }
+.workbook-empty { display: grid; flex: 1; place-content: center; }
+.workbook-engine { flex: 1; min-height: 0; min-width: 0; overflow: hidden; container-type: inline-size; }
+
+.workbook-title { grid-area: 1 / 1; }
+.workbook-ribbon-tabs { grid-area: 1 / 2; min-width: 0; overflow-x: auto; overflow-y: hidden; padding-block-end: var(--spacing); }
+.workbook-actions { grid-area: 1 / 3; justify-self: end; }
+/* Shadcn navigation subscribes to the same IRibbonService as the native tabs.
+ * Hide only the duplicate row in the composed Ribbon. The native formatting
+ * toolbar and other Office editors retain their original engine components. */
+.workbook-engine [data-u-comp="ribbon-header-menu"] { display: none; }
+@container (max-width: 40rem) {
+  .workbook-toolbar {
+    grid-template-columns: minmax(0, 1fr) minmax(0, max-content) auto;
+  }
+  .workbook-status-label { display: none; }
+}

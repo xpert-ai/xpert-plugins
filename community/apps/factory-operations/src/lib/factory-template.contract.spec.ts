@@ -52,7 +52,7 @@ describe('Factory Operations plugin contracts', () => {
     const yaml = parse(readFileSync(resolve(root, 'src/factory-operations-assistant.yaml'), 'utf8'))
     expect(yaml.team.options.templateKey).toBe(FACTORY_TEMPLATE_KEY)
     expect(yaml.team.options.workspaceScope).toEqual({ mode: 'project-required', projectType: FACTORY_CASE_PROJECT_TYPE })
-    expect(yaml.team.version).toBe('5')
+    expect(yaml.team.version).toBe('6')
     expect(yaml.team.agent.key).toBe(AGENT_KEYS.coordinator)
     expect(yaml.team.features.opener.questions).toEqual([...FACTORY_TEMPLATE_DEFINITION.startPrompts])
 
@@ -61,7 +61,7 @@ describe('Factory Operations plugin contracts', () => {
     expect(agents[0].entity.leaderKey).toBeNull()
 
     const coordinator = agents.find((node: { entity: { key: string } }) => node.entity.key === AGENT_KEYS.coordinator)
-    expect(coordinator.entity.prompt).toContain('independently installed Assistant')
+    expect(coordinator.entity.prompt).toContain('Project pipeline')
 
     const middlewareNodes = yaml.nodes.filter((node: { entity?: { type?: string } }) => node.entity?.type === 'middleware')
     expect(middlewareNodes.map((node: { entity: { provider: string } }) => node.entity.provider).sort()).toEqual([
@@ -102,7 +102,7 @@ describe('Factory Operations plugin contracts', () => {
   it('publishes an organization-scoped appConfig for the management Assistant', () => {
     const manifest = JSON.parse(readFileSync(resolve(root, '.xpertai-plugin/plugin.json'), 'utf8'))
     const app = manifest.targetAppMeta['data-xpert'].marketplace.contents.find((item: { type: string; name: string }) => item.type === 'app' && item.name === 'factory-operations')
-    const screenshots = ['./assets/screenshot-01.jpg']
+    const screenshots = ['./assets/brand/factory-operations-cover-zh-v1.png']
     expect(app.appConfig.scope).toBe('organization')
     expect(app.appConfig.assistantTemplateKey).toBe(FACTORY_MANAGER_TEMPLATE_KEY)
     expect(app.appConfig.workspace).toMatchObject({ mode: 'dedicated', sharing: 'organization' })
@@ -159,8 +159,8 @@ describe('Factory Operations plugin contracts', () => {
     const view = manifest.targetAppMeta['data-xpert'].marketplace.contents.find(
       (item: { type: string; name: string }) => item.type === 'view' && item.name === FACTORY_CASE_WORKSPACE_VIEW_KEY
     )
-    expect(view?.metadata).toMatchObject({ app: 'factory-operations', supportingView: true })
-    expect(providerSource).toMatch(/if \(fixed\)[\s\S]*workspaceManifest\(slot\)[\s\S]*dashboardManifest\(slot\)/)
+    expect(view?.metadata).toMatchObject({ app: 'factory-operations', supportingView: false })
+    expect(providerSource).toMatch(/if \(fixed\)[\s\S]*workspaceManifest\(slot, true\)[\s\S]*dashboardManifest\(slot\)/)
     expect(providerSource).toContain(`view: remoteView(${FACTORY_CASE_WORKSPACE_REMOTE_ENTRY_KEY === 'factory-case-workspace' ? 'FACTORY_CASE_WORKSPACE_REMOTE_ENTRY_KEY' : 'unexpected'})`)
   })
 })

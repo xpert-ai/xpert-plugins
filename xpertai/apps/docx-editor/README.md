@@ -65,3 +65,20 @@ pnpm -C xpertai/apps/docx-editor build
 pnpm -C plugin-dev-harness build
 npx -y node@20 plugin-dev-harness/dist/index.js --workspace ./xpertai/apps/docx-editor --plugin @xpert-ai/plugin-docx-editor --verbose
 ```
+
+
+### Personal App installation / 个人安装
+
+The App declares `scope: ['organization', 'personal']`. On an upgraded Xpert host, an active organization member can enable a private instance through **Only me**; organization installation remains available to administrators. Plugin code is still deployed at its original native level. Explicit Project/Assistant sharing retains its existing authorization rules.
+
+应用支持在当前组织内为自己安装独立实例，也保留管理员的组织安装入口。个人安装不会复制或共享其他用户的授权凭据。升级宿主后再启用数组形式的 scope，旧宿主不保证支持此声明。
+
+For development against the unreleased host change, build its public contracts/SDK, then bind this plugin without changing registry lockfiles (run from the xpert-plugins root):
+
+```sh
+node scripts/use-platform-packages.mjs /path/to/xpert xpertai/apps/docx-editor
+```
+
+Build and run `plugin-dev-harness` against that same host version. Registry dependency versions must be updated to the released contracts/SDK containing this capability before publishing the plugin. To restore the registry development dependencies, run `corepack pnpm install --force` in `xpertai`.
+
+When validating against a linked host SDK on Node 24, the existing test runner needs its ESM compatibility settings. From this plugin directory, run the Node tests with `TS_NODE_TRANSPILE_ONLY=true node --loader ts-node/esm --test src/lib/docx-editor.templates.spec.ts src/lib/docx-editor-artifact-sharing.spec.ts src/lib/docx-editor-artifact-viewer.service.spec.ts src/lib/docx-editor-runtime-import.spec.ts`, then run Jest with `NODE_OPTIONS=--no-experimental-strip-types TS_NODE_PROJECT=tsconfig.jest.json node node_modules/jest/bin/jest.js --config jest.config.ts --runInBand --transformIgnorePatterns='node_modules/(?!.*(?:lodash-es|chatkit-types))'`. Keep the separate TypeScript check: `node node_modules/typescript/bin/tsc -p tsconfig.spec.json --noEmit`. Dependency installation can replace local links; rerun the binding script before validating the current host.

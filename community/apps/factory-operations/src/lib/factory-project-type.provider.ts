@@ -4,7 +4,7 @@ import { IsNull, Repository } from 'typeorm'
 import { ProjectTypeProvider, type IProjectTypeProvider, type ProjectTypeContext } from '@xpert-ai/plugin-sdk'
 import { FactoryCaseEntity } from './entities/factory-case.entity.js'
 import { FACTORY_CASE_PROJECT_PROVIDER } from './factory-project-type.js'
-import { FACTORY_VIEW_PROVIDER_KEY, FACTORY_VIEW_KEY, FACTORY_CASE_WORKSPACE_VIEW_KEY } from './constants.js'
+import { FACTORY_VIEW_PROVIDER_KEY, FACTORY_CASE_WORKSPACE_VIEW_KEY } from './constants.js'
 
 @Injectable()
 @ProjectTypeProvider(FACTORY_CASE_PROJECT_PROVIDER)
@@ -29,6 +29,6 @@ export class FactoryProjectTypeProvider implements IProjectTypeProvider {
     }
   }
   async createEntry(_context: ProjectTypeContext) {
-    return { viewKey: `${FACTORY_VIEW_PROVIDER_KEY}__${FACTORY_VIEW_KEY}` }
+    return { viewKey: `${FACTORY_VIEW_PROVIDER_KEY}__${FACTORY_CASE_WORKSPACE_VIEW_KEY}` }
   }
 }

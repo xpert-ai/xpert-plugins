@@ -3,6 +3,11 @@ import type { DashboardManifest } from './dashboard.schema'
 
 /** The only Data Analytics v1 translation. Providers never see chart encoding syntax. */
 export function toDataAnalyticsPayload(manifest: DashboardManifest, datasets: AnalyticalDataset[]) {
+  // Missing datasets are failures, not empty/zero business results. The caller renders
+  // their failure state separately; successful empty datasets still retain their views.
+  const available = new Set(datasets.map(dataset => dataset.datasetId))
+  manifest = { ...manifest, charts: manifest.charts.filter(chart => available.has(chart.datasetId)),
+    tables: manifest.tables.filter(table => available.has(table.datasetId)) }
   const snapshot = Object.fromEntries(datasets.flatMap((dataset) => [
     [dataset.datasetId, dataset.rows],
     ...(!manifest.charts.some((chart) => chart.datasetId === dataset.datasetId) ? [] : [[`__plot.${dataset.datasetId}`, dataset.rows.map((row) => Object.fromEntries(

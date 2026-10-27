@@ -1,7 +1,7 @@
 import { type ChildProcess } from 'node:child_process'
 import { z } from 'zod'
 import { supervisedProcess, type ProcessExitReceipt } from './supervised-process.js'
-import type { RuntimeProfile } from './config.js'
+import type { ProcessProfile } from './process-runtime.js'
 
 export const WireMessage = z
   .object({
@@ -31,15 +31,13 @@ export class JsonlProcess {
   private exited = false
 
   constructor(
-    profile: RuntimeProfile,
+    profile: ProcessProfile,
     cwd: string,
     private readonly onMessage: (message: WireMessage) => void,
     private readonly onClose: (receipt?: ProcessExitReceipt) => void
   ) {
-    if (!profile.command) throw new Error('An administrator-managed runner command is required')
-    const env: NodeJS.ProcessEnv = { PATH: process.env.PATH, LANG: 'C.UTF-8' }
-    for (const key of profile.environmentKeys) if (process.env[key]) env[key] = process.env[key]
-    this.supervisor = supervisedProcess(profile.command, profile.args, cwd, env)
+    if (profile.type !== 'process') throw new Error('A managed process deployment is required')
+    this.supervisor = supervisedProcess(profile.command, profile.args, cwd, profile.environment)
     this.child = this.supervisor.child
     this.child.stdout!.setEncoding('utf8')
     this.child.stdout!.on('data', (chunk: string) => this.read(chunk))

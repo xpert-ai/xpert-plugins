@@ -46,6 +46,10 @@ const initSchema = z
 export type Host = z.infer<typeof initSchema>;
 let host: Host | null = null;
 let counter = 0;
+const editors = new Set<(resourceId: string) => boolean>();
+export const onPrepareClose = (listener: (resourceId: string) => boolean) => {
+  editors.add(listener); return () => { editors.delete(listener); };
+};
 const pending = new Map<
   string,
   {
@@ -118,6 +122,11 @@ export function connect(onInit: (host: Host) => void, onEvent?: () => void) {
         !(message.type === "error" && message.scopeRevision === undefined))
     )
       return;
+    if (message.type === 'editorEvent') {
+      const close = z.object({ kind: z.literal('prepareClose'), resourceId: z.string(), requestId: z.string() }).safeParse(event.data);
+      if (close.success) post('closePrepared', { requestId: close.data.requestId, ready: [...editors].every(listener => listener(close.data.resourceId)) });
+      return;
+    }
     const item = message.requestId ? pending.get(message.requestId) : undefined;
     // Host error envelopes can omit the revision. A unique pending request id
     // still binds them to this scope; changing scope rejects and clears the map.
@@ -204,5 +213,5 @@ export async function action(key: string, input: Record<string, unknown>) {
 export async function command(commandKey: string, payload: Record<string, unknown>) {
   const result = actionResult.parse(await request('invokeClientCommand', { commandKey, payload }));
   if (!result.success) throw new Error(result.code ?? 'command_unavailable');
-  return result.data;
+  return result;
 }

@@ -72,9 +72,9 @@ for (const [label, options, code, path] of [
 test('Agent saves only run-local preview receipts, canonical defaults and discovered operations', async () => {
   const s = setup(), { input, binding } = draft()
   await assert.rejects(s.invoke('dashboard_create', input), /PREVIEW_REQUIRED/)
-  await assert.rejects(s.invoke('dashboard_preview', { binding }), /DISCOVER_REQUIRED/)
-  await s.invoke('dashboard_discover', { source: binding.source, providerId: binding.providerId, requestJson: '{}' })
   const preview = JSON.parse(await s.invoke('dashboard_preview', { binding }))
+  assert.deepEqual(s.calls.map(call => call[0]), ['discover', 'preview'])
+  assert.deepEqual(s.calls[0][2], { source: binding.source, providerId: binding.providerId, request: {} })
   assert.equal(preview.rows.length, 20); assert.equal(preview.preview.omittedRows, 5); assert.equal(preview.completeness.returnedRows, 25)
   input.previewIds = [preview.previewId]
   const executed = s.calls.find(c => c[0] === 'preview')[2]
@@ -127,12 +127,11 @@ test('model JSON text boundary rejects non-objects and uses a bounded tool budge
     assert.deepEqual(r.tools, []); assert.match(JSON.stringify(r.systemMessage.content), /budget is exhausted/)
   })
 })
-test('registered canonical bindings use the same discovery and preview receipt gates', async () => {
+test('registered canonical bindings automatically discover contracts and retain preview receipt gates', async () => {
   const s = setup(), { input } = draft(), binding = structuredClone(example.bindings[0])
   const args = { bindingJson: JSON.stringify(binding) }
-  await assert.rejects(s.invoke('dashboard_preview_binding', args), /DISCOVER_REQUIRED/)
-  await s.invoke('dashboard_discover', { source: binding.source, providerId: binding.providerId })
   const result = JSON.parse(await s.invoke('dashboard_preview_binding', args))
+  assert.deepEqual(s.calls.map(call => call[0]), ['discover', 'preview'])
   assert.deepEqual(s.calls.find(c => c[0] === 'preview')[2].binding, binding)
   input.previewIds = [result.previewId]
   assert.equal(JSON.parse(await s.invoke('dashboard_create', { ...input, controls: JSON.stringify(input.controls),
@@ -140,6 +139,76 @@ test('registered canonical bindings use the same discovery and preview receipt g
   s.revoke()
   await assert.rejects(s.invoke('dashboard_preview_binding', args), /REVOKED/)
 })
+
+test('preview contracts reuse explicit discovery and stay scoped to source, provider and run', async () => {
+  const s = setup(), { binding } = draft()
+  await s.invoke('dashboard_discover', { source: binding.source, providerId: binding.providerId, requestJson: '{"kind":"inspect"}' })
+  const first = JSON.parse(await s.invoke('dashboard_preview', { binding }))
+  await s.invoke('dashboard_preview_binding', { bindingJson: first.bindingJson })
+  assert.equal(s.calls.filter(call => call[0] === 'discover').length, 1)
+  await s.invoke('dashboard_preview', { binding: { ...binding, providerId: 'other.query' } })
+  await s.invoke('dashboard_preview', { binding: { ...binding, source: { kind: 'data-source', dataSourceId: randomUUID() } } })
+  await s.another().tools.find(tool => tool.name === 'dashboard_preview').invoke({ binding })
+  assert.equal(s.calls.filter(call => call[0] === 'discover').length, 4)
+  assert.equal(s.calls.filter(call => call[0] === 'preview').length, 5)
+})
+
+test('concurrent preview tools share automatic discovery but execute each query', async () => {
+  const s = setup(), { binding } = draft(), discover = s.service.discover
+  let release, started
+  const waiting = new Promise(resolve => { release = resolve })
+  const entered = new Promise(resolve => { started = resolve })
+  s.service.discover = async (...args) => { started(); await waiting; return discover(...args) }
+  const previews = Promise.all([
+    s.invoke('dashboard_preview', { binding }),
+    s.invoke('dashboard_preview_binding', { bindingJson: JSON.stringify(example.bindings[0]) })
+  ])
+  await entered
+  release()
+  await previews
+  assert.equal(s.calls.filter(call => call[0] === 'discover').length, 1)
+  assert.equal(s.calls.filter(call => call[0] === 'preview').length, 2)
+})
+
+for (const name of ['dashboard_preview', 'dashboard_preview_binding']) {
+  const args = () => name === 'dashboard_preview' ? { binding: draft().binding } : { bindingJson: JSON.stringify(example.bindings[0]) }
+  test(`${name} propagates discovery failure without querying or caching failure`, async () => {
+    const s = setup(), discover = s.service.discover
+    let attempts = 0
+    s.service.discover = async (...args) => {
+      if (++attempts === 1) throw new Error('ANALYTICS_ACCESS_DENIED')
+      return discover(...args)
+    }
+    await assert.rejects(s.invoke(name, args()), /ANALYTICS_ACCESS_DENIED/)
+    assert.equal(s.calls.length, 0)
+    await s.invoke(name, args())
+    assert.equal(attempts, 2)
+    assert.deepEqual(s.calls.map(call => call[0]), ['discover', 'preview'])
+  })
+
+  test(`${name} respects listed source/provider pairs even with a cached contract`, async () => {
+    const s = setup(), { binding } = draft()
+    s.service.sources = async () => [{ source: binding.source, providers: [{ id: 'different.provider' }] }]
+    await s.invoke('dashboard_list_sources', {})
+    await assert.rejects(s.invoke(name, args()), /SOURCE_SELECTION_INVALID/)
+    assert.equal(s.calls.length, 0)
+    s.service.sources = async () => [{ source: binding.source, providers: [{ id: binding.providerId }] }]
+    await s.invoke('dashboard_list_sources', {})
+    await s.invoke(name, args())
+    s.service.sources = async () => []
+    await s.invoke('dashboard_list_sources', {})
+    await assert.rejects(s.invoke(name, args()), /SOURCE_SELECTION_INVALID/)
+    assert.deepEqual(s.calls.map(call => call[0]), ['discover', 'preview'])
+  })
+
+  test(`${name} validates the automatically discovered payload schema before executing`, async () => {
+    const s = setup()
+    s.service.discover = async () => ({ items: [], queryContract: { operation: 'query', contractVersion: 1,
+      payloadSchema: { type: 'object', required: ['contractHash'] } } })
+    await assert.rejects(s.invoke(name, args()), /ANALYTICS_PAYLOAD_INVALID: \/ \(required\)/)
+    assert.equal(s.calls.filter(call => call[0] === 'preview').length, 0)
+  })
+}
 
 test('library discovery includes the current preview Binding IDs and exact page lifecycle', async () => {
   const s = setup(), { binding } = draft()
@@ -196,7 +265,7 @@ test('listed source selections still require current host access and denied disc
   await s.invoke('dashboard_list_sources', {})
   s.revoke()
   await assert.rejects(s.invoke('dashboard_discover', { source: binding.source, providerId: binding.providerId }), /REVOKED/)
-  await assert.rejects(s.invoke('dashboard_preview', { binding }), /DISCOVER_REQUIRED/)
+  await assert.rejects(s.invoke('dashboard_preview', { binding }), /REVOKED/)
   assert.equal(s.calls.length, 0)
 })
 test('Assistant final-provider policy allows upstream preview but rejects saving a substitute', async () => {
@@ -686,7 +755,8 @@ for (const source of [{ kind: 'definition', definitionId: randomUUID(), versionI
     await s.invoke('dashboard_discover', { source, providerId: binding.providerId })
     assert.deepEqual(s.calls.at(-1)[2].source, source)
     await s.invoke('dashboard_preview', { binding })
-    await assert.rejects(s.invoke('dashboard_preview', { binding: { ...binding, source: latest } }), /DISCOVER_REQUIRED/)
+    await s.invoke('dashboard_preview', { binding: { ...binding, source: latest } })
+    assert.deepEqual(s.calls.filter(call => call[0] === 'discover').map(call => call[2].source), [source, latest])
     s.revoke(); await assert.rejects(s.invoke('dashboard_discover', { source, providerId: binding.providerId }), /REVOKED/)
   })
 }

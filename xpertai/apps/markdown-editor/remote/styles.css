@@ -1,0 +1,110 @@
+/* The shared shadcn stylesheet already supplies Preflight. A second reset would
+   override its base border/focus rules when the bundled stylesheets are concatenated. */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@source "./";
+@theme inline { --color-background: var(--background); --color-foreground: var(--foreground); --color-muted: var(--muted); --color-muted-foreground: var(--muted-foreground); --color-border: var(--border); --color-input: var(--input); --color-ring: var(--ring); }
+@layer base {
+  :root { font-size: var(--xui-font-size, 14px); --spacing: calc(var(--xui-density-root-font-size, var(--xui-font-size, 14px)) / 4); }
+  body { margin: 0; background: var(--background); color: var(--foreground); font-family: var(--xui-font-family, sans-serif); }
+}
+html:root { font-size: var(--xui-font-size, 14px); }
+.editor-shell { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+.topbar { display: flex; justify-content: space-between; gap: calc(var(--spacing) * 4); padding: calc(var(--spacing) * 3); align-items: center; flex-shrink: 0; }
+.topbar-left,.topbar-right { display: flex; align-items: center; gap: calc(var(--spacing) * 2); min-width: 0; }
+.topbar-left { flex: 1; }
+.document-switcher { min-width: 0; max-width: 22rem; }
+.document-switcher > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.document-switcher > svg:last-child { width: .875rem; }
+.action-pill { display: flex; gap: var(--spacing); flex-shrink: 0; }
+.share-action { gap: calc(var(--spacing) * 2); }
+.avatar { display: grid; place-items: center; width: calc(var(--xui-button-height, 2rem) - var(--spacing) * 2); height: calc(var(--xui-button-height, 2rem) - var(--spacing) * 2); border-radius: 50%; color: white; font-size: var(--xui-font-size-xs, .75rem); }
+.document-menu { width: min(25rem, calc(100vw - 2rem)); padding: calc(var(--spacing) * 2); }
+.document-options { max-height: 45vh; overflow-y: auto; }
+.document-options span { flex: 1; min-width: 0; }.document-options strong { font-weight: 500; display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.document-options small { display: block; font-size: var(--xui-font-size-xs, .75rem); color: var(--muted-foreground); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin-top: var(--spacing); }
+.menu-caption,.document-options > p { padding: calc(var(--spacing) * 2); color: var(--muted-foreground); font-size: var(--xui-font-size-xs, .75rem); }
+.block-menu,.format-menu { width: 13rem; }
+.document-layout { flex: 1; min-height: 0; overflow: auto; }
+.paper { width: min(100%, 62rem); margin: 0 auto; padding: calc(var(--spacing) * 10) calc(var(--spacing) * 16) calc(var(--spacing) * 28); min-width: 0; }
+.editor-area { position: relative; }
+.document-editor { min-height: 60vh; outline: none; font-size: var(--xui-font-size-lg, 1rem); line-height: 1.8; overflow-wrap: anywhere; }
+.document-editor p { margin: calc(var(--spacing) * 4) 0; }
+.document-editor h1 { font-size: 2rem; line-height: 1.35; letter-spacing: -.025em; }
+.document-editor h2 { font-size: 1.5rem; line-height: 1.45; }.document-editor h3 { font-size: 1.25rem; line-height: 1.5; }
+.document-editor h1,.document-editor h2,.document-editor h3 { font-weight: 650; margin: calc(var(--spacing) * 8) 0 calc(var(--spacing) * 4); }
+.document-editor > :first-child { margin-top: 0; }
+.document-editor ul { list-style: disc; }.document-editor ol { list-style: decimal; }
+.document-editor ul,.document-editor ol { padding-left: calc(var(--spacing) * 6); }
+.document-editor li > p { margin: calc(var(--spacing) * 2) 0; }
+.document-editor blockquote { border-left: 3px solid var(--border); padding-left: calc(var(--spacing) * 5); color: var(--muted-foreground); }
+.document-editor pre { padding: calc(var(--spacing) * 4); background: var(--muted); border-radius: .5rem; overflow: auto; }
+.document-editor code { font-family: ui-monospace,monospace; }.document-editor a { text-decoration: underline; color: var(--xui-color-primary, #2563eb); }
+.document-editor hr { border-color: var(--border); margin: calc(var(--spacing) * 6) 0; }
+.block-controls { position: absolute; inset: 0 auto 0 0; width: 0; pointer-events: none; }
+.block-control { position: absolute; right: calc(var(--spacing) * 2); opacity: 0; pointer-events: auto; }
+.block-control.active,.block-control:hover,.block-control:focus-within { opacity: 1; }
+.document-editor .block-anchor-target { background: var(--muted); outline: 2px solid var(--ring); outline-offset: 4px; border-radius: .25rem; }
+.document-editor .block-menu-selected { background: var(--muted); border-radius: .25rem; }
+.statusbar { display: flex; justify-content: space-between; gap: calc(var(--spacing) * 3); flex-wrap: wrap; padding: calc(var(--spacing) * 2) calc(var(--spacing) * 4); font-size: var(--xui-font-size-xs, .75rem); color: var(--muted-foreground); }
+.notice { display: flex; align-items: center; gap: calc(var(--spacing) * 3); padding: calc(var(--spacing) * 3) calc(var(--spacing) * 5); border-bottom: 1px solid var(--border); background: var(--muted); font-size: var(--xui-font-size-sm, .8125rem); }.notice span { flex: 1; }
+.toast { position: absolute; z-index: 60; left: 50%; top: calc(var(--xui-button-height, 2rem) + var(--spacing) * 7); transform: translateX(-50%); border: 1px solid var(--border); padding: calc(var(--spacing) * 2) calc(var(--spacing) * 4); border-radius: .5rem; background: var(--background); box-shadow: 0 4px 16px #0000000c; font-size: var(--xui-font-size-sm, .8125rem); }
+.empty { padding: calc(var(--spacing) * 15); text-align: center; }.empty p { margin-bottom: calc(var(--spacing) * 5); }
+.share-title { display: flex; gap: calc(var(--spacing) * 2); align-items: center; overflow-wrap: anywhere; }
+.history-dialog { max-width: 68rem; }.history-layout { display: grid; grid-template-columns: 16rem 1fr; height: 55vh; gap: calc(var(--spacing) * 6); }
+.history-layout nav { overflow: auto; }.history-layout button { display: block; height: auto; width: 100%; text-align: left; white-space: normal; }
+.history-layout small { display: block; color: var(--muted-foreground); margin-top: var(--spacing); }.history-layout pre { white-space: pre-wrap; overflow: auto; padding: calc(var(--spacing) * 5); background: var(--muted); border-radius: .5rem; }
+.collaboration-carets__caret { border-left: 1px solid; border-right: 1px solid; margin-left: -1px; margin-right: -1px; position: relative; word-break: normal; pointer-events: none; }
+.collaboration-carets__label { border-radius: 3px 3px 3px 0; color: white; font-size: var(--xui-font-size-xs, .75rem); font-weight: 600; left: -1px; line-height: normal; padding: var(--spacing); position: absolute; top: -1.4em; white-space: nowrap; }
+@media (max-width: 560px) { .topbar { flex-wrap: wrap; gap: calc(var(--spacing) * 2); }.topbar-left { flex-basis: 100%; }.document-switcher { flex: 1; max-width: none; }.topbar-right { margin-left: auto; } }
+@media (max-width: 720px) { .paper { padding: calc(var(--spacing) * 6) calc(var(--spacing) * 10) calc(var(--spacing) * 16); }.history-layout { grid-template-columns: 1fr; height: 65vh; }.history-layout nav { max-height: 11rem; } }
+@media (pointer: coarse) { .block-control { opacity: 1; } }
+/* Menu geometry derives from the host tokens, including compact/cozy density. */
+.insert-menu { width: min(25rem, calc(100vw - 2rem)); max-height: min(70vh, var(--radix-dropdown-menu-content-available-height)); overflow-y: auto; padding: calc(var(--spacing) * 2); }
+.insert-menu small,.reference-results small { display: block; color: var(--muted-foreground); font-size: var(--xui-font-size-xs, .75rem); margin-top: var(--spacing); }
+.insert-menu kbd { color: var(--muted-foreground); background: var(--muted); border-radius: .3rem; padding-inline: calc(var(--spacing) * 1.5); font-size: var(--xui-font-size-xs, .75rem); }
+.reference-dialog { width: min(32rem, calc(100vw - 2rem)); }
+.reference-form { display: grid; gap: calc(var(--spacing) * 4); }
+.reference-form label { display: grid; gap: calc(var(--spacing) * 2); }
+.reference-results { max-height: 45vh; overflow-y: auto; }
+.reference-results button { width: 100%; height: auto; justify-content: flex-start; white-space: normal; text-align: left; }
+.reference-results span { overflow-wrap: anywhere; min-width: 0; }
+.reference-results p { padding: calc(var(--spacing) * 4); color: var(--muted-foreground); }
+.document-editor ul[data-type="taskList"] { list-style: none; padding-left: 0; }
+/* TaskItem's live NodeView exposes data-checked, not the serialized data-type attribute. */
+.document-editor li[data-checked] { display: flex; align-items: flex-start; gap: calc(var(--spacing) * 3); }
+.document-editor li[data-checked] > label { margin-top: calc(var(--spacing) * 2); user-select: none; }
+.document-editor li[data-checked] > div { flex: 1; min-width: 0; }
+.document-editor li[data-checked] > div > p { margin: calc(var(--spacing) * 2) 0; }
+.document-editor li[data-checked] input { accent-color: var(--ring); width: 1rem; height: 1rem; }
+.document-editor li[data-checked="true"] > div > p { text-decoration: line-through; color: var(--muted-foreground); }
+.document-editor .tableWrapper { overflow-x: auto; margin-block: calc(var(--spacing) * 5); }
+.document-editor table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+.document-editor th,.document-editor td { border: 1px solid var(--border); min-width: 5rem; padding: calc(var(--spacing) * 2) calc(var(--spacing) * 3); position: relative; vertical-align: top; }
+.document-editor th { font-weight: 600; background: var(--muted); }
+.document-editor td p,.document-editor th p { margin: 0; }
+.document-editor .selectedCell::after { background: var(--muted); opacity: .55; content: ''; position: absolute; inset: 0; pointer-events: none; }
+.table-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--spacing); padding: var(--spacing) calc(var(--spacing) * 4); border-bottom: 1px solid var(--border); }
+.table-actions span { color: var(--muted-foreground); margin-left: auto; font-size: var(--xui-font-size-xs, .75rem); }
+.math-dialog { width: min(42rem, calc(100vw - 2rem)); }
+.math-mode { display: flex; gap: calc(var(--spacing) * 2); }
+
+.math-source { display: grid; gap: calc(var(--spacing) * 2); }
+.math-preview { border: 1px solid var(--border); border-radius: .5rem; padding: calc(var(--spacing) * 4); overflow: auto; min-height: 5rem; }
+.math-error { color: var(--destructive); font-size: var(--xui-font-size-sm, .8125rem); overflow-wrap: anywhere; }
+.document-editor [data-type="block-math"] { margin-block: calc(var(--spacing) * 5); overflow-x: auto; padding: calc(var(--spacing) * 2); border-radius: .375rem; }
+.document-editor .tiptap-mathematics-render { cursor: pointer; }
+.document-editor .tiptap-mathematics-render:hover,.document-editor .tiptap-mathematics-render:focus-visible,.document-editor .tiptap-mathematics-render.ProseMirror-selectednode { outline: 2px solid var(--ring); outline-offset: 2px; }
+.document-editor .katex { font-size: 1.1em; }
+.page-breadcrumb { display: flex; align-items: center; gap: var(--spacing); color: var(--muted-foreground); margin-bottom: calc(var(--spacing) * 5); font-size: var(--xui-font-size-sm, .8125rem); }
+.child-pages { border-top: 1px solid var(--border); margin-top: calc(var(--spacing) * 8); padding-top: calc(var(--spacing) * 4); }
+.child-pages header { display: flex; align-items: center; gap: calc(var(--spacing) * 2); }
+.child-pages h2 { font-weight: 600; flex: 1; }
+.child-pages p { color: var(--muted-foreground); font-size: var(--xui-font-size-sm, .8125rem); margin-block: calc(var(--spacing) * 3); }
+.child-page-link { justify-content: flex-start; text-align: left; width: 100%; height: auto; white-space: normal; }
+
+/* Sizes inherit the host theme's root font and density, including nested menus. */
+.resource-image { display: inline-block; max-width: 100%; vertical-align: middle; border-radius: .45rem; }
+.resource-image img { display: block; max-width: 100%; max-height: 38rem; height: auto; border-radius: .45rem; }
+.resource-upload { display: grid; gap: calc(var(--spacing) * 2); font-size: .85rem; }
+.slash-menu { position: fixed; z-index: 40; width: 18rem; height: auto; max-height: 18rem; }

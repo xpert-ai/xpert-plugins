@@ -1,12 +1,12 @@
 import { target, supervisedReceipt, exitEvidence } from './completion-fixture.mjs'
+import { managedTarget } from './managed-fixture.mjs'
 import 'reflect-metadata'
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { AgentExecutionRunnerCapability, DefaultRuntimeCapabilityRegistry } from '@xpert-ai/plugin-sdk'
-import { ProcessRuntime } from '../dist/lib/process-runtime.js'
+import { RuntimeProfiles } from '../dist/lib/managed-profiles.js'
 import { OpenCodeRuntimeStrategy } from '../dist/lib/opencode.strategy.js'
-import { ConfigSchema } from '../dist/lib/config.js'
 
 function setup() {
   const events = [],
@@ -67,14 +67,7 @@ function setup() {
       return { state: stopped ? 'exited' : 'stopping', ...(stopped ? { completion: exitEvidence(receipt) } : {}) }
     }
   }
-  const profile = {
-    id: 'computer',
-    provider: 'opencode',
-    version: 'profile-v1',
-    workspaceIds: [workspaceId],
-    executionEnvironment: 'computer'
-  }
-  const strategy = new OpenCodeRuntimeStrategy(new ProcessRuntime(ConfigSchema.parse({ profiles: [profile] })))
+  const strategy = new OpenCodeRuntimeStrategy(new RuntimeProfiles())
   const context = {
     executionTarget: target,
     invocationId,
@@ -94,13 +87,7 @@ function setup() {
   }
   const request = {
     operationId: invocationId,
-    target: {
-      bindingId: 'binding',
-      provider: 'opencode',
-      revision: 'v1',
-      reference: 'computer',
-      configuration: { profileVersion: 'profile-v1', executionEnvironment: { type: 'computer' } }
-    },
+    target: managedTarget('opencode'),
     input: { prompt: 'Write code' }
   }
   return {

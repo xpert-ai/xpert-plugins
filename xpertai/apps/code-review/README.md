@@ -167,3 +167,18 @@ inline App configuration remains supported during migration.
 ## Repository pipeline routing
 
 Repository automation requires an explicit Project and review pipeline. Manual startup and repository rules select a compatible template and its Assistants directly; they save the immutable Project configuration on submission. Reusing an existing configuration is optional. See [setup, templates and migration](docs/automation.mdx). Apply `migrations/20261022-repository-pipelines.sql` before loading this release with external schema management. Historical private reviews are not automatically shared or published.
+
+
+### Personal App installation / 个人安装
+
+The App declares `scope: ['organization', 'personal']`. On an upgraded Xpert host, an active organization member can enable a private instance through **Only me**; organization installation remains available to administrators. Plugin code is still deployed at its original native level. Explicit Project/Assistant sharing retains its existing authorization rules.
+
+应用支持在当前组织内为自己安装独立实例，也保留管理员的组织安装入口。个人安装不会复制或共享其他用户的授权凭据。升级宿主后再启用数组形式的 scope，旧宿主不保证支持此声明。
+
+For development against the unreleased host change, build its public contracts/SDK, then bind this plugin without changing registry lockfiles (run from the xpert-plugins root):
+
+```sh
+node scripts/use-platform-packages.mjs /path/to/xpert xpertai/apps/code-review
+```
+
+Build and run `plugin-dev-harness` against that same host version. Registry dependency versions must be updated to the released contracts/SDK containing this capability before publishing the plugin. To restore the registry development dependencies, run `corepack pnpm install --force` in `xpertai`.

@@ -1,3 +1,4 @@
+import { createOfficeUniver } from './univer-engine'
 import { LocaleType, LogLevel, Univer, UniverInstanceType, mergeLocales } from '@univerjs/core'
 import { FUniver } from '@univerjs/core/facade'
 import DesignEnUS from '@univerjs/design/locale/en-US'
@@ -121,30 +122,6 @@ type DetailPayload = {
   collab?: CollaborationSessionDescriptor
 }
 
-const univerLocaleBundles = {
-  [LocaleType.EN_US]: mergeLocales(
-    DesignEnUS,
-    UIEnUS,
-    DocsUIEnUS,
-    SheetsEnUS,
-    SheetsUIEnUS,
-    SheetsFormulaEnUS,
-    SheetsFormulaUIEnUS,
-    SheetsNumfmtUIEnUS,
-    SlidesUIEnUS
-  ),
-  [LocaleType.ZH_CN]: mergeLocales(
-    DesignZhCN,
-    UIZhCN,
-    DocsUIZhCN,
-    SheetsZhCN,
-    SheetsUIZhCN,
-    SheetsFormulaZhCN,
-    SheetsFormulaUIZhCN,
-    SheetsNumfmtUIZhCN,
-    SlidesUIZhCN
-  )
-}
 injectStyles()
 
 function App() {
@@ -818,29 +795,7 @@ const OfficeUniverHost = React.forwardRef(function OfficeUniverHost(props: any, 
       return
     }
     const locale = resolveUniverLocale(props.locale)
-    const univer = new Univer({
-      locale,
-      locales: univerLocaleBundles,
-      logLevel: LogLevel.ERROR
-    })
-    univer.registerPlugin(UniverRenderEnginePlugin)
-    univer.registerPlugin(UniverFormulaEnginePlugin)
-    univer.registerPlugin(UniverUIPlugin, {
-      container: containerRef.current,
-      header: true,
-      footer: true
-    })
-    univer.registerPlugin(UniverDocsPlugin)
-    univer.registerPlugin(UniverDocsUIPlugin)
-    univer.registerPlugin(UniverSheetsPlugin)
-    univer.registerPlugin(UniverSheetsUIPlugin)
-    univer.registerPlugin(UniverSheetsNumfmtPlugin)
-    univer.registerPlugin(UniverSheetsNumfmtUIPlugin)
-    univer.registerPlugin(UniverSheetsFormulaPlugin)
-    univer.registerPlugin(UniverSheetsFormulaUIPlugin)
-    univer.registerPlugin(UniverSlidesPlugin)
-    univer.registerPlugin(UniverSlidesUIPlugin)
-
+    const univer = createOfficeUniver(containerRef.current, locale)
     const unit = univer.createUnit(toUniverInstanceType(props.documentType), props.snapshot || {})
     const api = FUniver.newAPI(univer)
     const disposable = api.onCommandExecuted?.(() => {

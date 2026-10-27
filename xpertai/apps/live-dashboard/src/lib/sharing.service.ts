@@ -26,6 +26,7 @@ export class DashboardSharingService {
       versionId: link.artifactVersionId, url: link.presentationUrl, expiresAt: link.expiresAt } : null }
   }
   async share(context: XpertResolvedViewHostContext, input: z.infer<typeof shareInput>) {
+    await this.dashboards.authorizeProject(context, 'manage')
     const state = await this.inspect(context, input.artifactId, input.versionMode === 'version' ? input.versionId : undefined)
     if (state.issues.length || !state.published?.versionId) throw new BadRequestException({ code: 'DASHBOARD_SHARE_BLOCKED', issues: state.issues })
     const result = await this.runtime.require(ArtifactsRuntimeCapability).ensureArtifactShare({ artifactId: input.artifactId, shareKey: DASHBOARD_SHARE_KEY,
@@ -35,6 +36,7 @@ export class DashboardSharingService {
     return this.inspect(context, input.artifactId, input.versionMode === 'version' ? input.versionId : undefined)
   }
   async revoke(context: XpertResolvedViewHostContext, artifactId: string) {
+    await this.dashboards.authorizeProject(context, 'manage')
     await this.dashboards.history(context, artifactId)
     await this.runtime.require(ArtifactsRuntimeCapability).revokeArtifactShare({ artifactId, shareKey: DASHBOARD_SHARE_KEY })
     return this.inspect(context, artifactId)

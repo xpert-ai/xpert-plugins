@@ -1,3 +1,5 @@
+import { PresentationCapability } from './content-capability.js'
+import { PresentationContentProvider, PresentationContentEditor } from './presentation-content.provider.js'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { XpertServerPlugin } from '@xpert-ai/plugin-sdk'
 import {
@@ -28,7 +30,8 @@ export const PRESENTATION_STUDIO_ENTITIES = [
 @XpertServerPlugin({
   imports: [TypeOrmModule.forFeature(PRESENTATION_STUDIO_ENTITIES)],
   entities: PRESENTATION_STUDIO_ENTITIES,
-  providers: [
+  providers: [PresentationCapability,
+    PresentationContentProvider, PresentationContentEditor,
     PresentationConfigService,
     PresentationDebugService,
     PresentationCatalogService,

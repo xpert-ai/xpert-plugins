@@ -1,3 +1,4 @@
+import type { AgentRuntimeDeploymentSpec, AgentInvocationScope } from '@xpert-ai/plugin-sdk'
 import { agentPrompt, ApprovalData } from './input.js'
 import { outputDelivery, taskResult } from './task-result.js'
 import { Injectable } from '@nestjs/common'
@@ -27,6 +28,22 @@ const Approval = z.object({
 @Injectable()
 @AgentRuntimeStrategy('codex')
 export class CodexRuntimeStrategy implements IAgentRuntimeStrategy {
+  get managedProfiles() {
+    return this.processes.managedProfiles('codex')
+  }
+  async resolveManagedDeployment(
+    reference: string,
+    _scope: Readonly<AgentInvocationScope>
+  ): Promise<AgentRuntimeDeploymentSpec | undefined> {
+    if (!this.managedProfiles.some((profile) => profile.reference === reference)) return undefined
+    return {
+      type: 'process',
+      command: 'codex',
+      args: ['app-server'],
+      environment: { LANG: 'C.UTF-8' },
+      timeoutMs: 600000
+    }
+  }
   readonly capabilities = {
     hostAffinity: 1 as const,
     completionEvidence: 2 as const,
@@ -40,7 +57,7 @@ export class CodexRuntimeStrategy implements IAgentRuntimeStrategy {
 
   async start(request: AgentRuntimeStart, context: AgentRuntimeContext) {
     if (request.previous) return this.inspect(request.previous, context)
-    const profile = this.processes.profile(request, context, 'codex')
+    const profile = await this.processes.profile(request, context, 'codex')
     const run = await this.processes.launch(profile, context, (run, message) => this.event(run, message))
     run.delivery = outputDelivery(request.input.delivery)
     try {
@@ -58,7 +75,7 @@ export class CodexRuntimeStrategy implements IAgentRuntimeStrategy {
       run.observation.handle = {
         sessionId: thread.id,
         runId: context.invocationId,
-        metadata: { operationId: context.invocationId }
+        metadata: { ...run.observation.handle?.metadata, operationId: context.invocationId }
       }
       await context.checkpoint(run.observation)
       const turn = Turn.parse(

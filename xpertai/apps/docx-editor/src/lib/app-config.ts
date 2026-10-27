@@ -1,7 +1,7 @@
 import type { PluginMarketplaceAppConfig } from '@xpert-ai/contracts'
 
 export const appConfig = {
-  scope: 'organization',
+  scope: ['organization', 'personal'],
   assistantTemplateKey: 'docx-editor-assistant',
   workspace: {
     mode: 'dedicated',

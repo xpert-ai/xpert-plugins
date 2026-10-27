@@ -5,6 +5,9 @@ const VERSION = 1
 type PendingRequest = { resolve: (value: JsonObject) => void; reject: (error: Error) => void; timer: number }
 const pending = new Map<string, PendingRequest>()
 let instanceId: string | null = null
+let scopeRevision: number | undefined
+const prepareListeners = new Set<(resourceId: string) => Promise<boolean>>()
+export const onPrepareClose = (listener: (resourceId: string) => Promise<boolean>) => { prepareListeners.add(listener); return () => { prepareListeners.delete(listener) } }
 let requestSequence = 0
 
 export function isObject(value: unknown): value is JsonObject {
@@ -13,7 +16,7 @@ export function isObject(value: unknown): value is JsonObject {
 
 function post(type: string, body: JsonObject = {}, transfer: Transferable[] = []) {
   if (!instanceId && type !== 'ready') return
-  parent.postMessage({ channel: CHANNEL, protocolVersion: VERSION, instanceId, type, ...body }, '*', transfer)
+  parent.postMessage({ channel: CHANNEL, protocolVersion: VERSION, instanceId, scopeRevision, type, ...body }, '*', transfer)
 }
 
 function request(type: string, body: JsonObject = {}, transfer: Transferable[] = [], timeoutMs = 60000) {
@@ -57,6 +60,17 @@ export function payload<T>(response: JsonObject): T {
 
 export function startRemoteBridge(setContext: (context: RemoteContext) => void, onHostEvent: (event: JsonObject) => void) {
   let currentContext: RemoteContext = {}
+  let initialized = false
+  let readyAttempts = 0
+  let readyTimer: number | undefined
+  // Opening an editor and sending the first chat message can overlap a host
+  // scope transition. The host may defer init then; retry the handshake only,
+  // never an action or mutation, until the first valid init is received.
+  const announceReady = () => {
+    if (initialized) return
+    post('ready')
+    if (++readyAttempts < 60) readyTimer = window.setTimeout(announceReady, 1000)
+  }
 
   function applyHostTheme(theme: JsonValue | undefined) {
     const remoteUi = (window as typeof window & { XpertRemoteUI?: { applyTheme?: (value: JsonValue | undefined) => void } }).XpertRemoteUI
@@ -71,8 +85,16 @@ export function startRemoteBridge(setContext: (context: RemoteContext) => void, 
     const message = event.data
     if (!isObject(message) || message.channel !== CHANNEL || message.protocolVersion !== VERSION) return
     if (message.type === 'init') {
+      if (typeof message.instanceId !== 'string' || !message.instanceId) return
+      initialized = true
+      window.clearTimeout(readyTimer)
+      if (instanceId !== message.instanceId || scopeRevision !== message.scopeRevision) {
+        for (const item of pending.values()) { window.clearTimeout(item.timer); item.reject(new Error('Context changed')) }; pending.clear()
+      }
       instanceId = typeof message.instanceId === 'string' ? message.instanceId : null
+      scopeRevision = typeof message.scopeRevision === 'number' ? message.scopeRevision : undefined
       currentContext = {
+        scopeRevision, initialQuery: isObject(message.initialQuery) ? message.initialQuery : undefined,
         locale: typeof message.locale === 'string' ? message.locale : undefined,
         theme: isObject(message.theme) ? message.theme : undefined,
         debug: isObject(message.debug) ? {
@@ -84,7 +106,22 @@ export function startRemoteBridge(setContext: (context: RemoteContext) => void, 
       window.setTimeout(reportResize, 0)
       return
     }
-    if (message.instanceId !== instanceId) return
+    if (message.type === 'hostEvent' && message.instanceId === instanceId && isObject(message.event) && message.event.type === 'view.context.changed' && isObject(message.event.data)) {
+      const revision = message.event.data.revision
+      if (typeof revision === 'number' && revision > (scopeRevision ?? -1)) {
+        for (const item of pending.values()) { window.clearTimeout(item.timer); item.reject(new Error('Context changed')) }; pending.clear()
+        scopeRevision = revision
+        currentContext = { ...currentContext, scopeRevision }
+        setContext(currentContext)
+      }
+      return
+    }
+    if (message.instanceId !== instanceId || message.scopeRevision !== scopeRevision && message.type !== 'error') return
+    if (message.type === 'editorEvent' && message.kind === 'prepareClose' && typeof message.resourceId === 'string' && typeof message.requestId === 'string') {
+      const resourceId = message.resourceId, requestId = message.requestId
+      void Promise.all([...prepareListeners].map(listener => listener(resourceId))).then(results => post('closePrepared', { requestId, ready: results.every(Boolean) })).catch(() => post('closePrepared', { requestId, ready: false }))
+      return
+    }
     if (isThemeMessage(message)) {
       applyHostTheme(extractTheme(message))
       return
@@ -100,8 +137,8 @@ export function startRemoteBridge(setContext: (context: RemoteContext) => void, 
     else item.resolve(message)
   }
   window.addEventListener('message', listener)
-  post('ready')
-  return () => window.removeEventListener('message', listener)
+  announceReady()
+  return () => { initialized = true; window.clearTimeout(readyTimer); window.removeEventListener('message', listener); for (const item of pending.values()) { window.clearTimeout(item.timer); item.reject(new Error('View closed')) }; pending.clear() }
 }
 
 function isThemeMessage(message: JsonObject) {

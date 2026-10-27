@@ -7,7 +7,7 @@ import { PLUGIN_NAME } from './dashboard.service'
 import { decodeDashboardPackage, MAX_DASHBOARD_PACKAGE_BYTES } from './document-package'
 import { dashboardRemoteEntry } from './remote-entry'
 import { querySchema, queryBindingSchema } from './dashboard.schema'
-import { queryDashboard, queryDashboardBinding } from './dashboard-queries'
+import { queryDashboardPartial, queryDashboardBinding } from './dashboard-queries'
 import { toDataAnalyticsPayload } from './renderer'
 
 @ArtifactPresentationProvider({ pluginName: PLUGIN_NAME, resourceType: 'live-dashboard' })
@@ -28,8 +28,8 @@ export class DashboardPresentationProvider implements IArtifactPresentationProvi
       throw new ForbiddenException('DASHBOARD_SHARED_VERSION_REQUIRED')
     if (request.operation === 'query-binding' && 'bindingId' in input && typeof input.bindingId === 'string') return queryDashboardBinding(this.runtime, context.actor, saved.manifest, input.bindingId, input.controls)
     if (request.operation !== 'query') throw new ForbiddenException('DASHBOARD_ACTION_UNSUPPORTED')
-    const datasets = await queryDashboard(this.runtime, context.actor, saved.manifest, input.controls)
-    return { datasets, ...(saved.manifest.presentation ? {} : { payload: toDataAnalyticsPayload(saved.manifest, datasets) }) }
+    const { datasets, failures } = await queryDashboardPartial(this.runtime, context.actor, saved.manifest, input.controls)
+    return { datasets, failures, ...(saved.manifest.presentation ? {} : { payload: toDataAnalyticsPayload(saved.manifest, datasets) }) }
   }
   private open(context: ArtifactPresentationContext) {
     const { artifact, version, content } = context

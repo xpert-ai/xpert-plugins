@@ -1,21 +1,22 @@
+import { pipelineFocus, projectPipelineNavigation, startedPipelineFocus } from '../../pipeline-navigation'
 import * as React from 'react'
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-  Badge, Button, Check, Play, Progress, RotateCcw, Send
+  Badge, Button, Progress, RotateCcw, Send, Select, SelectTrigger, SelectValue, SelectContent, SelectItem
 } from '../../../ui/index'
 import { createRoot } from 'react-dom/client'
-import { AssistantAvatar } from '../../factory-operations-center/src/assistant-avatar'
-import { resolveLocale, type SupportedLocale } from '../../factory-operations-center/src/i18n'
+import { AssistantAvatar } from '../../shared/assistant-avatar'
+import { resolveLocale, type SupportedLocale } from '../../shared/i18n'
 import {
   executeAction, invokeClientCommand, isObject, notify, reportResize,
   requestData, requireSuccess, startBridge, unwrap
-} from '../../factory-operations-center/src/runtime'
-import { installShadcnThemeVars } from '../../factory-operations-center/src/theme'
+} from '../../shared/runtime'
+import { installShadcnThemeVars } from '../../shared/theme'
 import type {
   Evidence, ExecutionRecord, FactoryCase, FactoryPipelineProjection, FactoryWorkbenchData,
   HostContext, PipelineNode, RemoteObject, RemoteValue
-} from '../../factory-operations-center/src/types'
+} from '../../shared/types'
 import './styles.css'
 
 const h: typeof React.createElement = React.createElement
@@ -24,37 +25,37 @@ const WORKBENCH_NAVIGATION_OPEN_COMMAND = 'workbench.navigation.open'
 const WORKBENCH_ASSISTANT_CONVERSATION_TARGET = 'assistant.conversation'
 const WORKBENCH_ASSISTANT_PROJECT_TARGET = 'assistant.project'
 const WORKBENCH_VIEW_TARGET = 'workbench.view'
-const PIPELINE_VIEW_KEY = 'factory-operations-center'
+const WORKSPACE_VIEW_KEY = 'factory-case-workspace'
 
 installShadcnThemeVars({ density: 'compact' })
 
 const COPY = {
   'zh-Hans': {
     title: 'Factory Case 任务工作区', subtitle: '聚焦当前节点的证据、授权动作与执行记录', back: '返回流水线',
-    refresh: '刷新', case: 'CASE', device: 'DEVICE', line: 'LINE', progress: '恢复进度', revision: '修订',
+    create: '创建 M-07 仿真案例', selectCase: '选择 Factory Case', selectTask: '业务任务', retryProject: '重试项目同步', projectPipeline: '项目流水线', refresh: '刷新', case: 'CASE', device: 'DEVICE', line: 'LINE', progress: '恢复进度', revision: '修订',
     currentTask: '当前任务', accountableAssistant: '责任 Assistant', blockers: '阻塞项', noBlockers: '当前没有阻塞项。',
-    actions: '授权动作', noActions: '当前节点没有可执行的授权动作。', dispatch: '派发给责任 Assistant',
-    approve: '批准方案 B', reject: '拒绝方案', execute: '执行已批准方案', verify: '验证恢复',
+    actions: '授权动作', noActions: '当前节点没有可执行的授权动作。', dispatch: '启动 / 打开项目流水线',
+    approve: '批准方案 B', reject: '拒绝方案',
     evidence: '节点证据', noEvidence: '该节点尚未形成可展示的持久化证据。', executions: '执行记录', noExecutions: '尚无执行尝试。',
     attempts: '次尝试', retryable: '可重试', manual: '需人工处理', nextAction: '下一项受控动作',
     planOptions: '恢复方案比较', recommended: '推荐', delay: '交付延迟', cost: '增量成本', safety: '安全风险',
-    approveTitle: '授权方案 B？', approveBody: '该决定将绑定当前 Case 修订号并写入审计记录；执行动作仍需单独确认。',
+    approveTitle: '授权方案 B？', approveBody: '该决定将绑定当前 Case 修订号并写入审计记录；批准后项目流水线会继续执行与验证。',
     cancel: '取消', approveConfirm: '批准当前修订', requestFailed: '任务工作区请求失败。', actionCompleted: '操作已完成。',
-    assistantSent: '任务已发送给责任 Assistant。', unavailable: '未找到指定任务', unavailableHelp: '请返回流水线重新选择一个任务。',
+    assistantSent: '已打开项目流水线。', unavailable: '尚未选择业务任务', unavailableHelp: '创建或选择案例后，在项目任务中查看流水线。',
     loading: '正在载入任务工作区…', simulation: '仿真模式', external: '真实环境'
   },
   'en-US': {
     title: 'Factory Case Workspace', subtitle: 'Focused evidence, authorized actions, and execution records for one task', back: 'Back to pipeline',
-    refresh: 'Refresh', case: 'CASE', device: 'DEVICE', line: 'LINE', progress: 'Recovery progress', revision: 'Revision',
+    create: 'Create M-07 simulation case', selectCase: 'Select Factory Case', selectTask: 'Business task', retryProject: 'Retry Project sync', projectPipeline: 'Project pipeline', refresh: 'Refresh', case: 'CASE', device: 'DEVICE', line: 'LINE', progress: 'Recovery progress', revision: 'Revision',
     currentTask: 'Current task', accountableAssistant: 'Accountable Assistant', blockers: 'Blockers', noBlockers: 'No active blockers.',
-    actions: 'Authorized actions', noActions: 'No authorized action is currently available.', dispatch: 'Dispatch to accountable Assistant',
-    approve: 'Approve plan B', reject: 'Reject plan', execute: 'Execute approved plan', verify: 'Verify recovery',
+    actions: 'Authorized actions', noActions: 'No authorized action is currently available.', dispatch: 'Start / open Project pipeline',
+    approve: 'Approve plan B', reject: 'Reject plan',
     evidence: 'Task evidence', noEvidence: 'No persisted evidence is available for this task yet.', executions: 'Execution records', noExecutions: 'No execution attempts yet.',
     attempts: 'attempts', retryable: 'Retryable', manual: 'Manual intervention', nextAction: 'Next governed action',
     planOptions: 'Recovery option comparison', recommended: 'Recommended', delay: 'Delivery delay', cost: 'Incremental cost', safety: 'Safety risk',
-    approveTitle: 'Authorize plan B?', approveBody: 'This decision is bound to the current Case revision and audited. Execution still requires a separate confirmation.',
+    approveTitle: 'Authorize plan B?', approveBody: 'This decision is bound to the current Case revision and audited. Approval resumes execution and verification in the Project pipeline.',
     cancel: 'Cancel', approveConfirm: 'Approve current revision', requestFailed: 'The task workspace request failed.', actionCompleted: 'Action completed.',
-    assistantSent: 'Task sent to the accountable Assistant.', unavailable: 'The requested task was not found', unavailableHelp: 'Return to the pipeline and select a task again.',
+    assistantSent: 'Project pipeline opened.', unavailable: 'No business task selected', unavailableHelp: 'Create or select a case, then open its Project pipeline.',
     loading: 'Loading task workspace…', simulation: 'Simulation', external: 'Live environment'
   }
 } as const
@@ -71,7 +72,10 @@ function App() {
   const current = data?.selectedCase ?? null
   const projection = data?.projection ?? null
   const nodeKey = data?.selectedNodeKey ?? queryRef.current.nodeKey
-  const node = projection?.nodes.find((item) => item.key === nodeKey) ?? null
+  const node = nodeKey
+    ? projection?.nodes.find((item) => item.key === nodeKey) ?? null
+    : projection?.nodes.find((item) => item.kind === 'task' && ['ready', 'active', 'blocked'].includes(item.status))
+      ?? projection?.nodes.find((item) => item.kind === 'task') ?? null
   const lane = projection?.lanes.find((item) => item.key === node?.laneKey) ?? null
   const evidence = useMemo(() => node ? collectNodeEvidence(node, current) : [], [current, node])
 
@@ -148,19 +152,36 @@ function App() {
     }
   }
 
+  async function createCase() {
+    setBusy('create_demo_incident')
+    setError(null)
+    try {
+      const receipt = unwrap(requireSuccess(await executeAction('create_demo_incident', null, {
+        operationId: crypto.randomUUID(), changeSummary: t.create
+      })))
+      const result = isObject(receipt) && isObject(receipt.data) ? receipt.data : receipt
+      const id = isObject(result) && typeof result.caseId === 'string' ? result.caseId : undefined
+      await navigate({ target: WORKBENCH_VIEW_TARGET, viewKey: WORKSPACE_VIEW_KEY,
+        ...(id ? { selectionId: id, parameters: { caseId: id } } : {}) })
+      await load(id)
+    } catch (reason) {
+      setError(messageOf(reason, t.requestFailed))
+    } finally { setBusy(null) }
+  }
+
   async function dispatch() {
-    if (!current || !node) return
+    if (!current) return
     setBusy('dispatch')
     setError(null)
     try {
-      requireSuccess(await executeAction('dispatch_assistant_task', current.id, {
+      const receipt = requireSuccess(await executeAction('start_pipeline', current.id, {
         caseId: current.id,
-        nodeKey: node.key,
         baseRevision: current.revision,
-        operationId: `factory-workspace-assistant-task-${node.key}-r${current.revision}-${crypto.randomUUID()}`
+        operationId: crypto.randomUUID()
       }))
+      requireSuccess(await invokeClientCommand(WORKBENCH_NAVIGATION_OPEN_COMMAND, projectPipelineNavigation(current.workspace.projectId, startedPipelineFocus(receipt))))
       notify('success', t.assistantSent)
-      await load(current.id, node.key, true)
+      await load(current.id, node?.key, true)
     } catch (reason) {
       const message = messageOf(reason, t.requestFailed)
       setError(message)
@@ -187,15 +208,12 @@ function App() {
     <main className="fcw-shell">
       <header className="fcw-header">
         <div className="fcw-title-group">
-          <Button variant="outline" size="sm" onClick={() => void navigate({
-            target: WORKBENCH_VIEW_TARGET,
-            viewKey: PIPELINE_VIEW_KEY,
-            selectionId: current?.id ?? queryRef.current.caseId,
-            parameters: { ...(current?.id ? { caseId: current.id } : {}) }
-          })}>← {t.back}</Button>
           <div><h1>{t.title}</h1><p>{t.subtitle}</p></div>
         </div>
         <div className="fcw-header-actions">
+          {!data?.runtimeProjectId && <Button disabled={Boolean(busy)} onClick={() => void createCase()}>{t.create}</Button>}
+
+          {current && <Button variant="outline" size="sm" disabled={current.workspace.status !== 'ready'} onClick={() => void navigate(projectPipelineNavigation(current.workspace.projectId, pipelineFocus(context)))}>{t.projectPipeline}</Button>}
           <Badge variant={data?.simulation ? 'secondary' : 'outline'}>
             <i className={data?.simulation ? 'is-sim' : 'is-live'} />
             {data?.simulation ? t.simulation : t.external}
@@ -206,12 +224,23 @@ function App() {
         </div>
       </header>
 
+      {data && <section className="fcw-case-strip">
+        {!data.runtimeProjectId && <Select value={current?.id ?? ''} onValueChange={(id) => void navigate({ target: WORKBENCH_VIEW_TARGET, viewKey: WORKSPACE_VIEW_KEY, selectionId: id, parameters: { caseId: id } })}>
+          <SelectTrigger aria-label={t.selectCase}><SelectValue placeholder={t.selectCase} /></SelectTrigger>
+          <SelectContent>{data.table.items.map((item) => <SelectItem key={item.id} value={item.id}>{item.caseKey}</SelectItem>)}</SelectContent>
+        </Select>}
+        {current && projection && <Select value={node?.key ?? ''} onValueChange={(key) => void navigate({ target: WORKBENCH_VIEW_TARGET, viewKey: WORKSPACE_VIEW_KEY, selectionId: current.id, parameters: { caseId: current.id, nodeKey: key, ...pipelineFocus(context) } })}>
+          <SelectTrigger aria-label={t.selectTask}><SelectValue placeholder={t.selectTask} /></SelectTrigger>
+          <SelectContent>{projection.nodes.filter((item) => item.kind === 'task').map((item) => <SelectItem key={item.key} value={item.key}>{item.title}</SelectItem>)}</SelectContent>
+        </Select>}
+        {current && current.workspace.status !== 'ready' && <Button disabled={Boolean(busy)} onClick={() => void runAction('retry_case_project', { caseId: current.id })}>{t.retryProject}</Button>}
+      </section>}
       {error && <div className="fcw-error" role="alert">{error}</div>}
 
       {!current || !projection || !node ? (
         <section className="fcw-empty">
           <span>404</span><h2>{t.unavailable}</h2><p>{t.unavailableHelp}</p>
-          <Button onClick={() => void navigate({ target: WORKBENCH_VIEW_TARGET, viewKey: PIPELINE_VIEW_KEY })}>{t.back}</Button>
+
         </section>
       ) : (
         <>
@@ -257,8 +286,6 @@ function App() {
                   {node.executionMode === 'assistant_task' && node.status !== 'completed' && <Button onClick={() => void dispatch()} disabled={Boolean(busy) || !current.workspace.canLaunchTasks}><Send aria-hidden="true" />{t.dispatch}</Button>}
                   {allow.has('approve_recovery_plan') && node.key === 'approve-recovery-plan' && <Button onClick={() => setApprovalOpen(true)} disabled={Boolean(busy)}>{t.approve}</Button>}
                   {allow.has('reject_recovery_plan') && node.key === 'approve-recovery-plan' && <Button variant="outline" onClick={() => void runAction('reject_recovery_plan', { ...mutationInput(current, 'reject-plan', 'Human rejected recovery plan'), reason: '当前方案未满足审批条件，转人工处置。' })} disabled={Boolean(busy)}>{t.reject}</Button>}
-                  {allow.has('execute_recovery_plan') && node.key === 'execute-recovery-plan' && <Button onClick={() => void runAction('execute_recovery_plan', mutationInput(current, 'execute-plan', 'Executed approved recovery plan B'))} disabled={Boolean(busy)}><Play aria-hidden="true" />{t.execute}</Button>}
-                  {allow.has('verify_recovery') && node.key === 'verify-recovery' && <Button onClick={() => void runAction('verify_recovery', mutationInput(current, 'verify-recovery', 'Verified equipment quality and production recovery'))} disabled={Boolean(busy)}><Check aria-hidden="true" />{t.verify}</Button>}
                   {node.authorizedActions.length === 0 && !(node.executionMode === 'assistant_task' && node.status !== 'completed') && <p className="fcw-muted">{t.noActions}</p>}
                 </div>
               </WorkspaceSection>
@@ -365,7 +392,7 @@ function readSelectionId(context: HostContext) {
   return isObject(context.initialQuery) && typeof context.initialQuery.selectionId === 'string' ? context.initialQuery.selectionId : undefined
 }
 function mutationInput(current: FactoryCase, action: string, changeSummary: string): RemoteObject {
-  return { caseId: current.id, baseRevision: current.revision, operationId: `factory-workspace-${action}-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`, changeSummary }
+  return { caseId: current.id, baseRevision: current.revision, operationId: crypto.randomUUID(), changeSummary }
 }
 function finiteNumber(value: RemoteValue, fallback: number) { return typeof value === 'number' && Number.isFinite(value) ? value : fallback }
 function messageOf(reason: unknown, fallback: string) { return reason instanceof Error && reason.message ? reason.message : fallback }

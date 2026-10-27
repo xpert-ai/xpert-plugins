@@ -8,7 +8,7 @@ import {
   type AgentRuntimeStart,
   type IAgentRuntimeStrategy
 } from '@xpert-ai/plugin-sdk'
-import { ProcessRuntime } from './process-runtime.js'
+import { RuntimeProfiles } from './managed-profiles.js'
 import {
   inspectComputerJsonl,
   requireComputerProfile,
@@ -28,6 +28,9 @@ const adapter: ComputerJsonlAdapter = {
 @Injectable()
 @AgentRuntimeStrategy('codebuddy-computer')
 export class CodeBuddyComputerRuntimeStrategy implements IAgentRuntimeStrategy {
+  get managedProfiles() {
+    return this.profiles.managedProfiles('codebuddy-computer')
+  }
   readonly capabilities = {
     completionEvidence: 2 as const,
     idempotentCancellation: true,
@@ -38,7 +41,7 @@ export class CodeBuddyComputerRuntimeStrategy implements IAgentRuntimeStrategy {
     cancellation: true,
     background: true
   }
-  constructor(private readonly profiles: ProcessRuntime) {}
+  constructor(private readonly profiles: RuntimeProfiles) {}
   start(request: AgentRuntimeStart, context: AgentRuntimeContext) {
     if (request.previous) return this.inspect(request.previous, context)
     return startComputerJsonl(request, context, this.profiles.profile(request, context, 'codebuddy-computer'))

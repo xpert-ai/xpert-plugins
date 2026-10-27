@@ -1,7 +1,7 @@
 import { isDeepStrictEqual } from 'node:util'
 import { executionRuntimeTargetsEqual } from '@xpert-ai/contracts'
 import { agentPrompt } from './input.js'
-import { Inject, Injectable, type OnModuleDestroy } from '@nestjs/common'
+import { Injectable, type OnModuleDestroy } from '@nestjs/common'
 import { mkdir, realpath } from 'node:fs/promises'
 import { resolve, relative, isAbsolute } from 'node:path'
 import { createHash } from 'node:crypto'
@@ -12,13 +12,15 @@ import type {
   AgentRuntimeStart
 } from '@xpert-ai/plugin-sdk'
 import type { AgentOutputDelivery } from '@xpert-ai/plugin-sdk'
-import { RUNTIME_CONFIGURATION, type RuntimeConfiguration, type RuntimeProfile } from './config.js'
 import { runtimeCompletion } from './runtime-completion.js'
+import { RuntimeProfiles, type RuntimeProvider, type RuntimeProfile } from './managed-profiles.js'
+import type { AgentRuntimeDeployment } from '@xpert-ai/plugin-sdk'
+export type ProcessProfile = RuntimeProfile & Exclude<AgentRuntimeDeployment, { type: 'service' }>
 import { JsonlProcess, type WireMessage } from './jsonl-process.js'
 
 export interface ProcessRun {
   delivery?: AgentOutputDelivery
-  profile: RuntimeProfile
+  profile: ProcessProfile
   context: AgentRuntimeContext
   observation: AgentRuntimeObservation
   process: JsonlProcess
@@ -38,27 +40,20 @@ export interface ProcessRun {
 @Injectable()
 export class ProcessRuntime implements OnModuleDestroy {
   readonly runs = new Map<string, ProcessRun>()
-  constructor(@Inject(RUNTIME_CONFIGURATION) readonly configuration: RuntimeConfiguration) {}
+  constructor(private readonly profiles: RuntimeProfiles) {}
 
-  profile(request: AgentRuntimeStart, context: AgentRuntimeContext, provider: RuntimeProfile['provider']) {
-    const profile = this.configuration.profiles.find(
-      (entry) => entry.id === request.target.reference && entry.provider === provider
-    )
-    if (
-      !profile ||
-      request.target.configuration.profileVersion !== profile.version ||
-      !context.scope.workspaceId ||
-      !profile.workspaceIds.includes(context.scope.workspaceId)
-    ) {
-      throw new Error('Agent runtime profile is unavailable in this workspace or its version changed')
-    }
-    agentPrompt(request.input)
-    if (request.input.files?.length) throw new Error('This runtime profile has no file materialization adapter')
-    return profile
+  managedProfiles(provider: RuntimeProvider) {
+    return this.profiles.managedProfiles(provider)
+  }
+  async profile(request: AgentRuntimeStart, context: AgentRuntimeContext, provider: RuntimeProvider) {
+    const profile = this.profiles.profile(request, context, provider)
+    const deployment = await this.profiles.deployment(profile, context)
+    if (deployment.type === 'service') throw new Error('Process/SDK deployment required')
+    return { ...deployment, ...profile }
   }
 
   async launch(
-    profile: RuntimeProfile,
+    profile: ProcessProfile,
     context: AgentRuntimeContext,
     onMessage: (run: ProcessRun, message: WireMessage) => void
   ) {
@@ -68,7 +63,14 @@ export class ProcessRuntime implements OnModuleDestroy {
     const handle: AgentRuntimeHandle = {
       sessionId: context.invocationId,
       runId: context.invocationId,
-      metadata: { profileId: profile.id }
+      metadata: {
+        provider: profile.provider,
+        profileId: profile.id,
+        profileVersion: profile.version,
+        workspaceId: context.scope.workspaceId,
+        managedRuntime: { type: 'builtin', version: profile.version },
+        deploymentRevision: profile.revision
+      }
     }
     const run: ProcessRun = {
       profile,
@@ -121,7 +123,7 @@ export class ProcessRuntime implements OnModuleDestroy {
     await run.writes
   }
 
-  async directory(profile: RuntimeProfile, context: AgentRuntimeContext) {
+  async directory(profile: ProcessProfile, context: AgentRuntimeContext) {
     if (!profile.workspaceRoot) throw new Error('Managed workspace root is required')
     const root = await realpath(profile.workspaceRoot)
     const owner = createHash('sha256').update(JSON.stringify(context.scope)).digest('hex')
@@ -133,8 +135,22 @@ export class ProcessRuntime implements OnModuleDestroy {
     return cwd
   }
 
+  assertReceipt(handle: AgentRuntimeHandle, context: AgentRuntimeContext, provider: RuntimeProvider) {
+    if (handle.metadata?.provider !== provider || !this.profiles.receiptProfile(handle, context, provider))
+      throw new Error('Invalid managed process receipt')
+  }
+
+  private provider(handle: AgentRuntimeHandle): RuntimeProvider {
+    const provider = handle.metadata?.provider
+    if (provider !== 'codex' && provider !== 'pi' && provider !== 'claude-code')
+      throw new Error('Invalid process provider receipt')
+    return provider
+  }
+
   find(handle: AgentRuntimeHandle, context: AgentRuntimeContext) {
-    const run = this.runs.get(context.invocationId)
+    const profile = this.profiles.receiptProfile(handle, context, this.provider(handle))
+    if (!profile) throw new Error('Managed process receipt is unavailable')
+    const run = this.runs.get(handle.metadata?.operationId?.toString() ?? context.invocationId)
     if (
       run &&
       (run.context.invocationId !== context.invocationId ||

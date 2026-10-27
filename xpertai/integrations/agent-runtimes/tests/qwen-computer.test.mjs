@@ -1,26 +1,14 @@
 import { target, supervisedReceipt, exitEvidence } from './completion-fixture.mjs'
+import { managedTarget } from './managed-fixture.mjs'
 import 'reflect-metadata'
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { QwenComputerRuntimeStrategy } from '../dist/lib/qwen-computer.strategy.js'
-import { ProcessRuntime } from '../dist/lib/process-runtime.js'
-import { ConfigSchema } from '../dist/lib/config.js'
+import { RuntimeProfiles } from '../dist/lib/managed-profiles.js'
 
 const workspaceId = '11111111-1111-4111-a111-111111111111'
 function fixture() {
-  const profiles = new ProcessRuntime(
-    ConfigSchema.parse({
-      profiles: [
-        {
-          id: 'computer-qwen',
-          version: '1',
-          provider: 'qwen-computer',
-          executionEnvironment: 'computer',
-          workspaceIds: [workspaceId]
-        }
-      ]
-    })
-  )
+  const profiles = new RuntimeProfiles()
   const strategy = new QwenComputerRuntimeStrategy(profiles)
   const receipt = supervisedReceipt({
     invocationId: 'invocation',
@@ -68,7 +56,7 @@ function fixture() {
     }
   }
   const request = {
-    target: { provider: 'qwen-computer', reference: 'computer-qwen', configuration: { profileVersion: '1' } },
+    target: managedTarget('qwen-computer'),
     input: { prompt: 'task', delivery: { mode: 'files', paths: ['report.txt'] } }
   }
   return { strategy, context, request, runner, calls, snapshots, setOutput: (value) => (output = value) }
@@ -243,25 +231,6 @@ test('Computer Qwen cancellation needs confirmed process exit; export failure pr
   assert.equal(result.result.export.status, 'failed')
   f.runner.stop = async () => ({ state: 'unknown' })
   assert.equal((await f.strategy.cancel(started.handle, f.context)).status, 'unknown')
-})
-
-test('Computer profiles reject caller-managed commands, model selection and credentials', () => {
-  for (const extra of [{ command: 'qwen' }, { model: 'other' }, { environmentKeys: ['TOKEN'] }, { args: ['exec'] }]) {
-    assert.throws(() =>
-      ConfigSchema.parse({
-        profiles: [
-          {
-            id: 'computer-qwen',
-            version: '1',
-            provider: 'qwen-computer',
-            executionEnvironment: 'computer',
-            workspaceIds: [workspaceId],
-            ...extra
-          }
-        ]
-      })
-    )
-  }
 })
 
 test('Computer capability declarations do not inherit App Server approvals or process-only recovery', () => {

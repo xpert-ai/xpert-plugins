@@ -1,3 +1,8 @@
+import { isPresentationActive, transitionPresentationLifecycle } from './presentation-lifecycle.js'
+import { STUDIO_SHELL_PROP } from './presentation-studio-shell.js'
+import { assertPresentationProject } from './presentation-project-access.js'
+import { parsePresentationSource, recoverPresentationSource } from './presentation-source-recovery.js'
+import { persistPresentationSource } from './presentation-source.js'
 import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { createHash, randomUUID } from 'node:crypto'
@@ -11,6 +16,7 @@ import {
   SandboxJobsRuntimeCapability,
   SYSTEM_GLOBAL_SCOPE,
   WorkspaceFilesRuntimeCapability,
+  ProjectFilesRuntimeCapability,
   XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN,
   XPERT_RUNTIME_CAPABILITIES_TOKEN,
   type AgentMiddlewareRuntimeServiceApi,
@@ -139,7 +145,7 @@ interface ThemePreviewGalleryItem {
 }
 
 const WORKING_EXPORT_SNAPSHOT_KEY = '__presentationWorkingSnapshot'
-const STUDIO_SHELL_PROP = '__studioShell'
+
 const WORKBENCH_AGENT_CONTEXT_TTL_SECONDS = 30 * 60
 /** Business façade for deck state, collaboration, versioning, exports, and sharing. */
 @Injectable()
@@ -162,7 +168,37 @@ export class PresentationStudioService {
     @Optional() @Inject(XPERT_AGENT_MIDDLEWARE_RUNTIME_TOKEN) private readonly runtimeService?: AgentMiddlewareRuntimeServiceApi
   ) {}
 
+  async exportSource(scope: PresentationScope, deckId: string, expectedRevision: number) {
+    const deck = await this.requireCanonicalDeck(scope, deckId)
+    if (!scope.projectId || !scope.tenantId || !scope.organizationId || !scope.userId || !this.runtimeCapabilities)
+      throw new BadRequestException('PRESENTATION_PROJECT_REQUIRED')
+    if (deck.revision !== expectedRevision) throw new BadRequestException('PRESENTATION_REVISION_CONFLICT')
+    await persistPresentationSource(this.runtimeCapabilities, this.deckRepository, this.assetRepository, scope, deckId)
+    const current = await this.requireDeck(scope, deckId)
+    if (current.revision !== expectedRevision || current.sourceRevision !== expectedRevision || current.sourceSyncFailed || !current.sourceSnapshotPath)
+      throw new BadRequestException('PRESENTATION_SOURCE_NOT_SYNCED')
+    const file = await this.runtimeCapabilities.require(ProjectFilesRuntimeCapability).read({
+      actor: { tenantId: scope.tenantId, organizationId: scope.organizationId, userId: scope.userId }, projectId: scope.projectId, path: current.sourceSnapshotPath })
+    if (file.buffer.length > 64 * 1024 * 1024) throw new BadRequestException('PRESENTATION_SOURCE_TOO_LARGE')
+    return { fileName: `${deckId}.presentation.json`, contentBase64: file.buffer.toString('base64'), sha256: file.sha256, revision: expectedRevision }
+  }
+
+  async importSource(scope: PresentationScope, requestId: string, buffer: Buffer, copy?: { sourceId: string; title: string }) {
+    if (!this.runtimeCapabilities) throw new BadRequestException('PRESENTATION_PROJECT_REQUIRED')
+    await assertPresentationProject(this.runtimeCapabilities, scope, 'write')
+    const source = parsePresentationSource(buffer)
+    if (activeSlides(source.deckSpec).length > this.config.get().maxPageCount)
+      throw new BadRequestException('PRESENTATION_SOURCE_INVALID')
+    // A source may contain unfinished slides, but it must only refer to installed layouts.
+    // Reject unsupported content before staging assets or creating the editable resource.
+    for (const slide of source.deckSpec.slides) await this.catalog.requireLayout(slide.layout, source.deckSpec.themePack)
+    const result = await recoverPresentationSource(this.runtimeCapabilities, this.deckRepository, scope, requestId, buffer, validateAssetType, this.config.get(), copy)
+    await persistPresentationSource(this.runtimeCapabilities, this.deckRepository, this.assetRepository, scope, result.deckId)
+    return result
+  }
+
   async createDeck(scope: PresentationScope, input: CreateDeckInput) {
+    await assertPresentationProject(this.runtimeCapabilities, scope, 'write')
     const title = requireText(input.title, 'Presentation title is required.')
     const goal = requireText(input.goal, 'Presentation goal is required.')
     const themePack = requireTheme(input.themePack)
@@ -205,6 +241,7 @@ export class PresentationStudioService {
       lastEditedById: optionalText(scope.userId),
       lastEditedAt: new Date()
     }))
+    await persistPresentationSource(this.runtimeCapabilities, this.deckRepository, this.assetRepository, scope, deck.id!)
     await this.log(scope, { deckId: deck.id, action: 'deck_created', actor: 'agent', message: title })
     return compactDeck(deck, input.initializeSlides
       ? `Deck created with ${pageCount} theme layout placeholders.`
@@ -303,10 +340,25 @@ export class PresentationStudioService {
     return items
   }
 
+  async setRecycled(scope: PresentationScope, deckId: string, expectedRevision: string, deleted: boolean) {
+    await assertPresentationProject(this.runtimeCapabilities, scope, 'manage')
+    await transitionPresentationLifecycle({ decks: this.deckRepository, where: scopedDeckWhere(scope, deckId),
+      collaboration: this.collaboration(scope), expectedRevision, deleted, revokeLinks: async () => {
+        const exports = await this.exportRepository.find({ where: scopedExportWhere(scope, { deckId }) })
+        for (const item of exports) {
+          if (!item.artifactLinkId) continue
+          await this.artifacts().revokeArtifactLink(item.artifactLinkId)
+          await this.exportRepository.update(item.id!, { artifactLinkId: null, artifactPublicUrl: null,
+            artifactLinkVersionMode: null, artifactLinkAccessMode: null, artifactSharedAt: null })
+        }
+      } })
+  }
+
   async searchDecks(scope: PresentationScope, query: PresentationWorkbenchQuery) {
+    await assertPresentationProject(this.runtimeCapabilities, scope, 'read')
     const page = Math.max(1, query.page ?? 1)
     const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 20))
-    const where = scopedDeckWhere(scope)
+    const where = { ...scopedDeckWhere(scope), lifecycleState: 'active' as const }
     if (query.status) where.status = requireStatus(query.status)
     const [items, total] = await this.deckRepository.findAndCount({
       where,
@@ -481,6 +533,7 @@ export class PresentationStudioService {
     input: { deckId: string; role: string; slideId?: string; evidence?: PresentationJsonValue },
     file: { name: string; mimeType?: string; size?: number; buffer: Buffer; reference: WorkspacePortableFileReference; fileUrl?: string }
   ) {
+    await assertPresentationProject(this.runtimeCapabilities, scope, 'write')
     const deck = await this.requireDeck(scope, input.deckId)
     validateAssetType(file.name, file.mimeType)
     const size = file.size ?? file.buffer.byteLength
@@ -495,10 +548,16 @@ export class PresentationStudioService {
       fileUrl: optionalText(file.fileUrl),
       workspacePath: file.reference.workspacePath
     }
-    const asset = await this.assetRepository.save(this.assetRepository.create({
+    const asset = await this.deckRepository.manager.transaction(async manager => {
+      const current = await manager.getRepository(PresentationDeck).findOne({ where: scopedDeckWhere(scope, input.deckId), lock: { mode: 'pessimistic_write' } })
+      if (!current) throw new NotFoundException('Presentation deck was not found.')
+      const repository = manager.getRepository(PresentationAsset)
+      return repository.save(repository.create({
       ...scopeFields(scope), deckId: deck.id, slideId: optionalText(input.slideId), role: requireText(input.role, 'Asset role is required.'),
       fileName: file.name, mimeType: file.mimeType, size, sha256, fileReference: reference, evidence: input.evidence, createdById: optionalText(scope.userId)
     }))
+    })
+    await persistPresentationSource(this.runtimeCapabilities, this.deckRepository, this.assetRepository, scope, input.deckId)
     return {
       message: 'Asset registered.',
       deckId: deck.id,
@@ -513,6 +572,7 @@ export class PresentationStudioService {
   }
 
   async uploadAsset(scope: PresentationScope, input: { deckId: string; role: string; slideId?: string; fileName: string; mimeType?: string }, buffer: Buffer) {
+    await assertPresentationProject(this.runtimeCapabilities, scope, 'write')
     const deck = await this.requireDeck(scope, input.deckId)
     validateAssetType(input.fileName, input.mimeType)
     await this.validateAssetSize(scope, deck.id as string, buffer.byteLength)
@@ -534,6 +594,7 @@ export class PresentationStudioService {
   }
 
   async finalizeDeck(scope: PresentationScope, deckId: string, expectedRevision: number, source: PresentationVersionSource, changeSummary?: string) {
+    await assertPresentationProject(this.runtimeCapabilities, scope, 'write')
     const deck = await this.requireCanonicalDeck(scope, deckId)
     if (deck.revision !== expectedRevision) throw new BadRequestException(`Presentation revision conflict. Current revision is ${deck.revision}.`)
     await this.validateDeck(deck)
@@ -574,6 +635,7 @@ export class PresentationStudioService {
   }
 
   async deleteVersion(scope: PresentationScope, deckId: string, versionId: string) {
+    await assertPresentationProject(this.runtimeCapabilities, scope, 'manage')
     const deck = await this.requireDeck(scope, deckId)
     const version = await this.requireVersion(scope, deckId, versionId)
     const deletedVersionId = requireId(version.id, 'Version id is required for deletion.')
@@ -607,6 +669,7 @@ export class PresentationStudioService {
   }
 
   async updateStatus(scope: PresentationScope, deckId: string, status: PresentationStatus, reason?: string, actor: 'agent' | 'workbench' = 'agent') {
+    await assertPresentationProject(this.runtimeCapabilities, scope, 'write')
     const deck = await this.requireDeck(scope, deckId)
     const nextStatus = requireStatus(status)
     const origin = actor === 'agent' ? 'presentation:agent:presentation_update_status' : 'workbench:update-status'
@@ -619,13 +682,14 @@ export class PresentationStudioService {
     return { message: `Deck status updated to ${status}.`, deckId, status, revision: result.revision }
   }
 
-  async renameDeck(scope: PresentationScope, deckId: string, title: string, expectedRevision: number) {
+  async renameDeck(scope: PresentationScope, deckId: string, title: string, expectedRevision: number, actor: 'agent' | 'workbench' = 'workbench') {
     const deck = await this.requireDeck(scope, deckId)
     const nextTitle = requireText(title, 'Presentation title is required.')
-    const result = await this.mutateDeck(scope, deck, 'workbench:rename-deck', ({ deck: deckMap }) => {
+    const origin = actor === 'agent' ? 'presentation:agent:presentation_rename_deck' : 'workbench:rename-deck'
+    const result = await this.mutateDeck(scope, deck, origin, ({ deck: deckMap }) => {
       deckMap.set('title', nextTitle)
     }, expectedRevision)
-    await this.log(scope, { deckId, action: 'deck_renamed', actor: 'workbench', summary: { title: nextTitle } })
+    await this.log(scope, { deckId, action: 'deck_renamed', actor, summary: { title: nextTitle } })
     return { message: 'Presentation renamed.', deckId, title: nextTitle, revision: result.revision }
   }
 
@@ -718,74 +782,83 @@ export class PresentationStudioService {
       preserveExistingLink?: boolean | null
     }
   ) {
+    await assertPresentationProject(this.runtimeCapabilities, scope, 'manage')
     const item = await this.requireScopedExport(scope, input.exportId)
     if (input.deckId && item.deckId !== input.deckId) throw new BadRequestException('Presentation export does not belong to the requested deck.')
     if (item.kind !== 'html') throw new BadRequestException('Only HTML presentation exports can be shared as interactive artifacts.')
     if (item.status !== 'succeeded') throw new BadRequestException('Only completed HTML exports can be shared.')
-    const deck = await this.requireDeck(scope, item.deckId)
-    const { artifactId, artifactVersionId } = await this.ensureHtmlExportArtifactVersion(scope, item, deck)
-    const actor = input.actor ?? 'workbench'
-    const versionMode: ArtifactLinkVersionMode = 'version'
-    const accessMode = this.resolveShareAccessMode(scope, input.accessMode, actor)
-    if (
-      item.artifactLinkId &&
-      item.artifactPublicUrl &&
-      isCurrentArtifactPublicUrl(item.artifactPublicUrl) &&
-      item.artifactLinkVersionMode === versionMode &&
-      item.artifactLinkAccessMode === accessMode
-    ) {
+    await this.requireDeck(scope, item.deckId)
+    const deckId = item.deckId
+    return this.deckRepository.manager.transaction(async manager => {
+      const deck = await manager.getRepository(PresentationDeck).findOneOrFail({ where: scopedDeckWhere(scope, deckId), lock: { mode: 'pessimistic_write' } })
+      if (!isPresentationActive(deck)) throw new NotFoundException('PRESENTATION_NOT_FOUND')
+      // The deck lock serializes sharing with recycling. Read export link metadata only
+      // after taking it: another share/recycle request may have revoked the old link.
+      const item = await manager.getRepository(PresentationExport).findOneOrFail({ where: { id: input.exportId, deckId: deck.id } })
+      const { artifactId, artifactVersionId } = await this.ensureHtmlExportArtifactVersion(scope, item, deck)
+      const actor = input.actor ?? 'workbench'
+      const versionMode: ArtifactLinkVersionMode = 'version'
+      const accessMode = this.resolveShareAccessMode(scope, input.accessMode, actor)
+      if (
+        item.artifactLinkId &&
+        item.artifactPublicUrl &&
+        isCurrentArtifactPublicUrl(item.artifactPublicUrl) &&
+        item.artifactLinkVersionMode === versionMode &&
+        item.artifactLinkAccessMode === accessMode
+      ) {
+        return {
+          message: 'Presentation HTML share link is ready.',
+          ...compactExport(item),
+          publicUrl: item.artifactPublicUrl,
+          artifactId,
+          artifactVersionId,
+          artifactLinkId: item.artifactLinkId,
+          versionMode: item.artifactLinkVersionMode ?? versionMode,
+          accessMode: item.artifactLinkAccessMode ?? accessMode
+        }
+      }
+      if (item.artifactLinkId) await this.revokeArtifactLinkBestEffort(item.artifactLinkId)
+      const link = await this.artifacts().createArtifactLink({
+        artifactId,
+        artifactVersionId: versionMode === 'version' ? artifactVersionId : null,
+        versionMode,
+        access: {
+          mode: accessMode,
+          userConfirmedPublicLink: accessMode === 'public_link' ? true : null
+        },
+        presentation: {
+          disposition: 'inline',
+          allowDownload: false,
+          safeHtmlProfile: 'interactive'
+        },
+        metadata: artifactMetadata(item, deck, { action: 'share_html_export' })
+      })
+      item.artifactLinkId = link.id
+      item.artifactLinkVersionMode = link.versionMode
+      item.artifactLinkAccessMode = link.accessMode
+      item.artifactPublicUrl = link.publicUrl
+      item.artifactSharedAt = new Date()
+      await manager.getRepository(PresentationExport).save(item)
+      await this.log(scope, {
+        deckId: item.deckId,
+        versionId: item.versionId,
+        exportId: requireId(item.id, 'Export id is required for share logging.'),
+        action: 'export_shared',
+        actor,
+        message: 'Shared HTML export as an Artifact link.',
+        summary: { artifactId, artifactVersionId, artifactLinkId: link.id, versionMode: link.versionMode, accessMode: link.accessMode }
+      })
       return {
         message: 'Presentation HTML share link is ready.',
         ...compactExport(item),
-        publicUrl: item.artifactPublicUrl,
+        publicUrl: link.publicUrl,
         artifactId,
         artifactVersionId,
-        artifactLinkId: item.artifactLinkId,
-        versionMode: item.artifactLinkVersionMode ?? versionMode,
-        accessMode: item.artifactLinkAccessMode ?? accessMode
+        artifactLinkId: link.id,
+        versionMode: link.versionMode,
+        accessMode: link.accessMode
       }
-    }
-    if (item.artifactLinkId) await this.revokeArtifactLinkBestEffort(item.artifactLinkId)
-    const link = await this.artifacts().createArtifactLink({
-      artifactId,
-      artifactVersionId: versionMode === 'version' ? artifactVersionId : null,
-      versionMode,
-      access: {
-        mode: accessMode,
-        userConfirmedPublicLink: accessMode === 'public_link' ? true : null
-      },
-      presentation: {
-        disposition: 'inline',
-        allowDownload: false,
-        safeHtmlProfile: 'interactive'
-      },
-      metadata: artifactMetadata(item, deck, { action: 'share_html_export' })
     })
-    item.artifactLinkId = link.id
-    item.artifactLinkVersionMode = link.versionMode
-    item.artifactLinkAccessMode = link.accessMode
-    item.artifactPublicUrl = link.publicUrl
-    item.artifactSharedAt = new Date()
-    await this.exportRepository.save(item)
-    await this.log(scope, {
-      deckId: item.deckId,
-      versionId: item.versionId,
-      exportId: requireId(item.id, 'Export id is required for share logging.'),
-      action: 'export_shared',
-      actor,
-      message: 'Shared HTML export as an Artifact link.',
-      summary: { artifactId, artifactVersionId, artifactLinkId: link.id, versionMode: link.versionMode, accessMode: link.accessMode }
-    })
-    return {
-      message: 'Presentation HTML share link is ready.',
-      ...compactExport(item),
-      publicUrl: link.publicUrl,
-      artifactId,
-      artifactVersionId,
-      artifactLinkId: link.id,
-      versionMode: link.versionMode,
-      accessMode: link.accessMode
-    }
   }
 
   async shareDeckHtmlExport(
@@ -800,6 +873,7 @@ export class PresentationStudioService {
       preserveExistingLink?: boolean | null
     }
   ) {
+    await assertPresentationProject(this.runtimeCapabilities, scope, 'manage')
     const actor = input.actor ?? 'workbench'
     const accessMode = this.resolveShareAccessMode(scope, input.accessMode, actor)
     const deck = await this.requireDeck(scope, input.deckId)
@@ -852,6 +926,7 @@ export class PresentationStudioService {
   }
 
   async revokeDeckHtmlShare(scope: PresentationScope, deckId: string, actor: 'agent' | 'workbench' = 'workbench') {
+    await assertPresentationProject(this.runtimeCapabilities, scope, 'manage')
     await this.requireDeck(scope, deckId)
     const exports = await this.exportRepository.find({
       where: scopedExportWhere(scope, { deckId }),
@@ -898,6 +973,7 @@ export class PresentationStudioService {
   }
 
   async deleteExport(scope: PresentationScope, exportId: string) {
+    await assertPresentationProject(this.runtimeCapabilities, scope, 'manage')
     const item = await this.requireScopedExport(scope, exportId)
     if ((item.status === 'queued' || item.status === 'running') && item.jobId && this.queue) {
       try {
@@ -950,7 +1026,7 @@ export class PresentationStudioService {
         ...(!projectId && workspaceId ? { workspaceId } : {})
       }
     })
-    if (!deck) throw new NotFoundException('Presentation deck was not found in the export job scope.')
+    if (!deck || !isPresentationActive(deck)) throw new NotFoundException('Presentation deck was not found in the export job scope.')
     const xpertId = optionalText(deck.assistantId) ?? null
     const scope: PresentationScope = {
       tenantId,
@@ -1212,6 +1288,7 @@ export class PresentationStudioService {
     expectedRevision?: number,
     entityMutation?: (deck: PresentationDeck) => void
   ) {
+    await assertPresentationProject(this.runtimeCapabilities, scope, 'write')
     if (presentationDeckKind(deck.deckSpec?.kind) === PRESENTATION_THEME_PREVIEW_DECK_KIND) {
       throw new BadRequestException('The built-in theme preview presentation is read-only.')
     }
@@ -1247,7 +1324,10 @@ export class PresentationStudioService {
 
   /** Authorize collaboration by resolving the Deck inside the exact plugin scope. */
   async authorizeCollaborationDocument(context: CollaborationProviderContext) {
-    return Boolean(await this.deckRepository.findOne({ where: scopedDeckWhere(collaborationScope(context), context.resourceId) }))
+    const manage = context.operation === 'manage' || context.operation === 'delete'
+    await assertPresentationProject(this.runtimeCapabilities, collaborationScope(context), manage ? 'manage' : context.operation === 'write' ? 'write' : 'read')
+    const deck = await this.deckRepository.findOne({ where: scopedDeckWhere(collaborationScope(context), context.resourceId) })
+    return Boolean(deck && (manage || isPresentationActive(deck)))
   }
 
   /** Import a legacy Deck Yjs snapshot and preserve its revision as the initial sequence. */
@@ -1268,6 +1348,7 @@ export class PresentationStudioService {
       const repository = manager.getRepository(PresentationDeck)
       const deck = await repository.findOne({ where: scopedDeckWhere(scope, event.resourceId), lock: { mode: 'pessimistic_write' } })
       if (!deck) throw new NotFoundException('Presentation deck was not found during collaboration materialization.')
+      if (deck.revision > event.sequenceNumber) return
       const doc = decodeYDoc(event.stateBase64)
       const encoded = { stateBase64: event.stateBase64, stateVectorBase64: event.stateVectorBase64 }
       applyMaterializedDeck(deck, materializePresentationYDoc(doc), encoded)
@@ -1276,8 +1357,13 @@ export class PresentationStudioService {
       deck.checksum = checksumJson(deck.deckSpec)
       deck.lastEditedById = optionalText(scope.userId)
       deck.lastEditedAt = new Date()
+      // Duplicate or late delivery must never roll the native projection backwards.
       await repository.save(deck)
     })
+    const source = await persistPresentationSource(this.runtimeCapabilities, this.deckRepository, this.assetRepository, scope, event.resourceId)
+    // Commit the failure marker first. Throwing inside the snapshot transaction would
+    // erase it; swallowing it here would incorrectly acknowledge materialization.
+    if (source === 'failed') throw new Error('PRESENTATION_SOURCE_NOT_SYNCED')
   }
 
   private resolveCollaboration(scope: PresentationScope) {
@@ -1504,8 +1590,9 @@ export class PresentationStudioService {
   }
 
   private async requireDeck(scope: PresentationScope, deckId: string) {
+    await assertPresentationProject(this.runtimeCapabilities, scope, 'read')
     const deck = await this.deckRepository.findOne({ where: scopedDeckWhere(scope, deckId) })
-    if (!deck) throw new NotFoundException('Presentation deck was not found.')
+    if (!deck || !isPresentationActive(deck)) throw new NotFoundException('Presentation deck was not found.')
     return deck
   }
 
@@ -1789,6 +1876,7 @@ function isPresentationShareAccessMode(value: ArtifactAccessMode): value is Pres
 function compactDeck(deck: PresentationDeck, message?: string) {
   return {
     ...(message ? { message } : {}),
+    ...(deck.projectId ? { sourceSync: { status: deck.sourceSyncFailed ? 'failed' : deck.sourceRevision === deck.revision ? 'synced' : 'pending', revision: deck.sourceRevision } } : {}),
     deckId: deck.id,
     kind: presentationDeckKind(deck.deckSpec?.kind),
     title: deck.title, goal: deck.goal, audience: deck.audience, owner: deck.owner,

@@ -1,0 +1,184 @@
+/* The shared shadcn stylesheet already supplies Preflight. A second reset would
+   override its base border/focus rules when the bundled stylesheets are concatenated. */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@source "./";
+.conflict-text { max-height: 45vh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 16px; margin: 12px 0; background: var(--muted); border-radius: 8px; font: inherit; }
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+@layer base {
+  :root { font-size: var(--xui-font-size, 14px); --spacing: calc(var(--xui-density-root-font-size, var(--xui-font-size, 14px)) / 4); }
+  body { @apply m-0 bg-background text-foreground text-base antialiased; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
+}
+/* Layout and document content only. Shared primitives retain their default shadcn styles. */
+  html:root { font-size: var(--xui-font-size, 14px); }
+  html body { font-size: 1rem; font-family: var(--xui-font-family, sans-serif); }
+  .app { @apply flex h-screen flex-col overflow-hidden; }
+  .top { @apply flex items-center gap-3 border-b border-border px-5 py-4; }
+  .body { @apply flex min-h-0 flex-1 max-md:block max-md:overflow-auto; }
+  .tree { @apply flex w-[260px] shrink-0 flex-col overflow-hidden border-r border-border bg-muted/15 px-4 py-3 max-md:w-full max-md:max-h-48 max-md:border-r-0 max-md:border-b; }
+  .tree > :not(.folder-tree) { flex-shrink: 0; }
+  .tree button { @apply justify-start whitespace-normal text-left; }
+  .workspace { @apply relative flex min-w-0 flex-1 flex-col overflow-auto px-6 pt-3 pb-2 max-md:w-full max-md:min-h-96 max-md:overflow-visible max-md:px-4; }
+  .panel { @apply flex w-[340px] shrink-0 flex-col overflow-auto border-l border-border bg-background p-5 max-lg:fixed max-lg:inset-y-0 max-lg:right-0 max-lg:z-30 max-lg:w-[360px] max-lg:shadow-xl max-sm:w-full; }
+  .panel form, .form { @apply mb-5 flex flex-col gap-3; }
+  .row { @apply flex flex-wrap items-center gap-2; }
+  .toolbar { @apply my-3 flex flex-wrap gap-2; }
+  .editor { @apply max-w-4xl; }
+  .status { @apply mb-4 text-xs text-muted-foreground; }
+  .block { @apply relative mb-4 flex gap-2; }
+  .block textarea { @apply min-w-0 flex-1; }
+  .notice { @apply flex items-center justify-between gap-3 border-b border-border bg-muted px-5 py-2 text-sm; }
+  .muted { @apply text-muted-foreground; }
+  .proposal { @apply mb-6 break-words; }
+  .comment { @apply mb-4 border-b border-border pb-4 break-words; }
+  .before { @apply mb-3 rounded-lg bg-muted/50 p-4 whitespace-pre-wrap text-muted-foreground; }
+  .before p { @apply mt-3 mb-0 line-through; }
+  .after { @apply rounded-lg border border-green-100 bg-green-50/60 p-4 whitespace-pre-wrap leading-relaxed dark:border-green-900 dark:bg-green-950/30; }
+  .after p { @apply mt-3 mb-0; }
+  .answer { @apply whitespace-pre-wrap leading-relaxed; }
+  .answer button { @apply mt-2 mr-2 whitespace-normal; }
+
+  .grid-scroll { @apply max-w-full overflow-auto; }
+  .grid-scroll input { @apply w-32; }
+  .space-name { @apply flex items-center justify-between px-2; }
+  .space-name h2 { @apply mb-0 text-lg; }
+  .space-subtitle { @apply mt-1 mb-3 truncate px-2 text-xs text-muted-foreground; }
+  .nav-item { @apply mb-1 h-auto min-h-8 w-full justify-start whitespace-normal text-left; }
+  .nav-item.nested { @apply pl-8; }
+  .nav-item.nested svg { @apply text-blue-500; }
+  .nav-label { @apply mt-3 mb-2 px-2 text-sm text-muted-foreground; }
+  .folder-tree { @apply min-h-0 flex-1 overflow-auto; }
+  .nav-bottom { @apply mt-2 border-t border-border pt-2; }
+  /* Layout spacing uses the host-derived --spacing token; controls keep shadcn defaults. */
+  .library-header { @apply mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3; }
+  .library-header > div:first-child { @apply min-w-0; }
+  .library-header h1 { overflow-wrap: anywhere; }
+  .library-header p { @apply mt-1 mb-0 text-sm text-muted-foreground; }
+  .library-actions { @apply flex min-w-0 flex-1 basis-96 items-center justify-end gap-2; }
+  .library-search { @apply min-w-0 max-w-64 flex-1; }
+  .search-field { @apply relative flex items-center; }
+  .search-field > svg { @apply absolute left-3 text-muted-foreground; }
+  .list-toolbar { @apply mb-1 flex shrink-0 items-center justify-between text-sm; }
+  .table-scroll { @apply min-h-0 overflow-x-auto; }
+  .library-table { @apply w-full border-collapse whitespace-nowrap; }
+  .file-title { @apply h-auto w-full justify-start text-left; }
+  .file-title strong { @apply block font-medium text-foreground; }
+  .file-title small { @apply mt-1 block text-xs text-muted-foreground; }
+  .file-icon { @apply flex size-10 items-center justify-center rounded-lg border border-border bg-background; }
+  .file-icon.page { @apply text-blue-500; }
+  .file-icon.sheet { @apply text-green-600; }
+  .library-footnote { @apply mt-auto flex shrink-0 items-center gap-2 pt-2 text-xs text-muted-foreground; }
+  .library-footnote > svg { @apply shrink-0; }
+  .empty-message { @apply flex min-h-56 flex-col items-center justify-center gap-2 px-4 py-10 text-center text-muted-foreground; }
+  .empty-message > svg { @apply mb-3 size-8; }
+  .empty-message h2 { @apply mb-0 text-foreground; }
+  .document-workspace { @apply p-0; }
+  .document-bar { @apply sticky top-0 z-10 flex min-h-16 shrink-0 items-center gap-2 border-b border-border bg-background px-4 py-3 max-sm:flex-wrap; }
+  .breadcrumb { @apply min-w-0 flex-1 truncate text-xs text-muted-foreground; }
+  .save-state { @apply mr-2 whitespace-nowrap text-xs text-muted-foreground; }
+  .save-state.ready { @apply text-green-700 dark:text-green-400; }
+  .document-canvas { @apply mx-auto w-full max-w-[950px] px-12 py-12 max-lg:px-8 max-sm:px-4 max-sm:py-8; }
+  .document-canvas h1 { @apply text-4xl leading-tight; }
+  .document-meta { @apply mt-3 mb-12 text-sm text-muted-foreground; }
+  .document-download { @apply mt-12 border-t border-border pt-4; }
+  .file-preview { @apply flex min-h-60 flex-col items-center justify-center gap-3; }
+  .file-preview > svg { @apply size-12 text-muted-foreground; }
+  .panel > header { @apply sticky top-0 z-20 -mx-5 mb-6 flex items-center justify-between gap-3 bg-background px-5 py-3; }
+  .panel > header h2 { @apply mb-0 text-lg; }
+  .panel form { @apply mb-6 flex flex-col gap-3; }
+  .proposal-actions { @apply mt-5 grid grid-cols-2 gap-3; }
+  .history-banner { @apply flex items-center gap-3 bg-amber-50 px-6 py-3 text-sm text-amber-800 dark:bg-amber-950/25 dark:text-amber-300; }
+  .timeline { @apply mt-6; }
+  .timeline button { @apply mb-2 block h-auto w-full whitespace-normal text-left; }
+  .timeline strong, .timeline small { @apply block; }
+  .timeline small { @apply mt-2 text-muted-foreground; }
+
+  .restore-footer { @apply mt-auto border-t border-border pt-5 text-center; }
+  .restore-footer button { @apply mb-3 w-full; }
+  .preview-blocks > div { @apply mb-6 whitespace-pre-wrap text-base leading-8; }
+  .preview-blocks > .heading h2 { @apply mt-8 text-2xl font-semibold; }
+  .preview-blocks > .code { @apply bg-muted p-4 font-mono; }
+  /* Layout only: long import previews need room, while Dialog owns all surface styling. */
+  .space-dialog { width: min(42rem, calc(100vw - 2rem)); max-width: none; max-height: calc(100vh - 2rem); overflow-y: auto; }
+  .template-dialog { width: min(56rem, calc(100vw - 2rem)); }
+  .template-grid { @apply mb-3 grid grid-cols-3 gap-4 max-sm:grid-cols-1; }
+  .template-option { @apply h-auto min-w-0 flex-col items-stretch whitespace-normal text-left; }
+  .template-paper { @apply relative h-72 shrink-0 overflow-hidden rounded-lg border border-border p-5 text-xs leading-relaxed; }
+  .template-paper > strong { @apply text-sm; }
+  .template-paper h4 { @apply mt-5 mb-2 font-semibold; }
+  .template-paper p { @apply whitespace-pre-wrap text-muted-foreground; }
+  .template-check { @apply absolute top-2 right-2 rounded-full bg-blue-600 p-0.5 text-white; }
+  .template-option h3 { @apply mt-3 mb-1 font-medium; }
+  .template-option > p { @apply mb-0 text-sm leading-5 text-muted-foreground; }
+  .create-form { @apply grid gap-4; }
+  .form-field { @apply grid gap-2; }
+  .confirmation-field { @apply flex items-start gap-2; }
+  .confirmation-field [data-slot="label"] { @apply flex-1; }
+  .confirmation-field [data-slot="checkbox"] { @apply mt-0.5; }
+  .form-columns { @apply grid grid-cols-2 gap-5 max-sm:grid-cols-1; }
+  .materials-dialog .search-field input { @apply w-full; }
+  .artifact-list { @apply max-h-72 overflow-auto; }
+  .artifact-option { @apply flex items-center gap-4 border-b border-border px-3 py-5; }
+
+  .artifact-option > span { @apply min-w-0 flex-1; }
+  .artifact-option strong, .artifact-option small { @apply block truncate; }
+  .artifact-option small { @apply mt-1 text-xs text-muted-foreground; }
+  .upload-area { @apply flex min-h-44 flex-col items-center justify-center rounded-lg border border-dashed border-border p-6 text-center; }
+  .upload-area input { @apply mt-3 max-w-80; }
+  .upload-area span { @apply text-xs text-muted-foreground; }
+  .inline-note { @apply flex items-center gap-2 text-xs; }
+  .index-item { @apply border-b border-border py-4; }
+  .index-item small { @apply mt-1 block text-xs text-muted-foreground; }
+  .index-item p { @apply mt-2 text-xs text-amber-700; }
+  .progress-message { @apply absolute top-2 right-4 z-50 rounded-md border border-border bg-background px-3 py-2 text-xs shadow-sm; }
+  .project-empty { @apply flex h-full flex-col items-center justify-center gap-4 p-10 text-center; }
+  .project-empty > svg { @apply size-10; }
+  .capability-dialog { width: min(50rem, calc(100vw - 2rem)); }
+  .capability-dialog section { @apply border-t border-border pt-5; }
+  .capability-dialog section h2 { @apply text-lg; }
+  .capability-dialog section p { @apply text-sm leading-6; }
+  .capability-list { @apply mb-4 divide-y divide-border; }
+  .capability-list li { @apply flex flex-wrap items-center gap-3 py-3 text-sm; }
+  .capability-list strong { @apply w-28; }
+  .capability-list span { @apply text-muted-foreground; }
+  .markdown-text { @apply whitespace-normal leading-8; }
+  .markdown-text p { @apply my-3; }
+  .markdown-text ul { @apply my-3 list-disc pl-6; }
+  .markdown-text ol { @apply my-3 list-decimal pl-6; }
+  .markdown-text li { @apply my-1; }
+  .markdown-text a { @apply underline underline-offset-4; }
+  .markdown-text pre { @apply overflow-auto rounded-md bg-muted p-3; }
+  .markdown-text blockquote { @apply border-l-2 border-border pl-4 text-muted-foreground; }
+  @media (max-width: 767px) {
+    .tree { overflow: auto; }
+    .folder-tree { flex: none; overflow: visible; }
+    .block { flex-direction: column; }
+    .library-actions { width: 100%; }
+    .library-search { max-width: none; }
+    .search-field { flex: 1; min-width: 0; }
+    .document-canvas h1 { font-size: 1.875rem; overflow-wrap: anywhere; }
+  }
+  @media (pointer: coarse) {
+  }
+
+
+.compact-navigation .tree { display: flex; width: 100%; min-width: 0; height: 100%; max-height: none; border: 0; padding: 16px 12px; }
+.compact-navigation .tree > * { flex-shrink: 0; }
+.compact-navigation .workspace,.compact-navigation .panel,.compact-navigation .nav-bottom { display: none; }
+.compact-navigation .body { display: flex; min-width: 0; overflow: hidden; }
+.compact-navigation .space-name h2 { font-size: 1rem; }
+.compact-navigation .space-subtitle { font-size: .75rem; }
+.compact-documents { margin: 12px 0; max-height: 42vh; overflow: auto; }
+.compact-navigation .nav-item { min-width: 0; }
+
+.form-columns > [data-slot="label"], .upload-area { display: grid; gap: calc(var(--spacing) * 2); }
+
+.library-header h1 { @apply text-3xl font-semibold tracking-tight; }

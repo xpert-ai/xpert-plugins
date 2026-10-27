@@ -81,7 +81,7 @@ function dashboardData() {
 }
 
 function factoryCase(caseKey, severity, status, percent, recoveryMinutes) {
-  return { id: `id-${caseKey}`, caseKey, revision: 7, status, currentStage: status === 'awaiting_approval' ? 'approve-recovery-plan' : status === 'verifying' ? 'verify-recovery' : 'production-recovered', event: { title: '主轴振动趋势异常', deviceName: caseKey.endsWith('M07') ? '磨削中心 M-07' : '生产设备', lineId: 'A', severity }, metrics: { responseSeconds: 8, recoveryMinutes, avoidedDowntimeMinutes: 120, avoidedLossCny: 86000 }, progress: { completedSteps: percent / 10, totalSteps: 10, percent }, findings: {}, timeline: [], allowedActions: [] }
+  return { id: `id-${caseKey}`, workspace: { projectId: '10000000-0000-4000-8000-000000000070', status: 'ready' }, caseKey, revision: 7, status, currentStage: status === 'awaiting_approval' ? 'approve-recovery-plan' : status === 'verifying' ? 'verify-recovery' : 'production-recovered', event: { title: '主轴振动趋势异常', deviceName: caseKey.endsWith('M07') ? '磨削中心 M-07' : '生产设备', lineId: 'A', severity }, metrics: { responseSeconds: 8, recoveryMinutes, avoidedDowntimeMinutes: 120, avoidedLossCny: 86000 }, progress: { completedSteps: percent / 10, totalSteps: 10, percent }, findings: {}, timeline: [], allowedActions: [] }
 }
 
 function execution(recordId, nodeKey, roleLabel, status, safeSummary, attemptNumber) {

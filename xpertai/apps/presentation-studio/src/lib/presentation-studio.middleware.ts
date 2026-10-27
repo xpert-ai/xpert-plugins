@@ -74,6 +74,9 @@ const searchDecksSchema = z.object({
   status: statusSchema.optional(), search: z.string().optional(), page: z.number().int().min(1).optional(), pageSize: z.number().int().min(1).max(100).optional()
 })
 const getDeckSchema = z.object({ deckId: z.string().uuid(), includeSlides: z.boolean().optional() })
+const renameDeckSchema = z.object({
+  deckId: z.string().uuid(), title: z.string().trim().min(1).max(200), expectedRevision: z.number().int().min(0)
+}).strict()
 const searchLayoutsSchema = z.object({
   themePack: themeSchema, role: z.string().optional(), keyword: z.string().optional(), needsMedia: z.boolean().optional(),
   mediaCount: z.number().int().min(1).optional(), mediaKind: z.enum(['image', 'video', 'mixed']).optional(),
@@ -126,6 +129,7 @@ const CHANGE_SUMMARY_EVENT_TOOL_NAMES = new Set<string>([
   'presentation_finalize_deck'
 ])
 const AGENT_EDITING_TOOL_NAMES = new Set<string>([
+  'presentation_rename_deck',
   'presentation_add_slide',
   'presentation_patch_slide',
   'presentation_reorder_slides',
@@ -138,6 +142,7 @@ const TOOL_OPERATION_LABELS: Record<string, string> = {
   presentation_list_theme_previews: 'Loading presentation themes',
   presentation_search_decks: 'Searching presentations',
   presentation_get_deck: 'Reading presentation',
+  presentation_rename_deck: 'Renaming presentation',
   presentation_search_layouts: 'Searching layouts',
   presentation_inspect_layouts: 'Inspecting layouts',
   presentation_add_slide: 'Adding slide',
@@ -212,6 +217,10 @@ export class PresentationStudioMiddleware implements IAgentMiddlewareStrategy<Re
         }),
         tool((input) => compact(this.service.getDeck(scope, input.deckId, input.includeSlides !== false)), {
           name: 'presentation_get_deck', description: toolDescription(currentDeckHint, 'Read deck revision, immutable versions, exports, assets, and optionally slide content. Prefer the current deckId from context when the user says current deck or this presentation.'), schema: getDeckSchema, verboseParsingErrors: true
+        }),
+        // Metadata and slide text are separate: renaming must keep the same Deck and Yjs document.
+        tool((input) => compact(this.service.renameDeck(scope, input.deckId, input.title, input.expectedRevision, 'agent')), {
+          name: 'presentation_rename_deck', description: toolDescription(currentDeckHint, 'Rename the existing deck metadata title only. Preserve all slide content, order, media and the deck identity. Read presentation_get_deck first and pass its current revision as expectedRevision; on conflict read again. To edit visible slide text use presentation_patch_slide instead.'), schema: renameDeckSchema, verboseParsingErrors: true
         }),
         tool((input) => compact(this.catalog.searchLayouts({
           theme: input.themePack, role: input.role, keyword: input.keyword, needsMedia: input.needsMedia,

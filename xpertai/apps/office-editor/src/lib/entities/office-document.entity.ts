@@ -39,6 +39,19 @@ export class OfficeDocument {
   @Column({ type: 'varchar', nullable: true })
   conversationId?: string
 
+  /** Explicit native resource model. Existing Office workflows are not auto-enrolled. */
+  @Column({ type: 'varchar', nullable: true })
+  contentModel?: string
+
+  @Column({ type: 'varchar', nullable: true })
+  createRequestHash?: string
+
+  @Column({ type: 'text', nullable: true })
+  sourceSnapshotPath?: string
+
+  @Column({ type: 'varchar', nullable: true })
+  sourceSnapshotHash?: string
+
   @Column({ type: 'varchar' })
   documentType!: OfficeDocumentType
 

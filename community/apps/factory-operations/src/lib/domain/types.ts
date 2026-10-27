@@ -1,3 +1,4 @@
+import type { ProjectPipelineWorkContext } from '@xpert-ai/contracts'
 export const FACTORY_FINDING_KINDS = [
   'equipment',
   'quality',
@@ -21,6 +22,8 @@ export type FactorySeverity = 'medium' | 'high' | 'critical'
 export type EvidenceSource = 'iot' | 'mes' | 'qms' | 'cmms' | 'wms' | 'aps' | 'erp' | 'rule'
 
 export interface FactoryScope {
+  /** Trusted server adapter context; never accepted from model or View input. */
+  pipelineWork?: ProjectPipelineWorkContext
   tenantId: string
   organizationId?: string | null
   workspaceId?: string | null
@@ -336,7 +339,6 @@ export interface FactoryExecutionRecordSummary {
   outputRevision: number | null
   safeSummary: string
   workspaceProjectId: string
-  queueJobId: string | null
   assistantTaskId: string | null
   conversationId: string | null
   threadId: string | null

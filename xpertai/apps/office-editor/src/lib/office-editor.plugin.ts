@@ -1,3 +1,9 @@
+import { OfficeWorkbookService } from './workbooks/service.js'
+import { OfficeWorkbookContent, OfficeWorkbookEditor } from './workbooks/content.provider.js'
+import { OfficeWorkbookView } from './workbooks/view.provider.js'
+import { OfficeFileService } from './office-file.service.js'
+import { OfficeFileView } from './office-file-view.provider.js'
+import { OfficeSpreadsheetFormat } from './spreadsheet-format.provider.js'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import type { IOnPluginBootstrap, IOnPluginDestroy } from '@xpert-ai/plugin-sdk'
 import { XpertServerPlugin } from '@xpert-ai/plugin-sdk'
@@ -25,6 +31,10 @@ export const OFFICE_EDITOR_ENTITIES = [
   imports: [TypeOrmModule.forFeature(OFFICE_EDITOR_ENTITIES)],
   entities: OFFICE_EDITOR_ENTITIES,
   providers: [
+    OfficeWorkbookService, OfficeWorkbookContent, OfficeWorkbookEditor, OfficeWorkbookView,
+    OfficeSpreadsheetFormat,
+    OfficeFileService,
+    OfficeFileView,
     OfficeEditorService,
     OfficeEditorMiddleware,
     OfficeEditorViewProvider,

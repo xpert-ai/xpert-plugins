@@ -64,7 +64,7 @@ function setup() {
       async revokeArtifactShare({ artifactId }) { links.get(artifactId).status = 'revoked' },
       async listArtifacts() { return { items: [...artifacts.values()] } },
       async findArtifactBySource(source) { return [...artifacts.values()].find(a => a.resourceId === source.resourceId) },
-      async createArtifact(input) { const a = { id: randomUUID(), ...input.source, ...input.scope, title: input.title }; artifacts.set(a.id, a); return a },
+      async createArtifact(input) { const a = { id: randomUUID(), status: 'active', ...input.source, ...input.scope, title: input.title }; artifacts.set(a.id, a); return a },
       async getArtifact(id) { return artifacts.get(id) },
       async listArtifactVersions({ artifactId }) { return versions.filter(v => v.artifactId === artifactId) },
       async ensureArtifactVersion(input) {

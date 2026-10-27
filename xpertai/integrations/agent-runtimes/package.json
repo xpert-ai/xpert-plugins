@@ -37,12 +37,12 @@
     }
   },
   "peerDependencies": {
-    "@xpert-ai/plugin-sdk": "^3.20.0",
+    "@xpert-ai/plugin-sdk": "^3.28.0",
     "@nestjs/common": "^11.1.6",
     "@langchain/core": "^0.3.72",
     "zod": "^3.25.67",
     "@anthropic-ai/claude-agent-sdk": "^0.3.278",
-    "@xpert-ai/contracts": "^3.20.0"
+    "@xpert-ai/contracts": "^3.28.0"
   },
   "peerDependenciesMeta": {
     "@anthropic-ai/claude-agent-sdk": {

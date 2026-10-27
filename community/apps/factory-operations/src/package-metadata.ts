@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 interface PackageMetadata {
   name: string
   version: string
+  xpert: { plugin: { level: 'tenant'; artifactNamespace: string } }
 }
 
 const moduleDir = dirname(fileURLToPath(import.meta.url))

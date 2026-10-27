@@ -1,4 +1,5 @@
 import type { RoleKey } from './contracts.js'
+import { MATERIAL_IDENTITY_LOGO_URL } from './branding.js'
 export const ROLES = [
   {
     key: 'coordinator',
@@ -9,10 +10,7 @@ export const ROLES = [
     feature: 'material_identity_coordinator',
     nodeKeys: [],
     avatar: {
-      emoji: {
-        id: 'compass',
-        unified: '1f9ed',
-      },
+      url: MATERIAL_IDENTITY_LOGO_URL,
       background: 'rgb(239, 246, 255)',
     },
   },

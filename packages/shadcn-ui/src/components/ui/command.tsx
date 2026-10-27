@@ -14,6 +14,7 @@ import {
   InputGroupAddon,
 } from "#components/ui/input-group"
 import { SearchIcon, CheckIcon } from "lucide-react"
+import { useUiText } from "../../i18n"
 
 function Command({
   className,
@@ -32,8 +33,8 @@ function Command({
 }
 
 function CommandDialog({
-  title = "Command Palette",
-  description = "Search for a command to run...",
+  title,
+  description,
   children,
   className,
   showCloseButton = false,
@@ -44,11 +45,12 @@ function CommandDialog({
   className?: string
   showCloseButton?: boolean
 }) {
+  const ui = useUiText()
   return (
     <Dialog {...props}>
       <DialogHeader className="sr-only">
-        <DialogTitle>{title}</DialogTitle>
-        <DialogDescription>{description}</DialogDescription>
+        <DialogTitle>{title ?? ui('commandTitle')}</DialogTitle>
+        <DialogDescription>{description ?? ui('commandDescription')}</DialogDescription>
       </DialogHeader>
       <DialogContent
         className={cn(

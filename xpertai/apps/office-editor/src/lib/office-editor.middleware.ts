@@ -26,7 +26,8 @@ const documentTypeSchema = z.enum(OFFICE_EDITOR_DOCUMENT_TYPES)
 const createDocumentSchema = z.object({
   documentType: documentTypeSchema.describe('Explicit Office document type. Do not infer this from title or localized text.'),
   title: z.string().min(1),
-  description: z.string().optional()
+  description: z.string().optional(),
+  requestId: z.string().uuid().optional().describe('Required for a Project spreadsheet. Generate a UUID once and reuse it when retrying the same creation.')
 })
 
 const listDocumentsSchema = z.object({
@@ -179,14 +180,14 @@ export class OfficeEditorMiddleware implements IAgentMiddlewareStrategy<Record<s
       name: OFFICE_EDITOR_MIDDLEWARE_NAME,
       tools: [
         tool(
-          async (input) => JSON.stringify(await this.service.createDocument(scope, {
+          async (input) => JSON.stringify(await this.service.createForAssistant(scope, {
             documentType: input.documentType as OfficeDocumentType,
             title: input.title,
             description: input.description
-          }), null, 2),
+          }, input.requestId), null, 2),
           {
             name: 'office_create_document',
-            description: 'Create a Univer-native Office document. Always pass explicit documentType: spreadsheet, document, or presentation.',
+            description: 'Create an Office document. Project spreadsheets become xpert.spreadsheet resources using native JSON and version-checked saves. Pass explicit documentType; for spreadsheet in a Project also pass a stable UUID requestId. Docs and Slides keep their existing workflow.',
             schema: createDocumentSchema
           }
         ),
@@ -196,7 +197,7 @@ export class OfficeEditorMiddleware implements IAgentMiddlewareStrategy<Record<s
             search: input.search,
             page: input.page,
             pageSize: input.pageSize
-          }), null, 2),
+          }, true), null, 2),
           {
             name: 'office_list_documents',
             description: 'List Office Editor documents visible to the current tenant, organization, and workspace scope.',
@@ -209,7 +210,7 @@ export class OfficeEditorMiddleware implements IAgentMiddlewareStrategy<Record<s
           }), null, 2),
           {
             name: 'office_read_document',
-            description: 'Read the latest persisted Office document snapshot and queued operations before proposing edits.',
+            description: 'Read the latest persisted Office snapshot. For model office-editor.univer-workbook use office_excel_read and office_excel_edit with expectedVersionNumber and idempotencyKey; never queue whole-snapshot edits.',
             schema: documentIdSchema
           }
         ),
@@ -221,7 +222,7 @@ export class OfficeEditorMiddleware implements IAgentMiddlewareStrategy<Record<s
           }), null, 2),
           {
             name: 'office_excel_read',
-            description: 'Read workbook metadata or a bounded XLSX range from the current persisted Excel file version. Call this before editing.',
+            description: 'Read the current workbook and version before editing. Supports both native Project workbooks and existing XLSX file versions. Native formula results may be cached until Univer recalculates.',
             schema: excelReadSchema
           }
         ),
@@ -237,13 +238,13 @@ export class OfficeEditorMiddleware implements IAgentMiddlewareStrategy<Record<s
             return [
               JSON.stringify(result, null, 2),
               {
-                files: [result.file]
+                files: result.file ? [result.file] : []
               }
             ]
           },
           {
             name: 'office_excel_edit',
-            description: 'Automatically edit the persisted XLSX file on the server, create a new immutable file version and synchronized Univer snapshot, and return the edited XLSX artifact. Use expectedVersionNumber to prevent overwriting concurrent work.',
+            description: 'Edit the same Office workbook on the server. Native Project workbooks require expectedVersionNumber and idempotencyKey and preserve Univer JSON, with conflicts rejected. Native AI operations support cell values, formulas, clearing and creating sheets; rename/delete sheets in the editor to preserve references. Existing XLSX documents return an XLSX artifact. Always read the current version first; never blindly retry a stale write.',
             schema: excelEditSchema,
             responseFormat: 'content_and_artifact'
           }
@@ -267,7 +268,7 @@ export class OfficeEditorMiddleware implements IAgentMiddlewareStrategy<Record<s
             return [
               JSON.stringify(result, null, 2),
               {
-                files: [result.file]
+                files: result.file ? [result.file] : []
               }
             ]
           },

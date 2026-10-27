@@ -1,4 +1,5 @@
 import { runnerCompletion } from './runtime-completion.js'
+import type { AgentRuntimeDeploymentSpec, AgentInvocationScope } from '@xpert-ai/plugin-sdk'
 import { agentPrompt } from './input.js'
 import { outputDelivery, taskResult } from './task-result.js'
 import { Injectable } from '@nestjs/common'
@@ -13,9 +14,9 @@ import {
   type IAgentRuntimeStrategy
 } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod'
-import { ProcessRuntime } from './process-runtime.js'
+import { RuntimeProfiles } from './managed-profiles.js'
 import { appendActivities, openCodeActivities } from './activity.js'
-import type { RuntimeProfile } from './config.js'
+import type { RuntimeProfile } from './managed-profiles.js'
 
 const Session = z.object({ id: z.string() })
 const Message = z.object({
@@ -43,6 +44,16 @@ const Message = z.object({
 @Injectable()
 @AgentRuntimeStrategy('opencode')
 export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
+  get managedProfiles() {
+    return this.profiles.managedProfiles('opencode')
+  }
+  /** A service-owning installed strategy supplies its connection here; never guess a private URL. */
+  async resolveManagedDeployment(
+    _reference: string,
+    _scope: Readonly<AgentInvocationScope>
+  ): Promise<AgentRuntimeDeploymentSpec | undefined> {
+    return undefined
+  }
   readonly capabilities = {
     completionEvidence: 2 as const,
     idempotentCancellation: true,
@@ -53,27 +64,32 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
     cancellation: true,
     background: true
   }
-  constructor(private readonly profiles: ProcessRuntime) {}
+  constructor(private readonly profiles: RuntimeProfiles) {}
 
   async start(request: AgentRuntimeStart, context: AgentRuntimeContext) {
     if (request.previous) return this.inspect(request.previous, context)
     const profile = this.profiles.profile(request, context, 'opencode')
-    let runner: AgentRuntimeHandle['runner']
-    if (profile.executionEnvironment === 'computer') {
-      runner = await context.capabilities
-        .require(AgentExecutionRunnerCapability)
-        .start(context.invocationId, async (receipt) => {
-          await context.checkpoint({
-            status: 'running',
-            handle: {
-              sessionId: 'pending',
-              runId: context.invocationId,
-              runner: receipt,
-              metadata: { profileId: profile.id, profileVersion: profile.version }
-            }
-          })
-        })
-    }
+    const runner =
+      profile.executionEnvironment === 'computer'
+        ? await context.capabilities
+            .require(AgentExecutionRunnerCapability)
+            .start(context.invocationId, async (receipt) => {
+              await context.checkpoint({
+                status: 'running',
+                handle: {
+                  sessionId: 'pending',
+                  runId: context.invocationId,
+                  runner: receipt,
+                  metadata: {
+                    profileId: profile.id,
+                    profileVersion: profile.version,
+                    workspaceId: context.scope.workspaceId,
+                    managedRuntime: request.target.configuration.managedRuntime
+                  }
+                }
+              })
+            })
+        : undefined
     const pending: AgentRuntimeHandle = { sessionId: 'pending', runId: context.invocationId, runner }
     const session = Session.parse(
       await this.http(profile, '/session', 'POST', { title: `Xpert ${context.invocationId}` }, context, pending)
@@ -87,39 +103,27 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
         profileVersion: profile.version,
         exclusiveSession: true,
         executionGeneration: context.executionTarget?.generation ?? null,
-        delivery: outputDelivery(request.input.delivery)
+        workspaceId: context.scope.workspaceId,
+        delivery: outputDelivery(request.input.delivery),
+        ...(profile.deploymentRevision ? { deploymentRevision: profile.deploymentRevision } : {}),
+        ...(request.target.configuration.managedRuntime
+          ? { managedRuntime: request.target.configuration.managedRuntime }
+          : {})
       }
     }
     const observation: AgentRuntimeObservation = { status: 'running', handle }
     await context.checkpoint(observation)
-    if (runner) {
-      await this.http(
-        profile,
-        `/session/${encodeURIComponent(session.id)}/prompt_async`,
-        'POST',
-        {
-          messageID: handle.runId,
-          parts: [{ type: 'text', text: agentPrompt(request.input) }]
-        },
-        context,
-        handle
-      )
-      return observation
-    }
-    // Session receipt is durable before dispatch. Reconnection only inspects, never re-sends.
-    void this.http(profile, `/session/${encodeURIComponent(session.id)}/message`, 'POST', {
-      messageID: handle.runId,
-      parts: [{ type: 'text', text: agentPrompt(request.input) }]
-    })
-      .then(async (raw) => {
-        const message = Message.parse(raw)
-        await context.checkpoint(await this.observe(profile, handle, message))
-      })
-      .catch(async () => {
-        await context
-          .checkpoint({ status: 'unknown', handle, error: 'OpenCode request disconnected; inspect before retrying' })
-          .catch(() => undefined)
-      })
+    await this.http(
+      profile,
+      `/session/${encodeURIComponent(session.id)}/prompt_async`,
+      'POST',
+      {
+        messageID: handle.runId,
+        parts: [{ type: 'text', text: agentPrompt(request.input) }]
+      },
+      context,
+      handle
+    )
     return observation
   }
 
@@ -289,7 +293,16 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
       return { status: 'unknown', handle }
     const messages = z
       .array(Message)
-      .parse(await this.http(profile, `/session/${encodeURIComponent(handle.sessionId)}/message`, 'GET'))
+      .parse(
+        await this.http(
+          profile,
+          `/session/${encodeURIComponent(handle.sessionId)}/message`,
+          'GET',
+          undefined,
+          context,
+          handle
+        )
+      )
     if (
       messages.some(
         (message) =>
@@ -298,21 +311,16 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
       )
     )
       return { status: 'unknown', handle }
-    z.boolean().parse(await this.http(profile, `/session/${encodeURIComponent(handle.sessionId)}/abort`, 'POST', {}))
+    z.boolean().parse(
+      await this.http(profile, `/session/${encodeURIComponent(handle.sessionId)}/abort`, 'POST', {}, context, handle)
+    )
     // The session-level acknowledgement does not prove tool/descendant exit.
     return { status: 'cancelling', handle }
   }
 
   private profile(handle: AgentRuntimeHandle, context: AgentRuntimeContext) {
-    const profile = this.profiles.configuration.profiles.find(
-      (item) => item.id === handle.metadata?.profileId && item.provider === 'opencode'
-    )
-    if (
-      !profile ||
-      profile.version !== handle.metadata?.profileVersion ||
-      !context.scope.workspaceId ||
-      !profile.workspaceIds.includes(context.scope.workspaceId)
-    )
+    const profile = this.profiles.receiptProfile(handle, context, 'opencode')
+    if (!profile || profile.version !== handle.metadata?.profileVersion || !context.scope.workspaceId)
       throw new Error('OpenCode profile is unavailable')
     return profile
   }
@@ -346,36 +354,33 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
     handle?: AgentRuntimeHandle,
     limit?: number
   ): Promise<unknown> {
-    if (profile.executionEnvironment === 'computer') {
-      if (!context || !handle?.runner) throw new Error('Computer runner receipt is unavailable')
-      return context.capabilities
-        .require(AgentExecutionRunnerCapability)
-        .request(handle.runner, { method, path, body, ...(limit ? { query: { limit } } : {}) })
+    if (!context) throw new Error('Runtime context is unavailable')
+    if (profile.executionEnvironment === 'service') {
+      const deployment = await this.profiles.deployment(profile, context)
+      if (deployment.type !== 'service') throw new Error('OpenCode service is unavailable')
+      const base = new URL(deployment.serverUrl)
+      if (!['http:', 'https:'].includes(base.protocol) || base.username || base.password)
+        throw new Error('Invalid OpenCode server URL')
+      const url = new URL(`${base.pathname.replace(/\/$/, '')}${path}`, base.origin)
+      url.searchParams.set('directory', deployment.workspaceRoot)
+      if (limit) url.searchParams.set('limit', String(limit))
+      const headers: Record<string, string> = { 'content-type': 'application/json' }
+      if (deployment.authorization) headers.authorization = deployment.authorization
+      const response = await fetch(url, {
+        method,
+        headers,
+        ...(body ? { body: JSON.stringify(body) } : {}),
+        redirect: 'error',
+        signal: AbortSignal.timeout(deployment.timeoutMs)
+      })
+      if (!response.ok) throw new Error(`OpenCode HTTP ${response.status}`)
+      const text = await response.text()
+      if (text.length > 4 * 1024 * 1024) throw new Error('OpenCode response exceeded the size limit')
+      return JSON.parse(text)
     }
-    if (!profile.serverUrl) throw new Error('OpenCode server URL is required')
-    const base = new URL(profile.serverUrl)
-    if (!['http:', 'https:'].includes(base.protocol) || base.username || base.password)
-      throw new Error('Invalid OpenCode server URL')
-    const url = new URL(`${base.pathname.replace(/\/$/, '')}${path}`, base.origin)
-    if (!profile.workspaceRoot) throw new Error('OpenCode workspace root is required')
-    url.searchParams.set('directory', profile.workspaceRoot)
-    if (limit) url.searchParams.set('limit', String(limit))
-    const headers: Record<string, string> = { 'content-type': 'application/json' }
-    if (profile.authorizationEnvironmentKey) {
-      const authorization = process.env[profile.authorizationEnvironmentKey]
-      if (!authorization) throw new Error('OpenCode authorization is not configured')
-      headers.authorization = authorization
-    }
-    const response = await fetch(url, {
-      method,
-      headers,
-      ...(body ? { body: JSON.stringify(body) } : {}),
-      redirect: 'error',
-      signal: AbortSignal.timeout(profile.timeoutMs)
-    })
-    if (!response.ok) throw new Error(`OpenCode HTTP ${response.status}`)
-    const text = await response.text()
-    if (text.length > 4 * 1024 * 1024) throw new Error('OpenCode response exceeded the size limit')
-    return JSON.parse(text)
+    if (!handle?.runner) throw new Error('Computer runner receipt is unavailable')
+    return context.capabilities
+      .require(AgentExecutionRunnerCapability)
+      .request(handle.runner, { method, path, body, ...(limit ? { query: { limit } } : {}) })
   }
 }

@@ -8,13 +8,16 @@ import {
   type AgentRuntimeStart,
   type IAgentRuntimeStrategy
 } from '@xpert-ai/plugin-sdk'
-import { ProcessRuntime } from './process-runtime.js'
+import { RuntimeProfiles } from './managed-profiles.js'
 import { startComputerCodex, inspectComputerCodex, requireComputerProfile } from './codex-computer.js'
 
 /** Computer exec is a separate capability surface from the interactive App Server adapter. */
 @Injectable()
 @AgentRuntimeStrategy('codex-computer')
 export class CodexComputerRuntimeStrategy implements IAgentRuntimeStrategy {
+  get managedProfiles() {
+    return this.profiles.managedProfiles('codex-computer')
+  }
   readonly capabilities = {
     completionEvidence: 2 as const,
     idempotentCancellation: true,
@@ -25,7 +28,7 @@ export class CodexComputerRuntimeStrategy implements IAgentRuntimeStrategy {
     cancellation: true,
     background: true
   }
-  constructor(private readonly profiles: ProcessRuntime) {}
+  constructor(private readonly profiles: RuntimeProfiles) {}
   start(request: AgentRuntimeStart, context: AgentRuntimeContext) {
     if (request.previous) return this.inspect(request.previous, context)
     return startComputerCodex(request, context, this.profiles.profile(request, context, 'codex-computer'))

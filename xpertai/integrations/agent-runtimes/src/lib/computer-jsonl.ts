@@ -9,8 +9,8 @@ import {
 import { z } from 'zod'
 import { agentPrompt } from './input.js'
 import { outputDelivery, taskResult } from './task-result.js'
-import type { RuntimeProfile } from './config.js'
-import type { ProcessRuntime } from './process-runtime.js'
+import type { RuntimeProfile } from './managed-profiles.js'
+import type { RuntimeProfiles } from './managed-profiles.js'
 import type { JsonlActivityProtocol } from './activity.js'
 import { collectJsonlActivity } from './computer-activity.js'
 import { appendActivities } from './activity.js'
@@ -42,6 +42,10 @@ export async function startComputerJsonl(
   const metadata = {
     profileId: profile.id,
     profileVersion: profile.version,
+    workspaceId: context.scope.workspaceId,
+    ...(request.target.configuration.managedRuntime
+      ? { managedRuntime: request.target.configuration.managedRuntime }
+      : {}),
     delivery: outputDelivery(request.input.delivery)
   }
   const receipt = await runner.start(context.invocationId, async (receipt) => {
@@ -70,7 +74,7 @@ export async function startComputerJsonl(
 export async function inspectComputerJsonl(
   handle: AgentRuntimeHandle,
   context: AgentRuntimeContext,
-  profiles: ProcessRuntime,
+  profiles: RuntimeProfiles,
   adapter: ComputerJsonlAdapter
 ): Promise<AgentRuntimeObservation> {
   requireComputerProfile(handle, context, profiles, adapter)
@@ -188,20 +192,17 @@ export async function inspectComputerJsonl(
 export function requireComputerProfile(
   handle: AgentRuntimeHandle,
   context: AgentRuntimeContext,
-  profiles: ProcessRuntime,
+  profiles: RuntimeProfiles,
   adapter: ComputerJsonlAdapter
 ) {
-  const profile = profiles.configuration.profiles.find(
-    (item) => item.id === handle.metadata?.profileId && item.provider === adapter.provider
-  )
+  const profile = profiles.receiptProfile(handle, context, adapter.provider)
   if (
     !handle.runner ||
     handle.runner.tool.id !== adapter.toolId ||
     !profile ||
     profile.executionEnvironment !== 'computer' ||
     profile.version !== handle.metadata?.profileVersion ||
-    !context.scope.workspaceId ||
-    !profile.workspaceIds.includes(context.scope.workspaceId)
+    !context.scope.workspaceId
   )
     throw new Error('Computer task profile is unavailable')
 }
