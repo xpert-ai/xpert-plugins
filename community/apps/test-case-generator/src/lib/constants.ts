@@ -12,11 +12,21 @@ export const TEST_CASE_GENERATE_TOOL_NAME = 'test_case_generate'
 export const TEST_CASE_SAVE_TOOL_NAME = 'test_case_save_project'
 export const TEST_CASE_LIST_TOOL_NAME = 'test_case_list_projects'
 export const TEST_CASE_DELETE_TOOL_NAME = 'test_case_delete_project'
+export const TEST_CASE_GET_PROJECT_TOOL_NAME = 'test_case_get_project'
+export const TEST_CASE_REVIEW_TOOL_NAME = 'test_case_review'
+export const TEST_CASE_DATA_TOOL_NAME = 'test_data_generate'
+export const TEST_CASE_SCRIPT_TOOL_NAME = 'test_case_to_script'
+export const BUG_TO_REGRESSION_TOOL_NAME = 'bug_to_regression'
 export const TEST_CASE_GENERATOR_MIDDLEWARE_TOOL_NAMES = [
   TEST_CASE_GENERATE_TOOL_NAME,
   TEST_CASE_SAVE_TOOL_NAME,
   TEST_CASE_LIST_TOOL_NAME,
-  TEST_CASE_DELETE_TOOL_NAME
+  TEST_CASE_DELETE_TOOL_NAME,
+  TEST_CASE_GET_PROJECT_TOOL_NAME,
+  TEST_CASE_REVIEW_TOOL_NAME,
+  TEST_CASE_DATA_TOOL_NAME,
+  TEST_CASE_SCRIPT_TOOL_NAME,
+  BUG_TO_REGRESSION_TOOL_NAME
 ] as const
 export const AGENT_WORKBENCH_MAIN_SLOT = 'agent.workbench.main'
 export const AGENT_WORKBENCH_FIXED_SLOT = 'agent.workbench.fixed'

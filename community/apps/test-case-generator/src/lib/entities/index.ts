@@ -1,2 +1,5 @@
 export * from './test-case.entity'
 export * from './test-case-project.entity'
+export * from './test-case-review.entity'
+export * from './automation-script.entity'
+export * from './bug.entity'

@@ -42,6 +42,17 @@ export class TestCaseEntity {
   @Column({ type: 'varchar', default: 'P1' })
   priority?: TestCasePriority
 
+  @Column({ type: 'jsonb', nullable: true })
+  testData?: {
+    fields: Array<{
+      name: string
+      valid: string[]
+      invalid: string[]
+      boundary: string[]
+    }>
+    notes?: string
+  }
+
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt?: Date
 

@@ -10,17 +10,38 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod/v3'
 import {
+  BUG_TO_REGRESSION_TOOL_NAME,
+  TEST_CASE_DATA_TOOL_NAME,
+  TEST_CASE_DELETE_TOOL_NAME,
   TEST_CASE_GENERATE_TOOL_NAME,
+  TEST_CASE_GET_PROJECT_TOOL_NAME,
   TEST_CASE_GENERATOR_FEATURE,
   TEST_CASE_GENERATOR_ICON,
   TEST_CASE_GENERATOR_MIDDLEWARE_NAME,
-  TEST_CASE_DELETE_TOOL_NAME,
   TEST_CASE_LIST_TOOL_NAME,
-  TEST_CASE_SAVE_TOOL_NAME
+  TEST_CASE_REVIEW_TOOL_NAME,
+  TEST_CASE_SAVE_TOOL_NAME,
+  TEST_CASE_SCRIPT_TOOL_NAME
 } from './constants'
 import { TestCaseGeneratorService } from './test-case-generator.service'
-import type { TestCaseSaveProjectInput, TestCaseScope } from './types'
-import { TEST_CASE_REQUIREMENT_MIN_LENGTH, validateGeneratedTestCase } from './types'
+import type {
+  AutomationFramework,
+  BugSeverity,
+  ReviewIssue,
+  RequirementPoint,
+  TestCaseData,
+  TestCaseSaveProjectInput,
+  TestCaseScope
+} from './types'
+import {
+  TEST_CASE_REQUIREMENT_MIN_LENGTH,
+  validateAutomationFramework,
+  validateBugSeverity,
+  validateGeneratedTestCase,
+  validateRequirementPoint,
+  validateReviewIssue,
+  validateTestCaseData
+} from './types'
 
 const testCaseItemSchema = z.object({
   name: z.string().min(1).describe('Test case name, concise and descriptive.'),
@@ -60,6 +81,77 @@ const testCaseListSchema = z.object({
 
 const testCaseDeleteSchema = z.object({
   projectId: z.string().min(1).describe('Test case project id to delete.')
+})
+
+const testDataFieldSchema = z.object({
+  name: z.string().min(1).describe('Field or parameter name, e.g. 用户名, 数量.'),
+  valid: z.array(z.string()).describe('Valid/equivalence-class values that should pass.'),
+  invalid: z.array(z.string()).describe('Invalid values that should be rejected.'),
+  boundary: z.array(z.string()).describe('Boundary values such as min, max, min-1, max+1.')
+})
+
+const testDataSchema = z.object({
+  fields: z.array(testDataFieldSchema).min(1).describe('Test data fields for the test case.'),
+  notes: z.string().optional().describe('Optional notes about the test data.')
+})
+
+const requirementPointSchema = z.object({
+  point: z.string().min(1).describe('A single testable requirement point decomposed from the requirement.'),
+  covered: z.boolean().describe('Whether at least one existing test case covers this point.'),
+  relatedCaseNames: z.array(z.string()).describe('Names of related test cases covering this point.')
+})
+
+const reviewIssueSchema = z.object({
+  type: z.enum(['duplicate', 'missing', 'priority', 'other']).describe('Issue category.'),
+  description: z.string().min(1).describe('What the problem is.'),
+  caseNames: z.array(z.string()).optional().describe('Related test case names.'),
+  suggestion: z.string().optional().describe('How to fix it.')
+})
+
+const testCaseReviewSchema = z.object({
+  projectId: z.string().optional().describe('Saved project id when reviewing a persisted project.'),
+  requirementText: z.string().min(1).describe('Requirement text being reviewed.'),
+  requirementPoints: z.array(requirementPointSchema).describe('Decomposed requirement points with coverage status.'),
+  issues: z.array(reviewIssueSchema).describe('Found issues such as duplicates, missing scenarios, or mis-prioritized cases.'),
+  suggestedCases: z.array(testCaseItemSchema).describe('New test cases suggested to fill the gaps.'),
+  coverageScore: z.number().min(0).max(100).describe('Overall coverage score 0-100.'),
+  summary: z.string().describe('Brief review summary in Chinese.')
+})
+
+const testDataGenerateSchema = z.object({
+  projectId: z.string().optional().describe('Saved project id when persisting test data to its cases.'),
+  cases: z
+    .array(
+      z.object({
+        name: z.string().min(1).describe('Test case name to match.'),
+        testData: testDataSchema
+      })
+    )
+    .min(1)
+    .describe('Test data generated for each test case.')
+})
+
+const scriptItemSchema = z.object({
+  testCaseId: z.string().optional().describe('Related test case id when available.'),
+  testCaseName: z.string().optional().describe('Related test case name.'),
+  language: z.string().optional().describe('Script language, e.g. typescript, python.'),
+  filename: z.string().min(1).describe('Script filename, e.g. login.spec.ts.'),
+  content: z.string().min(1).describe('Full generated script content.')
+})
+
+const testCaseScriptSchema = z.object({
+  projectId: z.string().optional().describe('Saved project id when converting a persisted project.'),
+  framework: z.enum(['playwright', 'pytest', 'postman']).describe('Automation framework to generate.'),
+  scripts: z.array(scriptItemSchema).min(1).describe('Generated automation scripts.')
+})
+
+const bugRegressionSchema = z.object({
+  projectId: z.string().optional().describe('Related project id when the bug belongs to one.'),
+  title: z.string().min(1).describe('Short bug title.'),
+  description: z.string().min(1).describe('Bug description including reproduction steps, expected and actual behavior.'),
+  severity: z.enum(['critical', 'major', 'minor']).describe('Bug severity.'),
+  rootCause: z.string().describe('Inferred root cause of the bug.'),
+  regressionCases: z.array(testCaseItemSchema).min(1).describe('Regression test cases designed to catch this bug.')
 })
 
 @Injectable()
@@ -196,11 +288,255 @@ export class TestCaseGeneratorMiddleware implements IAgentMiddlewareStrategy<Rec
       }
     )
 
+    const getProjectTool = tool(
+      async (input: { projectId: string }) => {
+        const project = await this.service.getProjectById(scope, input.projectId)
+        return JSON.stringify({
+          success: true,
+          message: 'Loaded test case project detail.',
+          data: {
+            id: project.id,
+            requirementText: project.requirementText,
+            granularity: project.granularity,
+            testCases: (project.testCases ?? []).map((tc) => ({
+              id: tc.id,
+              name: tc.name,
+              precondition: tc.precondition,
+              steps: tc.steps,
+              expectedResult: tc.expectedResult,
+              priority: tc.priority,
+              testData: tc.testData ?? null
+            })),
+            createdAt: project.createdAt
+          }
+        })
+      },
+      {
+        name: TEST_CASE_GET_PROJECT_TOOL_NAME,
+        description:
+          'Load a saved test case project with its full test cases. Call this before reviewing, generating test data, or converting a persisted project to scripts.',
+        schema: z.object({ projectId: z.string().min(1) })
+      }
+    )
+
+    const reviewTool = tool(
+      async (input: z.infer<typeof testCaseReviewSchema>) => {
+        try {
+          const points = (input.requirementPoints ?? [])
+            .map(validateRequirementPoint)
+            .filter((p): p is RequirementPoint => p !== null)
+          const issues = (input.issues ?? [])
+            .map(validateReviewIssue)
+            .filter((p): p is ReviewIssue => p !== null)
+          const suggestedCases = (input.suggestedCases ?? []).filter(validateGeneratedTestCase)
+
+          const review = await this.service.saveReview(scope, {
+            projectId: input.projectId ?? undefined,
+            requirementText: input.requirementText,
+            requirementPoints: points,
+            issues,
+            suggestedCases,
+            coverageScore: input.coverageScore,
+            summary: input.summary
+          })
+
+          return JSON.stringify({
+            success: true,
+            message: `评审完成，覆盖率 ${review.coverageScore}%（${review.coveredPoints}/${review.totalPoints} 个需求点），发现 ${review.issues.length} 个问题，建议补充 ${suggestedCases.length} 条用例。`,
+            data: {
+              id: review.id,
+              projectId: review.projectId,
+              coverageScore: review.coverageScore,
+              coveredPoints: review.coveredPoints,
+              totalPoints: review.totalPoints,
+              requirementPoints: review.requirementPoints,
+              issues: review.issues,
+              suggestedCases
+            }
+          })
+        } catch (error) {
+          return JSON.stringify({ success: false, errorCode: 'VALIDATION_ERROR', message: errorMessage(error), data: null })
+        }
+      },
+      {
+        name: TEST_CASE_REVIEW_TOOL_NAME,
+        description:
+          'Review test cases for a requirement: decompose the requirement into testable points, check coverage of each point, find duplicates/missing scenarios/priority issues, and suggest additional cases. Provide the structured review. If a projectId is given, the report is persisted against that project.',
+        schema: testCaseReviewSchema
+      }
+    )
+
+    const dataTool = tool(
+      async (input: z.infer<typeof testDataGenerateSchema>) => {
+        const cases = (input.cases ?? [])
+          .map((c) => ({ name: c.name?.trim(), testData: validateTestCaseData(c.testData) }))
+          .filter((c): c is { name: string; testData: TestCaseData } => Boolean(c.name && c.testData))
+        if (!cases.length) {
+          return JSON.stringify({
+            success: false,
+            errorCode: 'INVALID_INPUT',
+            message: '未能生成有效的测试数据，请为每个字段提供正常/异常/边界值。',
+            data: null
+          })
+        }
+
+        if (input.projectId) {
+          try {
+            const result = await this.service.applyTestData(scope, input.projectId, cases)
+            return JSON.stringify({
+              success: true,
+              message: `已为 ${result.updatedCount} 条测试用例生成并保存测试数据。`,
+              data: { projectId: result.projectId, updatedCount: result.updatedCount, cases }
+            })
+          } catch (error) {
+            return JSON.stringify({ success: false, errorCode: 'VALIDATION_ERROR', message: errorMessage(error), data: null })
+          }
+        }
+
+        return JSON.stringify({
+          success: true,
+          message: `已为 ${cases.length} 条测试用例生成测试数据（未保存，可保存项目后持久化）。`,
+          data: { cases }
+        })
+      },
+      {
+        name: TEST_CASE_DATA_TOOL_NAME,
+        description:
+          'Generate test data for test cases: for each field provide valid equivalence-class values, invalid values, and boundary values. If a projectId is given, the test data is persisted to the matching cases.',
+        schema: testDataGenerateSchema
+      }
+    )
+
+    const scriptTool = tool(
+      async (input: z.infer<typeof testCaseScriptSchema>) => {
+        const framework = validateAutomationFramework(input.framework)
+        if (!framework) {
+          return JSON.stringify({
+            success: false,
+            errorCode: 'INVALID_INPUT',
+            message: 'Unsupported automation framework. Use playwright, pytest, or postman.',
+            data: null
+          })
+        }
+        const scripts = (input.scripts ?? [])
+          .filter((s) => s.filename?.trim() && s.content?.trim())
+          .map((s) => ({
+            testCaseId: s.testCaseId?.trim() || undefined,
+            testCaseName: s.testCaseName?.trim() || undefined,
+            language: s.language?.trim() || undefined,
+            filename: s.filename.trim(),
+            content: s.content.trim()
+          }))
+        if (!scripts.length) {
+          return JSON.stringify({
+            success: false,
+            errorCode: 'INVALID_INPUT',
+            message: 'No valid scripts were generated.',
+            data: null
+          })
+        }
+
+        try {
+          const result = await this.service.saveScripts(scope, {
+            projectId: input.projectId ?? undefined,
+            framework,
+            scripts
+          })
+          return JSON.stringify({
+            success: true,
+            message: `已生成 ${result.count} 个 ${framework} 自动化脚本并保存。`,
+            data: {
+              framework,
+              count: result.count,
+              scripts: result.items.map((s) => ({
+                id: s.id,
+                testCaseName: s.testCaseName,
+                language: s.language,
+                filename: s.filename,
+                content: s.content
+              }))
+            }
+          })
+        } catch (error) {
+          return JSON.stringify({ success: false, errorCode: 'VALIDATION_ERROR', message: errorMessage(error), data: null })
+        }
+      },
+      {
+        name: TEST_CASE_SCRIPT_TOOL_NAME,
+        description:
+          'Convert test cases into runnable automation scripts. Use playwright for web UI (TypeScript), pytest for Python, or postman for API tests. Generate complete, ready-to-run scripts. Scripts are persisted when a projectId is given.',
+        schema: testCaseScriptSchema
+      }
+    )
+
+    const bugTool = tool(
+      async (input: z.infer<typeof bugRegressionSchema>) => {
+        const regressionCases = (input.regressionCases ?? []).filter(validateGeneratedTestCase)
+        if (!regressionCases.length) {
+          return JSON.stringify({
+            success: false,
+            errorCode: 'INVALID_INPUT',
+            message: 'Please provide at least one regression test case.',
+            data: null
+          })
+        }
+
+        try {
+          const severity: BugSeverity = validateBugSeverity(input.severity)
+          const bug = await this.service.createBug(scope, {
+            projectId: input.projectId ?? undefined,
+            title: input.title,
+            description: input.description,
+            severity,
+            rootCause: input.rootCause,
+            regressionCases
+          })
+          return JSON.stringify({
+            success: true,
+            message: `已记录缺陷「${bug.title}」（${bug.severity}），分析根因并生成 ${regressionCases.length} 条回归用例。`,
+            data: {
+              id: bug.id,
+              projectId: bug.projectId,
+              title: bug.title,
+              severity: bug.severity,
+              status: bug.status,
+              rootCause: bug.rootCause,
+              regressionCases
+            }
+          })
+        } catch (error) {
+          return JSON.stringify({ success: false, errorCode: 'VALIDATION_ERROR', message: errorMessage(error), data: null })
+        }
+      },
+      {
+        name: BUG_TO_REGRESSION_TOOL_NAME,
+        description:
+          'Analyze a bug report (title, description with reproduction steps, expected vs actual behavior), infer the root cause, and create regression test cases that would catch the bug. The bug and its regression cases are persisted.',
+        schema: bugRegressionSchema
+      }
+    )
+
     return {
       name: TEST_CASE_GENERATOR_MIDDLEWARE_NAME,
-      tools: [generateTool, saveProjectTool, listProjectsTool, deleteProjectTool]
+      tools: [
+        generateTool,
+        saveProjectTool,
+        listProjectsTool,
+        deleteProjectTool,
+        getProjectTool,
+        reviewTool,
+        dataTool,
+        scriptTool,
+        bugTool
+      ]
     }
   }
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message
+  if (typeof error === 'string') return error
+  return 'Operation failed'
 }
 
 function scopeFromContext(context: IAgentMiddlewareContext): TestCaseScope {

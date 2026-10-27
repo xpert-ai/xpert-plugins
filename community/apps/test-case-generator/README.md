@@ -1,6 +1,6 @@
-# Test Case Generator（测试用例智能生成）
+# Test Case Generator（AI 测试工作台）
 
-AI-powered test case generator business app plugin for the Xpert open-source platform. It generates structured test cases from natural-language requirement descriptions, supports inline editing in a Workbench, and persists projects to the platform database with tenant/organization isolation.
+AI-powered **test workbench** business app plugin for the Xpert open-source platform. It is a closed-loop testing copilot: it generates structured test cases from natural-language requirements, **reviews case coverage and quality**, **generates test data**, **converts cases into automation scripts** (Playwright / pytest / Postman), and **derives regression cases from production bugs**. All artifacts are persisted to the platform database with tenant/organization isolation.
 
 ---
 
@@ -18,7 +18,8 @@ AI-powered test case generator business app plugin for the Xpert open-source pla
 ### 核心业务流程
 
 ```
-输入需求描述 → AI 生成结构化用例 → 人工编辑确认 → 保存用例库 → 历史查询恢复
+需求描述 → AI 生成用例 → 人工编辑确认 → 保存用例库
+   → 评审覆盖率/质量 → 生成测试数据 → 转自动化脚本 → 缺陷反推回归
 ```
 
 ### AI 的核心作用
@@ -27,6 +28,10 @@ AI-powered test case generator business app plugin for the Xpert open-source pla
 - **多场景用例生成**：自动覆盖正常流程、异常流程、边界条件三类场景
 - **优先级自动划分**：根据业务影响自动分配 P0（关键）/ P1（高）/ P2（中）
 - **标准化格式输出**：统一用例字段（名称、前置条件、操作步骤、预期结果、优先级）
+- **覆盖率评审与自我反思**：逐需求点核对用例覆盖度，给出覆盖率、缺口、质量问题与补充建议
+- **测试数据生成**：为每个输入字段生成正常 / 异常 / 边界三类可执行数据
+- **自动化脚本生成**：将用例翻译为可直接运行的 Playwright / pytest / Postman 脚本
+- **缺陷根因分析**：从线上缺陷反推根因，并生成一批回归测试用例
 
 ### 功能取舍说明
 
@@ -36,7 +41,11 @@ AI-powered test case generator business app plugin for the Xpert open-source pla
 | 用例行内编辑、删除、新增 | Excel 导出 |
 | 保存到用例库、历史恢复 | 多版本对比 |
 | 失败重试（输入过短/语义模糊） | 多人协作 |
-| Assistant 自然语言触发 | 商业版专属功能 |
+| **用例评审 + 覆盖率分析** | 商业版专属功能 |
+| **测试数据生成（正常/异常/边界）** | |
+| **用例转自动化脚本（Playwright/pytest/Postman）** | |
+| **缺陷反推回归（根因 + 回归用例）** | |
+| Assistant 自然语言触发 | |
 
 ---
 
@@ -49,18 +58,21 @@ src/
 ├── index.ts                                    # 插件入口（meta + config + templates + register）
 ├── xpert-test-case-generator-assistant.yaml    # Assistant DSL 模板
 └── lib/
-    ├── constants.ts                            # 插件名、feature、view key、SVG icon
-    ├── types.ts                                # TestCase/Project/Scope 类型 + 校验函数
+    ├── constants.ts                            # 插件名、feature、view key、SVG icon、9 个工具名
+    ├── types.ts                                # 用例/项目/评审/脚本/缺陷类型 + 校验函数
     ├── test-case-generator.config.ts           # Zod 配置 schema（环境变量注入）
-    ├── test-case-generator.plugin.ts           # @XpertServerPlugin NestJS 模块
-    ├── test-case-generator.service.ts          # CRUD Service + TypeORM 事务持久化
-    ├── test-case-generator.middleware.ts       # @AgentMiddleware 4 个 LangChain 工具
+    ├── test-case-generator.plugin.ts           # @XpertServerPlugin NestJS 模块（5 实体）
+    ├── test-case-generator.service.ts          # CRUD + 评审/数据/脚本/缺陷持久化
+    ├── test-case-generator.middleware.ts       # @AgentMiddleware 9 个 LangChain 工具
     ├── test-case-generator-view.provider.ts    # @ViewExtensionProvider 双页面工作台
     ├── test-case-generator.templates.ts        # Assistant 模板注册
     ├── entities/
     │   ├── index.ts
-    │   ├── test-case.entity.ts                 # plugin_test_case 表
-    │   └── test-case-project.entity.ts         # plugin_test_case_project 表
+    │   ├── test-case.entity.ts                 # plugin_test_case 表（含 testData）
+    │   ├── test-case-project.entity.ts         # plugin_test_case_project 表
+    │   ├── test-case-review.entity.ts          # plugin_test_case_review 表
+    │   ├── automation-script.entity.ts         # plugin_automation_script 表
+    │   └── bug.entity.ts                       # plugin_bug 表
     └── remote-components/
         └── test-case-workbench/
             └── app.js                          # iframe 隔离 React 双页面工作台
@@ -101,7 +113,46 @@ src/
 | steps | jsonb | 操作步骤（字符串数组） |
 | expectedResult | text | 预期结果 |
 | priority | enum | P0 / P1 / P2 |
+| testData | jsonb | 该用例的测试数据（字段数组，含正常/异常/边界值） |
 | createdAt / updatedAt | timestamp | 时间戳 |
+
+**TestCaseReview（用例评审）**：`plugin_test_case_review` 表
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | uuid | 主键 |
+| projectId | uuid | 外键 → project |
+| requirementText | text | 评审依据的需求原文 |
+| totalPoints / coveredPoints | int | 需求点总数 / 已覆盖点数 |
+| coverageScore | int | 覆盖率（coveredPoints / totalPoints 现算） |
+| requirementPoints | jsonb | 逐需求点覆盖情况 |
+| issues | jsonb | 质量问题（重复、多验证点、预期超需求等） |
+| suggestedCases | jsonb | 建议补充的用例 |
+| summary | text | 评审结论 |
+
+**AutomationScript（自动化脚本）**：`plugin_automation_script` 表
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | uuid | 主键 |
+| projectId / testCaseId | uuid | 外键 → project / 用例 |
+| testCaseName | varchar | 来源用例名 |
+| framework | enum | playwright / pytest / postman |
+| language | varchar | typescript / python / javascript |
+| filename | varchar | 脚本文件名（如 login.spec.ts） |
+| content | text | 完整可运行脚本内容 |
+
+**Bug（缺陷）**：`plugin_bug` 表
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | uuid | 主键 |
+| projectId | uuid | 外键 → project |
+| title / description | text | 缺陷标题 / 描述 |
+| severity | enum | critical / major / minor |
+| status | enum | open / analyzed / closed |
+| rootCause | text | AI 推断的根因 |
+| regressionCases | jsonb | 反推的回归用例 |
 
 ### Agent 工具列表
 
@@ -111,6 +162,11 @@ src/
 | `test_case_save_project` | 保存用例项目 | requirementText、granularity、testCases | 项目 id、用例数 |
 | `test_case_list_projects` | 列出历史项目 | search（可选）、page、pageSize | 分页项目列表 |
 | `test_case_delete_project` | 删除项目 | projectId | 操作结果 |
+| `test_case_get_project` | 加载项目完整详情 | projectId | 项目 + 全部用例（含测试数据） |
+| `test_case_review` | 评审覆盖率与质量 | projectId、requirementText、testCases | 覆盖率、需求点、问题、建议用例 |
+| `test_data_generate` | 生成测试数据 | projectId、testCases | 各字段正常/异常/边界值并写回用例 |
+| `test_case_to_script` | 用例转自动化脚本 | projectId、testCases、framework | Playwright/pytest/Postman 脚本 |
+| `bug_to_regression` | 缺陷反推回归 | title、description、severity、projectId | 根因 + 回归用例 |
 
 ---
 
@@ -254,6 +310,38 @@ corepack pnpm plugin:deploy:local \
 
 ---
 
+## 四-补二、AI 测试工作台扩展功能（真实端到端）
+
+在基础生成/保存/历史能力之上，扩展为完整的「AI 测试工作台」闭环，以下 4 个功能均在预览对话中用 DeepSeek 真实跑通并核对数据库。
+
+### 6. 用例评审与覆盖率分析（真实）
+
+![评审覆盖率](assets/12-review-coverage.png)
+
+要求评审已保存项目，助手先调用 `test_case_get_project`（0.156s）加载项目，再调用 `test_case_review`（0.162s）。返回**覆盖率 69%（9/13 个需求点）**，列出已覆盖核心点、**4 个未覆盖缺口**（失败次数是否按账户维度累计、锁定期间再输错是否重置计时、解锁后计数是否重置、剩余锁定时间动态递减）、**9 个质量问题**（重复用例、一条用例多验证点、预期结果超出需求原文、优先级偏低），并**生成 5 条建议补充用例（含 2 条 P0）**，补齐后可提升至 90 分以上。
+
+### 7. 测试数据生成（真实）
+
+![测试数据生成](assets/13-test-data-generation.png)
+
+助手调用 `test_data_generate`（0.27s），为 **16 条用例全部写入测试数据**（数据库核对 16/16）。覆盖邮箱、密码、连续失败次数、锁定已持续时长、剩余锁定时间、账户状态、并发提交数、提示文案等字段，每类给出**正常值**（test01@example.com、Passw0rd!123、失败次数 0/1/3、锁定 30 分钟）、**异常值**（test01@example、test01@.com、大小写不符、空值、失败次数 -1）、**边界值**（a@b.co 最短合法、local-part 64/65 位、密码 7/8/20/21 位、锁定 29分59秒/30分00秒/30分0.1秒、失败次数 4→5）。
+
+### 8. 用例转自动化脚本（真实）
+
+![转自动化脚本](assets/14-automation-script.png)
+
+助手先调用 `test_case_get_project`（0.025s），再调用 `test_case_to_script`（0.148s），生成并保存一个可直接运行的 **Playwright + TypeScript 文件 `login.spec.ts`（6670 字符）**，覆盖登录成功、密码错误、5 次失败锁定 3 条 P0 用例。脚本将配置与选择器集中管理（`BASE_URL`/`LOGIN_PATH`/`ACCOUNT`/`SEL`，均可用环境变量覆盖），提供 `gotoLogin`/`submitLogin`/`readErrorText`/`parseRemainingMinutes` 工具函数，用例 `test.describe.serial` 串行避免锁定状态互相污染，并支持 `RESET_ACCOUNT_URL` 重置账户。运行：`npx playwright test login.spec.ts`。
+
+> 说明：一次性把全部 16 条用例转成脚本会产生超大输出，导致流式请求被中断（`net::ERR_ABORTED`）；实际按「一个测试文件 + 代表性用例」组织脚本更符合工程实践，可分批生成。
+
+### 9. 缺陷反推回归（真实）
+
+![缺陷反推回归](assets/15-bug-regression.png)
+
+报告线上缺陷（锁定后把系统时间往前调即可绕过锁定），助手调用 `bug_to_regression`（0.143s），保存一条 **severity=critical、status=analyzed** 的缺陷记录（根因 625 字）。根因结论为「锁定到期判定依赖了不可信的客户端时间，且锁定状态不具备单调性」，并指出 4 类成因（前端 `new Date()`/`X-Client-Time` 被采信、`lock_expire_at` 未在服务端持久化、缺少服务端单调时钟与时间偏差校验、锁定状态存 localStorage）。给出修复方向（判定下沉服务端、统一时间源、忽略客户端时间、异常记风控），并**反推 9 条回归用例（5 条 P0 + 4 条 P1）**，还可进一步用 Playwright `page.clock` 模拟时间前调做自动化验证。
+
+---
+
 ## 五、验证结果
 
 ### 第一层：单元测试与构建检查
@@ -274,7 +362,7 @@ corepack pnpm plugin:deploy:local \
 | 插件构建 | `pnpm build` | ✅ 通过，dist/ 产物完整 |
 | 插件安装到平台 | `pnpm plugin:deploy:local` 部署到本地 Xpert 开源版（main 分支） | ✅ 平台返回 installed and verified successfully |
 | 配置校验 | 数据库 plugin_instance.configurationStatus | ✅ valid，无 configurationError |
-| 数据表自动创建 | TypeORM 实体注册后检查数据库 | ✅ plugin_test_case + plugin_test_case_project 表已自动创建 |
+| 数据表自动创建 | TypeORM 实体注册后检查数据库 | ✅ 5 张业务表全部自动创建（test_case / project / review / automation_script / bug） |
 | 插件注册记录 | 数据库 plugin_instance 表 | ✅ pluginName、version=0.1.0、source=code、scope=organization 完整 |
 | 构建产物结构 | dist/index.js + lib/ + entities/ + remote-components/ + YAML | ✅ 完整 |
 
@@ -289,14 +377,18 @@ corepack pnpm plugin:deploy:local \
 | 保存与恢复 | 保存后请求历史列表 → 查看项目 | 数据持久化到数据库，历史列表可查、数量一致 | ✅ 真实端到端验证通过（见截图 10/11） |
 | 输入与空状态 | 不输入内容直接生成 / 发送过短需求 | 提示补充信息，不触发强制生成 | ✅ 真实端到端验证通过（INVALID_INPUT，见截图 08） |
 | 失败与重试 | 发送过短需求 → 补充 → 重新生成 | 第一次返回 INVALID_INPUT 与补充清单；补充后生成完整用例 | ✅ 真实端到端验证通过（补充后 19 条，见截图 08/09） |
+| 用例评审与覆盖率 | 评审已保存项目 | 返回覆盖率、缺口、质量问题与补充建议并持久化 | ✅ 真实端到端验证通过（覆盖率 69%，见截图 12） |
+| 测试数据生成 | 为项目生成测试数据 | 各字段正常/异常/边界值写回用例并持久化 | ✅ 真实端到端验证通过（16/16，见截图 13） |
+| 用例转自动化脚本 | 代表性用例转 Playwright | 生成可运行脚本文件并持久化 | ✅ 真实端到端验证通过（login.spec.ts，见截图 14） |
+| 缺陷反推回归 | 提交缺陷并分析 | 根因 + 回归用例持久化 | ✅ 真实端到端验证通过（critical，9 条，见截图 15） |
 
 ### 第四层：测试结果记录
 
 | 层级 | 已验证项 | 未验证项 | 备注 |
 |------|---------|---------|------|
 | 单元测试 | 类型检查（lib+spec）、构建、输入校验、数据结构、失败场景 | — | 全部通过，零错误 |
-| 生命周期 | 配置校验、初始化/销毁代码逻辑、产物完整性 | harness 实际运行 | harness 缺运行时依赖，未执行 |
-| 界面业务流程 | 模板可见、草稿预载、模型缺失拦截；完整 AI 生成、持久化、历史列表、失败重试全部真实端到端通过 | 远程组件 iframe 内嵌工作台的独立页面渲染 | 4 个核心场景已在真实平台用 DeepSeek 跑通（截图 07–11）；mockup 01–04 保留用于布局示意 |
+| 生命周期 | 配置校验、初始化/销毁代码逻辑、产物完整性、5 张表自动创建 | harness 实际运行 | harness 缺运行时依赖，未执行 |
+| 界面业务流程 | 模板可见、草稿预载、模型缺失拦截；AI 生成、持久化、历史、失败重试、**评审、测试数据、自动化脚本、缺陷回归**全部真实端到端通过 | 远程组件 iframe 内嵌工作台的独立页面渲染 | 9 个工具链路均在真实平台用 DeepSeek 跑通（截图 07–15）；mockup 01–04 保留用于布局示意 |
 | 多用户权限隔离 | — | 多用户权限隔离 | 非核心范围，未验证 |
 
 ---
@@ -334,7 +426,9 @@ AI 最初提出可以仅通过 Assistant 对话 + Agent 工具实现用例生成
 ### 遇到的限制与收获
 
 - **限制**：Docker/WSL 环境在中国大陆网络下安装困难（WSL Ubuntu 镜像下载、Docker Hub 拉取、GitHub 克隆均受 DNS 污染影响，需通过代理、hosts 固定、镜像站等方式解决）。
+- **限制**：一次性把全部用例转成自动化脚本会产生超大输出，导致流式请求被中断；需要按「一个测试文件 + 代表性用例」分批生成。
 - **收获**：通过深度阅读官方示例源码并完成真实端到端验证，掌握了 Xpert 插件的完整开发与交付模式（meta 注册 → NestJS 模块 → TypeORM 持久化 → Agent 工具 → Workbench 视图 → Assistant 模板 → 模型插件 → 发布运行），理解了平台「Everything is a Plugin」的设计哲学。
+- **收获**：通过把单一「生成」能力扩展为「生成 → 评审 → 数据 → 脚本 → 缺陷回归」的多工具编排闭环，实践了 Agent 的自我反思（覆盖率评审）、结构化数据生成、代码生成与根因分析，这正是大模型应用工程化的核心能力。
 
 ---
 
@@ -359,9 +453,10 @@ AI 最初提出可以仅通过 Assistant 对话 + Agent 工具实现用例生成
 
 1. 支持需求文档批量导入（Word/PDF/Markdown 解析）
 2. 支持用例导出为 Excel/CSV/TestLink 格式
-3. 增加用例评审工作流（草稿 → 评审 → 定稿）
-4. 支持用例与需求条目双向追溯
+3. 评审结论支持一键采纳（把建议用例自动追加到项目）
+4. 自动化脚本支持一键下载/在沙箱内实际运行
 5. 增加 AI 生成质量反馈机制（用户评分 → 优化 Prompt）
+6. 用例与需求条目双向追溯、与缺陷库打通形成完整质量闭环
 
 ---
 

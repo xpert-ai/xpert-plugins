@@ -4,9 +4,21 @@ import { XpertServerPlugin } from '@xpert-ai/plugin-sdk'
 import { TestCaseGeneratorMiddleware } from './test-case-generator.middleware'
 import { TestCaseGeneratorService } from './test-case-generator.service'
 import { TestCaseGeneratorViewProvider } from './test-case-generator-view.provider'
-import { TestCaseEntity, TestCaseProjectEntity } from './entities'
+import {
+  AutomationScriptEntity,
+  BugEntity,
+  TestCaseEntity,
+  TestCaseProjectEntity,
+  TestCaseReviewEntity
+} from './entities'
 
-const TEST_CASE_GENERATOR_ENTITIES = [TestCaseProjectEntity, TestCaseEntity]
+const TEST_CASE_GENERATOR_ENTITIES = [
+  TestCaseProjectEntity,
+  TestCaseEntity,
+  TestCaseReviewEntity,
+  AutomationScriptEntity,
+  BugEntity
+]
 
 @XpertServerPlugin({
   imports: [TypeOrmModule.forFeature(TEST_CASE_GENERATOR_ENTITIES)],
