@@ -54,7 +54,8 @@ migrated. Stored records are not deleted. Update old middleware options to `{}`.
 This replaces configuration and authorization plumbing while retaining protocols.
 Requires host contracts/plugin-sdk **3.28.0 or newer**, including managed-runtime
 deployments and completion evidence v2. The workspace uses published npm **3.28.0**
-packages. The plugin remains private; verification does not publish or deploy it.
+packages. The plugin is published publicly as `@xpert-ai/plugin-agent-runtimes`;
+verification alone does not publish or deploy it.
 
 ## Execution lifecycle
 

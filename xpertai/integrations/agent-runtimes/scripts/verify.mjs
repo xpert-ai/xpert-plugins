@@ -93,6 +93,7 @@ try {
   await cp(join(source, 'src'), join(staging, 'src'), { recursive: true })
   await cp(join(source, 'tests'), join(staging, 'tests'), { recursive: true })
   await cp(join(source, 'package.json'), join(staging, 'package.json'))
+  await cp(join(source, 'README.md'), join(staging, 'README.md'))
   const base = JSON.parse(await readFile(join(workspace, 'tsconfig.base.json'), 'utf8'))
   await writeFile(
     join(staging, 'tsconfig.json'),
