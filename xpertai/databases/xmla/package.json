@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-xmla",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "license": "AGPL-3.0",
   "repository": {
     "type": "git",
@@ -42,7 +42,7 @@
   },
   "peerDependencies": {
     "@nestjs/common": "^11.1.6",
-    "@xpert-ai/plugin-sdk": "^3.26.1",
+    "@xpert-ai/plugin-sdk": "^3.26.2",
     "zod": "3.25.67"
   },
   "nx": {
@@ -61,5 +61,8 @@
         ]
       }
     }
+  },
+  "devDependencies": {
+    "@xpert-ai/plugin-sdk": "3.26.2"
   }
 }

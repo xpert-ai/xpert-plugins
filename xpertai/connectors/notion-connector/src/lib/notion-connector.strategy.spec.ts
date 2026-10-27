@@ -41,6 +41,17 @@ describe('NotionConnectorStrategy', () => {
 
   it('builds the official Public OAuth URL and encrypted-session metadata', async () => {
     const { strategy } = createStrategy()
+    expect(strategy.definition.authMethods[0]).toMatchObject({
+      appCredentials: {
+        integration: {
+          provider: 'notion',
+          fields: [
+            { name: 'clientId', required: true },
+            { name: 'clientSecret', required: true, secret: true }
+          ]
+        }
+      }
+    })
     const result = await strategy.connect({
       authMethodId: NOTION_PUBLIC_OAUTH_AUTH_METHOD,
       values: { integrationId: 'integration-1' },

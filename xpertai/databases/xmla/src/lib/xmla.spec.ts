@@ -1,4 +1,5 @@
 import 'reflect-metadata'
+import { readFileSync } from 'node:fs'
 import { AxiosError, AxiosHeaders } from 'axios'
 import type { AxiosRequestConfig, AxiosResponse } from 'axios'
 import { DATASOURCE_STRATEGY } from '@xpert-ai/plugin-sdk'
@@ -120,7 +121,7 @@ describe('@xpert-ai/plugin-xmla', () => {
   it('exports aligned database plugin metadata', () => {
     expect(plugin.meta).toMatchObject({
       name: '@xpert-ai/plugin-xmla',
-      version: '0.0.2',
+      version: JSON.parse(readFileSync(__dirname + '/../../package.json', 'utf8')).version,
       level: 'organization',
       category: 'database'
     })

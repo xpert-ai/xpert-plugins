@@ -25,7 +25,6 @@ import {
 import type { Config } from "./config.js";
 import { FileStore, atomicWrite } from "./file-store.js";
 import { MeetingWorkspaceFiles } from "./workspace-files.js";
-import type { WorkspaceFilesWithAppData } from "./workspace-storage.js";
 import {
   documentFromMarkdown,
   documentMarkdown,
@@ -73,7 +72,7 @@ export class MeetingDocuments {
             userId: scope.userId,
             xpertId: scope.assistantId,
           });
-        const files: WorkspaceFilesWithAppData | undefined = runtime.capabilities?.get(
+        const files = runtime.capabilities?.get(
           WorkspaceFilesRuntimeCapability
         );
         if (!files?.appData) throw new MeetingError("workspace_storage_unavailable");

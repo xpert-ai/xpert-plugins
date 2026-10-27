@@ -1,5 +1,25 @@
 # @xpert-ai/plugin-analytics-workspace-script
 
+## 0.1.3
+
+### Patch Changes
+
+- c457932: Preserve typed Sandbox Runtime dependency failures so the host Analytics boundary can explain missing bindings and temporary runtime failures without misdiagnosing them as script errors. Requires the host Analytics dependency-error mapping for the improved public diagnostic.
+
+  Classify a nonzero script interpreter exit as `EXPORT_INPUT_INVALID`, preserving that typed error for safe host diagnostics instead of reporting an unavailable runtime.
+
+## 0.1.2
+
+### Patch Changes
+
+- 3afcd71: Use canonical Analytics sources: database connections, immutable Definitions and script Artifacts. Move the five native Providers out of DataSource Types, expose their configuration entries and update Live Dashboard authoring, rendering and sharing. Requires published platform Contracts/SDK 3.26.1 containing the canonical Analytics API; no historical Binding decoder or migration is included.
+
+  Generate Files/REST/MCP/data-xpert Definitions through the Live Dashboard Agent using authorized input discovery, actual-data validation and immutable registration receipts.
+
+  Fix dashboard viewer parsing of canonical Definition and Artifact source references so Agent-generated drafts can be opened, filtered and published.
+
+- f1b700d: Require published SDK and Contracts 3.26.1 and pin development builds to the same release. Use the canonical Analytics, integration permission, Connector scope and connection command contracts instead of local SDK type extensions or platform dependency overlays. Preserve authorization checks for optional host capabilities and existing configuration migration behavior.
+
 ## 0.1.1
 
 ### Patch Changes

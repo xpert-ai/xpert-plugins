@@ -11,6 +11,7 @@ Notion filter inputs accept a native object or JSON text decoded once, with a
 schema; nested values are not decoded or coerced.
 
 The filter boundary uses the published SDK's `jsonEncodedSchema` with
-`maxChars: 2048`; there is no connector-local JSON decoder. SDK 3.23.1 or later
-is required. Run schema tests, typecheck, build and the dist-first plugin
+`maxChars: 2048`; there is no connector-local JSON decoder. SDK and Contracts
+3.26.2 or later are required for the canonical system-integration credential configuration.
+Run schema tests, typecheck, build and the dist-first plugin
 lifecycle against the published package, without a local SDK source link.
