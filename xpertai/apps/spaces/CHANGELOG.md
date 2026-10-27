@@ -1,5 +1,11 @@
 # @xpert-ai/plugin-spaces
 
+## 0.3.1
+
+### Patch Changes
+
+- eeee40e: Declare the public GitHub repository and npm access for Spaces so its existing release workflow can publish with trusted-publisher provenance.
+
 ## 0.3.0
 
 ### Minor Changes
