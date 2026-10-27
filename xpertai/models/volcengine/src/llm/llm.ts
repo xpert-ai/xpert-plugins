@@ -1,5 +1,5 @@
 import { ChatOpenAI } from '@langchain/openai'
-import { AiModelTypeEnum, ICopilotModel } from '@xpert-ai/contracts'
+import { AiModelTypeEnum, ICopilotModel, type LLMPriceContext, type TTokenUsage } from '@xpert-ai/contracts'
 import { Injectable, Logger } from '@nestjs/common'
 import {
   ChatOAICompatReasoningModel,
@@ -11,6 +11,8 @@ import {
 import { isNil, omitBy } from 'lodash-es'
 import { VolcengineProviderStrategy } from '../provider.strategy.js'
 import { toCredentialKwargs, VolcengineModelCredentials } from '../types.js'
+import { ARK_TIME_PRICED_MODELS, getArkPriceMode, resolveArkPriceContext } from './pricing.js'
+import { ArkReasoningChatModel } from './chat-model.js'
 
 type JsonObject = Record<string, unknown>
 
@@ -82,7 +84,7 @@ export function normalizeVolcengineToolSchema(schema: unknown): unknown {
   return visit(schema, new Set())
 }
 
-class VolcengineChatOAICompatReasoningModel extends ChatOAICompatReasoningModel {
+class VolcengineChatOAICompatReasoningModel extends ArkReasoningChatModel {
   protected override _convertChatOpenAIToolToCompletionsTool(
     tool: Parameters<ChatOAICompatReasoningModel['_convertChatOpenAIToolToCompletionsTool']>[0],
     fields?: Parameters<ChatOAICompatReasoningModel['_convertChatOpenAIToolToCompletionsTool']>[1]
@@ -122,6 +124,7 @@ function toResponseFormat(responseFormat: unknown, jsonSchema: unknown) {
 }
 
 function buildVolcengineModelKwargs(
+  model: string,
   thinking: unknown,
   reasoningEffort: unknown,
   responseFormat: unknown,
@@ -132,7 +135,9 @@ function buildVolcengineModelKwargs(
   if (thinking === 'enabled' || thinking === 'disabled') {
     modelKwargs['thinking'] = { type: thinking }
   }
-  if (typeof reasoningEffort === 'string' && reasoningEffort) {
+  if (thinking === 'disabled' && ARK_TIME_PRICED_MODELS.has(model)) {
+    modelKwargs['reasoning_effort'] = 'none'
+  } else if (typeof reasoningEffort === 'string' && reasoningEffort) {
     modelKwargs['reasoning_effort'] = reasoningEffort
   } else if (thinking === 'disabled') {
     modelKwargs['reasoning_effort'] = 'minimal'
@@ -151,6 +156,19 @@ export class VolcengineLargeLanguageModel extends LargeLanguageModel {
 
   constructor(modelProvider: VolcengineProviderStrategy) {
     super(modelProvider, AiModelTypeEnum.LLM)
+  }
+
+  protected override calcResponseUsage(
+    model: string,
+    credentials: Record<string, unknown>,
+    promptTokens: number,
+    completionTokens: number,
+    startedAt = this.startedAt,
+    tokenUsage?: TTokenUsage,
+    pricingContext: LLMPriceContext = {}
+  ) {
+    return super.calcResponseUsage(model, credentials, promptTokens, completionTokens, startedAt,
+      tokenUsage, resolveArkPriceContext(model, pricingContext))
   }
 
   async validateCredentials(model: string, credentials: VolcengineModelCredentials): Promise<void> {
@@ -191,6 +209,7 @@ export class VolcengineLargeLanguageModel extends LargeLanguageModel {
         topP: copilotModel.options?.['top_p'],
         maxTokens: copilotModel.options?.['max_tokens'],
         modelKwargs: buildVolcengineModelKwargs(
+          model,
           copilotModel.options?.['thinking'],
           copilotModel.options?.['reasoning_effort'],
           copilotModel.options?.['response_format'],
@@ -205,7 +224,9 @@ export class VolcengineLargeLanguageModel extends LargeLanguageModel {
       ...fields,
       verbose: options?.verbose,
       callbacks: [
-        ...this.createHandleUsageCallbacks(copilot, model, credentials, handleLLMTokens),
+        ...this.createHandleUsageCallbacks(copilot, model, credentials, handleLLMTokens, {
+          resolveContext: () => ARK_TIME_PRICED_MODELS.has(model) ? { mode: getArkPriceMode() } : {}
+        }),
         this.createHandleLLMErrorCallbacks(fields, this.#logger)
       ]
     })

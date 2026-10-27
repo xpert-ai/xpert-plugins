@@ -1,0 +1,15 @@
+# Verified 2026-10-27: https://help.aliyun.com/zh/model-studio/embedding-rerank-model
+model: qwen3.7-text-rerank
+model_type: rerank
+model_properties:
+  context_size: 30000
+pricing:
+  input: ".5"
+  unit: ".000001"
+  currency: RMB
+  source_url: https://help.aliyun.com/zh/model-studio/qwen3-7-text-rerank
+  rules:
+    - component: input
+      unit_price: 0.5
+      unit_size: 1000000
+      region: cn

@@ -1,0 +1,79 @@
+# Verified 2026-10-27: https://help.aliyun.com/zh/model-studio/step-5-preview
+model: stepfun/step-5-preview
+label:
+  en_US: stepfun/step-5-preview
+  zh_Hans: stepfun/step-5-preview
+model_type: llm
+features:
+  - agent-thought
+  - tool-call
+  - multi-tool-call
+  - stream-tool-call
+  - vision
+  - video
+model_properties:
+  mode: chat
+  context_size: 1048576
+parameter_rules:
+  - name: temperature
+    use_template: temperature
+    default: 1
+    min: 0
+    max: 1.99
+  - name: top_p
+    use_template: top_p
+    default: 0.95
+    min: 0.01
+    max: 1
+  - name: max_tokens
+    use_template: max_tokens
+    type: int
+    min: 1
+    max: 1048576
+    default: 65536
+  - name: enable_thinking
+    label:
+      zh_Hans: 思考模式
+      en_US: Thinking Mode
+    type: boolean
+    required: false
+    default: true
+  - name: reasoning_effort
+    label:
+      zh_Hans: 思考强度
+      en_US: Reasoning Effort
+    type: string
+    required: false
+    default: high
+    options:
+      - low
+      - medium
+      - high
+  - name: response_format
+    label:
+      zh_Hans: 回复格式
+      en_US: Response Format
+    type: string
+    required: false
+    options:
+      - text
+      - json_object
+pricing:
+  input: "7"
+  output: "20"
+  unit: "0.000001"
+  currency: RMB
+  source_url: https://help.aliyun.com/zh/model-studio/step-5-preview
+  rules:
+    - component: input
+      unit_price: 7
+      unit_size: 1000000
+      region: cn
+    - component: output
+      unit_price: 20
+      unit_size: 1000000
+      region: cn
+    - component: cache_read_input
+      unit_price: 0.35
+      unit_size: 1000000
+      region: cn

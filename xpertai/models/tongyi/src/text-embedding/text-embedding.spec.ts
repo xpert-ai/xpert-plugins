@@ -1,5 +1,5 @@
 import { OpenAIEmbeddings } from '@langchain/openai'
-import { AiProviderRole } from '@xpert-ai/contracts'
+import { AiProviderRole, PriceType } from '@xpert-ai/contracts'
 import { CredentialsValidateFailedError } from '@xpert-ai/plugin-sdk'
 import { TongyiProviderStrategy } from '../provider.strategy.js'
 import { TongyiCredentials } from '../types.js'
@@ -23,7 +23,7 @@ function response(embeddings = [result(0)]) {
 
 function copilotModel(
   model = TONGYI_MULTIMODAL_EMBEDDING_MODEL,
-  options = { max_chunks: 10 },
+  options: { max_chunks: number; dimensions?: number } = { max_chunks: 10 },
   providerCredentials = credentials
 ): Parameters<TongyiTextEmbeddingModel['getEmbeddingInstance']>[0] {
   return {
@@ -51,6 +51,19 @@ describe('Tongyi embedding routing', () => {
     const embedding = manager.getEmbeddingInstance(copilotModel('text-embedding-v3', { max_chunks: 7 }))
     expect(embedding).toBeInstanceOf(OpenAIEmbeddings)
     expect(embedding).toMatchObject({ model: 'text-embedding-v3', batchSize: 7 })
+  })
+
+  it('forwards Qwen 3.7 dimensions and caps batches at 20', () => {
+    const embeddings = manager.getEmbeddingInstance(copilotModel('qwen3.7-text-embedding', { max_chunks: 40, dimensions: 2560 }))
+    expect(embeddings).toMatchObject({ model: 'qwen3.7-text-embedding', batchSize: 20, dimensions: 2560 })
+    expect(() => manager.getEmbeddingInstance(copilotModel('qwen3.7-text-embedding-flash', { max_chunks: 10, dimensions: 2560 })))
+      .toThrow('unsupported dimensions')
+  })
+
+  it('prices Qwen 3.7 embedding input at the selected regional rate', () => {
+    expect(manager.getPrice('qwen3.7-text-embedding', credentials, PriceType.INPUT, 1000000).totalAmount).toBe(.5)
+    expect(manager.getPrice('qwen3.7-text-embedding', { ...credentials, use_international_endpoint: true }, PriceType.INPUT, 1000000).totalAmount).toBe(.525)
+    expect(manager.getPrice('qwen3.7-text-embedding-flash', credentials, PriceType.INPUT, 1000000).totalAmount).toBe(.125)
   })
 
   it('sends credential validation through the native endpoint', async () => {
