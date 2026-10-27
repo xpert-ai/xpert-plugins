@@ -1,5 +1,11 @@
 # @xpert-ai/plugin-canvas
 
+## 0.5.2
+
+### Patch Changes
+
+- bcafd42: Replace local SDK compatibility types and casts in Meetings, Notion Connector, XMLA, Cut and Canvas with published SDK / Contracts 3.26.2 contracts. Raise only these plugins' host requirements and pin their development SDK for reproducible validation.
+
 ## 0.5.1
 
 ### Patch Changes

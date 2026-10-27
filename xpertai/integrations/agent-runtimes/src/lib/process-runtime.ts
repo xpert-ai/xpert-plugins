@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from 'node:util'
+import { executionRuntimeTargetsEqual } from '@xpert-ai/contracts'
 import { agentPrompt } from './input.js'
 import { Injectable, type OnModuleDestroy } from '@nestjs/common'
 import { mkdir, realpath } from 'node:fs/promises'
@@ -10,6 +12,7 @@ import type {
   AgentRuntimeStart
 } from '@xpert-ai/plugin-sdk'
 import type { AgentOutputDelivery } from '@xpert-ai/plugin-sdk'
+import { runtimeCompletion } from './runtime-completion.js'
 import { RuntimeProfiles, type RuntimeProvider, type RuntimeProfile } from './managed-profiles.js'
 import type { AgentRuntimeDeployment } from '@xpert-ai/plugin-sdk'
 export type ProcessProfile = RuntimeProfile & Exclude<AgentRuntimeDeployment, { type: 'service' }>
@@ -24,9 +27,14 @@ export interface ProcessRun {
   text: string
   lastStopReason?: string
   cancellationRequested: boolean
+  boundTurn?: boolean
+  pendingCompletion?: WireMessage
   pendingRequestId?: string | number
   timer: NodeJS.Timeout
   writes: Promise<void>
+  resultObservation?: AgentRuntimeObservation
+  exited?: boolean
+  persisted?: boolean
 }
 
 @Injectable()
@@ -34,7 +42,9 @@ export class ProcessRuntime implements OnModuleDestroy {
   readonly runs = new Map<string, ProcessRun>()
   constructor(private readonly profiles: RuntimeProfiles) {}
 
-  managedProfiles(provider: RuntimeProvider) { return this.profiles.managedProfiles(provider) }
+  managedProfiles(provider: RuntimeProvider) {
+    return this.profiles.managedProfiles(provider)
+  }
   async profile(request: AgentRuntimeStart, context: AgentRuntimeContext, provider: RuntimeProvider) {
     const profile = this.profiles.profile(request, context, provider)
     const deployment = await this.profiles.deployment(profile, context)
@@ -53,7 +63,14 @@ export class ProcessRuntime implements OnModuleDestroy {
     const handle: AgentRuntimeHandle = {
       sessionId: context.invocationId,
       runId: context.invocationId,
-      metadata: { provider: profile.provider, profileId: profile.id, profileVersion: profile.version, workspaceId: context.scope.workspaceId, managedRuntime: { type: 'builtin', version: profile.version }, deploymentRevision: profile.revision }
+      metadata: {
+        provider: profile.provider,
+        profileId: profile.id,
+        profileVersion: profile.version,
+        workspaceId: context.scope.workspaceId,
+        managedRuntime: { type: 'builtin', version: profile.version },
+        deploymentRevision: profile.revision
+      }
     }
     const run: ProcessRun = {
       profile,
@@ -70,11 +87,22 @@ export class ProcessRuntime implements OnModuleDestroy {
         profile,
         cwd,
         (message) => onMessage(run, message),
-        () => {
-          if (!terminal(run.observation))
-            this.publish(run, { status: run.cancellationRequested ? 'cancelled' : 'unknown' })
+        (proof) => {
+          run.exited = true
+          const final = run.resultObservation ?? {
+            status: run.cancellationRequested ? ('cancelled' as const) : ('unknown' as const)
+          }
+          this.publish(run, {
+            ...final,
+            ...(proof && terminal(final) && run.observation.handle
+              ? { controlEvidence: runtimeCompletion(context, run.observation.handle, final.status, 'supervisor-exit') }
+              : {}),
+            ...(!proof ? { status: 'unknown' as const } : {})
+          })
           clearTimeout(run.timer)
-          void run.writes.finally(() => this.runs.delete(context.invocationId))
+          void run.writes.finally(() => {
+            if (run.persisted) this.runs.delete(context.invocationId)
+          })
         }
       )
     }
@@ -108,12 +136,14 @@ export class ProcessRuntime implements OnModuleDestroy {
   }
 
   assertReceipt(handle: AgentRuntimeHandle, context: AgentRuntimeContext, provider: RuntimeProvider) {
-    if (handle.metadata?.provider !== provider || !this.profiles.receiptProfile(handle, context, provider)) throw new Error('Invalid managed process receipt')
+    if (handle.metadata?.provider !== provider || !this.profiles.receiptProfile(handle, context, provider))
+      throw new Error('Invalid managed process receipt')
   }
 
   private provider(handle: AgentRuntimeHandle): RuntimeProvider {
     const provider = handle.metadata?.provider
-    if (provider !== 'codex' && provider !== 'pi' && provider !== 'claude-code') throw new Error('Invalid process provider receipt')
+    if (provider !== 'codex' && provider !== 'pi' && provider !== 'claude-code')
+      throw new Error('Invalid process provider receipt')
     return provider
   }
 
@@ -124,7 +154,10 @@ export class ProcessRuntime implements OnModuleDestroy {
     if (
       run &&
       (run.context.invocationId !== context.invocationId ||
-        JSON.stringify(run.context.scope) !== JSON.stringify(context.scope))
+        !isDeepStrictEqual(run.context.scope, context.scope) ||
+        !executionRuntimeTargetsEqual(run.context.executionTarget, context.executionTarget) ||
+        run.observation.handle?.sessionId !== handle.sessionId ||
+        run.observation.handle?.runId !== handle.runId)
     ) {
       throw new Error('Agent run scope mismatch')
     }
@@ -133,6 +166,10 @@ export class ProcessRuntime implements OnModuleDestroy {
 
   async inspect(handle: AgentRuntimeHandle, context: AgentRuntimeContext): Promise<AgentRuntimeObservation> {
     const run = this.find(handle, context)
+    if (run?.exited) {
+      await context.checkpoint(run.observation)
+      this.runs.delete(context.invocationId)
+    }
     return run
       ? run.observation
       : { status: 'unknown', handle, error: 'Runner is unavailable; do not replay this operation' }
@@ -140,11 +177,24 @@ export class ProcessRuntime implements OnModuleDestroy {
 
   publish(run: ProcessRun, observation: AgentRuntimeObservation) {
     if (terminal(run.observation)) return
+    if (terminal(observation) && !run.exited) {
+      run.resultObservation ??= observation
+      run.observation = { ...run.observation, ...(observation.result ? { result: observation.result } : {}) }
+      // Persist the business result before cleanup. The host's v2 gate keeps it unconfirmed.
+      const snapshot = structuredClone({ ...run.observation, ...observation })
+      run.writes = run.writes.then(() => run.context.checkpoint(snapshot)).catch(() => undefined)
+      void run.writes.finally(() => run.process.stop())
+      return
+    }
     run.observation = { ...run.observation, ...observation }
     const snapshot = structuredClone(run.observation)
     run.writes = run.writes
       .then(() => run.context.checkpoint(snapshot))
+      .then(() => {
+        run.persisted = true
+      })
       .catch(() => {
+        run.persisted = false
         // A failed durable receipt must not allow an unobserved runner to keep mutating files.
         run.process.stop()
       })

@@ -1,5 +1,23 @@
 # @xpert-ai/plugin-meetings
 
+## 0.4.3
+
+### Patch Changes
+
+- 41fea3b: Run transcription and Assistant dispatch outside workspace storage locks while retaining short critical sections for scheduling and shared-state publication. Fence processing checkpoints and summary commits by task identity, task validity, and immutable input versions, returning explicit conflicts instead of allowing cancelled or outdated tasks to overwrite newer results. Recover orphaned processing claims with deduplicated expiry wakeups while preserving bounded retries for short contention and avoiding active-job deduplication for early wakeups.
+
+## 0.4.2
+
+### Patch Changes
+
+- bcafd42: Replace local SDK compatibility types and casts in Meetings, Notion Connector, XMLA, Cut and Canvas with published SDK / Contracts 3.26.2 contracts. Raise only these plugins' host requirements and pin their development SDK for reproducible validation.
+
+## 0.4.1
+
+### Patch Changes
+
+- 07067bf: Continue meeting transcription when a fragment or contextual batch returns no text, while preserving configuration and provider errors. Keep audio when the whole recording has no transcript, and reprocess empty checkpoints on explicit retry.
+
 ## 0.4.0
 
 ### Minor Changes

@@ -1,3 +1,4 @@
+import { target, supervisedReceipt, exitEvidence } from './completion-fixture.mjs'
 import { managedTarget } from './managed-fixture.mjs'
 import 'reflect-metadata'
 import { test } from 'node:test'
@@ -9,9 +10,8 @@ const workspaceId = '11111111-1111-4111-a111-111111111111'
 function fixture() {
   const profiles = new RuntimeProfiles()
   const strategy = new CodexComputerRuntimeStrategy(profiles)
-  const receipt = {
+  const receipt = supervisedReceipt({
     version: 2,
-    supervision: 1,
     invocationId: 'invocation',
     environment: { type: 'computer', environmentId: 'environment', instanceId: 'instance' },
     processId: 'process',
@@ -19,7 +19,7 @@ function fixture() {
     executionDirectory: '/workspace/isolated',
     workingDirectory: '/workspace/isolated',
     tool: { id: 'codex', version: '0.159.2' }
-  }
+  })
   const calls = [],
     snapshots = []
   let output = {
@@ -44,10 +44,7 @@ function fixture() {
     inspect: async () => ({ state: 'running' }),
     stop: async () => {
       calls.push('stop')
-      return { state: 'exited', completion: {
-        version: 1, coverage: 'descendants', invocationId: receipt.invocationId,
-        environment: receipt.environment, processId: receipt.processId
-      } }
+      return { state: 'exited', completion: exitEvidence(receipt) }
     },
     collectArtifacts: async (_, selection) => {
       calls.push(selection)
@@ -55,8 +52,8 @@ function fixture() {
     }
   }
   const context = {
+    executionTarget: target,
     invocationId: 'invocation',
-    executionTarget: { version: 1, kind: 'provider', generation: '22222222-2222-4222-a222-222222222222' },
     scope: { workspaceId },
     capabilities: { require: () => runner },
     checkpoint: async (value) => {
@@ -188,7 +185,7 @@ test('Computer Codex cancellation reports bound descendant completion and can re
   assert.equal(result.controlEvidence.outcome, 'cancelled')
   assert.equal(result.controlEvidence.subject.id, f.context.invocationId)
   assert.deepEqual(result.controlEvidence.target, f.context.executionTarget)
-  assert.equal(result.controlEvidence.receiptKey, handle.runner.processId)
+  assert.equal(result.controlEvidence.receiptKey, `runner:${handle.runner.processId}`)
   assert.equal((await f.strategy.cancel(handle, f.context)).status, 'cancelled')
 })
 
@@ -204,7 +201,7 @@ test('Computer Codex rejects missing or mismatched descendant stop evidence', as
   ]) {
     f.runner.stop = async () => ({ state: 'exited', completion })
     const result = await f.strategy.cancel(handle, f.context)
-    assert.equal(result.status, 'cancelling')
+    assert.equal(result.status, 'unknown')
     assert.equal(result.controlEvidence, undefined)
   }
 })
@@ -220,4 +217,16 @@ test('Computer Codex recovers checkpointed results without replaying or reading 
   assert.equal(result.controlEvidence.outcome, 'succeeded')
   assert.deepEqual(result.controlEvidence.target, f.context.executionTarget)
   assert.equal(f.calls.filter(x => x === 'POST').length, 1)
+})
+
+test('Computer Codex cancellation preserves an already checkpointed outcome in completion evidence', async () => {
+  const f = fixture()
+  const { handle } = await f.strategy.start(f.request, f.context)
+  const result = await f.strategy.cancel(handle, {
+    ...f.context,
+    settlement: { status: 'succeeded', result: { text: 'verified result' } }
+  })
+  assert.equal(result.status, 'cancelled')
+  assert.equal(result.controlEvidence.outcome, 'succeeded')
+  assert.deepEqual(result.controlEvidence.target, f.context.executionTarget)
 })

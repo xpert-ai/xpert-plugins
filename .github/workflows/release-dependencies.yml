@@ -43,6 +43,18 @@ jobs:
         run: |
           pnpm -C xpertai exec nx build @xpert-ai/plugin-maps
           pnpm -C xpertai exec nx run-many -t test,typecheck,verify:dist -p @xpert-ai/plugin-maps --parallel=1
+      - name: Build content and review plugins against published SDKs
+        if: matrix.workspace == 'xpertai'
+        run: >-
+          pnpm -C xpertai exec nx run-many -t build
+          -p @xpert-ai/plugin-spaces,@xpert-ai/plugin-markdown-editor,@xpert-ai/plugin-office-editor,@xpert-ai/plugin-code-review,@xpert-ai/plugin-lark-cli
+          --parallel=1
+      - name: Test content and review plugins
+        if: matrix.workspace == 'xpertai'
+        run: >-
+          pnpm -C xpertai exec nx run-many -t test
+          -p @xpert-ai/plugin-spaces,@xpert-ai/plugin-markdown-editor,@xpert-ai/plugin-office-editor,@xpert-ai/plugin-code-review,@xpert-ai/plugin-lark-cli
+          --parallel=1
       - name: Build community plugins
         if: matrix.workspace == 'community'
         run: pnpm -C community run build

@@ -629,19 +629,15 @@ export class SitesService {
     const organizationId = optionalString(scope.organizationId)
     const userId = optionalString(scope.userId)
     const fileName = `${slugify(project.slug ?? project.name ?? 'site')}-${version.versionNumber ?? 'version'}-${deployment.id}.html`
-    const workspaceScope = scope.hostProjectId ? { catalog: 'projects' as const, scopeId: scope.hostProjectId, projectId: scope.hostProjectId } : scope.assistantId
-      ? {
-          catalog: 'xperts' as const,
-          scopeId: scope.assistantId,
-          xpertId: scope.assistantId,
-          isolateByUser: true
-        }
-      : {
-          catalog: 'users' as const,
-          scopeId: normalizeRequiredString(userId, 'userId')
-        }
+    // Project scope takes precedence; the host resolves Assistant volume isolation.
+    const workspaceScope = scope.hostProjectId
+      ? { catalog: 'projects' as const, scopeId: scope.hostProjectId, projectId: scope.hostProjectId }
+      : scope.assistantId
+        ? { xpertId: scope.assistantId }
+        : { catalog: 'users' as const, scopeId: normalizeRequiredString(userId, 'userId') }
     const written = await workspaceFiles.writeRuntimeBuffer({
       tenantId,
+      organizationId,
       userId,
       ...workspaceScope,
       folder: 'sites/deployments',

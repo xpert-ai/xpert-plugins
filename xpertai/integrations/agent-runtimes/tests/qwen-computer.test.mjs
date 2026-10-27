@@ -1,3 +1,4 @@
+import { target, supervisedReceipt, exitEvidence } from './completion-fixture.mjs'
 import { managedTarget } from './managed-fixture.mjs'
 import 'reflect-metadata'
 import { test } from 'node:test'
@@ -9,11 +10,11 @@ const workspaceId = '11111111-1111-4111-a111-111111111111'
 function fixture() {
   const profiles = new RuntimeProfiles()
   const strategy = new QwenComputerRuntimeStrategy(profiles)
-  const receipt = {
+  const receipt = supervisedReceipt({
     invocationId: 'invocation',
     workingDirectory: '/workspace/isolated',
     tool: { id: 'qwen', version: '0.24.7' }
-  }
+  })
   const calls = [],
     snapshots = []
   let output = {
@@ -37,7 +38,7 @@ function fixture() {
     inspect: async () => ({ state: 'running' }),
     stop: async () => {
       calls.push('stop')
-      return { state: 'exited' }
+      return { state: 'exited', completion: exitEvidence(receipt) }
     },
     collectArtifacts: async (_, selection) => {
       calls.push(selection)
@@ -45,6 +46,7 @@ function fixture() {
     }
   }
   const context = {
+    executionTarget: target,
     invocationId: 'invocation',
     scope: { workspaceId },
     capabilities: { require: () => runner },
@@ -245,4 +247,29 @@ test('Qwen recovery and cancellation refuse a receipt for a different tool', asy
   await assert.rejects(f.strategy.inspect(handle, f.context))
   await assert.rejects(f.strategy.cancel(handle, f.context))
   assert.equal(f.calls.includes('stop'), false)
+})
+
+test('completed protocol with missing descendant evidence remains unknown', async () => {
+  const f = fixture(),
+    started = await f.strategy.start(f.request, f.context)
+  f.runner.stop = async () => ({ state: 'exited' })
+  const result = await f.strategy.inspect(started.handle, f.context)
+  assert.equal(result.status, 'unknown')
+  assert.equal(result.result.text, 'done')
+  assert.equal((await f.strategy.cancel(started.handle, f.context)).status, 'unknown')
+  assert.equal(f.calls.filter((x) => x === 'POST').length, 1)
+})
+
+test('recovery after result persistence reconciles the original runner without resending', async () => {
+  const f = fixture(),
+    started = await f.strategy.start(f.request, f.context)
+  f.context.settlement = { status: 'succeeded', result: { text: 'durable result' } }
+  f.runner.inspect = async () => ({ state: 'exited' })
+  f.runner.request = async () => {
+    throw Error('must not resend or read destroyed service')
+  }
+  const recovered = await f.strategy.start({ ...f.request, previous: started.handle }, f.context)
+  assert.equal(recovered.status, 'succeeded')
+  assert.equal(recovered.result.text, 'durable result')
+  assert.equal(f.calls.filter((x) => x === 'POST').length, 1)
 })

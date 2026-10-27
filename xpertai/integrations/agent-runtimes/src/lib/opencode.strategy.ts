@@ -1,3 +1,4 @@
+import { runnerCompletion } from './runtime-completion.js'
 import type { AgentRuntimeDeploymentSpec, AgentInvocationScope } from '@xpert-ai/plugin-sdk'
 import { agentPrompt } from './input.js'
 import { outputDelivery, taskResult } from './task-result.js'
@@ -22,6 +23,7 @@ const Message = z.object({
   info: z
     .object({
       role: z.string(),
+      id: z.string().optional(),
       parentID: z.string().optional(),
       finish: z.string().optional(),
       error: z.unknown().optional(),
@@ -53,6 +55,8 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
     return undefined
   }
   readonly capabilities = {
+    completionEvidence: 2 as const,
+    idempotentCancellation: true,
     activity: { version: 1 as const, presentation: 'coding' as const },
     executionTools: [{ id: 'opencode', versions: ['1.18.33'], environments: ['computer' as const] }],
     recovery: 'session' as const,
@@ -97,6 +101,8 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
       metadata: {
         profileId: profile.id,
         profileVersion: profile.version,
+        exclusiveSession: true,
+        executionGeneration: context.executionTarget?.generation ?? null,
         workspaceId: context.scope.workspaceId,
         delivery: outputDelivery(request.input.delivery),
         ...(profile.deploymentRevision ? { deploymentRevision: profile.deploymentRevision } : {}),
@@ -107,30 +113,6 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
     }
     const observation: AgentRuntimeObservation = { status: 'running', handle }
     await context.checkpoint(observation)
-    if (!runner) {
-      // The durable session receipt precedes dispatch; recovery never resends the prompt.
-      void this.http(
-        profile,
-        `/session/${encodeURIComponent(session.id)}/message`,
-        'POST',
-        {
-          messageID: handle.runId,
-          parts: [{ type: 'text', text: agentPrompt(request.input) }]
-        },
-        context,
-        handle
-      )
-        .then(async (raw) => {
-          const message = Message.parse(raw)
-          await context.checkpoint(await this.observe(profile, handle, message, context))
-        })
-        .catch(async () => {
-          await context
-            .checkpoint({ status: 'unknown', handle, error: 'OpenCode request disconnected; inspect before retrying' })
-            .catch(() => undefined)
-        })
-      return observation
-    }
     await this.http(
       profile,
       `/session/${encodeURIComponent(session.id)}/prompt_async`,
@@ -148,7 +130,18 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
   async inspect(handle: AgentRuntimeHandle, context: AgentRuntimeContext): Promise<AgentRuntimeObservation> {
     const profile = this.profile(handle, context)
     if (handle.runner) {
-      const process = await context.capabilities.require(AgentExecutionRunnerCapability).inspect(handle.runner)
+      const runner = context.capabilities.require(AgentExecutionRunnerCapability)
+      if (context.settlement) {
+        const stopped = await runner.stop(handle.runner)
+        const controlEvidence = runnerCompletion(context, handle, context.settlement.status, stopped.completion)
+        return {
+          ...context.settlement,
+          handle,
+          status: controlEvidence ? context.settlement.status : 'unknown',
+          controlEvidence
+        }
+      }
+      const process = await runner.inspect(handle.runner)
       if (process.state !== 'running' || handle.sessionId === 'pending') return { status: 'unknown', handle }
     }
     let messages: z.infer<typeof Message>[]
@@ -239,7 +232,9 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
       }
       // Persist results and artifact references before guest shutdown; host cleanup can retry.
       await context.checkpoint(observation)
-      await runner.stop(handle.runner)
+      const stopped = await runner.stop(handle.runner)
+      observation.controlEvidence = runnerCompletion(context, handle, observation.status, stopped.completion)
+      if (!observation.controlEvidence) observation.status = 'unknown'
     }
     return observation
   }
@@ -279,17 +274,48 @@ export class OpenCodeRuntimeStrategy implements IAgentRuntimeStrategy {
     const profile = this.profile(handle, context)
     if (handle.runner) {
       const process = await context.capabilities.require(AgentExecutionRunnerCapability).stop(handle.runner)
+      const outcome = context.settlement?.status ?? 'cancelled'
+      const controlEvidence = runnerCompletion(context, handle, outcome, process.completion)
       return {
-        status: process.state === 'exited' ? 'cancelled' : process.state === 'unknown' ? 'unknown' : 'cancelling',
-        handle
+        ...context.settlement,
+        status: controlEvidence ? outcome : process.state === 'stopping' ? 'cancelling' : 'unknown',
+        handle,
+        controlEvidence
       }
     }
-    const acknowledged = z
-      .boolean()
+    // This adapter creates one exclusive session per invocation; legacy or reused sessions are never cancelled.
+    if (
+      !context.executionTarget ||
+      handle.metadata?.exclusiveSession !== true ||
+      handle.metadata.executionGeneration !== context.executionTarget.generation ||
+      handle.runId !== `msg_${context.invocationId.replaceAll('-', '')}`
+    )
+      return { status: 'unknown', handle }
+    const messages = z
+      .array(Message)
       .parse(
-        await this.http(profile, `/session/${encodeURIComponent(handle.sessionId)}/abort`, 'POST', {}, context, handle)
+        await this.http(
+          profile,
+          `/session/${encodeURIComponent(handle.sessionId)}/message`,
+          'GET',
+          undefined,
+          context,
+          handle
+        )
       )
-    return { status: acknowledged ? 'cancelled' : 'cancelling', handle }
+    if (
+      messages.some(
+        (message) =>
+          (message.info.role === 'user' && message.info.id !== handle.runId) ||
+          (message.info.role === 'assistant' && message.info.parentID !== handle.runId)
+      )
+    )
+      return { status: 'unknown', handle }
+    z.boolean().parse(
+      await this.http(profile, `/session/${encodeURIComponent(handle.sessionId)}/abort`, 'POST', {}, context, handle)
+    )
+    // The session-level acknowledgement does not prove tool/descendant exit.
+    return { status: 'cancelling', handle }
   }
 
   private profile(handle: AgentRuntimeHandle, context: AgentRuntimeContext) {

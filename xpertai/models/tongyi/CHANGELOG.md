@@ -1,5 +1,11 @@
 # @xpert-ai/plugin-tongyi
 
+## 0.1.3
+
+### Patch Changes
+
+- 7bb93e9: Correct the Paraformer file-transcription catalog to advertise paraformer-v2 for the HTTP ASR endpoint. Existing Assistants configured with the incorrect paraformer-realtime-v2 ID must select paraformer-v2 and be republished before retrying failed recordings; no automatic alias or data migration is applied.
+
 ## 0.1.2
 
 ### Patch Changes

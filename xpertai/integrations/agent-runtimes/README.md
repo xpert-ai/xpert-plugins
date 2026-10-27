@@ -52,8 +52,10 @@ existing asset data path; neither tool input nor the strategy chooses the root.
 Old plugin `profiles`, middleware `bindings` and old receipts are not accepted or
 migrated. Stored records are not deleted. Update old middleware options to `{}`.
 This replaces configuration and authorization plumbing while retaining protocols.
-Use matching host/SDK builds with the managed-runtime and deployment extensions;
-the plugin remains private pending release.
+Requires host contracts/plugin-sdk **3.28.0 or newer**, including managed-runtime
+deployments and completion evidence v2. The workspace uses published npm **3.28.0**
+packages. The plugin is published publicly as `@xpert-ai/plugin-agent-runtimes`;
+verification alone does not publish or deploy it.
 
 ## Execution lifecycle
 
@@ -87,6 +89,20 @@ Install matching ChatKit types/UI with resource-card support and the host/SDK re
 All three tools carry localized display names/icons and optional `changeSummary`.
 
 ## Verification
+
+Verify the published npm dependencies after a frozen workspace install:
+
+```sh
+corepack pnpm install --frozen-lockfile --ignore-scripts
+NX_DAEMON=false corepack pnpm exec nx run agent-runtimes:verify-published
+```
+
+This target uses the workspace's installed SDK/contracts, validates their declared
+peer ranges, and never substitutes a platform source checkout or its dist output.
+It runs the same protocol, packed-artifact and dist-only lifecycle checks described
+below. Add `XPERT_RUNTIME_GUEST_TEST_IMAGE=node:22-bookworm` to also run direct
+process/Claude SDK protocol fixtures inside a network-isolated Linux container.
+These fixtures do not call model providers or establish live Computer acceptance.
 
 After building the matching host SDK/contracts, from `xpertai`:
 
@@ -164,7 +180,6 @@ and accepted the task. Failed history and live execution cards were retained.
 See the host's `docs/plans/2026-10-06-project-tasks-stage5-acceptance.md` for scope
 and limits. That Qwen-only result does not qualify the later Kimi/CodeBuddy adapters; see their separate acceptance below.
 
-
 ### Optional public execution activity
 
 Computer Qwen Code, Codex, CodeBuddy, Kimi Code, Claude Code and OpenCode declare activity version 1 (`presentation: coding`). With a matching host, adapters map allowlisted public text/tool/command/file events into `context.activity`, persist a source checkpoint and flush final activity before recording the result and stopping the runner. No extra Activity Provider registry is required. Hosts without the optional recorder keep the normal execution/result flow.
@@ -189,11 +204,11 @@ registry release. The automatic-runtime extension is covered by the host Changes
 
 The following additional providers use the same managed Computer JSONL lifecycle:
 
-| Provider | Tool/version | Background permission modes | Completion receipt |
-| --- | --- | --- | --- |
-| `codebuddy-computer` | CodeBuddy 2.161.1 | `allow`, `restricted` | One successful primary `result` event |
-| `kimi-computer` | Kimi Code 2.1.1 | `allow` only | Final assistant reply, matched tool results and final `session.resume_hint` |
-| `claude-computer` | Claude Code 2.1.63 | `allow`, `restricted` | One successful primary `result` event |
+| Provider             | Tool/version       | Background permission modes | Completion receipt                                                          |
+| -------------------- | ------------------ | --------------------------- | --------------------------------------------------------------------------- |
+| `codebuddy-computer` | CodeBuddy 2.161.1  | `allow`, `restricted`       | One successful primary `result` event                                       |
+| `kimi-computer`      | Kimi Code 2.1.1    | `allow` only                | Final assistant reply, matched tool results and final `session.resume_hint` |
+| `claude-computer`    | Claude Code 2.1.63 | `allow`, `restricted`       | One successful primary `result` event                                       |
 
 Every successful receipt also requires exit code 0, complete protocol collection
 and no terminal error. CodeBuddy/Claude share the primary-result parser with
@@ -239,3 +254,23 @@ Primary protocol references: [CodeBuddy headless mode](https://www.codebuddy.ai/
 [Kimi Code command reference](https://www.kimi.com/code/docs/en/kimi-code-cli/reference/kimi-command.html).
 Fixed installed-version help/source and real execution receipts take precedence
 when current online documentation describes a newer protocol.
+
+## Original-host control and descendant completion (phase 3.2)
+
+This change requires the published host/SDK **3.28.0** `completionEvidence: 2` contract. Local Codex, Pi and Claude executions are bound to the original host boot and execution generation. A different API replica persists cancellation; the original host reconciles it. A missing host or ambiguous receipt never authorizes another start. Business results are saved before process cleanup; failed final persistence retains the original receipt for another observation attempt.
+
+Local process profiles now require Python 3. The Linux supervisor adopts orphaned descendants, including children that leave the original process group, and reports completion only after reaping the entire owned family. Claude uses the installed SDK's `spawnClaudeCodeProcess` hook. Platforms without this supervision capability, including the current macOS fallback, can stop the known process group but return `unknown` without descendant evidence. Use a verified Linux/Computer path when confirmed termination is required.
+
+Computer adapters require a new runner receipt with `supervision: 1` and matching invocation/process/environment-instance evidence. Legacy `exited` replies remain unconfirmed. Persisted business outcomes survive cleanup and are consumed on recovery without another prompt. Remote OpenCode creates one session per invocation; legacy, mismatched-generation or reused sessions are not aborted. Its `abort=true` and idle responses do not certify remote background-tool exit, so this remote mode does not claim strong completion support.
+
+Pause drains already admitted turns and their required synchronous dependencies; it does not send cancellation or suspend a process in the middle of a tool. The host owns pause/resume admission and independent/shared task boundaries.
+
+Run source validation from the `xpertai` workspace root with fresh platform dist:
+
+```sh
+XPERT_PLATFORM_ROOT=/path/to/xpert \
+XPERT_RUNTIME_GUEST_TEST_IMAGE=node:22-bookworm \
+NX_DAEMON=false corepack pnpm exec nx run agent-runtimes:verify-source
+```
+
+The optional guest image runs the process protocol fixtures and installed Claude SDK transport in a disposable network-isolated Linux container. It does not invoke real model services or establish full provider CLI acceptance. The normal verifier also loads and unloads the built plugin through `plugin-dev-harness`. No publishing, installation into a running platform, or deployment is performed.

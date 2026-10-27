@@ -1,3 +1,4 @@
+import { runnerCompletion } from './runtime-completion.js'
 import { Injectable } from '@nestjs/common'
 import {
   AgentExecutionRunnerCapability,
@@ -19,13 +20,13 @@ export class CodexComputerRuntimeStrategy implements IAgentRuntimeStrategy {
     return this.profiles.managedProfiles('codex-computer')
   }
   readonly capabilities = {
+    completionEvidence: 2 as const,
+    idempotentCancellation: true,
     activity: { version: 1 as const, presentation: 'coding' as const },
     executionTools: [{ id: 'codex', versions: ['0.159.2'], environments: ['computer' as const] }],
     recovery: 'session' as const,
     interactions: false,
     cancellation: true,
-    idempotentCancellation: true,
-    completionEvidence: 2 as const,
     background: true
   }
   constructor(private readonly profiles: RuntimeProfiles) {}
@@ -57,27 +58,20 @@ export class CodexComputerRuntimeStrategy implements IAgentRuntimeStrategy {
   ): Promise<AgentRuntimeObservation> {
     const receipt = handle.runner!
     const result = await context.capabilities.require(AgentExecutionRunnerCapability).stop(receipt)
-    const proof = result.completion
-    if (result.state !== 'exited' || receipt.supervision !== 1 || !proof ||
-      proof.version !== 1 || proof.coverage !== 'descendants' ||
-      proof.invocationId !== context.invocationId || proof.invocationId !== receipt.invocationId ||
-      proof.processId !== receipt.processId || proof.environment.type !== receipt.environment.type ||
-      proof.environment.environmentId !== receipt.environment.environmentId ||
-      proof.environment.instanceId !== receipt.environment.instanceId) {
-      return { ...observation, status: result.state === 'unknown' || observation.status !== 'cancelled' ? 'unknown' : 'cancelling' }
-    }
-    const outcome = observation.status
+    const outcome = context.settlement?.status ?? observation.status
     if (outcome !== 'succeeded' && outcome !== 'failed' && outcome !== 'cancelled')
       throw new Error('Invalid Computer settlement outcome')
+    const controlEvidence = result.state === 'exited'
+      ? runnerCompletion(context, handle, outcome, result.completion)
+      : undefined
     return {
       ...observation,
-      controlEvidence: {
-        version: 1, source: 'provider', subject: { kind: 'invocation', id: context.invocationId },
-        scope: 'operation', state: 'settled', outcome,
-        sessionId: handle.sessionId, runId: handle.runId,
-        receiptKey: receipt.processId, observedAt: new Date().toISOString(),
-        ...(context.executionTarget ? { target: context.executionTarget } : {})
-      }
+      status: controlEvidence
+        ? observation.status
+        : result.state === 'stopping' && observation.status === 'cancelled'
+        ? ('cancelling' as const)
+        : ('unknown' as const),
+      controlEvidence
     }
   }
 }

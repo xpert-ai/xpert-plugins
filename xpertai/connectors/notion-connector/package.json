@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-notion-connector",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Public OAuth Notion connector for XpertAI with bounded read tools.",
   "author": {
     "name": "XpertAI",
@@ -51,8 +51,12 @@
   "peerDependencies": {
     "@langchain/core": "0.3.72",
     "@nestjs/common": "^11.1.6",
-    "@xpert-ai/contracts": "^3.17.0",
-    "@xpert-ai/plugin-sdk": "^3.23.1",
+    "@xpert-ai/contracts": "^3.26.2",
+    "@xpert-ai/plugin-sdk": "^3.26.2",
     "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@xpert-ai/plugin-sdk": "3.26.2",
+    "@xpert-ai/contracts": "3.26.2"
   }
 }

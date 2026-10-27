@@ -1,5 +1,6 @@
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { type ChildProcess } from 'node:child_process'
 import { z } from 'zod'
+import { supervisedProcess, type ProcessExitReceipt } from './supervised-process.js'
 import type { ProcessProfile } from './process-runtime.js'
 
 export const WireMessage = z
@@ -18,7 +19,8 @@ export type WireMessage = z.infer<typeof WireMessage>
 
 /** Bounded JSONL transport. Observers and server requests are never mistaken for request replies. */
 export class JsonlProcess {
-  private readonly child: ChildProcessWithoutNullStreams
+  private readonly child: ChildProcess
+  private supervisor: ReturnType<typeof supervisedProcess>
   private readonly pending = new Map<
     string,
     { resolve(value: WireMessage): void; reject(error: Error): void; timer: NodeJS.Timeout }
@@ -27,27 +29,27 @@ export class JsonlProcess {
   private sequence = 0
   private closed = false
   private exited = false
-  private killTimer?: NodeJS.Timeout
 
   constructor(
     profile: ProcessProfile,
     cwd: string,
     private readonly onMessage: (message: WireMessage) => void,
-    private readonly onClose: () => void
+    private readonly onClose: (receipt?: ProcessExitReceipt) => void
   ) {
     if (profile.type !== 'process') throw new Error('A managed process deployment is required')
-    this.child = spawn(profile.command, profile.args, { cwd, env: profile.environment, shell: false, stdio: 'pipe' })
-    this.child.stdout.setEncoding('utf8')
-    this.child.stdout.on('data', (chunk: string) => this.read(chunk))
-    this.child.stdin.on('error', () => this.stop())
-    this.child.stderr.on('data', () => undefined) // Do not expose runner stderr or credential diagnostics.
+    this.supervisor = supervisedProcess(profile.command, profile.args, cwd, profile.environment)
+    this.child = this.supervisor.child
+    this.child.stdout!.setEncoding('utf8')
+    this.child.stdout!.on('data', (chunk: string) => this.read(chunk))
+    this.child.stdin!.on('error', () => this.stop())
+    this.child.stderr!.on('data', () => undefined) // Do not expose runner stderr or credential diagnostics.
     this.child.on('error', () => this.stop())
-    this.child.on('close', () => this.finish())
+    void this.supervisor.finished.then((proof) => this.finish(proof))
   }
 
   send(message: object) {
     if (this.closed) throw new Error('Agent transport is closed')
-    this.child.stdin.write(`${JSON.stringify(message)}\n`)
+    this.child.stdin!.write(`${JSON.stringify(message)}\n`)
   }
 
   request(message: object): Promise<WireMessage> {
@@ -70,12 +72,8 @@ export class JsonlProcess {
 
   stop() {
     this.disconnect()
-    if (this.exited || this.killTimer) return
-    this.child.kill('SIGTERM')
-    this.killTimer = setTimeout(() => {
-      if (!this.exited) this.child.kill('SIGKILL')
-    }, 2000)
-    this.killTimer.unref()
+    if (this.exited) return
+    this.supervisor.stop()
   }
 
   private read(chunk: string) {
@@ -118,11 +116,10 @@ export class JsonlProcess {
     this.buffer = ''
   }
 
-  private finish() {
+  private finish(proof?: ProcessExitReceipt) {
     if (this.exited) return
     this.exited = true
-    clearTimeout(this.killTimer)
     this.disconnect()
-    this.onClose()
+    this.onClose(proof)
   }
 }

@@ -1,3 +1,4 @@
+import { target, supervisedReceipt, exitEvidence } from './completion-fixture.mjs'
 import { managedTarget } from './managed-fixture.mjs'
 import 'reflect-metadata'
 import { test } from 'node:test'
@@ -12,7 +13,7 @@ function setup() {
     snapshots = []
   const invocationId = randomUUID(),
     workspaceId = randomUUID()
-  const receipt = {
+  const receipt = supervisedReceipt({
     version: 1,
     invocationId,
     processId: 'process',
@@ -20,9 +21,9 @@ function setup() {
     environment: { type: 'computer', environmentId: randomUUID(), instanceId: 'generation' },
     workingDirectory: '/home/user/.xpert/runs/' + invocationId,
     tool: { id: 'opencode', version: '1.18.33' }
-  }
+  })
   let state = 'busy',
-    stopped = false,
+    stopped = true,
     output = 'implemented',
     exportFailure = false,
     emptyExport = false
@@ -63,11 +64,12 @@ function setup() {
     },
     async stop() {
       events.push('stop')
-      return { state: stopped ? 'exited' : 'stopping' }
+      return { state: stopped ? 'exited' : 'stopping', ...(stopped ? { completion: exitEvidence(receipt) } : {}) }
     }
   }
   const strategy = new OpenCodeRuntimeStrategy(new RuntimeProfiles())
   const context = {
+    executionTarget: target,
     invocationId,
     scope: {
       tenantId: 'tenant',
@@ -97,6 +99,9 @@ function setup() {
     receipt,
     complete() {
       state = 'idle'
+    },
+    holdExit() {
+      stopped = false
     },
     exit() {
       stopped = true
@@ -134,6 +139,7 @@ test('managed OpenCode checkpoints the runner and session before a single async 
 test('managed cancellation requires runner exit, not an abort acknowledgement', async () => {
   const f = setup(),
     started = await f.strategy.start(f.request, f.context)
+  f.holdExit()
   assert.equal((await f.strategy.cancel(started.handle, f.context)).status, 'cancelling')
   f.exit()
   assert.equal((await f.strategy.cancel(started.handle, f.context)).status, 'cancelled')

@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-analytics-workspace-script",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "description": "Workspace Python/JavaScript analytics provider over governed Sandbox Jobs",
   "main": "./index.cjs",
   "types": "./dist/index.d.ts",

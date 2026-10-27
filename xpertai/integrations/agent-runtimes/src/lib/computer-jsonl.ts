@@ -1,3 +1,4 @@
+import { runnerCompletion } from './runtime-completion.js'
 import {
   AgentExecutionRunnerCapability,
   type AgentRuntimeContext,
@@ -81,6 +82,16 @@ export async function inspectComputerJsonl(
   const receipt = handle.runner
   const runner = context.capabilities.require(AgentExecutionRunnerCapability)
   const process = await runner.inspect(handle.runner)
+  if (context.settlement) {
+    const stopped = await runner.stop(receipt)
+    const controlEvidence = runnerCompletion(context, handle, context.settlement.status, stopped.completion)
+    return {
+      ...context.settlement,
+      handle,
+      status: controlEvidence ? context.settlement.status : 'unknown',
+      controlEvidence
+    }
+  }
   if (process.state !== 'running') {
     await appendActivities(context, [], true, ['source_lost'])
     const diagnostic = completionFailure(
@@ -150,7 +161,9 @@ export async function inspectComputerJsonl(
           status: receiptLost && state.exitCode === 0 ? 'unknown' : 'failed',
           handle,
           progress,
-          error: `[${diagnostic.code}] ${diagnostic.message}${diagnostic.exitCode !== undefined ? ` (exit code ${diagnostic.exitCode})` : ''}`
+          error: `[${diagnostic.code}] ${diagnostic.message}${
+            diagnostic.exitCode !== undefined ? ` (exit code ${diagnostic.exitCode})` : ''
+          }`
         }
   if (observation.result && delivery.mode !== 'none') {
     const paths =
@@ -171,8 +184,9 @@ export async function inspectComputerJsonl(
   }
   // Durable result before cleanup also protects API restart between these operations.
   await context.checkpoint(observation)
-  await runner.stop(handle.runner)
-  return observation
+  const stopped = await runner.stop(handle.runner)
+  const controlEvidence = runnerCompletion(context, handle, observation.status, stopped.completion)
+  return { ...observation, status: controlEvidence ? observation.status : 'unknown', controlEvidence }
 }
 
 export function requireComputerProfile(

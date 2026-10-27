@@ -1,3 +1,4 @@
+import { runnerCompletion } from './runtime-completion.js'
 import { Injectable } from '@nestjs/common'
 import {
   AgentExecutionRunnerCapability,
@@ -31,6 +32,8 @@ export class ClaudeComputerRuntimeStrategy implements IAgentRuntimeStrategy {
     return this.profiles.managedProfiles('claude-computer')
   }
   readonly capabilities = {
+    completionEvidence: 2 as const,
+    idempotentCancellation: true,
     activity: { version: 1 as const, presentation: 'coding' as const },
     executionTools: [{ id: 'claude', versions: ['2.1.63'], environments: ['computer' as const] }],
     recovery: 'session' as const,
@@ -50,14 +53,16 @@ export class ClaudeComputerRuntimeStrategy implements IAgentRuntimeStrategy {
     requireComputerProfile(handle, context, this.profiles, adapter)
     if (!handle.runner) throw new Error('Claude Computer receipt is unavailable')
     const result = await context.capabilities.require(AgentExecutionRunnerCapability).stop(handle.runner)
+    const outcome = context.settlement?.status ?? 'cancelled'
+    const controlEvidence = runnerCompletion(context, handle, outcome, result.completion)
     return {
-      status:
-        result.state === 'exited'
-          ? ('cancelled' as const)
-          : result.state === 'unknown'
-            ? ('unknown' as const)
-            : ('cancelling' as const),
-      handle
+      status: controlEvidence
+        ? ('cancelled' as const)
+        : result.state === 'stopping'
+        ? ('cancelling' as const)
+        : ('unknown' as const),
+      handle,
+      controlEvidence
     }
   }
 }

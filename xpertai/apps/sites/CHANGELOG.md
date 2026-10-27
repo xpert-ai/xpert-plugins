@@ -1,5 +1,11 @@
 # @xpert-ai/plugin-sites
 
+## 0.4.2
+
+### Patch Changes
+
+- 78fe538: Respect the Assistant's shared or user-isolated workspace policy when publishing Sites deployments, preserving host authorization and the resolved file reference.
+
 ## 0.4.1
 
 ### Patch Changes

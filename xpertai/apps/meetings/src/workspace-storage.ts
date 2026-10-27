@@ -1,23 +1,5 @@
-import type { WorkspaceFilesApi } from "@xpert-ai/plugin-sdk";
-
-/** @deprecated Compatibility boundary until the SDK release containing workspace-storage is published.
- * Matches packages/plugin-sdk/src/lib/runtime/capabilities/workspace-storage.ts in the host. */
-export interface WorkspaceStorage {
-  read(path: string): Promise<Buffer>;
-  write(path: string, content: string | Uint8Array): Promise<void>;
-  mkdir(path: string): Promise<void>;
-  list(path: string): Promise<string[]>;
-  remove(path: string): Promise<void>;
-  withLock<T>(
-    key: string,
-    action: () => Promise<T>,
-    options?: { waitMs?: number }
-  ): Promise<T>;
-}
-/** @deprecated Remove when the published SDK includes WorkspaceFilesApi.appData. */
-export type WorkspaceFilesWithAppData = WorkspaceFilesApi & {
-  appData?: (options: { pluginName: string; requireUserIsolation?: boolean }) => WorkspaceStorage;
-};
+import type { WorkspaceStorage } from "@xpert-ai/plugin-sdk";
+export type { WorkspaceStorage } from "@xpert-ai/plugin-sdk";
 
 /** Relative path bound to an authorized platform workspace; never an API-host filesystem path. */
 export interface StoragePath {

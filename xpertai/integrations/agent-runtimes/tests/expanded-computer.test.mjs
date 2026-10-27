@@ -1,3 +1,4 @@
+import { target, supervisedReceipt, exitEvidence } from './completion-fixture.mjs'
 import { managedTarget } from './managed-fixture.mjs'
 import 'reflect-metadata'
 import { test } from 'node:test'
@@ -23,7 +24,7 @@ for (const [tool, Strategy, events] of [
   function fixture() {
     const provider = `${tool}-computer`
     const strategy = new Strategy(new RuntimeProfiles())
-    const receipt = { tool: { id: tool }, workingDirectory: '/workspace/project' }
+    const receipt = supervisedReceipt({ tool: { id: tool }, workingDirectory: '/workspace/project' })
     const calls = []
     let output = { state: 'exited', exitCode: 0, events }
     const runner = {
@@ -39,7 +40,7 @@ for (const [tool, Strategy, events] of [
       inspect: async () => ({ state: 'running' }),
       stop: async () => {
         calls.push('stop')
-        return { state: 'exited' }
+        return { state: 'exited', completion: exitEvidence(receipt) }
       },
       collectArtifacts: async () => {
         calls.push('export')
@@ -47,6 +48,7 @@ for (const [tool, Strategy, events] of [
       }
     }
     const context = {
+      executionTarget: target,
       scope: { workspaceId },
       invocationId: 'invocation',
       capabilities: { require: () => runner },
