@@ -10,7 +10,13 @@ function fixture() {
   const profiles = new RuntimeProfiles()
   const strategy = new CodexComputerRuntimeStrategy(profiles)
   const receipt = {
+    version: 2,
+    supervision: 1,
     invocationId: 'invocation',
+    environment: { type: 'computer', environmentId: 'environment', instanceId: 'instance' },
+    processId: 'process',
+    grantId: 'grant',
+    executionDirectory: '/workspace/isolated',
     workingDirectory: '/workspace/isolated',
     tool: { id: 'codex', version: '0.159.2' }
   }
@@ -38,7 +44,10 @@ function fixture() {
     inspect: async () => ({ state: 'running' }),
     stop: async () => {
       calls.push('stop')
-      return { state: 'exited' }
+      return { state: 'exited', completion: {
+        version: 1, coverage: 'descendants', invocationId: receipt.invocationId,
+        environment: receipt.environment, processId: receipt.processId
+      } }
     },
     collectArtifacts: async (_, selection) => {
       calls.push(selection)
@@ -47,6 +56,7 @@ function fixture() {
   }
   const context = {
     invocationId: 'invocation',
+    executionTarget: { version: 1, kind: 'provider', generation: '22222222-2222-4222-a222-222222222222' },
     scope: { workspaceId },
     capabilities: { require: () => runner },
     checkpoint: async (value) => {
@@ -69,7 +79,7 @@ test('Computer Codex checkpoints before dispatch and exports before cleanup; rep
   assert.equal(result.status, 'succeeded')
   assert.equal(result.result.text, 'done')
   assert.equal(result.result.export.status, 'completed')
-  assert.deepEqual(f.calls.slice(-3), [{ mode: 'files', paths: ['report.txt'] }, 'checkpoint', 'stop'])
+  assert.deepEqual(f.calls.slice(-4), [{ mode: 'files', paths: ['report.txt'] }, 'checkpoint', 'stop', 'stop'])
   assert.equal(f.calls.filter((x) => x === 'POST').length, 1)
 })
 
@@ -114,7 +124,7 @@ test('Computer Codex persists the concrete CLI failure before cleanup and accept
   assert.match(failure.error, /cli_error.*Model request failed/)
   assert.doesNotMatch(failure.error, /private-token/)
   assert.equal(f.snapshots.at(-1).handle.metadata.completion.finalEventType, 'turn.failed')
-  assert.deepEqual(f.calls.slice(-2), ['checkpoint', 'stop'])
+  assert.deepEqual(f.calls.slice(-3), ['checkpoint', 'stop', 'stop'])
 
   const recovered = fixture()
   const running = await recovered.strategy.start(recovered.request, recovered.context)
@@ -162,4 +172,52 @@ test('Computer capability declarations do not inherit App Server approvals or pr
   assert.equal(f.strategy.capabilities.interactions, false)
   assert.equal(f.strategy.capabilities.recovery, 'session')
   assert.equal(f.strategy.capabilities.executionTools[0].id, 'codex')
+  assert.equal(f.strategy.capabilities.completionEvidence, 2)
+  assert.equal(f.strategy.capabilities.idempotentCancellation, true)
+})
+
+test('Computer Codex cancellation reports bound descendant completion and can retry stop', async () => {
+  const f = fixture()
+  const { handle } = await f.strategy.start(f.request, f.context)
+  const stop = f.runner.stop
+  f.runner.stop = async () => ({ state: 'stopping' })
+  assert.equal((await f.strategy.cancel(handle, f.context)).status, 'cancelling')
+  f.runner.stop = stop
+  const result = await f.strategy.cancel(handle, f.context)
+  assert.equal(result.status, 'cancelled')
+  assert.equal(result.controlEvidence.outcome, 'cancelled')
+  assert.equal(result.controlEvidence.subject.id, f.context.invocationId)
+  assert.deepEqual(result.controlEvidence.target, f.context.executionTarget)
+  assert.equal(result.controlEvidence.receiptKey, handle.runner.processId)
+  assert.equal((await f.strategy.cancel(handle, f.context)).status, 'cancelled')
+})
+
+test('Computer Codex rejects missing or mismatched descendant stop evidence', async () => {
+  const f = fixture()
+  const { handle } = await f.strategy.start(f.request, f.context)
+  const exited = await f.runner.stop()
+  for (const completion of [undefined,
+    { ...exited.completion, coverage: 'process' },
+    { ...exited.completion, invocationId: 'other' },
+    { ...exited.completion, processId: 'other' },
+    { ...exited.completion, environment: { ...exited.completion.environment, instanceId: 'replacement' } }
+  ]) {
+    f.runner.stop = async () => ({ state: 'exited', completion })
+    const result = await f.strategy.cancel(handle, f.context)
+    assert.equal(result.status, 'cancelling')
+    assert.equal(result.controlEvidence, undefined)
+  }
+})
+
+test('Computer Codex recovers checkpointed results without replaying or reading a stopped service', async () => {
+  const f = fixture()
+  const { handle } = await f.strategy.start(f.request, f.context)
+  f.runner.request = async () => { throw Error('service already exited') }
+  const settlement = { status: 'succeeded', result: { text: 'verified result' } }
+  const result = await f.strategy.inspect(handle, { ...f.context, settlement })
+  assert.equal(result.status, 'succeeded')
+  assert.equal(result.result.text, 'verified result')
+  assert.equal(result.controlEvidence.outcome, 'succeeded')
+  assert.deepEqual(result.controlEvidence.target, f.context.executionTarget)
+  assert.equal(f.calls.filter(x => x === 'POST').length, 1)
 })
