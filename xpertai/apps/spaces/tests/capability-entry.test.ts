@@ -90,3 +90,10 @@ test('tool instances recheck every invocation, using server context rather than 
   assert.equal(f.businessCalls(), 1)
   assert.equal(f.checks.length, 6)
 })
+
+test('View advertises the required Project type for host-side selection without changing authorization', () => {
+  const f = fixture()
+  const [manifest] = f.view.getViewManifests(f.context, 'agent.workbench.main')
+  assert.deepEqual(manifest.workbench, { projectType: { applicationKey: 'platform', projectTypeKey: 'space' } })
+  assert.equal(f.businessCalls(), 0)
+})
