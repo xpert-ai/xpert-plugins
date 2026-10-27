@@ -1,3 +1,4 @@
+# Verified 2026-10-27: https://docs.volcengine.com/docs/ark/deep-thinking?lang=zh
 model: deepseek-v4-pro-ga-260813
 label:
   en_US: deepseek-v4-pro-ga-260813
@@ -18,18 +19,27 @@ parameter_rules:
       en_US: Reasoning Effort
     type: string
     required: false
-    default: medium
+    default: high
     options:
-      - minimal
+      - none
       - low
-      - medium
       - high
       - max
-    help:
-      zh_Hans: 控制思维链长度，平衡效果、时延与成本。minimal 关闭思考直接回答；low 轻量思考侧重快速响应；medium 均衡模式；high 深度分析处理复杂问题；max 最高程度思考适配高难度推理任务。
-      en_US: Controls chain-of-thought length to balance quality, latency, and cost. minimal answers directly without thinking; low favors fast response; medium is balanced; high enables deep analysis; max maximizes reasoning for hardest tasks.
+  - name: max_tokens
+    use_template: max_tokens
+    min: 1
+    max: 393216
+    default: 4096
 pricing:
-  input: "9"
-  output: "27"
-  unit: "0.000001"
+  input: '9'
+  output: '27'
+  unit: '0.000001'
   currency: RMB
+  source_url: https://docs.volcengine.com/docs/ark/model-pricing?lang=zh
+  rules:
+    - component: cache_read_input
+      unit_price: 0.3
+      unit_size: 1000000
+    - component: cache_storage
+      unit_price: 0.017
+      unit_size: 1000000
