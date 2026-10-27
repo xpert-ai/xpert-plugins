@@ -1,4 +1,5 @@
-import * as sql from 'mssql'
+// mssql is CommonJS; native ESM exposes its API through the default export.
+import sql from 'mssql'
 import {
   BaseSQLQueryRunner,
   CreationTable,
