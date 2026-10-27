@@ -49,5 +49,12 @@
       "optional": true
     }
   },
-  "private": true
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xpert-ai/xpert-plugins.git",
+    "directory": "xpertai/integrations/agent-runtimes"
+  }
 }
