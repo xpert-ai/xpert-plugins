@@ -1,0 +1,16 @@
+{
+  "model": "qwen-audio-3.0-asr-flash-filetrans",
+  "label": {
+    "en_US": "qwen-audio-3.0-asr-flash-filetrans",
+    "zh_Hans": "qwen-audio-3.0-asr-flash-filetrans"
+  },
+  "model_type": "speech2text",
+  "modelConfig": {
+    "asr_protocol": "async"
+  },
+  "model_properties": {
+    "file_upload_limit": 15,
+    "supported_file_extensions": "wav,mp3,opus"
+  },
+  "parameter_rules": []
+}

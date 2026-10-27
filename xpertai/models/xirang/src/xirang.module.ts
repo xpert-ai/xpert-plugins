@@ -1,3 +1,5 @@
+import { XirangSpeechToTextModel } from './speech2text/speech2text.js'
+import { XirangTextToSpeechModel } from './tts/tts.js'
 import { ConfigModule } from '@nestjs/config'
 import { XpertServerPlugin, IOnPluginBootstrap, IOnPluginDestroy } from '@xpert-ai/plugin-sdk'
 import { XirangProviderStrategy } from './provider.strategy.js'
@@ -13,7 +15,9 @@ import { XirangImageGenerationModel } from './image/image.js'
     XirangLargeLanguageModel,
     XirangTextEmbeddingModel,
     XirangRerankModel,
-    XirangImageGenerationModel
+    XirangImageGenerationModel,
+    XirangSpeechToTextModel,
+    XirangTextToSpeechModel
   ]
 })
 export class XirangModule implements IOnPluginBootstrap, IOnPluginDestroy {
