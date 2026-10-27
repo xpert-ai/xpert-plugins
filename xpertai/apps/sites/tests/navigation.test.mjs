@@ -13,7 +13,7 @@ let script
 before(async () => {
   const result = await build({ entryPoints: [resolve(root, 'remote-components/sites-workbench/src/main.tsx')], bundle: true,
     write: false, format: 'iife', platform: 'browser', jsx: 'automatic', define: { 'process.env.NODE_ENV': '"production"' },
-    alias: { '@xpert-ai/plugin-shadcn-ui': resolve(root, '../../../packages/shadcn-ui/src/index.ts'),
+    alias: { "@xpert-ai/plugin-shadcn-ui/i18n": resolve(root, "../../../packages/shadcn-ui/src/i18n.tsx"), '@xpert-ai/plugin-shadcn-ui': resolve(root, '../../../packages/shadcn-ui/src/index.ts'),
       react: require.resolve('react'), 'react-dom': require.resolve('react-dom'), 'react-dom/client': require.resolve('react-dom/client'),
       'react/jsx-runtime': require.resolve('react/jsx-runtime') } })
   script = result.outputFiles[0].text

@@ -8,11 +8,11 @@ const getTemplates = () => [
   { title: t('templates.meeting.title'), description: t('templates.meeting.description'), content: t('templates.meeting.content') },
   { title: t('templates.weekly.title'), description: t('templates.weekly.description'), content: t('templates.weekly.content') }
 ]
-export function FolderSelect({ items, value, onChange }: { items: Item[]; value: string; onChange: (value: string) => void }) {
+export function FolderSelect({ items, value, onChange, disabled }: { items: Item[]; disabled?: boolean; value: string; onChange: (value: string) => void }) {
   useLocale()
   // Radix reserves an empty value for the placeholder; map the root option at this UI boundary.
   return <div className="form-field"><Label htmlFor="folder-location">{t('folder.location')}</Label>
-    <Select value={value || 'root'} onValueChange={(id) => onChange(id === 'root' ? '' : id)}>
+    <Select disabled={disabled} value={value || 'root'} onValueChange={(id) => onChange(id === 'root' ? '' : id)}>
       <SelectTrigger id="folder-location" className="w-full"><SelectValue /></SelectTrigger>
       <SelectContent position="popper"><SelectItem value="root">{t('folder.root')}</SelectItem>
         {items.filter((item) => item.kind === 'folder' && !item.deleted).map((item) => <SelectItem key={item.id} value={item.id}>{item.filePath ?? item.title}</SelectItem>)}

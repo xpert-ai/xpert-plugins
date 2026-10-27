@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { pathToFileURL } from 'node:url'
-import type { Repository } from 'typeorm'
+import { FindOperator, type Repository } from 'typeorm'
 import {
   ArtifactsRuntimeCapability,
   DefaultRuntimeCapabilityRegistry,
@@ -52,6 +52,11 @@ function createRepository<T extends TestEntity>(initial: T[] = []) {
       }
       return rows[0] ?? null
     },
+    async findOneOrFail(options: { where: Partial<T> }) {
+      const item = await this.findOne(options)
+      if (!item) throw new Error('missing fixture')
+      return item
+    },
     async find(options?: { where?: Partial<T>; take?: number; order?: Partial<Record<keyof T, 'ASC' | 'DESC'>> }) {
       const rows = options?.where ? items.filter((item) => matchesWhere(item, options.where ?? {})) : [...items]
       return typeof options?.take === 'number' ? rows.slice(0, options.take) : rows
@@ -70,7 +75,7 @@ function createRepository<T extends TestEntity>(initial: T[] = []) {
 }
 
 function matchesWhere<T>(item: T, where: Partial<T>) {
-  return Object.entries(where).every(([key, expected]) => expected === undefined || Reflect.get(item as object, key) === expected)
+  return Object.entries(where).every(([key, expected]) => expected === undefined || (expected instanceof FindOperator && expected.type === 'isNull' ? Reflect.get(item as object, key) == null : Reflect.get(item as object, key) === expected))
 }
 
 function asRepository<T extends TestEntity>(repository: ReturnType<typeof createRepository<T>>) {
@@ -198,6 +203,7 @@ export function createFixture(writeRuntimeBuffer?: WorkspaceFilesApi['writeRunti
     }
   }
   const workspaceFiles: WorkspaceFilesApi = {
+    appData() { throw new Error("not used") },
     async writeRuntimeBuffer(input) {
       if (writeRuntimeBuffer) return writeRuntimeBuffer(input)
       return {
@@ -244,7 +250,7 @@ export function createFixture(writeRuntimeBuffer?: WorkspaceFilesApi['writeRunti
   )
 
   Object.assign(projectRepository, { manager: { transaction: async (fn: (m: { getRepository: (entity: unknown) => unknown }) => Promise<unknown>) => fn({ getRepository: entity => entity === SitesProject ? projectRepository : versionRepository }) } })
-  return { service, calls, repositories: { projects: projectRepository, versions: versionRepository, deployments: deploymentRepository } }
+  return { service, calls, capabilities, repositories: { projects: projectRepository, versions: versionRepository, deployments: deploymentRepository } }
 }
 
 export async function assertSitesArtifactsBehavior() {

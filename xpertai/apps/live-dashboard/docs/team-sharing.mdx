@@ -31,7 +31,7 @@ description: 分享已发布版本，保持数据访问权限、草稿和编辑�
 
 来源插件可在 Provider descriptor 的 `sharing` 声明 `owner_only` 及原因码。Workspace 脚本当前依赖私有定义、脚本和文件 Artifact，因此会阻止开启团队分享。后续应先提供这些依赖的显式协作授权，不能在看板层绕过文件 ACL。
 
-独立页只接受已发布的 Artifact/version 目标。刷新仅重查已声明 Binding；前端不能提交 SQL、替换 provider/dataSource、读取草稿或调用发布。HTML 与前端依赖运行在无网络的隔离环境中。
+独立页只接受已发布的 Artifact/version 目标。刷新仅重查已声明 Binding；前端不能提交 SQL、替换 provider/dataSource、读取草稿或调用发布。HTML 仍运行在隔离环境中；在线脚本、样式和字体仅可从 dashboard_libraries.online 的 HTTPS 白名单加载，数据查询仍须经过 Binding。
 
 跟随最新版本的链接在重新打开时读取当前正式版本；若页面打开后发布了新版本，旧目标查询会返回冲突，提示重新打开，避免旧 HTML 与新 Binding 混用。筛选值属于当前页面状态，刷新保留，重开恢复定义默认值。刷新仍是主动查询或定义中已配置的轮询，不是服务端推送。
 

@@ -1,3 +1,4 @@
+import type { AgentRuntimeDeploymentSpec, AgentInvocationScope } from '@xpert-ai/plugin-sdk'
 import { agentPrompt } from './input.js'
 import { outputDelivery, taskResult } from './task-result.js'
 import { Injectable } from '@nestjs/common'
@@ -25,12 +26,36 @@ const Message = z.object({
 @Injectable()
 @AgentRuntimeStrategy('pi')
 export class PiRuntimeStrategy implements IAgentRuntimeStrategy {
-  readonly capabilities = { recovery: 'none' as const, interactions: false, cancellation: true, background: true }
+  get managedProfiles() {
+    return this.processes.managedProfiles('pi')
+  }
+  async resolveManagedDeployment(
+    reference: string,
+    _scope: Readonly<AgentInvocationScope>
+  ): Promise<AgentRuntimeDeploymentSpec | undefined> {
+    if (!this.managedProfiles.some((profile) => profile.reference === reference)) return undefined
+    return {
+      type: 'process',
+      command: 'pi',
+      args: ['--mode', 'rpc'],
+      environment: { LANG: 'C.UTF-8' },
+      timeoutMs: 600000
+    }
+  }
+  readonly capabilities = {
+    hostAffinity: 1 as const,
+    completionEvidence: 2 as const,
+    idempotentCancellation: true,
+    recovery: 'none' as const,
+    interactions: false,
+    cancellation: true,
+    background: true
+  }
   constructor(private readonly processes: ProcessRuntime) {}
 
   async start(request: AgentRuntimeStart, context: AgentRuntimeContext) {
     if (request.previous) return this.inspect(request.previous, context)
-    const profile = this.processes.profile(request, context, 'pi')
+    const profile = await this.processes.profile(request, context, 'pi')
     const run = await this.processes.launch(profile, context, (run, message) => this.event(run, message))
     run.delivery = outputDelivery(request.input.delivery)
     try {
@@ -48,10 +73,15 @@ export class PiRuntimeStrategy implements IAgentRuntimeStrategy {
 
   async cancel(handle: AgentRuntimeHandle, context: AgentRuntimeContext) {
     const run = this.processes.find(handle, context)
-    if (!run) return this.inspect(handle, context)
+    if (!run || run.exited) return this.inspect(handle, context)
+    if (run.cancellationRequested) return run.observation
     run.cancellationRequested = true
     this.processes.publish(run, { status: 'cancelling' })
-    await run.process.request({ type: 'abort' })
+    try {
+      await run.process.request({ type: 'abort' })
+    } finally {
+      run.process.stop()
+    }
     return run.observation
   }
 

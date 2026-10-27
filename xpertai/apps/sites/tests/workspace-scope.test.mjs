@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import { ProjectAccessRuntimeCapability } from '@xpert-ai/plugin-sdk'
 import { createFixture, scope } from '../.artifacts/sites-spec/lib/sites-artifacts.spec.js'
 
 for (const catalog of ['xperts', 'user-xperts']) {
@@ -61,4 +62,33 @@ test('denied workspace writes fail deployment before publishing an Artifact', as
   assert.equal(fixture.calls.createArtifact.length, 0)
   assert.equal(fixture.calls.createArtifactVersion.length, 0)
   assert.equal(fixture.calls.createArtifactLink.length, 0)
+})
+
+
+test('project deployment keeps project ownership when an Assistant is also present', async () => {
+  const projectScope = { ...scope, hostProjectId: 'host-project' }
+  let reference
+  const fixture = createFixture(async input => {
+    assert.equal(input.catalog, 'projects')
+    assert.equal(input.scopeId, projectScope.hostProjectId)
+    assert.equal(input.projectId, projectScope.hostProjectId)
+    assert.equal(input.xpertId, undefined)
+    assert.equal(input.isolateByUser, undefined)
+    const filePath = `sites/deployments/${input.fileName}`
+    reference = { source: 'platform.workspace.files', catalog: 'projects', scopeId: projectScope.hostProjectId, projectId: projectScope.hostProjectId, filePath }
+    return { name: input.fileName, filePath, workspacePath: `/workspace/${filePath}`, mimeType: input.mimeType, size: input.buffer.length, catalog: 'projects', scopeId: projectScope.hostProjectId, reference }
+  })
+  const authorization = []
+  fixture.capabilities.register(ProjectAccessRuntimeCapability, {
+    async assertAssistant(input) { authorization.push(['assistant', input]) },
+    async assertManage(input) { authorization.push(['manage', input]) }
+  })
+  fixture.repositories.projects.items[0].hostProjectId = projectScope.hostProjectId
+  fixture.repositories.versions.items[0].hostProjectId = projectScope.hostProjectId
+  const deployment = await fixture.service.deployVersion({ projectId: 'project-id', versionId: 'version-id' }, projectScope)
+  assert.equal(deployment.status, 'deployed')
+  assert.deepEqual(authorization.map(([operation]) => operation), ['assistant', 'manage'])
+  assert.equal(fixture.calls.createArtifact[0][0].scope.projectId, projectScope.hostProjectId)
+  assert.equal(fixture.calls.createArtifact[0][0].scope.userId, null)
+  assert.equal(fixture.calls.createArtifactVersion[0][0].workspaceFileRef, reference)
 })

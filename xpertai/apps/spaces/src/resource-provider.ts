@@ -1,5 +1,6 @@
 import { ConflictException, Injectable } from '@nestjs/common'
 import { ContentResourceProvider, type ContentResourceEditor, type ContentResourceRequest, type ContentPrincipal, type ContentPageProvider, type ContentLocationProvider, type ContentPublicationObserver, type ContentReferenceProvider, type IContentResourceProvider } from '@xpert-ai/plugin-sdk'
+import { SpaceItemCatalog } from './item-catalog.js'
 import { Space, SpaceItem } from './entities.js'
 import { SpaceAccess } from './access.js'
 import { SpaceFiles } from './files.js'
@@ -8,11 +9,13 @@ import { SpaceKnowledge } from './knowledge.js'
 import { denied, scoped } from './domain.js'
 import { SpaceReferences } from './references.js'
 import { SpaceSubpages } from './subpages.js'
+import { assertFolderHasNoResources } from './resource-folders.js'
 @Injectable()
 @ContentResourceProvider('spaces')
 export class SpacesResourceProvider implements IContentResourceProvider {
   readonly title = 'Spaces'
-  constructor(private readonly access: SpaceAccess, private readonly documents: SpaceDocuments, private readonly knowledge: SpaceKnowledge, private readonly subpages: SpaceSubpages, private readonly referenceService: SpaceReferences, private readonly files: SpaceFiles) {}
+  constructor(private readonly access: SpaceAccess, private readonly documents: SpaceDocuments, private readonly knowledge: SpaceKnowledge, private readonly subpages: SpaceSubpages, private readonly referenceService: SpaceReferences, private readonly files: SpaceFiles, private readonly itemCatalog: SpaceItemCatalog) {}
+  get catalog() { return this.itemCatalog.catalog }
   readonly editor: ContentResourceEditor = {
     describe: async (input) => {
       const actor = { ...input.actor, projectId: input.projectId, assistantId: input.assistantId }
@@ -46,6 +49,7 @@ export class SpacesResourceProvider implements IContentResourceProvider {
     if (!item || space.projectId !== input.projectId || item.filePath !== input.path || item.version !== input.expectedSourceVersion)
       throw new ConflictException('spaces.version_conflict')
     if (item.deleted !== input.deleted) await this.access.resource(actor, item.id, 'manage', !input.deleted)
+    if (input.deleted) await assertFolderHasNoResources(this.access.items.manager, actor, item)
     const parent = await this.access.resource(actor, input.parentResourceId ?? item.spaceId, 'write')
     if (parent.space.id !== item.spaceId || (parent.item && parent.item.kind !== 'folder')) throw denied()
     let cursor = parent.item
@@ -55,8 +59,16 @@ export class SpacesResourceProvider implements IContentResourceProvider {
     }
   }
   async onLocationPrepared(input: Parameters<NonNullable<ContentLocationProvider['onLocationPrepared']>>[0]) {
-    await this.access.items.update({ ...scoped(input.actor), id: input.source.resourceId, version: input.expectedSourceVersion },
-      { syncStatus: 'pending', syncError: 'spaces.location_pending' })
+    await this.access.items.manager.transaction(async manager => {
+      const repo = manager.getRepository(SpaceItem)
+      const item = await repo.findOneByOrFail({ ...scoped(input.actor), id: input.source.resourceId })
+      await manager.getRepository(Space).findOneOrFail({ where: { ...scoped(input.actor), id: item.spaceId }, lock: { mode: 'pessimistic_write' } })
+      if (input.deleted) await assertFolderHasNoResources(manager, input.actor, item)
+      // Resource placement takes the same Space lock and rejects a pending ancestor.
+      // Once prepared, no resource can enter a folder while its durable move finishes.
+      await repo.update({ ...scoped(input.actor), id: item.id, version: input.expectedSourceVersion },
+        { syncStatus: 'pending', syncError: 'spaces.location_pending' })
+    })
   }
   async onLocationChanged(input: Parameters<NonNullable<ContentLocationProvider['onLocationChanged']>>[0]) {
     // Projection of a durable authorized operation: it must still finish if the initiating user leaves.

@@ -5,6 +5,9 @@ import type { SitesAccessMode, SitesHostingConfig, SitesProjectStatus, SitesStor
 @Index(['tenantId', 'organizationId', 'assistantId', 'slug'])
 @Index(['tenantId', 'organizationId', 'assistantId', 'status'])
 export class SitesProject {
+  /** Metadata CAS is independent of the source tree hash, including trash/restore ABA. */
+  @Column({ type: 'int', default: 0 }) catalogRevision?: number
+  @Column({ type: 'uuid', nullable: true }) copiedFromId?: string
   @PrimaryGeneratedColumn('uuid')
   id?: string
 
@@ -15,6 +18,9 @@ export class SitesProject {
   @Index()
   @Column({ type: 'varchar', nullable: true })
   organizationId?: string
+
+  /** Platform Project ownership. Null retains legacy personal/Assistant scope. */
+  @Index() @Column({ type: 'uuid', nullable: true, update: false }) hostProjectId?: string
 
   @Column({ type: 'varchar', nullable: true })
   createdById?: string

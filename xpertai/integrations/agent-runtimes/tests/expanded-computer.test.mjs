@@ -1,11 +1,12 @@
+import { target, supervisedReceipt, exitEvidence } from './completion-fixture.mjs'
+import { managedTarget } from './managed-fixture.mjs'
 import 'reflect-metadata'
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { CodeBuddyComputerRuntimeStrategy } from '../dist/lib/codebuddy-computer.strategy.js'
 import { ClaudeComputerRuntimeStrategy } from '../dist/lib/claude-computer.strategy.js'
 import { KimiComputerRuntimeStrategy } from '../dist/lib/kimi-computer.strategy.js'
-import { ProcessRuntime } from '../dist/lib/process-runtime.js'
-import { ConfigSchema } from '../dist/lib/config.js'
+import { RuntimeProfiles } from '../dist/lib/managed-profiles.js'
 import { jsonlActivities } from '../dist/lib/activity.js'
 import { kimiCompletion } from '../dist/lib/kimi-protocol.js'
 
@@ -22,16 +23,8 @@ for (const [tool, Strategy, events] of [
 ]) {
   function fixture() {
     const provider = `${tool}-computer`
-    const strategy = new Strategy(
-      new ProcessRuntime(
-        ConfigSchema.parse({
-          profiles: [
-            { id: tool, provider, version: '1', executionEnvironment: 'computer', workspaceIds: [workspaceId] }
-          ]
-        })
-      )
-    )
-    const receipt = { tool: { id: tool }, workingDirectory: '/workspace/project' }
+    const strategy = new Strategy(new RuntimeProfiles())
+    const receipt = supervisedReceipt({ tool: { id: tool }, workingDirectory: '/workspace/project' })
     const calls = []
     let output = { state: 'exited', exitCode: 0, events }
     const runner = {
@@ -47,7 +40,7 @@ for (const [tool, Strategy, events] of [
       inspect: async () => ({ state: 'running' }),
       stop: async () => {
         calls.push('stop')
-        return { state: 'exited' }
+        return { state: 'exited', completion: exitEvidence(receipt) }
       },
       collectArtifacts: async () => {
         calls.push('export')
@@ -55,6 +48,7 @@ for (const [tool, Strategy, events] of [
       }
     }
     const context = {
+      executionTarget: target,
       scope: { workspaceId },
       invocationId: 'invocation',
       capabilities: { require: () => runner },
@@ -63,7 +57,7 @@ for (const [tool, Strategy, events] of [
       }
     }
     const request = {
-      target: { provider, reference: tool, configuration: { profileVersion: '1' } },
+      target: managedTarget(provider),
       input: { prompt: 'task', delivery: { mode: 'files', paths: ['report.txt'] } }
     }
     return { strategy, calls, runner, context, request, output: (value) => (output = value) }

@@ -2,6 +2,7 @@ import { PresentationStudioService } from './presentation-studio.service.js'
 import { createPresentationYDoc, decodeYDoc, encodeYDoc, materializePresentationYDoc } from './presentation-yjs.js'
 import type { PresentationDeckSpec } from './types.js'
 import * as Y from 'yjs'
+import { PresentationDeck } from './entities/index.js'
 
 const availableExportCapabilities = () => ({
   getExportCapabilities: jest.fn().mockResolvedValue({
@@ -478,7 +479,9 @@ describe('PresentationStudioService export versioning', () => {
       {} as never,
       {} as never,
       availableExportCapabilities() as never,
-      {} as never
+      {} as never,
+      undefined,
+      { require: () => ({ assertAssistant: jest.fn(), listReadable: jest.fn().mockResolvedValue([{ role: 'editor', archived: false, canManage: false }]) }) } as never
     )
 
     await service.searchDecks({
@@ -1279,7 +1282,14 @@ describe('PresentationStudioService export versioning', () => {
       save: jest.fn(async (value) => value)
     }
     const service = new PresentationStudioService(
-      { findOne: jest.fn().mockResolvedValue(deck) } as never,
+      {
+        findOne: jest.fn().mockResolvedValue(deck),
+        manager: { transaction: async (work: (manager: object) => Promise<unknown>) => work({
+          getRepository: (entity: object) => entity === PresentationDeck
+            ? { findOneOrFail: jest.fn().mockResolvedValue(deck) }
+            : { ...exportRepository, findOneOrFail: jest.fn().mockResolvedValue(item) }
+        }) }
+      } as never,
       {} as never,
       {} as never,
       {} as never,
@@ -1393,7 +1403,14 @@ describe('PresentationStudioService export versioning', () => {
       save: jest.fn(async (value) => value)
     }
     const service = new PresentationStudioService(
-      { findOne: jest.fn().mockResolvedValue(deck) } as never,
+      {
+        findOne: jest.fn().mockResolvedValue(deck),
+        manager: { transaction: async (work: (manager: object) => Promise<unknown>) => work({
+          getRepository: (entity: object) => entity === PresentationDeck
+            ? { findOneOrFail: jest.fn().mockResolvedValue(deck) }
+            : { ...exportRepository, findOneOrFail: jest.fn().mockResolvedValue(item) }
+        }) }
+      } as never,
       {} as never,
       {} as never,
       {} as never,
@@ -1488,7 +1505,14 @@ describe('PresentationStudioService export versioning', () => {
       save: jest.fn(async (value) => value)
     }
     const service = new PresentationStudioService(
-      { findOne: jest.fn().mockResolvedValue(deck) } as never,
+      {
+        findOne: jest.fn().mockResolvedValue(deck),
+        manager: { transaction: async (work: (manager: object) => Promise<unknown>) => work({
+          getRepository: (entity: object) => entity === PresentationDeck
+            ? { findOneOrFail: jest.fn().mockResolvedValue(deck) }
+            : { ...exportRepository, findOneOrFail: jest.fn().mockResolvedValue(item) }
+        }) }
+      } as never,
       {} as never,
       {} as never,
       {} as never,

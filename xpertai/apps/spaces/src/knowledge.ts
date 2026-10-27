@@ -5,6 +5,7 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import { z } from 'zod/v3'
 import { KBDocumentStatusEnum } from '@xpert-ai/contracts'
+import { SpaceContentKnowledge } from './content-knowledge.js'
 import { SpaceAccess } from './access.js'
 import { denied, scoped, type SpaceActor } from './domain.js'
 import { Space, SpaceItem } from './entities.js'
@@ -14,7 +15,7 @@ const documentMetadata = z.object({ documentId: z.string().uuid() }).passthrough
 
 @Injectable()
 export class SpaceKnowledge {
-  constructor(private readonly access: SpaceAccess, @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtime: RuntimeCapabilityRegistry) {}
+  constructor(private readonly access: SpaceAccess, @Inject(XPERT_RUNTIME_CAPABILITIES_TOKEN) private readonly runtime: RuntimeCapabilityRegistry, private readonly content: SpaceContentKnowledge) {}
   async enable(actor: SpaceActor, spaceId: string) {
     const { space } = await this.access.resource(actor, spaceId, 'manage')
     if (!space.projectId) throw denied()
@@ -70,6 +71,7 @@ export class SpaceKnowledge {
     const { space } = await this.access.resource(actor, spaceId, 'write')
     const items = await this.access.items.findBy({ ...scoped(actor), spaceId })
     for (const item of items) await this.sync(actor, space, item)
+    await this.content.refresh(actor, space)
     return this.status(actor, spaceId)
   }
   async status(actor: SpaceActor, spaceId: string) {
@@ -87,10 +89,10 @@ export class SpaceKnowledge {
       if (item.indexStatus !== status || item.indexError !== error) await this.access.items.update(item.id, { indexStatus: status, indexError: error })
       item.indexStatus = status; item.indexError = error
     }
-    return { knowledgebaseId: space.knowledgebaseId, mode: 'keyword', items: items.filter((item) => item.kind !== 'folder' && !item.deleted).map((item) => ({
+    return { knowledgebaseId: space.knowledgebaseId, mode: 'keyword', items: [...await this.content.status(actor, space), ...items.filter((item) => item.kind !== 'folder' && !item.deleted).map((item) => ({
       itemId: item.id, title: item.title, status: item.indexStatus, error: item.indexError,
       document: documents.documents.find((doc) => doc.id === item.knowledgeDocumentId) ?? null
-    })) }
+    }))] }
   }
   async search(actor: SpaceActor, spaceId: string, query: string) {
     const { space } = await this.access.resource(actor, spaceId, 'read')
@@ -117,9 +119,10 @@ export class SpaceKnowledge {
       if (file.sha256 !== hash) continue
       matches.push({ itemId: item.id, title: item.title, text: document.pageContent, filePath: item.filePath, hash })
     }
-    return matches
+    return [...matches, ...await this.content.matches(actor, space, result.documents)]
   }
-  async verify(actor: SpaceActor, itemId: string, hash: string) {
+  async verify(actor: SpaceActor, itemId: string, hash: string, contentId?: string) {
+    if (contentId) return this.content.verify(actor, contentId, hash)
     const { item, space } = await this.access.resource(actor, itemId, 'read')
     if (!item?.filePath || !space.projectId) return false
     const file = await this.runtime.require(ProjectFilesRuntimeCapability).read({ actor, projectId: space.projectId, path: item.filePath })

@@ -3,6 +3,7 @@ import type { SerializedSitesProject } from './types.js'
 export function serializeProject(project: SitesProject, versionCount = 0, deploymentCount = 0): SerializedSitesProject {
   return {
     id: project.id,
+    hostProjectId: project.hostProjectId,
     name: project.name,
     slug: project.slug,
     description: project.description,

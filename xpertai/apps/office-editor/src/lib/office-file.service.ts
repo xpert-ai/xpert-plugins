@@ -32,6 +32,6 @@ export class OfficeFileService {
     const { file } = await this.source(input)
     return { reference: { ...input.actor, catalog: 'projects' as const, source: 'platform.workspace.files' as const,
       projectId: input.projectId, scopeId: input.projectId, filePath: file.file.path, workspacePath: file.file.path },
-      fileName: file.file.path.split('/').pop() ?? file.file.title, mimeType: file.registration.mimeType }
+      fileName: file.file.path.split('/').pop() ?? file.file.title, mimeType: file.registration.kind === 'file' ? file.registration.mimeType : 'application/octet-stream' }
   }
 }

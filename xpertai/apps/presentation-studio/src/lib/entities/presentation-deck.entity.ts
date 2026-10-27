@@ -12,6 +12,13 @@ import type { PresentationDeckSpec, PresentationStatus, PresentationThemePack } 
 @Index(['tenantId', 'organizationId', 'assistantId', 'status'])
 @Index(['tenantId', 'organizationId', 'updatedAt'])
 export class PresentationDeck {
+  @Column({ type: 'varchar', length: 20, default: 'active' }) lifecycleState!: 'active' | 'archiving' | 'archived' | 'restoring'
+  @Column({ type: 'int', default: 0 }) lifecycleRevision!: number
+  @Column({ type: 'text', nullable: true }) sourceSnapshotPath?: string
+
+  @Column({ type: 'varchar', nullable: true }) recoverySourceHash?: string
+  @Column({ type: 'uuid', nullable: true }) copiedFromId?: string
+
   @PrimaryGeneratedColumn('uuid') id?: string
   @Index() @Column({ type: 'varchar', nullable: true }) tenantId?: string
   @Index() @Column({ type: 'varchar', nullable: true }) organizationId?: string
@@ -26,6 +33,8 @@ export class PresentationDeck {
   @Column({ type: 'varchar', nullable: true }) owner?: string
   @Column({ type: 'varchar' }) themePack!: PresentationThemePack
   @Column({ type: 'varchar', default: 'draft' }) status!: PresentationStatus
+  @Column({ type: 'int', nullable: true }) sourceRevision?: number
+  @Column({ type: 'boolean', default: false }) sourceSyncFailed!: boolean
   @Column({ type: 'int', default: 0 }) revision!: number
   @Column({ type: 'varchar', nullable: true }) currentVersionId?: string
   @Column({ type: 'int', default: 0 }) currentVersionNumber!: number

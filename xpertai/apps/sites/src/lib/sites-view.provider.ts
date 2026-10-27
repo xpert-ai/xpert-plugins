@@ -1,3 +1,4 @@
+import { SitesContentProvider } from './sites-content.provider.js'
 import { Injectable, Logger } from '@nestjs/common'
 import { readFile } from 'node:fs/promises'
 import { z } from 'zod/v3'
@@ -12,25 +13,25 @@ const access = z.enum(['admins_only', 'workspace_all', 'custom', 'public_link'])
 const project = z.object({ projectId: z.string().uuid() }).strict()
 const deploy = project.extend({ versionId: z.string().uuid(), accessMode: access, confirmed: z.literal(true), customAudience: z.array(z.string().uuid()).max(100).optional(), userConfirmedPublicLink: z.boolean().optional() })
 const logger = new Logger('SitesView')
-const scope = (c: XpertResolvedViewHostContext): SitesScope => ({ tenantId: c.tenantId, organizationId: c.organizationId, userId: c.userId, assistantId: c.hostId })
+const scope = (c: XpertResolvedViewHostContext): SitesScope => ({ tenantId: c.tenantId, organizationId: c.organizationId, userId: c.userId, assistantId: c.hostType === 'agent' ? c.hostId : undefined, hostProjectId: c.hostType === 'project' ? c.hostId : c.runtimeScope?.projectId ?? undefined })
 
 @Injectable()
 @ViewExtensionProvider(SITES_PROVIDER_KEY)
 export class SitesViewProvider implements IXpertViewExtensionProvider {
-  constructor(private readonly service: SitesService) {}
-  supports(c: XpertResolvedViewHostContext) { return c.hostType === 'agent' }
+  constructor(private readonly service: SitesService, private readonly content: SitesContentProvider) {}
+  supports(c: XpertResolvedViewHostContext) { return c.hostType === 'agent' || c.hostType === 'project' }
   getViewManifests(_c: XpertResolvedViewHostContext, slot: string): XpertExtensionViewManifest[] {
-    if (!['agent.workbench.fixed', 'agent.workbench.main'].includes(slot)) return []
+    if (!['agent.workbench.fixed', 'agent.workbench.main', 'detail.sections'].includes(slot)) return []
     const icon = { type: 'svg' as const, value: SITES_ICON }
-    return [{ key: SITES_VIEW_KEY, title: text('Sites', '站点'), icon, hostType: 'agent', slot, order: 40,
-      activation: { requiredFeatures: [SITES_FEATURE] }, source: { provider: SITES_PROVIDER_KEY, plugin: SITES_PLUGIN_NAME }, refreshable: true,
-      ...(slot === 'agent.workbench.fixed' ? { workbench: { fixed: true, menu: { enabled: true, label: text('Sites', '站点'), icon, order: 40 } } } : {}),
+    return [{ key: SITES_VIEW_KEY, title: text('Sites', '站点'), icon, hostType: _c.hostType, slot, order: 40,
+      activation: { projectResource: true, requiredFeatures: [SITES_FEATURE] }, source: { provider: SITES_PROVIDER_KEY, plugin: SITES_PLUGIN_NAME }, refreshable: true,
+      ...(slot === 'agent.workbench.fixed' ? { workbench: { fixed: true, openMode: 'on-demand', menu: { enabled: true, label: text('Sites', '站点'), icon, order: 40 } } } : {}),
       view: { type: 'remote_component', runtime: 'react', protocolVersion: 1, component: { isolation: 'iframe', entry: SITES_REMOTE_ENTRY_KEY }, dataSource: { mode: 'platform' } },
       dataSource: { mode: 'platform', querySchema: { supportsPagination: true, supportsSearch: true, supportsSelection: true, supportsParameters: true, defaultPageSize: 6 }, cache: { enabled: false } },
-      clientCommands: [ASSISTANT_CHAT_SEND_MESSAGE_COMMAND, ASSISTANT_CONTEXT_SET_COMMAND, WORKBENCH_NAVIGATION_OPEN_COMMAND].map(key => ({ key })),
+      clientCommands: ['workbench.content.status', 'workbench.content.resolve', ASSISTANT_CHAT_SEND_MESSAGE_COMMAND, ASSISTANT_CONTEXT_SET_COMMAND, WORKBENCH_NAVIGATION_OPEN_COMMAND].map(key => ({ key })),
       hostEvents: { subscriptions: [{ key: 'sites-tool-completed', event: 'assistant.tool.completed', filter: { sources: ['chatkit'], toolNames: [...SITES_MIDDLEWARE_TOOL_NAMES] }, action: { type: 'forward', debounceMs: 500 } }] },
       parameters: [{ key: 'projectId', type: 'string', label: text('Project', '项目') }, { key: 'tab', type: 'string', label: text('Tab', '标签页') }],
-      actions: ['create_site', 'deploy_version', 'restore_version', 'change_access', 'publish_artifact_link', 'revoke_artifact_link', 'upsert_env', 'remove_env', 'archive_project'].map(key => ({ key, label: text(key, key), actionType: 'invoke' as const })) }]
+      actions: ['source_read', 'source_write', 'source_version', 'create_site', 'deploy_version', 'restore_version', 'change_access', 'publish_artifact_link', 'revoke_artifact_link', 'upsert_env', 'remove_env', 'archive_project'].map(key => ({ key, label: text(key, key), actionType: 'invoke' as const })) }]
   }
   async getRemoteComponentEntry(_c: XpertResolvedViewHostContext, key: string, component: XpertRemoteComponentViewSchema['component']) {
     if (key !== SITES_VIEW_KEY || component.entry !== SITES_REMOTE_ENTRY_KEY) throw new Error('view_not_found')
@@ -51,13 +52,17 @@ export class SitesViewProvider implements IXpertViewExtensionProvider {
       const s = scope(c), input = request.input
       let result: object
       switch (action) {
+        case 'source_read': { const v = project.parse(input); result = await this.content.readSource(s, v.projectId); break }
+        case 'source_write': { const v = project.extend({ path: z.string().min(1).max(300), content: z.string().max(2000000), expectedHash: z.string().regex(/^[a-f0-9]{64}$/).nullable() }).parse(input); result = await this.content.writeSource(s, v.projectId, v.path, v.content, v.expectedHash); break }
+        case 'source_version': { const v = project.extend({ expectedVersionId: z.string().uuid().nullable() }).parse(input); result = await this.service.saveVersion(v, s); break }
+
         case 'create_site': {
           const v = z.object({ name: z.string().trim().min(1).max(100), prompt: z.string().max(8000).optional() }).strict().parse(input)
           const p = await this.service.createProject({ name: v.name!, prompt: v.prompt, storageShape: 'static' }, s)
           result = { projectId: p.id }; break
         }
         case 'deploy_version': result = await this.service.deployVersion(deploy.parse(input), s); break
-        case 'restore_version': { const v = project.extend({ versionId: z.string().uuid() }).parse(input); result = await this.service.restoreVersion(s, v.projectId, v.versionId); break }
+        case 'restore_version': { const v = project.extend({ versionId: z.string().uuid(), expectedVersionId: z.string().uuid().nullable().optional() }).parse(input); result = await this.service.restoreVersion(s, v.projectId, v.versionId, v.expectedVersionId); break }
         case 'change_access': { const v = project.extend({ accessMode: access, customAudience: z.array(z.string().uuid()).max(100).optional(), userConfirmedPublicLink: z.boolean().optional(), confirmed: z.literal(true) }).parse(input); await this.service.setAccess(s, v.projectId, v.accessMode, v.customAudience, v.userConfirmedPublicLink); result = { projectId: v.projectId }; break }
         case 'publish_artifact_link': { const v = z.object({ deploymentId: z.string().uuid(), userConfirmedPublicLink: z.literal(true), expiresAt: z.string().datetime().optional() }).strict().parse(input); result = await this.service.publishArtifactLink({ deploymentId: v.deploymentId!, userConfirmedPublicLink: v.userConfirmedPublicLink, expiresAt: v.expiresAt }, s); break }
         case 'revoke_artifact_link': { const v = z.object({ deploymentId: z.string().uuid(), confirmed: z.literal(true) }).strict().parse(input); result = await this.service.revokeArtifactLink({ deploymentId: v.deploymentId! }, s); break }

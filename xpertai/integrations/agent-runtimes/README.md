@@ -1,85 +1,69 @@
 # Agent Runtimes
 
-Native Xpert plugin providing `codex`, `codex-computer`, `pi`, `claude-code`, and `opencode` implementations of `IAgentRuntimeStrategy`. It also supplies the `AgentInvocation` middleware: ordinary tools call the host capability and never own a child graph or a provider process.
+## Automatic runtime selection
 
-Version 0.2.0 requires contracts and plugin-sdk **3.20.0**, including the scoped execution runner capability. Release the host and SDK before this plugin. The package remains private while that release is pending. The workspace's historical lockfile still describes the older published development SDK: regenerate it after 3.20.0 is published and verify a normal frozen install before publishing the plugin. Source-branch verification below builds against fresh host dist without changing that lockfile or relinking a running platform. Installation level is **system**; organization administrators separately grant workspace access through immutable runtime bindings. No default profile or agent process is started on installation.
+Install the plugin and add `AgentInvocation` middleware with empty options (`{}`).
+There is no plugin configuration schema or binding form. All original backends are
+retained: Codex App Server, Claude Agent SDK, Pi RPC, external OpenCode, and the six
+Computer adapters. Codex/Claude interactive approvals retain their host interaction
+flow; Computer transports keep their noninteractive behavior.
 
-## Computer execution
+At tool invocation, the host discovers deployed, authorized presets. A single choice
+is selected automatically; multiple choices are returned for the Agent to select.
+The host generates profile IDs, revisions, workspace bindings and isolated paths.
+Users never enter UUIDs, commands, endpoint URLs, versions or credentials. Existing
+Assistant/conversation access is rechecked; Computer additionally uses its existing
+Computer/model/CLI admission. Explicitly disabled presets stay disabled across
+revisions. No backend inherits an administrator identity.
 
-OpenCode 1.18.33 and Codex 0.159.2 support the Computer runner. Configure a profile with `provider: "opencode"` or `provider: "codex-computer"`, `executionEnvironment: "computer"`, a version and authorized workspace IDs. Its binding configuration must contain the matching `profileVersion` and `executionEnvironment: { "type": "computer" }`. The host resolves the current conversation, owner, environment, exact tool version, model selection and payer; the plugin cannot supply commands, credential environment variables or service URLs.
+### Installed strategy declarations
 
-The host checkpoints a scoped process receipt before sending the prompt. Inspect/resume follows that receipt and never re-sends an uncertain task. Completion persists typed results and any explicitly requested file exports through the host checkpoint, then stops the guest supervisor. It does not archive the working directory by default. A failed checkpoint keeps the process available for a later inspection. Cancellation is confirmed only when the host reports the process exited. Human control is coordinated separately from view connections. This adapter advertises no approval, pause or takeover capability.
+The host discovers `managedProfiles` from the scoped `AgentRuntimeRegistry`. Each
+installed strategy implements `resolveManagedDeployment(reference, scope)` to return
+its process/SDK/service launch settings, or `undefined` when its dependencies or
+connection are unavailable. The host has no runtime-specific environment variable,
+provider allowlist, or deployment inventory. Third-party providers use the same SDK
+contract without changing platform configuration.
 
-Earlier Computer acceptance covered OpenCode 1.18.33 platform-model tasks, checkpoint wait/resume and cancellation. That historical acceptance does not verify the current Agent-directed polling and resource-card flow; repeat live acceptance with the matching host and plugin build. The non-Computer Codex App Server, Claude Agent SDK and Pi retain their existing behavior; they do not gain platform model credentials through this profile. Native Codex/Claude model-protocol tests are separate from this managed adapter's acceptance.
+Codex, Pi and Claude strategies own their protocol defaults (`codex app-server`,
+`pi --mode rpc`, and the Claude SDK). These declarations do not install executables
+or create authentication. A deployment-specific installed strategy can resolve its
+binary path, model/credentials and endpoint through its injected dependencies or
+existing connections. It must preserve isolation and credential audiences. Default
+process/SDK settings do not inherit the API server's environment or secrets. The
+optional Claude SDK dependency must be installed separately.
 
-## Configuration
+The OpenCode adapter retains both Computer and remote HTTP execution. Its base
+strategy does not guess an external URL: a service-owning installed strategy
+provides the `service` spec through `resolveManagedDeployment`; without that
+connection the remote preset is unavailable. The service must share the generated
+workspace volume at the same canonical path. Computer continues to use its existing
+host runner and platform model gateway; direct transports retain their own model
+and credential behavior.
 
-Use a versioned profile for each administered execution environment. The following is a template, not machine-specific configuration:
+Resolution is read-only and follows actor authorization. Settings must remain stable
+for a given deployment; the host validates the discriminated contract and fingerprints
+settings plus strategy provenance. Changed settings or an uninstalled strategy invalidate
+old bindings. The scoped host capability rechecks access before handing ephemeral launch
+settings to the adapter. Commands, credentials and endpoint URLs never enter persisted
+targets, receipts or model-visible results. Workspace directories derive from the host's
+existing asset data path; neither tool input nor the strategy chooses the root.
 
-```json
-{
-  "profiles": [{
-    "id": "codex-review",
-    "version": "1",
-    "provider": "codex",
-    "workspaceIds": ["<authorized-workspace-uuid>"],
-    "workspaceRoot": "/srv/xpert/agent-workspaces",
-    "command": "/usr/local/bin/codex",
-    "args": ["app-server"],
-    "environmentKeys": ["OPENAI_API_KEY"],
-    "timeoutMs": 600000
-  }]
-}
-```
+Old plugin `profiles`, middleware `bindings` and old receipts are not accepted or
+migrated. Stored records are not deleted. Update old middleware options to `{}`.
+This replaces configuration and authorization plumbing while retaining protocols.
+Requires host contracts/plugin-sdk **3.28.0 or newer**, including managed-runtime
+deployments and completion evidence v2. The workspace uses published npm **3.28.0**
+packages. The plugin remains private; verification does not publish or deploy it.
 
-`command`, arguments, environment variable names and service URLs are administrator configuration. Launch tools accept a prompt and an optional delivery policy, not process commands or credentials. Secrets are read from the runner environment, not stored in bindings, tool arguments or execution receipts. Pi uses `pi --mode rpc`. Claude Code requires the optional peer `@anthropic-ai/claude-agent-sdk` compatible with 0.3.278. OpenCode requires `serverUrl`; `authorizationEnvironmentKey` names an environment variable containing the complete Authorization header, and `workspaceRoot` names its server-side working directory.
+## Execution lifecycle
 
-Process profiles create an execution directory under `workspaceRoot` and pass only explicitly allowed environment variables plus PATH/LANG. **A directory is not a security sandbox.** Deploy the plugin in an isolated worker/container with access limited to the approved workspace and credentials; use an administrator-managed wrapper command when additional isolation is required. Codex requests its read-only sandbox. Claude retains SDK default permissions and disables ambient settings. OpenCode session isolation does not isolate files; its server/working directory must be provisioned per trust boundary.
-
-Profiles and their allowed workspaces are validated on each call. Change the profile version when configuration changes, then create a new binding. Existing invocations fail explicitly if their provider registration or profile version disappears. Do not silently repoint a profile to a different execution environment.
-
-## Bindings and tools
-
-An organization administrator creates a binding with `POST /api/agent-runtime-bindings`:
-
-```json
-{
-  "title": "Code reviewer",
-  "workspaceIds": ["<authorized-workspace-uuid>"],
-  "provider": "codex",
-  "reference": "codex-review",
-  "configuration": { "profileVersion": "1" }
-}
-```
-
-Use the returned binding ID in an `AgentInvocation` middleware configuration:
-
-```json
-{
-  "bindings": [{
-    "id": "<binding-uuid>",
-    "name": "review_code",
-    "description": "Ask the approved coding agent to review the supplied task.",
-    "mode": "auto"
-  }]
-}
-```
-
-`auto` and historical `wait` perform a bounded initial observation through the host API. A running result returns normally to the Agent, which can call `task_status` again without sending a second task prompt. `background` immediately returns an invocation ID. Use the owner's scoped `GET /api/agent-invocations/:id`, `POST /:id/cancel`, or `POST /:id/respond` routes for lifecycle control. The response body is `{ "interactionId": "...", "response": ... }`. Codex decisions are `accept`, `decline`, or `cancel`; Claude approvals are booleans. Parent graph resume payloads use this same shape for approval handling.
-
-Ordinary new tasks use Agent-directed status queries with a requested wait duration. The host preserves historical checkpoint wait records for compatibility, but new status calls do not create background suspension records. Human approvals retain the explicit interaction flow. A recoverable child session does not by itself guarantee automatic parent-turn recovery after an API restart.
-
-## Capabilities and limits
-
-| Provider | Execution and recovery | Interactions | Cancellation |
-| --- | --- | --- | --- |
-| Codex | App Server JSONL; process loss becomes unknown, no automatic relaunch | Command/file approval requests; unsupported requests rejected | Pending until turn completion acknowledges interruption |
-| Computer Codex | Managed single-prompt JSONL service; reconnect observes the existing execution, guest loss becomes unknown | Not advertised by this adapter | Host process termination required |
-| Pi | RPC JSONL; wait for agent_settled through retries; process loss becomes unknown | Extension UI unsupported and fails explicitly | Abort request; final receipt required |
-| Claude Code | Agent SDK query; process loss becomes unknown | canUseTool permission callback; AskUserQuestion unsupported and denied | Abort and wait for stream termination |
-| OpenCode | HTTP session/message; recover result by message identity without resend | Not advertised by this adapter | Server abort acknowledgement |
-
-No adapter promises filesystem rollback, exactly-once remote effects, or restart recovery for an in-process runner. Explicit file references require a future materialization adapter and currently fail before launch. These are provider capability limits, not hidden fallbacks. Local runtime profiles should use trusted managed workers; a process manager here is not a distributed runner service.
+Computer uses the host's scoped runner and model credentials. Direct adapters use
+only the deployment settings supplied for the current authorized target. A durable receipt precedes prompt dispatch. Recovery observes that
+receipt and never repeats an uncertain task. Results and requested exports are
+checkpointed before guest shutdown; failed persistence keeps the runner available
+for reconciliation. No adapter promises rollback or exactly-once remote effects.
+Explicit file inputs remain unsupported and fail before launch.
 
 ## Results and resource cards
 
@@ -95,26 +79,45 @@ Launch, status and cancel tools emit the existing ChatKit `resource_card` contra
 
 Install matching ChatKit types/UI with resource-card support and the host/SDK result bridge before loading this plugin. This local source build does not constitute a registry release.
 
+## Tools
+
+`delegate_task` performs a bounded initial wait, then returns the real task status.
+`task_status` accepts unique task IDs, `mode: any | all`, and `timeoutMs` from 0 to
+60,000 (default 30,000). Pending tasks retain their IDs; do not relaunch them.
+`task_cancel` requests cancellation; only confirmed process exit means cancelled.
+All three tools carry localized display names/icons and optional `changeSummary`.
+
 ## Verification
 
-From `xpertai` after building the host SDK and contracts:
+Verify the published npm dependencies after a frozen workspace install:
 
 ```sh
-XPERT_PLATFORM_ROOT=/path/to/xpert NX_DAEMON=false corepack pnpm exec nx run agent-runtimes:verify
+corepack pnpm install --frozen-lockfile --ignore-scripts
+NX_DAEMON=false corepack pnpm exec nx run agent-runtimes:verify-published
 ```
 
-The verifier builds in a temporary workspace using fresh SDK dist artifacts. It does not relink the developer's running host. Tests exercise real JSONL subprocess transport, a local HTTP fixture, an injected Claude SDK, grants/version rejection, approvals, cancellation, completion, and loss recovery. It then loads the built plugin with `plugin-dev-harness` and closes the Nest context. It never launches a real third-party agent or reads its credentials. Live account/model and sandbox acceptance are separate deployment checks.
+This target uses the workspace's installed SDK/contracts, validates their declared
+peer ranges, and never substitutes a platform source checkout or its dist output.
+It runs the same protocol, packed-artifact and dist-only lifecycle checks described
+below. Add `XPERT_RUNTIME_GUEST_TEST_IMAGE=node:22-bookworm` to also run direct
+process/Claude SDK protocol fixtures inside a network-isolated Linux container.
+These fixtures do not call model providers or establish live Computer acceptance.
 
-### Task dependencies
+After building the matching host SDK/contracts, from `xpertai`:
 
-Bindings default to `auto` (historical `wait` remains supported): the host briefly observes work and returns the actual status. `background` returns immediately. The middleware exposes only `task_status` and `task_cancel` beside the configured launchers; these lifecycle names are reserved. It does not expose a separate `task_wait` tool.
+```sh
+XPERT_PLATFORM_ROOT=/path/to/xpert-pro NODE_ENV=production NX_DAEMON=false corepack pnpm exec nx run agent-runtimes:verify-source
+```
 
-`task_status` accepts `taskIds`, `mode: any | all`, and `timeoutMs` from 0 to 60,000 (default 30,000). Zero reads immediately; a positive duration returns early when the dependency condition is satisfied or returns `pending` when the window ends. The Agent chooses when to call again, usually with 10–60 second windows, and must not relaunch unfinished tasks. Host limits remain authoritative. Waiting inside the tool does not itself perform model inference; additional Agent decisions consume normal model tokens.
-
-`completed` includes failed or cancelled tasks, so inspect individual statuses. Other tasks continue after an any-wait. `unavailable` means the result is uncertain; never restart automatically. Required human approvals use the existing interaction path. Use a fresh conversation after updating an Assistant whose old prompt prohibited status polling. Install the compatible host/SDK before this plugin build.
-
-All three tool roles provide localized `metadata.toolName` and `metadata.toolIcon`. Launcher bindings may set a `title` (string or `{en_US, zh_Hans}`) and a font `icon`; the default is provider-neutral delegation. Each tool accepts optional `changeSummary` for a concise activity description. It updates the existing timeline step through `ON_TOOL_MESSAGE`, is excluded from execution requests, and never replaces the tool's actual result or final status.
-
+The verifier compiles against fresh host dist, runs protocol and authorization
+boundary fixtures, packs and extracts the distributable, rejects source files and
+retired adapters, reruns tests against the extracted package with `NODE_ENV=production`,
+and loads that package through `plugin-dev-harness` with no mocks. Only verified
+fresh build output replaces local dist. External model/Computer transport is
+simulated in plugin tests; the host PostgreSQL test uses a disposable real database.
+This validates unreleased source artifacts, not public npm availability or real
+model-provider execution. Publish/install matching host and SDK packages before
+releasing the plugin.
 
 ## Computer Codex transport
 
@@ -122,17 +125,16 @@ Computer Codex uses `codex exec --json --skip-git-repo-check -` with host-select
 
 Success requires process exit code 0, `turn.completed`, a final public `agent_message`, and no terminal error event. An intermediate success sentence or a partial output is not completion. The final public message uses the existing typed task-result envelope. No private reasoning is displayed. Output is bounded to 2 MiB / 10,000 records; overflow fails the task rather than returning a truncated success.
 
-Computer mode is noninteractive; it does not implement the App Server approval UI, running messages, or session continuation. Cancellation is confirmed only after host process termination. The separate `codex-computer` strategy declares session recovery and no interactions; existing `codex` App Server capabilities are unchanged. Evidence-only independent review remains restricted to Computer OpenCode; Codex implementations can be reviewed there using pinned evidence.
+Computer mode is noninteractive; it does not implement the App Server approval UI, running messages, or session continuation. Cancellation is confirmed only after host process termination. The `codex-computer` strategy declares session recovery and no interactions. Evidence-only independent review remains restricted to Computer OpenCode; Codex implementations can be reviewed there using pinned evidence.
 
 Files are exported only when requested with `delivery`, using the same host collector as OpenCode. Durable result checkpoint precedes guest cleanup. Failed export keeps the execution outcome and reports a separate export failure. Per-invocation directories/configuration and owner/conversation/generation checks isolate operations; the Computer is still shared by its authorized owner, not a separate security sandbox per invocation.
 
 ### Qwen Code on Computer
 
 `qwen-computer` is a managed background adapter for Qwen Code **0.24.7**.
-Configure a profile with `provider: "qwen-computer"`,
-`executionEnvironment: "computer"`, a stable `id`/`version` and authorized
-`workspaceIds`. Select a binding to that profile on the Assistant. Commands,
-model endpoints and credentials are resolved by the host, not profile callers.
+Its built-in preset is discovered automatically. The host resolves commands,
+model endpoints and credentials from the current execution. No profile or binding
+selection is required from a user.
 The host must provide a compatible Qwen `CliModelProfile.background` transport.
 
 Recovery observes the checkpointed Computer process; it never resubmits stdin.
@@ -177,7 +179,6 @@ and accepted the task. Failed history and live execution cards were retained.
 See the host's `docs/plans/2026-10-06-project-tasks-stage5-acceptance.md` for scope
 and limits. That Qwen-only result does not qualify the later Kimi/CodeBuddy adapters; see their separate acceptance below.
 
-
 ### Optional public execution activity
 
 Computer Qwen Code, Codex, CodeBuddy, Kimi Code, Claude Code and OpenCode declare activity version 1 (`presentation: coding`). With a matching host, adapters map allowlisted public text/tool/command/file events into `context.activity`, persist a source checkpoint and flush final activity before recording the result and stopping the runner. No extra Activity Provider registry is required. Hosts without the optional recorder keep the normal execution/result flow.
@@ -194,18 +195,19 @@ XPERT_PLATFORM_ROOT=/path/to/xpert-pro node integrations/agent-runtimes/scripts/
 
 The verifier stages built peer packages in a temporary directory, runs public-protocol tests and the dist-first plugin lifecycle harness, then copies the verified dist back. It does not deploy or relink the running platform.
 
-`--source-checkout` explicitly validates unreleased source: the host's Changesets plan must advance both peer packages into the declared ranges, and built manifests must match the source manifests. It does not rewrite peer versions or imply npm availability. The current release target is contracts/plugin-sdk **3.20.0**. Without this option the verifier requires built host versions to satisfy the declared peers and fails before building otherwise. After the host release, run without the option and regenerate the plugin workspace lockfile against the published packages before making this plugin public.
-
+`--source-checkout` labels unreleased source verification explicitly. Built host
+manifests must match source manifests. It does not rewrite versions or imply a
+registry release. The automatic-runtime extension is covered by the host Changeset.
 
 ### CodeBuddy, Kimi Code and Claude Code on Computer
 
 The following additional providers use the same managed Computer JSONL lifecycle:
 
-| Provider | Tool/version | Background permission modes | Completion receipt |
-| --- | --- | --- | --- |
-| `codebuddy-computer` | CodeBuddy 2.161.1 | `allow`, `restricted` | One successful primary `result` event |
-| `kimi-computer` | Kimi Code 2.1.1 | `allow` only | Final assistant reply, matched tool results and final `session.resume_hint` |
-| `claude-computer` | Claude Code 2.1.63 | `allow`, `restricted` | One successful primary `result` event |
+| Provider             | Tool/version       | Background permission modes | Completion receipt                                                          |
+| -------------------- | ------------------ | --------------------------- | --------------------------------------------------------------------------- |
+| `codebuddy-computer` | CodeBuddy 2.161.1  | `allow`, `restricted`       | One successful primary `result` event                                       |
+| `kimi-computer`      | Kimi Code 2.1.1    | `allow` only                | Final assistant reply, matched tool results and final `session.resume_hint` |
+| `claude-computer`    | Claude Code 2.1.63 | `allow`, `restricted`       | One successful primary `result` event                                       |
 
 Every successful receipt also requires exit code 0, complete protocol collection
 and no terminal error. CodeBuddy/Claude share the primary-result parser with
@@ -251,3 +253,23 @@ Primary protocol references: [CodeBuddy headless mode](https://www.codebuddy.ai/
 [Kimi Code command reference](https://www.kimi.com/code/docs/en/kimi-code-cli/reference/kimi-command.html).
 Fixed installed-version help/source and real execution receipts take precedence
 when current online documentation describes a newer protocol.
+
+## Original-host control and descendant completion (phase 3.2)
+
+This change requires the published host/SDK **3.28.0** `completionEvidence: 2` contract. Local Codex, Pi and Claude executions are bound to the original host boot and execution generation. A different API replica persists cancellation; the original host reconciles it. A missing host or ambiguous receipt never authorizes another start. Business results are saved before process cleanup; failed final persistence retains the original receipt for another observation attempt.
+
+Local process profiles now require Python 3. The Linux supervisor adopts orphaned descendants, including children that leave the original process group, and reports completion only after reaping the entire owned family. Claude uses the installed SDK's `spawnClaudeCodeProcess` hook. Platforms without this supervision capability, including the current macOS fallback, can stop the known process group but return `unknown` without descendant evidence. Use a verified Linux/Computer path when confirmed termination is required.
+
+Computer adapters require a new runner receipt with `supervision: 1` and matching invocation/process/environment-instance evidence. Legacy `exited` replies remain unconfirmed. Persisted business outcomes survive cleanup and are consumed on recovery without another prompt. Remote OpenCode creates one session per invocation; legacy, mismatched-generation or reused sessions are not aborted. Its `abort=true` and idle responses do not certify remote background-tool exit, so this remote mode does not claim strong completion support.
+
+Pause drains already admitted turns and their required synchronous dependencies; it does not send cancellation or suspend a process in the middle of a tool. The host owns pause/resume admission and independent/shared task boundaries.
+
+Run source validation from the `xpertai` workspace root with fresh platform dist:
+
+```sh
+XPERT_PLATFORM_ROOT=/path/to/xpert \
+XPERT_RUNTIME_GUEST_TEST_IMAGE=node:22-bookworm \
+NX_DAEMON=false corepack pnpm exec nx run agent-runtimes:verify-source
+```
+
+The optional guest image runs the process protocol fixtures and installed Claude SDK transport in a disposable network-isolated Linux container. It does not invoke real model services or establish full provider CLI acceptance. The normal verifier also loads and unloads the built plugin through `plugin-dev-harness`. No publishing, installation into a running platform, or deployment is performed.

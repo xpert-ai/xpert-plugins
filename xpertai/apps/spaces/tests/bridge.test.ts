@@ -16,7 +16,7 @@ test('repeated host init preserves in-flight actions; scope change cancels them 
   }
   const context = vm.createContext(sandbox)
   vm.runInContext(bundle.outputFiles[0].text, context)
-  vm.runInContext('var initCount = 0; bridge.connect(() => initCount++)', context)
+  vm.runInContext('var initCount = 0; var disconnect = bridge.connect(() => initCount++)', context)
   const send = (data: object) => receive?.({ source: parent, data: { channel: 'xpertai.remote_component', protocolVersion: 1, instanceId: 'view', scopeRevision: 1, ...data } })
   send({ type: 'init' })
   const pending: Promise<unknown> = vm.runInContext("bridge.action('page.read', { itemId: 'page' })", context)
@@ -29,4 +29,15 @@ test('repeated host init preserves in-flight actions; scope change cancels them 
   const rejection = assert.rejects(cancelled, { name: 'AbortError' })
   send({ type: 'init', scopeRevision: 2 }); await rejection
   assert.equal(vm.runInContext('initCount', context), 2)
+  const oldRead = vm.runInContext('bridge.data({})', context)
+  const oldReadRejected = assert.rejects(oldRead, { name: 'AbortError' })
+  send({ type: 'hostEvent', scopeRevision: 3, event: { type: 'view.context.changed', data: { revision: 3 } } })
+  await oldReadRejected
+  assert.equal(vm.runInContext('initCount', context), 3)
+  const currentRead = vm.runInContext('bridge.data({})', context)
+  const currentRequest = sent.at(-1)
+  assert.equal(currentRequest?.scopeRevision, 3)
+  send({ type: 'data', requestId: currentRequest?.requestId, scopeRevision: 3, data: 'current' })
+  assert.equal(await currentRead, 'current')
+  vm.runInContext('disconnect()', context)
 })

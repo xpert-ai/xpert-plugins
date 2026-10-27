@@ -61,6 +61,7 @@ export const PRESENTATION_TOOL_NAMES = [
   'presentation_list_theme_previews',
   'presentation_search_decks',
   'presentation_get_deck',
+  'presentation_rename_deck',
   'presentation_search_layouts',
   'presentation_inspect_layouts',
   'presentation_add_slide',
@@ -78,6 +79,7 @@ export const PRESENTATION_TOOL_NAMES = [
 
 export const PRESENTATION_MUTATION_TOOL_NAMES = [
   'presentation_create_deck',
+  'presentation_rename_deck',
   'presentation_add_slide',
   'presentation_patch_slide',
   'presentation_reorder_slides',

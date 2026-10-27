@@ -52,7 +52,7 @@ export class SpaceSubpages {
         item.parentPageId !== parent.id || item.childRequestTitle !== request.title || item.createdById !== actor.userId || item.deleted))
         throw new ConflictException('spaces.child_request_conflict')
       if (!item) {
-        // New IDs cannot make cycles. Bound depth so corrupt legacy metadata cannot loop forever.
+        // New IDs cannot make cycles. Bound depth so corrupt metadata cannot loop forever.
         // Count the child itself as level one, then count its ancestors.
         let cursor: SpaceItem | null = parent, depth = 1
         while (cursor) {

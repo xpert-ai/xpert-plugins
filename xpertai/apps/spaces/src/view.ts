@@ -1,3 +1,4 @@
+import { SpaceCatalog, catalogQuery, catalogCreate, catalogRename, catalogDuplicate, catalogLifecycle, catalogMove } from './catalog.js'
 import { SpaceImports, sourceSelection, importSelection } from './imports.js'
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { readFile } from 'node:fs/promises'
@@ -17,14 +18,14 @@ import { SpaceAccess } from './access.js'
 
 const selection = z.object({ itemId: id }).strict()
 const label = (en_US: string, zh_Hans: string) => ({ en_US, zh_Hans })
-const actions = ['source.list', 'source.search', 'source.preview', 'source.import', 'document.open', 'knowledge.enable',
+const actions = ['catalog.duplicate', 'catalog.backup', 'catalog.preferences', 'catalog.preference.set', 'catalog.move', 'catalog.types', 'catalog.list', 'catalog.create', 'catalog.rename', 'catalog.lifecycle', 'source.list', 'source.search', 'source.preview', 'source.import', 'document.open', 'knowledge.enable',
   'knowledge.status', 'knowledge.refresh', 'knowledge.search', 'item.create', 'item.edit', 'page.read', 'search',
   'file.list', 'page.export', 'artifact.list', 'artifact.collect', 'artifact.open', 'editor.list', 'editor.create']
 
 @Injectable()
 @ViewExtensionProvider('spaces.views')
 export class SpacesView implements IXpertViewExtensionProvider {
-  constructor(private readonly imports: SpaceImports, private readonly content: SpaceContent, private readonly spaces: SpacesService, private readonly pages: SpacePages, private readonly ai: SpaceAi, private readonly files: SpaceFiles, private readonly editors: SpaceEditors, private readonly knowledge: SpaceKnowledge, private readonly access: SpaceAccess) {}
+  constructor(private readonly catalog: SpaceCatalog, private readonly imports: SpaceImports, private readonly content: SpaceContent, private readonly spaces: SpacesService, private readonly pages: SpacePages, private readonly ai: SpaceAi, private readonly files: SpaceFiles, private readonly editors: SpaceEditors, private readonly knowledge: SpaceKnowledge, private readonly access: SpaceAccess) {}
   supports(context: XpertResolvedViewHostContext) {
     return context.hostType === 'agent' && context.capabilities?.features?.includes('spaces') === true
   }
@@ -42,7 +43,7 @@ export class SpacesView implements IXpertViewExtensionProvider {
         { key: 'editor.import', label: label('Import document', '导入文档'), actionType: 'invoke', transport: 'file' },
         { key: 'file.upload', label: label('Upload file', '上传文件'), actionType: 'invoke', transport: 'file' }],
       // Declare both phases: platform resource resolution, then container-local navigation.
-      clientCommands: ['assistant.context.set', 'workbench.content.resolve', 'workbench.navigation.open'].map((key) => ({ key, required: key === 'workbench.content.resolve', label: label(key, key) }))
+      clientCommands: ['assistant.chat.send_message', 'assistant.context.set', 'workbench.content.resolve', 'workbench.navigation.open'].map((key) => ({ key, required: key === 'workbench.content.resolve', label: label(key, key) }))
     }]
   }
   async getRemoteComponentEntry(context: XpertResolvedViewHostContext, viewKey: string, component: XpertRemoteComponentViewSchema['component']) {
@@ -97,6 +98,16 @@ export class SpacesView implements IXpertViewExtensionProvider {
         const p = z.object({ spaceId: id, query: z.string().trim().min(1).max(4000) }).strict().parse(input)
         result = await this.knowledge.search(actor, p.spaceId, p.query); break
       }
+      case 'catalog.backup': result = await this.catalog.backup(actor, z.object({ contentId: id }).strict().parse(input).contentId); break
+      case 'catalog.preferences': result = await this.catalog.preferences(actor, z.object({ contentId: id }).strict().parse(input).contentId); break
+      case 'catalog.preference.set': result = await this.catalog.setPreference(actor, z.object({ contentId: id, scope: z.enum(['resource', 'project', 'organization']), editorKey: z.string().min(1).max(200).nullable(), expectedRevision: z.number().int().nonnegative() }).strict().parse(input)); break
+      case 'catalog.move': result = await this.catalog.move(actor, catalogMove.parse(input)); break
+      case 'catalog.types': result = await this.catalog.types(actor); break
+      case 'catalog.list': result = await this.catalog.list(actor, catalogQuery.parse(input)); break
+      case 'catalog.lifecycle': result = await this.catalog.lifecycle(actor, catalogLifecycle.parse(input)); break
+      case 'catalog.duplicate': result = await this.catalog.duplicate(actor, catalogDuplicate.parse(input)); break
+      case 'catalog.rename': result = await this.catalog.rename(actor, catalogRename.parse(input)); break
+      case 'catalog.create': result = await this.catalog.create(actor, catalogCreate.parse(input)); break
       case 'editor.list': result = await this.editors.list(actor); break
       case 'editor.create': {
         const p = z.object({ spaceId: id, parentId: id.nullable().default(null), title: z.string().trim().min(1).max(200), editorKey: z.string().max(100) }).strict().parse(input)

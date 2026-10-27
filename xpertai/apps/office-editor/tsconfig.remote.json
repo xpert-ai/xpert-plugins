@@ -20,6 +20,8 @@
   },
   "include": [
     "remote-file/**/*.ts",
-    "remote-file/**/*.tsx"
+    "remote-file/**/*.tsx",
+    "remote-workbook/**/*.ts",
+    "remote-workbook/**/*.tsx"
   ]
 }

@@ -1,3 +1,4 @@
+import { buildWorkbookView } from './build-workbook-view.mjs'
 import { buildFileView } from './build-file-view.mjs'
 import { existsSync } from 'node:fs'
 import { readdir, readFile, writeFile } from 'node:fs/promises'
@@ -129,7 +130,7 @@ function normalizeGeneratedOutput(text) {
   return text.replace(/[ \t]+$/gm, '')
 }
 
-const outputs = await Promise.all([...componentNames.map(bundleComponent), buildFileView()])
+const outputs = await Promise.all([...componentNames.map(bundleComponent), buildFileView(), buildWorkbookView()])
 
 if (process.argv.includes('--check')) {
   let hasOutdatedOutput = false

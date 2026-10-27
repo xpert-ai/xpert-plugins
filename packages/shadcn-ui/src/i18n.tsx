@@ -1,7 +1,7 @@
 import { createInstance } from 'i18next'
 import { createContext, useContext, useState, useSyncExternalStore, type ReactNode } from 'react'
 
-export type ViewLocale = 'en' | 'zh-Hans'
+export type ViewLocale = 'en' | 'zh-Hans' | 'zh-Hant'
 export type MessageValues = Record<string, string | number>
 export type MessageCatalog = Record<string, string>
 const localizedMessage = Symbol('remote-view.message')
@@ -18,12 +18,16 @@ export class ViewMessageError extends Error {
 }
 export const uiMessages = {
   en: { close: 'Close', commandTitle: 'Command palette', commandDescription: 'Search for a command to run…' },
-  'zh-Hans': { close: '关闭', commandTitle: '命令面板', commandDescription: '搜索要运行的命令…' }
+  'zh-Hans': { close: '关闭', commandTitle: '命令面板', commandDescription: '搜索要运行的命令…' },
+  'zh-Hant': { close: '關閉', commandTitle: '命令面板', commandDescription: '搜尋要執行的命令…' }
 }
 
 /** Normalize the host's BCP-47/legacy locale, with English as the unsupported-locale fallback. */
 export function normalizeViewLocale(value?: string): ViewLocale {
-  try { return new Intl.Locale((value || 'en').replaceAll('_', '-')).language === 'zh' ? 'zh-Hans' : 'en' }
+  try {
+    const locale = new Intl.Locale((value || 'en').replaceAll('_', '-'))
+    return locale.language === 'zh' ? locale.maximize().script === 'Hant' ? 'zh-Hant' : 'zh-Hans' : 'en'
+  }
   catch { return 'en' }
 }
 
@@ -32,19 +36,25 @@ export function normalizeViewLocale(value?: string): ViewLocale {
  * interpolation belong to i18next; dates/numbers use the same locale via Intl.
  */
 export function createRemoteI18n<Catalog extends MessageCatalog>(catalogs: {
-  en: Catalog; 'zh-Hans': Record<keyof Catalog, string>
+  en: Catalog; 'zh-Hans': Record<keyof Catalog, string>; 'zh-Hant'?: Record<keyof Catalog, string>
 }, initialLocale = typeof navigator === 'undefined' ? 'en' : navigator.language) {
+  // Existing two-catalog views retain their Simplified Chinese fallback.
+  const normalize = (value?: string): ViewLocale => {
+    const locale = normalizeViewLocale(value)
+    return locale === 'zh-Hant' && !catalogs['zh-Hant'] ? 'zh-Hans' : locale
+  }
   const instance = createInstance()
   void instance.init({
-    lng: normalizeViewLocale(initialLocale), fallbackLng: 'en', supportedLngs: ['en', 'zh-Hans'],
+    lng: normalize(initialLocale), fallbackLng: 'en', supportedLngs: ['en', 'zh-Hans', 'zh-Hant'],
     load: 'currentOnly', initAsync: false, keySeparator: false, defaultNS: 'view',
     interpolation: { escapeValue: false }, // React escapes text; never use translations as untrusted HTML.
     resources: {
       en: { view: catalogs.en, ui: uiMessages.en },
-      'zh-Hans': { view: catalogs['zh-Hans'], ui: uiMessages['zh-Hans'] }
+      'zh-Hans': { view: catalogs['zh-Hans'], ui: uiMessages['zh-Hans'] },
+      'zh-Hant': { view: catalogs['zh-Hant'] ?? catalogs['zh-Hans'], ui: uiMessages['zh-Hant'] }
     }
   })
-  const getLocale = () => normalizeViewLocale(instance.resolvedLanguage ?? instance.language)
+  const getLocale = () => normalize(instance.resolvedLanguage ?? instance.language)
   const subscribe = (listener: () => void) => {
     instance.on('languageChanged', listener)
     return () => { instance.off('languageChanged', listener) }
@@ -54,7 +64,7 @@ export function createRemoteI18n<Catalog extends MessageCatalog>(catalogs: {
     getLocale, subscribe,
     // Called only by the validated parent init handler. A locale update must not reload a document.
     setLocale(value?: string) {
-      if (value !== undefined) void instance.changeLanguage(normalizeViewLocale(value))
+      if (value !== undefined) void instance.changeLanguage(normalize(value))
       if (typeof document !== 'undefined') document.documentElement.lang = getLocale()
     },
     t: (key: Extract<keyof Catalog, string>, values?: MessageValues): string => translate(key, values),

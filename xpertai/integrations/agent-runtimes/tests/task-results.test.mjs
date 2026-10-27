@@ -1,3 +1,4 @@
+import { managedOptions } from './managed-fixture.mjs'
 import 'reflect-metadata'
 import { test } from 'node:test'
 import { RunnableLambda } from '@langchain/core/runnables'
@@ -76,18 +77,16 @@ test('result resources are stable, provider-neutral and emitted only after compl
 test('launch defaults to no delivery; only an explicit archive request reaches the runtime', async () => {
   let received
   const api = {
-    resolve: async () => ({}),
+    listManaged: async () => managedOptions,
+    resolveManaged: async () => ({}),
+    awaitResult: async () => ({ id: 'task', status: 'running' }),
     start: async (request) => {
       received = request
       return { id: 'task', status: 'running' }
     }
   }
   const tools = new AgentInvocationMiddleware().createMiddleware(
-    {
-      bindings: [
-        { id: '11111111-1111-4111-a111-111111111111', name: 'code_task', description: 'Code', mode: 'background' }
-      ]
-    },
+    {},
     { runtime: { capabilities: { require: () => api } } }
   ).tools
   const config = { configurable: { tool_call_id: 'call' } }

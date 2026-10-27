@@ -1,9 +1,23 @@
 export async function validateDocument(input, browser, hostPath) {
 const errors = [], addError = value => { const message = String(value).slice(0, 300); if (errors.length < 16 && !errors.includes(message)) errors.push(message) }
-  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } })
+  const loadedResources = new Set()
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, serviceWorkers: 'block' })
   try {
   const page = await context.newPage()
-  await page.route('**/*', route => route.abort('blockedbyclient'))
+  await page.route('**/*', async route => {
+    const request = route.request()
+    const allowed = request.method() === 'GET' && await page.evaluate(({ type, url }) =>
+      DocumentHost.isDashboardResourceAllowed(type, url), { type: request.resourceType(), url: request.url() })
+    if (allowed) await route.continue()
+    else await route.abort('blockedbyclient')
+  })
+  page.on('requestfailed', request => addError(`DOCUMENT_RESOURCE_LOAD_FAILED: ${request.resourceType()} ${request.url().split('?')[0]} (${request.failure()?.errorText ?? 'request failed'})`))
+  page.on('response', response => {
+    if (response.status() >= 400) addError(`DOCUMENT_RESOURCE_HTTP_ERROR: ${response.status()} ${response.url().split('?')[0]}`)
+    else if (response.status() < 300 || response.status() === 304) {
+      for (let request = response.request(); request; request = request.redirectedFrom()) loadedResources.add(request.url().split('#')[0])
+    }
+  })
   page.on('pageerror', error => addError(error.message))
   page.on('console', message => { if (message.type() === 'error') addError(message.text()) })
   await page.setContent('<!doctype html><html><head></head><body><iframe style="width:100%;height:850px"></iframe></body></html>')
@@ -47,7 +61,8 @@ const errors = [], addError = value => { const message = String(value).slice(0, 
       }, onError: code => window.validation.errors.push(code)
     })
   }, input)
-  await page.waitForFunction(() => window.validation.requestedBindings.length || window.validation.errors.length, null, { timeout: 8000 }).catch(() => addError('DOCUMENT_INITIAL_QUERY_MISSING'))
+  await page.waitForFunction(() => window.validation.requestedBindings.length || window.validation.errors.length, null, { timeout: 15000 }).catch(() => addError('DOCUMENT_INITIAL_QUERY_MISSING'))
+  await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => addError('DOCUMENT_RESOURCE_LOAD_TIMEOUT'))
   await page.waitForTimeout(500)
   await page.waitForFunction(ids => ids.every(id => window.validation.requestedBindings.includes(id)),
     input.context.bindingIds, { timeout: 2000 }).catch(() => {})
@@ -56,6 +71,12 @@ const errors = [], addError = value => { const message = String(value).slice(0, 
     if (!initiallyRequested.includes(id)) addError(`DOCUMENT_INITIAL_BINDING_MISSING: ${id}. Subscribe and query every saved Binding on initial load.`)
   }
   const frame = page.frames().find(frame => frame !== page.mainFrame())
+  if (frame) {
+    const resources = await frame.locator('script[src], link[rel~="stylesheet"][href]').evaluateAll(elements => elements.map(element =>
+      element instanceof HTMLScriptElement ? element.src : element.href))
+    for (const url of resources) if (/^https?:/.test(url) && !loadedResources.has(url.split('#')[0]))
+      addError(`DOCUMENT_RESOURCE_NOT_LOADED: ${url.split('?')[0]}. Online scripts and styles must load successfully before saving.`)
+  }
   // Exercise bounded native selects against the saved parameter contract; data remains the real default preview.
   // This detects invalid filter wiring, not the upstream effect of a filter or arbitrary custom controls.
   if (frame && input.parameters) {

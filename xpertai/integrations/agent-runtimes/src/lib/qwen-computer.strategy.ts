@@ -1,27 +1,47 @@
+import { runnerCompletion } from './runtime-completion.js'
 import { Injectable } from '@nestjs/common'
 import {
-  AgentExecutionRunnerCapability, AgentRuntimeStrategy,
-  type AgentRuntimeContext, type AgentRuntimeHandle, type AgentRuntimeStart, type IAgentRuntimeStrategy
+  AgentExecutionRunnerCapability,
+  AgentRuntimeStrategy,
+  type AgentRuntimeContext,
+  type AgentRuntimeHandle,
+  type AgentRuntimeStart,
+  type IAgentRuntimeStrategy
 } from '@xpert-ai/plugin-sdk'
-import { ProcessRuntime } from './process-runtime.js'
-import { inspectComputerJsonl, requireComputerProfile, startComputerJsonl, type ComputerJsonlAdapter } from './computer-jsonl.js'
+import { RuntimeProfiles } from './managed-profiles.js'
+import {
+  inspectComputerJsonl,
+  requireComputerProfile,
+  startComputerJsonl,
+  type ComputerJsonlAdapter
+} from './computer-jsonl.js'
 import { messageCompletion } from './message-completion.js'
 
 const adapter: ComputerJsonlAdapter = {
-  provider: 'qwen-computer', toolId: 'qwen', activityProtocol: 'qwen',
-  completion: value => messageCompletion('Qwen', value)
+  provider: 'qwen-computer',
+  toolId: 'qwen',
+  activityProtocol: 'qwen',
+  completion: (value) => messageCompletion('Qwen', value)
 }
 
 /** Structured receipt + exit code confirm execution, never the model's completion sentence. */
 @Injectable()
 @AgentRuntimeStrategy('qwen-computer')
 export class QwenComputerRuntimeStrategy implements IAgentRuntimeStrategy {
+  get managedProfiles() {
+    return this.profiles.managedProfiles('qwen-computer')
+  }
   readonly capabilities = {
+    completionEvidence: 2 as const,
+    idempotentCancellation: true,
     activity: { version: 1 as const, presentation: 'coding' as const },
     executionTools: [{ id: 'qwen', versions: ['0.24.7'], environments: ['computer' as const] }],
-    recovery: 'session' as const, interactions: false, cancellation: true, background: true
+    recovery: 'session' as const,
+    interactions: false,
+    cancellation: true,
+    background: true
   }
-  constructor(private readonly profiles: ProcessRuntime) {}
+  constructor(private readonly profiles: RuntimeProfiles) {}
   start(request: AgentRuntimeStart, context: AgentRuntimeContext) {
     if (request.previous) return this.inspect(request.previous, context)
     return startComputerJsonl(request, context, this.profiles.profile(request, context, 'qwen-computer'))
@@ -33,6 +53,16 @@ export class QwenComputerRuntimeStrategy implements IAgentRuntimeStrategy {
     requireComputerProfile(handle, context, this.profiles, adapter)
     if (!handle.runner) throw new Error('Qwen Computer receipt is unavailable')
     const result = await context.capabilities.require(AgentExecutionRunnerCapability).stop(handle.runner)
-    return { status: result.state === 'exited' ? 'cancelled' as const : result.state === 'unknown' ? 'unknown' as const : 'cancelling' as const, handle }
+    const outcome = context.settlement?.status ?? 'cancelled'
+    const controlEvidence = runnerCompletion(context, handle, outcome, result.completion)
+    return {
+      status: controlEvidence
+        ? ('cancelled' as const)
+        : result.state === 'stopping'
+        ? ('cancelling' as const)
+        : ('unknown' as const),
+      handle,
+      controlEvidence
+    }
   }
 }

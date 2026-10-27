@@ -5,7 +5,7 @@ import { artifactDocumentHtml, artifactDocumentDependencyLocks } from '@xpert-ai
 const id = z.string().regex(/^[A-Za-z][A-Za-z0-9_.-]{0,79}$/)
 export const dashboardSchema = z.object({
   schema: z.literal('xpert.live-dashboard'), id: z.string().uuid(), title: z.string().min(1).max(160),
-  bindings: z.array(analyticsBindingSchema).min(1).max(8),
+  bindings: z.array(analyticsBindingSchema).max(8),
   presentation: z.object({ type: z.literal('html'), html: artifactDocumentHtml, dependencies: artifactDocumentDependencyLocks.optional() }).strict().optional(),
   controls: z.array(z.object({ controlId: id, type: z.enum(['string', 'number', 'boolean', 'date']),
     defaultValue: z.union([z.string(), z.number(), z.boolean(), z.null()]).optional(),
@@ -18,11 +18,12 @@ export const dashboardSchema = z.object({
   const unique = (values: string[], name: string) => {
     if (new Set(values).size !== values.length) ctx.addIssue({ code: 'custom', message: `Duplicate ${name}` })
   }
+  if (!manifest.bindings.length && (manifest.presentation || manifest.controls.length || manifest.charts.length || manifest.tables.length)) ctx.addIssue({ code: 'custom', message: 'An unconfigured draft must contain no views or controls' })
   unique(manifest.bindings.map((binding) => binding.id), 'binding')
   unique(manifest.bindings.map((binding) => binding.output.datasetId), 'dataset')
   unique(manifest.controls.map((control) => control.controlId), 'control')
   unique([...manifest.charts, ...manifest.tables].map((view) => view.id), 'view')
-  if (!manifest.presentation && !manifest.charts.length && !manifest.tables.length) ctx.addIssue({ code: 'custom', message: 'At least one chart or table is required' })
+  if (manifest.bindings.length && !manifest.presentation && !manifest.charts.length && !manifest.tables.length) ctx.addIssue({ code: 'custom', message: 'At least one chart or table is required' })
   if (manifest.presentation && (manifest.charts.length || manifest.tables.length)) ctx.addIssue({ code: 'custom', message: 'HTML presentation owns its charts; use empty charts/tables arrays' })
   for (const control of manifest.controls) {
     const parameters = manifest.bindings.flatMap((binding) => binding.parameters.filter((parameter) => parameter.controlId === control.controlId))

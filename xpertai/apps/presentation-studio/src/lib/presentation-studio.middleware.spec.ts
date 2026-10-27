@@ -30,7 +30,8 @@ describe('PresentationStudioMiddleware agent awareness', () => {
         exportId: 'b06d4bbd-9659-4496-b051-300900ab6c0d',
         publicUrl: 'https://xpert.test/artifacts/share/AbCdEfGhJkMn'
       }),
-      revokeDeckHtmlShare: jest.fn().mockResolvedValue({ revoked: true })
+      revokeDeckHtmlShare: jest.fn().mockResolvedValue({ revoked: true }),
+      renameDeck: jest.fn().mockResolvedValue({ revision: 8 })
     }
     const middleware = new PresentationStudioMiddleware(
       service as never,
@@ -76,6 +77,32 @@ describe('PresentationStudioMiddleware agent awareness', () => {
     expect(service.publishAgentAwareness).toHaveBeenNthCalledWith(2, expect.any(Object), 'deck-1', expect.any(Object), expect.objectContaining({
       status: 'done',
       toolName: 'presentation_patch_slide'
+    }))
+  })
+
+  it('requires a revision for metadata rename and retains the trusted Agent scope', async () => {
+    const { service, agentMiddleware } = await createHarness()
+    const rename = agentMiddleware.tools?.find(candidate => candidate.name === 'presentation_rename_deck')
+    expect(rename).toBeDefined()
+    const deckId = '97aab7a0-f241-49a8-b52a-88cb6eb84c8e'
+    await expect(rename!.invoke({ deckId, title: 'New title' })).rejects.toThrow()
+    expect(service.renameDeck).not.toHaveBeenCalled()
+    await rename!.invoke({ deckId, title: ' New title ', expectedRevision: 7 })
+    expect(service.renameDeck).toHaveBeenCalledWith(expect.objectContaining({
+      tenantId: 'tenant-1', organizationId: 'org-1', userId: 'user-1', assistantId: 'assistant-1'
+    }), deckId, 'New title', 7, 'agent')
+    service.renameDeck.mockRejectedValueOnce(new Error('revision conflict'))
+    await expect(rename!.invoke({ deckId, title: 'Later title', expectedRevision: 7 })).rejects.toThrow('revision conflict')
+  })
+
+  it('publishes Agent editing presence for deck metadata changes', async () => {
+    const { service, agentMiddleware } = await createHarness()
+    await agentMiddleware.wrapToolCall?.({
+      toolCall: { name: 'presentation_rename_deck', args: { deckId: 'deck-1', title: 'New title', expectedRevision: 7 } },
+      tool: {} as never, state: {} as never, runtime: {} as never
+    } as never, async () => ({ content: 'ok' }) as never)
+    expect(service.publishAgentAwareness).toHaveBeenNthCalledWith(1, expect.any(Object), 'deck-1', expect.any(Object), expect.objectContaining({
+      status: 'editing', toolName: 'presentation_rename_deck'
     }))
   })
 

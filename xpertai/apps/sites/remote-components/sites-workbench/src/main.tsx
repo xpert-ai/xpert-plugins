@@ -1,3 +1,4 @@
+import { SourceDialog } from './source-dialog'
 import React, { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { z } from 'zod/v3'
@@ -27,6 +28,7 @@ function App() {
   const [page, setPage] = useState(1), [search, setSearch] = useState(''), [detail, setDetail] = useState<Detail | null>(null)
   const [tab, setTab] = useState<Tab>('preview'), [versionId, setVersionId] = useState(''), [mobile, setMobile] = useState(false)
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState(''), [refresh, setRefresh] = useState(0)
+  const [editingSource, setEditingSource] = useState(false)
   const [creating, setCreating] = useState(false), [name, setName] = useState(''), [prompt, setPrompt] = useState('')
   const [confirm, setConfirm] = useState<'publish' | 'restore' | 'archive' | 'revoke' | null>(null), [access, setAccess] = useState<Access>('admins_only'), [users, setUsers] = useState('')
   const hostRef = useRef<Host | null>(null), selectionRef = useRef<string | undefined>(), epoch = useRef(0), listSeq = useRef(0), detailSeq = useRef(0), refreshRef = useRef(() => {}), latestVersionRef = useRef<string | undefined>()
@@ -34,7 +36,16 @@ function App() {
   const fail = () => setError(t('error'))
   async function context(id: string, selected?: string) { await command(ASSISTANT_CONTEXT_SET_COMMAND, { key: 'sites', context: { projectId: id, ...(selected ? { versionId: selected } : {}) } }) }
   async function navigate(id?: string, nextTab: Tab = 'preview') {
-    await command(WORKBENCH_NAVIGATION_OPEN_COMMAND, { target: WORKBENCH_EXTENSION_VIEW_TARGET, viewKey: hostRef.current?.manifest.key, ...(id ? { selectionId: id } : {}), parameters: { tab: nextTab, listPage: page, listSearch: search } })
+    // Preserve the catalog instance for in-document tabs. A different resource must
+    // be resolved by the host; the view never invents a stable content identity.
+    const query = hostRef.current?.initialQuery
+    let parameters: Record<string, unknown> = query?.selectionId === id && query?.parameters?.contentId ? { ...query.parameters } : {}
+    if (id && hostRef.current?.runtimeScope?.projectId && !parameters.contentId) {
+      const resolved = await command('workbench.content.resolve', { providerKey: 'sites.content', resourceId: id })
+      const nav = z.object({ navigation: z.object({ parameters: z.record(z.unknown()).optional() }) }).parse(resolved)
+      parameters = nav.navigation.parameters ?? {}
+    }
+    await command(WORKBENCH_NAVIGATION_OPEN_COMMAND, { target: WORKBENCH_EXTENSION_VIEW_TARGET, viewKey: hostRef.current?.manifest.key, ...(id ? { selectionId: id } : {}), parameters: { ...parameters, tab: nextTab, listPage: page, listSearch: search } })
   }
   async function loadList() {
     const revision = epoch.current, seq = ++listSeq.current
@@ -90,7 +101,7 @@ function App() {
     const projectId = detail.project.id
     try {
       if (confirm === 'publish') await action('deploy_version', { projectId, versionId, accessMode: access, confirmed: true, ...(access === 'public_link' ? { userConfirmedPublicLink: true } : {}), ...(access === 'custom' ? { customAudience: users.split(',').map(s => s.trim()).filter(Boolean) } : {}) })
-      if (confirm === 'restore') { const saved = z.object({ id: z.string() }).parse(await action('restore_version', { projectId, versionId })); setVersionId(saved.id) }
+      if (confirm === 'restore') { const saved = z.object({ id: z.string() }).parse(await action('restore_version', { projectId, versionId, expectedVersionId: detail.versions[0]?.id ?? null })); setVersionId(saved.id) }
       if (confirm === 'revoke') await action('revoke_artifact_link', { deploymentId: detail.project.currentDeploymentId, confirmed: true })
       if (confirm === 'archive') { await action('archive_project', { projectId }); await back() } else await loadDetail(projectId)
       setConfirm(null); setNotice(t('saved')); await loadList()
@@ -102,7 +113,7 @@ function App() {
   return <div className="flex h-full min-h-0 min-w-0 flex-col bg-background text-foreground">
     <header className="flex flex-wrap items-center justify-between gap-3 border-b px-6 py-5">
       <div className="flex min-w-0 items-center gap-3">{project ? <Button variant="ghost" size="icon" aria-label={t('back')} onClick={() => void back()}><ArrowLeft className="size-4"/></Button> : <Globe className="size-6"/>}<div className="min-w-0"><h1 className="truncate text-lg font-semibold">{project?.name ?? t('sites')}</h1><p className="mt-1 text-xs text-muted-foreground">{project ? `${project.slug} · ${project.currentDeploymentId ? t('live') : t('draft')}` : t('subtitle')}</p></div></div>
-      <div className="flex items-center gap-2"><Button variant="ghost" size="icon" aria-label={t('reload')} disabled={!host || busy} onClick={() => refreshRef.current()}><RefreshCw className="size-4"/></Button>{project ? <Button disabled={!versionId || busy} onClick={() => { setAccess(project.audience); setConfirm('publish') }}><Rocket className="size-4"/>{t('publish')}</Button> : <Button disabled={!host} onClick={() => setCreating(true)}><Plus className="size-4"/>{t('create')}</Button>}</div>
+      <div className="flex items-center gap-2">{project?.hostProjectId && <Button variant="outline" onClick={() => setEditingSource(true)}>{t('source')}</Button>}<Button variant="ghost" size="icon" aria-label={t('reload')} disabled={!host || busy} onClick={() => refreshRef.current()}><RefreshCw className="size-4"/></Button>{project ? <Button disabled={!versionId || busy} onClick={() => { setAccess(project.audience); setConfirm('publish') }}><Rocket className="size-4"/>{t('publish')}</Button> : <Button disabled={!host} onClick={() => setCreating(true)}><Plus className="size-4"/>{t('create')}</Button>}</div>
     </header>
     {error && <div role="alert" className="border-b bg-destructive/10 px-6 py-3 text-sm">{error}</div>}{notice && <div role="status" className="border-b bg-muted px-6 py-2 text-xs">{notice}</div>}
     {!detail ? <main className="flex min-h-0 flex-1 flex-col overflow-auto px-6 py-5">
@@ -119,6 +130,7 @@ function App() {
         {tab === 'versions' && <section className="space-y-3 p-6">{detail.versions.length === 0 && <p className="text-sm text-muted-foreground">{t('emptyVersions')}</p>}{detail.versions.map(v => <Card key={v.id} className="p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><div className="flex items-center gap-2"><h2 className="font-medium">v{v.versionNumber} · {v.title || detail.project.name}</h2>{deployment?.versionId === v.id && <Badge variant="secondary">{t('deployed')}</Badge>}</div><p className="mt-2 text-xs text-muted-foreground">{date(v.createdAt)}</p>{v.description && <p className="mt-3 text-sm text-muted-foreground">{v.description}</p>}</div><div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => { setVersionId(v.id); void changeTab('preview') }}>{t('preview')}</Button><Button variant="ghost" size="sm" onClick={() => { setVersionId(v.id); setConfirm('restore') }}>{t('restore')}</Button></div></div></Card>)}</section>}
         {tab === 'settings' && <section className="max-w-3xl space-y-6 p-6"><Card className="p-5"><h2 className="mb-2 font-semibold">{t('access')}</h2><p className="mb-4 text-sm text-muted-foreground">{t(project?.audience ?? 'admins_only')}</p>{deployment?.artifactLinkId && <Button variant="destructive" onClick={() => setConfirm('revoke')}>{t('revoke')}</Button>}</Card><Card className="p-5"><h2 className="mb-2 font-semibold">{t('hosting')}</h2><p className="text-sm leading-6 text-muted-foreground">{t('hostingDescription')}</p></Card><Button variant="destructive" onClick={() => setConfirm('archive')}>{t('archive')}</Button></section>}
       </main></>}
+    {editingSource && project && <SourceDialog projectId={project.id} versionId={detail?.versions[0]?.id ?? null} locale={host?.locale} onClose={() => setEditingSource(false)} onSaved={() => void loadDetail(project.id)} />}
     <Dialog open={creating} onOpenChange={setCreating}><DialogContent><DialogHeader><DialogTitle>{t('create')}</DialogTitle><DialogDescription>{t('createDescription')}</DialogDescription></DialogHeader><form className="space-y-4" onSubmit={e => void create(e)}><label className="block text-sm font-medium">{t('name')}<Input className="mt-2" placeholder={t('nameHint')} value={name} onChange={e => setName(e.target.value)} maxLength={100} required/></label><label className="block text-sm font-medium">{t('prompt')}<Textarea className="mt-2 min-h-28" value={prompt} onChange={e => setPrompt(e.target.value)} maxLength={8000} required/></label><DialogFooter><Button type="button" variant="outline" onClick={() => setCreating(false)}>{t('cancel')}</Button><Button disabled={busy || !name.trim() || !prompt.trim()} type="submit">{busy && <LoaderCircle className="size-4 animate-spin"/>}{t('build')}</Button></DialogFooter></form></DialogContent></Dialog>
     <AlertDialog open={!!confirm} onOpenChange={open => { if (!open && !busy) setConfirm(null) }}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{confirm ? t(confirm) : ''}{confirm === 'publish' && selectedVersion ? ` · v${selectedVersion.versionNumber}` : ''}</AlertDialogTitle><AlertDialogDescription>{confirm ? t(({ publish: 'publishDescription', restore: 'restoreDescription', archive: 'archiveDescription', revoke: 'revokeDescription' } as const)[confirm]) : ''}</AlertDialogDescription></AlertDialogHeader>{confirm === 'publish' && <div className="space-y-4"><p className="text-sm font-medium">{project?.name}</p><label className="block text-sm font-medium">{t('access')}<Select value={access} onValueChange={value => setAccess(accessSchema.parse(value))}><SelectTrigger className="mt-2"><SelectValue/></SelectTrigger><SelectContent>{accessSchema.options.map(key => <SelectItem key={key} value={key}>{t(key)}</SelectItem>)}</SelectContent></Select></label>{access === 'public_link' && <p className="rounded-lg bg-muted p-3 text-sm">{t('publicWarning')}</p>}{access === 'custom' && <Input aria-label={t('users')} placeholder={t('users')} value={users} onChange={e => setUsers(e.target.value)}/>}</div>}<AlertDialogFooter><AlertDialogCancel disabled={busy}>{t('cancel')}</AlertDialogCancel><Button variant={confirm === 'archive' || confirm === 'revoke' ? 'destructive' : 'default'} disabled={busy || (confirm === 'publish' && (!versionId || (access === 'custom' && !users.trim())))} onClick={() => void executeConfirmation()}>{busy && <LoaderCircle className="size-4 animate-spin"/>}{t('confirm')}</Button></AlertDialogFooter></AlertDialogContent></AlertDialog>
   </div>

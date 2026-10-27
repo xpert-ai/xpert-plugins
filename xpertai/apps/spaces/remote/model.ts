@@ -2,6 +2,12 @@ import { t, i18n } from './i18n'
 import { z } from 'zod/v3'
 export const itemSchema = z.object({
   importOrigin: z.object({ provider: z.string(), documentId: z.string(), url: z.string().nullable(), revision: z.string(), importedAt: z.string(), warnings: z.array(z.string()) }).nullable().optional(),
+  canWrite: z.boolean().optional(),
+  sourceSync: z.object({ status: z.enum(['synced', 'pending', 'failed']), revision: z.string().optional() }).optional(),
+  preview: z.object({ kind: z.literal('outline'), revision: z.string(), lines: z.array(z.string()) }).optional(),
+  resourceRevision: z.string().optional(), allowedActions: z.array(z.string()).optional(),
+  availability: z.enum(['available', 'provider-unavailable']).optional(), resourceTypeId: z.string().optional(),
+  compatibleEditors: z.array(z.object({ key: z.string(), title: z.string() })).optional(),
   id: z.string(), spaceId: z.string().optional(), parentId: z.string().nullable().optional(), parentPageId: z.string().nullable().optional(),
   editorKey: z.string().nullable().optional(), title: z.string(), kind: z.string().optional(), version: z.number(), role: z.string().optional(),
   deleted: z.boolean().optional(), filePath: z.string().nullable().optional(), updatedAt: z.string().optional(),
@@ -19,6 +25,7 @@ export const revisionPreviewSchema = revisionSchema.extend({ markdown: z.string(
 export const errorText = (error: unknown) => {
   if (error instanceof Error && error.name === 'AbortError') return ''
   const message = error instanceof Error ? error.message : t('error.retry')
+  if (/folder_contains_resources/u.test(message)) return i18n.message('catalog.folderNotEmpty')
   if (/conflict|sources_changed|file.changed/iu.test(message)) return i18n.message('error.conflict')
   if (/denied|Forbidden|403/u.test(message)) return i18n.message('error.denied')
   if (/ai_timeout|aborted|timeout/iu.test(message)) return i18n.message('error.timeout')

@@ -12,24 +12,28 @@ import { CodexRuntimeStrategy } from '../dist/lib/codex.strategy.js'
 import { PiRuntimeStrategy } from '../dist/lib/pi.strategy.js'
 import { ClaudeCodeRuntimeStrategy } from '../dist/lib/claude.strategy.js'
 import { OpenCodeRuntimeStrategy } from '../dist/lib/opencode.strategy.js'
-import { ConfigSchema } from '../dist/lib/config.js'
+import { RuntimeProfiles } from '../dist/lib/managed-profiles.js'
 
 const workspaceId = '11111111-1111-4111-a111-111111111111'
 async function fixture(t, provider, extra = {}) {
   const root = await mkdtemp(join(tmpdir(), 'agent-provider-fixture-'))
+  const type = provider === 'claude-code' ? 'sdk' : provider === 'opencode' ? 'service' : 'process'
   const profile = {
-    id: provider,
-    version: '1',
     provider,
-    workspaceIds: [workspaceId],
+    type,
+    revision: 'deployment-1',
     workspaceRoot: root,
+    timeoutMs: 600000,
     command: process.execPath,
+    environment: {},
     args: [fileURLToPath(new URL('protocol-fixture.mjs', import.meta.url)), provider],
     ...extra
   }
-  const processes = new ProcessRuntime(ConfigSchema.parse({ profiles: [profile] }))
+  const profiles = new RuntimeProfiles()
+  const processes = new ProcessRuntime(profiles)
   const snapshots = []
   const context = {
+    executionTarget: { version: 1, kind: 'host', hostId: randomUUID(), generation: randomUUID() },
     invocationId: randomUUID(),
     scope: {
       tenantId: 'tenant',
@@ -39,6 +43,17 @@ async function fixture(t, provider, extra = {}) {
       parentExecutionId: 'parent',
       callerAgentKey: 'leader'
     },
+    capabilities: {
+      require: (capability) => {
+        assert.equal(capability.id, 'platform.agent_runtime.deployment')
+        return {
+          resolve: async () => {
+            if (context.scope.workspaceId !== workspaceId) throw Error('Host scope denied')
+            return profile
+          }
+        }
+      }
+    },
     checkpoint: async (snapshot) => snapshots.push(structuredClone(snapshot))
   }
   const request = {
@@ -47,8 +62,13 @@ async function fixture(t, provider, extra = {}) {
       provider,
       bindingId: 'binding',
       revision: '1',
-      reference: provider,
-      configuration: { profileVersion: '1' }
+      reference: provider === 'opencode' ? 'managed-opencode-service' : `managed-${provider}`,
+      configuration: {
+        profileVersion: '1',
+        executionEnvironment: { type },
+        managedRuntime: { type: 'builtin', version: '1' },
+        deploymentRevision: 'deployment-1'
+      }
     },
     input: { prompt: 'fixture' }
   }
@@ -56,7 +76,7 @@ async function fixture(t, provider, extra = {}) {
     processes.onModuleDestroy()
     await rm(root, { recursive: true, force: true })
   })
-  return { processes, context, request, snapshots }
+  return { processes, profiles, context, request, snapshots, deployment: profile }
 }
 async function until(f) {
   const deadline = Date.now() + 4000
@@ -77,7 +97,14 @@ test('Codex persists thread/turn receipts and handles a bidirectional approval',
   assert.equal(waiting.interaction.data.command, 'fixture')
   assert.ok(f.snapshots.find((s) => s.handle?.sessionId === 'thread-fixture'))
   await strategy.respond(waiting.handle, '91', 'accept', f.context)
-  const done = await until(() => f.snapshots.find((s) => s.status === 'succeeded'))
+  const done = await until(() =>
+    f.snapshots.find(
+      (s) =>
+        s.status === (process.platform === 'linux' ? 'succeeded' : 'unknown') &&
+        s.result &&
+        (process.platform !== 'linux' || s.controlEvidence)
+    )
+  )
   assert.equal(done.result.text, 'approved result 中文')
   assert.equal(done.handle.runId, 'turn-fixture')
 })
@@ -89,14 +116,27 @@ test('Codex cancellation remains pending until turn/completed', async (t) => {
   await until(() => f.snapshots.find((s) => s.status === 'waiting'))
   const pending = await strategy.cancel(receipt.handle, f.context)
   assert.equal(pending.status, 'cancelling')
-  await until(() => f.snapshots.find((s) => s.status === 'cancelled'))
+  await until(() =>
+    f.snapshots.find(
+      (s) =>
+        s.status === (process.platform === 'linux' ? 'cancelled' : 'unknown') &&
+        (process.platform !== 'linux' || s.controlEvidence)
+    )
+  )
 })
 
 test('Pi waits for agent_settled through automatic retry', async (t) => {
   const f = await fixture(t, 'pi')
   const strategy = new PiRuntimeStrategy(f.processes)
   await strategy.start(f.request, f.context)
-  const done = await until(() => f.snapshots.find((s) => s.status === 'succeeded'))
+  const done = await until(() =>
+    f.snapshots.find(
+      (s) =>
+        s.status === (process.platform === 'linux' ? 'succeeded' : 'unknown') &&
+        s.result &&
+        (process.platform !== 'linux' || s.controlEvidence)
+    )
+  )
   assert.equal(done.result.text, 'retry completed 中文')
   assert.equal(
     f.snapshots.some((s) => s.status === 'failed'),
@@ -110,14 +150,34 @@ test('profile version and workspace grants are checked before spawn', async (t) 
   await assert.rejects(
     strategy.start({ ...f.request, target: { ...f.request.target, configuration: { profileVersion: '2' } } }, f.context)
   )
-  await assert.rejects(strategy.start(f.request, { ...f.context, scope: { ...f.context.scope, workspaceId: 'other' } }))
+  const saved = f.context.scope.workspaceId
+  f.context.scope.workspaceId = 'other'
+  await assert.rejects(strategy.start(f.request, f.context))
+  f.context.scope.workspaceId = saved
   assert.equal(f.processes.runs.size, 0)
 })
 
 test('missing process does not replay an ambiguous operation', async (t) => {
   const f = await fixture(t, 'pi')
   const strategy = new PiRuntimeStrategy(f.processes)
-  const receipt = await strategy.start({ ...f.request, previous: { sessionId: 'lost', runId: 'lost' } }, f.context)
+  const receipt = await strategy.start(
+    {
+      ...f.request,
+      previous: {
+        sessionId: 'lost',
+        runId: 'lost',
+        metadata: {
+          provider: 'pi',
+          profileId: 'managed-pi',
+          workspaceId,
+          profileVersion: '1',
+          managedRuntime: { type: 'builtin', version: '1' },
+          deploymentRevision: 'deployment-1'
+        }
+      }
+    },
+    f.context
+  )
   assert.equal(receipt.status, 'unknown')
   assert.equal(f.processes.runs.size, 0)
 })
@@ -146,7 +206,7 @@ test('Claude SDK permissions use host interactions and completion receipts', asy
   assert.equal(settings.permissionMode, 'default')
   assert.deepEqual(settings.settingSources, [])
   await strategy.respond(waiting.handle, waiting.interaction.id, true, f.context)
-  const done = await until(() => f.snapshots.find((s) => s.status === 'succeeded'))
+  const done = await until(() => f.snapshots.find((s) => s.status === 'unknown' && s.result))
   assert.equal(done.result.text, 'Claude fixture')
 })
 
@@ -161,11 +221,16 @@ test('OpenCode persists before prompt and recovers by message identity without r
     let value
     if (path === '/session/status') value = {}
     else if (path === '/session') value = { id: 'session-fixture' }
-    else if (path.endsWith('/message') && req.method === 'POST') {
+    else if (path.endsWith('/prompt_async') && req.method === 'POST') {
       assert.ok(sentReceipt)
       prompts++
       saved = {
-        info: { role: 'assistant', parentID: JSON.parse(body).messageID, finish: 'stop', time: { created: 1, completed: 2 } },
+        info: {
+          role: 'assistant',
+          parentID: JSON.parse(body).messageID,
+          finish: 'stop',
+          time: { created: 1, completed: 2 }
+        },
         parts: [{ type: 'text', text: 'OpenCode fixture' }]
       }
       value = saved
@@ -182,10 +247,26 @@ test('OpenCode persists before prompt and recovers by message identity without r
     sentReceipt = true
     await record(s)
   }
-  const strategy = new OpenCodeRuntimeStrategy(f.processes)
+  class InstalledOpenCodeStrategy extends OpenCodeRuntimeStrategy {
+    async resolveManagedDeployment(reference, scope) {
+      assert.equal(reference, 'managed-opencode-service')
+      assert.equal(scope.workspaceId, workspaceId)
+      return { type: 'service', serverUrl: `http://127.0.0.1:${server.address().port}`, timeoutMs: 600000 }
+    }
+  }
+  const strategy = new InstalledOpenCodeStrategy(f.profiles)
+  // Host capability wraps settings from the installed strategy, never a host env/provider list.
+  f.context.capabilities.require = () => ({
+    resolve: async () => ({
+      ...(await strategy.resolveManagedDeployment(f.request.target.reference, f.context.scope)),
+      provider: 'opencode',
+      revision: 'deployment-1',
+      workspaceRoot: f.deployment.workspaceRoot
+    })
+  })
   const first = await strategy.start(f.request, f.context)
-  await until(() => f.snapshots.find((s) => s.status === 'succeeded'))
-  const recovered = await new OpenCodeRuntimeStrategy(f.processes).start(
+  assert.equal(first.status, 'running')
+  const recovered = await new OpenCodeRuntimeStrategy(f.profiles).start(
     { ...f.request, previous: first.handle },
     f.context
   )
@@ -194,4 +275,73 @@ test('OpenCode persists before prompt and recovers by message identity without r
   assert.equal(recovered.progress.startedAt, new Date(1).toISOString())
   assert.equal(recovered.progress.phase, 'completed')
   assert.equal(prompts, 1)
+})
+
+test('a stale host/turn cannot cancel a new process; JSONB property order does not change ownership', async (t) => {
+  const f = await fixture(t, 'codex'),
+    strategy = new CodexRuntimeStrategy(f.processes)
+  const started = await strategy.start(f.request, f.context)
+  await until(() => f.snapshots.find((s) => s.status === 'waiting'))
+  await assert.rejects(
+    strategy.cancel(started.handle, {
+      ...f.context,
+      executionTarget: { ...f.context.executionTarget, generation: randomUUID() }
+    }),
+    /scope mismatch/
+  )
+  await assert.rejects(strategy.cancel({ ...started.handle, runId: 'old-turn' }, f.context), /scope mismatch/)
+  const reordered = {
+    ...f.context,
+    scope: Object.fromEntries(Object.entries(f.context.scope).reverse()),
+    executionTarget: Object.fromEntries(Object.entries(f.context.executionTarget).reverse())
+  }
+  assert.equal((await strategy.cancel(started.handle, reordered)).status, 'cancelling')
+})
+
+test('a lost final checkpoint retains the exited original process receipt for compensation', async (t) => {
+  const f = await fixture(t, 'codex'),
+    strategy = new CodexRuntimeStrategy(f.processes)
+  let failFinal = true
+  const save = f.context.checkpoint
+  f.context.checkpoint = async (value) => {
+    if (failFinal && value.result && (value.controlEvidence || value.status === 'unknown'))
+      throw Error('database unavailable')
+    await save(value)
+  }
+  await strategy.start(f.request, f.context)
+  const waiting = await until(() => f.snapshots.find((s) => s.status === 'waiting'))
+  await strategy.respond(waiting.handle, '91', 'accept', f.context)
+  await until(() => f.processes.runs.get(f.context.invocationId)?.exited)
+  const run = f.processes.runs.get(f.context.invocationId)
+  await run.writes
+  assert.equal(f.processes.runs.has(f.context.invocationId), true)
+  failFinal = false
+  const recovered = await strategy.inspect(waiting.handle, f.context)
+  assert.equal(recovered.result.text, 'approved result 中文')
+  assert.equal(f.processes.runs.has(f.context.invocationId), false)
+})
+
+test('installed strategies own direct launch defaults without plugin or host environment configuration', async (t) => {
+  const f = await fixture(t, 'codex')
+  const codex = new CodexRuntimeStrategy(f.processes)
+  const pi = new PiRuntimeStrategy(f.processes)
+  const claude = new ClaudeCodeRuntimeStrategy(f.processes, {
+    load: async () => {
+      throw Error('Discovery must not load SDK')
+    }
+  })
+  for (const [strategy, reference, expected] of [
+    [codex, 'managed-codex', { type: 'process', command: 'codex', args: ['app-server'] }],
+    [pi, 'managed-pi', { type: 'process', command: 'pi', args: ['--mode', 'rpc'] }],
+    [claude, 'managed-claude-code', { type: 'sdk' }]
+  ]) {
+    const spec = await strategy.resolveManagedDeployment(reference, f.context.scope)
+    for (const [key, value] of Object.entries(expected)) assert.deepEqual(spec[key], value)
+    assert.deepEqual(spec.environment, { LANG: 'C.UTF-8' })
+    assert.equal(await strategy.resolveManagedDeployment('not-registered', f.context.scope), undefined)
+  }
+  assert.equal(
+    await new OpenCodeRuntimeStrategy(f.profiles).resolveManagedDeployment('managed-opencode-service', f.context.scope),
+    undefined
+  )
 })

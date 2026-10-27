@@ -7,7 +7,6 @@ const { DashboardService } = require('../dist/lib/dashboard.service.js')
 const { DashboardViewProvider } = require('../dist/lib/view.provider.js')
 const { DashboardSharingService } = require('../dist/lib/sharing.service.js')
 const { normalizeAnalyticsResult, resolveAnalyticsParameters } = require('@xpert-ai/plugin-sdk/analytics')
-const sourceId = '22222222-2222-4222-8222-222222222222'
 const hostType = process.env.DASHBOARD_HOST_TYPE ?? 'agent'
 if (!['agent', 'project'].includes(hostType)) throw Error('Unsupported fixture host')
 const scope = { tenantId: 'tenant', organizationId: 'organization', userId: 'viewer', hostType, hostId: randomUUID(), slots: [] }
@@ -15,7 +14,7 @@ const artifacts = new Map(), files = new Map(), versions = new Map(), drafts = n
 const links = new Map()
 const receipts = { queries: 0, parameters: [], saves: 0, selection: null, navigation: [], hostType, hostId: scope.hostId }
 const manifest = require('../examples/postgres-sales.json')
-const source = { id: sourceId, name: 'Acceptance sales', type: 'pg', providers: [{ id: manifest.bindings[0].providerId },
+const source = { source: manifest.bindings[0].source, name: 'Acceptance sales', providers: [{ id: manifest.bindings[0].providerId },
   { id: 'private-provider', sharing: { mode: 'owner_only', reasonCode: 'WORKSPACE_SCRIPT_PRIVATE_DEPENDENCIES' } }] }
 const capabilities = {
   'platform.analytics': {
