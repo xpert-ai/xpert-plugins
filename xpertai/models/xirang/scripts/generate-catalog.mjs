@@ -10,6 +10,7 @@ const modelMetadataPath = join(srcRoot, 'catalog', 'model-metadata.json')
 const source = JSON.parse(readFileSync(sourcePath, 'utf8'))
 const llmSpecsSource = JSON.parse(readFileSync(llmSpecsPath, 'utf8'))
 const modelMetadataSource = JSON.parse(readFileSync(modelMetadataPath, 'utf8'))
+const speechProtocols = JSON.parse(readFileSync(join(srcRoot, 'speech2text', 'protocols.json'), 'utf8'))
 const capturedAt = source.captured_at || new Date().toISOString()
 const sourceModelNames = new Set(source.models.map((row) => row.name))
 
@@ -17,7 +18,7 @@ const sourceModelNames = new Set(source.models.map((row) => row.name))
 // dependency-free when the plugin repository is checked out standalone.
 const stringify = (value) => `${JSON.stringify(value, null, 2)}\n`
 
-const runtimeModelTypes = new Set(['llm', 'text-embedding', 'rerank', 'image'])
+const runtimeModelTypes = new Set(['llm', 'text-embedding', 'rerank', 'image', 'speech2text'])
 const catalogModelTypes = new Set([...runtimeModelTypes, 'multimodal-embedding', 'video', 'speech2text'])
 const featureOrder = [
   'tool-call',
@@ -159,8 +160,9 @@ function parameterRules(modelType, llmSpec) {
 }
 
 const preservedModels = new Map()
-for (const modelType of ['llm', 'text-embedding', 'rerank', 'image']) {
+for (const modelType of ['llm', 'text-embedding', 'rerank', 'image', 'speech2text']) {
   const folder = join(srcRoot, modelType)
+  mkdirSync(folder, { recursive: true })
   for (const file of readdirSync(folder)) {
     if (!file.endsWith('.yaml') || file === '_position.yaml') continue
     const model = JSON.parse(readFileSync(join(folder, file), 'utf8'))
@@ -193,17 +195,24 @@ function modelSchema(row, modelType) {
   const name = row.name
   const llmSpec = modelType === 'llm' ? llmSpecs.get(name) : undefined
   if (modelType === 'llm' && !llmSpec) throw new Error(`Missing LLM specification: ${name}`)
+  if (modelType === 'speech2text' && !['sync', 'async'].includes(speechProtocols[name])) {
+    throw new Error(`Missing ASR protocol: ${name}`)
+  }
   const base = {
     model: name,
     label: { en_US: name, zh_Hans: name },
     model_type: modelType,
-    ...(row.model_id ? { modelConfig: { endpoint_model_name: row.model_id } } : {}),
+    ...(modelType === 'speech2text'
+      ? { modelConfig: { asr_protocol: speechProtocols[name] } }
+      : row.model_id ? { modelConfig: { endpoint_model_name: row.model_id } } : {}),
     model_properties:
       modelType === 'llm'
         ? { mode: 'chat', context_size: llmSpec.context_size }
-        : modelType === 'image'
-          ? { mode: 'image' }
-          : { context_size: modelType === 'rerank' ? rerankContextSizes[name] || 8192 : 8192 },
+        : modelType === 'speech2text'
+          ? { file_upload_limit: 15, supported_file_extensions: 'wav,mp3,opus' }
+          : modelType === 'image'
+            ? { mode: 'image' }
+            : { context_size: modelType === 'rerank' ? rerankContextSizes[name] || 8192 : 8192 },
     parameter_rules: parameterRules(modelType, llmSpec)
   }
   const generated = modelType === 'llm' ? { ...base, features: llmSpec.features } : base
@@ -238,7 +247,7 @@ for (const row of activeRows) {
   if (Object.prototype.hasOwnProperty.call(counts, modelType)) counts[modelType] += 1
 }
 
-for (const modelType of ['llm', 'text-embedding', 'rerank', 'image']) {
+for (const modelType of ['llm', 'text-embedding', 'rerank', 'image', 'speech2text']) {
   const folder = join(srcRoot, modelType)
   mkdirSync(folder, { recursive: true })
   for (const file of readdirSync(folder)) {
@@ -267,7 +276,7 @@ for (const [index, row] of runtimeRows.entries()) {
   })
 }
 
-for (const modelType of ['llm', 'text-embedding', 'rerank', 'image']) {
+for (const modelType of ['llm', 'text-embedding', 'rerank', 'image', 'speech2text']) {
   const folder = join(srcRoot, modelType)
   const names = generated.filter((model) => model.model_type === modelType).map((model) => model.name)
   writeFileSync(join(folder, '_position.yaml'), stringify(names, { lineWidth: 0 }))

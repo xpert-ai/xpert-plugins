@@ -33,7 +33,7 @@ function removeCopiedModelFiles(directory) {
 
 // Model catalogs are generated artifacts. Remove stale copied assets before
 // copying while preserving the JavaScript emitted into the same directories.
-for (const directory of ['llm', 'text-embedding', 'rerank', 'image']) {
+for (const directory of ['llm', 'text-embedding', 'rerank', 'image', 'speech2text', 'tts']) {
   removeCopiedModelFiles(path.join(distRoot, directory))
 }
 rmSync(path.join(distRoot, 'catalog'), { recursive: true, force: true })

@@ -1,0 +1,16 @@
+{
+  "model": "fun-asr",
+  "label": {
+    "en_US": "fun-asr",
+    "zh_Hans": "fun-asr"
+  },
+  "model_type": "speech2text",
+  "modelConfig": {
+    "asr_protocol": "async"
+  },
+  "model_properties": {
+    "file_upload_limit": 15,
+    "supported_file_extensions": "wav,mp3,opus"
+  },
+  "parameter_rules": []
+}
