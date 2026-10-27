@@ -42,6 +42,10 @@ export function hasTongyiModelControls(model: string): boolean {
   return Object.prototype.hasOwnProperty.call(MODEL_CONTROLS, model)
 }
 
+export function getTongyiStructuredToolChoice(model: string): ModelControls['toolChoice'] {
+  return hasTongyiModelControls(model) ? MODEL_CONTROLS[model].toolChoice : undefined
+}
+
 export function resolveTongyiModelOptions(model: string, options: Partial<TongyiModelCredentials> = {}): TongyiModelCredentials {
   const controls = hasTongyiModelControls(model) ? MODEL_CONTROLS[model] : undefined
   if (!controls) return { ...options, temperature: options.temperature ?? 0 }

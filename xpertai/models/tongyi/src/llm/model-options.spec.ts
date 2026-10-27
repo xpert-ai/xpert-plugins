@@ -13,6 +13,13 @@ describe('Tongyi provider-specific request controls', () => {
       modelProvider: { credentials: { dashscope_api_key: 'test' } } } }).invocationParams()
   }
 
+  it('defaults Step 5 thinking off while forwarding an explicit opt-in', () => {
+    const rule = manager.getParameterRules('stepfun/step-5-preview', {}).find((rule) => rule.name === 'enable_thinking')
+    expect(rule?.default).toBe(false)
+    expect(params('stepfun/step-5-preview', { enable_thinking: rule?.default })['enable_thinking']).toBe(false)
+    expect(params('stepfun/step-5-preview', { enable_thinking: true })['enable_thinking']).toBe(true)
+  })
+
   it('omits fixed sampling overrides and unsupported MiMo controls', () => {
     const request = params('xiaomi/mimo-v2.6-pro-ultraspeed', {
       temperature: .2, top_p: .4, frequency_penalty: .8, reasoning_effort: 'max', thinking_budget: 100,
