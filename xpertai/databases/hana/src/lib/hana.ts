@@ -1,3 +1,4 @@
+import type { DatabaseLocation } from '@xpert-ai/plugin-sdk/data-workbench'
 import { Connection, ConnectionOptions } from '@sap/hana-client'
 import hanaClient from '@sap/hana-client'
 import { BaseSQLQueryRunner, CreationTable, DBProtocolEnum, DBSyntaxEnum, IDSSchema, IDSTable, QueryOptions, QueryResult, SQLAdapterOptions } from '@xpert-ai/plugin-sdk'
@@ -47,8 +48,8 @@ export class HANAAdapter<T extends HANAAdapterOptions = HANAAdapterOptions> exte
   private connection: Connection
   private workbench?: HanaWorkbenchAdapter
 
-  getWorkbenchAdapter() {
-    return this.workbench ??= createHanaWorkbench(this.options)
+  getWorkbenchAdapter(location?: DatabaseLocation) {
+    return this.workbench ??= createHanaWorkbench(this.options, location)
   }
 
   constructor(options: T) {

@@ -1,0 +1,36 @@
+{
+  "name": "@xpert-ai/sql-workbench",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "AGPL-3.0",
+  "description": "Shared SQL parsing and connection lifecycle for database plugins. Dialect implementations remain in each plugin.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json",
+    "./lexer": {
+      "types": "./dist/workbench-sql-lexer.d.ts",
+      "import": "./dist/workbench-sql-lexer.js",
+      "default": "./dist/workbench-sql-lexer.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "!**/*.tsbuildinfo"
+  ],
+  "peerDependencies": {
+    "@xpert-ai/plugin-sdk": ">=3.18.7"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.lib.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

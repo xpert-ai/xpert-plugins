@@ -6,6 +6,8 @@ import { MySQLRunner } from './mysql.js'
 @Injectable()
 @DataSourceStrategy(MySQLDataSource)
 export class MySQLDataSourceStrategy extends AdapterDataSourceStrategy {
+  override readonly workbench = { engine: 'mysql' }
+
   override type: string
   override name: string
   constructor() {

@@ -1,3 +1,4 @@
+import { quoteDatabaseIdentifier, splitWorkbenchSql } from '../sql.js'
 import { Inject, Injectable, OnModuleDestroy, Optional } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { createHash, randomUUID } from 'node:crypto'
@@ -11,8 +12,6 @@ import {
 } from '@xpert-ai/plugin-sdk'
 import {
   DataSourceRuntimeCapability,
-  quoteDatabaseIdentifier,
-  splitWorkbenchSql,
   type DatabaseObjectDetail,
   type DatabaseObjectRef,
   type DatabaseResult,

@@ -79,8 +79,15 @@ export class HanaWorkbenchAdapter implements DatabaseWorkbenchAdapter {
   close() { return this.transport.close() }
 }
 
-export function createHanaWorkbench(options: HANAAdapterOptions) {
-  return new HanaWorkbenchAdapter(createHanaReadTransport(options), { database: options.database, schema: options.catalog })
+export function hanaWorkbenchOptions(options: HANAAdapterOptions, location: DatabaseLocation = {}): HANAAdapterOptions {
+  if (location.engineCatalog) throw new Error('HANA_EXTERNAL_CATALOG_UNSUPPORTED')
+  if (location.database && location.database !== options.database) throw new Error('HANA_DATABASE_SWITCH_DENIED')
+  if (location.schema) quoteHanaIdentifier(location.schema)
+  return { ...options, catalog: location.schema ?? options.catalog }
+}
+export function createHanaWorkbench(options: HANAAdapterOptions, location: DatabaseLocation = {}) {
+  const selected = hanaWorkbenchOptions(options, location)
+  return new HanaWorkbenchAdapter(createHanaReadTransport(selected), { database: selected.database, schema: selected.catalog })
 }
 function text(value: DatabaseValue | undefined): string { return value === null || value === undefined ? '' : String(value) }
 function objectKind(value: DatabaseValue): 'table' | 'view' {

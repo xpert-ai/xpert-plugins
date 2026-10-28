@@ -101,13 +101,17 @@ resolved source ID. Credentials stay in the host; query payloads cannot choose
 credentials or switch the saved HANA tenant database. `location.schema` selects a
 schema, while `options.database` remains the configured tenant.
 
-**Release dependency:** [Xpert SDK/API PR #1254](https://github.com/xpert-ai/xpert/pull/1254) adding `hana` to
-`DatabaseEngine` and `DataSourceRuntimeService` must ship first. Published SDK
-3.28.0 and earlier do not contain that contract. Keep this plugin PR in draft until
-that SDK is published, then raise the SDK peer minimum to its actual release
-version and regenerate the lockfile. The current dependency range/lock is only
-for reviewing the existing runtime ABI; it is not a supported standalone release
-of this implementation. Do not merge or publish the plugin before that gate.
+**Release dependency:** this adapter requires the companion platform change to
+plugin-registered workbench support and `getWorkbenchAdapter(location)`. The host
+no longer owns an engine allowlist or HANA-specific schema/tenant mapping.
+The strategy declares `workbench.engine: 'hana'`; this plugin validates the requested
+location and creates its dedicated adapter.
+
+The platform removes the old SDK SQL implementation exports as a major API change.
+Keep the coordinated plugin PR in draft until that SDK is published, then update
+SDK peer/dev dependencies and the lockfile to the actual compatible release.
+The current dependency ranges are review-only, not a standalone release contract.
+MySQL/Doris, PostgreSQL and DB Studio must migrate together with that host upgrade.
 
 After both releases are installed and active:
 
@@ -170,9 +174,9 @@ emitted declarations without replacing installed SDK files:
 ```sh
 # In the platform checkout:
 corepack pnpm exec nx build plugin-sdk --skip-nx-cache
-# In xpertai/databases/hana:
-node tests/typecheck-platform.mjs /absolute/platform/packages/plugin-sdk/dist
-node --test tests/*.test.mjs
+# In the plugin repository root:
+node plugin-dev-harness/verify-database-workbench.mjs "$XPERT_PLATFORM_ROOT/packages/plugin-sdk/dist"
+node --test xpertai/databases/hana/tests/*.test.mjs
 # In the plugin repository root, with plugin-dev-harness built:
 node plugin-dev-harness/dist/index.js --workspace ./xpertai/databases/hana --plugin @xpert-ai/plugin-hana
 ```

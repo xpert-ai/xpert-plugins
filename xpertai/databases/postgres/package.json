@@ -29,7 +29,8 @@
   "dependencies": {
     "pg": "^8.7.1",
     "pg-copy-streams": "^6.0.5",
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "@xpert-ai/sql-workbench": "workspace:^"
   },
   "peerDependencies": {
     "@nestjs/common": "^11.1.6",

@@ -1,5 +1,6 @@
 import { createDorisConnection } from './doris-workbench.js'
 import { createMysqlWorkbench } from './mysql-workbench.js'
+import type { DatabaseLocation } from '@xpert-ai/plugin-sdk/data-workbench'
 import { Injectable } from '@nestjs/common';
 import {
   AdapterDataSourceStrategy,
@@ -26,6 +27,8 @@ export const DORIS_TYPE = 'doris';
 @Injectable()
 @DataSourceStrategy(DORIS_TYPE)
 export class DorisDataSourceStrategy extends AdapterDataSourceStrategy {
+  override readonly workbench = { engine: 'doris' }
+
   override type: string;
   override name: string;
   constructor() {
@@ -46,8 +49,8 @@ const DORIS_DEFAULT_PORT = 9030;
 const DORIS_DEFAULT_API_PORT = 8030;
 
 export class DorisRunner extends MySQLRunner<DorisAdapterOptions> {
-  override getWorkbenchAdapter() {
-    return this.type === DORIS_TYPE ? createDorisConnection(this.options) : createMysqlWorkbench(this.options, 'doris')
+  override getWorkbenchAdapter(location?: DatabaseLocation) {
+    return this.type === DORIS_TYPE ? createDorisConnection(this.options, undefined, location) : createMysqlWorkbench(this.options, 'doris', undefined, location)
   }
   override readonly name: string = 'Doris';
   override readonly type: string = DORIS_TYPE;

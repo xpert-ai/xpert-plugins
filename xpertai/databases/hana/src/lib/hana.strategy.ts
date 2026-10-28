@@ -6,6 +6,8 @@ import { HANAAdapter } from './hana.js'
 @Injectable()
 @DataSourceStrategy(HANA)
 export class HANADataSourceStrategy extends AdapterDataSourceStrategy {
+  override readonly workbench = { engine: 'hana' }
+
   override type: string
   override name: string
   constructor() {
