@@ -1,9 +1,37 @@
+// Invariants: the SDK's per-document rate/concurrency limits also apply in preflight.
+// Independent synthetic interactions need fresh mounts, not a larger production quota.
+// Each scenario still validates initial load, its interaction sequence and host refresh.
 export async function validateDocument(input, browser, hostPath) {
-const errors = [], addError = value => { const message = String(value).slice(0, 300); if (errors.length < 16 && !errors.includes(message)) errors.push(message) }
-  const loadedResources = new Set()
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, serviceWorkers: 'block' })
   try {
+    const initial = await validateScenario(input, context, hostPath, { type: 'refresh' })
+    if (!initial.report.ok) return initial.report
+    const scenarios = [
+      ...Array.from({ length: input.parameters ? Math.min(initial.selectCount, 24) : 0 }, (_, index) => ({ type: 'select', index })),
+      ...Array.from({ length: Math.min(initial.buttonCount, 12) }, (_, index) => ({ type: 'button', index }))
+    ]
+    const requestedBindings = new Set(initial.report.requestedBindings)
+    // Bound live pages while keeping the full control/button sweep within the Action deadline.
+    for (let offset = 0; offset < scenarios.length; offset += 2) {
+      const results = await Promise.allSettled(scenarios.slice(offset, offset + 2).map(scenario =>
+        validateScenario(input, context, hostPath, scenario)))
+      // Settle both pages before closing the context, including on infrastructure errors.
+      for (const result of results) {
+        if (result.status === 'rejected') throw result.reason
+        const { report } = result.value
+        report.requestedBindings.forEach(id => requestedBindings.add(id))
+        if (!report.ok) return { ...report, requestedBindings: [...requestedBindings] }
+      }
+    }
+    return { ...initial.report, requestedBindings: [...requestedBindings] }
+  } finally { await context.close() }
+}
+
+async function validateScenario(input, context, hostPath, scenario) {
+const errors = [], addError = value => { const message = String(value).slice(0, 300); if (errors.length < 16 && !errors.includes(message)) errors.push(message) }
+  const loadedResources = new Set()
   const page = await context.newPage()
+  try {
   await page.route('**/*', async route => {
     const request = route.request()
     const allowed = request.method() === 'GET' && await page.evaluate(({ type, url }) =>
@@ -79,9 +107,10 @@ const errors = [], addError = value => { const message = String(value).slice(0, 
   }
   // Exercise bounded native selects against the saved parameter contract; data remains the real default preview.
   // This detects invalid filter wiring, not the upstream effect of a filter or arbitrary custom controls.
-  if (frame && input.parameters) {
+  if (frame && input.parameters && scenario.type === 'select') {
     const selects = frame.locator('select')
-    for (let index = 0; index < Math.min(await selects.count(), 24); index++) {
+    if (scenario.index >= await selects.count()) addError('DOCUMENT_SELECT_INTERACTION_FAILED')
+    for (let index = scenario.index; index < Math.min(await selects.count(), scenario.index + 1); index++) {
       const select = selects.nth(index)
       if (!(await select.isVisible()) || !(await select.isEnabled())) continue
       const original = await select.inputValue()
@@ -138,9 +167,10 @@ const errors = [], addError = value => { const message = String(value).slice(0, 
   }
   // Page buttons are untrusted executable UI too. Exercise a bounded set inside
   // the isolated preview; do not guess which button is refresh from its label.
-  if (frame) {
+  if (frame && scenario.type === 'button') {
     const buttons = frame.locator('button')
-    for (let index = 0; index < Math.min(await buttons.count(), 12); index++) {
+    if (scenario.index >= await buttons.count()) addError('DOCUMENT_BUTTON_INTERACTION_FAILED')
+    for (let index = scenario.index; index < Math.min(await buttons.count(), scenario.index + 1); index++) {
       const button = buttons.nth(index)
       if (!(await button.isVisible()) || !(await button.isEnabled())) continue
       await button.click({ timeout: 1000 }).catch(() => addError('DOCUMENT_BUTTON_INTERACTION_FAILED'))
@@ -156,6 +186,10 @@ const errors = [], addError = value => { const message = String(value).slice(0, 
   const renderedTextLength = frame ? (await frame.locator('body').innerText()).trim().length : 0
   if (!renderedTextLength) addError('DOCUMENT_EMPTY_PAGE')
   if (!state.requestedBindings.length) addError('DOCUMENT_INITIAL_QUERY_MISSING')
-  return { ok: !errors.length, errors, requestedBindings: [...new Set(state.requestedBindings)], renderedTextLength }
-  } finally { await context.close() }
+  return {
+    report: { ok: !errors.length, errors, requestedBindings: [...new Set(state.requestedBindings)], renderedTextLength },
+    selectCount: frame ? await frame.locator('select').count() : 0,
+    buttonCount: frame ? await frame.locator('button').count() : 0
+  }
+  } finally { await page.close() }
 }
