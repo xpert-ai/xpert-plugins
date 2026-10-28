@@ -33,7 +33,7 @@ imports of SDK `SqlDatabaseWorkbenchAdapter`, `WorkbenchTransport`, SQL parsing 
 helpers with plugin-owned implementations or this package. The old mixed-engine
 adapter constructor is not retained; instantiate the corresponding plugin adapter.
 
-Before release, publish the companion SDK major version, set the affected plugin
+Before release, publish the companion SDK patch version, set the affected plugin
 SDK dependencies to the actual compatible version, and regenerate the frozen lock.
 The review branch intentionally remains draft until that release gate is complete.
 

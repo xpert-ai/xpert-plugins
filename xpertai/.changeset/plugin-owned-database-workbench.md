@@ -10,4 +10,4 @@ Move MySQL, Doris and PostgreSQL SQL dialect, metadata and location handling fro
 
 Add the hana.sql Analytics provider with HANA-owned discovery and parameterized read-only queries, exact numeric values, bounded results and cancellation. Saved tenant credentials remain host-owned; HANA validates its fixed tenant and selected schema.
 
-Requires the coordinated platform SDK major release. Before publishing, update the affected SDK peer/dev dependency floors and lockfile to that actual published release; the current review dependencies do not satisfy the new source contract. Upgrade the host and these plugins together.
+Requires the coordinated platform SDK patch release. Before publishing, update the affected SDK peer/dev dependency floors and lockfile to that actual published release; the current review dependencies do not satisfy the new source contract. Upgrade the host and these plugins together.
