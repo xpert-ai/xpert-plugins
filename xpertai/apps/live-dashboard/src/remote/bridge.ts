@@ -81,11 +81,11 @@ export function selectDashboard(target: { artifactId: string; versionId?: string
     payload: { key: 'live_dashboard', ...(target ? { context: { schemaVersion: 1, ...target } } : { clear: true }) } })
 }
 
-export async function navigateDashboard(target: DashboardNavigationTarget | undefined, artifactId: string, versionId?: string) {
+export async function navigateDashboard(target: DashboardNavigationTarget | undefined, artifactId?: string, versionId?: string) {
   const destination = dashboardNavigationTargetSchema.parse(target)
   const current = z.object({ selectionId: z.string().optional(), parameters: z.object({ contentId: z.string().uuid().optional(), contentProvider: z.string().optional(), contentTitle: z.string().optional(), contentEditor: z.string().optional() }).optional() }).safeParse(initialQuery)
   let parameters: Record<string, unknown> = {}
-  if (current.success && current.data.parameters?.contentId) {
+  if (artifactId && current.success && current.data.parameters?.contentId) {
     if (current.data.selectionId === artifactId) parameters = { ...current.data.parameters }
     else {
       const resolved = await requestHost('invokeClientCommand', { commandKey: 'workbench.content.resolve', payload: { providerKey: 'live-dashboard.content', resourceId: artifactId } })
@@ -93,6 +93,6 @@ export async function navigateDashboard(target: DashboardNavigationTarget | unde
     }
   }
   return requestHost('invokeClientCommand', { commandKey: 'workbench.navigation.open', payload: {
-    ...destination, selectionId: artifactId, parameters: { ...parameters, ...(versionId ? { versionId } : {}) }
+    ...destination, ...(artifactId ? { selectionId: artifactId } : {}), parameters: { ...parameters, ...(versionId ? { versionId } : {}) }
   } satisfies WorkbenchNavigationOpenPayload })
 }

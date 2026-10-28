@@ -48,5 +48,9 @@
   "autoRefresh": "Auto refresh",
   "off": "Off",
   "seconds30": "Every 30 seconds",
-  "minute1": "Every minute"
+  "minute1": "Every minute",
+  "deleteDashboard": "Delete dashboard",
+  "deleteNamedDashboard": "Delete “{{title}}”",
+  "confirmDeleteDashboard": "Delete “{{title}}”? It will be removed from the dashboard list and shared links will stop working. Source data and workspace files will be kept.",
+  "deleting": "Deleting…"
 }

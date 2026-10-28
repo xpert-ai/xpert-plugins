@@ -48,5 +48,9 @@
   "autoRefresh": "自动刷新",
   "off": "关闭",
   "seconds30": "每 30 秒",
-  "minute1": "每分钟"
+  "minute1": "每分钟",
+  "deleteDashboard": "删除看板",
+  "deleteNamedDashboard": "删除“{{title}}”",
+  "confirmDeleteDashboard": "确定删除“{{title}}”？看板将从列表移除，共享链接将失效。数据源和工作区文件会保留。",
+  "deleting": "正在删除…"
 }

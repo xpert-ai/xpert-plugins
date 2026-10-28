@@ -88,3 +88,15 @@ test('catalog navigation preserves the stable tab across version selections and 
   assert.equal(messages.at(-1).ready, false)
   stop()
 })
+
+test('deleting the selected dashboard clears Assistant context and stale catalog navigation', async t => {
+  const { api, messages, receive, complete } = transport()
+  t.after(api.startBridge(() => {}, () => {}))
+  receive({ type: 'init', initialQuery: { selectionId: randomUUID(), parameters: { contentId: randomUUID(), contentProvider: 'live-dashboard.content', versionId: randomUUID() } } })
+  const clearContext = api.selectDashboard(null)
+  assert.deepEqual(messages.at(-1).payload, { key: 'live_dashboard', clear: true })
+  complete(); await clearContext
+  const clearNavigation = api.navigateDashboard({ target: 'workbench.view', viewKey: DASHBOARD_VIEW_KEY })
+  assert.deepEqual(messages.at(-1).payload, { target: 'workbench.view', viewKey: DASHBOARD_VIEW_KEY, parameters: {} })
+  complete(); await clearNavigation
+})
