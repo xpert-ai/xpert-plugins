@@ -170,3 +170,11 @@ The Share action publishes a link to an already published dashboard: follow the 
 See [team sharing and standalone pages](docs/team-sharing.mdx) and [local acceptance](docs/team-sharing-acceptance.mdx). This feature needs a host exposing the Artifact Presentation registry, API and page; it cannot be installed on an older SDK alone.
 
 Chat messages use the platform resource-card protocol after a successful create, update or open. The card opens the exact dashboard in Workbench; no dashboard renderer or queries are embedded in messages. See [chat resource cards](docs/chat-resource-cards.mdx).
+
+### Delete a saved dashboard
+
+Open the dashboard picker and use the trash icon beside an entry. The confirmation shows its title and Artifact ID, so same-name dashboards can be distinguished. Deletion recycles the whole dashboard (draft and published versions), removes it from the active list and revokes shared links; it does not delete source data or Assistant workspace files. Deleting the selected dashboard clears its preview and Assistant context; deleting another dashboard preserves the current view.
+
+The owner can delete private Assistant dashboards; Project dashboards require the current user's management permission. Read-only shared pages expose no delete control. The platform checks the confirmed draft revision atomically, rejecting concurrent edits. Entries without a saved working draft (legacy version-only or incomplete first saves) have no recycle revision and do not expose this action. No Agent deletion tool is registered.
+
+Manual acceptance after installing the updated plugin: cancel a deletion and confirm the entry remains; delete an unused saved dashboard and confirm it stays absent after reload; delete the selected dashboard and confirm the preview clears and its old shared link is unavailable.

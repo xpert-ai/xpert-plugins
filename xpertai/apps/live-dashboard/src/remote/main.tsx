@@ -38,11 +38,15 @@ function App() {
   const [status, setStatus] = React.useState('')
   const [refreshSeconds, setRefreshSeconds] = React.useState('off')
   const [editor, setEditor] = React.useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = React.useState<Summary | null>(null)
+  const [deleteError, setDeleteError] = React.useState('')
+  const [deleting, setDeleting] = React.useState(false)
   const [confirmPublish, setConfirmPublish] = React.useState<Saved | null>(null)
   const [partial, setPartial] = React.useState(false)
   const [unavailableDatasets, setUnavailableDatasets] = React.useState<string[]>([])
   const [sharing, setSharing] = React.useState(false)
   const requestSequence = React.useRef(0), operationSequence = React.useRef(0)
+  const navigationTarget = React.useRef<z.infer<typeof listSchema>['meta']['navigationTarget']>()
   const navigationKey = React.useRef<string>()
   const htmlDashboard = React.useRef<HtmlDashboardHandle>(null)
 
@@ -54,12 +58,13 @@ function App() {
   React.useEffect(() => onPrepareClose(id => id !== editRef.current.resourceId || !editRef.current.dirty), [])
   function clearDocument() {
     setHtml(''); setUnavailableDatasets([]); setSaved(null); setEditor(null); setVersions([])
-    setSharing(false); setConfirmPublish(null)
+    setSharing(false); setConfirmPublish(null); setConfirmDelete(null); setDeleteError('')
+    setControls({}); setStatus(''); setPartial(false)
   }
   async function load(artifactId?: string, versionId?: string) {
     const sequence = requestSequence.current
     const result = listSchema.parse(await requestHost('requestData', { query: { parameters: artifactId ? { artifactId, ...(versionId ? { versionId } : {}) } : {} } })).meta
-    if (sequence === requestSequence.current) { setList(result.dashboards); setSources(result.sources) }
+    if (sequence === requestSequence.current) { setList(result.dashboards); setSources(result.sources); navigationTarget.current = result.navigationTarget }
     return result
   }
   async function query(target: Saved, values: Record<string, ControlValue>) {
@@ -95,14 +100,14 @@ function App() {
     setBusy(true); setError('')
     try { await work() } catch (error) { if (operation === operationSequence.current) setError(error instanceof Error ? error.message : t.error) } finally { if (operation === operationSequence.current) setBusy(false) }
   }
-  const autoRefresh = React.useRef({ saved, controls, busy, editor })
-  autoRefresh.current = { saved, controls, busy, editor }
+  const autoRefresh = React.useRef({ saved, controls, busy, editor, confirmDelete })
+  autoRefresh.current = { saved, controls, busy, editor, confirmDelete }
   React.useEffect(() => {
     if (refreshSeconds === 'off') return
     let stopped = false, pending = false
     const refresh = async () => {
       const current = autoRefresh.current
-      if (stopped || !isViewVisible() || pending || current.busy || current.editor !== null || !current.saved?.manifest.bindings.length) return
+      if (stopped || !isViewVisible() || pending || current.busy || current.confirmDelete || current.editor !== null || !current.saved?.manifest.bindings.length) return
       pending = true
       try {
         if (current.saved.manifest.presentation) htmlDashboard.current?.refresh()
@@ -157,10 +162,34 @@ function App() {
     setConfirmPublish(null)
     await open(result.artifactId, result.versionId ?? undefined)
   }
+  async function deleteDashboard() {
+    const target = confirmDelete
+    if (deleting || !target?.canDelete || !target.draftRevision) return
+    const sequence = requestSequence.current
+    setDeleteError(''); setDeleting(true)
+    try {
+      const receipt = z.object({ artifactId: z.literal(target.artifactId) }).parse(actionSchema.parse(await requestHost('executeAction', {
+        actionKey: 'delete', input: { artifactId: target.artifactId, expectedRevision: target.draftRevision, confirmed: true }
+      })).data)
+      setConfirmDelete(null)
+      setList(items => items.filter(item => item.artifactId !== receipt.artifactId))
+      if (sequence === requestSequence.current && autoRefresh.current.saved?.artifactId === receipt.artifactId) {
+        ++requestSequence.current
+        clearDocument()
+        navigationKey.current = dashboardNavigationKey({ artifactId: undefined, versionId: undefined })
+        await Promise.all([selectDashboard(null), navigateDashboard(navigationTarget.current)])
+      }
+      await load()
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : t.error)
+      throw error
+    } finally { setDeleting(false) }
+  }
   const toolbar = <header className="dashboard-toolbar border-b">
       <h1 className="toolbar-title text-base font-semibold">{readOnly ? saved?.title ?? t.title : t.title}</h1>
-      {!readOnly && <DashboardPicker items={list} value={saved?.artifactId ?? ''} disabled={busy || editor !== null} label={t.select}
-        searchLabel={t.search} emptyLabel={t.noResults} onChange={(id) => void run(() => open(id))}/>}
+      {!readOnly && <DashboardPicker items={list} value={saved?.artifactId ?? ''} disabled={busy || deleting || editor !== null} label={t.select}
+        searchLabel={t.search} emptyLabel={t.noResults} deleteLabel={title => i18n.t('deleteNamedDashboard', { title })}
+        onDelete={id => { setDeleteError(''); setConfirmDelete(list.find(item => item.artifactId === id) ?? null) }} onChange={(id) => void run(() => open(id))}/>}
       {readOnly && saved && <span className="text-xs text-muted-foreground">{t.teamReadOnly} · {t.version} {saved.versionNumber}</span>}
       <span className="toolbar-loading text-muted-foreground" role="status" title={busy ? t.loading : undefined}>
         {busy && <><RefreshCw className="size-4 motion-safe:animate-spin" aria-hidden="true"/><span className="sr-only">{t.loading}</span></>}
@@ -194,6 +223,15 @@ function App() {
   return <main className="dashboard-shell" data-read-only={readOnly || undefined}>
     {readOnly ? <ViewerControls busy={busy} t={t}>{toolbar}{filters}</ViewerControls> : toolbar}
     {!readOnly && sharing && saved && <ShareDialog artifactId={saved.artifactId} versionId={saved.versionId ?? undefined} versions={versions} t={t} onClose={() => setSharing(false)}/>}
+    <AlertDialog open={!!confirmDelete} onOpenChange={open => { if (!open && !busy && !deleting) setConfirmDelete(null) }}>
+      <AlertDialogContent><AlertDialogTitle>{t.deleteDashboard}</AlertDialogTitle>
+        <AlertDialogDescription>{i18n.t('confirmDeleteDashboard', { title: confirmDelete?.title ?? confirmDelete?.artifactId ?? '' })}</AlertDialogDescription>
+        <p className="break-all text-xs text-muted-foreground">{confirmDelete?.artifactId}</p>
+        {deleteError && <p role="alert" className="text-destructive">{deleteError}</p>}
+        <AlertDialogFooter><AlertDialogCancel disabled={busy || deleting}>{t.cancel}</AlertDialogCancel>
+          <Button variant="destructive" disabled={busy || deleting} onClick={() => void run(deleteDashboard)}>{deleting ? t.deleting : t.deleteDashboard}</Button></AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     <AlertDialog open={!!confirmPublish} onOpenChange={open => { if (!open && !busy) setConfirmPublish(null) }}>
       <AlertDialogContent><AlertDialogTitle>{t.publish}</AlertDialogTitle>
         <AlertDialogDescription>{t.confirmPublish} {confirmPublish?.manifest.title} · r{confirmPublish?.draftRevision}</AlertDialogDescription>

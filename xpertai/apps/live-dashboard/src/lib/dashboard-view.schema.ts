@@ -4,7 +4,7 @@ import { artifactDocumentDependencyAssets } from '@xpert-ai/plugin-sdk/artifact-
 import { dashboardSchema } from './dashboard.schema'
 import { dashboardNavigationTargetSchema } from './dashboard-navigation'
 
-export const dashboardSummarySchema = z.object({ artifactId: z.string(), versionId: z.string().nullish(), versionNumber: z.number().optional(), title: z.string().nullish(), updatedAt: z.string().optional(), draftRevision: z.number().optional(), isDraft: z.boolean().optional(), baseVersionId: z.string().nullish() })
+export const dashboardSummarySchema = z.object({ artifactId: z.string(), versionId: z.string().nullish(), versionNumber: z.number().optional(), title: z.string().nullish(), updatedAt: z.string().optional(), draftRevision: z.number().optional(), canDelete: z.boolean().optional(), isDraft: z.boolean().optional(), baseVersionId: z.string().nullish() })
 export const dashboardSavedSchema = dashboardSummarySchema.extend({ manifest: dashboardSchema, dependencies: artifactDocumentDependencyAssets.optional() })
 // Source identities belong to Analytics, including immutable Definitions and Artifacts.
 // The viewer consumes only the reference and label; DataSource fields are not universal.
