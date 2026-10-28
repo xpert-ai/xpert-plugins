@@ -46,6 +46,8 @@ function App() {
   const [unavailableDatasets, setUnavailableDatasets] = React.useState<string[]>([])
   const [sharing, setSharing] = React.useState(false)
   const requestSequence = React.useRef(0), operationSequence = React.useRef(0)
+  const listSequence = React.useRef(0)
+  const activeArtifactId = React.useRef<string>()
   const navigationTarget = React.useRef<z.infer<typeof listSchema>['meta']['navigationTarget']>()
   const navigationKey = React.useRef<string>()
   const htmlDashboard = React.useRef<HtmlDashboardHandle>(null)
@@ -57,14 +59,16 @@ function App() {
   React.useEffect(() => { reportDirty(isDirty || busy && editor !== null) }, [isDirty, busy, editor === null, saved?.artifactId, saved?.title])
   React.useEffect(() => onPrepareClose(id => id !== editRef.current.resourceId || !editRef.current.dirty), [])
   function clearDocument() {
+    activeArtifactId.current = undefined
     setHtml(''); setUnavailableDatasets([]); setSaved(null); setEditor(null); setVersions([])
     setSharing(false); setConfirmPublish(null); setConfirmDelete(null); setDeleteError('')
     setControls({}); setStatus(''); setPartial(false)
   }
   async function load(artifactId?: string, versionId?: string) {
     const sequence = requestSequence.current
+    const listRequest = ++listSequence.current
     const result = listSchema.parse(await requestHost('requestData', { query: { parameters: artifactId ? { artifactId, ...(versionId ? { versionId } : {}) } : {} } })).meta
-    if (sequence === requestSequence.current) { setList(result.dashboards); setSources(result.sources); navigationTarget.current = result.navigationTarget }
+    if (sequence === requestSequence.current && listRequest === listSequence.current) { setList(result.dashboards); setSources(result.sources); navigationTarget.current = result.navigationTarget }
     return result
   }
   async function query(target: Saved, values: Record<string, ControlValue>) {
@@ -81,6 +85,7 @@ function App() {
   async function open(artifactId: string, versionId?: string, reflectNavigation = true) {
     const sequence = ++requestSequence.current
     clearDocument()
+    activeArtifactId.current = artifactId
     const result = await load(artifactId, versionId), target = result.saved
     if (sequence !== requestSequence.current) return
     if (!target || !target.versionId && !target.draftRevision) throw new Error('Dashboard is unavailable')
@@ -165,7 +170,6 @@ function App() {
   async function deleteDashboard() {
     const target = confirmDelete
     if (deleting || !target?.canDelete || !target.draftRevision) return
-    const sequence = requestSequence.current
     setDeleteError(''); setDeleting(true)
     try {
       const receipt = z.object({ artifactId: z.literal(target.artifactId) }).parse(actionSchema.parse(await requestHost('executeAction', {
@@ -173,7 +177,8 @@ function App() {
       })).data)
       setConfirmDelete(null)
       setList(items => items.filter(item => item.artifactId !== receipt.artifactId))
-      if (sequence === requestSequence.current && autoRefresh.current.saved?.artifactId === receipt.artifactId) {
+      // Include a pending reopen of this dashboard, but preserve navigation to another one.
+      if (activeArtifactId.current === receipt.artifactId) {
         ++requestSequence.current
         clearDocument()
         navigationKey.current = dashboardNavigationKey({ artifactId: undefined, versionId: undefined })

@@ -9,7 +9,7 @@ const { JSDOM } = createRequire(require.resolve('jest-environment-jsdom'))('jsdo
 const example = require('../examples/postgres-sales.json')
 
 // Exercise the real picker/dialog and App with an in-memory host, without opening a browser.
-test('picker deletion confirms identity, preserves failures, and clears only the deleted selection', async t => {
+async function setup(t) {
   const dom = new JSDOM('<html><body><div id="root"></div></body></html>', { url: 'https://view.test', pretendToBeVisual: true })
   const previous = new Map()
   for (const key of ['window', 'document', 'navigator', 'HTMLElement', 'HTMLInputElement', 'HTMLFormElement', 'HTMLButtonElement', 'NodeFilter', 'DocumentFragment', 'SVGElement', 'HTMLSelectElement', 'Event', 'KeyboardEvent', 'MouseEvent', 'FocusEvent', 'Node', 'Element', 'CustomEvent', 'MutationObserver', 'getComputedStyle', 'requestAnimationFrame', 'cancelAnimationFrame']) {
@@ -22,22 +22,27 @@ test('picker deletion confirms identity, preserves failures, and clears only the
   const React = require('react'), { act } = React
   const ui = await import('@xpert-ai/plugin-shadcn-ui'), i18nUi = await import('@xpert-ai/plugin-shadcn-ui/i18n')
   const { createRoot } = require('react-dom/client')
-  let root, ready, rejectDelete = false, releaseDelete
+  let root, ready, created, rejectDelete = false, releaseDelete, holdOpen = false, releaseOpen
   const calls = [], navigation = [], selections = []
   const items = [1, 2].map(n => ({ artifactId: randomUUID(), title: `Dashboard ${n}`, draftRevision: n,
     canDelete: true, isDraft: true, updatedAt: `2026-10-2${n}T01:00:00Z`,
     manifest: { ...example, id: randomUUID(), title: `Dashboard ${n}`, bindings: [], charts: [], tables: [], controls: [] } }))
   let dashboards = [...items]
   const bridge = {
-    startBridge: callback => { ready = callback; return () => {} },
+    startBridge: (callback, onCreated) => { ready = callback; created = onCreated; return () => {} },
     onPrepareClose: () => () => {}, isViewVisible: () => true,
     selectDashboard: async target => { selections.push(target) },
     navigateDashboard: async (_target, id) => { navigation.push(id) },
     requestHost: async (kind, request) => {
       if (kind === 'requestData') {
         const id = request.query.parameters.artifactId
-        return { meta: { dashboards, sources: [], navigationTarget: { target: 'workbench.view', viewKey: 'live-dashboard__live-dashboard' },
+        const response = { meta: { dashboards, sources: [], navigationTarget: { target: 'workbench.view', viewKey: 'live-dashboard__live-dashboard' },
           ...(id ? { saved: dashboards.find(item => item.artifactId === id), versions: [] } : {}) } }
+        if (id && holdOpen) {
+          holdOpen = false
+          await new Promise(resolve => { releaseOpen = resolve })
+        }
+        return response
       }
       if (kind === 'executeAction') {
         calls.push(request)
@@ -83,49 +88,118 @@ test('picker deletion confirms identity, preserves failures, and clears only the
   const picker = () => document.querySelector('[aria-label="Choose a dashboard"]')
   const dialog = () => document.querySelector('[role="alertdialog"]')
   t.after(async () => {
-    await act(async () => root?.unmount()); dom.window.close()
+    await act(async () => root?.unmount()); await flush(); dom.window.close()
     for (const [key, descriptor] of previous) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else delete globalThis[key] }
     delete globalThis.ResizeObserver; delete globalThis.IS_REACT_ACT_ENVIRONMENT
   })
-  await act(async () => load('main.tsx'))
-  await act(async () => ready('en-US', { selectionId: items[0].artifactId }))
-  await flush()
-  assert.equal(document.querySelector('[role=alert]')?.textContent ?? '', '')
-  assert.match(picker().textContent, /Dashboard 1/)
-  await click(picker())
-  const deleteOther = button('Delete “Dashboard 2”')
-  assert.equal(deleteOther.closest('[role="option"]'), null, 'delete is separate from the open/select option')
-  await click(deleteOther)
-  assert.match(dialog().textContent, /Dashboard 2/)
-  assert.match(dialog().textContent, new RegExp(items[1].artifactId))
-  await click(button('Cancel'))
-  assert.equal(calls.length, 0)
-  assert.equal(dialog(), null)
+  async function reset() {
+    await act(async () => root?.unmount())
+    modules.clear(); dashboards = [...items]; calls.length = 0; navigation.length = 0; selections.length = 0
+    rejectDelete = false; holdOpen = false
+    document.body.innerHTML = '<div id="root"></div>'
+    await act(async () => load('main.tsx'))
+    await act(async () => ready('en-US', { selectionId: items[0].artifactId }))
+    await flush()
+  }
+  return { reset, items, calls, navigation, selections, click, button, picker, dialog,
+    failDelete: value => { rejectDelete = value },
+    finishDelete: async () => { await act(async () => releaseDelete()); await flush() },
+    notify: async (id, hold = false) => { holdOpen = hold; await act(async () => created(id)); await flush() },
+    finishOpen: async () => { await act(async () => releaseOpen()); await flush() },
+    remaining: () => dashboards
+  }
+}
 
-  await click(picker()); await click(button('Delete “Dashboard 2”'))
-  rejectDelete = true
-  await click(button('Delete dashboard'))
-  assert.match(dialog().textContent, /ARTIFACT_DRAFT_CONFLICT/)
-  assert.match(picker().textContent, /Dashboard 1/)
-  await click(button('Cancel'))
+test('dashboard deletion UI', async t => {
+  const harness = await setup(t)
+  await t.test('picker deletion confirms identity, preserves failures, and clears only the deleted selection', async () => {
+    await harness.reset()
+    const { items, calls, navigation, selections, click, button, picker, dialog, failDelete, finishDelete, remaining } = harness
+    assert.equal(document.querySelector('[role=alert]')?.textContent ?? '', '')
+    assert.match(picker().textContent, /Dashboard 1/)
+    await click(picker())
+    const deleteOther = button('Delete “Dashboard 2”')
+    assert.equal(deleteOther.closest('[role="option"]'), null, 'delete is separate from the open/select option')
+    await click(deleteOther)
+    assert.match(dialog().textContent, /Dashboard 2/)
+    assert.match(dialog().textContent, new RegExp(items[1].artifactId))
+    await click(button('Cancel'))
+    assert.equal(calls.length, 0)
+    assert.equal(dialog(), null)
 
-  rejectDelete = false
-  await click(picker()); await click(button('Delete “Dashboard 2”'))
-  await click(button('Delete dashboard'))
-  assert.equal(button('Deleting…').disabled, true)
-  assert.equal(button('Cancel').disabled, true)
-  await act(async () => releaseDelete()); await flush()
-  assert.equal(dialog(), null)
-  assert.match(picker().textContent, /Dashboard 1/)
-  assert.deepEqual(JSON.parse(JSON.stringify(calls.at(-1).input)), { artifactId: items[1].artifactId, expectedRevision: 2, confirmed: true })
+    await click(picker()); await click(button('Delete “Dashboard 2”'))
+    failDelete(true)
+    await click(button('Delete dashboard'))
+    assert.match(dialog().textContent, /ARTIFACT_DRAFT_CONFLICT/)
+    assert.match(picker().textContent, /Dashboard 1/)
+    await click(button('Cancel'))
 
-  await click(picker())
-  assert.equal(button('Delete “Dashboard 2”'), undefined)
-  await click(button('Delete “Dashboard 1”')); await click(button('Delete dashboard'))
-  await act(async () => releaseDelete()); await flush()
-  assert.match(picker().textContent, /Choose a dashboard/)
-  assert.equal(selections.at(-1), null)
-  assert.equal(navigation.at(-1), undefined)
-  assert.equal(dashboards.length, 0)
-  assert.match(document.body.textContent, /Create a dashboard with your Assistant/)
+    failDelete(false)
+    await click(picker()); await click(button('Delete “Dashboard 2”'))
+    await click(button('Delete dashboard'))
+    assert.equal(button('Deleting…').disabled, true)
+    assert.equal(button('Cancel').disabled, true)
+    await finishDelete()
+    assert.equal(dialog(), null)
+    assert.match(picker().textContent, /Dashboard 1/)
+    assert.deepEqual(JSON.parse(JSON.stringify(calls.at(-1).input)), { artifactId: items[1].artifactId, expectedRevision: 2, confirmed: true })
+
+    await click(picker())
+    assert.equal(button('Delete “Dashboard 2”'), undefined)
+    await click(button('Delete “Dashboard 1”')); await click(button('Delete dashboard'))
+    await finishDelete()
+    assert.match(picker().textContent, /Choose a dashboard/)
+    assert.equal(selections.at(-1), null)
+    assert.equal(navigation.at(-1), undefined)
+    assert.equal(remaining().length, 0)
+    assert.match(document.body.textContent, /Create a dashboard with your Assistant/)
+  })
+
+  for (const hold of [false, true]) {
+    await t.test(`deletion clears the same dashboard after an Assistant update ${hold ? 'still loading' : 'finished opening'}`, async () => {
+      await harness.reset()
+      const { items, navigation, selections, click, button, picker, finishDelete, notify, finishOpen } = harness
+      await click(picker()); await click(button('Delete “Dashboard 1”')); await click(button('Delete dashboard'))
+      await notify(items[0].artifactId, hold)
+      await finishDelete()
+      if (hold) await finishOpen()
+      assert.match(picker().textContent, /Choose a dashboard/)
+      assert.equal(!!document.querySelector('header .toolbar-version'), false)
+      assert.equal(selections.at(-1), null)
+      assert.equal(navigation.at(-1), undefined)
+      await click(picker())
+      assert.ok(!button('Delete “Dashboard 1”'))
+      assert.ok(button('Delete “Dashboard 2”'))
+    })
+
+    await t.test(`deletion preserves a different dashboard after an Assistant update ${hold ? 'still loading' : 'finished opening'}`, async () => {
+      await harness.reset()
+      const { items, navigation, selections, click, button, picker, finishDelete, notify, finishOpen } = harness
+      await click(picker()); await click(button('Delete “Dashboard 1”')); await click(button('Delete dashboard'))
+      await notify(items[1].artifactId, hold)
+      await finishDelete()
+      if (hold) await finishOpen()
+      assert.match(picker().textContent, /Dashboard 2/)
+      assert.equal(selections.at(-1).artifactId, items[1].artifactId)
+      assert.equal(navigation.at(-1), items[1].artifactId)
+      await click(picker())
+      assert.ok(!button('Delete “Dashboard 1”'), 'an older open response must not restore the deleted list entry')
+      assert.ok(button('Delete “Dashboard 2”'))
+    })
+  }
+
+  await t.test('a failed deletion still allows subsequent Assistant updates', async () => {
+    await harness.reset()
+    const { items, selections, click, button, picker, dialog, failDelete, notify } = harness
+    await click(picker()); await click(button('Delete “Dashboard 1”'))
+    failDelete(true)
+    await click(button('Delete dashboard'))
+    assert.match(dialog().textContent, /ARTIFACT_DRAFT_CONFLICT/)
+    await click(button('Cancel'))
+    await notify(items[0].artifactId)
+    assert.match(picker().textContent, /Dashboard 1/)
+    assert.equal(selections.at(-1).artifactId, items[0].artifactId)
+    await click(picker())
+    assert.ok(button('Delete “Dashboard 1”'))
+  })
 })
