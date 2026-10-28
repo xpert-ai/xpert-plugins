@@ -1,46 +1,58 @@
 // Invariants: the SDK's per-document rate/concurrency limits also apply in preflight.
 // Independent synthetic interactions need fresh mounts, not a larger production quota.
 // Each scenario still validates initial load, its interaction sequence and host refresh.
-export async function validateDocument(input, browser, hostPath) {
+import { createResourceCache } from './resource-cache.mjs'
+
+export async function validateDocument(input, browser, hostPath, { timeoutMs = 55000 } = {}) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, serviceWorkers: 'block' })
+  const resources = createResourceCache()
+  let timer
+  const validation = validateScenarios(input, context, hostPath, resources)
   try {
-    const initial = await validateScenario(input, context, hostPath, { type: 'refresh' })
-    if (!initial.report.ok) return initial.report
-    const scenarios = [
-      ...Array.from({ length: input.parameters ? Math.min(initial.selectCount, 24) : 0 }, (_, index) => ({ type: 'select', index })),
-      ...Array.from({ length: Math.min(initial.buttonCount, 12) }, (_, index) => ({ type: 'button', index }))
-    ]
-    const requestedBindings = new Set(initial.report.requestedBindings)
-    // Bound live pages while keeping the full control/button sweep within the Action deadline.
-    for (let offset = 0; offset < scenarios.length; offset += 2) {
-      const results = await Promise.allSettled(scenarios.slice(offset, offset + 2).map(scenario =>
-        validateScenario(input, context, hostPath, scenario)))
-      // Settle both pages before closing the context, including on infrastructure errors.
-      for (const result of results) {
-        if (result.status === 'rejected') throw result.reason
-        const { report } = result.value
-        report.requestedBindings.forEach(id => requestedBindings.add(id))
-        if (!report.ok) return { ...report, requestedBindings: [...requestedBindings] }
-      }
-    }
-    return { ...initial.report, requestedBindings: [...requestedBindings] }
-  } finally { await context.close() }
+    // Leave time for browser/report cleanup within the host's 60-second Action budget.
+    return await Promise.race([validation, new Promise(resolve => {
+      timer = setTimeout(() => resolve({ ok: false, errors: ['DOCUMENT_PREFLIGHT_TIMEOUT'],
+        requestedBindings: [], renderedTextLength: 0 }), timeoutMs)
+    })])
+  } finally {
+    clearTimeout(timer)
+    await context.close()
+    await validation.catch(() => {}) // Closing the context cancels outstanding Playwright operations.
+  }
 }
 
-async function validateScenario(input, context, hostPath, scenario) {
+async function validateScenarios(input, context, hostPath, resources) {
+  const initial = await validateScenario(input, context, hostPath, resources, { type: 'refresh' })
+  if (!initial.report.ok) return initial.report
+  const scenarios = [
+    ...Array.from({ length: input.parameters ? Math.min(initial.selectCount, 24) : 0 }, (_, index) => ({ type: 'select', index })),
+    ...Array.from({ length: Math.min(initial.buttonCount, 12) }, (_, index) => ({ type: 'button', index }))
+  ]
+  const requestedBindings = new Set(initial.report.requestedBindings)
+  // Bound live pages while keeping the full control/button sweep within the Action deadline.
+  for (let offset = 0; offset < scenarios.length; offset += 2) {
+    const results = await Promise.allSettled(scenarios.slice(offset, offset + 2).map(scenario =>
+      validateScenario(input, context, hostPath, resources, scenario)))
+    // Settle both pages before closing the context, including on infrastructure errors.
+    for (const result of results) {
+      if (result.status === 'rejected') throw result.reason
+      const { report } = result.value
+      report.requestedBindings.forEach(id => requestedBindings.add(id))
+      if (!report.ok) return { ...report, requestedBindings: [...requestedBindings] }
+    }
+  }
+  return { ...initial.report, requestedBindings: [...requestedBindings] }
+}
+
+async function validateScenario(input, context, hostPath, resources, scenario) {
 const errors = [], addError = value => { const message = String(value).slice(0, 300); if (errors.length < 16 && !errors.includes(message)) errors.push(message) }
   const loadedResources = new Set()
   const page = await context.newPage()
   try {
-  await page.route('**/*', async route => {
-    const request = route.request()
-    const allowed = request.method() === 'GET' && await page.evaluate(({ type, url }) =>
-      DocumentHost.isDashboardResourceAllowed(type, url), { type: request.resourceType(), url: request.url() })
-    if (allowed) await route.continue()
-    else await route.abort('blockedbyclient')
-  })
+  await page.route('**/*', route => resources.route(page, route))
   page.on('requestfailed', request => addError(`DOCUMENT_RESOURCE_LOAD_FAILED: ${request.resourceType()} ${request.url().split('?')[0]} (${request.failure()?.errorText ?? 'request failed'})`))
   page.on('response', response => {
+    resources.capture(response)
     if (response.status() >= 400) addError(`DOCUMENT_RESOURCE_HTTP_ERROR: ${response.status()} ${response.url().split('?')[0]}`)
     else if (response.status() < 300 || response.status() === 304) {
       for (let request = response.request(); request; request = request.redirectedFrom()) loadedResources.add(request.url().split('#')[0])
@@ -168,14 +180,7 @@ const errors = [], addError = value => { const message = String(value).slice(0, 
   // Page buttons are untrusted executable UI too. Exercise a bounded set inside
   // the isolated preview; do not guess which button is refresh from its label.
   if (frame && scenario.type === 'button') {
-    const buttons = frame.locator('button')
-    if (scenario.index >= await buttons.count()) addError('DOCUMENT_BUTTON_INTERACTION_FAILED')
-    for (let index = scenario.index; index < Math.min(await buttons.count(), scenario.index + 1); index++) {
-      const button = buttons.nth(index)
-      if (!(await button.isVisible()) || !(await button.isEnabled())) continue
-      await button.click({ timeout: 1000 }).catch(() => addError('DOCUMENT_BUTTON_INTERACTION_FAILED'))
-      await page.waitForTimeout(200)
-    }
+    await exerciseButtonPath(frame, page, scenario.index, addError)
   }
   // Exercise the same refresh event as the Workbench. A renderer that fails on its
   // second Dataset must not pass merely because the first query painted a page.
@@ -186,10 +191,39 @@ const errors = [], addError = value => { const message = String(value).slice(0, 
   const renderedTextLength = frame ? (await frame.locator('body').innerText()).trim().length : 0
   if (!renderedTextLength) addError('DOCUMENT_EMPTY_PAGE')
   if (!state.requestedBindings.length) addError('DOCUMENT_INITIAL_QUERY_MISSING')
+  await resources.settle()
   return {
     report: { ok: !errors.length, errors, requestedBindings: [...new Set(state.requestedBindings)], renderedTextLength },
     selectCount: frame ? await frame.locator('select').count() : 0,
     buttonCount: frame ? await frame.locator('button').count() : 0
   }
   } finally { await page.close() }
+}
+
+async function actionableButtons(frame) {
+  const buttons = (await frame.locator('button').elementHandles()).slice(0, 12)
+  const actionable = []
+  for (const button of buttons)
+    if (await button.isVisible() && await button.isEnabled()) actionable.push(button)
+  return actionable
+}
+
+async function exerciseButtonPath(frame, page, index, addError) {
+  const root = (await frame.locator('button').elementHandles())[index]
+  if (!root) { addError('DOCUMENT_BUTTON_INTERACTION_FAILED'); return }
+  const pending = [root], clicked = []
+  while (pending.length) {
+    const button = pending.shift()
+    if (!(await button.isVisible()) || !(await button.isEnabled()) ||
+        await button.evaluate((element, previous) => previous.includes(element), clicked)) continue
+    if (clicked.length >= 12) { addError('DOCUMENT_BUTTON_PATH_LIMIT'); return }
+    const before = await actionableButtons(frame)
+    await button.click({ timeout: 1000 }).catch(() => addError('DOCUMENT_BUTTON_INTERACTION_FAILED'))
+    clicked.push(button)
+    await page.waitForTimeout(200)
+    // Follow newly inserted, revealed or enabled controls in this same document.
+    // Compare DOM identity, not labels or indexes that can shift after a click.
+    for (const next of await actionableButtons(frame))
+      if (!await next.evaluate((element, previous) => previous.includes(element), before)) pending.push(next)
+  }
 }

@@ -20,6 +20,9 @@ class PreviewPage {
     this.gestures = []
     this.closed = false
     this.pending = []
+    this.elapsed = 0
+    this.handlers = new Map()
+    this.buttonHandles = new Map()
     const page = this
     const document = { querySelector: selector => selector === 'iframe' ? frame : {} }
     const frame = { ownerDocument: document, setAttribute() {}, contentWindow: {} }
@@ -44,14 +47,15 @@ class PreviewPage {
     })
     this.frame = { locator: selector => this.locator(selector) }
   }
-  async route() {}
-  on() {}
+  async route(pattern, handler) { this.routeHandler = handler }
+  on(event, handler) { this.handlers.set(event, handler) }
   async setContent() {}
   async addScriptTag({ path }) {
     if (this.fixture.failSetup) throw Error('host bundle unavailable')
     vm.runInContext(await fs.readFile(path, 'utf8'), this.scope)
   }
   async evaluate(fn, argument) {
+    if (this.closed) throw Error('page closed')
     this.scope.argument = argument
     const value = await vm.runInContext(`(${fn.toString()})(argument)`, this.scope)
     while (this.pending.length) await this.pending.shift()()
@@ -60,12 +64,24 @@ class PreviewPage {
   async waitForFunction(fn, argument) {
     if (!(await this.evaluate(fn, argument))) throw Error('condition not met')
   }
-  async waitForLoadState() {}
-  async waitForTimeout() {}
+  async waitForLoadState() {
+    if (this.fixture.hang) return new Promise((resolve, reject) => { this.cancelLoad = reject })
+    if (!this.fixture.resourceDelay) return
+    const request = { method: () => 'GET', resourceType: () => 'script',
+      url: () => 'https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js', redirectedFrom: () => null }
+    const response = { request: () => request, status: () => 200, url: request.url,
+      headers: () => ({ 'content-type': 'text/javascript' }), body: async () => Buffer.from('/* fixture library */') }
+    await this.routeHandler({ request: () => request,
+      continue: async () => { this.elapsed += this.fixture.resourceDelay; this.handlers.get('response')(response) },
+      fulfill: async () => { this.elapsed += 500; this.handlers.get('response')(response) },
+      abort: async () => { throw Error('unexpected resource rejection') } })
+  }
+  async waitForTimeout(ms) { this.elapsed += ms }
   frames() { return [this.frame] }
   mainFrame() { return null }
   async close() {
     this.closed = true
+    this.cancelLoad?.(Error('page closed'))
     this.scope.window.documentHost?.dispose()
   }
   async query(bindingId) {
@@ -84,12 +100,22 @@ class PreviewPage {
     if (selector === 'body') return { innerText: async () => 'Sales dashboard' }
     if (selector === 'script[src], link[rel~="stylesheet"][href]') return { evaluateAll: async () => [] }
     return {
-      count: async () => selector === 'select' ? names.length : page.fixture.buttons ?? 12,
+      count: async () => selector === 'select' ? names.length : page.fixture.inserted && !page.dialogOpen ? 1 : page.fixture.buttons ?? 12,
+      elementHandles: async () => Promise.all(Array.from({ length: page.fixture.inserted && !page.dialogOpen ? 1 : page.fixture.buttons ?? 12 }, (_, index) => page.locator('button').nth(index))),
       nth(index) {
-        if (selector === 'button') return {
-          isVisible: async () => true, isEnabled: async () => true,
+        if (selector === 'button') {
+          if (page.buttonHandles.has(index)) return page.buttonHandles.get(index)
+          const button = {
+          isVisible: async () => !page.fixture.hidden || index === 0 || !!page.dialogOpen,
+          isEnabled: async () => !page.fixture.disabled || index === 0 || !!page.dialogOpen,
+          async evaluate(fn, argument) { return fn(button, argument) },
           async click() {
             page.gestures.push(`button:${index}`)
+            if (page.fixture.hidden || page.fixture.disabled || page.fixture.inserted) {
+              if (index === 0) page.dialogOpen = true
+              else await page.query('undeclared')
+              return
+            }
             if (page.fixture.throwOnClick) throw Error('detached button')
             if (page.fixture.burst) {
               for (let i = 0; i < 61; i++) await page.query('panel0')
@@ -97,6 +123,9 @@ class PreviewPage {
               await Promise.all(Array.from({ length: 9 }, () => page.query('panel0')))
             } else await page.queryAll()
           }
+          }
+          page.buttonHandles.set(index, button)
+          return button
         }
         const name = names[index]
         return {
@@ -185,6 +214,38 @@ for (const [mode, code] of [
   const result = await validateDocument(fixture.input, fixture.browser, hostPath)
   assert.equal(result.ok, false)
   assert(result.errors.some(error => error.includes(code)), JSON.stringify(result.errors))
+  assert(fixture.pages.every(page => page.closed))
+  assert(fixture.isClosed())
+})
+
+for (const mode of ['hidden', 'disabled', 'inserted']) test(`button paths reach a ${mode} action enabled by a prior click`, async () => {
+  const { validateDocument } = await validator
+  const fixture = scenario(1, { [mode]: true, buttons: 2 })
+  const result = await validateDocument(fixture.input, fixture.browser, hostPath)
+  assert.equal(result.ok, false)
+  assert(result.errors.includes('DOCUMENT_BINDING_DENIED'))
+  assert(fixture.pages.some(page => page.gestures.includes('button:0') && page.gestures.includes('button:1')))
+  assert(fixture.pages.every(page => page.closed))
+})
+
+test('slow allowed resources are loaded once instead of spending the Action deadline on every mount', async () => {
+  const { validateDocument } = await validator
+  const fixture = scenario(4, { resourceDelay: 6000 })
+  const result = await validateDocument(fixture.input, fixture.browser, hostPath)
+  assert.equal(result.ok, true, JSON.stringify(result.errors))
+  // Include the real waits; the initial page is serial, remaining pages run in pairs.
+  let elapsed = fixture.pages[0].elapsed
+  for (let index = 1; index < fixture.pages.length; index += 2)
+    elapsed += Math.max(fixture.pages[index].elapsed, fixture.pages[index + 1]?.elapsed ?? 0)
+  assert(elapsed < 55000, `preflight needs at least ${elapsed} ms, exceeding its Action budget`)
+})
+
+test('a stalled scenario returns a bounded failure and closes the context', async () => {
+  const { validateDocument } = await validator
+  const fixture = scenario(1, { hang: true })
+  const result = await validateDocument(fixture.input, fixture.browser, hostPath, { timeoutMs: 20 })
+  assert.equal(result.ok, false)
+  assert(result.errors.includes('DOCUMENT_PREFLIGHT_TIMEOUT'))
   assert(fixture.pages.every(page => page.closed))
   assert(fixture.isClosed())
 })

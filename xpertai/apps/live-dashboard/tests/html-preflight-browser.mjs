@@ -75,6 +75,19 @@ try {
   assert(missingRefreshId.errors.some(error => error.includes('DOCUMENT_BINDING_DENIED')))
   const validPageRefresh = await validateDocument({ ...input, html: pageButton("live.refresh('sales');") }, browser, hostPath)
   assert.equal(validPageRefresh.ok, true, JSON.stringify(validPageRefresh.errors))
+  for (const mode of ['hidden', 'disabled', 'inserted']) {
+    const buttonPath = `<html><body><output>Sales</output><button id="open">Open</button>
+      ${mode === 'inserted' ? '' : `<button id="child" ${mode}>Apply</button>`}
+      <script>(async()=>{const live=xpertLiveArtifact;await live.query('sales',{});
+      document.querySelector('#open').onclick=()=>{
+        let child=document.querySelector('#child');
+        if(!child){child=document.createElement('button');child.id='child';child.textContent='Apply';document.body.append(child);}
+        child.hidden=false;child.disabled=false;child.onclick=()=>live.query('undeclared',{});
+      };})()</script></body></html>`
+    const pathResult = await validateDocument({ ...input, html: buttonPath }, browser, hostPath)
+    assert.equal(pathResult.ok, false, `missed ${mode} dependent button`)
+    assert(pathResult.errors.some(error => error.includes('DOCUMENT_BINDING_DENIED')))
+  }
   const sharedInput = { ...input,
     context: { ...input.context, bindingIds: ['sales', 'totals'] },
     parameters: Object.fromEntries(['sales', 'totals'].map(id => [id, [{ controlId: 'region', type: 'string', required: false, defaultValue: null }]])),
