@@ -57,6 +57,69 @@ Preview/save also probe a declared non-default filter value and, when applicable
 
 Artifacts are owner-only within their agent/project host for this MVP. MIME: `application/json`; resource type: `live-dashboard`; namespace: `live_dashboard`. The Workbench supports selection, JSON import/edit, typed filters, refresh, version/freshness and partial-result notices.
 
+## Built-in prompt workflows / 内置提示词模板
+
+When the Assistant has the `LiveDashboard` middleware, type `/dashboard-` in its
+chat composer and select a workflow. Selection inserts an invocation so the user
+can add requirements before sending; it does not submit or publish automatically.
+Commands are contributed by the installed middleware, so existing Assistants can
+use them after the updated plugin is loaded. No Assistant-template import or
+database seeding is needed. The host must support middleware slash commands.
+
+| Mode / 分类 | Command | 用途 |
+| --- | --- | --- |
+| Standard | `/dashboard-standard-auto` | 根据真实数据质量和业务价值自动选题，新建独立标准看板 |
+| Standard | `/dashboard-standard-new` | 围绕指定主题新建标准看板 |
+| Standard | `/dashboard-standard-improve` | 调整指定看板的图表、指标、筛选，保留 Artifact 身份 |
+| Standard | `/dashboard-standard-recover` | 定位失败步骤，用本轮证据恢复标准草稿保存 |
+| HTML | `/dashboard-html-auto` | 自动选题，新建布局精致、可实际使用的 HTML 看板 |
+| HTML | `/dashboard-html-new` | 围绕指定业务问题、受众和视觉要求新建 HTML 看板 |
+| HTML | `/dashboard-html-style` | 参考图片或风格描述美化已有 HTML 看板，保留查询与交互 |
+| HTML | `/dashboard-html-recover` | 保留页面候选，按真实校验错误修复并恢复保存 |
+| Inspect | `/dashboard-explore` | 只读探索数据源、字段、日期覆盖和候选业务主题 |
+| Inspect | `/dashboard-test-source` | 最小真实查询、字段映射和筛选验证 |
+| Inspect | `/dashboard-audit-metrics` | 只读核对计算、单位、期间和关联粒度 |
+| Inspect | `/dashboard-verify` | 核对保存版本、筛选、刷新，并标明未执行的页面验收 |
+
+Examples (replace the descriptive inputs with your own requirements):
+
+```text
+/dashboard-standard-auto 使用当前组织的 BI 数据源，为采购主管挑选一个数据完整、能帮助识别交付问题的主题。新建独立看板。
+/dashboard-standard-new 使用库存数据，面向仓库主管创建库存积压看板。核实库龄和库存金额口径，提供仓库与日期筛选。
+/dashboard-html-auto 从已授权数据中选择一个能支持日常运营决策的主题。面向部门负责人，浅色企业风格，摘要指标、主趋势、关注清单和明细。
+/dashboard-html-new 创建供应商交付分析看板。使用已授权采购数据，核实交付及时率口径；参考附图的留白、层次和配色，不复制示例数字。
+/dashboard-html-style 美化当前选中的 HTML 看板，参考附图布局；保留现有指标、绑定、筛选和刷新，只调整视觉。
+/dashboard-html-recover 继续保存刚才失败的 HTML 候选。读取实际文件与错误，重新获取本轮所需预览；如果运行时仍不可用，报告准确阻塞。
+/dashboard-test-source 检查当前采购数据源的一个有实际数据的查询，验证一个供应商筛选及全部供应商。
+/dashboard-verify 检查当前看板的默认日期、一个真实筛选值和全部值；区分查询验证与待人工页面验证。
+```
+
+Provide a source name, business question, audience and date range where relevant;
+HTML requests can include a reference image or style. IDs, provider contracts and
+paths are discovered from tools, never hard-coded into the templates. Automatic
+selection ranks business usefulness and data readiness; specified-topic workflows
+do not silently substitute another topic. New HTML workflows choose an unused
+file path and never overwrite the selected dashboard.
+
+The templates guide real queries, metric checks, run-local previews/filter tests
+and successful draft-save receipts. They do not grant source access or install a
+missing Browser Runtime. HTML saves still require runtime validation. Native
+dashboards keep their own renderer and supported chart/table schema. Formal
+publication remains a human action. Inspection commands do not register
+definitions, edit business data or save dashboards; a tool-level pass is not a
+claim of visual acceptance.
+
+### Manual acceptance after loading the plugin
+
+1. In an Assistant with LiveDashboard, open the `/` picker and search `dashboard`.
+   Verify all twelve localized entries; selecting one should leave an editable
+   invocation in the composer.
+2. Run one standard-new and one HTML-new request against an authorized test source.
+   Verify independent Artifact IDs, fresh previews and successful draft receipts;
+   HTML also requires its normal Browser Runtime check.
+3. Reopen each saved draft, change a real filter and refresh. Confirm real data
+   updates. Run an inspection command and verify it does not save a new revision.
+
 ## HTML mode
 
 See [HTML mode and acceptance](docs/html-mode.md). Agent tools write a complete single-file document to the authorized file workspace, then read and copy its bytes into the immutable dashboard JSON version alongside Bindings and Controls. Before creating an Artifact, a plugin-owned Sandbox Action runs the page with real preview datasets in the platform Browser Runtime, through the sandbox-browser queue. Unavailable runtime or failed initial rendering blocks HTML save and returns diagnostics to the Agent. No live workspace path is dereferenced on reopening. A changed file requires a new saved version. Existing JSON-only dashboards remain compatible.

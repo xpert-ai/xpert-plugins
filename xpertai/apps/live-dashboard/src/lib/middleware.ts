@@ -23,6 +23,7 @@ import { dashboardSaveEvidence } from './save-evidence'
 import { emitDashboardCard } from './resource-card'
 import { dashboardIcon } from './dashboard-icon'
 import { createPreviewRetryGuard } from './preview-retry'
+import { dashboardPromptWorkflows } from './prompt-workflows'
 
 const middlewareOptionsSchema = z.object({ allowedFinalProviders: z.array(z.string().min(1)).min(1).max(20).optional() }).strict().default({})
 
@@ -33,6 +34,7 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
   readonly meta: TAgentMiddlewareMeta = {
     name: 'LiveDashboard', label: { en_US: 'Live dashboards', zh_Hans: '实时看板' },
     description: { en_US: 'Discover, preview, create and update governed live dashboards.', zh_Hans: '发现业务数据、验证查询并持续修改实时看板。' },
+    slashCommands: dashboardPromptWorkflows,
     // Tools inherit this self-contained icon through the platform middleware metadata.
     icon: dashboardIcon, features: [FEATURE], configSchema: { type: 'object', properties: {
       allowedFinalProviders: { type: 'array', items: { type: 'string' }, title: { en_US: 'Allowed final dashboard providers', zh_Hans: '最终看板允许的 Provider' },
