@@ -3,6 +3,7 @@ import hanaClient from '@sap/hana-client'
 import { BaseSQLQueryRunner, CreationTable, DBProtocolEnum, DBSyntaxEnum, IDSSchema, IDSTable, QueryOptions, QueryResult, SQLAdapterOptions } from '@xpert-ai/plugin-sdk'
 import { groupBy } from 'lodash-es'
 import { HANA } from './types.js'
+import { createHanaWorkbench, HanaWorkbenchAdapter } from './hana-workbench.js'
 
 
 export interface HANAAdapterOptions extends SQLAdapterOptions {
@@ -44,6 +45,11 @@ export class HANAAdapter<T extends HANAAdapterOptions = HANAAdapterOptions> exte
   }
 
   private connection: Connection
+  private workbench?: HanaWorkbenchAdapter
+
+  getWorkbenchAdapter() {
+    return this.workbench ??= createHanaWorkbench(this.options)
+  }
 
   constructor(options: T) {
     super(options)
@@ -319,7 +325,11 @@ export class HANAAdapter<T extends HANAAdapterOptions = HANAAdapterOptions> exte
   }
 
   async teardown() {
-    this.connection.disconnect()
+    try {
+      await this.workbench?.close()
+    } finally {
+      this.connection.disconnect()
+    }
   }
 }
 
