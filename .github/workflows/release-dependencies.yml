@@ -52,7 +52,7 @@ jobs:
       - name: Load database plugins on the production Node version
         if: matrix.workspace == 'xpertai'
         run: |
-          for plugin in db-studio mysql postgres hana; do
+          for plugin in db-studio mysql postgres hana mariadb kingbase opengauss redshift; do
             node plugin-dev-harness/dist/index.js --workspace ./xpertai --plugin "@xpert-ai/plugin-$plugin"
           done
       - name: Restore the workspace build runtime

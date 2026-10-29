@@ -20,6 +20,10 @@ const projects = [
   "@xpert-ai/plugin-postgres",
   "@xpert-ai/plugin-hana",
   "@xpert-ai/plugin-db-studio",
+  "@xpert-ai/plugin-mariadb",
+  "@xpert-ai/plugin-kingbase",
+  "@xpert-ai/plugin-opengauss",
+  "@xpert-ai/plugin-redshift",
 ];
 const sdkPackage = require("@xpert-ai/plugin-sdk/package.json");
 if (sdkPackage.version !== "3.29.0")
