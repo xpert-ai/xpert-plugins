@@ -1,0 +1,13 @@
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { z } from 'zod'
+import type { XpertPlugin } from '@xpert-ai/plugin-sdk'
+import { RELNOTE_FEATURE, RELNOTE_MIDDLEWARE_NAME, RELNOTE_PLUGIN_NAME, RELNOTE_PROVIDER_KEY, RELNOTE_TEMPLATE_PROVIDER_KEY, RELNOTE_VIEW_KEY } from './lib/constants.js'
+import { RelnotePluginConfigFormSchema, RelnotePluginConfigSchema, readRelnotePluginEnvDefaults } from './lib/relnote.config.js'
+import { RelnotePlugin } from './lib/relnote.plugin.js'
+import { relnoteTemplates } from './lib/relnote.templates.js'
+const root=dirname(fileURLToPath(import.meta.url));const packageJson=JSON.parse(readFileSync(join(root,'../package.json'),'utf8')) as {name:string;version:string}
+const plugin:XpertPlugin<z.infer<typeof RelnotePluginConfigSchema>>={meta:{name:packageJson.name,version:packageJson.version,level:'system',targetApps:['data-xpert'],targetAppMeta:{'data-xpert':{types:['workbench-view','assistant-tool','business-app'],capabilities:[RELNOTE_FEATURE,RELNOTE_VIEW_KEY],marketplace:{contents:[{type:'app',name:'release-note-review',displayName:'OTA Release Note Review',description:'Human-reviewed OTA release-note drafts with auditable AI runs.',icon:{type:'font',value:'ri-file-list-3-line'}},{type:'view',name:RELNOTE_VIEW_KEY,displayName:'OTA Release Note Review Workbench',description:'Workbench for OTA release notes and review.'},{type:'tool',name:RELNOTE_MIDDLEWARE_NAME,displayName:'OTA Release Note Review Tools',description:'Read, save and list OTA release-note review drafts.'},{type:'assistant-template',name:'relnote-review-assistant',displayName:'OTA Release Note Review Assistant',description:'Assistant template for OTA release-note review.'}]},runtime:{middlewareProviders:[RELNOTE_MIDDLEWARE_NAME],viewProviders:[RELNOTE_PROVIDER_KEY],templateProviders:[RELNOTE_TEMPLATE_PROVIDER_KEY]}}},category:'middleware',icon:{type:'font',value:'ri-file-list-3-line'},displayName:'OTA Release Note Review',description:'OTA release-note review plugin with human confirmation, auditable AI runs, and optimistic revision control.',keywords:['ota','release-note','review','ai-run','workbench'],author:'XpertAI'},config:{schema:RelnotePluginConfigSchema,formSchema:RelnotePluginConfigFormSchema,defaults:readRelnotePluginEnvDefaults()},templates:relnoteTemplates,register(ctx){ctx.logger.log('register release-note-review plugin');return {module:RelnotePlugin,global:true}},async onStart(ctx){ctx.logger.log('release-note-review plugin started')},async onStop(ctx){ctx.logger.log('release-note-review plugin stopped')}}
+export default plugin
+export { RelnotePlugin } from './lib/relnote.plugin.js'

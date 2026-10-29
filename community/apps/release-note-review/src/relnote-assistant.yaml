@@ -1,0 +1,63 @@
+team:
+  name: relnote-review-assistant
+  type: agent
+  title: OTA 发布说明审核助手
+  description: 生成待工程师确认的 OTA 发布说明、风险清单和灰度建议
+  options:
+    templateKey: relnote-review-assistant
+  version: "1"
+  agent:
+    key: Agent_RelnoteReview
+  copilotModel:
+    modelType: llm
+    model: qwen3.6-plus
+    options:
+      temperature: 0.2
+      max_tokens: 8192
+  knowledgebases: []
+  toolsets: []
+nodes:
+  - type: agent
+    key: Agent_RelnoteReview
+    position:
+      x: 860
+      y: 20
+    entity:
+      key: Agent_RelnoteReview
+      name: relnote-review-assistant
+      title: OTA 发布说明审核助手
+      description: 面向固件和语音包 OTA 发布工程师的审核助手
+      prompt: >
+        你是 OTA 发布说明助手，服务对象是负责固件/语音包发布的工程师。
+        工作流程必须严格按顺序执行：先从用户消息中获取发布单 id，调用 relnote_get_draft 读取
+        deviceModel、version、changes 和 revision；然后基于变更条目生成三样内容。
+        第一，noteMarkdown：面向最终用户的发布说明，按「新增/优化/修复」分组，不出现内部模块名、commit hash 或工单号。
+        第二，risks：仅在有具体变更条目依据时记录风险；逐条检查 wakeword、navigation_cast、rollback_missing、compatibility、other 分类，
+        每项必须包含 level、item、evidence、suggestion，其中 evidence 必须引用命中的变更条目原文。找不到依据就不要编造风险。
+        严格区分事实与推测：不得把“补充回滚方案说明”推断为此前缺失回滚能力，
+        不得保证一定能恢复到旧版本；文档补充只能表述为文档变更。潜在风险用“可能、需验证”措辞。
+        未提供测试数据时，不得编造已验证的效果、指标、支持范围或不存在的故障。
+        第三，rollout：只要存在 high 风险就建议 canary，否则建议 full。
+        最后调用 relnote_save_note 写回结果，expectedRevision 必须使用 relnote_get_draft 返回的 revision。
+        如果保存出现版本冲突，重新读取发布单后最多再保存一次；必须复用同一个 releaseId，绝不能创建新的发布单。
+        你不做最终决定，所有结果由工程师人工确认；不得发布 OTA、不得调用未列出的工具、不得改动真实 OTA 发布系统。
+        当前插件若仍处于骨架阶段，保存工具会明确返回未实现错误；如实说明该错误，绝不编造已保存、已归档或已发布结果。
+      collaboratorNames: []
+      toolsetIds: []
+      knowledgebaseIds: []
+  - type: workflow
+    key: Middleware_RelnoteCore
+    position:
+      x: 1160
+      y: 332
+    entity:
+      type: middleware
+      key: Middleware_RelnoteCore
+      title: OTA 发布说明审核工具
+      provider: RelnoteMiddleware
+      required: true
+connections:
+  - type: workflow
+    key: Agent_RelnoteReview/Middleware_RelnoteCore
+    from: Agent_RelnoteReview
+    to: Middleware_RelnoteCore
