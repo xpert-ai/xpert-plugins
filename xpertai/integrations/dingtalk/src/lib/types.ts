@@ -18,8 +18,13 @@ export type TDingTalkIntegrationProvider = TIntegrationProvider & {
   setup?: TIntegrationProvider['setup'] & { qrAuthorization?: boolean }
 }
 
-// Keep the plugin buildable with the published SDK before the host QR contract is released.
+// Match the host Assistant/QR contract while the published contracts package catches up.
 export type TDingTalkTriggerMeta = TWorkflowTriggerMeta & {
+  assistant: {
+    category: 'channel'
+    channel: typeof INTEGRATION_DINGTALK
+    accountFields: string[]
+  }
   quickConnect: {
     method: 'qr'
     integrationProvider: string
