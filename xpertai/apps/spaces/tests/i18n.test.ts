@@ -12,6 +12,22 @@ import zh from '../remote/locales/zh-Hans.json'
 import type { I18nObject } from '@xpert-ai/contracts'
 import { implementationSchema, useCatalogLabel } from '../remote/catalog'
 import { i18n as catalogI18n } from '../remote/i18n'
+import { artifactTypeName, itemSchema } from '../remote/model'
+
+test('Artifact type metadata survives collection parsing and stays distinct from reference titles', () => {
+  const item = itemSchema.parse({ id: 'content', title: 'A user supplied title', version: 1,
+    presentation: { kind: 'artifact', referenceId: '9a90b756-b32e-468e-8e59-b5983ca660a7',
+      type: { pluginName: 'example', resourceType: 'custom', title: { en_US: 'Shared conversation', zh_Hans: '分享会话' } } } })
+  const initialLocale = catalogI18n.getLocale()
+  try {
+    catalogI18n.setLocale('zh-Hans')
+    assert.equal(artifactTypeName(item.presentation?.type), '分享会话')
+    assert.equal(artifactTypeName(), '成果')
+    catalogI18n.setLocale('en-US')
+    assert.equal(artifactTypeName(item.presentation?.type), 'Shared conversation')
+    assert.equal(artifactTypeName({ pluginName: 'example', resourceType: 'unknown' }), 'Artifact')
+  } finally { catalogI18n.setLocale(initialLocale) }
+})
 
 const parameters = (message: string) => [...message.matchAll(/{{\s*([\w.]+)\s*}}/g)].map(match => match[1]).sort()
 test('content metadata accepts I18nObject translations and uses the shared English fallback', () => {

@@ -27,7 +27,7 @@ function fixture() {
     async tree() { businessCalls++; return { root: space, items: [] } },
     async list() { businessCalls++; return { root: space, items: [] } }
   }
-  const view = new SpacesView({} as never, {} as never, {} as never, spaces as never, {} as never,
+  const view = new SpacesView({} as never, {} as never, {} as never, {} as never, spaces as never, {} as never,
     {} as never, {} as never, {} as never, {} as never, access)
   const context: XpertResolvedViewHostContext = { ...actor, hostType: 'agent', hostId: actor.assistantId,
     slots: [], capabilities: { features: ['spaces'] }, runtimeScope: { projectId: actor.projectId,

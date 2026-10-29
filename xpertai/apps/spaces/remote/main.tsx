@@ -1,3 +1,4 @@
+import { ArtifactReferenceDialog, openArtifactReference } from './artifact-reference'
 import { UnavailableContent } from './unavailable-content'
 import { EditorPreferences } from './editor-preferences'
 import { CatalogMoveDialog, CatalogLifecycleDialog, CatalogRenameDialog, CatalogCreateDialog, catalogItem, catalogPageSchema, implementationSchema, useCatalogLabel, openCatalogItem, type Implementation } from './catalog'
@@ -19,7 +20,7 @@ import { DownloadButton } from './download'
 import { CreateDialog } from './create-dialog'
 import { MaterialsDialog } from './materials-dialog'
 import { KnowledgePanel } from './panels'
-import { listSchema, errorText, dateText, kindName, type Item } from './model'
+import { listSchema, artifactTypeName, errorText, dateText, kindName, type Item } from './model'
 
 const Icon = ({ kind }: { kind?: string }) => kind === 'folder' ? <Folder /> : <FileText />
 function App() {
@@ -31,6 +32,7 @@ function App() {
   const [movingResource, setMovingResource] = useState<Item | null>(null)
   const [renamingResource, setRenamingResource] = useState<Item | null>(null)
   const [duplicatingResource, setDuplicatingResource] = useState<Item | null>(null)
+  const [artifactReference, setArtifactReference] = useState<string | null>(null)
   const [layout, setLayout] = useState<'list' | 'grid'>('list')
   const [creatingResource, setCreatingResource] = useState<Implementation | null>(null)
   // The menu item unmounts before Dialog opens. Return focus to its persistent trigger.
@@ -72,11 +74,11 @@ function App() {
   // Filter and paginate at the platform catalog, not over the first browser page.
   // A late response from an old search must not replace the current collection.
   const catalogRequest = useRef(0)
-  const resourceQuery = { ...(folderId ? { parentId: folderId } : {}), deleted: trash, search, ...(!['all', 'page', 'files'].includes(filter) ? { typeId: filter } : {}) }
+  const resourceQuery = { ...(folderId ? { parentId: folderId } : {}), deleted: trash, search, ...(filter === 'files' ? { typeId: 'xpert.artifact' } : !['all', 'page'].includes(filter) ? { typeId: filter } : {}) }
   useEffect(() => {
     const request = ++catalogRequest.current
     setResources([]); setMoreResources(false)
-    if (!root || ['page', 'files'].includes(filter)) return
+    if (!root || filter === 'page') return
     const timeout = window.setTimeout(() => {
       void action('catalog.list', resourceQuery).then(raw => {
         if (request !== catalogRequest.current) return
@@ -103,6 +105,9 @@ function App() {
   function choose(item: Item | null) {
     if (item?.availability === 'provider-unavailable') { setUnavailableContent(item); return }
     if (!saved) { setError(i18n.message('navigation.waitForSave')); return }
+    if (item?.presentation?.kind === 'artifact' && !item.deleted) {
+      void run(() => openArtifactReference(item.presentation!.referenceId).then(() => undefined)); return
+    }
     if (item?.editorKey && !item.deleted) {
       void run(async () => {
         try { await (item.kind === 'resource' ? openCatalogItem(item.id) : openDocument(item.id, 'spaces')) }
@@ -119,12 +124,13 @@ function App() {
     if (trash) void run(() => load(false))
   }
   const visible = [...items, ...resources].filter((item) => (!folderId || item.parentId === folderId) &&
-    (filter === 'all' || (filter === 'page' ? item.kind === 'page' : filter === 'files' ? ['file', 'artifact'].includes(item.kind ?? '') : item.resourceTypeId === filter)) &&
+    (filter === 'all' || (filter === 'page' ? item.kind === 'page' : filter === 'files' ? ['file', 'artifact'].includes(item.kind ?? '') || item.presentation?.kind === 'artifact' : item.resourceTypeId === filter)) &&
     (item.title + ' ' + (item.filePath ?? '')).toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
   const typeTitle = implementations.find(item => item.typeId === filter)?.title
   const heading = typeTitle ? label(typeTitle) : trash ? t('navigation.trash') : folderId ? items.find((item) => item.id === folderId)?.title ?? t('kind.folder') : filter === 'page' ? t('kind.page') : filter === 'files' ? t('navigation.files') : t('navigation.all')
   const itemActions = (item: Item) => <DropdownMenu modal={false}><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label={t('library.moreActions', { title: item.title })}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end">
+              {item.presentation?.kind === 'artifact' && !item.deleted && <DropdownMenuItem onSelect={() => window.setTimeout(() => setArtifactReference(item.presentation!.referenceId), 0)}>{t('artifact.manage')}</DropdownMenuItem>}
               {!item.deleted && <DropdownMenuItem onSelect={() => choose(item)}>{t('common.open')}</DropdownMenuItem>}
               {item.kind === 'resource' && (item.compatibleEditors?.length ?? 0) > 1 && <>
                 <DropdownMenuLabel>{t('catalog.openWith')}</DropdownMenuLabel>
@@ -132,7 +138,7 @@ function App() {
                 {item.compatibleEditors?.map(editor => <DropdownMenuItem key={editor.key} onSelect={() => void run(() => openCatalogItem(item.id, editor.key).then(() => undefined))}>{editor.title}</DropdownMenuItem>)}
                 <DropdownMenuSeparator />
               </>}
-              {item.kind === 'resource' && (['trash', 'restore'] as const).filter(operation => item.allowedActions?.includes(operation)).map(operation =>
+              {item.kind === 'resource' && (['trash', 'restore'] as const).filter(operation => item.allowedActions?.includes(operation) && (operation === 'restore' ? item.deleted : !item.deleted)).map(operation =>
                 <DropdownMenuItem key={operation} onSelect={() => window.setTimeout(() => setLifecycleResource({ item, operation }), 0)}>{operation === 'trash' ? t('trash.move') : t('trash.restore')}</DropdownMenuItem>)}
               {item.kind === 'resource' && !item.deleted && item.canWrite && <DropdownMenuItem onSelect={() => window.setTimeout(() => setMovingResource(item), 0)}>{t('catalog.move')}</DropdownMenuItem>}
               {item.kind === 'resource' && item.allowedActions?.includes('rename') && <DropdownMenuItem onSelect={() => window.setTimeout(() => setRenamingResource(item), 0)}>{t('catalog.rename')}</DropdownMenuItem>}
@@ -142,7 +148,7 @@ function App() {
               {item.kind !== 'resource' && canManage && <DropdownMenuItem onSelect={() => void run(async () => { await action('item.edit', { itemId: item.id, expectedVersion: item.version, deleted: !trash }); await reload() })}>{trash ? t('trash.restore') : t('trash.move')}</DropdownMenuItem>}
             </DropdownMenuContent></DropdownMenu>
   const itemState = (item: Item) => <div className="flex flex-wrap gap-2" title={item.sourceSync?.revision ? t('catalog.sourceRevision', { revision: item.sourceSync.revision }) : undefined}>
-    <Badge variant="outline">{item.canWrite === false ? t('catalog.readOnly') : t('catalog.projectAccess')}</Badge>
+    <Badge variant="outline">{item.presentation?.kind === 'artifact' ? t('artifact.referenceAccess') : item.canWrite === false ? t('catalog.readOnly') : t('catalog.projectAccess')}</Badge>
     {item.sourceSync && <Badge variant={item.sourceSync.status === 'failed' ? 'destructive' : 'secondary'}>{t(({ synced: 'catalog.synced', pending: 'catalog.pending', failed: 'catalog.failed' } as const)[item.sourceSync.status])}</Badge>}
   </div>
   return <div className={`app ${compact ? 'compact-navigation' : ''}`}>
@@ -202,11 +208,11 @@ function App() {
           <div className="list-toolbar"><span>{t('library.recent')}</span><div className="flex items-center gap-2"><Button variant={layout === 'list' ? 'secondary' : 'ghost'} aria-pressed={layout === 'list'} onClick={() => setLayout('list')}>{t('library.listView')}</Button><Button variant={layout === 'grid' ? 'secondary' : 'ghost'} aria-pressed={layout === 'grid'} onClick={() => setLayout('grid')}>{t('library.gridView')}</Button><Button variant="ghost" size="icon" aria-label={t('library.refresh')} disabled={busy || loading} onClick={() => void run(reload)}><RefreshCw /></Button></div></div>
           {loading ? <div className="empty-message" role="status">{t('library.loading')}</div> : <div className="table-scroll">{layout === 'grid' ? <div className="grid gap-4 p-1" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 16rem), 1fr))' }}>
             {visible.map(item => <Card key={item.id}><CardHeader><div className="flex items-center justify-between gap-2"><Button variant="ghost" className="min-w-0" onClick={() => choose(item)}><Icon kind={item.kind} /><span className="truncate">{item.title}</span></Button>{itemActions(item)}</div></CardHeader>
-              <CardContent><div className="aspect-video overflow-hidden" aria-label={t('catalog.outlinePreview')}>
+              <CardContent>{item.presentation?.kind === 'artifact' && <Badge variant="secondary" className="mb-2">{artifactTypeName(item.presentation.type)}</Badge>}<div className="aspect-video overflow-hidden" aria-label={t('catalog.outlinePreview')}>
                 {item.preview && item.preview.revision === item.resourceRevision ? <ol>{item.preview.lines.map((line, index) => <li className="truncate" key={index}>{line}</li>)}</ol> : <Icon kind={item.kind} />}
               </div>{itemState(item)}</CardContent><CardFooter>{dateText(item.updatedAt)}</CardFooter></Card>)}
           </div> : <Table className="library-table"><TableHeader><TableRow><TableHead>{t('common.name')}</TableHead><TableHead>{t('library.type')}</TableHead><TableHead>{t('library.source')}</TableHead><TableHead>{t('library.updated')}</TableHead><TableHead>{t('library.state')}</TableHead><TableHead><span className="sr-only">{t('library.actions')}</span></TableHead></TableRow></TableHeader>
-            <TableBody>{visible.map((item) => <TableRow key={item.id}><TableCell><Button type="button" variant="ghost" className="file-title" onClick={() => choose(item)}><span className={`file-icon ${item.kind}`}><Icon kind={item.kind} /></span><span><strong>{item.title}</strong><small>{item.parentPageId && items.some((parent) => parent.id === item.parentPageId && !parent.deleted) ? t('library.subpage', { title: items.find((parent) => parent.id === item.parentPageId)?.title ?? '' }) : (item.kind === 'resource' ? items.find(folder => folder.id === item.parentId)?.filePath ?? items.find(folder => folder.id === item.parentId)?.title : item.filePath?.split('/').slice(0, -1).join(' / ')) || t('folder.root')}</small></span></Button></TableCell><TableCell>{item.resourceTypeId ? label(implementations.find(type => type.typeId === item.resourceTypeId)?.title ?? { en_US: item.resourceTypeId, zh_Hans: item.resourceTypeId }) : kindName(item.kind)}</TableCell><TableCell>{item.kind === 'resource' ? t('catalog.resource') : item.importOrigin ? t('source.copyType') : item.kind === 'page' ? t('library.spacePage') : item.kind === 'artifact' ? t('materials.assistantArtifacts') : t('library.projectFile')}</TableCell><TableCell>{dateText(item.updatedAt)}</TableCell><TableCell>{itemState(item)}</TableCell><TableCell>{itemActions(item)}</TableCell></TableRow>)}</TableBody></Table>}
+            <TableBody>{visible.map((item) => <TableRow key={item.id}><TableCell><Button type="button" variant="ghost" className="file-title" onClick={() => choose(item)}><span className={`file-icon ${item.kind}`}><Icon kind={item.kind} /></span><span><strong>{item.title}</strong><small>{item.parentPageId && items.some((parent) => parent.id === item.parentPageId && !parent.deleted) ? t('library.subpage', { title: items.find((parent) => parent.id === item.parentPageId)?.title ?? '' }) : (item.kind === 'resource' ? items.find(folder => folder.id === item.parentId)?.filePath ?? items.find(folder => folder.id === item.parentId)?.title : item.filePath?.split('/').slice(0, -1).join(' / ')) || t('folder.root')}</small></span></Button></TableCell><TableCell>{item.presentation?.kind === 'artifact' ? artifactTypeName(item.presentation.type) : item.resourceTypeId ? label(implementations.find(type => type.typeId === item.resourceTypeId)?.title ?? { en_US: item.resourceTypeId, zh_Hans: item.resourceTypeId }) : kindName(item.kind)}</TableCell><TableCell>{item.presentation?.kind === 'artifact' ? t('artifact.referenceType') : item.kind === 'resource' ? t('catalog.resource') : item.importOrigin ? t('source.copyType') : item.kind === 'page' ? t('library.spacePage') : item.kind === 'artifact' ? t('materials.assistantArtifacts') : t('library.projectFile')}</TableCell><TableCell>{dateText(item.updatedAt)}</TableCell><TableCell>{itemState(item)}</TableCell><TableCell>{itemActions(item)}</TableCell></TableRow>)}</TableBody></Table>}
             {!visible.length && <div className="empty-message"><FileText /><h2>{search ? t('library.noResults') : trash ? t('trash.empty') : t('library.empty')}</h2><p>{search ? t('library.searchHint') : t('library.createHint')}</p>{canWrite && !trash && !search && <Button onClick={() => setModal('page')}><Plus />{t('create.page')}</Button>}</div>}
           </div>}
           {moreResources && <Button variant="outline" disabled={busy} onClick={() => void run(async () => { const request = catalogRequest.current; const page = catalogPageSchema.parse(await action('catalog.list', { ...resourceQuery, offset: resources.length })); if (request !== catalogRequest.current) return; setResources(previous => [...previous, ...page.items.map(catalogItem)]); setMoreResources(page.hasMore) })}>{t('catalog.more')}</Button>}
@@ -217,6 +223,7 @@ function App() {
         {root && <KnowledgePanel root={root} canWrite={canWrite} canManage={canManage} run={run} busy={busy} />}
       </aside>}
     </div>}
+    {artifactReference && <ArtifactReferenceDialog referenceId={artifactReference} onClose={() => setArtifactReference(null)} onChanged={reload} />}
     {unavailableContent && <UnavailableContent item={unavailableContent} onClose={() => setUnavailableContent(null)} run={run} busy={busy} />}
     {editorPreferences && <EditorPreferences item={editorPreferences} onClose={() => setEditorPreferences(null)} run={run} busy={busy} />}
     {lifecycleResource && <CatalogLifecycleDialog {...lifecycleResource} busy={busy} run={run} onClose={() => setLifecycleResource(null)} onDone={reload} />}

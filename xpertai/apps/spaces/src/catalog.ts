@@ -37,6 +37,12 @@ export class SpaceCatalog {
     return this.runtime.require(ContentEditorsRuntimeCapability).setPreference({ ...this.scope(actor), ...input })
   }
   async types(actor: SpaceActor) { return (await this.api.types(this.scope(actor))).filter(type => type.creatable !== false) }
+  async attach(actor: SpaceActor, contentId: string, parentId: string | null) {
+    const space = await this.spaces.workspace(actor)
+    await this.api.get({ ...this.scope(actor), contentId })
+    await this.parent(actor, space.id, parentId, true)
+    await this.place(actor, space.id, contentId, parentId)
+  }
   async list(actor: SpaceActor, input: z.infer<typeof catalogQuery>) {
     const scope = this.scope(actor)
     const space = await this.spaces.workspace(actor)
