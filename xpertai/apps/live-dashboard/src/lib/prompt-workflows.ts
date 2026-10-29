@@ -1,4 +1,4 @@
-import type { SkillSlashCommand } from '@xpert-ai/contracts'
+import type { SkillSlashCommand, TPromptWorkflow } from '@xpert-ai/contracts'
 import { dashboardIcon } from './dashboard-icon'
 
 const context = `Work in the current authorized Assistant/project scope. Use the user's language for the page and response. Read the installed live-dashboard skill through read_skill_file and follow the references relevant to this task. Respect provider policy, access controls and tool schemas. Never change deployment, credentials, Assistant configuration or business-source data.
@@ -53,7 +53,7 @@ function command(prompt: Prompt): SkillSlashCommand {
 }
 
 /** Commands are resolved from the installed middleware, including on existing Assistants. */
-export const dashboardPromptWorkflows: SkillSlashCommand[] = ([
+const prompts = [
   {
     name: 'dashboard-standard-auto', group: 'standard',
     label: { en_US: 'Standard · Choose a business theme', zh_Hans: '标准看板 · 自动选题新建' },
@@ -138,4 +138,20 @@ export const dashboardPromptWorkflows: SkillSlashCommand[] = ([
     argsHint: '目标看板、筛选场景、预期业务结果（可选）',
     instructions: ['Acceptance only. Resolve the exact requested Artifact, open its current saved state with dashboard_open and record its identity/revision. Do not modify files, call save tools, publish or change source data. Preview its saved Bindings with actual defaults and observed alternative filter values; use dashboard_test_filter to validate affected queries and the null/all case. For HTML inspect its saved lifecycle and dependency contract as well. If actual viewer controls can be exercised through available authorized tools, check initial load, apply filters, refresh and reopening. Otherwise mark viewer behavior untested and give at most three manual actions with observable expected results. Do not equate a successful query or resource card with a verified browser interaction.']
   }
-] satisfies Prompt[]).map(command)
+] satisfies Prompt[]
+
+export const dashboardPromptWorkflows: SkillSlashCommand[] = prompts.map(command)
+
+/** Separate names keep the host's middleware-first merge from hiding these editable shortcuts. */
+export const dashboardWorkspacePrompts: TPromptWorkflow[] = prompts.map((prompt) => ({
+  name: `live-${prompt.name}`,
+  label: prompt.label.zh_Hans,
+  description: prompt.description.zh_Hans,
+  icon: dashboardIcon,
+  category: 'live-dashboard',
+  argsHint: prompt.argsHint,
+  template: [context, ...prompt.instructions, 'User requirements / 用户需求：', '{{args}}'].join('\n\n'),
+  actionType: 'insert_text',
+  tags: ['live-dashboard', prompt.group],
+  visibility: 'team'
+}))

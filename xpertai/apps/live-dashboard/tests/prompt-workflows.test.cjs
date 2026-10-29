@@ -1,11 +1,36 @@
 const { test } = require('node:test')
 const assert = require('node:assert/strict')
 const { DashboardMiddleware } = require('../dist/lib/middleware.js')
+const { dashboardWorkspacePrompts } = require('../dist/lib/prompt-workflows.js')
+const { dashboardAssistantTemplate } = require('../dist/lib/assistant-template.js')
 
 // Exercise the actual metadata consumed by the host, not an unregistered catalog.
 const strategy = new DashboardMiddleware({})
 const commands = strategy.meta.slashCommands
 const prompt = name => commands.find(command => command.name === name).action.template
+
+test('assistant template contributes editable shortcuts without middleware name collisions', () => {
+  assert.equal(dashboardWorkspacePrompts.length, 12)
+  assert.equal(dashboardAssistantTemplate.promptWorkflows, dashboardWorkspacePrompts)
+  const names = new Set(commands.map(command => command.name))
+  for (const workflow of dashboardWorkspacePrompts) {
+    assert.ok(!names.has(workflow.name), 'middleware commands take precedence in the host')
+    assert.equal(workflow.actionType, 'insert_text')
+    assert.equal(workflow.template, prompt(workflow.name.slice('live-'.length)))
+    assert.equal(workflow.runtimeCapabilities, undefined, 'resource must not persist another Assistant node identity')
+  }
+  const dsl = JSON.parse(dashboardAssistantTemplate.dslContent)
+  const agent = dsl.nodes.find(node => node.type === 'agent')
+  assert.equal(dsl.team.agent.key, agent.key)
+  assert.deepEqual(dsl.nodes.filter(node => node.type === 'workflow').map(node => node.entity.provider), ['LiveDashboard', 'skillsMiddleware', 'SandboxFile'])
+  for (const node of dsl.nodes.filter(node => node.type === 'workflow')) {
+    assert.equal(node.entity.required, true)
+    assert.ok(dsl.connections.some(connection => connection.from === agent.key && connection.to === node.key))
+  }
+  const plugin = require('../dist/index.js').default
+  assert.equal(plugin.templates[0], dashboardAssistantTemplate)
+  assert.equal(plugin.meta.targetAppMeta.xpert.marketplace.contents[0].name, dashboardAssistantTemplate.key)
+})
 
 test('installed middleware exposes twelve editable, namespaced prompt workflows', () => {
   assert.equal(commands.length, 12)

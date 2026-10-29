@@ -6,7 +6,7 @@ import { tool } from '@langchain/core/tools'
 import type { RunnableConfig } from '@langchain/core/runnables'
 import { createHash, randomUUID } from 'node:crypto'
 import { z } from 'zod/v3'
-import type { AnalyticsBinding, AnalyticsDiscoveryResult, AnalyticsValue, TAgentMiddlewareMeta, XpertResolvedViewHostContext } from '@xpert-ai/contracts'
+import type { AnalyticsBinding, AnalyticsDiscoveryResult, AnalyticsValue, JsonSchemaObjectType, TAgentMiddlewareMeta, XpertResolvedViewHostContext } from '@xpert-ai/contracts'
 import { AgentMiddlewareStrategy, RequestContext, validateAnalyticsPayload, workspaceFileMutationPath, WorkspaceFilesRuntimeCapability, analyticsBindingSchema, type AgentMiddleware, type IAgentMiddlewareStrategy, type IAgentMiddlewareContext } from '@xpert-ai/plugin-sdk'
 import { artifactDocumentHtml, type ArtifactDocumentDependencyLock } from '@xpert-ai/plugin-sdk/artifact-document'
 import { libraryLocks } from './document-libraries'
@@ -26,6 +26,10 @@ import { createPreviewRetryGuard } from './preview-retry'
 import { dashboardPromptWorkflows } from './prompt-workflows'
 
 const middlewareOptionsSchema = z.object({ allowedFinalProviders: z.array(z.string().min(1)).min(1).max(20).optional() }).strict().default({})
+const providerOptionSchema = {
+  type: 'string',
+  'x-ui': { component: 'remoteSelect', selectUrl: '/api/live-dashboard/provider-options' }
+} satisfies JsonSchemaObjectType['properties'][string]
 
 export const DASHBOARD_GUIDANCE = `For a new independent dashboard, use a new unused HTML file path. An existing filename or matching title is not authorization to edit another Artifact; do not switch from creation to dashboard_open/update because a file already exists. For a new dashboard, call dashboard_list_sources before searching raw files, reading old scripts or creating transformations. Named governed sources may already provide the required query; inspect their provider contracts first. File-backed sources do not imply that a script must be written. For creating or editing live dashboards, first read the installed live-dashboard skill using read_skill_file and follow only the references relevant to the task. Use SandboxFile tools for all source-file authoring; HTML alone is not a saved dashboard. Follow preview.validation.checks immediately before authoring HTML; each suggestedCall must actually succeed. Business definitions, real data previews and nullable-filter tests are required before saving new or changed Bindings. Do not invent business data or substitute a different metric without agreement. Report completion only from a successful dashboard_create/dashboard_create_html/dashboard_update draft receipt. Human publication is separate. Successful create, update and open tools emit a chat resource card automatically; resourceCard.status reports emission. Its Open button selects the exact dashboard in Workbench. Never fabricate a link, call present_files for dashboard HTML, or output card JSON as text. If card delivery is unavailable, report the saved receipt and use the Workbench picker.`
 
@@ -37,8 +41,8 @@ export class DashboardMiddleware implements IAgentMiddlewareStrategy {
     slashCommands: dashboardPromptWorkflows,
     // Tools inherit this self-contained icon through the platform middleware metadata.
     icon: dashboardIcon, features: [FEATURE], configSchema: { type: 'object', properties: {
-      allowedFinalProviders: { type: 'array', items: { type: 'string' }, title: { en_US: 'Allowed final dashboard providers', zh_Hans: '最终看板允许的 Provider' },
-        description: { en_US: 'Optional provider IDs required for saved Agent dashboards. Upstream previews remain available.', zh_Hans: '可选的最终看板 Provider ID 列表，不限制上游来源预览。' } }
+      allowedFinalProviders: { type: 'array', minItems: 1, maxItems: 20, items: providerOptionSchema, title: { en_US: 'Allowed final dashboard providers', zh_Hans: '最终看板允许的数据源类型' },
+        description: { en_US: 'Choose at least one provider from sources you can access when setting this policy. Existing unavailable IDs are retained. Upstream previews remain available.', zh_Hans: '配置此限制时至少选择一种当前可访问数据源的 Provider；暂不可用的已有值会保留，不影响上游来源预览。' } }
     }, additionalProperties: false }
   }
   constructor(private readonly service: DashboardService) {}
