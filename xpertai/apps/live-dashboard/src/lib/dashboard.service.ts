@@ -28,11 +28,24 @@ export class DashboardService {
     return dataset
   }
   async list(context: XpertResolvedViewHostContext) {
-    await this.authorizeProject(context)
+    const access = await this.authorizeProject(context)
     const result = await this.runtime.require(ArtifactsRuntimeCapability).listArtifacts({ pluginName: PLUGIN_NAME, resourceType: RESOURCE_TYPE, resourceIdPrefix: hostPrefix(context), status: 'active', pageSize: 100, includeCurrentVersion: true })
     const items = result.items.filter((item) => item.resourceId.startsWith(hostPrefix(context)) && (item.userId === context.userId || !item.userId && item.projectId === projectId(context)))
     const drafts = new Map((await this.runtime.require(ArtifactDraftsRuntimeCapability).list(items.map(item => item.id))).map(draft => [draft.artifactId, draft]))
-    return items.map(item => ({ ...summary(item), ...(drafts.has(item.id) ? { title: drafts.get(item.id)!.title ?? item.title } : {}) }))
+    return items.map(item => {
+      const draft = drafts.get(item.id)
+      return { ...summary(item), canDelete: !!draft && (!projectId(context) || access?.canManage === true),
+        ...(draft ? { title: draft.title ?? item.title, draftRevision: draft.revision } : {}) }
+    })
+  }
+  async trash(context: XpertResolvedViewHostContext, artifactId: string, expectedRevision: number) {
+    await this.authorizeProject(context, 'manage')
+    const artifact = await this.runtime.require(ArtifactsRuntimeCapability).getArtifact(artifactId)
+    assertOwned(context, artifact)
+    if (artifact.status !== 'active') throw new ForbiddenException('DASHBOARD_ARCHIVED')
+    // Reuse the platform's atomic revision check, recycle state and share revocation.
+    await this.runtime.require(ArtifactDraftsRuntimeCapability).setRecycled({ artifactId, expectedRevision, recycled: true })
+    return { artifactId }
   }
   async save(context: XpertResolvedViewHostContext, manifest: DashboardManifest, expectedVersionId: string | null, expectedRevision = 0) {
     await this.authorizeProject(context, 'write')
@@ -144,9 +157,11 @@ export class DashboardService {
     const access = this.runtime.require(ProjectAccessRuntimeCapability)
     const input = { actor: scopedActor, projectId: project }
     if (context.hostType === 'agent') await access.assertAssistant({ ...input, assistantId: context.hostId })
-    if (operation === 'write') await access.assertEdit(input)
-    else if (operation === 'manage') await access.assertManage(input)
-    else if (!(await access.listReadable({ actor: scopedActor, projectIds: [project] })).length) throw new ForbiddenException('DASHBOARD_ACCESS_DENIED')
+    if (operation === 'write') return access.assertEdit(input)
+    if (operation === 'manage') return access.assertManage(input)
+    const readable = (await access.listReadable({ actor: scopedActor, projectIds: [project] })).find(item => item.projectId === project)
+    if (!readable) throw new ForbiddenException('DASHBOARD_ACCESS_DENIED')
+    return readable
   }
   private execute(context: XpertResolvedViewHostContext, manifest: DashboardManifest, input: Record<string, AnalyticsValue>) {
     return queryDashboard(this.runtime, actor(context), manifest, input)

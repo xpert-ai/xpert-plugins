@@ -57,11 +57,76 @@ Preview/save also probe a declared non-default filter value and, when applicable
 
 Artifacts are owner-only within their agent/project host for this MVP. MIME: `application/json`; resource type: `live-dashboard`; namespace: `live_dashboard`. The Workbench supports selection, JSON import/edit, typed filters, refresh, version/freshness and partial-result notices.
 
+## Built-in prompt workflows / 内置提示词模板
+
+When the Assistant has the `LiveDashboard` middleware, type `/dashboard-` in its
+chat composer and select a workflow. Selection inserts an invocation so the user
+can add requirements before sending; it does not submit or publish automatically.
+Commands are contributed by the installed middleware, so existing Assistants can
+use them after the updated plugin is loaded. No Assistant-template import or
+database seeding is needed. The host must support middleware slash commands.
+
+| Mode / 分类 | Command | 用途 |
+| --- | --- | --- |
+| Standard | `/dashboard-standard-auto` | 根据真实数据质量和业务价值自动选题，新建独立标准看板 |
+| Standard | `/dashboard-standard-new` | 围绕指定主题新建标准看板 |
+| Standard | `/dashboard-standard-improve` | 调整指定看板的图表、指标、筛选，保留 Artifact 身份 |
+| Standard | `/dashboard-standard-recover` | 定位失败步骤，用本轮证据恢复标准草稿保存 |
+| HTML | `/dashboard-html-auto` | 自动选题，新建布局精致、可实际使用的 HTML 看板 |
+| HTML | `/dashboard-html-new` | 围绕指定业务问题、受众和视觉要求新建 HTML 看板 |
+| HTML | `/dashboard-html-style` | 参考图片或风格描述美化已有 HTML 看板，保留查询与交互 |
+| HTML | `/dashboard-html-recover` | 保留页面候选，按真实校验错误修复并恢复保存 |
+| Inspect | `/dashboard-explore` | 只读探索数据源、字段、日期覆盖和候选业务主题 |
+| Inspect | `/dashboard-test-source` | 最小真实查询、字段映射和筛选验证 |
+| Inspect | `/dashboard-audit-metrics` | 只读核对计算、单位、期间和关联粒度 |
+| Inspect | `/dashboard-verify` | 核对保存版本、筛选、刷新，并标明未执行的页面验收 |
+
+Examples (replace the descriptive inputs with your own requirements):
+
+```text
+/dashboard-standard-auto 使用当前组织的 BI 数据源，为采购主管挑选一个数据完整、能帮助识别交付问题的主题。新建独立看板。
+/dashboard-standard-new 使用库存数据，面向仓库主管创建库存积压看板。核实库龄和库存金额口径，提供仓库与日期筛选。
+/dashboard-html-auto 从已授权数据中选择一个能支持日常运营决策的主题。面向部门负责人，浅色企业风格，摘要指标、主趋势、关注清单和明细。
+/dashboard-html-new 创建供应商交付分析看板。使用已授权采购数据，核实交付及时率口径；参考附图的留白、层次和配色，不复制示例数字。
+/dashboard-html-style 美化当前选中的 HTML 看板，参考附图布局；保留现有指标、绑定、筛选和刷新，只调整视觉。
+/dashboard-html-recover 继续保存刚才失败的 HTML 候选。读取实际文件与错误，重新获取本轮所需预览；如果运行时仍不可用，报告准确阻塞。
+/dashboard-test-source 检查当前采购数据源的一个有实际数据的查询，验证一个供应商筛选及全部供应商。
+/dashboard-verify 检查当前看板的默认日期、一个真实筛选值和全部值；区分查询验证与待人工页面验证。
+```
+
+Provide a source name, business question, audience and date range where relevant;
+HTML requests can include a reference image or style. IDs, provider contracts and
+paths are discovered from tools, never hard-coded into the templates. Automatic
+selection ranks business usefulness and data readiness; specified-topic workflows
+do not silently substitute another topic. New HTML workflows choose an unused
+file path and never overwrite the selected dashboard.
+
+The templates guide real queries, metric checks, run-local previews/filter tests
+and successful draft-save receipts. They do not grant source access or install a
+missing Browser Runtime. HTML saves still require runtime validation. Native
+dashboards keep their own renderer and supported chart/table schema. Formal
+publication remains a human action. Inspection commands do not register
+definitions, edit business data or save dashboards; a tool-level pass is not a
+claim of visual acceptance.
+
+### Manual acceptance after loading the plugin
+
+1. In an Assistant with LiveDashboard, open the `/` picker and search `dashboard`.
+   Verify all twelve localized entries; selecting one should leave an editable
+   invocation in the composer.
+2. Run one standard-new and one HTML-new request against an authorized test source.
+   Verify independent Artifact IDs, fresh previews and successful draft receipts;
+   HTML also requires its normal Browser Runtime check.
+3. Reopen each saved draft, change a real filter and refresh. Confirm real data
+   updates. Run an inspection command and verify it does not save a new revision.
+
 ## HTML mode
 
 See [HTML mode and acceptance](docs/html-mode.md). Agent tools write a complete single-file document to the authorized file workspace, then read and copy its bytes into the immutable dashboard JSON version alongside Bindings and Controls. Before creating an Artifact, a plugin-owned Sandbox Action runs the page with real preview datasets in the platform Browser Runtime, through the sandbox-browser queue. Unavailable runtime or failed initial rendering blocks HTML save and returns diagnostics to the Agent. No live workspace path is dereferenced on reopening. A changed file requires a new saved version. Existing JSON-only dashboards remain compatible.
 
 The platform browser entry `@xpert-ai/plugin-sdk/artifact-document` owns the sandbox, CSP, MessageChannel, request validation and latest-response policy. The plugin owns lifecycle and supplies a narrow callback to `query-binding`. Its server loads the exact saved Artifact version, finds the declared Binding, validates controls and rechecks source access. The endpoint rejects full Binding, Provider, SQL/payload and alternate source fields.
+
+HTML preflight checks each native select's alternative/restored values and each button path in a fresh document mount, with at most two pages active. A button path also clicks controls it inserts, reveals or enables, retaining their prerequisite state and the same query quota; traversal is bounded to the first 12 buttons and 12 clicks per path. Every scenario checks initial bindings and host refresh using the same preview datasets. Successful static resources can be reused within this validation (bounded to 32 MB, up to 8 MB per resource); every replay still passes the resource policy, and failed, redirected or non-cacheable responses are not replayed. A 55-second validation deadline fails closed and cancels remaining pages before the host's 60-second Action limit. This prevents repeated resource downloads and the synthetic interaction sweep from exhausting the Action budget or one document's rate window without raising the SDK's query/concurrency limits. A request storm within a scenario still blocks saving; preflight is not a full combinatorial or sustained-load test.
 
 Pages call `window.xpertLiveArtifact.ready()`, `subscribe(bindingId, render)`, `query(bindingId, controls)` and `refresh(bindingId)`. Register subscriptions before the first query so the toolbar can refresh without resetting the document. Use inline DOM/SVG/Canvas or online scripts/styles/fonts from the HTTPS origins returned by `dashboard_libraries.online`. Tailwind CDN, jsDelivr, cdnjs, unpkg and Google Fonts are supported according to their resource-type allowlist. Preflight and the displayed page use the same policy; failed loads prevent saving. Pin online versions where possible. Unlike packaged libraries, online bytes are not part of the immutable Artifact snapshot. Direct data requests, external images, eval, workers and frames remain unavailable. Script processing remains in the separate Workspace Script provider.
 
@@ -107,3 +172,11 @@ The Share action publishes a link to an already published dashboard: follow the 
 See [team sharing and standalone pages](docs/team-sharing.mdx) and [local acceptance](docs/team-sharing-acceptance.mdx). This feature needs a host exposing the Artifact Presentation registry, API and page; it cannot be installed on an older SDK alone.
 
 Chat messages use the platform resource-card protocol after a successful create, update or open. The card opens the exact dashboard in Workbench; no dashboard renderer or queries are embedded in messages. See [chat resource cards](docs/chat-resource-cards.mdx).
+
+### Delete a saved dashboard
+
+Open the dashboard picker and use the trash icon beside an entry. The confirmation shows its title and Artifact ID, so same-name dashboards can be distinguished. Deletion recycles the whole dashboard (draft and published versions), removes it from the active list and revokes shared links; it does not delete source data or Assistant workspace files. Deleting the selected dashboard clears its preview and Assistant context; deleting another dashboard preserves the current view.
+
+The owner can delete private Assistant dashboards; Project dashboards require the current user's management permission. Read-only shared pages expose no delete control. The platform checks the confirmed draft revision atomically, rejecting concurrent edits. Entries without a saved working draft (legacy version-only or incomplete first saves) have no recycle revision and do not expose this action. No Agent deletion tool is registered.
+
+Manual acceptance after installing the updated plugin: cancel a deletion and confirm the entry remains; delete an unused saved dashboard and confirm it stays absent after reload; delete the selected dashboard and confirm the preview clears and its old shared link is unavailable.

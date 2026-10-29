@@ -48,5 +48,9 @@
   "autoRefresh": "自動重新整理",
   "off": "關閉",
   "seconds30": "每 30 秒",
-  "minute1": "每分鐘"
+  "minute1": "每分鐘",
+  "deleteDashboard": "刪除看板",
+  "deleteNamedDashboard": "刪除「{{title}}」",
+  "confirmDeleteDashboard": "確定刪除「{{title}}」？看板將從清單移除，共享連結將失效。資料來源和工作區檔案會保留。",
+  "deleting": "正在刪除…"
 }
