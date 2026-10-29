@@ -19,6 +19,46 @@ const credentials = {
 }
 
 describe('native OpenAI-compatible Responses', () => {
+  it.each([undefined, false, true])('scopes cache key filtering to the configured model (disabled=%s)', async (disabled) => {
+    const fetcher = jest.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response('{}'))
+    const generate = compatibleResponsesTransport({ ...credentials, disable_prompt_cache_key: disabled }, fetcher)
+    const otherModel = compatibleResponsesTransport(credentials, fetcher)
+    const body = {
+      model: 'coding',
+      prompt_cache_key: 'session-cache-key',
+      stream: true,
+      max_output_tokens: 2048,
+      reasoning: { effort: 'high', summary: 'auto' },
+      input: [
+        { type: 'reasoning', id: 'rs_1', encrypted_content: 'opaque', summary: [] },
+        { type: 'function_call', call_id: 'call_1', name: 'read', arguments: '{}' },
+        { type: 'function_call_output', call_id: 'call_1', output: 'tool output with prompt_cache_key text' }
+      ],
+      tools: [{ type: 'function', name: 'read', parameters: { type: 'object' } }]
+    }
+    const original = structuredClone(body)
+    await generate(body, {}, AbortSignal.timeout(1000))
+    await otherModel(body, {}, AbortSignal.timeout(1000))
+    const expected = { ...body, model: 'custom-coding', store: false }
+    if (disabled) {
+      const { prompt_cache_key: _key, ...withoutKey } = expected
+      expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body))).toEqual(withoutKey)
+    } else {
+      expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body))).toEqual(expected)
+    }
+    expect(JSON.parse(String(fetcher.mock.calls[1][1]?.body))).toEqual(expected)
+    expect(body).toEqual(original)
+    expect(fetcher).toHaveBeenCalledTimes(2)
+  })
+
+  it('accepts requests without a cache key and rejects ambiguous compatibility settings', async () => {
+    const fetcher = jest.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response('{}'))
+    const generate = compatibleResponsesTransport({ ...credentials, disable_prompt_cache_key: true }, fetcher)
+    await generate({ model: 'coding', input: 'hello' }, {}, AbortSignal.timeout(1000))
+    expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body))).not.toHaveProperty('prompt_cache_key')
+    expect(() => compatibleResponsesTransport({ ...credentials, disable_prompt_cache_key: 'false' }, fetcher)).toThrow()
+  })
+
   it('preserves opaque reasoning and multiple tool results through serialization', async () => {
     const fetcher = jest.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response('{}', { status: 200 }))
     const generate = compatibleResponsesTransport(credentials, fetcher)
