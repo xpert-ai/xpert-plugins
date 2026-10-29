@@ -1,0 +1,5 @@
+@import "tailwindcss";
+@import "@xpert-ai/plugin-shadcn-ui/style.css";
+@source "./**/*.{ts,tsx}";
+@source "../../../node_modules/@xpert-ai/plugin-shadcn-ui/dist/**/*.js";
+html,body,#root { margin:0; height:100%; overflow:hidden; }
