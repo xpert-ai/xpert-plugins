@@ -38,6 +38,7 @@ The provider form defined in `src/openai-compatible.yaml` captures the most comm
 | `api_key` | API key or bearer token used in the `Authorization` header. Leave blank if your proxy does not require auth. |
 | `endpoint_url` | Base URL of the OpenAI-compatible REST API (e.g. `https://api.openai.com/v1`, `https://my-proxy/v1`). |
 | `endpoint_model_name` | Override for the actual model name deployed on the endpoint if it differs from the logical name stored in XpertAI. |
+| `disable_prompt_cache_key` | Model-level native Responses compatibility switch, default `false`. When enabled, removes only the top-level `prompt_cache_key` before forwarding to the upstream. |
 | `mode` | Choose `chat` or `completion` when configuring LLM providers to match the endpoint behaviour. |
 | `context_size`, `max_tokens_to_sample` | Let the UI communicate default limits for prompts and generations. |
 | `streaming`, `stream_mode_delimiter`, `stream_mode_auth` | Fine-tune how streaming responses are requested and parsed. |
@@ -66,6 +67,13 @@ Responses parameter rules. Configured `reasoning_effort`, including `xhigh`, is
 preserved. Chat Completions sampling controls remain available.
 
 ## Model Capabilities
+
+For an upstream with a confirmed prompt cache key compatibility problem, enable
+`disable_prompt_cache_key` only on the affected model's Responses configuration.
+For example, the affected AIGoCode model can opt in while other models retain
+normal forwarding. This does not change conversation history, tool results,
+reasoning, or output limits, and does not retry failed requests. Existing model
+configurations keep their behavior until explicitly opted in.
 
 - **Large Language Models**: `OAIAPICompatLargeLanguageModel` creates a `ChatOAICompatReasoningModel`, automatically forwarding streaming callbacks and token usage metrics to the host copilot.
 - **Text Embeddings**: Reuses LangChain's `OpenAIEmbeddings`, allowing both semantic search and knowledge base ingestion to target custom OpenAI-style providers.

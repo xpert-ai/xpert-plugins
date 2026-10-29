@@ -5,6 +5,7 @@ export const OpenAICompatible = 'openai-compatible'
 
 export interface OpenAICompatModelCredentials extends CommonChatModelParameters {
   api_protocol?: 'chat' | 'responses'
+  disable_prompt_cache_key?: boolean
   reasoning_effort?: string
   api_key: string
   endpoint_url?: string
