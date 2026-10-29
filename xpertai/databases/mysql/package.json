@@ -53,5 +53,19 @@
     "test:workbench": "node --test tests/*.test.mjs",
     "build": "tsc -p tsconfig.lib.json",
     "typecheck": "tsc -p tsconfig.lib.json --noEmit"
+  },
+  "nx": {
+    "targets": {
+      "build": {
+        "dependsOn": [
+          {
+            "projects": [
+              "@xpert-ai/sql-workbench"
+            ],
+            "target": "build"
+          }
+        ]
+      }
+    }
   }
 }

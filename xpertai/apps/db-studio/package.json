@@ -112,6 +112,16 @@
             "target": "build"
           }
         ]
+      },
+      "build": {
+        "dependsOn": [
+          {
+            "projects": [
+              "@xpert-ai/sql-workbench"
+            ],
+            "target": "build"
+          }
+        ]
       }
     }
   }

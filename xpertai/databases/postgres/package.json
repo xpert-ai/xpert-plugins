@@ -44,5 +44,19 @@
   },
   "scripts": {
     "test:workbench": "node --test tests/*.test.mjs"
+  },
+  "nx": {
+    "targets": {
+      "build": {
+        "dependsOn": [
+          {
+            "projects": [
+              "@xpert-ai/sql-workbench"
+            ],
+            "target": "build"
+          }
+        ]
+      }
+    }
   }
 }
