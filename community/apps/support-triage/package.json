@@ -1,0 +1,87 @@
+{
+  "name": "@community/apps-support-triage",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Xpert 客服工单分流与回复审核台：AI 分析、原文证据、人工确认、持久化失败恢复。",
+  "license": "AGPL-3.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "docs"
+  ],
+  "xpert": {
+    "plugin": {
+      "level": "tenant",
+      "artifactNamespace": "support_triage"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.tests.json && tsc -p tsconfig.remote.json",
+    "build": "node scripts/build.mjs --clean && tsc -p tsconfig.json && node scripts/build-remote.mjs && node scripts/build.mjs",
+    "test:domain": "tsx --test tests/*.test.ts",
+    "test": "npm run test:domain",
+    "test:ui": "node --test tests/ui.e2e.mjs",
+    "preview": "node remote/preview.mjs",
+    "verify:dist": "node scripts/build.mjs --check"
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "peerDependencies": {
+    "@langchain/core": "^0.3.72",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/cqrs": "^11.0.3",
+    "@nestjs/typeorm": "^11.0.0",
+    "@xpert-ai/contracts": "^3.18.4",
+    "@xpert-ai/plugin-sdk": "^3.18.4",
+    "typeorm": "^0.3.24",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@langchain/core": "0.3.72",
+    "@nestjs/common": "11.1.6",
+    "@nestjs/core": "11.1.6",
+    "@nestjs/cqrs": "11.0.3",
+    "@nestjs/typeorm": "11.0.0",
+    "@tailwindcss/postcss": "^4.3.2",
+    "@types/node": "22.18.6",
+    "@types/react": "18.3.24",
+    "@types/react-dom": "18.3.7",
+    "@xpert-ai/contracts": "3.18.4",
+    "@xpert-ai/plugin-sdk": "3.18.4",
+    "@xpert-ai/plugin-shadcn-ui": "workspace:*",
+    "esbuild": "0.25.10",
+    "esbuild-wasm": "0.25.10",
+    "lucide-react": "1.24.0",
+    "playwright": "1.62.1",
+    "postcss": "^8.5.6",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "reflect-metadata": "0.2.2",
+    "sql.js": "1.13.0",
+    "tailwindcss": "^4.3.2",
+    "tsx": "4.20.5",
+    "typeorm": "0.3.24",
+    "typescript": "5.9.2",
+    "yaml": "2.8.1",
+    "zod": "3.25.67"
+  },
+  "packageManager": "pnpm@8.15.8",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins.git",
+    "directory": "community/apps/support-triage"
+  }
+}
