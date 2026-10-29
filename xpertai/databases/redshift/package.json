@@ -33,7 +33,7 @@
   },
   "peerDependencies": {
     "@nestjs/common": "^11.1.6",
-    "@xpert-ai/plugin-sdk": "^3.26.1",
+    "@xpert-ai/plugin-sdk": "^3.29.0",
     "zod": "3.25.67"
   }
 }
