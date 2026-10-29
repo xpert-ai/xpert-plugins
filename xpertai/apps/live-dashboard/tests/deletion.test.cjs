@@ -58,14 +58,22 @@ test('confirmed delete delegates recycling to the platform without querying data
   await assert.rejects(s.service.open(s.context, s.artifact.id), /DASHBOARD_ARCHIVED/)
 })
 
-test('delete requires explicit confirmation and rejects invalid or injected scope parameters', async () => {
+test('delete returns HTTP 400 without mutation for missing confirmation or invalid input', async () => {
   const s = setup()
-  for (const input of [ { ...s.input(), confirmed: false }, { artifactId: s.artifact.id, expectedRevision: 3 },
+  for (const input of [ undefined, null, {}, { ...s.input(), confirmed: false },
+    { ...s.input(), confirmed: 'true' }, { artifactId: s.artifact.id, expectedRevision: 3 },
+    { artifactId: s.artifact.id, confirmed: true },
     { ...s.input(), expectedRevision: 0 }, { ...s.input(), expectedRevision: 1.5 },
     { ...s.input(), userId: 'other' }, { ...s.input(), artifactId: 'invalid' } ]) {
-    await assert.rejects(s.view.executeViewAction(s.context, 'live-dashboard', 'delete', { input }))
+    await assert.rejects(s.view.executeViewAction(s.context, 'live-dashboard', 'delete', { input }), error => {
+      assert.equal(error.getStatus?.(), 400)
+      assert.equal(error.message, 'DASHBOARD_DELETION_CONFIRMATION_REQUIRED')
+      return true
+    })
   }
   assert.deepEqual(s.calls, [])
+  assert.equal(s.artifact.status, 'active')
+  assert.equal(s.draft.revision, 3)
 })
 
 test('delete rejects foreign tenant, organization, owner, Assistant and plugin identities before mutation', async () => {
