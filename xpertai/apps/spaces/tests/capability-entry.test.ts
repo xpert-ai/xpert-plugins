@@ -27,7 +27,7 @@ function fixture() {
     async tree() { businessCalls++; return { root: space, items: [] } },
     async list() { businessCalls++; return { root: space, items: [] } }
   }
-  const view = new SpacesView({} as never, {} as never, {} as never, spaces as never, {} as never,
+  const view = new SpacesView({} as never, {} as never, {} as never, {} as never, spaces as never, {} as never,
     {} as never, {} as never, {} as never, {} as never, access)
   const context: XpertResolvedViewHostContext = { ...actor, hostType: 'agent', hostId: actor.assistantId,
     slots: [], capabilities: { features: ['spaces'] }, runtimeScope: { projectId: actor.projectId,
@@ -89,4 +89,11 @@ test('tool instances recheck every invocation, using server context rather than 
   for (const tool of tools) await assert.rejects(tool.invoke(inputs[tool.name as keyof typeof inputs]), /capability revoked/)
   assert.equal(f.businessCalls(), 1)
   assert.equal(f.checks.length, 6)
+})
+
+test('View advertises the required Project type for host-side selection without changing authorization', () => {
+  const f = fixture()
+  const [manifest] = f.view.getViewManifests(f.context, 'agent.workbench.main')
+  assert.deepEqual(manifest.workbench, { projectType: { applicationKey: 'platform', projectTypeKey: 'space' } })
+  assert.equal(f.businessCalls(), 0)
 })

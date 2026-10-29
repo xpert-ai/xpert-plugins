@@ -131,7 +131,7 @@ try {
   const downloadUrl=await grant(editor,`item:${uploaded.data.item.id}`);assert.deepEqual(await bytes(editor,downloadUrl),payload)
   const exported=await action(owner,'page.export',{itemId:page.id});assert((await bytes(editor,exported.url)).toString().includes('周五'))
   const collectedFolder=await action(owner,'item.create',{spaceId,parentId:folder.id,title:'归集成果',kind:'folder'})
-  const collected=await action(owner,'artifact.collect',{spaceId,parentId:collectedFolder.id,artifactId:exported.artifactId,versionId:exported.versionId})
+  const collected=await action(owner,'artifact.collect',{mode:'copy',acknowledgeCopy:true,spaceId,parentId:collectedFolder.id,artifactId:exported.artifactId,versionId:exported.versionId})
   assert.equal((await action(editor,'artifact.open',{itemId:collected.id})).version.id,exported.versionId)
   assert((await bytes(owner,await grant(owner,`item:${collected.id}`))).toString().includes('周五'))
   record('binary upload/download bytes match; Artifact export and fixed-version collection retain content')
@@ -198,7 +198,7 @@ try {
     await request(admin,`${archivedPath}/owner`,{userId:identity.testUsers.find(u=>u.name==='owner').userId},'PATCH')
     const archiveHeaders={...owner,'x-xpert-view-project-id':archiveProject.id}
     const archiveSpace=(await tree(archiveHeaders)).root.id
-    const copied=await action(archiveHeaders,'artifact.collect',{spaceId:archiveSpace,artifactId:exported.artifactId,versionId:exported.versionId})
+    const copied=await action(archiveHeaders,'artifact.collect',{mode:'copy',acknowledgeCopy:true,spaceId:archiveSpace,artifactId:exported.artifactId,versionId:exported.versionId})
     assert((await bytes(archiveHeaders,await grant(archiveHeaders,`item:${copied.id}`))).toString().includes('周五'))
     const archivedPage=await action(archiveHeaders,'item.create',{spaceId:archiveSpace,title:'归档后保留',kind:'page',content:'归档后的只读文档。'})
     await request(admin,`${archivedPath}/archive`,{})

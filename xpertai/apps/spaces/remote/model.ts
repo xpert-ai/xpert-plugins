@@ -1,6 +1,11 @@
 import { t, i18n } from './i18n'
 import { z } from 'zod/v3'
+import type { ArtifactTypeDescriptor, I18nObject } from '@xpert-ai/contracts'
+export const localizedLabel = z.object({ en_US: z.string(), zh_Hans: z.string().optional(), zh_Hant: z.string().optional() }) satisfies z.ZodType<I18nObject>
+export const artifactTypeSchema = z.object({ pluginName: z.string(), resourceType: z.string(), title: localizedLabel.optional() }) satisfies z.ZodType<ArtifactTypeDescriptor>
+export const artifactTypeName = (type?: ArtifactTypeDescriptor) => type?.title ? i18n.label({ ...type.title }) : t('kind.artifact')
 export const itemSchema = z.object({
+  presentation: z.object({ kind: z.literal('artifact'), referenceId: z.string().uuid(), type: artifactTypeSchema.optional() }).optional(),
   importOrigin: z.object({ provider: z.string(), documentId: z.string(), url: z.string().nullable(), revision: z.string(), importedAt: z.string(), warnings: z.array(z.string()) }).nullable().optional(),
   canWrite: z.boolean().optional(),
   sourceSync: z.object({ status: z.enum(['synced', 'pending', 'failed']), revision: z.string().optional() }).optional(),

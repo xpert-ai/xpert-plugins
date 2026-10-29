@@ -59,7 +59,7 @@ function fixture() {
   } as never)
   return { actor, space, item, access, files, scopes, uploads, current,
     reader: () => { role = 'member' }, revoke: () => { revoked = true }, unbind: () => { bound = false },
-    assistantChecks: () => assistantChecks }
+    assistantChecks: () => assistantChecks, setProjectType: (type: string) => { project.projectTypeKey = type } }
 }
 
 test('Space requires Project binding in its persistence schema', () => {
@@ -123,4 +123,13 @@ test('capability entry chooses trusted scope; resource checks do not repeat midd
   assert.equal(f.assistantChecks(), 1)
   await f.access.assistant({ ...f.actor, projectId: undefined })
   assert.equal(f.assistantChecks(), 2)
+})
+
+// The recovery UI must never weaken the resource policy.
+test('General Projects are rejected even after the host authorizes membership and Assistant binding', async () => {
+  const f = fixture()
+  f.setProjectType('general')
+  await assert.rejects(f.access.project(f.actor), /spaces.access_denied/)
+  f.setProjectType('space')
+  assert.equal((await f.access.project(f.actor)).projectTypeKey, 'space')
 })

@@ -47,3 +47,14 @@ Artifact 以 `pluginName + resourceType + resourceId` 标识来源，`authorizat
 - Office：XLSX 创建、校验、单元格读取与修改、序列化，以及独立的 `office.files__office.file` Remote View。文件编辑模式按版本保存，冲突时阻止覆盖，不自动合并并发修改；与原生 Office 快照/Yjs 模式分别处理。
 
 Spaces 通过 `workbench.content.resolve({ resourceId, providerKey: 'spaces' })` 解析资源，将返回的 navigation（包括 contentProvider 参数）原样交给当前 Workbench 打开。Spaces 不包含表格编辑 UI。新文档格式通过注册编辑器和独立视图扩展，不需要向平台增加专用格式 RuntimeCapability。
+
+## 成果引用与项目副本
+
+“添加素材 → 成果”提供两种方式：
+
+- **添加引用**：通过 `platform.artifact-library` 创建项目内唯一的成果引用，固定一个已发布版本，并注册到 Content Catalog。Spaces 只保存目录位置；宿主管理引用、版本选择和查看授权。每次查看都检查当前用户的项目权限及来源 Artifact 权限。不会创建公开链接、借用发布者身份或将私有源权限扩大为项目共享权限。
+- **复制到项目**：用户确认后，通过 `ArtifactsApi.readArtifactVersion({ purpose: 'copy' })` 读取并校验已发布版本。类型必须声明 `collection.allowCopy: true`；普通文件类型默认支持，会话快照默认不允许复制。副本使用目标项目权限，后续来源更新、删除和分享撤销不会改变副本。
+
+点击引用名称打开只读查看页。会话使用 ChatKit 消息列表，快照使用类型插件的隔离展示，动态成果使用当前查看者身份和 Provider 声明的查询操作。插件失效、来源撤权、版本失效或引用进入回收站后，继续读取会被拒绝；打开的页面定期重验权限。
+
+引用菜单中的“成果版本与分享”可以切换固定版本、复制已有链接、创建组织或公开分享以及撤销分享。创建公开分享需要用户确认，并受 Artifact 类型策略和来源权限约束；来源必须允许匿名读取，否则界面不提供公开选项，服务端也拒绝公开分享请求。已有链接直接复用；切换引用版本不会悄悄更新分享版本。移入回收站或移动目录只操作引用，不删除来源成果或撤销链接。所有使用本能力的宿主必须提供 `platform.artifact-library` 和最新 Content Catalog 展示协议。

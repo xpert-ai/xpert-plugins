@@ -132,16 +132,7 @@ export class SpaceFiles {
   async artifactBytes(actor: SpaceActor, artifactId: string, versionId: string) {
     const artifacts = this.runtime.createScopedApi(actor).capabilities?.get(ArtifactsRuntimeCapability)
     if (!artifacts) throw new Error('spaces.artifacts_unavailable')
-    const artifact = await artifacts.getArtifact(artifactId)
-    const version = (await artifacts.listArtifactVersions({ artifactId })).find((version) => version.id === versionId)
-    if (!version) throw denied()
-    if (!version.workspaceFileRef) throw new BadRequestException('spaces.artifact_file_unavailable')
-    // Collection can read another authorized project; its own ACL is checked by both
-    // Artifacts and WorkspaceFiles. The destination Project must not replace that scope.
-    const files = this.runtime.createScopedApi({ ...scoped(actor), userId: actor.userId }).capabilities?.get(WorkspaceFilesRuntimeCapability)
-    if (!files) throw new Error('spaces.files_unavailable')
-    const bytes = await files.readBuffer(version.workspaceFileRef)
-    return { artifact, version, buffer: bytes.buffer }
+    return artifacts.readArtifactVersion({ artifactId, artifactVersionId: versionId, purpose: 'copy' })
   }
   async available(actor: SpaceActor, page: number) {
     await this.access.project(actor)
@@ -163,7 +154,7 @@ export class SpaceFiles {
   async openArtifact(actor: SpaceActor, itemId: string) {
     const access = await this.access.resource(actor, itemId, 'read')
     if (!access.item?.artifactId) throw denied()
-    // A collection is a reference. It never expands access to the original Artifact.
+    // Legacy source inspection only. Collected SpaceItems contain independent Project copies.
     const artifacts = this.runtime.createScopedApi(actor).capabilities?.get(ArtifactsRuntimeCapability)
     if (!artifacts) throw new Error('spaces.artifacts_unavailable')
     const artifact = await artifacts.getArtifact(access.item.artifactId)

@@ -1,3 +1,4 @@
+import { SpaceArtifactLibrary } from './artifact-library.js'
 import { SpaceCatalog, catalogQuery, catalogCreate, catalogRename, catalogDuplicate, catalogLifecycle, catalogMove } from './catalog.js'
 import { SpaceImports, sourceSelection, importSelection } from './imports.js'
 import { BadRequestException, Injectable } from '@nestjs/common'
@@ -18,14 +19,14 @@ import { SpaceAccess } from './access.js'
 
 const selection = z.object({ itemId: id }).strict()
 const label = (en_US: string, zh_Hans: string) => ({ en_US, zh_Hans })
-const actions = ['catalog.duplicate', 'catalog.backup', 'catalog.preferences', 'catalog.preference.set', 'catalog.move', 'catalog.types', 'catalog.list', 'catalog.create', 'catalog.rename', 'catalog.lifecycle', 'source.list', 'source.search', 'source.preview', 'source.import', 'document.open', 'knowledge.enable',
+const actions = ['artifact.reference.open', 'artifact.reference.version', 'artifact.reference.share', 'artifact.reference.revoke', 'catalog.duplicate', 'catalog.backup', 'catalog.preferences', 'catalog.preference.set', 'catalog.move', 'catalog.types', 'catalog.list', 'catalog.create', 'catalog.rename', 'catalog.lifecycle', 'source.list', 'source.search', 'source.preview', 'source.import', 'document.open', 'knowledge.enable',
   'knowledge.status', 'knowledge.refresh', 'knowledge.search', 'item.create', 'item.edit', 'page.read', 'search',
   'file.list', 'page.export', 'artifact.list', 'artifact.collect', 'artifact.open', 'editor.list', 'editor.create']
 
 @Injectable()
 @ViewExtensionProvider('spaces.views')
 export class SpacesView implements IXpertViewExtensionProvider {
-  constructor(private readonly catalog: SpaceCatalog, private readonly imports: SpaceImports, private readonly content: SpaceContent, private readonly spaces: SpacesService, private readonly pages: SpacePages, private readonly ai: SpaceAi, private readonly files: SpaceFiles, private readonly editors: SpaceEditors, private readonly knowledge: SpaceKnowledge, private readonly access: SpaceAccess) {}
+  constructor(private readonly artifactLibrary: SpaceArtifactLibrary, private readonly catalog: SpaceCatalog, private readonly imports: SpaceImports, private readonly content: SpaceContent, private readonly spaces: SpacesService, private readonly pages: SpacePages, private readonly ai: SpaceAi, private readonly files: SpaceFiles, private readonly editors: SpaceEditors, private readonly knowledge: SpaceKnowledge, private readonly access: SpaceAccess) {}
   supports(context: XpertResolvedViewHostContext) {
     return context.hostType === 'agent' && context.capabilities?.features?.includes('spaces') === true
   }
@@ -34,7 +35,8 @@ export class SpacesView implements IXpertViewExtensionProvider {
     return [{ key: VIEW, title: label('Spaces', '协作空间'), hostType: context.hostType, slot,
       source: { provider: 'spaces.views', plugin: PLUGIN }, refreshable: true,
       activation: { requiredFeatures: ['spaces'] },
-      workbench: slot === 'agent.workbench.fixed' ? { fixed: true, menu: { enabled: true, label: label('Spaces', '协作空间'), order: 35 } } : {},
+      workbench: { ...{ projectType: { applicationKey: 'platform', projectTypeKey: 'space' } },
+        ...(slot === 'agent.workbench.fixed' ? { fixed: true, menu: { enabled: true, label: label('Spaces', '协作空间'), order: 35 } } : {}) },
       view: { type: 'remote_component', runtime: 'react', protocolVersion: 1,
         component: { isolation: 'iframe', entry: 'spaces' }, dataSource: { mode: 'platform' } },
       dataSource: { mode: 'platform', cache: { enabled: false }, querySchema: { supportsSelection: true, supportsParameters: true } },
@@ -43,7 +45,7 @@ export class SpacesView implements IXpertViewExtensionProvider {
         { key: 'editor.import', label: label('Import document', '导入文档'), actionType: 'invoke', transport: 'file' },
         { key: 'file.upload', label: label('Upload file', '上传文件'), actionType: 'invoke', transport: 'file' }],
       // Declare both phases: platform resource resolution, then container-local navigation.
-      clientCommands: ['assistant.chat.send_message', 'assistant.context.set', 'workbench.content.resolve', 'workbench.navigation.open'].map((key) => ({ key, required: key === 'workbench.content.resolve', label: label(key, key) }))
+      clientCommands: ['assistant.chat.send_message', 'assistant.context.set', 'workbench.content.resolve', 'workbench.navigation.open', 'workbench.browser.open', 'workbench.clipboard.write'].map((key) => ({ key, required: key === 'workbench.content.resolve', label: label(key, key) }))
     }]
   }
   async getRemoteComponentEntry(context: XpertResolvedViewHostContext, viewKey: string, component: XpertRemoteComponentViewSchema['component']) {
@@ -118,11 +120,16 @@ export class SpacesView implements IXpertViewExtensionProvider {
       case 'page.read': result = await this.pages.read(actor, selection.parse(input).itemId); break
       case 'page.export': result = await this.files.exportPage(actor, selection.parse(input).itemId); break
       case 'file.list': result = await this.files.list(actor, selection.parse(input).itemId); break
+      case 'artifact.reference.open': result = await this.artifactLibrary.open(actor, z.object({ referenceId: id }).strict().parse(input).referenceId); break
+      case 'artifact.reference.revoke': result = await this.artifactLibrary.revoke(actor, z.object({ referenceId: id }).strict().parse(input).referenceId); break
+      case 'artifact.reference.version': result = await this.artifactLibrary.selectVersion(actor, z.object({ referenceId: id, versionId: id, expectedRevision: z.number().int().positive() }).strict().parse(input)); break
+      case 'artifact.reference.share': result = await this.artifactLibrary.share(actor, z.object({ referenceId: id, accessMode: z.enum(['organization_all', 'public_link']), days: z.number().int().min(1).max(30), acknowledgePublic: z.boolean().optional() }).strict().parse(input)); break
       case 'artifact.open': result = await this.files.openArtifact(actor, selection.parse(input).itemId); break
       case 'artifact.list': result = await this.files.available(actor, z.object({ page: z.number().int().min(1).default(1) }).strict().parse(input).page); break
       case 'artifact.collect': {
-        const p = z.object({ spaceId: id, parentId: id.nullable().default(null), artifactId: id, versionId: id }).strict().parse(input)
-        result = await this.files.collect(actor, p.spaceId, p.parentId, p.artifactId, p.versionId); break
+        const p = z.object({ spaceId: id, parentId: id.nullable().default(null), artifactId: id, versionId: id, mode: z.enum(['reference', 'copy']), acknowledgeCopy: z.boolean().optional() }).strict().parse(input)
+        if (p.mode === 'copy' && p.acknowledgeCopy !== true) throw new BadRequestException('spaces.artifact_copy_confirmation_required')
+        result = p.mode === 'reference' ? await this.artifactLibrary.add(actor, p) : await this.files.collect(actor, p.spaceId, p.parentId, p.artifactId, p.versionId); break
       }
       case 'search': {
         const p = z.object({ resourceId: id, query: z.string().trim().min(1).max(4000) }).strict().parse(input)

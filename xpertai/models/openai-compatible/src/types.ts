@@ -4,6 +4,8 @@ import { CommonChatModelParameters } from '@xpert-ai/plugin-sdk'
 export const OpenAICompatible = 'openai-compatible'
 
 export interface OpenAICompatModelCredentials extends CommonChatModelParameters {
+  api_protocol?: 'chat' | 'responses'
+  reasoning_effort?: string
   api_key: string
   endpoint_url?: string
   endpoint_model_name?: string

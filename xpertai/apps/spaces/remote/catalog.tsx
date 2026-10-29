@@ -5,13 +5,13 @@ import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescrip
 import { FolderSelect } from './create-dialog'
 import { action, openDocument } from './bridge'
 import { t, i18n, useLocale } from './i18n'
-import { itemSchema, type Item } from './model'
+import { itemSchema, localizedLabel, type Item } from './model'
 
 // Validate provider metadata against the shared contract; translations are optional.
-export const localizedLabel = z.object({ en_US: z.string(), zh_Hans: z.string().optional(), zh_Hant: z.string().optional() }) satisfies z.ZodType<I18nObject>
+export { localizedLabel } from './model'
 export const implementationSchema = z.object({ typeId: z.string(), title: localizedLabel, providerKey: z.string(), implementationKey: z.string(), implementationTitle: localizedLabel, templates: z.array(z.object({ id: z.string(), title: localizedLabel, description: localizedLabel.optional() })).optional() })
 export type Implementation = z.infer<typeof implementationSchema>
-export const catalogItemSchema = z.object({ contentId: z.string(), sourceSync: itemSchema.shape.sourceSync, preview: itemSchema.shape.preview, availability: itemSchema.shape.availability, parentId: z.string().nullable().optional(), placementVersion: z.number().optional(), canWrite: z.boolean(), title: z.string(), typeId: z.string(), revision: z.string(), updatedAt: z.string(), deleted: z.boolean(), defaultEditorKey: z.string(), allowedActions: z.array(z.string()), compatibleEditors: itemSchema.shape.compatibleEditors })
+export const catalogItemSchema = z.object({ contentId: z.string(), presentation: itemSchema.shape.presentation, sourceSync: itemSchema.shape.sourceSync, preview: itemSchema.shape.preview, availability: itemSchema.shape.availability, parentId: z.string().nullable().optional(), placementVersion: z.number().optional(), canWrite: z.boolean(), title: z.string(), typeId: z.string(), revision: z.string(), updatedAt: z.string(), deleted: z.boolean(), defaultEditorKey: z.string(), allowedActions: z.array(z.string()), compatibleEditors: itemSchema.shape.compatibleEditors })
 export const catalogPageSchema = z.object({ items: z.array(catalogItemSchema), hasMore: z.boolean() })
 // Manifest labels use the platform locale convention; translate once at the adapter boundary.
 export function useCatalogLabel() {
@@ -19,7 +19,7 @@ export function useCatalogLabel() {
   return (label: I18nObject) => i18n.label({ ...label })
 }
 export function catalogItem(item: z.infer<typeof catalogItemSchema>): Item {
-  return { id: item.contentId, sourceSync: item.sourceSync, preview: item.preview, availability: item.availability, title: item.title, kind: 'resource', version: item.placementVersion ?? 0, parentId: item.parentId ?? null, canWrite: item.canWrite, editorKey: item.defaultEditorKey,
+  return { id: item.contentId, presentation: item.presentation, sourceSync: item.sourceSync, preview: item.preview, availability: item.availability, title: item.title, kind: 'resource', version: item.placementVersion ?? 0, parentId: item.parentId ?? null, canWrite: item.canWrite, editorKey: item.defaultEditorKey,
     updatedAt: item.updatedAt, deleted: item.deleted, resourceTypeId: item.typeId, resourceRevision: item.revision, allowedActions: item.allowedActions, compatibleEditors: item.compatibleEditors }
 }
 export const openCatalogItem = (id: string, editorKey?: string) => openDocument(id, 'platform.content.catalog', editorKey)
@@ -50,7 +50,7 @@ export function CatalogLifecycleDialog({ item, operation, onClose, onDone, run, 
 }) {
   return <Dialog open onOpenChange={open => { if (!open && !busy) onClose() }}><DialogContent>
     <DialogHeader><DialogTitle>{operation === 'trash' ? t('trash.move') : t('trash.restore')}</DialogTitle>
-      <DialogDescription>{operation === 'trash' ? t('catalog.recycleDescription', { title: item.title }) : t('catalog.restoreDescription', { title: item.title })}</DialogDescription></DialogHeader>
+      <DialogDescription>{operation === 'trash' ? t(item.presentation?.kind === 'artifact' ? 'artifact.trashReference' : 'catalog.recycleDescription', { title: item.title }) : t(item.presentation?.kind === 'artifact' ? 'artifact.restoreReference' : 'catalog.restoreDescription', { title: item.title })}</DialogDescription></DialogHeader>
     <DialogFooter><Button variant="outline" disabled={busy} onClick={onClose}>{t('common.cancel')}</Button>
       <Button variant={operation === 'trash' ? 'destructive' : 'default'} disabled={busy} onClick={() => void run(async () => {
         await action('catalog.lifecycle', { contentId: item.id, expectedRevision: item.resourceRevision, action: operation })
