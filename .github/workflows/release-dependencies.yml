@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22.14.0
+          node-version: 22.17.1
       - uses: pnpm/action-setup@v4
         with:
           package_json_file: ${{ matrix.workspace }}/package.json
@@ -44,9 +44,22 @@ jobs:
           pnpm -C xpertai run verify:database-workbench
           pnpm -C plugin-dev-harness --ignore-workspace install --frozen-lockfile --ignore-scripts
           pnpm -C plugin-dev-harness --ignore-workspace run build
+      - name: Match lifecycle checks to the production API runtime
+        if: matrix.workspace == 'xpertai'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.20.2
+      - name: Load database plugins on the production Node version
+        if: matrix.workspace == 'xpertai'
+        run: |
           for plugin in db-studio mysql postgres hana; do
             node plugin-dev-harness/dist/index.js --workspace ./xpertai --plugin "@xpert-ai/plugin-$plugin"
           done
+      - name: Restore the workspace build runtime
+        if: matrix.workspace == 'xpertai'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.17.1
       - name: Build and verify Maps from a clean checkout
         if: matrix.workspace == 'xpertai'
         run: |
