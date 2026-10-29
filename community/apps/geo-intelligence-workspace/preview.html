@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GEO 智能监测工作台 - 预览</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 0; background: #f5f7fb; font-family: system-ui, -apple-system, sans-serif; }
+    #root { min-height: 100vh; }
+    .pill { display: inline-block; padding: 2px 9px; border-radius: 100px; font-size: 12px; font-weight: 600; }
+    .pill-positive { background: #ecfdf5; color: #047857; }
+    .pill-negative { background: #fef2f2; color: #b91c1c; }
+    .pill-neutral { background: #f1f5f9; color: #475569; }
+    .pill-matched { background: #eff6ff; color: #1d4ed8; }
+    .pill-unmatched { background: #f8fafc; color: #94a3b8; }
+    .pill-contradict { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+  </style>
+  <script crossorigin src="https://cdn.bootcdn.net/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script crossorigin src="https://cdn.bootcdn.net/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script>
+    // ─── Mock Data ──────────────────────────────────────────────
+    const MOCK_FAQS = [
+      { id: 'faq-001', question: '南京星河医院怎么样？', answer: '南京星河医院是一所综合性医院，医疗设备先进，科室设置齐全。儿科、内科、外科均有专业医师团队。', sentiment: 'positive', keywords: ['星河医院','综合性','先进','专业'], status: 'approved' },
+      { id: 'faq-002', question: '星河医院儿科在哪个院区？', answer: '星河医院儿科门诊设在东院区，可通过官方预约页面提前预约。', sentiment: 'neutral', keywords: ['儿科','东院区','预约'], status: 'approved' },
+      { id: 'faq-003', question: '星河医院体检中心几点开门？', answer: '星河医院体检中心工作日 8:00-12:00 开放体检服务，需提前预约。', sentiment: 'neutral', keywords: ['体检','8:00','预约'], status: 'approved' },
+      { id: 'faq-004', question: '星河医院收费贵吗？', answer: '星河医院收费标准按南京市物价局规定执行，属于公立医院正常收费范围。', sentiment: 'neutral', keywords: ['收费','物价局','公立医院'], status: 'approved' },
+    ];
+
+    const MOCK_RUNS = [
+      {
+        run_id: 'demo-run-001', query: '星河示例医院儿科如何预约？', brand: '星河示例医院',
+        status: 'needs_review', created_at: new Date().toISOString(),
+        metrics: {
+          brand_mentioned: true, competitor_mentions: [], citations_available: false, citation_urls: [],
+          faq_matched: true, faq_consistency: 0.65, faq_has_contradiction: false, faq_matched_id: 'faq-002',
+          sentiment_polarity: 'positive', sentiment_score: 0.5,
+        },
+        raw_response: '星河示例医院的儿科在东院区，可以通过官方页面预约，流程非常方便。',
+        suggestions: ['建议在回答中增加更多儿科服务的具体信息'],
+      },
+      {
+        run_id: 'demo-run-002', query: '南京就医推荐哪个医院？', brand: '星河示例医院',
+        status: 'needs_review', created_at: new Date(Date.now() - 3600000).toISOString(),
+        metrics: {
+          brand_mentioned: false, competitor_mentions: [], citations_available: false, citation_urls: [],
+          faq_matched: false, faq_consistency: 0.0, faq_has_contradiction: false, faq_matched_id: null,
+          sentiment_polarity: 'neutral', sentiment_score: 0.0,
+        },
+        raw_response: '南京有多家知名医院，建议您根据科室需求选择。',
+        suggestions: [],
+      },
+    ];
+
+    // ─── Mock Bridge ────────────────────────────────────────────
+    window.GeoBridge = {
+      ready: () => true,
+      announce: () => {},
+      request: async (type, payload) => {
+        if (type === 'requestData') {
+          return { data: { items: MOCK_RUNS, faqs: MOCK_FAQS, meta: { prompts: [
+            { id: 'p1', query: '儿科门诊在哪个院区？', brand: '星河示例医院' },
+            { id: 'p2', query: '体检中心几点开门？', brand: '星河示例医院' },
+          ]}}};
+        }
+        return { result: { success: true } };
+      },
+      action: async (key, input) => { console.log('Action:', key, input); return { success: true }; },
+    };
+
+    window.GeoClearRequest = () => {};
+    window.GeoRequestKey = (q, b) => `${b}-${q.slice(0,20).replace(/\s+/g,'-')}`;
+
+    const h = React.createElement;
+
+    // ─── Dashboard ──────────────────────────────────────────────
+    window.GeoDashboard = ({ runs }) => {
+      if (!runs?.length) return null;
+      const total = runs.length;
+      const reviewed = runs.filter(r => r.status === 'approved').length;
+      const pending = runs.filter(r => r.status === 'needs_review').length;
+      const failed = runs.filter(r => r.status === 'failed').length;
+      const brandRate = runs.filter(r => r.metrics?.brand_mentioned).length;
+
+      return h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px', margin: '24px 0' } },
+        h('div', { style: { background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' } },
+          h('div', { style: { fontSize: '32px', fontWeight: '700', color: '#152238' } }, total),
+          h('div', { style: { fontSize: '14px', color: '#64748b' } }, '总监测次数')),
+        h('div', { style: { background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' } },
+          h('div', { style: { fontSize: '32px', fontWeight: '700', color: '#047857' } }, reviewed),
+          h('div', { style: { fontSize: '14px', color: '#64748b' } }, '已审核')),
+        h('div', { style: { background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' } },
+          h('div', { style: { fontSize: '32px', fontWeight: '700', color: '#2563eb' } }, pending),
+          h('div', { style: { fontSize: '14px', color: '#64748b' } }, '待审核')),
+        h('div', { style: { background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' } },
+          h('div', { style: { fontSize: '32px', fontWeight: '700', color: '#b91c1c' } }, failed),
+          h('div', { style: { fontSize: '14px', color: '#64748b' } }, '失败')),
+        h('div', { style: { background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' } },
+          h('div', { style: { fontSize: '32px', fontWeight: '700', color: '#7c3aed' } }, brandRate),
+          h('div', { style: { fontSize: '14px', color: '#64748b' } }, '品牌提及次数'))
+      );
+    };
+
+    // ─── Sentiment Badge ────────────────────────────────────────
+    const SentimentBadge = ({ polarity }) => {
+      const cls = polarity === 'positive' ? 'pill-positive' : polarity === 'negative' ? 'pill-negative' : 'pill-neutral';
+      const label = polarity === 'positive' ? '😊 正面' : polarity === 'negative' ? ' 负面' : '😐 中立';
+      return h('span', { className: `pill ${cls}` }, label);
+    };
+
+    // ─── FAQ Match Badge ────────────────────────────────────────
+    const FAQMatchBadge = ({ matched, contradiction }) => {
+      if (contradiction) return h('span', { className: 'pill pill-contradict' }, '⚠️ 与FAQ矛盾');
+      if (matched) return h('span', { className: 'pill pill-matched' }, '✓ FAQ匹配');
+      return h('span', { className: 'pill pill-unmatched' }, '未匹配FAQ');
+    };
+
+    // ─── Run Card ───────────────────────────────────────────────
+    window.GeoRunCard = ({ run, refresh }) => {
+      const [expanded, setExpanded] = React.useState(false);
+      const [showDraft, setShowDraft] = React.useState(false);
+      const [draftText, setDraftText] = React.useState('');
+      const [busy, setBusy] = React.useState(false);
+      const m = run.metrics || {};
+
+      return h('article', { style: { background: 'white', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '20px', margin: '18px 0', boxShadow: '0 2px 12px #0f172a08' } },
+        h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' } },
+          h('div', null,
+            h('div', { style: { fontSize: '12px', color: '#64748b', marginBottom: '4px' } }, run.run_id),
+            h('h3', { style: { margin: '0 0 8px 0', fontSize: '16px' } }, run.query),
+            h('div', { style: { fontSize: '13px', color: '#64748b' } }, `品牌: ${run.brand}`)),
+          h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' } },
+            SentimentBadge({ polarity: m.sentiment_polarity || 'neutral' }),
+            FAQMatchBadge({ matched: m.faq_matched, contradiction: m.faq_has_contradiction }),
+            h('span', { className: `pill ${m.brand_mentioned ? 'pill-positive' : 'pill-neutral'}` },
+              m.brand_mentioned ? '品牌已提及' : '品牌未提及'))),
+        h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', margin: '12px 0' } },
+          h('div', null, h('div', { style: { fontSize: '12px', color: '#64748b' } }, 'FAQ一致性'), h('div', { style: { fontWeight: '600' } }, m.faq_consistency ? `${(m.faq_consistency * 100).toFixed(0)}%` : '—')),
+          h('div', null, h('div', { style: { fontSize: '12px', color: '#64748b' } }, '竞品提及'), h('div', { style: { fontWeight: '600' } }, m.competitor_mentions?.length ? '✓ 是' : '✗ 否')),
+          h('div', null, h('div', { style: { fontSize: '12px', color: '#64748b' } }, '引用可用'), h('div', { style: { fontWeight: '600' } }, m.citations_available ? '✓ 是' : '✗ 否')),
+          h('div', null, h('div', { style: { fontSize: '12px', color: '#64748b' } }, '情感分数'), h('div', { style: { fontWeight: '600' } }, m.sentiment_score || '0'))),
+        run.raw_response && h('div', { style: { marginTop: '12px' } },
+          h('div', { style: { fontWeight: '600', marginBottom: '8px' } }, '原始回答'),
+          h('pre', { style: { fontSize: '13px', lineHeight: '1.6', whiteSpace: 'pre-wrap', background: '#f8fafc', padding: '14px', borderRadius: '8px' } }, run.raw_response)),
+        h('div', { style: { display: 'flex', gap: '8px', marginTop: '14px', flexWrap: 'wrap' } },
+          h('button', { onClick: () => setExpanded(!expanded), style: { border: 0, borderRadius: '8px', background: '#eef2ff', color: '#1d4ed8', padding: '9px 15px', cursor: 'pointer' } }, expanded ? '收起' : '展开详情'),
+          h('button', { onClick: () => setShowDraft(!showDraft), style: { border: 0, borderRadius: '8px', background: '#eef2ff', color: '#1d4ed8', padding: '9px 15px', cursor: 'pointer' } }, showDraft ? '取消' : '撰写优化内容')),
+        expanded && h('div', { style: { borderTop: '1px solid #e2e8f0', marginTop: '16px', paddingTop: '16px' } },
+          h('div', { style: { fontSize: '12px', color: '#64748b' } }, `创建时间: ${new Date(run.created_at).toLocaleString('zh-CN')}`),
+          m.faq_matched_id && h('div', { style: { fontSize: '12px', color: '#64748b', marginTop: '4px' } }, `匹配FAQ: ${m.faq_matched_id}`)),
+        showDraft && h('div', { style: { marginTop: '12px', padding: '16px', background: '#f8fafc', borderRadius: '8px' } },
+          h('textarea', { value: draftText, onChange: e => setDraftText(e.target.value), placeholder: '输入优化后的内容...', style: { width: '100%', minHeight: '120px', padding: '10px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', marginBottom: '8px' } }),
+          h('button', { onClick: async () => { setBusy(true); try { await window.GeoBridge.action('save_content', { run_id: run.run_id, text: draftText, actor: 'demo-editor', evidence_ids: [] }); setDraftText(''); setShowDraft(false); refresh(); } catch(e) { alert(e.message); } finally { setBusy(false); } }, disabled: busy || !draftText.trim(), style: { border: 0, borderRadius: '8px', background: '#2563eb', color: 'white', padding: '9px 15px', cursor: 'pointer' } }, busy ? '保存中...' : '保存草稿')))
+    };
+
+    // ─── FAQ Manager Component ──────────────────────────────────
+    const FAQManager = ({ faqs }) => {
+      const [showForm, setShowForm] = React.useState(false);
+      const [question, setQuestion] = React.useState('');
+      const [answer, setAnswer] = React.useState('');
+      const [sentiment, setSentiment] = React.useState('neutral');
+      const [keywords, setKeywords] = React.useState('');
+
+      const sentimentPill = (s) => {
+        const cls = s === 'positive' ? 'pill-positive' : s === 'negative' ? 'pill-negative' : 'pill-neutral';
+        const label = s === 'positive' ? '正面' : s === 'negative' ? '负面' : '中立';
+        return h('span', { className: `pill ${cls}` }, label);
+      };
+
+      return h('section', { style: { margin: '24px 0' } },
+        h('div', { className: 'section-title', style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+          h('h2', { style: { fontSize: '18px', margin: 0 } }, 'FAQ 知识库'),
+          h('button', { onClick: () => setShowForm(!showForm), style: { border: 0, borderRadius: '8px', background: '#e8efff', color: '#1d4ed8', padding: '8px 14px', cursor: 'pointer' } },
+            showForm ? '取消' : '+ 添加FAQ')),
+        showForm && h('div', { style: { background: 'white', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '20px', margin: '14px 0' } },
+          h('label', { style: { display: 'block', fontWeight: '600', marginBottom: '6px' } }, '问题', h('input', { value: question, onChange: e => setQuestion(e.target.value), style: { display: 'block', width: '100%', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '10px', marginTop: '6px', fontSize: '14px' } })),
+          h('label', { style: { display: 'block', fontWeight: '600', marginBottom: '6px', marginTop: '12px' } }, '标准答案', h('textarea', { value: answer, onChange: e => setAnswer(e.target.value), rows: 3, style: { display: 'block', width: '100%', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '10px', marginTop: '6px', fontSize: '14px' } })),
+          h('label', { style: { display: 'block', fontWeight: '600', marginBottom: '6px', marginTop: '12px' } }, '情感极性',
+            h('select', { value: sentiment, onChange: e => setSentiment(e.target.value), style: { display: 'block', width: '200px', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '10px', marginTop: '6px', fontSize: '14px' } },
+              h('option', { value: 'positive' }, '正面'), h('option', { value: 'neutral' }, '中立'), h('option', { value: 'negative' }, '负面'))),
+          h('label', { style: { display: 'block', fontWeight: '600', marginBottom: '6px', marginTop: '12px' } }, '关键词（逗号分隔）', h('input', { value: keywords, onChange: e => setKeywords(e.target.value), style: { display: 'block', width: '100%', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '10px', marginTop: '6px', fontSize: '14px' } })),
+          h('button', { onClick: async () => { await window.GeoBridge.action('save_faq', { question, answer, sentiment, keywords: keywords.split(',').map(k=>k.trim()) }); setQuestion(''); setAnswer(''); setKeywords(''); setShowForm(false); alert('FAQ已保存'); }, style: { border: 0, borderRadius: '8px', background: '#2563eb', color: 'white', padding: '9px 15px', marginTop: '14px', cursor: 'pointer' } }, '保存FAQ')),
+        faqs?.length ? faqs.map(faq => h('div', { key: faq.id, style: { background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px', margin: '10px 0' } },
+          h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'start' } },
+            h('div', { style: { flex: 1 } },
+              h('div', { style: { fontWeight: '600', fontSize: '15px', marginBottom: '6px' } }, faq.question),
+              h('div', { style: { fontSize: '13px', color: '#64748b', lineHeight: '1.6' } }, faq.answer),
+              h('div', { style: { marginTop: '8px', fontSize: '12px', color: '#94a3b8' } }, `关键词: ${faq.keywords?.join(', ') || '无'}`),
+            ),
+            h('div', { style: { display: 'flex', gap: '6px', flexShrink: 0 } },
+              sentimentPill(faq.sentiment),
+              faq.status === 'approved' ? h('span', { className: 'pill pill-matched' }, '✓ 已审核') : h('span', { className: 'pill pill-unmatched' }, '待审核')))))
+          : h('p', { style: { padding: '30px', color: '#64748b' } }, '暂无FAQ条目'));
+    };
+
+    // ─── App ────────────────────────────────────────────────────
+    function App() {
+      const [query, setQuery] = React.useState('在本市选择体检机构时，应该关注哪些公开信息？');
+      const [brand, setBrand] = React.useState('星河示例医院');
+      const [prompts, setPrompts] = React.useState([]);
+      const [runs, setRuns] = React.useState([]);
+      const [faqs, setFaqs] = React.useState([]);
+      const [busy, setBusy] = React.useState(false);
+      const [error, setError] = React.useState('');
+
+      async function load() {
+        try {
+          const reply = await window.GeoBridge.request('requestData', { query: {} });
+          const data = reply.data || reply.result || reply.payload || {};
+          setRuns(Array.isArray(data.items) ? data.items : []);
+          setFaqs(Array.isArray(data.faqs) ? data.faqs : []);
+          setPrompts(Array.isArray(data.meta?.prompts) ? data.meta.prompts : []);
+        } catch (e) { setError(String(e.message || e)); }
+      }
+      React.useEffect(() => { load(); }, []);
+
+      async function monitor(event) {
+        event.preventDefault(); setBusy(true); setError('');
+        try {
+          await window.GeoBridge.action('monitor', { query, brand, runId: window.GeoRequestKey(query, brand) });
+          window.GeoClearRequest();
+          await load();
+        } catch (e) { setError(String(e.message || e)); }
+        finally { setBusy(false); }
+      }
+
+      return h('main', { className: 'geo-root', style: { maxWidth: '1100px', margin: 'auto', padding: '32px' } },
+        h('header', null,
+          h('div', { style: { color: '#2563eb', fontSize: '11px', fontWeight: '700', letterSpacing: '.12em' } }, 'GEO INTELLIGENCE / HOSPITAL DEMO'),
+          h('h1', { style: { margin: '7px 0', fontSize: '28px' } }, 'GEO 智能监测工作台'),
+          h('p', { style: { color: '#64748b' } }, '用原始问题观察 DeepSeek 回答，检测品牌提及率，与 FAQ 知识库比对答案一致性和情感倾向。')),
+        window.GeoDashboard && h(window.GeoDashboard, { runs }),
+        h(FAQManager, { faqs }),
+        h('details', { style: { margin: '12px 0' } },
+          h('summary', { style: { cursor: 'pointer', color: '#1d4ed8' } }, 'Prompt 库'),
+          prompts.map(item => h('button', { key: item.id, onClick: () => { setQuery(item.query); setBrand(item.brand); }, style: { border: 0, borderRadius: '8px', background: '#2563eb', color: 'white', padding: '9px 15px', margin: '4px', cursor: 'pointer' } }, item.query))),
+        h('form', { onSubmit: monitor, style: { background: 'white', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '20px', margin: '18px 0' } },
+          h('label', { style: { display: 'block', fontWeight: '600', marginBottom: '14px' } }, '监测品牌', h('input', { value: brand, onChange: e => setBrand(e.target.value), maxLength: 100, required: true, style: { display: 'block', width: '100%', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '10px', marginTop: '6px', fontSize: '14px' } })),
+          h('label', { style: { display: 'block', fontWeight: '600', marginBottom: '14px' } }, '监测问题', h('textarea', { value: query, onChange: e => setQuery(e.target.value), maxLength: 1000, rows: 3, required: true, style: { display: 'block', width: '100%', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '10px', marginTop: '6px', fontSize: '14px' } })),
+          h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } },
+            h('button', { disabled: busy, type: 'submit', style: { border: 0, borderRadius: '8px', background: '#2563eb', color: 'white', padding: '9px 15px', cursor: 'pointer' } }, busy ? '监测中…' : '运行监测'),
+            h('button', { type: 'button', disabled: busy, onClick: async () => { try { await window.GeoBridge.action('save_prompt', { query, brand }); await load(); } catch(e) { setError(e.message); } }, style: { border: 0, borderRadius: '8px', background: '#eef2ff', color: '#1d4ed8', padding: '9px 15px', cursor: 'pointer' } }, '保存到 Prompt 库'))),
+        error && h('div', { role: 'alert', style: { color: '#b91c1c', marginTop: '12px' } }, error),
+        h('section', null,
+          h('div', { className: 'section-title', style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+            h('h2', { style: { fontSize: '18px', margin: 0 } }, '监测记录'),
+            h('button', { type: 'button', onClick: load, style: { border: 0, borderRadius: '8px', background: '#e8efff', color: '#1d4ed8', padding: '8px 14px', cursor: 'pointer' } }, '刷新')),
+          runs.length ? runs.map(run => h(window.GeoRunCard, { key: run.run_id, run, refresh: load })) : h('p', { style: { padding: '30px', color: '#64748b' } }, '暂无监测记录。')))
+    }
+
+    ReactDOM.render(h(App), document.getElementById('root'));
+    window.GeoBridge.announce();
+  </script>
+</body>
+</html>

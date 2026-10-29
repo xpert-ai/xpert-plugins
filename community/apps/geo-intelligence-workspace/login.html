@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GEO Hub 登录</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a1628;font-family:system-ui,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center}
+.card{background:#0d2137;border:1px solid rgba(0,255,136,.25);border-radius:12px;padding:40px;width:400px;text-align:center;position:relative;z-index:2}
+.logo{font-size:26px;font-weight:900;color:#00ff88;letter-spacing:3px;margin-bottom:6px;text-shadow:0 0 10px rgba(0,255,136,.4)}
+.sub{color:#7a8ba0;font-size:10px;letter-spacing:5px;margin-bottom:28px;text-transform:uppercase}
+.field{text-align:left;margin-bottom:14px}
+.field label{display:block;color:#7a8ba0;font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;margin-bottom:5px}
+.field input{width:100%;padding:10px 12px;background:rgba(13,33,55,.8);border:1px solid rgba(0,255,136,.15);border-radius:6px;color:#e0e6ed;font-size:14px;outline:none}
+.field input:focus{border-color:#00ff88}
+.go{width:100%;padding:12px;background:linear-gradient(135deg,#00ff88,#00d4ff);border:none;border-radius:6px;color:#0a1628;font-size:14px;font-weight:700;letter-spacing:2px;cursor:pointer;margin-top:6px;transition:all .2s}
+.go:hover{box-shadow:0 0 20px rgba(0,255,136,.3)}
+.go:disabled{opacity:.5;cursor:not-allowed}
+.err{color:#ff4466;font-size:12px;margin-top:10px;min-height:16px}
+.ok{color:#00ff88;font-size:12px;margin-top:10px}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.2);border-top-color:#0a1628;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* GEO visual refresh: decorative login treatment; authentication logic is unchanged. */
+body{position:relative;isolation:isolate;overflow:hidden;background:radial-gradient(circle at 50% 46%,#172a42 0%,#0c1728 42%,#080f1d 100%);color:#e8eef5;font-family:Inter,'Segoe UI','Microsoft YaHei UI',system-ui,sans-serif}
+body::before{content:'';position:fixed;inset:-20%;z-index:0;pointer-events:none;background:radial-gradient(circle at 16% 20%,rgba(56,182,200,.23),transparent 22%),radial-gradient(circle at 82% 74%,rgba(121,105,217,.18),transparent 26%),radial-gradient(circle at 78% 15%,rgba(55,150,190,.13),transparent 20%);filter:blur(12px);animation:geoAura 16s ease-in-out infinite alternate}
+body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background-image:linear-gradient(rgba(124,176,201,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(124,176,201,.035) 1px,transparent 1px);background-size:56px 56px;mask-image:linear-gradient(to bottom,transparent,black 25%,black 75%,transparent)}
+.particle-field{position:fixed;inset:0;z-index:1;overflow:hidden;pointer-events:none}
+.particle-field span{position:absolute;left:var(--x);top:var(--y);width:var(--size);height:var(--size);border-radius:50%;background:#63cdd9;box-shadow:0 0 8px 2px rgba(99,205,217,.38);opacity:0;animation:geoFloat var(--dur) linear var(--delay) infinite}
+.particle-field span:nth-child(3n){background:#a38cf0;box-shadow:0 0 10px 2px rgba(163,140,240,.4)}
+.particle-field span:nth-child(5n){background:#85d9bb;box-shadow:0 0 10px 2px rgba(133,217,187,.32)}
+.particle-field span:nth-child(7n){width:2px;height:2px}
+@keyframes geoFloat{0%{transform:translate3d(0,26px,0) scale(.6);opacity:0}20%{opacity:.65}75%{opacity:.5}100%{transform:translate3d(var(--drift),-92px,0) scale(1.25);opacity:0}}
+@keyframes geoAura{from{transform:translate3d(-1%,1%,0) scale(1)}to{transform:translate3d(2%,-2%,0) scale(1.08)}}
+.card{width:min(420px,calc(100vw - 32px));padding:42px 40px 34px;background:rgba(20,34,53,.91);border:1px solid rgba(105,147,174,.32);border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.34),0 0 50px rgba(56,182,200,.06);backdrop-filter:blur(18px)}
+.card::before{content:'';display:block;width:40px;height:40px;margin:0 auto 19px;border:1px solid rgba(82,196,210,.48);border-radius:12px;background:radial-gradient(circle at 50% 50%,rgba(84,198,209,.25),rgba(31,79,105,.2));box-shadow:inset 0 0 0 7px rgba(56,182,200,.06),0 6px 20px rgba(35,166,182,.1)}
+.logo{font-size:26px;letter-spacing:.2px;font-weight:750;color:#e8eef5;text-shadow:none;margin-bottom:5px}
+.sub{color:#a5b8ca;font-size:12px;letter-spacing:2px;margin-bottom:34px;text-transform:none}
+.field{margin-bottom:17px}
+.field label{color:#b4c3d3;font-size:12px;font-weight:600;letter-spacing:0;text-transform:none;margin-bottom:8px}
+.field input{padding:12px 13px;min-height:44px;background:#101d2e;border:1px solid #3a5168;border-radius:9px;color:#e8eef5;font-size:14px;transition:border-color .18s,box-shadow .18s}
+.field input:hover{border-color:#527088}
+.field input:focus{border-color:#38b6c8;box-shadow:0 0 0 3px rgba(56,182,200,.16)}
+.go{min-height:44px;margin-top:9px;padding:12px;background:#38b6c8;border-radius:9px;color:#08222c;font-size:14px;font-weight:700;letter-spacing:.2px;box-shadow:0 8px 24px rgba(56,182,200,.18);transition:background .18s,box-shadow .18s,transform .18s}
+.go:hover{background:#58c7d5;box-shadow:0 11px 28px rgba(56,182,200,.25);transform:translateY(-1px)}
+.go:focus-visible{outline:2px solid #9de7ee;outline-offset:3px}
+.go:disabled{transform:none;box-shadow:none}
+.err{color:#f4a0aa;font-size:12px;margin-top:13px}
+.ok{color:#83dcb3;font-size:12px;margin-top:13px}
+.spinner{border-color:rgba(8,34,44,.18);border-top-color:#08222c}
+@media(max-width:480px){.card{padding:34px 25px 27px}.sub{margin-bottom:28px}}
+@media(prefers-reduced-motion:reduce){body::before,.particle-field span{animation:none}.particle-field span{opacity:.38}.go{transition:none}.go:hover{transform:none}}
+</style>
+</head>
+<body>
+<div class="particle-field" aria-hidden="true"><span style="--x:11%;--y:19%;--size:2px;--delay:0s;--dur:9s;--drift:-40px"></span><span style="--x:48%;--y:80%;--size:3px;--delay:-7s;--dur:10s;--drift:-23px"></span><span style="--x:85%;--y:41%;--size:4px;--delay:-14s;--dur:11s;--drift:-6px"></span><span style="--x:22%;--y:2%;--size:5px;--delay:-2s;--dur:12s;--drift:11px"></span><span style="--x:59%;--y:63%;--size:2px;--delay:-9s;--dur:13s;--drift:28px"></span><span style="--x:96%;--y:24%;--size:3px;--delay:-16s;--dur:14s;--drift:-36px"></span><span style="--x:33%;--y:85%;--size:4px;--delay:-4s;--dur:15s;--drift:-19px"></span><span style="--x:70%;--y:46%;--size:5px;--delay:-11s;--dur:16s;--drift:-2px"></span><span style="--x:7%;--y:7%;--size:2px;--delay:-18s;--dur:17s;--drift:15px"></span><span style="--x:44%;--y:68%;--size:3px;--delay:-6s;--dur:9s;--drift:32px"></span><span style="--x:81%;--y:29%;--size:4px;--delay:-13s;--dur:10s;--drift:-32px"></span><span style="--x:18%;--y:90%;--size:5px;--delay:-1s;--dur:11s;--drift:-15px"></span><span style="--x:55%;--y:51%;--size:2px;--delay:-8s;--dur:12s;--drift:2px"></span><span style="--x:92%;--y:12%;--size:3px;--delay:-15s;--dur:13s;--drift:19px"></span><span style="--x:29%;--y:73%;--size:4px;--delay:-3s;--dur:14s;--drift:36px"></span><span style="--x:66%;--y:34%;--size:5px;--delay:-10s;--dur:15s;--drift:-28px"></span><span style="--x:3%;--y:95%;--size:2px;--delay:-17s;--dur:16s;--drift:-11px"></span><span style="--x:40%;--y:56%;--size:3px;--delay:-5s;--dur:17s;--drift:6px"></span><span style="--x:77%;--y:17%;--size:4px;--delay:-12s;--dur:9s;--drift:23px"></span><span style="--x:14%;--y:78%;--size:5px;--delay:0s;--dur:10s;--drift:40px"></span><span style="--x:51%;--y:39%;--size:2px;--delay:-7s;--dur:11s;--drift:-24px"></span><span style="--x:88%;--y:0%;--size:3px;--delay:-14s;--dur:12s;--drift:-7px"></span><span style="--x:25%;--y:61%;--size:4px;--delay:-2s;--dur:13s;--drift:10px"></span><span style="--x:62%;--y:22%;--size:5px;--delay:-9s;--dur:14s;--drift:27px"></span><span style="--x:99%;--y:83%;--size:2px;--delay:-16s;--dur:15s;--drift:-37px"></span><span style="--x:36%;--y:44%;--size:3px;--delay:-4s;--dur:16s;--drift:-20px"></span><span style="--x:73%;--y:5%;--size:4px;--delay:-11s;--dur:17s;--drift:-3px"></span><span style="--x:10%;--y:66%;--size:5px;--delay:-18s;--dur:9s;--drift:14px"></span><span style="--x:47%;--y:27%;--size:2px;--delay:-6s;--dur:10s;--drift:31px"></span><span style="--x:84%;--y:88%;--size:3px;--delay:-13s;--dur:11s;--drift:-33px"></span></div>
+<div class="card">
+  <div class="logo">GEO Hub</div>
+  <div class="sub">智能情报平台</div>
+  <div class="field"><label>用户名</label><input type="text" id="u" value="admin"></div>
+  <div class="field"><label>密码</label><input type="password" id="p" value="geo2026"></div>
+  <button type="button" class="go" id="btn" onclick="doLogin()">登 录</button>
+  <div class="err" id="err"></div>
+</div>
+
+<script>
+function doLogin() {
+  var u = document.getElementById('u').value.trim();
+  var pw = document.getElementById('p').value;
+  var errEl = document.getElementById('err');
+  var btn = document.getElementById('btn');
+
+  if (!u || !pw) {
+    errEl.textContent = '请填写用户名和密码';
+    errEl.className = 'err';
+    return;
+  }
+
+  // Disable button, show loading
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>登录中...';
+  errEl.textContent = '';
+  errEl.className = 'err';
+
+  fetch('/auth', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: u, password: pw })
+  })
+  .then(function(resp) {
+    if (resp.status === 401) {
+      errEl.textContent = '用户名或密码错误';
+      errEl.className = 'err';
+      btn.disabled = false;
+      btn.textContent = '登 录';
+      return null;
+    }
+    if (resp.status >= 500) {
+      errEl.textContent = '服务器错误，请稍后重试';
+      errEl.className = 'err';
+      btn.disabled = false;
+      btn.textContent = '登 录';
+      return null;
+    }
+    return resp.json();
+  })
+  .then(function(data) {
+    if (!data) return;
+    sessionStorage.setItem('geo_token', data.token);
+    sessionStorage.setItem('geo_user', data.username || u);
+    errEl.className = 'ok';
+    errEl.textContent = '登录成功，正在跳转...';
+    setTimeout(function() {
+      window.location.href = '/workbench.html';
+    }, 500);
+  })
+  .catch(function() {
+    // Network error — server not running or unreachable
+    errEl.textContent = '无法连接服务器，请确认服务已启动';
+    errEl.className = 'err';
+    btn.disabled = false;
+    btn.textContent = '登 录';
+  });
+}
+
+document.getElementById('p').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') doLogin();
+});
+document.getElementById('u').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') doLogin();
+});
+</script>
+</body>
+</html>
