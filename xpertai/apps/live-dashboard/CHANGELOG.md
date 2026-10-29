@@ -1,5 +1,11 @@
 # @xpert-ai/plugin-live-dashboard
 
+## 0.3.1
+
+### Patch Changes
+
+- dc1c17d: Contribute a Live Dashboard Assistant template with editable prompt workflow shortcuts, provide an explicit import helper for existing Assistants, and select allowed Providers from the current user's accessible data sources.
+
 ## 0.3.0
 
 ### Minor Changes
