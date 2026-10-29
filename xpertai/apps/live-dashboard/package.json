@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-live-dashboard",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Versioned live dashboards using platform analytics and Data Analytics renderer",
   "main": "./index.cjs",
   "types": "./dist/index.d.ts",
