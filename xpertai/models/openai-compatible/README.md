@@ -47,6 +47,24 @@ The provider form defined in `src/openai-compatible.yaml` captures the most comm
 
 After you save a model configuration, the plugin runs `validateCredentials` for the relevant model class. It issues a lightweight call (`Hi` for chat, `ping` for embeddings, empty rerank requests, etc.) so credential errors surface immediately in the admin console.
 
+## Generation Parameter Defaults
+
+For both Chat Completions and Responses, an unset Assistant `max_tokens` uses the
+provider's `max_tokens_to_sample`, capped by `context_size` (or the legacy
+`context_length`). This applies to parameter initialization and direct model
+construction. Without a valid output limit, the context capacity is used; without
+a valid context capacity, the existing 2048-token fallback applies.
+
+Explicit Assistant values remain unchanged, including a previously saved `512`.
+To adopt a larger provider default for an existing Assistant, clear its saved
+output limit or set the desired value explicitly.
+
+When `api_protocol` is `responses`, this provider omits `temperature`, `top_p`,
+`frequency_penalty`, and `presence_penalty` from requests, even if an older
+Assistant saved them. The SDK's common temperature default is also excluded from
+Responses parameter rules. Configured `reasoning_effort`, including `xhigh`, is
+preserved. Chat Completions sampling controls remain available.
+
 ## Model Capabilities
 
 - **Large Language Models**: `OAIAPICompatLargeLanguageModel` creates a `ChatOAICompatReasoningModel`, automatically forwarding streaming callbacks and token usage metrics to the host copilot.

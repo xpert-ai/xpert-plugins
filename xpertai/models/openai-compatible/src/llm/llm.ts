@@ -31,6 +31,20 @@ function toBoolean(value: unknown): boolean {
   return value === true || value === 'true' || value === 1 || value === '1'
 }
 
+function getTokenLimits(credentials: {
+  context_size?: string | number
+  context_length?: string | number
+  max_tokens_to_sample?: string | number
+}) {
+  const positive = (value: string | number | undefined, fallback: number) => {
+    const number = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN
+    return Number.isSafeInteger(number) && number > 0 ? number : fallback
+  }
+  const contextLength = positive(credentials.context_size ?? credentials.context_length, 2048)
+  const outputLimit = Math.min(positive(credentials.max_tokens_to_sample, contextLength), contextLength)
+  return { contextLength, outputLimit }
+}
+
 export class StableOpenAICompatibleChatModel extends ChatOAICompatReasoningModel {
   private activeStreamResponseId: string | null = null
 
@@ -175,11 +189,13 @@ export class OAIAPICompatLargeLanguageModel extends LargeLanguageModel {
         modelKwargs: { store: false, include: ['reasoning.encrypted_content'], ...(effort ? { reasoning: { effort } } : {}) }
       } : {}),
       streaming: modelOptions['streaming'] ?? this.canSteaming(params.model),
-      temperature: native ? modelOptions['temperature'] : (modelOptions['temperature'] ?? 0),
-      maxTokens: modelOptions['max_tokens'],
-      topP: modelOptions['top_p'] ?? params.topP,
-      frequencyPenalty: modelOptions['frequency_penalty'],
-      presencePenalty: modelOptions['presence_penalty'],
+      // This provider's Responses schema omits sampling controls, including legacy saved values.
+      temperature: native ? undefined : (modelOptions['temperature'] ?? 0),
+      // Explicit assistant limits win; otherwise match the provider-backed schema default.
+      maxTokens: modelOptions['max_tokens'] ?? getTokenLimits(runtimeCredentials).outputLimit,
+      topP: native ? undefined : (modelOptions['top_p'] ?? params.topP),
+      frequencyPenalty: native ? undefined : modelOptions['frequency_penalty'],
+      presencePenalty: native ? undefined : modelOptions['presence_penalty'],
       maxRetries: modelOptions['maxRetries'] ?? runtimeCredentials.maxRetries,
       streamUsage: false,
       verbose: options?.verbose,
@@ -191,16 +207,17 @@ export class OAIAPICompatLargeLanguageModel extends LargeLanguageModel {
     return !model.startsWith('o1')
   }
 
+  override getParameterRules(model: string, credentials: Record<string, string>) {
+    const rules = super.getParameterRules(model, credentials)
+    // LargeLanguageModel adds a common temperature default outside the model schema.
+    return credentials?.api_protocol === 'responses' ? rules.filter((rule) => rule.name !== 'temperature') : rules
+  }
+
   override getCustomizableModelSchemaFromCredentials(
     model: string,
     credentials: Record<string, any>
   ): AIModelEntity | null {
-    const positive = (value: unknown, fallback: number) => {
-      const number = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN
-      return Number.isSafeInteger(number) && number > 0 ? number : fallback
-    }
-    const contextLength = positive(credentials['context_size'] ?? credentials['context_length'], 2048)
-    const outputLimit = Math.min(positive(credentials['max_tokens_to_sample'], contextLength), contextLength)
+    const { contextLength, outputLimit } = getTokenLimits(credentials)
     if (credentials['api_protocol'] === 'responses') {
       const effort = reasoningEffortSchema.optional().parse(credentials['reasoning_effort'])
       return {
@@ -210,7 +227,7 @@ export class OAIAPICompatLargeLanguageModel extends LargeLanguageModel {
         model_properties: { [ModelPropertyKey.MODE]: 'chat', [ModelPropertyKey.CONTEXT_SIZE]: contextLength },
         parameter_rules: [
           { name: 'max_tokens', type: ParameterType.INT, min: 1, max: outputLimit,
-            default: Math.min(512, outputLimit), label: { en_US: 'Max output tokens', zh_Hans: '最大输出 Token' } },
+            default: outputLimit, label: { en_US: 'Max output tokens', zh_Hans: '最大输出 Token' } },
           { name: 'reasoning_effort', type: ParameterType.STRING, required: false,
             options: reasoningEffortSchema.options, ...(effort ? { default: effort } : {}),
             label: { en_US: 'Reasoning effort', zh_Hans: '推理强度' } }
@@ -242,7 +259,7 @@ export class OAIAPICompatLargeLanguageModel extends LargeLanguageModel {
         use_template: 'max_tokens',
         min: 1,
         max: outputLimit,
-        default: 512,
+        default: outputLimit,
         label: {
           zh_Hans: '最大生成长度',
           en_US: 'Max Tokens'

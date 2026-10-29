@@ -1,7 +1,7 @@
 import { compatibleResponsesTransport } from './native.js'
 import { OpenAICompatibleProviderStrategy } from './provider.strategy.js'
 import { OAIAPICompatLargeLanguageModel } from './llm/llm.js'
-import { ModelFeature } from '@xpert-ai/contracts'
+import { ModelFeature, resolveModelParameterOptions } from '@xpert-ai/contracts'
 import { ChatOpenAIResponses } from '@langchain/openai'
 
 const credentials = {
@@ -74,4 +74,39 @@ describe('native OpenAI-compatible Responses', () => {
     expect(model.maxTokens).toBe(8192)
     expect(model.invocationParams()).toMatchObject({ reasoning: { effort: 'high' }, max_output_tokens: 8192, store: false })
   })
+
+  it('excludes the SDK common temperature default from effective Responses rules', () => {
+    const llm = new OAIAPICompatLargeLanguageModel(new OpenAICompatibleProviderStrategy())
+    const rules = llm.getParameterRules('coding', credentials)
+    expect(rules.map((rule) => rule.name)).toEqual(['maxRetries', 'max_tokens', 'reasoning_effort'])
+    expect(resolveModelParameterOptions({}, rules)).not.toHaveProperty('temperature')
+    expect(llm.getParameterRules('coding', { ...credentials, api_protocol: 'chat' }))
+      .toEqual(expect.arrayContaining([expect.objectContaining({ name: 'temperature', default: 0.2 })]))
+  })
+
+  it.each([{}, { temperature: 0.7, top_p: 0.8, frequency_penalty: 0, presence_penalty: 0 }])(
+    'omits unsupported sampling options from the actual Responses HTTP request: %j',
+    async (savedOptions) => {
+      const llm = new OAIAPICompatLargeLanguageModel(new OpenAICompatibleProviderStrategy())
+      const options = resolveModelParameterOptions(savedOptions, llm.getParameterRules('coding', credentials))
+      const model = llm.getChatModel({ model: 'coding', options: { ...options, streaming: false, maxRetries: 0 } }, undefined, credentials)
+      const requests: string[] = []
+      model.clientConfig.fetch = async (_url, init) => {
+        if (typeof init?.body !== 'string') throw new Error('Expected a JSON request body')
+        requests.push(init.body)
+        return new Response(JSON.stringify({
+          id: 'resp_test', object: 'response', status: 'completed', model: 'custom-coding',
+          output: [{ id: 'msg_test', type: 'message', role: 'assistant', status: 'completed',
+            content: [{ type: 'output_text', text: 'OK', annotations: [] }] }],
+          usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 }
+        }), { headers: { 'content-type': 'application/json' } })
+      }
+      await model.bindTools([]).invoke('Hi')
+      expect(requests).toHaveLength(1)
+      expect(JSON.parse(requests[0])).toMatchObject({ model: 'custom-coding', max_output_tokens: 8192, store: false, reasoning: { effort: 'xhigh' } })
+      for (const key of ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty']) {
+        expect(JSON.parse(requests[0])).not.toHaveProperty(key)
+      }
+    }
+  )
 })
