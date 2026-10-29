@@ -30,7 +30,8 @@ test('HANA analytics preserves exact numeric strings and rejects lossy/unsupport
 })
 
 const options = { host: 'test.invalid', port: 30015, username: 'test', password: 'not-a-secret', database: 'TEST', catalog: 'SALES' }
-function wire({ rows = [['1.25']], types = ['DECIMAL'], names = ['amount'], fail, hang, cellSize = 1 } = {}) {
+const unsupportedTimeoutError = () => Object.assign(new Error('Query timeout is not supported by the HANA server.'), { code: -1, sqlState: 'HY000' })
+function wire({ rows = [['1.25']], types = ['DECIMAL'], names = ['amount'], fail, hang, cellSize = 1, timeoutError, timeoutDelayMs = 0 } = {}) {
   const calls = [], state = { closed: 0, dropped: 0, cursorClosed: 0, aborted: 0 }
   let row = -1
   const cursor = {
@@ -39,16 +40,26 @@ function wire({ rows = [['1.25']], types = ['DECIMAL'], names = ['amount'], fail
     getValue: (i) => rows[row][i], getValueLength: () => cellSize,
     close: (cb) => { state.cursorClosed++; cb(null) }
   }
+  let statementTimeout = 0
   const statement = {
-    setTimeout: (seconds) => calls.push(['timeout', seconds]),
-    execQuery: (params, config, cb) => { calls.push(['execute', params, config]); if (hang !== 'query') queueMicrotask(() => cb(fail === 'query' ? new Error('secret details') : null, cursor)) },
+    setTimeout: (seconds) => { statementTimeout = seconds; calls.push(['timeout', seconds]) },
+    execQuery: (params, config, cb) => {
+      calls.push(['execute', params, config])
+      if (timeoutError && statementTimeout > 0) {
+        if (timeoutDelayMs) setTimeout(() => cb(timeoutError), timeoutDelayMs)
+        else queueMicrotask(() => cb(timeoutError))
+      } else if (hang !== 'query') {
+        row = -1
+        queueMicrotask(() => cb(fail === 'query' ? new Error('secret details') : null, cursor))
+      }
+    },
     drop: (cb) => { state.dropped++; cb(null) }
   }
   const connection = {
     connect: (config, cb) => { calls.push(['connect', config]); if (hang !== 'connect') queueMicrotask(() => cb(fail === 'connect' ? new Error('secret password') : null)) },
     setAutoCommit: (enabled) => calls.push(['autocommit', enabled]),
     exec: (sql, cb) => { calls.push(['session', sql]); queueMicrotask(() => cb(fail === 'readonly' ? new Error('not supported') : null)) },
-    prepare: (sql, cb) => { calls.push(['prepare', sql]); queueMicrotask(() => cb(fail === 'prepare' ? new Error('SQL secret') : null, statement)) },
+    prepare: (sql, cb) => { statementTimeout = 0; calls.push(['prepare', sql]); queueMicrotask(() => cb(fail === 'prepare' ? new Error('SQL secret') : null, statement)) },
     abort: (cb) => { state.aborted++; cb(null) }, disconnect: (cb) => { state.closed++; cb(null) }
   }
   return { connection, calls, state }
@@ -69,6 +80,89 @@ test('native execution establishes read-only session before preparing and binds 
   assert.equal(mock.state.cursorClosed, 1)
   assert.equal(mock.state.dropped, 1)
   await transport.close(); await transport.close()
+  assert.equal(mock.state.closed, 1)
+})
+test('unsupported native timeout falls back within the same read-only session and preserves parameters', async () => {
+  const mock = wire({ timeoutError: unsupportedTimeoutError() }), transport = createHanaReadTransport(options, mock.connection)
+  const parameters = ["x' OR 1=1 --"]
+  try {
+    const result = await transport.execute('SELECT ? FROM DUMMY', parameters, { maxRows: 5, timeoutMs: 1000 })
+    assert.deepEqual(result.rows, [['1.25']])
+    assert.deepEqual(mock.calls.filter(([op]) => op === 'timeout').map((call) => call[1]), [1, 0])
+    const attempts = mock.calls.filter(([op]) => op === 'execute')
+    assert.equal(attempts.length, 2)
+    for (const [, values, config] of attempts) {
+      assert.deepEqual(values, parameters)
+      assert.ok(config.communicationTimeout > 0 && config.communicationTimeout <= 1000)
+    }
+    assert.equal(mock.calls.filter(([op]) => op === 'session').length, 1)
+    assert.equal(mock.state.cursorClosed, 1)
+    assert.equal(mock.state.dropped, 1)
+    await transport.execute('SELECT ? FROM DUMMY', parameters, { maxRows: 5, timeoutMs: 1000 })
+    assert.equal(mock.calls.filter(([op]) => op === 'execute').length, 3)
+    assert.equal(mock.calls.filter(([op]) => op === 'timeout').length, 2)
+  } finally { await transport.close() }
+})
+test('timeout fallback consumes the original deadline instead of starting a new query budget', async (t) => {
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'] })
+  const mock = wire({ timeoutError: unsupportedTimeoutError(), timeoutDelayMs: 40, hang: 'query' })
+  const transport = createHanaReadTransport(options, mock.connection)
+  const rejected = assert.rejects(transport.execute('SELECT 1 FROM DUMMY', [], { maxRows: 5, timeoutMs: 100 }), /HANA_QUERY_TIMEOUT/)
+  await new Promise(setImmediate)
+  t.mock.timers.tick(40)
+  await new Promise(setImmediate)
+  assert.deepEqual(mock.calls.filter(([op]) => op === 'execute').map((call) => call[2].communicationTimeout), [100, 60])
+  t.mock.timers.tick(60)
+  await rejected
+  await transport.close()
+  assert.equal(mock.state.aborted, 1)
+  assert.equal(mock.state.closed, 1)
+})
+test('cancelling the fallback aborts its I/O and closes the connection', async () => {
+  const mock = wire({ timeoutError: unsupportedTimeoutError(), hang: 'query' })
+  const transport = createHanaReadTransport(options, mock.connection), controller = new AbortController()
+  const rejected = assert.rejects(transport.execute('SELECT 1 FROM DUMMY', [], { maxRows: 5, timeoutMs: 1000, signal: controller.signal }), /HANA_QUERY_CANCELLED/)
+  await new Promise(setImmediate)
+  assert.equal(mock.calls.filter(([op]) => op === 'execute').length, 2)
+  controller.abort()
+  await rejected
+  await transport.close()
+  assert.equal(mock.state.aborted, 1)
+  assert.equal(mock.state.closed, 1)
+})
+test('a late unsupported-timeout response cannot retry after the invocation deadline', async (t) => {
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'] })
+  const mock = wire({ timeoutError: unsupportedTimeoutError(), timeoutDelayMs: 200 })
+  const transport = createHanaReadTransport(options, mock.connection)
+  const rejected = assert.rejects(transport.execute('SELECT 1 FROM DUMMY', [], { maxRows: 5, timeoutMs: 100 }), /HANA_QUERY_TIMEOUT/)
+  await new Promise(setImmediate)
+  t.mock.timers.tick(100)
+  await rejected
+  await transport.close()
+  t.mock.timers.tick(100)
+  await new Promise(setImmediate)
+  assert.equal(mock.calls.filter(([op]) => op === 'execute').length, 1)
+})
+test('generic native errors and actual timeouts never trigger the compatibility retry', async () => {
+  for (const error of [
+    Object.assign(new Error('secret query details'), { code: -1, sqlState: 'HY000' }),
+    Object.assign(new Error('query timed out'), { code: 131, sqlState: 'HY000' }),
+    Object.assign(unsupportedTimeoutError(), { code: 999 }),
+    Object.assign(unsupportedTimeoutError(), { sqlState: 'OTHER' })
+  ]) {
+    const mock = wire({ timeoutError: error }), transport = createHanaReadTransport(options, mock.connection)
+    await assert.rejects(transport.execute('SELECT 1 FROM DUMMY', [], { maxRows: 5, timeoutMs: 1000 }), /^Error: HANA_QUERY_FAILED$/)
+    await transport.close()
+    assert.equal(mock.calls.filter(([op]) => op === 'execute').length, 1)
+    assert.equal(mock.state.closed, 1)
+  }
+})
+test('a failed fallback stays sanitized and is not retried again', async () => {
+  const mock = wire({ timeoutError: unsupportedTimeoutError(), fail: 'query' })
+  const transport = createHanaReadTransport(options, mock.connection)
+  await assert.rejects(transport.execute('SELECT 1 FROM DUMMY', [], { maxRows: 5, timeoutMs: 1000 }), /^Error: HANA_QUERY_FAILED$/)
+  await transport.close()
+  assert.equal(mock.calls.filter(([op]) => op === 'execute').length, 2)
   assert.equal(mock.state.closed, 1)
 })
 test('row limit reports truncation after one extra row and keeps empty-result metadata', async () => {
