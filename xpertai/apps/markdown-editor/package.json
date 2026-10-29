@@ -89,6 +89,14 @@
     "typescript": "5.9.3",
     "zod": "3.25.67"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xpert-ai/xpert-plugins.git",
+    "directory": "xpertai/apps/markdown-editor"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "nx": {
     "name": "@xpert-ai/plugin-markdown-editor"
   }
