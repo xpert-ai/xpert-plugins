@@ -1,0 +1,5 @@
+contract:
+  ollama:
+    base-url: ${OLLAMA_BASE_URL:http://127.0.0.1:11434}
+    model: ${OLLAMA_MODEL:qwen2.5:7b}
+    timeout-seconds: ${OLLAMA_TIMEOUT_SECONDS:180}
