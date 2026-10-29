@@ -7,7 +7,8 @@
     "verify:system-app-metadata": "node ./scripts/verify-system-app-artifact-namespaces.mjs",
     "release:version": "node scripts/release-version.mjs && pnpm install --lockfile-only --no-frozen-lockfile --ignore-scripts",
     "release:publish": "node ./scripts/release-publish.mjs",
-    "verify:app-configs": "node ./scripts/verify-app-configs.mjs"
+    "verify:app-configs": "node ./scripts/verify-app-configs.mjs",
+    "verify:database-workbench": "node ../plugin-dev-harness/verify-database-workbench.mjs"
   },
   "private": true,
   "devDependencies": {
@@ -73,8 +74,8 @@
     "@nestjs/typeorm": "^11.0.0",
     "@types/turndown": "^5.0.6",
     "@xpert-ai/chatkit-types": "0.5.0",
-    "@xpert-ai/contracts": "3.28.0",
-    "@xpert-ai/plugin-sdk": "3.28.0",
+    "@xpert-ai/contracts": "3.29.0",
+    "@xpert-ai/plugin-sdk": "3.29.0",
     "@xpert-ai/store": "^3.9.1",
     "ajv": "^8.18.0",
     "axios": "^1.12.2",

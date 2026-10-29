@@ -1,0 +1,5 @@
+{
+  "qwen-audio-3.0-asr-flash": "sync",
+  "qwen-audio-3.0-asr-flash-filetrans": "async",
+  "fun-asr": "async"
+}

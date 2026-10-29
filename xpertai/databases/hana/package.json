@@ -1,6 +1,6 @@
 {
   "name": "@xpert-ai/plugin-hana",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/xpert-ai/xpert-plugins.git"
@@ -31,9 +31,13 @@
   },
   "peerDependencies": {
     "@nestjs/common": "^11.1.6",
-    "@xpert-ai/plugin-sdk": "^3.26.1",
+    "@xpert-ai/plugin-sdk": "^3.29.0",
     "chalk": "4.1.2",
     "lodash-es": "4.17.21",
-    "zod": "3.25.67"
+    "zod": "3.25.67",
+    "@xpert-ai/contracts": "^3.29.0"
+  },
+  "scripts": {
+    "test:analytics": "tsc -p tsconfig.lib.json && node --test tests/*.test.mjs"
   }
 }

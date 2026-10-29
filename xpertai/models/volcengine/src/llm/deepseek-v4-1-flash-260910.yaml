@@ -1,3 +1,4 @@
+# Verified 2026-10-27: https://docs.volcengine.com/docs/ark/deepseek-v4-1-flash?lang=zh
 model: deepseek-v4-1-flash-260910
 label:
   en_US: deepseek-v4-1-flash-260910
@@ -5,10 +6,12 @@ label:
 model_type: llm
 features:
   - agent-thought
-  - vision
   - tool-call
-  - stream-tool-call
   - multi-tool-call
+  - stream-tool-call
+  - vision
+  - video
+  - structured-output
 model_properties:
   mode: chat
   context_size: 1048576
@@ -19,32 +22,49 @@ parameter_rules:
       en_US: Reasoning Effort
     type: string
     required: false
-    default: medium
+    default: high
     options:
-      - minimal
+      - none
       - low
-      - medium
       - high
       - max
-    help:
-      zh_Hans: 控制思维链长度，平衡效果、时延与成本。minimal 关闭思考直接回答；low 轻量思考侧重快速响应；medium 均衡模式；high 深度分析处理复杂问题；max 最高程度思考适配高难度推理任务。
-      en_US: Controls chain-of-thought length to balance quality, latency, and cost. minimal answers directly without thinking; low favors fast response; medium is balanced; high enables deep analysis; max maximizes reasoning for hardest tasks.
   - name: max_tokens
     use_template: max_tokens
+    type: int
+    min: 1
     max: 393216
-    default: 65536
-# Official Ark prices verified 2026-09-16; peak rates apply at all times
-# until weekday-aware peak/off-peak pricing is supported.
+    default: 131072
 pricing:
-  input: "2"
-  output: "8"
+  input: "1"
+  output: "4"
   unit: "0.000001"
   currency: RMB
-  source_url: https://www.volcengine.com/docs/82379/1544106
+  source_url: https://docs.volcengine.com/docs/ark/model-pricing?lang=zh
   rules:
+    - component: input
+      unit_price: 1
+      unit_size: 1000000
+      mode: ark_off_peak
+    - component: output
+      unit_price: 4
+      unit_size: 1000000
+      mode: ark_off_peak
+    - component: cache_read_input
+      unit_price: 0.02
+      unit_size: 1000000
+      mode: ark_off_peak
+    - component: input
+      unit_price: 2
+      unit_size: 1000000
+      mode: ark_peak
+    - component: output
+      unit_price: 8
+      unit_size: 1000000
+      mode: ark_peak
     - component: cache_read_input
       unit_price: 0.04
       unit_size: 1000000
+      mode: ark_peak
     - component: cache_storage
       unit_price: 0.017
       unit_size: 1000000

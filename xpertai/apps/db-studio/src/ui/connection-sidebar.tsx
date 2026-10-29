@@ -1,3 +1,4 @@
+import { quoteDatabaseIdentifier, splitWorkbenchSql } from '../sql.js'
 import { Button, ControlInput, SelectField, Table, SelectOption } from './controls'
 import { translate } from './i18n'
 import * as React from 'react'
@@ -27,8 +28,6 @@ import {
   X,
 } from 'lucide-react'
 import {
-  splitWorkbenchSql,
-  quoteDatabaseIdentifier,
   type DatabaseCapabilities,
   type DatabaseObjectRef,
   type DatabaseObjectDetail,

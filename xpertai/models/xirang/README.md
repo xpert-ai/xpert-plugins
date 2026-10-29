@@ -8,7 +8,7 @@
 
 - 目录快照来自 `https://ctxirang.ctyun.cn/maas/inlineService`。
 - 名称包含“（即将下线）”的 5 个服务不会生成模型配置。
-- 110 个 LLM、3 个文本向量模型、4 个 Rerank 模型和 8 个图片模型会生成预置模型 YAML。
+- 110 个 LLM、3 个文本向量模型、4 个 Rerank 模型、8 个图片模型和 3 个语音识别模型会生成预置模型 YAML；另有独立语音服务的 `supernaturalrt` TTS 定义。
 - 110 个 LLM 均按精确模型版本显式声明能力；Qwen3.5–3.8、Kimi K3/K2.6、Doubao Seed 1.8/2.x 等多模态模型包含对应的图片、视频和思考能力。模型类型及能力来自 `src/catalog/model-metadata.json` 的显式清单，未核实的能力不会按名称猜测。
 - 8 个图片模型统一通过 `POST /v1/images/generations` 接入，仅声明天翼公开契约覆盖的文生图能力。`qwen-image-edit`、`qwen-image-edit-plus`、`qwen-image-edit-max` 和多模态 `qwen3-vl-embedding` 在专用协议实现并验证前保留在审计快照，不生成运行时 YAML。视频服务同样保留在 `src/catalog/normalized.snapshot.json`，待天翼云提供稳定的异步任务提交/查询契约后再启用。
 
@@ -16,8 +16,26 @@
 
 1. 在目标组织范围安装并启用插件 `@xpert-ai/plugin-xirang`。插件现在是组织级插件，不再要求租户级安装。
 2. 在系统集成或模型供应商凭据中填写天翼云星辰 AppKey；默认 API 地址保持 `https://ai.ctaigw.cn/v1`。
-3. 选择预置模型。目录快照中已捕获模型 ID 的条目会自动使用该 ID，同时保留稳定的界面模型名；其余条目默认使用目录模型名。四个预置 Rerank 模型还会自动选择接口和请求体。接入自定义模型、自定义网关，或账号 `/models` 返回不同调用 ID 时，填写“API 模型名称或 ID 覆盖”和接口路径。
+3. 选择预置模型，或通过接口导入当前账号的模型。预置模型使用目录快照中已捕获的模型 ID，其余条目使用目录模型名；接口导入模型始终使用账号 `/models` 返回的精确 ID。四个预置 Rerank 模型还会自动选择接口和请求体。接入自定义模型、自定义网关时，可填写“API 模型名称或 ID 覆盖”和接口路径。
 4. 保存后先执行凭据校验，再在 Assistant 的模型配置中选择该 Provider。
+
+### LLM 默认参数
+
+插件不要求填写温度、Top P、最大输出 Token、思考模式和回复格式。未设置的生成参数不发送到上游，由天翼服务端处理；流式输出和用量统计仍默认启用。此行为适用于预置模型、自定义模型和通过模型列表导入的模型。天翼通用 API 将采样参数标为可选，但没有公开各模型省略参数后的具体温度值，插件不推测该值。
+
+需要调整时，可通过助手的模型参数配置保存显式值；`temperature: 0` 和 `enable_thinking: false` 等值也会保留。升级不会清除已有助手保存的参数，包括平台切换模型时沿用的旧参数。宿主将可选数值参数保存为空后，插件参数规则不会自动补回默认值；参数面板的输入交互、保存和跨模型配置继承由主平台负责。
+
+导入模型的上下文、最大输出上限和并发限制继续用于本地能力描述及显式输出长度限制；`model_configuration.defaultMaxTokens` 不再自动填入 LLM 请求。需要固定输出长度时，在助手参数里设置 `max_tokens`。模型凭据校验同样不强制指定温度或输出长度。
+
+接口依据：[天翼 OpenAI 兼容 Chat API](https://www.ctyun.cn/document/11061839/11099156)。
+
+### 接口导入与内置配置
+
+保存接口导入后，平台管理列表和模型选择器使用已配置的账号目录，不再混入未导入的内置模型；此前显式手动添加或覆盖的模型保留。仅预览接口列表不会切换目录，未使用导入时仍可选择内置模型。此列表行为需要主平台对应的管理列表更新，单独升级插件不会改变旧平台的显示逻辑。
+
+导入 ID 与内置模型名精确匹配时，自动复用内置上下文、输出上限、能力和参数规则；内置目录记录的精确 endpoint ID 也可用于识别已有配置。匹配仅用于复用模型定义，不把接口返回的 ID 替换为目录快照中的旧 ID。已有保存配置及后续手动覆盖优先。
+
+没有匹配的模型（例如 `kimi-k3.1-pro`）无需补采样参数：默认请求只有模型名、消息和流式协议所需字段，不自动发送 `temperature`、`top_p`、`max_tokens` 或思考开关。未知模型不会凭名称继承其他型号的视觉等能力。
 
 Rerank 的预置映射如下：`BGE-Reranker-Large` 和 `BGE-Reranker-V2-m3` 使用 `/v1/rerank`，`qwen3-rerank` 使用 `/v1/reranks`，`gte-rerank-v2` 使用 `/v1/services/rerank/text-rerank/text-rerank`。默认认证均为 `Authorization: Bearer <AppKey>`。四个模型的模型 ID 来自对应的天翼云模型详情页；自定义网关仍可通过模型凭据覆盖路径、模型名、密钥和鉴权方式。
 
@@ -38,3 +56,21 @@ pnpm --dir xpertai/models/xirang test
 ## 架构
 
 `XirangProviderStrategy` 负责凭据和 `/models` 健康校验；LLM 复用 SDK 的 `ChatOAICompatReasoningModel` 并打开 `streamUsage`，以获得最终 token 用量；Embedding 使用 `OpenAIEmbeddings`；Rerank 和图片生成使用原生 `fetch`。图片管理器使用 SDK 的 `ImageGenerationModel` 契约。Rerank 默认复用提供商 AppKey，按天翼云官方契约调用 `/rerank`，发送 `Authorization: Bearer <AppKey>` 和模型 ID；兼容客户网关的 `/reranks`、独立 API Key、raw 鉴权和 `instruct` 可在模型凭据中显式配置。模型目录由 `scripts/generate-catalog.mjs` 从原始快照、LLM 规格和显式模型元数据重复生成，避免手工维护 100 多个 YAML。
+
+## 语音模型与手动配置
+
+插件声明 `speech2text`（ASR）和 `tts`，并注册各自的调用实现。当前平台会把支持接口发现的提供商的手动添加表单也限制为 LLM/Embedding/Rerank；修复跟踪于 [Xpert #1245](https://github.com/xpert-ai/xpert/issues/1245)。本插件不取消已有模型发现功能、不绕过平台契约。平台修复前，普通手动添加界面可能仍隐藏语音类型；自动导入语音模型尚不支持。
+
+| 类型 | 预置模型 | 接口与输入 |
+| --- | --- | --- |
+| ASR 同步 | `qwen-audio-3.0-asr-flash` | `/services/aigc/multimodal-generation/generation`；一个公网音频 URL 或音频 Data URI |
+| ASR 异步 | `qwen-audio-3.0-asr-flash-filetrans`、`fun-asr` | `/services/audio/asr/transcription`，随后 GET `/tasks/{task_id}`；一个公网音频 URL |
+| TTS | `supernaturalrt` | 独立 WebSocket `/aipaas/voice/v1/tts/supernaturalrt`；文本输入 |
+
+ASR 使用现有网关 AppKey。同步 ASR 的音频格式默认 `wav`，上传其他格式时应明确设置 `asr_format`；自定义模型必须明确选择 `asr_protocol` 为 `sync` 或 `async`，不根据名称猜测。已知模型按显式协议表选择。每次识别最多等待 120 秒，支持调用取消；超时会停止本地等待，不代表上游异步任务已取消。凭据保存只检查网关认证，不提交测试音频。
+
+TTS 使用独立的 `tts_app_id`、`tts_app_key`、`tts_region`（开通服务的省份代码），在提供商配置或手动模型配置中填写；不会将聊天 AppKey 当作语音签名密钥。凭据校验进行 WebSocket 鉴权握手，不提交合成文本。TTS 固定输出平台播放器支持的单声道 16-bit、24kHz PCM；可选音色、语速、音量仅在设置时发送。长文本按最多 500 个字符分段顺序合成，避免厂商静默截断；单次输入上限 10,000 UTF-16 单元，总超时 120 秒。语音请求不填充温度、Top P 或输出 Token 参数，也不伪造 token 用量或价格。
+
+接口依据：[同步 ASR](https://www.ctyun.cn/document/11061839/11099147)、[异步 ASR](https://www.ctyun.cn/document/11061839/11099407)、[TTS](https://www.ctyun.cn/document/11092117/11093798)、[语音签名鉴权](https://www.ctyun.cn/document/11092117/11095070)。异步下载结果解析采用 DashScope `transcripts[].text`/`sentences[].text` 格式（[格式文档](https://www.alibabacloud.com/help/en/model-studio/non-realtime-speech-recognition-user-guide)）；天翼文档未展示下载文件内容，仍需账号实测确认。TTS 是独立服务，不是账号 `/models` 列表中的聊天模型。
+
+其他仍未接入的目录类型为视频生成、多模态向量，以及部分图片编辑协议；目录中的“审计保留”不等于可调用能力。

@@ -1,25 +1,19 @@
-import {
-  SqlDatabaseWorkbenchAdapter,
-  requireReadStatement,
-  splitWorkbenchSql,
-  type DatabaseQueryInput,
-  type DatabaseImportInput,
-  type DatabaseLocation,
-  type WorkbenchTransport
-} from '@xpert-ai/plugin-sdk/data-workbench'
-import { createMysqlTransport, type MysqlWireDriver } from './mysql-workbench.js'
+import type { DatabaseQueryInput, DatabaseImportInput, DatabaseLocation } from '@xpert-ai/plugin-sdk/data-workbench'
+import { requireReadStatement, splitWorkbenchSql, type WorkbenchTransport } from '@xpert-ai/sql-workbench'
+import { DorisMetadataAdapter } from './doris-adapter.js'
+import { createMysqlTransport, mysqlWorkbenchOptions, type MysqlWireDriver } from './mysql-workbench.js'
 import type { DorisAdapterOptions } from './doris.strategy.js'
 
 /** Only substitutes unquoted tokens for validation; the original SQL reaches Doris.
  * Grouped WHERE/HAVING predicates are projected to equivalent TRUE AND predicates
- * because the SDK function guard does not recognize WHERE/HAVING followed by `(`.
- * The SDK continues to enforce single statements, unsafe functions and read-only SQL.
+ * to retain compatibility with the existing conservative SQL guard.
+ * The shared guard still enforces single statements, unsafe functions and read-only SQL.
  */
 export function requireDorisReadStatement(source: string): string {
   const sql = source.trim().replace(/;\s*$/, '').trim()
   const identifier = '(?:`(?:``|[^`])+`|[A-Za-z_][A-Za-z_0-9]*)'
   if (new RegExp(`^SHOW\\s+(?:TABLETS|DATA)\\s+FROM\\s+${identifier}(?:\\s*\\.\\s*${identifier})?$`, 'i').test(sql)) {
-    // Let the SDK lexer validate quoted identifiers and reject executable comments.
+    // Let the shared SQL guard lexer validate quoted identifiers and reject executable comments.
     requireReadStatement(sql.replace(/^(SHOW\s+)(TABLETS|DATA)/i, '$1COLUMNS'))
     return sql
   }
@@ -37,13 +31,13 @@ export function requireDorisReadStatement(source: string): string {
 }
 
 /** Doris INSERT VALUES is independent of UPDATE/DDL version support. Other operations
- * retain the SDK's existing checks. DB Studio's own page limits remain unchanged.
+ * retain the shared SQL guard's existing checks. DB Studio's own page limits remain unchanged.
  */
-export class DorisWorkbenchAdapter extends SqlDatabaseWorkbenchAdapter {
+export class DorisWorkbenchAdapter extends DorisMetadataAdapter {
   private inFlight = false
   private disposed = false
   constructor(private readonly wire: WorkbenchTransport, private readonly location: DatabaseLocation) {
-    super('doris', wire, location)
+    super(wire, location)
   }
   override async capabilities() {
     const base = await super.capabilities()
@@ -145,10 +139,12 @@ function bounded(value: number, min: number, max: number) {
 }
 export function createDorisConnection(
   options: DorisAdapterOptions,
-  testDriver?: MysqlWireDriver
+  testDriver?: MysqlWireDriver,
+  location: DatabaseLocation = {}
 ): DorisWorkbenchAdapter {
-  return new DorisWorkbenchAdapter(createMysqlTransport(options, 'doris', testDriver, true), {
-    database: options.catalog,
+  const selected = mysqlWorkbenchOptions(options, location)
+  return new DorisWorkbenchAdapter(createMysqlTransport(selected, 'doris', testDriver, true), {
+    database: selected.catalog,
     engineCatalog: 'internal'
   })
 }

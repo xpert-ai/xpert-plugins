@@ -31,13 +31,13 @@ describe('generated Xirang catalog', () => {
       video: 32,
       speech2text: 3
     })
-    expect(activeModels).toHaveLength(125)
-    expect(normalized.unsupported_models).toHaveLength(45)
+    expect(activeModels).toHaveLength(128)
+    expect(normalized.unsupported_models).toHaveLength(42)
     expect((normalized.unsupported_video_models as unknown[]).length).toBe(32)
   })
 
-  it('generates all four runtime model directories', () => {
-    const expected = { llm: 110, 'text-embedding': 3, rerank: 4, image: 8 }
+  it('generates all five gateway runtime model directories', () => {
+    const expected = { llm: 110, 'text-embedding': 3, rerank: 4, image: 8, speech2text: 3 }
     for (const [directory, count] of Object.entries(expected)) {
       expect(
         readdirSync(join(root, '..', directory)).filter((file) => file.endsWith('.yaml') && !file.startsWith('_'))
@@ -252,8 +252,12 @@ describe('generated Xirang catalog', () => {
       expect(specification).toBeDefined()
       expect((schema.model_properties as Record<string, unknown>).context_size).toBe(specification?.context_size)
       expect(maxTokens?.max).toBe(specification?.max_output_tokens)
-      expect(Number(maxTokens?.default)).toBeGreaterThan(0)
-      expect(Number(maxTokens?.default)).toBeLessThanOrEqual(Number(maxTokens?.max))
+      for (const rule of schema.parameter_rules as Array<Record<string, unknown>>) {
+        expect(rule.default).toBeUndefined()
+        expect(rule.use_template).toBeUndefined()
+        expect(rule.required).toBe(false)
+        expect(rule.type).toBeDefined()
+      }
     }
   })
 

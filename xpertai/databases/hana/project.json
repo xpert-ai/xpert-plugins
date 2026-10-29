@@ -1,0 +1,13 @@
+{
+  "name": "@xpert-ai/plugin-hana",
+  "targets": {
+    "test:analytics": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "cwd": "databases/hana",
+        "command": "node --test tests/*.test.mjs"
+      }
+    }
+  }
+}

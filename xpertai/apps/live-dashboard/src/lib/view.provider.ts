@@ -35,6 +35,7 @@ export class DashboardViewProvider implements IXpertViewExtensionProvider {
         filter: { toolNames: DASHBOARD_MUTATION_TOOLS }, action: { type: 'forward', debounceMs: 0 } }] },
       actions: [
         ...['share-status', 'share', 'revoke-share'].map(key => ({ key, label: text('Team sharing', '团队分享'), actionType: 'invoke' as const, placement: 'toolbar' as const, inputSchema: { type: 'object' as const, properties: {}, additionalProperties: true } })),
+        { key: 'delete', label: text('Delete dashboard', '删除看板'), actionType: 'invoke', placement: 'toolbar', inputSchema: { type: 'object', properties: {}, additionalProperties: true } },
         { key: 'publish', label: text('Publish draft', '发布草稿'), actionType: 'invoke', placement: 'toolbar', inputSchema: { type: 'object', properties: {}, additionalProperties: true } },
         { key: 'save', label: text('Save', '保存'), actionType: 'invoke', placement: 'toolbar', inputSchema: { type: 'object', properties: {}, additionalProperties: true } },
         { key: 'query', label: text('Refresh', '刷新'), actionType: 'invoke', placement: 'toolbar', inputSchema: { type: 'object', properties: {}, additionalProperties: true } },
@@ -55,6 +56,10 @@ export class DashboardViewProvider implements IXpertViewExtensionProvider {
     if (action === 'share-status' || action === 'revoke-share') {
       const input = z.object({ artifactId: z.string().uuid(), versionId: z.string().uuid().optional() }).strict().parse(request.input)
       return { success: true, data: action === 'share-status' ? await this.sharing.inspect(context, input.artifactId, input.versionId) : await this.sharing.revoke(context, input.artifactId), refresh: false }
+    }
+    if (action === 'delete') {
+      const input = z.object({ artifactId: z.string().uuid(), expectedRevision: z.number().int().positive(), confirmed: z.literal(true) }).strict().parse(request.input)
+      return { success: true, data: await this.service.trash(context, input.artifactId, input.expectedRevision), refresh: false }
     }
     if (action === 'publish') {
       const parsed = z.object({ artifactId: z.string().uuid(), expectedRevision: z.number().int().positive(),

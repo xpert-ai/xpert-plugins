@@ -1,4 +1,6 @@
 model: doubao-seed-2-0-mini-260215
+# EOS 2026-10-22: retain saved references; use doubao-seed-2-0-mini-260428 for new selections.
+deprecated: true
 label:
   en_US: doubao-seed-2-0-mini-260215
   zh_Hans: doubao-seed-2-0-mini-260215

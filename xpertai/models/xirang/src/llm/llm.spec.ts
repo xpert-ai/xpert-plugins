@@ -1,5 +1,6 @@
-import { AiProviderRole, AiModelTypeEnum, defaultModelConfiguration } from '@xpert-ai/contracts'
-import { getModelContextSize } from '@xpert-ai/plugin-sdk'
+import { AiProviderRole, AiModelTypeEnum, defaultModelConfiguration, resolveModelParameterOptions } from '@xpert-ai/contracts'
+import { AIMessageChunk } from '@langchain/core/messages'
+import { ChatOAICompatReasoningModel, CommonParameterRules, getModelContextSize } from '@xpert-ai/plugin-sdk'
 import { XirangProviderStrategy } from '../provider.strategy.js'
 import { XirangLargeLanguageModel } from './llm.js'
 
@@ -23,6 +24,66 @@ describe('Xirang LLM request configuration', () => {
 
   afterEach(() => {
     jest.restoreAllMocks()
+  })
+
+  it.each(['kimi-k3', 'kimi-k3.1-pro'])('leaves unset generation parameters to the server for %s', (model) => {
+    const credentials = { app_key: 'test-key' }
+    // Exercise the same default resolution used by the model picker and host runtime.
+    const rules = manager.getParameterRules(model, credentials)
+    const options = resolveModelParameterOptions(undefined, rules)
+    const chat = manager.getChatModel(createCopilotModel(model, options, credentials))
+    const request = JSON.parse(JSON.stringify(chat.invocationParams()))
+
+    expect(request).toEqual({ model, stream: true, stream_options: { include_usage: true } })
+    for (const name of ['temperature', 'top_p', 'max_tokens', 'enable_thinking']) {
+      expect(rules.find((rule) => rule.name === name)).toMatchObject({ required: false })
+      expect(rules.find((rule) => rule.name === name)?.default).toBeUndefined()
+    }
+  })
+
+  it('preserves explicitly saved values, including zero and false', () => {
+    const credentials = { app_key: 'test-key' }
+    const saved = {
+      temperature: 0, top_p: 0.8, max_tokens: 8192, enable_thinking: false,
+      response_format: 'json_object', frequency_penalty: 0, presence_penalty: 0, streaming: false
+    }
+    const options = resolveModelParameterOptions(saved, manager.getParameterRules('kimi-k3', credentials))
+    const params = manager.getChatModel(createCopilotModel('kimi-k3', options, credentials)).invocationParams()
+
+    expect(params).toMatchObject({
+      temperature: 0, top_p: 0.8, max_tokens: 8192, enable_thinking: false,
+      chat_template_kwargs: { enable_thinking: false }, response_format: { type: 'json_object' },
+      frequency_penalty: 0, presence_penalty: 0, stream: false
+    })
+    expect(manager.getChatModel(createCopilotModel('kimi-k3.1-pro', { temperature: 1 })).invocationParams().temperature)
+      .toBe(1)
+  })
+
+  it('lets cleared numeric fields remain unset after host parameter resolution', () => {
+    const credentials = { app_key: 'test-key' }
+    const options = resolveModelParameterOptions(
+      { temperature: null, top_p: '', max_tokens: null }, manager.getParameterRules('kimi-k3', credentials)
+    )
+    const params = manager.getChatModel(createCopilotModel('kimi-k3', options, credentials)).invocationParams()
+    expect(params.temperature).toBeUndefined()
+    expect(params.top_p).toBeUndefined()
+    expect(params.max_tokens).toBeUndefined()
+  })
+
+  it('keeps SDK defaults for other providers and the retry setting unchanged', () => {
+    const rules = manager.getParameterRules('kimi-k3', { app_key: 'key' })
+    expect(rules.find((rule) => rule.name === 'maxRetries')?.default).toBe(6)
+    expect(CommonParameterRules.find((rule) => rule.name === 'temperature')?.default).toBe(0.2)
+  })
+
+  it('validates custom model credentials without forcing generation parameters', async () => {
+    const invoke = jest.spyOn(ChatOAICompatReasoningModel.prototype, 'invoke')
+      .mockImplementation(async function (this: ChatOAICompatReasoningModel) {
+        expect(JSON.parse(JSON.stringify(this.invocationParams()))).toEqual({ model: 'kimi-k3.1-pro', stream: false })
+        return new AIMessageChunk('OK')
+      })
+    await manager.validateCredentials('kimi-k3.1-pro', { app_key: 'test-key' })
+    expect(invoke).toHaveBeenCalledWith([{ role: 'human', content: 'Reply only: OK' }])
   })
 
   it.each(['qwen3.8-max', 'qwen3.8-flash'])('exposes the catalog context window for %s to compression', (model) => {
@@ -110,8 +171,17 @@ describe('Xirang LLM request configuration', () => {
     const chat = manager.getChatModel(createCopilotModel('qwen3.8-flash'), { modelProperties })
     expect(getModelContextSize(chat)).toBe(32768)
     expect(chat.metadata.profile).toMatchObject({ maxOutputTokens: 4096, toolCalling: false })
-    expect(chat.invocationParams().max_tokens).toBe(1024)
+    expect(chat.invocationParams().max_tokens).toBeUndefined()
     expect(chat.caller.maxConcurrency).toBe(2)
+    // @ts-expect-error The SDK types credentials as strings, but the host passes structured model properties too.
+    const rules = manager.getParameterRules('qwen3.8-flash', { app_key: 'key', ...modelProperties })
+    const options = resolveModelParameterOptions(undefined, rules)
+    expect(rules.find((rule) => rule.name === 'max_tokens')).toMatchObject({ max: 4096, required: false })
+    expect(options?.max_tokens).toBeUndefined()
+    expect(manager.getChatModel(createCopilotModel('qwen3.8-flash', options), {
+      modelProperties, handleLLMTokens: undefined, verbose: false
+    })
+      .invocationParams().max_tokens).toBeUndefined()
     expect(manager.getChatModel(createCopilotModel('qwen3.8-flash', { max_tokens: 8192 }), { modelProperties })
       .invocationParams().max_tokens).toBe(4096)
   })
