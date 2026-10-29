@@ -1,5 +1,13 @@
 # @xpert-ai/plugin-openai-compatible
 
+## 0.0.10
+
+### Patch Changes
+
+- 4b5c814: Add a model-level option to disable prompt_cache_key forwarding for incompatible
+  native Responses upstreams, preserving normal forwarding by default and leaving
+  conversation history, reasoning and tool results unchanged.
+
 ## 0.0.9
 
 ### Patch Changes
