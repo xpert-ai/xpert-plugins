@@ -107,10 +107,8 @@ no longer owns an engine allowlist or HANA-specific schema/tenant mapping.
 The strategy declares `workbench.engine: 'hana'`; this plugin validates the requested
 location and creates its dedicated adapter.
 
-The platform removes the old SDK SQL implementation exports as a major API change.
-Keep the coordinated plugin PR in draft until that SDK is published, then update
-SDK peer/dev dependencies and the lockfile to the actual compatible release.
-The current dependency ranges are review-only, not a standalone release contract.
+SDK 3.29.0 removes the old SQL implementation exports. The plugin dependencies
+and frozen lockfile now use that published release, without local SDK overrides.
 MySQL/Doris, PostgreSQL and DB Studio must migrate together with that host upgrade.
 
 After both releases are installed and active:
@@ -162,29 +160,23 @@ offset. Do not silently convert them to UTC.
 
 ### Focused verification
 
-From `xpertai`, after the compatible SDK is released and dependencies are updated:
+From `xpertai`, using the published SDK pinned in the lockfile:
 
 ```sh
-corepack pnpm exec nx run @xpert-ai/plugin-hana:test:analytics --skipSync
+corepack pnpm install --frozen-lockfile
+corepack pnpm run verify:database-workbench
 ```
 
-Before release, build the companion platform SDK and type-check against its actual
-emitted declarations without replacing installed SDK files:
+Run the dist-first lifecycle harness separately after building it:
 
 ```sh
-# In the platform checkout:
-corepack pnpm exec nx build plugin-sdk --skip-nx-cache
-# In the plugin repository root:
-node plugin-dev-harness/verify-database-workbench.mjs "$XPERT_PLATFORM_ROOT/packages/plugin-sdk/dist"
-node --test xpertai/databases/hana/tests/*.test.mjs
 # In the plugin repository root, with plugin-dev-harness built:
-node plugin-dev-harness/dist/index.js --workspace ./xpertai/databases/hana --plugin @xpert-ai/plugin-hana
+node plugin-dev-harness/dist/index.js --workspace ./xpertai --plugin @xpert-ai/plugin-hana
 ```
 
-Use a supported recent Node version (verified locally with Node 24). The paired
-check uses the new SDK declarations and the installed SDK's unchanged runtime
-exports; it does not replace frozen-install validation against the eventual
-published SDK. The default tests use fake native-driver I/O and do not contact a
+Use a supported recent Node version (lifecycle verified with Node 24). The check
+builds and type-checks against the published SDK, with no declaration overrides.
+The default tests use fake native-driver I/O and do not contact a
 HANA server. The lifecycle harness verifies module registration and startup/shutdown,
 not a live database query or Dashboard UI.
 

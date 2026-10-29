@@ -39,14 +39,14 @@
   },
   "peerDependencies": {
     "zod": "3.25.67",
-    "@xpert-ai/plugin-sdk": "^3.21.0",
+    "@xpert-ai/plugin-sdk": "^3.29.0",
     "@nestjs/common": "^11.1.6",
     "axios": "1.12.2",
     "lodash-es": "4.17.21",
     "chalk": "4.1.2"
   },
   "devDependencies": {
-    "@xpert-ai/plugin-sdk": "3.21.0",
+    "@xpert-ai/plugin-sdk": "3.29.0",
     "@types/mysql": "^2.15.27"
   },
   "scripts": {

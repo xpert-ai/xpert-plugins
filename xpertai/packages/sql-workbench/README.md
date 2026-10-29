@@ -33,23 +33,24 @@ imports of SDK `SqlDatabaseWorkbenchAdapter`, `WorkbenchTransport`, SQL parsing 
 helpers with plugin-owned implementations or this package. The old mixed-engine
 adapter constructor is not retained; instantiate the corresponding plugin adapter.
 
-Before release, publish the companion SDK patch version, set the affected plugin
-SDK dependencies to the actual compatible version, and regenerate the frozen lock.
-The review branch intentionally remains draft until that release gate is complete.
+The compatible SDK release is 3.29.0. The affected plugins declare this minimum
+version and the frozen lockfile resolves the published npm artifact. Upgrade the
+host and database plugin group together; old plugins cannot load against the
+host after it removes the SDK implementation exports.
 
 ## Verification
 
-From the plugin repository root, after building the companion platform SDK and
-`@xpert-ai/plugin-shadcn-ui` dependency:
+From the `xpertai` workspace:
 
 ```sh
-node plugin-dev-harness/verify-database-workbench.mjs "$XPERT_PLATFORM_ROOT/packages/plugin-sdk/dist"
-node --test xpertai/databases/mysql/tests/*.test.mjs xpertai/databases/postgres/tests/*.test.mjs xpertai/databases/hana/tests/*.test.mjs
+corepack pnpm install --frozen-lockfile
+corepack pnpm run verify:database-workbench
 ```
 
-Use a current supported Node release (verified with Node 24). The paired script
-checks emitted SDK declarations without patching installed dependency files, runs
-the migrated SQL regression suite and DB Studio tests. Native database tests use
+Use a current supported Node release. The script builds and type-checks through
+Nx against normally resolved npm dependencies, then runs the migrated SQL
+regression suite, DB Studio tests and native database tests. It does not override
+SDK declarations or replace installed packages. Native database tests use
 fake I/O by default; the HANA live integration test is explicitly opt-in. Run the
 plugin lifecycle harness separately as described in its README. These checks do
 not establish live database or Dashboard browser acceptance.

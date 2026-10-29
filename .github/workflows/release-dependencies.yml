@@ -38,6 +38,15 @@ jobs:
       - name: Test release versioning
         if: matrix.workspace == 'xpertai'
         run: node --test xpertai/scripts/artifact-tool-release.test.mjs
+      - name: Verify database plugins against the published SDK
+        if: matrix.workspace == 'xpertai'
+        run: |
+          pnpm -C xpertai run verify:database-workbench
+          pnpm -C plugin-dev-harness --ignore-workspace install --frozen-lockfile --ignore-scripts
+          pnpm -C plugin-dev-harness --ignore-workspace run build
+          for plugin in db-studio mysql postgres hana; do
+            node plugin-dev-harness/dist/index.js --workspace ./xpertai --plugin "@xpert-ai/plugin-$plugin"
+          done
       - name: Build and verify Maps from a clean checkout
         if: matrix.workspace == 'xpertai'
         run: |

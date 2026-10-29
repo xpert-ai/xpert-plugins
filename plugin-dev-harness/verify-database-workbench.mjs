@@ -1,12 +1,6 @@
-// Build against an explicit SDK artifact; never replace installed SDK dependencies.
+// Validate normal package resolution against the published SDK; no declaration overrides.
 import { execFileSync } from "node:child_process";
-import {
-  mkdtempSync,
-  rmSync,
-  writeFileSync,
-  existsSync,
-  mkdirSync,
-} from "node:fs";
+import { mkdtempSync, rmSync, mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -14,70 +8,35 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const workspace = path.join(root, "xpertai");
 const require = createRequire(path.join(workspace, "package.json"));
-const sdk = path.resolve(process.argv[2] ?? "");
-if (!process.argv[2] || !existsSync(path.join(sdk, "data-workbench.d.ts")))
+const runNx = (...args) =>
+  execFileSync("corepack", ["pnpm", "exec", "nx", ...args], {
+    cwd: workspace,
+    stdio: "inherit",
+    env: { ...process.env, NX_DAEMON: "false", CI: "true" },
+  });
+const projects = [
+  "@xpert-ai/sql-workbench",
+  "@xpert-ai/plugin-mysql",
+  "@xpert-ai/plugin-postgres",
+  "@xpert-ai/plugin-hana",
+  "@xpert-ai/plugin-db-studio",
+];
+const sdkPackage = require("@xpert-ai/plugin-sdk/package.json");
+if (sdkPackage.version !== "3.29.0")
   throw new Error(
-    "Usage: node plugin-dev-harness/verify-database-workbench.mjs <platform-sdk-dist>"
+    "Database migration verification requires the published SDK 3.29.0"
   );
 const scratch = mkdtempSync(path.join(tmpdir(), "database-workbench-"));
-const buildPackage = (
-  relative,
-  configName = "tsconfig.lib.json",
-  noEmit = false
-) => {
-  const target = path.join(workspace, relative);
-  const config = path.join(scratch, "tsconfig.json");
-  writeFileSync(
-    config,
-    JSON.stringify(
-      {
-        extends: path.join(target, configName),
-        compilerOptions: {
-          tsBuildInfoFile: path.join(
-            scratch,
-            `${relative.replaceAll("/", "-")}-${configName}.tsbuildinfo`
-          ),
-          typeRoots: [
-            path.join(target, "node_modules/@types"),
-            path.dirname(
-              path.dirname(require.resolve("@types/node/package.json"))
-            ),
-          ],
-          paths: {
-            "@xpert-ai/plugin-sdk": [path.join(sdk, "index.d.ts")],
-            "@xpert-ai/plugin-sdk/data-workbench": [
-              path.join(sdk, "data-workbench.d.ts"),
-            ],
-          },
-        },
-      },
-      null,
-      2
-    )
-  );
-  execFileSync(
-    process.execPath,
-    [
-      require.resolve("typescript/bin/tsc"),
-      "-p",
-      config,
-      ...(noEmit ? ["--noEmit"] : []),
-    ],
-    { cwd: target, stdio: "inherit" }
-  );
-  console.log(`Verified ${relative}/${configName}`);
-};
 try {
-  for (const target of [
-    "packages/sql-workbench",
-    "databases/mysql",
-    "databases/postgres",
-    "databases/hana",
-    "apps/db-studio",
-  ])
-    buildPackage(target);
-  buildPackage("apps/db-studio", "tsconfig.spec.json", true);
-  buildPackage("apps/db-studio", "tsconfig.ui.json", true);
+  runNx("run-many", "-t", "build", "-p", projects.join(","), "--parallel=1");
+  runNx(
+    "run-many",
+    "-t",
+    "typecheck",
+    "-p",
+    projects.join(","),
+    "--parallel=1"
+  );
   const studioRequire = createRequire(
     path.join(workspace, "apps/db-studio/package.json")
   );
@@ -113,40 +72,15 @@ try {
     ],
     { cwd: workspace, stdio: "inherit" }
   );
-  const studio = path.join(workspace, "apps/db-studio");
-  const testOut = mkdtempSync(path.join(studio, ".workbench-tests-"));
-  try {
-    const { readdirSync } = await import("node:fs");
-    const tests = readdirSync(path.join(studio, "tests")).filter((file) =>
-      file.endsWith(".test.ts")
-    );
-    for (const test of tests)
-      await build({
-        entryPoints: [path.join(studio, "tests", test)],
-        outfile: path.join(testOut, test.replace(/\.ts$/, ".mjs")),
-        bundle: true,
-        platform: "node",
-        packages: "external",
-        format: "esm",
-        target: "node22",
-      });
-    execFileSync(
-      process.execPath,
-      [
-        "--test",
-        ...tests.map((test) =>
-          path.join(testOut, test.replace(/\.ts$/, ".mjs"))
-        ),
-      ],
-      { cwd: studio, stdio: "inherit" }
-    );
-    execFileSync(process.execPath, ["scripts/test-controller.mjs"], {
-      cwd: studio,
-      stdio: "inherit",
-    });
-  } finally {
-    rmSync(testOut, { recursive: true, force: true });
-  }
+  runNx("run", "@xpert-ai/plugin-db-studio:test");
+  runNx(
+    "run-many",
+    "-t",
+    "test:workbench,test:analytics",
+    "-p",
+    "@xpert-ai/plugin-mysql,@xpert-ai/plugin-postgres,@xpert-ai/plugin-hana",
+    "--parallel=1"
+  );
 } finally {
   rmSync(scratch, { recursive: true, force: true });
 }
