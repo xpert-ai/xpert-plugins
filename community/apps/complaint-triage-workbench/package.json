@@ -1,0 +1,83 @@
+{
+  "name": "@xpert-ai/plugin-complaint-triage-workbench",
+  "version": "0.2.1",
+  "private": true,
+  "description": "Complaint triage workbench Agentic App for human-reviewed AI recommendations.",
+  "author": {
+    "name": "XpertAI",
+    "url": "https://xpertai.cn"
+  },
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpert-ai/xpert-plugins.git",
+    "directory": "community/apps/complaint-triage-workbench"
+  },
+  "type": "module",
+  "packageManager": "pnpm@8.15.8",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "README.md", "docs", "!**/*.tsbuildinfo"],
+  "scripts": {
+    "build": "tsc -p tsconfig.lib.json && node scripts/copy-assets.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "preview": "node ../../../tools/remote-view-preview/cli.mjs --config ./src/lib/remote-components/complaint-workbench/preview.config.mjs"
+  },
+  "xpert": {
+    "plugin": {
+      "level": "system",
+      "artifactNamespace": "complaint_triage"
+    }
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "peerDependencies": {
+    "@langchain/core": "^0.3.72",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/cqrs": "^11.0.3",
+    "@nestjs/typeorm": "^11.0.0",
+    "@xpert-ai/contracts": "^3.18.4",
+    "@xpert-ai/plugin-sdk": "^3.18.4",
+    "typeorm": "^0.3.28",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@langchain/core": "0.3.72",
+    "@nestjs/common": "11.1.13",
+    "@nestjs/core": "11.1.13",
+    "@nestjs/cqrs": "11.0.3",
+    "@nestjs/typeorm": "11.0.0",
+    "@types/node": "^22.17.0",
+    "@xpert-ai/contracts": "3.18.4",
+    "@xpert-ai/plugin-sdk": "3.18.4",
+    "reflect-metadata": "^0.2.2",
+    "typeorm": "^0.3.28",
+    "typescript": "^5.9.2",
+    "zod": "3.25.67"
+  },
+  "pnpm": {
+    "packageExtensions": {
+      "@xpert-ai/contracts@3.18.4": {
+        "dependencies": {
+          "short-unique-id": "5.3.2"
+        }
+      },
+      "@xpert-ai/plugin-sdk@3.18.4": {
+        "dependencies": {
+          "axios": "1.12.2"
+        }
+      }
+    }
+  }
+}
