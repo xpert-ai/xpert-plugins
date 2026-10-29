@@ -1,5 +1,17 @@
 # @xpert-ai/plugin-live-dashboard
 
+## 0.3.0
+
+### Minor Changes
+
+- 39300e2: Add confirmed deletion to the dashboard picker. Recycle saved dashboards through the platform revision and permission checks, revoke shared links, and clear selected dashboard context and navigation after deletion.
+- e51ac7f: Add twelve built-in prompt workflows to the LiveDashboard middleware: standard and HTML authoring, save recovery, and read-only source, metric and interaction checks. Expose them through the existing slash-command picker with localized labels and editable user arguments.
+
+### Patch Changes
+
+- 86ecb26: Return HTTP 400 for dashboard deletion requests with missing confirmation or invalid input, without mutating the dashboard.
+- 22dc65b: Isolate HTML preflight interaction scenarios so synthetic select and button checks do not exhaust one document's query quota. Follow buttons revealed or enabled by prerequisite actions, reuse successfully loaded static resources within the validation, and cancel on a bounded deadline. Preserve the normal query/concurrency limits and initial-load, shared-filter and refresh validation in each scenario.
+
 ## 0.2.0
 
 ### Minor Changes
