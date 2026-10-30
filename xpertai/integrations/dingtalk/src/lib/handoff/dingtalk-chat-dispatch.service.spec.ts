@@ -94,7 +94,7 @@ describe('DingTalkChatDispatchService', () => {
 			)
 		}
 		const runStateService = {
-			save: jest.fn().mockResolvedValue(undefined)
+			initialize: jest.fn().mockResolvedValue(undefined)
 		}
 		const handoffPermissionService = {
 			enqueue: jest.fn().mockResolvedValue(undefined)
@@ -171,7 +171,7 @@ describe('DingTalkChatDispatchService', () => {
 
 		expect(message.id).toBe('dingtalk-chat-aggregate-stable-id')
 		expect(message.traceId).toBe('dingtalk-chat-aggregate-stable-id')
-		expect(runStateService.save).toHaveBeenCalledWith(
+		expect(runStateService.initialize).toHaveBeenCalledWith(
 			expect.objectContaining({
 				sourceMessageId: 'dingtalk-chat-aggregate-stable-id'
 			})
