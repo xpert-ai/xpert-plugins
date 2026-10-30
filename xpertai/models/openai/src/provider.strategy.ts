@@ -7,10 +7,12 @@ import {
   ModelProvider,
 } from '@xpert-ai/plugin-sdk'
 import { AiModelTypeEnum } from '@xpert-ai/contracts'
+import { OpenAIClient } from '@langchain/openai'
 import {
   OpenAIProvider,
   OpenAICredentials,
   toCredentialKwargs,
+  isOpenAIOfficialBaseUrl,
 } from './types.js'
 
 const OpenAIValidationModels = ['gpt-5.4', 'gpt-5', 'gpt-5.2'] as const
@@ -62,6 +64,18 @@ export class OpenAIProviderStrategy extends ModelProvider {
   }
 
   async validateProviderCredentials(credentials: OpenAICredentials): Promise<void> {
+    const params = toCredentialKwargs(credentials)
+    if (isOpenAIOfficialBaseUrl(params.configuration.baseURL)) {
+      // Authentication must not depend on access to an older generation's probe model.
+      try {
+        const client = new OpenAIClient({ apiKey: params.apiKey, ...params.configuration })
+        await client.models.list()
+        return
+      } catch (error) {
+        throw new CredentialsValidateFailedError(error instanceof Error ? error.message : 'OpenAI credentials verification failed')
+      }
+    }
+
     const modelInstance = this.getModelManager(AiModelTypeEnum.LLM)
     let lastError: unknown
 

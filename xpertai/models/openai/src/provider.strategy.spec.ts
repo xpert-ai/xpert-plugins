@@ -34,7 +34,8 @@ describe('OpenAIProviderStrategy', () => {
     validateCredentials.mockReset()
     strategy = new OpenAIProviderStrategy()
     credentials = {
-      api_key: 'test-api-key'
+      api_key: 'test-api-key',
+      endpoint_url: 'https://gateway.example.com/v1'
     }
   })
 
@@ -63,5 +64,36 @@ describe('OpenAIProviderStrategy', () => {
     await expect(strategy.validateProviderCredentials(credentials)).rejects.toBe(error)
     expect(validateCredentials).toHaveBeenCalledTimes(1)
     expect(validateCredentials).toHaveBeenCalledWith('gpt-5.4', credentials)
+  })
+
+  it('validates official credentials without requiring access to a legacy probe model', async () => {
+    const fetchMock = jest.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+      expect(String(url)).toBe('https://api.openai.com/v1/models')
+      expect(init?.method).toBe('GET')
+      return new Response(JSON.stringify({ object: 'list', data: [{ id: 'gpt-6.1-terra', object: 'model' }] }),
+        { headers: { 'Content-Type': 'application/json' } })
+    })
+    try {
+      await expect(strategy.validateProviderCredentials({ api_key: 'test-api-key' })).resolves.toBeUndefined()
+      expect(validateCredentials).not.toHaveBeenCalled()
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+    } finally {
+      fetchMock.mockRestore()
+    }
+  })
+
+  it('returns an official authentication error without falling back to paid generation', async () => {
+    const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(
+      JSON.stringify({ error: { message: 'Invalid API key', type: 'invalid_request_error' } }),
+      { status: 401, headers: { 'Content-Type': 'application/json' } }
+    ))
+    try {
+      await expect(strategy.validateProviderCredentials({ api_key: 'test-api-key' }))
+        .rejects.toThrow(CredentialsValidateFailedError)
+      expect(validateCredentials).not.toHaveBeenCalled()
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+    } finally {
+      fetchMock.mockRestore()
+    }
   })
 })
