@@ -1,0 +1,10 @@
+---
+title: "Support Triage"
+description: "Customer support intake, AI suggestions and human review"
+---
+
+Support agents record a customer message, run AI triage, edit the proposed category, priority and reply, then save a confirmed result. Original text, model suggestion and confirmed result are stored separately. The app sends no external reply.
+
+The runtime is a native Xpert plugin: NestJS module, TypeORM entity, feature-gated Workbench View, middleware tools and Assistant template. All UI data passes through the Xpert bridge. Scope comes from authenticated host context; neither tool input nor iframe input selects an organization or owner.
+
+See the package README for the business scope, wireframe, screenshots and AI collaboration notes.
