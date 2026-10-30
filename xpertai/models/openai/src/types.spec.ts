@@ -108,4 +108,12 @@ describe('OpenAI credential kwargs', () => {
     expect(getSupportedOpenAIReasoningEfforts('gpt-6-future')).toBeUndefined()
     expect(normalizeOpenAIReasoningEffort('gpt-6-future', 'high')).toBeUndefined()
   })
+
+  it.each(['gpt-5', 'gpt-5.2-pro', 'gpt-5.4-pro', 'gpt-5.3-codex'])(
+    'suppresses official sampling for reasoning-only legacy model %s even when enabled', (model) => {
+      expect(shouldEnableSamplingParameters('enabled', undefined, model)).toBe(false)
+      expect(shouldEnableSamplingParameters('enabled', undefined, model, 'high')).toBe(false)
+      expect(shouldEnableSamplingParameters('enabled', 'https://gateway.example.com/v1', model, 'high')).toBe(true)
+    }
+  )
 })

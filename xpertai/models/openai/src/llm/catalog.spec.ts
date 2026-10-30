@@ -7,12 +7,19 @@ describe('OpenAI current model catalog', () => {
   const llm = new OpenAILargeLanguageModel(new OpenAIProviderStrategy())
   const models = llm.predefinedModels()
   const currentModels = ['gpt-6-astra', 'gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-luna', 'gpt-6-sol']
+  const removedModels = ['gpt-5.4', 'gpt-5.4-pro', 'gpt-5', 'gpt-5.2-chat', 'gpt-5.2-codex']
 
-  it('loads all current models before the unchanged legacy models without duplicates', () => {
+  it('loads current models and the retained GPT-5 models without removed entries or duplicates', () => {
     const ids = models.map((model) => model.model)
-    expect(ids).toEqual([...currentModels, 'gpt-5.4', 'gpt-5.4-pro', 'gpt-5', 'gpt-5.3-codex',
-      'gpt-5.2', 'gpt-5.2-chat', 'gpt-5.2-pro', 'gpt-5.2-codex'])
+    expect(ids).toEqual([...currentModels, 'gpt-5.3-codex', 'gpt-5.2', 'gpt-5.2-pro'])
     expect(new Set(ids).size).toBe(ids.length)
+  })
+
+  it.each(removedModels)('does not advertise native transport for removed catalog model %s', async (model) => {
+    await expect(llm.modelProvider.getNativeModelClient('openai_responses', {
+      model, modelType: AiModelTypeEnum.LLM,
+      copilot: { role: AiProviderRole.Primary, modelProvider: { credentials: { api_key: 'test-key' } } }
+    })).rejects.toThrow('Native model protocol is unavailable')
   })
 
   it.each(currentModels)('keeps catalog capabilities and runtime reasoning aligned for %s', (name) => {

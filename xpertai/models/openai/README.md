@@ -1,6 +1,6 @@
 # OpenAI model provider
 
-Provides OpenAI text generation, image input, structured output and Xpert function calling through the Responses API. Existing GPT-5 entries remain available.
+Provides OpenAI text generation, image input, structured output and Xpert function calling through the Responses API.
 
 All five current models explicitly declare `openai_responses` for the existing native transport. Host policy and the SDK requirements in [NATIVE_PROTOCOL.md](./NATIVE_PROTOCOL.md) still apply.
 
@@ -22,13 +22,25 @@ Sources: [Astra](https://developers.openai.com/api/docs/models/gpt-6-astra), [6.
 
 The current additions cover the GPT-6 LLM family. Audio, realtime, embeddings and standalone image/video generation use different APIs and are outside this LLM provider. A model supporting an OpenAI-hosted tool does not automatically register that tool in Xpert.
 
+## Catalog cleanup
+
+The preset catalog contains the five GPT-6 models above plus `gpt-5.2`, `gpt-5.2-pro` and `gpt-5.3-codex`.
+
+- Remove `gpt-5.4`, `gpt-5.4-pro` and `gpt-5` from Xpert's presets as part of this catalog update. This selection does not imply that all three are shut down by OpenAI.
+- Remove `gpt-5.2-codex` and the old `gpt-5.2-chat` entry. OpenAI has shut down GPT-5.2 Codex and GPT-5.2 Chat (`gpt-5.2-chat-latest` in the official API).
+- Retain GPT-5.3 Codex while it remains available; OpenAI marks it deprecated with shutdown scheduled for 2027-04-01. See the [official deprecations](https://developers.openai.com/api/docs/deprecations).
+
+Removed entries are excluded from model selection and native transport discovery. Packaging removes their stale YAML assets from earlier builds. Saved Assistant configurations are not rewritten; select a retained model when migrating an Assistant that uses a removed entry. Legacy request handling remains for saved or custom configurations and does not restore removed catalog entries.
+
 ## Configuration
 
 1. Configure the OpenAI provider with an API key authorized for the intended models. Official credential validation reads `/v1/models`; restricted keys need model-list read permission. This validates authentication, not access to every model or billing availability.
-2. Leave the endpoint empty for `https://api.openai.com/v1`, or supply a Responses-compatible base URL. Custom endpoints keep the existing generation-based validation fallback.
+2. Leave the endpoint empty for `https://api.openai.com/v1`, or supply a Responses-compatible base URL. Custom endpoints use generation-based validation, trying only models in the current preset catalog in catalog order until one succeeds or an error unrelated to model availability occurs.
 3. Select the exact model ID in the Assistant and set reasoning effort and output budget. No existing Assistant is switched automatically.
 
 For the current official models, `temperature` and `top_p` are sent only at `reasoning_effort: none`. Astra and 6.1 Sol never expose `none`. Saved `minimal` values normalize to `low`; saved `none` on Astra/6.1 Sol normalizes to `low`. The endpoint sampling override cannot force unsupported sampling on the official API; explicitly enabled sampling on a custom gateway remains supported.
+
+The same sampling restrictions protect registered legacy reasoning models, including retained GPT-5.2 and saved GPT-5.4 configurations. These two models allow sampling with `none` (their API default); switching a call to higher reasoning removes sampling parameters from the serialized request. Registered GPT-5, Pro and Codex models without a `none` mode omit sampling even when explicitly enabled on the official endpoint. See [GPT-5.2 parameter compatibility](https://developers.openai.com/api/docs/guides/latest-model?model=gpt-5.2#gpt-52-parameter-compatibility).
 
 The existing LangChain 0.6.9 dependency does not recognize GPT-6 reasoning. The plugin's Responses adapter forwards reasoning for explicitly registered model IDs, including `max`, without guessing capabilities from a name prefix. The outer ChatOpenAI and its custom Responses instance receive the same output, streaming and sampling settings.
 

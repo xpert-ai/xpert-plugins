@@ -72,8 +72,8 @@ describe('OpenAILargeLanguageModel', () => {
     const params = model.invocationParams()
 
     expect(params.model).toBe('gpt-5.4')
-    expect(params.temperature).toBe(0.4)
-    expect(params.top_p).toBe(0.7)
+    expect(params.temperature).toBeUndefined()
+    expect(params.top_p).toBeUndefined()
     expect(params).toMatchObject({ max_output_tokens: 1024, stream: true })
     expect(params).toMatchObject({ reasoning: { effort: 'high', summary: 'auto' } })
   })
@@ -188,6 +188,42 @@ describe('OpenAILargeLanguageModel', () => {
     }, { api_key: 'test-key', endpoint_url: 'https://gateway.example.com/v1', sampling_parameters: 'enabled' }))
       .invocationParams()
     expect(params).toMatchObject({ temperature: 0.3, top_p: 0.8, max_output_tokens: 1234, stream: false })
+  })
+
+  describe.each(['gpt-5.2', 'gpt-5.4'])('%s sampling compatibility', (name) => {
+    it.each([
+      { effort: 'high', override: undefined, sampling: false },
+      { effort: 'none', override: 'high', sampling: false },
+      { effort: 'none', override: undefined, sampling: true },
+      { effort: undefined, override: undefined, sampling: true }
+    ] as const)('serializes compatible sampling for %j', async ({ effort, override, sampling }) => {
+      const requests: string[] = []
+      const fetchMock = jest.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+        if (typeof init?.body !== 'string') throw new Error('Expected a JSON request body')
+        requests.push(init.body)
+        return new Response(JSON.stringify({
+          id: 'resp_legacy', object: 'response', status: 'completed', model: name, output: []
+        }), { headers: { 'Content-Type': 'application/json' } })
+      })
+      try {
+        const model = llm.getChatModel(createCopilotModel(name, {
+          reasoning_effort: effort, streaming: false, temperature: 0.4, top_p: 0.7
+        }, { api_key: 'test-key', sampling_parameters: 'enabled' }))
+        await model.invoke('Hello', override ? { reasoning: { effort: override } } : undefined)
+        expect(requests).toHaveLength(1)
+        const body = JSON.parse(requests[0])
+        expect(body).toMatchObject({ model: name, stream: false })
+        if (effort || override) expect(body.reasoning.effort).toBe(override ?? effort)
+        if (sampling) {
+          expect(body).toMatchObject({ temperature: 0.4, top_p: 0.7 })
+        } else {
+          expect(body).not.toHaveProperty('temperature')
+          expect(body).not.toHaveProperty('top_p')
+        }
+      } finally {
+        fetchMock.mockRestore()
+      }
+    })
   })
 
   it('serializes tools, vision and structured output into an actual Responses request', async () => {

@@ -175,8 +175,12 @@ export function shouldEnableSamplingParameters(
 	reasoningEffort?: OpenAIReasoningEffort
 ): boolean {
 	// An endpoint override must not send parameters forbidden by the official model contract.
-	if (isOpenAIOfficialBaseUrl(baseURL) && getCurrentModelProfile(model) &&
-		normalizeOpenAIReasoningEffort(model, reasoningEffort) !== 'none') {
+	// GPT-5.2 and GPT-5.4 default to none when the request omits reasoning effort.
+	const defaultsToNone = model?.trim() === 'gpt-5.2' || model?.trim() === 'gpt-5.4'
+	const effectiveEffort = normalizeOpenAIReasoningEffort(model, reasoningEffort) ??
+		(defaultsToNone ? 'none' : undefined)
+	if (isOpenAIOfficialBaseUrl(baseURL) && getSupportedOpenAIReasoningEfforts(model) &&
+		effectiveEffort !== 'none') {
 		return false
 	}
 	if (mode === 'enabled') {
