@@ -55,6 +55,7 @@ export class DingTalkTriggerStrategy implements IWorkflowTriggerStrategy<TDingTa
 
 	readonly meta: TDingTalkTriggerMeta = {
 		name: DingTalkTrigger,
+		assistant: { category: 'channel', channel: DingTalkTrigger, accountFields: ['integrationId'] },
 		quickConnect: { method: 'qr', integrationProvider: 'dingtalk_long', configField: 'integrationId' },
 		label: {
 			en_US: 'DingTalk Trigger',
